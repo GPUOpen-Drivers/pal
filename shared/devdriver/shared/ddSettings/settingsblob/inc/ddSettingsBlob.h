@@ -25,9 +25,7 @@
 
 #pragma once
 
-#include <assert.h>
 #include <stddef.h>
-#include <string.h>
 #include <stdint.h>
 
 namespace DevDriver

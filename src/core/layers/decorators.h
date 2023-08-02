@@ -862,6 +862,17 @@ public:
         const BvhInfo*  pBvhInfo,
         void*           pOut);
 
+    static void PAL_STDCALL DecoratorDecodeBufferViewSrd(
+        const IDevice*  pDevice,
+        const void*     pBufferViewSrd,
+        BufferViewInfo* pViewInfo);
+
+    static void PAL_STDCALL DecoratorDecodeImageViewSrd(
+        const IDevice*   pDevice,
+        const IImage*    pImage,
+        const void*      pImageViewSrd,
+        DecodedImageSrd* pDecodedInfo);
+
     virtual Result ValidateImageViewInfo(
         const ImageViewInfo& viewInfo) const override;
 
@@ -1422,6 +1433,11 @@ public:
     virtual uint32 GetEmbeddedDataLimit() const override
         { return m_pNextLayer->GetEmbeddedDataLimit(); }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+    virtual uint32 GetLargeEmbeddedDataLimit() const override
+        { return m_pNextLayer->GetLargeEmbeddedDataLimit(); }
+#endif
+
     virtual void CmdBindPipeline(
         const PipelineBindParams& params) override
         { m_pNextLayer->CmdBindPipeline(NextPipelineBindParams(params)); }
@@ -1678,6 +1694,20 @@ public:
                                          *NextGpuMemory(&dstGpuMemory),
                                          regionCount,
                                          pRegions);
+    }
+
+    virtual void CmdScaledCopyTypedBufferToImage(
+        const IGpuMemory&                       srcGpuMemory,
+        const IImage&                           dstImage,
+        ImageLayout                             dstImageLayout,
+        uint32                                  regionCount,
+        const TypedBufferImageScaledCopyRegion* pRegions) override
+    {
+        m_pNextLayer->CmdScaledCopyTypedBufferToImage(*NextGpuMemory(&srcGpuMemory),
+                                                      *NextImage(&dstImage),
+                                                      dstImageLayout,
+                                                      regionCount,
+                                                      pRegions);
     }
 
     virtual void CmdCopyRegisterToMemory(
@@ -2104,6 +2134,16 @@ public:
         uint32   alignmentInDwords,
         gpusize* pGpuAddress) override
         { return m_pNextLayer->CmdAllocateEmbeddedData(sizeInDwords, alignmentInDwords, pGpuAddress); }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+    virtual uint32* CmdAllocateLargeEmbeddedData(
+        uint32   sizeInDwords,
+        uint32   alignmentInDwords,
+        gpusize* pGpuAddress) override
+    {
+        return m_pNextLayer->CmdAllocateLargeEmbeddedData(sizeInDwords, alignmentInDwords, pGpuAddress);
+    }
+#endif
 
     virtual Result AllocateAndBindGpuMemToEvent(
         IGpuEvent* pGpuEvent) override

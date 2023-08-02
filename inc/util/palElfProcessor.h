@@ -164,7 +164,7 @@ private:
 
     Allocator* const            m_pAllocator;
 
-    PAL_DISALLOW_COPY_AND_ASSIGN(Sections<Allocator>);
+    PAL_DISALLOW_COPY_AND_ASSIGN(Sections);
 };
 
 /**
@@ -324,7 +324,7 @@ private:
 
     Allocator* const    m_pAllocator;
 
-    PAL_DISALLOW_COPY_AND_ASSIGN(Section<Allocator>);
+    PAL_DISALLOW_COPY_AND_ASSIGN(Section);
 };
 
 /**
@@ -386,7 +386,7 @@ private:
 
     Allocator* const m_pAllocator;
 
-    PAL_DISALLOW_COPY_AND_ASSIGN(Segments<Allocator>);
+    PAL_DISALLOW_COPY_AND_ASSIGN(Segments);
 };
 
 /**
@@ -464,7 +464,7 @@ private:
 
     Allocator* const m_pAllocator;
 
-    PAL_DISALLOW_COPY_AND_ASSIGN(Segment<Allocator>);
+    PAL_DISALLOW_COPY_AND_ASSIGN(Segment);
 };
 
 /**
@@ -527,7 +527,7 @@ private:
 
     Allocator* const             m_pAllocator;
 
-    PAL_DISALLOW_COPY_AND_ASSIGN(NoteProcessor<Allocator>);
+    PAL_DISALLOW_COPY_AND_ASSIGN(NoteProcessor);
 };
 
 /// The size of a SymbolTableEntry in bytes.
@@ -602,7 +602,7 @@ private:
 
     Allocator* const            m_pAllocator;
 
-    PAL_DISALLOW_COPY_AND_ASSIGN(SymbolProcessor<Allocator>);
+    PAL_DISALLOW_COPY_AND_ASSIGN(SymbolProcessor);
 };
 
 /**
@@ -681,7 +681,7 @@ private:
 
     Section<Allocator>*const  m_pRelocationSection;
 
-    PAL_DISALLOW_COPY_AND_ASSIGN(RelocationProcessor<Allocator>);
+    PAL_DISALLOW_COPY_AND_ASSIGN(RelocationProcessor);
 };
 
 /**
@@ -724,7 +724,7 @@ private:
     Section<Allocator>*const  m_pStrTabSection;
     Allocator* const          m_pAllocator;
 
-    PAL_DISALLOW_COPY_AND_ASSIGN(StringProcessor<Allocator>);
+    PAL_DISALLOW_COPY_AND_ASSIGN(StringProcessor);
 };
 
 /**

@@ -160,6 +160,9 @@ public:
 
     virtual uint32 GetTileSwizzle(const SubresId& subResId) const = 0;
 
+    // Returns true if this subresource is effectively swizzled as a 2D image.
+    virtual bool   IsSwizzleThin(const SubresId& subResId) const;
+
     uint32 GetStencilPlane() const;
 
     void PadYuvPlanarViewActualExtent(SubresId subresource, Extent3d* pActualExtent) const;

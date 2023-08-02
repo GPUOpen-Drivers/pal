@@ -4,61 +4,60 @@ title: Settings User Overrides Schema
 description: ''
 type: object
 properties:
-  Version:
+  version:
     type: integer
     minimum: 1
-  Components:
+  components:
     type: array
     items:
-      $ref: '#/$defs/Component'
+      $ref: '#/$defs/component'
 required:
-  - Version
-  - Components
+  - version
+  - components
 $defs:
-  Component:
+  component:
     type: object
     properties:
-      Name:
+      name:
         type: string
         description: The name of the component.
-      UserOverrides:
+      userOverrides:
         type: array
         items:
-          $ref: '#/$defs/UserOverrides'
+          $ref: '#/$defs/userOverrides'
     required:
-      - Name
-      - UserOverrides
-  UserOverrides:
+      - name
+      - userOverrides
+  userOverrides:
     type: object
     properties:
-      Name:
+      name:
         type: string
         description: Name of the setting.
-      NameHash:
-        type: number
-        description: The hash value of Name.
-      Type:
+      type:
         enum:
-          - Bool
-          - Int8
-          - Uint8
-          - Int16
-          - Uint16
-          - Int32
-          - Uint32
-          - Int64
-          - Uint64
-          - Float
-          - String
+          - bool
+          - int8
+          - uint8
+          - int16
+          - uint16
+          - int32
+          - uint32
+          - int64
+          - uint64
+          - float
+          - str
         description: The type of the user value.
-      Value:
+      value:
         type:
           - number
           - string
           - boolean
         description: The actual user value of the setting.
+      group:
+        type: string
+        description: The name of the group this setting belongs to. This field is optional.
     required:
-      - Name
-      - NameHash
-      - Type
-      - Value
+      - name
+      - type
+      - value

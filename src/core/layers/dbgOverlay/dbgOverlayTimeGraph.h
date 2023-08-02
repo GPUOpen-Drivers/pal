@@ -46,7 +46,10 @@ public:
 
     Result Init();
 
-    void DrawVisualConfirm(const Image& dstImage, ICmdBuffer* pCmdBuffer) const;
+    void DrawVisualConfirm(
+        const Image&           dstImage,    // Image to write visual confirm into.
+        ICmdBuffer*            pCmdBuffer,  // Command buffer to write commands into.
+        const UniquePresentKey presentKey) const;
 
 private:
     Device*const                 m_pDevice;

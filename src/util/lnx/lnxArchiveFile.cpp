@@ -22,7 +22,6 @@
  *  SOFTWARE.
  *
  **********************************************************************************************************************/
-#include "core/platform.h"
 #include "util/lnx/lnxArchiveFile.h"
 
 #include "palAssert.h"
@@ -30,6 +29,7 @@
 #include "palIntrusiveListImpl.h"
 #include "palMetroHash.h"
 #include "palPlatformKey.h"
+#include "palSysMemory.h"
 #include "palSysUtil.h"
 #include "palVectorImpl.h"
 
@@ -1288,7 +1288,7 @@ Result OpenArchiveFile(
 
         if (pOpenInfo->pMemoryCallbacks == nullptr)
         {
-            Pal::GetDefaultAllocCb(&callbacks);
+            GetDefaultAllocCb(&callbacks);
         }
 
         ArchiveFile* pArchiveFile = PAL_PLACEMENT_NEW(pPlacementAddr) ArchiveFile(

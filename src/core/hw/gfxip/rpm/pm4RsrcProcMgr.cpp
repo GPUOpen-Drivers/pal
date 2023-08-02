@@ -189,7 +189,7 @@ void RsrcProcMgr::CmdCopyImage(
                 // Insert a generic barrier to prevent write-after-write hazard between CS copy and per-pixel copy
                 BarrierInfo barrier = {};
                 barrier.waitPoint = HwPipePreCs;
-                barrier.reason = Developer::BarrierReasonUnknown;
+                barrier.reason = Developer::BarrierReasonPerPixelCopy;
 
                 constexpr HwPipePoint PostCs = HwPipePostCs;
                 barrier.pipePointWaitCount = 1;
@@ -1756,6 +1756,85 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
     HwlEndGraphicsCopy(static_cast<Pm4::CmdStream*>(pStream), restoreMask);
 }
 
+#if PAL_ENABLE_PRINTS_ASSERTS
+// =====================================================================================================================
+// Return the bytes per block (element) of the format. For formats like YUY2, this function goes by the description of
+// e.g: VK_FORMAT_G8B8G8R8_422_UNORM. This currently differs from how Pal thinks about such formats elsewhere.
+//
+// Examples:
+//
+// X32_Uint,          YUY2       ->  4 (1x1, 2x1 TexelsPerlock)
+// X32Y32_Uint,       BC1_Unorm  ->  8 (1x1, 4x4 TexelsPerlock)
+// X32Y32Z32W32_Uint, BC7_Unorm  -> 16 (1x1, 4x4 TexelsPerlock)
+//
+// NOTE: this function is incomplete. However, it is only used in an ASSERT, and what is implemented suffices for it.
+static uint32 BytesPerBlock(
+    ChNumFormat format)
+{
+    // Each plane may have a different BytesPerBlock, so passing a planar format in here doesn't make total sense.
+    // Planes should mostly be handled one at a time.
+    PAL_ASSERT(Formats::IsYuvPlanar(format) == false);
+
+    uint32 value = Formats::BytesPerPixel(format);
+    switch (format)
+    {
+    case ChNumFormat::UYVY:
+    case ChNumFormat::VYUY:
+    case ChNumFormat::YUY2:
+    case ChNumFormat::YVY2:
+        value = 4;
+        break;
+    default:
+        PAL_ASSERT((Formats::IsMacroPixelPacked(format) == false) &&
+                   (Formats::IsYuvPacked(format) == false));
+        break;
+    }
+    return value;
+}
+
+// =====================================================================================================================
+static void CheckImagePlaneSupportsRtvOrUavFormat(
+    const GfxDevice&      device,
+    const Image&          dstImage,
+    const SwizzledFormat& imagePlaneFormat,
+    const SwizzledFormat& viewFormat)
+{
+    const ChNumFormat actualViewFormat =
+        (viewFormat.format == Pal::ChNumFormat::Undefined) ? imagePlaneFormat.format : viewFormat.format;
+
+    // There is no well-defined way to interpret a clear color for a block-compressed view format.
+    // If the image format is block-compressed, the view format must be a regular color format of matching
+    // bytes per block, like R32G32_UINT on BC1.
+    PAL_ASSERT(Formats::IsBlockCompressed(actualViewFormat) == false);
+    PAL_ASSERT(Formats::IsYuvPlanar(actualViewFormat) == false);
+
+    if (actualViewFormat != imagePlaneFormat.format)
+    {
+        PAL_ASSERT(BytesPerBlock(viewFormat.format) == BytesPerBlock(imagePlaneFormat.format));
+
+        const bool hasMetadata = (dstImage.GetMemoryLayout().metadataSize != 0);
+
+        const DccFormatEncoding
+            computedPlaneViewEncoding = device.ComputeDccFormatEncoding(imagePlaneFormat, &viewFormat, 1),
+            imageEncoding             = dstImage.GetImageInfo().dccFormatEncoding;
+
+        const bool relaxedCheck = Formats::IsMacroPixelPacked(imagePlaneFormat.format) ||
+                                  Formats::IsYuvPacked(imagePlaneFormat.format)        ||
+                                  Formats::IsBlockCompressed(imagePlaneFormat.format);
+
+        // Check a view format that is potentially different than the image plane's format is
+        // compatible with the image's selected DCC encoding. This should guard against compression-related corruption,
+        // and should always be true if the clearFormat is one of the pViewFormat's specified at image-creation time.
+        //
+        // For views on image formats like YUY2 or BC1, just check the image has no metadata;
+        // equal BytesPerBlock (tested above) should be enough.
+        PAL_ASSERT(relaxedCheck ?
+                   (hasMetadata == false) :
+                   (computedPlaneViewEncoding >= dstImage.GetImageInfo().dccFormatEncoding));
+    }
+}
+#endif
+
 // =====================================================================================================================
 // Builds commands to clear the specified ranges of an image to the given color data.
 void RsrcProcMgr::CmdClearColorImage(
@@ -1773,18 +1852,14 @@ void RsrcProcMgr::CmdClearColorImage(
 {
     Pm4CmdBuffer*               pPm4CmdBuffer = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
     Pm4Image*                   pPm4Image     = static_cast<Pm4Image*>(dstImage.GetGfxImage());
-    const auto&                 createInfo    = dstImage.GetImageCreateInfo();
-    const SubResourceInfo*const pStartSubRes  = dstImage.SubresourceInfo(pRanges[0].startSubres);
-    const bool                  hasBoxes      = (boxCount > 0);
+    const ImageCreateInfo&      createInfo    = dstImage.GetImageCreateInfo();
 
-    // If a clearFormat has been specified, assert that it is compatible with the image's selected DCC encoding. This
-    // should guard against compression-related corruption, and should always be true if the clearFormat is one of the
-    // pViewFormat's specified at image-creation time.
-    PAL_ASSERT((clearFormat.format == ChNumFormat::Undefined) ||
-               (m_pDevice->ComputeDccFormatEncoding(createInfo.swizzledFormat, &clearFormat, 1) >=
-                dstImage.GetImageInfo().dccFormatEncoding));
-
-    const bool clearBoxCoversWholeImage = ((hasBoxes == false)                                    ||
+    const bool sameChNumFormat = (clearFormat.format == ChNumFormat::Undefined) ||
+                                 (clearFormat.format == createInfo.swizzledFormat.format);
+    // The (boxCount == 1) calculation is not accurate for cases of a view on a nonzero mip, nonzero plane, or
+    // VK_IMAGE_CREATE_BLOCK_TEXEL_VIEW_COMPATIBLE_BIT-like cases (including e.g: X32_Uint on YUY2).
+    // However, this is fine as we only use this to decide to fast-clear.
+    const bool clearBoxCoversWholeImage = ((boxCount == 0)                                        ||
                                            ((boxCount                 == 1)                       &&
                                             (pBoxes[0].offset.x       == 0)                       &&
                                             (pBoxes[0].offset.y       == 0)                       &&
@@ -1802,16 +1877,22 @@ void RsrcProcMgr::CmdClearColorImage(
     {
         PAL_ASSERT(pRanges[rangeIdx].numPlanes == 1);
 
-        SubresRange minSlowClearRange = {};
-        const auto* pSlowClearRange   = &minSlowClearRange;
-        const auto& clearRange        = pRanges[rangeIdx];
-        ClearMethod slowClearMethod   = Image::DefaultSlowClearMethod;
+        SubresRange minSlowClearRange      = { };
+        const SubresRange* pSlowClearRange = &minSlowClearRange;
+        const SubresRange& clearRange      = pRanges[rangeIdx];
+        ClearMethod slowClearMethod        = m_pDevice->GetDefaultSlowClearMethod(&dstImage);
 
-        uint32 convertedColor[4] = { 0 };
+        const SwizzledFormat& subresourceFormat = dstImage.SubresourceInfo(pRanges[rangeIdx].startSubres)->format;
+        const SwizzledFormat& viewFormat        = sameChNumFormat ? subresourceFormat : clearFormat;
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+        CheckImagePlaneSupportsRtvOrUavFormat(*m_pDevice, dstImage, subresourceFormat, viewFormat);
+#endif
+
+        uint32 convertedColor[4] = { };
         if (color.type == ClearColorType::Float)
         {
-            const SwizzledFormat& baseFormat = dstImage.SubresourceInfo(clearRange.startSubres)->format;
-            Formats::ConvertColor(baseFormat, &color.f32Color[0], &convertedColor[0]);
+            Formats::ConvertColor(viewFormat, &color.f32Color[0], &convertedColor[0]);
         }
         else
         {

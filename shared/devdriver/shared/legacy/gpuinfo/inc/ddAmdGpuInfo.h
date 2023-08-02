@@ -100,6 +100,9 @@ inline const char* ToString(LocalMemoryType type)
     return nullptr;
 };
 
+static constexpr uint32 kMaxShaderEngines = 16;         // The maximum number of shader engines on an asic
+static constexpr uint32 kMaxShaderArraysPerEngine = 16; // The maximum shader arrays per shader engine on an asic
+
 /// An amalgamation of information about a single GPU
 /// This GPU will have identified as AMD when initially queried
 /// There is an InfoService node in ListenerCore that mirrors this struct into Json
@@ -121,7 +124,11 @@ struct AmdGpuInfo
     {
         uint32 gpuIndex;       // Index of gpu as enumerated
         uint64 gpuCounterFreq; // ???
-        uint32 numCus;         // The number of compute units.
+
+        uint32 numShaderEngines;                                     // The number of shader engines
+        uint32 numShaderArraysPerEngine;                             // The number of shader arrays per shader engine
+        uint32 cuMask[kMaxShaderEngines][kMaxShaderArraysPerEngine]; // A mask describing which CUs are enabled
+        uint32 numCus;                                               // The number of compute units.
 
         struct Ids
         {

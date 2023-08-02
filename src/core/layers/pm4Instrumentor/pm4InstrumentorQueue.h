@@ -78,6 +78,9 @@ struct Pm4Statistics
 
     gpusize  commandBufferSize; // Total amount of command buffer memory used over the lifetime of the object.
     gpusize  embeddedDataSize;  // Total amount of embedded data used over the lifetime of the object.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+    gpusize  largeEmbeddedDataSize;  // Total amount of large embedded data used over the lifetime of the object.
+#endif
     gpusize  gpuScratchMemSize; // Total amount of GPU scratch memory used over the lifetime of the object.
 };
 

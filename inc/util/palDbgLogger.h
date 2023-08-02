@@ -431,6 +431,42 @@ public:
     /// Destructor
     virtual ~DbgLoggerPrint() {}
 
+    /// Create a print logger that clients can use.
+    ///
+    /// @param [in]  settings          Settings used to configure the print logger
+    /// @param [in]  pAllocator        Memory allocator
+    /// @param [out] ppDbgLoggerPrint  Pointer to hold the newly created print logger
+    template <typename Allocator>
+    static void CreatePrintLogger(
+        const DbgLoggerFileSettings& settings,
+        Allocator*                   pAllocator,
+        DbgLoggerPrint**             ppDbgLoggerPrint)
+    {
+        DbgLoggerPrint* pDbgLoggerPrint = PAL_NEW(DbgLoggerPrint, pAllocator, AllocInternal)
+                                                 (settings.severityLevel, settings.origTypeMask);
+        if (pDbgLoggerPrint != nullptr)
+        {
+            g_dbgLogMgr.AttachDbgLogger(pDbgLoggerPrint);
+            *ppDbgLoggerPrint = pDbgLoggerPrint;
+        }
+    }
+
+    /// Destroy the print logger.
+    ///
+    /// @param [in]  pDbgLoggerPrint Print logger to destroy
+    /// @param [in]  pAllocator      Memory allocator with which it was allocated
+    template <typename Allocator>
+    static void DestroyPrintLogger(
+        DbgLoggerPrint* pDbgLoggerPrint,
+        Allocator*      pAllocator)
+    {
+        if (pDbgLoggerPrint != nullptr)
+        {
+            g_dbgLogMgr.DetachDbgLogger(pDbgLoggerPrint);
+            PAL_SAFE_DELETE(pDbgLoggerPrint, pAllocator);
+        }
+    }
+
 protected:
     /// Prints the message to an output window.
     ///

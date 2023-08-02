@@ -53,7 +53,7 @@ static constexpr uint32 NumberOfPixelsToScale = 100; // Number of pixels to scal
 class FpsMgr
 {
 public:
-    FpsMgr(Platform* pPlatform, const Device* pDevice);
+    FpsMgr(Platform* pPlatform, const Device* pDevice, bool isKeyed);
     ~FpsMgr();
 
     Result Init();
@@ -90,6 +90,9 @@ private:
 
     // Pointer to the device that should be queried for overlay settings
     const Device* m_pDevice;
+
+    // Pointer to the default FpsMgr (that is not specific to a window, swap chain, ...)
+    FpsMgr*const m_pDefaultFpsMgr;
 
     // Enumerations which indicate which performance query index is being modified.
     enum QueryTime : uint32

@@ -595,6 +595,15 @@ struct ResourceEventInfo
     ResourceCategory category;  ///< Resource category
 };
 
+/// General purpose on/off/default tri-state enum.
+enum class TriState : uint8
+{
+    Default = 0,  ///< Let implementation decide whether to enable or disable
+    Enable  = 1,  ///< Force enable
+    Disable = 2,  ///< Force disable
+    Count
+};
+
 /// Defines the modes that the GPU Profiling layer can be enabled with.
 /**
  ***********************************************************************************************************************

@@ -154,6 +154,9 @@ enum DD_RESULT_SECTIONS
 
     DD_RESULT_SETTINGS_SERVICE__START                                           = INT32_C(10500),
     DD_RESULT_SETTINGS_SERVICE__COUNT                                           = INT32_C(100),
+
+    DD_RESULT_SETTINGS__START                                                   = INT32_C(10600),
+    DD_RESULT_SETTINGS__COUNT                                                   = INT32_C(100),
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Future sections!
     // ADDING_SECTIONS_0
@@ -475,6 +478,11 @@ typedef enum
     DD_RESULT_SETTINGS_SERVICE_INVALID_NAME                                     = DD_R_CODE(DD_RESULT_SETTINGS_SERVICE, 1),
     DD_RESULT_SETTINGS_SERVICE_INVALID_COMPONENT                                = DD_R_CODE(DD_RESULT_SETTINGS_SERVICE, 2),
     DD_RESULT_SETTINGS_SERVICE_INVALID_SETTING_DATA                             = DD_R_CODE(DD_RESULT_SETTINGS_SERVICE, 3),
+
+    /// settings related results
+    DD_RESULT_SETTINGS_UNKNOWN                                                  = DD_RESULT_SETTINGS__START,
+    DD_RESULT_SETTINGS_NOT_FOUND                                                = DD_R_CODE(DD_RESULT_SETTINGS, 1),
+    DD_RESULT_SETTINGS_TYPE_MISMATCH                                            = DD_R_CODE(DD_RESULT_SETTINGS, 2),
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // ADDING_SECTIONS_3

@@ -1061,13 +1061,14 @@ VOID Gfx11Lib::ConvertSwizzlePatternToEquation(
     ADDR_EQUATION*         pEquation) ///< [out] equation converted from swizzle pattern
     const
 {
-    ADDR_BIT_SETTING fullSwizzlePattern[20];
+    ADDR_BIT_SETTING fullSwizzlePattern[ADDR_MAX_EQUATION_BIT];
     GetSwizzlePatternFromPatternInfo(pPatInfo, fullSwizzlePattern);
 
     const ADDR_BIT_SETTING* pSwizzle      = fullSwizzlePattern;
     const UINT_32           blockSizeLog2 = GetBlockSizeLog2(swMode);
-
+    memset(pEquation, 0, sizeof(ADDR_EQUATION));
     pEquation->numBits            = blockSizeLog2;
+    pEquation->numBitComponents   = pPatInfo->maxItemCount;
     pEquation->stackedDepthSlices = FALSE;
 
     for (UINT_32 i = 0; i < elemLog2; i++)
@@ -1616,20 +1617,21 @@ VOID Gfx11Lib::InitEquationTable()
                 {
                     ADDR_ASSERT(IsValidSwMode(swMode));
 
-                    if (pPatInfo->maxItemCount <= 3)
+                    if (pPatInfo->maxItemCount <= 3) // Get a valid equationIndex
                     {
                         ADDR_EQUATION equation = {};
 
+                        // Passing in pPatInfo to get the addr equation
                         ConvertSwizzlePatternToEquation(elemLog2, rsrcType, swMode, pPatInfo, &equation);
 
                         equationIndex = m_numEquations;
                         ADDR_ASSERT(equationIndex < EquationTableSize);
-
+                        // Updates m_equationTable[m_numEquations] to be the addr equation for this PatInfo
                         m_equationTable[equationIndex] = equation;
-
+                        // Increment m_numEquations
                         m_numEquations++;
                     }
-                    else
+                    else // There is no equationIndex
                     {
                         // We only see "ill" equation from 64/128 BPE + 3D resource + SW_64KB_D_X
                         ADDR_ASSERT((elemLog2 == 3) || (elemLog2 == 4));
@@ -2554,7 +2556,9 @@ ADDR_E_RETURNCODE Gfx11Lib::HwlGetPreferredSurfaceSetting(
                 // Apply optional restrictions
                 if (pIn->flags.needEquation)
                 {
-                    FilterInvalidEqSwizzleMode(allowedSwModeSet, pIn->resourceType, Log2(bpp >> 3));
+                    UINT_32 components = pIn->flags.allowExtEquation ?  ADDR_MAX_EQUATION_COMP :
+                                                                        ADDR_MAX_LEGACY_EQUATION_COMP;
+                    FilterInvalidEqSwizzleMode(allowedSwModeSet, pIn->resourceType, Log2(bpp >> 3), components);
                 }
 
                 if (allowedSwModeSet.value == Gfx11LinearSwModeMask)
@@ -3030,7 +3034,9 @@ ADDR_E_RETURNCODE Gfx11Lib::HwlGetPossibleSwizzleModes(
 
                 if (pIn->flags.needEquation)
                 {
-                    FilterInvalidEqSwizzleMode(allowedSwModeSet, pIn->resourceType, Log2(bpp >> 3));
+                    UINT_32 components = pIn->flags.allowExtEquation ?  ADDR_MAX_EQUATION_COMP :
+                                                                        ADDR_MAX_LEGACY_EQUATION_COMP;
+                    FilterInvalidEqSwizzleMode(allowedSwModeSet, pIn->resourceType, Log2(bpp >> 3), components);
                 }
 
                 pOut->validSwModeSet = allowedSwModeSet;
@@ -3638,54 +3644,23 @@ UINT_32 Gfx11Lib::ComputeOffsetFromEquation(
     {
         UINT_32 v = 0;
 
-        if (pEq->addr[i].valid)
+        for (UINT_32 c = 0; c < pEq->numBitComponents; c++)
         {
-            if (pEq->addr[i].channel == 0)
+            if (pEq->comps[c][i].valid)
             {
-                v ^= (x >> pEq->addr[i].index) & 1;
-            }
-            else if (pEq->addr[i].channel == 1)
-            {
-                v ^= (y >> pEq->addr[i].index) & 1;
-            }
-            else
-            {
-                ADDR_ASSERT(pEq->addr[i].channel == 2);
-                v ^= (z >> pEq->addr[i].index) & 1;
-            }
-        }
-
-        if (pEq->xor1[i].valid)
-        {
-            if (pEq->xor1[i].channel == 0)
-            {
-                v ^= (x >> pEq->xor1[i].index) & 1;
-            }
-            else if (pEq->xor1[i].channel == 1)
-            {
-                v ^= (y >> pEq->xor1[i].index) & 1;
-            }
-            else
-            {
-                ADDR_ASSERT(pEq->xor1[i].channel == 2);
-                v ^= (z >> pEq->xor1[i].index) & 1;
-            }
-        }
-
-        if (pEq->xor2[i].valid)
-        {
-            if (pEq->xor2[i].channel == 0)
-            {
-                v ^= (x >> pEq->xor2[i].index) & 1;
-            }
-            else if (pEq->xor2[i].channel == 1)
-            {
-                v ^= (y >> pEq->xor2[i].index) & 1;
-            }
-            else
-            {
-                ADDR_ASSERT(pEq->xor2[i].channel == 2);
-                v ^= (z >> pEq->xor2[i].index) & 1;
+                if (pEq->comps[c][i].channel == 0)
+                {
+                    v ^= (x >> pEq->comps[c][i].index) & 1;
+                }
+                else if (pEq->comps[c][i].channel == 1)
+                {
+                    v ^= (y >> pEq->comps[c][i].index) & 1;
+                }
+                else
+                {
+                    ADDR_ASSERT(pEq->comps[c][i].channel == 2);
+                    v ^= (z >> pEq->comps[c][i].index) & 1;
+                }
             }
         }
 

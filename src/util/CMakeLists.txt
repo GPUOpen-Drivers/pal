@@ -39,36 +39,22 @@ endif()
 target_sources(pal PRIVATE
     arFile.cpp
     assert.cpp
-    cacheLayerBase.cpp
-    cacheLayerBase.h
     CMakeLists.txt
-    compressingCacheLayer.cpp
-    compressingCacheLayer.h
     dbgLogger.cpp
     dbgLogMgr.cpp
     dbgPrint.cpp
-    directDrawSurface.cpp
-    directDrawSurface.h
     elfReader.cpp
     file.cpp
-    fileArchiveCacheLayer.cpp
-    fileArchiveCacheLayer.h
-    hsaAbiMetadata.cpp
     jsonWriter.cpp
     lz4Compressor.cpp
     lz4Compressor.h
     math.cpp
     memMapFile.cpp
-    memoryCacheLayer.cpp
-    memoryCacheLayer.h
-    pipelineAbiReader.cpp
     platformKey.cpp
     platformKey.h
     stringUtil.cpp
     sysMemory.cpp
     sysUtil.cpp
     time.cpp
-    trackingCacheLayer.cpp
-    trackingCacheLayer.h
     uuid.cpp
 )

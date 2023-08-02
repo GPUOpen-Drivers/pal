@@ -40,8 +40,6 @@
 #include "palSysUtil.h"
 #include "sqtt_file_format.h"
 
-#define USE_SPM_DB_V2 1
-
 // Forward declarations.
 namespace Pal
 {
@@ -164,7 +162,7 @@ public:
         m_traceMemorySize(0),
         m_pThreadTraceLayout(nullptr),
         m_numSpmCounters(0),
-        m_spmRingSize(0),
+        m_pOldestSample(nullptr),
         m_spmSampleInterval(0),
         m_pSpmTraceLayout(nullptr),
         m_numSpmSamples(-1),
@@ -189,7 +187,6 @@ public:
 
     Pal::ThreadTraceLayout* GetThreadTraceLayout()   const { return m_pThreadTraceLayout; }
     Pal::gpusize            GetTraceBufferSize()     const { return m_traceMemorySize; }
-    Pal::SpmTraceLayout*    GetSpmTraceLayout()      const { return m_pSpmTraceLayout; }
     Pal::uint32             GetNumSpmCounters()      const { return m_numSpmCounters; }
     Pal::uint32             GetNumDfSpmCounters()    const { return m_numDfSpmCounters; }
     Pal::uint32             GetSpmSampleInterval()   const { return m_spmSampleInterval; }
@@ -226,10 +223,8 @@ public:
 private:
     static const Pal::uint32 MaxNumCountersPerBitline = 16;
 
-    Pal::uint32 CountNumSamples(
-        void* pBufferStart);
-    Pal::uint32 CountNumDfSamples(
-        void* pBufferStart);
+    void        CountNumSpmSamples();
+    Pal::uint32 CountNumDfSpmSamples() const;
 
     // Common trace specific memory properties.
     GpuMemoryInfo m_traceGpuMemoryInfo; // CPU invisible memory used as thread trace buffer.
@@ -252,19 +247,22 @@ private:
     Pal::ThreadTraceLayout* m_pThreadTraceLayout;
 
     // SPM specific member variables.
-    Pal::uint32          m_numSpmCounters;      // Number of spm counters requested.
-    Pal::gpusize         m_spmRingSize;         // Ring buffer size allocated for this spm trace.
-    Pal::uint32          m_spmSampleInterval;   // Sample interval of this spm trace.
-    Pal::SpmTraceLayout* m_pSpmTraceLayout;     // Layout describing the results of the spm trace.
-    Pal::int32           m_numSpmSamples;       // Number of samples of data written by HW.
+    Pal::uint32             m_numSpmCounters;    // Number of spm counters requested.
+    Pal::uint32             m_spmSampleInterval; // Sample interval of this spm trace.
+    Pal::SpmTraceLayout*    m_pSpmTraceLayout;   // Layout describing the results of the spm trace.
 
-    Pal::uint32            m_numDfSpmCounters;
-    Pal::uint32            m_dfSpmSampleInterval;
-    Pal::int32             m_numDfSpmSamples;
-    Pal::uint32*           m_pDfSpmEventQualifiers;
-    Pal::uint32*           m_pDfSpmEventIds;
-    Pal::uint32*           m_pDfSpmInstances;
-    SpmGpuBlock*           m_pDfSpmGpuBlocks;
+    // SPM state set by CountNumSpmSamples, they're inferred from the trace data.
+    Pal::int32              m_numSpmSamples;     // Number of samples of data written by HW.
+    const void*             m_pOldestSample;     // Points to the oldest sample written by HW.
+
+    // DF SPM specific member variables.
+    Pal::uint32             m_numDfSpmCounters;
+    Pal::uint32             m_dfSpmSampleInterval;
+    Pal::int32              m_numDfSpmSamples;
+    Pal::uint32*            m_pDfSpmEventQualifiers;
+    Pal::uint32*            m_pDfSpmEventIds;
+    Pal::uint32*            m_pDfSpmInstances;
+    SpmGpuBlock*            m_pDfSpmGpuBlocks;
 };
 
 // =====================================================================================================================

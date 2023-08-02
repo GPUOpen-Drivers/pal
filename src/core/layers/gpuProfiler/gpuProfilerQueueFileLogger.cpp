@@ -34,8 +34,6 @@
 #include "palSysUtil.h"
 #include "sqtt_file_format.h"
 
-#define USE_SPM_DB_V2 1
-
 using namespace Util;
 
 namespace Pal
@@ -936,11 +934,7 @@ void Queue::OutputRlcSpmData(
     const PerfCounter* pPerfCounters   = m_pDevice->StreamingPerfCounters();
     uint32             numPerfCounters = m_pDevice->NumStreamingPerfCounters();
     uint32             checkNum        = m_gpaSessionSampleConfig.perfCounters.numCounters;
-#if USE_SPM_DB_V2
     const auto*        pSpmDbChunk     = static_cast<const SqttFileChunkSpmDb*>(VoidPtrInc(pResult, offset));
-#else
-    const auto*        pSpmDbChunk     = static_cast<const SqttFileChunkSpmDbV1*>(VoidPtrInc(pResult, offset));
-#endif
     uint32             sizeOfChunk     = sizeof(*pSpmDbChunk);
     uint32             numTimestamps   = pSpmDbChunk->numTimestamps;
     uint32             numCounterInfo  = pSpmDbChunk->numSpmCounterInfo;
@@ -953,11 +947,7 @@ void Queue::OutputRlcSpmData(
     const auto* pTimestamp = static_cast<const gpusize*>(VoidPtrInc(pResult, offset));
     offset += numTimestamps * sizeof(*pTimestamp);
 
-#if USE_SPM_DB_V2
     const auto* pCounterInfo = static_cast<const SpmCounterInfo*>(VoidPtrInc(pResult, offset));
-#else
-    const auto* pCounterInfo = static_cast<const SpmCounterInfoV1*>(VoidPtrInc(pResult, offset));
-#endif
     offset += numCounterInfo * sizeof(*pCounterInfo);
 
     File spmFile;

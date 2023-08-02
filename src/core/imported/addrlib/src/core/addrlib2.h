@@ -945,7 +945,8 @@ protected:
     VOID FilterInvalidEqSwizzleMode(
         ADDR2_SWMODE_SET& allowedSwModeSet,
         AddrResourceType  resourceType,
-        UINT_32           elemLog2) const;
+        UINT_32           elemLog2,
+        UINT_32           maxComponents) const;
 
 #if DEBUG
     VOID ValidateStereoInfo(

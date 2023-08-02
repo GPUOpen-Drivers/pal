@@ -52,6 +52,8 @@ PipelineChunkEsGs::PipelineChunkEsGs(
 {
     m_stageInfoEs.stageId = Abi::HardwareStage::Es;
     m_stageInfoGs.stageId = Abi::HardwareStage::Gs;
+    m_regs.sh.userDataInternalTableEs.u32All = InvalidUserDataInternalTable;
+    m_regs.sh.userDataInternalTableGs.u32All = InvalidUserDataInternalTable;
 }
 
 // =====================================================================================================================
@@ -204,12 +206,19 @@ uint32* PipelineChunkEsGs::WriteShCommands(
                                                 &m_regs.sh.spiShaderPgmLoGs,
                                                 pCmdSpace);
 
-    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSPI_SHADER_USER_DATA_ES_0 + ConstBufTblStartReg,
-                                                                m_regs.sh.userDataInternalTableEs.u32All,
-                                                                pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSPI_SHADER_USER_DATA_GS_0 + ConstBufTblStartReg,
-                                                                m_regs.sh.userDataInternalTableGs.u32All,
-                                                                pCmdSpace);
+    if (m_regs.sh.userDataInternalTableEs.u32All != InvalidUserDataInternalTable)
+    {
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSPI_SHADER_USER_DATA_ES_0 + ConstBufTblStartReg,
+                                                                 m_regs.sh.userDataInternalTableEs.u32All,
+                                                                 pCmdSpace);
+    }
+
+    if (m_regs.sh.userDataInternalTableGs.u32All != InvalidUserDataInternalTable)
+    {
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSPI_SHADER_USER_DATA_GS_0 + ConstBufTblStartReg,
+                                                                 m_regs.sh.userDataInternalTableGs.u32All,
+                                                                 pCmdSpace);
+    }
 
     if ((m_regs.sh.ldsEsGsSizeRegAddrGs | m_regs.sh.ldsEsGsSizeRegAddrVs) != 0)
     {

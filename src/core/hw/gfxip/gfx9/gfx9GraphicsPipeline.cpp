@@ -1469,6 +1469,57 @@ void GraphicsPipeline::SetupNonShaderRegisters(
     m_regs.other.paScLineCntl.bits.LAST_PIXEL               = createInfo.rsState.rasterizeLastLinePixel;
     m_regs.other.paScLineCntl.bits.PERPENDICULAR_ENDCAP_ENA = createInfo.rsState.perpLineEndCapsEnable;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 804
+    switch (createInfo.rsState.edgeRule)
+    {
+    case EdgeRuleMode::D3dCompliant:
+        if (createInfo.rsState.pointCoordOrigin == Pal::PointOrigin::UpperLeft)
+        {
+            m_regs.context.paScEdgerule.bits.ER_TRI     = 0xa;
+            m_regs.context.paScEdgerule.bits.ER_POINT   = 0xa;
+            m_regs.context.paScEdgerule.bits.ER_RECT    = 0xa;
+            m_regs.context.paScEdgerule.bits.ER_LINE_LR = 0x1a;
+            m_regs.context.paScEdgerule.bits.ER_LINE_RL = 0x26;
+            m_regs.context.paScEdgerule.bits.ER_LINE_TB = 0xa;
+            m_regs.context.paScEdgerule.bits.ER_LINE_BT = 0xa;
+        }
+        else
+        {
+            m_regs.context.paScEdgerule.bits.ER_TRI     = 0xa;
+            m_regs.context.paScEdgerule.bits.ER_POINT   = 0x5;
+            m_regs.context.paScEdgerule.bits.ER_RECT    = 0x9;
+            m_regs.context.paScEdgerule.bits.ER_LINE_LR = 0x29;
+            m_regs.context.paScEdgerule.bits.ER_LINE_RL = 0x29;
+            m_regs.context.paScEdgerule.bits.ER_LINE_TB = 0xa;
+            m_regs.context.paScEdgerule.bits.ER_LINE_BT = 0xa;
+        }
+        break;
+    case EdgeRuleMode::OpenGlDefault:
+        if (createInfo.rsState.pointCoordOrigin == Pal::PointOrigin::UpperLeft)
+        {
+            m_regs.context.paScEdgerule.bits.ER_TRI     = 0xa;
+            m_regs.context.paScEdgerule.bits.ER_POINT   = 0x6;
+            m_regs.context.paScEdgerule.bits.ER_RECT    = 0xa;
+            m_regs.context.paScEdgerule.bits.ER_LINE_LR = 0x19;
+            m_regs.context.paScEdgerule.bits.ER_LINE_RL = 0x25;
+            m_regs.context.paScEdgerule.bits.ER_LINE_TB = 0xa;
+            m_regs.context.paScEdgerule.bits.ER_LINE_BT = 0xa;
+        }
+        else
+        {
+            m_regs.context.paScEdgerule.bits.ER_TRI     = 0xa;
+            m_regs.context.paScEdgerule.bits.ER_POINT   = 0x5;
+            m_regs.context.paScEdgerule.bits.ER_RECT    = 0x9;
+            m_regs.context.paScEdgerule.bits.ER_LINE_LR = 0x2a;
+            m_regs.context.paScEdgerule.bits.ER_LINE_RL = 0x2a;
+            m_regs.context.paScEdgerule.bits.ER_LINE_TB = 0xa;
+            m_regs.context.paScEdgerule.bits.ER_LINE_BT = 0xa;
+        }
+        break;
+    default:
+        break;
+    }
+#else
     if (createInfo.rsState.pointCoordOrigin == Pal::PointOrigin::UpperLeft)
     {
         m_regs.context.paScEdgerule.bits.ER_TRI     = 0xa;
@@ -1489,6 +1540,7 @@ void GraphicsPipeline::SetupNonShaderRegisters(
         m_regs.context.paScEdgerule.bits.ER_LINE_TB = 0xa;
         m_regs.context.paScEdgerule.bits.ER_LINE_BT = 0xa;
     }
+#endif
 
     // CB_TARGET_MASK comes from the RT write masks in the pipeline CB state structure.
     for (uint32 rt = 0; rt < MaxColorTargets; ++rt)

@@ -288,6 +288,8 @@ Result PresentScheduler::Present(
 {
     Result result = Result::Success;
 
+    bool isDxgiPresent = static_cast<SwapChain*>(presentInfo.pSwapChain)->CreateInfo().wsiPlatform == WsiPlatform::Dxgi;
+
     // Check if we can immediately process a present on the current thread and queue.
     if (CanInlinePresent(presentInfo, *pQueue))
     {
@@ -317,7 +319,7 @@ Result PresentScheduler::Present(
             pJob->SetPresentInfo(presentInfo);
         }
 
-        if (result == Result::Success)
+        if ((result == Result::Success) && (isDxgiPresent == false))
         {
             result = PreparePresent(pQueue, pJob);
         }
@@ -343,6 +345,12 @@ Result PresentScheduler::Present(
             {
                 pJob->SetQueue(pInternalQueue);
 
+                EnqueueJob(pJob);
+            }
+            else if (isDxgiPresent)
+            {
+                // DXGI queue is internal and not visible to us
+                pJob->SetQueue(pClientQueue);
                 EnqueueJob(pJob);
             }
             else
@@ -401,7 +409,7 @@ Result PresentScheduler::WaitIdle()
         }
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (m_pSignalQueue != nullptr))
     {
         result = m_pSignalQueue->WaitIdle();
     }
@@ -488,10 +496,17 @@ void PresentScheduler::RunWorkerThread()
                     // the fence is preferable to submitting a queue semaphore wait because some OS-specific
                     // presentation logic that requires the CPU to know that we can begin executing a present before
                     // preceeding.
-                    constexpr uint64 Timeout    = 2000000000;
-                    IFence*const     pFence     = pJob->PriorWorkFence();
-                    const Result     waitResult = m_pDevice->WaitForFences(1, &pFence, true, Timeout);
-                    PAL_ALERT(IsErrorResult(waitResult) || (waitResult == Result::Timeout));
+
+                    bool isDxgiPresent = static_cast<SwapChain*>(pJob->GetPresentInfo().pSwapChain)
+                                         ->CreateInfo().wsiPlatform == WsiPlatform::Dxgi;
+
+                    if (isDxgiPresent == false)
+                    {
+                        constexpr uint64 Timeout    = 2000000000;
+                        IFence*const     pFence     = pJob->PriorWorkFence();
+                        const Result     waitResult = m_pDevice->WaitForFences(1, &pFence, true, Timeout);
+                        PAL_ALERT(IsErrorResult(waitResult) || (waitResult == Result::Timeout));
+                    }
 #endif
                     const Result presentResult = ProcessPresent(pJob->GetPresentInfo(), pJob->GetQueue(), false);
                     m_previousPresentResult    = presentResult;
@@ -502,7 +517,6 @@ void PresentScheduler::RunWorkerThread()
                 m_idleJobList.PushBack(pJob->ListNode());
                 m_idleJobMutex.Unlock();
                 break;
-
             default:
                 PAL_ASSERT_ALWAYS();
                 break;

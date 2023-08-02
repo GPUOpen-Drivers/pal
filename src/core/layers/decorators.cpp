@@ -287,6 +287,8 @@ DeviceDecorator::DeviceDecorator(
     m_pfnTable.pfnCreateFmaskViewSrds      = &DeviceDecorator::DecoratorCreateFmaskViewSrds;
     m_pfnTable.pfnCreateSamplerSrds        = &DeviceDecorator::DecoratorCreateSamplerSrds;
     m_pfnTable.pfnCreateBvhSrds            = &DeviceDecorator::DecoratorCreateBvhSrds;
+    m_pfnTable.pfnDecodeBufferViewSrd      = &DeviceDecorator::DecoratorDecodeBufferViewSrd;
+    m_pfnTable.pfnDecodeImageViewSrd       = &DeviceDecorator::DecoratorDecodeImageViewSrd;
 }
 
 // =====================================================================================================================
@@ -1054,6 +1056,29 @@ void PAL_STDCALL DeviceDecorator::DecoratorCreateBvhSrds(
 
         pNextDevice->CreateBvhSrds(count, pBvhInfo, pOut);
     }
+}
+
+// =====================================================================================================================
+void PAL_STDCALL DeviceDecorator::DecoratorDecodeBufferViewSrd(
+    const IDevice*  pDevice,
+    const void*     pBufferViewSrd,
+    BufferViewInfo* pViewInfo)
+{
+    const DeviceDecorator* pDeviceDecorator = static_cast<const DeviceDecorator*>(pDevice);
+    const IDevice*         pNextDevice      = pDeviceDecorator->GetNextLayer();
+    pNextDevice->DecodeBufferViewSrd(pBufferViewSrd, pViewInfo);
+}
+
+// =====================================================================================================================
+void PAL_STDCALL DeviceDecorator::DecoratorDecodeImageViewSrd(
+    const IDevice*   pDevice,
+    const IImage*    pImage,
+    const void*      pImageViewSrd,
+    DecodedImageSrd* pDecodedInfo)
+{
+    const DeviceDecorator* pDeviceDecorator = static_cast<const DeviceDecorator*>(pDevice);
+    const IDevice*         pNextDevice      = pDeviceDecorator->GetNextLayer();
+    pNextDevice->DecodeImageViewSrd(*NextImage(pImage), pImageViewSrd, pDecodedInfo);
 }
 
 // =====================================================================================================================

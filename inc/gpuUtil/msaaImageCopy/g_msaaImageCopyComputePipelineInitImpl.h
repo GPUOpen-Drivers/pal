@@ -163,6 +163,12 @@ Pal::Result CreateMsaaImageCopyComputePipelines(
         break;
 #endif
 
+#if PAL_BUILD_PHOENIX1
+    case Pal::AsicRevision::Phoenix1:
+        pTable = msaaImageCopyComputeBinaryTablePhoenix1;
+        break;
+#endif
+
     default:
         result = Pal::Result::ErrorUnknown;
         PAL_NOT_IMPLEMENTED();

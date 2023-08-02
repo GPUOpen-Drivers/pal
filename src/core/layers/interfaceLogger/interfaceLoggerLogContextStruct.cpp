@@ -594,8 +594,11 @@ void LogContext::Struct(
     {
         const char*const DataAllocNames[] =
         {
-            "CommandData",        // CommandDataAlloc  = 0,
-            "EmbeddedData",       // EmbeddedDataAlloc = 1,
+            "CommandData",        // CommandDataAlloc       = 0,
+            "EmbeddedData",       // EmbeddedDataAlloc      = 1,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+            "LargeEmbeddedData",  // LargeEmbeddedDataAlloc = 2,
+#endif
             "GpuScratchMemAlloc", // GpuScratchMemAlloc
         };
 
@@ -737,7 +740,7 @@ void LogContext::Struct(
         Value("realtimeComputeUnits");
     }
 
-    static_assert(CheckReservedBits<decltype(value.flags)>(32, 29), "Update interfaceLogger!");
+    static_assert(CheckReservedBits<decltype(value.flags)>(32, 28), "Update CmdBufferCreateInfo interfaceLogger!");
 
     EndList();
     KeyAndObject("cmdAllocator", value.pCmdAllocator);
@@ -1692,7 +1695,14 @@ void LogContext::Struct(
         Value("startVaHintFlag");
     }
 
-    static_assert(CheckReservedBits<GpuMemoryCreateFlags>(64, 31), "Need to update interfaceLogger!");
+#if PAL_AMDGPU_BUILD
+    if (value.initializeToZero)
+    {
+        Value("initializeToZero");
+    }
+#endif
+
+    static_assert(CheckReservedBits<GpuMemoryCreateFlags>(64, 30), "Need to update interfaceLogger!");
 
     EndList();
 }
@@ -2521,6 +2531,8 @@ void LogContext::Struct(
     KeyAndValue("clientInternal", value.clientInternal);
     KeyAndValue("supportDynamicDispatch", value.supportDynamicDispatch);
     EndMap();
+
+    static_assert(CheckReservedBits<decltype(value)>(32, 29), "Update PipelineCreateFlags interfaceLogger!");
 }
 
 // =====================================================================================================================
@@ -3519,6 +3531,20 @@ void LogContext::Struct(
     KeyAndStruct("srcBuffer", value.srcBuffer);
     KeyAndStruct("dstBuffer", value.dstBuffer);
     KeyAndStruct("extent", value.extent);
+    EndMap();
+}
+
+// =====================================================================================================================
+void LogContext::Struct(
+    const TypedBufferImageScaledCopyRegion& value)
+{
+    BeginMap(false);
+    KeyAndStruct("imageSubres", value.imageSubres);
+    KeyAndStruct("imageOffset", value.imageOffset);
+    KeyAndStruct("imageExtent", value.imageExtent);
+    KeyAndStruct("bufferInfo", value.bufferInfo);
+    KeyAndStruct("bufferExtent", value.bufferExtent);
+    KeyAndStruct("swizzledFormat", value.swizzledFormat);
     EndMap();
 }
 

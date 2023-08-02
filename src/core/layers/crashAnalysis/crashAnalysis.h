@@ -30,7 +30,7 @@
 #include "palVector.h"
 #include "palStringBag.h"
 
-#include <dd_events/gpu_detective/umd_crash_analysis.h>
+#include <dd_event/gpu_detective/umd_crash_analysis.h>
 
 namespace Pal
 {

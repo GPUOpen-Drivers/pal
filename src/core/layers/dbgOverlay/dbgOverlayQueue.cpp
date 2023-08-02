@@ -246,47 +246,6 @@ Result Queue::CreateGpuTimestampPairMemory(
 }
 
 // =====================================================================================================================
-Result Queue::PresentDirect(
-    const PresentDirectInfo& presentInfo)
-{
-    Result result = Result::Success;
-
-    const Result presentResult = QueueDecorator::PresentDirect(presentInfo);
-    result = CollapseResults(presentResult, result);
-
-    if (result == Result::Success)
-    {
-        Platform*const pPlatform = static_cast<Platform*>(m_pDevice->GetPlatform());
-
-        pPlatform->GetFpsMgr()->IncrementFrameCount();
-        pPlatform->ResetGpuWork();
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-Result Queue::PresentSwapChain(
-    const PresentSwapChainInfo& presentInfo)
-{
-    Result result = Result::Success;
-
-    // Note: We must always call down to the next layer because we must release ownership of the image index.
-    const Result presentResult = QueueDecorator::PresentSwapChain(presentInfo);
-    result = CollapseResults(presentResult, result);
-
-    if (result == Result::Success)
-    {
-        Platform*const pPlatform = static_cast<Platform*>(m_pDevice->GetPlatform());
-
-        pPlatform->GetFpsMgr()->IncrementFrameCount();
-        pPlatform->ResetGpuWork();
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
 Result Queue::Submit(
     const MultiSubmitInfo& submitInfo)
 {

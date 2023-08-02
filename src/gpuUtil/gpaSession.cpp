@@ -670,15 +670,20 @@ Result GpaSession::Init()
         constexpr size_t CmdAllocSize = 2_MiB;
         constexpr size_t CmdSubAllocSize = 64_KiB;
 
-        createInfo.allocInfo[CommandDataAlloc].allocHeap      = GpuHeapGartUswc;
-        createInfo.allocInfo[CommandDataAlloc].allocSize      = CmdAllocSize;
-        createInfo.allocInfo[CommandDataAlloc].suballocSize   = CmdSubAllocSize;
-        createInfo.allocInfo[EmbeddedDataAlloc].allocHeap     = GpuHeapGartUswc;
-        createInfo.allocInfo[EmbeddedDataAlloc].allocSize     = CmdAllocSize;
-        createInfo.allocInfo[EmbeddedDataAlloc].suballocSize  = CmdSubAllocSize;
-        createInfo.allocInfo[GpuScratchMemAlloc].allocHeap    = GpuHeapInvisible;
-        createInfo.allocInfo[GpuScratchMemAlloc].allocSize    = CmdAllocSize;
-        createInfo.allocInfo[GpuScratchMemAlloc].suballocSize = CmdSubAllocSize;
+        createInfo.allocInfo[CommandDataAlloc].allocHeap          = GpuHeapGartUswc;
+        createInfo.allocInfo[CommandDataAlloc].allocSize          = CmdAllocSize;
+        createInfo.allocInfo[CommandDataAlloc].suballocSize       = CmdSubAllocSize;
+        createInfo.allocInfo[EmbeddedDataAlloc].allocHeap         = GpuHeapGartUswc;
+        createInfo.allocInfo[EmbeddedDataAlloc].allocSize         = CmdAllocSize;
+        createInfo.allocInfo[EmbeddedDataAlloc].suballocSize      = CmdSubAllocSize;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+        createInfo.allocInfo[LargeEmbeddedDataAlloc].allocHeap    = GpuHeapGartUswc;
+        createInfo.allocInfo[LargeEmbeddedDataAlloc].allocSize    = CmdAllocSize;
+        createInfo.allocInfo[LargeEmbeddedDataAlloc].suballocSize = CmdSubAllocSize;
+#endif
+        createInfo.allocInfo[GpuScratchMemAlloc].allocHeap        = GpuHeapInvisible;
+        createInfo.allocInfo[GpuScratchMemAlloc].allocSize        = CmdAllocSize;
+        createInfo.allocInfo[GpuScratchMemAlloc].suballocSize     = CmdSubAllocSize;
 
         const size_t cmdAllocatorSize = m_pDevice->GetCmdAllocatorSize(createInfo, &result);
         if (result == Result::Success)
@@ -4606,11 +4611,6 @@ Result GpaSession::AppendSpmTraceData(
     ) const
 {
     Result result = Result::Success;
-#if USE_SPM_DB_V2
-    using SpmDbChunk = SqttFileChunkSpmDb;
-#else
-    using SpmDbChunk = SqttFileChunkSpmDbV1;
-#endif
 
     // Initialize the Sqtt chunk, get the spm trace results and add to the file.
     gpusize spmDataSize   = 0;
@@ -4620,41 +4620,34 @@ Result GpaSession::AppendSpmTraceData(
     if (pRgpOutput != nullptr)
     {
         // Header for spm chunk.
-        if (static_cast<gpusize>(*pCurFileOffset + sizeof(SpmDbChunk) + spmDataSize) > bufferSize)
+        if (static_cast<gpusize>(*pCurFileOffset + sizeof(SqttFileChunkSpmDb) + spmDataSize) > bufferSize)
         {
             result = Result::ErrorOutOfMemory;
         }
         else
         {
             // Write the chunk header first.
-            SpmDbChunk spmDbChunk               = { };
+            SqttFileChunkSpmDb spmDbChunk  = {};
             spmDbChunk.header.chunkIdentifier.chunkType = SQTT_FILE_CHUNK_TYPE_SPM_DB;
-            spmDbChunk.header.sizeInBytes               = static_cast<int32>(sizeof(SpmDbChunk) + spmDataSize);
-            spmDbChunk.numTimestamps                    = static_cast<uint32>(numSpmSamples);
-            spmDbChunk.numSpmCounterInfo                = pTraceSample->GetNumSpmCounters();
-            spmDbChunk.samplingInterval                 = pTraceSample->GetSpmSampleInterval();
-
-#if USE_SPM_DB_V2
-            spmDbChunk.preambleSize                     = sizeof(SqttFileChunkSpmDb);
-            spmDbChunk.spmCounterInfoSize               = sizeof(SpmCounterInfo);
-
             spmDbChunk.header.majorVersion = RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_SPM_DB].majorVersion;
             spmDbChunk.header.minorVersion = RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_SPM_DB].minorVersion;
-#else
-            spmDbChunk.header.majorVersion = SpmDbV1Version.majorVersion;
-            spmDbChunk.header.minorVersion = SpmDbV1Version.minorVersion;
-#endif
+            spmDbChunk.header.sizeInBytes  = int32(sizeof(SqttFileChunkSpmDb) + spmDataSize);
+            spmDbChunk.numTimestamps       = uint32(numSpmSamples);
+            spmDbChunk.numSpmCounterInfo   = pTraceSample->GetNumSpmCounters();
+            spmDbChunk.samplingInterval    = pTraceSample->GetSpmSampleInterval();
+            spmDbChunk.preambleSize        = sizeof(SqttFileChunkSpmDb);
+            spmDbChunk.spmCounterInfoSize  = sizeof(SpmCounterInfo);
 
-            memcpy(Util::VoidPtrInc(pRgpOutput, static_cast<size_t>(*pCurFileOffset)), &spmDbChunk, sizeof(SpmDbChunk));
+            memcpy(Util::VoidPtrInc(pRgpOutput, size_t(*pCurFileOffset)), &spmDbChunk, sizeof(SqttFileChunkSpmDb));
 
-            size_t curWriteOffset = static_cast<size_t>(*pCurFileOffset + sizeof(SpmDbChunk));
+            const size_t curWriteOffset = size_t(*pCurFileOffset + sizeof(SqttFileChunkSpmDb));
 
             result = pTraceSample->GetSpmTraceResults(Util::VoidPtrInc(pRgpOutput, curWriteOffset),
-                                                      (bufferSize - curWriteOffset));
+                                                      bufferSize - curWriteOffset);
         }
     }
 
-    (*pCurFileOffset) += (sizeof(SpmDbChunk) + spmDataSize);
+    (*pCurFileOffset) += (sizeof(SqttFileChunkSpmDb) + spmDataSize);
 
     return result;
 }

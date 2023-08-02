@@ -74,13 +74,13 @@ public:
     void Restart() { m_pCurrent = m_pList->m_header.pNext; }
 
     /// Equality operator. Returns true if two iterators point to the same position in the list.
-    bool operator ==(const ListIterator<T, Allocator>& listIterator)
+    bool operator ==(const ListIterator<T, Allocator>& listIterator) const
     {
         return (m_pList == listIterator.m_pList) && (m_pCurrent == listIterator.m_pCurrent);
     }
 
     /// Inequality operator. Returns false if two iterators are equal.
-    bool operator !=(const ListIterator<T, Allocator>& listIterator)
+    bool operator !=(const ListIterator<T, Allocator>& listIterator) const
     {
         return !(*this == listIterator);
     }

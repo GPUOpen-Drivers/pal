@@ -170,6 +170,18 @@ struct GlobalSelectState
     GenericBlockSelect* pGeneric[GpuBlockCount];   // The set of generic registers for each block type and instance.
 };
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 810
+enum class SpmDataSegmentType : uint32
+{
+    Se0,
+    Se1,
+    Se2,
+    Se3,
+    Global,
+    Count
+};
+#endif
+
 // A single 16-bit muxsel value.
 union MuxselEncoding
 {
@@ -191,6 +203,10 @@ union MuxselEncoding
 constexpr uint32 MuxselLineSizeInCounters = 16;
 constexpr uint32 MuxselLineSizeInDwords   = (MuxselLineSizeInCounters * sizeof(MuxselEncoding)) / sizeof(uint32);
 constexpr uint32 MaxNumSpmSegments        = static_cast<uint32>(SpmDataSegmentType::Count);
+
+// Each 16-bit muxsel causes the RLC to write 16 bits of data. It's not clear if that's just a coincidence or if the
+// sizes are purposefully the same. Just to be safe we'll define a separate constant for SPM data lines.
+constexpr uint32 SampleLineSizeInBytes = MuxselLineSizeInCounters * sizeof(uint16);
 
 // A single programming line in the RLC muxsel state machine.
 union SpmLineMapping
@@ -243,8 +259,8 @@ struct SpmCounterMapping
     bool               isOdd;      // If the counter requires the upper 16-bits of a 32-bit counter wire.
 
     // Output information.
-    gpusize            offsetLo;   // Offset within a data sample for this counter's lower 16 bits.
-    gpusize            offsetHi;   // For 32-bit counters, the corresponding offset for the upper 16 bits.
+    uint32             offsetLo;   // Offset within a data sample for this counter's lower 16 bits.
+    uint32             offsetHi;   // For 32-bit counters, the corresponding offset for the upper 16 bits.
 };
 
 // =====================================================================================================================
@@ -357,7 +373,9 @@ private:
     uint32             m_numSpmCounters;
     SpmLineMapping*    m_pMuxselRams[MaxNumSpmSegments];    // One array of muxsel programmings for each segment.
     uint32             m_numMuxselLines[MaxNumSpmSegments];
+    uint32             m_spmSampleLines;                    // The size of a full SPM sample (all segments) in lines.
     uint32             m_spmRingSize;                       // The SPM ring buffer size in bytes.
+    uint32             m_spmMaxSamples;                     // The SPM ring buffer size in units of samples.
     uint16             m_spmSampleInterval;                 // The SPM sample interval in sclks.
 
     // A big struct that lists every block's PERFCOUNTER#_SELECT registers.

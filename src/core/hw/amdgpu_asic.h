@@ -47,6 +47,9 @@
 #define FAMILY_NV3     0x91
 #endif
 #define FAMILY_RMB     0x92
+#if PAL_BUILD_PHOENIX
+#define FAMILY_PHX     0x94
+#endif
 #define FAMILY_RPL     0x95
 #define FAMILY_MDN     0x97
 
@@ -65,6 +68,9 @@
 #if PAL_BUILD_GFX11
 #if PAL_BUILD_NAVI3X
 #define FAMILY_IS_NV3(f)     FAMILY_IS(f, NV3)
+#endif
+#if PAL_BUILD_PHOENIX
+#define FAMILY_IS_PHX(f)     FAMILY_IS(f, PHX)
 #endif
 #endif
 #define FAMILY_IS_RMB(f)     FAMILY_IS(f, RMB)
@@ -120,6 +126,9 @@
 #endif
 #if PAL_BUILD_NAVI33
 #define AMDGPU_NAVI33_RANGE        0x10, 0x20
+#endif
+#if PAL_BUILD_PHOENIX1
+#define AMDGPU_PHOENIX1_RANGE      0x01, 0x80
 #endif
 #define AMDGPU_RAPHAEL_RANGE       0x01, 0xff
 #define AMDGPU_MENDOCINO_RANGE     0x01, 0xff
@@ -180,6 +189,9 @@
 #if PAL_BUILD_NAVI33
 #define ASICREV_IS_NAVI33(r)           ASICREV_IS(r, NAVI33)
 #endif
+#if PAL_BUILD_PHOENIX1
+#define ASICREV_IS_PHOENIX1(r)         ASICREV_IS(r, PHOENIX1)
+#endif
 #define ASICREV_IS_RAPHAEL(r)          ASICREV_IS(r, RAPHAEL)
 #define ASICREV_IS_MENDOCINO(r)        ASICREV_IS(r, MENDOCINO)
 
@@ -234,6 +246,9 @@
 #if PAL_BUILD_NAVI33
 #define AMDGPU_IS_NAVI33(f, r)        AMDGPU_IS(f, r, NV3, NAVI33)
 #endif
+#if PAL_BUILD_PHOENIX1
+#define AMDGPU_IS_PHOENIX1(f, r)      AMDGPU_IS(f, r, PHX, PHOENIX1)
+#endif
 #define AMDGPU_IS_RAPHAEL(f, r)       AMDGPU_IS(f, r, RPL, RAPHAEL)
 #define AMDGPU_IS_MENDOCINO(f, r)     AMDGPU_IS(f, r, MDN, MENDOCINO)
 
@@ -286,6 +301,9 @@
 #define DEVICE_ID_NV3_NAVI33_P_73F0     0x73F0
 #endif
 #define DEVICE_ID_RPL_164E              0x164E
+#if PAL_BUILD_PHOENIX1
+#define DEVICE_ID_PHX1_15BF             0x15BF
+#endif
 #define DEVICE_ID_MDN_1506              0x1506
 
 // DEVICE_IS(deviceId, deviceName)
@@ -339,6 +357,9 @@
 #endif
 #if PAL_BUILD_NAVI33
 #define NAVI33_P_A0               0x10
+#endif
+#if PAL_BUILD_PHOENIX1
+#define PHOENIX1_A0               0x01
 #endif
 #define RAPHAEL_A0                0x01
 #define MENDOCINO_A0              0x01
@@ -424,6 +445,9 @@
 #define PRID_NV3_NAVI33_F5          0xF5
 #define PRID_NV3_NAVI33_F6          0xF6
 #define PRID_NV3_NAVI33_F7          0xF7
+#endif
+#if PAL_BUILD_PHOENIX
+#define PRID_PHX_00                 0x00
 #endif
 #define PRID_RMB_00                 0x00
 #define PRID_RPL_00                 0x00

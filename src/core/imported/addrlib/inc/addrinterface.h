@@ -41,7 +41,7 @@ extern "C"
 #endif
 
 #define ADDRLIB_VERSION_MAJOR 8
-#define ADDRLIB_VERSION_MINOR 5
+#define ADDRLIB_VERSION_MINOR 6
 #define ADDRLIB_VERSION ((ADDRLIB_VERSION_MAJOR << 16) | ADDRLIB_VERSION_MINOR)
 
 /// Virtually all interface functions need ADDR_HANDLE as first parameter
@@ -168,18 +168,29 @@ typedef union _ADDR_EQUATION_KEY
 * @brief address equation structure
 ****************************************************************************************************
 */
-#define ADDR_MAX_EQUATION_BIT 20u
+#define ADDR_MAX_LEGACY_EQUATION_COMP 3u
+#define ADDR_MAX_EQUATION_COMP        5u
+#define ADDR_MAX_EQUATION_BIT         20u
 
 // Invalid equation index
 #define ADDR_INVALID_EQUATION_INDEX 0xFFFFFFFF
 
 typedef struct _ADDR_EQUATION
 {
-    ADDR_CHANNEL_SETTING addr[ADDR_MAX_EQUATION_BIT];  ///< addr setting
-                                                       ///< each bit is result of addr ^ xor ^ xor2
-    ADDR_CHANNEL_SETTING xor1[ADDR_MAX_EQUATION_BIT];  ///< xor setting
-    ADDR_CHANNEL_SETTING xor2[ADDR_MAX_EQUATION_BIT];  ///< xor2 setting
+    union
+    {
+        struct {
+            ADDR_CHANNEL_SETTING addr[ADDR_MAX_EQUATION_BIT];  ///< addr setting
+            ADDR_CHANNEL_SETTING xor1[ADDR_MAX_EQUATION_BIT];  ///< xor setting
+            ADDR_CHANNEL_SETTING xor2[ADDR_MAX_EQUATION_BIT];  ///< xor2 setting
+            ADDR_CHANNEL_SETTING xor3[ADDR_MAX_EQUATION_BIT];  ///< xor3 setting
+            ADDR_CHANNEL_SETTING xor4[ADDR_MAX_EQUATION_BIT];  ///< xor4 setting
+        };
+        ///< Components showing the sources of each bit; each bit is result of addr ^ xor ^ xor2...
+        ADDR_CHANNEL_SETTING comps[ADDR_MAX_EQUATION_COMP][ADDR_MAX_EQUATION_BIT];
+    };
     UINT_32              numBits;                      ///< The number of bits in equation
+    UINT_32              numBitComponents;             ///< The max number of channels contributing to a bit
     BOOL_32              stackedDepthSlices;           ///< TRUE if depth slices are treated as being
                                                        ///< stacked vertically prior to swizzling
 } ADDR_EQUATION;
@@ -2400,7 +2411,8 @@ typedef union _ADDR2_SURFACE_FLAGS
         UINT_32 metaRbUnaligned   :  1; ///< This resource has rb unaligned metadata
         UINT_32 metaPipeUnaligned :  1; ///< This resource has pipe unaligned metadata
         UINT_32 view3dAs2dArray   :  1; ///< This resource is a 3D resource viewed as 2D array
-        UINT_32 reserved          : 13; ///< Reserved bits
+        UINT_32 allowExtEquation  :  1; ///< If unset, only legacy DX eqs are allowed (2 XORs)
+        UINT_32 reserved          : 12; ///< Reserved bits
     };
 
     UINT_32 value;

@@ -245,9 +245,12 @@ Result CmdBuffer::End()
     {
         PostCall(CmdBufCallId::End);
 
-        m_stats.commandBufferSize = GetNextLayer()->GetUsedSize(CmdAllocType::CommandDataAlloc);
-        m_stats.embeddedDataSize  = GetNextLayer()->GetUsedSize(CmdAllocType::EmbeddedDataAlloc);
-        m_stats.gpuScratchMemSize = GetNextLayer()->GetUsedSize(CmdAllocType::GpuScratchMemAlloc);
+        m_stats.commandBufferSize     = GetNextLayer()->GetUsedSize(CmdAllocType::CommandDataAlloc);
+        m_stats.embeddedDataSize      = GetNextLayer()->GetUsedSize(CmdAllocType::EmbeddedDataAlloc);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+        m_stats.largeEmbeddedDataSize = GetNextLayer()->GetUsedSize(CmdAllocType::LargeEmbeddedDataAlloc);
+#endif
+        m_stats.gpuScratchMemSize     = GetNextLayer()->GetUsedSize(CmdAllocType::GpuScratchMemAlloc);
     }
 
     return result;
@@ -810,6 +813,19 @@ void CmdBuffer::CmdCopyTypedBuffer(
     PreCall();
     CmdBufferFwdDecorator::CmdCopyTypedBuffer(srcGpuMemory, dstGpuMemory, regionCount, pRegions);
     PostCall(CmdBufCallId::CmdCopyTypedBuffer);
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdScaledCopyTypedBufferToImage(
+    const IGpuMemory&                       srcGpuMemory,
+    const IImage&                           dstImage,
+    ImageLayout                             dstImageLayout,
+    uint32                                  regionCount,
+    const TypedBufferImageScaledCopyRegion* pRegions)
+{
+    PreCall();
+    CmdBufferFwdDecorator::CmdScaledCopyTypedBufferToImage(srcGpuMemory, dstImage, dstImageLayout, regionCount, pRegions);
+    PostCall(CmdBufCallId::CmdScaledCopyTypedBufferToImage);
 }
 
 // =====================================================================================================================

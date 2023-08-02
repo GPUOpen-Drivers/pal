@@ -67,21 +67,14 @@ enum class ImageCopyEngine : uint32
     ComputeVrsDirty = 0x3,
 };
 
-// Specifies the info used for CopyImageCs
+// Specifies the shader-specific info used by CopyImageCs. Filled out by GetCopyImageCsInfo.
 struct CopyImageCsInfo
 {
     const ComputePipeline* pPipeline;
-    const Image*           pSrcImage;
-    ImageLayout            srcImageLayout;
-    const Image*           pDstImage;
-    ImageLayout            dstImageLayout;
-    uint32                 regionCount;
-    const ImageCopyRegion* pRegions;
-    uint32                 flags;
+    DispatchDims           texelsPerGroup;
     bool                   isFmaskCopy;
     bool                   isFmaskCopyOptimized;
     bool                   useMipInSrd;
-    const gpusize*         pP2pBltInfoChunks;
 };
 
 // =====================================================================================================================
@@ -146,6 +139,14 @@ public:
         const GpuMemory&             dstGpuMemory,
         uint32                       regionCount,
         const TypedBufferCopyRegion* pRegions) const;
+
+    void CmdScaledCopyTypedBufferToImage(
+        GfxCmdBuffer*                           pCmdBuffer,
+        const GpuMemory&                        srcGpuMemory,
+        const Image&                            dstImage,
+        ImageLayout                             dstImageLayout,
+        uint32                                  regionCount,
+        const TypedBufferImageScaledCopyRegion* pRegions) const;
 
     void CmdScaledCopyImage(
         GfxCmdBuffer*           pCmdBuffer,
@@ -357,18 +358,6 @@ protected:
         uint32                  regionCount,
         const MemoryCopyRegion* pRegions) const;
 
-    const ComputePipeline* GetCopyImageComputePipeline(
-        const Image&           srcImage,
-        ImageLayout            srcImageLayout,
-        const Image&           dstImage,
-        ImageLayout            dstImageLayout,
-        uint32                 regionCount,
-        const ImageCopyRegion* pRegions,
-        uint32                 flags,
-        bool                   useMipInSrd,
-        bool*                  pIsFmaskCopy,
-        bool*                  pIsFmaskCopyOptimized) const;
-
     const ComputePipeline* GetScaledCopyImageComputePipeline(
         const Image& srcImage,
         const Image& dstImage,
@@ -388,7 +377,24 @@ protected:
 
     void CopyImageCs(
         GfxCmdBuffer*          pCmdBuffer,
-        const CopyImageCsInfo& copyImageCsInfo) const;
+        const Image&           srcImage,
+        ImageLayout            srcImageLayout,
+        const Image&           dstImage,
+        ImageLayout            dstImageLayout,
+        uint32                 regionCount,
+        const ImageCopyRegion* pRegions,
+        uint32                 flags,
+        const gpusize*         pP2pBltInfoChunks) const;
+
+    void GetCopyImageCsInfo(
+        const Image&           srcImage,
+        ImageLayout            srcImageLayout,
+        const Image&           dstImage,
+        ImageLayout            dstImageLayout,
+        uint32                 regionCount,
+        const ImageCopyRegion* pRegions,
+        uint32                 flags,
+        CopyImageCsInfo*       pInfo) const;
 
     void CopyBetweenMemoryAndImageCs(
         GfxCmdBuffer*                pCmdBuffer,
@@ -486,16 +492,6 @@ private:
         const Pal::Image&  image) const
         { PAL_NEVER_CALLED(); }
 
-    virtual void HwlDecodeImageViewSrd(
-        const void*     pImageViewSrd,
-        const Image&    dstImage,
-        SwizzledFormat* pSwizzledFormat,
-        SubresRange*    pSubresRange) const = 0;
-
-    virtual void HwlDecodeBufferViewSrd(
-        const void*     pBufferViewSrd,
-        BufferViewInfo* pViewInfo) const = 0;
-
     virtual void CopyImageGraphics(
         GfxCmdBuffer*          pCmdBuffer,
         const Image&           srcImage,
@@ -528,6 +524,16 @@ private:
         uint32                       regionCount,
         const MemoryImageCopyRegion* pRegions,
         bool                         includePadding) const;
+
+    virtual void CopyBetweenTypedBufferAndImage(
+        GfxCmdBuffer*                           pCmdBuffer,
+        const ComputePipeline*                  pPipeline,
+        const GpuMemory&                        gpuMemory,
+        const Image&                            image,
+        ImageLayout                             imageLayout,
+        bool                                    isImageDst,
+        uint32                                  regionCount,
+        const TypedBufferImageScaledCopyRegion* pRegions) const;
 
     void ConvertYuvToRgb(
         GfxCmdBuffer*                     pCmdBuffer,

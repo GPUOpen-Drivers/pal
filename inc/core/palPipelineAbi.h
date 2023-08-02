@@ -96,6 +96,9 @@ enum class AmdGpuMachineType : uint8
 #if PAL_BUILD_NAVI33
     Gfx1102 = 0x47,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1102
 #endif
+#if PAL_BUILD_PHOENIX
+    Gfx1103 = 0x44,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1103
+#endif
 };
 
 /// AmdGpuFeatureV4Type for the feature selection mask bits in e_flags.
@@ -175,6 +178,11 @@ enum GfxIpStepping : uint16
 #if PAL_BUILD_NAVI33
     // GFXIP 11.0.x steppings:
     GfxIpSteppingNavi33        = 2,
+#endif
+
+#if PAL_BUILD_PHOENIX
+    // GFXIP 11.0.x steppings:
+    GfxIpSteppingPhoenix       = 3,
 #endif
 
 };
@@ -752,7 +760,7 @@ enum class CbConstUsageType : uint8
  {
 
  constexpr uint32 PipelineMetadataMajorVersion = 3;  ///< Pipeline Metadata Major Version
- constexpr uint32 PipelineMetadataMinorVersion = 1;  ///< Pipeline Metadata Minor Version
+ constexpr uint32 PipelineMetadataMinorVersion = 2;  ///< Pipeline Metadata Minor Version
 
  constexpr uint32 PipelineMetadataBase = 0x10000000; ///< Deprecated - Pipeline Metadata base value to be OR'd with the
                                                      ///  PipelineMetadataEntry value when saving to ELF.

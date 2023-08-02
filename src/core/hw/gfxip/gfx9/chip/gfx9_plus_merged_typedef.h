@@ -221,11 +221,11 @@ typedef union CB_COLOR7_VIEW                                     regCB_COLOR7_VI
 typedef union CB_COLOR_CONTROL                                   regCB_COLOR_CONTROL;
 typedef union CB_COVERAGE_OUT_CONTROL                            regCB_COVERAGE_OUT_CONTROL;
 typedef union CB_DCC_CONFIG                                      regCB_DCC_CONFIG;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 typedef union CB_DCC_CONFIG2                                     regCB_DCC_CONFIG2;
 #endif
 typedef union CB_DCC_CONTROL                                     regCB_DCC_CONTROL;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 typedef union CB_FDCC_CONTROL                                    regCB_FDCC_CONTROL;
 typedef union CB_FGCG_SRAM_OVERRIDE                              regCB_FGCG_SRAM_OVERRIDE;
 #endif
@@ -236,7 +236,7 @@ typedef union CB_HW_CONTROL_3                                    regCB_HW_CONTRO
 typedef union CB_HW_CONTROL_4                                    regCB_HW_CONTROL_4;
 typedef union CB_HW_MEM_ARBITER_RD                               regCB_HW_MEM_ARBITER_RD;
 typedef union CB_HW_MEM_ARBITER_WR                               regCB_HW_MEM_ARBITER_WR;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 typedef union CB_KEY_OVERRIDE_0                                  regCB_KEY_OVERRIDE_0;
 typedef union CB_KEY_OVERRIDE_1                                  regCB_KEY_OVERRIDE_1;
 typedef union CB_KEY_OVERRIDE_2                                  regCB_KEY_OVERRIDE_2;
@@ -333,7 +333,7 @@ typedef union COMPUTE_DIM_Z                                      regCOMPUTE_DIM_
 typedef union COMPUTE_DISPATCH_END                               regCOMPUTE_DISPATCH_END;
 typedef union COMPUTE_DISPATCH_ID                                regCOMPUTE_DISPATCH_ID;
 typedef union COMPUTE_DISPATCH_INITIATOR                         regCOMPUTE_DISPATCH_INITIATOR;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 typedef union COMPUTE_DISPATCH_INTERLEAVE                        regCOMPUTE_DISPATCH_INTERLEAVE;
 #endif
 typedef union COMPUTE_DISPATCH_PKT_ADDR_HI                       regCOMPUTE_DISPATCH_PKT_ADDR_HI;
@@ -372,7 +372,7 @@ typedef union COMPUTE_STATIC_THREAD_MGMT_SE0                     regCOMPUTE_STAT
 typedef union COMPUTE_STATIC_THREAD_MGMT_SE1                     regCOMPUTE_STATIC_THREAD_MGMT_SE1;
 typedef union COMPUTE_STATIC_THREAD_MGMT_SE2                     regCOMPUTE_STATIC_THREAD_MGMT_SE2;
 typedef union COMPUTE_STATIC_THREAD_MGMT_SE3                     regCOMPUTE_STATIC_THREAD_MGMT_SE3;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 typedef union COMPUTE_STATIC_THREAD_MGMT_SE4                     regCOMPUTE_STATIC_THREAD_MGMT_SE4;
 typedef union COMPUTE_STATIC_THREAD_MGMT_SE5                     regCOMPUTE_STATIC_THREAD_MGMT_SE5;
 typedef union COMPUTE_STATIC_THREAD_MGMT_SE6                     regCOMPUTE_STATIC_THREAD_MGMT_SE6;
@@ -461,7 +461,7 @@ typedef union CP_SC_PSINVOC_COUNT0_LO                            regCP_SC_PSINVO
 typedef union CP_SC_PSINVOC_COUNT1_HI                            regCP_SC_PSINVOC_COUNT1_HI;
 typedef union CP_SC_PSINVOC_COUNT1_LO                            regCP_SC_PSINVOC_COUNT1_LO;
 typedef union CP_STRMOUT_CNTL                                    regCP_STRMOUT_CNTL;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 typedef union CP_VGT_ASINVOC_COUNT_HI                            regCP_VGT_ASINVOC_COUNT_HI;
 typedef union CP_VGT_ASINVOC_COUNT_LO                            regCP_VGT_ASINVOC_COUNT_LO;
 #endif
@@ -509,7 +509,7 @@ typedef union DB_FGCG_SRAMS_CLK_CTRL                             regDB_FGCG_SRAM
 typedef union DB_FIFO_DEPTH1                                     regDB_FIFO_DEPTH1;
 typedef union DB_FIFO_DEPTH2                                     regDB_FIFO_DEPTH2;
 typedef union DB_FIFO_DEPTH3                                     regDB_FIFO_DEPTH3;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 typedef union DB_FIFO_DEPTH4                                     regDB_FIFO_DEPTH4;
 #endif
 typedef union DB_FREE_CACHELINES                                 regDB_FREE_CACHELINES;
@@ -793,7 +793,7 @@ typedef union GE2_SE_PERFCOUNTER3_SELECT1                        regGE2_SE_PERFC
 typedef union GE_CNTL                                            regGE_CNTL;
 typedef union GE_DMA_FIRST_INDEX                                 regGE_DMA_FIRST_INDEX;
 typedef union GE_FAST_CLKS                                       regGE_FAST_CLKS;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 typedef union GE_GS_FAST_LAUNCH_WG_DIM                           regGE_GS_FAST_LAUNCH_WG_DIM;
 typedef union GE_GS_FAST_LAUNCH_WG_DIM_1                         regGE_GS_FAST_LAUNCH_WG_DIM_1;
 #endif
@@ -803,7 +803,7 @@ typedef union GE_MAX_VTX_INDX                                    regGE_MAX_VTX_I
 typedef union GE_MIN_VTX_INDX                                    regGE_MIN_VTX_INDX;
 typedef union GE_MULTI_PRIM_IB_RESET_EN                          regGE_MULTI_PRIM_IB_RESET_EN;
 typedef union GE_NGG_SUBGRP_CNTL                                 regGE_NGG_SUBGRP_CNTL;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 typedef union GE_PA_IF_SAFE_REG                                  regGE_PA_IF_SAFE_REG;
 #endif
 typedef union GE_PC_ALLOC                                        regGE_PC_ALLOC;
@@ -849,11 +849,11 @@ typedef union GE_PERFCOUNTER11_HI                                regGE_PERFCOUNT
 typedef union GE_PERFCOUNTER11_LO                                regGE_PERFCOUNTER11_LO;
 typedef union GE_PERFCOUNTER11_SELECT                            regGE_PERFCOUNTER11_SELECT;
 typedef union GE_PRIV_CONTROL                                    regGE_PRIV_CONTROL;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 typedef union GE_RATE_CNTL_1                                     regGE_RATE_CNTL_1;
 typedef union GE_RATE_CNTL_2                                     regGE_RATE_CNTL_2;
 #endif
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 typedef union GE_SPI_IF_SAFE_REG                                 regGE_SPI_IF_SAFE_REG;
 #endif
 typedef union GE_STATUS                                          regGE_STATUS;
@@ -1162,7 +1162,7 @@ typedef union PA_PH_PERFCOUNTER6_SELECT                          regPA_PH_PERFCO
 typedef union PA_PH_PERFCOUNTER7_HI                              regPA_PH_PERFCOUNTER7_HI;
 typedef union PA_PH_PERFCOUNTER7_LO                              regPA_PH_PERFCOUNTER7_LO;
 typedef union PA_PH_PERFCOUNTER7_SELECT                          regPA_PH_PERFCOUNTER7_SELECT;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 typedef union PA_RATE_CNTL                                       regPA_RATE_CNTL;
 #endif
 typedef union PA_SC_AA_CONFIG                                    regPA_SC_AA_CONFIG;
@@ -1184,13 +1184,13 @@ typedef union PA_SC_AA_SAMPLE_LOCS_PIXEL_X1Y1_0                  regPA_SC_AA_SAM
 typedef union PA_SC_AA_SAMPLE_LOCS_PIXEL_X1Y1_1                  regPA_SC_AA_SAMPLE_LOCS_PIXEL_X1Y1_1;
 typedef union PA_SC_AA_SAMPLE_LOCS_PIXEL_X1Y1_2                  regPA_SC_AA_SAMPLE_LOCS_PIXEL_X1Y1_2;
 typedef union PA_SC_AA_SAMPLE_LOCS_PIXEL_X1Y1_3                  regPA_SC_AA_SAMPLE_LOCS_PIXEL_X1Y1_3;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 typedef union PA_SC_ATM_CNTL                                     regPA_SC_ATM_CNTL;
 #endif
 typedef union PA_SC_BC_WAVE_BREAK                                regPA_SC_BC_WAVE_BREAK;
 typedef union PA_SC_BINNER_CNTL_0                                regPA_SC_BINNER_CNTL_0;
 typedef union PA_SC_BINNER_CNTL_1                                regPA_SC_BINNER_CNTL_1;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 typedef union PA_SC_BINNER_CNTL_2                                regPA_SC_BINNER_CNTL_2;
 #endif
 typedef union PA_SC_BINNER_CNTL_OVERRIDE                         regPA_SC_BINNER_CNTL_OVERRIDE;
@@ -1246,7 +1246,7 @@ typedef union PA_SC_P3D_TRAP_SCREEN_HV_EN                        regPA_SC_P3D_TR
 typedef union PA_SC_P3D_TRAP_SCREEN_HV_LOCK                      regPA_SC_P3D_TRAP_SCREEN_HV_LOCK;
 typedef union PA_SC_P3D_TRAP_SCREEN_OCCURRENCE                   regPA_SC_P3D_TRAP_SCREEN_OCCURRENCE;
 typedef union PA_SC_P3D_TRAP_SCREEN_V                            regPA_SC_P3D_TRAP_SCREEN_V;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 typedef union PA_SC_PACKER_WAVE_ID_CNTL                          regPA_SC_PACKER_WAVE_ID_CNTL;
 #endif
 typedef union PA_SC_PBB_OVERRIDE_FLAG                            regPA_SC_PBB_OVERRIDE_FLAG;
@@ -1353,7 +1353,7 @@ typedef union PA_SC_VPORT_ZMIN_12                                regPA_SC_VPORT_
 typedef union PA_SC_VPORT_ZMIN_13                                regPA_SC_VPORT_ZMIN_13;
 typedef union PA_SC_VPORT_ZMIN_14                                regPA_SC_VPORT_ZMIN_14;
 typedef union PA_SC_VPORT_ZMIN_15                                regPA_SC_VPORT_ZMIN_15;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 typedef union PA_SC_VRS_OVERRIDE_CNTL                            regPA_SC_VRS_OVERRIDE_CNTL;
 typedef union PA_SC_VRS_RATE_BASE                                regPA_SC_VRS_RATE_BASE;
 typedef union PA_SC_VRS_RATE_BASE_EXT                            regPA_SC_VRS_RATE_BASE_EXT;
@@ -1491,7 +1491,7 @@ typedef union RLC_SPM_GLB_SAMPLEDELAY_IND_ADDR                   regRLC_SPM_GLB_
 typedef union RLC_SPM_GLB_SAMPLEDELAY_IND_DATA                   regRLC_SPM_GLB_SAMPLEDELAY_IND_DATA;
 typedef union RLC_SPM_GLOBALS_MUXSEL_SKEW                        regRLC_SPM_GLOBALS_MUXSEL_SKEW;
 typedef union RLC_SPM_GLOBALS_SAMPLE_SKEW                        regRLC_SPM_GLOBALS_SAMPLE_SKEW;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 typedef union RLC_SPM_GLOBAL_DELAY_IND_ADDR                      regRLC_SPM_GLOBAL_DELAY_IND_ADDR;
 typedef union RLC_SPM_GLOBAL_DELAY_IND_DATA                      regRLC_SPM_GLOBAL_DELAY_IND_DATA;
 #endif
@@ -1504,7 +1504,7 @@ typedef union RLC_SPM_INT_INFO_1                                 regRLC_SPM_INT_
 typedef union RLC_SPM_INT_INFO_2                                 regRLC_SPM_INT_INFO_2;
 typedef union RLC_SPM_INT_STATUS                                 regRLC_SPM_INT_STATUS;
 typedef union RLC_SPM_MC_CNTL                                    regRLC_SPM_MC_CNTL;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 typedef union RLC_SPM_MODE                                       regRLC_SPM_MODE;
 typedef union RLC_SPM_PAUSE                                      regRLC_SPM_PAUSE;
 #endif
@@ -1523,7 +1523,7 @@ typedef union RLC_SPM_PERFMON_SWA_SEGMENT_SIZE                   regRLC_SPM_PERF
 typedef union RLC_SPM_RING_RDPTR                                 regRLC_SPM_RING_RDPTR;
 typedef union RLC_SPM_RING_WRPTR                                 regRLC_SPM_RING_WRPTR;
 typedef union RLC_SPM_RMI_PERFMON_SAMPLE_DELAY                   regRLC_SPM_RMI_PERFMON_SAMPLE_DELAY;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 typedef union RLC_SPM_RSPM_CMD                                   regRLC_SPM_RSPM_CMD;
 typedef union RLC_SPM_RSPM_CMD_ACK                               regRLC_SPM_RSPM_CMD_ACK;
 typedef union RLC_SPM_RSPM_REQ_DATA_HI                           regRLC_SPM_RSPM_REQ_DATA_HI;
@@ -1535,7 +1535,7 @@ typedef union RLC_SPM_RSPM_RET_OP                                regRLC_SPM_RSPM
 typedef union RLC_SPM_SAMPLE_CNT                                 regRLC_SPM_SAMPLE_CNT;
 typedef union RLC_SPM_SC_PERFMON_SAMPLE_DELAY                    regRLC_SPM_SC_PERFMON_SAMPLE_DELAY;
 typedef union RLC_SPM_SEGMENT_THRESHOLD                          regRLC_SPM_SEGMENT_THRESHOLD;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 typedef union RLC_SPM_SE_DELAY_IND_ADDR                          regRLC_SPM_SE_DELAY_IND_ADDR;
 typedef union RLC_SPM_SE_DELAY_IND_DATA                          regRLC_SPM_SE_DELAY_IND_DATA;
 #endif
@@ -1543,7 +1543,7 @@ typedef union RLC_SPM_SE_MUXSEL_ADDR                             regRLC_SPM_SE_M
 typedef union RLC_SPM_SE_MUXSEL_ADDR_OFFSET                      regRLC_SPM_SE_MUXSEL_ADDR_OFFSET;
 typedef union RLC_SPM_SE_MUXSEL_DATA                             regRLC_SPM_SE_MUXSEL_DATA;
 typedef union RLC_SPM_SE_MUXSEL_SKEW                             regRLC_SPM_SE_MUXSEL_SKEW;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 typedef union RLC_SPM_SE_RSPM_REQ_DATA_HI                        regRLC_SPM_SE_RSPM_REQ_DATA_HI;
 typedef union RLC_SPM_SE_RSPM_REQ_DATA_LO                        regRLC_SPM_SE_RSPM_REQ_DATA_LO;
 typedef union RLC_SPM_SE_RSPM_REQ_OP                             regRLC_SPM_SE_RSPM_REQ_OP;
@@ -1553,12 +1553,12 @@ typedef union RLC_SPM_SE_RSPM_RET_OP                             regRLC_SPM_SE_R
 typedef union RLC_SPM_SE_SAMPLEDELAY_IND_ADDR                    regRLC_SPM_SE_SAMPLEDELAY_IND_ADDR;
 typedef union RLC_SPM_SE_SAMPLEDELAY_IND_DATA                    regRLC_SPM_SE_SAMPLEDELAY_IND_DATA;
 typedef union RLC_SPM_SE_SAMPLE_SKEW                             regRLC_SPM_SE_SAMPLE_SKEW;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 typedef union RLC_SPM_SPARE                                      regRLC_SPM_SPARE;
 #endif
 typedef union RLC_SPM_SPI_PERFMON_SAMPLE_DELAY                   regRLC_SPM_SPI_PERFMON_SAMPLE_DELAY;
 typedef union RLC_SPM_SQG_PERFMON_SAMPLE_DELAY                   regRLC_SPM_SQG_PERFMON_SAMPLE_DELAY;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 typedef union RLC_SPM_STATUS                                     regRLC_SPM_STATUS;
 #endif
 typedef union RLC_SPM_SX_PERFMON_SAMPLE_DELAY                    regRLC_SPM_SX_PERFMON_SAMPLE_DELAY;
@@ -1665,7 +1665,7 @@ typedef union SPI_ARB_CNTL_0                                     regSPI_ARB_CNTL
 typedef union SPI_ARB_CYCLES_0                                   regSPI_ARB_CYCLES_0;
 typedef union SPI_ARB_CYCLES_1                                   regSPI_ARB_CYCLES_1;
 typedef union SPI_ARB_PRIORITY                                   regSPI_ARB_PRIORITY;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 typedef union SPI_ATTRIBUTE_RING_BASE                            regSPI_ATTRIBUTE_RING_BASE;
 typedef union SPI_ATTRIBUTE_RING_SIZE                            regSPI_ATTRIBUTE_RING_SIZE;
 #endif
@@ -1673,7 +1673,7 @@ typedef union SPI_BARYC_CNTL                                     regSPI_BARYC_CN
 typedef union SPI_BARYC_SSAA_CNTL                                regSPI_BARYC_SSAA_CNTL;
 typedef union SPI_COMPUTE_QUEUE_RESET                            regSPI_COMPUTE_QUEUE_RESET;
 typedef union SPI_COMPUTE_WF_CTX_SAVE                            regSPI_COMPUTE_WF_CTX_SAVE;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 typedef union SPI_COMPUTE_WF_CTX_SAVE_STATUS                     regSPI_COMPUTE_WF_CTX_SAVE_STATUS;
 #endif
 typedef union SPI_CONFIG_CNTL                                    regSPI_CONFIG_CNTL;
@@ -1702,7 +1702,7 @@ typedef union SPI_FEATURE_CTRL                                   regSPI_FEATURE_
 typedef union SPI_GDS_CREDITS                                    regSPI_GDS_CREDITS;
 typedef union SPI_GFX_CNTL                                       regSPI_GFX_CNTL;
 typedef union SPI_GFX_CRAWLER_CONFIG                             regSPI_GFX_CRAWLER_CONFIG;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 typedef union SPI_GFX_SCRATCH_BASE_HI                            regSPI_GFX_SCRATCH_BASE_HI;
 typedef union SPI_GFX_SCRATCH_BASE_LO                            regSPI_GFX_SCRATCH_BASE_LO;
 typedef union SPI_GS_THROTTLE_CNTL1                              regSPI_GS_THROTTLE_CNTL1;
@@ -1718,7 +1718,7 @@ typedef union SPI_LB_DATA_PERCU_WAVE_HSGS                        regSPI_LB_DATA_
 typedef union SPI_LB_DATA_PERCU_WAVE_VSPS                        regSPI_LB_DATA_PERCU_WAVE_VSPS;
 typedef union SPI_LB_DATA_PERWGP_WAVE_CS                         regSPI_LB_DATA_PERWGP_WAVE_CS;
 typedef union SPI_LB_DATA_PERWGP_WAVE_HSGS                       regSPI_LB_DATA_PERWGP_WAVE_HSGS;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 typedef union SPI_LB_DATA_PERWGP_WAVE_PS                         regSPI_LB_DATA_PERWGP_WAVE_PS;
 #endif
 typedef union SPI_LB_DATA_PERWGP_WAVE_VSPS                       regSPI_LB_DATA_PERWGP_WAVE_VSPS;
@@ -1830,7 +1830,7 @@ typedef union SPI_RESOURCE_RESERVE_EN_CU_13                      regSPI_RESOURCE
 typedef union SPI_RESOURCE_RESERVE_EN_CU_14                      regSPI_RESOURCE_RESERVE_EN_CU_14;
 typedef union SPI_RESOURCE_RESERVE_EN_CU_15                      regSPI_RESOURCE_RESERVE_EN_CU_15;
 typedef union SPI_SHADER_COL_FORMAT                              regSPI_SHADER_COL_FORMAT;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 typedef union SPI_SHADER_GS_MESHLET_DIM                          regSPI_SHADER_GS_MESHLET_DIM;
 typedef union SPI_SHADER_GS_MESHLET_EXP_ALLOC                    regSPI_SHADER_GS_MESHLET_EXP_ALLOC;
 #endif
@@ -2211,7 +2211,7 @@ typedef union SPI_WF_LIFETIME_STATUS_19                          regSPI_WF_LIFET
 typedef union SPI_WF_LIFETIME_STATUS_20                          regSPI_WF_LIFETIME_STATUS_20;
 typedef union SPI_WF_LIFETIME_STATUS_21                          regSPI_WF_LIFETIME_STATUS_21;
 typedef union SQG_CONFIG                                         regSQG_CONFIG;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 typedef union SQG_GL1H_STATUS                                    regSQG_GL1H_STATUS;
 typedef union SQG_PERFCOUNTER0_HI                                regSQG_PERFCOUNTER0_HI;
 typedef union SQG_PERFCOUNTER0_LO                                regSQG_PERFCOUNTER0_LO;
@@ -2369,7 +2369,7 @@ typedef union SQ_PERFCOUNTER15_SELECT                            regSQ_PERFCOUNT
 typedef union SQ_PERFCOUNTER_CTRL                                regSQ_PERFCOUNTER_CTRL;
 typedef union SQ_PERFCOUNTER_CTRL2                               regSQ_PERFCOUNTER_CTRL2;
 typedef union SQ_PERFCOUNTER_MASK                                regSQ_PERFCOUNTER_MASK;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 typedef union SQ_PERF_SNAPSHOT_CTRL                              regSQ_PERF_SNAPSHOT_CTRL;
 typedef union SQ_PERF_SNAPSHOT_DATA                              regSQ_PERF_SNAPSHOT_DATA;
 typedef union SQ_PERF_SNAPSHOT_PC_HI                             regSQ_PERF_SNAPSHOT_PC_HI;
@@ -2506,7 +2506,7 @@ typedef union TA_BC_BASE_ADDR                                    regTA_BC_BASE_A
 typedef union TA_BC_BASE_ADDR_HI                                 regTA_BC_BASE_ADDR_HI;
 typedef union TA_CGTT_CTRL                                       regTA_CGTT_CTRL;
 typedef union TA_CNTL                                            regTA_CNTL;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 typedef union TA_CNTL2                                           regTA_CNTL2;
 #endif
 typedef union TA_CNTL_AUX                                        regTA_CNTL_AUX;
@@ -3160,7 +3160,7 @@ typedef union UTCL1_PERFCOUNTER0_SELECT                          regUTCL1_PERFCO
 typedef union UTCL1_PERFCOUNTER1_HI                              regUTCL1_PERFCOUNTER1_HI;
 typedef union UTCL1_PERFCOUNTER1_LO                              regUTCL1_PERFCOUNTER1_LO;
 typedef union UTCL1_PERFCOUNTER1_SELECT                          regUTCL1_PERFCOUNTER1_SELECT;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 typedef union UTCL1_PERFCOUNTER2_HI                              regUTCL1_PERFCOUNTER2_HI;
 typedef union UTCL1_PERFCOUNTER2_LO                              regUTCL1_PERFCOUNTER2_LO;
 typedef union UTCL1_PERFCOUNTER2_SELECT                          regUTCL1_PERFCOUNTER2_SELECT;

@@ -40,7 +40,6 @@
 #include "core/hw/gfxip/gfx9/chip/gfx9_plus_merged_shift.h"
 #include "core/hw/gfxip/gfx9/chip/gfx9_plus_merged_registers.h"
 #include "core/hw/gfxip/gfx9/chip/gfx9_plus_merged_typedef.h"
-#include "core/hw/gfxip/pm4CmdBuffer.h"
 
 #include "core/hw/gfxip/gfx9/chip/gfx9_plus_merged_f32_ce_pm4_packets.h"  // constant engine
 #include "core/hw/gfxip/gfx9/chip/gfx9_plus_merged_f32_mec_pm4_packets.h" // compute engine
@@ -52,6 +51,8 @@
 
 namespace Pal
 {
+class Platform;
+
 namespace Gfx9
 {
 
@@ -246,9 +247,6 @@ constexpr uint32 Gfx11MaxPackedUserEntryCountCs = NumUserDataRegistersCompute / 
 static_assert(Gfx11MaxPackedUserEntryCountCs <= Gfx11MaxRegPairCount, "Packing too many registers!");
 #endif
 
-// Starting user data register index where the client's graphics fast user-data 'entries' are written for shaders.
-constexpr uint16 FastUserDataStartReg = (ConstBufTblStartReg + 1);
-
 // HW doesn't provide enumerations for the values of the DB_DFSM_CONTROL.PUNCHOUT_MODE field.  Give
 // some nice names here.
 constexpr uint32 DfsmPunchoutModeAuto     = 0;
@@ -409,16 +407,6 @@ static_assert((sizeof(Gfx9ImageSrd) == sizeof(sq_img_rsrc_t)),
 static_assert((sizeof(Gfx9SamplerSrd) == sizeof(sq_img_samp_t)),
               "GFX9 and GFX10 sampler SRD definitions are not the same size!");
 
-union TargetViewExtent2d
-{
-    struct
-    {
-        uint32 width  : 16; ///< Width of region (max width is 16k).
-        uint32 height : 16; ///< Height of region (max height is 16k).
-    };
-    uint32 value;
-};
-
 // Maximum scissor rect value for the top-left corner.
 constexpr uint32 ScissorMaxTL = 16383;
 // Maximum scissor rect value for the bottom-right corner.
@@ -496,7 +484,7 @@ struct UserDataEntryMap
 {
     // Each element of this array is the entry ID which is mapped to the user-SGPR associated with that array element.
     // The only elements in this array which are valid are ones whose index is less than userSgprCount.
-    uint8  mappedEntry[NumUserDataRegisters - FastUserDataStartReg];
+    uint8  mappedEntry[NumUserDataRegisters];
     uint8  userSgprCount;           // Number of valid entries in the mappedEntry array.
     uint16 firstUserSgprRegAddr;    // Address of the first user-SGPR which is mapped to user-data entries.
     // Address of the user-SGPR used for the spill table GPU virtual address for this stage.  Zero indicates that this

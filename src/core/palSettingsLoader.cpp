@@ -31,7 +31,26 @@
 
 #include "palSettingsLoader.h"
 #include "palHashMapImpl.h"
+#include "palOptional.h"
 #include "palUtil.h"
+
+namespace
+{
+// =====================================================================================================================
+// Templated getter function for optional setting
+template<typename T> DevDriver::Result GetOptValue(
+    Pal::SettingValue* pSettingValue,
+    Util::Optional<T>* pOptValue)
+{
+    DevDriver::Result result = DevDriver::Result::NotReady;
+    if (pOptValue->HasValue())
+    {
+        *reinterpret_cast<T*>(pSettingValue->pValuePtr) = pOptValue->Value();
+        result = DevDriver::Result::Success;
+    }
+    return result;
+}
+} // anonymous namespace
 
 namespace Pal
 {
@@ -56,12 +75,45 @@ DevDriver::Result ISettingsLoader::GetValue(
             pSettingValue->valueSize = pInfo->valueSize;
             ret = DevDriver::Result::SettingsUriInvalidSettingValueSize;
         }
-        else
+        else if (pInfo->isOptional == false)
         {
             memcpy(pSettingValue->pValuePtr, pInfo->pValuePtr, pInfo->valueSize);
             pSettingValue->valueSize = pInfo->valueSize;
             pSettingValue->type = pInfo->type;
             ret = DevDriver::Result::Success;
+        }
+        else
+        {
+            // Optional setting.
+            switch (pInfo->type)
+            {
+            case SettingType::Boolean:
+            {
+                ret = GetOptValue(pSettingValue, reinterpret_cast<Util::Optional<bool>*>(pInfo->pValuePtr));
+                break;
+            }
+            case SettingType::Int:
+            {
+                ret = GetOptValue(pSettingValue, reinterpret_cast<Util::Optional<int32>*>(pInfo->pValuePtr));
+                break;
+            }
+            case SettingType::Uint:
+            {
+                ret = GetOptValue(pSettingValue, reinterpret_cast<Util::Optional<uint32>*>(pInfo->pValuePtr));
+                break;
+            }
+            case SettingType::Float:
+            {
+                ret = GetOptValue(pSettingValue, reinterpret_cast<Util::Optional<float>*>(pInfo->pValuePtr));
+                break;
+            }
+            default:
+            {
+                PAL_NEVER_CALLED();
+                ret = DevDriver::Result::SettingsUriInvalidSettingValueSize;
+                break;
+            }
+            }
         }
     }
 
@@ -98,8 +150,41 @@ DevDriver::Result ISettingsLoader::SetValue(
                 {
                     if (pInfo->valueSize >= settingValue.valueSize)
                     {
-                        memcpy(pInfo->pValuePtr, settingValue.pValuePtr, settingValue.valueSize);
-                        ret = DevDriver::Result::Success;
+                        if (pInfo->isOptional == false)
+                        {
+                            memcpy(pInfo->pValuePtr, settingValue.pValuePtr, settingValue.valueSize);
+                            ret = DevDriver::Result::Success;
+                        }
+                        else
+                        {
+                            // Optional setting.
+                            switch (pInfo->type)
+                            {
+                            case SettingType::Boolean:
+                                *reinterpret_cast<Util::Optional<bool>*>(pInfo->pValuePtr) =
+                                    *reinterpret_cast<bool*>(settingValue.pValuePtr);
+                                ret = DevDriver::Result::Success;
+                                break;
+                            case SettingType::Int:
+                                *reinterpret_cast<Util::Optional<int32>*>(pInfo->pValuePtr) =
+                                    *reinterpret_cast<int32*>(settingValue.pValuePtr);
+                                ret = DevDriver::Result::Success;
+                                break;
+                            case SettingType::Uint:
+                                *reinterpret_cast<Util::Optional<uint32>*>(pInfo->pValuePtr) =
+                                    *reinterpret_cast<uint32*>(settingValue.pValuePtr);
+                                ret = DevDriver::Result::Success;
+                                break;
+                            case SettingType::Float:
+                                *reinterpret_cast<Util::Optional<float>*>(pInfo->pValuePtr) =
+                                    *reinterpret_cast<float*>(settingValue.pValuePtr);
+                                ret = DevDriver::Result::Success;
+                                break;
+                            default:
+                                ret = DevDriver::Result::SettingsUriInvalidSettingValueSize;
+                                break;
+                            }
+                        }
                     }
                     else
                     {

@@ -913,4 +913,12 @@ const MsaaQuadSamplePattern GfxDevice::DefaultSamplePattern[] = {
     },
 };
 
+// =====================================================================================================================
+ClearMethod GfxDevice::GetDefaultSlowClearMethod(
+    const Pal::Image*  pImage
+    ) const
+{
+    return ClearMethod::NormalGraphics;
+}
+
 } // Pal

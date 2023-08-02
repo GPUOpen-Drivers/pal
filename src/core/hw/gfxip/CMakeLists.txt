@@ -44,6 +44,8 @@ target_sources(pal PRIVATE
     computePipeline.cpp
     computePipeline.h
     depthStencilState.h
+    gfxBarrier.cpp
+    gfxBarrier.h
     gfxBlendOptimizer.cpp
     gfxBlendOptimizer.h
     gfxCmdBuffer.cpp
@@ -56,9 +58,11 @@ target_sources(pal PRIVATE
     gfxImage.h
     graphicsPipeline.cpp
     graphicsPipeline.h
+    hsaAbiMetadata.cpp
     msaaState.h
     pipeline.cpp
     pipeline.h
+    pipelineAbiReader.cpp
     pm4CmdBuffer.cpp
     pm4CmdBuffer.h
     pm4CmdStream.cpp

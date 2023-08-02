@@ -233,17 +233,22 @@ Result Queue::Init(
     if (result == Result::Success)
     {
         CmdAllocatorCreateInfo createInfo = { };
-        createInfo.flags.autoMemoryReuse                      = 1;
-        createInfo.flags.disableBusyChunkTracking             = 1;
-        createInfo.allocInfo[CommandDataAlloc].allocHeap      = GpuHeapGartUswc;
-        createInfo.allocInfo[CommandDataAlloc].allocSize      = 2_MiB;
-        createInfo.allocInfo[CommandDataAlloc].suballocSize   = 64_KiB;
-        createInfo.allocInfo[EmbeddedDataAlloc].allocHeap     = GpuHeapGartUswc;
-        createInfo.allocInfo[EmbeddedDataAlloc].allocSize     = 2_MiB;
-        createInfo.allocInfo[EmbeddedDataAlloc].suballocSize  = 64_KiB;
-        createInfo.allocInfo[GpuScratchMemAlloc].allocHeap    = GpuHeapGartUswc;
-        createInfo.allocInfo[GpuScratchMemAlloc].allocSize    = 2_MiB;
-        createInfo.allocInfo[GpuScratchMemAlloc].suballocSize = 64_KiB;
+        createInfo.flags.autoMemoryReuse                            = 1;
+        createInfo.flags.disableBusyChunkTracking                   = 1;
+        createInfo.allocInfo[CommandDataAlloc].allocHeap            = GpuHeapGartUswc;
+        createInfo.allocInfo[CommandDataAlloc].allocSize            = 2_MiB;
+        createInfo.allocInfo[CommandDataAlloc].suballocSize         = 64_KiB;
+        createInfo.allocInfo[EmbeddedDataAlloc].allocHeap           = GpuHeapGartUswc;
+        createInfo.allocInfo[EmbeddedDataAlloc].allocSize           = 2_MiB;
+        createInfo.allocInfo[EmbeddedDataAlloc].suballocSize        = 64_KiB;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+        createInfo.allocInfo[LargeEmbeddedDataAlloc].allocHeap      = GpuHeapGartUswc;
+        createInfo.allocInfo[LargeEmbeddedDataAlloc].allocSize      = 2_MiB;
+        createInfo.allocInfo[LargeEmbeddedDataAlloc].suballocSize   = 64_KiB;
+#endif
+        createInfo.allocInfo[GpuScratchMemAlloc].allocHeap          = GpuHeapGartUswc;
+        createInfo.allocInfo[GpuScratchMemAlloc].allocSize          = 2_MiB;
+        createInfo.allocInfo[GpuScratchMemAlloc].suballocSize       = 64_KiB;
 
         void* pMemory = PAL_MALLOC(m_pDevice->GetCmdAllocatorSize(createInfo, &result),
                                    m_pDevice->GetPlatform(),
@@ -275,15 +280,20 @@ Result Queue::Init(
         // All nested allocations are set the the minimum size (4KB) because applications that submit hundreds of nested
         // command buffers can potentially exhaust the GPU VA range by simply playing back too many nested command buffers.
         // This will have a small performance impact on large nested command buffers but we have little choice for now.
-        createInfo.allocInfo[CommandDataAlloc].allocHeap      = GpuHeapGartUswc;
-        createInfo.allocInfo[CommandDataAlloc].allocSize      = 4_KiB;
-        createInfo.allocInfo[CommandDataAlloc].suballocSize   = 4_KiB;
-        createInfo.allocInfo[EmbeddedDataAlloc].allocHeap     = GpuHeapGartUswc;
-        createInfo.allocInfo[EmbeddedDataAlloc].allocSize     = 4_KiB;
-        createInfo.allocInfo[EmbeddedDataAlloc].suballocSize  = 4_KiB;
-        createInfo.allocInfo[GpuScratchMemAlloc].allocHeap    = GpuHeapGartUswc;
-        createInfo.allocInfo[GpuScratchMemAlloc].allocSize    = 4_KiB;
-        createInfo.allocInfo[GpuScratchMemAlloc].suballocSize = 4_KiB;
+        createInfo.allocInfo[CommandDataAlloc].allocHeap          = GpuHeapGartUswc;
+        createInfo.allocInfo[CommandDataAlloc].allocSize          = 4_KiB;
+        createInfo.allocInfo[CommandDataAlloc].suballocSize       = 4_KiB;
+        createInfo.allocInfo[EmbeddedDataAlloc].allocHeap         = GpuHeapGartUswc;
+        createInfo.allocInfo[EmbeddedDataAlloc].allocSize         = 4_KiB;
+        createInfo.allocInfo[EmbeddedDataAlloc].suballocSize      = 4_KiB;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+        createInfo.allocInfo[LargeEmbeddedDataAlloc].allocHeap    = GpuHeapGartUswc;
+        createInfo.allocInfo[LargeEmbeddedDataAlloc].allocSize    = 64_KiB;
+        createInfo.allocInfo[LargeEmbeddedDataAlloc].suballocSize = 64_KiB;
+#endif
+        createInfo.allocInfo[GpuScratchMemAlloc].allocHeap        = GpuHeapGartUswc;
+        createInfo.allocInfo[GpuScratchMemAlloc].allocSize        = 4_KiB;
+        createInfo.allocInfo[GpuScratchMemAlloc].suballocSize     = 4_KiB;
 
         void* pMemory = PAL_MALLOC(m_pDevice->GetCmdAllocatorSize(createInfo, &result),
                                    m_pDevice->GetPlatform(),

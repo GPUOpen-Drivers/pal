@@ -2983,6 +2983,7 @@ ADDR_E_RETURNCODE Lib::ComputeMicroTileEquation(
     // stackedDepthSlices is used for addressing mode that a tile block contains multiple slices,
     // which is not supported by our address lib
     pEquation->stackedDepthSlices = FALSE;
+    pEquation->numBitComponents   = 1;
 
     return retCode;
 }

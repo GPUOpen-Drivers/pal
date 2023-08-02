@@ -27,6 +27,18 @@
 #include "palSysMemory.h"
 
 // =====================================================================================================================
+// Get the default allocation callback.
+void PAL_STDCALL Util::GetDefaultAllocCb(
+    Util::AllocCallbacks* pAllocCb)
+{
+    PAL_ASSERT(pAllocCb != nullptr);
+
+    // Initialize default OS-specific callbacks.
+    OsInitDefaultAllocCallbacks(pAllocCb);
+
+}
+
+// =====================================================================================================================
 // PAL-internal placement new override.  The DummyEnum is used to ensure there won't be a conflict if a client tries to
 // override global placement new.  Must be in the global namespace, not Util.
 void* PAL_CDECL operator new(

@@ -72,7 +72,7 @@ template <typename      T,
           uint32...     KeyRanges>       ///< This variadic template argument must come in [begin, end] pairs.
 class SparseVector
 {
-static_assert(std::is_pod<T>::value, "SparseVector only supports trivial types.");
+static_assert(std::is_trivial_v<T>, "SparseVector only supports trivial types.");
 static_assert(((sizeof...(KeyRanges) >= 2) && ((sizeof...(KeyRanges) & 1) == 0)), "KeyRanges must come in pairs.");
 
 public:

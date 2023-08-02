@@ -27,7 +27,8 @@
 #include "crashAnalysisEventProvider.h"
 #include "core/devDriverUtil.h"
 #include "devDriverServer.h"
-#include <dd_events/gpu_detective/umd_crash_analysis.h>
+
+#include <dd_event/gpu_detective/umd_crash_analysis.h>
 
 using namespace Util;
 using namespace DevDriver;

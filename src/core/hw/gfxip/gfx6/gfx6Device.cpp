@@ -109,6 +109,8 @@ Result CreateDevice(
         pPfnTable->pfnCreateFmaskViewSrds      = &Device::CreateFmaskViewSrds;
         pPfnTable->pfnCreateSamplerSrds        = &Device::CreateSamplerSrds;
         pPfnTable->pfnCreateBvhSrds            = &Device::CreateBvhSrds;
+        pPfnTable->pfnDecodeBufferViewSrd      = &Device::DecodeBufferViewSrd;
+        pPfnTable->pfnDecodeImageViewSrd       = &Device::DecodeImageViewSrd;
     }
 
     return result;
@@ -2648,6 +2650,147 @@ void PAL_STDCALL Device::CreateBvhSrds(
     // Ray trace isn't supported until GFX10; the client should never be trying this.  Function provided only to
     // prevent null-pointer calls (and crashes).
     PAL_NEVER_CALLED();
+}
+
+// =====================================================================================================================
+// Attempts to recover the original PAL format and subresource range from the given image view SRD.
+void PAL_STDCALL Device::DecodeImageViewSrd(
+    const IDevice*   pDevice,
+    const IImage*    pImage,
+    const void*      pImageViewSrd,
+    DecodedImageSrd* pDecodedInfo)
+{
+    const Pal::Image& dstImage      = *static_cast<const Pal::Image*>(pImage);
+    const Pal::Device* pPalDevice   = static_cast<const Pal::Device*>(pDevice);
+    SubresRange* pSubresRange       = &pDecodedInfo->subresRange;
+    SwizzledFormat* pSwizzledFormat = &pDecodedInfo->swizzledFormat;
+
+    const auto& srd = *static_cast<const ImageSrd*>(pImageViewSrd);
+
+    // Verify that we have an image view SRD.
+    PAL_ASSERT((srd.word3.bits.TYPE >= SQ_RSRC_IMG_1D) && (srd.word3.bits.TYPE <= SQ_RSRC_IMG_2D_MSAA_ARRAY));
+
+    pSwizzledFormat->format    = FmtFromHwImgFmt(static_cast<IMG_DATA_FORMAT>(srd.word1.bits.DATA_FORMAT),
+                                                 static_cast<IMG_NUM_FORMAT>(srd.word1.bits.NUM_FORMAT),
+                                                 pPalDevice->ChipProperties().gfxLevel);
+    pSwizzledFormat->swizzle.r = ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(srd.word3.bits.DST_SEL_X));
+    pSwizzledFormat->swizzle.g = ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(srd.word3.bits.DST_SEL_Y));
+    pSwizzledFormat->swizzle.b = ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(srd.word3.bits.DST_SEL_Z));
+    pSwizzledFormat->swizzle.a = ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(srd.word3.bits.DST_SEL_W));
+
+    // Verify that we have a valid format.
+    PAL_ASSERT(pSwizzledFormat->format != ChNumFormat::Undefined);
+
+    // Next, recover the original subresource range. We can't recover the exact range in all cases so we must assume
+    // that it's looking at the color plane and that it's not block compressed.
+    PAL_ASSERT(Formats::IsBlockCompressed(pSwizzledFormat->format) == false);
+
+    pSubresRange->startSubres.plane = 0;
+    pSubresRange->numPlanes         = 1;
+
+    const auto& imageCreateInfo = dstImage.GetImageCreateInfo();
+    if (Formats::IsYuv(imageCreateInfo.swizzledFormat.format))
+    {
+        if (Formats::IsYuvPlanar(imageCreateInfo.swizzledFormat.format))
+        {
+            // For Planar YUV, loop through each plane and compare the address with SRD to determine which subresrouce
+            // this SRD represents.
+            for (uint32 i = 0; i < dstImage.GetImageInfo().numSubresources; ++i)
+            {
+                const auto*    pTileInfo   = AddrMgr1::GetTileInfo(&dstImage, i);
+                const auto     srdBaseAddr = (static_cast<gpusize>(srd.word1.bits.BASE_ADDRESS_HI) << 32ull) +
+                                              srd.word0.bits.BASE_ADDRESS;
+                const gpusize  subResAddr  = Get256BAddrLoSwizzled(dstImage.GetSubresourceBaseAddr(i),
+                                                                   pTileInfo->tileSwizzle);
+
+                if (srdBaseAddr == subResAddr)
+                {
+                    pSubresRange->startSubres.plane = dstImage.SubresourceInfo(i)->subresId.plane;
+                    break;
+                }
+            }
+
+            PAL_ASSERT(dstImage.IsColorPlane(pSubresRange->startSubres.plane) == false);
+        }
+        else
+        {
+            // For Packed YUV, it is always subresource 0
+            pSubresRange->startSubres.plane = dstImage.SubresourceInfo(0)->subresId.plane;
+        }
+    }
+
+    // The PAL interface can not individually address the slices of a 3D resource.  "numSlices==1" is assumed to
+    // mean all of them and we have to start from the first slice.
+    if (dstImage.GetImageCreateInfo().imageType == ImageType::Tex3d)
+    {
+        pSubresRange->numSlices              = 1;
+        pSubresRange->startSubres.arraySlice = 0;
+    }
+    else
+    {
+        pSubresRange->numSlices              = srd.word5.bits.LAST_ARRAY - srd.word5.bits.BASE_ARRAY + 1;
+        pSubresRange->startSubres.arraySlice = srd.word5.bits.BASE_ARRAY;
+    }
+
+    if (srd.word3.bits.TYPE >= SQ_RSRC_IMG_2D_MSAA)
+    {
+        // MSAA textures cannot be mipmapped; the BASE_LEVEL and LAST_LEVEL fields indicate the texture's sample count.
+        pSubresRange->startSubres.mipLevel = 0;
+        pSubresRange->numMips              = 1;
+    }
+    else
+    {
+        pSubresRange->startSubres.mipLevel = srd.word3.bits.BASE_LEVEL;
+        pSubresRange->numMips              = srd.word3.bits.LAST_LEVEL - srd.word3.bits.BASE_LEVEL + 1;
+    }
+
+    pDecodedInfo->zRange.offset = 0;
+    pDecodedInfo->zRange.extent = dstImage.SubresourceInfo(pSubresRange->startSubres)->extentTexels.depth;
+    FixupDecodedSrdFormat(imageCreateInfo.swizzledFormat, pSwizzledFormat);
+}
+
+// =====================================================================================================================
+// Attempts to recover the original PAL BufferViewInfo from the given buffer view SRD.
+void PAL_STDCALL Device::DecodeBufferViewSrd(
+    const IDevice*  pDevice,
+    const void*     pBufferViewSrd,
+    BufferViewInfo* pViewInfo)
+{
+    const Pal::Device* pPalDevice = static_cast<const Pal::Device*>(pDevice);
+
+    const auto& srd      = *static_cast<const BufferSrd*>(pBufferViewSrd);
+    const auto  gfxLevel = pPalDevice->ChipProperties().gfxLevel;
+
+    // Verify that we have a buffer view SRD.
+    PAL_ASSERT(srd.word3.bits.TYPE == SQ_RSRC_BUF);
+
+    // Reconstruct the buffer view info struct.
+    pViewInfo->gpuAddr = (static_cast<gpusize>(srd.word1.bits.BASE_ADDRESS_HI) << 32ull) + srd.word0.bits.BASE_ADDRESS;
+    pViewInfo->stride  = srd.word1.bits.STRIDE;
+
+    // On GFX8+ GPUs, the units of the "num_records" field are always in terms of bytes; otherwise, if the stride is
+    // non-zero, the units are in terms of the stride.
+    pViewInfo->range = srd.word2.bits.NUM_RECORDS;
+
+    if ((gfxLevel < GfxIpLevel::GfxIp8) && (pViewInfo->stride > 0))
+    {
+        pViewInfo->range *= pViewInfo->stride;
+    }
+
+    pViewInfo->swizzledFormat.format    = FmtFromHwBufFmt(static_cast<BUF_DATA_FORMAT>(srd.word3.bits.DATA_FORMAT),
+                                                          static_cast<BUF_NUM_FORMAT>(srd.word3.bits.NUM_FORMAT),
+                                                          pPalDevice->ChipProperties().gfxLevel);
+    pViewInfo->swizzledFormat.swizzle.r =
+        ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(srd.word3.bits.DST_SEL_X));
+    pViewInfo->swizzledFormat.swizzle.g =
+        ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(srd.word3.bits.DST_SEL_Y));
+    pViewInfo->swizzledFormat.swizzle.b =
+        ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(srd.word3.bits.DST_SEL_Z));
+    pViewInfo->swizzledFormat.swizzle.a =
+        ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(srd.word3.bits.DST_SEL_W));
+
+    // Verify that we have a valid format.
+    PAL_ASSERT(pViewInfo->swizzledFormat.format != ChNumFormat::Undefined);
 }
 
 // The minimum microcode versions for all supported GFX 6-8 GPUs. These constants are expressed in decimal rather than

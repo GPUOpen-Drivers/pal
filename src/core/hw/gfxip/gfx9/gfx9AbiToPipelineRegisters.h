@@ -2103,60 +2103,78 @@ static uint32 ComputeResourceLimits(
 }
 
 #if PAL_BUILD_GFX11
-constexpr uint32 DispatchInterleaveSizeLookupTable[] =
-{
-    64u,  // Default
-    1u,   // Disable
-    128u, // _128
-    256u, // _256
-    512u, // _512
-};
-static_assert((Util::ArrayLen32(DispatchInterleaveSizeLookupTable) ==
-               static_cast<uint32>(DispatchInterleaveSize::Count)),
-              "DispatchInterleaveSizeLookupTable and DispatchInterleaveSize don't have the same number of elements.");
-static_assert((DispatchInterleaveSizeLookupTable[static_cast<uint32>(DispatchInterleaveSize::Default)] ==
-               Gfx11::mmCOMPUTE_DISPATCH_INTERLEAVE_DEFAULT),
-              "DispatchInterleaveSizeLookupTable looks up incorrect value for DispatchInterleaveSize::Default.");
-static_assert((DispatchInterleaveSizeLookupTable[static_cast<uint32>(DispatchInterleaveSize::_128)] == 128u),
-              "DispatchInterleaveSizeLookupTable looks up incorrect value for DispatchInterleaveSize::_128.");
-static_assert((DispatchInterleaveSizeLookupTable[static_cast<uint32>(DispatchInterleaveSize::_256)] == 256u),
-              "DispatchInterleaveSizeLookupTable looks up incorrect value for DispatchInterleaveSize::_128.");
-static_assert((DispatchInterleaveSizeLookupTable[static_cast<uint32>(DispatchInterleaveSize::_512)] == 512u),
-              "DispatchInterleaveSizeLookupTable looks up incorrect value for DispatchInterleaveSize::_128.");
-// Panel setting validation for OverrideCsDispatchInterleaveSize
-static_assert((static_cast<uint32>(OverrideCsDispatchInterleaveSizeDisabled) ==
-               static_cast<uint32>(DispatchInterleaveSize::Disable)),
-              "OverrideCsDispatchInterleaveSizeDisabled and DispatchInterleaveSize::Disable do not match.");
-static_assert((static_cast<uint32>(OverrideCsDispatchInterleaveSize128) ==
-               static_cast<uint32>(DispatchInterleaveSize::_128)),
-              "OverrideCsDispatchInterleaveSize128 and DispatchInterleaveSize::_128 do not match.");
-static_assert((static_cast<uint32>(OverrideCsDispatchInterleaveSize256) ==
-               static_cast<uint32>(DispatchInterleaveSize::_256)),
-              "OverrideCsDispatchInterleaveSize256 and DispatchInterleaveSize::_256 do not match.");
-static_assert((static_cast<uint32>(OverrideCsDispatchInterleaveSize512) ==
-               static_cast<uint32>(DispatchInterleaveSize::_512)),
-              "OverrideCsDispatchInterleaveSize512 and DispatchInterleaveSize::_512 do not match.");
-
 // =====================================================================================================================
-static uint32 ComputeDispatchInterleave(
-    const Device&           device,
-    DispatchInterleaveSize  interleaveSize)
+static COMPUTE_DISPATCH_INTERLEAVE ComputeDispatchInterleave(
+    const Device&          device,
+    DispatchInterleaveSize interleaveSize)
 {
     COMPUTE_DISPATCH_INTERLEAVE computeDispatchInterleave = {};
 
-    const auto& settings               = device.Settings();
+    const auto&              settings  = device.Settings();
     const GpuChipProperties& chipProps = device.Parent()->ChipProperties();
     const GfxIpLevel         gfxLevel  = chipProps.gfxLevel;
 
     if (IsGfx11(gfxLevel))
     {
-        const uint32 lookup = (settings.overrideCsDispatchInterleaveSize != CsDispatchInterleaveSizeHonorClient)
-            ? static_cast<uint32>(settings.overrideCsDispatchInterleaveSize)
-            : static_cast<uint32>(interleaveSize);
-        computeDispatchInterleave.bits.INTERLEAVE = DispatchInterleaveSizeLookupTable[lookup];
+        DispatchInterleaveSize interleaveSizeLcl = interleaveSize;
+
+        if (settings.overrideCsDispatchInterleaveSize != CsDispatchInterleaveSizeHonorClient)
+        {
+            static_assert((uint32(OverrideCsDispatchInterleaveSize::OverrideCsDispatchInterleaveSizeDisabled) ==
+                           uint32(DispatchInterleaveSize::Disable)) &&
+                          (uint32(OverrideCsDispatchInterleaveSize::OverrideCsDispatchInterleaveSize128)      ==
+                           uint32(DispatchInterleaveSize::_128)) &&
+                          (uint32(OverrideCsDispatchInterleaveSize::OverrideCsDispatchInterleaveSize256)      ==
+                           uint32(DispatchInterleaveSize::_256)) &&
+                          (uint32(OverrideCsDispatchInterleaveSize::OverrideCsDispatchInterleaveSize512)      ==
+                           uint32(DispatchInterleaveSize::_512)),
+                          "Mismatch in some enums of OverrideCsDispatchInterleaveSize and DispatchInterleaveSize!");
+
+            switch (settings.overrideCsDispatchInterleaveSize)
+            {
+            case OverrideCsDispatchInterleaveSize::OverrideCsDispatchInterleaveSizeDisabled:
+            case OverrideCsDispatchInterleaveSize::OverrideCsDispatchInterleaveSize128:
+            case OverrideCsDispatchInterleaveSize::OverrideCsDispatchInterleaveSize256:
+            case OverrideCsDispatchInterleaveSize::OverrideCsDispatchInterleaveSize512:
+                interleaveSizeLcl = static_cast<DispatchInterleaveSize>(settings.overrideCsDispatchInterleaveSize);
+                break;
+            case OverrideCsDispatchInterleaveSize::OverrideCsDispatchInterleaveSize64:
+                interleaveSizeLcl = DispatchInterleaveSize::Default;
+                break;
+            default:
+                PAL_ASSERT_ALWAYS();
+                break;
+            }
+        }
+
+        uint32 regValue = 64;
+
+        switch (interleaveSizeLcl)
+        {
+        case DispatchInterleaveSize::Default:
+            regValue = 64;
+            break;
+        case DispatchInterleaveSize::Disable:
+            regValue = 1;
+            break;
+        case DispatchInterleaveSize::_128:
+            regValue = 128;
+            break;
+        case DispatchInterleaveSize::_256:
+            regValue = 256;
+            break;
+        case DispatchInterleaveSize::_512:
+            regValue = 512;
+            break;
+        default:
+            PAL_ASSERT_ALWAYS();
+            break;
+        }
+
+        computeDispatchInterleave.bits.INTERLEAVE = regValue;
     }
 
-    return computeDispatchInterleave.u32All;
+    return computeDispatchInterleave;
 }
 #endif
 } // namespace AbiRegisters

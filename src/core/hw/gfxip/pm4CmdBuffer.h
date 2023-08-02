@@ -29,6 +29,7 @@
 #include "core/fence.h"
 #include "core/perfExperiment.h"
 #include "core/platform.h"
+#include "gfxBarrier.h"
 #include "gfxCmdBuffer.h"
 #include "palDeque.h"
 #include "palHashMap.h"
@@ -165,6 +166,26 @@ public:
     virtual void CmdSuspendPredication(bool suspend) override
         { m_pm4CmdBufState.flags.packetPredicate = suspend ? 0 : 1; }
 
+    virtual void CmdBarrier(const BarrierInfo& barrierInfo) override;
+
+    virtual uint32 CmdRelease(const AcquireReleaseInfo& releaseInfo) override;
+
+    virtual void CmdAcquire(
+        const AcquireReleaseInfo& acquireInfo,
+        uint32                    syncTokenCount,
+        const uint32*             pSyncTokens) override;
+
+    virtual void CmdReleaseEvent(
+        const AcquireReleaseInfo& releaseInfo,
+        const IGpuEvent*          pGpuEvent) override;
+
+    virtual void CmdAcquireEvent(
+        const AcquireReleaseInfo& acquireInfo,
+        uint32                    gpuEventCount,
+        const IGpuEvent* const*   ppGpuEvents) override;
+
+    virtual void CmdReleaseThenAcquire(const AcquireReleaseInfo& barrierInfo) override;
+
     uint32 GetNextAcqRelFenceVal(AcqRelEventType type)
     {
         m_acqRelFenceVals[static_cast<uint32>(type)]++;
@@ -182,7 +203,11 @@ public:
     // Helper functions
     void OptimizePipePoint(HwPipePoint* pPipePoint) const;
     void OptimizeSrcCacheMask(uint32* pCacheMask) const;
-    virtual void OptimizePipeAndCacheMaskForRelease(uint32* pStageMask, uint32* pAccessMask) const;
+    virtual void OptimizePipeStageAndCacheMask(
+        uint32* pSrcStageMask,
+        uint32* pSrcAccessMask,
+        uint32* pDstStageMask,
+        uint32* pDstAccessMask) const;
 
     void SetPm4CmdBufGfxBltState(bool gfxBltActive) { m_pm4CmdBufState.flags.gfxBltActive = gfxBltActive; }
     void SetPm4CmdBufCsBltState(bool csBltActive) { m_pm4CmdBufState.flags.csBltActive = csBltActive; }
@@ -279,7 +304,8 @@ public:
 protected:
     Pm4CmdBuffer(
         const GfxDevice&           device,
-        const CmdBufferCreateInfo& createInfo);
+        const CmdBufferCreateInfo& createInfo,
+        const GfxBarrierMgr*       pBarrierMgr);
     virtual ~Pm4CmdBuffer();
 
     virtual Result BeginCommandStreams(CmdStreamBeginFlags cmdStreamFlags, bool doReset) override;
@@ -374,6 +400,7 @@ protected:
         const uint32*    pEntryValues);
 
     CmdStreamChunk* GetNextGeneratedChunk();
+    CmdStreamChunk* GetNextLargeGeneratedChunk();
 
     FceRefCountsVector m_fceRefCountVec;
 
@@ -381,6 +408,8 @@ protected:
 
     ComputeState       m_computeState;        // Currently bound compute command buffer state.
     ComputeState       m_computeRestoreState; // State saved by the previous call to CmdSaveComputeState.
+
+    const GfxBarrierMgr* m_pBarrierMgr; // Manager of all barrier calls.
 
 private:
     void ResetFastClearReferenceCounts();

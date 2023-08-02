@@ -177,6 +177,12 @@ public:
         const IGpuMemory&            dstGpuMemory,
         uint32                       regionCount,
         const TypedBufferCopyRegion* pRegions) override;
+    virtual void CmdScaledCopyTypedBufferToImage(
+        const IGpuMemory&                       srcGpuMemory,
+        const IImage&                           dstImage,
+        ImageLayout                             dstImageLayout,
+        uint32                                  regionCount,
+        const TypedBufferImageScaledCopyRegion* pRegions) override;
     virtual void CmdCopyRegisterToMemory(
         uint32            srcRegisterOffset,
         const IGpuMemory& dstGpuMemory,

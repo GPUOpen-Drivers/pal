@@ -50,6 +50,7 @@ PipelineChunkGs::PipelineChunkGs(
     m_fastLaunchMode(GsFastLaunchMode::Disabled)
 {
     m_stageInfo.stageId = Abi::HardwareStage::Gs;
+    m_regs.sh.userDataInternalTable.u32All = InvalidUserDataInternalTable;
 }
 
 // =====================================================================================================================
@@ -190,9 +191,12 @@ uint32* PipelineChunkGs::WriteShCommands(
                                                 &m_regs.sh.spiShaderPgmRsrc1Gs,
                                                 pCmdSpace);
 
-    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSpiShaderUserDataGs0 + ConstBufTblStartReg,
-                                                                m_regs.sh.userDataInternalTable.u32All,
-                                                                pCmdSpace);
+    if (m_regs.sh.userDataInternalTable.u32All != InvalidUserDataInternalTable)
+    {
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSpiShaderUserDataGs0 + ConstBufTblStartReg,
+                                                                 m_regs.sh.userDataInternalTable.u32All,
+                                                                 pCmdSpace);
+    }
 
     if (chipProps.gfx9.supportSpp != 0)
     {
@@ -392,10 +396,14 @@ void PipelineChunkGs::AccumulateShRegs(
                              mmSPI_SHADER_PGM_RSRC1_GS,
                              mmSPI_SHADER_PGM_RSRC2_GS,
                              &m_regs.sh.spiShaderPgmRsrc1Gs);
-    SetOneShRegValPairPacked(pRegPairs,
-                             pNumRegs,
-                             mmSpiShaderUserDataGs0 + ConstBufTblStartReg,
-                             m_regs.sh.userDataInternalTable.u32All);
+
+    if (m_regs.sh.userDataInternalTable.u32All != InvalidUserDataInternalTable)
+    {
+        SetOneShRegValPairPacked(pRegPairs,
+                                 pNumRegs,
+                                 mmSpiShaderUserDataGs0 + ConstBufTblStartReg,
+                                 m_regs.sh.userDataInternalTable.u32All);
+    }
 
     if (chipProps.gfx9.supportSpp != 0)
     {

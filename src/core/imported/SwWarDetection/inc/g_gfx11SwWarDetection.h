@@ -70,7 +70,7 @@ extern bool DetectGfx11SoftwareWorkaroundsByGfxIp(
     Gfx11SwWarDetection* pWorkarounds);
 
 // Number of workarounds that are represented in Gfx11SwWarDetection.
-constexpr uint32_t Gfx11NumWorkarounds = 45;
+constexpr uint32_t Gfx11NumWorkarounds = 46;
 
 // Number of DWORDs that make up the Gfx11SwWarDetection structure.
 constexpr uint32_t Gfx11StructDwords = 2;
@@ -81,7 +81,7 @@ constexpr uint32_t Gfx11StructDwords = 2;
 constexpr uint32_t Gfx11InactiveMask[] =
 {
     0x00000000,
-    0xffffe000,
+    0xffffc000,
 };
 
 // Bitfield structure containing all workarounds active for the Gfx11 family.
@@ -253,7 +253,7 @@ union Gfx11SwWarDetection
         uint32_t                                                                                                                                                                     : 1;
 #endif
 
-#if SWD_BUILD_NAVI31 || SWD_BUILD_NAVI33
+#if   SWD_BUILD_NAVI31 || SWD_BUILD_NAVI33
         uint32_t cmmGl2GL2WriteAfterReadOrderingIssueDuringGL2INV_A_                                                                                                                 : 1;
 #else
         uint32_t                                                                                                                                                                     : 1;
@@ -319,7 +319,9 @@ union Gfx11SwWarDetection
 
         uint32_t                                                                                                                                                                     : 1;
 
-        uint32_t reserved                                                                                                                                                            : 19;
+        uint32_t                                                                                                                                                                     : 1;
+
+        uint32_t reserved                                                                                                                                                            : 18;
     };
 
     uint32_t u32All[Gfx11StructDwords];

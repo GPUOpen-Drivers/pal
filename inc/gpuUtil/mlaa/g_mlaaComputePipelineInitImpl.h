@@ -159,6 +159,12 @@ Pal::Result CreateMlaaComputePipelines(
         break;
 #endif
 
+#if PAL_BUILD_PHOENIX1
+    case Pal::AsicRevision::Phoenix1:
+        pTable = mlaaComputeBinaryTablePhoenix1;
+        break;
+#endif
+
     default:
         result = Pal::Result::ErrorUnknown;
         PAL_NOT_IMPLEMENTED();

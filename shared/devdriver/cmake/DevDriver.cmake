@@ -103,9 +103,9 @@ endmacro()
 function(apply_devdriver_warnings name)
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
         target_compile_options(${name} PRIVATE
-            -Wall # Enable all warnings.
+            -Wall   # Enable all warnings.
             -Wextra # Enable extra warnings that are not enabled by -Wall.
-            -Werror # warning as error
+            -Werror # Treat warnings as errors
         )
     elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         target_compile_options(${name} PRIVATE

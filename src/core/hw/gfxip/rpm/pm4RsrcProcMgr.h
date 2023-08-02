@@ -30,10 +30,13 @@
 namespace Pal
 {
 
+class Pm4CmdBuffer;
+
 namespace Pm4
 {
 
 class CmdStream;
+class IndirectCmdGenerator;
 
 // Specifies gpu addresses that are used as input to CmdGenerateIndirectCmds
 struct GenerateInfo

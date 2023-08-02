@@ -26,6 +26,7 @@
 #pragma once
 
 #include "core/hw/gfxip/gfx9/gfx9Chip.h"
+#include "core/hw/gfxip/gfxDevice.h"
 #include "palDevice.h"
 #include "palLiterals.h"
 
@@ -276,6 +277,7 @@ public:
 #if PAL_BUILD_GFX11
     static constexpr uint32 DispatchMeshDirectSize        = PM4_ME_DISPATCH_MESH_DIRECT_SIZEDW__GFX11;
 #endif
+    static constexpr uint32 DispatchMeshIndirectMulti     = PM4_ME_DISPATCH_MESH_INDIRECT_MULTI_SIZEDW__GFX10COREPLUS;
     static constexpr uint32 DispatchTaskMeshGfxSize       = PM4_ME_DISPATCH_TASKMESH_GFX_SIZEDW__GFX10COREPLUS;
     static constexpr uint32 DispatchTaskMeshDirectMecSize =
         PM4_MEC_DISPATCH_TASKMESH_DIRECT_ACE_SIZEDW__GFX10COREPLUS;

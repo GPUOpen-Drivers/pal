@@ -30,6 +30,7 @@
 #include "palDeveloperHooks.h"
 #include "palSysMemory.h"
 #include "palFormatInfo.h"
+#include "palGpuUtil.h"
 
 using namespace Util;
 
@@ -539,6 +540,9 @@ Result GpuMemory::Init(
     m_flags.accessedPhysically   = internalInfo.flags.accessedPhysically;
     m_flags.gpuReadOnly          = internalInfo.flags.gpuReadOnly;
     m_flags.kmdShareUmdSysMem    = createInfo.flags.kmdShareUmdSysMem;
+#if PAL_AMDGPU_BUILD
+    m_flags.initializeToZero    =  createInfo.flags.initializeToZero;
+#endif
 
     if (IsClient() == false)
     {
@@ -836,7 +840,7 @@ Result GpuMemory::Init(
 
         if (IsErrorResult(result) == false)
         {
-            m_desc.uniqueId = GenerateUniqueId();
+            m_desc.uniqueId = GpuUtil::GenerateGpuMemoryUniqueId(IsInterprocess());
 
             DescribeGpuMemory(Developer::GpuMemoryAllocationMethod::Normal);
         }
@@ -868,7 +872,8 @@ Result GpuMemory::Init(
     m_desc.clientSize = createInfo.size; // store the requested size before any alignment
     m_desc.size       = createInfo.size;
     m_desc.alignment  = createInfo.alignment;
-    m_desc.uniqueId   = GenerateUniqueId();
+    m_desc.uniqueId   = GpuUtil::GenerateGpuMemoryUniqueId(IsInterprocess());
+
     if (createInfo.flags.gl2Uncached)
     {
         m_mtype = MType::Uncached;
@@ -951,7 +956,7 @@ Result GpuMemory::Init(
     m_desc.size       = createInfo.size;
     m_desc.alignment  = (createInfo.alignment != 0) ? createInfo.alignment
                                                    : m_pDevice->MemoryProperties().realMemAllocGranularity;
-    m_desc.uniqueId   = GenerateUniqueId();
+    m_desc.uniqueId   = GpuUtil::GenerateGpuMemoryUniqueId(IsInterprocess());
 
     m_vaPartition                    = m_pDevice->ChooseVaPartition(createInfo.vaRange, false);
 
@@ -1381,13 +1386,6 @@ gpusize GpuMemory::GetPhysicalAddressAlignment() const
     }
 
     return alignment;
-}
-
-// =====================================================================================================================
-/// Generate a 64-bit unique ID for this GPU memory.
-uint64 GpuMemory::GenerateUniqueId(void) const
-{
-    return reinterpret_cast<uint64>(this) ^ Uint64CombineParts(0, GetIdOfCurrentProcess());
 }
 
 } // Pal

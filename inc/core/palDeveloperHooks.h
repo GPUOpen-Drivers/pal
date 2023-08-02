@@ -118,6 +118,7 @@ enum class PresentModeType : uint32
 struct PresentationModeData
 {
     PresentModeType presentationMode;       ///< Information about present mode from above enumeration.
+    UniquePresentKey presentKey;            ///< Identifies the window/swap chain, etc. used to present.
 };
 
 /// Information for allocation/deallocation of GPU memory.
@@ -256,6 +257,9 @@ enum BarrierReason : uint32
     BarrierReasonPrePerfDataCopy,                           ///< Barrier issued to wait for perf data to become
                                                             ///  available for copy
     BarrierReasonFlushL2CachedData,                         ///< Barrier issued to flush L2 cached data to main memory
+    BarrierReasonResolveImage,                              ///< Barrier issued before and after resolve image shader
+    BarrierReasonPerPixelCopy,                              ///< Barrier issued between CS copy and per-pixel copy steps
+    BarrierReasonGenerateMipmaps,                           ///< Barrier issued between generating mip levels
     BarrierReasonInternalLastDefined,                       ///< Only used for asserts.
     BarrierReasonUnknown = 0xFFFFFFFF,                      ///< Unknown barrier reason
 

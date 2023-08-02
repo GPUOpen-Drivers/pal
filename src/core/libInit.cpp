@@ -111,18 +111,6 @@ size_t PAL_STDCALL GetPlatformSize()
 }
 
 // =====================================================================================================================
-// Get the default allocation callback.
-void PAL_STDCALL GetDefaultAllocCb(
-    Util::AllocCallbacks* pAllocCb)
-{
-    PAL_ASSERT(pAllocCb != nullptr);
-
-    // Initialize default OS-specific callbacks.
-    OsInitDefaultAllocCallbacks(pAllocCb);
-
-}
-
-// =====================================================================================================================
 // Initializes the PAL Platform object. This is the first call made by the client on startup, typically during process
 // attach. See the public interface documentation for more detail.
 Result PAL_STDCALL CreatePlatform(

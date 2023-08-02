@@ -25,6 +25,8 @@
 
 target_sources(pal PRIVATE
     CMakeLists.txt
+    directDrawSurface.cpp
+    directDrawSurface.h
     gpuDebugCmdBuffer.cpp
     gpuDebugCmdBuffer.h
     gpuDebugColorBlendState.cpp

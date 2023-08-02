@@ -818,6 +818,9 @@ void Gfx10DepthStencilView::SetGfx11StaticDbRenderControlFields(
     else
 #endif
     if (false
+#if PAL_BUILD_PHOENIX
+        || IsPhoenixFamily(palDevice)
+#endif
         )
     {
         switch (numFragments)

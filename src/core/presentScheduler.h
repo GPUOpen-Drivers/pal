@@ -129,7 +129,6 @@ protected:
     IQueue*      m_pSignalQueue;                   // Used to signal swap chain acquire semaphores and fences.
     IQueue*      m_pPresentQueues[XdmaMaxDevices]; // Used by the worker thread to execute presents asynchronously.
 
-private:
     Result GetIdleJob(PresentSchedulerJob** ppJob);
     void EnqueueJob(PresentSchedulerJob* pJob);
 

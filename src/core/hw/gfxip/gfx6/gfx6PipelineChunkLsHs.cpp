@@ -52,6 +52,8 @@ PipelineChunkLsHs::PipelineChunkLsHs(
 {
     m_stageInfoLs.stageId = Abi::HardwareStage::Ls;
     m_stageInfoHs.stageId = Abi::HardwareStage::Hs;
+    m_regs.sh.userDataInternalTableLs.u32All = InvalidUserDataInternalTable;
+    m_regs.sh.userDataInternalTableHs.u32All = InvalidUserDataInternalTable;
 }
 
 // =====================================================================================================================
@@ -167,12 +169,19 @@ uint32* PipelineChunkLsHs::WriteShCommands(
                                                 &m_regs.sh.spiShaderPgmLoHs,
                                                 pCmdSpace);
 
-    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSPI_SHADER_USER_DATA_LS_0 + ConstBufTblStartReg,
-                                                                m_regs.sh.userDataInternalTableLs.u32All,
-                                                                pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSPI_SHADER_USER_DATA_HS_0 + ConstBufTblStartReg,
-                                                                m_regs.sh.userDataInternalTableHs.u32All,
-                                                                pCmdSpace);
+    if (m_regs.sh.userDataInternalTableLs.u32All != InvalidUserDataInternalTable)
+    {
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSPI_SHADER_USER_DATA_LS_0 + ConstBufTblStartReg,
+                                                                 m_regs.sh.userDataInternalTableLs.u32All,
+                                                                 pCmdSpace);
+    }
+
+    if (m_regs.sh.userDataInternalTableHs.u32All != InvalidUserDataInternalTable)
+    {
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSPI_SHADER_USER_DATA_HS_0 + ConstBufTblStartReg,
+                                                                 m_regs.sh.userDataInternalTableHs.u32All,
+                                                                 pCmdSpace);
+    }
 
     // Some GFX7 hardware has a bug where writes to the SPI_SHADER_PGM_RSRC2_LS register can be dropped if the
     // LS stage's SP persistent state FIFO is full.  This allows incorrect values of the LDS_SIZE and/or USER_SGPR

@@ -58,6 +58,7 @@ PipelineChunkCs::PipelineChunkCs(
     {
         m_pStageInfo->stageId = Abi::HardwareStage::Cs;
     }
+    m_regs.userDataInternalTable.u32All = InvalidUserDataInternalTable;
 }
 
 // =====================================================================================================================
@@ -161,7 +162,7 @@ void PipelineChunkCs::InitRegisters(
         AbiRegisters::ComputeResourceLimits(metadata, m_device, wavefrontSize);
 
 #if PAL_BUILD_GFX11
-    m_regs.computeDispatchInterleave.u32All = AbiRegisters::ComputeDispatchInterleave(m_device, interleaveSize);
+    m_regs.computeDispatchInterleave = AbiRegisters::ComputeDispatchInterleave(m_device, interleaveSize);
 #endif
 
 }
@@ -283,10 +284,7 @@ void PipelineChunkCs::InitRegisters(
 #if PAL_BUILD_GFX11
     if (IsGfx11(chipProps.gfxLevel))
     {
-        const uint32 lookup = (settings.overrideCsDispatchInterleaveSize != CsDispatchInterleaveSizeHonorClient)
-                               ? static_cast<uint32>(settings.overrideCsDispatchInterleaveSize)
-                               : static_cast<uint32>(interleaveSize);
-        m_regs.computeDispatchInterleave.bits.INTERLEAVE = AbiRegisters::DispatchInterleaveSizeLookupTable[lookup];
+        m_regs.computeDispatchInterleave = AbiRegisters::ComputeDispatchInterleave(m_device, interleaveSize);
     }
 #endif
 }
@@ -363,7 +361,6 @@ void PipelineChunkCs::SetupSignatureFromMetadata(
 
     const auto& chipProps = m_device.Parent()->ChipProperties();
 
-    pSignature->stage.firstUserSgprRegAddr = (mmCOMPUTE_USER_DATA_0 + FastUserDataStartReg);
     for (uint16 offset = 0; offset < 16; ++offset)
     {
         uint32 value = 0;
@@ -379,8 +376,13 @@ void PipelineChunkCs::SetupSignatureFromMetadata(
 
             if (value < MaxUserDataEntries)
             {
-                PAL_ASSERT(offset >= FastUserDataStartReg);
-                const uint8 userSgprId = static_cast<uint8>(offset - FastUserDataStartReg);
+                if (pSignature->stage.firstUserSgprRegAddr == UserDataNotMapped)
+                {
+                    pSignature->stage.firstUserSgprRegAddr = offset + mmCOMPUTE_USER_DATA_0;
+                }
+
+                const uint8 userSgprId = static_cast<uint8>(
+                    offset + mmCOMPUTE_USER_DATA_0 - pSignature->stage.firstUserSgprRegAddr);
 
                 pSignature->stage.mappedEntry[userSgprId] = static_cast<uint8>(value);
                 pSignature->stage.userSgprCount = Max<uint8>(userSgprId + 1, pSignature->stage.userSgprCount);
@@ -448,7 +450,6 @@ void PipelineChunkCs::SetupSignatureFromRegisters(
 {
     const auto& chipProps = m_device.Parent()->ChipProperties();
 
-    pSignature->stage.firstUserSgprRegAddr = (mmCOMPUTE_USER_DATA_0 + FastUserDataStartReg);
     for (uint16 offset = mmCOMPUTE_USER_DATA_0; offset <= mmCOMPUTE_USER_DATA_15; ++offset)
     {
         uint32 value = 0;
@@ -456,6 +457,10 @@ void PipelineChunkCs::SetupSignatureFromRegisters(
         {
             if (value < MaxUserDataEntries)
             {
+                if (pSignature->stage.firstUserSgprRegAddr == UserDataNotMapped)
+                {
+                    pSignature->stage.firstUserSgprRegAddr = offset;
+                }
                 PAL_ASSERT(offset >= pSignature->stage.firstUserSgprRegAddr);
                 const uint8 userSgprId = static_cast<uint8>(offset - pSignature->stage.firstUserSgprRegAddr);
 
@@ -638,10 +643,13 @@ void PipelineChunkCs::AccumulateShCommandsSetPath(
                                  Gfx10Plus::mmCOMPUTE_PGM_RSRC3,
                                  m_regs.computePgmRsrc3.u32All);
 
-        SetOneShRegValPairPacked(pRegPairs,
-                                 pNumRegs,
-                                 mmCOMPUTE_USER_DATA_0 + ConstBufTblStartReg,
-                                 m_regs.userDataInternalTable.u32All);
+        if (m_regs.userDataInternalTable.u32All != InvalidUserDataInternalTable)
+        {
+            SetOneShRegValPairPacked(pRegPairs,
+                                     pNumRegs,
+                                     mmCOMPUTE_USER_DATA_0 + ConstBufTblStartReg,
+                                     m_regs.userDataInternalTable.u32All);
+        }
     }
 
     SetOneShRegValPairPacked(pRegPairs,
@@ -798,9 +806,12 @@ uint32* PipelineChunkCs::WriteShCommandsSetPath(
                                                                     pCmdSpace);
         }
 
-        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_USER_DATA_0 + ConstBufTblStartReg,
-                                                                m_regs.userDataInternalTable.u32All,
-                                                                pCmdSpace);
+        if (m_regs.userDataInternalTable.u32All != InvalidUserDataInternalTable)
+        {
+            pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_USER_DATA_0 + ConstBufTblStartReg,
+                                                                    m_regs.userDataInternalTable.u32All,
+                                                                    pCmdSpace);
+        }
     }
 
 #if PAL_BUILD_GFX11
@@ -886,6 +897,13 @@ Result PipelineChunkCs::CreateLaunchDescriptor(
 
         layout.computePgmRsrc3.bits.SHARED_VGPR_CNT =
             Max(layout.computePgmRsrc3.bits.SHARED_VGPR_CNT, pIn->computePgmRsrc3.bits.SHARED_VGPR_CNT);
+    }
+
+    // NOTE: when userDataInternalTable isn't used by shader, we should not write USER_DATA_1.
+    if (m_regs.userDataInternalTable.u32All == InvalidUserDataInternalTable)
+    {
+        layout.mmComputeUserData0 = layout.mmComputePgmRsrc2;
+        layout.userDataInternalTable.u32All = layout.computePgmRsrc2.u32All;
     }
 
     memcpy(pOut, &layout, sizeof(layout));

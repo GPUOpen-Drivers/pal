@@ -88,7 +88,7 @@ public:
 
     static uint32* HandleBoundTargetsChanged(const CmdUtil& cmdUtil, uint32* pCmdSpace);
 
-    Pm4::TargetExtent2d GetExtent() const { return m_extent; }
+    Extent2d GetExtent() const { return m_extent; }
 
     bool IsRotatedSwizzleOverwriteCombinerDisabled() const { return m_flags.disableRotateSwizzleOC != 0; }
 
@@ -184,7 +184,7 @@ protected:
     uint32              m_arraySize;
     uint32              m_uniqueId;
     SwizzledFormat      m_swizzledFormat;
-    Pm4::TargetExtent2d m_extent;
+    Extent2d            m_extent;
     ColorLayoutToState  m_layoutToState;
 };
 

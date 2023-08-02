@@ -32,6 +32,7 @@
 #include "core/hw/gfxip/gfx6/gfx6SettingsLoader.h"
 #include "core/hw/gfxip/gfx6/gfx6ShaderRingSet.h"
 #include "core/hw/gfxip/gfxDevice.h"
+#include "core/hw/gfxip/pm4CmdBuffer.h"
 #include "core/hw/gfxip/rpm/gfx6/gfx6RsrcProcMgr.h"
 
 namespace Pal
@@ -327,6 +328,17 @@ public:
         uint32          count,
         const BvhInfo*  pBvhInfo,
         void*           pOut);
+
+    static void PAL_STDCALL DecodeBufferViewSrd(
+        const IDevice*  pDevice,
+        const void*     pBufferViewSrd,
+        BufferViewInfo* pViewInfo);
+
+    static void PAL_STDCALL DecodeImageViewSrd(
+        const IDevice*   pDevice,
+        const IImage*    pImage,
+        const void*      pImageViewSrd,
+        DecodedImageSrd* pDecodedInfo);
 
     void Barrier(Pm4CmdBuffer* pCmdBuf, CmdStream* pCmdStream, const BarrierInfo& barrier) const;
     void IssueSyncs(

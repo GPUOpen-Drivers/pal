@@ -122,6 +122,11 @@ Result GraphicsPipeline::Init(
         m_pDevice->DeveloperCb(Developer::CallbackType::BindGpuMemory, &callbackData);
     }
 
+#if PAL_BUILD_GFX11
+    PAL_ASSERT((HasTaskShader() == false) ||
+               Pipeline::DispatchInterleaveSizeIsValid(createInfo.taskInterleaveSize, m_pDevice->ChipProperties()));
+#endif
+
     return result;
 }
 

@@ -972,7 +972,8 @@ void MetaDataAddrEquation::Upload(
 
         // Dummy BarrierOperations used in Device::IssueSyncs()
         Developer::BarrierOperations barrierOps = {};
-        pGfxDevice->IssueSyncs(pGfxCmdBuffer, pGfxCmdStream, syncReqs, HwPipePoint::HwPipePreCs, 0, 0, &barrierOps);
+        pGfxDevice->BarrierMgr()->IssueSyncs(pGfxCmdBuffer, pGfxCmdStream, syncReqs, HwPipePoint::HwPipePreCs,
+                                             0, 0, &barrierOps);
     }
     else
     {

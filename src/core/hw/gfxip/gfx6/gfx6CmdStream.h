@@ -26,6 +26,7 @@
 #pragma once
 
 #include "core/cmdStream.h"
+#include "core/hw/gfxip/gfxCmdBuffer.h"
 #include "core/hw/gfxip/pm4CmdStream.h"
 #include "core/hw/gfxip/gfx6/gfx6Chip.h"
 #include "core/hw/gfxip/gfx6/gfx6CmdUtil.h"

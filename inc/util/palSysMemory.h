@@ -806,4 +806,9 @@ PAL_FORCE_INLINE void* FastMemCpy(void* pDst, const void* pSrc, size_t count)
     return (FastMemCpySmallFuncTable[index])(pDst, pSrc, count);
 }
 
+/// Get the default allocation callback.
+///
+/// @param [out] pAllocCb Pointer to the allocation callback structure. Must not be null.
+void PAL_STDCALL GetDefaultAllocCb(Util::AllocCallbacks* pAllocCb);
+
 } // Util

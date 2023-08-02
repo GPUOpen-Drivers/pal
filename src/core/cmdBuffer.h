@@ -203,8 +203,14 @@ public:
     virtual Result End() override;
     virtual Result Reset(ICmdAllocator* pCmdAllocator, bool returnGpuMemory) override;
 
+    //size is in units of DWORDs
     virtual uint32 GetEmbeddedDataLimit() const override
         { return m_pCmdAllocator->ChunkSize(EmbeddedDataAlloc) / sizeof(uint32); }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+    virtual uint32 GetLargeEmbeddedDataLimit() const override
+        { return m_pCmdAllocator->ChunkSize(LargeEmbeddedDataAlloc) / sizeof(uint32); }
+#endif
 
     virtual void CmdBarrier(const BarrierInfo& barrierInfo) override;
 
@@ -401,6 +407,14 @@ public:
         const IGpuMemory&            dstGpuMemory,
         uint32                       regionCount,
         const TypedBufferCopyRegion* pRegions) override
+        { PAL_NEVER_CALLED(); }
+
+    virtual void CmdScaledCopyTypedBufferToImage(
+        const IGpuMemory&                       srcGpuMemory,
+        const IImage&                           dstImage,
+        ImageLayout                             dstImageLayout,
+        uint32                                  regionCount,
+        const TypedBufferImageScaledCopyRegion* pRegions) override
         { PAL_NEVER_CALLED(); }
 
     virtual void CmdCopyRegisterToMemory(
@@ -734,6 +748,13 @@ public:
         uint32   alignmentInDwords,
         gpusize* pGpuAddress) override final;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+    virtual uint32* CmdAllocateLargeEmbeddedData(
+        uint32   sizeInDwords,
+        uint32   alignmentInDwords,
+        gpusize* pGpuAddress) override final;
+#endif
+
     virtual Result AllocateAndBindGpuMemToEvent(
         IGpuEvent* pGpuEvent) override;
 
@@ -849,6 +870,7 @@ public:
 
     CmdBufferRecordState RecordState() const { return m_recordState; }
 
+    const Device&   GetDevice()         const { return m_device; }
     QueueType       GetQueueType()      const { return m_createInfo.queueType; }
     QueuePriority   GetQueuePriority()  const { return m_createInfo.queuePriority; }
     EngineType      GetEngineType()     const { return m_engineType; }
@@ -904,6 +926,14 @@ public:
         uint32      alignmentInDwords,
         GpuMemory** ppGpuMem,
         gpusize*    pOffset);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+    uint32* CmdAllocateLargeEmbeddedData(
+        uint32      sizeInDwords,
+        uint32      alignmentInDwords,
+        GpuMemory** ppGpuMem,
+        gpusize*    pOffset);
+#endif
 
     virtual void CmdSetPerDrawVrsRate(
         const VrsRateParams&  rateParams) override;
@@ -965,6 +995,15 @@ protected:
     CmdStreamChunk* GetEmbeddedDataChunk(
         uint32 numDwords)
         { return GetDataChunk(EmbeddedDataAlloc, &m_embeddedData, numDwords); }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+    // Get a chunk for embedded data. A large one, that is.
+    CmdStreamChunk* GetLargeEmbeddedDataChunk(
+        uint32 numDwords)
+    {
+        return GetDataChunk(LargeEmbeddedDataAlloc, &m_largeEmbeddedData, numDwords);
+    }
+#endif
 
     gpusize AllocateGpuScratchMem(
         uint32      sizeInDwords,
@@ -1055,6 +1094,9 @@ protected:
     };
 
     ChunkData          m_embeddedData;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+    ChunkData          m_largeEmbeddedData;
+#endif
     ChunkData          m_gpuScratchMem;
     uint32             m_gpuScratchMemAllocLimit;
 

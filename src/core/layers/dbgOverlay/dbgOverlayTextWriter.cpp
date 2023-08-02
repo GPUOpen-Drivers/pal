@@ -102,7 +102,7 @@ void TextWriter::WriteVisualConfirm(
     const CmdPostProcessDebugOverlayInfo& debugOverlayInfo
     ) const
 {
-    auto*const               pFpsMgr         = static_cast<Platform*>(m_pDevice->GetPlatform())->GetFpsMgr();
+    auto*const               pFpsMgr         = static_cast<Platform*>(m_pDevice->GetPlatform())->GetFpsMgr(debugOverlayInfo.presentKey);
     const auto&              settings        = m_pDevice->GetPlatform()->PlatformSettings();
     const PalPublicSettings* pPublicSettings = m_pDevice->GetPublicSettings();
     const auto&              gpuProps        = m_pDevice->GpuProps();

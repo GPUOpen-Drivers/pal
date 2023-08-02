@@ -844,7 +844,7 @@ uint32* CmdStream::WriteUserDataEntriesToSgprs(
     const uint16 firstUserSgpr = entryMap.firstUserSgprRegAddr;
     const uint16 userSgprCount = entryMap.userSgprCount;
 
-    uint32 scratchMem[NumUserDataRegisters - FastUserDataStartReg];
+    uint32 scratchMem[NumUserDataRegisters];
     uint32* pCmdPayload = Pm4OptEnabled ? scratchMem : (pCmdSpace + CmdUtil::ShRegSizeDwords);
 
     if (IgnoreDirtyFlags)

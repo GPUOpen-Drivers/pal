@@ -37,7 +37,6 @@ target_sources(pal PRIVATE
     palBuddyAllocator.h
     palBuddyAllocatorImpl.h
     palByteSwap.h
-    palCacheLayer.h
     palConditionVariable.h
     palDbgLogger.h
     palDbgLogHelper.h
@@ -54,6 +53,7 @@ target_sources(pal PRIVATE
     palEvent.h
     palFile.h
     palFileMap.h
+    palFunctionRef.h
     palHashBase.h
     palHashBaseImpl.h
     palHashLiteralString.h
@@ -81,6 +81,7 @@ target_sources(pal PRIVATE
     palMsgPack.h
     palMsgPackImpl.h
     palMutex.h
+    palOptional.h
     palPlatformKey.h
     palRingBuffer.h
     palRingBufferImpl.h

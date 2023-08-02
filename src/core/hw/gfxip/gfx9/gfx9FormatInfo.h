@@ -26,11 +26,12 @@
 #pragma once
 
 #include "core/hw/gfxip/gfx9/gfx9Chip.h"
-#include "palFormatInfo.h"
 
 // Forward decl
 namespace Pal
 {
+struct PalPlatformSettings;
+
 namespace Gfx9
 {
 struct Gfx9PalSettings;

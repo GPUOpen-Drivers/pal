@@ -297,6 +297,49 @@ static inline UINT_32 XorReduce(
 
 /**
 ****************************************************************************************************
+*   Unset least bit
+*
+*   @brief
+*       Returns a copy of the value with the least-significant '1' bit unset
+****************************************************************************************************
+*/
+static inline UINT_32 UnsetLeastBit(
+    UINT_32 val)
+{
+    return val & (val - 1);
+}
+
+/**
+****************************************************************************************************
+*   BitScanForward
+*
+*   @brief
+*       Returns the index-position of the least-significant '1' bit. Must not be 0.
+****************************************************************************************************
+*/
+static inline UINT_32 BitScanForward(
+    UINT_32 mask) ///< [in] Bitmask to scan
+{
+    ADDR_ASSERT(mask > 0);
+    unsigned long out = 0;
+#if (defined(_WIN64) && defined(_M_X64)) || (0&& defined(_M_IX64))
+    out = ::_tzcnt_u32(mask);
+#elif ( defined(_WIN64))
+    ::_BitScanForward(&out, mask);
+#elif defined(__GNUC__)
+    out = __builtin_ctz(mask);
+#else
+    while ((mask & 1) == 0)
+    {
+        mask >>= 1;
+        out++;
+    }
+#endif
+    return out;
+}
+
+/**
+****************************************************************************************************
 *   IsPow2
 *
 *   @brief
@@ -948,6 +991,37 @@ static inline UINT_32 GetCoordActiveMask(
     }
 
     return mask;
+}
+
+/**
+****************************************************************************************************
+*   FillEqBitComponents
+*
+*   @brief
+*       Fill the 'numBitComponents' field based on the equation.
+****************************************************************************************************
+*/
+static inline void FillEqBitComponents(
+    ADDR_EQUATION *pEquation) // [in/out] Equation to calculate bit components for
+{
+    pEquation->numBitComponents = 1; // We always have at least the address
+    for (UINT_32 xorN = 1; xorN < ADDR_MAX_EQUATION_COMP; xorN++)
+    {
+        for (UINT_32 bit = 0; bit < ADDR_MAX_EQUATION_BIT; bit++)
+        {
+            if (pEquation->comps[xorN][bit].valid)
+            {
+                pEquation->numBitComponents = xorN + 1;
+                break;
+            }
+        }
+
+        if (pEquation->numBitComponents != (xorN + 1))
+        {
+            // Skip following components if this one wasn't valid
+            break;
+        }
+    }
 }
 
 /**

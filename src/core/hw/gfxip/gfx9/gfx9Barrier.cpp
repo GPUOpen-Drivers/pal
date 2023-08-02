@@ -26,7 +26,6 @@
 #include "core/hw/gfxip/gfx9/gfx9UniversalCmdBuffer.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9Image.h"
-#include "palVectorImpl.h"
 
 using namespace Util;
 
@@ -71,7 +70,7 @@ constexpr uint32 AlwaysL2Mask = (MaybeL1ShaderMask       |
 // On a Non-Power-2 config, F/I L2 is always needed in below cases:
 //  1. Cat A(write)->Cat B(read or write)
 //  2. Cat B(write)->Cat A(read or write)
-void Device::FlushAndInvL2IfNeeded(
+void BarrierMgr::FlushAndInvL2IfNeeded(
     Pm4CmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
     const BarrierInfo&            barrier,
@@ -107,7 +106,7 @@ void Device::FlushAndInvL2IfNeeded(
 // For global memory barrier to check if need to F/I L2 cache
 //
 // F/I TCC are required between CB writes and TC reads/writes as the TCC isn't actually coherent.
-bool Device::NeedGlobalFlushAndInvL2(
+bool BarrierMgr::NeedGlobalFlushAndInvL2(
     uint32        srcCacheMask,
     uint32        dstCacheMask,
     const IImage* pImage
@@ -129,7 +128,7 @@ bool Device::NeedGlobalFlushAndInvL2(
 // false) should be done after.  This allows a reuse of the logic whether the decompress BLT can be pipelined or not.
 //
 // pSyncReqs will be updated to reflect synchronization that must be performed after the BLT.
-void Device::TransitionDepthStencil(
+void BarrierMgr::TransitionDepthStencil(
     Pm4CmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
     Pm4CmdBufferStateFlags        cmdBufStateFlags,
@@ -210,7 +209,8 @@ void Device::TransitionDepthStencil(
             // this same barrier, we have just initialized the htile to known values.
             if (TestAnyFlagSet(transition.imageInfo.oldLayout.usages, LayoutUninitializedTarget) == false)
             {
-                const auto* pPublicSettings = m_pParent->GetPublicSettings();
+                const auto& gfx9Device      = *static_cast<Device*>(m_pGfxDevice);
+                const auto* pPublicSettings = m_pDevice->GetPublicSettings();
 
                 // Use compute if:
                 //   - We're on the compute engine
@@ -218,7 +218,7 @@ void Device::TransitionDepthStencil(
                 //   - or we have a workaround which indicates if we need to use the compute path.
                 const auto& createInfo = image.GetImageCreateInfo();
                 const bool  z16Unorm1xAaDecompressUninitializedActive =
-                    (Settings().waZ16Unorm1xAaDecompressUninitialized &&
+                    (gfx9Device.Settings().waZ16Unorm1xAaDecompressUninitialized &&
                      (createInfo.samples == 1) &&
                      ((createInfo.swizzledFormat.format == ChNumFormat::X16_Unorm) ||
                       (createInfo.swizzledFormat.format == ChNumFormat::D16_Unorm_S8_Uint)));
@@ -348,7 +348,7 @@ void Device::TransitionDepthStencil(
 // cache flushes are executed.
 //
 // pSyncReqs will be updated to reflect synchronization that must be performed after the BLT.
-void Device::ExpandColor(
+void BarrierMgr::ExpandColor(
     Pm4CmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
     const BarrierInfo&            barrier,
@@ -364,7 +364,8 @@ void Device::ExpandColor(
 
     const EngineType            engineType  = pCmdBuf->GetEngineType();
     const auto&                 image       = static_cast<const Pal::Image&>(*transition.imageInfo.pImage);
-    auto&                       gfx9Image   = static_cast<Gfx9::Image&>(*image.GetGfxImage());
+    const auto&                 gfx9Device  = *static_cast<Device*>(m_pGfxDevice);
+    auto&                       gfx9Image   = static_cast<Image&>(*image.GetGfxImage());
     const auto&                 subresRange = transition.imageInfo.subresRange;
     const SubResourceInfo*const pSubresInfo = image.SubresourceInfo(subresRange.startSubres);
 
@@ -492,7 +493,7 @@ void Device::ExpandColor(
 
         if (dccDecompress)
         {
-            if (earlyPhase && WaEnableDccCacheFlushAndInvalidate())
+            if (earlyPhase && gfx9Device.WaEnableDccCacheFlushAndInvalidate())
             {
                 uint32*  pCmdSpace = pCmdStream->ReserveCommands();
                 pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CACHE_FLUSH_AND_INV_EVENT, engineType, pCmdSpace);
@@ -544,7 +545,7 @@ void Device::ExpandColor(
         }
         else if (fastClearEliminate)
         {
-            if (earlyPhase && WaEnableDccCacheFlushAndInvalidate() && gfx9Image.HasDccData())
+            if (earlyPhase && gfx9Device.WaEnableDccCacheFlushAndInvalidate() && gfx9Image.HasDccData())
             {
                 uint32* pCmdSpace = pCmdStream->ReserveCommands();
                 pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CACHE_FLUSH_AND_INV_EVENT, engineType, pCmdSpace);
@@ -679,7 +680,7 @@ void Device::ExpandColor(
 }
 
 // =====================================================================================================================
-void Device::FillCacheOperations(
+void BarrierMgr::FillCacheOperations(
     const SyncReqs&               syncReqs,
     Developer::BarrierOperations* pOperations
     ) const
@@ -710,7 +711,7 @@ void Device::FillCacheOperations(
 
 // =====================================================================================================================
 // Examines the specified sync reqs, and the corresponding hardware commands to satisfy the requirements.
-void Device::IssueSyncs(
+void BarrierMgr::IssueSyncs(
     Pm4CmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
     SyncReqs                      syncReqs,
@@ -787,8 +788,10 @@ void Device::IssueSyncs(
         pOperations->pipelineStalls.eopTsBottomOfPipe = 1;
         pOperations->pipelineStalls.waitOnTs          = 1;
 
+        const auto& gfx9Device = *static_cast<Device*>(m_pGfxDevice);
+
         // Handle cases where a stall is needed as a workaround before EOP with CB Flush event
-        if (isGfxSupported && TestAnyFlagSet(Settings().waitOnFlush, WaitBeforeBarrierEopWithCbFlush) &&
+        if (isGfxSupported && TestAnyFlagSet(gfx9Device.Settings().waitOnFlush, WaitBeforeBarrierEopWithCbFlush) &&
             TestAnyFlagSet(syncReqs.rbCaches, SyncCbWbInv))
         {
             pCmdSpace = pCmdBuf->WriteWaitEop(HwPipePreColorTarget, SyncGlxNone, SyncRbNone, pCmdSpace);
@@ -992,14 +995,15 @@ void Device::IssueSyncs(
 //            - Issue metadata initialization BLTs.
 //            - Issue range-checked DB cache flushes.
 //            - Issue any decompress BLTs that couldn't be performed in phase 1.
-void Device::Barrier(
-    Pm4CmdBuffer*      pCmdBuf,
-    CmdStream*         pCmdStream,
-    const BarrierInfo& barrier
+void BarrierMgr::Barrier(
+    GfxCmdBuffer*                 pGfxCmdBuf,
+    const BarrierInfo&            barrier,
+    Developer::BarrierOperations* pBarrierOps
     ) const
 {
-    SyncReqs globalSyncReqs = {};
-    Developer::BarrierOperations barrierOps = {};
+    auto*const pCmdBuf        = static_cast<Pm4CmdBuffer*>(pGfxCmdBuf);
+    CmdStream* pCmdStream     = GetCmdStream(pCmdBuf);
+    SyncReqs   globalSyncReqs = {};
 
     // Keep a copy of original CmdBufferState flag as TransitionDepthStencil() or ExpandColor() may change it.
     const Pm4CmdBufferStateFlags origCmdBufStateFlags = pCmdBuf->GetPm4CmdBufState().flags;
@@ -1008,7 +1012,6 @@ void Device::Barrier(
     // -----------------------------------------------------------------------------------------------------------------
     // -- Early image layout transitions.
     // -----------------------------------------------------------------------------------------------------------------
-    DescribeBarrierStart(pCmdBuf, barrier.reason, Developer::BarrierType::Full);
 
     for (uint32 i = 0; i < barrier.transitionCount; i++)
     {
@@ -1040,11 +1043,11 @@ void Device::Barrier(
                                            i,
                                            true,
                                            &globalSyncReqs,
-                                           &barrierOps);
+                                           pBarrierOps);
                 }
                 else
                 {
-                    ExpandColor(pCmdBuf, pCmdStream, barrier, i, true, &globalSyncReqs, &barrierOps);
+                    ExpandColor(pCmdBuf, pCmdStream, barrier, i, true, &globalSyncReqs, pBarrierOps);
                 }
             }
         }
@@ -1064,8 +1067,8 @@ void Device::Barrier(
         // occur in the API-defined pipeline order.  This is a narrow data hazard, but to safely avoid it we need to
         // adjust the pre color target wait point to be before any pixel shader waves launch. VS has same issue, so
         // adjust the wait point to the latest before any pixel/vertex wave launches which is HwPipePostPrefetch.
-        waitPoint = (Parent()->GetPublicSettings()->forceWaitPointPreColorToPostPrefetch) ? HwPipePostPrefetch
-                                                                                          : HwPipePostPs;
+        waitPoint = (m_pDevice->GetPublicSettings()->forceWaitPointPreColorToPostPrefetch) ? HwPipePostPrefetch
+                                                                                           : HwPipePostPs;
     }
 
     // Determine sync requirements for global pipeline waits.
@@ -1234,11 +1237,11 @@ void Device::Barrier(
                            barrier.waitPoint,
                            pImage->GetGpuVirtualAddr(),
                            pGfx9Image->GetGpuMemSyncSize(),
-                           &barrierOps);
+                           pBarrierOps);
             }
             else
             {
-                IssueSyncs(pCmdBuf, pCmdStream, targetStallSyncReqs, barrier.waitPoint, 0, 0, &barrierOps);
+                IssueSyncs(pCmdBuf, pCmdStream, targetStallSyncReqs, barrier.waitPoint, 0, 0, pBarrierOps);
 
                 // Ignore the rest since we are syncing on the full range.
                 break;
@@ -1270,7 +1273,7 @@ void Device::Barrier(
         pCmdStream->CommitCommands(pCmdSpace);
     }
 
-    IssueSyncs(pCmdBuf, pCmdStream, globalSyncReqs, barrier.waitPoint, 0, 0, &barrierOps);
+    IssueSyncs(pCmdBuf, pCmdStream, globalSyncReqs, barrier.waitPoint, 0, 0, pBarrierOps);
 
     // -------------------------------------------------------------------------------------------------------------
     // -- Perform late image transitions (layout changes and range-checked DB cache flushes).
@@ -1293,7 +1296,7 @@ void Device::Barrier(
                 const auto& subresRange = imageInfo.subresRange;
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-                const auto& engineProps = Parent()->EngineProperties().perEngine[engineType];
+                const auto& engineProps = m_pDevice->EngineProperties().perEngine[engineType];
 
                 // This queue must support this barrier transition.
                 PAL_ASSERT(engineProps.flags.supportsImageInitBarrier == 1);
@@ -1315,17 +1318,17 @@ void Device::Barrier(
                         sharedHtileSync.rbCaches = SyncDbWbInv;
 
                         IssueSyncs(pCmdBuf, pCmdStream, sharedHtileSync, barrier.waitPoint,
-                                   image.GetGpuVirtualAddr(), gfx9Image.GetGpuMemSyncSize(), &barrierOps);
+                                   image.GetGpuVirtualAddr(), gfx9Image.GetGpuMemSyncSize(), pBarrierOps);
                     }
 
-                    barrierOps.layoutTransitions.initMaskRam = 1;
+                    pBarrierOps->layoutTransitions.initMaskRam = 1;
 
                     if (gfx9Image.HasDccStateMetaData(subresRange))
                     {
-                        barrierOps.layoutTransitions.updateDccStateMetadata = 1;
+                        pBarrierOps->layoutTransitions.updateDccStateMetadata = 1;
                     }
 
-                    DescribeBarrier(pCmdBuf, &barrier.pTransitions[i], &barrierOps);
+                    DescribeBarrier(pCmdBuf, &barrier.pTransitions[i], pBarrierOps);
 
                     const bool usedCompute = RsrcProcMgr().InitMaskRam(pCmdBuf,
                                                                        pCmdStream,
@@ -1362,7 +1365,7 @@ void Device::Barrier(
         }
     } // For each transition.
 
-    IssueSyncs(pCmdBuf, pCmdStream, initSyncReqs, barrier.waitPoint, 0, 0, &barrierOps);
+    IssueSyncs(pCmdBuf, pCmdStream, initSyncReqs, barrier.waitPoint, 0, 0, pBarrierOps);
 
     for (uint32 i = 0; i < barrier.transitionCount; i++)
     {
@@ -1388,11 +1391,11 @@ void Device::Barrier(
                                            i,
                                            false,
                                            &imageSyncReqs,
-                                           &barrierOps);
+                                           pBarrierOps);
                 }
                 else
                 {
-                    ExpandColor(pCmdBuf, pCmdStream, barrier, i, false, &imageSyncReqs, &barrierOps);
+                    ExpandColor(pCmdBuf, pCmdStream, barrier, i, false, &imageSyncReqs, pBarrierOps);
                 }
 
                 IssueSyncs(pCmdBuf,
@@ -1401,79 +1404,10 @@ void Device::Barrier(
                            barrier.waitPoint,
                            image.GetGpuVirtualAddr(),
                            gfx9Image.GetGpuMemSyncSize(),
-                           &barrierOps);
+                           pBarrierOps);
             }
         }
     }
-
-    DescribeBarrierEnd(pCmdBuf, &barrierOps);
-}
-
-// =====================================================================================================================
-// Call back to above layers before starting the barrier execution.
-void Device::DescribeBarrierStart(
-    Pm4CmdBuffer*          pCmdBuf,
-    uint32                 reason,
-    Developer::BarrierType type
-    ) const
-{
-    Developer::BarrierData barrierData = {};
-
-    barrierData.pCmdBuffer = pCmdBuf;
-
-    // Make sure we have an acceptable barrier reason.
-    PAL_ALERT_MSG((GetPlatform()->IsDevDriverProfilingEnabled() && (reason == Developer::BarrierReasonInvalid)),
-                  "Invalid barrier reason codes are not allowed!");
-
-    barrierData.reason = reason;
-    barrierData.type   = type;
-
-    m_pParent->DeveloperCb(Developer::CallbackType::BarrierBegin, &barrierData);
-}
-
-// =====================================================================================================================
-// Callback to above layers with summary information at end of barrier execution.
-void Device::DescribeBarrierEnd(
-    Pm4CmdBuffer*                 pCmdBuf,
-    Developer::BarrierOperations* pOperations
-    ) const
-{
-    Developer::BarrierData data  = {};
-
-    // Set the barrier type to an invalid type.
-    data.pCmdBuffer    = pCmdBuf;
-
-    PAL_ASSERT(pOperations != nullptr);
-    memcpy(&data.operations, pOperations, sizeof(Developer::BarrierOperations));
-
-    m_pParent->DeveloperCb(Developer::CallbackType::BarrierEnd, &data);
-}
-
-// =====================================================================================================================
-// Describes the image barrier to the above layers but only if we're a developer build. Clears the BarrierOperations
-// passed in after calling back in case of layout transitions. This function is expected to be called only on layout
-// transitions.
-void Device::DescribeBarrier(
-    Pm4CmdBuffer*                 pCmdBuf,
-    const BarrierTransition*      pTransition,
-    Developer::BarrierOperations* pOperations
-    ) const
-{
-    constexpr BarrierTransition NullTransition = {};
-    Developer::BarrierData data                = {};
-
-    data.pCmdBuffer    = pCmdBuf;
-    data.transition    = (pTransition != nullptr) ? (*pTransition) : NullTransition;
-    data.hasTransition = (pTransition != nullptr);
-
-    PAL_ASSERT(pOperations != nullptr);
-
-    // The callback is expected to be made only on layout transitions.
-    memcpy(&data.operations, pOperations, sizeof(Developer::BarrierOperations));
-
-    // Callback to the above layers if there is a transition and clear the BarrierOperations.
-    m_pParent->DeveloperCb(Developer::CallbackType::ImageBarrier, &data);
-    memset(pOperations, 0, sizeof(Developer::BarrierOperations));
 }
 
 } // Gfx9

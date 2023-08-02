@@ -2286,6 +2286,39 @@ void CmdBuffer::ReplayCmdCopyTypedBuffer(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdScaledCopyTypedBufferToImage(
+    const IGpuMemory&                       srcGpuMemory,
+    const IImage&                           dstImage,
+    ImageLayout                             dstImageLayout,
+    uint32                                  regionCount,
+    const TypedBufferImageScaledCopyRegion* pRegions)
+{
+    InsertToken(CmdBufCallId::CmdScaledCopyTypedBufferToImage);
+    InsertToken(&srcGpuMemory);
+    InsertToken(&dstImage);
+    InsertToken(dstImageLayout);
+    InsertTokenArray(pRegions, regionCount);
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdCopyTypedBufferToImage(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    auto                                    pSrcGpuMemory  = ReadTokenVal<IGpuMemory*>();
+    auto                                    pDstImage      = ReadTokenVal<IImage*>();
+    auto                                    dstImageLayout = ReadTokenVal<ImageLayout>();
+    const TypedBufferImageScaledCopyRegion* pRegions       = nullptr;
+    auto                                    regionCount    = ReadTokenArray(&pRegions);
+
+    LogItem logItem = { };
+
+    LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdScaledCopyTypedBufferToImage);
+    pTgtCmdBuffer->CmdScaledCopyTypedBufferToImage(*pSrcGpuMemory, *pDstImage, dstImageLayout, regionCount, pRegions);
+    LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdCopyRegisterToMemory(
     uint32            srcRegisterOffset,
     const IGpuMemory& dstGpuMemory,
@@ -3506,6 +3539,14 @@ uint32 CmdBuffer::GetEmbeddedDataLimit() const
 }
 
 // =====================================================================================================================
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+uint32 CmdBuffer::GetLargeEmbeddedDataLimit() const
+{
+    return NextLayer()->GetLargeEmbeddedDataLimit();
+}
+#endif
+
+// =====================================================================================================================
 uint32* CmdBuffer::CmdAllocateEmbeddedData(
     uint32   sizeInDwords,
     uint32   alignmentInDwords,
@@ -3513,6 +3554,17 @@ uint32* CmdBuffer::CmdAllocateEmbeddedData(
 {
     return NextLayer()->CmdAllocateEmbeddedData(sizeInDwords, alignmentInDwords, pGpuAddress);
 }
+
+// =====================================================================================================================
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+uint32* CmdBuffer::CmdAllocateLargeEmbeddedData(
+    uint32   sizeInDwords,
+    uint32   alignmentInDwords,
+    gpusize* pGpuAddress)
+{
+    return NextLayer()->CmdAllocateLargeEmbeddedData(sizeInDwords, alignmentInDwords, pGpuAddress);
+}
+#endif
 
 // =====================================================================================================================
 Result CmdBuffer::AllocateAndBindGpuMemToEvent(
@@ -4191,6 +4243,7 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdCopyMemory,
         &CmdBuffer::ReplayCmdCopyMemoryByGpuVa,
         &CmdBuffer::ReplayCmdCopyTypedBuffer,
+        &CmdBuffer::ReplayCmdCopyTypedBufferToImage,
         &CmdBuffer::ReplayCmdCopyRegisterToMemory,
         &CmdBuffer::ReplayCmdCopyImage,
         &CmdBuffer::ReplayCmdScaledCopyImage,

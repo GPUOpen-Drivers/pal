@@ -227,18 +227,39 @@ size_t DmaUploadRing::UploadUsingEmbeddedData(
     size_t          bytes,
     void**          ppEmbeddedData)
 {
-    size_t embeddedDataLimit = m_pRing[slotId].pCmdBuf->GetEmbeddedDataLimit() * sizeof(uint32);
+    const size_t embeddedDataLimit      = m_pRing[slotId].pCmdBuf->GetEmbeddedDataLimit() * sizeof(uint32);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+    const size_t largeEmbeddedDataLimit = m_pRing[slotId].pCmdBuf->GetLargeEmbeddedDataLimit() * sizeof(uint32);
+#endif
 
-    const size_t allocSize = (embeddedDataLimit >= bytes) ? bytes : embeddedDataLimit;
-
-    GpuMemory* pGpuMem = nullptr;
+    GpuMemory* pGpuMem   = nullptr;
     gpusize gpuMemOffset = 0;
-
-    void*const pEmbeddedData = static_cast<CmdBuffer*>(m_pRing[slotId].pCmdBuf)->CmdAllocateEmbeddedData(
-                                                       Util::NumBytesToNumDwords(static_cast<uint32>(allocSize)),
-                                                       1,
-                                                       &pGpuMem,
-                                                       &gpuMemOffset);
+    void* pEmbeddedData;
+    size_t allocSize;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 803
+    allocSize = bytes < embeddedDataLimit ? bytes : embeddedDataLimit;
+#else
+    if (bytes <= embeddedDataLimit)
+    {
+        allocSize = bytes;
+#endif
+        pEmbeddedData = static_cast<CmdBuffer*>(m_pRing[slotId].pCmdBuf)->CmdAllocateEmbeddedData(
+            Util::NumBytesToNumDwords(static_cast<uint32>(allocSize)),
+            1,
+            &pGpuMem,
+            &gpuMemOffset);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+    }
+    else
+    {
+        allocSize = bytes < largeEmbeddedDataLimit ? bytes : largeEmbeddedDataLimit;
+        pEmbeddedData = static_cast<CmdBuffer*>(m_pRing[slotId].pCmdBuf)->CmdAllocateLargeEmbeddedData(
+            Util::NumBytesToNumDwords(static_cast<uint32>(allocSize)),
+            1,
+            &pGpuMem,
+            &gpuMemOffset);
+    }
+#endif
 
     PAL_ASSERT(pEmbeddedData != nullptr);
     *ppEmbeddedData             = pEmbeddedData;

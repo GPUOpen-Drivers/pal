@@ -345,6 +345,7 @@ Result Image::CreatePresentableMemoryObject(
     createInfo.flags.flippable    = pImage->IsFlippable();
     createInfo.flags.stereo       = pImage->GetInternalCreateInfo().flags.stereo;
     createInfo.flags.peerWritable = presentableImageCreateInfo.flags.peerWritable;
+    createInfo.flags.initializeToZero = presentableImageCreateInfo.flags.initializeToZero;
 
     // If client creates presentable image without swapchain, TMZ state should be determined by PresentableImageCreateInfo.
     const bool tmzEnable = (presentableImageCreateInfo.pSwapChain == nullptr)

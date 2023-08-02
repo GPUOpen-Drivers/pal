@@ -27,11 +27,13 @@
 
 #include "core/device.h"
 #include "g_gfx9Settings.h"
+#include "core/hw/gfxip/gfx9/gfx9Barrier.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"
 #include "core/hw/gfxip/gfx9/gfx9MetaEq.h"
 #include "core/hw/gfxip/gfx9/gfx9SettingsLoader.h"
 #include "core/hw/gfxip/gfx9/gfx9ShaderRingSet.h"
 #include "core/hw/gfxip/gfxDevice.h"
+#include "core/hw/gfxip/pm4CmdBuffer.h"
 #include "core/hw/gfxip/rpm/gfx9/gfx9RsrcProcMgr.h"
 
 #include "palPipelineAbi.h"
@@ -42,7 +44,6 @@
 namespace Pal
 {
 
-class  Pm4CmdBuffer;
 struct BarrierInfo;
 
 namespace Gfx9
@@ -50,8 +51,6 @@ namespace Gfx9
 
 // Needed only for VRS support
 class Gfx10DepthStencilView;
-
-enum class AcquirePoint : uint8;
 
 // This value is the result Log2(MaxMsaaRasterizerSamples) + 1.
 constexpr uint32 MsaaLevelCount = 5;
@@ -68,84 +67,6 @@ enum RegisterRangeType : uint32
     RegRangeCpRs64InitCsSh       = 0x6,
     RegRangeCpRs64InitUserConfig = 0x7,
 #endif
-};
-
-struct SyncReqs
-{
-    // These flags describe which caches must be flushed and/or invalidated.
-    SyncGlxFlags glxCaches;
-    SyncRbFlags  rbCaches;
-
-    // These flags describe which syncronization operations are required.
-    struct
-    {
-        uint8 waitOnEopTs    : 1;
-        uint8 cbTargetStall  : 1; // Gfx-only: Do a range-checked stall on the active color targets.
-        uint8 dbTargetStall  : 1; // Gfx-only: Do a range-checked stall on the active depth and stencil targets.
-        uint8 vsPartialFlush : 1; // Gfx-only
-        uint8 psPartialFlush : 1; // Gfx-only
-        uint8 csPartialFlush : 1;
-        uint8 pfpSyncMe      : 1; // Gfx-only
-        uint8 syncCpDma      : 1;
-    };
-};
-
-enum HwLayoutTransition : uint8
-{
-    None                         = 0x0,
-
-    // Depth/Stencil
-    ExpandDepthStencil           = 0x1,
-    HwlExpandHtileHiZRange       = 0x2,
-    ResummarizeDepthStencil      = 0x3,
-
-    // Color
-    FastClearEliminate           = 0x4,
-    FmaskDecompress              = 0x5,
-    DccDecompress                = 0x6,
-    MsaaColorDecompress          = 0x7,
-
-    // Initialize Color metadata or Depth/stencil Htile.
-    InitMaskRam                  = 0x8,
-};
-
-// Information for layout transition BLT
-struct LayoutTransitionInfo
-{
-    union
-    {
-        struct
-        {
-            uint32 useComputePath   : 1;  // For those transition BLTs that could do either graphics or compute path,
-                                          // figure out what path the BLT will use and cache it here.
-            uint32 reserved         : 7;  // Reserved for future usage.
-        };
-        uint8 u8All;                      // Flags packed as uint32.
-    } flags;
-
-    HwLayoutTransition blt[2];            // Color target may need a second decompress pass to do MSAA color decompress.
-};
-
-// A structure that helps cache and reuse the calculated BLT transition and sync requests for an image barrier in
-// acquire-release based barrier.
-struct AcqRelImgTransitionInfo
-{
-    ImgBarrier           imgBarrier;
-    LayoutTransitionInfo layoutTransInfo;
-    uint32               stageMask;     // Pipeline stage mask of layoutTransInfo.blt[0]
-    uint32               accessMask;    // Coherency access mask of layoutTransInfo.blt[0]
-};
-
-using AcqRelAutoBuffer = Util::AutoBuffer<AcqRelImgTransitionInfo, 8, Platform>;
-
-// Acquire release transition info gathered from all image transitions.
-struct AcqRelTransitionInfo
-{
-    AcqRelAutoBuffer* pBltList;       // List of AcqRelImgTransitionInfo that need layout transition BLT.
-    uint32            bltCount;       // Number of valid entries in pBltList.
-    uint32            bltStageMask;   // Pipeline stage mask for all layout transition BLTs in pBltList.
-    uint32            bltAccessMask;  // Coherency access mask for all layout transition BLTs in pBltList.
-    bool              hasMetadata;    // If any image of the transition images has metadata.
 };
 
 // Forward decl
@@ -445,9 +366,6 @@ public:
 
     uint16 GetBaseUserDataReg(HwShaderStage  shaderStage) const;
 
-    uint16  GetFirstUserDataReg(HwShaderStage  shaderStage) const
-        { return m_firstUserDataReg[static_cast<uint32>(shaderStage)]; }
-
     // Gets a copy of the reset value for a single occlusion query slot. The caller is responsible for determining the
     // size of the slot so that they do not read past the end of this buffer.
     const uint32* OcclusionSlotResetValue() const
@@ -559,103 +477,27 @@ public:
         const SamplerInfo*  pSamplerInfo,
         void*               pOut);
 
-    void Barrier(Pm4CmdBuffer* pCmdBuf, CmdStream* pCmdStream, const BarrierInfo& barrier) const;
+    static void PAL_STDCALL Gfx9DecodeBufferViewSrd(
+        const IDevice*  pDevice,
+        const void*     pBufferViewSrd,
+        BufferViewInfo* pViewInfo);
 
-    AcqRelSyncToken Release(
-        Pm4CmdBuffer*                 pCmdBuf,
-        CmdStream*                    pCmdStream,
-        const AcquireReleaseInfo&     releaseInfo,
-        Developer::BarrierOperations* pBarrierOps) const;
+    static void PAL_STDCALL Gfx9DecodeImageViewSrd(
+        const IDevice*   pDevice,
+        const IImage*    pImage,
+        const void*      pImageViewSrd,
+        DecodedImageSrd* pDecodedInfo);
 
-    void Acquire(
-        Pm4CmdBuffer*                 pCmdBuf,
-        CmdStream*                    pCmdStream,
-        const AcquireReleaseInfo&     acquireInfo,
-        uint32                        syncTokenCount,
-        const AcqRelSyncToken*        pSyncTokens,
-        Developer::BarrierOperations* pBarrierOps) const;
+    static void PAL_STDCALL Gfx10DecodeBufferViewSrd(
+        const IDevice*  pDevice,
+        const void*     pBufferViewSrd,
+        BufferViewInfo* pViewInfo);
 
-    void ReleaseEvent(
-        Pm4CmdBuffer*                 pCmdBuf,
-        CmdStream*                    pCmdStream,
-        const AcquireReleaseInfo&     releaseInfo,
-        const IGpuEvent*              pClientEvent,
-        Developer::BarrierOperations* pBarrierOps) const;
-
-    void AcquireEvent(
-        Pm4CmdBuffer*                 pCmdBuf,
-        CmdStream*                    pCmdStream,
-        const AcquireReleaseInfo&     acquireInfo,
-        uint32                        gpuEventCount,
-        const IGpuEvent* const*       ppGpuEvents,
-        Developer::BarrierOperations* pBarrierOps) const;
-
-    void ReleaseThenAcquire(
-        Pm4CmdBuffer*                 pCmdBuf,
-        CmdStream*                    pCmdStream,
-        const AcquireReleaseInfo&     barrierInfo,
-        Developer::BarrierOperations* pBarrierOps) const;
-
-    void FillCacheOperations(const SyncReqs& syncReqs, Developer::BarrierOperations* pOperations) const;
-
-    void IssueSyncs(
-        Pm4CmdBuffer*                 pCmdBuf,
-        CmdStream*                    pCmdStream,
-        SyncReqs                      syncReqs,
-        HwPipePoint                   waitPoint,
-        gpusize                       rangeBase,
-        gpusize                       rangeSize,
-        Developer::BarrierOperations* pOperations) const;
-    void FlushAndInvL2IfNeeded(
-        Pm4CmdBuffer*                 pCmdBuf,
-        CmdStream*                    pCmdStream,
-        const BarrierInfo&            barrier,
-        uint32                        transitionId,
-        Developer::BarrierOperations* pOperations) const;
-    void ExpandColor(
-        Pm4CmdBuffer*                 pCmdBuf,
-        CmdStream*                    pCmdStream,
-        const BarrierInfo&            barrier,
-        uint32                        transitionId,
-        bool                          earlyPhase,
-        SyncReqs*                     pSyncReqs,
-        Developer::BarrierOperations* pOperations) const;
-    void TransitionDepthStencil(
-        Pm4CmdBuffer*                 pCmdBuf,
-        CmdStream*                    pCmdStream,
-        Pm4CmdBufferStateFlags        cmdBufStateFlags,
-        const BarrierInfo&            barrier,
-        uint32                        transitionId,
-        bool                          earlyPhase,
-        SyncReqs*                     pSyncReqs,
-        Developer::BarrierOperations* pOperations) const;
-    void AcqRelColorTransition(
-        Pm4CmdBuffer*                 pCmdBuf,
-        CmdStream*                    pCmdStream,
-        const ImgBarrier&             imgBarrier,
-        LayoutTransitionInfo          layoutTransInfo,
-        Developer::BarrierOperations* pBarrierOps) const;
-
-    void AcqRelColorTransitionEvent(
-        Pm4CmdBuffer*                 pCmdBuf,
-        CmdStream*                    pCmdStream,
-        const ImgBarrier&             imgBarrier,
-        LayoutTransitionInfo          layoutTransInfo,
-        Developer::BarrierOperations* pBarrierOps) const;
-
-    void AcqRelDepthStencilTransition(
-        Pm4CmdBuffer*                 pCmdBuf,
-        const ImgBarrier&             imgBarrier,
-        LayoutTransitionInfo          layoutTransInfo) const;
-    void DescribeBarrier(
-        Pm4CmdBuffer*                 pCmdBuf,
-        const BarrierTransition*      pTransition,
-        Developer::BarrierOperations* pOperations) const;
-    void DescribeBarrierStart(
-        Pm4CmdBuffer*                 pCmdBuf,
-        uint32                        reason,
-        Developer::BarrierType        type) const;
-    void DescribeBarrierEnd(Pm4CmdBuffer* pCmdBuf, Developer::BarrierOperations* pOperations) const;
+    static void PAL_STDCALL Gfx10DecodeImageViewSrd(
+        const IDevice*   pDevice,
+        const IImage*    pImage,
+        const void*      pImageViewSrd,
+        DecodedImageSrd* pDecodedInfo);
 
     const regGB_ADDR_CONFIG& GetGbAddrConfig() const;
 
@@ -691,11 +533,6 @@ public:
     bool UpdateSppState(const IImage& presentableImage) override;
     uint32 GetPixelCount() const override { return m_presentResolution.height * m_presentResolution.width; }
     uint32 GetMsaaRate() const override { return m_msaaRate; }
-
-    bool NeedGlobalFlushAndInvL2(
-        uint32        srcCacheMask,
-        uint32        dstCacheMask,
-        const IImage* pImage) const;
 
     bool UseStateShadowing(EngineType engineType) const;
 
@@ -775,6 +612,10 @@ public:
     Result AllocateVertexAttributesMem(bool isTmz);
 #endif
 
+    virtual ClearMethod  GetDefaultSlowClearMethod(const Pal::Image*  pImage) const override;
+
+    const BarrierMgr* BarrierMgr() const { return &m_barrierMgr; }
+
 private:
     void Gfx10SetImageSrdDims(sq_img_rsrc_t*  pSrd, uint32 width, uint32  height) const;
 
@@ -791,125 +632,9 @@ private:
 
     void SetupWorkarounds();
 
-    LayoutTransitionInfo PrepareColorBlt(
-        Pm4CmdBuffer*       pCmdBuf,
-        const Pal::Image&   image,
-        const SubresRange&  subresRange,
-        ImageLayout         oldLayout,
-        ImageLayout         newLayout) const;
-    LayoutTransitionInfo PrepareDepthStencilBlt(
-        const Pm4CmdBuffer* pCmdBuf,
-        const Pal::Image&   image,
-        const SubresRange&  subresRange,
-        ImageLayout         oldLayout,
-        ImageLayout         newLayout) const;
-    LayoutTransitionInfo PrepareBltInfo(
-        Pm4CmdBuffer*       pCmdBuf,
-        const ImgBarrier&   imageBarrier) const;
+    Gfx9::CmdUtil    m_cmdUtil;
+    Gfx9::BarrierMgr m_barrierMgr;
 
-    SyncGlxFlags GetAcquireCacheFlags(
-        uint32                        accessMask,
-        bool                          refreshTcc,
-        bool                          mayHaveMetadata,
-        Developer::BarrierOperations* pBarrierOps) const;
-
-    SyncGlxFlags GetReleaseThenAcquireCacheFlags(
-        uint32                        srcAccessMask,
-        uint32                        dstAccessMask,
-        bool                          refreshTcc,
-        bool                          mayHaveMetadata,
-        Developer::BarrierOperations* pBarrierOps) const;
-
-    bool IssueBlt(
-        Pm4CmdBuffer*                 pCmdBuf,
-        CmdStream*                    pCmdStream,
-        const ImgBarrier*             pImgBarrier,
-        LayoutTransitionInfo          transition,
-        bool*                         pPreInitHtileSynced,
-        Developer::BarrierOperations* pBarrierOps) const;
-
-    bool GetAcqRelLayoutTransitionBltInfo(
-        Pm4CmdBuffer*                 pCmdBuf,
-        CmdStream*                    pCmdStream,
-        const AcquireReleaseInfo&     barrierInfo,
-        AcqRelTransitionInfo*         pTransitionInfo,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
-        uint32*                       pSrcStageMask,
-        uint32*                       pDstStageMask,
-#endif
-        uint32*                       pSrcAccessMask,
-        uint32*                       pDstAccessMask,
-        Developer::BarrierOperations* pBarrierOps) const;
-
-    bool IssueAcqRelLayoutTransitionBlt(
-        Pm4CmdBuffer*                 pCmdBuf,
-        CmdStream*                    pCmdStream,
-        AcqRelTransitionInfo*         pTransitonInfo,
-        Developer::BarrierOperations* pBarrierOps) const;
-
-    bool AcqRelInitMaskRam(
-        Pm4CmdBuffer*      pCmdBuf,
-        CmdStream*         pCmdStream,
-        const ImgBarrier&  imgBarrier) const;
-
-    AcqRelSyncToken IssueReleaseSync(
-        Pm4CmdBuffer*                 pCmdBuf,
-        CmdStream*                    pCmdStream,
-        uint32                        stageMask,
-        uint32                        accessMask,
-        bool                          refreshTcc,
-        Developer::BarrierOperations* pBarrierOps) const;
-
-    void IssueAcquireSync(
-        Pm4CmdBuffer*                 pCmdBuf,
-        CmdStream*                    pCmdStream,
-        uint32                        stageMask,
-        uint32                        accessMask,
-        bool                          refreshTcc,
-        bool                          mayHaveMetadata,
-        uint32                        syncTokenCount,
-        const AcqRelSyncToken*        pSyncTokens,
-        Developer::BarrierOperations* pBarrierOps) const;
-
-    void IssueReleaseThenAcquireSync(
-        Pm4CmdBuffer*                 pCmdBuf,
-        CmdStream*                    pCmdStream,
-        uint32                        srcStageMask,
-        uint32                        dstStageMask,
-        uint32                        srcAccessMask,
-        uint32                        dstAccessMask,
-        bool                          refreshTcc,
-        bool                          mayHaveMetadata,
-        Developer::BarrierOperations* pBarrierOps) const;
-
-    void IssueReleaseSyncEvent(
-        Pm4CmdBuffer*                 pCmdBuf,
-        CmdStream*                    pCmdStream,
-        uint32                        stageMask,
-        uint32                        accessMask,
-        bool                          refreshTcc,
-        const IGpuEvent*              pGpuEvent,
-        Developer::BarrierOperations* pBarrierOps) const;
-
-    void IssueAcquireSyncEvent(
-        Pm4CmdBuffer*                 pCmdBuf,
-        CmdStream*                    pCmdStream,
-        uint32                        stageMask,
-        uint32                        accessMask,
-        bool                          refreshTcc,
-        bool                          mayHaveMetadata,
-        uint32                        gpuEventCount,
-        const IGpuEvent* const*       ppGpuEvents,
-        Developer::BarrierOperations* pBarrierOps) const;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
-    void OptimizeReadOnlyMemBarrier(Pm4CmdBuffer* pCmdBuf, MemBarrier* pTransition) const;
-    bool OptimizeReadOnlyImgBarrier(Pm4CmdBuffer* pCmdBuf, ImgBarrier* pTransition) const;
-#endif
-
-    AcquirePoint GetAcquirePoint(uint32 dstStageMask, EngineType engineType) const;
-
-    Gfx9::CmdUtil  m_cmdUtil;
     BoundGpuMemory m_occlusionSrcMem;   // If occlusionQueryDmaBufferSlots is in use, this is the source memory.
     BoundGpuMemory m_dummyZpassDoneMem; // A GFX9 workaround requires dummy ZPASS_DONE events which write to memory.
 
@@ -958,8 +683,6 @@ private:
     const uint32      m_gbAddrConfig;
     const GfxIpLevel  m_gfxIpLevel;
     uint32            m_varBlockSize;
-
-    uint16         m_firstUserDataReg[HwShaderStage::Last];
 
     mutable std::atomic<uint32> m_nextColorTargetViewId;
     mutable std::atomic<uint32> m_nextDepthStencilViewId;

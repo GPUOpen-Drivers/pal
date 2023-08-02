@@ -28,8 +28,6 @@
 #include "palAssert.h"
 #include "palMetroHash.h"
 #include "palSysMemory.h"
-#include "palDevice.h"
-#include "palPlatform.h"
 
 namespace Util
 {

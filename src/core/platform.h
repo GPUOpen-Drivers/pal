@@ -42,6 +42,7 @@ namespace GpuUtil
 class TraceSession;
 class AsicInfoTraceSource;
 class ApiInfoTraceSource;
+class ClockCalibrationTraceSource;
 class UberTraceService;
 class FrameTraceController;
 }
@@ -80,16 +81,6 @@ struct GpuId
     uint32  gfxEngineId;
     uint32  deviceId;
 };
-
-/**
- ***********************************************************************************************************************
- * @brief Get the default allocation callback.
- *
- * @param [out] pAllocCb Pointer to the allocation callback structure. Must not be null.
- ***********************************************************************************************************************
- */
-extern void PAL_STDCALL GetDefaultAllocCb(
-    Util::AllocCallbacks* pAllocCb);
 
 // =====================================================================================================================
 // Class which manages global functionality for a particular PAL instantiation.
@@ -348,8 +339,10 @@ private:
     // Frame trace controller that drives the PAL-owned TraceSession from begin to end
     GpuUtil::FrameTraceController* m_pFrameTraceController;
 
-    GpuUtil::AsicInfoTraceSource* m_pAsicInfoTraceSource; // Trace source that sends device info to PAL-owned TraceSession
-    GpuUtil::ApiInfoTraceSource* m_pApiInfoTraceSource;   // Trace source that sends api info to PAL-owned TraceSession
+    // Trace sources that send data to PAL-owned TraceSession
+    GpuUtil::AsicInfoTraceSource*         m_pAsicInfoTraceSource;
+    GpuUtil::ApiInfoTraceSource*          m_pApiInfoTraceSource;
+    GpuUtil::ClockCalibrationTraceSource* m_pClockCalibTraceSource;
 
     // UberTraceService that communicates with Tools
     GpuUtil::UberTraceService* m_pUberTraceService;

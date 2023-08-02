@@ -1403,7 +1403,7 @@ Result Queue::SubmitNonGfxIp(
         PAL_ASSERT(pCmdBuffer->NumCmdStreams() == 1);
 
         const CmdStream*const pCmdStream = internalSubmitInfo.flags.isDummySubmission ?
-                                           m_pDummyCmdStream : pCmdBuffer->GetCmdStream(0);
+                                           m_pDummyCmdBuffer->GetCmdStream(0) : pCmdBuffer->GetCmdStream(0);
         uint32                chunkCount = 0; // Keep track of how many chunks will be submitted next.
 
         for (auto iter = pCmdStream->GetFwdIterator();

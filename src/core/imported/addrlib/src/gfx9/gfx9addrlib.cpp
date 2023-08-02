@@ -2325,6 +2325,7 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlComputeBlock256Equation(
     ADDR_E_RETURNCODE ret = ADDR_OK;
 
     pEquation->numBits = 8;
+    pEquation->numBitComponents = 1;
 
     UINT_32 i = 0;
     for (; i < elementBytesLog2; i++)
@@ -2651,6 +2652,7 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlComputeThinEquation(
             }
         }
 
+        FillEqBitComponents(pEquation);
         pEquation->numBits = blockSizeLog2;
     }
 
@@ -2928,6 +2930,7 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlComputeThickEquation(
             }
         }
 
+        FillEqBitComponents(pEquation);
         pEquation->numBits = blockSizeLog2;
     }
 
@@ -3638,7 +3641,9 @@ ADDR_E_RETURNCODE Gfx9Lib::HwlGetPreferredSurfaceSetting(
             // Apply optional restrictions
             if (pIn->flags.needEquation)
             {
-                FilterInvalidEqSwizzleMode(allowedSwModeSet, pIn->resourceType, Log2(bpp >> 3));
+                UINT_32 components = pIn->flags.allowExtEquation ?  ADDR_MAX_EQUATION_COMP :
+                                                                    ADDR_MAX_LEGACY_EQUATION_COMP;
+                FilterInvalidEqSwizzleMode(allowedSwModeSet, pIn->resourceType, Log2(bpp >> 3), components);
             }
 
             if (allowedSwModeSet.value == Gfx9LinearSwModeMask)

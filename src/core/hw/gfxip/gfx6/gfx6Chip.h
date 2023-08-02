@@ -39,7 +39,11 @@
 #include "core/hw/gfxip/gfx6/chip/si_ci_vi_merged_typedef.h"
 #include "core/hw/gfxip/gfx6/chip/si_ci_vi_merged_pm4_it_opcodes.h"
 #include "core/hw/gfxip/gfx6/chip/si_ci_vi_merged_pm4defs.h"
-#include "core/hw/gfxip/pm4CmdBuffer.h"
+
+namespace Pal
+{
+class Platform;
+} // namespace Pal
 
 // Put newly added registers definitions here to avoid getting lost when HW chip headers get regenerated,
 // Registers here can be simply removed once they are in place in HW chip header files over the time
@@ -151,9 +155,6 @@ constexpr uint32 InternalTblStartReg = 0;
 // Starting user-data register index where the low 32 address bits of the constant buffer table pointer
 // (internal CBs) is written.
 constexpr uint32 ConstBufTblStartReg = (InternalTblStartReg + 1);
-
-// Starting user data register index where the client's fast user-data 'entries' are written.
-constexpr uint32 FastUserDataStartReg = (ConstBufTblStartReg + 1);
 
 // Number of PS input semantic registers.
 constexpr uint32 MaxPsInputSemantics = 32;
@@ -461,27 +462,13 @@ enum class HwShaderStage : uint32
 // Number of valid hardware shader stages used in graphics pipelines.
 constexpr uint32 NumHwShaderStagesGfx = (static_cast<uint32>(HwShaderStage::Ps) + 1);
 
-// Base SPI user-data register addresses for client user-data entries per hardware shader stage.
-constexpr uint16 FirstUserDataRegAddr[] =
-{
-    (mmSPI_SHADER_USER_DATA_LS_0 + FastUserDataStartReg), // Ls
-    (mmSPI_SHADER_USER_DATA_HS_0 + FastUserDataStartReg), // Hs
-    (mmSPI_SHADER_USER_DATA_ES_0 + FastUserDataStartReg), // Es
-    (mmSPI_SHADER_USER_DATA_GS_0 + FastUserDataStartReg), // Gs
-    (mmSPI_SHADER_USER_DATA_VS_0 + FastUserDataStartReg), // Vs
-    (mmSPI_SHADER_USER_DATA_PS_0 + FastUserDataStartReg), // Ps
-    (mmCOMPUTE_USER_DATA_0       + FastUserDataStartReg), // Cs
-};
-static_assert(Util::ArrayLen(FirstUserDataRegAddr) == NumHwShaderStagesGfx + 1,
-              "FirstUserDataRegAddr[] array has the wrong number of elements!");
-
 // This represents the mapping from virtualized user-data entries to physical SPI user-data registers for a single HW
 // shader stage.
 struct UserDataEntryMap
 {
     // Each element of this array is the entry ID which is mapped to the user-SGPR associated with that array element.
     // The only elements in this array which are valid are ones whose index is less than userSgprCount.
-    uint8  mappedEntry[NumUserDataRegisters - FastUserDataStartReg];
+    uint8  mappedEntry[NumUserDataRegisters];
     uint8  userSgprCount;           // Number of valid entries in the mappedEntry array.
     uint16 firstUserSgprRegAddr;    // Address of the first user-SGPR which is mapped to user-data entries.
     // Address of the user-SGPR used for the spill table GPU virtual address for this stage.  Zero indicates that this

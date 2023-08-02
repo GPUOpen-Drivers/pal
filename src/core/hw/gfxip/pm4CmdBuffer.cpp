@@ -54,7 +54,8 @@ namespace Pal
 // =====================================================================================================================
 Pm4CmdBuffer::Pm4CmdBuffer(
     const GfxDevice&           device,
-    const CmdBufferCreateInfo& createInfo)
+    const CmdBufferCreateInfo& createInfo,
+    const GfxBarrierMgr*       pBarrierMgr)
     :
     GfxCmdBuffer(device, createInfo),
     m_acqRelFenceValGpuVa(0),
@@ -63,6 +64,7 @@ Pm4CmdBuffer::Pm4CmdBuffer(
     m_pm4CmdBufState{},
     m_computeState{},
     m_computeRestoreState{},
+    m_pBarrierMgr(pBarrierMgr),
     m_device(device)
 {
     for (uint32 i = 0; i < static_cast<uint32>(QueryPoolType::Count); i++)
@@ -501,17 +503,19 @@ void Pm4CmdBuffer::OptimizeSrcCacheMask(
 // Note: PipelineStageBlt will be converted to a more accurate stage based on the underlying implementation of
 //       outstanding BLTs, but will be left as PipelineStageBlt if the internal outstanding BLTs can't be expressed as
 //       a client-facing PipelineStage (e.g., if there are CP DMA BLTs in flight).
-void Pm4CmdBuffer::OptimizePipeAndCacheMaskForRelease(
-    uint32* pStageMask, // [in/out] A representation of PipelineStageFlag
-    uint32* pAccessMask // [in/out] A representation of CacheCoherencyUsageFlags
-) const
+void Pm4CmdBuffer::OptimizePipeStageAndCacheMask(
+    uint32* pSrcStageMask,
+    uint32* pSrcAccessMask,
+    uint32* pDstStageMask,
+    uint32* pDstAccessMask
+    ) const
 {
     const Pm4CmdBufferStateFlags cmdBufStateFlags = GetPm4CmdBufState().flags;
 
     // Update pipeline stages if valid input stage mask is provided.
-    if (pStageMask != nullptr)
+    if (pSrcStageMask != nullptr)
     {
-        uint32 localStageMask = *pStageMask;
+        uint32 localStageMask = *pSrcStageMask;
 
         if (TestAnyFlagSet(localStageMask, PipelineStageBlt))
         {
@@ -533,13 +537,13 @@ void Pm4CmdBuffer::OptimizePipeAndCacheMaskForRelease(
             }
         }
 
-        *pStageMask = localStageMask;
+        *pSrcStageMask = localStageMask;
     }
 
     // Update cache access masks if valid input access mask is provided.
-    if (pAccessMask != nullptr)
+    if (pSrcAccessMask != nullptr)
     {
-        uint32 localAccessMask = *pAccessMask;
+        uint32 localAccessMask = *pSrcAccessMask;
 
         if (TestAnyFlagSet(localAccessMask, CacheCoherencyBlt))
         {
@@ -569,7 +573,7 @@ void Pm4CmdBuffer::OptimizePipeAndCacheMaskForRelease(
             }
         }
 
-        *pAccessMask = localAccessMask;
+        *pSrcAccessMask = localAccessMask;
     }
 }
 
@@ -931,7 +935,7 @@ void Pm4CmdBuffer::OptimizeAcqRelReleaseInfo(
     uint32*                   pAccessMasks
     ) const
 {
-    OptimizePipeAndCacheMaskForRelease(pStageMask, pAccessMasks);
+    OptimizePipeStageAndCacheMask(pStageMask, pAccessMasks, nullptr, nullptr);
 }
 
 // =====================================================================================================================
@@ -1025,4 +1029,283 @@ void Pm4CmdBuffer::AddFceSkippedImageCounter(
 
     pPm4Image->IncrementFceRefCount();
 }
+
+// =====================================================================================================================
+void Pm4CmdBuffer::CmdBarrier(
+    const BarrierInfo& barrierInfo)
+{
+    PAL_ASSERT(m_pBarrierMgr != nullptr);
+
+    CmdBuffer::CmdBarrier(barrierInfo);
+
+    // Barriers do not honor predication.
+    const uint32 packetPredicate = m_pm4CmdBufState.flags.packetPredicate;
+    m_pm4CmdBufState.flags.packetPredicate = 0;
+
+    // Mark these as traditional barriers in RGP
+    m_pBarrierMgr->DescribeBarrierStart(this, barrierInfo.reason, Developer::BarrierType::Full);
+
+    bool splitMemAllocated;
+    BarrierInfo splitBarrierInfo = barrierInfo;
+    Result result = Pal::Device::SplitBarrierTransitions(m_device.GetPlatform(), &splitBarrierInfo, &splitMemAllocated);
+
+    Developer::BarrierOperations barrierOps = {};
+
+    if (result == Result::Success)
+    {
+        m_pBarrierMgr->Barrier(this, splitBarrierInfo, &barrierOps);
+    }
+    else if (result == Result::ErrorOutOfMemory)
+    {
+        NotifyAllocFailure();
+    }
+    else
+    {
+        PAL_ASSERT_ALWAYS();
+    }
+
+    // Delete memory allocated for splitting the BarrierTransitions if necessary.
+    if (splitMemAllocated)
+    {
+        PAL_SAFE_DELETE_ARRAY(splitBarrierInfo.pTransitions, m_device.GetPlatform());
+    }
+
+    m_pBarrierMgr->DescribeBarrierEnd(this, &barrierOps);
+
+    m_pm4CmdBufState.flags.packetPredicate = packetPredicate;
+}
+
+// =====================================================================================================================
+uint32 Pm4CmdBuffer::CmdRelease(
+    const AcquireReleaseInfo& releaseInfo)
+{
+    PAL_ASSERT(m_pBarrierMgr != nullptr);
+
+    CmdBuffer::CmdRelease(releaseInfo);
+
+    // Barriers do not honor predication.
+    const uint32 packetPredicate = m_pm4CmdBufState.flags.packetPredicate;
+    m_pm4CmdBufState.flags.packetPredicate = 0;
+
+    // Mark these as traditional barriers in RGP
+    m_pBarrierMgr->DescribeBarrierStart(this, releaseInfo.reason, Developer::BarrierType::Release);
+
+    bool splitMemAllocated;
+    AcquireReleaseInfo splitReleaseInfo = releaseInfo;
+    Result result = Pal::Device::SplitImgBarriers(m_device.GetPlatform(), &splitReleaseInfo, &splitMemAllocated);
+
+    Developer::BarrierOperations barrierOps = {};
+    uint32 syncToken = 0;
+
+    if (result == Result::Success)
+    {
+        syncToken = m_pBarrierMgr->Release(this, splitReleaseInfo, &barrierOps);
+    }
+    else if (result == Result::ErrorOutOfMemory)
+    {
+        NotifyAllocFailure();
+    }
+    else
+    {
+        PAL_ASSERT_ALWAYS();
+    }
+
+    // Delete memory allocated for splitting ImgBarriers if necessary.
+    if (splitMemAllocated)
+    {
+        PAL_SAFE_DELETE_ARRAY(splitReleaseInfo.pImageBarriers, m_device.GetPlatform());
+    }
+
+    m_pBarrierMgr->DescribeBarrierEnd(this, &barrierOps);
+
+    m_pm4CmdBufState.flags.packetPredicate = packetPredicate;
+
+    return syncToken;
+}
+
+// =====================================================================================================================
+void Pm4CmdBuffer::CmdAcquire(
+    const AcquireReleaseInfo& acquireInfo,
+    uint32                    syncTokenCount,
+    const uint32*             pSyncTokens)
+{
+    PAL_ASSERT(m_pBarrierMgr != nullptr);
+
+    CmdBuffer::CmdAcquire(acquireInfo, syncTokenCount, pSyncTokens);
+
+    // Barriers do not honor predication.
+    const uint32 packetPredicate = m_pm4CmdBufState.flags.packetPredicate;
+    m_pm4CmdBufState.flags.packetPredicate = 0;
+
+    // Mark these as traditional barriers in RGP
+    m_pBarrierMgr->DescribeBarrierStart(this, acquireInfo.reason, Developer::BarrierType::Acquire);
+
+    bool splitMemAllocated;
+    AcquireReleaseInfo splitAcquireInfo = acquireInfo;
+    Result result = Pal::Device::SplitImgBarriers(m_device.GetPlatform(), &splitAcquireInfo, &splitMemAllocated);
+
+    Developer::BarrierOperations barrierOps = {};
+
+    if (result == Result::Success)
+    {
+        m_pBarrierMgr->Acquire(this, splitAcquireInfo, syncTokenCount, pSyncTokens, &barrierOps);
+    }
+    else if (result == Result::ErrorOutOfMemory)
+    {
+        NotifyAllocFailure();
+    }
+    else
+    {
+        PAL_ASSERT_ALWAYS();
+    }
+
+    // Delete memory allocated for splitting ImgBarriers if necessary.
+    if (splitMemAllocated)
+    {
+        PAL_SAFE_DELETE_ARRAY(splitAcquireInfo.pImageBarriers, m_device.GetPlatform());
+    }
+
+    m_pBarrierMgr->DescribeBarrierEnd(this, &barrierOps);
+
+    m_pm4CmdBufState.flags.packetPredicate = packetPredicate;
+}
+
+// =====================================================================================================================
+void Pm4CmdBuffer::CmdReleaseEvent(
+    const AcquireReleaseInfo& releaseInfo,
+    const IGpuEvent*          pGpuEvent)
+{
+    PAL_ASSERT(m_pBarrierMgr != nullptr);
+
+    CmdBuffer::CmdReleaseEvent(releaseInfo, pGpuEvent);
+
+    // Barriers do not honor predication.
+    const uint32 packetPredicate           = m_pm4CmdBufState.flags.packetPredicate;
+    m_pm4CmdBufState.flags.packetPredicate = 0;
+
+    // Mark these as traditional barriers in RGP
+    m_pBarrierMgr->DescribeBarrierStart(this, releaseInfo.reason, Developer::BarrierType::Release);
+
+    bool splitMemAllocated;
+    AcquireReleaseInfo splitReleaseInfo = releaseInfo;
+    Result result = Pal::Device::SplitImgBarriers(m_device.GetPlatform(), &splitReleaseInfo, &splitMemAllocated);
+
+    Developer::BarrierOperations barrierOps = {};
+
+    if (result == Result::Success)
+    {
+        m_pBarrierMgr->ReleaseEvent(this, splitReleaseInfo, pGpuEvent, &barrierOps);
+    }
+    else if (result == Result::ErrorOutOfMemory)
+    {
+        NotifyAllocFailure();
+    }
+    else
+    {
+        PAL_ASSERT_ALWAYS();
+    }
+
+    // Delete memory allocated for splitting ImgBarriers if necessary.
+    if (splitMemAllocated)
+    {
+        PAL_SAFE_DELETE_ARRAY(splitReleaseInfo.pImageBarriers, m_device.GetPlatform());
+    }
+
+    m_pBarrierMgr->DescribeBarrierEnd(this, &barrierOps);
+
+    m_pm4CmdBufState.flags.packetPredicate = packetPredicate;
+}
+
+// =====================================================================================================================
+void Pm4CmdBuffer::CmdAcquireEvent(
+    const AcquireReleaseInfo& acquireInfo,
+    uint32                    gpuEventCount,
+    const IGpuEvent* const*   ppGpuEvents)
+{
+    PAL_ASSERT(m_pBarrierMgr != nullptr);
+
+    CmdBuffer::CmdAcquireEvent(acquireInfo, gpuEventCount, ppGpuEvents);
+
+    // Barriers do not honor predication.
+    const uint32 packetPredicate           = m_pm4CmdBufState.flags.packetPredicate;
+    m_pm4CmdBufState.flags.packetPredicate = 0;
+
+    // Mark these as traditional barriers in RGP
+    m_pBarrierMgr->DescribeBarrierStart(this, acquireInfo.reason, Developer::BarrierType::Acquire);
+
+    bool splitMemAllocated;
+    AcquireReleaseInfo splitAcquireInfo = acquireInfo;
+    Result result = Pal::Device::SplitImgBarriers(m_device.GetPlatform(), &splitAcquireInfo, &splitMemAllocated);
+
+    Developer::BarrierOperations barrierOps = {};
+
+    if (result == Result::Success)
+    {
+        m_pBarrierMgr->AcquireEvent(this, splitAcquireInfo, gpuEventCount, ppGpuEvents, &barrierOps);
+    }
+    else if (result == Result::ErrorOutOfMemory)
+    {
+        NotifyAllocFailure();
+    }
+    else
+    {
+        PAL_ASSERT_ALWAYS();
+    }
+
+    // Delete memory allocated for splitting ImgBarriers if necessary.
+    if (splitMemAllocated)
+    {
+        PAL_SAFE_DELETE_ARRAY(splitAcquireInfo.pImageBarriers, m_device.GetPlatform());
+    }
+
+    m_pBarrierMgr->DescribeBarrierEnd(this, &barrierOps);
+
+    m_pm4CmdBufState.flags.packetPredicate = packetPredicate;
+}
+
+// =====================================================================================================================
+void Pm4CmdBuffer::CmdReleaseThenAcquire(
+    const AcquireReleaseInfo& barrierInfo)
+{
+    PAL_ASSERT(m_pBarrierMgr != nullptr);
+
+    CmdBuffer::CmdReleaseThenAcquire(barrierInfo);
+
+    // Barriers do not honor predication.
+    const uint32 packetPredicate = m_pm4CmdBufState.flags.packetPredicate;
+    m_pm4CmdBufState.flags.packetPredicate = 0;
+
+    // Mark these as traditional barriers in RGP
+    m_pBarrierMgr->DescribeBarrierStart(this, barrierInfo.reason, Developer::BarrierType::Full);
+
+    bool splitMemAllocated;
+    AcquireReleaseInfo splitBarrierInfo = barrierInfo;
+    Result result = Pal::Device::SplitImgBarriers(m_device.GetPlatform(), &splitBarrierInfo, &splitMemAllocated);
+
+    Developer::BarrierOperations barrierOps = {};
+
+    if (result == Result::Success)
+    {
+        m_pBarrierMgr->ReleaseThenAcquire(this, splitBarrierInfo, &barrierOps);
+    }
+    else if (result == Result::ErrorOutOfMemory)
+    {
+        NotifyAllocFailure();
+    }
+    else
+    {
+        PAL_ASSERT_ALWAYS();
+    }
+
+    // Delete memory allocated for splitting ImgBarriers if necessary.
+    if (splitMemAllocated)
+    {
+        PAL_SAFE_DELETE_ARRAY(splitBarrierInfo.pImageBarriers, m_device.GetPlatform());
+    }
+
+    m_pBarrierMgr->DescribeBarrierEnd(this, &barrierOps);
+
+    m_pm4CmdBufState.flags.packetPredicate = packetPredicate;
+}
+
 } // Pal

@@ -47,10 +47,12 @@ namespace DbgOverlay
 // =====================================================================================================================
 FpsMgr::FpsMgr(
     Platform*     pPlatform,
-    const Device* pDevice)
+    const Device* pDevice,
+    bool          isKeyed)
     :
     m_pPlatform(pPlatform),
     m_pDevice(pDevice),
+    m_pDefaultFpsMgr(isKeyed ? pPlatform->GetFpsMgr() : nullptr),
     m_frequency(0.f),
     m_cpuTimeSamples(0),
     m_cpuTimeIndex(0),
@@ -169,6 +171,13 @@ float FpsMgr::GetFramesPerSecond()
 // Updates the moving average of frame time between present calls.
 void FpsMgr::UpdateFps()
 {
+    // Also keep the default FpsMgr tracking the CPU frame time.
+    // Thus APIs not yet using the keyed FpsMgr will still get the same fps as before.
+    if (m_pDefaultFpsMgr != nullptr)
+    {
+        m_pDefaultFpsMgr->UpdateFps();
+    }
+
     // Set the last time query.
     m_performanceCounters[LastQuery] = m_performanceCounters[CurrentQuery];
 
@@ -213,7 +222,8 @@ float FpsMgr::GetCpuTime()
 // Retrieves the gpu time between present calls.
 float FpsMgr::GetGpuTime()
 {
-    return (m_gpuTimeSamples > 0) ? (m_gpuTimeSum / m_gpuTimeSamples) : 0.0f;
+    return (m_pDefaultFpsMgr != nullptr) ?
+        m_pDefaultFpsMgr->GetGpuTime() : (m_gpuTimeSamples > 0) ? (m_gpuTimeSum / m_gpuTimeSamples) : 0.0f;
 }
 
 // =====================================================================================================================
@@ -229,6 +239,14 @@ bool FpsMgr::PartialGpuTime()
 // =====================================================================================================================
 void FpsMgr::IncrementFrameCount()
 {
+    // The default FpsMgr gets used when we have to window/swap chain/ .. specific key.
+    // This is the case for the submissions where we measure the GPU time.
+    // That default FpsMgr also needs to know about the frame counter increments.
+    if (m_pDefaultFpsMgr != nullptr)
+    {
+        m_pDefaultFpsMgr->IncrementFrameCount();
+    }
+
     // We need to take the GPU timestamp lock here because the submitted time list must be ordered by frame number.
     MutexAuto lock(&m_gpuTimestampWorkLock);
     m_frameCount++;
@@ -238,70 +256,78 @@ void FpsMgr::IncrementFrameCount()
 // Updates the moving average of frame time between present calls.
 void FpsMgr::UpdateGpuFps()
 {
-    MutexAuto lock(&m_gpuTimestampWorkLock);
-
-    for (auto iter = m_submitTimeList.Begin(); iter.Get() != nullptr;)
+    // The default FpsMgr keeps track of the GPU times.
+    if (m_pDefaultFpsMgr != nullptr)
     {
-        GpuTimestampPair*const pTimestamp = *iter.Get();
+        m_pDefaultFpsMgr->UpdateGpuFps();
+    }
+    else
+    {
+        MutexAuto lock(&m_gpuTimestampWorkLock);
 
-        //Check for a completed frame
-        if (pTimestamp->frameNumber > m_frameTracker)
+        for (auto iter = m_submitTimeList.Begin(); iter.Get() != nullptr;)
         {
-            //Evaluate gpu time per frame
-            const float gpuTimePerFrame = ComputeGpuTimePerFrame();
+            GpuTimestampPair* const pTimestamp = *iter.Get();
 
-            //Update m_frameTracker
-            m_frameTracker = pTimestamp->frameNumber;
-
-            // Simple Moving Average: Subtract the oldest time on the list,
-            // add in the newest time, and update the list of times.
-            m_gpuTimeSum -= m_gpuTimeList[m_gpuTimeIndex];
-            m_gpuTimeSum += gpuTimePerFrame;
-            m_gpuTimeList[m_gpuTimeIndex] = gpuTimePerFrame;
-
-            // Calculating value for the time graph
-            // scaledTime = time * numberOfPixelsToScale / (1/60) fps
-            double scaledGpuTimePerFrame = gpuTimePerFrame * NumberOfPixelsToScale * 60.0;
-            m_scaledGpuTimeList[m_gpuTimeIndex] = static_cast<uint32>(scaledGpuTimePerFrame);
-
-            // Loop the list.
-            if (++m_gpuTimeIndex == TimeCount)
+            //Check for a completed frame
+            if (pTimestamp->frameNumber > m_frameTracker)
             {
-                m_gpuTimeIndex = 0;
+                //Evaluate gpu time per frame
+                const float gpuTimePerFrame = ComputeGpuTimePerFrame();
+
+                //Update m_frameTracker
+                m_frameTracker = pTimestamp->frameNumber;
+
+                // Simple Moving Average: Subtract the oldest time on the list,
+                // add in the newest time, and update the list of times.
+                m_gpuTimeSum -= m_gpuTimeList[m_gpuTimeIndex];
+                m_gpuTimeSum += gpuTimePerFrame;
+                m_gpuTimeList[m_gpuTimeIndex] = gpuTimePerFrame;
+
+                // Calculating value for the time graph
+                // scaledTime = time * numberOfPixelsToScale / (1/60) fps
+                double scaledGpuTimePerFrame = gpuTimePerFrame * NumberOfPixelsToScale * 60.0;
+                m_scaledGpuTimeList[m_gpuTimeIndex] = static_cast<uint32>(scaledGpuTimePerFrame);
+
+                // Loop the list.
+                if (++m_gpuTimeIndex == TimeCount)
+                {
+                    m_gpuTimeIndex = 0;
+                }
+
+                // Increase m_gpuTimeSamples put don't go above TimeCount
+                m_gpuTimeSamples = Min(m_gpuTimeSamples + 1, TimeCount);
             }
 
-            // Increase m_gpuTimeSamples put don't go above TimeCount
-            m_gpuTimeSamples = Min(m_gpuTimeSamples + 1, TimeCount);
-        }
-
-        // Update Evaluate Time List
-        if (pTimestamp->pFence->GetStatus() == Result::Success)
-        {
-            // If this triggers, this timestamp was added to the list out of frame order.
-            PAL_ASSERT(pTimestamp->frameNumber == m_frameTracker);
-
-            if (m_numGpuTimeRanges < MaxGpuTimeRanges)
+            // Update Evaluate Time List
+            if (pTimestamp->pFence->GetStatus() == Result::Success)
             {
-                m_gpuTimeRanges[m_numGpuTimeRanges].begin = *pTimestamp->pBeginTimestamp;
-                m_gpuTimeRanges[m_numGpuTimeRanges].end   = *pTimestamp->pEndTimestamp;
-                m_numGpuTimeRanges++;
+                // If this triggers, this timestamp was added to the list out of frame order.
+                PAL_ASSERT(pTimestamp->frameNumber == m_frameTracker);
+
+                if (m_numGpuTimeRanges < MaxGpuTimeRanges)
+                {
+                    m_gpuTimeRanges[m_numGpuTimeRanges].begin = *pTimestamp->pBeginTimestamp;
+                    m_gpuTimeRanges[m_numGpuTimeRanges].end = *pTimestamp->pEndTimestamp;
+                    m_numGpuTimeRanges++;
+                }
+                else
+                {
+                    // If we can't fit anything else in the array we have to report a partial frame time.
+                    m_partialFrameTracker = m_frameTracker;
+                }
+
+                // Remove the timestamp pair from the submit list and release this submission.
+                m_submitTimeList.Erase(&iter);
+                AtomicDecrement(&pTimestamp->numActiveSubmissions);
             }
             else
             {
-                // If we can't fit anything else in the array we have to report a partial frame time.
-                m_partialFrameTracker = m_frameTracker;
+                // We must evaluate all of the timestamps for the current frame before any others. If we were to continue
+                // looping through the list it's possible that we would attempt to evaluate a timestamp for the next frame
+                // before this timestamp. We will restart at this timestamp when this function is called again.
+                break;
             }
-
-            // Remove the timestamp pair from the submit list and release this submission.
-            m_submitTimeList.Erase(&iter);
-            AtomicDecrement(&pTimestamp->numActiveSubmissions);
-        }
-        else
-        {
-            // We must evaluate all of the timestamps for the current frame before any others. If we were to continue
-            // looping through the list it's possible that we would attempt to evaluate a timestamp for the next frame
-            // before this timestamp. We will restart at this timestamp when this function is called again.
-            break;
         }
     }
 }
@@ -499,6 +525,13 @@ void FpsMgr::GetBenchmarkString(
 // Updates benchmark status and composes output string for overlay.
 void FpsMgr::UpdateBenchmark()
 {
+    // Also keep the default FpsMgr tracking the CPU frame time.
+    // Thus APIs not yet using the keyed FpsMgr will still get the same fps as before.
+    if (m_pDefaultFpsMgr != nullptr)
+    {
+        m_pDefaultFpsMgr->UpdateBenchmark();
+    }
+
     PAL_ASSERT(m_pDevice != nullptr);
     const auto& settings = m_pDevice->GetPlatform()->PlatformSettings();
     const bool logFrameStats = settings.overlayBenchmarkConfig.logFrameStats;

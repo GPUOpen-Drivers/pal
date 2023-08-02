@@ -395,6 +395,13 @@ static const MaxEventIds& GetEventLimits(
         pOut = &Nv33MaxPerfEventIds;
         break;
 #endif
+#if PAL_BUILD_PHOENIX1
+#if PAL_BUILD_PHOENIX1
+    case Pal::AsicRevision::Phoenix1:
+#endif
+        pOut = &Phx1MaxPerfEventIds;
+        break;
+#endif
     default:
         PAL_ASSERT_ALWAYS(); // What chip is this?
         pOut = &UnknownMaxEventIds;
@@ -445,6 +452,22 @@ static void Gfx11UpdateRpbBlockInfo(
             { Nv3x::mmRPB_PERFCOUNTER1_CFG, 0, Nv3x::mmRPB_PERFCOUNTER_LO, Nv3x::mmRPB_PERFCOUNTER_HI },
             { Nv3x::mmRPB_PERFCOUNTER2_CFG, 0, Nv3x::mmRPB_PERFCOUNTER_LO, Nv3x::mmRPB_PERFCOUNTER_HI },
             { Nv3x::mmRPB_PERFCOUNTER3_CFG, 0, Nv3x::mmRPB_PERFCOUNTER_LO, Nv3x::mmRPB_PERFCOUNTER_HI },
+        }};
+    }
+    else
+#endif
+#if PAL_BUILD_PHOENIX1
+    if (false
+#if PAL_BUILD_PHOENIX1
+        || IsPhoenix1(device)
+#endif
+       )
+    {
+        pInfo->regAddr = { Phx1::mmRPB_PERFCOUNTER_RSLT_CNTL, {
+            { Phx1::mmRPB_PERFCOUNTER0_CFG, 0, Phx1::mmRPB_PERFCOUNTER_LO, Phx1::mmRPB_PERFCOUNTER_HI },
+            { Phx1::mmRPB_PERFCOUNTER1_CFG, 0, Phx1::mmRPB_PERFCOUNTER_LO, Phx1::mmRPB_PERFCOUNTER_HI },
+            { Phx1::mmRPB_PERFCOUNTER2_CFG, 0, Phx1::mmRPB_PERFCOUNTER_LO, Phx1::mmRPB_PERFCOUNTER_HI },
+            { Phx1::mmRPB_PERFCOUNTER3_CFG, 0, Phx1::mmRPB_PERFCOUNTER_LO, Phx1::mmRPB_PERFCOUNTER_HI },
         }};
     }
     else

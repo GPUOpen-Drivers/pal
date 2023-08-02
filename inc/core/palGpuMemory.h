@@ -187,7 +187,14 @@ union GpuMemoryCreateFlags
         uint64 placeholder1                 :  1;
         uint64 startVaHintFlag              :  1; ///< startVaHintFlag is set to 1 for passing startVaHint address
                                                   ///  to set baseVirtAddr as startVaHint for memory allocation.
-        uint64 reserved                     : 31; ///< Reserved for future use.
+#if PAL_AMDGPU_BUILD
+        uint64 initializeToZero             :  1; ///< If set, PAL will request that the host OS zero-initializes
+                                                  ///  the allocation upon creation, currently, only GpuHeapLocal and
+                                                  ///  GpuHeapInvisible are supported.
+#else
+        uint64 placeholder2                 :  1;
+#endif
+        uint64 reserved                     : 30; ///< Reserved for future use.
     };
     uint64     u64All;                            ///< Flags packed as 64-bit uint.
 };

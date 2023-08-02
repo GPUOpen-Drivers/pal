@@ -1,0 +1,195 @@
+$id: ./settings_schema.yaml
+$schema: https://json-schema.org/draft/2020-12/schema
+title: Settings Schema
+description: This schema defines the structure of Settings 2.0 YAML data.
+type: object
+properties:
+  version:
+    type: integer
+    description: The version of the Settings schema against which this YAML file is
+      written.
+    minimum: 1
+  component:
+    type: string
+  tags:
+    type: array
+    items:
+      oneOf:
+        - type: string
+          maxLength: 40
+          description: A tag name.
+        - type: object
+          properties:
+            name:
+              type: string
+              maxLength: 40
+              description: A tag name
+            buildtypes:
+              $ref: '#/$defs/buildtypes'
+          description: A tag guarded behind build-types and could be stripped out
+            by code sanitization. Only ASCII is supported.
+    uniqueItems: true
+    description: A top-level list of all tags that could appear in each individual
+      setting's tag list.
+  enums:
+    type: array
+    items:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The name of the enum.
+        values:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                description: The name of the value.
+              value:
+                type: integer
+                description: Should be unique from other
+                  variants.
+              buildtypes:
+                $ref: '#/$defs/buildtypes'
+              description:
+                type: string
+                description: The description of the variant.
+            required:
+              - name
+              - value
+          description: Different fields in an enum struct.
+        description:
+          type: string
+        skipGen:
+          type: boolean
+          description: If this flag is true, the enum definition is NOT generated. This is to avoid
+            duplicating enums that have already be manully defined somewhere in the code base.
+        buildtypes:
+          $ref: '#/$defs/buildtypes'
+      required:
+        - name
+        - values
+        - description
+    description: Enums to be referenced by individual settings.
+  settings:
+    type: array
+    items:
+      $ref: '#/$defs/setting'
+required:
+  - version
+  - component
+  - settings
+$defs:
+  setting:
+    type: object
+    properties:
+      name:
+        type: string
+        description: Name is used for generating setting variable name in C++ (by lowercasing
+          the first character). It must start with an alphabetic letter, and only contain
+          alphnumeric characters, plus underscore.
+      defaults:
+        type: object
+        properties:
+          type:
+            enum:
+              - bool
+              - int8
+              - uint8
+              - int16
+              - uint16
+              - int32
+              - uint32
+              - int64
+              - uint64
+              - float
+              - string
+            description: The type of the default value.
+          default:
+            type:
+              - string
+              - number
+              - boolean
+            description: Default value. Can be overridden for a specific platform.
+          windows:
+            type:
+              - string
+              - number
+              - boolean
+            description: Default value for Windows, overridding the value in "default".
+          linux:
+            type:
+              - string
+              - number
+              - boolean
+            description: Default value for Linux, overridding the value in "default".
+        required:
+          - type
+          - default
+        description: Note, a setting of string type will map to fixed-size array of `char`s
+          in the generated code. The size of this array is a pre-defined constant.
+      visibility:
+        enum:
+          - Public
+          - NDA
+          - Private
+        description: Used by code-gen to separate settings into different part based
+          on who can set/modify this setting. Default to Private.
+      description:
+        type: string
+      buildtypes:
+        $ref: '#/$defs/buildtypes'
+      tags:
+        type: array
+        items:
+          type: string
+          maxLength: 40
+        uniqueItems: true
+        description: Tags help GUI tools with categorization and search. Only ASCII is supported.
+      flags:
+        type: object
+        properties:
+          isHex:
+            type: boolean
+            description: Should this setting be displayed in Hexadecimal. Default
+              to false.
+          isDir:
+            type: boolean
+            description: Indicate this is a path to a directory. Default to false.
+          isFile:
+            type: boolean
+            description: Indicate this is a path to a file. Default to false.
+        description: The flags describing various attributes of this setting.
+      enum:
+        type: string
+        description: One of the names in the top-level Enums list.
+      group:
+        type: string
+        description: A name representing a group to which related settings
+          belong. In the generated code, settings under the same group will be
+          enclosed in a struct whose name equals group name.
+      scope:
+        type: string
+        description: Scope used for reading values from Windows registry. This is a legacy field that
+          exists for backwards compatibility.
+    required:
+      - name
+      - defaults
+      - description
+  buildtypes:
+    type: array
+    items:
+      type: string
+    description: "Used by code-gen to determine under what build types its parent
+      field should be included. Default to always include. Also used by code sanitization
+      to strip out non-public objects. In generated C++ code, all build types will be combined using
+      OR logical-op. If two build types need to be combined with AND logical-op, they have to be written
+      as one item in the array.
+        buildtypes:
+          - BUILD_TYPE_A && BUILD_TYPE_B
+          - BUILD_TYPE_C
+      For example, the above data translates to:
+      #if (BUILD_TYPE_A && BUILD_TYPE_B) || BUILD_TYPE_C
+      "

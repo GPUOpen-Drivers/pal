@@ -537,7 +537,7 @@ DevDriver::Vector<uint8_t> SettingsService::WriteAllComponentValues(
         pHashValPair->nextOffset = totalAlignedSize;
 
         // write the individual setting's value to the intermediate buffer
-        memcpy(pHashValPair->valueBuf, settingItr->value.pVal, pHashValPair->valueBufSize);
+        memcpy(pHashValPair->valueBuf, settingItr->value.pValue, pHashValPair->valueBufSize);
 
         size_t oldSize = tempBuffer.Size();
         tempBuffer.Grow(totalAlignedSize);
@@ -577,7 +577,7 @@ DD_RESULT SettingsService::SetValue(
                 DDSettingsValueRef valPtr = {};
                 valPtr.type = pParam->hashValPair.type;
                 valPtr.size = pParam->hashValPair.valueBufSize;
-                valPtr.pVal = (void*)(pParam->hashValPair.valueBuf);
+                valPtr.pValue = (void*)(pParam->hashValPair.valueBuf);
                 result = settings->SetValue(pParam->hashValPair.hash, valPtr);
             }
             else

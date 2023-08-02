@@ -49,6 +49,7 @@ PipelineChunkHs::PipelineChunkHs(
     m_stageInfo{}
 {
     m_stageInfo.stageId = Abi::HardwareStage::Hs;
+    m_regs.sh.userDataInternalTable = InvalidUserDataInternalTable;
 }
 
 // =====================================================================================================================
@@ -124,10 +125,12 @@ uint32* PipelineChunkHs::WriteShCommands(
                                               ShaderGraphics,
                                               &m_regs.sh.spiShaderPgmRsrc1Hs,
                                               pCmdSpace);
-
-    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSpiShaderUserDataHs0 + ConstBufTblStartReg,
-                                                             m_regs.sh.userDataInternalTable,
-                                                             pCmdSpace);
+    if (m_regs.sh.userDataInternalTable != InvalidUserDataInternalTable)
+    {
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSpiShaderUserDataHs0 + ConstBufTblStartReg,
+                                                                 m_regs.sh.userDataInternalTable,
+                                                                 pCmdSpace);
+    }
 
     if (chipProps.gfx9.supportSpp != 0)
     {

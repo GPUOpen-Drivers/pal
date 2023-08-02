@@ -179,7 +179,13 @@ struct SwapChainCreateInfo
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 768
             uint32 clientBlockIfFlipping     :  1; ///< If toggled, swapchain will offload block if flipping (write
                                                    /// primary) responsibility to client. Not applicable to DXGI.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 802
+            uint32 enablePresentThread       :  1; ///< DXGI only, present from a different thread, can help hide
+                                                   ///  latency in CPU bound apps.
+            uint32 reserved                  : 23;
+#else
             uint32 reserved                  : 24; ///< Reserved for future use.
+#endif
 #else
             uint32 reserved                  : 25; ///< Reserved for future use.
 #endif

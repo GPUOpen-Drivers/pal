@@ -26,8 +26,6 @@
 #pragma once
 
 #include "core/hw/gfxip/gfx6/gfx6Chip.h"
-#include "palDevice.h"
-#include "palFormatInfo.h"
 
 namespace Pal
 {

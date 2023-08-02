@@ -82,6 +82,9 @@ extern const NullIdLookup  NullIdLookupTable[] =
     { NullGpuId::Navi33,   FAMILY_NV3, NAVI33_P_A0, PRID_NV3_NAVI33_00, GfxEngineGfx9,  DEVICE_ID_NV3_NAVI33_P_73F0, "NAVI33:gfx1102" },
 #endif
     { NullGpuId::Raphael,  FAMILY_RPL, RAPHAEL_A0,  PRID_RPL_00,        GfxEngineGfx9,  DEVICE_ID_RPL_164E, "RAPHAEL:gfx1036" },
+#if PAL_BUILD_PHOENIX1
+    { NullGpuId::Phoenix1, FAMILY_PHX, PHOENIX1_A0, PRID_PHX_00,        GfxEngineGfx9,  DEVICE_ID_PHX1_15BF, "PHOENIX1:gfx1103" },
+#endif
 };
 extern const uint32 NullIdLookupTableCount = static_cast<uint32>(Util::ArrayLen(NullIdLookupTable));
 
@@ -1217,6 +1220,26 @@ void Device::FillGfx9ChipProperties(
         pChipInfo->gsPrimBufferDepth           =  1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt            =    32; // GPU__GC__NUM_MAX_GS_THDS;
     }
+#if PAL_BUILD_PHOENIX1
+    else if (AMDGPU_IS_PHOENIX1(familyId, eRevId))
+    {
+        pChipInfo->supportSpiPrefPriority  =     1;
+        pChipInfo->doubleOffchipLdsBuffers =     1;
+        pChipInfo->gbAddrConfig            = 0x242; // GB_ADDR_CONFIG_DEFAULT;
+        pChipInfo->numShaderEngines        =     1; // GPU__GC__NUM_SE;
+        pChipInfo->numShaderArrays         =     2; // GPU__GC__NUM_SA_PER_SE
+        pChipInfo->maxNumRbPerSe           =     4; // GPU__GC__NUM_RB_PER_SE;
+        pChipInfo->nativeWavefrontSize     =    32; // GPU__GC__SQ_WAVE_SIZE;
+        pChipInfo->minWavefrontSize        =    32;
+        pChipInfo->maxWavefrontSize        =    64;
+        pChipInfo->numPhysicalVgprsPerSimd =  1024; // GPU__GC__NUM_GPRS;
+        pChipInfo->maxNumCuPerSh           =     6; // GPU__GC__NUM_WGP_PER_SA * 2;
+        pChipInfo->numTccBlocks            =     4; // GPU__GC__NUM_GL2C;
+        pChipInfo->gsVgtTableDepth         =    32; // GPU__VGT__GS_TABLE_DEPTH;
+        pChipInfo->gsPrimBufferDepth       =  1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
+        pChipInfo->maxGsWavesPerVgt        =    32; // GPU__GC__NUM_MAX_GS_THDS;
+    }
+#endif
     else
     {
         // Unknown device id
@@ -1300,9 +1323,12 @@ Result Device::EarlyInit(
 
     for (uint32 i = 0; i < EngineTypeCount; i++)
     {
-        m_engineProperties.perEngine[i].preferredCmdAllocHeaps[CommandDataAlloc]   = GpuHeapGartUswc;
-        m_engineProperties.perEngine[i].preferredCmdAllocHeaps[EmbeddedDataAlloc]  = GpuHeapGartUswc;
-        m_engineProperties.perEngine[i].preferredCmdAllocHeaps[GpuScratchMemAlloc] = GpuHeapInvisible;
+        m_engineProperties.perEngine[i].preferredCmdAllocHeaps[CommandDataAlloc]        = GpuHeapGartUswc;
+        m_engineProperties.perEngine[i].preferredCmdAllocHeaps[EmbeddedDataAlloc]       = GpuHeapGartUswc;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+        m_engineProperties.perEngine[i].preferredCmdAllocHeaps[LargeEmbeddedDataAlloc]  = GpuHeapGartUswc;
+#endif
+        m_engineProperties.perEngine[i].preferredCmdAllocHeaps[GpuScratchMemAlloc]      = GpuHeapInvisible;
     }
 
     for (uint32 i = 0; i < EngineTypeCount; i++)

@@ -1208,40 +1208,6 @@ const bool RsrcProcMgr::IsGfxPipelineForFormatSupported(
 }
 
 // =====================================================================================================================
-// Returns the image plane that corresponds to the supplied base address.
-uint32 RsrcProcMgr::DecodeImageViewSrdPlane(
-    const Pal::Image&  image,
-    gpusize            srdBaseAddr,
-    uint32             slice
-    ) const
-{
-    uint32  plane = 0;
-    const auto& imageCreateInfo = image.GetImageCreateInfo();
-
-    if (Formats::IsYuvPlanar(imageCreateInfo.swizzledFormat.format))
-    {
-        const auto*  pGfxImage = image.GetGfxImage();
-        const auto&  imageInfo = image.GetImageInfo();
-
-        // For Planar YUV, loop through each plane of the slice and compare the address with SRD to determine which
-        // subresrouce this SRD represents.
-        for (uint32 planeIdx = 0; (planeIdx < imageInfo.numPlanes); ++planeIdx)
-        {
-            const gpusize  planeBaseAddr = pGfxImage->GetPlaneBaseAddr(planeIdx, slice);
-            const auto     subResAddr    = Get256BAddrLo(planeBaseAddr);
-
-            if (srdBaseAddr == subResAddr)
-            {
-                plane      = planeIdx;
-                break;
-            }
-        }
-    }
-
-    return plane;
-}
-
-// =====================================================================================================================
 // Function to expand (decompress) hTile data associated with the given image / range.  Supports use of a compute
 // queue expand for ASICs that support texture compatability of depth surfaces.  Falls back to the independent layer
 // implementation for other ASICs
@@ -6050,24 +6016,6 @@ void Gfx9RsrcProcMgr::CopyImageCompute(
 {
     PAL_ASSERT(TestAnyFlagSet(flags, CopyEnableScissorTest) == false);
 
-    const bool isCompressed  = (Formats::IsBlockCompressed(srcImage.GetImageCreateInfo().swizzledFormat.format) ||
-                                Formats::IsBlockCompressed(dstImage.GetImageCreateInfo().swizzledFormat.format));
-    const bool useMipInSrd   = CopyImageUseMipLevelInSrd(isCompressed);
-
-    bool isFmaskCopy          = false;
-    bool isFmaskCopyOptimized = false;
-    // Get the appropriate pipeline object.
-    const Pal::ComputePipeline* pPipeline = GetCopyImageComputePipeline(srcImage,
-                                                                        srcImageLayout,
-                                                                        dstImage,
-                                                                        dstImageLayout,
-                                                                        regionCount,
-                                                                        pRegions,
-                                                                        flags,
-                                                                        useMipInSrd,
-                                                                        &isFmaskCopy,
-                                                                        &isFmaskCopyOptimized);
-
     bool p2pBltInfoRequired = m_pDevice->Parent()->IsP2pBltWaRequired(*dstImage.GetBoundGpuMemory().Memory());
 
     uint32 newRegionCount = 0;
@@ -6109,21 +6057,8 @@ void Gfx9RsrcProcMgr::CopyImageCompute(
         }
     }
 
-    CopyImageCsInfo copyImageCsInfo;
-    copyImageCsInfo.pPipeline            = pPipeline;
-    copyImageCsInfo.pSrcImage            = &srcImage;
-    copyImageCsInfo.srcImageLayout       = srcImageLayout;
-    copyImageCsInfo.pDstImage            = &dstImage;
-    copyImageCsInfo.dstImageLayout       = dstImageLayout;
-    copyImageCsInfo.regionCount          = regionCount;
-    copyImageCsInfo.pRegions             = pRegions;
-    copyImageCsInfo.flags                = flags;
-    copyImageCsInfo.isFmaskCopy          = isFmaskCopy;
-    copyImageCsInfo.isFmaskCopyOptimized = isFmaskCopyOptimized;
-    copyImageCsInfo.useMipInSrd          = useMipInSrd;
-    copyImageCsInfo.pP2pBltInfoChunks    = p2pBltInfoRequired ? chunkAddrs.Data() : nullptr;
-
-    CopyImageCs(pCmdBuffer, copyImageCsInfo);
+    CopyImageCs(pCmdBuffer, srcImage, srcImageLayout, dstImage, dstImageLayout, regionCount, pRegions, flags,
+                p2pBltInfoRequired ? chunkAddrs.Data() : nullptr);
 }
 
 // =====================================================================================================================
@@ -6222,122 +6157,6 @@ void Gfx9RsrcProcMgr::CopyBetweenMemoryAndImage(
                                 pRegions,
                                 includePadding,
                                 (p2pBltInfoRequired ? chunkAddrs.Data() : nullptr));
-}
-
-// =====================================================================================================================
-void Gfx9RsrcProcMgr::HwlDecodeBufferViewSrd(
-    const void*      pBufferViewSrd,
-    BufferViewInfo*  pViewInfo
-    ) const
-{
-    const auto& srd = *(static_cast<const Gfx9BufferSrd*>(pBufferViewSrd));
-
-    // Verify that we have a buffer view SRD.
-    PAL_ASSERT(srd.word3.bits.TYPE == SQ_RSRC_BUF);
-
-    // Reconstruct the buffer view info struct.
-    pViewInfo->gpuAddr = (static_cast<gpusize>(srd.word1.bits.BASE_ADDRESS_HI) << 32ull) + srd.word0.bits.BASE_ADDRESS;
-    pViewInfo->range   = srd.word2.bits.NUM_RECORDS;
-    pViewInfo->stride  = srd.word1.bits.STRIDE;
-
-    if (pViewInfo->stride > 1)
-    {
-        pViewInfo->range *= pViewInfo->stride;
-    }
-
-    pViewInfo->swizzledFormat.format    = FmtFromHwBufFmt(static_cast<BUF_DATA_FORMAT>(srd.word3.bits.DATA_FORMAT),
-                                                          static_cast<BUF_NUM_FORMAT>(srd.word3.bits.NUM_FORMAT),
-                                                          m_pDevice->Parent()->ChipProperties().gfxLevel);
-    pViewInfo->swizzledFormat.swizzle.r =
-        ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(srd.word3.bits.DST_SEL_X));
-    pViewInfo->swizzledFormat.swizzle.g =
-        ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(srd.word3.bits.DST_SEL_Y));
-    pViewInfo->swizzledFormat.swizzle.b =
-        ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(srd.word3.bits.DST_SEL_Z));
-    pViewInfo->swizzledFormat.swizzle.a =
-        ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(srd.word3.bits.DST_SEL_W));
-
-    // Verify that we have a valid format.
-    PAL_ASSERT(pViewInfo->swizzledFormat.format != ChNumFormat::Undefined);
-}
-
-// =====================================================================================================================
-// GFX9-specific function for extracting the subresource range and format information from the supplied SRD and image
-void Gfx9RsrcProcMgr::HwlDecodeImageViewSrd(
-    const void*          pImageViewSrd,
-    const Pal::Image&    dstImage,
-    SwizzledFormat*      pSwizzledFormat,
-    SubresRange*         pSubresRange
-    ) const
-{
-    const Gfx9ImageSrd&  srd = *static_cast<const Gfx9ImageSrd*>(pImageViewSrd);
-    const ImageCreateInfo& createInfo = dstImage.GetImageCreateInfo();
-
-    // Verify that we have an image view SRD.
-    PAL_ASSERT((srd.word3.bits.TYPE >= SQ_RSRC_IMG_1D) && (srd.word3.bits.TYPE <= SQ_RSRC_IMG_2D_MSAA_ARRAY));
-
-    const gpusize  srdBaseAddr = (static_cast<gpusize>(srd.word1.bits.BASE_ADDRESS_HI) << 32ull) +
-                                  srd.word0.bits.BASE_ADDRESS;
-
-    pSwizzledFormat->format    = FmtFromHwImgFmt(static_cast<IMG_DATA_FORMAT>(srd.word1.bits.DATA_FORMAT),
-                                                 static_cast<IMG_NUM_FORMAT>(srd.word1.bits.NUM_FORMAT),
-                                                 m_pDevice->Parent()->ChipProperties().gfxLevel);
-    pSwizzledFormat->swizzle.r = ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(srd.word3.bits.DST_SEL_X));
-    pSwizzledFormat->swizzle.g = ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(srd.word3.bits.DST_SEL_Y));
-    pSwizzledFormat->swizzle.b = ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(srd.word3.bits.DST_SEL_Z));
-    pSwizzledFormat->swizzle.a = ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(srd.word3.bits.DST_SEL_W));
-
-    // Verify that we have a valid format.
-    PAL_ASSERT(pSwizzledFormat->format != ChNumFormat::Undefined);
-
-    // Next, recover the original subresource range. We can't recover the exact range in all cases so we must assume
-    // that it's looking at the color plane and that it's not block compressed.
-    PAL_ASSERT(Formats::IsBlockCompressed(pSwizzledFormat->format) == false);
-
-    // The PAL interface can not individually address the slices of a 3D resource.  "numSlices==1" is assumed to
-    // mean all of them and we have to start from the first slice.
-    if (dstImage.GetImageCreateInfo().imageType == ImageType::Tex3d)
-    {
-        pSubresRange->numSlices              = 1;
-        pSubresRange->startSubres.arraySlice = 0;
-    }
-    else
-    {
-        const uint32 depth     = srd.word4.bitfields.DEPTH;
-        const uint32 baseArray = srd.word5.bits.BASE_ARRAY;
-        const bool isYuvPlanar = Formats::IsYuvPlanar(createInfo.swizzledFormat.format);
-        // Becuase of the way the HW needs to index YuvPlanar images, BASE_ARRAY is forced to 0, even if we
-        // aren't indexing slice 0.  Additionally, numSlices must be 1 for any operation other than direct image loads.
-        // When creating SRD, DEPTH == subresRange.startSubres.arraySlice + subresRange.numSlices - 1;
-        // Since we know numSlices == 1, startSubres.arraySlice == DEPTH.
-        if (isYuvPlanar)
-        {
-            PAL_ASSERT(baseArray == 0);
-            pSubresRange->numSlices              = 1;
-            pSubresRange->startSubres.arraySlice = depth;
-        }
-        else
-        {
-            pSubresRange->numSlices              = depth - baseArray + 1;
-            pSubresRange->startSubres.arraySlice = baseArray;
-        }
-    }
-    pSubresRange->startSubres.plane = DecodeImageViewSrdPlane(dstImage,
-                                                              srdBaseAddr,
-                                                              pSubresRange->startSubres.arraySlice);
-    pSubresRange->numPlanes = 1;
-
-    if (srd.word3.bits.TYPE >= SQ_RSRC_IMG_2D_MSAA)
-    {
-        // MSAA textures cannot be mipmapped; the BASE_LEVEL and LAST_LEVEL fields indicate the texture's sample count.
-        pSubresRange->startSubres.mipLevel = 0;
-        pSubresRange->numMips              = 1;
-    }
-    else
-    {
-        pSubresRange->startSubres.mipLevel = srd.word3.bits.BASE_LEVEL;
-        pSubresRange->numMips              = srd.word3.bits.LAST_LEVEL - srd.word3.bits.BASE_LEVEL + 1;
-    }
 }
 
 // =====================================================================================================================
@@ -7191,185 +7010,6 @@ const Pal::ComputePipeline* Gfx10RsrcProcMgr::GetCmdGenerationPipeline(
 }
 
 // =====================================================================================================================
-template <typename SrdType>
-static uint32 RetrieveHwFmtFromSrd(
-    const Pal::Device&   palDevice,
-    const SrdType*       pSrd)
-{
-    uint32  hwFmt = 0;
-
-#if PAL_BUILD_GFX11
-    if (false
-#if PAL_BUILD_GFX11
-        || IsGfx11(palDevice)
-#endif
-       )
-    {
-        hwFmt = pSrd->gfx104Plus.format;
-    }
-    else
-#endif
-    {
-        PAL_ASSERT(IsGfx10(palDevice));
-
-        hwFmt = pSrd->gfx10Core.format;
-    }
-
-    return hwFmt;
-}
-
-// =====================================================================================================================
-void Gfx10RsrcProcMgr::HwlDecodeBufferViewSrd(
-    const void*      pBufferViewSrd,
-    BufferViewInfo*  pViewInfo
-    ) const
-{
-    const auto*    pSrd  = static_cast<const sq_buf_rsrc_t*>(pBufferViewSrd);
-    const BUF_FMT  hwFmt = static_cast<BUF_FMT>(RetrieveHwFmtFromSrd(*(m_pDevice->Parent()), pSrd));
-
-    // Verify that we have a buffer view SRD.
-    PAL_ASSERT(pSrd->type == SQ_RSRC_BUF);
-
-    // Reconstruct the buffer view info struct.
-    pViewInfo->gpuAddr = pSrd->base_address;
-    pViewInfo->range   = pSrd->num_records;
-    pViewInfo->stride  = pSrd->stride;
-
-    if (pViewInfo->stride > 1)
-    {
-        pViewInfo->range *= pViewInfo->stride;
-    }
-
-    pViewInfo->swizzledFormat.format    = FmtFromHwBufFmt(hwFmt,
-                                                          m_pDevice->Parent()->ChipProperties().gfxLevel);
-    pViewInfo->swizzledFormat.swizzle.r =
-        ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(pSrd->dst_sel_x));
-    pViewInfo->swizzledFormat.swizzle.g =
-        ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(pSrd->dst_sel_y));
-    pViewInfo->swizzledFormat.swizzle.b =
-        ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(pSrd->dst_sel_z));
-    pViewInfo->swizzledFormat.swizzle.a =
-        ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(pSrd->dst_sel_w));
-
-    // Verify that we have a valid format.
-    PAL_ASSERT(pViewInfo->swizzledFormat.format != ChNumFormat::Undefined);
-}
-
-// =====================================================================================================================
-// GFX10-specific function for extracting the subresource range and format information from the supplied SRD and image
-void Gfx10RsrcProcMgr::HwlDecodeImageViewSrd(
-    const void*           pImageViewSrd,
-    const Pal::Image&     dstImage,
-    SwizzledFormat*       pSwizzledFormat,
-    SubresRange*          pSubresRange
-    ) const
-{
-    const ImageCreateInfo&  createInfo = dstImage.GetImageCreateInfo();
-    const GfxIpLevel        gfxLevel   = m_pDevice->Parent()->ChipProperties().gfxLevel;
-
-    const auto*    pSrd  = static_cast<const sq_img_rsrc_t*>(pImageViewSrd);
-    const IMG_FMT  hwFmt = static_cast<IMG_FMT>(RetrieveHwFmtFromSrd(*(m_pDevice->Parent()), pSrd));
-
-    // Verify that we have an image view SRD.
-    PAL_ASSERT((pSrd->type >= SQ_RSRC_IMG_1D) && (pSrd->type <= SQ_RSRC_IMG_2D_MSAA_ARRAY));
-
-    const gpusize  srdBaseAddr = pSrd->base_address;
-
-    pSwizzledFormat->format    = FmtFromHwImgFmt(hwFmt, gfxLevel);
-    pSwizzledFormat->swizzle.r = ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(pSrd->dst_sel_x));
-    pSwizzledFormat->swizzle.g = ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(pSrd->dst_sel_y));
-    pSwizzledFormat->swizzle.b = ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(pSrd->dst_sel_z));
-    pSwizzledFormat->swizzle.a = ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(pSrd->dst_sel_w));
-
-    // Verify that we have a valid format.
-    PAL_ASSERT(pSwizzledFormat->format != ChNumFormat::Undefined);
-
-    // Next, recover the original subresource range. We can't recover the exact range in all cases so we must assume
-    // that it's looking at the color plane and that it's not block compressed.
-    PAL_ASSERT(Formats::IsBlockCompressed(pSwizzledFormat->format) == false);
-
-    // The PAL interface can not individually address the slices of a 3D resource.  "numSlices==1" is assumed to
-    // mean all of them and we have to start from the first slice.
-    if (createInfo.imageType == ImageType::Tex3d)
-    {
-        pSubresRange->numSlices              = 1;
-        pSubresRange->startSubres.arraySlice = 0;
-    }
-    else
-    {
-        uint32 depth     = 0;
-        uint32 baseArray = 0;
-        if (IsGfx10(gfxLevel))
-        {
-            depth     = LowPart(pSrd->gfx10.depth);
-            baseArray = LowPart(pSrd->gfx10.base_array);
-        }
-#if PAL_BUILD_GFX11
-        else if (IsGfx11(gfxLevel))
-        {
-            depth     = LowPart(pSrd->gfx11.depth);
-            baseArray = LowPart(pSrd->gfx11.base_array);
-        }
-#endif
-        else
-        {
-            PAL_ASSERT_ALWAYS();
-        }
-
-        const bool isYuvPlanar = Formats::IsYuvPlanar(createInfo.swizzledFormat.format);
-        // Becuase of the way the HW needs to index YuvPlanar images, pSrd->*.base_array is forced to 0, even if we
-        // aren't indexing slice 0.  Additionally, numSlices must be 1 for any operation other than direct image loads.
-        // When creating SRD, pSrd->*.depth == subresRange.startSubres.arraySlice + subresRange.numSlices - 1;
-        // Since we know numSlices == 1, startSubres.arraySlice == pSrd->*.depth.
-        if (isYuvPlanar)
-        {
-            PAL_ASSERT(baseArray == 0);
-            pSubresRange->numSlices              = 1;
-            pSubresRange->startSubres.arraySlice = depth;
-        }
-        else
-        {
-            pSubresRange->numSlices              = depth - baseArray + 1;
-            pSubresRange->startSubres.arraySlice = baseArray;
-        }
-    }
-    pSubresRange->startSubres.plane = DecodeImageViewSrdPlane(dstImage,
-                                                              srdBaseAddr,
-                                                              pSubresRange->startSubres.arraySlice);
-    pSubresRange->numPlanes = 1;
-
-    if (pSrd->type >= SQ_RSRC_IMG_2D_MSAA)
-    {
-        // MSAA textures cannot be mipmapped; the BASE_LEVEL and LAST_LEVEL fields indicate the texture's sample count.
-        pSubresRange->startSubres.mipLevel = 0;
-        pSubresRange->numMips              = 1;
-    }
-    else
-    {
-        pSubresRange->startSubres.mipLevel = LowPart(pSrd->base_level);
-        pSubresRange->numMips              = LowPart(pSrd->last_level - pSrd->base_level + 1);
-    }
-
-    if ((pSubresRange->startSubres.mipLevel + pSubresRange->numMips) > createInfo.mipLevels)
-    {
-        // The only way that we should have an SRD that references non-existent mip-levels is with PRT+ residency
-        // maps.  The Microsoft spec creates residency maps with the same number of mip levels as the parent image
-        // which is unnecessary in our implementation.  Doing so wastes memory, so DX12 created only a single mip
-        // level residency map (i.e, ignoreed the API request).
-        //
-        // Unfortunately, the SRD created here went through DX12's "CreateSamplerFeedbackUnorderedAccessView" entry
-        // point (which in turn went into PAL's "Gfx10UpdateLinkedResourceViewSrd" function), so we have a hybrid SRD
-        // here that references both the map image and the parent image and thus has the "wrong" number of mip levels.
-        //
-        // Fix up the SRD here to reference the "correct" number of mip levels owned by the image.
-        PAL_ASSERT(createInfo.prtPlus.mapType == PrtMapType::Residency);
-
-        pSubresRange->startSubres.mipLevel = 0;
-        pSubresRange->numMips              = 1;
-    }
-}
-
-// =====================================================================================================================
 // Check if for all the regions, the format and swizzle mode are compatible for src and dst image.
 // If all regions are compatible, we can do a fixed function resolve. Otherwise return false.
 bool Gfx10RsrcProcMgr::HwlCanDoDepthStencilCopyResolve(
@@ -7917,7 +7557,7 @@ bool Gfx10RsrcProcMgr::PreferComputeForNonLocalDestCopy(
 }
 
 // =====================================================================================================================
-// Gives the hardare layers some influence over GetCopyImageComputePipeline.
+// Gives the hardare layers some influence over GetCopyImageCsInfo.
 bool Gfx10RsrcProcMgr::CopyImageCsUseMsaaMorton(
     const Pal::Image& dstImage
     ) const

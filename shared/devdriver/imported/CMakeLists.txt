@@ -48,5 +48,3 @@ if (DD_BP_ENABLE_TOOL_LIBRARIES)
     endif ()
 endif ()
 
-# dd-registry is used in both PAL (server) and Tools (clients).
-add_subdirectory(dd-registry/events)

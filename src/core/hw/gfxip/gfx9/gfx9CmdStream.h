@@ -25,12 +25,15 @@
 
 #pragma once
 
+#include "core/hw/gfxip/gfxCmdBuffer.h"
 #include "core/hw/gfxip/pm4CmdStream.h"
 #include "core/hw/gfxip/gfx9/gfx9Chip.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"
 
 namespace Pal
 {
+class Pm4CmdBuffer;
+
 namespace Gfx9
 {
 

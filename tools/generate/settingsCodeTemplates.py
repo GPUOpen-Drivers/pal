@@ -74,6 +74,7 @@ NamespaceEnd   = """
 HeaderIncludes = """
 #include \"pal.h\"
 #include \"palFile.h\"
+#include \"palOptional.h\"
 #include \"palSettingsLoader.h\"
 """
 
@@ -111,6 +112,7 @@ struct %SettingStructName% : public Pal::DriverSettings
 """
 
 SettingDef = "    %SettingType%    %SettingVarName%%ArrayLength%;\n"
+OptionalSettingDef = "    Util::Optional<%SettingType%%ArrayLength%>    %SettingVarName%;\n"
 SettingStructName = "%UpperCamelComponentName%Settings"
 SettingStructDef = """    struct {
 %StructSettingFields%    } %StructSettingName%;
@@ -134,6 +136,7 @@ IfMax    = "#if PAL_CLIENT_INTERFACE_MAJOR_VERSION <= %MaxVersion%\n"
 EndIf    = "#endif\n"
 
 SetDefault = "    m_settings.%SettingVarName% = %SettingDefault%;\n"
+SetOptionalDefault = "    m_settings.%SettingVarName% = std::nullopt;\n"
 SetStringDefault = """    memset(m_settings.%SettingVarName%, 0, %SettingStringLength%);
     strncpy(m_settings.%SettingVarName%, %SettingDefault%, %SettingStringLength%);
 """
@@ -160,6 +163,18 @@ PalReadSettingClass = "static_cast<Pal::Device*>(m_pDevice)"
 ReadSetting = """    %ReadSettingClass%->ReadSetting(%SettingStrName%,
                            %SettingRegistryType%,
                            &m_settings.%SettingVarName%%OsiSettingType%);
+"""
+ReadOptionalSetting = """
+    {
+        m_settings.%SettingVarName% = 0;
+        if (%ReadSettingClass%->ReadSetting(%SettingStrName%,
+                                            %SettingRegistryType%,
+                                            &m_settings.%SettingVarName%.Value()
+                                            %OsiSettingType%) == false)
+        {
+            m_settings.%SettingVarName%.Reset();
+        }
+    }
 """
 
 ReadSettingStr = """    %ReadSettingClass%->ReadSetting(%SettingStrName%,
@@ -189,9 +204,10 @@ void %ClassName%::InitSettingsInfo()
 """
 
 InitSettingInfo = """
-    info.type      = %DevDriverType%;
-    info.pValuePtr = &m_settings.%SettingVarName%;
-    info.valueSize = sizeof(m_settings.%SettingVarName%);
+    info.type       = %DevDriverType%;
+    info.isOptional = %IsOptional%;
+    info.pValuePtr  = &m_settings.%SettingVarName%;
+    info.valueSize  = sizeof(m_settings.%SettingVarName%);
     m_settingsInfoMap.Insert(%HashName%, info);
 """
 

@@ -62,7 +62,7 @@ enum ME_ACQUIRE_MEM_engine_sel_enum
     engine_sel__me_acquire_mem__micro_engine =  1,
 };
 
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 // ------------------------------- ME_ACQUIRE_MEM_pws_stage_sel_enum -------------------------------
 enum ME_ACQUIRE_MEM_pws_stage_sel_enum
 {
@@ -75,7 +75,7 @@ enum ME_ACQUIRE_MEM_pws_stage_sel_enum
 };
 #endif
 
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 // ------------------------------ ME_ACQUIRE_MEM_pws_counter_sel_enum ------------------------------
 enum ME_ACQUIRE_MEM_pws_counter_sel_enum
 {
@@ -85,7 +85,7 @@ enum ME_ACQUIRE_MEM_pws_counter_sel_enum
 };
 #endif
 
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 // --------------------------------- ME_ACQUIRE_MEM_pws_ena2_enum ---------------------------------
 enum ME_ACQUIRE_MEM_pws_ena2_enum
 {
@@ -94,7 +94,7 @@ enum ME_ACQUIRE_MEM_pws_ena2_enum
 };
 #endif
 
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 // ---------------------------------- ME_ACQUIRE_MEM_pws_ena_enum ----------------------------------
 enum ME_ACQUIRE_MEM_pws_ena_enum
 {
@@ -122,7 +122,7 @@ typedef struct PM4_ME_ACQUIRE_MEM
                 ME_ACQUIRE_MEM_engine_sel_enum engine_sel :  1;
             };
         } bitfieldsA;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         union
         {
             struct
@@ -143,7 +143,7 @@ typedef struct PM4_ME_ACQUIRE_MEM
     union
     {
         uint32_t coher_size;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         uint32_t gcr_size;
 #endif
         uint32_t u32All;
@@ -158,7 +158,7 @@ typedef struct PM4_ME_ACQUIRE_MEM
                 uint32_t coher_size_hi :  8;
                 uint32_t reserved1     : 24;
             } gfx09_10;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
             struct
             {
                 uint32_t coher_size_hi : 24;
@@ -166,7 +166,7 @@ typedef struct PM4_ME_ACQUIRE_MEM
             } gfx11;
 #endif
         } bitfieldsA;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         union
         {
             struct
@@ -182,7 +182,7 @@ typedef struct PM4_ME_ACQUIRE_MEM
     union
     {
         uint32_t coher_base_lo;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         uint32_t gcr_base_lo;
 #endif
         uint32_t u32All;
@@ -198,7 +198,7 @@ typedef struct PM4_ME_ACQUIRE_MEM
                 uint32_t reserved1     :  8;
             };
         } bitfieldsA;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         union
         {
             struct
@@ -221,7 +221,7 @@ typedef struct PM4_ME_ACQUIRE_MEM
                 uint32_t reserved1     : 16;
             };
         } bitfieldsA;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         union
         {
             struct
@@ -749,7 +749,7 @@ enum ME_COPY_DATA_src_sel_enum
     src_sel__me_copy_data__gds_atomic_return_data1__CORE =  8,
     src_sel__me_copy_data__gpu_clock_count               =  9,
     src_sel__me_copy_data__system_clock_count            = 10,
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
     src_sel__me_copy_data__exec_ind_arg_buf__GFX11       = 12,
 #endif
 };
@@ -764,7 +764,7 @@ enum ME_COPY_DATA_dst_sel_enum
     dst_sel__me_copy_data__perfcounters                =  4,
     dst_sel__me_copy_data__memory__GFX09               =  5,
     dst_sel__me_copy_data__tc_l2_obsolete__GFX10PLUS   =  5,
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
     dst_sel__me_copy_data__exec_ind_spill_table__GFX11 =  7,
 #endif
 };
@@ -1087,7 +1087,7 @@ typedef struct PM4_ME_DMA_DATA
                 ME_DMA_DATA_src_sel_enum          src_sel          :  2;
                 uint32_t                          cp_sync          :  1;
             };
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
             struct
             {
                 uint32_t reserved5    :  1;
@@ -1303,7 +1303,7 @@ typedef struct PM4_ME_DRAW_INDEX_INDIRECT
     union
     {
         uint32_t draw_initiator;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         union
         {
             struct
@@ -1316,7 +1316,7 @@ typedef struct PM4_ME_DRAW_INDEX_INDIRECT
         uint32_t u32All;
     } ordinal2;
 
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
     union
     {
         union
@@ -1331,7 +1331,7 @@ typedef struct PM4_ME_DRAW_INDEX_INDIRECT
     } ordinal3;
 #endif
 
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
     union
     {
         union
@@ -1346,7 +1346,7 @@ typedef struct PM4_ME_DRAW_INDEX_INDIRECT
     } ordinal4;
 #endif
 
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
     union
     {
         uint32_t draw_initiator;
@@ -1356,7 +1356,7 @@ typedef struct PM4_ME_DRAW_INDEX_INDIRECT
 } PM4_ME_DRAW_INDEX_INDIRECT;
 
 constexpr unsigned int PM4_ME_DRAW_INDEX_INDIRECT_SIZEDW__CORE  = 2;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 constexpr unsigned int PM4_ME_DRAW_INDEX_INDIRECT_SIZEDW__GFX11 = 5;
 #endif
 
@@ -1372,13 +1372,13 @@ typedef struct PM4_ME_DRAW_INDEX_INDIRECT_MULTI
     union
     {
         uint32_t draw_initiator;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         uint32_t draw_index;
 #endif
         uint32_t u32All;
     } ordinal2;
 
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
     union
     {
         uint32_t draw_initiator;
@@ -1388,7 +1388,7 @@ typedef struct PM4_ME_DRAW_INDEX_INDIRECT_MULTI
 } PM4_ME_DRAW_INDEX_INDIRECT_MULTI;
 
 constexpr unsigned int PM4_ME_DRAW_INDEX_INDIRECT_MULTI_SIZEDW__CORE  = 2;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 constexpr unsigned int PM4_ME_DRAW_INDEX_INDIRECT_MULTI_SIZEDW__GFX11 = 3;
 #endif
 
@@ -1466,7 +1466,7 @@ typedef struct PM4_ME_DRAW_INDIRECT
     union
     {
         uint32_t draw_initiator;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         union
         {
             struct
@@ -1479,7 +1479,7 @@ typedef struct PM4_ME_DRAW_INDIRECT
         uint32_t u32All;
     } ordinal2;
 
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
     union
     {
         union
@@ -1494,7 +1494,7 @@ typedef struct PM4_ME_DRAW_INDIRECT
     } ordinal3;
 #endif
 
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
     union
     {
         uint32_t draw_initiator;
@@ -1504,7 +1504,7 @@ typedef struct PM4_ME_DRAW_INDIRECT
 } PM4_ME_DRAW_INDIRECT;
 
 constexpr unsigned int PM4_ME_DRAW_INDIRECT_SIZEDW__CORE  = 2;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 constexpr unsigned int PM4_ME_DRAW_INDIRECT_SIZEDW__GFX11 = 4;
 #endif
 
@@ -1520,13 +1520,13 @@ typedef struct PM4_ME_DRAW_INDIRECT_MULTI
     union
     {
         uint32_t draw_initiator;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         uint32_t draw_index;
 #endif
         uint32_t u32All;
     } ordinal2;
 
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
     union
     {
         uint32_t draw_initiator;
@@ -1536,7 +1536,7 @@ typedef struct PM4_ME_DRAW_INDIRECT_MULTI
 } PM4_ME_DRAW_INDIRECT_MULTI;
 
 constexpr unsigned int PM4_ME_DRAW_INDIRECT_MULTI_SIZEDW__CORE  = 2;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 constexpr unsigned int PM4_ME_DRAW_INDIRECT_MULTI_SIZEDW__GFX11 = 3;
 #endif
 
@@ -1548,7 +1548,7 @@ enum ME_EVENT_WRITE_event_index_enum
     event_index__me_event_write__sample_pipelinestat             =  2,
     event_index__me_event_write__sample_streamoutstats__GFX09_10 =  3,
     event_index__me_event_write__cs_vs_ps_partial_flush          =  4,
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
     event_index__me_event_write__sample_streamoutstats__GFX11    =  8,
     event_index__me_event_write__sample_streamoutstats1__GFX11   =  9,
     event_index__me_event_write__sample_streamoutstats2__GFX11   = 10,
@@ -2234,7 +2234,7 @@ enum ME_PREAMBLE_CNTL_command_enum
     command__me_preamble_cntl__preamble_end__HASCLEARSTATE                        =  1,
     command__me_preamble_cntl__begin_of_clear_state_initialization__HASCLEARSTATE =  2,
     command__me_preamble_cntl__end_of_clear_state_initialization__HASCLEARSTATE   =  3,
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
     command__me_preamble_cntl__user_queues_state_save__GFX11                      =  4,
     command__me_preamble_cntl__user_queues_state_restore__GFX11                   =  5,
 #endif
@@ -2389,7 +2389,7 @@ enum ME_RELEASE_MEM_data_sel_enum
     data_sel__me_release_mem__send_gpu_clock_counter            =  3,
     data_sel__me_release_mem__send_system_clock_counter         =  4,
     data_sel__me_release_mem__store_gds_data_to_memory__CORE    =  5,
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
     data_sel__me_release_mem__send_emulated_sclk_counter__GFX11 =  6,
 #endif
 };
@@ -2453,7 +2453,7 @@ typedef struct PM4_ME_RELEASE_MEM
                 uint32_t gcr_cntl   : 12;
                 uint32_t reserved12 :  8;
             } gfx10;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
             struct
             {
                 uint32_t reserved13 :  7;
@@ -2863,10 +2863,10 @@ typedef struct PM4_ME_STRMOUT_BUFFER_UPDATE
                 uint32_t dst_address_lo : 30;
             } gfx09_10;
         } bitfields;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         uint32_t offset;
 #endif
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         union
         {
             struct
@@ -2876,7 +2876,7 @@ typedef struct PM4_ME_STRMOUT_BUFFER_UPDATE
             } gfx11;
         } bitfieldsB;
 #endif
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         union
         {
             struct
@@ -2892,7 +2892,7 @@ typedef struct PM4_ME_STRMOUT_BUFFER_UPDATE
     union
     {
         uint32_t dst_address_hi;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         uint32_t src_address_hi;
 #endif
         uint32_t u32All;
@@ -2901,7 +2901,7 @@ typedef struct PM4_ME_STRMOUT_BUFFER_UPDATE
     union
     {
         uint32_t offset_or_address_lo;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         union
         {
             struct
@@ -2917,7 +2917,7 @@ typedef struct PM4_ME_STRMOUT_BUFFER_UPDATE
     union
     {
         uint32_t src_address_hi;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         uint32_t control_address_hi;
 #endif
         uint32_t u32All;
@@ -3446,7 +3446,7 @@ typedef struct PM4_ME_DISPATCH_MESH_INDIRECT_MULTI
                 uint32_t count_indirect_enable      :  1;
                 uint32_t draw_index_enable          :  1;
             } gfx10CorePlus;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
             struct
             {
                 uint32_t reserved4      : 27;
@@ -3561,7 +3561,7 @@ typedef struct PM4_ME_DISPATCH_TASKMESH_GFX
                 uint32_t reserved1                  : 31;
                 uint32_t thread_trace_marker_enable :  1;
             } gfx10CorePlus;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
             struct
             {
                 uint32_t reserved2              : 28;
@@ -3762,7 +3762,7 @@ typedef struct PM4_ME_PERFMON_CONTROL
 
 constexpr unsigned int PM4_ME_PERFMON_CONTROL_SIZEDW__GFX103COREPLUS = 3;
 
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 // ---------------------------------- PM4_ME_DISPATCH_MESH_DIRECT ----------------------------------
 typedef struct PM4_ME_DISPATCH_MESH_DIRECT
 {
@@ -3800,7 +3800,7 @@ typedef struct PM4_ME_DISPATCH_MESH_DIRECT
 constexpr unsigned int PM4_ME_DISPATCH_MESH_DIRECT_SIZEDW__GFX11 = 5;
 #endif
 
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 // ----------------------------------- PM4_ME_EVENT_WRITE_ZPASS -----------------------------------
 typedef struct PM4_ME_EVENT_WRITE_ZPASS
 {
@@ -3833,7 +3833,7 @@ typedef struct PM4_ME_EVENT_WRITE_ZPASS
 constexpr unsigned int PM4_ME_EVENT_WRITE_ZPASS_SIZEDW__GFX11 = 3;
 #endif
 
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 // ---------------------------------- ME_TIMESTAMP_clock_sel_enum ----------------------------------
 enum ME_TIMESTAMP_clock_sel_enum
 {
@@ -3842,7 +3842,7 @@ enum ME_TIMESTAMP_clock_sel_enum
 };
 #endif
 
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 // --------------------------------------- PM4_ME_TIMESTAMP ---------------------------------------
 typedef struct PM4_ME_TIMESTAMP
 {

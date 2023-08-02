@@ -127,5 +127,11 @@ if (PAL_BUILD_GFX9)
     pal_set_or(PAL_BUILD_GFX11   ${PAL_BUILD_NAVI33})
 #endif
 
+#if PAL_BUILD_PHOENIX1
+    pal_bp(PAL_BUILD_PHOENIX1 ON MODE "AUTHOR_WARNING")
+    pal_set_or(PAL_BUILD_GFX11   ${PAL_BUILD_PHOENIX1})
+    pal_set_or(PAL_BUILD_NPI     ${PAL_BUILD_PHOENIX1})
+#endif
+
 endif() # PAL_BUILD_GFX9
 

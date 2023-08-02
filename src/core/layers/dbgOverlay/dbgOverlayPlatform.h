@@ -27,6 +27,7 @@
 
 #include "core/layers/decorators.h"
 #include "palMutex.h"
+#include "palHashMapImpl.h"
 
 namespace Pal
 {
@@ -65,7 +66,7 @@ public:
         bool                        dbgOverlayEnabled)
         :
         PlatformDecorator(createInfo, allocCb, DbgOverlayCb, dbgOverlayEnabled, dbgOverlayEnabled, pNextPlatform),
-        m_pFpsMgr(nullptr),
+        m_fpsMgrMap(64, this),
         m_rayTracingEverUsed(false)
     {
         ResetGpuWork();
@@ -84,7 +85,7 @@ public:
 
     const PlatformProperties& Properties() const { return m_properties; }
 
-    FpsMgr* GetFpsMgr() const { return m_pFpsMgr; }
+    FpsMgr* GetFpsMgr(UniquePresentKey key = 0);
 
     Device* GetDevice(uint32 deviceIndex);
 
@@ -108,8 +109,17 @@ protected:
     virtual ~Platform();
 
 private:
+    typedef Util::HashMap<uint64,
+        FpsMgr*,
+        Platform,
+        Util::JenkinsHashFunc,
+        Util::DefaultEqualFunc,
+        Util::HashAllocator<Platform>,
+        64> FpsMgrMap;
+
+    FpsMgrMap m_fpsMgrMap;                   // Have an FpsMgr for individual windows, swap chains, ...
+
     PlatformProperties m_properties;
-    FpsMgr*            m_pFpsMgr;
 
     Util::Mutex        m_gpuWorkLock;
     volatile bool      m_gpuWork[MaxDevices];

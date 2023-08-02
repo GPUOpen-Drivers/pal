@@ -67,7 +67,7 @@ public:
         uint32         targetIndex) override { PAL_NEVER_CALLED(); }
 
     // Returns a pointer to the command stream associated with the specified engine type
-    virtual CmdStream* GetCmdStreamByEngine(uint32 engineType) override;
+    virtual CmdStream* GetCmdStreamByEngine(CmdBufferEngineSupport engineType) override;
 
     // Increments the submit-count of the command stream(s) contained in this command buffer.
     virtual void IncrementSubmitCount() override
@@ -75,10 +75,17 @@ public:
 
     virtual uint32 GetUsedSize(CmdAllocType type) const override;
 
+    virtual void OptimizePipeStageAndCacheMask(
+        uint32* pSrcStageMask,
+        uint32* pSrcAccessMask,
+        uint32* pDstStageMask,
+        uint32* pDstAccessMask) const override;
+
 protected:
     ComputeCmdBuffer(
         const GfxDevice&           device,
         const CmdBufferCreateInfo& createInfo,
+        const GfxBarrierMgr*       pBarrierMgr,
         Pm4::CmdStream*            pCmdStream);
 
     virtual ~ComputeCmdBuffer() {}

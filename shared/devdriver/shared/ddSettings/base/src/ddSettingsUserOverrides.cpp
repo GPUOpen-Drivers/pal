@@ -115,7 +115,7 @@ bool SetUserOverrideValueFromYamlNode(
     T value = 0;
     if (YamlNodeGetScalar(pValNode, &value))
     {
-        pOutUserOverride->SetVal(value);
+        pOutUserOverride->SetValue(value);
         result = true;
     }
     else
@@ -140,7 +140,7 @@ yaml_node_t* GetUserOverridesNodeByComponentName(
     yaml_node_t* pRoot = yaml_document_get_root_node(pDoc);
     if (pRoot)
     {
-        yaml_node_t* pComponentsNode = YamlDocumentFindNodeByKey(pDoc, pRoot, "Components");
+        yaml_node_t* pComponentsNode = YamlDocumentFindNodeByKey(pDoc, pRoot, "components");
         if (pComponentsNode && (pComponentsNode->type == YAML_SEQUENCE_NODE))
         {
             for (yaml_node_item_t* pItem = pComponentsNode->data.sequence.items.start;
@@ -156,7 +156,7 @@ yaml_node_t* GetUserOverridesNodeByComponentName(
                     continue;
                 }
 
-                yaml_node_t* pNameNode = YamlDocumentFindNodeByKey(pDoc, pCompNode, "Name");
+                yaml_node_t* pNameNode = YamlDocumentFindNodeByKey(pDoc, pCompNode, "name");
                 if (!pNameNode || (pNameNode->type != YAML_SCALAR_NODE))
                 {
                     // log error
@@ -170,7 +170,7 @@ yaml_node_t* GetUserOverridesNodeByComponentName(
                 }
 
                 pUserOverridesNode =
-                    YamlDocumentFindNodeByKey(pDoc, pCompNode, "UserOverrides");
+                    YamlDocumentFindNodeByKey(pDoc, pCompNode, "userOverrides");
             }
         }
     }
@@ -188,7 +188,7 @@ DD_RESULT GetUserOverride(
 
     DD_RESULT result = DD_RESULT_SUCCESS;
 
-    yaml_node_t* pNameNode = YamlDocumentFindNodeByKey(pDoc, pUserOverrideNode, "Name");
+    yaml_node_t* pNameNode = YamlDocumentFindNodeByKey(pDoc, pUserOverrideNode, "name");
     if (pNameNode)
     {
         if (pNameNode->type == YAML_SCALAR_NODE)
@@ -213,7 +213,7 @@ DD_RESULT GetUserOverride(
         result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
     }
 
-    yaml_node_t* pNameHashNode = YamlDocumentFindNodeByKey(pDoc, pUserOverrideNode, "NameHash");
+    yaml_node_t* pNameHashNode = YamlDocumentFindNodeByKey(pDoc, pUserOverrideNode, "nameHash");
     if (pNameHashNode)
     {
         if (pNameHashNode->type == YAML_SCALAR_NODE)
@@ -234,7 +234,7 @@ DD_RESULT GetUserOverride(
     size_t typeStrLen = 0;
     if (result == DD_RESULT_SUCCESS)
     {
-        yaml_node_t* pTypeNode = YamlDocumentFindNodeByKey(pDoc, pUserOverrideNode, "Type");
+        yaml_node_t* pTypeNode = YamlDocumentFindNodeByKey(pDoc, pUserOverrideNode, "type");
         if (pTypeNode && (pTypeNode->type == YAML_SCALAR_NODE))
         {
             pTypeStr = (const char*)pTypeNode->data.scalar.value;
@@ -249,7 +249,7 @@ DD_RESULT GetUserOverride(
     yaml_node_t* pValueNode = nullptr;
     if (result == DD_RESULT_SUCCESS)
     {
-        pValueNode = YamlDocumentFindNodeByKey(pDoc, pUserOverrideNode, "Value");
+        pValueNode = YamlDocumentFindNodeByKey(pDoc, pUserOverrideNode, "value");
         if (!pValueNode || pValueNode->type != YAML_SCALAR_NODE)
         {
             result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
@@ -258,7 +258,7 @@ DD_RESULT GetUserOverride(
 
     if (result == DD_RESULT_SUCCESS)
     {
-        if (strncmp(pTypeStr, "Bool", typeStrLen) == 0)
+        if (strncmp(pTypeStr, "bool", typeStrLen) == 0)
         {
             if (!SetUserOverrideValueFromYamlNode<bool>(pValueNode, pOutUserOverride))
             {
@@ -266,7 +266,7 @@ DD_RESULT GetUserOverride(
                 result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
             }
         }
-        else if (strncmp(pTypeStr, "Int8", typeStrLen) == 0)
+        else if (strncmp(pTypeStr, "int8", typeStrLen) == 0)
         {
             if (!SetUserOverrideValueFromYamlNode<int8_t>(pValueNode, pOutUserOverride))
             {
@@ -274,7 +274,7 @@ DD_RESULT GetUserOverride(
                 result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
             }
         }
-        else if (strncmp(pTypeStr, "Uint8", typeStrLen) == 0)
+        else if (strncmp(pTypeStr, "uint8", typeStrLen) == 0)
         {
             if (!SetUserOverrideValueFromYamlNode<uint8_t>(pValueNode, pOutUserOverride))
             {
@@ -282,7 +282,7 @@ DD_RESULT GetUserOverride(
                 result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
             }
         }
-        else if (strncmp(pTypeStr, "Int16", typeStrLen) == 0)
+        else if (strncmp(pTypeStr, "int16", typeStrLen) == 0)
         {
             if (!SetUserOverrideValueFromYamlNode<int16_t>(pValueNode, pOutUserOverride))
             {
@@ -290,7 +290,7 @@ DD_RESULT GetUserOverride(
                 result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
             }
         }
-        else if (strncmp(pTypeStr, "Uint16", typeStrLen) == 0)
+        else if (strncmp(pTypeStr, "uint16", typeStrLen) == 0)
         {
             if (!SetUserOverrideValueFromYamlNode<uint16_t>(pValueNode, pOutUserOverride))
             {
@@ -298,7 +298,7 @@ DD_RESULT GetUserOverride(
                 result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
             }
         }
-        else if (strncmp(pTypeStr, "Int32", typeStrLen) == 0)
+        else if (strncmp(pTypeStr, "int32", typeStrLen) == 0)
         {
             if (!SetUserOverrideValueFromYamlNode<int32_t>(pValueNode, pOutUserOverride))
             {
@@ -306,7 +306,7 @@ DD_RESULT GetUserOverride(
                 result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
             }
         }
-        else if (strncmp(pTypeStr, "Uint32", typeStrLen) == 0)
+        else if (strncmp(pTypeStr, "uint32", typeStrLen) == 0)
         {
             if (!SetUserOverrideValueFromYamlNode<uint32_t>(pValueNode, pOutUserOverride))
             {
@@ -314,7 +314,7 @@ DD_RESULT GetUserOverride(
                 result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
             }
         }
-        else if (strncmp(pTypeStr, "Int64", typeStrLen) == 0)
+        else if (strncmp(pTypeStr, "int64", typeStrLen) == 0)
         {
             if (!SetUserOverrideValueFromYamlNode<int64_t>(pValueNode, pOutUserOverride))
             {
@@ -322,7 +322,7 @@ DD_RESULT GetUserOverride(
                 result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
             }
         }
-        else if (strncmp(pTypeStr, "Uint64", typeStrLen) == 0)
+        else if (strncmp(pTypeStr, "uint64", typeStrLen) == 0)
         {
             if (!SetUserOverrideValueFromYamlNode<uint64_t>(pValueNode, pOutUserOverride))
             {
@@ -330,7 +330,7 @@ DD_RESULT GetUserOverride(
                 result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
             }
         }
-        else if (strncmp(pTypeStr, "Float", typeStrLen) == 0)
+        else if (strncmp(pTypeStr, "float", typeStrLen) == 0)
         {
             if (!SetUserOverrideValueFromYamlNode<float>(pValueNode, pOutUserOverride))
             {
@@ -338,12 +338,12 @@ DD_RESULT GetUserOverride(
                 result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
             }
         }
-        else if (strncmp(pTypeStr, "String", typeStrLen) == 0)
+        else if (strncmp(pTypeStr, "string", typeStrLen) == 0)
         {
             pOutUserOverride->type = DD_SETTINGS_TYPE_STRING;
             DD_ASSERT(pValueNode->data.scalar.length < UINT32_MAX);
             pOutUserOverride->size = (uint32_t)pValueNode->data.scalar.length;
-            pOutUserOverride->val.s = (const char*)pValueNode->data.scalar.value;
+            pOutUserOverride->value.s = (const char*)pValueNode->data.scalar.value;
         }
         else
         {
@@ -456,14 +456,14 @@ DD_RESULT SettingsUserOverridesLoader::Load(const char* pUseroverridesFilePath)
             {
                 if (fseek(pConfigFile, 0L, SEEK_SET) == 0)
                 {
-                    fread(
+                    size_t sizeRead = fread(
                         m_pBuffer,
                         sizeof(char),
                         fileSize,
                         pConfigFile
                     );
 
-                    if (ferror(pConfigFile) != 0)
+                    if ((ferror(pConfigFile) != 0) || (sizeRead != static_cast<size_t>(fileSize)))
                     {
                         // TODO: log error
                         result = DD_RESULT_FS_UNKNOWN;
@@ -498,7 +498,7 @@ DD_RESULT SettingsUserOverridesLoader::Load(const char* pUseroverridesFilePath)
                     yaml_node_t* pRoot = yaml_document_get_root_node(pDoc);
                     if (pRoot && pRoot->type == YAML_MAPPING_NODE)
                     {
-                        yaml_node_t* pVersionNode = YamlDocumentFindNodeByKey(pDoc, pRoot, "Version");
+                        yaml_node_t* pVersionNode = YamlDocumentFindNodeByKey(pDoc, pRoot, "version");
                         if (!pVersionNode)
                         {
                             result = DD_RESULT_PARSING_INVALID_JSON;

@@ -165,6 +165,7 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::CmdBufferCmdCopyMemoryToTiledImage,                        InterfaceObject::CmdBuffer,            "CmdCopyMemoryToTiledImage"               },
     { InterfaceFunc::CmdBufferCmdCopyTiledImageToMemory,                        InterfaceObject::CmdBuffer,            "CmdCopyTiledImageToMemory"               },
     { InterfaceFunc::CmdBufferCmdCopyTypedBuffer,                               InterfaceObject::CmdBuffer,            "CmdCopyTypedBuffer"                      },
+    { InterfaceFunc::CmdBufferCmdScaledCopyTypedBufferToImage,                  InterfaceObject::CmdBuffer,            "CmdScaledCopyTypedBufferToImage"         },
     { InterfaceFunc::CmdBufferCmdCopyRegisterToMemory,                          InterfaceObject::CmdBuffer,            "CmdCopyRegisterToMemory"                 },
     { InterfaceFunc::CmdBufferCmdScaledCopyImage,                               InterfaceObject::CmdBuffer,            "CmdScaledCopyImage"                      },
     { InterfaceFunc::CmdBufferCmdGenerateMipmaps,                               InterfaceObject::CmdBuffer,            "CmdGenerateMipmaps"                      },
@@ -209,6 +210,9 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::CmdBufferCmdDumpCeRam,                                     InterfaceObject::CmdBuffer,            "CmdDumpCeRam"                            },
     { InterfaceFunc::CmdBufferCmdWriteCeRam,                                    InterfaceObject::CmdBuffer,            "CmdWriteCeRam"                           },
     { InterfaceFunc::CmdBufferCmdAllocateEmbeddedData,                          InterfaceObject::CmdBuffer,            "CmdAllocateEmbeddedData"                 },
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+    { InterfaceFunc::CmdBufferCmdAllocateLargeEmbeddedData,                     InterfaceObject::CmdBuffer,            "CmdAllocateLargeEmbeddedData"            },
+#endif
     { InterfaceFunc::CmdBufferCmdExecuteNestedCmdBuffers,                       InterfaceObject::CmdBuffer,            "CmdExecuteNestedCmdBuffers"              },
     { InterfaceFunc::CmdBufferCmdSaveComputeState,                              InterfaceObject::CmdBuffer,            "CmdSaveComputeState"                     },
     { InterfaceFunc::CmdBufferCmdRestoreComputeState,                           InterfaceObject::CmdBuffer,            "CmdRestoreComputeState"                  },

@@ -63,6 +63,12 @@ namespace DevDriver
         pfnNotifyKernalEnable  m_kernalEnableCb;
         pfnNotifyKernalDisable m_kernalDisableCb;
         ProcessId              m_devDriverPID;
+        // m_kernalEnableCb() and m_kernalDisableCb() modify global OS state
+        // and we must not call m_kernalEnableCb() twice without calling
+        // m_kernalDisableCb() in between.
+        // m_kernalEnableState tracks whether we have called m_kernalEnableCb()
+        // so we can follow the correct sequence.
+        bool                   m_kernalEnableState;
     };
 
 } // DevDriver

@@ -165,6 +165,7 @@ void CmdBuffer::DrawOverlay(
         {
             expectedDebugOverlayInfo.presentMode = PresentMode::Unknown;
         }
+
         // Draw the debug overlay using this command buffer. Note that the DX runtime controls whether the
         // present will be windowed or fullscreen. We have no reliable way to detect the chosen present mode.
         m_pDevice->GetTextWriter().WriteVisualConfirm(static_cast<const Image&>(*pSrcImage),
@@ -190,7 +191,9 @@ void CmdBuffer::DrawOverlay(
     if (settings.debugOverlayConfig.timeGraphEnabled == true)
     {
         // Draw the time graph using this command buffer.
-        m_pDevice->GetTimeGraph().DrawVisualConfirm(static_cast<const Image&>(*pSrcImage), this);
+        m_pDevice->GetTimeGraph().DrawVisualConfirm(static_cast<const Image&>(*pSrcImage),
+                                                this,
+                                                debugOverlayInfo.presentKey);
 
         transition.dstCacheMask               = CoherPresent;
         transition.imageInfo.newLayout.usages = LayoutPresentWindowed | LayoutPresentFullscreen;

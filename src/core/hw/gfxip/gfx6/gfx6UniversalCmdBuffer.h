@@ -299,7 +299,7 @@ public:
         uint32            startQuery,
         uint32            queryCount) override;
 
-    virtual CmdStream* GetCmdStreamByEngine(uint32 engineType) override;
+    virtual CmdStream* GetCmdStreamByEngine(CmdBufferEngineSupport engineType) override;
 
     virtual void CmdUpdateSqttTokenMask(const ThreadTraceTokenConfig& sqttTokenConfig) override;
 
@@ -429,8 +429,6 @@ protected:
     virtual void WriteEventCmd(const BoundGpuMemory& boundMemObj, HwPipePoint pipePoint, uint32 data) override;
 
     virtual void CmdXdmaWaitFlipPending() override;
-
-    virtual void SetGraphicsState(const Pm4::GraphicsState& graphicsState) override;
 
     virtual void InheritStateFromCmdBuf(const Pm4CmdBuffer* pCmdBuffer) override;
 

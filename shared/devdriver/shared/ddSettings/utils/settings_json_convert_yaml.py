@@ -163,21 +163,26 @@ def validvalues_missing_name_fix(setting_name: str) -> str:
     else:
         print(f'[WARN] ValidValues of {setting_name} has no "Name" field')
 
-def validvalue_missing_name_fix(valid_values: dict):
+def validvalue_name_fix(valid_values: dict):
     """This fixes the missing name of individual values of a valid_values object."""
-    for value in valid_values["Values"]:
-        if "Name" not in value:
-            if valid_values["Name"] == "PresetLogFlags":
-                description = value["Description"]
-                value["Name"] = description[: description.index(":")]
-            else:
-                value["Name"] = value["Description"]
+    if valid_values["Name"] == "GpuProfilerCaptureTriggerKey":
+        for value in valid_values["Values"]:
+            name = value["Name"]
+            value["Name"] = name.replace("GpuProfilerCaptureTriggerKey::", "")
+    else:
+        for value in valid_values["Values"]:
+            if "Name" not in value:
+                if valid_values["Name"] == "PresetLogFlags":
+                    description = value["Description"]
+                    value["Name"] = description[: description.index(":")]
+                else:
+                    value["Name"] = value["Description"]
 
-            print(
-                "[WARN] Missing value name in ValidValues {}. Set it to {}".format(
-                    valid_values["Name"], value["Name"]
+                print(
+                    "[WARN] Missing value name in ValidValues {}. Set it to {}".format(
+                        valid_values["Name"], value["Name"]
+                    )
                 )
-            )
 
 def convert_to_settings2_enum(setting: dict, enums: List[dict]):
     flags = setting.get("Flags", None)
@@ -197,7 +202,7 @@ def convert_to_settings2_enum(setting: dict, enums: List[dict]):
             if "Name" not in valid_values:
                 valid_values["Name"] = validvalues_missing_name_fix(setting["Name"])
 
-            validvalue_missing_name_fix(valid_values)
+            validvalue_name_fix(valid_values)
 
             enum = convert_to_settings2_enum_helper(valid_values)
 
@@ -322,6 +327,9 @@ def convert_to_settings2(old_settings: dict) -> dict:
     settings2["version"] = 2
     settings2["component"] = old_settings["ComponentName"]
 
+    if settings2["component"] == "PalCore":
+        settings2["component"] = "Pal"
+
     tags = convert_to_settings2_top_level_tags(old_settings["Tags"])
     if len(tags) > 0:
         settings2["tags"] = tags
@@ -410,7 +418,7 @@ def main() -> int:
         assert settings_json is not None, "`old_file` invalid: empty JSON input file"
 
     settings2 = convert_to_settings2(settings_json)
-    convert_settings2_enum_value_to_integer(settings2)
+    # convert_settings2_enum_value_to_integer(settings2)
 
     with open(args.new_file, "w") as file:
         yaml = YAML()

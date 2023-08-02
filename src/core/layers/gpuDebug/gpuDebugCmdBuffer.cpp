@@ -26,6 +26,7 @@
 #if PAL_DEVELOPER_BUILD
 
 #include "core/layers/gpuDebug/gpuDebugCmdBuffer.h"
+#include "core/layers/gpuDebug/directDrawSurface.h"
 #include "core/layers/gpuDebug/gpuDebugColorBlendState.h"
 #include "core/layers/gpuDebug/gpuDebugColorTargetView.h"
 #include "core/layers/gpuDebug/gpuDebugDepthStencilView.h"
@@ -41,7 +42,6 @@
 #include "palSysUtil.h"
 #include "palVectorImpl.h"
 #include "palLiterals.h"
-#include "util/directDrawSurface.h"
 #include <cinttypes>
 
 // This is required because we need the definition of the D3D12DDI_PRESENT_0003 struct in order to make a copy of the
@@ -3188,6 +3188,25 @@ void CmdBuffer::CmdCopyTypedBuffer(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdScaledCopyTypedBufferToImage(
+    const IGpuMemory&                       srcGpuMemory,
+    const IImage&                           dstImage,
+    ImageLayout                             dstImageLayout,
+    uint32                                  regionCount,
+    const TypedBufferImageScaledCopyRegion* pRegions)
+{
+    HandleBarrierBlt(false, true);
+
+    InsertToken(CmdBufCallId::CmdScaledCopyTypedBufferToImage);
+    InsertToken(&srcGpuMemory);
+    InsertToken(&dstImage);
+    InsertToken(dstImageLayout);
+    InsertTokenArray(pRegions, regionCount);
+
+    HandleBarrierBlt(false, false);
+}
+
+// =====================================================================================================================
 void CmdBuffer::ReplayCmdCopyTypedBuffer(
     Queue*           pQueue,
     TargetCmdBuffer* pTgtCmdBuffer)
@@ -3198,6 +3217,20 @@ void CmdBuffer::ReplayCmdCopyTypedBuffer(
     auto                         regionCount   = ReadTokenArray(&pRegions);
 
     pTgtCmdBuffer->CmdCopyTypedBuffer(*pSrcGpuMemory, *pDstGpuMemory, regionCount, pRegions);
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdCopyTypedBufferToImage(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    auto                                    pSrcGpuMemory  = ReadTokenVal<IGpuMemory*>();
+    auto                                    pDstImage      = ReadTokenVal<IImage*>();
+    auto                                    dstImageLayout = ReadTokenVal<ImageLayout>();
+    const TypedBufferImageScaledCopyRegion* pRegions       = nullptr;
+    auto                                    regionCount    = ReadTokenArray(&pRegions);
+
+    pTgtCmdBuffer->CmdScaledCopyTypedBufferToImage(*pSrcGpuMemory, *pDstImage, dstImageLayout, regionCount, pRegions);
 }
 
 // =====================================================================================================================
@@ -4575,6 +4608,14 @@ uint32 CmdBuffer::GetEmbeddedDataLimit() const
 }
 
 // =====================================================================================================================
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+uint32 CmdBuffer::GetLargeEmbeddedDataLimit() const
+{
+    return GetNextLayer()->GetLargeEmbeddedDataLimit();
+}
+#endif
+
+// =====================================================================================================================
 uint32* CmdBuffer::CmdAllocateEmbeddedData(
     uint32   sizeInDwords,
     uint32   alignmentInDwords,
@@ -4582,6 +4623,17 @@ uint32* CmdBuffer::CmdAllocateEmbeddedData(
 {
     return GetNextLayer()->CmdAllocateEmbeddedData(sizeInDwords, alignmentInDwords, pGpuAddress);
 }
+
+// =====================================================================================================================
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+uint32* CmdBuffer::CmdAllocateLargeEmbeddedData(
+    uint32   sizeInDwords,
+    uint32   alignmentInDwords,
+    gpusize* pGpuAddress)
+{
+    return GetNextLayer()->CmdAllocateLargeEmbeddedData(sizeInDwords, alignmentInDwords, pGpuAddress);
+}
+#endif
 
 // =====================================================================================================================
 Result CmdBuffer::AllocateAndBindGpuMemToEvent(
@@ -5233,6 +5285,7 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdCopyMemory,
         &CmdBuffer::ReplayCmdCopyMemoryByGpuVa,
         &CmdBuffer::ReplayCmdCopyTypedBuffer,
+        &CmdBuffer::ReplayCmdCopyTypedBufferToImage,
         &CmdBuffer::ReplayCmdCopyRegisterToMemory,
         &CmdBuffer::ReplayCmdCopyImage,
         &CmdBuffer::ReplayCmdScaledCopyImage,

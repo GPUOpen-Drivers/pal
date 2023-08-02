@@ -98,16 +98,6 @@ union GraphicsStateFlags
 
 static_assert(sizeof(GraphicsStateFlags) == sizeof(uint64), "Bad bitfield size.");
 
-union TargetExtent2d
-{
-    struct
-    {
-        uint32 width  : 16; ///< Width of region (max width is 16k).
-        uint32 height : 16; ///< Height of region (max height is 16k).
-    };
-    uint32 value;
-};
-
 constexpr uint32 MaxScissorExtent = 16384;
 
 // The Max rectangle number that is allowed for clip rects.
@@ -127,7 +117,7 @@ struct GraphicsState
     // Lower MaxColorTargets bits are used. Each indicate how this slot is bound.
     // 0 indicates that it's bound to NULL, 1 means it's bound to a color target.
     uint32                      boundColorTargetMask;
-    TargetExtent2d              targetExtent;
+    Extent2d                    targetExtent;
 
     BindStreamOutTargetParams   bindStreamOutTargets;
 
@@ -289,6 +279,7 @@ protected:
     UniversalCmdBuffer(
         const GfxDevice&           device,
         const CmdBufferCreateInfo& createInfo,
+        const GfxBarrierMgr*       pBarrierMgr,
         Pm4::CmdStream*            pDeCmdStream,
         Pm4::CmdStream*            pCeCmdStream,
         Pm4::CmdStream*            pAceCmdStream,
@@ -312,7 +303,7 @@ protected:
 
     bool IsAnyGfxUserDataDirty() const;
 
-    virtual void SetGraphicsState(const GraphicsState& newGraphicsState);
+    void SetGraphicsState(const GraphicsState& newGraphicsState);
 
     GraphicsState  m_graphicsState;        // Currently bound graphics command buffer state.
     GraphicsState  m_graphicsRestoreState; // State pushed by the previous call to CmdSaveGraphicsState.

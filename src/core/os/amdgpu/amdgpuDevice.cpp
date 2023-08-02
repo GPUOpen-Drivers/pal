@@ -964,9 +964,12 @@ Result Device::InitGpuProperties()
 
     for (uint32 i = 0; i < EngineTypeCount; i++)
     {
-        m_engineProperties.perEngine[i].preferredCmdAllocHeaps[CommandDataAlloc]   = GpuHeapGartUswc;
-        m_engineProperties.perEngine[i].preferredCmdAllocHeaps[EmbeddedDataAlloc]  = GpuHeapGartUswc;
-        m_engineProperties.perEngine[i].preferredCmdAllocHeaps[GpuScratchMemAlloc] = GpuHeapInvisible;
+        m_engineProperties.perEngine[i].preferredCmdAllocHeaps[CommandDataAlloc]        = GpuHeapGartUswc;
+        m_engineProperties.perEngine[i].preferredCmdAllocHeaps[EmbeddedDataAlloc]       = GpuHeapGartUswc;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+        m_engineProperties.perEngine[i].preferredCmdAllocHeaps[LargeEmbeddedDataAlloc]  = GpuHeapGartUswc;
+#endif
+        m_engineProperties.perEngine[i].preferredCmdAllocHeaps[GpuScratchMemAlloc]      = GpuHeapInvisible;
     }
 
     for (uint32 i = 0; i < EngineTypeCount; i++)
@@ -6585,7 +6588,8 @@ void Device::GetModifierInfo(
         internalCreateInfo->flags.useForcedDcc      = 1;
         internalCreateInfo->flags.useSharedDccState = 1;
 
-        if (AMD_FMT_MOD_GET(DCC_RETILE, modifier))
+        if (AMD_FMT_MOD_GET(DCC_RETILE, modifier) &&
+            (Settings().disableOptimizedDisplay == false))
         {
             internalCreateInfo->displayDcc.enabled = 1;
         }
@@ -6608,25 +6612,47 @@ void Device::AddModifier(
     uint64*     pModifiersList,
     uint64      modifier) const
 {
-    // Swizzle modes are supported by display engine only when bpp <= 64.
-    if (Formats::BitsPerPixel(format) <= 64)
+    bool modifierAllowed = true;
+
+    if (Formats::BitsPerPixel(format) > 64)
     {
-        // Support multi-plane formats, but not when combined with additional DCC metadata planes.
-        // Packed YUV formats is DCC disabled in legecy way.
-        if ((modifier == DRM_FORMAT_MOD_LINEAR)                                ||
-            (AMD_FMT_MOD_GET(DCC, modifier)                                    &&
-             (Formats::IsYuv(format)                                           ||
-              (TestAnyFlagSet(Settings().useDcc, UseDccSingleSample) == false) ||
-              (Formats::IsSrgb(format)                                         &&
-               (TestAnyFlagSet(Settings().useDcc, UseDccSrgb) == false))       ||
-              Formats::IsBlockCompressed(format))) == false)
+        // Display engine only supports up to 64bpp
+        modifierAllowed = false;
+    }
+    else if (modifier == DRM_FORMAT_MOD_LINEAR)
+    {
+        // Linear always allowed
+        modifierAllowed = true;
+    }
+    else if (AMD_FMT_MOD_GET(DCC, modifier) == false)
+    {
+        // No further restrictions on formats without DCC
+        modifierAllowed = true;
+    }
+    else if (Formats::IsYuv(format) || Formats::IsBlockCompressed(format))
+    {
+        // No DCC on YUV or block compressed formats
+        modifierAllowed = false;
+    }
+    else if ((TestAnyFlagSet(Settings().useDcc, UseDccSingleSample) == false) ||
+             (Formats::IsSrgb(format) && (TestAnyFlagSet(Settings().useDcc, UseDccSrgb) == false)))
+    {
+        // DCC is disabled via settings
+        modifierAllowed = false;
+    }
+    else if (AMD_FMT_MOD_GET(DCC_RETILE, modifier) && Settings().disableOptimizedDisplay)
+    {
+        // Display DCC is disabled via settings
+        modifierAllowed = false;
+    }
+
+    if (modifierAllowed)
+    {
+        if (pModifiersList != nullptr)
         {
-            if (pModifiersList != nullptr)
-            {
-                pModifiersList[*pModifierCount] = modifier;
-            }
-            (*pModifierCount)++;
+            pModifiersList[*pModifierCount] = modifier;
         }
+        (*pModifierCount)++;
     }
 }
 

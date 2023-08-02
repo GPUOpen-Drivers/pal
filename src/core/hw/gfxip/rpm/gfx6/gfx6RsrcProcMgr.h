@@ -184,16 +184,6 @@ private:
 
     virtual void HwlEndGraphicsCopy(Pm4::CmdStream* pCmdStream, uint32 restoreMask) const override;
 
-    virtual void HwlDecodeImageViewSrd(
-        const void*       pImageViewSrd,
-        const Pal::Image& dstImage,
-        SwizzledFormat*   pSwizzledFormat,
-        SubresRange*      pSubresRange) const override;
-
-    virtual void HwlDecodeBufferViewSrd(
-        const void*     pBufferViewSrd,
-        BufferViewInfo* pViewInfo) const override;
-
     virtual bool HwlCanDoFixedFuncResolve(
         const Pal::Image&         srcImage,
         const Pal::Image&         dstImage,

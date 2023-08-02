@@ -91,6 +91,7 @@ static void PAL_STDCALL DefaultCreateBufferViewSrds(
     const BufferViewInfo* pBufferViewInfo,
     void*                 pOut)
 {
+    PAL_ASSERT_ALWAYS();
 }
 
 // =====================================================================================================================
@@ -100,6 +101,7 @@ static void PAL_STDCALL DefaultCreateImageViewSrds(
     const ImageViewInfo* pImgViewInfo,
     void*                pOut)
 {
+    PAL_ASSERT_ALWAYS();
 }
 
 // =====================================================================================================================
@@ -109,6 +111,7 @@ static void PAL_STDCALL DefaultCreateFmaskViewSrds(
     const FmaskViewInfo* pFmaskViewInfo,
     void*                pOut)
 {
+    PAL_ASSERT_ALWAYS();
 }
 
 // =====================================================================================================================
@@ -118,6 +121,26 @@ static void PAL_STDCALL DefaultCreateSamplerSrds(
     const SamplerInfo*  pSamplerInfo,
     void*               pOut)
 {
+    PAL_ASSERT_ALWAYS();
+}
+
+// =====================================================================================================================
+void PAL_STDCALL DefaultDecodeBufferViewSrd(
+    const IDevice*  pDevice,
+    const void*     pBufferViewSrd,
+    BufferViewInfo* pViewInfo)
+{
+    PAL_ASSERT_ALWAYS();
+}
+
+// =====================================================================================================================
+void PAL_STDCALL DefaultDecodeImageViewSrd(
+    const IDevice*   pDevice,
+    const IImage*    pImage,
+    const void*      pImageViewSrd,
+    DecodedImageSrd* pDecodedInfo)
+{
+    PAL_ASSERT_ALWAYS();
 }
 
 // =====================================================================================================================
@@ -164,6 +187,9 @@ bool Device::DetermineGpuIpLevels(
 #if PAL_BUILD_NAVI3X
     case FAMILY_NV3:
 #endif
+#if PAL_BUILD_PHOENIX
+    case FAMILY_PHX:
+#endif
         pIpLevels->gfx = Gfx9::DetermineIpLevel(familyId, eRevId, cpMicrocodeVersion);
         break;
 
@@ -197,6 +223,10 @@ bool Device::DetermineGpuIpLevels(
         break;
 #if PAL_BUILD_NAVI3X
     case FAMILY_NV3:
+        break;
+#endif
+#if PAL_BUILD_PHOENIX
+    case FAMILY_PHX:
         break;
 #endif
     default:
@@ -488,6 +518,7 @@ Result Device::EarlyInit(
         // Unlike all other properties, these must be initialized after HwlEarlyInit because they come from AddrLib.
         m_chipProperties.imageProperties.numSwizzleEqs = static_cast<uint8>(m_pAddrMgr->NumSwizzleEquations());
         m_chipProperties.imageProperties.pSwizzleEqs   = m_pAddrMgr->SwizzleEquations();
+
     }
 
     return result;
@@ -509,7 +540,7 @@ Result Device::SetupPublicSettingDefaults()
     m_publicSettings.cpDmaCmdCopyMemoryMaxBytes               = 64_KiB;
     m_publicSettings.forceHighClocks                          = false;
     m_publicSettings.cmdBufBatchedSubmitChainLimit            = 128;
-    m_publicSettings.cmdAllocResidency                        = 0xF;
+    m_publicSettings.cmdAllocResidency                        = 0x1F;
     m_publicSettings.presentableImageNumberThreshold          = 16;
     m_publicSettings.hintInvariantDepthStencilClearValues     = false;
     m_publicSettings.hintDisableSmallSurfColorCompressionSize = 128;
@@ -599,6 +630,9 @@ Result Device::HwlEarlyInit()
     pfnTable.pfnCreateImageViewSrds      = &DefaultCreateImageViewSrds;
     pfnTable.pfnCreateFmaskViewSrds      = &DefaultCreateFmaskViewSrds;
     pfnTable.pfnCreateSamplerSrds        = &DefaultCreateSamplerSrds;
+    pfnTable.pfnCreateBvhSrds            = nullptr;
+    pfnTable.pfnDecodeBufferViewSrd      = &DefaultDecodeBufferViewSrd;
+    pfnTable.pfnDecodeImageViewSrd       = &DefaultDecodeImageViewSrd;
 
 #if PAL_BUILD_GFX
     switch (ChipProperties().gfxLevel)
@@ -668,12 +702,7 @@ Result Device::HwlEarlyInit()
     // Store the function pointers for various functionality.
     if (result == Result::Success)
     {
-        m_pfnTable.pfnCreateTypedBufViewSrds   = pfnTable.pfnCreateTypedBufViewSrds;
-        m_pfnTable.pfnCreateUntypedBufViewSrds = pfnTable.pfnCreateUntypedBufViewSrds;
-        m_pfnTable.pfnCreateImageViewSrds      = pfnTable.pfnCreateImageViewSrds;
-        m_pfnTable.pfnCreateFmaskViewSrds      = pfnTable.pfnCreateFmaskViewSrds;
-        m_pfnTable.pfnCreateSamplerSrds        = pfnTable.pfnCreateSamplerSrds;
-        m_pfnTable.pfnCreateBvhSrds            = pfnTable.pfnCreateBvhSrds;
+        m_pfnTable = pfnTable;
     }
 
     return result;
@@ -1567,18 +1596,26 @@ Result Device::CreateInternalCmdAllocators()
     // Note that we create a fully tracked auto-reuse m_allocator and an untracked auto-reuse m_allocator. Ideally we'd
     // use the tracked m_allocator for all internal command buffers but some engines do not currently support tracking.
     // It is PAL's responsibility to only reset or destroy the untracked command buffers when it is safe to do so.
+    //
+    // CmdBufInternalSuballocSize = 8kb and LargeEmbeddedDataAlloc min alloc size is 32kb
+    // so CmdBufInternalSuballocSize * 4
     CmdAllocatorCreateInfo createInfo = {};
     createInfo.flags.threadSafe      = 1;
     createInfo.flags.autoMemoryReuse = 1;
-    createInfo.allocInfo[CommandDataAlloc].allocHeap      = CmdBufInternalAllocHeap;
-    createInfo.allocInfo[CommandDataAlloc].allocSize      = CmdBufInternalAllocSize;
-    createInfo.allocInfo[CommandDataAlloc].suballocSize   = CmdBufInternalSuballocSize;
-    createInfo.allocInfo[EmbeddedDataAlloc].allocHeap     = CmdBufInternalAllocHeap;
-    createInfo.allocInfo[EmbeddedDataAlloc].allocSize     = CmdBufInternalAllocSize;
-    createInfo.allocInfo[EmbeddedDataAlloc].suballocSize  = CmdBufInternalSuballocSize;
-    createInfo.allocInfo[GpuScratchMemAlloc].allocHeap    = GpuHeapInvisible;
-    createInfo.allocInfo[GpuScratchMemAlloc].allocSize    = CmdBufInternalAllocSize;
-    createInfo.allocInfo[GpuScratchMemAlloc].suballocSize = CmdBufInternalSuballocSize;
+    createInfo.allocInfo[CommandDataAlloc].allocHeap            = CmdBufInternalAllocHeap;
+    createInfo.allocInfo[CommandDataAlloc].allocSize            = CmdBufInternalAllocSize;
+    createInfo.allocInfo[CommandDataAlloc].suballocSize         = CmdBufInternalSuballocSize;
+    createInfo.allocInfo[EmbeddedDataAlloc].allocHeap           = CmdBufInternalAllocHeap;
+    createInfo.allocInfo[EmbeddedDataAlloc].allocSize           = CmdBufInternalAllocSize;
+    createInfo.allocInfo[EmbeddedDataAlloc].suballocSize        = CmdBufInternalSuballocSize;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+    createInfo.allocInfo[LargeEmbeddedDataAlloc].allocHeap      = CmdBufInternalAllocHeap;
+    createInfo.allocInfo[LargeEmbeddedDataAlloc].allocSize      = 4 * CmdBufInternalAllocSize;
+    createInfo.allocInfo[LargeEmbeddedDataAlloc].suballocSize   = 4 * CmdBufInternalSuballocSize;
+#endif
+    createInfo.allocInfo[GpuScratchMemAlloc].allocHeap          = GpuHeapInvisible;
+    createInfo.allocInfo[GpuScratchMemAlloc].allocSize          = CmdBufInternalAllocSize;
+    createInfo.allocInfo[GpuScratchMemAlloc].suballocSize       = CmdBufInternalSuballocSize;
 
     Result result = CreateInternalCmdAllocator(createInfo, &m_pTrackedCmdAllocator);
 
@@ -2618,6 +2655,11 @@ Result Device::GetProperties(
         pInfo->gfxipProperties.flags.supportFloat64SharedAtomicMinMax
             = m_chipProperties.gfxip.supportFloat64SharedAtomicMinMax;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 808
+        pInfo->gfxipProperties.flags.support1dDispatchInterleave = m_chipProperties.gfxip.support1dDispatchInterleave;
+        pInfo->gfxipProperties.flags.support2dDispatchInterleave = m_chipProperties.gfxip.support2dDispatchInterleave;
+#endif
+
         pInfo->gfxipProperties.srdSizes.bufferView = m_chipProperties.srdSizes.bufferView;
         pInfo->gfxipProperties.srdSizes.imageView  = m_chipProperties.srdSizes.imageView;
         pInfo->gfxipProperties.srdSizes.fmaskView  = m_chipProperties.srdSizes.fmaskView;
@@ -2776,24 +2818,24 @@ size_t Device::GetQueueSize(
     Result*                pResult
     ) const
 {
-    if (pResult != nullptr)
-    {
-        const EngineType engineType = createInfo.engineType;
-        const uint32 numAvailable = EngineProperties().perEngine[engineType].numAvailable;
+    size_t bytes = 0;
 
-        if ((createInfo.queueType >= QueueTypeCount)   ||
-            (engineType >= EngineTypeCount)            ||
-            (createInfo.engineIndex >= numAvailable))
-        {
-            *pResult = Result::ErrorInvalidValue;
-        }
-        else
-        {
-            *pResult = Result::Success;
-        }
+    const EngineType engineType = createInfo.engineType;
+    const uint32 numAvailable = EngineProperties().perEngine[engineType].numAvailable;
+
+    if ((createInfo.queueType < QueueTypeCount)   &&
+        (engineType < EngineTypeCount)            &&
+        (createInfo.engineIndex < numAvailable))
+    {
+        bytes = QueueContextSize(createInfo) + QueueObjectSize(createInfo);
     }
 
-    return QueueContextSize(createInfo) + QueueObjectSize(createInfo);
+    if (pResult != nullptr)
+    {
+        *pResult = (bytes > 0) ? Result::Success : Result::ErrorInvalidValue;
+    }
+
+    return bytes;
 }
 
 // =====================================================================================================================

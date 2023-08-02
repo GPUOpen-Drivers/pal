@@ -64,6 +64,8 @@ PipelineChunkVsPs::PipelineChunkVsPs(
 
     m_stageInfoVs.stageId = Abi::HardwareStage::Vs;
     m_stageInfoPs.stageId = Abi::HardwareStage::Ps;
+    m_regs.sh.userDataInternalTableVs.u32All = InvalidUserDataInternalTable;
+    m_regs.sh.userDataInternalTablePs.u32All = InvalidUserDataInternalTable;
 }
 
 // =====================================================================================================================
@@ -483,10 +485,13 @@ uint32* PipelineChunkVsPs::WriteShCommandsSetPathVs(
                                               ShaderGraphics,
                                               &m_regs.sh.spiShaderPgmLoVs,
                                               pCmdSpace);
-
-    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(HasHwVs::mmSPI_SHADER_USER_DATA_VS_0 + ConstBufTblStartReg,
-                                                             m_regs.sh.userDataInternalTableVs.u32All,
-                                                             pCmdSpace);
+    if (m_regs.sh.userDataInternalTableVs.u32All != InvalidUserDataInternalTable)
+    {
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(
+            HasHwVs::mmSPI_SHADER_USER_DATA_VS_0 + ConstBufTblStartReg,
+            m_regs.sh.userDataInternalTableVs.u32All,
+            pCmdSpace);
+    }
 
     if (chipProps.gfx9.supportSpp != 0)
     {
@@ -516,9 +521,12 @@ uint32* PipelineChunkVsPs::WriteShCommandsSetPathPs(
                                               &m_regs.sh.spiShaderPgmLoPs,
                                               pCmdSpace);
 
-    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSPI_SHADER_USER_DATA_PS_0 + ConstBufTblStartReg,
-                                                             m_regs.sh.userDataInternalTablePs.u32All,
-                                                             pCmdSpace);
+    if (m_regs.sh.userDataInternalTablePs.u32All != InvalidUserDataInternalTable)
+    {
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSPI_SHADER_USER_DATA_PS_0 + ConstBufTblStartReg,
+                                                                 m_regs.sh.userDataInternalTablePs.u32All,
+                                                                 pCmdSpace);
+    }
 
     if (chipProps.gfx9.supportSpp != 0)
     {

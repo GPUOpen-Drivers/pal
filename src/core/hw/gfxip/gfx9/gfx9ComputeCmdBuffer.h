@@ -55,29 +55,6 @@ public:
     virtual Result Begin(const CmdBufferBuildInfo& info) override;
 
     virtual void CmdBindPipeline(const PipelineBindParams& params) override;
-    virtual void CmdBarrier(const BarrierInfo& barrierInfo) override;
-
-    virtual void OptimizePipeAndCacheMaskForRelease(
-        uint32* pStageMask,
-        uint32* pAccessMask) const override;
-
-    virtual uint32 CmdRelease(
-        const AcquireReleaseInfo& releaseInfo) override;
-    virtual void CmdAcquire(
-        const AcquireReleaseInfo& acquireInfo,
-        uint32                    syncTokenCount,
-        const uint32*             pSyncTokens) override;
-
-    virtual void CmdReleaseEvent(
-        const AcquireReleaseInfo& releaseInfo,
-        const IGpuEvent*          pGpuEvent) override;
-
-    virtual void CmdAcquireEvent(
-        const AcquireReleaseInfo& acquireInfo,
-        uint32                    gpuEventCount,
-        const IGpuEvent* const*   ppGpuEvents) override;
-
-    virtual void CmdReleaseThenAcquire(const AcquireReleaseInfo& barrierInfo) override;
 
     virtual void CmdCopyMemory(
         const IGpuMemory&       srcGpuMemory,

@@ -231,6 +231,9 @@ enum class AsicRevision : uint32
 #endif
     Rembrandt        = 0x2F,
     Raphael          = 0x34,
+#if PAL_BUILD_PHOENIX1
+    Phoenix1          = 0x35,
+#endif
 };
 
 /// Specifies which operating-system-support IP level (OSSIP) this device has.
@@ -508,6 +511,7 @@ union RsFeatureInfo
     {
         bool enabled;    ///< Specifies whether Delag is enabled globally.
         uint32 hotkey;   ///< If nonzero, specifies the virtual key code assigned to Delag.
+        uint32 hotkeyInd;///< If nonzero, specifies the virtual key code assigned to Delag's indicator.
         uint32 limitFps; ///< Specifies the global Delag FPS limit.
         uint32 level;    ///< Specifies the global Delag level.
     } delag;
@@ -517,6 +521,7 @@ union RsFeatureInfo
     {
         bool enabled;    ///< Specifies whether Boost is enabled globally.
         uint32 hotkey;   ///< If nonzero, specifies the virtual key code assigned to Boost.
+        uint32 hotkeyInd;///< If nonzero, specifies the virtual key code assigned to Boost's indicator.
         uint32 minRes;   ///< Specifies the global Boost minimum resolution.
     } boost;
 
@@ -1425,7 +1430,11 @@ struct DeviceProperties
                 uint64 support3dUavZRange                 :  1; ///< HW supports read-write ImageViewSrds of 3D images
                                                                 ///  with zRange specified.
                 uint64 supportCooperativeMatrix           :  1; ///< HW supports cooperative matrix
-                uint64 reserved                           :  4; ///< Reserved for future use.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 808
+                uint64 support1dDispatchInterleave        :  1; // Indicates support for 1D Dispatch Interleave.
+                uint64 support2dDispatchInterleave        :  1; // Indicates support for 2D Dispatch Interleave.
+#endif
+                uint64 reserved                           :  2; ///< Reserved for future use.
             };
             uint64 u64All;           ///< Flags packed as 32-bit uint.
         } flags;                     ///< Device IP property flags.
@@ -2683,6 +2692,49 @@ typedef void (PAL_STDCALL *CreateBvhSrdsFunc)(
     uint32          count,
     const BvhInfo*  pBvhInfo,
     void*           pOut);
+
+/// Decode a buffer SRD back into most of the BufferViewInfo used to create it via Create{Typed,Untyped}BufferViewSrds.
+///
+/// @param [in]  pDevice
+/// @param [in]  pBufferViewSrd Pointer to the SRD. Should not be in dedicated GPU memory.
+/// @param [out] pViewInfo      Pointer to memory to be filled with decoded info.
+typedef void (PAL_STDCALL *DecodeBufferViewSrdFunc)(
+    const IDevice*  pDevice,
+    const void*     pBufferViewSrd,
+    BufferViewInfo* pViewInfo);
+
+/// Structure filled in by DecodeImageViewSrd().
+struct DecodedImageSrd
+{
+    SwizzledFormat swizzledFormat; ///< SRD's swizzled format.
+    SubresRange    subresRange;    ///< SRD's subresource range; the array-range is always { 0, 1 } for 3D images.
+    Range          zRange;         ///< z-range of the SRD's subresRange.startSubres.
+};
+
+/// Decode an image SRD back into the main parameters used to create it via CreateImageViewSrds().
+///
+/// @param [in]  pDevice
+/// @param [in]  pImage          The same image the SRD was created on.
+/// @param [in]  pImageViewSrd  Pointer to the SRD. Should not be in dedicated GPU memory.
+/// @param [out] pDecodedInfo   Pointer to memory to be filled with decoded info.
+typedef void (PAL_STDCALL *DecodeImageViewSrdFunc)(
+    const IDevice*   pDevice,
+    const IImage*    pImage,
+    const void*      pImageViewSrd,
+    DecodedImageSrd* pDecodedInfo);
+
+/// Function pointer table for SRD methods.
+struct DeviceInterfacePfnTable
+{
+    CreateBufferViewSrdsFunc pfnCreateTypedBufViewSrds;     ///< Typed Buffer view SRD creation function pointer.
+    CreateBufferViewSrdsFunc pfnCreateUntypedBufViewSrds;   ///< Untyped Buffer view SRD creation function ptr.
+    CreateImageViewSrdsFunc  pfnCreateImageViewSrds;        ///< Image view SRD creation function pointer.
+    CreateFmaskViewSrdsFunc  pfnCreateFmaskViewSrds;        ///< Fmask View SRD creation function pointer.
+    CreateSamplerSrdsFunc    pfnCreateSamplerSrds;          ///< Sampler SRD creation function pointer.
+    CreateBvhSrdsFunc        pfnCreateBvhSrds;              ///< BVH SRD creation function pointer.
+    DecodeBufferViewSrdFunc  pfnDecodeBufferViewSrd;        ///< Buffer SRD decode function pointer.
+    DecodeImageViewSrdFunc   pfnDecodeImageViewSrd;         ///< Image SRD decode function pointer.
+};
 
 /// Specifies output arguments for IDevice::QueryWorkstationCaps(), returning worksation feature information
 /// on this device workstation board.
@@ -4277,6 +4329,30 @@ public:
         m_pfnTable.pfnCreateBvhSrds(this, count, pBvhInfo, pOut);
     }
 
+    /// Decode a buffer SRD back into most of the BufferViewInfo used to create it via Create{Typed,Untyped}BufferViewSrds.
+    ///
+    /// @param [in]  pBufferViewSrd Pointer to the SRD. Should not be in dedicated GPU memory.
+    /// @param [out] pViewInfo      Pointer to memory to be filled with decoded info.
+    void DecodeBufferViewSrd(
+        const void*     pBufferViewSrd,
+        BufferViewInfo* pViewInfo) const
+    {
+        m_pfnTable.pfnDecodeBufferViewSrd(this, pBufferViewSrd, pViewInfo);
+    }
+
+    /// Decode an image SRD back into the main parameters used to create it via CreateImageViewSrds().
+    ///
+    /// @param [in]  image          The same image the SRD was created on.
+    /// @param [in]  pImageViewSrd  Pointer to the SRD. Should not be in dedicated GPU memory.
+    /// @param [out] pDecodedInfo   Pointer to memory to be filled with decoded info.
+    void DecodeImageViewSrd(
+        const IImage&    image,
+        const void*      pImageViewSrd,
+        DecodedImageSrd* pDecodedInfo) const
+    {
+        m_pfnTable.pfnDecodeImageViewSrd(this, &image, pImageViewSrd, pDecodedInfo);
+    }
+
     /// The MSAA sample pattern palette is a client-managed table of sample patterns that might be in use by the app.
     ///
     /// The only purpose of this palette is to implement the samplepos shader instruction.  This instruction returns the
@@ -5310,16 +5386,7 @@ protected:
     ///           @ref IPlatform::Destroy() is called.
     virtual ~IDevice() { }
 
-    /// Function pointer table for SRD creation methods.
-    struct DevicePfnTable
-    {
-        CreateBufferViewSrdsFunc pfnCreateTypedBufViewSrds;     ///< Typed Buffer view SRD creation function pointer.
-        CreateBufferViewSrdsFunc pfnCreateUntypedBufViewSrds;   ///< Untyped Buffer view SRD creation function ptr.
-        CreateImageViewSrdsFunc  pfnCreateImageViewSrds;        ///< Image view SRD creation function pointer.
-        CreateFmaskViewSrdsFunc  pfnCreateFmaskViewSrds;        ///< Fmask View SRD creation function pointer.
-        CreateSamplerSrdsFunc    pfnCreateSamplerSrds;          ///< Sampler SRD creation function pointer.
-        CreateBvhSrdsFunc        pfnCreateBvhSrds;              ///< BVH SRD creation function pointer.
-    } m_pfnTable;                                               ///< SRD creation function pointer table.
+    DeviceInterfacePfnTable m_pfnTable; ///< SRD function pointer table.
 
 private:
     /// @internal Client data pointer. This can have an arbitrary value and can be returned by calling GetClientData()

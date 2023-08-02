@@ -49,12 +49,13 @@ namespace Pm4
 UniversalCmdBuffer::UniversalCmdBuffer(
     const GfxDevice&           device,
     const CmdBufferCreateInfo& createInfo,
+    const GfxBarrierMgr*       pBarrierMgr,
     Pm4::CmdStream*            pDeCmdStream,
     Pm4::CmdStream*            pCeCmdStream,
     Pm4::CmdStream*            pAceCmdStream,
     bool                       blendOptEnable)
     :
-    Pm4CmdBuffer(device, createInfo),
+    Pm4CmdBuffer(device, createInfo, pBarrierMgr),
     m_graphicsState{},
     m_graphicsRestoreState{},
     m_blendOpts{},
@@ -87,7 +88,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
 Result UniversalCmdBuffer::Begin(
     const CmdBufferBuildInfo& info)
 {
-    if (m_buildFlags.optimizeTessDistributionFactors)
+    if (info.flags.optimizeTessDistributionFactors)
     {
         m_tessDistributionFactors = info.clientTessDistributionFactors;
     }
@@ -97,11 +98,11 @@ Result UniversalCmdBuffer::Begin(
     // These values are read be ResetState() in the HWL which is called by Begin().
 
 #if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 763)
-    if (m_buildFlags.optimizeContextStatesPerBin)
+    if (info.flags.optimizeContextStatesPerBin)
     {
         m_contextStatesPerBin = info.contextStatesPerBin;
     }
-    if (m_buildFlags.optimizePersistentStatesPerBin)
+    if (info.flags.optimizePersistentStatesPerBin)
     {
         m_persistentStatesPerBin = info.persistentStatesPerBin;
     }
@@ -654,6 +655,176 @@ void UniversalCmdBuffer::SetGraphicsState(
     {
         m_graphicsState.gfxUserDataEntries.dirty[i] |= newGraphicsState.gfxUserDataEntries.touched[i];
     }
+
+    // The target state that we would restore is invalid if this is a nested command buffer that inherits target
+    // view state. The only allowed BLTs in a nested command buffer are CmdClearBoundColorTargets and
+    // CmdClearBoundDepthStencilTargets, neither of which will overwrite the bound targets.
+    if (m_graphicsState.inheritedState.stateFlags.targetViewState == 0)
+    {
+        CmdBindTargets(newGraphicsState.bindTargets);
+    }
+
+    if ((newGraphicsState.iaState.indexAddr  != m_graphicsState.iaState.indexAddr)  ||
+        (newGraphicsState.iaState.indexCount != m_graphicsState.iaState.indexCount) ||
+        (newGraphicsState.iaState.indexType  != m_graphicsState.iaState.indexType))
+    {
+        CmdBindIndexData(newGraphicsState.iaState.indexAddr,
+                         newGraphicsState.iaState.indexCount,
+                         newGraphicsState.iaState.indexType);
+    }
+
+    if (memcmp(&newGraphicsState.inputAssemblyState,
+               &m_graphicsState.inputAssemblyState,
+               sizeof(m_graphicsState.inputAssemblyState)) != 0)
+    {
+        CmdSetInputAssemblyState(newGraphicsState.inputAssemblyState);
+    }
+
+    if (newGraphicsState.pColorBlendState != m_graphicsState.pColorBlendState)
+    {
+        CmdBindColorBlendState(newGraphicsState.pColorBlendState);
+    }
+
+    if (memcmp(newGraphicsState.blendConstState.blendConst,
+               m_graphicsState.blendConstState.blendConst,
+               sizeof(m_graphicsState.blendConstState.blendConst)) != 0)
+    {
+        CmdSetBlendConst(newGraphicsState.blendConstState);
+    }
+
+    if (memcmp(&newGraphicsState.stencilRefMaskState,
+               &m_graphicsState.stencilRefMaskState,
+               sizeof(m_graphicsState.stencilRefMaskState)) != 0)
+    {
+        // Setting StencilRefMaskState flags to 0xFF so that the faster command is used instead of read-modify-write
+        StencilRefMaskParams stencilRefMaskState = newGraphicsState.stencilRefMaskState;
+        stencilRefMaskState.flags.u8All = 0xFF;
+
+        CmdSetStencilRefMasks(stencilRefMaskState);
+    }
+
+    if (newGraphicsState.pDepthStencilState != m_graphicsState.pDepthStencilState)
+    {
+        CmdBindDepthStencilState(newGraphicsState.pDepthStencilState);
+    }
+
+    if ((newGraphicsState.depthBoundsState.min != m_graphicsState.depthBoundsState.min) ||
+        (newGraphicsState.depthBoundsState.max != m_graphicsState.depthBoundsState.max))
+    {
+        CmdSetDepthBounds(newGraphicsState.depthBoundsState);
+    }
+
+    if (newGraphicsState.pMsaaState != m_graphicsState.pMsaaState)
+    {
+        CmdBindMsaaState(newGraphicsState.pMsaaState);
+    }
+
+    if (memcmp(&newGraphicsState.lineStippleState,
+               &m_graphicsState.lineStippleState,
+               sizeof(LineStippleStateParams)) != 0)
+    {
+        CmdSetLineStippleState(newGraphicsState.lineStippleState);
+    }
+
+    if (memcmp(&newGraphicsState.quadSamplePatternState,
+               &m_graphicsState.quadSamplePatternState,
+               sizeof(MsaaQuadSamplePattern)) != 0)
+    {
+        // numSamplesPerPixel can be 0 if the client never called CmdSetMsaaQuadSamplePattern.
+        if (newGraphicsState.numSamplesPerPixel != 0)
+        {
+            CmdSetMsaaQuadSamplePattern(newGraphicsState.numSamplesPerPixel,
+                newGraphicsState.quadSamplePatternState);
+        }
+    }
+
+    if (memcmp(&newGraphicsState.triangleRasterState,
+               &m_graphicsState.triangleRasterState,
+               sizeof(m_graphicsState.triangleRasterState)) != 0)
+    {
+        CmdSetTriangleRasterState(newGraphicsState.triangleRasterState);
+    }
+
+    if (memcmp(&newGraphicsState.pointLineRasterState,
+               &m_graphicsState.pointLineRasterState,
+               sizeof(m_graphicsState.pointLineRasterState)) != 0)
+    {
+        CmdSetPointLineRasterState(newGraphicsState.pointLineRasterState);
+    }
+
+    const auto& restoreDepthBiasState = newGraphicsState.depthBiasState;
+
+    if ((restoreDepthBiasState.depthBias            != m_graphicsState.depthBiasState.depthBias)      ||
+        (restoreDepthBiasState.depthBiasClamp       != m_graphicsState.depthBiasState.depthBiasClamp) ||
+        (restoreDepthBiasState.slopeScaledDepthBias != m_graphicsState.depthBiasState.slopeScaledDepthBias))
+    {
+        CmdSetDepthBiasState(newGraphicsState.depthBiasState);
+    }
+
+    const auto& restoreViewports = newGraphicsState.viewportState;
+    const auto& currentViewports = m_graphicsState.viewportState;
+
+    if ((restoreViewports.count != currentViewports.count) ||
+        (restoreViewports.depthRange != currentViewports.depthRange) ||
+        (memcmp(&restoreViewports.viewports[0],
+                &currentViewports.viewports[0],
+                restoreViewports.count * sizeof(restoreViewports.viewports[0])) != 0))
+    {
+        CmdSetViewports(restoreViewports);
+    }
+
+    const auto& restoreScissorRects = newGraphicsState.scissorRectState;
+    const auto& currentScissorRects = m_graphicsState.scissorRectState;
+
+    if ((restoreScissorRects.count != currentScissorRects.count) ||
+        (memcmp(&restoreScissorRects.scissors[0],
+                &currentScissorRects.scissors[0],
+                restoreScissorRects.count * sizeof(restoreScissorRects.scissors[0])) != 0))
+    {
+        CmdSetScissorRects(restoreScissorRects);
+    }
+
+    const auto& restoreGlobalScissor = newGraphicsState.globalScissorState.scissorRegion;
+    const auto& currentGlobalScissor = m_graphicsState.globalScissorState.scissorRegion;
+
+    if ((restoreGlobalScissor.offset.x      != currentGlobalScissor.offset.x)     ||
+        (restoreGlobalScissor.offset.y      != currentGlobalScissor.offset.y)     ||
+        (restoreGlobalScissor.extent.width  != currentGlobalScissor.extent.width) ||
+        (restoreGlobalScissor.extent.height != currentGlobalScissor.extent.height))
+    {
+        CmdSetGlobalScissor(newGraphicsState.globalScissorState);
+    }
+
+    const auto& restoreClipRects = newGraphicsState.clipRectsState;
+    const auto& currentClipRects = m_graphicsState.clipRectsState;
+
+    if ((restoreClipRects.clipRule != currentClipRects.clipRule)   ||
+        (restoreClipRects.rectCount != currentClipRects.rectCount) ||
+        (memcmp(&restoreClipRects.rectList[0],
+                &currentClipRects.rectList[0],
+                restoreClipRects.rectCount * sizeof(Rect))))
+    {
+        CmdSetClipRects(newGraphicsState.clipRectsState.clipRule,
+                        newGraphicsState.clipRectsState.rectCount,
+                        newGraphicsState.clipRectsState.rectList);
+    }
+
+    if (memcmp(&newGraphicsState.vrsRateState, &m_graphicsState.vrsRateState, sizeof(VrsRateParams)) != 0)
+    {
+        CmdSetPerDrawVrsRate(newGraphicsState.vrsRateState);
+    }
+
+    if (memcmp(&newGraphicsState.vrsCenterState, &m_graphicsState.vrsCenterState, sizeof(VrsCenterState)) != 0)
+    {
+        CmdSetVrsCenterState(newGraphicsState.vrsCenterState);
+    }
+
+    if (newGraphicsState.pVrsImage != m_graphicsState.pVrsImage)
+    {
+        // Restore the pointer to the client's original VRS rate image.  On GFX10 products, if the bound depth stencil
+        // image has changed, this will be re-copied into hTile on the next draw.
+        CmdBindSampleRateImage(newGraphicsState.pVrsImage);
+    }
 }
 
 // =====================================================================================================================
@@ -702,13 +873,13 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
                &graphics.bindTargets.colorTargets[0],
                sizeof(m_graphicsState.bindTargets.colorTargets));
         m_graphicsState.bindTargets.colorTargetCount = graphics.bindTargets.colorTargetCount;
-        m_graphicsState.targetExtent.value           = graphics.targetExtent.value;
+        m_graphicsState.targetExtent                 = graphics.targetExtent;
     }
 
     if (graphics.leakFlags.validationBits.depthStencilView != 0)
     {
         m_graphicsState.bindTargets.depthTarget = graphics.bindTargets.depthTarget;
-        m_graphicsState.targetExtent.value      = graphics.targetExtent.value;
+        m_graphicsState.targetExtent            = graphics.targetExtent;
     }
 
     if (graphics.leakFlags.nonValidationBits.streamOutTargets != 0)

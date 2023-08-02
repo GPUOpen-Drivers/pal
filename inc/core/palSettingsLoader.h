@@ -145,9 +145,15 @@ protected:
 
     struct SettingInfo
     {
-        SettingType  type;       // Setting value type
-        void*        pValuePtr;  // Memory location of the setting value
-        uint32       valueSize;  // Size of the setting value
+        SettingType  type;               // Setting value type
+        // True if pValuePtr points to Util::Optional<T> rather than T. Putting an initializer here is probably
+        // against PAL style, but if we don't do that then (a) we need a PAL interface major version bump to tell
+        // clients that have their own override of ISettingsLoader and their own settings templates to set
+        // the field when populating the map, and (b) we have to ensure that clients actually do that correctly
+        // when taking the bump.
+        bool         isOptional = false;
+        void*        pValuePtr;          // Memory location of the setting value
+        uint32       valueSize;          // Size of the setting value
     };
 
     Util::IndirectAllocator m_allocator;

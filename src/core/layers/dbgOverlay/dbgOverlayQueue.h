@@ -88,10 +88,6 @@ public:
 
     Result Init(const QueueCreateInfo* pCreateInfo);
 
-    // Part of the IQueue public interface.
-    virtual Result PresentDirect(const PresentDirectInfo& presentInfo) override;
-    virtual Result PresentSwapChain(const PresentSwapChainInfo& presentInfo) override;
-
     virtual Result Submit(const MultiSubmitInfo& submitInfo) override;
 
 private:

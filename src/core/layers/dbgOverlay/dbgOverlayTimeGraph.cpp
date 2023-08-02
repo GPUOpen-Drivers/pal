@@ -68,11 +68,12 @@ Result TimeGraph::Init()
 // =====================================================================================================================
 // Draws the Time Graph to the specified image.
 void TimeGraph::DrawVisualConfirm(
-    const Image& dstImage,    // Image to write visual confirm into.
-    ICmdBuffer*  pCmdBuffer   // Command buffer to write commands into.
+    const Image&           dstImage,    // Image to write visual confirm into.
+    ICmdBuffer*            pCmdBuffer,  // Command buffer to write commands into.
+    const UniquePresentKey presentKey
     ) const
 {
-    auto*const       pFpsMgr           = static_cast<Platform*>(m_pDevice->GetPlatform())->GetFpsMgr();
+    auto*const       pFpsMgr           = static_cast<Platform*>(m_pDevice->GetPlatform())->GetFpsMgr(presentKey);
     const auto&      settings          = m_pDevice->GetPlatform()->PlatformSettings();
     const auto&      gpuProps          = m_pDevice->GpuProps();
     const auto*const pCreateInfo       = dstImage.GetCreateInfo();

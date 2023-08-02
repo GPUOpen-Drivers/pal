@@ -116,32 +116,36 @@ def genComment(description, indent):
 
 def genDefaultLine(defaultValue, varName, isString, isHex, size):
     default = ""
-    defaultValueStr = str(defaultValue)
-    if type(defaultValue) is bool:
-        defaultValueStr = defaultValueStr.lower()
-    elif isHex:
-        try:
-            defaultValueStr = hex(defaultValue)
-            if defaultValueStr[-1] == "L":
-                defaultValueStr = defaultValueStr[:-1]
-        except TypeError:
-            # This is an expected case for bitmask settings with an enum value (represented as a string in the JSON) for the default
-            defaultValueStr = str(defaultValue)
-
-    if isString:
-      defaultValueStr = "\""+defaultValue.replace('\\', '\\\\')+"\""
-      default = codeTemplates.SetStringDefault.replace("%SettingStringLength%", str(size))
-    elif size != "":
-      default = codeTemplates.SetArrayDefault.replace("%SettingSize%", str(size))
+    if defaultValue is None:
+        # Optional setting.
+        default = codeTemplates.SetOptionalDefault
     else:
-      default = codeTemplates.SetDefault
+        defaultValueStr = str(defaultValue)
+        if type(defaultValue) is bool:
+            defaultValueStr = defaultValueStr.lower()
+        elif isHex:
+            try:
+                defaultValueStr = hex(defaultValue)
+                if defaultValueStr[-1] == "L":
+                    defaultValueStr = defaultValueStr[:-1]
+            except TypeError:
+                # This is an expected case for bitmask settings with an enum value (represented as a string in the JSON) for the default
+                defaultValueStr = str(defaultValue)
 
-    default = default.replace("%SettingDefault%", defaultValueStr)
+        if isString:
+          defaultValueStr = "\""+defaultValue.replace('\\', '\\\\')+"\""
+          default = codeTemplates.SetStringDefault.replace("%SettingStringLength%", str(size))
+        elif size != "":
+          default = codeTemplates.SetArrayDefault.replace("%SettingSize%", str(size))
+        else:
+          default = codeTemplates.SetDefault
+        default = default.replace("%SettingDefault%", defaultValueStr)
+
     default = default.replace("%SettingVarName%", varName)
 
     return default
 
-maxTypeLen = 40
+maxTypeLen = 48
 def getTypeSpacing(type):
     assertExit((len(type) < maxTypeLen), "Need to increase maxTypeLen for type name: " + type)
     numSpaces = maxTypeLen - len(type)
@@ -263,8 +267,13 @@ def defineSettingVariable(setting):
                    "Named ValidValues definition missing from Enum type setting: " + setting["Name"])
         type = setting["ValidValues"]["Name"]
 
-    settingDef = codeTemplates.SettingDef.replace("%SettingType%", (type + getTypeSpacing(type)))
-    settingDef = settingDef.replace("%SettingVarName%", setting["VariableName"])
+    settingDef = codeTemplates.SettingDef
+    # If the setting has no Defaults member, then it is an optional setting.
+    if not "Defaults" in setting:
+        settingDef = codeTemplates.OptionalSettingDef
+
+    settingDef = settingDef.replace("%SettingType%", type)
+    settingDef = settingDef.replace("%SettingVarName%", getTypeSpacing(type) +setting["VariableName"])
     arrayLength = ""
     # If the type is string then we need to setup the char array length
     if "Size" in setting:
@@ -293,6 +302,11 @@ def genReadSettingCode(data):
     readSettingTmp = codeTemplates.ReadSetting
     if data["stringLen"] > 0:
         readSettingTmp = codeTemplates.ReadSettingStr.replace("%StringLength%", str(data["stringLen"]))
+    if "isOptional" in data and data["isOptional"]:
+        readSettingTmp = codeTemplates.ReadOptionalSetting
+        if data["stringLen"] > 0:
+            readSettingTmp = codeTemplates.ReadOptionalSettingStr.replace("%StringLength%", str(data["stringLen"]))
+
     readSettingTmp = readSettingTmp.replace("%SettingStrName%", settingStringName)
     osiSettingTypeTmp = codeTemplates.PalOsiSettingType.replace("%OsiSettingType%", data["scope"])
     readSettingTmp = readSettingTmp.replace("%OsiSettingType%", osiSettingTypeTmp)
@@ -327,8 +341,9 @@ def setupReadSettingData(name, scope, type, varName, size, structName, structVar
              "stringLen": stringLen,
              "variableName": finalVarName }
 
-def genInitSettingInfoCode(type, varName, hashName):
+def genInitSettingInfoCode(type, isOptional, varName, hashName):
     initSettingInfoTmp = codeTemplates.InitSettingInfo.replace("%DevDriverType%", getDevDriverType(type))
+    initSettingInfoTmp = initSettingInfoTmp.replace("%IsOptional%", isOptional)
     initSettingInfoTmp = initSettingInfoTmp.replace("%SettingVarName%", varName)
     initSettingInfoTmp = initSettingInfoTmp.replace("%HashName%", str(hashName))
     return initSettingInfoTmp
@@ -647,112 +662,116 @@ for setting in settingsData["Settings"]:
             else:
                 defaultsCode += defaultLine
     else:
-        defaults = setting["Defaults"]
-        hasWinDefault = "WinDefault" in defaults
-        hasLnxDefault = "LnxDefault" in defaults
-        hasAndroidDefault = "AndroidDefault" in defaults
-
         size = ""
         if "Size" in setting:
             size = settingIntSize
 
-        defaultLine = genDefaultLine(defaults["Default"], setting["VariableName"], isString, isHex, size)
-        # If we have Windows, Linux and Android defaults.
-        if hasWinDefault and hasLnxDefault and hasAndroidDefault:
-            defaultsCode += "#if " + codeTemplates.WinIfDef + genDefaultLine(
-                                                                  defaults["WinDefault"],
-                                                                  setting["VariableName"],
-                                                                  isString,
-                                                                  isHex,
-                                                                  size)
-            defaultsCode += "#elif " + codeTemplates.AndroidIfDef + genDefaultLine(
-                                                                        defaults["AndroidDefault"],
-                                                                        setting["VariableName"],
-                                                                        isString,
-                                                                        isHex,
-                                                                        size)
-            defaultsCode += "#elif " + codeTemplates.LnxIfDef + genDefaultLine(
-                                                                        defaults["LnxDefault"],
-                                                                        setting["VariableName"],
-                                                                        isString,
-                                                                        isHex,
-                                                                        size)
-            defaultsCode += "#else\n" + defaultLine + codeTemplates.EndIf
-        # If we have Windows, Linux defaults.
-        elif hasWinDefault and hasLnxDefault and not hasAndroidDefault:
-            defaultsCode += "#if " + codeTemplates.WinIfDef + genDefaultLine(
-                                                                  defaults["WinDefault"],
-                                                                  setting["VariableName"],
-                                                                  isString,
-                                                                  isHex,
-                                                                  size)
-            defaultsCode += "#elif " + codeTemplates.LnxIfDef + genDefaultLine(
-                                                                    defaults["LnxDefault"],
-                                                                    setting["VariableName"],
-                                                                    isString,
-                                                                    isHex,
-                                                                    size)
-            defaultsCode += "#else\n" + defaultLine + codeTemplates.EndIf
-        # If we have Windows, Android defaults.
-        elif hasWinDefault and not hasLnxDefault and hasAndroidDefault:
-            defaultsCode += "#if " + codeTemplates.WinIfDef + genDefaultLine(
-                                                                  defaults["WinDefault"],
-                                                                  setting["VariableName"],
-                                                                  isString,
-                                                                  isHex,
-                                                                  size)
-            defaultsCode += "#elif " + codeTemplates.AndroidIfDef + genDefaultLine(
-                                                                        defaults["AndroidDefault"],
-                                                                        setting["VariableName"],
-                                                                        isString,
-                                                                        isHex,
-                                                                        size)
-            defaultsCode += "#else\n" + defaultLine + codeTemplates.EndIf
-        # If we have only Windows default.
-        elif hasWinDefault and not hasLnxDefault and not hasAndroidDefault:
-            defaultsCode += "#if " + codeTemplates.WinIfDef + genDefaultLine(
-                                                                  defaults["WinDefault"],
-                                                                  setting["VariableName"],
-                                                                  isString,
-                                                                  isHex,
-                                                                  size)
-            defaultsCode += "#else\n" + defaultLine + codeTemplates.EndIf
-        # If we have Linux, Android defaults.
-        elif not hasWinDefault and hasLnxDefault and hasAndroidDefault:
-            defaultsCode += "#if " + codeTemplates.AndroidIfDef + genDefaultLine(
-                                                                 defaults["AndroidDefault"],
-                                                                 setting["VariableName"],
-                                                                 isString,
-                                                                 isHex,
-                                                                 size)
-            defaultsCode += "#elif " + codeTemplates.LnxIfDef + genDefaultLine(
-                                                                        defaults["LnxDefault"],
-                                                                        setting["VariableName"],
-                                                                        isString,
-                                                                        isHex,
-                                                                        size)
-            defaultsCode += "#else\n" + defaultLine + codeTemplates.EndIf
-        # If we have only Linux default.
-        elif not hasWinDefault and hasLnxDefault and not hasAndroidDefault:
-            defaultsCode += "#if " + codeTemplates.LnxIfDef + genDefaultLine(
-                                                                 defaults["LnxDefault"],
-                                                                 setting["VariableName"],
-                                                                 isString,
-                                                                 isHex,
-                                                                 size)
-            defaultsCode += "#else\n" + defaultLine + codeTemplates.EndIf
-        # If we have only Android default.
-        elif not hasWinDefault and not hasLnxDefault and hasAndroidDefault:
-            defaultsCode += "#if " + codeTemplates.AndroidIfDef + genDefaultLine(
-                                                                      defaults["AndroidDefault"],
+        if "Defaults" in setting:
+            defaults = setting["Defaults"]
+            hasWinDefault = "WinDefault" in defaults
+            hasLnxDefault = "LnxDefault" in defaults
+            hasAndroidDefault = "AndroidDefault" in defaults
+
+            defaultLine = genDefaultLine(defaults["Default"], setting["VariableName"], isString, isHex, size)
+            # If we have Windows, Linux and Android defaults.
+            if hasWinDefault and hasLnxDefault and hasAndroidDefault:
+                defaultsCode += "#if " + codeTemplates.WinIfDef + genDefaultLine(
+                                                                      defaults["WinDefault"],
                                                                       setting["VariableName"],
                                                                       isString,
                                                                       isHex,
                                                                       size)
-            defaultsCode += "#else\n" + defaultLine + codeTemplates.EndIf
-        # If we have no defaults.
+                defaultsCode += "#elif " + codeTemplates.AndroidIfDef + genDefaultLine(
+                                                                            defaults["AndroidDefault"],
+                                                                            setting["VariableName"],
+                                                                            isString,
+                                                                            isHex,
+                                                                            size)
+                defaultsCode += "#elif " + codeTemplates.LnxIfDef + genDefaultLine(
+                                                                            defaults["LnxDefault"],
+                                                                            setting["VariableName"],
+                                                                            isString,
+                                                                            isHex,
+                                                                            size)
+                defaultsCode += "#else\n" + defaultLine + codeTemplates.EndIf
+            # If we have Windows, Linux defaults.
+            elif hasWinDefault and hasLnxDefault and not hasAndroidDefault:
+                defaultsCode += "#if " + codeTemplates.WinIfDef + genDefaultLine(
+                                                                      defaults["WinDefault"],
+                                                                      setting["VariableName"],
+                                                                      isString,
+                                                                      isHex,
+                                                                      size)
+                defaultsCode += "#elif " + codeTemplates.LnxIfDef + genDefaultLine(
+                                                                        defaults["LnxDefault"],
+                                                                        setting["VariableName"],
+                                                                        isString,
+                                                                        isHex,
+                                                                        size)
+                defaultsCode += "#else\n" + defaultLine + codeTemplates.EndIf
+            # If we have Windows, Android defaults.
+            elif hasWinDefault and not hasLnxDefault and hasAndroidDefault:
+                defaultsCode += "#if " + codeTemplates.WinIfDef + genDefaultLine(
+                                                                      defaults["WinDefault"],
+                                                                      setting["VariableName"],
+                                                                      isString,
+                                                                      isHex,
+                                                                      size)
+                defaultsCode += "#elif " + codeTemplates.AndroidIfDef + genDefaultLine(
+                                                                            defaults["AndroidDefault"],
+                                                                            setting["VariableName"],
+                                                                            isString,
+                                                                            isHex,
+                                                                            size)
+                defaultsCode += "#else\n" + defaultLine + codeTemplates.EndIf
+            # If we have only Windows default.
+            elif hasWinDefault and not hasLnxDefault and not hasAndroidDefault:
+                defaultsCode += "#if " + codeTemplates.WinIfDef + genDefaultLine(
+                                                                      defaults["WinDefault"],
+                                                                      setting["VariableName"],
+                                                                      isString,
+                                                                      isHex,
+                                                                      size)
+                defaultsCode += "#else\n" + defaultLine + codeTemplates.EndIf
+            # If we have Linux, Android defaults.
+            elif not hasWinDefault and hasLnxDefault and hasAndroidDefault:
+                defaultsCode += "#if " + codeTemplates.AndroidIfDef + genDefaultLine(
+                                                                     defaults["AndroidDefault"],
+                                                                     setting["VariableName"],
+                                                                     isString,
+                                                                     isHex,
+                                                                     size)
+                defaultsCode += "#elif " + codeTemplates.LnxIfDef + genDefaultLine(
+                                                                            defaults["LnxDefault"],
+                                                                            setting["VariableName"],
+                                                                            isString,
+                                                                            isHex,
+                                                                            size)
+                defaultsCode += "#else\n" + defaultLine + codeTemplates.EndIf
+            # If we have only Linux default.
+            elif not hasWinDefault and hasLnxDefault and not hasAndroidDefault:
+                defaultsCode += "#if " + codeTemplates.LnxIfDef + genDefaultLine(
+                                                                     defaults["LnxDefault"],
+                                                                     setting["VariableName"],
+                                                                     isString,
+                                                                     isHex,
+                                                                     size)
+                defaultsCode += "#else\n" + defaultLine + codeTemplates.EndIf
+            # If we have only Android default.
+            elif not hasWinDefault and not hasLnxDefault and hasAndroidDefault:
+                defaultsCode += "#if " + codeTemplates.AndroidIfDef + genDefaultLine(
+                                                                          defaults["AndroidDefault"],
+                                                                          setting["VariableName"],
+                                                                          isString,
+                                                                          isHex,
+                                                                          size)
+                defaultsCode += "#else\n" + defaultLine + codeTemplates.EndIf
+            # If we have no defaults.
+            else:
+                defaultsCode += defaultLine
         else:
-            defaultsCode += defaultLine
+            # No "Defaults" field, so it is an optional setting.
+            defaultsCode = genDefaultLine(None, setting["VariableName"], None, None, 0)
 
     setDefaultsCode += ifDefTmp
     setDefaultsCode += defaultsCode
@@ -849,6 +868,7 @@ for setting in settingsData["Settings"]:
                                         "",
                                         "")
             data["hashName"] = setting["HashName"]
+            data["isOptional"] = not "Defaults" in setting
             readSettingData.append(data)
             if "Flags" in setting and "RereadSetting" in setting["Flags"] and setting["Flags"]["RereadSetting"]:
                 rereadSettingData.append(data)
@@ -883,16 +903,20 @@ for setting in settingsData["Settings"]:
             varName = setting["VariableName"] + "." + field["VariableName"]
             numHashes = numHashes + 1
             settingInfoCode += ifDefTmp
-            settingInfoCode += genInitSettingInfoCode(field["Type"], varName, field["HashName"])
+            settingInfoCode += genInitSettingInfoCode(field["Type"], "false", varName, field["HashName"])
             settingInfoCode += endDefTmp
 
             settingHashList += ifDefTmp
             settingHashList += str(field["HashName"]) + ",\n"
             settingHashList += endDefTmp
     else:
+        isOptional = "true"
+        if "Defaults" in setting:
+            isOptional = "false"
         numHashes = numHashes + 1
         settingInfoCode += ifDefTmp
-        settingInfoCode += genInitSettingInfoCode(setting["Type"], setting["VariableName"], setting["HashName"])
+        settingInfoCode += genInitSettingInfoCode(setting["Type"], isOptional,
+                                                  setting["VariableName"], setting["HashName"])
         settingInfoCode += endDefTmp
 
         settingHashList += ifDefTmp

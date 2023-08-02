@@ -22,7 +22,15 @@
     {
       "Name": "Vrs"
     },
-    "Gfx10"
+    "Gfx10",
+    {
+      "Name": "Gfx11",
+      "OrBuildTypes": [
+        "PAL_BUILD_GFX11",
+        "PAL_BUILD_NAVI3X",
+        "PAL_BUILD_PHOENIX"
+      ]
+    }
   ],
   "Settings": [
     {
@@ -397,9 +405,45 @@
       "Name": "ForceRegularClearCode"
     },
     {
+      "ValidValues": {
+        "IsEnum": true,
+        "IsExclusive": true,
+        "Values": [
+          {
+            "Name": "SlowClearUav",
+            "Value": 0,
+            "Description": "Use a compute pipeline and UAVs"
+          },
+          {
+            "Name": "SlowClearRt",
+            "Value": 1,
+            "Description": "Treat clear target as a render target"
+          }
+        ],
+        "Name": "SlowClearMethod",
+        "Description": "Method used for slow clears."
+      },
+      "Name": "Gfx11SlowClearMethod",
+      "Tags": [
+        "General",
+        "Gfx11"
+      ],
+      "Defaults": {
+        "Default": "SlowClearUav"
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "enum",
+      "VariableName": "gfx11SlowClearMethod",
+      "Description": "Determines whether slow clears should occur as UAVs or render targets.  GFX11 only",
+      "OrBuildTypes": [
+        "PAL_BUILD_GFX11"
+      ]
+    },
+    {
       "Description": "GFX11 adds support that allows DCC to always support format replacement",
       "Tags": [
-        "Color Targets"
+        "Color Targets",
+        "Gfx11"
       ],
       "Defaults": {
         "Default": true
@@ -415,7 +459,8 @@
     {
       "Description": "Controls the value of CB_FDCC_CONTROL.SAMPLE_MASK_TRACKER_WATERMARK.  Valid values are 0 and 3-15",
       "Tags": [
-        "Color Targets"
+        "Color Targets",
+        "Gfx11"
       ],
       "Defaults": {
         "Default": 0
@@ -440,7 +485,8 @@
       },
       "Description": "Multiplies the size of the metadata surface by this amount. Metadata surface size works in powers of 2. Non power of 2 multiples might work, but it won't be a value that is actaully returned by addrlib.",
       "Tags": [
-        "General"
+        "General",
+        "Gfx11"
       ],
       "Defaults": {
         "Default": 1
@@ -456,7 +502,8 @@
     {
       "Description": "The final alignment of the metadata will be the result of Max(addrlib DCC alignment, gfx11OverrideMetadataAlignment).",
       "Tags": [
-        "General"
+        "General",
+        "Gfx11"
       ],
       "Flags": {
         "IsHex": true
@@ -800,7 +847,8 @@
     {
       "Description": "Controls the value of the COMPUTE_DISPATCH_INTERLEAVE register. This register governs how many thread groups are sent to one SE before switching to the next one. This setting will override the clients behaviour.",
       "Tags": [
-        "Compute Pipelines"
+        "Compute Pipelines",
+        "Gfx11"
       ],
       "ValidValues": {
         "IsEnum": true,
@@ -813,22 +861,27 @@
           {
             "Name": "OverrideCsDispatchInterleaveSizeDisabled",
             "Value": 1,
-            "Description": "Disable interleaving."
+            "Description": "Disable interleaving (switch after each threadgroup)."
           },
           {
             "Name": "OverrideCsDispatchInterleaveSize128",
             "Value": 2,
-            "Description": "Switch at 128 thread groups."
+            "Description": "Switch at 128 threads."
           },
           {
             "Name": "OverrideCsDispatchInterleaveSize256",
             "Value": 3,
-            "Description": "Switch at 256 thread groups."
+            "Description": "Switch at 256 threads."
           },
           {
             "Name": "OverrideCsDispatchInterleaveSize512",
             "Value": 4,
-            "Description": "Switch at 512 thread groups."
+            "Description": "Switch at 512 threads."
+          },
+          {
+            "Name": "OverrideCsDispatchInterleaveSize64",
+            "Value": 5,
+            "Description": "Switch at 64 threads."
           }
         ],
         "Name": "OverrideCsDispatchInterleaveSize"
@@ -1761,7 +1814,8 @@
     {
       "Description": "This contains the value that will be set for SPI_GS_THROTTLE_CNTL1. The default value is overridden in gfx9SettingsLoader.cpp with the loaded ASIC's default value. Manual setting takes precedence over the ASIC's default value.'",
       "Tags": [
-        "Graphics Pipelines"
+        "Graphics Pipelines",
+        "Gfx11"
       ],
       "Defaults": {
         "Default": 0
@@ -1781,7 +1835,8 @@
     {
       "Description": "This contains the value that will be set for SPI_GS_THROTTLE_CNTL2. The default value is overridden in gfx9SettingsLoader.cpp with the loaded ASIC's default value. Manual setting takes precedence over the ASIC's default value.",
       "Tags": [
-        "Graphics Pipelines"
+        "Graphics Pipelines",
+        "Gfx11"
       ],
       "Defaults": {
         "Default": 0
@@ -1810,7 +1865,8 @@
       },
       "Description": "This controls the value that will be set for the GFX11 specific GE_CNTL::PRIM_GRP_SIZE. Number of primitives in a primgroup. This will be used by Assembler to create primgroups. Valid values are 1-256. The value written to this register field will be this key's value divided by PRIM_AMP_FACTOR. Default to 252 to leave space for a null token broadcast for 2 subgroups in an attribute group.",
       "Tags": [
-        "Graphics Pipelines"
+        "Graphics Pipelines",
+        "Gfx11"
       ],
       "Defaults": {
         "Default": 252
@@ -1847,7 +1903,8 @@
       },
       "Description": "This controls the GCR(Graphics Cache Rinse) usage through GFX11 specific GE_CNTL::GCR_DISABLE.",
       "Tags": [
-        "Graphics Pipelines"
+        "Graphics Pipelines",
+        "Gfx11"
       ],
       "Defaults": {
         "Default": 0
@@ -1899,7 +1956,8 @@
     {
       "Description": "This contains the size in bytes that we will allocate for attributes through memory. Maximum value is 16MB for the entire chip. The value will 64KB aligned. This value is in bytes. NOTE: If key is not set, default value can vary per ASIC (e.g. Gfx11+ APU default is 512 KiB).",
       "Tags": [
-        "Graphics Pipelines"
+        "Graphics Pipelines",
+        "Gfx11"
       ],
       "Flags": {
         "RereadSetting": true
@@ -1955,7 +2013,8 @@
       },
       "Description": "Enum to control how the OREO feature works.",
       "Tags": [
-        "Oreo"
+        "Oreo",
+        "Gfx11"
       ],
       "Flags": {
         "IsHex": true
@@ -1975,6 +2034,7 @@
       "Description": "If true, disables falling back to blend mode when OREO_MODE = 1 (Gfx11OreoModeControl = 1).",
       "Tags": [
         "Oreo",
+        "Gfx11",
         "ForceOreo",
         "OreoMode"
       ],
@@ -1993,6 +2053,7 @@
       "Description": "If true, forces DB to make every wave conflict with the prior wave..",
       "Tags": [
         "Oreo",
+        "Gfx11",
         "Export",
         "ExportOrder",
         "ForceOrder"
@@ -2032,7 +2093,7 @@
         "Gfx10"
       ],
       "Defaults": {
-        "Default": 256
+        "Default": 1024
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
@@ -3627,6 +3688,7 @@
       "Description": "WA to force PRE_PIX_SHADER barrier sync point for PWS+.",
       "Tags": [
         "Hardware Workarounds",
+        "Gfx11",
         "PWS"
       ],
       "Flags": {
@@ -3646,7 +3708,8 @@
     {
       "Description": "WA to force LOCK*THRESHOLD for HS, GS, and CS to 0.",
       "Tags": [
-        "Hardware Workarounds"
+        "Hardware Workarounds",
+        "Gfx11"
       ],
       "Flags": {
         "RereadSetting": true
@@ -3665,7 +3728,8 @@
     {
       "Description": "WA to force SPI_GS_THROTTLE_CNTL2.SPI_THROTTLE_MODE != 0.",
       "Tags": [
-        "Hardware Workarounds"
+        "Hardware Workarounds",
+        "Gfx11"
       ],
       "Flags": {
         "RereadSetting": true
@@ -3684,7 +3748,8 @@
     {
       "Description": "Set VS_XY_NAN_TO_INF = 0 to disable PA stereo rendering",
       "Tags": [
-        "Hardware Workarounds"
+        "Hardware Workarounds",
+        "Gfx11"
       ],
       "Flags": {
         "RereadSetting": true
@@ -3703,7 +3768,8 @@
     {
       "Description": "Set DB_RENDER_CONTROL.MAX_ALLOWED_TILES_IN_WAVE one smaller due to incorrect calculation in the DB cachelines.",
       "Tags": [
-        "Hardware Workarounds"
+        "Hardware Workarounds",
+        "Gfx11"
       ],
       "Flags": {
         "RereadSetting": true

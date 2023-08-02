@@ -238,6 +238,12 @@ public:
         const IGpuMemory&            dstGpuMemory,
         uint32                       regionCount,
         const TypedBufferCopyRegion* pRegions) override;
+    virtual void CmdScaledCopyTypedBufferToImage(
+        const IGpuMemory&                       srcGpuMemory,
+        const IImage&                           dstImage,
+        ImageLayout                             dstImageLayout,
+        uint32                                  regionCount,
+        const TypedBufferImageScaledCopyRegion* pRegions) override;
     virtual void CmdCopyRegisterToMemory(
         uint32            srcRegisterOffset,
         const IGpuMemory& dstGpuMemory,
@@ -436,10 +442,19 @@ public:
         uint32            currRingPos,
         uint32            ringSize) override;
     virtual uint32 GetEmbeddedDataLimit() const override;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+    virtual uint32 GetLargeEmbeddedDataLimit() const override;
+#endif
     virtual uint32* CmdAllocateEmbeddedData(
         uint32   sizeInDwords,
         uint32   alignmentInDwords,
         gpusize* pGpuAddress) override;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+    virtual uint32* CmdAllocateLargeEmbeddedData(
+        uint32   sizeInDwords,
+        uint32   alignmentInDwords,
+        gpusize* pGpuAddress) override;
+#endif
     virtual Result AllocateAndBindGpuMemToEvent(
         IGpuEvent* pGpuEvent) override;
     virtual void CmdExecuteNestedCmdBuffers(

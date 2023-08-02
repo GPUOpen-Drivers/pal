@@ -130,7 +130,11 @@ IndirectCmdGenerator::IndirectCmdGenerator(
         for (uint32_t i = 0; i < createInfo.paramCount; i++)
         {
             IndirectParam* pCheckParam = m_pCreationParam + i;
-            if ((pCheckParam->type == IndirectParamType::DispatchMesh) ||
+            if (((pCheckParam->type == IndirectParamType::DispatchMesh)
+#if PAL_BUILD_GFX11
+                && (IsGfx11Plus(Properties().gfxLevel) == false)
+#endif
+                ) ||
                 ((pCheckParam->type == IndirectParamType::BindVertexData) &&
                     (settings.useExecuteIndirectPacket < UseExecuteIndirectPacketForDrawSpillAndVbTable)) ||
                 ((pCheckParam->type == IndirectParamType::Dispatch) &&

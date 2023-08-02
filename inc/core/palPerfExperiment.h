@@ -205,7 +205,8 @@ struct PerfCounterInfo
 struct SpmTraceCreateInfo
 {
     uint32                 spmInterval;       ///< Interval between each sample in terms of GPU sclks. Minimum of 32.
-    gpusize                ringSize;          ///< Size of the SPM output ring buffer in bytes.
+    gpusize                ringSize;          ///< Suggested size of the SPM output ring buffer in bytes. PAL may use
+                                              ///  a smaller ring in practice but it cannot exceed this size.
     uint32                 numPerfCounters;   ///< Number of performance counters to be collected in this trace.
     const PerfCounterInfo* pPerfCounterInfos; ///< Array of size numPerfCounters of PerfCounterInfo(s).
 };
@@ -372,6 +373,7 @@ struct ThreadTraceLayout
     ThreadTraceSeLayout traces[1];   ///< ThreadTraceSeLayout repeated (traceCount - 1) times.
 };
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 810
 /// Represents all the segments in the spm trace sample. Global segment contains all the counter data for the blocks
 /// that are outside the shader engines.
 enum class SpmDataSegmentType : uint32
@@ -387,30 +389,68 @@ enum class SpmDataSegmentType : uint32
     Global,
     Count
 };
+#endif
 
-/// Represents all data pertaining to a single spm counter instance.
+/// Describes a single SPM counter instance.
 struct SpmCounterData
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 810
     SpmDataSegmentType segment;  ///< Segment this counter belongs to (global, Se0, Se1 etc).
-    gpusize            offset;   ///< Offset within the segment where the counter data lies.
-    GpuBlock           gpuBlock; ///< The gpu block this counter instance belongs to.
-    uint32             instance; ///< The global instance number of this counter.
-    uint32             eventId;  ///< The event that was tracked by this counter.
+    gpusize            offset;   ///< Offset within the sample to the counter data. In units of counters, not bytes!
+#endif
+    GpuBlock gpuBlock; ///< The kind of GPU block this counter measured.
+    uint32   instance; ///< Which specific global block instance this counter measured.
+    uint32   eventId;  ///< The event that was measured by this counter.
+    uint32   offsetLo; ///< Byte offset within each sample to the lower 16-bit half of the counter data.
+    uint32   offsetHi; ///< Byte offset within each sample to the upper 16-bit half of the counter data.
+    bool     is32Bit;  ///< If the client must combine the independent 16-bit halves into a single 32-bit value.
+                       ///  If this is false offsetLo points to the full 16-bit data value and offsetHi is ignored.
 };
 
-/// Represents all information required for reading contents of SpmTrace results buffer. The caller must provide
-/// enough memory for storing (numCounters-1) * sizeof(SpmCounterData), following this structure.
+/// All information required to parse the counter data out of a SpmTrace results buffer.
+///
+/// Note that the hardware will continue to write samples to the SPM ring buffer even if it runs out of unused space.
+/// The hardware will simply wrap the ring's write pointer back around to the first sample's location. Each subsequent
+/// sample will overwrite the oldest sample in the ring. When the trace is finished we will have at most @ref
+/// maxNumSamples valid samples.
+///
+/// PAL doesn't zero out the ring memory so it's generally hard for the client to distinguish valid samples from random
+/// data present in unused sample locations. PAL does guarantee that the final sample location in the ring has its
+/// timestamp zeroed out before the SPM trace starts. This means this last timestamp will only be non-zero if the ring
+/// has completely filled up and the WrPtr has wrapped one or more times. The client must inspect this timestamp when
+/// parsing the sample data:
+/// 1. The last timestamp is zero. The ring did not wrap. The oldest sample is at @ref sampleOffset. The ring's write
+///    pointer tells us how many samples were written. From the write pointer onwards the ring contains invalid data.
+/// 2. The last timestamp is non-zero. The ring did wrap. The ring's write pointer points to the oldest sample,
+///    effectively a random sample offset into the ring. The full ring contains valid sample data but it's not in
+///    oldest-to-newest order, it's shifted. The client can walk the ring from the write pointer's location (wrapping
+///    as they go) to parse all @ref maxNumSamples samples out in oldest-to-newest order.
 struct SpmTraceLayout
 {
-    gpusize        offset;              ///< Offset into the buffer where the spm trace data begins.
-    gpusize        wptrOffset;          ///< Offset of the dword that has the size of spm data written by the HW.
-    uint32         wptrGranularity;     ///< The wptr's granularity, indicating the number of bytes in each wptr
-                                        ///< increment.
-    gpusize        sampleOffset;        ///< Offset into the buffer where the first sample data begins.
-    uint32         sampleSizeInBytes;   ///< Size of all segments in one sample.
-    uint32         segmentSizeInBytes[static_cast<uint32>(SpmDataSegmentType::Count)]; ///< Individual segment sizes.
-    uint32         numCounters;         ///< Number of counters for which spm trace was requested by the client.
-    SpmCounterData counterData[1];      ///< Contains numCounters - 1 CounterInfo
+    gpusize offset;           ///< Byte offset into the bound GPU memory where the spm trace data begins.
+                              ///  The @ref wrPtrOffset and @ref sampleOffset are relative to this value.
+    uint32  wrPtrOffset;      ///< Byte offset within SPM trace data to the HW's write pointer (WrPtr) DWORD.
+                              ///  The WrPtr's value is an offset relative to @ref sampleOffset. Don't assume this is
+                              ///  a byte offset (see @ref wrPtrGranularity). The WrPtr's value shows where the HW's
+                              ///  theoretical next sample would go. This value may wrap back to zero if the HW runs of
+                              ///  space in the SPM ring buffer.
+    uint32  wrPtrGranularity; ///< The WrPtr's granularity. Multiply WrPtr's value by this value to get a byte offset.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 810
+    uint32  sampleOffset;     ///< Byte offset within the SPM trace data to the array of samples. The HW will write the
+                              ///  first sample here but it will be overwritten if the ring wraps (see the top comment).
+#else
+    gpusize wptrOffset;        ///< Byte offset within the bound GPU memory to the HW's write pointer DWORD.
+    uint32  wptrGranularity;   ///< The wptr's granularity. Multiply wptr by this value to get a byte offset.
+    gpusize sampleOffset;      ///< Byte offset within the SPM trace data to the array of samples.
+    uint32  sampleSizeInBytes; ///< Size of all segments in one sample.
+    uint32  segmentSizeInBytes[static_cast<uint32>(SpmDataSegmentType::Count)]; ///< Individual segment sizes.
+#endif
+    uint32  sampleStride;     ///< The distance between consecutive samples in bytes. May include empty padding.
+    uint32  maxNumSamples;    ///< The maximum number of samples the HW can write before wrapping. The SPM ring buffer
+                              ///  ends at sampleOffset + sampleStride * maxNumSamples.
+    uint32  numCounters;      ///< The true length of counterData. The client must allocate extra memory for the array.
+
+    SpmCounterData counterData[1]; ///< The layout and identity of the counters in the samples.
 };
 
 /// Represents the information that is stored in the DF SPM trace metadata buffer.
@@ -524,6 +564,13 @@ public:
         ThreadTraceLayout* pLayout) const = 0;
 
     /// Queries the layout of streaming counter trace results in memory for this perf experiment.
+    ///
+    /// The caller is expected to call this function twice. The first time with pLayout->numCounters = 0 which prompts
+    /// PAL to only set numCounters to the correct number of SPM counters and return. The second call with a non-zero
+    /// numCounters prompts PAL to fill out the full structure and counterData array.
+    ///
+    /// Note that @ref SpmTraceLayout contains a variable length array. The caller must allocate enough memory for
+    /// an additional "numCounters - 1" copies of @ref SpmCounterData.
     ///
     /// @param [out] pLayout Layout describing the layout of the streaming counter trace results in the resulting
     ///                      GPU memory once this perf experiment is executed.

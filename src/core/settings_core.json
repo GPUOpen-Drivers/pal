@@ -31,7 +31,15 @@
     "Gfx7",
     "Gfx8",
     "Gfx9",
-    "Gfx10"
+    "Gfx10",
+    {
+      "Name": "Gfx11",
+      "OrBuildTypes": [
+        "PAL_BUILD_GFX11",
+        "PAL_BUILD_NAVI3X",
+        "PAL_BUILD_PHOENIX"
+      ]
+    }
   ],
   "Settings": [
     {
@@ -2169,7 +2177,8 @@
       "Tags": [
         "Gfx8",
         "Gfx9",
-        "Gfx10"
+        "Gfx10",
+        "Gfx11"
       ],
       "Flags": {
         "IsBitmask": true,

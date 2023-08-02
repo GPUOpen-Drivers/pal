@@ -486,7 +486,7 @@ private:
     Elf::ElfProcessor<Allocator> m_elfProcessor;
     Allocator* const m_pAllocator;
 
-    PAL_DISALLOW_COPY_AND_ASSIGN(PipelineAbiProcessor<Allocator>);
+    PAL_DISALLOW_COPY_AND_ASSIGN(PipelineAbiProcessor);
 };
 
 } // Abi

@@ -489,6 +489,23 @@ void GfxCmdBuffer::CmdCopyTypedBuffer(
 }
 
 // =====================================================================================================================
+void GfxCmdBuffer::CmdScaledCopyTypedBufferToImage(
+    const IGpuMemory&                       srcGpuMemory,
+    const IImage&                           dstImage,
+    ImageLayout                             dstImageLayout,
+    uint32                                  regionCount,
+    const TypedBufferImageScaledCopyRegion* pRegions)
+{
+    PAL_ASSERT(pRegions != nullptr);
+    m_device.RsrcProcMgr().CmdScaledCopyTypedBufferToImage(this,
+                                                           static_cast<const GpuMemory&>(srcGpuMemory),
+                                                           static_cast<const Image&>(dstImage),
+                                                           dstImageLayout,
+                                                           regionCount,
+                                                           pRegions);
+}
+
+// =====================================================================================================================
 void GfxCmdBuffer::CmdScaledCopyImage(
     const ScaledCopyInfo& copyInfo)
 {

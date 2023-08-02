@@ -47,6 +47,7 @@
 #include "palTraceSession.h"
 #include "gpuUtil/asicInfoTraceSource.h"
 #include "gpuUtil/apiInfoTraceSource.h"
+#include "gpuUtil/clockCalibTraceSource.h"
 #include "gpuUtil/uberTraceService.h"
 #include "gpuUtil/frameTraceController.h"
 #endif
@@ -122,6 +123,7 @@ Platform::Platform(
     m_pFrameTraceController(nullptr),
     m_pAsicInfoTraceSource(nullptr),
     m_pApiInfoTraceSource(nullptr),
+    m_pClockCalibTraceSource(nullptr),
     m_pUberTraceService(nullptr),
 #endif
     m_rpcServer(DD_API_INVALID_HANDLE),
@@ -798,10 +800,13 @@ void Platform::DestroyTraceControllers()
 Result Platform::InitDefaultTraceSources()
 {
     Result result = Result::Success;
-    m_pAsicInfoTraceSource = PAL_NEW(GpuUtil::AsicInfoTraceSource, this, AllocInternal) (this);
-    m_pApiInfoTraceSource  = PAL_NEW(GpuUtil::ApiInfoTraceSource, this, AllocInternal) (this);
+    m_pAsicInfoTraceSource   = PAL_NEW(GpuUtil::AsicInfoTraceSource, this, AllocInternal) (this);
+    m_pApiInfoTraceSource    = PAL_NEW(GpuUtil::ApiInfoTraceSource, this, AllocInternal) (this);
+    m_pClockCalibTraceSource = PAL_NEW(GpuUtil::ClockCalibrationTraceSource, this, AllocInternal) (this);
 
-    if ((m_pAsicInfoTraceSource == nullptr) || (m_pApiInfoTraceSource == nullptr))
+    if ((m_pAsicInfoTraceSource   == nullptr) ||
+        (m_pApiInfoTraceSource    == nullptr) ||
+        (m_pClockCalibTraceSource == nullptr))
     {
         result = Result::ErrorOutOfMemory;
     }
@@ -820,6 +825,11 @@ Result Platform::RegisterDefaultTraceSources()
         result = m_pTraceSession->RegisterSource(m_pApiInfoTraceSource);
     }
 
+    if (Util::IsErrorResult(result) == false)
+    {
+        result = m_pTraceSession->RegisterSource(m_pClockCalibTraceSource);
+    }
+
     return result;
 }
 
@@ -834,6 +844,10 @@ void Platform::DestroyDefaultTraceSources()
     if (m_pApiInfoTraceSource != nullptr)
     {
         PAL_SAFE_DELETE(m_pApiInfoTraceSource, this);
+    }
+    if (m_pClockCalibTraceSource != nullptr)
+    {
+        PAL_SAFE_DELETE(m_pClockCalibTraceSource, this);
     }
 }
 

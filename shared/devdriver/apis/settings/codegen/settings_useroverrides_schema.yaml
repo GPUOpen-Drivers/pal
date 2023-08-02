@@ -1,0 +1,63 @@
+$id: ./settings_useroverrides_schema.json
+$schema: https://json-schema.org/draft/2020-12/schema
+title: Settings User Overrides Schema
+description: ''
+type: object
+properties:
+  version:
+    type: integer
+    minimum: 1
+  components:
+    type: array
+    items:
+      $ref: '#/$defs/component'
+required:
+  - version
+  - components
+$defs:
+  component:
+    type: object
+    properties:
+      name:
+        type: string
+        description: The name of the component.
+      userOverrides:
+        type: array
+        items:
+          $ref: '#/$defs/userOverrides'
+    required:
+      - name
+      - userOverrides
+  userOverrides:
+    type: object
+    properties:
+      name:
+        type: string
+        description: Name of the setting.
+      type:
+        enum:
+          - bool
+          - int8
+          - uint8
+          - int16
+          - uint16
+          - int32
+          - uint32
+          - int64
+          - uint64
+          - float
+          - string
+        description: The type of the user value.
+      value:
+        type:
+          - number
+          - string
+          - boolean
+        description: The actual user value of the setting.
+      group:
+        type: string
+        description: The name of the group this setting belongs to. This field is optional.
+    required:
+      - name
+      - type
+      - value

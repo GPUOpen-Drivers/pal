@@ -70,7 +70,9 @@ struct ShaderMetadata
 struct CbConstUsageMetadata
 {
     /// constant buffer id
-    uint32                buffId;
+    uint32                bufferId;
+    /// constant buffer index in the range
+    uint32                bufferIndex;
     /// slot
     uint32                elem;
     /// channel select
@@ -82,11 +84,12 @@ struct CbConstUsageMetadata
     {
         struct
         {
-            uint8 buffId   : 1;
-            uint8 elem     : 1;
-            uint8 chan     : 1;
-            uint8 usage    : 1;
-            uint8 reserved : 4;
+            uint8 bufferId    : 1;
+            uint8 bufferIndex : 1;
+            uint8 elem        : 1;
+            uint8 chan        : 1;
+            uint8 usage       : 1;
+            uint8 reserved    : 3;
         };
         uint8 uAll;
     } hasEntry;
@@ -2451,10 +2454,11 @@ namespace HardwareStageMetadataKey
 
 namespace CbConstUsageMetadataKey
 {
-    static constexpr char BuffId[] = ".buff_id";
-    static constexpr char Elem[]   = ".elem";
-    static constexpr char Chan[]   = ".chan";
-    static constexpr char Usage[]  = ".usage";
+    static constexpr char BufferId[]    = ".buffer_id";
+    static constexpr char BufferIndex[] = ".buffer_index";
+    static constexpr char Elem[]        = ".elem";
+    static constexpr char Chan[]        = ".chan";
+    static constexpr char Usage[]       = ".usage";
 };
 
 namespace ShaderMetadataKey

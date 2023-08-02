@@ -120,4 +120,19 @@ void GfxImage::PadYuvPlanarViewActualExtent(
     pActualExtent->height = static_cast<uint32>(arraySliceStride / pActualExtent->width);
 }
 
+// =====================================================================================================================
+bool GfxImage::IsSwizzleThin(
+    const SubresId& subResId
+    ) const
+{
+    const ImageType         imageType   = GetOverrideImageType();
+    const SubResourceInfo*  pSubResInfo = Parent()->SubresourceInfo(subResId);
+    const uint32            swizzleMode = GetSwTileMode(pSubResInfo);
+    const auto*             pAddrMgr    = Parent()->GetDevice()->GetAddrMgr();
+
+    // If the image is 1D or 2D, then it's automatically thin... 3D images require help from the addrmgr as then the
+    // "thin" determination is dependent on the characteristics of the swizzle mode assigned to this subresource.
+    return (imageType != ImageType::Tex3d) || pAddrMgr->IsThin(swizzleMode);
+}
+
 } // Pal

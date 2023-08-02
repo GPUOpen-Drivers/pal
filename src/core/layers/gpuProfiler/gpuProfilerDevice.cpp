@@ -133,7 +133,12 @@ Result Device::CommitSettingsAndInit()
     // from its command allocator, allocations made resident using AddGpuMemoryReferences or allocations on the
     // per-submit residency list. Unfortunately we must break these rules in order to support a record/replay layer.
     // We won't need to disable this optimization if we rewrite the GPU profiler to instrument the client commands.
-    pInitialSettings->cmdAllocResidency &= ~CmdAllocResWaitOnSubmitEmbeddedData;
+    pInitialSettings->cmdAllocResidency &= ~(
+        CmdAllocResWaitOnSubmitEmbeddedData
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+        | CmdAllocResWaitOnSubmitLargeEmbeddedData
+#endif
+        );
 
     Result result = DeviceDecorator::CommitSettingsAndInit();
 

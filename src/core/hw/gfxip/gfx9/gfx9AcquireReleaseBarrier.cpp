@@ -23,10 +23,10 @@
  *
  **********************************************************************************************************************/
 
-#include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9Image.h"
 #include "core/hw/gfxip/gfx9/gfx9UniversalCmdBuffer.h"
+#include "palVectorImpl.h"
 
 using namespace Util;
 
@@ -82,6 +82,33 @@ static constexpr uint32 CacheCoherShaderReadMask = CoherShaderRead | CoherCopySr
 static constexpr uint32 CacheCoherShaderAccessMask = CacheCoherencyBlt | CoherShader | CoherSampleRate | CoherStreamOut;
 
 // =====================================================================================================================
+BarrierMgr::BarrierMgr(
+    GfxDevice*     pGfxDevice,
+    const CmdUtil& cmdUtil)
+    :
+    GfxBarrierMgr(pGfxDevice),
+    m_cmdUtil(cmdUtil),
+    m_gfxIpLevel(pGfxDevice->Parent()->ChipProperties().gfxLevel)
+{
+}
+
+// =====================================================================================================================
+const RsrcProcMgr& BarrierMgr::RsrcProcMgr() const
+{
+    return static_cast<const Gfx9::RsrcProcMgr&>(m_pGfxDevice->RsrcProcMgr());
+}
+
+// =====================================================================================================================
+CmdStream* BarrierMgr::GetCmdStream(
+    Pm4CmdBuffer* pCmdBuf)
+{
+    const auto cmdStreamEngine = pCmdBuf->IsGraphicsSupported() ? CmdBufferEngineSupport::Graphics
+                                                                : CmdBufferEngineSupport::Compute;
+
+    return static_cast<CmdStream*>(pCmdBuf->GetCmdStreamByEngine(cmdStreamEngine));
+}
+
+// =====================================================================================================================
 // Translate accessMask to ReleaseMemCaches.
 static ReleaseMemCaches GetReleaseCacheFlags(
     uint32                        accessMask,  // Bitmask of CacheCoherencyUsageFlags.
@@ -114,7 +141,7 @@ static ReleaseMemCaches GetReleaseCacheFlags(
 
 // =====================================================================================================================
 // Translate accessMask to SyncGlxFlags.
-SyncGlxFlags Device::GetAcquireCacheFlags(
+SyncGlxFlags BarrierMgr::GetAcquireCacheFlags(
     uint32                        accessMask,  // Bitmask of CacheCoherencyUsageFlags.
     bool                          refreshTcc,
     bool                          mayHaveMetadata,
@@ -179,7 +206,7 @@ SyncGlxFlags Device::GetAcquireCacheFlags(
 }
 
 // =====================================================================================================================
-SyncGlxFlags Device::GetReleaseThenAcquireCacheFlags(
+SyncGlxFlags BarrierMgr::GetReleaseThenAcquireCacheFlags(
     uint32                        srcAccessMask,
     uint32                        dstAccessMask,
     bool                          refreshTcc,
@@ -315,13 +342,12 @@ static bool WaRefreshTccOnMetadataMisalignment(
 
 // =====================================================================================================================
 static ReleaseEvents GetReleaseEvents(
-    Pm4CmdBuffer* pCmdBuf,
-    const Device& device,
-    uint32        srcStageMask,
-    uint32        srcAccessMask,
-    bool          splitBarrier,
-    SyncGlxFlags  acquireCaches = SyncGlxNone,       // Assume SyncGlxNone in split barrier
-    AcquirePoint  acquirePoint  = AcquirePoint::Pfp) // Assume worst stall if info not available in split barrier
+    Pm4CmdBuffer*    pCmdBuf,
+    uint32           srcStageMask,
+    uint32           srcAccessMask,
+    bool             splitBarrier,
+    SyncGlxFlags     acquireCaches = SyncGlxNone,       // Assume SyncGlxNone in split barrier
+    AcquirePoint     acquirePoint  = AcquirePoint::Pfp) // Assume worst stall if info not available in split barrier
 {
     constexpr uint32 EopWaitStageMask = PipelineStageEarlyDsTarget | PipelineStageLateDsTarget |
                                         PipelineStageColorTarget   | PipelineStageBottomOfPipe;
@@ -388,7 +414,7 @@ static ReleaseEvents GetReleaseEvents(
 #if PAL_BUILD_GFX11
     // Optimization: for stageMask transition Ps|Cs->Rt/Ps/Ds with GCR operation or Vs|Ps|Cs->Rt/Ps/Ds, convert
     //               release events to Eop so can wait at a later PreColor/PrePs/PreDepth point instead of ME.
-    if (device.Parent()->UsePws(pCmdBuf->GetEngineType()) &&
+    if (pCmdBuf->GetDevice().UsePws(pCmdBuf->GetEngineType()) &&
         (release.ps && release.cs) &&
         (release.vs || (acquireCaches != SyncGlxNone)) &&
         (acquirePoint >= AcquirePoint::PreDepth))
@@ -429,7 +455,7 @@ static ReleaseEvents GetReleaseEvents(
 }
 
 // =====================================================================================================================
-AcquirePoint Device::GetAcquirePoint(
+AcquirePoint BarrierMgr::GetAcquirePoint(
     uint32     dstStageMask,
     EngineType engineType
     ) const
@@ -467,7 +493,7 @@ AcquirePoint Device::GetAcquirePoint(
     if ((acqPoint > AcquirePoint::Me) &&
         (acqPoint != AcquirePoint::Eop)
 #if PAL_BUILD_GFX11
-        && (Parent()->UsePwsLateAcquirePoint(engineType) == false)
+        && (m_pDevice->UsePwsLateAcquirePoint(engineType) == false)
 #endif
         )
     {
@@ -625,8 +651,25 @@ static void GetBltStageAccessInfo(
 
     case HwLayoutTransition::HwlExpandHtileHiZRange:
     case HwLayoutTransition::MsaaColorDecompress:
-    case HwLayoutTransition::InitMaskRam:
         *pStageMask  = PipelineStageCs;
+        *pAccessMask = CoherShader;
+        break;
+
+    case HwLayoutTransition::InitMaskRam:
+        // DX12's implicit alias barrier in DiscardResource() will trigger InitMaskRam and fall into here.
+        // InitMaskRam contains an internal dispatch call to clear MaskRam to uncompressed state and PFP
+        // DMA update to addressing equation and DCC state metadata memory. Returning *pStageMask=PipelineStageCs
+        // will result in potential racing issue when PWS is enabled, since pre-InitMaskRam-barrier
+        // (Release(Eop_TS)->Acquire(PreShader) and the following PFP_SYNC_ME inside InitMaskRam() can't guarantee
+        // previous draw finish using the aliased memory before PFP DMA updates new content to the same memory.
+        // We need pre-InitMaskRam-barrier wait at ME/PFP to avoid the racing issue here.
+        //
+        // Setting *pStageMask=PipelineStageBlt is OK here since it makes barrier acquires at ME, and the following
+        // PFP_SYNC_ME in InitMaskRam() can stall at PFP before PFP DMA.
+        //
+        // No need worry additional overhead in post-InitMaskRam-barrier since pre-InitMaskRam-barrier can clear
+        // all outstanding blt active flags before InitMaskRam.
+        *pStageMask  = PipelineStageBlt;
         *pAccessMask = CoherShader;
         break;
 
@@ -709,7 +752,7 @@ static uint32 GetOptimizedSrcStagesForReadOnlyBarrier(
 
 // =====================================================================================================================
 // Optimize MemBarrier by modify its srcStageMask/dstStageMask to reduce stall operations.
-void Device::OptimizeReadOnlyMemBarrier(
+void BarrierMgr::OptimizeReadOnlyMemBarrier(
     Pm4CmdBuffer* pCmdBuf,
     MemBarrier*   pTransition
     ) const
@@ -722,7 +765,7 @@ void Device::OptimizeReadOnlyMemBarrier(
                    (TestAnyFlagSet(pTransition->dstAccessMask, CacheCoherShaderReadMask) == false));
 
 #if PAL_BUILD_GFX11
-    if (Parent()->UsePws(pCmdBuf->GetEngineType()))
+    if (m_pDevice->UsePws(pCmdBuf->GetEngineType()))
     {
         // Don't skip if last barrier acquires later stage than current barrier acquires.
         const EngineType engineType = pCmdBuf->GetEngineType();
@@ -762,7 +805,7 @@ void Device::OptimizeReadOnlyMemBarrier(
 // =====================================================================================================================
 // Check if can skip this image barrier or try to reduce stall operations by modify its srcStageMask/dstStageMask.
 // Caller should make sure there is no layout transition BLT outside.
-bool Device::OptimizeReadOnlyImgBarrier(
+bool BarrierMgr::OptimizeReadOnlyImgBarrier(
     Pm4CmdBuffer* pCmdBuf,
     ImgBarrier*   pTransition
     ) const
@@ -775,7 +818,7 @@ bool Device::OptimizeReadOnlyImgBarrier(
                    (TestAnyFlagSet(pTransition->dstAccessMask, CacheCoherShaderReadMask) == false));
 
 #if PAL_BUILD_GFX11
-    if (Parent()->UsePws(pCmdBuf->GetEngineType()))
+    if (m_pDevice->UsePws(pCmdBuf->GetEngineType()))
     {
         const Pal::Image* pImage = static_cast<const Pal::Image*>(pTransition->pImage);
 
@@ -817,7 +860,7 @@ bool Device::OptimizeReadOnlyImgBarrier(
 
 // =====================================================================================================================
 // Prepare and get all image layout transition info
-bool Device::GetAcqRelLayoutTransitionBltInfo(
+bool BarrierMgr::GetAcqRelLayoutTransitionBltInfo(
     Pm4CmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
     const AcquireReleaseInfo&     barrierInfo,
@@ -937,7 +980,7 @@ bool Device::GetAcqRelLayoutTransitionBltInfo(
 
 // =====================================================================================================================
 // Issue all image layout transition BLTs and compute info for release the BLTs.
-bool Device::IssueAcqRelLayoutTransitionBlt(
+bool BarrierMgr::IssueAcqRelLayoutTransitionBlt(
     Pm4CmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
     AcqRelTransitionInfo*         pTransitonInfo,
@@ -1038,7 +1081,7 @@ bool Device::IssueAcqRelLayoutTransitionBlt(
 // =====================================================================================================================
 // Wrapper to call RPM's InitMaskRam to issues a compute shader blt to initialize the Mask RAM allocations for an Image.
 // Returns "true" if the compute engine was used for the InitMaskRam operation.
-bool Device::AcqRelInitMaskRam(
+bool BarrierMgr::AcqRelInitMaskRam(
     Pm4CmdBuffer*      pCmdBuf,
     CmdStream*         pCmdStream,
     const ImgBarrier&  imgBarrier
@@ -1054,7 +1097,7 @@ bool Device::AcqRelInitMaskRam(
     const auto&      subresRange = imgBarrier.subresRange;
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-    const auto& engineProps = Parent()->EngineProperties().perEngine[engineType];
+    const auto& engineProps = m_pDevice->EngineProperties().perEngine[engineType];
 
     // This queue must support this barrier transition.
     PAL_ASSERT(engineProps.flags.supportsImageInitBarrier == 1);
@@ -1074,7 +1117,7 @@ bool Device::AcqRelInitMaskRam(
 // =====================================================================================================================
 // Issue the specified BLT operation(s) (i.e., decompress, resummarize) necessary to convert a depth/stencil image from
 // one ImageLayout to another.
-void Device::AcqRelDepthStencilTransition(
+void BarrierMgr::AcqRelDepthStencilTransition(
     Pm4CmdBuffer*        pCmdBuf,
     const ImgBarrier&    imgBarrier,
     LayoutTransitionInfo layoutTransInfo
@@ -1118,7 +1161,7 @@ void Device::AcqRelDepthStencilTransition(
 // =====================================================================================================================
 // Issue the specified BLT operation(s) (i.e., decompresses) necessary to convert a color image from one ImageLayout to
 // another.
-void Device::AcqRelColorTransition(
+void BarrierMgr::AcqRelColorTransition(
     Pm4CmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
     const ImgBarrier&             imgBarrier,
@@ -1200,7 +1243,7 @@ void Device::AcqRelColorTransition(
 
 // =====================================================================================================================
 // Issue appropriate cache sync hardware commands to satisfy the cache release requirements.
-AcqRelSyncToken Device::IssueReleaseSync(
+AcqRelSyncToken BarrierMgr::IssueReleaseSync(
     Pm4CmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
     uint32                        stageMask,  // Bitmask of PipelineStageFlag.
@@ -1212,15 +1255,8 @@ AcqRelSyncToken Device::IssueReleaseSync(
     // Validate input.
     PAL_ASSERT(pBarrierOps != nullptr);
 
-    const EngineType engineType     = pCmdBuf->GetEngineType();
-    uint32*          pCmdSpace      = pCmdStream->ReserveCommands();
-    const bool       isGfxSupported = Pal::Device::EngineSupportsGraphics(engineType);
-
-    if (isGfxSupported == false)
-    {
-        stageMask  &= ~PipelineStagesGraphicsOnly;
-        accessMask &= ~CacheCoherencyGraphicsOnly;
-    }
+    const EngineType engineType = pCmdBuf->GetEngineType();
+    uint32*          pCmdSpace  = pCmdStream->ReserveCommands();
 
     if (pCmdBuf->GetPm4CmdBufState().flags.cpBltActive &&
         TestAnyFlagSet(stageMask, PipelineStageBlt | PipelineStageBottomOfPipe))
@@ -1234,16 +1270,9 @@ AcqRelSyncToken Device::IssueReleaseSync(
         pCmdBuf->SetPm4CmdBufCpBltState(false);
     }
 
-    // Converts PipelineStageBlt stage to specific internal pipeline stage, and optimize cache flags for BLTs.
-    if (TestAnyFlagSet(stageMask, PipelineStageBlt) || TestAnyFlagSet(accessMask, CacheCoherencyBlt))
-    {
-        pCmdBuf->OptimizePipeAndCacheMaskForRelease(&stageMask, &accessMask);
+    pCmdBuf->OptimizePipeStageAndCacheMask(&stageMask, &accessMask, nullptr, nullptr);
 
-        // OptimizePipeAndCacheMaskForRelease() has converted these BLT coherency flags to more specific ones.
-        PAL_ASSERT(TestAnyFlagSet(accessMask, CacheCoherencyBlt) == false);
-    }
-
-    const ReleaseEvents    releaseEvents = GetReleaseEvents(pCmdBuf, *this, stageMask, accessMask, true);
+    const ReleaseEvents    releaseEvents = GetReleaseEvents(pCmdBuf, stageMask, accessMask, true);
     const ReleaseMemCaches releaseCaches = GetReleaseCacheFlags(accessMask, refreshTcc, pBarrierOps);
     // Pick EOP event if a cache sync is requested because EOS events do not support cache syncs.
     const bool             bumpToEop     = (releaseCaches.u8All != 0) && (releaseEvents.u8All != 0);
@@ -1280,7 +1309,7 @@ AcqRelSyncToken Device::IssueReleaseSync(
                 pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
                 if (releaseEvents.rbCache)
                 {
-                    Pm4CmdBuffer::SetBarrierOperationsRbCacheSynced(pBarrierOps);
+                   Pm4CmdBuffer:: SetBarrierOperationsRbCacheSynced(pBarrierOps);
                 }
                 break;
             case AcqRelEventType::PsDone:
@@ -1297,7 +1326,7 @@ AcqRelSyncToken Device::IssueReleaseSync(
             }
 
 #if PAL_BUILD_GFX11
-            if (Parent()->UsePws(engineType))
+            if (m_pDevice->UsePws(engineType))
             {
                 releaseMem.usePws = 1;
 
@@ -1385,7 +1414,7 @@ AcqRelSyncToken Device::IssueReleaseSync(
 //       IssueAcquireSync calls wait at same pipeline point, like PFP / ME. But in reality these syncs can end up wait
 //       at different pipeline points. For example one wait at PFP while another wait at ME, or even later in the
 //       pipeline. Every IssueAcquireSync needs to effectively wait on the list of release tokens.
-void Device::IssueAcquireSync(
+void BarrierMgr::IssueAcquireSync(
     Pm4CmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
     uint32                        stageMask,  // Bitmask of PipelineStageFlag.
@@ -1403,11 +1432,7 @@ void Device::IssueAcquireSync(
     const bool       isGfxSupported = Pal::Device::EngineSupportsGraphics(engineType);
     bool             needPfpSyncMe  = isGfxSupported && TestAnyFlagSet(stageMask, PipelineStagePfpMask);
 
-    if (isGfxSupported == false)
-    {
-        stageMask  &= ~PipelineStagesGraphicsOnly;
-        accessMask &= ~CacheCoherencyGraphicsOnly;
-    }
+    pCmdBuf->OptimizePipeStageAndCacheMask(nullptr, nullptr, &stageMask, &accessMask);
 
     const SyncGlxFlags acquireCaches = GetAcquireCacheFlags(accessMask, refreshTcc, mayHaveMetadata, pBarrierOps);
     AcquirePoint       acquirePoint  = GetAcquirePoint(stageMask, engineType);
@@ -1444,7 +1469,7 @@ void Device::IssueAcquireSync(
 
 #if PAL_BUILD_GFX11
     // If no sync token is specified to be waited for completion, there is no need for a PWS-version of ACQUIRE_MEM.
-    if (hasValidSyncToken && Parent()->UsePws(engineType))
+    if (hasValidSyncToken && m_pDevice->UsePws(engineType))
     {
         // Wait on the PWS+ event via ACQUIRE_MEM.
         AcquireMemGfxPws acquireMem = {};
@@ -1562,7 +1587,7 @@ void Device::IssueAcquireSync(
 
 // =====================================================================================================================
 // Issue appropriate cache sync hardware commands to satisfy the cache release requirements.
-void Device::IssueReleaseThenAcquireSync(
+void BarrierMgr::IssueReleaseThenAcquireSync(
     Pm4CmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
     uint32                        srcStageMask,
@@ -1584,14 +1609,6 @@ void Device::IssueReleaseThenAcquireSync(
                                       pCmdBuf->IsGraphicsSupported();
     uint32*          pCmdSpace      = pCmdStream->ReserveCommands();
 
-    if (pCmdBuf->IsGraphicsSupported() == false)
-    {
-        srcStageMask  &= ~PipelineStagesGraphicsOnly;
-        dstStageMask  &= ~PipelineStagesGraphicsOnly;
-        srcAccessMask &= ~CacheCoherencyGraphicsOnly;
-        dstAccessMask &= ~CacheCoherencyGraphicsOnly;
-    }
-
     if (pCmdBuf->GetPm4CmdBufState().flags.cpBltActive &&
         TestAnyFlagSet(srcStageMask, PipelineStageBlt | PipelineStageBottomOfPipe))
     {
@@ -1600,17 +1617,12 @@ void Device::IssueReleaseThenAcquireSync(
         pCmdBuf->SetPm4CmdBufCpBltState(false);
     }
 
-    // Converts PipelineStageBlt stage to specific internal pipeline stage, and optimize cache flags for BLTs.
-    if (TestAnyFlagSet(srcStageMask, PipelineStageBlt) || TestAnyFlagSet(srcAccessMask, CacheCoherencyBlt))
-    {
-        pCmdBuf->OptimizePipeAndCacheMaskForRelease(&srcStageMask, &srcAccessMask);
-        PAL_ASSERT(TestAnyFlagSet(srcAccessMask, CacheCoherencyBlt) == false);
-    }
+    pCmdBuf->OptimizePipeStageAndCacheMask(&srcStageMask, &srcAccessMask, &dstStageMask, &dstAccessMask);
 
     AcquirePoint     acquirePoint  = GetAcquirePoint(dstStageMask, engineType);
     SyncGlxFlags     acquireCaches = GetReleaseThenAcquireCacheFlags(srcAccessMask, dstAccessMask,
                                                                      refreshTcc, mayHaveMetadata, pBarrierOps);
-    ReleaseEvents    releaseEvents = GetReleaseEvents(pCmdBuf, *this, srcStageMask, srcAccessMask,
+    ReleaseEvents    releaseEvents = GetReleaseEvents(pCmdBuf, srcStageMask, srcAccessMask,
                                                       false, acquireCaches, acquirePoint);
     ReleaseMemCaches releaseCaches = {};
 
@@ -1669,7 +1681,7 @@ void Device::IssueReleaseThenAcquireSync(
         // Go PWS+ wait if PWS+ is supported and
         //     (1) If release a Eop event (PWS+ path performs better than legacy path)
         //     (2) Or if use a later PWS-only acquire point and need release either PsDone or CsDone.
-        if ((releaseEvents.eop && Parent()->UsePws(engineType)) ||
+        if ((releaseEvents.eop && m_pDevice->UsePws(engineType)) ||
             ((acquirePoint > AcquirePoint::Me) && (releaseEvents.ps || releaseEvents.cs)))
         {
             // No VsDone as it should go through non-PWS path.
@@ -1688,7 +1700,9 @@ void Device::IssueReleaseThenAcquireSync(
                 pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
 
                 // Handle cases where a stall is needed as a workaround before EOP with CB Flush event
-                if (releaseEvents.rbCache && TestAnyFlagSet(Settings().waitOnFlush, WaitBeforeBarrierEopWithCbFlush))
+                const auto& gfx9Device = *static_cast<Device*>(m_pGfxDevice);
+                if (releaseEvents.rbCache &&
+                    TestAnyFlagSet(gfx9Device.Settings().waitOnFlush, WaitBeforeBarrierEopWithCbFlush))
                 {
                     pCmdSpace = pCmdBuf->WriteWaitEop(HwPipePreColorTarget, SyncGlxNone, SyncRbNone, pCmdSpace);
                 }
@@ -1849,7 +1863,7 @@ void Device::IssueReleaseThenAcquireSync(
 
 // =====================================================================================================================
 // Figure out the specific BLT operation(s) necessary to convert a color image from one ImageLayout to another.
-LayoutTransitionInfo Device::PrepareColorBlt(
+LayoutTransitionInfo BarrierMgr::PrepareColorBlt(
     Pm4CmdBuffer*      pCmdBuf,
     const Pal::Image&  image,
     const SubresRange& subresRange,
@@ -1988,7 +2002,7 @@ LayoutTransitionInfo Device::PrepareColorBlt(
 
 // =====================================================================================================================
 // Figure out the specific BLT operation(s) necessary to convert a depth/stencil image from one ImageLayout to another.
-LayoutTransitionInfo Device::PrepareDepthStencilBlt(
+LayoutTransitionInfo BarrierMgr::PrepareDepthStencilBlt(
     const Pm4CmdBuffer* pCmdBuf,
     const Pal::Image&   image,
     const SubresRange&  subresRange,
@@ -2022,7 +2036,8 @@ LayoutTransitionInfo Device::PrepareDepthStencilBlt(
     // state to something that uses HiZ.
     else if ((oldState == DepthStencilDecomprNoHiZ) && (newState != DepthStencilDecomprNoHiZ))
     {
-        const auto* pPublicSettings = m_pParent->GetPublicSettings();
+        const auto& gfx9Device      = *static_cast<Device*>(m_pGfxDevice);
+        const auto* pPublicSettings = m_pDevice->GetPublicSettings();
 
         // Use compute if:
         //   - We're on the compute engine
@@ -2030,7 +2045,7 @@ LayoutTransitionInfo Device::PrepareDepthStencilBlt(
         //   - or we have a workaround which indicates if we need to use the compute path.
         const auto& createInfo = image.GetImageCreateInfo();
         const bool  z16Unorm1xAaDecompressUninitializedActive =
-            (Settings().waZ16Unorm1xAaDecompressUninitialized &&
+            (gfx9Device.Settings().waZ16Unorm1xAaDecompressUninitialized &&
              (createInfo.samples == 1) &&
              ((createInfo.swizzledFormat.format == ChNumFormat::X16_Unorm) ||
               (createInfo.swizzledFormat.format == ChNumFormat::D16_Unorm_S8_Uint)));
@@ -2055,7 +2070,7 @@ LayoutTransitionInfo Device::PrepareDepthStencilBlt(
 // =====================================================================================================================
 // Helper function that figures out what BLT transition is needed based on the image's old and new layout.
 // Can only be called once before each layout transition.
-LayoutTransitionInfo Device::PrepareBltInfo(
+LayoutTransitionInfo BarrierMgr::PrepareBltInfo(
     Pm4CmdBuffer*     pCmdBuf,
     const ImgBarrier& imgBarrier
     ) const
@@ -2087,7 +2102,7 @@ LayoutTransitionInfo Device::PrepareBltInfo(
         const auto& gfx9Image   = static_cast<const Gfx9::Image&>(*image.GetGfxImage());
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-        const auto& engineProps = Parent()->EngineProperties().perEngine[pCmdBuf->GetEngineType()];
+        const auto& engineProps = m_pDevice->EngineProperties().perEngine[pCmdBuf->GetEngineType()];
 
         // This queue must support this barrier transition.
         PAL_ASSERT(engineProps.flags.supportsImageInitBarrier == 1);
@@ -2126,13 +2141,14 @@ LayoutTransitionInfo Device::PrepareBltInfo(
 // Release perform any necessary layout transition, availability operation, and enqueue command(s) to set a given
 // IGpuEvent object once the prior operations' intersection with the given synchronization scope is confirmed complete.
 // The availability operation will flush the requested local caches.
-AcqRelSyncToken Device::Release(
-    Pm4CmdBuffer*                 pCmdBuf,
-    CmdStream*                    pCmdStream,
+uint32 BarrierMgr::Release(
+    GfxCmdBuffer*                 pGfxCmdBuf,
     const AcquireReleaseInfo&     releaseInfo,
     Developer::BarrierOperations* pBarrierOps
     ) const
 {
+    auto*const pCmdBuf = static_cast<Pm4CmdBuffer*>(pGfxCmdBuf);
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     uint32 srcGlobalStageMask  = releaseInfo.srcGlobalStageMask;
 #else
@@ -2156,12 +2172,13 @@ AcqRelSyncToken Device::Release(
     }
 
     // A container to cache the calculated BLT transitions and some cache info for reuse.
-    AcqRelAutoBuffer transitionList(releaseInfo.imageBarrierCount, GetPlatform());
+    AcqRelAutoBuffer transitionList(releaseInfo.imageBarrierCount, m_pDevice->GetPlatform());
     AcqRelSyncToken  syncToken = {};
 
     if (transitionList.Capacity() >= releaseInfo.imageBarrierCount)
     {
         // If BLTs will be issued, we need to know how to acquire for them.
+        CmdStream*           pCmdStream       = GetCmdStream(pCmdBuf);
         AcqRelTransitionInfo transInfo        = { &transitionList, 0, 0, 0, false };
         uint32               unusedStageMask  = 0;
         uint32               unusedAccessMask = 0;
@@ -2211,22 +2228,23 @@ AcqRelSyncToken Device::Release(
         pCmdBuf->NotifyAllocFailure();
     }
 
-    return syncToken;
+    return syncToken.u32All;
 }
 
 // =====================================================================================================================
 // Acquire will wait on the specified IGpuEvent object to be signaled, perform any necessary layout transition, and
 // issue the required visibility operations. The visibility operation will invalidate the required ranges in local
 // caches.
-void Device::Acquire(
-    Pm4CmdBuffer*                 pCmdBuf,
-    CmdStream*                    pCmdStream,
+void BarrierMgr::Acquire(
+    GfxCmdBuffer*                 pGfxCmdBuf,
     const AcquireReleaseInfo&     acquireInfo,
     uint32                        syncTokenCount,
-    const AcqRelSyncToken*        pSyncTokens,
+    const uint32*                 pSyncTokens,
     Developer::BarrierOperations* pBarrierOps
     ) const
 {
+    auto*const pCmdBuf = static_cast<Pm4CmdBuffer*>(pGfxCmdBuf);
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     uint32 dstGlobalStageMask  = acquireInfo.dstGlobalStageMask;
 #else
@@ -2251,11 +2269,12 @@ void Device::Acquire(
     }
 
     // A container to cache the calculated BLT transitions and some cache info for reuse.
-    AcqRelAutoBuffer transitionList(acquireInfo.imageBarrierCount, GetPlatform());
+    AcqRelAutoBuffer transitionList(acquireInfo.imageBarrierCount, m_pDevice->GetPlatform());
 
     if (transitionList.Capacity() >= acquireInfo.imageBarrierCount)
     {
         // If BLTs will be issued, we need to know how to acquire for them.
+        CmdStream*           pCmdStream       = GetCmdStream(pCmdBuf);
         AcqRelTransitionInfo transInfo        = { &transitionList, 0, 0, 0, false };
         uint32               unusedStageMask  = 0;
         uint32               unusedAccessMask = 0;
@@ -2287,7 +2306,7 @@ void Device::Acquire(
                          globalRefreshTcc,
                          mayHaveMatadata,
                          syncTokenCount,
-                         pSyncTokens,
+                         reinterpret_cast<const AcqRelSyncToken*>(pSyncTokens),
                          pBarrierOps);
 
         if (transInfo.bltCount > 0)
@@ -2318,13 +2337,14 @@ void Device::Acquire(
 // This is a convenience method for clients implementing single point barriers. Since ReleaseThenAcquire knows
 // both srcAccessMask and dstAccessMask info, instead of calling Release and Acquire directly, can
 // implement independently to issue barrier optimally.
-void Device::ReleaseThenAcquire(
-    Pm4CmdBuffer*                 pCmdBuf,
-    CmdStream*                    pCmdStream,
+void BarrierMgr::ReleaseThenAcquire(
+    GfxCmdBuffer*                 pGfxCmdBuf,
     const AcquireReleaseInfo&     barrierInfo,
     Developer::BarrierOperations* pBarrierOps
     ) const
 {
+    auto*const pCmdBuf = static_cast<Pm4CmdBuffer*>(pGfxCmdBuf);
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     uint32 srcGlobalStageMask  = barrierInfo.srcGlobalStageMask;
     uint32 dstGlobalStageMask  = barrierInfo.dstGlobalStageMask;
@@ -2367,12 +2387,13 @@ void Device::ReleaseThenAcquire(
     }
 
     // A container to cache the calculated BLT transitions and some cache info for reuse.
-    AcqRelAutoBuffer transitionList(barrierInfo.imageBarrierCount, GetPlatform());
+    AcqRelAutoBuffer transitionList(barrierInfo.imageBarrierCount, m_pDevice->GetPlatform());
 
     if (transitionList.Capacity() >= barrierInfo.imageBarrierCount)
     {
         // If BLTs will be issued, we need to know how to acquire for them.
-        AcqRelTransitionInfo transInfo = { &transitionList, 0, 0, 0, false };
+        CmdStream*           pCmdStream = GetCmdStream(pCmdBuf);
+        AcqRelTransitionInfo transInfo  = { &transitionList, 0, 0, 0, false };
 
         globalRefreshTcc |= GetAcqRelLayoutTransitionBltInfo(pCmdBuf,
                                                              pCmdStream,
@@ -2427,7 +2448,7 @@ void Device::ReleaseThenAcquire(
 // =====================================================================================================================
 // Helper function that issues requested transition for the image barrier.
 // Returns "true" if there is InitMaskRam operation and it's done by compute engine.
-bool Device::IssueBlt(
+bool BarrierMgr::IssueBlt(
     Pm4CmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
     const ImgBarrier*             pImgBarrier,
@@ -2479,7 +2500,7 @@ bool Device::IssueBlt(
                 // The most efficient way to wait for DB-idle and flush and invalidate the DB caches on pre-gfx11 HW
                 // is an acquire_mem. Gfx11 can't touch the DB caches using an acquire_mem but that's OK because we
                 // expect WriteWaitEop to do a PWS EOP wait which should be fast.
-                if (IsGfx11(*Parent()))
+                if (IsGfx11(*m_pDevice))
                 {
                     pCmdSpace = pCmdBuf->WriteWaitEop(HwPipePostPrefetch, SyncGlvInv|SyncGl1Inv, SyncDbWbInv, pCmdSpace);
                     waitEop = true;
@@ -2557,7 +2578,7 @@ bool Device::IssueBlt(
 // =====================================================================================================================
 // Issue the specified BLT operation(s) (i.e., decompresses) necessary to convert a color image from one ImageLayout to
 // another.
-void Device::AcqRelColorTransitionEvent(
+void BarrierMgr::AcqRelColorTransitionEvent(
     Pm4CmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
     const ImgBarrier&             imgBarrier,
@@ -2640,7 +2661,7 @@ void Device::AcqRelColorTransitionEvent(
 
 // =====================================================================================================================
 // Issue appropriate cache sync hardware commands to satisfy the cache release requirements.
-void Device::IssueReleaseSyncEvent(
+void BarrierMgr::IssueReleaseSyncEvent(
     Pm4CmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
     uint32                        stageMask,  // Bitmask of PipelineStageFlag.
@@ -2654,15 +2675,8 @@ void Device::IssueReleaseSyncEvent(
     PAL_ASSERT(stageMask != 0);
     PAL_ASSERT(pBarrierOps != nullptr);
 
-    const EngineType engineType     = pCmdBuf->GetEngineType();
-    uint32*          pCmdSpace      = pCmdStream->ReserveCommands();
-    const bool       isGfxSupported = Pal::Device::EngineSupportsGraphics(engineType);
-
-    if (isGfxSupported == false)
-    {
-        stageMask  &= ~PipelineStagesGraphicsOnly;
-        accessMask &= ~CacheCoherencyGraphicsOnly;
-    }
+    const EngineType engineType = pCmdBuf->GetEngineType();
+    uint32*          pCmdSpace  = pCmdStream->ReserveCommands();
 
     if (pCmdBuf->GetPm4CmdBufState().flags.cpBltActive &&
         TestAnyFlagSet(stageMask, PipelineStageBlt | PipelineStageBottomOfPipe))
@@ -2676,20 +2690,14 @@ void Device::IssueReleaseSyncEvent(
         pCmdBuf->SetPm4CmdBufCpBltState(false);
     }
 
-    if (TestAnyFlagSet(stageMask, PipelineStageBlt) || TestAnyFlagSet(accessMask, CacheCoherencyBlt))
-    {
-        pCmdBuf->OptimizePipeAndCacheMaskForRelease(&stageMask, &accessMask);
-
-        // OptimizePipeAndCacheMaskForRelease() has converted these BLT coherency flags to more specific ones.
-        PAL_ASSERT(TestAnyFlagSet(accessMask, CacheCoherencyBlt) == false);
-    }
+    pCmdBuf->OptimizePipeStageAndCacheMask(&stageMask, &accessMask, nullptr, nullptr);
 
     // Issue RELEASE_MEM packets to flush caches (optional) and signal gpuEvent.
     const BoundGpuMemory& gpuEventBoundMemObj = static_cast<const GpuEvent*>(pGpuEvent)->GetBoundGpuMemory();
     PAL_ASSERT(gpuEventBoundMemObj.IsBound());
     const gpusize         gpuEventStartVa     = gpuEventBoundMemObj.GpuVirtAddr();
 
-    const ReleaseEvents    releaseEvents = GetReleaseEvents(pCmdBuf, *this, stageMask, accessMask, true);
+    const ReleaseEvents    releaseEvents = GetReleaseEvents(pCmdBuf, stageMask, accessMask, true);
     const ReleaseMemCaches releaseCaches = GetReleaseCacheFlags(accessMask, refreshTcc, pBarrierOps);
 
     // Note that release event flags for split barrier should meet below conditions,
@@ -2812,7 +2820,7 @@ void Device::IssueReleaseSyncEvent(
 
 // =====================================================================================================================
 // Issue appropriate cache sync hardware commands to satisfy the cache acquire requirements.
-void Device::IssueAcquireSyncEvent(
+void BarrierMgr::IssueAcquireSyncEvent(
     Pm4CmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
     uint32                        stageMask,  // Bitmask of PipelineStageFlag.
@@ -2827,11 +2835,7 @@ void Device::IssueAcquireSyncEvent(
     const EngineType engineType     = pCmdBuf->GetEngineType();
     const bool       isGfxSupported = Pal::Device::EngineSupportsGraphics(engineType);
 
-    if (isGfxSupported == false)
-    {
-        stageMask  &= ~PipelineStagesGraphicsOnly;
-        accessMask &= ~CacheCoherencyGraphicsOnly;
-    }
+    pCmdBuf->OptimizePipeStageAndCacheMask(nullptr, nullptr, &stageMask, &accessMask);
 
     uint32* pCmdSpace = pCmdStream->ReserveCommands();
 
@@ -2884,14 +2888,15 @@ void Device::IssueAcquireSyncEvent(
 // Release perform any necessary layout transition, availability operation, and enqueue command(s) to set a given
 // IGpuEvent object once the prior operations' intersection with the given synchronization scope is confirmed complete.
 // The availability operation will flush the requested local caches.
-void Device::ReleaseEvent(
-    Pm4CmdBuffer*                 pCmdBuf,
-    CmdStream*                    pCmdStream,
+void BarrierMgr::ReleaseEvent(
+    GfxCmdBuffer*                 pGfxCmdBuf,
     const AcquireReleaseInfo&     releaseInfo,
     const IGpuEvent*              pClientEvent,
     Developer::BarrierOperations* pBarrierOps
     ) const
 {
+    auto*const pCmdBuf = static_cast<Pm4CmdBuffer*>(pGfxCmdBuf);
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     uint32 srcGlobalStageMask  = releaseInfo.srcGlobalStageMask;
 #else
@@ -2915,11 +2920,12 @@ void Device::ReleaseEvent(
     }
 
     // A container to cache the calculated BLT transitions and some cache info for reuse.
-    AcqRelAutoBuffer transitionList(releaseInfo.imageBarrierCount, GetPlatform());
+    AcqRelAutoBuffer transitionList(releaseInfo.imageBarrierCount, m_pDevice->GetPlatform());
 
     if (transitionList.Capacity() >= releaseInfo.imageBarrierCount)
     {
         // If BLTs will be issued, we need to know how to acquire for them.
+        CmdStream*           pCmdStream       = GetCmdStream(pCmdBuf);
         AcqRelTransitionInfo transInfo        = { &transitionList, 0, 0, 0, false };
         uint32               unusedStageMask  = 0;
         uint32               unusedAccessMask = 0;
@@ -2990,15 +2996,16 @@ void Device::ReleaseEvent(
 // Acquire will wait on the specified IGpuEvent object to be signaled, perform any necessary layout transition,
 // and issue the required visibility operations. The visibility operation will invalidate the required ranges in local
 // caches.
-void Device::AcquireEvent(
-    Pm4CmdBuffer*                 pCmdBuf,
-    CmdStream*                    pCmdStream,
+void BarrierMgr::AcquireEvent(
+    GfxCmdBuffer*                 pGfxCmdBuf,
     const AcquireReleaseInfo&     acquireInfo,
     uint32                        gpuEventCount,
     const IGpuEvent* const*       ppGpuEvents,
     Developer::BarrierOperations* pBarrierOps
     ) const
 {
+    auto*const pCmdBuf = static_cast<Pm4CmdBuffer*>(pGfxCmdBuf);
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     uint32 dstGlobalStageMask  = acquireInfo.dstGlobalStageMask;
 #else
@@ -3023,11 +3030,12 @@ void Device::AcquireEvent(
     }
 
     // A container to cache the calculated BLT transitions and some cache info for reuse.
-    AcqRelAutoBuffer transitionList(acquireInfo.imageBarrierCount, GetPlatform());
+    AcqRelAutoBuffer transitionList(acquireInfo.imageBarrierCount, m_pDevice->GetPlatform());
 
     if (transitionList.Capacity() >= acquireInfo.imageBarrierCount)
     {
         // If BLTs will be issued, we need to know how to acquire for them.
+        CmdStream*           pCmdStream       = GetCmdStream(pCmdBuf);
         AcqRelTransitionInfo transInfo        = { &transitionList, 0, 0, 0, false };
         uint32               unusedStageMask  = 0;
         uint32               unusedAccessMask = 0;

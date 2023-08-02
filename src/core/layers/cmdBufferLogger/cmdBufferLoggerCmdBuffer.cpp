@@ -900,6 +900,23 @@ static void DumpImageInfo(
              pLoggerImage->GetBoundMemOffset());
     pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
 
+    GpuMemoryRequirements memReqs;
+    pImage->GetGpuMemoryRequirements(&memReqs);
+
+    Snprintf(pString,
+             StringLength,
+             "%s\t Image Alignment         = 0x%016llX",
+             pPrefix,
+             memReqs.alignment);
+    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+
+    Snprintf(pString,
+             StringLength,
+             "%s\t Image Size              = 0x%016llX",
+             pPrefix,
+             memReqs.size);
+    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+
     const bool hasMetadata = (pImage->GetMemoryLayout().metadataSize > 0);
     PrintImageCreateInfo(pCmdBuffer, imageCreateInfo, hasMetadata, pString, pTotalPrefix);
 
@@ -2319,6 +2336,15 @@ static const char* BarrierReasonToString(
     case Developer::BarrierReasonFlushL2CachedData:
         pStr = "BarrierReasonFlushL2CachedData";
         break;
+    case Developer::BarrierReasonResolveImage:
+        pStr = "BarrierReasonResolveImage";
+        break;
+    case Developer::BarrierReasonPerPixelCopy:
+        pStr = "BarrierReasonPerPixelCopy";
+        break;
+    case Developer::BarrierReasonGenerateMipmaps:
+        pStr = "BarrierReasonGenerateMipmaps";
+        break;
     case Developer::BarrierReasonUnknown:
         pStr = "BarrierReasonUnknown";
         break;
@@ -2327,7 +2353,7 @@ static const char* BarrierReasonToString(
         pStr = nullptr;
         break;
     }
-    static_assert(Developer::BarrierReasonInternalLastDefined - 1 == Developer::BarrierReasonFlushL2CachedData,
+    static_assert(Developer::BarrierReasonInternalLastDefined - 1 == Developer::BarrierReasonGenerateMipmaps,
                   "Barrier reason strings need to be updated!");
     return pStr;
 }
@@ -4111,6 +4137,92 @@ void CmdBuffer::CmdCopyTypedBuffer(
 }
 
 // =====================================================================================================================
+static void DumpTypedBufferImageCopyRegion(
+    CmdBuffer*                              pCmdBuffer,
+    uint32                                  regionCount,
+    const TypedBufferImageScaledCopyRegion* pRegions)
+{
+    LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
+    char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
+
+    ICmdBuffer* pNextCmdBuffer = pCmdBuffer->GetNextLayer();
+
+    for (uint32 i = 0; i < regionCount; i++)
+    {
+        const auto& region = pRegions[i];
+
+        Snprintf(pString, StringLength, "Region %u = [", i);
+        pNextCmdBuffer->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "\t imageSubres  = ");
+        SubresIdToString(region.imageSubres, pString);
+        pNextCmdBuffer->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "\t imageOffset  = ");
+        Offset2dToString(region.imageOffset, pString);
+        pNextCmdBuffer->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "\t imageExtent  = ");
+        Extent2dToString(region.imageExtent, pString);
+        pNextCmdBuffer->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "\t bufferExtent  = ");
+        Extent2dToString(region.bufferExtent, pString);
+        pNextCmdBuffer->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "\t bufferOffset  = %u", region.bufferInfo.offset);
+        pNextCmdBuffer->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "\t bufferRowPitch  = %u", region.bufferInfo.rowPitch);
+        pNextCmdBuffer->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "\t bufferDepthPitch  = %u", region.bufferInfo.depthPitch);
+        pNextCmdBuffer->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "\t bufferSwizzledFormat = { format = %s, swizzle = ",
+                 FormatToString(region.bufferInfo.swizzledFormat.format));
+        SwizzleToString(region.bufferInfo.swizzledFormat.swizzle, pString);
+        pNextCmdBuffer->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "\t swizzledFormat = { format = %s, swizzle = ",
+                 FormatToString(region.swizzledFormat.format));
+        SwizzleToString(region.swizzledFormat.swizzle, pString);
+        pNextCmdBuffer->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "]");
+        pNextCmdBuffer->CmdCommentString(pString);
+    }
+
+    PAL_SAFE_DELETE_ARRAY(pString, &allocator);
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdScaledCopyTypedBufferToImage(
+    const IGpuMemory&                       srcGpuMemory,
+    const IImage&                           dstImage,
+    ImageLayout                             dstImageLayout,
+    uint32                                  regionCount,
+    const TypedBufferImageScaledCopyRegion* pRegions)
+{
+    if (m_annotations.logCmdBlts)
+    {
+        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdScaledCopyTypedBufferToImage));
+        DumpGpuMemoryInfo(this, &srcGpuMemory, "srcGpuMemory", "");
+        DumpImageInfo(this, &dstImage, "dstImage", "");
+        DumpImageLayout(this, dstImageLayout, "dstImageLayout");
+        DumpTypedBufferImageCopyRegion(this, regionCount, pRegions);
+
+        // TODO: Add comment string.
+    }
+
+    GetNextLayer()->CmdScaledCopyTypedBufferToImage(*NextGpuMemory(&srcGpuMemory),
+                                                    *NextImage(&dstImage),
+                                                    dstImageLayout,
+                                                    regionCount,
+                                                    pRegions);
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdCopyRegisterToMemory(
     uint32            srcRegisterOffset,
     const IGpuMemory& dstGpuMemory,
@@ -5404,6 +5516,14 @@ uint32 CmdBuffer::GetEmbeddedDataLimit() const
 }
 
 // =====================================================================================================================
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+uint32 CmdBuffer::GetLargeEmbeddedDataLimit() const
+{
+    return GetNextLayer()->GetLargeEmbeddedDataLimit();
+}
+#endif
+
+// =====================================================================================================================
 uint32* CmdBuffer::CmdAllocateEmbeddedData(
     uint32   sizeInDwords,
     uint32   alignmentInDwords,
@@ -5411,6 +5531,17 @@ uint32* CmdBuffer::CmdAllocateEmbeddedData(
 {
     return GetNextLayer()->CmdAllocateEmbeddedData(sizeInDwords, alignmentInDwords, pGpuAddress);
 }
+
+// =====================================================================================================================
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+uint32* CmdBuffer::CmdAllocateLargeEmbeddedData(
+    uint32   sizeInDwords,
+    uint32   alignmentInDwords,
+    gpusize* pGpuAddress)
+{
+    return GetNextLayer()->CmdAllocateLargeEmbeddedData(sizeInDwords, alignmentInDwords, pGpuAddress);
+}
+#endif
 
 // =====================================================================================================================
 Result CmdBuffer::AllocateAndBindGpuMemToEvent(

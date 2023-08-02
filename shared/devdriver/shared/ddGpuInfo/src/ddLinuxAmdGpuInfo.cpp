@@ -173,21 +173,29 @@ static LocalMemoryType TranslateMemoryType(uint32 memType)
     return LocalMemoryType::Unknown;
 }
 
-uint32 DetermineNumberOfCus(const amdgpu_gpu_info& info)
+void FillCuInformation(const amdgpu_gpu_info& info, AmdGpuInfo::AsicInfo& asicInfo)
 {
-    DD_ASSERT(info.num_shader_engines <= 4);
-    DD_ASSERT(info.num_shader_arrays_per_engine <= 4);
+    DD_ASSERT(info.num_shader_engines <= 8);
+    DD_ASSERT(info.num_shader_arrays_per_engine <= 2);
 
-    uint32 numCus = 0;
+    memset(&asicInfo.cuMask, 0, sizeof(uint32) * (kMaxShaderEngines * kMaxShaderArraysPerEngine));
+    asicInfo.numCus = 0;
+
+    // Since the mask from libdrm is a 4x4 array, the KMD uses the left half to represent SE 0-3 and the right half to
+    // represent SE 4-5 (for NV3).
+    // See Device::InitGfx9CuMask in amdgpuDevice.cpp in PAL for more info.
     for (uint32 shaderEngine = 0; shaderEngine < info.num_shader_engines; ++shaderEngine)
     {
         for (uint32 shaderArray = 0; shaderArray < info.num_shader_arrays_per_engine; ++shaderArray)
         {
-            numCus += CountSetBits(info.cu_bitmap[shaderEngine][shaderArray]);
+            const uint32 arrayMask = info.cu_bitmap[shaderEngine % 4][shaderArray + (2 * (shaderEngine / 4))];
+            asicInfo.numCus += CountSetBits(arrayMask);
+            asicInfo.cuMask[shaderEngine][shaderArray] = arrayMask;
         }
     }
 
-    return numCus;
+    asicInfo.numShaderEngines = info.num_shader_engines;
+    asicInfo.numShaderArraysPerEngine = info.num_shader_arrays_per_engine;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -280,7 +288,8 @@ Result QueryGpuInfo(const AllocCb& allocCb, Vector<AmdGpuInfo>* pGpus)
 
                     outGpuInfo.asic.gpuIndex       = i;
                     outGpuInfo.asic.gpuCounterFreq = gpuInfo.gpu_counter_freq * 1000;
-                    outGpuInfo.asic.numCus = DetermineNumberOfCus(gpuInfo);
+
+                    FillCuInformation(gpuInfo, outGpuInfo.asic);
 
                     outGpuInfo.memory.type           = TranslateMemoryType(gpuInfo.vram_type);
                     outGpuInfo.memory.memOpsPerClock = MemoryOpsPerClock(outGpuInfo.memory.type);

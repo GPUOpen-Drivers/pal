@@ -130,6 +130,15 @@ function(pal_compile_definitions_gfx9 TARGET)
     endif()
 #endif
 
+#if PAL_BUILD_PHOENIX1
+    if(PAL_BUILD_PHOENIX1)
+        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_PHOENIX1=1)
+        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_PHOENIX=1)
+        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_GFX11=1)
+        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_PHOENIX1=1)
+    endif()
+#endif
+
 endfunction()
 
 function(pal_compile_definitions_gpu TARGET)
@@ -198,9 +207,13 @@ function(pal_compile_definitions TARGET)
         )
     endif()
 
+    target_compile_definitions(${TARGET} PUBLIC
+        $<$<CONFIG:Debug>:PAL_ENABLE_LOGGING=1>
+    )
+
     if(PAL_ENABLE_LOGGING)
         target_compile_definitions(${TARGET} PUBLIC
-            $<$<CONFIG:Debug>:PAL_ENABLE_LOGGING=1>
+            PAL_ENABLE_LOGGING=1
         )
     endif()
 

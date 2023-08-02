@@ -306,6 +306,32 @@ namespace Apu103
     constexpr unsigned int mmTD_PERFCOUNTER1_SELECT_DEFAULT                   = 0x03FF;
 } // namespace Apu103
 
+#if  CHIP_HDR_PHOENIX1
+namespace Apu11
+{
+    constexpr unsigned int mmATC_PERFCOUNTER0_CFG_DEFAULT                     = 0x0000;
+    constexpr unsigned int mmATC_PERFCOUNTER1_CFG_DEFAULT                     = 0x0000;
+    constexpr unsigned int mmATC_PERFCOUNTER2_CFG_DEFAULT                     = 0x0000;
+    constexpr unsigned int mmATC_PERFCOUNTER3_CFG_DEFAULT                     = 0x0000;
+    constexpr unsigned int mmATC_PERFCOUNTER_HI_DEFAULT                       = 0x0000;
+    constexpr unsigned int mmATC_PERFCOUNTER_LO_DEFAULT                       = 0x0000;
+    constexpr unsigned int mmATC_PERFCOUNTER_RSLT_CNTL_DEFAULT                = 0x4000000;
+    constexpr unsigned int mmGC_ATC_L2_PERFCOUNTER0_CFG_DEFAULT               = 0x0000;
+    constexpr unsigned int mmGC_ATC_L2_PERFCOUNTER1_CFG_DEFAULT               = 0x0000;
+    constexpr unsigned int mmGC_ATC_L2_PERFCOUNTER2_HI_DEFAULT                = 0x0000;
+    constexpr unsigned int mmGC_ATC_L2_PERFCOUNTER2_LO_DEFAULT                = 0x0000;
+    constexpr unsigned int mmGC_ATC_L2_PERFCOUNTER2_MODE_DEFAULT              = 0x0000;
+    constexpr unsigned int mmGC_ATC_L2_PERFCOUNTER2_SELECT1_DEFAULT           = 0xFFFFF;
+    constexpr unsigned int mmGC_ATC_L2_PERFCOUNTER2_SELECT_DEFAULT            = 0xFFFFF;
+    constexpr unsigned int mmGC_ATC_L2_PERFCOUNTER_HI_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmGC_ATC_L2_PERFCOUNTER_LO_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmGC_ATC_L2_PERFCOUNTER_RSLT_CNTL_DEFAULT          = 0x4000000;
+    constexpr unsigned int mmGE_SPI_IF_SAFE_REG_DEFAULT                       = 0x18A69;
+    constexpr unsigned int mmPA_PH_INTERFACE_FIFO_SIZE_DEFAULT                = 0x0028;
+    constexpr unsigned int mmPA_SC_FIFO_DEPTH_CNTL_DEFAULT                    = 0x0028;
+} // namespace Apu11
+#endif
+
 namespace Core
 {
     constexpr unsigned int mmDB_RING_CONTROL_DEFAULT                          = 0x0001;
@@ -3123,7 +3149,7 @@ namespace Gfx103PlusExclusive
     constexpr unsigned int mmTA_CNTL_AUX_DEFAULT                              = 0x1030000;
 } // namespace Gfx103PlusExclusive
 
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 namespace Gfx104Plus
 {
     constexpr unsigned int mmCB_PERFCOUNTER0_SELECT1_DEFAULT                  = 0xFFFFF;
@@ -3510,7 +3536,7 @@ namespace Gfx10Vrs
     constexpr unsigned int mmRLC_SPM_SE_MUXSEL_ADDR_OFFSET_DEFAULT            = 0x0000;
 } // namespace Gfx10Vrs
 
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 namespace Gfx11
 {
     constexpr unsigned int mmCB_BLEND0_CONTROL_DEFAULT                        = 0xCDCD0DCD;
@@ -4002,7 +4028,7 @@ namespace Gfx11
 } // namespace Gfx11
 #endif
 
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 namespace Gfx110
 {
     constexpr unsigned int mmCB_CGTT_SCLK_CTRL_DEFAULT                        = 0x0100;
@@ -7322,6 +7348,23 @@ namespace Oss50
     constexpr unsigned int mmSDMA1_PERFCOUNTER_TAG_DELAY_RANGE_DEFAULT        = 0x640000;
     constexpr unsigned int mmSDMA1_PERFMON_CNTL_DEFAULT                       = 0xFF7FD;
 } // namespace Oss50
+
+#if CHIP_HDR_PHOENIX1
+namespace Phx1
+{
+    constexpr unsigned int mmCB_RMI_GL2_CACHE_CONTROL_DEFAULT                 = 0x80C0000D;
+    constexpr unsigned int mmDB_RMI_L2_CACHE_CONTROL_DEFAULT                  = 0x10D00CD;
+    constexpr unsigned int mmGB_ADDR_CONFIG_DEFAULT                           = 0x0242;
+    constexpr unsigned int mmGB_ADDR_CONFIG_READ_DEFAULT                      = 0x0242;
+    constexpr unsigned int mmPA_SC_ENHANCE_3_DEFAULT                          = 0x0000;
+    constexpr unsigned int mmPA_SC_VRS_SURFACE_CNTL_DEFAULT                   = 0x42000000;
+    constexpr unsigned int mmRLC_SPM_ACCUM_MODE_DEFAULT                       = 0x0004;
+    constexpr unsigned int mmSPI_FEATURE_CTRL_DEFAULT                         = 0x11E0;
+    constexpr unsigned int mmSPI_PS_MAX_WAVE_ID_DEFAULT                       = 0x20000BF;
+    constexpr unsigned int mmSPI_SX_EXPORT_BUFFER_SIZES_DEFAULT               = 0x10000120;
+    constexpr unsigned int mmVGT_GS_MAX_WAVE_ID_DEFAULT                       = 0x017F;
+} // namespace Phx1
+#endif
 
 namespace Raphael
 {

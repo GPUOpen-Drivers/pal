@@ -107,6 +107,9 @@ void LogContext::Enum(
             "BarrierReasonPostSqttTrace",
             "BarrierReasonPrePerfDataCopy",
             "BarrierReasonFlushL2CachedData",
+            "BarrierReasonResolveImage",
+            "BarrierReasonPerPixelCopy",
+            "BarrierReasonGenerateMipmaps",
         };
         static_assert((Developer::BarrierReasonInternalLastDefined - Developer::BarrierReasonFirst)
                        == ArrayLen(StringTable),
@@ -132,11 +135,32 @@ void LogContext::Enum(
 {
     const char*const StringTable[] =
     {
-        "Default", // 0x0,
-        "Disable", // 0x1,
-        "128",     // 0x2,
-        "256",     // 0x3,
-        "512",     // 0x4,
+        "Default (1D_64_Threads)", // 0x0,
+        "Disable",                 // 0x1,
+        "1D_128_Threads",          // 0x2,
+        "1D_256_Threads",          // 0x3,
+        "1D_512_Threads",          // 0x4,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 808
+        "2D_1x1_ThreadGroups",     // 0x5,
+        "2D_1x2_ThreadGroups",     // 0x6,
+        "2D_1x4_ThreadGroups",     // 0x7,
+        "2D_1x8_ThreadGroups",     // 0x8,
+        "2D_1x16_ThreadGroups",    // 0x9,
+
+        "2D_2x1_ThreadGroups",     // 0xA,
+        "2D_2x2_ThreadGroups",     // 0xB,
+        "2D_2x4_ThreadGroups",     // 0xC,
+        "2D_2x8_ThreadGroups",     // 0xD,
+
+        "2D_4x1_ThreadGroups",     // 0xE,
+        "2D_4x2_ThreadGroups",     // 0xF,
+        "2D_4x4_ThreadGroups",     // 0x10,
+
+        "2D_8x1_ThreadGroups",     // 0x11,
+        "2D_8x2_ThreadGroups",     // 0x12,
+
+        "2D_16x1_ThreadGroup",     // 0x13,
+#endif
     };
 
     static_assert(ArrayLen32(StringTable) == static_cast<uint32>(DispatchInterleaveSize::Count),
@@ -1071,6 +1095,11 @@ void LogContext::Enum(
 #endif
         nullptr,
         "Raphael",
+#if PAL_BUILD_PHOENIX1
+        "Phoenix1",
+#else
+        nullptr,
+#endif
         nullptr,
         nullptr,
         nullptr,
@@ -1733,6 +1762,26 @@ void LogContext::Enum(
 
     const uint32 idx = static_cast<uint32>(value);
     PAL_ASSERT(idx < static_cast<uint32>(TilingOptMode::Count));
+
+    Value(StringTable[idx]);
+}
+
+// =====================================================================================================================
+void LogContext::Enum(
+    TriState value)
+{
+    const char* const StringTable[] =
+    {
+        "Default", // 0x0,
+        "Enable",  // 0x1,
+        "Disable", // 0x2,
+    };
+
+    static_assert(ArrayLen(StringTable) == static_cast<uint8>(TriState::Count),
+                  "The TriState string table needs to be updated.");
+
+    const uint8 idx = static_cast<uint8>(value);
+    PAL_ASSERT(idx < static_cast<uint8>(TriState::Count));
 
     Value(StringTable[idx]);
 }

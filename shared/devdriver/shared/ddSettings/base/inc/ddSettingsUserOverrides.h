@@ -25,7 +25,7 @@
 
 #pragma once
 
-#include "ddSettings.h"
+#include "../../../apis/settings/inc/dd_settings_api.h"
 #include <ddApi.h>
 #include <ddDefs.h>
 
@@ -53,12 +53,12 @@ struct SettingsUserOverride
         uint64_t    u64;
         float       f;
         const char* s;
-    } val;
+    } value;
 
     template<typename T>
-    void SetVal(T value)
+    void SetValue(T val)
     {
-        *((T*)&val) = value;
+        *((T*)&value) = val;
     }
 };
 

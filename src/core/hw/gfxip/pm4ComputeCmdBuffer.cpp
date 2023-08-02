@@ -53,9 +53,10 @@ static void PAL_STDCALL DummyCmdSetUserDataGfx(
 ComputeCmdBuffer::ComputeCmdBuffer(
     const GfxDevice&           device,
     const CmdBufferCreateInfo& createInfo,
+    const GfxBarrierMgr*       pBarrierMgr,
     Pm4::CmdStream*            pCmdStream)
     :
-    Pm4CmdBuffer(device, createInfo),
+    Pm4CmdBuffer(device, createInfo, pBarrierMgr),
     m_spillTable{},
     m_device(device),
     m_pCmdStream(pCmdStream)
@@ -172,7 +173,7 @@ void ComputeCmdBuffer::DumpCmdStreamsToFile(
 
 // =====================================================================================================================
 CmdStream* ComputeCmdBuffer::GetCmdStreamByEngine(
-    uint32 engineType)
+    CmdBufferEngineSupport engineType)
 {
     return TestAnyFlagSet(m_engineSupport, engineType) ? m_pCmdStream : nullptr;
 }
@@ -206,6 +207,30 @@ uint32 ComputeCmdBuffer::GetUsedSize(
     }
 
     return sizeInBytes;
+}
+
+// =====================================================================================================================
+void ComputeCmdBuffer::OptimizePipeStageAndCacheMask(
+    uint32* pSrcStageMask,
+    uint32* pSrcAccessMask,
+    uint32* pDstStageMask,
+    uint32* pDstAccessMask
+    ) const
+{
+    Pm4CmdBuffer::OptimizePipeStageAndCacheMask(pSrcStageMask, pSrcAccessMask, pDstStageMask, pDstAccessMask);
+
+    // Mark off all graphics path specific stages and caches if command buffer doesn't support graphics.
+    if ((pSrcStageMask != nullptr) && (pSrcAccessMask != nullptr))
+    {
+        *pSrcStageMask  &= ~PipelineStagesGraphicsOnly;
+        *pSrcAccessMask &= ~CacheCoherencyGraphicsOnly;
+    }
+
+    if ((pDstStageMask != nullptr) && (pDstAccessMask != nullptr))
+    {
+        *pDstStageMask  &= ~PipelineStagesGraphicsOnly;
+        *pDstAccessMask &= ~CacheCoherencyGraphicsOnly;
+    }
 }
 
 } // Pm4

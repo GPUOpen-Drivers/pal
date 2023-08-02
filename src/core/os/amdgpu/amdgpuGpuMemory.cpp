@@ -340,7 +340,7 @@ Result GpuMemory::AllocateOrPinMemory(
                     allocRequest.flags &= ~AMDGPU_GEM_CREATE_NO_CPU_ACCESS;
                 }
 
-                if (pDevice->Settings().clearAllocatedLfb &&
+                if (((pDevice->Settings().clearAllocatedLfb) || (m_flags.initializeToZero == 1)) &&
                     (allocRequest.preferred_heap & AMDGPU_GEM_DOMAIN_VRAM))
                 {
                     allocRequest.flags |= AMDGPU_GEM_CREATE_VRAM_CLEARED;

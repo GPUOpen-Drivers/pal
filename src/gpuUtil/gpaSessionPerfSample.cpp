@@ -248,21 +248,26 @@ Pal::Result GpaSession::TraceSample::InitDfSpmTrace(
     m_numDfSpmCounters    = sampleConfig.dfSpmPerfCounters.numCounters;
     m_dfSpmSampleInterval = sampleConfig.dfSpmPerfCounters.sampleInterval;
 
-    // Space is already allocated for one
-    const size_t size = sizeof(uint32) +
-                        ((m_numDfSpmCounters - 1) * sizeof(uint32));
-    const size_t spmGpuBlocksSize = sizeof(SpmGpuBlock) +
-                                    ((m_numDfSpmCounters - 1) * sizeof(SpmGpuBlock));
+    const size_t size             = m_numDfSpmCounters * sizeof(uint32);
+    const size_t spmGpuBlocksSize = m_numDfSpmCounters * sizeof(SpmGpuBlock);
 
-    void* pEventIdsMem     = PAL_CALLOC(size, m_pAllocator, Util::SystemAllocType::AllocInternal);
-    void* pEventQualsMem   = PAL_CALLOC(size, m_pAllocator, Util::SystemAllocType::AllocInternal);
-    void* pInstancesMem    = PAL_CALLOC(size, m_pAllocator, Util::SystemAllocType::AllocInternal);
-    void* pSpmGpuBlocksMem = PAL_CALLOC(spmGpuBlocksSize, m_pAllocator, Util::SystemAllocType::AllocInternal);
+    m_pDfSpmEventIds        = static_cast<uint32*>(PAL_CALLOC(size,
+                                                              m_pAllocator,
+                                                              Util::SystemAllocType::AllocInternal));
+    m_pDfSpmEventQualifiers = static_cast<uint32*>(PAL_CALLOC(size,
+                                                              m_pAllocator,
+                                                              Util::SystemAllocType::AllocInternal));
+    m_pDfSpmInstances       = static_cast<uint32*>(PAL_CALLOC(size,
+                                                              m_pAllocator,
+                                                              Util::SystemAllocType::AllocInternal));
+    m_pDfSpmGpuBlocks       = static_cast<SpmGpuBlock*>(PAL_CALLOC(spmGpuBlocksSize,
+                                                                   m_pAllocator,
+                                                                   Util::SystemAllocType::AllocInternal));
 
-    if (pEventIdsMem     != nullptr &&
-        pEventQualsMem   != nullptr &&
-        pInstancesMem    != nullptr &&
-        pSpmGpuBlocksMem != nullptr)
+    if (m_pDfSpmEventIds        != nullptr &&
+        m_pDfSpmEventQualifiers != nullptr &&
+        m_pDfSpmInstances       != nullptr &&
+        m_pDfSpmGpuBlocks       != nullptr)
     {
         result = Result::Success;
         m_flags.dfSpmTraceEnabled = 1;
@@ -281,7 +286,8 @@ Pal::Result GpaSession::TraceSample::InitDfSpmTrace(
 }
 
 // =====================================================================================================================
-Pal::Result GpaSession::TraceSample::InitSpmTrace(const GpaSampleConfig& sampleconfig)
+Pal::Result GpaSession::TraceSample::InitSpmTrace(
+    const GpaSampleConfig& sampleconfig)
 {
     Result result       = Result::ErrorOutOfMemory;
     m_numSpmCounters    = sampleconfig.perfCounters.numCounters;
@@ -381,12 +387,8 @@ void GpaSession::TraceSample::GetDfSpmResultsSize(
 {
     if (m_numDfSpmSamples < 0)
     {
-        // m_gcSampleDataOffset and m_pGcSampleDataBufferSize refer to the normal Counter/SQTT buffer. DF SPM data is
-        // stored after that.
-        gpusize location = m_gcSampleDataOffset + m_pGcSampleDataBufferSize;
         // Cache the number of samples if not computed before.
-        m_numDfSpmSamples = CountNumDfSamples(Util::VoidPtrInc(m_pPerfExpResults,
-                                                               static_cast<size_t>(location)));
+        m_numDfSpmSamples = CountNumDfSpmSamples();
     }
 
     (*pNumSamples) = m_numDfSpmSamples;
@@ -404,16 +406,12 @@ void GpaSession::TraceSample::GetSpmResultsSize(
     Pal::gpusize* pSizeInBytes,
     Pal::gpusize* pNumSamples)
 {
-#if USE_SPM_DB_V2
-    const size_t CounterInfoSizeInBytes   = m_numSpmCounters * sizeof(SpmCounterInfo);
-#else
-    const size_t CounterInfoSizeInBytes   = m_numSpmCounters * sizeof(SpmCounterInfoV1);
-#endif
+    const size_t CounterInfoSizeInBytes = m_numSpmCounters * sizeof(SpmCounterInfo);
+
     if (m_numSpmSamples < 0)
     {
         // Cache the number of samples if not computed before.
-        m_numSpmSamples = CountNumSamples(Util::VoidPtrInc(m_pPerfExpResults,
-                                                           static_cast<size_t>(m_pSpmTraceLayout->offset)));
+        CountNumSpmSamples();
     }
 
     (*pNumSamples) = m_numSpmSamples;
@@ -594,7 +592,13 @@ Result GpaSession::TraceSample::GetSpmTraceResults(
     void*  pDstBuffer,
     size_t bufferSize)
 {
-    /* RGP Layout for SPM trace data:
+    // A valid destination buffer size is expected.
+    PAL_ASSERT((bufferSize > 0) && (pDstBuffer != nullptr));
+
+    // We assume these values are always the same.
+    PAL_ASSERT(m_numSpmCounters == m_pSpmTraceLayout->numCounters);
+
+    /* RGP Layout for SPM trace data. This function writes sections 4-6 to pDstBuffer.
      *   1. Header
      *   2. Num Timestamps
      *   3. Num SpmCounterInfo
@@ -602,154 +606,180 @@ Result GpaSession::TraceSample::GetSpmTraceResults(
      *   5. SpmCounterInfo[]
      *   6. Counter values[]
     */
+    const size_t timestampDataSizeInBytes = m_numSpmSamples * sizeof(uint64);
+    const size_t counterInfoSizeInBytes   = m_numSpmCounters * sizeof(SpmCounterInfo);
+    const size_t counterDataOffset        = timestampDataSizeInBytes + counterInfoSizeInBytes;
 
-    Result result = Result::Success;
+    auto*const pDstTimestamps   = static_cast<uint64*>(pDstBuffer);
+    auto*const pDstCounterInfos = static_cast<SpmCounterInfo*>(Util::VoidPtrInc(pDstBuffer, timestampDataSizeInBytes));
 
-    const size_t  NumMetadataBytes         = 32;
-    const gpusize SampleSizeInQWords       = m_pSpmTraceLayout->sampleSizeInBytes / sizeof(uint64);
-    const gpusize SampleSizeInWords        = m_pSpmTraceLayout->sampleSizeInBytes / sizeof(uint16);
-    const size_t  TimestampDataSizeInBytes = m_numSpmSamples * sizeof(gpusize);
-    const gpusize CounterDataSizeInBytes   = m_numSpmSamples * sizeof(uint16); // Size of data written for one counter.
-#if USE_SPM_DB_V2
-    const size_t  CounterInfoSizeInBytes   = m_numSpmCounters * sizeof(SpmCounterInfo);
-#else
-    const size_t  CounterInfoSizeInBytes   = m_numSpmCounters * sizeof(SpmCounterInfoV1);
-#endif
-    const uint32  SegmentSizeInWords       = m_pSpmTraceLayout->sampleSizeInBytes / sizeof(uint16);
-    const size_t  CounterDataOffset        = TimestampDataSizeInBytes + CounterInfoSizeInBytes;
+    // The [start, end) range of valid samples in the SPM ring buffer. We'll need these to help handle ring wrapping.
+    const size_t     sampleOffset = size_t(m_pSpmTraceLayout->offset + m_pSpmTraceLayout->sampleOffset);
+    const void*const pRingStart   = Util::VoidPtrInc(m_pPerfExpResults, sampleOffset);
+    const void*const pRingEnd     = Util::VoidPtrInc(pRingStart, m_pSpmTraceLayout->sampleStride * m_numSpmSamples);
 
-    // A valid destination buffer size is expected.
-    PAL_ASSERT((bufferSize > 0) && (pDstBuffer != nullptr));
+    // Start of the spm counter data. First copy out every sample's 64-bit timestamp.
+    const void* pSrcTimestamp = m_pOldestSample;
 
-    // Start of the spm results section.
-    void* pSrcBufferStart = Util::VoidPtrInc(m_pPerfExpResults,
-                                             static_cast<size_t>(m_pSpmTraceLayout->offset));
-
-    // Move to the actual start of the Spm data. The first dword is the wptr. There are 32 bytes of
-    // reserved fields after which the data begins.
-    void* pSrcDataStart = Util::VoidPtrInc(pSrcBufferStart, NumMetadataBytes);
-    uint64* pTimestamp = static_cast<uint64*>(pSrcDataStart);
-
-    for (int32 sample = 0; sample < m_numSpmSamples; ++sample)
+    for (uint32 sample = 0; sample < m_numSpmSamples; ++sample)
     {
-        // RGP Spm output: Write the timestamps.
-        static_cast<uint64*>(pDstBuffer)[sample] = *pTimestamp;
+        pDstTimestamps[sample] = *static_cast<const uint64*>(pSrcTimestamp);
+        pSrcTimestamp          = Util::VoidPtrInc(pSrcTimestamp, m_pSpmTraceLayout->sampleStride);
 
-        pTimestamp += SampleSizeInQWords;
-    }
-
-    // Beginning of the SpmCounterInfo section.
-#if USE_SPM_DB_V2
-    SpmCounterInfo* pCounterInfo =
-        static_cast<SpmCounterInfo*>(Util::VoidPtrInc(pDstBuffer, TimestampDataSizeInBytes));
-#else
-    SpmCounterInfoV1* pCounterInfo =
-        static_cast<SpmCounterInfoV1*>(Util::VoidPtrInc(pDstBuffer, TimestampDataSizeInBytes));
-#endif
-
-    // Offset from the beginning of the RGP spm chunk to where the counter values begin.
-    gpusize curCounterDataOffset = CounterDataOffset;
-
-    // RGP SPM output: write the SpmCounterInfo for each counter.
-    for (uint32 counter = 0; counter < m_numSpmCounters; counter++)
-    {
-        pCounterInfo[counter].block      = static_cast<SpmGpuBlock>(m_pSpmTraceLayout->counterData[counter].gpuBlock);
-        pCounterInfo[counter].instance   = m_pSpmTraceLayout->counterData[counter].instance;
-        pCounterInfo[counter].dataOffset = static_cast<uint32>(curCounterDataOffset);
-        pCounterInfo[counter].eventIndex = m_pSpmTraceLayout->counterData[counter].eventId;
-#if USE_SPM_DB_V2
-        pCounterInfo[counter].dataSize   = sizeof(uint16);
-#endif
-
-        curCounterDataOffset += CounterDataSizeInBytes;
-    }
-
-    // Read pointer points to the first segment of the first sample.
-    uint16* pSample = static_cast<uint16*>(pSrcDataStart);
-
-    // Index within the SPM ring buffer, which is considered an array of uint16.
-    gpusize index = 0;
-    gpusize offset = 0;
-
-    // Write pointer points to the beginning of the first counter data.
-    uint16* pDstCounterData = static_cast<uint16*>(Util::VoidPtrInc(pDstBuffer, CounterDataOffset));
-
-    for (uint32 counter = 0; counter < m_numSpmCounters; counter++)
-    {
-        offset = m_pSpmTraceLayout->counterData[counter].offset;
-
-        for (int32 sample = 0; sample < m_numSpmSamples; sample++)
+        // Once we reach the end of the ring we need to wrap back around just like the RLC does when writing to it.
+        if (pSrcTimestamp == pRingEnd)
         {
-            index = offset + (sample * SampleSizeInWords);
+            pSrcTimestamp = pRingStart;
+        }
+    }
 
-            // RGP SPM OUTPUT: write the delta values of the current counter for all samples.
-            (*pDstCounterData) = pSample[index];
-            pDstCounterData++;
+    // The SpmCounterInfo and counter value array-of-arrays are both in counter order. This outer loop walks both
+    // at the same time. We'll end up looping over the source counter data once for each counter.
+    //
+    // Most of the counter info comes directly from the perf experiment layout but we also need to track the byte
+    // offset from the beginning of the RGP SPM chunk to this counter's data.
+    size_t curCounterDataOffset = counterDataOffset;
 
-        } // Iterate over samples.
-    } // Iterate over counters.
+    for (uint32 counter = 0; counter < m_numSpmCounters; counter++)
+    {
+        const SpmCounterData& layout       = m_pSpmTraceLayout->counterData[counter];
+        SpmCounterInfo*const  pCounterInfo = pDstCounterInfos + counter;
 
-    return result;
+        // The cast below assumes this always fits.
+        PAL_ASSERT(curCounterDataOffset < UINT32_MAX);
+
+        pCounterInfo->block      = static_cast<SpmGpuBlock>(layout.gpuBlock);
+        pCounterInfo->instance   = layout.instance;
+        pCounterInfo->eventIndex = layout.eventId;
+        pCounterInfo->dataOffset = uint32(curCounterDataOffset);
+        pCounterInfo->dataSize   = sizeof(uint16);
+
+        // The SPM source data is grouped by sample but we want individual arrays for each counter.
+        // Walk the source buffer and do a sparse read for each sample, writing the value into the destination array.
+        auto*const  pDstValues = static_cast<uint16*>(Util::VoidPtrInc(pDstBuffer, curCounterDataOffset));
+        const void* pSrcSample = m_pOldestSample;
+
+        for (uint32 sample = 0; sample < m_numSpmSamples; sample++)
+        {
+            uint16 value = *static_cast<const uint16*>(Util::VoidPtrInc(pSrcSample, layout.offsetLo));
+
+            if (layout.is32Bit)
+            {
+                const uint16 valueHi = *static_cast<const uint16*>(Util::VoidPtrInc(pSrcSample, layout.offsetHi));
+
+                // We haven't tested sending 32-bit data to RGP yet so if this 32-bit value can't fit in 16 bits
+                // we'll clamp the whole value to UINT16_MAX to make it more obvious we've saturated the counter.
+                // This seems like a better hack than just ignoring the high bits (wrapping counter values).
+                if (valueHi != 0)
+                {
+                    value = UINT16_MAX;
+                }
+            }
+
+            pDstValues[sample] = value;
+            pSrcSample         = Util::VoidPtrInc(pSrcSample, m_pSpmTraceLayout->sampleStride);
+
+            // Once we reach the end of the ring we need to wrap back around just like the RLC does when writing to it.
+            if (pSrcSample == pRingEnd)
+            {
+                pSrcSample = pRingStart;
+            }
+        }
+
+        // Find the start of the next counter's data array.
+        curCounterDataOffset += m_numSpmSamples * sizeof(uint16);
+    }
+
+    return Result::Success;
 }
 
 // =====================================================================================================================
 // Parses the DF SPM trace buffer to find the number of samples of data written in the buffer.
-uint32 GpaSession::TraceSample::CountNumDfSamples(
-    void* pBufferStart)
+uint32 GpaSession::TraceSample::CountNumDfSpmSamples() const
 {
     // This offset is defined by HW. It is hardcoded in the chunk returned.
     constexpr uint32 LastSpmPktOffsetInBits = 252;
     constexpr uint32 SegmentSizeInBytes     = 32;
 
+    // m_gcSampleDataOffset and m_pGcSampleDataBufferSize refer to the normal Counter/SQTT buffer. DF SPM data is
+    // stored after that.
+    const size_t location     = static_cast<size_t>(m_gcSampleDataOffset + m_pGcSampleDataBufferSize);
+    const void*  pBufferStart = Util::VoidPtrInc(m_pPerfExpResults, location);
+
     // Trace size is stored in metadata and is in 64-byte blocks and there are 2 samples per block.
-    uint32  numRecords      = static_cast<uint32*>(pBufferStart)[0] * 2;
-    void*   pDataStart      = Util::VoidPtrInc(pBufferStart, sizeof(DfSpmTraceMetadataLayout));
-    void*   pLastSpmPktByte = Util::VoidPtrInc(pDataStart,
-                                              (LastSpmPktOffsetInBits / 8));
+    uint32      numRecords      = static_cast<const uint32*>(pBufferStart)[0] * 2;
+    const void* pDataStart      = Util::VoidPtrInc(pBufferStart, sizeof(DfSpmTraceMetadataLayout));
+    const void* pLastSpmPktByte = Util::VoidPtrInc(pDataStart, LastSpmPktOffsetInBits / 8);
+
     // Move to the second to last record and check the lastSpmPkt bit
     pLastSpmPktByte = Util::VoidPtrInc(pLastSpmPktByte, (SegmentSizeInBytes * (numRecords - 2)));
-    uint32* pLastSpmPktBit = static_cast<uint32*>(pLastSpmPktByte);
-    uint32  lastSpmPktBit  = ((*pLastSpmPktBit) >> (LastSpmPktOffsetInBits % 8)) & 1;
+
+    const uint32* pLastSpmPktBit = static_cast<const uint32*>(pLastSpmPktByte);
+    const uint32  lastSpmPktBit  = ((*pLastSpmPktBit) >> (LastSpmPktOffsetInBits % 8)) & 1;
+
     if (lastSpmPktBit == 1)
     {
         numRecords -= 1;
     }
+
     return numRecords;
 }
 
 // =====================================================================================================================
 // Parses the SPM ring buffer to find the number of samples of data written in the buffer.
-uint32 GpaSession::TraceSample::CountNumSamples(
-    void* pBufferStart)
+void GpaSession::TraceSample::CountNumSpmSamples()
 {
-    // We actually have to read the ring buffer here and use the layout to figure out the number of samples that have
-    // been written.
-    uint32 numSamples = 0;
+    // Default to zero if we hit some sort of issue.
+    m_numSpmSamples = 0;
 
-    uint32 sampleSizeInDwords   = m_pSpmTraceLayout->sampleSizeInBytes / 4;
-    uint32 sampleSizeInBitlines = m_pSpmTraceLayout->sampleSizeInBytes / 32;
+    const uint32 sampleStride  = m_pSpmTraceLayout->sampleStride;
+    const uint32 maxNumSamples = m_pSpmTraceLayout->maxNumSamples;
 
-    if (sampleSizeInDwords > 0)
+    if ((sampleStride != 0) && (maxNumSamples != 0))
     {
-        //! Not sure if this is in bytes or dwords. Assume this is a dword based size since it is a wptr and not size!
-        // The first dword is the buffer size followed by 7 reserved dwords
-        uint32 dataSizeInDwords = static_cast<uint32*>(pBufferStart)[0] * m_pSpmTraceLayout->wptrGranularity;
+        // Basic SPM trace layout.
+        const void*const pStart       = Util::VoidPtrInc(m_pPerfExpResults, size_t(m_pSpmTraceLayout->offset));
+        const void*const pWrPtr       = Util::VoidPtrInc(pStart, m_pSpmTraceLayout->wrPtrOffset);
+        const void*const pFirstSample = Util::VoidPtrInc(pStart, size_t(m_pSpmTraceLayout->sampleOffset));
+        const void*const pLastSample  = Util::VoidPtrInc(pFirstSample, (maxNumSamples - 1) * sampleStride);
 
-        // Number of 256 bit lines written by the
-        uint32 numLinesWritten = dataSizeInDwords / 2 / MaxNumCountersPerBitline;
+        // The write pointer is a 32-bit offset relative to the start of the ring buffer. We need to multiply its value
+        // by the wptrGranularity to convert it into an offset in bytes.
+        const uint32 wrPtrInBytes = *static_cast<const uint32*>(pWrPtr) * m_pSpmTraceLayout->wrPtrGranularity;
 
-        // Check for overflow. The number of lines written should be a multiple of the number of lines in each sample.
-        if (numLinesWritten % sampleSizeInBitlines)
+        // The RLC should always write out complete bitlines.
+        PAL_ASSERT((wrPtrInBytes % (MaxNumCountersPerBitline * sizeof(uint16))) == 0);
+
+        // The amount of data written to the ring should be a multiple of our expected sample stride.
+        PAL_ASSERT((wrPtrInBytes % sampleStride) == 0);
+
+        // We aren't told how many times the ring buffer has wrapped so the write pointer may not directly tell us the
+        // amount of written sample data. We need to inspect the ring data to figure out how many samples were written.
+        // According to the palPerfExperiment.h comments, the last sample's timestamp will be non-zero only if the
+        // ring has wrapped. Note that PAL always put the timestamp muxsels first in the muxsel RAMs so we can cast
+        // the last sample directly to a 64-bit timestamp.
+        const uint64 lastTs = *static_cast<const uint64*>(pLastSample);
+
+        if (lastTs != 0)
         {
-            PAL_ASSERT_MSG(false, "Increase the buffersize or reduce the number of counters.");
+            // The ring must be full and may have wrapped one or more times. The write pointer's value indicates where
+            // the oldest sample must be because its the location where the next sample would have been written.
+            m_numSpmSamples = int32(maxNumSamples);
+            m_pOldestSample = Util::VoidPtrInc(pFirstSample, wrPtrInBytes);
         }
         else
         {
-            numSamples = numLinesWritten / sampleSizeInBitlines;
+            // Zero isn't a valid timestamp so the ring must not have wrapped yet. The oldest sample is the first one.
+            // The write pointer hasn't wrapped yet so it tells us how many bytes have been written so far.
+            m_numSpmSamples = int32(wrPtrInBytes / sampleStride);
+            m_pOldestSample = pFirstSample;
         }
     }
-
-    return numSamples;
+    else
+    {
+        // It doesn't seem reasonable that the user actually wanted an empty trace.
+        PAL_ASSERT_ALWAYS();
+    }
 }
 
 // =====================================================================================================================

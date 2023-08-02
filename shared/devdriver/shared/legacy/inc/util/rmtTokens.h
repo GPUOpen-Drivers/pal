@@ -79,15 +79,21 @@ enum RMT_PROCESS_EVENT_TYPE
 // bytes for the resource id value.
 #define RMT_ENCODED_RESOURCE_ID_SIZE (static_cast<uint32>(sizeof(uint32) + 1))
 
+// For debug event and implicit resource V2 events, a 64-bit time delay is added to compensate for the
+// delay associated with ETW events being captured.
+#define RMT_ENCODED_NAME_EVENT_TIME_DELAY_SIZE (static_cast<uint32>(sizeof(uint64)))
+
 // Enumeration of Userdata event types
 enum RMT_USERDATA_EVENT_TYPE
 {
-    RMT_USERDATA_EVENT_TYPE_NAME                   = 0,
-    RMT_USERDATA_EVENT_TYPE_SNAPSHOT               = 1,
-    RMT_USERDATA_EVENT_TYPE_BINARY                 = 2,
-    RMT_USERDATA_EVENT_TYPE_CALL_STACK             = 3,
-    RMT_USERDATA_EVENT_TYPE_RSRC_CORRELATION       = 4,
-    RMT_USERDATA_EVENT_TYPE_MARK_IMPLICIT_RESOURCE = 5
+    RMT_USERDATA_EVENT_TYPE_NAME                      = 0,
+    RMT_USERDATA_EVENT_TYPE_SNAPSHOT                  = 1,
+    RMT_USERDATA_EVENT_TYPE_BINARY                    = 2,
+    RMT_USERDATA_EVENT_TYPE_CALL_STACK                = 3,
+    RMT_USERDATA_EVENT_TYPE_RSRC_CORRELATION          = 4,
+    RMT_USERDATA_EVENT_TYPE_MARK_IMPLICIT_RESOURCE    = 5,
+    RMT_USERDATA_EVENT_TYPE_NAME_V2                   = 6,
+    RMT_USERDATA_EVENT_TYPE_MARK_IMPLICIT_RESOURCE_V2 = 7
 };
 
 // Enumeration of the MISC event types
@@ -305,7 +311,10 @@ struct RMT_MSG_USERDATA_EMBEDDED_STRING : RMT_TOKEN_DATA
 // RMT_MSG_USERDATA variant for debug names
 struct RMT_MSG_USERDATA_DEBUG_NAME : RMT_TOKEN_DATA
 {
-    uint8 bytes[RMT_MSG_USERDATA_TOKEN_BYTES_SIZE + RMT_MAX_USERDATA_STRING_SIZE + RMT_ENCODED_RESOURCE_ID_SIZE];
+    static uint32 constexpr BUFFER_SIZE = RMT_MSG_USERDATA_TOKEN_BYTES_SIZE
+                                        + RMT_MAX_USERDATA_STRING_SIZE
+                                        + RMT_ENCODED_RESOURCE_ID_SIZE;
+    uint8 bytes[BUFFER_SIZE];
 
     // Initializes the token fields
     RMT_MSG_USERDATA_DEBUG_NAME(uint8 delta, const char* pDebugName, uint32 resourceId)
@@ -314,7 +323,7 @@ struct RMT_MSG_USERDATA_DEBUG_NAME : RMT_TOKEN_DATA
         static_assert((sizeof(resourceId) + 1) == RMT_ENCODED_RESOURCE_ID_SIZE,
                       "Encoded resource id size is incorrect!");
 
-        // Calcualte the string storage size
+        // Calculate the string storage size
         uint32 stringSize = static_cast<uint32>(strlen(pDebugName));
 
         // Truncate long strings so that they fit
@@ -349,6 +358,63 @@ struct RMT_MSG_USERDATA_DEBUG_NAME : RMT_TOKEN_DATA
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// RMT_MSG_USERDATA variant for debug names with time delay compensation
+struct RMT_MSG_USERDATA_DEBUG_NAME_V2 : RMT_TOKEN_DATA
+{
+    static uint32 constexpr POST_STRING_PAYLOAD_SIZE = RMT_ENCODED_RESOURCE_ID_SIZE
+                                                     + RMT_ENCODED_NAME_EVENT_TIME_DELAY_SIZE;
+
+    static uint32 constexpr BUFFER_SIZE = RMT_MSG_USERDATA_TOKEN_BYTES_SIZE
+                                        + RMT_MAX_USERDATA_STRING_SIZE
+                                        + RMT_ENCODED_RESOURCE_ID_SIZE
+                                        + RMT_ENCODED_NAME_EVENT_TIME_DELAY_SIZE;
+    uint8 bytes[BUFFER_SIZE];
+
+    // Initializes the token fields
+    RMT_MSG_USERDATA_DEBUG_NAME_V2(uint8 delta, const char* pDebugName, uint32 resourceId, uint64 lagTime)
+    {
+        // Make sure the true encoded size always matches our define
+        static_assert((sizeof(resourceId) + 1 + sizeof(lagTime)) == (POST_STRING_PAYLOAD_SIZE),
+                      "Encoded resource id and size is incorrect!");
+
+        // Calculate the string storage size
+        uint32 stringSize = static_cast<uint32>(strlen(pDebugName));
+
+        // Truncate long strings so that they fit
+        DD_WARN(stringSize <= RMT_MAX_USERDATA_STRING_SIZE);
+        stringSize = Platform::Min(stringSize, RMT_MAX_USERDATA_STRING_SIZE);
+
+        const uint32 payloadSize = stringSize + POST_STRING_PAYLOAD_SIZE;
+
+        sizeInBytes = RMT_MSG_USERDATA_TOKEN_BYTES_SIZE + payloadSize;
+        pByteData   = &bytes[0];
+
+        // RMT_TOKEN_TYPE [3:0] Token type (see Table 2). Encoded to RMT_TOKEN_TYPE_ALLOCATE.
+        // DELTA      [7:4] The delta from the last token. In increments of 32-time units.
+        RMT_TOKEN_HEADER header(RMT_TOKEN_USERDATA, delta);
+        SetBits(header.byteVal, 7, 0);
+
+        // TYPE[11:8] The type of the user data being emitted encoded as RMT_USERDATAYPE.
+        SetBits(RMT_USERDATA_EVENT_TYPE_NAME_V2, 11, 8);
+
+        // PAYLOAD_SIZE[31:12] The size of the payload that immediately follows this token, expressed in bytes.
+        SetBits(payloadSize, 31, 12);
+
+        // Copy the debug name into the payload first
+        memcpy(&bytes[RMT_MSG_USERDATA_TOKEN_BYTES_SIZE], pDebugName, stringSize);
+
+        // Append a NULL byte to the end of the string to maintain compatibility
+        bytes[RMT_MSG_USERDATA_TOKEN_BYTES_SIZE + stringSize] = '\0';
+
+        // Insert the resource id into the payload after the NULL
+        memcpy(&bytes[RMT_MSG_USERDATA_TOKEN_BYTES_SIZE + stringSize + 1], &resourceId, sizeof(resourceId));
+
+        // Insert the time delay into the payload after the resource id.
+        memcpy(&bytes[RMT_MSG_USERDATA_TOKEN_BYTES_SIZE + stringSize + RMT_ENCODED_RESOURCE_ID_SIZE], &lagTime, sizeof(lagTime));
+    }
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // RMT_MSG_USERDATA variant for marking implicit resources.
 struct RMT_MSG_USERDATA_MARK_IMPLICIT_RESOURCE : RMT_TOKEN_DATA
 {
@@ -378,6 +444,43 @@ public:
         // Copy the resource ID into the PAYLOAD
         uint8* pPayload = &pByteData[RMT_MSG_USERDATA_TOKEN_BYTES_SIZE];
         memcpy(pPayload, &resourceId, sizeof(resourceId));
+    }
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// RMT_MSG_USERDATA variant for marking implicit resources.
+struct RMT_MSG_USERDATA_MARK_IMPLICIT_RESOURCE_V2 : RMT_TOKEN_DATA
+{
+private:
+    static uint32 constexpr RMT_ENCODED_RESOURCE_SIZE = sizeof(uint32);
+    static uint32 constexpr PAYLOAD_SIZE              = RMT_ENCODED_RESOURCE_SIZE + RMT_ENCODED_NAME_EVENT_TIME_DELAY_SIZE;
+
+public:
+    uint8 bytes[RMT_MSG_USERDATA_TOKEN_BYTES_SIZE + PAYLOAD_SIZE] = {};
+
+    // Initializes the token fields
+    RMT_MSG_USERDATA_MARK_IMPLICIT_RESOURCE_V2(uint8 delta, uint32 resourceId, uint64 lagTime)
+    {
+        sizeInBytes = sizeof(bytes);
+        pByteData   = &bytes[0];
+
+        // RMT_TOKEN_TYPE [3:0] Token type (see Table 2). Encoded to RMT_TOKEN_TYPE_ALLOCATE.
+        // DELTA      [7:4] The delta from the last token. In increments of 32-time units.
+        RMT_TOKEN_HEADER header(RMT_TOKEN_USERDATA, delta);
+        SetBits(header.byteVal, 7, 0);
+
+        // TYPE[11:8] The type of the user data being emitted encoded as RMT_USERDATAYPE.
+        SetBits(RMT_USERDATA_EVENT_TYPE_MARK_IMPLICIT_RESOURCE_V2, 11, 8);
+
+        // PAYLOAD_SIZE[31:12] The size of the payload that immediately follows this token, expressed in bytes.
+        SetBits(PAYLOAD_SIZE, 31, 12);
+
+        // Copy the resource ID into the PAYLOAD
+        uint8* pPayload = &pByteData[RMT_MSG_USERDATA_TOKEN_BYTES_SIZE];
+        memcpy(pPayload, &resourceId, sizeof(resourceId));
+
+        // Insert the time delay into the payload after the resource id.
+        memcpy(&bytes[RMT_MSG_USERDATA_TOKEN_BYTES_SIZE + RMT_ENCODED_RESOURCE_SIZE], &lagTime, sizeof(lagTime));
     }
 };
 

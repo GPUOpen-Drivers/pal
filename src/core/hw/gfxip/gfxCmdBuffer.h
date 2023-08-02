@@ -200,6 +200,13 @@ public:
         uint32                       regionCount,
         const TypedBufferCopyRegion* pRegions) override;
 
+    virtual void CmdScaledCopyTypedBufferToImage(
+        const IGpuMemory&                       srcGpuMemory,
+        const IImage&                           dstImage,
+        ImageLayout                             dstImageLayout,
+        uint32                                  regionCount,
+        const TypedBufferImageScaledCopyRegion* pRegions) override;
+
     virtual void CmdScaledCopyImage(
         const ScaledCopyInfo& copyInfo) override;
 
@@ -327,7 +334,7 @@ public:
     GpuEvent* GetInternalEvent() { return m_pInternalEvent; }
 
     // Returns a pointer to the command stream associated with the specified engine type
-    virtual CmdStream* GetCmdStreamByEngine(uint32 engineType) = 0;
+    virtual CmdStream* GetCmdStreamByEngine(CmdBufferEngineSupport engineType) = 0;
 
     const GfxCmdBufferStateFlags& GetGfxCmdBufStateFlags() const { return m_gfxCmdBufStateFlags; }
 
@@ -440,7 +447,6 @@ protected:
 
 private:
     void ReturnGeneratedCommandChunks(bool returnGpuMemory);
-
     const GfxDevice& m_device;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(GfxCmdBuffer);

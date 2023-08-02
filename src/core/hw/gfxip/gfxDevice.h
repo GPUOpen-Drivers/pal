@@ -85,7 +85,6 @@ struct     ColorTargetViewCreateInfo;
 struct     ComputePipelineCreateInfo;
 struct     DepthStencilStateCreateInfo;
 struct     DepthStencilViewCreateInfo;
-struct     DeviceInterfacePfnTable;
 struct     FmaskViewInfo;
 struct     GpuChipProperties;
 struct     GraphicsPipelineCreateInfo;
@@ -108,6 +107,7 @@ enum class PipelineBindPoint : uint32;
 enum class ShaderType : uint32;
 enum class DccFormatEncoding : uint32;
 enum class Blend : uint32;
+enum class ClearMethod : uint32;
 
 // Additional information for creating PAL-internal color target views.
 struct ColorTargetViewInternalCreateInfo
@@ -817,7 +817,25 @@ public:
         PrimitiveTopology topology,
         uint32            patchControlPoints);
 
+    virtual ClearMethod GetDefaultSlowClearMethod(const Pal::Image*  pImage) const;
+
 protected:
+    static void FixupDecodedSrdFormat(
+        const SwizzledFormat& imageFormat,
+        SwizzledFormat*       pSrdFormat)
+    {
+        PAL_ASSERT(imageFormat.format != ChNumFormat::Undefined);
+        if (imageFormat.format == ChNumFormat::A8_Unorm)
+        {
+            PAL_ASSERT(pSrdFormat->format == ChNumFormat::X8_Unorm);
+            PAL_ASSERT((pSrdFormat->swizzle.swizzle[3] == ChannelSwizzle::X) &&
+                       (imageFormat.swizzle.swizzle[3] == ChannelSwizzle::X));
+            // It is only allowed to create A8_Unorm SRDs on A8_Unorm images;
+            // fixup the decoded format to be consistent with that:
+            pSrdFormat->format = ChNumFormat::A8_Unorm;
+        }
+    }
+
     uint32 GetCuEnableMaskInternal(uint32 disabledCuMmask, uint32 enabledCuMaskSetting) const;
 
     explicit GfxDevice(Device* pDevice, Pal::RsrcProcMgr* pRsrcProcMgr, uint32 frameCountRegOffset);

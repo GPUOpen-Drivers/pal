@@ -115,6 +115,9 @@ CmdBuffer::CmdBuffer(
     m_executionMarkerAddr(0),
     m_executionMarkerCount(0),
     m_embeddedData(device.GetPlatform()),
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+    m_largeEmbeddedData(device.GetPlatform()),
+#endif
     m_gpuScratchMem(device.GetPlatform()),
     m_gpuScratchMemAllocLimit(0),
     m_lastPagingFence(0),
@@ -150,6 +153,9 @@ CmdBuffer::~CmdBuffer()
 {
     ReturnLinearAllocator();
     ReturnDataChunks(&m_embeddedData, EmbeddedDataAlloc, true);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+    ReturnDataChunks(&m_largeEmbeddedData, LargeEmbeddedDataAlloc, true);
+#endif
     ReturnDataChunks(&m_gpuScratchMem, GpuScratchMemAlloc, true);
 }
 
@@ -321,6 +327,9 @@ Result CmdBuffer::BeginCommandStreams(
     {
         // NOTE: PAL does not currently support retaining command buffer chunks when doing an implicit reset
         ReturnDataChunks(&m_embeddedData, EmbeddedDataAlloc, true);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+        ReturnDataChunks(&m_largeEmbeddedData, LargeEmbeddedDataAlloc, true);
+#endif
         ReturnDataChunks(&m_gpuScratchMem, GpuScratchMemAlloc, true);
     }
 
@@ -359,6 +368,14 @@ Result CmdBuffer::End()
             {
                 iter.Get()->UpdateRootInfo(pRootChunk);
             }
+
+            // Update the large embedded data chunks with the correct root chunk reference.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+            for (auto iter = m_largeEmbeddedData.chunkList.Begin(); iter.IsValid(); iter.Next())
+            {
+                iter.Get()->UpdateRootInfo(pRootChunk);
+            }
+#endif
 
             // Update the GPU scratch-memory chunks with the correct root chunk reference.
             for (auto iter = m_gpuScratchMem.chunkList.Begin(); iter.IsValid(); iter.Next())
@@ -405,6 +422,9 @@ Result CmdBuffer::Reset(
     ReturnLinearAllocator();
 
     ReturnDataChunks(&m_embeddedData, EmbeddedDataAlloc, returnGpuMemory);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+    ReturnDataChunks(&m_largeEmbeddedData, LargeEmbeddedDataAlloc, returnGpuMemory);
+#endif
     ReturnDataChunks(&m_gpuScratchMem, GpuScratchMemAlloc, returnGpuMemory);
 
     m_status = Result::Success;
@@ -457,6 +477,13 @@ CmdStreamChunk* CmdBuffer::GetNextDataChunk(
             // stream doesn't have enough space to accomodate this request.  Either way, we need to obtain a new chunk.
             // The allocator adds a reference for us automatically. Data chunks cannot be root (head) chunks.
             m_status = m_pCmdAllocator->GetNewChunk(type, false, &pChunk);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+            if (m_status != Result::Success)
+            {
+                m_status = m_pCmdAllocator->GetNewChunk(CmdAllocType::LargeEmbeddedDataAlloc, false, &pChunk);
+            }
+#endif
 
             // Something bad happen and the CmdBuffer will always be in error status ever after
             PAL_ALERT(m_status != Result::Success);
@@ -557,11 +584,11 @@ uint32* CmdBuffer::CmdAllocateEmbeddedData(
 
     uint32 alignedSizeInDwords = pOldChunk->ComputeSpaceSize(sizeInDwords, alignmentInDwords);
 
-    // The address alignment operation above may generate a alignedSizeInDwords as
+    // The address alignment operation above may generate an alignedSizeInDwords as
     // embeddedDataLimit < alignedSizeInDwords < embeddedDataLimit + alignmentInDwords
     // For example, if the chunk has used 9 DW and chunk size is 100 DW, when the sizeInDW is 100 and aligment is 8,
     // ComputeSpaceSize() generate correct alignedSizeInDwords as 107.
-    // However, in this case, we cannot directly use 107 as input parameter later since it it over the limit
+    // However, in this case, we cannot directly use 107 as input parameter later since it is over the limit
     // of the embedded data chunk size. If this case happens, it means sizeInDwords is larger than
     // embeddedDataLimit - alignmentInDwords. So it is safe and proper to just use embeddedDataLimit as the
     // the requested aligned data size. The reason is, both 107 and 100 will make the embedded chunk finding function
@@ -592,6 +619,75 @@ uint32* CmdBuffer::CmdAllocateEmbeddedData(
 
     return pSpace;
 }
+
+// =====================================================================================================================
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+uint32* CmdBuffer::CmdAllocateLargeEmbeddedData(
+    uint32   sizeInDwords,
+    uint32   alignmentInDwords,
+    gpusize* pGpuAddress)
+{
+    gpusize offset = 0;
+    GpuMemory* pGpuMem = nullptr;
+    uint32* pSpace = CmdAllocateLargeEmbeddedData(sizeInDwords, alignmentInDwords, &pGpuMem, &offset);
+    *pGpuAddress = pGpuMem->Desc().gpuVirtAddr + offset;
+
+    return pSpace;
+}
+#endif
+
+// =====================================================================================================================
+// Returns the GPU memory object pointer that can accomodate the specified number of dwords of the embedded data.
+// The offset of the embedded data to the allocated memory is also returned.
+// This call is only used by PAL internally and should be called when running in physical mode.
+// A new chunk will be allocated if necessary.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+uint32* CmdBuffer::CmdAllocateLargeEmbeddedData(
+    uint32      sizeInDwords,
+    uint32      alignmentInDwords,
+    GpuMemory** ppGpuMem,
+    gpusize*    pOffset)
+{
+    // The size of an aligned embedded data allocation can change per chunk. That means we might need to compute the
+    // size twice here if GetChunk gets a new chunk from the command allocator.
+    CmdStreamChunk* const pOldChunk = m_largeEmbeddedData.chunkList.IsEmpty() ? GetLargeEmbeddedDataChunk(1) :
+        m_largeEmbeddedData.chunkList.Back();
+    const uint32 largeEmbeddedDataLimitDwords = GetLargeEmbeddedDataLimit();
+
+    // Caller to this function should make sure the requested size is not larger than limitation.
+    // Since this function does not have logic to provide multiple chunks for the request.
+    PAL_ASSERT(sizeInDwords <= largeEmbeddedDataLimitDwords);
+
+    uint32 alignedSizeInDwords = pOldChunk->ComputeSpaceSize(sizeInDwords, alignmentInDwords);
+
+    // Cap size at maximum embedded data limit, regardless of alignment padding. Callers are responsible for
+    // guaranteeing the requested data size (sizeInDwords) is smaller than Data limit size (see assert).
+    if (alignedSizeInDwords > largeEmbeddedDataLimitDwords)
+    {
+        alignedSizeInDwords = largeEmbeddedDataLimitDwords;
+    }
+
+    CmdStreamChunk* const pNewChunk = GetLargeEmbeddedDataChunk(alignedSizeInDwords);
+    if (pNewChunk != pOldChunk)
+    {
+        // The previously active chunk didn't have enough space left, compute the size again using the new chunk.
+        alignedSizeInDwords = pNewChunk->ComputeSpaceSize(sizeInDwords, alignmentInDwords);
+    }
+    PAL_ASSERT(alignedSizeInDwords <= m_largeEmbeddedData.chunkDwordsAvailable);
+
+    // Record that the tail object in our chunk list has less space available than it did before.
+    m_largeEmbeddedData.chunkDwordsAvailable -= alignedSizeInDwords;
+
+    const uint32 alignmentOffsetInDwords = alignedSizeInDwords - sizeInDwords;
+    gpusize      allocationOffset = 0;
+    uint32* pSpace = pNewChunk->GetSpace(alignedSizeInDwords, ppGpuMem, &allocationOffset) +
+        alignmentOffsetInDwords;
+
+    *pOffset = allocationOffset + (alignmentOffsetInDwords * sizeof(uint32));
+
+    return pSpace;
+}
+#endif
 
 // =====================================================================================================================
 // Allocates a small piece of local-invisible GPU memory for internal PAL operations, such as CE RAM dumps, etc.  This
@@ -1631,6 +1727,14 @@ uint32 CmdBuffer::GetUsedSize(
             sizeInDwords += iter.Get()->DwordsAllocated();
         }
         break;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+    case LargeEmbeddedDataAlloc:
+        for (auto iter = m_largeEmbeddedData.chunkList.Begin(); iter.IsValid(); iter.Next())
+        {
+            sizeInDwords += iter.Get()->DwordsAllocated();
+        }
+        break;
+#endif
     case GpuScratchMemAlloc:
         for (auto iter = m_gpuScratchMem.chunkList.Begin(); iter.IsValid(); iter.Next())
         {

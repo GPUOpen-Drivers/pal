@@ -165,8 +165,15 @@ union GpuMemoryFlags
         uint32 privPrimary              :  1; // GPU memory is a private primary
         uint32 kmdShareUmdSysMem        :  1; // GPU memory is shared with KMD
         uint32 deferCpuVaReservation    :  1; // GPU memory can be locked for read on CPU, but will not reserve CPU VA.
-        uint32 placeholder1             : 1; // Placeholder.
-        uint32 reserved                 : 17;
+        uint32 placeholder1             :  1; // Placeholder.
+#if PAL_AMDGPU_BUILD
+        uint32 initializeToZero         :  1; // If set, PAL will request that the host OS zero-initializes
+                                              // the allocation upon creation, currently, only GpuHeapLocal and
+                                              // GpuHeapInvisible are supported.
+#else
+        uint32 placeholder2             :  1; // Placeholder.
+#endif
+        uint32 reserved                 : 16;
     };
     uint64  u64All;
 };
@@ -352,9 +359,6 @@ protected:
     virtual Result OsUnmap() = 0;
 
     virtual void DescribeGpuMemory(Developer::GpuMemoryAllocationMethod allocMethod) const;
-
-    /// Generate a 64-bit unique ID for this GPU memory.
-    uint64 GenerateUniqueId(void) const;
 
     Device*const   m_pDevice;
     VaPartition    m_vaPartition;

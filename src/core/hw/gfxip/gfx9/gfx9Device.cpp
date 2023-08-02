@@ -120,6 +120,8 @@ Result CreateDevice(
             pPfnTable->pfnCreateUntypedBufViewSrds = &Device::Gfx9CreateUntypedBufferViewSrds;
             pPfnTable->pfnCreateImageViewSrds      = &Device::Gfx9CreateImageViewSrds;
             pPfnTable->pfnCreateSamplerSrds        = &Device::Gfx9CreateSamplerSrds;
+            pPfnTable->pfnDecodeBufferViewSrd      = &Device::Gfx9DecodeBufferViewSrd;
+            pPfnTable->pfnDecodeImageViewSrd       = &Device::Gfx9DecodeImageViewSrd;
             break;
 
         case GfxIpLevel::GfxIp10_1:
@@ -131,6 +133,8 @@ Result CreateDevice(
             pPfnTable->pfnCreateUntypedBufViewSrds = &Device::Gfx10CreateUntypedBufferViewSrds;
             pPfnTable->pfnCreateImageViewSrds      = &Device::Gfx10CreateImageViewSrds;
             pPfnTable->pfnCreateSamplerSrds        = &Device::Gfx10CreateSamplerSrds;
+            pPfnTable->pfnDecodeBufferViewSrd      = &Device::Gfx10DecodeBufferViewSrd;
+            pPfnTable->pfnDecodeImageViewSrd       = &Device::Gfx10DecodeImageViewSrd;
             break;
 
         default:
@@ -177,6 +181,7 @@ Device::Device(
               nullptr, // RPM, we don't know it's address until earlyInit timeframe
               GetFrameCountRegister(pDevice)),
     m_cmdUtil(*this),
+    m_barrierMgr(this, m_cmdUtil),
     m_queueContextUpdateCounter(0),
     // The default value of MSAA rate is 1xMSAA.
     m_msaaRate(1),
@@ -190,11 +195,6 @@ Device::Device(
     PAL_ASSERT(((GetGbAddrConfig().bits.NUM_PIPES - GetGbAddrConfig().bits.NUM_RB_PER_SE) < 2) ||
                IsGfx10Plus(m_gfxIpLevel));
 
-    for (uint32  shaderStage = 0; shaderStage < HwShaderStage::Last; shaderStage++)
-    {
-        m_firstUserDataReg[shaderStage] = GetBaseUserDataReg(static_cast<HwShaderStage>(shaderStage)) +
-                                          FastUserDataStartReg;
-    }
     memset(const_cast<uint32*>(&m_msaaHistogram[0]), 0, sizeof(m_msaaHistogram));
 
 #if PAL_BUILD_GFX11
@@ -4823,6 +4823,361 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
 }
 
 // =====================================================================================================================
+// Returns the image plane that corresponds to the supplied base address.
+static uint32 DecodeImageViewSrdPlane(
+    const Pal::Image&  image,
+    gpusize            srdBaseAddr,
+    uint32             slice)
+{
+    uint32  plane = 0;
+    const auto& imageCreateInfo = image.GetImageCreateInfo();
+
+    if (Formats::IsYuvPlanar(imageCreateInfo.swizzledFormat.format))
+    {
+        const auto*  pGfxImage = image.GetGfxImage();
+        const auto&  imageInfo = image.GetImageInfo();
+
+        // For Planar YUV, loop through each plane of the slice and compare the address with SRD to determine which
+        // subresrouce this SRD represents.
+        for (uint32 planeIdx = 0; (planeIdx < imageInfo.numPlanes); ++planeIdx)
+        {
+            const gpusize  planeBaseAddr = pGfxImage->GetPlaneBaseAddr(planeIdx, slice);
+            const auto     subResAddr    = Get256BAddrLo(planeBaseAddr);
+
+            if (srdBaseAddr == subResAddr)
+            {
+                plane      = planeIdx;
+                break;
+            }
+        }
+    }
+
+    return plane;
+}
+
+// =====================================================================================================================
+void PAL_STDCALL Device::Gfx9DecodeBufferViewSrd(
+    const IDevice*  pDevice,
+    const void*     pBufferViewSrd,
+    BufferViewInfo* pViewInfo)
+{
+    const Pal::Device* pPalDevice = static_cast<const Pal::Device*>(pDevice);
+
+    const auto& srd = *(static_cast<const Gfx9BufferSrd*>(pBufferViewSrd));
+
+    // Verify that we have a buffer view SRD.
+    PAL_ASSERT(srd.word3.bits.TYPE == SQ_RSRC_BUF);
+
+    // Reconstruct the buffer view info struct.
+    pViewInfo->gpuAddr = (static_cast<gpusize>(srd.word1.bits.BASE_ADDRESS_HI) << 32ull) + srd.word0.bits.BASE_ADDRESS;
+    pViewInfo->range   = srd.word2.bits.NUM_RECORDS;
+    pViewInfo->stride  = srd.word1.bits.STRIDE;
+
+    if (pViewInfo->stride > 1)
+    {
+        pViewInfo->range *= pViewInfo->stride;
+    }
+
+    pViewInfo->swizzledFormat.format    = FmtFromHwBufFmt(static_cast<BUF_DATA_FORMAT>(srd.word3.bits.DATA_FORMAT),
+                                                          static_cast<BUF_NUM_FORMAT>(srd.word3.bits.NUM_FORMAT),
+                                                          pPalDevice->ChipProperties().gfxLevel);
+    pViewInfo->swizzledFormat.swizzle.r =
+        ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(srd.word3.bits.DST_SEL_X));
+    pViewInfo->swizzledFormat.swizzle.g =
+        ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(srd.word3.bits.DST_SEL_Y));
+    pViewInfo->swizzledFormat.swizzle.b =
+        ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(srd.word3.bits.DST_SEL_Z));
+    pViewInfo->swizzledFormat.swizzle.a =
+        ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(srd.word3.bits.DST_SEL_W));
+
+    // Verify that we have a valid format.
+    PAL_ASSERT(pViewInfo->swizzledFormat.format != ChNumFormat::Undefined);
+}
+
+// =====================================================================================================================
+// GFX9-specific function for extracting the subresource range and format information from the supplied SRD and image
+void PAL_STDCALL Device::Gfx9DecodeImageViewSrd(
+    const IDevice*   pDevice,
+    const IImage*    pImage,
+    const void*      pImageViewSrd,
+    DecodedImageSrd* pDecodedInfo)
+{
+    const Pal::Image& dstImage      = *static_cast<const Pal::Image*>(pImage);
+    const Pal::Device* pPalDevice   = static_cast<const Pal::Device*>(pDevice);
+    SubresRange* pSubresRange       = &pDecodedInfo->subresRange;
+    SwizzledFormat* pSwizzledFormat = &pDecodedInfo->swizzledFormat;
+
+    const Gfx9ImageSrd&  srd = *static_cast<const Gfx9ImageSrd*>(pImageViewSrd);
+    const ImageCreateInfo& createInfo = dstImage.GetImageCreateInfo();
+
+    // Verify that we have an image view SRD.
+    PAL_ASSERT((srd.word3.bits.TYPE >= SQ_RSRC_IMG_1D) && (srd.word3.bits.TYPE <= SQ_RSRC_IMG_2D_MSAA_ARRAY));
+
+    const gpusize  srdBaseAddr = (static_cast<gpusize>(srd.word1.bits.BASE_ADDRESS_HI) << 32ull) +
+                                  srd.word0.bits.BASE_ADDRESS;
+
+    pSwizzledFormat->format    = FmtFromHwImgFmt(static_cast<IMG_DATA_FORMAT>(srd.word1.bits.DATA_FORMAT),
+                                                 static_cast<IMG_NUM_FORMAT>(srd.word1.bits.NUM_FORMAT),
+                                                 pPalDevice->ChipProperties().gfxLevel);
+    pSwizzledFormat->swizzle.r = ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(srd.word3.bits.DST_SEL_X));
+    pSwizzledFormat->swizzle.g = ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(srd.word3.bits.DST_SEL_Y));
+    pSwizzledFormat->swizzle.b = ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(srd.word3.bits.DST_SEL_Z));
+    pSwizzledFormat->swizzle.a = ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(srd.word3.bits.DST_SEL_W));
+
+    // Verify that we have a valid format.
+    PAL_ASSERT(pSwizzledFormat->format != ChNumFormat::Undefined);
+
+    // Next, recover the original subresource range. We can't recover the exact range in all cases so we must assume
+    // that it's looking at the color plane and that it's not block compressed.
+    PAL_ASSERT(Formats::IsBlockCompressed(pSwizzledFormat->format) == false);
+
+    // The PAL interface can not individually address the slices of a 3D resource.  "numSlices==1" is assumed to
+    // mean all of them and we have to start from the first slice.
+    if (dstImage.GetImageCreateInfo().imageType == ImageType::Tex3d)
+    {
+        pSubresRange->numSlices              = 1;
+        pSubresRange->startSubres.arraySlice = 0;
+    }
+    else
+    {
+        const uint32 depth     = srd.word4.bitfields.DEPTH;
+        const uint32 baseArray = srd.word5.bits.BASE_ARRAY;
+        const bool isYuvPlanar = Formats::IsYuvPlanar(createInfo.swizzledFormat.format);
+        // Becuase of the way the HW needs to index YuvPlanar images, BASE_ARRAY is forced to 0, even if we
+        // aren't indexing slice 0.  Additionally, numSlices must be 1 for any operation other than direct image loads.
+        // When creating SRD, DEPTH == subresRange.startSubres.arraySlice + subresRange.numSlices - 1;
+        // Since we know numSlices == 1, startSubres.arraySlice == DEPTH.
+        if (isYuvPlanar)
+        {
+            PAL_ASSERT(baseArray == 0);
+            pSubresRange->numSlices              = 1;
+            pSubresRange->startSubres.arraySlice = depth;
+        }
+        else
+        {
+            pSubresRange->numSlices              = depth - baseArray + 1;
+            pSubresRange->startSubres.arraySlice = baseArray;
+        }
+    }
+    pSubresRange->startSubres.plane = DecodeImageViewSrdPlane(dstImage,
+                                                              srdBaseAddr,
+                                                              pSubresRange->startSubres.arraySlice);
+    pSubresRange->numPlanes = 1;
+
+    if (srd.word3.bits.TYPE >= SQ_RSRC_IMG_2D_MSAA)
+    {
+        // MSAA textures cannot be mipmapped; the BASE_LEVEL and LAST_LEVEL fields indicate the texture's sample count.
+        pSubresRange->startSubres.mipLevel = 0;
+        pSubresRange->numMips              = 1;
+    }
+    else
+    {
+        pSubresRange->startSubres.mipLevel = srd.word3.bits.BASE_LEVEL;
+        pSubresRange->numMips              = srd.word3.bits.LAST_LEVEL - srd.word3.bits.BASE_LEVEL + 1;
+    }
+
+    pDecodedInfo->zRange.offset = 0;
+    pDecodedInfo->zRange.extent = dstImage.SubresourceInfo(pSubresRange->startSubres)->extentTexels.depth;
+    FixupDecodedSrdFormat(createInfo.swizzledFormat, pSwizzledFormat);
+}
+
+// =====================================================================================================================
+template <typename SrdType>
+static uint32 Gfx10RetrieveHwFmtFromSrd(
+    const Pal::Device& palDevice,
+    const SrdType*     pSrd)
+{
+    uint32 hwFmt = 0;
+
+#if  PAL_BUILD_GFX11
+    if (IsGfx104Plus(palDevice))
+    {
+        hwFmt = pSrd->gfx104Plus.format;
+    }
+    else
+#endif
+    {
+        PAL_ASSERT(IsGfx10(palDevice));
+
+        hwFmt = pSrd->gfx10Core.format;
+    }
+
+    return hwFmt;
+}
+
+// =====================================================================================================================
+void PAL_STDCALL Device::Gfx10DecodeBufferViewSrd(
+    const IDevice*  pDevice,
+    const void*     pBufferViewSrd,
+    BufferViewInfo* pViewInfo)
+{
+    const Pal::Device* pPalDevice = static_cast<const Pal::Device*>(pDevice);
+
+    const auto* pSrd     = static_cast<const sq_buf_rsrc_t*>(pBufferViewSrd);
+    const BUF_FMT  hwFmt = static_cast<BUF_FMT>(Gfx10RetrieveHwFmtFromSrd(*pPalDevice, pSrd));
+
+    // Verify that we have a buffer view SRD.
+    PAL_ASSERT(pSrd->type == SQ_RSRC_BUF);
+
+    // Reconstruct the buffer view info struct.
+    pViewInfo->gpuAddr = pSrd->base_address;
+    pViewInfo->range   = pSrd->num_records;
+    pViewInfo->stride  = pSrd->stride;
+
+    if (pViewInfo->stride > 1)
+    {
+        pViewInfo->range *= pViewInfo->stride;
+    }
+
+    pViewInfo->swizzledFormat.format = FmtFromHwBufFmt(hwFmt, pPalDevice->ChipProperties().gfxLevel);
+    pViewInfo->swizzledFormat.swizzle.r = ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(pSrd->dst_sel_x));
+    pViewInfo->swizzledFormat.swizzle.g = ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(pSrd->dst_sel_y));
+    pViewInfo->swizzledFormat.swizzle.b = ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(pSrd->dst_sel_z));
+    pViewInfo->swizzledFormat.swizzle.a = ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(pSrd->dst_sel_w));
+
+    // Verify that we have a valid format.
+    PAL_ASSERT(pViewInfo->swizzledFormat.format != ChNumFormat::Undefined);
+}
+
+// =====================================================================================================================
+// GFX10+ specific function for extracting the SRD's subresource range, format, and Z range.
+void PAL_STDCALL Device::Gfx10DecodeImageViewSrd(
+    const IDevice*   pDevice,
+    const IImage*    pImage,
+    const void*      pImageViewSrd,
+    DecodedImageSrd* pDecodedInfo)
+{
+    const Pal::Image& dstImage      = *static_cast<const Pal::Image*>(pImage);
+    const Pal::Device* pPalDevice   = static_cast<const Pal::Device*>(pDevice);
+    SubresRange* pSubresRange       = &pDecodedInfo->subresRange;
+    SwizzledFormat* pSwizzledFormat = &pDecodedInfo->swizzledFormat;
+
+    const ImageCreateInfo& createInfo = dstImage.GetImageCreateInfo();
+    const GfxIpLevel       gfxLevel   = pPalDevice->ChipProperties().gfxLevel;
+
+    const auto*   pSrd  = static_cast<const sq_img_rsrc_t*>(pImageViewSrd);
+    const IMG_FMT hwFmt = static_cast<IMG_FMT>(Gfx10RetrieveHwFmtFromSrd(*pPalDevice, pSrd));
+
+    // Verify that we have an image view SRD.
+    PAL_ASSERT((pSrd->type >= SQ_RSRC_IMG_1D) && (pSrd->type <= SQ_RSRC_IMG_2D_MSAA_ARRAY));
+
+    const gpusize srdBaseAddr = pSrd->base_address;
+
+    pSwizzledFormat->format    = FmtFromHwImgFmt(hwFmt, gfxLevel);
+    pSwizzledFormat->swizzle.r = ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(pSrd->dst_sel_x));
+    pSwizzledFormat->swizzle.g = ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(pSrd->dst_sel_y));
+    pSwizzledFormat->swizzle.b = ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(pSrd->dst_sel_z));
+    pSwizzledFormat->swizzle.a = ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(pSrd->dst_sel_w));
+
+    // Note: mipLevel needs to be computed before zRange.
+    if (pSrd->type >= SQ_RSRC_IMG_2D_MSAA)
+    {
+        // MSAA textures cannot be mipmapped; the BASE_LEVEL and LAST_LEVEL fields indicate the texture's sample count.
+        pSubresRange->startSubres.mipLevel = 0;
+        pSubresRange->numMips              = 1;
+    }
+    else
+    {
+        pSubresRange->startSubres.mipLevel = LowPart(pSrd->base_level);
+        pSubresRange->numMips              = LowPart(pSrd->last_level - pSrd->base_level + 1);
+    }
+
+    if ((pSubresRange->startSubres.mipLevel + pSubresRange->numMips) > createInfo.mipLevels)
+    {
+        // The only way that we should have an SRD that references non-existent mip-levels is with PRT+ residency
+        // maps.  The Microsoft spec creates residency maps with the same number of mip levels as the parent image
+        // which is unnecessary in our implementation.  Doing so wastes memory, so DX12 created only a single mip
+        // level residency map (i.e, ignoreed the API request).
+        //
+        // Unfortunately, the SRD created here went through DX12's "CreateSamplerFeedbackUnorderedAccessView" entry
+        // point (which in turn went into PAL's "Gfx10UpdateLinkedResourceViewSrd" function), so we have a hybrid SRD
+        // here that references both the map image and the parent image and thus has the "wrong" number of mip levels.
+        //
+        // Fix up the SRD here to reference the "correct" number of mip levels owned by the image.
+        PAL_ASSERT(createInfo.prtPlus.mapType == PrtMapType::Residency);
+
+        pSubresRange->startSubres.mipLevel = 0;
+        pSubresRange->numMips              = 1;
+    }
+
+    uint32 depth     = 0;
+    uint32 baseArray = 0;
+    if (IsGfx10(gfxLevel))
+    {
+        depth     = LowPart(pSrd->gfx10.depth);
+        baseArray = LowPart(pSrd->gfx10.base_array);
+    }
+#if PAL_BUILD_GFX11
+    else if (IsGfx11(gfxLevel))
+    {
+        depth     = LowPart(pSrd->gfx11.depth);
+        baseArray = LowPart(pSrd->gfx11.base_array);
+    }
+#endif
+    else
+    {
+        PAL_ASSERT_ALWAYS();
+    }
+
+    if (createInfo.imageType == ImageType::Tex3d)
+    {
+        PAL_ASSERT(Formats::IsYuvPlanar(createInfo.swizzledFormat.format) == false);
+        pSubresRange->startSubres.plane      = 0;
+
+        pSubresRange->numSlices              = 1;
+        pSubresRange->startSubres.arraySlice = 0;
+
+        // bits [163:160] "array pitch":
+        //      For 3D, bit 0 indicates SRV or UAV:
+        //      0: SRV (base_array ignored, depth w.r.t. base map)
+        //      1: UAV (base_array and depth are first and last layer in view, and w.r.t. mip level specified)
+        const bool is3dUav = (pSrd->gfx10CorePlus.array_pitch & 1) != 0;
+        if (is3dUav)
+        {
+            const uint32 viewZBegin = baseArray;
+            const uint32 viewZEnd   = depth + 1;
+            const uint32 viewZCount = viewZEnd - viewZBegin;
+
+            pDecodedInfo->zRange = { int32(viewZBegin), viewZCount };
+        }
+        else
+        {
+            const uint32 d = dstImage.SubresourceInfo(pSubresRange->startSubres)->extentTexels.depth;
+            pDecodedInfo->zRange = { 0, d };
+        }
+    }
+    else
+    {
+        pDecodedInfo->zRange = { 0, 1 };
+
+        const bool isYuvPlanar = Formats::IsYuvPlanar(createInfo.swizzledFormat.format);
+        // Becuase of the way the HW needs to index YuvPlanar images, pSrd->*.base_array is forced to 0, even if we
+        // aren't indexing slice 0.  Additionally, numSlices must be 1 for any operation other than direct image loads.
+        // When creating SRD, pSrd->*.depth == subresRange.startSubres.arraySlice + subresRange.numSlices - 1;
+        // Since we know numSlices == 1, startSubres.arraySlice == pSrd->*.depth.
+        if (isYuvPlanar)
+        {
+            PAL_ASSERT(baseArray == 0);
+            pSubresRange->numSlices              = 1;
+            pSubresRange->startSubres.arraySlice = depth;
+        }
+        else
+        {
+            pSubresRange->numSlices              = depth - baseArray + 1;
+            pSubresRange->startSubres.arraySlice = baseArray;
+        }
+
+        pSubresRange->startSubres.plane = DecodeImageViewSrdPlane(dstImage,
+                                                                  srdBaseAddr,
+                                                                  pSubresRange->startSubres.arraySlice);
+    }
+
+    pSubresRange->numPlanes = 1;
+
+    FixupDecodedSrdFormat(createInfo.swizzledFormat, pSwizzledFormat);
+}
+
+// =====================================================================================================================
 void Device::Gfx10SetImageSrdDims(
     sq_img_rsrc_t*  pSrd,
     uint32          width,
@@ -6712,6 +7067,21 @@ GfxIpLevel DetermineIpLevel(
         break;
 #endif
 
+#if PAL_BUILD_PHOENIX
+    case FAMILY_PHX:
+#if PAL_BUILD_PHOENIX1
+        if (AMDGPU_IS_PHOENIX1(familyId, eRevId))
+        {
+            level = GfxIpLevel::GfxIp11_0;
+        }
+        else
+#endif
+        {
+            PAL_NOT_IMPLEMENTED_MSG("FAMILY_PHX Revision %d unsupported", eRevId);
+        }
+        break;
+#endif
+
     case FAMILY_RPL:
         if (AMDGPU_IS_RAPHAEL(familyId, eRevId))
         {
@@ -7050,6 +7420,7 @@ void InitializeGpuChipProperties(
         pInfo->gfx9.supportAddrOffsetDumpAndSetShPkt = 1;
         pInfo->gfx9.supportAddrOffsetSetSh256Pkt     = (cpUcodeVersion >= Gfx10UcodeVersionSetShRegOffset256B);
         pInfo->gfx9.supportPostDepthCoverage         = 1;
+        pInfo->gfxip.support1dDispatchInterleave     = 1;
 
         //       FP32 image add/min/max atomic operations are removed in Gfx11, though atomic exch op is enabled
         pInfo->gfxip.supportFloat32BufferAtomics      = 1;
@@ -7608,6 +7979,60 @@ void InitializeGpuChipProperties(
         // The GL2C is the TCC.
         pInfo->gfx9.numTccBlocks = pInfo->gfx9.gfx10.numGl2c;
         break;
+
+#if PAL_BUILD_PHOENIX
+    case FAMILY_PHX:
+
+        if (false
+#if PAL_BUILD_PHOENIX1
+            || AMDGPU_IS_PHOENIX1(pInfo->familyId, pInfo->eRevId)
+#endif
+            )
+        {
+            pInfo->gpuType                             = GpuType::Integrated;
+            pInfo->revision                            = AsicRevision::Phoenix1;
+            pInfo->gfxStepping                         = Abi::GfxIpSteppingPhoenix;
+            pInfo->gfx9.numShaderEngines               = 1; // GC__NUM_SE
+            pInfo->gfx9.rbPlus                         = 1; // GC__RB_PLUS_ADDRESSING == 1
+            pInfo->gfx9.numSdpInterfaces               = 4; // GC__NUM_SDP
+            pInfo->gfx9.maxNumCuPerSh                  = 6; // (GC__NUM_WGP0_PER_SA (3) + GC__NU\M_WGP1_PER_SA (0)) * 2
+            pInfo->gfx9.maxNumRbPerSe                  = 4; // GC__NUM_RB_PER_SA (2) * NUM_SA (2) (may eventually be 3)
+            pInfo->gfx9.numPackerPerSc                 = 4;
+            pInfo->gfx9.parameterCacheLines            = 256;
+            pInfo->gfx9.gfx10.numGl2a                  = 4; // GC__NUM_GL2A
+            pInfo->gfx9.gfx10.numGl2c                  = 4; // GC__NUM_GL2C
+            pInfo->gfx9.gfx10.numWgpAboveSpi           = 3; // GC__NUM_WGP0_PER_SA
+            pInfo->gfx9.gfx10.numWgpBelowSpi           = 0; // GC__NUM_WGP1_PER_SA
+            pInfo->gfx9.supportFp16Dot2                = 1;
+            pInfo->gfx9.supportInt8Dot                 = 1;
+            pInfo->gfx9.supportInt4Dot                 = 1;
+
+            constexpr uint32 PfpUcodeVersionVbTableSupportedExecuteIndirectPhx1  = 44;
+            constexpr uint32 PfpUcodeVersionDispatchSupportedExecuteIndirectPhx1 = 44;
+
+            GetExecuteIndirectSupport(
+                pInfo,
+                UINT_MAX,
+                UINT_MAX,
+                PfpUcodeVersionVbTableSupportedExecuteIndirectPhx1,
+                PfpUcodeVersionDispatchSupportedExecuteIndirectPhx1);
+        }
+        else
+        {
+            PAL_ASSERT_ALWAYS_MSG("Unknown PHX Revision %d", pInfo->eRevId);
+        }
+
+        // Common PHX Configuration
+        // GFX11-specific image properties go here
+        pInfo->imageProperties.flags.supportsCornerSampling = 1;
+
+        //  Phx products don't support EQAA
+        pInfo->imageProperties.msaaSupport = static_cast<MsaaFlags>(MsaaS1F1 | MsaaS2F2 | MsaaS4F4 | MsaaS8F8);
+
+        // The GL2C is the TCC.
+        pInfo->gfx9.numTccBlocks = pInfo->gfx9.gfx10.numGl2c;
+        break;
+#endif
 
     default:
         PAL_ASSERT_ALWAYS();
@@ -10291,6 +10716,32 @@ Result Device::CreateVrsDepthView()
     }
 
     return result;
+}
+
+// =====================================================================================================================
+ClearMethod  Device::GetDefaultSlowClearMethod(
+    const Pal::Image*  pImage
+    ) const
+{
+#if PAL_BUILD_GFX11
+    // Compute-based slow clears rely on the ability to do format replacement; whether or not a format replacement is
+    // safe is dependent on a great many factors including the layout of the slow clear image and whether or not
+    // DCC is available for the image, etc., both factors that we don't know at this time.
+    //
+    // GFX11 is the only ASIC that "always" supports format replacement with DCC, although like most everything, PAL
+    // has a setting to disable it.
+    const auto&  palDevice    = *Parent();
+    const auto&  gfx9Settings = GetGfx9Settings(palDevice);
+
+    return (((gfx9Settings.gfx11SlowClearMethod == SlowClearMethod::SlowClearUav) &&
+            IsGfx11(palDevice)                                                    &&
+            (pImage->GetImageCreateInfo().swizzledFormat.format == ChNumFormat::X32_Uint) &&
+            gfx9Settings.gfx11AlwaysAllowDccFormatReplacement)
+                ? ClearMethod::NormalCompute
+                : ClearMethod::NormalGraphics);
+#else
+    return ClearMethod::NormalGraphics;
+#endif
 }
 
 #if  PAL_BUILD_GFX11

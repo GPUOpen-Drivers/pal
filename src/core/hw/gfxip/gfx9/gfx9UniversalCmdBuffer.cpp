@@ -324,11 +324,12 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     const CmdBufferCreateInfo& createInfo)
     :
     Pal::Pm4::UniversalCmdBuffer(device,
-                            createInfo,
-                            &m_deCmdStream,
-                            &m_ceCmdStream,
-                            nullptr,
-                            device.Settings().blendOptimizationsEnable),
+                                 createInfo,
+                                 device.BarrierMgr(),
+                                 &m_deCmdStream,
+                                 &m_ceCmdStream,
+                                 nullptr,
+                                 device.Settings().blendOptimizationsEnable),
     m_device(device),
     m_cmdUtil(device.CmdUtil()),
     m_deCmdStream(device,
@@ -353,6 +354,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
 #endif
     m_pfnValidateUserDataGfx(nullptr),
     m_pfnValidateUserDataGfxPipelineSwitch(nullptr),
+    m_predGpuAddr(0),
     m_workaroundState(&device, createInfo.flags.nested, m_state, m_cachedSettings),
     m_vertexOffsetReg(UserDataNotMapped),
     m_drawIndexReg(UserDataNotMapped),
@@ -991,6 +993,7 @@ void UniversalCmdBuffer::ResetState()
     m_vbTable.modified  = 0;
 
     m_activeOcclusionQueryWriteRanges.Clear();
+    m_predGpuAddr = 0;
     m_validVrsCopies.Clear();
 
     m_gangedCmdStreamSemAddr = 0;
@@ -2037,36 +2040,7 @@ void UniversalCmdBuffer::CmdDeWaitAce()
 void UniversalCmdBuffer::CmdBarrier(
     const BarrierInfo& barrierInfo)
 {
-    CmdBuffer::CmdBarrier(barrierInfo);
-
-    // Barriers do not honor predication.
-    const uint32 packetPredicate = m_pm4CmdBufState.flags.packetPredicate;
-    m_pm4CmdBufState.flags.packetPredicate = 0;
-
-    bool splitMemAllocated;
-    BarrierInfo splitBarrierInfo = barrierInfo;
-    Result result = Pal::Device::SplitBarrierTransitions(m_device.GetPlatform(), &splitBarrierInfo, &splitMemAllocated);
-
-    if (result == Result::ErrorOutOfMemory)
-    {
-        NotifyAllocFailure();
-    }
-    else if (result == Result::Success)
-    {
-        m_device.Barrier(this, &m_deCmdStream, splitBarrierInfo);
-    }
-    else
-    {
-        PAL_ASSERT_ALWAYS();
-    }
-
-    // Delete memory allocated for splitting the BarrierTransitions if necessary.
-    if (splitMemAllocated)
-    {
-        PAL_SAFE_DELETE_ARRAY(splitBarrierInfo.pTransitions, m_device.GetPlatform());
-    }
-
-    m_pm4CmdBufState.flags.packetPredicate = packetPredicate;
+    Pm4CmdBuffer::CmdBarrier(barrierInfo);
 
     for (uint32 i = 0; i < barrierInfo.transitionCount; i++)
     {
@@ -2082,56 +2056,10 @@ void UniversalCmdBuffer::CmdBarrier(
 }
 
 // =====================================================================================================================
-void UniversalCmdBuffer::OptimizePipeAndCacheMaskForRelease(
-    uint32* pStageMask,
-    uint32* pAccessMask
-    ) const
-{
-    Pm4CmdBuffer::OptimizePipeAndCacheMaskForRelease(pStageMask, pAccessMask);
-}
-
-// =====================================================================================================================
 uint32 UniversalCmdBuffer::CmdRelease(
     const AcquireReleaseInfo& releaseInfo)
 {
-    CmdBuffer::CmdRelease(releaseInfo);
-
-    // Barriers do not honor predication.
-    const uint32 packetPredicate = m_pm4CmdBufState.flags.packetPredicate;
-    m_pm4CmdBufState.flags.packetPredicate = 0;
-
-    // Mark these as traditional barriers in RGP
-    m_device.DescribeBarrierStart(this, releaseInfo.reason, Developer::BarrierType::Release);
-
-    bool splitMemAllocated;
-    AcquireReleaseInfo splitReleaseInfo = releaseInfo;
-    Result result = Pal::Device::SplitImgBarriers(m_device.GetPlatform(), &splitReleaseInfo, &splitMemAllocated);
-
-    Developer::BarrierOperations barrierOps = {};
-    AcqRelSyncToken syncToken = {};
-
-    if (result == Result::ErrorOutOfMemory)
-    {
-        NotifyAllocFailure();
-    }
-    else if (result == Result::Success)
-    {
-        syncToken = m_device.Release(this, &m_deCmdStream, splitReleaseInfo, &barrierOps);
-    }
-    else
-    {
-        PAL_ASSERT_ALWAYS();
-    }
-
-    // Delete memory allocated for splitting ImgBarriers if necessary.
-    if (splitMemAllocated)
-    {
-        PAL_SAFE_DELETE_ARRAY(splitReleaseInfo.pImageBarriers, m_device.GetPlatform());
-    }
-
-    m_device.DescribeBarrierEnd(this, &barrierOps);
-
-    m_pm4CmdBufState.flags.packetPredicate = packetPredicate;
+    const uint32 syncToken = Pm4CmdBuffer::CmdRelease(releaseInfo);
 
     for (uint32 i = 0; i < releaseInfo.imageBarrierCount; i++)
     {
@@ -2144,7 +2072,7 @@ uint32 UniversalCmdBuffer::CmdRelease(
         }
     }
 
-    return syncToken.u32All;
+    return syncToken;
 }
 
 // =====================================================================================================================
@@ -2153,47 +2081,7 @@ void UniversalCmdBuffer::CmdAcquire(
     uint32                    syncTokenCount,
     const uint32*             pSyncTokens)
 {
-    CmdBuffer::CmdAcquire(acquireInfo, syncTokenCount, pSyncTokens);
-
-    // Barriers do not honor predication.
-    const uint32 packetPredicate = m_pm4CmdBufState.flags.packetPredicate;
-    m_pm4CmdBufState.flags.packetPredicate = 0;
-
-    // Mark these as traditional barriers in RGP
-    m_device.DescribeBarrierStart(this, acquireInfo.reason, Developer::BarrierType::Acquire);
-
-    bool splitMemAllocated;
-    AcquireReleaseInfo splitAcquireInfo = acquireInfo;
-    Result result = Pal::Device::SplitImgBarriers(m_device.GetPlatform(), &splitAcquireInfo, &splitMemAllocated);
-
-    Developer::BarrierOperations barrierOps = {};
-    if (result == Result::ErrorOutOfMemory)
-    {
-        NotifyAllocFailure();
-    }
-    else if (result == Result::Success)
-    {
-        m_device.Acquire(this,
-                         &m_deCmdStream,
-                         acquireInfo,
-                         syncTokenCount,
-                         reinterpret_cast<const AcqRelSyncToken*>(pSyncTokens),
-                         &barrierOps);
-    }
-    else
-    {
-        PAL_ASSERT_ALWAYS();
-    }
-
-    // Delete memory allocated for splitting ImgBarriers if necessary.
-    if (splitMemAllocated)
-    {
-        PAL_SAFE_DELETE_ARRAY(splitAcquireInfo.pImageBarriers, m_device.GetPlatform());
-    }
-
-    m_device.DescribeBarrierEnd(this, &barrierOps);
-
-    m_pm4CmdBufState.flags.packetPredicate = packetPredicate;
+    Pm4CmdBuffer::CmdAcquire(acquireInfo, syncTokenCount, pSyncTokens);
 
     IssueGangedBarrierAceWaitDeIncr();
 }
@@ -2203,42 +2091,7 @@ void UniversalCmdBuffer::CmdReleaseEvent(
     const AcquireReleaseInfo& releaseInfo,
     const IGpuEvent*          pGpuEvent)
 {
-    CmdBuffer::CmdReleaseEvent(releaseInfo, pGpuEvent);
-
-    // Barriers do not honor predication.
-    const uint32 packetPredicate           = m_pm4CmdBufState.flags.packetPredicate;
-    m_pm4CmdBufState.flags.packetPredicate = 0;
-
-    // Mark these as traditional barriers in RGP
-    m_device.DescribeBarrierStart(this, releaseInfo.reason, Developer::BarrierType::Release);
-
-    bool splitMemAllocated;
-    AcquireReleaseInfo splitReleaseInfo = releaseInfo;
-    Result result = Pal::Device::SplitImgBarriers(m_device.GetPlatform(), &splitReleaseInfo, &splitMemAllocated);
-
-    Developer::BarrierOperations barrierOps = {};
-    if (result == Result::ErrorOutOfMemory)
-    {
-        NotifyAllocFailure();
-    }
-    else if (result == Result::Success)
-    {
-        m_device.ReleaseEvent(this, &m_deCmdStream, splitReleaseInfo, pGpuEvent, &barrierOps);
-    }
-    else
-    {
-        PAL_ASSERT_ALWAYS();
-    }
-
-    // Delete memory allocated for splitting ImgBarriers if necessary.
-    if (splitMemAllocated)
-    {
-        PAL_SAFE_DELETE_ARRAY(splitReleaseInfo.pImageBarriers, m_device.GetPlatform());
-    }
-
-    m_device.DescribeBarrierEnd(this, &barrierOps);
-
-    m_pm4CmdBufState.flags.packetPredicate = packetPredicate;
+    Pm4CmdBuffer::CmdReleaseEvent(releaseInfo, pGpuEvent);
 
     for (uint32 i = 0; i < releaseInfo.imageBarrierCount; i++)
     {
@@ -2258,42 +2111,7 @@ void UniversalCmdBuffer::CmdAcquireEvent(
     uint32                    gpuEventCount,
     const IGpuEvent* const*   ppGpuEvents)
 {
-    CmdBuffer::CmdAcquireEvent(acquireInfo, gpuEventCount, ppGpuEvents);
-
-    // Barriers do not honor predication.
-    const uint32 packetPredicate = m_pm4CmdBufState.flags.packetPredicate;
-    m_pm4CmdBufState.flags.packetPredicate = 0;
-
-    // Mark these as traditional barriers in RGP
-    m_device.DescribeBarrierStart(this, acquireInfo.reason, Developer::BarrierType::Acquire);
-
-    bool splitMemAllocated;
-    AcquireReleaseInfo splitAcquireInfo = acquireInfo;
-    Result result = Pal::Device::SplitImgBarriers(m_device.GetPlatform(), &splitAcquireInfo, &splitMemAllocated);
-
-    Developer::BarrierOperations barrierOps = {};
-    if (result == Result::ErrorOutOfMemory)
-    {
-        NotifyAllocFailure();
-    }
-    else if (result == Result::Success)
-    {
-        m_device.AcquireEvent(this, &m_deCmdStream, splitAcquireInfo, gpuEventCount, ppGpuEvents, &barrierOps);
-    }
-    else
-    {
-        PAL_ASSERT_ALWAYS();
-    }
-
-    // Delete memory allocated for splitting ImgBarriers if necessary.
-    if (splitMemAllocated)
-    {
-        PAL_SAFE_DELETE_ARRAY(splitAcquireInfo.pImageBarriers, m_device.GetPlatform());
-    }
-
-    m_device.DescribeBarrierEnd(this, &barrierOps);
-
-    m_pm4CmdBufState.flags.packetPredicate = packetPredicate;
+    Pm4CmdBuffer::CmdAcquireEvent(acquireInfo, gpuEventCount, ppGpuEvents);
 
     IssueGangedBarrierAceWaitDeIncr();
 }
@@ -2302,42 +2120,7 @@ void UniversalCmdBuffer::CmdAcquireEvent(
 void UniversalCmdBuffer::CmdReleaseThenAcquire(
     const AcquireReleaseInfo& barrierInfo)
 {
-    CmdBuffer::CmdReleaseThenAcquire(barrierInfo);
-
-    // Barriers do not honor predication.
-    const uint32 packetPredicate = m_pm4CmdBufState.flags.packetPredicate;
-    m_pm4CmdBufState.flags.packetPredicate = 0;
-
-    // Mark these as traditional barriers in RGP
-    m_device.DescribeBarrierStart(this, barrierInfo.reason, Developer::BarrierType::Full);
-
-    bool splitMemAllocated;
-    AcquireReleaseInfo splitBarrierInfo = barrierInfo;
-    Result result = Pal::Device::SplitImgBarriers(m_device.GetPlatform(), &splitBarrierInfo, &splitMemAllocated);
-
-    Developer::BarrierOperations barrierOps = {};
-    if (result == Result::ErrorOutOfMemory)
-    {
-        NotifyAllocFailure();
-    }
-    else if (result == Result::Success)
-    {
-        m_device.ReleaseThenAcquire(this, &m_deCmdStream, splitBarrierInfo, &barrierOps);
-    }
-    else
-    {
-        PAL_ASSERT_ALWAYS();
-    }
-
-    // Delete memory allocated for splitting ImgBarriers if necessary.
-    if (splitMemAllocated)
-    {
-        PAL_SAFE_DELETE_ARRAY(splitBarrierInfo.pImageBarriers, m_device.GetPlatform());
-    }
-
-    m_device.DescribeBarrierEnd(this, &barrierOps);
-
-    m_pm4CmdBufState.flags.packetPredicate = packetPredicate;
+    Pm4CmdBuffer::CmdReleaseThenAcquire(barrierInfo);
 
     for (uint32 i = 0; i < barrierInfo.imageBarrierCount; i++)
     {
@@ -2468,7 +2251,7 @@ void UniversalCmdBuffer::CmdBindTargets(
     bool validCbViewFound   = false;
     bool validAaCbViewFound = false;
 
-    Pm4::TargetExtent2d surfaceExtent = { Pm4::MaxScissorExtent, Pm4::MaxScissorExtent }; // Default to fully open
+    Extent2d surfaceExtent = { Pm4::MaxScissorExtent, Pm4::MaxScissorExtent }; // Default to fully open
 
     // Bind all color targets.
     const uint32  colorTargetLimit   = Max(params.colorTargetCount, m_graphicsState.bindTargets.colorTargetCount);
@@ -2575,7 +2358,7 @@ void UniversalCmdBuffer::CmdBindTargets(
                                                    &m_dbRenderOverride,
                                                    pDeCmdSpace);
 
-        const Pm4::TargetExtent2d depthViewExtent = pNewDepthView->GetExtent();
+        const Extent2d depthViewExtent = pNewDepthView->GetExtent();
         surfaceExtent.width  = Min(surfaceExtent.width,  depthViewExtent.width);
         surfaceExtent.height = Min(surfaceExtent.height, depthViewExtent.height);
 
@@ -2693,9 +2476,10 @@ void UniversalCmdBuffer::CmdBindTargets(
                                                           pDeCmdSpace);
     }
 
-    if (surfaceExtent.value != m_graphicsState.targetExtent.value)
+    if ((surfaceExtent.width  != m_graphicsState.targetExtent.width) ||
+        (surfaceExtent.height != m_graphicsState.targetExtent.height))
     {
-        m_graphicsState.targetExtent.value = surfaceExtent.value;
+        m_graphicsState.targetExtent = surfaceExtent;
 
         struct
         {
@@ -4254,6 +4038,13 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMeshTask(
             if (TestAnyFlagSet(mask, 1))
             {
                 pAceCmdSpace  = pThis->BuildWriteViewId(viewInstancingDesc.viewId[i], pAceCmdSpace);
+
+                if ((pThis->PacketPredicate() == PredEnable) && (pThis->m_predGpuAddr != 0))
+                {
+                    pAceCmdSpace += pThis->m_cmdUtil.BuildCondExec(pThis->m_predGpuAddr,
+                                                                   CmdUtil::DispatchTaskMeshDirectMecSize,
+                                                                   pAceCmdSpace);
+                }
                 pAceCmdSpace += CmdUtil::BuildDispatchTaskMeshDirectAce(size,
                                                                         taskRingIndexReg,
                                                                         pThis->PacketPredicate(),
@@ -4264,6 +4055,12 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMeshTask(
     }
     else
     {
+        if ((pThis->PacketPredicate() == PredEnable) && (pThis->m_predGpuAddr != 0))
+        {
+            pAceCmdSpace += pThis->m_cmdUtil.BuildCondExec(pThis->m_predGpuAddr,
+                                                           CmdUtil::DispatchTaskMeshDirectMecSize,
+                                                           pAceCmdSpace);
+        }
         pAceCmdSpace += CmdUtil::BuildDispatchTaskMeshDirectAce(size,
                                                                 taskRingIndexReg,
                                                                 pThis->PacketPredicate(),
@@ -4438,6 +4235,13 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMeshIndirectMultiTask(
             if (TestAnyFlagSet(mask, 1))
             {
                 pAceCmdSpace  = pThis->BuildWriteViewId(viewInstancingDesc.viewId[i], pAceCmdSpace);
+
+                if ((pThis->PacketPredicate() == PredEnable) && (pThis->m_predGpuAddr != 0))
+                {
+                    pAceCmdSpace += pThis->m_cmdUtil.BuildCondExec(pThis->m_predGpuAddr,
+                                                                   CmdUtil::DispatchTaskMeshIndirectMecSize,
+                                                                   pAceCmdSpace);
+                }
                 pAceCmdSpace += CmdUtil::BuildDispatchTaskMeshIndirectMultiAce(indirectGpuAddr,
                                                                                taskRingIndexReg,
                                                                                taskDispatchDimsReg,
@@ -4453,6 +4257,12 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMeshIndirectMultiTask(
     }
     else
     {
+        if ((pThis->PacketPredicate() == PredEnable) && (pThis->m_predGpuAddr != 0))
+        {
+            pAceCmdSpace += pThis->m_cmdUtil.BuildCondExec(pThis->m_predGpuAddr,
+                                                            CmdUtil::DispatchTaskMeshIndirectMecSize,
+                                                            pAceCmdSpace);
+        }
         pAceCmdSpace += CmdUtil::BuildDispatchTaskMeshIndirectMultiAce(indirectGpuAddr,
                                                                        taskRingIndexReg,
                                                                        taskDispatchDimsReg,
@@ -5362,7 +5172,7 @@ void UniversalCmdBuffer::WriteEventCmd(
 // =====================================================================================================================
 // Gets the command stream associated with the specified engine
 CmdStream* UniversalCmdBuffer::GetCmdStreamByEngine(
-    uint32 engineType) // Mask of Engine types as defined in gfxCmdBufer.h
+    CmdBufferEngineSupport engineType) // Mask of Engine types as defined in gfxCmdBufer.h
 {
     return TestAnyFlagSet(m_engineSupport, engineType) ? &m_deCmdStream : nullptr;
 }
@@ -9524,184 +9334,6 @@ uint32* UniversalCmdBuffer::FlushStreamOut(
 }
 
 // =====================================================================================================================
-// Set all specified state on this command buffer.
-void UniversalCmdBuffer::SetGraphicsState(
-    const Pm4::GraphicsState& newGraphicsState)
-{
-    Pal::Pm4::UniversalCmdBuffer::SetGraphicsState(newGraphicsState);
-
-    // The target state that we would restore is invalid if this is a nested command buffer that inherits target
-    // view state.  The only allowed BLTs in a nested command buffer are CmdClearBoundColorTargets and
-    // CmdClearBoundDepthStencilTargets, neither of which will overwrite the bound targets.
-    if (m_graphicsState.inheritedState.stateFlags.targetViewState == 0)
-    {
-        CmdBindTargets(newGraphicsState.bindTargets);
-    }
-
-    if ((newGraphicsState.iaState.indexAddr  != m_graphicsState.iaState.indexAddr)  ||
-        (newGraphicsState.iaState.indexCount != m_graphicsState.iaState.indexCount) ||
-        (newGraphicsState.iaState.indexType  != m_graphicsState.iaState.indexType))
-    {
-        CmdBindIndexData(newGraphicsState.iaState.indexAddr,
-                            newGraphicsState.iaState.indexCount,
-                            newGraphicsState.iaState.indexType);
-    }
-
-    if (memcmp(&newGraphicsState.inputAssemblyState,
-                &m_graphicsState.inputAssemblyState,
-                sizeof(m_graphicsState.inputAssemblyState)) != 0)
-    {
-        CmdSetInputAssemblyState(newGraphicsState.inputAssemblyState);
-    }
-
-    if (newGraphicsState.pColorBlendState != m_graphicsState.pColorBlendState)
-    {
-        CmdBindColorBlendState(newGraphicsState.pColorBlendState);
-    }
-
-    if (memcmp(newGraphicsState.blendConstState.blendConst,
-                m_graphicsState.blendConstState.blendConst,
-                sizeof(m_graphicsState.blendConstState.blendConst)) != 0)
-    {
-        CmdSetBlendConst(newGraphicsState.blendConstState);
-    }
-
-    if (memcmp(&newGraphicsState.stencilRefMaskState,
-                &m_graphicsState.stencilRefMaskState,
-                sizeof(m_graphicsState.stencilRefMaskState)) != 0)
-    {
-        // Setting StencilRefMaskState flags to 0xFF so that the faster command is used instead of read-modify-write
-        StencilRefMaskParams stencilRefMaskState = newGraphicsState.stencilRefMaskState;
-        stencilRefMaskState.flags.u8All = 0xFF;
-
-        CmdSetStencilRefMasks(stencilRefMaskState);
-    }
-
-    if (newGraphicsState.pDepthStencilState != m_graphicsState.pDepthStencilState)
-    {
-        CmdBindDepthStencilState(newGraphicsState.pDepthStencilState);
-    }
-
-    if ((newGraphicsState.depthBoundsState.min != m_graphicsState.depthBoundsState.min) ||
-        (newGraphicsState.depthBoundsState.max != m_graphicsState.depthBoundsState.max))
-    {
-        CmdSetDepthBounds(newGraphicsState.depthBoundsState);
-    }
-
-    if (newGraphicsState.pMsaaState != m_graphicsState.pMsaaState)
-    {
-        CmdBindMsaaState(newGraphicsState.pMsaaState);
-    }
-
-    if (memcmp(&newGraphicsState.lineStippleState,
-               &m_graphicsState.lineStippleState,
-               sizeof(LineStippleStateParams)) != 0)
-    {
-        CmdSetLineStippleState(newGraphicsState.lineStippleState);
-    }
-
-    if (memcmp(&newGraphicsState.quadSamplePatternState,
-               &m_graphicsState.quadSamplePatternState,
-               sizeof(MsaaQuadSamplePattern)) != 0)
-    {
-        // numSamplesPerPixel can be 0 if the client never called CmdSetMsaaQuadSamplePattern.
-        if (newGraphicsState.numSamplesPerPixel != 0)
-        {
-            CmdSetMsaaQuadSamplePattern(newGraphicsState.numSamplesPerPixel,
-                newGraphicsState.quadSamplePatternState);
-        }
-    }
-
-    if (memcmp(&newGraphicsState.triangleRasterState,
-                &m_graphicsState.triangleRasterState,
-                sizeof(m_graphicsState.triangleRasterState)) != 0)
-    {
-        CmdSetTriangleRasterState(newGraphicsState.triangleRasterState);
-    }
-
-    if (memcmp(&newGraphicsState.pointLineRasterState,
-               &m_graphicsState.pointLineRasterState,
-               sizeof(m_graphicsState.pointLineRasterState)) != 0)
-    {
-        CmdSetPointLineRasterState(newGraphicsState.pointLineRasterState);
-    }
-
-    const auto& restoreDepthBiasState = newGraphicsState.depthBiasState;
-
-    if ((restoreDepthBiasState.depthBias            != m_graphicsState.depthBiasState.depthBias)      ||
-        (restoreDepthBiasState.depthBiasClamp       != m_graphicsState.depthBiasState.depthBiasClamp) ||
-        (restoreDepthBiasState.slopeScaledDepthBias != m_graphicsState.depthBiasState.slopeScaledDepthBias))
-    {
-        CmdSetDepthBiasState(newGraphicsState.depthBiasState);
-    }
-
-    const auto& restoreViewports = newGraphicsState.viewportState;
-    const auto& currentViewports = m_graphicsState.viewportState;
-
-    if ((restoreViewports.count != currentViewports.count) ||
-        (restoreViewports.depthRange != currentViewports.depthRange) ||
-        (memcmp(&restoreViewports.viewports[0],
-                &currentViewports.viewports[0],
-                restoreViewports.count * sizeof(restoreViewports.viewports[0])) != 0))
-    {
-        CmdSetViewports(restoreViewports);
-    }
-
-    const auto& restoreScissorRects = newGraphicsState.scissorRectState;
-    const auto& currentScissorRects = m_graphicsState.scissorRectState;
-
-    if ((restoreScissorRects.count != currentScissorRects.count) ||
-        (memcmp(&restoreScissorRects.scissors[0],
-                &currentScissorRects.scissors[0],
-                restoreScissorRects.count * sizeof(restoreScissorRects.scissors[0])) != 0))
-    {
-        CmdSetScissorRects(restoreScissorRects);
-    }
-
-    if (memcmp(&newGraphicsState.vrsRateState, &m_graphicsState.vrsRateState, sizeof(VrsRateParams)) != 0)
-    {
-        CmdSetPerDrawVrsRate(newGraphicsState.vrsRateState);
-    }
-
-    if (memcmp(&newGraphicsState.vrsCenterState, &m_graphicsState.vrsCenterState, sizeof(VrsCenterState)) != 0)
-    {
-        CmdSetVrsCenterState(newGraphicsState.vrsCenterState);
-    }
-
-    if (newGraphicsState.pVrsImage != m_graphicsState.pVrsImage)
-    {
-        // Restore the pointer to the client's original VRS rate image.  On GFX10 products, if the bound depth stencil
-        // image has changed, this will be re-copied into hTile on the next draw.
-        CmdBindSampleRateImage(newGraphicsState.pVrsImage);
-    }
-
-    const auto& restoreGlobalScissor = newGraphicsState.globalScissorState.scissorRegion;
-    const auto& currentGlobalScissor = m_graphicsState.globalScissorState.scissorRegion;
-
-    if ((restoreGlobalScissor.offset.x      != currentGlobalScissor.offset.x)     ||
-        (restoreGlobalScissor.offset.y      != currentGlobalScissor.offset.y)     ||
-        (restoreGlobalScissor.extent.width  != currentGlobalScissor.extent.width) ||
-        (restoreGlobalScissor.extent.height != currentGlobalScissor.extent.height))
-    {
-        CmdSetGlobalScissor(newGraphicsState.globalScissorState);
-    }
-
-    const auto& restoreClipRects = newGraphicsState.clipRectsState;
-    const auto& currentClipRects = m_graphicsState.clipRectsState;
-
-    if ((restoreClipRects.clipRule != currentClipRects.clipRule)   ||
-        (restoreClipRects.rectCount != currentClipRects.rectCount) ||
-        (memcmp(&restoreClipRects.rectList[0],
-                &currentClipRects.rectList[0],
-                restoreClipRects.rectCount * sizeof(Rect))))
-    {
-        CmdSetClipRects(newGraphicsState.clipRectsState.clipRule,
-                        newGraphicsState.clipRectsState.rectCount,
-                        newGraphicsState.clipRectsState.rectList);
-    }
-}
-
-// =====================================================================================================================
 // Bind the last state set on the specified command buffer
 void UniversalCmdBuffer::InheritStateFromCmdBuf(
     const Pm4CmdBuffer* pCmdBuffer)
@@ -10052,6 +9684,34 @@ void UniversalCmdBuffer::CmdSetPredication(
                                                 accumulateData,
                                                 pDeCmdSpace);
 
+    // For DX12 clients, we need to save the result of the predicate into embedded data to use for predicating
+    // indirect command generation.
+    // For Vulkan clients, we need to save the result of the predicate into embedded data to use for predicating
+    // compute workload discard when doing gang submit
+    if ((m_device.GetPlatform()->GetClientApiId() == ClientApi::Dx12) ||
+        (m_device.GetPlatform()->GetClientApiId() == ClientApi::Vulkan))
+    {
+        if (gpuVirtAddr != 0)
+        {
+            const uint32 predCopyData  = 1;
+            uint32       *pPredCpuAddr = CmdAllocateEmbeddedData(1, 1, &m_predGpuAddr);
+            (*pPredCpuAddr) = 0;
+
+            WriteDataInfo writeData = {};
+            writeData.engineType = EngineTypeUniversal;
+            writeData.dstAddr    = m_predGpuAddr;
+            writeData.engineSel  = engine_sel__pfp_write_data__prefetch_parser;
+            writeData.dstSel     = dst_sel__pfp_write_data__memory;
+            writeData.predicate  = PacketPredicate();
+
+            pDeCmdSpace += CmdUtil::BuildWriteData(writeData, predCopyData, pDeCmdSpace);
+        }
+        else
+        {
+            m_predGpuAddr = 0;
+        }
+    }
+
     m_deCmdStream.CommitCommands(pDeCmdSpace);
 }
 
@@ -10082,14 +9742,35 @@ uint32 UniversalCmdBuffer::ComputeSpillTableInstanceCnt(
     uint32 spillTableDwords,
     uint32 vertexBufTableDwords,
     uint32 maxCmdCnt
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+    , bool* pUseLargeEmbeddedData
+#endif
     ) const
 {
     // Since the SpillTable/s data needs to be virtually contiguous the way it is referenced later, we do not wish to
-    // allocate more memory for it than what can fit in a single chunk of the CmdAllocator::EmbeddedData.
-    const uint32 embeddedDataLimitDwords = GetEmbeddedDataLimit();
+    // allocate more memory for it than what can fit in a single chunk of the CmdAllocator::EmbeddedData or
+    // CmdAllocator::LargeEmbeddedData. Number of iterations of ExecuteIndirect Ops is determined by
+    // Min(MaxCmdCount, ActualCmdCount). We cannot know ActualCmdCount which is stored in a GPU address space buffer at
+    // this point. So we choose EmbeddedData when number of SpillTable instances that would fit in an EmbeddedChunk are
+    // greater than or equal to the specified maxCmdCount otherwise it's best we choose LargeEmbeddedData which can fit
+    // 4x as many instances. The more instances of SpillTable we can maintain at once the better it is for performance
+    // as the CP will stall the next DMA_DATA/s and do a sync and flush of K$ when number of instances per iteration is
+    // met. SpillTableInstCnt needs to be a Power of 2 per CP requirements.
+
     const uint32 tableSizeDwords         = spillTableDwords + vertexBufTableDwords;
-    const uint32 spillCnt                = Min((embeddedDataLimitDwords / tableSizeDwords), maxCmdCnt);
-    const uint32 spillTableInstCnt       = Util::Pow2Pad(spillCnt);
+    const uint32 embeddedDataLimitDwords = GetEmbeddedDataLimit();
+    uint32 spillCnt                      = Min((embeddedDataLimitDwords / tableSizeDwords), maxCmdCnt);
+    uint32 spillTableInstCnt             = Util::Pow2Pad(spillCnt);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+    *pUseLargeEmbeddedData = false;
+    if (spillTableInstCnt < maxCmdCnt)
+    {
+        *pUseLargeEmbeddedData = true;
+        const uint32 largeEmbeddedDataLimitDwords = GetLargeEmbeddedDataLimit();
+        spillCnt                                  = Min((largeEmbeddedDataLimitDwords / tableSizeDwords), maxCmdCnt);
+        spillTableInstCnt                         = Util::Pow2Pad(spillCnt);
+    }
+#endif
     return (spillTableInstCnt > spillCnt) ? spillTableInstCnt >> 1 : spillTableInstCnt;
 }
 
@@ -10404,13 +10085,39 @@ uint32 UniversalCmdBuffer::BuildExecuteIndirectIb2Packets(
             }
             break;
 
+        case IndirectOpType::DispatchMesh:
+#if PAL_BUILD_GFX11
+            // Only supported for Gfx11Plus and when Task Shader is disabled until we add support for IB2 on Gfx to sync
+            // with an ACE queue.
+            // We use the PM4_ME_DISPATCH_MESH_INDIRECT_MULTI packet with a "Multi of 1".
+            sizeDwords += CmdUtil::DispatchMeshIndirectMulti;
+
+            if (pDeCmdIb2Space != nullptr)
+            {
+                const uint16 drawIndexReg        = GetDrawIndexRegAddr();
+                const uint16 meshDispatchDimsReg = graphicsSignature.meshDispatchDimsRegAddr;
+                m_deCmdStream.NotifyIndirectShRegWrite(meshDispatchDimsReg);
+                m_deCmdStream.NotifyIndirectShRegWrite(drawIndexReg);
+
+                const bool usesLegacyMsFastLaunch = (gfxPipeline.FastLaunchMode() == GsFastLaunchMode::VertInLane);
+
+                pDeCmdIb2Space += m_cmdUtil.BuildDispatchMeshIndirectMulti(
+                    pParamData[cmdIndex].argBufOffset,
+                    meshDispatchDimsReg,
+                    drawIndexReg,
+                    1,
+                    pParamData[cmdIndex].argBufSize,
+                    NULL,
+                    PacketPredicate(),
+                    usesLegacyMsFastLaunch,
+                    pDeCmdIb2Space);
+            }
+#endif
+            break;
+
         case IndirectOpType::Skip:
         case IndirectOpType::SetUserData:
             // Nothing to do here.
-            break;
-        case IndirectOpType::DispatchMesh:
-            // Unsupported!
-            PAL_ASSERT_ALWAYS();
             break;
         default:
             // What's this?
@@ -10461,6 +10168,11 @@ gpusize UniversalCmdBuffer::ConstructExecuteIndirectIb2(
     gpusize ib2GpuVa = 0;
     const Pm4::GeneratorProperties&  properties = gfx9Generator.Properties();
     const bool isGfx = (bindPoint == PipelineBindPoint::Graphics);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+    bool useLargeEmbeddedData = false;
+#endif
+    // DataSpace for the Spill+Vertex Table buffer.
+    uint32* pUserDataSpace = nullptr;
 
     // Graphics Pipeline (Indirect Draw)
     if (isGfx)
@@ -10487,14 +10199,35 @@ gpusize UniversalCmdBuffer::ConstructExecuteIndirectIb2(
             // we can fit. If the number of Tables required exceeds the number we can fit in this buffer the CP will
             // replace the UserData entries stored in the current SpillTable buffer with the next set of entries from
             // the Argument Buffer. spillTableInstCnt should always be a power of 2.
-            *pSpillTableInstCnt = ComputeSpillTableInstanceCnt(spillDwords, vertexBufTableDwords, maximumCount);
+            *pSpillTableInstCnt = ComputeSpillTableInstanceCnt(
+                spillDwords,
+                vertexBufTableDwords,
+                maximumCount
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+                , &useLargeEmbeddedData
+#endif
+            );
 
             // Allocate and populate Spill+VBTable Buffer with UserData. Each instance of the SpillTable and
             // VertexBuffer needs to be initialized with UserDataEntries of current context.
-            uint32* pUserDataSpace = CmdAllocateEmbeddedData(
-                ((vertexBufTableDwords + spillDwords) * (*pSpillTableInstCnt)),
-                CacheLineDwords,
-                pSpillTableAddress);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+            if (useLargeEmbeddedData)
+            {
+                pUserDataSpace = CmdAllocateLargeEmbeddedData(
+                    ((vertexBufTableDwords + spillDwords) * (*pSpillTableInstCnt)),
+                    CacheLineDwords,
+                    pSpillTableAddress);
+            }
+            else
+#endif
+            {
+                pUserDataSpace = CmdAllocateEmbeddedData(
+                    ((vertexBufTableDwords + spillDwords) * (*pSpillTableInstCnt)),
+                    CacheLineDwords,
+                    pSpillTableAddress);
+            }
+
+            PAL_ASSERT(pUserDataSpace != nullptr);
             for (uint32 i = 0; i < *pSpillTableInstCnt; i++)
             {
                 if (vertexBufTableDwords != 0)
@@ -10525,20 +10258,41 @@ gpusize UniversalCmdBuffer::ConstructExecuteIndirectIb2(
         // UserData that spills over the assigned SGPRs.
         if (*pSpillTableStride > 0)
         {
-            *pSpillTableInstCnt = ComputeSpillTableInstanceCnt(spillDwords, 0, maximumCount);
+            *pSpillTableInstCnt = ComputeSpillTableInstanceCnt(
+                spillDwords,
+                0,
+                maximumCount
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+                , &useLargeEmbeddedData
+#endif
+            );
 
             // Allocate and populate SpillTable Buffer with UserData. Each instance of the SpillTable needs to be
             // initialized with UserDataEntries of current context.
-            uint32* pUserDataSpace = CmdAllocateEmbeddedData((spillDwords * (*pSpillTableInstCnt)),
-                                                             CacheLineDwords,
-                                                             pSpillTableAddress);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+            if (useLargeEmbeddedData)
+            {
+                pUserDataSpace = CmdAllocateLargeEmbeddedData(
+                    (spillDwords * (*pSpillTableInstCnt)),
+                    CacheLineDwords,
+                    pSpillTableAddress);
+            }
+            else
+#endif
+            {
+                pUserDataSpace = CmdAllocateEmbeddedData(
+                    (spillDwords * (*pSpillTableInstCnt)),
+                    CacheLineDwords,
+                    pSpillTableAddress);
+            }
+
+            PAL_ASSERT(pUserDataSpace != nullptr);
             for (uint32 i = 0; i < *pSpillTableInstCnt; i++)
             {
                 memcpy(pUserDataSpace, m_computeState.csUserDataEntries.entries, (sizeof(uint32) * spillDwords));
                 pUserDataSpace += spillDwords;
             }
         }
-
     }
 
     // Note that we do a "practice run" of our PM4 building routine to compute the exact IB2 size we need. SetUserData
@@ -10580,10 +10334,13 @@ void UniversalCmdBuffer::ExecuteIndirectPacket(
     // The generation of indirect commands is determined by the currently-bound pipeline.
     const PipelineBindPoint bindPoint    = ((gfx9Generator.Type() == Pm4::GeneratorType::Dispatch) ?
                                            PipelineBindPoint::Compute : PipelineBindPoint::Graphics);
-    const auto* pGfxPipeline = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
-    const auto* pCsPipeline  = static_cast<const ComputePipeline*>(m_computeState.pipelineState.pPipeline);
-    const bool  isGfx        = (bindPoint == PipelineBindPoint::Graphics);
-    uint32      mask         = 1;
+
+    const auto* pGfxPipeline  = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
+    const auto* pCsPipeline   = static_cast<const ComputePipeline*>(m_computeState.pipelineState.pPipeline);
+    const bool  isGfx         = (bindPoint == PipelineBindPoint::Graphics);
+    uint32      mask          = 1;
+    const bool  isTaskEnabled = ((gfx9Generator.Type() == Pm4::GeneratorType::DispatchMesh) &&
+                                pGfxPipeline->HasTaskShader());
 
     if (isGfx && (pGfxPipeline->HwStereoRenderingEnabled() == false))
     {
@@ -10689,7 +10446,7 @@ void UniversalCmdBuffer::ExecuteIndirectPacket(
         {
             if ((gfx9Generator.Type() == Pm4::GeneratorType::Draw) ||
                 (gfx9Generator.Type() == Pm4::GeneratorType::DrawIndexed) ||
-                (gfx9Generator.Type() == Pm4::GeneratorType::DispatchMesh))
+                ((gfx9Generator.Type() == Pm4::GeneratorType::DispatchMesh) && (isTaskEnabled == false)))
             {
                 // Command generators which issue non-indexed draws generate DRAW_INDEX_AUTO packets, which will
                 // invalidate some of our draw-time HW state. SEE: CmdDraw() for more details.
@@ -10953,11 +10710,9 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
     uint32                       maximumCount,
     gpusize                      countGpuAddr)
 {
-    const auto& gfx9Generator = static_cast<const IndirectCmdGenerator&>(generator);
-    bool userDataSpillTableUsedButNotSupported = false;
-    const auto& properties = gfx9Generator.Properties();
-    uint32 spillThreshold = m_pSignatureGfx->spillThreshold;
-    const uint32 spillDwords = (spillThreshold <= properties.userDataWatermark) ? properties.maxUserDataEntries : 0;
+    const auto& gfx9Generator      = static_cast<const IndirectCmdGenerator&>(generator);
+    const auto* const pGfxPipeline = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
+    const auto& properties         = gfx9Generator.Properties();
 
     if (countGpuAddr == 0uLL)
     {
@@ -10967,13 +10722,19 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
         *pMemory = maximumCount;
     }
 
-    if ((m_device.Parent()->Settings().useExecuteIndirectPacket < UseExecuteIndirectPacketForDrawSpillTable) &&
-        (spillDwords > 0))
-    {
-        userDataSpillTableUsedButNotSupported = true;
-    }
+    const uint32 gfxSpillDwords  =
+        ((m_pSignatureGfx->spillThreshold <= properties.userDataWatermark) ? properties.maxUserDataEntries : 0);
 
-    if (gfx9Generator.UsingExecuteIndirectPacket() && (userDataSpillTableUsedButNotSupported == false))
+    const bool userDataSpillTableUsedButNotSupported =
+        (m_device.Parent()->Settings().useExecuteIndirectPacket < UseExecuteIndirectPacketForDrawSpillTable) &&
+         (gfxSpillDwords > 0);
+
+    const bool isTaskShaderEnabled = (pGfxPipeline != nullptr) && (pGfxPipeline->IsTaskShaderEnabled());
+    PAL_ASSERT((isTaskShaderEnabled == false) || (gfx9Generator.Type() == Pm4::GeneratorType::DispatchMesh));
+
+    if (gfx9Generator.UsingExecuteIndirectPacket()       &&
+        (userDataSpillTableUsedButNotSupported == false) &&
+        (isTaskShaderEnabled == false))
     {
        ExecuteIndirectPacket(generator, gpuMemory, offset, maximumCount, countGpuAddr);
     }

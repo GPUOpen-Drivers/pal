@@ -801,9 +801,9 @@ static void SetupGfx11Workarounds(
     PAL_ASSERT(waFound);
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-    constexpr uint32 HandledWaMask[] = { 0x1E793001, 0x00000300 }; // Workarounds handled by PAL.
+    constexpr uint32 HandledWaMask[] = { 0x1E793001, 0x00000B00 }; // Workarounds handled by PAL.
     constexpr uint32 OutsideWaMask[] = { 0xE0068DFE, 0x000014FC }; // Workarounds handled by other components.
-    constexpr uint32 MissingWaMask[] = { 0x00004000, 0x00000801 }; // Workarounds that should be handled by PAL that
+    constexpr uint32 MissingWaMask[] = { 0x00004000, 0x00002001 }; // Workarounds that should be handled by PAL that
                                                                    // are not yet implemented or are unlikey to be
                                                                    // implemented.
     constexpr uint32 InvalidWaMask[] = { 0x01800200, 0x00000002 }; // Workarounds marked invalid, thus not handled.
@@ -819,7 +819,7 @@ static void SetupGfx11Workarounds(
                   "Workaround Masks do not match!");
 #endif
 
-    static_assert(Gfx11NumWorkarounds == 45, "Workaround count mismatch between PAL and SWD");
+    static_assert(Gfx11NumWorkarounds == 46, "Workaround count mismatch between PAL and SWD");
 
 #if PAL_BUILD_NAVI31
     if (workarounds.ppPbbPBBBreakBatchDifferenceWithPrimLimit_FpovLimit_DeallocLimit_A_)

@@ -165,6 +165,15 @@ uint32 CmdBuffer::GetEmbeddedDataLimit() const
 }
 
 // =====================================================================================================================
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+uint32 CmdBuffer::GetLargeEmbeddedDataLimit() const
+{
+    // This function is not logged because it doesn't modify the command buffer.
+    return m_pNextLayer->GetLargeEmbeddedDataLimit();
+}
+#endif
+
+// =====================================================================================================================
 void CmdBuffer::CmdBindPipeline(
     const PipelineBindParams& params)
 {
@@ -1602,6 +1611,46 @@ void CmdBuffer::CmdCopyTypedBuffer(
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("srcGpuMemory", &srcGpuMemory);
         pLogContext->KeyAndObject("dstGpuMemory", &dstGpuMemory);
+        pLogContext->KeyAndBeginList("regions", false);
+
+        for (uint32 idx = 0; idx < regionCount; ++idx)
+        {
+            pLogContext->Struct(pRegions[idx]);
+        }
+
+        pLogContext->EndList();
+        pLogContext->EndInput();
+
+        m_pPlatform->LogEndFunc(pLogContext);
+    }
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdScaledCopyTypedBufferToImage(
+    const IGpuMemory&                       srcGpuMemory,
+    const IImage&                           dstImage,
+    ImageLayout                             dstImageLayout,
+    uint32                                  regionCount,
+    const TypedBufferImageScaledCopyRegion* pRegions)
+{
+    BeginFuncInfo funcInfo;
+    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdScaledCopyTypedBufferToImage;
+    funcInfo.objectId     = m_objectId;
+    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    m_pNextLayer->CmdScaledCopyTypedBufferToImage(*NextGpuMemory(&srcGpuMemory),
+                                                  *NextImage(&dstImage),
+                                                  dstImageLayout,
+                                                  regionCount,
+                                                  pRegions);
+    funcInfo.postCallTime = m_pPlatform->GetTime();
+
+    LogContext* pLogContext = nullptr;
+    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    {
+        pLogContext->BeginInput();
+        pLogContext->KeyAndObject("srcGpuMemory", &srcGpuMemory);
+        pLogContext->KeyAndObject("dstImage", &dstImage);
+        pLogContext->KeyAndStruct("dstImageLayout", dstImageLayout);
         pLogContext->KeyAndBeginList("regions", false);
 
         for (uint32 idx = 0; idx < regionCount; ++idx)
@@ -3102,6 +3151,39 @@ uint32* CmdBuffer::CmdAllocateEmbeddedData(
 
     return pCpuAddr;
 }
+
+// =====================================================================================================================
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+uint32* CmdBuffer::CmdAllocateLargeEmbeddedData(
+    uint32   sizeInDwords,
+    uint32   alignmentInDwords,
+    gpusize* pGpuAddress)
+{
+    BeginFuncInfo funcInfo;
+    funcInfo.funcId = InterfaceFunc::CmdBufferCmdAllocateLargeEmbeddedData;
+    funcInfo.objectId = m_objectId;
+    funcInfo.preCallTime = m_pPlatform->GetTime();
+    uint32* const pCpuAddr = m_pNextLayer->CmdAllocateLargeEmbeddedData(sizeInDwords, alignmentInDwords, pGpuAddress);
+    funcInfo.postCallTime = m_pPlatform->GetTime();
+
+    LogContext* pLogContext = nullptr;
+    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    {
+        pLogContext->BeginInput();
+        pLogContext->KeyAndValue("sizeInDwords", sizeInDwords);
+        pLogContext->KeyAndValue("alignmentInDwords", alignmentInDwords);
+        pLogContext->EndInput();
+
+        pLogContext->BeginOutput();
+        pLogContext->KeyAndValue("gpuAddress", *pGpuAddress);
+        pLogContext->EndOutput();
+
+        m_pPlatform->LogEndFunc(pLogContext);
+    }
+
+    return pCpuAddr;
+}
+#endif
 
 // =====================================================================================================================
 Result CmdBuffer::AllocateAndBindGpuMemToEvent(

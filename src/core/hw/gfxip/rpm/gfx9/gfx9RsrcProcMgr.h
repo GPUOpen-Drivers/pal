@@ -197,11 +197,6 @@ protected:
         DccClearPurpose    clearPurpose,
         const uint32*      pPackedClearColor = nullptr) const = 0;
 
-    uint32 DecodeImageViewSrdPlane(
-        const Pal::Image&  image,
-        gpusize            srdBaseAddr,
-        uint32             slice) const;
-
     virtual void FastDepthStencilClearCompute(
         GfxCmdBuffer*      pCmdBuffer,
         const Image&       dstImage,
@@ -525,16 +520,6 @@ protected:
         const Pm4::IndirectCmdGenerator& generator,
         const Pm4CmdBuffer&              cmdBuffer) const override;
 
-    void HwlDecodeBufferViewSrd(
-        const void*     pBufferViewSrd,
-        BufferViewInfo* pViewInfo) const override;
-
-    void HwlDecodeImageViewSrd(
-        const void*       pImageViewSrd,
-        const Pal::Image& dstImage,
-        SwizzledFormat*   pSwizzledFormat,
-        SubresRange*      pSubresRange) const override;
-
     void InitCmask(
         GfxCmdBuffer*      pCmdBuffer,
         Pal::CmdStream*    pCmdStream,
@@ -708,16 +693,6 @@ protected:
     virtual const Pal::ComputePipeline* GetCmdGenerationPipeline(
         const Pm4::IndirectCmdGenerator& generator,
         const Pm4CmdBuffer&              cmdBuffer) const override;
-
-    virtual void HwlDecodeBufferViewSrd(
-        const void*     pBufferViewSrd,
-        BufferViewInfo* pViewInfo) const override;
-
-    virtual void HwlDecodeImageViewSrd(
-        const void*       pImageViewSrd,
-        const Pal::Image& dstImage,
-        SwizzledFormat*   pSwizzledFormat,
-        SubresRange*      pSubresRange) const override;
 
     virtual void InitCmask(
         GfxCmdBuffer*      pCmdBuffer,

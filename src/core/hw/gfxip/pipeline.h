@@ -109,6 +109,8 @@ struct PerfDataInfo
     size_t sizeInBytes;
 };
 
+constexpr uint32 InvalidUserDataInternalTable = UINT32_MAX;
+
 // Shorthand for a pipeline ABI reader.
 using AbiReader = Util::Abi::PipelineAbiReader;
 
@@ -178,6 +180,12 @@ public:
     bool SupportDynamicDispatch() const { return (m_flags.supportDynamicDispatch != 0); }
 
     bool IsInternal() const { return m_flags.isInternal != 0; }
+
+#if PAL_BUILD_GFX11
+    static bool DispatchInterleaveSizeIsValid(
+        DispatchInterleaveSize   interleave,
+        const GpuChipProperties& chipProps);
+#endif
 
 protected:
     Pipeline(Device* pDevice, bool isInternal);

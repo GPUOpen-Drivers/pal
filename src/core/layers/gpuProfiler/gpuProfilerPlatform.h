@@ -35,9 +35,12 @@ namespace GpuProfiler
 
 enum CmdAllocResidencyFlags : uint32
 {
-    CmdAllocResWaitOnSubmitCommandData   = (1 << CommandDataAlloc),
-    CmdAllocResWaitOnSubmitEmbeddedData  = (1 << EmbeddedDataAlloc),
-    CmdAllocResWaitOnSubmitGpuScratchMem = (1 << GpuScratchMemAlloc),
+    CmdAllocResWaitOnSubmitCommandData          = (1 << CommandDataAlloc),
+    CmdAllocResWaitOnSubmitEmbeddedData         = (1 << EmbeddedDataAlloc),
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+    CmdAllocResWaitOnSubmitLargeEmbeddedData    = (1 << LargeEmbeddedDataAlloc),
+#endif
+    CmdAllocResWaitOnSubmitGpuScratchMem        = (1 << GpuScratchMemAlloc),
 };
 
 // =====================================================================================================================

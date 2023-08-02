@@ -47,7 +47,7 @@ ComputeCmdBuffer::ComputeCmdBuffer(
     const Device&              device,
     const CmdBufferCreateInfo& createInfo)
     :
-    Pm4::ComputeCmdBuffer(device, createInfo, &m_cmdStream),
+    Pm4::ComputeCmdBuffer(device, createInfo, nullptr, &m_cmdStream),
     m_device(device),
     m_cmdUtil(device.CmdUtil()),
     m_cmdStream(device,

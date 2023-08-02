@@ -80,6 +80,10 @@ public:
         return 0;
     }
 
+    // Returns true if the specified swizzle mode is "thin" (i.e., a 3D image assigned
+    // this swizzle mode would be laid out in a manner characteristic with a 2D-array).
+    virtual bool IsThin(uint32 swizzleMode) const { return false; }
+
 protected:
     AddrMgr(
         const Device* pDevice,

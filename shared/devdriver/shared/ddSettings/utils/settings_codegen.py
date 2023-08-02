@@ -28,73 +28,9 @@ import io
 import time
 import jsonschema
 import sys
+from ruamel.yaml import YAML
 from os import path
 from jinja2 import Environment as JinjaEnv, FileSystemLoader as JinjaLoader
-from ruamel.yaml import YAML
-from ruamel.yaml.comments import CommentedSeq
-from ruamel.yaml.compat import ordereddict
-from packaging import version
-
-def extract_yaml_comment(seq: CommentedSeq, index: int) -> str:
-    """Extract the filetering comments (e.g. `#if ...`) of the `i`-th item in the sequence `seq`.
-
-    For example, in the YAML data below, the comment `BUILD_APPLE` should be
-    considered to be associated with the item "Apple".
-
-    ```yaml
-    Fruits:
-      - Banana
-    #if BUILD_APPLE
-      - Apple
-    #endif
-      - Orange
-    ```
-    """
-    import ruamel.yaml
-
-    if version.parse(ruamel.yaml.__version__) < version.parse("0.16.10"):
-        raise ImportError(
-            "This script depends on ruamel.yaml version >= 0.16.10. "
-            f"The version installed is {ruamel.yaml.__version__}"
-        )
-
-    last_line = lambda comment: comment.splitlines()[-1].lstrip()
-
-    assert index >= 0
-
-    comment = ""
-    if index == 0:
-        # If it's the first item, its comment is attached to the sequence
-        # itself.
-        if seq.ca.comment and seq.ca.comment[1]:
-            comment = last_line(seq.ca.comment[1][0].value)
-
-    else:
-        if isinstance(seq[index], dict):
-            # If items are of type `dict`, the comment is attached to the last
-            # key-value pair of the previous item.
-            if seq[index - 1].ca.items:
-                last_key = next(reversed(seq[index - 1]))
-                comment = last_line(seq[index - 1].ca.items[last_key][2].value)
-        else:
-            if seq.ca.items:
-                comment = last_line(seq.ca.items[index - 1][0].value)
-
-    return comment
-
-def setup_build_filters(seq: CommentedSeq):
-    """Check attached comment and add 'BuildFilters' field accordingly."""
-    # Because current item's filtering comment is attached to the last field of
-    # the previous item, directly adding 'BuildFilters' field to this item
-    # would interfere with the parsing of the next item.
-    build_filters = []
-    for i in range(len(seq)):
-        comment = extract_yaml_comment(seq, i)
-        if comment.startswith("#if "):
-            build_filters.append((i, comment))
-
-    for i, comment in build_filters:
-        seq[i]["BuildFilters"] = comment
 
 def fnv1a(bytes: bytes):
     fnv_prime = 0x01000193
@@ -108,18 +44,36 @@ def fnv1a(bytes: bytes):
 
     return hval
 
+def buildtypes_to_c_macro(buildtypes: list) -> str:
+    """A Jinja filter that transform build types to C preprocessor macros.
+
+    For example, if builtypes is [APPLE, BANANA], the result is `#if APPLE | BANANA`
+    """
+    result = "#if "
+    for index, build_type in enumerate(buildtypes):
+        if index > 0:
+            result += " || "
+
+        build_type = build_type.strip()
+        and_op_pos = build_type.find("&&")
+        if and_op_pos >= 0:
+            assert and_op_pos > 0 and and_op_pos < (len(build_type) - 2), "Invalid build type: {build_type}"
+            result += "({build_type})"
+        else:
+            result += build_type
+    return result
+
 def setup_default(setting: dict, group_name: str) -> str:
     """A Jinja filter that renders settings default value assignment."""
 
     def assign_line(setting: dict, platform: str, group_name: str) -> str:
-        setting_name = setting["VariableName"]
+        setting_name = setting["variableName"]
         if len(group_name) != 0:
             setting_name = f"{group_name}.{setting_name}"
 
-        default = setting["Defaults"][platform]
+        default = setting["defaults"][platform]
         default_str = ""
-        enum_name = setting.get("Enum", None)
-        bitmask_name = setting.get("Bitmask", None)
+        enum_name = setting.get("enum", None)
         is_string = False
         if enum_name:
             if isinstance(default, str):
@@ -129,19 +83,7 @@ def setup_default(setting: dict, group_name: str) -> str:
             else:
                 raise ValueError(
                     f"{setting_name} is an Enum. Its default value must be either "
-                    f"an integer or a string representing one of the variants of its "
-                    f"Enum type, but it's {type(default)}."
-                )
-
-        elif bitmask_name:
-            if isinstance(default, str):
-                default_str = f"{bitmask_name}::{default}"
-            elif isinstance(default, int):
-                default_str = str(default)
-            else:
-                raise ValueError(
-                    f"{setting_name} is an Enum. Its default value must be either "
-                    f"an integer or a string representing one of the variants of its "
+                    f"an integer or a string representing one of the values of its "
                     f"Enum type, but it's {type(default)}."
                 )
 
@@ -149,14 +91,14 @@ def setup_default(setting: dict, group_name: str) -> str:
             default_str = "true" if default else "false"
 
         elif isinstance(default, int):
-            flags = setting.get("Flags", None)
-            if flags and "IsHex" in flags:
+            flags = setting.get("flags", None)
+            if flags and "isHex" in flags:
                 default_str = hex(default)
             else:
                 default_str = str(default)
 
         elif isinstance(default, str):
-            setting_type = setting["Defaults"]["Type"]
+            setting_type = setting["defaults"]["type"]
             if setting_type == "float":
                 default_str = default
                 if default_str[-1:] != "f":
@@ -176,40 +118,43 @@ def setup_default(setting: dict, group_name: str) -> str:
             )
 
         if is_string:
-            string_len = setting["StringLength"]
-            # Need to preserve this long line so the output C++ code is well formatted.
-            return f"    memset(m_settings.{setting_name}, 0, {string_len});\n    strncpy(m_settings.{setting_name}, {default_str}, {string_len});\n"
+            string_len = setting["stringLength"]
+            result = (
+                f'    static_assert({string_len} >= sizeof({default_str}), "string too long");\n'
+                f"    strncpy(m_settings.{setting_name}, {default_str}, {string_len});\n"
+            )
+            return result
         else:
             return f"    m_settings.{setting_name} = {default_str};\n"
 
-    defaults = setting["Defaults"]
+    defaults = setting["defaults"]
 
-    default_win = defaults.get("Windows", None)
-    default_linux = defaults.get("Linux", None)
+    default_win = defaults.get("windows", None)
+    default_linux = defaults.get("linux", None)
 
     result = ""
     if (default_win is not None) and (default_linux is not None):
         result += "#if defined(_WIN32)\n"
-        result += assign_line(setting, "Windows", group_name)
+        result += assign_line(setting, "windows", group_name)
         result += "#elif (__unix__)\n"
-        result += assign_line(setting, "Linux", group_name)
+        result += assign_line(setting, "linux", group_name)
         result += "#else\n"
-        result += assign_line(setting, "Default", group_name)
+        result += assign_line(setting, "default", group_name)
         result += "#endif\n"
     elif default_win is not None:
         result += "#if defined(_WIN32)\n"
-        result += assign_line(setting, "Windows", group_name)
+        result += assign_line(setting, "windows", group_name)
         result += "#else\n"
-        result += assign_line(setting, "Default", group_name)
+        result += assign_line(setting, "default", group_name)
         result += "#endif\n"
     elif default_linux is not None:
         result += "#if defined(__unix__)\n"
-        result += assign_line(setting, "Linux", group_name)
+        result += assign_line(setting, "linux", group_name)
         result += "#else\n"
-        result += assign_line(setting, "Default", group_name)
+        result += assign_line(setting, "default", group_name)
         result += "#endif\n"
     else:
-        result += assign_line(setting, "Default", group_name)
+        result += assign_line(setting, "default", group_name)
 
     return result
 
@@ -235,10 +180,10 @@ def setting_type_cpp(setting_type: str) -> str:
         return "DD_SETTINGS_TYPE_UINT64"
     elif setting_type == "float":
         return "DD_SETTINGS_TYPE_FLOAT"
-    elif setting_type == "string":
+    elif setting_type == "str":
         return "DD_SETTINGS_TYPE_STRING"
     else:
-        return '"Invalid value for the JSON field Defaults::Type."'
+        return f'"Invalid value ({setting_type}) for the field defaults::type."'
 
 # A jinja filter that converts "Type" specified in YAML to Util::ValueType from
 # PAL.
@@ -253,10 +198,10 @@ def setting_type_cpp2(setting_type: str) -> str:
         return "Util::ValueType::Uint64"
     elif setting_type == "float":
         return "Util::ValueType::Float"
-    elif setting_type == "string":
+    elif setting_type == "str":
         return "Util::ValueType::Str"
     else:
-        return '"Invalid value for the JSON field Defaults::Type."'
+        return f'"Invalid value ({setting_type}) for the field defaults::type."'
 
 def gen_variable_name(name: str) -> str:
     """Generate C++ variable names.
@@ -290,10 +235,10 @@ def gen_variable_name(name: str) -> str:
     return var_name
 
 def validate_settings_name(name: str):
-    """Valid a "Name" field in JSON object.
+    """Valid a "name" field in YAML object.
 
     The generated C++ variable names are based on `name`. So we need to make
-    sure they can compile.
+    sure they can compile in C++.
 
     A name must start with an alphabetic letter and can only contain
     alphanumeric characters, plus underscore.
@@ -303,7 +248,7 @@ def validate_settings_name(name: str):
     name_cleaned = name.replace("_", "")
     if not name_cleaned.isalnum():
         raise ValueError(
-            f'"{name}" contains character(s) other than alphanumeric ' "and underscore."
+            f'"{name}" contains character(s) other than alphanumeric or underscore (_).'
         )
 
 def validate_tag(tag: str):
@@ -336,12 +281,14 @@ def validate_tag(tag: str):
 def gen_settings_blob(settings_root: dict, magic_buf: bytes) -> bytearray:
     settings_stream = io.StringIO()
     yaml = YAML()
+    yaml.default_flow_style = False
     yaml.dump(settings_root, settings_stream)
+
     settings_str = settings_stream.getvalue()
     settings_bytes = bytearray(settings_str.encode(encoding="utf-8"))
     settings_bytes_len = len(settings_bytes)
 
-    if settings_root["Encoded"]:
+    if settings_root["encoded"]:
         # Fill `magic_bytes` to be as big as `settings_bytes`.
         magic_buf_len = len(magic_buf)
         repeat = settings_bytes_len // magic_buf_len
@@ -366,10 +313,10 @@ def gen_settings_blob(settings_root: dict, magic_buf: bytes) -> bytearray:
     else:
         return settings_bytes
 
-def gen_setting_name_hashes(settings: ordereddict):
+def gen_setting_name_hashes(settings: list):
     """Generate name hash for each setting.
 
-    And add it as 'NameHash' field. This function also validates setting names
+    And add it as 'nameHash' field. This function also validates setting names
     and checks for duplicates.
     """
 
@@ -377,10 +324,10 @@ def gen_setting_name_hashes(settings: ordereddict):
     setting_name_hash_map = dict()  # used to detect hashing collision
 
     for setting in settings:
-        name = setting["Name"]
+        name = setting["name"]
         validate_settings_name(name)
 
-        group = setting.get("Group", None)
+        group = setting.get("group", None)
         if group is not None:
             name = f"{group}_{name}"
 
@@ -398,28 +345,21 @@ def gen_setting_name_hashes(settings: ordereddict):
                 f"Hash collision detected between setting names: {name}, {colliding_name}"
             )
 
-        # `setting` is an ordereddict, and appending a key-value pair would
-        # interfere with how we extract filtering comments (e.g. `#if ...`).
-        # So insert at the beginning of `setting`.
-        setting.insert(0, "NameHash", name_hash)
+        setting["nameHash"] = name_hash
 
 def prepare_enums(settings_root: dict) -> set:
-    """Prepare enums in the top-level 'Enums' list.
+    """Prepare enums in the top-level 'enums' list.
 
-    - Add 'BuildFilters' field to enum variants from its attached comments.
-    - Return a set of all enum names. ValueError exception is raised when
-      duplicate names are found.
+    Return a set of all enum names. ValueError exception is raised when
+    duplicate names are found.
     """
     enum_names = []
-    enums = settings_root.get("Enums", None)
+    enums = settings_root.get("enums", None)
     if enums:
         for enum in enums:
-            name = enum["Name"]
+            name = enum["name"]
             validate_settings_name(name)
             enum_names.append(name)
-
-            variants = enum["Variants"]
-            setup_build_filters(variants)
 
     enum_names_unique = set(enum_names)
 
@@ -455,94 +395,85 @@ def prepare_settings_meta(
 
     # Compute settings blob hash. Blob hashes are used for consistency check
     # between tools and drivers. Clamp the hash value to be an uint64_t.
-    settings_root["SettingsBlobHash"] = (
+    settings_root["settingsBlobHash"] = (
         hash(bytes(settings_blob)) & 0xFFFF_FFFF_FFFF_FFFF
     )
 
-    settings_root["SettingsBlob"] = ",".join(map(str, settings_blob))
-    settings_root["SettingsBlobSize"] = len(settings_blob)
+    settings_root["settingsBlob"] = ",".join(map(str, settings_blob))
+    settings_root["settingsBlobSize"] = len(settings_blob)
 
-    settings_root["NumSettings"] = len(settings_root["Settings"])
+    settings_root["numSettings"] = len(settings_root["settings"])
 
-    settings_root["CodeGenHeader"] = codegen_header
-    settings_root["SettingsHeader"] = settings_header
+    settings_root["codeGenHeader"] = codegen_header
+    settings_root["settingsHeader"] = settings_header
 
-    component_name = settings_root["ComponentName"]
+    component_name = settings_root["component"]
     validate_settings_name(component_name)
-    settings_root["ComponentNameLower"] = component_name[0].lower() + component_name[1:]
+    settings_root["componentNameLower"] = component_name[0].lower() + component_name[1:]
 
 def prepare_settings_list(settings: dict, enum_name_set: set):
-
-    setup_build_filters(settings)
 
     group_settings_indices = []
 
     for setting_idx, setting in enumerate(settings):
-        setting_name = setting["Name"]
+        setting_name = setting["name"]
 
         # Settings 2.0 schema no longer contains 'VariableName'. It's generated
         # from 'Name'.
-        setting["VariableName"] = gen_variable_name(setting_name)
+        setting["variableName"] = gen_variable_name(setting_name)
 
-        # Add "VariableType" field.
-        enum_name = setting.get("Enum", None)
+        # Add "variableType" field.
+        enum_name = setting.get("enum", None)
         if enum_name and (enum_name not in enum_name_set):
             raise ValueError(
                 f'Unknown enum name "{enum_name}" of the setting "{setting_name}". '
                 "An individual setting's enum name must match one in the Enums list."
             )
 
-        bitmask_name = setting.get("Bitmask", None)
-        if enum_name and (enum_name not in enum_name_set):
-            raise ValueError(
-                f'Unknown bitmask name "{enum_name}" of the setting "{setting_name}". '
-                "An individual setting's bitmask name must match one in the Enums list."
-            )
+        type_str = setting["defaults"]["type"]
 
-        type_str = setting["Defaults"]["Type"]
+        flags = setting.get("flags", None)
 
-        # If a setting is an enum/bitmask, its "Type" must be "uint32".
-        if (enum_name is not None) or (bitmask_name is not None):
+        # If a setting is an enum, its "type" must be "uint32".
+        if enum_name:
             if type_str != "uint32":
                 raise ValueError(
                     f"Setting {setting_name} is an enum, its type must be uint32, but its actual type is {type_str}."
                 )
 
         if enum_name:
-            setting["VariableType"] = enum_name
-        elif bitmask_name:
-            setting["VariableType"] = "uint32_t"
-        else:
-            if type_str == "string":
-                # We only support fixed-size string.
-                setting["VariableType"] = "char"
-            elif type_str.startswith("int") or type_str.startswith("uint"):
-                setting["VariableType"] = type_str + "_t"
+            is_hex = flags.get("isHex", False) if flags else False
+            if is_hex:
+                setting["variableType"] = "uint32_t"
             else:
-                setting["VariableType"] = type_str
+                setting["variableType"] = enum_name
+        else:
+            if type_str == "str":
+                # We only support fixed-size string.
+                setting["variableType"] = "char"
+            elif type_str.startswith("int") or type_str.startswith("uint"):
+                setting["variableType"] = type_str + "_t"
+            else:
+                setting["variableType"] = type_str
 
         # If a string, add a field "StringLength".
-        if setting["Defaults"]["Type"] == "string":
-            flags = setting.get("Flags", None)
-
-            if flags is not None and (
-                flags.get("IsDir", False) or flags.get("IsFile", False)
-            ):
-                setting["StringLength"] = "DevDriver::kSettingsMaxPathStrLen"
+        if setting["defaults"]["type"] == "str":
+            if flags and (flags.get("isDir", False) or flags.get("isFile", False)):
+                setting["stringLength"] = "DevDriver::kSettingsMaxPathStrLen"
             else:
                 # Constant `SettingsMaxMiscStrLen` is defined in asettingsBase.h.
-                setting["StringLength"] = "DevDriver::kSettingsMaxMiscStrLen"
+                setting["stringLength"] = "DevDriver::kSettingsMaxMiscStrLen"
 
         # Record group settings for later processing.
-        if "Group" in setting:
+        if "group" in setting:
             group_settings_indices.append(setting_idx)
 
     # Transform group settings (settings with a 'Group' field) into subsettings.
     setting_groups = {}  # a map of group_name -> subsettings
     for idx in reversed(group_settings_indices):
         setting = settings.pop(idx)
-        group_name = setting["Group"]
-        del setting["Group"]
+        group_name = setting["group"]
+        del setting["group"]
         subsettings = setting_groups.get(group_name, None)
         if subsettings is None:
             subsettings = []
@@ -552,9 +483,9 @@ def prepare_settings_list(settings: dict, enum_name_set: set):
     for group_name, subsettings in setting_groups.items():
         settings.append(
             {
-                "GroupName": group_name,
-                "GroupVariableName": group_name[:1].lower() + group_name[1:],
-                "Subsettings": subsettings,
+                "groupName": group_name,
+                "groupVariableName": group_name[:1].lower() + group_name[1:],
+                "subsettings": subsettings,
             }
         )
 
@@ -607,7 +538,7 @@ def main():
     codegen_parser.add_argument(
         "--classname",
         required=False,
-        help="The Settings class name override. By default, it's `<ComponentName>Settings`.",
+        help="The Settings class name override. By default, it's `<component>Settings`.",
     )
     codegen_parser.add_argument(
         "--pal",
@@ -639,32 +570,30 @@ def main():
         running_script_dir = sys.path[0]
 
         with open(args.input) as file:
-            yaml = YAML()
+            yaml = YAML(typ='safe')
             settings_root = yaml.load(file)
 
         with open(path.join(running_script_dir, "settings_schema.yaml")) as file:
-            yaml = YAML()
+            yaml = YAML(typ='safe')
             settings_schema = yaml.load(file)
 
         jsonschema.validate(settings_root, schema=settings_schema)
 
-        settings_root["PalSettings"] = args.pal
-        settings_root["Namespace"] = (
-            "Pal" if args.pal else settings_root["ComponentName"]
-        )
+        settings_root["palSettings"] = args.pal
+        settings_root["namespace"] = "Pal" if args.pal else settings_root["component"]
 
-        settings_root["Encoded"] = args.encoded
+        settings_root["encoded"] = args.encoded
 
-        settings_root["ClassName"] = (
+        settings_root["className"] = (
             args.classname
             if args.classname
-            else settings_root["ComponentName"] + "Settings"
+            else settings_root["component"] + "Settings"
         )
 
         with open(path.join(running_script_dir, "magic_buffer"), "rb") as magic_file:
             magic_buf = magic_file.read()
 
-        gen_setting_name_hashes(settings_root["Settings"])
+        gen_setting_name_hashes(settings_root["settings"])
 
         prepare_settings_meta(
             settings_root,
@@ -673,7 +602,8 @@ def main():
             args.settings_filename,
         )
 
-        prepare_settings_list(settings_root["Settings"], prepare_enums(settings_root))
+        enum_names = prepare_enums(settings_root)
+        prepare_settings_list(settings_root["settings"], enum_names)
 
         ### Set up Jinja Environment.
 
@@ -684,6 +614,7 @@ def main():
             # Jinja2 templates should be in the same directory as this script.
             loader=JinjaLoader(running_script_dir),
         )
+        jinja_env.filters["buildtypes_to_c_macro"] = buildtypes_to_c_macro
         jinja_env.filters["setup_default"] = setup_default
         jinja_env.filters["setting_type_cpp"] = setting_type_cpp
         jinja_env.filters["setting_type_cpp2"] = setting_type_cpp2

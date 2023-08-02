@@ -521,10 +521,14 @@ void AddrMgr2::InitTilingCaps(
 #if PAL_BUILD_GFX11
     if (IsGfx11(*m_pDevice) && (createInfo.usageFlags.vrsRateImage != 0))
     {
-        // Address library can still specify "linear" images even though the client is requsting "optimal".
-        // i.e., "optimal" does not mean "tiled".  Expressely disallow "linear" images here as GFX11 HW
-        // doesn't support it.
-        pBlockSettings->linear = 1;
+        // Only SW_64KB_R_X needs to be supported and hence does not need a register setting.
+        // See CmdBindSampleRateImage.
+        // Block all block sizes except 64kB here.
+        // Invalid swizzle letters (S,Z,D,R, etc.) are blocked in "ComputePlaneSwizzleMode".
+        pBlockSettings->linear           = 1;
+        pBlockSettings->micro            = 1;
+        pBlockSettings->macroThin4KB     = 1;
+        pBlockSettings->gfx11.thin256KB  = 1;
     }
 #endif
 
@@ -1909,6 +1913,24 @@ Pal::Gfx9::SWIZZLE_MODE_ENUM AddrMgr2::GetHwSwizzleMode(
     }
 
     return retSwizzle;
+}
+
+// =====================================================================================================================
+// Returns true if this swizzle mode effectively corresponds to a 2D layout.
+bool AddrMgr2::IsThin(
+    uint32  swizzleMode
+    ) const
+{
+    const AddrSwizzleMode  addrSwizzle = static_cast<AddrSwizzleMode>(swizzleMode);
+
+    // Note that this functionality would ideally be returned by the address library in some capacity.
+    // "R" modes and "linear" images have always been considered "thin"
+    return IsLinearSwizzleMode(addrSwizzle) ||
+           IsRotatedSwizzle(addrSwizzle)    ||
+           // The rules changed between GFX9 and GFX10
+            (IsGfx10Plus(*m_pDevice)
+                ? IsZSwizzle(addrSwizzle)
+                : IsDisplayableSwizzle(addrSwizzle));
 }
 
 } // AddrMgr2

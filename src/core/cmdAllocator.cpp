@@ -225,7 +225,11 @@ CmdAllocator::CmdAllocator(
                 m_gpuAllocInfo[i].allocCreateInfo.memObjInternalInfo.mtype = MType::Uncached;
             }
         }
-        else if ((i == EmbeddedDataAlloc) || (i == GpuScratchMemAlloc))
+        else if ((i == EmbeddedDataAlloc)
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+            || (i == LargeEmbeddedDataAlloc)
+#endif
+            || (i == GpuScratchMemAlloc))
         {
             m_gpuAllocInfo[i].allocCreateInfo.memObjCreateInfo.vaRange = VaRange::DescriptorTable;
         }
@@ -323,6 +327,9 @@ void CmdAllocator::FreeAllChunks(
     {
         &m_gpuAllocInfo[CommandDataAlloc],
         &m_gpuAllocInfo[EmbeddedDataAlloc],
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+        &m_gpuAllocInfo[LargeEmbeddedDataAlloc],
+#endif
         &m_gpuAllocInfo[GpuScratchMemAlloc],
         &m_sysAllocInfo,
     };

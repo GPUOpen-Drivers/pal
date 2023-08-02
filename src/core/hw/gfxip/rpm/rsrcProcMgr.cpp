@@ -379,30 +379,40 @@ void RsrcProcMgr::CmdCopyImage(
 // =====================================================================================================================
 void RsrcProcMgr::CopyImageCs(
     GfxCmdBuffer*          pCmdBuffer,
-    const CopyImageCsInfo& copyImageCsInfo
+    const Image&           srcImage,
+    ImageLayout            srcImageLayout,
+    const Image&           dstImage,
+    ImageLayout            dstImageLayout,
+    uint32                 regionCount,
+    const ImageCopyRegion* pRegions,
+    uint32                 flags,
+    const gpusize*         pP2pBltInfoChunks // nullptr or an array with one per region.
     ) const
 {
     const Device&          device        = *m_pDevice->Parent();
-    const ImageCreateInfo& dstCreateInfo = copyImageCsInfo.pDstImage->GetImageCreateInfo();
-    const ImageCreateInfo& srcCreateInfo = copyImageCsInfo.pSrcImage->GetImageCreateInfo();
-    const ImageType        imageType     = copyImageCsInfo.pSrcImage->GetGfxImage()->GetOverrideImageType();
+    const ImageCreateInfo& dstCreateInfo = dstImage.GetImageCreateInfo();
+    const ImageCreateInfo& srcCreateInfo = srcImage.GetImageCreateInfo();
+    const ImageType        imageType     = srcImage.GetGfxImage()->GetOverrideImageType();
     const bool             viewMatchDim  = (IsGfx8(device) || IsGfx9(device));
 
     // If the destination format is srgb and we will be doing format conversion copy then we need the shader to
     // perform gamma correction. Note: If both src and dst are srgb then we'll do a raw copy and so no need to change
     // pipelines in that case.
-    const bool isSrgbDst = (TestAnyFlagSet(copyImageCsInfo.flags, CopyFormatConversion) &&
-                            Formats::IsSrgb(dstCreateInfo.swizzledFormat.format)        &&
+    const bool isSrgbDst = (TestAnyFlagSet(flags, CopyFormatConversion)          &&
+                            Formats::IsSrgb(dstCreateInfo.swizzledFormat.format) &&
                             (Formats::IsSrgb(srcCreateInfo.swizzledFormat.format) == false));
+
+    CopyImageCsInfo csInfo;
+    GetCopyImageCsInfo(srcImage, srcImageLayout, dstImage, dstImageLayout, regionCount, pRegions, flags, &csInfo);
 
     // Save current command buffer state and bind the pipeline.
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
-    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, copyImageCsInfo.pPipeline, InternalApiPsoHash, });
+    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, csInfo.pPipeline, InternalApiPsoHash, });
 
     // Now begin processing the list of copy regions.
-    for (uint32 idx = 0; idx < copyImageCsInfo.regionCount; ++idx)
+    for (uint32 idx = 0; idx < regionCount; ++idx)
     {
-        ImageCopyRegion copyRegion = copyImageCsInfo.pRegions[idx];
+        ImageCopyRegion copyRegion = pRegions[idx];
 
         // When copying from 3D to 3D, the number of slices should be 1. When copying from
         // 1D to 1D or 2D to 2D, depth should be 1. Therefore when the src image type is identical
@@ -420,9 +430,9 @@ void RsrcProcMgr::CopyImageCs(
         }
 #endif
 
-        if (copyImageCsInfo.pP2pBltInfoChunks != nullptr)
+        if (pP2pBltInfoChunks != nullptr)
         {
-            pCmdBuffer->P2pBltWaCopyNextRegion(copyImageCsInfo.pP2pBltInfoChunks[idx]);
+            pCmdBuffer->P2pBltWaCopyNextRegion(pP2pBltInfoChunks[idx]);
         }
 
         // Setup image formats per-region. This is different than the graphics path because the compute path must be
@@ -432,16 +442,8 @@ void RsrcProcMgr::CopyImageCs(
         uint32         texelScale   = 1;
         bool           singleSubres = false;
 
-        GetCopyImageFormats(*copyImageCsInfo.pSrcImage,
-                            copyImageCsInfo.srcImageLayout,
-                            *copyImageCsInfo.pDstImage,
-                            copyImageCsInfo.dstImageLayout,
-                            copyRegion,
-                            copyImageCsInfo.flags,
-                            &srcFormat,
-                            &dstFormat,
-                            &texelScale,
-                            &singleSubres);
+        GetCopyImageFormats(srcImage, srcImageLayout, dstImage, dstImageLayout, copyRegion, flags,
+                            &srcFormat, &dstFormat, &texelScale, &singleSubres);
 
         // The hardware can't handle UAV stores using SRGB num format.  The resolve shaders already contain a
         // linear-to-gamma conversion, but in order for that to work the output UAV's num format must be patched to be
@@ -459,7 +461,7 @@ void RsrcProcMgr::CopyImageCs(
 
         // Create an embedded user-data table and bind it to user data 0. We need image views for the src and dst
         // subresources, as well as some inline constants for the copy offsets and extents.
-        const uint32 numSlots = copyImageCsInfo.isFmaskCopy ? 3 : 2;
+        const uint32 numSlots = csInfo.isFmaskCopy ? 3 : 2;
         uint32* pUserData = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
                                                                    SrdDwordAlignment() * numSlots,
                                                                    SrdDwordAlignment(),
@@ -467,32 +469,21 @@ void RsrcProcMgr::CopyImageCs(
                                                                    0);
 
         // When we treat 3D images as 2D arrays each z-slice must be treated as an array slice.
-        const uint32 numSlices = (imageType == ImageType::Tex3d) ? copyRegion.extent.depth : copyRegion.numSlices;
-
-        ImageViewInfo imageView[2] = {};
+        const uint32  numSlices    = (imageType == ImageType::Tex3d) ? copyRegion.extent.depth : copyRegion.numSlices;
         SubresRange   viewRange    = { copyRegion.dstSubres, 1, 1, numSlices };
+        ImageViewInfo imageView[2] = {};
 
-        PAL_ASSERT(TestAnyFlagSet(copyImageCsInfo.dstImageLayout.usages, LayoutCopyDst));
-        RpmUtil::BuildImageViewInfo(&imageView[0],
-                                    *copyImageCsInfo.pDstImage,
-                                    viewRange,
-                                    dstFormat,
-                                    copyImageCsInfo.dstImageLayout,
-                                    device.TexOptLevel(),
-                                    true);
+        const ImageTexOptLevel optLevel = device.TexOptLevel();
+
+        PAL_ASSERT(TestAnyFlagSet(dstImageLayout.usages, LayoutCopyDst));
+        RpmUtil::BuildImageViewInfo(&imageView[0], dstImage, viewRange, dstFormat, dstImageLayout, optLevel, true);
 
         viewRange.startSubres = copyRegion.srcSubres;
-        RpmUtil::BuildImageViewInfo(&imageView[1],
-                                    *copyImageCsInfo.pSrcImage,
-                                    viewRange,
-                                    srcFormat,
-                                    copyImageCsInfo.srcImageLayout,
-                                    device.TexOptLevel(),
-                                    false);
+        RpmUtil::BuildImageViewInfo(&imageView[1], srcImage, viewRange, srcFormat, srcImageLayout, optLevel, false);
 
         // Image view type matters for HW addrlib. Only override if absolutely necessary.
         // GFX10+: Copying behavior depends on instruction DIM, not image view type
-        //    See GetCopyImageComputePipeline for more info on DIM
+        //    See GetCopyImageCsInfo for more info on DIM
         // GFX8,9: The original comment asserts that overriding the image view type to 2D is necessary.
         //    "The shader treats all images as 2D arrays which means we need to override the view type to 2D.
         //     We also used to do this for 3D images but that caused test failures when the images used mipmaps
@@ -504,7 +495,7 @@ void RsrcProcMgr::CopyImageCs(
             imageView[1].viewType = ImageViewType::Tex2d;
         }
 
-        if (copyImageCsInfo.useMipInSrd == false)
+        if (csInfo.useMipInSrd == false)
         {
             // The miplevel as specified in the shader instruction is actually an offset from the mip-level
             // as specified in the SRD.
@@ -522,11 +513,11 @@ void RsrcProcMgr::CopyImageCs(
         device.CreateImageViewSrds(2, &imageView[0], pUserData);
         pUserData += SrdDwordAlignment() * 2;
 
-        if (copyImageCsInfo.isFmaskCopy)
+        if (csInfo.isFmaskCopy)
         {
             // If this is an Fmask-accelerated Copy, create an image view of the source Image's Fmask surface.
             FmaskViewInfo fmaskView = {};
-            fmaskView.pImage         = copyImageCsInfo.pSrcImage;
+            fmaskView.pImage         = &srcImage;
             fmaskView.baseArraySlice = copyRegion.srcSubres.arraySlice;
             fmaskView.arraySize      = copyRegion.numSlices;
 
@@ -551,46 +542,39 @@ void RsrcProcMgr::CopyImageCs(
 
         pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 1, RpmUtil::CopyImageInfoDwords, cb.userData);
 
-        // Execute the dispatch. All of our copyImage shaders split the copy window into 8x8x1-texel tiles.
-        // Most of them simply define their threadgroup as an 8x8x1 grid and assign one texel to each thread.
-        // Some more advanced shaders use abstract threadgroup layouts which do not map one thread to one texel.
-        constexpr DispatchDims texelsPerGroup = {8, 8, 1};
-        const     DispatchDims texels = {copyRegion.extent.width, copyRegion.extent.height, numSlices};
+        const DispatchDims texels = {copyRegion.extent.width, copyRegion.extent.height, numSlices};
 
-        pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz(texels, texelsPerGroup));
+        pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz(texels, csInfo.texelsPerGroup));
     }
 
-    if (copyImageCsInfo.pP2pBltInfoChunks != nullptr)
+    if (pP2pBltInfoChunks != nullptr)
     {
         pCmdBuffer->P2pBltWaCopyEnd();
     }
 
     pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
 
-    if (copyImageCsInfo.isFmaskCopyOptimized || (dstCreateInfo.flags.fullCopyDstOnly != 0))
+    if (csInfo.isFmaskCopyOptimized || (dstCreateInfo.flags.fullCopyDstOnly != 0))
     {
         // If this is MSAA copy optimized we might have to update destination image meta data.
         // If image is created with fullCopyDstOnly=1, there will be no expand when transition to "LayoutCopyDst"; if
         // the copy isn't compressed copy, need fix up dst metadata to uncompressed state.
-        const Pal::Image* pSrcImage = copyImageCsInfo.isFmaskCopyOptimized ? copyImageCsInfo.pSrcImage : nullptr;
-        AutoBuffer<ImageFixupRegion, 32, Platform> fixupRegions(copyImageCsInfo.regionCount, m_pDevice->GetPlatform());
+        AutoBuffer<ImageFixupRegion, 32, Platform> fixupRegions(regionCount, m_pDevice->GetPlatform());
 
-        if (fixupRegions.Capacity() >= copyImageCsInfo.regionCount)
+        if (fixupRegions.Capacity() >= regionCount)
         {
-            for (uint32 i = 0; i < copyImageCsInfo.regionCount; i++)
+            for (uint32 i = 0; i < regionCount; i++)
             {
-                fixupRegions[i].subres    = copyImageCsInfo.pRegions[i].dstSubres;
-                fixupRegions[i].offset    = copyImageCsInfo.pRegions[i].dstOffset;
-                fixupRegions[i].extent    = copyImageCsInfo.pRegions[i].extent;
-                fixupRegions[i].numSlices = copyImageCsInfo.pRegions[i].numSlices;
+                fixupRegions[i].subres    = pRegions[i].dstSubres;
+                fixupRegions[i].offset    = pRegions[i].dstOffset;
+                fixupRegions[i].extent    = pRegions[i].extent;
+                fixupRegions[i].numSlices = pRegions[i].numSlices;
             }
-            HwlFixupCopyDstImageMetaData(pCmdBuffer,
-                                         pSrcImage,
-                                         *copyImageCsInfo.pDstImage,
-                                         copyImageCsInfo.dstImageLayout,
-                                         &fixupRegions[0],
-                                         copyImageCsInfo.regionCount,
-                                         copyImageCsInfo.isFmaskCopyOptimized);
+
+            const Pal::Image*const pSrcImage = csInfo.isFmaskCopyOptimized ? &srcImage : nullptr;
+
+            HwlFixupCopyDstImageMetaData(pCmdBuffer, pSrcImage, dstImage, dstImageLayout, &fixupRegions[0], regionCount,
+                                         csInfo.isFmaskCopyOptimized);
         }
         else
         {
@@ -600,7 +584,7 @@ void RsrcProcMgr::CopyImageCs(
 }
 
 // =====================================================================================================================
-const ComputePipeline* RsrcProcMgr::GetCopyImageComputePipeline(
+void RsrcProcMgr::GetCopyImageCsInfo(
     const Image&           srcImage,
     ImageLayout            srcImageLayout,
     const Image&           dstImage,
@@ -608,19 +592,24 @@ const ComputePipeline* RsrcProcMgr::GetCopyImageComputePipeline(
     uint32                 regionCount,
     const ImageCopyRegion* pRegions,
     uint32                 flags,
-    bool                   useMipInSrd,
-    bool*                  pIsFmaskCopy,
-    bool*                  pIsFmaskCopyOptimized
+    CopyImageCsInfo*       pInfo
     ) const
 {
-    const auto&     dstCreateInfo = dstImage.GetImageCreateInfo();
-    const auto&     srcCreateInfo = srcImage.GetImageCreateInfo();
-    const GfxImage* pSrcGfxImage  = srcImage.GetGfxImage();
-    const bool      isEqaaSrc     = (srcCreateInfo.samples != srcCreateInfo.fragments);
+    const ImageCreateInfo& dstCreateInfo = dstImage.GetImageCreateInfo();
+    const ImageCreateInfo& srcCreateInfo = srcImage.GetImageCreateInfo();
+    const GfxImage*        pSrcGfxImage  = srcImage.GetGfxImage();
+
+    const bool isEqaaSrc    = (srcCreateInfo.samples != srcCreateInfo.fragments);
+    const bool isCompressed = (Formats::IsBlockCompressed(srcCreateInfo.swizzledFormat.format) ||
+                               Formats::IsBlockCompressed(dstCreateInfo.swizzledFormat.format));
+    const bool useMipInSrd  = CopyImageUseMipLevelInSrd(isCompressed);
 
     // Get the appropriate pipeline object.
     RpmComputePipeline pipeline   = RpmComputePipeline::Count;
     bool pipelineHasSrgbCoversion = false;
+    bool isFmaskCopy              = false;
+    bool isFmaskCopyOptimized     = false;
+    bool useMorton                = false;
 
     if (pSrcGfxImage->HasFmaskData())
     {
@@ -633,7 +622,7 @@ const ComputePipeline* RsrcProcMgr::GetCopyImageComputePipeline(
         if (HwlUseOptimizedImageCopy(srcImage, srcImageLayout, dstImage, dstImageLayout, regionCount, pRegions))
         {
             pipeline = RpmComputePipeline::MsaaFmaskCopyImageOptimized;
-            *pIsFmaskCopyOptimized = true;
+            isFmaskCopyOptimized = true;
         }
         else
         {
@@ -648,7 +637,7 @@ const ComputePipeline* RsrcProcMgr::GetCopyImageComputePipeline(
             pipeline = RpmComputePipeline::MsaaFmaskCopyImage;
         }
 
-        *pIsFmaskCopy = true;
+        isFmaskCopy = true;
     }
     else if (srcCreateInfo.fragments > 1)
     {
@@ -660,7 +649,7 @@ const ComputePipeline* RsrcProcMgr::GetCopyImageComputePipeline(
         // The more complex Morton/Z order algorithm assigns sequential threads to sequential fragment indices and
         // walks the memory requests around the 8x8 pixel tile in Morton/Z order; this works well if the image stores
         // each pixel's samples sequentially in memory (and also stores tiles in Morton/Z order).
-        const bool useMorton = CopyImageCsUseMsaaMorton(dstImage);
+        useMorton = CopyImageCsUseMsaaMorton(dstImage);
 
         // The Morton shaders have built-in support for SRGB conversions.
         pipelineHasSrgbCoversion = useMorton;
@@ -713,11 +702,30 @@ const ComputePipeline* RsrcProcMgr::GetCopyImageComputePipeline(
 
         // We need to clear these out just in case we went down the FMask path above. This fallback shader has no
         // FMask acceleration support so we need to fully decompress/expand the color information.
-        *pIsFmaskCopy          = false;
-        *pIsFmaskCopyOptimized = false;
+        isFmaskCopy          = false;
+        isFmaskCopyOptimized = false;
     }
 
-    return GetPipeline(pipeline);
+    const ComputePipeline*const pPipeline = GetPipeline(pipeline);
+
+    // Fill out every field in the output struct.
+    pInfo->pPipeline            = pPipeline;
+    pInfo->isFmaskCopy          = isFmaskCopy;
+    pInfo->isFmaskCopyOptimized = isFmaskCopyOptimized;
+    pInfo->useMipInSrd          = useMipInSrd;
+
+    if (useMorton)
+    {
+        // The Morton shaders split the copy window into 8x8x1-texel tiles but do not use an 8x8x1 threadgroup.
+        // We need to manually tell the caller that it must divide the copy into 8x8x1 tiles.
+        pInfo->texelsPerGroup = {8, 8, 1};
+    }
+    else
+    {
+        // The remaining image copy shaders define a threadgroup shape equal to their copy tile shape.
+        // This is typically 8x8x1 but can also be other shapes like 8x32x1.
+        pInfo->texelsPerGroup = pPipeline->ThreadsPerGroupXyz();
+    }
 }
 
 // =====================================================================================================================
@@ -810,7 +818,7 @@ const ComputePipeline* RsrcProcMgr::GetScaledCopyImageComputePipeline(
 }
 
 // =====================================================================================================================
-// Gives the hardare layers some influence over GetCopyImageComputePipeline.
+// Gives the hardare layers some influence over GetCopyImageCsInfo.
 bool RsrcProcMgr::CopyImageCsUseMsaaMorton(
     const Image& dstImage
     ) const
@@ -838,40 +846,7 @@ void RsrcProcMgr::CopyImageCompute(
 {
     PAL_ASSERT(TestAnyFlagSet(flags, CopyEnableScissorTest) == false);
 
-    const bool  isCompressed  = (Formats::IsBlockCompressed(srcImage.GetImageCreateInfo().swizzledFormat.format) ||
-                                 Formats::IsBlockCompressed(dstImage.GetImageCreateInfo().swizzledFormat.format));
-    const bool  useMipInSrd   = CopyImageUseMipLevelInSrd(isCompressed);
-
-    bool isFmaskCopy          = false;
-    bool isFmaskCopyOptimized = false;
-
-    // Get the appropriate pipeline object.
-    const ComputePipeline* pPipeline = GetCopyImageComputePipeline(srcImage,
-                                                                   srcImageLayout,
-                                                                   dstImage,
-                                                                   dstImageLayout,
-                                                                   regionCount,
-                                                                   pRegions,
-                                                                   flags,
-                                                                   useMipInSrd,
-                                                                   &isFmaskCopy,
-                                                                   &isFmaskCopyOptimized);
-
-    CopyImageCsInfo copyImageCsInfo;
-    copyImageCsInfo.pPipeline            = pPipeline;
-    copyImageCsInfo.pSrcImage            = &srcImage;
-    copyImageCsInfo.srcImageLayout       = srcImageLayout;
-    copyImageCsInfo.pDstImage            = &dstImage;
-    copyImageCsInfo.dstImageLayout       = dstImageLayout;
-    copyImageCsInfo.regionCount          = regionCount;
-    copyImageCsInfo.pRegions             = pRegions;
-    copyImageCsInfo.flags                = flags;
-    copyImageCsInfo.isFmaskCopy          = isFmaskCopy;
-    copyImageCsInfo.isFmaskCopyOptimized = isFmaskCopyOptimized;
-    copyImageCsInfo.useMipInSrd          = useMipInSrd;
-    copyImageCsInfo.pP2pBltInfoChunks    = nullptr;
-
-    CopyImageCs(pCmdBuffer, copyImageCsInfo);
+    CopyImageCs(pCmdBuffer, srcImage, srcImageLayout, dstImage, dstImageLayout, regionCount, pRegions, flags, nullptr);
 }
 
 // =====================================================================================================================
@@ -1462,6 +1437,162 @@ void RsrcProcMgr::CopyBetweenMemoryAndImage(
 }
 
 // =====================================================================================================================
+// Builds commands to copy one or more regions between an image and a typed buffer. Which object is the source
+// and which object is the destination is determined by the given pipeline. This works because the image <-> memory
+// pipelines all have the same input layouts.
+void RsrcProcMgr::CopyBetweenTypedBufferAndImage(
+    GfxCmdBuffer*                           pCmdBuffer,
+    const ComputePipeline*                  pPipeline,
+    const GpuMemory&                        gpuMemory,
+    const Image&                            image,
+    ImageLayout                             imageLayout,
+    bool                                    isImageDst,
+    uint32                                  regionCount,
+    const TypedBufferImageScaledCopyRegion* pRegions
+    ) const
+{
+    const auto& imgCreateInfo   = image.GetImageCreateInfo();
+    const auto& device          = *m_pDevice->Parent();
+    const auto* pPublicSettings = device.GetPublicSettings();
+
+    // Get number of threads per groups in each dimension, we will need this data later.
+    const DispatchDims threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
+
+    // Save current command buffer state and bind the pipeline.
+    pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
+    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
+
+    // Now begin processing the list of copy regions.
+    for (uint32 idx = 0; idx < regionCount; ++idx)
+    {
+        TypedBufferImageScaledCopyRegion copyRegion = pRegions[idx];
+
+        // It will be faster to use a raw format, but we must stick with the base format if replacement isn't an option.
+        SwizzledFormat viewFormat = image.SubresourceInfo(copyRegion.imageSubres)->format;
+
+        // Both resources must have the same pixel size.
+        PAL_ASSERT(Formats::BitsPerPixel(viewFormat.format) ==
+                   Formats::BitsPerPixel(copyRegion.bufferInfo.swizzledFormat.format));
+
+        if (Formats::IsUndefined(copyRegion.swizzledFormat.format) == false)
+        {
+            viewFormat = copyRegion.swizzledFormat;
+        }
+
+        const ImageTiling srcTiling  = (isImageDst) ? ImageTiling::Linear : imgCreateInfo.tiling;
+
+        // Our copy shaders and hardware treat sRGB and UNORM nearly identically, the only difference being that the
+        // hardware modifies sRGB data when reading it and can't write it, which will make it hard to do a raw copy.
+        // We can avoid that problem by simply forcing sRGB to UNORM.
+        if (Formats::IsSrgb(viewFormat.format))
+        {
+            viewFormat.format = Formats::ConvertToUnorm(viewFormat.format);
+            PAL_ASSERT(Formats::IsUndefined(viewFormat.format) == false);
+        }
+
+        if ((image.GetGfxImage()->IsFormatReplaceable(copyRegion.imageSubres, imageLayout, isImageDst)) ||
+            (m_pDevice->Parent()->SupportsMemoryViewRead(viewFormat.format, srcTiling) == false))
+        {
+            uint32 texelScale     = 1;
+            uint32 pixelsPerBlock = 1;
+            if (m_pDevice->IsImageFormatOverrideNeeded(imgCreateInfo, &viewFormat.format, &pixelsPerBlock))
+            {
+                copyRegion.imageOffset.x     /= pixelsPerBlock;
+                copyRegion.imageExtent.width /= pixelsPerBlock;
+            }
+            else
+            {
+                viewFormat = RpmUtil::GetRawFormat(viewFormat.format, &texelScale, nullptr);
+                copyRegion.imageOffset.x     *= texelScale;
+                copyRegion.imageExtent.width *= texelScale;
+            }
+            // If the format is not supported by the buffer SRD (checked with SupportsMemoryViewRead() above)
+            // and the compression state check above (i.e., IsFormatReplaceable()) returns false, the
+            // format is still replaced but a corruption may occur. The corruption can occur if the format
+            // replacement results in a change in the color channel width and the resource is compressed.
+            // This should not trigger because DoesImageSupportCopyCompression() limits the LayoutCopyDst
+            // compressed usage in InitLayoutStateMasks().
+            PAL_ASSERT(image.GetGfxImage()->IsFormatReplaceable(copyRegion.imageSubres, imageLayout, isImageDst)
+                       == true);
+        }
+
+        // Make sure our view format supports reads and writes.
+        PAL_ASSERT(device.SupportsImageWrite(viewFormat.format, imgCreateInfo.tiling) &&
+                   device.SupportsImageRead(viewFormat.format, imgCreateInfo.tiling));
+
+        // The row and depth pitches need to be expressed in terms of view format texels.
+        const uint32 viewBpp  = Formats::BytesPerPixel(viewFormat.format);
+        const uint32 rowPitch = static_cast<uint32>(copyRegion.bufferInfo.rowPitch / viewBpp);
+
+        // Generally the pipeline expects the user data to be arranged as follows for each dispatch:
+        uint32 copyData[8] =
+        {
+            copyRegion.bufferExtent.width,
+            copyRegion.bufferExtent.height,
+            0,
+            rowPitch,
+            copyRegion.imageExtent.width,
+            copyRegion.imageExtent.height,
+            static_cast<uint32>(copyRegion.imageOffset.x),
+            static_cast<uint32>(copyRegion.imageOffset.y),
+        };
+
+        // User-data entry 0 is for the per-dispatch user-data table pointer. Embed the unchanging constant buffer
+        // in the fast user-data entries after that table.
+        pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 1, ArrayLen32(copyData), copyData);
+
+        const Extent3d bufferBox = { copyRegion.bufferExtent.width, copyRegion.bufferExtent.height, 1 };
+
+        BufferViewInfo bufferView = {};
+        bufferView.gpuAddr        = gpuMemory.Desc().gpuVirtAddr + copyRegion.bufferInfo.offset;
+        bufferView.swizzledFormat = viewFormat;
+        bufferView.stride         = viewBpp;
+        bufferView.range          = ComputeTypedBufferRange(bufferBox,
+                                                            viewBpp * imgCreateInfo.fragments,
+                                                            copyRegion.bufferInfo.rowPitch,
+                                                            copyRegion.bufferInfo.depthPitch);
+        bufferView.flags.bypassMallRead  = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
+                                                          RpmViewsBypassMallOnRead);
+        bufferView.flags.bypassMallWrite = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
+                                                          RpmViewsBypassMallOnWrite);
+
+        // Create an embedded user-data table to contain the Image SRD's. It will be bound to entry 0.
+        uint32* pUserData = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
+                                                                   SrdDwordAlignment() * 2,
+                                                                   SrdDwordAlignment(),
+                                                                   PipelineBindPoint::Compute,
+                                                                   0);
+
+        device.CreateTypedBufferViewSrds(1, &bufferView, pUserData);
+        pUserData += SrdDwordAlignment();
+
+        const SubresRange viewRange = { copyRegion.imageSubres, 1, 1, 1 };
+        ImageViewInfo     imageView = {};
+
+        RpmUtil::BuildImageViewInfo(&imageView,
+                                    image,
+                                    viewRange,
+                                    viewFormat,
+                                    imageLayout,
+                                    device.TexOptLevel(),
+                                    isImageDst);
+
+        device.CreateImageViewSrds(1, &imageView, pUserData);
+        pUserData += SrdDwordAlignment();
+
+        const Extent2d dstBox = isImageDst ? copyRegion.imageExtent : copyRegion.bufferExtent;
+
+        // Execute the dispatch, we need one thread per texel.
+        const DispatchDims threads = { dstBox.width, dstBox.height, 1 };
+
+        pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz(threads, threadsPerGroup));
+    }
+
+    // Restore command buffer state.
+    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+}
+
+// =====================================================================================================================
 // Builds commands to copy multiple regions directly (without format conversion) from one typed buffer to another.
 void RsrcProcMgr::CmdCopyTypedBuffer(
     GfxCmdBuffer*                pCmdBuffer,
@@ -1589,6 +1720,59 @@ void RsrcProcMgr::CmdCopyTypedBuffer(
     }
 
     pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+}
+
+// =====================================================================================================================
+// Builds commands to copy multiple regions directly (without format conversion) from typed buffer to image.
+void RsrcProcMgr::CmdScaledCopyTypedBufferToImage(
+    GfxCmdBuffer*                           pCmdBuffer,
+    const GpuMemory&                        srcGpuMemory,
+    const Image&                            dstImage,
+    ImageLayout                             dstImageLayout,
+    uint32                                  regionCount,
+    const TypedBufferImageScaledCopyRegion* pRegions
+    ) const
+{
+    // Select the appropriate pipeline for this copy based on the destination image's properties.
+    const auto& createInfo = dstImage.GetImageCreateInfo();
+    const ComputePipeline* pPipeline = GetPipeline(RpmComputePipeline::ScaledCopyTypedBufferToImg2D);
+
+    // Currently, this function only support non-MSAA 2d image.
+    PAL_ASSERT((dstImage.GetGfxImage()->GetOverrideImageType() == ImageType::Tex2d) &&
+               (dstImage.GetImageCreateInfo().samples == 1) &&
+               (createInfo.fragments == 1));
+
+    // Note that we must call this helper function before and after our compute blit to fix up our image's metadata
+    // if the copy isn't compatible with our layout's metadata compression level.
+    AutoBuffer<ImageFixupRegion, 32, Platform> fixupRegions(regionCount, m_pDevice->GetPlatform());
+    if (fixupRegions.Capacity() >= regionCount)
+    {
+        for (uint32 i = 0; i < regionCount; i++)
+        {
+            fixupRegions[i].subres    = pRegions[i].imageSubres;
+            fixupRegions[i].offset    = { pRegions[i].imageOffset.x, pRegions[i].imageOffset.y, 1 };
+            fixupRegions[i].extent    = { pRegions[i].imageExtent.width, pRegions[i].imageExtent.height, 1 };
+            fixupRegions[i].numSlices = 1;
+        }
+        FixupMetadataForComputeDst(pCmdBuffer, dstImage, dstImageLayout, regionCount, &fixupRegions[0], true);
+
+        CopyBetweenTypedBufferAndImage(pCmdBuffer, pPipeline, srcGpuMemory, dstImage, dstImageLayout, true,
+                                       regionCount, pRegions);
+
+        FixupMetadataForComputeDst(pCmdBuffer, dstImage, dstImageLayout, regionCount, &fixupRegions[0], false);
+
+        // If image is created with fullCopyDstOnly=1, there will be no expand when transition to "LayoutCopyDst"; if
+        // the copy isn't compressed copy, need fix up dst metadata to uncompressed state.
+        if (dstImage.GetImageCreateInfo().flags.fullCopyDstOnly != 0)
+        {
+            HwlFixupCopyDstImageMetaData(pCmdBuffer, nullptr, dstImage, dstImageLayout,
+                                         &fixupRegions[0], regionCount, false);
+        }
+    }
+    else
+    {
+        pCmdBuffer->NotifyAllocFailure();
+    }
 }
 
 // =====================================================================================================================
@@ -1722,7 +1906,7 @@ void RsrcProcMgr::GenerateMipmapsFast(
     barrier.transitionCount = 1;
     barrier.pTransitions    = &transition;
 
-    barrier.reason = Developer::BarrierReasonUnknown;
+    barrier.reason = Developer::BarrierReasonGenerateMipmaps;
 
     uint32 samplerType = 0; // 0 = linearSampler, 1 = pointSampler
 
@@ -3335,25 +3519,32 @@ void RsrcProcMgr::SlowClearCompute(
 
     // Get the appropriate pipeline.
     auto pipelineEnum = RpmComputePipeline::Count;
-    switch (imageType)
+    if (imageType == ImageType::Tex1d)
     {
-    case ImageType::Tex1d:
         pipelineEnum = ((texelScale == 1)
                         ? RpmComputePipeline::ClearImage1d
                         : RpmComputePipeline::ClearImage1dTexelScale);
-        break;
-
-    case ImageType::Tex2d:
+    }
+    else if (imageType == ImageType::Tex2d)
+    {
         pipelineEnum = ((texelScale == 1)
                         ? RpmComputePipeline::ClearImage2d
                         : RpmComputePipeline::ClearImage2dTexelScale);
-        break;
-
-    default:
+    }
+    else if ((imageType == ImageType::Tex3d)                               &&
+             dstImage.GetGfxImage()->IsSwizzleThin(clearRange.startSubres) &&
+             (texelScale == 1))
+    {
+        // If this is 3D image that's using a swizzle mode that's effectively a 2D swizzle mode, then we want
+        // to clear this image as if it's 2D.
+        //
+        pipelineEnum = RpmComputePipeline::ClearImage3dAsThin;
+    }
+    else
+    {
         pipelineEnum = ((texelScale == 1)
                         ? RpmComputePipeline::ClearImage3d
                         : RpmComputePipeline::ClearImage3dTexelScale);
-        break;
     }
 
     const ComputePipeline*  pPipeline       = GetPipeline(pipelineEnum);
@@ -3542,7 +3733,7 @@ void RsrcProcMgr::CmdClearBufferView(
 {
     // Decode the buffer SRD.
     BufferViewInfo viewInfo = {};
-    HwlDecodeBufferViewSrd(pBufferViewSrd, &viewInfo);
+    m_pDevice->Parent()->DecodeBufferViewSrd(pBufferViewSrd, &viewInfo);
 
     // We need the offset and extent of the buffer wrt. the dstGpuMemory in units of texels.
     const uint32 viewStride = Formats::BytesPerPixel(viewInfo.swizzledFormat.format);
@@ -3701,9 +3892,7 @@ void RsrcProcMgr::CmdClearColorBuffer(
 }
 
 // =====================================================================================================================
-// Builds commands to clear the contents of the image view (or the given boxes) to the given clear color.
-// Given that the destination image is in a shader writeable layout we must do this clear using a compute slow clear.
-// The simplest way to implement this is to decode the SRD's format and range and reuse SlowClearCompute.
+// Decode the SRD's format and range and forward most other arguments to CmdClearColorImage.
 void RsrcProcMgr::CmdClearImageView(
     GfxCmdBuffer*     pCmdBuffer,
     const Image&      dstImage,
@@ -3714,58 +3903,53 @@ void RsrcProcMgr::CmdClearImageView(
     const Rect*       pRects
     ) const
 {
-    // Get the SRD's format and subresource range.
-    SwizzledFormat srdFormat    = {};
-    SubresRange    srdRange     = {};
+    DecodedImageSrd srdInfo;
+    m_pDevice->Parent()->DecodeImageViewSrd(dstImage, pImageViewSrd, &srdInfo);
 
-    HwlDecodeImageViewSrd(pImageViewSrd, dstImage, &srdFormat, &srdRange);
+    const ImageCreateInfo& imageInfo = dstImage.GetImageCreateInfo();
+    Rect tempRect;
 
-    ClearColor  clearColor = color;
-    const auto& createInfo = dstImage.GetImageCreateInfo();
-
-    if (rectCount != 0)
+    if ((imageInfo.imageType == Pal::ImageType::Tex3d) && (rectCount == 0))
     {
-        Box* pBoxes = PAL_NEW_ARRAY(Box, rectCount, m_pDevice->GetPlatform(), AllocObject);
+        PAL_ASSERT((Formats::IsBlockCompressed(srdInfo.swizzledFormat.format) == false) &&
+                   (Formats::IsYuv(srdInfo.swizzledFormat.format) == false) &&
+                   (Formats::IsMacroPixelPacked(srdInfo.swizzledFormat.format) == false) &&
+                   (Formats::BytesPerPixel(srdInfo.swizzledFormat.format) != 12));
 
-        if (pBoxes != nullptr)
+        // It is allowed to create an e.g: R32G32_UINT UAV on a BC1 image, so use extentElements (not extentTexels)
+        // in such cases. Because the view format satisfies the assert above, we can always use extentElements.
+        // Note for cases like the 12-byte R32G32B32 formats (element != texel), but those can't be UAVs.
+        const Extent3d subresElements = dstImage.SubresourceInfo(srdInfo.subresRange.startSubres)->extentElements;
+
+        if (srdInfo.zRange.extent != subresElements.depth)
         {
-            for (uint32 i = 0; i < rectCount; i++)
-            {
-                pBoxes[i].offset.x = pRects[i].offset.x;
-                pBoxes[i].offset.y = pRects[i].offset.y;
-                pBoxes[i].offset.z = srdRange.startSubres.arraySlice;
-
-                pBoxes[i].extent.width  = pRects[i].extent.width;
-                pBoxes[i].extent.height = pRects[i].extent.height;
-                pBoxes[i].extent.depth  = srdRange.numSlices;
-            }
-
-            SlowClearCompute(pCmdBuffer,
-                             dstImage,
-                             dstImageLayout,
-                             &clearColor,
-                             srdFormat,
-                             srdRange,
-                             rectCount,
-                             pBoxes);
-            PAL_DELETE_ARRAY(pBoxes, m_pDevice->GetPlatform());
+            tempRect  = { { 0, 0 }, { subresElements.width, subresElements.height } };
+            pRects    = &tempRect;
+            rectCount = 1; // trigger conversion to boxes
         }
-        else
+    }
+
+    AutoBuffer<Box, 4, Platform> boxes(rectCount, m_pDevice->GetPlatform());
+
+    if (boxes.Capacity() >= rectCount)
+    {
+        for (uint32 i = 0; i < rectCount; i++)
         {
-            // Memory allocation failed.
-            PAL_ASSERT_ALWAYS();
+            boxes[i].offset.x      = pRects[i].offset.x;
+            boxes[i].offset.y      = pRects[i].offset.y;
+            boxes[i].offset.z      = srdInfo.zRange.offset;
+
+            boxes[i].extent.width  = pRects[i].extent.width;
+            boxes[i].extent.height = pRects[i].extent.height;
+            boxes[i].extent.depth  = srdInfo.zRange.extent;
         }
+
+        SlowClearCompute(pCmdBuffer, dstImage, dstImageLayout, &color, srdInfo.swizzledFormat, srdInfo.subresRange,
+                         rectCount, boxes.Data());
     }
     else
     {
-        SlowClearCompute(pCmdBuffer,
-                         dstImage,
-                         dstImageLayout,
-                         &clearColor,
-                         srdFormat,
-                         srdRange,
-                         rectCount,
-                         nullptr);
+        pCmdBuffer->NotifyAllocFailure();
     }
 }
 
@@ -3883,7 +4067,7 @@ void RsrcProcMgr::LateExpandShaderResolveSrcHelper(
         barrierInfo.pTransitions    = &transitions[0];
         barrierInfo.transitionCount = regionCount;
         barrierInfo.waitPoint       = waitPoint;
-        barrierInfo.reason          = Developer::BarrierReasonUnknown;
+        barrierInfo.reason          = Developer::BarrierReasonResolveImage;
 
         const HwPipePoint releasePipePoint = pipePoint;
         barrierInfo.pipePointWaitCount = 1;

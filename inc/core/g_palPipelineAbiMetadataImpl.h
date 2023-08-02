@@ -994,10 +994,16 @@ inline Result DeserializeCbConstUsageMetadata(
             {
                 switch (HashString(key))
                 {
-                case HashLiteralString(CbConstUsageMetadataKey::BuffId):
-                    PAL_ASSERT(pMetadata[j].hasEntry.buffId == 0);
-                    result = pReader->UnpackNext(&pMetadata[j].buffId);
-                    pMetadata[j].hasEntry.buffId = (result == Result::Success);;
+                case HashLiteralString(CbConstUsageMetadataKey::BufferId):
+                    PAL_ASSERT(pMetadata[j].hasEntry.bufferId == 0);
+                    result = pReader->UnpackNext(&pMetadata[j].bufferId);
+                    pMetadata[j].hasEntry.bufferId = (result == Result::Success);;
+                    break;
+
+                case HashLiteralString(CbConstUsageMetadataKey::BufferIndex):
+                    PAL_ASSERT(pMetadata[j].hasEntry.bufferIndex == 0);
+                    result = pReader->UnpackNext(&pMetadata[j].bufferIndex);
+                    pMetadata[j].hasEntry.bufferIndex = (result == Result::Success);;
                     break;
 
                 case HashLiteralString(CbConstUsageMetadataKey::Elem):

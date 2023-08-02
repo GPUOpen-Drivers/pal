@@ -30,6 +30,9 @@
 #include "palImage.h"
 #include "palGpuMemory.h"
 #include "palCmdBuffer.h"
+#include "palSysUtil.h"
+
+#include <atomic>
 
 using namespace Pal;
 using Util::Max;
@@ -166,6 +169,47 @@ bool ValidateMemoryImageRegion(
     }
 
     return copySupported;
+}
+
+struct GpuMemoryUniqueId
+{
+    union
+    {
+        struct
+        {
+            uint64 counter                :41;
+            uint64 pid                    :22;    // 32-bit process Id (not limited to fewer bits on Windows)
+            uint64 isNotShareable         : 1;    // isNotShareable distinguishes non-externally shareable GPU memory
+                                                  // allocations from externally shareable GPU memory allocations.
+        };
+
+        uint64     u64All;
+    };
+};
+
+// =====================================================================================================================
+// Generate a 64-bit uniqueId for a GPU memory allocation
+uint64 GenerateGpuMemoryUniqueId(
+    bool isInterprocess)
+{
+    GpuMemoryUniqueId          uniqueId = {};
+    static std::atomic<uint64> localOnlyCounter(0);
+    static std::atomic<uint64> externallyShareableCounter(0);
+
+    uniqueId.pid = Util::GetIdOfCurrentProcess();
+
+    if (isInterprocess)
+    {
+        uniqueId.isNotShareable = 0;
+        uniqueId.counter        = externallyShareableCounter.fetch_add(1, std::memory_order_relaxed);
+    }
+    else
+    {
+        uniqueId.isNotShareable = 1;
+        uniqueId.counter        = localOnlyCounter.fetch_add(1, std::memory_order_relaxed);
+    }
+
+    return uniqueId.u64All;
 }
 
 } //GpuUtil

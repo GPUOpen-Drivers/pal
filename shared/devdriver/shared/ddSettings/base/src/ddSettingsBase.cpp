@@ -129,7 +129,7 @@ DD_RESULT SettingsBase::SetValue(
             {
                 if (pDestValPtr->size >= srcValPtr.size)
                 {
-                    memcpy(pDestValPtr->pVal, srcValPtr.pVal, pDestValPtr->size);
+                    memcpy(pDestValPtr->pValue, srcValPtr.pValue, pDestValPtr->size);
                 }
                 else
                 {
@@ -167,9 +167,9 @@ DD_RESULT SettingsBase::GetValue(
 
         if (pOutValPtr->size >= pFoundValPtr->size)
         {
-            if (pOutValPtr->pVal != nullptr)
+            if (pOutValPtr->pValue != nullptr)
             {
-                memcpy(pOutValPtr->pVal, pFoundValPtr->pVal, pOutValPtr->size);
+                memcpy(pOutValPtr->pValue, pFoundValPtr->pValue, pOutValPtr->size);
             }
             else
             {
@@ -258,17 +258,17 @@ DD_RESULT SettingsBase::ApplyUserOverrideImpl(
 
     switch (useroverride.type)
     {
-    case DD_SETTINGS_TYPE_BOOL:   valueRef.pVal = (void*)&useroverride.val.b; break;
-    case DD_SETTINGS_TYPE_INT8:   valueRef.pVal = (void*)&useroverride.val.i8; break;
-    case DD_SETTINGS_TYPE_UINT8:  valueRef.pVal = (void*)&useroverride.val.u8; break;
-    case DD_SETTINGS_TYPE_INT16:  valueRef.pVal = (void*)&useroverride.val.i16; break;
-    case DD_SETTINGS_TYPE_UINT16: valueRef.pVal = (void*)&useroverride.val.u16; break;
-    case DD_SETTINGS_TYPE_INT32:  valueRef.pVal = (void*)&useroverride.val.i32; break;
-    case DD_SETTINGS_TYPE_UINT32: valueRef.pVal = (void*)&useroverride.val.u32; break;
-    case DD_SETTINGS_TYPE_INT64:  valueRef.pVal = (void*)&useroverride.val.i64; break;
-    case DD_SETTINGS_TYPE_UINT64: valueRef.pVal = (void*)&useroverride.val.u64; break;
-    case DD_SETTINGS_TYPE_FLOAT:  valueRef.pVal = (void*)&useroverride.val.f; break;
-    case DD_SETTINGS_TYPE_STRING: valueRef.pVal = (void*)useroverride.val.s; break;
+    case DD_SETTINGS_TYPE_BOOL:   valueRef.pValue = (void*)&useroverride.value.b; break;
+    case DD_SETTINGS_TYPE_INT8:   valueRef.pValue = (void*)&useroverride.value.i8; break;
+    case DD_SETTINGS_TYPE_UINT8:  valueRef.pValue = (void*)&useroverride.value.u8; break;
+    case DD_SETTINGS_TYPE_INT16:  valueRef.pValue = (void*)&useroverride.value.i16; break;
+    case DD_SETTINGS_TYPE_UINT16: valueRef.pValue = (void*)&useroverride.value.u16; break;
+    case DD_SETTINGS_TYPE_INT32:  valueRef.pValue = (void*)&useroverride.value.i32; break;
+    case DD_SETTINGS_TYPE_UINT32: valueRef.pValue = (void*)&useroverride.value.u32; break;
+    case DD_SETTINGS_TYPE_INT64:  valueRef.pValue = (void*)&useroverride.value.i64; break;
+    case DD_SETTINGS_TYPE_UINT64: valueRef.pValue = (void*)&useroverride.value.u64; break;
+    case DD_SETTINGS_TYPE_FLOAT:  valueRef.pValue = (void*)&useroverride.value.f; break;
+    case DD_SETTINGS_TYPE_STRING: valueRef.pValue = (void*)useroverride.value.s; break;
     }
 
     result = SetValue(valueRef.hash, valueRef);

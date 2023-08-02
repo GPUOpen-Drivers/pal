@@ -31,3 +31,8 @@ if (DD_BP_INSTALL)
 endif()
 
 target_include_directories(ddApi INTERFACE inc)
+
+# dd_common_api
+devdriver_library(dd_common_api INTERFACE)
+target_sources(dd_common_api INTERFACE inc/dd_common_api.h)
+target_include_directories(dd_common_api INTERFACE inc)

@@ -93,17 +93,6 @@ constexpr gpusize PageSize = 0x1000u;
 constexpr char SettingsFileName[] = "amdVulkanSettings.cfg";
 #endif
 
-// Internal representation of the IDevice::m_pfnTable structure.
-struct DeviceInterfacePfnTable
-{
-    CreateBufferViewSrdsFunc pfnCreateTypedBufViewSrds;
-    CreateBufferViewSrdsFunc pfnCreateUntypedBufViewSrds;
-    CreateImageViewSrdsFunc  pfnCreateImageViewSrds;
-    CreateFmaskViewSrdsFunc  pfnCreateFmaskViewSrds;
-    CreateSamplerSrdsFunc    pfnCreateSamplerSrds;
-    CreateBvhSrdsFunc        pfnCreateBvhSrds;
-};
-
 // Maximum number of excluded virtual address ranges.
 constexpr size_t MaxExcludedVaRanges = 32;
 
@@ -809,7 +798,10 @@ struct GpuChipProperties
             uint32 supportFloat64BufferAtomicMinMax :  1; // Indicates support for float64 image atomics min and max op
             uint32 supportFloat64SharedAtomicMinMax :  1; // Indicates support for float64 shared atomics min and max op
 
-            uint32 reserved                         : 16;
+            uint32 support1dDispatchInterleave      :  1; // Indicates support for 1D Dispatch Interleave
+            uint32 support2dDispatchInterleave      :  1; // Indicates support for 2D Dispatch Interleave
+
+            uint32 reserved                         : 14;
         };
     } gfxip;
 #endif
@@ -1144,9 +1136,6 @@ uint32 MemoryOpsPerClock(LocalMemoryType memoryType);
 class Device : public IDevice
 {
 public:
-    static_assert(sizeof(DeviceInterfacePfnTable) == sizeof(IDevice::DevicePfnTable),
-                  "Internal PfnTable does not match the version in IDevice.");
-
     static constexpr GpuHeap CmdBufInternalAllocHeap      = GpuHeap::GpuHeapGartCacheable;
     static constexpr uint32  CmdBufInternalAllocSize      = 128 * Util::OneKibibyte;
     static constexpr uint32  CmdBufInternalSuballocSize   = 8 * Util::OneKibibyte;
@@ -2532,6 +2521,18 @@ inline bool IsNavi33(const Device& device)
 inline bool IsNavi3x(const Device& device)
 {
     return (device.ChipProperties().familyId == FAMILY_NV3);
+}
+#endif
+#if PAL_BUILD_PHOENIX1
+inline bool IsPhoenix1(const Device& device)
+{
+    return AMDGPU_IS_PHOENIX1(device.ChipProperties().familyId, device.ChipProperties().eRevId);
+}
+#endif
+#if PAL_BUILD_PHOENIX
+inline bool IsPhoenixFamily(const Device& device)
+{
+    return FAMILY_IS_PHX(device.ChipProperties().familyId);
 }
 #endif
 #endif

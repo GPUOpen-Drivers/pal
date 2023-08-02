@@ -85,29 +85,13 @@ Result ShaderLibrary::HwlInit(
     const PalAbi::CodeObjectMetadata& metadata,
     Util::MsgPackReader*              pMetadataReader)
 {
-    const Gfx9PalSettings&   settings  = m_pDevice->Settings();
-    const CmdUtil&           cmdUtil   = m_pDevice->CmdUtil();
-    const auto&              regInfo   = cmdUtil.GetRegInfo();
-    const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
-
-    RegisterVector registers(m_pDevice->GetPlatform());
-    Result result = pMetadataReader->Seek(metadata.pipeline.registers);
-
-    if (result == Result::Success)
-    {
-        result = pMetadataReader->Unpack(&registers);
-    }
-
     PipelineUploader uploader(m_pDevice->Parent(), abiReader);
 
-    if (result == Result::Success)
-    {
-        // Next, handle relocations and upload the library code & data to GPU memory.
-        result = PerformRelocationsAndUploadToGpuMemory(
-            metadata,
-            m_pDevice->Parent()->GetPublicSettings()->pipelinePreferredHeap, // ShaderLibrary is never internal
-            &uploader);
-    }
+    // Handle relocations and upload the library code & data to GPU memory.
+    Result result = PerformRelocationsAndUploadToGpuMemory(
+        metadata,
+        m_pDevice->Parent()->GetPublicSettings()->pipelinePreferredHeap, // ShaderLibrary is never internal
+        &uploader);
 
     if (result == Result::Success)
     {

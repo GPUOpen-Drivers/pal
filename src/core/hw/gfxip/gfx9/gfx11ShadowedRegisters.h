@@ -94,8 +94,8 @@ const RegisterRange Gfx11CsShShadowRange[] =
         (mmCOMPUTE_NUM_THREAD_Z - mmCOMPUTE_START_X + 1),
     },
     {
-        (mmCOMPUTE_PERFCOUNT_ENABLE - PERSISTENT_SPACE_START),                  // 0x2E0B - 0x2E0D
-        (mmCOMPUTE_PGM_HI - mmCOMPUTE_PERFCOUNT_ENABLE + 1),
+        (mmCOMPUTE_PERFCOUNT_ENABLE - PERSISTENT_SPACE_START),                  // 0x2E0B - 0x2E0E
+        (mmCOMPUTE_DISPATCH_PKT_ADDR_LO - mmCOMPUTE_PERFCOUNT_ENABLE + 1),
     },
     {
         (mmCOMPUTE_DISPATCH_SCRATCH_BASE_LO - PERSISTENT_SPACE_START),          // 0x2E10 - 0x2E13

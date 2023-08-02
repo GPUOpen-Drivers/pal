@@ -24,6 +24,8 @@
  **********************************************************************************************************************/
 
 #include "../inc/ddSettingsBlob.h"
+#include <string.h>
+#include <assert.h>
 
 namespace DevDriver
 {

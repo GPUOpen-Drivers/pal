@@ -417,6 +417,10 @@ public:
 
     virtual uint32 GetBlockSize(AddrSwizzleMode swizzleMode) const override;
 
+    // Returns true if this swizzle mode would be considered a 2D-array compatible layout if applied
+    // to a 3D image.
+    virtual bool IsThin(uint32  swizzleMode) const override;
+
 protected:
     virtual void ComputeTilesInMipTail(
         const Image&       image,

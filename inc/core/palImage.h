@@ -358,7 +358,15 @@ struct PresentableImageCreateInfo
             uint32 turbosync    :  1;   ///< Image supports turbosync flip
             uint32 peerWritable :  1;   ///< Indicates if the memory allocated will be writable by other devices
             uint32 tmzProtected :  1;   ///< Indicates this presenatble image's memory is tmz Protected.
-            uint32 reserved     : 27;   ///< Reserved for future use.
+#if PAL_AMDGPU_BUILD
+            uint32 initializeToZero :  1; ///< If set, PAL will request that the host OS zero-initializes
+                                          ///  the allocation upon creation, currently, only GpuHeapLocal and
+                                          ///  GpuHeapInvisible are supported.
+#else
+            uint32 placeholder0     :  1; ///< Placeholder.
+#endif
+
+            uint32 reserved     : 26;   ///< Reserved for future use.
         };
         uint32 u32All;                  ///< Flags packed as 32-bit uint.
     } flags;                            ///< Presentable image creation flags.

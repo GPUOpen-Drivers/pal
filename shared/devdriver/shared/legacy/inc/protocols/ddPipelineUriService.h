@@ -68,7 +68,7 @@ struct PipelineHash
     template<typename T, typename = typename Platform::EnableIf<sizeof(T) == 16>::Type>
     PipelineHash(const T& other)
     {
-        memcpy(this, &other, sizeof(T));
+        memcpy(bytes, &other, sizeof(T));
     }
 
     PipelineHash& operator=(const PipelineHash&) = default;

@@ -62,7 +62,7 @@ union sq_buf_rsrc_t {
         uint64_t llc_noalloc                                                  :  2;
         uint64_t                                                              :  4;
     } gfx103PlusExclusive;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
     struct {
         uint64_t                                                              : 64;
         uint64_t                                                              : 44;
@@ -78,7 +78,7 @@ union sq_buf_rsrc_t {
         uint64_t resource_level                                               :  1;
         uint64_t                                                              :  7;
     } gfx10Core;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
     struct {
         uint64_t                                                              : 62;
         uint64_t swizzle_enable                                               :  2;
@@ -103,12 +103,12 @@ constexpr uint32_t SqBufRsrcTWord3TypeShift                                     
 constexpr uint32_t Gfx10SqBufRsrcTWord1CacheSwizzleShift                                    = 30;
 constexpr uint32_t Gfx10SqBufRsrcTWord1SwizzleEnableShift                                   = 31;
 constexpr uint32_t Gfx103PlusExclusiveSqBufRsrcTWord3LlcNoallocShift                        = 26;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 constexpr uint32_t Gfx104PlusSqBufRsrcTWord3FormatShift                                     = 12;
 #endif
 constexpr uint32_t Gfx10CoreSqBufRsrcTWord3FormatShift                                      = 12;
 constexpr uint32_t Gfx10CoreSqBufRsrcTWord3ResourceLevelShift                               = 24;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 constexpr uint32_t Gfx11SqBufRsrcTWord1SwizzleEnableShift                                   = 30;
 #endif
 
@@ -131,7 +131,7 @@ union sq_bvh_rsrc_t {
         uint64_t llc_noalloc                                                  :  2;
         uint64_t                                                              :  5;
     } gfx103PlusExclusive;
-#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if   CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
     struct {
         uint64_t                                                              : 53;
         uint64_t box_sorting_heuristic                                        :  2;
@@ -153,7 +153,7 @@ constexpr uint32_t SqBvhRsrcTWord3TriangleReturnModeShift                       
 constexpr uint32_t SqBvhRsrcTWord3BigPageShift                                              = 27;
 constexpr uint32_t SqBvhRsrcTWord3TypeShift                                                 = 28;
 constexpr uint32_t Gfx103PlusExclusiveSqBvhRsrcTWord3LlcNoallocShift                        = 25;
-#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if   CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 constexpr uint32_t RtIp2PlusSqBvhRsrcTWord1BoxSortingHeuristicShift                         = 21;
 constexpr uint32_t RtIp2PlusSqBvhRsrcTWord3PointerFlagsShift                                = 23;
 #endif
@@ -221,7 +221,7 @@ union sq_img_rsrc_linked_rsrc_t {
         uint64_t _reserved_206_203                                            :  4;
         uint64_t                                                              : 49;
     } gfx103;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
     struct {
         uint64_t                                                              : 45;
         uint64_t llc_noalloc                                                  :  2;
@@ -290,7 +290,7 @@ constexpr uint32_t Gfx103SqImgRsrcLinkedRsrcTWord5BigPageShift                  
 constexpr uint32_t Gfx103SqImgRsrcLinkedRsrcTWord6CounterBankIdShift                        =  0;
 constexpr uint32_t Gfx103SqImgRsrcLinkedRsrcTWord6LlcNoallocShift                           =  8;
 constexpr uint32_t Gfx103SqImgRsrcLinkedRsrcTWord6Reserved206203Shift                       = 11;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 constexpr uint32_t Gfx11SqImgRsrcLinkedRsrcTWord1LlcNoallocShift                            = 13;
 constexpr uint32_t Gfx11SqImgRsrcLinkedRsrcTWord1BigPageShift                               = 15;
 constexpr uint32_t Gfx11SqImgRsrcLinkedRsrcTWord1MaxMipShift                                = 16;
@@ -363,7 +363,7 @@ union sq_img_rsrc_t {
         uint64_t                                                              :  7;
         uint64_t                                                              : 64;
     } gfx103CorePlus;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
     struct {
         uint64_t                                                              : 45;
         uint64_t llc_noalloc                                                  :  2;
@@ -405,7 +405,7 @@ union sq_img_rsrc_t {
         uint64_t                                                              :  5;
         uint64_t                                                              : 64;
     } gfx10CorePlus;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
     struct {
         uint64_t                                                              : 62;
         uint64_t width_lo                                                     :  2;
@@ -457,7 +457,7 @@ constexpr uint32_t Gfx10SqImgRsrcTWord4BaseArrayShift                           
 constexpr uint32_t Gfx10SqImgRsrcTWord6Reserved206203Shift                                  = 11;
 constexpr uint32_t Gfx103SqImgRsrcTWord6LlcNoallocShift                                     =  8;
 constexpr uint32_t Gfx103CorePlusSqImgRsrcTWord5LinkedResourceShift                         = 24;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 constexpr uint32_t Gfx104PlusSqImgRsrcTWord1LlcNoallocShift                                 = 13;
 constexpr uint32_t Gfx104PlusSqImgRsrcTWord1BigPageShift                                    = 15;
 constexpr uint32_t Gfx104PlusSqImgRsrcTWord1MaxMipShift                                     = 16;
@@ -473,7 +473,7 @@ constexpr uint32_t Gfx10CoreSqImgRsrcTWord6CounterBankIdShift                   
 constexpr uint32_t Gfx10CorePlusSqImgRsrcTWord5ArrayPitchShift                              =  0;
 constexpr uint32_t Gfx10CorePlusSqImgRsrcTWord5MinLodWarnShift                              =  8;
 constexpr uint32_t Gfx10CorePlusSqImgRsrcTWord5PrtDefaultShift                              = 26;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 constexpr uint32_t Gfx11SqImgRsrcTWord1WidthShift                                           = 30;
 constexpr uint32_t Gfx11SqImgRsrcTWord2HeightShift                                          = 14;
 constexpr uint32_t Gfx11SqImgRsrcTWord4DepthShift                                           =  0;
@@ -661,7 +661,7 @@ union sq_img_samp_linked_resource_res_map_t {
         uint64_t                                                              : 16;
         uint64_t                                                              :  4;
     } gfx103;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
     struct {
         uint64_t                                                              : 64;
         uint64_t                                                              : 50;
@@ -703,7 +703,7 @@ constexpr uint32_t SqImgSampLinkedResourceResMapTWord3BorderColorTypeShift      
 constexpr uint32_t Gfx103SqImgSampLinkedResourceResMapTWord2MipPointPreclampShift           = 28;
 constexpr uint32_t Gfx103SqImgSampLinkedResourceResMapTWord2DerivAdjustEnShift              = 31;
 constexpr uint32_t Gfx103SqImgSampLinkedResourceResMapTWord3LinkedResourceSlopesShift       =  0;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 constexpr uint32_t Gfx11SqImgSampLinkedResourceResMapTWord3LinkedResourceSlopesShift        = 18;
 #endif
 
@@ -738,7 +738,7 @@ union sq_img_samp_t {
         uint64_t                                                              : 32;
         uint64_t border_color_type                                            :  2;
     };
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
     struct {
         uint64_t                                                              : 64;
         uint64_t                                                              : 50;
@@ -793,7 +793,7 @@ constexpr uint32_t SqImgSampTWord2ZFilterShift                                  
 constexpr uint32_t SqImgSampTWord2MipFilterShift                                            = 26;
 constexpr uint32_t SqImgSampTWord2AnisoOverrideShift                                        = 29;
 constexpr uint32_t SqImgSampTWord3BorderColorTypeShift                                      = 30;
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 constexpr uint32_t Gfx104PlusSqImgSampTWord3BorderColorPtrShift                             = 18;
 #endif
 constexpr uint32_t Gfx10CoreSqImgSampTWord2MipPointPreclampShift                            = 28;
@@ -802,7 +802,7 @@ constexpr uint32_t Gfx10CoreSqImgSampTWord3BorderColorPtrShift                  
 constexpr uint32_t Gfx10CorePlusSqImgSampTWord0FilterModeShift                              = 29;
 constexpr uint32_t Gfx10CorePlusSqImgSampTWord2BlendPrtShift                                = 30;
 
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 union sq_wrexec_exec_t {
     struct {
         uint64_t addr                                                         : 48;
@@ -817,7 +817,7 @@ union sq_wrexec_exec_t {
 };
 #endif
 
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 constexpr uint32_t SqWrexecExecTWord0AddrShift                                              =  0;
 constexpr uint32_t SqWrexecExecTWord1FirstWaveShift                                         = 26;
 constexpr uint32_t SqWrexecExecTWord1MtypeShift                                             = 28;

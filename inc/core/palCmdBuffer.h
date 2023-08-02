@@ -409,16 +409,18 @@ struct CmdBufferCreateInfo
             /// meaningless and unsupported.  It is an error to attempt to create a nested DMA command buffer.
             ///
             /// @see ICmdBuffer::CmdExecuteNestedCmdBuffers.
-            uint32  nested               :  1;
+            uint32 nested                     :  1;
 
             /// Dedicated CUs are reserved for this queue. Thus we have to skip CU mask programming.
-            uint32  realtimeComputeUnits :  1;
+            uint32 realtimeComputeUnits       :  1;
 
             /// Target queue uses dispatch tunneling.
-            uint32  dispatchTunneling    :  1;
+            uint32 dispatchTunneling          :  1;
+
+            uint32 reserved1                  :  1;
 
             /// Reserved for future use.
-            uint32  reserved             : 29;
+            uint32 reserved                   : 28;
         };
 
         /// Flags packed as 32-bit uint.
@@ -1108,6 +1110,18 @@ struct TypedBufferCopyRegion
     TypedBufferInfo srcBuffer; ///< How to interpret the source GPU memory allocation as a typed buffer.
     TypedBufferInfo dstBuffer; ///< How to interpret the destination GPU memory allocation as a typed buffer.
     Extent3d        extent;    ///< Size of the copy region in pixels.
+};
+
+/// Specifies parameters for a scaled copy between an image and a typed buffer.  The same structure is used regardless
+/// of direction, an input for ICmdBuffer::CmdScaledCopyTypedBufferToImage().
+struct TypedBufferImageScaledCopyRegion
+{
+    SubresId        imageSubres;    ///< Selects the image subresource.
+    Offset2d        imageOffset;    ///< Pixel offset to the start of the chosen subresource region.
+    Extent2d        imageExtent;    ///< Size of the image region in pixels.
+    TypedBufferInfo bufferInfo;     ///< How to interpret the GPU memory allocation as a typed buffer.
+    Extent2d        bufferExtent;   ///< Size of the typed buffer region in pixels.
+    SwizzledFormat  swizzledFormat; ///< If not Undefined, reinterpret both subresources using this format and swizzle.
 };
 
 /// Specifies parameters for a scaled image copy from one region in a source image subresource to a region in the
@@ -1969,6 +1983,18 @@ struct ColorKey
     uint32 u32Color[4]; ///< The color value for each channel
 };
 
+/// Uniquely identifies the target of the a Present operation (swap chain / destination window / etc.) so that PAL's debug
+/// layers can track frames-per-second or other statistics correctly when applications render to multiple displays or
+/// windows.  Client drivers which don't care about this can always specify a key value of 0.
+using UniquePresentKey = uint64;
+
+/// Convert an OS window handle to a unique present key.
+inline UniquePresentKey PresentKeyFromOsWindowHandle(OsWindowHandle handle)
+    { return handle.win; }
+/// Convert any pointer to a unique present key.
+template <typename T>
+constexpr inline UniquePresentKey PresentKeyFromPointer(T* ptr) { return reinterpret_cast<UniquePresentKey>(ptr); }
+
 /// Specifies the input parameters for debug overlay's visual confirm. This struct is not functional.
 /// The client is expected to default initialize this struct and then fill out any state that makes
 /// sense under its presentation model. PAL will process any valid input and ignore fields that are
@@ -1977,6 +2003,7 @@ struct CmdPostProcessDebugOverlayInfo
 {
     PresentMode presentMode;           ///< The Presentation Mode of the application.
     WsiPlatform wsiPlatform;           ///< The WsiPlatform that Swap Chain works upon
+    UniquePresentKey presentKey;       ///< Identifies the window/swap chain, etc. used to present.
 };
 
 /// Specifies the input parameters for ICmdBuffer::CmdPostProcessFrame.
@@ -1986,7 +2013,7 @@ struct CmdPostProcessFrameInfo
     {
         struct
         {
-            uint32 srcIsTypedBuffer : 1;  ///< True if the source is a typed buffer instead of an image.
+            uint32 srcIsTypedBuffer :  1; ///< True if the source is a typed buffer instead of an image.
             uint32 reserved         : 31; ///< Reserved for future usage.
         };
         uint32     u32All;                ///< Flags packed as uint32.
@@ -2209,6 +2236,13 @@ public:
     ///
     /// @returns How many DWORDs of embedded data the command buffer can allocate at once.
     virtual uint32 GetEmbeddedDataLimit() const = 0;
+
+    /// Queries how many DWORDs of embedded data the command buffer can allocate in one call to CmdAllocateLargeEmbeddedData.
+    ///
+    /// @returns Number of DWORDs that can be allocated in one call to CmdAllocateLargeEmbeddedData
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+    virtual uint32 GetLargeEmbeddedDataLimit() const = 0;
+#endif
 
     /// Binds a graphics or compute pipeline to the current command buffer state.
     ///
@@ -3225,6 +3259,34 @@ public:
         uint32                       regionCount,
         const TypedBufferCopyRegion* pRegions) = 0;
 
+    /// Copies data directly (without format conversion) from a 2D typed buffer to a 2D image.
+    ///
+    /// For compressed images, the extents are specified in compression blocks.
+    ///
+    /// The source memory offset has to be aligned to the smaller of the copied texel size or 4 bytes.  A destination
+    /// subresource cannot be present more than once per CmdScaledCopyTypedBufferToImage() call.
+    ///
+    /// The destination image must be in a layout that supports copy destination operations on the current engine type
+    /// before executing this copy.  @see ImageLayout.
+    ///
+    /// MSAA resource is unsupported. The client must resolve both resources before calling this function.
+    ///
+    /// @param [in] srcGpuMemory   GPU memory where the source data is located.
+    /// @param [in] dstImage       Image where destination data will be written.
+    /// @param [in] dstImageLayout Current allowed usages and engines for the destination image.  These masks must
+    ///                            include LayoutCopyDst and the ImageLayoutEngineFlags corresponding to the engine this
+    ///                            function is being called on.
+    /// @param [in] regionCount    Number of regions to copy; size of the pRegions array.
+    /// @param [in] pRegions       Array of copy regions, each entry specifying a source offset, copy size of source
+    ///                            region, a destination offset, destination subresource, and copy size of destination
+    ///                            region.
+    virtual void CmdScaledCopyTypedBufferToImage(
+        const IGpuMemory&                       srcGpuMemory,
+        const IImage&                           dstImage,
+        ImageLayout                             dstImageLayout,
+        uint32                                  regionCount,
+        const TypedBufferImageScaledCopyRegion* pRegions) = 0;
+
     /// Copies a GPU register content to a GPU memory location.
     ///
     /// The destination memory offset has to be aligned to 4 bytes.
@@ -4060,6 +4122,24 @@ public:
         uint32   sizeInDwords,
         uint32   alignmentInDwords,
         gpusize* pGpuAddress) = 0;
+
+    /// Allocates a chunk of command space that the client can use to embed constant data directly in the command
+    /// buffer's backing memory. The returned CPU address is valid until ICmdBuffer::End() is called. The GPU address
+    /// is valid until ICmdBuffer::Reset() or ICmdBuffer::Begin() and must only be referenced by work contained within
+    /// this command buffer (e.g., as an SRD table address).
+    ///
+    /// @param [in]  sizeInDwords       Size of the embedded data space in DWORDs. It must be less than or equal to the
+    ///                                 value reported by GetLargeEmbeddedDataLimit().
+    /// @param [in]  alignmentInDwords  Minimum GPU address alignment of the embedded space in DWORDs.
+    /// @param [out] pGpuAddress        The GPU address of the embedded space.
+    ///
+    /// @returns The DWORD-aligned CPU address of the embedded space.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+    virtual uint32* CmdAllocateLargeEmbeddedData(
+        uint32   sizeInDwords,
+        uint32   alignmentInDwords,
+        gpusize* pGpuAddress) = 0;
+#endif
 
     /// Get memory from scratch memory and bind to GPU event. For now only GpuEventPool and CmdBuffer's internal
     /// GpuEvent use this path to allocate and bind GPU memory. These usecases assume the bound GPU memory is GPU access

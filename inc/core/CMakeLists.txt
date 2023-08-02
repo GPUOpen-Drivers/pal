@@ -31,6 +31,7 @@ target_sources(pal PRIVATE
     g_palPipelineAbiMetadataImpl.h
     pal.h
     palBorderColorPalette.h
+    palCacheLayer.h
     palCmdAllocator.h
     palCmdBuffer.h
     palColorBlendState.h

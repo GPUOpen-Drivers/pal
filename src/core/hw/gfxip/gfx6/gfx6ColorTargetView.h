@@ -97,7 +97,7 @@ public:
 
     bool IsDccEnabled(ImageLayout imageLayout) const;
 
-    Pm4::TargetExtent2d GetExtent() const { return m_extent; }
+    Extent2d GetExtent() const { return m_extent; }
 
     bool IsRotatedSwizzleOverwriteCombinerDisabled() const { return m_flags.disableRotateSwizzleOC != 0; }
 
@@ -140,9 +140,9 @@ private:
     } m_flags;
 
     // If this is an image view, these members give the bound image and its base subresource.
-    const Image*        m_pImage;
-    SubresId            m_subresource;
-    Pm4::TargetExtent2d m_extent;
+    const Image* m_pImage;
+    SubresId     m_subresource;
+    Extent2d     m_extent;
 
     ColorLayoutToState   m_layoutToState;
     ColorTargetViewRegs  m_regs;

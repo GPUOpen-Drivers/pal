@@ -139,6 +139,7 @@ enum class InterfaceFunc : uint32
     CmdBufferCmdCopyMemoryToTiledImage,
     CmdBufferCmdCopyTiledImageToMemory,
     CmdBufferCmdCopyTypedBuffer,
+    CmdBufferCmdScaledCopyTypedBufferToImage,
     CmdBufferCmdCopyRegisterToMemory,
     CmdBufferCmdScaledCopyImage,
     CmdBufferCmdGenerateMipmaps,
@@ -183,6 +184,9 @@ enum class InterfaceFunc : uint32
     CmdBufferCmdDumpCeRam,
     CmdBufferCmdWriteCeRam,
     CmdBufferCmdAllocateEmbeddedData,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+    CmdBufferCmdAllocateLargeEmbeddedData,
+#endif
     CmdBufferCmdExecuteNestedCmdBuffers,
     CmdBufferCmdSaveComputeState,
     CmdBufferCmdRestoreComputeState,
@@ -598,6 +602,7 @@ public:
     void Struct(const TriangleRasterStateParams& value);
     void Struct(const TurboSyncControlInput& value);
     void Struct(const TypedBufferCopyRegion& value);
+    void Struct(const TypedBufferImageScaledCopyRegion& value);
     void Struct(const TypedBufferCreateInfo& value);
     void Struct(const TypedBufferInfo& value);
     void Struct(const UserClipPlane& value);
@@ -683,6 +688,7 @@ public:
     void Enum(TexAddressMode value);
     void Enum(TexFilterMode value);
     void Enum(TilingOptMode value);
+    void Enum(TriState value);
     void Enum(VaRange value);
     void Enum(VirtualGpuMemAccessMode value);
     void Enum(VrsShadingRate value);

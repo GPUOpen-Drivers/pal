@@ -29,9 +29,11 @@
 #include "core/hw/gfxip/gfx6/gfx6PerfExperiment.h"
 #include "core/hw/gfxip/pm4CmdBuffer.h"
 #include "core/platform.h"
+#include "palLiterals.h"
 #include "palVectorImpl.h"
 
 using namespace Util;
+using namespace Util::Literals;
 
 namespace Pal
 {
@@ -196,7 +198,9 @@ PerfExperiment::PerfExperiment(
     m_globalCounters(m_pPlatform),
     m_pSpmCounters(nullptr),
     m_numSpmCounters(0),
+    m_spmSampleLines(0),
     m_spmRingSize(0),
+    m_spmMaxSamples(0),
     m_spmSampleInterval(0)
 {
     memset(m_sqtt,           0, sizeof(m_sqtt));
@@ -1370,10 +1374,41 @@ Result PerfExperiment::AddSpmTrace(
             }
         }
 
+        m_spmSampleLines = 0;
+
+        for (uint32 idx = 0; idx < MaxNumSpmSegments; ++idx)
+        {
+            m_spmSampleLines += m_numMuxselLines[idx];
+        }
+
+        // Now for one final trick, we need to tweak our SPM ring buffer size. This implements part of the SPM parsing
+        // scheme described in palPerfExperiment.h above the SpmTraceLayout struct so read that first.
+        //
+        // PAL is a UMD so we can't program SPM as a proper ring buffer. Instead we tell the RLC to automatically wrap
+        // back to the start of the ring when it reaches the end. The RLC can split sample writes across the wrap point
+        // which makes it difficult to parse the samples out in order.
+        //
+        // We can avoid that issue if we carefully select our ring size to make the wrapping line up perfectly.
+        // Essentially we just need our ring size to be a multiple of our sample size, that way the final sample in
+        // the ring ends exactly when the ring ends. Each time the ring wraps the first wrapping sample starts at the
+        // top of the ring. That means the client can always start parsing samples at the top of the ring and the data
+        // will make perfect sense, no need to check for wrapping!
+        //
+        // The client gave us a suggested ring buffer size in the create info. We shouldn't use more memory than they
+        // specified but we can use less. This code figures out how many whole samples fit in their ring size and then
+        // converts that back up to bytes to get PAL's final ring size. Note that configuring a ring with no sample
+        // space doesn't make sense so we do bump that up to enough memory for a single sample.
+        //
+        // Note that the RLC reserves one full bitline at the very start of the ring for the ring buffer header.
+        // The samples start immediately after that header and the wrapping logic skips over the header.
+        const uint32 maxSizeInLines = Max(1u, uint32(spmCreateInfo.ringSize) / SampleLineSizeInBytes);
+
+        m_spmMaxSamples = Max(1u, (maxSizeInLines - 1) / m_spmSampleLines);
+        m_spmRingSize   = (m_spmMaxSamples * m_spmSampleLines + 1) * SampleLineSizeInBytes;
+
         // If we made it this far the SPM trace is ready to go.
-        m_perfExperimentFlags.spmTraceEnabled       = true;
-        m_spmRingSize                               = static_cast<uint32>(spmCreateInfo.ringSize);
-        m_spmSampleInterval                         = static_cast<uint16>(spmCreateInfo.spmInterval);
+        m_perfExperimentFlags.spmTraceEnabled = true;
+        m_spmSampleInterval                   = uint16(spmCreateInfo.spmInterval);
     }
     else
     {
@@ -1598,32 +1633,41 @@ Result PerfExperiment::GetSpmTraceLayout(
     }
     else
     {
-        constexpr uint32 LineSizeInBytes = MuxselLineSizeInDwords * sizeof(uint32);
+        pLayout->offset           = m_spmRingOffset;
+        pLayout->wrPtrOffset      = 0; // The write pointer is the first thing written to the ring buffer
+        pLayout->wrPtrGranularity = 1;
 
-        pLayout->offset          = m_spmRingOffset;
-        pLayout->wptrOffset      = m_spmRingOffset; // The write pointer is the first thing written to the ring buffer.
-        pLayout->wptrGranularity = 1;
-        pLayout->sampleOffset    = LineSizeInBytes; // The samples start one line in.
+        // The samples start one line in.
+        pLayout->sampleOffset  = SampleLineSizeInBytes;
+        pLayout->sampleStride  = SampleLineSizeInBytes * m_spmSampleLines;
+        pLayout->maxNumSamples = m_spmMaxSamples;
 
-        pLayout->sampleSizeInBytes = 0;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 810
+        pLayout->wptrOffset        = pLayout->offset + pLayout->wrPtrOffset;
+        pLayout->wptrGranularity   = pLayout->wrPtrGranularity;
+        pLayout->sampleSizeInBytes = pLayout->sampleStride;
 
         for (uint32 idx = 0; idx < MaxNumSpmSegments; ++idx)
         {
-            pLayout->segmentSizeInBytes[idx] = m_numMuxselLines[idx] * LineSizeInBytes;
-            pLayout->sampleSizeInBytes      += pLayout->segmentSizeInBytes[idx];
+            pLayout->segmentSizeInBytes[idx] = m_numMuxselLines[idx] * SampleLineSizeInBytes;
         }
+#endif
 
         pLayout->numCounters = m_numSpmCounters;
 
         for (uint32 idx = 0; idx < m_numSpmCounters; ++idx)
         {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 810
             pLayout->counterData[idx].segment  = m_pSpmCounters[idx].segment;
             pLayout->counterData[idx].offset   = m_pSpmCounters[idx].offsetLo;
+#endif
             pLayout->counterData[idx].gpuBlock = m_pSpmCounters[idx].general.block;
             pLayout->counterData[idx].instance = m_pSpmCounters[idx].general.globalInstance;
             pLayout->counterData[idx].eventId  = m_pSpmCounters[idx].general.eventId;
+            pLayout->counterData[idx].offsetLo = m_pSpmCounters[idx].offsetLo * sizeof(uint16);
+            pLayout->counterData[idx].is32Bit  = false;
 
-            // The interface can't handle 32-bit SPM counters yet...
+            // This layer doesn't implement 32-bit SPM.
             PAL_ASSERT(m_pSpmCounters[idx].offsetHi == 0);
         }
     }
@@ -2242,6 +2286,23 @@ uint32* PerfExperiment::WriteSpmSetup(
     uint32*    pCmdSpace
     ) const
 {
+    const gpusize ringBaseAddr = m_gpuMemory.GpuVirtAddr() + m_spmRingOffset;
+
+    // The spec requires that the ring address and size be aligned to 32-bytes.
+    PAL_ASSERT(IsPow2Aligned(ringBaseAddr,  SpmRingBaseAlignment));
+    PAL_ASSERT(IsPow2Aligned(m_spmRingSize, SpmRingBaseAlignment));
+
+    // Zero out the 64-bit timestamp at the start of the final sample in the ring buffer. Recall that we carefully
+    // sized the ring to have no extra space at the end, that's why we can just subtract the size of one sample.
+    // This implements part of the SPM parsing scheme described in palPerfExperiment.h above the SpmTraceLayout
+    // struct so read that too.
+    const uint32  ZeroTs[2] = {};
+    WriteDataInfo writeZero = {};
+    writeZero.engineSel = WRITE_DATA_ENGINE_ME;
+    writeZero.dstAddr   = ringBaseAddr + m_spmRingSize - m_spmSampleLines * SampleLineSizeInBytes;
+    writeZero.dstSel    = WRITE_DATA_DST_SEL_TCL2;
+    pCmdSpace += CmdUtil::BuildWriteData(writeZero, ArrayLen(ZeroTs), ZeroTs, pCmdSpace);
+
     // Configure the CP and RLC state that controls SPM.
     struct
     {
@@ -2252,12 +2313,6 @@ uint32* PerfExperiment::WriteSpmSetup(
         regRLC_SPM_PERFMON_SEGMENT_SIZE__CI__VI segmentSize;
     } rlcInit = {};
 
-    const gpusize ringBaseAddr = m_gpuMemory.GpuVirtAddr() + m_spmRingOffset;
-
-    // The spec requires that the ring address and size be aligned to 32-bytes.
-    PAL_ASSERT(IsPow2Aligned(ringBaseAddr,  SpmRingBaseAlignment));
-    PAL_ASSERT(IsPow2Aligned(m_spmRingSize, SpmRingBaseAlignment));
-
     rlcInit.cntl.bits.PERFMON_RING_MODE       = 0; // No stall and no interupt on overflow.
     rlcInit.cntl.bits.PERFMON_SAMPLE_INTERVAL = m_spmSampleInterval;
     rlcInit.ringBaseLo.bits.RING_BASE_LO      = LowPart(ringBaseAddr);
@@ -2265,20 +2320,18 @@ uint32* PerfExperiment::WriteSpmSetup(
     rlcInit.ringSize.bits.RING_BASE_SIZE      = m_spmRingSize;
 
     // Program the muxsel line sizes. Note that PERFMON_SEGMENT_SIZE only has space for 31 lines per segment.
-    bool   over31Lines = false;
-    uint32 totalLines  = 0;
+    bool over31Lines = false;
 
     for (uint32 idx = 0; idx < MaxNumSpmSegments; ++idx)
     {
         over31Lines = over31Lines || (m_numMuxselLines[idx] > 31);
-        totalLines += m_numMuxselLines[idx];
     }
 
     // We have no way to handle more than 31 lines. Assert so that the user knows this is broken but continue
     // anyway and hope to maybe get some partial data.
     PAL_ASSERT(over31Lines == false);
 
-    rlcInit.segmentSize.bits.PERFMON_SEGMENT_SIZE = totalLines;
+    rlcInit.segmentSize.bits.PERFMON_SEGMENT_SIZE = m_spmSampleLines;
     rlcInit.segmentSize.bits.SE0_NUM_LINE         = m_numMuxselLines[0];
     rlcInit.segmentSize.bits.SE1_NUM_LINE         = m_numMuxselLines[1];
     rlcInit.segmentSize.bits.SE2_NUM_LINE         = m_numMuxselLines[2];

@@ -32,6 +32,7 @@ target_sources(pal PRIVATE
     gfx9AbiToPipelineRegisters.h
     gfx9AcquireReleaseBarrier.cpp
     gfx9Barrier.cpp
+    gfx9Barrier.h
     gfx9BorderColorPalette.cpp
     gfx9BorderColorPalette.h
     gfx9Chip.h

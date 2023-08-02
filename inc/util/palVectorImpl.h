@@ -63,7 +63,7 @@ Result Vector<T, defaultCapacity, Allocator>::Reserve(
         {
             T* const pNewData = static_cast<T*>(pNewMemory);
 
-            if (std::is_trivial<T>::value)
+            if constexpr (std::is_trivial<T>::value)
             {
                 // Optimize trivial types by copying local buffer.
                 std::memcpy(pNewData, m_pData, sizeof(T) * m_numElements);

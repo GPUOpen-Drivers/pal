@@ -537,6 +537,61 @@ void Pipeline::DumpPipelineElf(
         m_pipelineBinaryLen);
 }
 
+#if PAL_BUILD_GFX11
+// =====================================================================================================================
+bool Pipeline::DispatchInterleaveSizeIsValid(
+    DispatchInterleaveSize   interleave,
+    const GpuChipProperties& chipProps)
+{
+    bool is1D = false;
+    bool is2D = false;
+
+    switch (interleave)
+    {
+    case DispatchInterleaveSize::Default:
+    case DispatchInterleaveSize::Disable:
+        break;
+    case DispatchInterleaveSize::_128:
+    case DispatchInterleaveSize::_256:
+    case DispatchInterleaveSize::_512:
+        is1D = true;
+        break;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 808
+    case DispatchInterleaveSize::_2D_1x1_ThreadGroups:
+    case DispatchInterleaveSize::_2D_1x2_ThreadGroups:
+    case DispatchInterleaveSize::_2D_1x4_ThreadGroups:
+    case DispatchInterleaveSize::_2D_1x8_ThreadGroups:
+    case DispatchInterleaveSize::_2D_1x16_ThreadGroups:
+    case DispatchInterleaveSize::_2D_2x1_ThreadGroups:
+    case DispatchInterleaveSize::_2D_2x2_ThreadGroups:
+    case DispatchInterleaveSize::_2D_2x4_ThreadGroups:
+    case DispatchInterleaveSize::_2D_2x8_ThreadGroups:
+    case DispatchInterleaveSize::_2D_4x1_ThreadGroups:
+    case DispatchInterleaveSize::_2D_4x2_ThreadGroups:
+    case DispatchInterleaveSize::_2D_4x4_ThreadGroups:
+    case DispatchInterleaveSize::_2D_8x1_ThreadGroups:
+    case DispatchInterleaveSize::_2D_8x2_ThreadGroups:
+    case DispatchInterleaveSize::_2D_16x1_ThreadGroups:
+        is2D = true;
+        break;
+#endif
+    default:
+        PAL_ASSERT_ALWAYS();
+        break;
+    };
+
+    bool isValid = true;
+
+    if ((is1D && (chipProps.gfxip.support1dDispatchInterleave == false)) ||
+        (is2D && (chipProps.gfxip.support2dDispatchInterleave == false)))
+    {
+        isValid = false;
+    }
+
+    return isValid;
+};
+#endif
+
 // =====================================================================================================================
 void* SectionInfo::GetCpuMappedAddr(
     gpusize offset

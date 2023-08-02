@@ -91,7 +91,7 @@ public:
 
     uint32* HandleBoundTargetChanged(const Pm4::UniversalCmdBuffer*  pCmdBuffer, uint32* pCmdSpace) const;
 
-    Pm4::TargetExtent2d GetExtent() const { return m_extent; }
+    Extent2d GetExtent() const { return m_extent; }
 
     bool Equals(const DepthStencilView* pOther) const;
 
@@ -159,8 +159,8 @@ protected:
         uint32 u32All;
     } m_flags;
 
-    const Image*        m_pImage;
-    Pm4::TargetExtent2d m_extent;
+    const Image* m_pImage;
+    Extent2d     m_extent;
 
     SubresId  m_depthSubresource;   // Sub-resource associated with the Depth plane
     SubresId  m_stencilSubresource; // Sub-resource associated with the Stencil plane

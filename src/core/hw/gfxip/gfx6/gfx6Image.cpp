@@ -292,6 +292,7 @@ Result Image::Finalize(
     gpusize*           pGpuMemAlignment)
 {
     const auto*const               pPublicSettings   = m_device.GetPublicSettings();
+    const auto*const               pGfxDevice        = m_device.GetGfxDevice();
     const SubResourceInfo*const    pBaseSubResInfo   = Parent()->SubresourceInfo(0);
     const AddrMgr1::TileInfo*const pBaseTileInfo     = AddrMgr1::GetTileInfo(Parent(), 0);
     const SharedMetadataInfo&      sharedMetadata    = m_pImageInfo->internalCreateInfo.sharedMetadata;
@@ -448,7 +449,7 @@ Result Image::Finalize(
                     // Reset to the default clear method and clear the metadata TC fetch flag.
                     for (uint32 idx = 0; idx < m_pImageInfo->numSubresources; ++idx)
                     {
-                        pSubResInfoList[idx].clearMethod                   = Pal::Image::DefaultSlowClearMethod;
+                        pSubResInfoList[idx].clearMethod                   = pGfxDevice->GetDefaultSlowClearMethod(Parent());
                         pSubResInfoList[idx].flags.supportMetaDataTexFetch = 0;
                     }
 

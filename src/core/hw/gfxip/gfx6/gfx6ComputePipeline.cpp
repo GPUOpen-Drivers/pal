@@ -59,6 +59,7 @@ ComputePipeline::ComputePipeline(
     m_prefetch{},
     m_signature{NullCsSignature}
 {
+    m_regs.computeUserDataLo.u32All = InvalidUserDataInternalTable;
 }
 
 // =====================================================================================================================
@@ -67,9 +68,6 @@ void ComputePipeline::SetupSignatureFromElf(
     const PalAbi::CodeObjectMetadata& metadata,
     const RegisterVector&             registers)
 {
-    uint16  entryToRegAddr[MaxUserDataEntries] = { };
-
-    m_signature.stage.firstUserSgprRegAddr = (mmCOMPUTE_USER_DATA_0 + FastUserDataStartReg);
     for (uint16 offset = mmCOMPUTE_USER_DATA_0; offset <= mmCOMPUTE_USER_DATA_15; ++offset)
     {
         uint32 value = 0;
@@ -77,9 +75,12 @@ void ComputePipeline::SetupSignatureFromElf(
         {
             if (value < MaxUserDataEntries)
             {
+                if (m_signature.stage.firstUserSgprRegAddr == UserDataNotMapped)
+                {
+                    m_signature.stage.firstUserSgprRegAddr = offset;
+                }
                 PAL_ASSERT(offset >= m_signature.stage.firstUserSgprRegAddr);
                 const uint8 userSgprId = static_cast<uint8>(offset - m_signature.stage.firstUserSgprRegAddr);
-                entryToRegAddr[value]  = offset;
 
                 m_signature.stage.mappedEntry[userSgprId] = static_cast<uint8>(value);
                 m_signature.stage.userSgprCount = Max<uint8>(userSgprId + 1, m_signature.stage.userSgprCount);
@@ -446,9 +447,14 @@ uint32* ComputePipeline::WriteShCommandsSetPath(
                                                             m_regs.computePgmRsrc1.u32All,
                                                             pCmdSpace);
 
-    return pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_USER_DATA_0 + ConstBufTblStartReg,
-                                                       m_regs.computeUserDataLo.u32All,
-                                                       pCmdSpace);
+    if (m_regs.computeUserDataLo.u32All != InvalidUserDataInternalTable)
+    {
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_USER_DATA_0 + ConstBufTblStartReg,
+                                                                m_regs.computeUserDataLo.u32All,
+                                                                pCmdSpace);
+    }
+
+    return pCmdSpace;
 }
 
 // =====================================================================================================================

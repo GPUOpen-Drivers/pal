@@ -146,17 +146,59 @@ enum class LogicOp : uint32
 };
 
 #if PAL_BUILD_GFX11
-/// Constant used for dispactch shader engine interleave. Value is the number of thread groups sent to one SE before
-/// switching to another.  Default is 64. Other programmable values are: 128, 256, or 512. You can also disable
-/// interleaving altogether.
+/// Shader Engine Dispatch Interleave Size
+///
+/// This determines how many Threads or Threadgroups are sent to one SE before switching to the next SE.
+/// Work is always distributed in Threadgroups though.
+///
+/// The 1D values are specified in Threads and the Threadgroups are walked in a 1D typewriter fashion.
+///
+/// The 2D values are specified in Threadgroups and also walked in typewriter fashion (in groups of the 2D pattern).
+///
+/// Clients should check for 1D and 2D support separately in:
+///   - DeviceProperties::gfxipProperties::flags::support1dDispatchInterleave
+///   - DeviceProperties::gfxipProperties::flags::support2dDispatchInterleave
+///
+/// Default will result in "Disable" for chips which do not support 1D or 2D.
+/// Disable means that every Threadgroup is issued to the next SE.
 enum class DispatchInterleaveSize : uint32
 {
-    Default = 0x0,
-    Disable = 0x1,
-    _128    = 0x2,
-    _256    = 0x3,
-    _512    = 0x4,
+    Default               = 0x0,
+    Disable               = 0x1,
+    _128                  = 0x2,
+    _256                  = 0x3,
+    _512                  = 0x4,
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 808
+    _2D_1x1_ThreadGroups  = 0x5,
+    _2D_1x2_ThreadGroups  = 0x6,
+    _2D_1x4_ThreadGroups  = 0x7,
+    _2D_1x8_ThreadGroups  = 0x8,
+    _2D_1x16_ThreadGroups = 0x9,
+
+    _2D_2x1_ThreadGroups  = 0xA,
+    _2D_2x2_ThreadGroups  = 0xB,
+    _2D_2x4_ThreadGroups  = 0xC,
+    _2D_2x8_ThreadGroups  = 0xD,
+
+    _2D_4x1_ThreadGroups  = 0xE,
+    _2D_4x2_ThreadGroups  = 0xF,
+    _2D_4x4_ThreadGroups  = 0x10,
+
+    _2D_8x1_ThreadGroups  = 0x11,
+    _2D_8x2_ThreadGroups  = 0x12,
+
+    _2D_16x1_ThreadGroups = 0x13,
+
+    Count                 = _2D_16x1_ThreadGroups + 1,
+
+    _1D_64_Threads        = Default,
+    _1D_128_Threads       = _128,
+    _1D_256_Threads       = _256,
+    _1D_512_Threads       = _512,
+#else
     Count
+#endif
 };
 #endif
 
@@ -213,11 +255,12 @@ union PipelineCreateFlags
 {
     struct
     {
-        uint32 clientInternal         : 1;  ///< Internal pipeline not created by the application.
-        uint32 supportDynamicDispatch : 1;  ///< Pipeline will be used with @ref ICmdBuffer::CmdDynamicDispatch.
-                                            ///  This flag must only be set if the device reports support
-                                            ///  via DeviceProperties.
-        uint32 reserved               : 30; ///< Reserved for future use.
+        uint32 clientInternal              :  1; ///< Internal pipeline not created by the application.
+        uint32 supportDynamicDispatch      :  1; ///< Pipeline will be used with @ref ICmdBuffer::CmdDynamicDispatch.
+                                                 ///  This flag must only be set if the device reports support
+                                                 ///  via DeviceProperties.
+        uint32 reserved1                   :  1; ///< Reserved.
+        uint32 reserved                    : 29; ///< Reserved for future use.
     };
     uint32 u32All;                  ///< Flags packed as 32-bit uint.
 };
@@ -295,6 +338,7 @@ struct ComputePipelineCreateInfo
     /// a particular thread group size. If this extent is set to all zeros PAL will use the metadata's group size.
     /// This field is not supported on PAL ABI ELFs, it should be set to all zeros.
     Extent3d            threadsPerGroup;
+
 };
 
 /// Specifies information about the viewport behavior of an assembled graphics pipeline.  Part of the input
@@ -305,6 +349,13 @@ struct ViewportInfo
     bool       depthClipFarEnable;  ///< Enable clipping based on Far Z coordinate.
     DepthRange depthRange;          ///< Specifies Z dimensions of screen space (i.e., post viewport transform:
                                     ///  0 to 1 or -1 to 1).
+};
+
+/// Specifies edgeRule for rasterization
+enum class EdgeRuleMode : uint32
+{
+    D3dCompliant    = 0x0,   ///< Use rasterization edge-rules which comply with the D3D spec.
+    OpenGlDefault   = 0x1,   ///< Use rasterization edge-rules compatible with the default OpenGL driver.
 };
 
 /// Specifies Rasterizer state in properties for creation of a graphics
@@ -340,6 +391,11 @@ struct RasterizerState
     uint8         clipDistMask;           ///< Mask of which clipDistance exports to leave enabled.
     PsShadingRate forcedShadingRate;      ///< Forced PS shading rate
     bool          dx10DiamondTestDisable; ///< Disable DX10 diamond test during line rasterization.
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 804
+    EdgeRuleMode    edgeRule;
+#endif
+
 };
 
 /// Specifies Per-MRT color target info in olor target state
@@ -420,6 +476,7 @@ struct GraphicsPipelineCreateInfo
                                                    ///  SE before switching to the next one.
 #endif
     LdsPsGroupSizeOverride ldsPsGroupSizeOverride; ///< Whether to override ldsPsGroupSize setting for pipeline.
+
 };
 
 /// The graphic pipeline view instancing information. This is used to determine if hardware accelerated stereo rendering

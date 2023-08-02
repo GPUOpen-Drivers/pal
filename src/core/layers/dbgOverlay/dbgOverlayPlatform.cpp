@@ -99,20 +99,10 @@ Result Platform::EnumerateDevices(
 
         if ((result == Result::Success) && (m_deviceCount > 0))
         {
-            // Create an FPS manager if we don't have one, otherwise just update the settings of the existing manager.
-            if (m_pFpsMgr == nullptr)
+            // Create a default FPS manager if we don't have one.
+            if (GetFpsMgr(0) == nullptr)
             {
-                m_pFpsMgr = PAL_NEW(FpsMgr,
-                                    this,
-                                    SystemAllocType::AllocInternal)(this, static_cast<Device*>(pDevices[0]));
-                if (m_pFpsMgr == nullptr)
-                {
-                    result = Result::ErrorOutOfMemory;
-                }
-                else
-                {
-                    result = m_pFpsMgr->Init();
-                }
+                result = Result::ErrorOutOfMemory;
             }
         }
     }
@@ -160,10 +150,56 @@ Result Platform::GetScreens(
 // =====================================================================================================================
 Platform::~Platform()
 {
-    if (m_pFpsMgr != nullptr)
+    for (auto it = m_fpsMgrMap.Begin(); it.Get() != nullptr; it.Next())
     {
-        PAL_SAFE_DELETE(m_pFpsMgr, this);
+        PAL_SAFE_DELETE(it.Get()->value, this);
     }
+    m_fpsMgrMap.Reset();
+}
+
+// =====================================================================================================================
+FpsMgr* Platform::GetFpsMgr(
+    UniquePresentKey key)
+{
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 805
+    // Let clients that haven't reached version 805 keep using a default FpsMgr.
+    key = 0;
+#endif
+
+    bool existed = true;
+    FpsMgr* pFpsMgr = nullptr;
+    FpsMgr** ppFpsMgr = nullptr;
+    Result result = m_fpsMgrMap.FindAllocate(key, &existed, &ppFpsMgr);
+
+    // Add the new value if it did not exist already. If FindAllocate returns Success, ppFrameData != nullptr.
+    if (result == Result::Success)
+    {
+        if (existed == false)
+        {
+            pFpsMgr = PAL_NEW(FpsMgr, this,
+                SystemAllocType::AllocInternal)(this, static_cast<Device*>(m_pDevices[0]), (key != 0));
+
+            PAL_ASSERT(pFpsMgr != nullptr);
+
+            if (pFpsMgr != nullptr)
+            {
+                result = pFpsMgr->Init();
+                *ppFpsMgr = pFpsMgr;
+            }
+        }
+        else
+        {
+            pFpsMgr = *ppFpsMgr;
+        }
+    }
+
+    // fallback to default FpsMgr if we can't find or create the key specific one
+    if ((pFpsMgr == nullptr) && (key != 0))
+    {
+        pFpsMgr = GetFpsMgr(0);
+    }
+
+    return pFpsMgr;
 }
 
 // =====================================================================================================================
@@ -233,13 +269,19 @@ void PAL_STDCALL Platform::DbgOverlayCb(
     }
     case Developer::CallbackType::PresentConcluded:
     {
-        FpsMgr* pFpsMgr = pPlatform->GetFpsMgr();
+        PAL_ASSERT(pCbData != nullptr);
+        const Developer::PresentationModeData& data = *static_cast<const Developer::PresentationModeData*>(pCbData);
+        FpsMgr* pFpsMgr = pPlatform->GetFpsMgr(data.presentKey);
 
         if (pFpsMgr != nullptr)
         {
+            pFpsMgr->IncrementFrameCount();
+
             pFpsMgr->UpdateFps();
             pFpsMgr->UpdateGpuFps();
             pFpsMgr->UpdateBenchmark();
+
+            pPlatform->ResetGpuWork();
         }
         break;
     }

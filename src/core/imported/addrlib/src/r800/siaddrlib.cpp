@@ -403,6 +403,7 @@ ADDR_E_RETURNCODE SiLib::ComputeBankEquation(
             }
         }
     }
+    FillEqBitComponents(pEquation);
 
     if ((pTileInfo->bankWidth == 1) &&
         ((pTileInfo->pipeConfig == ADDR_PIPECFG_P4_32x32) ||

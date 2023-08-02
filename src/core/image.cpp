@@ -664,6 +664,8 @@ uint32 Image::DegradeMipDimension(
 // Initializes the Image's subresources and any metadata surfaces needed by the GfxIp hardware layer.
 Result Image::Init()
 {
+    const auto*  pGfxDevice = GetDevice()->GetGfxDevice();
+
     // First, initialize some properties of each subresource which we know without delegating to the AddrMgr or to the
     // GfxImage object.
     SubResourceInfo* pSubRes = m_pSubResInfoList;
@@ -692,7 +694,7 @@ Result Image::Init()
                 pSubRes->extentTexels.height = Max(1u, mipHeight);
                 pSubRes->extentTexels.depth  = Max(1u, mipDepth);
                 pSubRes->bitsPerTexel        = Formats::BitsPerPixel(pSubRes->format.format);
-                pSubRes->clearMethod         = DefaultSlowClearMethod;
+                pSubRes->clearMethod         = pGfxDevice->GetDefaultSlowClearMethod(this);
             }
 
             mipWidth  = DegradeMipDimension(mipWidth);
@@ -703,7 +705,7 @@ Result Image::Init()
 
     // Create the GfxImage object, we've already accounted for the size of the object in GetSize so we can just
     // place the object after this Image object
-    m_pDevice->GetGfxDevice()->CreateImage(this, &m_imageInfo, m_pGfxImage, &m_pGfxImage);
+    pGfxDevice->CreateImage(this, &m_imageInfo, m_pGfxImage, &m_pGfxImage);
 
     // Initialize all of our subresources using the AddrMgr. We also need to track whether any of the subresources are
     // unable to support DCC, because some hardware needs to disable DCC for an entire Image if any of the subresources

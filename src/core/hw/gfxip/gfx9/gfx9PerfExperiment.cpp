@@ -29,9 +29,11 @@
 #include "core/hw/gfxip/gfx9/gfx9PerfExperiment.h"
 #include "core/hw/gfxip/pm4CmdBuffer.h"
 #include "core/platform.h"
+#include "palLiterals.h"
 #include "palVectorImpl.h"
 
 using namespace Util;
+using namespace Util::Literals;
 
 namespace Pal
 {
@@ -350,7 +352,12 @@ PerfExperiment::PerfExperiment(
     m_globalCounters(m_pPlatform),
     m_pSpmCounters(nullptr),
     m_numSpmCounters(0),
+#if PAL_BUILD_GFX11
+    m_maxSeMuxSelLines(0),
+#endif
+    m_spmSampleLines(0),
     m_spmRingSize(0),
+    m_spmMaxSamples(0),
     m_spmSampleInterval(0),
     m_pDfSpmCounters(nullptr),
     m_numDfSpmCounters(0),
@@ -566,7 +573,7 @@ Result PerfExperiment::AddCounter(
         if (info.block == GpuBlock::Sq)
         {
             // The SQG counters are 64-bit.
-            mapping.general.dataType = PerfCounterDataType::Uint64;
+            mapping.dataType = PerfCounterDataType::Uint64;
 
             // The SQG has special registers so it needs its own implementation.
             if (m_select.sqg[info.instance].hasCounters == false)
@@ -628,7 +635,7 @@ Result PerfExperiment::AddCounter(
         {
             PAL_ASSERT(IsGfx11(*m_pDevice));
             // The SQ counters are 32-bit.
-            mapping.general.dataType = PerfCounterDataType::Uint32;
+            mapping.dataType = PerfCounterDataType::Uint32;
 
             // The SQ has special registers so it needs its own implementation.
             if (m_select.sqWgp[info.instance].hasCounters == false)
@@ -669,7 +676,7 @@ Result PerfExperiment::AddCounter(
         else if (info.block == GpuBlock::GrbmSe)
         {
             // The GRBM counters are 64-bit.
-            mapping.general.dataType = PerfCounterDataType::Uint64;
+            mapping.dataType = PerfCounterDataType::Uint64;
 
             // The GRBM has a single counter per SE instance; enable that counter if it is unused.
             if (m_select.grbmSe[info.instance].hasCounter == false)
@@ -693,7 +700,7 @@ Result PerfExperiment::AddCounter(
             // If there are no generic SDMA modules we should use the legacy SDMA global counters.
             //
             // The legacy SDMA counters are 32-bit.
-            mapping.general.dataType = PerfCounterDataType::Uint32;
+            mapping.dataType = PerfCounterDataType::Uint32;
 
             // SDMA perf_sel fields are 8 bits. Verify that our event ID can fit.
             PAL_ASSERT(info.eventId <= ((1 << 8) - 1));
@@ -726,7 +733,7 @@ Result PerfExperiment::AddCounter(
         else if (info.block == GpuBlock::Umcch)
         {
             // The UMCCH counters are 64-bit.
-            mapping.general.dataType = PerfCounterDataType::Uint64;
+            mapping.dataType = PerfCounterDataType::Uint64;
 
             // Find the next unused global counter in the special UMCCH state.
             bool searching = true;
@@ -783,7 +790,7 @@ Result PerfExperiment::AddCounter(
         else if (info.block == GpuBlock::DfMall)
         {
             // The DF counters are 64-bit.
-            mapping.general.dataType = PerfCounterDataType::Uint64;
+            mapping.dataType = PerfCounterDataType::Uint64;
 
             const uint32        subInstance = info.instance;
             DfSelectState*const pSelect     = &m_select.df;
@@ -813,7 +820,7 @@ Result PerfExperiment::AddCounter(
         else if (m_select.pGeneric[block] != nullptr)
         {
             // All generic global counters are 64-bit.
-            mapping.general.dataType = PerfCounterDataType::Uint64;
+            mapping.dataType = PerfCounterDataType::Uint64;
 
             // Finally, handle all generic blocks.
             GenericBlockSelect*const pSelect = &m_select.pGeneric[block][info.instance];
@@ -917,6 +924,8 @@ Result PerfExperiment::AddCounter(
 // - According to the HW docs, the counters must be enabled in module order.
 // - Most blocks name their SPM control CNTR_MODE and name their counter controls PERF_MODE, this is confusing.
 // - COUNTER_MODE_ACCUM is equal to zero but we still set it to be explicit.
+// - PAL currently hard-codes 16-bit SPM in every block that supports it. If some block only supports 32-bit SPM then
+//   we hard-code that configuration. The client does not control the SPM counter bit-depth.
 Result PerfExperiment::AddSpmCounter(
     const PerfCounterInfo& info,
     SpmCounterMapping*     pMapping)
@@ -949,10 +958,11 @@ Result PerfExperiment::AddSpmCounter(
     }
 
     // Enable a select register and finish building our counter mapping within some SPM segment. We need to track which
-    // SPM wire is hooked up to the current module and which 16-bit sub-counter we selected within that wire.
-    const uint32 block      = static_cast<uint32>(info.block);
-    uint32       spmWire    = 0;
-    uint32       subCounter = 0;
+    // 32-bit SPM wire is hooked up to the selected module and which 16-bit sub-counters we selected within that wire.
+    // In 16-bit mode we just use one sub-counter, in 32-bit mode we must use both sub-counters.
+    const uint32 block          = static_cast<uint32>(info.block);
+    uint32       spmWire        = 0;
+    uint32       subCounterMask = 0;
 
     if (result == Result::Success)
     {
@@ -966,14 +976,14 @@ Result PerfExperiment::AddSpmCounter(
                 m_select.sqg[info.instance].grbmGfxIndex = BuildGrbmGfxIndex(instanceMapping, info.block);
             }
 
-            bool searching       = true;
-            uint32 sqgNumModules = Gfx9MaxSqgPerfmonModules;
             // The SQG doesn't support 16-bit counters and only has one 32-bit counter per select register.
-            // As long as the counter doesn't wrap over 16 bits we can enable a 32-bit counter and treat
-            // it exactly like a 16-bit counter and still get useful data. Note that "LEVEL" counters require
-            // us to use the no-clamp & no-reset SPM mode.
-            uint32 spmMode = IsSqLevelEvent(info.eventId) ? PERFMON_SPM_MODE_32BIT_NO_CLAMP
-                                                          : PERFMON_SPM_MODE_32BIT_CLAMP;
+            // Note that "LEVEL" counters require us to use the no-clamp & no-reset SPM mode.
+            const uint32 spmMode = IsSqLevelEvent(info.eventId) ? PERFMON_SPM_MODE_32BIT_NO_CLAMP
+                                                                : PERFMON_SPM_MODE_32BIT_CLAMP;
+
+            bool   searching     = true;
+            uint32 sqgNumModules = Gfx9MaxSqgPerfmonModules;
+
 #if PAL_BUILD_GFX11
             if (IsGfx11(*m_pDevice))
             {
@@ -1007,11 +1017,13 @@ Result PerfExperiment::AddSpmCounter(
                         m_select.sqg[info.instance].perfmon[idx].most.SQC_BANK_MASK = DefaultSqSelectBankMask;
                     }
 
-                    // Each SQ module gets a single wire with one sub-counter (use the default value of zero).
-                    spmWire   = idx;
-                    searching = false;
+                    // Each SQ module gets a single wire with one 32-bit counter (select both 16-bit halves).
+                    spmWire        = idx;
+                    subCounterMask = 0x3;
+                    searching      = false;
                 }
             }
+
             if (searching)
             {
                 // There are no more compatible SPM counters in this instance.
@@ -1039,16 +1051,20 @@ Result PerfExperiment::AddSpmCounter(
                     // Our SQ PERF_SEL fields are 9 bits. Verify that our event ID can fit.
                     PAL_ASSERT(info.eventId <= ((1 << 9) - 1));
 
-                    const uint32 spmMode = IsSqWgpLevelEvent(info.eventId) ? PERFMON_SPM_MODE_32BIT_NO_CLAMP
-                                                                           : PERFMON_SPM_MODE_32BIT_CLAMP;
+                    // Unlike the SQG, the SQ supports 16-bit SPM and 32-bit SPM!
+                    const uint32 spmMode = IsSqWgpLevelEvent(info.eventId) ? PERFMON_SPM_MODE_16BIT_NO_CLAMP
+                                                                           : PERFMON_SPM_MODE_16BIT_CLAMP;
 
                     m_select.sqWgp[info.instance].perfmonInUse[idx]           = true;
                     m_select.sqWgp[info.instance].perfmon[idx].bits.PERF_SEL  = info.eventId;
                     m_select.sqWgp[info.instance].perfmon[idx].bits.SPM_MODE  = spmMode;
                     m_select.sqWgp[info.instance].perfmon[idx].bits.PERF_MODE = PERFMON_COUNTER_MODE_ACCUM;
 
-                    spmWire   = idx;
-                    searching = false;
+                    // The gfx11 SQ counters share one 32-bit accumulator/wire per pair of selects.
+                    // The even selects get the first 16-bit half and the odds get the second half.
+                    spmWire        = idx / 2;
+                    subCounterMask = 1 << (idx % 2);
+                    searching      = false;
                 }
             }
 
@@ -1092,8 +1108,8 @@ Result PerfExperiment::AddSpmCounter(
                             pSelect->pModules[idx].perfmon.sel0.bits.CNTR_MODE = PERFMON_SPM_MODE_16BIT_CLAMP;
                             pSelect->pModules[idx].perfmon.sel0.bits.PERF_MODE = PERFMON_COUNTER_MODE_ACCUM;
 
-                            subCounter = 0;
-                            searching  = false;
+                            subCounterMask = 0x1;
+                            searching      = false;
                             break;
                         }
                         else if (TestAnyFlagSet(pSelect->pModules[idx].inUse, 0x2) == false)
@@ -1102,8 +1118,8 @@ Result PerfExperiment::AddSpmCounter(
                             pSelect->pModules[idx].perfmon.sel0.bits.PERF_SEL1  = info.eventId;
                             pSelect->pModules[idx].perfmon.sel0.bits.PERF_MODE1 = PERFMON_COUNTER_MODE_ACCUM;
 
-                            subCounter = 1;
-                            searching  = false;
+                            subCounterMask = 0x2;
+                            searching      = false;
                             break;
                         }
 
@@ -1118,8 +1134,8 @@ Result PerfExperiment::AddSpmCounter(
                             pSelect->pModules[idx].perfmon.sel1.bits.PERF_SEL2  = info.eventId;
                             pSelect->pModules[idx].perfmon.sel1.bits.PERF_MODE2 = PERFMON_COUNTER_MODE_ACCUM;
 
-                            subCounter = 0;
-                            searching  = false;
+                            subCounterMask = 0x1;
+                            searching      = false;
                             break;
                         }
                         else if (TestAnyFlagSet(pSelect->pModules[idx].inUse, 0x8) == false)
@@ -1128,8 +1144,8 @@ Result PerfExperiment::AddSpmCounter(
                             pSelect->pModules[idx].perfmon.sel1.bits.PERF_SEL3  = info.eventId;
                             pSelect->pModules[idx].perfmon.sel1.bits.PERF_MODE3 = PERFMON_COUNTER_MODE_ACCUM;
 
-                            subCounter = 1;
-                            searching  = false;
+                            subCounterMask = 0x2;
+                            searching      = false;
                             break;
                         }
 
@@ -1164,7 +1180,6 @@ Result PerfExperiment::AddSpmCounter(
         else
         {
             PAL_ASSERT(spmWire < m_counterInfo.block[block].numSpmWires);
-            PAL_ASSERT(subCounter < 2); // Each wire is 32 bits and each sub-counter is 16 bits.
 
             if (info.block == GpuBlock::GeSe)
             {
@@ -1179,26 +1194,26 @@ Result PerfExperiment::AddSpmCounter(
                                         : static_cast<SpmDataSegmentType>(instanceMapping.seIndex);
             }
 
-            // For now we only support 16-bit counters so this counter is either even or odd. 32-bit counters will
-            // be both even and odd so that we get the full 32-bit value from the SPM wire.
-            pMapping->isEven = (subCounter == 0);
-            pMapping->isOdd  = (subCounter != 0);
-
             if (HasRmiSubInstances(info.block) && ((info.instance % Gfx10NumRmiSubInstances) != 0))
             {
                 // Odd instances are the second set of counters in the real HW RMI instance.
                 spmWire += 2;
             }
 
-            if (pMapping->isEven)
+            // We expect this is 0x1 or 0x2 for a 16-bit counter or 0x3 for a 32-bit counter.
+            PAL_ASSERT((subCounterMask >= 0x1) && (subCounterMask <= 0x3));
+
+            if (TestAnyFlagSet(subCounterMask, 0x1))
             {
                 // We want the lower 16 bits of this wire.
+                pMapping->isEven     = true;
                 pMapping->evenMuxsel = BuildMuxselEncoding(instanceMapping, info.block, 2 * spmWire);
             }
 
-            if (pMapping->isOdd)
+            if (TestAnyFlagSet(subCounterMask, 0x2))
             {
                 // We want the upper 16 bits of this wire.
+                pMapping->isOdd     = true;
                 pMapping->oddMuxsel = BuildMuxselEncoding(instanceMapping, info.block, 2 * spmWire + 1);
             }
         }
@@ -1678,9 +1693,9 @@ Result PerfExperiment::AddSpmTrace(
 {
     Result result = Result::Success;
 
-    if (m_isFinalized)
+    if (m_isFinalized || (m_numSpmCounters != 0))
     {
-        // The perf experiment cannot be changed once it is finalized.
+        // The perf experiment cannot be changed once it is finalized. You also can't have more than one SPM trace.
         result = Result::ErrorUnavailable;
     }
     else if ((spmCreateInfo.ringSize > UINT32_MAX) ||
@@ -1720,15 +1735,11 @@ Result PerfExperiment::AddSpmTrace(
     // big each segment is and create some memory for it. Second we figure out where each SPM counter fits into its
     // segment, identifying its memory offsets and filling in its muxsel values.
     //
-    // The global segment always starts with a 64-bit timestamp. Define its size in counters and the magic muxsel value
-    // we use to select it.
+    // The global segment always starts with a 64-bit timestamp, we need to save space for it.
     constexpr uint32 GlobalTimestampCounters = sizeof(uint64) / sizeof(uint16);
-    constexpr uint16 GlobalTimestampSelect   = 0xF0F0;
-#if PAL_BUILD_GFX11
-                     m_gfx11MaxMuxSelLines   = 0;
-#endif
 
-    // Allocate the segment memory.
+    // Allocate the segment memory. SE segments are virtualized so harvested SEs are clustered at the end and must have
+    // zero counters enabled. Note that AddSpmCounter already verified all of our counters are for active SEs.
     for (uint32 segment = 0; (result == Result::Success) && (segment < MaxNumSpmSegments); ++segment)
     {
         // Start by calculating the total size of the ram.
@@ -1764,25 +1775,16 @@ Result PerfExperiment::AddSpmTrace(
         if (totalLines > 0)
         {
             m_numMuxselLines[segment] = totalLines;
-#if PAL_BUILD_GFX11
-            m_gfx11MaxMuxSelLines     = Max(m_gfx11MaxMuxSelLines, totalLines);
-#endif
-        }
-    }
 
 #if PAL_BUILD_GFX11
-    // For Gfx11 there is only 1 programable segment size. We will use the largest segment size for all shader engines.
-    if (IsGfx11(*m_pDevice))
-    {
-        for (int32 segment = 0; (result == Result::Success) && (segment < MaxNumSpmSegments); segment++)
-        {
-            if (static_cast<SpmDataSegmentType>(segment) != SpmDataSegmentType::Global)
+            // We don't want to include the global segment in our "max among all SEs" calculation.
+            if ((isGlobalSegment == false) && (m_maxSeMuxSelLines < totalLines))
             {
-                m_numMuxselLines[segment] = m_gfx11MaxMuxSelLines;
+                m_maxSeMuxSelLines = totalLines;
             }
+#endif
         }
     }
-#endif
 
     for (int32 segment = 0; (result == Result::Success) && (segment < MaxNumSpmSegments); segment++)
     {
@@ -1808,121 +1810,90 @@ Result PerfExperiment::AddSpmTrace(
     {
         // Now we know how big all of the segments are so we can figure out where each counter will fit in the sample
         // memory layout. It's time to find those offsets and fill out the muxsel values.
-        for (uint32 segment = 0; segment < MaxNumSpmSegments; ++segment)
+        //
+        // The RLC hardware hard-codes this segment order: Global, SE0, SE1, ... , SEN.
+        // We'll build up the counter locations in that order to make thinking about this stuff easier.
+        //
+        // The Global segment is always first so let's just handle it explicitly.
+        FillMuxselRam(SpmDataSegmentType::Global, 0);
+
+        const uint32 globalLines = m_numMuxselLines[uint32(SpmDataSegmentType::Global)];
+
+        // Now we just need to fill out the per-SE state. We purposefully defined our SE segment enums in terms of
+        // virtual (active) SEs so looping over the active SEs will give us the right segment enums for free.
+        static_assert(uint32(SpmDataSegmentType::Se0) == 0);
+
+#if PAL_BUILD_GFX11
+        if (IsGfx11(*m_pDevice))
         {
-            if (m_pMuxselRams[segment] != nullptr)
+            // Gfx11's RLC uses one segment size for every single SE (SE_NUM_SEGMENT) which has two impacts:
+            // 1. If we vary the number of counters between SEs then we need to pad out the smaller ones. In the worst
+            //    case we need a full SE's worth of space for every SE with zero counters.
+            // 2. If our GPU has harvested SEs we need to include padding for them too! The RLC works in terms of real
+            //    SEs, not the "virtual" SE range we prefer in this code.
+            //
+            // These properties make it hard to track the offset as we go. It's easier to recompute it each iteration.
+            for (uint32 idx = 0; idx < m_chipProps.gfx9.numActiveShaderEngines; ++idx)
             {
-                // Figure out where this entire segment starts in sample memory. The RLC hardware hard-codes this
-                // order: Global, SE0, SE1, ... , SEN. Add up the sizes of those segments in order until
-                // we find our segment.
-                //
-                // Note that our layout interface expects offsets in units of 16-bit counters instead of bytes.
-                // To meet that expectation our offsets are also in units of 16-bit counters.
-                constexpr SpmDataSegmentType SegmentOrder[MaxNumSpmSegments] =
-                {
-                    SpmDataSegmentType::Global,
-                    SpmDataSegmentType::Se0,
-                    SpmDataSegmentType::Se1,
-                    SpmDataSegmentType::Se2,
-                    SpmDataSegmentType::Se3,
-#if PAL_BUILD_GFX11
-                    SpmDataSegmentType::Se4,
-                    SpmDataSegmentType::Se5,
-#endif
-                };
+                const uint32 offset = globalLines + VirtualSeToRealSe(idx) * m_maxSeMuxSelLines;
 
-                uint32 segmentOffset = 0;
-
-                for (uint32 idx = 0; segment != static_cast<uint32>(SegmentOrder[idx]); ++idx)
-                {
-                    segmentOffset += m_numMuxselLines[static_cast<uint32>(SegmentOrder[idx])] *
-                                     MuxselLineSizeInCounters;
-                }
-
-                // Walk through the even and odd lines in parallel, adding all enabled counters.
-                uint32 evenCounterIdx = 0;
-                uint32 evenLineIdx    = 0;
-                uint32 oddCounterIdx  = 0;
-                uint32 oddLineIdx     = 1;
-
-                if (static_cast<SpmDataSegmentType>(segment) == SpmDataSegmentType::Global)
-                {
-                    // First, add the global timestamp selects.
-#if PAL_BUILD_GFX11
-                    if (IsGfx11(*m_pDevice))
-                    {
-                        m_pMuxselRams[segment][evenLineIdx].muxsel[evenCounterIdx++].u16All = 0xF840;
-                        m_pMuxselRams[segment][evenLineIdx].muxsel[evenCounterIdx++].u16All = 0xF841;
-                        m_pMuxselRams[segment][evenLineIdx].muxsel[evenCounterIdx++].u16All = 0xF842;
-                        m_pMuxselRams[segment][evenLineIdx].muxsel[evenCounterIdx++].u16All = 0xF843;
-                    }
-                    else
-#endif
-                    {
-                        for (uint32 idx = 0; idx < GlobalTimestampCounters; ++idx)
-                        {
-                            m_pMuxselRams[segment][evenLineIdx].muxsel[evenCounterIdx++].u16All
-                                                                        = GlobalTimestampSelect;
-                        }
-                    }
-                }
-
-                for (uint32 idx = 0; idx < m_numSpmCounters; ++idx)
-                {
-                    if (static_cast<uint32>(m_pSpmCounters[idx].segment) == segment)
-                    {
-                        if (m_pSpmCounters[idx].isEven)
-                        {
-                            // If this counter has an even part it always contains the lower 16 bits.
-                            m_pSpmCounters[idx].offsetLo =
-                                segmentOffset + evenLineIdx * MuxselLineSizeInCounters + evenCounterIdx;
-
-                            // Copy the counter's muxsel into the even line.
-                            m_pMuxselRams[segment][evenLineIdx].muxsel[evenCounterIdx] = m_pSpmCounters[idx].evenMuxsel;
-
-                            // Move on to the next even counter, possibly skipping over an odd line.
-                            if (++evenCounterIdx == MuxselLineSizeInCounters)
-                            {
-                                evenCounterIdx = 0;
-                                evenLineIdx += 2;
-                            }
-                        }
-
-                        if (m_pSpmCounters[idx].isOdd)
-                        {
-                            // If this counter is even and odd it must be 32-bit and this must be the upper half.
-                            // Otherwise this counter is 16-bit and it's the lower half.
-                            const uint32 oddOffset =
-                                segmentOffset + oddLineIdx * MuxselLineSizeInCounters + oddCounterIdx;
-
-                            if (m_pSpmCounters[idx].isEven)
-                            {
-                                m_pSpmCounters[idx].offsetHi = oddOffset;
-                            }
-                            else
-                            {
-                                m_pSpmCounters[idx].offsetLo = oddOffset;
-                            }
-
-                            // Copy the counter's muxsel into the odd line.
-                            m_pMuxselRams[segment][oddLineIdx].muxsel[oddCounterIdx] = m_pSpmCounters[idx].oddMuxsel;
-
-                            // Move on to the next odd counter, possibly skipping over an even line.
-                            if (++oddCounterIdx == MuxselLineSizeInCounters)
-                            {
-                                oddCounterIdx = 0;
-                                oddLineIdx += 2;
-                            }
-                        }
-                    }
-                }
+                PAL_ASSERT(idx < uint32(SpmDataSegmentType::Global));
+                FillMuxselRam(static_cast<SpmDataSegmentType>(idx), offset);
             }
+
+            // Once more to compute the total sample size.
+            // Note that we're using the physical SE count here because that's the count the RLC uses.
+            m_spmSampleLines = globalLines + m_chipProps.gfx9.numShaderEngines * m_maxSeMuxSelLines;
+        }
+        else
+#endif
+        {
+            uint32 offset = globalLines;
+
+            for (uint32 idx = 0; idx < m_chipProps.gfx9.numActiveShaderEngines; ++idx)
+            {
+                PAL_ASSERT(idx < uint32(SpmDataSegmentType::Global));
+                FillMuxselRam(static_cast<SpmDataSegmentType>(idx), offset);
+
+                // The RLC tightly packs the enabled segments so we don't need to explicitly map between virtual and
+                // physical SEs. For example, if SE0 has no counters or is harvested the RLC will see SE0_NUM_LINE = 0
+                // so it knows SE1 comes next in memory, no padding necessary! Adding the current SE's size here
+                // will always give us the proper offset for the next enabled physical SE.
+                offset += m_numMuxselLines[idx];
+            }
+
+            // The offset now points past the very last segment so it's actually the sample size.
+            m_spmSampleLines = offset;
         }
 
+        // Now for one final trick, we need to tweak our SPM ring buffer size. This implements part of the SPM parsing
+        // scheme described in palPerfExperiment.h above the SpmTraceLayout struct so read that first.
+        //
+        // PAL is a UMD so we can't program SPM as a proper ring buffer. Instead we tell the RLC to automatically wrap
+        // back to the start of the ring when it reaches the end. The RLC can split sample writes across the wrap point
+        // which makes it difficult to parse the samples out in order.
+        //
+        // We can avoid that issue if we carefully select our ring size to make the wrapping line up perfectly.
+        // Essentially we just need our ring size to be a multiple of our sample size, that way the final sample in
+        // the ring ends exactly when the ring ends. Each time the ring wraps the first wrapping sample starts at the
+        // top of the ring. That means the client can always start parsing samples at the top of the ring and the data
+        // will make perfect sense, no need to check for wrapping!
+        //
+        // The client gave us a suggested ring buffer size in the create info. We shouldn't use more memory than they
+        // specified but we can use less. This code figures out how many whole samples fit in their ring size and then
+        // converts that back up to bytes to get PAL's final ring size. Note that configuring a ring with no sample
+        // space doesn't make sense so we do bump that up to enough memory for a single sample.
+        //
+        // Note that the RLC reserves one full bitline at the very start of the ring for the ring buffer header.
+        // The samples start immediately after that header and the wrapping logic skips over the header.
+        const uint32 maxSizeInLines = Max(1u, uint32(spmCreateInfo.ringSize) / SampleLineSizeInBytes);
+
+        m_spmMaxSamples = Max(1u, (maxSizeInLines - 1) / m_spmSampleLines);
+        m_spmRingSize   = (m_spmMaxSamples * m_spmSampleLines + 1) * SampleLineSizeInBytes;
+
         // If we made it this far the SPM trace is ready to go.
-        m_perfExperimentFlags.spmTraceEnabled       = true;
-        m_spmRingSize                               = static_cast<uint32>(spmCreateInfo.ringSize);
-        m_spmSampleInterval                         = static_cast<uint16>(spmCreateInfo.spmInterval);
+        m_perfExperimentFlags.spmTraceEnabled = true;
+        m_spmSampleInterval                   = uint16(spmCreateInfo.spmInterval);
     }
     else
     {
@@ -1937,6 +1908,105 @@ Result PerfExperiment::AddSpmTrace(
     }
 
     return result;
+}
+
+// =====================================================================================================================
+// Walks the specified segment's muxsel RAM, filling out the RAM's contents and updating the relevant SPM counter's
+// offsets. It's safe/harmless to call this on segments with no counters/RAM.
+void PerfExperiment::FillMuxselRam(
+    SpmDataSegmentType segment,
+    uint32             offsetInLines)
+{
+    PAL_ASSERT(uint32(segment) < MaxNumSpmSegments);
+    SpmLineMapping*const pMappings = m_pMuxselRams[uint32(segment)];
+
+    if (pMappings != nullptr)
+    {
+        // Walk through the even and odd lines in parallel, adding all enabled counters. In this logic we assume all
+        // counters are 16-bit even if we're running 32-bit SPM. This works out fine because the RLC splits all values
+        // into 16-bit chunks and writes them to memory independently.
+        uint32 evenCounterIdx = 0;
+        uint32 evenLineIdx    = 0;
+        uint32 oddCounterIdx  = 0;
+        uint32 oddLineIdx     = 1;
+
+        if (segment == SpmDataSegmentType::Global)
+        {
+            // The global segment always starts with a 64-bit timestamp, that's 4 16-bit counters worth of data.
+#if PAL_BUILD_GFX11
+            if (IsGfx11(*m_pDevice))
+            {
+                pMappings[evenLineIdx].muxsel[evenCounterIdx++].u16All = 0xF840;
+                pMappings[evenLineIdx].muxsel[evenCounterIdx++].u16All = 0xF841;
+                pMappings[evenLineIdx].muxsel[evenCounterIdx++].u16All = 0xF842;
+                pMappings[evenLineIdx].muxsel[evenCounterIdx++].u16All = 0xF843;
+            }
+            else
+#endif
+            {
+                constexpr uint32 GlobalTimestampCounters = sizeof(uint64) / sizeof(uint16);
+                constexpr uint16 GlobalTimestampSelect   = 0xF0F0;
+
+                for (uint32 idx = 0; idx < GlobalTimestampCounters; ++idx)
+                {
+                    pMappings[evenLineIdx].muxsel[evenCounterIdx++].u16All = GlobalTimestampSelect;
+                }
+            }
+        }
+
+        for (uint32 idx = 0; idx < m_numSpmCounters; ++idx)
+        {
+            SpmCounterMapping*const pCounter = m_pSpmCounters + idx;
+
+            if (pCounter->segment == segment)
+            {
+                if (pCounter->isEven)
+                {
+                    // If this counter has an even part it always contains the lower 16 bits. Find its offset
+                    // within each sample in units of 16-bit counters and then convert that to bytes.
+                    const uint32 offset = (offsetInLines + evenLineIdx) * MuxselLineSizeInCounters + evenCounterIdx;
+                    pCounter->offsetLo  = offset * sizeof(uint16);
+
+                    // Copy the counter's muxsel into the even line.
+                    pMappings[evenLineIdx].muxsel[evenCounterIdx] = pCounter->evenMuxsel;
+
+                    // Move on to the next even counter, possibly skipping over an odd line.
+                    if (++evenCounterIdx == MuxselLineSizeInCounters)
+                    {
+                        evenCounterIdx = 0;
+                        evenLineIdx += 2;
+                    }
+                }
+
+                if (pCounter->isOdd)
+                {
+                    // If this counter is even and odd it must be 32-bit and this must be the upper half.
+                    // Otherwise this counter is 16-bit and it's the lower half. Find its offset
+                    // within each sample in units of 16-bit counters and then convert that to bytes.
+                    const uint32 offset = (offsetInLines + oddLineIdx) * MuxselLineSizeInCounters + oddCounterIdx;
+
+                    if (pCounter->isEven)
+                    {
+                        pCounter->offsetHi = offset * sizeof(uint16);
+                    }
+                    else
+                    {
+                        pCounter->offsetLo = offset * sizeof(uint16);
+                    }
+
+                    // Copy the counter's muxsel into the odd line.
+                    pMappings[oddLineIdx].muxsel[oddCounterIdx] = pCounter->oddMuxsel;
+
+                    // Move on to the next odd counter, possibly skipping over an even line.
+                    if (++oddCounterIdx == MuxselLineSizeInCounters)
+                    {
+                        oddCounterIdx = 0;
+                        oddLineIdx += 2;
+                    }
+                }
+            }
+        }
+    }
 }
 
 // =====================================================================================================================
@@ -1965,7 +2035,7 @@ Result PerfExperiment::Finalize()
             for (uint32 idx = 0; idx < m_globalCounters.NumElements(); ++idx)
             {
                 GlobalCounterMapping*const pMapping = &m_globalCounters.At(idx);
-                const bool                 is64Bit  = (pMapping->general.dataType == PerfCounterDataType::Uint64);
+                const bool                 is64Bit  = (pMapping->dataType == PerfCounterDataType::Uint64);
 
                 pMapping->offset = globalSize;
                 globalSize      += is64Bit ? sizeof(uint64) : sizeof(uint32);
@@ -2057,7 +2127,7 @@ Result PerfExperiment::GetGlobalCounterLayout(
             pLayout->samples[idx].instance         = mapping.general.globalInstance;
             pLayout->samples[idx].slot             = mapping.counterId;
             pLayout->samples[idx].eventId          = mapping.general.eventId;
-            pLayout->samples[idx].dataType         = mapping.general.dataType;
+            pLayout->samples[idx].dataType         = mapping.dataType;
             pLayout->samples[idx].beginValueOffset = m_globalBeginOffset + mapping.offset;
             pLayout->samples[idx].endValueOffset   = m_globalEndOffset + mapping.offset;
         }
@@ -2158,42 +2228,57 @@ Result PerfExperiment::GetSpmTraceLayout(
     }
     else
     {
-        constexpr uint32 LineSizeInBytes = MuxselLineSizeInDwords * sizeof(uint32);
+        pLayout->offset           = m_spmRingOffset;
+        pLayout->wrPtrOffset      = 0; // The write pointer is the first thing written to the ring buffer
+        pLayout->wrPtrGranularity = 1;
 
-        pLayout->offset          = m_spmRingOffset;
-        pLayout->wptrOffset      = m_spmRingOffset; // The write pointer is the first thing written to the ring buffer
-        pLayout->wptrGranularity = 1;
 #if PAL_BUILD_GFX11
         if (IsGfx11(*m_pDevice))
         {
-            // On GFX11, the write pointer value written to the ring base address in memory is in units of number of
-            // segments, and therefore must be multiplied by 32 to get the correct data size. This operation is done
-            // when reading the data size in CountNumSamples().
-            pLayout->wptrGranularity = 32;
+            // On GFX11, the write pointer written to the ring is in units of segments and therefore must be multiplied
+            // by SampleLineSizeInBytes (32) to get the correct data size.
+            pLayout->wrPtrGranularity = SampleLineSizeInBytes;
         }
 #endif
-        pLayout->sampleOffset    = LineSizeInBytes; // The samples start one line in.
 
-        pLayout->sampleSizeInBytes = 0;
+        // The samples start one line in.
+        pLayout->sampleOffset  = SampleLineSizeInBytes;
+        pLayout->sampleStride  = SampleLineSizeInBytes * m_spmSampleLines;
+        pLayout->maxNumSamples = m_spmMaxSamples;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 810
+        pLayout->wptrOffset        = pLayout->offset + pLayout->wrPtrOffset;
+        pLayout->wptrGranularity   = pLayout->wrPtrGranularity;
+        pLayout->sampleSizeInBytes = pLayout->sampleStride;
 
         for (uint32 idx = 0; idx < MaxNumSpmSegments; ++idx)
         {
-            pLayout->segmentSizeInBytes[idx] = m_numMuxselLines[idx] * LineSizeInBytes;
-            pLayout->sampleSizeInBytes      += pLayout->segmentSizeInBytes[idx];
+            pLayout->segmentSizeInBytes[idx] = m_numMuxselLines[idx] * SampleLineSizeInBytes;
         }
+#endif
 
         pLayout->numCounters = m_numSpmCounters;
 
         for (uint32 idx = 0; idx < m_numSpmCounters; ++idx)
         {
-            pLayout->counterData[idx].segment  = m_pSpmCounters[idx].segment;
-            pLayout->counterData[idx].offset   = m_pSpmCounters[idx].offsetLo;
-            pLayout->counterData[idx].gpuBlock = m_pSpmCounters[idx].general.block;
-            pLayout->counterData[idx].instance = m_pSpmCounters[idx].general.globalInstance;
-            pLayout->counterData[idx].eventId  = m_pSpmCounters[idx].general.eventId;
+            const SpmCounterMapping& mapping = m_pSpmCounters[idx];
+            SpmCounterData*const     pOut    = pLayout->counterData + idx;
 
-            // The interface can't handle 32-bit SPM counters yet...
-            PAL_ASSERT(m_pSpmCounters[idx].offsetHi == 0);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 810
+            pOut->segment  = mapping.segment;
+            pOut->offset   = mapping.offsetLo / sizeof(uint16); // In units of counters!
+#endif
+            pOut->gpuBlock = mapping.general.block;
+            pOut->instance = mapping.general.globalInstance;
+            pOut->eventId  = mapping.general.eventId;
+            pOut->offsetLo = mapping.offsetLo;
+
+            // The client needs to combine the low and high halves of each 32-bit value.
+            if (mapping.isEven && mapping.isOdd)
+            {
+                pOut->is32Bit  = true;
+                pOut->offsetHi = mapping.offsetHi;
+            }
         }
     }
 
@@ -2818,9 +2903,9 @@ Result PerfExperiment::BuildInstanceMapping(
         }
     }
 
-    if (seIndex >= m_chipProps.gfx9.numShaderEngines)
+    if (seIndex >= m_chipProps.gfx9.numActiveShaderEngines)
     {
-        // This shader engine doesn't exist on our device.
+        // This virtual shader engine doesn't exist on our device.
         result = Result::ErrorInvalidValue;
     }
     else if (saIndex >= m_chipProps.gfx9.numShaderArrays)
@@ -3010,8 +3095,26 @@ MuxselEncoding PerfExperiment::BuildMuxselEncoding(
 uint32* PerfExperiment::WriteSpmSetup(
     CmdStream* pCmdStream,
     uint32*    pCmdSpace
-) const
+    ) const
 {
+    const gpusize ringBaseAddr = m_gpuMemory.GpuVirtAddr() + m_spmRingOffset;
+
+    // The spec requires that the ring address and size be aligned to 32-bytes.
+    PAL_ASSERT(IsPow2Aligned(ringBaseAddr,  SpmRingBaseAlignment));
+    PAL_ASSERT(IsPow2Aligned(m_spmRingSize, SpmRingBaseAlignment));
+
+    // Zero out the 64-bit timestamp at the start of the final sample in the ring buffer. Recall that we carefully
+    // sized the ring to have no extra space at the end, that's why we can just subtract the size of one sample.
+    // This implements part of the SPM parsing scheme described in palPerfExperiment.h above the SpmTraceLayout
+    // struct so read that too.
+    const uint32  ZeroTs[2] = {};
+    WriteDataInfo writeZero = {};
+    writeZero.engineType = pCmdStream->GetEngineType();
+    writeZero.engineSel  = engine_sel__me_write_data__micro_engine;
+    writeZero.dstAddr    = ringBaseAddr + m_spmRingSize - m_spmSampleLines * SampleLineSizeInBytes;
+    writeZero.dstSel     = dst_sel__me_write_data__tc_l2;
+    pCmdSpace += CmdUtil::BuildWriteData(writeZero, ArrayLen(ZeroTs), ZeroTs, pCmdSpace);
+
     // Configure the RLC state that controls SPM.
     struct
     {
@@ -3020,12 +3123,6 @@ uint32* PerfExperiment::WriteSpmSetup(
         regRLC_SPM_PERFMON_RING_BASE_HI ringBaseHi;
         regRLC_SPM_PERFMON_RING_SIZE    ringSize;
     } rlcInit = {};
-
-    const gpusize ringBaseAddr = m_gpuMemory.GpuVirtAddr() + m_spmRingOffset;
-
-    // The spec requires that the ring address and size be aligned to 32-bytes.
-    PAL_ASSERT(IsPow2Aligned(ringBaseAddr,  SpmRingBaseAlignment));
-    PAL_ASSERT(IsPow2Aligned(m_spmRingSize, SpmRingBaseAlignment));
 
     rlcInit.cntl.bits.PERFMON_RING_MODE       = 0; // No stall and no interupt on overflow.
     rlcInit.cntl.bits.PERFMON_SAMPLE_INTERVAL = m_spmSampleInterval;
@@ -3057,18 +3154,6 @@ uint32* PerfExperiment::WriteSpmSetup(
     }
 #endif
 
-    // Program the muxsel line sizes. Note that PERFMON_SEGMENT_SIZE only has space for 31 lines per segment.
-    regRLC_SPM_PERFMON_SEGMENT_SIZE spmSegmentSize = {};
-
-    bool   over31Lines = false;
-    uint32 totalLines  = 0;
-
-    for (uint32 idx = 0; idx < MaxNumSpmSegments; ++idx)
-    {
-        over31Lines = over31Lines || (m_numMuxselLines[idx] > 31);
-        totalLines += m_numMuxselLines[idx];
-    }
-
     if (IsGfx10Plus(m_chipProps.gfxLevel))
     {
         // RLC_SPM_ACCUM_MODE needs its state reset as we've disabled GPO when entering stable pstate.
@@ -3078,17 +3163,20 @@ uint32* PerfExperiment::WriteSpmSetup(
                                                      pCmdSpace);
     }
 
+    // Program the muxsel line sizes.
+    const uint32 globalLines = m_numMuxselLines[uint32(SpmDataSegmentType::Global)];
+
 #if PAL_BUILD_GFX11
     if (IsGfx11(m_chipProps.gfxLevel))
     {
-        // TOTAL_NUM_SEGMENT should be (global + SE_NUM_SEGMENT * numActiveShaderEngines)
-        spmSegmentSize.gfx11.TOTAL_NUM_SEGMENT  = totalLines;
-        spmSegmentSize.gfx11.GLOBAL_NUM_SEGMENT = m_numMuxselLines[static_cast<uint32>(SpmDataSegmentType::Global)];
-        // There is only one segment size value for Gfx11. Every shader engine line count will be set to whatever was
-        // the highest value found in the spm config.
-        spmSegmentSize.gfx11.SE_NUM_SEGMENT     = m_gfx11MaxMuxSelLines;
+        regRLC_SPM_PERFMON_SEGMENT_SIZE spmSegmentSize = {};
 
-        PAL_ASSERT(m_chipProps.gfx9.numActiveShaderEngines <= 6);
+        // TOTAL_NUM_SEGMENT should be (global + SE_NUM_SEGMENT * numShaderEngines)
+        spmSegmentSize.gfx11.TOTAL_NUM_SEGMENT  = m_spmSampleLines;
+        spmSegmentSize.gfx11.GLOBAL_NUM_SEGMENT = globalLines;
+        // There is only one SE segment size value for Gfx11. Every shader engine line count will be set to whatever
+        // was the highest value found in the spm config.
+        spmSegmentSize.gfx11.SE_NUM_SEGMENT     = m_maxSeMuxSelLines;
 
         pCmdSpace = pCmdStream->WriteSetOneConfigReg(Gfx11::mmRLC_SPM_PERFMON_SEGMENT_SIZE,
                                                      spmSegmentSize.u32All,
@@ -3097,6 +3185,20 @@ uint32* PerfExperiment::WriteSpmSetup(
     else
 #endif
     {
+        // The SE# fields in the following registers are indexed by physical SEs but our m_numMuxselLines array is
+        // index in terms of virtual SEs. Default to zero to zero out all harvested SEs.
+        uint32 physicalSeLines[Gfx9MaxShaderEngines] = {};
+        bool   over31Lines = (globalLines > 31);
+
+        for (uint32 idx = 0; idx < m_chipProps.gfx9.numActiveShaderEngines; ++idx)
+        {
+            PAL_ASSERT(idx < uint32(SpmDataSegmentType::Global));
+            physicalSeLines[VirtualSeToRealSe(idx)] = m_numMuxselLines[idx];
+            over31Lines = over31Lines || (m_numMuxselLines[idx] > 31);
+        }
+
+        regRLC_SPM_PERFMON_SEGMENT_SIZE spmSegmentSize = {};
+
         if (over31Lines && IsGfx10(m_chipProps.gfxLevel))
         {
             // We must use these extended registers when at least one segment is over 31 lines. The original
@@ -3107,13 +3209,12 @@ uint32* PerfExperiment::WriteSpmSetup(
                 regRLC_SPM_PERFMON_GLB_SEGMENT_SIZE    glbSegmentSize;
             } rlcExtendedSize = {};
 
-            rlcExtendedSize.se3To0SegmentSize.bits.SE0_NUM_LINE      = m_numMuxselLines[0];
-            rlcExtendedSize.se3To0SegmentSize.bits.SE1_NUM_LINE      = m_numMuxselLines[1];
-            rlcExtendedSize.se3To0SegmentSize.bits.SE2_NUM_LINE      = m_numMuxselLines[2];
-            rlcExtendedSize.se3To0SegmentSize.bits.SE3_NUM_LINE      = m_numMuxselLines[3];
-            rlcExtendedSize.glbSegmentSize.bits.PERFMON_SEGMENT_SIZE = totalLines;
-            rlcExtendedSize.glbSegmentSize.bits.GLOBAL_NUM_LINE      =
-                m_numMuxselLines[static_cast<uint32>(SpmDataSegmentType::Global)];
+            rlcExtendedSize.se3To0SegmentSize.bits.SE0_NUM_LINE      = physicalSeLines[0];
+            rlcExtendedSize.se3To0SegmentSize.bits.SE1_NUM_LINE      = physicalSeLines[1];
+            rlcExtendedSize.se3To0SegmentSize.bits.SE2_NUM_LINE      = physicalSeLines[2];
+            rlcExtendedSize.se3To0SegmentSize.bits.SE3_NUM_LINE      = physicalSeLines[3];
+            rlcExtendedSize.glbSegmentSize.bits.PERFMON_SEGMENT_SIZE = m_spmSampleLines;
+            rlcExtendedSize.glbSegmentSize.bits.GLOBAL_NUM_LINE      = globalLines;
 
             pCmdSpace = pCmdStream->WriteSetSeqConfigRegs(Gfx10::mmRLC_SPM_PERFMON_SE3TO0_SEGMENT_SIZE,
                                                           Gfx10::mmRLC_SPM_PERFMON_GLB_SEGMENT_SIZE,
@@ -3126,12 +3227,11 @@ uint32* PerfExperiment::WriteSpmSetup(
             // anyway and hope to maybe get some partial data.
             PAL_ASSERT(over31Lines == false);
 
-            spmSegmentSize.gfx09_10.PERFMON_SEGMENT_SIZE = totalLines;
-            spmSegmentSize.gfx09_10.SE0_NUM_LINE         = m_numMuxselLines[0];
-            spmSegmentSize.gfx09_10.SE1_NUM_LINE         = m_numMuxselLines[1];
-            spmSegmentSize.gfx09_10.SE2_NUM_LINE         = m_numMuxselLines[2];
-            spmSegmentSize.gfx09_10.GLOBAL_NUM_LINE      =
-                m_numMuxselLines[static_cast<uint32>(SpmDataSegmentType::Global)];
+            spmSegmentSize.gfx09_10.PERFMON_SEGMENT_SIZE = m_spmSampleLines;
+            spmSegmentSize.gfx09_10.SE0_NUM_LINE         = physicalSeLines[0];
+            spmSegmentSize.gfx09_10.SE1_NUM_LINE         = physicalSeLines[1];
+            spmSegmentSize.gfx09_10.SE2_NUM_LINE         = physicalSeLines[2];
+            spmSegmentSize.gfx09_10.GLOBAL_NUM_LINE      = globalLines;
         }
 
         pCmdSpace = pCmdStream->WriteSetOneConfigReg(Gfx09_10::mmRLC_SPM_PERFMON_SEGMENT_SIZE,
@@ -4181,7 +4281,7 @@ uint32* PerfExperiment::WriteStopAndSampleGlobalCounters(
             pCmdSpace = pCmdStream->ReserveCommands();
         }
 #endif
-        else if ((mapping.general.block == GpuBlock::Dma) && (mapping.general.dataType == PerfCounterDataType::Uint32))
+        else if ((mapping.general.block == GpuBlock::Dma) && (mapping.dataType == PerfCounterDataType::Uint32))
         {
             // Each legacy SDMA engine is a global block which defines unique 32-bit global counter registers.
             pCmdSpace = WriteGrbmGfxIndexBroadcastGlobal(pCmdStream, pCmdSpace);
@@ -4583,7 +4683,7 @@ bool PerfExperiment::IsSqWgpLevelEvent(
     {
         isLevelEvent = true;
     }
-    else if (eventId == SQ_PERF_SEL_IFETCH_LEVEL__GFX11)
+    else if (eventId == SQ_PERF_SEL_IFETCH_LEVEL__GFX110)
     {
         isLevelEvent = true;
     }

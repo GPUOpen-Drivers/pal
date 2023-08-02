@@ -91,6 +91,14 @@ extern bool ValidateMemoryImageRegion(
     const Pal::IGpuMemory&            memory,
     const Pal::MemoryImageCopyRegion& region);
 
+/// Generate a 64-bit uniqueId for a GPU memory allocation
+///
+/// @param [in] isInterprocess  Indicates this uniqueId is for an externally shareable GPU memory allocation
+///
+/// @returns 64-bit uniqueId
+extern Pal::uint64 GenerateGpuMemoryUniqueId(
+    bool isInterprocess);
+
 } // GpuUtil
 
 /**

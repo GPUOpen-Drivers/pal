@@ -27,6 +27,7 @@
 
 #include "core/device.h"
 #include "core/hw/gfxip/gfx6/gfx6Chip.h"
+#include "core/hw/gfxip/gfxDevice.h"
 #include "palCmdBuffer.h"
 
 namespace Pal

@@ -300,6 +300,12 @@ ADDR_E_RETURNCODE Lib::ComputeSurfaceInfo(
             if (localIn.flags.needEquation && (Log2(localIn.numFrags) == 0))
             {
                 pOut->equationIndex = GetEquationIndex(&localIn, pOut);
+                if ((localIn.flags.allowExtEquation == 0) &&
+                    (pOut->equationIndex != ADDR_INVALID_EQUATION_INDEX) &&
+                    (m_equationTable[pOut->equationIndex].numBitComponents > ADDR_MAX_LEGACY_EQUATION_COMP))
+                {
+                    pOut->equationIndex = ADDR_INVALID_EQUATION_INDEX;
+                }
             }
 
             if (localIn.flags.qbStereo)
@@ -2053,7 +2059,8 @@ VOID Lib::ComputeQbStereoInfo(
 VOID Lib::FilterInvalidEqSwizzleMode(
     ADDR2_SWMODE_SET& allowedSwModeSet,
     AddrResourceType  resourceType,
-    UINT_32           elemLog2
+    UINT_32           elemLog2,
+    UINT_32           maxComponents
     ) const
 {
     if (resourceType != ADDR_RSRC_TEX_1D)
@@ -2066,7 +2073,12 @@ VOID Lib::FilterInvalidEqSwizzleMode(
         {
             if (validSwModeSet & 1)
             {
-                if (m_equationLookupTable[rsrcTypeIdx][swModeIdx][elemLog2] == ADDR_INVALID_EQUATION_INDEX)
+                UINT_32 equation = m_equationLookupTable[rsrcTypeIdx][swModeIdx][elemLog2];
+                if (equation == ADDR_INVALID_EQUATION_INDEX)
+                {
+                    allowedSwModeSetVal &= ~(1u << swModeIdx);
+                }
+                else if (m_equationTable[equation].numBitComponents > maxComponents)
                 {
                     allowedSwModeSetVal &= ~(1u << swModeIdx);
                 }
