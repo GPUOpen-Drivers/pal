@@ -312,6 +312,7 @@ def genReadSettingCode(data):
     readSettingTmp = readSettingTmp.replace("%OsiSettingType%", osiSettingTypeTmp)
     readSettingTmp = readSettingTmp.replace("%ReadSettingClass%", codeTemplates.PalReadSettingClass)
     readSettingTmp = readSettingTmp.replace("%SettingRegistryType%", getRegistryType(data["type"]))
+    readSettingTmp = readSettingTmp.replace("%SettingType%", data["type"])
     readSettingTmp = readSettingTmp.replace("%SettingVarName%", data["variableName"])
 
     return settingStringTmp, readSettingTmp

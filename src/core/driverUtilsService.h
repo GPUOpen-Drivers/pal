@@ -43,13 +43,18 @@ public:
     virtual DD_RESULT EnableTracing() override;
     virtual DD_RESULT EnableCrashAnalysisMode() override;
     virtual DD_RESULT QueryPalDriverInfo(const DDByteWriter& writer) override;
+    virtual DD_RESULT EnableDriverFeatures(const void* pParamBuffer, size_t paramBufferSize) override;
 
     bool IsTracingEnabled() const { return m_isTracingEnabled; }
     bool IsCrashAnalysisModeEnabled() const { return m_crashAnalysisModeEnabled; }
+    bool IsRaytracingShaderTokenRequested() const { return m_raytracingShaderTokenEnabled; }
+    bool IsStaticVmidRequested() const { return m_staticVmid; }
 
 private:
     bool m_isTracingEnabled;
     bool m_crashAnalysisModeEnabled;
+    bool m_raytracingShaderTokenEnabled;
+    bool m_staticVmid;
     Pal::Platform* m_pPlatform;
 };
 }

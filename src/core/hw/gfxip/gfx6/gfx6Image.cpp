@@ -449,7 +449,8 @@ Result Image::Finalize(
                     // Reset to the default clear method and clear the metadata TC fetch flag.
                     for (uint32 idx = 0; idx < m_pImageInfo->numSubresources; ++idx)
                     {
-                        pSubResInfoList[idx].clearMethod                   = pGfxDevice->GetDefaultSlowClearMethod(Parent());
+                        pSubResInfoList[idx].clearMethod                   =
+                            pGfxDevice->GetDefaultSlowClearMethod(pSubResInfoList[idx].format);
                         pSubResInfoList[idx].flags.supportMetaDataTexFetch = 0;
                     }
 
@@ -464,10 +465,14 @@ Result Image::Finalize(
                     // SEE: Gfx6ColorTargetView::WriteCommands for details.
                     needsFastColorClearMetaData = true;
 
-                    // We also need the DCC state metadata when DCC is enabled.
-                    needsDccStateMetaData = useSharedMetadata ?
-                                            (sharedMetadata.dccStateMetaDataOffset[0] != 0) : true;
-
+                    // We never need this metadata but we prefer to have this on by default.
+                    needsDccStateMetaData =
+                        (useSharedMetadata ? (sharedMetadata.dccStateMetaDataOffset[0] != 0)
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 813
+                                           : (m_createInfo.flags.disableDccStateTracking == 0));
+#else
+                                           : true);
+#endif
                     // As CP doesn't support to LOAD_***REG/SET_PREDICATION/WRITE_DATA on TMZ images,
                     // Fast clears on TMZ images are only supported if they are TC-compatible and the
                     // clear value is TC-compatible, so there is no need to load the clear colors or FCE.
@@ -1731,7 +1736,7 @@ uint32* Image::UpdateDccStateMetaData(
     ) const
 {
     PAL_ASSERT(range.numPlanes == 1);
-    PAL_ASSERT(HasDccData());
+    PAL_ASSERT(HasDccData() && HasDccStateMetaData());
 
     const CmdUtil& cmdUtil = static_cast<const Device*>(m_device.GetGfxDevice())->CmdUtil();
 

@@ -242,12 +242,6 @@ private:
         const Rect*            pScissorRect,
         uint32                 flags) const override;
 
-    bool SlowClearUseGraphics(
-        Pm4CmdBuffer*      pCmdBuffer,
-        const Image&       dstImage,
-        const SubresRange& clearRange,
-        ClearMethod        method) const;
-
     virtual void HwlImageToImageMissingPixelCopy(
         GfxCmdBuffer*          pCmdBuffer,
         const Pal::Image&      srcImage,

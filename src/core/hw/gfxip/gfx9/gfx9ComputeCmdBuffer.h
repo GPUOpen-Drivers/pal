@@ -301,7 +301,9 @@ private:
     PackedRegisterPair m_validUserEntryRegPairsCs[Gfx11MaxPackedUserEntryCountCs];
     // A lookup of registers written into m_validUserEntryRegPairsCs where each index in the lookup maps to each compute
     // user SGPR. The value at each index divided by 2 serves as an index into m_validUserEntryRegPairsCs.
-    uint8              m_validUserEntryRegPairsLookupCs[Gfx11MaxUserDataIndexCountCs];
+    UserDataEntryLookup m_validUserEntryRegPairsLookupCs[Gfx11MaxUserDataIndexCountCs];
+    uint32              m_minValidUserEntryLookupValueCs;
+
     // Total number of valid packed register pair entries mapped in m_validUserEntryRegPairsCs. This also functions as
     // the index to the valid packed register pair lookup.
     uint32             m_numValidUserEntriesCs;

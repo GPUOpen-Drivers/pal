@@ -525,8 +525,8 @@ void RsrcProcMgr::CmdUpdateMemory(
 
     Pm4CmdBuffer* pPm4CmdBuf = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
 
-    pPm4CmdBuf->SetPm4CmdBufCpBltState(true);
-    pPm4CmdBuf->SetPm4CmdBufCpBltWriteCacheState(true);
+    pPm4CmdBuf->SetCpBltState(true);
+    pPm4CmdBuf->SetCpBltWriteCacheState(true);
 }
 
 // =====================================================================================================================
@@ -2090,7 +2090,7 @@ void RsrcProcMgr::HwlDepthStencilClear(
 
             DepthStencilLayoutToState layoutToState = gfx9Image.LayoutToDepthCompressionState(pRanges[idx].startSubres);
 
-            if (isDepth)
+            if (isDepth && (pRanges[idx].startSubres.plane == 0))
             {
                 // Expand first if depth plane is not fully expanded.
                 if (ImageLayoutToDepthCompressionState(layoutToState, depthLayout) != DepthStencilDecomprNoHiZ)
@@ -2113,8 +2113,9 @@ void RsrcProcMgr::HwlDepthStencilClear(
                 }
 
                 // For Stencil plane we use the stencil value directly.
-                clearColor.type = ClearColorType::Uint;
-                clearColor.u32Color[0] = stencil;
+                clearColor.type                = ClearColorType::Uint;
+                clearColor.u32Color[0]         = stencil;
+                clearColor.disabledChannelMask = ~stencilWriteMask;
             }
 
             if (needPreComputeSync)
@@ -3217,8 +3218,11 @@ void RsrcProcMgr::DccDecompressOnCompute(
         } // end loop through all the slices
     }
 
-    // We have to mark this mip level as actually being DCC decompressed
-    image.UpdateDccStateMetaData(pCmdStream, range, false, engineType, PredDisable);
+    if (image.HasDccStateMetaData(range))
+    {
+        // We have to mark this mip level as actually being DCC decompressed
+        image.UpdateDccStateMetaData(pCmdStream, range, false, engineType, PredDisable);
+    }
 
     Pm4CmdBuffer* pPm4CmdBuf = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
 
@@ -3305,8 +3309,11 @@ void RsrcProcMgr::DccDecompress(
                              metaDataOffset);
         }
 
-        // We have to mark this mip level as actually being DCC decompressed
-        image.UpdateDccStateMetaData(pCmdStream, range, false, pCmdBuffer->GetEngineType(), PredDisable);
+        if (image.HasDccStateMetaData(range))
+        {
+            // We have to mark this mip level as actually being DCC decompressed
+            image.UpdateDccStateMetaData(pCmdStream, range, false, pCmdBuffer->GetEngineType(), PredDisable);
+        }
 
         // Clear the FCE meta data over the given range because a DCC decompress implies a FCE. Note that it doesn't
         // matter that we're using the truncated range here because we mips that don't use DCC shouldn't need a FCE
@@ -3391,10 +3398,14 @@ void RsrcProcMgr::ClearFmask(
     const uint64 validBitsMask    = fMaskAddrOutput.bpp < 64 ? (1ULL << fMaskAddrOutput.bpp) - 1ULL : UINT64_MAX;
     const uint64 maskedClearValue = clearValue & validBitsMask;
 
-    const uint32 userData[8] =
+    const uint32 userData[10] =
     {
         // color
         LowPart(maskedClearValue), HighPart(maskedClearValue), 0, 0,
+        // disable color mask or disable stencil mask
+        0,
+        // isStencil
+        0,
         // (x,y) offset, (width,height)
         0, 0, imageCreateInfo.extent.width, imageCreateInfo.extent.height
     };
@@ -3688,8 +3699,8 @@ void RsrcProcMgr::PfpCopyMetadataHeader(
     pCmdSpace += CmdUtil::BuildDmaData<false>(dmaDataInfo, pCmdSpace);
     pCmdStream->CommitCommands(pCmdSpace);
 
-    pPm4CmdBuf->SetPm4CmdBufCpBltState(true);
-    pPm4CmdBuf->SetPm4CmdBufCpBltWriteCacheState(true);
+    pPm4CmdBuf->SetCpBltState(true);
+    pPm4CmdBuf->SetCpBltWriteCacheState(true);
 }
 
 // =====================================================================================================================
@@ -6496,11 +6507,11 @@ void Gfx10RsrcProcMgr::ClearDccComputeSetFirstPixelOfBlock(
     const uint32*      pPackedClearColor
     ) const
 {
-
     PAL_ASSERT(pPackedClearColor != nullptr);
+
     const Pal::Image*        pPalImage  = dstImage.Parent();
-    const auto&              createInfo = pPalImage->GetImageCreateInfo();
-    const auto*              pDcc       = dstImage.GetDcc(plane);
+    const ImageCreateInfo&   createInfo = pPalImage->GetImageCreateInfo();
+    const Gfx9Dcc*           pDcc       = dstImage.GetDcc(plane);
     const RpmComputePipeline pipeline   = (((createInfo.samples == 1)
 #if PAL_BUILD_GFX11
                                             //   On GFX11, MSAA surfaces are sample interleaved, the way depth always
@@ -6513,7 +6524,7 @@ void Gfx10RsrcProcMgr::ClearDccComputeSetFirstPixelOfBlock(
                                             )
                                             ? RpmComputePipeline::Gfx10ClearDccComputeSetFirstPixel
                                             : RpmComputePipeline::Gfx10ClearDccComputeSetFirstPixelMsaa);
-    const auto*const         pPipeline  = GetPipeline(pipeline);
+    const Pal::ComputePipeline*const pPipeline = GetPipeline(pipeline);
 
     // Bind Compute Pipeline used for the clear.
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
@@ -6523,7 +6534,6 @@ void Gfx10RsrcProcMgr::ClearDccComputeSetFirstPixelOfBlock(
     uint32 zInc = 0;
     pDcc->GetXyzInc(&xInc, &yInc, &zInc);
 
-    const SubresId subResId    = { 0, absMipLevel, startSlice };
     SwizzledFormat planeFormat = {};
     planeFormat.swizzle.r = ChannelSwizzle::X;
     planeFormat.swizzle.g = ChannelSwizzle::Zero;
@@ -6561,74 +6571,61 @@ void Gfx10RsrcProcMgr::ClearDccComputeSetFirstPixelOfBlock(
         PAL_ASSERT_ALWAYS();
     }
 
-    const DispatchDims threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
+    const SubresId  subResId       = { 0, absMipLevel, startSlice };
+    const Extent3d& extentTexels   = pPalImage->SubresourceInfo(subResId)->extentTexels;
+    const uint32    mipLevelWidth  = extentTexels.width;
+    const uint32    mipLevelHeight = extentTexels.height;
+    const uint32    mipLevelDepth  = numSlices;
 
-    const auto*    pSubResInfo    = pPalImage->SubresourceInfo(subResId);
-    const uint32   mipLevelWidth  = pSubResInfo->extentTexels.width;
-    const uint32   mipLevelHeight = pSubResInfo->extentTexels.height;
-    const uint32   mipLevelDepth  = numSlices;
-
-    // How many blocks are there for this miplevel in X/Y/Z dimension.
-    // We'll need one thread for each block, which writes clear value to the first byte.
-    const uint32 numBlockX = (mipLevelWidth  + xInc - 1) / xInc;
-    const uint32 numBlockY = (mipLevelHeight + yInc - 1) / yInc;
-    const uint32 numBlockZ = (mipLevelDepth  + zInc - 1) / zInc;
-
-    const uint32 constData[] =
+    // We carefully built this constant buffer so that we can fit all constants plus an image SRD in fast user-data.
+    constexpr uint32 ConstCount = 6;
+    const uint32 constData[ConstCount] =
     {
         // start cb0[0]
         mipLevelWidth,
         mipLevelHeight,
         mipLevelDepth,
+        RpmUtil::PackFourBytes(xInc, yInc, zInc, createInfo.samples),
         // start cb0[1]
         // Because we can't fast clear a surface with more than 64bpp, there's no need to pass in
         // pPackedClearColor[2] and pPackedClearColor[3].
         pPackedClearColor[0],
-        pPackedClearColor[1],
-        // single-sample shader ignores this entry
-        createInfo.samples,
-        // start cb0[2]
-        xInc,
-        yInc,
-        zInc
+        pPackedClearColor[1]
     };
 
-    const uint32  sizeConstDataDwords = NumBytesToNumDwords(sizeof(constData));
+    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 0, ConstCount, constData);
 
-    uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
-                                                               SrdDwordAlignment() + sizeConstDataDwords,
-                                                               SrdDwordAlignment(),
-                                                               PipelineBindPoint::Compute,
-                                                               0);
-
-    ImageViewInfo  imageView    = {};
-    SubresRange    viewRange    = { subResId, 1, 1, (createInfo.imageType == ImageType::Tex3d) ? 1 : numSlices };
-
+    const Pal::Device& device    = *pPalImage->GetDevice();
+    const SubresRange  viewRange = { subResId, 1, 1, (createInfo.imageType == ImageType::Tex3d) ? 1 : numSlices };
+    ImageViewInfo      imageView = {};
     RpmUtil::BuildImageViewInfo(&imageView,
                                 *dstImage.Parent(),
                                 viewRange,
                                 planeFormat,
                                 RpmUtil::DefaultRpmLayoutShaderWriteRaw,
-                                pPalImage->GetDevice()->TexOptLevel(),
+                                device.TexOptLevel(),
                                 true);
 
     sq_img_rsrc_t srd = {};
-
-    pPalImage->GetDevice()->CreateImageViewSrds(1, &imageView, &srd);
+    device.CreateImageViewSrds(1, &imageView, &srd);
 
     // We want to unset this bit because we are writing the real clear color to the first pixel of each DCC block,
     // So it doesn't need to be compressed. Currently this is the only place we unset this bit in GFX10.
 
     srd.compression_en = 0;
 
-    memcpy(pSrdTable, &srd, sizeof(srd));
+    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, ConstCount, ArrayLen32(srd.u32All), srd.u32All);
 
-    pSrdTable += SrdDwordAlignment();
+    // How many blocks are there for this miplevel in X/Y/Z dimension.
+    // We'll need one thread for each block, which writes clear value to the first byte.
+    const DispatchDims blocks =
+    {
+        (mipLevelWidth  + xInc - 1) / xInc,
+        (mipLevelHeight + yInc - 1) / yInc,
+        (mipLevelDepth  + zInc - 1) / zInc
+    };
 
-    // And give the shader all kinds of useful dimension info
-    memcpy(pSrdTable, &constData[0], sizeof(constData));
-
-    pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz({numBlockX, numBlockY, numBlockZ}, threadsPerGroup));
+    pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz(blocks, pPipeline->ThreadsPerGroupXyz()));
 }
 
 // =====================================================================================================================
@@ -7507,10 +7504,11 @@ bool Gfx10RsrcProcMgr::ScaledCopyImageUseGraphics(
     // just like change in Gfx10RsrcProcMgr::GetImageToImageCopyEngine.
     const auto pDstImage = static_cast<const Pal::Image*>(copyInfo.pDstImage);
 
-    if (useGraphicsCopy                                &&
-        IsGfx11(*m_pDevice->Parent())                  &&
-        pDstImage->IsDepthStencilTarget()              &&
-        (pDstImage->GetImageCreateInfo().samples == 8) &&
+    if (useGraphicsCopy                                         &&
+        IsGfx11(*m_pDevice->Parent())                           &&
+        pDstImage->IsDepthStencilTarget()                       &&
+        (copyInfo.pSrcImage->GetImageCreateInfo().samples == 8) &&
+        (pDstImage->GetImageCreateInfo().samples == 8)          &&
         (pDstImage->GetImageInfo().numPlanes == 2))
     {
         useGraphicsCopy = false;

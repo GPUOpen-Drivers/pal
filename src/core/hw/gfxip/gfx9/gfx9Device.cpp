@@ -36,11 +36,13 @@
 #include "core/hw/gfxip/gfx9/gfx9ComputeCmdBuffer.h"
 #include "core/hw/gfxip/gfx9/gfx9ComputeEngine.h"
 #include "core/hw/gfxip/gfx9/gfx9ComputePipeline.h"
+#include "core/hw/gfxip/gfx9/gfx9ComputeShaderLibrary.h"
 #include "core/hw/gfxip/gfx9/gfx9DepthStencilState.h"
 #include "core/hw/gfxip/gfx9/gfx9DepthStencilView.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9FormatInfo.h"
 #include "core/hw/gfxip/gfx9/gfx9GraphicsPipeline.h"
+#include "core/hw/gfxip/gfx9/gfx9GraphicsShaderLibrary.h"
 #include "core/hw/gfxip/gfx9/gfx9HybridGraphicsPipeline.h"
 #include "core/hw/gfxip/gfx9/gfx9Image.h"
 #include "core/hw/gfxip/gfx9/gfx9IndirectCmdGenerator.h"
@@ -51,11 +53,11 @@
 #include "core/hw/gfxip/gfx9/gfx9PipelineStatsQueryPool.h"
 #include "core/hw/gfxip/gfx9/gfx9QueueContexts.h"
 #include "core/hw/gfxip/gfx9/gfx9SettingsLoader.h"
-#include "core/hw/gfxip/gfx9/gfx9ShaderLibrary.h"
 #include "core/hw/gfxip/gfx9/gfx9ShadowedRegisters.h"
 #include "core/hw/gfxip/gfx9/gfx9StreamoutStatsQueryPool.h"
 #include "core/hw/gfxip/gfx9/gfx9UniversalCmdBuffer.h"
 #include "core/hw/gfxip/gfx9/gfx9UniversalEngine.h"
+#include "core/hw/gfxip/rpm/rpmUtil.h"
 #include "core/hw/gfxip/sdma/gfx10/gfx10DmaCmdBuffer.h"
 #include "palAssert.h"
 #include "palAutoBuffer.h"
@@ -1154,23 +1156,6 @@ static Result ConvertAbiRegistersToMetadata(
                 }
             }
 
-            // SPI_SHADER_COL_FORMAT
-            {
-                PalAbi::SpiShaderColFormatMetadata* pSpiShaderColFormat = &pGfxRegisters->spiShaderColFormat;
-
-                SPI_SHADER_COL_FORMAT spiShaderColFormat;
-                spiShaderColFormat.u32All = registers.At(mmSPI_SHADER_COL_FORMAT);
-
-                PAL_SET_ABI_FIELD(pSpiShaderColFormat, col_0ExportFormat, spiShaderColFormat.bits.COL0_EXPORT_FORMAT);
-                PAL_SET_ABI_FIELD(pSpiShaderColFormat, col_1ExportFormat, spiShaderColFormat.bits.COL1_EXPORT_FORMAT);
-                PAL_SET_ABI_FIELD(pSpiShaderColFormat, col_2ExportFormat, spiShaderColFormat.bits.COL2_EXPORT_FORMAT);
-                PAL_SET_ABI_FIELD(pSpiShaderColFormat, col_3ExportFormat, spiShaderColFormat.bits.COL3_EXPORT_FORMAT);
-                PAL_SET_ABI_FIELD(pSpiShaderColFormat, col_4ExportFormat, spiShaderColFormat.bits.COL4_EXPORT_FORMAT);
-                PAL_SET_ABI_FIELD(pSpiShaderColFormat, col_5ExportFormat, spiShaderColFormat.bits.COL5_EXPORT_FORMAT);
-                PAL_SET_ABI_FIELD(pSpiShaderColFormat, col_6ExportFormat, spiShaderColFormat.bits.COL6_EXPORT_FORMAT);
-                PAL_SET_ABI_FIELD(pSpiShaderColFormat, col_7ExportFormat, spiShaderColFormat.bits.COL7_EXPORT_FORMAT);
-            }
-
             // SPI_SHADER_POS_FORMAT
             {
                 SPI_SHADER_POS_FORMAT spiShaderPosFormat = {};
@@ -1430,23 +1415,6 @@ static Result ConvertAbiRegistersToMetadata(
                     PAL_SET_ABI_FLAG(pIaMultiVgtParam, switchOnEop,     iaMultiVgtParam.bits.SWITCH_ON_EOP);
                     PAL_SET_ABI_FLAG(pIaMultiVgtParam, switchOnEoi,     iaMultiVgtParam.bits.SWITCH_ON_EOI);
                 }
-            }
-
-            // CB_SHADER_MASK
-            {
-                PalAbi::CbShaderMaskMetadata* pCbShaderMask = &pGfxRegisters->cbShaderMask;
-
-                CB_SHADER_MASK cbShaderMask;
-                cbShaderMask.u32All = registers.At(mmCB_SHADER_MASK);
-
-                PAL_SET_ABI_FIELD(pCbShaderMask, output0Enable, cbShaderMask.bits.OUTPUT0_ENABLE);
-                PAL_SET_ABI_FIELD(pCbShaderMask, output1Enable, cbShaderMask.bits.OUTPUT1_ENABLE);
-                PAL_SET_ABI_FIELD(pCbShaderMask, output2Enable, cbShaderMask.bits.OUTPUT2_ENABLE);
-                PAL_SET_ABI_FIELD(pCbShaderMask, output3Enable, cbShaderMask.bits.OUTPUT3_ENABLE);
-                PAL_SET_ABI_FIELD(pCbShaderMask, output4Enable, cbShaderMask.bits.OUTPUT4_ENABLE);
-                PAL_SET_ABI_FIELD(pCbShaderMask, output5Enable, cbShaderMask.bits.OUTPUT5_ENABLE);
-                PAL_SET_ABI_FIELD(pCbShaderMask, output6Enable, cbShaderMask.bits.OUTPUT6_ENABLE);
-                PAL_SET_ABI_FIELD(pCbShaderMask, output7Enable, cbShaderMask.bits.OUTPUT7_ENABLE);
             }
 
             // SPI_SHADER_PGM_LO_GS
@@ -2402,6 +2370,42 @@ static Result ConvertAbiRegistersToMetadata(
             }
         }
 
+        // SPI_SHADER_COL_FORMAT
+        if (registers.HasEntry(mmSPI_SHADER_COL_FORMAT))
+        {
+            PalAbi::SpiShaderColFormatMetadata* pSpiShaderColFormat = &pGfxRegisters->spiShaderColFormat;
+
+            SPI_SHADER_COL_FORMAT spiShaderColFormat;
+            spiShaderColFormat.u32All = registers.At(mmSPI_SHADER_COL_FORMAT);
+
+            PAL_SET_ABI_FIELD(pSpiShaderColFormat, col_0ExportFormat, spiShaderColFormat.bits.COL0_EXPORT_FORMAT);
+            PAL_SET_ABI_FIELD(pSpiShaderColFormat, col_1ExportFormat, spiShaderColFormat.bits.COL1_EXPORT_FORMAT);
+            PAL_SET_ABI_FIELD(pSpiShaderColFormat, col_2ExportFormat, spiShaderColFormat.bits.COL2_EXPORT_FORMAT);
+            PAL_SET_ABI_FIELD(pSpiShaderColFormat, col_3ExportFormat, spiShaderColFormat.bits.COL3_EXPORT_FORMAT);
+            PAL_SET_ABI_FIELD(pSpiShaderColFormat, col_4ExportFormat, spiShaderColFormat.bits.COL4_EXPORT_FORMAT);
+            PAL_SET_ABI_FIELD(pSpiShaderColFormat, col_5ExportFormat, spiShaderColFormat.bits.COL5_EXPORT_FORMAT);
+            PAL_SET_ABI_FIELD(pSpiShaderColFormat, col_6ExportFormat, spiShaderColFormat.bits.COL6_EXPORT_FORMAT);
+            PAL_SET_ABI_FIELD(pSpiShaderColFormat, col_7ExportFormat, spiShaderColFormat.bits.COL7_EXPORT_FORMAT);
+        }
+
+        // CB_SHADER_MASK
+        if (registers.HasEntry(mmCB_SHADER_MASK))
+        {
+            PalAbi::CbShaderMaskMetadata* pCbShaderMask = &pGfxRegisters->cbShaderMask;
+
+            CB_SHADER_MASK cbShaderMask;
+            cbShaderMask.u32All = registers.At(mmCB_SHADER_MASK);
+
+            PAL_SET_ABI_FIELD(pCbShaderMask, output0Enable, cbShaderMask.bits.OUTPUT0_ENABLE);
+            PAL_SET_ABI_FIELD(pCbShaderMask, output1Enable, cbShaderMask.bits.OUTPUT1_ENABLE);
+            PAL_SET_ABI_FIELD(pCbShaderMask, output2Enable, cbShaderMask.bits.OUTPUT2_ENABLE);
+            PAL_SET_ABI_FIELD(pCbShaderMask, output3Enable, cbShaderMask.bits.OUTPUT3_ENABLE);
+            PAL_SET_ABI_FIELD(pCbShaderMask, output4Enable, cbShaderMask.bits.OUTPUT4_ENABLE);
+            PAL_SET_ABI_FIELD(pCbShaderMask, output5Enable, cbShaderMask.bits.OUTPUT5_ENABLE);
+            PAL_SET_ABI_FIELD(pCbShaderMask, output6Enable, cbShaderMask.bits.OUTPUT6_ENABLE);
+            PAL_SET_ABI_FIELD(pCbShaderMask, output7Enable, cbShaderMask.bits.OUTPUT7_ENABLE);
+        }
+
         // Compute pipelines (or hybrid graphics pipelines) will have a COMPUTE_PGM_RSRC1
         if (registers.HasEntry(mmCOMPUTE_PGM_RSRC1))
         {
@@ -2682,7 +2686,7 @@ size_t Device::GetShaderLibrarySize(
         (*pResult) = Result::Success;
     }
 
-    return sizeof(ShaderLibrary);
+    return createInfo.flags.isGraphics ? sizeof(GraphicsShaderLibrary) : sizeof(ComputeShaderLibrary);
 }
 
 // =====================================================================================================================
@@ -2710,7 +2714,16 @@ Result Device::CreateShaderLibrary(
         result = ConvertAbiRegistersToMetadata(this, &metadata, &metadataReader);
     }
 
-    auto* pShaderLib = PAL_PLACEMENT_NEW(pPlacementAddr) ShaderLibrary(this);
+    Pal::ShaderLibrary* pShaderLib = nullptr;
+
+    if (createInfo.flags.isGraphics)
+    {
+        pShaderLib = PAL_PLACEMENT_NEW(pPlacementAddr) GraphicsShaderLibrary(this);
+    }
+    else
+    {
+        pShaderLib = PAL_PLACEMENT_NEW(pPlacementAddr) ComputeShaderLibrary(this);
+    }
 
     if (result == Result::Success)
     {
@@ -2753,28 +2766,59 @@ Result Device::CreateGraphicsPipeline(
     bool                                      isInternal,
     IPipeline**                               ppPipeline)
 {
-    PAL_ASSERT(createInfo.pPipelineBinary != nullptr);
-    PAL_ASSERT(pPlacementAddr != nullptr);
-    AbiReader abiReader(GetPlatform(), createInfo.pPipelineBinary);
-    Result result = abiReader.Init();
+    Result                      result          = Result::Success;
+    AbiReader*                  pAbiReader      = nullptr;
+    MsgPackReader*              pMetadataReader = nullptr;
+    PalAbi::CodeObjectMetadata* pMetadata       = nullptr;
+    bool                        hasTask         = false;
+    uint8                       abiReaderBuffer[sizeof(AbiReader)];
+    uint8                       msgPackReaderBuffer[sizeof(MsgPackReader)];
+    uint8                       metaDataBuffer[sizeof(PalAbi::CodeObjectMetadata)];
 
-    MsgPackReader metadataReader;
-    PalAbi::CodeObjectMetadata metadata = {};
-
-    if (result == Result::Success)
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 816
+    if (createInfo.numShaderLibraries > 0)
     {
-        result = abiReader.GetMetadata(&metadataReader, &metadata);
+        for (uint32 i = 0; i < createInfo.numShaderLibraries; i++)
+        {
+            PAL_ASSERT(reinterpret_cast<const Pal::ShaderLibrary*>(createInfo.ppShaderLibraries[i])->IsGraphics());
+            auto pLib = reinterpret_cast<const GraphicsShaderLibrary*>(createInfo.ppShaderLibraries[i]);
+            if (Util::TestAnyFlagSet(pLib->GetApiShaderMask(), 1 << static_cast<uint32_t>(ShaderType::Task)))
+            {
+                hasTask = true;
+                break;
+            }
+        }
+    }
+    else
+#endif
+    {
+        PAL_ASSERT(createInfo.pPipelineBinary != nullptr);
+        PAL_ASSERT(pPlacementAddr != nullptr);
+        pAbiReader      = PAL_PLACEMENT_NEW(abiReaderBuffer)AbiReader(GetPlatform(), createInfo.pPipelineBinary);
+        result          = pAbiReader->Init();
+        pMetadataReader = PAL_PLACEMENT_NEW(msgPackReaderBuffer)MsgPackReader();
+        pMetadata       = PAL_PLACEMENT_NEW(metaDataBuffer)PalAbi::CodeObjectMetadata{};
+
+        if (result == Result::Success)
+        {
+            result = pAbiReader->GetMetadata(pMetadataReader, pMetadata);
+        }
+
+        if (result == Result::Success)
+        {
+            result = ConvertAbiRegistersToMetadata(this, pMetadata, pMetadataReader);
+        }
+
+        if (result == Result::Success)
+        {
+            const auto& shaderMetadata = pMetadata->pipeline.shader[static_cast<uint32>(Abi::ApiShaderType::Task)];
+            hasTask = ShaderHashIsNonzero({ shaderMetadata.apiShaderHash[0], shaderMetadata.apiShaderHash[1] });
+        }
     }
 
     if (result == Result::Success)
     {
-        result = ConvertAbiRegistersToMetadata(this, &metadata, &metadataReader);
-    }
-
-    if (result == Result::Success)
-    {
-        const auto& shaderMetadata = metadata.pipeline.shader[static_cast<uint32>(Abi::ApiShaderType::Task)];
-        if (ShaderHashIsNonzero({ shaderMetadata.apiShaderHash[0], shaderMetadata.apiShaderHash[1] }))
+        if (hasTask)
         {
             PAL_PLACEMENT_NEW(pPlacementAddr) HybridGraphicsPipeline(this);
         }
@@ -2782,12 +2826,9 @@ Result Device::CreateGraphicsPipeline(
         {
             PAL_PLACEMENT_NEW(pPlacementAddr) GraphicsPipeline(this, isInternal);
         }
-    }
 
-    if (result == Result::Success)
-    {
         auto* pPipeline = static_cast<GraphicsPipeline*>(pPlacementAddr);
-        result = pPipeline->Init(createInfo, internalInfo, abiReader, metadata, &metadataReader);
+        result = pPipeline->Init(createInfo, internalInfo, pAbiReader, pMetadata, pMetadataReader);
 
         if (result != Result::Success)
         {
@@ -2798,6 +2839,10 @@ Result Device::CreateGraphicsPipeline(
             *ppPipeline = pPipeline;
         }
     }
+
+    Util::Destructor(pAbiReader);
+    Util::Destructor(pMetadata);
+    Util::Destructor(pMetadataReader);
 
     return result;
 }
@@ -7982,12 +8027,8 @@ void InitializeGpuChipProperties(
 
 #if PAL_BUILD_PHOENIX
     case FAMILY_PHX:
-
-        if (false
 #if PAL_BUILD_PHOENIX1
-            || AMDGPU_IS_PHOENIX1(pInfo->familyId, pInfo->eRevId)
-#endif
-            )
+        if (AMDGPU_IS_PHOENIX1(pInfo->familyId, pInfo->eRevId))
         {
             pInfo->gpuType                             = GpuType::Integrated;
             pInfo->revision                            = AsicRevision::Phoenix1;
@@ -8018,6 +8059,7 @@ void InitializeGpuChipProperties(
                 PfpUcodeVersionDispatchSupportedExecuteIndirectPhx1);
         }
         else
+#endif
         {
             PAL_ASSERT_ALWAYS_MSG("Unknown PHX Revision %d", pInfo->eRevId);
         }
@@ -10720,9 +10762,12 @@ Result Device::CreateVrsDepthView()
 
 // =====================================================================================================================
 ClearMethod  Device::GetDefaultSlowClearMethod(
-    const Pal::Image*  pImage
+    const SwizzledFormat& clearFormat
     ) const
 {
+    uint32 texelScale = 1;
+    RpmUtil::GetRawFormat(clearFormat.format, &texelScale, nullptr);
+
 #if PAL_BUILD_GFX11
     // Compute-based slow clears rely on the ability to do format replacement; whether or not a format replacement is
     // safe is dependent on a great many factors including the layout of the slow clear image and whether or not
@@ -10735,13 +10780,30 @@ ClearMethod  Device::GetDefaultSlowClearMethod(
 
     return (((gfx9Settings.gfx11SlowClearMethod == SlowClearMethod::SlowClearUav) &&
             IsGfx11(palDevice)                                                    &&
-            (pImage->GetImageCreateInfo().swizzledFormat.format == ChNumFormat::X32_Uint) &&
-            gfx9Settings.gfx11AlwaysAllowDccFormatReplacement)
-                ? ClearMethod::NormalCompute
-                : ClearMethod::NormalGraphics);
+            gfx9Settings.gfx11AlwaysAllowDccFormatReplacement) ||
+            // Force clears of scaled formats to the compute engine
+            (texelScale > 1))
+            ? ClearMethod::NormalCompute
+            : ClearMethod::NormalGraphics;
 #else
-    return ClearMethod::NormalGraphics;
+    // Force clears of scaled formats to the compute engine
+    return (texelScale > 1) ? ClearMethod::NormalCompute : ClearMethod::NormalGraphics;
 #endif
+}
+
+// =====================================================================================================================
+// Returns TRUE if AC01 clear codes (black or white) need to be disabled
+bool Device::DisableAc01ClearCodes() const
+{
+    const Gfx9PalSettings& settings = GetGfx9Settings(*Parent());
+
+    // Are AC01 codes disabled because the panel has requested it?
+    return (settings.forceRegularClearCode
+#if PAL_BUILD_GFX11
+            // Are AC01 codes disabled because there's an active workaround that prevents their usage?
+            || (settings.waDisableAc01 == Ac01WaForbidAc01)
+#endif
+            );
 }
 
 #if  PAL_BUILD_GFX11

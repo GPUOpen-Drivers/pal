@@ -45,7 +45,8 @@ union LibraryCreateFlags
     struct
     {
         uint32 clientInternal  : 1;  ///< Internal library not created by the application.
-        uint32 reserved        : 31; ///< Reserved for future use.
+        uint32 isGraphics      : 1;  ///< Whether it is a graphics library
+        uint32 reserved        : 30; ///< Reserved for future use.
     };
     uint32 u32All;                  ///< Flags packed as 32-bit uint.
 };

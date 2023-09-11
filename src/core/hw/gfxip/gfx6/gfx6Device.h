@@ -364,12 +364,6 @@ public:
         bool                          earlyPhase,
         SyncReqs*                     pSyncReqs,
         Developer::BarrierOperations* pOperations) const;
-    void DescribeBarrier(
-        Pm4CmdBuffer*                 pCmdBuf,
-        Developer::BarrierOperations* pOperations,
-        const BarrierTransition*      pTransition) const;
-   void DescribeBarrierStart(Pm4CmdBuffer* pCmdBuf, uint32 reason) const;
-   void DescribeBarrierEnd(Pm4CmdBuffer* pCmdBuf, Developer::BarrierOperations* pOperations) const;
 
     const BoundGpuMemory& TrapHandler(PipelineBindPoint pipelineType) const override
         { return (pipelineType == PipelineBindPoint::Graphics) ? m_graphicsTrapHandler : m_computeTrapHandler; }

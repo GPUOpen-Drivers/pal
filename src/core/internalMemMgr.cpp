@@ -50,6 +50,7 @@ static bool IsMatchingPool(
     const GpuMemoryPool&    pool,
     bool                    readOnly,
     GpuMemoryFlags          memFlags,
+    GpuHeapAccess           heapAccess,
     size_t                  heapCount,
     const GpuHeap           (&heaps)[GpuHeapCount],
     VaRange                 vaRange,
@@ -58,6 +59,7 @@ static bool IsMatchingPool(
     bool matches = true;
 
     if ((pool.memFlags.u64All == memFlags.u64All) &&
+        (pool.heapAccess      == heapAccess)      &&
         (pool.heapCount       == heapCount)       &&
         (pool.readOnly        == readOnly)        &&
         (pool.vaRange         == vaRange)         &&
@@ -326,6 +328,7 @@ GpuMemoryPool* InternalMemMgr::GetOpenPoolAndClaimMemory(
             if (IsMatchingPool(*pPool,
                 readOnly,
                 requestedMemFlags,
+                createInfo.heapAccess,
                 createInfo.heapCount,
                 createInfo.heaps,
                 createInfo.vaRange,
@@ -444,6 +447,7 @@ GpuMemoryPool* InternalMemMgr::GetOpenPoolAndClaimMemory(
             if (IsMatchingPool(*pPool,
                 readOnly,
                 requestedMemFlags,
+                createInfo.heapAccess,
                 createInfo.heapCount,
                 createInfo.heaps,
                 createInfo.vaRange,
@@ -504,6 +508,7 @@ GpuMemoryPool* InternalMemMgr::GetOpenPoolAndClaimMemory(
                 newPool.pGpuMemory = pGpuMemory;
                 newPool.readOnly   = readOnly;
                 newPool.memFlags   = requestedMemFlags;
+                newPool.heapAccess = localCreateInfo.heapAccess;
                 newPool.heapCount  = localCreateInfo.heapCount;
                 newPool.vaRange    = localCreateInfo.vaRange;
                 newPool.mtype      = internalInfo.mtype;

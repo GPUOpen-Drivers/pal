@@ -824,6 +824,12 @@ struct PalPublicSettings
     /// Clients must check Pal::DeviceProperties::osProperties::flags::forceAlignmentSupported
     /// to see if anything other than default will work.
     BufferAlignmentMode hardwareBufferAlignmentMode;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 818
+    /// If the client sets this to true they promise they've done exhaustive testing on every ASIC to prove that this
+    /// application can use AC01 fast clears safely. This should never be forced to true unconditionally.
+    bool ac01WaNotNeeded;
+#endif
 };
 
 /// Defines the modes that the GPU Profiling layer can use when its buffer fills.
@@ -1197,8 +1203,9 @@ struct DeviceProperties
                 /// Support for querying page fault information
                 uint32 supportPageFaultInfo             : 1;
 
+                uint32 reserved13 : 1;
                 /// Reserved for future use.
-                uint32 reserved                         : 19;
+                uint32 reserved : 18;
             };
             uint32 u32All;           ///< Flags packed as 32-bit uint.
         } flags;                     ///< GPU memory property flags.
@@ -2060,6 +2067,7 @@ struct BufferViewInfo
     gpusize         stride;         ///< Stride in bytes.  Must be aligned to bytes-per-element for typed access.
     SwizzledFormat  swizzledFormat; ///< Format and channel swizzle for typed access. Must be Undefined for structured
                                     ///  or raw access.
+
     union
     {
         struct
@@ -2257,7 +2265,6 @@ struct BvhInfo
 
     BoxSortHeuristic   boxSortHeuristic;   ///< Specifies which heuristic should be utilized for
                                            ///< sorting children when box sorting is enabled
-
     union
     {
         struct
@@ -4493,6 +4500,8 @@ public:
         Result*                           pResult) const = 0;
 
     /// Creates a graphics @ref IPipeline object with the requested properties.
+    /// If this pipeline is created from a set of @IShaderLibrary objects, it is the caller's responsibility to ensure
+    /// that the lifetime of the pipeline does not exceed the lifetime of the libraries themselves.
     ///
     /// @param [in]  createInfo     Pipeline properties including shaders and descriptor set mappings.
     /// @param [in]  pPlacementAddr Pointer to the location where PAL should construct this object.  There must be as

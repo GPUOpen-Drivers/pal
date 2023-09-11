@@ -913,7 +913,7 @@ Result ListDir(
             while (pEntry != nullptr)
             {
                 fileCount++;
-                bufferSize += strlen(pEntry->d_name);
+                bufferSize += strlen(pEntry->d_name) + 1;
 
                 pEntry = readdir(pDir);
             }
@@ -948,7 +948,6 @@ Result ListDir(
                 fileName += fileNameSize;
 
                 pEntry = readdir(pDir);
-                fileIndex++;
             }
         }
         closedir(pDir);
@@ -1022,7 +1021,7 @@ static Result RmDir(
 
 // =====================================================================================================================
 // Remove all files below threshold of a directory at the specified path.
-Result RemoveFilesOfDir(
+Result RemoveFilesOfDirOlderThan(
     const char* pPathName,
     uint64      threshold)
 {

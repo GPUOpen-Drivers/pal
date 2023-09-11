@@ -433,12 +433,12 @@ public:
         uint32       indexOffset,
         Pm4Predicate predicate,
         void*        pBuffer);
-    size_t BuildDrawIndirect(
+    static size_t BuildDrawIndirect(
         gpusize      offset,
         uint32       baseVtxLoc,
         uint32       startInstLoc,
         Pm4Predicate predicate,
-        void*        pBuffer) const;
+        void*        pBuffer);
     size_t BuildDrawIndexIndirect(
         gpusize      offset,
         uint32       baseVtxLoc,

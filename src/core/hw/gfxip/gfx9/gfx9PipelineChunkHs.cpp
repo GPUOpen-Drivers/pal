@@ -58,8 +58,7 @@ PipelineChunkHs::PipelineChunkHs(
 void PipelineChunkHs::LateInit(
     const AbiReader&                  abiReader,
     const PalAbi::CodeObjectMetadata& metadata,
-    PipelineUploader*                 pUploader,
-    MetroHash64*                      pHasher)
+    PipelineUploader*                 pUploader)
 {
     const GpuChipProperties& chipProps    = m_device.Parent()->ChipProperties();
     const RegisterInfo&      registerInfo = m_device.CmdUtil().GetRegInfo();
@@ -98,8 +97,6 @@ void PipelineChunkHs::LateInit(
     m_regs.sh.spiShaderPgmChksumHs.u32All     = AbiRegisters::SpiShaderPgmChksumHs(metadata, m_device);
     m_regs.context.vgtHosMinTessLevel.u32All  = AbiRegisters::VgtHosMinTessLevel(metadata);
     m_regs.context.vgtHosMaxTessLevel.u32All  = AbiRegisters::VgtHosMaxTessLevel(metadata);
-
-    pHasher->Update(m_regs.context);
 }
 
 // =====================================================================================================================
@@ -237,10 +234,15 @@ void PipelineChunkHs::AccumulateShRegs(
                              pNumRegs,
                              mmSpiShaderPgmLoLs,
                              m_regs.sh.spiShaderPgmLoLs.u32All);
-    SetOneShRegValPairPacked(pRegPairs,
-                             pNumRegs,
-                             mmSpiShaderUserDataHs0 + ConstBufTblStartReg,
-                             m_regs.sh.userDataInternalTable);
+
+    if (m_regs.sh.userDataInternalTable != InvalidUserDataInternalTable)
+    {
+        SetOneShRegValPairPacked(pRegPairs,
+                                 pNumRegs,
+                                 mmSpiShaderUserDataHs0 + ConstBufTblStartReg,
+                                 m_regs.sh.userDataInternalTable);
+    }
+
     SetSeqShRegValPairPacked(pRegPairs,
                              pNumRegs,
                              mmSPI_SHADER_PGM_RSRC1_HS,
@@ -291,5 +293,12 @@ void PipelineChunkHs::AccumulateContextRegs(
 }
 #endif
 
+// =====================================================================================================================
+void PipelineChunkHs::Clone(
+    const PipelineChunkHs& chunkHs)
+{
+    m_regs      = chunkHs.m_regs;
+    m_stageInfo = chunkHs.m_stageInfo;
+}
 } // Gfx9
 } // Pal

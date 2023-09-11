@@ -119,6 +119,9 @@ Result File::GetStat(
     struct stat status{};
     const int32 ret = stat(pFilename, &status);
 
+    const bool isRegular = status.st_mode & S_IFREG;
+    const bool isDir     = status.st_mode & S_IFDIR;
+
     // The size is the only critical member which must be 64-bit.
     static_assert(sizeof(Stat::size) == sizeof(status.st_size), "File::Status::size size mismatch");
 
@@ -137,6 +140,8 @@ Result File::GetStat(
     pStatus->mode   = static_cast<decltype(Stat::mode)>(status.st_mode);
     pStatus->nlink  = static_cast<decltype(Stat::nlink)>(status.st_nlink);
     pStatus->dev    = static_cast<decltype(Stat::dev)>(status.st_dev);
+    pStatus->flags.isDir     =  isDir;
+    pStatus->flags.isRegular =  isRegular;
 
     return (ret == 0) ? Result::Success : ConvertErrno(errno);
 }

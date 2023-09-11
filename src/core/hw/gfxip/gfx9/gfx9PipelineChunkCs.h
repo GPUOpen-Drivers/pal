@@ -39,6 +39,7 @@ namespace Gfx9
 class  CmdStream;
 class  Device;
 struct GraphicsPipelineLoadInfo;
+class PipelineChunkGs;
 
 // =====================================================================================================================
 // Describe HW Reg for a Computer Pipeline or Library.
@@ -159,6 +160,11 @@ public:
 
     Result CreateLaunchDescriptor(void* pOut, bool resolve);
 
+    void Clone(const PipelineChunkCs& chunkCs);
+
+    void InitGpuAddrFromMesh(
+        const AbiReader&       abiReader,
+        const PipelineChunkGs& chunkGs);
 private:
     void InitRegisters(
         const Util::PalAbi::CodeObjectMetadata& metadata,

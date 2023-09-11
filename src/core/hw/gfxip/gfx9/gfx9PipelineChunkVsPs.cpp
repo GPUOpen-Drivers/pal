@@ -55,10 +55,13 @@ PipelineChunkVsPs::PipelineChunkVsPs(
     :
     m_device(device),
     m_regs{},
+    m_semanticInfo{},
+    m_hasSemanticInfo(false),
     m_pVsPerfDataInfo(pVsPerfDataInfo),
     m_pPsPerfDataInfo(pPsPerfDataInfo),
     m_stageInfoVs{},
-    m_stageInfoPs{}
+    m_stageInfoPs{},
+    m_colorExportAddr{}
 {
     m_paScAaConfig.u32All = 0;
 
@@ -99,8 +102,7 @@ void PipelineChunkVsPs::LateInit(
     const PalAbi::CodeObjectMetadata&   metadata,
     const GraphicsPipelineLoadInfo&     loadInfo,
     const GraphicsPipelineCreateInfo&   createInfo,
-    PipelineUploader*                   pUploader,
-    MetroHash64*                        pHasher)
+    PipelineUploader*                   pUploader)
 {
     const Gfx9PalSettings&   settings  = m_device.Settings();
     const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
@@ -119,6 +121,11 @@ void PipelineChunkVsPs::LateInit(
     if (pUploader->GetPipelineGpuSymbol(Abi::PipelineSymbolType::PsShdrIntrlTblPtr, &symbol) == Result::Success)
     {
         m_regs.sh.userDataInternalTablePs.bits.DATA = LowPart(symbol.gpuVirtAddr);
+    }
+
+    if (pUploader->GetPipelineGpuSymbol(Abi::PipelineSymbolType::PsColorExportEntry, &symbol) == Result::Success)
+    {
+        m_colorExportAddr = LowPart(symbol.gpuVirtAddr);
     }
 
     const Elf::SymbolTableEntry* pElfSymbol = abiReader.GetPipelineSymbol(Abi::PipelineSymbolType::PsDisassembly);
@@ -183,7 +190,25 @@ void PipelineChunkVsPs::LateInit(
     m_regs.context.paScShaderControl.u32All = AbiRegisters::PaScShaderControl(metadata, m_device, chipProps.gfxLevel);
     m_paScAaConfig.u32All                   = AbiRegisters::PaScAaConfig(metadata);
 
-    pHasher->Update(m_regs.context);
+    if (metadata.pipeline.prerasterOutputSemantic[0].hasEntry.semantic)
+    {
+        PAL_ASSERT(metadata.pipeline.psInputSemantic[0].hasEntry.semantic == false);
+        for (uint32 i = 0; i < m_regs.context.interpolatorCount; i++)
+        {
+            m_semanticInfo[i].semantic = metadata.pipeline.prerasterOutputSemantic[i].semantic;
+            m_semanticInfo[i].index = metadata.pipeline.prerasterOutputSemantic[i].index;
+        }
+        m_hasSemanticInfo = true;
+    }
+    else if (metadata.pipeline.psInputSemantic[0].hasEntry.semantic)
+    {
+        PAL_ASSERT(metadata.pipeline.prerasterOutputSemantic[0].hasEntry.semantic == false);
+        for (uint32 i = 0; i < m_regs.context.interpolatorCount; i++)
+        {
+            m_semanticInfo[i].semantic = metadata.pipeline.psInputSemantic[i].semantic;
+        }
+        m_hasSemanticInfo = true;
+    }
 }
 
 // =====================================================================================================================
@@ -554,10 +579,13 @@ void PipelineChunkVsPs::AccumulateShRegsPs(
                              mmSPI_SHADER_PGM_RSRC2_PS,
                              &m_regs.sh.spiShaderPgmLoPs);
 
-    SetOneShRegValPairPacked(pRegPairs,
-                             pNumRegs,
-                             mmSPI_SHADER_USER_DATA_PS_0 + ConstBufTblStartReg,
-                             m_regs.sh.userDataInternalTablePs.u32All);
+    if (m_regs.sh.userDataInternalTablePs.u32All != InvalidUserDataInternalTable)
+    {
+        SetOneShRegValPairPacked(pRegPairs,
+                                 pNumRegs,
+                                 mmSPI_SHADER_USER_DATA_PS_0 + ConstBufTblStartReg,
+                                 m_regs.sh.userDataInternalTablePs.u32All);
+    }
 
     if (chipProps.gfx9.supportSpp != 0)
     {
@@ -569,5 +597,75 @@ void PipelineChunkVsPs::AccumulateShRegsPs(
 }
 #endif
 
+// =====================================================================================================================
+// Merge Vs register chunk and Ps register chunk into single chunk.
+void PipelineChunkVsPs::Clone(
+    const PipelineChunkVsPs& chunkVs,
+    const PipelineChunkVsPs& chunkPs,
+    const PipelineChunkVsPs& chunkExp)
+{
+    // Stage info
+    m_stageInfoPs  = chunkPs.m_stageInfoPs;
+    m_stageInfoVs  = chunkVs.m_stageInfoVs;
+
+    // Vs registers
+    m_regs.sh.spiShaderPgmLoVs            = chunkVs.m_regs.sh.spiShaderPgmLoVs;
+    m_regs.sh.spiShaderPgmHiVs            = chunkVs.m_regs.sh.spiShaderPgmHiVs;
+    m_regs.sh.spiShaderPgmRsrc1Vs         = chunkVs.m_regs.sh.spiShaderPgmRsrc1Vs;
+    m_regs.sh.spiShaderPgmRsrc2Vs         = chunkVs.m_regs.sh.spiShaderPgmRsrc2Vs;
+    m_regs.sh.spiShaderPgmChksumVs        = chunkVs.m_regs.sh.spiShaderPgmChksumVs;
+    m_regs.sh.userDataInternalTableVs     = chunkVs.m_regs.sh.userDataInternalTableVs;
+    m_regs.context.paClVsOutCntl          = chunkVs.m_regs.context.paClVsOutCntl;
+    m_regs.context.vgtPrimitiveIdEn       = chunkVs.m_regs.context.vgtPrimitiveIdEn;
+    m_regs.context.vgtStrmoutConfig       = chunkVs.m_regs.context.vgtStrmoutConfig;
+    m_regs.context.vgtStrmoutBufferConfig = chunkVs.m_regs.context.vgtStrmoutBufferConfig;
+
+    memcpy(m_regs.context.vgtStrmoutVtxStride,
+           chunkVs.m_regs.context.vgtStrmoutVtxStride,
+           sizeof(m_regs.context.vgtStrmoutVtxStride));
+    m_regs.dynamic.spiShaderPgmRsrc3Vs = chunkVs.m_regs.dynamic.spiShaderPgmRsrc3Vs;
+    m_regs.dynamic.spiShaderPgmRsrc4Vs = chunkVs.m_regs.dynamic.spiShaderPgmRsrc4Vs;
+
+    // Ps registers
+    m_regs.sh.spiShaderPgmLoPs        = chunkPs.m_regs.sh.spiShaderPgmLoPs;
+    m_regs.sh.spiShaderPgmHiPs        = chunkPs.m_regs.sh.spiShaderPgmHiPs;
+    m_regs.sh.spiShaderPgmRsrc1Ps     = chunkPs.m_regs.sh.spiShaderPgmRsrc1Ps;
+    m_regs.sh.spiShaderPgmRsrc2Ps     = chunkPs.m_regs.sh.spiShaderPgmRsrc2Ps;
+    m_regs.sh.spiShaderPgmChksumPs    = chunkPs.m_regs.sh.spiShaderPgmChksumPs;
+    m_regs.sh.userDataInternalTablePs = chunkPs.m_regs.sh.userDataInternalTablePs;
+    m_regs.context.spiBarycCntl       = chunkPs.m_regs.context.spiBarycCntl;
+    m_regs.context.spiPsInputEna      = chunkPs.m_regs.context.spiPsInputEna;
+    m_regs.context.spiPsInputAddr     = chunkPs.m_regs.context.spiPsInputAddr;
+    m_regs.context.dbShaderControl    = chunkPs.m_regs.context.dbShaderControl;
+    m_regs.context.paScShaderControl  = chunkPs.m_regs.context.paScShaderControl;
+    m_regs.context.interpolatorCount  = chunkPs.m_regs.context.interpolatorCount;
+    memcpy(m_regs.context.spiPsInputCntl,
+           chunkPs.m_regs.context.spiPsInputCntl,
+           m_regs.context.interpolatorCount * sizeof(regSPI_PS_INPUT_CNTL_0));
+
+    m_regs.dynamic.spiShaderPgmRsrc3Ps = chunkPs.m_regs.dynamic.spiShaderPgmRsrc3Ps;
+    m_regs.dynamic.spiShaderPgmRsrc4Ps = chunkPs.m_regs.dynamic.spiShaderPgmRsrc4Ps;
+
+    m_paScAaConfig = chunkPs.m_paScAaConfig;
+    m_colorExportAddr = chunkExp.m_colorExportAddr;
+    if (chunkPs.m_hasSemanticInfo && chunkVs.m_hasSemanticInfo)
+    {
+        constexpr uint32 DefaultValOffset = (1 << 5);
+        constexpr uint32 ValOffsetMask    = ((1 << 5) - 1);
+        for (uint32 i = 0; i < m_regs.context.interpolatorCount; i++)
+        {
+            uint32 index = DefaultValOffset;
+            for (uint32 j = 0; j < chunkVs.m_regs.context.interpolatorCount; j++)
+            {
+                if (chunkPs.m_semanticInfo[i].semantic == chunkVs.m_semanticInfo[j].semantic)
+                {
+                    index = chunkVs.m_semanticInfo[j].index;
+                }
+            }
+            m_regs.context.spiPsInputCntl[i].bits.OFFSET &= ~ValOffsetMask;
+            m_regs.context.spiPsInputCntl[i].bits.OFFSET |= index;
+        }
+    }
+}
 } // Gfx9
 } // Pal

@@ -1767,8 +1767,7 @@ size_t CmdUtil::BuildDrawIndirect(
     uint32       baseVtxLoc,    // Register VS expects to read baseVtxLoc from.
     uint32       startInstLoc,  // Register VS expects to read startInstLoc from.
     Pm4Predicate predicate,
-    void*        pBuffer        // [out] Build the PM4 packet in this buffer.
-) const
+    void*        pBuffer)       // [out] Build the PM4 packet in this buffer.
 {
     // Draw argument offset in the buffer has to be 4-byte aligned.
     PAL_ASSERT(IsPow2Aligned(offset, 4));
@@ -4503,9 +4502,9 @@ size_t CmdUtil::BuildSetPredication(
                                       // true indicates to draw if any pixels passed the Z-test while false indicates
                                       // to draw if no pixels passed the Z-test.
     bool          occlusionHint,      // Controls whether the hardware should wait for all ZPASS data to be written by
-                                      // the DB's before proceeding. True chooses to wait until all ZPASS data is ready,
-                                      // false chooses to assume that the draw should not be skipped if the ZPASS data
-                                      // is not ready yet.
+                                      // the DB's before proceeding. True chooses to assume that the draw should not be
+                                      // skipped if the ZPASS data is not ready yet, false chooses to wait until all
+                                      // ZPASS data is ready.
     PredicateType predType,
     bool          continuePredicate,  // Contols how data is accumulated across cmd buffer boundaries. True indicates
                                       // that this predicate is a continuation of the previous one, accumulating data

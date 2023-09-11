@@ -1345,13 +1345,21 @@ private:
     uint16 m_baseUserDataReg[HwShaderStage::Last];
 
 #if PAL_BUILD_GFX11
+    // Lookup tables for setting user data.  Entries have their lastSetVal field updated to
+    // m_minValidUserEntryLookupValue the first time data is written after being invalidated. Every time user data is
+    // invalidated, m_minValidUserEntryLookupValue is incremented. This makes any entry with
+    // lastSetVal < m_minValidUserEntryLookupValue be considered invalid.  When m_minValidUserEntryLookupValue wraps,
+    // the array needs to be zeroed.  m_minValidUserEntryLookupValue needs to be initialized to 1.
+    UserDataEntryLookup m_validUserEntryRegPairsLookup[Gfx11MaxUserDataIndexCountGfx];
+    UserDataEntryLookup m_validUserEntryRegPairsLookupCs[Gfx11MaxUserDataIndexCountCs];
+
+    uint32 m_minValidUserEntryLookupValue;
+    uint32 m_minValidUserEntryLookupValueCs;
+
     // Array of valid packed register pairs holding user entries to be written into SGPRs.
     PackedRegisterPair     m_validUserEntryRegPairs[Gfx11MaxPackedUserEntryCountGfx];
     PackedRegisterPair     m_validUserEntryRegPairsCs[Gfx11MaxPackedUserEntryCountCs];
-    // A lookup of registers written into m_validUserEntryRegPairs where each index in the lookup maps to each supported
-    // shader stage's SGPRs. The value at each index divided by 2 serves as an index into m_validUserEntryRegPairs.
-    uint8                  m_validUserEntryRegPairsLookup[Gfx11MaxUserDataIndexCountGfx];
-    uint8                  m_validUserEntryRegPairsLookupCs[Gfx11MaxUserDataIndexCountCs];
+
     // Total number of registers packed into m_validUserEntryRegPairs.
     uint32                 m_numValidUserEntries;
     uint32                 m_numValidUserEntriesCs;

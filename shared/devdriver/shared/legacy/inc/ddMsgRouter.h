@@ -28,6 +28,7 @@
 #include <gpuopen.h>
 #include <ddRouterInterface.h>
 #include <router/ddRouterContext.h>
+#include <util/ringbuffer.h>
 
 namespace DevDriver
 {
@@ -38,7 +39,9 @@ namespace DevDriver
     public:
         MsgRouter(const AllocCb&         allocCb,
                   pfnNotifyKernalEnable  kernalEnableCb,
-                  pfnNotifyKernalDisable kernalDisableCb);
+                  pfnNotifyKernalDisable kernalDisableCb,
+                  AmdLogCallback         amdlogCb,
+                  size_t                 ringBufferSize);
         ~MsgRouter();
 
         const AllocCb& GetAllocCb() const { return m_allocCb; }
@@ -56,6 +59,10 @@ namespace DevDriver
 
         void OnProcessClose(ProcessId processId) override;
 
+        Result GetLogBuffer(void* pBuffer, size_t bufferSize) override;
+
+        Result GetLogBufferSize(size_t* pBufferSize) override;
+
     private:
         AllocCb                m_allocCb;
         Kmd::KContext          m_context;
@@ -69,6 +76,8 @@ namespace DevDriver
         // m_kernalEnableState tracks whether we have called m_kernalEnableCb()
         // so we can follow the correct sequence.
         bool                   m_kernalEnableState;
+        AmdLogCallback         m_amdlogCb;
+        RingBuffer             m_ringBuffer;
     };
 
 } // DevDriver

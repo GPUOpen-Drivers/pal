@@ -334,13 +334,6 @@ protected:
         gpusize         rowPitch,
         gpusize         depthPitch);
 
-    virtual bool SlowClearUseGraphics(
-        GfxCmdBuffer*      pCmdBuffer,
-        const Image&       dstImage,
-        const SubresRange& clearRange,
-        ClearMethod        method) const
-        { return false; }
-
     void SlowClearCompute(
         GfxCmdBuffer*         pCmdBuffer,
         const Image&          dstImage,

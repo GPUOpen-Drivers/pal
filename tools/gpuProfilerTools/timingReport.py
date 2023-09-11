@@ -31,7 +31,8 @@ import glob
 import os
 import re
 import sys
-
+import timingDataUtils
+from timingDataUtils import TimingHeaders
 try:
     dict.iteritems
 except AttributeError:
@@ -47,23 +48,23 @@ else:
     def iteritems(d):
         return d.iteritems()
 
-QueueCallCol     = 0
-CmdBufIndexCol   = QueueCallCol + 1
-CmdBufCallCol    = CmdBufIndexCol + 1
-SubQueueIdxCol   = CmdBufCallCol + 1
-StartClockCol    = SubQueueIdxCol + 1
-EndClockCol      = StartClockCol + 1
-TimeCol          = EndClockCol + 1
-PipelineHashCol  = TimeCol + 1
-CompilerHashCol  = PipelineHashCol + 1
-VsCsCol          = CompilerHashCol + 1
-HsCol            = VsCsCol + 1
-DsCol            = HsCol + 1
-GsCol            = DsCol + 1
-PsCol            = GsCol + 1
-VertsThdGrpsCol  = PsCol + 1
-InstancesCol     = VertsThdGrpsCol + 1
-CommentsCol      = InstancesCol + 1
+QueueCallCol     =  TimingHeaders.QueueCallCol
+CmdBufIndexCol   =  TimingHeaders.CmdBufIndexCol
+CmdBufCallCol    =  TimingHeaders.CmdBufCallCol
+SubQueueIdxCol   =  TimingHeaders.SubQueueIdxCol
+StartClockCol    =  TimingHeaders.StartClockCol
+EndClockCol      =  TimingHeaders.EndClockCol
+TimeCol          =  TimingHeaders.TimeCol
+PipelineHashCol  =  TimingHeaders.PipelineHashCol
+CompilerHashCol  =  TimingHeaders.CompilerHashCol
+VsCsCol          =  TimingHeaders.VsCsCol
+HsCol            =  TimingHeaders.HsCol
+DsCol            =  TimingHeaders.DsCol
+GsCol            =  TimingHeaders.GsCol
+PsCol            =  TimingHeaders.PsCol
+VertsThdGrpsCol  =  TimingHeaders.VertsThdGrpsCol
+InstancesCol     =  TimingHeaders.InstancesCol
+CommentsCol      =  TimingHeaders.CommentsCol
 
 def isValidHash(string):
     # A valid hash is a non-empty string that represents a non-zero hex value.
@@ -72,17 +73,17 @@ def isValidHash(string):
 def DeterminePipelineType(row):
     if not row[CompilerHashCol]:
         return "No Pipeline (BLT, Barrier, etc.)"
-    else:
-        if re.search("Dispatch", row[2]):
-            return "Cs"
-        elif isValidHash(row[HsCol]) and isValidHash(row[GsCol]):
-            return "VsHsDsGsPs"
-        elif isValidHash(row[HsCol]):
-            return "VsHsDsPs"
-        elif isValidHash(row[GsCol]):
-            return "VsGsPs"
-        else:
-            return "VsPs"
+
+    if re.search("Dispatch", row[2]):
+        return "Cs"
+    if isValidHash(row[HsCol]) and isValidHash(row[GsCol]):
+        return "VsHsDsGsPs"
+    if isValidHash(row[HsCol]):
+        return "VsHsDsPs"
+    if isValidHash(row[GsCol]):
+        return "VsGsPs"
+
+    return "VsPs"
 
 enPrintAllPipelines = False
 
@@ -100,14 +101,16 @@ os.chdir(sys.argv[1])
 files = glob.glob("frame*.csv")
 
 if (len(files) == 0):
-    sys.exit("ERROR: Looking at directory <{0}> but cannot find any files that match the \"frame*.csv\" pattern.".format(os.getcwd()))
+    sys.exit(f"ERROR: Looking at directory <{os.getcwd()}> \
+             but cannot find any files that match the \"frame*.csv\" pattern.")
 
 frames               = { }  # Frame num -> [ tsFreq, cmdBufClockPairs, total barrier time ]
 perCallTable         = { }  # Device -> Engine -> QueueId -> Call -> [ count, totalTime ]
 perPipelineTypeTable = { }  # PipelineType -> [ count, totalTime ]
 perPipelineTable     = { }  # Pipeline Hash -> [ type, count, totalTime, vs/csHash, hsHash, dsHash, gsHash, psHash ]
 perPsTable           = { }  # PS Hash -> [ count, totalTime ]
-pipelineRangeTable   = { }  # Frame num -> EngineType -> PipelineHash -> [(startClock1, endClock1, time1), (startClock2, endClock2, time2), ...]
+pipelineRangeTable   = { }  # Frame num -> EngineType -> PipelineHash ->
+                            #     [(startClock1, endClock1, time1), (startClock2, endClock2, time2), ...]
 
 frameCount           = 0
 submitCount          = 0
@@ -117,16 +120,17 @@ filesProcessedSoFar  = 0 # For printing parsing progress.
 
 for file in files:
     if sys.stdout.isatty():
-        sys.stdout.write("Parsing input files.  {0:.0f}% Complete.\r".format((filesProcessedSoFar / float(len(files))) * 100))
+        sys.stdout.write(f"Parsing input files. {((filesProcessedSoFar / len(files)) * 100):.0f}% Complete.\r")
+
     filesProcessedSoFar += 1
 
     # Decode file name.
-    searchObj  = re.search("frame([0-9]*)Dev([0-9]*)Eng(\D*)([0-9]*)-([0-9]*)\.csv", file)
-    frameNum   = int(searchObj.group(1))
-    deviceNum  = int(searchObj.group(2))
-    engineType = searchObj.group(3)
-    engineId   = int(searchObj.group(4))
-    queueId    = int(searchObj.group(5))
+    decoded_file_name = timingDataUtils.decode_file_name(file)
+    frameNum   = decoded_file_name["frameNum"]
+    deviceNum  = decoded_file_name["deviceNum"]
+    engineType = decoded_file_name["engineType"]
+    engineId   = decoded_file_name["engineId"]
+    queueId    = decoded_file_name["queueId"]
 
     # Track the fact we've never seen this frame before:
     # - Zero out the time spend in barriers for it.
@@ -150,11 +154,11 @@ for file in files:
     engineKey = engineKey + " Engine " + str(engineId)
     queueKey  = "Queue " + str(queueId)
 
-    if not deviceKey in perCallTable.keys():
+    if deviceKey not in perCallTable.keys():
         perCallTable[deviceKey] = { }
-    if not engineKey in perCallTable[deviceKey].keys():
+    if engineKey not in perCallTable[deviceKey].keys():
         perCallTable[deviceKey][engineKey] = { }
-    if not queueKey in perCallTable[deviceKey][engineKey].keys():
+    if queueKey not in perCallTable[deviceKey][engineKey].keys():
         perCallTable[deviceKey][engineKey][queueKey] = { }
 
     with open(file) as csvFile:
@@ -191,7 +195,8 @@ for file in files:
                         perPipelineTable[row[CompilerHashCol]][1] += 1
                         perPipelineTable[row[CompilerHashCol]][2] += float(row[TimeCol])
                     else:
-                        perPipelineTable[row[CompilerHashCol]] = [ pipelineType, 1, float(row[TimeCol]), row[VsCsCol], row[HsCol], row[DsCol], row[GsCol], row[PsCol] ]
+                        perPipelineTable[row[CompilerHashCol]] = [ pipelineType, 1, float(row[TimeCol]), row[VsCsCol],\
+                                                                   row[HsCol], row[DsCol], row[GsCol], row[PsCol] ]
 
                     # Record the start and end clocks and the time of this shader work in the pipelineRangeTable.
                     # Note that we may divide by zero later unless we exclude rows with identical start and end clocks.
@@ -199,9 +204,13 @@ for file in files:
                     endClock   = int(row[EndClockCol])
                     if endClock - startClock > 0:
                         if row[CompilerHashCol] in pipelineRangeTable[frameNum][engineType]:
-                            pipelineRangeTable[frameNum][engineType][row[CompilerHashCol]].append((startClock, endClock, float(row[TimeCol])))
+                            pipelineRangeTable[frameNum][engineType][row[CompilerHashCol]].append((startClock,\
+                                                                                                   endClock,\
+                                                                                                   float(row[TimeCol])))
                         else:
-                            pipelineRangeTable[frameNum][engineType][row[CompilerHashCol]] = [(startClock, endClock, float(row[TimeCol]))]
+                            pipelineRangeTable[frameNum][engineType][row[CompilerHashCol]] = [(startClock,\
+                                                                                               endClock,\
+                                                                                               float(row[TimeCol]))]
 
                 if row[PsCol]:
                     if row[PsCol] in perPsTable:
@@ -215,11 +224,13 @@ for file in files:
 
         csvFile.close
 
-# Compute the sum of all GPU frame times, where the time of a single frame is the amount of time the GPU spent being busy.
-# We can do this by creating a list of all GPU clock ranges when the GPU was busy from the list of all command buffer clock ranges like so:
+# Compute the sum of all GPU frame times, where the time of a single frame is the amount of time the GPU spent being
+# busy. We can do this by creating a list of all GPU clock ranges when the GPU was busy from the list of all command
+# buffer clock ranges like so:
 # - For the current frame, sort the list of top-level command buffer (begin, end) clocks by increasing begin time.
 # - Pop the top (begin, end) pair and use it to start a new GPU busy range.
-# - While the top pair overlaps with the busy range, update the busy range with the latest ending time and pop the top pair.
+# - While the top pair overlaps with the busy range, update the busy range with the latest ending time and pop
+#   the top pair.
 # - Once there are no more overlapping ranges, push the current range as a complete busy range and repeat.
 # Once that is done we can simply sum the busy ranges to get the ammount of time the GPU was busy for the current frame.
 gpuFrameTime = 0
@@ -245,7 +256,8 @@ print("Average command buffers per frame: " + str(cmdBufCount / frameCount))
 print("")
 
 for deviceKey in iter(sorted(perCallTable)):
-    print("== Frame Breakdown By Command Buffer Call =======================================================================================================\n")
+    print("== Frame Breakdown By Command Buffer Call \
+          =======================================================================================================\n")
     if len(perCallTable) > 1:
         print(" + " + deviceKey + ":")
     for engineKey in iter(sorted(perCallTable[deviceKey])):
@@ -265,7 +277,8 @@ for deviceKey in iter(sorted(perCallTable)):
             print("   Total                                |    {0:12,.2f} |       {1:>12,.2f} |      {2:5.2f} %\n\n".
                   format(totalQueueCount, totalQueueTime, (totalQueueTime / gpuFrameTime) * 100))
 
-print("== Frame Breakdown By Pipeline Type =============================================================================================================\n")
+print("== Frame Breakdown By Pipeline Type \
+      =============================================================================================================\n")
 print("   Pipeline Type                        | Avg. Call Count | Avg. GPU Time [us] | Avg. Frame %")
 print("  --------------------------------------+-----------------+--------------------|--------------")
 for pipelineType in collections.OrderedDict(sorted(perPipelineTypeTable.items(), key=lambda x: x[1][1], reverse=True)):
@@ -279,9 +292,13 @@ for pipelineType in collections.OrderedDict(sorted(perPipelineTypeTable.items(),
 print("\n")
 
 if enPrintAllPipelines:
-    print("== Top Pipelines ========================================================================================================================\n")
+    print("== Top Pipelines \
+          =============================================================================================================\
+          ===========\n")
 else:
-    print("== Top Pipelines (>= 1%) ========================================================================================================================\n")
+    print("== Top Pipelines (>= 1%) \
+          =============================================================================================================\
+          ===========\n")
 pipelineNum = 0
 hidden = 0
 print("   Compiler Hash         | Type         | Avg. Call Count | Avg. GPU Time [us] | Avg. Frame %")
@@ -305,9 +322,11 @@ if hidden > 0:
 print("\n")
 
 if enPrintAllPipelines:
-    print("== Top Pipeline/Shader Hashes ===========================================================================================================\n")
+    print("== Top Pipeline/Shader Hashes =============================================================================\
+          ==============================\n")
 else:
-    print("== Top Pipeline/Shader Hashes (>= 1%) ===========================================================================================================\n")
+    print("== Top Pipeline/Shader Hashes (>= 1%) =====================================================================\
+          ======================================\n")
 pipelineNum = 0
 hidden = 0
 print("   Compiler Hash         | Type       | VS/CS Hash                         | HS Hash                            | DS Hash                            | GS Hash                            | PS Hash                            ")
@@ -335,9 +354,11 @@ if hidden > 0:
 print("\n")
 
 if enPrintAllPipelines:
-    print("== Top Pixel Shaders ====================================================================================================================\n")
+    print("== Top Pixel Shaders ======================================================================================\
+          ==============================\n")
 else:
-    print("== Top Pixel Shaders (>= 1%) ====================================================================================================================\n")
+    print("== Top Pixel Shaders (>= 1%) ==============================================================================\
+          ======================================\n")
 psNum = 0
 hidden = 0
 print("   PS Hash                                | Avg. Call Count | Avg. GPU Time [us] | Avg. Frame %")
@@ -367,7 +388,7 @@ barrierTime = 0
 barrierReportTable = [ ] # [time, [desc, ...] ]
 for file in files:
     # Decode file name.
-    searchObj  = re.search("frame([0-9]*)Dev([0-9]*)Eng(\D*)([0-9]*)-([0-9]*)\.csv", file)
+    searchObj  = re.search(r"frame([0-9]*)Dev([0-9]*)Eng(\D*)([0-9]*)-([0-9]*)\.csv", file)
     frameNum   = int(searchObj.group(1))
     engineType = searchObj.group(3)
 
@@ -403,7 +424,8 @@ for file in files:
                     barrierReportTable.append(entry)
             csvFile.close
 
-print("== Median Frame Top CmdBarrier() Calls (>= 10us): ===============================================================================================\n")
+print("== Median Frame Top CmdBarrier() Calls (>= 10us): =============================================================\
+      ==================================\n")
 print("Frame #{0:d} total barrier time: {1:,.2f} us\n".format(medianBarrierFrame, barrierTime))
 print("     Layout Transition(s)                                         |  Format                      | Dimensions  | Time [us]")
 print("  ----------------------------------------------------------------+------------------------------+-------------+-----------")
@@ -441,7 +463,8 @@ for frameNum in iter(sorted(pipelineRangeTable)):
         for cStart, cEnd, cTime in cClocks:
             for uPipeline, uClocks in pipelineRangeTable[frameNum]["Gfx"].items():
                 for uStart, uEnd, uTime in uClocks:
-                    # If these clock ranges intersect, compute the portion of the compute time that overlaps with the universal work.
+                    # If these clock ranges intersect, compute the portion of the compute time that overlaps with
+                    # the universal work.
                     # Note that we treat the clocks as dimensionless numbers, we never need to know the clock frequency.
                     if uStart < cEnd and uEnd > cStart:
                         overlapTime = cTime * (min(cEnd, uEnd) - max(cStart, uStart)) / (cEnd - cStart)
@@ -452,7 +475,8 @@ for frameNum in iter(sorted(pipelineRangeTable)):
                             asyncOverlapTable[cPipeline][1][uPipeline] = overlapTime
 
 if len(asyncOverlapTable.keys()) > 0:
-    print("== Async Compute Overlap ========================================================================================================================\n")
+    print("== Async Compute Overlap ==================================================================================\
+          ======================================\n")
     print("   Async Compiler Hash    | Gfx Compiler Hash    | Avg. GPU Time [us] | Avg. Frame %")
     print("  ------------------------+----------------------+--------------------+--------------")
     pipelineNum = 0
@@ -464,7 +488,8 @@ if len(asyncOverlapTable.keys()) > 0:
             format(pipelineNum, cPipeline, timePerFrame, pctOfFrame))
         numTrailing       = 0
         trailingTimeTotal = 0
-        for uPipeline in collections.OrderedDict(sorted(asyncOverlapTable[cPipeline][1].items(), key=lambda x: x[1], reverse=True)):
+        for uPipeline in collections.OrderedDict(sorted(asyncOverlapTable[cPipeline][1].items(), \
+                                                        key=lambda x: x[1], reverse=True)):
             timePerFrame = asyncOverlapTable[cPipeline][1][uPipeline] / frameCount
             pctOfFrame   = (timePerFrame / gpuFrameTime) * 100
             if pctOfFrame < 0.10:

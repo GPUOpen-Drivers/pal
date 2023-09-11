@@ -23,6 +23,7 @@
  #
  #######################################################################################################################
 
+target_include_directories(pal PUBLIC .)
 target_sources(pal PRIVATE CMakeLists.txt)
 
 add_subdirectory(inc)

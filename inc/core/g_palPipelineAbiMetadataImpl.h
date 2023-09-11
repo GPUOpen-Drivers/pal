@@ -471,6 +471,9 @@ inline Result DeserializeEnum(
         case HashLiteralString("_amdgpu_pipeline_intrl_data"):
             *pValue = Abi::PipelineSymbolType::PipelineIntrlData;
             break;
+        case HashLiteralString("color_export_shader"):
+            *pValue = Abi::PipelineSymbolType::PsColorExportEntry;
+            break;
         default:
             result = Result::NotFound;
             break;
@@ -1441,6 +1444,88 @@ inline Result DeserializeHardwareStageMetadata(
         {
             result = DeserializeHardwareStageMetadata(
                 pReader, &((*pMetadata)[static_cast<uint32>(key)]));
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+inline Result DeserializePsInputSemanticMetadata(
+    MsgPackReader*  pReader,
+    PsInputSemanticMetadata*  pMetadata)
+{
+    Result result = (pReader->Type() == CWP_ITEM_ARRAY) ? Result::Success : Result::ErrorInvalidValue;
+
+    const uint32 arraySize = pReader->Get().as.array.size;
+
+    for (uint32 j = 0; ((result == Result::Success) && (j < arraySize)); j++)
+    {
+        result = pReader->Next(CWP_ITEM_MAP);
+
+        for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
+        {
+            StringViewType key;
+            result = pReader->UnpackNext(&key);
+
+            if (result == Result::Success)
+            {
+                switch (HashString(key))
+                {
+                case HashLiteralString(PsInputSemanticMetadataKey::Semantic):
+                    PAL_ASSERT(pMetadata[j].hasEntry.semantic == 0);
+                    result = pReader->UnpackNext(&pMetadata[j].semantic);
+                    pMetadata[j].hasEntry.semantic = (result == Result::Success);;
+                    break;
+                default:
+                    result = pReader->Skip(1);
+                    break;
+                }
+            }
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+inline Result DeserializePrerasterOutputSemanticMetadata(
+    MsgPackReader*  pReader,
+    PrerasterOutputSemanticMetadata*  pMetadata)
+{
+    Result result = (pReader->Type() == CWP_ITEM_ARRAY) ? Result::Success : Result::ErrorInvalidValue;
+
+    const uint32 arraySize = pReader->Get().as.array.size;
+
+    for (uint32 j = 0; ((result == Result::Success) && (j < arraySize)); j++)
+    {
+        result = pReader->Next(CWP_ITEM_MAP);
+
+        for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
+        {
+            StringViewType key;
+            result = pReader->UnpackNext(&key);
+
+            if (result == Result::Success)
+            {
+                switch (HashString(key))
+                {
+                case HashLiteralString(PrerasterOutputSemanticMetadataKey::Semantic):
+                    PAL_ASSERT(pMetadata[j].hasEntry.semantic == 0);
+                    result = pReader->UnpackNext(&pMetadata[j].semantic);
+                    pMetadata[j].hasEntry.semantic = (result == Result::Success);;
+                    break;
+
+                case HashLiteralString(PrerasterOutputSemanticMetadataKey::Index):
+                    PAL_ASSERT(pMetadata[j].hasEntry.index == 0);
+                    result = pReader->UnpackNext(&pMetadata[j].index);
+                    pMetadata[j].hasEntry.index = (result == Result::Success);;
+                    break;
+                default:
+                    result = pReader->Skip(1);
+                    break;
+                }
+            }
         }
     }
 
@@ -5499,6 +5584,22 @@ inline Result DeserializePipelineMetadata(
                 PAL_ASSERT(pMetadata->hasEntry.meshScratchMemorySize == 0);
                 result = pReader->UnpackNext(&pMetadata->meshScratchMemorySize);
                 pMetadata->hasEntry.meshScratchMemorySize = (result == Result::Success);;
+                break;
+
+            case HashLiteralString(PipelineMetadataKey::PsInputSemantic):
+                PAL_ASSERT(pMetadata->hasEntry.psInputSemantic == 0);
+                pReader->Next();
+                result = DeserializePsInputSemanticMetadata(
+                        pReader, &pMetadata->psInputSemantic[0]);
+                    pMetadata->hasEntry.psInputSemantic = (result == Result::Success);
+                break;
+
+            case HashLiteralString(PipelineMetadataKey::PrerasterOutputSemantic):
+                PAL_ASSERT(pMetadata->hasEntry.prerasterOutputSemantic == 0);
+                pReader->Next();
+                result = DeserializePrerasterOutputSemanticMetadata(
+                        pReader, &pMetadata->prerasterOutputSemantic[0]);
+                    pMetadata->hasEntry.prerasterOutputSemantic = (result == Result::Success);
                 break;
 
             case HashLiteralString(PipelineMetadataKey::Api):

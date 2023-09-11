@@ -249,7 +249,7 @@ void Device::DepthStencilExpand(
     ) const
 {
     pOperations->layoutTransitions.depthStencilExpand = 1;
-    DescribeBarrier(pCmdBuf, pOperations, &transition);
+    DescribeBarrier(pCmdBuf, &transition, pOperations);
 
     RsrcProcMgr().ExpandDepthStencil(pCmdBuf,
                                      *gfx6Image.Parent(),
@@ -269,7 +269,7 @@ void Device::DepthStencilExpandHiZRange(
     ) const
 {
     pOperations->layoutTransitions.htileHiZRangeExpand = 1;
-    DescribeBarrier(pCmdBuf, pOperations, &transition);
+    DescribeBarrier(pCmdBuf, &transition, pOperations);
 
     // CS blit to resummarize htile.
     RsrcProcMgr().HwlResummarizeHtileCompute(pCmdBuf, gfx6Image, subresRange);
@@ -291,7 +291,7 @@ void Device::DepthStencilResummarize(
     ) const
 {
     pOperations->layoutTransitions.depthStencilResummarize = 1;
-    DescribeBarrier(pCmdBuf, pOperations, &transition);
+    DescribeBarrier(pCmdBuf, &transition, pOperations);
 
     // DB blit to resummarize.
     RsrcProcMgr().ResummarizeDepthStencil(pCmdBuf,
@@ -610,7 +610,7 @@ void Device::DccDecompress(
     ) const
 {
     pOperations->layoutTransitions.dccDecompress = 1;
-    DescribeBarrier(pCmdBuf, pOperations, &transition);
+    DescribeBarrier(pCmdBuf, &transition, pOperations);
 
     RsrcProcMgr().DccDecompress(pCmdBuf,
                                 pCmdStream,
@@ -632,7 +632,7 @@ void Device::FmaskDecompress(
     ) const
 {
     pOperations->layoutTransitions.fmaskDecompress = 1;
-    DescribeBarrier(pCmdBuf, pOperations, &transition);
+    DescribeBarrier(pCmdBuf, &transition, pOperations);
 
     RsrcProcMgr().FmaskDecompress(pCmdBuf,
                                   pCmdStream,
@@ -682,7 +682,7 @@ void Device::MsaaDecompress(
     }
 
     pOperations->layoutTransitions.fmaskColorExpand = 1;
-    DescribeBarrier(pCmdBuf, pOperations, &transition);
+    DescribeBarrier(pCmdBuf, &transition, pOperations);
 
     RsrcProcMgr().FmaskColorExpand(pCmdBuf, gfx6Image, subresRange);
 }
@@ -700,7 +700,7 @@ void Device::FastClearEliminate(
     ) const
 {
     pOperations->layoutTransitions.fastClearEliminate = 1;
-    DescribeBarrier(pCmdBuf, pOperations, &transition);
+    DescribeBarrier(pCmdBuf, &transition, pOperations);
 
     RsrcProcMgr().FastClearEliminate(pCmdBuf,
                                      pCmdStream,
@@ -843,31 +843,31 @@ void Device::IssueSyncs(
     // Clear up xxxBltActive flags
     if (syncReqs.waitOnEopTs || TestAnyFlagSet(syncReqs.cpCoherCntl.u32All, CpCoherCntlStallMask))
     {
-        pCmdBuf->SetPm4CmdBufGfxBltState(false);
+        pCmdBuf->SetGfxBltState(false);
     }
     if ((pCmdBuf->GetPm4CmdBufState().flags.gfxBltActive == false) &&
         ((syncReqs.cacheFlushAndInv != 0) && (syncReqs.waitOnEopTs != 0)))
     {
-        pCmdBuf->SetPm4CmdBufGfxBltWriteCacheState(false);
+        pCmdBuf->SetGfxBltWriteCacheState(false);
     }
 
     if (syncReqs.waitOnEopTs || syncReqs.csPartialFlush)
     {
-        pCmdBuf->SetPm4CmdBufCsBltState(false);
+        pCmdBuf->SetCsBltState(false);
     }
     if ((pCmdBuf->GetPm4CmdBufState().flags.csBltActive == false) && (syncReqs.cpCoherCntl.bits.TC_ACTION_ENA != 0))
     {
-        pCmdBuf->SetPm4CmdBufCsBltWriteCacheState(false);
+        pCmdBuf->SetCsBltWriteCacheState(false);
     }
 
     if (syncReqs.syncCpDma)
     {
-        pCmdBuf->SetPm4CmdBufCpBltState(false);
+        pCmdBuf->SetCpBltState(false);
     }
     if ((pCmdBuf->GetPm4CmdBufState().flags.cpBltActive == false) && (syncReqs.cpCoherCntl.bits.TC_ACTION_ENA != 0))
     {
-        pCmdBuf->SetPm4CmdBufCpBltWriteCacheState(false);
-        pCmdBuf->SetPm4CmdBufCpMemoryWriteL2CacheStaleState(false);
+        pCmdBuf->SetCpBltWriteCacheState(false);
+        pCmdBuf->SetCpMemoryWriteL2CacheStaleState(false);
     }
 }
 
@@ -932,7 +932,7 @@ void Device::Barrier(
     // -----------------------------------------------------------------------------------------------------------------
     // -- Early image layout transitions.
     // -----------------------------------------------------------------------------------------------------------------
-    DescribeBarrierStart(pCmdBuf, barrier.reason);
+    DescribeBarrierStart(pCmdBuf, barrier.reason, Developer::BarrierType::Full);
 
     for (uint32 i = 0; i < barrier.transitionCount; i++)
     {
@@ -1230,7 +1230,7 @@ void Device::Barrier(
                     }
 
                     barrierOps.layoutTransitions.initMaskRam = 1;
-                    DescribeBarrier(pCmdBuf, &barrierOps, &barrier.pTransitions[i]);
+                    DescribeBarrier(pCmdBuf, &barrier.pTransitions[i], &barrierOps);
 
                     RsrcProcMgr().InitMaskRam(pCmdBuf,
                                               pCmdStream,
@@ -1312,70 +1312,6 @@ void Device::Barrier(
     }
 
     DescribeBarrierEnd(pCmdBuf, &barrierOps);
-}
-
-// =====================================================================================================================
-// Call back to above layers before starting the barrier execution.
-void Device::DescribeBarrierStart(
-    Pm4CmdBuffer* pCmdBuf,
-    uint32        reason
-    ) const
-{
-    Developer::BarrierData data = {};
-
-    data.pCmdBuffer = pCmdBuf;
-
-    // Make sure we have an acceptable barrier reason.
-    PAL_ALERT_MSG((GetPlatform()->IsDevDriverProfilingEnabled() && (reason == Developer::BarrierReasonInvalid)),
-                  "Invalid barrier reason codes are not allowed!");
-
-    data.reason = reason;
-
-    m_pParent->DeveloperCb(Developer::CallbackType::BarrierBegin, &data);
-}
-
-// =====================================================================================================================
-// Callback to above layers with summary information at end of barrier execution.
-void Device::DescribeBarrierEnd(
-    Pm4CmdBuffer*                 pCmdBuf,
-    Developer::BarrierOperations* pOperations
-    ) const
-{
-    Developer::BarrierData data  = {};
-
-    // Set the barrier type to an invalid type.
-    data.pCmdBuffer    = pCmdBuf;
-
-    PAL_ASSERT(pOperations != nullptr);
-    memcpy(&data.operations, pOperations, sizeof(Developer::BarrierOperations));
-
-    m_pParent->DeveloperCb(Developer::CallbackType::BarrierEnd, &data);
-}
-
-// =====================================================================================================================
-// Describes the image barrier to the above layers but only if we're a developer build. Clears the BarrierOperations
-// passed in after calling back in case of layout transitions. This function is expected to be called only on layout
-// transitions.
-void Device::DescribeBarrier(
-    Pm4CmdBuffer*                 pCmdBuf,
-    Developer::BarrierOperations* pOperations,
-    const BarrierTransition*      pTransition
-    ) const
-{
-    constexpr BarrierTransition NullTransition = {};
-    Developer::BarrierData data                = {};
-
-    data.pCmdBuffer    = pCmdBuf;
-    data.transition    = (pTransition != nullptr) ? (*pTransition) : NullTransition;
-    data.hasTransition = (pTransition != nullptr);
-
-    PAL_ASSERT(pOperations != nullptr);
-    // The callback is expected to be made only on layout transitions.
-    memcpy(&data.operations, pOperations, sizeof(Developer::BarrierOperations));
-
-    // Callback to the above layers if there is a transition and clear the BarrierOperations.
-    m_pParent->DeveloperCb(Developer::CallbackType::ImageBarrier, &data);
-    memset(pOperations, 0, sizeof(Developer::BarrierOperations));
 }
 
 } // Gfx6

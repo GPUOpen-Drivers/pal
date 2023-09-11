@@ -89,48 +89,96 @@ endif() # PAL_BUILD_GFX
 
 # If the client wants Gfx9 support, them give them all the neccessary build parameters they need to fill out.
 if (PAL_BUILD_GFX9)
-    pal_bp(PAL_BUILD_NAVI12 ON MODE "AUTHOR_WARNING")
+    pal_bp( PAL_BUILD_NAVI12 ON MODE "AUTHOR_WARNING"
+            ASIC_CONFIG
+                CHIP_HDR_NAVI12
+          )
 
-    pal_bp(PAL_BUILD_NAVI14 ON MODE "AUTHOR_WARNING")
+    pal_bp( PAL_BUILD_NAVI14 ON MODE "AUTHOR_WARNING"
+            ASIC_CONFIG
+                CHIP_HDR_NAVI14
+          )
 
-    pal_bp(PAL_BUILD_NAVI21 ON MODE "AUTHOR_WARNING")
-    pal_set_or(PAL_BUILD_GFX10_3 ${PAL_BUILD_NAVI21})
+    pal_bp( PAL_BUILD_NAVI21 ON MODE "AUTHOR_WARNING"
+            ASIC_CONFIG
+                PAL_BUILD_GFX103
+                PAL_BUILD_GFX10_3
+                PAL_BUILD_NAVI2X
+                CHIP_HDR_NAVI21
+          )
 
-    pal_bp(PAL_BUILD_NAVI22 ON MODE "AUTHOR_WARNING")
-    pal_set_or(PAL_BUILD_GFX10_3 ${PAL_BUILD_NAVI22})
+    pal_bp( PAL_BUILD_NAVI22 ON MODE "AUTHOR_WARNING"
+            ASIC_CONFIG
+                PAL_BUILD_GFX103
+                PAL_BUILD_GFX10_3
+                PAL_BUILD_NAVI2X
+                CHIP_HDR_NAVI22
+          )
 
-    pal_bp(PAL_BUILD_NAVI23 ON MODE "AUTHOR_WARNING")
-    pal_set_or(PAL_BUILD_GFX10_3 ${PAL_BUILD_NAVI23})
+    pal_bp( PAL_BUILD_NAVI23 ON MODE "AUTHOR_WARNING"
+            ASIC_CONFIG
+                PAL_BUILD_GFX103
+                PAL_BUILD_GFX10_3
+                PAL_BUILD_NAVI2X
+                CHIP_HDR_NAVI23
+          )
 
-    pal_bp(PAL_BUILD_NAVI24 ON MODE "AUTHOR_WARNING")
-    pal_set_or(PAL_BUILD_GFX10_3 ${PAL_BUILD_NAVI24})
+    pal_bp( PAL_BUILD_NAVI24 ON MODE "AUTHOR_WARNING"
+            ASIC_CONFIG
+                PAL_BUILD_GFX103
+                PAL_BUILD_GFX10_3
+                PAL_BUILD_NAVI2X
+                CHIP_HDR_NAVI24
+          )
 
-    pal_bp(PAL_BUILD_REMBRANDT ON MODE "AUTHOR_WARNING")
-    pal_set_or(PAL_BUILD_GFX10_3 ${PAL_BUILD_REMBRANDT})
+    pal_bp( PAL_BUILD_REMBRANDT ON MODE "AUTHOR_WARNING"
+            ASIC_CONFIG
+                PAL_BUILD_GFX103
+                PAL_BUILD_GFX10_3
+                CHIP_HDR_REMBRANDT
+          )
 
-    pal_bp(PAL_BUILD_MENDOCINO ON MODE "AUTHOR_WARNING")
-    pal_set_or(PAL_BUILD_GFX10_3 ${PAL_BUILD_MENDOCINO})
-    pal_set_or(PAL_BUILD_RAPHAEL ${PAL_BUILD_MENDOCINO})
+    pal_bp( PAL_BUILD_MENDOCINO ON MODE "AUTHOR_WARNING"
+            ASIC_CONFIG
+                PAL_BUILD_GFX103
+                PAL_BUILD_GFX10_3
+                PAL_BUILD_RAPHAEL
+                CHIP_HDR_RAPHAEL
+          )
 
-    pal_bp(PAL_BUILD_RAPHAEL ON MODE "AUTHOR_WARNING")
-    pal_set_or(PAL_BUILD_GFX10_3 ${PAL_BUILD_RAPHAEL})
+    pal_bp( PAL_BUILD_RAPHAEL ON MODE "AUTHOR_WARNING"
+            ASIC_CONFIG
+                PAL_BUILD_GFX103
+                PAL_BUILD_GFX10_3
+                CHIP_HDR_RAPHAEL
+          )
 
 #if PAL_BUILD_NAVI31
-    pal_bp(PAL_BUILD_NAVI31 ON MODE "AUTHOR_WARNING")
-    pal_set_or(PAL_BUILD_NAVI3X  ${PAL_BUILD_NAVI31})
-    pal_set_or(PAL_BUILD_GFX11   ${PAL_BUILD_NAVI31})
+    pal_bp( PAL_BUILD_NAVI31 ON MODE "AUTHOR_WARNING"
+            ASIC_CONFIG
+                PAL_BUILD_GFX11
+                PAL_BUILD_NAVI3X
+                CHIP_HDR_NAVI31
+          )
 #endif
 
 #if PAL_BUILD_NAVI33
-    pal_bp(PAL_BUILD_NAVI33 ON MODE "AUTHOR_WARNING")
-    pal_set_or(PAL_BUILD_NAVI3X  ${PAL_BUILD_NAVI33})
-    pal_set_or(PAL_BUILD_GFX11   ${PAL_BUILD_NAVI33})
+    pal_bp( PAL_BUILD_NAVI33 ON MODE "AUTHOR_WARNING"
+            ASIC_CONFIG
+                PAL_BUILD_GFX11
+                PAL_BUILD_NAVI3X
+                CHIP_HDR_NAVI33
+          )
 #endif
 
 #if PAL_BUILD_PHOENIX1
-    pal_bp(PAL_BUILD_PHOENIX1 ON MODE "AUTHOR_WARNING")
-    pal_set_or(PAL_BUILD_GFX11   ${PAL_BUILD_PHOENIX1})
-    pal_set_or(PAL_BUILD_NPI     ${PAL_BUILD_PHOENIX1})
+    pal_bp( PAL_BUILD_PHOENIX1 ON MODE "AUTHOR_WARNING"
+            ASIC_CONFIG
+                PAL_BUILD_GFX11
+                PAL_BUILD_PHOENIX
+                PAL_BUILD_NPI
+                CHIP_HDR_PHOENIX1
+          )
 #endif
 
 endif() # PAL_BUILD_GFX9

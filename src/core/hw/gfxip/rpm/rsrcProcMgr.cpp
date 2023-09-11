@@ -2516,6 +2516,15 @@ void RsrcProcMgr::ScaledCopyImageCompute(
                 PAL_ASSERT(Formats::IsUndefined(dstFormat.format) == false);
             }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 817
+            // srgb can be treated as non-srgb when copying from srgb image
+            if (copyInfo.flags.srcAsNorm)
+            {
+                srcFormat.format = Formats::ConvertToUnorm(srcFormat.format);
+                PAL_ASSERT(Formats::IsUndefined(srcFormat.format) == false);
+            }
+#endif
+
             ImageViewInfo imageView[2] = {};
             SubresRange   viewRange    = { copyRegion.dstSubres, 1, 1, copyRegion.numSlices };
 
@@ -3588,6 +3597,19 @@ void RsrcProcMgr::SlowClearCompute(
     // The color is constant for all dispatches so we can embed it in the fast user-data right now.
     pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 1, ArrayLen32(packedColor), packedColor);
 
+    // Color and DS use the same compute path do clear, disable channel mask can represent disable
+    // color mask or disable stencil mask. If current clear plane is stencil plane, disable channel
+    // mask represent disable stencil mask. Otherwise, disable channel mask can represent disable color mask.
+    // Set disable channel mask to clear mask user data 5.
+    // Use clear mask user data 6 to represent clear mask type.
+    const uint32 clearMaskUserData[2] =
+    {
+        pColor->disabledChannelMask,
+        dstImage.IsStencilPlane(clearRange.startSubres.plane)
+    };
+
+    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 5, ArrayLen32(clearMaskUserData), clearMaskUserData);
+
     // Split the clear range into sections with constant mip/array levels and loop over them.
     SubresRange  singleMipRange = { clearRange.startSubres, 1, 1, clearRange.numSlices };
     const uint32 firstMipLevel  = clearRange.startSubres.mipLevel;
@@ -3676,6 +3698,13 @@ void RsrcProcMgr::SlowClearCompute(
 
                     // 1D images can only have a single-sample, but they can have multiple slices.
                     threads.z = singleMipRange.numSlices;
+
+                    // If the tests provided a clear boxes on a 1D images that is outside
+                    // the bounds of a 1D image, then do nothing.
+                    if ((clearExtent.height == 0) || (clearOffset.y != 0))
+                    {
+                        continue;
+                    }
                     break;
 
                 case ImageType::Tex2d:
@@ -3708,7 +3737,7 @@ void RsrcProcMgr::SlowClearCompute(
                 }
 
                 // Embed these constants in the remaining fast user-data entries (after the packedColor).
-                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 5, numUserData, userData);
+                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 7, numUserData, userData);
 
                 pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz(threads, threadsPerGroup));
             }

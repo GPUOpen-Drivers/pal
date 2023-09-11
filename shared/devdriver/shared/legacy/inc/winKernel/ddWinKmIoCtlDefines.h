@@ -26,6 +26,8 @@
 #pragma once
 
 #define DD_IOCTL_NUTCRACKER_AMDLOG_DEVDRIVER CTL_CODE (40000, 0x904, METHOD_BUFFERED, FILE_ALL_ACCESS)
+#define DD_IOCTL_NUTCRACKER_AMDLOG_DEVDRIVER_IN_DIRECT                                                                 \
+    CTL_CODE(40000, 0x905, METHOD_IN_DIRECT, FILE_READ_DATA | FILE_WRITE_DATA)
 
 #pragma pack(1)
 

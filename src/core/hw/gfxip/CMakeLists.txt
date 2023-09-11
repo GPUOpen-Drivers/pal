@@ -43,6 +43,8 @@ target_sources(pal PRIVATE
     colorBlendState.h
     computePipeline.cpp
     computePipeline.h
+    computeShaderLibrary.cpp
+    computeShaderLibrary.h
     depthStencilState.h
     gfxBarrier.cpp
     gfxBarrier.h
@@ -58,6 +60,8 @@ target_sources(pal PRIVATE
     gfxImage.h
     graphicsPipeline.cpp
     graphicsPipeline.h
+    graphicsShaderLibrary.cpp
+    graphicsShaderLibrary.h
     hsaAbiMetadata.cpp
     msaaState.h
     pipeline.cpp

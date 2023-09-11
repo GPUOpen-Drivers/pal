@@ -378,6 +378,8 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_validUserEntryRegPairsCs{},
     m_numValidUserEntries(0),
     m_numValidUserEntriesCs(0),
+    m_minValidUserEntryLookupValue(1),
+    m_minValidUserEntryLookupValueCs(1),
 #endif
     m_meshPipeStatsGpuAddr(0),
     m_globalInternalTableAddr(0)
@@ -621,8 +623,8 @@ UniversalCmdBuffer::UniversalCmdBuffer(
         m_tessDistributionFactors.triDistributionFactor  = Gfx11DefaultPatchFactor;
         m_tessDistributionFactors.quadDistributionFactor = Gfx11DefaultPatchFactor;
 
-        memset(m_validUserEntryRegPairsLookup,   InvalidRegPairLookupIndex, sizeof(m_validUserEntryRegPairsLookup));
-        memset(m_validUserEntryRegPairsLookupCs, InvalidRegPairLookupIndex, sizeof(m_validUserEntryRegPairsLookupCs));
+        memset(&(m_validUserEntryRegPairsLookup[0]), 0, sizeof(m_validUserEntryRegPairsLookup));
+        memset(&(m_validUserEntryRegPairsLookupCs[0]), 0, sizeof(m_validUserEntryRegPairsLookupCs));
     }
 #endif
 
@@ -1004,11 +1006,21 @@ void UniversalCmdBuffer::ResetState()
     m_swStreamoutDataAddr = 0;
 #endif
 #if PAL_BUILD_GFX11
-    // All user data entries are invalid upon state reset.
-    memset(&m_validUserEntryRegPairsLookup[0],   InvalidRegPairLookupIndex, sizeof(m_validUserEntryRegPairsLookup));
-    memset(&m_validUserEntryRegPairsLookupCs[0], InvalidRegPairLookupIndex, sizeof(m_validUserEntryRegPairsLookupCs));
-    m_numValidUserEntries   = 0;
-    m_numValidUserEntriesCs = 0;
+    // All user data entries are invalid upon state reset.  No need to increment this if we don't have anything to
+    // invalidate.
+    if (m_numValidUserEntries > 0)
+    {
+        memset(&m_validUserEntryRegPairsLookup[0], 0, sizeof(m_validUserEntryRegPairsLookup));
+        m_minValidUserEntryLookupValue = 1;
+        m_numValidUserEntries = 0;
+    }
+
+    if (m_numValidUserEntriesCs > 0)
+    {
+        memset(&m_validUserEntryRegPairsLookupCs[0], 0, sizeof(m_validUserEntryRegPairsLookupCs));
+        m_minValidUserEntryLookupValueCs = 1;
+        m_numValidUserEntriesCs = 0;
+    }
 #endif
 
     m_meshPipeStatsGpuAddr = 0;
@@ -3308,29 +3320,52 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndirectMulti(
             if (TestAnyFlagSet(mask, 1))
             {
                 pDeCmdSpace  = pThis->BuildWriteViewId(viewInstancingDesc.viewId[i], pDeCmdSpace);
-                pDeCmdSpace += CmdUtil::BuildDrawIndirectMulti(offset,
-                                                               vtxOffsetReg,
-                                                               instOffsetReg,
-                                                               pThis->m_drawIndexReg,
-                                                               stride,
-                                                               maximumCount,
-                                                               countGpuAddr,
-                                                               pThis->PacketPredicate(),
-                                                               pDeCmdSpace);
+
+                if ((maximumCount == 1) && (countGpuAddr == 0uLL))
+                {
+                    pDeCmdSpace += CmdUtil::BuildDrawIndirect(offset,
+                                                              vtxOffsetReg,
+                                                              instOffsetReg,
+                                                              pThis->PacketPredicate(),
+                                                              pDeCmdSpace);
+                }
+                else
+                {
+                    pDeCmdSpace += CmdUtil::BuildDrawIndirectMulti(offset,
+                                                                   vtxOffsetReg,
+                                                                   instOffsetReg,
+                                                                   pThis->m_drawIndexReg,
+                                                                   stride,
+                                                                   maximumCount,
+                                                                   countGpuAddr,
+                                                                   pThis->PacketPredicate(),
+                                                                   pDeCmdSpace);
+                }
             }
         }
     }
     else
     {
-        pDeCmdSpace += CmdUtil::BuildDrawIndirectMulti(offset,
-                                                       vtxOffsetReg,
-                                                       instOffsetReg,
-                                                       pThis->m_drawIndexReg,
-                                                       stride,
-                                                       maximumCount,
-                                                       countGpuAddr,
-                                                       pThis->PacketPredicate(),
-                                                       pDeCmdSpace);
+        if ((maximumCount == 1) && (countGpuAddr == 0uLL))
+        {
+            pDeCmdSpace += CmdUtil::BuildDrawIndirect(offset,
+                                                      vtxOffsetReg,
+                                                      instOffsetReg,
+                                                      pThis->PacketPredicate(),
+                                                      pDeCmdSpace);
+        }
+        else
+        {
+            pDeCmdSpace += CmdUtil::BuildDrawIndirectMulti(offset,
+                                                           vtxOffsetReg,
+                                                           instOffsetReg,
+                                                           pThis->m_drawIndexReg,
+                                                           stride,
+                                                           maximumCount,
+                                                           countGpuAddr,
+                                                           pThis->PacketPredicate(),
+                                                           pDeCmdSpace);
+        }
     }
 
     if (IssueSqttMarkerEvent)
@@ -3426,6 +3461,15 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
             {
                 pDeCmdSpace = pThis->BuildWriteViewId(viewInstancingDesc.viewId[i], pDeCmdSpace);
 
+                if ((maximumCount == 1) && (countGpuAddr == 0uLL))
+                {
+                    pDeCmdSpace += pThis->m_cmdUtil.BuildDrawIndexIndirect(offset,
+                                                                           vtxOffsetReg,
+                                                                           instOffsetReg,
+                                                                           pThis->PacketPredicate(),
+                                                                           pDeCmdSpace);
+                }
+                else
                 {
                     pDeCmdSpace += pThis->m_cmdUtil.BuildDrawIndexIndirectMulti(offset,
                                                                                 vtxOffsetReg,
@@ -3442,6 +3486,15 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
     }
     else
     {
+        if ((maximumCount == 1) && (countGpuAddr == 0uLL))
+        {
+            pDeCmdSpace += pThis->m_cmdUtil.BuildDrawIndexIndirect(offset,
+                                                                   vtxOffsetReg,
+                                                                   instOffsetReg,
+                                                                   pThis->PacketPredicate(),
+                                                                   pDeCmdSpace);
+        }
+        else
         {
             pDeCmdSpace += pThis->m_cmdUtil.BuildDrawIndexIndirectMulti(offset,
                                                                         vtxOffsetReg,
@@ -5005,7 +5058,7 @@ Result UniversalCmdBuffer::AddPostamble()
         // Stalls the CP ME until the CP's DMA engine has finished all previous "CP blts" (DMA_DATA commands
         // without the sync bit set). The ring won't wait for CP DMAs to finish so we need to do this manually.
         pDeCmdSpace += CmdUtil::BuildWaitDmaData(pDeCmdSpace);
-        SetPm4CmdBufCpBltState(false);
+        SetCpBltState(false);
     }
 
     bool didWaitForIdle = false;
@@ -5118,7 +5171,7 @@ void UniversalCmdBuffer::WriteEventCmd(
         // the time the event is written to memory. Given that our CP DMA blts are asynchronous to the pipeline stages
         // the only way to satisfy this requirement is to force the MEC to stall until the CP DMAs are completed.
         pDeCmdSpace += CmdUtil::BuildWaitDmaData(pDeCmdSpace);
-        SetPm4CmdBufCpBltState(false);
+        SetCpBltState(false);
     }
 
     OptimizePipePoint(&pipePoint);
@@ -5242,6 +5295,7 @@ uint8 UniversalCmdBuffer::FixupUserSgprsOnPipelineSwitch(
                                                                m_baseUserDataReg[HwShaderStage::Hs],
                                                                m_validUserEntryRegPairs,
                                                                &m_validUserEntryRegPairsLookup[LookupIndexHs],
+                                                               m_minValidUserEntryLookupValue,
                                                                &m_numValidUserEntries);
         }
         if (GsEnabled && (m_pSignatureGfx->userDataHash[GsStageId] != pPrevSignature->userDataHash[GsStageId]))
@@ -5252,6 +5306,7 @@ uint8 UniversalCmdBuffer::FixupUserSgprsOnPipelineSwitch(
                                                                m_baseUserDataReg[HwShaderStage::Gs],
                                                                m_validUserEntryRegPairs,
                                                                &m_validUserEntryRegPairsLookup[LookupIndexGs],
+                                                               m_minValidUserEntryLookupValue,
                                                                &m_numValidUserEntries);
         }
         if (m_pSignatureGfx->userDataHash[PsStageId] != pPrevSignature->userDataHash[PsStageId])
@@ -5262,6 +5317,7 @@ uint8 UniversalCmdBuffer::FixupUserSgprsOnPipelineSwitch(
                                                                m_baseUserDataReg[HwShaderStage::Ps],
                                                                m_validUserEntryRegPairs,
                                                                &m_validUserEntryRegPairsLookup[LookupIndexPs],
+                                                               m_minValidUserEntryLookupValue,
                                                                &m_numValidUserEntries);
         }
     }
@@ -5338,6 +5394,7 @@ uint32* UniversalCmdBuffer::WriteDirtyUserDataEntriesToSgprsGfx(
                                                                     m_baseUserDataReg[HwShaderStage::Hs],
                                                                     m_validUserEntryRegPairs,
                                                                     &m_validUserEntryRegPairsLookup[LookupIndexHs],
+                                                                    m_minValidUserEntryLookupValue,
                                                                     &m_numValidUserEntries);
             }
             if (GsEnabled && (dirtyStageMask & (1 << GsStageId)))
@@ -5347,6 +5404,7 @@ uint32* UniversalCmdBuffer::WriteDirtyUserDataEntriesToSgprsGfx(
                                                                     m_baseUserDataReg[HwShaderStage::Gs],
                                                                     m_validUserEntryRegPairs,
                                                                     &m_validUserEntryRegPairsLookup[LookupIndexGs],
+                                                                    m_minValidUserEntryLookupValue,
                                                                     &m_numValidUserEntries);
             }
             PAL_ASSERT((VsEnabled == false) && ((dirtyStageMask & (1 << VsStageId)) == 0));
@@ -5357,6 +5415,7 @@ uint32* UniversalCmdBuffer::WriteDirtyUserDataEntriesToSgprsGfx(
                                                                     m_baseUserDataReg[HwShaderStage::Ps],
                                                                     m_validUserEntryRegPairs,
                                                                     &m_validUserEntryRegPairsLookup[LookupIndexPs],
+                                                                    m_minValidUserEntryLookupValue,
                                                                     &m_numValidUserEntries);
             }
         }
@@ -5437,6 +5496,7 @@ bool UniversalCmdBuffer::FixupUserSgprsOnPipelineSwitchCs(
                                                                m_baseUserDataReg[HwShaderStage::Cs],
                                                                m_validUserEntryRegPairsCs,
                                                                &m_validUserEntryRegPairsLookupCs[0],
+                                                               m_minValidUserEntryLookupValueCs,
                                                                &m_numValidUserEntriesCs);
         }
         else
@@ -5499,12 +5559,18 @@ uint32* UniversalCmdBuffer::WritePackedUserDataEntriesToSgprs(
                                                                                 *pValidNumRegs,
                                                                                 pDeCmdSpace);
 
-    constexpr size_t ValidRegPairsLookupSize = (ShaderType == ShaderCompute) ? sizeof(m_validUserEntryRegPairsLookupCs)
-                                                                             : sizeof(m_validUserEntryRegPairsLookup);
-    uint8* pValidRegPairsLookup = (ShaderType == ShaderCompute) ? m_validUserEntryRegPairsLookupCs
-                                                                : m_validUserEntryRegPairsLookup;
     // All entries are invalid once written to the command stream.
-    memset(pValidRegPairsLookup, InvalidRegPairLookupIndex, ValidRegPairsLookupSize);
+    if (ShaderType == ShaderCompute)
+    {
+        // incrementing this value invalidates all entries currently in the lookup table
+        m_minValidUserEntryLookupValueCs++;
+        PAL_ASSERT(m_minValidUserEntryLookupValueCs < MaxUserEntryLookupSetVal);
+    }
+    else
+    {
+        m_minValidUserEntryLookupValue++;
+        PAL_ASSERT(m_minValidUserEntryLookupValue < MaxUserEntryLookupSetVal);
+    }
     *pValidNumRegs = 0;
 
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -5592,12 +5658,17 @@ uint32* UniversalCmdBuffer::SetSeqUserSgprRegs(
     if ((m_cachedSettings.supportsShPairsPacket   && (onAce == false)) ||
         (m_cachedSettings.supportsShPairsPacketCs && (ShaderType == ShaderCompute)))
     {
-        PackedRegisterPair* pValidRegPairs       = (ShaderType == ShaderCompute) ? m_validUserEntryRegPairsCs
-                                                                                 : m_validUserEntryRegPairs;
-        uint8*              pValidRegPairsLookup = (ShaderType == ShaderCompute) ? m_validUserEntryRegPairsLookupCs
-                                                                                 : m_validUserEntryRegPairsLookup;
-        uint32*             pValidNumRegs        = (ShaderType == ShaderCompute) ? &m_numValidUserEntriesCs
-                                                                                 : &m_numValidUserEntries;
+        PackedRegisterPair* pValidRegPairs          = (ShaderType == ShaderCompute) ? m_validUserEntryRegPairsCs
+                                                                                    : m_validUserEntryRegPairs;
+
+        UserDataEntryLookup* pValidRegPairsLookup   = (ShaderType == ShaderCompute) ? m_validUserEntryRegPairsLookupCs
+                                                                                    : m_validUserEntryRegPairsLookup;
+
+        uint32*             pValidNumRegs           = (ShaderType == ShaderCompute) ? &m_numValidUserEntriesCs
+                                                                                    : &m_numValidUserEntries;
+
+        uint32              minValidRegLookupValue  = (ShaderType == ShaderCompute) ? m_minValidUserEntryLookupValueCs
+                                                                                    : m_minValidUserEntryLookupValue;
 
         uint16 baseUserDataReg  = m_baseUserDataReg[HwShaderStage::Cs];
         uint8  stageLookupIndex = 0;
@@ -5626,6 +5697,7 @@ uint32* UniversalCmdBuffer::SetSeqUserSgprRegs(
                                             pValues,
                                             pValidRegPairs,
                                             &pValidRegPairsLookup[stageLookupIndex],
+                                            minValidRegLookupValue,
                                             pValidNumRegs);
     }
     else
@@ -5750,6 +5822,20 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
 #endif
                                                      pDeCmdSpace);
     } // if shader pipeline stats buffer is mapped by current pipeline
+
+    const uint16 sampleInfoAddr = m_pSignatureGfx->sampleInfoRegAddr;
+    if (HasPipelineChanged && (sampleInfoAddr != UserDataNotMapped))
+    {
+        Abi::ApiSampleInfo sampleInfo;
+        sampleInfo.numSamples = m_graphicsState.numSamplesPerPixel;
+        sampleInfo.samplePatternIdx = Log2(m_graphicsState.numSamplesPerPixel) * MaxMsaaRasterizerSamples;
+        pDeCmdSpace = SetUserSgprReg<ShaderGraphics>(sampleInfoAddr,
+                                                     sampleInfo.u32All,
+#if PAL_BUILD_GFX11
+                                                     false,
+#endif
+                                                     pDeCmdSpace);
+    }
 
     // Update uav export srds if enabled
     const uint16 uavExportEntry = m_pSignatureGfx->uavExportTableAddr;
@@ -5948,6 +6034,7 @@ uint32* UniversalCmdBuffer::ValidateComputeUserData(
                                                                 m_device.GetBaseUserDataReg(HwShaderStage::Cs),
                                                                 m_validUserEntryRegPairsCs,
                                                                 &m_validUserEntryRegPairsLookupCs[0],
+                                                                m_minValidUserEntryLookupValueCs,
                                                                 &m_numValidUserEntriesCs);
         }
     else
@@ -8362,6 +8449,21 @@ uint32* UniversalCmdBuffer::ValidateDrawTimeHwState(
                                                          pDeCmdSpace);
         }
     }
+    const uint16 colorExpRegAddr = m_pSignatureGfx->colorExportAddr;
+    // Write the color export shader entry user data register.
+    if (colorExpRegAddr != UserDataNotMapped)
+    {
+        auto pPipeline = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
+        if (pPipeline->GetColorExportAddr() != 0)
+        {
+            pDeCmdSpace = SetUserSgprReg<ShaderGraphics>(colorExpRegAddr,
+                                                         pPipeline->GetColorExportAddr(),
+#if PAL_BUILD_GFX11
+                                                         false,
+#endif
+                                                         pDeCmdSpace);
+        }
+    }
 
     const bool disableInstancePacking =
         m_workaroundState.DisableInstancePacking<Indirect>(m_graphicsState.inputAssemblyState.topology,
@@ -8853,7 +8955,7 @@ void UniversalCmdBuffer::ValidateDispatchHsaAbi(
     regCOMPUTE_PGM_RSRC2 computePgmRsrc2 = {};
     computePgmRsrc2.u32All = desc.compute_pgm_rsrc2;
 
-    PAL_ASSERT((startReg - mmCOMPUTE_USER_DATA_0) == computePgmRsrc2.bitfields.USER_SGPR);
+    PAL_ASSERT((startReg - mmCOMPUTE_USER_DATA_0) <= computePgmRsrc2.bitfields.USER_SGPR);
 #endif
 
 #if PAL_BUILD_GFX11
@@ -9225,25 +9327,30 @@ uint32* UniversalCmdBuffer::UpdateDbCountControl(
     {
         if (HasActiveQuery)
         {
-            //   Since 8xx, the ZPass count controls have moved to a separate register call DB_COUNT_CONTROL.
-            //   PERFECT_ZPASS_COUNTS forces all partially covered tiles to be detail walked, and not setting it will count
-            //   all HiZ passed tiles as 8x#samples worth of zpasses.  Therefore in order for vis queries to get the right
-            //   zpass counts, PERFECT_ZPASS_COUNTS should be set to 1, but this will hurt performance when z passing
-            //   geometry does not actually write anything (ZFail Shadow volumes for example).
+            // Since 8xx, the ZPass count controls have moved to a separate register call DB_COUNT_CONTROL.
+            // PERFECT_ZPASS_COUNTS forces all partially covered tiles to be detail walked, not setting it will count
+            // all HiZ passed tiles as 8x#samples worth of zpasses. Therefore in order for vis queries to get the right
+            // zpass counts, PERFECT_ZPASS_COUNTS should be set to 1, but this will hurt performance when z passing
+            // geometry does not actually write anything (ZFail Shadow volumes for example).
 
             // Hardware does not enable depth testing when issuing a depth only render pass with depth writes disabled.
             // Unfortunately this corner case prevents depth tiles from being generated and when setting
             // PERFECT_ZPASS_COUNTS = 0, the hardware relies on counting at the tile granularity for binary occlusion
-            // queries.  With the depth test disabled and PERFECT_ZPASS_COUNTS = 0, there will be 0 tiles generated which
+            // queries. With the depth test disabled and PERFECT_ZPASS_COUNTS = 0, there will be 0 tiles generated which
             // will cause the binary occlusion test to always generate depth pass counts of 0.
             // Setting PERFECT_ZPASS_COUNTS = 1 forces tile generation and reliable binary occlusion query results.
             dbCountControl.bits.PERFECT_ZPASS_COUNTS    = 1;
             dbCountControl.bits.ZPASS_ENABLE            = 1;
+        }
 
-            if (IsGfx10Plus(m_gfxIpLevel))
-            {
-                dbCountControl.gfx10Plus.DISABLE_CONSERVATIVE_ZPASS_COUNTS = 1;
-            }
+#if PAL_BUILD_GFX11
+        // Even if ZPASS_ENABLE = 0, we should set this flag or it will force OREO to use blend mode in the late_z path.
+        // There should be no impact on gfx10 so we did the simple thing and made this a general change.
+#endif
+        if (IsGfx10Plus(m_gfxIpLevel))
+        {
+            // This field must be set to match GFX9's PERFECT_ZPASS_COUNTS behavior.
+            dbCountControl.gfx10Plus.DISABLE_CONSERVATIVE_ZPASS_COUNTS = 1;
         }
 
         pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg<pm4OptImmediate>(mmDB_COUNT_CONTROL,
@@ -9990,7 +10097,7 @@ uint32 UniversalCmdBuffer::BuildExecuteIndirectIb2Packets(
                 m_deCmdStream.NotifyIndirectShRegWrite(vtxOffsetReg);
                 m_deCmdStream.NotifyIndirectShRegWrite(instOffsetReg);
 
-                pDeCmdIb2Space += m_cmdUtil.BuildDrawIndirect(
+                pDeCmdIb2Space += CmdUtil::BuildDrawIndirect(
                     pParamData[cmdIndex].argBufOffset,
                     vtxOffsetReg,
                     instOffsetReg,
@@ -10714,20 +10821,12 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
     const auto* const pGfxPipeline = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
     const auto& properties         = gfx9Generator.Properties();
 
-    if (countGpuAddr == 0uLL)
-    {
-        // If the count GPU address is zero, then we are expected to use the maximumCount value as the actual number
-        // of indirect commands to generate and execute.
-        uint32* pMemory = CmdAllocateEmbeddedData(1, 1, &countGpuAddr);
-        *pMemory = maximumCount;
-    }
-
     const uint32 gfxSpillDwords  =
         ((m_pSignatureGfx->spillThreshold <= properties.userDataWatermark) ? properties.maxUserDataEntries : 0);
 
     const bool userDataSpillTableUsedButNotSupported =
         (m_device.Parent()->Settings().useExecuteIndirectPacket < UseExecuteIndirectPacketForDrawSpillTable) &&
-         (gfxSpillDwords > 0);
+        (gfxSpillDwords > 0);
 
     const bool isTaskShaderEnabled = (pGfxPipeline != nullptr) && (pGfxPipeline->IsTaskShaderEnabled());
     PAL_ASSERT((isTaskShaderEnabled == false) || (gfx9Generator.Type() == Pm4::GeneratorType::DispatchMesh));
@@ -10736,10 +10835,20 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
         (userDataSpillTableUsedButNotSupported == false) &&
         (isTaskShaderEnabled == false))
     {
-       ExecuteIndirectPacket(generator, gpuMemory, offset, maximumCount, countGpuAddr);
+        // The case where countGpuAddr is zero is handled by packet.ordinal4.bitfields.core.count_indirect_enable in
+        // Pal::Gfx9::CmdUtil::BuildExecuteIndirect()
+        ExecuteIndirectPacket(generator, gpuMemory, offset, maximumCount, countGpuAddr);
     }
     else
     {
+        if (countGpuAddr == 0uLL)
+        {
+            // If the count GPU address is zero, then we are expected to use the maximumCount value as the actual number
+            // of indirect commands to generate and execute.
+            // If the count GPU address is not zero we use the actual cmd count = min(*countGpuAddr, maximumCount)
+            uint32* pMemory = CmdAllocateEmbeddedData(1, 1, &countGpuAddr);
+            *pMemory = maximumCount;
+        }
         ExecuteIndirectShader(generator, gpuMemory, offset, maximumCount, countGpuAddr);
     }
 }
@@ -11736,8 +11845,8 @@ void UniversalCmdBuffer::CpCopyMemory(
     pCmdSpace += CmdUtil::BuildDmaData<false>(dmaDataInfo, pCmdSpace);
     m_deCmdStream.CommitCommands(pCmdSpace);
 
-    SetPm4CmdBufCpBltState(true);
-    SetPm4CmdBufCpBltWriteCacheState(true);
+    SetCpBltState(true);
+    SetCpBltWriteCacheState(true);
 }
 
 // =====================================================================================================================
@@ -12309,12 +12418,12 @@ uint32* UniversalCmdBuffer::WriteWaitEop(
 
     if (waitAtPfpOrMe)
     {
-        SetPm4CmdBufGfxBltState(false);
-        SetPm4CmdBufCsBltState(false);
+        SetGfxBltState(false);
+        SetCsBltState(false);
 
         if (rbSync == SyncRbWbInv)
         {
-            SetPm4CmdBufGfxBltWriteCacheState(false);
+            SetGfxBltWriteCacheState(false);
         }
 
         // The previous EOP event and wait mean that anything prior to this point, including previous command
@@ -12331,7 +12440,7 @@ uint32* UniversalCmdBuffer::WriteWaitCsIdle(
 {
     pCmdSpace += m_cmdUtil.BuildWaitCsIdle(GetEngineType(), TimestampGpuVirtAddr(), pCmdSpace);
 
-    SetPm4CmdBufCsBltState(false);
+    SetCsBltState(false);
 
     return pCmdSpace;
 }

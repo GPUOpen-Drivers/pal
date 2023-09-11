@@ -1324,6 +1324,15 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
             PAL_ASSERT(Formats::IsUndefined(dstFormat.format) == false);
         }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 817
+        // srgb can be treated as non-srgb when copying from srgb image
+        if (copyInfo.flags.srcAsNorm)
+        {
+            srcFormat.format = Formats::ConvertToUnorm(srcFormat.format);
+            PAL_ASSERT(Formats::IsUndefined(srcFormat.format) == false);
+        }
+#endif
+
         uint32 sizeInDwords                 = 0;
         constexpr uint32 ColorKeyDataDwords = 7;
         const GraphicsPipeline* pPipeline   = nullptr;
@@ -1877,13 +1886,13 @@ void RsrcProcMgr::CmdClearColorImage(
     {
         PAL_ASSERT(pRanges[rangeIdx].numPlanes == 1);
 
-        SubresRange minSlowClearRange      = { };
-        const SubresRange* pSlowClearRange = &minSlowClearRange;
-        const SubresRange& clearRange      = pRanges[rangeIdx];
-        ClearMethod slowClearMethod        = m_pDevice->GetDefaultSlowClearMethod(&dstImage);
+        SubresRange        minSlowClearRange = { };
+        const SubresRange* pSlowClearRange   = &minSlowClearRange;
+        const SubresRange& clearRange        = pRanges[rangeIdx];
 
         const SwizzledFormat& subresourceFormat = dstImage.SubresourceInfo(pRanges[rangeIdx].startSubres)->format;
         const SwizzledFormat& viewFormat        = sameChNumFormat ? subresourceFormat : clearFormat;
+        ClearMethod           slowClearMethod   = m_pDevice->GetDefaultSlowClearMethod(subresourceFormat);
 
 #if PAL_ENABLE_PRINTS_ASSERTS
         CheckImagePlaneSupportsRtvOrUavFormat(*m_pDevice, dstImage, subresourceFormat, viewFormat);
@@ -1965,10 +1974,7 @@ void RsrcProcMgr::CmdClearColorImage(
         // If we couldn't fast clear every range, then we need to slow clear whatever is left over.
         if ((pSlowClearRange->numMips != 0) && (skipIfSlow == false))
         {
-            if (SlowClearUseGraphics(pPm4CmdBuffer,
-                                     dstImage,
-                                     *pSlowClearRange,
-                                     slowClearMethod))
+            if ((slowClearMethod == ClearMethod::NormalGraphics) && pCmdBuffer->IsGraphicsSupported())
             {
                 SlowClearGraphics(pPm4CmdBuffer,
                                   dstImage,
@@ -2700,24 +2706,6 @@ void RsrcProcMgr::CmdCopyMemory(
             pCmdBuffer->CpCopyMemory(dstAddr, srcAddr, pRegions[i].copySize);
         }
     }
-}
-
-// =====================================================================================================================
-bool RsrcProcMgr::SlowClearUseGraphics(
-    Pm4CmdBuffer*      pCmdBuffer,
-    const Image&       dstImage,
-    const SubresRange& clearRange,
-    ClearMethod        method
-    ) const
-{
-    const SwizzledFormat& baseFormat = dstImage.SubresourceInfo(clearRange.startSubres)->format;
-    uint32                texelScale = 1;
-    RpmUtil::GetRawFormat(baseFormat.format, &texelScale, nullptr);
-
-    return (pCmdBuffer->IsGraphicsSupported() &&
-            // Force clears of scaled formats to the compute engine
-            (texelScale == 1)                 &&
-            (method == ClearMethod::NormalGraphics));
 }
 
 // =====================================================================================================================

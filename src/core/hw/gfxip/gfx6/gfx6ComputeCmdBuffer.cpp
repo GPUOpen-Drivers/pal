@@ -138,7 +138,9 @@ void ComputeCmdBuffer::CmdBarrier(
 
     bool splitMemAllocated;
     BarrierInfo splitBarrierInfo = barrierInfo;
-    Result result = Pal::Device::SplitBarrierTransitions(m_device.GetPlatform(), &splitBarrierInfo, &splitMemAllocated);
+    Result result = GfxBarrierMgr::SplitBarrierTransitions(m_device.GetPlatform(),
+                                                           &splitBarrierInfo,
+                                                           &splitMemAllocated);
 
     if (result == Result::ErrorOutOfMemory)
     {
@@ -1235,7 +1237,7 @@ Result ComputeCmdBuffer::AddPostamble()
         // Stalls the CP MEC until the CP's DMA engine has finished all previous "CP blts" (CP_DMA/DMA_DATA commands
         // without the sync bit set). The ring won't wait for CP DMAs to finish so we need to do this manually.
         pCmdSpace += m_cmdUtil.BuildWaitDmaData(pCmdSpace);
-        SetPm4CmdBufCpBltState(false);
+        SetCpBltState(false);
     }
 
     // The following ATOMIC_MEM packet increments the done-count for the command stream, so that we can probe when the
@@ -1306,7 +1308,7 @@ void ComputeCmdBuffer::WriteEventCmd(
         // the time the event is written to memory. Given that our CP DMA blts are asynchronous to the pipeline stages
         // the only way to satisfy this requirement is to force the MEC to stall until the CP DMAs are completed.
         pCmdSpace += m_cmdUtil.BuildWaitDmaData(pCmdSpace);
-        SetPm4CmdBufCpBltState(false);
+        SetCpBltState(false);
     }
 
     if ((pipePoint == HwPipeTop) || (pipePoint == HwPipePreCs))
@@ -1529,15 +1531,15 @@ void ComputeCmdBuffer::CpCopyMemory(
     pCmdSpace += m_cmdUtil.BuildDmaData(dmaDataInfo, pCmdSpace);
     m_cmdStream.CommitCommands(pCmdSpace);
 
-    SetPm4CmdBufCpBltState(true);
+    SetCpBltState(true);
 
     if (supportsL2)
     {
-        SetPm4CmdBufCpBltWriteCacheState(true);
+        SetCpBltWriteCacheState(true);
     }
     else
     {
-        SetPm4CmdBufCpMemoryWriteL2CacheStaleState(true);
+        SetCpMemoryWriteL2CacheStaleState(true);
     }
 }
 

@@ -166,6 +166,8 @@ public:
     bool IsDevDriverProfilingEnabled() const;
     virtual bool IsTracingEnabled() const override;
     virtual bool IsCrashAnalysisModeEnabled() const override;
+    bool IsStaticVmidRequested() const;
+    virtual bool IsRaytracingShaderDataTokenRequested() const override;
     bool ShowDevDriverOverlay() const;
     bool Force32BitVaSpace() const { return m_flags.force32BitVaSpace; }
 

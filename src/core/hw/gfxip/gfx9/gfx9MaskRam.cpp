@@ -4788,9 +4788,10 @@ uint8 Gfx9Dcc::GetFastClearCode(
     // Fast-clear code that is valid for images that won't be texture fetched.
     const Pal::Image*  const     pParent         = image.Parent();
     const Pal::Device* const     pDevice         = pParent->GetDevice();
+    const Device*const           pGfxDevice      = static_cast<Device*>(pDevice->GetGfxDevice());
     const ImageCreateInfo&       createInfo      = pParent->GetImageCreateInfo();
     Gfx9DccClearColor            clearCode       = Gfx9DccClearColor::ClearColorInvalid;
-    const auto&                  settings        = GetGfx9Settings(*image.Parent()->GetDevice());
+    const auto&                  settings        = GetGfx9Settings(*pDevice);
     const SubresId               baseSubResource = clearRange.startSubres;
     const SubResourceInfo* const pSubResInfo     = pParent->SubresourceInfo(baseSubResource);
 
@@ -4802,7 +4803,7 @@ uint8 Gfx9Dcc::GetFastClearCode(
     // to take their request literally and clear to all 0s. With MM formats, a clear code of 0000
     // will end up writing out 16s because the hardware will take 0000 to mean black (16 in YUV land).
     if ((pSubResInfo->flags.supportMetaDataTexFetch != 0) &&
-        (settings.forceRegularClearCode == false)         &&
+        (pGfxDevice->DisableAc01ClearCodes() == false)    &&
         (pParent->UsesMmFormat() == false))
     {
         // Surfaces that are fast cleared to one of the following colors may be texture fetched:

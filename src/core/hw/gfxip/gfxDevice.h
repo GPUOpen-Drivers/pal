@@ -168,11 +168,12 @@ struct GraphicsPipelineInternalCreateInfo
     {
         struct
         {
-            uint32 fastClearElim    :  1; // Fast clear eliminate BLT.
-            uint32 fmaskDecompress  :  1; // FMask decompress BLT.
-            uint32 dccDecompress    :  1; // DCC decompress BLT.
-            uint32 resolveFixedFunc :  1; // Fixed function resolve.
-            uint32 reserved         : 28;
+            uint32 fastClearElim     :  1; // Fast clear eliminate BLT.
+            uint32 fmaskDecompress   :  1; // FMask decompress BLT.
+            uint32 dccDecompress     :  1; // DCC decompress BLT.
+            uint32 resolveFixedFunc  :  1; // Fixed function resolve.
+            uint32 isPartialPipeline :  1; // True if it is a partial pipeline in Graphics shader library
+            uint32 reserved          : 27;
         };
         uint32 u32All;
     } flags;
@@ -214,6 +215,16 @@ struct PackedRegisterPair
     uint32 value0; // Register data to write for offset0.
     uint32 value1; // Register data to write for offset1.
 };
+
+// Struct to track packedRegPair lookup indexes
+typedef struct
+{
+    uint32 lastSetVal;
+    uint8 regIndex;
+
+} UserDataEntryLookup;
+
+constexpr uint32 MaxUserEntryLookupSetVal = UINT32_MAX;
 
 // =====================================================================================================================
 // Sets an offset and value in a packed register pair.
@@ -266,26 +277,31 @@ constexpr uint32 InvalidRegPairLookupIndex = 0xFF;
 // Sets the offset and value of a user-data entry in a packed register pair and updates the associated lookup table.
 template <uint32 RegSpace>
 static void SetOnePackedRegPairLookup(
-    const uint32        regAddr,
-    const uint16        baseRegAddr,
-    const uint32        value,
-    PackedRegisterPair* pRegPairs,
-    uint8*              pRegLookup,
-    uint32*             pNumRegs)
+    const uint32         regAddr,
+    const uint16         baseRegAddr,
+    const uint32         value,
+    PackedRegisterPair*  pRegPairs,
+    UserDataEntryLookup* pRegLookup,
+    uint32               minLookupValue,
+    uint32*              pNumRegs)
 {
     uint32       regIndex     = *pNumRegs;             // Index into the regpair array
     const uint16 lookupIndex  = regAddr - baseRegAddr; // Index into the the reg lookup
 
-    if (pRegLookup[lookupIndex] == InvalidRegPairLookupIndex)
+    PAL_ASSERT((minLookupValue > 0) && (minLookupValue < MaxUserEntryLookupSetVal));
+
+    // If this value hasn't been set since we last invalidated the data, set it now.
+    if (pRegLookup[lookupIndex].lastSetVal < minLookupValue)
     {
-        // If register has not yet been written into the regpair array (pRegPairs) place its index into the lookup
-        pRegLookup[lookupIndex] = regIndex;
+        pRegLookup[lookupIndex].lastSetVal = minLookupValue;
+        pRegLookup[lookupIndex].regIndex   = regIndex;
         (*pNumRegs)++;
     }
     else
     {
-        // Else the register's index is already tracked by the lookup
-        regIndex = pRegLookup[lookupIndex];
+        // This shouldn't ever have a larger value.
+        PAL_ASSERT(pRegLookup[lookupIndex].lastSetVal == minLookupValue);
+        regIndex = pRegLookup[lookupIndex].regIndex;
     }
 
     SetOneRegValPairPacked<RegSpace>(pRegPairs, &regIndex, regAddr, value);
@@ -296,19 +312,26 @@ static void SetOnePackedRegPairLookup(
 // lookup table.
 template <uint32 RegSpace>
 static void SetSeqPackedRegPairLookup(
-    const uint32        startAddr,
-    const uint32        endAddr,
-    const uint16        baseRegAddr,
-    const void*         pValues,
-    PackedRegisterPair* pRegPairs,
-    uint8*              pRegLookup,
-    uint32*             pNumRegs)
+    const uint32         startAddr,
+    const uint32         endAddr,
+    const uint16         baseRegAddr,
+    const void*          pValues,
+    PackedRegisterPair*  pRegPairs,
+    UserDataEntryLookup* pRegLookup,
+    uint32               minLookupValue,
+    uint32*              pNumRegs)
 {
     const uint32* pUints = reinterpret_cast<const uint32*>(pValues);
 
     for (uint32 i = 0; i < endAddr - startAddr + 1; i++)
     {
-        SetOnePackedRegPairLookup<RegSpace>(i + startAddr, baseRegAddr, pUints[i], pRegPairs, pRegLookup, pNumRegs);
+        SetOnePackedRegPairLookup<RegSpace>(i + startAddr,
+                                            baseRegAddr,
+                                            pUints[i],
+                                            pRegPairs,
+                                            pRegLookup,
+                                            minLookupValue,
+                                            pNumRegs);
     }
 }
 #endif
@@ -383,31 +406,6 @@ enum OutOfOrderPrimMode : uint32
     OutOfOrderPrimAggressive = 2,
     OutOfOrderPrimAlways = 3,
 };
-
-constexpr uint32 PipelineStagesGraphicsOnly = PipelineStageVs            |
-                                              PipelineStageHs            |
-                                              PipelineStageDs            |
-                                              PipelineStageGs            |
-                                              PipelineStagePs            |
-                                              PipelineStageEarlyDsTarget |
-                                              PipelineStageLateDsTarget  |
-                                              PipelineStageColorTarget   |
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 770
-                                              PipelineStageStreamOut     |
-#endif
-                                              PipelineStageFetchIndices;
-
-constexpr uint32 CacheCoherencyGraphicsOnly = CoherColorTarget        |
-                                              CoherDepthStencilTarget |
-                                              CoherSampleRate         |
-                                              CoherCeLoad             |
-                                              CoherCeDump             |
-                                              CoherStreamOut          |
-                                              CoherIndexData;
-
-// There are various BLTs(Copy, Clear, and Resolve) that can involve different caches based on what engine
-// does the BLT.
-constexpr uint32 CacheCoherencyBlt = CoherCopy | CoherClear | CoherResolve;
 
 // =====================================================================================================================
 // A helper function to check that a series of addresses and struct-offsets are sequential.
@@ -817,7 +815,15 @@ public:
         PrimitiveTopology topology,
         uint32            patchControlPoints);
 
-    virtual ClearMethod GetDefaultSlowClearMethod(const Pal::Image*  pImage) const;
+    void DescribeBarrier(
+        GfxCmdBuffer*                 pCmdBuf,
+        const BarrierTransition*      pTransition,
+        Developer::BarrierOperations* pOperations) const;
+
+    void DescribeBarrierStart(GfxCmdBuffer* pCmdBuf, uint32 reason, Developer::BarrierType type) const;
+    void DescribeBarrierEnd(GfxCmdBuffer* pCmdBuf, Developer::BarrierOperations* pOperations) const;
+
+    virtual ClearMethod GetDefaultSlowClearMethod(const SwizzledFormat& clearFormat) const;
 
 protected:
     static void FixupDecodedSrdFormat(

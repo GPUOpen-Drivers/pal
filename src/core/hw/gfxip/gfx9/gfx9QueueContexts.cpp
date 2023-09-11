@@ -1696,7 +1696,19 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
         // Prevent the HW from generating one of the black/white clear codes determined by the GetBlackOrWhiteClearCode
         // function.  i.e., an image cleared to "black" would have the HW generating one of the AC01 clear codes and
         // we don't want that if the panel settings requtest the "regular" clear codes (comp-to-single).
-        cbFdccControl.bits.DISABLE_CONSTANT_ENCODE_AC01  = settings.forceRegularClearCode;
+        if (m_pDevice->DisableAc01ClearCodes())
+        {
+            if (settings.waDisableAc01 == Ac01WaForbidAc01)
+            {
+                cbFdccControl.bits.DISABLE_CONSTANT_ENCODE_SINGLE = 1;
+            }
+            else
+            {
+                // We still want to disable AC01, but since the HW bug doesn't apply here, the bits behave in the
+                // expected fashion
+                cbFdccControl.bits.DISABLE_CONSTANT_ENCODE_AC01   = 1;
+            }
+        }
 
 #if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 777)
         cbFdccControl.bits.SAMPLE_MASK_TRACKER_WATERMARK = pPublicSettings->gfx11SampleMaskTrackerWatermark;

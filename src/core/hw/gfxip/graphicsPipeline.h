@@ -41,9 +41,19 @@ public:
     virtual Result Init(
         const GraphicsPipelineCreateInfo&         createInfo,
         const GraphicsPipelineInternalCreateInfo& internalInfo,
-        const AbiReader&                          abiReader,
-        const Util::PalAbi::CodeObjectMetadata&   metadata,
+        const AbiReader*                          pAbiReader,
+        const Util::PalAbi::CodeObjectMetadata*   pMetadata,
         Util::MsgPackReader*                      pMetadataReader);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 816
+    virtual const void* GetCodeObjectWithShaderType(
+        ShaderType shaderType,
+        size_t*    pSize) const override;
+#endif
+
+    virtual Result QueryAllocationInfo(
+        size_t*                    pNumEntries,
+        GpuMemSubAllocInfo* const  pAllocInfoList) const override;
 
     bool IsGsEnabled() const { return m_flags.gsEnabled; }
     bool IsGsOnChip() const { return m_flags.isGsOnchip; }
@@ -73,6 +83,8 @@ public:
     const uint8* TargetWriteMasks() const { return &m_targetWriteMasks[0]; }
     uint8 NumColorTargets() const { return m_numColorTargets; }
 
+    uint32 NumGfxShaderLibraries() const { return m_numGfxShaderLibraries; }
+    const GraphicsShaderLibrary* GetGraphicsShaderLibrary(uint32 index) const { return m_gfxShaderLibraries[index]; }
 protected:
     GraphicsPipeline(Device* pDevice, bool isInternal);
 
@@ -81,6 +93,8 @@ protected:
         const AbiReader&                        abiReader,
         const Util::PalAbi::CodeObjectMetadata& metadata,
         Util::MsgPackReader*                    pMetadataReader) = 0;
+
+    virtual Result LinkGraphicsLibraries(const GraphicsPipelineCreateInfo& createInfo) { return Result::ErrorUnknown; }
 
     bool IsDccDecompress()      const { return m_flags.dccDecompress; }
     bool IsResolveFixedFunc()   const { return m_flags.resolveFixedFunc; }
@@ -94,12 +108,20 @@ protected:
     uint32 GetLateAllocVsLimit() const { return m_lateAllocVsLimit; }
 
 private:
+    void InitFlags(
+        const GraphicsPipelineCreateInfo&         createInfo,
+        const GraphicsPipelineInternalCreateInfo& internalInfo);
+
     Result InitFromPipelineBinary(
         const GraphicsPipelineCreateInfo&         createInfo,
         const GraphicsPipelineInternalCreateInfo& internalInfo,
         const AbiReader&                          abiReader,
         const Util::PalAbi::CodeObjectMetadata&   metadata,
         Util::MsgPackReader*                      pMetadataReader);
+
+    Result InitFromLibraries(
+        const GraphicsPipelineCreateInfo& createInfo,
+        const GraphicsPipelineInternalCreateInfo& internalInfo);
 
     union
     {
@@ -141,6 +163,9 @@ private:
     SwizzledFormat  m_targetSwizzledFormats[MaxColorTargets];
     uint8           m_targetWriteMasks[MaxColorTargets];
     uint8           m_numColorTargets;
+
+    const GraphicsShaderLibrary* m_gfxShaderLibraries[MaxGfxShaderLibraryCount];
+    uint32                       m_numGfxShaderLibraries;
 
     // Use this late_alloc_vs limit if lateAllocVsLimit flag is set.
     uint32  m_lateAllocVsLimit;

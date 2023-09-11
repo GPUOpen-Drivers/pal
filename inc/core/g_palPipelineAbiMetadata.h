@@ -233,6 +233,43 @@ struct HardwareStageMetadata
     } hasEntry;
 };
 
+/// Pixel shader input semantic info.
+struct PsInputSemanticMetadata
+{
+    /// Key for input and output interface match between Ps and pre-raster stage.
+    uint16 semantic;
+
+    union
+    {
+        struct
+        {
+            uint8 semantic : 1;
+            uint8 reserved : 7;
+        };
+        uint8 uAll;
+    } hasEntry;
+};
+
+/// Output semantic info in pre-raster stage which is before pixel shader.
+struct PrerasterOutputSemanticMetadata
+{
+    /// Key for input and output interface match between Ps and pre-raster stage.
+    uint16 semantic;
+    /// Parameter index in pre-raster stage export.
+    uint8  index;
+
+    union
+    {
+        struct
+        {
+            uint8 semantic : 1;
+            uint8 index    : 1;
+            uint8 reserved : 6;
+        };
+        uint8 uAll;
+    } hasEntry;
+};
+
 struct PaClClipCntlMetadata
 {
 
@@ -1834,52 +1871,56 @@ struct ComputeRegisterMetadata
 struct PipelineMetadata
 {
     /// Source name of the pipeline.
-    StringViewType           name;
+    StringViewType                  name;
     /// Pipeline type, e.g. VsPs.
-    Abi::PipelineType        type;
+    Abi::PipelineType               type;
     /// Internal compiler hash for this pipeline.
     /// Lower 64 bits is the "stable" portion of the hash, used for e.g. shader replacement lookup.
     /// Upper 64 bits is the "unique" portion of the hash, used for e.g. pipeline cache lookup.
-    uint64                   internalPipelineHash[2];
+    uint64                          internalPipelineHash[2];
     /// 64-bit hash of the resource mapping used when compiling this pipeline.
-    uint64                   resourceHash;
+    uint64                          resourceHash;
     /// Per-API shader metadata.
-    ShaderMetadata           shader[static_cast<uint32>(Abi::ApiShaderType::Count)];
+    ShaderMetadata                  shader[static_cast<uint32>(Abi::ApiShaderType::Count)];
     /// Per-hardware stage metadata.
-    HardwareStageMetadata    hardwareStage[static_cast<uint32>(Abi::HardwareStage::Count)];
+    HardwareStageMetadata           hardwareStage[static_cast<uint32>(Abi::HardwareStage::Count)];
     /// Per-shader function metadata (offset in bytes into the msgpack blob to map of map). See :ref:`amdgpu-amdpal-
     /// code-object-shader-function-map-table`
-    MsgPackOffset            shaderFunctions;
+    MsgPackOffset                   shaderFunctions;
     /// <Deprecated> Hardware register configuration (offset in bytes into the msgpack blob to map).
-    MsgPackOffset            registers;
+    MsgPackOffset                   registers;
 
     /// Number of user data entries accessed by this pipeline.
-    uint32                   userDataLimit;
+    uint32                          userDataLimit;
     /// The user data spill threshold.  0xFFFF for NoUserDataSpilling.
-    uint32                   spillThreshold;
+    uint32                          spillThreshold;
     /// Size in bytes of LDS space used internally for handling data-passing between the ES and GS shader stages. This
     /// can be zero if the data is passed using off-chip buffers. This value should be used to program all user-SGPRs
     /// which have been marked with "UserDataMapping::EsGsLdsSize" (typically only the GS and VS HW stages will ever
     /// have a user-SGPR so marked).
-    uint32                   esGsLdsSize;
+    uint32                          esGsLdsSize;
     /// Explicit maximum subgroup size for NGG shaders (maximum number of threads in a subgroup).
-    uint32                   nggSubgroupSize;
+    uint32                          nggSubgroupSize;
     /// Graphics only. Number of PS interpolants.
-    uint32                   numInterpolants;
+    uint32                          numInterpolants;
     /// Max mesh shader scratch memory used.
-    uint32                   meshScratchMemorySize;
+    uint32                          meshScratchMemorySize;
 
+    /// Pixel shader input semantic info.
+    PsInputSemanticMetadata         psInputSemantic[32];
+    /// Output semantic info in pre-raster stage which is before pixel shader.
+    PrerasterOutputSemanticMetadata prerasterOutputSemantic[32];
     /// Name of the client graphics API.
-    char                     api[16];
+    char                            api[16];
     /// Graphics API shader create info binary blob. Can be defined by the driver using the compiler if they want to be
     /// able to correlate API-specific information used during creation at a later time.
-    BinaryData               apiCreateInfo;
+    BinaryData                      apiCreateInfo;
     /// Dword stride between vertices in given stream-out-buffer.
-    uint16                   streamoutVertexStrides[4];
+    uint16                          streamoutVertexStrides[4];
     /// Abstracted graphics-only register values.
-    GraphicsRegisterMetadata graphicsRegister;
+    GraphicsRegisterMetadata        graphicsRegister;
     /// Abstracted compute-only register values.
-    ComputeRegisterMetadata  computeRegister;
+    ComputeRegisterMetadata         computeRegister;
 
     union
     {
@@ -1906,32 +1947,34 @@ struct PipelineMetadata
     {
         struct
         {
-            uint32 name                   : 1;
-            uint32 type                   : 1;
-            uint32 internalPipelineHash   : 1;
-            uint32 resourceHash           : 1;
-            uint32 shader                 : 1;
-            uint32 hardwareStage          : 1;
-            uint32 shaderFunctions        : 1;
-            uint32 registers              : 1;
-            uint32 placeholder0           : 1;
-            uint32 userDataLimit          : 1;
-            uint32 spillThreshold         : 1;
-            uint32 usesViewportArrayIndex : 1;
-            uint32 esGsLdsSize            : 1;
-            uint32 nggSubgroupSize        : 1;
-            uint32 numInterpolants        : 1;
-            uint32 meshScratchMemorySize  : 1;
-            uint32 placeholder1           : 1;
-            uint32 api                    : 1;
-            uint32 apiCreateInfo          : 1;
-            uint32 gsOutputsLines         : 1;
-            uint32 psDummyExport          : 1;
-            uint32 psSampleMask           : 1;
-            uint32 streamoutVertexStrides : 1;
-            uint32 graphicsRegister       : 1;
-            uint32 computeRegister        : 1;
-            uint32 reserved               : 7;
+            uint32 name                    : 1;
+            uint32 type                    : 1;
+            uint32 internalPipelineHash    : 1;
+            uint32 resourceHash            : 1;
+            uint32 shader                  : 1;
+            uint32 hardwareStage           : 1;
+            uint32 shaderFunctions         : 1;
+            uint32 registers               : 1;
+            uint32 placeholder0            : 1;
+            uint32 userDataLimit           : 1;
+            uint32 spillThreshold          : 1;
+            uint32 usesViewportArrayIndex  : 1;
+            uint32 esGsLdsSize             : 1;
+            uint32 nggSubgroupSize         : 1;
+            uint32 numInterpolants         : 1;
+            uint32 meshScratchMemorySize   : 1;
+            uint32 placeholder1            : 1;
+            uint32 psInputSemantic         : 1;
+            uint32 prerasterOutputSemantic : 1;
+            uint32 api                     : 1;
+            uint32 apiCreateInfo           : 1;
+            uint32 gsOutputsLines          : 1;
+            uint32 psDummyExport           : 1;
+            uint32 psSampleMask            : 1;
+            uint32 streamoutVertexStrides  : 1;
+            uint32 graphicsRegister        : 1;
+            uint32 computeRegister         : 1;
+            uint32 reserved                : 5;
         };
         uint32 uAll;
     } hasEntry;
@@ -1967,31 +2010,33 @@ namespace CodeObjectMetadataKey
 
 namespace PipelineMetadataKey
 {
-    static constexpr char Name[]                   = ".name";
-    static constexpr char Type[]                   = ".type";
-    static constexpr char InternalPipelineHash[]   = ".internal_pipeline_hash";
-    static constexpr char ResourceHash[]           = ".resource_hash";
-    static constexpr char Shaders[]                = ".shaders";
-    static constexpr char HardwareStages[]         = ".hardware_stages";
-    static constexpr char ShaderFunctions[]        = ".shader_functions";
-    static constexpr char Registers[]              = ".registers";
+    static constexpr char Name[]                    = ".name";
+    static constexpr char Type[]                    = ".type";
+    static constexpr char InternalPipelineHash[]    = ".internal_pipeline_hash";
+    static constexpr char ResourceHash[]            = ".resource_hash";
+    static constexpr char Shaders[]                 = ".shaders";
+    static constexpr char HardwareStages[]          = ".hardware_stages";
+    static constexpr char ShaderFunctions[]         = ".shader_functions";
+    static constexpr char Registers[]               = ".registers";
 
-    static constexpr char UserDataLimit[]          = ".user_data_limit";
-    static constexpr char SpillThreshold[]         = ".spill_threshold";
-    static constexpr char UsesViewportArrayIndex[] = ".uses_viewport_array_index";
-    static constexpr char EsGsLdsSize[]            = ".es_gs_lds_size";
-    static constexpr char NggSubgroupSize[]        = ".nggSubgroupSize";
-    static constexpr char NumInterpolants[]        = ".num_interpolants";
-    static constexpr char MeshScratchMemorySize[]  = ".mesh_scratch_memory_size";
+    static constexpr char UserDataLimit[]           = ".user_data_limit";
+    static constexpr char SpillThreshold[]          = ".spill_threshold";
+    static constexpr char UsesViewportArrayIndex[]  = ".uses_viewport_array_index";
+    static constexpr char EsGsLdsSize[]             = ".es_gs_lds_size";
+    static constexpr char NggSubgroupSize[]         = ".nggSubgroupSize";
+    static constexpr char NumInterpolants[]         = ".num_interpolants";
+    static constexpr char MeshScratchMemorySize[]   = ".mesh_scratch_memory_size";
 
-    static constexpr char Api[]                    = ".api";
-    static constexpr char ApiCreateInfo[]          = ".api_create_info";
-    static constexpr char GsOutputsLines[]         = ".gs_outputs_lines";
-    static constexpr char PsDummyExport[]          = ".ps_dummy_export";
-    static constexpr char PsSampleMask[]           = ".ps_sample_mask";
-    static constexpr char StreamoutVertexStrides[] = ".streamout_vertex_strides";
-    static constexpr char GraphicsRegisters[]      = ".graphics_registers";
-    static constexpr char ComputeRegisters[]       = ".compute_registers";
+    static constexpr char PsInputSemantic[]         = ".ps_input_semantic";
+    static constexpr char PrerasterOutputSemantic[] = ".preraster_output_semantic";
+    static constexpr char Api[]                     = ".api";
+    static constexpr char ApiCreateInfo[]           = ".api_create_info";
+    static constexpr char GsOutputsLines[]          = ".gs_outputs_lines";
+    static constexpr char PsDummyExport[]           = ".ps_dummy_export";
+    static constexpr char PsSampleMask[]            = ".ps_sample_mask";
+    static constexpr char StreamoutVertexStrides[]  = ".streamout_vertex_strides";
+    static constexpr char GraphicsRegisters[]       = ".graphics_registers";
+    static constexpr char ComputeRegisters[]        = ".compute_registers";
 };
 
 namespace ComputeRegisterMetadataKey
@@ -2409,6 +2454,17 @@ namespace PaClClipCntlMetadataKey
     static constexpr char ZclipFarDisable[]     = ".zclip_far_disable";
     static constexpr char RasterizationKill[]   = ".rasterization_kill";
     static constexpr char ClipDisable[]         = ".clip_disable";
+};
+
+namespace PrerasterOutputSemanticMetadataKey
+{
+    static constexpr char Semantic[] = ".semantic";
+    static constexpr char Index[]    = ".index";
+};
+
+namespace PsInputSemanticMetadataKey
+{
+    static constexpr char Semantic[] = ".semantic";
 };
 
 namespace HardwareStageMetadataKey

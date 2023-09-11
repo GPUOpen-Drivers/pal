@@ -72,29 +72,6 @@ struct UserDataTableState
     };
 };
 
-// Acquire/release synchronization event types for supported pipeline event.
-enum class AcqRelEventType : uint32
-{
-    Eop    = 0x0,
-    PsDone = 0x1,
-    CsDone = 0x2,
-    Count,
-
-    Invalid = Count
-};
-
-// Acquire/release synchronization token structure.
-union AcqRelSyncToken
-{
-    struct
-    {
-        uint32 fenceVal : 30;
-        uint32 type     :  2; // AcqRelEventType
-    };
-
-    uint32 u32All;
-};
-
 union Pm4CmdBufferStateFlags
 {
     struct
@@ -209,32 +186,32 @@ public:
         uint32* pDstStageMask,
         uint32* pDstAccessMask) const;
 
-    void SetPm4CmdBufGfxBltState(bool gfxBltActive) { m_pm4CmdBufState.flags.gfxBltActive = gfxBltActive; }
-    void SetPm4CmdBufCsBltState(bool csBltActive) { m_pm4CmdBufState.flags.csBltActive = csBltActive; }
-    void SetPm4CmdBufCpBltState(bool cpBltActive) { m_pm4CmdBufState.flags.cpBltActive = cpBltActive; }
-    void SetPm4CmdBufGfxBltWriteCacheState(bool gfxWriteCacheDirty)
+    void SetGfxBltState(bool gfxBltActive) { m_pm4CmdBufState.flags.gfxBltActive = gfxBltActive; }
+    void SetCsBltState(bool csBltActive) { m_pm4CmdBufState.flags.csBltActive = csBltActive; }
+    void SetCpBltState(bool cpBltActive) { m_pm4CmdBufState.flags.cpBltActive = cpBltActive; }
+    void SetGfxBltWriteCacheState(bool gfxWriteCacheDirty)
         { m_pm4CmdBufState.flags.gfxWriteCachesDirty = gfxWriteCacheDirty; }
-    void SetPm4CmdBufCsBltWriteCacheState(bool csWriteCacheDirty)
+    void SetCsBltWriteCacheState(bool csWriteCacheDirty)
         { m_pm4CmdBufState.flags.csWriteCachesDirty = csWriteCacheDirty; }
-    void SetPm4CmdBufCpBltWriteCacheState(bool cpWriteCacheDirty)
+    void SetCpBltWriteCacheState(bool cpWriteCacheDirty)
         { m_pm4CmdBufState.flags.cpWriteCachesDirty = cpWriteCacheDirty; }
-    void SetPm4CmdBufCpMemoryWriteL2CacheStaleState(bool cpMemoryWriteDirty)
+    void SetCpMemoryWriteL2CacheStaleState(bool cpMemoryWriteDirty)
         { m_pm4CmdBufState.flags.cpMemoryWriteL2CacheStale = cpMemoryWriteDirty; }
 
     // Execution fence value is updated at every BLT. Set it to the next event because its completion indicates all
     // prior BLTs have completed.
-    void UpdatePm4CmdBufGfxBltExecEopFence()
+    void UpdateGfxBltExecEopFence()
     {
         m_pm4CmdBufState.fences.gfxBltExecEopFenceVal = GetCurAcqRelFenceVal(AcqRelEventType::Eop) + 1;
     }
-    void UpdatePm4CmdBufCsBltExecFence()
+    void UpdateCsBltExecFence()
     {
         m_pm4CmdBufState.fences.csBltExecEopFenceVal    = GetCurAcqRelFenceVal(AcqRelEventType::Eop) + 1;
         m_pm4CmdBufState.fences.csBltExecCsDoneFenceVal = GetCurAcqRelFenceVal(AcqRelEventType::CsDone) + 1;
     }
     // Cache write-back fence value is updated at every release event. Completion of current event indicates the cache
     // synchronization has completed too, so set it to current event fence value.
-    void UpdatePm4CmdBufGfxBltWbEopFence(uint32 fenceVal) { m_pm4CmdBufState.fences.gfxBltWbEopFenceVal = fenceVal; }
+    void UpdateGfxBltWbEopFence(uint32 fenceVal) { m_pm4CmdBufState.fences.gfxBltWbEopFenceVal = fenceVal; }
 
     virtual void CmdBeginPerfExperiment(IPerfExperiment* pPerfExperiment) override;
     virtual void CmdUpdatePerfExperimentSqttTokenMask(
@@ -245,14 +222,9 @@ public:
     virtual bool PerfCounterStarted() const override
         { return m_pm4CmdBufState.flags.perfCounterStarted; }
 
-    virtual bool PerfCounterClosed() const override
-        { return m_pm4CmdBufState.flags.perfCounterStopped; }
-
-    virtual bool SqttStarted() const override
-        { return m_pm4CmdBufState.flags.sqttStarted; }
-
-    virtual bool SqttClosed() const override
-        { return m_pm4CmdBufState.flags.sqttStopped; }
+    virtual bool PerfCounterClosed() const override { return m_pm4CmdBufState.flags.perfCounterStopped; }
+    virtual bool SqttStarted() const override { return m_pm4CmdBufState.flags.sqttStarted; }
+    virtual bool SqttClosed() const override { return m_pm4CmdBufState.flags.sqttStopped; }
 
     virtual void CmdSetKernelArguments(
         uint32            firstArg,

@@ -23,7 +23,7 @@
  *
  **********************************************************************************************************************/
 
-#include "core/hw/gfxip/gfx9/gfx9ShaderLibrary.h"
+#include "core/hw/gfxip/gfx9/gfx9ComputeShaderLibrary.h"
 #include "g_gfx9Settings.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
@@ -49,10 +49,10 @@ static_assert(
     "Mismatch in member/s between Abi::ApiShaderSubType and Pal::ShaderSubType!");
 
 // =====================================================================================================================
-ShaderLibrary::ShaderLibrary(
+ComputeShaderLibrary::ComputeShaderLibrary(
     Device* pDevice)
     :
-    Pal::ShaderLibrary(pDevice->Parent()),
+    Pal::ComputeShaderLibrary(pDevice->Parent()),
     m_pDevice(pDevice),
     m_signature(NullCsSignature),
     m_chunkCs(*pDevice, &m_stageInfoCs, nullptr),
@@ -64,7 +64,7 @@ ShaderLibrary::ShaderLibrary(
 }
 
 // =====================================================================================================================
-ShaderLibrary::~ShaderLibrary()
+ComputeShaderLibrary::~ComputeShaderLibrary()
 {
     if (m_pFunctionList != nullptr)
     {
@@ -79,7 +79,7 @@ ShaderLibrary::~ShaderLibrary()
 // =====================================================================================================================
 // Initializes HW-specific state related to this shader library object (register values, user-data mapping, etc.)
 // using the specified library ABI processor.
-Result ShaderLibrary::HwlInit(
+Result ComputeShaderLibrary::HwlInit(
     const ShaderLibraryCreateInfo&    createInfo,
     const AbiReader&                  abiReader,
     const PalAbi::CodeObjectMetadata& metadata,
@@ -187,7 +187,7 @@ Result ShaderLibrary::HwlInit(
 // =====================================================================================================================
 // Update local HwInfo struct, in case later during LinkLibrary phase need to read these value out and update
 // the main shader register values.
-void ShaderLibrary::UpdateHwInfo()
+void ComputeShaderLibrary::UpdateHwInfo()
 {
     m_hwInfo.libRegs.computePgmRsrc1 = m_chunkCs.HwInfo().computePgmRsrc1;
     m_hwInfo.libRegs.computePgmRsrc2 = m_chunkCs.HwInfo().dynamic.computePgmRsrc2;
@@ -196,7 +196,7 @@ void ShaderLibrary::UpdateHwInfo()
 
 // =====================================================================================================================
 // Obtains the compiled shader ISA code for the shader specified.
-Result ShaderLibrary::GetShaderFunctionCode(
+Result ComputeShaderLibrary::GetShaderFunctionCode(
     const char*  pShaderExportName,
     size_t*      pSize,
     void*        pBuffer
@@ -224,7 +224,7 @@ Result ShaderLibrary::GetShaderFunctionCode(
 
 // =====================================================================================================================
 // Obtains the shader pre and post compilation stats/params for the specified shader.
-Result ShaderLibrary::GetShaderFunctionStats(
+Result ComputeShaderLibrary::GetShaderFunctionStats(
     const char*      pShaderExportName,
     ShaderLibStats*  pShaderStats) const
 {
@@ -288,7 +288,7 @@ Result ShaderLibrary::GetShaderFunctionStats(
 
 // =====================================================================================================================
 // Obtains the shader function stack frame size
-Result ShaderLibrary::UnpackShaderFunctionStats(
+Result ComputeShaderLibrary::UnpackShaderFunctionStats(
     const char*                       pShaderExportName,
     const PalAbi::CodeObjectMetadata& metadata,
     Util::MsgPackReader*              pMetadataReader,

@@ -32,6 +32,14 @@ using namespace Pal;
 #include "devDriverServer.h"
 #include "device.h"
 
+struct DriverUtilFeatures
+{
+    bool tracing;
+    bool crashAnalysis;
+    bool raytracingShaderTokens;
+    bool debugVmid;
+};
+
 namespace DriverUtilsService
 {
 
@@ -41,6 +49,8 @@ DriverUtilsService::DriverUtilsService(
     :
     m_isTracingEnabled(false),
     m_crashAnalysisModeEnabled(false),
+    m_raytracingShaderTokenEnabled(false),
+    m_staticVmid(false),
     m_pPlatform(pPlatform)
 {
 }
@@ -99,9 +109,9 @@ DD_RESULT DriverUtilsService::QueryPalDriverInfo(
         jsonWriter.KeyAndBeginMap("driver_info");
         {
             jsonWriter.KeyAndValue("pal_version", PAL_INTERFACE_MAJOR_VERSION);
-            #ifdef PAL_BUILD_BRANCH
-                jsonWriter.KeyAndValue("branch_number", PAL_BUILD_BRANCH);
-            #endif
+#if PAL_BUILD_BRANCH
+            jsonWriter.KeyAndValue("branch_number", PAL_BUILD_BRANCH);
+#endif
         }
         jsonWriter.EndMap();
 
@@ -158,5 +168,30 @@ DD_RESULT DriverUtilsService::QueryPalDriverInfo(
         writer.pfnEnd(writer.pUserdata, result);
     }
     return DD_RESULT_SUCCESS;
+}
+
+// =====================================================================================================================
+DD_RESULT DriverUtilsService::EnableDriverFeatures(
+    const void* pParamBuffer,
+    size_t      paramBufferSize
+)
+{
+    DD_RESULT result = DD_RESULT_SUCCESS;
+
+    if ((paramBufferSize == sizeof(DriverUtilFeatures)) && (pParamBuffer != nullptr))
+    {
+        const DriverUtilFeatures* pUpdate = static_cast<const DriverUtilFeatures*>(pParamBuffer);
+
+        m_isTracingEnabled              = pUpdate->tracing;
+        m_crashAnalysisModeEnabled      = pUpdate->crashAnalysis;
+        m_raytracingShaderTokenEnabled  = pUpdate->raytracingShaderTokens;
+        m_staticVmid                    = pUpdate->debugVmid;
+    }
+    else
+	{
+        result = DD_RESULT_COMMON_INVALID_PARAMETER;
+	}
+
+    return result;
 }
 }

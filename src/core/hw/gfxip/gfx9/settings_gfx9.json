@@ -963,6 +963,46 @@
       "Name": "WaEnableIntrinsicRateEnable"
     },
     {
+      "Description": "If set then disables AC01 (special black and white clear codes)",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "ValidValues": {
+        "IsEnum": true,
+        "Values": [
+          {
+            "Name": "Ac01WaAllowAc01",
+            "Value": 0,
+            "Description": "The workaround is disabled, PAL uses its normal AC01 fast clear logic."
+          },
+          {
+            "Name": "Ac01WaForbidAc01",
+            "Value": 1,
+            "Description": "The workaround is enabled, AC01 fast clears are forbidden."
+          },
+          {
+            "Name": "Ac01WaPublicSetting",
+            "Value": 2,
+            "Description": "The ValidateSettings function replaces this with one of the first two enums based on the public setting."
+          }
+        ],
+        "Name": "Ac01WaState"
+      },
+      "Defaults": {
+        "Default": "Ac01WaAllowAc01"
+      },
+      "OrBuildTypes": [
+        "PAL_BUILD_GFX11"
+      ],
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "enum",
+      "Flags": {
+        "RereadSetting": true
+      },
+      "VariableName": "waDisableAc01",
+      "Name": "WaDisableAc01"
+    },
+    {
       "Description": "If true, the ITERATE_256 bit will always be set and iterate256 optimization will be disabled. Pertains to GFX10 only",
       "Tags": [
         "Depth/Stencil",
@@ -2093,7 +2133,10 @@
         "Gfx10"
       ],
       "Defaults": {
-        "Default": 1024
+        "Default": 256
+      },
+      "Flags": {
+        "RereadSetting": true
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",

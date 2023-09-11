@@ -122,38 +122,42 @@ static void SetSeqShRegValPairPacked(
 // =====================================================================================================================
 // Sets the offset and value of a user data entry in a packed register pair.
 static void SetOneUserDataEntryPairPackedValue(
-    const uint32        regAddr,
-    const uint16        baseUserDataReg,
-    const uint32        value,
-    PackedRegisterPair* pValidRegPairs,
-    uint8*              pValidRegsLookup,
-    uint32*             pNumValidRegs)
+    const uint32         regAddr,
+    const uint16         baseUserDataReg,
+    const uint32         value,
+    PackedRegisterPair*  pValidRegPairs,
+    UserDataEntryLookup* pRegLookup,
+    uint32               minLookupValue,
+    uint32*              pNumValidRegs)
 {
     SetOnePackedRegPairLookup<PERSISTENT_SPACE_START>(regAddr,
                                                       baseUserDataReg,
                                                       value,
                                                       pValidRegPairs,
-                                                      pValidRegsLookup,
+                                                      pRegLookup,
+                                                      minLookupValue,
                                                       pNumValidRegs);
 }
 
 // =====================================================================================================================
 // Sets offsets and values of a sequence of consecutive user data entries in packed register pairs.
 static void SetSeqUserDataEntryPairPackedValues(
-    const uint32        startAddr,
-    const uint32        endAddr,
-    const uint16        baseUserDataReg,
-    const void*         pValues,
-    PackedRegisterPair* pValidRegPairs,
-    uint8*              pValidRegsLookup,
-    uint32*             pNumValidRegs)
+    const uint32         startAddr,
+    const uint32         endAddr,
+    const uint16         baseUserDataReg,
+    const void*          pValues,
+    PackedRegisterPair*  pValidRegPairs,
+    UserDataEntryLookup* pRegLookup,
+    uint32               minLookupValue,
+    uint32*              pNumValidRegs)
 {
     SetSeqPackedRegPairLookup<PERSISTENT_SPACE_START>(startAddr,
                                                       endAddr,
                                                       baseUserDataReg,
                                                       pValues,
                                                       pValidRegPairs,
-                                                      pValidRegsLookup,
+                                                      pRegLookup,
+                                                      minLookupValue,
                                                       pNumValidRegs);
 }
 #endif
@@ -612,9 +616,11 @@ public:
     Result AllocateVertexAttributesMem(bool isTmz);
 #endif
 
-    virtual ClearMethod  GetDefaultSlowClearMethod(const Pal::Image*  pImage) const override;
+    virtual ClearMethod GetDefaultSlowClearMethod(const SwizzledFormat& clearFormat) const override;
 
     const BarrierMgr* BarrierMgr() const { return &m_barrierMgr; }
+
+    bool DisableAc01ClearCodes() const;
 
 private:
     void Gfx10SetImageSrdDims(sq_img_rsrc_t*  pSrd, uint32 width, uint32  height) const;

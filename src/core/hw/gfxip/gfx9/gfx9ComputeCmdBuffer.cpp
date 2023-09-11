@@ -68,6 +68,7 @@ ComputeCmdBuffer::ComputeCmdBuffer(
     m_supportsShPairsPacketCs(device.Settings().gfx11EnableShRegPairOptimizationCs),
     m_validUserEntryRegPairsCs{},
     m_numValidUserEntriesCs(0),
+    m_minValidUserEntryLookupValueCs(1),
 #endif
     m_predGpuAddr(0),
     m_inheritedPredication(false),
@@ -77,7 +78,7 @@ ComputeCmdBuffer::ComputeCmdBuffer(
     m_engineSupport = CmdBufferEngineSupport::Compute | CmdBufferEngineSupport::CpDma;
 
 #if PAL_BUILD_GFX11
-    memset(&m_validUserEntryRegPairsLookupCs[0], InvalidRegPairLookupIndex, sizeof(m_validUserEntryRegPairsLookupCs));
+    memset(&m_validUserEntryRegPairsLookupCs[0], 0, sizeof(m_validUserEntryRegPairsLookupCs));
 #endif
 
     // Assume PAL ABI compute pipelines by default.
@@ -111,8 +112,12 @@ void ComputeCmdBuffer::ResetState()
 
 #if PAL_BUILD_GFX11
     // All user data entries are invalid upon a state reset.
-    memset(&m_validUserEntryRegPairsLookupCs[0], InvalidRegPairLookupIndex, sizeof(m_validUserEntryRegPairsLookupCs));
-    m_numValidUserEntriesCs = 0;
+    if (m_numValidUserEntriesCs > 0)
+    {
+        memset(&m_validUserEntryRegPairsLookupCs[0], 0, sizeof(m_validUserEntryRegPairsLookupCs));
+        m_minValidUserEntryLookupValueCs = 1;
+        m_numValidUserEntriesCs = 0;
+    }
 #endif
 
     // Command buffers start without a valid predicate GPU address.
@@ -657,6 +662,7 @@ uint32* ComputeCmdBuffer::SetSeqUserSgprRegs(
                                             pValues,
                                             m_validUserEntryRegPairsCs,
                                             &m_validUserEntryRegPairsLookupCs[0],
+                                            m_minValidUserEntryLookupValueCs,
                                             &m_numValidUserEntriesCs);
     }
     else
@@ -704,6 +710,7 @@ uint32* ComputeCmdBuffer::ValidateUserData(
                                                                 m_baseUserDataRegCs,
                                                                 m_validUserEntryRegPairsCs,
                                                                 &m_validUserEntryRegPairsLookupCs[0],
+                                                                m_minValidUserEntryLookupValueCs,
                                                                 &m_numValidUserEntriesCs);
         }
         else
@@ -1030,7 +1037,7 @@ uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
     regCOMPUTE_PGM_RSRC2 computePgmRsrc2 = {};
     computePgmRsrc2.u32All = desc.compute_pgm_rsrc2;
 
-    PAL_ASSERT((startReg - mmCOMPUTE_USER_DATA_0) == computePgmRsrc2.bitfields.USER_SGPR);
+    PAL_ASSERT((startReg - mmCOMPUTE_USER_DATA_0) <= computePgmRsrc2.bitfields.USER_SGPR);
 #endif
 
 #if PAL_BUILD_GFX11
@@ -1101,6 +1108,7 @@ bool ComputeCmdBuffer::FixupUserSgprsOnPipelineSwitch(
                                                                m_baseUserDataRegCs,
                                                                m_validUserEntryRegPairsCs,
                                                                &m_validUserEntryRegPairsLookupCs[0],
+                                                               m_minValidUserEntryLookupValueCs,
                                                                &m_numValidUserEntriesCs);
         }
         else
@@ -1132,7 +1140,8 @@ uint32* ComputeCmdBuffer::WritePackedUserDataEntriesToSgprs(
                                                                                pCmdSpace);
 
     // All entries are invalid once written to the command stream.
-    memset(&m_validUserEntryRegPairsLookupCs[0], InvalidRegPairLookupIndex, sizeof(m_validUserEntryRegPairsLookupCs));
+    m_minValidUserEntryLookupValueCs++;
+    PAL_ASSERT(m_minValidUserEntryLookupValueCs < MaxUserEntryLookupSetVal);
     m_numValidUserEntriesCs = 0;
 
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -1458,7 +1467,7 @@ Result ComputeCmdBuffer::WritePostambleCommands(
         // Stalls the CP MEC until the CP's DMA engine has finished all previous "CP blts" (DMA_DATA commands
         // without the sync bit set). The ring won't wait for CP DMAs to finish so we need to do this manually.
         pCmdSpace += cmdUtil.BuildWaitDmaData(pCmdSpace);
-        pCmdBuffer->SetPm4CmdBufCpBltState(false);
+        pCmdBuffer->SetCpBltState(false);
     }
 
     // The following ATOMIC_MEM packet increments the done-count for the command stream, so that we can probe when the
@@ -1543,7 +1552,7 @@ void ComputeCmdBuffer::WriteEventCmd(
         // the time the event is written to memory. Given that our CP DMA blts are asynchronous to the pipeline stages
         // the only way to satisfy this requirement is to force the MEC to stall until the CP DMAs are completed.
         pCmdSpace += m_cmdUtil.BuildWaitDmaData(pCmdSpace);
-        SetPm4CmdBufCpBltState(false);
+        SetCpBltState(false);
     }
 
     if ((pipePoint == HwPipeTop) || (pipePoint == HwPipePreCs))
@@ -1968,8 +1977,8 @@ void ComputeCmdBuffer::CpCopyMemory(
     pCmdSpace += m_cmdUtil.BuildDmaData<false>(dmaDataInfo, pCmdSpace);
     m_cmdStream.CommitCommands(pCmdSpace);
 
-    SetPm4CmdBufCpBltState(true);
-    SetPm4CmdBufCpBltWriteCacheState(true);
+    SetCpBltState(true);
+    SetCpBltWriteCacheState(true);
 }
 
 // =====================================================================================================================
@@ -2014,7 +2023,7 @@ uint32* ComputeCmdBuffer::WriteWaitEop(
         pCmdSpace += m_cmdUtil.BuildAcquireMemGeneric(acquireInfo, pCmdSpace);
     }
 
-    SetPm4CmdBufCsBltState(false);
+    SetCsBltState(false);
     SetPrevCmdBufInactive();
 
     return pCmdSpace;
@@ -2026,7 +2035,7 @@ uint32* ComputeCmdBuffer::WriteWaitCsIdle(
 {
     pCmdSpace += m_cmdUtil.BuildWaitCsIdle(GetEngineType(), TimestampGpuVirtAddr(), pCmdSpace);
 
-    SetPm4CmdBufCsBltState(false);
+    SetCsBltState(false);
 
     return pCmdSpace;
 }

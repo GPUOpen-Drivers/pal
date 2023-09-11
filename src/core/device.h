@@ -1229,16 +1229,6 @@ public:
         const SubresRange** ppSplitRanges,
         bool*               pMemAllocated) const;
 
-    static Result SplitBarrierTransitions(
-        Platform*    pPlatform,
-        BarrierInfo* pBarrier,
-        bool*        pMemAllocated);
-
-    static Result SplitImgBarriers(
-        Platform*           pPlatform,
-        AcquireReleaseInfo* pBarrier,
-        bool*               pMemAllocated);
-
     virtual Result QueryRawApplicationProfile(
         const wchar_t*           pFilename,
         const wchar_t*           pPathname,

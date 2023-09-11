@@ -71,6 +71,17 @@ public:
         uint32  mode;   // Bitmask for the file-mode information.
         uint32  dev;    // Drive number of the disk containing the file.
 
+        union
+        {
+            struct
+            {
+                uint32  isDir       :  1;
+                uint32  isRegular   :  1;
+                uint32  reserved    : 30;
+            };
+            uint32 u32All;
+        } flags;
+
         // Common stat members omitted from this structure:
         // uid, gid, and ino because it's not used on Windows
         // rdev because it's a duplicate of dev

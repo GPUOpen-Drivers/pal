@@ -935,41 +935,41 @@ void BarrierMgr::IssueSyncs(
     if (syncReqs.waitOnEopTs ||
         (isFullRange && ((syncReqs.cbTargetStall != 0) || (syncReqs.dbTargetStall != 0))))
     {
-        pCmdBuf->SetPm4CmdBufGfxBltState(false);
+        pCmdBuf->SetGfxBltState(false);
     }
 
     if ((pCmdBuf->GetPm4CmdBufState().flags.gfxBltActive == false) &&
         (TestAnyFlagSet(origRbCaches, SyncRbWbInv) && (syncReqs.waitOnEopTs != 0)))
     {
-        pCmdBuf->SetPm4CmdBufGfxBltWriteCacheState(false);
+        pCmdBuf->SetGfxBltWriteCacheState(false);
     }
 
     if (syncReqs.waitOnEopTs || syncReqs.csPartialFlush)
     {
-        pCmdBuf->SetPm4CmdBufCsBltState(false);
+        pCmdBuf->SetCsBltState(false);
     }
 
     if ((pCmdBuf->GetPm4CmdBufState().flags.csBltActive == false) &&
         TestAllFlagsSet(origGlxCaches, SyncGl2Wb | SyncGlmInv | SyncGl1Inv | SyncGlvInv | SyncGlkInv))
     {
-        pCmdBuf->SetPm4CmdBufCsBltWriteCacheState(false);
+        pCmdBuf->SetCsBltWriteCacheState(false);
     }
 
     if (syncReqs.syncCpDma)
     {
-        pCmdBuf->SetPm4CmdBufCpBltState(false);
+        pCmdBuf->SetCpBltState(false);
     }
 
     if (pCmdBuf->GetPm4CmdBufState().flags.cpBltActive == false)
     {
         if (TestAnyFlagSet(origGlxCaches, SyncGl2Wb))
         {
-            pCmdBuf->SetPm4CmdBufCpBltWriteCacheState(false);
+            pCmdBuf->SetCpBltWriteCacheState(false);
         }
 
         if (TestAnyFlagSet(origGlxCaches, SyncGl2Inv))
         {
-            pCmdBuf->SetPm4CmdBufCpMemoryWriteL2CacheStaleState(false);
+            pCmdBuf->SetCpMemoryWriteL2CacheStaleState(false);
         }
     }
 }
@@ -1143,7 +1143,7 @@ void BarrierMgr::Barrier(
         uint32 srcCacheMask = (barrier.globalSrcCacheMask | transition.srcCacheMask);
         uint32 dstCacheMask = (barrier.globalDstCacheMask | transition.dstCacheMask);
 
-        pCmdBuf->OptimizeSrcCacheMask(&srcCacheMask);
+        OptimizeSrcCacheMask(pCmdBuf, &srcCacheMask);
 
         // MaybeL2Mask is a mask of usages that may or may not read/write through the L2 cache.
         constexpr uint32 MaybeL2Mask = AlwaysL2Mask;

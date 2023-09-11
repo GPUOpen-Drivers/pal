@@ -46,6 +46,7 @@ namespace Pal
 class CmdBuffer;
 class CmdStream;
 class PipelineUploader;
+class GraphicsShaderLibrary;
 
 // Represents information about shader operations stored obtained as shader metadata flags during processing of shader
 // IL stream.
@@ -114,6 +115,27 @@ constexpr uint32 InvalidUserDataInternalTable = UINT32_MAX;
 // Shorthand for a pipeline ABI reader.
 using AbiReader = Util::Abi::PipelineAbiReader;
 
+// Converts Pal shader type to Abi Shader type.
+static Util::Abi::ApiShaderType PalShaderTypeToAbiShaderType(ShaderType stage)
+{
+    constexpr Util::Abi::ApiShaderType PalToAbiShaderType[] =
+    {
+        Util::Abi::ApiShaderType::Cs, // ShaderType::Cs
+        Util::Abi::ApiShaderType::Task,
+        Util::Abi::ApiShaderType::Vs, // ShaderType::Vs
+        Util::Abi::ApiShaderType::Hs, // ShaderType::Hs
+        Util::Abi::ApiShaderType::Ds, // ShaderType::Ds
+        Util::Abi::ApiShaderType::Gs, // ShaderType::Gs
+        Util::Abi::ApiShaderType::Mesh,
+        Util::Abi::ApiShaderType::Ps, // ShaderType::Ps
+    };
+    static_assert(Util::ArrayLen(PalToAbiShaderType) == NumShaderTypes,
+        "PalToAbiShaderType[] array is incorrectly sized!");
+    return PalToAbiShaderType[static_cast<uint32>(stage)];
+}
+
+constexpr uint32 MaxGfxShaderLibraryCount = 3;
+
 // =====================================================================================================================
 // Monolithic object containing all shaders and a large amount of "shader adjacent" state.  Separate concrete
 // implementations will support compute or graphics pipelines.
@@ -139,6 +161,11 @@ public:
     virtual Result GetCodeObject(
         uint32*  pSize,
         void*    pBuffer) const override;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 816
+    virtual const void* GetCodeObjectWithShaderType(
+        ShaderType shaderType,
+        size_t*    pSize) const override;
+#endif
 
     virtual Result GetPerformanceData(
         Util::Abi::HardwareStage hardwareStage,
@@ -210,6 +237,7 @@ protected:
     virtual const ShaderStageInfo* GetShaderStageInfo(ShaderType shaderType) const = 0;
 
     Result GetShaderStatsForStage(
+        ShaderType             shaderType,
         const ShaderStageInfo& stageInfo,
         const ShaderStageInfo* pStageInfoCopy,
         ShaderStats*           pStats) const;

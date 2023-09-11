@@ -25,13 +25,14 @@
 
 #include "core/platform.h"
 #include "core/hw/gfxip/computePipeline.h"
-#include "core/hw/gfxip/gfx9/gfx9ShaderLibrary.h"
+#include "core/hw/gfxip/gfx9/gfx9ComputeShaderLibrary.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdStream.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"
 #include "core/hw/gfxip/gfx9/gfx9ComputePipeline.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9GraphicsPipeline.h"
 #include "core/hw/gfxip/gfx9/gfx9PipelineChunkCs.h"
+#include "core/hw/gfxip/gfx9/gfx9PipelineChunkGs.h"
 #include "core/hw/gfxip/gfx9/gfx9AbiToPipelineRegisters.h"
 #include "palHsaAbiMetadata.h"
 
@@ -68,28 +69,31 @@ void PipelineChunkCs::DoLateInit(
     PipelineUploader* pUploader)
 {
     GpuSymbol symbol = { };
-    if (pUploader->GetPipelineGpuSymbol(Abi::PipelineSymbolType::CsMainEntry, &symbol) == Result::Success)
+    if (pUploader != nullptr)
     {
-        m_pStageInfo->codeLength = static_cast<size_t>(symbol.size);
-        PAL_ASSERT(IsPow2Aligned(symbol.gpuVirtAddr, 256u));
+        if (pUploader->GetPipelineGpuSymbol(Abi::PipelineSymbolType::CsMainEntry, &symbol) == Result::Success)
+        {
+            m_pStageInfo->codeLength = static_cast<size_t>(symbol.size);
+            PAL_ASSERT(IsPow2Aligned(symbol.gpuVirtAddr, 256u));
 
-        m_regs.computePgmLo.bits.DATA = Get256BAddrLo(symbol.gpuVirtAddr);
-    }
+            m_regs.computePgmLo.bits.DATA = Get256BAddrLo(symbol.gpuVirtAddr);
+        }
 
-    if (pUploader->GetPipelineGpuSymbol(Abi::PipelineSymbolType::CsShdrIntrlTblPtr, &symbol) == Result::Success)
-    {
-        m_regs.userDataInternalTable.bits.DATA = LowPart(symbol.gpuVirtAddr);
+        if (pUploader->GetPipelineGpuSymbol(Abi::PipelineSymbolType::CsShdrIntrlTblPtr, &symbol) == Result::Success)
+        {
+            m_regs.userDataInternalTable.bits.DATA = LowPart(symbol.gpuVirtAddr);
+        }
+
+        if (m_device.CoreSettings().pipelinePrefetchEnable)
+        {
+            m_prefetchAddr = pUploader->PrefetchAddr();
+            m_prefetchSize = pUploader->PrefetchSize();
+        }
     }
 
     pThreadsPerTg->x = m_regs.computeNumThreadX.bits.NUM_THREAD_FULL;
     pThreadsPerTg->y = m_regs.computeNumThreadY.bits.NUM_THREAD_FULL;
     pThreadsPerTg->z = m_regs.computeNumThreadZ.bits.NUM_THREAD_FULL;
-
-    if (m_device.CoreSettings().pipelinePrefetchEnable)
-    {
-        m_prefetchAddr = pUploader->PrefetchAddr();
-        m_prefetchSize = pUploader->PrefetchSize();
-    }
 }
 
 // =====================================================================================================================
@@ -132,6 +136,35 @@ void PipelineChunkCs::LateInit(
         wavefrontSize);
 
     DoLateInit(pThreadsPerTg, pUploader);
+}
+
+// =====================================================================================================================
+void PipelineChunkCs::InitGpuAddrFromMesh(
+    const AbiReader&       abiReader,
+    const PipelineChunkGs& chunkGs)
+{
+    const Elf::SymbolTableEntry* pCsMainEntry = abiReader.GetPipelineSymbol(Abi::PipelineSymbolType::CsMainEntry);
+    const Elf::SymbolTableEntry* pGsMainEntry = abiReader.GetPipelineSymbol(Abi::PipelineSymbolType::GsMainEntry);
+    if ((pCsMainEntry != nullptr) && (pGsMainEntry != nullptr))
+    {
+        m_pStageInfo->codeLength = static_cast<size_t>(pCsMainEntry->st_size);
+        gpusize gsGpuVa = chunkGs.EsProgramGpuVa();
+        gpusize csGpuVa = gsGpuVa + pCsMainEntry->st_value - pGsMainEntry->st_value;
+        PAL_ASSERT(IsPow2Aligned(gsGpuVa, 256u));
+        PAL_ASSERT(IsPow2Aligned(csGpuVa, 256u));
+        m_regs.computePgmLo.bits.DATA = Get256BAddrLo(csGpuVa);
+    }
+
+    const Elf::SymbolTableEntry* pCsInternalTable =
+        abiReader.GetPipelineSymbol(Abi::PipelineSymbolType::CsShdrIntrlTblPtr);
+    const Elf::SymbolTableEntry* pGsInternalTable =
+        abiReader.GetPipelineSymbol(Abi::PipelineSymbolType::GsShdrIntrlTblPtr);
+    if ((pCsInternalTable != nullptr) && (pGsInternalTable != nullptr))
+    {
+        uint32 gsTableLoVa = chunkGs.UserDataInternalTableLoVa();
+        uint32 csTableLoVa = gsTableLoVa + pCsInternalTable->st_value - pGsInternalTable->st_value;
+        m_regs.userDataInternalTable.bits.DATA = csTableLoVa;
+    }
 }
 
 // =====================================================================================================================
@@ -909,6 +942,15 @@ Result PipelineChunkCs::CreateLaunchDescriptor(
     memcpy(pOut, &layout, sizeof(layout));
 
     return Result::Success;
+}
+
+// =====================================================================================================================
+void PipelineChunkCs::Clone(
+    const PipelineChunkCs& chunkCs)
+{
+    m_regs = chunkCs.m_regs;
+    m_prefetchAddr = chunkCs.m_prefetchAddr;
+    m_prefetchSize = chunkCs.m_prefetchSize;
 }
 
 } // Gfx9

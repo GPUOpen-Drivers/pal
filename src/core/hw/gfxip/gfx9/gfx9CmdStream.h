@@ -143,7 +143,8 @@ public:
         const UserDataEntries&  entries,
         const uint16            baseUserDataReg,
         PackedRegisterPair*     pValidRegPairs,
-        uint8*                  pValidRegsLookup,
+        UserDataEntryLookup*    pRegLookup,
+        uint32                  minLookupVal,
         uint32*                 pNumValidRegs);
 
     template <Pm4ShaderType ShaderType, bool Pm4OptImmediate>

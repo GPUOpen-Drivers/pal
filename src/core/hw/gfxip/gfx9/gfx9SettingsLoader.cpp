@@ -426,6 +426,14 @@ void SettingsLoader::ValidateSettings(
             0 : Clamp(m_settings.gfx11SampleMaskTrackerWatermark, 3u, 15u));
 #endif
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 818
+        // Replace the "PublicSetting" enum with a final value. The rest of PAL can ignore Ac01WaPublicSetting.
+        if (m_settings.waDisableAc01 == Ac01WaPublicSetting)
+        {
+            m_settings.waDisableAc01 = pPalSettings->ac01WaNotNeeded ? Ac01WaAllowAc01 : Ac01WaForbidAc01;
+        }
+#endif
+
     }
     else
     {
@@ -801,12 +809,12 @@ static void SetupGfx11Workarounds(
     PAL_ASSERT(waFound);
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-    constexpr uint32 HandledWaMask[] = { 0x1E793001, 0x00000B00 }; // Workarounds handled by PAL.
+    constexpr uint32 HandledWaMask[] = { 0x1E793001, 0x00004B00 }; // Workarounds handled by PAL.
     constexpr uint32 OutsideWaMask[] = { 0xE0068DFE, 0x000014FC }; // Workarounds handled by other components.
     constexpr uint32 MissingWaMask[] = { 0x00004000, 0x00002001 }; // Workarounds that should be handled by PAL that
                                                                    // are not yet implemented or are unlikey to be
                                                                    // implemented.
-    constexpr uint32 InvalidWaMask[] = { 0x01800200, 0x00000002 }; // Workarounds marked invalid, thus not handled.
+    constexpr uint32 InvalidWaMask[] = { 0x01800200, 0x00002002 }; // Workarounds marked invalid, thus not handled.
     static_assert((sizeof(HandledWaMask) == sizeof(Gfx11InactiveMask)) &&
                   (sizeof(OutsideWaMask) == sizeof(Gfx11InactiveMask)) &&
                   (sizeof(MissingWaMask) == sizeof(Gfx11InactiveMask)) &&
@@ -819,7 +827,7 @@ static void SetupGfx11Workarounds(
                   "Workaround Masks do not match!");
 #endif
 
-    static_assert(Gfx11NumWorkarounds == 46, "Workaround count mismatch between PAL and SWD");
+    static_assert(Gfx11NumWorkarounds == 47, "Workaround count mismatch between PAL and SWD");
 
 #if PAL_BUILD_NAVI31
     if (workarounds.ppPbbPBBBreakBatchDifferenceWithPrimLimit_FpovLimit_DeallocLimit_A_)
@@ -854,6 +862,16 @@ static void SetupGfx11Workarounds(
     // determined that "intrinsic rate enable" has better performance.
     pSettings->gfx11DisableRbPlusWithBlending = false;
     pSettings->waEnableIntrinsicRateEnable    = workarounds.sioSpiBciSPI_TheOverRestrictedExportConflictHQ_HoldingQueue_PtrRuleMayReduceTheTheoreticalExpGrantThroughput_PotentiallyIncreaseOldNewPSWavesInterleavingChances_A_;
+#endif
+
+    // This workaround requires disabling use of the AC01 clear codees, which is what the "force regular clear code"
+    // panel setting is already designed to do.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 818
+    if (workarounds.ppCbGFX11DCC31DXXPNeedForSpeedHeat_BlackFlickeringDotCorruption_A_ != 0)
+    {
+        // Note that the public setting defaults to "enable the workaround".
+        pSettings->waDisableAc01 = Ac01WaPublicSetting;
+    }
 #endif
 
     pSettings->waSqgTtWptrOffsetFixup = workarounds.shaderSqSqgSQGTTWPTRIssues_A_;
@@ -1001,6 +1019,8 @@ void SettingsLoader::OverrideDefaults(
     else if (IsGfx11(device))
     {
         SetupGfx11Workarounds(device, &m_settings);
+
+        m_settings.numTsMsDrawEntriesPerSe = 1024;
 
         // GFX11 supports modifying the group size.  Use the maximum setting.
         m_settings.ldsPsGroupSize = Gfx10LdsPsGroupSize::Gfx10LdsPsGroupSizeDouble;

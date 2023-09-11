@@ -24,18 +24,11 @@
  **********************************************************************************************************************/
 
 #include "core/hw/gfxip/shaderLibrary.h"
-#include "palMsgPackImpl.h"
-#include "palVectorImpl.h"
-#include "g_palPipelineAbiMetadataImpl.h"
 
 using namespace Util;
 
 namespace Pal
 {
-
-// GPU memory alignment for shader programs.
-constexpr size_t GpuMemByteAlign = 256;
-
 // =====================================================================================================================
 ShaderLibrary::ShaderLibrary(
     Device* pDevice)
@@ -43,15 +36,9 @@ ShaderLibrary::ShaderLibrary(
     Pal::IShaderLibrary(),
     m_pDevice(pDevice),
     m_info{},
+    m_flags{},
     m_pCodeObjectBinary(nullptr),
-    m_codeObjectBinaryLen(0),
-    m_gpuMem(),
-    m_gpuMemSize(0),
-    m_maxStackSizeInBytes(0),
-    m_uploadFenceToken(0),
-    m_pagingFenceVal(0),
-    m_perfDataMem(),
-    m_perfDataGpuMemSize(0)
+    m_codeObjectBinaryLen(0)
 {
 }
 
@@ -105,17 +92,14 @@ Result ShaderLibrary::InitFromCodeObjectBinary(
     PAL_ASSERT((m_pCodeObjectBinary != nullptr) && (m_codeObjectBinaryLen != 0));
 
     ExtractLibraryInfo(metadata);
-    DumpLibraryElf("LibraryCs", metadata.pipeline.name);
+    DumpLibraryElf(createInfo.flags.isGraphics? "LibraryGraphics": "LibraryCs", metadata.pipeline.name);
 
-    Result result = pMetadataReader->Seek(metadata.pipeline.shaderFunctions);
+    Result result = HwlInit(createInfo, abiReader, metadata, pMetadataReader);
 
     if (result == Result::Success)
     {
-        result = ExtractShaderFunctions(pMetadataReader);
+        result = PostInit(metadata, pMetadataReader);
     }
-
-    result = HwlInit(createInfo, abiReader, metadata, pMetadataReader);
-
     return result;
 }
 
@@ -129,98 +113,6 @@ void ShaderLibrary::ExtractLibraryInfo(
 
     // We don't expect the pipeline ABI to report a hash of zero.
     PAL_ALERT((metadata.pipeline.internalPipelineHash[0] | metadata.pipeline.internalPipelineHash[1]) == 0);
-}
-
-// =====================================================================================================================
-// Helper function for extracting shader function metadata.
-Result ShaderLibrary::ExtractShaderFunctions(
-    Util::MsgPackReader* pReader)
-{
-    Result result    = (pReader->Type() == CWP_ITEM_MAP) ? Result::Success : Result::ErrorInvalidValue;
-    const auto& item = pReader->Get().as;
-
-    for (uint32 i = item.map.size; ((result == Result::Success) && (i > 0)); --i)
-    {
-        ShaderFuncStats stats = {};
-
-        result = pReader->Next(CWP_ITEM_STR);
-        if (result == Result::Success)
-        {
-            stats.symbolNameLength = item.str.length;
-            stats.pSymbolName      = static_cast<const char*>(item.str.start);
-        }
-
-        if (result == Result::Success)
-        {
-            result = pReader->Next(CWP_ITEM_MAP);
-        }
-
-        if (result == Result::Success)
-        {
-            for (uint32 j = item.map.size; ((result == Result::Success) && (j > 0)); --j)
-            {
-                result = pReader->Next(CWP_ITEM_STR);
-
-                if (result == Result::Success)
-                {
-                    switch (HashString(static_cast<const char*>(item.str.start), item.str.length))
-                    {
-                    case HashLiteralString(".stack_frame_size_in_bytes"):
-                    {
-                        result = pReader->UnpackNext(&stats.stackFrameSizeInBytes);
-                        m_maxStackSizeInBytes = Max(m_maxStackSizeInBytes, stats.stackFrameSizeInBytes);
-                        break;
-                    }
-                    case HashLiteralString(".shader_subtype"):
-                    {
-                        Util::Abi::ApiShaderSubType shaderSubType;
-                        Util::PalAbi::Metadata::DeserializeEnum(pReader, &shaderSubType);
-                        stats.shaderSubType = static_cast<Pal::ShaderSubType>(shaderSubType);
-                        break;
-                    }
-
-                    default:
-                        result = pReader->Skip(1);
-                       break;
-                    }
-                }
-            }
-        }
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-// Allocates GPU memory for this library and uploads the code and data contain in the ELF binary to it.
-// Any ELF relocations are also applied to the memory during this operation.
-Result ShaderLibrary::PerformRelocationsAndUploadToGpuMemory(
-    const PalAbi::CodeObjectMetadata& metadata,
-    const GpuHeap&                    clientPreferredHeap,
-    PipelineUploader*                 pUploader)
-{
-    PAL_ASSERT(pUploader != nullptr);
-
-    // Compute the total size of all shader stages' performance data buffers.
-    gpusize performanceDataOffset = 0;
-    m_perfDataGpuMemSize = performanceDataOffset;
-    Result result        = Result::Success;
-
-    result = pUploader->Begin(clientPreferredHeap, IsInternal());
-
-    if (result == Result::Success)
-    {
-        result = pUploader->ApplyRelocations();
-    }
-
-    if (result == Result::Success)
-    {
-        m_pagingFenceVal = pUploader->PagingFenceVal();
-        m_gpuMemSize     = pUploader->GpuMemSize();
-        m_gpuMem.Update(pUploader->GpuMem(), pUploader->GpuMemOffset());
-    }
-
-    return result;
 }
 
 // =====================================================================================================================
@@ -273,75 +165,6 @@ void ShaderLibrary::DumpLibraryElf(
         false,
         m_pCodeObjectBinary,
         m_codeObjectBinaryLen);
-}
-
-// =====================================================================================================================
-// Obtains the compiled shader ISA code for the shader specified.
-Result ShaderLibrary::GetShaderFunctionCode(
-    const char*  pShaderExportName,
-    size_t*      pSize,
-    void*        pBuffer) const
-{
-    // This function should be implemented in gfx6 / gfx9 if needed.
-    return Result::ErrorUnavailable;;
-}
-
-// =====================================================================================================================
-// Obtains the shader pre and post compilation stats/params for the specified shader.
-Result ShaderLibrary::GetShaderFunctionStats(
-    const char*      pShaderExportName,
-    ShaderLibStats*  pStats) const
-{
-    // This function should be implemented in gfx6 / gfx9 if needed.
-    return Result::ErrorUnavailable;;
-}
-
-// =====================================================================================================================
-// Computes the GPU virtual address of each of the indirect functions specified by the client.
-void ShaderLibrary::GetFunctionGpuVirtAddrs(
-    const PipelineUploader&         uploader,
-    ShaderLibraryFunctionInfo*      pFuncInfoList,
-    uint32                          funcCount)
-{
-    for (uint32 i = 0; i < funcCount; ++i)
-    {
-        GpuSymbol symbol = { };
-        if (uploader.GetGenericGpuSymbol(pFuncInfoList[i].pSymbolName, &symbol) == Result::Success)
-        {
-            pFuncInfoList[i].gpuVirtAddr = symbol.gpuVirtAddr;
-            PAL_ASSERT(pFuncInfoList[i].gpuVirtAddr != 0);
-        }
-        else
-        {
-            PAL_ASSERT_ALWAYS();
-        }
-    }
-}
-
-// =====================================================================================================================
-// Query this shader library's Bound GPU Memory.
-Result ShaderLibrary::QueryAllocationInfo(
-    size_t*                   pNumEntries,
-    GpuMemSubAllocInfo* const pGpuMemList
-    ) const
-{
-    Result result = Result::ErrorInvalidPointer;
-
-    if (pNumEntries != nullptr)
-    {
-        (*pNumEntries) = 1;
-
-        if (pGpuMemList != nullptr)
-        {
-            pGpuMemList[0].address     = m_gpuMem.Memory()->Desc().gpuVirtAddr;
-            pGpuMemList[0].offset      = m_gpuMem.Offset();
-            pGpuMemList[0].size        = m_gpuMemSize;
-        }
-
-        result = Result::Success;
-    }
-
-    return result;
 }
 
 } // Pal

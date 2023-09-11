@@ -243,3 +243,8 @@ dd_third_party_add_lib(
     TARGETS dd_libyaml
     DIRECTORY libyaml
 )
+
+dd_third_party_add_lib(
+    TARGETS   stb_sprintf
+    DIRECTORY stb_sprintf
+)

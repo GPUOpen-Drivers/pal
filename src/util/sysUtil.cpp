@@ -22,7 +22,12 @@
  *  SOFTWARE.
  *
  **********************************************************************************************************************/
+
+// pal
+#include "palFile.h"
 #include "palSysUtil.h"
+#include "palVector.h"
+#include "palVectorImpl.h"
 
 namespace Util
 {
@@ -248,6 +253,132 @@ void QueryIntelCpuType(
 #else
     pSystemInfo->cpuType = CpuType::Unknown;
 #endif
+}
+
+// =====================================================================================================================
+// Non-recursively delete the least-recently-accesssed files from a directory until the directory reaches size in bytes.
+Result RemoveOldestFilesOfDirUntilSize(
+    const char* pPathName,
+    uint64      desiredSize)
+{
+    uint32 fileCount = 0;
+    size_t bytesReq  = 0;
+
+    // Get the number of files in the dir.
+    Result result = ListDir(pPathName, &fileCount, nullptr, &bytesReq, nullptr);
+
+    // Allocate mem for storing file names
+    char** ppFileNames    = nullptr;
+    char* pFileNameBuffer = nullptr;
+    char* pFullFilePath   = nullptr;
+
+    const size_t pathLen = strlen(pPathName) + 1; // Add one to append a '/'
+    const size_t fullPathSize = pathLen + 1 + Util::MaxFileNameStrLen;
+
+    Util::GenericAllocator allocator;
+    if (result == Result::Success)
+    {
+        ppFileNames = static_cast<char**>(PAL_CALLOC(fileCount * sizeof(char*), &allocator, AllocInternalTemp));
+        pFileNameBuffer = static_cast<char*>(PAL_CALLOC(bytesReq, &allocator, AllocInternalTemp));
+        pFullFilePath = static_cast<char*>(PAL_CALLOC(fullPathSize * sizeof(char), &allocator, AllocInternalTemp));
+
+        if ((ppFileNames == nullptr) || (pFileNameBuffer == nullptr) || (pFullFilePath == nullptr))
+        {
+            result = Result::ErrorOutOfMemory;
+        }
+    }
+
+    // Get the file names in the dir
+    if (result == Result::Success)
+    {
+        result = ListDir(pPathName, &fileCount, const_cast<const char**>(ppFileNames), &bytesReq, pFileNameBuffer);
+    }
+
+    // Store the stats of every file in a Vector
+    struct Value
+    {
+        uint32     namePos;
+        File::Stat stat;
+    };
+    Vector<Value, 32, Util::GenericAllocator> files{ &allocator };
+
+    size_t currentSize = 0;
+    if (result == Result::Success)
+    {
+        // Write the path portion of the full file path.
+        Strncpy(pFullFilePath, pPathName, fullPathSize);
+        Strncpy(pFullFilePath + pathLen - 1, "/", fullPathSize - pathLen + 1);
+
+        for (uint32 i = 0; (i < fileCount) && (result == Result::Success); i++)
+        {
+            // Write the filename portion of the full file path
+            Strncpy(pFullFilePath + pathLen, ppFileNames[i], fullPathSize - pathLen);
+
+            File::Stat stat;
+            result = File::GetStat(pFullFilePath, &stat);
+            if ((result == Result::Success) && stat.flags.isRegular)
+            {
+                result = files.PushBack({ i, stat });
+                currentSize += stat.size;
+            }
+        }
+    }
+
+    // sort from most-recently-accessed to least-recently-accessed
+    if ((result == Result::Success) &&
+        // don't bother sorting if we're already under size
+        (currentSize > desiredSize))
+    {
+        // std::sort could throw std::bad_alloc
+        // so we're using std::qsort which operates in-place and doesn't throw
+        std::qsort(files.Data(), files.size(), sizeof(Value),
+            [](const void* vpl, const void* vpr) -> int
+            {
+                const Value l = *static_cast<const Value*>(vpl);
+                const Value r = *static_cast<const Value*>(vpr);
+
+                int ret = 0;
+                if (l.stat.atime > r.stat.atime)
+                {
+                    ret = -1;
+                }
+                else if (l.stat.atime < r.stat.atime)
+                {
+                    ret = 1;
+                }
+                return ret;
+            });
+    }
+
+    // delete the files
+    while ((currentSize > desiredSize) && (files.empty() == false) && (result == Result::Success))
+    {
+        // Calling Back()/Erase() instead of PopBack() to avoid a deep copy.
+        Value* pValue = &files.Back();
+        currentSize -= pValue->stat.size;
+
+        Strncpy(pFullFilePath + pathLen, ppFileNames[pValue->namePos], fullPathSize - pathLen);
+
+        result = File::Remove(pFullFilePath);
+        files.Erase(pValue);
+    }
+
+    if (ppFileNames != nullptr)
+    {
+        PAL_SAFE_FREE(ppFileNames, &allocator);
+    }
+
+    if (pFileNameBuffer != nullptr)
+    {
+        PAL_SAFE_FREE(pFileNameBuffer, &allocator);
+    }
+
+    if (pFullFilePath != nullptr)
+    {
+        PAL_SAFE_FREE(pFullFilePath, &allocator);
+    }
+
+    return result;
 }
 
 } // Util

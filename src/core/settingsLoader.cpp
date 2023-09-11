@@ -235,7 +235,8 @@ void SettingsLoader::ValidateSettings()
     }
 
     // When tracing is enabled, we need to request debug/static VMID. This can be enabled via the DriverUtilsService.
-    if (m_pDevice->GetPlatform()->IsTracingEnabled())
+    if (m_pDevice->GetPlatform()->IsTracingEnabled() ||
+        m_pDevice->GetPlatform()->IsStaticVmidRequested())
     {
         m_settings.requestDebugVmid = true;
     }

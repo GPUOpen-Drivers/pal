@@ -401,7 +401,7 @@ Result ComputePipeline::GetShaderStats(
 
     if (shaderType == ShaderType::Compute)
     {
-        result = GetShaderStatsForStage(m_stageInfo, nullptr, pShaderStats);
+        result = GetShaderStatsForStage(shaderType, m_stageInfo, nullptr, pShaderStats);
         if (result == Result::Success)
         {
             pShaderStats->shaderStageMask       = ApiShaderStageCompute;

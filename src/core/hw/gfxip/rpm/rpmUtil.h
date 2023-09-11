@@ -238,5 +238,8 @@ uint32 PackBits(uint32 value)
     return value & Util::BitfieldGenMask(Bits);
 }
 
+// Helper function which compacts four constants into a single uint32 assuming all four values fit in a byte.
+extern uint32 PackFourBytes(uint32 x, uint32 y, uint32 z, uint32 w);
+
 } // RpmUtil
 } // Pal

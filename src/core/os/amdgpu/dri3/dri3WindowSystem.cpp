@@ -821,6 +821,10 @@ void Dri3WindowSystem::WaitOnIdleEvent(
 {
     WindowSystemImageHandle image = NullImageHandle;
 
+    // Lock the window system for event waiting,
+    // some operations should wait on the lock like destroying the pixmap
+    MutexAuto lock(&m_lock);
+
     while (image.hPixmap == 0)
     {
         xcb_present_generic_event_t*const pPresentEvent = reinterpret_cast<xcb_present_generic_event_t*>(
@@ -843,6 +847,7 @@ void Dri3WindowSystem::WaitOnIdleEvent(
 void Dri3WindowSystem::DestroyPresentableImage(
     WindowSystemImageHandle hImage)
 {
+    MutexAuto lock(&m_lock); // Ensure the pixmap is not in event waiting.
     const xcb_void_cookie_t   cookie = m_dri3Procs.pfnXcbFreePixmapChecked(m_pConnection, hImage.hPixmap);
 #if PAL_ENABLE_PRINTS_ASSERTS
     xcb_generic_error_t*const pError = m_dri3Procs.pfnXcbRequestCheck(m_pConnection, cookie);
@@ -1073,6 +1078,10 @@ Result Dri3WindowSystem::WaitForLastImagePresented()
     uint32 lastSerial = m_localSerial;
 
     PAL_ASSERT(m_swapChainMode == SwapChainMode::Fifo);
+
+    // Lock the window system for event waiting,
+    // some operations should wait on the lock like destroying the pixmap
+    MutexAuto lock(&m_lock);
 
     while ((lastSerial > m_remoteSerial) && (result == Result::Success))
     {

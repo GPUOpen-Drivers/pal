@@ -450,15 +450,15 @@ void RsrcProcMgr::CmdCloneImageData(
 
     pCmdStream->CommitCommands(pCmdSpace);
 
-    pPm4CmdBuf->SetPm4CmdBufCpBltState(true);
+    pPm4CmdBuf->SetCpBltState(true);
 
     if (supportsL2)
     {
-        pPm4CmdBuf->SetPm4CmdBufCpBltWriteCacheState(true);
+        pPm4CmdBuf->SetCpBltWriteCacheState(true);
     }
     else
     {
-        pPm4CmdBuf->SetPm4CmdBufCpMemoryWriteL2CacheStaleState(true);
+        pPm4CmdBuf->SetCpMemoryWriteL2CacheStaleState(true);
     }
 }
 
@@ -592,15 +592,15 @@ void RsrcProcMgr::CmdUpdateMemory(
         dmaDataInfo.dstAddr += dmaDataInfo.numBytes;
     }
 
-    pPm4CmdBuf->SetPm4CmdBufCpBltState(true);
+    pPm4CmdBuf->SetCpBltState(true);
 
     if (supportsL2)
     {
-        pPm4CmdBuf->SetPm4CmdBufCpBltWriteCacheState(true);
+        pPm4CmdBuf->SetCpBltWriteCacheState(true);
     }
     else
     {
-        pPm4CmdBuf->SetPm4CmdBufCpMemoryWriteL2CacheStaleState(true);
+        pPm4CmdBuf->SetCpMemoryWriteL2CacheStaleState(true);
     }
 }
 
@@ -1084,7 +1084,7 @@ void RsrcProcMgr::HwlFastColorClear(
                                                    packetPredicate,
                                                    pCmdSpace);
 
-    pCmdBuffer->SetPm4CmdBufCpMemoryWriteL2CacheStaleState(true);
+    pCmdBuffer->SetCpMemoryWriteL2CacheStaleState(true);
 
     // In case the cleared image is already bound as a color target, we need to update the color clear value
     // registers to the newly-cleared values.
@@ -2930,16 +2930,19 @@ void RsrcProcMgr::ClearDcc(
         }
     }
 
-    const PM4Predicate packetPredicate = static_cast<PM4Predicate>(
-        static_cast<Pm4CmdBuffer*>(pCmdBuffer)->GetPm4CmdBufState().flags.packetPredicate);
+    if (dstImage.HasDccStateMetaData())
+    {
+        const PM4Predicate packetPredicate = static_cast<PM4Predicate>(
+            static_cast<Pm4CmdBuffer*>(pCmdBuffer)->GetPm4CmdBufState().flags.packetPredicate);
 
-    // Since we're using a compute shader we have to update the DCC state metadata manually.
-    uint32* pCmdSpace = pCmdStream->ReserveCommands();
-    pCmdSpace = dstImage.UpdateDccStateMetaData(clearRange,
-                                                (clearValue != Gfx6Dcc::DecompressedValue),
-                                                packetPredicate,
-                                                pCmdSpace);
-    pCmdStream->CommitCommands(pCmdSpace);
+        // Since we're using a compute shader we have to update the DCC state metadata manually.
+        uint32* pCmdSpace = pCmdStream->ReserveCommands();
+        pCmdSpace = dstImage.UpdateDccStateMetaData(clearRange,
+                                                    (clearValue != Gfx6Dcc::DecompressedValue),
+                                                    packetPredicate,
+                                                    pCmdSpace);
+        pCmdStream->CommitCommands(pCmdSpace);
+    }
 }
 
 // =====================================================================================================================
@@ -3361,17 +3364,20 @@ void RsrcProcMgr::DccDecompressOnCompute(
             pCmdBuffer->CmdDispatch(threadGroups);
         } // end loop through all the slices
 
-        // We have to mark this mip level as actually being DCC decompressed
-        WriteDataInfo writeData = {};
-        writeData.dstAddr = image.GetDccStateMetaDataAddr(mipLevel);
-        writeData.dstSel  = WRITE_DATA_DST_SEL_MEMORY_ASYNC;
+        if (image.HasDccStateMetaData())
+        {
+            // We have to mark this mip level as actually being DCC decompressed
+            WriteDataInfo writeData = {};
+            writeData.dstAddr = image.GetDccStateMetaDataAddr(mipLevel);
+            writeData.dstSel  = WRITE_DATA_DST_SEL_MEMORY_ASYNC;
 
-        pComputeCmdSpace = pComputeCmdStream->ReserveCommands();
-        pComputeCmdSpace += m_cmdUtil.BuildWriteData(writeData,
-                                                     NumBytesToNumDwords(sizeof(MipDccStateMetaData)),
-                                                     reinterpret_cast<const uint32*>(&zero),
-                                                     pComputeCmdSpace);
-        pComputeCmdStream->CommitCommands(pComputeCmdSpace);
+            pComputeCmdSpace = pComputeCmdStream->ReserveCommands();
+            pComputeCmdSpace += m_cmdUtil.BuildWriteData(writeData,
+                                                         NumBytesToNumDwords(sizeof(MipDccStateMetaData)),
+                                                         reinterpret_cast<const uint32*>(&zero),
+                                                         pComputeCmdSpace);
+            pComputeCmdStream->CommitCommands(pComputeCmdSpace);
+        }
     }
 
     Pm4CmdBuffer*    pPm4CmdBuf = static_cast<Pm4CmdBuffer*>(pCmdBuffer);

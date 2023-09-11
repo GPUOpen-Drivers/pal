@@ -52,6 +52,8 @@ target_sources(pal PRIVATE
     gfx9ComputeEngine.h
     gfx9ComputePipeline.cpp
     gfx9ComputePipeline.h
+    gfx9ComputeShaderLibrary.cpp
+    gfx9ComputeShaderLibrary.h
     gfx9DepthStencilState.cpp
     gfx9DepthStencilState.h
     gfx9DepthStencilView.cpp
@@ -62,6 +64,8 @@ target_sources(pal PRIVATE
     gfx9FormatInfo.h
     gfx9GraphicsPipeline.cpp
     gfx9GraphicsPipeline.h
+    gfx9GraphicsShaderLibrary.cpp
+    gfx9GraphicsShaderLibrary.h
     gfx9HybridGraphicsPipeline.cpp
     gfx9HybridGraphicsPipeline.h
     gfx9Image.cpp
@@ -96,8 +100,6 @@ target_sources(pal PRIVATE
     gfx9QueueContexts.h
     gfx9SettingsLoader.cpp
     gfx9SettingsLoader.h
-    gfx9ShaderLibrary.cpp
-    gfx9ShaderLibrary.h
     gfx9ShaderRing.cpp
     gfx9ShaderRing.h
     gfx9ShaderRingSet.cpp

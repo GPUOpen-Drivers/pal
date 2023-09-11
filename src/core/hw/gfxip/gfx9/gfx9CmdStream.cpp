@@ -618,7 +618,8 @@ void CmdStream::AccumulateUserDataEntriesForSgprs(
     const UserDataEntries&  entries,
     const uint16            baseUserDataRegAddr,
     PackedRegisterPair*     pValidRegPairs,
-    uint8*                  pValidRegsLookup,
+    UserDataEntryLookup*    pRegLookup,
+    uint32                  minLookupVal,
     uint32*                 pNumValidRegs)
 {
     const uint16 firstUserSgpr = entryMap.firstUserSgprRegAddr;
@@ -634,7 +635,8 @@ void CmdStream::AccumulateUserDataEntriesForSgprs(
                                                baseUserDataRegAddr,
                                                value,
                                                pValidRegPairs,
-                                               pValidRegsLookup,
+                                               pRegLookup,
+                                               minLookupVal,
                                                pNumValidRegs);
         }
     }
@@ -646,7 +648,8 @@ void CmdStream::AccumulateUserDataEntriesForSgprs<true>(
     const UserDataEntries&  entries,
     const uint16            baseUserDataRegAddr,
     PackedRegisterPair*     pValidRegPairs,
-    uint8*                  pValidRegsLookup,
+    UserDataEntryLookup*    pRegLookup,
+    uint32                  minLookupVal,
     uint32*                 pNumValidRegs);
 template
 void CmdStream::AccumulateUserDataEntriesForSgprs<false>(
@@ -654,7 +657,8 @@ void CmdStream::AccumulateUserDataEntriesForSgprs<false>(
     const UserDataEntries&  entries,
     const uint16            baseUserDataRegAddr,
     PackedRegisterPair*     pValidRegPairs,
-    uint8*                  pValidRegsLookup,
+    UserDataEntryLookup*    pRegLookup,
+    uint32                  minLookupVal,
     uint32*                 pNumValidRegs);
 
 // =====================================================================================================================

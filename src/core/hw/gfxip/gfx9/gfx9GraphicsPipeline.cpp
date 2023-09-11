@@ -33,6 +33,7 @@
 #include "core/hw/gfxip/gfx9/gfx9DepthStencilView.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9GraphicsPipeline.h"
+#include "core/hw/gfxip/gfx9/gfx9GraphicsShaderLibrary.h"
 #include "core/hw/gfxip/gfx9/gfx9UniversalCmdBuffer.h"
 #include "palFormatInfo.h"
 #include "palInlineFuncs.h"
@@ -61,6 +62,8 @@ const GraphicsPipelineSignature NullGfxSignature =
     UserDataNotMapped,          // Mesh dispatch dimensions register (1st of 3)
     UserDataNotMapped,          // Ring index for the mesh shader.
     UserDataNotMapped,          // Mesh pipeline stats buffer register address
+    UserDataNotMapped,          // SampleInfo register address
+    UserDataNotMapped,          // Color export shader entry
     NoUserDataSpilling,         // Spill threshold
     0,                          // User-data entry limit
     { UserDataNotMapped, },     // Compacted view ID register addresses
@@ -202,6 +205,7 @@ GraphicsPipeline::GraphicsPipeline(
                 &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Ps)]),
     m_regs{},
     m_prefetch{},
+    m_prefetchRangeCount(0),
     m_signature{NullGfxSignature}
 {
 #if PAL_BUILD_GFX11
@@ -312,74 +316,24 @@ void GraphicsPipeline::LateInit(
 {
     const Gfx9PalSettings&   settings        = m_pDevice->Settings();
     const PalPublicSettings* pPublicSettings = m_pDevice->Parent()->GetPublicSettings();
-    MetroHash64              hasher;
 
     if (IsTessEnabled())
     {
-        m_chunkHs.LateInit(abiReader, metadata, pUploader, &hasher);
+        m_chunkHs.LateInit(abiReader, metadata, pUploader);
     }
     if (IsGsEnabled() || IsNgg())
     {
-        m_chunkGs.LateInit(abiReader, metadata, loadInfo, createInfo, pUploader, &hasher);
+        m_chunkGs.LateInit(abiReader, metadata, loadInfo, createInfo, pUploader);
     }
-    m_chunkVsPs.LateInit(abiReader, metadata, loadInfo, createInfo, pUploader, &hasher);
+    m_chunkVsPs.LateInit(abiReader, metadata, loadInfo, createInfo, pUploader);
 
     SetupCommonRegisters(createInfo, metadata);
-    SetupNonShaderRegisters(createInfo, metadata);
+    SetupNonShaderRegisters(createInfo);
     SetupStereoRegisters();
+    BuildRegistersHash();
 
-    if (pPublicSettings->optDepthOnlyExportRate && CanRbPlusOptimizeDepthOnly())
-    {
-        m_regs.other.sxPsDownconvert.bits.MRT0                    = SX_RT_EXPORT_32_R;
-        m_regs.other.sxPsDownconvertDual.bits.MRT0                = SX_RT_EXPORT_32_R;
-        m_regs.context.spiShaderColFormat.bits.COL0_EXPORT_FORMAT = SPI_SHADER_32_R;
-    }
-
-    MetroHash::Hash hash = {};
-
-    hasher.Update(m_regs.context);
-    hasher.Finalize(hash.bytes);
-    m_contextRegHash = MetroHash::Compact32(&hash);
-
-    hasher.Initialize();
-    hasher.Update(reinterpret_cast<const uint8*>(&m_regs.other.sxPsDownconvert),
-                  sizeof(m_regs.other.sxPsDownconvert) +
-                  sizeof(m_regs.other.sxBlendOptEpsilon) +
-                  sizeof(m_regs.other.sxBlendOptControl));
-    hasher.Finalize(hash.bytes);
-    m_rbplusRegHash = MetroHash::Compact32(&hash);
-
-    hasher.Initialize();
-    hasher.Update(reinterpret_cast<const uint8*>(&m_regs.other.sxPsDownconvertDual),
-        sizeof(m_regs.other.sxPsDownconvertDual) +
-        sizeof(m_regs.other.sxBlendOptEpsilonDual) +
-        sizeof(m_regs.other.sxBlendOptControlDual));
-    hasher.Finalize(hash.bytes);
-    m_rbplusRegHashDual = MetroHash::Compact32(&hash);
-
-    // We write our config registers in a separate function so they get their own hash.
-    // Also, we only set config registers on gfx10+.
     if (IsGfx10Plus(m_gfxLevel))
     {
-        hasher.Initialize();
-        hasher.Update(reinterpret_cast<const uint8*>(&m_regs.uconfig.geStereoCntl),
-                      sizeof(m_regs.uconfig.geStereoCntl) +
-                      sizeof(m_regs.uconfig.gePcAlloc)    +
-                      sizeof(m_regs.uconfig.geUserVgprEn));
-
-#if PAL_BUILD_GFX11
-        // Refer to WriteConfigCommandsGfx10(), the uconfig.vgtGsOutPrimType will be set conditionly.
-        // Here we need to make sure the difference hash value based on uconfig.vgtGsOutPrimType condition.
-        // Or which will lead to skip set uconfig.vgtGsOutPrimType if different piplines has same hash value.
-        if (m_flags.writeVgtGsOutPrimType)
-        {
-            hasher.Update(m_regs.uconfig.vgtGsOutPrimType);
-        }
-#endif
-
-        hasher.Finalize(hash.bytes);
-        m_configRegHash = MetroHash::Compact32(&hash);
-
         m_primAmpFactor = m_chunkGs.PrimAmpFactor();
     }
 
@@ -388,10 +342,11 @@ void GraphicsPipeline::LateInit(
     if (m_pDevice->CoreSettings().pipelinePrefetchEnable &&
         (settings.shaderPrefetchMethodGfx != PrefetchDisabled))
     {
-        m_prefetch.gpuVirtAddr         = pUploader->PrefetchAddr();
-        m_prefetch.size                = pUploader->PrefetchSize();
-        m_prefetch.usageMask           = CoherShaderRead;
-        m_prefetch.addrTranslationOnly = (settings.shaderPrefetchMethodGfx == PrefetchPrimeUtcL2);
+        m_prefetch[0].gpuVirtAddr         = pUploader->PrefetchAddr();
+        m_prefetch[0].size                = pUploader->PrefetchSize();
+        m_prefetch[0].usageMask           = CoherShaderRead;
+        m_prefetch[0].addrTranslationOnly = (settings.shaderPrefetchMethodGfx == PrefetchPrimeUtcL2);
+        m_prefetchRangeCount              = 1;
     }
 
     // Updating the ring sizes expects that all of the register state has been setup.
@@ -832,9 +787,9 @@ uint32* GraphicsPipeline::Prefetch(
     uint32* pCmdSpace
     ) const
 {
-    if (m_prefetch.gpuVirtAddr != 0)
+    for (uint32 i = 0; i < m_prefetchRangeCount; i++)
     {
-        pCmdSpace += m_pDevice->CmdUtil().BuildPrimeGpuCaches(m_prefetch, EngineTypeUniversal, pCmdSpace);
+        pCmdSpace += m_pDevice->CmdUtil().BuildPrimeGpuCaches(m_prefetch[i], EngineTypeUniversal, pCmdSpace);
     }
 
     return pCmdSpace;
@@ -1063,6 +1018,7 @@ void GraphicsPipeline::SetupCommonRegisters(
     m_regs.context.vgtReuseOff.u32All        = AbiRegisters::VgtReuseOff(metadata);
 
     m_regs.context.vgtDrawPayloadCntl.u32All = AbiRegisters::VgtDrawPayloadCntl(metadata, *m_pDevice, m_gfxLevel);
+    m_regs.context.cbShaderMask.u32All       = AbiRegisters::CbShaderMask(metadata);
 
 #if PAL_BUILD_GFX11
     m_regs.uconfig.vgtGsOutPrimType.u32All   = AbiRegisters::VgtGsOutPrimType(metadata, m_gfxLevel);
@@ -1456,13 +1412,11 @@ void GraphicsPipeline::FixupIaMultiVgtParam(
 // =====================================================================================================================
 // Initializes render-state registers which aren't part of any hardware shader stage.
 void GraphicsPipeline::SetupNonShaderRegisters(
-    const GraphicsPipelineCreateInfo& createInfo,
-    const PalAbi::CodeObjectMetadata& metadata)
+    const GraphicsPipelineCreateInfo& createInfo)
 {
-    const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
-    const Gfx9PalSettings&   settings  = m_pDevice->Settings();
-
-    m_regs.context.cbShaderMask.u32All = AbiRegisters::CbShaderMask(metadata);
+    const GpuChipProperties& chipProps       = m_pDevice->Parent()->ChipProperties();
+    const Gfx9PalSettings&   settings        = m_pDevice->Settings();
+    const PalPublicSettings* pPublicSettings = m_pDevice->Parent()->GetPublicSettings();
 
     m_regs.other.paScLineCntl.bits.EXPAND_LINE_WIDTH        = createInfo.rsState.expandLineWidth;
     m_regs.other.paScLineCntl.bits.DX10_DIAMOND_TEST_ENA    = createInfo.rsState.dx10DiamondTestDisable ? 0 : 1;
@@ -1715,6 +1669,13 @@ void GraphicsPipeline::SetupNonShaderRegisters(
         // This toss point is used to disable all color buffer writes.
         m_regs.other.cbTargetMask.u32All = 0;
     }
+
+    if (pPublicSettings->optDepthOnlyExportRate && CanRbPlusOptimizeDepthOnly())
+    {
+        m_regs.other.sxPsDownconvert.bits.MRT0                    = SX_RT_EXPORT_32_R;
+        m_regs.other.sxPsDownconvertDual.bits.MRT0                = SX_RT_EXPORT_32_R;
+        m_regs.context.spiShaderColFormat.bits.COL0_EXPORT_FORMAT = SPI_SHADER_32_R;
+    }
 }
 
 // =====================================================================================================================
@@ -1921,7 +1882,7 @@ Result GraphicsPipeline::GetShaderStats(
         const ShaderStageInfo*const pStageInfoCopy =
             ((shaderType == ShaderType::Geometry) && (IsNgg() == false)) ? &m_chunkVsPs.StageInfoVs() : nullptr;
 
-        result = GetShaderStatsForStage(*pStageInfo, pStageInfoCopy, pShaderStats);
+        result = GetShaderStatsForStage(shaderType, *pStageInfo, pStageInfoCopy, pShaderStats);
         if (result == Result::Success)
         {
             pShaderStats->shaderStageMask = (1 << static_cast<uint32>(shaderType));
@@ -2105,6 +2066,13 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
             {
                 m_signature.viewIdRegAddr[stageId] = offset;
             }
+            else if (value == static_cast<uint32>(Abi::UserDataMapping::SampleInfo))
+            {
+                PAL_ASSERT((m_signature.sampleInfoRegAddr == offset) ||
+                           (m_signature.sampleInfoRegAddr == UserDataNotMapped));
+                PAL_ASSERT(stage == HwShaderStage::Ps);
+                m_signature.sampleInfoRegAddr = offset;
+            }
             else if (value == static_cast<uint32>(Abi::UserDataMapping::PerShaderPerfData))
             {
                 constexpr uint32 PalToAbiHwShaderStage[] =
@@ -2146,6 +2114,13 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
                 m_signature.streamoutCntlBufRegAddr = offset;
             }
 #endif
+            else if (value == static_cast<uint32>(Abi::UserDataMapping::ColorExportAddr))
+            {
+                PAL_ASSERT((m_signature.colorExportAddr == offset) ||
+                           (m_signature.colorExportAddr == UserDataNotMapped));
+                PAL_ASSERT(stage == HwShaderStage::Ps);
+                m_signature.colorExportAddr = offset;
+            }
             else
             {
                 // This appears to be an illegally-specified user-data register!
@@ -2580,6 +2555,353 @@ void GraphicsPipeline::SetupStereoRegisters()
                     m_regs.context.vgtDrawPayloadCntl.bits.EN_REG_RT_INDEX = 1;
                 }
             }
+        }
+    }
+}
+
+// =====================================================================================================================
+// Link graphics pipeline from graphics shader libraries.
+Result GraphicsPipeline::LinkGraphicsLibraries(
+    const GraphicsPipelineCreateInfo& createInfo)
+{
+    Result                   result = Result::Success;
+    const Gfx9PalSettings& settings = m_pDevice->Settings();
+
+    const GraphicsPipeline* pPreRasterLib = nullptr;
+    const GraphicsPipeline* pPsLib        = nullptr;
+    const GraphicsPipeline* pExpLib       = nullptr;
+
+    for (uint32 i = 0; i < NumGfxShaderLibraries(); i++)
+    {
+        const GraphicsShaderLibrary* pLib = reinterpret_cast<const GraphicsShaderLibrary*>(GetGraphicsShaderLibrary(i));
+        uint32 apiShaderMask = pLib->GetApiShaderMask();
+        if (pLib->IsColorExportShader())
+        {
+            PAL_ASSERT(pExpLib == nullptr);
+            pExpLib = reinterpret_cast<const GraphicsPipeline*>(pLib->GetPartialPipeline());
+        }
+        else if (Util::TestAnyFlagSet(apiShaderMask, 1 << static_cast<uint32>(ShaderType::Pixel)))
+        {
+            PAL_ASSERT(pPsLib == nullptr);
+            pPsLib = reinterpret_cast<const GraphicsPipeline*>(pLib->GetPartialPipeline());
+        }
+        else
+        {
+            PAL_ASSERT(Util::TestAnyFlagSet(apiShaderMask,
+                (1 << static_cast<uint32>(ShaderType::Vertex) | (1 << static_cast<uint32>(ShaderType::Mesh)))));
+            PAL_ASSERT(pPreRasterLib == nullptr);
+            pPreRasterLib = reinterpret_cast<const GraphicsPipeline*>(pLib->GetPartialPipeline());
+        }
+    }
+    PAL_ASSERT((pPreRasterLib != nullptr) && (pPsLib != nullptr));
+
+    // Operations in EarlyInit.
+    m_regs.context.vgtShaderStagesEn = pPreRasterLib->m_regs.context.vgtShaderStagesEn;
+    m_fastLaunchMode = pPreRasterLib->m_fastLaunchMode;
+
+#if PAL_BUILD_GFX11
+    m_flags.writeVgtGsOutPrimType = pPreRasterLib->m_flags.writeVgtGsOutPrimType;
+#endif
+
+    m_nggSubgroupSize = pPreRasterLib->m_nggSubgroupSize;
+#if PAL_BUILD_GFX11
+    memcpy(m_strmoutVtxStride, pPreRasterLib->m_strmoutVtxStride, sizeof(m_strmoutVtxStride));
+#endif
+
+    SetupSignatureFromLib(pPreRasterLib, pPsLib, pExpLib);
+
+    // Operations in LateInit
+    if (IsGsEnabled() || IsNgg())
+    {
+        m_chunkGs.Clone(pPreRasterLib->m_chunkGs);
+    }
+    if (IsTessEnabled())
+    {
+        m_chunkHs.Clone(pPreRasterLib->m_chunkHs);
+    }
+    m_chunkVsPs.Clone(pPreRasterLib->m_chunkVsPs, pPsLib->m_chunkVsPs, pExpLib->m_chunkVsPs);
+
+    SetupCommonRegistersFromLibs(createInfo, pPreRasterLib, pPsLib, pExpLib);
+    SetupNonShaderRegisters(createInfo);
+    SetupStereoRegisters();
+    BuildRegistersHash();
+
+    if (IsGfx10Plus(m_gfxLevel))
+    {
+        m_primAmpFactor = m_chunkGs.PrimAmpFactor();
+    }
+
+    DetermineBinningOnOff();
+
+    // Update prefetch ranges
+    m_prefetchRangeCount = 0;
+    if (pPreRasterLib->m_prefetchRangeCount > 0)
+    {
+        m_prefetch[m_prefetchRangeCount++] = pPreRasterLib->m_prefetch[0];
+    }
+    if (pPsLib->m_prefetchRangeCount > 0)
+    {
+        m_prefetch[m_prefetchRangeCount++] = pPsLib->m_prefetch[0];
+    }
+    if ((pExpLib != nullptr) && (pExpLib->m_prefetchRangeCount > 0))
+    {
+        m_prefetch[m_prefetchRangeCount++] = pExpLib->m_prefetch[0];
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Calculate hash for pipeline registers, include context hash, config hash and rbplus register hash.
+void GraphicsPipeline::BuildRegistersHash()
+{
+    MetroHash::Hash hash = {};
+    MetroHash64     hasher;
+
+    // Operations in LateInit
+    if (IsGsEnabled() || IsNgg())
+    {
+        m_chunkGs.AccumulateRegistersHash(hasher);
+    }
+    if (IsTessEnabled())
+    {
+        m_chunkHs.AccumulateRegistersHash(hasher);
+    }
+    m_chunkVsPs.AccumulateRegistersHash(hasher);
+
+    hasher.Update(m_regs.context);
+    hasher.Finalize(hash.bytes);
+    m_contextRegHash = MetroHash::Compact32(&hash);
+
+    hasher.Initialize();
+    hasher.Update(reinterpret_cast<const uint8*>(&m_regs.other.sxPsDownconvert),
+        sizeof(m_regs.other.sxPsDownconvert) +
+        sizeof(m_regs.other.sxBlendOptEpsilon) +
+        sizeof(m_regs.other.sxBlendOptControl));
+    hasher.Finalize(hash.bytes);
+    m_rbplusRegHash = MetroHash::Compact32(&hash);
+
+    hasher.Initialize();
+    hasher.Update(reinterpret_cast<const uint8*>(&m_regs.other.sxPsDownconvertDual),
+        sizeof(m_regs.other.sxPsDownconvertDual) +
+        sizeof(m_regs.other.sxBlendOptEpsilonDual) +
+        sizeof(m_regs.other.sxBlendOptControlDual));
+    hasher.Finalize(hash.bytes);
+    m_rbplusRegHashDual = MetroHash::Compact32(&hash);
+
+    // We write our config registers in a separate function so they get their own hash.
+    // Also, we only set config registers on gfx10+.
+    if (IsGfx10Plus(m_gfxLevel))
+    {
+        hasher.Initialize();
+        hasher.Update(reinterpret_cast<const uint8*>(&m_regs.uconfig.geStereoCntl),
+            sizeof(m_regs.uconfig.geStereoCntl) +
+            sizeof(m_regs.uconfig.gePcAlloc) +
+            sizeof(m_regs.uconfig.geUserVgprEn));
+
+#if PAL_BUILD_GFX11
+        // Refer to WriteConfigCommandsGfx10(), the uconfig.vgtGsOutPrimType will be set conditionally.
+        // Here we need to make sure the difference hash value based on uconfig.vgtGsOutPrimType condition.
+        // Or which will lead to skip set uconfig.vgtGsOutPrimType if different piplines has same hash value.
+        if (m_flags.writeVgtGsOutPrimType)
+        {
+            hasher.Update(m_regs.uconfig.vgtGsOutPrimType);
+        }
+#endif
+
+        hasher.Finalize(hash.bytes);
+        m_configRegHash = MetroHash::Compact32(&hash);
+    }
+}
+
+// =====================================================================================================================
+// Initializes the signature for a single stage within a graphics pipeline using a pipeline ELF.
+void GraphicsPipeline::SetupSignatureForStageFromLib(
+    const GraphicsPipeline*           pPartialPipeline,
+    HwShaderStage                     stage)
+{
+    const uint16                  baseRegAddr = m_pDevice->GetBaseUserDataReg(stage);
+    const uint32                  stageId     = static_cast<uint32>(stage);
+    UserDataEntryMap* const       pStage      = &m_signature.stage[stageId];
+    const UserDataEntryMap* const pSrcStage   = &pPartialPipeline->m_signature.stage[stageId];
+
+    memcpy(pStage->mappedEntry, pSrcStage->mappedEntry, pSrcStage->userSgprCount * sizeof(uint8));
+    pStage->userSgprCount        = pSrcStage->userSgprCount;
+    pStage->firstUserSgprRegAddr = pSrcStage->firstUserSgprRegAddr;
+    pStage->spillTableRegAddr    = pSrcStage->spillTableRegAddr;
+
+    m_perfDataInfo[static_cast<uint32>(PalToAbiHwShaderStage[stageId])] =
+        pPartialPipeline->m_perfDataInfo[static_cast<uint32>(PalToAbiHwShaderStage[stageId])];
+    m_signature.userDataHash[stageId] = pPartialPipeline->m_signature.userDataHash[stageId];
+}
+
+// =====================================================================================================================
+// Initializes the signature of a graphics pipeline which init from shader libraries.
+void GraphicsPipeline::SetupSignatureFromLib(
+    const GraphicsPipeline* pPreRasterLib,
+    const GraphicsPipeline* pPsLib,
+    const GraphicsPipeline* pExpLib)
+{
+    m_signature.spillThreshold          = Util::Min(pPreRasterLib->m_signature.spillThreshold,
+                                                    pPsLib->m_signature.spillThreshold);
+    m_signature.userDataLimit           = Util::Max(pPreRasterLib->m_signature.userDataLimit,
+                                                    pPsLib->m_signature.userDataLimit);
+    m_signature.vertexBufTableRegAddr   = pPreRasterLib->m_signature.vertexBufTableRegAddr;
+    m_signature.streamOutTableRegAddr   = pPreRasterLib->m_signature.streamOutTableRegAddr;
+    m_signature.vertexOffsetRegAddr     = pPreRasterLib->m_signature.vertexOffsetRegAddr;
+    m_signature.drawIndexRegAddr        = pPreRasterLib->m_signature.drawIndexRegAddr;
+    m_signature.meshDispatchDimsRegAddr = pPreRasterLib->m_signature.meshDispatchDimsRegAddr;
+    m_signature.meshRingIndexAddr       = pPreRasterLib->m_signature.meshRingIndexAddr;
+    m_signature.meshPipeStatsBufRegAddr = pPreRasterLib->m_signature.meshPipeStatsBufRegAddr;
+    m_signature.nggCullingDataAddr      = pPreRasterLib->m_signature.nggCullingDataAddr;
+#if PAL_BUILD_GFX11
+    m_signature.streamoutCntlBufRegAddr = pPreRasterLib->m_signature.streamoutCntlBufRegAddr;
+#endif
+    m_signature.nggCullingDataAddr      = pPreRasterLib->m_signature.nggCullingDataAddr;
+    m_signature.uavExportTableAddr      = pPsLib->m_signature.uavExportTableAddr;
+    m_signature.colorExportAddr         = pPsLib->m_signature.colorExportAddr;
+    if (IsTessEnabled())
+    {
+        SetupSignatureForStageFromLib(pPreRasterLib, HwShaderStage::Hs);
+    }
+    if (IsGsEnabled() || IsNgg())
+    {
+        SetupSignatureForStageFromLib(pPreRasterLib, HwShaderStage::Gs);
+    }
+    if (IsNgg() == false)
+    {
+        SetupSignatureForStageFromLib(pPreRasterLib, HwShaderStage::Vs);
+    }
+    SetupSignatureForStageFromLib(pPsLib, HwShaderStage::Ps);
+
+    // viewIdRegAddr is a compact array, we can't copy it according to stage id
+    memcpy(m_signature.viewIdRegAddr,
+           pPreRasterLib->m_signature.viewIdRegAddr,
+           sizeof(pPreRasterLib->m_signature.viewIdRegAddr));
+    PAL_ASSERT(m_signature.viewIdRegAddr[HwShaderStage::Ps] == UserDataNotMapped);
+    m_signature.viewIdRegAddr[HwShaderStage::Ps] = pPsLib->m_signature.viewIdRegAddr[0];
+    PackArray(m_signature.viewIdRegAddr, UserDataNotMapped);
+}
+
+// ==================================================================================================================== =
+// Initializes render-state registers which are associated with multiple hardware shader stages.
+void GraphicsPipeline::SetupCommonRegistersFromLibs(
+    const GraphicsPipelineCreateInfo & createInfo,
+    const GraphicsPipeline*            pPreRasterLib,
+    const GraphicsPipeline*            pPsLib,
+    const GraphicsPipeline*            pExpLib)
+{
+    const Gfx9PalSettings&   settings     = m_pDevice->Settings();
+    const PalPublicSettings* pPalSettings = m_pDevice->Parent()->GetPublicSettings();
+
+    // Registers in color export
+    pExpLib = (pExpLib == nullptr) ? pPsLib : pExpLib;
+    m_regs.context.spiShaderColFormat = pExpLib->m_regs.context.spiShaderColFormat;
+    m_regs.context.cbShaderMask       = pExpLib->m_regs.context.cbShaderMask;
+
+    // Registers in pixel partial pipeline
+    m_regs.context.spiShaderZFormat   = pPsLib->m_regs.context.spiShaderZFormat;
+    m_regs.context.spiInterpControl0  = pPsLib->m_regs.context.spiInterpControl0;
+    m_regs.other.spiPsInControl       = pPsLib->m_regs.other.spiPsInControl;
+    m_regs.other.paScModeCntl1        = pPsLib->m_regs.other.paScModeCntl1;
+    m_regs.context.paStereoCntl       = pPsLib->m_regs.context.paStereoCntl;
+    m_info.ps.flags.perSampleShading  = m_regs.other.paScModeCntl1.bits.PS_ITER_SAMPLE;
+
+    // Registers in vertex partial pipeline
+    m_regs.context.paClVteCntl        = pPreRasterLib->m_regs.context.paClVteCntl;
+    m_regs.context.paSuVtxCntl        = pPreRasterLib->m_regs.context.paSuVtxCntl;
+    m_regs.context.spiShaderIdxFormat = pPreRasterLib->m_regs.context.spiShaderIdxFormat;
+    m_regs.context.spiShaderPosFormat = pPreRasterLib->m_regs.context.spiShaderPosFormat;
+    m_regs.context.vgtGsMode          = pPreRasterLib->m_regs.context.vgtGsMode;
+    m_regs.context.vgtGsOnchipCntl    = pPreRasterLib->m_regs.context.vgtGsOnchipCntl;
+    m_regs.context.vgtReuseOff        = pPreRasterLib->m_regs.context.vgtReuseOff;
+    m_regs.context.vgtDrawPayloadCntl = pPreRasterLib->m_regs.context.vgtDrawPayloadCntl;
+    m_regs.context.vgtVertexReuseBlockCntl = pPreRasterLib->m_regs.context.vgtVertexReuseBlockCntl;
+#if PAL_BUILD_GFX11
+    m_regs.uconfig.vgtGsOutPrimType   = pPreRasterLib->m_regs.uconfig.vgtGsOutPrimType;
+#endif
+    m_regs.uconfig.geStereoCntl       = pPreRasterLib->m_regs.uconfig.geStereoCntl;
+    m_regs.uconfig.geUserVgprEn.u32All = 0; // We do not support this feature.
+    m_regs.uconfig.gePcAlloc          = pPreRasterLib->m_regs.uconfig.gePcAlloc;
+    m_regs.other.paClClipCntl         = pPreRasterLib->m_regs.other.paClClipCntl;
+    m_regs.other.vgtTfParam           = pPreRasterLib->m_regs.other.vgtTfParam;
+    m_regs.other.spiVsOutConfig       = pPreRasterLib->m_regs.other.spiVsOutConfig;
+    m_regs.other.vgtLsHsConfig        = pPreRasterLib->m_regs.other.vgtLsHsConfig;
+
+    // If NGG is enabled, there is no hardware-VS, so there is no need to compute the late-alloc VS limit.
+    if (IsNgg() == false)
+    {
+        m_regs.sh.spiShaderLateAllocVs = pPreRasterLib->m_regs.sh.spiShaderLateAllocVs;
+    }
+
+    for (uint32 idx = 0; idx < NumIaMultiVgtParam; ++idx)
+    {
+        m_regs.other.iaMultiVgtParam[idx] = pPreRasterLib->m_regs.other.iaMultiVgtParam[idx];
+    }
+
+    m_regs.context.spiInterpControl0.bits.FLAT_SHADE_ENA = (createInfo.rsState.shadeMode == ShadeMode::Flat);
+    if (m_regs.context.spiInterpControl0.bits.PNT_SPRITE_ENA != 0) // Point sprite mode is enabled.
+    {
+        m_regs.context.spiInterpControl0.bits.PNT_SPRITE_TOP_1 =
+            (createInfo.rsState.pointCoordOrigin != PointOrigin::UpperLeft);
+    }
+
+    m_regs.other.paClClipCntl.bits.DX_CLIP_SPACE_DEF =
+        (createInfo.viewportInfo.depthRange == DepthRange::ZeroToOne);
+
+    if (createInfo.viewportInfo.depthClipNearEnable == false)
+    {
+        m_regs.other.paClClipCntl.bits.ZCLIP_NEAR_DISABLE = 1;
+    }
+    if (createInfo.viewportInfo.depthClipFarEnable == false)
+    {
+        m_regs.other.paClClipCntl.bits.ZCLIP_FAR_DISABLE = 1;
+    }
+
+    switch (createInfo.rsState.forcedShadingRate)
+    {
+    case PsShadingRate::SampleRate:
+        m_regs.other.paScModeCntl1.bits.PS_ITER_SAMPLE = 1;
+        break;
+    case PsShadingRate::PixelRate:
+        m_regs.other.paScModeCntl1.bits.PS_ITER_SAMPLE = 0;
+        break;
+    default:
+        // Use the register value from partial pipeline
+        break;
+    }
+
+    // Overrides some of the fields in PA_SC_MODE_CNTL1 to account for GPU pipe config and features like
+    // out-of-order rasterization.
+    if (createInfo.rsState.outOfOrderPrimsEnable && (settings.enableOutOfOrderPrimitives != OutOfOrderPrimDisable))
+    {
+        m_regs.other.paScModeCntl1.bits.OUT_OF_ORDER_PRIMITIVE_ENABLE = 1;
+    }
+
+    // DB_RENDER_OVERRIDE
+    {
+        // NOTE: On recommendation from h/ware team FORCE_SHADER_Z_ORDER will be set whenever Re-Z is being used.
+        m_regs.other.dbRenderOverride.bits.FORCE_SHADER_Z_ORDER = (m_chunkVsPs.DbShaderControl().bits.Z_ORDER == RE_Z);
+
+        // Configure depth clamping
+        // Register specification does not specify dependence of DISABLE_VIEWPORT_CLAMP on Z_EXPORT_ENABLE, but
+        // removing the dependence leads to perf regressions in some applications for Vulkan, DX and OGL.
+        // The reason for perf drop can be narrowed down to the DepthExpand RPM pipeline. Disabling viewport clamping
+        // (DISABLE_VIEWPORT_CLAMP = 1) for this pipeline results in heavy perf drops.
+        // It's also important to note that this issue is caused by the graphics depth fast clear not the depth expand
+        // itself.  It simply reuses the same RPM pipeline from the depth expand.
+
+        if (pPalSettings->depthClampBasedOnZExport == true)
+        {
+            m_regs.other.dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP =
+                ((createInfo.rsState.depthClampMode == DepthClampMode::_None) &&
+                    (m_chunkVsPs.DbShaderControl().bits.Z_EXPORT_ENABLE != 0));
+        }
+        else
+        {
+            // Vulkan (only) will take this path by default, unless an app-detect forces the other way.
+            m_regs.other.dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP =
+                (createInfo.rsState.depthClampMode == DepthClampMode::_None);
         }
     }
 }

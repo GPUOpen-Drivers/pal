@@ -111,22 +111,32 @@ General
 General Language Restrictions
 -----------------------------
 
--   The C++ Standard Library ***must not*** be used. This includes everything
+-   The C++ Standard Library is ***strongly discouraged***. This includes everything
     from the `std` namespace. The PAL utility collection (namespace `Util`)
-    should be used instead and expanded as necessary. Exceptions are given
-    in the following. The main restricting factors are exception safety
-    (many functions in the standard library may throw), and allocator
-    restrictions (system allocators may not be used directly).
+    should be used instead and expanded as necessary.
 
--   When necessary for implementing a templated function or class,
-    helpers from the `type_traits` header and `std::numeric_limits`
-    **may** be used.
+    -   The C++ Standard Library ***must not*** not be used in the following cases
 
--   The std `atomic` header ***should*** be used to implement atomic
-    values and thread barriers.
+        -   Any function that may allocate memory ***must not*** be used.
+            Memory allocation must be done according to the rules in the Memory Allocation
+            section of this document. The C++ standard library does not conform to
+            those rules. This rule means that most containers cannot be used.
 
--   Standard I/O stream functionality (i.e., `cin`, `cout`, `cerr`, `clog`)
-    ***must not*** be used.
+        -   Any function that may throw exceptions ***must not*** be used.
+
+        -   Any function that may offload work to the GPU ***must not*** be used.
+
+        -   Standard I/O stream functionality (i.e., `cin`, `cout`, `cerr`, `clog`)
+            ***must not*** be used.
+
+    - The C++ Standard Library ***may*** be used in the following cases
+
+        -   When necessary for implementing a templated function or class,
+            helpers from the `type_traits` header and `std::numeric_limits`
+            **may** be used.
+
+        -   The std `atomic` header ***should*** be used to implement atomic
+            values and thread barriers.
 
 -   goto statements ***must not*** be used.
 

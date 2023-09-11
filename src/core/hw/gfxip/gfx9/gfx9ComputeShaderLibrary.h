@@ -25,7 +25,7 @@
 
 #pragma once
 
-#include "core/hw/gfxip/shaderLibrary.h"
+#include "core/hw/gfxip/computeShaderLibrary.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9PipelineChunkCs.h"
 #include "core/hw/gfxip/gfx9/gfx9Chip.h"
@@ -51,12 +51,12 @@ struct LibraryHwInfo
 };
 
 // =====================================================================================================================
-// GFX9 Shader Library class: implements GFX9 specific functionality for the ShaderLibrary class.
-class ShaderLibrary final : public Pal::ShaderLibrary
+// GFX9 Shader Library class: implements GFX9 specific functionality for the ComputeShaderLibrary class.
+class ComputeShaderLibrary final : public Pal::ComputeShaderLibrary
 {
 public:
-    explicit ShaderLibrary(Device* pDevice);
-    virtual ~ShaderLibrary();
+    explicit ComputeShaderLibrary(Device* pDevice);
+    virtual ~ComputeShaderLibrary();
 
     const ComputePipelineSignature& Signature() const { return m_signature; }
     bool IsWave32() const { return m_signature.flags.isWave32; }
@@ -104,8 +104,8 @@ private:
     uint32                      m_funcCount;
 
     // Disable the default constructor and assignment operator
-    PAL_DISALLOW_DEFAULT_CTOR(ShaderLibrary);
-    PAL_DISALLOW_COPY_AND_ASSIGN(ShaderLibrary);
+    PAL_DISALLOW_DEFAULT_CTOR(ComputeShaderLibrary);
+    PAL_DISALLOW_COPY_AND_ASSIGN(ComputeShaderLibrary);
 };
 
 } // namespace Gfx9

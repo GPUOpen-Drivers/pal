@@ -73,8 +73,7 @@ void PipelineChunkGs::LateInit(
     const PalAbi::CodeObjectMetadata& metadata,
     const GraphicsPipelineLoadInfo&   loadInfo,
     const GraphicsPipelineCreateInfo& createInfo,
-    PipelineUploader*                 pUploader,
-    MetroHash64*                      pHasher)
+    PipelineUploader*                 pUploader)
 {
     const GpuChipProperties& chipProps    = m_device.Parent()->ChipProperties();
 
@@ -161,8 +160,6 @@ void PipelineChunkGs::LateInit(
                                          &m_regs.context.vgtGsMaxPrimsPerSubgroup,
                                          &m_regs.context.geMaxOutputPerSubgroup,
                                          chipProps.gfxLevel);
-
-    pHasher->Update(m_regs.context);
 }
 
 // =====================================================================================================================
@@ -490,5 +487,13 @@ void PipelineChunkGs::AccumulateContextRegs(
 }
 #endif
 
+// =====================================================================================================================
+void PipelineChunkGs::Clone(
+    const PipelineChunkGs& chunkGs)
+{
+    m_regs           = chunkGs.m_regs;
+    m_stageInfo      = chunkGs.m_stageInfo;
+    m_fastLaunchMode = chunkGs.m_fastLaunchMode;
+}
 } // Gfx9
 } // Pal

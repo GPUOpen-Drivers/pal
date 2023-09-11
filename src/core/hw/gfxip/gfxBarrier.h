@@ -36,6 +36,7 @@ class  GfxCmdBuffer;
 class  GfxDevice;
 class  IGpuEvent;
 class  Platform;
+class  Pm4CmdBuffer;
 struct AcquireReleaseInfo;
 struct BarrierInfo;
 
@@ -43,6 +44,67 @@ namespace Developer
 {
 struct BarrierOperations;
 }
+
+// Acquire/release synchronization event types for supported pipeline event.
+enum class AcqRelEventType : uint32
+{
+    Eop    = 0x0,
+    PsDone = 0x1,
+    CsDone = 0x2,
+    Count,
+
+    Invalid = Count
+};
+
+// Bit mask value of AcqRelEventType
+enum AcqRelEventTypeMask : uint32
+{
+    AcqRelEventMaskEop      = 1u << uint32(AcqRelEventType::Eop),
+    AcqRelEventMaskPsDone   = 1u << uint32(AcqRelEventType::PsDone),
+    AcqRelEventMaskCsDone   = 1u << uint32(AcqRelEventType::CsDone),
+
+    AcqRelEventMaskPsCsDone = AcqRelEventMaskPsDone | AcqRelEventMaskCsDone,
+    AcqRelEventMaskAll      = (1u << uint32(AcqRelEventType::Count)) - 1
+};
+
+// Acquire/release synchronization token structure.
+union AcqRelSyncToken
+{
+    struct
+    {
+        uint32 fenceVal : 30;
+        uint32 type     :  2; // AcqRelEventType
+    };
+
+    uint32 u32All;
+};
+
+constexpr uint32 PipelineStagesGraphicsOnly = PipelineStageVs            |
+                                              PipelineStageHs            |
+                                              PipelineStageDs            |
+                                              PipelineStageGs            |
+                                              PipelineStagePs            |
+                                              PipelineStageEarlyDsTarget |
+                                              PipelineStageLateDsTarget  |
+                                              PipelineStageColorTarget   |
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 770
+                                              PipelineStageStreamOut     |
+#endif
+                                              PipelineStageFetchIndices;
+
+constexpr uint32 CacheCoherencyGraphicsOnly = CoherColorTarget        |
+                                              CoherDepthStencilTarget |
+                                              CoherSampleRate         |
+                                              CoherCeLoad             |
+                                              CoherCeDump             |
+                                              CoherStreamOut          |
+                                              CoherIndexData;
+
+// There are various BLTs(Copy, Clear, and Resolve) that can involve different caches based on what engine
+// does the BLT.
+constexpr uint32 CacheCoherencyBltSrc = CoherCopySrc | CoherResolveSrc;
+constexpr uint32 CacheCoherencyBltDst = CoherCopyDst | CoherResolveDst | CoherClear;
+constexpr uint32 CacheCoherencyBlt    = CacheCoherencyBltSrc | CacheCoherencyBltDst;
 
 // =====================================================================================================================
 // BASE barrier Processing Manager: only contain execution and memory dependencies.
@@ -87,6 +149,17 @@ public:
         const AcquireReleaseInfo&     barrierInfo,
         Developer::BarrierOperations* pBarrierOps) const { PAL_NEVER_CALLED(); }
 
+    virtual void OptimizePipePoint(const Pm4CmdBuffer* pCmdBuf, HwPipePoint* pPipePoint) const;
+
+    virtual void OptimizeSrcCacheMask(const Pm4CmdBuffer* pCmdBuf, uint32* pCacheMask) const;
+
+    virtual void OptimizePipeStageAndCacheMask(
+        const Pm4CmdBuffer* pCmdBuf,
+        uint32*             pSrcStageMask,
+        uint32*             pSrcAccessMask,
+        uint32*             pDstStageMask,
+        uint32*             pDstAccessMask) const;
+
     void DescribeBarrier(
         GfxCmdBuffer*                 pGfxCmdBuf,
         const BarrierTransition*      pTransition,
@@ -94,6 +167,16 @@ public:
 
     void DescribeBarrierStart(GfxCmdBuffer* pGfxCmdBuf, uint32 reason, Developer::BarrierType type) const;
     void DescribeBarrierEnd(GfxCmdBuffer* pGfxCmdBuf, Developer::BarrierOperations* pOperations) const;
+
+    static Result SplitBarrierTransitions(
+        Platform*    pPlatform,
+        BarrierInfo* pBarrier,
+        bool*        pMemAllocated);
+
+    static Result SplitImgBarriers(
+        Platform*           pPlatform,
+        AcquireReleaseInfo* pBarrier,
+        bool*               pMemAllocated);
 
 protected:
     GfxDevice*const   m_pGfxDevice;

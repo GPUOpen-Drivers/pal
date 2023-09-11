@@ -1086,9 +1086,6 @@ Result CreateRpmComputePipelines(
     if (result == Result::Success && (false
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-#if PAL_BUILD_NAVI31|| PAL_BUILD_NAVI33|| PAL_BUILD_PHOENIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#endif
         ))
     {
         result = CreateRpmComputePipeline(

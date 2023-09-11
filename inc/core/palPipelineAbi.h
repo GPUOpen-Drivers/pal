@@ -240,6 +240,7 @@ constexpr const char* PipelineAbiSymbolNameStrings[] =
     "_amdgpu_gs_amdil",
     "_amdgpu_mesh_amdil",
     "_amdgpu_ps_amdil",
+    "color_export_shader",
 };
 
 /// Pipeline category.
@@ -362,6 +363,7 @@ enum class PipelineSymbolType : uint32
                        ///  Associated with the .AMDGPU.commd.amdil section.
     PsAmdIl,           ///< API PS shader AMDIL disassembly.  Optional.
                        ///  Associated with the .AMDGPU.comment.amdil section.
+    PsColorExportEntry,///< PS color export shader entry point. Optional.
     Count,
 
     ShaderMainEntry   = LsMainEntry,        ///< Shorthand for the first shader's entry point
@@ -393,6 +395,18 @@ union ApiHwShaderMapping
 
 static_assert((sizeof(ApiHwShaderMapping) == sizeof(uint64)),
               "ApiHwShaderMapping is different in size than expected!");
+
+/// This packed bitfield is used to set sample Info to register
+union ApiSampleInfo
+{
+    struct
+    {
+        uint16 numSamples;       ///< Number of coverage samples
+        uint16 samplePatternIdx; ///< Index into the currently bound MSAA sample pattern table
+    };
+
+    uint32 u32All;      ///< Flags packed as 32-bit uint.
+};
 
 /// Helper function to get a pipeline symbol type for a specific hardware shader stage.
 ///
@@ -490,6 +504,8 @@ enum class UserDataMapping : uint32
 #endif
     EnPrimsNeededCnt      = 0x10000017,  ///< Address of userdata register that will be used to dynamically enable/disable
                                          ///  extra shader work for generated prim counts in PipelineStats queries
+    SampleInfo            = 0x10000018,  ///< Sample Info, 16-bit numsamples + 16-bit Sample Pattern
+    ColorExportAddr       = 0x10000020,  ///< 32-bit pointer to GPU memory containing the color export shader
 
     NotMapped             = 0xFFFFFFFF,  ///< Register is not mapped to any user-data entry.
 

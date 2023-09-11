@@ -411,6 +411,11 @@ public:
     /// @returns True if crash analysis is enabled, false otherwise.
     virtual bool IsCrashAnalysisModeEnabled() const = 0;
 
+    /// Indicates whether the driver has been signaled to enable Raytracing Shader Data Tokens.
+    ///
+    /// @returns True if Raytracing Shader Data Tokens is enabled, false otherwise.
+    virtual bool IsRaytracingShaderDataTokenRequested() const = 0;
+
     /// Returns a pointer to the Platform settings structure
     ///
     /// @returns A reference to a PalPlatformSettings structure.

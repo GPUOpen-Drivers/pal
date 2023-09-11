@@ -113,7 +113,7 @@ Result Pm4CmdBuffer::Begin(
         // pipePoint on nested command buffer cannot be optimized using the state from primary
         if (IsNested() == true)
         {
-            SetPm4CmdBufCpBltState(true);
+            SetCpBltState(true);
         }
     }
 
@@ -310,10 +310,10 @@ void Pm4CmdBuffer::ResetState()
 
     memset(m_acqRelFenceVals, 0, sizeof(m_acqRelFenceVals));
 
-    UpdatePm4CmdBufGfxBltExecEopFence();
+    UpdateGfxBltExecEopFence();
     // Set a impossible waited fence until IssueReleaseSync assigns a meaningful value when sync RB cache.
-    UpdatePm4CmdBufGfxBltWbEopFence(UINT32_MAX);
-    UpdatePm4CmdBufCsBltExecFence();
+    UpdateGfxBltWbEopFence(UINT32_MAX);
+    UpdateCsBltExecFence();
 
     PAL_SAFE_FREE(m_computeState.pKernelArguments, m_device.GetPlatform());
     memset(&m_computeState, 0, sizeof(m_computeState));
@@ -350,7 +350,8 @@ void Pm4CmdBuffer::CmdSetKernelArguments(
 
     if (firstArg + argCount > metadata.NumArguments())
     {
-        // Verify that we won't go out of bounds. Legally we could demote this to an assert if we want.
+        PAL_ASSERT_ALWAYS_MSG("Kernel argument count is off! More arguments than expected");
+        // Verify that we won't go out of bounds.
         SetCmdRecordingError(Result::ErrorInvalidValue);
     }
     else
@@ -776,10 +777,10 @@ void Pm4CmdBuffer::CmdRestoreComputeState(uint32 stateFlags)
     GfxCmdBuffer::CmdRestoreComputeState(stateFlags);
 
     // The caller has just executed one or more CS blts.
-    SetPm4CmdBufCsBltState(true);
-    SetPm4CmdBufCsBltWriteCacheState(true);
+    SetCsBltState(true);
+    SetCsBltWriteCacheState(true);
 
-    UpdatePm4CmdBufCsBltExecFence();
+    UpdateCsBltExecFence();
 
     // Reactivate all queries that we stopped in CmdSaveComputeState.
     if (m_buildFlags.disableQueryInternalOps)
@@ -918,14 +919,29 @@ void Pm4CmdBuffer::OptimizeBarrierReleaseInfo(
     uint32*            pCacheMask
     ) const
 {
-    for (uint32 i = 0; i < pipePointCount; i++)
+    if (m_pBarrierMgr != nullptr)
     {
-        OptimizePipePoint(&pPipePoints[i]);
-    }
+        for (uint32 i = 0; i < pipePointCount; i++)
+        {
+            m_pBarrierMgr->OptimizePipePoint(this, &pPipePoints[i]);
+        }
 
-    if (pCacheMask != nullptr)
+        if (pCacheMask != nullptr)
+        {
+            m_pBarrierMgr->OptimizeSrcCacheMask(this, pCacheMask);
+        }
+    }
+    else
     {
-        OptimizeSrcCacheMask(pCacheMask);
+        for (uint32 i = 0; i < pipePointCount; i++)
+        {
+            OptimizePipePoint(&pPipePoints[i]);
+        }
+
+        if (pCacheMask != nullptr)
+        {
+            OptimizeSrcCacheMask(pCacheMask);
+        }
     }
 }
 
@@ -935,7 +951,14 @@ void Pm4CmdBuffer::OptimizeAcqRelReleaseInfo(
     uint32*                   pAccessMasks
     ) const
 {
-    OptimizePipeStageAndCacheMask(pStageMask, pAccessMasks, nullptr, nullptr);
+    if (m_pBarrierMgr != nullptr)
+    {
+        m_pBarrierMgr->OptimizePipeStageAndCacheMask(this, pStageMask, pAccessMasks, nullptr, nullptr);
+    }
+    else
+    {
+        OptimizePipeStageAndCacheMask(pStageMask, pAccessMasks, nullptr, nullptr);
+    }
 }
 
 // =====================================================================================================================
@@ -1047,7 +1070,9 @@ void Pm4CmdBuffer::CmdBarrier(
 
     bool splitMemAllocated;
     BarrierInfo splitBarrierInfo = barrierInfo;
-    Result result = Pal::Device::SplitBarrierTransitions(m_device.GetPlatform(), &splitBarrierInfo, &splitMemAllocated);
+    Result result = GfxBarrierMgr::SplitBarrierTransitions(m_device.GetPlatform(),
+                                                           &splitBarrierInfo,
+                                                           &splitMemAllocated);
 
     Developer::BarrierOperations barrierOps = {};
 
@@ -1092,7 +1117,7 @@ uint32 Pm4CmdBuffer::CmdRelease(
 
     bool splitMemAllocated;
     AcquireReleaseInfo splitReleaseInfo = releaseInfo;
-    Result result = Pal::Device::SplitImgBarriers(m_device.GetPlatform(), &splitReleaseInfo, &splitMemAllocated);
+    Result result = GfxBarrierMgr::SplitImgBarriers(m_device.GetPlatform(), &splitReleaseInfo, &splitMemAllocated);
 
     Developer::BarrierOperations barrierOps = {};
     uint32 syncToken = 0;
@@ -1142,7 +1167,7 @@ void Pm4CmdBuffer::CmdAcquire(
 
     bool splitMemAllocated;
     AcquireReleaseInfo splitAcquireInfo = acquireInfo;
-    Result result = Pal::Device::SplitImgBarriers(m_device.GetPlatform(), &splitAcquireInfo, &splitMemAllocated);
+    Result result = GfxBarrierMgr::SplitImgBarriers(m_device.GetPlatform(), &splitAcquireInfo, &splitMemAllocated);
 
     Developer::BarrierOperations barrierOps = {};
 
@@ -1188,7 +1213,7 @@ void Pm4CmdBuffer::CmdReleaseEvent(
 
     bool splitMemAllocated;
     AcquireReleaseInfo splitReleaseInfo = releaseInfo;
-    Result result = Pal::Device::SplitImgBarriers(m_device.GetPlatform(), &splitReleaseInfo, &splitMemAllocated);
+    Result result = GfxBarrierMgr::SplitImgBarriers(m_device.GetPlatform(), &splitReleaseInfo, &splitMemAllocated);
 
     Developer::BarrierOperations barrierOps = {};
 
@@ -1235,7 +1260,7 @@ void Pm4CmdBuffer::CmdAcquireEvent(
 
     bool splitMemAllocated;
     AcquireReleaseInfo splitAcquireInfo = acquireInfo;
-    Result result = Pal::Device::SplitImgBarriers(m_device.GetPlatform(), &splitAcquireInfo, &splitMemAllocated);
+    Result result = GfxBarrierMgr::SplitImgBarriers(m_device.GetPlatform(), &splitAcquireInfo, &splitMemAllocated);
 
     Developer::BarrierOperations barrierOps = {};
 
@@ -1280,7 +1305,7 @@ void Pm4CmdBuffer::CmdReleaseThenAcquire(
 
     bool splitMemAllocated;
     AcquireReleaseInfo splitBarrierInfo = barrierInfo;
-    Result result = Pal::Device::SplitImgBarriers(m_device.GetPlatform(), &splitBarrierInfo, &splitMemAllocated);
+    Result result = GfxBarrierMgr::SplitImgBarriers(m_device.GetPlatform(), &splitBarrierInfo, &splitMemAllocated);
 
     Developer::BarrierOperations barrierOps = {};
 

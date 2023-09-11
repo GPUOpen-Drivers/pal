@@ -381,6 +381,11 @@ public:
         return m_pNextLayer->IsCrashAnalysisModeEnabled();
     }
 
+    virtual bool IsRaytracingShaderDataTokenRequested() const override
+    {
+        return m_pNextLayer->IsRaytracingShaderDataTokenRequested();
+    }
+
     virtual DevDriver::EventProtocol::EventServer* GetEventServer() override
     {
         return m_pNextLayer->GetEventServer();
@@ -2961,7 +2966,14 @@ public:
         this->~PipelineDecorator();
         pNextLayer->Destroy();
     }
-
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 816
+    virtual const void* GetCodeObjectWithShaderType(
+        ShaderType shaderType,
+        size_t*    pSize) const override
+    {
+        return m_pNextLayer->GetCodeObjectWithShaderType(shaderType, pSize);
+    }
+#endif
     // Initialize the PipelineDecorator. Populates the m_pipelines vector.
     Result Init();
 

@@ -592,6 +592,12 @@ struct GraphicsPipelineSignature
     // pipeline stats query.
     uint16  meshPipeStatsBufRegAddr;
 
+    // Register address for dynamic numSamples and samplePatternIdx
+    uint16  sampleInfoRegAddr;
+
+    // Register address for passing the 32-bit GPU virtual address of the color export shader entry
+    uint16  colorExportAddr;
+
     // First user-data entry which is spilled to GPU memory. A value of 'NoUserDataSpilling' indicates the pipeline
     // does not spill user-data entries to memory.
     uint16  spillThreshold;

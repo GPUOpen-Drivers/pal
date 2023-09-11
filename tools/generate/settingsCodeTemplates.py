@@ -166,13 +166,13 @@ ReadSetting = """    %ReadSettingClass%->ReadSetting(%SettingStrName%,
 """
 ReadOptionalSetting = """
     {
-        m_settings.%SettingVarName% = 0;
+        %SettingType% valueRead = {};
         if (%ReadSettingClass%->ReadSetting(%SettingStrName%,
                                             %SettingRegistryType%,
-                                            &m_settings.%SettingVarName%.Value()
-                                            %OsiSettingType%) == false)
+                                            &valueRead
+                                            %OsiSettingType%))
         {
-            m_settings.%SettingVarName%.Reset();
+            m_settings.%SettingVarName% = valueRead;
         }
     }
 """

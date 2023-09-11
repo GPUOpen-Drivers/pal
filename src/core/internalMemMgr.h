@@ -50,6 +50,7 @@ struct GpuMemoryPool
 
     bool                            readOnly;               // Tells whether the allocation is read-only
     GpuMemoryFlags                  memFlags;               // Properties of the GPU memory object
+    GpuHeapAccess                   heapAccess;             // Desired access for a memory allocation
     size_t                          heapCount;              // Number of heaps in the heap preference array
     GpuHeap                         heaps[GpuHeapCount];    // Heap preference array
     VaRange                         vaRange;                // Virtual address range

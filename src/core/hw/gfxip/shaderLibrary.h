@@ -34,25 +34,11 @@
 
 namespace Pal
 {
-class ShaderLibraryUploader;
-
 // Shorthand for a pipeline ABI reader.
 using AbiReader = Util::Abi::PipelineAbiReader;
 
-// Structure describing the shader function statistics.
-struct ShaderFuncStats
-{
-    const char*    pSymbolName;
-    uint32         symbolNameLength;
-    uint32         stackFrameSizeInBytes;
-    ShaderSubType  shaderSubType;
-};
-
-using ShaderFuncStatsList = Util::Vector<ShaderFuncStats, 10, Platform>;
-
 // =====================================================================================================================
-// Hardware independent compute pipeline class.  Implements all details of a compute pipeline that are common across
-// all hardware types but distinct from a graphics pipeline.
+// Hardware independent shader library class.
 class ShaderLibrary : public IShaderLibrary
 {
 public:
@@ -66,40 +52,42 @@ public:
 
     virtual const LibraryInfo& GetInfo() const override { return m_info; }
 
-    virtual Result QueryAllocationInfo(
-        size_t*                    pNumEntries,
-        GpuMemSubAllocInfo* const  pAllocInfoList) const override;
-
     virtual Result GetCodeObject(
         uint32*  pSize,
         void*    pBuffer) const override;
-
-    virtual Result GetShaderFunctionCode(
-        const char*  pShaderExportName,
-        size_t*      pSize,
-        void*        pBuffer) const override;
-
-    virtual Result GetShaderFunctionStats(
-        const char*      pShaderExportName,
-        ShaderLibStats*  pShaderStats) const override;
 
     virtual const ShaderLibraryFunctionInfo* GetShaderLibFunctionList() const override { return nullptr; }
 
     virtual uint32 GetShaderLibFunctionCount() const override { return 0; }
 
-    static void GetFunctionGpuVirtAddrs(
-        const PipelineUploader&    uploader,
-        ShaderLibraryFunctionInfo* pFuncInfoList,
-        uint32                     funcCount);
+    virtual Result GetShaderFunctionCode(
+        const char* pShaderExportName,
+        size_t*     pSize,
+        void*       pBuffer) const
+    {
+        // This function should be implemented in gfx6 / gfx9 if needed.
+        return Result::ErrorUnavailable;;
+    }
 
-    uint32 GetMaxStackSizeInBytes() const { return m_maxStackSizeInBytes; }
-    UploadFenceToken GetUploadFenceToken() const { return m_uploadFenceToken; }
-    uint64 GetPagingFenceVal() const { return m_pagingFenceVal; }
+    virtual Result GetShaderFunctionStats(
+        const char*     pShaderExportName,
+        ShaderLibStats* pStats) const
+    {
+        // This function should be implemented in gfx6 / gfx9 if needed.
+        return Result::ErrorUnavailable;;
+    }
 
-    const void* GetCodeObject() const { return m_pCodeObjectBinary; }
+    const void* GetCodeObject(size_t* pSize) const
+    {
+        if (pSize != nullptr)
+        {
+            *pSize = m_codeObjectBinaryLen;
+        }
+        return m_pCodeObjectBinary;
+    }
 
     bool IsInternal() const { return m_flags.clientInternal != 0; }
-
+    bool IsGraphics() const { return m_flags.isGraphics != 0; }
 protected:
     // internal Constructor.
     explicit ShaderLibrary(Device* pDevice);
@@ -116,30 +104,18 @@ protected:
         const Util::PalAbi::CodeObjectMetadata& metadata,
         Util::MsgPackReader*                    pMetadataReader) = 0;
 
-    Result PerformRelocationsAndUploadToGpuMemory(
+    virtual Result PostInit(
         const Util::PalAbi::CodeObjectMetadata& metadata,
-        const GpuHeap&                          clientPreferredHeap,
-        PipelineUploader*                       pUploader);
+        Util::MsgPackReader*                    pReader) = 0;
 
     void ExtractLibraryInfo(
         const Util::PalAbi::CodeObjectMetadata& metadata);
 
-    Result ExtractShaderFunctions(
-        Util::MsgPackReader* pReader);
-
-    Device*const    m_pDevice;
-
+    Device*const       m_pDevice;
     LibraryInfo        m_info;                 // Public info structure available to the client.
     LibraryCreateFlags m_flags;                // Creation flags.
     void*              m_pCodeObjectBinary;    // Buffer containing the code object binary data (Pipeline ELF ABI).
     size_t             m_codeObjectBinaryLen;  // Size of code object binary data, in bytes.
-
-    BoundGpuMemory  m_gpuMem;
-    gpusize         m_gpuMemSize;
-    uint32          m_maxStackSizeInBytes;
-
-    UploadFenceToken  m_uploadFenceToken;
-    uint64            m_pagingFenceVal;
 
 private:
     Result InitFromCodeObjectBinary(
@@ -152,11 +128,7 @@ private:
         Util::StringView<char> prefix,
         Util::StringView<char> name) const;
 
-    BoundGpuMemory  m_perfDataMem;
-    gpusize         m_perfDataGpuMemSize;
-
     PAL_DISALLOW_DEFAULT_CTOR(ShaderLibrary);
     PAL_DISALLOW_COPY_AND_ASSIGN(ShaderLibrary);
 };
-
 } // namespace Pal

@@ -432,6 +432,11 @@ struct GraphicsPipelineCreateInfo
                                                ///  interface. The Pipeline ELF contains pre-compiled shaders,
                                                ///  register values, and additional metadata.
     size_t              pipelineBinarySize;    ///< Size of Pipeline ELF binary in bytes.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 816
+    const IShaderLibrary** ppShaderLibraries;  ///< An array of graphics @ref IShaderLibrary object. pPipelineBinary
+                                               ///  and ppShaderLibraries can't be valid at the same time.
+    size_t              numShaderLibraries;    ///< Number of graphics shaderLibrary object in ppShaderLibraries.
+#endif
     bool                useLateAllocVsLimit;   ///< If set, use the specified lateAllocVsLimit instead of PAL internally
                                                ///  determining the limit.
     uint32              lateAllocVsLimit;      ///< The number of VS waves that can be in flight without having param
@@ -719,6 +724,18 @@ public:
         uint32*  pSize,
         void*    pBuffer) const = 0;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 816
+    /// Obtains the pointer of code object with ELF format according to the shader type. Returned ELF object is not
+    /// guaranteed to be unique with different shader type, because a single code object can contain multiple shaders.
+    ///
+    /// @param [in] shaderType The shader stage for which the code object are requested.
+    /// @param [out] pSize     The size of the ELF binary.
+    ///
+    /// @returns The pointer of ELF binary which contains requested shader stage.
+    virtual const void* GetCodeObjectWithShaderType(
+        ShaderType shaderType,
+        size_t*    pSize) const = 0;
+#endif
     /// Obtains the shader pre and post compilation stats/params for the specified shader stage.
     ///
     /// @param [in]  shaderType The shader stage for which the stats are requested.

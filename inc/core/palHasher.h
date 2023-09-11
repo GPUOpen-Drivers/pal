@@ -194,7 +194,7 @@ public:
 
 private:
     HashType m_hasher;
-    PAL_DISALLOW_COPY_AND_ASSIGN(Hasher<HashType>);
+    PAL_DISALLOW_COPY_AND_ASSIGN(Hasher);
 };
 
 typedef Hasher<Util::MetroHash64> Hasher64;

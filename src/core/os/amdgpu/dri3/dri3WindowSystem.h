@@ -232,6 +232,7 @@ private:
     uint32                 m_localSerial;         // Latest local present serial number that was sent to Xserver.
     uint32                 m_remoteSerial;        // The serial number of the latest present completed by Xserver.
     xcb_gcontext_t         m_graphicsContext;     // Graphics context (only used for CPU presents)
+    Util::Mutex            m_lock;
 
     // The DRI3 present fence is tightly coupled to its windowing system. We declare it as a friend to make it easy to
     // call DRI3 functions within the fence.

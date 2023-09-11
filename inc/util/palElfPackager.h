@@ -180,7 +180,7 @@ private:
     List<ElfWriteSectionBuffer*, Allocator> m_sectionList;         // List of section data and headers.
     Allocator*const                         m_pAllocator;           // Allocator for this ElfWriteContext.
 
-    PAL_DISALLOW_COPY_AND_ASSIGN(ElfWriteContext<Allocator>);
+    PAL_DISALLOW_COPY_AND_ASSIGN(ElfWriteContext);
 };
 
 /**
@@ -238,7 +238,7 @@ private:
     typename SectionMap<Allocator>::Section m_map;                 // Hashmap for storing section data/headers.
     Allocator*const                         m_pAllocator;          // Allocator for this ElfReadContext.
 
-    PAL_DISALLOW_COPY_AND_ASSIGN(ElfReadContext<Allocator>);
+    PAL_DISALLOW_COPY_AND_ASSIGN(ElfReadContext);
 };
 
 } // Util

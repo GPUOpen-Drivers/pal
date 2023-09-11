@@ -83,8 +83,7 @@ public:
     void LateInit(
         const AbiReader&                        abiReader,
         const Util::PalAbi::CodeObjectMetadata& metadata,
-        PipelineUploader*                       pUploader,
-        Util::MetroHash64*                      pHasher);
+        PipelineUploader*                       pUploader);
 
     uint32* WriteShCommands(
         CmdStream* pCmdStream,
@@ -111,6 +110,9 @@ public:
 
     const ShaderStageInfo& StageInfo() const { return m_stageInfo; }
 
+    void Clone(const PipelineChunkHs& chunkHs);
+
+    void AccumulateRegistersHash(Util::MetroHash64& hasher)  const { hasher.Update(m_regs.context); }
 private:
     const Device&  m_device;
 

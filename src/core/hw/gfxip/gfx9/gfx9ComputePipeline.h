@@ -107,6 +107,11 @@ public:
         GfxIpLevel                              gfxIpLevel,
         const Util::PalAbi::CodeObjectMetadata& metadata);
 
+    // Returns the scratch memory size in dwords
+    static uint32 CalcScratchMemSize(
+        GfxIpLevel                              gfxIpLevel,
+        const Util::HsaAbi::CodeObjectMetadata& metadata);
+
 protected:
     virtual Result HwlInit(
         const ComputePipelineCreateInfo&        createInfo,

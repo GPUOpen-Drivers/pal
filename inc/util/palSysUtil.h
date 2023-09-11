@@ -437,14 +437,25 @@ extern Result MkDirRecursively(
 ///                             the minimum buffer size (in bytes) necessary to store all file names found. If both
 ///                             ppFileNames and pBuffer are null, pBufferSize will specify the maximum number of bytes
 ///                             to be written into pBuffer.
-/// @param [in,out] pBuffer     If non-null and pBuffer is non-null, pBuffer will point to memory where the file names
-///                             can be stored.
+/// @param [in,out] pBuffer     If non-null and pFileNames is non-null, pBuffer will point to memory where the file
+///                             names can be stored.
 extern Result ListDir(
     const char*  pDirName,
     uint32*      pFileCount,
     const char** ppFileNames,
     size_t*      pBufferSize,
     const void*  pBuffer);
+
+/// Non-recursively delete the least-recently-accesssed files from a directory until the directory reaches size in bytes.
+///
+/// @param [in] pPathName   string specifying the absolute path to the directory you want to remove files from
+/// @param      desiredSize the size you want to shrink the directory to
+///
+/// @returns Result::ErrorUnknown on File I/O error.
+///          Result::Success otherwise.
+Result RemoveOldestFilesOfDirUntilSize(
+    const char* pPathName,
+    uint64      desiredSize);
 
 /// Remove all files below threshold of a directory at the specified path.
 ///
@@ -455,9 +466,14 @@ extern Result ListDir(
 ///          following result codes may be returned:
 ///          + Result::ErrorUnknown if the specified directory is failed to open/remove.
 ///          + Result::ErrorInvalidValue if the parent directory does not exist.
-Result RemoveFilesOfDir(
+Result RemoveFilesOfDirOlderThan(
     const char* pPathName,
     uint64      threshold);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 814
+// Provide a wrapper using the older name of this function for backwards-compatibility.
+inline Result RemoveFilesOfDir(const char* pPathName, uint64 threshold)
+{ return RemoveFilesOfDirOlderThan(pPathName, threshold); }
+#endif
 
 /// Get status of a directory at the specified path.
 ///

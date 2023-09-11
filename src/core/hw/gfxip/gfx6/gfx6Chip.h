@@ -526,6 +526,9 @@ struct GraphicsPipelineSignature
     // be unmapped.
     uint16  drawIndexRegAddr;
 
+    // Register address for dynamic numSamples and samplePatternIdx
+    uint16  sampleInfoRegAddr;
+
     // First user-data entry which is spilled to GPU memory. A value of 'NoUserDataSpilling' indicates the pipeline
     // does not spill user-data entries to memory.
     uint16  spillThreshold;

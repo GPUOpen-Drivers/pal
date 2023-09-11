@@ -50,6 +50,7 @@ const GraphicsPipelineSignature NullGfxSignature =
     UserDataNotMapped,          // Stream-out table register address
     UserDataNotMapped,          // Vertex offset register address
     UserDataNotMapped,          // Draw ID register address
+    UserDataNotMapped,          // SampleInfo register address
     NoUserDataSpilling,         // Spill threshold
     0,                          // User-data entry limit
     { UserDataNotMapped, },     // Compacted view ID register addresses
@@ -1355,7 +1356,7 @@ Result GraphicsPipeline::GetShaderStats(
         const ShaderStageInfo*const pStageInfoCopy =
             (shaderType == ShaderType::Geometry) ? &m_chunkVsPs.StageInfoVs() : nullptr;
 
-        result = GetShaderStatsForStage(*pStageInfo, pStageInfoCopy, pShaderStats);
+        result = GetShaderStatsForStage(shaderType, *pStageInfo, pStageInfoCopy, pShaderStats);
         if (result == Result::Success)
         {
             pShaderStats->shaderStageMask = (1 << static_cast<uint32>(shaderType));
@@ -1533,6 +1534,13 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
             else if (value == static_cast<uint32>(Abi::UserDataMapping::ViewId))
             {
                 m_signature.viewIdRegAddr[stageId] = offset;
+            }
+            else if (value == static_cast<uint32>(Abi::UserDataMapping::SampleInfo))
+            {
+                PAL_ASSERT((m_signature.sampleInfoRegAddr == offset) ||
+                           (m_signature.sampleInfoRegAddr == UserDataNotMapped));
+                PAL_ASSERT(stage == HwShaderStage::Ps);
+                m_signature.sampleInfoRegAddr = offset;
             }
             else
             {

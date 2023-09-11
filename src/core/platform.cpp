@@ -910,6 +910,12 @@ void Platform::RegisterRpcServices()
 // =====================================================================================================================
 void Platform::DestroyRpcServices()
 {
+    if (m_rpcServer != DD_API_INVALID_HANDLE)
+    {
+        ddRpcServerDestroy(m_rpcServer);
+        m_rpcServer = DD_API_INVALID_HANDLE;
+    }
+
 #if PAL_BUILD_RDF
     if (m_pUberTraceService != nullptr)
     {
@@ -924,12 +930,6 @@ void Platform::DestroyRpcServices()
     if (m_pDriverUtilsService != nullptr)
     {
         PAL_SAFE_DELETE(m_pDriverUtilsService, this);
-    }
-
-    if (m_rpcServer != DD_API_INVALID_HANDLE)
-    {
-        ddRpcServerDestroy(m_rpcServer);
-        m_rpcServer = DD_API_INVALID_HANDLE;
     }
 }
 
@@ -1096,7 +1096,39 @@ bool Platform::IsCrashAnalysisModeEnabled() const
 {
     bool isCrashAnalysisModeEnabled = false;
 
+    // Crash Analysis mode is currently only supported for D3D12 and Vulkan.
+    if (m_pDriverUtilsService != nullptr)
+    {
+        isCrashAnalysisModeEnabled = m_pDriverUtilsService->IsCrashAnalysisModeEnabled();
+    }
+
     return isCrashAnalysisModeEnabled;
+}
+
+// =====================================================================================================================
+bool Platform::IsStaticVmidRequested() const
+{
+    bool debugVmidEnabled = false;
+
+    if (m_pDriverUtilsService != nullptr)
+    {
+        debugVmidEnabled = m_pDriverUtilsService->IsStaticVmidRequested();
+    }
+
+    return debugVmidEnabled;
+}
+
+// =====================================================================================================================
+bool Platform::IsRaytracingShaderDataTokenRequested() const
+{
+    bool raytracingShaderTokens = false;
+
+    if (m_pDriverUtilsService != nullptr)
+    {
+        raytracingShaderTokens = m_pDriverUtilsService->IsRaytracingShaderTokenRequested();
+    }
+
+    return raytracingShaderTokens;
 }
 
 // =====================================================================================================================

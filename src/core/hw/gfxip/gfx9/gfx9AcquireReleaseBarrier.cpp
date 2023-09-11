@@ -1267,10 +1267,10 @@ AcqRelSyncToken BarrierMgr::IssueReleaseSync(
         // the only way to satisfy this requirement is to force the MEC to stall until the CP DMAs are completed.
         pBarrierOps->pipelineStalls.syncCpDma = 1;
         pCmdSpace += m_cmdUtil.BuildWaitDmaData(pCmdSpace);
-        pCmdBuf->SetPm4CmdBufCpBltState(false);
+        pCmdBuf->SetCpBltState(false);
     }
 
-    pCmdBuf->OptimizePipeStageAndCacheMask(&stageMask, &accessMask, nullptr, nullptr);
+    OptimizePipeStageAndCacheMask(pCmdBuf, &stageMask, &accessMask, nullptr, nullptr);
 
     const ReleaseEvents    releaseEvents = GetReleaseEvents(pCmdBuf, stageMask, accessMask, true);
     const ReleaseMemCaches releaseCaches = GetReleaseCacheFlags(accessMask, refreshTcc, pBarrierOps);
@@ -1398,7 +1398,7 @@ AcqRelSyncToken BarrierMgr::IssueReleaseSync(
 
     if (releaseEvents.rbCache)
     {
-        pCmdBuf->UpdatePm4CmdBufGfxBltWbEopFence(syncToken.fenceVal);
+        pCmdBuf->UpdateGfxBltWbEopFence(syncToken.fenceVal);
     }
 
     pCmdStream->CommitCommands(pCmdSpace);
@@ -1432,7 +1432,7 @@ void BarrierMgr::IssueAcquireSync(
     const bool       isGfxSupported = Pal::Device::EngineSupportsGraphics(engineType);
     bool             needPfpSyncMe  = isGfxSupported && TestAnyFlagSet(stageMask, PipelineStagePfpMask);
 
-    pCmdBuf->OptimizePipeStageAndCacheMask(nullptr, nullptr, &stageMask, &accessMask);
+    OptimizePipeStageAndCacheMask(pCmdBuf, nullptr, nullptr, &stageMask, &accessMask);
 
     const SyncGlxFlags acquireCaches = GetAcquireCacheFlags(accessMask, refreshTcc, mayHaveMetadata, pBarrierOps);
     AcquirePoint       acquirePoint  = GetAcquirePoint(stageMask, engineType);
@@ -1556,19 +1556,19 @@ void BarrierMgr::IssueAcquireSync(
         if (waitedEopFenceVal >= cmdBufState.fences.gfxBltExecEopFenceVal)
         {
             // An EOP release sync that is issued after the latest GFX BLT must have completed, so mark GFX BLT idle.
-            pCmdBuf->SetPm4CmdBufGfxBltState(false);
+            pCmdBuf->SetGfxBltState(false);
         }
 
         if (waitedEopFenceVal >= cmdBufState.fences.gfxBltWbEopFenceVal)
         {
             // An EOP release sync that issued GFX BLT cache flush must have completed, so mark GFX BLT cache clean.
-            pCmdBuf->SetPm4CmdBufGfxBltWriteCacheState(false);
+            pCmdBuf->SetGfxBltWriteCacheState(false);
         }
 
         if (waitedEopFenceVal >= cmdBufState.fences.csBltExecEopFenceVal)
         {
             // An EOP release sync that is issued after the latest CS BLT must have completed, so mark CS BLT idle.
-            pCmdBuf->SetPm4CmdBufCsBltState(false);
+            pCmdBuf->SetCsBltState(false);
         }
     }
 
@@ -1579,7 +1579,7 @@ void BarrierMgr::IssueAcquireSync(
         (waitedCsDoneFenceVal >= cmdBufState.fences.csBltExecCsDoneFenceVal))
     {
         // An CS_DONE release sync that is issued after the latest CS BLT must have completed, so mark CS BLT idle.
-        pCmdBuf->SetPm4CmdBufCsBltState(false);
+        pCmdBuf->SetCsBltState(false);
     }
 
     pCmdStream->CommitCommands(pCmdSpace);
@@ -1614,10 +1614,10 @@ void BarrierMgr::IssueReleaseThenAcquireSync(
     {
         pBarrierOps->pipelineStalls.syncCpDma = 1;
         pCmdSpace += m_cmdUtil.BuildWaitDmaData(pCmdSpace);
-        pCmdBuf->SetPm4CmdBufCpBltState(false);
+        pCmdBuf->SetCpBltState(false);
     }
 
-    pCmdBuf->OptimizePipeStageAndCacheMask(&srcStageMask, &srcAccessMask, &dstStageMask, &dstAccessMask);
+    OptimizePipeStageAndCacheMask(pCmdBuf, &srcStageMask, &srcAccessMask, &dstStageMask, &dstAccessMask);
 
     AcquirePoint     acquirePoint  = GetAcquirePoint(dstStageMask, engineType);
     SyncGlxFlags     acquireCaches = GetReleaseThenAcquireCacheFlags(srcAccessMask, dstAccessMask,
@@ -1638,7 +1638,6 @@ void BarrierMgr::IssueReleaseThenAcquireSync(
         if (releaseEvents.eop && (acquireCaches != SyncGlxNone))
         {
             releaseCaches = m_cmdUtil.SelectReleaseMemCaches(&acquireCaches);
-            PAL_ASSERT(acquireCaches == SyncGlxNone);
         }
 
         // HW limitation: Can only do GCR op at ME stage for Acquire.
@@ -1844,17 +1843,17 @@ void BarrierMgr::IssueReleaseThenAcquireSync(
         if (releaseEvents.eop)
         {
             pCmdBuf->SetPrevCmdBufInactive();
-            pCmdBuf->SetPm4CmdBufGfxBltState(false);
+            pCmdBuf->SetGfxBltState(false);
 
             if (releaseEvents.rbCache)
             {
-                pCmdBuf->SetPm4CmdBufGfxBltWriteCacheState(false);
+                pCmdBuf->SetGfxBltWriteCacheState(false);
             }
         }
 
         if (releaseEvents.eop || releaseEvents.cs)
         {
-            pCmdBuf->SetPm4CmdBufCsBltState(false);
+            pCmdBuf->SetCsBltState(false);
         }
     }
 
@@ -2687,10 +2686,10 @@ void BarrierMgr::IssueReleaseSyncEvent(
         // the only way to satisfy this requirement is to force the MEC to stall until the CP DMAs are completed.
         pBarrierOps->pipelineStalls.syncCpDma = 1;
         pCmdSpace += m_cmdUtil.BuildWaitDmaData(pCmdSpace);
-        pCmdBuf->SetPm4CmdBufCpBltState(false);
+        pCmdBuf->SetCpBltState(false);
     }
 
-    pCmdBuf->OptimizePipeStageAndCacheMask(&stageMask, &accessMask, nullptr, nullptr);
+    OptimizePipeStageAndCacheMask(pCmdBuf, &stageMask, &accessMask, nullptr, nullptr);
 
     // Issue RELEASE_MEM packets to flush caches (optional) and signal gpuEvent.
     const BoundGpuMemory& gpuEventBoundMemObj = static_cast<const GpuEvent*>(pGpuEvent)->GetBoundGpuMemory();
@@ -2835,7 +2834,7 @@ void BarrierMgr::IssueAcquireSyncEvent(
     const EngineType engineType     = pCmdBuf->GetEngineType();
     const bool       isGfxSupported = Pal::Device::EngineSupportsGraphics(engineType);
 
-    pCmdBuf->OptimizePipeStageAndCacheMask(nullptr, nullptr, &stageMask, &accessMask);
+    OptimizePipeStageAndCacheMask(pCmdBuf, nullptr, nullptr, &stageMask, &accessMask);
 
     uint32* pCmdSpace = pCmdStream->ReserveCommands();
 

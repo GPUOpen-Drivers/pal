@@ -32,7 +32,7 @@ const DDRpcServerRegisterServiceInfo IDriverUtilsService::kServiceInfo = []() ->
     DDRpcServerRegisterServiceInfo info = {};
     info.id                             = 0x24815012;
     info.version.major                  = 1;
-    info.version.minor                  = 1;
+    info.version.minor                  = 2;
     info.version.patch                  = 0;
     info.pName                          = "DriverUtils";
     info.pDescription                   = "A utilities service for modifying the driver.";
@@ -95,7 +95,7 @@ static DD_RESULT RegisterFunctions(
         info.serviceId                       = 0x24815012;
         info.id                              = 0x3;
         info.pName                           = "QueryPalDriverInfo";
-        info.pDescription                    = "Queries for PAL driver info";
+        info.pDescription                    = "Queries the driver for extended client info";
         info.pFuncUserdata                   = pService;
         info.pfnFuncCb                       = [](
             const DDRpcServerCallInfo* pCall) -> DD_RESULT
@@ -104,6 +104,27 @@ static DD_RESULT RegisterFunctions(
 
             // Execute the service implementation
             return pService->QueryPalDriverInfo(*pCall->pWriter);
+        };
+
+        result = ddRpcServerRegisterFunction(hServer, &info);
+    }
+
+    // Register "EnableDriverFeatures"
+    if (result == DD_RESULT_SUCCESS)
+    {
+        DDRpcServerRegisterFunctionInfo info = {};
+        info.serviceId                       = 0x24815012;
+        info.id                              = 0x4;
+        info.pName                           = "EnableDriverFeatures";
+        info.pDescription                    = "Informs driver to enable different features: Tracing, CrashAnalysis, RT Shader Data Tokens, Debug Vmid";
+        info.pFuncUserdata                   = pService;
+        info.pfnFuncCb                       = [](
+            const DDRpcServerCallInfo* pCall) -> DD_RESULT
+        {
+            auto* pService = reinterpret_cast<IDriverUtilsService*>(pCall->pUserdata);
+
+            // Execute the service implementation
+            return pService->EnableDriverFeatures(pCall->pParameterData, pCall->parameterDataSize);
         };
 
         result = ddRpcServerRegisterFunction(hServer, &info);

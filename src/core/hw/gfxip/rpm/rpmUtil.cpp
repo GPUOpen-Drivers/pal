@@ -1058,5 +1058,20 @@ uint32 CalculatNumFmaskBits(
     return fmaskBits;
 }
 
+// =====================================================================================================================
+// Some RPM shaders work with lots of small constants (e.g., numSamples, numFragments) which we can bit-pack into
+// individual bytes to save fast user-data space. The AMDIL unpack4u8/unpack4i8 instruction converts them back.
+uint32 PackFourBytes(
+    uint32 x,
+    uint32 y,
+    uint32 z,
+    uint32 w)
+{
+    // This function only works when these values are all small enough to fit in a byte!
+    PAL_ASSERT((x <= UINT8_MAX) && (y <= UINT8_MAX) && (z <= UINT8_MAX) && (w <= UINT8_MAX));
+
+    return x | (y << 8) | (z << 16) | (w << 24);
+}
+
 } // RpmUtil
 } // Pal

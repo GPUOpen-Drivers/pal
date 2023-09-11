@@ -28,7 +28,6 @@ set(CMAKE_FOLDER "${CMAKE_FOLDER}/apis")
 ### ddTool API ########################################################################################################
 if (DD_BP_ENABLE_TOOL_LIBRARIES)
     add_subdirectory(ddTool)
-    add_subdirectory(tools)
 endif()
 
 ### ddNet #############################################################################################################
@@ -54,6 +53,10 @@ add_subdirectory(ddRpc)
 add_subdirectory(ddEvent)
 
 add_subdirectory(common)
-add_subdirectory(settings)
 add_subdirectory(events)
 
+if (DD_BP_ENABLE_TOOL_LIBRARIES)
+    add_subdirectory(tools)
+endif()
+
+add_subdirectory(settings)

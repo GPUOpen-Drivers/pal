@@ -43,9 +43,15 @@ public:
     // Informs driver to enable crash analysis mode
     virtual DD_RESULT EnableCrashAnalysisMode() = 0;
 
-    // Queries for PAL driver info
+    // Queries the driver for extended client info
     virtual DD_RESULT QueryPalDriverInfo(
         const DDByteWriter& writer
+    ) = 0;
+
+    // Informs driver to enable different features: Tracing, CrashAnalysis, RT Shader Data Tokens, Debug Vmid
+    virtual DD_RESULT EnableDriverFeatures(
+        const void* pParamBuffer,
+        size_t      paramBufferSize
     ) = 0;
 
 protected:

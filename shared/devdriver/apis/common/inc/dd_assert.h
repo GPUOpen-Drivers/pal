@@ -31,7 +31,7 @@
 
 #ifdef DD_OPT_ASSERTS_ENABLE
         #include <cstdlib>
-        #define DD_ASSERT(condition) do { if (!(condition)) std::abort(); } while(0)
+        #define DD_ASSERT(condition) do { if (!(condition)) *(volatile int*)0 = 0; } while(0)
 #else
     #define DD_ASSERT(condition)
 #endif

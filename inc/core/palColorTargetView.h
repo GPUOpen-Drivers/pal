@@ -47,6 +47,7 @@ struct ColorTargetViewCreateInfo
 {
     SwizzledFormat swizzledFormat;   ///< Color target view format and swizzle.
     Range          zRange;           ///< Specifies the z offset and z range for 3D images.
+
     union
     {
         struct

@@ -178,6 +178,7 @@ class GraphicsPipeline : public Pal::GraphicsPipeline
 {
 public:
     GraphicsPipeline(Device* pDevice, bool isInternal);
+    virtual ~GraphicsPipeline() {}
 
     virtual Result GetShaderStats(
         ShaderType   shaderType,
@@ -250,6 +251,7 @@ public:
     uint32 GetRbplusRegHash(bool dual) const { return dual ? m_rbplusRegHashDual : m_rbplusRegHash; }
     uint32 GetConfigRegHash() const { return m_configRegHash; }
 
+    gpusize GetColorExportAddr() const { return m_chunkVsPs.ColorExportGpuVa(); }
     void OverrideRbPlusRegistersForRpm(
         SwizzledFormat           swizzledFormat,
         uint32                   slot,
@@ -279,15 +281,15 @@ public:
     uint32 GetPrimAmpFactor() const { return m_primAmpFactor; }
 
     bool CanRbPlusOptimizeDepthOnly() const;
-
+    const PipelineChunkGs& GetChunkGs() const { return m_chunkGs; }
 protected:
-    virtual ~GraphicsPipeline() { }
-
     virtual Result HwlInit(
         const GraphicsPipelineCreateInfo&       createInfo,
         const AbiReader&                        abiReader,
         const Util::PalAbi::CodeObjectMetadata& metadata,
         Util::MsgPackReader*                    pMetadataReader) override;
+
+    virtual Result LinkGraphicsLibraries(const GraphicsPipelineCreateInfo& createInfo) override;
 
     virtual const ShaderStageInfo* GetShaderStageInfo(ShaderType shaderType) const override;
     void EarlyInit(const Util::PalAbi::CodeObjectMetadata& metadata,
@@ -347,10 +349,18 @@ private:
     void SetupCommonRegisters(
         const GraphicsPipelineCreateInfo&       createInfo,
         const Util::PalAbi::CodeObjectMetadata& metadata);
+
+    void SetupCommonRegistersFromLibs(
+        const GraphicsPipelineCreateInfo& createInfo,
+        const GraphicsPipeline*           pVertexPipeline,
+        const GraphicsPipeline*           pPixelPipeline,
+        const GraphicsPipeline*           pExpLib);
+
     void SetupNonShaderRegisters(
-        const GraphicsPipelineCreateInfo&       createInfo,
-        const Util::PalAbi::CodeObjectMetadata& metadata);
+        const GraphicsPipelineCreateInfo&       createInfo);
+
     void SetupStereoRegisters();
+    void BuildRegistersHash();
 
     void SetupIaMultiVgtParam(
         const Util::PalAbi::CodeObjectMetadata& metadata);
@@ -368,6 +378,15 @@ private:
 
     SX_DOWNCONVERT_FORMAT SxDownConvertFormat(SwizzledFormat swizzledFormat) const;
     void DetermineBinningOnOff();
+
+    void SetupSignatureForStageFromLib(
+        const GraphicsPipeline* pPartialPipeline,
+        HwShaderStage           stage);
+
+    void SetupSignatureFromLib(
+        const GraphicsPipeline* pPreRasterLib,
+        const GraphicsPipeline* pPsLib,
+        const GraphicsPipeline* pExpLib);
 
     const GfxIpLevel  m_gfxLevel;
     uint32            m_contextRegHash;
@@ -407,7 +426,9 @@ private:
 
     GfxPipelineRegs m_regs;
 
-    PrimeGpuCacheRange         m_prefetch;
+    constexpr static uint32    MaxPreFetchRangeCount = 3;
+    PrimeGpuCacheRange         m_prefetch[MaxPreFetchRangeCount];
+    uint32                     m_prefetchRangeCount;
     GraphicsPipelineSignature  m_signature;
 
     // Returns the target mask of the specified CB target.

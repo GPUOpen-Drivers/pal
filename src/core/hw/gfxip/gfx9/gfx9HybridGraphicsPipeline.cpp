@@ -25,6 +25,7 @@
 
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9HybridGraphicsPipeline.h"
+#include "core/hw/gfxip/gfx9/gfx9GraphicsShaderLibrary.h"
 #include "palPipelineAbi.h"
 
 using namespace Util;
@@ -41,8 +42,7 @@ HybridGraphicsPipeline::HybridGraphicsPipeline(
     GraphicsPipeline(pDevice, false),
     m_task(*pDevice, &m_taskStageInfo, &m_perfDataInfo[static_cast<uint32>(Abi::HardwareStage::Cs)]),
     m_taskStageInfo(),
-    m_taskSignature{NullCsSignature},
-    m_threadsPerTg{}
+    m_taskSignature{NullCsSignature}
 #if PAL_BUILD_GFX11
     , m_shPairsPacketSupportedCs(pDevice->Settings().gfx11EnableShRegPairOptimizationCs)
 #endif
@@ -81,9 +81,11 @@ Result HybridGraphicsPipeline::HwlInit(
 
         const uint32 wavefrontSize = m_taskSignature.flags.isWave32 ? 32 : 64;
 
+        // Number of threads per threadgroup in each dimension as determined by parsing the input IL.
+        DispatchDims threadsPerTg = {};
         m_task.LateInit(metadata,
                         wavefrontSize,
-                        &m_threadsPerTg,
+                        &threadsPerTg,
 #if PAL_BUILD_GFX11
                         createInfo.taskInterleaveSize,
 #endif
@@ -98,6 +100,39 @@ Result HybridGraphicsPipeline::HwlInit(
 
         PAL_ASSERT(m_uploadFenceToken == 0);
         result = uploader.End(&m_uploadFenceToken);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Link graphics pipeline from graphics shader libraries.
+Result HybridGraphicsPipeline::LinkGraphicsLibraries(
+    const GraphicsPipelineCreateInfo& createInfo)
+{
+    Result                       result   = Result::Success;
+    const Gfx9PalSettings&       settings = m_pDevice->Settings();
+    const GraphicsShaderLibrary* pTaskLib = nullptr;
+
+    result = GraphicsPipeline::LinkGraphicsLibraries(createInfo);
+
+    if (result == Result::Success)
+    {
+        for (uint32 i = 0; i < NumGfxShaderLibraries(); i++)
+        {
+            const GraphicsShaderLibrary* pLib =
+                reinterpret_cast<const GraphicsShaderLibrary*>(GetGraphicsShaderLibrary(i));
+            uint32 apiShaderMask = pLib->GetApiShaderMask();
+            if (Util::TestAnyFlagSet(apiShaderMask, 1 << static_cast<uint32>(ShaderType::Task)))
+            {
+                pTaskLib = pLib;
+                break;
+            }
+        }
+        PAL_ASSERT(pTaskLib != nullptr);
+        m_task.Clone(pTaskLib->GetTaskChunk());
+        m_taskStageInfo = pTaskLib->GetTaskStageInfo();
+        m_taskSignature = pTaskLib->GetTaskSignature();
     }
 
     return result;

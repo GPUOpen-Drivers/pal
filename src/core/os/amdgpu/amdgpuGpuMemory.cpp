@@ -195,142 +195,83 @@ Result GpuMemory::AllocateOrPinMemory(
                     allocRequest.flags = AMDGPU_GEM_CREATE_NO_EVICT;
                 }
                 // Note: From PAL's perspective, heap[0] has its priority according to GpuMemPriority. But from amdgpu's
-                // perspective, the priority is always "local invisible, local visible, remote WC, remote cacheable"
-                // when multiple heaps specified. For example, if preferred_heap is GTT and VRAM, and the flags is
-                // AMDGPU_GEM_CREATE_NO_CPU_ACCESS, amdgpu will try to move the buffer object to in order of
-                // "invisible, visible, remote cacheable". So, in amdgpu, the priority of heap[0] is not respected.
-                // Anyway, if the app set two heaps, it means the buffer could be in either of them though the
-                // heap[0] might be preferred for app.
+                // perspective, there is not four heaps. GpuMemory can resident in "GTT" domain, "VRAM" domain or both
+                // "GTT" and "VRAM" domains, based on expected physical location when GPU read or write them.
 
-                // - If remote goes ahead of local in the heaps
-                //   1: Allocate remote first.
-                //   2: Allocate local if remote failed to be allocated
-                // - If local goes ahead of remote in the heaps
-                //   Follow current model
-                if ((m_heaps[0] == GpuHeapLocal) || (m_heaps[0] == GpuHeapInvisible))
+                // Note that, when GpuMemories are not actively being used by GPU, kernel is free to move them around.
+                // Any GpuMemory prefers both "GTT" and "VRAM" may stay in "GTT" forever after being moved. Moving around
+                // normally happens when VRAM usage is high, however, it can also happen when OS turns on some power saving
+                // settings and powered off the GPU.
+
+                if (m_heapCount > 0)
                 {
-                    bool  validHeapFound = false; // be pessimistic
+                    const GpuHeap preferredHeap = m_heaps[0];
 
-                    // Linux kernel doesn't respect the priority of heaps, so:
-                    // (1) Local memory: once invisible heap is selected, eliminate visible from the preferred heap.
-                    // (2) Remote memory: just care about the first remote heap regardless of the second.
-                    for (uint32 heap = 0; heap < m_heapCount; ++heap)
+                    static_assert(GpuHeapCount == 4,
+                        "This code assumes GpuHeapCount is 4. If that changes, this code must change to match.");
+                    uint32 heapToDomain[GpuHeapCount] = {};
+                    heapToDomain[GpuHeapInvisible]     = AMDGPU_GEM_DOMAIN_VRAM;
+                    heapToDomain[GpuHeapLocal]         = AMDGPU_GEM_DOMAIN_VRAM;
+                    heapToDomain[GpuHeapGartUswc]      = AMDGPU_GEM_DOMAIN_GTT;
+                    heapToDomain[GpuHeapGartCacheable] = AMDGPU_GEM_DOMAIN_GTT;
+
+                    // AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED is merely a hint.
+                    // Kernel driver may change it internally based on the runtime usage of the allocated GpuMemory.
+
+                    // Linux kernel driver implements a fallback path for a failed "VRAM" allocation implicitly.
+                    // The fallback path appends "GTT" to the "VRAM" allocation and retry. To make sure the
+                    // fallback allocation also gets a decent CPU write performance (read frequendy data normally
+                    // does not target "VRAM"), add AMDGPU_GEM_CREATE_CPU_GTT_USWC to local visible allocations.
+                    uint32 heapToFlags[GpuHeapCount]  = {};
+                    heapToFlags[GpuHeapInvisible]     = AMDGPU_GEM_CREATE_NO_CPU_ACCESS;
+                    heapToFlags[GpuHeapLocal]         = (AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
+                                                         AMDGPU_GEM_CREATE_CPU_GTT_USWC);
+                    heapToFlags[GpuHeapGartUswc]      = AMDGPU_GEM_CREATE_CPU_GTT_USWC;
+                    heapToFlags[GpuHeapGartCacheable] = 0;
+
+                    // In the case of Resize-Bar, all VRAM is CPU accessible.
+                    if (m_pDevice->HeapLogicalSize(GpuHeapInvisible) == 0)
                     {
-                        const GpuHeap gpuHeap  = m_heaps[heap];
-                        const gpusize heapSize = m_pDevice->HeapLogicalSize(gpuHeap);
-
-                        // Make sure the requested heap exists
-                        if (heapSize != 0)
-                        {
-                            validHeapFound = true;
-
-                            switch (gpuHeap)
-                            {
-                                case GpuHeapGartUswc:
-                                    if ((allocRequest.preferred_heap & AMDGPU_GEM_DOMAIN_GTT) == 0)
-                                    {
-                                        allocRequest.flags |= AMDGPU_GEM_CREATE_CPU_GTT_USWC;
-                                    }
-                                    // Kernel request: Protected memory should be allocated with flag AMDGPU_GEM_CREATE_ENCRYPTED.
-                                    if (m_flags.tmzProtected)
-                                    {
-                                        allocRequest.flags |=  AMDGPU_GEM_CREATE_ENCRYPTED;
-                                    }
-                                    // Fall through next
-                                case GpuHeapGartCacheable:
-                                    allocRequest.preferred_heap |= AMDGPU_GEM_DOMAIN_GTT;
-                                    // Kernel request: Protected memory should be allocated with flag AMDGPU_GEM_CREATE_ENCRYPTED.
-                                    if (m_flags.tmzProtected)
-                                    {
-                                        allocRequest.flags |=  AMDGPU_GEM_CREATE_ENCRYPTED;
-                                    }
-                                    break;
-                                case GpuHeapLocal:
-                                    if ((allocRequest.flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS) == 0)
-                                    {
-                                        allocRequest.flags |= AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
-                                        if (IsBusAddressable())
-                                        {
-                                            allocRequest.preferred_heap = AMDGPU_GEM_DOMAIN_DGMA;
-                                        }
-                                        else
-                                        {
-                                            allocRequest.preferred_heap |= AMDGPU_GEM_DOMAIN_VRAM;
-                                        }
-                                    }
-                                    // Kernel request: Protected memory should be allocated with flag AMDGPU_GEM_CREATE_ENCRYPTED.
-                                    if (m_flags.tmzProtected)
-                                    {
-                                        allocRequest.flags |=  AMDGPU_GEM_CREATE_ENCRYPTED;
-                                    }
-                                    break;
-                                case GpuHeapInvisible:
-                                    allocRequest.flags          &= ~AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
-                                    allocRequest.flags          |= AMDGPU_GEM_CREATE_NO_CPU_ACCESS;
-                                    allocRequest.preferred_heap |= AMDGPU_GEM_DOMAIN_VRAM;
-
-                                    // Kernel request: Protected memory should be allocated with flag AMDGPU_GEM_CREATE_ENCRYPTED.
-                                    if (m_flags.tmzProtected)
-                                    {
-                                        allocRequest.flags |=  AMDGPU_GEM_CREATE_ENCRYPTED;
-                                    }
-                                    break;
-                                default:
-                                    PAL_ASSERT_ALWAYS();
-                                    break;
-                            }
-                        }
+                        heapToFlags[GpuHeapInvisible]  = heapToFlags[GpuHeapLocal];
+                        heapToDomain[GpuHeapInvisible] = heapToDomain[GpuHeapLocal];
                     }
 
-                    if (validHeapFound == false)
-                    {
-                        // Provide some info that we're getting into this path
-                        PAL_ALERT_ALWAYS();
+                    allocRequest.preferred_heap = heapToDomain[preferredHeap];
+                    allocRequest.flags |= heapToFlags[preferredHeap];
 
-                        // Duplication of Windows path
-                        PAL_NOT_TESTED();
-
-                        // None of the heaps the client requested exist; provide a fallback to the GART heap here.
-                        allocRequest.flags          |= AMDGPU_GEM_CREATE_CPU_GTT_USWC;
-                        allocRequest.preferred_heap |= AMDGPU_GEM_DOMAIN_GTT;
-                    }
+                    // There is no reliable way to provides a fallback path on Linux kernel. Besides, Linux client
+                    // knows it and may trim the heap list to only contain the preferred heap. Therefore, no explicit
+                    // handling of fallback heaps are implemented.
                 }
                 else
                 {
-                    // we just care about the first heap if remote comes first until kernel
-                    // work out a solution to respect the priority of heaps.
-                    switch (m_heaps[0])
-                    {
-                        case GpuHeapGartUswc:
-                            allocRequest.flags |= AMDGPU_GEM_CREATE_CPU_GTT_USWC;
+                    PAL_ALERT_ALWAYS_MSG("No heap info found for GpuMemory allocation. Fallback to USWC.");
+                    allocRequest.flags          |= AMDGPU_GEM_CREATE_CPU_GTT_USWC;
+                    allocRequest.preferred_heap = AMDGPU_GEM_DOMAIN_GTT;
+                }
 
-                            // Kernel request: Protected memory should be allocated with flag AMDGPU_GEM_CREATE_ENCRYPTED.
-                            if (m_flags.tmzProtected)
-                            {
-                                allocRequest.flags |=  AMDGPU_GEM_CREATE_ENCRYPTED;
-                            }
-                            // Fall through next
-                        case GpuHeapGartCacheable:
-                            allocRequest.preferred_heap |= AMDGPU_GEM_DOMAIN_GTT;
+                if (IsBusAddressable())
+                {
+                    // Override the domain.
+                    allocRequest.preferred_heap = AMDGPU_GEM_DOMAIN_DGMA;
+                }
 
-                            // Kernel request: Protected memory should be allocated with flag AMDGPU_GEM_CREATE_ENCRYPTED.
-                            if (m_flags.tmzProtected)
-                            {
-                                allocRequest.flags |=  AMDGPU_GEM_CREATE_ENCRYPTED;
-                            }
-                            break;
-                        default:
-                            PAL_ASSERT_ALWAYS();
-                            break;
-                    }
+                if (m_flags.tmzProtected)
+                {
+                    // Kernel request: Protected memory should be allocated with flag AMDGPU_GEM_CREATE_ENCRYPTED.
+                    allocRequest.flags |= AMDGPU_GEM_CREATE_ENCRYPTED;
+                }
+
+                // GTT and VRAM use the same physical memory on APU.
+                if (chipProps.gpuType == GpuType::Integrated)
+                {
+                    allocRequest.preferred_heap |= AMDGPU_GEM_DOMAIN_GTT;
                 }
 
                 if ((pDevice->Settings().isLocalHeapPreferred || (m_priority >= GpuMemPriority::VeryHigh)) &&
-                    (allocRequest.preferred_heap & AMDGPU_GEM_DOMAIN_VRAM) && (chipProps.gpuType != GpuType::Integrated))
+                    (allocRequest.preferred_heap & AMDGPU_GEM_DOMAIN_VRAM))
                 {
-                    allocRequest.flags          &= ~AMDGPU_GEM_CREATE_CPU_GTT_USWC;
                     allocRequest.preferred_heap &= ~AMDGPU_GEM_DOMAIN_GTT;
-
                 }
 
                 if (pDevice->Settings().enableNullCpuAccessFlag &&

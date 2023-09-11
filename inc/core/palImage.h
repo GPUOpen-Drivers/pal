@@ -42,6 +42,7 @@ class      IImage;
 class      IPrivateScreen;
 class      IScreen;
 class      ISwapChain;
+enum class CompressionMode : uint32;
 
 /// When used as the value of the viewFormatCount parameter of image creation it indicates that all compatible formats
 /// can be used for views of the created image.
@@ -211,7 +212,13 @@ union ImageCreateFlags
         uint32 reserved769             :  1; ///< Reserved for future use.
 #endif
         uint32 hasModifier             :  1; ///< Set if the image uses drm format modifier.
-        uint32 reserved                :  6; ///< Reserved for future use.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 813
+        uint32 disableDccStateTracking :  1; ///< Disable a PAL optimization which is commonly broken by app bugs.
+                                             ///  Setting this flag may increase DCC decompress overhead.
+#else
+        uint32 reserved813             :  1; ///< Reserved for future use.
+#endif
+        uint32 reserved                :  5; ///< Reserved for future use.
     };
     uint32 u32All;                           ///< Flags packed as 32-bit uint.
 };
@@ -365,8 +372,12 @@ struct PresentableImageCreateInfo
 #else
             uint32 placeholder0     :  1; ///< Placeholder.
 #endif
-
-            uint32 reserved     : 26;   ///< Reserved for future use.
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 811) && PAL_BUILD_GFX11
+            uint32 enable256KBSwizzleModes :  1; ///< Enable 256 KiB swizzle modes.
+#else
+            uint32 placeholder1            :  1; ///< Placeholder.
+#endif
+            uint32 reserved     : 25;   ///< Reserved for future use.
         };
         uint32 u32All;                  ///< Flags packed as 32-bit uint.
     } flags;                            ///< Presentable image creation flags.

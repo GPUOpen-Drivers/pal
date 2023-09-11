@@ -25,16 +25,11 @@
 
 #pragma once
 #include "ddPlatform.h"
+#include "ddAmdLogInterface.h"
 
 namespace DevDriver
 {
 class IIoCtlDevice;
-
-enum AmdlogEventId
-{
-    String,
-    Count
-};
 
 class AmdLogLogger
 {
@@ -42,8 +37,8 @@ public:
     AmdLogLogger(const AllocCb& allocCb);
     ~AmdLogLogger();
 
-    Result WriteAmdlogData(AmdlogEventId eventId, void* pData, size_t dataSize);
-    Result WriteAmdlogString(const char* pFormat, ...);
+    Result WriteAmdlogData(uint32_t logFlags, AmdlogEventId eventId, void* pData, size_t dataSize);
+    Result WriteAmdlogString(uint32_t logFlags, const char* pFormat, ...);
 
     Result Init();
 

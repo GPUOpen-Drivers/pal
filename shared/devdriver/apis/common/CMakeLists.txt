@@ -23,5 +23,21 @@
  #
  #######################################################################################################################
 
-devdriver_library(dd_common INTERFACE)
+devdriver_library(dd_common STATIC)
 target_include_directories(dd_common INTERFACE inc)
+target_sources(dd_common
+    PUBLIC
+        inc/dd_assert.h
+        inc/dd_logger_api.h
+        inc/dd_mutex.h
+    PRIVATE
+        src/dd_logger.cpp
+)
+target_link_libraries(dd_common
+    PUBLIC  ddApi
+    PRIVATE stb_sprintf
+)
+
+if (DD_OPT_ASSERTS_ENABLE)
+    target_compile_definitions(dd_common PUBLIC DD_OPT_ASSERTS_ENABLE)
+endif()

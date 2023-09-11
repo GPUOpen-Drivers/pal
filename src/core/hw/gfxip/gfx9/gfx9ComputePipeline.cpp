@@ -27,8 +27,8 @@
 #include "core/hw/gfxip/gfx9/gfx9CmdStream.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"
 #include "core/hw/gfxip/gfx9/gfx9ComputePipeline.h"
+#include "core/hw/gfxip/gfx9/gfx9ComputeShaderLibrary.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
-#include "core/hw/gfxip/gfx9/gfx9ShaderLibrary.h"
 #include "core/imported/hsa/AMDHSAKernelDescriptor.h"
 #include "core/imported/hsa/amd_hsa_kernel_code.h"
 #include "palFile.h"
@@ -162,15 +162,25 @@ Result ComputePipeline::HwlInit(
                            AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_DISPATCH_ID       |
                            AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_FLAT_SCRATCH_INIT |
                            AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_PRIVATE_SEGMENT_SIZE) ||
-            (computePgmRsrc2.bits.SCRATCH_EN    != 0) ||
-            (metadata.PrivateSegmentFixedSize() != 0) ||
             (metadata.KernelKind() != HsaAbi::Kind::Normal))
         {
-            PAL_ASSERT_ALWAYS_MSG("unsupported scratch memory usage!");
+            PAL_ASSERT_ALWAYS_MSG("Unsupported scratch memory usage mode");
             result = Result::Unsupported;
         }
         else
         {
+            if (computePgmRsrc2.bits.SCRATCH_EN != 0)
+            {
+#if PAL_BUILD_GFX11
+                //Navi3+ can support scratch usage due to different scrach allocation system from previous hardware
+                if (IsGfx11Plus(*m_pDevice->Parent()) == false)
+#endif
+                {
+                    PAL_ASSERT_ALWAYS_MSG("Scratch cannot be used on this device");
+                    result = Result::Unsupported;
+                }
+            }
+
             // We only have partial support for the Hidden arguments. We support:
             // - HiddenNone: Which we just need to allocate and ignore.
             // - HiddenGlobalOffsetX/Y/Z: Which are the global thread starting offsets (i.e. CmdDispatchOffset).
@@ -249,6 +259,13 @@ Result ComputePipeline::HwlInit(
     {
         // Update the pipeline signature with user-mapping data contained in the ELF:
         m_chunkCs.SetupSignatureFromElf(&m_signature, metadata, registers);
+
+        const uint32 scratchMemorySize = CalcScratchMemSize(m_pDevice->Parent()->ChipProperties().gfxLevel, metadata);
+
+        if (scratchMemorySize != 0)
+        {
+            UpdateRingSizes(scratchMemorySize);
+        }
 
         const uint32 wavefrontSize = IsWave32() ? 32 : 64;
 
@@ -384,7 +401,7 @@ Result ComputePipeline::LinkWithLibraries(
 
     for (uint32 idx = 0; idx < libraryCount; idx++)
     {
-        const auto*const pLibObj = static_cast<const Pal::Gfx9::ShaderLibrary*const>(ppLibraryList[idx]);
+        const auto*const pLibObj = static_cast<const Pal::Gfx9::ComputeShaderLibrary*const>(ppLibraryList[idx]);
         // In case this shaderLibrary did not use internal dma queue to upload ELF, the UploadFenceToken
         // of the shaderLibrary is 0.
         m_uploadFenceToken = Max(m_uploadFenceToken, pLibObj->GetUploadFenceToken());
@@ -530,7 +547,7 @@ Result ComputePipeline::GetShaderStats(
 
     if (shaderType == ShaderType::Compute)
     {
-        result = GetShaderStatsForStage(m_stageInfo, nullptr, pShaderStats);
+        result = GetShaderStatsForStage(shaderType, m_stageInfo, nullptr, pShaderStats);
         if (result == Result::Success)
         {
             pShaderStats->shaderStageMask              = ApiShaderStageCompute;
@@ -608,6 +625,23 @@ uint32 ComputePipeline::CalcScratchMemSize(
     }
 
     return scratchMemorySize / sizeof(uint32);
+}
+// =====================================================================================================================
+uint32 ComputePipeline::CalcScratchMemSize(
+    GfxIpLevel                        gfxIpLevel,
+    const HsaAbi::CodeObjectMetadata& metadata)
+{
+    uint32 scratchMemorySize = metadata.PrivateSegmentFixedSize();
+
+    if (IsGfx10Plus(gfxIpLevel) && (metadata.WavefrontSize() == 64))
+    {
+        // We allocate scratch memory based on the minimum wave size for the chip, which for Gfx10+ ASICs will
+        // be Wave32. In order to appropriately size the scratch memory (reported in the ELF as per-thread) for
+        // a Wave64, we need to multiply by 2.
+        scratchMemorySize *= 2;
+    }
+
+    return Pow2Align<uint32>((scratchMemorySize / sizeof(uint32)), sizeof(uint32));
 }
 
 // =====================================================================================================================

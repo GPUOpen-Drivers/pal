@@ -117,8 +117,7 @@ public:
         const Util::PalAbi::CodeObjectMetadata& metadata,
         const GraphicsPipelineLoadInfo&         loadInfo,
         const GraphicsPipelineCreateInfo&       createInfo,
-        PipelineUploader*                       pUploader,
-        Util::MetroHash64*                      pHasher);
+        PipelineUploader*                       pUploader);
 
     uint32* WriteShCommands(
         CmdStream*              pCmdStream,
@@ -150,10 +149,18 @@ public:
         return GetOriginalAddress(m_regs.sh.spiShaderPgmLoEs.bits.MEM_BASE, 0);
     }
 
+    uint32 UserDataInternalTableLoVa() const
+    {
+        return m_regs.sh.userDataInternalTable.u32All;
+    }
+
     const ShaderStageInfo& StageInfo() const { return m_stageInfo; }
 
     uint32 PrimAmpFactor() const { return m_regs.context.geNggSubgrpCntl.bits.PRIM_AMP_FACTOR; }
 
+    void Clone(const PipelineChunkGs& chunkGs);
+
+    void AccumulateRegistersHash(Util::MetroHash64& hasher) const { hasher.Update(m_regs.context); }
 private:
     const Device&  m_device;
 

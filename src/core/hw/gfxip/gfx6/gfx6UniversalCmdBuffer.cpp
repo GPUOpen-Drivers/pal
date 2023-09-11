@@ -1136,7 +1136,9 @@ void UniversalCmdBuffer::CmdBarrier(
 
     bool splitMemAllocated;
     BarrierInfo splitBarrierInfo = barrierInfo;
-    Result result = Pal::Device::SplitBarrierTransitions(m_device.GetPlatform(), &splitBarrierInfo, &splitMemAllocated);
+    Result result = GfxBarrierMgr::SplitBarrierTransitions(m_device.GetPlatform(),
+                                                           &splitBarrierInfo,
+                                                           &splitMemAllocated);
 
     if (result == Result::ErrorOutOfMemory)
     {
@@ -2812,7 +2814,7 @@ Result UniversalCmdBuffer::AddPostamble()
         // Stalls the CP ME until the CP's DMA engine has finished all previous "CP blts" (CP_DMA/DMA_DATA commands
         // without the sync bit set). The ring won't wait for CP DMAs to finish so we need to do this manually.
         pDeCmdSpace += m_cmdUtil.BuildWaitDmaData(pDeCmdSpace);
-        SetPm4CmdBufCpBltState(false);
+        SetCpBltState(false);
     }
 
     bool didWaitForIdle = false;
@@ -2893,7 +2895,7 @@ void UniversalCmdBuffer::WriteEventCmd(
         // the time the event is written to memory. Given that our CP DMA blts are asynchronous to the pipeline stages
         // the only way to satisfy this requirement is to force the MEC to stall until the CP DMAs are completed.
         pDeCmdSpace += m_cmdUtil.BuildWaitDmaData(pDeCmdSpace);
-        SetPm4CmdBufCpBltState(false);
+        SetCpBltState(false);
     }
 
     OptimizePipePoint(&pipePoint);
@@ -3233,6 +3235,17 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
                                                                          pDeCmdSpace);
         }
     } // if stream-out table is mapped by current pipeline
+
+    const uint16 sampleInfoAddr = m_pSignatureGfx->sampleInfoRegAddr;
+    if (HasPipelineChanged && (sampleInfoAddr != UserDataNotMapped))
+    {
+        Abi::ApiSampleInfo sampleInfo;
+        sampleInfo.numSamples = m_graphicsState.numSamplesPerPixel;
+        sampleInfo.samplePatternIdx = Log2(m_graphicsState.numSamplesPerPixel) * MaxMsaaRasterizerSamples;
+        pDeCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(sampleInfoAddr,
+                                                                     sampleInfo.u32All,
+                                                                     pDeCmdSpace);
+    }
 
     // Step #2:
     // Write all dirty user-data entries to their mapped user SGPR's.
@@ -6063,15 +6076,15 @@ void UniversalCmdBuffer::CpCopyMemory(
     pCmdSpace += m_cmdUtil.BuildDmaData(dmaDataInfo, pCmdSpace);
     m_deCmdStream.CommitCommands(pCmdSpace);
 
-    SetPm4CmdBufCpBltState(true);
+    SetCpBltState(true);
 
     if (supportsL2)
     {
-        SetPm4CmdBufCpBltWriteCacheState(true);
+        SetCpBltWriteCacheState(true);
     }
     else
     {
-        SetPm4CmdBufCpMemoryWriteL2CacheStaleState(true);
+        SetCpMemoryWriteL2CacheStaleState(true);
     }
 }
 

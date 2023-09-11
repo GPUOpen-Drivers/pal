@@ -65,6 +65,20 @@ function(swd_add_to_target TARGET PREFIX)
     endif()
 #endif
 
+#if SWD_BUILD_GFX11 && SWD_BUILD_PHX
+    swd_bp(${PREFIX}_SWD_BUILD_PHX OFF DEPENDS_ON "${PREFIX}_SWD_BUILD_GFX11")
+    if(${PREFIX}_SWD_BUILD_PHX)
+        target_compile_definitions(${TARGET} PRIVATE SWD_BUILD_PHX=1)
+    endif()
+#endif
+
+#if SWD_BUILD_PHX && SWD_BUILD_GFX11 && SWD_BUILD_PHX1
+    swd_bp(${PREFIX}_SWD_BUILD_PHX1 OFF DEPENDS_ON "${PREFIX}_SWD_BUILD_PHX;${PREFIX}_SWD_BUILD_GFX11")
+    if(${PREFIX}_SWD_BUILD_PHX1)
+        target_compile_definitions(${TARGET} PRIVATE SWD_BUILD_PHX1=1)
+    endif()
+#endif
+
 #if SWD_BUILD_GFX11
     if(${PREFIX}_SWD_BUILD_GFX11)
         target_sources(${TARGET} PRIVATE ${SWD_SOURCE_DIR}/inc/g_gfx11SwWarDetection.h)

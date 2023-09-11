@@ -90,6 +90,13 @@ struct VsPsRegs
     static constexpr uint32 NumShReg      = sizeof(Sh)      / sizeof(uint32_t);
 };
 
+// Contains the semantic info for interface match
+struct SemanticInfo
+{
+    uint16 semantic;
+    uint16 index;
+};
+
 // =====================================================================================================================
 // Manages the chunk of a graphics pipeline which contains the registers associated with the hardware VS and PS stages.
 // Many of the registers for the hardware VS stage are not required when running in NGG mode.
@@ -111,8 +118,7 @@ public:
         const Util::PalAbi::CodeObjectMetadata& metadata,
         const GraphicsPipelineLoadInfo&         loadInfo,
         const GraphicsPipelineCreateInfo&       createInfo,
-        PipelineUploader*                       pUploader,
-        Util::MetroHash64*                      pHasher);
+        PipelineUploader*                       pUploader);
 
     uint32* WriteShCommands(
         CmdStream* pCmdStream,
@@ -160,9 +166,18 @@ public:
                                   m_regs.sh.spiShaderPgmHiPs.bits.MEM_BASE);
     }
 
+    gpusize ColorExportGpuVa() const
+    {
+        return m_colorExportAddr;
+    }
     const ShaderStageInfo& StageInfoVs() const { return m_stageInfoVs; }
     const ShaderStageInfo& StageInfoPs() const { return m_stageInfoPs; }
 
+    void Clone(const PipelineChunkVsPs& chunkVs,
+               const PipelineChunkVsPs& chunkPs,
+               const PipelineChunkVsPs& chunkExp);
+
+    void AccumulateRegistersHash(Util::MetroHash64& hasher)  const { hasher.Update(m_regs.context); }
 private:
     uint32* WriteShCommandsSetPathVs(CmdStream* pCmdStream, uint32* pCmdSpace) const;
     uint32* WriteShCommandsSetPathPs(CmdStream* pCmdStream, uint32* pCmdSpace) const;
@@ -174,6 +189,9 @@ private:
 
     VsPsRegs m_regs;
 
+    SemanticInfo m_semanticInfo[MaxPsInputSemantics];
+    bool  m_hasSemanticInfo;
+
     const PerfDataInfo*const  m_pVsPerfDataInfo;   // VS performance data information.
     const PerfDataInfo*const  m_pPsPerfDataInfo;   // PS performance data information.
 
@@ -181,6 +199,7 @@ private:
     ShaderStageInfo    m_stageInfoPs;
     regPA_SC_AA_CONFIG m_paScAaConfig; // This register is only written in the draw-time validation code.
 
+    gpusize            m_colorExportAddr;
     PAL_DISALLOW_DEFAULT_CTOR(PipelineChunkVsPs);
     PAL_DISALLOW_COPY_AND_ASSIGN(PipelineChunkVsPs);
 };

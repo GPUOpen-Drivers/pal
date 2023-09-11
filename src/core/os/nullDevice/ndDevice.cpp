@@ -76,10 +76,10 @@ extern const NullIdLookup  NullIdLookupTable[] =
     { NullGpuId::Rembrandt, FAMILY_RMB, REMBRANDT_B0,      PRID_RMB_00,                  GfxEngineGfx9,  DEVICE_ID_RMB_1681,         "REMBRANDT:gfx1035" },
 
 #if PAL_BUILD_NAVI31
-    { NullGpuId::Navi31,   FAMILY_NV3, NAVI31_P_A0, PRID_NV3_NAVI31_00, GfxEngineGfx9,  DEVICE_ID_NV3_NAVI31_P_73BF, "NAVI31:gfx1100" },
+    { NullGpuId::Navi31,    FAMILY_NV3, NAVI31_P_A0,     PRID_NV3_NAVI31_00,     GfxEngineGfx9,  DEVICE_ID_NV3_NAVI31_P_73BF, "NAVI31:gfx1100" },
 #endif
 #if PAL_BUILD_NAVI33
-    { NullGpuId::Navi33,   FAMILY_NV3, NAVI33_P_A0, PRID_NV3_NAVI33_00, GfxEngineGfx9,  DEVICE_ID_NV3_NAVI33_P_73F0, "NAVI33:gfx1102" },
+    { NullGpuId::Navi33,    FAMILY_NV3, NAVI33_P_A0,     PRID_NV3_NAVI33_00,     GfxEngineGfx9,  DEVICE_ID_NV3_NAVI33_P_73F0, "NAVI33:gfx1102" },
 #endif
     { NullGpuId::Raphael,  FAMILY_RPL, RAPHAEL_A0,  PRID_RPL_00,        GfxEngineGfx9,  DEVICE_ID_RPL_164E, "RAPHAEL:gfx1036" },
 #if PAL_BUILD_PHOENIX1
@@ -1189,10 +1189,8 @@ void Device::FillGfx9ChipProperties(
         pChipInfo->numShaderArrays         =     1; // GPU__GC__NUM_SA_PER_SE
         pChipInfo->maxNumRbPerSe           =     1; // GPU__GC__NUM_RB_PER_SE;
         pChipInfo->nativeWavefrontSize     =    32; // GPU__GC__SQ_WAVE_SIZE;
-
         pChipInfo->minWavefrontSize        =    32;
         pChipInfo->maxWavefrontSize        =    64;
-
         pChipInfo->numPhysicalVgprsPerSimd =  1024; // GPU__GC__NUM_GPRS;
         pChipInfo->maxNumCuPerSh           =     2; // GPU__GC__NUM_WGP_PER_SA * 2;
         pChipInfo->numTccBlocks            =     2; // GPU__GC__NUM_GL2C;

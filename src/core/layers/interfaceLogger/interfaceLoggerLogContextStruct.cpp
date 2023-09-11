@@ -1998,6 +1998,11 @@ void LogContext::Struct(
         Value("stereo");
     }
 
+    if (value.dxgiStereo)
+    {
+        Value("dxgiStereo");
+    }
+
     if (value.cubemap)
     {
         Value("cubemap");
@@ -2037,6 +2042,70 @@ void LogContext::Struct(
     {
         Value("fixedTileSwizzle");
     }
+
+    if (value.videoReferenceOnly)
+    {
+        Value("videoReferenceOnly");
+    }
+
+    if (value.optimalShareable)
+    {
+        Value("optimalShareable");
+    }
+
+    if (value.sampleLocsAlwaysKnown)
+    {
+        Value("sampleLocsAlwaysKnown");
+    }
+
+    if (value.fullResolveDstOnly)
+    {
+        Value("fullResolveDstOnly");
+    }
+
+    if (value.fullCopyDstOnly)
+    {
+        Value("fullCopyDstOnly");
+    }
+
+    if (value.pipSwapChain)
+    {
+        Value("pipSwapChain");
+    }
+
+    if (value.view3dAs2dArray)
+    {
+        Value("view3dAs2dArray");
+    }
+
+    if (value.tmzProtected)
+    {
+        Value("tmzProtected");
+    }
+
+    if (value.sharedWithMesa)
+    {
+        Value("sharedWithMesa");
+    }
+
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 769) && PAL_BUILD_GFX11
+    if (value.enable256KBSwizzleModes)
+    {
+        Value("enable256KBSwizzleModes");
+    }
+#endif
+
+    if (value.hasModifier)
+    {
+        Value("hasModifier");
+    }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 813
+    if (value.disableDccStateTracking)
+    {
+        Value("disableDccStateTracking");
+    }
+#endif
 
     EndList();
 }
@@ -3169,6 +3238,23 @@ void LogContext::Struct(
     {
         Value("dstAsNorm");
     }
+
+    if (value.scissorTest)
+    {
+        Value("scissorTest");
+    }
+
+    if (value.coordsInFloat)
+    {
+        Value("coordsInFloat");
+    }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 817
+    if (value.srcAsNorm)
+    {
+        Value("srcAsNorm");
+    }
+#endif
 
     EndList();
 }

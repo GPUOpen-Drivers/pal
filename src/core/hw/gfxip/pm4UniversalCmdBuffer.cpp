@@ -616,12 +616,12 @@ void UniversalCmdBuffer::CmdRestoreGraphicsState()
 
     // All RMP GFX Blts should push/pop command buffer's graphics state,
     // so this is a safe opportunity to mark that a GFX Blt is active
-    SetPm4CmdBufGfxBltState(true);
-    SetPm4CmdBufGfxBltWriteCacheState(true);
+    SetGfxBltState(true);
+    SetGfxBltWriteCacheState(true);
 
-    UpdatePm4CmdBufGfxBltExecEopFence();
+    UpdateGfxBltExecEopFence();
     // Set a impossible waited fence until IssueReleaseSync assigns a meaningful value when sync RB cache.
-    UpdatePm4CmdBufGfxBltWbEopFence(UINT32_MAX);
+    UpdateGfxBltWbEopFence(UINT32_MAX);
 }
 
 // =====================================================================================================================

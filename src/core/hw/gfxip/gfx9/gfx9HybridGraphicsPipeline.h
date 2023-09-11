@@ -66,13 +66,12 @@ protected:
 
     virtual const ShaderStageInfo* GetShaderStageInfo(ShaderType shaderType) const override;
 
+    Result LinkGraphicsLibraries(
+        const GraphicsPipelineCreateInfo& createInfo);
 private:
     PipelineChunkCs        m_task;
     ShaderStageInfo        m_taskStageInfo;
     ComputeShaderSignature m_taskSignature;
-
-    // Number of threads per threadgroup in each dimension as determined by parsing the input IL.
-    DispatchDims m_threadsPerTg;
 
 #if PAL_BUILD_GFX11
     const bool m_shPairsPacketSupportedCs;

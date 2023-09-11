@@ -30,6 +30,7 @@
 #include "core/platform.h"
 #include "core/hw/gfxip/gfxDevice.h"
 #include "core/hw/gfxip/pipeline.h"
+#include "core/hw/gfxip/graphicsShaderLibrary.h"
 #include "palFile.h"
 #include "palEventDefs.h"
 #include "palSysUtil.h"
@@ -41,20 +42,6 @@ namespace Pal
 
 // GPU memory alignment for shader programs.
 constexpr size_t GpuMemByteAlign = 256;
-
-constexpr Abi::ApiShaderType PalToAbiShaderType[] =
-{
-    Abi::ApiShaderType::Cs, // ShaderType::Cs
-    Abi::ApiShaderType::Task,
-    Abi::ApiShaderType::Vs, // ShaderType::Vs
-    Abi::ApiShaderType::Hs, // ShaderType::Hs
-    Abi::ApiShaderType::Ds, // ShaderType::Ds
-    Abi::ApiShaderType::Gs, // ShaderType::Gs
-    Abi::ApiShaderType::Mesh,
-    Abi::ApiShaderType::Ps, // ShaderType::Ps
-};
-static_assert(ArrayLen(PalToAbiShaderType) == NumShaderTypes,
-              "PalToAbiShaderType[] array is incorrectly sized!");
 
 // =====================================================================================================================
 Pipeline::Pipeline(
@@ -238,7 +225,7 @@ void Pipeline::ExtractPipelineInfo(
 
     for (uint32 s = static_cast<uint32>(firstShader); s <= static_cast<uint32>(lastShader); ++s)
     {
-        Abi::ApiShaderType shaderType = PalToAbiShaderType[s];
+        Abi::ApiShaderType shaderType = PalShaderTypeToAbiShaderType(static_cast<ShaderType>(s));
 
         if (shaderType != Abi::ApiShaderType::Count)
         {
@@ -264,13 +251,16 @@ Result Pipeline::QueryAllocationInfo(
 
     if (pNumEntries != nullptr)
     {
-        (*pNumEntries) = 1;
-
-        if (pGpuMemList != nullptr)
+        if (m_gpuMem.Memory() != nullptr)
         {
-            pGpuMemList[0].address     = m_gpuMem.Memory()->Desc().gpuVirtAddr;
-            pGpuMemList[0].offset      = m_gpuMem.Offset();
-            pGpuMemList[0].size        = m_gpuMemSize;
+            (*pNumEntries) = 1;
+
+            if (pGpuMemList != nullptr)
+            {
+                pGpuMemList[0].address = m_gpuMem.Memory()->Desc().gpuVirtAddr;
+                pGpuMemList[0].offset = m_gpuMem.Offset();
+                pGpuMemList[0].size = m_gpuMemSize;
+            }
         }
 
         result = Result::Success;
@@ -315,6 +305,25 @@ Result Pipeline::GetCodeObject(
 
     return result;
 }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 816
+// =====================================================================================================================
+// Gets the code object pointer according to shader type.
+const void* Pipeline::GetCodeObjectWithShaderType(
+    ShaderType shaderType,
+    size_t*    pSize
+    ) const
+{
+    const void* pBinary = nullptr;
+
+    pBinary = m_pPipelineBinary;
+    if (pSize != nullptr)
+    {
+        *pSize = m_pipelineBinaryLen;
+    }
+
+    return pBinary;
+}
+#endif
 
 // =====================================================================================================================
 // Extracts the binary shader instructions for a specific API shader stage.
@@ -329,7 +338,11 @@ Result Pipeline::GetShaderCode(
 
     // To extract the shader code, we can re-parse the saved ELF binary and lookup the shader's program
     // instructions by examining the symbol table entry for that shader's entrypoint.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 816
+    AbiReader abiReader(m_pDevice->GetPlatform(), GetCodeObjectWithShaderType(shaderType, nullptr));
+#else
     AbiReader abiReader(m_pDevice->GetPlatform(), m_pPipelineBinary);
+#endif
     Result result = abiReader.Init();
     if (result == Result::Success)
     {
@@ -431,6 +444,7 @@ uint32 Pipeline::GetStackSizeInBytes() const
 // =====================================================================================================================
 // Helper method which extracts shader statistics from the pipeline ELF binary for a particular hardware stage.
 Result Pipeline::GetShaderStatsForStage(
+    ShaderType             shaderType,
     const ShaderStageInfo& stageInfo,
     const ShaderStageInfo* pStageInfoCopy, // Optional: Non-null if we care about copy shader statistics.
     ShaderStats*           pStats
@@ -440,7 +454,14 @@ Result Pipeline::GetShaderStatsForStage(
     memset(pStats, 0, sizeof(ShaderStats));
 
     // We can re-parse the saved pipeline ELF binary to extract shader statistics.
-    AbiReader abiReader(m_pDevice->GetPlatform(), m_pPipelineBinary);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 816
+    const void* pPipelineBinary = GetCodeObjectWithShaderType(shaderType, nullptr);
+#else
+    const void* pPipelineBinary = m_pPipelineBinary;
+#endif
+
+    PAL_ASSERT(pPipelineBinary != nullptr);
+    AbiReader abiReader(m_pDevice->GetPlatform(), pPipelineBinary);
     Result result = abiReader.Init();
 
     PalAbi::CodeObjectMetadata metadata;

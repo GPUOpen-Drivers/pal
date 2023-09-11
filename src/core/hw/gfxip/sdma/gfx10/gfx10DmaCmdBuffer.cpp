@@ -1437,29 +1437,26 @@ uint32* DmaCmdBuffer::UpdateImageMetaData(
     const DmaImageInfo&  image,
     uint32*              pCmdSpace)
 {
-    const Pal::Image*   pPalImage          = static_cast<const Pal::Image*>(image.pImage);
-    const Image*        pGfxImage          = static_cast<const Image*>(pPalImage->GetGfxImage());
-    const Pal::Device*  pPalDevice         = pPalImage->GetDevice();
-    const auto&         settings           = GetGfx9Settings(*pPalDevice);
-    const auto          colorLayoutToState = pGfxImage->LayoutToColorCompressionState();
-    const auto          colorCompressState = ImageLayoutToColorCompressionState(colorLayoutToState,
-                                                                                image.imageLayout);
-    // Does this image have DCC data at all?
-    if (pGfxImage->HasDccData()                            &&
-        (colorCompressState != ColorDecompressed)          &&
+    const Pal::Image*           pPalImage  = static_cast<const Pal::Image*>(image.pImage);
+    const Image*                pGfxImage  = static_cast<const Image*>(pPalImage->GetGfxImage());
+    const Pal::Device*          pPalDevice = pPalImage->GetDevice();
+    const SubresId&             subResId   = image.pSubresInfo->subresId;
+    const ColorCompressionState comprState =
+        ImageLayoutToColorCompressionState(pGfxImage->LayoutToColorCompressionState(), image.imageLayout);
+
+    // Does this image have DCC tracking metadata at all?
+    if (pGfxImage->HasDccStateMetaData(subResId.plane) &&
+        (comprState != ColorDecompressed)              &&
         // Can the SDMA engine access it?
-        (settings.waSdmaPreventCompressedSurfUse == false)
+        (GetGfx9Settings(*pPalDevice).waSdmaPreventCompressedSurfUse == false)
        )
     {
+        // Need to update the DCC compression bit for this mip level so that the next time a DCC decompress
+        // operation occurs, we know it has something to do again.
         MipDccStateMetaData metaData = { };
         metaData.isCompressed = 1;
 
-        // Need to update the DCC compression bit for this mip level so that the next time a DCC decompress
-        // operation occurs, we know it has something to do again.
-        const SubresId&  subResId         = image.pSubresInfo->subresId;
-        const gpusize    dccStateMetaAddr = pGfxImage->GetDccStateMetaDataAddr(subResId);
-
-        pCmdSpace = BuildUpdateMemoryPacket(dccStateMetaAddr,
+        pCmdSpace = BuildUpdateMemoryPacket(pGfxImage->GetDccStateMetaDataAddr(subResId),
                                             Util::NumBytesToNumDwords(sizeof(metaData)),
                                             reinterpret_cast<const uint32*>(&metaData),
                                             pCmdSpace);

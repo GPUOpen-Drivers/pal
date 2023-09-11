@@ -99,6 +99,11 @@ Result AddrMgr::Init()
         {
             m_hAddrLib = createOutput.hLib;
         }
+        else if (addrRet == ADDR_OUTOFMEMORY)
+        {
+            result = Result::ErrorOutOfMemory;
+            PAL_ALERT_ALWAYS();
+        }
         else
         {
             result = Result::ErrorUnknown;

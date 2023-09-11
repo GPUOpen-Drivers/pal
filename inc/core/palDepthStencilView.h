@@ -76,6 +76,7 @@ struct DepthStencilViewCreateInfo
     uint32        mipLevel;       ///< Mip level to be rendered with this view.
     uint32        baseArraySlice; ///< First array slice in the view.
     uint32        arraySize;      ///< Number of slices in the view.
+
 };
 
 /**

@@ -27,6 +27,7 @@
 #include "core/platform.h"
 #include "core/hw/gfxip/gfxDevice.h"
 #include "core/hw/gfxip/graphicsPipeline.h"
+#include "core/hw/gfxip/graphicsShaderLibrary.h"
 #include "palFormatInfo.h"
 #include "palMetroHash.h"
 #include "palPipelineAbi.h"
@@ -45,6 +46,8 @@ GraphicsPipeline::GraphicsPipeline(
     m_binningOverride(BinningOverride::Default),
     m_vertexBufferCount(0),
     m_numColorTargets(0),
+    m_gfxShaderLibraries{},
+    m_numGfxShaderLibraries(0),
     m_logicOp(LogicOp::Copy)
 {
     m_flags.u32All = 0;
@@ -59,8 +62,8 @@ GraphicsPipeline::GraphicsPipeline(
 Result GraphicsPipeline::Init(
     const GraphicsPipelineCreateInfo&         createInfo,
     const GraphicsPipelineInternalCreateInfo& internalInfo,
-    const AbiReader&                          abiReader,
-    const PalAbi::CodeObjectMetadata&         metadata,
+    const AbiReader*                          pAbiReader,
+    const PalAbi::CodeObjectMetadata*         pMetadata,
     MsgPackReader*                            pMetadataReader)
 {
     Result result = Result::Success;
@@ -70,6 +73,12 @@ Result GraphicsPipeline::Init(
     {
         result = Result::ErrorInvalidValue;
     }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 816
+    else if (createInfo.numShaderLibraries > 0)
+    {
+        result = InitFromLibraries(createInfo, internalInfo);
+    }
+#endif
     else if ((createInfo.pPipelineBinary != nullptr) && (createInfo.pipelineBinarySize != 0))
     {
         m_pipelineBinaryLen = createInfo.pipelineBinarySize;
@@ -83,8 +92,12 @@ Result GraphicsPipeline::Init(
         {
             memcpy(m_pPipelineBinary, createInfo.pPipelineBinary, m_pipelineBinaryLen);
 
-            result = InitFromPipelineBinary(createInfo, internalInfo, abiReader, metadata, pMetadataReader);
+            result = InitFromPipelineBinary(createInfo, internalInfo, *pAbiReader, *pMetadata, pMetadataReader);
         }
+    }
+    else if (internalInfo.flags.isPartialPipeline)
+    {
+        result = InitFromPipelineBinary(createInfo, internalInfo, *pAbiReader, *pMetadata, pMetadataReader);
     }
     else
     {
@@ -131,14 +144,10 @@ Result GraphicsPipeline::Init(
 }
 
 // =====================================================================================================================
-// Initializes this pipeline from the pipeline binary data stored in this object, combined with the specified create
-// info.
-Result GraphicsPipeline::InitFromPipelineBinary(
+// Initialize flags and some common variables from createInfo and internalInfo.
+void GraphicsPipeline::InitFlags(
     const GraphicsPipelineCreateInfo&         createInfo,
-    const GraphicsPipelineInternalCreateInfo& internalInfo,
-    const AbiReader&                          abiReader,
-    const PalAbi::CodeObjectMetadata&         metadata,
-    MsgPackReader*                            pMetadataReader)
+    const GraphicsPipelineInternalCreateInfo& internalInfo)
 {
     // Store the ROP code this pipeline was created with
     m_logicOp = createInfo.cbState.logicOp;
@@ -170,6 +179,131 @@ Result GraphicsPipeline::InitFromPipelineBinary(
 
     m_viewInstancingDesc                   = createInfo.viewInstancingDesc;
     m_viewInstancingDesc.viewInstanceCount = Max(m_viewInstancingDesc.viewInstanceCount, 1u);
+}
+
+// =====================================================================================================================
+// Initialize pipeline from graphics shader libraries.
+Result GraphicsPipeline::InitFromLibraries(
+    const GraphicsPipelineCreateInfo&         createInfo,
+    const GraphicsPipelineInternalCreateInfo& internalInfo)
+{
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 816
+    Result result = Result::Success;
+    InitFlags(createInfo, internalInfo);
+
+    Util::MetroHash64 stableHasher;
+    Util::MetroHash64 uniqueHasher;
+    Util::MetroHash64 resourceHasher;
+
+    Util::MetroHash::Hash stableHash64 = {};
+    Util::MetroHash::Hash uniqueHash64 = {};
+    Util::MetroHash::Hash resourceHash64 = {};
+
+    uint32_t pipelineApiShaderMask = 0;
+    uint32_t pipelineHwStageMask   = 0;
+
+    PAL_ASSERT((createInfo.numShaderLibraries <= MaxGfxShaderLibraryCount) && (createInfo.numShaderLibraries > 0));
+    m_numGfxShaderLibraries = static_cast<uint32_t>(createInfo.numShaderLibraries);
+
+    // Merge flags and command info from partial pipeline
+    for (uint32_t i = 0; i < createInfo.numShaderLibraries; i++)
+    {
+        const GraphicsShaderLibrary* pLib =
+            reinterpret_cast<const GraphicsShaderLibrary*>(createInfo.ppShaderLibraries[i]);
+        m_gfxShaderLibraries[i] = pLib;
+
+        const GraphicsPipeline*      pPartialPipeline = pLib->GetPartialPipeline();
+        uint32_t                     apiShaderMask    = pLib->GetApiShaderMask();
+
+        if (Util::TestAnyFlagSet(pipelineApiShaderMask, pLib->GetApiShaderMask()) ||
+            Util::TestAnyFlagSet(pipelineHwStageMask, pLib->GetHwShaderMask()))
+        {
+            PAL_NEVER_CALLED();
+            result = Result::ErrorBadPipelineData;
+            break;
+        }
+        pipelineApiShaderMask |= apiShaderMask;
+        pipelineHwStageMask   |= pLib->GetHwShaderMask();
+
+        // m_flags
+        m_flags.gsEnabled             |= pPartialPipeline->m_flags.gsEnabled;
+        m_flags.tessEnabled           |= pPartialPipeline->m_flags.tessEnabled;
+        m_flags.meshShader            |= pPartialPipeline->m_flags.meshShader;
+        m_flags.taskShader            |= pPartialPipeline->m_flags.taskShader;
+        m_flags.vportArrayIdx         |= pPartialPipeline->m_flags.vportArrayIdx;
+        m_flags.psUsesUavs            |= pPartialPipeline->m_flags.psUsesUavs;
+        m_flags.psUsesRovs            |= pPartialPipeline->m_flags.psUsesRovs;
+        m_flags.psWritesUavs          |= pPartialPipeline->m_flags.psWritesUavs;
+        m_flags.psWritesDepth         |= pPartialPipeline->m_flags.psWritesDepth;
+
+        m_flags.psUsesAppendConsume   |= pPartialPipeline->m_flags.psUsesAppendConsume;
+        m_flags.nonPsShaderWritesUavs |= pPartialPipeline->m_flags.nonPsShaderWritesUavs;
+        m_flags.primIdUsed            |= pPartialPipeline->m_flags.primIdUsed;
+        m_flags.isGsOnchip            |= pPartialPipeline->m_flags.isGsOnchip;
+        // Hash
+        stableHasher.Update(pPartialPipeline->m_info.internalPipelineHash.stable);
+        uniqueHasher.Update(pPartialPipeline->m_info.internalPipelineHash.unique);
+        resourceHasher.Update(pPartialPipeline->m_info.resourceMappingHash);
+
+        for (uint32 stage = static_cast<uint32>(ShaderType::Task);
+            stage < static_cast<uint32>(ShaderType::Pixel);
+            stage++)
+        {
+            if (Util::TestAnyFlagSet(apiShaderMask, 1 << stage))
+            {
+                const uint32 shaderTypeIdx = static_cast<uint32>(
+                    PalShaderTypeToAbiShaderType(static_cast<ShaderType>(stage)));
+
+                // Check there isn't api shader stage overlapped among input graphics shader libraries.
+                PAL_ASSERT((m_info.shader[stage].hash.lower == 0) && (m_info.shader[stage].hash.upper == 0));
+
+                m_info.shader[stage].hash = pPartialPipeline->m_info.shader[stage].hash;
+                m_apiHwMapping.apiShaders[shaderTypeIdx] = pPartialPipeline->m_apiHwMapping.apiShaders[shaderTypeIdx];
+            }
+        }
+
+        // m_info
+        m_info.ps.flags.usesSampleMask |= pPartialPipeline->m_info.ps.flags.usesSampleMask;
+
+        // Uploading fence
+        m_uploadFenceToken = Max(m_uploadFenceToken, pPartialPipeline->GetUploadFenceToken());
+        m_pagingFenceVal = Max(m_pagingFenceVal, pPartialPipeline->GetPagingFenceVal());
+    }
+
+    if (result == Result::Success)
+    {
+        if (m_flags.taskShader)
+        {
+            SetTaskShaderEnabled();
+        }
+
+        stableHasher.Finalize(stableHash64.bytes);
+        uniqueHasher.Finalize(uniqueHash64.bytes);
+        resourceHasher.Finalize(resourceHash64.bytes);
+        m_info.internalPipelineHash.stable = stableHash64.qwords[0];
+        m_info.internalPipelineHash.unique = uniqueHash64.qwords[0];
+        m_info.resourceMappingHash         = resourceHash64.qwords[0];
+
+        result = LinkGraphicsLibraries(createInfo);
+    }
+
+    return result;
+#else
+    return Result::ErrorUnavailable;
+#endif
+}
+
+// =====================================================================================================================
+// Initializes this pipeline from the pipeline binary data stored in this object, combined with the specified create
+// info.
+Result GraphicsPipeline::InitFromPipelineBinary(
+    const GraphicsPipelineCreateInfo&         createInfo,
+    const GraphicsPipelineInternalCreateInfo& internalInfo,
+    const AbiReader&                          abiReader,
+    const PalAbi::CodeObjectMetadata&         metadata,
+    MsgPackReader*                            pMetadataReader)
+{
+    InitFlags(createInfo, internalInfo);
 
     ExtractPipelineInfo(metadata, ShaderType::Task, ShaderType::Pixel);
 
@@ -235,6 +369,84 @@ Result GraphicsPipeline::InitFromPipelineBinary(
     }
 
     Result result = HwlInit(createInfo, abiReader, metadata, pMetadataReader);
+
+    return result;
+}
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 816
+// =====================================================================================================================
+// Gets the code object pointer according to shader type.
+const void* GraphicsPipeline::GetCodeObjectWithShaderType(
+    ShaderType shaderType,
+    size_t*    pSize
+    ) const
+{
+    const void* pBinary = nullptr;
+    if (m_pPipelineBinary != nullptr)
+    {
+        pBinary = m_pPipelineBinary;
+        if (pSize != nullptr)
+        {
+            *pSize = m_pipelineBinaryLen;
+        }
+    }
+    else
+    {
+        for (uint32 i = 0; i < m_numGfxShaderLibraries; i++)
+        {
+            if (Util::TestAnyFlagSet(m_gfxShaderLibraries[i]->GetApiShaderMask(), 1 << static_cast<uint32>(shaderType)))
+            {
+                pBinary = m_gfxShaderLibraries[i]->GetCodeObject(pSize);
+                break;
+            }
+        }
+    }
+
+    return pBinary;
+}
+#endif
+
+// =====================================================================================================================
+// Query this pipeline's Bound GPU Memory.
+Result GraphicsPipeline::QueryAllocationInfo(
+    size_t*                   pNumEntries,
+    GpuMemSubAllocInfo* const pGpuMemList
+    ) const
+{
+    Result result = Result::ErrorInvalidPointer;
+
+    if (pNumEntries != nullptr)
+    {
+        if (m_gpuMem.Memory() != nullptr)
+        {
+            (*pNumEntries) = 1;
+
+            if (pGpuMemList != nullptr)
+            {
+                pGpuMemList[0].address = m_gpuMem.Memory()->Desc().gpuVirtAddr;
+                pGpuMemList[0].offset  = m_gpuMem.Offset();
+                pGpuMemList[0].size    = m_gpuMemSize;
+            }
+        }
+        else
+        {
+            size_t numEntries = 0;
+            (*pNumEntries) = 0;
+
+            GpuMemSubAllocInfo*  pSubAllocInfo = pGpuMemList;
+            for (uint32 i = 0; i < m_numGfxShaderLibraries; i++)
+            {
+                m_gfxShaderLibraries[i]->QueryAllocationInfo(&numEntries, pSubAllocInfo);
+                if (pSubAllocInfo != nullptr)
+                {
+                    pSubAllocInfo += numEntries;
+                }
+                (*pNumEntries) += numEntries;
+            }
+        }
+
+        result = Result::Success;
+    }
 
     return result;
 }

@@ -32,6 +32,7 @@
 #include "core/hw/gfxip/gfxDevice.h"
 #include "core/hw/gfxip/gfxCmdBuffer.h"
 #include "core/hw/gfxip/msaaState.h"
+#include "core/hw/gfxip/rpm/rpmUtil.h"
 #include "core/hw/gfxip/rpm/rsrcProcMgr.h"
 #include "palHashMapImpl.h"
 #include "addrinterface.h"
@@ -914,11 +915,81 @@ const MsaaQuadSamplePattern GfxDevice::DefaultSamplePattern[] = {
 };
 
 // =====================================================================================================================
-ClearMethod GfxDevice::GetDefaultSlowClearMethod(
-    const Pal::Image*  pImage
+// Describes the image barrier to the above layers but only if we're a developer build. Clears the BarrierOperations
+// passed in after calling back in case of layout transitions. This function is expected to be called only on layout
+// transitions.
+void GfxDevice::DescribeBarrier(
+    GfxCmdBuffer*                 pCmdBuf,
+    const BarrierTransition*      pTransition,
+    Developer::BarrierOperations* pOperations
     ) const
 {
-    return ClearMethod::NormalGraphics;
+    constexpr BarrierTransition NullTransition = {};
+    Developer::BarrierData data                = {};
+
+    data.pCmdBuffer    = pCmdBuf;
+    data.transition    = (pTransition != nullptr) ? (*pTransition) : NullTransition;
+    data.hasTransition = (pTransition != nullptr);
+
+    PAL_ASSERT(pOperations != nullptr);
+    // The callback is expected to be made only on layout transitions.
+    memcpy(&data.operations, pOperations, sizeof(Developer::BarrierOperations));
+
+    // Callback to the above layers if there is a transition and clear the BarrierOperations.
+    m_pParent->DeveloperCb(Developer::CallbackType::ImageBarrier, &data);
+    memset(pOperations, 0, sizeof(Developer::BarrierOperations));
+}
+
+// =====================================================================================================================
+// Call back to above layers before starting the barrier execution.
+void GfxDevice::DescribeBarrierStart(
+    GfxCmdBuffer*          pCmdBuf,
+    uint32                 reason,
+    Developer::BarrierType type
+    ) const
+{
+    Developer::BarrierData data = {};
+
+    data.pCmdBuffer = pCmdBuf;
+
+    // Make sure we have an acceptable barrier reason.
+    PAL_ALERT_MSG((GetPlatform()->IsDevDriverProfilingEnabled() && (reason == Developer::BarrierReasonInvalid)),
+                  "Invalid barrier reason codes are not allowed!");
+
+    data.reason = reason;
+    data.type   = type;
+
+    m_pParent->DeveloperCb(Developer::CallbackType::BarrierBegin, &data);
+}
+
+// =====================================================================================================================
+// Callback to above layers with summary information at end of barrier execution.
+void GfxDevice::DescribeBarrierEnd(
+    GfxCmdBuffer*                 pCmdBuf,
+    Developer::BarrierOperations* pOperations
+    ) const
+{
+    Developer::BarrierData data  = {};
+
+    // Set the barrier type to an invalid type.
+    data.pCmdBuffer    = pCmdBuf;
+
+    PAL_ASSERT(pOperations != nullptr);
+    memcpy(&data.operations, pOperations, sizeof(Developer::BarrierOperations));
+
+    m_pParent->DeveloperCb(Developer::CallbackType::BarrierEnd, &data);
+}
+
+// =====================================================================================================================
+ClearMethod GfxDevice::GetDefaultSlowClearMethod(
+    const SwizzledFormat& clearFormat
+    ) const
+{
+    uint32 texelScale = 1;
+    RpmUtil::GetRawFormat(clearFormat.format, &texelScale, nullptr);
+
+    // Force clears of scaled formats to the compute engine
+    return (texelScale > 1) ? ClearMethod::NormalCompute : ClearMethod::NormalGraphics;
 }
 
 } // Pal

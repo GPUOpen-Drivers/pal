@@ -292,7 +292,7 @@ namespace DevDriver
 
         // Struct whose ::Value member is equal to true if T is an abstract class, and false otherwise.
         template<typename T>
-        struct IsPod : BoolType<std::is_pod<T>::value>
+        struct IsPod : BoolType<std::is_trivial<T>::value>
         {
 
         };

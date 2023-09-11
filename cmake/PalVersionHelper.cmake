@@ -59,9 +59,34 @@ function(message_verbose)
     endif()
 endfunction()
 
+# PAL uses specific asics, SC uses generations, Addrlib does both...
+# That's why I made the helper function "pal_set_or", to help set variables that specify graphics generations.
+# Basically the idea being if any are enabled it'll activate.
+# Cmake doesn't have a 'set_or' function (ie |= )
+function(pal_set_or VARIABLE VALUE)
+    # Ex:
+    # VARIABLE = FOOBAR
+    # VALUE = OFF
+
+    # If the variable hasn't been defined before then set it.
+    if (NOT DEFINED ${VARIABLE})
+        set(${VARIABLE} ${VALUE} PARENT_SCOPE)
+        return()
+    endif()
+
+    set(cur_value ${${VARIABLE}})
+
+    if (NOT ${cur_value})
+        set(${VARIABLE} ${VALUE} PARENT_SCOPE)
+    endif()
+endfunction()
+
 function(pal_bp AMD_VAR AMD_DFLT)
     set(singleValues MODE DEPENDS_ON MSG)
-    cmake_parse_arguments(PARSE_ARGV 0 "AMD" ""  "${singleValues}" "")
+    set(multiValues ASIC_CONFIG)
+
+    set(JUMP_TO_END 0)
+    cmake_parse_arguments(PARSE_ARGV 0 "AMD" ""  "${singleValues}" "${multiValues}")
 
     # STATUS is a good default value
     if (NOT DEFINED AMD_MODE)
@@ -84,77 +109,80 @@ function(pal_bp AMD_VAR AMD_DFLT)
         # We only want to match BuildParameters (PAL_BUILD*).
         string(REGEX MATCH "(PAL_BUILD).*" _MATCHED ${AMD_VAR})
         if (_MATCHED)
+            # If the variable is not defined, set it locally so that the right value can be derefernced and passed to
+            # pal_set_or at the end of the function while setting the ASIC configurations
+            set(${AMD_VAR} ON)
             set(${AMD_VAR} ON PARENT_SCOPE)
 
             message(STATUS "${AMD_VAR} forced ON. ${AMD_MSG}")
 
-            return()
+            set(JUMP_TO_END 1)
         endif()
     endif()
 
-    # If the user specified a dependency. And that depedency is false.
-    # Then we shouldn't define the build parameter
-    foreach(d ${AMD_DEPENDS_ON})
-        string(REPLACE "(" " ( " _CMAKE_PAL_DEP "${d}")
-        string(REPLACE ")" " ) " _CMAKE_PAL_DEP "${_CMAKE_PAL_DEP}")
-        string(REGEX REPLACE " +" ";" PAL_BP_DEP "${_CMAKE_PAL_DEP}")
-        unset(_CMAKE_PAL_DEP)
+    if(NOT JUMP_TO_END)
+        # If the user specified a dependency. And that depedency is false.
+        # Then we shouldn't define the build parameter
+        foreach(d ${AMD_DEPENDS_ON})
+            string(REPLACE "(" " ( " _CMAKE_PAL_DEP "${d}")
+            string(REPLACE ")" " ) " _CMAKE_PAL_DEP "${_CMAKE_PAL_DEP}")
+            string(REGEX REPLACE " +" ";" PAL_BP_DEP "${_CMAKE_PAL_DEP}")
+            unset(_CMAKE_PAL_DEP)
 
-        # If the dependency isn't defined or if the dependency is false,
-        # then we need to disable the build parameter.
-        if((NOT DEFINED ${PAL_BP_DEP}) OR (NOT ${${PAL_BP_DEP}}))
-            if (DEFINED ${PAL_BP_DEP})
-                set(_NEW_VALUE ${${PAL_BP_DEP}})
-            else()
-                # If the dependency is not defined, this isn't worthy of anything but a status message.
-                set(AMD_MODE "STATUS")
-                set(_NEW_VALUE OFF)
+            # If the dependency isn't defined or if the dependency is false,
+            # then we need to disable the build parameter.
+            if((NOT DEFINED ${PAL_BP_DEP}) OR (NOT ${${PAL_BP_DEP}}))
+                if (DEFINED ${PAL_BP_DEP})
+                    set(_NEW_VALUE ${${PAL_BP_DEP}})
+                else()
+                    # If the dependency is not defined, this isn't worthy of anything but a status message.
+                    set(AMD_MODE "STATUS")
+                    set(_NEW_VALUE OFF)
+                endif()
+                # If the variable is not defined, set it locally so that the right value can be derefernced and passed to
+                # pal_set_or at the end of the function while setting the ASIC configurations
+                set(${AMD_VAR} ${_NEW_VALUE})
+                set(${AMD_VAR} ${_NEW_VALUE} PARENT_SCOPE)
+
+                message(${AMD_MODE} "${AMD_VAR} dependency (${d}) failed. Defaulting to ${_NEW_VALUE}. ${AMD_MSG}")
+                set(JUMP_TO_END 1)
+                break()
             endif()
-            set(${AMD_VAR} ${_NEW_VALUE} PARENT_SCOPE)
+        endforeach()
+    endif()
 
-            message(${AMD_MODE} "${AMD_VAR} dependency (${d}) failed. Defaulting to ${_NEW_VALUE}. ${AMD_MSG}")
-            return()
+    if(NOT JUMP_TO_END)
+        # If clients don't yet have 3.15 still allow them usage of DEBUG and VERBOSE
+        if (${CMAKE_VERSION} VERSION_LESS "3.15" AND ${AMD_MODE} MATCHES "DEBUG|VERBOSE")
+            set(AMD_MODE "STATUS")
         endif()
-    endforeach()
 
-    # If clients don't yet have 3.15 still allow them usage of DEBUG and VERBOSE
-    if (${CMAKE_VERSION} VERSION_LESS "3.15" AND ${AMD_MODE} MATCHES "DEBUG|VERBOSE")
-        set(AMD_MODE "STATUS")
+        # If this variable hasn't been defined by the client. Then we provide the default value.
+        if (NOT DEFINED ${AMD_VAR})
+            # If the variable is not defined, set it locally so that the right value can be derefernced and passed to
+            # pal_set_or at the end of the function while setting the ASIC configurations
+            set(${AMD_VAR} ${AMD_DFLT})
+            set(${AMD_VAR} ${AMD_DFLT} PARENT_SCOPE)
+
+            message(${AMD_MODE} "${AMD_VAR} not set. Defaulting to ${AMD_DFLT}. ${AMD_MSG}")
+
+            set(JUMP_TO_END 1)
+        endif()
+
+        if(NOT JUMP_TO_END)
+            # If we got to this point it means the build parameter is getting overriden.
+            # To assist in potential debugging show what the value was set to.
+            set(JUMP_TO_END 1)
+            message(STATUS "${AMD_VAR} overridden to ${${AMD_VAR}}")
+        endif()
     endif()
 
-    # If this variable hasn't been defined by the client. Then we provide the default value.
-    if (NOT DEFINED ${AMD_VAR})
-        set(${AMD_VAR} ${AMD_DFLT} PARENT_SCOPE)
-
-        message(${AMD_MODE} "${AMD_VAR} not set. Defaulting to ${AMD_DFLT}. ${AMD_MSG}")
-
-        return()
-    endif()
-
-    # If we got to this point it means the build parameter is getting overriden.
-    # To assist in potential debugging show what the value was set to.
-    message(STATUS "${AMD_VAR} overridden to ${${AMD_VAR}}")
-endfunction()
-
-# PAL uses specific asics, SC uses generations, Addrlib does both...
-# That's why I made the helper function "pal_set_or", to help set variables that specify graphics generations.
-# Basically the idea being if any are enabled it'll activate.
-# Cmake doesn't have a 'set_or' function (ie |= )
-function(pal_set_or VARIABLE VALUE)
-    # Ex:
-    # VARIABLE = FOOBAR
-    # VALUE = OFF
-
-    # If the variable hasn't been defined before then set it.
-    if (NOT DEFINED ${VARIABLE})
-        set(${VARIABLE} ${VALUE} PARENT_SCOPE)
-        return()
-    endif()
-
-    set(cur_value ${${VARIABLE}})
-
-    if (NOT ${cur_value})
-        set(${VARIABLE} ${VALUE} PARENT_SCOPE)
+    # Set all the ASIC configurations that are passed as arguments if any
+    if (DEFINED AMD_ASIC_CONFIG)
+        foreach(elem ${AMD_ASIC_CONFIG})
+            pal_set_or(${elem} ${${AMD_VAR}})
+            set(${elem} ${${elem}} PARENT_SCOPE)
+        endforeach()
     endif()
 endfunction()
 

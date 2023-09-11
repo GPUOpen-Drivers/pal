@@ -1050,7 +1050,7 @@ Result Device::CreateGraphicsPipeline(
 
     if (result == Result::Success)
     {
-        result = pPipeline->Init(createInfo, internalInfo, abiReader, metadata, &metadataReader);
+        result = pPipeline->Init(createInfo, internalInfo, &abiReader, &metadata, &metadataReader);
 
         if (result != Result::Success)
         {

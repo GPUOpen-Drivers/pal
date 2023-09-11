@@ -2057,7 +2057,12 @@ union ScaledCopyFlags
                                     ///  Cannot be set if @ref dstAsSrgb is set.
         uint32 scissorTest    : 1;  ///< If set, do scissor test using the specified scissor rectangle.
         uint32 coordsInFloat  : 1;  ///< If set, copy regions are represented in floating point type.
-        uint32 reserved       : 25; ///< reserved for future useage.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 817
+        uint32 srcAsNorm      : 1;  ///< If set, an srgb source image will be treated as non-srgb format.
+#else
+        uint32 reserved817    : 1;  ///< reserved.
+#endif
+        uint32 reserved       : 24; ///< reserved for future usage.
     };
     uint32 u32All;                  ///< Flags packed as uint32.
 };
