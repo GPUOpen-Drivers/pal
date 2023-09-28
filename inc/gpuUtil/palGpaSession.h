@@ -260,7 +260,8 @@ struct GpaSampleConfig
                 Pal::uint32 supressInstructionTokens :  1;  ///< Prevents capturing instruciton-level SQTT tokens,
                                                             ///  significantly reducing the amount of sample data.
                 Pal::uint32 stallMode                :  2;  ///< Describes behavior when buffer full
-                Pal::uint32 reserved                 : 28;  ///< Reserved for future use.
+                Pal::uint32 placeholder1             :  1;
+                Pal::uint32 reserved                 : 27;  ///< Reserved for future use.
             };
             Pal::uint32 u32All;                             ///< Bit flags packed as uint32.
         } flags;                                            ///< Bit flags controlling SQTT samples.

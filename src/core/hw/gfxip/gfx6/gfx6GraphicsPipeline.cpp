@@ -880,7 +880,7 @@ void GraphicsPipeline::SetupCommonRegisters(
     gbTileMode0.u32All = chipProps.gfx6.gbTileMode[0];
     switch (gbTileMode0.bits.PIPE_CONFIG)
     {
-        // 2 Pipes (fall-throughs intentional):
+        // 2 Pipes
     case ADDR_SURF_P2:
     case ADDR_SURF_P2_RESERVED0:
     case ADDR_SURF_P2_RESERVED1:
@@ -888,12 +888,12 @@ void GraphicsPipeline::SetupCommonRegisters(
         // NOTE: a register field value of 2 means "256 pixels".
         m_regs.other.paScModeCntl1.bits.WALK_FENCE_SIZE = 2;
         break;
-        // 4 Pipes (fall-throughs intentional):
+        // 4 Pipes
     case ADDR_SURF_P4_8x16:
     case ADDR_SURF_P4_16x16:
     case ADDR_SURF_P4_16x32:
     case ADDR_SURF_P4_32x32:
-        // 8 Pipes (fall-throughs intentional):
+        // 8 Pipes
     case ADDR_SURF_P8_16x16_8x16:
     case ADDR_SURF_P8_16x32_8x16:
     case ADDR_SURF_P8_32x32_8x16:
@@ -901,7 +901,7 @@ void GraphicsPipeline::SetupCommonRegisters(
     case ADDR_SURF_P8_32x32_16x16:
     case ADDR_SURF_P8_32x32_16x32:
     case ADDR_SURF_P8_32x64_32x32:
-        // 16 Pipes (fall-throughs intentional):
+        // 16 Pipes
     case ADDR_SURF_P16_32x32_8x16__CI__VI:
     case ADDR_SURF_P16_32x32_16x16__CI__VI:
         // NOTE: a register field value of 3 means "512 pixels".

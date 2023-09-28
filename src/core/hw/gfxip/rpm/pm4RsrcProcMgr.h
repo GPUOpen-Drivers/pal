@@ -159,6 +159,7 @@ protected:
         const ClearColor*     pColor,
         const SwizzledFormat& clearFormat,
         const SubresRange&    clearRange,
+        bool                  trackBltActiveFlags,
         uint32                boxCount,
         const Box*            pBoxes) const;
 
@@ -267,7 +268,8 @@ private:
         const GfxImage&       dstImage,
         const uint32*         pConvertedColor,
         const SwizzledFormat& clearFormat,
-        const SubresRange&    clearRange) const = 0;
+        const SubresRange&    clearRange,
+        bool                  trackBltActiveFlags) const = 0;
 
     virtual void HwlDepthStencilClear(
         GfxCmdBuffer*      pCmdBuffer,
@@ -280,7 +282,7 @@ private:
         uint32             rangeCount,
         const SubresRange* pRanges,
         bool               fastClear,
-        bool               needComputeSync,
+        bool               clearAutoSync,
         uint32             boxCnt,
         const Box*         pBox) const = 0;
 

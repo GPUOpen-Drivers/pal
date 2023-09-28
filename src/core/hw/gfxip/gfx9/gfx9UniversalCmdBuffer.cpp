@@ -1786,9 +1786,10 @@ void UniversalCmdBuffer::CmdSaveGraphicsState()
 }
 
 // =====================================================================================================================
-void UniversalCmdBuffer::CmdRestoreGraphicsState()
+void UniversalCmdBuffer::CmdRestoreGraphicsStateInternal(
+    bool trackBltActiveFlags)
 {
-    Pal::Pm4::UniversalCmdBuffer::CmdRestoreGraphicsState();
+    Pal::Pm4::UniversalCmdBuffer::CmdRestoreGraphicsStateInternal(trackBltActiveFlags);
 
     CopyColorTargetViewStorage(m_colorTargetViewStorage, m_colorTargetViewRestoreStorage, &m_graphicsState);
     CopyDepthStencilViewStorage(&m_depthStencilViewStorage, &m_depthStencilViewRestoreStorage, &m_graphicsState);
@@ -5053,7 +5054,7 @@ Result UniversalCmdBuffer::AddPostamble()
 
     }
 
-    if (m_pm4CmdBufState.flags.cpBltActive)
+    if (m_pm4CmdBufState.flags.cpBltActive && (IsNested() == false))
     {
         // Stalls the CP ME until the CP's DMA engine has finished all previous "CP blts" (DMA_DATA commands
         // without the sync bit set). The ring won't wait for CP DMAs to finish so we need to do this manually.
@@ -6620,8 +6621,8 @@ void UniversalCmdBuffer::ValidateVrsState()
                 case VrsCombiner::Min:
                     // The result of min(A, 1x1) will always be "1x1".  Same as the "override" case;
                     // i.e., previous combiner state will always lose
-                    //
-                    // break intentionally omitted
+                    [[fallthrough]];
+
                 case VrsCombiner::Override:
                     // Set register shading rate to 1x1,
                     newRateParams.shadingRate = VrsShadingRate::_1x1;
@@ -10214,7 +10215,7 @@ uint32 UniversalCmdBuffer::BuildExecuteIndirectIb2Packets(
                     drawIndexReg,
                     1,
                     pParamData[cmdIndex].argBufSize,
-                    NULL,
+                    0,
                     PacketPredicate(),
                     usesLegacyMsFastLaunch,
                     pDeCmdIb2Space);

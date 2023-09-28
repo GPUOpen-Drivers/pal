@@ -87,6 +87,8 @@ struct SiChipSettings
     UINT_32 isPolaris12       : 1;
     UINT_32                   : 1;
     UINT_32 isCarrizo         : 1;
+
+    UINT_32                   : 2;
 };
 
 /**

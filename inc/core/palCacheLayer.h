@@ -476,7 +476,8 @@ struct TrackingCacheCreateInfo
 
 using TrackedHashSet = HashSet<
     Hash128,
-    ForwardAllocator>;
+    ForwardAllocator,
+    MetroHash::HashFunc>;
 
 using TrackedHashIter = TrackedHashSet::Iterator;
 

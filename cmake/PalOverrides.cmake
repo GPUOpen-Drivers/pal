@@ -37,6 +37,9 @@ set(ADDR_SI_CHIP_DIR "${PROJECT_SOURCE_DIR}/src/core/hw/gfxip/gfx6/chip")
 
 # GPU Overrides
 
+if (PAL_BUILD_GFX6)
+endif()
+
 if(PAL_BUILD_GFX9)
     # Generic support for GFX9 cards
     set(ADDR_GFX9_BUILD   ON)
@@ -76,6 +79,12 @@ if(PAL_BUILD_GFX9)
 #if PAL_BUILD_NAVI31
     set(ADDR_NAVI31_BUILD        ${PAL_BUILD_NAVI31})
     set(PAL_SWD_BUILD_NAVI31     ${PAL_BUILD_NAVI31})
+    set(PAL_SWD_BUILD_NAVI3X     ${PAL_BUILD_NAVI3X})
+#endif
+
+#if PAL_BUILD_NAVI32
+    set(ADDR_NAVI32_BUILD        ${PAL_BUILD_NAVI32})
+    set(PAL_SWD_BUILD_NAVI32     ${PAL_BUILD_NAVI32})
     set(PAL_SWD_BUILD_NAVI3X     ${PAL_BUILD_NAVI3X})
 #endif
 

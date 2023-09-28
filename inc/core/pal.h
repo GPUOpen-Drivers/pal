@@ -365,6 +365,13 @@ struct CommonShaderStats
     } flags;            ///< Shader compilation stat flags.
 };
 
+/// Per-thread stack sizes
+struct CompilerStackSizes
+{
+    uint32 backendSize;  ///< Managed by compiler backend
+    uint32 frontendSize; ///< Managed by compiler frontend
+};
+
 ///@{
 /// Determines whether two ShaderHashes or PipelineHashes are equal.
 ///

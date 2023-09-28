@@ -849,7 +849,7 @@ void PAL_STDCALL Platform::InterfaceLoggerCb(
 
     switch (type)
     {
-    case Developer::CallbackType::AllocGpuMemory: // fallthrough intentional
+    case Developer::CallbackType::AllocGpuMemory:
     case Developer::CallbackType::FreeGpuMemory:
     case Developer::CallbackType::SubAllocGpuMemory:
     case Developer::CallbackType::SubFreeGpuMemory:

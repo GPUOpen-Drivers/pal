@@ -446,6 +446,7 @@ typedef enum _AddrFormat {
     ADDR_FMT_ASTC_12x12                           = 0x0000004d,
     ADDR_FMT_ETC2_64BPP                           = 0x0000004e,
     ADDR_FMT_ETC2_128BPP                          = 0x0000004f,
+    ADDR_FMT_BG_RG_16_16_16_16                    = 0x00000050,
 } AddrFormat;
 
 /**

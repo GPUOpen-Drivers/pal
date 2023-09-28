@@ -43,7 +43,7 @@
 ///            compatible, it is not assumed that the client will initialize all input structs to 0.
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MAJOR_VERSION 818
+#define PAL_INTERFACE_MAJOR_VERSION 822
 
 /// Minor interface version.  Note that the interface version is distinct from the PAL version itself, which is returned
 /// in @ref Pal::PlatformProperties.
@@ -90,6 +90,7 @@ class      IPlatform;
 /// This is a list of GPUs that the NULL OS layer can compile shaders to in offline mode.
 enum class NullGpuId : uint32
 {
+    Default   = 0x00, // PAL gives the client an arbitrary supported null device.
     Polaris10 = 0x00,
     Polaris11 = 0x01,
     Polaris12 = 0x02,
@@ -111,6 +112,9 @@ enum class NullGpuId : uint32
     Rembrandt        = 0x14,
 #if PAL_BUILD_NAVI31
     Navi31           = 0x1A,
+#endif
+#if PAL_BUILD_NAVI32
+    Navi32           = 0x1B,
 #endif
 #if PAL_BUILD_NAVI33
     Navi33           = 0x1C,
@@ -140,6 +144,7 @@ enum class ClientApi : uint32
     Mantle  = 5,
     OpenCl  = 7,
     Hip     = 8,
+    Amf     = 9,
 };
 
 /// Specifies properties for @ref IPlatform creation. Input structure to Pal::CreatePlatform().

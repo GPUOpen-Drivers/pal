@@ -694,7 +694,7 @@ Result Image::Init()
                 pSubRes->extentTexels.height = Max(1u, mipHeight);
                 pSubRes->extentTexels.depth  = Max(1u, mipDepth);
                 pSubRes->bitsPerTexel        = Formats::BitsPerPixel(pSubRes->format.format);
-                pSubRes->clearMethod         = pGfxDevice->GetDefaultSlowClearMethod(pSubRes->format);
+                pSubRes->clearMethod         = pGfxDevice->GetDefaultSlowClearMethod(m_createInfo, pSubRes->format);
             }
 
             mipWidth  = DegradeMipDimension(mipWidth);

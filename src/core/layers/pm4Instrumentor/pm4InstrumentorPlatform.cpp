@@ -50,7 +50,7 @@ static void PAL_STDCALL Pm4InstrumentorCb(
 
     switch (type)
     {
-    case Developer::CallbackType::AllocGpuMemory: // fallthrough intentional
+    case Developer::CallbackType::AllocGpuMemory:
     case Developer::CallbackType::FreeGpuMemory:
     case Developer::CallbackType::SubAllocGpuMemory:
     case Developer::CallbackType::SubFreeGpuMemory:

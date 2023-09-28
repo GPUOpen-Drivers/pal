@@ -34,20 +34,8 @@
 
 #include "palUuid.h"
 
-// C++14 constexpr functions are more flexible
-// This can be used for compile-time input validation.
-// Requires exceptions
-// Requires constexpr
-// Requires GCC 6+, Clang 3.5+, or VS 2017+
-#if defined(__cpp_exceptions) &&                            \
-    PAL_CPLUSPLUS_AT_LEAST(PAL_CPLUSPLUS_14) &&             \
-    (__cpp_constexpr >= 201304) &&                          \
-    ((__GNUC__ >= 6) ||                                     \
-     ((__clang_major__ >= 3) && (__clang_minor__ >= 5)) ||  \
-     (__clang_major__ >= 4) ||                              \
-     (_MSC_VER >= 1910))
+#if defined(__cpp_exceptions)
 #include <stdexcept>
-#define _UUID_VALIDATE_LITERAL 1
 #endif
 
 namespace Util
@@ -71,8 +59,7 @@ static constexpr size_t UuidStringLength = 37;
 inline constexpr unsigned char UuidDigitValue(
     char digit)
 {
-#if _UUID_VALIDATE_LITERAL
-    //
+#if defined(__cpp_exceptions)
     if (((digit >= 'a' && digit <= 'f') ||
          (digit >= '0' && digit <= '9')) == false)
     {
@@ -98,7 +85,7 @@ template<size_t N>
 inline constexpr Uuid UuidStringConvert(
     const char (&str)[N])
 {
-#if _UUID_VALIDATE_LITERAL
+#if defined(__cpp_exceptions)
     if ((str[8]  != '-') ||
         (str[13] != '-') ||
         (str[18] != '-') ||
@@ -109,28 +96,29 @@ inline constexpr Uuid UuidStringConvert(
 #endif
 
     // Explicitly unrolled loop to ensure no constexpr issues under C++11
-    return {
-            UuidConvertDigits(str[0], str[1]),
-            UuidConvertDigits(str[2], str[3]),
-            UuidConvertDigits(str[4], str[5]),
-            UuidConvertDigits(str[6], str[7]),
-            // str[8] == '-'
-            UuidConvertDigits(str[9], str[10]),
-            UuidConvertDigits(str[11], str[12]),
-            // str[13] == '-'
-            UuidConvertDigits(str[14], str[15]),
-            UuidConvertDigits(str[16], str[17]),
-            // str[18] == '-'
-            UuidConvertDigits(str[19], str[20]),
-            UuidConvertDigits(str[21], str[22]),
-            // str[23] == '-'
-            UuidConvertDigits(str[24], str[25]),
-            UuidConvertDigits(str[26], str[27]),
-            UuidConvertDigits(str[28], str[29]),
-            UuidConvertDigits(str[30], str[31]),
-            UuidConvertDigits(str[32], str[33]),
-            UuidConvertDigits(str[34], str[35])
-        };
+    return
+    {
+        UuidConvertDigits(str[0], str[1]),
+        UuidConvertDigits(str[2], str[3]),
+        UuidConvertDigits(str[4], str[5]),
+        UuidConvertDigits(str[6], str[7]),
+        // str[8] == '-'
+        UuidConvertDigits(str[9], str[10]),
+        UuidConvertDigits(str[11], str[12]),
+        // str[13] == '-'
+        UuidConvertDigits(str[14], str[15]),
+        UuidConvertDigits(str[16], str[17]),
+        // str[18] == '-'
+        UuidConvertDigits(str[19], str[20]),
+        UuidConvertDigits(str[21], str[22]),
+        // str[23] == '-'
+        UuidConvertDigits(str[24], str[25]),
+        UuidConvertDigits(str[26], str[27]),
+        UuidConvertDigits(str[28], str[29]),
+        UuidConvertDigits(str[30], str[31]),
+        UuidConvertDigits(str[32], str[33]),
+        UuidConvertDigits(str[34], str[35])
+    };
 }
 } // namespace _detail
 ///@}
@@ -150,8 +138,8 @@ template<size_t N>
 inline constexpr Uuid MakeUuid(
     const char (&str)[N])
 {
-#if _UUID_VALIDATE_LITERAL
-    if (N != _detail::UuidStringLength)
+#if defined(__cpp_exceptions)
+    if constexpr (N != _detail::UuidStringLength)
     {
         throw ::std::logic_error("UUID strings must be 36 characters long (32 digits, 4 hyphens)");
     }

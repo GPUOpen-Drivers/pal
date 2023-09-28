@@ -31,16 +31,20 @@
 
 #pragma once
 
-// C++ standard versions
+/// Utility macro for turning another macro into a string literal.
+#define _PAL_STRINGIFY(_x) #_x
+#define PAL_STRINGIFY(_x) _PAL_STRINGIFY(_x)
 
 /// C++11 standard version.
-#define PAL_CPLUSPLUS_11 (201103L)
+#define PAL_CPLUSPLUS_11 201103L
 /// C++14 standard version.
-#define PAL_CPLUSPLUS_14 (201402L)
+#define PAL_CPLUSPLUS_14 201402L
 /// C++17 standard version.
-#define PAL_CPLUSPLUS_17 (201703L)
+#define PAL_CPLUSPLUS_17 201703L
+/// C++ feature version from September 2017 contains a few C++20 features.
+#define PAL_CPLUSPLUS_1709 201709L
 /// C++20 standard version.
-#define PAL_CPLUSPLUS_20 (202002L)
+#define PAL_CPLUSPLUS_20 202002L
 
 /// C++ standard version used to compile PAL.
 #  define PAL_CPLUSPLUS __cplusplus
@@ -48,7 +52,10 @@
 /// Checks if PAL is compiled with C++ of at least version @p v.
 #define PAL_CPLUSPLUS_AT_LEAST(v) (PAL_CPLUSPLUS >= (v))
 
-static_assert(PAL_CPLUSPLUS_AT_LEAST(PAL_CPLUSPLUS_17), "C++17 is required to build PAL.");
+static_assert(
+    PAL_CPLUSPLUS_AT_LEAST(PAL_CPLUSPLUS_1709),
+    "C++ standard version " PAL_STRINGIFY(PAL_CPLUSPLUS_1709) " is required to build PAL. "
+    "Found " PAL_STRINGIFY(PAL_CPLUSPLUS) ".");
 
 #include <cstddef>
 

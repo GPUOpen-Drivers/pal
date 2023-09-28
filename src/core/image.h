@@ -119,6 +119,7 @@ enum class ClearMethod : uint32
    NormalGraphics    = 1,   // Normal, "slow" clear using a graphics pipeline
    Fast              = 2,   // "Fast" clear using CMask or HTile
    DepthFastGraphics = 3,   // "Fast" depth clear using graphics pipeline
+   FastUncertain     = 4,   // "Fast" clear partially supported, recheck needed
 };
 
 // Enumerates the various types of supported resolve methods.

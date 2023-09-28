@@ -170,6 +170,7 @@ public:
     void CmdFillMemory(
         GfxCmdBuffer*    pCmdBuffer,
         bool             saveRestoreComputeState,
+        bool             trackBltActiveFlags,
         const GpuMemory& dstGpuMemory,
         gpusize          dstOffset,
         gpusize          fillSize,
@@ -177,6 +178,7 @@ public:
     void CmdFillMemory(
         GfxCmdBuffer* pCmdBuffer,
         bool          saveRestoreComputeState,
+        bool          trackBltActiveFlags,
         gpusize       dstGpuVirtAddr,
         gpusize       fillSize,
         uint32        data) const;
@@ -341,6 +343,7 @@ protected:
         const ClearColor*     pColor,
         const SwizzledFormat& clearFormat,
         const SubresRange&    clearRange,
+        bool                  trackBltActiveFlags,
         uint32                boxCount,
         const Box*            pBoxes) const;
 

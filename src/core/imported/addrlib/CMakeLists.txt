@@ -166,9 +166,24 @@ if(ADDR_GFX11_BUILD)
         target_compile_definitions(addrlib PRIVATE ADDR_NAVI31_BUILD)
     endif()
     #endif
+    #if ADDR_NAVI32_BUILD
+    if(ADDR_NAVI32_BUILD)
+        target_compile_definitions(addrlib PRIVATE ADDR_NAVI32_BUILD)
+    endif()
+    #endif
     #if ADDR_NAVI33_BUILD
     if(ADDR_NAVI33_BUILD)
         target_compile_definitions(addrlib PRIVATE ADDR_NAVI33_BUILD)
+    endif()
+    #endif
+    #if ADDR_PHOENIX_BUILD
+    if(ADDR_PHOENIX_BUILD)
+        #if ADDR_PHOENIX1_BUILD
+        if(ADDR_PHOENIX1_BUILD)
+            target_compile_definitions(addrlib PRIVATE ADDR_PHOENIX_BUILD)
+            target_compile_definitions(addrlib PRIVATE ADDR_PHOENIX1_BUILD)
+        endif()
+        #endif
     endif()
     #endif
 endif()

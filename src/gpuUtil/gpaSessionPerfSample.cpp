@@ -661,20 +661,14 @@ Result GpaSession::TraceSample::GetSpmTraceResults(
 
         for (uint32 sample = 0; sample < m_numSpmSamples; sample++)
         {
-            uint16 value = *static_cast<const uint16*>(Util::VoidPtrInc(pSrcSample, layout.offsetLo));
-
-            if (layout.is32Bit)
-            {
-                const uint16 valueHi = *static_cast<const uint16*>(Util::VoidPtrInc(pSrcSample, layout.offsetHi));
-
-                // We haven't tested sending 32-bit data to RGP yet so if this 32-bit value can't fit in 16 bits
-                // we'll clamp the whole value to UINT16_MAX to make it more obvious we've saturated the counter.
-                // This seems like a better hack than just ignoring the high bits (wrapping counter values).
-                if (valueHi != 0)
-                {
-                    value = UINT16_MAX;
-                }
-            }
+            // RGP doesn't support 32-bit SPM data yet so we treat all data as if its 16-bit. This means we truncate
+            // 32-bit values to 16-bit values which seems bad for unsigned counters (shouldn't we saturate?) but it's
+            // necessary for signed counters. GPA session doesn't know what the counter events actually mean so it
+            // can't tell if a non-zero high-half means the counter is positve and overflowed or if it's just negative.
+            //
+            // PAL has just truncated 32-bit SPM to 16-bit for years now without any complaints so we'll just keep
+            // doing that until RGP is ready for 32-bit data.
+            const uint16 value = *static_cast<const uint16*>(Util::VoidPtrInc(pSrcSample, layout.offsetLo));
 
             pDstValues[sample] = value;
             pSrcSample         = Util::VoidPtrInc(pSrcSample, m_pSpmTraceLayout->sampleStride);

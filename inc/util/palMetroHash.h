@@ -32,6 +32,7 @@
 #pragma once
 
 #include "metrohash.h"
+#include "palAssert.h"
 #include "palUtil.h"
 
 namespace Util
@@ -85,6 +86,28 @@ constexpr uint32 Compact32(
 {
     return static_cast<uint32>(hash) ^ static_cast<uint32>(hash >> 32);
 }
+
+/// Hash functor.
+///
+/// Helpful when a 128-bit hash is being used as a key in another container.
+template<typename T>
+struct HashFunc
+{
+    /// Hashes the specified 128-bit key value by XOR'ing each 32-bit chunk.
+    ///
+    /// @param [in] pVoidKey Pointer to the key to be hashed.
+    /// @param [in] keyLen   Amount of data at pVoidKey to hash, in bytes.
+    ///
+    /// @returns 32-bit uint hash value.
+    uint32 operator()(const void* pVoidKey, uint32 keyLen) const
+    {
+        PAL_ASSERT(keyLen == sizeof(Hash));
+        return Compact32(static_cast<const Hash*>(pVoidKey));
+    }
+
+    /// No init job. Defined to be compatible with default hash func.
+    void Init(uint32) const { }
+};
 
 } // MetroHash
 } // Util

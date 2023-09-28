@@ -25,6 +25,8 @@
 
 target_sources(pal PRIVATE CMakeLists.txt)
 target_include_directories(pal PRIVATE .)
+target_include_directories(palCompilerDeps PRIVATE .)
+target_include_directories(palUtil PRIVATE .)
 
 if (PAL_BUILD_CORE)
     add_subdirectory(core)

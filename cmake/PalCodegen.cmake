@@ -206,20 +206,32 @@ function(pal_setup_generated_code)
     endif()
 endfunction()
 
-function(nongen_source_groups DIR TGT)
+function(nongen_source_groups DIR)
     # All generated files should have an explicit source_group where they are generated.
 
-    get_target_property(_sources ${TGT} SOURCES)
-    set(_nongen_sources "")
-    foreach(SOURCE ${_sources})
-        get_source_file_property(_isgen "${SOURCE}" GENERATED)
-        if (NOT _isgen)
-            list(APPEND _nongen_sources "${SOURCE}")
-        endif()
-    endforeach()
+    set(singleValArgs TARGET)
+    set(multiValArgs TARGETS)
+    cmake_parse_arguments(PARSE_ARGV 1 SETGEN "" "${singleValArgs}" "${multiValArgs}")
 
-    source_group(
-        TREE ${DIR}/
-        FILES ${_nongen_sources}
-    )
+    if (DEFINED SETGEN_TARGET AND DEFINED SETGEN_TARGETS)
+        message(FATAL_ERROR "TARGET and TARGETS cannot both be defined at the same time!")
+    elseif (DEFINED SETGEN_TARGET)
+        list(APPEND SETGEN_TARGETS ${SETGEN_TARGET})
+    endif()
+
+    foreach(TGT ${SETGEN_TARGETS})
+        get_target_property(_sources ${TGT} SOURCES)
+        set(_nongen_sources "")
+        foreach(SOURCE ${_sources})
+            get_source_file_property(_isgen "${SOURCE}" GENERATED)
+            if (NOT _isgen)
+                list(APPEND _nongen_sources "${SOURCE}")
+            endif()
+        endforeach()
+
+        source_group(
+            TREE ${DIR}/
+            FILES ${_nongen_sources}
+        )
+    endforeach()
 endfunction()

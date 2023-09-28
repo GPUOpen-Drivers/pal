@@ -161,8 +161,8 @@ Result Device::CommitSettingsAndInit()
         m_logPipeStats         = settings.gpuProfilerConfig.recordPipelineStats;
         m_sqttCompilerHash     = settings.gpuProfilerSqttConfig.pipelineHash;
         m_seMask               = settings.gpuProfilerSqttConfig.seMask & maxSeMask;
+        m_stallMode            = settings.gpuProfilerSqttConfig.stallBehavior;
 
-        m_stallMode           = settings.gpuProfilerSqttConfig.stallBehavior;
         m_sqttTsHash.upper = settings.gpuProfilerSqttConfig.tsHashHi;
         m_sqttTsHash.lower = settings.gpuProfilerSqttConfig.tsHashLo;
         m_sqttVsHash.upper = settings.gpuProfilerSqttConfig.vsHashHi;

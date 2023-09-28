@@ -63,8 +63,6 @@ public:
                          Device**   ppDeviceOut,
                          NullGpuId  nullGpuId);
 
-    static inline bool IsValid(NullGpuId nullGpuId) { return GetDeviceById(nullGpuId).nullId == nullGpuId; }
-
     static NullIdLookup GetDeviceById(NullGpuId nullGpuId);
     static NullIdLookup GetDeviceByName(const char* gpuName);
 

@@ -261,7 +261,7 @@ void PAL_STDCALL Platform::DbgOverlayCb(
         TranslateGpuMemoryData(pCbData);
         break;
     }
-    case Developer::CallbackType::SubAllocGpuMemory: // fallthrough intentional
+    case Developer::CallbackType::SubAllocGpuMemory:
     case Developer::CallbackType::SubFreeGpuMemory:
     {
         TranslateGpuMemoryData(pCbData);

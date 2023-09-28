@@ -215,7 +215,8 @@ static constexpr ThreadTraceTokenConfig SqttTokenConfigNoInst    =
     TokenType::EventCs   |
     TokenType::EventGfx1 |
     TokenType::RegCs     |
-    TokenType::UtilCounter,
+    TokenType::UtilCounter
+    ,
     RegType::AllRegWrites
 };
 

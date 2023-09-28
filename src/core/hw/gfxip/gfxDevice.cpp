@@ -982,7 +982,8 @@ void GfxDevice::DescribeBarrierEnd(
 
 // =====================================================================================================================
 ClearMethod GfxDevice::GetDefaultSlowClearMethod(
-    const SwizzledFormat& clearFormat
+    const ImageCreateInfo&  createInfo,
+    const SwizzledFormat&   clearFormat
     ) const
 {
     uint32 texelScale = 1;

@@ -757,7 +757,7 @@ void RsrcProcMgr::CmdResolveQueryComputeShader(
     pCmdBuffer->CmdDispatch({threadGroups, 1, 1});
 
     // Restore the command buffer's state.
-    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+    pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
 }
 
 // =====================================================================================================================
@@ -943,7 +943,8 @@ bool RsrcProcMgr::InitMaskRam(
                                                       dstImage,
                                                       range,
                                                       initialDccVal,
-                                                      DccClearPurpose::Init);
+                                                      DccClearPurpose::Init,
+                                                      true);
 
             // Even if we cleared DCC using graphics, we will always clear CMask below using compute.
             usedCompute = dccClearUsedCompute || dstImage.HasFmaskData();
@@ -957,13 +958,13 @@ bool RsrcProcMgr::InitMaskRam(
 
             // The docs state that we only need to initialize either cMask or fMask data.  Init the cMask data
             // since we have a meta-equation for that one.
-            InitCmask(pCmdBuffer, pCmdStream, dstImage, range, dstImage.GetCmask()->GetInitialValue());
+            InitCmask(pCmdBuffer, pCmdStream, dstImage, range, dstImage.GetCmask()->GetInitialValue(), true);
 
             // It's possible that this image will be resolved with fMask pipeline later, so the fMask must be cleared
             // here.
             pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
             ClearFmask(pCmdBuffer, dstImage, range, Gfx9Fmask::GetPackedExpandedValue(dstImage));
-            pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+            pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
         }
     }
 
@@ -1155,7 +1156,7 @@ void RsrcProcMgr::BuildHtileLookupTable(
     }
 
     // Restore the command buffer's state.
-    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+    pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
 }
 
 // =====================================================================================================================
@@ -1318,7 +1319,7 @@ bool RsrcProcMgr::ExpandDepthStencil(
 
         // Restore the compute state here as the "initHtile" function is going to push the compute state again
         // for its own purposes.
-        pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+        pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
 
         // GFX10 supports shader-writes to an image with mask-ram; i.e., the HW automagically kept the mask-ram
         // and the image data in sync, so there's no need to mark the hTile data as expanded.  Doing so would
@@ -1380,7 +1381,8 @@ void RsrcProcMgr::HwlFastColorClear(
     const GfxImage&       dstImage,
     const uint32*         pConvertedColor,
     const SwizzledFormat& clearFormat,
-    const SubresRange&    clearRange
+    const SubresRange&    clearRange,
+    bool                  trackBltActiveFlags
     ) const
 {
     PAL_ASSERT(clearRange.numPlanes == 1);
@@ -1458,7 +1460,8 @@ void RsrcProcMgr::HwlFastColorClear(
 
     pCmdStream->CommitCommands(pCmdSpace);
 
-    ClearDcc(pCmdBuffer, pCmdStream, gfx9Image, clearRange, fastClearCode, DccClearPurpose::FastClear, packedColor);
+    ClearDcc(pCmdBuffer, pCmdStream, gfx9Image, clearRange, fastClearCode, DccClearPurpose::FastClear,
+             trackBltActiveFlags, packedColor);
 
     if (gfx9Image.HasFmaskData())
     {
@@ -1466,7 +1469,7 @@ void RsrcProcMgr::HwlFastColorClear(
         // instead fast clearing CMask to "0xCC" which is 1 fragment
         //
         // NOTE:  On Gfx9, if an image has fMask it will also have cMask.
-        InitCmask(pCmdBuffer, pCmdStream, gfx9Image, clearRange, Gfx9Cmask::FastClearValueDcc);
+        InitCmask(pCmdBuffer, pCmdStream, gfx9Image, clearRange, Gfx9Cmask::FastClearValueDcc, trackBltActiveFlags);
     }
 }
 
@@ -1646,11 +1649,11 @@ void RsrcProcMgr::HwlFixupCopyDstImageMetaData(
                 range.numSlices              = clearRegion.numSlices;
 
                 // Since color data is no longer compressed set CMask and FMask to fully uncompressed.
-                InitCmask(pCmdBuffer, pStream, gfx9DstImage, range, gfx9DstImage.GetCmask()->GetInitialValue());
+                InitCmask(pCmdBuffer, pStream, gfx9DstImage, range, gfx9DstImage.GetCmask()->GetInitialValue(), true);
 
                 pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
                 ClearFmask(pCmdBuffer, gfx9DstImage, range, Gfx9Fmask::GetPackedExpandedValue(gfx9DstImage));
-                pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+                pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
             }
         }
     }
@@ -1830,14 +1833,14 @@ void RsrcProcMgr::HwlDepthStencilClear(
     uint32             rangeCount,
     const SubresRange* pRanges,
     bool               fastClear,
-    bool               needComputeSync,
+    bool               clearAutoSync,
     uint32             boxCnt,
     const Box*         pBox
     ) const
 {
     const Image& gfx9Image = static_cast<const Image&>(dstImage);
 
-    bool needPreComputeSync  = needComputeSync;
+    bool needPreComputeSync  = clearAutoSync;
     bool needPostComputeSync = false;
 
     if (gfx9Image.Parent()->IsDepthStencilTarget() &&
@@ -2002,6 +2005,7 @@ void RsrcProcMgr::HwlDepthStencilClear(
                                                   fastClear,
                                                   depthLayout,
                                                   stencilLayout,
+                                                  (needPreComputeSync == false),
                                                   boxCnt,
                                                   pBox);
                         clearedViaGfx = true;
@@ -2031,7 +2035,8 @@ void RsrcProcMgr::HwlDepthStencilClear(
                                                      pRanges[idx],
                                                      pHtile->GetClearValue(depth),
                                                      clearFlags,
-                                                     stencil);
+                                                     stencil,
+                                                     (needPreComputeSync == false));
                     }
 
                     isRangeProcessed[idx] = true;
@@ -2134,6 +2139,7 @@ void RsrcProcMgr::HwlDepthStencilClear(
                              &clearColor,
                              format,
                              pRanges[idx],
+                             (needPreComputeSync == false),
                              boxCnt,
                              pBox);
 
@@ -2210,6 +2216,7 @@ void RsrcProcMgr::HwlResolveImageGraphics(
     ColorTargetViewCreateInfo colorViewInfo = { };
     colorViewInfo.imageInfo.pImage    = &dstImage;
     colorViewInfo.imageInfo.arraySize = 1;
+    colorViewInfo.flags.imageVaLocked = 1;
     colorViewInfo.flags.bypassMall    = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
                                                        RpmViewsBypassMallOnCbDbWrite);
 
@@ -2405,7 +2412,7 @@ void RsrcProcMgr::HwlResolveImageGraphics(
     } // End for each region.
 
     // Restore original command buffer state.
-    pCmdBuffer->CmdRestoreGraphicsState();
+    pCmdBuffer->CmdRestoreGraphicsStateInternal();
 
     FixupLateExpandShaderResolveSrc(pCmdBuffer,
         srcImage,
@@ -2822,6 +2829,7 @@ void RsrcProcMgr::DepthStencilClearGraphics(
     bool               fastClear,
     ImageLayout        depthLayout,
     ImageLayout        stencilLayout,
+    bool               trackBltActiveFlags,
     uint32             boxCnt,
     const Box*         pBox
     ) const
@@ -2911,9 +2919,11 @@ void RsrcProcMgr::DepthStencilClearGraphics(
     depthViewInfoInternal.stencilClearValue = stencil;
 
     DepthStencilViewCreateInfo depthViewInfo = { };
-    depthViewInfo.pImage           = dstImage.Parent();
-    depthViewInfo.arraySize        = 1;
-    depthViewInfo.flags.bypassMall = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall, RpmViewsBypassMallOnCbDbWrite);
+    depthViewInfo.pImage              = dstImage.Parent();
+    depthViewInfo.arraySize           = 1;
+    depthViewInfo.flags.imageVaLocked = 1;
+    depthViewInfo.flags.bypassMall    = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
+                                                       RpmViewsBypassMallOnCbDbWrite);
 
     // Depth-stencil targets must be used on the universal engine.
     PAL_ASSERT((clearDepth   == false) || TestAnyFlagSet(depthLayout.engines,   LayoutUniversalEngine));
@@ -3052,7 +3062,7 @@ void RsrcProcMgr::DepthStencilClearGraphics(
     } // End for each mip.
 
     // Restore original command buffer state and destroy the depth/stencil state.
-    pCmdBuffer->CmdRestoreGraphicsState();
+    pCmdBuffer->CmdRestoreGraphicsStateInternal(trackBltActiveFlags);
 }
 
 // =====================================================================================================================
@@ -3064,6 +3074,7 @@ bool RsrcProcMgr::ClearDcc(
     const SubresRange& clearRange,
     uint8              clearCode,
     DccClearPurpose    clearPurpose,
+    bool               trackBltActiveFlags,
     const uint32*      pPackedClearColor
     ) const
 {
@@ -3092,13 +3103,14 @@ bool RsrcProcMgr::ClearDcc(
                               &clearColor,
                               pParent->GetImageCreateInfo().swizzledFormat,
                               clearRange,
+                              trackBltActiveFlags,
                               0,
                               nullptr);
             usedCompute = false;
         }
         else
         {
-            ClearDccCompute(pCmdBuffer, pCmdStream, dstImage, clearRange, clearCode, clearPurpose);
+            ClearDccCompute(pCmdBuffer, pCmdStream, dstImage, clearRange, clearCode, clearPurpose, trackBltActiveFlags);
         }
         break;
 
@@ -3108,7 +3120,8 @@ bool RsrcProcMgr::ClearDcc(
         PAL_ASSERT((pCmdBuffer->GetEngineType() == EngineTypeCompute) ||
                    TestAnyFlagSet(settings.dccOnComputeEnable, Gfx9DccOnComputeFastClear));
 
-        ClearDccCompute(pCmdBuffer, pCmdStream, dstImage, clearRange, clearCode, clearPurpose, pPackedClearColor);
+        ClearDccCompute(pCmdBuffer, pCmdStream, dstImage, clearRange, clearCode, clearPurpose,
+                        trackBltActiveFlags, pPackedClearColor);
         break;
 
     default:
@@ -3231,7 +3244,7 @@ void RsrcProcMgr::DccDecompressOnCompute(
     pComputeCmdSpace = pPm4CmdBuf->WriteWaitCsIdle(pComputeCmdSpace);
     pComputeCmdStream->CommitCommands(pComputeCmdSpace);
 
-    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+    pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
 
     if (IsGfx10Plus(device))
     {
@@ -3243,7 +3256,7 @@ void RsrcProcMgr::DccDecompressOnCompute(
         // Put DCC memory itself back into a "fully decompressed" state, since only compressed fragments needed
         // to be written, as initialization of dcc memory will write to uncompressed fragment and hence
         // they don't need to be written here. Change from init to fastclear.
-        ClearDcc(pCmdBuffer, pCmdStream, image, range, Gfx9Dcc::DecompressedValue, DccClearPurpose::FastClear);
+        ClearDcc(pCmdBuffer, pCmdStream, image, range, Gfx9Dcc::DecompressedValue, DccClearPurpose::FastClear, true);
 
         // And let the DCC fixup finish as well
         pComputeCmdSpace = pComputeCmdStream->ReserveCommands();
@@ -3410,9 +3423,11 @@ void RsrcProcMgr::ClearFmask(
         0, 0, imageCreateInfo.extent.width, imageCreateInfo.extent.height
     };
 
+    uint32 packedColorMask[4] = { 0 };
+
     // Create an embedded user-data table and bind it to user data 0.
     uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
-                                                               SrdDwordAlignment(),
+                                                               SrdDwordAlignment() + ArrayLen32(packedColorMask),
                                                                SrdDwordAlignment(),
                                                                PipelineBindPoint::Compute,
                                                                0);
@@ -3428,6 +3443,9 @@ void RsrcProcMgr::ClearFmask(
     fmaskViewInternal.flags.fmaskAsUav = 1;
 
     m_pDevice->CreateFmaskViewSrdsInternal(1, &fmaskBufferView, &fmaskViewInternal, pSrdTable);
+
+    pSrdTable += SrdDwordAlignment();
+    memcpy(pSrdTable, packedColorMask, sizeof(packedColorMask));
 
     // The constant buffer goes in the remaining user-data.
     pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 1, ArrayLen32(userData), userData);
@@ -3566,7 +3584,7 @@ void RsrcProcMgr::FmaskColorExpand(
         }
     }
 
-    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+    pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
 }
 
 // =====================================================================================================================
@@ -4332,7 +4350,7 @@ void RsrcProcMgr::EchoGlobalInternalTableAddr(
     const uint32 userData[2] = { LowPart(dstAddr), HighPart(dstAddr) };
     pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 0, 2, userData );
     pCmdBuffer->CmdDispatch({1, 1, 1});
-    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+    pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
 
     // We need a CS wait-for-idle before we try to restore the global internal table user data. There are a few ways
     // we could acomplish that, but the most simple way is to just do a wait for idle right here. We only need to
@@ -4451,6 +4469,7 @@ void Gfx9RsrcProcMgr::ClearDccCompute(
     const SubresRange& clearRange,
     uint8              clearCode,
     DccClearPurpose    clearPurpose,
+    bool               trackBltActiveFlags,
     const uint32*      pPackedClearColor
     ) const
 {
@@ -4491,7 +4510,7 @@ void Gfx9RsrcProcMgr::ClearDccCompute(
     }
 
     // Restore the command buffer's state.
-    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+    pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData, trackBltActiveFlags);
 }
 
 // ====================================================================================================================
@@ -5471,7 +5490,8 @@ void Gfx9RsrcProcMgr::DoOptimizedHtileFastClear(
     const Image&       dstImage,
     const SubresRange& range,
     uint32             htileValue,
-    uint32             htileMask  // set bits are kept
+    uint32             htileMask,  // set bits are kept
+    bool               trackBltActiveFlags
     ) const
 {
     // Save the command buffer's state
@@ -5489,7 +5509,7 @@ void Gfx9RsrcProcMgr::DoOptimizedHtileFastClear(
     }
 
     // Restore the command buffer's state.
-    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+    pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData, trackBltActiveFlags);
 }
 
 // =====================================================================================================================
@@ -5499,7 +5519,8 @@ void Gfx9RsrcProcMgr::ExecuteHtileEquation(
     const Image&       dstImage,
     const SubresRange& range,
     uint32             htileValue,
-    uint32             htileMask  // set bits are kept
+    uint32             htileMask,  // set bits are kept
+    bool               trackBltActiveFlags
     ) const
 {
     PAL_ASSERT(range.numPlanes == 1);
@@ -5595,7 +5616,7 @@ void Gfx9RsrcProcMgr::ExecuteHtileEquation(
     }
 
     // Restore the command buffer's state.
-    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+    pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData, trackBltActiveFlags);
 }
 
 // =====================================================================================================================
@@ -5649,7 +5670,7 @@ void Gfx9RsrcProcMgr::HwlResummarizeHtileCompute(
     {
         const uint32 hTileMask = pHtile->GetPlaneMask(splitRange);
 
-        ExecuteHtileEquation(pCmdBuffer, gfx9Image, splitRange, hTileValue, hTileMask);
+        ExecuteHtileEquation(pCmdBuffer, gfx9Image, splitRange, hTileValue, hTileMask, true);
     }
 }
 
@@ -5866,7 +5887,7 @@ void Gfx9RsrcProcMgr::HwlHtileCopyAndFixUp(
             pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz(threads, threadsPerGroup));
         } // End of for
 
-        pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+        pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
     } // End of if
 }
 
@@ -5878,7 +5899,8 @@ void Gfx9RsrcProcMgr::FastDepthStencilClearCompute(
     const SubresRange& range,
     uint32             htileValue,
     uint32             clearMask,   // bitmask of HtilePlaneMask enumerations
-    uint8              stencil
+    uint8              stencil,
+    bool               trackBltActiveFlags
     ) const
 {
     const Pal::Image*      pPalImage        = dstImage.Parent();
@@ -5903,7 +5925,7 @@ void Gfx9RsrcProcMgr::FastDepthStencilClearCompute(
 
     if (canDoHtileOptimizedClear)
     {
-        DoOptimizedHtileFastClear(pCmdBuffer, dstImage, range, htileValue, htileMask);
+        DoOptimizedHtileFastClear(pCmdBuffer, dstImage, range, htileValue, htileMask, trackBltActiveFlags);
     }
     else
     {
@@ -5918,12 +5940,12 @@ void Gfx9RsrcProcMgr::FastDepthStencilClearCompute(
             {
                 const uint32 splitClearMask = GetInitHtileClearMask(dstImage, splitRange);
                 const uint32 splitHtileMask = pHtile->GetPlaneMask(splitClearMask);
-                ExecuteHtileEquation(pCmdBuffer, dstImage, splitRange, htileValue, splitHtileMask);
+                ExecuteHtileEquation(pCmdBuffer, dstImage, splitRange, htileValue, splitHtileMask, trackBltActiveFlags);
             }
         }
         else
         {
-            ExecuteHtileEquation(pCmdBuffer, dstImage, range, htileValue, htileMask);
+            ExecuteHtileEquation(pCmdBuffer, dstImage, range, htileValue, htileMask, trackBltActiveFlags);
         }
     }
 
@@ -6177,7 +6199,8 @@ void Gfx9RsrcProcMgr::InitCmask(
     Pal::CmdStream*    pCmdStream,
     const Image&       image,
     const SubresRange& initRange,
-    const uint8        initValue
+    const uint8        initValue,
+    bool               trackBltActiveFlags
     ) const
 {
     PAL_ASSERT(initRange.numPlanes == 1);
@@ -6205,7 +6228,7 @@ void Gfx9RsrcProcMgr::InitCmask(
         DoOptimizedCmaskInit(pCmdBuffer, pCmdStream, image, initRange, initValue);
 
         // Restore the command buffer's state.
-        pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+        pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData, trackBltActiveFlags);
     }
     else
     {
@@ -6274,7 +6297,7 @@ void Gfx9RsrcProcMgr::InitCmask(
                          threadsPerGroup);
 
         // Restore the command buffer's state.
-        pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+        pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData, trackBltActiveFlags);
     }
 
 }
@@ -6303,7 +6326,7 @@ void Gfx9RsrcProcMgr::InitHtile(
 
         // We pass a dummy stencil value as the last parameter.
         // The dummy stencil value won't be used in Gfx9RsrcProcMgr::FastDepthStencilClearCompute.
-        FastDepthStencilClearCompute(pCmdBuffer, dstImage, clearRange, initValue, clearMask, 0);
+        FastDepthStencilClearCompute(pCmdBuffer, dstImage, clearRange, initValue, clearMask, 0, true);
     }
 }
 
@@ -6347,7 +6370,8 @@ void Gfx9RsrcProcMgr::HwlFixupCopyDstImageMetaData(
             range.numSlices              = clearRegion.numSlices;
 
             // Since color data is no longer dcc compressed set Dcc to fully uncompressed.
-            ClearDcc(pCmdBuffer, pStream, gfx9DstImage, range, Gfx9Dcc::DecompressedValue, DccClearPurpose::FastClear);
+            ClearDcc(pCmdBuffer, pStream, gfx9DstImage, range, Gfx9Dcc::DecompressedValue,
+                     DccClearPurpose::FastClear, true);
         }
     }
 
@@ -6365,6 +6389,7 @@ void Gfx10RsrcProcMgr::ClearDccCompute(
     const SubresRange& clearRange,
     uint8              clearCode,
     DccClearPurpose    clearPurpose,
+    bool               trackBltActiveFlags,
     const uint32*      pPackedClearColor
     ) const
 {
@@ -6431,6 +6456,7 @@ void Gfx10RsrcProcMgr::ClearDccCompute(
 
                     CmdFillMemory(pCmdBuffer,
                                   false,         // don't save / restore the compute state
+                                  trackBltActiveFlags,
                                   *pBoundMemory,
                                   clearOffset,
                                   totalSize,
@@ -6447,6 +6473,7 @@ void Gfx10RsrcProcMgr::ClearDccCompute(
 
                         CmdFillMemory(pCmdBuffer,
                                       false,         // don't save / restore the compute state
+                                      trackBltActiveFlags,
                                       *pBoundMemory,
                                       clearOffset,
                                       dccMipInfo.sliceSize,
@@ -6491,7 +6518,7 @@ void Gfx10RsrcProcMgr::ClearDccCompute(
         }
     }
 
-    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+    pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData, trackBltActiveFlags);
 }
 
 // =====================================================================================================================
@@ -6750,7 +6777,7 @@ void Gfx10RsrcProcMgr::InitHtileData(
         }
     } // end loop through mip levels
 
-    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+    pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
 }
 
 // =====================================================================================================================
@@ -6760,7 +6787,8 @@ void Gfx10RsrcProcMgr::WriteHtileData(
     const SubresRange& range,
     uint32             hTileValue,
     uint32             hTileMask,
-    uint8              stencil
+    uint8              stencil,
+    bool               trackBltActiveFlags
     ) const
 {
     const Pal::Image*  pPalImage       = dstImage.Parent();
@@ -6929,7 +6957,7 @@ void Gfx10RsrcProcMgr::WriteHtileData(
         }
     } // end loop through mip levels
 
-    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+    pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData, trackBltActiveFlags);
 }
 
 // =====================================================================================================================
@@ -6940,7 +6968,8 @@ void Gfx10RsrcProcMgr::FastDepthStencilClearCompute(
     const SubresRange& range,
     uint32             hTileValue,
     uint32             clearMask,
-    uint8              stencil
+    uint8              stencil,
+    bool               trackBltActiveFlags
     ) const
 {
     const auto* pHtile = dstImage.GetHtile();
@@ -6957,7 +6986,7 @@ void Gfx10RsrcProcMgr::FastDepthStencilClearCompute(
         hTileMask &= (~Gfx9Htile::Sr1Mask);
     }
 
-    WriteHtileData(pCmdBuffer, dstImage, range, hTileValue, hTileMask, stencil);
+    WriteHtileData(pCmdBuffer, dstImage, range, hTileValue, hTileMask, stencil, trackBltActiveFlags);
 
     FastDepthStencilClearComputeCommon(pCmdBuffer, dstImage.Parent(), clearMask);
 }
@@ -7168,7 +7197,8 @@ void Gfx10RsrcProcMgr::InitCmask(
     Pal::CmdStream*    pCmdStream,
     const Image&       image,
     const SubresRange& range,
-    const uint8        initValue
+    const uint8        initValue,
+    bool               trackBltActiveFlags
     ) const
 {
     PAL_ASSERT(range.numPlanes == 1);
@@ -7194,6 +7224,7 @@ void Gfx10RsrcProcMgr::InitCmask(
 
     CmdFillMemory(pCmdBuffer,
                   true,
+                  trackBltActiveFlags,
                   *pGpuMemory,
                   offset,
                   numSlices * cMaskAddrOut.sliceSize,
@@ -7283,7 +7314,8 @@ void Gfx10RsrcProcMgr::HwlFixupCopyDstImageMetaData(
                          gfx9DstImage,
                          range,
                          Gfx9Dcc::DecompressedValue,
-                         DccClearPurpose::FastClear);
+                         DccClearPurpose::FastClear,
+                         true);
             }
         }
     }
@@ -7762,7 +7794,7 @@ void Gfx10RsrcProcMgr::LaunchOptimizedVrsCopyShader(
                                  RpmUtil::MinThreadGroups(copyHeight, threadsPerGroup.y), 1});
     }
 
-    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+    pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
 }
 
 // =====================================================================================================================
@@ -7918,7 +7950,7 @@ void Gfx10RsrcProcMgr::HwlGfxDccToDisplayDcc(
         pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz({numBlockX, numBlockY, numBlockZ}, threadsPerGroup));
     }
 
-    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+    pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
 }
 
 // =====================================================================================================================
@@ -7978,6 +8010,7 @@ void Gfx10RsrcProcMgr::InitDisplayDcc(
 
             CmdFillMemory(pCmdBuffer,
                           false,         // don't save / restore the compute state
+                          true,
                           *pGpuMemory,
                           clearOffset,
                           totalSize,
@@ -7994,6 +8027,7 @@ void Gfx10RsrcProcMgr::InitDisplayDcc(
 
                 CmdFillMemory(pCmdBuffer,
                               false,         // don't save / restore the compute state
+                              true,
                               *pGpuMemory,
                               clearOffset,
                               displayDccMipInfo.sliceSize,
@@ -8002,7 +8036,7 @@ void Gfx10RsrcProcMgr::InitDisplayDcc(
         }
     }
 
-    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+    pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
 }
 
 // =====================================================================================================================
@@ -8138,7 +8172,7 @@ void Gfx10RsrcProcMgr::CmdResolvePrtPlusImage(
         pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz(threads, threadsPerGroup));
     } // end loop through the regions
 
-    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+    pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
 }
 
 // =====================================================================================================================
@@ -8232,7 +8266,7 @@ void Gfx10RsrcProcMgr::BuildDccLookupTable(
 
     pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz({worksX, worksY, worksZ}, threadsPerGroup));
 
-    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+    pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
 }
 
 } // Gfx9

@@ -797,10 +797,8 @@ struct GpuChipProperties
             uint32 supportFloat32ImageAtomicMinMax  :  1; // Indicates support for float32 image atomics min and max op
             uint32 supportFloat64BufferAtomicMinMax :  1; // Indicates support for float64 image atomics min and max op
             uint32 supportFloat64SharedAtomicMinMax :  1; // Indicates support for float64 shared atomics min and max op
-
             uint32 support1dDispatchInterleave      :  1; // Indicates support for 1D Dispatch Interleave
-            uint32 support2dDispatchInterleave      :  1; // Indicates support for 2D Dispatch Interleave
-
+            uint32 placeholder1                     :  1;
             uint32 reserved                         : 14;
         };
     } gfxip;
@@ -2499,6 +2497,18 @@ inline bool IsNavi31XtxA0(const Device& device)
     return SKU_IS_NAVI31_XTX_A0(device.ChipProperties().deviceId,
                                 device.ChipProperties().eRevId,
                                 device.ChipProperties().revisionId);
+}
+#endif
+#if PAL_BUILD_NAVI32
+inline bool IsNavi32(const Device& device)
+{
+    return AMDGPU_IS_NAVI32(device.ChipProperties().familyId, device.ChipProperties().eRevId);
+}
+inline bool IsNavi32XlA0(const Device& device)
+{
+    return SKU_IS_NAVI32_XL_A0(device.ChipProperties().deviceId,
+                               device.ChipProperties().eRevId,
+                               device.ChipProperties().revisionId);
 }
 #endif
 #if PAL_BUILD_NAVI33

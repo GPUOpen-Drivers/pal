@@ -60,9 +60,28 @@ Result GraphicsShaderLibrary::PostInit(
         }
     }
 
-    m_gfxLibInfo.isColorExport =
-        (metadata.pipeline.hardwareStage[static_cast<uint32_t>(Abi::HardwareStage::Ps)].entryPoint ==
-             Abi::PipelineSymbolType::PsColorExportEntry);
+    if (metadata.pipeline.shaderFunctions != 0)
+    {
+        // Travese the shader function section to find color export shader
+        Result result = pReader->Seek(metadata.pipeline.shaderFunctions);
+        if (result == Result::Success)
+        {
+            const auto& func = pReader->Get().as;
+            result = (pReader->Type() == CWP_ITEM_MAP) ? Result::Success : Result::ErrorInvalidValue;
+            const char* pColExpSymbol =
+                Abi::PipelineAbiSymbolNameStrings[static_cast<unsigned>(Abi::PipelineSymbolType::PsColorExportEntry)];
+            for (uint32 i = func.map.size; ((result == Result::Success) && (i > 0)); --i)
+            {
+                result = pReader->Next(CWP_ITEM_STR);
+                if ((result == Result::Success) &&
+                    ((strncmp(pColExpSymbol, static_cast<const char*>(func.str.start), func.str.length) == 0)))
+                {
+                    m_gfxLibInfo.isColorExport = true;
+                    break;
+                }
+            }
+        }
+    }
 
     return Result::Success;
 }

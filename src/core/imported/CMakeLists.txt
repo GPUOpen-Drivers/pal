@@ -40,13 +40,15 @@ target_link_libraries(pal PRIVATE addrlib)
 target_include_directories(pal PRIVATE hsa)
 
 ### RDF ########################################################################
-set(RDF_ENABLE_CXX_BINDINGS OFF)
-set(RDF_STATIC ON)
+if (PAL_BUILD_RDF)
+    set(RDF_ENABLE_CXX_BINDINGS OFF)
+    set(RDF_STATIC ON)
 
-add_subdirectory(rdf)
+    add_subdirectory(rdf)
 
-target_link_libraries(pal PRIVATE rdf)
-target_compile_definitions(pal PUBLIC PAL_BUILD_RDF=1)
+    target_link_libraries(pal PRIVATE rdf)
+    target_compile_definitions(pal PUBLIC PAL_BUILD_RDF=1)
+endif()
 
 ### VAM ########################################################################
 add_subdirectory(vam)

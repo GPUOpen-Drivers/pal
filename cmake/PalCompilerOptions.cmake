@@ -30,13 +30,13 @@ include(CheckCXXCompilerFlag)
 
 function(pal_compiler_options TARGET)
     set_target_properties(${TARGET} PROPERTIES
-        CXX_STANDARD 17
+        CXX_STANDARD 20
         CXX_STANDARD_REQUIRED ON
         CXX_EXTENSIONS OFF
         POSITION_INDEPENDENT_CODE TRUE
     )
 
-    target_compile_features(${TARGET} PUBLIC cxx_std_17)
+    target_compile_features(${TARGET} PUBLIC cxx_std_20)
 
     set(isGNU   FALSE)
     set(isClang FALSE)

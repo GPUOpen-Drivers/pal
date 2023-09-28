@@ -404,7 +404,11 @@ void Image::CheckCompToSingle()
     {
         const Gfx9PalSettings& settings             = GetGfx9Settings(m_device);
         const SubResourceInfo*const pBaseSubResInfo = Parent()->SubresourceInfo(0);
-        if (pBaseSubResInfo->bitsPerTexel <= 16)
+        if (pBaseSubResInfo->bitsPerTexel == 128)
+        {
+            m_useCompToSingleForFastClears = false;
+        }
+        else if (pBaseSubResInfo->bitsPerTexel <= 16)
         {
             // comp-to-single expects the clear color to be stored every 256 bytes, but we cheat and store the clear
             // color on pixel boundaries.  i.e., for an 8bpp surface, every 256 bytes should line up on a 16x16 pixel
@@ -1051,7 +1055,7 @@ Result Image::CreateDccObject(
                 {
                     const auto& surfSettings = GetAddrSettings(pPlaneBaseSubResInfo);
 
-                    if (Gfx9Dcc::SupportFastColorClear(m_device, *this, surfSettings.swizzleMode))
+                    if (Gfx9Dcc::SupportFastColorClearWithoutFormatCheck(m_device, *this, surfSettings.swizzleMode))
                     {
                         for (uint32 mip = 0; mip < m_createInfo.mipLevels; ++mip)
                         {
@@ -1065,7 +1069,18 @@ Result Image::CreateDccObject(
                             {
                                 if (CanMipSupportMetaData(mip))
                                 {
-                                    UpdateClearMethod(pSubResInfoList, planeIdx, mip, ClearMethod::Fast);
+                                    if (Gfx9Dcc::SupportFastColorClearOnlyCheckFormat(*this))
+                                    {
+                                        UpdateClearMethod(pSubResInfoList, planeIdx, mip, ClearMethod::Fast);
+                                    }
+                                    else if (IsGfx10Plus(m_device))
+                                    {
+                                        // FastUncertain is only used for 128BPP image currently
+                                        // For 128BPP image, final clearvalue will determine if fastclear can be used
+                                        // For example: if clearvalue is {1,1,1,0}, fastclear can be used
+                                        // if clearvalue is {0.2,0.5,1,0}, fastclear can not be used.
+                                        UpdateClearMethod(pSubResInfoList, planeIdx, mip, ClearMethod::FastUncertain);
+                                    }
                                 }
                             }
                         } // end loop through all the mip levels

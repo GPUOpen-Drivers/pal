@@ -66,8 +66,8 @@ enum class AcquirePoint : uint8
     Count
 };
 
-static constexpr uint32 PipelineStagePfpMask =  PipelineStageTopOfPipe | PipelineStageFetchIndirectArgs |
-                                                PipelineStageFetchIndices;
+static constexpr uint32 PipelineStagePfpMask = PipelineStageTopOfPipe | PipelineStageFetchIndirectArgs |
+                                               PipelineStageFetchIndices;
 
 // Cache coherency masks that are writable.
 static constexpr uint32 CacheCoherWriteMask  = CoherCpu         | CoherShaderWrite        | CoherStreamOut |
@@ -76,7 +76,7 @@ static constexpr uint32 CacheCoherWriteMask  = CoherCpu         | CoherShaderWri
                                                CoherQueueAtomic | CoherTimestamp          | CoherMemory;
 
 // Cache coherency masks that may read data through L0 (V$ and K$)/L1 caches.
-static constexpr uint32 CacheCoherShaderReadMask = CoherShaderRead | CoherCopySrc | CoherResolveSrc | CoherSampleRate;
+static constexpr uint32 CacheCoherShaderReadMask = CoherShaderRead | CoherSampleRate | CacheCoherencyBltSrc;
 
 // Cache coherency masks that may read or write data through L0 (V$ and K$)/L1 caches.
 static constexpr uint32 CacheCoherShaderAccessMask = CacheCoherencyBlt | CoherShader | CoherSampleRate | CoherStreamOut;

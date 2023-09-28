@@ -387,6 +387,11 @@ static const MaxEventIds& GetEventLimits(
         pOut = &Nv31MaxPerfEventIds;
         break;
 #endif
+#if PAL_BUILD_NAVI32
+    case Pal::AsicRevision::Navi32:
+        pOut = &Nv32MaxPerfEventIds;
+        break;
+#endif
     case Pal::AsicRevision::Raphael:
         pOut = &RaphaelMaxPerfEventIds;
         break;

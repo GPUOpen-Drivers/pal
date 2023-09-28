@@ -176,7 +176,7 @@ void PAL_STDCALL Platform::GpuDebugCb(
 
     switch (type)
     {
-    case Developer::CallbackType::AllocGpuMemory: // fallthrough intentional
+    case Developer::CallbackType::AllocGpuMemory:
     case Developer::CallbackType::FreeGpuMemory:
     case Developer::CallbackType::SubAllocGpuMemory:
     case Developer::CallbackType::SubFreeGpuMemory:

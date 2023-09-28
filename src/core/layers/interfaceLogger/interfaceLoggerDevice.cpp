@@ -663,6 +663,13 @@ Result Device::CreateGpuMemory(
         pLogContext->BeginOutput();
         pLogContext->KeyAndEnum("result", result);
         pLogContext->KeyAndObject("createdObj", *ppGpuMemory);
+
+        if (result == Result::Success)
+        {
+            PAL_ASSERT(*ppGpuMemory != nullptr);
+            pLogContext->KeyAndStruct("GpuMemoryDesc", (*ppGpuMemory)->Desc());
+        }
+
         pLogContext->EndOutput();
 
         pPlatform->LogEndFunc(pLogContext);
@@ -718,6 +725,13 @@ Result Device::CreatePinnedGpuMemory(
         pLogContext->BeginOutput();
         pLogContext->KeyAndEnum("result", result);
         pLogContext->KeyAndObject("createdObj", *ppGpuMemory);
+
+        if (result == Result::Success)
+        {
+            PAL_ASSERT(*ppGpuMemory != nullptr);
+            pLogContext->KeyAndStruct("GpuMemoryDesc", (*ppGpuMemory)->Desc());
+        }
+
         pLogContext->EndOutput();
 
         pPlatform->LogEndFunc(pLogContext);
@@ -778,6 +792,13 @@ Result Device::CreateSvmGpuMemory(
         pLogContext->BeginOutput();
         pLogContext->KeyAndEnum("result", result);
         pLogContext->KeyAndObject("createdObj", *ppGpuMemory);
+
+        if (result == Result::Success)
+        {
+            PAL_ASSERT(*ppGpuMemory != nullptr);
+            pLogContext->KeyAndStruct("GpuMemoryDesc", (*ppGpuMemory)->Desc());
+        }
+
         pLogContext->EndOutput();
 
         pPlatform->LogEndFunc(pLogContext);
@@ -839,6 +860,13 @@ Result Device::OpenSharedGpuMemory(
         pLogContext->BeginOutput();
         pLogContext->KeyAndEnum("result", result);
         pLogContext->KeyAndObject("createdObj", *ppGpuMemory);
+
+        if (result == Result::Success)
+        {
+            PAL_ASSERT(*ppGpuMemory != nullptr);
+            pLogContext->KeyAndStruct("GpuMemoryDesc", (*ppGpuMemory)->Desc());
+        }
+
         pLogContext->EndOutput();
 
         pPlatform->LogEndFunc(pLogContext);
@@ -896,6 +924,13 @@ Result Device::OpenExternalSharedGpuMemory(
         pLogContext->KeyAndEnum("result", result);
         pLogContext->KeyAndObject("createdObj", *ppGpuMemory);
         pLogContext->KeyAndStruct("memCreateInfo", *pMemCreateInfo);
+
+        if (result == Result::Success)
+        {
+            PAL_ASSERT(*ppGpuMemory != nullptr);
+            pLogContext->KeyAndStruct("GpuMemoryDesc", (*ppGpuMemory)->Desc());
+        }
+
         pLogContext->EndOutput();
 
         pPlatform->LogEndFunc(pLogContext);
@@ -957,6 +992,13 @@ Result Device::OpenPeerGpuMemory(
         pLogContext->BeginOutput();
         pLogContext->KeyAndEnum("result", result);
         pLogContext->KeyAndObject("createdObj", *ppGpuMemory);
+
+        if (result == Result::Success)
+        {
+            PAL_ASSERT(*ppGpuMemory != nullptr);
+            pLogContext->KeyAndStruct("GpuMemoryDesc", (*ppGpuMemory)->Desc());
+        }
+
         pLogContext->EndOutput();
 
         pPlatform->LogEndFunc(pLogContext);
@@ -1089,6 +1131,13 @@ Result Device::CreatePresentableImage(
         pLogContext->KeyAndEnum("result", result);
         pLogContext->KeyAndObject("createdImageObj", *ppImage);
         pLogContext->KeyAndObject("createdGpuMemoryObj", *ppGpuMemory);
+
+        if (result == Result::Success)
+        {
+            PAL_ASSERT(*ppGpuMemory != nullptr);
+            pLogContext->KeyAndStruct("GpuMemoryDesc", (*ppGpuMemory)->Desc());
+        }
+
         pLogContext->EndOutput();
 
         pPlatform->LogEndFunc(pLogContext);
@@ -1165,6 +1214,13 @@ Result Device::OpenPeerImage(
         pLogContext->KeyAndEnum("result", result);
         pLogContext->KeyAndObject("createdImageObj", *ppImage);
         pLogContext->KeyAndObject("createdGpuMemoryObj", *ppGpuMemory);
+
+        if (result == Result::Success)
+        {
+            PAL_ASSERT(*ppGpuMemory != nullptr);
+            pLogContext->KeyAndStruct("GpuMemoryDesc", (*ppGpuMemory)->Desc());
+        }
+
         pLogContext->EndOutput();
 
         pPlatform->LogEndFunc(pLogContext);
@@ -1239,6 +1295,7 @@ Result Device::OpenExternalSharedImage(
         pLogContext->KeyAndEnum("result", result);
         pLogContext->KeyAndObject("createdImageObj", *ppImage);
         pLogContext->KeyAndObject("createdGpuMemoryObj", *ppGpuMemory);
+
         if (pMemCreateInfo != nullptr)
         {
             pLogContext->KeyAndStruct("memCreateInfo", *pMemCreateInfo);
@@ -1247,6 +1304,13 @@ Result Device::OpenExternalSharedImage(
         {
             pLogContext->KeyAndNullValue("memCreateInfo");
         }
+
+        if (result == Result::Success)
+        {
+            PAL_ASSERT(*ppGpuMemory != nullptr);
+            pLogContext->KeyAndStruct("GpuMemoryDesc", (*ppGpuMemory)->Desc());
+        }
+
         pLogContext->EndOutput();
 
         pPlatform->LogEndFunc(pLogContext);

@@ -1188,14 +1188,6 @@ static Result ConvertAbiRegistersToMetadata(
                 }
             }
 
-            // SPI_SHADER_Z_FORMAT
-            {
-                SPI_SHADER_Z_FORMAT spiShaderZFormat;
-                spiShaderZFormat.u32All = registers.At(mmSPI_SHADER_Z_FORMAT);
-
-                PAL_SET_ABI_FIELD(pGfxRegisters, spiShaderZFormat, spiShaderZFormat.bits.Z_EXPORT_FORMAT);
-            }
-
             // VGT_GS_ONCHIP_CNTL
             {
                 PalAbi::VgtGsOnchipCntlMetadata* pVgtGsOnchipCntl = &pGfxRegisters->vgtGsOnchipCntl;
@@ -2404,6 +2396,15 @@ static Result ConvertAbiRegistersToMetadata(
             PAL_SET_ABI_FIELD(pCbShaderMask, output5Enable, cbShaderMask.bits.OUTPUT5_ENABLE);
             PAL_SET_ABI_FIELD(pCbShaderMask, output6Enable, cbShaderMask.bits.OUTPUT6_ENABLE);
             PAL_SET_ABI_FIELD(pCbShaderMask, output7Enable, cbShaderMask.bits.OUTPUT7_ENABLE);
+        }
+
+        // SPI_SHADER_Z_FORMAT
+        if (registers.HasEntry(mmSPI_SHADER_Z_FORMAT))
+        {
+            SPI_SHADER_Z_FORMAT spiShaderZFormat;
+            spiShaderZFormat.u32All = registers.At(mmSPI_SHADER_Z_FORMAT);
+
+            PAL_SET_ABI_FIELD(pGfxRegisters, spiShaderZFormat, spiShaderZFormat.bits.Z_EXPORT_FORMAT);
         }
 
         // Compute pipelines (or hybrid graphics pipelines) will have a COMPUTE_PGM_RSRC1
@@ -7099,6 +7100,13 @@ GfxIpLevel DetermineIpLevel(
         }
         else
 #endif
+#if PAL_BUILD_NAVI32
+        if (AMDGPU_IS_NAVI32(familyId, eRevId))
+        {
+            level = GfxIpLevel::GfxIp11_0;
+        }
+        else
+#endif
 #if PAL_BUILD_NAVI33
         if (AMDGPU_IS_NAVI33(familyId, eRevId))
         {
@@ -7495,6 +7503,15 @@ void InitializeGpuChipProperties(
         if (AMDGPU_IS_NAVI31(pInfo->familyId, pInfo->eRevId))
         {
             // Navi31 supports 1.5x VGPR
+            pInfo->gfx9.numPhysicalVgprs     = 1536;
+            pInfo->gfx9.vgprAllocGranularity = 24;
+        }
+        else
+#endif
+#if PAL_BUILD_NAVI32
+        if (AMDGPU_IS_NAVI32(pInfo->familyId, pInfo->eRevId))
+        {
+            // Navi32 supports 1.5x VGPR
             pInfo->gfx9.numPhysicalVgprs     = 1536;
             pInfo->gfx9.vgprAllocGranularity = 24;
         }
@@ -7914,6 +7931,24 @@ void InitializeGpuChipProperties(
             pInfo->gfxip.mallSizeInBytes = 96_MiB;
 
             pInfo->gfx9.gfx10.numWgpAboveSpi = 4; // GPU__GC__NUM_WGP0_PER_SA
+            pInfo->gfx9.gfx10.numWgpBelowSpi = 0; // GPU__GC__NUM_WGP1_PER_SA
+        }
+        else
+#endif
+#if PAL_BUILD_NAVI32
+        if (AMDGPU_IS_NAVI32(pInfo->familyId, pInfo->eRevId))
+        {
+            pInfo->revision              = AsicRevision::Navi32;
+            pInfo->gfxStepping           = Abi::GfxIpSteppingNavi32;
+            pInfo->gfx9.numShaderEngines = 3;
+            pInfo->gfx9.numSdpInterfaces = 16;
+            pInfo->gfx9.maxNumCuPerSh    = 10;
+            pInfo->gfx9.maxNumRbPerSe    = 4;
+            pInfo->gfx9.gfx10.numGl2a    = 2;  // GC__NUM_GL2A
+            pInfo->gfx9.gfx10.numGl2c    = 16; // GC__NUM_GL2C
+            pInfo->gfxip.mallSizeInBytes = 64_MiB;
+
+            pInfo->gfx9.gfx10.numWgpAboveSpi = 5; // GPU__GC__NUM_WGP0_PER_SA
             pInfo->gfx9.gfx10.numWgpBelowSpi = 0; // GPU__GC__NUM_WGP1_PER_SA
         }
         else
@@ -10762,7 +10797,8 @@ Result Device::CreateVrsDepthView()
 
 // =====================================================================================================================
 ClearMethod  Device::GetDefaultSlowClearMethod(
-    const SwizzledFormat& clearFormat
+    const ImageCreateInfo&  createInfo,
+    const SwizzledFormat&   clearFormat
     ) const
 {
     uint32 texelScale = 1;
@@ -10779,6 +10815,7 @@ ClearMethod  Device::GetDefaultSlowClearMethod(
     const auto&  gfx9Settings = GetGfx9Settings(palDevice);
 
     return (((gfx9Settings.gfx11SlowClearMethod == SlowClearMethod::SlowClearUav) &&
+            (createInfo.samples == 1)                                             &&
             IsGfx11(palDevice)                                                    &&
             gfx9Settings.gfx11AlwaysAllowDccFormatReplacement) ||
             // Force clears of scaled formats to the compute engine

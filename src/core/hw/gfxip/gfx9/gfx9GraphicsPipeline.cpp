@@ -2595,6 +2595,12 @@ Result GraphicsPipeline::LinkGraphicsLibraries(
     }
     PAL_ASSERT((pPreRasterLib != nullptr) && (pPsLib != nullptr));
 
+    // If there's no valid color export library, get all export information from PS library
+    if (pExpLib == nullptr)
+    {
+        pExpLib = pPsLib;
+    }
+
     // Operations in EarlyInit.
     m_regs.context.vgtShaderStagesEn = pPreRasterLib->m_regs.context.vgtShaderStagesEn;
     m_fastLaunchMode = pPreRasterLib->m_fastLaunchMode;
@@ -2759,6 +2765,7 @@ void GraphicsPipeline::SetupSignatureFromLib(
 #endif
     m_signature.nggCullingDataAddr      = pPreRasterLib->m_signature.nggCullingDataAddr;
     m_signature.uavExportTableAddr      = pPsLib->m_signature.uavExportTableAddr;
+    m_signature.sampleInfoRegAddr       = pPsLib->m_signature.sampleInfoRegAddr;
     m_signature.colorExportAddr         = pPsLib->m_signature.colorExportAddr;
     if (IsTessEnabled())
     {
@@ -2795,12 +2802,11 @@ void GraphicsPipeline::SetupCommonRegistersFromLibs(
     const PalPublicSettings* pPalSettings = m_pDevice->Parent()->GetPublicSettings();
 
     // Registers in color export
-    pExpLib = (pExpLib == nullptr) ? pPsLib : pExpLib;
     m_regs.context.spiShaderColFormat = pExpLib->m_regs.context.spiShaderColFormat;
     m_regs.context.cbShaderMask       = pExpLib->m_regs.context.cbShaderMask;
+    m_regs.context.spiShaderZFormat   = pExpLib->m_regs.context.spiShaderZFormat;
 
     // Registers in pixel partial pipeline
-    m_regs.context.spiShaderZFormat   = pPsLib->m_regs.context.spiShaderZFormat;
     m_regs.context.spiInterpControl0  = pPsLib->m_regs.context.spiInterpControl0;
     m_regs.other.spiPsInControl       = pPsLib->m_regs.other.spiPsInControl;
     m_regs.other.paScModeCntl1        = pPsLib->m_regs.other.paScModeCntl1;

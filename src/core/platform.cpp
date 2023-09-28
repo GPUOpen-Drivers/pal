@@ -1188,6 +1188,9 @@ const char* Platform::GetClientApiStr() const
     case ClientApi::Hip:
         pStr = "AMD HIP Driver";
         break;
+    case ClientApi::Amf:
+        pStr = "AMD AMF Runtime";
+        break;
     }
 
     return pStr;

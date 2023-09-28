@@ -134,18 +134,18 @@ uint32 JenkinsHashFunc<Key>::operator()(
     c = c + keyLen;
     switch (len)
     {
-    case 11: c = c + (static_cast<uint32>(pKey[10]) << 24);  // fall through
-    case 10: c = c + (static_cast<uint32>(pKey[9])  << 16);  // fall through
-    case  9: c = c + (static_cast<uint32>(pKey[8])  << 8);   // fall through
+    case 11: c = c + (static_cast<uint32>(pKey[10]) << 24); [[fallthrough]];
+    case 10: c = c + (static_cast<uint32>(pKey[9])  << 16); [[fallthrough]];
+    case  9: c = c + (static_cast<uint32>(pKey[8])  << 8);  [[fallthrough]];
     // the first byte of c is reserved for the length
-    case  8: b = b + (static_cast<uint32>(pKey[7])  << 24);  // fall through
-    case  7: b = b + (static_cast<uint32>(pKey[6])  << 16);  // fall through
-    case  6: b = b + (static_cast<uint32>(pKey[5])  << 8);   // fall through
-    case  5: b = b + pKey[4];                                // fall through
-    case  4: a = a + (static_cast<uint32>(pKey[3])  << 24);  // fall through
-    case  3: a = a + (static_cast<uint32>(pKey[2])  << 16);  // fall through
-    case  2: a = a + (static_cast<uint32>(pKey[1])  << 8);   // fall through
-    case  1: a = a + pKey[0];                                // fall through
+    case  8: b = b + (static_cast<uint32>(pKey[7])  << 24); [[fallthrough]];
+    case  7: b = b + (static_cast<uint32>(pKey[6])  << 16); [[fallthrough]];
+    case  6: b = b + (static_cast<uint32>(pKey[5])  << 8);  [[fallthrough]];
+    case  5: b = b + pKey[4];                               [[fallthrough]];
+    case  4: a = a + (static_cast<uint32>(pKey[3])  << 24); [[fallthrough]];
+    case  3: a = a + (static_cast<uint32>(pKey[2])  << 16); [[fallthrough]];
+    case  2: a = a + (static_cast<uint32>(pKey[1])  << 8);  [[fallthrough]];
+    case  1: a = a + pKey[0];
     // case 0: nothing left to add
     }
 

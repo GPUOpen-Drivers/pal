@@ -2553,7 +2553,7 @@ void PAL_STDCALL PlatformDecorator::DefaultDeveloperCb(
         PAL_ASSERT(pCbData != nullptr);
         TranslateBindPipelineData(pCbData);
         break;
-    case Developer::CallbackType::AllocGpuMemory: // fallthrough intentional
+    case Developer::CallbackType::AllocGpuMemory:
     case Developer::CallbackType::FreeGpuMemory:
     case Developer::CallbackType::SubAllocGpuMemory:
     case Developer::CallbackType::SubFreeGpuMemory:
@@ -2701,6 +2701,9 @@ const char* PlatformDecorator::GetClientApiStr() const
     case ClientApi::Hip:
         pStr = "HIP";
         break;
+    case ClientApi::Amf:
+        pStr = "AMF";
+        break;
     }
 
     return pStr;
@@ -2776,20 +2779,24 @@ Result QueueDecorator::Submit(
                         pNextCmdBufInfoList->pPrimaryMemory =
                             NextGpuMemory(origSubQueueInfo.pCmdBufInfoList[cmdBufIdx].pPrimaryMemory);
 
-                        if ((pNextCmdBufInfoList->captureBegin) || (pNextCmdBufInfoList->captureEnd))
+                        if ((pNextCmdBufInfoList->captureBegin) ||
+                            (pNextCmdBufInfoList->captureEnd))
                         {
                             pNextCmdBufInfoList->pDirectCapMemory =
                                 NextGpuMemory(origSubQueueInfo.pCmdBufInfoList[cmdBufIdx].pDirectCapMemory);
-
-                            if (pNextCmdBufInfoList->privateFlip)
-                            {
-                                pNextCmdBufInfoList->pPrivFlipMemory =
-                                    NextGpuMemory(origSubQueueInfo.pCmdBufInfoList[cmdBufIdx].pPrivFlipMemory);
-                            }
-
-                            pNextCmdBufInfoList->frameIndex = origSubQueueInfo.pCmdBufInfoList[cmdBufIdx].frameIndex;
                         }
 
+                        if (pNextCmdBufInfoList->privateFlip)
+                        {
+                            pNextCmdBufInfoList->pPrivFlipMemory =
+                                NextGpuMemory(origSubQueueInfo.pCmdBufInfoList[cmdBufIdx].pPrivFlipMemory);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 822
+                            pNextCmdBufInfoList->vidPnSourceId =
+                                origSubQueueInfo.pCmdBufInfoList[cmdBufIdx].vidPnSourceId;
+#endif
+                        }
+
+                        pNextCmdBufInfoList->frameIndex = origSubQueueInfo.pCmdBufInfoList[cmdBufIdx].frameIndex;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 779
                         pNextCmdBufInfoList->pEarlyPresentEvent =
                             origSubQueueInfo.pCmdBufInfoList[cmdBufIdx].pEarlyPresentEvent;

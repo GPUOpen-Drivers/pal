@@ -35,8 +35,18 @@ include(PalCodegen)
 include(PalOptions)
 include(PalOverrides)
 
+# Create PAL targets:
+# - pal : The overall PAL target that a client links to
+# - palUtil : Just the PAL util library
 set(CMAKE_FOLDER "${CMAKE_FOLDER}/PAL Libs")
 add_library(pal STATIC)
+add_library(palUtil STATIC)
+target_link_libraries(pal PUBLIC palUtil)
+
+# - palCompilerDeps : Selected parts of PAL core that internal compiler depends on
+add_library(palCompilerDeps STATIC)
+target_link_libraries(palCompilerDeps PRIVATE palUtil)
+target_link_libraries(pal PRIVATE palCompilerDeps)
 
 add_subdirectory(cmake)
 add_subdirectory(inc)
@@ -47,6 +57,15 @@ add_subdirectory(tools)
 
 pal_compile_definitions(pal)
 pal_compiler_options(pal)
+pal_compile_definitions(palCompilerDeps)
+pal_compiler_options(palCompilerDeps)
+pal_compile_definitions(palUtil)
+pal_compiler_options(palUtil)
 pal_setup_generated_code()
 
-nongen_source_groups(${PAL_SOURCE_DIR} pal)
+nongen_source_groups(${PAL_SOURCE_DIR}
+    TARGETS
+        pal
+        palCompilerDeps
+        palUtil
+)

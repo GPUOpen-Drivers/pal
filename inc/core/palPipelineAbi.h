@@ -93,6 +93,9 @@ enum class AmdGpuMachineType : uint8
 #if PAL_BUILD_NAVI31
     Gfx1100 = 0x41,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1100
 #endif
+#if PAL_BUILD_NAVI32
+    Gfx1101 = 0x46,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1101
+#endif
 #if PAL_BUILD_NAVI33
     Gfx1102 = 0x47,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1102
 #endif
@@ -173,6 +176,11 @@ enum GfxIpStepping : uint16
 #if PAL_BUILD_NAVI31
     // GFXIP 11.0.x steppings:
     GfxIpSteppingNavi31        = 0,
+#endif
+
+#if PAL_BUILD_NAVI32
+    // GFXIP 11.0.x steppings:
+    GfxIpSteppingNavi32        = 1,
 #endif
 
 #if PAL_BUILD_NAVI33

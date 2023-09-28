@@ -153,13 +153,6 @@ enum class LogicOp : uint32
 ///
 /// The 1D values are specified in Threads and the Threadgroups are walked in a 1D typewriter fashion.
 ///
-/// The 2D values are specified in Threadgroups and also walked in typewriter fashion (in groups of the 2D pattern).
-///
-/// Clients should check for 1D and 2D support separately in:
-///   - DeviceProperties::gfxipProperties::flags::support1dDispatchInterleave
-///   - DeviceProperties::gfxipProperties::flags::support2dDispatchInterleave
-///
-/// Default will result in "Disable" for chips which do not support 1D or 2D.
 /// Disable means that every Threadgroup is issued to the next SE.
 enum class DispatchInterleaveSize : uint32
 {
@@ -169,36 +162,7 @@ enum class DispatchInterleaveSize : uint32
     _256                  = 0x3,
     _512                  = 0x4,
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 808
-    _2D_1x1_ThreadGroups  = 0x5,
-    _2D_1x2_ThreadGroups  = 0x6,
-    _2D_1x4_ThreadGroups  = 0x7,
-    _2D_1x8_ThreadGroups  = 0x8,
-    _2D_1x16_ThreadGroups = 0x9,
-
-    _2D_2x1_ThreadGroups  = 0xA,
-    _2D_2x2_ThreadGroups  = 0xB,
-    _2D_2x4_ThreadGroups  = 0xC,
-    _2D_2x8_ThreadGroups  = 0xD,
-
-    _2D_4x1_ThreadGroups  = 0xE,
-    _2D_4x2_ThreadGroups  = 0xF,
-    _2D_4x4_ThreadGroups  = 0x10,
-
-    _2D_8x1_ThreadGroups  = 0x11,
-    _2D_8x2_ThreadGroups  = 0x12,
-
-    _2D_16x1_ThreadGroups = 0x13,
-
-    Count                 = _2D_16x1_ThreadGroups + 1,
-
-    _1D_64_Threads        = Default,
-    _1D_128_Threads       = _128,
-    _1D_256_Threads       = _256,
-    _1D_512_Threads       = _512,
-#else
     Count
-#endif
 };
 #endif
 
@@ -667,13 +631,6 @@ struct ShaderStats
     } flags;                             ///< Flags related to this shader data.
 
     CommonShaderStats  copyShader;       ///< This data is valid only when the copyShaderPresent flag above is set.
-};
-
-/// Per-thread stack sizes
-struct CompilerStackSizes
-{
-    uint32 backendSize;  ///< Managed by compiler backend
-    uint32 frontendSize; ///< Managed by compiler frontend
 };
 
  /**

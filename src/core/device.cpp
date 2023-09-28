@@ -608,6 +608,8 @@ Result Device::SetupPublicSettingDefaults()
     m_publicSettings.enableVmAlwaysValid = VmAlwaysValidEnable::VmAlwaysValidDefaultEnable;
 #endif
 
+    m_publicSettings.forceShaderRingToVMem = false;
+
     return ret;
 }
 
@@ -2505,7 +2507,6 @@ Result Device::GetProperties(
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 808
         pInfo->gfxipProperties.flags.support1dDispatchInterleave = m_chipProperties.gfxip.support1dDispatchInterleave;
-        pInfo->gfxipProperties.flags.support2dDispatchInterleave = m_chipProperties.gfxip.support2dDispatchInterleave;
 #endif
 
         pInfo->gfxipProperties.srdSizes.bufferView = m_chipProperties.srdSizes.bufferView;
@@ -5300,11 +5301,12 @@ bool Device::IssueSqttMarkerEvents() const
     const PalPlatformSettings& platformSettings = m_pPlatform->PlatformSettings();
 
     // PAL only expects SQTT to be enabled by the GPU profiler or by dev driver. If it is enabled we should tell our
-    // command buffers to emit SQTT marker events.
-    const bool sqttEnabled = (platformSettings.gpuProfilerMode > GpuProfilerCounterAndTimingOnly) &&
+    // command buffers to emit SQTT marker events when it is allowed.
+    const bool issueForSqtt = (platformSettings.gpuProfilerSqttConfig.allowIssueMarkerEvent)       &&
+                              (platformSettings.gpuProfilerMode > GpuProfilerCounterAndTimingOnly) &&
                              TestAnyFlagSet(platformSettings.gpuProfilerConfig.traceModeMask, GpuProfilerTraceSqtt);
 
-    return sqttEnabled || m_pPlatform->IsDevDriverProfilingEnabled() || GetPublicSettings()->enableSqttMarkerEvent;
+    return issueForSqtt || m_pPlatform->IsDevDriverProfilingEnabled() || GetPublicSettings()->enableSqttMarkerEvent;
 }
 
 // =====================================================================================================================

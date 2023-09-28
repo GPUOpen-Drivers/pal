@@ -742,19 +742,24 @@ Result Queue::Submit(
                                 pNextCmdBufInfoList->pPrimaryMemory =
                                     NextGpuMemory(origSubQueueInfo.pCmdBufInfoList[i].pPrimaryMemory);
 
-                                if ((pNextCmdBufInfoList->captureBegin) || (pNextCmdBufInfoList->captureEnd))
+                                if ((pNextCmdBufInfoList->captureBegin) ||
+                                    (pNextCmdBufInfoList->captureEnd))
                                 {
                                     pNextCmdBufInfoList->pDirectCapMemory =
                                         NextGpuMemory(origSubQueueInfo.pCmdBufInfoList[i].pDirectCapMemory);
-
-                                    if (pNextCmdBufInfoList->privateFlip)
-                                    {
-                                        pNextCmdBufInfoList->pPrivFlipMemory =
-                                            NextGpuMemory(origSubQueueInfo.pCmdBufInfoList[i].pPrivFlipMemory);
-                                    }
-                                    pNextCmdBufInfoList->frameIndex = origSubQueueInfo.pCmdBufInfoList[i].frameIndex;
                                 }
 
+                                if (pNextCmdBufInfoList->privateFlip)
+                                {
+                                    pNextCmdBufInfoList->pPrivFlipMemory =
+                                        NextGpuMemory(origSubQueueInfo.pCmdBufInfoList[i].pPrivFlipMemory);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 822
+                                    pNextCmdBufInfoList->vidPnSourceId =
+                                        origSubQueueInfo.pCmdBufInfoList[i].vidPnSourceId;
+#endif
+                                }
+
+                                pNextCmdBufInfoList->frameIndex = origSubQueueInfo.pCmdBufInfoList[i].frameIndex;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 779
                                 pNextCmdBufInfoList->pEarlyPresentEvent =
                                     origSubQueueInfo.pCmdBufInfoList[i].pEarlyPresentEvent;
@@ -1510,8 +1515,8 @@ Result Queue::BuildGpaSessionSampleConfig()
             m_gpaSessionSampleConfig.sqtt.seMask                         = m_pDevice->GetSeMask();
             m_gpaSessionSampleConfig.sqtt.gpuMemoryLimit                 = settings.gpuProfilerSqttConfig.bufferSize;
             m_gpaSessionSampleConfig.sqtt.flags.stallMode                = m_pDevice->GetSqttStallMode();
-            m_gpaSessionSampleConfig.sqtt.flags.supressInstructionTokens = (settings.gpuProfilerSqttConfig.tokenMask !=
-                                                                            0xFFFF);
+            m_gpaSessionSampleConfig.sqtt.flags.supressInstructionTokens =
+                settings.gpuProfilerSqttConfig.supressInstructionTokens;
         }
         else
         {

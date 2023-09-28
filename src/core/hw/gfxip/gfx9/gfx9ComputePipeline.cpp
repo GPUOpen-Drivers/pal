@@ -407,6 +407,12 @@ Result ComputePipeline::LinkWithLibraries(
         m_uploadFenceToken = Max(m_uploadFenceToken, pLibObj->GetUploadFenceToken());
         m_pagingFenceVal   = Max(m_pagingFenceVal,   pLibObj->GetPagingFenceVal());
 
+        if (pLibObj->GetShaderLibFunctionCount() == 0)
+        {
+            // Skip library with no functions for propagation of register usage etc.
+            continue;
+        }
+
         const LibraryHwInfo& libObjRegInfo = pLibObj->HwInfo();
 
         PAL_ASSERT(pLibObj->IsWave32() == isWave32);

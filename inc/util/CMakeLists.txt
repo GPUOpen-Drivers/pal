@@ -23,9 +23,9 @@
  #
  #######################################################################################################################
 
-target_include_directories(pal PUBLIC .)
+target_include_directories(palUtil PUBLIC .)
 
-target_sources(pal PRIVATE
+target_sources(palUtil PRIVATE
     CMakeLists.txt
     palArchiveFile.h
     palArchiveFileFmt.h

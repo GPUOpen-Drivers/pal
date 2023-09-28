@@ -909,9 +909,10 @@ void UniversalCmdBuffer::CmdSaveGraphicsState()
 }
 
 // =====================================================================================================================
-void UniversalCmdBuffer::CmdRestoreGraphicsState()
+void UniversalCmdBuffer::CmdRestoreGraphicsStateInternal(
+    bool trackBltActiveFlags)
 {
-    Pal::Pm4::UniversalCmdBuffer::CmdRestoreGraphicsState();
+    Pal::Pm4::UniversalCmdBuffer::CmdRestoreGraphicsStateInternal(trackBltActiveFlags);
 
     CopyColorTargetViewStorage(m_colorTargetViewStorage, m_colorTargetViewRestoreStorage, &m_graphicsState);
     CopyDepthStencilViewStorage(&m_depthStencilViewStorage, &m_depthStencilViewRestoreStorage, &m_graphicsState);
@@ -2809,7 +2810,7 @@ Result UniversalCmdBuffer::AddPostamble()
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
-    if (m_pm4CmdBufState.flags.cpBltActive)
+    if (m_pm4CmdBufState.flags.cpBltActive && (IsNested() == false))
     {
         // Stalls the CP ME until the CP's DMA engine has finished all previous "CP blts" (CP_DMA/DMA_DATA commands
         // without the sync bit set). The ring won't wait for CP DMAs to finish so we need to do this manually.

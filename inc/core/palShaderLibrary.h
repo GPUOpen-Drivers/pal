@@ -121,6 +121,7 @@ struct ShaderLibStats
     PipelineHash       palInternalLibraryHash;  ///< Internal hash of the shader compilation data used by PAL.
     uint32             stackFrameSizeInBytes;   ///< Shader function stack frame size
     ShaderSubType      shaderSubType;           ///< ShaderSubType / Shader Kind
+    CompilerStackSizes cpsStackSizes;           ///< Stack used in Continuation
 };
 
 /**

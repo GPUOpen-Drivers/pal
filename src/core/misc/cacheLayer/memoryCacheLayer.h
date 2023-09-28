@@ -112,7 +112,7 @@ private:
         using Map  = HashMap<Hash128,
                              Entry*,
                              ForwardAllocator,
-                             JenkinsHashFunc,
+                             MetroHash::HashFunc,
                              DefaultEqualFunc,
                              HashAllocator<ForwardAllocator>,
                              256>;

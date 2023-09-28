@@ -62,11 +62,9 @@ target_sources(pal PRIVATE
     graphicsPipeline.h
     graphicsShaderLibrary.cpp
     graphicsShaderLibrary.h
-    hsaAbiMetadata.cpp
     msaaState.h
     pipeline.cpp
     pipeline.h
-    pipelineAbiReader.cpp
     pm4CmdBuffer.cpp
     pm4CmdBuffer.h
     pm4CmdStream.cpp
@@ -84,4 +82,10 @@ target_sources(pal PRIVATE
     queryPool.h
     shaderLibrary.cpp
     shaderLibrary.h
+)
+
+# PAL core code that the internal compiler depends on goes in target palCompilerDeps
+target_sources(palCompilerDeps PRIVATE
+    hsaAbiMetadata.cpp
+    pipelineAbiReader.cpp
 )

@@ -257,22 +257,46 @@ DevDriver::Result SetClockModeCallback(
 
     Device* pPalDevice = nullptr;
 
-    if (gpuIndex < pPlatform->GetDeviceCount())
+    uint32 firstGpuIndex = 0;
+    uint32 lastGpuIndex = 0;
+
+    if (gpuIndex == UINT_MAX)
     {
-        pPalDevice = pPlatform->GetDevice(gpuIndex);
+        // RGP doesn't know which device is in use, so it updates the clock mode for every device
+        // in the system while profiling
+        firstGpuIndex = 0;
+        lastGpuIndex = pPlatform->GetDeviceCount() - 1;
+    }
+    else
+    {
+        firstGpuIndex = gpuIndex;
+        lastGpuIndex = (gpuIndex < pPlatform->GetDeviceCount()) ? gpuIndex : 0;
     }
 
-    if (pPalDevice != nullptr)
+    for (uint32 curGpuIndex = firstGpuIndex; curGpuIndex <= lastGpuIndex; curGpuIndex++)
     {
-        // Convert the DevDriver DeviceClockMode enum into a Pal enum
-        DeviceClockMode palClockMode = PalDeviceClockModeTable[static_cast<uint32>(clockMode)];
+        pPalDevice = pPlatform->GetDevice(curGpuIndex);
 
-        SetClockModeInput clockModeInput = {};
-        clockModeInput.clockMode = palClockMode;
+        if (pPalDevice != nullptr)
+        {
+            // Convert the DevDriver DeviceClockMode enum into a Pal enum
+            DeviceClockMode palClockMode = PalDeviceClockModeTable[static_cast<uint32>(clockMode)];
 
-        Result palResult = pPalDevice->SetClockMode(clockModeInput, nullptr);
+            SetClockModeInput clockModeInput = {};
+            clockModeInput.clockMode = palClockMode;
 
-        result = (palResult == Result::Success) ? DevDriver::Result::Success : DevDriver::Result::Error;
+            Result palResult = pPalDevice->SetClockMode(clockModeInput, nullptr);
+
+            if (palResult == Result::Success)
+            {
+                result = DevDriver::Result::Success;
+            }
+            else
+            {
+                result = DevDriver::Result::Error;
+                break;
+            }
+        }
     }
 
     return result;

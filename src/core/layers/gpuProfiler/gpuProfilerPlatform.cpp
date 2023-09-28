@@ -213,7 +213,7 @@ void PAL_STDCALL Platform::GpuProfilerCb(
 
     switch (type)
     {
-    case Developer::CallbackType::AllocGpuMemory: // fallthrough intentional
+    case Developer::CallbackType::AllocGpuMemory:
     case Developer::CallbackType::FreeGpuMemory:
     case Developer::CallbackType::SubAllocGpuMemory:
     case Developer::CallbackType::SubFreeGpuMemory:

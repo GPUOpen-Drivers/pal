@@ -364,6 +364,16 @@ Result ComputeShaderLibrary::UnpackShaderFunctionStats(
                             pShaderStats->shaderHash = { shaderHash[0], shaderHash[1] };
                         }
                         break;
+                        case HashLiteralString(PalAbi::HardwareStageMetadataKey::FrontendStackSize):
+                        {
+                            result = pMetadataReader->UnpackNext(&pShaderStats->cpsStackSizes.frontendSize);
+                        }
+                        break;
+                        case HashLiteralString(PalAbi::HardwareStageMetadataKey::BackendStackSize):
+                        {
+                            result = pMetadataReader->UnpackNext(&pShaderStats->cpsStackSizes.backendSize);
+                        }
+                        break;
                         default:
                             result = pMetadataReader->Skip(1);
                             break;

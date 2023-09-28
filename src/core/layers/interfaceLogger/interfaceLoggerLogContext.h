@@ -520,6 +520,7 @@ public:
     void Struct(const GpuEventCreateInfo& value);
     void Struct(GpuMemoryCreateFlags value);
     void Struct(const GpuMemoryCreateInfo& value);
+    void Struct(const GpuMemoryDesc& value);
     void Struct(const GpuMemoryOpenInfo& value);
     void Struct(const GpuMemoryRef& value);
     void Struct(const GraphicsPipelineCreateInfo& value);

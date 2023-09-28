@@ -119,7 +119,8 @@ union GfxCmdBufferStateFlags
     struct
     {
         uint32 clientPredicate  :  1;  // Track if client is currently using predication functionality.
-        uint32 isGfxStatePushed :  1;  // If CmdSaveGraphicsState was called without a matching CmdRestoreGraphicsState.
+        uint32 isGfxStatePushed :  1;  // If CmdSaveGraphicsState was called without a matching
+                                       // CmdRestoreGraphicsStateInternal.
         uint32 reserved         : 30;
     };
 
@@ -322,10 +323,10 @@ public:
         const Offset3d& dstOffset);
 
     virtual void CmdSaveGraphicsState() override;
-    virtual void CmdRestoreGraphicsState() override;
+    virtual void CmdRestoreGraphicsStateInternal(bool trackBltActiveFlags = true) override;
 
     virtual void CmdSaveComputeState(uint32 stateFlags) override;
-    virtual void CmdRestoreComputeState(uint32 stateFlags) override;
+    virtual void CmdRestoreComputeStateInternal(uint32 stateFlags, bool trackBltActiveFlags = true) override;
 
     virtual bool IsQueryAllowed(QueryPoolType queryPoolType) const = 0;
     virtual void AddQuery(QueryPoolType queryPoolType, QueryControlFlags flags) = 0;

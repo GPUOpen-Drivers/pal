@@ -178,17 +178,25 @@ struct SwapChainCreateInfo
                                                    ///  backbuffer. (left and right slice)
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 768
             uint32 clientBlockIfFlipping     :  1; ///< If toggled, swapchain will offload block if flipping (write
-                                                   /// primary) responsibility to client. Not applicable to DXGI.
+                                                   /// primary) responsibility to client.
+#else
+            uint32 reserved768               :  1; ///< Reserved for future use.
+#endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 802
             uint32 enablePresentThread       :  1; ///< DXGI only, present from a different thread, can help hide
                                                    ///  latency in CPU bound apps.
-            uint32 reserved                  : 23;
 #else
-            uint32 reserved                  : 24; ///< Reserved for future use.
+            uint32 reserved802               :  1; ///< Reserved for future use.
 #endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 821
+            uint32 adaptiveDummyClear        :  1; ///< DXGI only, Dummy Clear will be adaptive in the sense that
+                                                   /// it will only take effect in Windowed mode. Client is responsible
+                                                   /// for determining the condition of Windowed mode and specify it via
+                                                   /// PresentSwapChainInfo.presentMode
 #else
-            uint32 reserved                  : 25; ///< Reserved for future use.
+            uint32 reserved821               :  1; ///< Reserved for future use.
 #endif
+            uint32 reserved                  : 22; ///< Reserved for future use.
         };
         uint32 u32All;                         ///< Flags packed as 32-bit uint.
     } flags;                                   ///< Swap chain flags.

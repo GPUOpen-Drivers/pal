@@ -268,12 +268,17 @@ def defineSettingVariable(setting):
         type = setting["ValidValues"]["Name"]
 
     settingDef = codeTemplates.SettingDef
+    typeSpacing = getTypeSpacing(type)
     # If the setting has no Defaults member, then it is an optional setting.
     if not "Defaults" in setting:
+        # Adjust spacing for longer Optional type. This is a bit hacky by taking the length
+        # difference of the templates, but still better than hardcoding the length of Util::Optional here.
+        typeLengthDifference = len(codeTemplates.OptionalSettingDef) - len(settingDef)
+        typeSpacing = typeSpacing[:-typeLengthDifference]
         settingDef = codeTemplates.OptionalSettingDef
 
     settingDef = settingDef.replace("%SettingType%", type)
-    settingDef = settingDef.replace("%SettingVarName%", getTypeSpacing(type) +setting["VariableName"])
+    settingDef = settingDef.replace("%SettingVarName%", typeSpacing + setting["VariableName"])
     arrayLength = ""
     # If the type is string then we need to setup the char array length
     if "Size" in setting:

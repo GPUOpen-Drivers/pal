@@ -101,6 +101,11 @@ function(pal_compile_definitions_gpu TARGET)
         target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_NAVI31=$<BOOL:${CHIP_HDR_NAVI31}>)
 #endif
 
+#if PAL_BUILD_NAVI32
+        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_NAVI32=$<BOOL:${PAL_BUILD_NAVI32}>)
+        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_NAVI32=$<BOOL:${CHIP_HDR_NAVI32}>)
+#endif
+
 #if PAL_BUILD_NAVI33
         target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_NAVI33=$<BOOL:${PAL_BUILD_NAVI33}>)
         target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_NAVI33=$<BOOL:${CHIP_HDR_NAVI33}>)
@@ -213,6 +218,10 @@ function(pal_compile_definitions TARGET)
 
         target_compile_definitions(${TARGET} PRIVATE PAL_BUILD_OSS4=$<BOOL:${PAL_BUILD_OSS4}>)
     endif()
+
+#if PAL_BUILD_RPM_GFX_SHADERS
+    target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_RPM_GFX_SHADERS=$<BOOL:${PAL_BUILD_RPM_GFX_SHADERS}>)
+#endif
 
     target_compile_definitions(${TARGET} PUBLIC PAL_64BIT_ARCHIVE_FILE_FMT=$<BOOL:${PAL_64BIT_ARCHIVE_FILE_FMT}>)
 

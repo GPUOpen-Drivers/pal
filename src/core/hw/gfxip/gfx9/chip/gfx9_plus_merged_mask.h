@@ -7063,7 +7063,7 @@ namespace Gfx103PlusExclusive
     constexpr unsigned int VGT_SYS_CONFIG__NUM_SUBGROUPS_IN_FLIGHT_MASK       = 0x0007ff00;
 } // namespace Gfx103PlusExclusive
 
-#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
+#if  CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 namespace Gfx104Plus
 {
     constexpr unsigned int CB_PERFCOUNTER0_SELECT1__PERF_SEL2_MASK            = 0x000003ff;
@@ -8594,7 +8594,7 @@ namespace Gfx10Vrs
     constexpr unsigned int RLC_SPM_SE_MUXSEL_ADDR_OFFSET__RESERVED_MASK       = 0xffff0000;
 } // namespace Gfx10Vrs
 
-#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
+#if  CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 namespace Gfx11
 {
     constexpr unsigned int CB_CACHE_EVICT_POINTS__CC_COLOR_EVICT_POINT_MASK   = 0x000000ff;
@@ -9223,7 +9223,7 @@ namespace Gfx11
 } // namespace Gfx11
 #endif
 
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
+#if CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 namespace Gfx110
 {
     constexpr unsigned int CB_CGTT_SCLK_CTRL__OFF_HYSTERESIS_MASK             = 0x00000ff0;
@@ -10414,6 +10414,158 @@ namespace Nv31
 } // namespace Nv31
 #endif
 
+#if CHIP_HDR_NAVI32
+namespace Nv32
+{
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlHi0__EventSelectHi_MASK   = 0x0000003f;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlHi0__Filter_MASK          = 0xffffff00;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlHi1__EventSelectHi_MASK   = 0x0000003f;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlHi1__Filter_MASK          = 0xffffff00;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlHi2__EventSelectHi_MASK   = 0x0000003f;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlHi2__Filter_MASK          = 0xffffff00;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlHi3__EventSelectHi_MASK   = 0x0000003f;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlHi3__Filter_MASK          = 0xffffff00;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlHi4__EventSelectHi_MASK   = 0x0000003f;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlHi4__Filter_MASK          = 0xffffff00;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlHi5__EventSelectHi_MASK   = 0x0000003f;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlHi5__Filter_MASK          = 0xffffff00;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlHi6__EventSelectHi_MASK   = 0x0000003f;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlHi6__Filter_MASK          = 0xffffff00;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlHi7__EventSelectHi_MASK   = 0x0000003f;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlHi7__Filter_MASK          = 0xffffff00;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo0__BypassEn_MASK        = 0x00200000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo0__DsmTrig_MASK         = 0x00080000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo0__En_MASK              = 0x00400000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo0__Mp1Int_MASK          = 0x00100000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo0__UnitMaskHi_MASK      = 0x0f000000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo0__UnitMaskLo_MASK      = 0x0000ff00;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo1__BypassEn_MASK        = 0x00200000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo1__DsmTrig_MASK         = 0x00080000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo1__En_MASK              = 0x00400000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo1__Mp1Int_MASK          = 0x00100000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo1__UnitMaskHi_MASK      = 0x0f000000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo1__UnitMaskLo_MASK      = 0x0000ff00;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo2__BypassEn_MASK        = 0x00200000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo2__DsmTrig_MASK         = 0x00080000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo2__En_MASK              = 0x00400000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo2__Mp1Int_MASK          = 0x00100000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo2__UnitMaskHi_MASK      = 0x0f000000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo2__UnitMaskLo_MASK      = 0x0000ff00;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo3__BypassEn_MASK        = 0x00200000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo3__DsmTrig_MASK         = 0x00080000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo3__En_MASK              = 0x00400000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo3__Mp1Int_MASK          = 0x00100000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo3__UnitMaskHi_MASK      = 0x0f000000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo3__UnitMaskLo_MASK      = 0x0000ff00;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo4__BypassEn_MASK        = 0x00200000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo4__DsmTrig_MASK         = 0x00080000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo4__En_MASK              = 0x00400000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo4__Mp1Int_MASK          = 0x00100000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo4__UnitMaskHi_MASK      = 0x0f000000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo4__UnitMaskLo_MASK      = 0x0000ff00;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo5__BypassEn_MASK        = 0x00200000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo5__DsmTrig_MASK         = 0x00080000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo5__En_MASK              = 0x00400000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo5__Mp1Int_MASK          = 0x00100000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo5__UnitMaskHi_MASK      = 0x0f000000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo5__UnitMaskLo_MASK      = 0x0000ff00;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo6__BypassEn_MASK        = 0x00200000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo6__DsmTrig_MASK         = 0x00080000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo6__En_MASK              = 0x00400000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo6__Mp1Int_MASK          = 0x00100000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo6__UnitMaskHi_MASK      = 0x0f000000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo6__UnitMaskLo_MASK      = 0x0000ff00;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo7__BypassEn_MASK        = 0x00200000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo7__DsmTrig_MASK         = 0x00080000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo7__En_MASK              = 0x00400000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo7__Mp1Int_MASK          = 0x00100000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo7__UnitMaskHi_MASK      = 0x0f000000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo7__UnitMaskLo_MASK      = 0x0000ff00;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtrHi0__CTR_47_32_MASK       = 0x0000ffff;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtrHi1__CTR_47_32_MASK       = 0x0000ffff;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtrHi2__CTR_47_32_MASK       = 0x0000ffff;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtrHi3__CTR_47_32_MASK       = 0x0000ffff;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtrHi4__CTR_47_32_MASK       = 0x0000ffff;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtrHi5__CTR_47_32_MASK       = 0x0000ffff;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtrHi6__CTR_47_32_MASK       = 0x0000ffff;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtrHi7__CTR_47_32_MASK       = 0x0000ffff;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtrLo0__CTR_31_0_MASK        = 0xffffffff;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtrLo1__CTR_31_0_MASK        = 0xffffffff;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtrLo2__CTR_31_0_MASK        = 0xffffffff;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtrLo3__CTR_31_0_MASK        = 0xffffffff;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtrLo4__CTR_31_0_MASK        = 0xffffffff;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtrLo5__CTR_31_0_MASK        = 0xffffffff;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtrLo6__CTR_31_0_MASK        = 0xffffffff;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtrLo7__CTR_31_0_MASK        = 0xffffffff;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER0_CFG__CLEAR_MASK             = 0x20000000;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER0_CFG__ENABLE_MASK            = 0x10000000;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER0_CFG__PERF_MODE_MASK         = 0x0f000000;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER0_CFG__PERF_SEL_END_MASK      = 0x0000ff00;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER0_CFG__PERF_SEL_MASK          = 0x000000ff;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER1_CFG__CLEAR_MASK             = 0x20000000;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER1_CFG__ENABLE_MASK            = 0x10000000;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER1_CFG__PERF_MODE_MASK         = 0x0f000000;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER1_CFG__PERF_SEL_END_MASK      = 0x0000ff00;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER1_CFG__PERF_SEL_MASK          = 0x000000ff;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER2_HI__PERFCOUNTER_HI_MASK     = 0xffffffff;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER2_LO__PERFCOUNTER_LO_MASK     = 0xffffffff;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER2_MODE__COMPARE_MODE0_MASK    = 0x00000003;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER2_MODE__COMPARE_MODE1_MASK    = 0x0000000c;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER2_MODE__COMPARE_MODE2_MASK    = 0x00000030;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER2_MODE__COMPARE_MODE3_MASK    = 0x000000c0;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER2_MODE__COMPARE_VALUE0_MASK   = 0x00000f00;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER2_MODE__COMPARE_VALUE1_MASK   = 0x0000f000;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER2_MODE__COMPARE_VALUE2_MASK   = 0x000f0000;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER2_MODE__COMPARE_VALUE3_MASK   = 0x00f00000;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER2_SELECT1__PERF_MODE2_MASK    = 0xf0000000;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER2_SELECT1__PERF_MODE3_MASK    = 0x0f000000;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER2_SELECT1__PERF_SEL2_MASK     = 0x000003ff;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER2_SELECT1__PERF_SEL3_MASK     = 0x000ffc00;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER2_SELECT__CNTR_MODE_MASK      = 0x00f00000;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER2_SELECT__PERF_MODE0_MASK     = 0xf0000000;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER2_SELECT__PERF_MODE1_MASK     = 0x0f000000;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER2_SELECT__PERF_SEL0_MASK      = 0x000003ff;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER2_SELECT__PERF_SEL1_MASK      = 0x000ffc00;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER_HI__COMPARE_VALUE_MASK       = 0xffff0000;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER_HI__COUNTER_HI_MASK          = 0x0000ffff;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER_LO__COUNTER_LO_MASK          = 0xffffffff;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER_RSLT_CNTL__CLEAR_ALL_MASK    = 0x02000000;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER_RSLT_CNTL__ENABLE_ANY_MASK   = 0x01000000;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER_RSLT_CNTL__PERF_COUNTER_SELECT_MASK = 0x0000000f;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER_RSLT_CNTL__START_TRIGGER_MASK = 0x0000ff00;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER_RSLT_CNTL__STOP_ALL_ON_SATURATE_MASK = 0x04000000;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER_RSLT_CNTL__STOP_TRIGGER_MASK = 0x00ff0000;
+    constexpr unsigned int GE_FED_STATUS__DMA_C0_FED_ERROR_MASK               = 0x00000001;
+    constexpr unsigned int GE_FED_STATUS__DMA_C1_FED_ERROR_MASK               = 0x00000002;
+    constexpr unsigned int GE_FED_STATUS__TF_REQ_FED_ERROR_MASK               = 0x00000004;
+    constexpr unsigned int GRBM_SE0_PERFCOUNTER_SELECT__SEDC_BUSY_USER_DEFINED_MASK_MASK = 0x10000000;
+    constexpr unsigned int GRBM_SE1_PERFCOUNTER_SELECT__SEDC_BUSY_USER_DEFINED_MASK_MASK = 0x10000000;
+    constexpr unsigned int GRBM_SE2_PERFCOUNTER_SELECT__SEDC_BUSY_USER_DEFINED_MASK_MASK = 0x10000000;
+    constexpr unsigned int GRBM_SE3_PERFCOUNTER_HI__PERFCOUNTER_HI_MASK       = 0xffffffff;
+    constexpr unsigned int GRBM_SE3_PERFCOUNTER_LO__PERFCOUNTER_LO_MASK       = 0xffffffff;
+    constexpr unsigned int GRBM_SE3_PERFCOUNTER_SELECT__BCI_BUSY_USER_DEFINED_MASK_MASK = 0x00200000;
+    constexpr unsigned int GRBM_SE3_PERFCOUNTER_SELECT__CB_BUSY_USER_DEFINED_MASK_MASK = 0x00040000;
+    constexpr unsigned int GRBM_SE3_PERFCOUNTER_SELECT__CB_CLEAN_USER_DEFINED_MASK_MASK = 0x00000800;
+    constexpr unsigned int GRBM_SE3_PERFCOUNTER_SELECT__DB_BUSY_USER_DEFINED_MASK_MASK = 0x00020000;
+    constexpr unsigned int GRBM_SE3_PERFCOUNTER_SELECT__DB_CLEAN_USER_DEFINED_MASK_MASK = 0x00000400;
+    constexpr unsigned int GRBM_SE3_PERFCOUNTER_SELECT__GL1CC_BUSY_USER_DEFINED_MASK_MASK = 0x02000000;
+    constexpr unsigned int GRBM_SE3_PERFCOUNTER_SELECT__GL1H_BUSY_USER_DEFINED_MASK_MASK = 0x04000000;
+    constexpr unsigned int GRBM_SE3_PERFCOUNTER_SELECT__PA_BUSY_USER_DEFINED_MASK_MASK = 0x00100000;
+    constexpr unsigned int GRBM_SE3_PERFCOUNTER_SELECT__PC_BUSY_USER_DEFINED_MASK_MASK = 0x08000000;
+    constexpr unsigned int GRBM_SE3_PERFCOUNTER_SELECT__PERF_SEL_MASK         = 0x0000003f;
+    constexpr unsigned int GRBM_SE3_PERFCOUNTER_SELECT__RMI_BUSY_USER_DEFINED_MASK_MASK = 0x00400000;
+    constexpr unsigned int GRBM_SE3_PERFCOUNTER_SELECT__SC_BUSY_USER_DEFINED_MASK_MASK = 0x00010000;
+    constexpr unsigned int GRBM_SE3_PERFCOUNTER_SELECT__SEDC_BUSY_USER_DEFINED_MASK_MASK = 0x10000000;
+    constexpr unsigned int GRBM_SE3_PERFCOUNTER_SELECT__SPI_BUSY_USER_DEFINED_MASK_MASK = 0x00008000;
+    constexpr unsigned int GRBM_SE3_PERFCOUNTER_SELECT__SX_BUSY_USER_DEFINED_MASK_MASK = 0x00002000;
+    constexpr unsigned int GRBM_SE3_PERFCOUNTER_SELECT__TA_BUSY_USER_DEFINED_MASK_MASK = 0x00001000;
+    constexpr unsigned int GRBM_SE3_PERFCOUNTER_SELECT__TCP_BUSY_USER_DEFINED_MASK_MASK = 0x01000000;
+    constexpr unsigned int GRBM_SE3_PERFCOUNTER_SELECT__UTCL1_BUSY_USER_DEFINED_MASK_MASK = 0x00800000;
+    constexpr unsigned int RLC_SPM_ACCUM_MODE__SE2_LoadOverride_MASK          = 0x00008000;
+    constexpr unsigned int RLC_SPM_ACCUM_MODE__SE2_SwaLoadOverride_MASK       = 0x00010000;
+} // namespace Nv32
+#endif
+
 #if CHIP_HDR_NAVI33
 namespace Nv33
 {
@@ -10421,7 +10573,7 @@ namespace Nv33
 } // namespace Nv33
 #endif
 
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI32 || CHIP_HDR_NAVI33
 namespace Nv3x
 {
     constexpr unsigned int CHCG_PERFCOUNTER0_HI__PERFCOUNTER_HI_MASK          = 0xffffffff;

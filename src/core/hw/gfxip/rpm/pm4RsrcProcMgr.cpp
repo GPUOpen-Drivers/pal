@@ -167,19 +167,101 @@ void RsrcProcMgr::CmdCopyImage(
         AutoBuffer<ImageFixupRegion, 32, Platform> fixupRegions(regionCount, m_pDevice->GetPlatform());
         if (fixupRegions.Capacity() >= regionCount)
         {
-            for (uint32 i = 0; i < regionCount; i++)
+            uint32                 finalRegionCount  = regionCount;
+            const ImageCopyRegion* pFinalRegions     = pRegions;
+            ImageCopyRegion*       pScissoredRegions = nullptr;
+
+            // For a raw copy, scissor could be taken into consideration in the compute path.
+            if (TestAnyFlagSet(flags, CopyControlFlags::CopyEnableScissorTest))
             {
-                fixupRegions[i].subres    = pRegions[i].dstSubres;
-                fixupRegions[i].offset    = pRegions[i].dstOffset;
-                fixupRegions[i].extent    = pRegions[i].extent;
-                fixupRegions[i].numSlices = pRegions[i].numSlices;
+                PAL_ASSERT(pScissorRect != nullptr);
+
+                uint32 scissoredRegionCount = 0;
+                pScissoredRegions =
+                    PAL_NEW_ARRAY(ImageCopyRegion, regionCount, m_pDevice->GetPlatform(), AllocInternalTemp);
+
+                if (pScissoredRegions != nullptr)
+                {
+                    // Top-left oriented.
+                    const int32 scissorRectLeft   = pScissorRect->offset.x;
+                    const int32 scissorRectRight  = pScissorRect->offset.x + int32(pScissorRect->extent.width);
+                    const int32 scissorRectTop    = pScissorRect->offset.y;
+                    const int32 scissorRectBottom = pScissorRect->offset.y + int32(pScissorRect->extent.height);
+
+                    for (uint32 i = 0; i < regionCount; i++)
+                    {
+                        const int32 dstLeft   = pRegions[i].dstOffset.x;
+                        const int32 dstRight  = pRegions[i].dstOffset.x + int32(pRegions[i].extent.width);
+                        const int32 dstTop    = pRegions[i].dstOffset.y;
+                        const int32 dstBottom = pRegions[i].dstOffset.y + int32(pRegions[i].extent.height);
+
+                        // Get the intersection between dst and scissor rect.
+                        const int32 intersectLeft    = Max(scissorRectLeft,   dstLeft);
+                        const int32 intersectRight   = Min(scissorRectRight,  dstRight);
+                        const int32 intersectTop     = Max(scissorRectTop,    dstTop);
+                        const int32 intersectBottom  = Min(scissorRectBottom, dstBottom);
+
+                        // Check if there's intersection between the scissor rect and each dst region.
+                        if ((intersectLeft < intersectRight) && (intersectTop < intersectBottom))
+                        {
+                            const int32 cvtDestToSrcX = pRegions[i].srcOffset.x - pRegions[i].dstOffset.x;
+                            const int32 cvtDestToSrcY = pRegions[i].srcOffset.y - pRegions[i].dstOffset.y;
+
+                            ImageCopyRegion* const pScissoredRegion = &pScissoredRegions[scissoredRegionCount];
+                            // For srcOffset.xy, do a reversed translation dst->src.
+                            pScissoredRegion->srcOffset.x   = intersectLeft + cvtDestToSrcX;
+                            pScissoredRegion->srcOffset.y   = intersectTop  + cvtDestToSrcY;
+                            pScissoredRegion->srcOffset.z   = pRegions[i].srcOffset.z;
+                            pScissoredRegion->dstOffset.x   = intersectLeft;
+                            pScissoredRegion->dstOffset.y   = intersectTop;
+                            pScissoredRegion->dstOffset.z   = pRegions[i].dstOffset.z;
+                            pScissoredRegion->srcSubres     = pRegions[i].srcSubres;
+                            pScissoredRegion->dstSubres     = pRegions[i].dstSubres;
+                            pScissoredRegion->numSlices     = pRegions[i].numSlices;
+                            pScissoredRegion->extent.width  = uint32(intersectRight - intersectLeft);
+                            pScissoredRegion->extent.height = uint32(intersectBottom - intersectTop);
+                            pScissoredRegion->extent.depth  = pRegions[i].extent.depth;
+
+                            // Prepare fixup regions with scissored result.
+                            ImageFixupRegion* const pFixupRegion = &fixupRegions[scissoredRegionCount];
+                            pFixupRegion->subres            = pScissoredRegion->srcSubres;
+                            pFixupRegion->offset            = pScissoredRegion->dstOffset;
+                            pFixupRegion->extent            = pScissoredRegion->extent;
+                            pFixupRegion->numSlices         = pScissoredRegion->numSlices;
+
+                            scissoredRegionCount++;
+                        }
+                    }
+
+                    pFinalRegions    = pScissoredRegions;
+                    finalRegionCount = scissoredRegionCount;
+
+                    flags &= ~CopyControlFlags::CopyEnableScissorTest;
+                }
+                else
+                {
+                    pCmdBuffer->NotifyAllocFailure();
+                }
             }
-            FixupMetadataForComputeDst(pCmdBuffer, dstImage, dstImageLayout, regionCount, &fixupRegions[0], true);
+            else
+            {
+                for (uint32 i = 0; i < regionCount; i++)
+                {
+                    fixupRegions[i].subres         = pRegions[i].dstSubres;
+                    fixupRegions[i].offset         = pRegions[i].dstOffset;
+                    fixupRegions[i].extent         = pRegions[i].extent;
+                    fixupRegions[i].numSlices      = pRegions[i].numSlices;
+                }
+            }
+
+            FixupMetadataForComputeDst(pCmdBuffer, dstImage, dstImageLayout, finalRegionCount,
+                                       &fixupRegions[0], true);
 
             CopyImageCompute(pCmdBuffer, srcImage, srcImageLayout, dstImage, dstImageLayout,
-                             regionCount, pRegions, flags);
+                             finalRegionCount, pFinalRegions, flags);
 
-            FixupMetadataForComputeDst(pCmdBuffer, dstImage, dstImageLayout, regionCount, &fixupRegions[0], false);
+            FixupMetadataForComputeDst(pCmdBuffer, dstImage, dstImageLayout, finalRegionCount,
+                                       &fixupRegions[0], false);
 
             if (((Formats::IsBlockCompressed(srcInfo.swizzledFormat.format) ||
                   Formats::IsMacroPixelPackedRgbOnly(srcInfo.swizzledFormat.format)) && (srcInfo.mipLevels > 1)) ||
@@ -202,9 +284,9 @@ void RsrcProcMgr::CmdCopyImage(
 
                 pCmdBuffer->CmdBarrier(barrier);
 
-                for (uint32 regionIdx = 0; regionIdx < regionCount; regionIdx++)
+                for (uint32 regionIdx = 0; regionIdx < finalRegionCount; regionIdx++)
                 {
-                    HwlImageToImageMissingPixelCopy(pCmdBuffer, srcImage, dstImage, pRegions[regionIdx]);
+                    HwlImageToImageMissingPixelCopy(pCmdBuffer, srcImage, dstImage, pFinalRegions[regionIdx]);
                 }
             }
         }
@@ -272,7 +354,9 @@ void RsrcProcMgr::CopyColorImageGraphics(
     ColorTargetViewCreateInfo colorViewInfo = { };
     colorViewInfo.imageInfo.pImage    = &dstImage;
     colorViewInfo.imageInfo.arraySize = 1;
-    colorViewInfo.flags.bypassMall = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall, RpmViewsBypassMallOnCbDbWrite);
+    colorViewInfo.flags.imageVaLocked = 1;
+    colorViewInfo.flags.bypassMall    = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
+                                                       RpmViewsBypassMallOnCbDbWrite);
 
     if (dstCreateInfo.imageType == ImageType::Tex3d)
     {
@@ -551,7 +635,7 @@ void RsrcProcMgr::CopyColorImageGraphics(
     HwlEndGraphicsCopy(static_cast<Pm4::CmdStream*>(pStream), restoreMask);
 
     // Restore original command buffer state.
-    pCmdBuffer->CmdRestoreGraphicsState();
+    pCmdBuffer->CmdRestoreGraphicsStateInternal();
 }
 
 // =====================================================================================================================
@@ -598,9 +682,11 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
 
     const DepthStencilViewInternalCreateInfo noDepthViewInfoInternal = { };
     DepthStencilViewCreateInfo               depthViewInfo           = { };
-    depthViewInfo.pImage           = &dstImage;
-    depthViewInfo.arraySize        = 1;
-    depthViewInfo.flags.bypassMall = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall, RpmViewsBypassMallOnCbDbWrite);
+    depthViewInfo.pImage              = &dstImage;
+    depthViewInfo.arraySize           = 1;
+    depthViewInfo.flags.imageVaLocked = 1;
+    depthViewInfo.flags.bypassMall    = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
+                                                       RpmViewsBypassMallOnCbDbWrite);
 
     // Save current command buffer state and bind graphics state which is common for all regions.
     pCmdBuffer->CmdSaveGraphicsState();
@@ -873,7 +959,7 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
         } // End for each region
     }
     // Restore original command buffer state.
-    pCmdBuffer->CmdRestoreGraphicsState();
+    pCmdBuffer->CmdRestoreGraphicsStateInternal();
 }
 
 // =====================================================================================================================
@@ -1028,6 +1114,7 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
 
     colorViewInfo.flags.bypassMall = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall, RpmViewsBypassMallOnCbDbWrite);
     depthViewInfo.flags.bypassMall = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall, RpmViewsBypassMallOnCbDbWrite);
+    depthViewInfo.flags.imageVaLocked = 1;
 
     if (!depthStencilCopy)
     {
@@ -1892,7 +1979,8 @@ void RsrcProcMgr::CmdClearColorImage(
 
         const SwizzledFormat& subresourceFormat = dstImage.SubresourceInfo(pRanges[rangeIdx].startSubres)->format;
         const SwizzledFormat& viewFormat        = sameChNumFormat ? subresourceFormat : clearFormat;
-        ClearMethod           slowClearMethod   = m_pDevice->GetDefaultSlowClearMethod(subresourceFormat);
+        ClearMethod           slowClearMethod   = m_pDevice->GetDefaultSlowClearMethod(dstImage.GetImageCreateInfo(),
+                                                                                       subresourceFormat);
 
 #if PAL_ENABLE_PRINTS_ASSERTS
         CheckImagePlaneSupportsRtvOrUavFormat(*m_pDevice, dstImage, subresourceFormat, viewFormat);
@@ -1932,7 +2020,45 @@ void RsrcProcMgr::CmdClearColorImage(
                 const SubresId    subres      = { clearRange.startSubres.plane,
                                                   clearRange.startSubres.mipLevel + mipIdx,
                                                   0 };
-                const ClearMethod clearMethod = dstImage.SubresourceInfo(subres)->clearMethod;
+                ClearMethod clearMethod = dstImage.SubresourceInfo(subres)->clearMethod;
+                if (IsGfx10Plus(*m_pDevice->Parent()) && (clearMethod == ClearMethod::FastUncertain))
+                {
+                    uint32 One = Math::Float32ToNumBits(1.0, 32);
+                    if ((Formats::BitsPerPixel(clearFormat.format) == 128) &&
+                        (convertedColor[0] == convertedColor[1]) &&
+                        (convertedColor[0] == convertedColor[2]))
+                    {
+                        if (((convertedColor[0] == One) &&
+                            (convertedColor[3]  == 0)) ||
+                            ((convertedColor[0] == 0) &&
+                            (convertedColor[3]  == One)))
+                        {
+                            // AC01 path check for {1,1,1,0} and {0,0,0,1}
+                            clearMethod = ClearMethod::Fast;
+                        }
+                        else if (convertedColor[0] == convertedColor[3])
+                        {
+                            // AC01 path check for {0,0,0,0} and {1,1,1,1}, and
+                            // comp-to-reg check for non {0, 1}: make sure all clear values are equal,
+                            // simplest way to support 128BPP fastclear based on current code
+                            clearMethod = ClearMethod::Fast;
+                        }
+#if PAL_BUILD_GFX11
+                        if ((clearMethod == ClearMethod::Fast) && IsGfx11(*m_pDevice->Parent()))
+                        {
+                            if ((m_pDevice->DisableAc01ClearCodes() == true) ||
+                                (convertedColor[0] != 0) && (convertedColor[0] != One))
+                            {
+                                clearMethod = slowClearMethod;
+                            }
+                        }
+#endif
+                    }
+                    else
+                    {
+                       clearMethod = slowClearMethod;
+                    }
+                }
 
                 if (clearMethod != ClearMethod::Fast)
                 {
@@ -1962,7 +2088,8 @@ void RsrcProcMgr::CmdClearColorImage(
                                   *pPm4Image,
                                   &convertedColor[0],
                                   clearFormat,
-                                  fastClearRange);
+                                  fastClearRange,
+                                  (needPreComputeSync == false));
             }
         }
         else
@@ -1982,6 +2109,7 @@ void RsrcProcMgr::CmdClearColorImage(
                                   &color,
                                   clearFormat,
                                   *pSlowClearRange,
+                                  (needPreComputeSync == false),
                                   boxCount,
                                   pBoxes);
             }
@@ -2004,6 +2132,7 @@ void RsrcProcMgr::CmdClearColorImage(
                                  &color,
                                  clearFormat,
                                  *pSlowClearRange,
+                                 (needPreComputeSync == false),
                                  boxCount,
                                  pBoxes);
             }
@@ -2663,7 +2792,7 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
         }
     }
 
-    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+    pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
 }
 
 // =====================================================================================================================
@@ -2718,6 +2847,7 @@ void RsrcProcMgr::SlowClearGraphics(
     const ClearColor*     pColor,
     const SwizzledFormat& clearFormat,
     const SubresRange&    clearRange,
+    bool                  trackBltActiveFlags,
     uint32                boxCount,
     const Box*            pBoxes
     ) const
@@ -2775,14 +2905,15 @@ void RsrcProcMgr::SlowClearGraphics(
         viewportInfo.depthRange            = DepthRange::ZeroToOne;
 
         const bool  is3dImage  = (createInfo.imageType == ImageType::Tex3d);
-        ColorTargetViewCreateInfo colorViewInfo         = { };
-        colorViewInfo.swizzledFormat                    = viewFormat;
-        colorViewInfo.imageInfo.pImage                  = &dstImage;
-        colorViewInfo.imageInfo.arraySize               = (is3dImage ? 1 : clearRange.numSlices);
-        colorViewInfo.imageInfo.baseSubRes.plane        = subresId.plane;
-        colorViewInfo.imageInfo.baseSubRes.arraySlice   = subresId.arraySlice;
-        colorViewInfo.flags.bypassMall = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
-                                                        RpmViewsBypassMallOnCbDbWrite);
+        ColorTargetViewCreateInfo colorViewInfo       = { };
+        colorViewInfo.swizzledFormat                  = viewFormat;
+        colorViewInfo.imageInfo.pImage                = &dstImage;
+        colorViewInfo.imageInfo.arraySize             = (is3dImage ? 1 : clearRange.numSlices);
+        colorViewInfo.imageInfo.baseSubRes.plane      = subresId.plane;
+        colorViewInfo.imageInfo.baseSubRes.arraySlice = subresId.arraySlice;
+        colorViewInfo.flags.imageVaLocked             = 1;
+        colorViewInfo.flags.bypassMall                = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
+                                                                       RpmViewsBypassMallOnCbDbWrite);
 
         BindTargetParams bindTargetsInfo = { };
         bindTargetsInfo.colorTargets[0].imageLayout      = dstImageLayout;
@@ -2886,7 +3017,7 @@ void RsrcProcMgr::SlowClearGraphics(
         }
 
         // Restore original command buffer state.
-        pCmdBuffer->CmdRestoreGraphicsState();
+        pCmdBuffer->CmdRestoreGraphicsStateInternal(trackBltActiveFlags);
     }
 }
 
@@ -3228,14 +3359,16 @@ void RsrcProcMgr::ResolveImageFixedFunc(
     ColorTargetViewCreateInfo srcColorViewInfo = { };
     srcColorViewInfo.imageInfo.pImage    = &srcImage;
     srcColorViewInfo.imageInfo.arraySize = 1;
-    srcColorViewInfo.flags.bypassMall = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
-                                                       RpmViewsBypassMallOnCbDbWrite);
+    srcColorViewInfo.flags.imageVaLocked = 1;
+    srcColorViewInfo.flags.bypassMall    = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
+                                                          RpmViewsBypassMallOnCbDbWrite);
 
     ColorTargetViewCreateInfo dstColorViewInfo = { };
     dstColorViewInfo.imageInfo.pImage    = &dstImage;
     dstColorViewInfo.imageInfo.arraySize = 1;
-    dstColorViewInfo.flags.bypassMall = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
-                                                       RpmViewsBypassMallOnCbDbWrite);
+    dstColorViewInfo.flags.imageVaLocked = 1;
+    dstColorViewInfo.flags.bypassMall    = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
+                                                          RpmViewsBypassMallOnCbDbWrite);
 
     BindTargetParams bindTargetsInfo = {};
     bindTargetsInfo.colorTargetCount                    = 2;
@@ -3378,7 +3511,7 @@ void RsrcProcMgr::ResolveImageFixedFunc(
     } // End for each region.
 
     // Restore original command buffer state.
-    pCmdBuffer->CmdRestoreGraphicsState();
+    pCmdBuffer->CmdRestoreGraphicsStateInternal();
 }
 
 // =====================================================================================================================
@@ -3437,9 +3570,11 @@ void RsrcProcMgr::ResolveImageDepthStencilGraphics(
 
     const DepthStencilViewInternalCreateInfo noDepthViewInfoInternal = { };
     DepthStencilViewCreateInfo               depthViewInfo           = { };
-    depthViewInfo.pImage           = &dstImage;
-    depthViewInfo.arraySize        = 1;
-    depthViewInfo.flags.bypassMall = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall, RpmViewsBypassMallOnCbDbWrite);
+    depthViewInfo.pImage              = &dstImage;
+    depthViewInfo.arraySize           = 1;
+    depthViewInfo.flags.imageVaLocked = 1;
+    depthViewInfo.flags.bypassMall    = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
+                                                       RpmViewsBypassMallOnCbDbWrite);
 
     // Save current command buffer state and bind graphics state which is common for all regions.
     pCmdBuffer->CmdSaveGraphicsState();
@@ -3604,7 +3739,7 @@ void RsrcProcMgr::ResolveImageDepthStencilGraphics(
     } // End for each region.
 
     // Restore original command buffer state.
-    pCmdBuffer->CmdRestoreGraphicsState();
+    pCmdBuffer->CmdRestoreGraphicsStateInternal();
 
     FixupLateExpandShaderResolveSrc(pCmdBuffer,
                                     srcImage,
@@ -3658,14 +3793,16 @@ void RsrcProcMgr::ResolveImageDepthStencilCopy(
     srcDepthViewInfo.arraySize             = 1;
     srcDepthViewInfo.flags.readOnlyDepth   = 1;
     srcDepthViewInfo.flags.readOnlyStencil = 1;
-    srcDepthViewInfo.flags.bypassMall = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
-                                                       RpmViewsBypassMallOnCbDbWrite);
+    srcDepthViewInfo.flags.imageVaLocked   = 1;
+    srcDepthViewInfo.flags.bypassMall      = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
+                                                            RpmViewsBypassMallOnCbDbWrite);
 
     ColorTargetViewCreateInfo dstColorViewInfo = {};
     dstColorViewInfo.imageInfo.pImage    = &dstImage;
     dstColorViewInfo.imageInfo.arraySize = 1;
-    dstColorViewInfo.flags.bypassMall = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
-                                                       RpmViewsBypassMallOnCbDbWrite);
+    dstColorViewInfo.flags.imageVaLocked = 1;
+    dstColorViewInfo.flags.bypassMall    = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
+                                                          RpmViewsBypassMallOnCbDbWrite);
 
     BindTargetParams bindTargetsInfo = {};
     bindTargetsInfo.colorTargetCount = 1;
@@ -3821,7 +3958,7 @@ void RsrcProcMgr::ResolveImageDepthStencilCopy(
     } // End for each region.
 
       // Restore original command buffer state.
-    pCmdBuffer->CmdRestoreGraphicsState();
+    pCmdBuffer->CmdRestoreGraphicsStateInternal();
 }
 
 // =====================================================================================================================
@@ -3876,11 +4013,13 @@ void RsrcProcMgr::GenericColorBlit(
     colorViewInfoInternal.flags.fmaskDecompress = (pipeline == RpmGfxPipeline::FmaskDecompress);
 
     ColorTargetViewCreateInfo colorViewInfo = { };
-    colorViewInfo.swizzledFormat      = imageCreateInfo.swizzledFormat;
-    colorViewInfo.imageInfo.pImage    = &dstImage;
-    colorViewInfo.imageInfo.arraySize = 1;
+    colorViewInfo.swizzledFormat             = imageCreateInfo.swizzledFormat;
+    colorViewInfo.imageInfo.pImage           = &dstImage;
+    colorViewInfo.imageInfo.arraySize        = 1;
     colorViewInfo.imageInfo.baseSubRes.plane = range.startSubres.plane;
-    colorViewInfo.flags.bypassMall = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall, RpmViewsBypassMallOnCbDbWrite);
+    colorViewInfo.flags.imageVaLocked        = 1;
+    colorViewInfo.flags.bypassMall           = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
+                                                              RpmViewsBypassMallOnCbDbWrite);
 
     if (is3dImage)
     {
@@ -4037,7 +4176,7 @@ void RsrcProcMgr::GenericColorBlit(
     }
 
     // Restore original command buffer state.
-    pCmdBuffer->CmdRestoreGraphicsState();
+    pCmdBuffer->CmdRestoreGraphicsStateInternal();
 }
 
 // =====================================================================================================================
@@ -4081,9 +4220,11 @@ bool RsrcProcMgr::ExpandDepthStencil(
     depthViewInfoInternal.flags.isExpand = 1;
 
     DepthStencilViewCreateInfo depthViewInfo = { };
-    depthViewInfo.pImage           = &image;
-    depthViewInfo.arraySize        = 1;
-    depthViewInfo.flags.bypassMall = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall, RpmViewsBypassMallOnCbDbWrite);
+    depthViewInfo.pImage              = &image;
+    depthViewInfo.arraySize           = 1;
+    depthViewInfo.flags.imageVaLocked = 1;
+    depthViewInfo.flags.bypassMall    = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
+                                                       RpmViewsBypassMallOnCbDbWrite);
 
     if (image.IsDepthPlane(range.startSubres.plane))
     {
@@ -4183,7 +4324,7 @@ bool RsrcProcMgr::ExpandDepthStencil(
     }
 
     // Restore command buffer state.
-    pCmdBuffer->CmdRestoreGraphicsState();
+    pCmdBuffer->CmdRestoreGraphicsStateInternal();
 
     // Compute path was not used
     return false;
@@ -4231,10 +4372,12 @@ void RsrcProcMgr::ResummarizeDepthStencil(
     const DepthStencilViewInternalCreateInfo depthViewInfoInternal = { };
 
     DepthStencilViewCreateInfo depthViewInfo = { };
-    depthViewInfo.pImage    = &image;
-    depthViewInfo.arraySize = 1;
+    depthViewInfo.pImage               = &image;
+    depthViewInfo.arraySize            = 1;
     depthViewInfo.flags.resummarizeHiZ = 1;
-    depthViewInfo.flags.bypassMall = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall, RpmViewsBypassMallOnCbDbWrite);
+    depthViewInfo.flags.imageVaLocked  = 1;
+    depthViewInfo.flags.bypassMall     = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
+                                                        RpmViewsBypassMallOnCbDbWrite);
 
     if (image.IsDepthPlane(range.startSubres.plane))
     {
@@ -4332,7 +4475,7 @@ void RsrcProcMgr::ResummarizeDepthStencil(
     }
 
     // Restore command buffer state.
-    pCmdBuffer->CmdRestoreGraphicsState();
+    pCmdBuffer->CmdRestoreGraphicsStateInternal();
 }
 
 // =====================================================================================================================

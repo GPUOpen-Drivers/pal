@@ -647,7 +647,13 @@ void PipelineChunkVsPs::Clone(
     m_regs.dynamic.spiShaderPgmRsrc4Ps = chunkPs.m_regs.dynamic.spiShaderPgmRsrc4Ps;
 
     m_paScAaConfig = chunkPs.m_paScAaConfig;
+
+    // ColorExport registers
+    // Need to override ALPHA_TO_MASK_DISABLE with respect to the color export library
+    m_regs.context.dbShaderControl.bits.ALPHA_TO_MASK_DISABLE &=
+        chunkExp.m_regs.context.dbShaderControl.bits.ALPHA_TO_MASK_DISABLE;
     m_colorExportAddr = chunkExp.m_colorExportAddr;
+
     if (chunkPs.m_hasSemanticInfo && chunkVs.m_hasSemanticInfo)
     {
         constexpr uint32 DefaultValOffset = (1 << 5);

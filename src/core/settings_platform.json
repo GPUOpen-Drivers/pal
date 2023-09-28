@@ -1094,16 +1094,13 @@
       "VariableName": "gpuProfilerSqttConfig",
       "Structure": [
         {
-          "Name": "TokenMask",
-          "Flags": {
-            "IsHex": true
-          },
+          "Name": "SupressInstructionTokens",
           "Defaults": {
-            "Default": 65535
+            "Default": false
           },
-          "Type": "uint32",
-          "VariableName": "tokenMask",
-          "Description": "Mask indicating which SQTT tokens should be included in the trace.  Value will be written to TOKEN_MASK field in hardware.  For reference, based on GFX8 SQTT user guide: 0x0001: TIME (TT2.0 only), MISC (TT2.1+) 0x0002: TIMESTAMP 0x0004: REG 0x0008: WAVE_START 0x0010: WAVE_PS_ALLOC (TT2.0 only) / WAVE_ALLOC (TT2.1+) 0x0020: WAVE_VS_ALLOC (TT2.0 only) / REG_CSPRIV (TT2.1+) 0x0040: WAVE_END 0x0080: EVENT 0x0100: EVENT_CS 0x0200: EVENT_GFX1 0x0400: INST 0x0800: INST_PC 0x1000: INST_USERDATA 0x2000: ISSUE 0x4000: PERF 0x8000: MISC (TT2.0 only), REG_CS(TT2.1+)"
+          "Type": "bool",
+          "VariableName": "supressInstructionTokens",
+          "Description": "Skip to dump instruction tokens if true. Otherwise, all token types will be dumped."
         },
         {
           "Name": "SEMask",
@@ -1389,6 +1386,15 @@
           "Type": "enum",
           "VariableName": "stallBehavior",
           "Description": "Behavior to take when trace buffer is full."
+        },
+        {
+          "Name": "AllowIssueMarkerEvent",
+          "Defaults": {
+            "Default": true
+          },
+          "Type": "bool",
+          "VariableName": "allowIssueMarkerEvent",
+          "Description": "Determine if issuing marker event is allowed when SQTT is enabled."
         }
       ],
       "Description": "Configuration options for capturing a SQ Thread Trace through the PAL GPU Profiler layer."

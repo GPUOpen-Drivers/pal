@@ -269,6 +269,12 @@ void UniversalCmdBuffer::ResetState()
     }
 
     m_graphicsState.clipRectsState.clipRule = DefaultClipRectsRule;
+
+    // No guard band by default
+    m_graphicsState.viewportState.horzClipRatio    = 1.0f;
+    m_graphicsState.viewportState.horzDiscardRatio = 1.0f;
+    m_graphicsState.viewportState.vertClipRatio    = 1.0f;
+    m_graphicsState.viewportState.vertDiscardRatio = 1.0f;
 }
 
 // =====================================================================================================================
@@ -578,8 +584,8 @@ void UniversalCmdBuffer::EndCmdBufferDump(
 }
 
 // =====================================================================================================================
-// Copies the currently bound state to m_graphicsRestoreState. This cannot be called again until CmdRestoreGraphicsState
-// is called.
+// Copies the currently bound state to m_graphicsRestoreState. This cannot be called again until
+// CmdRestoreGraphicsStateInternal is called.
 void UniversalCmdBuffer::CmdSaveGraphicsState()
 {
     GfxCmdBuffer::CmdSaveGraphicsState();
@@ -597,7 +603,8 @@ void UniversalCmdBuffer::CmdSaveGraphicsState()
 
 // =====================================================================================================================
 // Restores the last saved to m_graphicsRestoreState, rebinding all objects as necessary.
-void UniversalCmdBuffer::CmdRestoreGraphicsState()
+void UniversalCmdBuffer::CmdRestoreGraphicsStateInternal(
+    bool trackBltActiveFlags)
 {
     // Note:  Vulkan does allow blits in nested command buffers, but they do not support inheriting user-data values
     // from the caller.  Therefore, simply "setting" the restored-state's user-data is sufficient, just like it is
@@ -606,7 +613,7 @@ void UniversalCmdBuffer::CmdRestoreGraphicsState()
 
     SetGraphicsState(m_graphicsRestoreState);
 
-    GfxCmdBuffer::CmdRestoreGraphicsState();
+    GfxCmdBuffer::CmdRestoreGraphicsStateInternal(trackBltActiveFlags);
 
     // Reactivate all queries that we stopped in CmdSaveGraphicsState.
     if (m_buildFlags.disableQueryInternalOps)
@@ -614,14 +621,21 @@ void UniversalCmdBuffer::CmdRestoreGraphicsState()
         ReactivateQueries();
     }
 
-    // All RMP GFX Blts should push/pop command buffer's graphics state,
-    // so this is a safe opportunity to mark that a GFX Blt is active
-    SetGfxBltState(true);
-    SetGfxBltWriteCacheState(true);
+    // No need track blt active flags (expect trackBltActiveFlags == false) for below cases:
+    //  1. CmdRestoreGraphicsState() call from PAL clients.
+    //  2. CmdRestoreGraphicsState() call from CmdClearBound*Targets().
+    //  3. CmdRestoreGraphicsState() call from auto sync clear case.
+    if (trackBltActiveFlags)
+    {
+        // All RMP GFX Blts should push/pop command buffer's graphics state,
+        // so this is a safe opportunity to mark that a GFX Blt is active
+        SetGfxBltState(true);
+        SetGfxBltWriteCacheState(true);
 
-    UpdateGfxBltExecEopFence();
-    // Set a impossible waited fence until IssueReleaseSync assigns a meaningful value when sync RB cache.
-    UpdateGfxBltWbEopFence(UINT32_MAX);
+        UpdateGfxBltExecEopFence();
+        // Set a impossible waited fence until IssueReleaseSync assigns a meaningful value when sync RB cache.
+        UpdateGfxBltWbEopFence(UINT32_MAX);
+    }
 }
 
 // =====================================================================================================================
@@ -764,8 +778,12 @@ void UniversalCmdBuffer::SetGraphicsState(
     const auto& restoreViewports = newGraphicsState.viewportState;
     const auto& currentViewports = m_graphicsState.viewportState;
 
-    if ((restoreViewports.count != currentViewports.count) ||
-        (restoreViewports.depthRange != currentViewports.depthRange) ||
+    if ((restoreViewports.count            != currentViewports.count)            ||
+        (restoreViewports.depthRange       != currentViewports.depthRange)       ||
+        (restoreViewports.horzDiscardRatio != currentViewports.horzDiscardRatio) ||
+        (restoreViewports.vertDiscardRatio != currentViewports.vertDiscardRatio) ||
+        (restoreViewports.horzClipRatio    != currentViewports.horzClipRatio)    ||
+        (restoreViewports.vertClipRatio    != currentViewports.vertClipRatio)    ||
         (memcmp(&restoreViewports.viewports[0],
                 &currentViewports.viewports[0],
                 restoreViewports.count * sizeof(restoreViewports.viewports[0])) != 0))
@@ -976,6 +994,7 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
     // It is possible that nested command buffer execute operation which affect the data in the primary buffer
     m_pm4CmdBufState.flags.gfxBltActive              = cmdBuffer.m_pm4CmdBufState.flags.gfxBltActive;
     m_pm4CmdBufState.flags.csBltActive               = cmdBuffer.m_pm4CmdBufState.flags.csBltActive;
+    m_pm4CmdBufState.flags.cpBltActive               = cmdBuffer.m_pm4CmdBufState.flags.cpBltActive;
     m_pm4CmdBufState.flags.gfxWriteCachesDirty       = cmdBuffer.m_pm4CmdBufState.flags.gfxWriteCachesDirty;
     m_pm4CmdBufState.flags.csWriteCachesDirty        = cmdBuffer.m_pm4CmdBufState.flags.csWriteCachesDirty;
     m_pm4CmdBufState.flags.cpWriteCachesDirty        = cmdBuffer.m_pm4CmdBufState.flags.cpWriteCachesDirty;

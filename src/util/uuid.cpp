@@ -225,17 +225,20 @@ inline Uuid ConstructUuid1FromParts(
     Timestamp   timestamp,
     uint32_t    sequenceId)
 {
-    Uuid value = {};
+    const Uuid value
+    {
+        .data
+        {
+            // Ensure network byte order
+            .timeLow = HostToBigEndian32(timestamp & 0xFFFFFFFF),
+            .timeMid = HostToBigEndian16((timestamp >> 32) & 0xFFFF),
+            .timeHighAndVersion = HostToBigEndian16((timestamp >> 48) & 0xFFFF),
+            .variantAndSequence = HostToBigEndian16(sequenceId & 0xFFFF),
 
-    // Copy the node id over
-    value.data.node = node;
-
-    // Ensure network byte order
-    value.data.timeLow = HostToBigEndian32(timestamp & 0xFFFFFFFF);
-    value.data.timeMid = HostToBigEndian16((timestamp >> 32) & 0xFFFF);
-    value.data.timeHighAndVersion = HostToBigEndian16((timestamp >> 48) & 0xFFFF);
-    value.data.variantAndSequence = HostToBigEndian16(sequenceId & 0xFFFF);
-
+            // Copy the node id over
+            .node = node,
+        }
+    };
     return ForceVersionAndVariant(Version::Version1, Variant::Rfc4122, value);
 }
 } // namespace
@@ -332,10 +335,7 @@ Uuid Uuid4()
     static ::std::mt19937_64 generator(Os::GetSequenceStart());
     MutexAuto guard(&mutex);
 
-    Uuid uuid = {};
-
-    uuid.raw64[0] = generator();
-    uuid.raw64[1] = generator();
+    Uuid uuid { .raw64 = { generator(), generator() } };
 
     // ensure we don't have our local node id by accident
     if (uuid.data.node == GetLocalNode())

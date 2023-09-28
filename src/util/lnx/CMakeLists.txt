@@ -26,12 +26,12 @@
 # Determines and link the thread library of the system.
 # https://cmake.org/cmake/help/latest/module/FindThreads.html
 find_package(Threads REQUIRED)
-target_link_libraries(pal PRIVATE Threads::Threads)
+target_link_libraries(palUtil PRIVATE Threads::Threads)
 
 # Name of library containing dlopen and dlclose.
-target_link_libraries(pal PRIVATE ${CMAKE_DL_LIBS})
+target_link_libraries(palUtil PRIVATE ${CMAKE_DL_LIBS})
 
-target_sources(pal PRIVATE
+target_sources(palUtil PRIVATE
     CMakeLists.txt
     lnxArchiveFile.cpp
     lnxArchiveFile.h

@@ -550,12 +550,10 @@ Result CmdAllocator::Trim(
         if (allocTypeMask & (1 << type))
         {
             CmdAllocInfo* const pAllocInfo = &m_gpuAllocInfo[type];
-            const uint32 threshold = Max(dynamicThreshold, pAllocInfo->allocFreeThreshold);
 
-            // Avoid trim overhead when there are not enough free chunks
-            if (pAllocInfo->freeList.NumElements() > threshold * pAllocInfo->allocCreateInfo.numChunks)
+            if (pAllocInfo->freeList.NumElements() > dynamicThreshold * pAllocInfo->allocCreateInfo.numChunks)
             {
-                result = TrimMemory(pAllocInfo, threshold);
+                result = TrimMemory(pAllocInfo, dynamicThreshold);
 
                 if (result != Result::Success)
                 {
@@ -604,16 +602,23 @@ Result CmdAllocator::TrimMemory(
     {
         for (auto iter = pAllocInfo->freeList.Begin(); iter.IsValid(); iter.Next())
         {
-            CmdStreamAllocation*const pAlloc     = iter.Get()->Allocation();
-            bool                      existed    = false;
-            uint32*                   pFreeCount = nullptr;
+            CmdStreamChunk*const pChunk     = iter.Get();
+            bool                 existed    = false;
+            uint32*              pFreeCount = nullptr;
 
-            result = allocMap.FindAllocate(pAlloc, &existed, &pFreeCount);
+            result = allocMap.FindAllocate(pChunk->Allocation(), &existed, &pFreeCount);
 
             if (result != Result::Success)
             {
                 break;
             }
+
+            // Chunks on the free list must already be idle by definition.
+            PAL_ASSERT(pChunk->IsIdleOnGpu());
+
+            // Promote all free chunks to free root chunks so that we don't orphan child chunks if we happen to delete
+            // the allocations that contain their original root chunks.
+            pChunk->UpdateRootInfo(pChunk);
 
             const uint32 newCount = existed ? (*pFreeCount + 1) : 1;
 

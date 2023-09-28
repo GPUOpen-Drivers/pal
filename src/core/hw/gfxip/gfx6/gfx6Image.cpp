@@ -450,7 +450,8 @@ Result Image::Finalize(
                     for (uint32 idx = 0; idx < m_pImageInfo->numSubresources; ++idx)
                     {
                         pSubResInfoList[idx].clearMethod                   =
-                            pGfxDevice->GetDefaultSlowClearMethod(pSubResInfoList[idx].format);
+                            pGfxDevice->GetDefaultSlowClearMethod(Parent()->GetImageCreateInfo(),
+                                                                  pSubResInfoList[idx].format);
                         pSubResInfoList[idx].flags.supportMetaDataTexFetch = 0;
                     }
 
@@ -3225,7 +3226,7 @@ void Image::InitMetadataFill(
 
     if ((pCmdBuffer->GetEngineType() != EngineTypeDma) && hasMetadata)
     {
-        pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+        pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
     }
 }
 

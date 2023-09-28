@@ -680,6 +680,7 @@ void GfxCmdBuffer::CmdFillMemory(
 {
     m_device.RsrcProcMgr().CmdFillMemory(this,
                                          (IsComputeStateSaved() == false),
+                                         true,
                                          static_cast<const GpuMemory&>(dstGpuMemory),
                                          dstOffset,
                                          fillSize,
@@ -935,7 +936,7 @@ void GfxCmdBuffer::CmdResolvePrtPlusImage(
 }
 
 // =====================================================================================================================
-// This cannot be called again until CmdRestoreGraphicsState is called.
+// This cannot be called again until CmdRestoreGraphicsStateInternal is called.
 void GfxCmdBuffer::CmdSaveGraphicsState()
 {
     PAL_ASSERT(m_gfxCmdBufStateFlags.isGfxStatePushed == 0);
@@ -949,7 +950,8 @@ void GfxCmdBuffer::CmdSaveGraphicsState()
 }
 
 // =====================================================================================================================
-void GfxCmdBuffer::CmdRestoreGraphicsState()
+void GfxCmdBuffer::CmdRestoreGraphicsStateInternal(
+    bool trackBltActiveFlags)
 {
     PAL_ASSERT(m_gfxCmdBufStateFlags.isGfxStatePushed != 0);
     m_gfxCmdBufStateFlags.isGfxStatePushed = 0;
@@ -962,7 +964,7 @@ void GfxCmdBuffer::CmdRestoreGraphicsState()
 }
 
 // =====================================================================================================================
-// This cannot be called again until CmdRestoreComputeState is called.
+// This cannot be called again until CmdRestoreComputeStateInternal is called.
 void GfxCmdBuffer::CmdSaveComputeState(
     uint32 stateFlags)
 {
@@ -977,8 +979,9 @@ void GfxCmdBuffer::CmdSaveComputeState(
 }
 
 // =====================================================================================================================
-void GfxCmdBuffer::CmdRestoreComputeState(
-    uint32 stateFlags)
+void GfxCmdBuffer::CmdRestoreComputeStateInternal(
+    uint32 stateFlags,
+    bool   trackBltActiveFlags)
 {
     PAL_ASSERT(TestAllFlagsSet(m_computeStateFlags, stateFlags));
     m_computeStateFlags = 0;

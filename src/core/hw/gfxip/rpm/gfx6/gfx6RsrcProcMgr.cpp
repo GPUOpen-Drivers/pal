@@ -868,7 +868,7 @@ void RsrcProcMgr::CmdResolveQueryComputeShader(
     pCmdBuffer->CmdDispatch({threadGroups, 1, 1});
 
     // Restore the command buffer's state.
-    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+    pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
 }
 
 // =====================================================================================================================
@@ -987,7 +987,7 @@ bool RsrcProcMgr::ExpandDepthStencil(
         pComputeCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuffer->TimestampGpuVirtAddr(), pComputeCmdSpace);
         pComputeCmdStream->CommitCommands(pComputeCmdSpace);
 
-        pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+        pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
 
         usedCompute = true;
     }
@@ -1019,7 +1019,8 @@ void RsrcProcMgr::HwlFastColorClear(
     const GfxImage&       dstImage,
     const uint32*         pConvertedColor,
     const SwizzledFormat& clearFormat,
-    const SubresRange&    clearRange
+    const SubresRange&    clearRange,
+    bool                  trackBltActiveFlags
     ) const
 {
     PAL_ASSERT(clearRange.numPlanes == 1);
@@ -1040,7 +1041,7 @@ void RsrcProcMgr::HwlFastColorClear(
     if (gfx6Image.HasCmaskData())
     {
         // Clear the Image's CMask sub-allocation(s) to indicate the fast-cleared state.
-        ClearCmask(pCmdBuffer, gfx6Image, clearRange, Gfx6Cmask::GetFastClearCode(gfx6Image));
+        ClearCmask(pCmdBuffer, gfx6Image, clearRange, Gfx6Cmask::GetFastClearCode(gfx6Image), trackBltActiveFlags);
     }
 
     if (gfx6Image.HasDccData())
@@ -1060,11 +1061,12 @@ void RsrcProcMgr::HwlFastColorClear(
             pStream->CommitCommands(pCmdSpace);
         }
 
-        ClearDcc(pCmdBuffer, pStream, gfx6Image, clearRange, fastClearCode, DccClearPurpose::FastClear);
+        ClearDcc(pCmdBuffer, pStream, gfx6Image, clearRange, fastClearCode,
+                 DccClearPurpose::FastClear, trackBltActiveFlags);
     }
 
     // Restore the command buffer's state.
-    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+    pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData, trackBltActiveFlags);
 
     const SwizzledFormat planeFormat = clearFormat.format == ChNumFormat::Undefined ?
                                        dstImage.Parent()->SubresourceInfo(clearRange.startSubres)->format :
@@ -1146,7 +1148,8 @@ void RsrcProcMgr::HwlFixupCopyDstImageMetaData(
             range.numSlices              = clearRegion.numSlices;
 
             // Since color data is no longer dcc compressed set Dcc to fully uncompressed.
-            ClearDcc(pCmdBuffer, pStream, gfx6DstImage, range, Gfx6Dcc::DecompressedValue, DccClearPurpose::FastClear);
+            ClearDcc(pCmdBuffer, pStream, gfx6DstImage, range,
+                     Gfx6Dcc::DecompressedValue, DccClearPurpose::FastClear, true);
         }
     }
 
@@ -1167,7 +1170,7 @@ void RsrcProcMgr::HwlFixupCopyDstImageMetaData(
             range.numSlices              = clearRegion.numSlices;
 
             // Since color data is no longer compressed set Cmask and Fmask to fully uncompressed.
-            ClearCmask(pCmdBuffer, gfx6DstImage, range, Gfx6Cmask::GetInitialValue(gfx6DstImage));
+            ClearCmask(pCmdBuffer, gfx6DstImage, range, Gfx6Cmask::GetInitialValue(gfx6DstImage), true);
             ClearFmask(pCmdBuffer, gfx6DstImage, range, Gfx6Fmask::GetPackedExpandedValue(gfx6DstImage));
         }
     }
@@ -1440,7 +1443,7 @@ void RsrcProcMgr::HwlHtileCopyAndFixUp(
         } // End of for
 
         // Restore the command buffer's state.
-        pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+        pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
     }
 }
 
@@ -1565,14 +1568,14 @@ void RsrcProcMgr::HwlDepthStencilClear(
     uint32             rangeCount,
     const SubresRange* pRanges,
     bool               fastClear,
-    bool               needComputeSync,
+    bool               clearAutoSync,
     uint32             boxCnt,
     const Box*         pBox
     ) const
 {
     const Image& gfx6Image = static_cast<const Image&>(dstImage);
 
-    bool needPreComputeSync  = needComputeSync;
+    bool needPreComputeSync  = clearAutoSync;
     bool needPostComputeSync = false;
 
     if (gfx6Image.Parent()->IsDepthStencilTarget() &&
@@ -1738,6 +1741,7 @@ void RsrcProcMgr::HwlDepthStencilClear(
                                                   fastClear,
                                                   depthLayout,
                                                   stencilLayout,
+                                                  (needPreComputeSync == false),
                                                   boxCnt,
                                                   pBox);
                         clearedViaGfx = true;
@@ -1755,7 +1759,8 @@ void RsrcProcMgr::HwlDepthStencilClear(
                             needPostComputeSync = true;
                         }
 
-                        FastDepthStencilClearCompute(pCmdBuffer, gfx6Image, pRanges[idx], depth, stencil, clearFlags);
+                        FastDepthStencilClearCompute(pCmdBuffer, gfx6Image, pRanges[idx], depth, stencil,
+                                                     clearFlags, (needPreComputeSync == false));
                     }
 
                     isRangeProcessed[idx] = true;
@@ -1858,6 +1863,7 @@ void RsrcProcMgr::HwlDepthStencilClear(
                              &clearColor,
                              format,
                              pRanges[idx],
+                             (needPreComputeSync == false),
                              boxCnt,
                              pBox);
 
@@ -2164,7 +2170,7 @@ void RsrcProcMgr::HwlResummarizeHtileCompute(
     }
 
     // Restore the command buffer's state.
-    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+    pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
 }
 
 // =====================================================================================================================
@@ -2175,7 +2181,8 @@ void RsrcProcMgr::FastDepthStencilClearCompute(
     const SubresRange& range,
     float              depth,
     uint8              stencil,
-    uint32             clearMask
+    uint32             clearMask,
+    bool               trackBltActiveFlags
     ) const
 {
     const auto& createInfo = dstImage.Parent()->GetImageCreateInfo();
@@ -2404,7 +2411,7 @@ void RsrcProcMgr::FastDepthStencilClearCompute(
     }
 
     // Restore the command buffer's state.
-    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+    pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData, trackBltActiveFlags);
 
     // Note: When performing a stencil-only or depth-only clear on an Image which has both planes, we have a
     // potential problem because the two separate planes may utilize the same HTile memory. Single-plane clears
@@ -2457,6 +2464,7 @@ void RsrcProcMgr::DepthStencilClearGraphics(
     bool               fastClear,
     ImageLayout        depthLayout,
     ImageLayout        stencilLayout,
+    bool               trackBltActiveFlags,
     uint32             boxCnt,
     const Box*         pBox
     ) const
@@ -2536,8 +2544,9 @@ void RsrcProcMgr::DepthStencilClearGraphics(
     depthViewInfoInternal.stencilClearValue = stencil;
 
     DepthStencilViewCreateInfo depthViewInfo = { };
-    depthViewInfo.pImage    = dstImage.Parent();
-    depthViewInfo.arraySize = 1;
+    depthViewInfo.pImage              = dstImage.Parent();
+    depthViewInfo.arraySize           = 1;
+    depthViewInfo.flags.imageVaLocked = 1;
 
     // Depth-stencil targets must be used on the universal engine.
     PAL_ASSERT((clearDepth   == false) || TestAnyFlagSet(depthLayout.engines,   LayoutUniversalEngine));
@@ -2677,7 +2686,7 @@ void RsrcProcMgr::DepthStencilClearGraphics(
     } // End for each mip.
 
     // Restore original command buffer state and destroy the depth/stencil state.
-    pCmdBuffer->CmdRestoreGraphicsState();
+    pCmdBuffer->CmdRestoreGraphicsStateInternal(trackBltActiveFlags);
 }
 
 // =====================================================================================================================
@@ -2739,7 +2748,7 @@ void RsrcProcMgr::InitMaskRam(
         // down this path at least have CMask data.
         if (dstImage.HasCmaskData())
         {
-            ClearCmask(pCmdBuffer, dstImage, range, Gfx6Cmask::GetInitialValue(dstImage));
+            ClearCmask(pCmdBuffer, dstImage, range, Gfx6Cmask::GetInitialValue(dstImage), true);
         }
 
         if (dstImage.HasFmaskData())
@@ -2751,7 +2760,7 @@ void RsrcProcMgr::InitMaskRam(
         {
             const uint8 initialValue =
                 dstImage.GetDcc(range.startSubres)->GetInitialValue(dstImage, range.startSubres, layout);
-            ClearDcc(pCmdBuffer, pCmdStream, dstImage, range, initialValue, DccClearPurpose::Init);
+            ClearDcc(pCmdBuffer, pCmdStream, dstImage, range, initialValue, DccClearPurpose::Init, true);
         }
     }
 
@@ -2802,7 +2811,7 @@ void RsrcProcMgr::InitMaskRam(
     }
 
     // Restore the command buffer's state.
-    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+    pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
 
     // After initializing Mask RAM, we need a CS_PARTIAL_FLUSH and a texture cache flush to guarantee the initialization
     // blt has finished, even if other Blts caused these operations to occur before any Blts were performed.
@@ -2818,7 +2827,8 @@ void RsrcProcMgr::ClearCmask(
     GfxCmdBuffer*      pCmdBuffer,
     const Image&       dstImage,
     const SubresRange& clearRange,
-    uint32             clearValue
+    uint32             clearValue,
+    bool               trackBltActiveFlags
     ) const
 {
     PAL_ASSERT(clearRange.numPlanes == 1);
@@ -2844,7 +2854,7 @@ void RsrcProcMgr::ClearCmask(
         gpusize    fillSize    = 0;
         dstImage.GetCmaskBufferInfo(mip, baseSlice, numSlices, &pGpuMemory, &dstOffset, &fillSize);
 
-        CmdFillMemory(pCmdBuffer, false, *pGpuMemory, dstOffset, fillSize, clearValue);
+        CmdFillMemory(pCmdBuffer, false, true, *pGpuMemory, dstOffset, fillSize, clearValue);
     }
 }
 
@@ -2873,7 +2883,7 @@ void RsrcProcMgr::ClearFmask(
                                 &dstOffset,
                                 &fillSize);
 
-    CmdFillMemory(pCmdBuffer, false, *pGpuMemory, dstOffset, fillSize, clearValue);
+    CmdFillMemory(pCmdBuffer, false, true, *pGpuMemory, dstOffset, fillSize, clearValue);
 }
 
 // =====================================================================================================================
@@ -2885,7 +2895,8 @@ void RsrcProcMgr::ClearDcc(
     const Image&       dstImage,
     const SubresRange& clearRange,
     uint8              clearValue,
-    DccClearPurpose    clearPurpose
+    DccClearPurpose    clearPurpose,
+    bool               trackBltActiveFlags
     ) const
 {
     PAL_ASSERT(clearRange.numPlanes == 1);
@@ -2918,6 +2929,7 @@ void RsrcProcMgr::ClearDcc(
             {
                 CmdFillMemory(pCmdBuffer,
                               false,
+                              trackBltActiveFlags,
                               *pGpuMemory,
                               dstOffset,
                               fillSize,
@@ -2974,7 +2986,7 @@ void RsrcProcMgr::ClearHtile(
                                     &dstOffset,
                                     &fillSize);
 
-        CmdFillMemory(pCmdBuffer, false, *pGpuMemory, dstOffset, fillSize, clearValue);
+        CmdFillMemory(pCmdBuffer, false, false, *pGpuMemory, dstOffset, fillSize, clearValue);
     }
 }
 
@@ -3389,14 +3401,14 @@ void RsrcProcMgr::DccDecompressOnCompute(
     pComputeCmdStream->CommitCommands(pComputeCmdSpace);
 
     // Put DCC memory itself back into a "fully decompressed" state.
-    ClearDcc(pCmdBuffer, pCmdStream, image, range, Gfx6Dcc::DecompressedValue, DccClearPurpose::Init);
+    ClearDcc(pCmdBuffer, pCmdStream, image, range, Gfx6Dcc::DecompressedValue, DccClearPurpose::Init, true);
 
     // And let the DCC fixup finish as well
     pComputeCmdSpace  = pComputeCmdStream->ReserveCommands();
     pComputeCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pPm4CmdBuf->TimestampGpuVirtAddr(), pComputeCmdSpace);
     pComputeCmdStream->CommitCommands(pComputeCmdSpace);
 
-    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+    pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
 }
 
 // =====================================================================================================================
@@ -3504,7 +3516,7 @@ void RsrcProcMgr::FmaskColorExpand(
     {
         pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
         ClearFmask(pCmdBuffer, image, range, Gfx6Fmask::GetPackedExpandedValue(image));
-        pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+        pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
     }
     else
     {
@@ -3605,7 +3617,7 @@ void RsrcProcMgr::FmaskColorExpand(
             pCmdBuffer->CmdDispatch(threadGroups);
         }
 
-        pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+        pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
     }
 }
 

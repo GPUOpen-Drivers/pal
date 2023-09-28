@@ -246,7 +246,7 @@ Result GraphicsPipeline::InitFromLibraries(
         resourceHasher.Update(pPartialPipeline->m_info.resourceMappingHash);
 
         for (uint32 stage = static_cast<uint32>(ShaderType::Task);
-            stage < static_cast<uint32>(ShaderType::Pixel);
+            stage < static_cast<uint32>(ShaderType::Count);
             stage++)
         {
             if (Util::TestAnyFlagSet(apiShaderMask, 1 << stage))

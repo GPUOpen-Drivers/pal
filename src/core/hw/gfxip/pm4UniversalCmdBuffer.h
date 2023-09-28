@@ -239,7 +239,7 @@ public:
     virtual bool IsQueryAllowed(QueryPoolType queryPoolType) const override { return true; }
 
     virtual void CmdSaveGraphicsState() override;
-    virtual void CmdRestoreGraphicsState() override;
+    virtual void CmdRestoreGraphicsStateInternal(bool trackBltActiveFlags = true) override;
 
     // Increments the submit-count of the command stream(s) contained in this command buffer.
     virtual void IncrementSubmitCount() override

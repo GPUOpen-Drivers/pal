@@ -101,8 +101,7 @@ struct CmdAllocatorCreateInfo
                                           ///  Must be greater than zero even if the client doesn't plan on using this
                                           ///  allocation type.
         uint32      allocFreeThreshold;   ///< Minimum count of free allocations that the allocator should keep around
-                                          ///  for fast reuse. It is either used when the autoTrimMemory flag is set
-                                          ///  or the Trim() function is called explicitly.
+                                          ///  for fast reuse. It is used when the autoTrimMemory flag is set.
     } allocInfo[CmdAllocatorTypeCount];   ///< Information for each allocation type.
 };
 
@@ -154,9 +153,8 @@ public:
     /// @param [in] allocTypeMask    Gives control whether trimming will be applied for each CmdAllocType.
     ///                              Use (1 << CmdAllocatorTypeCount) - 1 to apply trimming to all types.
     ///                              When trimming only the embedded date use (1 << EmbeddedDataAlloc).
-    /// @param [in] dynamicThreshold Allows to use a higher trim threshold than given for at the CmdAllocator
-    ///                              initialization. The maximum of this argument and the type specific static
-    ///                              threshold will be used (thus keeping more allocations around).
+    /// @param [in] dynamicThreshold Minimum count of free allocations that the allocator should keep around
+
     virtual Result Trim(uint32 allocTypeMask, uint32 dynamicThreshold) = 0;
 
     /// Query the numbers of allocations and chunks of the given CmdAllocator type.

@@ -44,6 +44,9 @@
 #define FAMILY_NV      0x8F
 #if ADDR_GFX11_BUILD
 #define FAMILY_NV3     0x91
+#if ADDR_PHOENIX_BUILD
+#define FAMILY_PHX     0x94
+#endif
 #endif
 #define FAMILY_RMB     0x92
 #define FAMILY_RPL     0x95
@@ -125,8 +128,16 @@
 #if ADDR_NAVI31_BUILD
 #define AMDGPU_NAVI31_RANGE     0x01, 0x10
 #endif
+#if ADDR_NAVI32_BUILD
+#define AMDGPU_NAVI32_RANGE     0x20, 0xFF
+#endif
 #if ADDR_NAVI33_BUILD
 #define AMDGPU_NAVI33_RANGE     0x10, 0x20
+#endif
+#if ADDR_PHOENIX_BUILD
+#if ADDR_PHOENIX1_BUILD
+#define AMDGPU_PHOENIX1_RANGE      0x01, 0x80
+#endif
 #endif
 #endif
 
@@ -187,8 +198,16 @@
 #if ADDR_NAVI31_BUILD
 #define ASICREV_IS_NAVI31_P(r)         ASICREV_IS(r, NAVI31)
 #endif
+#if ADDR_NAVI32_BUILD
+#define ASICREV_IS_NAVI32_P(r)         ASICREV_IS(r, NAVI32)
+#endif
 #if ADDR_NAVI33_BUILD
 #define ASICREV_IS_NAVI33_P(r)         ASICREV_IS(r, NAVI33)
+#endif
+#if ADDR_PHOENIX_BUILD
+#if ADDR_PHOENIX1_BUILD
+#define ASICREV_IS_PHOENIX(r)          ASICREV_IS(r, PHOENIX)
+#endif
 #endif
 #endif
 

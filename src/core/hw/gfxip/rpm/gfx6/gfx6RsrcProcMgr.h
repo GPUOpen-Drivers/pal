@@ -141,7 +141,8 @@ private:
         const GfxImage&       dstImage,
         const uint32*         pConvertedColor,
         const SwizzledFormat& clearFormat,
-        const SubresRange&    clearRange) const override;
+        const SubresRange&    clearRange,
+        bool                  trackBltActiveFlags) const override;
 
     virtual void HwlFixupCopyDstImageMetaData(
         GfxCmdBuffer*           pCmdBuffer,
@@ -172,7 +173,7 @@ private:
         uint32             rangeCount,
         const SubresRange* pRanges,
         bool               fastClear,
-        bool               needComputeSync,
+        bool               clearAutoSync,
         uint32             boxCnt,
         const Box*         pBox) const override;
 
@@ -219,7 +220,8 @@ private:
         const SubresRange& range,
         float              depth,
         uint8              stencil,
-        uint32             clearMask) const;
+        uint32             clearMask,
+        bool               trackBltActiveFlags) const;
 
     void DepthStencilClearGraphics(
         GfxCmdBuffer*      pCmdBuffer,
@@ -232,6 +234,7 @@ private:
         bool               fastClear,
         ImageLayout        depthLayout,
         ImageLayout        stencilLayout,
+        bool               trackBltActiveFlags,
         uint32             boxCnt,
         const Box*         pBox) const;
 
@@ -239,7 +242,8 @@ private:
         GfxCmdBuffer*      pCmdBuffer,
         const Image&       dstImage,
         const SubresRange& clearRange,
-        uint32             clearValue) const;
+        uint32             clearValue,
+        bool               trackBltActiveFlags) const;
 
     void ClearFmask(
         GfxCmdBuffer*      pCmdBuffer,
@@ -253,7 +257,8 @@ private:
         const Image&       dstImage,
         const SubresRange& clearRange,
         uint8              clearValue,
-        DccClearPurpose    clearPurpose) const;
+        DccClearPurpose    clearPurpose,
+        bool               trackBltActiveFlags) const;
 
     void ClearHtile(
         GfxCmdBuffer*      pCmdBuffer,

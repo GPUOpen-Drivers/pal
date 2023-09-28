@@ -162,6 +162,15 @@ if (PAL_BUILD_GFX9)
           )
 #endif
 
+#if PAL_BUILD_NAVI32
+    pal_bp( PAL_BUILD_NAVI32 ON MODE "AUTHOR_WARNING"
+            ASIC_CONFIG
+                PAL_BUILD_GFX11
+                PAL_BUILD_NAVI3X
+                CHIP_HDR_NAVI32
+          )
+#endif
+
 #if PAL_BUILD_NAVI33
     pal_bp( PAL_BUILD_NAVI33 ON MODE "AUTHOR_WARNING"
             ASIC_CONFIG
@@ -183,3 +192,9 @@ if (PAL_BUILD_GFX9)
 
 endif() # PAL_BUILD_GFX9
 
+#if PAL_BUILD_RDF
+pal_bp(PAL_BUILD_RDF ON)
+#endif
+
+# "This must always be enabled unless the client guarantees they do not use GFX/3D queues"
+pal_bp(PAL_BUILD_RPM_GFX_SHADERS ON)

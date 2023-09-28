@@ -186,6 +186,7 @@ protected:
         const SubresRange& clearRange,
         uint8              clearCode,
         DccClearPurpose    clearPurpose,
+        bool               trackBltActiveFlags,
         const uint32*      pPackedClearColor = nullptr) const;
 
     virtual void ClearDccCompute(
@@ -195,6 +196,7 @@ protected:
         const SubresRange& clearRange,
         uint8              clearCode,
         DccClearPurpose    clearPurpose,
+        bool               trackBltActiveFlags,
         const uint32*      pPackedClearColor = nullptr) const = 0;
 
     virtual void FastDepthStencilClearCompute(
@@ -203,7 +205,8 @@ protected:
         const SubresRange& range,
         uint32             htileValue,
         uint32             clearMask,
-        uint8              stencil) const = 0;
+        uint8              stencil,
+        bool               trackBltActiveFlags) const = 0;
 
     void FastDepthStencilClearComputeCommon(
         GfxCmdBuffer*      pCmdBuffer,
@@ -318,7 +321,8 @@ private:
         const GfxImage&       dstImage,
         const uint32*         pConvertedColor,
         const SwizzledFormat& clearFormat,
-        const SubresRange&    clearRange) const override;
+        const SubresRange&    clearRange,
+        bool                  trackBltActiveFlags) const override;
 
     virtual void HwlDepthStencilClear(
         GfxCmdBuffer*      pCmdBuffer,
@@ -331,7 +335,7 @@ private:
         uint32             rangeCount,
         const SubresRange* pRanges,
         bool               fastClear,
-        bool               needComputeSync,
+        bool               clearAutoSync,
         uint32             boxCnt,
         const Box*         pBox) const override;
 
@@ -359,7 +363,8 @@ private:
         Pal::CmdStream*    pCmdStream,
         const Image&       image,
         const SubresRange& range,
-        const uint8        initValue) const = 0;
+        const uint8        initValue,
+        bool               trackBltActiveFlags) const = 0;
 
     virtual void InitHtile(
         GfxCmdBuffer*      pCmdBuffer,
@@ -396,6 +401,7 @@ private:
         bool               fastClear,
         ImageLayout        depthLayout,
         ImageLayout        stencilLayout,
+        bool               trackBltActiveFlags,
         uint32             boxCnt,
         const Box*         pBox) const;
 
@@ -481,6 +487,7 @@ protected:
         const SubresRange& clearRange,
         uint8              clearCode,
         DccClearPurpose    clearPurpose,
+        bool               trackBltActiveFlags,
         const uint32*      pPackedClearColor = nullptr) const override;
 
     void FastDepthStencilClearCompute(
@@ -489,7 +496,8 @@ protected:
         const SubresRange& range,
         uint32             htileValue,
         uint32             clearMask,
-        uint8              stencil) const override;
+        uint8              stencil,
+        bool               trackBltActiveFlags) const override;
 
     virtual void CopyImageCompute(
         GfxCmdBuffer*          pCmdBuffer,
@@ -525,7 +533,8 @@ protected:
         Pal::CmdStream*    pCmdStream,
         const Image&       image,
         const SubresRange& range,
-        const uint8        initValue) const override;
+        const uint8        initValue,
+        bool               trackBltActiveFlags) const override;
 
     void InitHtile(
         GfxCmdBuffer*      pCmdBuffer,
@@ -576,14 +585,16 @@ private:
         const Image&       dstImage,
         const SubresRange& range,
         uint32             htileValue,
-        uint32             htileMask) const;
+        uint32             htileMask,
+        bool               trackBltActiveFlags) const;
 
     void ExecuteHtileEquation(
         GfxCmdBuffer*      pCmdBuffer,
         const Image&       dstImage,
         const SubresRange& range,
         uint32             htileValue,
-        uint32             htileMask) const;
+        uint32             htileMask,
+        bool               trackBltActiveFlags) const;
 
     virtual void CopyBetweenMemoryAndImage(
         GfxCmdBuffer*                pCmdBuffer,
@@ -680,6 +691,7 @@ protected:
         const SubresRange& clearRange,
         uint8              clearCode,
         DccClearPurpose    clearPurpose,
+        bool               trackBltActiveFlags,
         const uint32*      pPackedClearColor = nullptr) const override;
 
     virtual void FastDepthStencilClearCompute(
@@ -688,7 +700,8 @@ protected:
         const SubresRange& range,
         uint32             htileValue,
         uint32             clearMask,
-        uint8              stencil) const override;
+        uint8              stencil,
+        bool               trackBltActiveFlags) const override;
 
     virtual const Pal::ComputePipeline* GetCmdGenerationPipeline(
         const Pm4::IndirectCmdGenerator& generator,
@@ -699,7 +712,8 @@ protected:
         Pal::CmdStream*    pCmdStream,
         const Image&       image,
         const SubresRange& range,
-        const uint8        initValue) const override;
+        uint8              initValue,
+        bool               trackBltActiveFlags) const override;
 
     virtual void InitHtile(
         GfxCmdBuffer*      pCmdBuffer,
@@ -736,7 +750,8 @@ private:
         const SubresRange& range,
         uint32             hTileValue,
         uint32             hTileMask,
-        uint8              stencil) const;
+        uint8              stencil,
+        bool               trackBltActiveFlags) const;
 
     void ClearDccComputeSetFirstPixelOfBlock(
         GfxCmdBuffer*      pCmdBuffer,

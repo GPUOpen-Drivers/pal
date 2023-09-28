@@ -1406,6 +1406,10 @@ UINT_32 ElemLib::GetBitsPerPixel(
         case ADDR_FMT_24_8:
             bpp = 32;
             break;
+        case ADDR_FMT_BG_RG_16_16_16_16:
+            elemMode = ADDR_PACKED_BGRG;
+            bpp = 32;
+            break;
         case ADDR_FMT_16_16_16_16:
         case ADDR_FMT_32_32:
         case ADDR_FMT_CTX1:
@@ -1816,6 +1820,7 @@ BOOL_32 ElemLib::IsMacroPixelPacked(
     {
         case ADDR_FMT_BG_RG:
         case ADDR_FMT_GB_GR:
+        case ADDR_FMT_BG_RG_16_16_16_16:
             isMacroPixelPacked = TRUE;
             break;
         default:

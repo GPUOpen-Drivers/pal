@@ -346,7 +346,7 @@ void RsrcProcMgr::CopyMemoryCs(
     }
 
     // Restore command buffer state.
-    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+    pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
 }
 
 // =====================================================================================================================
@@ -552,7 +552,7 @@ void RsrcProcMgr::CopyImageCs(
         pCmdBuffer->P2pBltWaCopyEnd();
     }
 
-    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+    pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
 
     if (csInfo.isFmaskCopyOptimized || (dstCreateInfo.flags.fullCopyDstOnly != 0))
     {
@@ -1403,7 +1403,7 @@ void RsrcProcMgr::CopyBetweenMemoryAndImageCs(
     }
 
     // Restore command buffer state.
-    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+    pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
 }
 
 // =====================================================================================================================
@@ -1589,7 +1589,7 @@ void RsrcProcMgr::CopyBetweenTypedBufferAndImage(
     }
 
     // Restore command buffer state.
-    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+    pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
 }
 
 // =====================================================================================================================
@@ -1719,7 +1719,7 @@ void RsrcProcMgr::CmdCopyTypedBuffer(
         pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz(threads, threadsPerGroup));
     }
 
-    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+    pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
 }
 
 // =====================================================================================================================
@@ -1789,7 +1789,7 @@ void RsrcProcMgr::CmdScaledCopyImage(
         pCmdBuffer->CmdSaveGraphicsState();
         ScaledCopyImageGraphics(pCmdBuffer, copyInfo);
         // Restore original command buffer state.
-        pCmdBuffer->CmdRestoreGraphicsState();
+        pCmdBuffer->CmdRestoreGraphicsStateInternal();
     }
     else
     {
@@ -1814,7 +1814,7 @@ void RsrcProcMgr::CmdScaledCopyImage(
             // Save current command buffer state and bind the pipeline.
             pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
             ScaledCopyImageCompute(pCmdBuffer, copyInfo);
-            pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+            pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
 
             FixupMetadataForComputeDst(pCmdBuffer, dstImage, copyInfo.dstImageLayout,
                                        copyInfo.regionCount, &fixupRegions[0], false);
@@ -2072,7 +2072,7 @@ void RsrcProcMgr::GenerateMipmapsFast(
         }
     }
 
-    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+    pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
 }
 
 // =====================================================================================================================
@@ -2194,11 +2194,11 @@ void RsrcProcMgr::GenerateMipmapsSlow(
     // Restore original command buffer state.
     if (useGraphicsCopy)
     {
-        pCmdBuffer->CmdRestoreGraphicsState();
+        pCmdBuffer->CmdRestoreGraphicsStateInternal();
     }
     else
     {
-        pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+        pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
     }
 }
 
@@ -2208,8 +2208,6 @@ void RsrcProcMgr::ScaledCopyImageCompute(
     const ScaledCopyInfo& copyInfo
     ) const
 {
-    PAL_ASSERT(copyInfo.flags.scissorTest == 0);
-
     const auto& device       = *m_pDevice->Parent();
     const auto* pSrcImage    = static_cast<const Image*>(copyInfo.pSrcImage);
     const auto* pSrcGfxImage = pSrcImage->GetGfxImage();
@@ -2299,8 +2297,8 @@ void RsrcProcMgr::ScaledCopyImageCompute(
         const int32 dstExtentD = (copyInfo.flags.coordsInFloat != 0) ?
             static_cast<int32>(copyRegion.dstExtentFloat.depth + 0.5f) : copyRegion.dstExtent.depth;
 
-        const uint32 absDstExtentW = Math::Absu(dstExtentW);
-        const uint32 absDstExtentH = Math::Absu(dstExtentH);
+        uint32 absDstExtentW = Math::Absu(dstExtentW);
+        uint32 absDstExtentH = Math::Absu(dstExtentH);
         const uint32 absDstExtentD = Math::Absu(dstExtentD);
 
         if ((absDstExtentW > 0) && (absDstExtentH > 0) && (absDstExtentD > 0))
@@ -2387,26 +2385,74 @@ void RsrcProcMgr::ScaledCopyImageCompute(
                 srcTop    = copyRegion.srcOffsetFloat.y / srcExtent.height;
                 srcRight  = (copyRegion.srcOffsetFloat.x + copyRegion.srcExtentFloat.width) / srcExtent.width;
                 srcBottom = (copyRegion.srcOffsetFloat.y + copyRegion.srcExtentFloat.height) / srcExtent.height;
-                srcSlice  = (1.f * copyRegion.srcOffsetFloat.z) / srcExtent.depth;
-                srcDepth  = (1.f * (copyRegion.srcOffsetFloat.z + copyRegion.srcExtentFloat.depth)) / srcExtent.depth;
+                srcSlice  = copyRegion.srcOffsetFloat.z / srcExtent.depth;
+                srcDepth  = (copyRegion.srcOffsetFloat.z + copyRegion.srcExtentFloat.depth) / srcExtent.depth;
 
                 dstOffsetX = copyRegion.dstOffsetFloat.x;
                 dstOffsetY = copyRegion.dstOffsetFloat.y;
                 dstOffsetZ = copyRegion.dstOffsetFloat.z;
-
             }
             else
             {
-                srcLeft   = (1.f * copyRegion.srcOffset.x) / srcExtent.width;
-                srcTop    = (1.f * copyRegion.srcOffset.y) / srcExtent.height;
-                srcRight  = (1.f * (copyRegion.srcOffset.x + copyRegion.srcExtent.width)) / srcExtent.width;
-                srcBottom = (1.f * (copyRegion.srcOffset.y + copyRegion.srcExtent.height)) / srcExtent.height;
-                srcSlice  = (1.f * copyRegion.srcOffset.z) / srcExtent.depth;
-                srcDepth  = (1.f * (copyRegion.srcOffset.z + copyRegion.srcExtent.depth)) / srcExtent.depth;
+                srcLeft   = float(copyRegion.srcOffset.x) / srcExtent.width;
+                srcTop    = float(copyRegion.srcOffset.y) / srcExtent.height;
+                srcRight  = float(copyRegion.srcOffset.x + copyRegion.srcExtent.width) / srcExtent.width;
+                srcBottom = float(copyRegion.srcOffset.y + copyRegion.srcExtent.height) / srcExtent.height;
+                srcSlice  = float(copyRegion.srcOffset.z) / srcExtent.depth;
+                srcDepth  = float(copyRegion.srcOffset.z + copyRegion.srcExtent.depth) / srcExtent.depth;
 
-                dstOffsetX = 1.f * copyRegion.dstOffset.x;
-                dstOffsetY = 1.f * copyRegion.dstOffset.y;
-                dstOffsetZ = 1.f * copyRegion.dstOffset.z;
+                dstOffsetX = float(copyRegion.dstOffset.x);
+                dstOffsetY = float(copyRegion.dstOffset.y);
+                dstOffsetZ = float(copyRegion.dstOffset.z);
+            }
+
+            if ((copyInfo.flags.scissorTest != 0) && (copyInfo.pScissorRect != nullptr))
+            {
+                const Rect scissorRect = *copyInfo.pScissorRect;
+
+                // Top-left oriented.
+                const float scissoredLeft   = Max(float(scissorRect.offset.x), dstOffsetX);
+                const float scissoredRight  = Min((float(scissorRect.offset.x) + float(scissorRect.extent.width)),
+                                                  (dstOffsetX + float(absDstExtentW)));
+                const float scissoredTop    = Max(float(scissorRect.offset.y), dstOffsetY);
+                const float scissoredBottom = Min((float(scissorRect.offset.y) + float(scissorRect.extent.height)),
+                                                  (dstOffsetY + float(absDstExtentH)));
+
+                if ((scissoredLeft < scissoredRight) && (scissoredTop < scissoredBottom))
+                {
+                    // Save the original offset/extent before overwriting.
+                    const float origSrcExtentW = srcRight - srcLeft;
+                    const float origSrcExtentH = srcBottom - srcTop;
+
+                    const float origDstOffsetX = dstOffsetX;
+                    const float origDstOffsetY = dstOffsetY;
+                    const uint32 origDstExtentW = absDstExtentW;
+                    const uint32 origDstExtentH = absDstExtentH;
+
+                    // Get the scissored offset/extent for dst.
+                    dstOffsetX    = scissoredLeft;
+                    dstOffsetY    = scissoredTop;
+                    absDstExtentW = uint32(scissoredRight - scissoredLeft);
+                    absDstExtentH = uint32(scissoredBottom - scissoredTop);
+
+                    // Calculate the scaling factor after scissoring.
+                    PAL_ASSERT((origDstExtentW != 0) && (origDstExtentH != 0));
+                    const float dstOffsetXScale = (dstOffsetX - origDstOffsetX) / origDstExtentW;
+                    const float dstOffsetYScale = (dstOffsetY - origDstOffsetY) / origDstExtentH;
+                    const float dstExtentWScale = float(absDstExtentW) / origDstExtentW;
+                    const float dstExtentHScale = float(absDstExtentH) / origDstExtentH;
+
+                    // Convert the scissored result for src.
+                    srcLeft   = srcLeft + origSrcExtentW * dstOffsetXScale;
+                    srcRight  = srcLeft + origSrcExtentW * dstExtentWScale;
+                    srcTop    = srcTop  + origSrcExtentH * dstOffsetYScale;
+                    srcBottom = srcTop  + origSrcExtentH * dstExtentHScale;
+                }
+                else
+                {
+                    // No overlap between scissor rect and dst. Skip this region.
+                    continue;
+                }
             }
 
             PAL_ASSERT((srcLeft >= 0.0f) && (srcLeft <= 1.0f) &&
@@ -2814,7 +2860,7 @@ void RsrcProcMgr::ConvertYuvToRgb(
         pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz(threads, threadsPerGroup));
     } // End loop over regions
 
-    pCmdBuffer->CmdRestoreComputeState(ComputeStateFlags::ComputeStatePipelineAndUserData);
+    pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
 }
 
 // =====================================================================================================================
@@ -3000,7 +3046,7 @@ void RsrcProcMgr::ConvertRgbToYuv(
         } // End loop over per-plane passes
     } // End loop over regions
 
-    pCmdBuffer->CmdRestoreComputeState(ComputeStateFlags::ComputeStatePipelineAndUserData);
+    pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
 }
 
 // =====================================================================================================================
@@ -3009,6 +3055,7 @@ void RsrcProcMgr::ConvertRgbToYuv(
 void RsrcProcMgr::CmdFillMemory(
     GfxCmdBuffer*    pCmdBuffer,
     bool             saveRestoreComputeState,
+    bool             trackBltActiveFlags,
     const GpuMemory& dstGpuMemory,
     gpusize          dstOffset,
     gpusize          fillSize,
@@ -3016,7 +3063,7 @@ void RsrcProcMgr::CmdFillMemory(
     ) const
 {
     const gpusize dstGpuVirtAddr = (dstGpuMemory.Desc().gpuVirtAddr + dstOffset);
-    CmdFillMemory(pCmdBuffer, saveRestoreComputeState, dstGpuVirtAddr, fillSize, data);
+    CmdFillMemory(pCmdBuffer, saveRestoreComputeState, trackBltActiveFlags, dstGpuVirtAddr, fillSize, data);
 }
 
 // =====================================================================================================================
@@ -3025,6 +3072,7 @@ void RsrcProcMgr::CmdFillMemory(
 void RsrcProcMgr::CmdFillMemory(
     GfxCmdBuffer* pCmdBuffer,
     bool          saveRestoreComputeState,
+    bool          trackBltActiveFlags,
     gpusize       dstGpuVirtAddr,
     gpusize       fillSize,
     uint32        data
@@ -3095,7 +3143,7 @@ void RsrcProcMgr::CmdFillMemory(
     if (saveRestoreComputeState)
     {
         // Restore the command buffer's state.
-        pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+        pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData, trackBltActiveFlags);
     }
 }
 
@@ -3190,7 +3238,7 @@ void RsrcProcMgr::CmdClearBoundDepthStencilTargets(
     }
 
     // Restore original command buffer state and destroy the depth/stencil state.
-    pCmdBuffer->CmdRestoreGraphicsState();
+    pCmdBuffer->CmdRestoreGraphicsStateInternal(false);
 }
 
 // =====================================================================================================================
@@ -3288,7 +3336,7 @@ void RsrcProcMgr::CmdClearBoundColorTargets(
     }
 
     // Restore original command buffer state.
-    pCmdBuffer->CmdRestoreGraphicsState();
+    pCmdBuffer->CmdRestoreGraphicsStateInternal(false);
 }
 
 // =====================================================================================================================
@@ -3307,7 +3355,8 @@ void RsrcProcMgr::CmdClearColorImage(
     ) const
 {
     const bool skipIfSlow           = TestAnyFlagSet(flags, ColorClearSkipIfSlow);
-    const bool needComputeClearSync = TestAnyFlagSet(flags, ColorClearAutoSync) && (skipIfSlow == false);
+    const bool clearAutoSync        = TestAnyFlagSet(flags, ColorClearAutoSync);
+    const bool needComputeClearSync = clearAutoSync && (skipIfSlow == false);
 
     if (needComputeClearSync)
     {
@@ -3338,6 +3387,7 @@ void RsrcProcMgr::CmdClearColorImage(
                              &color,
                              clearFormat,
                              pRanges[rangeIdx],
+                             (clearAutoSync == false),
                              boxCount,
                              pBoxes);
         }
@@ -3391,7 +3441,7 @@ void RsrcProcMgr::CmdClearDepthStencil(
     }
     else
     {
-        const bool         needComputeClearSync = TestAnyFlagSet(flags, ColorClearAutoSync);
+        const bool         needComputeClearSync = TestAnyFlagSet(flags, DsClearAutoSync);
         const ChNumFormat& imageFormat          = dstImage.GetImageCreateInfo().swizzledFormat.format;
         const bool         supportsDepth        = m_pDevice->Parent()->SupportsDepth(imageFormat, ImageTiling::Optimal);
 
@@ -3461,6 +3511,7 @@ void RsrcProcMgr::CmdClearDepthStencil(
                                  &clearColor,
                                  subresFormat,
                                  range,
+                                 (needComputeClearSync == false),
                                  rectCount,
                                  &boxes[0]);
             }
@@ -3495,6 +3546,7 @@ void RsrcProcMgr::SlowClearCompute(
     const ClearColor*     pColor,
     const SwizzledFormat& clearFormat,
     const SubresRange&    clearRange,
+    bool                  trackBltActiveFlags,
     uint32                boxCount,
     const Box*            pBoxes
     ) const
@@ -3610,6 +3662,27 @@ void RsrcProcMgr::SlowClearCompute(
 
     pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 5, ArrayLen32(clearMaskUserData), clearMaskUserData);
 
+    // Clear color have been swizzled and packed before pass to CS, therefore, do corresponding operation on color mask
+    uint32 packedColorMask[4] = { 0 };
+
+    // When disable color mask isn't 0 and current plane isn't stencil, we need to swizzle and pack color mask.
+    if((clearMaskUserData[0] != 0) && (clearMaskUserData[1] == 0))
+    {
+        uint32 channelMasks[4] =
+        {
+            TestAnyFlagSet(pColor->disabledChannelMask, 0x1u) ? UINT32_MAX : 0,
+            TestAnyFlagSet(pColor->disabledChannelMask, 0x2u) ? UINT32_MAX : 0,
+            TestAnyFlagSet(pColor->disabledChannelMask, 0x4u) ? UINT32_MAX : 0,
+            TestAnyFlagSet(pColor->disabledChannelMask, 0x8u) ? UINT32_MAX : 0
+        };
+
+        // These functions don't care if we use them on colors or masks. We can reuse them to convert our
+        // unswizzled, unpacked disable masks into a properly swizzled and bitpacked mask.
+        uint32 swizzledMask[4] = { 0 };
+        Formats::SwizzleColor(baseFormat, channelMasks, swizzledMask);
+        Formats::PackRawClearColor(baseFormat, swizzledMask, packedColorMask);
+    }
+
     // Split the clear range into sections with constant mip/array levels and loop over them.
     SubresRange  singleMipRange = { clearRange.startSubres, 1, 1, clearRange.numSlices };
     const uint32 firstMipLevel  = clearRange.startSubres.mipLevel;
@@ -3642,7 +3715,7 @@ void RsrcProcMgr::SlowClearCompute(
 
             // Create an embedded SRD table and bind it to user data 0. We only need a single image view.
             uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
-                                                                       SrdDwordAlignment(),
+                                                                       SrdDwordAlignment() + ArrayLen32(packedColorMask),
                                                                        SrdDwordAlignment(),
                                                                        PipelineBindPoint::Compute,
                                                                        0);
@@ -3660,6 +3733,10 @@ void RsrcProcMgr::SlowClearCompute(
                                         true);
 
             device.CreateImageViewSrds(1, &imageView, pSrdTable);
+
+            pSrdTable += SrdDwordAlignment();
+            // Put color mask to const buffer
+            memcpy(pSrdTable, packedColorMask, sizeof(packedColorMask));
 
             // The default clear box is the entire subresource. This will be changed per-dispatch if boxes are enabled.
             Extent3d clearExtent = subResInfo.extentTexels;
@@ -3745,7 +3822,7 @@ void RsrcProcMgr::SlowClearCompute(
     }
 
     // Restore original command buffer state.
-    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+    pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData, trackBltActiveFlags);
 }
 
 // =====================================================================================================================
@@ -3916,7 +3993,7 @@ void RsrcProcMgr::CmdClearColorBuffer(
         }
 
         // Restore original command buffer state.
-        pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+        pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
     }
 }
 
@@ -3974,7 +4051,7 @@ void RsrcProcMgr::CmdClearImageView(
         }
 
         SlowClearCompute(pCmdBuffer, dstImage, dstImageLayout, &color, srdInfo.swizzledFormat, srdInfo.subresRange,
-                         rectCount, boxes.Data());
+                         true, rectCount, boxes.Data());
     }
     else
     {
@@ -4283,7 +4360,7 @@ void RsrcProcMgr::ResolveImageCompute(
     }
 
     // Restore the command buffer's state.
-    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+    pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
 
     FixupComputeResolveDst(pCmdBuffer, dstImage, regionCount, pRegions);
 

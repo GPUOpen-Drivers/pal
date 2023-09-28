@@ -41,7 +41,7 @@ namespace Pal
 {
 
 // GPU memory alignment for shader programs.
-constexpr size_t GpuMemByteAlign = 256;
+constexpr gpusize GpuMemByteAlign = 256;
 
 // =====================================================================================================================
 Pipeline::Pipeline(
@@ -565,7 +565,6 @@ bool Pipeline::DispatchInterleaveSizeIsValid(
     const GpuChipProperties& chipProps)
 {
     bool is1D = false;
-    bool is2D = false;
 
     switch (interleave)
     {
@@ -577,25 +576,6 @@ bool Pipeline::DispatchInterleaveSizeIsValid(
     case DispatchInterleaveSize::_512:
         is1D = true;
         break;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 808
-    case DispatchInterleaveSize::_2D_1x1_ThreadGroups:
-    case DispatchInterleaveSize::_2D_1x2_ThreadGroups:
-    case DispatchInterleaveSize::_2D_1x4_ThreadGroups:
-    case DispatchInterleaveSize::_2D_1x8_ThreadGroups:
-    case DispatchInterleaveSize::_2D_1x16_ThreadGroups:
-    case DispatchInterleaveSize::_2D_2x1_ThreadGroups:
-    case DispatchInterleaveSize::_2D_2x2_ThreadGroups:
-    case DispatchInterleaveSize::_2D_2x4_ThreadGroups:
-    case DispatchInterleaveSize::_2D_2x8_ThreadGroups:
-    case DispatchInterleaveSize::_2D_4x1_ThreadGroups:
-    case DispatchInterleaveSize::_2D_4x2_ThreadGroups:
-    case DispatchInterleaveSize::_2D_4x4_ThreadGroups:
-    case DispatchInterleaveSize::_2D_8x1_ThreadGroups:
-    case DispatchInterleaveSize::_2D_8x2_ThreadGroups:
-    case DispatchInterleaveSize::_2D_16x1_ThreadGroups:
-        is2D = true;
-        break;
-#endif
     default:
         PAL_ASSERT_ALWAYS();
         break;
@@ -603,8 +583,7 @@ bool Pipeline::DispatchInterleaveSizeIsValid(
 
     bool isValid = true;
 
-    if ((is1D && (chipProps.gfxip.support1dDispatchInterleave == false)) ||
-        (is2D && (chipProps.gfxip.support2dDispatchInterleave == false)))
+    if (is1D && (chipProps.gfxip.support1dDispatchInterleave == false))
     {
         isValid = false;
     }
@@ -851,7 +830,7 @@ Result PipelineUploader::Begin(
 
         GpuMemoryCreateInfo createInfo = { };
         createInfo.size      = m_gpuMemSize;
-        createInfo.alignment = GpuMemByteAlign;
+        createInfo.alignment = Max(GpuMemByteAlign, addressCalculator.GetAlignment());
         createInfo.vaRange   = VaRange::DescriptorTable;
         createInfo.heaps[0]  = SelectUploadHeap(heap);
         createInfo.heaps[1]  = GpuHeapGartUswc;

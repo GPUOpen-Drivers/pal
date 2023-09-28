@@ -7009,7 +7009,7 @@ namespace Gfx103PlusExclusive
     constexpr unsigned int VGT_SYS_CONFIG__NUM_SUBGROUPS_IN_FLIGHT__SHIFT     = 0x00000008;
 } // namespace Gfx103PlusExclusive
 
-#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
+#if  CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 namespace Gfx104Plus
 {
     constexpr unsigned int COMPUTE_PGM_RSRC3__INST_PREF_SIZE__SHIFT           = 0x00000004;
@@ -8479,7 +8479,7 @@ namespace Gfx10Vrs
     constexpr unsigned int RLC_SPM_SE_MUXSEL_ADDR_OFFSET__RESERVED__SHIFT     = 0x00000010;
 } // namespace Gfx10Vrs
 
-#if  CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
+#if  CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 namespace Gfx11
 {
     constexpr unsigned int CB_CACHE_EVICT_POINTS__CC_COLOR_EVICT_POINT__SHIFT = 0x00000000;
@@ -9097,7 +9097,7 @@ namespace Gfx11
 } // namespace Gfx11
 #endif
 
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
+#if CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 namespace Gfx110
 {
     constexpr unsigned int CB_CGTT_SCLK_CTRL__OFF_HYSTERESIS__SHIFT           = 0x00000004;
@@ -10283,6 +10283,158 @@ namespace Nv31
 } // namespace Nv31
 #endif
 
+#if CHIP_HDR_NAVI32
+namespace Nv32
+{
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlHi0__EventSelectHi__SHIFT = 0x00000000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlHi0__Filter__SHIFT        = 0x00000008;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlHi1__EventSelectHi__SHIFT = 0x00000000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlHi1__Filter__SHIFT        = 0x00000008;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlHi2__EventSelectHi__SHIFT = 0x00000000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlHi2__Filter__SHIFT        = 0x00000008;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlHi3__EventSelectHi__SHIFT = 0x00000000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlHi3__Filter__SHIFT        = 0x00000008;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlHi4__EventSelectHi__SHIFT = 0x00000000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlHi4__Filter__SHIFT        = 0x00000008;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlHi5__EventSelectHi__SHIFT = 0x00000000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlHi5__Filter__SHIFT        = 0x00000008;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlHi6__EventSelectHi__SHIFT = 0x00000000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlHi6__Filter__SHIFT        = 0x00000008;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlHi7__EventSelectHi__SHIFT = 0x00000000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlHi7__Filter__SHIFT        = 0x00000008;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo0__BypassEn__SHIFT      = 0x00000015;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo0__DsmTrig__SHIFT       = 0x00000013;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo0__En__SHIFT            = 0x00000016;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo0__Mp1Int__SHIFT        = 0x00000014;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo0__UnitMaskHi__SHIFT    = 0x00000018;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo0__UnitMaskLo__SHIFT    = 0x00000008;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo1__BypassEn__SHIFT      = 0x00000015;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo1__DsmTrig__SHIFT       = 0x00000013;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo1__En__SHIFT            = 0x00000016;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo1__Mp1Int__SHIFT        = 0x00000014;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo1__UnitMaskHi__SHIFT    = 0x00000018;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo1__UnitMaskLo__SHIFT    = 0x00000008;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo2__BypassEn__SHIFT      = 0x00000015;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo2__DsmTrig__SHIFT       = 0x00000013;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo2__En__SHIFT            = 0x00000016;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo2__Mp1Int__SHIFT        = 0x00000014;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo2__UnitMaskHi__SHIFT    = 0x00000018;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo2__UnitMaskLo__SHIFT    = 0x00000008;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo3__BypassEn__SHIFT      = 0x00000015;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo3__DsmTrig__SHIFT       = 0x00000013;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo3__En__SHIFT            = 0x00000016;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo3__Mp1Int__SHIFT        = 0x00000014;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo3__UnitMaskHi__SHIFT    = 0x00000018;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo3__UnitMaskLo__SHIFT    = 0x00000008;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo4__BypassEn__SHIFT      = 0x00000015;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo4__DsmTrig__SHIFT       = 0x00000013;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo4__En__SHIFT            = 0x00000016;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo4__Mp1Int__SHIFT        = 0x00000014;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo4__UnitMaskHi__SHIFT    = 0x00000018;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo4__UnitMaskLo__SHIFT    = 0x00000008;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo5__BypassEn__SHIFT      = 0x00000015;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo5__DsmTrig__SHIFT       = 0x00000013;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo5__En__SHIFT            = 0x00000016;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo5__Mp1Int__SHIFT        = 0x00000014;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo5__UnitMaskHi__SHIFT    = 0x00000018;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo5__UnitMaskLo__SHIFT    = 0x00000008;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo6__BypassEn__SHIFT      = 0x00000015;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo6__DsmTrig__SHIFT       = 0x00000013;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo6__En__SHIFT            = 0x00000016;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo6__Mp1Int__SHIFT        = 0x00000014;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo6__UnitMaskHi__SHIFT    = 0x00000018;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo6__UnitMaskLo__SHIFT    = 0x00000008;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo7__BypassEn__SHIFT      = 0x00000015;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo7__DsmTrig__SHIFT       = 0x00000013;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo7__En__SHIFT            = 0x00000016;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo7__Mp1Int__SHIFT        = 0x00000014;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo7__UnitMaskHi__SHIFT    = 0x00000018;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlLo7__UnitMaskLo__SHIFT    = 0x00000008;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtrHi0__CTR_47_32__SHIFT     = 0x00000000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtrHi1__CTR_47_32__SHIFT     = 0x00000000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtrHi2__CTR_47_32__SHIFT     = 0x00000000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtrHi3__CTR_47_32__SHIFT     = 0x00000000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtrHi4__CTR_47_32__SHIFT     = 0x00000000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtrHi5__CTR_47_32__SHIFT     = 0x00000000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtrHi6__CTR_47_32__SHIFT     = 0x00000000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtrHi7__CTR_47_32__SHIFT     = 0x00000000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtrLo0__CTR_31_0__SHIFT      = 0x00000000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtrLo1__CTR_31_0__SHIFT      = 0x00000000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtrLo2__CTR_31_0__SHIFT      = 0x00000000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtrLo3__CTR_31_0__SHIFT      = 0x00000000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtrLo4__CTR_31_0__SHIFT      = 0x00000000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtrLo5__CTR_31_0__SHIFT      = 0x00000000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtrLo6__CTR_31_0__SHIFT      = 0x00000000;
+    constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtrLo7__CTR_31_0__SHIFT      = 0x00000000;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER0_CFG__CLEAR__SHIFT           = 0x0000001d;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER0_CFG__ENABLE__SHIFT          = 0x0000001c;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER0_CFG__PERF_MODE__SHIFT       = 0x00000018;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER0_CFG__PERF_SEL_END__SHIFT    = 0x00000008;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER0_CFG__PERF_SEL__SHIFT        = 0x00000000;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER1_CFG__CLEAR__SHIFT           = 0x0000001d;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER1_CFG__ENABLE__SHIFT          = 0x0000001c;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER1_CFG__PERF_MODE__SHIFT       = 0x00000018;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER1_CFG__PERF_SEL_END__SHIFT    = 0x00000008;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER1_CFG__PERF_SEL__SHIFT        = 0x00000000;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER2_HI__PERFCOUNTER_HI__SHIFT   = 0x00000000;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER2_LO__PERFCOUNTER_LO__SHIFT   = 0x00000000;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER2_MODE__COMPARE_MODE0__SHIFT  = 0x00000000;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER2_MODE__COMPARE_MODE1__SHIFT  = 0x00000002;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER2_MODE__COMPARE_MODE2__SHIFT  = 0x00000004;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER2_MODE__COMPARE_MODE3__SHIFT  = 0x00000006;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER2_MODE__COMPARE_VALUE0__SHIFT = 0x00000008;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER2_MODE__COMPARE_VALUE1__SHIFT = 0x0000000c;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER2_MODE__COMPARE_VALUE2__SHIFT = 0x00000010;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER2_MODE__COMPARE_VALUE3__SHIFT = 0x00000014;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER2_SELECT1__PERF_MODE2__SHIFT  = 0x0000001c;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER2_SELECT1__PERF_MODE3__SHIFT  = 0x00000018;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER2_SELECT1__PERF_SEL2__SHIFT   = 0x00000000;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER2_SELECT1__PERF_SEL3__SHIFT   = 0x0000000a;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER2_SELECT__CNTR_MODE__SHIFT    = 0x00000014;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER2_SELECT__PERF_MODE0__SHIFT   = 0x0000001c;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER2_SELECT__PERF_MODE1__SHIFT   = 0x00000018;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER2_SELECT__PERF_SEL0__SHIFT    = 0x00000000;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER2_SELECT__PERF_SEL1__SHIFT    = 0x0000000a;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER_HI__COMPARE_VALUE__SHIFT     = 0x00000010;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER_HI__COUNTER_HI__SHIFT        = 0x00000000;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER_LO__COUNTER_LO__SHIFT        = 0x00000000;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER_RSLT_CNTL__CLEAR_ALL__SHIFT  = 0x00000019;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER_RSLT_CNTL__ENABLE_ANY__SHIFT = 0x00000018;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER_RSLT_CNTL__PERF_COUNTER_SELECT__SHIFT = 0x00000000;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER_RSLT_CNTL__START_TRIGGER__SHIFT = 0x00000008;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER_RSLT_CNTL__STOP_ALL_ON_SATURATE__SHIFT = 0x0000001a;
+    constexpr unsigned int GC_ATC_L2_PERFCOUNTER_RSLT_CNTL__STOP_TRIGGER__SHIFT = 0x00000010;
+    constexpr unsigned int GE_FED_STATUS__DMA_C0_FED_ERROR__SHIFT             = 0x00000000;
+    constexpr unsigned int GE_FED_STATUS__DMA_C1_FED_ERROR__SHIFT             = 0x00000001;
+    constexpr unsigned int GE_FED_STATUS__TF_REQ_FED_ERROR__SHIFT             = 0x00000002;
+    constexpr unsigned int GRBM_SE0_PERFCOUNTER_SELECT__SEDC_BUSY_USER_DEFINED_MASK__SHIFT = 0x0000001c;
+    constexpr unsigned int GRBM_SE1_PERFCOUNTER_SELECT__SEDC_BUSY_USER_DEFINED_MASK__SHIFT = 0x0000001c;
+    constexpr unsigned int GRBM_SE2_PERFCOUNTER_SELECT__SEDC_BUSY_USER_DEFINED_MASK__SHIFT = 0x0000001c;
+    constexpr unsigned int GRBM_SE3_PERFCOUNTER_HI__PERFCOUNTER_HI__SHIFT     = 0x00000000;
+    constexpr unsigned int GRBM_SE3_PERFCOUNTER_LO__PERFCOUNTER_LO__SHIFT     = 0x00000000;
+    constexpr unsigned int GRBM_SE3_PERFCOUNTER_SELECT__BCI_BUSY_USER_DEFINED_MASK__SHIFT = 0x00000015;
+    constexpr unsigned int GRBM_SE3_PERFCOUNTER_SELECT__CB_BUSY_USER_DEFINED_MASK__SHIFT = 0x00000012;
+    constexpr unsigned int GRBM_SE3_PERFCOUNTER_SELECT__CB_CLEAN_USER_DEFINED_MASK__SHIFT = 0x0000000b;
+    constexpr unsigned int GRBM_SE3_PERFCOUNTER_SELECT__DB_BUSY_USER_DEFINED_MASK__SHIFT = 0x00000011;
+    constexpr unsigned int GRBM_SE3_PERFCOUNTER_SELECT__DB_CLEAN_USER_DEFINED_MASK__SHIFT = 0x0000000a;
+    constexpr unsigned int GRBM_SE3_PERFCOUNTER_SELECT__GL1CC_BUSY_USER_DEFINED_MASK__SHIFT = 0x00000019;
+    constexpr unsigned int GRBM_SE3_PERFCOUNTER_SELECT__GL1H_BUSY_USER_DEFINED_MASK__SHIFT = 0x0000001a;
+    constexpr unsigned int GRBM_SE3_PERFCOUNTER_SELECT__PA_BUSY_USER_DEFINED_MASK__SHIFT = 0x00000014;
+    constexpr unsigned int GRBM_SE3_PERFCOUNTER_SELECT__PC_BUSY_USER_DEFINED_MASK__SHIFT = 0x0000001b;
+    constexpr unsigned int GRBM_SE3_PERFCOUNTER_SELECT__PERF_SEL__SHIFT       = 0x00000000;
+    constexpr unsigned int GRBM_SE3_PERFCOUNTER_SELECT__RMI_BUSY_USER_DEFINED_MASK__SHIFT = 0x00000016;
+    constexpr unsigned int GRBM_SE3_PERFCOUNTER_SELECT__SC_BUSY_USER_DEFINED_MASK__SHIFT = 0x00000010;
+    constexpr unsigned int GRBM_SE3_PERFCOUNTER_SELECT__SEDC_BUSY_USER_DEFINED_MASK__SHIFT = 0x0000001c;
+    constexpr unsigned int GRBM_SE3_PERFCOUNTER_SELECT__SPI_BUSY_USER_DEFINED_MASK__SHIFT = 0x0000000f;
+    constexpr unsigned int GRBM_SE3_PERFCOUNTER_SELECT__SX_BUSY_USER_DEFINED_MASK__SHIFT = 0x0000000d;
+    constexpr unsigned int GRBM_SE3_PERFCOUNTER_SELECT__TA_BUSY_USER_DEFINED_MASK__SHIFT = 0x0000000c;
+    constexpr unsigned int GRBM_SE3_PERFCOUNTER_SELECT__TCP_BUSY_USER_DEFINED_MASK__SHIFT = 0x00000018;
+    constexpr unsigned int GRBM_SE3_PERFCOUNTER_SELECT__UTCL1_BUSY_USER_DEFINED_MASK__SHIFT = 0x00000017;
+    constexpr unsigned int RLC_SPM_ACCUM_MODE__SE2_LoadOverride__SHIFT        = 0x0000000f;
+    constexpr unsigned int RLC_SPM_ACCUM_MODE__SE2_SwaLoadOverride__SHIFT     = 0x00000010;
+} // namespace Nv32
+#endif
+
 #if CHIP_HDR_NAVI33
 namespace Nv33
 {
@@ -10290,7 +10442,7 @@ namespace Nv33
 } // namespace Nv33
 #endif
 
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI32 || CHIP_HDR_NAVI33
 namespace Nv3x
 {
     constexpr unsigned int CHCG_PERFCOUNTER0_HI__PERFCOUNTER_HI__SHIFT        = 0x00000000;

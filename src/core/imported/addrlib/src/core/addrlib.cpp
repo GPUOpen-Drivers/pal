@@ -192,8 +192,11 @@ ADDR_E_RETURNCODE Lib::Create(
                         pLib = Gfx10HwlInit(&client);
                         break;
 #if ADDR_GFX11_BUILD
-#if ADDR_NAVI31_BUILD || ADDR_NAVI33_BUILD
+#if ADDR_NAVI31_BUILD || ADDR_NAVI32_BUILD || ADDR_NAVI33_BUILD
                     case FAMILY_NV3:
+#endif
+#if ADDR_PHOENIX_BUILD
+                    case FAMILY_PHX:
 #endif
                         pLib = Gfx11HwlInit(&client);
                         break;
@@ -209,6 +212,10 @@ ADDR_E_RETURNCODE Lib::Create(
         }
     }
 
+    if(pLib == NULL)
+    {
+        returnCode = ADDR_OUTOFMEMORY;
+    }
     if (pLib != NULL)
     {
         BOOL_32 initValid;
@@ -247,6 +254,7 @@ ADDR_E_RETURNCODE Lib::Create(
         {
             delete pLib;
             pLib = NULL;
+            returnCode = ADDR_OUTOFMEMORY;
             ADDR_ASSERT_ALWAYS();
         }
         else
@@ -265,12 +273,6 @@ ADDR_E_RETURNCODE Lib::Create(
 
         pLib->SetMaxAlignments();
 
-    }
-    else if ((pLib == NULL) &&
-             (returnCode == ADDR_OK))
-    {
-        // Unknown failures, we return the general error code
-        returnCode = ADDR_ERROR;
     }
 
     return returnCode;

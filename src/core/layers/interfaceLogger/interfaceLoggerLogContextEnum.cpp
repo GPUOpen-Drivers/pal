@@ -140,27 +140,6 @@ void LogContext::Enum(
         "1D_128_Threads",          // 0x2,
         "1D_256_Threads",          // 0x3,
         "1D_512_Threads",          // 0x4,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 808
-        "2D_1x1_ThreadGroups",     // 0x5,
-        "2D_1x2_ThreadGroups",     // 0x6,
-        "2D_1x4_ThreadGroups",     // 0x7,
-        "2D_1x8_ThreadGroups",     // 0x8,
-        "2D_1x16_ThreadGroups",    // 0x9,
-
-        "2D_2x1_ThreadGroups",     // 0xA,
-        "2D_2x2_ThreadGroups",     // 0xB,
-        "2D_2x4_ThreadGroups",     // 0xC,
-        "2D_2x8_ThreadGroups",     // 0xD,
-
-        "2D_4x1_ThreadGroups",     // 0xE,
-        "2D_4x2_ThreadGroups",     // 0xF,
-        "2D_4x4_ThreadGroups",     // 0x10,
-
-        "2D_8x1_ThreadGroups",     // 0x11,
-        "2D_8x2_ThreadGroups",     // 0x12,
-
-        "2D_16x1_ThreadGroup",     // 0x13,
-#endif
     };
 
     static_assert(ArrayLen32(StringTable) == static_cast<uint32>(DispatchInterleaveSize::Count),
@@ -1054,7 +1033,7 @@ void LogContext::Enum(
 {
     const char* const StringTable[] =
     {
-        "Polaris10",
+        "Default",
         "Polaris11",
         "Polaris12",
         nullptr,
@@ -1087,7 +1066,11 @@ void LogContext::Enum(
 #else
         nullptr,
 #endif
+#if PAL_BUILD_NAVI32
+        "Navi32",
+#else
         nullptr,
+#endif
 #if PAL_BUILD_NAVI33
         "Navi33",
 #else

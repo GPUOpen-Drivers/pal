@@ -212,6 +212,13 @@ inline void MachineTypeToGfxIpVersion(
         *pGfxIpStepping = 0;
         break;
 #endif
+#if PAL_BUILD_NAVI32
+    case AmdGpuMachineType::Gfx1101:
+        *pGfxIpMajorVer = 11;
+        *pGfxIpMinorVer = 0;
+        *pGfxIpStepping = 1;
+        break;
+#endif
 #if PAL_BUILD_NAVI33
     case AmdGpuMachineType::Gfx1102:
         *pGfxIpMajorVer = 11;
@@ -374,6 +381,11 @@ inline void GfxIpVersionToMachineType(
 #if PAL_BUILD_NAVI31
             case GfxIpSteppingNavi31:
                 *pMachineType = AmdGpuMachineType::Gfx1100;
+                break;
+#endif
+#if PAL_BUILD_NAVI32
+            case GfxIpSteppingNavi32:
+                *pMachineType = AmdGpuMachineType::Gfx1101;
                 break;
 #endif
 #if PAL_BUILD_NAVI33

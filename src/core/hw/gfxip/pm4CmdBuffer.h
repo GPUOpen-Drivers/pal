@@ -134,7 +134,7 @@ public:
     virtual void CmdBindPipeline(const PipelineBindParams& params) override;
 
     virtual void CmdSaveComputeState(uint32 stateFlags) override;
-    virtual void CmdRestoreComputeState(uint32 stateFlags) override;
+    virtual void CmdRestoreComputeStateInternal(uint32 stateFlags, bool trackBltActiveFlags = true) override;
 
     virtual void CmdDuplicateUserData(
         PipelineBindPoint source,

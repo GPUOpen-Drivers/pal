@@ -830,14 +830,17 @@ void LogContext::Struct(
     if (value.captureBegin || value.captureEnd)
     {
         KeyAndObject("directCaptureMemory", value.pDirectCapMemory);
-
-        if (value.privateFlip)
-        {
-            KeyAndObject("pPrivFlipMemory", value.pPrivFlipMemory);
-        }
-
-        KeyAndValue("frameIndex", value.frameIndex);
     }
+
+    if (value.privateFlip)
+    {
+        KeyAndObject("pPrivFlipMemory", value.pPrivFlipMemory);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 822
+        KeyAndValue("vidPnSourceId", value.vidPnSourceId);
+#endif
+    }
+
+    KeyAndValue("frameIndex", value.frameIndex);
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 779
     if (value.pEarlyPresentEvent != nullptr)
@@ -1757,6 +1760,66 @@ void LogContext::Struct(
         KeyAndValue("surfaceBusAddr", value.surfaceBusAddr);
         KeyAndValue("markerBusAddr", value.markerBusAddr);
     }
+
+    EndMap();
+}
+
+// =====================================================================================================================
+void LogContext::Struct(
+    const GpuMemoryDesc& value)
+{
+    BeginMap(false);
+    KeyAndHexValue("gpuVirtAddr", value.gpuVirtAddr);
+    KeyAndValue("size", value.size);
+    KeyAndValue("clientSize", value.clientSize);
+    KeyAndValue("alignment", value.alignment);
+
+    KeyAndValue("heapCount", value.heapCount);
+    KeyAndBeginList("heaps", true);
+    for (uint32 i = 0; i < value.heapCount; i++)
+    {
+        Enum(value.heaps[i]);
+    }
+    EndList();
+
+    KeyAndHexValue("surfaceBusAddr", value.surfaceBusAddr);
+    KeyAndHexValue("markerBusAddr", value.markerBusAddr);
+
+    KeyAndBeginList("flags", true);
+    if (value.flags.isVirtual)
+    {
+        Value("isVirtual");
+    }
+    if (value.flags.isPeer)
+    {
+        Value("isPeer");
+    }
+    if (value.flags.isShared)
+    {
+        Value("isShared");
+    }
+    if (value.flags.isExternal)
+    {
+        Value("isExternal");
+    }
+    if (value.flags.isSvmAlloc)
+    {
+        Value("isSvmAlloc");
+    }
+    if (value.flags.isExecutable)
+    {
+        Value("isExecutable");
+    }
+    if (value.flags.isExternPhys)
+    {
+        Value("isExternPhys");
+    }
+
+    static_assert(CheckReservedBits<decltype(value.flags)>(32, 23), "Update interfaceLogger!");
+
+    EndList();
+
+    KeyAndHexValue("uniqueId", value.uniqueId);
 
     EndMap();
 }

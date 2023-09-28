@@ -24,6 +24,7 @@
  #######################################################################################################################
 
 target_include_directories(pal PUBLIC .)
+target_include_directories(palCompilerDeps PUBLIC .)
 
 target_sources(pal PRIVATE
     CMakeLists.txt

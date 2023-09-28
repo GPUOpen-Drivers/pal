@@ -616,11 +616,13 @@ public:
     Result AllocateVertexAttributesMem(bool isTmz);
 #endif
 
-    virtual ClearMethod GetDefaultSlowClearMethod(const SwizzledFormat& clearFormat) const override;
+    virtual ClearMethod GetDefaultSlowClearMethod(
+        const ImageCreateInfo&  createInfo,
+        const SwizzledFormat& clearFormat) const override;
 
     const BarrierMgr* BarrierMgr() const { return &m_barrierMgr; }
 
-    bool DisableAc01ClearCodes() const;
+    virtual bool DisableAc01ClearCodes() const override;
 
 private:
     void Gfx10SetImageSrdDims(sq_img_rsrc_t*  pSrd, uint32 width, uint32  height) const;

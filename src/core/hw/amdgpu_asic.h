@@ -127,6 +127,9 @@
 #if PAL_BUILD_NAVI33
 #define AMDGPU_NAVI33_RANGE        0x10, 0x20
 #endif
+#if PAL_BUILD_NAVI32
+#define AMDGPU_NAVI32_RANGE        0x20, 0xff
+#endif
 #if PAL_BUILD_PHOENIX1
 #define AMDGPU_PHOENIX1_RANGE      0x01, 0x80
 #endif
@@ -186,6 +189,9 @@
 #if PAL_BUILD_NAVI31
 #define ASICREV_IS_NAVI31(r)           ASICREV_IS(r, NAVI31)
 #endif
+#if PAL_BUILD_NAVI32
+#define ASICREV_IS_NAVI32(r)           ASICREV_IS(r, NAVI32)
+#endif
 #if PAL_BUILD_NAVI33
 #define ASICREV_IS_NAVI33(r)           ASICREV_IS(r, NAVI33)
 #endif
@@ -243,6 +249,9 @@
 #if PAL_BUILD_NAVI31
 #define AMDGPU_IS_NAVI31(f, r)        AMDGPU_IS(f, r, NV3, NAVI31)
 #endif
+#if PAL_BUILD_NAVI32
+#define AMDGPU_IS_NAVI32(f, r)        AMDGPU_IS(f, r, NV3, NAVI32)
+#endif
 #if PAL_BUILD_NAVI33
 #define AMDGPU_IS_NAVI33(f, r)        AMDGPU_IS(f, r, NV3, NAVI33)
 #endif
@@ -297,6 +306,10 @@
 #define DEVICE_ID_NV3_NAVI31_P_73BF     0x73BF
 #define DEVICE_ID_NV3_NAVI31_P_744C     0x744C
 #endif
+#if PAL_BUILD_NAVI32
+#define DEVICE_ID_NV32_7C               0x7C
+#define DEVICE_ID_NV3_NAVI32_P_73DF     0x73DF
+#endif
 #if PAL_BUILD_NAVI33
 #define DEVICE_ID_NV3_NAVI33_P_73F0     0x73F0
 #endif
@@ -310,6 +323,9 @@
 #define DEVICE_IS(d, dn) (d == DEVICE_ID_##dn)
 #if PAL_BUILD_NAVI31
 #define DEVICE_IS_NAVI31(d) (DEVICE_IS(d, NV3_NAVI31_P_744C) | DEVICE_IS(d, NV3_NAVI31_P_73BF))
+#endif
+#if PAL_BUILD_NAVI32
+#define DEVICE_IS_NAVI32(d) DEVICE_IS(d, NV3_NAVI32_P_73DF)
 #endif
 
 // Revision IDs
@@ -358,6 +374,9 @@
 #if PAL_BUILD_NAVI33
 #define NAVI33_P_A0               0x10
 #endif
+#if PAL_BUILD_NAVI32
+#define NAVI32_P_A0               0x20
+#endif
 #if PAL_BUILD_PHOENIX1
 #define PHOENIX1_A0               0x01
 #endif
@@ -368,6 +387,9 @@
 #define SPIN_IS(r, rn) (r == rn)
 #if PAL_BUILD_NAVI31
 #define SPIN_IS_NAVI31_A0(r) SPIN_IS(r, NAVI31_P_A0)
+#endif
+#if PAL_BUILD_NAVI32
+#define SPIN_IS_NAVI32_A0(r) SPIN_IS(r, NAVI32_P_A0)
 #endif
 
 // PRIDs
@@ -427,6 +449,16 @@
 #define PRID_NV3_NAVI31_EC          0xEC
 #define PRID_NV3_NAVI31_EE          0xEE
 #endif
+#if PAL_BUILD_NAVI32
+#define PRID_NV3_NAVI32_00          0x00
+#define PRID_NV3_NAVI32_80          0x80
+#define PRID_NV3_NAVI32_88          0x88
+#define PRID_NV3_NAVI32_89          0x89
+#define PRID_NV3_NAVI32_98          0x98
+#define PRID_NV3_NAVI32_99          0x99
+#define PRID_NV3_NAVI32_9B          0x9B
+#define PRID_NV3_NAVI32_BF          0xBF
+#endif
 #if PAL_BUILD_NAVI33
 #define PRID_NV3_NAVI33_00          0x00
 #define PRID_NV3_NAVI33_3C          0x3C
@@ -458,9 +490,15 @@
 #if PAL_BUILD_NAVI31
 #define VARIANT_IS_NAVI31_XTX(v) (VARIANT_IS(v, NV3_NAVI31_C8 ) | VARIANT_IS(v, NV3_NAVI31_D4))
 #endif
+#if PAL_BUILD_NAVI32
+#define VARIANT_IS_NAVI32_XL(v) VARIANT_IS(v, NV3_NAVI32_BF)
+#endif
 
 #if PAL_BUILD_NAVI31
 #define SKU_IS_NAVI31_XTX_A0(d, r, v) (DEVICE_IS_NAVI31(d) && SPIN_IS_NAVI31_A0(r) && VARIANT_IS_NAVI31_XTX(v))
+#endif
+#if PAL_BUILD_NAVI32
+#define SKU_IS_NAVI32_XL_A0(d, r, v) (DEVICE_IS_NAVI32(d) && SPIN_IS_NAVI32_A0(r) && VARIANT_IS_NAVI32_XL(v))
 #endif
 
 #endif

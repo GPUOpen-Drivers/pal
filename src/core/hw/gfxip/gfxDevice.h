@@ -418,7 +418,6 @@ template <size_t N>
 constexpr bool CheckSequentialRegs(
     const CheckedRegPair (&args)[N])
 {
-#if PAL_CPLUSPLUS_AT_LEAST(PAL_CPLUSPLUS_14) || (defined(__cpp_constexpr) && (__cpp_constexpr >= 201304))
     uint32 regOffsets[N]    = {};
     size_t structOffsets[N] = {};
     for (int i = 0; i < N; i++)
@@ -427,10 +426,6 @@ constexpr bool CheckSequentialRegs(
         structOffsets[i] = args[i].structOffset;
     }
     return (Util::CheckSequential(regOffsets) && Util::CheckSequential(structOffsets, sizeof(uint32)));
-#else
-    // C++11 lacks support for doing anything useful with constexpr
-    return true;
-#endif
 }
 
 // =====================================================================================================================
@@ -823,7 +818,11 @@ public:
     void DescribeBarrierStart(GfxCmdBuffer* pCmdBuf, uint32 reason, Developer::BarrierType type) const;
     void DescribeBarrierEnd(GfxCmdBuffer* pCmdBuf, Developer::BarrierOperations* pOperations) const;
 
-    virtual ClearMethod GetDefaultSlowClearMethod(const SwizzledFormat& clearFormat) const;
+    virtual ClearMethod GetDefaultSlowClearMethod(
+        const ImageCreateInfo&  createInfo,
+        const SwizzledFormat&   clearFormat) const;
+
+    virtual bool DisableAc01ClearCodes() const { return true; };
 
 protected:
     static void FixupDecodedSrdFormat(

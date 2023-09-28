@@ -101,8 +101,8 @@ constexpr uint32 CacheCoherencyGraphicsOnly = CoherColorTarget        |
                                               CoherIndexData;
 
 // There are various BLTs(Copy, Clear, and Resolve) that can involve different caches based on what engine
-// does the BLT.
-constexpr uint32 CacheCoherencyBltSrc = CoherCopySrc | CoherResolveSrc;
+// does the BLT. Note that the compute shader support for masked clears requires an implicit read-modify-write.
+constexpr uint32 CacheCoherencyBltSrc = CoherCopySrc | CoherResolveSrc | CoherClear;
 constexpr uint32 CacheCoherencyBltDst = CoherCopyDst | CoherResolveDst | CoherClear;
 constexpr uint32 CacheCoherencyBlt    = CacheCoherencyBltSrc | CacheCoherencyBltDst;
 

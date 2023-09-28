@@ -190,6 +190,13 @@ void ComputeCmdBuffer::LeakNestedCmdBufferState(
                                 &m_computeState.pipelineState,
                                 &m_computeState.csUserDataEntries);
 
+    // It is possible that nested command buffer execute operation which affect the data in the primary buffer
+    m_pm4CmdBufState.flags.csBltActive               = cmdBuffer.m_pm4CmdBufState.flags.csBltActive;
+    m_pm4CmdBufState.flags.cpBltActive               = cmdBuffer.m_pm4CmdBufState.flags.cpBltActive;
+    m_pm4CmdBufState.flags.csWriteCachesDirty        = cmdBuffer.m_pm4CmdBufState.flags.csWriteCachesDirty;
+    m_pm4CmdBufState.flags.cpWriteCachesDirty        = cmdBuffer.m_pm4CmdBufState.flags.cpWriteCachesDirty;
+    m_pm4CmdBufState.flags.cpMemoryWriteL2CacheStale = cmdBuffer.m_pm4CmdBufState.flags.cpMemoryWriteL2CacheStale;
+
     // NOTE: Compute command buffers shouldn't have changed either of their CmdSetUserData callbacks.
     PAL_ASSERT(memcmp(&m_funcTable, &cmdBuffer.m_funcTable, sizeof(m_funcTable)) == 0);
 }

@@ -119,6 +119,7 @@ struct HardwareStageMetadata
     uint32                  vgprLimit;
     /// SGPR count upper limit (only set if different from HW default).
     uint32                  sgprLimit;
+
     /// Thread-group X/Y/Z dimensions (Compute only).
     uint32                  threadgroupDimensions[3];
     /// Original thread-group X/Y/Z dimensions (Compute only).
@@ -200,6 +201,7 @@ struct HardwareStageMetadata
             uint64 sgprCount                 : 1;
             uint64 vgprLimit                 : 1;
             uint64 sgprLimit                 : 1;
+            uint64 placeholder0              : 1;
             uint64 threadgroupDimensions     : 1;
             uint64 origThreadgroupDimensions : 1;
             uint64 cbConstUsage              : 1;
@@ -227,7 +229,7 @@ struct HardwareStageMetadata
             uint64 writesDepth               : 1;
             uint64 usesAppendConsume         : 1;
             uint64 usesPrimId                : 1;
-            uint64 reserved                  : 27;
+            uint64 reserved                  : 26;
         };
         uint64 uAll;
     } hasEntry;
@@ -2479,6 +2481,7 @@ namespace HardwareStageMetadataKey
     static constexpr char SgprCount[]                 = ".sgpr_count";
     static constexpr char VgprLimit[]                 = ".vgpr_limit";
     static constexpr char SgprLimit[]                 = ".sgpr_limit";
+
     static constexpr char ThreadgroupDimensions[]     = ".threadgroup_dimensions";
     static constexpr char OrigThreadgroupDimensions[] = ".orig_threadgroup_dimensions";
     static constexpr char CbConstUsages[]             = ".cb_const_usages";

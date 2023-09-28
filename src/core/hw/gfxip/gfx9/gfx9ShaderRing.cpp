@@ -109,7 +109,9 @@ Result ShaderRing::AllocateVideoMemory(
     gpusize           memorySizeBytes,
     ShaderRingMemory* pDeferredMem)
 {
-    InternalMemMgr*const pMemMgr = m_pDevice->Parent()->MemMgr();
+    Pal::Device*const pParent = m_pDevice->Parent();
+    InternalMemMgr*const pMemMgr = pParent->MemMgr();
+    const PalPublicSettings*const pPublicSettings = pParent->GetPublicSettings();
 
     if (m_ringMem.IsBound())
     {
@@ -146,8 +148,17 @@ Result ShaderRing::AllocateVideoMemory(
         createInfo.flags.tmzProtected = m_tmzEnabled;
         createInfo.heaps[0]           = GpuHeapInvisible;
         createInfo.heaps[1]           = GpuHeapLocal;
-        createInfo.heaps[2]           = GpuHeapGartUswc;
-        createInfo.heapCount          = 3;
+
+        // Disallows putting the shader ring in system memory for performance purposes
+        if (pPublicSettings->forceShaderRingToVMem && (pParent->ChipProperties().gpuType != GpuType::Integrated))
+        {
+            createInfo.heapCount = 2;
+        }
+        else
+        {
+            createInfo.heaps[2]  = GpuHeapGartUswc;
+            createInfo.heapCount = 3;
+        }
     }
 
     // Allocate video memory for this Ring.

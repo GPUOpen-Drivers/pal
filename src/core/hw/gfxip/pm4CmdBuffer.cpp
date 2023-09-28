@@ -762,7 +762,9 @@ void Pm4CmdBuffer::CmdSaveComputeState(uint32 stateFlags)
 // =====================================================================================================================
 // Restores the requested portion of the last saved compute state in m_computeRestoreState, rebinding all objects as
 // necessary. All previously disabled queries will be reactivated.
-void Pm4CmdBuffer::CmdRestoreComputeState(uint32 stateFlags)
+void Pm4CmdBuffer::CmdRestoreComputeStateInternal(
+    uint32 stateFlags,
+    bool   trackBltActiveFlags)
 {
     // Vulkan does allow blits in nested command buffers, but they do not support inheriting user-data values from
     // the caller. Therefore, simply "setting" the restored-state's user-data is sufficient, just like it is in a
@@ -774,18 +776,24 @@ void Pm4CmdBuffer::CmdRestoreComputeState(uint32 stateFlags)
     // We may have allocated this if we saved while in HSA mode. It makes things simpler if we just free it now.
     PAL_SAFE_FREE(m_computeRestoreState.pKernelArguments, m_device.GetPlatform());
 
-    GfxCmdBuffer::CmdRestoreComputeState(stateFlags);
-
-    // The caller has just executed one or more CS blts.
-    SetCsBltState(true);
-    SetCsBltWriteCacheState(true);
-
-    UpdateCsBltExecFence();
+    GfxCmdBuffer::CmdRestoreComputeStateInternal(stateFlags, trackBltActiveFlags);
 
     // Reactivate all queries that we stopped in CmdSaveComputeState.
     if (m_buildFlags.disableQueryInternalOps)
     {
         ReactivateQueries();
+    }
+
+    // No need track blt active flags (expect trackBltActiveFlags == false) for below cases:
+    //  1. CmdRestoreComputeState() call from PAL clients.
+    //  2. CmdRestoreComputeState() call from auto sync clear case.
+    if (trackBltActiveFlags)
+    {
+        // The caller has just executed one or more CS blts.
+        SetCsBltState(true);
+        SetCsBltWriteCacheState(true);
+
+        UpdateCsBltExecFence();
     }
 }
 

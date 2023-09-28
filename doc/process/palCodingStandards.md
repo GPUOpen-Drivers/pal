@@ -172,7 +172,7 @@ General Language Restrictions
     or memory allocation calls failing. The `PAL_ALERT` macro ***should
     be*** used for reporting this sort of failure, when deemed useful.
 
--   All target compilers **must** fully support C++17. The following C++
+-   All target compilers **must** fully support C++20. The following C++
     constructs are explicitly allowed:
 
     -   Storage class ***must*** be specified for all enums to allow
@@ -638,24 +638,33 @@ uint32* pFlags;
 -   Local variables ***should*** be initialized at their declaration
     where possible.
 
--   Structures ***should*** be initialized completely. The preferred
-    method is to use "= { };" which initializes the entire structure
-    to 0 (the C / C++ specification states that members not explicitly
-    initialized are set to 0) in a concise way which is also highly
-    visible to the optimizer.
+-   Structures ***should*** be initialized completely. The preferred method is to use _aggregate initialization_ which initializes the entire structure in the following order:
+    1. If there's a designated initializer for a value, use that.
+    2. If the struct's declaration specifies a default value, use that.
+    3. Otherwise, call the type's default constructor (for primitives this will initialize them to 0)
 
 ```cpp
-SomeStruct structData = { };
+struct SomeStruct
+{
+    int x;
+    int y{ 1 };
+    SomeStruct* pNext;
+};
+
+// { 0, 1, nullptr }
+SomeStruct someData{};
+
+// { 9, 1, &someData }
+SomeStruct moreData{ .x = 9, .pNext{ &someData } };
 ```
 
--   Some structures may not allow the "= { }" form (e.g. if an enum is
-    present) and these ***should*** use memset instead.
+-   Some structures may not allow the "{}" form (e.g. if a default constructor is private or deleted) and these ***should*** use `std::memset()` instead.
 
 -   If a structure is not completely initialized (e.g. in extremely
     performance-critical code) a comment ***must*** be added to
     document the reason for not doing so.
 
--   const ***should*** be used wherever possible; see "Const Usage".
+-   const ***should*** be used wherever possible; see ["Const Usage"](#const-usage).
 
 -   Local variables ***must*** be initialized via assignment
     (`uint32 foo = 2;`) rather than construction (`uint32 foo(2);`).
@@ -1369,11 +1378,7 @@ case Blah2:
 }
 ```
 
--   Any time a case statement is used without a corresponding break by
-    design, a comment ***must*** record why the break is not needed.
-    The exception to this case is when a group of cases all execute
-    the same code. The example below shows where a comment is and is
-    not required.
+-   Fallthrough-behavior: Any time a case statement is used without a corresponding break by design, the `[[fallthrough]]` attribute must be used. The only exception to this is if the case is empty. A comment explaining why we are intentionally falling-through is highly encouraged.
 
 ```cpp
 switch (operation)
@@ -1390,11 +1395,12 @@ case OpPauseSignaled:
     break;
 case OpYield:
     RecordYields();
-    // FALLTHROUGH: After the record, the Yield operation then needs
+    // After the record, the Yield operation then needs
     // to carry out the default operation.
+    [[fallthrough]];
 default:
-    // Handle the default, unspecified cases. The default case is necessary
-    // because...
+    // Handle the default, unspecified cases.
+    // The default case is necessary because...
     break;
 }
 ```

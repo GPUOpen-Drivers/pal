@@ -4698,7 +4698,7 @@ bool Gfx9Dcc::UseDccForImage(
 
 // =====================================================================================================================
 // Determines if the given Image object should use fast color clears.
-bool Gfx9Dcc::SupportFastColorClear(
+bool Gfx9Dcc::SupportFastColorClearWithoutFormatCheck(
     const Pal::Device& device,
     const Image&       image,
     AddrSwizzleMode    swizzleMode)
@@ -4707,6 +4707,7 @@ bool Gfx9Dcc::SupportFastColorClear(
     const ImageCreateInfo& createInfo = pParent->GetImageCreateInfo();
     const Gfx9PalSettings& settings   = GetGfx9Settings(device);
     const GfxIpLevel       gfxLevel   = pParent->GetDevice()->ChipProperties().gfxLevel;
+    const Device*const     pGfxDevice = static_cast<Device*>(device.GetGfxDevice());
 
     // Choose which fast-clear setting to examine based on the type of Image we have.
     const bool fastColorClearEnable = (createInfo.imageType == ImageType::Tex2d) ?
@@ -4733,11 +4734,22 @@ bool Gfx9Dcc::SupportFastColorClear(
             //
             // Note that this is not strictly true as fast clears to "black" or "white" are
             // always possible.
-            ((IsGfx11(gfxLevel) == false) || image.Gfx10UseCompToSingleFastClears()) &&
+            ((IsGfx11(gfxLevel) == false) ||
+                (pGfxDevice->DisableAc01ClearCodes() == false) ||
+                image.Gfx10UseCompToSingleFastClears()) &&
 #endif
             allowShaderWriteableSurfaces                                             &&
-            (AddrMgr2::IsLinearSwizzleMode(swizzleMode) == false)                    &&
-            (SupportsFastColorClear(createInfo.swizzledFormat.format));
+            (AddrMgr2::IsLinearSwizzleMode(swizzleMode) == false);
+}
+
+// =====================================================================================================================
+bool Gfx9Dcc::SupportFastColorClearOnlyCheckFormat(
+    const Image&	image)
+{
+    const Pal::Image*const pParent    = image.Parent();
+    const ImageCreateInfo& createInfo = pParent->GetImageCreateInfo();
+
+    return SupportsFastColorClear(createInfo.swizzledFormat.format);
 }
 
 // =====================================================================================================================

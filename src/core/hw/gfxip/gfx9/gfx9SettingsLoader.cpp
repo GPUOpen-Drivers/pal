@@ -892,6 +892,9 @@ static void SetupGfx11Workarounds(
 #if PAL_BUILD_NAVI31
         || IsNavi31(device)
 #endif
+#if PAL_BUILD_NAVI32
+        || IsNavi32(device)
+#endif
         )
     {
         pSettings->shaderPrefetchSizeBytes = 0;

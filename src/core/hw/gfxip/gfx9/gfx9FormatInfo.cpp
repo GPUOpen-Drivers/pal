@@ -62,8 +62,8 @@ const MergedFmtInfo* MergedChannelFmtInfoTbl(
 #endif
         // Do *not* return "Gfx10MergedChannelFmtInfoTbl" here!  That table is of a different type; GFX10
         // users need to call "Gfx10MergedChannelFmtInfoTbl" instead.
+        [[fallthrough]];
 
-        // break intentionally removed
     default:
         // What is this?
         PAL_ASSERT_ALWAYS();

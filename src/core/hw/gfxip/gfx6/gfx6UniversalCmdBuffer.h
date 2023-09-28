@@ -181,7 +181,7 @@ public:
     virtual void CmdBindIndexData(gpusize gpuAddr, uint32 indexCount, IndexType indexType) override;
     virtual void CmdBindMsaaState(const IMsaaState* pMsaaState) override;
     virtual void CmdSaveGraphicsState() override;
-    virtual void CmdRestoreGraphicsState() override;
+    virtual void CmdRestoreGraphicsStateInternal(bool trackBltActiveFlags = true) override;
     virtual void CmdBindColorBlendState(const IColorBlendState* pColorBlendState) override;
     virtual void CmdBindDepthStencilState(const IDepthStencilState* pDepthStencilState) override;
 

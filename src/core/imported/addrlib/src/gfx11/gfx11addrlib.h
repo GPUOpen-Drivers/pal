@@ -52,7 +52,11 @@ struct Gfx11ChipSettings
     struct
     {
         UINT_32 futureGpu1          :  1;
+#if ADDR_PHOENIX_BUILD
+        UINT_32 isPhoenix           :  1;
+#else
         UINT_32 futureGpu2          :  1;
+#endif
         UINT_32 reserved1           : 30;
 
         // Misc configuration bits

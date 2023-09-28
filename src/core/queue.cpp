@@ -617,7 +617,7 @@ Result Queue::SubmitInternal(
     }
     else
     {
-        memset(internalSubmitInfos.Data(), 0, sizeof(InternalSubmitInfo) * submitInfo.perSubQueueInfoCount);
+        memset(internalSubmitInfos.Data(), 0, sizeof(InternalSubmitInfo) * Max(1u, submitInfo.perSubQueueInfoCount));
         for (uint32 qIndex = 0; (qIndex < submitInfo.perSubQueueInfoCount) && (result == Result::Success); qIndex++)
         {
             SubmitConfig(submitInfo, &internalSubmitInfos[qIndex]);

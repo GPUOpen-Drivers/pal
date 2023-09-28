@@ -2263,7 +2263,7 @@ regGRBM_GFX_INDEX PerfExperiment::BuildGrbmGfxIndex(
     case PerfCounterDistribution::GlobalBlock:
         // Global block writes should broadcast to SEs and SAs.
         grbmGfxIndex.bits.SE_BROADCAST_WRITES  = 1;
-        // Intentional fall through
+        [[fallthrough]];
     case PerfCounterDistribution::PerShaderEngine:
         // Per-SE block writes should broadcast to SAs.
         grbmGfxIndex.bits.SH_BROADCAST_WRITES = 1;

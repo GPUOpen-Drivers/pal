@@ -433,10 +433,12 @@ public:
     Result Init(const SubresId& subResId, gpusize*  pSize, bool  hasEqGpuAccess);
     static bool UseDccForImage(const Image& image, bool metaDataTexFetchSupported);
 
-    static bool SupportFastColorClear(
-        const Pal::Device& device,
-        const Image&       image,
-        AddrSwizzleMode    swizzleMode);
+    static bool SupportFastColorClearWithoutFormatCheck(
+         const Pal::Device& device,
+         const Image&       image,
+         AddrSwizzleMode    swizzleMode);
+
+    static bool SupportFastColorClearOnlyCheckFormat(const Image& image);
 
     // Returns the value of the DCC control register for this DCC surface
     const regCB_COLOR0_DCC_CONTROL& GetControlReg() const { return m_dccControl; }

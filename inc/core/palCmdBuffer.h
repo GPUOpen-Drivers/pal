@@ -1964,7 +1964,11 @@ struct CmdBufInfo
 #endif
     uint64             frameIndex;         ///< The frame index of this command buffer. It is only required for the
                                            ///  DirectCapture feature
-
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 822
+    uint32             vidPnSourceId;      ///< The display source id for the DirectCapture feature. Clients must set
+                                           ///  a valid vidPnSourceId when privateFlip flag is set and pDirectCapMemory
+                                           ///  is nullptr.
+#endif
 };
 
 /// Specifies rotation angle between two images.  Used as input to ICmdBuffer::CmdScaledCopyImage.
@@ -3467,9 +3471,9 @@ public:
     /// In practice, this is the case when vkCmdClearColorAttachments() is called in a secondary command buffer in
     /// Vulkan where the color attachments are inherited.
     ///
-    /// This requires regionCount being specified since resource size is for sure to be known.
-    ///
-    /// The bound color targets shouldn't have UndefinedSwizzledFormat as their swizzle format.
+    /// This requires regionCount being specified since resource size is for sure to be known. The bound color targets
+    /// shouldn't have UndefinedSwizzledFormat as their swizzle format. When issue barrier for cleared color targets,
+    /// should use PipelineStageColorTarget and CoherColorTarget instead of PipelineStageBlt and CoherClear.
     ///
     /// @param [in] colorTargetCount      Number of bound color target that needs to be cleared.
     /// @param [in] pBoundColorTargets    Color target information for the bound color targets.
@@ -3532,7 +3536,9 @@ public:
     /// In practice, this is the case when vkCmdClearColorAttachments() is called in a secondary command buffer in
     /// Vulkan where the color attachments are inherited.
     ///
-    /// This requires regionCount being specified since resource size is for sure to be known.
+    /// This requires regionCount being specified since resource size is for sure to be known. When issue barrier for
+    /// cleared depth stencil targets, should use PipelineStageEarlyDsTarget/PipelineStageLateDsTarget and
+    /// CoherDepthStencilTarget instead of PipelineStageBlt and CoherClear.
     ///
     /// @param [in] depth            Depth clear value.
     /// @param [in] stencil          Stencil clear value.

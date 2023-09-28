@@ -226,6 +226,9 @@ enum class AsicRevision : uint32
 #if PAL_BUILD_NAVI31
     Navi31           = 0x2C,
 #endif
+#if PAL_BUILD_NAVI32
+    Navi32           = 0x2D,
+#endif
 #if PAL_BUILD_NAVI33
     Navi33           = 0x2E,
 #endif
@@ -824,6 +827,11 @@ struct PalPublicSettings
     /// Clients must check Pal::DeviceProperties::osProperties::flags::forceAlignmentSupported
     /// to see if anything other than default will work.
     BufferAlignmentMode hardwareBufferAlignmentMode;
+
+    // Disallows putting the shader ring in system memory for performance purposes
+    // This is done by un-listing GpuHeapGartUswc as a possible heap for the shader rings.
+    // Instead only allowing GpuHeapInvisible and GpuHeapLocal
+    bool forceShaderRingToVMem;
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 818
     /// If the client sets this to true they promise they've done exhaustive testing on every ASIC to prove that this
@@ -1439,7 +1447,7 @@ struct DeviceProperties
                 uint64 supportCooperativeMatrix           :  1; ///< HW supports cooperative matrix
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 808
                 uint64 support1dDispatchInterleave        :  1; // Indicates support for 1D Dispatch Interleave.
-                uint64 support2dDispatchInterleave        :  1; // Indicates support for 2D Dispatch Interleave.
+                uint64 placeholder12                      :  1;
 #endif
                 uint64 reserved                           :  2; ///< Reserved for future use.
             };
@@ -1725,7 +1733,15 @@ union FullScreenFrameMetadataControlFlags
         uint32 expandDcc                 :  1; ///< KMD notifies UMD to expand DCC (Output only).
         uint32 enableTurboSyncForDwm     :  1; ///< Indicates DWM should turn on TurboSync(Output only).
         uint32 enableDwmFrameMetadata    :  1; ///< When cleared, no frame metadata should be sent for DWM(Output only).
-        uint32 reserved                  : 21; ///< Reserved for future use.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 820
+        uint32 flipIntervalOverride      :  3; ///< KMD-UMD interface FLIP_INTERVAL_OVERRIDE, for KMD to request flip
+                                               ///  interval override from UMD.
+#else
+        uint32 placeholder820            :  3; ///< Reserved for future interface versions
+#endif
+        uint32 disableFreeMux            :  1; ///< KMD notifies UMD to disable FreeMux.
+        uint32 reserved                  : 17; ///< Reserved for future use.
+
     };
     uint32 u32All;    ///< Flags packed as 32-bit uint.
 };

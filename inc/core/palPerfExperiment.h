@@ -321,7 +321,8 @@ struct ThreadTraceInfo
             uint32 threadTraceWrapBuffer     :  1;
             uint32 threadTraceStallBehavior  :  1;
             uint32 threadTraceTokenConfig    :  1;
-            uint32 reserved                  : 19;
+            uint32 placeholder1              :  1;
+            uint32 reserved                  : 18;
         };
         uint32 u32All;
     } optionFlags;

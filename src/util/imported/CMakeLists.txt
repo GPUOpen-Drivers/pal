@@ -23,11 +23,11 @@
  #
  #######################################################################################################################
 
-target_sources(pal PRIVATE CMakeLists.txt)
+target_sources(palUtil PRIVATE CMakeLists.txt)
 
 ### LIBUUID ####################################################################
 add_subdirectory(libuuid)
-target_link_libraries(pal PRIVATE pal_uuid)
+target_link_libraries(palUtil PRIVATE pal_uuid)
 
 ### METROHASH ##################################################################
 
@@ -44,7 +44,7 @@ if (NOT TARGET metrohash)
     endif()
 endif()
 
-target_link_libraries(pal PUBLIC metrohash)
+target_link_libraries(palUtil PUBLIC metrohash)
 
 ### CWPACK #####################################################################
 
@@ -61,11 +61,11 @@ if (NOT TARGET cwpack)
     endif()
 endif()
 
-target_link_libraries(pal PUBLIC cwpack)
+target_link_libraries(palUtil PUBLIC cwpack)
 
 ### LZ4 ########################################################################
 add_subdirectory(pal_lz4)
-target_link_libraries(pal PRIVATE pal_lz4)
+target_link_libraries(palUtil PRIVATE pal_lz4)
 
 ### DevDriver ####################################################################
 

@@ -247,10 +247,13 @@ public:
         { PAL_NEVER_CALLED(); }
 
     virtual void CmdSaveGraphicsState() override
-        {PAL_NEVER_CALLED();}
+        { PAL_NEVER_CALLED(); }
 
-    virtual void CmdRestoreGraphicsState() override
-        {PAL_NEVER_CALLED();}
+    // For PAL internal: should call CmdRestoreGraphicsStateInternal() instead of CmdRestoreComputeState(); otherwise
+    //                   there may be potential issue due to miss tracking blt active flags for barriers.
+    virtual void CmdRestoreGraphicsStateInternal(bool trackBltActiveFlags = true) { PAL_NEVER_CALLED(); }
+
+    virtual void CmdRestoreGraphicsState() override { CmdRestoreGraphicsStateInternal(false); }
 
     virtual void CmdBindColorBlendState(const IColorBlendState* pColorBlendState) override
         { PAL_NEVER_CALLED(); }
@@ -771,8 +774,14 @@ public:
     virtual void CmdSaveComputeState(
         uint32 stateFlags) override { PAL_NEVER_CALLED(); }
 
+    // For PAL internal: should call CmdRestoreGraphicsStateInternal() instead of CmdRestoreComputeState(); otherwise
+    //                   there may be potential issue due to miss tracking blt active flags for barriers.
+    virtual void CmdRestoreComputeStateInternal(
+        uint32 stateFlags,
+        bool   trackBltActiveFlags = true) { PAL_NEVER_CALLED(); }
+
     virtual void CmdRestoreComputeState(
-        uint32 stateFlags) override { PAL_NEVER_CALLED(); }
+        uint32 stateFlags) override { CmdRestoreComputeStateInternal(stateFlags, false); }
 
     virtual void CmdExecuteIndirectCmds(
         const IIndirectCmdGenerator& generator,
@@ -948,8 +957,13 @@ public:
     // invoked.
     bool HasHybridPipeline() const { return (m_flags.hasHybridPipeline == 1); }
     void ReportHybridPipelineBind() { m_flags.hasHybridPipeline = 1; }
+#if PAL_BUILD_RDF
     bool IsUsedInEndTrace() const { return (m_flags.usedInEndTrace == 1); }
     void SetEndTraceFlag(uint32 value) { m_flags.usedInEndTrace = value; }
+#else
+    bool IsUsedInEndTrace() const { return false; }
+    void SetEndTraceFlag(uint32 value) {}
+#endif
 
     uint32 ImplicitGangedSubQueueCount() const { return m_implicitGangSubQueueCount; }
     void EnableImplicitGangedSubQueueCount(uint32 count)

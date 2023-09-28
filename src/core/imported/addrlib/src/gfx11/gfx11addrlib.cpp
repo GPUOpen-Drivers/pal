@@ -711,12 +711,22 @@ ChipFamily Gfx11Lib::HwlConvertChipFamily(
             {
             }
 #endif
+#if ADDR_NAVI32_BUILD
+            if (ASICREV_IS_NAVI32_P(chipRevision))
+            {
+            }
+#endif
 #if ADDR_NAVI33_BUILD
             if (ASICREV_IS_NAVI33_P(chipRevision))
             {
             }
 #endif
             break;
+#if ADDR_PHOENIX_BUILD
+        case FAMILY_PHX:
+            m_settings.isPhoenix = 1;
+            break;
+#endif
         default:
             ADDR_ASSERT(!"Unknown chip family");
             break;
@@ -1709,6 +1719,9 @@ UINT_32 Gfx11Lib::GetValidDisplaySwizzleModes(
         swModeMask = Dcn32SwModeMask;
 
         if (false
+#if ADDR_PHOENIX_BUILD
+            || (m_settings.isPhoenix)
+#endif
            )
         {
             // Not all GPUs support displaying with 256kB swizzle modes.
