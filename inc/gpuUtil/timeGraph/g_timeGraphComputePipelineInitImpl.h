@@ -54,24 +54,6 @@ Pal::Result CreateTimeGraphComputePipelines(
 
     switch (properties.revision)
     {
-    case Pal::AsicRevision::Polaris10:
-    case Pal::AsicRevision::Polaris11:
-    case Pal::AsicRevision::Polaris12:
-        pTable = timeGraphComputeBinaryTablePolaris10;
-        break;
-
-    case Pal::AsicRevision::Vega10:
-    case Pal::AsicRevision::Raven:
-    case Pal::AsicRevision::Vega12:
-    case Pal::AsicRevision::Vega20:
-        pTable = timeGraphComputeBinaryTableVega10;
-        break;
-
-    case Pal::AsicRevision::Raven2:
-    case Pal::AsicRevision::Renoir:
-        pTable = timeGraphComputeBinaryTableRaven2;
-        break;
-
     case Pal::AsicRevision::Navi10:
         pTable = timeGraphComputeBinaryTableNavi10;
         break;
@@ -108,6 +90,12 @@ Pal::Result CreateTimeGraphComputePipelines(
         break;
 #endif
 
+#if PAL_BUILD_NAVI32
+    case Pal::AsicRevision::Navi32:
+        pTable = timeGraphComputeBinaryTableNavi32;
+        break;
+#endif
+
 #if PAL_BUILD_NAVI33
     case Pal::AsicRevision::Navi33:
         pTable = timeGraphComputeBinaryTableNavi33;
@@ -117,12 +105,6 @@ Pal::Result CreateTimeGraphComputePipelines(
 #if PAL_BUILD_PHOENIX1
     case Pal::AsicRevision::Phoenix1:
         pTable = timeGraphComputeBinaryTablePhoenix1;
-        break;
-#endif
-
-#if PAL_BUILD_NAVI32
-    case Pal::AsicRevision::Navi32:
-        pTable = timeGraphComputeBinaryTableNavi32;
         break;
 #endif
 

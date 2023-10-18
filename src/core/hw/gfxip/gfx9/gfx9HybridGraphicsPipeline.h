@@ -67,7 +67,7 @@ protected:
     virtual const ShaderStageInfo* GetShaderStageInfo(ShaderType shaderType) const override;
 
     Result LinkGraphicsLibraries(
-        const GraphicsPipelineCreateInfo& createInfo);
+        const GraphicsPipelineCreateInfo& createInfo) override;
 private:
     PipelineChunkCs        m_task;
     ShaderStageInfo        m_taskStageInfo;

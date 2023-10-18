@@ -313,7 +313,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdSetUserDataGfx(
     uint32        entryCount,
     const uint32* pEntryValues)
 {
-    PAL_ASSERT((pCmdBuffer != nullptr) && (entryCount != 0) && (pEntryValues != nullptr));
+    PAL_DEBUG_BUILD_ONLY_ASSERT((pCmdBuffer != nullptr) && (entryCount != 0) && (pEntryValues != nullptr));
 
     auto*const pSelf    = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
     auto*const pEntries = &pSelf->m_graphicsState.gfxUserDataEntries;

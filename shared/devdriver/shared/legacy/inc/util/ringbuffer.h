@@ -26,7 +26,7 @@
 #pragma once
 
 #include <ddPlatform.h>
-#include <ddAmdLogInterface.h>
+#include <dd_event/common.h>
 
 namespace DevDriver
 {
@@ -60,14 +60,14 @@ public:
     // The function will return InvalidParameter and skip the write when:
     //      1. The event + dataSize exceed the total buffer size.
     //      2. The event or pData are null
-    Result WriteData(const AmdLogEventInfo* pEvent)
+    Result WriteData(const DDEventHeader* pEvent, void* pData)
     {
         Result result = Result::InvalidParameter;
         m_mutex.Lock();
 
-        if ((pEvent != nullptr) && (pEvent->pData != nullptr))
+        if ((pEvent != nullptr) && (pData != nullptr))
         {
-            size_t sizeNeeded = sizeof(AmdLogEventInfo) + pEvent->dataSize;
+            size_t sizeNeeded = sizeof(DDEventHeader) + pEvent->eventSize;
 
             if (sizeNeeded < m_size)
             {
@@ -77,8 +77,8 @@ public:
                 }
 
                 // Write event object and then copy the data immediately after that
-                WriteRawData(pEvent, sizeof(AmdLogEventInfo));
-                WriteRawData(pEvent->pData, pEvent->dataSize);
+                WriteRawData(pEvent, sizeof(DDEventHeader));
+                WriteRawData(pData, pEvent->eventSize);
 
                 result = Result::Success;
             }
@@ -95,20 +95,17 @@ public:
     //     1. The event or pData is null
     //     2. The dataSize exceeds the total size.
     //     3. No events have been written
-    Result ReadData(AmdLogEventInfo* pRetEvent)
+    Result ReadData(DDEventHeader* pRetEvent, void* pData)
     {
         Result result = Result::InvalidParameter;
-        if ((pRetEvent != nullptr)           &&
-            (pRetEvent->pData != nullptr)    &&
-            (pRetEvent->dataSize <= m_size)  &&
+        if ((pRetEvent != nullptr)            &&
+            (pData != nullptr)                &&
+            (pRetEvent->eventSize <= m_size)  &&
             (m_spaceUsed > 0))
         {
             m_mutex.Lock();
-            // We will clober the event when we read it, so store off the pointer to the buffer
-            void* pData = pRetEvent->pData;
-            ReadRawData(pRetEvent, sizeof(AmdLogEventInfo), true);
-            pRetEvent->pData = pData;
-            ReadRawData(pRetEvent->pData, pRetEvent->dataSize);
+            ReadRawData(pRetEvent, sizeof(DDEventHeader), true);
+            ReadRawData(pData, pRetEvent->eventSize);
             m_mutex.Unlock();
             result = Result::Success;
         }
@@ -141,14 +138,14 @@ public:
     {
         m_mutex.Lock();
         // Create a temporary event and copy the ring buffer data to it:
-        AmdLogEventInfo event = {};
+        DDEventHeader event = {};
         if (m_spaceUsed > 0)
         {
-            ReadRawData(&event, sizeof(AmdLogEventInfo), false);
+            ReadRawData(&event, sizeof(DDEventHeader), false);
         }
         m_mutex.Unlock();
 
-        return event.dataSize;
+        return event.eventSize;
     }
 
     size_t GetSpaceUsed() const
@@ -192,8 +189,8 @@ private:
     void FreeSpace()
     {
         char* pData                 = m_ringBuffer.Data();
-        AmdLogEventInfo* pEvent     = (AmdLogEventInfo*)&pData[m_readPointer];
-        size_t           len        = sizeof(AmdLogEventInfo) + pEvent->dataSize;
+        DDEventHeader*   pEvent     = reinterpret_cast<DDEventHeader*>(&pData[m_readPointer]);
+        size_t           len        = sizeof(DDEventHeader) + pEvent->eventSize;
         size_t           tailLength = Platform::Min(m_size - m_readPointer, len);
         memset(&pData[m_readPointer], 0, tailLength);
         memset(pData, 0, len - tailLength);

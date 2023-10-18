@@ -43,12 +43,10 @@ ShaderLibrary::ShaderLibrary(
 }
 
 // =====================================================================================================================
-// Initialize this shader library based on the provided creation info.
-Result ShaderLibrary::Initialize(
-    const ShaderLibraryCreateInfo&    createInfo,
-    const AbiReader&                  abiReader,
-    const PalAbi::CodeObjectMetadata& metadata,
-    MsgPackReader*                    pMetadataReader)
+// First of two steps of ShaderLibrary Init. This function copies the code object data to memory owned by
+// this ShaderLibrary object. This function must be called before InitFromCodeObjectBinary.
+Result ShaderLibrary::InitializeCodeObject(
+    const ShaderLibraryCreateInfo& createInfo)
 {
     Result result = Result::Success;
 
@@ -71,18 +69,12 @@ Result ShaderLibrary::Initialize(
     {
         result = Result::ErrorInvalidPointer;
     }
-
-    if (result == Result::Success)
-    {
-        PAL_ASSERT(m_pCodeObjectBinary != nullptr);
-        result = InitFromCodeObjectBinary(createInfo, abiReader, metadata, pMetadataReader);
-    }
-
     return result;
 }
 
 // =====================================================================================================================
-// Initializes this library from the library binary data stored in this object.
+// Second of two steps of ShaderLibrary init. Initializes this library from the library binary data
+// stored in this object. Must be called after InitializeCodeObject.
 Result ShaderLibrary::InitFromCodeObjectBinary(
     const ShaderLibraryCreateInfo&    createInfo,
     const AbiReader&                  abiReader,

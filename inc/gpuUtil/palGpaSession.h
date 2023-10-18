@@ -257,7 +257,7 @@ struct GpaSampleConfig
             struct
             {
                 Pal::uint32 enable                   :  1;  ///< Include SQTT data in the trace.
-                Pal::uint32 supressInstructionTokens :  1;  ///< Prevents capturing instruciton-level SQTT tokens,
+                Pal::uint32 supressInstructionTokens :  1;  ///< Prevents capturing instruction-level SQTT tokens,
                                                             ///  significantly reducing the amount of sample data.
                 Pal::uint32 stallMode                :  2;  ///< Describes behavior when buffer full
                 Pal::uint32 placeholder1             :  1;
@@ -272,6 +272,12 @@ struct GpaSampleConfig
         Pal::gpusize gpuMemoryLimit; ///< Maximum amount of GPU memory in bytes this sample can allocate for the SQTT
                                      ///  buffer.  If 0, allocate maximum size to prevent dropping tokens toward the
                                      ///  end of the sample.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 824
+        Pal::uint32 tokenMask;       ///< Mask indicating which SQTT tokens are requested for capture. If a tokenMask is
+                                     ///  not provided, PAL will default to collecting all tokens or tokens except
+                                     ///  instruction tokens if the supressInstructionTokens flag is set. Instruction
+                                     ///  tokens will always be filtered out if supressInstructionTokens = true.
+#endif
     } sqtt;  ///< SQ thread trace configuration (only valid for _trace_ samples).
 
     struct
@@ -813,23 +819,28 @@ private:
     // Tracks the current GPU memory object and offset being sub-allocated for AcquireGpuMem().
     GpuMemoryInfo                 m_curGartGpuMem;
     Pal::gpusize                  m_curGartGpuMemOffset;
-    GpuMemoryInfo                 m_curLocalInvisGpuMem;
-    Pal::gpusize                  m_curLocalInvisGpuMemOffset;
+    GpuMemoryInfo                 m_curLocalGpuMem;
+    Pal::gpusize                  m_curLocalGpuMemOffset;
+    GpuMemoryInfo                 m_curInvisGpuMem;
+    Pal::gpusize                  m_curInvisGpuMemOffset;
 
-    // Locks for the local-invisible and gart memory subdivision (and their pools)
+    // Locks for the local-invisible, gart and local memory subdivision (and their pools)
     Util::Mutex m_gartGpuMemLock;
-    Util::Mutex m_localInvisGpuMemLock;
+    Util::Mutex m_localGpuMemLock;
+    Util::Mutex m_invisGpuMemLock;
 
     // Counts number of samples that are active in this GpaSession.
     Pal::uint32                   m_sampleCount;
 
     Pal::IPlatform*const          m_pPlatform;                  // Platform associated with this GpaSesion.
 
-    // GartHeap and InvisHeap GPU chunk pools.
+    // GartHeap / LocalHeap / InvisHeap GPU chunk pools.
     Util::Deque<GpuMemoryInfo, GpaAllocator> m_availableGartGpuMem;
     Util::Deque<GpuMemoryInfo, GpaAllocator> m_busyGartGpuMem;
-    Util::Deque<GpuMemoryInfo, GpaAllocator> m_availableLocalInvisGpuMem;
-    Util::Deque<GpuMemoryInfo, GpaAllocator> m_busyLocalInvisGpuMem;
+    Util::Deque<GpuMemoryInfo, GpaAllocator> m_availableLocalGpuMem;
+    Util::Deque<GpuMemoryInfo, GpaAllocator> m_busyLocalGpuMem;
+    Util::Deque<GpuMemoryInfo, GpaAllocator> m_availableInvisGpuMem;
+    Util::Deque<GpuMemoryInfo, GpaAllocator> m_busyInvisGpuMem;
 
     struct SampleItem;
     class PerfSample;
@@ -1028,11 +1039,14 @@ private:
     Pal::Result AddCodeObjectLoadEvent(const Pal::IShaderLibrary* pLibrary, CodeObjectLoadEventType eventType);
     Pal::Result AddCodeObjectLoadEvent(const ElfBinaryInfo& elfBinaryInfo, CodeObjectLoadEventType eventType);
 
-    // recycle used Gart rafts and put back to available pool
+    // Recycle used Gart rafts and put back to available pool
     void RecycleGartGpuMem();
 
-    // recycle used Local Invisible rafts and put back to available pool
-    void RecycleLocalInvisGpuMem();
+    // Recycle used Local rafts and put back to available pool
+    void RecycleLocalGpuMem();
+
+    // Recycle used Invisible rafts and put back to available pool
+    void RecycleInvisGpuMem();
 
     // Destroy and free one sample item and its sub-items.
     void FreeSampleItem(GpaSession::SampleItem* pSampleItem);

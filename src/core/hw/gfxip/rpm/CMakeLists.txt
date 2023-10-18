@@ -23,10 +23,6 @@
  #
  #######################################################################################################################
 
-if (PAL_BUILD_GFX6)
-    add_subdirectory(gfx6)
-endif()
-
 if (PAL_BUILD_GFX9)
     add_subdirectory(gfx9)
 endif()

@@ -148,12 +148,6 @@ Result GfxDevice::InitHwlSettings(
     {
         switch (m_pParent->ChipProperties().gfxLevel)
         {
-        case GfxIpLevel::GfxIp6:
-        case GfxIpLevel::GfxIp7:
-        case GfxIpLevel::GfxIp8:
-        case GfxIpLevel::GfxIp8_1:
-            m_pSettingsLoader = Gfx6::CreateSettingsLoader(m_pParent);
-            break;
         case GfxIpLevel::GfxIp10_1:
         case GfxIpLevel::GfxIp9:
         case GfxIpLevel::GfxIp10_3:

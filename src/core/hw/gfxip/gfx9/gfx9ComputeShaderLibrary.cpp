@@ -45,6 +45,7 @@ static_assert(
     ShaderSubType(Abi::ApiShaderSubType::ClosestHit)           == ShaderSubType::ClosestHit           &&
     ShaderSubType(Abi::ApiShaderSubType::Miss)                 == ShaderSubType::Miss                 &&
     ShaderSubType(Abi::ApiShaderSubType::Callable)             == ShaderSubType::Callable             &&
+    ShaderSubType(Abi::ApiShaderSubType::LaunchKernel)         == ShaderSubType::LaunchKernel         &&
     ShaderSubType(Abi::ApiShaderSubType::Count)                == ShaderSubType::Count,
     "Mismatch in member/s between Abi::ApiShaderSubType and Pal::ShaderSubType!");
 
@@ -56,24 +57,9 @@ ComputeShaderLibrary::ComputeShaderLibrary(
     m_pDevice(pDevice),
     m_signature(NullCsSignature),
     m_chunkCs(*pDevice, &m_stageInfoCs, nullptr),
-    m_stageInfoCs{ },
-    m_pFunctionList(nullptr),
-    m_funcCount(0)
+    m_stageInfoCs{ }
 {
     m_stageInfoCs.stageId = Abi::HardwareStage::Cs;
-}
-
-// =====================================================================================================================
-ComputeShaderLibrary::~ComputeShaderLibrary()
-{
-    if (m_pFunctionList != nullptr)
-    {
-        for (uint32 i = 0; i < m_funcCount; ++i)
-        {
-            PAL_FREE(m_pFunctionList[i].pSymbolName, m_pDevice->GetPlatform());
-        }
-        PAL_SAFE_DELETE_ARRAY(m_pFunctionList, m_pDevice->GetPlatform());
-    }
 }
 
 // =====================================================================================================================
@@ -95,6 +81,35 @@ Result ComputeShaderLibrary::HwlInit(
 
     if (result == Result::Success)
     {
+        result = InitFunctionListFromMetadata(metadata, pMetadataReader);
+    }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 827
+    if (result == Result::Success)
+    {
+        // NOTE: To preserve the behavior before interface change, which is clients get what they pass in through
+        // createInfo.pFuncList when calling GetShaderLibFunctionList(), fill function list with given one here.
+        m_functionList.Clear();
+        for (uint32 i = 0; ((i < createInfo.funcCount) && (result == Result::Success)); i++)
+        {
+            size_t nameLength = strlen(createInfo.pFuncList[i].pSymbolName) + 1;
+            char* pSymbolName = static_cast<char*>(PAL_MALLOC(nameLength, m_pDevice->GetPlatform(), AllocInternal));
+            if (pSymbolName != nullptr)
+            {
+                Util::Strncpy(pSymbolName, createInfo.pFuncList[i].pSymbolName, nameLength);
+                ShaderLibraryFunctionInfo info = { pSymbolName, 0 };
+                result = m_functionList.PushBack(info);
+            }
+            else
+            {
+                result = Result::ErrorOutOfMemory;
+            }
+        }
+    }
+#endif
+
+    if (result == Result::Success)
+    {
         // Update the pipeline signature with user-mapping data contained in the ELF:
         m_chunkCs.SetupSignatureFromElf(&m_signature, metadata);
 
@@ -106,8 +121,11 @@ Result ComputeShaderLibrary::HwlInit(
                            DispatchInterleaveSize::Default,
 #endif
                            &uploader);
-
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 827
         GetFunctionGpuVirtAddrs(uploader, createInfo.pFuncList, createInfo.funcCount);
+#endif
+        // Must be called after InitFunctionListFromMetadata!
+        GetFunctionGpuVirtAddrs(uploader, m_functionList.Data(), m_functionList.NumElements());
 
         UpdateHwInfo();
         PAL_ASSERT(m_uploadFenceToken == 0);
@@ -140,45 +158,6 @@ Result ComputeShaderLibrary::HwlInit(
         callbackData.offset             = bindData.offset;
         callbackData.isSystemMemory     = bindData.isSystemMemory;
         m_pDevice->Parent()->DeveloperCb(Developer::CallbackType::BindGpuMemory, &callbackData);
-    }
-
-    if ((result == Result::Success) && (createInfo.funcCount != 0))
-    {
-        m_funcCount = createInfo.funcCount;
-        m_pFunctionList = PAL_NEW_ARRAY(ShaderLibraryFunctionInfo,
-                                        m_funcCount,
-                                        m_pDevice->GetPlatform(),
-                                        AllocInternal);
-        if (m_pFunctionList == nullptr)
-        {
-            result = Result::ErrorOutOfMemory;
-        }
-
-        if (result == Result::Success)
-        {
-            for (uint32 i = 0; i < m_funcCount; ++i)
-            {
-                memset(&m_pFunctionList[i], 0, sizeof(ShaderLibraryFunctionInfo));
-
-                // GPU VA should never be 0
-                PAL_ASSERT(createInfo.pFuncList[i].gpuVirtAddr != 0);
-
-                m_pFunctionList[i].gpuVirtAddr = createInfo.pFuncList[i].gpuVirtAddr;
-
-                size_t nameLength = strlen(createInfo.pFuncList[i].pSymbolName) + 1;
-                char* pSymbolName =
-                    static_cast<char*>(PAL_MALLOC(nameLength, m_pDevice->GetPlatform(), AllocInternal));
-                if (pSymbolName != nullptr)
-                {
-                    strncpy(pSymbolName, createInfo.pFuncList[i].pSymbolName, nameLength);
-                    m_pFunctionList[i].pSymbolName = pSymbolName;
-                }
-                else
-                {
-                    result = Result::ErrorOutOfMemory;
-                }
-            }
-        }
     }
 
     return result;

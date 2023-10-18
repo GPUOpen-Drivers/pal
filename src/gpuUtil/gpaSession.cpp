@@ -424,13 +424,16 @@ GpaSession::GpaSession(
     m_sessionState(GpaSessionState::Reset),
     m_pSrcSession(nullptr),
     m_curGartGpuMemOffset(0),
-    m_curLocalInvisGpuMemOffset(0),
+    m_curLocalGpuMemOffset(0),
+    m_curInvisGpuMemOffset(0),
     m_sampleCount(0),
     m_pPlatform(pPlatform),
     m_availableGartGpuMem(m_pPlatform),
     m_busyGartGpuMem(m_pPlatform),
-    m_availableLocalInvisGpuMem(m_pPlatform),
-    m_busyLocalInvisGpuMem(m_pPlatform),
+    m_availableLocalGpuMem(m_pPlatform),
+    m_busyLocalGpuMem(m_pPlatform),
+    m_availableInvisGpuMem(m_pPlatform),
+    m_busyInvisGpuMem(m_pPlatform),
     m_sampleItemArray(m_pPlatform),
     m_pAvailablePerfExpMem(pAvailablePerfExpMem),
     m_registeredPipelines(512, m_pPlatform),
@@ -446,10 +449,11 @@ GpaSession::GpaSession(
     m_timestampCalibrations(m_pPlatform),
     m_pCmdAllocator(nullptr)
 {
-    memset(&m_deviceProps,               0, sizeof(m_deviceProps));
-    memset(&m_perfExperimentProps,       0, sizeof(m_perfExperimentProps));
-    memset(&m_curGartGpuMem,             0, sizeof(m_curGartGpuMem));
-    memset(&m_curLocalInvisGpuMem,       0, sizeof(m_curLocalInvisGpuMem));
+    memset(&m_deviceProps,         0, sizeof(m_deviceProps));
+    memset(&m_perfExperimentProps, 0, sizeof(m_perfExperimentProps));
+    memset(&m_curGartGpuMem,       0, sizeof(m_curGartGpuMem));
+    memset(&m_curLocalGpuMem,      0, sizeof(m_curLocalGpuMem));
+    memset(&m_curInvisGpuMem,      0, sizeof(m_curInvisGpuMem));
 
     m_flags.u32All = 0;
 }
@@ -510,27 +514,51 @@ GpaSession::~GpaSession()
         DestroyGpuMemoryInfo(&info);
     }
 
-    // Destroy active invisible GPU memory chunk
-    if (m_curLocalInvisGpuMem.pGpuMemory != nullptr)
+    // Destroy active Local GPU memory chunk
+    if (m_curLocalGpuMem.pGpuMemory != nullptr)
     {
-        DestroyGpuMemoryInfo(&m_curLocalInvisGpuMem);
+        DestroyGpuMemoryInfo(&m_curLocalGpuMem);
     }
 
-    // Destroy busy invisible GPU memory chunks
-    while (m_busyLocalInvisGpuMem.NumElements() > 0)
+    // Destroy busy Local GPU memory chunks
+    while (m_busyLocalGpuMem.NumElements() > 0)
     {
         GpuMemoryInfo info = {};
 
-        m_busyLocalInvisGpuMem.PopFront(&info);
+        m_busyLocalGpuMem.PopFront(&info);
+        DestroyGpuMemoryInfo(&info);
+    }
+
+    // Destroy other available Local GPU memory chunks
+    while (m_availableLocalGpuMem.NumElements() > 0)
+    {
+        GpuMemoryInfo info = {};
+
+        m_availableLocalGpuMem.PopFront(&info);
+        DestroyGpuMemoryInfo(&info);
+    }
+
+    // Destroy active invisible GPU memory chunk
+    if (m_curInvisGpuMem.pGpuMemory != nullptr)
+    {
+        DestroyGpuMemoryInfo(&m_curInvisGpuMem);
+    }
+
+    // Destroy busy invisible GPU memory chunks
+    while (m_busyInvisGpuMem.NumElements() > 0)
+    {
+        GpuMemoryInfo info = {};
+
+        m_busyInvisGpuMem.PopFront(&info);
         DestroyGpuMemoryInfo(&info);
     }
 
     // Destroy other available invisible GPU memory chunks
-    while (m_availableLocalInvisGpuMem.NumElements() > 0)
+    while (m_availableInvisGpuMem.NumElements() > 0)
     {
         GpuMemoryInfo info = {};
 
-        m_availableLocalInvisGpuMem.PopFront(&info);
+        m_availableInvisGpuMem.PopFront(&info);
         DestroyGpuMemoryInfo(&info);
     }
 
@@ -578,13 +606,16 @@ GpaSession::GpaSession(
     m_sessionState(GpaSessionState::Reset),
     m_pSrcSession(&src),
     m_curGartGpuMemOffset(0),
-    m_curLocalInvisGpuMemOffset(0),
+    m_curLocalGpuMemOffset(0),
+    m_curInvisGpuMemOffset(0),
     m_sampleCount(0),
     m_pPlatform(src.m_pPlatform),
     m_availableGartGpuMem(m_pPlatform),
     m_busyGartGpuMem(m_pPlatform),
-    m_availableLocalInvisGpuMem(m_pPlatform),
-    m_busyLocalInvisGpuMem(m_pPlatform),
+    m_availableLocalGpuMem(m_pPlatform),
+    m_busyLocalGpuMem(m_pPlatform),
+    m_availableInvisGpuMem(m_pPlatform),
+    m_busyInvisGpuMem(m_pPlatform),
     m_sampleItemArray(m_pPlatform),
     m_pAvailablePerfExpMem(src.m_pAvailablePerfExpMem),
     m_registeredPipelines(512, m_pPlatform),
@@ -600,11 +631,12 @@ GpaSession::GpaSession(
     m_timestampCalibrations(m_pPlatform),
     m_pCmdAllocator(nullptr)
 {
-    memset(&m_deviceProps,               0, sizeof(m_deviceProps));
-    memset(&m_peakClockFrequency,        0, sizeof(m_peakClockFrequency));
-    memset(&m_perfExperimentProps,       0, sizeof(m_perfExperimentProps));
-    memset(&m_curGartGpuMem,             0, sizeof(m_curGartGpuMem));
-    memset(&m_curLocalInvisGpuMem,       0, sizeof(m_curLocalInvisGpuMem));
+    memset(&m_deviceProps,         0, sizeof(m_deviceProps));
+    memset(&m_peakClockFrequency,  0, sizeof(m_peakClockFrequency));
+    memset(&m_perfExperimentProps, 0, sizeof(m_perfExperimentProps));
+    memset(&m_curGartGpuMem,       0, sizeof(m_curGartGpuMem));
+    memset(&m_curLocalGpuMem,      0, sizeof(m_curLocalGpuMem));
+    memset(&m_curInvisGpuMem,      0, sizeof(m_curInvisGpuMem));
 
     m_flags.u32All = 0;
 }
@@ -770,12 +802,17 @@ Result GpaSession::Init()
             if (m_curGartGpuMem.pGpuMemory != nullptr)
             {
                 m_busyGartGpuMem.PushBack(m_curGartGpuMem);
-                m_curGartGpuMem       = { nullptr, nullptr };
+                m_curGartGpuMem = { nullptr, nullptr };
             }
-            if (m_curLocalInvisGpuMem.pGpuMemory != nullptr)
+            if (m_curLocalGpuMem.pGpuMemory != nullptr)
             {
-                m_busyLocalInvisGpuMem.PushBack(m_curLocalInvisGpuMem);
-                m_curLocalInvisGpuMem = { nullptr, nullptr };
+                m_busyLocalGpuMem.PushBack(m_curLocalGpuMem);
+                m_curLocalGpuMem = { nullptr, nullptr };
+            }
+            if (m_curInvisGpuMem.pGpuMemory != nullptr)
+            {
+                m_busyInvisGpuMem.PushBack(m_curInvisGpuMem);
+                m_curInvisGpuMem = { nullptr, nullptr };
             }
         }
         else
@@ -1594,11 +1631,19 @@ Result GpaSession::End(
             }
         }
         {
-            Util::MutexAuto memReuseLock(&m_localInvisGpuMemLock);
-            if (m_curLocalInvisGpuMem.pGpuMemory != nullptr)
+            Util::MutexAuto memReuseLock(&m_localGpuMemLock);
+            if (m_curLocalGpuMem.pGpuMemory != nullptr)
             {
-                m_busyLocalInvisGpuMem.PushBack(m_curLocalInvisGpuMem);
-                m_curLocalInvisGpuMem = { nullptr, nullptr };
+                m_busyLocalGpuMem.PushBack(m_curLocalGpuMem);
+                m_curLocalGpuMem = { nullptr, nullptr };
+            }
+        }
+        {
+            Util::MutexAuto memReuseLock(&m_invisGpuMemLock);
+            if (m_curInvisGpuMem.pGpuMemory != nullptr)
+            {
+                m_busyInvisGpuMem.PushBack(m_curInvisGpuMem);
+                m_curInvisGpuMem = { nullptr, nullptr };
             }
         }
 
@@ -1881,20 +1926,26 @@ Pal::Result GpaSession::UpdateSampleTraceParams(
 
     if (pCmdBuf != nullptr)
     {
+        SampleItem* pSampleItem = m_sampleItemArray.At(sampleId);
+        PAL_ASSERT(pSampleItem != nullptr);
+
         if (updateMode == UpdateSampleTraceMode::MinimalToFullMask)
         {
             PAL_ASSERT(m_sessionState == GpaSessionState::Building);
             PAL_ASSERT(m_flags.enableSampleUpdates);
 
-            SampleItem* pSampleItem = m_sampleItemArray.At(sampleId);
-            PAL_ASSERT(pSampleItem != nullptr);
-
             if (pSampleItem->sampleConfig.type == GpaSampleType::Trace)
             {
-                ThreadTraceTokenConfig tokenConfig = SqttTokenConfigAllTokens;
                 const bool skipInstTokens = pSampleItem->sampleConfig.sqtt.flags.supressInstructionTokens;
-                tokenConfig = skipInstTokens ? SqttTokenConfigNoInst : SqttTokenConfigAllTokens;
-
+                ThreadTraceTokenConfig tokenConfig = skipInstTokens ? SqttTokenConfigNoInst : SqttTokenConfigAllTokens;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 824
+                const uint32 sampleTokenMask = pSampleItem->sampleConfig.sqtt.tokenMask;
+                // Use original tokenConfig.tokenMask val if client has not provided one.
+                if (sampleTokenMask > 0)
+                {
+                    tokenConfig.tokenMask &= sampleTokenMask;
+                }
+#endif
                 pCmdBuf->CmdUpdatePerfExperimentSqttTokenMask(pSampleItem->pPerfExperiment, tokenConfig);
                 result = Result::Success;
             }
@@ -1906,8 +1957,17 @@ Pal::Result GpaSession::UpdateSampleTraceParams(
         else
         {
             // Otherwise we update the token mask inline in the command buffer
-            pCmdBuf->CmdUpdateSqttTokenMask((updateMode == UpdateSampleTraceMode::StartInstructionTrace) ?
-                SqttTokenConfigAllTokens : SqttTokenConfigNoInst);
+            ThreadTraceTokenConfig tokenConfig = (updateMode == UpdateSampleTraceMode::StartInstructionTrace) ?
+                SqttTokenConfigAllTokens : SqttTokenConfigNoInst;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 824
+            const uint32 sampleTokenMask = pSampleItem->sampleConfig.sqtt.tokenMask;
+            // Use original tokenConfig.tokenMask val if client has not provided one.
+            if (sampleTokenMask > 0)
+            {
+                tokenConfig.tokenMask &= sampleTokenMask;
+            }
+#endif
+            pCmdBuf->CmdUpdateSqttTokenMask(tokenConfig);
         }
     }
 
@@ -2116,8 +2176,22 @@ Result GpaSession::Reset()
         // Clear the current code object records.
         while (m_curCodeObjectRecords.NumElements() > 0)
         {
-            SqttCodeObjectDatabaseRecord* codeObjectRecord = nullptr;
-            m_curCodeObjectRecords.PopFront(&codeObjectRecord);
+            SqttCodeObjectDatabaseRecord* record = nullptr;
+            m_curCodeObjectRecords.PopFront(&record);
+        }
+
+        // Clear the current load event records.
+        while (m_curCodeObjectLoadEventRecords.NumElements() > 0)
+        {
+            CodeObjectLoadEventRecord record;
+            m_curCodeObjectLoadEventRecords.PopFront(&record);
+        }
+
+        // Clear the current pso correlation records.
+        while (m_curPsoCorrelationRecords.NumElements() > 0)
+        {
+            PsoCorrelationRecord record;
+            m_curPsoCorrelationRecords.PopFront(&record);
         }
 
         // Recycle Gart gpu memory allocations, gpu rafts are reserved
@@ -2126,11 +2200,17 @@ Result GpaSession::Reset()
         m_curGartGpuMem.pCpuAddr   = nullptr;
         m_curGartGpuMemOffset      = 0;
 
+        // Recycle Local gpu memory allocations, gpu rafts are reserved
+        RecycleLocalGpuMem();
+        m_curLocalGpuMem.pGpuMemory = nullptr;
+        m_curLocalGpuMem.pCpuAddr   = nullptr;
+        m_curLocalGpuMemOffset      = 0;
+
         // Recycle invisible gpu memory allocation, gpu rafts are reserved
-        RecycleLocalInvisGpuMem();
-        m_curLocalInvisGpuMem.pGpuMemory = nullptr;
-        m_curLocalInvisGpuMem.pCpuAddr   = nullptr;
-        m_curLocalInvisGpuMemOffset      = 0;
+        RecycleInvisGpuMem();
+        m_curInvisGpuMem.pGpuMemory = nullptr;
+        m_curInvisGpuMem.pCpuAddr   = nullptr;
+        m_curInvisGpuMemOffset      = 0;
 
         // Recycle each sampleItem
         RecycleSampleItemArray();
@@ -3083,11 +3163,11 @@ Result GpaSession::ImportSampleItem(
             gpusize       offset     = 0;
 
             result = AcquireGpuMem(gpuMemReqs.size,
-                                    gpuMemReqs.alignment,
-                                    GpuHeapGartCacheable,
-                                    GpuMemMallPolicy::Default,
-                                    &gpuMemInfo,
-                                    &offset);
+                                   gpuMemReqs.alignment,
+                                   GpuHeapGartCacheable,
+                                   GpuMemMallPolicy::Default,
+                                   &gpuMemInfo,
+                                   &offset);
 
             if (result == Result::Success)
             {
@@ -3159,17 +3239,17 @@ Result GpaSession::ImportSampleItem(
         else if (pSampleItem->sampleConfig.type == GpaSampleType::Timing)
         {
             GpuMemoryInfo gpuMemInfo = {};
-            gpusize offset           = 0;
+            gpusize       offset     = 0;
 
             // Acquire GPU memory for both pre-call/post-call timestamp in one chunk, so later we just
             // need to copy the results once. Both pre-call post-call timestamps need to be aligned, so we
             // cannot only allocate 2*sizeof(uint64).
             result = AcquireGpuMem(sizeof(uint64) + m_timestampAlignment,
-                                    m_timestampAlignment,
-                                    GpuHeapGartCacheable,
-                                    GpuMemMallPolicy::Default,
-                                    &gpuMemInfo,
-                                    &offset);
+                                   m_timestampAlignment,
+                                   GpuHeapGartCacheable,
+                                   GpuMemMallPolicy::Default,
+                                   &gpuMemInfo,
+                                   &offset);
 
             if (result == Result::Success)
             {
@@ -3272,11 +3352,19 @@ Result GpaSession::AcquireGpuMem(
 
     if (heapType == GpuHeapInvisible)
     {
-        pBusyList        = &m_busyLocalInvisGpuMem;
-        pAvailableList   = &m_availableLocalInvisGpuMem;
-        pCurGpuMem       = &m_curLocalInvisGpuMem;
-        pCurGpuMemOffset = &m_curLocalInvisGpuMemOffset;
-        pMemoryReuseLock = &m_localInvisGpuMemLock;
+        pBusyList        = &m_busyInvisGpuMem;
+        pAvailableList   = &m_availableInvisGpuMem;
+        pCurGpuMem       = &m_curInvisGpuMem;
+        pCurGpuMemOffset = &m_curInvisGpuMemOffset;
+        pMemoryReuseLock = &m_invisGpuMemLock;
+    }
+    else if (heapType == GpuHeapLocal)
+    {
+        pBusyList        = &m_busyLocalGpuMem;
+        pAvailableList   = &m_availableLocalGpuMem;
+        pCurGpuMem       = &m_curLocalGpuMem;
+        pCurGpuMemOffset = &m_curLocalGpuMemOffset;
+        pMemoryReuseLock = &m_localGpuMemLock;
     }
 
     pMemoryReuseLock->Lock();
@@ -3589,18 +3677,23 @@ Result GpaSession::AcquirePerfExperiment(
                             sqttInfo.optionValues.bufferSize *= DetailSqttSeBufferMultiplier;
                         }
 
+                        ThreadTraceTokenConfig tokenConfig = SqttTokenConfigAllTokens;
                         if (m_flags.enableSampleUpdates == true)
                         {
-                            sqttInfo.optionValues.threadTraceTokenConfig = SqttTokenConfigMinimal;
+                            tokenConfig = SqttTokenConfigMinimal;
                         }
                         else if((enableDetailedTokens == false) || (skipInstTokens == true))
                         {
-                            sqttInfo.optionValues.threadTraceTokenConfig = SqttTokenConfigNoInst;
+                            tokenConfig = SqttTokenConfigNoInst;
                         }
-                        else
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 824
+                        // Use original tokenConfig.tokenMask val if client has not provided one.
+                        if (sampleConfig.sqtt.tokenMask > 0)
                         {
-                            sqttInfo.optionValues.threadTraceTokenConfig = SqttTokenConfigAllTokens;
+                            tokenConfig.tokenMask &= sampleConfig.sqtt.tokenMask;
                         }
+#endif
+                        sqttInfo.optionValues.threadTraceTokenConfig = tokenConfig;
 
                         sqttInfo.instance = i;
 
@@ -3743,11 +3836,11 @@ Result GpaSession::AcquirePerfExperiment(
             if ((m_deviceProps.gpuType == GpuType::Discrete) && (sampleConfig.type == GpaSampleType::Trace))
             {
                 result = AcquireGpuMem(gpuMemReqs.size,
-                                        gpuMemReqs.alignment,
-                                        GpuHeapInvisible,
-                                        GpuMemMallPolicy::Never,
-                                        pGpuMem,
-                                        pOffset);
+                                       gpuMemReqs.alignment,
+                                       GpuHeapInvisible,
+                                       GpuMemMallPolicy::Never,
+                                       pGpuMem,
+                                       pOffset);
             }
         }
     }
@@ -4667,16 +4760,29 @@ void GpaSession::RecycleGartGpuMem()
 }
 
 // =====================================================================================================================
-// recycle used Local Invisible rafts and put back to available pool
-void GpaSession::RecycleLocalInvisGpuMem()
+// recycle used Local rafts and put back to available pool
+void GpaSession::RecycleLocalGpuMem()
 {
-    while (m_busyLocalInvisGpuMem.NumElements() > 0)
+    while (m_busyLocalGpuMem.NumElements() > 0)
     {
         GpuMemoryInfo info = {};
-        m_busyLocalInvisGpuMem.PopFront(&info);
-        m_availableLocalInvisGpuMem.PushBack(info);
+        m_busyLocalGpuMem.PopFront(&info);
+        m_availableLocalGpuMem.PushBack(info);
     }
-    PAL_ASSERT(m_curGartGpuMem.pGpuMemory == nullptr);
+    PAL_ASSERT(m_curLocalGpuMem.pGpuMemory == nullptr);
+}
+
+// =====================================================================================================================
+// recycle used Invisible rafts and put back to available pool
+void GpaSession::RecycleInvisGpuMem()
+{
+    while (m_busyInvisGpuMem.NumElements() > 0)
+    {
+        GpuMemoryInfo info = {};
+        m_busyInvisGpuMem.PopFront(&info);
+        m_availableInvisGpuMem.PushBack(info);
+    }
+    PAL_ASSERT(m_curInvisGpuMem.pGpuMemory == nullptr);
 }
 
 // =====================================================================================================================

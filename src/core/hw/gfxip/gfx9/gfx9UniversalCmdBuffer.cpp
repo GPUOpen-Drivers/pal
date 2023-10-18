@@ -382,7 +382,8 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_minValidUserEntryLookupValueCs(1),
 #endif
     m_meshPipeStatsGpuAddr(0),
-    m_globalInternalTableAddr(0)
+    m_globalInternalTableAddr(0),
+    m_ringSizes{}
 {
     const auto&                palDevice        = *(m_device.Parent());
     const PalPlatformSettings& platformSettings = m_device.Parent()->GetPlatform()->PlatformSettings();
@@ -814,6 +815,19 @@ void UniversalCmdBuffer::SetUserDataValidationFunctions(
 }
 
 // =====================================================================================================================
+void UniversalCmdBuffer::SetShaderRingSize(
+    const ShaderRingItemSizes& ringSizes)
+{
+    for (uint32 ring = 0; ring < static_cast<uint32>(ShaderRingType::NumUniversal); ++ring)
+    {
+        if (ringSizes.itemSize[ring] > m_ringSizes.itemSize[ring])
+        {
+            m_ringSizes.itemSize[ring] = ringSizes.itemSize[ring];
+        }
+    }
+}
+
+// =====================================================================================================================
 // Resets all of the state tracked by this command buffer
 void UniversalCmdBuffer::ResetState()
 {
@@ -1026,6 +1040,7 @@ void UniversalCmdBuffer::ResetState()
     m_meshPipeStatsGpuAddr = 0;
     m_globalInternalTableAddr = 0;
 
+    memset(const_cast<ShaderRingItemSizes*>(&m_ringSizes), 0, sizeof(m_ringSizes));
 }
 
 // =====================================================================================================================
@@ -1152,7 +1167,7 @@ void UniversalCmdBuffer::CmdBindPipeline(
 
             const uint32 vbTableDwords =
                 ((pNewPipeline == nullptr) ? 0 : pNewPipeline->VertexBufferCount() * DwordsPerSrd);
-            PAL_ASSERT(vbTableDwords <= m_vbTable.state.sizeInDwords);
+            PAL_DEBUG_BUILD_ONLY_ASSERT(vbTableDwords <= m_vbTable.state.sizeInDwords);
 
             if (vbTableDwords > m_vbTable.watermark)
             {
@@ -1354,6 +1369,8 @@ void UniversalCmdBuffer::CmdBindPipeline(
                 m_dbRenderOverride = dbRenderOverride;
                 m_graphicsState.pipelineState.dirtyFlags.dynamicState = 1;
             }
+
+            SetShaderRingSize(pNewPipeline->GetShaderRingSize());
         }
     }
     else
@@ -1388,6 +1405,13 @@ void UniversalCmdBuffer::CmdBindPipeline(
             }
 
             SetDispatchFunctions(newUsesHsaAbi);
+        }
+
+        if (pNewPipeline != nullptr)
+        {
+            m_ringSizes.itemSize[static_cast<uint32>(ShaderRingType::ComputeScratch)] =
+                Max(m_ringSizes.itemSize[static_cast<uint32>(ShaderRingType::ComputeScratch)],
+                    pNewPipeline->GetRingSizeComputeScratch());
         }
     }
 
@@ -2200,16 +2224,11 @@ void UniversalCmdBuffer::UpdateTaskMeshRingSize()
 {
     Device* pDevice = const_cast<Device*>(&m_device);
 
-    ShaderRingItemSizes ringSizes = { };
-    ringSizes.itemSize[static_cast<size_t>(ShaderRingType::PayloadData)]          = 1;
-    ringSizes.itemSize[static_cast<size_t>(ShaderRingType::TaskMeshCtrlDrawRing)] = 1;
+    m_ringSizes.itemSize[static_cast<size_t>(ShaderRingType::PayloadData)] =
+        Max<size_t>(m_ringSizes.itemSize[static_cast<size_t>(ShaderRingType::PayloadData)], 1);
 
-    // Inform the device that this pipeline has some new ring-size requirements.
-    // We're updating the ring sizes for the Task+Mesh pipelines here rather than at
-    // pipeline creation time because of the size and additional overhead of initializing these
-    // particular rings, so we'd rather indicate our need for them only when absolutely sure
-    // they will be used.
-    pDevice->UpdateLargestRingSizes(&ringSizes);
+    m_ringSizes.itemSize[static_cast<size_t>(ShaderRingType::TaskMeshCtrlDrawRing)] =
+        Max<size_t>(m_ringSizes.itemSize[static_cast<size_t>(ShaderRingType::TaskMeshCtrlDrawRing)], 1);
 
     GetAceCmdStream();
     ReportHybridPipelineBind();
@@ -2221,9 +2240,8 @@ void UniversalCmdBuffer::CmdSetVertexBuffers(
     uint32                bufferCount,
     const BufferViewInfo* pBuffers)
 {
-    PAL_ASSERT(bufferCount > 0);
-    PAL_ASSERT((firstBuffer + bufferCount) <= MaxVertexBuffers);
-    PAL_ASSERT(pBuffers != nullptr);
+    PAL_DEBUG_BUILD_ONLY_ASSERT((bufferCount > 0) && ((firstBuffer + bufferCount) <= MaxVertexBuffers));
+    PAL_DEBUG_BUILD_ONLY_ASSERT(pBuffers != nullptr);
 
     // The vertex buffer table will be validated at Draw time, so all that is necessary is to update the CPU-side copy
     // of the SRD table and upload the new SRD data into CE RAM.
@@ -4234,16 +4252,11 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMeshIndirectMultiTask(
     auto*   pThis   = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
     Device* pDevice = const_cast<Device*>(&pThis->m_device);
 
-    ShaderRingItemSizes ringSizes                                                 = { };
-    ringSizes.itemSize[static_cast<size_t>(ShaderRingType::PayloadData)]          = 1;
-    ringSizes.itemSize[static_cast<size_t>(ShaderRingType::TaskMeshCtrlDrawRing)] = 1;
+    pThis->m_ringSizes.itemSize[static_cast<size_t>(ShaderRingType::PayloadData)] =
+        Max<size_t>(pThis->m_ringSizes.itemSize[static_cast<size_t>(ShaderRingType::PayloadData)], 1);
 
-    // Inform the device that this pipeline has some new ring-size requirements.
-    // We're updating the ring sizes for the Task+Mesh pipelines here rather than at
-    // pipeline creation time because of the size and additional overhead of initializing these
-    // particular rings, so we'd rather indicate our need for them only when absolutely sure
-    // they will be used.
-    pDevice->UpdateLargestRingSizes(&ringSizes);
+    pThis->m_ringSizes.itemSize[static_cast<size_t>(ShaderRingType::TaskMeshCtrlDrawRing)] =
+        Max<size_t>(pThis->m_ringSizes.itemSize[static_cast<size_t>(ShaderRingType::TaskMeshCtrlDrawRing)], 1);
 
     const gpusize indirectGpuAddr = gpuMemory.Desc().gpuVirtAddr + offset;
 
@@ -5129,7 +5142,7 @@ Result UniversalCmdBuffer::AddPostamble()
     }
 
 #if PAL_BUILD_NAVI3X
-    if (m_cachedSettings.waAddPostambleEvent)
+    if (m_cachedSettings.waAddPostambleEvent && (IsNested() == false))
     {
         // If the last draw was a tessellation draw with shader messages enabled on the last threadgroup, then a hang
         // will occur. The conditions for this to happen are seeing a regular threadgroup (with tf factors fetched)
@@ -5386,7 +5399,7 @@ uint32* UniversalCmdBuffer::WriteDirtyUserDataEntriesToSgprsGfx(
 #if PAL_BUILD_GFX11
         if (m_cachedSettings.supportsShPairsPacket)
         {
-            PAL_ASSERT(IsGfx11(m_gfxIpLevel));
+            PAL_DEBUG_BUILD_ONLY_ASSERT(IsGfx11(m_gfxIpLevel));
 
             if (TessEnabled && (dirtyStageMask & (1 << HsStageId)))
             {
@@ -5408,7 +5421,7 @@ uint32* UniversalCmdBuffer::WriteDirtyUserDataEntriesToSgprsGfx(
                                                                     m_minValidUserEntryLookupValue,
                                                                     &m_numValidUserEntries);
             }
-            PAL_ASSERT((VsEnabled == false) && ((dirtyStageMask & (1 << VsStageId)) == 0));
+            PAL_DEBUG_BUILD_ONLY_ASSERT((VsEnabled == false) && ((dirtyStageMask & (1 << VsStageId)) == 0));
             if (dirtyStageMask & (1 << PsStageId))
             {
                 CmdStream::AccumulateUserDataEntriesForSgprs<false>(m_pSignatureGfx->stage[PsStageId],
@@ -5553,8 +5566,8 @@ uint32* UniversalCmdBuffer::WritePackedUserDataEntriesToSgprs(
     uint32*             pValidNumRegs  = (ShaderType == ShaderCompute) ? &m_numValidUserEntriesCs
                                                                        : &m_numValidUserEntries;
 
-    PAL_ASSERT(*pValidNumRegs <= ((ShaderType == ShaderCompute) ? (Gfx11MaxPackedUserEntryCountCs  * 2)
-                                                                : (Gfx11MaxPackedUserEntryCountGfx * 2)));
+    PAL_DEBUG_BUILD_ONLY_ASSERT(*pValidNumRegs <= ((ShaderType == ShaderCompute) ? (Gfx11MaxPackedUserEntryCountCs  * 2)
+                                                                                 : (Gfx11MaxPackedUserEntryCountGfx * 2)));
 
     pDeCmdSpace = m_deCmdStream.WriteSetShRegPairs<ShaderType, Pm4OptImmediate>(pValidRegPairs,
                                                                                 *pValidNumRegs,
@@ -5723,7 +5736,7 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
                (!HasPipelineChanged && (pPrevSignature == nullptr)));
 
 #if PAL_BUILD_GFX11
-    PAL_ASSERT((IsGfx11(m_gfxIpLevel) == false) || (VsEnabled == false));
+    PAL_DEBUG_BUILD_ONLY_ASSERT((IsGfx11(m_gfxIpLevel) == false) || (VsEnabled == false));
 #endif
 
     // Step #1:
@@ -6535,7 +6548,7 @@ uint32* UniversalCmdBuffer::ValidateTriangleRasterState(
              (paSuScModeCntl.bits.POLY_MODE || pPipeline->IsPerpEndCapsEnabled()));
     }
 
-    PAL_ASSERT(paSuScModeCntl.u32All != InvalidPaSuScModeCntlVal);
+    PAL_DEBUG_BUILD_ONLY_ASSERT(paSuScModeCntl.u32All != InvalidPaSuScModeCntlVal);
 
     if (paSuScModeCntl.u32All != m_paSuScModeCntl.u32All)
     {
@@ -6775,7 +6788,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     const auto dirtyFlags = m_graphicsState.dirtyFlags.validationBits;
 
     // If we're about to launch a draw we better have a pipeline bound.
-    PAL_ASSERT(pPipeline != nullptr);
+    PAL_DEBUG_BUILD_ONLY_ASSERT(pPipeline != nullptr);
 
     // All of our dirty state will leak to the caller.
     m_graphicsState.leakFlags.u64All |= m_graphicsState.dirtyFlags.u64All;
@@ -7961,7 +7974,7 @@ uint32* UniversalCmdBuffer::ValidateCbColorInfo(
     const auto dirtyFlags = m_graphicsState.dirtyFlags.validationBits;
 
     // Should only be called if pipeline is dirty or blendState/colorTarget is changed.
-    PAL_ASSERT(PipelineDirty || (StateDirty && (dirtyFlags.colorBlendState || dirtyFlags.colorTargetView)));
+    PAL_DEBUG_BUILD_ONLY_ASSERT(PipelineDirty || (StateDirty && (dirtyFlags.colorBlendState || dirtyFlags.colorTargetView)));
 
     const auto*const pPipeline     = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
     const bool       blendOptDirty = (PipelineDirty || (StateDirty && dirtyFlags.colorBlendState));
@@ -9174,34 +9187,6 @@ void UniversalCmdBuffer::CmdEndQuery(
     uint32            slot)
 {
     static_cast<const QueryPool&>(queryPool).End(this, &m_deCmdStream, m_pAceCmdStream, queryType, slot);
-}
-
-// =====================================================================================================================
-void UniversalCmdBuffer::CmdResolveQuery(
-    const IQueryPool& queryPool,
-    QueryResultFlags  flags,
-    QueryType         queryType,
-    uint32            startQuery,
-    uint32            queryCount,
-    const IGpuMemory& dstGpuMemory,
-    gpusize           dstOffset,
-    gpusize           dstStride)
-{
-    // Resolving a query is not supposed to honor predication.
-    const uint32 packetPredicate = m_pm4CmdBufState.flags.packetPredicate;
-    m_pm4CmdBufState.flags.packetPredicate = 0;
-
-    m_device.RsrcProcMgr().CmdResolveQuery(this,
-                                           static_cast<const QueryPool&>(queryPool),
-                                           flags,
-                                           queryType,
-                                           startQuery,
-                                           queryCount,
-                                           static_cast<const GpuMemory&>(dstGpuMemory),
-                                           dstOffset,
-                                           dstStride);
-
-    m_pm4CmdBufState.flags.packetPredicate = packetPredicate;
 }
 
 // =====================================================================================================================
@@ -11226,6 +11211,8 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
     m_pSignatureCs  = cmdBuffer.m_pSignatureCs;
     m_pSignatureGfx = cmdBuffer.m_pSignatureGfx;
 
+    SetShaderRingSize(cmdBuffer.m_ringSizes);
+
     // Invalidate PM4 optimizer state on post-execute since the current command buffer state does not reflect
     // state changes from the nested command buffer. We will need to resolve the nested PM4 state onto the
     // current command buffer for this to work correctly.
@@ -11468,9 +11455,11 @@ void UniversalCmdBuffer::CallNestedCmdBuffer(
 
     // All user-data entries have been uploaded into CE RAM and GPU memory, so we can safely "call" the nested
     // command buffer's command streams.
+    PAL_ASSERT(pCallee->IsNested());
 
     const bool exclusiveSubmit  = pCallee->IsExclusiveSubmit();
-    const bool allowIb2Launch   = (pCallee->AllowLaunchViaIb2() &&
+    const bool allowIb2Launch   = (((IsNested() == false) &&
+                                   (pCallee->AllowLaunchViaIb2())) &&
                                    ((pCallee->m_state.flags.containsDrawIndirect == 0) ||
                                    IsGfx10Plus(m_gfxIpLevel)));
     const bool allowIb2LaunchCe = (allowIb2Launch && (m_cachedSettings.waCeDisableIb2 == 0));

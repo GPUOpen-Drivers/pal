@@ -118,7 +118,7 @@ Result PipelineAbiReader::Init()
                 }
                 else
                 {
-                    result = m_genericSymbolsMap.Insert(pName, {sectionIndex, symbolIndex});
+                    result = m_genericSymbolsMap.Insert(HashString(pName, strlen(pName)), {sectionIndex, symbolIndex});
 
                     if (result != Result::Success)
                     {
@@ -309,12 +309,10 @@ const Elf::SymbolTableEntry* PipelineAbiReader::GetPipelineSymbol(
 
 // =====================================================================================================================
 const Elf::SymbolTableEntry* PipelineAbiReader::GetGenericSymbol(
-    const char* pName
+    const StringView<char> name
     ) const
 {
-    PAL_ASSERT(pName != nullptr);
-
-    const SymbolEntry*const pSymbolEntry = m_genericSymbolsMap.FindKey(pName);
+    const SymbolEntry*const pSymbolEntry = m_genericSymbolsMap.FindKey(HashString(name));
 
     const Elf::SymbolTableEntry* pSymbol = nullptr;
     if (pSymbolEntry != nullptr)

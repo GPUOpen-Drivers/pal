@@ -68,8 +68,9 @@ QueueContext::~QueueContext()
 // =====================================================================================================================
 // Initializes the queue context submission info describing the submission preamble, postamble and paging fence value.
 Result QueueContext::PreProcessSubmit(
-    InternalSubmitInfo* pSubmitInfo,
-    uint32              cmdBufferCount)
+    InternalSubmitInfo*       pSubmitInfo,
+    uint32                    cmdBufferCount,
+    const  ICmdBuffer* const* ppCmdBuffers)
 {
     pSubmitInfo->numPreambleCmdStreams  = 0;
     pSubmitInfo->numPostambleCmdStreams = 0;

@@ -310,6 +310,7 @@ private:
 
     // Locally cached pointers to protocol servers.
     DevDriver::RGPProtocol::RGPServer* m_pRgpServer;
+
     // Settings RPC Service for DevDriver tool connection
     SettingsRpcService::SettingsService* m_pSettingsService;
 

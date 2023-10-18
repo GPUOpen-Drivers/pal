@@ -38,22 +38,6 @@ namespace NullDevice
 
 class Platform;
 
-// Structure to convert between Null GPU ID's and other GPU asic identification information
-struct  NullIdLookup
-{
-    NullGpuId   nullId; // If invalid, this is NullGpuId::Max
-    uint32      familyId;
-    uint32      eRevId;
-    uint32      revisionId;
-    uint32      gfxEngineId;
-    uint32      deviceId;
-    const char* pName;
-};
-
-// Lookup table of GPU names by NullGpuId
-extern const NullIdLookup NullIdLookupTable[];
-extern const uint32       NullIdLookupTableCount;
-
 // =====================================================================================================================
 // Null flavor of the Device class.
 class Device final : public Pal::Device
@@ -62,9 +46,6 @@ public:
     static Result Create(Platform*  pPlatform,
                          Device**   ppDeviceOut,
                          NullGpuId  nullGpuId);
-
-    static NullIdLookup GetDeviceById(NullGpuId nullGpuId);
-    static NullIdLookup GetDeviceByName(const char* gpuName);
 
     virtual Result AddEmulatedPrivateScreen(
         const PrivateScreenCreateInfo& createInfo,
@@ -334,13 +315,12 @@ public:
 
     virtual Result CreateDmaUploadRing() override { return Result::Success; };
 
-    static void FillGfx6ChipProperties(GpuChipProperties* pChipProps);
     static void FillGfx9ChipProperties(GpuChipProperties* pChipProps);
 
 protected:
     Device(
         Platform*              pPlatform,
-        const NullIdLookup&    nullIdLookup,
+        const GpuInfo&         gpuInfo,
         const HwIpDeviceSizes& hwDeviceSizes);
 
     virtual Pal::GpuMemory* ConstructGpuMemoryObject(
@@ -408,13 +388,9 @@ private:
         InternalSettingScope settingType,
         size_t               bufferSz = 0) const override;
 
-    void InitGfx6ChipProperties();
-
-    static void Gfx8InsertDummyTilingValues(GpuChipProperties* pChipProps);
-
     void InitGfx9ChipProperties();
 
-    const NullIdLookup&  m_nullIdLookup;
+    const GpuInfo&  m_gpuInfo;
 
     PAL_DISALLOW_DEFAULT_CTOR(Device);
     PAL_DISALLOW_COPY_AND_ASSIGN(Device);

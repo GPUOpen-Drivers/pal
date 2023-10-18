@@ -44,8 +44,6 @@ struct ShaderFuncStats
     ShaderSubType  shaderSubType;
 };
 
-using ShaderFuncStatsList = Util::Vector<ShaderFuncStats, 10, Platform>;
-
 // =====================================================================================================================
 // Hardware independent compute library class. Implements all details of a compute library that are common across
 // all hardware types but distinct from a graphics library.
@@ -66,12 +64,18 @@ public:
     uint32 GetMaxStackSizeInBytes() const { return m_maxStackSizeInBytes; }
     UploadFenceToken GetUploadFenceToken() const { return m_uploadFenceToken; }
     uint64 GetPagingFenceVal() const { return m_pagingFenceVal; }
+
+    virtual const Util::Span<const ShaderLibraryFunctionInfo> GetShaderLibFunctionInfos() const override
+    {
+        return m_functionList;
+    }
+
 protected:
     // internal Constructor.
     explicit ComputeShaderLibrary(Device* pDevice);
 
     // internal Destructor.
-    virtual ~ComputeShaderLibrary() {}
+    virtual ~ComputeShaderLibrary();
 
     virtual Result PostInit(
         const Util::PalAbi::CodeObjectMetadata& metadata,
@@ -82,12 +86,18 @@ protected:
         const GpuHeap&                          clientPreferredHeap,
         PipelineUploader*                       pUploader);
 
+    Result InitFunctionListFromMetadata(
+        const Util::PalAbi::CodeObjectMetadata& metadata,
+        Util::MsgPackReader*                    pReader);
+
     BoundGpuMemory  m_gpuMem;
     gpusize         m_gpuMemSize;
     uint32          m_maxStackSizeInBytes;
 
     UploadFenceToken  m_uploadFenceToken;
     uint64            m_pagingFenceVal;
+
+    Util::Vector<ShaderLibraryFunctionInfo, 4, Platform> m_functionList;
 
 private:
     BoundGpuMemory  m_perfDataMem;

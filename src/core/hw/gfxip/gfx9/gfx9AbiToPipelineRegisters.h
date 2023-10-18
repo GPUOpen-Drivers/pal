@@ -2120,6 +2120,7 @@ static COMPUTE_DISPATCH_INTERLEAVE ComputeDispatchInterleave(
 
         if (settings.overrideCsDispatchInterleaveSize != CsDispatchInterleaveSizeHonorClient)
         {
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 823)
             static_assert((uint32(OverrideCsDispatchInterleaveSize::OverrideCsDispatchInterleaveSizeDisabled) ==
                            uint32(DispatchInterleaveSize::Disable)) &&
                           (uint32(OverrideCsDispatchInterleaveSize::OverrideCsDispatchInterleaveSize128)      ==
@@ -2129,9 +2130,27 @@ static COMPUTE_DISPATCH_INTERLEAVE ComputeDispatchInterleave(
                           (uint32(OverrideCsDispatchInterleaveSize::OverrideCsDispatchInterleaveSize512)      ==
                            uint32(DispatchInterleaveSize::_512)),
                           "Mismatch in some enums of OverrideCsDispatchInterleaveSize and DispatchInterleaveSize!");
+#endif
 
             switch (settings.overrideCsDispatchInterleaveSize)
             {
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 823)
+            case OverrideCsDispatchInterleaveSize::OverrideCsDispatchInterleaveSizeDisabled:
+                interleaveSizeLcl = DispatchInterleaveSize::Disable;
+                break;
+            case OverrideCsDispatchInterleaveSize::OverrideCsDispatchInterleaveSize64:
+                interleaveSizeLcl = DispatchInterleaveSize::_1D_64_Threads;
+                break;
+            case OverrideCsDispatchInterleaveSize::OverrideCsDispatchInterleaveSize128:
+                interleaveSizeLcl = DispatchInterleaveSize::_1D_128_Threads;
+                break;
+            case OverrideCsDispatchInterleaveSize::OverrideCsDispatchInterleaveSize256:
+                interleaveSizeLcl = DispatchInterleaveSize::_1D_256_Threads;
+                break;
+            case OverrideCsDispatchInterleaveSize::OverrideCsDispatchInterleaveSize512:
+                interleaveSizeLcl = DispatchInterleaveSize::_1D_512_Threads;
+                break;
+#else
             case OverrideCsDispatchInterleaveSize::OverrideCsDispatchInterleaveSizeDisabled:
             case OverrideCsDispatchInterleaveSize::OverrideCsDispatchInterleaveSize128:
             case OverrideCsDispatchInterleaveSize::OverrideCsDispatchInterleaveSize256:
@@ -2141,6 +2160,7 @@ static COMPUTE_DISPATCH_INTERLEAVE ComputeDispatchInterleave(
             case OverrideCsDispatchInterleaveSize::OverrideCsDispatchInterleaveSize64:
                 interleaveSizeLcl = DispatchInterleaveSize::Default;
                 break;
+#endif
             default:
                 PAL_ASSERT_ALWAYS();
                 break;
@@ -2157,6 +2177,20 @@ static COMPUTE_DISPATCH_INTERLEAVE ComputeDispatchInterleave(
         case DispatchInterleaveSize::Disable:
             regValue = 1;
             break;
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 823)
+        case DispatchInterleaveSize::_1D_64_Threads:
+            regValue = 64;
+            break;
+        case DispatchInterleaveSize::_1D_128_Threads:
+            regValue = 128;
+            break;
+        case DispatchInterleaveSize::_1D_256_Threads:
+            regValue = 256;
+            break;
+        case DispatchInterleaveSize::_1D_512_Threads:
+            regValue = 512;
+            break;
+#else
         case DispatchInterleaveSize::_128:
             regValue = 128;
             break;
@@ -2166,6 +2200,7 @@ static COMPUTE_DISPATCH_INTERLEAVE ComputeDispatchInterleave(
         case DispatchInterleaveSize::_512:
             regValue = 512;
             break;
+#endif
         default:
             PAL_ASSERT_ALWAYS();
             break;

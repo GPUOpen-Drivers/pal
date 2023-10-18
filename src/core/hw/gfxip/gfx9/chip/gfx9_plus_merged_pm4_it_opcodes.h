@@ -187,6 +187,7 @@ typedef enum IT_OpCodeType {
     IT_BUILD_UNTYPED_SRD__GFX11                        = 0x000000af,
     IT_EVENT_WRITE_ZPASS__GFX11                        = 0x000000b1,
     IT_TIMESTAMP__GFX11                                = 0x000000b2,
+    IT_EXECUTE_INDIRECT_V2__GFX11                      = 0x000000b4,
     IT_MARKER__GFX11                                   = 0x000000b7,
     IT_SET_CONTEXT_REG_PAIRS__GFX11                    = 0x000000b8,
     IT_SET_CONTEXT_REG_PAIRS_PACKED__GFX11             = 0x000000b9,
@@ -201,6 +202,7 @@ typedef enum IT_OpCodeType {
     IT_DISPATCH_DRAW__NV2X                             = 0x0000008d,
     IT_DISPATCH_DRAW_ACE__NV2X                         = 0x0000008d,
     IT_BUILD_UNTYPED_SRD__NV2X                         = 0x000000af,
+    IT_EXECUTE_INDIRECT_V2__NV2X                       = 0x000000b4,
     IT_BUILD_UNTYPED_SRD__VEGA                         = 0x000000af,
 } IT_OpCodeType;
 

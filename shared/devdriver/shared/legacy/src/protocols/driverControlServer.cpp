@@ -26,6 +26,7 @@
 #include "protocols/driverControlServer.h"
 #include "msgChannel.h"
 #include "protocols/systemProtocols.h"
+#include <cstdint>
 
 #define DRIVERCONTROL_SERVER_MIN_VERSION 1
 
@@ -349,7 +350,7 @@ SessionState DriverControlServer::HandleSetDeviceClockModeRequest(
     LockData();
 
     const uint32 gpuIndex = payload.gpuIndex;
-    if (gpuIndex < m_numGpus)
+    if ((gpuIndex < m_numGpus) || (gpuIndex == UINT32_MAX))
     {
         if (m_deviceClockCallbackInfo.setCallback != nullptr)
         {
@@ -360,8 +361,25 @@ SessionState DriverControlServer::HandleSetDeviceClockModeRequest(
                 m_deviceClockCallbackInfo.pUserdata);
             if (result == Result::Success)
             {
-                // Update the current clock mode
-                m_deviceClockModes[gpuIndex] = clockMode;
+                uint32 firstGpuIndex = 0;
+                uint32 lastGpuIndex = 0;
+
+                if (gpuIndex == UINT32_MAX)
+                {
+                    firstGpuIndex = 0;
+                    lastGpuIndex  = m_numGpus - 1;
+                }
+                else
+                {
+                    firstGpuIndex = gpuIndex;
+                    lastGpuIndex  = gpuIndex;
+                }
+
+                for (uint32 curGpuIndex = firstGpuIndex; curGpuIndex <= lastGpuIndex; curGpuIndex++)
+                {
+                    // Update the current clock mode
+                    m_deviceClockModes[curGpuIndex] = clockMode;
+                }
             }
         }
     }

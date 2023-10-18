@@ -64,18 +64,6 @@ void PopulateTraceGfxIpLevel(
     switch (gfxIpLevel)
     {
 #if PAL_BUILD_GFX
-    case GfxIpLevel::GfxIp6:
-        *pTraceGfxIpLevel = { 6, 0, 0 };
-        break;
-    case GfxIpLevel::GfxIp7:
-        *pTraceGfxIpLevel = { 7, 0, 0 };
-        break;
-    case GfxIpLevel::GfxIp8:
-        *pTraceGfxIpLevel = { 8, 0, 0 };
-        break;
-    case GfxIpLevel::GfxIp8_1:
-        *pTraceGfxIpLevel = { 8, 1, 0 };
-        break;
     case GfxIpLevel::GfxIp10_1:
         *pTraceGfxIpLevel = { 10, 1, 0 };
         break;
@@ -294,6 +282,17 @@ void AsicInfoTraceSource::WriteAsicInfoTraceChunk()
 
                 result = m_pPlatform->GetTraceSession()->WriteDataChunk(this, info);
             }
+        }
+        if (result != Result::Success)
+        {
+            const char errorMessage[] = "[AsicInfoChunk] Error Writing Chunk Data";
+
+            m_pPlatform->GetTraceSession()->ReportError(
+                chunkTextIdentifier,
+                errorMessage,
+                sizeof(errorMessage),
+                TraceErrorPayload::ErrorString,
+                result);
         }
     }
 }

@@ -103,9 +103,11 @@ ImageCopyEngine RsrcProcMgr::GetImageToImageCopyEngine(
 
     ImageCopyEngine  engineType = ImageCopyEngine::Compute;
 
+    const PalPublicSettings* pPublicSettings = m_pDevice->Parent()->GetPublicSettings();
+
     // We need to decide between the graphics copy path and the compute copy path. The graphics path only supports
     // single-sampled non-compressed, non-YUV , non-MacroPixelPackedRgbOnly 2D or 2D color images for now.
-    if ((Image::PreferGraphicsCopy && pCmdBuffer->IsGraphicsSupported()) &&
+    if ((pPublicSettings->preferGraphicsImageCopy && pCmdBuffer->IsGraphicsSupported()) &&
         (dstImage.IsDepthStencilTarget() ||
          ((srcImageType != ImageType::Tex1d)   &&
           (dstImageType != ImageType::Tex1d)   &&
@@ -1022,7 +1024,9 @@ bool RsrcProcMgr::ScaledCopyImageUseGraphics(
     const bool isYuv        = (Formats::IsYuv(srcInfo.swizzledFormat.format) ||
                                Formats::IsYuv(dstInfo.swizzledFormat.format));
 
-    const bool preferGraphicsCopy = Image::PreferGraphicsCopy &&
+    const PalPublicSettings* pPublicSettings = m_pDevice->Parent()->GetPublicSettings();
+
+    const bool preferGraphicsCopy = pPublicSettings->preferGraphicsImageCopy &&
                                     (PreferComputeForNonLocalDestCopy(*pDstImage) == false);
 
     // isDepthOrSingleSampleColorFormatSupported is used for depth or single-sample color format checking.
@@ -2023,36 +2027,29 @@ void RsrcProcMgr::CmdClearColorImage(
                 ClearMethod clearMethod = dstImage.SubresourceInfo(subres)->clearMethod;
                 if (IsGfx10Plus(*m_pDevice->Parent()) && (clearMethod == ClearMethod::FastUncertain))
                 {
-                    uint32 One = Math::Float32ToNumBits(1.0, 32);
                     if ((Formats::BitsPerPixel(clearFormat.format) == 128) &&
                         (convertedColor[0] == convertedColor[1]) &&
                         (convertedColor[0] == convertedColor[2]))
                     {
-                        if (((convertedColor[0] == One) &&
-                            (convertedColor[3]  == 0)) ||
-                            ((convertedColor[0] == 0) &&
-                            (convertedColor[3]  == One)))
+                        const bool isAc01 = IsAc01ColorClearCode(*pPm4Image,
+                                                                 &convertedColor[0],
+                                                                 clearFormat,
+                                                                 fastClearRange);
+                        if (isAc01)
                         {
-                            // AC01 path check for {1,1,1,0} and {0,0,0,1}
+                            // AC01 path check
                             clearMethod = ClearMethod::Fast;
                         }
-                        else if (convertedColor[0] == convertedColor[3])
+                        else if ((convertedColor[0] == convertedColor[3]) && IsGfx10(*m_pDevice->Parent()))
                         {
-                            // AC01 path check for {0,0,0,0} and {1,1,1,1}, and
                             // comp-to-reg check for non {0, 1}: make sure all clear values are equal,
                             // simplest way to support 128BPP fastclear based on current code
                             clearMethod = ClearMethod::Fast;
                         }
-#if PAL_BUILD_GFX11
-                        if ((clearMethod == ClearMethod::Fast) && IsGfx11(*m_pDevice->Parent()))
+                        else
                         {
-                            if ((m_pDevice->DisableAc01ClearCodes() == true) ||
-                                (convertedColor[0] != 0) && (convertedColor[0] != One))
-                            {
-                                clearMethod = slowClearMethod;
-                            }
+                            clearMethod = slowClearMethod;
                         }
-#endif
                     }
                     else
                     {

@@ -112,7 +112,7 @@ public:
 
     virtual Result Init();
     virtual Result Validate(const ShaderRingItemSizes&  ringSizes,
-                            const SamplePatternPalette& samplePatternPalette,
+                            bool                        updateSamplePatternPalette,
                             const uint64                lastTimeStamp,
                             uint32*                     pReallocatedRings);
 
@@ -123,6 +123,8 @@ public:
 
     size_t SrdTableSize() const { return (sizeof(BufferSrd) * m_numSrds); }
     size_t TotalMemSize() const { return SrdTableSize(); }
+
+    const ShaderRing* const* GetRings() const { return m_ppRings; }
 
     void ClearDeferredFreeMemory(SubmissionContext* pSubmissionCtx);
 
@@ -156,7 +158,7 @@ public:
 
     virtual Result Init() override;
     virtual Result Validate(const ShaderRingItemSizes&  ringSizes,
-                            const SamplePatternPalette& samplePatternPalette,
+                            bool                        updateSamplePatternPalette,
                             uint64                      lastTimeStamp,
                             uint32*                     pReallocatedRings) override;
 
@@ -200,7 +202,7 @@ public:
 
     virtual Result Init() override;
     virtual Result Validate(const ShaderRingItemSizes&  ringSizes,
-                            const SamplePatternPalette& samplePatternPalette,
+                            bool                        updateSamplePatternPalette,
                             uint64                      lastTimeStamp,
                             uint32*                     pReallocatedRings) override;
 

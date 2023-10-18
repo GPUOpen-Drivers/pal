@@ -66,6 +66,7 @@ ComputePipeline::ComputePipeline(
     Pal::ComputePipeline(pDevice->Parent(), isInternal),
     m_pDevice(pDevice),
     m_signature{NullCsSignature},
+    m_ringSizeComputeScratch{},
     m_chunkCs(*pDevice,
               &m_stageInfo,
               &m_perfDataInfo[static_cast<uint32>(Abi::HardwareStage::Cs)]),
@@ -264,7 +265,7 @@ Result ComputePipeline::HwlInit(
 
         if (scratchMemorySize != 0)
         {
-            UpdateRingSizes(scratchMemorySize);
+            UpdateRingSizeComputeScratch(scratchMemorySize);
         }
 
         const uint32 wavefrontSize = IsWave32() ? 32 : 64;
@@ -311,7 +312,7 @@ Result ComputePipeline::HwlInit(
 
         if (scratchMemorySize != 0)
         {
-            UpdateRingSizes(scratchMemorySize);
+            UpdateRingSizeComputeScratch(scratchMemorySize);
         }
 
         const uint32 wavefrontSize = IsWave32() ? 32 : 64;
@@ -407,7 +408,7 @@ Result ComputePipeline::LinkWithLibraries(
         m_uploadFenceToken = Max(m_uploadFenceToken, pLibObj->GetUploadFenceToken());
         m_pagingFenceVal   = Max(m_pagingFenceVal,   pLibObj->GetPagingFenceVal());
 
-        if (pLibObj->GetShaderLibFunctionCount() == 0)
+        if (pLibObj->GetShaderLibFunctionInfos().NumElements() == 0)
         {
             // Skip library with no functions for propagation of register usage etc.
             continue;
@@ -469,7 +470,7 @@ Result ComputePipeline::LinkWithLibraries(
 
         if (update)
         {
-            UpdateRingSizes(m_stackSizeInBytes / sizeof(uint32));
+            UpdateRingSizeComputeScratch(m_stackSizeInBytes / sizeof(uint32));
         }
     }
 
@@ -579,7 +580,7 @@ void ComputePipeline::SetStackSizeInBytes(
     uint32 stackSizeInBytes)
 {
     m_stackSizeInBytes = stackSizeInBytes;
-    UpdateRingSizes(stackSizeInBytes / sizeof(uint32));
+    UpdateRingSizeComputeScratch(stackSizeInBytes / sizeof(uint32));
 }
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 797
@@ -652,16 +653,12 @@ uint32 ComputePipeline::CalcScratchMemSize(
 
 // =====================================================================================================================
 // Update the device that this compute pipeline has some new ring-size requirements.
-void ComputePipeline::UpdateRingSizes(
+void ComputePipeline::UpdateRingSizeComputeScratch(
     uint32 scratchMemorySize)
 {
     PAL_ASSERT(scratchMemorySize != 0);
 
-    ShaderRingItemSizes ringSizes = { };
-    ringSizes.itemSize[static_cast<size_t>(ShaderRingType::ComputeScratch)] = scratchMemorySize;
-
-    // Inform the device that this pipeline has some new ring-size requirements.
-    m_pDevice->UpdateLargestRingSizes(&ringSizes);
+    m_ringSizeComputeScratch = scratchMemorySize;
 }
 
 } // Gfx9

@@ -47,8 +47,20 @@ ComputeShaderLibrary::ComputeShaderLibrary(
     m_uploadFenceToken(0),
     m_pagingFenceVal(0),
     m_perfDataMem(),
-    m_perfDataGpuMemSize(0)
+    m_perfDataGpuMemSize(0),
+    m_functionList(pDevice->GetPlatform())
 {
+}
+
+// =====================================================================================================================
+ComputeShaderLibrary::~ComputeShaderLibrary()
+{
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 827
+    for (auto info : m_functionList)
+    {
+        PAL_FREE(info.pSymbolName, m_pDevice->GetPlatform());
+    }
+#endif
 }
 
 // =====================================================================================================================
@@ -149,6 +161,48 @@ Result ComputeShaderLibrary::PerformRelocationsAndUploadToGpuMemory(
 }
 
 // =====================================================================================================================
+// Initializes m_functionList from metadata
+Result ComputeShaderLibrary::InitFunctionListFromMetadata(
+    const Util::PalAbi::CodeObjectMetadata& metadata,
+    Util::MsgPackReader*                    pReader)
+{
+    Result result = pReader->Seek(metadata.pipeline.shaderFunctions);
+
+    if (result == Result::Success)
+    {
+        result = (pReader->Type() == CWP_ITEM_MAP) ? Result::Success : Result::ErrorInvalidValue;
+        const auto& item = pReader->Get().as;
+
+        uint32 funcCount = item.map.size;
+
+        for (uint32 i = 0; ((result == Result::Success) && (i < funcCount)); ++i)
+        {
+            result = pReader->Next(CWP_ITEM_STR);
+
+            if (result == Result::Success)
+            {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 827
+                ShaderLibraryFunctionInfo info = { nullptr, 0 };
+#else
+                StringView<char> symbolName(static_cast<const char*>(item.str.start), item.str.length);
+                ShaderLibraryFunctionInfo info = { symbolName, 0 };
+#endif
+                result = m_functionList.PushBack(info);
+            }
+
+            if (result == Result::Success)
+            {
+                // Skip metadata for this function (we only need its name here).
+                // E.g., function1 : {...}(skip), function2 : {...}(skip)
+                result = pReader->Skip(1);
+            }
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 // Computes the GPU virtual address of each of the indirect functions specified by the client.
 void ComputeShaderLibrary::GetFunctionGpuVirtAddrs(
     const PipelineUploader&         uploader,
@@ -158,7 +212,17 @@ void ComputeShaderLibrary::GetFunctionGpuVirtAddrs(
     for (uint32 i = 0; i < funcCount; ++i)
     {
         GpuSymbol symbol = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 827
         if (uploader.GetGenericGpuSymbol(pFuncInfoList[i].pSymbolName, &symbol) == Result::Success)
+#else
+        // NOTE: pFuncInfoList[i].symbolName is not null-terminated, construct a null-terminated char* here to make
+        // GetGenericGpuSymbol() work correctly.
+        constexpr uint32 MaxNameLength = 256;
+        PAL_ASSERT(MaxNameLength > pFuncInfoList[i].symbolName.Length());
+        char tempSymbolName[MaxNameLength];
+        Util::Strncpy(tempSymbolName, pFuncInfoList[i].symbolName.Data(), pFuncInfoList[i].symbolName.Length() + 1);
+        if (uploader.GetGenericGpuSymbol(tempSymbolName, &symbol) == Result::Success)
+#endif
         {
             pFuncInfoList[i].gpuVirtAddr = symbol.gpuVirtAddr;
             PAL_ASSERT(pFuncInfoList[i].gpuVirtAddr != 0);

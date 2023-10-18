@@ -1100,7 +1100,142 @@
           },
           "Type": "bool",
           "VariableName": "supressInstructionTokens",
-          "Description": "Skip to dump instruction tokens if true. Otherwise, all token types will be dumped."
+          "Description": "Skip to dump instruction tokens if true. Otherwise, all token types that tokenMask specifies will be dumped."
+        },
+        {
+          "ValidValues": {
+            "IsEnum": true,
+            "Values": [
+              {
+                "Name": "TokenTypeMisc",
+                "Value": 1,
+                "Description": "A miscellaneous event has been sent. TT 2.3"
+              },
+              {
+                "Name": "TokenTypeTimeStamp",
+                "Value": 2,
+                "Description": "Timestamp tokens. TT 2.3"
+              },
+              {
+                "Name": "TokenTypeReg",
+                "Value": 4,
+                "Description": "Register activity token. TT 2.3"
+              },
+              {
+                "Name": "TokenTypeWaveStart",
+                "Value": 8,
+                "Description": "A wavefront has started. TT 2.3"
+              },
+              {
+                "Name": "TokenTypeWaveAlloc",
+                "Value": 16,
+                "Description": "Output space has been allocated for vertex position or color/Z. TT 2.3"
+              },
+              {
+                "Name": "TokenTypeRegCsPriv",
+                "Value": 32,
+                "Description": "There has been a compute pipeline private data, state or thread group update. TT 2.3"
+              },
+              {
+                "Name": "TokenTypeWaveEnd",
+                "Value": 64,
+                "Description": "Wavefront completion. TT 2.3"
+              },
+              {
+                "Name": "TokenTypeEvent",
+                "Value": 128,
+                "Description": "An event has reached the top of a shader stage. TT 2.3"
+              },
+              {
+                "Name": "TokenTypeEventCs",
+                "Value": 256,
+                "Description": "An event has reached the top of a compute shader stage. TT 2.3"
+              },
+              {
+                "Name": "TokenTypeEventGfx1",
+                "Value": 512,
+                "Description": "An event has reached the top of a shader stage for the second GFX pipe. TT 2.3"
+              },
+              {
+                "Name": "TokenTypeInst",
+                "Value": 1024,
+                "Description": "The shader has executed an instruction. TT 2.3"
+              },
+              {
+                "Name": "TokenTypeInstPc",
+                "Value": 2048,
+                "Description": "The shader has explicitly written the PC value. TT 2.3"
+              },
+              {
+                "Name": "TokenTypeInstUserData",
+                "Value": 4096,
+                "Description": "The shader has written user data into the thread trace buffer. TT 2.3"
+              },
+              {
+                "Name": "TokenTypeIssue",
+                "Value": 8192,
+                "Description": "Provides information about instruction scheduling. TT 2.3"
+              },
+              {
+                "Name": "TokenTypePerf",
+                "Value": 16384,
+                "Description": "The performance counter delta has been updated. TT 2.3 and below only"
+              },
+              {
+                "Name": "TokenTypeRegCs",
+                "Value": 32768,
+                "Description": "A compute state update packet has been received by the SPI. TT 2.3"
+              },
+              {
+                "Name": "TokenTypeVmemExec",
+                "Value": 65536,
+                "Description": "A previously issued VMEM instruction is now being sent to LDS/TA. TT 3.0"
+              },
+              {
+                "Name": "TokenTypeAluExec",
+                "Value": 131072,
+                "Description": "A previously issued VALU instruction is now being executed. TT 3.0"
+              },
+              {
+                "Name": "TokenTypeValuInst",
+                "Value": 262144,
+                "Description": "A VALU instruction has been issued. TT 3.0"
+              },
+              {
+                "Name": "TokenTypeWaveRdy",
+                "Value": 524288,
+                "Description": "Mask of which waves became ready this cycle but did not issue an instruction. TT 3.0"
+              },
+              {
+                "Name": "TokenTypeImmed1",
+                "Value": 1048576,
+                "Description": "One wave issued an immediate instruction this cycle. TT 3.0"
+              },
+              {
+                "Name": "TokenTypeImmediate",
+                "Value": 2097152,
+                "Description": "One or more waves have issued an immediate instruction this cycle. TT 3.0"
+              },
+              {
+                "Name": "TokenTypeUtilCounter",
+                "Value": 4194304,
+                "Description": "A new set of utilization counter values. TT 3.0"
+              }
+            ],
+            "Name": "TokenType",
+            "Description": "Bitmask values that correspond to token types."
+          },
+          "Name": "TokenMask",
+          "Flags": {
+            "IsBitmask": true,
+            "IsHex": true
+          },
+          "Defaults": {
+            "Default": "0xFFFFFFFF"
+          },
+          "Type": "uint32",
+          "VariableName": "tokenMask",
+          "Description": "Mask indicating which token types are requested to dump. It works with supressInstructionTokens to determine the dumped token types."
         },
         {
           "Name": "SEMask",
@@ -1113,7 +1248,7 @@
           },
           "Type": "uint32",
           "VariableName": "seMask",
-          "Description": "Mask indicating which which SE to gather thread trace from. Zero means trace all SEs."
+          "Description": "Mask indicating which SE to gather thread trace from. Zero means trace all SEs."
         },
         {
           "Description": "Pipeline compiler hash to enable SQ thread traces for. If this is zero, thread traces will be enabled for all pipelines.  This filtering only applies to draw or cmdbuf profiling granularity.",
@@ -2112,6 +2247,96 @@
           "Type": "uint32",
           "VariableName": "surfaceCaptureCount",
           "Description": "Number of draw/blit image calls in the selected command buffer from which to capture output surfaces"
+        },
+        {
+          "Name": "SurfaceCaptureFrameStart",
+          "Tags": [
+            "GPU Debugging"
+          ],
+          "Defaults": {
+            "Default": "0"
+          },
+          "Scope": "PrivatePalKey",
+          "Type": "uint32",
+          "VariableName": "surfaceCaptureFrameStart",
+          "Description": "First frame to start surface capture. NOTE: This option only filter the image dump, GPU still has do all the extra work associated with surface capture on every frame."
+        },
+        {
+          "Name": "SurfaceCaptureFrameCount",
+          "Tags": [
+            "GPU Debugging"
+          ],
+          "Defaults": {
+            "Default": "0x7fffffff"
+          },
+          "Scope": "PrivatePalKey",
+          "Type": "uint32",
+          "VariableName": "surfaceCaptureFrameCount",
+          "Description": "Number of surface capture frames to output. NOTE: This option only filter the image dump, GPU still has do all the extra work associated with surface capture on every frame."
+        },
+        {
+          "Name": "SurfaceCaptureFilenameHashType",
+          "Tags": [
+            "GPU Debugging"
+          ],
+          "ValidValues": {
+            "IsEnum": true,
+            "Values": [
+              {
+                "Name": "FilenameHashNoHash",
+                "Value": 0,
+                "Description": "Do not add hash in filename."
+              },
+              {
+                "Name": "FilenameHashPipeline",
+                "Value": 1,
+                "Description": "Include pipeline hash in filename"
+              },
+              {
+                "Name": "FilenameHashTask",
+                "Value": 2,
+                "Description": "Include task shader hash in filename."
+              },
+              {
+                "Name": "FilenameHashVs",
+                "Value": 3,
+                "Description": "Include vertex shader hash in filename."
+              },
+              {
+                "Name": "FilenameHashHs",
+                "Value": 4,
+                "Description": "Include hull shader hash in filename."
+              },
+              {
+                "Name": "FilenameHashDs",
+                "Value": 5,
+                "Description": "Include domain shader hash in filename."
+              },
+              {
+                "Name": "FilenameHashGs",
+                "Value": 6,
+                "Description": "Include geometry shader hash in filename."
+              },
+              {
+                "Name": "FilenameHashMesh",
+                "Value": 7,
+                "Description": "Include mesh shader hash in filename."
+              },
+              {
+                "Name": "FilenameHashPs",
+                "Value": 8,
+                "Description": "Include pixel shader hash in filename."
+              }
+            ],
+            "Name": "FilenameHashType"
+          },
+          "Defaults": {
+            "Default": 0
+          },
+          "Scope": "PrivatePalKey",
+          "Type": "uint32",
+          "VariableName": "surfaceCaptureFilenameHashType",
+          "Description": "Include which hash in surface capture filename."
         },
         {
           "ValidValues": {

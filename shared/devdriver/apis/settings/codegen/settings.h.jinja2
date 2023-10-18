@@ -10,88 +10,93 @@
 
 #include <dd_settings_base.h>
 #include <dd_settings_blob.h>
+#include <dd_optional.h>
 {% if component == "PalPlatform"%}
 #include "pal.h"
 #include "palDevice.h"
 {% endif -%}
 
-{% macro prep_cond_begin(prep_cond) %}
-{% if prep_cond %}
-{{prep_cond|buildtypes_to_c_macro}}
+{% macro prep_cond_begin(build_types, or_build_types) %}
+{% if build_types or or_build_types %}
+{{build_types|buildtypes_to_c_macro(or_build_types)}}
 {% endif %}
 {% endmacro %}
 
-{% macro prep_cond_end(prep_cond) %}
-{% if prep_cond %}
+{% macro prep_cond_end(build_types, or_build_types) %}
+{% if build_types or or_build_types %}
 #endif
 
 {% endif %}
 {% endmacro %}
 
-namespace {{namespace}}
+namespace {{Namespace}}
 {
 /// Enums /////////////////////////////////////////////////////////////////////
-{% for enum in enums %}
+{% for enum in Enums %}
 {% if enum.skipGen %}
 {# skip generating enum defintion #}
 {% else %}
-enum {{enum.name}} : uint32_t
+{{ prep_cond_begin(enum.BuildTypes, enum.OrBuildTypes) -}}
+enum {{enum.Name}} : uint32_t
 {
-{% for value in enum["values"] %}
-{{ prep_cond_begin(value.buildtypes) -}}
-{{'    '}}{{value.name}} = {{value.value}}, {% if value.description %}// {{value.description}}{% endif +%}
-{{ prep_cond_end(value.buildtypes) -}}
+{% for value in enum.Values %}
+{{ prep_cond_begin(value.BuildTypes, value.OrBuildTypes) -}}
+{{'    '}}{{value.Name}} = {{value.Value}}, {% if value.Description %}// {{value.Description}}{% endif +%}
+{{ prep_cond_end(value.BuildTypes, value.OrBuildTypes) -}}
 {% endfor %}
 };
+{{ prep_cond_end(enum.BuildTypes, enum.OrBuildTypes) -}}
 {% endif %}
 {% endfor %}
 
-struct {{component}}Settings : public DevDriver::SettingsDataBase
+struct {{ComponentName}}Settings
 {
-{% for setting in settings %}
-{% if setting.groupName %}
+{% for setting in Settings %}
+{% if setting.Structure %}
 
     struct {
-{% for subs in setting.subsettings %}
-{{ prep_cond_begin(subs.buildtypes) -}}
-{{'        '}}{{subs.variableType}} {{subs.variableName}}{% if subs.stringLength %}[{{subs.stringLength}}]{% endif %};
-{{ prep_cond_end(subs.buildtypes) -}}
+{% for subs in setting.Structure %}
+{{ prep_cond_begin(subs.BuildTypes, subs.OrBuildTypes) -}}
+{{'        '}}{{subs.VariableType}} {{subs.VariableName}}{% if subs.StringLength %}[{{subs.StringLength}}]{% endif %};
+{{ prep_cond_end(subs.BuildTypes, subs.OrBuildTypes) -}}
 {% endfor %}
-    } {{setting.groupVariableName}};
+    } {{setting.VariableName}};
+
 {% else %}
-{{ prep_cond_begin(setting.buildtypes) -}}
-{{'    '}}{{setting.variableType}} {{setting.variableName}}{% if setting.stringLength %}[{{setting.stringLength}}]{% endif %};
-{{ prep_cond_end(setting.buildtypes) -}}
+{{ prep_cond_begin(setting.BuildTypes, setting.OrBuildTypes) -}}
+{{'    '}}{{setting.VariableType}} {{setting.VariableName}}{% if setting.StringLength %}[{{setting.StringLength}}]{% endif %};
+{{ prep_cond_end(setting.BuildTypes, setting.OrBuildTypes) -}}
 {% endif %}
 {% endfor %}
 };
 
-const uint32_t g_{{componentNameLower}}NumSettings = {{numSettings}};
+const uint32_t g_{{ComponentNameLower}}NumSettings = {{NumSettings}};
 
-{% for setting in settings %}
-{% if setting.groupName %}
-{% for subs in setting.subsettings %}
-{{ prep_cond_begin(subs.buildtypes) -}}
-constexpr DD_SETTINGS_NAME_HASH {{setting.groupVariableName}}_{{subs.variableName}}Hash = {{subs.nameHash}};
-constexpr const char* p{{setting.groupName}}_{{subs.variableName}}HashStr = "#{{subs.nameHash}}";
-{{ prep_cond_end(subs.buildtypes) -}}
+{% for setting in Settings %}
+{% if setting.Structure %}
+{% for subs in setting.Structure %}
+{{ prep_cond_begin(subs.BuildTypes, subs.OrBuildTypes) -}}
+constexpr DD_SETTINGS_NAME_HASH {{setting.VariableName}}_{{subs.VariableName}}Hash = {{subs.NameHash}};
+constexpr const char* p{{setting.Name}}_{{subs.VariableName}}HashStr = "#{{subs.NameHash}}";
+{{ prep_cond_end(subs.BuildTypes, subs.OrBuildTypes) -}}
 {% endfor %}
 {% else %}
-{{ prep_cond_begin(setting.buildtypes) -}}
-constexpr DD_SETTINGS_NAME_HASH {{setting.variableName}}Hash = {{setting.nameHash}};
-constexpr const char* p{{setting.name}}HashStr = "#{{setting.nameHash}}";
-{{ prep_cond_end(setting.buildtypes) -}}
+{{ prep_cond_begin(setting.BuildTypes, setting.OrBuildTypes) -}}
+constexpr DD_SETTINGS_NAME_HASH {{setting.VariableName}}Hash = {{setting.NameHash}};
+constexpr const char* p{{setting.Name}}HashStr = "#{{setting.NameHash}}";
+{{ prep_cond_end(setting.BuildTypes, setting.OrBuildTypes) -}}
 {% endif %}
 {% endfor %}
 
 // =======================================================================================
 // SettingsBlob
 
-class {{component}}SettingsBlobNode : public DevDriver::SettingsBlobNode
+class {{ComponentName}}SettingsBlobNode : public DevDriver::SettingsBlobNode
 {
 public:
     const uint8_t* GetBlob(uint32_t* pOutSize) override;
     bool IsEncoded() override;
+    uint32_t GetMagicOffset() override;
     uint64_t GetBlobHash() override;
 };
 

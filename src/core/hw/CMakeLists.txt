@@ -27,10 +27,6 @@ if(PAL_BUILD_GFX)
     add_subdirectory(gfxip)
 endif()
 
-if(PAL_BUILD_OSS)
-    add_subdirectory(ossip)
-endif()
-
 target_sources(pal PRIVATE
     amdgpu_asic.h
     CMakeLists.txt

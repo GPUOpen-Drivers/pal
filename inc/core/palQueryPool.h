@@ -117,6 +117,7 @@ enum QueryResultFlags : uint32
     QueryResultAccumulate       = 0x10, ///< Results are added to the values present in the destination, if availability
                                         ///  data is enabled it will be ANDed with the present availability data.
     QueryResultPreferShaderPath = 0x20, ///< Prefer a shader resolve path over a command processor path.
+    QueryResultOnlyPrimNeeded   = 0x40, ///< Select only primitives storage needed in Streamout query results
 };
 
 /**

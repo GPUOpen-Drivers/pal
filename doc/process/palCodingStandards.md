@@ -175,6 +175,12 @@ General Language Restrictions
 -   All target compilers **must** fully support C++20. The following C++
     constructs are explicitly allowed:
 
+    -   Vendor-neutral attributes such as `[[nodiscard]]`, `[[noreturn]]`,
+        `[[fallthrough]]`, or `[[unlikely]]` **may** be used where
+        appropriate and where a PAL macro equivalent does not exist. Use
+        of the `[[(un)likely]]` attributes follow a similar standard to
+        `PAL_FORCE_INLINE`.
+
     -   Storage class ***must*** be specified for all enums to allow
         forward declaration on all platforms. See "Enumerations".
 

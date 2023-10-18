@@ -28,7 +28,6 @@
 #include "core/os/amdgpu/amdgpuImage.h"
 #include "core/os/amdgpu/amdgpuSwapChain.h"
 #include "core/os/amdgpu/amdgpuWindowSystem.h"
-#include "core/addrMgr/addrMgr1/addrMgr1.h"
 #include "core/hw/gfxip/gfx9/gfx9MaskRam.h"
 #include "palFormatInfo.h"
 #include "palSysMemory.h"
@@ -511,17 +510,6 @@ Result Image::GetExternalSharedImageCreateInfo(
                 isLinearTiled = (swizzleMode == AMDGPU_SWIZZLE_MODE_LINEAR) ||
                                 (swizzleMode == AMDGPU_SWIZZLE_MODE_LINEAR_GENERAL);
             }
-            else
-            {
-                const uint32 tileMode =
-                    (pCreateInfo->flags.sharedWithMesa
-                        ? static_cast<uint32>(AddrMgr1::AddrTileModeFromHwArrayMode(
-                          AMDGPU_TILING_GET(sharedInfo.info.metadata.tiling_info, ARRAY_MODE)))
-                        : pMetadata->tile_mode);
-
-                isLinearTiled = (tileMode == AMDGPU_TILE_MODE__LINEAR_GENERAL) ||
-                                (tileMode == AMDGPU_TILE_MODE__LINEAR_ALIGNED);
-            }
             pCreateInfo->tiling = isLinearTiled ? ImageTiling::Linear : ImageTiling::Optimal;
         }
         else
@@ -633,41 +621,6 @@ Result Image::CreateExternalSharedImage(
             pDccState->maxUncompressedBlockSize = AMDGPU_TILING_GET(tilingInfo, DCC_MAX_UNCOMPRESSED_BLOCK_SIZE);
             pDccState->independentBlk64B        = AMDGPU_TILING_GET(tilingInfo, DCC_INDEPENDENT_64B);
             pDccState->independentBlk128B       = AMDGPU_TILING_GET(tilingInfo, DCC_INDEPENDENT_128B);
-        }
-    }
-    else
-    {
-        if (hasMetadata == false)
-        {
-            internalCreateInfo.gfx6.sharedTileMode  = ADDR_TM_LINEAR_GENERAL;
-            internalCreateInfo.gfx6.sharedTileType  = ADDR_DISPLAYABLE;
-            internalCreateInfo.gfx6.sharedTileIndex = TILEINDEX_LINEAR_ALIGNED;
-        }
-        else if (IsMesaMetadata(sharedInfo.info.metadata))
-        {
-            auto*const pBoMetaData  = reinterpret_cast<const amdgpu_bo_umd_metadata*>
-                                                        (&sharedInfo.info.metadata.umd_metadata);
-            auto*const pRawMetaData = reinterpret_cast<const uint32*>(pBoMetaData);
-
-            internalCreateInfo.gfx6.sharedTileIndex = (pRawMetaData[5] >> 20) & 0x1F;
-            internalCreateInfo.gfx6.sharedTileMode  = AddrMgr1::AddrTileModeFromHwArrayMode(
-                                                   AMDGPU_TILING_GET(sharedInfo.info.metadata.tiling_info, ARRAY_MODE));
-            internalCreateInfo.gfx6.sharedTileType  = static_cast<AddrTileType>
-                                             (AMDGPU_TILING_GET(sharedInfo.info.metadata.tiling_info, MICRO_TILE_MODE));
-        }
-        else
-        {
-            internalCreateInfo.gfx6.sharedTileMode       = static_cast<AddrTileMode>
-                                                           (AmdGpuToAddrTileModeConversion(pMetadata->tile_mode));
-            internalCreateInfo.gfx6.sharedTileType       = static_cast<AddrTileType>(pMetadata->micro_tile_mode);
-            internalCreateInfo.gfx6.sharedTileSwizzle[0] = pMetadata->pipeBankXor;
-
-            for (uint32 plane = 1; plane < MaxNumPlanes; plane++)
-            {
-                internalCreateInfo.gfx6.sharedTileSwizzle[plane] = pMetadata->additionalPipeBankXor[plane - 1];
-            }
-
-            internalCreateInfo.gfx6.sharedTileIndex = pMetadata->tile_index;
         }
     }
 

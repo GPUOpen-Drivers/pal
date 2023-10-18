@@ -27,7 +27,7 @@
 
 #include "gpuopen.h"
 
-#define DRIVERCONTROL_PROTOCOL_VERSION 9
+#define DRIVERCONTROL_PROTOCOL_VERSION 10
 
 #define DRIVERCONTROL_PROTOCOL_MINIMUM_VERSION 1
 
@@ -35,6 +35,7 @@
 ***********************************************************************************************************************
 *| Version | Change Description                                                                                       |
 *| ------- | ---------------------------------------------------------------------------------------------------------|
+*|  10.0   | Add ability to set clock mode on all adapters.                                                           |
 *|  9.0    | Added a feature that allows tools to indicate when they will be ignoring a specific driver.              |
 *|  8.0    | Added a new version of the step driver response that contains the current driver status.                 |
 *|  7.0    | Corrected a back-compat issue related to the new device clock query code.                                |
@@ -48,6 +49,7 @@
 ***********************************************************************************************************************
 */
 
+#define DRIVERCONTROL_SET_CLOCKS_ALL_ADAPTERS_VERSION 10
 #define DRIVERCONTROL_IGNORE_DRIVER_VERSION 9
 #define DRIVERCONTROL_STEP_RETURN_STATUS_VERSION 8
 #define DRIVERCONTROL_QUERY_BY_MODE_BACK_COMPAT_VERSION 7

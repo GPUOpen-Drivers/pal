@@ -43,7 +43,7 @@
 ///            compatible, it is not assumed that the client will initialize all input structs to 0.
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MAJOR_VERSION 822
+#define PAL_INTERFACE_MAJOR_VERSION 830
 
 /// Minor interface version.  Note that the interface version is distinct from the PAL version itself, which is returned
 /// in @ref Pal::PlatformProperties.
@@ -53,7 +53,7 @@
 /// of the existing enum values will change.  This number will be reset to 0 when the major version is incremented.
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MINOR_VERSION 1
+#define PAL_INTERFACE_MINOR_VERSION 0
 
 /// Minimum major interface version. This is the minimum interface version PAL supports in order to support backward
 /// compatibility. When it is equal to PAL_INTERFACE_MAJOR_VERSION, only the latest interface version is supported.
@@ -127,11 +127,112 @@ enum class NullGpuId : uint32
     All              = 0x26
 };
 
+/// Specifies which graphics IP level (GFXIP) this device has.
+enum class GfxIpLevel : uint32
+{
+    _None    = 0x0,   ///< @internal The device does not have an GFXIP block, or its level cannot be determined
+
+    // Unfortunately for Linux clients, X.h includes a "#define None 0" macro.  Clients have their choice of either
+    // undefing None before including this header or using _None when dealing with PAL.
+#ifndef None
+    None     = _None, ///< The device does not have an GFXIP block, or its level cannot be determined
+#endif
+
+    GfxIp6    = 0x1,
+    GfxIp7    = 0x2,
+    GfxIp8    = 0x3,
+    GfxIp8_1  = 0x4,
+    GfxIp9    = 0x5,
+    GfxIp10_1 = 0x7,
+    GfxIp10_3 = 0x9,
+#if PAL_BUILD_GFX11
+    GfxIp11_0 = 0xC,
+#endif
+};
+
+/// Specifies the hardware revision.  Enumerations are in family order (Southern Islands, Sea Islands, Kaveri,
+/// Carrizo, Volcanic Islands, etc.)
+enum class AsicRevision : uint32
+{
+    Unknown     = 0x00,
+
+    Tahiti      = 0x01,
+    Pitcairn    = 0x02,
+    Capeverde   = 0x03,
+    Oland       = 0x04,
+    Hainan      = 0x05,
+
+    Bonaire     = 0x06,
+    Hawaii      = 0x07,
+    HawaiiPro   = 0x08,
+
+    Kalindi     = 0x0A,
+    Godavari    = 0x0B,
+    Spectre     = 0x0C,
+    Spooky      = 0x0D,
+
+    Carrizo     = 0x0E,
+    Bristol     = 0x0F,
+    Stoney      = 0x10,
+
+    Iceland     = 0x11,
+    Tonga       = 0x12,
+    TongaPro    = Tonga,
+    Fiji        = 0x13,
+
+    Polaris10   = 0x14,
+    Polaris11   = 0x15,
+    Polaris12   = 0x16,
+
+    Vega10      = 0x18,
+    Vega12      = 0x19,
+    Vega20      = 0x1A,
+    Raven       = 0x1B,
+    Raven2      = 0x1C,
+    Renoir      = 0x1D,
+
+    Navi10           = 0x1F,
+    Navi12           = 0x21,
+    Navi14           = 0x23,
+    Navi21           = 0x24,
+    Navi22           = 0x25,
+    Navi23           = 0x26,
+    Navi24           = 0x27,
+#if PAL_BUILD_NAVI31
+    Navi31           = 0x2C,
+#endif
+#if PAL_BUILD_NAVI32
+    Navi32           = 0x2D,
+#endif
+#if PAL_BUILD_NAVI33
+    Navi33           = 0x2E,
+#endif
+    Rembrandt        = 0x2F,
+    Raphael          = 0x34,
+#if PAL_BUILD_PHOENIX1
+    Phoenix1          = 0x35,
+#endif
+};
+
 /// Maps a null GPU ID to its associated text name.
 struct NullGpuInfo
 {
     NullGpuId   nullGpuId;  ///< ID of an ASIC that PAL supports for override purposes
     const char* pGpuName;   ///< Text name of the ASIC specified by nullGpuId
+};
+
+/// Various IDs and info associated with a particular GPU.
+struct GpuInfo
+{
+    AsicRevision asicRev;     ///< PAL specific ASIC revision identifier.
+    NullGpuId    nullId;      ///< PAL specific GPU ID supported by the NULL OS layer.
+    GfxIpLevel   gfxIpLevel;  ///< PAL specific identifier for the device's graphics IP level (GFXIP).
+    uint32       familyId;    ///< Hardware family ID. Driver-defined identifier for a particular family of devices.
+    uint32       eRevId;      ///< GPU emulation/internal revision ID.
+    uint32       revisionId;  ///< GPU revision. HW-specific value differentiating between different SKUs or revisions.
+    uint32       gfxEngineId; ///< Coarse-grain GFX engine ID (R800, SI, etc.).
+    uint32       deviceId;    ///< PCI device ID (e.g., Hawaii XT = 0x67B0).
+    const char*  pGpuName;    ///< Name string of the ASIC (e.g., "NAVI10").
 };
 
 /// PAL client APIs.
@@ -272,6 +373,54 @@ Result PAL_STDCALL CreatePlatform(
 Result PAL_STDCALL EnumerateNullDevices(
     uint32*       pNullDeviceCount,
     NullGpuInfo*  pNullDevices);
+
+/**
+ ***********************************************************************************************************************
+ * @brief Provides the GpuInfo data for the specified NullGpuId.
+ *
+ * @param [in]  nullGpuId Null GPU ID to lookup.
+ * @param [out] pGpuInfo  GpuInfo data on successful lookup. Must not be null.
+ *
+ * @returns Success if the lookup completed successfully. Otherwise, one of the following error codes may be returned:
+ *          + ErrorInvalidPointer will be returned if pGpuInfo is NULL.
+ *          + NotFound will be returned if Null GPU ID was not found.
+ ***********************************************************************************************************************
+ */
+Result PAL_STDCALL GetGpuInfoForNullGpuId(
+    NullGpuId nullGpuId,
+    GpuInfo*  pGpuInfo);
+
+/**
+ ***********************************************************************************************************************
+ * @brief Provides the GpuInfo data for the specified GPU name string.
+ *
+ * @param [in]  pGpuName Name string of the GPU to lookup (e.g., "NAVI10").
+ * @param [out] pGpuInfo GpuInfo data on successful lookup. Must not be null.
+ *
+ * @returns Success if the lookup completed successfully. Otherwise, one of the following error codes may be returned:
+ *          + ErrorInvalidPointer will be returned if pGpuName or pGpuInfo are NULL.
+ *          + NotFound will be returned if Null GPU ID was not found.
+ ***********************************************************************************************************************
+ */
+Result PAL_STDCALL GetGpuInfoForName(
+    const char* pGpuName,
+    GpuInfo*    pGpuInfo);
+
+/**
+ ***********************************************************************************************************************
+ * @brief Provides the GpuInfo data for the specified hardware revision.
+ *
+ * @param [in]  asicRevision Hardware revision to lookup.
+ * @param [out] pGpuInfo     GpuInfo data on successful lookup. Must not be null.
+ *
+ * @returns Success if the lookup completed successfully. Otherwise, one of the following error codes may be returned:
+ *          + ErrorInvalidPointer will be returned if pGpuInfo is NULL.
+ *          + NotFound will be returned if Null GPU ID was not found.
+ ***********************************************************************************************************************
+ */
+Result PAL_STDCALL GetGpuInfoForAsicRevision(
+    AsicRevision asicRevision,
+    GpuInfo*     pGpuInfo);
 
 /**
  ***********************************************************************************************************************

@@ -258,7 +258,7 @@ private:
     };
 #pragma pack(pop)
 
-    // The offset FW requires between taskMesh control buffer and draw ring data buffer
+    // The offset must be 256 bytes between taskMesh control buffer and draw ring data buffer to save register space.
     static constexpr gpusize OffsetOfControlDrawRing = 0x100;
     static_assert(sizeof(ControlBufferLayout) == sizeof(uint32) * 9,
                   "Control buffer is a different size than expected!");

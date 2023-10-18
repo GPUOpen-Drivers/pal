@@ -1040,9 +1040,16 @@ void SettingsLoader::OverrideDefaults(
         // Apply this to all Gfx11 APUs
         if (device.ChipProperties().gpuType == GpuType::Integrated)
         {
-            // APU tuning with 2MB L2 Cache shows ATM Ring Buffer size 768 KiB yields best performance
-            m_settings.gfx11VertexAttributesRingBufferSizePerSe = 768_KiB;
-
+            if(device.ChipProperties().gfxip.tccSizeInBytes >= 2_MiB)
+            {
+                // APU tuning with 2MB L2 Cache shows ATM Ring Buffer size 768 KiB yields best performance
+                m_settings.gfx11VertexAttributesRingBufferSizePerSe = 768_KiB;
+            }
+            else
+            {
+                // For APU's with smaller L2 Cache, limit ATM Ring Buffer size to 512 KiB
+                m_settings.gfx11VertexAttributesRingBufferSizePerSe = 512_KiB;
+            }
         }
     }
 #endif

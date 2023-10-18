@@ -190,13 +190,6 @@ function(pal_setup_generated_code)
                             CLASS_NAME PlatformSettingsLoader
                             ENSURE_DELETED src/core/g_palPlatformSettings.h
                                            src/core/g_palPlatformSettings.cpp)
-    if (PAL_BUILD_GFX6)
-        target_pal_settings(pal SETTINGS src/core/hw/gfxip/gfx6/settings_gfx6.json
-                                OUT_DIR  ${PAL_BINARY_DIR}/src/core/hw/gfxip/gfx6
-                                ${COMMON_ARGS}
-                                ENSURE_DELETED src/core/hw/gfxip/gfx6/g_gfx6PalSettings.h
-                                               src/core/hw/gfxip/gfx6/g_gfx6PalSettings.cpp)
-    endif()
     if (PAL_BUILD_GFX9)
         target_pal_settings(pal SETTINGS src/core/hw/gfxip/gfx9/settings_gfx9.json
                                 OUT_DIR  ${PAL_BINARY_DIR}/src/core/hw/gfxip/gfx9

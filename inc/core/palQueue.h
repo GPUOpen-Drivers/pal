@@ -198,6 +198,7 @@ struct QueueCreateInfo
                                     ///  error to specify a nonzero value here if the the Device does not support
                                     ///  @ref supportPersistentCeRam for the Engine this Queue will attach to.
 
+    uintptr_t aqlPacketList;        ///< Location of the HIP runtime's info about this queue
 };
 
 /// Specifies the portion of @ref SubmitInfo that is specific to each sub-queue in a multi-queue object (@see

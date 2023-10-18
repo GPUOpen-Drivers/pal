@@ -206,7 +206,8 @@ GraphicsPipeline::GraphicsPipeline(
     m_regs{},
     m_prefetch{},
     m_prefetchRangeCount(0),
-    m_signature{NullGfxSignature}
+    m_signature{NullGfxSignature},
+    m_ringSizes{}
 {
 #if PAL_BUILD_GFX11
     m_flags.contextPairsPacketSupported = pDevice->Settings().gfx11EnableContextRegPairOptimization;
@@ -1778,41 +1779,36 @@ void GraphicsPipeline::UpdateRingSizes(
 {
     const Gfx9PalSettings& settings = m_pDevice->Settings();
 
-    ShaderRingItemSizes ringSizes = { };
-
     if (IsGsEnabled())
     {
-        ringSizes.itemSize[static_cast<size_t>(ShaderRingType::GsVs)] = m_chunkGs.GsVsRingItemSize();
+        m_ringSizes.itemSize[static_cast<size_t>(ShaderRingType::GsVs)] = m_chunkGs.GsVsRingItemSize();
     }
 
     if (IsTessEnabled())
     {
         // NOTE: the TF buffer is special: we only need to specify any nonzero item-size because its a fixed-size ring
         // whose size doesn't depend on the item-size at all.
-        ringSizes.itemSize[static_cast<size_t>(ShaderRingType::TfBuffer)] = 1;
+        m_ringSizes.itemSize[static_cast<size_t>(ShaderRingType::TfBuffer)] = 1;
 
         // NOTE: the off-chip LDS buffer's item-size refers to the "number of buffers" that the hardware uses (i.e.,
         // VGT_HS_OFFCHIP_PARAM::OFFCHIP_BUFFERING).
-        ringSizes.itemSize[static_cast<size_t>(ShaderRingType::OffChipLds)] = settings.numOffchipLdsBuffers;
+        m_ringSizes.itemSize[static_cast<size_t>(ShaderRingType::OffChipLds)] = settings.numOffchipLdsBuffers;
     }
 
-    ringSizes.itemSize[static_cast<size_t>(ShaderRingType::GfxScratch)] = ComputeScratchMemorySize(metadata);
+    m_ringSizes.itemSize[static_cast<size_t>(ShaderRingType::GfxScratch)] = ComputeScratchMemorySize(metadata);
 
-    ringSizes.itemSize[static_cast<size_t>(ShaderRingType::ComputeScratch)] =
+    m_ringSizes.itemSize[static_cast<size_t>(ShaderRingType::ComputeScratch)] =
         Gfx9::ComputePipeline::CalcScratchMemSize(m_gfxLevel, metadata);
 
     if (metadata.pipeline.hasEntry.meshScratchMemorySize != 0)
     {
-        ringSizes.itemSize[static_cast<size_t>(ShaderRingType::MeshScratch)] = metadata.pipeline.meshScratchMemorySize;
+        m_ringSizes.itemSize[static_cast<size_t>(ShaderRingType::MeshScratch)] = metadata.pipeline.meshScratchMemorySize;
     }
 
 #if PAL_BUILD_GFX11
-    ringSizes.itemSize[static_cast<size_t>(ShaderRingType::VertexAttributes)] =
+    m_ringSizes.itemSize[static_cast<size_t>(ShaderRingType::VertexAttributes)] =
         settings.gfx11VertexAttributesRingBufferSizePerSe;
 #endif
-
-    // Inform the device that this pipeline has some new ring-size requirements.
-    m_pDevice->UpdateLargestRingSizes(&ringSizes);
 }
 
 // =====================================================================================================================
@@ -2638,6 +2634,11 @@ Result GraphicsPipeline::LinkGraphicsLibraries(
     }
 
     DetermineBinningOnOff();
+
+    m_ringSizes = pPreRasterLib->m_ringSizes;
+    m_ringSizes.itemSize[static_cast<uint32>(ShaderRingType::GfxScratch)] =
+        Util::Max(m_ringSizes.itemSize[static_cast<uint32>(ShaderRingType::GfxScratch)],
+                  pPsLib->m_ringSizes.itemSize[static_cast<uint32>(ShaderRingType::GfxScratch)]);
 
     // Update prefetch ranges
     m_prefetchRangeCount = 0;

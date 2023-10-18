@@ -809,7 +809,7 @@ void GfxCmdBuffer::CmdClearDepthStencil(
     const Rect*        pRects,
     uint32             flags)
 {
-    PAL_ASSERT(pRanges != nullptr);
+    PAL_ASSERT((pRanges != nullptr) || (rangeCount == 0));
 
     uint32 splitRangeCount;
     bool splitMemAllocated          = false;

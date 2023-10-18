@@ -1145,7 +1145,7 @@ public:
 
     virtual Result RequestKmdReinterpretAs10Bit(
         const IGpuMemory* pGpuMemory) const override
-        { return m_pNextLayer->RequestKmdReinterpretAs10Bit(pGpuMemory); }
+        { return m_pNextLayer->RequestKmdReinterpretAs10Bit(NextGpuMemory(pGpuMemory)); }
 
     virtual Result SetMgpuMode(
         const SetMgpuModeInput& setMgpuModeInput) const override
@@ -1259,6 +1259,11 @@ public:
 #else
         { return m_pNextLayer->QueryDriverVersion(pBuffer, bufferLength); }
 #endif
+
+    virtual Result RegisterHipRuntimeState(const HipRuntimeSetup& runtimeState) const override
+    {
+        return m_pNextLayer->RegisterHipRuntimeState(runtimeState);
+    }
 
 #if defined(__unix__)
     virtual void GetModifiersList(
@@ -1396,6 +1401,8 @@ protected:
 
     const CmdPostProcessFrameInfo* NextCmdPostProcessFrameInfo(const CmdPostProcessFrameInfo& postProcessInfo,
                                                                CmdPostProcessFrameInfo*       pNextPostProcessInfo);
+
+    virtual uint32 UniqueId() const override { return m_pNextLayer->UniqueId(); }
 
     PAL_DISALLOW_DEFAULT_CTOR(CmdBufferDecorator);
     PAL_DISALLOW_COPY_AND_ASSIGN(CmdBufferDecorator);
@@ -3093,14 +3100,9 @@ public:
         return m_pNextLayer->GetShaderFunctionStats(pShaderExportName, pShaderStats);
     }
 
-    virtual const ShaderLibraryFunctionInfo* GetShaderLibFunctionList() const override
+    virtual const Util::Span<const ShaderLibraryFunctionInfo> GetShaderLibFunctionInfos() const override
     {
-        return m_pNextLayer->GetShaderLibFunctionList();
-    }
-
-    virtual uint32 GetShaderLibFunctionCount() const override
-    {
-        return m_pNextLayer->GetShaderLibFunctionCount();
+        return m_pNextLayer->GetShaderLibFunctionInfos();
     }
 
     // Part of the IDestroyable public interface.

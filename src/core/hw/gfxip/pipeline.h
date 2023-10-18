@@ -452,8 +452,8 @@ public:
         GpuSymbol*                    pSymbol) const;
     // Get the address of a generic symbol on the GPU.
     Result GetGenericGpuSymbol(
-        const char* pName,
-        GpuSymbol*  pSymbol) const;
+        Util::StringView<char> name,
+        GpuSymbol*             pSymbol) const;
 
 protected:
     Result ApplyRelocationSection(const Util::ElfReader::Relocations& relocations);

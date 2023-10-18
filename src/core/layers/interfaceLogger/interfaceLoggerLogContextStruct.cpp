@@ -3434,7 +3434,11 @@ void LogContext::Struct(
     const ShaderLibraryFunctionInfo& value)
 {
     BeginMap(true);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 827
     KeyAndValue("symbolName", value.pSymbolName);
+#else
+    KeyAndValue("symbolName", value.symbolName);
+#endif
     KeyAndValue("gpuVirtAddr", value.gpuVirtAddr);
     EndMap();
 }

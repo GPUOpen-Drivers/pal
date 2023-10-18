@@ -26,7 +26,10 @@
 #pragma once
 
 #include <dd_settings_api.h>
-#include <stdint.h>
+
+#include <util/hashMap.h>
+
+#include <cstdint>
 
 namespace Pal
 {
@@ -37,6 +40,8 @@ class DdiAdapter;
 
 namespace DevDriver
 {
+
+using SettingsHashMap = HashMap<DD_SETTINGS_NAME_HASH, DDSettingsValueRef>;
 
 /// The base struct for storing settings data. Subclasses of different Settings
 /// components are auto-generated based on settings YAML files.
@@ -50,17 +55,13 @@ struct SettingsDataBase
 class SettingsBase
 {
 private:
-    SettingsDataBase* const m_pSettingsData;
+    void* const m_pSettingsData;
 
 protected:
-    // Using `void*` to prevent dependency proliferation.
-    void* m_pSettingsMap;
+    SettingsHashMap m_settingsMap;
 
 public:
-    SettingsBase(
-        SettingsDataBase* pSettingsData,
-        uint32_t          numSettings,
-        size_t            totalSettingsBytes);
+    SettingsBase(void* pSettingsData, size_t settingsDataSize);
 
     virtual ~SettingsBase();
 
@@ -103,12 +104,12 @@ protected:
         return false;
     }
 
-    /// Set default setting values, and populate `m_pSettingsMap`. Auto-generated.
+    /// Auto-generated. Set default setting values, and populate `m_pSettingsMap`.
     virtual DD_RESULT SetupDefaultsAndPopulateMap() = 0;
-    /// Function signature for PAL related Settings. Auto-generated.
-    virtual void ReadSettings(Pal::Device* pDevice) { (void)pDevice; }
-    /// Function signature for DXC related Settings. Auto-generated.
-    virtual void ReadSettings(DdiAdapter* pAdapter) { (void)pAdapter; }
+    /// Auto-generated Function signature for PAL related Settings..
+    virtual void ReadSettings(Pal::Device*) {}
+    /// Auto-generated. Function signature for DXC related Settings.
+    virtual void ReadSettings(DdiAdapter*) {}
 
 private:
     SettingsBase() = delete;

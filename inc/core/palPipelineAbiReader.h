@@ -56,11 +56,11 @@ struct SymbolEntry
 /// The PipelineAbiReader simplifies loading ELFs compatible with the pipeline ABI.
 class PipelineAbiReader
 {
-typedef HashMap<const char*,
+typedef HashMap<uint32,
                 SymbolEntry,
                 IndirectAllocator,
-                StringJenkinsHashFunc,
-                StringEqualFunc,
+                DefaultHashFunc,
+                DefaultEqualFunc,
                 HashAllocator<IndirectAllocator>,
                 PAL_CACHE_LINE_BYTES * 2> GenericSymbolMap;
 
@@ -121,10 +121,10 @@ public:
 
     /// Check if a PipelineSymbolEntry exists and return it.
     ///
-    /// @param [in]  pName ELF name of the symbol to search for
+    /// @param [in]  name ELF name of the symbol to search for
     ///
     /// @returns The found symbol, or nullptr if it was not found.
-    const Elf::SymbolTableEntry* GetGenericSymbol(const char* pName) const;
+    const Elf::SymbolTableEntry* GetGenericSymbol(const StringView<char> name) const;
 
 private:
     IndirectAllocator m_allocator;

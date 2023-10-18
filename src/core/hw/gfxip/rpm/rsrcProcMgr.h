@@ -46,6 +46,7 @@ struct ImageResolveRegion;
 struct MemoryCopyRegion;
 struct MemoryImageCopyRegion;
 class  MsaaState;
+class  QueryPool;
 
 static constexpr uint32 MaxLog2AaSamples   = 4; // Max AA sample rate is 16x.
 static constexpr uint32 MaxLog2AaFragments = 3; // Max fragments is 8.
@@ -75,6 +76,30 @@ struct CopyImageCsInfo
     bool                   isFmaskCopy;
     bool                   isFmaskCopyOptimized;
     bool                   useMipInSrd;
+};
+
+typedef void (*ClearImageCsCreateSrd)(
+    const GfxDevice&   device,
+    const Pal::Image&  image,
+    const SubresRange& viewRange,
+    const void*        pContext,
+    void*              pSrd,
+    Extent3d*          pExtent);
+
+struct ClearImageCsInfo
+{
+    RpmComputePipeline pipelineEnum;   // Must be one of the "ClearImage" shader variants.
+    DispatchDims       groupShape;     // Any combination of powers of two such that X*Y*Z = 64 (e.g. {8, 8, 1}).
+    uint32             clearFragments; // This may not match the image's fragment count (e.g. FMask metadata clears).
+    uint32             packedColor[4]; // The caller's packed (and pre-disable-masked) raw clear color.
+    uint32             disableMask[4]; // A bitmask of packed texel bits that should not be cleared (disables writes).
+    bool               hasDisableMask; // Set this to true if disableMask has any non-zero bits.
+    bool               singleSubRes;   // If we can't clear multiple slices in one dispatch.
+    uint32             texelShift;     // If non-zero, right shift the X-dimension offset and extent by this value.
+
+    // ClearImageCs will call this function pointer with pSrdContext to build the image SRDs for its dispatches.
+    ClearImageCsCreateSrd pSrdCallback;
+    const void*           pSrdContext;
 };
 
 // =====================================================================================================================
@@ -132,6 +157,17 @@ public:
         uint32                       regionCount,
         const MemoryImageCopyRegion* pRegions,
         bool                         includePadding) const;
+
+    virtual void CmdResolveQuery(
+        GfxCmdBuffer*         pCmdBuffer,
+        const Pal::QueryPool& queryPool,
+        QueryResultFlags      flags,
+        QueryType             queryType,
+        uint32                startQuery,
+        uint32                queryCount,
+        const GpuMemory&      dstGpuMemory,
+        gpusize               dstOffset,
+        gpusize               dstStride) const = 0;
 
     void CmdCopyTypedBuffer(
         GfxCmdBuffer*                pCmdBuffer,
@@ -346,6 +382,14 @@ protected:
         bool                  trackBltActiveFlags,
         uint32                boxCount,
         const Box*            pBoxes) const;
+
+    void ClearImageCs(
+        GfxCmdBuffer*           pCmdBuffer,
+        const ClearImageCsInfo& info,
+        const Image&            dstImage,
+        const SubresRange&      clearRange,
+        uint32                  boxCount,
+        const Box*              pBoxes) const;
 
     virtual void CopyMemoryCs(
         GfxCmdBuffer*           pCmdBuffer,

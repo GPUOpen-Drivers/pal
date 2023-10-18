@@ -2888,10 +2888,11 @@ constexpr unsigned int PM4_PFP_REWIND_SIZEDW__HASCE = 2;
 // --------------------------------- PFP_SET_BASE_base_index_enum ---------------------------------
 enum PFP_SET_BASE_base_index_enum
 {
-    base_index__pfp_set_base__display_list_patch_table_base =  0,
-    base_index__pfp_set_base__patch_table_base              =  1,
-    base_index__pfp_set_base__load_reg_index_base           =  4,
-    base_index__pfp_set_base__indirect_data_base            =  5,
+    base_index__pfp_set_base__display_list_patch_table_base             =  0,
+    base_index__pfp_set_base__patch_table_base                          =  1,
+    base_index__pfp_set_base__load_reg_index_base                       =  4,
+    base_index__pfp_set_base__indirect_data_base                        =  5,
+    base_index__pfp_set_base__executeindirect_v2_memory__GFX103COREPLUS =  6,
 };
 
 // --------------------------------------- PM4_PFP_SET_BASE ---------------------------------------
@@ -4386,6 +4387,201 @@ typedef struct PM4_PFP_LOAD_UCONFIG_REG_INDEX
 } PM4_PFP_LOAD_UCONFIG_REG_INDEX;
 
 constexpr unsigned int PM4_PFP_LOAD_UCONFIG_REG_INDEX_SIZEDW__GFX10PLUS = 5;
+
+// ---------------------------- PFP_EXECUTE_INDIRECT_V2_operation_enum ----------------------------
+enum PFP_EXECUTE_INDIRECT_V2_operation_enum
+{
+    operation__pfp_execute_indirect_v2__draw__GFX103COREPLUS          =  0,
+    operation__pfp_execute_indirect_v2__drawindex__GFX103COREPLUS     =  1,
+    operation__pfp_execute_indirect_v2__dispatch__GFX103COREPLUS      =  2,
+    operation__pfp_execute_indirect_v2__dispatch_mesh__GFX103COREPLUS =  3,
+    operation__pfp_execute_indirect_v2__dispatch_rays__GFX103COREPLUS =  4,
+};
+
+// -------------------- PFP_EXECUTE_INDIRECT_V2_REG_SCATTER_MODE_function_enum --------------------
+enum PFP_EXECUTE_INDIRECT_V2_REG_SCATTER_MODE_function_enum
+{
+    function__pfp_execute_indirect_v2__reg_scatter_mode_csgspsonly__GFX103COREPLUS =  0,
+    function__pfp_execute_indirect_v2__reg_scatter_mode_psgs__GFX103COREPLUS       =  1,
+    function__pfp_execute_indirect_v2__reg_scatter_mode_psgshs__GFX103COREPLUS     =  2,
+};
+
+// ---------------------------------- PM4_PFP_EXECUTE_INDIRECT_V2 ----------------------------------
+typedef struct PM4_PFP_EXECUTE_INDIRECT_V2
+{
+    union
+    {
+        PM4_PFP_TYPE_3_HEADER header;
+        uint32_t u32All;
+    } ordinal1;
+
+    union
+    {
+        union
+        {
+            struct
+            {
+                uint32_t                                               count_indirect_enable        :  1;
+                uint32_t                                               user_data_dw_count           :  5;
+                uint32_t                                               reserved1                    :  1;
+                uint32_t                                               userdata_gfx_register_enable :  1;
+                uint32_t                                               num_spill_regs               :  2;
+                uint32_t                                               init_mem_copy_count          :  3;
+                uint32_t                                               build_srd_count              :  3;
+                uint32_t                                               update_mem_copy_count        :  3;
+                PFP_EXECUTE_INDIRECT_V2_operation_enum                 operation                    :  3;
+                uint32_t                                               fetch_index_attributes       :  1;
+                PFP_EXECUTE_INDIRECT_V2_REG_SCATTER_MODE_function_enum userdata_scatter_mode        :  3;
+                uint32_t                                               reserved2                    :  4;
+                uint32_t                                               vertex_bounds_check_disable  :  1;
+                uint32_t                                               thread_trace_enable          :  1;
+            } gfx103CorePlus;
+        } bitfields;
+        uint32_t u32All;
+    } ordinal2;
+
+    union
+    {
+        union
+        {
+            struct
+            {
+                uint32_t reserved1     :  2;
+                uint32_t count_addr_lo : 30;
+            } gfx103CorePlus;
+        } bitfields;
+        uint32_t u32All;
+    } ordinal3;
+
+    union
+    {
+        union
+        {
+            struct
+            {
+                uint32_t count_addr_hi : 16;
+                uint32_t reserved1     : 16;
+            } gfx103CorePlus;
+        } bitfields;
+        uint32_t u32All;
+    } ordinal4;
+
+    union
+    {
+        uint32_t max_count;
+        uint32_t u32All;
+    } ordinal5;
+
+    union
+    {
+        uint32_t stride;
+        uint32_t u32All;
+    } ordinal6;
+
+    union
+    {
+        union
+        {
+            struct
+            {
+                uint32_t reserved1    :  2;
+                uint32_t data_addr_lo : 30;
+            } gfx103CorePlus;
+        } bitfields;
+        uint32_t u32All;
+    } ordinal7;
+
+    union
+    {
+        union
+        {
+            struct
+            {
+                uint32_t data_addr_hi            : 16;
+                uint32_t index_attributes_offset : 16;
+            } gfx103CorePlus;
+        } bitfields;
+        uint32_t u32All;
+    } ordinal8;
+
+    union
+    {
+        union
+        {
+            struct
+            {
+                uint32_t userdata_gfx_register :  8;
+                uint32_t reserved1             :  8;
+                uint32_t userdata_offset       : 16;
+            } gfx103CorePlus;
+        } bitfields;
+        uint32_t u32All;
+    } ordinal9;
+
+    union
+    {
+        union
+        {
+            struct
+            {
+                uint32_t reserved1           :  2;
+                uint32_t spill_table_addr_lo : 30;
+            } gfx103CorePlus;
+        } bitfields;
+        uint32_t u32All;
+    } ordinal10;
+
+    union
+    {
+        union
+        {
+            struct
+            {
+                uint32_t spill_table_addr_hi : 16;
+                uint32_t reserved1           : 16;
+            } gfx103CorePlus;
+        } bitfields;
+        uint32_t u32All;
+    } ordinal11;
+
+    union
+    {
+        union
+        {
+            struct
+            {
+                uint32_t vb_table_size      : 16;
+                uint32_t spill_table_stride : 16;
+            } gfx103CorePlus;
+        } bitfields;
+        uint32_t u32All;
+    } ordinal12;
+
+    union
+    {
+        union
+        {
+            struct
+            {
+                uint32_t spill_graphics_reg0 :  8;
+                uint32_t spill_graphics_reg1 :  8;
+                uint32_t spill_graphics_reg2 :  8;
+                uint32_t reserved1           :  8;
+            } gfx103CorePlus;
+        } bitfieldsA;
+        union
+        {
+            struct
+            {
+                uint32_t spill_compute_reg0 : 16;
+                uint32_t spill_compute_reg1 : 16;
+            } gfx103CorePlus;
+        } bitfieldsB;
+        uint32_t u32All;
+    } ordinal13;
+} PM4_PFP_EXECUTE_INDIRECT_V2;
+
+constexpr unsigned int PM4_PFP_EXECUTE_INDIRECT_V2_SIZEDW__GFX103COREPLUS = 13;
 
 #if  CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 // --------------------------------- PM4_PFP_DISPATCH_MESH_DIRECT ---------------------------------

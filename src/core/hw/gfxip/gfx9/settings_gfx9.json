@@ -845,6 +845,35 @@
       "Name": "CsSimdDestCntl"
     },
     {
+      "ValidValues": {
+        "Values": [
+          {
+            "Name": "ColorTransformAuto",
+            "Value": 0,
+            "Description": "Keeps the default COLOR_TRANSFORM behavior."
+          },
+          {
+            "Name": "ColorTransformDisable",
+            "Value": 1,
+            "Description": "Disables COLOR_TRANSFORM behavior."
+          }
+        ],
+        "Name": "ColorTransformValue"
+      },
+      "Description": "Controls the COLOR_TRANSFORM field of the CB_COLOR0_DCC_CONTROL/CB_COLOR0_FDCC_CONTROL register.",
+      "Tags": [
+        "Color Targets",
+        "Gfx9"
+      ],
+      "Defaults": {
+        "Default": "ColorTransformAuto"
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "enum",
+      "VariableName": "colorTransform",
+      "Name": "ColorTransform"
+    },
+    {
       "Description": "Controls the value of the COMPUTE_DISPATCH_INTERLEAVE register. This register governs how many thread groups are sent to one SE before switching to the next one. This setting will override the clients behaviour.",
       "Tags": [
         "Compute Pipelines",

@@ -536,7 +536,7 @@ bool CmdUtil::IsContextReg(
     const bool isContextReg = ((regAddr >= CONTEXT_SPACE_START) && (regAddr <= Gfx09_10::CONTEXT_SPACE_END));
 
     // Assert if we need to extend our internal range of context registers we actually set.
-    PAL_ASSERT((isContextReg == false) || ((regAddr - CONTEXT_SPACE_START) < CntxRegUsedRangeSize));
+    PAL_DEBUG_BUILD_ONLY_ASSERT((isContextReg == false) || ((regAddr - CONTEXT_SPACE_START) < CntxRegUsedRangeSize));
 
     return isContextReg;
 }
@@ -1477,7 +1477,7 @@ size_t CmdUtil::BuildPerfmonControl(
 
 // =====================================================================================================================
 // Builds a DISPATCH_DIRECT packet. Returns the size of the PM4 command assembled, in DWORDs.
-template <bool dimInThreads, bool forceStartAt000>
+template <bool dimInThreads, bool forceStartAt000, bool invalidateL1>
 size_t CmdUtil::BuildDispatchDirect(
     DispatchDims size,                  // Thread groups (or threads) to launch.
     Pm4Predicate predicate,             // Predication enable control. Must be PredDisable on the Compute Engine.
@@ -1492,6 +1492,8 @@ size_t CmdUtil::BuildDispatchDirect(
     dispatchInitiator.bits.COMPUTE_SHADER_EN     = 1;
     dispatchInitiator.bits.FORCE_START_AT_000    = forceStartAt000;
     dispatchInitiator.bits.USE_THREAD_DIMENSIONS = dimInThreads;
+    dispatchInitiator.bits.SCALAR_L1_INV_VOL     = invalidateL1;
+    dispatchInitiator.bits.VECTOR_L1_INV_VOL     = invalidateL1;
     dispatchInitiator.gfx10Plus.CS_W32_EN        = isWave32;
     if (IsGfx10Plus(m_chipProps.gfxLevel))
     {
@@ -1524,7 +1526,7 @@ size_t CmdUtil::BuildDispatchDirect(
 }
 
 template
-size_t CmdUtil::BuildDispatchDirect<true, true>(
+size_t CmdUtil::BuildDispatchDirect<true, true, true>(
     DispatchDims size,
     Pm4Predicate predicate,
     bool         isWave32,
@@ -2314,7 +2316,7 @@ size_t CmdUtil::BuildDmaData(
                   "PFP, ME and MEC versions of the DMA_DATA packet are not the same size!");
 
     // The "byte_count" field only has 26 bits (numBytes must be less than 64MB).
-    PAL_ASSERT(dmaDataInfo.numBytes < (1 << 26));
+    PAL_DEBUG_BUILD_ONLY_ASSERT(dmaDataInfo.numBytes < (1 << 26));
 
     constexpr uint32 PacketSize = PM4_PFP_DMA_DATA_SIZEDW__CORE;
     auto*const       pPacket    = static_cast<PM4_PFP_DMA_DATA*>(pBuffer);
@@ -4291,7 +4293,7 @@ size_t CmdUtil::BuildSetPackedRegPairs(
     void*               pBuffer    // [out] Build the PM4 packet in this buffer.
     ) const
 {
-    PAL_ASSERT(numRegs > 0);
+    PAL_DEBUG_BUILD_ONLY_ASSERT(numRegs > 0);
 
     size_t packetSize = 0;
 
@@ -4465,7 +4467,8 @@ size_t CmdUtil::BuildSetOneContextReg(
     PFP_SET_CONTEXT_REG_INDEX_index_enum index
     ) const
 {
-    PAL_ASSERT((regAddr != mmVGT_LS_HS_CONFIG) || (index == index__pfp_set_context_reg_index__vgt_ls_hs_config__GFX09));
+    PAL_DEBUG_BUILD_ONLY_ASSERT((regAddr != mmVGT_LS_HS_CONFIG) ||
+                                (index == index__pfp_set_context_reg_index__vgt_ls_hs_config__GFX09));
     return BuildSetSeqContextRegs(regAddr, regAddr, pBuffer, index);
 }
 
@@ -5301,7 +5304,7 @@ size_t CmdUtil::BuildPrimeGpuCaches(
     if ((TestAnyFlagSet(primeGpuCacheRange.usageMask, CoherCpu | CoherMemory) == false) &&
         (primeGpuCacheRange.addrTranslationOnly == false))
     {
-        PAL_ASSERT(prefetchSize <= UINT32_MAX);
+        PAL_DEBUG_BUILD_ONLY_ASSERT(prefetchSize <= UINT32_MAX);
 
         // DMA DATA to "nowhere" should be performed, ideally using the PFP.
         DmaDataInfo dmaDataInfo  = { };

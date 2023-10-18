@@ -89,7 +89,7 @@ public:
     // Note: the return type has to be non-const so that we can make GpuMemoryRefs that reference command allocations.
     GpuMemory* GpuMemory() const
     {
-        PAL_ASSERT(UsesSystemMemory() == false);
+        PAL_DEBUG_BUILD_ONLY_ASSERT(UsesSystemMemory() == false);
         return m_pGpuMemory;
     }
 

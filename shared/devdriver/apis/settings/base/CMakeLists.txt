@@ -23,18 +23,18 @@
  #
  #######################################################################################################################
 
-devdriver_library(dd_settings_base STATIC)
-target_sources(dd_settings_base
+devdriver_library(dd_settings STATIC)
+target_sources(dd_settings
     PRIVATE
         inc/dd_settings_base.h
         inc/dd_settings_blob.h
         src/dd_settings_base.cpp
         src/dd_settings_blob.cpp
 )
-target_include_directories(dd_settings_base PUBLIC inc)
-target_link_libraries(dd_settings_base
+target_include_directories(dd_settings PUBLIC inc)
+target_link_libraries(dd_settings
     PUBLIC
         dd_settings_api
-    PRIVATE
+        dd_common
         devdriver
 )

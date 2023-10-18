@@ -396,7 +396,7 @@ public:
         uint32     eventSelect,
         uint32     eventUnitMask,
         void*      pBuffer);
-    template <bool dimInThreads, bool forceStartAt000>
+    template <bool dimInThreads, bool forceStartAt000, bool invalidateL1 = false>
     size_t BuildDispatchDirect(
         DispatchDims size,
         Pm4Predicate predicate,

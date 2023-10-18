@@ -3537,6 +3537,39 @@ void RsrcProcMgr::CmdClearDepthStencil(
     }
 }
 
+// Stuff SlowClearCompute knows but ClearImageCs doesn't know. We need to pass it through to the callback below.
+struct SlowClearComputeSrdContext
+{
+    ImageLayout    imageLayout; // The caller's current image layout.
+    SwizzledFormat viewFormat;  // Must be a valid raw format.
+};
+
+// =====================================================================================================================
+// Create a normal image view over the image's normal data planes using the context's raw format.
+static void SlowClearComputeCreateSrdCallback(
+    const GfxDevice&   device,
+    const Pal::Image&  image,
+    const SubresRange& viewRange,
+    const void*        pContext,
+    void*              pSrd,      // [out] Place the image SRD here.
+    Extent3d*          pExtent)   // [out] Fill this out with the maximum extent of the start subresource.
+{
+    PAL_ASSERT(pContext != nullptr);
+    const auto& context = *static_cast<const SlowClearComputeSrdContext*>(pContext);
+
+    // We assume the caller's layout is compatible with shader writes.
+    PAL_ASSERT(image.GetGfxImage()->ShaderWriteIncompatibleWithLayout(viewRange.startSubres,
+                                                                      context.imageLayout) == false);
+    const Device& parent    = *device.Parent();
+    ImageViewInfo imageView = {};
+    RpmUtil::BuildImageViewInfo(&imageView, image, viewRange, context.viewFormat, context.imageLayout,
+                                parent.TexOptLevel(), true);
+    parent.CreateImageViewSrds(1, &imageView, pSrd);
+
+    // The default clear box is the entire subresource. This will be changed per-dispatch if boxes are enabled.
+    *pExtent = image.SubresourceInfo(viewRange.startSubres)->extentTexels;
+}
+
 // =====================================================================================================================
 // Builds commands to slow clear a range of an image to the given raw color data using a compute shader.
 void RsrcProcMgr::SlowClearCompute(
@@ -3552,73 +3585,129 @@ void RsrcProcMgr::SlowClearCompute(
     ) const
 {
     PAL_ASSERT(clearRange.numPlanes == 1);
-    // If the image isn't in a layout that allows format replacement this clear path won't work.
-    PAL_ASSERT(dstImage.GetGfxImage()->IsFormatReplaceable(clearRange.startSubres, dstImageLayout, true));
 
     // Get some useful information about the image.
-    const auto&     createInfo   = dstImage.GetImageCreateInfo();
-    const ImageType imageType    = dstImage.GetGfxImage()->GetOverrideImageType();
-    uint32          texelScale   = 1;
-    uint32          texelShift   = 0;
-    bool            singleSubRes = false;
+    const GfxImage&        gfxImage   = *dstImage.GetGfxImage();
+    const ImageType        imageType  = gfxImage.GetOverrideImageType();
+    const ImageCreateInfo& createInfo = dstImage.GetImageCreateInfo();
+    const SubResourceInfo& subresInfo = *dstImage.SubresourceInfo(clearRange.startSubres);
+    const SwizzledFormat   baseFormat = clearFormat.format == ChNumFormat::Undefined ? subresInfo.format : clearFormat;
 
-    const auto&    subresInfo = *dstImage.SubresourceInfo(clearRange.startSubres);
-    const SwizzledFormat baseFormat = clearFormat.format == ChNumFormat::Undefined ? subresInfo.format : clearFormat;
-    SwizzledFormat viewFormat = RpmUtil::GetRawFormat(baseFormat.format, &texelScale, &singleSubRes);
+    // If the image isn't in a layout that allows format replacement this clear path won't work.
+    PAL_ASSERT(gfxImage.IsFormatReplaceable(clearRange.startSubres, dstImageLayout, true));
+
+    // This function just fills out this struct for a generic slow clear and calls ClearImageCs.
+    ClearImageCsInfo info = {};
+    info.clearFragments = createInfo.fragments;
+    info.hasDisableMask = (pColor->disabledChannelMask != 0);
+
+    // First we figure out our format related state.
+    uint32         texelScale = 1;
+    SwizzledFormat viewFormat = RpmUtil::GetRawFormat(baseFormat.format, &texelScale, &info.singleSubRes);
 
     // For packed YUV image use X32_Uint instead of X16_Uint to fill with YUYV.
     if ((viewFormat.format == ChNumFormat::X16_Uint) && Formats::IsYuvPacked(baseFormat.format))
     {
         viewFormat.format  = ChNumFormat::X32_Uint;
-        viewFormat.swizzle = { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
-        // The extent and offset need to be adjusted to 1/2 size.
-        texelShift         = (pColor->type == ClearColorType::Yuv) ? 1 : 0;
+        viewFormat.swizzle = {ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One};
+
+        // The extent and offset need to be adjusted to half size.
+        info.texelShift    = (pColor->type == ClearColorType::Yuv) ? 1 : 0;
     }
 
-    // These are the only two supported texel scales
-    PAL_ASSERT((texelScale == 1) || (texelScale == 3));
+    // ClearImage handles general single-sampled images so it's a good default. We're using the same trick our copy
+    // shaders do where the shader code assumes 2DArray images and we just treat 1D as a 2D image with a height of 1
+    // and 3D as a 2D image with numSlices = mipDepth. This reduces the number of pipeline binaries PAL needs by 3x.
+    // Note that this works properly because we still pass the real image type to the HW when we build the image SRD.
+    info.pipelineEnum = RpmComputePipeline::ClearImage;
 
-    // Get the appropriate pipeline.
-    auto pipelineEnum = RpmComputePipeline::Count;
+    if (texelScale > 1)
+    {
+        // The only formats that use texScale are the 96-bpp R32G32B32 formats which we implement using R32 in HW.
+        // Also, the 96-bit formats should never support MSAA.
+        PAL_ASSERT((texelScale == 3) && (info.clearFragments == 1));
+
+        // We need a special pipeline for the 96-bit formats because we need three stores, one per channel, per texel.
+        info.pipelineEnum = RpmComputePipeline::ClearImage96Bpp;
+    }
+    else if (info.clearFragments > 1)
+    {
+        // MSAA needs its own pipelines because the sample index arg isn't compatible with the 1D/3D as 2D trick.
+        //
+        // Depth/stencil targets use swizzle modes which store their samples sequentially in memory. If we want
+        // this clear to be fast we need to make sure each threadgroup writes the full set of samples for each texel.
+        //
+        // Non-DS images use swizzle modes which group up samples from different texels. Basically imagine all of the
+        // "sample index 0" values come first, then all of the "sample index 1" values, and so on. This sort of image
+        // requires a shader which treats the sample index like an extra array slice index or Z-plane index.
+#if PAL_BUILD_GFX11
+        //
+        // Note that gfx11 switched all images over to sample major memory layouts. We should never use the MsaaPlanar
+        // path on gfx11 and as such we don't compile it for that hardware.
+        if (dstImage.IsDepthStencilTarget() || IsGfx11Plus(*m_pDevice->Parent()))
+#else
+        if (dstImage.IsDepthStencilTarget())
+#endif
+        {
+            info.pipelineEnum = RpmComputePipeline::ClearImageMsaaSampleMajor;
+        }
+        else
+        {
+            info.pipelineEnum = RpmComputePipeline::ClearImageMsaaPlanar;
+        }
+    }
+
+    // All ClearImage pipelines support a "dynamic threadgroup shape" where the RPM code gets to pick any arbitrary
+    // set of NumThreads (X, Y, Z) factors and the shader will clump the threads up into a 3D box with that shape.
+    // The only requirement is that X*Y*Z = 64 (the thread count).
+    //
+    // This feature trades a few ALU instructions to completely decouple our cache access pattern from image type and
+    // pipeline binary selection. We can run the ClearImage pipeline on a 1D image with (64, 1, 1) and then run it on
+    // a 3D planar image with (8, 8, 1) in the next clear call.
     if (imageType == ImageType::Tex1d)
     {
-        pipelineEnum = ((texelScale == 1)
-                        ? RpmComputePipeline::ClearImage1d
-                        : RpmComputePipeline::ClearImage1dTexelScale);
+        // We should use a linear group if this is a 1D image. Ideally we'd also send linear tiled images down here
+        // too but it's vulnerable to bad cache access patterns due to PAL's hard-coded default dispatch interleave.
+        // If we ever make that programmable per dispatch we could revisit this.
+        info.groupShape = {64, 1, 1};
     }
-    else if (imageType == ImageType::Tex2d)
+    else if ((imageType == ImageType::Tex2d) ||
+             ((imageType == ImageType::Tex3d) && gfxImage.IsSwizzleThin(clearRange.startSubres)))
     {
-        pipelineEnum = ((texelScale == 1)
-                        ? RpmComputePipeline::ClearImage2d
-                        : RpmComputePipeline::ClearImage2dTexelScale);
-    }
-    else if ((imageType == ImageType::Tex3d)                               &&
-             dstImage.GetGfxImage()->IsSwizzleThin(clearRange.startSubres) &&
-             (texelScale == 1))
-    {
-        // If this is 3D image that's using a swizzle mode that's effectively a 2D swizzle mode, then we want
-        // to clear this image as if it's 2D.
-        //
-        pipelineEnum = RpmComputePipeline::ClearImage3dAsThin;
+        // 2D images and "thin" 3D images store their data in 2D planes so a 8x8 square works well.
+        info.groupShape = {8, 8, 1};
+
+        // The SampleMajor shader has the additional requirement that we divide our groupShape size by the fragment
+        // count. Basically, the shader treats the fragment count as an internal 4th groupShape dimension. The only
+        // question is: what shape should we use given our fragment count? If we assume MSAA texels are organized in
+        // 2D Morton/Z order (that's almost true in all cases) then we want to divide Y first, then X, then Y, etc.
+        if (info.pipelineEnum == RpmComputePipeline::ClearImageMsaaSampleMajor)
+        {
+            switch (info.clearFragments)
+            {
+            case 2:
+                info.groupShape = {8, 4, 1};
+                break;
+            case 4:
+                info.groupShape = {4, 4, 1};
+                break;
+            case 8:
+                info.groupShape = {4, 2, 1};
+                break;
+            default:
+                PAL_ASSERT_ALWAYS();
+                break;
+            }
+        }
     }
     else
     {
-        pipelineEnum = ((texelScale == 1)
-                        ? RpmComputePipeline::ClearImage3d
-                        : RpmComputePipeline::ClearImage3dTexelScale);
+        // This must be a "thick" 3D image so we want to spread our threads out into a 4x4x4 cube.
+        info.groupShape = {4, 4, 4};
     }
 
-    const ComputePipeline*  pPipeline       = GetPipeline(pipelineEnum);
-    const DispatchDims      threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
-
-    // Save current command buffer state and bind the pipeline.
-    pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
-    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-
-    // Pack the clear color into the raw format and write it to user data 1-4.
-    uint32 packedColor[4] = {0};
-
-    uint32 convertedColor[4] = {0};
+    // First, pack the clear color into the raw format and write it to user data 1-4. We also build the write-disabled
+    // bitmasks while we're dealing with clear color bit representations.
     if (pColor->type == ClearColorType::Yuv)
     {
         // If clear color type is Yuv, the image format should used to determine the clear color swizzling and packing
@@ -3628,69 +3717,138 @@ void RsrcProcMgr::SlowClearCompute(
         //       2. passing correct clear color for this plane for planar YUV formats (e.g. two uint32s for U and V if
         //          current plane is CbCr).
         const SwizzledFormat imgFormat = createInfo.swizzledFormat;
-        Formats::ConvertYuvColor(imgFormat, clearRange.startSubres.plane, &pColor->u32Color[0], &packedColor[0]);
+        Formats::ConvertYuvColor(imgFormat, clearRange.startSubres.plane, pColor->u32Color, info.packedColor);
+
+        // Not implemented for Yuv clears.
+        PAL_ASSERT(info.hasDisableMask == false);
     }
     else
     {
+        uint32 convertedColor[4] = {};
         if (pColor->type == ClearColorType::Float)
         {
-            Formats::ConvertColor(baseFormat, &pColor->f32Color[0], &convertedColor[0]);
+            Formats::ConvertColor(baseFormat, pColor->f32Color, convertedColor);
         }
         else
         {
-            memcpy(&convertedColor[0], &pColor->u32Color[0], sizeof(convertedColor));
+            memcpy(convertedColor, pColor->u32Color, sizeof(convertedColor));
         }
 
-        uint32 swizzledColor[4] = {0};
-        Formats::SwizzleColor(baseFormat, &convertedColor[0], &swizzledColor[0]);
-        Formats::PackRawClearColor(baseFormat, &swizzledColor[0], &packedColor[0]);
+        uint32 swizzledColor[4] = {};
+        Formats::SwizzleColor(baseFormat, convertedColor, swizzledColor);
+        Formats::PackRawClearColor(baseFormat, swizzledColor, info.packedColor);
+
+        if (info.hasDisableMask)
+        {
+            if (dstImage.IsStencilPlane(clearRange.startSubres.plane))
+            {
+                // If this is a stencil clear then, by convention, the disabledChannelMask is actually a mask of
+                // disabled stencil bits. That gives us the exact bit pattern we need for our clear shader.
+                info.disableMask[0] = pColor->disabledChannelMask;
+            }
+            else
+            {
+                // Expand the disabledChannelMask bitflags out into 32-bit-per-channel masks.
+                const uint32 channelMasks[4] =
+                {
+                    TestAnyFlagSet(pColor->disabledChannelMask, 0x1u) ? UINT32_MAX : 0,
+                    TestAnyFlagSet(pColor->disabledChannelMask, 0x2u) ? UINT32_MAX : 0,
+                    TestAnyFlagSet(pColor->disabledChannelMask, 0x4u) ? UINT32_MAX : 0,
+                    TestAnyFlagSet(pColor->disabledChannelMask, 0x8u) ? UINT32_MAX : 0
+                };
+
+                // These functions don't care if we use them on colors or masks. We can reuse them to convert our
+                // unswizzled, unpacked disable masks into a properly swizzled and bitpacked mask.
+                uint32 swizzledMask[4] = {};
+                Formats::SwizzleColor(baseFormat, channelMasks, swizzledMask);
+                Formats::PackRawClearColor(baseFormat, swizzledMask, info.disableMask);
+            }
+
+            // Abstractly speaking we want the clear to do this read-modify-write:
+            //     Texel = (Texel & DisableMask) | (ClearColor & ~DisableMask)
+            // We can save the clear shader a little bit of work if we pre-apply (ClearColor & ~DisableMask).
+            for (uint32 idx = 0; idx < 4; ++idx)
+            {
+                info.packedColor[idx] &= ~info.disableMask[idx];
+            }
+        }
     }
+
+    // Finally, fill out the SRD callback state.
+    SlowClearComputeSrdContext context = {};
+    context.imageLayout = dstImageLayout;
+    context.viewFormat  = viewFormat;
+
+    info.pSrdCallback = SlowClearComputeCreateSrdCallback;
+    info.pSrdContext  = &context;
+
+    // Wrap the clear dispatches with a save/restore pair since ClearImageCs doesn't do that itself.
+    pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
+    ClearImageCs(pCmdBuffer, info, dstImage, clearRange, boxCount, pBoxes);
+    pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData, trackBltActiveFlags);
+}
+
+// =====================================================================================================================
+// The shared core of SlowClearCompute and the gfxip-specific ClearFmask functions. Basically, this wraps up all of the
+// "ClearImage" shader code specific logic so we don't accidentally break FMask clears if we change slow clears.
+// Anything the shaders don't handle (like bit-packing the clear color) must be handled by the caller.
+//
+// This function does not save or restore the Command Buffer's state, that responsibility lies with the caller!
+void RsrcProcMgr::ClearImageCs(
+    GfxCmdBuffer*           pCmdBuffer,
+    const ClearImageCsInfo& info,
+    const Image&            dstImage,
+    const SubresRange&      clearRange,
+    uint32                  boxCount,
+    const Box*              pBoxes
+    ) const
+{
+    // This function assumes the shaders are compiled with this fixed user-data layout:
+    // 0-3:  The 4-DWORD packedColor
+    // 4:    ClearImagePackedConsts
+    // 5:    A 32-bit table pointer to ClearImageSlowConsts
+    // 6-13: The 8-DWORD image view SRD
+    // If the layouts defined in the ClearImage ".cs" files changes this code must change too.
+    PAL_ASSERT(ArrayLen(info.packedColor) == 4);
+    PAL_ASSERT(SrdDwordAlignment() == 8);
+
+    // The MSAA shaders don't work the same way. The SampleMajor shader iterates over the fragments within each
+    // threadgroup. Each group still writes the same amount of data in total but it covers fewer texels. This gives
+    // us a 4th dimension to our group shape: groupFragments. The caller must reduce their groupShape to account for
+    // this. In contrast, the Planar MSAA shader uses a constant sample index per threadgroup, iterating over the
+    // fragments externally using the dispatch's Z dimension via fragmentSlices.
+    const bool   isSampleMajor  = (info.pipelineEnum == RpmComputePipeline::ClearImageMsaaSampleMajor);
+    const uint32 fragmentSlices = isSampleMajor ? 1 : info.clearFragments;
+#if PAL_ENABLE_PRINTS_ASSERTS
+    const uint32 groupFragments = isSampleMajor ? info.clearFragments : 1;
+
+    // All clear shader variants write exactly 64 values per threadgroup (one per thread).
+    PAL_ASSERT(info.groupShape.Flatten() * groupFragments == 64);
+#endif
+
+    // First, bind the shader.
+    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, GetPipeline(info.pipelineEnum), InternalApiPsoHash, });
 
     // The color is constant for all dispatches so we can embed it in the fast user-data right now.
-    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 1, ArrayLen32(packedColor), packedColor);
+    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 0, 4, info.packedColor);
 
-    // Color and DS use the same compute path do clear, disable channel mask can represent disable
-    // color mask or disable stencil mask. If current clear plane is stencil plane, disable channel
-    // mask represent disable stencil mask. Otherwise, disable channel mask can represent disable color mask.
-    // Set disable channel mask to clear mask user data 5.
-    // Use clear mask user data 6 to represent clear mask type.
-    const uint32 clearMaskUserData[2] =
-    {
-        pColor->disabledChannelMask,
-        dstImage.IsStencilPlane(clearRange.startSubres.plane)
-    };
-
-    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 5, ArrayLen32(clearMaskUserData), clearMaskUserData);
-
-    // Clear color have been swizzled and packed before pass to CS, therefore, do corresponding operation on color mask
-    uint32 packedColorMask[4] = { 0 };
-
-    // When disable color mask isn't 0 and current plane isn't stencil, we need to swizzle and pack color mask.
-    if((clearMaskUserData[0] != 0) && (clearMaskUserData[1] == 0))
-    {
-        uint32 channelMasks[4] =
-        {
-            TestAnyFlagSet(pColor->disabledChannelMask, 0x1u) ? UINT32_MAX : 0,
-            TestAnyFlagSet(pColor->disabledChannelMask, 0x2u) ? UINT32_MAX : 0,
-            TestAnyFlagSet(pColor->disabledChannelMask, 0x4u) ? UINT32_MAX : 0,
-            TestAnyFlagSet(pColor->disabledChannelMask, 0x8u) ? UINT32_MAX : 0
-        };
-
-        // These functions don't care if we use them on colors or masks. We can reuse them to convert our
-        // unswizzled, unpacked disable masks into a properly swizzled and bitpacked mask.
-        uint32 swizzledMask[4] = { 0 };
-        Formats::SwizzleColor(baseFormat, channelMasks, swizzledMask);
-        Formats::PackRawClearColor(baseFormat, swizzledMask, packedColorMask);
-    }
+    // Prepare the packed constants which go into user-data 5. We can't write them yet though because only the
+    // innermost loop below knows if we're doing a windowed clear or not!
+    RpmUtil::ClearImagePackedConsts packedConsts = {};
+    packedConsts.log2ThreadsX = Log2(info.groupShape.x);
+    packedConsts.log2ThreadsY = Log2(info.groupShape.y);
+    packedConsts.log2ThreadsZ = Log2(info.groupShape.z);
+    packedConsts.log2Samples  = Log2(info.clearFragments); // HLSL thinks in terms of samples but we want fragments.
+    packedConsts.isMasked     = info.hasDisableMask;
 
     // Split the clear range into sections with constant mip/array levels and loop over them.
     SubresRange  singleMipRange = { clearRange.startSubres, 1, 1, clearRange.numSlices };
     const uint32 firstMipLevel  = clearRange.startSubres.mipLevel;
-    const uint32 lastMipLevel   = clearRange.startSubres.mipLevel + clearRange.numMips - 1;
+    const uint32 lastMipLevel   = clearRange.startSubres.mipLevel   + clearRange.numMips   - 1;
     const uint32 lastArraySlice = clearRange.startSubres.arraySlice + clearRange.numSlices - 1;
 
     // If single subres is requested for the format, iterate slice-by-slice and mip-by-mip.
-    if (singleSubRes)
+    if (info.singleSubRes)
     {
         singleMipRange.numSlices = 1;
     }
@@ -3702,127 +3860,175 @@ void RsrcProcMgr::SlowClearCompute(
     // Boxes are only meaningful if we're clearing a single mip.
     PAL_ASSERT((hasBoxes == false) || ((pBoxes != nullptr) && (clearRange.numMips == 1)));
 
-    const Device& device = *m_pDevice->Parent();
+    const bool is3dImage = (dstImage.GetGfxImage()->GetOverrideImageType() == ImageType::Tex3d);
+
+    // Track the last user-data we wrote in this loop. We always need to write these the first time but we might be
+    // able to skip them in future iterations.
+    uint32 loopUserData[2] = {};
+    bool   firstTime       = true;
 
     for (;
          singleMipRange.startSubres.arraySlice <= lastArraySlice;
          singleMipRange.startSubres.arraySlice += singleMipRange.numSlices)
     {
         singleMipRange.startSubres.mipLevel = firstMipLevel;
+
         for (; singleMipRange.startSubres.mipLevel <= lastMipLevel; ++singleMipRange.startSubres.mipLevel)
         {
-            const auto& subResInfo = *dstImage.SubresourceInfo(singleMipRange.startSubres);
+            // Every time we select a new subresource range to clear we must call our create SRD callback.
+            uint32   imageSrd[8];
+            Extent3d subResExtent;
+            info.pSrdCallback(*m_pDevice, dstImage, singleMipRange, info.pSrdContext, imageSrd, &subResExtent);
 
-            // Create an embedded SRD table and bind it to user data 0. We only need a single image view.
-            uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
-                                                                       SrdDwordAlignment() + ArrayLen32(packedColorMask),
-                                                                       SrdDwordAlignment(),
-                                                                       PipelineBindPoint::Compute,
-                                                                       0);
-
-            // The view should cover this mip's clear range and use a raw format.
-            ImageViewInfo imageView = {};
-            PAL_ASSERT(dstImage.GetGfxImage()->ShaderWriteIncompatibleWithLayout(
-                       singleMipRange.startSubres, dstImageLayout) == false);
-            RpmUtil::BuildImageViewInfo(&imageView,
-                                        dstImage,
-                                        singleMipRange,
-                                        viewFormat,
-                                        dstImageLayout,
-                                        device.TexOptLevel(),
-                                        true);
-
-            device.CreateImageViewSrds(1, &imageView, pSrdTable);
-
-            pSrdTable += SrdDwordAlignment();
-            // Put color mask to const buffer
-            memcpy(pSrdTable, packedColorMask, sizeof(packedColorMask));
-
-            // The default clear box is the entire subresource. This will be changed per-dispatch if boxes are enabled.
-            Extent3d clearExtent = subResInfo.extentTexels;
-            Offset3d clearOffset = {};
+            // The CP team won't be too happy to see 8 register writes per dispatch but I do think this is a net perf
+            // gain because we skip a 1k-2k clock cold miss to system memory in each fast path dispatch.
+            pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 6, 8, imageSrd);
 
             for (uint32 i = 0; i < dispatchCount; i++)
             {
+                // "extentTexel" gives the "one past the end texel" position you get if you add the clear extent to
+                // firstTexel. We prefer this over directly computing the actual lastTexel because most of the logic
+                // here needs to know how many texels we're clearing rather than the identity of the last texel.
+                DispatchDims firstTexel  = {};
+                DispatchDims extentTexel = {subResExtent.width, subResExtent.height, subResExtent.depth};
+
                 if (hasBoxes)
                 {
-                    clearExtent = pBoxes[i].extent;
-                    clearOffset = pBoxes[i].offset;
-                }
+                    // Find the overlap between the full subresource box and the client's box. This should just be a
+                    // copy of the client's box if they gave us valid inputs but if they did something illegal like
+                    // use a negative offset or give us a value that's too big this will catch it.
+                    const Box& box = pBoxes[i];
 
-                if (texelShift != 0)
-                {
-                    clearExtent.width >>= texelShift;
-                    clearOffset.x     >>= texelShift;
-                }
+                    firstTexel.x = uint32(Max(0, box.offset.x));
+                    firstTexel.y = uint32(Max(0, box.offset.y));
+                    firstTexel.z = uint32(Max(0, box.offset.z));
 
-                // Compute the minimum number of threads to dispatch and fill out the per-dispatch constants.
-                // Note that only 2D images can have multiple samples and 3D images cannot have multiple slices.
-                DispatchDims threads = { clearExtent.width, 1, 1 };
+                    extentTexel.x = Min(extentTexel.x, uint32(Max(0, box.offset.x + int32(box.extent.width))));
+                    extentTexel.y = Min(extentTexel.y, uint32(Max(0, box.offset.y + int32(box.extent.height))));
+                    extentTexel.z = Min(extentTexel.z, uint32(Max(0, box.offset.z + int32(box.extent.depth))));
 
-                // The remaining virtual user-data contains a 2D offset followed by a 3D extent.
-                uint32 userData[7] = {};
-                uint32 numUserData = 0;
-
-                switch (imageType)
-                {
-                case ImageType::Tex1d:
-                    // For 1d the shader expects the x offset, an unused dword, then the clear width.
-                    // ClearImage1D:dcl_num_thread_per_group 64, 1, 1, Y and Z direction threads are 1
-                    userData[0] = clearOffset.x;
-                    userData[2] = clearExtent.width;
-                    numUserData = 3;
-
-                    // 1D images can only have a single-sample, but they can have multiple slices.
-                    threads.z = singleMipRange.numSlices;
-
-                    // If the tests provided a clear boxes on a 1D images that is outside
-                    // the bounds of a 1D image, then do nothing.
-                    if ((clearExtent.height == 0) || (clearOffset.y != 0))
+                    // Reject any invalid boxes by just skipping over the clear.
+                    if ((firstTexel.x >= extentTexel.x) ||
+                        (firstTexel.y >= extentTexel.y) ||
+                        (firstTexel.z >= extentTexel.z))
                     {
                         continue;
                     }
-                    break;
-
-                case ImageType::Tex2d:
-                    threads.y = clearExtent.height;
-                    threads.z = singleMipRange.numSlices * createInfo.samples;
-
-                    // For 2d the shader expects x offset, y offset, clear width then clear height.
-                    userData[0] = clearOffset.x;
-                    userData[1] = clearOffset.y;
-                    userData[2] = clearExtent.width;
-                    userData[3] = clearExtent.height;
-                    numUserData = 4;
-                    break;
-
-                default:
-                    // 3d image
-                    threads.y = clearExtent.height;
-                    threads.z = clearExtent.depth;
-
-                    // For 3d the shader expects x, y z offsets, an unused dword then the width, height and depth.
-                    userData[0] = clearOffset.x;
-                    userData[1] = clearOffset.y;
-                    userData[2] = clearOffset.z;
-
-                    userData[4] = clearExtent.width;
-                    userData[5] = clearExtent.height;
-                    userData[6] = clearExtent.depth;
-                    numUserData = 7;
-                    break;
                 }
 
-                // Embed these constants in the remaining fast user-data entries (after the packedColor).
-                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 7, numUserData, userData);
+                if (info.texelShift != 0)
+                {
+                    // This only applies to the x dimension.
+                    firstTexel.x  >>= info.texelShift;
+                    extentTexel.x >>= info.texelShift;
+                }
 
-                pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz(threads, threadsPerGroup));
+                if (is3dImage == false)
+                {
+                    // The clear shaders only know how to work with 2DArray images, where the "z" dimension is the
+                    // array slice. 3D images use the real z dimension we already filled out but 1D and 2D images
+                    // need us to replace their trival z values with an array range. Note that the image view is
+                    // relative to the starting array index so firstTexel.z is always zero here.
+                    //
+                    // Also note that MSAA images have four dimensions internally but we only have 3 threadgroup
+                    // dimensions. To get around this the "Planar" MSAA shader stuffs the fragment index into "z".
+                    firstTexel.z  = 0;
+                    extentTexel.z = singleMipRange.numSlices * fragmentSlices;
+                }
+
+                // If the clear box covers a complete grid of dispatch groups starting at (0, 0, 0) then we don't need
+                // to do any boundary checks in the shader nor does it need to offset our starting location! Otherwise
+                // the shader does some extra math using the firstTexel and lastTexel in the slow constant buffer.
+                const bool isWindowed =
+                    ((firstTexel.x != 0) || (IsPow2Aligned(extentTexel.x, info.groupShape.x) == false) ||
+                     (firstTexel.y != 0) || (IsPow2Aligned(extentTexel.y, info.groupShape.y) == false) ||
+                     (firstTexel.z != 0) || (IsPow2Aligned(extentTexel.z, info.groupShape.z) == false));
+
+                // The fast path can only be used if both of these features are disabled.
+                const bool useFastPath = (isWindowed == false) && (info.hasDisableMask == false);
+
+                // Now we can finally write the packed constants DWORD! Let's avoid the GPU overhead of writing
+                // redundant values on sequential dispatches.
+                packedConsts.useFastPath = useFastPath;
+
+                const bool writePackedConsts = (firstTime || (loopUserData[0] != packedConsts.u32All));
+
+                if (writePackedConsts)
+                {
+                    loopUserData[0] = packedConsts.u32All;
+                }
+
+                // We need to bind a valid slow constants buffer in two situations:
+                //   1. This is the first dispatch so no constant buffer address is present in this user-data.
+                //   2. The shader is going down the slow path so we expect it to actually need valid constants.
+                //
+                // Note that #1 is required because SC says it's illegal to not bind all resources. Essentially they
+                // might hoist the CB reads up (outside of the slow path branch!) to do some latency hiding. I don't
+                // see the shader disassembly actually doing this but I will follow their rules and always create at
+                // least one valid constant buffer.
+                //
+                // However, we know the shader can't actually use the slow constant values unless it's going down
+                // the slow path. That means subsequent iterations don't need to update the constants to actually
+                // be valid unless one of the slow pass bits is set.
+                const bool writeSlowConsts = (firstTime || (useFastPath == false));
+
+                if (writeSlowConsts)
+                {
+                    // We're going down the slow path so populate the slow constants which live in embedded data.
+                    gpusize slowConstsAddr = 0;
+                    auto*const pSlowConsts = reinterpret_cast<RpmUtil::ClearImageSlowConsts*>(
+                        pCmdBuffer->CmdAllocateEmbeddedData(Max(32u, RpmUtil::ClearImageSlowConstsDwords),
+                                                            Max(32u, SrdDwordAlignment()),
+                                                            &slowConstsAddr));
+
+                    memcpy(pSlowConsts->disableMask, info.disableMask, sizeof(info.disableMask));
+
+                    pSlowConsts->firstTexel  = firstTexel;
+                    pSlowConsts->lastTexel.x = extentTexel.x - 1;
+                    pSlowConsts->lastTexel.y = extentTexel.y - 1;
+                    pSlowConsts->lastTexel.z = extentTexel.z - 1;
+
+                    loopUserData[1] = LowPart(slowConstsAddr);
+                }
+
+                // This exta bit of complexity should slightly optimize user-data updates when we update the packed
+                // constants and the slow constant buffer in the same loop iteration.
+                if (writePackedConsts || writeSlowConsts)
+                {
+                    const uint32 offset = writePackedConsts ? 0 : 1;
+                    const uint32 total  = writePackedConsts + writeSlowConsts;
+
+                    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 4 + offset, total, loopUserData + offset);
+                }
+
+                firstTime = false;
+
+                // Finally, just take the 3D texel box and split it up into a 3D grid of tile-aligned groups. Note that
+                // the groups really must be groupShape tile-aligned, this prevents us from straddling cache lines in
+                // all of our groups.
+                //
+                // Assuming this is a windowed clear we rounded down when we compute firstTile. If it's not already
+                // aligned to the groupShape that will add extra threads that pad from the start of the left/top edge
+                // tiles to the unaligned firstTexel position. The RoundUpQuotient will round up which adds padding
+                // threads to the right/bottom edge tiles to make sure the total thread counts are tile-aligned.
+                const DispatchDims firstTile =
+                {
+                    firstTexel.x & ~(info.groupShape.x - 1),
+                    firstTexel.y & ~(info.groupShape.y - 1),
+                    firstTexel.z & ~(info.groupShape.z - 1)
+                };
+
+                const DispatchDims groups =
+                {
+                    RoundUpQuotient(extentTexel.x - firstTile.x, info.groupShape.x),
+                    RoundUpQuotient(extentTexel.y - firstTile.y, info.groupShape.y),
+                    RoundUpQuotient(extentTexel.z - firstTile.z, info.groupShape.z)
+                };
+
+                pCmdBuffer->CmdDispatch(groups);
             }
         }
     }
-
-    // Restore original command buffer state.
-    pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData, trackBltActiveFlags);
 }
 
 // =====================================================================================================================

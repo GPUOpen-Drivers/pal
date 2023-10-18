@@ -266,7 +266,7 @@ template<typename T>
 bool IntrusiveListNode<T>::InList() const
 {
     // The node pointers should always be null or non-null together.
-    PAL_ASSERT((m_pPrev == nullptr) == (m_pNext == nullptr));
+    PAL_DEBUG_BUILD_ONLY_ASSERT((m_pPrev == nullptr) == (m_pNext == nullptr));
 
     return (m_pNext != nullptr);
 }

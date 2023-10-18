@@ -352,11 +352,7 @@ public:
     bool HasDccData() const { return (m_numDccPlanes != 0); }
     virtual bool HasFmaskData() const override;
 
-    bool HasHtileLookupTable() const
-        { return (HasHtileData() && (m_metaDataLookupTableOffsets[0] != 0u)); }
-
-    bool HasDccLookupTable() const
-        { return (HasDccData() && (m_dccLookupTableOffset != 0u)); }
+    bool HasDccLookupTable() const { return (HasDccData() && (m_dccLookupTableOffset != 0u)); }
 
     bool SupportsCompToReg(ImageLayout layout, const SubresId& subResId) const;
 
@@ -437,7 +433,6 @@ public:
 
     gpusize GetMipAddr(SubresId subresId) const;
 
-    void BuildMetadataLookupTableBufferView(BufferViewInfo* pViewInfo, uint32 mipLevel) const;
     void BuildDccLookupTableBufferView(BufferViewInfo* pViewInfo) const;
 
     bool IsInMetadataMipTail(const SubresId&  subResId) const;
@@ -495,9 +490,6 @@ private:
     gpusize m_waTcCompatZRangeMetaDataOffset;       // Offset to start of waTcCompatZRange MetaData
     gpusize m_waTcCompatZRangeMetaDataSizePerMip;   // Size of the waTcCompatZRange MetaData per mip level
 
-    gpusize m_metaDataLookupTableOffsets[MaxImageMipLevels]; // Offset to lookup table for htile or cmask of each mip
-    gpusize m_metaDataLookupTableSizes[MaxImageMipLevels];   // Size of lookup table for htile or cmask of each mip
-
     gpusize m_dccLookupTableOffset; // Offset to lookup table for dcc.
     gpusize m_dccLookupTableSize;   // Size of lookup table for dcc.
 
@@ -539,12 +531,6 @@ private:
     void InitWaTcCompatZRangeMetaData(
         ImageMemoryLayout* pGpuMemLayout,
         gpusize*           pGpuMemSize);
-
-    void InitHtileLookupTable(
-        ImageMemoryLayout* pGpuMemLayout,
-        gpusize*           pGpuOffset,
-        gpusize*           pGpuMemAlignment);
-
     void InitDccLookupTable(
         ImageMemoryLayout* pGpuMemLayout,
         gpusize*           pGpuOffset,

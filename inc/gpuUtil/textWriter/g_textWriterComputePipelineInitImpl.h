@@ -54,24 +54,6 @@ Pal::Result CreateTextWriterComputePipelines(
 
     switch (properties.revision)
     {
-    case Pal::AsicRevision::Polaris10:
-    case Pal::AsicRevision::Polaris11:
-    case Pal::AsicRevision::Polaris12:
-        pTable = textWriterComputeBinaryTablePolaris10;
-        break;
-
-    case Pal::AsicRevision::Vega10:
-    case Pal::AsicRevision::Raven:
-    case Pal::AsicRevision::Vega12:
-    case Pal::AsicRevision::Vega20:
-        pTable = textWriterComputeBinaryTableVega10;
-        break;
-
-    case Pal::AsicRevision::Raven2:
-    case Pal::AsicRevision::Renoir:
-        pTable = textWriterComputeBinaryTableRaven2;
-        break;
-
     case Pal::AsicRevision::Navi10:
         pTable = textWriterComputeBinaryTableNavi10;
         break;
@@ -108,6 +90,12 @@ Pal::Result CreateTextWriterComputePipelines(
         break;
 #endif
 
+#if PAL_BUILD_NAVI32
+    case Pal::AsicRevision::Navi32:
+        pTable = textWriterComputeBinaryTableNavi32;
+        break;
+#endif
+
 #if PAL_BUILD_NAVI33
     case Pal::AsicRevision::Navi33:
         pTable = textWriterComputeBinaryTableNavi33;
@@ -117,12 +105,6 @@ Pal::Result CreateTextWriterComputePipelines(
 #if PAL_BUILD_PHOENIX1
     case Pal::AsicRevision::Phoenix1:
         pTable = textWriterComputeBinaryTablePhoenix1;
-        break;
-#endif
-
-#if PAL_BUILD_NAVI32
-    case Pal::AsicRevision::Navi32:
-        pTable = textWriterComputeBinaryTableNavi32;
         break;
 #endif
 

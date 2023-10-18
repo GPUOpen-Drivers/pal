@@ -46,15 +46,9 @@
 #include "palSysUtil.h"
 #include "palVectorImpl.h"
 #include "palIntrusiveListImpl.h"
-#include "core/addrMgr/addrMgr1/addrMgr1.h"
 #include "core/addrMgr/addrMgr2/addrMgr2.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9MaskRam.h"
-//  NOTE: We need this for address pipe config.
-#include "core/hw/gfxip/gfx6/chip/si_ci_vi_merged_enum.h"
-// NOTE: We need this chip header for reading registers.
-#include "core/hw/gfxip/gfx6/chip/si_ci_vi_merged_offset.h"
-#include "core/hw/gfxip/gfx6/chip/si_ci_vi_merged_mask.h"
 
 #include <climits>
 #include <inttypes.h>
@@ -227,7 +221,6 @@ Result Device::Create(
         size_t totalSize = 0;
         totalSize += sizeof(Device);
         totalSize += (hwDeviceSizes.gfx   +
-                      hwDeviceSizes.oss   +
                       addrMgrSize);
 
         void*  pMemory  = PAL_MALLOC_ALIGNED(totalSize,
@@ -709,7 +702,6 @@ Result Device::EarlyInit(
     const HwIpLevels& ipLevels)
 {
     m_chipProperties.gfxLevel = ipLevels.gfx;
-    m_chipProperties.ossLevel = ipLevels.oss;
     m_chipProperties.vceLevel = ipLevels.vce;
     m_chipProperties.uvdLevel = ipLevels.uvd;
     m_chipProperties.vcnLevel = ipLevels.vcn;
@@ -990,16 +982,6 @@ Result Device::InitGpuProperties()
     // ToDo: Retrieve ceram size of gfx engine from kmd, but the functionality is not supported yet.
     switch (m_chipProperties.gfxLevel)
     {
-    case GfxIpLevel::GfxIp6:
-    case GfxIpLevel::GfxIp7:
-    case GfxIpLevel::GfxIp8:
-    case GfxIpLevel::GfxIp8_1:
-        m_chipProperties.gfxEngineId = CIASICIDGFXENGINE_SOUTHERNISLAND;
-        m_pFormatPropertiesTable     = Gfx6::GetFormatPropertiesTable(m_chipProperties.gfxLevel);
-        InitGfx6ChipProperties();
-        Gfx6::InitializeGpuEngineProperties(m_chipProperties,
-                                            &m_engineProperties);
-        break;
     case GfxIpLevel::GfxIp10_1:
     case GfxIpLevel::GfxIp9:
     case GfxIpLevel::GfxIp10_3:
@@ -1014,24 +996,6 @@ Result Device::InitGpuProperties()
         break;
     case GfxIpLevel::None:
         // No Graphics IP block found or recognized!
-    default:
-        break;
-    }
-
-    switch (m_chipProperties.ossLevel)
-    {
-#if PAL_BUILD_OSS2_4
-    case OssIpLevel::OssIp2_4:
-        Oss2_4::InitializeGpuEngineProperties(&m_engineProperties);
-        break;
-#endif
-#if PAL_BUILD_OSS4
-    case OssIpLevel::OssIp4:
-        Oss4::InitializeGpuEngineProperties(&m_engineProperties);
-        break;
-#endif
-    case OssIpLevel::None:
-        // No OSS IP block found or recognized!
     default:
         break;
     }
@@ -1161,132 +1125,6 @@ static bool TestCuAlwaysOnBitmap(
     }
 
     return result;
-}
-
-// =====================================================================================================================
-// Helper method which initializes the GPU chip properties for all hardware families using the GFX6 hardware layer.
-void Device::InitGfx6ChipProperties()
-{
-    auto*const                    pChipInfo  = &m_chipProperties.gfx6;
-    struct drm_amdgpu_info_device deviceInfo = {};
-
-    memcpy(&pChipInfo->gbTileMode[0], &m_gpuInfo.gb_tile_mode[0], sizeof(pChipInfo->gbTileMode));
-    memcpy(&pChipInfo->gbMacroTileMode[0], &m_gpuInfo.gb_macro_tile_mode[0], sizeof(pChipInfo->gbMacroTileMode));
-
-    Gfx6::InitializeGpuChipProperties(m_chipProperties.cpUcodeVersion, &m_chipProperties);
-
-    // Any chip info from the KMD does not apply to a spoofed chip and should be ignored
-    if (IsSpoofed() == false)
-    {
-        if (!m_drmProcs.pfnAmdgpuBoVaOpRawisValid())
-        {
-            m_chipProperties.imageProperties.prtFeatures = static_cast<PrtFeatureFlags>(0);
-        }
-
-        // It should be per engine, but PAL does not. So just use the first one.
-        pChipInfo->backendDisableMask = m_gpuInfo.backend_disable[0];
-        pChipInfo->paScRasterCfg      = m_gpuInfo.pa_sc_raster_cfg[0];
-        pChipInfo->paScRasterCfg1     = m_gpuInfo.pa_sc_raster_cfg1[0];
-
-        uint32 spiConfigCntl = 0;
-        ReadRegisters(Gfx6::mmSPI_CONFIG_CNTL, 1, 0xffffffff, 0, &spiConfigCntl);
-        pChipInfo->sqgEventsEnabled = ((spiConfigCntl & Gfx6::SPI_CONFIG_CNTL__ENABLE_SQG_TOP_EVENTS_MASK) &&
-                                    (spiConfigCntl & Gfx6::SPI_CONFIG_CNTL__ENABLE_SQG_BOP_EVENTS_MASK));
-
-        pChipInfo->gbAddrConfig             = m_gpuInfo.gb_addr_cfg;
-        pChipInfo->mcArbRamcfg              = m_gpuInfo.mc_arb_ramcfg;
-
-        pChipInfo->numShaderEngines = m_gpuInfo.num_shader_engines;
-        pChipInfo->numShaderArrays  = m_gpuInfo.num_shader_arrays_per_engine;
-
-        switch (m_chipProperties.gfxLevel)
-        {
-        case GfxIpLevel::GfxIp6:
-        case GfxIpLevel::GfxIp7:
-            ReadRegisters(Gfx6::mmSQ_THREAD_TRACE_MASK__SI__CI, 1,  0xffffffff, 0, &pChipInfo->sqThreadTraceMask);
-            break;
-        case GfxIpLevel::GfxIp8:
-        case GfxIpLevel::GfxIp8_1:
-            ReadRegisters(Gfx6::mmSQ_THREAD_TRACE_MASK__VI, 1, 0xffffffff, 0, &pChipInfo->sqThreadTraceMask);
-            break;
-        default:
-            PAL_ASSERT_ALWAYS();
-            break;
-        }
-
-        if (m_drmProcs.pfnAmdgpuQueryInfo(m_hDevice, AMDGPU_INFO_DEV_INFO, sizeof(deviceInfo), &deviceInfo) == 0)
-        {
-            pChipInfo->doubleOffchipLdsBuffers = deviceInfo.gc_double_offchip_lds_buf;
-        }
-        else
-        {
-            PAL_ASSERT_ALWAYS();
-        }
-
-        InitGfx6CuMask(&deviceInfo);
-    }
-    else
-    {
-#if PAL_BUILD_NULL_DEVICE
-        NullDevice::Device::FillGfx6ChipProperties(&m_chipProperties);
-#else
-        PAL_ASSERT_ALWAYS_MSG("NullDevice spoofing requested but not compiled in!");
-#endif
-    }
-
-    Gfx6::FinalizeGpuChipProperties(*this, &m_chipProperties);
-    Gfx6::InitializePerfExperimentProperties(m_chipProperties, &m_perfExperimentProperties);
-
-    m_engineProperties.perEngine[EngineTypeUniversal].flags.supportsMidCmdBufPreemption =
-        (m_gpuInfo.ids_flags & AMDGPU_IDS_FLAGS_PREEMPTION) ? 1 : 0;
-    m_engineProperties.perEngine[EngineTypeUniversal].contextSaveAreaSize               = 0;
-    m_engineProperties.perEngine[EngineTypeUniversal].contextSaveAreaAlignment          = 0;
-
-    m_engineProperties.perEngine[EngineTypeDma].flags.supportsMidCmdBufPreemption       =
-        (m_gpuInfo.ids_flags & AMDGPU_IDS_FLAGS_PREEMPTION) ? 1 : 0;
-    m_engineProperties.perEngine[EngineTypeDma].contextSaveAreaSize                     = 0;
-    m_engineProperties.perEngine[EngineTypeDma].contextSaveAreaAlignment                = 0;
-}
-
-// =====================================================================================================================
-// Helper method which gets the CuMasks and always on cu masks.
-void Device::InitGfx6CuMask(
-    struct drm_amdgpu_info_device* pDeviceInfo)
-{
-    auto*const pChipInfo = &m_chipProperties.gfx6;
-
-    PAL_ASSERT(pDeviceInfo != nullptr);
-    const bool hasValidAoBitmap = TestCuAlwaysOnBitmap(pDeviceInfo);
-
-    for (uint32 seIndex = 0; seIndex < m_gpuInfo.num_shader_engines; seIndex++)
-    {
-        constexpr uint32 AlwaysOnSeMaskSize = 16;
-        constexpr uint32 AlwaysOnSeMask     = (1ul << AlwaysOnSeMaskSize) - 1;
-        constexpr uint32 AlwaysOnShMaskSize = 8;
-        constexpr uint32 AlwaysOnShMask     = (1ul << AlwaysOnShMaskSize) - 1;
-
-        const uint32 aoSeMask = (m_gpuInfo.cu_ao_mask >> (seIndex * AlwaysOnSeMaskSize)) & AlwaysOnSeMask;
-
-        // GFXIP 7+ hardware only has one shader array per shader engine!
-        PAL_ASSERT(m_chipProperties.gfxLevel < GfxIpLevel::GfxIp7 || pChipInfo->numShaderArrays == 1);
-
-        for (uint32 shIndex = 0; shIndex < m_gpuInfo.num_shader_arrays_per_engine; shIndex++)
-        {
-            if (m_chipProperties.gfxLevel == GfxIpLevel::GfxIp6)
-            {
-                const uint32 aoMask = (aoSeMask >> (shIndex * AlwaysOnShMaskSize)) & AlwaysOnShMask;
-                pChipInfo->activeCuMaskGfx6[seIndex][shIndex]   = m_gpuInfo.cu_bitmap[seIndex][shIndex];
-                pChipInfo->alwaysOnCuMaskGfx6[seIndex][shIndex] =
-                    hasValidAoBitmap ? pDeviceInfo->cu_ao_bitmap[seIndex][shIndex] : aoMask;
-            }
-            else
-            {
-                pChipInfo->activeCuMaskGfx7[seIndex]   = m_gpuInfo.cu_bitmap[seIndex][shIndex];
-                pChipInfo->alwaysOnCuMaskGfx7[seIndex] =
-                    hasValidAoBitmap ? pDeviceInfo->cu_ao_bitmap[seIndex][shIndex] : aoSeMask;
-            }
-        }
-    }
 }
 
 // =====================================================================================================================
@@ -1879,10 +1717,8 @@ Result Device::InitQueueInfo()
                 break;
 
             case EngineTypeDma:
-                // GFX10+ parts have the DMA engine in the GFX block, not in the OSS, but any DMA engine
-                // will report queue support before this is called.
                 if ((Settings().disableSdmaEngine == false) &&
-                    (TestAnyFlagSet(pEngineInfo->queueSupport, SupportQueueTypeDma)))
+                    (m_chipProperties.gfxLevel != GfxIpLevel::None))
                 {
                     if (m_drmProcs.pfnAmdgpuQueryHwIpInfo(m_hDevice, AMDGPU_HW_IP_DMA, 0, &engineInfo) != 0)
                     {
@@ -2364,15 +2200,6 @@ Result Device::CreateImage(
                 // Do not override the swizzle mode value
                 internalInfo.gfx9.sharedSwizzleMode = ADDR_SW_MAX_TYPE;
             }
-        }
-        else
-        {
-            internalInfo.flags.useSharedTilingOverrides = 1;
-            // Tile swizzle is zero initialized by internalInfo declaration
-            // Do not override below values
-            internalInfo.gfx6.sharedTileMode = ADDR_TM_COUNT;
-            internalInfo.gfx6.sharedTileType = TileTypeInvalid;
-            internalInfo.gfx6.sharedTileIndex = TileIndexUnused;
         }
     }
 
@@ -3630,27 +3457,6 @@ static uint32 AmdGpuToPalPipeConfigConversion(
             break;
     }
 
-    namespace Gfx6 = Pal::Gfx6::Chip;
-    namespace Gfx9 = Pal::Gfx9::Chip;
-
-    // clang-format off
-    static_assert(static_cast<uint32>(Gfx6::ADDR_SURF_P2)             == static_cast<uint32>(Gfx9::ADDR_SURF_P2),             "Enums need updating!");
-    static_assert(static_cast<uint32>(Gfx6::ADDR_SURF_P4_8x16)        == static_cast<uint32>(Gfx9::ADDR_SURF_P4_8x16),        "Enums need updating!");
-    static_assert(static_cast<uint32>(Gfx6::ADDR_SURF_P4_16x16)       == static_cast<uint32>(Gfx9::ADDR_SURF_P4_16x16),       "Enums need updating!");
-    static_assert(static_cast<uint32>(Gfx6::ADDR_SURF_P4_16x32)       == static_cast<uint32>(Gfx9::ADDR_SURF_P4_16x32),       "Enums need updating!");
-    static_assert(static_cast<uint32>(Gfx6::ADDR_SURF_P4_32x32)       == static_cast<uint32>(Gfx9::ADDR_SURF_P4_32x32),       "Enums need updating!");
-    static_assert(static_cast<uint32>(Gfx6::ADDR_SURF_P8_16x16_8x16)  == static_cast<uint32>(Gfx9::ADDR_SURF_P8_16x16_8x16),  "Enums need updating!");
-    static_assert(static_cast<uint32>(Gfx6::ADDR_SURF_P8_16x32_8x16)  == static_cast<uint32>(Gfx9::ADDR_SURF_P8_16x32_8x16),  "Enums need updating!");
-    static_assert(static_cast<uint32>(Gfx6::ADDR_SURF_P8_32x32_8x16)  == static_cast<uint32>(Gfx9::ADDR_SURF_P8_32x32_8x16),  "Enums need updating!");
-    static_assert(static_cast<uint32>(Gfx6::ADDR_SURF_P8_16x32_16x16) == static_cast<uint32>(Gfx9::ADDR_SURF_P8_16x32_16x16), "Enums need updating!");
-    static_assert(static_cast<uint32>(Gfx6::ADDR_SURF_P8_32x32_16x16) == static_cast<uint32>(Gfx9::ADDR_SURF_P8_32x32_16x16), "Enums need updating!");
-    static_assert(static_cast<uint32>(Gfx6::ADDR_SURF_P8_32x32_16x32) == static_cast<uint32>(Gfx9::ADDR_SURF_P8_32x32_16x32), "Enums need updating!");
-    static_assert(static_cast<uint32>(Gfx6::ADDR_SURF_P8_32x64_32x32) == static_cast<uint32>(Gfx9::ADDR_SURF_P8_32x64_32x32), "Enums need updating!");
-
-    static_assert(static_cast<uint32>(Gfx6::ADDR_SURF_P16_32x32_8x16__CI__VI)  == static_cast<uint32>(Gfx9::ADDR_SURF_P16_32x32_8x16),  "Enums need updating!");
-    static_assert(static_cast<uint32>(Gfx6::ADDR_SURF_P16_32x32_16x16__CI__VI) == static_cast<uint32>(Gfx9::ADDR_SURF_P16_32x32_16x16), "Enums need updating!");
-    // clang-format on
-
     return palPipeConfig;
 }
 
@@ -3736,62 +3542,9 @@ void Device::UpdateImageInfo(
                     pPlaneTileInfo->pipeBankXor              = pUmdMetaData->additionalPipeBankXor[plane - 1];
                 }
             }
-            else
-            {
-                AddrMgr1::TileInfo *const pTileInfo = static_cast<AddrMgr1::TileInfo*>
-                                                        (pImage->GetSubresourceTileInfo(0));
-                auto*const pUmdMetaData             = reinterpret_cast<amdgpu_bo_umd_metadata*>
-                                                        (&info.metadata.umd_metadata[PRO_UMD_METADATA_OFFSET_DWORD]);
-
-                pSubResInfo->extentTexels.width        = pUmdMetaData->width_in_pixels;
-                pSubResInfo->extentTexels.height       = pUmdMetaData->height;
-                pSubResInfo->rowPitch                  = pUmdMetaData->aligned_pitch_in_bytes;
-                pSubResInfo->actualExtentTexels.height = pUmdMetaData->aligned_height;
-
-                pTileInfo->tileIndex                   = pUmdMetaData->tile_index;
-                pTileInfo->tileMode                    = AmdGpuToAddrTileModeConversion(pUmdMetaData->tile_mode);
-                pTileInfo->tileType                    = static_cast<uint32>(pUmdMetaData->micro_tile_mode);
-                pTileInfo->pipeConfig                  = AmdGpuToPalPipeConfigConversion(
-                                                         pUmdMetaData->tile_config.pipe_config);
-                pTileInfo->banks                       = pUmdMetaData->tile_config.banks;
-                pTileInfo->bankWidth                   = pUmdMetaData->tile_config.bank_width;
-                pTileInfo->bankHeight                  = pUmdMetaData->tile_config.bank_height;
-                pTileInfo->macroAspectRatio            = pUmdMetaData->tile_config.macro_aspect_ratio;
-                pTileInfo->tileSplitBytes              = pUmdMetaData->tile_config.tile_split_bytes;
-                pTileInfo->tileSwizzle                 = pUmdMetaData->pipeBankXor;
-
-                for (uint32 plane = 1; plane < numPlanes; plane++)
-                {
-                    AddrMgr1::TileInfo *const pPlaneTileInfo = static_cast<AddrMgr1::TileInfo *>
-                                                               (pImage->GetSubresourceTileInfo(subResPerPlane * plane));
-                    pPlaneTileInfo->tileSwizzle              = pUmdMetaData->additionalPipeBankXor[plane - 1];
-                }
-            }
         }
         else if (IsMesaMetadata(info.metadata))
         {
-            if (ChipProperties().gfxLevel < GfxIpLevel::GfxIp9)
-            {
-                AmdGpuTilingFlags tilingFlags;
-                tilingFlags.u64All      = info.metadata.tiling_info;
-                auto*const pMetaData    = reinterpret_cast<const amdgpu_bo_umd_metadata*>(&info.metadata.umd_metadata);
-                auto*const pRawMetaData = reinterpret_cast<const uint32*>(pMetaData);
-                auto*const pTileInfo    = static_cast<AddrMgr1::TileInfo*>(pImage->GetSubresourceTileInfo(0));
-
-                pSubResInfo->extentTexels.width        = imageCreateInfo.extent.width;
-                pSubResInfo->extentTexels.height       = imageCreateInfo.extent.height;
-                pSubResInfo->actualExtentTexels.height = imageCreateInfo.extent.height;
-                pSubResInfo->format                    = imageCreateInfo.swizzledFormat;
-
-                pTileInfo->tileIndex        = (pRawMetaData[5] >> 20) & 0x1F;
-                pTileInfo->tileType         = tilingFlags.microTileMode;
-                pTileInfo->pipeConfig       = tilingFlags.pipeConfig;
-                pTileInfo->banks            = tilingFlags.numBanks;
-                pTileInfo->bankWidth        = tilingFlags.bankWidth;
-                pTileInfo->bankHeight       = tilingFlags.bankHeight;
-                pTileInfo->macroAspectRatio = tilingFlags.macroTileAspect;
-                pTileInfo->tileSplitBytes   = tilingFlags.tileSplit;
-            }
         }
     }
 }
@@ -3893,60 +3646,6 @@ void Device::UpdateMetaData(
         metadata.tiling_info |= AMDGPU_TILING_SET(DCC_INDEPENDENT_128B, dccState.independentBlk128B);
         metadata.tiling_info |= AMDGPU_TILING_SET(DCC_MAX_COMPRESSED_BLOCK_SIZE, dccState.maxCompressedBlockSize);
         metadata.tiling_info |= AMDGPU_TILING_SET(DCC_MAX_UNCOMPRESSED_BLOCK_SIZE, dccState.maxUncompressedBlockSize);
-    }
-    else
-    {
-        metadata.tiling_info   = AMDGPU_TILE_MODE__2D_TILED_THIN1;
-        metadata.size_metadata = PRO_UMD_METADATA_SIZE;
-
-        const SubResourceInfo*const    pSubResInfo = image.SubresourceInfo(0);
-        const AddrMgr1::TileInfo*const pTileInfo   = AddrMgr1::GetTileInfo(&image, 0);
-
-        memset(&metadata.umd_metadata[0], 0, PRO_UMD_METADATA_OFFSET_DWORD * sizeof(metadata.umd_metadata[0]));
-        pUmdMetaData->width_in_pixels        = pSubResInfo->extentTexels.width;
-        pUmdMetaData->height                 = pSubResInfo->extentTexels.height;
-        pUmdMetaData->depth                  = pSubResInfo->extentTexels.depth;
-        pUmdMetaData->aligned_pitch_in_bytes = pSubResInfo->rowPitch;
-        pUmdMetaData->aligned_height         = pSubResInfo->actualExtentTexels.height;
-        pUmdMetaData->tile_index             = pTileInfo->tileIndex;
-        pUmdMetaData->format                 = PalToAmdGpuFormatConversion(pSubResInfo->format);
-        pUmdMetaData->tile_mode              = AddrToAmdGpuTileModeConversion(pTileInfo->tileMode);
-        pUmdMetaData->micro_tile_mode        = static_cast<AMDGPU_MICRO_TILE_MODE>(pTileInfo->tileType);
-
-        pUmdMetaData->pipeBankXor            = pTileInfo->tileSwizzle;
-
-        for (uint32 plane = 1; plane < (image.GetImageInfo().numPlanes); plane++)
-        {
-            const AddrMgr1::TileInfo*const pPlaneTileInfo  = AddrMgr1::GetTileInfo(&image, (subResPerPlane * plane));
-            pUmdMetaData->additionalPipeBankXor[plane - 1] = pPlaneTileInfo->tileSwizzle;
-        }
-
-        pUmdMetaData->tile_config.pipe_config        = PalToAmdGpuPipeConfigConversion(pTileInfo->pipeConfig);
-        pUmdMetaData->tile_config.banks              = pTileInfo->banks;
-        pUmdMetaData->tile_config.bank_width         = pTileInfo->bankWidth;
-        pUmdMetaData->tile_config.bank_height        = pTileInfo->bankHeight;
-        pUmdMetaData->tile_config.macro_aspect_ratio = pTileInfo->macroAspectRatio;
-        pUmdMetaData->tile_config.tile_split_bytes   = pTileInfo->tileSplitBytes;
-
-        // set the tiling_info according to mesa's definition.
-        AmdGpuTilingFlags tilingFlags;
-        // the tilingFlags uses ADDRLIB definition but not AMDGPU.
-        tilingFlags.u64All          = 0;
-        tilingFlags.arrayMode       = pTileInfo->tileMode;
-        tilingFlags.pipeConfig      = pTileInfo->pipeConfig;
-        tilingFlags.tileSplit       = pTileInfo->tileSplitBytes;
-        tilingFlags.bankWidth       = pTileInfo->bankWidth;
-        tilingFlags.bankHeight      = pTileInfo->bankHeight;
-        tilingFlags.macroTileAspect = pTileInfo->macroAspectRatio;
-        tilingFlags.numBanks        = pTileInfo->banks;
-
-        // in order to sharing resource metadata with Mesa3D, the definition have to follow Mesa's way.
-        // the micro tile mode is used in Mesa to indicate whether the surface is displyable.
-        // it is bool typed, 0 for displayable and 1 for not displayable in current version.
-        // forcing it to be 0 for presentable image,
-        tilingFlags.microTileMode   = 0;
-
-        metadata.tiling_info = tilingFlags.u64All;
     }
 
     pUmdMetaData->array_size              = imageCreateInfo.arraySize;

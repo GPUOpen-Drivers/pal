@@ -29,6 +29,14 @@
 
 namespace DevDriver
 {
+constexpr uint32_t AmdLogVersionMajor = 0;
+constexpr uint32_t AmdLogVersionMinor = 1;
+
+struct AmdLogEventVersion
+{
+    uint16_t major;
+    uint16_t minor;
+};
 
 enum struct AmdLogEventInfoFlags : uint32
 {
@@ -38,6 +46,7 @@ enum struct AmdLogEventInfoFlags : uint32
 
 enum AmdlogEventId
 {
+    IfVersion,
     String,
     Count
 };

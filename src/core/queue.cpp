@@ -34,7 +34,6 @@
 #include "core/queue.h"
 #include "core/queueContext.h"
 #include "core/swapChain.h"
-#include "core/hw/ossip/ossDevice.h"
 #include "core/hw/gfxip/gfxDevice.h"
 #include "core/hw/gfxip/gfxCmdBuffer.h"
 #include "core/hw/gfxip/rpm/rsrcProcMgr.h"
@@ -461,12 +460,12 @@ Result Queue::Init(
     {
         GfxDevice*  pGfxDevice = m_pDevice->GetGfxDevice();
         void* pNextQueueContextPlacementAddr = pContextPlacementAddr;
-        // NOTE: OSSIP hardware is used for DMA Queues, GFXIP hardware is used for Compute & Universal Queues, and
-        // no hardware block is used for Timer Queues since those are software-only.
+
         for (uint32 qIndex = 0; ((qIndex < m_queueCount) && (result == Result::Success)); qIndex++)
         {
             switch (m_pQueueInfos[qIndex].createInfo.queueType)
             {
+#if PAL_BUILD_GFX
             case QueueTypeCompute:
             case QueueTypeUniversal:
                 if (pGfxDevice != nullptr)
@@ -490,29 +489,14 @@ Result Queue::Init(
                 break;
             case QueueTypeDma:
             {
-                if (m_pDevice->EngineProperties().perEngine[EngineTypeDma].numAvailable > 0)
+                if ((pGfxDevice != nullptr) &&
+                    (m_pDevice->EngineProperties().perEngine[EngineTypeDma].numAvailable > 0))
                 {
-                    OssDevice* pOssDevice = m_pDevice->GetOssDevice();
-
-                    if (pOssDevice != nullptr)
-                    {
-                        result = pOssDevice->CreateQueueContext(
-                                    m_pQueueInfos[qIndex].createInfo.queueType,
-                                    pNextQueueContextPlacementAddr,
-                                    &m_pQueueInfos[qIndex].pQueueContext);
-                    }
-                    else if ((pGfxDevice != nullptr) && IsGfx10Plus(*m_pDevice))
-                    {
-                        result = pGfxDevice->CreateQueueContext(
-                                    m_pQueueInfos[qIndex].createInfo,
-                                    m_pQueueInfos[qIndex].pEngine,
-                                    pNextQueueContextPlacementAddr,
-                                    &m_pQueueInfos[qIndex].pQueueContext);
-                    }
-                    else
-                    {
-                        result = Result::ErrorIncompatibleDevice;
-                    }
+                    result = pGfxDevice->CreateQueueContext(
+                                m_pQueueInfos[qIndex].createInfo,
+                                m_pQueueInfos[qIndex].pEngine,
+                                pNextQueueContextPlacementAddr,
+                                &m_pQueueInfos[qIndex].pQueueContext);
                 }
                 else
                 {
@@ -520,7 +504,9 @@ Result Queue::Init(
                 }
             }
             break;
+#endif
 
+            // Note: no hardware block is used for Timer Queues since those are software-only.
             case QueueTypeTimer:
                 // For gang submit, we expect the queue type of any subQueue can be universalQueue,
                 // ComputeQueue or SDMAQueue. In case the queue type is not any of the three, it indicates
@@ -611,6 +597,7 @@ Result Queue::SubmitInternal(
     PAL_ASSERT(submitInfo.perSubQueueInfoCount <= m_queueCount);
     AutoBuffer<InternalSubmitInfo, 8, Platform> internalSubmitInfos(
         submitInfo.perSubQueueInfoCount, m_pDevice->GetPlatform());
+
     if (internalSubmitInfos.Capacity() < submitInfo.perSubQueueInfoCount)
     {
         result = Result::ErrorOutOfMemory;
@@ -646,12 +633,14 @@ Result Queue::SubmitInternal(
             {
                 uint32 cmdBufferCount = submitInfo.pPerSubQueueInfo[qIndex].cmdBufferCount;
                 QueueContext* pQueueContext = m_pQueueInfos[qIndex].pQueueContext;
-                result = pQueueContext->PreProcessSubmit(&internalSubmitInfos[qIndex], cmdBufferCount);
+                result = pQueueContext->PreProcessSubmit(&internalSubmitInfos[qIndex],
+                                                         cmdBufferCount,
+                                                         submitInfo.pPerSubQueueInfo[qIndex].ppCmdBuffers);
             }
         }
         else
         {
-            result = m_pQueueInfos[0].pQueueContext->PreProcessSubmit(&internalSubmitInfos[0], 0);
+            result = m_pQueueInfos[0].pQueueContext->PreProcessSubmit(&internalSubmitInfos[0], 0, nullptr);
         }
     }
 

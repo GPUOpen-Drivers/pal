@@ -605,7 +605,7 @@ uint32* CmdBuffer::CmdAllocateEmbeddedData(
         // The previously active chunk didn't have enough space left, compute the size again using the new chunk.
         alignedSizeInDwords = pNewChunk->ComputeSpaceSize(sizeInDwords, alignmentInDwords);
     }
-    PAL_ASSERT(alignedSizeInDwords <= m_embeddedData.chunkDwordsAvailable);
+    PAL_DEBUG_BUILD_ONLY_ASSERT(alignedSizeInDwords <= m_embeddedData.chunkDwordsAvailable);
 
     // Record that the tail object in our chunk list has less space available than it did before.
     m_embeddedData.chunkDwordsAvailable -= alignedSizeInDwords;

@@ -38,6 +38,7 @@
 #include "palGpuMemory.h"
 #include "palImage.h"
 #include "palInlineFuncs.h"
+#include "palLib.h"
 #include "palPerfExperiment.h"
 #include "palPipeline.h"
 #include "palQueue.h"
@@ -150,93 +151,6 @@ enum class GpuType : uint32
     Discrete   = 0x2,  ///< Discrete GPU.
     Virtual    = 0x3,  ///< Virtualized GPU.
     Count
-};
-
-/// Specifies which graphics IP level (GFXIP) this device has.
-enum class GfxIpLevel : uint32
-{
-    _None    = 0x0,   ///< @internal The device does not have an GFXIP block, or its level cannot be determined
-
-    // Unfortunately for Linux clients, X.h includes a "#define None 0" macro.  Clients have their choice of either
-    // undefing None before including this header or using _None when dealing with PAL.
-#ifndef None
-    None     = _None, ///< The device does not have an GFXIP block, or its level cannot be determined
-#endif
-
-    GfxIp6    = 0x1,
-    GfxIp7    = 0x2,
-    GfxIp8    = 0x3,
-    GfxIp8_1  = 0x4,
-    GfxIp9    = 0x5,
-    GfxIp10_1 = 0x7,
-    GfxIp10_3 = 0x9,
-#if PAL_BUILD_GFX11
-    GfxIp11_0 = 0xC,
-#endif
-};
-
-/// Specifies the hardware revision.  Enumerations are in family order (Southern Islands, Sea Islands, Kaveri,
-/// Carrizo, Volcanic Islands, etc.)
-enum class AsicRevision : uint32
-{
-    Unknown     = 0x00,
-
-    Tahiti      = 0x01,
-    Pitcairn    = 0x02,
-    Capeverde   = 0x03,
-    Oland       = 0x04,
-    Hainan      = 0x05,
-
-    Bonaire     = 0x06,
-    Hawaii      = 0x07,
-    HawaiiPro   = 0x08,
-
-    Kalindi     = 0x0A,
-    Godavari    = 0x0B,
-    Spectre     = 0x0C,
-    Spooky      = 0x0D,
-
-    Carrizo     = 0x0E,
-    Bristol     = 0x0F,
-    Stoney      = 0x10,
-
-    Iceland     = 0x11,
-    Tonga       = 0x12,
-    TongaPro    = Tonga,
-    Fiji        = 0x13,
-
-    Polaris10   = 0x14,
-    Polaris11   = 0x15,
-    Polaris12   = 0x16,
-
-    Vega10      = 0x18,
-    Vega12      = 0x19,
-    Vega20      = 0x1A,
-    Raven       = 0x1B,
-    Raven2      = 0x1C,
-    Renoir      = 0x1D,
-
-    Navi10           = 0x1F,
-    Navi12           = 0x21,
-    Navi14           = 0x23,
-    Navi21           = 0x24,
-    Navi22           = 0x25,
-    Navi23           = 0x26,
-    Navi24           = 0x27,
-#if PAL_BUILD_NAVI31
-    Navi31           = 0x2C,
-#endif
-#if PAL_BUILD_NAVI32
-    Navi32           = 0x2D,
-#endif
-#if PAL_BUILD_NAVI33
-    Navi33           = 0x2E,
-#endif
-    Rembrandt        = 0x2F,
-    Raphael          = 0x34,
-#if PAL_BUILD_PHOENIX1
-    Phoenix1          = 0x35,
-#endif
 };
 
 /// Specifies which operating-system-support IP level (OSSIP) this device has.
@@ -838,6 +752,10 @@ struct PalPublicSettings
     /// application can use AC01 fast clears safely. This should never be forced to true unconditionally.
     bool ac01WaNotNeeded;
 #endif
+
+    /// Toggles whether or not image copies will prefer using the graphics pipeline. This setting does not force all
+    /// copies to use graphics or compute, it changes what method will be selected in cases where either could be used.
+    bool preferGraphicsImageCopy;
 };
 
 /// Defines the modes that the GPU Profiling layer can use when its buffer fills.
@@ -1618,7 +1536,7 @@ struct DeviceProperties
             uint32 u32All;
         } timelineSemaphore;
 
-#if PAL_AMDGPU_BUILD
+#if defined(__unix__)
         bool   supportOpaqueFdSemaphore; ///< Support export/import semaphore as opaque fd in linux KMD.
         bool   supportSyncFileSemaphore; ///< Support export/import semaphore as sync file in linux KMD.
         bool   supportSyncFileFence;     ///< Support export/import fence as sync file in linux KMD.
@@ -2917,6 +2835,15 @@ struct PageFaultStatus
     gpusize faultAddress; ///< GPU virtual address where page fault occurred.  Ignored if @ref pageFault is not set.
 };
 
+/// Input to the RegisterRuntimeState call, which allows the HIP runtime to pass information to KMD which can be shared
+/// with the HIP debugger.
+struct HipRuntimeSetup
+{
+    const void* pRdebug;  ///< Address of the r_debug structure in the runtime
+    uint32 runtimeState;  ///< Runtime-specific enum indicating runtime state
+    uint32 ttmpSetupHint; ///< Hint indicating that ttmp values should be initialized
+};
+
 /**
  ***********************************************************************************************************************
  * @interface IDevice
@@ -3653,6 +3580,7 @@ public:
     ///          + ErrorInvalidAlignment if createInfo.alignment is invalid.
     ///          + ErrorInvalidValue if createInfo.heapCount is 0 for real allocations or non-0 for virtual allocations.
     ///          + ErrorOutOfGpuMemory if the allocation failed due to a lack of GPU memory.
+    ///          + ErrorUnavailable if the Reserve Gpu Virtual Address failed.
     virtual Result CreateGpuMemory(
         const GpuMemoryCreateInfo& createInfo,
         void*                      pPlacementAddr,
@@ -5401,6 +5329,13 @@ public:
         uint32*     pModifierCount,
         uint64*     pModifiersList) const = 0;
 #endif
+
+    /// Passes the HIP runtime state setup to KMD on behalf of the HIP runtime.
+    ///
+    /// @param [in] runtimeState  A structure containing runtime state information to pass to KMD
+    ///
+    /// @returns Result for error handling.
+    virtual Result RegisterHipRuntimeState(const HipRuntimeSetup& runtimeState) const = 0;
 
 protected:
     /// @internal Constructor. Prevent use of new operator on this interface. Client must create objects by explicitly

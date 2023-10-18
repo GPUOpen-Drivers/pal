@@ -25,7 +25,6 @@
 
 #pragma once
 
-#include "core/hw/ossip/ossDevice.h"
 #include "core/cmdBuffer.h"
 #include "core/cmdStream.h"
 

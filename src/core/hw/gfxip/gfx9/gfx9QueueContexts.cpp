@@ -34,7 +34,10 @@
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9QueueContexts.h"
 #include "core/hw/gfxip/gfx9/gfx9ShaderRingSet.h"
+#include "core/hw/gfxip/gfx9/gfx9ShaderRing.h"
 #include "core/hw/gfxip/gfx9/gfx9UniversalEngine.h"
+#include "core/hw/gfxip/gfx9/gfx9UniversalCmdBuffer.h"
+#include "core/hw/gfxip/gfx9/gfx9ComputeCmdBuffer.h"
 #include "core/hw/gfxip/pm4UniversalCmdBuffer.h"
 #include "core/hw/gfxip/gfx9/g_gfx9ShadowedRegistersInit.h"
 #include "palVectorImpl.h"
@@ -175,7 +178,7 @@ ComputeQueueContext::ComputeQueueContext(
     m_pEngine(static_cast<ComputeEngine*>(pEngine)),
     m_queueId(queueId),
     m_ringSet(pDevice, isTmz),
-    m_currentUpdateCounter(0),
+    m_queueContextUpdateCounter(0),
     m_currentStackSizeDw(0),
     m_cmdStream(*pDevice,
                 pDevice->Parent()->InternalUntrackedCmdAllocator(),
@@ -238,15 +241,20 @@ Result ComputeQueueContext::Init()
 // Checks if any new Pipelines the client has created require that the compute scratch ring needs to expand. If so, the
 // the compute shader rings are re-validated and our context command stream is rebuilt.
 Result ComputeQueueContext::PreProcessSubmit(
-    InternalSubmitInfo* pSubmitInfo,
-    uint32              cmdBufferCount)
+    InternalSubmitInfo*      pSubmitInfo,
+    uint32                   cmdBufferCount,
+    const ICmdBuffer* const* ppCmdBuffers)
 {
     bool   hasUpdated      = false;
 
     PAL_ASSERT(m_pParentQueue != nullptr);
     uint64 lastTimeStamp   = m_pParentQueue->GetSubmissionContext()->LastTimestamp();
 
-    Result result = UpdateRingSet(&hasUpdated, pSubmitInfo->stackSizeInDwords, lastTimeStamp);
+    Result result = UpdateRingSet(&hasUpdated,
+                                  pSubmitInfo->stackSizeInDwords,
+                                  lastTimeStamp,
+                                  cmdBufferCount,
+                                  ppCmdBuffers);
 
     if ((result == Result::Success) && hasUpdated)
     {
@@ -384,7 +392,7 @@ Result ComputeQueueContext::RebuildCommandStreams(
     const CmdUtil& cmdUtil = m_pDevice->CmdUtil();
     uint32 chunkIdx = 0;
     ComputeQueueDeferFreeList deferFreeChunkList;
-    for (uint32_t idx = 0; idx < ComputeQueueCmdStreamNum; ++idx)
+    for (uint32 idx = 0; idx < ComputeQueueCmdStreamNum; ++idx)
     {
         deferFreeChunkList.pChunk[idx] = nullptr;
     }
@@ -538,40 +546,62 @@ Result ComputeQueueContext::RebuildCommandStreams(
 
 // =====================================================================================================================
 Result ComputeQueueContext::UpdateRingSet(
-    bool*   pHasChanged,        // [out]    Whether or not the ring set has updated. If true the ring set must rewrite its
-                                //          registers.
-    uint32  overrideStackSize,  // [in]     The stack size required by the subsequent submission.
-    uint64  lastTimeStamp)      // [in]     The LastTimeStamp associated with the ringSet
+    bool*                    pHasChanged,       // [out]    Whether or not the ring set has updated.
+                                                //          If true the ring set must rewrite its registers.
+    uint32                   overrideStackSize, // [in]     The stack size required by the subsequent submission.
+    uint64                   lastTimeStamp,     // [in]     The LastTimeStamp associated with the ringSet
+    uint32                   cmdBufferCount,    // [in]     Amount of CmdBuffers in ppCmdBuffers.
+    const ICmdBuffer* const* ppCmdBuffers)      // [in]     ppCmdBuffers which can provide ShaderRingSizes.
 {
     PAL_ALERT(pHasChanged == nullptr);
 
     Result result = Result::Success;
 
-    // Check if the queue context associated with this Queue is dirty, and obtain the ring item-sizes to validate
-    // against.
-    const uint32 currentCounter = m_pDevice->QueueContextUpdateCounter();
+    // Obtain current watermark for the sample-pos palette to validate against.
+    const uint32 currentSamplePaletteId = m_pDevice->QueueContextUpdateCounter();
+    const bool samplePosPalette         = (currentSamplePaletteId > m_queueContextUpdateCounter);
 
     // Check whether the stack size is required to be overridden
     const bool needStackSizeOverride = (m_currentStackSizeDw < overrideStackSize);
     m_currentStackSizeDw             = needStackSizeOverride ? overrideStackSize : m_currentStackSizeDw;
 
-    if ((currentCounter > m_currentUpdateCounter) || needStackSizeOverride)
+    ShaderRingItemSizes      ringSizes         = {};
+    bool                     needRingSetAlloc  = false;
+    const ShaderRing* const* ppRings           = m_ringSet.GetRings();
+    const uint32             computeScratchNdx = static_cast<uint32>(ShaderRingType::ComputeScratch);
+    const uint32             samplePosNdx      = static_cast<uint32>(ShaderRingType::SamplePos);
+
+    for (uint32 ndxCmd = 0; ndxCmd < cmdBufferCount; ++ndxCmd)
     {
-        m_currentUpdateCounter = currentCounter;
+        const ComputeCmdBuffer* pCmdBuf =
+            static_cast<const ComputeCmdBuffer*>(ppCmdBuffers[ndxCmd]);
 
-        ShaderRingItemSizes ringSizes = {};
-        m_pDevice->GetLargestRingSizes(&ringSizes);
+        const size_t sizeComputeScratch = pCmdBuf->GetRingSizeComputeScratch();
 
-        // We only want the size of scratch ring is grown locally. So that Device::UpdateLargestRingSizes() isn't
-        // needed here.
-        ringSizes.itemSize[static_cast<size_t>(ShaderRingType::ComputeScratch)] =
-            Util::Max(static_cast<size_t>(m_currentStackSizeDw),
-                      ringSizes.itemSize[static_cast<size_t>(ShaderRingType::ComputeScratch)]);
+        if (sizeComputeScratch > ringSizes.itemSize[computeScratchNdx])
+        {
+            ringSizes.itemSize[computeScratchNdx] = sizeComputeScratch;
+        }
+    }
 
-        SamplePatternPalette samplePatternPalette;
-        m_pDevice->GetSamplePatternPalette(&samplePatternPalette);
+    if (ringSizes.itemSize[computeScratchNdx] > ppRings[computeScratchNdx]->ItemSizeMax())
+    {
+        needRingSetAlloc = true;
+    }
 
-        if (m_needWaitIdleOnRingResize)
+    if (samplePosPalette || needStackSizeOverride || needRingSetAlloc)
+    {
+        if (samplePosPalette)
+        {
+            m_queueContextUpdateCounter = currentSamplePaletteId;
+            ringSizes.itemSize[samplePosNdx] = MaxSamplePatternPaletteEntries;
+        }
+
+        // We only want the size of scratch ring is grown locally.
+        ringSizes.itemSize[computeScratchNdx] =
+            Util::Max(static_cast<size_t>(m_currentStackSizeDw), ringSizes.itemSize[computeScratchNdx]);
+
+        if (m_needWaitIdleOnRingResize && (m_pParentQueue->IsStalled() == false))
         {
             m_pParentQueue->WaitIdle();
         }
@@ -581,7 +611,7 @@ Result ComputeQueueContext::UpdateRingSet(
         {
             uint32 reallocatedRings = 0;
             result = m_ringSet.Validate(ringSizes,
-                                        samplePatternPalette,
+                                        samplePosPalette,
                                         lastTimeStamp,
                                         &reallocatedRings);
         }
@@ -613,8 +643,8 @@ UniversalQueueContext::UniversalQueueContext(
     m_queueId(queueId),
     m_ringSet(pDevice, false),
     m_tmzRingSet(pDevice, true),
-    m_currentUpdateCounter(0),
-    m_currentUpdateCounterTmz(0),
+    m_queueContextUpdateCounter(0),
+    m_queueContextUpdateCounterTmz(0),
     m_currentStackSizeDw(0),
     m_cmdsUseTmzRing(false),
     m_supportMcbp(supportMcbp),
@@ -1104,8 +1134,9 @@ void UniversalQueueContext::WritePerSubmitPreamble(
 // because we need to build set commands to initialize the context register and shadow memory. The sets only need to be
 // done once, so we need to rebuild the command stream on the second submit.
 Result UniversalQueueContext::PreProcessSubmit(
-    InternalSubmitInfo* pSubmitInfo,
-    uint32              cmdBufferCount)
+    InternalSubmitInfo*      pSubmitInfo,
+    uint32                   cmdBufferCount,
+    const ICmdBuffer* const* ppCmdBuffers)
 {
     bool   hasUpdated    = false;
 
@@ -1118,7 +1149,12 @@ Result UniversalQueueContext::PreProcessSubmit(
     {
         const bool isTmz = (pSubmitInfo->flags.isTmzEnabled != 0);
 
-        result = UpdateRingSet(&hasUpdated, isTmz, pSubmitInfo->stackSizeInDwords, lastTimeStamp);
+        result = UpdateRingSet(&hasUpdated,
+                              isTmz,
+                              pSubmitInfo->stackSizeInDwords,
+                              lastTimeStamp,
+                              cmdBufferCount,
+                              ppCmdBuffers);
 
         if ((result == Result::Success) && (hasUpdated || (m_cmdsUseTmzRing != isTmz)))
         {
@@ -1271,7 +1307,7 @@ Result UniversalQueueContext::ProcessInitialSubmit(
 void UniversalQueueContext::ResetCommandStream(
     CmdStream*                   pCmdStream,
     UniversalQueueDeferFreeList* pList,
-    uint32_t*                    pIndex,
+    uint32*                      pIndex,
     uint64                       lastTimeStamp)
 {
     if (lastTimeStamp == 0)
@@ -1340,7 +1376,7 @@ Result UniversalQueueContext::RebuildCommandStreams(
     const CmdUtil& cmdUtil = m_pDevice->CmdUtil();
     UniversalQueueDeferFreeList deferFreeChunkList;
     // Initialize deferFreeChunkList here
-    for (uint32_t idx = 0; idx < UniversalQueueCmdStreamNum; ++idx)
+    for (uint32 idx = 0; idx < UniversalQueueCmdStreamNum; ++idx)
     {
         deferFreeChunkList.pChunk[idx] = nullptr;
     }
@@ -1990,43 +2026,73 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
 
 // =====================================================================================================================
 Result UniversalQueueContext::UpdateRingSet(
-    bool*   pHasChanged,        // [out]    Whether or not the ring set has updated. If true the ring set must rewrite its
-                                //          registers.
-    bool    isTmz,              // [in]     whether or not the ring set is tmz protected or not.
-    uint32  overrideStackSize,  // [in]     The stack size required by the subsequent submission.
-    uint64  lastTimeStamp)      // [in]     The LastTimeStamp associated with the ringSet
+    bool*                   pHasChanged,        // [out]    Whether or not the ring set has updated.
+                                                //          If true the ring set must rewrite its registers.
+    bool                     isTmz,             // [in]     whether or not the ring set is tmz protected or not.
+    uint32                   overrideStackSize, // [in]     The stack size required by the subsequent submission.
+    uint64                   lastTimeStamp,     // [in]     The LastTimeStamp associated with the ringSet
+    uint32                   cmdBufferCount,    // [in]     Amount of CmdBuffers in ppCmdBuffers.
+    const ICmdBuffer* const* ppCmdBuffers)      // [in]     ppCmdBuffers which can provide ShaderRingSizes.
 {
     PAL_ALERT(pHasChanged == nullptr);
     PAL_ASSERT(m_pParentQueue != nullptr);
 
     Result result = Result::Success;
 
-    // Check if the queue context associated with this Queue is dirty, and obtain the ring item-sizes to validate
-    // against.
-    const uint32 currentCounter = m_pDevice->QueueContextUpdateCounter();
-    uint32* pCurrentUpdateCounter = isTmz ? &m_currentUpdateCounterTmz : &m_currentUpdateCounter;
+    // Obtain current watermark for the sample-pos palette to validate against.
+    const uint32 currentSamplePaletteId = m_pDevice->QueueContextUpdateCounter();
+    uint32* pSamplePosPaletteId = isTmz ? &m_queueContextUpdateCounterTmz : &m_queueContextUpdateCounter;
+    const bool samplePosPalette = (currentSamplePaletteId > *pSamplePosPaletteId);
 
     // Check whether the stack size is required to be overridden
     const bool needStackSizeOverride = (m_currentStackSizeDw < overrideStackSize);
     m_currentStackSizeDw             = needStackSizeOverride ? overrideStackSize : m_currentStackSizeDw;
 
-    if ((currentCounter > *pCurrentUpdateCounter) || needStackSizeOverride)
+    UniversalRingSet* pRingSet = isTmz ? &m_tmzRingSet : &m_ringSet;
+
+    ShaderRingItemSizes      ringSizes        = {};
+    bool                     needRingSetAlloc = false;
+    const ShaderRing* const* ppRings          = pRingSet->GetRings();
+
+    for (uint32 ndxCmd = 0; ndxCmd < cmdBufferCount; ++ndxCmd)
     {
-        *pCurrentUpdateCounter = currentCounter;
+        const UniversalCmdBuffer* pCmdBuf =
+            static_cast<const UniversalCmdBuffer*>(ppCmdBuffers[ndxCmd]);
 
-        ShaderRingItemSizes ringSizes = {};
-        m_pDevice->GetLargestRingSizes(&ringSizes);
+        const ShaderRingItemSizes& cmdRingSizes = pCmdBuf->GetShaderRingSize();
 
-        // We only want the size of scratch ring is grown locally. So that Device::UpdateLargestRingSizes() isn't
-        // needed here.
+        for (uint32 ring = 0; ring < static_cast<uint32>(ShaderRingType::NumUniversal); ++ring)
+        {
+            if (cmdRingSizes.itemSize[ring] > ringSizes.itemSize[ring])
+            {
+                ringSizes.itemSize[ring] = cmdRingSizes.itemSize[ring];
+            }
+        }
+    }
+
+    for (size_t ring = 0; ring < m_ringSet.NumRings(); ++ring)
+    {
+        if (ringSizes.itemSize[ring] > ppRings[ring]->ItemSizeMax())
+        {
+            needRingSetAlloc = true;
+            break;
+        }
+    }
+
+    if (samplePosPalette || needStackSizeOverride|| needRingSetAlloc)
+    {
+        if (samplePosPalette)
+        {
+            *pSamplePosPaletteId = currentSamplePaletteId;
+            ringSizes.itemSize[static_cast<uint32>(ShaderRingType::SamplePos)] = MaxSamplePatternPaletteEntries;
+        }
+
+        // We only want the size of scratch ring is grown locally.
         ringSizes.itemSize[static_cast<size_t>(ShaderRingType::ComputeScratch)] =
             Util::Max(static_cast<size_t>(m_currentStackSizeDw),
                       ringSizes.itemSize[static_cast<size_t>(ShaderRingType::ComputeScratch)]);
 
-        SamplePatternPalette samplePatternPalette;
-        m_pDevice->GetSamplePatternPalette(&samplePatternPalette);
-
-        if (m_needWaitIdleOnRingResize)
+        if (m_needWaitIdleOnRingResize && (m_pParentQueue->IsStalled() == false))
         {
             m_pParentQueue->WaitIdle();
         }
@@ -2034,10 +2100,9 @@ Result UniversalQueueContext::UpdateRingSet(
         // The queues are idle, so it is safe to validate the rest of the RingSet.
         if (result == Result::Success)
         {
-            UniversalRingSet* pRingSet = isTmz ? &m_tmzRingSet : &m_ringSet;
             uint32 reallocatedRings = 0;
             result = pRingSet->Validate(ringSizes,
-                                        samplePatternPalette,
+                                        samplePosPalette,
                                         lastTimeStamp,
                                         &reallocatedRings);
         }

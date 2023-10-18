@@ -23,7 +23,11 @@
  #
  #######################################################################################################################
 
-cmake_minimum_required(VERSION 3.15...3.21)
+if (PAL_CLIENT_INTERFACE_MAJOR_VERSION LESS 828)
+    cmake_minimum_required(VERSION 3.15...3.21)
+else()
+    cmake_minimum_required(VERSION 3.21)
+endif()
 include(cmake/PalVersionHelper.cmake)
 
 project(PAL LANGUAGES CXX)

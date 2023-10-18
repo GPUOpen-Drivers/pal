@@ -62,7 +62,6 @@ public:
         if (HasValue() == false)
         {
             PAL_ASSERT_ALWAYS();
-            return *static_cast<T*>(nullptr);
         }
         return std::optional<T>::value();
     }
@@ -71,7 +70,6 @@ public:
         if (HasValue() == false)
         {
             PAL_ASSERT_ALWAYS();
-            return *static_cast<T*>(nullptr);
         }
         return std::optional<T>::value();
     }
@@ -80,7 +78,6 @@ public:
         if (HasValue() == false)
         {
             PAL_ASSERT_ALWAYS();
-            return *static_cast<T*>(nullptr);
         }
         return std::optional<T>::value();
     }

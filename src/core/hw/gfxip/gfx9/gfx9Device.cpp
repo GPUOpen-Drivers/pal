@@ -88,14 +88,7 @@ constexpr uint32 Gfx10UcodeVersionSetShRegOffset256B = 27;
 size_t GetDeviceSize(
     GfxIpLevel  gfxLevel)
 {
-    size_t  rpmSize = sizeof(Gfx9RsrcProcMgr);
-
-    if (IsGfx10Plus(gfxLevel))
-    {
-        rpmSize = sizeof(Gfx10RsrcProcMgr);
-    }
-
-    return (sizeof(Device) + rpmSize);
+    return (sizeof(Device) + sizeof(Gfx10RsrcProcMgr));
 }
 
 // =====================================================================================================================
@@ -289,11 +282,7 @@ Result Device::EarlyInit()
     // following the shader cache in memory, even if the shader cache ends up not being created.
     void*const pRpmPlacementAddr = (this + 1);
 
-    if (IsGfx9(*m_pParent))
-    {
-        m_pRsrcProcMgr = PAL_PLACEMENT_NEW(pRpmPlacementAddr) Pal::Gfx9::Gfx9RsrcProcMgr(this);
-    }
-    else if (IsGfx10Plus(m_gfxIpLevel))
+    if (IsGfx10Plus(m_gfxIpLevel))
     {
         m_pRsrcProcMgr = PAL_PLACEMENT_NEW(pRpmPlacementAddr) Pal::Gfx9::Gfx10RsrcProcMgr(this);
     }
@@ -371,7 +360,6 @@ void Device::SetupWorkarounds()
 Result Device::LateInit()
 {
     // If this device has been used before it will need this state zeroed.
-    memset(const_cast<ShaderRingItemSizes*>(&m_largestRingSizes), 0, sizeof(m_largestRingSizes));
     m_queueContextUpdateCounter = 0;
 
     return Result::Success;
@@ -601,7 +589,7 @@ Result Device::InitOcclusionResetMem()
 Result Device::AllocateVertexAttributesMem(
     bool isTmz)
 {
-    const MutexAuto lock(&m_ringSizesLock);
+    const MutexAuto lock(&m_queueContextUpdateLock);
     Result result = Result::Success;
     // Create the attributes through memory ring buffer
     const Gfx9PalSettings& settings = GetGfx9Settings(*Parent());
@@ -689,6 +677,8 @@ void Device::BindTrapHandler(
     IGpuMemory*       pGpuMemory,
     gpusize           offset)
 {
+    const MutexAuto lock(&m_queueContextUpdateLock);
+
     if (pipelineType == PipelineBindPoint::Graphics)
     {
         m_graphicsTrapHandler.Update(pGpuMemory, offset);
@@ -710,6 +700,8 @@ void Device::BindTrapBuffer(
     IGpuMemory*       pGpuMemory,
     gpusize           offset)
 {
+    const MutexAuto lock(&m_queueContextUpdateLock);
+
     if (pipelineType == PipelineBindPoint::Graphics)
     {
         m_graphicsTrapBuffer.Update(pGpuMemory, offset);
@@ -2699,22 +2691,8 @@ Result Device::CreateShaderLibrary(
 {
     PAL_ASSERT(createInfo.pCodeObject != nullptr);
     PAL_ASSERT(pPlacementAddr != nullptr);
-    AbiReader abiReader(GetPlatform(), createInfo.pCodeObject);
-    Result result = abiReader.Init();
 
-    MsgPackReader              metadataReader;
-    PalAbi::CodeObjectMetadata metadata;
-
-    if (result == Result::Success)
-    {
-        result = abiReader.GetMetadata(&metadataReader, &metadata);
-    }
-
-    if (result == Result::Success)
-    {
-        result = ConvertAbiRegistersToMetadata(this, &metadata, &metadataReader);
-    }
-
+    // Create shader lib
     Pal::ShaderLibrary* pShaderLib = nullptr;
 
     if (createInfo.flags.isGraphics)
@@ -2726,9 +2704,41 @@ Result Device::CreateShaderLibrary(
         pShaderLib = PAL_PLACEMENT_NEW(pPlacementAddr) ComputeShaderLibrary(this);
     }
 
+    Result result = pShaderLib->InitializeCodeObject(createInfo);
+
+    const void* pCodeObj = nullptr;
     if (result == Result::Success)
     {
-        result = pShaderLib->Initialize(createInfo, abiReader, metadata, &metadataReader);
+        // Retrieve the code object from the shader library.
+        // The AbiReader uses this pointer because the ShaderLibrary object may retain pointers to code object memory
+        // via the AbiReader. This pointer will be valid for the lifetime of the ShaderLibrary object.
+        // The client provided data may be deleted while the ShaderLibrary object is still in use.
+        size_t codeObjSize = 0;
+        pCodeObj = pShaderLib->GetCodeObject(&codeObjSize);
+    }
+
+    if (pCodeObj != nullptr)
+    {
+        AbiReader abiReader(GetPlatform(), pCodeObj);
+        result = abiReader.Init();
+
+        MsgPackReader              metadataReader;
+        PalAbi::CodeObjectMetadata metadata;
+
+        if (result == Result::Success)
+        {
+            result = abiReader.GetMetadata(&metadataReader, &metadata);
+        }
+
+        if (result == Result::Success)
+        {
+            result = ConvertAbiRegistersToMetadata(this, &metadata, &metadataReader);
+        }
+
+        if (result == Result::Success)
+        {
+            result = pShaderLib->InitFromCodeObjectBinary(createInfo, abiReader, metadata, &metadataReader);
+        }
     }
 
     if (result != Result::Success)
@@ -2945,15 +2955,20 @@ bool Device::DetermineHwStereoRenderingSupported(
 }
 
 // =====================================================================================================================
+uint32 Device::QueueContextUpdateCounter()
+{
+    const MutexAuto lock(&m_queueContextUpdateLock);
+    return m_queueContextUpdateCounter;
+}
+
+// =====================================================================================================================
 // Client drivers should be responsible for not repeatedly set the pallete table with the same data, PAL
 // doesn't check if the udpated contents are identical to last time.
 Result Device::SetSamplePatternPalette(
     const SamplePatternPalette& palette)
 {
-    const MutexAuto lock(&m_ringSizesLock);
+    const MutexAuto lock(&m_queueContextUpdateLock);
 
-    // Update SamplePos shader ring item size to create sample pattern paletter video memory during validation.
-    m_largestRingSizes.itemSize[static_cast<size_t>(ShaderRingType::SamplePos)] = MaxSamplePatternPaletteEntries;
     memcpy(const_cast<SamplePatternPalette*>(&m_samplePatternPalette), palette, sizeof(m_samplePatternPalette));
 
     // Increment counter to trigger later sample pattern palette update during submission
@@ -2969,52 +2984,11 @@ void Device::GetSamplePatternPalette(
 {
     PAL_ASSERT(pSamplePatternPallete != nullptr);
 
-    const MutexAuto lock(&m_ringSizesLock);
+    const MutexAuto lock(&m_queueContextUpdateLock);
+
     memcpy(pSamplePatternPallete,
            const_cast<const SamplePatternPalette*>(&m_samplePatternPalette),
            sizeof(m_samplePatternPalette));
-}
-
-// =====================================================================================================================
-// Called during pipeline creation to notify that item-size requirements for each shader ring have changed. These
-// 'largest ring sizes' will be validated at Queue submission time.
-//
-// NOTE: Since this is called at pipeline-create-time, it can be invoked by multiple threads simultaneously.
-void Device::UpdateLargestRingSizes(
-    const ShaderRingItemSizes* pRingSizesNeeded)
-{
-    const MutexAuto lock(&m_ringSizesLock);
-
-    // Loop over all ring sizes and check if the ring sizes need to grow at all.
-    bool ringSizesDirty = false;
-    for (size_t ring = 0; ring < static_cast<size_t>(ShaderRingType::NumUniversal); ++ring)
-    {
-        if (pRingSizesNeeded->itemSize[ring] > m_largestRingSizes.itemSize[ring])
-        {
-            m_largestRingSizes.itemSize[ring] = pRingSizesNeeded->itemSize[ring];
-            ringSizesDirty = true;
-        }
-    }
-
-    // If the ring sizes are dirty, update the queue context counter so that all queue contexts will be rebuilt before
-    // their next submission.
-    if (ringSizesDirty)
-    {
-        m_queueContextUpdateCounter++;
-    }
-}
-
-// =====================================================================================================================
-// Copy our largest ring item-sizes to the caller's output buffer so they know what to validate against.
-void Device::GetLargestRingSizes(
-    ShaderRingItemSizes* pRingSizesNeeded)
-{
-    const MutexAuto lock(&m_ringSizesLock);
-
-    // Note that the const_cast is required because m_largestRingSizes is marked as volatile.
-    memcpy(pRingSizesNeeded,
-           const_cast<const ShaderRingItemSizes*>(&m_largestRingSizes),
-           sizeof(m_largestRingSizes));
 }
 
 // =====================================================================================================================
@@ -3920,7 +3894,7 @@ void PAL_STDCALL Device::Gfx9CreateUntypedBufferViewSrds(
     const BufferViewInfo* pBufferViewInfo,
     void*                 pOut)
 {
-    PAL_ASSERT((pDevice != nullptr) && (pOut != nullptr) && (pBufferViewInfo != nullptr) && (count > 0));
+    PAL_DEBUG_BUILD_ONLY_ASSERT((pDevice != nullptr) && (pOut != nullptr) && (pBufferViewInfo != nullptr) && (count > 0));
     const auto*const pGfxDevice = static_cast<const Device*>(static_cast<const Pal::Device*>(pDevice)->GetGfxDevice());
 
     Gfx9BufferSrd* pOutSrd = static_cast<Gfx9BufferSrd*>(pOut);
@@ -3976,7 +3950,7 @@ void PAL_STDCALL Device::Gfx10CreateUntypedBufferViewSrds(
 
     for (uint32 idx = 0; idx < count; ++idx)
     {
-        PAL_ASSERT((pBufferViewInfo->gpuAddr != 0) || (pBufferViewInfo->range == 0));
+        PAL_DEBUG_BUILD_ONLY_ASSERT((pBufferViewInfo->gpuAddr != 0) || (pBufferViewInfo->range == 0));
 
         pOutSrd->u32All[0] = LowPart(pBufferViewInfo->gpuAddr);
 
@@ -3987,7 +3961,7 @@ void PAL_STDCALL Device::Gfx10CreateUntypedBufferViewSrds(
         pOutSrd->u32All[2] = pGfxDevice->CalcNumRecords(static_cast<size_t>(pBufferViewInfo->range),
                                                         static_cast<uint32>(pBufferViewInfo->stride));
 
-        PAL_ASSERT(Formats::IsUndefined(pBufferViewInfo->swizzledFormat.format));
+        PAL_DEBUG_BUILD_ONLY_ASSERT(Formats::IsUndefined(pBufferViewInfo->swizzledFormat.format));
 
         uint32 llcNoalloc = 0;
 
@@ -4004,7 +3978,7 @@ void PAL_STDCALL Device::Gfx10CreateUntypedBufferViewSrds(
             const uint32 oobSelect = ((pBufferViewInfo->stride == 1) ||
                                       (pBufferViewInfo->stride == 0)) ? SQ_OOB_COMPLETE : SQ_OOB_INDEX_ONLY;
 
-            PAL_ASSERT((llcNoalloc == 0) || (IsGfx103PlusExclusive(*pPalDevice)));
+            PAL_DEBUG_BUILD_ONLY_ASSERT((llcNoalloc == 0) || (IsGfx103PlusExclusive(*pPalDevice)));
 
             pOutSrd->u32All[3] = ((SQ_SEL_X                       << SqBufRsrcTWord3DstSelXShift)                       |
                                   (SQ_SEL_Y                       << SqBufRsrcTWord3DstSelYShift)                       |
@@ -7045,7 +7019,8 @@ GfxIpLevel DetermineIpLevel(
     // GFX 9 Discrete GPU's (Arctic Islands):
     case FAMILY_AI:
     case FAMILY_RV:
-        level = GfxIpLevel::GfxIp9;
+        // We no longer support any gfx9 GPUs.
+        PAL_NOT_IMPLEMENTED();
         break;
 
     // GFX10 GPU's (Navi family)
@@ -7922,7 +7897,7 @@ void InitializeGpuChipProperties(
             pInfo->revision              = AsicRevision::Navi31;
             pInfo->gfxStepping           = Abi::GfxIpSteppingNavi31;
             pInfo->gfx9.numShaderEngines = 6;
-            pInfo->gfx9.numSdpInterfaces = 16;
+            pInfo->gfx9.numSdpInterfaces = 24;
             pInfo->gfx9.maxNumCuPerSh    = 8;
             pInfo->gfx9.maxNumRbPerSe    = 4;
             pInfo->gfx9.numPackerPerSc   = 4;
@@ -8431,15 +8406,16 @@ void InitializeGpuEngineProperties(
     pCompute->minTimestampAlignment                 = 8; // The CP spec requires 8-byte alignment.
     pCompute->queueSupport                          = SupportQueueTypeCompute;
 
-    if (IsGfx10Plus(gfxIpLevel)
-    )
     {
-        // SDMA engine is part of GFXIP for GFX10+, so set that up here
         auto*const pDma = &pInfo->perEngine[EngineTypeDma];
 
-        pDma->flags.timestampSupport               = 1;
-        pDma->flags.memory32bPredicationSupport    = 0;
-        pDma->flags.memory64bPredicationSupport    = 1;
+        pDma->flags.timestampSupport                = 1;
+        pDma->flags.memory32bPredicationSupport     = 0;
+        pDma->flags.memory64bPredicationSupport     = 1;
+        pDma->flags.supportsImageInitBarrier        = 1;
+        pDma->flags.supportsMismatchedTileTokenCopy = 1;
+        pDma->flags.supportsUnmappedPrtPageAccess   = 1;
+
         pDma->minTiledImageCopyAlignment.width     = 16;
         pDma->minTiledImageCopyAlignment.height    = 16;
         pDma->minTiledImageCopyAlignment.depth     = 8;
@@ -8452,13 +8428,6 @@ void InitializeGpuEngineProperties(
         pDma->minTimestampAlignment                = 8; // The OSSIP 5.0 spec requires 64-bit alignment.
         pDma->queueSupport                         = SupportQueueTypeDma;
     }
-
-    // Note that we set this DMA state in the GFXIP layer because it deals with GFXIP features that the OSSIP layer
-    // doesn't need to understand. Gfx9 can't support per-subresource initialization on DMA because the metadata
-    // is interleaved.
-    pInfo->perEngine[EngineTypeDma].flags.supportsImageInitBarrier        = 1;
-    pInfo->perEngine[EngineTypeDma].flags.supportsMismatchedTileTokenCopy = 1;
-    pInfo->perEngine[EngineTypeDma].flags.supportsUnmappedPrtPageAccess   = 1;
 }
 
 // =====================================================================================================================
@@ -10637,7 +10606,7 @@ void Device::DestroyVrsDepthImage(
 Result Device::CreateVrsDepthView()
 {
     // Just re-using an already existing mutex. This call should only ever be hit once per device instance.
-    const MutexAuto lock(&m_ringSizesLock);
+    const MutexAuto lock(&m_queueContextUpdateLock);
     Result          result = Result::Success;
 
     // Double check in case multiple threads got past the caller's check to ensure we get one allocation.

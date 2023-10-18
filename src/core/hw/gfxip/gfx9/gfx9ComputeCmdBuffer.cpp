@@ -72,7 +72,8 @@ ComputeCmdBuffer::ComputeCmdBuffer(
 #endif
     m_predGpuAddr(0),
     m_inheritedPredication(false),
-    m_globalInternalTableAddr(0)
+    m_globalInternalTableAddr(0),
+    m_ringSizeComputeScratch(0)
 {
     // Compute command buffers suppors compute ops and CP DMA.
     m_engineSupport = CmdBufferEngineSupport::Compute | CmdBufferEngineSupport::CpDma;
@@ -121,9 +122,10 @@ void ComputeCmdBuffer::ResetState()
 #endif
 
     // Command buffers start without a valid predicate GPU address.
-    m_predGpuAddr = 0;
-    m_inheritedPredication = false;
+    m_predGpuAddr             = 0;
+    m_inheritedPredication    = false;
     m_globalInternalTableAddr = 0;
+    m_ringSizeComputeScratch  = 0;
 }
 
 // =====================================================================================================================
@@ -181,6 +183,11 @@ void ComputeCmdBuffer::CmdBindPipeline(
         }
 
         SetDispatchFunctions(newUsesHsaAbi);
+    }
+
+    if (pNewPipeline != nullptr)
+    {
+        m_ringSizeComputeScratch = Max(pNewPipeline->GetRingSizeComputeScratch(), m_ringSizeComputeScratch);
     }
 
     Pal::Pm4CmdBuffer::CmdBindPipeline(params);
@@ -1401,6 +1408,8 @@ void ComputeCmdBuffer::LeakNestedCmdBufferState(
     const ComputeCmdBuffer& callee)
 {
     Pm4::ComputeCmdBuffer::LeakNestedCmdBufferState(callee);
+
+    m_ringSizeComputeScratch = Max(callee.m_ringSizeComputeScratch, m_ringSizeComputeScratch);
 
     // Invalidate PM4 optimizer state on post-execute since the current command buffer state does not reflect
     // state changes from the nested command buffer. We will need to resolve the nested PM4 state onto the

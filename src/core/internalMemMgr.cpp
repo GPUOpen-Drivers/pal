@@ -200,22 +200,18 @@ Result InternalMemMgr::AllocateGpuMem(
                 (internalInfo.flags.pageFaultDebugSrd == 0)) == (pOffset != nullptr));
 
     GpuMemoryCreateInfo localCreateInfo = createInfo;
+    localCreateInfo.heapCount           = 0;
 
-    // TMZ allocations can only be allocated from heaps that support TMZ. The caller must provide at least one TMZ heap.
-    if (localCreateInfo.flags.tmzProtected)
+    // There are two ways to specify memory residency in PAL, either via an explicit heap list or
+    // via the GpuHeapAccess enum. TranslateHeapInfo translates from the GpuHeapAccess value specified
+    // in the GpuMemoryCreateInfo structure into a list of viable heaps, accounting for whether PAL is requesting
+    // a TMZ allocation
+
+    // Calling here ensures that only viable heaps are considered during allocation
+    GpuMemory::TranslateHeapInfo(*m_pDevice, createInfo, localCreateInfo.heaps, &localCreateInfo.heapCount);
+    if (localCreateInfo.heapCount == 0)
     {
-        localCreateInfo.heapCount = 0;
-        for (uint32 i = 0; i < createInfo.heapCount; i++)
-        {
-            if (m_pDevice->HeapProperties(createInfo.heaps[i]).flags.supportsTmz)
-            {
-                localCreateInfo.heaps[localCreateInfo.heapCount++] = createInfo.heaps[i];
-            }
-        }
-        if (localCreateInfo.heapCount == 0)
-        {
-            result = Result::ErrorInvalidValue;
-        }
+        result = Result::ErrorInvalidValue;
     }
 
     // If the requested allocation is small enough, try to find an appropriate pool and sub-allocate from it.

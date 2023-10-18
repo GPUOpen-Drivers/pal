@@ -145,6 +145,35 @@ struct CopyImageInfo
 // Size of a CopyImageInfo structure, in DWORD's.
 constexpr uint32 CopyImageInfoDwords = ((sizeof(CopyImageInfo) + (sizeof(uint32) - 1)) / sizeof(uint32));
 
+// The two ClearImage structs must match their definitions in clearImage.hlsl.
+union ClearImagePackedConsts
+{
+    struct
+    {
+        uint32 log2ThreadsX : 8; // The clear shaders have 64 threads per group and these three sizes define its shape.
+        uint32 log2ThreadsY : 8;
+        uint32 log2ThreadsZ : 8;
+        uint32 useFastPath  : 1; // If we can skip all boundary checks and masking.
+        uint32 isMasked     : 1; // Set if this is a masked clear: Image[x] = (Image[x] & DisableMask) | ClearColor.
+        uint32 log2Samples  : 2; // The number of samples to clear for a MSAA image.
+        uint32 reserved     : 4; // Currently unused.
+    };
+
+    uint32 u32All;
+};
+
+// These will go into memory, hence "slow constants".
+struct ClearImageSlowConsts
+{
+    uint32       disableMask[4]; // A bitmask of packed texel bits that should not be cleared (writes are disabled).
+    DispatchDims firstTexel;     // The "top left corner" of the clear volume (the clear offset).
+    uint32       unused0;        // HLSL CB packing rules force us to include some extra trailing padding.
+    DispatchDims lastTexel;      // The "bottom right corner" of the clear volume (offset + extent - 1).
+    uint32       unused1;        // HLSL CB packing rules force us to include some extra trailing padding.
+};
+
+constexpr uint32 ClearImageSlowConstsDwords = Util::NumBytesToNumDwords(sizeof(ClearImageSlowConsts));
+
 // Helper structure containing the constant buffer data for YUV-to-RGB conversion blits.
 struct YuvRgbConversionInfo
 {

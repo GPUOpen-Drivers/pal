@@ -42,15 +42,18 @@ namespace Pal
 // device.
 static void FilterViableHeaps(
     const GpuHeap* pHeaps,
-    size_t         heapCount,
+    uint32         heapCount,
     const Device&  device,
     GpuHeap*       pOutHeaps,
-    size_t*        pOutHeapCount)
+    uint32*        pOutHeapCount,
+    const bool     tmzProtected)
 {
     *pOutHeapCount = 0;
     for (uint32 heap = 0; heap < heapCount; ++heap)
     {
-        if (device.HeapLogicalSize(pHeaps[heap]) > 0u)
+        const GpuMemoryHeapProperties& heapProps = device.HeapProperties(pHeaps[heap]);
+        if ((device.HeapLogicalSize(pHeaps[heap])) > 0u &&
+            ((tmzProtected == false) || (heapProps.flags.supportsTmz != 0)))
         {
             pOutHeaps[(*pOutHeapCount)++] = pHeaps[heap];
         }
@@ -62,16 +65,24 @@ void GpuMemory::TranslateHeapInfo(
     const Device&              device,
     const GpuMemoryCreateInfo& createInfo,
     GpuHeap*                   pOutHeaps,
-    size_t*                    pOutHeapCount)
+    uint32*                    pOutHeapCount)
 {
     switch (createInfo.heapAccess)
     {
     case GpuHeapAccess::GpuHeapAccessExplicit:
         // imperative heap selection; createInfo.heaps determines the heaps
-        *pOutHeapCount = createInfo.heapCount;
+        *pOutHeapCount = 0;
         for (uint32 heap = 0; heap < createInfo.heapCount; ++heap)
         {
-            pOutHeaps[heap] = createInfo.heaps[heap];
+            if ((heap == 0) || (createInfo.heaps[heap] != GpuHeapGartCacheable))
+            {
+                pOutHeaps[(*pOutHeapCount)++] = createInfo.heaps[heap];
+            }
+            else
+            {
+                // KMD will ignore a non-primary cacheable heap, so it's better to catch it earlier
+                PAL_ALERT_ALWAYS_MSG("Non primary GpuHeapGartCacheable heap found and stripped from heap list.");
+            }
         }
         break;
     case GpuHeapAccess::GpuHeapAccessCpuNoAccess:
@@ -84,14 +95,24 @@ void GpuMemory::TranslateHeapInfo(
         {
             // considering both invisible and local, in case the former is 0 (e.g., under Resizable BAR)
             constexpr GpuHeap PreferredHeaps[] = { GpuHeap::GpuHeapInvisible, GpuHeap::GpuHeapLocal };
-            FilterViableHeaps(PreferredHeaps, ArrayLen32(PreferredHeaps), device, pOutHeaps, pOutHeapCount);
+            FilterViableHeaps(PreferredHeaps,
+                              ArrayLen32(PreferredHeaps),
+                              device,
+                              pOutHeaps,
+                              pOutHeapCount,
+                              createInfo.flags.tmzProtected);
         }
         break;
         case GpuType::Integrated:
         {
             // integrated solutions seem to miss invisible and local
-            constexpr GpuHeap PreferredHeaps[] = { GpuHeap::GpuHeapGartUswc, GpuHeap::GpuHeapGartCacheable };
-            FilterViableHeaps(PreferredHeaps, ArrayLen32(PreferredHeaps), device, pOutHeaps, pOutHeapCount);
+            constexpr GpuHeap PreferredHeaps[] = { GpuHeap::GpuHeapGartUswc };
+            FilterViableHeaps(PreferredHeaps,
+                              ArrayLen32(PreferredHeaps),
+                              device,
+                              pOutHeaps,
+                              pOutHeapCount,
+                              createInfo.flags.tmzProtected);
         }
         break;
         default:
@@ -103,36 +124,79 @@ void GpuMemory::TranslateHeapInfo(
     case GpuHeapAccess::GpuHeapAccessGpuMostly:
     {
         // declarative heap selection; optimized for GPU access
-        constexpr GpuHeap PreferredHeaps[] = {
-            GpuHeap::GpuHeapLocal, GpuHeap::GpuHeapGartUswc, GpuHeap::GpuHeapGartCacheable
-        };
-        FilterViableHeaps(PreferredHeaps, ArrayLen32(PreferredHeaps), device, pOutHeaps, pOutHeapCount);
+        constexpr GpuHeap PreferredHeaps[] = { GpuHeap::GpuHeapLocal, GpuHeap::GpuHeapGartUswc };
+        FilterViableHeaps(PreferredHeaps,
+                          ArrayLen32(PreferredHeaps),
+                          device,
+                          pOutHeaps,
+                          pOutHeapCount,
+                          createInfo.flags.tmzProtected);
     }
     break;
     case GpuHeapAccess::GpuHeapAccessCpuReadMostly:
     {
         // declarative heap selection; CPU will mostly do reads
         constexpr GpuHeap PreferredHeaps[] = { GpuHeap::GpuHeapGartCacheable };
-        FilterViableHeaps(PreferredHeaps, ArrayLen32(PreferredHeaps), device, pOutHeaps, pOutHeapCount);
+        FilterViableHeaps(PreferredHeaps,
+                          ArrayLen32(PreferredHeaps),
+                          device,
+                          pOutHeaps,
+                          pOutHeapCount,
+                          createInfo.flags.tmzProtected);
     }
     break;
     case GpuHeapAccess::GpuHeapAccessCpuWriteMostly:
     {
         // declarative heap selection; CPU will do multiple writes
         constexpr GpuHeap PreferredHeaps[] = { GpuHeap::GpuHeapGartUswc };
-        FilterViableHeaps(PreferredHeaps, ArrayLen32(PreferredHeaps), device, pOutHeaps, pOutHeapCount);
+        FilterViableHeaps(PreferredHeaps,
+                          ArrayLen32(PreferredHeaps),
+                          device,
+                          pOutHeaps,
+                          pOutHeapCount,
+                          createInfo.flags.tmzProtected);
     }
     break;
     case GpuHeapAccess::GpuHeapAccessCpuMostly:
     {
         // declarative heap selection; CPU will do a mix of reads and writes
-        constexpr GpuHeap PreferredHeaps[] = { GpuHeap::GpuHeapGartUswc, GpuHeap::GpuHeapGartCacheable };
-        FilterViableHeaps(PreferredHeaps, ArrayLen32(PreferredHeaps), device, pOutHeaps, pOutHeapCount);
+        constexpr GpuHeap PreferredHeaps[] = { GpuHeap::GpuHeapGartUswc };
+        FilterViableHeaps(PreferredHeaps,
+                          ArrayLen32(PreferredHeaps),
+                          device,
+                          pOutHeaps,
+                          pOutHeapCount,
+                          createInfo.flags.tmzProtected);
     }
     break;
     default:
         PAL_ALERT_ALWAYS_MSG("Unexpected GPU heap access type");
         break;
+    }
+
+    // In the case that none of the preferred heap types support TMZ, we filter all supported heaps
+    if ((createInfo.heapAccess != GpuHeapAccessExplicit) && (*pOutHeapCount == 0))
+    {
+        if (createInfo.heapAccess == GpuHeapAccessCpuNoAccess)
+        {
+            constexpr GpuHeap LegalHeaps[] = { GpuHeapInvisible, GpuHeapLocal, GpuHeapGartUswc, GpuHeapGartCacheable };
+            FilterViableHeaps(LegalHeaps,
+                              ArrayLen32(LegalHeaps),
+                              device,
+                              pOutHeaps,
+                              pOutHeapCount,
+                              createInfo.flags.tmzProtected);
+        }
+        else
+        {
+            constexpr GpuHeap LegalHeaps[] = { GpuHeapLocal, GpuHeapGartUswc, GpuHeapGartCacheable };
+            FilterViableHeaps(LegalHeaps,
+                              ArrayLen32(LegalHeaps),
+                              device,
+                              pOutHeaps,
+                              pOutHeapCount,
+                              createInfo.flags.tmzProtected);
+        }
     }
 }
 
@@ -248,21 +312,11 @@ Result GpuMemory::ValidateCreateInfo(
     {
         if (createInfo.flags.virtualAlloc == false)
         {
-            const GpuHeap *pHeaps = nullptr;
-            size_t heapCount      = 0;
+            GpuHeap heaps[GpuHeapCount] = {};
+            uint32  heapCount           = 0;
 
-            // if necessary, translate heap access information to explicit heaps
-            GpuHeap implicitHeaps[GpuHeapCount] = {};
-            if (createInfo.heapAccess != GpuHeapAccess::GpuHeapAccessExplicit)
-            {
-                TranslateHeapInfo(*pDevice, createInfo, implicitHeaps, &heapCount);
-                pHeaps = implicitHeaps;
-            }
-            else
-            {
-                pHeaps    = createInfo.heaps;
-                heapCount = createInfo.heapCount;
-            }
+            // Translate heap access information to explicit heaps
+            TranslateHeapInfo(*pDevice, createInfo, heaps, &heapCount);
 
             if (heapCount == 0)
             {
@@ -273,7 +327,7 @@ Result GpuMemory::ValidateCreateInfo(
             {
                 for (uint32 idx = 0; idx < heapCount; ++idx)
                 {
-                    if ((pHeaps[idx] == GpuHeapLocal) || (pHeaps[idx] == GpuHeapInvisible))
+                    if ((heaps[idx] == GpuHeapLocal) || (heaps[idx] == GpuHeapInvisible))
                     {
                         nonLocalOnly = false;
                         break;
@@ -619,6 +673,8 @@ Result GpuMemory::Init(
         m_desc.size = Pow2Align(m_desc.size, pageSize) + pageSize;
     }
 
+    Result result = Result::Success;
+
     if (IsVirtual() == false)
     {
         TranslateHeapInfo(*m_pDevice, createInfo, m_heaps, &m_heapCount);
@@ -634,7 +690,7 @@ Result GpuMemory::Init(
                               (m_flags.pageTableBlock == 0) &&
                               (createInfo.flags.cpuInvisible == 0));
 
-        m_desc.heapCount = static_cast<uint32>(m_heapCount);
+        m_desc.heapCount = m_heapCount;
         for (uint32 heap = 0; heap < m_heapCount; ++heap)
         {
             m_desc.heaps[heap] = m_heaps[heap];
@@ -664,195 +720,197 @@ Result GpuMemory::Init(
 
         // Give OS-specific code an opportunity to examine the client-specified heaps and add an extra GART backup
         // heap for local-only allocations if needed.
-        if (m_heapCount > 0)
+        if ((result == Result::Success) && (m_heapCount > 0))
         {
             PAL_ASSERT((m_flags.nonLocalOnly == 0) || (m_flags.localOnly == 0));
             OsFinalizeHeaps();
         }
     }
 
-    m_flags.deferCpuVaReservation = (m_flags.cpuVisible != false) && createInfo.flags.deferCpuVaReservation;
-    m_flags.isLocalPreferred      = ((m_heaps[0] == GpuHeapLocal) || (m_heaps[0] == GpuHeapInvisible));
-
-    Result result = Result::Success;
-
-    if (IsShared())
+    if (result == Result::Success)
     {
-        result = OpenSharedMemory(internalInfo.hExternalResource);
+        m_flags.deferCpuVaReservation = (m_flags.cpuVisible != false) && createInfo.flags.deferCpuVaReservation;
+        m_flags.isLocalPreferred      = ((m_heaps[0] == GpuHeapLocal) || (m_heaps[0] == GpuHeapInvisible));
 
-        if (IsErrorResult(result) == false)
+        if (IsShared())
         {
-            DescribeGpuMemory(Developer::GpuMemoryAllocationMethod::Opened);
-        }
-    }
-    else
-    {
-        gpusize baseVirtAddr = internalInfo.baseVirtAddr;
+            result = OpenSharedMemory(internalInfo.hExternalResource);
 
-        if (createInfo.flags.useReservedGpuVa && (createInfo.pReservedGpuVaOwner != nullptr))
-        {
-            const GpuMemoryDesc& desc = createInfo.pReservedGpuVaOwner->Desc();
-
-            // It's illegal for the internal path to specify non-zero base VA when client already does.
-            PAL_ASSERT(internalInfo.baseVirtAddr == 0);
-            // Do not expect client set "useReservedGpuVa" for ShadowDescriptorTable case
-            PAL_ASSERT(m_vaPartition != VaPartition::ShadowDescriptorTable);
-
-            baseVirtAddr = desc.gpuVirtAddr;
-        }
-
-        if (m_vaPartition == VaPartition::ShadowDescriptorTable)
-        {
-            // It's illegal for the internal path to use this VA range.
-            PAL_ASSERT(IsClient());
-
-            gpusize descrStartAddr  = 0;
-            gpusize descrEndAddr    = 0;
-            gpusize shadowStartAddr = 0;
-            gpusize shadowEndAddr   = 0;
-            m_pDevice->VirtualAddressRange(VaPartition::DescriptorTable,       &descrStartAddr,  &descrEndAddr);
-            m_pDevice->VirtualAddressRange(VaPartition::ShadowDescriptorTable, &shadowStartAddr, &shadowEndAddr);
-
-            // The descriptor GPU VA must meet the address alignment and fit in the DescriptorTable range.
-            PAL_ASSERT(((createInfo.descrVirtAddr % m_desc.alignment) == 0) &&
-                       (createInfo.descrVirtAddr >= descrStartAddr)         &&
-                       (createInfo.descrVirtAddr < descrEndAddr));
-
-            baseVirtAddr = shadowStartAddr + (createInfo.descrVirtAddr - descrStartAddr);
-        }
-        else if ((createInfo.vaRange == VaRange::Svm) && (m_pDevice->MemoryProperties().flags.iommuv2Support == 0))
-        {
-            result = AllocateSvmVirtualAddress(baseVirtAddr, createInfo.size, createInfo.alignment, false);
-            baseVirtAddr = m_desc.gpuVirtAddr;
-        }
-        else if (createInfo.vaRange == VaRange::Default)
-        {
-            // For performance reasons we may wish to force our GPU memory allocations' addresses and sizes to be
-            // either fragment-aligned or aligned to KMD's reported optimized large page size, big page size or for
-            // specific images iterate256 page size.  This should be skipped if any of the following are true:
-            // - We're not using the default VA range because non-default VA ranges have special address usage rules.
-            // - We have selected a specific base VA for the allocation because it might not be 64KB aligned.
-            // - The allocation prefers a non-local heap because we can only get 64KB fragments in local memory.
-            // - The allocation prefers a local visible heap on ResizeBarOff case. Local visible heap size in
-            //   ResizeBarOff case has small size (usually 256MB); it's easy to run out of the heap size due to various
-            //   alignment padding which will cause worse performance.
-            // - Type is SDI ExternalPhysical because it has no real allocation and size must be consistent with KMD.
-            const GpuMemoryProperties& memoryProperties = m_pDevice->MemoryProperties();
-            bool invisibleHeapIsEmpty = m_pDevice->HeapLogicalSize(GpuHeapInvisible) == 0;
-            if ((baseVirtAddr == 0) &&
-                ((m_heaps[0] == GpuHeapInvisible) ||
-                 ((m_heaps[0] == GpuHeapLocal) && invisibleHeapIsEmpty)) &&
-                (createInfo.flags.sdiExternal == 0))
+            if (IsErrorResult(result) == false)
             {
-                gpusize idealAlignment = 0;
+                DescribeGpuMemory(Developer::GpuMemoryAllocationMethod::Opened);
+            }
+        }
+        else
+        {
+            gpusize baseVirtAddr = internalInfo.baseVirtAddr;
 
-                if ((memoryProperties.largePageSupport.gpuVaAlignmentNeeded ||
-                    memoryProperties.largePageSupport.sizeAlignmentNeeded) &&
-                    m_pDevice->Settings().enableLargePagePreAlignment)
+            if (createInfo.flags.useReservedGpuVa && (createInfo.pReservedGpuVaOwner != nullptr))
+            {
+                const GpuMemoryDesc& desc = createInfo.pReservedGpuVaOwner->Desc();
+
+                // It's illegal for the internal path to specify non-zero base VA when client already does.
+                PAL_ASSERT(internalInfo.baseVirtAddr == 0);
+                // Do not expect client set "useReservedGpuVa" for ShadowDescriptorTable case
+                PAL_ASSERT(m_vaPartition != VaPartition::ShadowDescriptorTable);
+
+                baseVirtAddr = desc.gpuVirtAddr;
+            }
+
+            if (m_vaPartition == VaPartition::ShadowDescriptorTable)
+            {
+                // It's illegal for the internal path to use this VA range.
+                PAL_ASSERT(IsClient());
+
+                gpusize descrStartAddr  = 0;
+                gpusize descrEndAddr    = 0;
+                gpusize shadowStartAddr = 0;
+                gpusize shadowEndAddr   = 0;
+                m_pDevice->VirtualAddressRange(VaPartition::DescriptorTable,       &descrStartAddr,  &descrEndAddr);
+                m_pDevice->VirtualAddressRange(VaPartition::ShadowDescriptorTable, &shadowStartAddr, &shadowEndAddr);
+
+                // The descriptor GPU VA must meet the address alignment and fit in the DescriptorTable range.
+                PAL_ASSERT(((createInfo.descrVirtAddr % m_desc.alignment) == 0) &&
+                        (createInfo.descrVirtAddr >= descrStartAddr)         &&
+                        (createInfo.descrVirtAddr < descrEndAddr));
+
+                baseVirtAddr = shadowStartAddr + (createInfo.descrVirtAddr - descrStartAddr);
+            }
+            else if ((createInfo.vaRange == VaRange::Svm) && (m_pDevice->MemoryProperties().flags.iommuv2Support == 0))
+            {
+                result = AllocateSvmVirtualAddress(baseVirtAddr, createInfo.size, createInfo.alignment, false);
+                baseVirtAddr = m_desc.gpuVirtAddr;
+            }
+            else if (createInfo.vaRange == VaRange::Default)
+            {
+                // For performance reasons we may wish to force our GPU memory allocations' addresses and sizes to be
+                // either fragment-aligned or aligned to KMD's reported optimized large page size, big page size or for
+                // specific images iterate256 page size.  This should be skipped if any of the following are true:
+                // - We're not using the default VA range because non-default VA ranges have special address usage
+                //   rules.
+                // - We have selected a specific base VA for the allocation because it might not be 64KB aligned.
+                // - The allocation prefers a non-local heap because we can only get 64KB fragments in local memory.
+                // - The allocation prefers a local visible heap on ResizeBarOff case. Local visible heap size in
+                //   ResizeBarOff case has small size (usually 256MB); it's easy to run out of the heap size due to
+                //   various alignment padding which will cause worse performance.
+                // - Type is SDI ExternalPhysical because it has no real allocation and size must be consistent with
+                //   KMD.
+                const GpuMemoryProperties& memoryProperties = m_pDevice->MemoryProperties();
+                bool invisibleHeapIsEmpty = m_pDevice->HeapLogicalSize(GpuHeapInvisible) == 0;
+                if ((baseVirtAddr == 0) &&
+                    ((m_heaps[0] == GpuHeapInvisible) ||
+                    ((m_heaps[0] == GpuHeapLocal) && invisibleHeapIsEmpty)) &&
+                    (createInfo.flags.sdiExternal == 0))
                 {
-                    const gpusize largePageSize = memoryProperties.largePageSupport.largePageSizeInBytes;
-                    idealAlignment = Max(idealAlignment, largePageSize);
-                }
-                // BigPage is only supported for allocations > bigPageMinAlignment.
-                // Also, if bigPageMinAlignment == 0, BigPage optimization is not supported per KMD.
-                // We do either LargePage or BigPage alignment, whichever has a higher value.
-                if ((memoryProperties.bigPageMinAlignment > 0) &&
-                     m_pDevice->Settings().enableBigPagePreAlignment &&
-                     (createInfo.size >= memoryProperties.bigPageMinAlignment))
-                {
-                    gpusize bigPageSize = memoryProperties.bigPageMinAlignment;
-                    if ((memoryProperties.bigPageLargeAlignment > 0) &&
-                        (createInfo.size >= memoryProperties.bigPageLargeAlignment))
+                    gpusize idealAlignment = 0;
+
+                    if ((memoryProperties.largePageSupport.gpuVaAlignmentNeeded ||
+                        memoryProperties.largePageSupport.sizeAlignmentNeeded) &&
+                        m_pDevice->Settings().enableLargePagePreAlignment)
                     {
-                        bigPageSize = memoryProperties.bigPageLargeAlignment;
+                        const gpusize largePageSize = memoryProperties.largePageSupport.largePageSizeInBytes;
+                        idealAlignment = Max(idealAlignment, largePageSize);
                     }
-                    idealAlignment = Max(idealAlignment, bigPageSize);
-                }
-
-                // Finally, we try to do alignment for iterate256 hardware optimization if m_pImage is populated and
-                // all required conditions for the device and image to support it are met.
-                // When we do this we are actually making this Image (rather the memory block/page that contains this
-                // Image) compatible to pass the conditions of Image::GetIterate256(); which in turn will actually help
-                // when creating this Image's SRD or for setting the value of the iterate256 register or the related
-                // DecompressOnNZPlanes register.
-                if ((m_pImage != nullptr) && m_pDevice->GetGfxDevice()->SupportsIterate256())
-                {
-                    // If the device supports iterate256 the Image should satisy some conditions so that we can
-                    // justify aligning memory to make the optimization work.
-                    const SubResourceInfo* pBaseSubResInfo = m_pImage->SubresourceInfo(0);
-                    if (m_pDevice->Settings().enableIterate256PreAlignment &&
-                        m_pImage->GetGfxImage()->IsIterate256Meaningful(pBaseSubResInfo) &&
-                        (createInfo.size >= memoryProperties.iterate256MinAlignment))
+                    // BigPage is only supported for allocations > bigPageMinAlignment.
+                    // Also, if bigPageMinAlignment == 0, BigPage optimization is not supported per KMD.
+                    // We do either LargePage or BigPage alignment, whichever has a higher value.
+                    if ((memoryProperties.bigPageMinAlignment > 0) &&
+                        m_pDevice->Settings().enableBigPagePreAlignment &&
+                        (createInfo.size >= memoryProperties.bigPageMinAlignment))
                     {
-                        gpusize iterate256PageSize = memoryProperties.iterate256MinAlignment;
-                        if ((memoryProperties.iterate256LargeAlignment > 0) &&
-                            createInfo.size >= memoryProperties.iterate256LargeAlignment)
+                        gpusize bigPageSize = memoryProperties.bigPageMinAlignment;
+                        if ((memoryProperties.bigPageLargeAlignment > 0) &&
+                            (createInfo.size >= memoryProperties.bigPageLargeAlignment))
                         {
-                            iterate256PageSize = memoryProperties.iterate256LargeAlignment;
+                            bigPageSize = memoryProperties.bigPageLargeAlignment;
                         }
-                        idealAlignment = Max(idealAlignment, iterate256PageSize);
+                        idealAlignment = Max(idealAlignment, bigPageSize);
+                    }
+
+                    // Finally, we try to do alignment for iterate256 hardware optimization if m_pImage is populated
+                    // and all required conditions for the device and image to support it are met.
+                    // When we do this we are actually making this Image (rather the memory block/page that contains
+                    // this Image) compatible to pass the conditions of Image::GetIterate256(); which in turn will
+                    // actually help when creating this Image's SRD or for setting the value of the iterate256 register
+                    // or the related DecompressOnNZPlanes register.
+                    if ((m_pImage != nullptr) && m_pDevice->GetGfxDevice()->SupportsIterate256())
+                    {
+                        // If the device supports iterate256 the Image should satisy some conditions so that we can
+                        // justify aligning memory to make the optimization work.
+                        const SubResourceInfo* pBaseSubResInfo = m_pImage->SubresourceInfo(0);
+                        if (m_pDevice->Settings().enableIterate256PreAlignment &&
+                            m_pImage->GetGfxImage()->IsIterate256Meaningful(pBaseSubResInfo) &&
+                            (createInfo.size >= memoryProperties.iterate256MinAlignment))
+                        {
+                            gpusize iterate256PageSize = memoryProperties.iterate256MinAlignment;
+                            if ((memoryProperties.iterate256LargeAlignment > 0) &&
+                                createInfo.size >= memoryProperties.iterate256LargeAlignment)
+                            {
+                                iterate256PageSize = memoryProperties.iterate256LargeAlignment;
+                            }
+                            idealAlignment = Max(idealAlignment, iterate256PageSize);
+                        }
+                    }
+                    // The client decides whether or not we pad allocations at all and so should be the final
+                    // deciding factor on use of ideal alignment.
+                    if ((createInfo.size >= m_pDevice->GetPublicSettings()->largePageMinSizeForVaAlignmentInBytes) &&
+                        (idealAlignment != 0))
+                    {
+                        m_desc.alignment = Pow2Align(m_desc.alignment, idealAlignment);
+                    }
+
+                    if ((createInfo.size >= m_pDevice->GetPublicSettings()->largePageMinSizeForSizeAlignmentInBytes) &&
+                        (idealAlignment != 0))
+                    {
+                        m_desc.size = Pow2Align(m_desc.size, idealAlignment);
                     }
                 }
-                // The client decides whether or not we pad allocations at all and so should be the final
-                // deciding factor on use of ideal alignment.
-                if ((createInfo.size >= m_pDevice->GetPublicSettings()->largePageMinSizeForVaAlignmentInBytes) &&
-                    (idealAlignment != 0))
-                {
-                    m_desc.alignment = Pow2Align(m_desc.alignment, idealAlignment);
-                }
 
-                if ((createInfo.size >= m_pDevice->GetPublicSettings()->largePageMinSizeForSizeAlignmentInBytes) &&
-                    (idealAlignment != 0))
+                if ((createInfo.flags.startVaHintFlag == 1) && (createInfo.startVaHint != 0))
                 {
-                    m_desc.size = Pow2Align(m_desc.size, idealAlignment);
+                    gpusize startVaHintAddr = 0;
+                    gpusize endVaHintAddr   = 0;
+                    m_pDevice->VirtualAddressRange(VaPartition::Default, &startVaHintAddr, &endVaHintAddr);
+                    const gpusize pageSize          = m_pDevice->MemoryProperties().virtualMemPageSize;
+                    const gpusize alignment         = Pow2Align(createInfo.alignment, pageSize);
+                    const gpusize startVaHintAlign  = Pow2Align(createInfo.startVaHint, alignment);
+
+                    if ((startVaHintAlign >= startVaHintAddr) && ((startVaHintAlign + m_desc.size) < endVaHintAddr))
+                    {
+                        baseVirtAddr = startVaHintAlign;
+                    }
                 }
             }
-
-            if ((createInfo.flags.startVaHintFlag == 1) && (createInfo.startVaHint != 0))
+            else if (createInfo.vaRange == VaRange::CaptureReplay)
             {
-                gpusize startVaHintAddr = 0;
-                gpusize endVaHintAddr   = 0;
-                m_pDevice->VirtualAddressRange(VaPartition::Default, &startVaHintAddr, &endVaHintAddr);
-                const gpusize pageSize          = m_pDevice->MemoryProperties().virtualMemPageSize;
-                const gpusize alignment         = Pow2Align(createInfo.alignment, pageSize);
-                const gpusize startVaHintAlign  = Pow2Align(createInfo.startVaHint, alignment);
+                baseVirtAddr = createInfo.replayVirtAddr;
+            }
 
-                if ((startVaHintAlign >= startVaHintAddr) && ((startVaHintAlign + m_desc.size) < endVaHintAddr))
-                {
-                    baseVirtAddr = startVaHintAlign;
-                }
+            if (result == Result::Success && (IsExternPhys() == false))
+            {
+                result = AllocateOrPinMemory(baseVirtAddr,
+                                            internalInfo.pPagingFence,
+                                            createInfo.virtualAccessMode,
+                                            0,
+                                            nullptr,
+                                            nullptr);
+            }
+
+            if (IsErrorResult(result) == false)
+            {
+                m_desc.uniqueId = GpuUtil::GenerateGpuMemoryUniqueId(IsInterprocess());
+
+                DescribeGpuMemory(Developer::GpuMemoryAllocationMethod::Normal);
             }
         }
-        else if (createInfo.vaRange == VaRange::CaptureReplay)
-        {
-            baseVirtAddr = createInfo.replayVirtAddr;
-        }
 
-        if (result == Result::Success && (IsExternPhys() == false))
+        // Verify that if the allocation succeeded, we got a GPU virtual address back as expected (except for
+        // page directory and page table allocations and SDI External Physical Memory).
+        if ((IsPageDirectory() == false) && (IsPageTableBlock() == false) && (IsExternPhys() == false))
         {
-            result = AllocateOrPinMemory(baseVirtAddr,
-                                         internalInfo.pPagingFence,
-                                         createInfo.virtualAccessMode,
-                                         0,
-                                         nullptr,
-                                         nullptr);
-        }
-
-        if (IsErrorResult(result) == false)
-        {
-            m_desc.uniqueId = GpuUtil::GenerateGpuMemoryUniqueId(IsInterprocess());
-
-            DescribeGpuMemory(Developer::GpuMemoryAllocationMethod::Normal);
+            PAL_ASSERT((result != Result::Success) || (m_desc.gpuVirtAddr != 0));
         }
     }
-
-    // Verify that if the allocation succeeded, we got a GPU virtual address back as expected (except for
-    // page directory and page table allocations and SDI External Physical Memory).
-    if ((IsPageDirectory() == false) && (IsPageTableBlock() == false) && (IsExternPhys() == false))
-    {
-        PAL_ASSERT((result != Result::Success) || (m_desc.gpuVirtAddr != 0));
-    }
-
     return result;
 }
 
@@ -916,7 +974,7 @@ Result GpuMemory::Init(
             }
         }
 
-        m_desc.heapCount = static_cast<uint32>(m_heapCount);
+        m_desc.heapCount = m_heapCount;
 
         m_flags.isLocalPreferred = ((m_heaps[0] == GpuHeapLocal) || (m_heaps[0] == GpuHeapInvisible));
 
@@ -973,7 +1031,7 @@ Result GpuMemory::Init(
         }
     }
 
-    m_desc.heapCount = static_cast<uint32>(m_heapCount);
+    m_desc.heapCount = m_heapCount;
 
     m_flags.isLocalPreferred = ((m_heaps[0] == GpuHeapLocal) || (m_heaps[0] == GpuHeapInvisible));
 
@@ -1013,7 +1071,7 @@ Result GpuMemory::Init(
         m_desc.heaps[i] = m_pOriginalMem->m_heaps[i];
     }
 
-    m_desc.heapCount         = static_cast<uint32>(m_heapCount);
+    m_desc.heapCount         = m_heapCount;
     m_desc.flags.isShared    = 1;
     m_flags.isShareable      = m_pOriginalMem->m_flags.isShareable;
     m_flags.isFlippable      = m_pOriginalMem->m_flags.isFlippable;
@@ -1084,7 +1142,7 @@ Result GpuMemory::Init(
         m_desc.heaps[i] = m_pOriginalMem->m_heaps[i];
     }
 
-    m_desc.heapCount         = static_cast<uint32>(m_heapCount);
+    m_desc.heapCount         = m_heapCount;
     m_desc.flags.isPeer      = 1;
     m_flags.isShareable      = m_pOriginalMem->m_flags.isShareable;
     m_flags.isFlippable      = m_pOriginalMem->m_flags.isFlippable;

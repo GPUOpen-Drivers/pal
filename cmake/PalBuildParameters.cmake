@@ -83,7 +83,6 @@ pal_bp(PAL_BUILD_GFX ON)
 ### Specify GPU build options ##########################################################################################
 
 if (PAL_BUILD_GFX)
-    pal_bp(PAL_BUILD_GFX6 ${PAL_BUILD_GFX} MODE "AUTHOR_WARNING")
     pal_bp(PAL_BUILD_GFX9 ${PAL_BUILD_GFX} MODE "AUTHOR_WARNING")
 endif() # PAL_BUILD_GFX
 

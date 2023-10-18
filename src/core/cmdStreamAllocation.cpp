@@ -275,11 +275,11 @@ uint32* CmdStreamChunk::GetSpace(
 {
     // It is impossible to retrieve the GPU virtual address of the allocated space when the chunk is located in system
     // memory!
-    PAL_ASSERT(m_pAllocation->UsesSystemMemory() == false);
+    PAL_DEBUG_BUILD_ONLY_ASSERT(m_pAllocation->UsesSystemMemory() == false);
 
     uint32*const pSpace = (m_pWriteAddr + m_usedDataSizeDwords);
 
-    PAL_ASSERT((ppGpuMem != nullptr) && (pOffset != nullptr));
+    PAL_DEBUG_BUILD_ONLY_ASSERT((ppGpuMem != nullptr) && (pOffset != nullptr));
     (*ppGpuMem) = GpuMemory();
     (*pOffset)  = GpuMemoryOffset() + (m_usedDataSizeDwords * sizeof(uint32));
 

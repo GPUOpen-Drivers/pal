@@ -775,10 +775,6 @@ void TaskMeshCtrlDrawRing::InitializeControlBufferAndDrawRingBuffer()
 
     constexpr uint32 AlignmentBytes = 64;
 
-    // The constant offset must be > 64 bytes and it must be power of two.
-    static_assert(Util::IsPowerOfTwo(OffsetOfControlDrawRing) && (OffsetOfControlDrawRing > AlignmentBytes),
-                  "The offset between control buffer and draw ring buffer must be power of two and aligned to 64!");
-
     gpusize drawRingAddr = GetDrawRingVirtAddr();
 
     // The draw ring base address must be aligned to 64-bytes.

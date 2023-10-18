@@ -114,8 +114,6 @@ Image::Image(
     memset(m_addrMipOutput,       0, sizeof(m_addrMipOutput));
     memset(m_addrSurfSetting,     0, sizeof(m_addrSurfSetting));
     memset(&m_metaDataClearConst, 0, sizeof(m_metaDataClearConst));
-    memset(m_metaDataLookupTableOffsets, 0, sizeof(m_metaDataLookupTableOffsets));
-    memset(m_metaDataLookupTableSizes,   0, sizeof(m_metaDataLookupTableSizes));
     memset(m_planeOffset,                0, sizeof(m_planeOffset));
     memset(m_pDcc,                       0, sizeof(m_pDcc));
     memset(m_pDispDcc,                   0, sizeof(m_pDispDcc));
@@ -514,7 +512,6 @@ Result Image::Finalize(
     bool needsFastColorClearMetaData   = false;
     bool needsFastDepthClearMetaData   = false;
     bool needsDccStateMetaData         = false;
-    bool needsHtileLookupTable         = false;
     bool needsWaTcCompatZRangeMetaData = false;
     bool needsHiSPretestsMetaData      = false;
     bool needsDccLookupTable           = false;
@@ -615,21 +612,8 @@ Result Image::Finalize(
                 // Get the constant data for clears based on Htile meta equation
                 GetMetaEquationConstParam(&m_metaDataClearConst[MetaDataHtile], metaBlkFastClearSize);
 
-                if (useSharedMetadata == false)
-                {
-                    if (Parent()->IsResolveSrc() || Parent()->IsResolveDst())
-                    {
-                        needsHtileLookupTable = true;
-                    }
-                    if (IsGfx10Plus(m_device))
-                    {
-                        needsHtileLookupTable = false;
-                    }
-                }
-                else
-                {
-                    needsHtileLookupTable = sharedMetadata.flags.hasHtileLookupTable;
-                }
+                // PAL doesn't support HTile lookup tables anymore, it was a gfx9-only feature.
+                PAL_ASSERT((useSharedMetadata == false) || (sharedMetadata.flags.hasHtileLookupTable == 0));
             }
         }
     } // End check for needing hTile data
@@ -925,20 +909,6 @@ Result Image::Finalize(
             pGpuMemLayout->metadataHeaderSize = (*pGpuMemSize - pGpuMemLayout->metadataHeaderOffset);
         }
 
-        if (needsHtileLookupTable)
-        {
-            if (useSharedMetadata)
-            {
-                gpusize forcedOffset = sharedMetadata.htileLookupTableOffset;
-                InitHtileLookupTable(pGpuMemLayout, &forcedOffset, pGpuMemAlignment);
-                *pGpuMemSize = Max(forcedOffset, *pGpuMemSize);
-            }
-            else
-            {
-                InitHtileLookupTable(pGpuMemLayout, pGpuMemSize, pGpuMemAlignment);
-            }
-        }
-
         if (needsDccLookupTable)
         {
             if (useSharedMetadata == false)
@@ -1017,6 +987,8 @@ Result Image::CreateDccObject(
 {
     const bool                  useSharedMetadata = m_pImageInfo->internalCreateInfo.flags.useSharedMetadata;
     const SharedMetadataInfo&   sharedMetadata    = m_pImageInfo->internalCreateInfo.sharedMetadata;
+    const bool                  useSharedDccState = m_pImageInfo->internalCreateInfo.flags.useSharedDccState;
+    const DccState&             sharedDccState    = m_pImageInfo->internalCreateInfo.gfx9.sharedDccState;
 
     Result  result = Result::Success;
 
@@ -1106,6 +1078,15 @@ Result Image::CreateDccObject(
                         {
                             gpusize forcedOffset = sharedMetadata.displayDccOffset[planeIdx];
                             m_pDispDcc[planeIdx]->Init(planeBaseSubResId, &forcedOffset, sharedMetadata.flags.hasEqGpuAccess);
+                            PAL_ASSERT(pDcc->GetControlReg().u32All == m_pDispDcc[planeIdx]->GetControlReg().u32All);
+                            *pGpuMemSize = Max(forcedOffset, *pGpuMemSize);
+                        }
+                        else if (useSharedDccState && (sharedDccState.primaryOffset > 0))
+                        {
+                            gpusize forcedOffset = sharedDccState.primaryOffset;
+                            m_pDispDcc[planeIdx]->Init(planeBaseSubResId,
+                                                       &forcedOffset,
+                                                       sharedMetadata.flags.hasEqGpuAccess);
                             PAL_ASSERT(pDcc->GetControlReg().u32All == m_pDispDcc[planeIdx]->GetControlReg().u32All);
                             *pGpuMemSize = Max(forcedOffset, *pGpuMemSize);
                         }
@@ -1842,6 +1823,29 @@ bool Image::IsFastColorClearSupported(
         isFastClearSupported = ((pCmdBuffer->GetEngineType() == EngineTypeCompute) ||
                                 TestAnyFlagSet(settings.dccOnComputeEnable, Gfx9DccOnComputeFastClear));
 
+        if (Parent()->GetImageCreateInfo().swizzledFormat.format == ChNumFormat::X9Y9Z9E5_Float)
+        {
+
+            // The OpenGL spec specifies the maximum value of the red, green, and blue components in 999e5 format,
+            // to be 511 with a maximum exponent value of 31, (0x000001FF, 0x000001FF, 0x000001FF, 0x0000001F) in hex
+            // In RGBA this is (65408.0, 65408.0, 65408.0, 0/1)
+
+            // It makes sense to just disallow fast-clears in this format unless it is
+            // explicitly a C0/C1 clear
+            constexpr uint32 MaxValColor = (1u << 9) - 1;
+            constexpr uint32 MaxValExp   = (1u << 5) - 1;
+            const bool isZeroOrMax = (((pColor[0] == MaxValColor) &&
+                                       (pColor[1] == MaxValColor) &&
+                                       (pColor[2] == MaxValColor) &&
+                                       (pColor[3] == MaxValExp)) ||
+
+                                      ((pColor[0] == 0) &&
+                                       (pColor[1] == 0) &&
+                                       (pColor[2] == 0) &&
+                                       (pColor[3] == 0)));
+            isFastClearSupported &= isZeroOrMax;
+        }
+
         if (isFastClearSupported)
         {
             // A count of 1 indicates that no command buffer has skipped a fast clear eliminate and hence holds a
@@ -2372,47 +2376,6 @@ void Image::InitFastClearEliminateMetaData(
     // when the clear color is TC compatible. So here, we try to not perform fast clear eliminate and save the
     // CPU cycles required to set up the fast clear eliminate.
     m_pNumSkippedFceCounter =  m_device.GetGfxDevice()->AllocateFceRefCount();
-}
-
-// =====================================================================================================================
-// Initializes the GPU offset of lookup table for Image's htile metadata. The htile lookup table is 4-byte-aligned,
-// in which htile meta offset is stored for each pixel(coordinate/mip/arraySlice). All mip levels included in the table.
-void Image::InitHtileLookupTable(
-    ImageMemoryLayout* pGpuMemLayout,
-    gpusize*           pGpuOffset,
-    gpusize*           pGpuMemAlignment)
-{
-    // Metadata offset will be used as uint in shader
-    static constexpr gpusize HtileLookupTableAlignment = 4u;
-
-    *pGpuMemAlignment = Max(*pGpuMemAlignment, HtileLookupTableAlignment);
-
-    gpusize mipLevelOffset = Util::Pow2Align((*pGpuOffset), HtileLookupTableAlignment);
-
-    uint32 mipLevels      = m_createInfo.mipLevels;
-
-    SubresId subresId = {};
-
-    while (mipLevels > 0)
-    {
-        const uint32 curMipLevel = m_createInfo.mipLevels - mipLevels;
-
-        subresId.mipLevel = curMipLevel;
-        uint32 mipLevelWidth = Parent()->SubresourceInfo(subresId)->extentTexels.width;
-        uint32 mipLevelHeight = Parent()->SubresourceInfo(subresId)->extentTexels.height;
-
-        const uint32 hTileWidth  = Util::Pow2Align(mipLevelWidth, 8u) / 8u;
-        const uint32 hTileHeight = Util::Pow2Align(mipLevelHeight, 8u) / 8u;
-
-        m_metaDataLookupTableOffsets[curMipLevel] = mipLevelOffset;
-        m_metaDataLookupTableSizes[curMipLevel] = (hTileWidth * hTileHeight) * m_createInfo.arraySize * 4u;
-
-        mipLevelOffset += m_metaDataLookupTableSizes[curMipLevel];
-
-        --mipLevels;
-    }
-
-    *pGpuOffset = mipLevelOffset;
 }
 
 // =====================================================================================================================
@@ -3347,25 +3310,6 @@ gpusize Image::GetMipAddr(
 }
 
 // =====================================================================================================================
-// Returns the buffer view of metadata lookup table for specified mip level
-void Image::BuildMetadataLookupTableBufferView(
-    BufferViewInfo* pViewInfo,
-    uint32 mipLevel
-    ) const
-{
-    const auto* pPublicSettings = m_device.GetPublicSettings();
-
-    pViewInfo->gpuAddr        = Parent()->GetGpuVirtualAddr() + m_metaDataLookupTableOffsets[mipLevel];
-    pViewInfo->range          = m_metaDataLookupTableSizes[mipLevel];
-    pViewInfo->stride         = 1;
-    pViewInfo->swizzledFormat = UndefinedSwizzledFormat;
-    pViewInfo->flags.bypassMallRead =
-        TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall, RpmViewsBypassMallOnRead);
-    pViewInfo->flags.bypassMallWrite =
-        TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall, RpmViewsBypassMallOnWrite);
-}
-
-// =====================================================================================================================
 // Returns true if specified mip level is in the MetaData tail region.
 bool Image::IsInMetadataMipTail(
     const SubresId&  subResId
@@ -3634,7 +3578,6 @@ void Image::GetSharedMetadataInfo(
     {
         pMetadataInfo->htileOffset                = m_pHtile->MemoryOffset();
         pMetadataInfo->flags.hasWaTcCompatZRange  = HasWaTcCompatZRangeMetaData();
-        pMetadataInfo->flags.hasHtileLookupTable  = HasHtileLookupTable();
         pMetadataInfo->flags.htileHasDsMetadata   = HasDsMetadata();
 
         PAL_ASSERT(m_pHtile->HasMetaEqGenerator());
@@ -3648,7 +3591,6 @@ void Image::GetSharedMetadataInfo(
         Parent()->SubresourceInfo(baseSubResId)->flags.supportMetaDataTexFetch;
 
     pMetadataInfo->hisPretestMetaDataOffset         = m_hiSPretestsMetaDataOffset;
-    pMetadataInfo->htileLookupTableOffset           = m_metaDataLookupTableOffsets[0];
 }
 
 // =====================================================================================================================

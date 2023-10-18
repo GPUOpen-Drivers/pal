@@ -29,7 +29,7 @@
 
 #define GPUOPEN_INTERFACE_MAJOR_VERSION 42
 
-#define GPUOPEN_INTERFACE_MINOR_VERSION 0
+#define GPUOPEN_INTERFACE_MINOR_VERSION 1
 
 #define GPUOPEN_INTERFACE_VERSION ((GPUOPEN_INTERFACE_MAJOR_VERSION << 16) | GPUOPEN_INTERFACE_MINOR_VERSION)
 
@@ -50,6 +50,7 @@
 ***********************************************************************************************************************
 *| Version | Change Description                                                                                       |
 *| ------- | ---------------------------------------------------------------------------------------------------------|
+*| 42.1    | Move Escape Commands to the shared header for access outside of message.h                                |
 *| 42.0    | Updates RGP Protocol to support SPM counters and SE masking.                                             |
 *| 41.0    | Updates DriverControlProtocol to allow user to query device clock frequencies for a given                |
 *|         | clock mode without changing the clock mode.                                                              |
@@ -552,4 +553,25 @@ namespace DevDriver
     };
 
     DD_CHECK_SIZE(ClientInfoStruct, 512);
+
+    ///////////////////////
+    // GPU Open Message codes
+    enum struct EscapeCommand : uint32
+    {
+        Unknown = 0,
+        QueryStatus,              // Will be deprecated in a future change
+        RegisterClient,
+        UnregisterClient,
+        RegisterExternalClient,   // Will be deprecated in a future change
+        UnregisterExternalClient, // Will be deprecated in a future change
+        UpdateClientStatus,       // Will be deprecated in a future change
+        QueryCapabilities,
+        EnableDeveloperMode,
+        DisableDeveloperMode,
+        QueryDeveloperModeStatus,
+        RegisterRouter,
+        UnregisterRouter,
+        AmdLogEvent,
+        Count
+    };
 }

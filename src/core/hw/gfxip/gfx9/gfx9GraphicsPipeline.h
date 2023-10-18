@@ -217,6 +217,8 @@ public:
 
     const GraphicsPipelineSignature& Signature() const { return m_signature; }
 
+    const ShaderRingItemSizes& GetShaderRingSize() const { return m_ringSizes; }
+
     bool UsesStreamout() const { return (m_signature.streamOutTableRegAddr != UserDataNotMapped); }
     bool UsesHwStreamout() const { return m_chunkVsPs.UsesHwStreamout(); }
     uint32 StrmoutVtxStrideDw(uint32 idx) const;
@@ -430,6 +432,7 @@ private:
     PrimeGpuCacheRange         m_prefetch[MaxPreFetchRangeCount];
     uint32                     m_prefetchRangeCount;
     GraphicsPipelineSignature  m_signature;
+    ShaderRingItemSizes        m_ringSizes;
 
     // Returns the target mask of the specified CB target.
     uint8 GetTargetMask(uint32 target) const

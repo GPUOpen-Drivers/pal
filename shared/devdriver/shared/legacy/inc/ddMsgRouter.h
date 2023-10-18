@@ -29,6 +29,7 @@
 #include <ddRouterInterface.h>
 #include <router/ddRouterContext.h>
 #include <util/ringbuffer.h>
+#include <router/ddAmdLogUtilsService.h>
 
 namespace DevDriver
 {
@@ -63,6 +64,11 @@ namespace DevDriver
 
         Result GetLogBufferSize(size_t* pBufferSize) override;
 
+        Result GetHeader(void* pOutBuffer) override;
+
+        void RegisterRpcServices();
+        void DestroyRpcServices();
+
     private:
         AllocCb                m_allocCb;
         Kmd::KContext          m_context;
@@ -78,6 +84,9 @@ namespace DevDriver
         bool                   m_kernalEnableState;
         AmdLogCallback         m_amdlogCb;
         RingBuffer             m_ringBuffer;
+        AmdLogEventVersion     m_version;
+        AmdLogUtilsService::AmdLogUtilsService  m_amdLogUtilsService;
+        DDRpcServer                             m_rpcServer;
     };
 
 } // DevDriver

@@ -197,7 +197,7 @@ public:
         const Device&              device,
         const GpuMemoryCreateInfo& createInfo,
         GpuHeap*                   pOutHeaps,
-        size_t*                    pOutHeapCount);
+        uint32*                    pOutHeapCount);
     static Result ValidateCreateInfo(const Device* pDevice, const GpuMemoryCreateInfo& createInfo);
     static Result ValidatePinInfo(const Device* pDevice, const PinnedGpuMemoryCreateInfo& createInfo);
     static Result ValidateSvmInfo(const Device* pDevice, const SvmGpuMemoryCreateInfo& createInfo);
@@ -362,7 +362,7 @@ protected:
 
     Device*const   m_pDevice;
     VaPartition    m_vaPartition;
-    size_t         m_heapCount;
+    uint32         m_heapCount;
     GpuHeap        m_heaps[GpuHeapCount];
 
     // Priority of the memory allocation: serves as a hint to the operating system of how important it is to keep

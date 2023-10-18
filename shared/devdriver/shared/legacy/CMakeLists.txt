@@ -65,10 +65,14 @@ dd_bp(DD_BP_REMOTE_WIN_TRANSPORT ON
 if(NOT TARGET ddCore)
     add_subdirectory(core)
 endif()
-target_link_libraries(devdriver PUBLIC ddCore)
 
-target_link_libraries(devdriver PRIVATE mpack)
-target_link_libraries(devdriver PUBLIC  metrohash)
+target_link_libraries(devdriver
+    PUBLIC
+        ddCore
+        metrohash
+        dd_event_registry
+    PRIVATE
+        mpack)
 
     target_link_libraries(devdriver PUBLIC  rapidjson)
 

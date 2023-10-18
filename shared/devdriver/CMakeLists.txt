@@ -71,6 +71,9 @@ dd_bp(DD_BUILD_RDF ${DD_BP_BUILD_MODULES})
 # Flag for building RDF versions of MemoryModule, GPUDetective, and RMV Streamer, default off for now:
 dd_bp(DD_BUILD_RDF_MODULES OFF)
 
+# Enable assertion, regardless of build types (e.g. debug, release) if building from DevDriver directly.
+dd_bp(DD_OPT_ASSERTS_ENABLE ${DEVDRIVER_IS_TOP_LEVEL})
+
 add_subdirectory(third_party)
 add_subdirectory(imported)
 add_subdirectory(shared)

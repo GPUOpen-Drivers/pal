@@ -4050,6 +4050,12 @@ uint32* PerfExperiment::WriteEnableCfgRegisters(
         }
     }
 
+    // Get fresh command space just in case we're close to running out.
+    pCmdStream->CommitCommands(pCmdSpace);
+    pCmdSpace = pCmdStream->ReserveCommands();
+
+    uint32* pStartSpace = pCmdSpace;
+
     // The UMCCH has a per-instance register that acts just like a rslt_cntl register. Let's enable it here.
     for (uint32 instance = 0; instance < ArrayLen(m_select.umcch); ++instance)
     {
@@ -4091,8 +4097,16 @@ uint32* PerfExperiment::WriteEnableCfgRegisters(
             pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(m_counterInfo.umcchRegAddr[instance].perfMonCtlClk,
                                                           perfmonCtlClk.u32All,
                                                           pCmdSpace);
+
+            // Assume each counter uses the same amount of space and determine if next loop we'll run out
+            pCmdSpace = pCmdStream->ReReserveCommands(pCmdSpace, pCmdSpace - pStartSpace);
+            pStartSpace = pCmdSpace;
         }
     }
+
+    // Get fresh command space just in case we're close to running out.
+    pCmdStream->CommitCommands(pCmdSpace);
+    pCmdSpace = pCmdStream->ReserveCommands();
 
     // The RLC has a special global control register. It works just like CP_PERFMON_CNTL.
     if (HasGenericCounters(GpuBlock::Rlc))
@@ -4110,6 +4124,10 @@ uint32* PerfExperiment::WriteEnableCfgRegisters(
 
         pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(mmRLC_PERFMON_CNTL, rlcPerfmonCntl.u32All, pCmdSpace);
     }
+
+    // Get fresh command space just in case we're close to running out.
+    pCmdStream->CommitCommands(pCmdSpace);
+    pCmdSpace = pCmdStream->ReserveCommands();
 
     // The RMI has a special control register. We normally program the RMI using a per-instance GRBM_GFX_INDEX
     // but this control is constant for all instances so we only need to write it once using global broadcasting.

@@ -390,10 +390,11 @@ size_t StreamoutStatsQueryPool::GetResultSizeForOneSlot(
     // Currently this function seems to be just referenced in QueryPool::GetResults so it doesn't
     // even need to be implemented at this point but just put two lines of code as simple enough
 
-    PAL_ASSERT((flags == (QueryResult64Bit | QueryResultWait)) || (flags == QueryResult64Bit));
+    // We only support 64-bit results.
+    PAL_ASSERT(TestAnyFlagSet(flags, QueryResult64Bit));
 
-    // primStorageNeeded and primCountWritten
-    return sizeof(StreamoutStatsData);
+    return TestAnyFlagSet(flags, QueryResultOnlyPrimNeeded) ? sizeof(StreamoutStatsData::primStorageNeeded) :
+                                                              sizeof(StreamoutStatsData);
 }
 
 // =====================================================================================================================
@@ -459,13 +460,22 @@ bool StreamoutStatsQueryPool::ComputeResults(
             const uint64 primCountWritten  = pDataPair->end.primCountWritten - pDataPair->begin.primCountWritten;
             const uint64 primStorageNeeded = pDataPair->end.primStorageNeeded - pDataPair->begin.primStorageNeeded;
 
-            pQueryData->primCountWritten  = primCountWritten;
             pQueryData->primStorageNeeded = primStorageNeeded;
+            if (TestAnyFlagSet(flags, QueryResultOnlyPrimNeeded) == false)
+            {
+                pQueryData->primCountWritten  = primCountWritten;
+            }
         }
 
         if (TestAnyFlagSet(flags, QueryResultAvailability))
         {
-            uint64* pAvailabilityState = static_cast<uint64*>(VoidPtrInc(pData, sizeof(StreamoutStatsData)));
+            uint32 offsetDistance = sizeof(StreamoutStatsData);
+            if (TestAnyFlagSet(flags, QueryResultOnlyPrimNeeded))
+            {
+                offsetDistance = sizeof(StreamoutStatsData::primStorageNeeded);
+            }
+
+            uint64* pAvailabilityState = static_cast<uint64*>(VoidPtrInc(pData, offsetDistance));
             *pAvailabilityState        = static_cast<uint64>(countersReady);
         }
 

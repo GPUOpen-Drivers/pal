@@ -41,8 +41,10 @@ struct SettingsBlob
     uint32_t size;
     /// The size in bytes of the blob payload.
     uint32_t blobSize;
-    /// whether the blob is encoded.
+    /// Whether the blob is encoded.
     bool encoded;
+    /// The starting offset of the magic buffer used for encoding.
+    uint32_t magicOffset;
     /// hash of the blob
     uint64_t blobHash;
     /// A variable-sized byte array, representing a Settings blob.
@@ -100,6 +102,9 @@ public:
 
     /// Return whether this blob is encoded.
     virtual bool IsEncoded() = 0;
+
+    /// Return the starting offset of the magic buffer used for encoding.
+    virtual uint32_t GetMagicOffset() = 0;
 
     /// Return the hash of the blob.
     virtual uint64_t GetBlobHash() = 0;

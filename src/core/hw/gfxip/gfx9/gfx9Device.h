@@ -375,9 +375,7 @@ public:
     const uint32* OcclusionSlotResetValue() const
         { return reinterpret_cast<const uint32*>(m_occlusionSlotResetValues); }
 
-    void   UpdateLargestRingSizes(const ShaderRingItemSizes* pRingSizesNeeded);
-    void   GetLargestRingSizes(ShaderRingItemSizes* pRingSizesNeeded);
-    uint32 QueueContextUpdateCounter() const { return m_queueContextUpdateCounter; }
+    uint32 QueueContextUpdateCounter();
 
     virtual Result SetSamplePatternPalette(const SamplePatternPalette& palette) override;
     void GetSamplePatternPalette(SamplePatternPalette* pSamplePatternPalette);
@@ -646,14 +644,11 @@ private:
     BoundGpuMemory m_occlusionSrcMem;   // If occlusionQueryDmaBufferSlots is in use, this is the source memory.
     BoundGpuMemory m_dummyZpassDoneMem; // A GFX9 workaround requires dummy ZPASS_DONE events which write to memory.
 
-    // Tracks the largest item-size requirements for each type of Shader Ring. Access to this object must be serialized
-    // using m_ringSizesLock.
-    volatile ShaderRingItemSizes  m_largestRingSizes;
-    Util::Mutex                   m_ringSizesLock;
-
-    // Keep a watermark for the number of updates to the queue context. When a QueueContext pre-processes a submit, it
+    // Keep a watermark for sample-pos palette updates to the queue context. When a QueueContext pre-processes a submit, it
     // will check its watermark against the one owned by the device and update accordingly.
+     // Access to this object must be serialized using m_queueContextUpdateLock.
     volatile uint32               m_queueContextUpdateCounter;
+    Util::Mutex                   m_queueContextUpdateLock;
 
     // Tracks the sample pattern palette for sample pos shader ring. Access to this object must be
     // serialized using m_samplePatternLock.

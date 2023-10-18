@@ -543,7 +543,7 @@ uint8 ColorBlendState::WriteBlendOptimizations(
                 const uint32 channelWritesEnabled = colorEnabled + alphaEnabled;
 
                 // Shouldn't have CB with no writable channels.
-                PAL_ASSERT(channelWritesEnabled != 0);
+                PAL_DEBUG_BUILD_ONLY_ASSERT(channelWritesEnabled != 0);
 
                 const uint32 optIndex = (idx * NumChannelWriteComb) + (channelWritesEnabled - 1);
 

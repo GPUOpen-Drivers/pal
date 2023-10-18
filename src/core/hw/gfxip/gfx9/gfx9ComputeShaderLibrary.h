@@ -56,7 +56,6 @@ class ComputeShaderLibrary final : public Pal::ComputeShaderLibrary
 {
 public:
     explicit ComputeShaderLibrary(Device* pDevice);
-    virtual ~ComputeShaderLibrary();
 
     const ComputePipelineSignature& Signature() const { return m_signature; }
     bool IsWave32() const { return m_signature.flags.isWave32; }
@@ -71,9 +70,6 @@ public:
     virtual Result GetShaderFunctionStats(
         const char*      pShaderExportName,
         ShaderLibStats*  pShaderStats) const override;
-
-    virtual const ShaderLibraryFunctionInfo* GetShaderLibFunctionList() const override { return m_pFunctionList; }
-    virtual uint32 GetShaderLibFunctionCount() const override { return m_funcCount; }
 
 protected:
     virtual Result HwlInit(
@@ -99,9 +95,6 @@ private:
     PipelineChunkCs           m_chunkCs;
     ShaderStageInfo           m_stageInfoCs;
     LibraryHwInfo             m_hwInfo;
-
-    ShaderLibraryFunctionInfo*  m_pFunctionList;
-    uint32                      m_funcCount;
 
     // Disable the default constructor and assignment operator
     PAL_DISALLOW_DEFAULT_CTOR(ComputeShaderLibrary);

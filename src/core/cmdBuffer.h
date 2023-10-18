@@ -1069,7 +1069,7 @@ protected:
     bool IsDumpingEnabled() const { return m_device.Settings().cmdBufDumpMode == CmdBufDumpModeRecordTime; }
 
     Util::File* DumpFile() { return &m_file; }
-    uint32      UniqueId() const { return m_uniqueId; }
+    virtual uint32 UniqueId() const override { return m_uniqueId; }
     uint32      NumBegun() const { return m_numCmdBufsBegun; }
 
     virtual void CmdNop(

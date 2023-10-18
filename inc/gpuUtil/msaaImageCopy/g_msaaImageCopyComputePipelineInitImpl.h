@@ -103,24 +103,6 @@ Pal::Result CreateMsaaImageCopyComputePipelines(
 
     switch (properties.revision)
     {
-    case Pal::AsicRevision::Polaris10:
-    case Pal::AsicRevision::Polaris11:
-    case Pal::AsicRevision::Polaris12:
-        pTable = msaaImageCopyComputeBinaryTablePolaris10;
-        break;
-
-    case Pal::AsicRevision::Vega10:
-    case Pal::AsicRevision::Raven:
-    case Pal::AsicRevision::Vega12:
-    case Pal::AsicRevision::Vega20:
-        pTable = msaaImageCopyComputeBinaryTableVega10;
-        break;
-
-    case Pal::AsicRevision::Raven2:
-    case Pal::AsicRevision::Renoir:
-        pTable = msaaImageCopyComputeBinaryTableRaven2;
-        break;
-
     case Pal::AsicRevision::Navi10:
         pTable = msaaImageCopyComputeBinaryTableNavi10;
         break;
@@ -157,6 +139,12 @@ Pal::Result CreateMsaaImageCopyComputePipelines(
         break;
 #endif
 
+#if PAL_BUILD_NAVI32
+    case Pal::AsicRevision::Navi32:
+        pTable = msaaImageCopyComputeBinaryTableNavi32;
+        break;
+#endif
+
 #if PAL_BUILD_NAVI33
     case Pal::AsicRevision::Navi33:
         pTable = msaaImageCopyComputeBinaryTableNavi33;
@@ -166,12 +154,6 @@ Pal::Result CreateMsaaImageCopyComputePipelines(
 #if PAL_BUILD_PHOENIX1
     case Pal::AsicRevision::Phoenix1:
         pTable = msaaImageCopyComputeBinaryTablePhoenix1;
-        break;
-#endif
-
-#if PAL_BUILD_NAVI32
-    case Pal::AsicRevision::Navi32:
-        pTable = msaaImageCopyComputeBinaryTableNavi32;
         break;
 #endif
 

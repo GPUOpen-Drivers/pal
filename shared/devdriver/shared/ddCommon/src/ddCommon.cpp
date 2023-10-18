@@ -796,7 +796,7 @@ void LoggerUtil::Pop(const DDLogEvent& event, const char* pMessage)
     m_info.pfnLog(m_info.pUserdata, &event, pMessage);
 }
 
-namespace Internal
+namespace DDInternal
 {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /// Helper method to make an Event. Don't call this directly.

@@ -50,6 +50,7 @@ class Queue;
 class TargetCmdBuffer;
 
 constexpr uint32 BadSubQueueIdx = UINT32_MAX;
+constexpr uint32 MaxDepthTargetPlanes = 2;
 
 // =====================================================================================================================
 // GpuDebug implementation of the ICmdBuffer interface. This will follow similar record/playback functionality seen in
@@ -906,36 +907,39 @@ private:
     const IPipeline*             m_pBoundPipelines[static_cast<uint32>(PipelineBindPoint::Count)];
     BindTargetParams             m_boundTargets;
     const IColorBlendState*      m_pBoundBlendState;
-
     struct
     {
         uint32 nested     :  1;  // This is a nested command buffer.
         uint32 reserved   : 31;
     } m_flags;
 
+    struct ActionInfo
+    {
+       PipelineHash actionHash;                             // Pipeline or shader hash of this action
+       uint32_t     drawId;                                 // Draw Id in the command buffer
+       Image*       pColorTargetDsts[MaxColorTargets];      // Array of Image*s of color target copy destinations
+       Image*       pDepthTargetDsts[MaxDepthTargetPlanes]; // Array of Image*s of depth target copy destinations
+       Image*       pBlitImg;                               // Recorded blit image
+       uint32_t     blitOpMask;                             // Record the blit operations corresponding to the image
+                                                            // above.
+    };
+
     struct
     {
-        uint32                 actionId;             // Count of the number of actions seen
-        bool                   pipelineMatch;        // true if the current pipeline matches the surface capture hash
-        uint32                 actionIdStart;        // First action to capture results
-        uint32                 actionIdCount;        // Number of action to capture results
-        uint64                 hash;                 // value of shader and pipeline hashes that enable surface capture
-        Image**                ppColorTargetDsts;    // Array of Image*s of color target copy destinations
-                                                     // There are (MaxColorTargets * m_actionCount) elements
-                                                     // This is arranged such that the pointers are grouped by draw ID.
-                                                     // Draw0Mrt0, Draw0Mrt1, ..., Draw0Mrt7, Draw1Mrt0, ...
-        Image**                ppDepthTargetDsts;    // Array of Image*s of depth target copy destinations
-                                                     // There are (2 * m_actionCount) elements
-                                                     // This is arranged such that the pointers are grouped by draw ID.
-                                                     // Draw0Z, Draw0S, Draw1Z, Draw1S, ...
-        Image**                ppBlitImgs;           // Array of Image*s of blit images recorded.
-        EnabledBlitOperations* pBlitOpMask;          // Record the blit operations corresponding to the images above.
-        uint32                 blitImgOpEnabledMask; // Enabled Blit Image Capture Mask. Match settings_platform.json
-                                                     // 0 - None. 1 - CmdCopyMemoryToImage enabled.
-                                                     // 2 - CmdClearColorImage enabled. 4 - CmdClearDepthStencil enabled.
-                                                     // 8 - CmdCopyImageToMemory enabled.
-        IGpuMemory**           ppGpuMem;             // Gpu memory to make resident for this command buffer's surface capture
-        uint32                 gpuMemObjsCount;      // Number of gpu memory objects in the ppGpuMem list
+        uint32       actionId;             // Count of the number of actions seen
+        uint32       drawId;               // Count of the draws
+        bool         pipelineMatch;        // true if the current pipeline matches the surface capture hash
+        uint32       actionIdStart;        // First action to capture results
+        uint32       actionIdCount;        // Number of action to capture results
+        uint64       hash;                 // value of shader and pipeline hashes that enable surface capture
+        uint32       blitImgOpEnabledMask; // Enabled Blit Image Capture Mask. Match settings_platform.json
+                                           // 0 - None. 1 - CmdCopyMemoryToImage enabled.
+                                           // 2 - CmdClearColorImage enabled. 4 - CmdClearDepthStencil enabled.
+                                           // 8 - CmdCopyImageToMemory enabled.
+        ActionInfo*  pActions;             // Array of capture results
+        IGpuMemory** ppGpuMem;             // Gpu memory to make resident for this command buffer's surface capture
+        uint32       gpuMemObjsCount;      // Number of gpu memory objects in the ppGpuMem list
+        uint32       filenameHashType;     // Hash type in capture image filename.
     } m_surfaceCapture;
 
     // The token stream is a single block of memory that doubles in size each time it runs out of space.

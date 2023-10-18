@@ -271,6 +271,13 @@ private:
         const SubresRange&    clearRange,
         bool                  trackBltActiveFlags) const = 0;
 
+    virtual bool IsAc01ColorClearCode(
+        const GfxImage&       dstImage,
+        const uint32*         pConvertedColor,
+        const SwizzledFormat& clearFormat,
+        const SubresRange&    clearRange) const
+        { return false; }
+
     virtual void HwlDepthStencilClear(
         GfxCmdBuffer*      pCmdBuffer,
         const GfxImage&    dstImage,

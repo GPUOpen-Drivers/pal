@@ -156,6 +156,18 @@ enum class LogicOp : uint32
 /// Disable means that every Threadgroup is issued to the next SE.
 enum class DispatchInterleaveSize : uint32
 {
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 823)
+    Default,
+    Disable,
+
+    _1D_64_Threads,
+    _1D_128_Threads,
+    _1D_256_Threads,
+    _1D_512_Threads,
+
+    Count,
+
+#else
     Default               = 0x0,
     Disable               = 0x1,
     _128                  = 0x2,
@@ -163,6 +175,7 @@ enum class DispatchInterleaveSize : uint32
     _512                  = 0x4,
 
     Count
+#endif
 };
 #endif
 

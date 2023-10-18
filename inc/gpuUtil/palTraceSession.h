@@ -85,6 +85,25 @@ enum class TraceSessionState : Pal::uint32
     Completed  = 4  /// Trace has fully completed. RDF trace data is ready to be pulled out by CollectTrace().
 };
 
+/// Defines the type of payload. Currently only strings are supported but in the future can include JSON, structs, etc.
+enum class TraceErrorPayload : Pal::uint32
+{
+    None,        //< Should be set when there is no additional information to be sent with the error
+    ErrorString  //< Should be set when the error payload is string data
+};
+
+/// Chunk Header for the error tracing chunk
+struct TraceErrorHeader
+{
+    char              chunkId[TextIdentifierSize]; //< the chunk id of the failing chunk
+    Pal::uint32       chunkIndex;                  //< the chunk index of the failing chunk
+    Pal::Result       resultCode;                  //< the result code of the failure
+    TraceErrorPayload payloadType;                 //< the type of error chunk payload
+};
+
+constexpr char ErrorChunkTextIdentifier[TextIdentifierSize]  = "TraceError";
+constexpr Pal::uint32 ErrorTraceChunkVersion                 = 1;
+
 /**
 ***********************************************************************************************************************
 * @interface ITraceController
@@ -464,6 +483,23 @@ public:
     {
         m_sessionState = sessionState;
     }
+
+    /// Creates and writes a chunk for error trace data
+    ///
+    /// @param [in]     chunkId     contains the identifier for the rdf chunk
+    /// @param [in]     pPayload    pointer to the data sent for the error, strings should be null terminated
+    /// @param [in]     payloadSize size of the data in the payload, ensure null terminator is included for strings
+    /// @param [in]     payloadType enumerator defined in src/gpuUtil/errorTraceSource.h that notifies the type of
+    ///                             payload
+    /// @param [in]     resultCode  the PAL result code for failing operation
+    ///
+    /// @returns Success if the Error chunk was written successfully
+    Pal::Result ReportError(
+        const char        chunkId[TextIdentifierSize],
+        const void*       pPayload,
+        Pal::uint64       payloadSize,
+        TraceErrorPayload payloadType,
+        Pal::Result       resultCode);
 
 private:
     typedef Pal::IPlatform TraceAllocator;

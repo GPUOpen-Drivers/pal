@@ -1037,9 +1037,6 @@ private:
     Result InitQueueInfo();
 
     Result InitScreen();
-    void InitGfx6ChipProperties();
-    void InitGfx6CuMask(
-        struct drm_amdgpu_info_device* pDeviceInfo);
 
     void InitGfx9ChipProperties();
     void InitGfx9CuMask(

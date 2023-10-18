@@ -35,22 +35,24 @@
 #include "palUtil.h"
 
 #include <signal.h>
-
 /// OS-independent macro to force a break into the debugger.
-#define PAL_DEBUG_BREAK() raise(SIGTRAP);
+#define PAL_DEBUG_BREAK() [[unlikely]] raise(SIGTRAP);
+/// Macro to direct static code analysis to assume the specified expression will always be true.
+/// Purpose is to suppress warnings from MSVC's /analysis setting.
+/// Only pertains to static code analysis. Does not impact compile optimization. Not the same as C++23's [[assume]].
+#define PAL_ANALYSIS_ASSUME(_expr) ((void)(_expr))
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 825
 #if PAL_HAS_BUILTIN(__builtin_expect) || (defined(__GNUC__) && !defined(__clang__))
 /// Informs the compiler to assume that the given expression likely evaluates to true, and returns that expression.
-#define PAL_PREDICT_TRUE(expr) __builtin_expect(!!(expr), 1)
+#define PAL_PREDICT_TRUE(_expr) __builtin_expect(!!(_expr), 1)
 /// Informs the compiler to assume that the given expression likely evaluates to false, and returns that expression.
-#define PAL_PREDICT_FALSE(expr) __builtin_expect((expr), 0)
+#define PAL_PREDICT_FALSE(_expr) __builtin_expect((_expr), 0)
 #else
-#define PAL_PREDICT_TRUE(expr) (expr)
-#define PAL_PREDICT_FALSE(expr) (expr)
+#define PAL_PREDICT_TRUE(_expr) (_expr)
+#define PAL_PREDICT_FALSE(_expr) (_expr)
 #endif
-
-/// OS-independent macro to direct static code analysis to assume the specified expression will always be true.
-#define PAL_ANALYSIS_ASSUME(expr) static_cast<void>(PAL_PREDICT_TRUE(expr))
+#endif
 
 namespace Util
 {
@@ -70,7 +72,6 @@ constexpr bool CheckReservedBits(
     uint32 expectedTotalBitWidth,
     uint32 expectedReservedBits)
 {
-#if PAL_CPLUSPLUS_AT_LEAST(PAL_CPLUSPLUS_14) || (defined(__cpp_constexpr) && (__cpp_constexpr >= 201304))
     bool match = false;
 
     // Fail if the whole size is different
@@ -91,10 +92,6 @@ constexpr bool CheckReservedBits(
         match = (reservedBits - 1) == expectedReservedBits;
     }
     return match;
-#else
-    // C++11 lacks support for doing anything useful with constexpr
-    return true;
-#endif
 }
 
 /// A helper function to check that a series of static numeric values are sequential.
@@ -112,21 +109,16 @@ constexpr bool CheckSequential(
     const T (&args)[N],
     T       interval = 1)
 {
-#if PAL_CPLUSPLUS_AT_LEAST(PAL_CPLUSPLUS_14) || (defined(__cpp_constexpr) && (__cpp_constexpr >= 201304))
     bool isSequential = true;
     for (int i = 0; i < (N - 1); i++)
     {
-        if ((args[i] + interval) != args[i+1])
+        if ((args[i] + interval) != args[i + 1])
         {
             isSequential = false;
             break;
         }
     }
     return isSequential;
-#else
-    // C++11 lacks support for doing anything useful with constexpr
-    return true;
-#endif
 }
 
 #if (PAL_ENABLE_PRINTS_ASSERTS || PAL_ENABLE_LOGGING)
@@ -170,7 +162,7 @@ extern bool IsAssertCategoryEnabled(
 ///
 /// @note This version of assert inlines an 'int 3' every time it is used so that each occurrence can be zapped
 ///       independently.  This macro cannot be used in assignment operations.
-#define PAL_TRIGGER_ASSERT(_pFormat, ...)                           \
+#define PAL_TRIGGER_ASSERT(_pFormat, ...) [[unlikely]]              \
 do {                                                                \
     PAL_DPERROR(_pFormat, ##__VA_ARGS__);                           \
     if (::Util::IsAssertCategoryEnabled(::Util::AssertCatAssert))   \
@@ -186,8 +178,9 @@ do {                                                                \
 #define PAL_ASSERT_MSG(_expr, _pReasonFmt, ...)                                                   \
 do {                                                                                              \
     const bool _expr_eval = static_cast<bool>(_expr);                                             \
-    if (PAL_PREDICT_FALSE(_expr_eval == false))                                                   \
+    if (_expr_eval == false)                                                                      \
     {                                                                                             \
+        [[unlikely]]                                                                              \
         PAL_TRIGGER_ASSERT("Assertion failed: %s | Reason: " _pReasonFmt, #_expr, ##__VA_ARGS__); \
     }                                                                                             \
     PAL_ANALYSIS_ASSUME(_expr_eval);                                                              \
@@ -229,8 +222,9 @@ constexpr void PalTriggerAssertImpl(
 #define PAL_CONSTEXPR_ASSERT_MSG(_expr, _pReasonFmt, ...)                                               \
 do {                                                                                                    \
     const bool _expr_eval = static_cast<bool>(_expr);                                                   \
-    if (PAL_PREDICT_FALSE(_expr_eval == false))                                                         \
+    if (_expr_eval == false)                                                                            \
     {                                                                                                   \
+        [[unlikely]]                                                                                    \
         PalTriggerAssertImpl("Assertion failed: %s (%s:%d:%s)", #_expr,  __FILE__, __LINE__, __func__); \
     }                                                                                                   \
     PAL_ANALYSIS_ASSUME(_expr_eval);                                                                    \
@@ -248,8 +242,9 @@ do {                                                                            
 #define PAL_CONSTEXPR_ASSERT_MSG(_expr, _pReasonFmt, ...)                                                    \
 do {                                                                                                         \
     const bool _expr_eval = static_cast<bool>(_expr);                                                        \
-    if (PAL_PREDICT_FALSE(_expr_eval == false))                                                              \
+    if (_expr_eval == false)                                                                                 \
     {                                                                                                        \
+        [[unlikely]]                                                                                         \
         [&] { PAL_TRIGGER_ASSERT("Assertion failed: %s | Reason: " _pReasonFmt, #_expr, ##__VA_ARGS__); }(); \
     }                                                                                                        \
     PAL_ANALYSIS_ASSUME(_expr_eval);                                                                         \
@@ -263,12 +258,16 @@ do {                                                                            
 /// Calls the PAL_CONSTEXPR_ASSERT_MSG macro with a generic reason string
 #define PAL_CONSTEXPR_ASSERT(_expr) PAL_CONSTEXPR_ASSERT_MSG(_expr, "%s", "Unknown")
 
+#if DEBUG
 /// Debug build only PAL assert, the typical usage is when make an assertion on a debug-only variables.
 /// The only difference than PAL assert is it's empty in release mode.
 #define PAL_DEBUG_BUILD_ONLY_ASSERT(_expr) \
 do {                                       \
     PAL_ASSERT(_expr);                     \
 } while (false)
+#else
+#define PAL_DEBUG_BUILD_ONLY_ASSERT(_expr) ((void)0)
+#endif
 
 /// If the expression evaluates to true, then a warning message with the specified reason will be printed via the
 /// debug print system. A debug break will also be triggered if they're currently enabled for alerts.
@@ -280,7 +279,7 @@ do {                                       \
 /// not typically expected.  For example, asserting that an OS call succeeded should be avoided since there cannot be an
 /// assumption that it will succeed.  Nonetheless, a developer may want to be alerted immediately and dropped into the
 /// debugger when such a failure occurs.
-#define PAL_TRIGGER_ALERT(_pFormat, ...)                            \
+#define PAL_TRIGGER_ALERT(_pFormat, ...) [[unlikely]]               \
 do {                                                                \
     PAL_DPWARN(_pFormat, ##__VA_ARGS__);                            \
     if (::Util::IsAssertCategoryEnabled(::Util::AssertCatAlert))    \
@@ -291,8 +290,9 @@ do {                                                                \
 
 #define PAL_ALERT_MSG(_expr, _pReasonFmt, ...)                                                  \
 do {                                                                                            \
-    if (PAL_PREDICT_FALSE(_expr))                                                               \
+    if (_expr)                                                                                  \
     {                                                                                           \
+        [[unlikely]]                                                                            \
         PAL_TRIGGER_ALERT("Alert triggered: %s | Reason: " _pReasonFmt, #_expr, ##__VA_ARGS__); \
     }                                                                                           \
 } while (false)
@@ -329,16 +329,16 @@ do {                                                                            
 #define PAL_DEBUG_BUILD_ONLY_ASSERT(_expr)   ((void)0)
 #define PAL_ALERT(_expr)                     ((void)0)
 #define PAL_ALERT_MSG(_expr, ...)            ((void)0)
-#define PAL_NOT_TESTED()                     ((void)0)
-#define PAL_NOT_TESTED_MSG(...)              ((void)0)
-#define PAL_NOT_IMPLEMENTED()                ((void)0)
-#define PAL_NOT_IMPLEMENTED_MSG(...)         ((void)0)
-#define PAL_NEVER_CALLED()                   ((void)0)
-#define PAL_NEVER_CALLED_MSG(...)            ((void)0)
-#define PAL_ASSERT_ALWAYS()                  ((void)0)
-#define PAL_ASSERT_ALWAYS_MSG(...)           ((void)0)
-#define PAL_ALERT_ALWAYS()                   ((void)0)
-#define PAL_ALERT_ALWAYS_MSG(...)            ((void)0)
+#define PAL_NOT_TESTED()                     [[unlikely]] ((void)0)
+#define PAL_NOT_TESTED_MSG(...)              [[unlikely]] ((void)0)
+#define PAL_NOT_IMPLEMENTED()                [[unlikely]] ((void)0)
+#define PAL_NOT_IMPLEMENTED_MSG(...)         [[unlikely]] ((void)0)
+#define PAL_NEVER_CALLED()                   [[unlikely]] ((void)0)
+#define PAL_NEVER_CALLED_MSG(...)            [[unlikely]] ((void)0)
+#define PAL_ASSERT_ALWAYS()                  [[unlikely]] ((void)0)
+#define PAL_ASSERT_ALWAYS_MSG(...)           [[unlikely]] ((void)0)
+#define PAL_ALERT_ALWAYS()                   [[unlikely]] ((void)0)
+#define PAL_ALERT_ALWAYS_MSG(...)            [[unlikely]] ((void)0)
 
 #endif
 

@@ -99,24 +99,6 @@ Pal::Result CreateMlaaComputePipelines(
 
     switch (properties.revision)
     {
-    case Pal::AsicRevision::Polaris10:
-    case Pal::AsicRevision::Polaris11:
-    case Pal::AsicRevision::Polaris12:
-        pTable = mlaaComputeBinaryTablePolaris10;
-        break;
-
-    case Pal::AsicRevision::Vega10:
-    case Pal::AsicRevision::Raven:
-    case Pal::AsicRevision::Vega12:
-    case Pal::AsicRevision::Vega20:
-        pTable = mlaaComputeBinaryTableVega10;
-        break;
-
-    case Pal::AsicRevision::Raven2:
-    case Pal::AsicRevision::Renoir:
-        pTable = mlaaComputeBinaryTableRaven2;
-        break;
-
     case Pal::AsicRevision::Navi10:
         pTable = mlaaComputeBinaryTableNavi10;
         break;
@@ -153,6 +135,12 @@ Pal::Result CreateMlaaComputePipelines(
         break;
 #endif
 
+#if PAL_BUILD_NAVI32
+    case Pal::AsicRevision::Navi32:
+        pTable = mlaaComputeBinaryTableNavi32;
+        break;
+#endif
+
 #if PAL_BUILD_NAVI33
     case Pal::AsicRevision::Navi33:
         pTable = mlaaComputeBinaryTableNavi33;
@@ -162,12 +150,6 @@ Pal::Result CreateMlaaComputePipelines(
 #if PAL_BUILD_PHOENIX1
     case Pal::AsicRevision::Phoenix1:
         pTable = mlaaComputeBinaryTablePhoenix1;
-        break;
-#endif
-
-#if PAL_BUILD_NAVI32
-    case Pal::AsicRevision::Navi32:
-        pTable = mlaaComputeBinaryTableNavi32;
         break;
 #endif
 

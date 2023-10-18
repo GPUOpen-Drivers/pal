@@ -56,7 +56,7 @@ PipelineChunkVsPs::PipelineChunkVsPs(
     m_device(device),
     m_regs{},
     m_semanticInfo{},
-    m_hasSemanticInfo(false),
+    m_semanticCount(0),
     m_pVsPerfDataInfo(pVsPerfDataInfo),
     m_pPsPerfDataInfo(pPsPerfDataInfo),
     m_stageInfoVs{},
@@ -190,24 +190,30 @@ void PipelineChunkVsPs::LateInit(
     m_regs.context.paScShaderControl.u32All = AbiRegisters::PaScShaderControl(metadata, m_device, chipProps.gfxLevel);
     m_paScAaConfig.u32All                   = AbiRegisters::PaScAaConfig(metadata);
 
+     m_semanticCount = 0;
     if (metadata.pipeline.prerasterOutputSemantic[0].hasEntry.semantic)
     {
-        PAL_ASSERT(metadata.pipeline.psInputSemantic[0].hasEntry.semantic == false);
-        for (uint32 i = 0; i < m_regs.context.interpolatorCount; i++)
+        for (uint32 i = 0; i < Util::ArrayLen32(metadata.pipeline.prerasterOutputSemantic); i++)
         {
-            m_semanticInfo[i].semantic = metadata.pipeline.prerasterOutputSemantic[i].semantic;
-            m_semanticInfo[i].index = metadata.pipeline.prerasterOutputSemantic[i].index;
+            if (metadata.pipeline.prerasterOutputSemantic[i].hasEntry.semantic)
+            {
+                m_semanticCount++;
+                m_semanticInfo[i].semantic = metadata.pipeline.prerasterOutputSemantic[i].semantic;
+                m_semanticInfo[i].index = metadata.pipeline.prerasterOutputSemantic[i].index;
+            }
+            else
+            {
+                break;
+            }
         }
-        m_hasSemanticInfo = true;
     }
     else if (metadata.pipeline.psInputSemantic[0].hasEntry.semantic)
     {
-        PAL_ASSERT(metadata.pipeline.prerasterOutputSemantic[0].hasEntry.semantic == false);
+        m_semanticCount = m_regs.context.interpolatorCount;
         for (uint32 i = 0; i < m_regs.context.interpolatorCount; i++)
         {
             m_semanticInfo[i].semantic = metadata.pipeline.psInputSemantic[i].semantic;
         }
-        m_hasSemanticInfo = true;
     }
 }
 
@@ -654,16 +660,16 @@ void PipelineChunkVsPs::Clone(
         chunkExp.m_regs.context.dbShaderControl.bits.ALPHA_TO_MASK_DISABLE;
     m_colorExportAddr = chunkExp.m_colorExportAddr;
 
-    if (chunkPs.m_hasSemanticInfo && chunkVs.m_hasSemanticInfo)
+    if ((chunkPs.m_semanticCount > 0) && (chunkVs.m_semanticCount > 0))
     {
         constexpr uint32 DefaultValOffset = (1 << 5);
         constexpr uint32 ValOffsetMask    = ((1 << 5) - 1);
-        for (uint32 i = 0; i < m_regs.context.interpolatorCount; i++)
+        for (uint32 i = 0; i < chunkVs.m_semanticCount; i++)
         {
             uint32 index = DefaultValOffset;
-            for (uint32 j = 0; j < chunkVs.m_regs.context.interpolatorCount; j++)
+            for (uint32 j = 0; j < chunkPs.m_semanticCount; j++)
             {
-                if (chunkPs.m_semanticInfo[i].semantic == chunkVs.m_semanticInfo[j].semantic)
+                if (chunkVs.m_semanticInfo[i].semantic == chunkPs.m_semanticInfo[j].semantic)
                 {
                     index = chunkVs.m_semanticInfo[j].index;
                 }

@@ -163,6 +163,16 @@ public:
 
     virtual void CmdReleaseThenAcquire(const AcquireReleaseInfo& barrierInfo) override;
 
+    virtual void CmdResolveQuery(
+        const IQueryPool& queryPool,
+        QueryResultFlags  flags,
+        QueryType         queryType,
+        uint32            startQuery,
+        uint32            queryCount,
+        const IGpuMemory& dstGpuMemory,
+        gpusize           dstOffset,
+        gpusize           dstStride) override;
+
     uint32 GetNextAcqRelFenceVal(AcqRelEventType type)
     {
         m_acqRelFenceVals[static_cast<uint32>(type)]++;

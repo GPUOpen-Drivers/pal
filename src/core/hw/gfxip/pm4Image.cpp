@@ -294,6 +294,18 @@ uint32 Pm4Image::TranslateClearCodeOneToNativeFmt(
         {
             maxColorValue = Math::Float32ToFloat10_6e4(1.0f);
         }
+        // ones isn't calculated properly because Float32ToNumBits
+        // does not do anything for a bit-count of 9; even if it did, the
+        // 9-bit fractional portion of 1.0f and 0.0f are the same
+
+        // Since we only allow clearing to MAX for this format,
+        // clearCodeOne for each component is the max value for that component
+        else if (format == ChNumFormat::X9Y9Z9E5_Float)
+        {
+            // unpacked this value is (0x000001FF, 0x000001FF, 0x000001FF, 0x000001F),
+            // which is maxComponentValue for each channel
+            maxColorValue = maxComponentValue;
+        }
         else
         {
             maxColorValue = Math::Float32ToNumBits(1.0f, ComponentBitCounts(format)[cmpIdx]);

@@ -352,7 +352,7 @@ private:
     bool         m_started;
 };
 
-namespace Internal
+namespace DDInternal
 {
     /// Helper method to make an Event. Don't call this directly.
     /// We can enable or disable optional fields in this
@@ -367,7 +367,7 @@ namespace Internal
 
 // Construct a LogEvent with correct fields
 // This is mostly used to make sure __FILE__ and company are set-up correctly.
-#define DD_MAKE_LOG_EVENT(level, category) ::Internal::MakeEventHelper(level, category, __FILE__, __FUNCTION__, __LINE__)
+#define DD_MAKE_LOG_EVENT(level, category) ::DDInternal::MakeEventHelper(level, category, __FILE__, __FUNCTION__, __LINE__)
 
 // Helper macros to make logging simple
 // These can be expanded per component if you never vary category:

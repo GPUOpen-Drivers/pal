@@ -33,6 +33,8 @@
 #include "core/hw/gfxip/pipeline.h"
 #include "core/hw/gfxip/pm4CmdBuffer.h"
 #include "core/hw/gfxip/pm4Image.h"
+#include "core/hw/gfxip/queryPool.h"
+#include "core/hw/gfxip/rpm/rsrcProcMgr.h"
 #include "palAutoBuffer.h"
 #include "palDequeImpl.h"
 #include "palHsaAbiMetadata.h"
@@ -583,7 +585,7 @@ void Pm4CmdBuffer::CmdBindPipeline(
     const PipelineBindParams& params)
 {
     // Try to catch users who try to bind graphics pipelines to compute command buffers.
-    PAL_ASSERT((params.pipelineBindPoint == PipelineBindPoint::Compute) || IsGraphicsSupported());
+    PAL_DEBUG_BUILD_ONLY_ASSERT((params.pipelineBindPoint == PipelineBindPoint::Compute) || IsGraphicsSupported());
 
     const auto* const pPipeline = static_cast<const Pipeline*>(params.pPipeline);
 
@@ -982,7 +984,7 @@ void Pm4CmdBuffer::UpdateUserDataTableCpu(
     // The dwordsNeeded and offsetInDwords parameters together specify a "window" of the table which is relevant to
     // the active pipeline.  To save memory as well as cycles spent copying data, this will only allocate and populate
     // the portion of the user-data table inside that window.
-    PAL_ASSERT((dwordsNeeded + offsetInDwords) <= pTable->sizeInDwords);
+    PAL_DEBUG_BUILD_ONLY_ASSERT((dwordsNeeded + offsetInDwords) <= pTable->sizeInDwords);
 
     // User-data can contain inline constant buffers which, for historical reasons, are defined in 4x32-bit chunks in
     // HLSL but are only DWORD size-aligned in the user-data layout. This means the following can occur:
@@ -1020,7 +1022,7 @@ void Pm4CmdBuffer::UpdateUserDataTableCpu(
     //    because we have an implicit contract with multiple compilers that the table pointer starts at offset zero.
     // 2. Define a maximum offset value and reserve enough VA space at the beginning of the VA range to ensure that we
     //    can never allocate embeded data in the range that can underflow. This will waste VA space and seems hacky.
-    PAL_ASSERT(HighPart(gpuVirtAddr) == HighPart(pTable->gpuVirtAddr));
+    PAL_DEBUG_BUILD_ONLY_ASSERT(HighPart(gpuVirtAddr) == HighPart(pTable->gpuVirtAddr));
 
     uint32* pDstData = (pTable->pCpuVirtAddr + offsetInDwords);
     pSrcData += offsetInDwords;
@@ -1337,6 +1339,33 @@ void Pm4CmdBuffer::CmdReleaseThenAcquire(
     }
 
     m_pBarrierMgr->DescribeBarrierEnd(this, &barrierOps);
+
+    m_pm4CmdBufState.flags.packetPredicate = packetPredicate;
+}
+
+// =====================================================================================================================
+void Pm4CmdBuffer::CmdResolveQuery(
+    const IQueryPool& queryPool,
+    QueryResultFlags  flags,
+    QueryType         queryType,
+    uint32            startQuery,
+    uint32            queryCount,
+    const IGpuMemory& dstGpuMemory,
+    gpusize           dstOffset,
+    gpusize           dstStride)
+{
+    // Resolving a query is not supposed to honor predication.
+    const uint32 packetPredicate = m_pm4CmdBufState.flags.packetPredicate;
+    m_pm4CmdBufState.flags.packetPredicate = 0;
+    m_device.RsrcProcMgr().CmdResolveQuery(this,
+                                           static_cast<const QueryPool&>(queryPool),
+                                           flags,
+                                           queryType,
+                                           startQuery,
+                                           queryCount,
+                                           static_cast<const GpuMemory&>(dstGpuMemory),
+                                           dstOffset,
+                                           dstStride);
 
     m_pm4CmdBufState.flags.packetPredicate = packetPredicate;
 }

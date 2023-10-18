@@ -24,13 +24,18 @@
  #######################################################################################################################
 
 devdriver_library(dd_common STATIC)
-target_include_directories(dd_common INTERFACE inc)
+target_include_directories(dd_common PUBLIC inc)
 target_sources(dd_common
     PUBLIC
+        inc/dd_allocator_api.h
         inc/dd_assert.h
+        inc/dd_constants.h
+        inc/dd_dynamic_buffer.h
         inc/dd_logger_api.h
         inc/dd_mutex.h
+        inc/dd_optional.h
     PRIVATE
+        src/dd_dynamic_buffer.cpp
         src/dd_logger.cpp
 )
 target_link_libraries(dd_common

@@ -68,6 +68,8 @@ public:
 
     const ComputePipelineSignature& Signature() const { return m_signature; }
 
+    size_t GetRingSizeComputeScratch() const { return m_ringSizeComputeScratch; }
+
     bool IsWave32() const { return m_signature.flags.isWave32; }
 
     static uint32 CalcMaxWavesPerSe(
@@ -126,11 +128,12 @@ protected:
         Util::MsgPackReader*                    pMetadataReader) override;
 
 private:
-    void UpdateRingSizes(uint32 scratchMemorySize);
+    void UpdateRingSizeComputeScratch(uint32 scratchMemorySize);
 
     Device*const m_pDevice;
 
     ComputePipelineSignature m_signature;
+    size_t                   m_ringSizeComputeScratch;
     PipelineChunkCs          m_chunkCs;
     bool                     m_disablePartialPreempt;
 #if PAL_BUILD_GFX11

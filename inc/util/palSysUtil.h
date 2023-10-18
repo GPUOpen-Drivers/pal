@@ -33,8 +33,10 @@
 
 #include "palUtil.h"
 #include "palAssert.h"
-#include <errno.h>
-#include <string.h>
+#include "palSpan.h"
+#include "palStringView.h"
+#include <cerrno>
+#include <cstring>
 
 #if   defined(__unix__)
 #define PAL_HAS_CPUID (__i386__ || __x86_64__)
@@ -424,9 +426,38 @@ extern Result MkDir(
 extern Result MkDirRecursively(
     const char* pPathName);
 
+/// Counts the number of files found within the directory.
+///
+/// @param [in]  pDirPath   string specifying the directory
+/// @param [out] pFileCount the number of files in the directory
+/// @param [out] pCharCount the number of characters in the names of all the files
+///
+/// @returns Result::ErrorInvalidPointer if any of the input pointers are null
+/// @returns Result::ErrorInvalidValue if there are any file I/O errors
+/// @returns Result::Success otherwise
+extern Result CountFilesInDir(
+    Util::StringView<char>  dirPath,
+    size_t*                 pFileCount,
+    size_t*                 pCharCount);
+
 /// Lists the contents of the specified directory in an array of strings
 ///
-/// @param [in]     pDirName    String specifying the directory
+/// @param [in]  dirPath    String specifying the directory
+/// @param [out] fileNames  An array where pointers the file names will be written.
+/// @param [out] buffer     Memory where the file names can be stored.
+///
+/// @returns Result::ErrorInvalidPointer if any of the inputs are null or empty
+/// @returns Result::ErrorInvalidValue if there are any file I/O errors
+/// @returns Result::Success otherwise
+extern Result GetFileNamesInDir(
+    Util::StringView<char>              dirPath,
+    Util::Span<Util::StringView<char>>  fileNames,
+    Util::Span<char>                    buffer);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 829
+/// Lists the contents of the specified directory in an array of strings
+///
+/// @param [in]     pDirPath    String specifying the directory
 /// @param [in,out] pFileCount  Should never be null. If either ppFileNames or pBuffer is null, pFileCount will output
 ///                             the number of files found within the directory. If both ppFileNames and pBuffer are
 ///                             non-null, pFileCount will specify the maximum number of file names to be written into
@@ -445,6 +476,7 @@ extern Result ListDir(
     const char** ppFileNames,
     size_t*      pBufferSize,
     const void*  pBuffer);
+#endif
 
 /// Non-recursively delete the least-recently-accesssed files from a directory until the directory reaches size in bytes.
 ///

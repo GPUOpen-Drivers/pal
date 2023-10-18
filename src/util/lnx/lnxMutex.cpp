@@ -248,6 +248,17 @@ void* AtomicExchangePointer(
 }
 
 // =====================================================================================================================
+// Thread-safe method to compare and swap a pair of pointers.
+// Returns the value at (*ppTarget) before this method was called.
+void* AtomicCompareExchangePointer(
+    void*volatile* ppTarget,
+    void*          pOldValue,
+    void*          pNewValue)
+{
+    return __sync_val_compare_and_swap(ppTarget, pOldValue, pNewValue);
+}
+
+// =====================================================================================================================
 // Atomically add two 32-bit integers, returning the result of the addition.
 uint32 AtomicAdd(
     volatile uint32* pAddend,

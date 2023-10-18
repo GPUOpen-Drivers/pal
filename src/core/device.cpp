@@ -36,7 +36,6 @@
 #include "core/queue.h"
 #include "core/settingsLoader.h"
 #include "core/hw/gfxip/gfxDevice.h"
-#include "core/hw/ossip/ossDevice.h"
 #include "core/addrMgr/addrMgr.h"
 #include "core/svmMgr.h"
 #include "palDequeImpl.h"
@@ -162,7 +161,6 @@ bool Device::DetermineGpuIpLevels(
     HwIpLevels*       pIpLevels)
 {
     pIpLevels->gfx = GfxIpLevel::None;
-    pIpLevels->oss = OssIpLevel::None;
     pIpLevels->vce = VceIpLevel::None;
     pIpLevels->uvd = UvdIpLevel::None;
     pIpLevels->vcn = VcnIpLevel::None;
@@ -175,9 +173,6 @@ bool Device::DetermineGpuIpLevels(
 
     switch (familyId)
     {
-    case FAMILY_POLARIS:
-        pIpLevels->gfx = Gfx6::DetermineIpLevel(familyId, eRevId, cpMicrocodeVersion);
-        break;
     case FAMILY_AI:
     case FAMILY_RV:
     case FAMILY_NV:
@@ -197,48 +192,12 @@ bool Device::DetermineGpuIpLevels(
         break;
     }
 
-#if PAL_BUILD_OSS
-    switch (familyId)
-    {
-#if PAL_BUILD_OSS2_4
-    case FAMILY_POLARIS:
-        pIpLevels->oss = Oss2_4::DetermineIpLevel(familyId, eRevId);
-        break;
-#endif
-#if PAL_BUILD_OSS4
-    case FAMILY_AI:
-    case FAMILY_RV:
-        pIpLevels->oss = Oss4::DetermineIpLevel(familyId, eRevId);
-        break;
-#endif
-    case FAMILY_NV:
-        // GFX10 GPUs have moved the SDMA block into the GFX layer; there is no OSS layer
-        // for this GPU.  The proper GFX layer for this family was determined above.
-        break;
-    case FAMILY_RMB:
-        break;
-    case FAMILY_RPL:
-        break;
-    case FAMILY_MDN:
-        break;
-#if PAL_BUILD_NAVI3X
-    case FAMILY_NV3:
-        break;
-#endif
-#if PAL_BUILD_PHOENIX
-    case FAMILY_PHX:
-        break;
-#endif
-    default:
-        break;
-    }
-#endif
-
     PAL_ALERT_MSG(pIpLevels->gfx == GfxIpLevel::None, "Unknown Gfx familyId:0x%x eRevId:0x%x", familyId, eRevId);
 
     // A GPU is considered supported by PAL if at least one of its hardware IP blocks is recognized.
-    return ((pIpLevels->gfx != GfxIpLevel::None) || (pIpLevels->oss != OssIpLevel::None) ||
-            (pIpLevels->vce != VceIpLevel::None) || (pIpLevels->uvd != UvdIpLevel::None) ||
+    return ((pIpLevels->gfx != GfxIpLevel::None) ||
+            (pIpLevels->vce != VceIpLevel::None) ||
+            (pIpLevels->uvd != UvdIpLevel::None) ||
             (pIpLevels->vcn != VcnIpLevel::None));
 }
 
@@ -261,7 +220,6 @@ Device::Device(
     m_emulatedTargetId(UINT_MAX),
     m_attachedScreenCount(attachedScreenCount),
     m_pGfxDevice(nullptr),
-    m_pOssDevice(nullptr),
     m_pTextWriter(nullptr),
     m_devDriverClientId(0),
     m_pFormatPropertiesTable(nullptr),
@@ -336,12 +294,6 @@ Device::~Device()
     {
         m_pGfxDevice->Destroy();
         m_pGfxDevice = nullptr;
-    }
-
-    if (m_pOssDevice != nullptr)
-    {
-        m_pOssDevice->Destroy();
-        m_pOssDevice = nullptr;
     }
 
     if (m_pAddrMgr != nullptr)
@@ -610,6 +562,8 @@ Result Device::SetupPublicSettingDefaults()
 
     m_publicSettings.forceShaderRingToVMem = false;
 
+    m_publicSettings.preferGraphicsImageCopy = true;
+
     return ret;
 }
 
@@ -620,8 +574,6 @@ Result Device::HwlEarlyInit()
     void* pCurrPlacementAddr            = VoidPtrInc(this, m_deviceSize);
     void*const pGfxPlacementAddr        = pCurrPlacementAddr;
     pCurrPlacementAddr                  = VoidPtrInc(pGfxPlacementAddr, m_hwDeviceSizes.gfx);
-    void*const pOssPlacementAddr        = pCurrPlacementAddr;
-    pCurrPlacementAddr                  = VoidPtrInc(pOssPlacementAddr, m_hwDeviceSizes.oss);
     void*const pAddrMgrPlacementAddr    = pCurrPlacementAddr;
 
     Result result = Result::Success;
@@ -639,12 +591,6 @@ Result Device::HwlEarlyInit()
 #if PAL_BUILD_GFX
     switch (ChipProperties().gfxLevel)
     {
-    case GfxIpLevel::GfxIp6:
-    case GfxIpLevel::GfxIp7:
-    case GfxIpLevel::GfxIp8:
-    case GfxIpLevel::GfxIp8_1:
-        result = Gfx6::CreateDevice(this, pGfxPlacementAddr, &pfnTable, &m_pGfxDevice);
-        break;
     case GfxIpLevel::GfxIp9:
     case GfxIpLevel::GfxIp10_1:
     case GfxIpLevel::GfxIp10_3:
@@ -665,34 +611,10 @@ Result Device::HwlEarlyInit()
         result = m_pGfxDevice->InitHwlSettings(m_pSettingsLoader->GetSettingsPtr());
     }
 
-#if PAL_BUILD_OSS
     if (result == Result::Success)
     {
-        switch (ChipProperties().ossLevel)
+        if (ChipProperties().gfxLevel < GfxIpLevel::GfxIp9)
         {
-#if PAL_BUILD_OSS2_4
-        case OssIpLevel::OssIp2_4:
-            result = Oss2_4::CreateDevice(this, pOssPlacementAddr, &m_pOssDevice);
-            break;
-#endif
-#if PAL_BUILD_OSS4
-        case OssIpLevel::OssIp4:
-            result = Oss4::CreateDevice(this, pOssPlacementAddr, &m_pOssDevice);
-            break;
-#endif
-        default:
-            PAL_ASSERT(m_hwDeviceSizes.oss == 0);
-            break;
-        }
-    }
-#endif
-
-    if (result == Result::Success)
-    {
-        if ((ChipProperties().gfxLevel < GfxIpLevel::GfxIp9) &&
-            (ChipProperties().ossLevel < OssIpLevel::OssIp4))
-        {
-            result = AddrMgr1::Create(this, pAddrMgrPlacementAddr, &m_pAddrMgr);
         }
 
         else
@@ -734,16 +656,6 @@ void Device::InitPerformanceRatings()
 #if PAL_BUILD_GFX
     switch (m_chipProperties.gfxLevel)
     {
-        case GfxIpLevel::GfxIp6:
-        case GfxIpLevel::GfxIp7:
-        case GfxIpLevel::GfxIp8:
-        case GfxIpLevel::GfxIp8_1:
-            numShaderEngines = m_chipProperties.gfx6.numShaderEngines;
-            numShaderArrays  = m_chipProperties.gfx6.numShaderArrays;
-            numCuPerSh       = m_chipProperties.gfx6.numCuPerSh;
-            numSimdPerCu     = m_chipProperties.gfx6.numSimdPerCu;
-            numWavesPerSimd  = m_chipProperties.gfx6.numWavesPerSimd;
-            break;
         case GfxIpLevel::GfxIp9:
             numShaderEngines = m_chipProperties.gfx9.numShaderEngines;
             numShaderArrays  = m_chipProperties.gfx9.numShaderArrays;
@@ -889,20 +801,11 @@ void Device::GetHwIpDeviceSizes(
     size_t*           pAddrMgrSize)
 {
     size_t  gfxAddrMgrSize = 0;
-    size_t  ossAddrMgrSize = 0;
-    size_t  maxAddrMgrSize = 0;
 
     PAL_ASSERT((pHwDeviceSizes != nullptr) && (pAddrMgrSize != nullptr));
 
     switch (ipLevels.gfx)
     {
-    case GfxIpLevel::GfxIp6:
-    case GfxIpLevel::GfxIp7:
-    case GfxIpLevel::GfxIp8:
-    case GfxIpLevel::GfxIp8_1:
-        pHwDeviceSizes->gfx = Gfx6::GetDeviceSize();
-        gfxAddrMgrSize      = AddrMgr1::GetSize();
-        break;
     case GfxIpLevel::GfxIp9:
     case GfxIpLevel::GfxIp10_1:
     case GfxIpLevel::GfxIp10_3:
@@ -916,32 +819,11 @@ void Device::GetHwIpDeviceSizes(
         break;
     }
 
-#if PAL_BUILD_OSS
-    switch (ipLevels.oss)
-    {
-#if PAL_BUILD_OSS2_4
-    case OssIpLevel::OssIp2_4:
-        pHwDeviceSizes->oss = Oss2_4::GetDeviceSize();
-        ossAddrMgrSize      = AddrMgr1::GetSize();
-        break;
-#endif
-#if PAL_BUILD_OSS4
-    case OssIpLevel::OssIp4:
-        pHwDeviceSizes->oss = Oss4::GetDeviceSize();
-        ossAddrMgrSize      = AddrMgr2::GetSize();
-        break;
-#endif
-    default:
-        break;
-    }
-#endif
-
-    maxAddrMgrSize = Max(gfxAddrMgrSize, ossAddrMgrSize);
+    size_t maxAddrMgrSize = gfxAddrMgrSize;
 
     // Not having a block should be ok, but if a block exists, they all better be
     // using the same size address manager.
     PAL_ASSERT ((gfxAddrMgrSize == 0) || (gfxAddrMgrSize == maxAddrMgrSize));
-    PAL_ASSERT ((ossAddrMgrSize == 0) || (ossAddrMgrSize == maxAddrMgrSize));
 
     *pAddrMgrSize = maxAddrMgrSize;
 }
@@ -1817,7 +1699,7 @@ Result Device::SplitSubresRanges(
         }
     }
 
-    PAL_ASSERT(*ppSplitRanges != nullptr);
+    PAL_ASSERT((*ppSplitRanges != nullptr) || (*pSplitRangeCount == 0));
 
     return result;
 }
@@ -1864,28 +1746,15 @@ Result Device::CreateEngine(
 
     switch (engineType)
     {
+#if PAL_BUILD_GFX
     case EngineTypeUniversal:
     case EngineTypeCompute:
-#if PAL_BUILD_GFX
+    case EngineTypeDma:
         if (m_pGfxDevice != nullptr)
         {
             result = m_pGfxDevice->CreateEngine(engineType, engineIndex, &m_pEngines[engineType][engineIndex]);
         }
 #endif
-        break;
-    case EngineTypeDma:
-#if PAL_BUILD_OSS
-        if (m_pOssDevice != nullptr)
-        {
-            result = m_pOssDevice->CreateEngine(engineType, engineIndex, &m_pEngines[engineType][engineIndex]);
-        }
-#endif
-
-        // GFX10 and newer level parts have the DMA engine as part of the GFX device...
-        if (IsGfx10Plus(*this))
-        {
-            result = m_pGfxDevice->CreateEngine(engineType, engineIndex, &m_pEngines[engineType][engineIndex]);
-        }
         break;
     case EngineTypeTimer:
     {
@@ -1936,33 +1805,13 @@ Result Device::CreateDummyCommandStreams()
 #if PAL_BUILD_GFX
             case EngineTypeUniversal:
             case EngineTypeCompute:
+            case EngineTypeDma:
                 if (m_pGfxDevice != nullptr)
                 {
                     result = m_pGfxDevice->CreateDummyCommandStream(engineType, &m_pDummyCommandStreams[engineType]);
                 }
                 break;
 #endif
-#if PAL_BUILD_OSS || PAL_BUILD_GFX
-            case EngineTypeDma:
-#if PAL_BUILD_OSS
-                // Most GPU's use OSSIP for DMA engines.
-                if (m_pOssDevice != nullptr)
-                {
-                    // Create OSS command stream for DMA...
-                    result = m_pOssDevice->CreateDummyCommandStream(engineType, &m_pDummyCommandStreams[engineType]);
-                }
-#endif
-#if PAL_BUILD_GFX
-                // Some GPUs use GFXIP instead for DMA engines.
-                if ((m_pDummyCommandStreams[engineType] == nullptr) && (m_pGfxDevice != nullptr))
-                {
-                    // Create GFX command stream for DMA...
-                    result = m_pGfxDevice->CreateDummyCommandStream(engineType, &m_pDummyCommandStreams[engineType]);
-                }
-#endif
-                break;
-#endif
-
             default:
                 // No corresponding dummy command stream for this engine
                 m_pDummyCommandStreams[engineType] = nullptr;
@@ -2012,11 +1861,11 @@ Result Device::GetProperties(
         pInfo->gpuType                          = m_chipProperties.gpuType;
         pInfo->gfxLevel                         = m_chipProperties.gfxLevel;
         pInfo->gpuPerformanceCapacity           = m_chipProperties.gpuPerformanceCapacity;
-        pInfo->ossLevel                         = m_chipProperties.ossLevel;
+        pInfo->ossLevel                         = OssIpLevel::None;
         pInfo->uvdLevel                         = m_chipProperties.uvdLevel;
         pInfo->vceLevel                         = m_chipProperties.vceLevel;
         pInfo->vcnLevel                         = m_chipProperties.vcnLevel;
-        pInfo->spuLevel                         = m_chipProperties.spuLevel;
+        pInfo->spuLevel                         = SpuIpLevel::None;
         pInfo->pspLevel                         = m_chipProperties.pspLevel;
 
         Strncpy(&pInfo->gpuName[0], &m_gpuName[0], sizeof(pInfo->gpuName));
@@ -2204,94 +2053,6 @@ Result Device::GetProperties(
 
         switch (m_chipProperties.gfxLevel)
         {
-        case GfxIpLevel::GfxIp6:
-        case GfxIpLevel::GfxIp7:
-        case GfxIpLevel::GfxIp8:
-        case GfxIpLevel::GfxIp8_1:
-        {
-            const auto& gfx6Props = m_chipProperties.gfx6;
-
-            pInfo->gfxipProperties.flags.u64All                     = 0;
-            pInfo->gfxipProperties.flags.support8bitIndices         = gfx6Props.support8bitIndices;
-            pInfo->gfxipProperties.flags.support16BitInstructions   = gfx6Props.support16BitInstructions;
-            pInfo->gfxipProperties.flags.support64BitInstructions   = gfx6Props.support64BitInstructions;
-            pInfo->gfxipProperties.flags.supportBorderColorSwizzle  = gfx6Props.supportBorderColorSwizzle;
-            pInfo->gfxipProperties.flags.supportFloat64Atomics      = gfx6Props.supportFloat64Atomics;
-            pInfo->gfxipProperties.flags.supportShaderSubgroupClock = gfx6Props.supportShaderSubgroupClock;
-            pInfo->gfxipProperties.flags.supportShaderDeviceClock   = gfx6Props.supportShaderDeviceClock;
-            pInfo->gfxipProperties.flags.supports2BitSignedValues   = gfx6Props.supports2BitSignedValues;
-            pInfo->gfxipProperties.flags.supportRgpTraces           = gfx6Props.supportRgpTraces;
-            pInfo->gfxipProperties.flags.supportImageViewMinLod     = gfx6Props.supportImageViewMinLod;
-
-            // GFX6-8 only support single channel min/max filter
-            pInfo->gfxipProperties.flags.supportSingleChannelMinMaxFilter = 1;
-            pInfo->gfxipProperties.flags.supportPerChannelMinMaxFilter    = 0;
-
-            pInfo->gfxipProperties.shaderCore.numShaderEngines     = gfx6Props.numShaderEngines;
-            pInfo->gfxipProperties.shaderCore.numShaderArrays      = gfx6Props.numShaderArrays;
-            pInfo->gfxipProperties.shaderCore.numCusPerShaderArray = gfx6Props.numCuPerSh;
-            pInfo->gfxipProperties.shaderCore.maxCusPerShaderArray = gfx6Props.maxNumCuPerSh;
-            pInfo->gfxipProperties.shaderCore.numAvailableCus      = gfx6Props.numShaderEngines *
-                                                                     gfx6Props.numShaderArrays *
-                                                                     gfx6Props.numCuPerSh;
-            pInfo->gfxipProperties.shaderCore.numPhysicalCus       = gfx6Props.numShaderEngines *
-                                                                     gfx6Props.numShaderArrays *
-                                                                     gfx6Props.maxNumCuPerSh;
-            pInfo->gfxipProperties.shaderCore.numSimdsPerCu        = gfx6Props.numSimdPerCu;
-            pInfo->gfxipProperties.shaderCore.numWavefrontsPerSimd = gfx6Props.numWavesPerSimd;
-            pInfo->gfxipProperties.shaderCore.numActiveRbs         = gfx6Props.numActiveRbs;
-            pInfo->gfxipProperties.shaderCore.nativeWavefrontSize  = gfx6Props.nativeWavefrontSize;
-            pInfo->gfxipProperties.shaderCore.minWavefrontSize     = gfx6Props.nativeWavefrontSize;
-            pInfo->gfxipProperties.shaderCore.maxWavefrontSize     = gfx6Props.nativeWavefrontSize;
-            pInfo->gfxipProperties.shaderCore.numAvailableSgprs    = gfx6Props.numShaderVisibleSgprs;
-            pInfo->gfxipProperties.shaderCore.sgprsPerSimd         = gfx6Props.numPhysicalSgprs;
-            pInfo->gfxipProperties.shaderCore.minSgprAlloc         = gfx6Props.minSgprAlloc;
-            pInfo->gfxipProperties.shaderCore.sgprAllocGranularity = gfx6Props.sgprAllocGranularity;
-            pInfo->gfxipProperties.shaderCore.numAvailableVgprs    = MaxVgprPerShader;
-            pInfo->gfxipProperties.shaderCore.vgprsPerSimd         = gfx6Props.numPhysicalVgprsPerSimd;
-            pInfo->gfxipProperties.shaderCore.minVgprAlloc         = gfx6Props.minVgprAlloc;
-            pInfo->gfxipProperties.shaderCore.vgprAllocGranularity = gfx6Props.vgprAllocGranularity;
-            pInfo->gfxipProperties.shaderCore.gsPrimBufferDepth    = gfx6Props.gsPrimBufferDepth;
-            pInfo->gfxipProperties.shaderCore.gsVgtTableDepth      = gfx6Props.gsVgtTableDepth;
-
-            // Tessellation distribution mode flags.
-            pInfo->gfxipProperties.flags.supportPatchTessDistribution     = gfx6Props.supportPatchTessDistribution;
-            pInfo->gfxipProperties.flags.supportDonutTessDistribution     = gfx6Props.supportDonutTessDistribution;
-            pInfo->gfxipProperties.flags.supportTrapezoidTessDistribution = gfx6Props.supportTrapezoidTessDistribution;
-
-            // No pre-GFX9 GPU supported this.
-            pInfo->gfxipProperties.flags.supportsPerShaderStageWaveSize = 0;
-
-            pInfo->gfxipProperties.flags.supportOutOfOrderPrimitives = gfx6Props.supportOutOfOrderPrimitives;
-
-            if (m_chipProperties.gfxLevel == GfxIpLevel::GfxIp6)
-            {
-                // Gfx6 has a max 2SE x 2SH layout
-                for (uint32 se = 0; se < gfx6Props.numShaderEngines; ++se)
-                {
-                    for (uint32 sh = 0; sh < gfx6Props.numShaderArrays; ++sh)
-                    {
-                        pInfo->gfxipProperties.shaderCore.activeCuMask[se][sh] = gfx6Props.activeCuMaskGfx6[se][sh];
-                    }
-                }
-            }
-            else
-            {
-                // Gfx7-8 have a max 4SE x 1SH layout
-                for (uint32 se = 0; se < gfx6Props.numShaderEngines; ++se)
-                {
-                    pInfo->gfxipProperties.shaderCore.activeCuMask[se][0] = gfx6Props.activeCuMaskGfx7[se];
-                }
-            }
-
-            static_assert(sizeof(m_chipProperties.gfxip.activePixelPackerMask) ==
-                sizeof(pInfo->gfxipProperties.shaderCore.activePixelPackerMask),
-                "PAL Device and interface active pixel packer mask sizes do not match!");
-            memcpy(pInfo->gfxipProperties.shaderCore.activePixelPackerMask, m_chipProperties.gfxip.activePixelPackerMask,
-                sizeof(pInfo->gfxipProperties.shaderCore.activePixelPackerMask));
-
-            break;
-        }
 
         case GfxIpLevel::GfxIp9:
         case GfxIpLevel::GfxIp10_1:
@@ -2803,29 +2564,17 @@ size_t Device::QueueContextSize(
     const QueueCreateInfo& createInfo
     ) const
 {
-    GfxDevice*  pGfxDevice = GetGfxDevice();
-    OssDevice*  pOssDevice = GetOssDevice();
-
     size_t size = 0;
+
     switch (createInfo.queueType)
     {
+#if PAL_BUILD_GFX
     case QueueTypeCompute:
     case QueueTypeUniversal:
-        size = (pGfxDevice == nullptr) ? 0 : pGfxDevice->GetQueueContextSize(createInfo);
-        break;
     case QueueTypeDma:
-        if (pOssDevice == nullptr)
-        {
-            if (pGfxDevice != nullptr)
-            {
-                size = pGfxDevice->GetQueueContextSize(createInfo);
-            }
-        }
-        else
-        {
-            size = pOssDevice->GetQueueContextSize(createInfo);
-        }
+        size = (m_pGfxDevice == nullptr) ? 0 : m_pGfxDevice->GetQueueContextSize(createInfo);
         break;
+#endif
     case QueueTypeTimer:
         size = sizeof(QueueContext);
         break;
@@ -3017,23 +2766,13 @@ size_t Device::GetCmdBufferSize(
 
     switch (createInfo.queueType)
     {
+#if PAL_BUILD_GFX
     case QueueTypeUniversal:
     case QueueTypeCompute:
+    case QueueTypeDma:
         size = m_pGfxDevice->GetCmdBufferSize(createInfo);
         break;
-
-    case QueueTypeDma:
-        if (m_pOssDevice != nullptr)
-        {
-            size = m_pOssDevice->GetCmdBufferSize();
-        }
-        else
-        {
-            // Some devices have moved DMA operations into the graphics engine...  If there's no
-            // OSS device, check if the graphics device can handle this.
-            size = m_pGfxDevice->GetCmdBufferSize(createInfo);
-        }
-        break;
+#endif
 
     default:
         PAL_ASSERT_ALWAYS();
@@ -3063,23 +2802,13 @@ Result Device::ConstructCmdBuffer(
 
     switch (createInfo.queueType)
     {
+#if PAL_BUILD_GFX
         case QueueTypeUniversal:
         case QueueTypeCompute:
+        case QueueTypeDma:
             result = m_pGfxDevice->CreateCmdBuffer(createInfo, pPlacementAddr, &pCmdBuffer);
             break;
-
-        case QueueTypeDma:
-            if (m_pOssDevice != nullptr)
-            {
-                result = m_pOssDevice->CreateCmdBuffer(createInfo, pPlacementAddr, &pCmdBuffer);
-            }
-            else
-            {
-                // Some devices have moved DMA operations into the graphics engine...  If there's no
-                // OSS device, check if the graphics device can handle this.
-                result = m_pGfxDevice->CreateCmdBuffer(createInfo, pPlacementAddr, &pCmdBuffer);
-            }
-            break;
+#endif
 
         default:
             result = Result::ErrorInvalidQueueType;
@@ -4419,7 +4148,7 @@ Platform* Device::GetPlatform() const
 // Fills out the pal settings structure
 const PalSettings& Device::Settings() const
 {
-    PAL_ASSERT(m_pSettingsLoader != nullptr);
+    PAL_DEBUG_BUILD_ONLY_ASSERT(m_pSettingsLoader != nullptr);
     return m_pSettingsLoader->GetSettings();
 }
 

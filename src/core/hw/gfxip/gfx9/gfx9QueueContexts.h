@@ -64,7 +64,10 @@ public:
 
     Result Init();
 
-    virtual Result PreProcessSubmit(InternalSubmitInfo* pSubmitInfo, uint32 cmdBufferCount) override;
+    virtual Result PreProcessSubmit(
+        InternalSubmitInfo*      pSubmitInfo,
+        uint32                   cmdBufferCount,
+        const ICmdBuffer* const* ppCmdBuffers) override;
     virtual void PostProcessSubmit() override;
 
 private:
@@ -76,15 +79,20 @@ private:
 
     void ClearDeferredMemory();
 
-    Result UpdateRingSet(bool* pHasChanged, uint32 overrideStackSize, uint64 lastTimeStamp);
+    Result UpdateRingSet(
+        bool*                    pHasChanged,
+        uint32                   overrideStackSize,
+        uint64                   lastTimeStamp,
+        uint32                   cmdBufferCount,
+        const ICmdBuffer* const* ppCmdBuffers);
 
     Device*const        m_pDevice;
     ComputeEngine*const m_pEngine;
     uint32              m_queueId;
     ComputeRingSet      m_ringSet;
 
-    // Current watermark for the device-initiated context updates which have been processed by this queue context.
-    uint32  m_currentUpdateCounter;
+    // Current watermark for the sample-pos palette updates which have been processed by this queue context.
+    uint32  m_queueContextUpdateCounter;
 
     uint32  m_currentStackSizeDw;
 
@@ -113,11 +121,14 @@ public:
 
     Result Init();
 
-    virtual Result PreProcessSubmit(InternalSubmitInfo* pSubmitInfo, uint32 cmdBufferCount) override;
+    virtual Result PreProcessSubmit(
+        InternalSubmitInfo*      pSubmitInfo,
+        uint32                   cmdBufferCount,
+        const ICmdBuffer* const* ppCmdBuffers) override;
     virtual void PostProcessSubmit() override;
     virtual Result ProcessInitialSubmit(InternalSubmitInfo* pSubmitInfo) override;
 
-    virtual gpusize ShadowMemVa() const { return  m_shadowGpuMem.GpuVirtAddr(); }
+    virtual gpusize ShadowMemVa() const override { return  m_shadowGpuMem.GpuVirtAddr(); }
 
 private:
     Result BuildShadowPreamble();
@@ -136,7 +147,13 @@ private:
 
     void ClearDeferredMemory();
 
-    Result UpdateRingSet(bool* pHasChanged, bool isTmz, uint32 overrideStackSize, uint64 lastTimeStamp);
+    Result UpdateRingSet(
+        bool*                    pHasChanged,
+        bool                     isTmz,
+        uint32                   overrideStackSize,
+        uint64                   lastTimeStamp,
+        uint32                   cmdBufferCount,
+        const ICmdBuffer* const* ppCmdBuffers);
 
     Result GetAcePreambleCmdStream(CmdStream** ppAcePreambleCmdStream);
 
@@ -148,10 +165,10 @@ private:
     UniversalRingSet      m_ringSet;
     UniversalRingSet      m_tmzRingSet;
 
-    // Current watermark for the device-initiated context updates which have been processed by this queue context.
-    uint32  m_currentUpdateCounter;
+    // Current watermark for the sample-pos palette updates which have been processed by this queue context.
+    uint32  m_queueContextUpdateCounter;
 
-    uint32  m_currentUpdateCounterTmz;
+    uint32  m_queueContextUpdateCounterTmz;
 
     uint32  m_currentStackSizeDw;
 

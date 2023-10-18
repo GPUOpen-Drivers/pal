@@ -29,7 +29,6 @@
 #include "core/internalMemMgr.h"
 #include "core/privateScreen.h"
 #include "core/hw/gfxip/gfxDevice.h"
-#include "core/hw/ossip/ossDevice.h"
 
 #include "core/addrMgr/addrMgr.h"
 #include "core/dmaUploadRing.h"
@@ -64,7 +63,6 @@ class  CmdAllocator;
 class  CmdBuffer;
 class  Fence;
 class  GpuMemory;
-class  OssDevice;
 class  Platform;
 class  SettingsLoader;
 class  Queue;
@@ -209,11 +207,9 @@ union HwIpLevelFlags
 struct HwIpLevels
 {
     GfxIpLevel     gfx;
-    OssIpLevel     oss;
     VceIpLevel     vce;
     UvdIpLevel     uvd;
     VcnIpLevel     vcn;
-    SpuIpLevel     spu;
     PspIpLevel     psp;
     HwIpLevelFlags flags;
 };
@@ -222,7 +218,6 @@ struct HwIpLevels
 struct HwIpDeviceSizes
 {
     size_t gfx;
-    size_t oss;
 };
 
 // Indicates a allocated virtual address range.
@@ -579,27 +574,6 @@ struct PerfCounterBlockInfo
 };
 
 // SDMA is a global block with unique registers for each instance; this requires special handling.
-constexpr uint32 Gfx7MaxSdmaInstances   = 2;
-constexpr uint32 Gfx7MaxSdmaPerfModules = 2;
-
-// Contains information for perf counters for the Gfx6 layer.
-struct Gfx6PerfCounterInfo
-{
-    PerfExperimentDeviceFeatureFlags features;
-    PerfCounterBlockInfo             block[static_cast<size_t>(GpuBlock::Count)];
-
-    struct
-    {
-        uint32                       regAddress;      // Chip-specific MC_CONFIG register address
-        uint32                       readEnableShift; // Chip-specific MC_CONFIG read shift mask
-        uint32                       writeEnableMask; // Chip-specific MC_CONFIG write-enable mask
-    } mcConfig;                                       // We need this information to access the MC counters.
-
-    // SDMA addresses are handled specially
-    PerfCounterRegAddrPerModule      sdmaRegAddr[Gfx7MaxSdmaInstances][Gfx7MaxSdmaPerfModules];
-};
-
-// SDMA is a global block with unique registers for each instance; this requires special handling.
 constexpr uint32 Gfx9MaxSdmaInstances   = 2;
 constexpr uint32 Gfx9MaxSdmaPerfModules = 2;
 
@@ -648,7 +622,7 @@ struct Gfx9PerfCounterInfo
 // Everything PAL & its clients would ever need to know about the actual GPU hardware.
 struct GpuChipProperties
 {
-    uint32  gfxEngineId;    // Coarse-grain GFX engine ID (R800, SI, etc.). See cwddeci.h
+    uint32  gfxEngineId;    // Coarse-grain GFX engine ID (R800, SI, etc.).
     uint32  familyId;       // Hardware family ID.  Driver-defined identifier for a particular family of devices.
                             // E.g., FAMILY_SI, FAMILY_VI, etc. as defined in amdgpu_asic.h
     uint32  eRevId;         // Hardware revision ID.  Driver-defined identifier for a particular device and
@@ -662,11 +636,9 @@ struct GpuChipProperties
     AsicRevision   revision;  // PAL specific ASIC revision identifier
     GpuType        gpuType;
     GfxIpLevel     gfxLevel;
-    OssIpLevel     ossLevel;
     VceIpLevel     vceLevel;
     UvdIpLevel     uvdLevel;
     VcnIpLevel     vcnLevel;
-    SpuIpLevel     spuLevel;
     PspIpLevel     pspLevel;
     HwIpLevelFlags hwIpFlags;
     uint32         gfxStepping; // Stepping level of this GPU's GFX block.
@@ -807,98 +779,6 @@ struct GpuChipProperties
     // GFX family specific data which may differ based on graphics IP level.
     union
     {
-        // Hardware-specific information for GFXIP 6/7/8 hardware.
-        struct
-        {
-            // Values of hardware registers which the KMD reads for us during initialization.
-            uint32 mcArbRamcfg;
-            uint32 gbAddrConfig;
-            uint32 paScRasterCfg;
-            uint32 paScRasterCfg1;
-
-            uint32 backendDisableMask;
-            uint32 sqThreadTraceMask;
-
-            uint32 gbTileMode[32];
-            uint32 gbMacroTileMode[16];
-
-            // NOTE: GFXIP 6 hardware is organized into one or two shader engines each containing one or two shader
-            // arrays, which contain the CU's. GFXIP 7+ hardware simply has up to four shader engines, each with a
-            // single shader array (containing the CU's).
-            union
-            {
-                uint32 activeCuMaskGfx6[2][2];
-                uint32 activeCuMaskGfx7[4];
-            };
-            union
-            {
-                uint32 alwaysOnCuMaskGfx6[2][2];
-                uint32 alwaysOnCuMaskGfx7[4];
-            };
-
-            uint32 numCuPerSh;
-            uint32 numCuAlwaysOnPerSh;
-            uint32 numSimdPerCu;
-            uint32 numWavesPerSimd;
-            uint32 numActiveRbs;
-            uint32 numTotalRbs;
-            uint32 numShaderVisibleSgprs;
-            uint32 numPhysicalSgprs;
-            uint32 minSgprAlloc;
-            uint32 sgprAllocGranularity;
-            uint32 numPhysicalVgprsPerSimd;
-            uint32 numPhysicalVgprs;
-            uint32 minVgprAlloc;
-            uint32 vgprAllocGranularity;
-            uint32 nativeWavefrontSize;
-            uint32 numShaderEngines;
-            uint32 numShaderArrays;
-            uint32 numScPerSe;              // Num Shader Complex per Shader Engine
-            uint32 numPackerPerSc;
-            uint32 maxNumCuPerSh;
-            uint32 maxNumRbPerSe;
-            uint32 numMcdTiles;
-            uint32 numTcaBlocks;
-            uint32 numTccBlocks;
-            uint32 gsVgtTableDepth;
-            uint32 gsPrimBufferDepth;
-            uint32 maxGsWavesPerVgt;
-
-            struct
-            {
-                // Indicates the chip supports double the amount of offchip LDS buffers per SE
-                uint32 doubleOffchipLdsBuffers                  :  1;
-                uint32 rbPlus                                   :  1;
-                uint32 sqgEventsEnabled                         :  1;
-                uint32 support8bitIndices                       :  1;
-                uint32 support16BitInstructions                 :  1;
-                uint32 support64BitInstructions                 :  1;
-                uint32 supportBorderColorSwizzle                :  1;
-                uint64 supportFloat64Atomics                    :  1;
-                uint32 supportIndexAttribIndirectPkt            :  1;  // Indicates support for INDEX_ATTRIB_INDIRECT
-                uint32 supportSetShIndexPkt                     :  1;  // Indicates support for packet SET_SH_REG_INDEX
-                uint32 supportLoadRegIndexPkt                   :  1;  // Indicates support for LOAD_*_REG_INDEX packets
-                uint32 supportAddrOffsetDumpAndSetShPkt         :  1;  // Indicates support for DUMP_CONST_RAM_OFFSET
-                                                                       // and SE_SH_REG_OFFSET indexed packet.
-                uint32 supportPreemptionWithChaining            :  1;  // Indicates microcode support for preemption of
-                                                                       // chained command chunks.
-                uint32 supports2BitSignedValues                 :  1;
-                uint32 lbpwEnabled                              :  1; // Indicates Load Balance Per Watt is enabled
-                uint32 rbReconfigureEnabled                     :  1; // Indicates RB reconfigure feature is enabled
-                uint32 supportPatchTessDistribution             :  1; // HW supports patch distribution mode.
-                uint32 supportDonutTessDistribution             :  1; // HW supports donut distribution mode.
-                uint32 supportTrapezoidTessDistribution         :  1; // HW supports trapezoidal distribution mode.
-                uint32 supportRgpTraces                         :  1; // HW supports RGP traces.
-                uint32 placeholder0                             :  1; // Placeholder. Do not use.
-                uint32 supportOutOfOrderPrimitives              :  1; // HW supports higher throughput for out of order
-                uint32 supportShaderSubgroupClock               :  1; // HW supports clock functions across subgroup.
-                uint32 supportShaderDeviceClock                 :  1; // HW supports clock functions across device.
-                uint32 supportImageViewMinLod                   :  1; // Indicates image srd supports min_lod.
-                uint32 reserved                                 :  7;
-            };
-
-            Gfx6PerfCounterInfo perfCounterInfo; // Contains information for perf counters for a specific hardware block
-        } gfx6;
         // Hardware-specific information for GFXIP 9+ hardware.
         struct
         {
@@ -1129,7 +1009,7 @@ uint32 MemoryOpsPerClock(LocalMemoryType memoryType);
 // partitions. Also serves as a factory for other child objects, such as Command Buffers.
 //
 // Each HWIP block may require its own HW-specific Device object. To accommodate this need, the Device will contain an
-// object for each HWIP block present in the associated Physical GPU (e.g., GFXIP, OSSIP, etc.). All of these objects
+// object for each HWIP block present in the associated Physical GPU (e.g., GFXIP, etc.). All of these objects
 // share a single system-memory allocation. (See: Device::Init() for more details.)
 class Device : public IDevice
 {
@@ -1240,6 +1120,10 @@ public:
     virtual Result SelectSppTable(
         uint32 pixelCount,
         uint32 msaaRate) const = 0;
+
+    virtual Result SendGpuOpenCommand(
+        void*  pData,
+        size_t dataSize) { return Result::Unsupported; }
 
     // NOTE: Part of the public IDevice interface.
     virtual size_t GetQueueSize(
@@ -1772,7 +1656,6 @@ public:
     virtual bool IsMasterGpu() const = 0;
 
     GfxDevice* GetGfxDevice() const { return m_pGfxDevice; }
-    OssDevice* GetOssDevice() const { return m_pOssDevice; }
     const AddrMgr* GetAddrMgr() const { return m_pAddrMgr;   }
 
     const GpuMemoryHeapProperties& HeapProperties(GpuHeap heap) const
@@ -2064,6 +1947,11 @@ public:
 
     const FlglState& GetFlglState() const { return m_flglState; }
 
+    virtual Result RegisterHipRuntimeState(const HipRuntimeSetup& runtimeState) const override
+    {
+        return Result::Unsupported;
+    }
+
     void LogCodeObjectToDisk(
         Util::StringView<char> prefix,
         Util::StringView<char> name,
@@ -2208,7 +2096,6 @@ protected:
 
     DeviceFinalizeInfo m_finalizeInfo;
     GfxDevice*         m_pGfxDevice;
-    OssDevice*         m_pOssDevice;
 
     GpuUtil::TextWriter<Platform>*     m_pTextWriter;
     uint32                             m_devDriverClientId;
@@ -2315,7 +2202,7 @@ private:
 };
 
 // NOTE: Below are prototypes for several utility functions for each HWIP namespace in PAL. These functions are for
-// determining what IP level of a particular HWIP block (GFXIP, OSSIP, etc.) a GPU supports, as well as initializing
+// determining what IP level of a particular HWIP block (GFXIP, etc.) a GPU supports, as well as initializing
 // the GPU chip properties for a particular version of a HWIP block. Each HWIP namespace in PAL corresponds to one
 // hardware layer for that group of IP levels. Each HWIP namespace must have the following function:
 //
@@ -2343,39 +2230,6 @@ private:
 // void InitializePerfExperimentProperties(const GpuChipProperties&, PerfExperimentProperties*);
 // * This function is used to setup default values for the fields in the PerfExperimentProperties structure for
 //   certain GFXIP levels.
-
-namespace Gfx6
-{
-// Determines the GFXIP level of an GFXIP 6/7/8 GPU.
-extern GfxIpLevel DetermineIpLevel(
-    uint32 familyId,    // Hardware Family ID.
-    uint32 eRevId,      // Software Revision ID.
-    uint32 microcodeVersion);
-
-// Gets the static format properties table for GFXIP 6/7/8 hardware.
-extern const MergedFormatPropertiesTable* GetFormatPropertiesTable(
-    GfxIpLevel gfxIpLevel);
-
-// Initialize default values for the GPU chip properties for GFXIP 6/7/8 hardware.
-extern void InitializeGpuChipProperties(
-    uint32             cpUcodeVersion,
-    GpuChipProperties* pInfo);
-
-// Finalize default values for the GPU chip properties for GFXIP 6/7/8 hardware.
-extern void FinalizeGpuChipProperties(
-    const Device&      device,
-    GpuChipProperties* pInfo);
-
-extern void InitializePerfExperimentProperties(
-    const GpuChipProperties&  chipProps,
-    PerfExperimentProperties* pProperties);
-
-// Initialize default values for the GPU engine properties for GFXIP 6/7/8 hardware.
-extern void InitializeGpuEngineProperties(
-    const GpuChipProperties& chipProps,
-    GpuEngineProperties* pInfo);
-
-} // Gfx6
 
 namespace Gfx9
 {
@@ -2410,34 +2264,6 @@ extern void InitializeGpuEngineProperties(
     const GpuChipProperties&  chipProps,
     GpuEngineProperties*      pInfo);
 }
-
-#if PAL_BUILD_OSS2_4
-namespace Oss2_4
-{
-// Determines the OSSIP level of an OSSIP 2.4+ GPU.
-extern OssIpLevel DetermineIpLevel(
-    uint32 familyId,        // Hardware Family ID.
-    uint32 eRevId);         // Software Revision ID.
-
-// Initialize default values for the GPU engine properties for OSSIP 2.4 hardware.
-extern void InitializeGpuEngineProperties(
-    GpuEngineProperties* pInfo);
-} // Oss2_4
-#endif
-
-#if PAL_BUILD_OSS4
-namespace Oss4
-{
-// Determines the OSSIP level of an OSSIP 4 GPU.
-extern OssIpLevel DetermineIpLevel(
-    uint32 familyId,        // Hardware Family ID.
-    uint32 eRevId);         // Software Revision ID.
-
-// Initialize default values for the GPU engine properties for OSSIP 4 hardware.
-extern void InitializeGpuEngineProperties(
-    GpuEngineProperties* pInfo);
-} // Oss4
-#endif
 
 // ASIC family and chip identification functions
 inline bool IsGfx6(const Device& device)

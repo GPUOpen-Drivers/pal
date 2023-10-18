@@ -1517,6 +1517,9 @@ Result Queue::BuildGpaSessionSampleConfig()
             m_gpaSessionSampleConfig.sqtt.flags.stallMode                = m_pDevice->GetSqttStallMode();
             m_gpaSessionSampleConfig.sqtt.flags.supressInstructionTokens =
                 settings.gpuProfilerSqttConfig.supressInstructionTokens;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 824
+            m_gpaSessionSampleConfig.sqtt.tokenMask                      = settings.gpuProfilerSqttConfig.tokenMask;
+#endif
         }
         else
         {

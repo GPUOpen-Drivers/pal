@@ -64,6 +64,9 @@ typedef struct
     /// the length of the array, and NOT the length of the string.
     uint32_t size;
 
+    /// Whether the setting wrapped inside DevDriver::Optional.
+    bool isOptional;
+
     /// A pointer to the setting value stored somewhere else.
     void* pValue;
 } DDSettingsValueRef;

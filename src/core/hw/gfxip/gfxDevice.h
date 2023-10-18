@@ -372,8 +372,15 @@ enum RefCounterState : uint32
 enum CsSimdDestCntlMode : uint32
 {
     CsSimdDestCntlDefault = 0,
-    CsSimdDestCntlForce1 = 1,
-    CsSimdDestCntlForce0 = 2,
+    CsSimdDestCntlForce1  = 1,
+    CsSimdDestCntlForce0  = 2,
+};
+
+// Common enums used by HWL settings
+enum ColorTransformValue : uint32
+{
+    ColorTransformAuto    = 0,
+    ColorTransformDisable = 1,
 };
 
 enum PrefetchMethod : uint32
@@ -897,18 +904,6 @@ private:
 //      GfxDevice**              ppGfxDevice);
 // * This function is the actual factory for creating GfxDevice objects. It creates a new object in the specified
 //   preallocated memory buffer and returns a pointer to that object through ppGfxDevice.
-
-namespace Gfx6
-{
-extern size_t GetDeviceSize();
-extern Result CreateDevice(
-    Device*                  pDevice,
-    void*                    pPlacementAddr,
-    DeviceInterfacePfnTable* pPfnTable,
-    GfxDevice**              ppGfxDevice);
-// Creates SettingsLoader object for Gfx6/7/8 hardware layer
-extern Pal::ISettingsLoader* CreateSettingsLoader(Pal::Device* pDevice);
-} // Gfx6
 
 namespace Gfx9
 {

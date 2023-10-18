@@ -45,13 +45,6 @@ function(pal_compile_definitions_gpu TARGET)
         target_compile_definitions(${TARGET} PRIVATE PAL_BUILD_GFX=1)
 
         # PAL GFXx BUILD Defines
-        # Needs to be public.
-        # See the following directories:
-        #   inc\gpuUtil\cas\...
-        #   inc\gpuUtil\mlaa\...
-        #   inc\gpuUtil\textWriter\...
-        #   inc\gpuUtil\timeGraphics\...
-        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_GFX6=$<BOOL:${PAL_BUILD_GFX6}>)
         target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_GFX9=$<BOOL:${PAL_BUILD_GFX9}>)
         target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_GFX10=$<BOOL:${PAL_BUILD_GFX10}>)
         target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_GFX103=$<BOOL:${PAL_BUILD_GFX103}>)

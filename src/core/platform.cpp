@@ -442,14 +442,14 @@ bool Platform::OverrideGpuId(
 #if PAL_BUILD_NULL_DEVICE
     if (strcmp(settings.spoofNullGpuIfh, "") != 0)
     {
-        NullDevice::NullIdLookup foundGpu = NullDevice::Device::GetDeviceByName(settings.spoofNullGpuIfh);
-        if (foundGpu.nullId != NullGpuId::Max)
+        GpuInfo gpuInfo = {};
+        if (GetGpuInfoForName(settings.spoofNullGpuIfh, &gpuInfo) == Result::Success)
         {
-            pGpuId->gfxEngineId = foundGpu.gfxEngineId;
-            pGpuId->familyId    = foundGpu.familyId;
-            pGpuId->revisionId  = foundGpu.revisionId;
-            pGpuId->eRevId      = foundGpu.eRevId;
-            pGpuId->deviceId    = foundGpu.deviceId;
+            pGpuId->gfxEngineId = gpuInfo.gfxEngineId;
+            pGpuId->familyId    = gpuInfo.familyId;
+            pGpuId->revisionId  = gpuInfo.revisionId;
+            pGpuId->eRevId      = gpuInfo.eRevId;
+            pGpuId->deviceId    = gpuInfo.deviceId;
 
             overridden = true;
         }
@@ -730,6 +730,7 @@ void Platform::DestroyDevDriver()
         m_pDevDriverServer->Destroy();
         PAL_SAFE_DELETE(m_pDevDriverServer, this);
     }
+
 }
 
 #if PAL_BUILD_RDF

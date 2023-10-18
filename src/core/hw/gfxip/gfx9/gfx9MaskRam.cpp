@@ -4360,7 +4360,10 @@ void Gfx9Dcc::SetControlReg(
     }
 
     m_dccControl.bits.MIN_COMPRESSED_BLOCK_SIZE = GetMinCompressedBlockSize();
-    m_dccControl.bits.COLOR_TRANSFORM           = DCC_CT_AUTO;
+
+    static_assert(DCC_CT_AUTO == 0, "ColorTransform Enum values change!");
+    static_assert(DCC_CT_NONE == 1, "ColorTransform Enum values change!");
+    m_dccControl.bits.COLOR_TRANSFORM           = settings.colorTransform;
     m_dccControl.gfx09_10.LOSSY_RGB_PRECISION   = 0;
     m_dccControl.gfx09_10.LOSSY_ALPHA_PRECISION = 0;
 
@@ -5009,8 +5012,15 @@ uint8 Gfx9Dcc::GetFastClearCode(
             clearCode = Gfx9DccClearColor::ClearColorCompToReg;
 
 #if PAL_BUILD_GFX11
-            // Navi3x has deprecated comp-to-reg support, so if we're here, something has gone wrong.
-            PAL_ASSERT(IsGfx11(*pDevice) == false);
+            // Navi3x has deprecated comp-to-reg support
+            // one normal scenario to be here:
+            // 128bpp dcc fastclear needs to know the clear value in advance, see func call
+            // CmdClearColorImage->IsAc01ColorClearCode->GetFastClearCode
+            // 128bpp comp-to-single is not supported.If clear value is not AC01, we are here
+            if (IsGfx11(*pDevice))
+            {
+                clearCode = Gfx9DccClearColor::ClearColorInvalid;
+            }
 #endif
         }
     }

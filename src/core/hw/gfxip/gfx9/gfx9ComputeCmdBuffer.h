@@ -195,6 +195,9 @@ public:
     virtual uint32* WriteWaitEop(HwPipePoint waitPoint, uint32 hwGlxSync, uint32 hwRbSync, uint32* pCmdSpace) override;
     virtual uint32* WriteWaitCsIdle(uint32* pCmdSpace) override;
 
+    //Gets ringSizes from cmdBuffer.
+    size_t GetRingSizeComputeScratch() const { return m_ringSizeComputeScratch; }
+
 protected:
     virtual ~ComputeCmdBuffer() {}
 
@@ -319,6 +322,8 @@ private:
     bool     m_inheritedPredication; // True if the predicate packet is inherited from the root-level command buffer.
 
     gpusize m_globalInternalTableAddr; // If non-zero, the low 32-bits of the global internal table were written here.
+
+    size_t  m_ringSizeComputeScratch;
 
     PAL_DISALLOW_DEFAULT_CTOR(ComputeCmdBuffer);
     PAL_DISALLOW_COPY_AND_ASSIGN(ComputeCmdBuffer);

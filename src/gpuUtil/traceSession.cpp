@@ -587,5 +587,36 @@ void TraceSession::FinishTrace()
     }
 }
 
+// =====================================================================================================================
+Pal::Result TraceSession::ReportError(
+    const char        chunkId[TextIdentifierSize],
+    const void*       pPayload,
+    Pal::uint64       payloadSize,
+    TraceErrorPayload payloadType,
+    Pal::Result       resultCode)
+{
+    Result result = Result::Success;
+
+    // Fill Error Trace Header
+    TraceErrorHeader errTraceHeader = {};
+    memcpy(errTraceHeader.chunkId, chunkId, TextIdentifierSize);
+    errTraceHeader.chunkIndex  = m_currentChunkIndex;
+    errTraceHeader.resultCode  = resultCode;
+    errTraceHeader.payloadType = payloadType;
+
+    TraceChunkInfo info = {};
+    memcpy(info.id, ErrorChunkTextIdentifier, TextIdentifierSize);
+    info.pHeader           = &errTraceHeader;
+    info.headerSize        = sizeof(TraceErrorHeader);
+    info.version           = ErrorTraceChunkVersion;
+    info.pData             = pPayload;
+    info.dataSize          = payloadSize;
+    info.enableCompression = false;
+
+    result = WriteDataChunk(nullptr, info);
+
+    return result;
 }
+
+}// GpuUtil
 #endif

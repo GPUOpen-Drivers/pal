@@ -245,6 +245,9 @@ inline Result DeserializeEnum(
         case HashLiteralString("Callable"):
             *pValue = Abi::ApiShaderSubType::Callable;
             break;
+        case HashLiteralString("LaunchKernel"):
+            *pValue = Abi::ApiShaderSubType::LaunchKernel;
+            break;
         default:
             result = Result::NotFound;
             break;
@@ -284,6 +287,9 @@ inline Result SerializeEnum(
         break;
     case Abi::ApiShaderSubType::Callable:
         pWriter->Pack("Callable");
+        break;
+    case Abi::ApiShaderSubType::LaunchKernel:
+        pWriter->Pack("LaunchKernel");
         break;
     default:
         break;
@@ -579,6 +585,9 @@ inline Result SerializeEnum(
         break;
     case Abi::PipelineSymbolType::PipelineIntrlData:
         pWriter->Pack("_amdgpu_pipeline_intrl_data");
+        break;
+    case Abi::PipelineSymbolType::PsColorExportEntry:
+        pWriter->Pack("color_export_shader");
         break;
     default:
         break;

@@ -23,33 +23,33 @@
  *
  **********************************************************************************************************************/
 
-#include "palAssert.h"
-#include "palSysUtil.h"
+// pal
 #include "palFile.h"
-#include "palSysMemory.h"
-#include "palMemTrackerImpl.h"
 #include "palHashMapImpl.h"
+#include "palMemTrackerImpl.h"
+#include "palSysMemory.h"
+#include "palSysUtil.h"
 #include "palUuid.h"
 #include "lnxSysUtil.h"
+
+// stl
+#include <cstdio>
+#include <cstdlib>
+#include <ctime>
+#include <cwchar>
 #include <mutex>
 
-#include <cwchar>
-#include <errno.h>
-#include <libgen.h>
-#include <linux/limits.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <time.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
+// lnx
 #include <dirent.h>
-#include <string.h>
-#include <poll.h>
+#include <fcntl.h>
+#include <libgen.h>
 #include <link.h>
+#include <linux/limits.h>
+#include <poll.h>
+#include <sys/stat.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 namespace Util
 {
@@ -872,6 +872,105 @@ Result MkDirRecursively(
 }
 
 // =====================================================================================================================
+Result CountFilesInDir(
+    Util::StringView<char>  dirPath,
+    size_t*                 pFileCount,
+    size_t*                 pCharCount)
+{
+    Result result =
+        (dirPath.Data() == nullptr) ||
+        (dirPath.Length() == 0) ||
+        (pFileCount == nullptr) ||
+        (pCharCount == nullptr) ?
+        Result::ErrorInvalidPointer : Result::Success;
+
+    DIR* pDir;
+    if (result == Result::Success)
+    {
+        pDir = opendir(dirPath.Data());
+
+        if (pDir == nullptr)
+        {
+            result = Result::ErrorInvalidValue;
+        }
+    }
+
+    if (result == Result::Success)
+    {
+        size_t fileCount = 0;
+        size_t charCount = 0;
+
+        struct dirent* pEntry = readdir(pDir);
+
+        while (pEntry != nullptr)
+        {
+            fileCount++;
+            charCount += std::strlen(pEntry->d_name) + 1; // +1 for '\0'
+            pEntry = readdir(pDir);
+        }
+
+        closedir(pDir);
+
+        *pFileCount = fileCount;
+        *pCharCount = charCount;
+    }
+    return result;
+}
+
+// =====================================================================================================================
+Result GetFileNamesInDir(
+    Util::StringView<char>              dirPath,
+    Util::Span<Util::StringView<char>>  fileNames,
+    Util::Span<char>                    buffer)
+{
+    Result result =
+        (dirPath.IsEmpty() || fileNames.IsEmpty() || buffer.IsEmpty()) ?
+        Result::ErrorInvalidPointer : Result::Success;
+
+    DIR* pDir;
+    struct dirent* pEntry;
+    if (result == Result::Success)
+    {
+        pDir = opendir(dirPath.Data());
+
+        if (pDir == nullptr)
+        {
+            result = Result::ErrorInvalidValue;
+        }
+    }
+
+    if (result == Result::Success)
+    {
+        pEntry = readdir(pDir);
+
+        Util::Span<char> temp = buffer;
+        uint32 fileIndex = 0;
+
+        while ((pEntry != nullptr) && (fileIndex < fileNames.NumElements()))
+        {
+            const size_t fileNameSize = std::strlen(pEntry->d_name) + 1;
+            if (temp.NumElements() < fileNameSize)
+            {
+                result = Result::ErrorIncompleteResults;
+                break;
+            }
+
+            std::strcpy(temp.Data(), pEntry->d_name);
+            fileNames[fileIndex] = StringView<char>{ temp.Data(), fileNameSize - 1 };
+            fileIndex++;
+            temp = temp.DropFront(fileNameSize);
+
+            pEntry = readdir(pDir);
+        }
+
+        closedir(pDir);
+    }
+
+    return result;
+}
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 829
+// =====================================================================================================================
 // Lists the contents of the specified directory in an array of strings
 Result ListDir(
     const char*  pDirName,
@@ -955,6 +1054,7 @@ Result ListDir(
 
     return result;
 }
+#endif
 
 // =====================================================================================================================
 // Remove files of a directory at the specified path when file time < threshold.

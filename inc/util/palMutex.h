@@ -312,6 +312,18 @@ extern uint64 AtomicExchange64(volatile uint64* pTarget, uint64 value);
 /// @returns Previous value at *ppTarget.
 extern void* AtomicExchangePointer(void*volatile* ppTarget, void* pValue);
 
+/// Performs an atomic compare and swap operation on a pair of pointers. This operation compares *ppTarget
+/// with pOldValue and replaces it with pNewValue if they match. If the values don't match, no action is taken.
+/// The original value of *ppTarget is returned as a result.
+///
+/// @param [in,out] ppTarget  Pointer to the destination value of the operation.
+
+/// @param [in]     pOldValue Old pointer to compare *ppTarget to.
+/// @param [in]     pNewValue New pointer to replace *ppTarget with if *ppTarget matches pOldValue.
+///
+/// @returns Previous value at *ppTarget.
+extern void* AtomicCompareExchangePointer(void*volatile* ppTarget, void* pOldValue, void* pNewValue);
+
 /// Atomically add a value to the specific 32-bit unsigned integer.
 ///
 /// @param [in,out] pAddend Pointer to the value to be modified.

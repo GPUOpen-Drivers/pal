@@ -214,7 +214,7 @@ Result ShaderRingSet::Init()
 // Queue is not busy using this RingSet (i.e., the Queue is idle), so that it is safe to map the SRD table memory.
 Result ShaderRingSet::Validate(
     const ShaderRingItemSizes&  ringSizes,
-    const SamplePatternPalette& samplePatternPalette,
+    bool                        updateSamplePatternPalette,
     uint64                      lastTimeStamp,
     uint32*                     pReallocatedRings)
 {
@@ -318,8 +318,10 @@ Result ShaderRingSet::Validate(
     // Upload sample pattern palette
     SamplePosBuffer* pSamplePosBuf =
         static_cast<SamplePosBuffer*>(m_ppRings[static_cast<size_t>(ShaderRingType::SamplePos)]);
-    if (pSamplePosBuf != nullptr)
+    if ((pSamplePosBuf != nullptr) && updateSamplePatternPalette)
     {
+        SamplePatternPalette samplePatternPalette;
+        m_pDevice->GetSamplePatternPalette(&samplePatternPalette);
         pSamplePosBuf->UploadSamplePatternPalette(samplePatternPalette);
     }
 
@@ -481,7 +483,7 @@ Result UniversalRingSet::Init()
 // Queue is not busy using this RingSet (i.e., the Queue is idle), so that it is safe to map the SRD table memory.
 Result UniversalRingSet::Validate(
     const ShaderRingItemSizes&  ringSizes,
-    const SamplePatternPalette& samplePatternPalette,
+    bool                        updateSamplePatternPalette,
     uint64                      lastTimeStamp,
     uint32*                     pReallocatedRings)
 {
@@ -492,7 +494,7 @@ Result UniversalRingSet::Validate(
         m_ppRings[static_cast<size_t>(ShaderRingType::TaskMeshCtrlDrawRing)]->IsMemoryValid();
 
     // First, perform the base class' validation.
-    Result result = ShaderRingSet::Validate(ringSizes, samplePatternPalette, lastTimeStamp, pReallocatedRings);
+    Result result = ShaderRingSet::Validate(ringSizes, updateSamplePatternPalette, lastTimeStamp, pReallocatedRings);
 
     const bool drawDataReAlloc =
         Util::TestAnyFlagSet(*pReallocatedRings, (1 << static_cast<uint32>(ShaderRingType::TaskMeshCtrlDrawRing))) ||
@@ -835,12 +837,12 @@ Result ComputeRingSet::Init()
 // Queue is not busy using this RingSet (i.e., the Queue is idle), so that it is safe to map the SRD table memory.
 Result ComputeRingSet::Validate(
     const ShaderRingItemSizes&  ringSizes,
-    const SamplePatternPalette& samplePatternPalette,
+    bool                        updateSamplePatternPalette,
     uint64                      lastTimeStamp,
     uint32*                     pReallocatedRings)
 {
     // First, perform the base class' validation.
-    Result result = ShaderRingSet::Validate(ringSizes, samplePatternPalette, lastTimeStamp, pReallocatedRings);
+    Result result = ShaderRingSet::Validate(ringSizes, updateSamplePatternPalette, lastTimeStamp, pReallocatedRings);
 
     if (result == Result::Success)
     {

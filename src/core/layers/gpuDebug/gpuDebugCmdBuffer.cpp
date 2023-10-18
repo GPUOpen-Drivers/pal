@@ -55,8 +55,6 @@ namespace Pal
 namespace GpuDebug
 {
 
-constexpr uint32 MaxDepthTargetPlanes = 2;
-
 // =====================================================================================================================
 CmdBuffer::CmdBuffer(
     ICmdBuffer*                pNextCmdBuffer,
@@ -110,8 +108,10 @@ CmdBuffer::CmdBuffer(
     m_surfaceCapture.actionIdStart        = pDevice->GetPlatform()->PlatformSettings().gpuDebugConfig.surfaceCaptureStart;
     m_surfaceCapture.actionIdCount        = pDevice->GetPlatform()->PlatformSettings().gpuDebugConfig.surfaceCaptureCount;
     m_surfaceCapture.hash                 = pDevice->GetPlatform()->PlatformSettings().gpuDebugConfig.surfaceCaptureHash;
-    m_surfaceCapture.blitImgOpEnabledMask = pDevice->GetPlatform()->PlatformSettings().\
+    m_surfaceCapture.blitImgOpEnabledMask = pDevice->GetPlatform()->PlatformSettings().
                                             gpuDebugConfig.blitSurfaceCaptureBitmask;
+    m_surfaceCapture.filenameHashType     = pDevice->GetPlatform()->PlatformSettings().
+                                            gpuDebugConfig.surfaceCaptureFilenameHashType;
 }
 
 // =====================================================================================================================
@@ -121,24 +121,9 @@ CmdBuffer::~CmdBuffer()
 
     DestroySurfaceCaptureData();
 
-    if (m_surfaceCapture.ppColorTargetDsts != nullptr)
+    if (m_surfaceCapture.pActions != nullptr)
     {
-        PAL_SAFE_FREE(m_surfaceCapture.ppColorTargetDsts, m_pDevice->GetPlatform());
-    }
-
-    if (m_surfaceCapture.ppDepthTargetDsts != nullptr)
-    {
-        PAL_SAFE_FREE(m_surfaceCapture.ppDepthTargetDsts, m_pDevice->GetPlatform());
-    }
-
-    if (m_surfaceCapture.ppBlitImgs != nullptr)
-    {
-        PAL_SAFE_FREE(m_surfaceCapture.ppBlitImgs, m_pDevice->GetPlatform());
-    }
-
-    if (m_surfaceCapture.pBlitOpMask != nullptr)
-    {
-        PAL_SAFE_FREE(m_surfaceCapture.pBlitOpMask, m_pDevice->GetPlatform());
+        PAL_SAFE_FREE(m_surfaceCapture.pActions, m_pDevice->GetPlatform());
     }
 
     if (m_surfaceCapture.ppGpuMem != nullptr)
@@ -253,62 +238,22 @@ Result CmdBuffer::Init()
 
     if (IsSurfaceCaptureEnabled())
     {
+        if (result == Result::Success)
+        {
+            m_surfaceCapture.pActions = static_cast<ActionInfo*>(
+                PAL_CALLOC(sizeof(ActionInfo) * m_surfaceCapture.actionIdCount,
+                           m_pDevice->GetPlatform(),
+                           AllocInternal));
+
+            if (m_surfaceCapture.pActions == nullptr)
+            {
+                result = Result::ErrorOutOfMemory;
+            }
+        }
+
         const uint32 colorSurfCount = m_surfaceCapture.actionIdCount * MaxColorTargets;
-        if (result == Result::Success)
-        {
-            m_surfaceCapture.ppColorTargetDsts = static_cast<Image**>(
-                PAL_CALLOC(sizeof(Image*) * colorSurfCount,
-                           m_pDevice->GetPlatform(),
-                           AllocInternal));
-
-            if (m_surfaceCapture.ppColorTargetDsts == nullptr)
-            {
-                result = Result::ErrorOutOfMemory;
-            }
-        }
-
         const uint32 depthSurfCount = m_surfaceCapture.actionIdCount * MaxDepthTargetPlanes;
-        if (result == Result::Success)
-        {
-            m_surfaceCapture.ppDepthTargetDsts = static_cast<Image**>(
-                PAL_CALLOC(sizeof(Image*) * depthSurfCount,
-                           m_pDevice->GetPlatform(),
-                           AllocInternal));
-
-            if (m_surfaceCapture.ppDepthTargetDsts == nullptr)
-            {
-                result = Result::ErrorOutOfMemory;
-            }
-        }
-
-        const uint32 maxBlitImgCaptureNum = m_surfaceCapture.actionIdCount; // The max number of blit image captured
-                                                                            // in a command buffer.
-        if (result == Result::Success)
-        {
-            m_surfaceCapture.ppBlitImgs = static_cast<Image**>(
-                PAL_CALLOC(sizeof(Image*) * maxBlitImgCaptureNum,
-                           m_pDevice->GetPlatform(),
-                           AllocInternal));
-
-            if (m_surfaceCapture.ppBlitImgs == nullptr)
-            {
-                result = Result::ErrorOutOfMemory;
-            }
-        }
-
-        if (result == Result::Success)
-        {
-            m_surfaceCapture.pBlitOpMask = static_cast<EnabledBlitOperations*>(
-                PAL_CALLOC(sizeof(uint32) * maxBlitImgCaptureNum,
-                           m_pDevice->GetPlatform(),
-                           AllocInternal));
-
-            if (m_surfaceCapture.pBlitOpMask == nullptr)
-            {
-                result = Result::ErrorOutOfMemory;
-            }
-        }
-
+        const uint32 maxBlitImgCaptureNum = m_surfaceCapture.actionIdCount;
         const uint32 totalSurfCount = colorSurfCount + depthSurfCount + maxBlitImgCaptureNum;
         if (result == Result::Success)
         {
@@ -463,6 +408,12 @@ void CmdBuffer::SurfaceCaptureHashMatch()
 // Creates images and memory for surface capture and copies data to those images
 void CmdBuffer::CaptureSurfaces()
 {
+    PAL_ASSERT(m_surfaceCapture.actionId >= m_surfaceCapture.actionIdStart);
+
+    const uint32 actionIndex = m_surfaceCapture.actionId - m_surfaceCapture.actionIdStart;
+    PAL_ASSERT(actionIndex < m_surfaceCapture.actionIdCount);
+
+    ActionInfo* pAction = &m_surfaceCapture.pActions[actionIndex];
     for (uint32 mrt = 0; mrt < m_boundTargets.colorTargetCount; mrt++)
     {
         const ColorTargetView* pCtv =
@@ -490,14 +441,8 @@ void CmdBuffer::CaptureSurfaces()
                 if (result == Result::Success)
                 {
                     // Store the image object pointer in our array of capture data
-                    PAL_ASSERT(m_surfaceCapture.actionId >= m_surfaceCapture.actionIdStart);
-                    const uint32 actionIndex = m_surfaceCapture.actionId - m_surfaceCapture.actionIdStart;
-                    PAL_ASSERT(actionIndex < m_surfaceCapture.actionIdCount);
-
-                    const uint32 idx = (actionIndex * MaxColorTargets) + mrt;
-
-                    PAL_ASSERT(m_surfaceCapture.ppColorTargetDsts[idx] == nullptr);
-                    m_surfaceCapture.ppColorTargetDsts[idx] = static_cast<Image*>(pDstImage);
+                    PAL_ASSERT(pAction->pColorTargetDsts[mrt] == nullptr);
+                    pAction->pColorTargetDsts[mrt] = static_cast<Image*>(pDstImage);
                 }
                 else
                 {
@@ -554,21 +499,50 @@ void CmdBuffer::CaptureSurfaces()
 
                 if (result == Result::Success)
                 {
-                    // Store the image object pointer in our array of capture data
-                    PAL_ASSERT(m_surfaceCapture.actionId >= m_surfaceCapture.actionIdStart);
-                    const uint32 actionIndex = m_surfaceCapture.actionId - m_surfaceCapture.actionIdStart;
-                    PAL_ASSERT(actionIndex < m_surfaceCapture.actionIdCount);
-
-                    const uint32 idx = (actionIndex * MaxDepthTargetPlanes) + plane;
-
-                    PAL_ASSERT(m_surfaceCapture.ppDepthTargetDsts[idx] == nullptr);
-                    m_surfaceCapture.ppDepthTargetDsts[idx] = static_cast<Image*>(pDstImage);
+                    PAL_ASSERT(pAction->pDepthTargetDsts[plane] == nullptr);
+                    pAction->pDepthTargetDsts[plane] = static_cast<Image*>(pDstImage);
                 }
                 else
                 {
                     PAL_DPWARN("Failed to capture DSV Plane:%d, Error:0x%x", plane, result);
                 }
             }
+        }
+    }
+
+    if (m_pBoundPipelines[static_cast<uint32>(PipelineBindPoint::Graphics)] != nullptr)
+    {
+        constexpr ShaderType FilenameHashTypeToShaderType[] =
+        {
+            ShaderType::Task, // Not used
+            ShaderType::Task, // Not used
+            ShaderType::Task,
+            ShaderType::Vertex,
+            ShaderType::Hull,
+            ShaderType::Domain,
+            ShaderType::Geometry,
+            ShaderType::Mesh,
+            ShaderType::Pixel,
+        };
+        static_assert(sizeof(PipelineHash) == sizeof(ShaderHash), "");
+        static_assert(ArrayLen(FilenameHashTypeToShaderType) == FilenameHashPs + 1, "");
+        const PipelineInfo& pipeInfo = m_pBoundPipelines[static_cast<uint32>(PipelineBindPoint::Graphics)]->GetInfo();
+
+        if (m_surfaceCapture.filenameHashType == FilenameHashPipeline)
+        {
+            pAction->actionHash = pipeInfo.internalPipelineHash;
+        }
+        else if ((m_surfaceCapture.filenameHashType >= FilenameHashTask) &&
+                 (m_surfaceCapture.filenameHashType <= FilenameHashPs))
+        {
+            memcpy(&pAction->actionHash,
+                   &pipeInfo.shader[static_cast<uint32_t>(
+                       FilenameHashTypeToShaderType[m_surfaceCapture.filenameHashType])].hash,
+                  sizeof(PipelineHash));
+        }
+        else
+        {
+            pAction->actionHash = {};
         }
     }
 }
@@ -867,14 +841,15 @@ void CmdBuffer::SyncSurfaceCapture()
     barrierInfo.pipePointWaitCount  = 1;
     barrierInfo.pPipePoints         = &pipePoint;
 
-    if (m_surfaceCapture.ppColorTargetDsts != nullptr)
+    if (m_surfaceCapture.pActions != nullptr)
     {
         for (uint32 action = 0; action < m_surfaceCapture.actionIdCount; action++)
         {
+            ActionInfo* pAction = &m_surfaceCapture.pActions[action];
+
             for (uint32 mrt = 0; mrt < MaxColorTargets; mrt++)
             {
-                const uint32 idx = (action * MaxColorTargets) + mrt;
-                Image* pImage    = m_surfaceCapture.ppColorTargetDsts[idx];
+                Image* pImage = pAction->pColorTargetDsts[mrt];
                 if (pImage != nullptr)
                 {
                     ImageCreateInfo imageInfo                   = pImage->GetImageCreateInfo();
@@ -885,17 +860,10 @@ void CmdBuffer::SyncSurfaceCapture()
                     CmdBarrier(barrierInfo);
                 }
             }
-        }
-    }
 
-    if (m_surfaceCapture.ppDepthTargetDsts != nullptr)
-    {
-        for (uint32 action = 0; action < m_surfaceCapture.actionIdCount; action++)
-        {
-            for (uint32 plane = 0; plane < 2; plane++)
+            for (uint32 plane = 0; plane < MaxDepthTargetPlanes; plane++)
             {
-                const uint32 idx = (action * MaxDepthTargetPlanes) + plane;
-                Image* pImage = m_surfaceCapture.ppDepthTargetDsts[idx];
+                Image* pImage = pAction->pDepthTargetDsts[plane];
                 if (pImage != nullptr)
                 {
                     ImageCreateInfo imageInfo                   = pImage->GetImageCreateInfo();
@@ -906,19 +874,12 @@ void CmdBuffer::SyncSurfaceCapture()
                     CmdBarrier(barrierInfo);
                 }
              }
-        }
-    }
 
-    if (m_surfaceCapture.ppBlitImgs != nullptr)
-    {
-        for (uint32 action = 0; action < m_surfaceCapture.actionIdCount; action++)
-        {
-            Image* pImage = m_surfaceCapture.ppBlitImgs[action];
-            if (pImage != nullptr)
+            if (pAction->pBlitImg != nullptr)
             {
-                ImageCreateInfo imageInfo                   = pImage->GetImageCreateInfo();
+                ImageCreateInfo imageInfo                   = pAction->pBlitImg->GetImageCreateInfo();
 
-                transition.imageInfo.pImage                 = pImage;
+                transition.imageInfo.pImage                 = pAction->pBlitImg;
                 transition.imageInfo.subresRange.numMips    = imageInfo.mipLevels;
                 transition.imageInfo.subresRange.numSlices  = imageInfo.arraySize;
                 CmdBarrier(barrierInfo);
@@ -935,10 +896,12 @@ void CmdBuffer::OutputSurfaceCapture()
     Result result    = Result::Success;
     int64  captureTS = GetPerfCpuTime();
 
-    char filePath[256] = {};
+    char         filePath[256] = {};
+    char         hashStr[128]  = {};
+    const uint32 frameId       = static_cast<Platform*>(m_pDevice->GetPlatform())->FrameCount();
+    auto*        pDebugConfig  = &m_pDevice->GetPlatform()->PlatformSettings().gpuDebugConfig;
 
-    result = m_pDevice->GetPlatform()->CreateLogDir(
-        m_pDevice->GetPlatform()->PlatformSettings().gpuDebugConfig.surfaceCaptureLogDirectory);
+    result = m_pDevice->GetPlatform()->CreateLogDir(pDebugConfig->surfaceCaptureLogDirectory);
 
     if (result == Result::Success)
     {
@@ -949,102 +912,104 @@ void CmdBuffer::OutputSurfaceCapture()
 
     const size_t endOfString = strlen(&filePath[0]);
 
-    if ((result == Result::Success) || (result == Result::AlreadyExists))
+    if (((result == Result::Success) || (result == Result::AlreadyExists)) && (m_surfaceCapture.pActions != nullptr))
     {
+        constexpr const char* HashTypePrefixStr[] = {"", "Pipeline", "Tash", "Vs", "Hs", "Ds", "Gs", "Mesh","Ps"};
+        static_assert(ArrayLen(HashTypePrefixStr) == FilenameHashPs + 1, "");
+
         for (uint32 action = 0; action < m_surfaceCapture.actionIdCount; action++)
         {
+            ActionInfo* pAction = &m_surfaceCapture.pActions[action];
+
             char fileName[256] = {};
-
-            if (m_surfaceCapture.ppColorTargetDsts != nullptr)
+            if (m_surfaceCapture.filenameHashType != FilenameHashNoHash)
             {
-                // Output render targets
-                for (uint32 mrt = 0; mrt < MaxColorTargets; mrt++)
-                {
-                    const uint32 idx = (action * MaxColorTargets) + mrt;
-                    Image* pImage    = m_surfaceCapture.ppColorTargetDsts[idx];
-
-                    if (pImage != nullptr)
-                    {
-                        Snprintf(fileName,
-                                 sizeof(fileName),
-                                 "TS0x%llx_ID%d_Draw_RT%d",
-                                 captureTS,
-                                 m_surfaceCapture.actionIdStart + action,
-                                 mrt);
-
-                        OutputSurfaceCaptureImage(
-                            pImage,
-                            &filePath[0],
-                            &fileName[0]);
-                    }
-                }
+                Snprintf(hashStr,
+                         sizeof(hashStr),
+                         "%s_%08llx_%08llx_",
+                         HashTypePrefixStr[m_surfaceCapture.filenameHashType],
+                         pAction->actionHash.stable,
+                         pAction->actionHash.unique);
             }
 
-            if (m_surfaceCapture.ppDepthTargetDsts != nullptr)
+            // Output render targets
+            for (uint32 mrt = 0; mrt < MaxColorTargets; mrt++)
             {
-                // Output depth stencil
-                for (uint32 plane = 0; plane < 2; plane++)
-                {
-                    const uint32 idx = (action * MaxDepthTargetPlanes) + plane;
-                    Image* pImage = m_surfaceCapture.ppDepthTargetDsts[idx];
-
-                    if (pImage != nullptr)
-                    {
-                        Snprintf(fileName,
-                                 sizeof(fileName),
-                                 "TS0x%llx_ID%d_Draw_DSV%d",
-                                 captureTS,
-                                 m_surfaceCapture.actionIdStart + action,
-                                 plane);
-
-                        OutputSurfaceCaptureImage(
-                            pImage,
-                            &filePath[0],
-                            &fileName[0]);
-                    }
-                }
-            }
-
-            if (m_surfaceCapture.ppBlitImgs != nullptr)
-            {
-                // Output blit images capture
-                Image* pImage = m_surfaceCapture.ppBlitImgs[action];
+                Image* pImage    = pAction->pColorTargetDsts[mrt];
 
                 if (pImage != nullptr)
                 {
-                    char opNameStr[256] = {};
-                    switch (m_surfaceCapture.pBlitOpMask[action])
-                    {
-                    case EnableCmdCopyMemoryToImage:
-                        Snprintf(opNameStr, sizeof(opNameStr), "%s", "CmdCopyMemoryToImage");
-                        break;
-                    case EnableCmdClearColorImage:
-                        Snprintf(opNameStr, sizeof(opNameStr), "%s", "CmdClearColorImage");
-                        break;
-                    case EnableCmdClearDepthStencil:
-                        Snprintf(opNameStr, sizeof(opNameStr), "%s", "CmdClearDepthStencil");
-                        break;
-                    case EnableCmdCopyImageToMemory:
-                        Snprintf(opNameStr, sizeof(opNameStr), "%s", "CmdCopyImageToMemory");
-                        break;
-                    default:
-                        // An unidentified blit operation mask.
-                        PAL_ASSERT_ALWAYS();
-                        break;
-                    }
-
                     Snprintf(fileName,
                              sizeof(fileName),
-                             "TS0x%llx_ID%d_%s",
+                             "Frame%d_CmdBuf%d_Draw%d_TS0x%llx_CaptureId%d_%sDraw_RT%d",
+                             frameId,
+                             UniqueId(),
+                             pAction->drawId,
                              captureTS,
                              m_surfaceCapture.actionIdStart + action,
-                             opNameStr);
+                             hashStr,
+                             mrt);
 
-                    OutputSurfaceCaptureImage(
-                        pImage,
-                        &filePath[0],
-                        &fileName[0]);
+                    OutputSurfaceCaptureImage(pImage, &filePath[0], &fileName[0]);
                 }
+            }
+
+            // Output depth stencil
+            for (uint32 plane = 0; plane < MaxDepthTargetPlanes; plane++)
+            {
+                Image* pImage = pAction->pDepthTargetDsts[plane];
+
+                if (pImage != nullptr)
+                {
+                    Snprintf(fileName,
+                             sizeof(fileName),
+                             "Frame%d_CmdBuf%d_Draw%d_TS0x%llx_CaptureId%d_%sDraw_DSV%d",
+                             frameId,
+                             UniqueId(),
+                             pAction->drawId,
+                             captureTS,
+                             m_surfaceCapture.actionIdStart + action,
+                             hashStr,
+                             plane);
+
+                    OutputSurfaceCaptureImage(pImage, &filePath[0], &fileName[0]);
+                }
+            }
+
+            // Output blit images capture
+            if (pAction->pBlitImg != nullptr)
+            {
+                char opNameStr[256] = {};
+                switch (pAction->blitOpMask)
+                {
+                case EnableCmdCopyMemoryToImage:
+                    Snprintf(opNameStr, sizeof(opNameStr), "%s", "CmdCopyMemoryToImage");
+                    break;
+                case EnableCmdClearColorImage:
+                    Snprintf(opNameStr, sizeof(opNameStr), "%s", "CmdClearColorImage");
+                    break;
+                case EnableCmdClearDepthStencil:
+                    Snprintf(opNameStr, sizeof(opNameStr), "%s", "CmdClearDepthStencil");
+                    break;
+                case EnableCmdCopyImageToMemory:
+                    Snprintf(opNameStr, sizeof(opNameStr), "%s", "CmdCopyImageToMemory");
+                    break;
+                default:
+                    // An unidentified blit operation mask.
+                    PAL_ASSERT_ALWAYS();
+                    break;
+                }
+
+                Snprintf(fileName,
+                         sizeof(fileName),
+                         "Frame%d_CmdBuf%d_TS0x%llx_CaptureId%d_%s",
+                         frameId,
+                         UniqueId(),
+                         captureTS,
+                         m_surfaceCapture.actionIdStart + action,
+                         opNameStr);
+
+                OutputSurfaceCaptureImage(pAction->pBlitImg, &filePath[0], &fileName[0]);
             }
         }
     }
@@ -1130,38 +1095,34 @@ void CmdBuffer::OutputSurfaceCaptureImage(
 // Deallocates the memory created to hold captured surfaces
 void CmdBuffer::DestroySurfaceCaptureData()
 {
-    if (m_surfaceCapture.ppColorTargetDsts != nullptr)
-    {
-        for (uint32 i = 0; i < (m_surfaceCapture.actionIdCount * MaxColorTargets); i++)
-        {
-            if (m_surfaceCapture.ppColorTargetDsts[i] != nullptr)
-            {
-                m_surfaceCapture.ppColorTargetDsts[i]->Destroy();
-                PAL_SAFE_FREE(m_surfaceCapture.ppColorTargetDsts[i], m_pDevice->GetPlatform());
-            }
-        }
-    }
-
-    if (m_surfaceCapture.ppDepthTargetDsts != nullptr)
-    {
-        for (uint32 i = 0; i < m_surfaceCapture.actionIdCount * MaxDepthTargetPlanes; i++)
-        {
-            if (m_surfaceCapture.ppDepthTargetDsts[i] != nullptr)
-            {
-                m_surfaceCapture.ppDepthTargetDsts[i]->Destroy();
-                PAL_SAFE_FREE(m_surfaceCapture.ppDepthTargetDsts[i], m_pDevice->GetPlatform());
-            }
-        }
-    }
-
-    if (m_surfaceCapture.ppBlitImgs != nullptr)
+    if (m_surfaceCapture.pActions != nullptr)
     {
         for (uint32 i = 0; i < m_surfaceCapture.actionIdCount; i++)
         {
-            if (m_surfaceCapture.ppBlitImgs[i] != nullptr)
+            ActionInfo* pAction = &m_surfaceCapture.pActions[i];
+
+            for (uint32 j = 0; j < MaxColorTargets; j++)
             {
-                m_surfaceCapture.ppBlitImgs[i]->Destroy();
-                PAL_SAFE_FREE(m_surfaceCapture.ppBlitImgs[i], m_pDevice->GetPlatform());
+                if (pAction->pColorTargetDsts[j] != nullptr)
+                {
+                    pAction->pColorTargetDsts[j]->Destroy();
+                    PAL_SAFE_FREE(pAction->pColorTargetDsts[j], m_pDevice->GetPlatform());
+                }
+            }
+
+            for (uint32 j = 0; j < MaxDepthTargetPlanes; j++)
+            {
+                if (pAction->pDepthTargetDsts[j] != nullptr)
+                {
+                    pAction->pDepthTargetDsts[j]->Destroy();
+                    PAL_SAFE_FREE(pAction->pDepthTargetDsts[j], m_pDevice->GetPlatform());
+                }
+            }
+
+            if (pAction->pBlitImg != nullptr)
+            {
+                pAction->pBlitImg->Destroy();
+                PAL_SAFE_FREE(pAction->pBlitImg, m_pDevice->GetPlatform());
             }
         }
     }
@@ -1189,6 +1150,7 @@ Result CmdBuffer::Reset(
     // Reset is an optional call, if the app calls it we might as well clean up some of our heavier state objects.
     // Note that we'll do a full reset when they call Begin later on.
     m_surfaceCapture.actionId = 0;
+    m_surfaceCapture.drawId = 0;
     DestroySurfaceCaptureData();
 
     return GetNextLayer()->Reset(NextCmdAllocator(pCmdAllocator), returnGpuMemory);
@@ -1214,6 +1176,7 @@ Result CmdBuffer::Begin(
     m_numReleaseTokens = 0;
 
     m_surfaceCapture.actionId = 0;
+    m_surfaceCapture.drawId = 0;
     DestroySurfaceCaptureData();
 
     // Reset the token stream state so that we can reuse our old token stream buffer.
@@ -2574,9 +2537,13 @@ void CmdBuffer::HandleDrawDispatch(
             CaptureSurfaces();
         }
 
-        if (isDraw && m_surfaceCapture.pipelineMatch)
+        if (isDraw)
         {
-            m_surfaceCapture.actionId++;
+            m_surfaceCapture.drawId++;
+            if (m_surfaceCapture.pipelineMatch)
+            {
+                m_surfaceCapture.actionId++;
+            }
         }
 
         const bool timestampAndWait = (isDraw) ? TestAnyFlagSet(m_singleStep, TimestampAndWaitDraws) :
@@ -3497,10 +3464,10 @@ void CmdBuffer::CmdCopyMemoryToImage(
             const uint32 actionIndex = m_surfaceCapture.actionId - m_surfaceCapture.actionIdStart;
             PAL_ASSERT(actionIndex < m_surfaceCapture.actionIdCount);
 
-            m_surfaceCapture.pBlitOpMask[actionIndex] = EnableCmdCopyMemoryToImage;
+            m_surfaceCapture.pActions[actionIndex].blitOpMask = EnableCmdCopyMemoryToImage;
 
-            PAL_ASSERT(m_surfaceCapture.ppBlitImgs[actionIndex] == nullptr);
-            m_surfaceCapture.ppBlitImgs[actionIndex] = static_cast<Image*>(pDstImage);
+            PAL_ASSERT(m_surfaceCapture.pActions[actionIndex].pBlitImg == nullptr);
+            m_surfaceCapture.pActions[actionIndex].pBlitImg = static_cast<Image*>(pDstImage);
 
             m_surfaceCapture.actionId++;
         }
@@ -3576,10 +3543,10 @@ void CmdBuffer::CmdCopyImageToMemory(
             const uint32 actionIndex = m_surfaceCapture.actionId - m_surfaceCapture.actionIdStart;
             PAL_ASSERT(actionIndex < m_surfaceCapture.actionIdCount);
 
-            m_surfaceCapture.pBlitOpMask[actionIndex] = EnableCmdCopyImageToMemory;
+            m_surfaceCapture.pActions[actionIndex].blitOpMask = EnableCmdCopyImageToMemory;
 
-            PAL_ASSERT(m_surfaceCapture.ppBlitImgs[actionIndex] == nullptr);
-            m_surfaceCapture.ppBlitImgs[actionIndex] = static_cast<Image*>(pDstImage);
+            PAL_ASSERT(m_surfaceCapture.pActions[actionIndex].pBlitImg == nullptr);
+            m_surfaceCapture.pActions[actionIndex].pBlitImg = static_cast<Image*>(pDstImage);
 
             m_surfaceCapture.actionId++;
         }
@@ -3799,10 +3766,10 @@ void CmdBuffer::CmdClearColorImage(
             const uint32 actionIndex = m_surfaceCapture.actionId - m_surfaceCapture.actionIdStart;
             PAL_ASSERT(actionIndex < m_surfaceCapture.actionIdCount);
 
-            m_surfaceCapture.pBlitOpMask[actionIndex] = EnableCmdClearColorImage;
+            m_surfaceCapture.pActions[actionIndex].blitOpMask = EnableCmdClearColorImage;
 
-            PAL_ASSERT(m_surfaceCapture.ppBlitImgs[actionIndex] == nullptr);
-            m_surfaceCapture.ppBlitImgs[actionIndex] = static_cast<Image*>(pDstImage);
+            PAL_ASSERT(m_surfaceCapture.pActions[actionIndex].pBlitImg == nullptr);
+            m_surfaceCapture.pActions[actionIndex].pBlitImg = static_cast<Image*>(pDstImage);
 
             m_surfaceCapture.actionId++;
         }
@@ -3950,10 +3917,10 @@ void CmdBuffer::CmdClearDepthStencil(
             const uint32 actionIndex = m_surfaceCapture.actionId - m_surfaceCapture.actionIdStart;
             PAL_ASSERT(actionIndex < m_surfaceCapture.actionIdCount);
 
-            m_surfaceCapture.pBlitOpMask[actionIndex] = EnableCmdClearDepthStencil;
+            m_surfaceCapture.pActions[actionIndex].blitOpMask = EnableCmdClearDepthStencil;
 
-            PAL_ASSERT(m_surfaceCapture.ppBlitImgs[actionIndex] == nullptr);
-            m_surfaceCapture.ppBlitImgs[actionIndex] = static_cast<Image*>(pDstImage);
+            PAL_ASSERT(m_surfaceCapture.pActions[actionIndex].pBlitImg == nullptr);
+            m_surfaceCapture.pActions[actionIndex].pBlitImg = static_cast<Image*>(pDstImage);
 
             m_surfaceCapture.actionId++;
         }

@@ -589,6 +589,9 @@ Result Queue::Submit(
     // Start by assuming we'll need to add our header CmdBuffer per queue.
     size_t totalCmdBufferCount = m_queueCount;
 
+    const uint32 frameCount = static_cast<Platform*>(m_pDevice->GetPlatform())->FrameCount();
+    auto* pDebugConfig = &m_pDevice->GetPlatform()->PlatformSettings().gpuDebugConfig;
+
     if (dummySubmit == false)
     {
         for (uint32 subQueueIdx = 0;
@@ -704,7 +707,12 @@ Result Queue::Submit(
 
                     if (outputSurfaceCapture)
                     {
-                        pCmdBuffer->OutputSurfaceCapture();
+                        if ((frameCount >= pDebugConfig->surfaceCaptureFrameStart) &&
+                            (frameCount < (pDebugConfig->surfaceCaptureFrameStart +
+                                           pDebugConfig->surfaceCaptureFrameCount)))
+                        {
+                            pCmdBuffer->OutputSurfaceCapture();
+                        }
 
                         result = m_pDevice->RemoveGpuMemoryReferences(
                             pCmdBuffer->GetSurfaceCaptureGpuMemCount(),

@@ -365,7 +365,7 @@ uint32* CmdStream::WriteSetOneContextReg(
     uint32  regData,
     uint32* pCmdSpace)
 {
-    PAL_ASSERT(m_flags.optimizeCommands == Pm4OptEnabled);
+    PAL_DEBUG_BUILD_ONLY_ASSERT(m_flags.optimizeCommands == Pm4OptEnabled);
 
     if ((Pm4OptEnabled == false) || m_pPm4Optimizer->MustKeepSetContextReg(regAddr, regData))
     {
@@ -437,7 +437,7 @@ uint32* CmdStream::WriteSetOneShReg(
     uint32        regData,
     uint32*       pCmdSpace)
 {
-    PAL_ASSERT(m_flags.optimizeCommands == Pm4OptEnabled);
+    PAL_DEBUG_BUILD_ONLY_ASSERT(m_flags.optimizeCommands == Pm4OptEnabled);
 
     if ((Pm4OptEnabled == false) || m_pPm4Optimizer->MustKeepSetShReg(regAddr, regData))
     {
@@ -670,7 +670,7 @@ uint32* CmdStream::WriteSetShRegPairs(
     uint32              numRegs,
     uint32*             pCmdSpace)
 {
-    PAL_ASSERT(m_flags.optimizeCommands == Pm4OptEnabled);
+    PAL_DEBUG_BUILD_ONLY_ASSERT(m_flags.optimizeCommands == Pm4OptEnabled);
 
     if (Pm4OptEnabled)
     {
@@ -1072,7 +1072,7 @@ uint32* CmdStream::WriteSetSeqContextRegs(
     const void* pData,
     uint32*     pCmdSpace)
 {
-    PAL_ASSERT(m_flags.optimizeCommands == Pm4OptEnabled);
+    PAL_DEBUG_BUILD_ONLY_ASSERT(m_flags.optimizeCommands == Pm4OptEnabled);
 
     if (Pm4OptEnabled)
     {

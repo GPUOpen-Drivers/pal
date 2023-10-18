@@ -59,6 +59,7 @@ void ApiInfoTraceSource::FillTraceChunkApiInfo(TraceChunkApiInfo* pApiInfo)
 // Translate TraceChunkApiInfo to TraceChunkInfo and write it into TraceSession
 void ApiInfoTraceSource::WriteApiInfoTraceChunk()
 {
+    Result result = Result::Success;
     // Populate the TraceApiChunk with the Api details
     TraceChunkApiInfo traceChunkApiInfo = {};
     memset(&traceChunkApiInfo, 0, sizeof(TraceChunkApiInfo));
@@ -73,9 +74,23 @@ void ApiInfoTraceSource::WriteApiInfoTraceChunk()
     info.dataSize          = sizeof(TraceChunkApiInfo);
     info.enableCompression = false;
 
-    m_pPlatform->GetTraceSession()->WriteDataChunk(this, info);
+    result = m_pPlatform->GetTraceSession()->WriteDataChunk(this, info);
+
+    if (result != Result::Success)
+    {
+        const char errorMessage[] = "[ApiInfoChunk] Error Writing Chunk Data";
+
+        m_pPlatform->GetTraceSession()->ReportError(
+            info.id,
+            errorMessage,
+            sizeof(errorMessage),
+            TraceErrorPayload::ErrorString,
+            result);
+    }
+
 }
 
+// =====================================================================================================================
 void ApiInfoTraceSource::OnTraceFinished()
 {
     WriteApiInfoTraceChunk();

@@ -24,40 +24,93 @@
  **********************************************************************************************************************/
 
 #include <dd_settings_base.h>
-#include <string.h>
-#include <util/hashMap.h>
+#include <dd_optional.h>
+
 #include <ddPlatform.h>
+
+#include <cstring>
+
+namespace
+{
+
+template<typename T>
+inline void SetSetting(void* pSetting, void* pValue)
+{
+    *(static_cast<T*>(pSetting)) = *(static_cast<T*>(pValue));
+}
+
+template<typename T>
+inline void SetOptionalSetting(void* pSetting, void* pValue)
+{
+    *(static_cast<DevDriver::Optional<T>*>(pSetting)) = *(static_cast<T*>(pValue));
+}
+
+inline void SetValueHelper(DDSettingsValueRef* pDestValueRef, const DDSettingsValueRef& pSrcValueRef)
+{
+    if (pDestValueRef->isOptional)
+    {
+        switch (pDestValueRef->type)
+        {
+        case DD_SETTINGS_TYPE_BOOL:   SetOptionalSetting<bool>(pDestValueRef->pValue, pSrcValueRef.pValue); break;
+        case DD_SETTINGS_TYPE_INT8:   SetOptionalSetting<int8_t>(pDestValueRef->pValue, pSrcValueRef.pValue); break;
+        case DD_SETTINGS_TYPE_UINT8:  SetOptionalSetting<uint8_t>(pDestValueRef->pValue, pSrcValueRef.pValue); break;
+        case DD_SETTINGS_TYPE_INT16:  SetOptionalSetting<int16_t>(pDestValueRef->pValue, pSrcValueRef.pValue); break;
+        case DD_SETTINGS_TYPE_UINT16: SetOptionalSetting<uint16_t>(pDestValueRef->pValue, pSrcValueRef.pValue); break;
+        case DD_SETTINGS_TYPE_INT32:  SetOptionalSetting<int32_t>(pDestValueRef->pValue, pSrcValueRef.pValue); break;
+        case DD_SETTINGS_TYPE_UINT32: SetOptionalSetting<uint32_t>(pDestValueRef->pValue, pSrcValueRef.pValue); break;
+        case DD_SETTINGS_TYPE_INT64:  SetOptionalSetting<int64_t>(pDestValueRef->pValue, pSrcValueRef.pValue); break;
+        case DD_SETTINGS_TYPE_UINT64: SetOptionalSetting<uint64_t>(pDestValueRef->pValue, pSrcValueRef.pValue); break;
+        case DD_SETTINGS_TYPE_FLOAT:  SetOptionalSetting<float>(pDestValueRef->pValue, pSrcValueRef.pValue); break;
+        case DD_SETTINGS_TYPE_STRING: memcpy(pDestValueRef->pValue, pSrcValueRef.pValue, pSrcValueRef.size); break;
+        default:
+            DD_ASSERT(false);
+        }
+    }
+    else
+    {
+        switch (pDestValueRef->type)
+        {
+        case DD_SETTINGS_TYPE_BOOL:   SetSetting<bool>(pDestValueRef->pValue, pSrcValueRef.pValue); break;
+        case DD_SETTINGS_TYPE_INT8:   SetSetting<int8_t>(pDestValueRef->pValue, pSrcValueRef.pValue); break;
+        case DD_SETTINGS_TYPE_UINT8:  SetSetting<uint8_t>(pDestValueRef->pValue, pSrcValueRef.pValue); break;
+        case DD_SETTINGS_TYPE_INT16:  SetSetting<int16_t>(pDestValueRef->pValue, pSrcValueRef.pValue); break;
+        case DD_SETTINGS_TYPE_UINT16: SetSetting<uint16_t>(pDestValueRef->pValue, pSrcValueRef.pValue); break;
+        case DD_SETTINGS_TYPE_INT32:  SetSetting<int32_t>(pDestValueRef->pValue, pSrcValueRef.pValue); break;
+        case DD_SETTINGS_TYPE_UINT32: SetSetting<uint32_t>(pDestValueRef->pValue, pSrcValueRef.pValue); break;
+        case DD_SETTINGS_TYPE_INT64:  SetSetting<int64_t>(pDestValueRef->pValue, pSrcValueRef.pValue); break;
+        case DD_SETTINGS_TYPE_UINT64: SetSetting<uint64_t>(pDestValueRef->pValue, pSrcValueRef.pValue); break;
+        case DD_SETTINGS_TYPE_FLOAT:  SetSetting<float>(pDestValueRef->pValue, pSrcValueRef.pValue); break;
+        case DD_SETTINGS_TYPE_STRING: memcpy(pDestValueRef->pValue, pSrcValueRef.pValue, pSrcValueRef.size); break;
+        default:
+            DD_ASSERT(false);
+        }
+    }
+}
+
+} // anonymous namespace
 
 namespace DevDriver
 {
 
-using SettingsHashMap = HashMap<DD_SETTINGS_NAME_HASH, DDSettingsValueRef>;
-
-SettingsBase::SettingsBase(SettingsDataBase* pSettingsData, uint32_t numSettings, size_t totalSettingsBytes)
+SettingsBase::SettingsBase(void* pSettingsData, size_t settingsDataSize)
     : m_pSettingsData(pSettingsData)
+    , m_settingsMap(Platform::GenericAllocCb)
 {
     // Zero out the entire SettingsData. This ensure the struct paddings
     // are always zero, and is required for generating deterministic hashing
     // result.
-    memset(m_pSettingsData, 0, totalSettingsBytes);
-    m_pSettingsData->numSettings = numSettings;
-
-    auto pSettingsMap = new SettingsHashMap(DevDriver::Platform::GenericAllocCb);
-
-    m_pSettingsMap = pSettingsMap;
+    memset(m_pSettingsData, 0, settingsDataSize);
 }
 
 SettingsBase::~SettingsBase()
 {
-    delete static_cast<SettingsHashMap*>(m_pSettingsMap);
 }
 
 DD_RESULT SettingsBase::SetValue(const DDSettingsValueRef& srcValueRef)
 {
     DD_RESULT result = DD_RESULT_SUCCESS;
 
-    auto pSettingsMap = static_cast<SettingsHashMap*>(m_pSettingsMap);
-    DDSettingsValueRef* pDestValueRef = pSettingsMap->FindValue(srcValueRef.hash);
+    DDSettingsValueRef* pDestValueRef = m_settingsMap.FindValue(srcValueRef.hash);
     if (pDestValueRef != nullptr)
     {
         if (pDestValueRef->type == srcValueRef.type)
@@ -67,7 +120,7 @@ DD_RESULT SettingsBase::SetValue(const DDSettingsValueRef& srcValueRef)
             {
                 if (pDestValueRef->size >= srcValueRef.size)
                 {
-                    memcpy(pDestValueRef->pValue, srcValueRef.pValue, srcValueRef.size);
+                    SetValueHelper(pDestValueRef, srcValueRef);
                 }
                 else
                 {
@@ -92,8 +145,7 @@ DD_RESULT SettingsBase::GetValue(DDSettingsValueRef* pValueRef)
 {
     DD_RESULT result = DD_RESULT_SUCCESS;
 
-    auto pSettingsMap = static_cast<SettingsHashMap*>(m_pSettingsMap);
-    DDSettingsValueRef* pSrcValueRef = pSettingsMap->FindValue(pValueRef->hash);
+    DDSettingsValueRef* pSrcValueRef = m_settingsMap.FindValue(pValueRef->hash);
     if (pSrcValueRef != nullptr)
     {
         if (pValueRef->size >= pSrcValueRef->size)

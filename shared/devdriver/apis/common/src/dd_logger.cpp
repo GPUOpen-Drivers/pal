@@ -86,23 +86,22 @@ void Log(DDLoggerInstance* pInstance, DD_LOG_LVL level, const char* pFormat, ...
     }
 }
 
-void LogNull(DDLoggerInstance* pInstance, DD_LOG_LVL level, const char* pFormat, ...)
+void SetLogNullLevel(DDLoggerInstance*, DD_LOG_LVL)
 {
-    (void)pInstance;
-    (void)level;
-    (void)pFormat;
+}
+
+void LogNull(DDLoggerInstance*, DD_LOG_LVL, const char*, ...)
+{
 }
 
 } // anonymous namespace
 
-DD_RESULT DDLoggerCreate(DDLoggerCreateInfo* pCreateInfo, DDLoggerApi** ppOutLoggerApi)
+DD_RESULT DDLoggerCreate(DDLoggerCreateInfo* pCreateInfo, DDLoggerApi* pOutLoggerApi)
 {
     DD_RESULT result = DD_RESULT_SUCCESS;
 
     Logger* pLogger = nullptr;
-    *ppOutLoggerApi = new DDLoggerApi;
-
-    (*ppOutLoggerApi)->pInstance = nullptr;
+    *pOutLoggerApi = {};
 
     if (pCreateInfo->pFilePath != nullptr && pCreateInfo->filePathSize > 0)
     {
@@ -125,9 +124,9 @@ DD_RESULT DDLoggerCreate(DDLoggerCreateInfo* pCreateInfo, DDLoggerApi** ppOutLog
 
         if (result == DD_RESULT_SUCCESS)
         {
-            (*ppOutLoggerApi)->pInstance   = reinterpret_cast<DDLoggerInstance*>(pLogger);
-            (*ppOutLoggerApi)->SetLogLevel = SetLogLevel;
-            (*ppOutLoggerApi)->Log         = Log;
+            pOutLoggerApi->pInstance   = reinterpret_cast<DDLoggerInstance*>(pLogger);
+            pOutLoggerApi->SetLogLevel = SetLogLevel;
+            pOutLoggerApi->Log         = Log;
         }
         else
         {
@@ -137,21 +136,22 @@ DD_RESULT DDLoggerCreate(DDLoggerCreateInfo* pCreateInfo, DDLoggerApi** ppOutLog
     }
 
     // If failed to create a logger, intentionally or not, make a dummy logger instead.
-    if ((*ppOutLoggerApi)->pInstance == nullptr)
+    if (pOutLoggerApi->pInstance == nullptr)
     {
-        (*ppOutLoggerApi)->Log = LogNull;
+        pOutLoggerApi->SetLogLevel = SetLogNullLevel;
+        pOutLoggerApi->Log         = LogNull;
     }
 
     return result;
 }
 
-void DDLoggerDestroy(DDLoggerApi** ppLoggerApi)
+void DDLoggerDestroy(DDLoggerApi* pLoggerApi)
 {
-    if (ppLoggerApi != nullptr && *ppLoggerApi != nullptr)
+    if (pLoggerApi != nullptr)
     {
-        if ((*ppLoggerApi)->pInstance != nullptr)
+        if (pLoggerApi->pInstance != nullptr)
         {
-            Logger* pLogger = reinterpret_cast<Logger*>((*ppLoggerApi)->pInstance);
+            Logger* pLogger = reinterpret_cast<Logger*>(pLoggerApi->pInstance);
 
             int err = close(pLogger->fileHandle);
             DD_ASSERT(err == 0);
@@ -160,7 +160,8 @@ void DDLoggerDestroy(DDLoggerApi** ppLoggerApi)
             delete pLogger;
         }
 
-        delete *ppLoggerApi;
-        *ppLoggerApi = nullptr;
+        pLoggerApi->pInstance = nullptr;
+        pLoggerApi->SetLogLevel = nullptr;
+        pLoggerApi->Log = nullptr;
     }
 }

@@ -261,28 +261,31 @@ Result RemoveOldestFilesOfDirUntilSize(
     const char* pPathName,
     uint64      desiredSize)
 {
-    uint32 fileCount = 0;
+    size_t fileCount = 0;
     size_t bytesReq  = 0;
 
     // Get the number of files in the dir.
-    Result result = ListDir(pPathName, &fileCount, nullptr, &bytesReq, nullptr);
+    Result result = CountFilesInDir(pPathName, &fileCount, &bytesReq);
 
     // Allocate mem for storing file names
-    char** ppFileNames    = nullptr;
+    StringView<char>* pFileNames = nullptr;
     char* pFileNameBuffer = nullptr;
     char* pFullFilePath   = nullptr;
 
-    const size_t pathLen = strlen(pPathName) + 1; // Add one to append a '/'
+    const size_t pathLen = std::strlen(pPathName) + 1; // Add one to append a '/'
     const size_t fullPathSize = pathLen + 1 + Util::MaxFileNameStrLen;
 
     Util::GenericAllocator allocator;
     if (result == Result::Success)
     {
-        ppFileNames = static_cast<char**>(PAL_CALLOC(fileCount * sizeof(char*), &allocator, AllocInternalTemp));
-        pFileNameBuffer = static_cast<char*>(PAL_CALLOC(bytesReq, &allocator, AllocInternalTemp));
-        pFullFilePath = static_cast<char*>(PAL_CALLOC(fullPathSize * sizeof(char), &allocator, AllocInternalTemp));
+        pFileNames = static_cast<StringView<char>*>(
+            PAL_CALLOC(fileCount * sizeof(StringView<char>), &allocator, AllocInternalTemp));
+        pFileNameBuffer = static_cast<char*>(
+            PAL_CALLOC(bytesReq, &allocator, AllocInternalTemp));
+        pFullFilePath = static_cast<char*>(
+            PAL_CALLOC(fullPathSize * sizeof(char), &allocator, AllocInternalTemp));
 
-        if ((ppFileNames == nullptr) || (pFileNameBuffer == nullptr) || (pFullFilePath == nullptr))
+        if ((pFileNames == nullptr) || (pFileNameBuffer == nullptr) || (pFullFilePath == nullptr))
         {
             result = Result::ErrorOutOfMemory;
         }
@@ -291,7 +294,7 @@ Result RemoveOldestFilesOfDirUntilSize(
     // Get the file names in the dir
     if (result == Result::Success)
     {
-        result = ListDir(pPathName, &fileCount, const_cast<const char**>(ppFileNames), &bytesReq, pFileNameBuffer);
+        result = GetFileNamesInDir(pPathName, Span(pFileNames, fileCount), Span(pFileNameBuffer, bytesReq));
     }
 
     // Store the stats of every file in a Vector
@@ -312,7 +315,7 @@ Result RemoveOldestFilesOfDirUntilSize(
         for (uint32 i = 0; (i < fileCount) && (result == Result::Success); i++)
         {
             // Write the filename portion of the full file path
-            Strncpy(pFullFilePath + pathLen, ppFileNames[i], fullPathSize - pathLen);
+            Strncpy(pFullFilePath + pathLen, pFileNames[i].Data(), fullPathSize - pathLen);
 
             File::Stat stat;
             result = File::GetStat(pFullFilePath, &stat);
@@ -357,26 +360,15 @@ Result RemoveOldestFilesOfDirUntilSize(
         Value* pValue = &files.Back();
         currentSize -= pValue->stat.size;
 
-        Strncpy(pFullFilePath + pathLen, ppFileNames[pValue->namePos], fullPathSize - pathLen);
+        Strncpy(pFullFilePath + pathLen, pFileNames[pValue->namePos].Data(), fullPathSize - pathLen);
 
         result = File::Remove(pFullFilePath);
         files.Erase(pValue);
     }
 
-    if (ppFileNames != nullptr)
-    {
-        PAL_SAFE_FREE(ppFileNames, &allocator);
-    }
-
-    if (pFileNameBuffer != nullptr)
-    {
-        PAL_SAFE_FREE(pFileNameBuffer, &allocator);
-    }
-
-    if (pFullFilePath != nullptr)
-    {
-        PAL_SAFE_FREE(pFullFilePath, &allocator);
-    }
+    PAL_SAFE_FREE(pFileNames, &allocator);
+    PAL_SAFE_FREE(pFileNameBuffer, &allocator);
+    PAL_SAFE_FREE(pFullFilePath, &allocator);
 
     return result;
 }

@@ -4410,6 +4410,11 @@ public:
         m_pClientData = pClientData;
     }
 
+    /// Gets the internal unique Id of the command buffer.
+    /// This function is only for internal debugging, and the Id is not unique across different queue types.
+    ///
+    /// @returns Unique Id of the command buffer
+    virtual uint32 UniqueId() const = 0;
 protected:
     /// @internal Constructor. Prevent use of new operator on this interface. Client must create objects by explicitly
     /// called the proper create method.

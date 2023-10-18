@@ -307,6 +307,7 @@ enum class ApiShaderSubType : uint32
     ClosestHit,
     Miss,
     Callable,
+    LaunchKernel,           ///< Raytracing launch kernel
     Count
 };
 

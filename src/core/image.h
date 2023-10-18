@@ -290,8 +290,6 @@ struct ImageInfo
 class Image : public IImage
 {
 public:
-    static constexpr bool        PreferGraphicsCopy        = true;
-
     static Result ValidateCreateInfo(
         const Device*                  pDevice,
         const ImageCreateInfo&         imageInfo,

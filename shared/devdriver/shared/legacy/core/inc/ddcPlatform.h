@@ -177,7 +177,11 @@ namespace DevDriver
 #if !defined(DD_OPT_ASSERTS_ENABLE)
     #define DD_WARN(statement)       DD_UNUSED(0)
     #define DD_WARN_REASON(reason)   DD_UNUSED(0)
-    #define DD_ASSERT(statement)     DD_UNUSED(0) // WA: Do not optimize code using DD_ASSERT(), by calling DD_ASSUME().
+
+    #ifndef DD_ASSERT
+        #define DD_ASSERT(statement)     DD_UNUSED(0) // WA: Do not optimize code using DD_ASSERT(), by calling DD_ASSUME().
+    #endif
+
     #define DD_ASSERT_REASON(reason) DD_UNUSED(0)
 #else
     #define DD_WARN(statement) do                                                         \
@@ -196,16 +200,18 @@ namespace DevDriver
             __FILE__, __LINE__, __func__, reason);                                    \
     } while (0)
 
-    #define DD_ASSERT(statement) do                                                       \
-    {                                                                                     \
-        DevDriver::check_expr_is_bool(statement);                                         \
-        if (!(statement))                                                                 \
-        {                                                                                 \
-            DD_PRINT(DevDriver::LogLevel::Error, "%s (%d): Assertion failed in %s: %s",   \
-                __FILE__, __LINE__, __func__, DD_STRINGIFY(statement));                   \
-            DD_ASSERT_DEBUG_BREAK();                                                      \
-        }                                                                                 \
-    } while (0)
+    #ifndef DD_ASSERT
+        #define DD_ASSERT(statement) do                                                       \
+        {                                                                                     \
+            DevDriver::check_expr_is_bool(statement);                                         \
+            if (!(statement))                                                                 \
+            {                                                                                 \
+                DD_PRINT(DevDriver::LogLevel::Error, "%s (%d): Assertion failed in %s: %s",   \
+                    __FILE__, __LINE__, __func__, DD_STRINGIFY(statement));                   \
+                DD_ASSERT_DEBUG_BREAK();                                                      \
+            }                                                                                 \
+        } while (0)
+    #endif
 
     #define DD_ASSERT_REASON(reason) do                                               \
     {                                                                                 \

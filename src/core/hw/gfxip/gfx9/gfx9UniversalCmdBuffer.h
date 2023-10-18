@@ -478,16 +478,6 @@ public:
 
     virtual void CmdEndQuery(const IQueryPool& queryPool, QueryType queryType, uint32 slot) override;
 
-    virtual void CmdResolveQuery(
-        const IQueryPool& queryPool,
-        QueryResultFlags  flags,
-        QueryType         queryType,
-        uint32            startQuery,
-        uint32            queryCount,
-        const IGpuMemory& dstGpuMemory,
-        gpusize           dstOffset,
-        gpusize           dstStride) override;
-
     virtual void CmdResetQueryPool(
         const IQueryPool& queryPool,
         uint32            startQuery,
@@ -692,6 +682,9 @@ public:
 
     virtual uint32* WriteWaitEop(HwPipePoint waitPoint, uint32 hwGlxSync, uint32 hwRbSync, uint32* pCmdSpace) override;
     virtual uint32* WriteWaitCsIdle(uint32* pCmdSpace) override;
+
+    //Gets ringSizes ringSizes from cmdBuffer.
+    const ShaderRingItemSizes& GetShaderRingSize() const { return m_ringSizes; }
 
 protected:
     virtual ~UniversalCmdBuffer();
@@ -945,6 +938,8 @@ private:
     template <bool TessEnabled, bool GsEnabled, bool VsEnabled>
     void SetUserDataValidationFunctions();
     void SetUserDataValidationFunctions(bool tessEnabled, bool gsEnabled, bool isNgg);
+
+    void SetShaderRingSize(const ShaderRingItemSizes& ringSizes);
 
     void ValidateDispatchPalAbi(
         ComputeState* pComputeState,
@@ -1375,6 +1370,8 @@ private:
     ColorTargetViewStorage  m_colorTargetViewRestoreStorage[MaxColorTargets];
     DepthStencilViewStorage m_depthStencilViewStorage;
     DepthStencilViewStorage m_depthStencilViewRestoreStorage;
+
+    ShaderRingItemSizes     m_ringSizes;
 
     PAL_DISALLOW_DEFAULT_CTOR(UniversalCmdBuffer);
     PAL_DISALLOW_COPY_AND_ASSIGN(UniversalCmdBuffer);

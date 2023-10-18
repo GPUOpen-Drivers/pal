@@ -100,6 +100,9 @@ struct ExternalQueueSemaphoreOpenInfo
     } flags;                            ///< External queue semaphore open flags.
 
     OsExternalHandle externalSemaphore; ///< External shared semaphore handle.
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 830
+#endif
 };
 
 /// Specifies parameters for exporting a queue semaphore. Input structure to IQueueSemaphore::ExportExternalHandle().

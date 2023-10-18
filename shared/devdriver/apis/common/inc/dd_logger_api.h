@@ -86,18 +86,17 @@ typedef struct
 /// @param pCreateInfo See \ref DDLoggerCreateInfo.
 /// @param ppOutLoggerApi[in/out] Will be set to an instance of \ref DDLoggerApi. If the function succeeds,
 /// a valid logger is created, which writes log messages to the file specified by
-/// \ref DDLoggerCreateInfo.pFilePath. Upon failure, `*ppOutLoggerApi` points to a dummy logger that simply
+/// \ref DDLoggerCreateInfo.pFilePath. Upon failure, `*pOutLoggerApi` is set to a dummy logger that simply
 /// discards log messages. This parameter cannot be NULL.
 ///
 /// @return DD_RESULT_SUCCESS An valid logger is created.
-/// @return DD_RESULT_COMMON_INVALID_PARAMETER The called failed, a dummy logger is created.
-DD_RESULT DDLoggerCreate(DDLoggerCreateInfo* pCreateInfo, DDLoggerApi** ppOutLoggerApi);
+/// @return DD_RESULT_COMMON_INVALID_PARAMETER The call failed, a dummy logger is created.
+DD_RESULT DDLoggerCreate(DDLoggerCreateInfo* pCreateInfo, DDLoggerApi* pOutLoggerApi);
 
 /// Destroy an instance of \ref DDLoggerApi.
 ///
-/// @param ppLoggerApi[in/out] A double-pointer to an instance of \ref DDLoggerApi. The pointer will be
-/// set to NULL after destruction.
-void DDLoggerDestroy(DDLoggerApi** ppLoggerApi);
+/// @param ppLoggerApi[in/out] A pointer to an instance of \ref DDLoggerApi.
+void DDLoggerDestroy(DDLoggerApi* pLoggerApi);
 
 #ifdef __cplusplus
 } // extern "C"

@@ -480,12 +480,6 @@ Result Pipeline::GetShaderStatsForStage(
         pStats->common.numUsedSgprs = stageMetadata.sgprCount;
         pStats->common.numUsedVgprs = stageMetadata.vgprCount;
 
-        if (gpuInfo.gfxLevel < GfxIpLevel::GfxIp9)
-        {
-            pStats->numAvailableSgprs = (stageMetadata.hasEntry.sgprLimit != 0) ? stageMetadata.sgprLimit
-                                                                                : gpuInfo.gfx6.numShaderVisibleSgprs;
-        }
-
         if (gpuInfo.gfxLevel >= GfxIpLevel::GfxIp9)
         {
             pStats->numAvailableSgprs = (stageMetadata.hasEntry.sgprLimit != 0) ? stageMetadata.sgprLimit
@@ -571,9 +565,16 @@ bool Pipeline::DispatchInterleaveSizeIsValid(
     case DispatchInterleaveSize::Default:
     case DispatchInterleaveSize::Disable:
         break;
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 823)
+    case DispatchInterleaveSize::_1D_64_Threads:
+    case DispatchInterleaveSize::_1D_128_Threads:
+    case DispatchInterleaveSize::_1D_256_Threads:
+    case DispatchInterleaveSize::_1D_512_Threads:
+#else
     case DispatchInterleaveSize::_128:
     case DispatchInterleaveSize::_256:
     case DispatchInterleaveSize::_512:
+#endif
         is1D = true;
         break;
     default:
@@ -1186,10 +1187,10 @@ Result PipelineUploader::GetPipelineGpuSymbol(
 
 // =====================================================================================================================
 Result PipelineUploader::GetGenericGpuSymbol(
-    const char* pName,
-    GpuSymbol*  pSymbol) const
+    StringView<char> name,
+    GpuSymbol*       pSymbol) const
 {
-    return GetAbsoluteSymbolAddress(m_abiReader.GetGenericSymbol(pName), pSymbol);
+    return GetAbsoluteSymbolAddress(m_abiReader.GetGenericSymbol(name), pSymbol);
 }
 
 // =====================================================================================================================

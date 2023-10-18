@@ -170,7 +170,7 @@ Result CmdStream::Begin(
 uint32* CmdStream::ReserveCommands()
 {
     // Why are we reserving constant engine space when we don't have a constant engine?
-    PAL_ASSERT((m_subEngineType != SubEngineType::ConstantEngine) ||
+    PAL_DEBUG_BUILD_ONLY_ASSERT((m_subEngineType != SubEngineType::ConstantEngine) ||
                m_pDevice->IsConstantEngineSupported(m_engineType));
 
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -193,7 +193,7 @@ uint32* CmdStream::ReserveCommands()
     }
 #endif
 
-    PAL_ASSERT(m_pReserveBuffer != nullptr);
+    PAL_DEBUG_BUILD_ONLY_ASSERT(m_pReserveBuffer != nullptr);
     return m_pReserveBuffer;
 }
 

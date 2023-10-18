@@ -51,7 +51,10 @@ public:
 
     // Performs preprocessing or validation which needs to occur before the Queue is "ready" to receive a set of
     // command buffers for submission. The base implementation is intentionally a no-op.
-    virtual Result PreProcessSubmit(InternalSubmitInfo* pSubmitInfo, uint32 cmdBufferCount);
+    virtual Result PreProcessSubmit(
+        InternalSubmitInfo*      pSubmitInfo,
+        uint32                   cmdBufferCount,
+        const ICmdBuffer* const* ppCmdBuffers);
 
     // Performs postprocessing which needs to occur after the Queue has either submitted or batched a set of command
     // buffers from the client. The base implementation is intentionally a no-op.

@@ -190,7 +190,7 @@ private:
     VsPsRegs m_regs;
 
     SemanticInfo m_semanticInfo[MaxPsInputSemantics];
-    bool  m_hasSemanticInfo;
+    uint32       m_semanticCount;
 
     const PerfDataInfo*const  m_pVsPerfDataInfo;   // VS performance data information.
     const PerfDataInfo*const  m_pPsPerfDataInfo;   // PS performance data information.

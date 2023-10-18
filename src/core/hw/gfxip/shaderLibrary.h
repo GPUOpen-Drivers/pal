@@ -44,7 +44,9 @@ class ShaderLibrary : public IShaderLibrary
 public:
     virtual void Destroy() override { this->~ShaderLibrary(); }
 
-    Result Initialize(
+    Result InitializeCodeObject(const ShaderLibraryCreateInfo& createInfo);
+
+    Result InitFromCodeObjectBinary(
         const ShaderLibraryCreateInfo&          createInfo,
         const AbiReader&                        abiReader,
         const Util::PalAbi::CodeObjectMetadata& metadata,
@@ -56,14 +58,15 @@ public:
         uint32*  pSize,
         void*    pBuffer) const override;
 
-    virtual const ShaderLibraryFunctionInfo* GetShaderLibFunctionList() const override { return nullptr; }
-
-    virtual uint32 GetShaderLibFunctionCount() const override { return 0; }
+    virtual const Util::Span<const ShaderLibraryFunctionInfo> GetShaderLibFunctionInfos() const override
+    {
+        return Util::Span<const ShaderLibraryFunctionInfo>();
+    }
 
     virtual Result GetShaderFunctionCode(
         const char* pShaderExportName,
         size_t*     pSize,
-        void*       pBuffer) const
+        void*       pBuffer) const override
     {
         // This function should be implemented in gfx6 / gfx9 if needed.
         return Result::ErrorUnavailable;;
@@ -71,7 +74,7 @@ public:
 
     virtual Result GetShaderFunctionStats(
         const char*     pShaderExportName,
-        ShaderLibStats* pStats) const
+        ShaderLibStats* pStats) const override
     {
         // This function should be implemented in gfx6 / gfx9 if needed.
         return Result::ErrorUnavailable;;
@@ -118,12 +121,6 @@ protected:
     size_t             m_codeObjectBinaryLen;  // Size of code object binary data, in bytes.
 
 private:
-    Result InitFromCodeObjectBinary(
-        const ShaderLibraryCreateInfo&          createInfo,
-        const AbiReader&                        abiReader,
-        const Util::PalAbi::CodeObjectMetadata& metadata,
-        Util::MsgPackReader*                    pMetadataReader);
-
     void DumpLibraryElf(
         Util::StringView<char> prefix,
         Util::StringView<char> name) const;
