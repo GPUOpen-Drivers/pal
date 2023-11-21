@@ -439,10 +439,13 @@ public:
         uint64            srcData,
         AtomicOp          atomicOp) override;
 
-    virtual void CmdWriteTimestamp(HwPipePoint pipePoint, const IGpuMemory& dstGpuMemory, gpusize dstOffset) override;
+    virtual void CmdWriteTimestamp(
+        uint32            stageMask,
+        const IGpuMemory& dstGpuMemory,
+        gpusize           dstOffset) override;
 
     virtual void CmdWriteImmediate(
-        HwPipePoint        pipePoint,
+        uint32             stageMask,
         uint64             data,
         ImmediateDataWidth dataSize,
         gpusize            address) override;
@@ -694,7 +697,7 @@ protected:
 
     virtual void ResetState() override;
 
-    virtual void WriteEventCmd(const BoundGpuMemory& boundMemObj, HwPipePoint pipePoint, uint32 data) override;
+    virtual void WriteEventCmd(const BoundGpuMemory& boundMemObj, uint32 stageMask, uint32 data) override;
 
     virtual void CmdXdmaWaitFlipPending() override;
 
@@ -906,14 +909,14 @@ private:
     virtual void DeactivateQueryType(QueryPoolType queryPoolType) override;
     virtual void ActivateQueryType(QueryPoolType queryPoolType) override;
 
-    template <bool pm4OptImmediate>
+    template <bool Pm4OptImmediate>
     uint32* UpdateDbCountControl(uint32 log2SampleRate, uint32* pDeCmdSpace);
 
     bool ForceWdSwitchOnEop(const GraphicsPipeline& pipeline, const Pm4::ValidateDrawInfo& drawInfo) const;
 
     VportCenterRect GetViewportsCenterAndScale() const;
 
-    template <bool pm4OptImmediate>
+    template <bool Pm4OptImmediate>
     uint32* ValidateViewports(uint32* pDeCmdSpace);
     uint32* ValidateViewports(uint32* pDeCmdSpace);
 
@@ -1327,6 +1330,18 @@ private:
     // to track memory ranges affected by outstanding End() calls in this command buffer so we can avoid the idle
     // during Reset() if the reset doesn't affect any pending queries.
     Util::IntervalTree<gpusize, bool, Platform>  m_activeOcclusionQueryWriteRanges;
+
+#if PAL_BUILD_GFX11
+    // This list tracks the set of active pipeline-stats queries which need to have some of their Begin() operations
+    // done on the ganged ACE queue.  We generally don't want to initialize that queue whenever a pipeline-stats query
+    // begun, so track all such queries which have begun but not yet ended.
+    struct ActiveQueryState
+    {
+        const QueryPool*  pQueryPool;
+        uint32            slot;
+    };
+    Util::Vector<ActiveQueryState, 4, Platform>  m_deferredPipelineStatsQueries;
+#endif
 
     // Used to sync the ACE and DE in a ganged submit.
     gpusize m_gangedCmdStreamSemAddr;

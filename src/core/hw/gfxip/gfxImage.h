@@ -195,7 +195,6 @@ public:
     virtual Result Finalize(
         bool               dccUnsupported,
         SubResourceInfo*   pSubResInfoList,
-        void*              pTileInfoList,
         ImageMemoryLayout* pGpuMemLayout,
         gpusize*           pGpuMemSize,
         gpusize*           pGpuMemAlignment) = 0;

@@ -88,6 +88,16 @@ static void PAL_STDCALL Pm4InstrumentorCb(
             pCmdBuf->NotifyDrawDispatchValidation(data);
         }
         break;
+    case Developer::CallbackType::BindPipelineValidation:
+        PAL_ASSERT(pCbData != nullptr);
+        if (TranslateBindPipelineValidationData(pCbData))
+        {
+            const auto& data    = *static_cast<Developer::BindPipelineValidationData*>(pCbData);
+            auto*const  pCmdBuf = static_cast<CmdBuffer*>(data.pCmdBuffer);
+
+            pCmdBuf->NotifyBindPipelineValidation(data);
+        }
+        break;
     case Developer::CallbackType::OptimizedRegisters:
         PAL_ASSERT(pCbData != nullptr);
         if (TranslateOptimizedRegistersData(pCbData))

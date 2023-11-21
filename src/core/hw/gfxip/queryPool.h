@@ -113,7 +113,18 @@ public:
     virtual bool HasForcedQueryResult() const { return false; }
     virtual uint32 GetForcedQueryResult() const { return 0; }
 
-    virtual bool RequiresHybridCmdStream() const { return false; }
+#if PAL_BUILD_GFX11
+    // Checks if this query pool requires any samples to be taken on the ganged-ACE queue of a Universal
+    // command buffer.  This should not be called on Compute command buffers!
+    virtual bool RequiresSamplingFromGangedAce() const { return false; }
+
+    // Performs any necessary sampling of query data from the ganged-ACE queue of a Universal command
+    // buffer.  This should not be called on Compute command buffers!
+    virtual void DeferredBeginOnGangedAce(
+        GfxCmdBuffer* pCmdBuffer,
+        CmdStream*    pAceCmdStream,
+        uint32        slot) const { PAL_NEVER_CALLED(); }
+#endif
 
 protected:
     QueryPool(const Device&              device,

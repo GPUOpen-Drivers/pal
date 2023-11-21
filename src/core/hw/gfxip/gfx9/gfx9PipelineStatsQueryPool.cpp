@@ -61,6 +61,9 @@ struct Gfx9PipelineStatsData
     uint64 msInvocations;
     uint64 msPrimitives;
     uint64 tsInvocations;
+    // This is a second copy of csInvocations captured by a ganged ACE queue.  When computing results, PAL must add
+    // the sum to the "normal" csInvocations counter.
+    uint64 csInvocationsAce;
 };
 
 // Defines the structure of a begin / end pair of data.
@@ -93,7 +96,7 @@ constexpr PipelineStatsLayoutData PipelineStatsLayout[] =
     { QueryPipelineStatsCsInvocations, offsetof(Gfx9PipelineStatsData, csInvocations) / sizeof(uint64) },
     { QueryPipelineStatsTsInvocations, offsetof(Gfx9PipelineStatsData, tsInvocations) / sizeof(uint64) },
     { QueryPipelineStatsMsInvocations, offsetof(Gfx9PipelineStatsData, msInvocations) / sizeof(uint64) },
-    { QueryPipelineStatsMsPrimitives,  offsetof(Gfx9PipelineStatsData, msPrimitives)  / sizeof(uint64) }
+    { QueryPipelineStatsMsPrimitives,  offsetof(Gfx9PipelineStatsData, msPrimitives)  / sizeof(uint64) },
 };
 
 constexpr size_t  PipelineStatsMaxNumCounters       = sizeof(Gfx9PipelineStatsData) / sizeof(uint64);
@@ -112,40 +115,23 @@ PipelineStatsQueryPool::PipelineStatsQueryPool(
               sizeof(Gfx9PipelineStatsDataPair),
               sizeof(uint32)),
     m_device(device),
-    m_numEnabledStats(0)
+    m_numEnabledStats(CountSetBits(m_createInfo.enabledStats & QueryPipelineStatsAll))
 {
     PAL_ASSERT(m_createInfo.enabledStats != 0);
-
-    // Compute the number of pipeline stats that are enabled by counting enable bits.
-    constexpr uint32 LastMask = 1 << (PipelineStatsMaxNumCounters - 1);
-    for (uint32 enableMask = 1; enableMask <= LastMask; enableMask <<= 1)
-    {
-        if (TestAnyFlagSet(m_createInfo.enabledStats, enableMask))
-        {
-            m_numEnabledStats++;
-        }
-    }
+    PAL_ASSERT(m_numEnabledStats <= PipelineStatsNumSupportedCounters);
 }
-
-#if PAL_BUILD_GFX11
-// =====================================================================================================================
-bool PipelineStatsQueryPool::RequiresHybridCmdStream() const
-{
-    return (IsGfx11(*m_device.Parent()) && TestAnyFlagSet(m_createInfo.enabledStats, QueryPipelineStatsTsInvocations));
-}
-#endif
 
 // =====================================================================================================================
 // The SAMPLE_PIPELINESTAT event on the Compute engine only writes csInvocation, so we must write dummy zero's to other
 // slots on a compute command buffer.
 // This should only be called on a compute command buffer!
 uint32* PipelineStatsQueryPool::FixupQueryDataOnAsyncCompute(
-    gpusize gpuVirtAddr,
+    gpusize gpuVirtAddr,    // Address of the whole Gfx9PipelineStatsData struct.
     uint32* pCmdSpace
     ) const
 {
     constexpr uint32 DwordsBeforeCsInvocations = offsetof(Gfx9PipelineStatsData, csInvocations) / sizeof(uint32);
-    constexpr uint32  Zeros[DwordsBeforeCsInvocations] { };
+    constexpr uint32 Zeros[DwordsBeforeCsInvocations] { };
 
     WriteDataInfo writeData { };
     writeData.engineType = EngineTypeCompute;
@@ -165,9 +151,124 @@ uint32* PipelineStatsQueryPool::FixupQueryDataOnAsyncCompute(
         writeData.dstAddr += offsetof(Gfx9PipelineStatsData, msInvocations);
         pCmdSpace += CmdUtil::BuildWriteData(writeData, DwordsAfterCsInvocations, Zeros, pCmdSpace);
     }
+    else
+    {
+        writeData.dstAddr += offsetof(Gfx9PipelineStatsData, csInvocationsAce);
+        pCmdSpace += CmdUtil::BuildWriteData(writeData, (sizeof(uint64) / sizeof(uint32)), Zeros, pCmdSpace);
+    }
 
     return pCmdSpace;
 }
+
+#if PAL_BUILD_GFX11
+// =====================================================================================================================
+bool PipelineStatsQueryPool::RequiresSamplingFromGangedAce() const
+{
+#if   PAL_BUILD_GFX11
+    // Otherwise, on GFX11 GPUs, this is only required if the query is supposed to include TsInvocations.
+    return (IsGfx11(*m_device.Parent()) && TestAnyFlagSet(m_createInfo.enabledStats, QueryPipelineStatsTsInvocations));
+#else
+    return false;
+#endif
+}
+
+// =====================================================================================================================
+// Samples query data on a ganged ACE queue, as part of either a Begin() or End() operation.
+uint32* PipelineStatsQueryPool::SampleQueryDataOnGangedAce(
+    gpusize gpuVirtAddr,    // Address of the whole Gfx9PipelineStatsData struct.
+    uint32* pAceCmdSpace
+    ) const
+{
+    const CmdUtil& cmdUtil = m_device.CmdUtil();
+
+#if PAL_BUILD_GFX11
+    // On GFX11, Mesh Shader pipeline statistics are handled automatically when sampling the other graphics pipeline
+    // statistics.  However, the Task shader is not included, because that work runs on the ganged ACE queue.
+    if (IsGfx11(*(m_device.Parent())))
+    {
+        // Setting the countermode to samp_plst_cntr_mode__mec_event_write__new_mode__GFX11 will
+        // have the CP only write the tsInvocations.
+        pAceCmdSpace += cmdUtil.BuildSampleEventWrite(
+            SAMPLE_PIPELINESTAT,
+            event_index__me_event_write__sample_pipelinestat,
+            EngineTypeCompute,
+            samp_plst_cntr_mode__mec_event_write__new_mode__GFX11,
+            (gpuVirtAddr + offsetof(Gfx9PipelineStatsData, tsInvocations)),
+            pAceCmdSpace);
+    }
+#endif
+
+    return pAceCmdSpace;
+}
+
+// =====================================================================================================================
+// Handles properly beginning the query on a ganged ACE command stream when the query was begun before the ganged ACE
+// stream was initialized.
+void PipelineStatsQueryPool::DeferredBeginOnGangedAce(
+    GfxCmdBuffer*   pCmdBuffer,
+    Pal::CmdStream* pAceCmdStream,
+    uint32          slot
+    ) const
+{
+    PAL_ASSERT((pCmdBuffer != nullptr) && (pCmdBuffer->GetEngineType() == EngineTypeUniversal));
+    PAL_ASSERT(pAceCmdStream != nullptr);
+
+    gpusize gpuAddr = 0;
+    Result  result  = GetQueryGpuAddress(slot, &gpuAddr);
+    gpuAddr        += offsetof(Gfx9PipelineStatsDataPair, begin);
+
+    if ((result == Result::Success) && pCmdBuffer->IsQueryAllowed(QueryPoolType::PipelineStats))
+    {
+        // Note: There is no need to register the query with the command buffer here; it was done already in Begin().
+
+        uint32* pAceCmdSpace = pAceCmdStream->ReserveCommands();
+        pAceCmdSpace = SampleQueryDataOnGangedAce(gpuAddr, pAceCmdSpace);
+        pAceCmdStream->CommitCommands(pAceCmdSpace);
+    }
+}
+
+// =====================================================================================================================
+// If the ganged ACE was not initialized by the time the query ends, then no work using it must have ocurred within
+// the query's duration.  Therefore, we need to zero out the TsInvocations counters and the ACE instance of the
+// CsInvocations counters for both the begin and end sample of this query slot so that when we compute the results or
+// resolve the query, the ACE counter correctly contrubites zero to the final CsInvocations count.
+uint32* PipelineStatsQueryPool::FixupQueryForNoGangedAce(
+    gpusize gpuVirtAddr,    // Address of the whole Gfx9PipelineStatsData struct for the end sample.
+    uint32* pCmdSpace
+    ) const
+{
+    constexpr uint32 Zeros[4] { }; // Need 4 uint32's to fill 2 uint64s.
+    constexpr uint32 DwordCount = (sizeof(Zeros) / sizeof(uint32));
+
+    static_assert(CheckSequential({
+        offsetof(Gfx9PipelineStatsData, tsInvocations),
+        offsetof(Gfx9PipelineStatsData, csInvocationsAce)},
+        sizeof(uint64)), "TsInvocations and CsInvocationsAce counters are not adjacent in memory!");
+
+    WriteDataInfo writeData { };
+    writeData.engineType = EngineTypeUniversal;
+    writeData.dstAddr    = (gpuVirtAddr + offsetof(Gfx9PipelineStatsData, tsInvocations));
+    writeData.dstSel     = dst_sel__me_write_data__memory;
+    // The whole query slot memory was previously reset by CPDMA packet performed on ME, this write needs to be
+    // performed on ME too to avoid issuing a PfpSyncMe.
+    writeData.engineSel  = engine_sel__me_write_data__micro_engine;
+
+    // Zero out the end counters.
+    pCmdSpace += CmdUtil::BuildWriteData(writeData, DwordCount, Zeros, pCmdSpace);
+
+    static_assert(CheckSequential({
+        offsetof(Gfx9PipelineStatsDataPair, begin),
+        offsetof(Gfx9PipelineStatsDataPair, end)},
+        sizeof(Gfx9PipelineStatsData)), "Begin and end samples are not adjacent in memory!");
+
+    writeData.dstAddr -= sizeof(Gfx9PipelineStatsData);
+
+    // Zero out the begin counters.
+    pCmdSpace += CmdUtil::BuildWriteData(writeData, DwordCount, Zeros, pCmdSpace);
+
+    return pCmdSpace;
+}
+#endif
 
 // =====================================================================================================================
 // Begins a single query
@@ -211,33 +312,22 @@ void PipelineStatsQueryPool::Begin(
                                                    gpuAddr,
                                                    pCmdSpace);
 
-#if PAL_BUILD_GFX11
-        if (IsGfx11(*(m_device.Parent())))
+        if (engineType == EngineTypeUniversal)
         {
+            if (IsGfx10(*m_device.Parent()))
+            {
+                // GFX10 requires software emulation for Mesh and Task Shader pipeline stats.
+                pCmdSpace = CopyMeshPipeStatsToQuerySlots(pCmdBuffer, gpuAddr, pCmdSpace);
+            }
+
+#if PAL_BUILD_GFX11
             if (pHybridCmdStream != nullptr)
             {
                 uint32* pAceCmdSpace = pHybridCmdStream->ReserveCommands();
-
-                gpuAddr += offsetof(Gfx9PipelineStatsData, tsInvocations);
-
-                // Setting the countermode to samp_plst_cntr_mode__mec_event_write__new_mode__GFX11 will
-                // have the CP only write the tsInvocations.
-                pAceCmdSpace += cmdUtil.BuildSampleEventWrite(SAMPLE_PIPELINESTAT,
-                                                              event_index__me_event_write__sample_pipelinestat,
-                                                              EngineTypeCompute,
-                                                              samp_plst_cntr_mode__mec_event_write__new_mode__GFX11,
-                                                              gpuAddr,
-                                                              pAceCmdSpace);
-
+                pAceCmdSpace = SampleQueryDataOnGangedAce(gpuAddr, pAceCmdSpace);
                 pHybridCmdStream->CommitCommands(pAceCmdSpace);
             }
-        }
-        else
 #endif
-        {
-            // Navi2X requires software emulation for Mesh and Task Shader pipeline stats.
-            gpuAddr   = beginQueryAddr + offsetof(Gfx9PipelineStatsData, msInvocations);
-            pCmdSpace = CopyMeshPipeStatsToQuerySlots(pCmdBuffer, gpuAddr, pCmdSpace);
         }
 
         pCmdStream->CommitCommands(pCmdSpace);
@@ -291,33 +381,26 @@ void PipelineStatsQueryPool::End(
                                                    gpuAddr,
                                                    pCmdSpace);
 
-#if PAL_BUILD_GFX11
-        if (IsGfx11(*(m_device.Parent())))
+        if (engineType == EngineTypeUniversal)
         {
+            if (IsGfx10(*m_device.Parent()))
+            {
+                // GFX10 requires software emulation for Mesh and Task Shader pipeline stats.
+                pCmdSpace = CopyMeshPipeStatsToQuerySlots(pCmdBuffer, gpuAddr, pCmdSpace);
+            }
+
+#if PAL_BUILD_GFX11
             if (pHybridCmdStream != nullptr)
             {
                 uint32* pAceCmdSpace = pHybridCmdStream->ReserveCommands();
-
-                gpuAddr += offsetof(Gfx9PipelineStatsData, tsInvocations);
-
-                // Setting the countermode to samp_plst_cntr_mode__mec_event_write__new_mode__GFX11 will
-                // have the CP only write the tsInvocations.
-                pAceCmdSpace += cmdUtil.BuildSampleEventWrite(SAMPLE_PIPELINESTAT,
-                                                              event_index__me_event_write__sample_pipelinestat,
-                                                              EngineTypeCompute,
-                                                              samp_plst_cntr_mode__mec_event_write__new_mode__GFX11,
-                                                              gpuAddr,
-                                                              pAceCmdSpace);
-
+                pAceCmdSpace = SampleQueryDataOnGangedAce(gpuAddr, pAceCmdSpace);
                 pHybridCmdStream->CommitCommands(pAceCmdSpace);
             }
-        }
-        else
+            else
+            {
+                pCmdSpace = FixupQueryForNoGangedAce(gpuAddr, pCmdSpace);
+            }
 #endif
-        {
-            // Navi2X requires software emulation for Mesh and Task Shader pipeline stats.
-            gpuAddr   = endQueryAddr + offsetof(Gfx9PipelineStatsData, msInvocations);
-            pCmdSpace = CopyMeshPipeStatsToQuerySlots(pCmdBuffer, gpuAddr, pCmdSpace);
         }
 
         ReleaseMemGeneric releaseInfo = {};
@@ -521,6 +604,39 @@ static bool IsQueryDataValid(
 }
 
 // =====================================================================================================================
+// Helper function for ComputeResultsForOneSlot. It computes one counter value according to the given flags, storing the
+// value into an integer of type ResultUint. Returns true if all counters were ready. Note that the counter pointers are
+// volatile because the GPU could write them at any time (and if QueryResultWait is set we expect it to do so).
+template <typename ResultUint>
+static bool AccumulateResultForOneCounter(
+    QueryResultFlags       resultFlags,
+    uint32                 counterIndex,
+    volatile const uint64* pBeginCounters,
+    volatile const uint64* pEndCounters,
+    ResultUint*            pAccumulatedValue) // Output counter to accumulate. Not modified if counter data is not ready.
+{
+    bool countersReady = false;
+
+    do
+    {
+        // If the initial value is still in one of the counters it implies that the query hasn't finished yet.
+        // We will loop here for as long as necessary if the caller has requested it.
+        countersReady = IsQueryDataValid(&pBeginCounters[counterIndex]) &&
+                        IsQueryDataValid(&pEndCounters[counterIndex])   &&
+                        ((pBeginCounters[counterIndex] != PipelineStatsResetMemValue64) &&
+                         (pEndCounters[counterIndex]   != PipelineStatsResetMemValue64));
+    }
+    while ((countersReady == false) && TestAnyFlagSet(resultFlags, QueryResultWait));
+
+    if (countersReady)
+    {
+        *pAccumulatedValue += static_cast<ResultUint>(pEndCounters[counterIndex] - pBeginCounters[counterIndex]);
+    }
+
+    return countersReady;
+}
+
+// =====================================================================================================================
 // Helper function for ComputeResults. It computes the result data according to the given flags, storing all data in
 // integers of type ResultUint. Returns true if all counters were ready. Note that the counter pointers are volatile
 // because the GPU could write them at any time (and if QueryResultWait is set we expect it to do so).
@@ -543,28 +659,29 @@ static bool ComputeResultsForOneSlot(
         // Filter out stats that are not enabled for this pool.
         if (TestAnyFlagSet(enableStatsFlags, PipelineStatsLayout[layoutIdx].statFlag))
         {
-            const uint32 counterOffset = PipelineStatsLayout[layoutIdx].counterOffset;
-            bool         countersReady = false;
+            bool counterReady = AccumulateResultForOneCounter(
+                resultFlags,
+                PipelineStatsLayout[layoutIdx].counterOffset,
+                pBeginCounters,
+                pEndCounters,
+                &results[numStatsEnabled]);
 
-            do
+            if (PipelineStatsLayout[layoutIdx].statFlag == QueryPipelineStatsCsInvocations)
             {
-                // If the initial value is still in one of the counters it implies that the query hasn't finished yet.
-                // We will loop here for as long as necessary if the caller has requested it.
-                countersReady = IsQueryDataValid(&pBeginCounters[counterOffset]) &&
-                                IsQueryDataValid(&pEndCounters[counterOffset])   &&
-                                ((pBeginCounters[counterOffset] != PipelineStatsResetMemValue64) &&
-                                 (pEndCounters[counterOffset]   != PipelineStatsResetMemValue64));
-            }
-            while ((countersReady == false) && TestAnyFlagSet(resultFlags, QueryResultWait));
-
-            if (countersReady)
-            {
-                results[numStatsEnabled] = static_cast<ResultUint>(pEndCounters[counterOffset] -
-                                                                   pBeginCounters[counterOffset]);
+                // Special handling for CsInvocations:
+                // In cases where gang-submission of GFX+ACE is used, the counter is stored in a separate location on
+                // the ganged ACE queue so that it doesn't cause a data race with the GFX queue's copy.  We need to sum
+                // both counters together when computing the actual value.
+                counterReady &= AccumulateResultForOneCounter(
+                    resultFlags,
+                    (offsetof(Gfx9PipelineStatsData, csInvocationsAce) / sizeof(uint64)),
+                    pBeginCounters,
+                    pEndCounters,
+                    &results[numStatsEnabled]);
             }
 
             // The entire query will only be ready if all of its counters were ready.
-            queryReady = queryReady && countersReady;
+            queryReady &= counterReady;
 
             numStatsEnabled++;
         }
@@ -638,7 +755,7 @@ bool PipelineStatsQueryPool::ComputeResults(
 // Non-Ms/Ts pipeline should have same begin and end value for Ms/Ts-related query.
 uint32* PipelineStatsQueryPool::CopyMeshPipeStatsToQuerySlots(
     GfxCmdBuffer* pCmdBuffer,
-    gpusize       gpuAddr,    // gpuAddr is assumed to be pointing at msInvocations
+    gpusize       gpuVirtAddr,  // Address of the whole Gfx9PipelineStatsData struct.
     uint32*       pCmdSpace
     ) const
 {
@@ -646,6 +763,8 @@ uint32* PipelineStatsQueryPool::CopyMeshPipeStatsToQuerySlots(
 
     constexpr uint32 SizeOfMeshTaskQuerySlots = sizeof(PipelineStatsResetMemValue64) * PipelineStatsNumMeshCounters;
     constexpr uint32 SizeInDwords             = SizeOfMeshTaskQuerySlots / sizeof(uint32);
+
+    const gpusize msInvocGpuAddr = (gpuVirtAddr + offsetof(Gfx9PipelineStatsData, msInvocations));
 
     if ((engineType == EngineTypeUniversal) && (pCmdBuffer->GetMeshPipeStatsGpuAddr() != 0))
     {
@@ -670,7 +789,7 @@ uint32* PipelineStatsQueryPool::CopyMeshPipeStatsToQuerySlots(
         copyInfo.srcAddr      = meshPipeStatsStartAddr;
         copyInfo.srcAddrSpace = sas__pfp_dma_data__memory;
         copyInfo.srcSel       = src_sel__pfp_dma_data__src_addr_using_l2;
-        copyInfo.dstAddr      = gpuAddr;
+        copyInfo.dstAddr      = msInvocGpuAddr;
         copyInfo.dstAddrSpace = das__pfp_dma_data__memory;
         copyInfo.dstSel       = dst_sel__pfp_dma_data__dst_addr_using_l2;
         copyInfo.numBytes     = SizeOfMeshTaskQuerySlots;
@@ -689,7 +808,7 @@ uint32* PipelineStatsQueryPool::CopyMeshPipeStatsToQuerySlots(
         // 3. When no mesh/task enabled pipeline bound, zero out those slots for begin and end query.
         WriteDataInfo writeData = {};
         writeData.engineType    = engineType;
-        writeData.dstAddr       = gpuAddr;
+        writeData.dstAddr       = msInvocGpuAddr;
         // The whole query slot memory was previously reset by CPDMA packet performed on ME, this write needs to be
         // performed on ME too to avoid issuing a PfpSyncMe.
         writeData.engineSel     = engine_sel__me_write_data__micro_engine;

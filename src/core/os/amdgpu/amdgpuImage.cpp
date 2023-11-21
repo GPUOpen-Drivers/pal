@@ -498,18 +498,15 @@ Result Image::GetExternalSharedImageCreateInfo(
 
         if (hasMetadata)
         {
-            bool isLinearTiled = false;
-            if (device.ChipProperties().gfxLevel >= GfxIpLevel::GfxIp9)
-            {
-                const AMDGPU_SWIZZLE_MODE swizzleMode =
-                    (pCreateInfo->flags.sharedWithMesa
-                        ? static_cast<AMDGPU_SWIZZLE_MODE>(
-                          AMDGPU_TILING_GET(sharedInfo.info.metadata.swizzle_info, SWIZZLE_MODE))
-                        : pMetadata->swizzleMode);
+            const auto swizzleMode =
+                (pCreateInfo->flags.sharedWithMesa
+                    ? static_cast<AMDGPU_SWIZZLE_MODE>(
+                        AMDGPU_TILING_GET(sharedInfo.info.metadata.swizzle_info, SWIZZLE_MODE))
+                    : pMetadata->swizzleMode);
 
-                isLinearTiled = (swizzleMode == AMDGPU_SWIZZLE_MODE_LINEAR) ||
-                                (swizzleMode == AMDGPU_SWIZZLE_MODE_LINEAR_GENERAL);
-            }
+            const bool isLinearTiled = (swizzleMode == AMDGPU_SWIZZLE_MODE_LINEAR) ||
+                                       (swizzleMode == AMDGPU_SWIZZLE_MODE_LINEAR_GENERAL);
+
             pCreateInfo->tiling = isLinearTiled ? ImageTiling::Linear : ImageTiling::Optimal;
         }
         else
@@ -578,50 +575,48 @@ Result Image::CreateExternalSharedImage(
         &sharedInfo.info.metadata.umd_metadata[PRO_UMD_METADATA_OFFSET_DWORD]);
 
     ImageInternalCreateInfo internalCreateInfo = {};
-    if (chipProps.gfxLevel >= GfxIpLevel::GfxIp9)
+
+    if (hasMetadata == false)
     {
-        if (hasMetadata == false)
+        internalCreateInfo.gfx9.sharedSwizzleMode = ADDR_SW_LINEAR;
+    }
+    else
+    {
+        const uint64 tilingInfo = sharedInfo.info.metadata.tiling_info;
+
+        if (IsMesaMetadata(sharedInfo.info.metadata))
         {
-            internalCreateInfo.gfx9.sharedSwizzleMode = ADDR_SW_LINEAR;
+            internalCreateInfo.gfx9.sharedSwizzleMode = static_cast<AddrSwizzleMode>
+                (AMDGPU_TILING_GET(sharedInfo.info.metadata.swizzle_info, SWIZZLE_MODE));
         }
         else
         {
-            const uint64 tilingInfo = sharedInfo.info.metadata.tiling_info;
-
-            if (IsMesaMetadata(sharedInfo.info.metadata))
+            internalCreateInfo.gfx9.sharedPipeBankXor[0] = pMetadata->pipeBankXor;
+            for (uint32 plane = 1; plane < MaxNumPlanes; plane++)
             {
-                internalCreateInfo.gfx9.sharedSwizzleMode = static_cast<AddrSwizzleMode>
-                    (AMDGPU_TILING_GET(sharedInfo.info.metadata.swizzle_info, SWIZZLE_MODE));
-            }
-            else
-            {
-                internalCreateInfo.gfx9.sharedPipeBankXor[0] = pMetadata->pipeBankXor;
-                for (uint32 plane = 1; plane < MaxNumPlanes; plane++)
-                {
-                    internalCreateInfo.gfx9.sharedPipeBankXor[plane] = pMetadata->additionalPipeBankXor[plane - 1];
-                }
-
-                internalCreateInfo.gfx9.sharedSwizzleMode = static_cast<AddrSwizzleMode>(pMetadata->swizzleMode);
-                PAL_ASSERT(AMDGPU_TILING_GET(tilingInfo, SWIZZLE_MODE) == pMetadata->swizzleMode);
+                internalCreateInfo.gfx9.sharedPipeBankXor[plane] = pMetadata->additionalPipeBankXor[plane - 1];
             }
 
-            // ADDR_SW_LINEAR_GENERAL is a UBM compatible swizzle mode which treat as buffer in copy.
-            // Here we try ADDR_SW_LINEAR first and fall back to typed buffer path if failure the
-            // creation as PAL::image.
-            if (internalCreateInfo.gfx9.sharedSwizzleMode == ADDR_SW_LINEAR_GENERAL)
-            {
-                internalCreateInfo.gfx9.sharedSwizzleMode = ADDR_SW_LINEAR;
-            }
-
-            internalCreateInfo.flags.useSharedDccState = 1;
-
-            DccState*    pDccState  = &internalCreateInfo.gfx9.sharedDccState;
-
-            pDccState->maxCompressedBlockSize   = AMDGPU_TILING_GET(tilingInfo, DCC_MAX_COMPRESSED_BLOCK_SIZE);
-            pDccState->maxUncompressedBlockSize = AMDGPU_TILING_GET(tilingInfo, DCC_MAX_UNCOMPRESSED_BLOCK_SIZE);
-            pDccState->independentBlk64B        = AMDGPU_TILING_GET(tilingInfo, DCC_INDEPENDENT_64B);
-            pDccState->independentBlk128B       = AMDGPU_TILING_GET(tilingInfo, DCC_INDEPENDENT_128B);
+            internalCreateInfo.gfx9.sharedSwizzleMode = static_cast<AddrSwizzleMode>(pMetadata->swizzleMode);
+            PAL_ASSERT(AMDGPU_TILING_GET(tilingInfo, SWIZZLE_MODE) == pMetadata->swizzleMode);
         }
+
+        // ADDR_SW_LINEAR_GENERAL is a UBM compatible swizzle mode which treat as buffer in copy.
+        // Here we try ADDR_SW_LINEAR first and fall back to typed buffer path if failure the
+        // creation as PAL::image.
+        if (internalCreateInfo.gfx9.sharedSwizzleMode == ADDR_SW_LINEAR_GENERAL)
+        {
+            internalCreateInfo.gfx9.sharedSwizzleMode = ADDR_SW_LINEAR;
+        }
+
+        internalCreateInfo.flags.useSharedDccState = 1;
+
+        DccState*const pDccState = &internalCreateInfo.gfx9.sharedDccState;
+
+        pDccState->maxCompressedBlockSize   = AMDGPU_TILING_GET(tilingInfo, DCC_MAX_COMPRESSED_BLOCK_SIZE);
+        pDccState->maxUncompressedBlockSize = AMDGPU_TILING_GET(tilingInfo, DCC_MAX_UNCOMPRESSED_BLOCK_SIZE);
+        pDccState->independentBlk64B        = AMDGPU_TILING_GET(tilingInfo, DCC_INDEPENDENT_64B);
+        pDccState->independentBlk128B       = AMDGPU_TILING_GET(tilingInfo, DCC_INDEPENDENT_128B);
     }
 
     internalCreateInfo.flags.privateScreenPresent     = (pPrivateScreen != nullptr);

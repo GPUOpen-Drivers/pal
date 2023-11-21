@@ -24,6 +24,7 @@
  **********************************************************************************************************************/
 
 #include "g_platformSettings.h"
+#include "core/hw/gfxip/gfx9/gfx9Barrier.h"
 #include "core/hw/gfxip/gfx9/gfx9BorderColorPalette.h"
 #include "core/hw/gfxip/gfx9/gfx9Chip.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"
@@ -277,7 +278,7 @@ static uint32 StreamOutNumRecords(
     uint32                   sizeInBytes,
     uint32                   strideInBytes)
 {
-    // NOTE: As mentioned in the SC interface for GFX6+ hardware, it is SC's responsibility to handle stream output
+    // NOTE: As mentioned in the SC GFXIP interface, it is SC's responsibility to handle stream output
     // buffer overflow clamping. SC does this by using an invalid write index for the store instruction.
     //
     // Example: if there are 5 threads streaming out to a buffer which can only hold 3 vertices, the VGT will set the
@@ -367,6 +368,9 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_leakCbColorInfoRtv(0),
     m_validVrsCopies(m_device.GetPlatform()),
     m_activeOcclusionQueryWriteRanges(m_device.GetPlatform()),
+#if PAL_BUILD_GFX11
+    m_deferredPipelineStatsQueries(m_device.GetPlatform()),
+#endif
     m_gangedCmdStreamSemAddr(0),
     m_semCountAceWaitDe(0),
     m_semCountDeWaitAce(0),
@@ -1009,6 +1013,9 @@ void UniversalCmdBuffer::ResetState()
     m_vbTable.modified  = 0;
 
     m_activeOcclusionQueryWriteRanges.Clear();
+#if PAL_BUILD_GFX11
+    m_deferredPipelineStatsQueries.Clear();
+#endif
     m_predGpuAddr = 0;
     m_validVrsCopies.Clear();
 
@@ -4509,10 +4516,8 @@ void UniversalCmdBuffer::CmdMemoryAtomic(
 }
 
 // =====================================================================================================================
-// Issues an end-of-pipe timestamp event or immediately copies the current time at the ME. Writes the results to the
-// pMemObject + destOffset.
 void UniversalCmdBuffer::CmdWriteTimestamp(
-    HwPipePoint       pipePoint,
+    uint32            stageMask,    // Bitmask of PipelineStageFlag
     const IGpuMemory& dstGpuMemory,
     gpusize           dstOffset)
 {
@@ -4520,7 +4525,22 @@ void UniversalCmdBuffer::CmdWriteTimestamp(
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
-    if (pipePoint == HwPipePostPrefetch)
+    // If multiple flags are set we must go down the path that is most conservative (writes at the latest point).
+    // This is easiest to implement in this order:
+    // 1. All non-CP stages must fall back to an EOP timestamp.
+    // 2. The CP stages can write the value directly using COPY_DATA in the ME. (PFP doesn't support gpu_clock_count?)
+    // Note that passing in a stageMask of zero will get you an ME write. It's not clear if that is even legal but
+    // doing an ME write is probably the least impactful thing we could do in that case.
+    if (TestAnyFlagSet(stageMask, EopWaitStageMask | VsWaitStageMask | PsWaitStageMask | CsWaitStageMask))
+    {
+        ReleaseMemGfx releaseInfo = {};
+        releaseInfo.vgtEvent = BOTTOM_OF_PIPE_TS;
+        releaseInfo.dstAddr  = address;
+        releaseInfo.dataSel  = data_sel__me_release_mem__send_gpu_clock_counter;
+
+        pDeCmdSpace += m_cmdUtil.BuildReleaseMemGfx(releaseInfo, pDeCmdSpace);
+    }
+    else
     {
         pDeCmdSpace += m_cmdUtil.BuildCopyData(EngineTypeUniversal,
                                                engine_sel__me_copy_data__micro_engine,
@@ -4532,26 +4552,13 @@ void UniversalCmdBuffer::CmdWriteTimestamp(
                                                wr_confirm__me_copy_data__wait_for_confirmation,
                                                pDeCmdSpace);
     }
-    else
-    {
-        PAL_ASSERT(pipePoint == HwPipeBottom);
-
-        ReleaseMemGfx releaseInfo = {};
-        releaseInfo.vgtEvent = BOTTOM_OF_PIPE_TS;
-        releaseInfo.dstAddr  = address;
-        releaseInfo.dataSel  = data_sel__me_release_mem__send_gpu_clock_counter;
-
-        pDeCmdSpace += m_cmdUtil.BuildReleaseMemGfx(releaseInfo, pDeCmdSpace);
-    }
 
     m_deCmdStream.CommitCommands(pDeCmdSpace);
 }
 
 // =====================================================================================================================
-// Writes an immediate value during top-of-pipe or bottom-of-pipe event or after indirect arguments and index buffer
-// data have been fetched.
 void UniversalCmdBuffer::CmdWriteImmediate(
-    HwPipePoint        pipePoint,
+    uint32             stageMask, // Bitmask of PipelineStageFlag
     uint64             data,
     ImmediateDataWidth dataSize,
     gpusize            address)
@@ -4560,36 +4567,14 @@ void UniversalCmdBuffer::CmdWriteImmediate(
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
-    if (pipePoint == HwPipeTop)
+    // If multiple flags are set we must go down the path that is most conservative (writes at the latest point).
+    // This is easiest to implement in this order:
+    // 1. All non-CP stages must fall back to an EOP timestamp.
+    // 2. The CP stages can write the value directly using COPY_DATA, taking care to select the PFP or ME.
+    // Note that passing in a stageMask of zero will get you an ME write. It's not clear if that is even legal but
+    // doing an ME write is probably the least impactful thing we could do in that case.
+    if (TestAnyFlagSet(stageMask, EopWaitStageMask | VsWaitStageMask | PsWaitStageMask | CsWaitStageMask))
     {
-        pDeCmdSpace += m_cmdUtil.BuildCopyData(EngineTypeUniversal,
-                                               engine_sel__pfp_copy_data__prefetch_parser,
-                                               dst_sel__pfp_copy_data__memory__GFX09,
-                                               address,
-                                               src_sel__pfp_copy_data__immediate_data,
-                                               data,
-                                               is32Bit ? count_sel__pfp_copy_data__32_bits_of_data
-                                                       : count_sel__pfp_copy_data__64_bits_of_data,
-                                               wr_confirm__pfp_copy_data__wait_for_confirmation,
-                                               pDeCmdSpace);
-    }
-    else if (pipePoint == HwPipePostPrefetch)
-    {
-        pDeCmdSpace += m_cmdUtil.BuildCopyData(EngineTypeUniversal,
-                                               engine_sel__me_copy_data__micro_engine,
-                                               dst_sel__me_copy_data__memory__GFX09,
-                                               address,
-                                               src_sel__me_copy_data__immediate_data,
-                                               data,
-                                               is32Bit ? count_sel__me_copy_data__32_bits_of_data
-                                                       : count_sel__me_copy_data__64_bits_of_data,
-                                               wr_confirm__me_copy_data__wait_for_confirmation,
-                                               pDeCmdSpace);
-    }
-    else
-    {
-        PAL_ASSERT(pipePoint == HwPipeBottom);
-
         ReleaseMemGfx releaseInfo = {};
         releaseInfo.vgtEvent = BOTTOM_OF_PIPE_TS;
         releaseInfo.dstAddr  = address;
@@ -4598,6 +4583,22 @@ void UniversalCmdBuffer::CmdWriteImmediate(
                                        : data_sel__me_release_mem__send_64_bit_data;
 
         pDeCmdSpace += m_cmdUtil.BuildReleaseMemGfx(releaseInfo, pDeCmdSpace);
+    }
+    else
+    {
+        const bool pfpWait = TestAnyFlagSet(stageMask, PipelineStageTopOfPipe | PipelineStageFetchIndirectArgs);
+
+        pDeCmdSpace += m_cmdUtil.BuildCopyData(EngineTypeUniversal,
+                                               pfpWait ? engine_sel__pfp_copy_data__prefetch_parser
+                                                       : engine_sel__me_copy_data__micro_engine,
+                                               dst_sel__me_copy_data__memory__GFX09,
+                                               address,
+                                               src_sel__me_copy_data__immediate_data,
+                                               data,
+                                               is32Bit ? count_sel__me_copy_data__32_bits_of_data
+                                                       : count_sel__me_copy_data__64_bits_of_data,
+                                               wr_confirm__me_copy_data__wait_for_confirmation,
+                                               pDeCmdSpace);
     }
 
     m_deCmdStream.CommitCommands(pDeCmdSpace);
@@ -5171,55 +5172,44 @@ Result UniversalCmdBuffer::AddPostamble()
 // Adds commands necessary to write "data" to the specified memory
 void UniversalCmdBuffer::WriteEventCmd(
     const BoundGpuMemory& boundMemObj,
-    HwPipePoint           pipePoint,
+    uint32                stageMask,   // Bitmask of PipelineStageFlag
     uint32                data)
 {
-    const EngineType  engineType = GetEngineType();
+    // This will replace PipelineStageBlt with a more specific set of flags if we haven't done any CP DMAs.
+    OptimizePipeStageAndCacheMask(&stageMask, nullptr, nullptr, nullptr);
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
-    if ((pipePoint >= HwPipePostBlt) && (m_pm4CmdBufState.flags.cpBltActive))
+    if (TestAnyFlagSet(stageMask, PipelineStageBlt | PipelineStageBottomOfPipe) && m_pm4CmdBufState.flags.cpBltActive)
     {
         // We must guarantee that all prior CP DMA accelerated blts have completed before we write this event because
-        // the CmdSetEvent and CmdResetEvent functions expect that the prior blts have reached the post-blt stage by
-        // the time the event is written to memory. Given that our CP DMA blts are asynchronous to the pipeline stages
-        // the only way to satisfy this requirement is to force the MEC to stall until the CP DMAs are completed.
+        // the CmdSetEvent and CmdResetEvent functions expect that the prior blts have completed by the time the event
+        // is written to memory. Given that our CP DMA blts are asynchronous to the pipeline stages the only way to
+        // satisfy this requirement is to force the ME to stall until the CP DMAs are completed.
         pDeCmdSpace += CmdUtil::BuildWaitDmaData(pDeCmdSpace);
         SetCpBltState(false);
     }
 
-    OptimizePipePoint(&pipePoint);
-
-    if ((pipePoint == HwPipeTop) ||
-        (pipePoint == HwPipePostPrefetch))
+    // Now pick the packet that actually writes to the event. If multiple flags are set we must go down the path that
+    // is most conservative (sets the event at the latest point). This is easiest to implement in this order:
+    // 1. The EOS events can wait for one and only one stage. We should check for "only PS" or "only CS" first.
+    // 2. Otherwise, all non-CP stages must fall back to an EOP timestamp. We'll go down this path if multiple EOS
+    //    stages are specified in the same call and/or any stages that can only be waited on using an EOP timestamp.
+    // 3. If no EOS or EOP stages were specified it must be safe to just to a direct write using the PFP or ME.
+    // Note that passing in a stageMask of zero will get you an ME write. It's not clear if that is even legal but
+    // doing an ME write is probably the least impactful thing we could do in that case.
+    if ((stageMask == PipelineStagePs) || (stageMask == PipelineStageCs))
     {
-        WriteDataInfo writeData = {};
-        writeData.engineType = engineType;
-        writeData.dstAddr    = boundMemObj.GpuVirtAddr();
-        writeData.dstSel     = dst_sel__me_write_data__memory;
-        // Implement set/reset event with a WRITE_DATA command using PFP or ME engine.
-        writeData.engineSel  = (pipePoint == HwPipeTop) ? static_cast<uint32>(engine_sel__pfp_write_data__prefetch_parser)
-                                                        : static_cast<uint32>(engine_sel__me_write_data__micro_engine);
-
-        pDeCmdSpace += CmdUtil::BuildWriteData(writeData, data, pDeCmdSpace);
-    }
-    else if ((pipePoint == HwPipePostCs) || (pipePoint == HwPipePostPs))
-    {
-        PAL_ASSERT((pipePoint != HwPipePostCs) || IsComputeSupported());
-
-        // Implement set/reset with an EOS event waiting for PS/CS waves to complete.
         ReleaseMemGfx releaseInfo = {};
         releaseInfo.dstAddr  = boundMemObj.GpuVirtAddr();
         releaseInfo.dataSel  = data_sel__me_release_mem__send_32_bit_low;
         releaseInfo.data     = data;
-        releaseInfo.vgtEvent = (pipePoint == HwPipePostCs) ? CS_DONE : PS_DONE;
+        releaseInfo.vgtEvent = (stageMask == PipelineStagePs) ? PS_DONE : CS_DONE;
 
         pDeCmdSpace += m_cmdUtil.BuildReleaseMemGfx(releaseInfo, pDeCmdSpace);
     }
-    else if ((pipePoint == HwPipeBottom) || (pipePoint == HwPipePreRasterization))
+    else if (TestAnyFlagSet(stageMask, EopWaitStageMask | VsWaitStageMask | PsWaitStageMask | CsWaitStageMask))
     {
-        // Implement set/reset with an EOP event written when all prior GPU work completes or VS waves to complete
-        // since there is no VS_DONE event.
         ReleaseMemGfx releaseInfo = {};
         releaseInfo.dstAddr  = boundMemObj.GpuVirtAddr();
         releaseInfo.dataSel  = data_sel__me_release_mem__send_32_bit_low;
@@ -5230,7 +5220,16 @@ void UniversalCmdBuffer::WriteEventCmd(
     }
     else
     {
-        PAL_ASSERT_ALWAYS();
+        const bool pfpWait = TestAnyFlagSet(stageMask, PipelineStageTopOfPipe | PipelineStageFetchIndirectArgs);
+
+        WriteDataInfo writeData = {};
+        writeData.engineType = GetEngineType();
+        writeData.dstAddr    = boundMemObj.GpuVirtAddr();
+        writeData.dstSel     = dst_sel__me_write_data__memory;
+        writeData.engineSel  = pfpWait ? uint32(engine_sel__pfp_write_data__prefetch_parser)
+                                       : uint32(engine_sel__me_write_data__micro_engine);
+
+        pDeCmdSpace += CmdUtil::BuildWriteData(writeData, data, pDeCmdSpace);
     }
 
     m_deCmdStream.CommitCommands(pDeCmdSpace);
@@ -6202,7 +6201,6 @@ void UniversalCmdBuffer::ValidateDraw(
 
 #if PAL_DEVELOPER_BUILD
     uint32 startingCmdLen = GetUsedSize(CommandDataAlloc);
-    uint32 pipelineCmdLen = 0;
     uint32 userDataCmdLen = 0;
 #endif
 
@@ -6242,7 +6240,8 @@ void UniversalCmdBuffer::ValidateDraw(
 #if PAL_DEVELOPER_BUILD
         if (m_cachedSettings.enablePm4Instrumentation != 0)
         {
-            pipelineCmdLen  = (GetUsedSize(CommandDataAlloc) - startingCmdLen);
+            const uint32 pipelineCmdLen = (GetUsedSize(CommandDataAlloc) - startingCmdLen);
+            m_device.DescribeBindPipelineValidation(this, pipelineCmdLen);
             startingCmdLen += pipelineCmdLen;
         }
 #endif
@@ -6298,7 +6297,7 @@ void UniversalCmdBuffer::ValidateDraw(
     if (m_cachedSettings.enablePm4Instrumentation != 0)
     {
         const uint32 miscCmdLen = (GetUsedSize(CommandDataAlloc) - startingCmdLen);
-        m_device.DescribeDrawDispatchValidation(this, userDataCmdLen, pipelineCmdLen, miscCmdLen);
+        m_device.DescribeDrawDispatchValidation(this, userDataCmdLen, miscCmdLen);
     }
 #endif
 
@@ -7826,7 +7825,7 @@ VportCenterRect UniversalCmdBuffer::GetViewportsCenterAndScale() const
 
 // =====================================================================================================================
 // Writes the latest set of viewports to HW. It is illegal to call this if the viewports aren't dirty.
-template <bool pm4OptImmediate>
+template <bool Pm4OptImmediate>
 uint32* UniversalCmdBuffer::ValidateViewports(
     uint32* pDeCmdSpace)
 {
@@ -7928,19 +7927,19 @@ uint32* UniversalCmdBuffer::ValidateViewports(
     const uint32 numScaleRegs   = VportRegs::NumScaleOffsetRegsPerVport * viewportCount;
     const uint32 numZMinMaxRegs = VportRegs::NumZMinMaxRegsPerVport     * viewportCount;
 
-    pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs<pm4OptImmediate>(mmPA_CL_GB_VERT_CLIP_ADJ,
+    pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs<Pm4OptImmediate>(mmPA_CL_GB_VERT_CLIP_ADJ,
                                                                         mmPA_CL_GB_HORZ_DISC_ADJ,
                                                                         &viewportRegs.guardbandImg,
                                                                         pDeCmdSpace);
-    pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs<pm4OptImmediate>(mmPA_CL_VPORT_XSCALE,
+    pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs<Pm4OptImmediate>(mmPA_CL_VPORT_XSCALE,
                                                                         mmPA_CL_VPORT_XSCALE + numScaleRegs - 1,
                                                                         &viewportRegs.scaleOffsetImgs[0],
                                                                         pDeCmdSpace);
-    pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs<pm4OptImmediate>(mmPA_SC_VPORT_ZMIN_0,
+    pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs<Pm4OptImmediate>(mmPA_SC_VPORT_ZMIN_0,
                                                                         mmPA_SC_VPORT_ZMIN_0 + numZMinMaxRegs - 1,
                                                                         &viewportRegs.zMinMaxImgs[0],
                                                                         pDeCmdSpace);
-    pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg<pm4OptImmediate>(mmPA_SU_HARDWARE_SCREEN_OFFSET,
+    pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg<Pm4OptImmediate>(mmPA_SU_HARDWARE_SCREEN_OFFSET,
                                                                        viewportRegs.hwScreenOffset.u32All,
                                                                        pDeCmdSpace);
 
@@ -8623,7 +8622,6 @@ void UniversalCmdBuffer::ValidateDispatchPalAbi(
 {
 #if PAL_DEVELOPER_BUILD
     uint32 startingCmdLen = 0;
-    uint32 pipelineCmdLen = 0;
     uint32 userDataCmdLen = 0;
     if (m_cachedSettings.enablePm4Instrumentation != 0)
     {
@@ -8696,11 +8694,13 @@ void UniversalCmdBuffer::ValidateDispatchPalAbi(
         {
             // GetUsedSize() is not accurate if called inside a Reserve/Commit block.
             pCmdStream->CommitCommands(pCmdSpace);
-            pipelineCmdLen  = (GetUsedSize(CommandDataAlloc) - startingCmdLen);
+            const uint32 pipelineCmdLen = (GetUsedSize(CommandDataAlloc) - startingCmdLen);
+            m_device.DescribeBindPipelineValidation(this, pipelineCmdLen);
             startingCmdLen += pipelineCmdLen;
             pCmdSpace       = pCmdStream->ReserveCommands();
         }
 #endif
+
         pCmdSpace = ValidateComputeUserData<true>(this,
                                                   pUserDataTable,
                                                   &pComputeState->csUserDataEntries,
@@ -8724,7 +8724,8 @@ void UniversalCmdBuffer::ValidateDispatchPalAbi(
             {
                 // GetUsedSize() is not accurate if called inside a Reserve/Commit block.
                 pCmdStream->CommitCommands(pCmdSpace);
-                pipelineCmdLen  = (GetUsedSize(CommandDataAlloc) - startingCmdLen);
+                const uint32 pipelineCmdLen = (GetUsedSize(CommandDataAlloc) - startingCmdLen);
+                m_device.DescribeBindPipelineValidation(this, pipelineCmdLen);
                 startingCmdLen += pipelineCmdLen;
                 pCmdSpace       = pCmdStream->ReserveCommands();
             }
@@ -8788,7 +8789,7 @@ void UniversalCmdBuffer::ValidateDispatchPalAbi(
         const uint32 miscCmdLen = (GetUsedSize(CommandDataAlloc) - startingCmdLen);
         pCmdSpace               = pCmdStream->ReserveCommands();
 
-        m_device.DescribeDrawDispatchValidation(this, userDataCmdLen, pipelineCmdLen, miscCmdLen);
+        m_device.DescribeDrawDispatchValidation(this, userDataCmdLen, miscCmdLen);
     }
 #endif
 
@@ -8805,7 +8806,6 @@ void UniversalCmdBuffer::ValidateDispatchHsaAbi(
 {
 #if PAL_DEVELOPER_BUILD
     uint32 startingCmdLen = 0;
-    uint32 pipelineCmdLen = 0;
     uint32 userDataCmdLen = 0;
     if (m_cachedSettings.enablePm4Instrumentation != 0)
     {
@@ -8839,7 +8839,8 @@ void UniversalCmdBuffer::ValidateDispatchHsaAbi(
     {
         // GetUsedSize() is not accurate if called inside a Reserve/Commit block.
         pCmdStream->CommitCommands(pCmdSpace);
-        pipelineCmdLen  = (GetUsedSize(CommandDataAlloc) - startingCmdLen);
+        const uint32 pipelineCmdLen = (GetUsedSize(CommandDataAlloc) - startingCmdLen);
+        m_device.DescribeBindPipelineValidation(this, pipelineCmdLen);
         startingCmdLen += pipelineCmdLen;
         pCmdSpace       = pCmdStream->ReserveCommands();
     }
@@ -8992,7 +8993,7 @@ void UniversalCmdBuffer::ValidateDispatchHsaAbi(
         const uint32 miscCmdLen = (GetUsedSize(CommandDataAlloc) - startingCmdLen);
         pCmdSpace               = pCmdStream->ReserveCommands();
 
-        m_device.DescribeDrawDispatchValidation(this, userDataCmdLen, pipelineCmdLen, miscCmdLen);
+        m_device.DescribeDrawDispatchValidation(this, userDataCmdLen, miscCmdLen);
     }
 #endif
 
@@ -9168,14 +9169,20 @@ void UniversalCmdBuffer::CmdBeginQuery(
     QueryControlFlags flags)
 {
     const auto& pool = static_cast<const QueryPool&>(queryPool);
-    if (pool.RequiresHybridCmdStream())
+
+#if PAL_BUILD_GFX11
+    if (pool.RequiresSamplingFromGangedAce() && (m_pAceCmdStream == nullptr))
     {
-        // Some types of queries require us to use the ganged ACE stream for correctness.  Initialize it if it hasn't
-        // been created yet.
-        EnableImplicitGangedSubQueueCount(1);
-        GetAceCmdStream();
-        CmdAceWaitDe();
+        // Some types of queries require using the ganged ACE stream _if_ work launched after the query has begun
+        // ends up using the ACE.  However, we don't want to create the ganged ACE stream if no "real" work will
+        // actually use it.  So track those querys so that the begin operation can be applied if/when the ganged
+        // ACE is initialized.
+        if (m_deferredPipelineStatsQueries.PushBack(ActiveQueryState{&pool, slot}) != Result::Success)
+        {
+            NotifyAllocFailure();
+        }
     }
+#endif
 
     pool.Begin(this, &m_deCmdStream, m_pAceCmdStream, queryType, slot, flags);
 }
@@ -9186,7 +9193,28 @@ void UniversalCmdBuffer::CmdEndQuery(
     QueryType         queryType,
     uint32            slot)
 {
-    static_cast<const QueryPool&>(queryPool).End(this, &m_deCmdStream, m_pAceCmdStream, queryType, slot);
+    const auto& pool = static_cast<const QueryPool&>(queryPool);
+
+#if PAL_BUILD_GFX11
+    if (pool.RequiresSamplingFromGangedAce() && (m_pAceCmdStream == nullptr))
+    {
+        // If this query pool was tracked so that ganged ACE portions of its Begin() operation can be applied when
+        // the ganged ACE was initialized, _and_ the ganged ACE never actually ended up being used, then we must
+        // remove the pool from our tracking so that it doesn't get overwritten sometime later if the ACE is needed
+        // later on in this command buffer.
+        for (uint32 i = 0; i < m_deferredPipelineStatsQueries.NumElements(); ++i)
+        {
+            const ActiveQueryState& state = m_deferredPipelineStatsQueries.At(i);
+            if ((state.pQueryPool == &pool) && (state.slot == slot))
+            {
+                m_deferredPipelineStatsQueries.Erase(i);
+                break;
+            }
+        }
+    }
+#endif
+
+    pool.End(this, &m_deCmdStream, m_pAceCmdStream, queryType, slot);
 }
 
 // =====================================================================================================================
@@ -9284,12 +9312,12 @@ void UniversalCmdBuffer::ActivateQueryType(
 
 // =====================================================================================================================
 // Updates the DB_COUNT_CONTROL register state based on the current the MSAA and occlusion query state.
-template <bool pm4OptImmediate>
+template <bool Pm4OptImmediate>
 uint32* UniversalCmdBuffer::UpdateDbCountControl(
-    uint32               log2SampleRate,  // MSAA sample rate associated with a bound MSAA state object
-    uint32*              pDeCmdSpace)
+    uint32  log2SampleRate,  // MSAA sample rate associated with a bound MSAA state object
+    uint32* pDeCmdSpace)
 {
-    const bool HasActiveQuery = IsQueryActive(QueryPoolType::Occlusion) &&
+    const bool hasActiveQuery = IsQueryActive(QueryPoolType::Occlusion) &&
                                 (NumActiveQueries(QueryPoolType::Occlusion) != 0);
 
     regDB_COUNT_CONTROL dbCountControl      = {0};
@@ -9299,19 +9327,19 @@ uint32* UniversalCmdBuffer::UpdateDbCountControl(
 
     if (IsNested() &&
         m_graphicsState.inheritedState.stateFlags.occlusionQuery &&
-        (HasActiveQuery == false))
+        (hasActiveQuery == false))
     {
         // In a nested command buffer, the number of active queries is unknown because the caller may have some
         // number of active queries when executing the nested command buffer. In this case, we must make sure that
         // update the sample count without disabling occlusion queries.
-        pDeCmdSpace = m_deCmdStream.WriteContextRegRmw<pm4OptImmediate>(mmDB_COUNT_CONTROL,
+        pDeCmdSpace = m_deCmdStream.WriteContextRegRmw<Pm4OptImmediate>(mmDB_COUNT_CONTROL,
                                                                         DB_COUNT_CONTROL__SAMPLE_RATE_MASK,
                                                                         dbCountControl.u32All,
                                                                         pDeCmdSpace);
     }
     else
     {
-        if (HasActiveQuery)
+        if (hasActiveQuery)
         {
             // Since 8xx, the ZPass count controls have moved to a separate register call DB_COUNT_CONTROL.
             // PERFECT_ZPASS_COUNTS forces all partially covered tiles to be detail walked, not setting it will count
@@ -9339,12 +9367,12 @@ uint32* UniversalCmdBuffer::UpdateDbCountControl(
             dbCountControl.gfx10Plus.DISABLE_CONSERVATIVE_ZPASS_COUNTS = 1;
         }
 
-        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg<pm4OptImmediate>(mmDB_COUNT_CONTROL,
+        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg<Pm4OptImmediate>(mmDB_COUNT_CONTROL,
                                                                            dbCountControl.u32All,
                                                                            pDeCmdSpace);
     }
 
-    m_state.flags.occlusionQueriesActive = HasActiveQuery;
+    m_state.flags.occlusionQueriesActive = hasActiveQuery;
 
     return pDeCmdSpace;
 }
@@ -9354,7 +9382,7 @@ uint32* UniversalCmdBuffer::UpdateDbCountControl(
 bool UniversalCmdBuffer::ForceWdSwitchOnEop(
     const GraphicsPipeline&      pipeline,
     const Pm4::ValidateDrawInfo& drawInfo
-) const
+    ) const
 {
     // We need switch on EOP if primitive restart is enabled or if our primitive topology cannot be split between IAs.
     // The topologies that meet this requirement are below (currently PAL only supports triangle strip w/ adjacency
@@ -10791,6 +10819,7 @@ void UniversalCmdBuffer::ExecuteIndirectShader(
 
             pDeCmdSpace = IncrementDeCounter(pDeCmdSpace);
             m_deCmdStream.CommitCommands(pDeCmdSpace);
+
         }
     }
 }
@@ -11895,6 +11924,24 @@ CmdStream* UniversalCmdBuffer::GetAceCmdStream()
         {
             // We need to properly issue a stall in case we're requesting the ACE CmdStream after a barrier call.
             IssueGangedBarrierAceWaitDeIncr();
+
+#if PAL_BUILD_GFX11
+            if (m_deferredPipelineStatsQueries.IsEmpty() == false)
+            {
+                // We must wait for the DE before applying the deferred queries on the ACE queue because this command
+                // buffer might have reset the query slot before beginning the query.
+                CmdAceWaitDe();
+
+                // Apply the deferred Begin() operation on any pipeline-stats queries we've accumulated before the
+                // ganged ACE stream was initialized.
+                for (const auto& state: m_deferredPipelineStatsQueries)
+                {
+                    PAL_ASSERT(state.pQueryPool != nullptr);
+                    state.pQueryPool->DeferredBeginOnGangedAce(this, m_pAceCmdStream, state.slot);
+                }
+                m_deferredPipelineStatsQueries.Clear();
+            }
+#endif
         }
     }
 
@@ -12438,7 +12485,8 @@ uint32* UniversalCmdBuffer::WriteWaitCsIdle(
 // =====================================================================================================================
 bool UniversalCmdBuffer::UpdateNggPrimCb(
     const GraphicsPipeline*         pCurrentPipeline,
-    Util::Abi::PrimShaderCullingCb* pPrimShaderCb) const
+    Util::Abi::PrimShaderCullingCb* pPrimShaderCb
+    ) const
 {
     bool dirty = false;
 

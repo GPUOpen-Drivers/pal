@@ -69,7 +69,11 @@ public:
         void*   pMappedCpuAddr) override;
 
 #if PAL_BUILD_GFX11
-    virtual bool RequiresHybridCmdStream() const override;
+    virtual bool RequiresSamplingFromGangedAce() const;
+    virtual void DeferredBeginOnGangedAce(
+        GfxCmdBuffer*   pCmdBuffer,
+        Pal::CmdStream* pAceCmdStream,
+        uint32          slot) const;
 #endif
 
 protected:
@@ -106,8 +110,18 @@ private:
         gpusize gpuVirtAddr,
         uint32* pCmdSpace) const;
 
+#if PAL_BUILD_GFX11
+    uint32* SampleQueryDataOnGangedAce(
+        gpusize gpuVirtAddr,
+        uint32* pAceCmdSpace) const;
+
+    uint32* FixupQueryForNoGangedAce(
+        gpusize gpuVirtAddr,
+        uint32* pCmdSpace) const;
+#endif
+
     const Device& m_device;
-    uint32        m_numEnabledStats;
+    const uint32  m_numEnabledStats;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(PipelineStatsQueryPool);
     PAL_DISALLOW_DEFAULT_CTOR(PipelineStatsQueryPool);

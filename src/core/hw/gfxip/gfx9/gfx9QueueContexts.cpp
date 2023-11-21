@@ -163,6 +163,19 @@ static uint32* WriteCommonPreamble(
                                                      pCmdSpace);
     }
 
+    StartingPerfcounterState perfctrBehavior = device.CoreSettings().startingPerfcounterState;
+    if (perfctrBehavior != StartingPerfcounterStateUntouched)
+    {
+        // If SPM interval spans across gfx and ace, we need to manually set COMPUTE_PERFCOUNT_ENABLE for the pipes.
+        // But if not using SPM/counters, we want to have the hardware not count our workload (could affect perf)
+        // By default, set it based on if GpuProfiler or DevDriver are active.
+        regCOMPUTE_PERFCOUNT_ENABLE computeEnable = {};
+        computeEnable.bits.PERFCOUNT_ENABLE = uint32(device.Parent()->EnablePerfCountersInPreamble());
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PERFCOUNT_ENABLE,
+                                                                computeEnable.u32All,
+                                                                pCmdSpace);
+    }
+
     return pCmdSpace;
 }
 
@@ -415,19 +428,6 @@ Result ComputeQueueContext::RebuildCommandStreams(
         pCmdSpace += cmdUtil.BuildWaitCsIdle(EngineTypeCompute, waitTsGpuVa, pCmdSpace);
 
         pCmdSpace = WriteCommonPreamble(*m_pDevice, EngineTypeCompute, &m_cmdStream, pCmdSpace);
-
-        StartingPerfcounterState perfctrBehavior = m_pDevice->CoreSettings().startingPerfcounterState;
-        if (perfctrBehavior != StartingPerfcounterStateUntouched)
-        {
-            // If SPM interval spans across gfx and ace, we need to manually set COMPUTE_PERFCOUNT_ENABLE for the pipes.
-            // But if not using SPM/counters, we want to have the hardware not count our workload (could affect perf)
-            // By default, set it based on if GpuProfiler or DevDriver are active.
-            regCOMPUTE_PERFCOUNT_ENABLE computeEnable = {};
-            computeEnable.bits.PERFCOUNT_ENABLE = uint32(m_pDevice->Parent()->EnablePerfCountersInPreamble());
-            pCmdSpace = m_cmdStream.WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PERFCOUNT_ENABLE,
-                                                                    computeEnable.u32All,
-                                                                    pCmdSpace);
-        }
 
         m_cmdStream.CommitCommands(pCmdSpace);
         result = m_cmdStream.End();
@@ -751,8 +751,12 @@ Result UniversalQueueContext::Init()
 
     if (result == Result::Success)
     {
-        // The universal engine can always use CS_PARTIAL_FLUSH events so we don't need the wait-for-idle TS memory.
-        result = CreateTimestampMem(false);
+        // The universal engine can always use CS_PARTIAL_FLUSH events so we don't need the wait-for-idle TS memory
+        // unless we might allocate a ganged ACE stream.
+        const bool aceSupportsCsPf = m_pDevice->CmdUtil().CanUseCsPartialFlush(EngineTypeCompute);
+        const bool needWaitForIdleMem = (aceSupportsCsPf == false) && m_supportsAceGang;
+
+        result = CreateTimestampMem(needWaitForIdleMem);
     }
 
     if (result == Result::Success)
@@ -1075,19 +1079,6 @@ void UniversalQueueContext::WritePerSubmitPreamble(
                 pCmdSpace += CmdUtil::BuildLoadShRegs(shRegGpuAddr, pRegRange, numEntries, ShaderCompute, pCmdSpace);
             }
         } // state shadowing by CP Fw
-
-        StartingPerfcounterState perfctrBehavior = m_pDevice->CoreSettings().startingPerfcounterState;
-        if (perfctrBehavior != StartingPerfcounterStateUntouched)
-        {
-            // If SPM interval spans across gfx and ace, we need to manually set COMPUTE_PERFCOUNT_ENABLE for the pipes.
-            // But if not using SPM/counters, we want to have the hardware not count our workload (could affect perf)
-            // By default, set it based on if GpuProfiler or DevDriver are active.
-            regCOMPUTE_PERFCOUNT_ENABLE computeEnable = {};
-            computeEnable.bits.PERFCOUNT_ENABLE = uint32(m_pDevice->Parent()->EnablePerfCountersInPreamble());
-            pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PERFCOUNT_ENABLE,
-                                                                    computeEnable.u32All,
-                                                                    pCmdSpace);
-        }
 
         pCmdStream->CommitCommands(pCmdSpace);
 
@@ -1454,7 +1445,11 @@ Result UniversalQueueContext::RebuildCommandStreams(
 
             pCmdSpace = m_ringSet.WriteComputeCommands(pAcePreambleCmdStream, pCmdSpace);
 
-            pCmdSpace += cmdUtil.BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
+            const gpusize waitTsGpuVa = (m_waitForIdleTs.IsBound() ? m_waitForIdleTs.GpuVirtAddr() : 0);
+            pCmdSpace += cmdUtil.BuildWaitCsIdle(EngineTypeCompute, waitTsGpuVa, pCmdSpace);
+
+            pCmdSpace = WriteCommonPreamble(*m_pDevice, EngineTypeCompute, pAcePreambleCmdStream, pCmdSpace);
+
             pAcePreambleCmdStream->CommitCommands(pCmdSpace);
 
             result = pAcePreambleCmdStream->End();

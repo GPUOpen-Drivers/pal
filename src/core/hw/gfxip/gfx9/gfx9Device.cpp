@@ -4759,8 +4759,8 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
             // For single-channel FORMAT cases, ALPHA_IS_ON_MSB(AIOM) = 0 indicates the channel is color.
             // while ALPHA_IS_ON_MSB (AIOM) = 1 indicates the channel is alpha.
 
-            // Theratically, ALPHA_IS_ON_MSB should be set to 1 for all single-channel formats only if
-            // swap is SWAP_ALT_REV as gfx6 implementation; however, there is a new CB feature - to compress to AC01
+            // Theoretically, ALPHA_IS_ON_MSB should be set to 1 for all single-channel formats only if
+            // swap is SWAP_ALT_REV; however, there is a new CB feature - to compress to AC01
             // during CB rendering/draw on gfx9.2, which requires special handling.
             const SurfaceSwap surfSwap = Formats::Gfx9::ColorCompSwap(imageCreateInfo.swizzledFormat);
 
@@ -7237,8 +7237,7 @@ void InitializeGpuChipProperties(
     pInfo->gfx9.numScPerSe     = 1;
     pInfo->gfx9.numPackerPerSc = 2; // unless overridden below
 
-    // TODO:  Should find a way to get this info from the ADAPTERINFOEX structure.  Steal these values from
-    //        the GFX6 implementation for the time being.
+    // TODO:  Should find a way to get this info from the ADAPTERINFOEX structure.
     pInfo->gfx9.numSimdPerCu = 4;
 
     // All Gfx9+ GPUs have 16 SQC barrier resources per CU.  One barrier is allocated to every compute threadgroup
@@ -10810,6 +10809,86 @@ bool Device::DisableAc01ClearCodes() const
             || (settings.waDisableAc01 == Ac01WaForbidAc01)
 #endif
             );
+}
+
+// =====================================================================================================================
+// Expand or retile display DCC if needed
+void Device::UpdateDisplayDcc(
+    GfxCmdBuffer*                   pCmdBuf,
+    const CmdPostProcessFrameInfo&  postProcessInfo,
+    bool*                           pAddedGpuWork
+    ) const
+{
+    const auto&      image       = static_cast<const Pal::Image&>(*postProcessInfo.pSrcImage);
+    const auto&      gfx9Image   = static_cast<const Gfx9::Image&>(*image.GetGfxImage());
+
+    bool addedGpuWork = false;
+
+    if (gfx9Image.HasDisplayDccData())
+    {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 836
+        const ColorLayoutToState layoutToState = gfx9Image.LayoutToColorCompressionState();
+
+        if (ImageLayoutToColorCompressionState(layoutToState, postProcessInfo.srcImageLayout) == ColorDecompressed)
+        {
+            // No need to retile since it has been retiled on its InitMaskRam or first time DCC decompressed.
+        }
+        else
+#endif
+        {
+            // The surface must be fully expanded if another component may access it via PFPA,
+            // or KMD nofify UMD to expand DCC.
+            // Presentable surface has dcc and displayDcc, but turbo sync surface hasn't dcc,
+            // before present, need decompress dcc when turbo sync enables.
+            if (postProcessInfo.fullScreenFrameMetadataControlFlags.primaryHandle ||
+                postProcessInfo.fullScreenFrameMetadataControlFlags.expandDcc     ||
+                postProcessInfo.fullScreenFrameMetadataControlFlags.timerNodeSubmission)
+            {
+                BarrierInfo barrier = {};
+
+                BarrierTransition transition = {};
+                transition.srcCacheMask                    = CoherShader;
+                transition.dstCacheMask                    = CoherShader;
+
+                transition.imageInfo.pImage                = &image;
+                transition.imageInfo.oldLayout.usages      = LayoutPresentWindowed | LayoutPresentFullscreen;
+                transition.imageInfo.oldLayout.engines     = (pCmdBuf->GetEngineType() == EngineTypeUniversal) ?
+                                                             LayoutUniversalEngine : LayoutComputeEngine;
+                transition.imageInfo.newLayout.usages      = LayoutShaderRead | LayoutUncompressed;
+                transition.imageInfo.newLayout.engines     = transition.imageInfo.oldLayout.engines;
+                transition.imageInfo.subresRange.numPlanes = 1;
+                transition.imageInfo.subresRange.numMips   = 1;
+                transition.imageInfo.subresRange.numSlices = 1;
+
+                barrier.pTransitions = &transition;
+                barrier.transitionCount = 1;
+
+                barrier.waitPoint = HwPipePreCs;
+
+                HwPipePoint pipePoints = HwPipeTop;
+                barrier.pPipePoints = &pipePoints;
+                barrier.pipePointWaitCount = 1;
+
+                pCmdBuf->CmdBarrier(barrier);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 836
+                // if Dcc is decompressed, needn't do retile, put displayDCC memory
+                // itself back into a "fully decompressed" state.
+                RsrcProcMgr().CmdDisplayDccFixUp(pCmdBuf, image);
+#endif
+                addedGpuWork = true;
+            }
+            else if (CoreSettings().displayDccSkipRetileBlt == false)
+            {
+                RsrcProcMgr().CmdGfxDccToDisplayDcc(pCmdBuf, image);
+                addedGpuWork = true;
+            }
+        }
+    }
+
+    if (addedGpuWork && (pAddedGpuWork != nullptr))
+    {
+        *pAddedGpuWork = true;
+    }
 }
 
 #if  PAL_BUILD_GFX11

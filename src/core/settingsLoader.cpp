@@ -132,50 +132,17 @@ void SettingsLoader::OverrideDefaults()
 {
     m_pDevice->OverrideDefaultSettings(&m_settings);
 
-    const GfxIpLevel gfxLevel = m_pDevice->ChipProperties().gfxLevel;
-
-    if (gfxLevel >= GfxIpLevel::GfxIp9)
-    {
-        // Setup default DCC enables.
-        constexpr uint32 DccEnables = UseDccSingleSample          |
-                                      UseDccSrgb                  |
-                                      UseDccNonTcCompatShaderRead |
-                                      UseDccPrt                   |
-                                      UseDccMultiSample2x         |
-                                      UseDccMultiSample4x         |
-                                      UseDccMultiSample8x         |
-                                      UseDccEqaa                  |
-                                      UseDccAllowForceEnable      |
-                                      UseDccMipMappedArrays;
-        m_settings.useDcc = DccEnables;
-
 #if PAL_BUILD_GFX11
-        if (IsGfx11(gfxLevel))
-        {
-            m_settings.useDcc |= UseDccForAllCompatibleFormats;
-        }
-#endif
-    }
-    else if (gfxLevel >= GfxIpLevel::GfxIp8)
+    if (IsGfx11(*m_pDevice))
     {
-        // Setup default DCC enables.
-        constexpr uint32 DccEnables = UseDccSingleSample          |
-                                      UseDccSrgb                  |
-                                      UseDccMultiSample2x         |
-                                      UseDccMultiSample4x         |
-                                      UseDccMultiSample8x         |
-                                      UseDccEqaa;
-        m_settings.useDcc = DccEnables;
+        m_settings.useDcc |= UseDccForAllCompatibleFormats;
     }
+#endif
 
-    // The new ExecuteIndirect packet is supported on Gfx9+ only.
     // This is set by PAL based on when certain aspects of this feature were added to the uCode by PFP FW version
     // of this device. This setting is Reread() enabled which means the stable value determined here can be
     // overridden by the value set in Panel/Registry settings.
-    if (gfxLevel >= GfxIpLevel::GfxIp9)
-    {
-        m_settings.useExecuteIndirectPacket = m_pDevice->ChipProperties().gfx9.executeIndirectSupport;
-    }
+    m_settings.useExecuteIndirectPacket = m_pDevice->ChipProperties().gfx9.executeIndirectSupport;
 
     if (m_pDevice->PhysicalEnginesAvailable())
     {

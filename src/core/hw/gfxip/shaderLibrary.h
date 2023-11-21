@@ -68,16 +68,14 @@ public:
         size_t*     pSize,
         void*       pBuffer) const override
     {
-        // This function should be implemented in gfx6 / gfx9 if needed.
-        return Result::ErrorUnavailable;;
+        return Result::ErrorUnavailable;
     }
 
     virtual Result GetShaderFunctionStats(
-        const char*     pShaderExportName,
-        ShaderLibStats* pStats) const override
+        Util::StringView<char>  shaderExportName,
+        ShaderLibStats*         pStats) const override
     {
-        // This function should be implemented in gfx6 / gfx9 if needed.
-        return Result::ErrorUnavailable;;
+        return Result::ErrorUnavailable;
     }
 
     const void* GetCodeObject(size_t* pSize) const

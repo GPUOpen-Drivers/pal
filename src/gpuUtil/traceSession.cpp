@@ -65,6 +65,10 @@ TraceSession::TraceSession(
     IPlatform* pPlatform)
     :
     m_pPlatform(pPlatform),
+    m_pReader(nullptr),
+    m_registerTraceSourceLock(),
+    m_registerTraceControllerLock(),
+    m_chunkAppendLock(),
     m_registeredTraceSources(64, pPlatform),
     m_traceSourcesConfigs(64, pPlatform),
     m_registeredTraceControllers(64, pPlatform),
@@ -72,7 +76,8 @@ TraceSession::TraceSession(
     m_sessionState(TraceSessionState::Ready),
     m_pChunkFileWriter(nullptr),
     m_pCurrentStream(nullptr),
-    m_pReader(nullptr)
+    m_currentChunkIndex(0),
+    m_tracingEnabled(false)
 {
 }
 

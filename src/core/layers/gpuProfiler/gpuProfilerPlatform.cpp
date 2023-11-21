@@ -256,6 +256,10 @@ void PAL_STDCALL Platform::GpuProfilerCb(
         PAL_ASSERT(pCbData != nullptr);
         TranslateDrawDispatchValidationData(pCbData);
         break;
+    case Developer::CallbackType::BindPipelineValidation:
+        PAL_ASSERT(pCbData != nullptr);
+        TranslateBindPipelineValidationData(pCbData);
+        break;
     case Developer::CallbackType::OptimizedRegisters:
         PAL_ASSERT(pCbData != nullptr);
         TranslateOptimizedRegistersData(pCbData);

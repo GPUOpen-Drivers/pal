@@ -78,9 +78,13 @@ public:
         uint64            srcData,
         AtomicOp          atomicOp) override;
 
-    virtual void CmdWriteTimestamp(HwPipePoint pipePoint, const IGpuMemory& dstGpuMemory, gpusize dstOffset) override;
+    virtual void CmdWriteTimestamp(
+        uint32            stageMask,
+        const IGpuMemory& dstGpuMemory,
+        gpusize           dstOffset) override;
+
     virtual void CmdWriteImmediate(
-        HwPipePoint        pipePoint,
+        uint32             stageMask,
         uint64             value,
         ImmediateDataWidth dataSize,
         gpusize            address) override;
@@ -206,7 +210,7 @@ protected:
 
     virtual void ResetState() override;
 
-    virtual void WriteEventCmd(const BoundGpuMemory& boundMemObj, HwPipePoint pipePoint, uint32 data) override;
+    virtual void WriteEventCmd(const BoundGpuMemory& boundMemObj, uint32 stageMask, uint32 data) override;
 
     virtual void InheritStateFromCmdBuf(const Pm4CmdBuffer* pCmdBuffer) override;
 

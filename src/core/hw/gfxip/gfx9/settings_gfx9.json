@@ -212,6 +212,42 @@
     },
     {
       "ValidValues": {
+        "IsEnum": true,
+        "isExclusive": true,
+        "Values": [
+          {
+            "Name": "BlockSize32B",
+            "Value": 0,
+            "Description": "Compressed block size of 32B"
+          },
+          {
+            "Name": "BlockSize64B",
+            "Value": 1,
+            "Description": "Compressed block size of 64B"
+          },
+          {
+            "Name": "DefaultBlockSize",
+            "Value": 2,
+            "Description": "Default block size for device"
+          }
+        ],
+        "Name": "Gfx9MinDccCompressedBlockSize"
+      },
+      "Description": "Controls the default DCC_CONTROL.MIN_COMPRESSED_BLOCK_SIZE",
+      "Tags": [
+        "General",
+        "Gfx9"
+      ],
+      "Defaults": {
+        "Default": "DefaultBlockSize"
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "uint32",
+      "VariableName": "minDccCompressedBlockSize",
+      "Name": "MinDccCompressedBlockSize"
+    },
+    {
+      "ValidValues": {
         "Values": [
           {
             "Name": "DecompressDcc",

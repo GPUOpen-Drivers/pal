@@ -1378,7 +1378,7 @@ Result Queue::SubmitNonGfxIp(
 {
     PAL_ASSERT((internalSubmitInfo.numPreambleCmdStreams == 0) && (internalSubmitInfo.numPostambleCmdStreams == 0));
 
-    // The OsSubmit function should guarantee that we have at least one DMA, VCE, or UVD command buffer.
+    // The OsSubmit function should guarantee that we have at least one command buffer.
     PAL_ASSERT(submitInfo.pPerSubQueueInfo[0].cmdBufferCount > 0);
 
     uint32 maxChunkCount = 0;
@@ -1987,8 +1987,8 @@ Result Queue::SubmitIbsRaw(
         }
 #endif
 
-	// Serialize access to internalMgr and queue memory list
-	RWLockAuto<RWLock::ReadWrite> lockMgr(m_pDevice->MemMgr()->GetRefListLock());
+    // Serialize access to internalMgr and queue memory list
+    RWLockAuto<RWLock::ReadWrite> lockMgr(m_pDevice->MemMgr()->GetRefListLock());
 
         // Prepare the resourceListEntry for non-dummy submission.
         Vector<drm_amdgpu_bo_list_entry, 1, Platform> resourceEntryList(pDevice->GetPlatform());

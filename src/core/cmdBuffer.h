@@ -562,11 +562,11 @@ public:
         const PrtPlusImageResolveRegion* pRegions) override
         { PAL_NEVER_CALLED(); }
 
-    virtual void CmdSetEvent(const IGpuEvent& gpuEvent, HwPipePoint setPoint) override
-        { WriteEvent(gpuEvent, setPoint, GpuEvent::SetValue); }
+    virtual void CmdSetEvent(const IGpuEvent& gpuEvent, uint32 stageMask) override
+        { WriteEvent(gpuEvent, stageMask, GpuEvent::SetValue); }
 
-    virtual void CmdResetEvent(const IGpuEvent& gpuEvent, HwPipePoint resetPoint) override
-        { WriteEvent(gpuEvent, resetPoint, GpuEvent::ResetValue); }
+    virtual void CmdResetEvent(const IGpuEvent& gpuEvent, uint32 stageMask) override
+        { WriteEvent(gpuEvent, stageMask, GpuEvent::ResetValue); }
 
     virtual void CmdPredicateEvent(const IGpuEvent& gpuEvent) override
         { PAL_NEVER_CALLED(); }
@@ -609,13 +609,13 @@ public:
         { PAL_NEVER_CALLED(); }
 
     virtual void CmdWriteTimestamp(
-        HwPipePoint       pipePoint,
+        uint32            stageMask,
         const IGpuMemory& dstGpuMemory,
         gpusize           dstOffset) override
         { PAL_NEVER_CALLED(); }
 
     virtual void CmdWriteImmediate(
-        HwPipePoint        pipePoint,
+        uint32             stageMask,
         uint64             data,
         ImmediateDataWidth dataSize,
         gpusize            address) override
@@ -997,7 +997,7 @@ protected:
     // with the command allocator and is intended to be called during Begin().
     virtual void ResetState() { }
 
-    virtual void WriteEventCmd(const BoundGpuMemory& boundMemObj, HwPipePoint pipePoint, uint32 data) = 0;
+    virtual void WriteEventCmd(const BoundGpuMemory& boundMemObj, uint32 stageMask, uint32 data) = 0;
 
     // Helper function for switching the CmdSetUserData callback for a specific pipeline type.
     void SwitchCmdSetUserDataFunc(
@@ -1158,7 +1158,8 @@ private:
         CmdAllocType type,
         ChunkData*   pData,
         uint32       numDwords);
-    void WriteEvent(const IGpuEvent& gpuEvent, HwPipePoint pipePoint, uint32 data);
+
+    void WriteEvent(const IGpuEvent& gpuEvent, uint32 stageMask, uint32 data);
 
     void ReturnDataChunks(ChunkData* pData, CmdAllocType type, bool returnGpuMemory);
     void ReturnLinearAllocator();

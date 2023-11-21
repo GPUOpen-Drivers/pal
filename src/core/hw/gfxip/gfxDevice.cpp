@@ -653,17 +653,29 @@ void GfxDevice::DescribeBindPipeline(
 void GfxDevice::DescribeDrawDispatchValidation(
     GfxCmdBuffer* pCmdBuf,
     size_t        userDataCmdSize,
-    size_t        pipelineCmdSize,
     size_t        miscCmdSize
     ) const
 {
     Developer::DrawDispatchValidationData data = { };
     data.pCmdBuffer      = pCmdBuf;
     data.userDataCmdSize = static_cast<uint32>(userDataCmdSize);
-    data.pipelineCmdSize = static_cast<uint32>(pipelineCmdSize);
     data.miscCmdSize     = static_cast<uint32>(miscCmdSize);
 
     m_pParent->DeveloperCb(Developer::CallbackType::DrawDispatchValidation, &data);
+}
+
+// =====================================================================================================================
+// Call back to above layers to describe a bound pipeline.
+void GfxDevice::DescribeBindPipelineValidation(
+    GfxCmdBuffer* pCmdBuf,
+    size_t        pipelineCmdSize
+    ) const
+{
+    Developer::BindPipelineValidationData data = { };
+    data.pCmdBuffer      = pCmdBuf;
+    data.pipelineCmdSize = static_cast<uint32>(pipelineCmdSize);;
+
+    m_pParent->DeveloperCb(Developer::CallbackType::BindPipelineValidation, &data);
 }
 
 // =====================================================================================================================

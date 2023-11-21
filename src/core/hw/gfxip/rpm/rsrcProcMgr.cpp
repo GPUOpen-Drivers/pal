@@ -393,7 +393,6 @@ void RsrcProcMgr::CopyImageCs(
     const ImageCreateInfo& dstCreateInfo = dstImage.GetImageCreateInfo();
     const ImageCreateInfo& srcCreateInfo = srcImage.GetImageCreateInfo();
     const ImageType        imageType     = srcImage.GetGfxImage()->GetOverrideImageType();
-    const bool             viewMatchDim  = (IsGfx8(device) || IsGfx9(device));
 
     // If the destination format is srgb and we will be doing format conversion copy then we need the shader to
     // perform gamma correction. Note: If both src and dst are srgb then we'll do a raw copy and so no need to change
@@ -480,20 +479,6 @@ void RsrcProcMgr::CopyImageCs(
 
         viewRange.startSubres = copyRegion.srcSubres;
         RpmUtil::BuildImageViewInfo(&imageView[1], srcImage, viewRange, srcFormat, srcImageLayout, optLevel, false);
-
-        // Image view type matters for HW addrlib. Only override if absolutely necessary.
-        // GFX10+: Copying behavior depends on instruction DIM, not image view type
-        //    See GetCopyImageCsInfo for more info on DIM
-        // GFX8,9: The original comment asserts that overriding the image view type to 2D is necessary.
-        //    "The shader treats all images as 2D arrays which means we need to override the view type to 2D.
-        //     We also used to do this for 3D images but that caused test failures when the images used mipmaps
-        //     because the HW expected "numSlices" to be constant for all mip levels
-        //     (rather than halving at each mip as z-slices do)."
-        if (viewMatchDim && (imageType == ImageType::Tex1d))
-        {
-            imageView[0].viewType = ImageViewType::Tex2d;
-            imageView[1].viewType = ImageViewType::Tex2d;
-        }
 
         if (csInfo.useMipInSrd == false)
         {
@@ -2039,7 +2024,7 @@ void RsrcProcMgr::GenerateMipmapsFast(
 
                 // Allocate scratch memory for the global atomic counter and initialize it to 0.
                 const gpusize counterVa = pCmdBuffer->AllocateGpuScratchMem(1, Util::NumBytesToNumDwords(128));
-                pCmdBuffer->CmdWriteImmediate(HwPipePoint::HwPipeTop,
+                pCmdBuffer->CmdWriteImmediate(PipelineStageTopOfPipe,
                                               0,
                                               ImmediateDataWidth::ImmediateData32Bit,
                                               counterVa);
@@ -2218,7 +2203,6 @@ void RsrcProcMgr::ScaledCopyImageCompute(
 
     const bool imageTypeMatch = (pSrcGfxImage->GetOverrideImageType() == pDstGfxImage->GetOverrideImageType());
     const bool is3d           = (imageTypeMatch && (pSrcGfxImage->GetOverrideImageType() == ImageType::Tex3d));
-    const bool viewMatchDim   = (IsGfx8(device) || IsGfx9(device));
     bool       isFmaskCopy    = false;
 
     // Get the appropriate pipeline object.
@@ -2505,9 +2489,12 @@ void RsrcProcMgr::ScaledCopyImageCompute(
 
             const uint32 rotationIndex = static_cast<const uint32>(copyInfo.rotation);
 
-            // Enable gamma conversion when dstFormat is Srgb or copyInfo.flags.dstAsSrgb
+            // Enable gamma conversion when
+            //  - dstFormat is Srgb and copyInfo.flags.dstAsNorm is not set OR
+            //  - copyInfo.flags.dstAsSrgb is set
             const uint32 enableGammaConversion =
-                (Formats::IsSrgb(dstFormat.format) || copyInfo.flags.dstAsSrgb) ? 1 : 0;
+                ((Formats::IsSrgb(dstFormat.format) && (copyInfo.flags.dstAsNorm == 0)) ||
+                 (copyInfo.flags.dstAsSrgb != 0));
 
             uint32 copyData[] =
             {
@@ -2590,16 +2577,6 @@ void RsrcProcMgr::ScaledCopyImageCompute(
                                         copyInfo.srcImageLayout,
                                         device.TexOptLevel(),
                                         false);
-
-            // Image view type matters for HW addrlib. Only override if absolutely necessary.
-            // GFX10+: Sample instruction limitations depend on DIM, not the image view type.
-            //    See comments around the initialization of pPipeline for more details.
-            // GFX8,9: See similar behavior in copyImageCS. Unclear why this is necessary.
-            if (viewMatchDim && (is3d == false))
-            {
-                imageView[0].viewType = ImageViewType::Tex2d;
-                imageView[1].viewType = ImageViewType::Tex2d;
-            }
 
             device.CreateImageViewSrds(2, &imageView[0], pUserData);
             pUserData += SrdDwordAlignment() * 2;
@@ -3272,7 +3249,7 @@ void RsrcProcMgr::CmdClearBoundColorTargets(
 
     // Save current command buffer state and bind graphics state which is common for all mipmap levels.
     pCmdBuffer->CmdSaveGraphicsState();
-    BindCommonGraphicsState(pCmdBuffer);
+    BindCommonGraphicsState(pCmdBuffer, VrsShadingRate::_2x2);
     pCmdBuffer->CmdBindColorBlendState(m_pBlendDisableState);
     pCmdBuffer->CmdBindDepthStencilState(m_pDepthDisableState);
 
@@ -5028,12 +5005,15 @@ gpusize RsrcProcMgr::ComputeTypedBufferRange(
 // =====================================================================================================================
 // Binds common graphics state.
 void RsrcProcMgr::BindCommonGraphicsState(
-    GfxCmdBuffer* pCmdBuffer
+    GfxCmdBuffer*  pCmdBuffer,
+    VrsShadingRate vrsRate
     ) const
 {
     const InputAssemblyStateParams   inputAssemblyState   = { PrimitiveTopology::RectList };
     const DepthBiasParams            depthBias            = { 0.0f, 0.0f, 0.0f };
     const PointLineRasterStateParams pointLineRasterState = { 1.0f, 1.0f };
+    const Pal::Device*               pDevice              = m_pDevice->Parent();
+    const Pal::PalSettings&          settings             = pDevice->Settings();
 
     const TriangleRasterStateParams  triangleRasterState =
     {
@@ -5060,7 +5040,10 @@ void RsrcProcMgr::BindCommonGraphicsState(
     VrsCenterState  centerState = {};
     VrsRateParams   rateParams  = {};
 
-    rateParams.shadingRate = VrsShadingRate::_1x1;
+    // Only use the requested VRS rate if it's allowed by the panel
+    vrsRate = (settings.vrsEnhancedGfxClears ? vrsRate : VrsShadingRate::_1x1);
+
+    rateParams.shadingRate = vrsRate;
     rateParams.combinerState[static_cast<uint32>(VrsCombinerStage::ProvokingVertex)] = VrsCombiner::Passthrough;
     rateParams.combinerState[static_cast<uint32>(VrsCombinerStage::Primitive)]       = VrsCombiner::Passthrough;
     rateParams.combinerState[static_cast<uint32>(VrsCombinerStage::Image)]           = VrsCombiner::Passthrough;

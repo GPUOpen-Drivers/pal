@@ -228,8 +228,8 @@ public:
     ///          +ErrorUnavailable if a wrong shader stage for this pipeline was specified, or if some internal error
     ///                           occured.
     virtual Result GetShaderFunctionStats(
-        const char*      pShaderExportName,
-        ShaderLibStats*  pShaderStats) const = 0;
+        Util::StringView<char> shaderExportName,
+        ShaderLibStats*        pShaderStats) const = 0;
 
     /// Returns the function list owned by this shader library
     ///

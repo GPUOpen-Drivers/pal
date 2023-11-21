@@ -54,7 +54,7 @@ public:
     virtual ~UberTraceService();
 
     // Attempts to enable tracing
-    virtual DD_RESULT EnableTracing() override { return DD_RESULT_SUCCESS; }
+    virtual DD_RESULT EnableTracing() override;
 
     // Queries the current set of trace parameters
     virtual DD_RESULT QueryTraceParams(const DDByteWriter& writer) override { return DD_RESULT_SUCCESS; }

@@ -319,7 +319,7 @@ static const char* EngineTypeToStr(
     case EngineType::EngineTypeUniversal:             pRet = "Universal";             break;
     case EngineType::EngineTypeCompute:               pRet = "Compute";               break;
     case EngineType::EngineTypeDma:                   pRet = "Dma";                   break;
-    case EngineType::EngineTypeTimer:                 pRet = "Timer";                  break;
+    case EngineType::EngineTypeTimer:                 pRet = "Timer";                 break;
     default:
         PAL_ASSERT_ALWAYS();
         break;

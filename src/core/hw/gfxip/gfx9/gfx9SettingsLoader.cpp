@@ -259,6 +259,19 @@ void SettingsLoader::ValidateSettings(
         }
     }
 
+    if ((chipProps.gpuType == GpuType::Integrated)
+    )
+    {
+        //
+        //
+        m_settings.minDccCompressedBlockSize = Gfx9MinDccCompressedBlockSize::BlockSize64B;
+
+    }
+    else if (m_settings.minDccCompressedBlockSize == Gfx9MinDccCompressedBlockSize::DefaultBlockSize)
+    {
+        m_settings.minDccCompressedBlockSize = Gfx9MinDccCompressedBlockSize::BlockSize32B;
+    }
+
     // If HTile is disabled, also disable the other settings whic
     // If HTile is disabled, also disable the other settings which depend on it:
     if (m_settings.htileEnable == false)
@@ -1040,16 +1053,9 @@ void SettingsLoader::OverrideDefaults(
         // Apply this to all Gfx11 APUs
         if (device.ChipProperties().gpuType == GpuType::Integrated)
         {
-            if(device.ChipProperties().gfxip.tccSizeInBytes >= 2_MiB)
-            {
-                // APU tuning with 2MB L2 Cache shows ATM Ring Buffer size 768 KiB yields best performance
-                m_settings.gfx11VertexAttributesRingBufferSizePerSe = 768_KiB;
-            }
-            else
-            {
-                // For APU's with smaller L2 Cache, limit ATM Ring Buffer size to 512 KiB
-                m_settings.gfx11VertexAttributesRingBufferSizePerSe = 512_KiB;
-            }
+            // APU tuning with 2MB L2 Cache shows ATM Ring Buffer size 768 KiB yields best performance
+            m_settings.gfx11VertexAttributesRingBufferSizePerSe = 768_KiB;
+
         }
     }
 #endif

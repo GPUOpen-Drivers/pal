@@ -349,19 +349,6 @@ static ReleaseEvents GetReleaseEvents(
     SyncGlxFlags     acquireCaches = SyncGlxNone,       // Assume SyncGlxNone in split barrier
     AcquirePoint     acquirePoint  = AcquirePoint::Pfp) // Assume worst stall if info not available in split barrier
 {
-    constexpr uint32 EopWaitStageMask = PipelineStageEarlyDsTarget | PipelineStageLateDsTarget |
-                                        PipelineStageColorTarget   | PipelineStageBottomOfPipe;
-    // PFP sets IB base and size to register VGT_DMA_BASE & VGT_DMA_SIZE and send request to VGT for indices fetch,
-    // which is done in GE. So need VsDone to make sure indices fetch done.
-    constexpr uint32 VsWaitStageMask  = PipelineStageVs | PipelineStageHs | PipelineStageDs |
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 770
-                                        PipelineStageGs | PipelineStageFetchIndices | PipelineStageStreamOut;
-#else
-                                        PipelineStageGs | PipelineStageFetchIndices;
-#endif
-    constexpr uint32 PsWaitStageMask  = PipelineStagePs;
-    constexpr uint32 CsWaitStageMask  = PipelineStageCs;
-
     // Detect cases where no global execution barrier is required because the acquire point is later than the
     // pipeline stages being released.
     constexpr uint32 StallReqStageMask[] =
@@ -463,31 +450,43 @@ AcquirePoint BarrierMgr::GetAcquirePoint(
     // Constants to map PAL interface pipe stage masks to HW acquire points.
     constexpr uint32 AcqPfpStages       = PipelineStageTopOfPipe | PipelineStageFetchIndirectArgs |
                                           PipelineStageFetchIndices;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 770
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 835
     // In DX12 conformance test, a buffer is bound as color target, cleared, and then bound as stream out
     // bufferFilledSizeLocation, where CmdLoadBufferFilledSizes() will be called to set this buffer with
     // STRMOUT_BUFFER_FILLED_SIZE (e.g. from control buffer for NGG-SO) via CP ME.
     // In CmdDrawOpaque(), bufferFilleSize allocation will be loaded by LOAD_CONTEXT_REG_INDEX packet via PFP to
     // initialize register VGT_STRMOUT_DRAW_OPAQUE_BUFFER_FILLED_SIZE. PFP_SYNC_ME is issued before load packet so
     // we're safe to acquire at ME stage here.
+    constexpr uint32 AcqMeStages        = PipelineStagePostPrefetch | PipelineStageBlt | PipelineStageStreamOut;
+#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 770
     constexpr uint32 AcqMeStages        = PipelineStageBlt | PipelineStageStreamOut;
 #else
     constexpr uint32 AcqMeStages        = PipelineStageBlt;
 #endif
     constexpr uint32 AcqPreShaderStages = PipelineStageVs | PipelineStageHs | PipelineStageDs |
                                           PipelineStageGs | PipelineStageCs;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 835
+    constexpr uint32 AcqPreDepthStages  = PipelineStageSampleRate    |
+                                          PipelineStageEarlyDsTarget | PipelineStageLateDsTarget;
+#else
     constexpr uint32 AcqPreDepthStages  = PipelineStageEarlyDsTarget | PipelineStageLateDsTarget;
+#endif
     constexpr uint32 AcqPrePsStages     = PipelineStagePs;
     constexpr uint32 AcqPreColorStages  = PipelineStageColorTarget;
 
     // Convert global dstStageMask to HW acquire point.
-    AcquirePoint acqPoint = TestAnyFlagSet(dstStageMask, AcqPfpStages)       ? AcquirePoint::Pfp       :
-                            TestAnyFlagSet(dstStageMask, AcqMeStages)        ? AcquirePoint::Me        :
-                            TestAnyFlagSet(dstStageMask, AcqPreShaderStages) ? AcquirePoint::PreShader :
-                            TestAnyFlagSet(dstStageMask, AcqPreDepthStages)  ? AcquirePoint::PreDepth  :
-                            TestAnyFlagSet(dstStageMask, AcqPrePsStages)     ? AcquirePoint::PrePs     :
-                            TestAnyFlagSet(dstStageMask, AcqPreColorStages)  ? AcquirePoint::PreColor  :
-                                                                               AcquirePoint::Eop;
+    //
+    // Replace Pws packet (CsDone/PsDone->PreShader) with CS/PS_PARTIAL_FLUSH by forcing acquire at ME point based on
+    // below consideration,
+    //  - Both ACQUIRE_MEM and RELEASE_MEM packets have 8 DWs, but EVENT_WRITE has only 4 DWs.
+    //  - The PWS packet pair may stress event FIFOs if the number is large, e.g. 2000+ per frame in TimeSpy.
+    //  - PreShader is very close ME and the overhead between PreShader and ME should be small.
+    AcquirePoint acqPoint = (dstStageMask & AcqPfpStages)                       ? AcquirePoint::Pfp       :
+                            (dstStageMask & (AcqMeStages | AcqPreShaderStages)) ? AcquirePoint::Me        :
+                            (dstStageMask & AcqPreDepthStages)                  ? AcquirePoint::PreDepth  :
+                            (dstStageMask & AcqPrePsStages)                     ? AcquirePoint::PrePs     :
+                            (dstStageMask & AcqPreColorStages)                  ? AcquirePoint::PreColor  :
+                                                                                  AcquirePoint::Eop;
 
     // Disable PWS late acquire point if PWS is not disabled or late acquire point is disallowed.
     if ((acqPoint > AcquirePoint::Me) &&
@@ -662,14 +661,15 @@ static void GetBltStageAccessInfo(
         // will result in potential racing issue when PWS is enabled, since pre-InitMaskRam-barrier
         // (Release(Eop_TS)->Acquire(PreShader) and the following PFP_SYNC_ME inside InitMaskRam() can't guarantee
         // previous draw finish using the aliased memory before PFP DMA updates new content to the same memory.
-        // We need pre-InitMaskRam-barrier wait at ME/PFP to avoid the racing issue here.
-        //
-        // Setting *pStageMask=PipelineStageBlt is OK here since it makes barrier acquires at ME, and the following
-        // PFP_SYNC_ME in InitMaskRam() can stall at PFP before PFP DMA.
+        // We need pre-InitMaskRam-barrier wait at the ME (PostPrefetch) to avoid the racing issue here.
         //
         // No need worry additional overhead in post-InitMaskRam-barrier since pre-InitMaskRam-barrier can clear
         // all outstanding blt active flags before InitMaskRam.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 835
+        *pStageMask  = PipelineStagePostPrefetch;
+#else
         *pStageMask  = PipelineStageBlt;
+#endif
         *pAccessMask = CoherShader;
         break;
 
@@ -910,7 +910,11 @@ bool BarrierMgr::GetAcqRelLayoutTransitionBltInfo(
             // If no dstStageMask flag after removing PFP flags, force waiting at ME.
             if (imageBarrier.dstStageMask == 0)
             {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 835
+                imageBarrier.dstStageMask = PipelineStagePostPrefetch;
+#else
                 imageBarrier.dstStageMask = PipelineStageBlt;
+#endif
             }
         }
 
@@ -1080,7 +1084,7 @@ bool BarrierMgr::IssueAcqRelLayoutTransitionBlt(
 
 // =====================================================================================================================
 // Wrapper to call RPM's InitMaskRam to issues a compute shader blt to initialize the Mask RAM allocations for an Image.
-// Returns "true" if the compute engine was used for the InitMaskRam operation.
+// Returns "true" if the compute engine was last used in this function.
 bool BarrierMgr::AcqRelInitMaskRam(
     Pm4CmdBuffer*      pCmdBuf,
     CmdStream*         pCmdStream,
@@ -1105,11 +1109,22 @@ bool BarrierMgr::AcqRelInitMaskRam(
 
     PAL_ASSERT(gfx9Image.HasColorMetaData() || gfx9Image.HasHtileData());
 
-    const bool usedCompute = RsrcProcMgr().InitMaskRam(pCmdBuf,
-                                                       pCmdStream,
-                                                       gfx9Image,
-                                                       subresRange,
-                                                       imgBarrier.newLayout);
+    bool usedCompute = RsrcProcMgr().InitMaskRam(pCmdBuf,
+                                                 pCmdStream,
+                                                 gfx9Image,
+                                                 subresRange,
+                                                 imgBarrier.newLayout);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 836
+    const ColorLayoutToState    layoutToState = gfx9Image.LayoutToColorCompressionState();
+
+    if (gfx9Image.HasDisplayDccData() &&
+        (ImageLayoutToColorCompressionState(layoutToState, imgBarrier.newLayout) == ColorDecompressed))
+    {
+        RsrcProcMgr().CmdDisplayDccFixUp(pCmdBuf, image);
+        usedCompute = true;
+    }
+#endif
 
     return usedCompute;
 }
@@ -1191,6 +1206,13 @@ void BarrierMgr::AcqRelColorTransition(
                                         gfx9Image,
                                         imgBarrier.pQuadSamplePattern,
                                         imgBarrier.subresRange);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 836
+            if (gfx9Image.HasDisplayDccData())
+            {
+                RsrcProcMgr().CmdDisplayDccFixUp(pCmdBuf, image);
+            }
+#endif
         }
         else if (layoutTransInfo.blt[0] == HwLayoutTransition::FmaskDecompress)
         {
@@ -1644,17 +1666,6 @@ void BarrierMgr::IssueReleaseThenAcquireSync(
         // Optimization : issue lighter VS_PARTIAL_FLUSH instead of PWS+ packet which needs bump VsDone to
         //                heavier PsDone or Eop.
         if ((acquireCaches != SyncGlxNone) || releaseEvents.vs)
-        {
-            acquirePoint = AcquirePoint::Me;
-        }
-
-        // Optimization: we want to acquire at a later stage and we also expect cmdBufStateFlags.gfxBltActive/
-        //               gfxWriteCachesDirty can be optimized to 0 so the following release of BLT stage can be
-        //               skipped. It's really a balance here, if acquire stage is PreShader which is near ME stage,
-        //               let's force waiting at ME stage so cmdBufStateFlags can be optimized to 0.
-        if ((acquirePoint == AcquirePoint::PreShader) &&
-            (releaseEvents.eop != 0) &&
-            (cmdBufStateFlags.gfxBltActive || cmdBufStateFlags.gfxWriteCachesDirty))
         {
             acquirePoint = AcquirePoint::Me;
         }
@@ -2572,90 +2583,6 @@ bool BarrierMgr::IssueBlt(
     }
 
     return csInitMaskRam;
-}
-
-// =====================================================================================================================
-// Issue the specified BLT operation(s) (i.e., decompresses) necessary to convert a color image from one ImageLayout to
-// another.
-void BarrierMgr::AcqRelColorTransitionEvent(
-    Pm4CmdBuffer*                 pCmdBuf,
-    CmdStream*                    pCmdStream,
-    const ImgBarrier&             imgBarrier,
-    LayoutTransitionInfo          layoutTransInfo,
-    Developer::BarrierOperations* pBarrierOps
-    ) const
-{
-    PAL_ASSERT(imgBarrier.subresRange.numPlanes == 1);
-    PAL_ASSERT(imgBarrier.pImage != nullptr);
-
-    const EngineType engineType = pCmdBuf->GetEngineType();
-    const auto&      image      = static_cast<const Pal::Image&>(*imgBarrier.pImage);
-    const auto&      gfx9Image  = static_cast<const Gfx9::Image&>(*image.GetGfxImage());
-
-    PAL_ASSERT(image.IsDepthStencilTarget() == false);
-
-    if (layoutTransInfo.blt[0] == HwLayoutTransition::MsaaColorDecompress)
-    {
-        RsrcProcMgr().FmaskColorExpand(pCmdBuf, gfx9Image, imgBarrier.subresRange);
-    }
-    else
-    {
-        if (layoutTransInfo.blt[0] == HwLayoutTransition::DccDecompress)
-        {
-            RsrcProcMgr().DccDecompress(pCmdBuf,
-                                        pCmdStream,
-                                        gfx9Image,
-                                        imgBarrier.pQuadSamplePattern,
-                                        imgBarrier.subresRange);
-        }
-        else if (layoutTransInfo.blt[0] == HwLayoutTransition::FmaskDecompress)
-        {
-            RsrcProcMgr().FmaskDecompress(pCmdBuf,
-                                          pCmdStream,
-                                          gfx9Image,
-                                          imgBarrier.pQuadSamplePattern,
-                                          imgBarrier.subresRange);
-        }
-        else if (layoutTransInfo.blt[0] == HwLayoutTransition::FastClearEliminate)
-        {
-            RsrcProcMgr().FastClearEliminate(pCmdBuf,
-                                             pCmdStream,
-                                             gfx9Image,
-                                             imgBarrier.pQuadSamplePattern,
-                                             imgBarrier.subresRange);
-        }
-
-        // Handle corner cases where it needs a second pass.
-        if (layoutTransInfo.blt[1] != HwLayoutTransition::None)
-        {
-            PAL_ASSERT(layoutTransInfo.blt[1] == HwLayoutTransition::MsaaColorDecompress);
-
-            uint32 stageMask  = 0;
-            uint32 accessMask = 0;
-
-            // Prepare release info for first pass BLT.
-            GetBltStageAccessInfo(layoutTransInfo, &stageMask, &accessMask);
-
-            const IGpuEvent* pEvent = pCmdBuf->GetInternalEvent();
-
-            // Release from first pass.
-            IssueReleaseSyncEvent(pCmdBuf, pCmdStream, stageMask, accessMask, false, pEvent, pBarrierOps);
-
-            // Prepare second pass info.
-            constexpr LayoutTransitionInfo MsaaBltInfo = { {}, HwLayoutTransition::MsaaColorDecompress };
-
-            GetBltStageAccessInfo(MsaaBltInfo, &stageMask, &accessMask);
-
-            // Acquire for second pass.
-            IssueAcquireSyncEvent(pCmdBuf, pCmdStream, stageMask, accessMask, false, true, 1, &pEvent, pBarrierOps);
-
-            // Tell RGP about this transition
-            BarrierTransition rgpTransition = AcqRelBuildTransition(&imgBarrier, MsaaBltInfo, pBarrierOps);
-            DescribeBarrier(pCmdBuf, &rgpTransition, pBarrierOps);
-
-            RsrcProcMgr().FmaskColorExpand(pCmdBuf, gfx9Image, imgBarrier.subresRange);
-        }
-    }
 }
 
 // =====================================================================================================================

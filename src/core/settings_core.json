@@ -1969,6 +1969,19 @@
       "Description": "When true, TMZ is enabled if HW supports it. Otherwise TMZ is disabled. TMZ(trusted memory zone / protected memory)"
     },
     {
+      "Name": "VrsEnhancedGfxClears",
+      "Tags": [
+        "General"
+      ],
+      "Defaults": {
+        "Default": true
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "VariableName": "vrsEnhancedGfxClears",
+      "Description": "For GPUs that support VRS, if this is true, graphics slow clears are performed at a 2x2 shading rate"
+    },
+    {
       "Name": "WaForceLinearHeight16Alignment",
       "Tags": [
         "General"
@@ -2186,7 +2199,7 @@
         "RereadSetting": true
       },
       "Defaults": {
-        "Default": 0
+        "Default": 3327
       },
       "Scope": "PrivatePalKey",
       "Type": "uint32",

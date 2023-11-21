@@ -40,11 +40,16 @@
 ///
 /// @attention Updates to the major version indicate an interface change that is not backward compatible and may require
 ///            action from each client during their next integration.  When determining if a change is backward
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 831
+///            compatible, it is assumed that the client will default-initialize all structs.
+#else
 ///            compatible, it is not assumed that the client will initialize all input structs to 0.
+#endif
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MAJOR_VERSION 830
+#define PAL_INTERFACE_MAJOR_VERSION 836
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 831
 /// Minor interface version.  Note that the interface version is distinct from the PAL version itself, which is returned
 /// in @ref Pal::PlatformProperties.
 ///
@@ -54,6 +59,7 @@
 ///
 /// @ingroup LibInit
 #define PAL_INTERFACE_MINOR_VERSION 0
+#endif
 
 /// Minimum major interface version. This is the minimum interface version PAL supports in order to support backward
 /// compatibility. When it is equal to PAL_INTERFACE_MAJOR_VERSION, only the latest interface version is supported.
@@ -71,15 +77,19 @@
  ***********************************************************************************************************************
  * @def     PAL_INTERFACE_VERSION
  * @ingroup LibInit
- * @brief   Current PAL interface version packed into a 32-bit unsigned integer.
+ * @brief   Current PAL interface version packed into a 32-bit unsigned integer. The low 16 bits are always zero.
+ *          They used to contain the interface minor version and remain as a placeholder in case we add it back.
  *
  * @see PAL_INTERFACE_MAJOR_VERSION
- * @see PAL_INTERFACE_MINOR_VERSION
  *
  * @hideinitializer
  ***********************************************************************************************************************
  */
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 831
+#define PAL_INTERFACE_VERSION (PAL_INTERFACE_MAJOR_VERSION << 16)
+#else
 #define PAL_INTERFACE_VERSION ((PAL_INTERFACE_MAJOR_VERSION << 16) | PAL_INTERFACE_MINOR_VERSION)
+#endif
 
 namespace Pal
 {

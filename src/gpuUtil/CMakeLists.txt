@@ -34,6 +34,7 @@ target_sources(pal PRIVATE
     asicInfoTraceSource.cpp
     apiInfoTraceSource.cpp
     clockCalibTraceSource.cpp
+    codeObjectTraceSource.cpp
     uberTraceService.cpp
     frameTraceController.cpp
 )

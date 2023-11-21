@@ -326,8 +326,7 @@ const RegisterRange Gfx9CsShShadowRangeRaven2[] =
 constexpr uint32 Gfx9NumCsShShadowRangesRaven2 = static_cast<uint32>(Util::ArrayLen(Gfx9CsShShadowRangeRaven2));
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-// Defines the set of ranges of registers which cannot be shadowed for various reasons. Gfx6/7 have their own lists
-// too, but we don't need to include them since we never enable state-shadowing for pre-Gfx8 GPU's.
+// Defines the set of ranges of registers which cannot be shadowed for various reasons.
 const RegisterRange Gfx90NonShadowedRanges[] =
 {
     {

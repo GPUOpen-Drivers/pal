@@ -230,12 +230,32 @@ enum HwPipePoint : uint32
 /// When specifying an execution dependency at a synchronization point where previous operations must *happen-before*
 /// future operations, a mask of these flags specifies a *synchronization scope* that restricts which stages of prior
 /// draws, dispatches, or BLTs must *happen-before* which stages of future draws, dispatches, or BLTs.
+///
+/// Note that flag numerical order does not indicate any happens-before or happens-after relationships. Clients should
+/// not compare flags numerically to judge execution order, only barriers can guarantee execution ordering.
 enum PipelineStageFlag : uint32
 {
     PipelineStageTopOfPipe         = 0x00000001,
     PipelineStageFetchIndirectArgs = 0x00000002,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 835
+    PipelineStagePostPrefetch      = 0x00000004,
+    PipelineStageFetchIndices      = 0x00000008,
+    PipelineStageStreamOut         = 0x00000010,
+    PipelineStageVs                = 0x00000020,
+    PipelineStageHs                = 0x00000040,
+    PipelineStageDs                = 0x00000080,
+    PipelineStageGs                = 0x00000100,
+    PipelineStagePs                = 0x00000200,
+    PipelineStageSampleRate        = 0x00000400,
+    PipelineStageEarlyDsTarget     = 0x00000800,
+    PipelineStageLateDsTarget      = 0x00001000,
+    PipelineStageColorTarget       = 0x00002000,
+    PipelineStageCs                = 0x00004000,
+    PipelineStageBlt               = 0x00008000,
+    PipelineStageBottomOfPipe      = 0x00010000,
+    PipelineStageAllStages         = 0x0001FFFF
+#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 770
     PipelineStageFetchIndices      = 0x00000004,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 770
     PipelineStageStreamOut         = 0x00000008,
     PipelineStageVs                = 0x00000010,
     PipelineStageHs                = 0x00000020,
@@ -250,6 +270,7 @@ enum PipelineStageFlag : uint32
     PipelineStageBottomOfPipe      = 0x00004000,
     PipelineStageAllStages         = 0x00007FFF
 #else
+    PipelineStageFetchIndices      = 0x00000004,
     PipelineStageVs                = 0x00000008,
     PipelineStageHs                = 0x00000010,
     PipelineStageDs                = 0x00000020,
@@ -830,8 +851,7 @@ struct BarrierTransition
 struct BarrierInfo
 {
     /// Determine at what point the GPU should stall until all specified waits and transitions have completed.  If the
-    /// specified wait point is unavailable, PAL will wait at the closest available earlier point.  In practice, on
-    /// GFX6-8, this is selecting between CP PFP and CP ME waits.
+    /// specified wait point is unavailable, PAL will wait at the closest available earlier point.
     HwPipePoint        waitPoint;
 
     uint32             pipePointWaitCount;           ///< Number of entries in pPipePoints.
@@ -2037,6 +2057,10 @@ struct CmdPostProcessFrameInfo
 #endif
 
     FullScreenFrameMetadataControlFlags fullScreenFrameMetadataControlFlags;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 836
+    Pal::ImageLayout srcImageLayout;
+#endif
 };
 
 /// External flags for ScaledCopyImage.
@@ -2311,8 +2335,10 @@ public:
     /// Binds the shading rate data in the specified image into the pipeline for use with VRS.  Only relevant if the
     /// combiner stage for VrsCombinerStage is set to something other than Passthrough.
     ///
-    /// For cache coherency purposes, CmdBindSampleRateImage counts as a @ref CoherSampleRate operation on the
-    /// specified image.  The image must also be in the @ref LayoutSampleRate layout.
+    /// This binding point requires use of the following barrier flags:
+    /// - PipelineStage:  @ref PipelineStageSampleRate
+    /// - CacheCoherency: @ref CoherSampleRate
+    /// - ImageLayout:    @ref LayoutSampleRate
     ///
     /// @param [in] pImage   Image that contains sample rate data.  Pointer can be NULL to force 1x1 shading rate.
     virtual void CmdBindSampleRateImage(
@@ -2415,6 +2441,10 @@ public:
     /// @note  PAL constructs SRDs for each bound vertex buffer which are equivalent to the client calling @ref
     ///        IDevice::CreateUntypedBufferViewSrd on each element of the pBuffers parameter.
     ///
+    /// Note that vertex buffers require use of the following barrier flags:
+    /// - PipelineStage:  @ref PipelineStageVs
+    /// - CacheCoherency: @ref CoherShaderRead
+    ///
     /// @param [in] firstBuffer  First vertex buffer slot to change.  Must be less than @ref MaxVertexBuffers.
     /// @param [in] bufferCount  Number of vertex buffer slots to change.  Must be greater than zero.  It is invalid if
     ///                          (firstBuffer + bufferCount) exceeds @ref MaxVertexBuffers.
@@ -2432,6 +2462,10 @@ public:
     /// The GPU virtual address must be index element aligned: 2-byte aligned for 16-bit indices or 4-byte aligned for
     /// 32-bit indices.
     ///
+    /// The index buffer binding point requires use of the following barrier flags:
+    /// - PipelineStage:  @ref PipelineStageFetchIndices
+    /// - CacheCoherency: @ref CoherIndexData
+    ///
     /// @param [in] gpuAddr    GPU virtual address of the index data.  Can be zero to unbind the previously bound data.
     /// @param [in] indexCount Maximum number of indices in the index data; the GPU may read less indices.
     /// @param [in] indexType  Specifies whether to use 8-bit, 16-bit or 32-bit index data.
@@ -2444,6 +2478,16 @@ public:
     ///
     /// The current layout of each target must also be specified.
     ///
+    /// The color target binding points require use of the following barrier flags:
+    /// - PipelineStage:  @ref PipelineStageColorTarget
+    /// - CacheCoherency: @ref CoherColorTarget
+    /// - ImageLayout:    @ref LayoutColorTarget
+    ///
+    /// The depth and stencil target binding points require use of the following barrier flags:
+    /// - PipelineStage:  @ref PipelineStageEarlyDsTarget and/or @ref PipelineStageLateDsTarget
+    /// - CacheCoherency: @ref CoherDepthStencilTarget
+    /// - ImageLayout:    @ref LayoutDepthStencilTarget
+    ///
     /// @param [in] params Parameters representing the color and depth/stencil targets to bind to the command buffer.
     virtual void CmdBindTargets(
         const BindTargetParams& params) = 0;
@@ -2452,6 +2496,10 @@ public:
     ///
     /// At draw-time, the stream-output targets must be consistent with the soState parameters specified by the
     /// currently bound graphics pipeline.
+    ///
+    /// The stream-output target buffers require use of the following barrier flags:
+    /// - PipelineStage:  @ref PipelineStageStreamOut
+    /// - CacheCoherency: @ref CoherStreamOut
     ///
     /// @param [in] params Parameters representing the stream-output target buffers to bind to the command buffer.
     virtual void CmdBindStreamOutTargets(
@@ -2817,10 +2865,13 @@ public:
     /// instanceCount is zero.
     ///
     /// The draw argument data offset in memory must be 4-byte aligned.  The layout of the argument data is defined in
-    /// the DrawIndirectArgs structure.  Coherency of the indirect argument GPU memory is controlled by setting
-    /// @ref CoherIndirectArgs in the inputCachesMask field of @ref BarrierTransition in a call to CmdBarrier().
+    /// the DrawIndirectArgs structure.
     ///
     /// It is an error if the currently bound pipeline contains a mesh and/or task shader.
+    ///
+    /// This function requires use of the following barrier flags on @ref gpuMemory:
+    /// - PipelineStage:  @ref PipelineStageFetchIndirectArgs
+    /// - CacheCoherency: @ref CoherIndirectArgs
     ///
     /// @see CmdDraw
     /// @see DrawIndirectArgs
@@ -2849,10 +2900,13 @@ public:
     /// instanceCount is zero.
     ///
     /// The draw argument data offset in memory must be 4-byte aligned.  The layout of the argument data is defined in
-    /// the DrawIndexedIndirectArgs structure.  Coherency of the indirect argument GPU memory is controlled by setting
-    /// @ref CoherIndirectArgs in the inputCachesMask field of @ref BarrierTransition in a call to CmdBarrier().
+    /// the DrawIndexedIndirectArgs structure.
     ///
     /// It is an error if the currently bound pipeline contains a mesh and/or task shader.
+    ///
+    /// This function requires use of the following barrier flags on @ref gpuMemory:
+    /// - PipelineStage:  @ref PipelineStageFetchIndirectArgs
+    /// - CacheCoherency: @ref CoherIndirectArgs
     ///
     /// @see CmdDrawIndexed
     /// @see DrawIndexedIndirectArgs.
@@ -2902,8 +2956,11 @@ public:
     /// workload come from GPU memory.  The dispatch will be discarded if any of its dimensions are zero.
     ///
     /// The dispatch argument data offset in memory must be 4-byte aligned.  The layout of the argument data is defined
-    /// in the @ref DispatchIndirectArgs structure.  Coherency of the indirect argument GPU memory is controlled by
-    /// setting @ref CoherIndirectArgs in the inputCachesMask field of @ref BarrierTransition in a call to CmdBarrier().
+    /// in the @ref DispatchIndirectArgs structure.
+    ///
+    /// This function requires use of the following barrier flags on @ref gpuMemory:
+    /// - PipelineStage:  @ref PipelineStageFetchIndirectArgs
+    /// - CacheCoherency: @ref CoherIndirectArgs
     ///
     /// @warning Does not support HSA ABI pipelines.
     ///
@@ -2967,6 +3024,10 @@ public:
     ///
     /// The thread group size is defined in the compute shader.
     ///
+    /// This function requires use of the following barrier flags on @ref gpuVa:
+    /// - PipelineStage:  @ref PipelineStageFetchIndirectArgs
+    /// - CacheCoherency: @ref CoherIndirectArgs
+    ///
     /// @warning Does not support HSA ABI pipelines.
     ///
     /// @note DynamicComputeShaderInfo.ldsBytesPerTg is not applicable to dynamic launch descriptors.
@@ -3018,8 +3079,11 @@ public:
     /// GPU memory.  The dispatch will be discarded if any of its dimensions are zero.
     ///
     /// The dispatch argument data offset in memory must be 4-byte aligned.  The layout of the argument data is defined
-    /// in the @ref DispatchMeshIndirectArgs structure.  Coherency of the indirect argument GPU memory is controlled by
-    /// setting @ref CoherIndirectArgs in the inputCachesMask field of @ref BarrierTransition in a call to CmdBarrier().
+    /// in the @ref DispatchMeshIndirectArgs structure.
+    ///
+    /// This function requires use of the following barrier flags on @ref gpuMemory:
+    /// - PipelineStage:  @ref PipelineStageFetchIndirectArgs
+    /// - CacheCoherency: @ref CoherIndirectArgs
     ///
     /// @see CmdDispatchMesh
     /// @see DispatchMeshIndirectArgs
@@ -3050,6 +3114,10 @@ public:
     ///
     /// For best performance, offsets and copy sizes should be 4-byte aligned.
     ///
+    /// This function requires use of the following barrier flags:
+    /// - PipelineStage:  @ref PipelineStageBlt
+    /// - CacheCoherency: @ref CoherCopySrc for the source and @ref CoherCopyDst for the destination.
+    ///
     /// @param [in] srcGpuMemory  GPU memory allocation where the source regions are located.
     /// @param [in] dstGpuMemory  GPU memory allocation where the destination regions are located.
     /// @param [in] regionCount   Number of regions to copy; size of the pRegions array.
@@ -3072,6 +3140,10 @@ public:
     /// overlapping will cause undefined results.
     ///
     /// For best performance, addresses, offsets, and copy sizes should be 4-byte aligned.
+    ///
+    /// This function requires use of the following barrier flags:
+    /// - PipelineStage:  @ref PipelineStageBlt
+    /// - CacheCoherency: @ref CoherCopySrc for the source and @ref CoherCopyDst for the destination.
     ///
     /// @param [in] srcGpuVirtAddr  GPU memory vitrual address where the source regions are located.
     /// @param [in] dstGpuVirtAddr  GPU memory virtual address where the destination regions are located.
@@ -3096,9 +3168,6 @@ public:
     /// The source and destination images must to be of the same type (1D, 2D or 3D), or optionally 2D and 3D with the
     /// number of slices matching the depth.  MSAA source and destination images must have the same number of samples.
     ///
-    /// Both the source and destination images must be in a layout that supports copy operations on the current queue
-    /// type before executing this copy.  @see ImageLayout.
-    ///
     /// Images copied via this function must have x/y/z offsets and width/height/depth extents aligned to the minimum
     /// tiled copy alignment specified in @ref DeviceProperties for the engine this function is executed on.  Note that
     /// the DMA engine supports tiled copies regardless of the alignment; the reported minimum tiled copy alignments
@@ -3106,6 +3175,11 @@ public:
     ///
     /// When the per-engine capability flag supportsMismatchedTileTokenCopy (@see DeviceProperties) is false,
     /// CmdCopyImage is only valid between two subresources that share the same tileToken (@see SubresLayout).
+    ///
+    /// This function requires use of the following barrier flags:
+    /// - PipelineStage:  @ref PipelineStageBlt
+    /// - CacheCoherency: @ref CoherCopySrc for the source and @ref CoherCopyDst for the destination.
+    /// - ImageLayout:    @ref LayoutCopySrc for the source and @ref LayoutCopyDst for the destination.
     ///
     /// @param [in] srcImage       Image where source regions reside.
     /// @param [in] srcImageLayout Current allowed usages and engines for the source image.  These masks must include
@@ -3140,8 +3214,10 @@ public:
     /// The source memory offset has to be aligned to the smaller of the copied texel size or 4 bytes.  A destination
     /// subresource cannot be present more than once per CmdCopyMemoryToImage() call.
     ///
-    /// The destination image must be in a layout that supports copy destination operations on the current engine type
-    /// before executing this copy.  @see ImageLayout.
+    /// This function requires use of the following barrier flags:
+    /// - PipelineStage:  @ref PipelineStageBlt
+    /// - CacheCoherency: @ref CoherCopySrc for the source and @ref CoherCopyDst for the destination.
+    /// - ImageLayout:    @ref LayoutCopyDst
     ///
     /// @param [in] srcGpuMemory   GPU memory where the source data is located.
     /// @param [in] dstImage       Image where destination data will be written.
@@ -3167,8 +3243,10 @@ public:
     /// The destination memory offset has to be aligned to the smaller of the copied texel size or 4 bytes.  A
     /// destination region cannot be present more than once per CmdCopyImageToMemory() call.
     ///
-    /// The source image must be in a layout that supports copy source operations on the current engine type before
-    /// executing this copy.  @see ImageLayout.
+    /// This function requires use of the following barrier flags:
+    /// - PipelineStage:  @ref PipelineStageBlt
+    /// - CacheCoherency: @ref CoherCopySrc for the source and @ref CoherCopyDst for the destination.
+    /// - ImageLayout:    @ref LayoutCopySrc
     ///
     /// @param [in] srcImage       Image where source data will be read from.
     /// @param [in] srcImageLayout Current allowed usages and engines for the source image.  These masks must include
@@ -3198,8 +3276,10 @@ public:
     /// The source memory offset has to be aligned to the smaller of the copied texel size or 4 bytes.  A destination
     /// subresource cannot be present more than once per CmdCopyMemoryToTiledImage() call.
     ///
-    /// The destination image must be in a layout that supports copy destination operations on the current engine type
-    /// before executing this copy.  @see ImageLayout.
+    /// This function requires use of the following barrier flags:
+    /// - PipelineStage:  @ref PipelineStageBlt
+    /// - CacheCoherency: @ref CoherCopySrc for the source and @ref CoherCopyDst for the destination.
+    /// - ImageLayout:    @ref LayoutCopyDst
     ///
     /// @param [in] srcGpuMemory   GPU memory where the source data is located.
     /// @param [in] dstImage       Image where destination data will be written.  Must have the "prt" flag set.
@@ -3229,8 +3309,10 @@ public:
     /// The destination memory offset has to be aligned to the smaller of the copied texel size or 4 bytes.  A
     /// destination region cannot be present more than once per CmdCopyTiledImageToMemory() call.
     ///
-    /// The source image must be in a layout that supports copy source operations on the current engine type before
-    /// executing this copy.  @see ImageLayout.
+    /// This function requires use of the following barrier flags:
+    /// - PipelineStage:  @ref PipelineStageBlt
+    /// - CacheCoherency: @ref CoherCopySrc for the source and @ref CoherCopyDst for the destination.
+    /// - ImageLayout:    @ref LayoutCopySrc
     ///
     /// @param [in] srcImage       Image where source data will be read from.
     /// @param [in] srcImageLayout Current allowed usages and queues for the source image.  These masks must include
@@ -3257,6 +3339,10 @@ public:
     /// allowed to overlap when the source and destination GPU memory allocations are the same.  Any illegal overlapping
     /// will cause undefined results.
     ///
+    /// This function requires use of the following barrier flags:
+    /// - PipelineStage:  @ref PipelineStageBlt
+    /// - CacheCoherency: @ref CoherCopySrc for the source and @ref CoherCopyDst for the destination.
+    ///
     /// @param [in] srcGpuMemory GPU memory where the source data is located.
     /// @param [in] dstGpuMemory GPU memory where the destination data will be written.
     /// @param [in] regionCount  Number of regions to copy; size of the pRegions array.
@@ -3275,10 +3361,12 @@ public:
     /// The source memory offset has to be aligned to the smaller of the copied texel size or 4 bytes.  A destination
     /// subresource cannot be present more than once per CmdScaledCopyTypedBufferToImage() call.
     ///
-    /// The destination image must be in a layout that supports copy destination operations on the current engine type
-    /// before executing this copy.  @see ImageLayout.
-    ///
     /// MSAA resource is unsupported. The client must resolve both resources before calling this function.
+    ///
+    /// This function requires use of the following barrier flags:
+    /// - PipelineStage:  @ref PipelineStageBlt
+    /// - CacheCoherency: @ref CoherCopySrc for the source and @ref CoherCopyDst for the destination.
+    /// - ImageLayout:    @ref LayoutCopyDst
     ///
     /// @param [in] srcGpuMemory   GPU memory where the source data is located.
     /// @param [in] dstImage       Image where destination data will be written.
@@ -3300,8 +3388,9 @@ public:
     ///
     /// The destination memory offset has to be aligned to 4 bytes.
     ///
-    /// For synchronization purposes, CmdCopyRegisterToMemory counts as a @ref CoherMemory operation on the specified
-    /// GPU memory.
+    /// This function requires use of the following barrier flags:
+    /// - PipelineStage:  @ref PipelineStagePostPrefetch
+    /// - CacheCoherency: @ref CoherMemory
     ///
     /// @param [in] srcRegisterOffset Source register offset in bytes
     /// @param [in] dstGpuMemory      GPU memory where the destination data will be written.
@@ -3325,8 +3414,10 @@ public:
     ///
     /// Linear texture filtering is only supported for images with non-integer formats.
     ///
-    /// Both the source and destination images must be in a layout that supports copy operations on the current queue
-    /// type before executing this copy.  @see ImageLayout.
+    /// This function requires use of the following barrier flags:
+    /// - PipelineStage:  @ref PipelineStageBlt
+    /// - CacheCoherency: @ref CoherCopySrc for the source and @ref CoherCopyDst for the destination.
+    /// - ImageLayout:    @ref LayoutCopySrc for the source and @ref LayoutCopyDst for the destination.
     ///
     /// @param [in] copyInfo       Specifies parameters needed to execute CmdScaledCopyImage. See
     ///                            @ref ScaledCopyInfo for more information.
@@ -3336,6 +3427,11 @@ public:
     /// Automatically generates texture data for a range of subresources such that they may be used as intermediate
     /// images in a mipmap chain. The existing values in mip N are used to generate mip N+1.
     ///
+    /// This function requires use of the following barrier flags:
+    /// - PipelineStage:  @ref PipelineStageBlt
+    /// - CacheCoherency: @ref CoherCopySrc for the base mip, @ref CoherCopySrc and @ref CoherCopyDst for the others.
+    /// - ImageLayout:    @ref LayoutCopySrc for the base mip, @ref LayoutCopySrc and @ref LayoutCopyDst for the others.
+    ///
     /// @param [in] genInfo The parameters for CmdGenerateMipmaps. See @ref GenMipmapsInfo for more information.
     virtual void CmdGenerateMipmaps(
         const GenMipmapsInfo& genInfo) = 0;
@@ -3344,11 +3440,13 @@ public:
     /// the copy.  The exact conversion between YUV and RGB is controlled by a caller-specified color-space-conversion
     /// table.
     ///
-    /// The source and destination images must both be of the 2D type.  Only single-sampled images are supported.  One
-    /// of the two images involved must have an RGB color format, and the other must have a YUV color format.
+    /// The source and destination images must both be of the 2D type.  Only single-sampled images are supported.
+    /// One of the two images involved must have an RGB color format, and the other must have a YUV color format.
     ///
-    /// Both the source and destination images must be in a layout that supports copy operations on the current engine
-    /// type before executing this copy.  @see ImageLayout.
+    /// This function requires use of the following barrier flags:
+    /// - PipelineStage:  @ref PipelineStageBlt
+    /// - CacheCoherency: @ref CoherCopySrc for the source and @ref CoherCopyDst for the destination.
+    /// - ImageLayout:    @ref LayoutCopySrc for the source and @ref LayoutCopyDst for the destination.
     ///
     /// @param [in] srcImage       Images where source region reside.  If this is a YUV image, the destination must be
     ///                            RGB, and this copy will convert YUV to RGB.  Otherwise, the destination must be YUV,
@@ -3381,16 +3479,15 @@ public:
 
     /// Clones data of one image object in another while preserving the image layout.
     ///
-    /// The source and destination imsage must be created with identical creation paramters, and must specify the
-    /// cloneable flag.
+    /// The source and destination images must be created with identical creation parameters and must specify the
+    /// cloneable flag. The clone operation clones all subresources.
     ///
-    /// Both resoruces can be in any layout before the clone operation.  After the clone, the source image state is left
+    /// Both resources can be in any layout before the clone operation.  After the clone, the source image state is left
     /// intact and the destination image layout becomes the same as the source.
     ///
-    /// The client is responsible for ensuring the source and destination images are available for @ref CoherCopySrc
-    /// and CoherCopyDst operations before performing a clone.
-    ///
-    /// The clone operation clones all subresources.
+    /// This function requires use of the following barrier flags:
+    /// - PipelineStage:  @ref PipelineStageBlt
+    /// - CacheCoherency: @ref CoherCopySrc for the source and @ref CoherCopyDst for the destination.
     ///
     /// @param [in] srcImage Source image.
     /// @param [in] dstImage Destination image.
@@ -3400,8 +3497,9 @@ public:
 
     /// Directly updates a range of GPU memory with a small amount of host data.
     ///
-    /// For cache coherency purposes, CmdUpdateMemory counts as a @ref CoherCopyDst operation on the specified
-    /// destination GPU memory.
+    /// This function requires use of the following barrier flags:
+    /// - PipelineStage:  @ref PipelineStageBlt
+    /// - CacheCoherency: @ref CoherCopyDst
     ///
     /// The client is responsible for choosing the proper method for optimal performance. If updating data size is less
     /// equal than 8 bytes, CmdWriteImmediate() is preferred.
@@ -3418,6 +3516,10 @@ public:
 
     /// Updates marker surface with a DWORD value to indicate an event completion.
     ///
+    /// This function requires use of the following barrier flags:
+    /// - PipelineStage:  @ref PipelineStagePostPrefetch
+    /// - CacheCoherency: @ref CoherCp
+    ///
     /// @param [in] dstGpuMemory  GPU memory object to be updated.
     /// @param [in] offset        Byte offset into marker address
     /// @param [in] value         Marker DWORD value to be copied to the bus addressable or external physical memory.
@@ -3428,8 +3530,9 @@ public:
 
     /// Fills a range of GPU memory with the provided 32-bit data.
     ///
-    /// For cache coherency purposes, CmdFillMemory counts as a @ref CoherCopyDst operation on the specified
-    /// destination GPU memory.
+    /// This function requires use of the following barrier flags:
+    /// - PipelineStage:  @ref PipelineStageBlt
+    /// - CacheCoherency: @ref CoherCopyDst
     ///
     /// @param [in] dstGpuMemory  GPU memory object to be filled.
     /// @param [in] dstOffset     Byte offset into the GPU memory object to be filled.  Must be a multiple of 4.
@@ -3446,7 +3549,10 @@ public:
     /// The maximum clear range is determined by the buffer offset and buffer extent; if any Ranges are specified they
     /// must be specified in texels with respect to the beginning of the buffer and must not exceed its extent.
     /// With 96-bit formats, bufferOffset must be specified in bytes.
-    /// For cache coherency purposes, this counts as a @ref CoherShader operation on the specified GPU memory.
+    ///
+    /// This function requires use of the following barrier flags:
+    /// - PipelineStage:  @ref PipelineStageCs is expected but the more general @ref PipelineStageBlt is also OK.
+    /// - CacheCoherency: @ref CoherShader is expected but the more general @ref CoherClear is also OK.
     ///
     /// @param [in] gpuMemory     GPU memory to be cleared.
     /// @param [in] color         Specifies the clear color data and how to interpret it.
@@ -3466,14 +3572,19 @@ public:
         uint32            rangeCount = 0,
         const Range*      pRanges    = nullptr) = 0;
 
-    /// Clears the currently bound color targets to the specified clear color.This will always result in a slow clear,
-    /// and should only be used when the actual image being cleared is unknown.
+    /// Clears the currently bound color targets to the specified clear color.
+    ///
+    /// This will always result in a slow clear and should only be used when the actual image being cleared is unknown.
     /// In practice, this is the case when vkCmdClearColorAttachments() is called in a secondary command buffer in
     /// Vulkan where the color attachments are inherited.
     ///
     /// This requires regionCount being specified since resource size is for sure to be known. The bound color targets
-    /// shouldn't have UndefinedSwizzledFormat as their swizzle format. When issue barrier for cleared color targets,
-    /// should use PipelineStageColorTarget and CoherColorTarget instead of PipelineStageBlt and CoherClear.
+    /// shouldn't have UndefinedSwizzledFormat as their swizzle format.
+    ///
+    /// This function requires use of the following barrier flags:
+    /// - PipelineStage:  @ref PipelineStageColorTarget
+    /// - CacheCoherency: @ref CoherColorTarget
+    /// - ImageLayout:    @ref LayoutColorTarget
     ///
     /// @param [in] colorTargetCount      Number of bound color target that needs to be cleared.
     /// @param [in] pBoundColorTargets    Color target information for the bound color targets.
@@ -3489,6 +3600,17 @@ public:
     /// Clears a color image to the specified clear color.
     ///
     /// If any Boxes have been specified, all subresource ranges must contain a single, identical mip level.
+    ///
+    /// The imageLayout can include any valid layout (e.g. not @ref LayoutUninitializedTarget) but it is wise to stick
+    /// to layouts that are likely to support compression like @ref LayoutColorTarget.
+    ///
+    /// This function requires use of the following barrier flags if @ref flags includes @ref ColorClearAutoSync:
+    /// - PipelineStage:  @ref PipelineStageColorTarget
+    /// - CacheCoherency: @ref CoherColorTarget
+    /// - ImageLayout:    @ref LayoutColorTarget
+    /// Otherwise the following barrier flags must be used:
+    /// - PipelineStage:  @ref PipelineStageBlt
+    /// - CacheCoherency: @ref CoherClear
     ///
     /// @param [in] image       Image to be cleared.
     /// @param [in] imageLayout Current allowed usages and engines for the target image.
@@ -3531,14 +3653,18 @@ public:
     }
 #endif
 
-    /// Clears the currently bound depth/stencil targets to the specified clear values. This will always result in a
-    /// slow clear, and should only be used when the actual image being cleared is unknown.
+    /// Clears the currently bound depth/stencil targets to the specified clear values.
+    ///
+    /// This will always result in a slow clear and should only be used when the actual image being cleared is unknown.
     /// In practice, this is the case when vkCmdClearColorAttachments() is called in a secondary command buffer in
     /// Vulkan where the color attachments are inherited.
     ///
-    /// This requires regionCount being specified since resource size is for sure to be known. When issue barrier for
-    /// cleared depth stencil targets, should use PipelineStageEarlyDsTarget/PipelineStageLateDsTarget and
-    /// CoherDepthStencilTarget instead of PipelineStageBlt and CoherClear.
+    /// This requires regionCount being specified since resource size is for sure to be known.
+    ///
+    /// This function requires use of the following barrier flags:
+    /// - PipelineStage:  @ref PipelineStageEarlyDsTarget and/or @ref PipelineStageLateDsTarget
+    /// - CacheCoherency: @ref CoherDepthStencilTarget
+    /// - ImageLayout:    @ref LayoutDepthStencilTarget
     ///
     /// @param [in] depth            Depth clear value.
     /// @param [in] stencil          Stencil clear value.
@@ -3561,6 +3687,17 @@ public:
     /// Clears a depth/stencil image to the specified clear values.
     ///
     /// If any Rects have been specified, all subresource ranges must contain a single, identical mip level.
+    ///
+    /// The layouts can include any valid layout (e.g. not @ref LayoutUninitializedTarget) but it is wise to stick to
+    /// layouts that are likely to support compression like @ref LayoutDepthStencilTarget.
+    ///
+    /// This function requires use of the following barrier flags if @ref flags includes @ref DsClearAutoSync:
+    /// - PipelineStage:  @ref PipelineStageEarlyDsTarget and/or @ref PipelineStageLateDsTarget
+    /// - CacheCoherency: @ref CoherDepthStencilTarget
+    /// - ImageLayout:    @ref LayoutDepthStencilTarget
+    /// Otherwise the following barrier flags must be used:
+    /// - PipelineStage:  @ref PipelineStageBlt
+    /// - CacheCoherency: @ref CoherClear
     ///
     /// @param [in] image            Image to be cleared.
     /// @param [in] depth            Depth clear value.
@@ -3590,8 +3727,14 @@ public:
     /// Clears a range of GPU memory to the specified clear color using the specified buffer view SRD.
     ///
     /// The maximum clear range is determined by the view; if any Ranges are specified they must fit within the view's
-    /// range. The view must support shader writes. For cache coherency purposes, this counts as a @ref CoherShader
-    /// operation on the specified GPU memory.
+    /// range. The view must support shader writes.
+    ///
+    /// This function requires use of the following barrier flags:
+    /// - PipelineStage:  @ref PipelineStageCs
+    /// - CacheCoherency: @ref CoherShader
+    ///
+    /// @note You may use the more general @ref PipelineStageBlt and @ref CoherClear if you wish but they may result in
+    ///       higher barrier overhead.
     ///
     /// @param [in] gpuMemory      GPU memory to be cleared.
     /// @param [in] color          Specifies the clear color data and how to interpret it.
@@ -3611,6 +3754,11 @@ public:
     /// The clear subresouce range is determined by the view; if any Rects have been specified, the image view must
     /// contain a single mip level. The view must support shader writes.
     ///
+    /// This function requires use of the following barrier flags:
+    /// - PipelineStage:  @ref PipelineStageCs but the more general @ref PipelineStageBlt is also OK.
+    /// - CacheCoherency: @ref CoherShader but the more general @ref CoherClear is also OK.
+    /// - ImageLayout:    @ref LayoutShaderWrite
+    ///
     /// @param [in] image         Image to be cleared.
     /// @param [in] imageLayout   Current allowed usages and engines for the image, must include LayoutShaderWrite.
     /// @param [in] color         Specifies the clear color data and how to interpret it.
@@ -3629,8 +3777,8 @@ public:
 
     /// Resolves multiple regions of a multisampled image to a single-sampled image.
     ///
-    /// The source image must be a 2D multisampled image and the destination must be a single-sampled image.  The
-    /// formats of the source and destination images must match unless all regions specify a valid format.
+    /// The source image must be a 2D multisampled image and the destination must be a single-sampled image.
+    /// The formats of the source and destination images must match unless all regions specify a valid format.
     ///
     /// For color images, if the source image has an integer numeric format, a single sample is copied (sample 0).
     ///
@@ -3638,6 +3786,11 @@ public:
     /// destination pixel.
     ///
     /// The same subresource may not appear more than once in the specified array of regions.
+    ///
+    /// This function requires use of the following barrier flags:
+    /// - PipelineStage:  @ref PipelineStageBlt
+    /// - CacheCoherency: @ref CoherResolveSrc for the source and @ref CoherResolveDst for the destination.
+    /// - ImageLayout:    @ref LayoutResolveSrc for the source and @ref LayoutResolveDst for the destination.
     ///
     /// @param [in] srcImage       MSAA source image.
     /// @param [in] srcImageLayout Current allowed usages and engines for the source image.  These masks must include
@@ -3670,29 +3823,59 @@ public:
         uint32                           regionCount,
         const PrtPlusImageResolveRegion* pRegions) = 0;
 
+    /// Puts the specified event into the _set_ state when all prior GPU work has progressed past the given stages.
+    ///
+    /// @note Clients should use this version if they're using the CmdRelease/Acquire APIs.
+    ///
+    /// @param [in] gpuEvent  GPU event to be set.
+    /// @param [in] stageMask A bitmask of @ref PipelineStageFlag values which defines a synchronization scope that
+    ///                       restricts which stages of prior GPU work must happen before the event is set. The set
+    ///                       will be performed at the earliest possible stage after the prior stages.
+    virtual void CmdSetEvent(
+        const IGpuEvent& gpuEvent,
+        uint32           stageMask) = 0;
+
+    /// Puts the specified event into the _reset_ state when all prior GPU work has progressed past the given stages.
+    ///
+    /// @note Clients should use this version if they're using the CmdRelease/Acquire APIs.
+    ///
+    /// @param [in] gpuEvent  GPU event to be reset.
+    /// @param [in] stageMask A bitmask of @ref PipelineStageFlag values which defines a synchronization scope that
+    ///                       restricts which stages of prior GPU work must happen before the event is reset. The
+    ///                       reset will be performed at the earliest possible stage after the prior stages.
+    virtual void CmdResetEvent(
+        const IGpuEvent& gpuEvent,
+        uint32           stageMask) = 0;
+
     /// Puts the specified GPU event into the _set_ state when all previous GPU work reaches the specified point in the
     /// pipeline.
+    ///
+    /// @note Clients may use this version if they're using the legacy @ref CmdBarrier API.
     ///
     /// @param [in] gpuEvent GPU event to be set.
     /// @param [in] setPoint Point in the graphics pipeline where the GPU event will be _set_, indicating all prior
     ///                      issued GPU work has reached at least this point in the pipeline.  If the GPU doesn't
     ///                      support this operation at the exact specified point, the set will be performed at the
     ///                      earliest possible point _after_ the specified point.
-    virtual void CmdSetEvent(
+    inline void CmdSetEvent(
         const IGpuEvent& gpuEvent,
-        HwPipePoint      setPoint) = 0;
+        HwPipePoint      setPoint)
+        { CmdSetEvent(gpuEvent, HwPipePointToStage[setPoint]); }
 
     /// Puts the specified GPU event into the _reset_ state when all previous GPU work reaches the specified point in
     /// the pipeline.
+    ///
+    /// @note Clients may use this version if they're using the legacy @ref CmdBarrier API.
     ///
     /// @param [in] gpuEvent   GPU event to be reset.
     /// @param [in] resetPoint Point in the graphics pipeline where the GPU event will be _reset_, indicating all prior
     ///                        issued GPU work has reached at least this point in the pipeline.  If the GPU doesn't
     ///                        support this operation at the exact specified point, the reset will be performed at the
     ///                        earliest possible point _after_ the specified point.
-    virtual void CmdResetEvent(
+    inline void CmdResetEvent(
         const IGpuEvent& gpuEvent,
-        HwPipePoint      resetPoint) = 0;
+        HwPipePoint      resetPoint)
+        { CmdResetEvent(gpuEvent, HwPipePointToStage[resetPoint]); }
 
     /// Predicate the subsequent jobs in the command buffer if the event is set.
     ///
@@ -3709,8 +3892,9 @@ public:
     /// The destination GPU memory offset must be 4-byte aligned for 32-bit atomics and 8-byte aligned for 64-bit
     /// atomics.
     ///
-    /// For cache coherency purposes, CmdMemoryAtomic counts as a @ref CoherQueueAtomic operation on the specified
-    /// destination GPU memory.
+    /// This function requires use of the following barrier flags:
+    /// - PipelineStage:  @ref PipelineStagePostPrefetch
+    /// - CacheCoherency: @ref CoherQueueAtomic
     ///
     /// @param [in] dstGpuMemory  Destination GPU memory object.
     /// @param [in] dstOffset     Offset into the memory object where the atomic will be performed.
@@ -3752,8 +3936,9 @@ public:
 
     /// Resolves the results of a range of queries to the specified query type into the specified GPU memory location.
     ///
-    /// For synchronization purposes, CmdResolveQuery counts as a @ref CoherCopyDst operation on the specified
-    /// destination GPU memory that occurs between the @ref HwPipePreBlt and @ref HwPipePostBlt pipe points.
+    /// This function requires use of the following barrier flags on @ref dstGpuMemory:
+    /// - PipelineStage:  @ref PipelineStageBlt
+    /// - CacheCoherency: @ref CoherCopyDst
     ///
     /// This operation does not honor the command buffer's predication state, if active.
     ///
@@ -3786,12 +3971,63 @@ public:
         uint32            startQuery,
         uint32            queryCount) = 0;
 
+    /// Writes a GPU performance timestamp to memory when all prior GPU work has progressed past the given stages.
+    ///
+    /// The timestamp data is a 64-bit value that increments once per clock. @ref timestampFrequency in DeviceProperties
+    /// reports the frequency the timestamps are clocked at. Timestamps are only supported by engines that report
+    /// @ref supportsTimestamps in DeviceProperties.
+    ///
+    /// This function requires use of the following barrier flags:
+    /// - PipelineStage:  the same flag(s) specified in @ref stageMask.
+    /// - CacheCoherency: @ref CoherTimestamp
+    ///
+    /// @note Clients should use this version if they're using the CmdRelease/Acquire APIs.
+    ///
+    /// @param [in] stageMask    A bitmask of @ref PipelineStageFlag values which defines a synchronization scope that
+    ///                          restricts which stages of prior GPU work must happen before the timestamp is written.
+    ///                          The timestamp will be performed at the earliest possible stage after the prior stages.
+    ///                          Note that the SDMA engine only supports bottom-of-pipe timestamps.
+    /// @param [in] dstGpuMemory GPU memory object where timestamp should be written.
+    /// @param [in] dstOffset    Offset into pDstGpuMemory where the timestamp should be written.  Must be aligned to
+    ///                          minTimestampAlignment in DeviceProperties.
+    virtual void CmdWriteTimestamp(
+        uint32            stageMask,
+        const IGpuMemory& dstGpuMemory,
+        gpusize           dstOffset) = 0;
+
+    /// Writes an immediate value to memory when all prior GPU work has progressed past the given stages.
+    ///
+    /// This function requires use of the following barrier flags:
+    /// - PipelineStage:  the same flag(s) specified in @ref stageMask.
+    /// - CacheCoherency: @ref CoherCp
+    ///
+    /// @note Clients should use this version if they're using the CmdRelease/Acquire APIs.
+    ///
+    /// @param [in] stageMask          A bitmask of @ref PipelineStageFlag values which defines a synchronization scope
+    ///                                that restricts which stages of prior GPU work must happen before the immediate
+    ///                                value is written. The write will be occur at the earliest possible stage after
+    ///                                the prior stages. Note that the SDMA engine only supports bottom-of-pipe writes.
+    /// @param [in] data               Value to be written to gpu address.
+    /// @param [in] ImmediateDataWidth Size of the data to be written out.
+    /// @param [in] address            GPU address where immediate value should be written.
+    virtual void CmdWriteImmediate(
+        uint32             stageMask,
+        uint64             data,
+        ImmediateDataWidth dataSize,
+        gpusize            address) = 0;
+
     /// Writes a HwPipePostPrefetch or HwPipeBottom timestamp to the specified memory location.
     ///
     /// The timestamp data is a 64-bit value that increments once per clock.  timestampFrequency in DeviceProperties
     /// reports the frequency the timestamps are clocked at.
     ///
     /// Timestamps are only supported by engines that report supportsTimestamps in DeviceProperties.
+    ///
+    /// This function requires use of the following barrier flags:
+    /// - PipelineStage:  the same flag specified in @ref pipePoint.
+    /// - CacheCoherency: @ref CoherTimestamp
+    ///
+    /// @note Clients may use this version if they're using the legacy @ref CmdBarrier API.
     ///
     /// @param [in] pipePoint    Specifies where in the pipeline the timestamp should be sampled and written. The only
     ///                          valid choices are HwPipePostPrefetch and HwPipeBottom. HwPipePostPrefetch timestamps
@@ -3800,12 +4036,19 @@ public:
     /// @param [in] dstGpuMemory GPU memory object where timestamp should be written.
     /// @param [in] dstOffset    Offset into pDstGpuMemory where the timestamp should be written.  Must be aligned to
     ///                          minTimestampAlignment in DeviceProperties.
-    virtual void CmdWriteTimestamp(
+    inline void CmdWriteTimestamp(
         HwPipePoint       pipePoint,
         const IGpuMemory& dstGpuMemory,
-        gpusize           dstOffset) = 0;
+        gpusize           dstOffset)
+        { CmdWriteTimestamp(HwPipePointToStage[pipePoint], dstGpuMemory, dstOffset); }
 
     /// Writes a top-of-pipe or bottom-of-pipe immediate value to the specified memory location.
+    ///
+    /// This function requires use of the following barrier flags:
+    /// - PipelineStage:  the same flag specified in @ref pipePoint.
+    /// - CacheCoherency: @ref CoherCp
+    ///
+    /// @note Clients may use this version if they're using the legacy @ref CmdBarrier API.
     ///
     /// @param [in] pipePoint          Specifies where in the pipeline the timestamp should be sampled and written.
     ///                                The only valid choices are HwPipeTop, HwPipePostPrefetch and HwPipeBottom.
@@ -3814,27 +4057,32 @@ public:
     /// @param [in] data               Value to be written to gpu address.
     /// @param [in] ImmediateDataWidth Size of the data to be written out.
     /// @param [in] address            GPU address where immediate value should be written.
-    virtual void CmdWriteImmediate(
+    inline void CmdWriteImmediate(
         HwPipePoint        pipePoint,
         uint64             data,
         ImmediateDataWidth dataSize,
-        gpusize            address) = 0;
+        gpusize            address)
+        { CmdWriteImmediate(HwPipePointToStage[pipePoint], data, dataSize, address); }
 
     /// Loads the current stream-out buffer-filled-sizes stored on the GPU from memory, typically from a target of a
     /// prior CmdSaveBufferFilledSizes() call.
     ///
-    /// For cache coherency purposes, CmdLoadBufferFilledSizes counts as a @ref CoherCopySrc operation from the
-    /// specified GPU memory location(s).
+    /// Note that barriers shouldn't be necessary in normal stream-out workflows. However, if the client wishes to use
+    /// the @ref gpuVirtAddr allocations in shaders or PAL blts they must use the following barrier flags:
+    /// - PipelineStage:  @ref PipelineStagePostPrefetch
+    /// - CacheCoherency: @ref CoherCp
     ///
     /// @param [in] gpuVirtAddr Array of GPU virtual addresses to load each counter from.  If any of these are zero,
-    ///                         the corresponding filled-size counter is not loaed.
+    ///                         the corresponding filled-size counter is not loaded.
     virtual void CmdLoadBufferFilledSizes(
         const gpusize (&gpuVirtAddr)[MaxStreamOutTargets]) = 0;
 
     /// Saves the current stream-out buffer-filled-sizes into GPU memory.
     ///
-    /// For cache coherency purposes, CmdSaveBufferFilledSizes counts as a @ref CoherCopyDst operation from the
-    /// specified GPU memory location(s).
+    /// Note that barriers shouldn't be necessary in normal stream-out workflows. However, if the client wishes to use
+    /// the @ref gpuVirtAddr allocations in shaders or PAL blts they must use the following barrier flags:
+    /// - PipelineStage:  @ref PipelineStagePostPrefetch
+    /// - CacheCoherency: @ref CoherCp
     ///
     /// @param [in] gpuVirtAddr Array of GPU virtual addresses to save each counter into.  If any of these are zero,
     ///                         the corresponding filled-size counter is not saved.
@@ -3861,6 +4109,10 @@ public:
     /// Sets predication for this command buffer to use the specified GPU memory location. Any draw, dispatch or copy
     /// operation between this command and the corresponding reset/disable call will be skipped if the value in spec-
     /// ified location matches the passed-in predicated value
+    ///
+    /// This function requires use of the following barrier flags on @ref pGpuMemory:
+    /// - PipelineStage:  @ref PipelineStageFetchIndirectArgs
+    /// - CacheCoherency: @ref CoherIndirectArgs
     ///
     /// @param [in] pQueryPool     pointer to QueryPool obj, not-nullptr means this is a QueryPool based predication
     ///                                - Zpass/Occlusion based predication
@@ -3903,6 +4155,10 @@ public:
     /// Begins a conditional block in the current command buffer. All commands between this and the corresponding
     /// CmdEndIf() (or CmdElse() if it is present) command are executed if the specified condition is true.
     ///
+    /// This function requires use of the following barrier flags on @ref gpuMemory:
+    /// - PipelineStage:  @ref PipelineStageFetchIndirectArgs
+    /// - CacheCoherency: @ref CoherIndirectArgs
+    ///
     /// @param [in] gpuMemory    GPU memory object containing the memory location to be tested.
     /// @param [in] offset       Offset within the memory object where the tested memory location begins.
     /// @param [in] data         Source data to compare against the value in GPU memory.
@@ -3924,6 +4180,10 @@ public:
 
     /// Begins a while loop in the current command buffer. All commands between this and the corresponding CmdEndWhile()
     /// command are executed repeatedly as long as the specified condition remains true.
+    ///
+    /// This function requires use of the following barrier flags on @ref gpuMemory:
+    /// - PipelineStage:  @ref PipelineStageFetchIndirectArgs
+    /// - CacheCoherency: @ref CoherIndirectArgs
     ///
     /// @param [in] gpuMemory    GPU memory object containing the memory location to be tested.
     /// @param [in] offset       Offset within the memory object where the tested memory location begins.
@@ -3963,6 +4223,10 @@ public:
     /// The client (or application) is expected to transiton the memory to proper state before calling this function.
     /// The memory location for the condition must be 4-byte aligned.
     ///
+    /// This function requires use of the following barrier flags on @ref gpuMemory:
+    /// - PipelineStage:  @ref PipelineStagePostPrefetch
+    /// - CacheCoherency: @ref CoherCp
+    ///
     /// @param [in] gpuMemory    GPU memory object containing the memory location to be tested.
     /// @param [in] offset       Offset within the memory object where the tested memory location begins.
     /// @param [in] data         Source data to compare against the value in GPU memory.
@@ -3976,8 +4240,12 @@ public:
         uint32            mask,
         CompareFunc       compareFunc) = 0;
 
-    /// Stalls a command buffer execution until an external device writes to the marker surface in the GPU bus addressable
-    /// memory location.
+    /// Stalls a command buffer execution until an external device writes to the marker surface in the GPU bus
+    /// addressable memory location.
+    ///
+    /// This function requires use of the following barrier flags on @ref gpuMemory:
+    /// - PipelineStage:  @ref PipelineStagePostPrefetch
+    /// - CacheCoherency: @ref CoherCp
     ///
     /// @param [in] gpuMemory    GPU memory object containing the memory location to be tested.
     /// @param [in] data         Source data to compare against the value in GPU memory.
@@ -4064,6 +4332,10 @@ public:
     /// The minimum size of the dstGpuMemory should be the size of the metadata struct plus the size of the DF SPM
     /// ringSize given to the perf experiment. The SPM data may not fill the entire memory, but the client is
     /// responsible for parsing the data.
+    ///
+    /// This function requires use of the following barrier flags on @ref dstGpuMemory:
+    /// - PipelineStage:  @ref PipelineStageBlt
+    /// - CacheCoherency: @ref CoherCopyDst
     ///
     /// @param [in] perfExperiment  The perfExperiment that we will be copying the data from
     /// @param [in] dstGpuMemory    The memory location that the DF SPM trace data will be copied to.
@@ -4240,19 +4512,19 @@ public:
     virtual void CmdRestoreComputeState(
         uint32 stateFlags) = 0;
 
-    /// Issues commands which complete two tasks: using the provided IIndirectCmdGenerator object to translate the
+    /// Issues commands which complete two tasks: using the provided @ref IIndirectCmdGenerator object to translate the
     /// indirect argument buffer into a format understandable by the GPU; and then executing the generated commands.
     ///
-    /// The indirect argument data offset in memory must be 4-byte aligned.  The expected layout of the argument data
-    /// is defined by the IIndirectCmdGenerator object.  Coherency of the indirect argument GPU memory is controlled
-    /// by setting @ref CoherIndirectArgs in the inputCachesMask field of @ref BarrierTransition in a call to
-    /// CmdBarrier().
+    /// The indirect argument data offset in memory must be 4-byte aligned. The expected layout of the argument data
+    /// is defined by the @ref IIndirectCmdGenerator object.
     ///
     /// It is unsafe to call this method on a command buffer which was not begun with either the optimizeOneTimeSubmit
     /// or optimizeExclusiveSubmit flags. This is because there is a potential race condition if the same command buffer
     /// is generating indirect commands on multiple Queues simultaneously.
     ///
-    /// @see IIndirectCmdGenerator.
+    /// This function requires use of the following barrier flags on @ref gpuMemory:
+    /// - PipelineStage:  @ref PipelineStageFetchIndirectArgs
+    /// - CacheCoherency: @ref CoherIndirectArgs
     ///
     /// @param [in] generator     Indirect command generator object which can translate the indirect argument buffer
     ///                           into a command buffer format which the GPU can understand.
@@ -4451,6 +4723,24 @@ private:
     /// and set via SetClientData().
     /// For non-top-layer objects, this will point to the layer above the current object.
     void* m_pClientData;
+
+    /// @internal Some back-compat glue for some of the HwPipePoint interfaces in this file.
+    static constexpr uint32 HwPipePointToStage[] =
+    {
+            PipelineStageTopOfPipe,    // HwPipeTop              = 0x0
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 835
+            PipelineStagePostPrefetch, // HwPipePostPrefetch     = 0x1
+#else
+            // This is just a hack for back-compat, internally we implement stageMask = 0 using an ME write.
+            0,                         // HwPipePostPrefetch     = 0x1
+#endif
+            PipelineStageVs,           // HwPipePreRasterization = 0x2
+            PipelineStagePs,           // HwPipePostPs           = 0x3
+            PipelineStageLateDsTarget, // HwPipePreColorTarget   = 0x4
+            PipelineStageCs,           // HwPipePostCs           = 0x5
+            PipelineStageBlt,          // HwPipePostBlt          = 0x6
+            PipelineStageBottomOfPipe, // HwPipeBottom           = 0x7
+    };
 };
 
 } // Pal

@@ -60,18 +60,6 @@ SqttGfxIpLevel GfxipToSqttGfxIpLevel(
     case Pal::GfxIpLevel::None:
         sqttLevel = SQTT_GFXIP_LEVEL_NONE;
         break;
-    case Pal::GfxIpLevel::GfxIp6:
-        sqttLevel = SQTT_GFXIP_LEVEL_GFXIP_6;
-        break;
-    case Pal::GfxIpLevel::GfxIp7:
-        sqttLevel = SQTT_GFXIP_LEVEL_GFXIP_7;
-        break;
-    case Pal::GfxIpLevel::GfxIp8:
-        sqttLevel = SQTT_GFXIP_LEVEL_GFXIP_8;
-        break;
-    case Pal::GfxIpLevel::GfxIp8_1:
-        sqttLevel = SQTT_GFXIP_LEVEL_GFXIP_8_1;
-        break;
     case Pal::GfxIpLevel::GfxIp9:
         sqttLevel = SQTT_GFXIP_LEVEL_GFXIP_9;
         break;
@@ -105,18 +93,6 @@ SqttVersion GfxipToSqttVersion(
     {
     case Pal::GfxIpLevel::None:
         version = SQTT_VERSION_NONE;
-        break;
-    case Pal::GfxIpLevel::GfxIp6:
-        version = SQTT_VERSION_2_0;
-        break;
-    case Pal::GfxIpLevel::GfxIp7:
-        version = SQTT_VERSION_2_1;
-        break;
-    case Pal::GfxIpLevel::GfxIp8:
-        version = SQTT_VERSION_2_2;
-        break;
-    case Pal::GfxIpLevel::GfxIp8_1:
-        version = SQTT_VERSION_2_2;
         break;
     case Pal::GfxIpLevel::GfxIp9:
         version = SQTT_VERSION_2_3;
@@ -404,14 +380,14 @@ void FillSqttAsicInfo(
 
 // =====================================================================================================================
 GpaSession::GpaSession(
-    IPlatform*           pPlatform,
-    IDevice*             pDevice,
-    uint16               apiMajorVer,
-    uint16               apiMinorVer,
-    ApiType              apiType,
-    uint16               rgpInstrumentationSpecVer,
-    uint16               rgpInstrumentationApiVer,
-    PerfExpMemDeque*     pAvailablePerfExpMem)
+    IPlatform*       pPlatform,
+    IDevice*         pDevice,
+    uint16           apiMajorVer,
+    uint16           apiMinorVer,
+    ApiType          apiType,
+    uint16           rgpInstrumentationSpecVer,
+    uint16           rgpInstrumentationApiVer,
+    PerfExpMemDeque* pAvailablePerfExpMem)
     :
     m_pDevice(pDevice),
     m_timestampAlignment(0),
@@ -700,7 +676,7 @@ Result GpaSession::Init()
         createInfo.flags.threadSafe       = 1;
 
         // Reasonable constants for allocation and suballocation sizes
-        constexpr size_t CmdAllocSize = 2_MiB;
+        constexpr size_t CmdAllocSize    = 2_MiB;
         constexpr size_t CmdSubAllocSize = 64_KiB;
 
         createInfo.allocInfo[CommandDataAlloc].allocHeap          = GpuHeapGartUswc;
@@ -721,9 +697,7 @@ Result GpaSession::Init()
         const size_t cmdAllocatorSize = m_pDevice->GetCmdAllocatorSize(createInfo, &result);
         if (result == Result::Success)
         {
-            void* pMemory = PAL_MALLOC(cmdAllocatorSize,
-                                       m_pPlatform,
-                                       Util::AllocObject);
+            void* pMemory = PAL_MALLOC(cmdAllocatorSize, m_pPlatform, Util::AllocObject);
             if (pMemory == nullptr)
             {
                 result = Result::ErrorOutOfMemory;
@@ -1918,9 +1892,9 @@ Result GpaSession::BeginSample(
 // =====================================================================================================================
 // Updates the trace parameters for a specific sample.
 Pal::Result GpaSession::UpdateSampleTraceParams(
-    Pal::ICmdBuffer*       pCmdBuf,
-    Pal::uint32            sampleId,
-    UpdateSampleTraceMode  updateMode)
+    Pal::ICmdBuffer*      pCmdBuf,
+    Pal::uint32           sampleId,
+    UpdateSampleTraceMode updateMode)
 {
     Pal::Result result = Pal::Result::ErrorInvalidPointer;
 
@@ -2719,7 +2693,7 @@ Result GpaSession::RegisterPipeline(
 
                 // Write the pipeline binary.
                 result = pPipeline->GetCodeObject(&record.recordSize,
-                                                   Util::VoidPtrInc(pCodeObjectRecord, sizeof(record)));
+                                                  Util::VoidPtrInc(pCodeObjectRecord, sizeof(record)));
 
                 if (result != Result::Success)
                 {
@@ -2782,7 +2756,7 @@ Result GpaSession::RegisterLibrary(
         if (m_registeredApiHashes.Contains(uniqueHash) == false)
         {
             // Record a mapping of API hash -> internal library hash so they can be correlated.
-            PsoCorrelationRecord record = { };
+            PsoCorrelationRecord record = {};
             record.apiPsoHash           = clientInfo.apiHash;
             record.internalPipelineHash = libraryInfo.internalLibraryHash;
             result = m_psoCorrelationRecordsCache.PushBack(record);
@@ -2891,7 +2865,7 @@ Result GpaSession::RegisterElfBinary(
         if (m_registeredApiHashes.Contains(uniqueHash) == false)
         {
             // Record a mapping of API hash -> internal library hash so they can be correlated.
-            PsoCorrelationRecord record = { };
+            PsoCorrelationRecord record = {};
             record.apiPsoHash           = elfBinaryInfo.originalHash;
             record.internalPipelineHash.stable = elfBinaryInfo.compiledHash;
             record.internalPipelineHash.unique = uniqueHash;
@@ -3033,15 +3007,15 @@ Result GpaSession::ValidatePerfCounters(
 // =====================================================================================================================
 // Helper function to add a new code object load event record.
 Result GpaSession::AddCodeObjectLoadEvent(
-    const IPipeline*         pPipeline,
-    CodeObjectLoadEventType  eventType)
+    const IPipeline*        pPipeline,
+    CodeObjectLoadEventType eventType)
 {
     PAL_ASSERT(pPipeline != nullptr);
 
     const auto& info = pPipeline->GetInfo();
 
     size_t numGpuAllocations = 0;
-    GpuMemSubAllocInfo gpuSubAlloc = { };
+    GpuMemSubAllocInfo gpuSubAlloc = {};
 
     Result result = pPipeline->QueryAllocationInfo(&numGpuAllocations, nullptr);
 
@@ -3053,7 +3027,7 @@ Result GpaSession::AddCodeObjectLoadEvent(
 
     if (result == Result::Success)
     {
-        CodeObjectLoadEventRecord record = { };
+        CodeObjectLoadEventRecord record = {};
         record.eventType      = eventType;
         record.baseAddress    = (gpuSubAlloc.address + gpuSubAlloc.offset);
         record.codeObjectHash = { info.internalPipelineHash.stable, info.internalPipelineHash.unique };
@@ -3070,8 +3044,8 @@ Result GpaSession::AddCodeObjectLoadEvent(
 // =====================================================================================================================
 // Helper function to add a new code object load event record.
 Result GpaSession::AddCodeObjectLoadEvent(
-    const IShaderLibrary*    pLibrary,
-    CodeObjectLoadEventType  eventType)
+    const IShaderLibrary*   pLibrary,
+    CodeObjectLoadEventType eventType)
 {
     PAL_ASSERT(pLibrary != nullptr);
 
@@ -3107,13 +3081,13 @@ Result GpaSession::AddCodeObjectLoadEvent(
 // =====================================================================================================================
 // Helper function to add a new code object load event record.
 Result GpaSession::AddCodeObjectLoadEvent(
-    const ElfBinaryInfo&     elfBinaryInfo,
-    CodeObjectLoadEventType  eventType)
+    const ElfBinaryInfo&    elfBinaryInfo,
+    CodeObjectLoadEventType eventType)
 {
     PAL_ASSERT(elfBinaryInfo.pBinary != nullptr);
     PAL_ASSERT(elfBinaryInfo.pGpuMemory != nullptr);
 
-    CodeObjectLoadEventRecord record = { };
+    CodeObjectLoadEventRecord record = {};
     record.eventType      = eventType;
     record.baseAddress    = elfBinaryInfo.pGpuMemory->Desc().gpuVirtAddr + elfBinaryInfo.offset;
     record.codeObjectHash = { elfBinaryInfo.originalHash, elfBinaryInfo.compiledHash };
@@ -3216,7 +3190,7 @@ Result GpaSession::ImportSampleItem(
                         PerfSample* pSrcTraceSample = pSrcSampleItem->pPerfSample;
 
                         pSample->SetCopySampleMemInfo(pSrcTraceSample->GetSampleDataGpuMem().pGpuMemory,
-                                                        pSrcTraceSample->GetGcSampleDataOffset());
+                                                      pSrcTraceSample->GetGcSampleDataOffset());
 
                         pSample->SetSampleMemoryProperties(gpuMemInfo, offset, gpuMemReqs.size);
 
@@ -3229,11 +3203,6 @@ Result GpaSession::ImportSampleItem(
                         result = Result::ErrorOutOfMemory;
                     }
                 }
-            }
-            else
-            {
-                // AcquireGpuMem failed.
-                result = Result::ErrorOutOfGpuMemory;
             }
         }
         else if (pSampleItem->sampleConfig.type == GpaSampleType::Timing)
@@ -3272,17 +3241,13 @@ Result GpaSession::ImportSampleItem(
                     pTimingSample->SetTimestampMemoryInfo(gpuMemInfo, offset, m_timestampAlignment);
 
                     pTimingSample->SetSampleMemoryProperties(gpuMemInfo,
-                                                                offset,
-                                                                sizeof(uint64) + m_timestampAlignment);
+                                                             offset,
+                                                             sizeof(uint64) + m_timestampAlignment);
                 }
                 else
                 {
                     result = Result::ErrorOutOfMemory;
                 }
-            }
-            else
-            {
-                result = Result::ErrorOutOfGpuMemory;
             }
         }
         else if (pSampleItem->sampleConfig.type == GpaSampleType::Query)
@@ -3291,13 +3256,9 @@ Result GpaSession::ImportSampleItem(
             gpusize       offset       = 0;
             gpusize       heapSize     = 0;
 
-            // Allocate a query for the copy session. This query only acts as a placeholder to store
-            // the copied data.
+            // Allocate a query for the copy session. This query only acts as a placeholder to store the copied data.
             IQueryPool* pPipeStatsQuery = nullptr;
-            result = AcquirePipeStatsQuery(&gpuMemInfo,
-                                            &offset,
-                                            &heapSize,
-                                            &pPipeStatsQuery);
+            result = AcquirePipeStatsQuery(&gpuMemInfo, &offset, &heapSize, &pPipeStatsQuery);
 
             if (result == Result::Success)
             {
@@ -3410,12 +3371,12 @@ Result GpaSession::AcquireGpuMem(
         if (haveMemFromAvailableList == false)
         {
             GpuMemoryCreateInfo createInfo = {};
-            createInfo.size      = gpuMemoryRaftSize;
-            createInfo.alignment = pageSize;
-            createInfo.vaRange   = VaRange::Default;
-            createInfo.priority  = (heapType == GpuHeapInvisible) ? GpuMemPriority::High : GpuMemPriority::Normal;
+            createInfo.size       = gpuMemoryRaftSize;
+            createInfo.alignment  = pageSize;
+            createInfo.vaRange    = VaRange::Default;
+            createInfo.priority   = (heapType == GpuHeapInvisible) ? GpuMemPriority::High : GpuMemPriority::Normal;
             createInfo.mallPolicy = mallPolicy;
-            createInfo.heapCount = 0;
+            createInfo.heapCount  = 0;
             createInfo.heaps[createInfo.heapCount++] = heapType;
 
             if (heapType == GpuHeapInvisible)
@@ -3669,9 +3630,7 @@ Result GpaSession::AcquirePerfExperiment(
 
                         // In the case of the seDetailedMask set for this specific SE we want to increase the buffer
                         // size.
-                        if (((sampleConfig.sqtt.seDetailedMask == 0) ||
-                                Util::TestAnyFlagSet(sampleConfig.sqtt.seDetailedMask, 1 << i)) &&
-                            (skipInstTokens == false))
+                        if ((enableDetailedTokens == true) && (skipInstTokens == false))
                         {
                             constexpr size_t DetailSqttSeBufferMultiplier = 4;
                             sqttInfo.optionValues.bufferSize *= DetailSqttSeBufferMultiplier;
@@ -4619,8 +4578,8 @@ Result GpaSession::DumpRgpData(
                 else
                 {
                     memcpy(Util::VoidPtrInc(pRgpOutput, static_cast<size_t>(curFileOffset)),
-                        &clockCalibration,
-                        sizeof(clockCalibration));
+                           &clockCalibration,
+                           sizeof(clockCalibration));
                 }
             }
             curFileOffset += sizeof(clockCalibration);
@@ -4656,8 +4615,8 @@ Result GpaSession::AppendDfSpmTraceData(
 {
     Result result = Result::Success;
     // Initialize the Sqtt chunk, get the spm trace results and add to the file.
-    gpusize dfSpmDataSize     = 0;
-    gpusize numDfSpmSamples   = 0;
+    gpusize dfSpmDataSize   = 0;
+    gpusize numDfSpmSamples = 0;
     pTraceSample->GetDfSpmResultsSize(&dfSpmDataSize, &numDfSpmSamples);
 
     if (pRgpOutput != nullptr)

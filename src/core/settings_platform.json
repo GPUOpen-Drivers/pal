@@ -1485,7 +1485,7 @@
           "Description": "Whether to inject the pipeline hash and client shader hases into the thread trace for Thread Trace Viewer analysis."
         },
         {
-          "Description": "Maximum amount of data in bytes to capture per trace.  A trace will cover a span of commands based on the GpuProfilerGranularity setting.  Defaults to 1MB.  Current HW requires the size be aligned to 0x1000 bytes.  The maximum recommended size is 128MB (0x7FFF000).",
+          "Description": "Maximum amount of data in bytes to capture per trace. For detailed SE case, driver will multiply this setting value by 4 to get the real size limit. A trace will cover a span of commands based on the GpuProfilerGranularity setting.  Defaults to 1MB.  Current HW requires the size be aligned to 0x1000 bytes.  The maximum recommended size is 128MB (0x7FFF000).",
           "Defaults": {
             "Default": 1048576
           },

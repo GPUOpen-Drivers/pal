@@ -43,12 +43,8 @@ struct GpuMemoryRef;
 enum class GpuMemoryPatchOp : uint32
 {
     NoOp = 0,
-    VceSurfAddrLo,
-    VceSurfAddrHi,
-    VceSessionId,
-    UvdSurfAddrLo,
-    UvdSurfAddrHi,
-    VideoSessionId,
+    VideoSurfAddrLo,
+    VideoSurfAddrHi,
     PspSurfBufLo,
     PspSurfBufHi,
     Count,
@@ -112,15 +108,6 @@ public:
 
     // Resets this patch list by clearing the contents of the memory reference and patch entry lists.
     void Reset();
-
-    Result AddPatchEntry(
-        GpuMemory*       pGpuMem,
-        gpusize          gpuMemOffset,
-        GpuMemoryPatchOp patchOp,
-        uint32           patchOpNum,
-        bool             readOnly,
-        uint32           chunkIdx,
-        uint32           chunkOffset);
 
     Result AddWidePatchEntry(
         GpuMemory*       pGpuMem,

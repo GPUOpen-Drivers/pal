@@ -33,6 +33,7 @@ target_include_directories(pal PUBLIC .)
 target_sources(pal PRIVATE
     CMakeLists.txt
     palAppProfileIterator.h
+    palCodeObjectTraceSource.h
     palGpaSession.h
     palGpuEventPool.h
     palGpuEventPoolImpl.h

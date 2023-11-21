@@ -709,8 +709,11 @@ public:
     void DescribeDrawDispatchValidation(
         GfxCmdBuffer* pCmdBuf,
         size_t        userDataCmdSize,
-        size_t        pipelineCmdSize,
         size_t        miscCmdSize) const;
+
+    void DescribeBindPipelineValidation(
+        GfxCmdBuffer* pCmdBuf,
+        size_t        pipelineCmdSize) const;
 
     void DescribeHotRegisters(
         GfxCmdBuffer* pCmdBuf,
@@ -830,6 +833,14 @@ public:
         const SwizzledFormat&   clearFormat) const;
 
     virtual bool DisableAc01ClearCodes() const { return true; };
+
+    virtual void UpdateDisplayDcc(
+        GfxCmdBuffer*                   pCmdBuf,
+        const CmdPostProcessFrameInfo&  postProcessInfo,
+        bool*                           pAddedGpuWork) const
+    {
+        PAL_ASSERT_ALWAYS();
+    }
 
 protected:
     static void FixupDecodedSrdFormat(

@@ -46,19 +46,19 @@ union GraphicsStateFlags
     {
         union
         {
-            // These bits are tested in ValidateDraw() (in Gfx6 or Gfx9)
+            // These bits are tested in ValidateDraw()
             struct
             {
-                uint32 colorBlendState        :  1; // Gfx6 & Gfx9
-                uint32 depthStencilState      :  1; // Gfx6 & Gfx9
-                uint32 msaaState              :  1; // Gfx6 & Gfx9
-                uint32 quadSamplePatternState :  1; // Gfx6 & Gfx9
-                uint32 viewports              :  1; // Gfx6 & Gfx9
-                uint32 scissorRects           :  1; // Gfx6 & Gfx9
-                uint32 inputAssemblyState     :  1; // Gfx6 & Gfx9
-                uint32 triangleRasterState    :  1; // Gfx6 & Gfx9
-                uint32 occlusionQueryActive   :  1; // Gfx6 & Gfx9
-                uint32 lineStippleState       :  1; // Gfx6 & Gfx9
+                uint32 colorBlendState        :  1; // Gfx9 only
+                uint32 depthStencilState      :  1; // Gfx9 only
+                uint32 msaaState              :  1; // Gfx9 only
+                uint32 quadSamplePatternState :  1; // Gfx9 only
+                uint32 viewports              :  1; // Gfx9 only
+                uint32 scissorRects           :  1; // Gfx9 only
+                uint32 inputAssemblyState     :  1; // Gfx9 only
+                uint32 triangleRasterState    :  1; // Gfx9 only
+                uint32 occlusionQueryActive   :  1; // Gfx9 only
+                uint32 lineStippleState       :  1; // Gfx9 only
                 uint32 colorTargetView        :  1; // Gfx9 only
                 uint32 depthStencilView       :  1; // Gfx9 only
                 uint32 vrsRateParams          :  1; // 10.3+ only

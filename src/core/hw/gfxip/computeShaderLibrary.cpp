@@ -215,13 +215,7 @@ void ComputeShaderLibrary::GetFunctionGpuVirtAddrs(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 827
         if (uploader.GetGenericGpuSymbol(pFuncInfoList[i].pSymbolName, &symbol) == Result::Success)
 #else
-        // NOTE: pFuncInfoList[i].symbolName is not null-terminated, construct a null-terminated char* here to make
-        // GetGenericGpuSymbol() work correctly.
-        constexpr uint32 MaxNameLength = 256;
-        PAL_ASSERT(MaxNameLength > pFuncInfoList[i].symbolName.Length());
-        char tempSymbolName[MaxNameLength];
-        Util::Strncpy(tempSymbolName, pFuncInfoList[i].symbolName.Data(), pFuncInfoList[i].symbolName.Length() + 1);
-        if (uploader.GetGenericGpuSymbol(tempSymbolName, &symbol) == Result::Success)
+        if (uploader.GetGenericGpuSymbol(pFuncInfoList[i].symbolName, &symbol) == Result::Success)
 #endif
         {
             pFuncInfoList[i].gpuVirtAddr = symbol.gpuVirtAddr;

@@ -61,43 +61,6 @@ void GpuMemoryPatchList::Reset()
 }
 
 // =====================================================================================================================
-// Adds a patch location and memory reference entry to the patch list.
-Result GpuMemoryPatchList::AddPatchEntry(
-    GpuMemory*       pGpuMem,
-    gpusize          gpuMemOffset,
-    GpuMemoryPatchOp patchOp,
-    uint32           patchOpNum,
-    bool             readOnly,
-    uint32           chunkIdx,
-    uint32           chunkOffset)
-{
-    PAL_ASSERT(HighPart(gpuMemOffset) == 0); // If this fires, the caller should be using AddWidePatchEntry()!
-    PAL_ASSERT(patchOp != GpuMemoryPatchOp::Count);
-
-    Result result = Result::Success;
-
-    GpuMemoryPatchEntry entry = { };
-    entry.flags.readOnly = (readOnly ? 1 : 0);
-    entry.gpuMemOffset   = LowPart(gpuMemOffset);
-    entry.chunkIdx       = chunkIdx;
-    entry.chunkOffset    = chunkOffset;
-    entry.patchOp        = patchOp;
-    entry.patchOpNum     = patchOpNum;
-
-    if (pGpuMem != nullptr)
-    {
-        result = FindGpuMemoryRefIndex(pGpuMem, readOnly, &entry.gpuMemRefIdx);
-    }
-
-    if (result == Result::Success)
-    {
-        result = m_patchEntries.PushBack(entry);
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
 // Adds a patch location and memory reference entry to the patch list. This version adds two patch location entries for
 // addresses wider than 32 bits.
 Result GpuMemoryPatchList::AddWidePatchEntry(

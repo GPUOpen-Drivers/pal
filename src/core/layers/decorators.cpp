@@ -1277,10 +1277,31 @@ Result DeviceDecorator::CreateGraphicsPipeline(
     IPipeline**                       ppPipeline)
 {
     IPipeline* pPipeline = nullptr;
+    Result result = Result::Success;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 816
+    if (createInfo.numShaderLibraries > 0)
+    {
+        AutoBuffer<const IShaderLibrary*, 3, PlatformDecorator> nextLayerObjects(createInfo.numShaderLibraries,
+                                                                                 GetPlatform());
 
-    Result result = m_pNextLayer->CreateGraphicsPipeline(createInfo,
-                                                         NextObjectAddr<PipelineDecorator>(pPlacementAddr),
-                                                         &pPipeline);
+        GraphicsPipelineCreateInfo localCreateInfo = createInfo;
+        for (uint32_t i = 0; i < createInfo.numShaderLibraries; i++)
+        {
+            nextLayerObjects[i] = reinterpret_cast<const ShaderLibraryDecorator*>(
+                createInfo.ppShaderLibraries[i])->GetNextLayer();
+        }
+        localCreateInfo.ppShaderLibraries = nextLayerObjects.Data();
+        result = m_pNextLayer->CreateGraphicsPipeline(localCreateInfo,
+                                                      NextObjectAddr<PipelineDecorator>(pPlacementAddr),
+                                                      &pPipeline);
+    }
+    else
+#endif
+    {
+        result = m_pNextLayer->CreateGraphicsPipeline(createInfo,
+                                                      NextObjectAddr<PipelineDecorator>(pPlacementAddr),
+                                                      &pPipeline);
+    }
 
     if (result == Result::Success)
     {

@@ -2286,13 +2286,13 @@ void CmdBuffer::CmdResolveImage(
 // =====================================================================================================================
 void CmdBuffer::CmdSetEvent(
     const IGpuEvent& gpuEvent,
-    HwPipePoint      setPoint)
+    uint32           stageMask)
 {
     BeginFuncInfo funcInfo;
     funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSetEvent;
     funcInfo.objectId     = m_objectId;
     funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdSetEvent(*NextGpuEvent(&gpuEvent), setPoint);
+    m_pNextLayer->CmdSetEvent(*NextGpuEvent(&gpuEvent), stageMask);
     funcInfo.postCallTime = m_pPlatform->GetTime();
 
     LogContext* pLogContext = nullptr;
@@ -2300,7 +2300,7 @@ void CmdBuffer::CmdSetEvent(
     {
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("gpuEvent", &gpuEvent);
-        pLogContext->KeyAndEnum("setPoint", setPoint);
+        pLogContext->KeyAndPipelineStageFlags("stageMask", stageMask);
         pLogContext->EndInput();
 
         m_pPlatform->LogEndFunc(pLogContext);
@@ -2310,13 +2310,13 @@ void CmdBuffer::CmdSetEvent(
 // =====================================================================================================================
 void CmdBuffer::CmdResetEvent(
     const IGpuEvent& gpuEvent,
-    HwPipePoint      resetPoint)
+    uint32           stageMask)
 {
     BeginFuncInfo funcInfo;
     funcInfo.funcId       = InterfaceFunc::CmdBufferCmdResetEvent;
     funcInfo.objectId     = m_objectId;
     funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdResetEvent(*NextGpuEvent(&gpuEvent), resetPoint);
+    m_pNextLayer->CmdResetEvent(*NextGpuEvent(&gpuEvent), stageMask);
     funcInfo.postCallTime = m_pPlatform->GetTime();
 
     LogContext* pLogContext = nullptr;
@@ -2324,7 +2324,7 @@ void CmdBuffer::CmdResetEvent(
     {
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("gpuEvent", &gpuEvent);
-        pLogContext->KeyAndEnum("resetPoint", resetPoint);
+        pLogContext->KeyAndPipelineStageFlags("stageMask", stageMask);
         pLogContext->EndInput();
 
         m_pPlatform->LogEndFunc(pLogContext);
@@ -2506,7 +2506,7 @@ void CmdBuffer::CmdResetQueryPool(
 
 // =====================================================================================================================
 void CmdBuffer::CmdWriteTimestamp(
-    HwPipePoint       pipePoint,
+    uint32            stageMask,
     const IGpuMemory& dstGpuMemory,
     gpusize           dstOffset)
 {
@@ -2514,14 +2514,14 @@ void CmdBuffer::CmdWriteTimestamp(
     funcInfo.funcId       = InterfaceFunc::CmdBufferCmdWriteTimestamp;
     funcInfo.objectId     = m_objectId;
     funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdWriteTimestamp(pipePoint, *NextGpuMemory(&dstGpuMemory), dstOffset);
+    m_pNextLayer->CmdWriteTimestamp(stageMask, *NextGpuMemory(&dstGpuMemory), dstOffset);
     funcInfo.postCallTime = m_pPlatform->GetTime();
 
     LogContext* pLogContext = nullptr;
     if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
     {
         pLogContext->BeginInput();
-        pLogContext->KeyAndEnum("pipePoint", pipePoint);
+        pLogContext->KeyAndPipelineStageFlags("stageMask", stageMask);
         pLogContext->KeyAndObject("dstGpuMemory", &dstGpuMemory);
         pLogContext->KeyAndValue("dstOffset", dstOffset);
         pLogContext->EndInput();
@@ -2532,7 +2532,7 @@ void CmdBuffer::CmdWriteTimestamp(
 
 // =====================================================================================================================
 void CmdBuffer::CmdWriteImmediate(
-    HwPipePoint        pipePoint,
+    uint32             stageMask,
     uint64             data,
     ImmediateDataWidth dataSize,
     const gpusize address)
@@ -2541,14 +2541,14 @@ void CmdBuffer::CmdWriteImmediate(
     funcInfo.funcId = InterfaceFunc::CmdBufferCmdWriteImmediate;
     funcInfo.objectId = m_objectId;
     funcInfo.preCallTime = m_pPlatform->GetTime();
-    m_pNextLayer->CmdWriteImmediate(pipePoint, data, dataSize, address);
+    m_pNextLayer->CmdWriteImmediate(stageMask, data, dataSize, address);
     funcInfo.postCallTime = m_pPlatform->GetTime();
 
     LogContext* pLogContext = nullptr;
     if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
     {
         pLogContext->BeginInput();
-        pLogContext->KeyAndEnum("pipePoint", pipePoint);
+        pLogContext->KeyAndPipelineStageFlags("stageMask", stageMask);
         pLogContext->KeyAndValue("data", data);
         pLogContext->KeyAndEnum("dataSize", dataSize);
         pLogContext->KeyAndValue("address", address);

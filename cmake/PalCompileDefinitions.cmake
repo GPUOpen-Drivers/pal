@@ -164,6 +164,12 @@ function(pal_compile_definitions TARGET)
     endif()
 
     target_compile_definitions(${TARGET} PUBLIC
+        $<$<OR:$<CONFIG:Debug>,$<BOOL:${PAL_ENABLE_DEBUG_BREAK}>>:
+            PAL_ENABLE_DEBUG_BREAK=1
+        >
+    )
+
+    target_compile_definitions(${TARGET} PUBLIC
         $<$<OR:$<CONFIG:Debug>,$<BOOL:${PAL_ENABLE_LOGGING}>>:
             PAL_ENABLE_LOGGING=1
         >

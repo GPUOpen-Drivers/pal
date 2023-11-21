@@ -45,16 +45,19 @@ public:
 
     DmaCmdBuffer(Device& device, const CmdBufferCreateInfo& createInfo);
 
-    virtual void CmdWriteTimestamp(HwPipePoint pipePoint, const IGpuMemory& dstGpuMemory, gpusize dstOffset) override;
-
     virtual void CmdUpdateMemory(
         const IGpuMemory& dstGpuMemory,
         gpusize           dstOffset,
         gpusize           dataSize,
         const uint32*     pData) override;
 
+    virtual void CmdWriteTimestamp(
+        uint32            stageMask,
+        const IGpuMemory& dstGpuMemory,
+        gpusize           dstOffset) override;
+
     virtual void CmdWriteImmediate(
-        HwPipePoint        pipePoint,
+        uint32             stageMask,
         uint64             data,
         ImmediateDataWidth dataSize,
         gpusize            address) override;
@@ -135,7 +138,7 @@ protected:
         const GpuEvent& gpuEvent,
         uint32*         pCmdSpace) const override;
 
-    virtual void WriteEventCmd(const BoundGpuMemory& boundMemObj, HwPipePoint pipePoint, uint32 data) override;
+    virtual void WriteEventCmd(const BoundGpuMemory& boundMemObj, uint32 stageMask, uint32 data) override;
 
     virtual uint32* WriteNops(uint32* pCmdSpace, uint32 numDwords) const override;
 

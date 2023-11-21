@@ -193,14 +193,6 @@ struct ImageInternalCreateInfo
     {
         struct
         {
-            AddrTileMode       sharedTileMode;                  // Tile mode for shared image
-            AddrTileType       sharedTileType;                  // Tile type for shared image
-            uint32             sharedTileSwizzle[MaxNumPlanes]; // Tile swizzle per plane for shared image
-            int32              sharedTileIndex;                 // Tile index for shared image
-        } gfx6;
-
-        struct
-        {
             AddrSwizzleMode    sharedSwizzleMode;               // Swizzle mode for shared iamge
             uint32             sharedPipeBankXor[MaxNumPlanes]; // Pipe-bank-xor setting per plane for shared image
             uint32             sharedPipeBankXorFmask;          // Pipe-bank-xor setting for fmask
@@ -230,7 +222,7 @@ struct SubResourceInfo
     Extent3d       extentElements;       // Width, height, and depth in elements (e.g., blocks for BC formats).
     Extent3d       actualExtentTexels;   // Padded width, height, and depth in units of texels.
     Extent3d       actualExtentElements; // Padded width, height, and depth in elements (e.g., blocks for BC formats).
-    uint32         actualArraySize;      // Padded array size. (possibly pow2-padded for GFX6-8).
+    uint32         actualArraySize;      // Padded array size.
 
     // Information about how the subresource is laid out in memory.
     gpusize        size;                 // Size of the subresource in bytes.
@@ -607,7 +599,7 @@ private:
     // A cached index of private display index, this is to avoid a race condition between submission and hotplug.
     uint32          m_privateScreenIndex;
     // Whether we should use graphic engine when doing scaled copy. By default, use CS. If the image
-    // has DCC and the hardware does not support compressed shader writes(i.e., GFX6 - 9), use GFX.
+    // has DCC and the hardware does not support compressed shader writes(i.e., GFX9), use GFX.
     bool            m_preferGraphicsScaledCopy;
 
     PAL_DISALLOW_DEFAULT_CTOR(Image);

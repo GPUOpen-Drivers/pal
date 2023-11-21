@@ -536,7 +536,7 @@ Result Queue::CreateGpuTimestampPair(
 
     if (result == Result::Success)
     {
-        pTimestamp->pBeginCmdBuffer->CmdWriteTimestamp(HwPipeBottom,
+        pTimestamp->pBeginCmdBuffer->CmdWriteTimestamp(PipelineStageBottomOfPipe,
                                                        *pSubQueueInfo->pTimestampMemory,
                                                        pSubQueueInfo->nextTimestampOffset);
         result = pTimestamp->pBeginCmdBuffer->End();
@@ -556,7 +556,7 @@ Result Queue::CreateGpuTimestampPair(
 
     if (result == Result::Success)
     {
-        pTimestamp->pEndCmdBuffer->CmdWriteTimestamp(HwPipeBottom,
+        pTimestamp->pEndCmdBuffer->CmdWriteTimestamp(PipelineStageBottomOfPipe,
                                                      *pSubQueueInfo->pTimestampMemory,
                                                      pSubQueueInfo->nextTimestampOffset);
         result = pTimestamp->pEndCmdBuffer->End();

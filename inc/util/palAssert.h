@@ -178,9 +178,8 @@ do {                                                                \
 #define PAL_ASSERT_MSG(_expr, _pReasonFmt, ...)                                                   \
 do {                                                                                              \
     const bool _expr_eval = static_cast<bool>(_expr);                                             \
-    if (_expr_eval == false)                                                                      \
+    if (_expr_eval == false) [[unlikely]]                                                         \
     {                                                                                             \
-        [[unlikely]]                                                                              \
         PAL_TRIGGER_ASSERT("Assertion failed: %s | Reason: " _pReasonFmt, #_expr, ##__VA_ARGS__); \
     }                                                                                             \
     PAL_ANALYSIS_ASSUME(_expr_eval);                                                              \
@@ -222,9 +221,8 @@ constexpr void PalTriggerAssertImpl(
 #define PAL_CONSTEXPR_ASSERT_MSG(_expr, _pReasonFmt, ...)                                               \
 do {                                                                                                    \
     const bool _expr_eval = static_cast<bool>(_expr);                                                   \
-    if (_expr_eval == false)                                                                            \
+    if (_expr_eval == false) [[unlikely]]                                                               \
     {                                                                                                   \
-        [[unlikely]]                                                                                    \
         PalTriggerAssertImpl("Assertion failed: %s (%s:%d:%s)", #_expr,  __FILE__, __LINE__, __func__); \
     }                                                                                                   \
     PAL_ANALYSIS_ASSUME(_expr_eval);                                                                    \
@@ -242,9 +240,8 @@ do {                                                                            
 #define PAL_CONSTEXPR_ASSERT_MSG(_expr, _pReasonFmt, ...)                                                    \
 do {                                                                                                         \
     const bool _expr_eval = static_cast<bool>(_expr);                                                        \
-    if (_expr_eval == false)                                                                                 \
+    if (_expr_eval == false) [[unlikely]]                                                                    \
     {                                                                                                        \
-        [[unlikely]]                                                                                         \
         [&] { PAL_TRIGGER_ASSERT("Assertion failed: %s | Reason: " _pReasonFmt, #_expr, ##__VA_ARGS__); }(); \
     }                                                                                                        \
     PAL_ANALYSIS_ASSUME(_expr_eval);                                                                         \
@@ -290,9 +287,8 @@ do {                                                                \
 
 #define PAL_ALERT_MSG(_expr, _pReasonFmt, ...)                                                  \
 do {                                                                                            \
-    if (_expr)                                                                                  \
+    if (_expr) [[unlikely]]                                                                     \
     {                                                                                           \
-        [[unlikely]]                                                                            \
         PAL_TRIGGER_ALERT("Alert triggered: %s | Reason: " _pReasonFmt, #_expr, ##__VA_ARGS__); \
     }                                                                                           \
 } while (false)

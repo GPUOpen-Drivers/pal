@@ -808,7 +808,6 @@ Result Image::Init()
             // metadata, as well as updating the GPU memory size and alignment requirements for this Image.
             result = GetGfxImage()->Finalize(dccUnsupported,
                                              m_pSubResInfoList,
-                                             m_pTileInfoList,
                                              &m_gpuMemLayout,
                                              &m_gpuMemSize,
                                              &m_gpuMemAlignment);

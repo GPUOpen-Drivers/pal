@@ -701,11 +701,8 @@ Result Device::Finalize(
 Result Device::EarlyInit(
     const HwIpLevels& ipLevels)
 {
-    m_chipProperties.gfxLevel = ipLevels.gfx;
-    m_chipProperties.vceLevel = ipLevels.vce;
-    m_chipProperties.uvdLevel = ipLevels.uvd;
-    m_chipProperties.vcnLevel = ipLevels.vcn;
-
+    m_chipProperties.gfxLevel         = ipLevels.gfx;
+    m_chipProperties.vcnLevel         = ipLevels.vcn;
     m_chipProperties.hwIpFlags.u32All = ipLevels.flags.u32All;
 
     Result result = VamMgrSingleton::Init();
@@ -1738,11 +1735,6 @@ Result Device::InitQueueInfo()
                 pEngineInfo->sizeAlignInDwords = 1;
                 break;
 
-                // not supported on linux
-                pEngineInfo->numAvailable       = 0;
-                pEngineInfo->startAlign         = 1;
-                pEngineInfo->sizeAlignInDwords  = 1;
-                break;
             default:
                 PAL_ASSERT_ALWAYS();
                 break;
@@ -2186,20 +2178,17 @@ Result Device::CreateImage(
     // Not impact AMDVLK import external image.
     if (createInfo.flags.optimalShareable)
     {
-        if (ChipProperties().gfxLevel >= GfxIpLevel::GfxIp9)
-        {
-            internalInfo.flags.useSharedTilingOverrides = 1;
+        internalInfo.flags.useSharedTilingOverrides = 1;
 
-            if (createInfo.flags.hasModifier != 0)
-            {
-                GetModifierInfo(createInfo.modifier, &modifiedCreateInfo, &internalInfo);
-            }
-            else
-            {
-                // PipeBankXor is zero initialized by internalInfo declaration
-                // Do not override the swizzle mode value
-                internalInfo.gfx9.sharedSwizzleMode = ADDR_SW_MAX_TYPE;
-            }
+        if (createInfo.flags.hasModifier != 0)
+        {
+            GetModifierInfo(createInfo.modifier, &modifiedCreateInfo, &internalInfo);
+        }
+        else
+        {
+            // PipeBankXor is zero initialized by internalInfo declaration
+            // Do not override the swizzle mode value
+            internalInfo.gfx9.sharedSwizzleMode = ADDR_SW_MAX_TYPE;
         }
     }
 
@@ -2291,19 +2280,8 @@ bool Device::HasFp16DisplaySupport() const
     bool supported = false;
 
     // On Linux 5.8 (DRM 3.38) and later we also have the 64 bpp fp16 floating point format
-    // on display engines of generation DCE 11.2 - DCE 12, and all DCN engines, iow. Polaris
-    // and later.
-    if ((IsDrmVersionOrGreater(3, 38) || IsKernelVersionEqualOrGreater(5, 8)) &&
-        (IsGfx10Plus(m_chipProperties.gfxLevel) || IsGfx9(*this) ||
-        (IsGfx8(*this) && (IsPolaris10(*this) || IsPolaris11(*this) || IsPolaris12(*this)))))
-    {
-        supported = true;
-    }
-
-    // On Linux 5.12 and later or DRM 3.41 and later we also have the fp16 floating point format
-    // on all display engines since DCE 8.0, ie. additionally on Gfx7-DCE 8.x, Gfx8-10.0/11.0.
-    if ((IsDrmVersionOrGreater(3, 41) || IsKernelVersionEqualOrGreater(5, 12)) &&
-        (IsGfx8(*this) || IsGfx7(*this)))
+    // on display engines of generation DCE 11.2 - DCE 12, and all DCN engines, iow. On all supported gfxips.
+    if (IsDrmVersionOrGreater(3, 38) || IsKernelVersionEqualOrGreater(5, 8))
     {
         supported = true;
     }
@@ -2318,10 +2296,8 @@ bool Device::HasRgba16DisplaySupport() const
     bool supported = false;
 
     // On Linux 5.14 (DRM 3.42) and later we also have the 64 bpp rgba16 unorm fixed point format
-    // on display engines of generation DCE 8.0 - DCE 12, and on all DCN engines, iow. Sea Islands
-    // and later0. However, current pal no longer supports Sea Islands, so check for gfxLevel >= 8.
-    if ((IsDrmVersionOrGreater(3, 42) || IsKernelVersionEqualOrGreater(5, 14)) &&
-        (m_chipProperties.gfxLevel >= GfxIpLevel::GfxIp8))
+    // on display engines of generation DCE 8.0 - DCE 12, and on all DCN engines, iow. On all supported gfxips.
+    if (IsDrmVersionOrGreater(3, 42) || IsKernelVersionEqualOrGreater(5, 14))
     {
         supported = true;
     }
@@ -3527,24 +3503,17 @@ void Device::UpdateImageInfo(
     {
         if (info.metadata.size_metadata >= PRO_UMD_METADATA_SIZE)
         {
-            if (ChipProperties().gfxLevel >= GfxIpLevel::GfxIp9)
-            {
-                AddrMgr2::TileInfo *const pTileInfo = static_cast<AddrMgr2::TileInfo*>
-                                                           (pImage->GetSubresourceTileInfo(0));
-                auto*const pUmdMetaData             = reinterpret_cast<amdgpu_bo_umd_metadata*>
-                                                           (&info.metadata.umd_metadata[PRO_UMD_METADATA_OFFSET_DWORD]);
-                pTileInfo->pipeBankXor              = pUmdMetaData->pipeBankXor;
+            auto*const pTileInfo    = static_cast<AddrMgr2::TileInfo*>(pImage->GetSubresourceTileInfo(0));
+            auto*const pUmdMetaData = reinterpret_cast<amdgpu_bo_umd_metadata*>
+                                        (&info.metadata.umd_metadata[PRO_UMD_METADATA_OFFSET_DWORD]);
+            pTileInfo->pipeBankXor  = pUmdMetaData->pipeBankXor;
 
-                for (uint32 plane = 1; plane < numPlanes; plane++)
-                {
-                    AddrMgr2::TileInfo *const pPlaneTileInfo = static_cast<AddrMgr2::TileInfo*>
-                                                               (pImage->GetSubresourceTileInfo(subResPerPlane * plane));
-                    pPlaneTileInfo->pipeBankXor              = pUmdMetaData->additionalPipeBankXor[plane - 1];
-                }
+            for (uint32 plane = 1; plane < numPlanes; plane++)
+            {
+                auto*const pPlaneTileInfo   = static_cast<AddrMgr2::TileInfo*>
+                                                (pImage->GetSubresourceTileInfo(subResPerPlane * plane));
+                pPlaneTileInfo->pipeBankXor = pUmdMetaData->additionalPipeBankXor[plane - 1];
             }
-        }
-        else if (IsMesaMetadata(info.metadata))
-        {
         }
     }
 }
@@ -3580,73 +3549,67 @@ void Device::UpdateMetaData(
     const Amdgpu::GpuMemory* pAmdgpuGpuMem)
 {
     amdgpu_bo_metadata metadata = {};
-    const SubResourceInfo*const    pSubResInfo = image.SubresourceInfo(0);
-    auto imageCreateInfo        = image.GetImageCreateInfo();
-    const uint32 subResPerPlane = (imageCreateInfo.mipLevels * imageCreateInfo.arraySize);
 
     // First 32 dwords are reserved for open source components.
     auto*const pUmdMetaData = reinterpret_cast<amdgpu_bo_umd_metadata*>
-                              (&metadata.umd_metadata[PRO_UMD_METADATA_OFFSET_DWORD]);
+                                (&metadata.umd_metadata[PRO_UMD_METADATA_OFFSET_DWORD]);
 
-    if (ChipProperties().gfxLevel >= GfxIpLevel::GfxIp9)
+    const ImageCreateInfo& imageCreateInfo = image.GetImageCreateInfo();
+
+    const SubResourceInfo*const    pSubResInfo = image.SubresourceInfo(0);
+    const AddrMgr2::TileInfo*const pTileInfo   = AddrMgr2::GetTileInfo(&image, 0);
+
+    PAL_ASSERT(static_cast<uint32>(AMDGPU_SWIZZLE_MODE_MAX_TYPE) == static_cast<uint32>(ADDR_SW_MAX_TYPE));
+    PAL_ASSERT(static_cast<uint32>(AMDGPU_ADDR_RSRC_TEX_2D)      == static_cast<uint32>(ADDR_RSRC_TEX_2D));
+
+    const auto   curSwizzleMode = static_cast<AMDGPU_SWIZZLE_MODE>(image.GetGfxImage()->GetSwTileMode(pSubResInfo));
+    const uint32 subResPerPlane = (imageCreateInfo.mipLevels * imageCreateInfo.arraySize);
+
+    metadata.size_metadata  = PRO_UMD_METADATA_SIZE;
+
+    memset(&metadata.umd_metadata[0], 0, PRO_UMD_METADATA_OFFSET_DWORD * sizeof(metadata.umd_metadata[0]));
+    pUmdMetaData->width_in_pixels        = pSubResInfo->extentTexels.width;
+    pUmdMetaData->height                 = pSubResInfo->extentTexels.height;
+    pUmdMetaData->depth                  = pSubResInfo->extentTexels.depth;
+    pUmdMetaData->aligned_pitch_in_bytes = pSubResInfo->rowPitch;
+    pUmdMetaData->aligned_height         = pSubResInfo->actualExtentTexels.height;
+    pUmdMetaData->format                 = PalToAmdGpuFormatConversion(pSubResInfo->format);
+
+    pUmdMetaData->pipeBankXor  = pTileInfo->pipeBankXor;
+
+    for (uint32 plane = 1; plane < (image.GetImageInfo().numPlanes); plane++)
     {
-        const SubResourceInfo*const    pSubResInfo = image.SubresourceInfo(0);
-        const AddrMgr2::TileInfo*const pTileInfo   = AddrMgr2::GetTileInfo(&image, 0);
-
-        PAL_ASSERT(static_cast<uint32>(AMDGPU_SWIZZLE_MODE_MAX_TYPE)
-            == static_cast<uint32>(ADDR_SW_MAX_TYPE));
-
-        PAL_ASSERT(static_cast<uint32>(AMDGPU_ADDR_RSRC_TEX_2D) == static_cast<uint32>(ADDR_RSRC_TEX_2D));
-
-        AMDGPU_SWIZZLE_MODE curSwizzleMode   =
-            static_cast<AMDGPU_SWIZZLE_MODE>(image.GetGfxImage()->GetSwTileMode(pSubResInfo));
-
-        metadata.size_metadata  = PRO_UMD_METADATA_SIZE;
-
-        memset(&metadata.umd_metadata[0], 0, PRO_UMD_METADATA_OFFSET_DWORD * sizeof(metadata.umd_metadata[0]));
-        pUmdMetaData->width_in_pixels        = pSubResInfo->extentTexels.width;
-        pUmdMetaData->height                 = pSubResInfo->extentTexels.height;
-        pUmdMetaData->depth                  = pSubResInfo->extentTexels.depth;
-        pUmdMetaData->aligned_pitch_in_bytes = pSubResInfo->rowPitch;
-        pUmdMetaData->aligned_height         = pSubResInfo->actualExtentTexels.height;
-        pUmdMetaData->format                 = PalToAmdGpuFormatConversion(pSubResInfo->format);
-
-        pUmdMetaData->pipeBankXor  = pTileInfo->pipeBankXor;
-
-        for (uint32 plane = 1; plane < (image.GetImageInfo().numPlanes); plane++)
-        {
-            const AddrMgr2::TileInfo*const pPlaneTileInfo  = AddrMgr2::GetTileInfo(&image, (subResPerPlane * plane));
-            pUmdMetaData->additionalPipeBankXor[plane - 1] = pPlaneTileInfo->pipeBankXor;
-        }
-
-        pUmdMetaData->swizzleMode  = curSwizzleMode;
-        pUmdMetaData->resourceType = static_cast<AMDGPU_ADDR_RESOURCE_TYPE>(imageCreateInfo.imageType);
-
-        DccState dccState = {};
-
-        // We cannot differentiate displayable DCC from standard DCC in the existing metadata. However, the control register values
-        // should match between displayable DCC and standard DCC.
-        if (image.GetGfxImage()->HasDisplayDccData())
-        {
-            image.GetGfxImage()->GetDisplayDccState(&dccState);
-        }
-        else
-        {
-            image.GetGfxImage()->GetDccState(&dccState);
-        }
-
-        metadata.tiling_info = 0;
-        metadata.tiling_info |= AMDGPU_TILING_SET(SWIZZLE_MODE, curSwizzleMode);
-        // In order to sharing resource metadata with Mesa3D, the definition have to follow Mesa's way.
-        // The swizzle_info is used in Mesa to indicate whether the surface is displyable.
-        metadata.tiling_info |= AMDGPU_TILING_SET(SCANOUT, imageCreateInfo.flags.presentable);
-        metadata.tiling_info |= AMDGPU_TILING_SET(DCC_OFFSET_256B, Get256BAddrLo(dccState.primaryOffset));
-        metadata.tiling_info |= AMDGPU_TILING_SET(DCC_PITCH_MAX, (dccState.pitch - 1));
-        metadata.tiling_info |= AMDGPU_TILING_SET(DCC_INDEPENDENT_64B, dccState.independentBlk64B);
-        metadata.tiling_info |= AMDGPU_TILING_SET(DCC_INDEPENDENT_128B, dccState.independentBlk128B);
-        metadata.tiling_info |= AMDGPU_TILING_SET(DCC_MAX_COMPRESSED_BLOCK_SIZE, dccState.maxCompressedBlockSize);
-        metadata.tiling_info |= AMDGPU_TILING_SET(DCC_MAX_UNCOMPRESSED_BLOCK_SIZE, dccState.maxUncompressedBlockSize);
+        const AddrMgr2::TileInfo*const pPlaneTileInfo  = AddrMgr2::GetTileInfo(&image, (subResPerPlane * plane));
+        pUmdMetaData->additionalPipeBankXor[plane - 1] = pPlaneTileInfo->pipeBankXor;
     }
+
+    pUmdMetaData->swizzleMode  = curSwizzleMode;
+    pUmdMetaData->resourceType = static_cast<AMDGPU_ADDR_RESOURCE_TYPE>(imageCreateInfo.imageType);
+
+    DccState dccState = {};
+
+    // We cannot differentiate displayable DCC from standard DCC in the existing metadata.
+    // However, the control register values should match between displayable DCC and standard DCC.
+    if (image.GetGfxImage()->HasDisplayDccData())
+    {
+        image.GetGfxImage()->GetDisplayDccState(&dccState);
+    }
+    else
+    {
+        image.GetGfxImage()->GetDccState(&dccState);
+    }
+
+    metadata.tiling_info = 0;
+    metadata.tiling_info |= AMDGPU_TILING_SET(SWIZZLE_MODE, curSwizzleMode);
+    // In order to sharing resource metadata with Mesa3D, the definition have to follow Mesa's way.
+    // The swizzle_info is used in Mesa to indicate whether the surface is displyable.
+    metadata.tiling_info |= AMDGPU_TILING_SET(SCANOUT, imageCreateInfo.flags.presentable);
+    metadata.tiling_info |= AMDGPU_TILING_SET(DCC_OFFSET_256B, Get256BAddrLo(dccState.primaryOffset));
+    metadata.tiling_info |= AMDGPU_TILING_SET(DCC_PITCH_MAX, (dccState.pitch - 1));
+    metadata.tiling_info |= AMDGPU_TILING_SET(DCC_INDEPENDENT_64B, dccState.independentBlk64B);
+    metadata.tiling_info |= AMDGPU_TILING_SET(DCC_INDEPENDENT_128B, dccState.independentBlk128B);
+    metadata.tiling_info |= AMDGPU_TILING_SET(DCC_MAX_COMPRESSED_BLOCK_SIZE, dccState.maxCompressedBlockSize);
+    metadata.tiling_info |= AMDGPU_TILING_SET(DCC_MAX_UNCOMPRESSED_BLOCK_SIZE, dccState.maxUncompressedBlockSize);
 
     pUmdMetaData->array_size              = imageCreateInfo.arraySize;
     pUmdMetaData->flags.mip_levels        = imageCreateInfo.mipLevels;
@@ -3695,11 +3658,9 @@ void Device::UpdateMetaData(
             sharedMetadataInfo.fastClearMetaDataOffset[0];
         pUmdSharedMetadata->fce_state_offset =
             sharedMetadataInfo.fastClearEliminateMetaDataOffset[0];
-        if ((sharedMetadataInfo.fmaskOffset != 0) &&
-            (ChipProperties().gfxLevel >= GfxIpLevel::GfxIp9))
+        if (sharedMetadataInfo.fmaskOffset != 0)
         {
-            // Only hardware of gfxlevel >= gfx9 supports that Fmask has its own PipeBankXor.
-            //if the shared surface is a color surface, reuse the htileOffset as fmaskXor.
+            // If the shared surface is a color surface, reuse the htileOffset as fmaskXor.
             PAL_ASSERT(sharedMetadataInfo.htileOffset == 0);
             pUmdSharedMetadata->flags.htile_as_fmask_xor = 1;
             pUmdSharedMetadata->htile_offset = sharedMetadataInfo.fmaskXor;

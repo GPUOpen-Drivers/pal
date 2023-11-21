@@ -39,7 +39,6 @@ target_sources(pal PRIVATE
     pm4RsrcProcMgr.h
     rpmUtil.cpp
     rpmUtil.h
-    rpmWorkGraphsUtil.hlsl.h
     rsrcProcMgr.cpp
     rsrcProcMgr.h
 )

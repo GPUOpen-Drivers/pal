@@ -74,6 +74,13 @@ UberTraceService::~UberTraceService()
 }
 
 // =====================================================================================================================
+DD_RESULT UberTraceService::EnableTracing()
+{
+    m_pPlatform->GetTraceSession()->EnableTracing();
+    return DD_RESULT_SUCCESS;
+}
+
+// =====================================================================================================================
 DD_RESULT UberTraceService::ConfigureTraceParams(
     const void* pParamBuffer,
     size_t      paramBufferSize)

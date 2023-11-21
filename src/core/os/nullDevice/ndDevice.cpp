@@ -757,11 +757,8 @@ Result Device::EarlyInit(
     m_chipProperties.gfxEngineId = m_gpuInfo.gfxEngineId;
     m_chipProperties.gpuIndex    = 0;
 
-    m_chipProperties.gfxLevel = ipLevels.gfx;
-    m_chipProperties.vceLevel = ipLevels.vce;
-    m_chipProperties.uvdLevel = ipLevels.uvd;
-    m_chipProperties.vcnLevel = ipLevels.vcn;
-
+    m_chipProperties.gfxLevel         = ipLevels.gfx;
+    m_chipProperties.vcnLevel         = ipLevels.vcn;
     m_chipProperties.hwIpFlags.u32All = ipLevels.flags.u32All;
 
     for (uint32 i = 0; i < EngineTypeCount; i++)

@@ -68,8 +68,8 @@ public:
         void*        pBuffer) const override;
 
     virtual Result GetShaderFunctionStats(
-        const char*      pShaderExportName,
-        ShaderLibStats*  pShaderStats) const override;
+        Util::StringView<char> shaderExportName,
+        ShaderLibStats*        pShaderStats) const override;
 
 protected:
     virtual Result HwlInit(
@@ -79,7 +79,7 @@ protected:
         Util::MsgPackReader*                    pMetadataReader) override;
 
     Result UnpackShaderFunctionStats(
-        const char*                             pShaderExportName,
+        Util::StringView<char>                  shaderExportName,
         const Util::PalAbi::CodeObjectMetadata& metadata,
         Util::MsgPackReader*                    pMetadataReader,
         ShaderLibStats*                         pShaderStats) const;

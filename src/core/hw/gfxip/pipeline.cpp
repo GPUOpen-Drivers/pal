@@ -480,11 +480,8 @@ Result Pipeline::GetShaderStatsForStage(
         pStats->common.numUsedSgprs = stageMetadata.sgprCount;
         pStats->common.numUsedVgprs = stageMetadata.vgprCount;
 
-        if (gpuInfo.gfxLevel >= GfxIpLevel::GfxIp9)
-        {
-            pStats->numAvailableSgprs = (stageMetadata.hasEntry.sgprLimit != 0) ? stageMetadata.sgprLimit
-                                                                                : gpuInfo.gfx9.numShaderVisibleSgprs;
-        }
+        pStats->numAvailableSgprs = (stageMetadata.hasEntry.sgprLimit != 0) ? stageMetadata.sgprLimit
+                                                                            : gpuInfo.gfx9.numShaderVisibleSgprs;
         pStats->numAvailableVgprs = (stageMetadata.hasEntry.vgprLimit != 0) ? stageMetadata.vgprLimit
                                                                             : MaxVgprPerShader;
 
@@ -822,7 +819,7 @@ Result PipelineUploader::Begin(
         // The driver must make sure there is a distance of at least gpuInfo.shaderPrefetchBytes
         // that follows the end of the shader to avoid a page fault when the SQ tries to
         // prefetch past the end of a shader
-        // shaderPrefetchBytes is set from "SQC_CONFIG.INST_PRF_COUNT" (gfx8-9)
+        // shaderPrefetchBytes is set from SH_MEM_CONFIG.INITIAL_INST_PREFETCH
         // defaulting to the hardware supported maximum if necessary
         const gpusize minSafeSize = Pow2Align(m_prefetchSize, ShaderICacheLineSize) +
                                     m_pDevice->ChipProperties().gfxip.shaderPrefetchBytes;

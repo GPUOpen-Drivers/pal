@@ -184,7 +184,8 @@ struct QueueCreateInfo
 
         uint32 forceWaitIdleOnRingResize       :  1; ///< This queue need to wait for idle before resize RingSet.
                                                      ///  This is intended as a workaround for misbehaving applications.
-        uint32 reserved                        : 26; ///< Reserved for future use.
+        uint32 placeholder3                    :  1; ///< Reserved field. Set to 0.
+        uint32 reserved                        : 25; ///< Reserved for future use.
     };
 
     uint32 numReservedCu;           ///< The number of reserved compute units for RT CU queue

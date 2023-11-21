@@ -229,8 +229,7 @@ public:
     bool SupportsGangSubmit() const
     {
         bool supportsGangSubmit = ((IsDrmVersionOrGreater(3,49) || IsKernelVersionEqualOrGreater(6,1)) &&
-                                    Settings().enableGangSubmit                                        &&
-                                    (m_pPlatform->IsEmulationEnabled() == false));
+                                    Settings().enableGangSubmit);
         return supportsGangSubmit;
     }
 

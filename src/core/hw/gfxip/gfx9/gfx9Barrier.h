@@ -100,6 +100,28 @@ struct LayoutTransitionInfo
     HwLayoutTransition blt[2];            // Color target may need a second decompress pass to do MSAA color decompress.
 };
 
+// This family of constexpr bitmasks defines which source/prior stages require EOP or EOS events to wait for idle.
+// They're mainly used to pick our Release barrier event but are also reused in other places in PAL.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 835
+constexpr uint32 EopWaitStageMask = (PipelineStageSampleRate    |
+                                     PipelineStageEarlyDsTarget | PipelineStageLateDsTarget |
+                                     PipelineStageColorTarget   | PipelineStageBottomOfPipe);
+#else
+constexpr uint32 EopWaitStageMask = (PipelineStageEarlyDsTarget | PipelineStageLateDsTarget |
+                                     PipelineStageColorTarget   | PipelineStageBottomOfPipe);
+#endif
+// PFP sets IB base and size to register VGT_DMA_BASE & VGT_DMA_SIZE and send request to VGT for indices fetch,
+// which is done in GE. So need VsDone to make sure indices fetch done.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 770
+constexpr uint32 VsWaitStageMask  = (PipelineStageFetchIndices | PipelineStageStreamOut |
+                                     PipelineStageVs | PipelineStageHs | PipelineStageDs | PipelineStageGs);
+#else
+constexpr uint32 VsWaitStageMask  = (PipelineStageFetchIndices |
+                                     PipelineStageVs | PipelineStageHs | PipelineStageDs | PipelineStageGs);
+#endif
+constexpr uint32 PsWaitStageMask  = PipelineStagePs;
+constexpr uint32 CsWaitStageMask  = PipelineStageCs;
+
 // =====================================================================================================================
 // HWL Barrier Processing Manager: contain layout transition BLT and pre/post-BLT execution and memory dependencies.
 class BarrierMgr final : public Pal::GfxBarrierMgr
@@ -206,13 +228,6 @@ private:
         SyncReqs*                     pSyncReqs,
         Developer::BarrierOperations* pOperations) const;
     void AcqRelColorTransition(
-        Pm4CmdBuffer*                 pCmdBuf,
-        CmdStream*                    pCmdStream,
-        const ImgBarrier&             imgBarrier,
-        LayoutTransitionInfo          layoutTransInfo,
-        Developer::BarrierOperations* pBarrierOps) const;
-
-    void AcqRelColorTransitionEvent(
         Pm4CmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         const ImgBarrier&             imgBarrier,

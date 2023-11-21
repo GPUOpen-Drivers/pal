@@ -42,7 +42,7 @@ struct AssertTableEntry
 AssertTableEntry g_assertCatTable[AssertCatCount] =
 {
     // Debug breaks triggered by asserts/alerts are always disabled by default in non-debug builds.
-#if DEBUG
+#if PAL_ENABLE_DEBUG_BREAK
     { true,  "Assert" },
 #else
     { false,  "Assert" },

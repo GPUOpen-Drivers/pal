@@ -77,7 +77,7 @@ ColorTargetView::ColorTargetView(
         PAL_ASSERT((imageCreateInfo.imageType != ImageType::Tex3d) ||
                    ((createInfo.imageInfo.baseSubRes.arraySlice == 0) && (createInfo.imageInfo.arraySize == 1)));
 
-        // Sets the base subresource for this mip. Note that this is not fixed to the first slice like in gfx6.
+        // Sets the base subresource for this mip. Note that this is not fixed to the first slice.
         m_subresource = createInfo.imageInfo.baseSubRes;
         m_arraySize   = createInfo.imageInfo.arraySize;
 

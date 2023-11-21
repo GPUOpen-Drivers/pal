@@ -622,6 +622,11 @@ public:
 
     virtual bool DisableAc01ClearCodes() const override;
 
+    virtual void UpdateDisplayDcc(
+        GfxCmdBuffer*                   pCmdBuf,
+        const CmdPostProcessFrameInfo&  postProcessInfo,
+        bool*                           pAddedGpuWork) const override;
+
 private:
     void Gfx10SetImageSrdDims(sq_img_rsrc_t*  pSrd, uint32 width, uint32  height) const;
 
@@ -660,7 +665,7 @@ private:
     // Store GPU memory and offsets for compute/graphics trap handlers and trap buffers.  Trap handlers are client-
     // installed hardware shaders that can be executed based on exceptions occurring in the main shader or in other
     // situations like supporting a debugger.  Trap buffers are just scratch memory that can be accessed from a trap
-    // handler.  GFX9 has only one trap handler/buffer per VMID not per pipeline like GFX6 had.
+    // handler.  GFX9 has only one trap handler/buffer per VMID.
     BoundGpuMemory m_computeTrapHandler;
     BoundGpuMemory m_computeTrapBuffer;
     BoundGpuMemory m_graphicsTrapHandler;

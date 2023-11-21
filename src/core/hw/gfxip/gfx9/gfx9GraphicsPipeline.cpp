@@ -1251,7 +1251,7 @@ void GraphicsPipeline::SetupIaMultiVgtParam(
 }
 
 // =====================================================================================================================
-// Performs additional validation and setup for IA_MULTI_VGT_PARAM for Gfx7 and newer GPUs.
+// Performs additional validation and setup for IA_MULTI_VGT_PARAM.
 void GraphicsPipeline::FixupIaMultiVgtParam(
     bool                   forceWdSwitchOnEop,
     regIA_MULTI_VGT_PARAM* pIaMultiVgtParam
@@ -1693,8 +1693,7 @@ uint32 GraphicsPipeline::CalcMaxLateAllocLimit(
     const auto* pPalSettings = device.Parent()->GetPublicSettings();
     const auto& gfx9Settings = device.Settings();
 
-    // Default to a late-alloc limit of zero.  This will nearly mimic the GFX6 behavior where VS waves don't launch
-    // without allocating export space.
+    // Default to a late-alloc limit of zero. This will nearly mimic allocating export space before launching VS waves.
     uint32 lateAllocLimit = 0;
 
     // To keep this code equivalent to the previous code, we first transform these values into their
@@ -1764,8 +1763,8 @@ uint32 GraphicsPipeline::CalcMaxLateAllocLimit(
         }
     }
 
-    // The late alloc setting is the number of wavefronts minus one.  On GFX7+ at least one VS wave always can
-    // launch with late alloc enabled.
+    // The late alloc setting is the number of wavefronts minus one. At least one VS wave always can launch with late
+    // alloc enabled. In GFX10 the late alloc setting is the number of vert lines available for oversubscription.
     lateAllocLimit = (lateAllocLimit > 0) ? (lateAllocLimit - 1) : 0;
 
     const uint32 programmedLimit = Min(lateAllocLimit, maxLateAllocLimit);
@@ -2764,7 +2763,6 @@ void GraphicsPipeline::SetupSignatureFromLib(
 #if PAL_BUILD_GFX11
     m_signature.streamoutCntlBufRegAddr = pPreRasterLib->m_signature.streamoutCntlBufRegAddr;
 #endif
-    m_signature.nggCullingDataAddr      = pPreRasterLib->m_signature.nggCullingDataAddr;
     m_signature.uavExportTableAddr      = pPsLib->m_signature.uavExportTableAddr;
     m_signature.sampleInfoRegAddr       = pPsLib->m_signature.sampleInfoRegAddr;
     m_signature.colorExportAddr         = pPsLib->m_signature.colorExportAddr;

@@ -316,10 +316,10 @@ public:
         uint32                    flags) override;
     virtual void CmdSetEvent(
         const IGpuEvent& gpuEvent,
-        HwPipePoint      setPoint) override;
+        uint32           stageMask) override;
     virtual void CmdResetEvent(
         const IGpuEvent& gpuEvent,
-        HwPipePoint      resetPoint) override;
+        uint32           stageMask) override;
     virtual void CmdPredicateEvent(
         const IGpuEvent& gpuEvent) override;
     virtual void CmdMemoryAtomic(
@@ -350,11 +350,11 @@ public:
         uint32            startQuery,
         uint32            queryCount) override;
     virtual void CmdWriteTimestamp(
-        HwPipePoint       pipePoint,
+        uint32            stageMask,
         const IGpuMemory& dstGpuMemory,
         gpusize           dstOffset) override;
     virtual void CmdWriteImmediate(
-        HwPipePoint        pipePoint,
+        uint32             stageMask,
         uint64             data,
         ImmediateDataWidth dataSize,
         gpusize            address) override;

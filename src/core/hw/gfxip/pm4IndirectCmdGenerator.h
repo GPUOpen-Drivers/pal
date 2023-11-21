@@ -51,7 +51,7 @@ enum class GeneratorType : uint32
 };
 
 // Contains properties of a specific command generator.
-// NOTE: This *must* be compatible with the same-named structure inside core/hw/gfxip/rpm/gfx6/globals.hlsl !
+// NOTE: This *must* be compatible with the same-named structure inside core/hw/gfxip/rpm/gfx9/globals.hlsl !
 struct GeneratorProperties
 {
     // Set of magic values which the command generator will recognize inside a BindIndexDataIndirectArgs structure
@@ -73,29 +73,15 @@ struct GeneratorProperties
 };
 
 // Contains properties of a specific CmdExecuteIndirectCmds() invocation.
-// NOTE: This *must* be compatible with the same-named structure inside core/hw/gfxip/rpm/gfx6/globals.hlsl !
+// NOTE: This *must* be compatible with the same-named structure inside core/hw/gfxip/rpm/gfx9/globals.hlsl !
 struct InvocationProperties
 {
     uint32  maximumCmdCount;    // Maximum number of draw or dispatch commands
     uint32  indexBufSize;       // Maximum number of indices in the bound index buffer
     uint32  argumentBufAddr[2]; // Argument buffer GPU address
 
-    // Hardware-specific data
-    union
-    {
-        struct
-        {
-            uint32  indexBufMType;      // MTYPE value for index buffer bindings
-            uint32  dimInThreads;       // Should dispatch commands be in terms of threads(1) or thread-groups(0)?
-            uint32  padding[2];
-            uint32  threadsPerGroup[3]; // Compute thread-group dimensions. Ignored for graphics commands.
-        } gfx6;
-
-        struct
-        {
-            uint32  dispatchInitiator;  // COMPUTE_DISPATCH_INITIATOR value for CS dispatches
-        } gfx9;
-    };
+    uint32  dispatchInitiator;  // COMPUTE_DISPATCH_INITIATOR value for CS dispatches
+    uint32  padding[3];         // HLSL requires that constant buffers be size-aligned to 4 DWORDs.
 };
 
 // =====================================================================================================================

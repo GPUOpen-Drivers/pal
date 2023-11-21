@@ -1035,9 +1035,9 @@ void CmdBuffer::CmdCopyDfSpmTraceData(
 // Writes the commands necessary to write "data" to the specified event.
 // Invoked whenever you call ICmdBuffer::CmdSetEvent or ICmdBuffer::CmdResetEvent.
 void CmdBuffer::WriteEvent(
-    const IGpuEvent& gpuEvent,
-    HwPipePoint      pipePoint,
-    uint32           data)
+    const IGpuEvent&  gpuEvent,
+    uint32            stageMask, // Bitmask of PipelineStageFlag
+    uint32            data)
 {
     // Events can only be set (0xDEADBEEF) or reset (0xCAFEBABE)
     PAL_ASSERT((data == GpuEvent::SetValue) || (data == GpuEvent::ResetValue));
@@ -1047,7 +1047,7 @@ void CmdBuffer::WriteEvent(
 
     if (boundMemObj.IsBound())
     {
-        WriteEventCmd(boundMemObj, pipePoint, data);
+        WriteEventCmd(boundMemObj, stageMask, data);
     }
     else
     {
@@ -1143,9 +1143,11 @@ void CmdBuffer::P2pBltWaCopyBegin(
     // GPU.
     PAL_ASSERT(m_device.ChipProperties().p2pBltWaInfo.required && pDstMemory->AccessesPeerMemory());
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 834
     // Only the universal and SDMA engines support the P2P BLT WA, clients should be honoring the
     // p2pCopyToInvisibleHeapIllegal engine property and we should never hit this function on other engines.
     PAL_ASSERT((GetEngineType() == EngineTypeUniversal) || (GetEngineType() == EngineTypeDma));
+#endif
 
     P2pBltWaInfo entry       = { };
     entry.type               = P2pBltWaInfoType::PerCopy;

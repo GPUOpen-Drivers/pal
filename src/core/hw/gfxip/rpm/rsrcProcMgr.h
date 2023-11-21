@@ -480,7 +480,8 @@ protected:
         bool                      isCsResolve) const;
 
     void BindCommonGraphicsState(
-        GfxCmdBuffer* pCmdBuffer) const;
+        GfxCmdBuffer*  pCmdBuffer,
+        VrsShadingRate vrsRate=VrsShadingRate::_1x1) const;
 
     template <typename CopyRegion>
     void GetCopyImageFormats(

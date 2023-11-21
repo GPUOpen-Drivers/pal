@@ -161,8 +161,6 @@ bool Device::DetermineGpuIpLevels(
     HwIpLevels*       pIpLevels)
 {
     pIpLevels->gfx = GfxIpLevel::None;
-    pIpLevels->vce = VceIpLevel::None;
-    pIpLevels->uvd = UvdIpLevel::None;
     pIpLevels->vcn = VcnIpLevel::None;
     pIpLevels->flags.u32All = 0;
 
@@ -196,8 +194,6 @@ bool Device::DetermineGpuIpLevels(
 
     // A GPU is considered supported by PAL if at least one of its hardware IP blocks is recognized.
     return ((pIpLevels->gfx != GfxIpLevel::None) ||
-            (pIpLevels->vce != VceIpLevel::None) ||
-            (pIpLevels->uvd != UvdIpLevel::None) ||
             (pIpLevels->vcn != VcnIpLevel::None));
 }
 
@@ -613,11 +609,6 @@ Result Device::HwlEarlyInit()
 
     if (result == Result::Success)
     {
-        if (ChipProperties().gfxLevel < GfxIpLevel::GfxIp9)
-        {
-        }
-
-        else
         {
             result = AddrMgr2::Create(this, pAddrMgrPlacementAddr, &m_pAddrMgr);
         }
@@ -800,10 +791,9 @@ void Device::GetHwIpDeviceSizes(
     HwIpDeviceSizes*  pHwDeviceSizes,
     size_t*           pAddrMgrSize)
 {
-    size_t  gfxAddrMgrSize = 0;
-
     PAL_ASSERT((pHwDeviceSizes != nullptr) && (pAddrMgrSize != nullptr));
 
+    // Note that Addrlib always ties its version number to the gfxip level.
     switch (ipLevels.gfx)
     {
     case GfxIpLevel::GfxIp9:
@@ -813,19 +803,12 @@ void Device::GetHwIpDeviceSizes(
     case GfxIpLevel::GfxIp11_0:
 #endif
         pHwDeviceSizes->gfx = Gfx9::GetDeviceSize(ipLevels.gfx);
-        gfxAddrMgrSize      = AddrMgr2::GetSize();
+        *pAddrMgrSize       = AddrMgr2::GetSize();
         break;
     default:
         break;
     }
 
-    size_t maxAddrMgrSize = gfxAddrMgrSize;
-
-    // Not having a block should be ok, but if a block exists, they all better be
-    // using the same size address manager.
-    PAL_ASSERT ((gfxAddrMgrSize == 0) || (gfxAddrMgrSize == maxAddrMgrSize));
-
-    *pAddrMgrSize = maxAddrMgrSize;
 }
 
 // =====================================================================================================================
@@ -1862,8 +1845,8 @@ Result Device::GetProperties(
         pInfo->gfxLevel                         = m_chipProperties.gfxLevel;
         pInfo->gpuPerformanceCapacity           = m_chipProperties.gpuPerformanceCapacity;
         pInfo->ossLevel                         = OssIpLevel::None;
-        pInfo->uvdLevel                         = m_chipProperties.uvdLevel;
-        pInfo->vceLevel                         = m_chipProperties.vceLevel;
+        pInfo->uvdLevel                         = UvdIpLevel::None;
+        pInfo->vceLevel                         = VceIpLevel::None;
         pInfo->vcnLevel                         = m_chipProperties.vcnLevel;
         pInfo->spuLevel                         = SpuIpLevel::None;
         pInfo->pspLevel                         = m_chipProperties.pspLevel;
@@ -1917,7 +1900,9 @@ Result Device::GetProperties(
             pEngineInfo->flags.supportVirtualMemoryRemap       = engineInfo.flags.supportVirtualMemoryRemap;
             pEngineInfo->flags.runsInPhysicalMode              = engineInfo.flags.physicalAddressingMode;
             pEngineInfo->flags.supportPersistentCeRam          = engineInfo.flags.supportPersistentCeRam;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 834
             pEngineInfo->flags.p2pCopyToInvisibleHeapIllegal   = engineInfo.flags.p2pCopyToInvisibleHeapIllegal;
+#endif
             pEngineInfo->flags.supportsTrackBusyChunks         = engineInfo.flags.supportsTrackBusyChunks;
             pEngineInfo->flags.supportsUnmappedPrtPageAccess   = engineInfo.flags.supportsUnmappedPrtPageAccess;
             pEngineInfo->flags.supportsClearCopyMsaaDsDst      = engineInfo.flags.supportsClearCopyMsaaDsDst;
@@ -2053,7 +2038,6 @@ Result Device::GetProperties(
 
         switch (m_chipProperties.gfxLevel)
         {
-
         case GfxIpLevel::GfxIp9:
         case GfxIpLevel::GfxIp10_1:
         case GfxIpLevel::GfxIp10_3:

@@ -62,6 +62,7 @@ enum class CallbackType : uint32
     SurfRegData,            ///< This callback is to inform tools of the register state of a surface.
 #if PAL_DEVELOPER_BUILD
     DrawDispatchValidation, ///< This callback is to describe the state validation needed by a draw or dispatch.
+    BindPipelineValidation, ///< This callback is to describe the state validation needed by a pipeline bind.
     OptimizedRegisters,     ///< This callback is to describe the PM4 optimizer's removal of redundant register
                             ///  sets.
 #endif
@@ -478,9 +479,15 @@ struct BindPipelineData
 struct DrawDispatchValidationData
 {
     ICmdBuffer* pCmdBuffer;         ///< The command buffer which is recording the triggering draw or dispatch.
-    uint32      pipelineCmdSize;    ///< Size of PM4 commands used to validate the current pipeline state (bytes).
     uint32      userDataCmdSize;    ///< Size of PM4 commands used to validate the current user-data entries (bytes).
     uint32      miscCmdSize;        ///< Size of PM4 commands for all other draw- or dispatch-time validation (bytes).
+};
+
+// Information for BindPipelineValidation callbacks
+struct BindPipelineValidationData
+{
+    ICmdBuffer* pCmdBuffer;         ///< The command buffer which is recording the triggering draw or dispatch.
+    uint32      pipelineCmdSize;    ///< Size of PM4 commands used to validate the current pipeline state (bytes).
 };
 
 /// Information for OptimizedRegisters callbacks

@@ -200,11 +200,6 @@ Result CmdBuffer::Begin(
         // clients that use CmdAllocateEmbeddedData().  They immediately need a CPU address corresponding to GPU memory
         // with the lifetime of this command buffer, so it is easiest to just let it go through the normal path.
         // The core layer's command buffer will be filled entirely with embedded data.
-        //
-        // This is skipped for command buffers based on VideoEncodeCmdBuffers because those command buffers do not
-        // reset their state (or even really build the command buffer) until that command buffer is submitted.  The GPU
-        // profiler layer instead internally replaces and submits a different command buffer which leaves this one
-        // permanently in Building state the next time Begin() is called on it.
         {
             result = NextLayer()->Begin(NextCmdBufferBuildInfo(info));
         }
@@ -3042,11 +3037,11 @@ void CmdBuffer::ReplayCmdResolveImage(
 // =====================================================================================================================
 void CmdBuffer::CmdSetEvent(
     const IGpuEvent& gpuEvent,
-    HwPipePoint      setPoint)
+    uint32           stageMask)
 {
     InsertToken(CmdBufCallId::CmdSetEvent);
     InsertToken(&gpuEvent);
-    InsertToken(setPoint);
+    InsertToken(stageMask);
 }
 
 // =====================================================================================================================
@@ -3055,19 +3050,19 @@ void CmdBuffer::ReplayCmdSetEvent(
     TargetCmdBuffer* pTgtCmdBuffer)
 {
     auto pGpuEvent = ReadTokenVal<IGpuEvent*>();
-    auto setPoint  = ReadTokenVal<HwPipePoint>();
+    auto stageMask = ReadTokenVal<uint32>();
 
-    pTgtCmdBuffer->CmdSetEvent(*pGpuEvent, setPoint);
+    pTgtCmdBuffer->CmdSetEvent(*pGpuEvent, stageMask);
 }
 
 // =====================================================================================================================
 void CmdBuffer::CmdResetEvent(
     const IGpuEvent& gpuEvent,
-    HwPipePoint      resetPoint)
+    uint32           stageMask)
 {
     InsertToken(CmdBufCallId::CmdResetEvent);
     InsertToken(&gpuEvent);
-    InsertToken(resetPoint);
+    InsertToken(stageMask);
 }
 
 // =====================================================================================================================
@@ -3075,10 +3070,10 @@ void CmdBuffer::ReplayCmdResetEvent(
     Queue*           pQueue,
     TargetCmdBuffer* pTgtCmdBuffer)
 {
-    auto pGpuEvent  = ReadTokenVal<IGpuEvent*>();
-    auto resetPoint = ReadTokenVal<HwPipePoint>();
+    auto pGpuEvent = ReadTokenVal<IGpuEvent*>();
+    auto stageMask = ReadTokenVal<uint32>();
 
-    pTgtCmdBuffer->CmdResetEvent(*pGpuEvent, resetPoint);
+    pTgtCmdBuffer->CmdResetEvent(*pGpuEvent, stageMask);
 }
 
 // =====================================================================================================================
@@ -3315,12 +3310,12 @@ void CmdBuffer::ReplayCmdSuspendPredication(
 
 // =====================================================================================================================
 void CmdBuffer::CmdWriteTimestamp(
-    HwPipePoint       pipePoint,
+    uint32            stageMask,
     const IGpuMemory& dstGpuMemory,
     gpusize           dstOffset)
 {
     InsertToken(CmdBufCallId::CmdWriteTimestamp);
-    InsertToken(pipePoint);
+    InsertToken(stageMask);
     InsertToken(&dstGpuMemory);
     InsertToken(dstOffset);
 }
@@ -3330,22 +3325,22 @@ void CmdBuffer::ReplayCmdWriteTimestamp(
     Queue*           pQueue,
     TargetCmdBuffer* pTgtCmdBuffer)
 {
-    auto pipePoint     = ReadTokenVal<HwPipePoint>();
+    auto stageMask     = ReadTokenVal<uint32>();
     auto pDstGpuMemory = ReadTokenVal<IGpuMemory*>();
     auto dstOffset     = ReadTokenVal<gpusize>();
 
-    pTgtCmdBuffer->CmdWriteTimestamp(pipePoint, *pDstGpuMemory, dstOffset);
+    pTgtCmdBuffer->CmdWriteTimestamp(stageMask, *pDstGpuMemory, dstOffset);
 }
 
 // =====================================================================================================================
 void CmdBuffer::CmdWriteImmediate(
-    HwPipePoint        pipePoint,
+    uint32             stageMask,
     uint64             data,
     ImmediateDataWidth dataSize,
     gpusize            address)
 {
     InsertToken(CmdBufCallId::CmdWriteImmediate);
-    InsertToken(pipePoint);
+    InsertToken(stageMask);
     InsertToken(data);
     InsertToken(dataSize);
     InsertToken(address);
@@ -3356,12 +3351,12 @@ void CmdBuffer::ReplayCmdWriteImmediate(
     Queue*           pQueue,
     TargetCmdBuffer* pTgtCmdBuffer)
 {
-    auto pipePoint = ReadTokenVal<HwPipePoint>();
+    auto stageMask = ReadTokenVal<uint32>();
     auto data      = ReadTokenVal<uint64>();
     auto dataSize  = ReadTokenVal<ImmediateDataWidth>();
     auto address   = ReadTokenVal<gpusize>();
 
-    pTgtCmdBuffer->CmdWriteImmediate(pipePoint, data, dataSize, address);
+    pTgtCmdBuffer->CmdWriteImmediate(stageMask, data, dataSize, address);
 }
 
 // =====================================================================================================================
@@ -4984,6 +4979,15 @@ void TargetCmdBuffer::BeginSample(
         {
             Result result = m_pGpaSession->BeginSample(this, config, &pLogItem->gpaSampleId);
             SetLastResult(result);
+
+            if (result == Result::ErrorOutOfMemory)
+            {
+                pLogItem->errors.perfExpOutOfMemory = 1;
+            }
+            else if (result == Result::ErrorOutOfGpuMemory)
+            {
+                pLogItem->errors.perfExpOutOfGpuMemory = 1;
+            }
 
         }
         else

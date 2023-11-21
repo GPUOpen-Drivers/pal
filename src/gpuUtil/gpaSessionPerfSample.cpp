@@ -57,7 +57,8 @@ void GpaSession::PerfSample::SetCopySampleMemInfo(
 // =====================================================================================================================
 // Writes commands to copy the sample data from the src PerfSample to this PerfSample's sample data gpu mem.
 // The src session's sample data gpu mem is saved during GpaSesssion initialization into this PerfSample.
-void GpaSession::PerfSample::WriteCopySampleData(Pal::ICmdBuffer* pCmdBuffer)
+void GpaSession::PerfSample::WriteCopySampleData(
+    Pal::ICmdBuffer* pCmdBuffer)
 {
     // NOTE: SetCopySampleMemInfo must have been called prior to the copy.
     PAL_ASSERT(m_pCopySampleGpuMem != nullptr);
@@ -396,7 +397,7 @@ void GpaSession::TraceSample::GetDfSpmResultsSize(
     // This is calculated according to the spm data layout in the RGP spec, excluding the header, num timestamps
     // and the timestampOffset fields.
     (*pSizeInBytes) = m_numDfSpmCounters * sizeof(SpmCounterInfo) +            // SpmCounterInfo for each counter.
-                      m_numDfSpmSamples  * sizeof(gpusize)        +            // Timestamp data.
+                      m_numDfSpmSamples  * sizeof(uint64)         +            // Timestamp data.
                       m_numDfSpmCounters * m_numDfSpmSamples * sizeof(uint16); // Counter data.
 }
 
@@ -406,21 +407,33 @@ void GpaSession::TraceSample::GetSpmResultsSize(
     Pal::gpusize* pSizeInBytes,
     Pal::gpusize* pNumSamples)
 {
-    const size_t CounterInfoSizeInBytes = m_numSpmCounters * sizeof(SpmCounterInfo);
-
     if (m_numSpmSamples < 0)
     {
         // Cache the number of samples if not computed before.
         CountNumSpmSamples();
     }
 
-    (*pNumSamples) = m_numSpmSamples;
+    // This is the size of the arrays that follow the SqttFileChunkSpmDb header.
+    // 1. Timestamps[]
+    // 2. SpmCounterInfo[]
+    // 3. Counter values[]
+    gpusize sizeInBytes = (m_numSpmSamples  * sizeof(uint64) +         // Timestamps[]
+                           m_numSpmCounters * sizeof(SpmCounterInfo)); // SpmCounterInfo[]
 
-    // This is calculated according to the spm data layout in the RGP spec, excluding the header, num timestamps
-    // and the timestampOffset fields.
-    (*pSizeInBytes) = CounterInfoSizeInBytes +                             // SpmCounterInfo for each counter.
-                      m_numSpmSamples  * sizeof(gpusize) +                 // Timestamp data.
-                      m_numSpmCounters * m_numSpmSamples * sizeof(uint16); // Counter data.
+    // The counter value arrays can have different data types depending on the counter configs.
+    for (uint32 counter = 0; counter < m_numSpmCounters; counter++)
+    {
+#if (PAL_BUILD_BRANCH == 0) || (PAL_BUILD_BRANCH >= 2340)
+        const uint32 dataSize = m_pSpmTraceLayout->counterData[counter].is32Bit ? sizeof(uint32) : sizeof(uint16);
+#else
+        const uint32 dataSize = sizeof(uint16);
+#endif
+
+        sizeInBytes += m_numSpmSamples * dataSize;
+    }
+
+    (*pSizeInBytes) = sizeInBytes;
+    (*pNumSamples)  = m_numSpmSamples;
 }
 
 // =====================================================================================================================
@@ -458,7 +471,7 @@ Result GpaSession::TraceSample::GetDfSpmTraceResults(
     constexpr size_t  TwoCounterSizeInBytes    = 5;
     constexpr size_t  OneCounterDataSizeInBits = 20;
 
-    const size_t  TimestampDataSizeInBytes = m_numDfSpmSamples  * sizeof(gpusize);
+    const size_t  TimestampDataSizeInBytes = m_numDfSpmSamples  * sizeof(uint64);
     const size_t  FlagsDataSizeInBytes     = m_numDfSpmSamples  * sizeof(uint32);
     const gpusize CounterDataSizeInBytes   = m_numDfSpmSamples  * sizeof(uint32); // Size of data written for one counter.
     const size_t  CounterInfoSizeInBytes   = m_numDfSpmCounters * sizeof(DfSpmCounterInfo);
@@ -598,14 +611,10 @@ Result GpaSession::TraceSample::GetSpmTraceResults(
     // We assume these values are always the same.
     PAL_ASSERT(m_numSpmCounters == m_pSpmTraceLayout->numCounters);
 
-    /* RGP Layout for SPM trace data. This function writes sections 4-6 to pDstBuffer.
-     *   1. Header
-     *   2. Num Timestamps
-     *   3. Num SpmCounterInfo
-     *   4. Timestamps[]
-     *   5. SpmCounterInfo[]
-     *   6. Counter values[]
-    */
+    // This function writes the arrays that follow SqttFileChunkSpmDb to pDstBuffer:
+    // 1. Timestamps[]
+    // 2. SpmCounterInfo[]
+    // 3. Counter values[]
     const size_t timestampDataSizeInBytes = m_numSpmSamples * sizeof(uint64);
     const size_t counterInfoSizeInBytes   = m_numSpmCounters * sizeof(SpmCounterInfo);
     const size_t counterDataOffset        = timestampDataSizeInBytes + counterInfoSizeInBytes;
@@ -644,6 +653,11 @@ Result GpaSession::TraceSample::GetSpmTraceResults(
     {
         const SpmCounterData& layout       = m_pSpmTraceLayout->counterData[counter];
         SpmCounterInfo*const  pCounterInfo = pDstCounterInfos + counter;
+#if (PAL_BUILD_BRANCH == 0) || (PAL_BUILD_BRANCH >= 2340)
+        const uint32          dataSize     = layout.is32Bit ? sizeof(uint32) : sizeof(uint16);
+#else
+        const uint32          dataSize     = sizeof(uint16);
+#endif
 
         // The cast below assumes this always fits.
         PAL_ASSERT(curCounterDataOffset < UINT32_MAX);
@@ -652,26 +666,36 @@ Result GpaSession::TraceSample::GetSpmTraceResults(
         pCounterInfo->instance   = layout.instance;
         pCounterInfo->eventIndex = layout.eventId;
         pCounterInfo->dataOffset = uint32(curCounterDataOffset);
-        pCounterInfo->dataSize   = sizeof(uint16);
+        pCounterInfo->dataSize   = dataSize;
 
         // The SPM source data is grouped by sample but we want individual arrays for each counter.
         // Walk the source buffer and do a sparse read for each sample, writing the value into the destination array.
-        auto*const  pDstValues = static_cast<uint16*>(Util::VoidPtrInc(pDstBuffer, curCounterDataOffset));
+        void*const  pDstValues = Util::VoidPtrInc(pDstBuffer, curCounterDataOffset);
         const void* pSrcSample = m_pOldestSample;
 
         for (uint32 sample = 0; sample < m_numSpmSamples; sample++)
         {
-            // RGP doesn't support 32-bit SPM data yet so we treat all data as if its 16-bit. This means we truncate
-            // 32-bit values to 16-bit values which seems bad for unsigned counters (shouldn't we saturate?) but it's
-            // necessary for signed counters. GPA session doesn't know what the counter events actually mean so it
-            // can't tell if a non-zero high-half means the counter is positve and overflowed or if it's just negative.
-            //
-            // PAL has just truncated 32-bit SPM to 16-bit for years now without any complaints so we'll just keep
-            // doing that until RGP is ready for 32-bit data.
-            const uint16 value = *static_cast<const uint16*>(Util::VoidPtrInc(pSrcSample, layout.offsetLo));
+            const uint16 valueLo = *static_cast<const uint16*>(Util::VoidPtrInc(pSrcSample, layout.offsetLo));
 
-            pDstValues[sample] = value;
-            pSrcSample         = Util::VoidPtrInc(pSrcSample, m_pSpmTraceLayout->sampleStride);
+            if (layout.is32Bit)
+            {
+#if (PAL_BUILD_BRANCH == 0) || (PAL_BUILD_BRANCH >= 2340)
+                const uint32 valueHi = *static_cast<const uint16*>(Util::VoidPtrInc(pSrcSample, layout.offsetHi));
+                const uint32 value   = (valueHi << 16) | valueLo;
+
+                static_cast<uint32*>(pDstValues)[sample] = value;
+#else
+                // PAL has just truncated 32-bit SPM to 16-bit for years now without any complaints so we'll just keep
+                // doing that until RGP is ready for 32-bit data.
+                static_cast<uint16*>(pDstValues)[sample] = valueLo;
+#endif
+            }
+            else
+            {
+                static_cast<uint16*>(pDstValues)[sample] = valueLo;
+            }
+
+            pSrcSample = Util::VoidPtrInc(pSrcSample, m_pSpmTraceLayout->sampleStride);
 
             // Once we reach the end of the ring we need to wrap back around just like the RLC does when writing to it.
             if (pSrcSample == pRingEnd)
@@ -681,7 +705,7 @@ Result GpaSession::TraceSample::GetSpmTraceResults(
         }
 
         // Find the start of the next counter's data array.
-        curCounterDataOffset += m_numSpmSamples * sizeof(uint16);
+        curCounterDataOffset += m_numSpmSamples * dataSize;
     }
 
     return Result::Success;

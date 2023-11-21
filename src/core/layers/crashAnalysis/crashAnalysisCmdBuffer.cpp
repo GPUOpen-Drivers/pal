@@ -195,12 +195,12 @@ void CmdBuffer::AddPreamble()
     PAL_ASSERT(m_pMemoryChunk->pCpuAddr->cmdBufferId == m_cmdBufferId);
 
     CmdWriteImmediate(
-        HwPipePoint::HwPipeTop,
+        PipelineStageTopOfPipe,
         CrashAnalysis::InitialMarkerValue,
         ImmediateDataWidth::ImmediateData32Bit,
         GetGpuVa(offsetof(MarkerState, markerBegin)));
     CmdWriteImmediate(
-        HwPipePoint::HwPipeTop,
+        PipelineStageTopOfPipe,
         CrashAnalysis::InitialMarkerValue,
         ImmediateDataWidth::ImmediateData32Bit,
         GetGpuVa(offsetof(MarkerState, markerEnd)));
@@ -214,13 +214,13 @@ void CmdBuffer::AddPostamble()
     const gpusize gpuVaEnd   = GetGpuVa(offsetof(MarkerState, markerEnd));
 
     CmdWriteImmediate(
-        HwPipePoint::HwPipeBottom,
+        PipelineStageBottomOfPipe,
         CrashAnalysis::FinalMarkerValue,
         ImmediateDataWidth::ImmediateData32Bit,
         gpuVaBegin);
 
     CmdWriteImmediate(
-        HwPipePoint::HwPipeBottom,
+        PipelineStageBottomOfPipe,
         CrashAnalysis::FinalMarkerValue,
         ImmediateDataWidth::ImmediateData32Bit,
         gpuVaEnd);
@@ -347,11 +347,11 @@ void CmdBuffer::WriteMarkerImmediate(
 
     if (m_pMemoryChunk != nullptr)
     {
-        const HwPipePoint pipePoint = (isBegin) ? HwPipePoint::HwPipeTop
-                                                : HwPipePoint::HwPipeBottom;
-        const gpusize     offset    = (isBegin) ? offsetof(MarkerState, markerBegin)
-                                                : offsetof(MarkerState, markerEnd);
-        CmdWriteImmediate(pipePoint,
+        const uint32  stage  = isBegin ? PipelineStageTopOfPipe
+                                       : PipelineStageBottomOfPipe;
+        const gpusize offset = isBegin ? offsetof(MarkerState, markerBegin)
+                                       : offsetof(MarkerState, markerEnd);
+        CmdWriteImmediate(stage,
                           marker,
                           ImmediateDataWidth::ImmediateData32Bit,
                           GetGpuVa(offset));

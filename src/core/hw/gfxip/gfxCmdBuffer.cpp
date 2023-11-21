@@ -565,51 +565,7 @@ void GfxCmdBuffer::CmdPostProcessFrame(
 
         if (image.GetGfxImage()->HasDisplayDccData())
         {
-            // The surface must be fully expanded if another component may access it via PFPA,
-            // or KMD nofify UMD to expand DCC.
-            // Presentable surface has dcc and displayDcc, but turbo sync surface hasn't dcc,
-            // before present, need decompress dcc when turbo sync enables.
-            if (postProcessInfo.fullScreenFrameMetadataControlFlags.primaryHandle ||
-                postProcessInfo.fullScreenFrameMetadataControlFlags.expandDcc     ||
-                postProcessInfo.fullScreenFrameMetadataControlFlags.timerNodeSubmission)
-            {
-                BarrierInfo barrier = {};
-
-                BarrierTransition transition = {};
-                transition.srcCacheMask                    = CoherShader;
-                transition.dstCacheMask                    = CoherShader;
-
-                transition.imageInfo.pImage                = &image;
-                transition.imageInfo.oldLayout.usages      = LayoutPresentWindowed | LayoutPresentFullscreen;
-                transition.imageInfo.oldLayout.engines     = (GetEngineType() == EngineTypeUniversal) ?
-                                                             LayoutUniversalEngine : LayoutComputeEngine;
-                transition.imageInfo.newLayout.usages      = LayoutShaderRead | LayoutUncompressed;
-                transition.imageInfo.newLayout.engines     = transition.imageInfo.oldLayout.engines;
-                transition.imageInfo.subresRange.numPlanes = 1;
-                transition.imageInfo.subresRange.numMips   = 1;
-                transition.imageInfo.subresRange.numSlices = 1;
-
-                barrier.pTransitions = &transition;
-                barrier.transitionCount = 1;
-
-                barrier.waitPoint = HwPipePreCs;
-
-                HwPipePoint pipePoints = HwPipeTop;
-                barrier.pPipePoints = &pipePoints;
-                barrier.pipePointWaitCount = 1;
-
-                CmdBarrier(barrier);
-
-                // if Dcc is decompressed, needn't do retile, put displayDCC memory
-                // itself back into a "fully decompressed" state.
-                m_device.RsrcProcMgr().CmdDisplayDccFixUp(this, image);
-                addedGpuWork = true;
-            }
-            else if (m_device.CoreSettings().displayDccSkipRetileBlt == false)
-            {
-                m_device.RsrcProcMgr().CmdGfxDccToDisplayDcc(this, image);
-                addedGpuWork = true;
-            }
+            m_device.UpdateDisplayDcc(this, postProcessInfo, pAddedGpuWork);
         }
     }
 

@@ -726,7 +726,7 @@ void IndirectCmdGenerator::PopulateInvocationBuffer(
             dispatchInitiator.u32All |= ComputeDispatchInitiatorDisablePartialPreemptMask;
         }
 
-        pData->gfx9.dispatchInitiator = dispatchInitiator.u32All;
+        pData->dispatchInitiator = dispatchInitiator.u32All;
     }
 
     m_device.Parent()->CreateTypedBufferViewSrds(1, &viewInfo, pSrd);

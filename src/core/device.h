@@ -207,8 +207,6 @@ union HwIpLevelFlags
 struct HwIpLevels
 {
     GfxIpLevel     gfx;
-    VceIpLevel     vce;
-    UvdIpLevel     uvd;
     VcnIpLevel     vcn;
     PspIpLevel     psp;
     HwIpLevelFlags flags;
@@ -409,7 +407,11 @@ struct GpuEngineProperties
                 uint32 supportPersistentCeRam          :  1;
                 uint32 supportsMidCmdBufPreemption     :  1;
                 uint32 supportSvm                      :  1;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 834
                 uint32 p2pCopyToInvisibleHeapIllegal   :  1;
+#else
+                uint32 reserved834                     :  1;
+#endif
                 uint32 mustUseSvmIfSupported           :  1;
                 uint32 supportsTrackBusyChunks         :  1;
                 uint32 supportsUnmappedPrtPageAccess   :  1;
@@ -636,8 +638,6 @@ struct GpuChipProperties
     AsicRevision   revision;  // PAL specific ASIC revision identifier
     GpuType        gpuType;
     GfxIpLevel     gfxLevel;
-    VceIpLevel     vceLevel;
-    UvdIpLevel     uvdLevel;
     VcnIpLevel     vcnLevel;
     PspIpLevel     pspLevel;
     HwIpLevelFlags hwIpFlags;
@@ -645,17 +645,7 @@ struct GpuChipProperties
 
     uint16   gpuPerformanceCapacity; // GpuCapacity is the percentage (in fixed point [1, 65535]) of the
                                      // GPU's performance that can be used. 0 is invalid (not SRIOV).
-    uint32   vceUcodeVersion;                   // VCE Video encode firmware version
-    uint32   uvdUcodeVersion;                   // UVD Video encode firmware version
     uint32   vcnUcodeVersion;                   // VCN Video encode firmware version
-
-    uint32   vceFwVersionMajor;                 // VCE Video encode firmware major version
-    uint32   vceFwVersionMinor;                 // VCE Video encode firmware minor version
-
-    uint32   uvdEncodeFwInterfaceVersionMajor;  // UVD Video encode firmware interface major version
-    uint32   uvdEncodeFwInterfaceVersionMinor;  // UVD Video encode firmware interface minor version
-    uint32   uvdFwVersionSubMinor;              // UVD firmware sub-minor version
-
     uint32   vcnEncodeFwInterfaceVersionMajor;  // VCN Video encode firmware interface major version
     uint32   vcnEncodeFwInterfaceVersionMinor;  // VCN Video encode firmware interface minor version
     uint32   vcnFwVersionSubMinor;              // VCN Video firmware sub-minor version (revision)
@@ -1952,6 +1942,13 @@ public:
         return Result::Unsupported;
     }
 
+    virtual Result SetHipTrapHandler(
+        const IGpuMemory* trapHandlerCode,
+        const IGpuMemory* trapHandlerMemory) const override
+    {
+        return Result::Unsupported;
+    }
+
     void LogCodeObjectToDisk(
         Util::StringView<char> prefix,
         Util::StringView<char> name,
@@ -2266,22 +2263,6 @@ extern void InitializeGpuEngineProperties(
 }
 
 // ASIC family and chip identification functions
-inline bool IsGfx6(const Device& device)
-{
-    return (device.ChipProperties().gfxLevel == GfxIpLevel::GfxIp6);
-}
-
-inline bool IsGfx7(const Device& device)
-{
-    return (device.ChipProperties().gfxLevel == GfxIpLevel::GfxIp7);
-}
-
-inline bool IsGfx8(const Device& device)
-{
-    return ((device.ChipProperties().gfxLevel == GfxIpLevel::GfxIp8) ||
-        (device.ChipProperties().gfxLevel == GfxIpLevel::GfxIp8_1));
-}
-
 constexpr bool IsGfx9(GfxIpLevel gfxLevel)
 {
     return (gfxLevel == GfxIpLevel::GfxIp9);

@@ -27,14 +27,6 @@ include_guard()
 
 # This file is dedicated to overriding PAL subproject options
 
-# ADDRLIB
-set(ADDR_SI_BUILD ON)
-set(ADDR_CI_BUILD ON)
-set(ADDR_VI_BUILD ON)
-
-# PAL override for ADDRLIB SI/CI/VI register chip headers
-set(ADDR_SI_CHIP_DIR "${PROJECT_SOURCE_DIR}/src/core/hw/gfxip/gfx6/chip")
-
 # GPU Overrides
 
 if(PAL_BUILD_GFX9)

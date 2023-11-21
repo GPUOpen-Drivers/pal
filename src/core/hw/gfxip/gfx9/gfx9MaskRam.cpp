@@ -4303,25 +4303,6 @@ Result Gfx9Dcc::ComputeDccInfo(
 }
 
 // =====================================================================================================================
-// Returns the optimal value of DCC_CONTROL.MIN_COMPERSSED_BLOCK_SIZE
-uint32 Gfx9Dcc::GetMinCompressedBlockSize() const
-{
-    const auto&  chipProp = m_pGfxDevice->Parent()->ChipProperties();
-
-    //    [min-compressed-block-size] should be set to 32 for dGPU and 64 for APU because all of our APUs to date
-    //    use DIMMs which have a request granularity size of 64B while all other chips have a 32B request size
-    //
-    //    "The recommended solution is to limit the minimum compression to 64 B".
-    //
-    // So, for Raven (an APU) using 64-byte min-block-size is both a good idea and a requirement.
-    uint32 blkSize = static_cast<uint32>((chipProp.gpuType == GpuType::Integrated) ?
-                                         Gfx9DccMinBlockSize::BlockSize64B :
-                                         Gfx9DccMinBlockSize::BlockSize32B);
-
-    return blkSize;
-}
-
-// =====================================================================================================================
 // Calculates the value for the CB_DCC_CONTROL register
 void Gfx9Dcc::SetControlReg(
     const SubresId&  subResId)
@@ -4359,7 +4340,7 @@ void Gfx9Dcc::SetControlReg(
         }
     }
 
-    m_dccControl.bits.MIN_COMPRESSED_BLOCK_SIZE = GetMinCompressedBlockSize();
+    m_dccControl.bits.MIN_COMPRESSED_BLOCK_SIZE = settings.minDccCompressedBlockSize;
 
     static_assert(DCC_CT_AUTO == 0, "ColorTransform Enum values change!");
     static_assert(DCC_CT_NONE == 1, "ColorTransform Enum values change!");

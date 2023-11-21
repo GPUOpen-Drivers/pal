@@ -724,7 +724,6 @@ static void Gfx9InitBasicBlockInfo(
         { mmPA_SU_PERFCOUNTER3_SELECT, 0,                            mmPA_SU_PERFCOUNTER3_LO, mmPA_SU_PERFCOUNTER3_HI },
     }};
 
-    // Note that between gfx6 and now the SC switched to per-shader-array.
     PerfCounterBlockInfo*const pSc = &pInfo->block[static_cast<uint32>(GpuBlock::Sc)];
     pSc->distribution              = PerfCounterDistribution::PerShaderArray;
     pSc->numInstances              = 1;
@@ -789,7 +788,6 @@ static void Gfx9InitBasicBlockInfo(
         { mmSQ_PERFCOUNTER7_SELECT, 0, mmSQ_PERFCOUNTER7_LO, Gfx09_10::mmSQ_PERFCOUNTER7_HI },
     }};
 
-    // Note that between gfx6 and now the SX switched to per-shader-engine.
     PerfCounterBlockInfo*const pSx = &pInfo->block[static_cast<uint32>(GpuBlock::Sx)];
     pSx->distribution              = PerfCounterDistribution::PerShaderEngine;
     pSx->numInstances              = 1;
@@ -1228,7 +1226,6 @@ static void Gfx10InitBasicBlockInfo(
         { mmPA_SU_PERFCOUNTER3_SELECT, mmPA_SU_PERFCOUNTER3_SELECT1, mmPA_SU_PERFCOUNTER3_LO, mmPA_SU_PERFCOUNTER3_HI },
     }};
 
-    // Note that between gfx6 and now the SC switched to per-shader-array.
     // In gfx10 SC is subdivided into SCF (SCT) and 2xSCB per SA. The sets of perf counters (PA_SC_PERFCOUNTER{0-7})
     // are instantiated in each of the two SCBs. In the hardware docs these are called packers, thus we're really
     // gathering perf counters from individual packer instances.
@@ -2033,7 +2030,6 @@ static void Gfx11InitBasicBlockInfo(
         { mmPA_SU_PERFCOUNTER3_SELECT, mmPA_SU_PERFCOUNTER3_SELECT1, mmPA_SU_PERFCOUNTER3_LO, mmPA_SU_PERFCOUNTER3_HI },
     }};
 
-    // Note that between gfx6 and now the SC switched to per-shader-array.
     // In gfx10 SC is subdivided into SCF (SCT) and 2xSCB per SA. The sets of perf counters (PA_SC_PERFCOUNTER{0-7})
     // are instantiated in each of the two SCBs. In the hardware docs these are called packers, thus we're really
     // gathering perf counters from individual packer instances.

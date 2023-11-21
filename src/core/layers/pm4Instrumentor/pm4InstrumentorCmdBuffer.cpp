@@ -67,7 +67,8 @@ CmdBuffer::CmdBuffer(
 void CmdBuffer::ResetStatistics()
 {
     memset(&m_stats, 0, sizeof(m_stats));
-    memset(&m_validationData, 0, sizeof(m_validationData));
+    memset(&m_drawDispatchValidationData, 0, sizeof(m_drawDispatchValidationData));
+    memset(&m_bindPipelineValidationData, 0, sizeof(m_bindPipelineValidationData));
 
     m_shRegs.Clear();
     m_ctxRegs.Clear();
@@ -86,14 +87,16 @@ void CmdBuffer::PreCall()
 void CmdBuffer::PreDispatchCall()
 {
     PreCall();
-    memset(&m_validationData, 0, sizeof(m_validationData));
+    memset(&m_drawDispatchValidationData, 0, sizeof(m_drawDispatchValidationData));
+    memset(&m_bindPipelineValidationData, 0, sizeof(m_bindPipelineValidationData));
 }
 
 // =====================================================================================================================
 void CmdBuffer::PreDrawCall()
 {
     PreCall();
-    memset(&m_validationData, 0, sizeof(m_validationData));
+    memset(&m_drawDispatchValidationData, 0, sizeof(m_drawDispatchValidationData));
+    memset(&m_bindPipelineValidationData, 0, sizeof(m_bindPipelineValidationData));
 }
 
 // =====================================================================================================================
@@ -112,28 +115,28 @@ void CmdBuffer::PostDispatchCall(
 {
     PostCall(callId);
 
-    if (m_validationData.miscCmdSize > 0)
+    if (m_drawDispatchValidationData.miscCmdSize > 0)
     {
         constexpr uint32 Id = static_cast<uint32>(InternalEventId::MiscDispatchValidation);
 
         ++m_stats.internalEvent[Id].count;
-        m_stats.internalEvent[Id].cmdSize += m_validationData.miscCmdSize;
+        m_stats.internalEvent[Id].cmdSize += m_drawDispatchValidationData.miscCmdSize;
     }
 
-    if (m_validationData.userDataCmdSize > 0)
+    if (m_drawDispatchValidationData.userDataCmdSize > 0)
     {
         constexpr uint32 Id = static_cast<uint32>(InternalEventId::UserDataValidationCs);
 
         ++m_stats.internalEvent[Id].count;
-        m_stats.internalEvent[Id].cmdSize += m_validationData.userDataCmdSize;
+        m_stats.internalEvent[Id].cmdSize += m_drawDispatchValidationData.userDataCmdSize;
     }
 
-    if (m_validationData.pipelineCmdSize > 0)
+    if (m_bindPipelineValidationData.pipelineCmdSize > 0)
     {
         constexpr uint32 Id = static_cast<uint32>(InternalEventId::PipelineValidationCs);
 
         ++m_stats.internalEvent[Id].count;
-        m_stats.internalEvent[Id].cmdSize += m_validationData.pipelineCmdSize;
+        m_stats.internalEvent[Id].cmdSize += m_bindPipelineValidationData.pipelineCmdSize;
     }
 }
 
@@ -143,28 +146,28 @@ void CmdBuffer::PostDrawCall(
 {
     PostCall(callId);
 
-    if (m_validationData.miscCmdSize > 0)
+    if (m_drawDispatchValidationData.miscCmdSize > 0)
     {
         constexpr uint32 Id = static_cast<uint32>(InternalEventId::MiscDrawValidation);
 
         ++m_stats.internalEvent[Id].count;
-        m_stats.internalEvent[Id].cmdSize += m_validationData.miscCmdSize;
+        m_stats.internalEvent[Id].cmdSize += m_drawDispatchValidationData.miscCmdSize;
     }
 
-    if (m_validationData.userDataCmdSize > 0)
+    if (m_drawDispatchValidationData.userDataCmdSize > 0)
     {
         constexpr uint32 Id = static_cast<uint32>(InternalEventId::UserDataValidationGfx);
 
         ++m_stats.internalEvent[Id].count;
-        m_stats.internalEvent[Id].cmdSize += m_validationData.userDataCmdSize;
+        m_stats.internalEvent[Id].cmdSize += m_drawDispatchValidationData.userDataCmdSize;
     }
 
-    if (m_validationData.pipelineCmdSize > 0)
+    if (m_bindPipelineValidationData.pipelineCmdSize > 0)
     {
         constexpr uint32 Id = static_cast<uint32>(InternalEventId::PipelineValidationGfx);
 
         ++m_stats.internalEvent[Id].count;
-        m_stats.internalEvent[Id].cmdSize += m_validationData.pipelineCmdSize;
+        m_stats.internalEvent[Id].cmdSize += m_bindPipelineValidationData.pipelineCmdSize;
     }
 }
 
@@ -173,7 +176,15 @@ void CmdBuffer::NotifyDrawDispatchValidation(
     const Developer::DrawDispatchValidationData& data)
 {
     PAL_ASSERT(this == data.pCmdBuffer);
-    m_validationData = data;
+    m_drawDispatchValidationData = data;
+}
+
+// =====================================================================================================================
+void CmdBuffer::NotifyBindPipelineValidation(
+    const Developer::BindPipelineValidationData& data)
+{
+    PAL_ASSERT(this == data.pCmdBuffer);
+    m_bindPipelineValidationData = data;
 }
 
 // =====================================================================================================================
@@ -1084,20 +1095,20 @@ void CmdBuffer::CmdResolveImage(
 // =====================================================================================================================
 void CmdBuffer::CmdSetEvent(
     const IGpuEvent& gpuEvent,
-    HwPipePoint      setPoint)
+    uint32           stageMask)
 {
     PreCall();
-    CmdBufferFwdDecorator::CmdSetEvent(gpuEvent, setPoint);
+    CmdBufferFwdDecorator::CmdSetEvent(gpuEvent, stageMask);
     PostCall(CmdBufCallId::CmdSetEvent);
 }
 
 // =====================================================================================================================
 void CmdBuffer::CmdResetEvent(
     const IGpuEvent& gpuEvent,
-    HwPipePoint      resetPoint)
+    uint32           stageMask)
 {
     PreCall();
-    CmdBufferFwdDecorator::CmdResetEvent(gpuEvent, resetPoint);
+    CmdBufferFwdDecorator::CmdResetEvent(gpuEvent, stageMask);
     PostCall(CmdBufCallId::CmdResetEvent);
 }
 
@@ -1181,24 +1192,24 @@ void CmdBuffer::CmdResetQueryPool(
 
 // =====================================================================================================================
 void CmdBuffer::CmdWriteTimestamp(
-    HwPipePoint       pipePoint,
+    uint32            stageMask,
     const IGpuMemory& dstGpuMemory,
     gpusize           dstOffset)
 {
     PreCall();
-    CmdBufferFwdDecorator::CmdWriteTimestamp(pipePoint, dstGpuMemory, dstOffset);
+    CmdBufferFwdDecorator::CmdWriteTimestamp(stageMask, dstGpuMemory, dstOffset);
     PostCall(CmdBufCallId::CmdWriteTimestamp);
 }
 
 // =====================================================================================================================
 void CmdBuffer::CmdWriteImmediate(
-    HwPipePoint        pipePoint,
+    uint32             stageMask,
     uint64             data,
     ImmediateDataWidth dataSize,
     gpusize            address)
 {
     PreCall();
-    CmdBufferFwdDecorator::CmdWriteImmediate(pipePoint, data, dataSize, address);
+    CmdBufferFwdDecorator::CmdWriteImmediate(stageMask, data, dataSize, address);
     PostCall(CmdBufCallId::CmdWriteImmediate);
 }
 

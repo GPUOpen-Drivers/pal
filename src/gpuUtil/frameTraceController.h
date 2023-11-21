@@ -49,12 +49,10 @@ public:
     FrameTraceController(Pal::Platform* pPlatform);
     virtual ~FrameTraceController();
 
-    Pal::Result Init();
-
     virtual const char* GetName() const override { return FrameTraceControllerName; }
     virtual Pal::uint32 GetVersion() const override { return FrameTraceControllerVersion; }
 
-    virtual void OnConfigUpdated(DevDriver::StructuredValue* pJsonConfig) override {}
+    virtual void OnConfigUpdated(DevDriver::StructuredValue* pJsonConfig) override;
 
     virtual Pal::Result OnBeginGpuWork(Pal::uint32 gpuIndex, Pal::ICmdBuffer** ppCmdBuffer) override;
     virtual Pal::Result OnEndGpuWork(Pal::uint32 gpuIndex, Pal::ICmdBuffer** ppCmdBuffer) override;
@@ -73,6 +71,7 @@ private:
     Pal::uint64 m_supportedGpuMask;      // Bit mask of GPU indices that are capable of participating in the trace
 
     Pal::uint32 m_frameCount;
+    Pal::uint32 m_numPrepFrames;          // Number of "warm-up" frames before the start index
     Pal::uint32 m_captureStartIndex;      // Frame index where trace will be started, if accepted
     Pal::uint32 m_currentTraceStartIndex; // Starting frame index of current running trace
     Pal::uint32 m_captureFrameCount;      // Number of frames to wait before ending the trace

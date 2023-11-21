@@ -1477,7 +1477,7 @@ size_t CmdUtil::BuildPerfmonControl(
 
 // =====================================================================================================================
 // Builds a DISPATCH_DIRECT packet. Returns the size of the PM4 command assembled, in DWORDs.
-template <bool dimInThreads, bool forceStartAt000, bool invalidateL1>
+template <bool dimInThreads, bool forceStartAt000>
 size_t CmdUtil::BuildDispatchDirect(
     DispatchDims size,                  // Thread groups (or threads) to launch.
     Pm4Predicate predicate,             // Predication enable control. Must be PredDisable on the Compute Engine.
@@ -1492,8 +1492,6 @@ size_t CmdUtil::BuildDispatchDirect(
     dispatchInitiator.bits.COMPUTE_SHADER_EN     = 1;
     dispatchInitiator.bits.FORCE_START_AT_000    = forceStartAt000;
     dispatchInitiator.bits.USE_THREAD_DIMENSIONS = dimInThreads;
-    dispatchInitiator.bits.SCALAR_L1_INV_VOL     = invalidateL1;
-    dispatchInitiator.bits.VECTOR_L1_INV_VOL     = invalidateL1;
     dispatchInitiator.gfx10Plus.CS_W32_EN        = isWave32;
     if (IsGfx10Plus(m_chipProps.gfxLevel))
     {
@@ -1526,7 +1524,7 @@ size_t CmdUtil::BuildDispatchDirect(
 }
 
 template
-size_t CmdUtil::BuildDispatchDirect<true, true, true>(
+size_t CmdUtil::BuildDispatchDirect<true, true>(
     DispatchDims size,
     Pm4Predicate predicate,
     bool         isWave32,

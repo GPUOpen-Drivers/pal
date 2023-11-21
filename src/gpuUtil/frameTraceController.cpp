@@ -25,12 +25,15 @@
 
 #if PAL_BUILD_RDF
 
-#include "frameTraceController.h"
 #include "palHashMapImpl.h"
 #include "core/cmdBuffer.h"
 #include "core/engine.h"
+#include "util/ddStructuredReader.h"
+
+#include "frameTraceController.h"
 
 using namespace Pal;
+using DevDriver::StructuredValue;
 
 namespace GpuUtil
 {
@@ -40,19 +43,43 @@ FrameTraceController::FrameTraceController(
     Platform* pPlatform)
     :
     m_pPlatform(pPlatform),
+    m_pCurrentDevice(nullptr),
+    m_supportedGpuMask(1),
+    m_frameCount(0),
+    m_numPrepFrames(0),
     m_captureStartIndex(0),
     m_currentTraceStartIndex(0),
     m_captureFrameCount(1),
-    m_supportedGpuMask(1),
-    m_frameCount(0),
-    m_pCurrentCmdBuffer(nullptr)
+    m_pCurrentCmdBuffer(nullptr),
+    m_pTraceSession(pPlatform->GetTraceSession())
 {
-    m_pTraceSession = m_pPlatform->GetTraceSession();
 }
 
 // =====================================================================================================================
 FrameTraceController::~FrameTraceController()
 {
+}
+
+// =====================================================================================================================
+void FrameTraceController::OnConfigUpdated(
+    StructuredValue* pJsonConfig)
+{
+    StructuredValue value;
+
+    if (pJsonConfig->GetValueByKey("numPrepFrames", &value))
+    {
+        m_numPrepFrames = value.GetUint32Or(0);
+    }
+
+    if (pJsonConfig->GetValueByKey("captureStartFrame", &value))
+    {
+        m_captureStartIndex = value.GetUint32Or(0);
+    }
+
+    if (pJsonConfig->GetValueByKey("captureFrameCount", &value))
+    {
+        m_captureFrameCount = value.GetUint32Or(1);
+    }
 }
 
 // =====================================================================================================================
@@ -62,8 +89,8 @@ void FrameTraceController::OnFrameUpdated()
 
     if (traceSessionState == TraceSessionState::Requested)
     {
-        if ((m_captureStartIndex == 0 || m_frameCount == m_captureStartIndex) &&
-            (m_pTraceSession->AcceptTrace(this, m_supportedGpuMask) == Result::Success))
+        if (((m_captureStartIndex + m_numPrepFrames) == 0 || m_frameCount == (m_captureStartIndex + m_numPrepFrames)) &&
+             (m_pTraceSession->AcceptTrace(this, m_supportedGpuMask) == Result::Success))
         {
             m_currentTraceStartIndex = m_frameCount;
 
@@ -75,7 +102,7 @@ void FrameTraceController::OnFrameUpdated()
     }
     else if (traceSessionState == TraceSessionState::Running)
     {
-        if (m_frameCount == m_currentTraceStartIndex + m_captureFrameCount)
+        if (m_frameCount == m_currentTraceStartIndex + m_captureFrameCount + m_numPrepFrames)
         {
             if (m_pTraceSession->EndTrace() == Result::Success)
             {

@@ -300,13 +300,8 @@ void Pm4CmdBuffer::ResetState()
     {
         // A previous, chained command buffer could have used a CP blt which may have accessed L2 or memory directly.
         // By convention, our CP blts will only use L2 if the HW supports it so we only need to set one bit here.
-        if (m_device.Parent()->ChipProperties().gfxLevel > GfxIpLevel::GfxIp6)
         {
             m_pm4CmdBufState.flags.cpWriteCachesDirty = 1;
-        }
-        else
-        {
-            m_pm4CmdBufState.flags.cpMemoryWriteL2CacheStale = 1;
         }
     }
 

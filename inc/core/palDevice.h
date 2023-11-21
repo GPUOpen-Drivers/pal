@@ -976,9 +976,13 @@ struct DeviceProperties
                 /// either @ref QueueCreateInfo::persistentCeRamSize or @ref QueueCreateInfo::persistentCeRamOffset.
                 uint32 supportPersistentCeRam          :  1;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 834
                 /// If true, this engine does not support peer-to-peer copies that target memory in the invisible heap
                 /// on another GPU due to a hardware bug.
                 uint32 p2pCopyToInvisibleHeapIllegal   :  1;
+#else
+                uint32 reserved834                     :  1;
+#endif
 
                 /// Indicates whether the engine supports the command allocator tracks which chunk is idle.
                 uint32 supportsTrackBusyChunks         :  1;
@@ -5336,6 +5340,19 @@ public:
     ///
     /// @returns Result for error handling.
     virtual Result RegisterHipRuntimeState(const HipRuntimeSetup& runtimeState) const = 0;
+
+    /// Sets the second-level trap handler for HIP
+    ///
+    /// @param [in] pTrapHandlerCode   A pointer to the piece of memory containing the trap handler code
+    ///                                This may be nullptr, which indicates that there is no secondary trap handler.
+    /// @param [in] pTrapHandlerMemory A pointer to the piece of memory containing the trap handler's memory
+    ///                                This may be nullptr, which indicates that there is no valid trap handler
+    ///                                memory.
+    ///
+    /// @returns Result for error handling.
+    virtual Result SetHipTrapHandler(
+        const IGpuMemory* pTrapHandlerCode,
+        const IGpuMemory* pTrapHandlerMemory) const = 0;
 
 protected:
     /// @internal Constructor. Prevent use of new operator on this interface. Client must create objects by explicitly

@@ -486,7 +486,6 @@ private:
 
     Result ComputeDccInfo(const SubresId&  subResId);
     void   SetControlReg(const SubresId&  subResId);
-    uint32 GetMinCompressedBlockSize() const;
 
     static void GetBlackOrWhiteClearCode(
         const Pal::Image*  pImage,

@@ -279,6 +279,13 @@ public:
     /// @returns Success if initalization was successful, or ErrorUnknown upon failure.
     Pal::Result Init();
 
+    /// Returns whether tracing has been formally enabled via UberTrace or not.
+    /// If 'true', this means that tool-side applications have requested this
+    /// TraceSession to capture traces. This has implications for PAL clients.
+    ///
+    /// @returns True if tracing has been enabled, and false otherwise.
+    bool IsTracingEnabled() const { return m_tracingEnabled; }
+
     /// Attempts to update the current trace configuration
     ///
     /// This function will only succeed if there is currently to trace in progress
@@ -501,14 +508,26 @@ public:
         TraceErrorPayload payloadType,
         Pal::Result       resultCode);
 
+    /// Explicitly activates this TraceSession for managing traces.
+    ///
+    /// This should be called during Platform Init in response to a tool-side request to enable UberTrace tracing.
+    /// This signals that an active connection has been made to tool-side applications and that profiling via
+    /// PAL Trace should be prioritized in client drivers.
+    void EnableTracing()
+    {
+        m_tracingEnabled = true;
+    }
+
 private:
     typedef Pal::IPlatform TraceAllocator;
 
-    Pal::IPlatform* const m_pPlatform; // Platform associated with this TraceSesion.
+    Pal::IPlatform* const         m_pPlatform; // Platform associated with this TraceSesion
+    DevDriver::IStructuredReader* m_pReader;   // Stores the current JSON-based config of the TraceSession
 
-    DevDriver::IStructuredReader* m_pReader; // Stores the current JSON-based config of the TraceSession
-
-    Util::RWLock m_registerTraceControllerLock;
+    // RW Locks for trace sources, controllers, and RDF streams
+    Util::RWLock                  m_registerTraceSourceLock;
+    Util::RWLock                  m_registerTraceControllerLock;
+    Util::RWLock                  m_chunkAppendLock;
 
     // Unique trace sources registered with this TraceSession.
     typedef Util::HashMap <const char*,
@@ -534,19 +553,13 @@ private:
                            Util::StringEqualFunc> TraceControllersMap;
     TraceControllersMap m_registeredTraceControllers;
 
-    // The controller currently driving the TraceSession. We can have only one active controller at a time.
-    ITraceController* m_pActiveController;
-
-    Util::RWLock m_registerTraceSourceLock;
-
-    TraceSessionState m_sessionState;
-
-    // Helper struct that manages create chunk file streams and write data chunks
-    rdfChunkFileWriter* m_pChunkFileWriter;
-
-    rdfStream* m_pCurrentStream;
-    int m_currentChunkIndex;
-
-    Util::RWLock m_chunkAppendLock;
+    ITraceController*   m_pActiveController; // The controller currently driving the TraceSession.
+                                             // We can have only one active controller at a time.
+    TraceSessionState   m_sessionState;      // Current state of the TraceSession
+    rdfChunkFileWriter* m_pChunkFileWriter;  // Helper struct that manages create chunk file streams
+                                             // and write data chunks
+    rdfStream*          m_pCurrentStream;    // Active RDF stream for writing chunks
+    Pal::int32          m_currentChunkIndex; // The current chunk index of the RDF stream
+    bool                m_tracingEnabled;    // Flag indicating UberTrace tracing is enabled tool-side
 };
 } // GpuUtil

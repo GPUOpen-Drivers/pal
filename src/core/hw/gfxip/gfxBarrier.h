@@ -79,18 +79,21 @@ union AcqRelSyncToken
     uint32 u32All;
 };
 
-constexpr uint32 PipelineStagesGraphicsOnly = PipelineStageVs            |
+constexpr uint32 PipelineStagesGraphicsOnly = PipelineStageFetchIndices  |
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 770
+                                              PipelineStageStreamOut     |
+#endif
+                                              PipelineStageVs            |
                                               PipelineStageHs            |
                                               PipelineStageDs            |
                                               PipelineStageGs            |
                                               PipelineStagePs            |
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 835
+                                              PipelineStageSampleRate    |
+#endif
                                               PipelineStageEarlyDsTarget |
                                               PipelineStageLateDsTarget  |
-                                              PipelineStageColorTarget   |
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 770
-                                              PipelineStageStreamOut     |
-#endif
-                                              PipelineStageFetchIndices;
+                                              PipelineStageColorTarget;
 
 constexpr uint32 CacheCoherencyGraphicsOnly = CoherColorTarget        |
                                               CoherDepthStencilTarget |

@@ -914,9 +914,11 @@ void Queue::OutputTraceDataToFile(
     }
     else if (logItem.errors.perfExpOutOfMemory != 0)
     {
-        // TODO: this error is set under none case yet.
-        // GpaSession::BeginSample hits an ASSERT if this error happens.
         m_logFile.Printf("ERROR: OUT OF MEMORY");
+    }
+    else if (logItem.errors.perfExpOutOfGpuMemory != 0)
+    {
+        m_logFile.Printf("ERROR: OUT OF GPU MEMORY");
     }
     else if (logItem.errors.perfExpUnsupported != 0)
     {
@@ -984,14 +986,27 @@ void Queue::OutputRlcSpmData(
         uint32 counterIdx = 0;
         for (uint32 i = 0; i < numPerfCounters; i++)
         {
-            uint32 sumAll = 0;
+            uint64 sumAll = 0;
             for (uint32 j = 0; j < pPerfCounters[i].instanceCount; j++)
             {
-                const size_t offsetToCntr = offsetToData + pCounterInfo[counterIdx++].dataOffset;
-                const auto* pData = static_cast<const uint16*>(VoidPtrInc(pResult, offsetToCntr));
-                sumAll += pData[sample];
+                // Note we assume GpaSession fills out the SpmCounterInfo array in the same order we filled out its
+                // PerfCounterId array. If that ever changes we'll need to inspect the counterInfo to find the counter
+                // instances that match up to our current pPerfCounters[i].
+                const SpmCounterInfo& counterInfo = pCounterInfo[counterIdx++];
+                const void*const      pSamples    = VoidPtrInc(pResult, offsetToData + counterInfo.dataOffset);
+
+                if (counterInfo.dataSize == sizeof(uint32))
+                {
+                    sumAll += static_cast<const uint32*>(pSamples)[sample];
+                }
+                else
+                {
+                    PAL_ASSERT(counterInfo.dataSize == sizeof(uint16));
+
+                    sumAll += static_cast<const uint16*>(pSamples)[sample];
+                }
             }
-            spmFile.Printf("%u,", sumAll);
+            spmFile.Printf("%llu,", sumAll);
         }
 
         PAL_ASSERT(counterIdx == checkNum);

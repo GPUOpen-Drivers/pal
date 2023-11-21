@@ -2190,15 +2190,21 @@ static void PipelineStageFlagToString(
     {
         "Top",          // PipelineStageTopOfPipe
         "IndirectArgs", // PipelineStageFetchIndirectArgs
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 835
+        "PostPrefetch", // PipelineStagePostPrefetch
+#endif
         "Indices",      // PipelineStageFetchIndices
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 770
-        "StreamOut",      // PipelineStageStreamOut
+        "StreamOut",    // PipelineStageStreamOut
 #endif
         "Vs",           // PipelineStageVs
         "Hs",           // PipelineStageHs
         "Ds",           // PipelineStageDs
         "Gs",           // PipelineStageGs
         "Ps",           // PipelineStagePs
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 835
+        "SampleRate",   // PipelineStageSampleRate
+#endif
         "EarlyDs",      // PipelineStageEarlyDsTarget
         "LateDs",       // PipelineStageLateDsTarget
         "Rt",           // PipelineStageColorTarget
@@ -5182,7 +5188,7 @@ void CmdBuffer::CmdResolvePrtPlusImage(
 // =====================================================================================================================
 void CmdBuffer::CmdSetEvent(
     const IGpuEvent& gpuEvent,
-    HwPipePoint      setPoint)
+    uint32           stageMask)
 {
     if (m_annotations.logMiscellaneous)
     {
@@ -5191,13 +5197,13 @@ void CmdBuffer::CmdSetEvent(
         // TODO: Add comment string.
     }
 
-    GetNextLayer()->CmdSetEvent(*NextGpuEvent(&gpuEvent), setPoint);
+    GetNextLayer()->CmdSetEvent(*NextGpuEvent(&gpuEvent), stageMask);
 }
 
 // =====================================================================================================================
 void CmdBuffer::CmdResetEvent(
     const IGpuEvent& gpuEvent,
-    HwPipePoint      resetPoint)
+    uint32           stageMask)
 {
     if (m_annotations.logMiscellaneous)
     {
@@ -5206,7 +5212,7 @@ void CmdBuffer::CmdResetEvent(
         // TODO: Add comment string.
     }
 
-    GetNextLayer()->CmdResetEvent(*NextGpuEvent(&gpuEvent), resetPoint);
+    GetNextLayer()->CmdResetEvent(*NextGpuEvent(&gpuEvent), stageMask);
 }
 
 // =====================================================================================================================
@@ -5361,7 +5367,7 @@ void CmdBuffer::CmdSuspendPredication(
 
 // =====================================================================================================================
 void CmdBuffer::CmdWriteTimestamp(
-    HwPipePoint       pipePoint,
+    uint32            stageMask,
     const IGpuMemory& dstGpuMemory,
     gpusize           dstOffset)
 {
@@ -5372,12 +5378,12 @@ void CmdBuffer::CmdWriteTimestamp(
         // TODO: Add comment string.
     }
 
-    GetNextLayer()->CmdWriteTimestamp(pipePoint, *NextGpuMemory(&dstGpuMemory), dstOffset);
+    GetNextLayer()->CmdWriteTimestamp(stageMask, *NextGpuMemory(&dstGpuMemory), dstOffset);
 }
 
 // =====================================================================================================================
 void CmdBuffer::CmdWriteImmediate(
-    HwPipePoint        pipePoint,
+    uint32             stageMask,
     uint64             data,
     ImmediateDataWidth dataSize,
     gpusize            address)
@@ -5389,7 +5395,7 @@ void CmdBuffer::CmdWriteImmediate(
         // TODO: Add comment string.
     }
 
-    GetNextLayer()->CmdWriteImmediate(pipePoint, data, dataSize, address);
+    GetNextLayer()->CmdWriteImmediate(stageMask, data, dataSize, address);
 }
 
 // =====================================================================================================================

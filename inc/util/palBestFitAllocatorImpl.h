@@ -112,16 +112,24 @@ Result BestFitAllocator<Allocator>::Allocate(
         result = Result::ErrorOutOfGpuMemory;
     }
 
+    gpusize bestExtraSize = 0;
     if (result == Result::Success)
     {
         for (auto it = m_blockList.Begin(); it != m_blockList.End(); it.Next())
         {
+            gpusize curExtraSize = 0;
+            if (IsPow2Aligned(it.Get()->offset, alignment) == false)
+            {
+                // If block's offset isn't aligned, then reserve extra space in the allocation search
+                curExtraSize = alignment - (it.Get()->offset & (alignment - 1));
+            }
+
             if ((it.Get()->isBusy == false) &&
-                IsPow2Aligned(it.Get()->offset, alignment) &&
-                (it.Get()->size >= size) &&
+                (it.Get()->size >= (size + curExtraSize)) &&
                 ((bestBlock == m_blockList.End()) || (it.Get()->size < bestBlock.Get()->size)))
             {
                 bestBlock = it;
+                bestExtraSize = curExtraSize;
             }
         }
 
@@ -137,13 +145,28 @@ Result BestFitAllocator<Allocator>::Allocate(
         // Need to split block
         if (bestBlock.Get()->size != size)
         {
-            result = m_blockList.InsertBefore(&bestBlock, {bestBlock.Get()->offset, size, true});
+            // Check if extra size was requested and create the new free block
+            if (bestExtraSize != 0)
+            {
+                result = m_blockList.InsertBefore(&bestBlock, { bestBlock.Get()->offset, bestExtraSize, false });
+
+                if (result == Result::Success)
+                {
+                    bestBlock.Get()->size -= bestExtraSize;
+                    bestBlock.Get()->offset += bestExtraSize;
+                }
+            }
 
             if (result == Result::Success)
             {
-                bestBlock.Get()->size -= size;
-                bestBlock.Get()->offset += size;
-                bestBlock.Prev();
+                result = m_blockList.InsertBefore(&bestBlock, { bestBlock.Get()->offset, size, true });
+
+                if (result == Result::Success)
+                {
+                    bestBlock.Get()->size -= size;
+                    bestBlock.Get()->offset += size;
+                    bestBlock.Prev();
+                }
             }
         }
     }

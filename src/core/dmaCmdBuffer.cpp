@@ -342,7 +342,7 @@ void DmaCmdBuffer::CmdReleaseEvent(
     CmdReleaseThenAcquire(releaseInfo);
     if (pGpuEvent != nullptr)
     {
-        CmdSetEvent(*pGpuEvent, HwPipeBottom);
+        CmdSetEvent(*pGpuEvent, PipelineStageBottomOfPipe);
     }
 }
 
@@ -1949,7 +1949,7 @@ void DmaCmdBuffer::CmdUpdateBusAddressableMemoryMarker(
     gpusize           offset,
     uint32            value)
 {
-    CmdWriteImmediate(Pal::HwPipePoint::HwPipeBottom,
+    CmdWriteImmediate(PipelineStageBottomOfPipe,
                       value,
                       Pal::ImmediateDataWidth::ImmediateData32Bit,
                       static_cast<const GpuMemory*>(&dstGpuMemory)->GetBusAddrMarkerVa() + offset);

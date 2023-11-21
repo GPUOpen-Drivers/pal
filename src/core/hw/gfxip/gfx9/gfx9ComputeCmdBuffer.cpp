@@ -509,17 +509,30 @@ void ComputeCmdBuffer::CmdMemoryAtomic(
 }
 
 // =====================================================================================================================
-// Issues an end-of-pipe timestamp event or immediately copies the current time. Writes the results to the
-// pMemObject + destOffset.
 void ComputeCmdBuffer::CmdWriteTimestamp(
-    HwPipePoint       pipePoint,
+    uint32            stageMask,    // Bitmask of PipelineStageFlag
     const IGpuMemory& dstGpuMemory,
     gpusize           dstOffset)
 {
     const gpusize address   = dstGpuMemory.Desc().gpuVirtAddr + dstOffset;
     uint32*       pCmdSpace = m_cmdStream.ReserveCommands();
 
-    if (pipePoint <= HwPipePreCs)
+    // If multiple flags are set we must go down the path that is most conservative (writes at the latest point).
+    // This is easiest to implement in this order:
+    // 1. The EOP path for compute shaders.
+    // 2. The CP stages can write the value directly using COPY_DATA in the MEC.
+    // Note that passing in a stageMask of zero will get you an MEC write. It's not clear if that is even legal but
+    // doing an MEC write is probably the least impactful thing we could do in that case.
+    if (TestAnyFlagSet(stageMask, PipelineStageCs | PipelineStageBlt | PipelineStageBottomOfPipe))
+    {
+        ReleaseMemGeneric releaseInfo = {};
+        releaseInfo.engineType = EngineTypeCompute;
+        releaseInfo.dstAddr    = address;
+        releaseInfo.dataSel    = data_sel__mec_release_mem__send_gpu_clock_counter;
+
+        pCmdSpace += m_cmdUtil.BuildReleaseMemGeneric(releaseInfo, pCmdSpace);
+    }
+    else
     {
         pCmdSpace += m_cmdUtil.BuildCopyData(EngineTypeCompute,
                                              0,
@@ -531,25 +544,13 @@ void ComputeCmdBuffer::CmdWriteTimestamp(
                                              wr_confirm__mec_copy_data__wait_for_confirmation,
                                              pCmdSpace);
     }
-    else
-    {
-        PAL_ASSERT(pipePoint == HwPipeBottom);
-
-        ReleaseMemGeneric releaseInfo = {};
-        releaseInfo.engineType = EngineTypeCompute;
-        releaseInfo.dstAddr    = address;
-        releaseInfo.dataSel    = data_sel__mec_release_mem__send_gpu_clock_counter;
-
-        pCmdSpace += m_cmdUtil.BuildReleaseMemGeneric(releaseInfo, pCmdSpace);
-    }
 
     m_cmdStream.CommitCommands(pCmdSpace);
 }
 
 // =====================================================================================================================
-// Writes an immediate value either during top-of-pipe or bottom-of-pipe event.
 void ComputeCmdBuffer::CmdWriteImmediate(
-    HwPipePoint        pipePoint,
+    uint32             stageMask, // Bitmask of PipelineStageFlag
     uint64             data,
     ImmediateDataWidth dataSize,
     gpusize            address)
@@ -558,7 +559,24 @@ void ComputeCmdBuffer::CmdWriteImmediate(
 
     uint32* pCmdSpace = m_cmdStream.ReserveCommands();
 
-    if (pipePoint <= HwPipePreCs)
+    // If multiple flags are set we must go down the path that is most conservative (writes at the latest point).
+    // This is easiest to implement in this order:
+    // 1. The EOP path for compute shaders.
+    // 2. The CP stages can write the value directly using COPY_DATA in the MEC.
+    // Note that passing in a stageMask of zero will get you an MEC write. It's not clear if that is even legal but
+    // doing an MEC write is probably the least impactful thing we could do in that case.
+    if (TestAnyFlagSet(stageMask, PipelineStageCs | PipelineStageBlt | PipelineStageBottomOfPipe))
+    {
+        ReleaseMemGeneric releaseInfo = {};
+        releaseInfo.engineType = EngineTypeCompute;
+        releaseInfo.dstAddr    = address;
+        releaseInfo.data       = data;
+        releaseInfo.dataSel    = is32Bit ? data_sel__mec_release_mem__send_32_bit_low
+                                         : data_sel__mec_release_mem__send_64_bit_data;
+
+        pCmdSpace += m_cmdUtil.BuildReleaseMemGeneric(releaseInfo, pCmdSpace);
+    }
+    else
     {
         pCmdSpace += m_cmdUtil.BuildCopyData(EngineTypeCompute,
                                              0,
@@ -571,22 +589,10 @@ void ComputeCmdBuffer::CmdWriteImmediate(
                                              wr_confirm__mec_copy_data__wait_for_confirmation,
                                              pCmdSpace);
     }
-    else
-    {
-        PAL_ASSERT(pipePoint == HwPipeBottom);
-
-        ReleaseMemGeneric releaseInfo = {};
-        releaseInfo.engineType = EngineTypeCompute;
-        releaseInfo.dstAddr    = address;
-        releaseInfo.data       = data;
-        releaseInfo.dataSel    = is32Bit ? data_sel__mec_release_mem__send_32_bit_low
-                                         : data_sel__mec_release_mem__send_64_bit_data;
-
-        pCmdSpace += m_cmdUtil.BuildReleaseMemGeneric(releaseInfo, pCmdSpace);
-    }
 
     m_cmdStream.CommitCommands(pCmdSpace);
 }
+
 // =====================================================================================================================
 void ComputeCmdBuffer::CmdBindBorderColorPalette(
     PipelineBindPoint          pipelineBindPoint,
@@ -816,7 +822,6 @@ uint32* ComputeCmdBuffer::ValidateDispatchPalAbi(
     const bool enablePm4Instrumentation = m_device.GetPlatform()->PlatformSettings().pm4InstrumentorEnabled;
 
     uint32* pStartingCmdSpace = pCmdSpace;
-    uint32  pipelineCmdLen    = 0;
     uint32  userDataCmdLen    = 0;
 #endif
 
@@ -837,7 +842,8 @@ uint32* ComputeCmdBuffer::ValidateDispatchPalAbi(
 #if PAL_DEVELOPER_BUILD
         if (enablePm4Instrumentation)
         {
-            pipelineCmdLen    = (static_cast<uint32>(pCmdSpace - pStartingCmdSpace) * sizeof(uint32));
+            const uint32 pipelineCmdLen = (static_cast<uint32>(pCmdSpace - pStartingCmdSpace) * sizeof(uint32));
+            m_device.DescribeBindPipelineValidation(this, pipelineCmdLen);
             pStartingCmdSpace = pCmdSpace;
         }
 #endif
@@ -863,10 +869,12 @@ uint32* ComputeCmdBuffer::ValidateDispatchPalAbi(
 #if PAL_DEVELOPER_BUILD
             if (enablePm4Instrumentation)
             {
-                pipelineCmdLen    = (static_cast<uint32>(pCmdSpace - pStartingCmdSpace) * sizeof(uint32));
+                const uint32 pipelineCmdLen = (static_cast<uint32>(pCmdSpace - pStartingCmdSpace) * sizeof(uint32));
+                m_device.DescribeBindPipelineValidation(this, pipelineCmdLen);
                 pStartingCmdSpace = pCmdSpace;
             }
 #endif
+
         } // if Launch Descriptor is changing
 
         pCmdSpace = ValidateUserData<false>(nullptr,
@@ -913,7 +921,7 @@ uint32* ComputeCmdBuffer::ValidateDispatchPalAbi(
     if (enablePm4Instrumentation)
     {
         const uint32 miscCmdLen = (static_cast<uint32>(pCmdSpace - pStartingCmdSpace) * sizeof(uint32));
-        m_device.DescribeDrawDispatchValidation(this, userDataCmdLen, pipelineCmdLen, miscCmdLen);
+        m_device.DescribeDrawDispatchValidation(this, userDataCmdLen, miscCmdLen);
     }
 #endif
 
@@ -931,7 +939,6 @@ uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
     const bool enablePm4Instrumentation = m_device.GetPlatform()->PlatformSettings().pm4InstrumentorEnabled;
 
     uint32* pStartingCmdSpace = pCmdSpace;
-    uint32  pipelineCmdLen    = 0;
     uint32  userDataCmdLen    = 0;
 #endif
 
@@ -954,7 +961,8 @@ uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
 #if PAL_DEVELOPER_BUILD
     if (enablePm4Instrumentation)
     {
-        pipelineCmdLen    = (static_cast<uint32>(pCmdSpace - pStartingCmdSpace) * sizeof(uint32));
+        const uint32 pipelineCmdLen = (static_cast<uint32>(pCmdSpace - pStartingCmdSpace) * sizeof(uint32));
+        m_device.DescribeBindPipelineValidation(this, pipelineCmdLen);
         pStartingCmdSpace = pCmdSpace;
     }
 #endif
@@ -1072,7 +1080,7 @@ uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
     if (enablePm4Instrumentation)
     {
         const uint32 miscCmdLen = (static_cast<uint32>(pCmdSpace - pStartingCmdSpace) * sizeof(uint32));
-        m_device.DescribeDrawDispatchValidation(this, userDataCmdLen, pipelineCmdLen, miscCmdLen);
+        m_device.DescribeDrawDispatchValidation(this, userDataCmdLen, miscCmdLen);
     }
 #endif
 
@@ -1549,36 +1557,29 @@ void ComputeCmdBuffer::DeactivateQueryType(
 // Adds commands necessary to write "data" to the specified event's memory.
 void ComputeCmdBuffer::WriteEventCmd(
     const BoundGpuMemory& boundMemObj,
-    HwPipePoint           pipePoint,
+    uint32                stageMask,   // Bitmask of PipelineStageFlag
     uint32                data)
 {
     uint32* pCmdSpace = m_cmdStream.ReserveCommands();
 
-    if ((pipePoint >= HwPipePostBlt) && (m_pm4CmdBufState.flags.cpBltActive))
+    if (TestAnyFlagSet(stageMask, PipelineStageBlt | PipelineStageBottomOfPipe) && m_pm4CmdBufState.flags.cpBltActive)
     {
         // We must guarantee that all prior CP DMA accelerated blts have completed before we write this event because
-        // the CmdSetEvent and CmdResetEvent functions expect that the prior blts have reached the post-blt stage by
-        // the time the event is written to memory. Given that our CP DMA blts are asynchronous to the pipeline stages
-        // the only way to satisfy this requirement is to force the MEC to stall until the CP DMAs are completed.
+        // the CmdSetEvent and CmdResetEvent functions expect that the prior blts have completed by the time the event
+        // is written to memory. Given that our CP DMA blts are asynchronous to the pipeline stages the only way to
+        // satisfy this requirement is to force the MEC to stall until the CP DMAs are completed.
         pCmdSpace += m_cmdUtil.BuildWaitDmaData(pCmdSpace);
         SetCpBltState(false);
     }
 
-    if ((pipePoint == HwPipeTop) || (pipePoint == HwPipePreCs))
+    // Now pick the packet that actually writes to the event. If multiple flags are set we must go down the path that
+    // is most conservative (sets the event at the latest point). This is easiest to implement in this order:
+    // 1. The EOP/EOS path for compute shaders.
+    // 2. Any other stages must be implemented by the MEC so just do a direct write.
+    // Note that passing in a stageMask of zero will get you an MEC write. It's not clear if that is even legal but
+    // doing an MEC write is probably the least impactful thing we could do in that case.
+    if (TestAnyFlagSet(stageMask, PipelineStageCs | PipelineStageBlt | PipelineStageBottomOfPipe))
     {
-        // Implement set/reset event with a WRITE_DATA command using the CP.
-        WriteDataInfo writeData = {};
-        writeData.engineType = EngineTypeCompute;
-        writeData.dstAddr    = boundMemObj.GpuVirtAddr();
-        writeData.dstSel     = dst_sel__mec_write_data__memory;
-
-        pCmdSpace += m_cmdUtil.BuildWriteData(writeData, data, pCmdSpace);
-    }
-    else
-    {
-        // Don't expect to see HwPipePreRasterization or HwPipePostPs on the compute queue...
-        PAL_ASSERT((pipePoint == HwPipePostCs) || (pipePoint == HwPipeBottom));
-
         // Implement set/reset with an EOP event written when all prior GPU work completes. Note that waiting on an
         // EOS timestamp and waiting on an EOP timestamp are exactly equivalent on compute queues. There's no reason
         // to implement a CS_DONE path for HwPipePostCs.
@@ -1589,6 +1590,16 @@ void ComputeCmdBuffer::WriteEventCmd(
         releaseInfo.data       = data;
 
         pCmdSpace += m_cmdUtil.BuildReleaseMemGeneric(releaseInfo, pCmdSpace);
+    }
+    else
+    {
+        // Implement set/reset event with a WRITE_DATA command using the CP.
+        WriteDataInfo writeData = {};
+        writeData.engineType = EngineTypeCompute;
+        writeData.dstAddr    = boundMemObj.GpuVirtAddr();
+        writeData.dstSel     = dst_sel__mec_write_data__memory;
+
+        pCmdSpace += m_cmdUtil.BuildWriteData(writeData, data, pCmdSpace);
     }
 
     m_cmdStream.CommitCommands(pCmdSpace);

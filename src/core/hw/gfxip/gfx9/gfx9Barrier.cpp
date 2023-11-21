@@ -510,6 +510,12 @@ void BarrierMgr::ExpandColor(
                                         transition.imageInfo.pQuadSamplePattern,
                                         subresRange);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 836
+            if (gfx9Image.HasDisplayDccData())
+            {
+                RsrcProcMgr().CmdDisplayDccFixUp(pCmdBuf, image);
+            }
+#endif
         }
         else if (fmaskDecompress)
         {
@@ -1330,11 +1336,22 @@ void BarrierMgr::Barrier(
 
                     DescribeBarrier(pCmdBuf, &barrier.pTransitions[i], pBarrierOps);
 
-                    const bool usedCompute = RsrcProcMgr().InitMaskRam(pCmdBuf,
-                                                                       pCmdStream,
-                                                                       gfx9Image,
-                                                                       subresRange,
-                                                                       imageInfo.newLayout);
+                    bool usedCompute = RsrcProcMgr().InitMaskRam(pCmdBuf,
+                                                                 pCmdStream,
+                                                                 gfx9Image,
+                                                                 subresRange,
+                                                                 imageInfo.newLayout);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 836
+                    const ColorLayoutToState    layoutToState = gfx9Image.LayoutToColorCompressionState();
+
+                    if (gfx9Image.HasDisplayDccData() &&
+                        (ImageLayoutToColorCompressionState(layoutToState, imageInfo.newLayout) == ColorDecompressed))
+                    {
+                        RsrcProcMgr().CmdDisplayDccFixUp(pCmdBuf, image);
+                        usedCompute = true;
+                    }
+#endif
 
                     // After initializing Mask RAM, we need some syncs to guarantee the initialization blts have
                     // finished, even if other Blts caused these operations to occur before any Blts were performed.

@@ -63,11 +63,13 @@ struct LogItem
 
     struct
     {
-        uint32 perfExpOutOfMemory   :  1; // Perf experiment ran out of memory and could not be executed for this
-                                          // command buffer call.
-        uint32 perfExpUnsupported   :  1; // Perf experiment is unsupported on this command buffer.
-        uint32 pipeStatsUnsupported :  1; // Pipeline stats query is unsupported on this command buffer.
-        uint32 reserved             : 29;
+        uint32 perfExpOutOfMemory    :  1; // Perf experiment ran out of memory and could not be executed for this
+                                           // command buffer call.
+        uint32 perfExpUnsupported    :  1; // Perf experiment is unsupported on this command buffer.
+        uint32 pipeStatsUnsupported  :  1; // Pipeline stats query is unsupported on this command buffer.
+        uint32 perfExpOutOfGpuMemory :  1; // Perf experiment ran out of gpu memory and could not be executed for this
+                                           // command buffer call.
+        uint32 reserved              : 28;
     } errors;
 
     union

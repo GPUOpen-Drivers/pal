@@ -2928,10 +2928,18 @@ void RsrcProcMgr::SlowClearGraphics(
             bindPipelineInfo.graphics.dynamicState.colorWriteMask = ~pColor->disabledChannelMask;
         }
 
+        VrsShadingRate clearRate = VrsShadingRate::_2x2;
+        const bool isThick3dImage = (is3dImage && (dstImage.SubresourceInfo(subresId)->blockSize.depth > 1));
+        if (isThick3dImage || (createInfo.fragments > 4))
+        {
+            // Testing saw VRS worsened these cases.
+            clearRate = VrsShadingRate::_1x1;
+        }
+
         // Save current command buffer state and bind graphics state which is common for all mipmap levels.
         pCmdBuffer->CmdSaveGraphicsState();
         pCmdBuffer->CmdBindPipeline(bindPipelineInfo);
-        BindCommonGraphicsState(pCmdBuffer);
+        BindCommonGraphicsState(pCmdBuffer, clearRate);
 
         pCmdBuffer->CmdOverwriteRbPlusFormatForBlits(viewFormat, 0);
         pCmdBuffer->CmdBindColorBlendState(m_pBlendDisableState);

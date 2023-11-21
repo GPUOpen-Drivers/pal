@@ -290,9 +290,9 @@ public:
         uint32                    flags) override;
 
     virtual void CmdSetEvent(
-        const IGpuEvent& gpuEvent, HwPipePoint setPoint) override;
+        const IGpuEvent& gpuEvent, uint32 stageMask) override;
     virtual void CmdResetEvent(
-        const IGpuEvent& gpuEvent, HwPipePoint resetPoint) override;
+        const IGpuEvent& gpuEvent, uint32 stageMask) override;
     virtual void CmdPredicateEvent(
         const IGpuEvent& gpuEvent) override;
 
@@ -326,11 +326,11 @@ public:
         uint32            queryCount) override;
 
     virtual void CmdWriteTimestamp(
-        HwPipePoint       pipePoint,
+        uint32            stageMask,
         const IGpuMemory& dstGpuMemory,
         gpusize           dstOffset) override;
     virtual void CmdWriteImmediate(
-        HwPipePoint        pipePoint,
+        uint32             stageMask,
         uint64             data,
         ImmediateDataWidth dataSize,
         gpusize            address) override;
@@ -481,6 +481,8 @@ public:
 
     void NotifyDrawDispatchValidation(
         const Developer::DrawDispatchValidationData& data);
+    void NotifyBindPipelineValidation(
+        const Developer::BindPipelineValidationData& data);
     void UpdateOptimizedRegisters(
         const Developer::OptimizedRegistersData& data);
 
@@ -581,7 +583,8 @@ private:
     uint16  m_shRegBase;
     uint16  m_ctxRegBase;
 
-    Developer::DrawDispatchValidationData  m_validationData;
+    Developer::DrawDispatchValidationData  m_drawDispatchValidationData;
+    Developer::BindPipelineValidationData  m_bindPipelineValidationData;
 
     PAL_DISALLOW_DEFAULT_CTOR(CmdBuffer);
     PAL_DISALLOW_COPY_AND_ASSIGN(CmdBuffer);

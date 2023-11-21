@@ -204,8 +204,9 @@ Result ComputeShaderLibrary::GetShaderFunctionCode(
 // =====================================================================================================================
 // Obtains the shader pre and post compilation stats/params for the specified shader.
 Result ComputeShaderLibrary::GetShaderFunctionStats(
-    const char*      pShaderExportName,
-    ShaderLibStats*  pShaderStats) const
+    Util::StringView<char> shaderExportName,
+    ShaderLibStats*        pShaderStats
+    ) const
 {
     Result result = Result::Success;
 
@@ -223,7 +224,7 @@ Result ComputeShaderLibrary::GetShaderFunctionStats(
     result = abiReader.Init();
     if (result == Result::Success)
     {
-        const Elf::SymbolTableEntry* pSymbol = abiReader.GetGenericSymbol(pShaderExportName);
+        const Elf::SymbolTableEntry* pSymbol = abiReader.GetGenericSymbol(shaderExportName);
         if (pSymbol != nullptr)
         {
             pShaderStats->isaSizeInBytes = static_cast<size_t>(pSymbol->st_size);
@@ -256,7 +257,7 @@ Result ComputeShaderLibrary::GetShaderFunctionStats(
 
     if (result == Result::Success)
     {
-        result = UnpackShaderFunctionStats(pShaderExportName,
+        result = UnpackShaderFunctionStats(shaderExportName,
                                            metadata,
                                            &metadataReader,
                                            pShaderStats);
@@ -268,7 +269,7 @@ Result ComputeShaderLibrary::GetShaderFunctionStats(
 // =====================================================================================================================
 // Obtains the shader function stack frame size
 Result ComputeShaderLibrary::UnpackShaderFunctionStats(
-    const char*                       pShaderExportName,
+    Util::StringView<char>            shaderExportName,
     const PalAbi::CodeObjectMetadata& metadata,
     Util::MsgPackReader*              pMetadataReader,
     ShaderLibStats*                   pShaderStats
@@ -283,14 +284,8 @@ Result ComputeShaderLibrary::UnpackShaderFunctionStats(
 
         for (uint32 i = item.map.size; ((result == Result::Success) && (i > 0)); --i)
         {
-            ShaderFuncStats stats;
-
-            result = pMetadataReader->Next(CWP_ITEM_STR);
-            if (result == Result::Success)
-            {
-                stats.symbolNameLength = item.str.length;
-                stats.pSymbolName      = static_cast<const char*>(item.str.start);
-            }
+            StringView<char> symbolName;
+            result = pMetadataReader->UnpackNext(&symbolName);
 
             if (result == Result::Success)
             {
@@ -303,15 +298,13 @@ Result ComputeShaderLibrary::UnpackShaderFunctionStats(
 
                 if (result == Result::Success)
                 {
-                    if ((strncmp(pShaderExportName, stats.pSymbolName, stats.symbolNameLength) == 0) &&
-                        (strlen(pShaderExportName) == stats.symbolNameLength))
+                    if (shaderExportName == symbolName)
                     {
                         switch (HashString(static_cast<const char*>(item.str.start), item.str.length))
                         {
                         case HashLiteralString(".stack_frame_size_in_bytes"):
                         {
-                            result = pMetadataReader->UnpackNext(&stats.stackFrameSizeInBytes);
-                            pShaderStats->stackFrameSizeInBytes = stats.stackFrameSizeInBytes;
+                            result = pMetadataReader->UnpackNext(&pShaderStats->stackFrameSizeInBytes);
                         }
                         break;
                         case HashLiteralString(PalAbi::ShaderMetadataKey::ShaderSubtype):

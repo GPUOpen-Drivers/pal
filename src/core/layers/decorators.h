@@ -229,6 +229,20 @@ static bool TranslateDrawDispatchValidationData(
 
 // =====================================================================================================================
 // Returns true if the PreviousObject was non-null, and thus the pData->pCmdBuffer data is valid for this layer.
+static bool TranslateBindPipelineValidationData(
+    void* pCbData)
+{
+    auto*const pData = static_cast<Developer::BindPipelineValidationData*>(pCbData);
+
+    ICmdBuffer* pPrevCmdBuffer = PreviousObject(pData->pCmdBuffer);
+    const bool  hasValidData   = (pPrevCmdBuffer != nullptr);
+    pData->pCmdBuffer          = (hasValidData) ? pPrevCmdBuffer : pData->pCmdBuffer;
+
+    return hasValidData;
+}
+
+// =====================================================================================================================
+// Returns true if the PreviousObject was non-null, and thus the pData->pCmdBuffer data is valid for this layer.
 static bool TranslateOptimizedRegistersData(
     void* pCbData)
 {
@@ -1264,6 +1278,12 @@ public:
     {
         return m_pNextLayer->RegisterHipRuntimeState(runtimeState);
     }
+    virtual Result SetHipTrapHandler(
+        const IGpuMemory* pTrapHandlerCode,
+        const IGpuMemory* pTrapHandlerMemory) const override
+    {
+        return m_pNextLayer->SetHipTrapHandler(NextGpuMemory(pTrapHandlerCode), NextGpuMemory(pTrapHandlerMemory));
+    }
 
 #if defined(__unix__)
     virtual void GetModifiersList(
@@ -1919,12 +1939,12 @@ public:
     }
 
     virtual void CmdSetEvent(
-        const IGpuEvent& gpuEvent, HwPipePoint setPoint) override
-        { m_pNextLayer->CmdSetEvent(*NextGpuEvent(&gpuEvent), setPoint); }
+        const IGpuEvent& gpuEvent, uint32 stageMask) override
+        { m_pNextLayer->CmdSetEvent(*NextGpuEvent(&gpuEvent), stageMask); }
 
     virtual void CmdResetEvent(
-        const IGpuEvent& gpuEvent, HwPipePoint resetPoint) override
-        { m_pNextLayer->CmdResetEvent(*NextGpuEvent(&gpuEvent), resetPoint); }
+        const IGpuEvent& gpuEvent, uint32 stageMask) override
+        { m_pNextLayer->CmdResetEvent(*NextGpuEvent(&gpuEvent), stageMask); }
 
     virtual void CmdPredicateEvent(
         const IGpuEvent& gpuEvent) override
@@ -1977,17 +1997,17 @@ public:
         { m_pNextLayer->CmdResetQueryPool(*NextQueryPool(&queryPool), startQuery, queryCount); }
 
     virtual void CmdWriteTimestamp(
-        HwPipePoint       pipePoint,
+        uint32            stageMask,
         const IGpuMemory& dstGpuMemory,
         gpusize           dstOffset) override
-        { m_pNextLayer->CmdWriteTimestamp(pipePoint, *NextGpuMemory(&dstGpuMemory), dstOffset); }
+        { m_pNextLayer->CmdWriteTimestamp(stageMask, *NextGpuMemory(&dstGpuMemory), dstOffset); }
 
     virtual void CmdWriteImmediate(
-        HwPipePoint        pipePoint,
+        uint32             stageMask,
         uint64             data,
         ImmediateDataWidth dataSize,
         gpusize            address) override
-        { m_pNextLayer->CmdWriteImmediate(pipePoint, data, dataSize, address); }
+        { m_pNextLayer->CmdWriteImmediate(stageMask, data, dataSize, address); }
 
     virtual void CmdLoadBufferFilledSizes(
         const gpusize (&gpuVirtAddr)[MaxStreamOutTargets]) override
@@ -3094,10 +3114,10 @@ public:
     }
 
     virtual Result GetShaderFunctionStats(
-        const char*      pShaderExportName,
-        ShaderLibStats*  pShaderStats) const override
+        Util::StringView<char> shaderExportName,
+        ShaderLibStats*        pShaderStats) const override
     {
-        return m_pNextLayer->GetShaderFunctionStats(pShaderExportName, pShaderStats);
+        return m_pNextLayer->GetShaderFunctionStats(shaderExportName, pShaderStats);
     }
 
     virtual const Util::Span<const ShaderLibraryFunctionInfo> GetShaderLibFunctionInfos() const override

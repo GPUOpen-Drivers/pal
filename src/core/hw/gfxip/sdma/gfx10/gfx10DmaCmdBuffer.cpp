@@ -139,7 +139,7 @@ void DmaCmdBuffer::WriteTimestampCmd(
 // =====================================================================================================================
 // Writes the current GPU timestamp value into the specified memory.
 void DmaCmdBuffer::CmdWriteTimestamp(
-    HwPipePoint       pipePoint,
+    uint32            stageMask,    // Bitmask of PipelineStageFlag
     const IGpuMemory& dstGpuMemory,
     gpusize           dstOffset)
 {
@@ -612,9 +612,7 @@ uint32 DmaCmdBuffer::GetImageZ(
     }
     else
     {
-        // For 2D image array, offsetZ represents the sliceIndex counted from the "start slice" whose base address
-        // is DmaImageInfo::baseAddr, which is used by gfx6-gfx8. For gfx10, just ignore offsetZ and adopt the
-        // start sliceIndex counted from "0".
+        // For 2D image array, just ignore offsetZ and adopt the start sliceIndex counted from "0".
         const Pal::Image& dmaImg = static_cast<const Pal::Image&>(*dmaImageInfo.pImage);
         imageZ = dmaImg.IsYuvPlanarArray() ? 0 : dmaImageInfo.pSubresInfo->subresId.arraySlice;
     }
@@ -1173,7 +1171,7 @@ void DmaCmdBuffer::CmdUpdateMemory(
 // =====================================================================================================================
 // Writes an immediate value to specified address.
 void DmaCmdBuffer::CmdWriteImmediate(
-    HwPipePoint        pipePoint,
+    uint32             stageMask, // Bitmask of PipelineStageFlag
     uint64             data,
     ImmediateDataWidth dataSize,
     gpusize            address)
@@ -1283,7 +1281,7 @@ uint32* DmaCmdBuffer::WriteFillMemoryCmd(
 //
 void DmaCmdBuffer::WriteEventCmd(
     const BoundGpuMemory& boundMemObj,
-    HwPipePoint           pipePoint,
+    uint32                stageMask,   // Bitmask of PipelineStageFlag
     uint32                data)
 {
     const gpusize dstAddr = boundMemObj.GpuVirtAddr();

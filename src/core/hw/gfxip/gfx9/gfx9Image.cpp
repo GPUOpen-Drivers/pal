@@ -442,7 +442,6 @@ void Image::CheckCompToSingle()
 Result Image::Finalize(
     bool               dccUnsupported,
     SubResourceInfo*   pSubResInfoList,
-    void*              pTileInfoList2, // Not used in Gfx6 version
     ImageMemoryLayout* pGpuMemLayout,
     gpusize*           pGpuMemSize,
     gpusize*           pGpuMemAlignment)

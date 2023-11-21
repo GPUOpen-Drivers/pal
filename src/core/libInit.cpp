@@ -81,7 +81,6 @@ static_assert(VAM_VERSION_MAJOR == 1, "Unexpected VAM major version.");
                   "The specified GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION is not supported.");
 #endif
 
-constexpr uint32 GfxEngineGfx6 = CIASICIDGFXENGINE_SOUTHERNISLAND;
 constexpr uint32 GfxEngineGfx9 = CIASICIDGFXENGINE_ARCTICISLAND;
 
 // Identification table for all GPUs that are supported
