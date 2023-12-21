@@ -109,7 +109,7 @@ DD_RESULT RpcServer::ExecuteRequest(
     RegisteredService* pService = m_services.FindPointer(serviceId);
     if (pService != nullptr)
     {
-        if (ddIsVersionCompatible(pService->version, serviceVersion))
+        if (ddIsMajorVersionCompatible(pService->version, serviceVersion))
         {
             RegisteredFunction* pFunction = pService->functions.FindValue(functionId);
             if (pFunction != nullptr)

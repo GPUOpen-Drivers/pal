@@ -531,7 +531,7 @@ TessFactorBuffer::TessFactorBuffer(
 gpusize TessFactorBuffer::ComputeAllocationSize() const
 {
     const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
-    const Gfx9PalSettings&   settings  = m_pDevice->Settings();
+    const PalSettings&       settings  = m_pDevice->Parent()->Settings();
 
     return (settings.tessFactorBufferSizePerSe * chipProps.gfx9.numShaderEngines * sizeof(uint32));
 }

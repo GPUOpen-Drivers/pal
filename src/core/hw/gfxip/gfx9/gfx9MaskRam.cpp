@@ -3454,7 +3454,7 @@ HtileUsageFlags Gfx9Htile::UseHtileForImage(
                                  (pParent->IsTmz()                      == false) &&
                                  (settings.htileEnable                  == true));
 
-        if (settings.waDisable24BitHWFormatForTCCompatibleDepth == true)
+        if (settings.waDisable24BitHwFormatForTcCompatibleDepth == true)
         {
             constexpr uint32 MinHtileWidth  = 8;
             constexpr uint32 MinHtileHeight = 8;

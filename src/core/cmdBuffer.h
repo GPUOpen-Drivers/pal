@@ -49,8 +49,9 @@ struct CmdBufferInternalCreateInfo
     {
         struct
         {
-            uint32 isInternal :  1;     // Whether this command buffer is created on an internal, hidden queue
-            uint32 reserved   : 31;
+            uint32 isInternal           :  1;   // Whether this command buffer is created on an internal, hidden queue
+            uint32 reserved1            :  1;
+            uint32 reserved             : 30;
         };                              // Command buffer create flags
 
         uint32 u32all;                  // Value of the bitfield
@@ -133,44 +134,6 @@ enum class CmdBufferRecordState : uint32
     Executable = 1,    // Recording has ended, ready to submit
     Reset      = 2,    // CmdBuffer has been reset and not re-begun
 };
-
-// Differentiates between once-per-copy and once-per-chunk data in P2pBltWaInfo.
-enum class P2pBltWaInfoType : uint32
-{
-    PerCopy  = 0,
-    PerChunk = 1,
-};
-
-// Used to record information needed by the OS layers to implement a workaround for peer to peer copies required by
-// some hardware.  The workaround requires splitting any P2P copies into small chunks, which unfortunately requires
-// some parts of the workaround to be implemented in hardware independent portions of PAL.
-//
-// When building command buffers with P2P BLTs, a list of these structures will be built.  Each copy will cause one
-// "PerCopy" entry to be inserted followed by one or more "PerChunk" entries.
-struct P2pBltWaInfo
-{
-    P2pBltWaInfoType type;                // PerCopy/PerChunk - chooses which part of the union is valid.
-    union
-    {
-        struct
-        {
-            const GpuMemory* pDstMemory;  // Destination of the copy.
-            uint32           numChunks;   // Number of "PerChunk" entries this copy needs.  Each "chunk" refers to a
-                                          // specific VA range that commands will write, there may be more than one BLT
-                                          // command in a single chunk that all target the same small chunk of VA space.
-        } perCopy;
-
-        struct
-        {
-            gpusize cmdBufPatchGpuVa;     // GPU VA pointing into the command buffer memory where PAL has written NOPs
-                                          // so that KMD can patch in command to modify the PCI BAR.
-            gpusize startAddr;            // Starting VA of this chunk.
-        } perChunk;
-    };
-};
-
-// Convenience typedef for a vector of P2P BLT workaround structures.
-typedef Util::Vector<P2pBltWaInfo, 1, Platform> P2pBltWaInfoVector;
 
 // =====================================================================================================================
 // A command buffer can be executed by the GPU multiple times and recycled, provided the command buffer is not pending
@@ -785,8 +748,7 @@ public:
 
     virtual void CmdExecuteIndirectCmds(
         const IIndirectCmdGenerator& generator,
-        const IGpuMemory&            gpuMemory,
-        gpusize                      offset,
+        gpusize                      gpuMemVirtAddr,
         uint32                       maximumCount,
         gpusize                      countGpuAddr) override { PAL_NEVER_CALLED(); }
 
@@ -906,18 +868,6 @@ public:
     void NotifyAllocFailure();
     void SetCmdRecordingError(Result error);
 
-    // Called once before initiating a copy that will target a peer memory object where the P2P BLT BAR workaround
-    // is required.  It should not be called if the workaround is not requied.
-    virtual void P2pBltWaCopyBegin(const GpuMemory* pDstMemory, uint32 regionCount, const gpusize* pChunkAddrs);
-
-    // Having called P2pBltWaCopyBegin(); this function should called before each individual chunk.
-    virtual void P2pBltWaCopyNextRegion(gpusize chunkAddr) { PAL_NEVER_CALLED(); }
-
-    // Bookend to P2pBltWaCopyEnd(); should be called once all chunk BLTs have been inserted.
-    virtual void P2pBltWaCopyEnd() { }
-
-    const P2pBltWaInfoVector& GetP2pBltWaInfoVec() const { return m_p2pBltWaInfo; }
-
     bool HasAddressDependentCmdStream() const;
 
     gpusize AllocateGpuScratchMem(
@@ -1033,37 +983,26 @@ protected:
         return nullptr;
     }
 
-    // Helper called by public P2pBltWaCopyNextRegion that does the heavy lifting once the derived class provides the
-    // appropriate command stream.
-    void P2pBltWaCopyNextRegion(CmdStream* pCmdStream, gpusize chunkAddr);
-
     static void PAL_STDCALL CmdDispatchInvalid(
         ICmdBuffer*  pCmdBuffer,
         DispatchDims size);
     static void PAL_STDCALL CmdDispatchIndirectInvalid(
-        ICmdBuffer*       pCmdBuffer,
-        const IGpuMemory& gpuMemory,
-        gpusize           offset);
+        ICmdBuffer* pCmdBuffer,
+        gpusize     gpuVirtAddr);
     static void PAL_STDCALL CmdDispatchOffsetInvalid(
         ICmdBuffer*  pCmdBuffer,
         DispatchDims offset,
         DispatchDims launchSize,
         DispatchDims logicalSize);
-    static void PAL_STDCALL CmdDispatchDynamicInvalid(
-        ICmdBuffer*  pCmdBuffer,
-        gpusize      gpuVa,
-        DispatchDims size);
 
     static void PAL_STDCALL CmdDispatchMeshInvalid(
         ICmdBuffer*  pCmdBuffer,
         DispatchDims size);
     static void PAL_STDCALL CmdDispatchMeshIndirectMultiInvalid(
-        ICmdBuffer*       pCmdBuffer,
-        const IGpuMemory& gpuMemory,
-        gpusize           offset,
-        uint32            stride,
-        uint32            maximumCount,
-        gpusize           countGpuAddr);
+        ICmdBuffer*          pCmdBuffer,
+        GpuVirtAddrAndStride gpuVirtAddrAndStride,
+        uint32               maximumCount,
+        gpusize              countGpuAddr);
 
     // Utility function for determing if command buffer dumping has been enabled.
     bool IsDumpingEnabled() const { return m_device.Settings().cmdBufDumpMode == CmdBufDumpModeRecordTime; }
@@ -1118,26 +1057,21 @@ protected:
     // command buffer.
     uint64  m_lastPagingFence;
 
-    P2pBltWaInfoVector m_p2pBltWaInfo;           // List of P2P BLT info that is required by the KMD-assisted PCI BAR
-                                                 // workaround.
-    gpusize            m_p2pBltWaLastChunkAddr;  // Scratch variable to avoid starting a new chunk if the starting
-                                                 // address of a chunk matches the last chunk.
-
     // Some flags to track internal command buffer state.
     union
     {
         struct
         {
-            uint32 internalMemAllocator     : 1;  // True if m_pMemAllocator is owned internally by PAL.
-            uint32 hasHybridPipeline        : 1;  // True if this command buffer has a hybrid pipeline bound.
-            uint32 autoMemoryReuse          : 1;  // True if the command buffer uses autoMemoryReuse.
+            uint32 internalMemAllocator : 1;  // True if m_pMemAllocator is owned internally by PAL.
+            uint32 hasHybridPipeline    : 1;  // True if this command buffer has a hybrid pipeline bound.
+            uint32 autoMemoryReuse      : 1;  // True if the command buffer uses autoMemoryReuse.
 #if PAL_BUILD_RDF
-            uint32 usedInEndTrace           : 1;  // True if this is a cmdBuffer used during ending a PAL trace. Clients
-                                                  // might submit their own GPU work as part of this cmdBuffer
+            uint32 usedInEndTrace       : 1;  // True if this is a cmdBuffer used during ending a PAL trace. Clients
+                                              // might submit their own GPU work as part of this cmdBuffer
 #else
-            uint32 placeholder3             : 1;
+            uint32 placeholder3         : 1;
 #endif
-            uint32 reserved                 : 28;
+            uint32 reserved             : 28;
         };
 
         uint32     u32All;

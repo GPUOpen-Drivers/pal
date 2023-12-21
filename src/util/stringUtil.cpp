@@ -128,6 +128,38 @@ bool ConvertUtf16StringToUtf8(
 }
 
 // =====================================================================================================================
+// Convert UTF-16 or UTF-32 string (depending on wchar_t size) to UTF-8
+bool ConvertWcharStringToUtf8(
+    char*          pDst,           ///< [out] dst string
+    const wchar_t* pSrc,           ///< [in] src string
+    size_t         dstSizeInBytes) ///< size of the destination buffer in bytes
+{
+    bool result = false;
+    if (sizeof(wchar_t) == 2)
+    {
+        result = ConvertUtf16StringToUtf8(pDst, pSrc, dstSizeInBytes);
+    }
+    else
+    {
+        std::codecvt_utf8<char32_t> converter;
+        mbstate_t                   state = {0};
+
+        char*           pCharNext = nullptr;
+        const char32_t* pUtf32Next = nullptr;
+
+        std::codecvt_base::result retCode = converter.out(state,
+                                                         reinterpret_cast<const char32_t*>(pSrc),
+                                                         reinterpret_cast<const char32_t*>(pSrc) + PalWcslen(pSrc) + 1,
+                                                         pUtf32Next,
+                                                         pDst,
+                                                         pDst + dstSizeInBytes,
+                                                         pCharNext);
+        result = (retCode == std::codecvt_base::ok);
+    }
+    return result;
+}
+
+// =====================================================================================================================
 // Perform UTF-16 string copy
 void CopyUtf16String(
     wchar_t*       pDst,    ///< [out] Destination string.

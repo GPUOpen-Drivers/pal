@@ -78,21 +78,19 @@ static void PAL_STDCALL CmdDrawIndexedInvalid(
     uint32      instanceCount,
     uint32      drawId);
 static void PAL_STDCALL CmdDrawIndirectMultiInvalid(
-    ICmdBuffer*       pCmdBuffer,
-    const IGpuMemory& gpuMemory,
-    gpusize           offset,
-    uint32            stride,
-    uint32            maximumCount,
-    gpusize           countGpuAddr);
+    ICmdBuffer*          pCmdBuffer,
+    GpuVirtAddrAndStride gpuMemVirtAddrAndStride,
+    uint32               maximumCount,
+    gpusize              countGpuAddr);
 static void PAL_STDCALL CmdDrawIndexedIndirectMultiInvalid(
-    ICmdBuffer*       pCmdBuffer,
-    const IGpuMemory& gpuMemory,
-    gpusize           offset,
-    uint32            stride,
-    uint32            maximumCount,
-    gpusize           countGpuAddr);
+    ICmdBuffer*          pCmdBuffer,
+    GpuVirtAddrAndStride gpuVirtAddrAndStride,
+    uint32               maximumCount,
+    gpusize              countGpuAddr);
 static void PAL_STDCALL CmdDispatchInvalid(ICmdBuffer* pCmdBuffer, DispatchDims size);
-static void PAL_STDCALL CmdDispatchIndirectInvalid(ICmdBuffer* pCmdBuffer, const IGpuMemory& gpuMemory, gpusize offset);
+static void PAL_STDCALL CmdDispatchIndirectInvalid(
+    ICmdBuffer* pCmdBuffer,
+    gpusize     gpuVirtAddr);
 static void PAL_STDCALL CmdDispatchOffsetInvalid(
     ICmdBuffer*  pCmdBuffer,
     DispatchDims offset,
@@ -121,8 +119,6 @@ CmdBuffer::CmdBuffer(
     m_gpuScratchMem(device.GetPlatform()),
     m_gpuScratchMemAllocLimit(0),
     m_lastPagingFence(0),
-    m_p2pBltWaInfo(device.GetPlatform()),
-    m_p2pBltWaLastChunkAddr(0),
     m_implicitGangSubQueueCount(0),
     m_device(device),
     m_recordState(CmdBufferRecordState::Reset) ,
@@ -143,7 +139,6 @@ CmdBuffer::CmdBuffer(
     m_funcTable.pfnCmdDispatch                  = CmdDispatchInvalid;
     m_funcTable.pfnCmdDispatchIndirect          = CmdDispatchIndirectInvalid;
     m_funcTable.pfnCmdDispatchOffset            = CmdDispatchOffsetInvalid;
-    m_funcTable.pfnCmdDispatchDynamic           = CmdDispatchDynamicInvalid;
     m_funcTable.pfnCmdDispatchMesh              = CmdDispatchMeshInvalid;
     m_funcTable.pfnCmdDispatchMeshIndirectMulti = CmdDispatchMeshIndirectMultiInvalid;
 }
@@ -282,7 +277,6 @@ Result CmdBuffer::Begin(
             if (result == Result::Success)
             {
                 m_implicitGangSubQueueCount = 0;
-                m_p2pBltWaInfo.Clear();
 
                 // Reset and initialize all internal state before we start building commands.
                 ResetState();
@@ -1131,96 +1125,6 @@ void CmdBuffer::ReturnLinearAllocator()
 }
 
 // =====================================================================================================================
-// Called before starting a P2P BLT where the P2P PCI BAR workaround is enabled.  The caller is responsible for ensuring
-// the regions are broken up into appropriate small chunks, this function just tracks information that will eventually
-// be required by the OS backends for passing info to the KMD.
-void CmdBuffer::P2pBltWaCopyBegin(
-    const GpuMemory* pDstMemory,
-    uint32           regionCount,
-    const gpusize*   pChunkAddrs)
-{
-    // This function should not be called unless the P2P BAR WA is enabled and the destination memory is on a different
-    // GPU.
-    PAL_ASSERT(m_device.ChipProperties().p2pBltWaInfo.required && pDstMemory->AccessesPeerMemory());
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 834
-    // Only the universal and SDMA engines support the P2P BLT WA, clients should be honoring the
-    // p2pCopyToInvisibleHeapIllegal engine property and we should never hit this function on other engines.
-    PAL_ASSERT((GetEngineType() == EngineTypeUniversal) || (GetEngineType() == EngineTypeDma));
-#endif
-
-    P2pBltWaInfo entry       = { };
-    entry.type               = P2pBltWaInfoType::PerCopy;
-    entry.perCopy.pDstMemory = pDstMemory;
-
-    // Run through list of chunks.  Mirror the logic in P2pBltWaCopyNextRegion, we will only insert a new chunk VCOP
-    // if the chunk address is different than the previous chunk.  This is because the overhead for the PCI BAR
-    // updates performed per-chunk are presumed to be expensive.
-    m_p2pBltWaLastChunkAddr = ~0u;
-    for (uint32 i = 0; i < regionCount; i++)
-    {
-        if (pChunkAddrs[i] != m_p2pBltWaLastChunkAddr)
-        {
-            entry.perCopy.numChunks++;
-            m_p2pBltWaLastChunkAddr = pChunkAddrs[i];
-        }
-    }
-    m_p2pBltWaInfo.PushBack(entry);
-
-    m_p2pBltWaLastChunkAddr = ~0u;
-}
-
-// =====================================================================================================================
-// Called before each region of a P2P BLT where the P2P PCI BAR workaround is enabled.  The caller is responsible for
-// ensuring the regions are broken up into appropriate small chunks, this function just tracks information that will
-// eventually be required by the OS backends for passing info to the KMD.
-void CmdBuffer::P2pBltWaCopyNextRegion(
-    CmdStream* pCmdStream,
-    gpusize    chunkAddr)
-{
-    // Only add a new chunk entry if the chunk address is different than the last chunk entry.  This logic must be
-    // mirrored in P2pBltWaCopyBegin().
-    if (chunkAddr != m_p2pBltWaLastChunkAddr)
-    {
-        P2pBltWaInfo entry = { };
-        entry.type               = P2pBltWaInfoType::PerChunk;
-        entry.perChunk.startAddr = chunkAddr;
-
-        // Do a dummy reserve and commit here to ensure the GetCurrentGpuVa() call below will be correct.  Otherwise,
-        // GetCurrentGpuVa() could return an address pointing to the end of one chunk that would be replace once
-        // ReserveCommands() is called.
-        uint32* pCmdSpace = pCmdStream->ReserveCommands();
-        pCmdStream->CommitCommands(pCmdSpace);
-
-        // Record the VA where KMD should patch the PCI BAR update commands.
-        entry.perChunk.cmdBufPatchGpuVa = pCmdStream->GetCurrentGpuVa();
-
-        // KMD patching the command stream is an explicit address dependency.
-        pCmdStream->NotifyAddressDependent();
-
-        pCmdSpace = pCmdStream->ReserveCommands();
-
-        // Insert appropriate number of NOPs based on the engine-specific requirements.
-        const uint32 nopDwords = (m_engineType == EngineType::EngineTypeDma) ?
-                                 m_device.ChipProperties().p2pBltWaInfo.dmaPlaceholderDwords :
-                                 m_device.ChipProperties().p2pBltWaInfo.gfxPlaceholderDwords;
-
-        // KMD doesn't always patch over the entire NOPed section.  Make each DWORD of reserved space a valid NOP so
-        // that we won't leave garbage in the command buffer to be executed by the GPU if KMD only patches over some.
-        for (uint32 i = 0; i < nopDwords; i++)
-        {
-            pCmdSpace = WriteNops(pCmdSpace, 1);
-        }
-
-        pCmdStream->CommitCommands(pCmdSpace);
-
-        m_p2pBltWaInfo.PushBack(entry);
-
-        m_p2pBltWaLastChunkAddr = chunkAddr;
-    }
-}
-
-// =====================================================================================================================
 // A helper function to check if any of this command buffer's command streams are chunk address dependent.
 bool CmdBuffer::HasAddressDependentCmdStream() const
 {
@@ -1289,14 +1193,12 @@ void CmdBuffer::OpenCmdBufDumpFile(
         ".bin",     // CmdBufDumpFormat::CmdBufDumpFormatBinary
         ".pm4"      // CmdBufDumpFormat::CmdBufDumpFormatBinaryHeaders
     };
-
-    const char* pLogDir = &settings.cmdBufDumpDirectory[0];
-
-    // Create the directory. We don't care if it fails (existing is fine, failure is caught when opening the file).
-    MkDir(pLogDir);
-
     // Maximum length of a filename allowed for command buffer dumps, seems more reasonable than 32
     constexpr uint32 MaxFilenameLength = 512;
+    char pLogDir[MaxFilenameLength];
+
+    // Directory is already created in Device::CommitSettingsAndInit, Get the Path here
+    Util::Strncpy(pLogDir, m_device.GetDumpDirName(), sizeof(pLogDir));
 
     char fullFilename[MaxFilenameLength] = {};
 
@@ -1505,6 +1407,10 @@ const uint32 GetSubEngineId(
     {
         subEngineId = 4; // SDMA engine ID
     }
+    else if (subEngineType == SubEngineType::Pup)
+    {
+        subEngineId = 5; // PUP
+    }
 
     return subEngineId;
 }
@@ -1553,12 +1459,10 @@ static void PAL_STDCALL CmdDrawIndexedInvalid(
 // Default implementation of CmdDrawIndirectMulti is unimplemented, derived CmdBuffer classes should override it if
 // supported.
 static void PAL_STDCALL CmdDrawIndirectMultiInvalid(
-    ICmdBuffer*       pCmdBuffer,
-    const IGpuMemory& gpuMemory,
-    gpusize           offset,
-    uint32            stride,
-    uint32            maximumCount,
-    gpusize           countGpuAddr)
+    ICmdBuffer*          pCmdBuffer,
+    GpuVirtAddrAndStride gpuVirtAddrAndStride,
+    uint32               maximumCount,
+    gpusize              countGpuAddr)
 {
     PAL_NEVER_CALLED();
 }
@@ -1567,12 +1471,10 @@ static void PAL_STDCALL CmdDrawIndirectMultiInvalid(
 // Default implementation of CmdDrawIndexedIndirectMulti is unimplemented, derived CmdBuffer classes should override it
 // if supported.
 static void PAL_STDCALL CmdDrawIndexedIndirectMultiInvalid(
-    ICmdBuffer*       pCmdBuffer,
-    const IGpuMemory& gpuMemory,
-    gpusize           offset,
-    uint32            stride,
-    uint32            maximumCount,
-    gpusize           countGpuAddr)
+    ICmdBuffer*          pCmdBuffer,
+    GpuVirtAddrAndStride gpuVirtAddrAndStride,
+    uint32               maximumCount,
+    gpusize              countGpuAddr)
 {
     PAL_NEVER_CALLED();
 }
@@ -1590,9 +1492,8 @@ void PAL_STDCALL CmdBuffer::CmdDispatchInvalid(
 // Default implementation of CmdDispatchIndirect is unimplemented, derived CmdBuffer classes should override it if
 // supported.
 void PAL_STDCALL CmdBuffer::CmdDispatchIndirectInvalid(
-    ICmdBuffer*       pCmdBuffer,
-    const IGpuMemory& gpuMemory,
-    gpusize           offset)
+    ICmdBuffer* pCmdBuffer,
+    gpusize     gpuVirtAddr)
 {
     PAL_NEVER_CALLED();
 }
@@ -1605,17 +1506,6 @@ void PAL_STDCALL CmdBuffer::CmdDispatchOffsetInvalid(
     DispatchDims offset,
     DispatchDims launchSize,
     DispatchDims logicalSize)
-{
-    PAL_NEVER_CALLED();
-}
-
-// =====================================================================================================================
-// Default implementation of CmdDispatchDynamic is unimplemented, derived CmdBuffer classes should override it if
-// supported.
-void PAL_STDCALL CmdBuffer::CmdDispatchDynamicInvalid(
-    ICmdBuffer*  pCmdBuffer,
-    gpusize      gpuVa,
-    DispatchDims size)
 {
     PAL_NEVER_CALLED();
 }
@@ -1634,12 +1524,10 @@ void PAL_STDCALL CmdBuffer::CmdDispatchMeshInvalid(
 // Default implementation of CmdDispatchMeshIndirect is unimplemented, derived CmdBuffer classes should override it if
 // supported.
 void PAL_STDCALL CmdBuffer::CmdDispatchMeshIndirectMultiInvalid(
-    ICmdBuffer*       pCmdBuffer,
-    const IGpuMemory& gpuMemory,
-    gpusize           offset,
-    uint32            stride,
-    uint32            maximumCount,
-    gpusize           countGpuAddr)
+    ICmdBuffer*          pCmdBuffer,
+    GpuVirtAddrAndStride gpuVirtAddrAndStride,
+    uint32               maximumCount,
+    gpusize              countGpuAddr)
 {
     PAL_NEVER_CALLED();
 }

@@ -1596,6 +1596,32 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuQuerySharedAperture(
 }
 
 // =====================================================================================================================
+int32 DrmLoaderFuncsProxy::pfnAmdgpuQueryGpuvmFaultInfo(
+    amdgpu_device_handle  hDevice,
+    uint32                size,
+    void*                 value
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    int32 ret = m_pFuncs->pfnAmdgpuQueryGpuvmFaultInfo(hDevice,
+                                                       size,
+                                                       value);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("AmdgpuQueryGpuvmFaultInfo,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "AmdgpuQueryGpuvmFaultInfo(%p, %x, %p)\n",
+        hDevice,
+        size,
+        value);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
 int32 DrmLoaderFuncsProxy::pfnAmdgpuBoGetPhysAddress(
     amdgpu_bo_handle  hBuffer,
     uint64*           pPhysAddress
@@ -3458,6 +3484,7 @@ Result DrmLoader::Init(
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_query_info", &m_funcs.pfnAmdgpuQueryInfo);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_query_private_aperture", &m_funcs.pfnAmdgpuQueryPrivateAperture);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_query_shared_aperture", &m_funcs.pfnAmdgpuQuerySharedAperture);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_query_gpuvm_fault_info", &m_funcs.pfnAmdgpuQueryGpuvmFaultInfo);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_bo_get_phys_address", &m_funcs.pfnAmdgpuBoGetPhysAddress);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_reserved_vmid", &m_funcs.pfnAmdgpuCsReservedVmid);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_unreserved_vmid", &m_funcs.pfnAmdgpuCsUnreservedVmid);

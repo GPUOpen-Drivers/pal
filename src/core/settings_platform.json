@@ -1,9 +1,209 @@
 {
-  "ComponentName": "Pal_Platform",
-  "DriverState": [
-    "HaltedOnPlatformInit"
+  "ComponentName": "PalPlatform",
+  "Enums": [
+    {
+      "Name": "TimeGraphColor",
+      "Values": [
+        {
+          "Description": "Black",
+          "Value": 0,
+          "Name": "BlackColor"
+        },
+        {
+          "Description": "Red",
+          "Value": 1,
+          "Name": "RedColor"
+        },
+        {
+          "Description": "Green",
+          "Value": 2,
+          "Name": "GreenColor"
+        },
+        {
+          "Description": "Blue",
+          "Value": 3,
+          "Name": "BlueColor"
+        },
+        {
+          "Description": "Yellow",
+          "Value": 4,
+          "Name": "YellowColor"
+        },
+        {
+          "Description": "Cyan",
+          "Value": 5,
+          "Name": "CyanColor"
+        },
+        {
+          "Description": "Magenta",
+          "Value": 6,
+          "Name": "MagentaColor"
+        },
+        {
+          "Description": "White",
+          "Value": 7,
+          "Name": "WhiteColor"
+        }
+      ]
+    },
+    {
+      "Name": "Util::DbgPrintMode",
+      "SkipGen": true,
+      "Values": [
+        {
+          "Name": "Disable",
+          "Value": 0,
+          "Description": "Debug print is ignored."
+        },
+        {
+          "Name": "Print",
+          "Value": 1,
+          "Description": "Debug print is routed to the debug window or stdout."
+        },
+        {
+          "Name": "File",
+          "Value": 2,
+          "Description": "Debug print is routed to a file."
+        },
+        {
+          "Name": "PrintCallback",
+          "Value": 3,
+          "Description": "Debug print is routed to the print callback only."
+        }
+      ]
+    }
   ],
   "Settings": [
+    {
+      "Name": "DbgPrintInfoMode",
+      "Tags": [
+        "Debug Print"
+      ],
+      "Defaults": {
+        "Default": "Disable"
+      },
+      "Type": "enum",
+      "ValidValues": {
+        "Name": "Util::DbgPrintMode"
+      },
+      "Description": "How to print log messages under category 'DbgPrintCatInfoMsg'.",
+      "BuildTypes": [
+        "PAL_ENABLE_PRINTS_ASSERTS"
+      ]
+    },
+    {
+      "Name": "DbgPrintWarnMode",
+      "Tags": [
+        "Debug Print"
+      ],
+      "Defaults": {
+        "Default": "Disable"
+      },
+      "Type": "enum",
+      "ValidValues": {
+        "Name": "Util::DbgPrintMode"
+      },
+      "Description": "How to print log messages under category 'DbgPrintCatWarnMsg'.",
+      "BuildTypes": [
+        "PAL_ENABLE_PRINTS_ASSERTS"
+      ]
+    },
+    {
+      "Name": "DbgPrintErrorMode",
+      "Tags": [
+        "Debug Print"
+      ],
+      "Defaults": {
+        "Default": "Disable"
+      },
+      "Type": "enum",
+      "ValidValues": {
+        "Name": "Util::DbgPrintMode"
+      },
+      "Description": "How to print log messages under category 'DbgPrintCatErrorMsg'.",
+      "BuildTypes": [
+        "PAL_ENABLE_PRINTS_ASSERTS"
+      ]
+    },
+    {
+      "Name": "DbgPrintScMsgMode",
+      "Tags": [
+        "Debug Print"
+      ],
+      "Defaults": {
+        "Default": "Disable"
+      },
+      "Type": "enum",
+      "ValidValues": {
+        "Name": "Util::DbgPrintMode"
+      },
+      "Description": "How to print log messages under category 'DbgPrintCatScMsg'.",
+      "BuildTypes": [
+        "PAL_ENABLE_PRINTS_ASSERTS"
+      ]
+    },
+    {
+      "Name": "DbgPrintEventMode",
+      "Tags": [
+        "Debug Print"
+      ],
+      "Defaults": {
+        "Default": "Disable"
+      },
+      "Type": "enum",
+      "ValidValues": {
+        "Name": "Util::DbgPrintMode"
+      },
+      "Description": "How to print log messages under category 'DbgPrintCatEventPrintMsg'.",
+      "BuildTypes": [
+        "PAL_ENABLE_PRINTS_ASSERTS"
+      ]
+    },
+    {
+      "Name": "DbgPrintEventCallbackMode",
+      "Tags": [
+        "Debug Print"
+      ],
+      "Defaults": {
+        "Default": "Disable"
+      },
+      "Type": "enum",
+      "ValidValues": {
+        "Name": "Util::DbgPrintMode"
+      },
+      "Description": "How to print log messages under category 'DbgPrintCatEventPrintCallbackMsg'.",
+      "BuildTypes": [
+        "PAL_ENABLE_PRINTS_ASSERTS"
+      ]
+    },
+    {
+      "Name": "EnableSoftAssert",
+      "Tags": [
+        "Debug Print"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Type": "bool",
+      "Description": "Whether to enable soft assert (AKA. alerts). Alerts are used to notify developers of possible but unexpected conditions.",
+      "BuildTypes": [
+        "PAL_ENABLE_PRINTS_ASSERTS"
+      ]
+    },
+    {
+      "Name": "EnableHardAssert",
+      "Tags": [
+        "Debug Print"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Type": "bool",
+      "Description": "Whether to enable hard assert. Hard asserts are used to verify known, assumed state of the program at any time.",
+      "BuildTypes": [
+        "PAL_ENABLE_PRINTS_ASSERTS"
+      ]
+    },
     {
       "Name": "DbgLogEnabled",
       "Tags": [
@@ -14,7 +214,6 @@
       },
       "Scope": "PrivatePalKey",
       "Type": "bool",
-      "VariableName": "dbgLogEnabled",
       "Description": "Flag to turn debug message logging on/off globally.",
       "BuildTypes": [
         "PAL_ENABLE_LOGGING"
@@ -26,25 +225,21 @@
         "Debug Log"
       ],
       "Scope": "PrivatePalKey",
-      "Type": "struct",
-      "VariableName": "dbgLoggerFileConfig",
       "Structure": [
         {
           "Description": "Relative directory where debug log file will be placed. Relative to the path in the AMD_DEBUG_DIR environment variable. If that env var isn't set, the location is platform dependent.",
           "Flags": {
-            "IsPath": true
+            "IsDir": true
           },
           "Tags": [
             "Debug Log"
           ],
           "Defaults": {
             "Default": "amdpal/",
-            "WinDefault": "PalLog\\",
-            "LnxDefault": "amdpal/"
+            "Windows": "PalLog\\",
+            "Linux": "amdpal/"
           },
-          "Size": "Util::MaxPathStrLen",
           "Type": "string",
-          "VariableName": "logDirectory",
           "Name": "LogDirectory"
         },
         {
@@ -80,7 +275,10 @@
                 "Value": 32,
                 "Description": "Force a flush after every write to file."
               }
-            ]
+            ],
+            "SkipGen": true,
+            "IsEnum": true,
+            "Name": "FileSettingsFlags"
           },
           "Name": "FileSettingsFlags",
           "Defaults": {
@@ -91,7 +289,6 @@
             "IsHex": true
           },
           "Type": "uint32",
-          "VariableName": "fileSettingsFlags",
           "Description": "Mask indicating various file settings as defined in Util::FileSettings."
         },
         {
@@ -117,7 +314,10 @@
                 "Value": 16,
                 "Description": "Don't discard existing file"
               }
-            ]
+            ],
+            "SkipGen": true,
+            "IsEnum": true,
+            "Name": "FileAccessFlags"
           },
           "Name": "FileAccessFlags",
           "Defaults": {
@@ -128,7 +328,6 @@
             "IsHex": true
           },
           "Type": "uint32",
-          "VariableName": "fileAccessFlags",
           "Description": "Mask indicating various file access modes as defined in Util::FileAccessMode."
         },
         {
@@ -161,7 +360,6 @@
             "Default": 4
           },
           "Type": "uint32",
-          "VariableName": "severityLevel",
           "Description": "Specifies the severity level for each log message as defined in Util::SeverityLevel."
         },
         {
@@ -197,7 +395,10 @@
                 "Value": 32,
                 "Description": "Originating from pipeline compiler"
               }
-            ]
+            ],
+            "SkipGen": true,
+            "IsEnum": true,
+            "Name": "OrigTypeMask"
           },
           "Name": "OrigTypeMask",
           "Defaults": {
@@ -208,7 +409,6 @@
             "IsHex": true
           },
           "Type": "uint32",
-          "VariableName": "origTypeMask",
           "Description": "Mask indicating the sources for each log message as defined in Util::OriginationTypeFlags."
         }
       ],
@@ -223,12 +423,10 @@
       ],
       "Scope": "PrivatePalKey",
       "Type": "string",
-      "Size": "MaxMiscStrLen",
       "Description": "Spoofs the current GPU into the given model and enables IFH. See NullIdLookupTable in ndDevice.cpp for options (eg 'RAVEN' from 'RAVEN:gfx902').",
       "Defaults": {
         "Default": ""
       },
-      "VariableName": "spoofNullGpuIfh",
       "Name": "SpoofNullGpuIfh"
     },
     {
@@ -236,12 +434,11 @@
         "GPU ID Masquerade"
       ],
       "Scope": "PrivatePalKey",
-      "Type": "gpusize",
+      "Type": "uint64",
       "Description": "To override non-local heap size for private debug usage. Value=0 means not override the non-local heap size. NOTE: This key is only for linux usage.",
       "Defaults": {
         "Default": 0
       },
-      "VariableName": "overrideNonLocalHeapSize",
       "Name": "OverrideNonLocalHeapSize"
     },
     {
@@ -254,7 +451,6 @@
       },
       "Scope": "PrivatePalKey",
       "Type": "bool",
-      "VariableName": "debugOverlayEnabled",
       "Description": "Enables the debug overlay."
     },
     {
@@ -262,19 +458,7 @@
       "Tags": [
         "Debug Overlay"
       ],
-      "DependsOn": {
-        "Settings": [
-          {
-            "Values": [
-              true
-            ],
-            "Name": "DebugOverlayEnabled"
-          }
-        ]
-      },
       "Scope": "PrivatePalKey",
-      "Type": "struct",
-      "VariableName": "debugOverlayConfig",
       "Structure": [
         {
           "Description": "Writes debug overlay information to the screen.",
@@ -282,7 +466,6 @@
             "Default": true
           },
           "Type": "bool",
-          "VariableName": "visualConfirmEnabled",
           "Name": "VisualConfirmEnabled"
         },
         {
@@ -291,7 +474,6 @@
             "Default": false
           },
           "Type": "bool",
-          "VariableName": "timeGraphEnabled",
           "Name": "TimeGraphEnabled"
         },
         {
@@ -300,7 +482,6 @@
             "Default": false
           },
           "Type": "bool",
-          "VariableName": "cpVersionEnabled",
           "Name": "CpVersionEnabled"
         },
         {
@@ -335,7 +516,6 @@
             "Default": "DebugOverlayLowerLeft"
           },
           "Type": "enum",
-          "VariableName": "overlayLocation",
           "Description": "Location to display debug text."
         },
         {
@@ -344,7 +524,6 @@
             "Default": false
           },
           "Type": "bool",
-          "VariableName": "dateTimeEnabled",
           "Name": "DateTimeEnabled"
         },
         {
@@ -353,7 +532,6 @@
             "Default": false
           },
           "Type": "bool",
-          "VariableName": "printFrameNumber",
           "Name": "PrintFrameNumber"
         },
         {
@@ -362,7 +540,6 @@
             "Default": false
           },
           "Type": "bool",
-          "VariableName": "useDebugOverlayOnColorSpaceConversionCopy",
           "Name": "UseDebugOverlayOnColorSpaceConversionCopy"
         }
       ],
@@ -373,65 +550,10 @@
       "Tags": [
         "Debug Overlay"
       ],
-      "DependsOn": {
-        "Settings": [
-          {
-            "Values": [
-              true
-            ],
-            "Name": "DebugOverlayEnabled"
-          }
-        ]
-      },
       "Scope": "PrivatePalKey",
-      "Type": "struct",
-      "VariableName": "timeGraphConfig",
       "Structure": [
         {
           "ValidValues": {
-            "IsEnum": true,
-            "Values": [
-              {
-                "Description": "Black",
-                "Value": 0,
-                "Name": "BlackColor"
-              },
-              {
-                "Description": "Red",
-                "Value": 1,
-                "Name": "RedColor"
-              },
-              {
-                "Description": "Green",
-                "Value": 2,
-                "Name": "GreenColor"
-              },
-              {
-                "Description": "Blue",
-                "Value": 3,
-                "Name": "BlueColor"
-              },
-              {
-                "Description": "Yellow",
-                "Value": 4,
-                "Name": "YellowColor"
-              },
-              {
-                "Description": "Cyan",
-                "Value": 5,
-                "Name": "CyanColor"
-              },
-              {
-                "Description": "Magenta",
-                "Value": 6,
-                "Name": "MagentaColor"
-              },
-              {
-                "Description": "White",
-                "Value": 7,
-                "Name": "WhiteColor"
-              }
-            ],
             "Name": "TimeGraphColor"
           },
           "Name": "GridLineColor",
@@ -439,53 +561,10 @@
             "Default": "RedColor"
           },
           "Type": "enum",
-          "VariableName": "gridLineColor",
           "Description": "Color of the grid line in the time graph."
         },
         {
           "ValidValues": {
-            "Values": [
-              {
-                "Description": "Black",
-                "Value": 0,
-                "Name": "BlackColor"
-              },
-              {
-                "Description": "Red",
-                "Value": 1,
-                "Name": "RedColor"
-              },
-              {
-                "Description": "Green",
-                "Value": 2,
-                "Name": "GreenColor"
-              },
-              {
-                "Description": "Blue",
-                "Value": 3,
-                "Name": "BlueColor"
-              },
-              {
-                "Description": "Yellow",
-                "Value": 4,
-                "Name": "YellowColor"
-              },
-              {
-                "Description": "Cyan",
-                "Value": 5,
-                "Name": "CyanColor"
-              },
-              {
-                "Description": "Magenta",
-                "Value": 6,
-                "Name": "MagentaColor"
-              },
-              {
-                "Description": "White",
-                "Value": 7,
-                "Name": "WhiteColor"
-              }
-            ],
             "Name": "TimeGraphColor"
           },
           "Name": "CpuLineColor",
@@ -493,53 +572,10 @@
             "Default": "YellowColor"
           },
           "Type": "enum",
-          "VariableName": "cpuLineColor",
           "Description": "Color of the CPU line in the time graph."
         },
         {
           "ValidValues": {
-            "Values": [
-              {
-                "Description": "Black",
-                "Value": 0,
-                "Name": "BlackColor"
-              },
-              {
-                "Description": "Red",
-                "Value": 1,
-                "Name": "RedColor"
-              },
-              {
-                "Description": "Green",
-                "Value": 2,
-                "Name": "GreenColor"
-              },
-              {
-                "Description": "Blue",
-                "Value": 3,
-                "Name": "BlueColor"
-              },
-              {
-                "Description": "Yellow",
-                "Value": 4,
-                "Name": "YellowColor"
-              },
-              {
-                "Description": "Cyan",
-                "Value": 5,
-                "Name": "CyanColor"
-              },
-              {
-                "Description": "Magenta",
-                "Value": 6,
-                "Name": "MagentaColor"
-              },
-              {
-                "Description": "White",
-                "Value": 7,
-                "Name": "WhiteColor"
-              }
-            ],
             "Name": "TimeGraphColor"
           },
           "Name": "GpuLineColor",
@@ -547,7 +583,6 @@
             "Default": "GreenColor"
           },
           "Type": "enum",
-          "VariableName": "gpuLineColor",
           "Description": "Color of the GPU line in the time graph."
         }
       ],
@@ -558,19 +593,7 @@
       "Tags": [
         "Debug Overlay"
       ],
-      "DependsOn": {
-        "Settings": [
-          {
-            "Values": [
-              true
-            ],
-            "Name": "DebugOverlayEnabled"
-          }
-        ]
-      },
       "Scope": "PrivatePalKey",
-      "Type": "struct",
-      "VariableName": "overlayBenchmarkConfig",
       "Structure": [
         {
           "Description": "End benchmark after specified number of seconds.  The benchmark can still be ended early by hitting F11.  A value of 0 will allow the benchmark to run forever.",
@@ -578,7 +601,6 @@
             "Default": 0
           },
           "Type": "uint32",
-          "VariableName": "maxBenchmarkTime",
           "Name": "MaxBenchmarkTime"
         },
         {
@@ -587,22 +609,19 @@
             "Default": false
           },
           "Type": "bool",
-          "VariableName": "usageLogEnable",
           "Name": "UsageLogEnable"
         },
         {
           "Description": "Relative directory where usage logs are placed. Relative to the path in the AMD_DEBUG_DIR environment variable. If that env var isn't set, the location is platform dependent.",
           "Flags": {
-            "IsPath": true
+            "IsDir": true
           },
           "Defaults": {
             "Default": "amdpal/",
-            "WinDefault": "PalLog\\",
-            "LnxDefault": "amdpal/"
+            "Windows": "PalLog\\",
+            "Linux": "amdpal/"
           },
-          "Size": "Util::MaxPathStrLen",
           "Type": "string",
-          "VariableName": "usageLogDirectory",
           "Name": "UsageLogDirectory"
         },
         {
@@ -610,9 +629,7 @@
           "Defaults": {
             "Default": "PalUsageLog.txt"
           },
-          "Size": "Util::MaxPathStrLen",
           "Type": "string",
-          "VariableName": "usageLogFilename",
           "Name": "UsageLogFilename"
         },
         {
@@ -621,22 +638,19 @@
             "Default": false
           },
           "Type": "bool",
-          "VariableName": "logFrameStats",
           "Name": "LogFrameStats"
         },
         {
           "Description": "Relative directory where frame statistic logs are placed. Relative to the path in the AMD_DEBUG_DIR environment variable. If that env var isn't set, the location is platform dependent.",
           "Flags": {
-            "IsPath": true
+            "IsDir": true
           },
           "Defaults": {
             "Default": "amdpal/",
-            "WinDefault": "PalLog\\",
-            "LnxDefault": "amdpal/"
+            "Windows": "PalLog\\",
+            "Linux": "amdpal/"
           },
-          "Size": "Util::MaxPathStrLen",
           "Type": "string",
-          "VariableName": "frameStatsLogDirectory",
           "Name": "FrameStatsLogDirectory"
         },
         {
@@ -645,7 +659,6 @@
             "Default": 65536
           },
           "Type": "uint32",
-          "VariableName": "maxLoggedFrames",
           "Name": "MaxLoggedFrames"
         }
       ],
@@ -656,19 +669,7 @@
       "Tags": [
         "Debug Overlay"
       ],
-      "DependsOn": {
-        "Settings": [
-          {
-            "Values": [
-              true
-            ],
-            "Name": "DebugOverlayEnabled"
-          }
-        ]
-      },
       "Scope": "PrivatePalKey",
-      "Type": "struct",
-      "VariableName": "overlayMemoryInfoConfig",
       "Structure": [
         {
           "Description": "If the total memory allocated from the two non-local heaps should be shown in a single line.",
@@ -676,7 +677,6 @@
             "Default": true
           },
           "Type": "bool",
-          "VariableName": "combineNonLocal",
           "Name": "CombineNonLocal"
         },
         {
@@ -685,7 +685,6 @@
             "Default": true
           },
           "Type": "bool",
-          "VariableName": "reportCmdAllocator",
           "Name": "ReportCmdAllocator"
         },
         {
@@ -694,7 +693,6 @@
             "Default": true
           },
           "Type": "bool",
-          "VariableName": "reportExternal",
           "Name": "ReportExternal"
         },
         {
@@ -703,7 +701,6 @@
             "Default": true
           },
           "Type": "bool",
-          "VariableName": "reportInternal",
           "Name": "ReportInternal"
         },
         {
@@ -712,7 +709,6 @@
             "Default": false
           },
           "Type": "bool",
-          "VariableName": "displayPeakMemUsage",
           "Name": "DisplayPeakMemUsage"
         }
       ],
@@ -722,43 +718,44 @@
       "ValidValues": {
         "Values": [
           {
-            "Name": "GpuProfilerCaptureTriggerKey::Shift_F11",
+            "Name": "Shift_F11",
             "Value": 107,
             "Description": "Default GPU profiler capture trigger key"
           },
           {
-            "Name": "GpuProfilerCaptureTriggerKey::F1",
+            "Name": "F1",
             "Value": 1,
             "Description": "Forced GPU profiler capture trigger key."
           },
           {
-            "Name": "GpuProfilerCaptureTriggerKey::F2",
+            "Name": "F2",
             "Value": 2,
             "Description": "Forced GPU profiler capture trigger key."
           },
           {
-            "Name": "GpuProfilerCaptureTriggerKey::F13",
+            "Name": "F13",
             "Value": 13,
             "Description": "Forced GPU profiler capture trigger key."
           },
           {
-            "Name": "GpuProfilerCaptureTriggerKey::F16",
+            "Name": "F16",
             "Value": 16,
             "Description": "Forced GPU profiler capture trigger key."
           }
         ],
-        "Name": "GpuProfilerCaptureTriggerKey"
+        "Name": "GpuProfilerCaptureTriggerKey",
+        "SkipGen": true,
+        "IsEnum": true
       },
       "Name": "GpuProfilerCaptureTriggerKey",
       "Tags": [
         "GPU Profiler"
       ],
       "Defaults": {
-        "Default": "GpuProfilerCaptureTriggerKey::Shift_F11"
+        "Default": "Shift_F11"
       },
       "Scope": "PrivatePalKey",
       "Type": "enum",
-      "VariableName": "gpuProfilerCaptureTriggerKey",
       "Description": "Default trigger key is Shift_F11 and forced trigger keys are F1, F2, F13, and F16 for capturing GPU profiler."
     },
     {
@@ -785,7 +782,9 @@
             "Description": "Trace data (Spm and/or Sqtt) is output as .rgp file for Radeon Gpu Profiler."
           }
         ],
-        "Name": "GpuProfilerMode"
+        "Name": "GpuProfilerMode",
+        "SkipGen": true,
+        "IsEnum": true
       },
       "Name": "GpuProfilerMode",
       "Tags": [
@@ -796,7 +795,6 @@
       },
       "Scope": "PrivatePalKey",
       "Type": "enum",
-      "VariableName": "gpuProfilerMode",
       "Description": "Enables and sets the SQTT mode for the GPU performance profiler layer.  Actual capture of performance data must be specified via frame number with GpuProfilerConfig.StartFrame or by holding shift-F11."
     },
     {
@@ -804,23 +802,11 @@
       "Tags": [
         "GPU Profiler"
       ],
-      "DependsOn": {
-        "Settings": [
-          {
-            "Values": [
-              1
-            ],
-            "LogicOp": "GreaterThan",
-            "Name": "GpuProfilerMode"
-          }
-        ]
-      },
       "Defaults": {
-        "Default": "64*1024"
+        "Default": 65536
       },
       "Scope": "PrivatePalKey",
-      "Type": "size_t",
-      "VariableName": "gpuProfilerTokenAllocatorSize",
+      "Type": "uint64",
       "Description": "Initial batched cmd buffer token stream size. Reduce this to avoid running out of memory or increase it to avoid reallocations and memcpys."
     },
     {
@@ -828,34 +814,19 @@
       "Tags": [
         "GPU Profiler"
       ],
-      "DependsOn": {
-        "Settings": [
-          {
-            "Values": [
-              0
-            ],
-            "LogicOp": "GreaterThan",
-            "Name": "GpuProfilerMode"
-          }
-        ]
-      },
       "Scope": "PrivatePalKey",
-      "Type": "struct",
-      "VariableName": "gpuProfilerConfig",
       "Structure": [
         {
           "Description": "Relative directory where GPU profiler logs are written. Relative to the path in the AMD_DEBUG_DIR environment variable. If that env var isn't set, the location is platform dependent.",
           "Flags": {
-            "IsPath": true
+            "IsDir": true
           },
           "Defaults": {
             "Default": "amdpal/",
-            "WinDefault": "PalLog\\",
-            "LnxDefault": "amdpal/"
+            "Windows": "PalLog\\",
+            "Linux": "amdpal/"
           },
-          "Size": "Util::MaxPathStrLen",
           "Type": "string",
-          "VariableName": "logDirectory",
           "Name": "LogDirectory"
         },
         {
@@ -863,9 +834,7 @@
           "Defaults": {
             "Default": ""
           },
-          "Size": "Util::MaxFileNameStrLen",
           "Type": "string",
-          "VariableName": "targetApplication",
           "Name": "TargetApplication"
         },
         {
@@ -874,7 +843,6 @@
             "Default": 0
           },
           "Type": "uint32",
-          "VariableName": "startFrame",
           "Name": "StartFrame"
         },
         {
@@ -883,7 +851,6 @@
             "Default": 0
           },
           "Type": "uint32",
-          "VariableName": "frameCount",
           "Name": "FrameCount"
         },
         {
@@ -892,7 +859,6 @@
             "Default": false
           },
           "Type": "bool",
-          "VariableName": "recordPipelineStats",
           "Name": "RecordPipelineStats"
         },
         {
@@ -901,7 +867,6 @@
             "Default": false
           },
           "Type": "bool",
-          "VariableName": "breakSubmitBatches",
           "Name": "BreakSubmitBatches"
         },
         {
@@ -910,7 +875,6 @@
             "Default": false
           },
           "Type": "bool",
-          "VariableName": "ignoreNonDrawDispatchCmdBufs",
           "Name": "IgnoreNonDrawDispatchCmdBufs"
         },
         {
@@ -919,7 +883,6 @@
             "Default": false
           },
           "Type": "bool",
-          "VariableName": "useFullPipelineHash",
           "Name": "UseFullPipelineHash"
         },
         {
@@ -953,7 +916,6 @@
             "IsHex": true
           },
           "Type": "uint32",
-          "VariableName": "traceModeMask",
           "Description": "Mask indicating which traces are enabled. Both spm trace and Sqtt trace are disabled (0x0)   Spm trace is enabled (0x1). Sqtt trace is enabled (0x2)."
         },
         {
@@ -983,7 +945,6 @@
             "Default": "GpuProfilerGranularityDraw"
           },
           "Type": "enum",
-          "VariableName": "granularity",
           "Description": "Determines what granularity should be used for gathering performance data:  0: Per draw.  Each separate draw will be measured. 1: Per command buffer.  Whole command buffers will be grouped. 2: Per frame.  Whole frame will be grouped.  Useful to get a thread trace covering all command buffers across the universal and compute queues.  Pipeline stats cannot be gathered in this mode.  If you wish to gather a thread trace across multiple queues (i.e., including async compute work), you should also set requestDebugVmid."
         },
         {
@@ -1023,7 +984,6 @@
             "Default": "GpuProfilerClockModePeak"
           },
           "Type": "enum",
-          "VariableName": "clockMode",
           "Description": "What clock mode PAL should enable when profiling."
         }
       ],
@@ -1034,19 +994,7 @@
       "Tags": [
         "GPU Profiler"
       ],
-      "DependsOn": {
-        "Settings": [
-          {
-            "Values": [
-              1
-            ],
-            "Name": "GpuProfilerMode"
-          }
-        ]
-      },
       "Scope": "PrivatePalKey",
-      "Type": "struct",
-      "VariableName": "gpuProfilerPerfCounterConfig",
       "Structure": [
         {
           "Description": "File path specifying where the global performance counter config file can be found.  This file should have one line per counter to capture in the form \"Block ID Instance Name\". Block can be one of the following: CB, CPC, CPF, CPG, DB, DMA, GDS, GRBM, GRBM_SE, IA, MC, PA, RLC, SC, SPI, SQ, SRBM, SX, TA, TCA, TCC, TCP, TCS, TD, VGT, WD. ID should correspond to the specific counter of interest for the specified Block, these can be selected by reading the performance counter select register for that block. Instance can be the block instance ordinal of interest. It can also be the enum EACH which means every instance of the block is of interest. Also It can be ALL, which has the same meaning as EACH, but the results of every instance will be accumlated. Name will be the header of the column in the .csv file (limited to 127 characters).  A \"#\" can be inserted as the first character in a line to force that line to be ignored.  Gathering performance counters has a huge performance impact; consider disabling TDRs on Windows.",
@@ -1056,9 +1004,7 @@
           "Defaults": {
             "Default": ""
           },
-          "Size": "Util::MaxFileNameStrLen",
           "Type": "string",
-          "VariableName": "globalPerfCounterConfigFile",
           "Name": "GlobalPerfCounterConfigFile"
         },
         {
@@ -1067,7 +1013,6 @@
             "Default": false
           },
           "Type": "bool",
-          "VariableName": "cacheFlushOnCounterCollection",
           "Name": "CacheFlushOnCounterCollection"
         }
       ],
@@ -1078,20 +1023,7 @@
       "Tags": [
         "GPU Profiler"
       ],
-      "DependsOn": {
-        "Settings": [
-          {
-            "Values": [
-              1
-            ],
-            "LogicOp": "GreaterThan",
-            "Name": "GpuProfilerMode"
-          }
-        ]
-      },
       "Scope": "PrivatePalKey",
-      "Type": "struct",
-      "VariableName": "gpuProfilerSqttConfig",
       "Structure": [
         {
           "Name": "SupressInstructionTokens",
@@ -1099,7 +1031,6 @@
             "Default": false
           },
           "Type": "bool",
-          "VariableName": "supressInstructionTokens",
           "Description": "Skip to dump instruction tokens if true. Otherwise, all token types that tokenMask specifies will be dumped."
         },
         {
@@ -1234,20 +1165,17 @@
             "Default": "0xFFFFFFFF"
           },
           "Type": "uint32",
-          "VariableName": "tokenMask",
           "Description": "Mask indicating which token types are requested to dump. It works with supressInstructionTokens to determine the dumped token types."
         },
         {
           "Name": "SEMask",
           "Flags": {
-            "IsBitmask": true,
             "IsHex": true
           },
           "Defaults": {
             "Default": 0
           },
           "Type": "uint32",
-          "VariableName": "seMask",
           "Description": "Mask indicating which SE to gather thread trace from. Zero means trace all SEs."
         },
         {
@@ -1259,7 +1187,6 @@
             "Default": 0
           },
           "Type": "uint64",
-          "VariableName": "pipelineHash",
           "Name": "PipelineHash"
         },
         {
@@ -1268,7 +1195,6 @@
             "Default": false
           },
           "Type": "bool",
-          "VariableName": "pipelineHashAsApiPsoHash",
           "Name": "PipelineHashAsApiPsoHash"
         },
         {
@@ -1280,7 +1206,6 @@
             "Default": 0
           },
           "Type": "uint64",
-          "VariableName": "tsHashHi",
           "Description": "High QWORD of the TS hash to enable SQ thread traces for."
         },
         {
@@ -1292,7 +1217,6 @@
             "Default": 0
           },
           "Type": "uint64",
-          "VariableName": "tsHashLo",
           "Description": "Low QWORD of the TS hash to enable SQ thread traces for."
         },
         {
@@ -1304,7 +1228,6 @@
             "Default": 0
           },
           "Type": "uint64",
-          "VariableName": "vsHashHi",
           "Description": "High QWORD of the VS hash to enable SQ thread traces for."
         },
         {
@@ -1316,7 +1239,6 @@
             "Default": 0
           },
           "Type": "uint64",
-          "VariableName": "vsHashLo",
           "Description": "Low QWORD of the VS hash to enable SQ thread traces for."
         },
         {
@@ -1328,7 +1250,6 @@
             "Default": 0
           },
           "Type": "uint64",
-          "VariableName": "hsHashHi",
           "Description": "High QWORD of the HS hash to enable SQ thread traces for."
         },
         {
@@ -1340,7 +1261,6 @@
             "Default": 0
           },
           "Type": "uint64",
-          "VariableName": "hsHashLo",
           "Description": "Low QWORD of the HS hash to enable SQ thread traces for."
         },
         {
@@ -1352,7 +1272,6 @@
             "Default": 0
           },
           "Type": "uint64",
-          "VariableName": "dsHashHi",
           "Description": "High QWORD of the DS hash to enable SQ thread traces for."
         },
         {
@@ -1364,7 +1283,6 @@
             "Default": 0
           },
           "Type": "uint64",
-          "VariableName": "dsHashLo",
           "Description": "Low QWORD of the DS hash to enable SQ thread traces for."
         },
         {
@@ -1376,7 +1294,6 @@
             "Default": 0
           },
           "Type": "uint64",
-          "VariableName": "gsHashHi",
           "Description": "High QWORD of the GS hash to enable SQ thread traces for."
         },
         {
@@ -1388,7 +1305,6 @@
             "Default": 0
           },
           "Type": "uint64",
-          "VariableName": "gsHashLo",
           "Description": "Low QWORD of the GS hash to enable SQ thread traces for."
         },
         {
@@ -1400,7 +1316,6 @@
             "Default": 0
           },
           "Type": "uint64",
-          "VariableName": "msHashHi",
           "Description": "High QWORD of the MS hash to enable SQ thread traces for."
         },
         {
@@ -1412,7 +1327,6 @@
             "Default": 0
           },
           "Type": "uint64",
-          "VariableName": "msHashLo",
           "Description": "Low QWORD of the MS hash to enable SQ thread traces for."
         },
         {
@@ -1424,7 +1338,6 @@
             "Default": 0
           },
           "Type": "uint64",
-          "VariableName": "psHashHi",
           "Description": "High QWORD of the PS hash to enable SQ thread traces for."
         },
         {
@@ -1436,7 +1349,6 @@
             "Default": 0
           },
           "Type": "uint64",
-          "VariableName": "psHashLo",
           "Description": "Low QWORD of the PS hash to enable SQ thread traces for."
         },
         {
@@ -1448,7 +1360,6 @@
             "Default": 0
           },
           "Type": "uint64",
-          "VariableName": "csHashHi",
           "Description": "High QWORD of the CS hash to enable SQ thread traces for."
         },
         {
@@ -1460,7 +1371,6 @@
             "Default": 0
           },
           "Type": "uint64",
-          "VariableName": "csHashLo",
           "Description": "Low QWORD of the CS hash to enable SQ thread traces for."
         },
         {
@@ -1472,7 +1382,6 @@
             "Default": 0
           },
           "Type": "uint32",
-          "VariableName": "maxDraws",
           "Description": "Max number of draws to thread-trace.  A value of 0 indicates no limit."
         },
         {
@@ -1481,7 +1390,6 @@
             "Default": false
           },
           "Type": "bool",
-          "VariableName": "addTtvHashes",
           "Description": "Whether to inject the pipeline hash and client shader hases into the thread trace for Thread Trace Viewer analysis."
         },
         {
@@ -1489,8 +1397,7 @@
           "Defaults": {
             "Default": 1048576
           },
-          "Type": "size_t",
-          "VariableName": "bufferSize",
+          "Type": "uint64",
           "Name": "BufferSize"
         },
         {
@@ -1512,14 +1419,15 @@
                 "Value": 2,
                 "Name": "GpuProfilerStallNever"
               }
-            ]
+            ],
+            "SkipGen": true,
+            "IsEnum": true
           },
           "Name": "StallBehavior",
           "Defaults": {
             "Default": "GpuProfilerStallAlways"
           },
           "Type": "enum",
-          "VariableName": "stallBehavior",
           "Description": "Behavior to take when trace buffer is full."
         },
         {
@@ -1528,7 +1436,6 @@
             "Default": true
           },
           "Type": "bool",
-          "VariableName": "allowIssueMarkerEvent",
           "Description": "Determine if issuing marker event is allowed when SQTT is enabled."
         }
       ],
@@ -1539,20 +1446,7 @@
       "Tags": [
         "GPU Profiler"
       ],
-      "DependsOn": {
-        "Settings": [
-          {
-            "Values": [
-              1
-            ],
-            "LogicOp": "GreaterThan",
-            "Name": "GpuProfilerMode"
-          }
-        ]
-      },
       "Scope": "PrivatePalKey",
-      "Type": "struct",
-      "VariableName": "gpuProfilerSpmConfig",
       "Structure": [
         {
           "Description": "File path specifying where the global performance counter config file can be found.  This file should have one line per counter to capture in the form \"Block ID Instance Name\". Block can be one of the following: CB, CPC, CPF, CPG, DB, DMA, GDS, GRBM, GRBM_SE, IA, MC, PA, RLC, SC, SPI, SQ, SRBM, SX, TA, TCA, TCC, TCP, TCS, TD, VGT, WD.  ID should correspond counter of interest for the specified Block, these can be selected by reading the performance to the specific counter select register for that block. Instance can be the block instance ordinal of interest. It can also be the enum EACH which means every instance of the block is of interest. Also It can be ALL, which has the same meaning as EACH, but the results of every instance will be accumlated. Name will be the header of the column in the .csv file (limited to 127 characters).  A \"#\" can be inserted as the first character in a line to force that line to be ignored.  Gathering performance counters has a huge performance impact; consider disabling TDRs on Windows. WARNING: Page fault will occur when attempting spm traces on GFX9 HW, unless RLC_SPM_VMID is set in the RLC_SPM_MC_CNTL register. KMD has to set this register. This register can be set manually (debug VMID: 0xb, RequestDebugVmid=true) for testing. Also, the sample delay register values need to be set for correct streaming counter data.",
@@ -1562,9 +1456,7 @@
           "Defaults": {
             "Default": ""
           },
-          "Size": "Util::MaxFileNameStrLen",
           "Type": "string",
-          "VariableName": "spmPerfCounterConfigFile",
           "Name": "SpmPerfCounterConfigFile"
         },
         {
@@ -1582,7 +1474,6 @@
             "Default": 4096
           },
           "Type": "uint32",
-          "VariableName": "spmTraceInterval",
           "Description": "Sample interval in sclck."
         },
         {
@@ -1590,8 +1481,7 @@
           "Defaults": {
             "Default": 1048576
           },
-          "Type": "size_t",
-          "VariableName": "spmBufferSize",
+          "Type": "uint64",
           "Name": "SpmBufferSize"
         }
       ],
@@ -1602,20 +1492,7 @@
       "Tags": [
         "GPU Profiler"
       ],
-      "DependsOn": {
-        "Settings": [
-          {
-            "Values": [
-              1
-            ],
-            "LogicOp": "GreaterThan",
-            "Name": "GpuProfilerMode"
-          }
-        ]
-      },
       "Scope": "PrivatePalKey",
-      "Type": "struct",
-      "VariableName": "gpuProfilerDfSpmConfig",
       "Structure": [
         {
           "ValidValues": {
@@ -1632,7 +1509,6 @@
             "Default": 1280
           },
           "Type": "uint32",
-          "VariableName": "dfSpmTraceInterval",
           "Description": "DF Sample interval in nano seconds. KMD will choose the closest possible interval value."
         },
         {
@@ -1640,8 +1516,7 @@
           "Defaults": {
             "Default": 1
           },
-          "Type": "size_t",
-          "VariableName": "dfSpmBufferSize",
+          "Type": "uint64",
           "Name": "DfSpmBufferSize"
         }
       ],
@@ -1657,7 +1532,6 @@
       },
       "Scope": "PrivatePalKey",
       "Type": "bool",
-      "VariableName": "cmdBufferLoggerEnabled",
       "Description": "Enables the command buffer logger layer, which provides ICmdBuffer level annotations directly in command buffer dumps. These annoations can later be deciphered using offline tools."
     },
     {
@@ -1665,19 +1539,7 @@
       "Tags": [
         "CmdBuffer Logger"
       ],
-      "DependsOn": {
-        "Settings": [
-          {
-            "Values": [
-              true
-            ],
-            "Name": "CmdBufferLoggerEnabled"
-          }
-        ]
-      },
       "Scope": "PrivatePalKey",
-      "Type": "struct",
-      "VariableName": "cmdBufferLoggerConfig",
       "Structure": [
         {
           "ValidValues": {
@@ -1718,7 +1580,10 @@
                 "Description": "Miscellaneous",
                 "Value": 256
               }
-            ]
+            ],
+            "SkipGen": true,
+            "IsEnum": true,
+            "Name": "CmdBufferLoggerAnnotations"
           },
           "Name": "CmdBufferLoggerAnnotations",
           "Tags": [
@@ -1733,7 +1598,6 @@
           },
           "Scope": "PrivatePalKey",
           "Type": "uint32",
-          "VariableName": "cmdBufferLoggerAnnotations",
           "Description": "Bitmask controlling which ICmdBuffer calls to annotate."
         },
         {
@@ -1769,7 +1633,6 @@
           },
           "Scope": "PrivatePalKey",
           "Type": "enum",
-          "VariableName": "embedDrawDispatchInfo",
           "Description": "Enables the embedding of draw/dispatch shader IDs within the cmd-stream.  Annotations and single-step options will be disabled."
         }
       ],
@@ -1785,7 +1648,6 @@
       },
       "Scope": "PrivatePalKey",
       "Type": "bool",
-      "VariableName": "pm4InstrumentorEnabled",
       "Description": "Enables the PAL PM4 instrumentor layer."
     },
     {
@@ -1793,33 +1655,19 @@
       "Tags": [
         "PM4 Instrumentor"
       ],
-      "DependsOn": {
-        "Settings": [
-          {
-            "Values": [
-              true
-            ],
-            "Name": "Pm4InstrumentorEnabled"
-          }
-        ]
-      },
       "Scope": "PrivatePalKey",
-      "Type": "struct",
-      "VariableName": "pm4InstrumentorConfig",
       "Structure": [
         {
           "Description": "Relative directory where statistics logs are placed. Relative to the path in the AMD_DEBUG_DIR environment variable. If that env var isn't set, the location is platform dependent.",
           "Flags": {
-            "IsPath": true
+            "IsDir": true
           },
           "Defaults": {
             "Default": "amdpal/",
-            "WinDefault": "PalLog\\",
-            "LnxDefault": "amdpal/"
+            "Windows": "PalLog\\",
+            "Linux": "amdpal/"
           },
-          "Size": "Util::MaxPathStrLen",
           "Type": "string",
-          "VariableName": "logDirectory",
           "Name": "LogDirectory"
         },
         {
@@ -1827,9 +1675,7 @@
           "Defaults": {
             "Default": "pm4-stats.log"
           },
-          "Size": "Util::MaxPathStrLen",
           "Type": "string",
-          "VariableName": "filenameSuffix",
           "Name": "FilenameSuffix"
         },
         {
@@ -1852,7 +1698,6 @@
             ]
           },
           "Name": "DumpMode",
-          "VariableName": "dumpMode",
           "Defaults": {
             "Default": "Pm4InstrumentorDumpQueueDestroy"
           }
@@ -1861,7 +1706,6 @@
           "Description": "Controls how often statistics are written out to the log file(s).  A value of zero means re-dump every submit.  Units are in seconds.",
           "Type": "uint32",
           "Name": "DumpInterval",
-          "VariableName": "dumpInterval",
           "Defaults": {
             "Default": 5
           }
@@ -1879,7 +1723,6 @@
       },
       "Scope": "PrivatePalKey",
       "Type": "bool",
-      "VariableName": "interfaceLoggerEnabled",
       "Description": "Enables the PAL interface logging layer."
     },
     {
@@ -1887,33 +1730,19 @@
       "Tags": [
         "Interface Logger"
       ],
-      "DependsOn": {
-        "Settings": [
-          {
-            "Values": [
-              true
-            ],
-            "Name": "InterfaceLoggerEnabled"
-          }
-        ]
-      },
       "Scope": "PrivatePalKey",
-      "Type": "struct",
-      "VariableName": "interfaceLoggerConfig",
       "Structure": [
         {
           "Description": "Relative directory where the interface logger writes its logs. Relative to the path in the AMD_DEBUG_DIR environment variable. If that env var isn't set, the location is platform dependent.",
           "Flags": {
-            "IsPath": true
+            "IsDir": true
           },
           "Defaults": {
             "Default": "amdpal/",
-            "WinDefault": "PalLog\\",
-            "LnxDefault": "amdpal/"
+            "Windows": "PalLog\\",
+            "Linux": "amdpal/"
           },
-          "Size": "Util::MaxPathStrLen",
           "Type": "string",
-          "VariableName": "logDirectory",
           "Name": "LogDirectory"
         },
         {
@@ -1922,7 +1751,6 @@
             "Default": false
           },
           "Type": "bool",
-          "VariableName": "multithreaded",
           "Name": "Multithreaded"
         },
         {
@@ -1952,7 +1780,10 @@
                 "Description": "LogFlagCreateSrds: Functions which create SRDs.",
                 "Value": 32
               }
-            ]
+            ],
+            "SkipGen": true,
+            "IsEnum": true,
+            "Name": "BasePreset"
           },
           "Name": "BasePreset",
           "Flags": {
@@ -1963,7 +1794,6 @@
             "Default": 7
           },
           "Type": "uint32",
-          "VariableName": "basePreset",
           "Description": "Bitmask of which interface function calls will be logged by default."
         },
         {
@@ -1993,7 +1823,10 @@
                 "Description": "LogFlagCreateSrds: Functions which create SRDs.",
                 "Value": 32
               }
-            ]
+            ],
+            "SkipGen": true,
+            "IsEnum": true,
+            "Name": "ElevatedPreset"
           },
           "Name": "ElevatedPreset",
           "Flags": {
@@ -2004,7 +1837,6 @@
             "Default": 31
           },
           "Type": "uint32",
-          "VariableName": "elevatedPreset",
           "Description": "Bitmask of which interface function calls will be logged when the user holds Shift-F11"
         }
       ],
@@ -2020,7 +1852,6 @@
       },
       "Scope": "PrivatePalKey",
       "Type": "bool",
-      "VariableName": "gpuDebugEnabled",
       "Description": "Enables the GPU debugging layer, which provides single-step or submit-on-draw-count functionality for ICmdBuffer actions when debugging a GPU hang."
     },
     {
@@ -2028,19 +1859,7 @@
       "Tags": [
         "GPU Debugging"
       ],
-      "DependsOn": {
-        "Settings": [
-          {
-            "Values": [
-              true
-            ],
-            "Name": "GpuDebugEnabled"
-          }
-        ]
-      },
       "Scope": "PrivatePalKey",
-      "Type": "struct",
-      "VariableName": "gpuDebugConfig",
       "Structure": [
         {
           "Name": "SubmitOnActionCount",
@@ -2052,7 +1871,6 @@
           },
           "Scope": "PrivatePalKey",
           "Type": "uint32",
-          "VariableName": "submitOnActionCount",
           "Description": "Forces submission of command buffers after X amount of CmdBuffer actions (Draws, Dispatches, BLTs). 0 indicates that this setting is off. There are two restrictions on this setting: 1) We cannot break up a MultiQueue submit, and 2) BLTs that consist of multiple draws or dispatches cannot be broken up."
         },
         {
@@ -2061,11 +1879,10 @@
             "GPU Debugging"
           ],
           "Defaults": {
-            "Default": "64*1024"
+            "Default": 65536
           },
           "Scope": "PrivatePalKey",
-          "Type": "size_t",
-          "VariableName": "tokenAllocatorSize",
+          "Type": "uint64",
           "Description": "Initial batched cmd buffer token stream size. Reduce this to avoid running out of memory or increase it to avoid reallocations and memcpys."
         },
         {
@@ -2074,11 +1891,10 @@
             "GPU Debugging"
           ],
           "Defaults": {
-            "Default": "2000"
+            "Default": 2000
           },
           "Scope": "PrivatePalKey",
           "Type": "uint32",
-          "VariableName": "waitIdleSleepMs",
           "Description": "Time, in milliseconds, to wait-idle after submissions that require waiting."
         },
         {
@@ -2117,7 +1933,6 @@
           },
           "Scope": "PrivatePalKey",
           "Type": "uint32",
-          "VariableName": "singleStep",
           "Description": "Bitmask controlling single step behavior for ICmdBuffer calls for Draw/Dispatch/Barrier."
         },
         {
@@ -2172,7 +1987,6 @@
           },
           "Scope": "PrivatePalKey",
           "Type": "uint32",
-          "VariableName": "cacheFlushInvOnAction",
           "Description": "Bitmask controlling when to perform a full cache flush and invalidation before and/or after each action (Draw/Dispatch/Barrier/Blt)."
         },
         {
@@ -2203,7 +2017,6 @@
           },
           "Scope": "PrivatePalKey",
           "Type": "uint32",
-          "VariableName": "verificationOptions",
           "Description": "Bitmask controlling verification options which will assert for bad cases."
         },
         {
@@ -2215,11 +2028,10 @@
             "GPU Debugging"
           ],
           "Defaults": {
-            "Default": "0"
+            "Default": 0
           },
           "Scope": "PrivatePalKey",
           "Type": "uint64",
-          "VariableName": "surfaceCaptureHash",
           "Description": "Indicates the hash of the pipeline or shader to capture. If this is zero, then all pipelines will be captured. This value is checked against both the shader and pipeline hash upper and lower portions."
         },
         {
@@ -2228,11 +2040,10 @@
             "GPU Debugging"
           ],
           "Defaults": {
-            "Default": "0"
+            "Default": 0
           },
           "Scope": "PrivatePalKey",
           "Type": "uint32",
-          "VariableName": "surfaceCaptureStart",
           "Description": "First draw/blit image call in the selected command buffer from which to capture output surfaces"
         },
         {
@@ -2241,11 +2052,10 @@
             "GPU Debugging"
           ],
           "Defaults": {
-            "Default": "0"
+            "Default": 0
           },
           "Scope": "PrivatePalKey",
           "Type": "uint32",
-          "VariableName": "surfaceCaptureCount",
           "Description": "Number of draw/blit image calls in the selected command buffer from which to capture output surfaces"
         },
         {
@@ -2254,11 +2064,10 @@
             "GPU Debugging"
           ],
           "Defaults": {
-            "Default": "0"
+            "Default": 0
           },
           "Scope": "PrivatePalKey",
           "Type": "uint32",
-          "VariableName": "surfaceCaptureFrameStart",
           "Description": "First frame to start surface capture. NOTE: This option only filter the image dump, GPU still has do all the extra work associated with surface capture on every frame."
         },
         {
@@ -2271,7 +2080,6 @@
           },
           "Scope": "PrivatePalKey",
           "Type": "uint32",
-          "VariableName": "surfaceCaptureFrameCount",
           "Description": "Number of surface capture frames to output. NOTE: This option only filter the image dump, GPU still has do all the extra work associated with surface capture on every frame."
         },
         {
@@ -2335,7 +2143,6 @@
           },
           "Scope": "PrivatePalKey",
           "Type": "uint32",
-          "VariableName": "surfaceCaptureFilenameHashType",
           "Description": "Include which hash in surface capture filename."
         },
         {
@@ -2379,7 +2186,6 @@
           },
           "Scope": "PrivatePalKey",
           "Type": "uint32",
-          "VariableName": "blitSurfaceCaptureBitmask",
           "Description": "Enable blit image capture along with the draw surface capture.",
           "Name": "BlitSurfaceCaptureBitmask"
         },
@@ -2389,38 +2195,19 @@
             "GPU Debugging"
           ],
           "Flags": {
-            "IsPath": true
+            "IsDir": true
           },
           "Defaults": {
             "Default": "amdpal/",
-            "WinDefault": "PalLog\\",
-            "LnxDefault": "amdpal/"
+            "Windows": "PalLog\\",
+            "Linux": "amdpal/"
           },
           "Scope": "PrivatePalKey",
           "Type": "string",
-          "VariableName": "surfaceCaptureLogDirectory",
-          "Description": "Relative directory where the captured surfaces will be written. Relative to the path in the AMD_DEBUG_DIR environment variable. If that env var isn't set, the location is platform dependent.",
-          "Size": "Util::MaxPathStrLen"
+          "Description": "Relative directory where the captured surfaces will be written. Relative to the path in the AMD_DEBUG_DIR environment variable. If that env var isn't set, the location is platform dependent."
         }
       ],
       "Description": "Controls what debugging options are selected in the GPU Debug layer."
-    }
-  ],
-  "DefinedConstants": [
-    {
-      "Name": "Util::MaxPathStrLen",
-      "Value": 512,
-      "Description": "Maximum string length for a directory/path setting"
-    },
-    {
-      "Name": "Util::MaxFileNameStrLen",
-      "Value": 256,
-      "Description": "Maximum string length for a filename setting"
-    },
-    {
-      "Name": "MaxMiscStrLen",
-      "Value": 61,
-      "Description": "Maximum string length for a miscellaneous string setting"
     }
   ],
   "Tags": [

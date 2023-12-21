@@ -24,7 +24,7 @@
  **********************************************************************************************************************/
 #include "amdrdf.h"
 
-#include <zstd/zstd.h>
+#include <zstd.h>
 
 #include <cassert>
 #include <cstdio>
@@ -93,6 +93,8 @@ namespace internal
         bool CanWrite() const;
         bool CanRead() const;
 
+        void Close();
+
     private:
         virtual std::int64_t ReadImpl(const std::int64_t count, void* buffer) = 0;
         virtual std::int64_t WriteImpl(const std::int64_t count, const void* buffer) = 0;
@@ -103,6 +105,8 @@ namespace internal
 
         virtual bool CanWriteImpl() const = 0;
         virtual bool CanReadImpl() const = 0;
+
+        virtual void CloseImpl() = 0;
     };
 
     ///////////////////////////////////////////////////////////////////////////
@@ -176,6 +180,13 @@ namespace internal
         bool CanReadImpl() const override
         {
             return stream_.Read != nullptr;
+        }
+
+        void CloseImpl() override
+        {
+            if (stream_.Close) {
+                stream_.Close(stream_.context);
+            }
         }
 
         void CheckCall(int result) const
@@ -836,6 +847,12 @@ namespace internal
     }
 
     //////////////////////////////////////////////////////////////////////
+    void IStream::Close()
+    {
+        CloseImpl();
+    }
+
+    //////////////////////////////////////////////////////////////////////
     bool IStream::CanRead() const
     {
         return CanReadImpl();
@@ -874,11 +891,6 @@ namespace internal
     {
     public:
         Filestream(std::FILE* fd, rdfStreamAccess accessMode) : fd_(fd), accessMode_(accessMode) {}
-
-        ~Filestream()
-        {
-            std::fclose(fd_);
-        }
 
     private:
         std::int64_t ReadImpl(const std::int64_t count, void* buffer) override
@@ -938,6 +950,12 @@ namespace internal
 #else
 #error "Unsupported platform"
 #endif
+        }
+
+        void CloseImpl() override
+        {
+            std::fclose(fd_);
+            fd_ = nullptr;
         }
 
         std::FILE* fd_;
@@ -1013,6 +1031,13 @@ namespace internal
             return true;
         }
 
+        void CloseImpl() override
+        {
+            buffer_ = nullptr;
+            size_ = 0;
+            readPointer_ = 0;
+        }
+
         std::int64_t size_;
         std::size_t readPointer_ = 0;
         const void* buffer_;
@@ -1083,6 +1108,12 @@ namespace internal
         bool CanReadImpl() const override
         {
             return true;
+        }
+
+        void CloseImpl() override
+        {
+            data_.clear();
+            offset_ = 0;
         }
 
         std::vector<unsigned char> data_;
@@ -1405,6 +1436,8 @@ int RDF_EXPORT rdfStreamClose(rdfStream** handle)
     if (*handle == nullptr) {
         return rdfResult::rdfResultInvalidArgument;
     }
+
+    (*handle)->stream->Close();
 
     delete *handle;
     *handle = nullptr;

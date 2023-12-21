@@ -255,7 +255,7 @@ void OcclusionQueryPool::NormalReset(
         // By calling WriteWaitOnReleaseMemEvent we assume this command buffer must support graphics operations.
         PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
 
-        // Insert the wait only if 1) we know all work done in previous command buffers has completed (because we
+        // Insert the wait only if 1) we know all work done in previous command buffers has not completed (because we
         // have no idea if any relevant Ends() occurred there, and 2) there are outstanding End() calls in this
         // command buffer that we know will affect the range that is being reset.
         auto* pActiveRanges = static_cast<UniversalCmdBuffer*>(pCmdBuffer)->ActiveOcclusionQueryWriteRanges();

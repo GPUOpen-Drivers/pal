@@ -1080,7 +1080,6 @@ CmdBuffer::CmdBuffer(
     m_funcTable.pfnCmdDispatch                  = CmdDispatch;
     m_funcTable.pfnCmdDispatchIndirect          = CmdDispatchIndirect;
     m_funcTable.pfnCmdDispatchOffset            = CmdDispatchOffset;
-    m_funcTable.pfnCmdDispatchDynamic           = CmdDispatchDynamic;
     m_funcTable.pfnCmdDispatchMesh              = CmdDispatchMesh;
     m_funcTable.pfnCmdDispatchMeshIndirectMulti = CmdDispatchMeshIndirectMulti;
 }
@@ -3832,12 +3831,10 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndexed(
 
 // =====================================================================================================================
 void PAL_STDCALL CmdBuffer::CmdDrawIndirectMulti(
-    ICmdBuffer*       pCmdBuffer,
-    const IGpuMemory& gpuMemory,
-    gpusize           offset,
-    uint32            stride,
-    uint32            maximumCount,
-    gpusize           countGpuAddr)
+    ICmdBuffer*          pCmdBuffer,
+    GpuVirtAddrAndStride gpuVirtAddrAndStride,
+    uint32               maximumCount,
+    gpusize              countGpuAddr)
 {
     auto* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
@@ -3848,19 +3845,19 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndirectMulti(
         // TODO: Add comment string.
     }
 
-    pThis->GetNextLayer()->CmdDrawIndirectMulti(*NextGpuMemory(&gpuMemory), offset, stride, maximumCount, countGpuAddr);
+    pThis->GetNextLayer()->CmdDrawIndirectMulti(gpuVirtAddrAndStride,
+                                                maximumCount,
+                                                countGpuAddr);
 
     pThis->AddDrawDispatchInfo(Developer::DrawDispatchType::CmdDrawIndirectMulti);
 }
 
 // =====================================================================================================================
 void PAL_STDCALL CmdBuffer::CmdDrawIndexedIndirectMulti(
-    ICmdBuffer*       pCmdBuffer,
-    const IGpuMemory& gpuMemory,
-    gpusize           offset,
-    uint32            stride,
-    uint32            maximumCount,
-    gpusize           countGpuAddr)
+    ICmdBuffer*          pCmdBuffer,
+    GpuVirtAddrAndStride gpuVirtAddrAndStride,
+    uint32               maximumCount,
+    gpusize              countGpuAddr)
 {
     auto* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
@@ -3871,9 +3868,7 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndexedIndirectMulti(
         // TODO: Add comment string.
     }
 
-    pThis->GetNextLayer()->CmdDrawIndexedIndirectMulti(*NextGpuMemory(&gpuMemory),
-                                                       offset,
-                                                       stride,
+    pThis->GetNextLayer()->CmdDrawIndexedIndirectMulti(gpuVirtAddrAndStride,
                                                        maximumCount,
                                                        countGpuAddr);
 
@@ -3908,9 +3903,8 @@ void PAL_STDCALL CmdBuffer::CmdDispatch(
 
 // =====================================================================================================================
 void PAL_STDCALL CmdBuffer::CmdDispatchIndirect(
-    ICmdBuffer*       pCmdBuffer,
-    const IGpuMemory& gpuMemory,
-    gpusize           offset)
+    ICmdBuffer* pCmdBuffer,
+    gpusize     gpuVirtAddr)
 {
     auto* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
@@ -3921,7 +3915,7 @@ void PAL_STDCALL CmdBuffer::CmdDispatchIndirect(
         // TODO: Add comment string.
     }
 
-    pThis->GetNextLayer()->CmdDispatchIndirect(*NextGpuMemory(&gpuMemory), offset);
+    pThis->GetNextLayer()->CmdDispatchIndirect(gpuVirtAddr);
 
     pThis->AddDrawDispatchInfo(Developer::DrawDispatchType::CmdDispatchIndirect);
 }
@@ -3963,36 +3957,6 @@ void PAL_STDCALL CmdBuffer::CmdDispatchOffset(
 }
 
 // =====================================================================================================================
-void CmdBuffer::CmdDispatchDynamic(
-    ICmdBuffer*  pCmdBuffer,
-    gpusize      gpuVa,
-    DispatchDims size)
-{
-    auto pThis = static_cast<CmdBuffer*>(pCmdBuffer);
-
-    if (pThis->m_annotations.logCmdDraws)
-    {
-        pThis->GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdDispatchDynamic));
-
-        LinearAllocatorAuto<VirtualLinearAllocator> allocator(pThis->Allocator(), false);
-        char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
-
-        Snprintf(pString, StringLength, "gpuVa = 0x%016x", gpuVa);
-        pThis->GetNextLayer()->CmdCommentString(pString);
-
-        Snprintf(pString, StringLength, "size = ");
-        DispatchDimsToString(size, pString);
-        pThis->GetNextLayer()->CmdCommentString(pString);
-
-        PAL_SAFE_DELETE_ARRAY(pString, &allocator);
-    }
-
-    pThis->GetNextLayer()->CmdDispatchDynamic(gpuVa, size);
-
-    pThis->AddDrawDispatchInfo(Developer::DrawDispatchType::CmdDispatchDynamic);
-}
-
-// =====================================================================================================================
 void CmdBuffer::CmdDispatchMesh(
     ICmdBuffer*  pCmdBuffer,
     DispatchDims size)
@@ -4020,12 +3984,10 @@ void CmdBuffer::CmdDispatchMesh(
 
 // =====================================================================================================================
 void CmdBuffer::CmdDispatchMeshIndirectMulti(
-    ICmdBuffer*       pCmdBuffer,
-    const IGpuMemory& gpuMemory,
-    gpusize           offset,
-    uint32            stride,
-    uint32            maximumCount,
-    gpusize           countGpuAddr)
+    ICmdBuffer*          pCmdBuffer,
+    GpuVirtAddrAndStride gpuVirtAddrAndStride,
+    uint32               maximumCount,
+    gpusize              countGpuAddr)
 {
     auto pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
@@ -4036,9 +3998,7 @@ void CmdBuffer::CmdDispatchMeshIndirectMulti(
         // TODO: Add comment string.
     }
 
-    pThis->GetNextLayer()->CmdDispatchMeshIndirectMulti(*NextGpuMemory(&gpuMemory),
-                                                        offset,
-                                                        stride,
+    pThis->GetNextLayer()->CmdDispatchMeshIndirectMulti(gpuVirtAddrAndStride,
                                                         maximumCount,
                                                         countGpuAddr);
 
@@ -5584,8 +5544,7 @@ void CmdBuffer::CmdExecuteNestedCmdBuffers(
 // =====================================================================================================================
 void CmdBuffer::CmdExecuteIndirectCmds(
     const IIndirectCmdGenerator& generator,
-    const IGpuMemory&            gpuMemory,
-    gpusize                      offset,
+    gpusize                      gpuVirtAddr,
     uint32                       maximumCount,
     gpusize                      countGpuAddr)
 {
@@ -5597,10 +5556,9 @@ void CmdBuffer::CmdExecuteIndirectCmds(
     }
 
     GetNextLayer()->CmdExecuteIndirectCmds(*NextIndirectCmdGenerator(&generator),
-                                        *NextGpuMemory(&gpuMemory),
-                                        offset,
-                                        maximumCount,
-                                        countGpuAddr);
+                                            gpuVirtAddr,
+                                            maximumCount,
+                                            countGpuAddr);
 }
 
 // =====================================================================================================================
@@ -5917,7 +5875,7 @@ void CmdBuffer::CmdPostProcessFrame(
         // TODO: Add comment string.
     }
 
-    CmdPostProcessFrameInfo nextPostProcessInfo = {};
+    CmdPostProcessFrameInfo nextPostProcessInfo = postProcessInfo;
     GetNextLayer()->CmdPostProcessFrame(*NextCmdPostProcessFrameInfo(postProcessInfo, &nextPostProcessInfo),
                                         pAddedGpuWork);
 }

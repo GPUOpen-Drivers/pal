@@ -8,10 +8,12 @@
 
 #include "{{CodeGenHeader}}"
 #include <{{SettingsHeader}}>
-#include <util/hashMap.h>
 
-{% if palSettings %}
-#include "core/device.h"
+{% if ComponentName == "Pal" %}
+#include <palDevice.h>
+{% endif %}
+{% if ComponentName == "Dxc" %}
+#include <palFile.h>
 {% endif %}
 
 {% macro prep_cond_begin(build_types, or_build_types) %}
@@ -19,20 +21,31 @@
 {{build_types|buildtypes_to_c_macro(or_build_types)}}
 {% endif %}
 {% endmacro %}
-{# ======================================== #}
-{% macro prep_cond_end(build_types, or_build_types) %}
+
+{%- macro prep_cond_end(build_types, or_build_types) %}
 {% if build_types or or_build_types %}
 #endif
 
 {% endif %}
 {% endmacro %}
 
-namespace {{Namespace}}
+{% macro get_var_size(is_optional, var_name) %}
+sizeof({% if is_optional %}decltype({{var_name}})::ValueType{% else %}{{var_name}}{% endif %});
+{%- endmacro -%}
+
+{% for namespace in Namespaces %}
+namespace {{namespace}}
 {
+{% endfor %}
 
 const char* {{ClassName}}::GetComponentName() const
 {
     return "{{ComponentName}}";
+}
+
+uint64_t {{ClassName}}::GetSettingsBlobHash() const
+{
+    return static_cast<uint64_t>({{SettingsBlobHash|abs}}ULL);
 }
 
 // Initializes the settings hash map and array of setting hashes.
@@ -51,8 +64,9 @@ DD_RESULT {{ClassName}}::SetupDefaultsAndPopulateMap()
     {
 {{ subs|setup_default(setting.VariableName) }}
         valueRef.type = {{ subs.Type|setting_type_cpp }};
-        valueRef.pValue = &m_settings.{{setting.VariableName}}.{{subs.VariableName}};
-        valueRef.size = sizeof(m_settings.{{setting.VariableName}}.{{subs.VariableName}});
+        {% set var_name = "m_settings." + setting.VariableName + "." + subs.VariableName %}
+        valueRef.pValue = &{{var_name}};
+        valueRef.size = {{ get_var_size(subs.IsOptional, var_name) }}
         valueRef.isOptional = {% if subs.IsOptional %}true{% else %}false{% endif %};
         result = m_settingsMap.Insert({{setting.VariableName}}_{{subs.VariableName}}Hash, valueRef);
     }
@@ -64,8 +78,9 @@ DD_RESULT {{ClassName}}::SetupDefaultsAndPopulateMap()
     {
 {{ setting|setup_default('') }}
         valueRef.type = {{ setting.Type|setting_type_cpp }};
-        valueRef.pValue = &m_settings.{{setting.VariableName}};
-        valueRef.size = sizeof(m_settings.{{setting.VariableName}});
+        {% set var_name = "m_settings." + setting.VariableName %}
+        valueRef.pValue = &{{var_name}};
+        valueRef.size = {{ get_var_size(setting.IsOptional, var_name) }}
         valueRef.isOptional = {% if setting.IsOptional %}true{% else %}false{% endif %};
         result = m_settingsMap.Insert({{setting.VariableName}}Hash, valueRef);
     }
@@ -76,9 +91,9 @@ DD_RESULT {{ClassName}}::SetupDefaultsAndPopulateMap()
     return (result == DevDriver::Result::Success) ? DD_RESULT_SUCCESS : DD_RESULT_COMMON_OUT_OF_HEAP_MEMORY;
 }
 
-{% if IsPalSettings %}
+{% if IsPalSettings or IsDxSettings or ComponentName == "Vulkan" %}
 // Read settings from registry for PAL settings.
-void {{ClassName}}::ReadSettings(Pal::Device* pDevice)
+void {{ClassName}}::ReadSettings()
 {
 {% for setting in Settings %}
 {% if setting.Structure %}
@@ -86,47 +101,45 @@ void {{ClassName}}::ReadSettings(Pal::Device* pDevice)
 {% for subs in setting.Structure %}
 {{ prep_cond_begin(subs.BuildTypes, subs.OrBuildTypes) }}
 
+{% set var_name = "m_settings." + setting.VariableName + "." + subs.VariableName %}
 {% if subs.IsOptional %}
     {
-        {{subs.RawVariableType}} valueRead{};
-        if (pDevice->ReadSetting(
-            p{{setting.VariableName}}_{{subs.VariableName}}HashStr,
+        decltype({{var_name}})::ValueType valueRead{};
+        if (ReadSetting(
+            {%+ if subs.Scope == "PublicCatalystKey" %}"{{setting.Name}}.{{subs.Name}}"{% else %}p{{setting.Name}}_{{subs.VariableName}}HashStr{% endif %},
             {{ subs.Type|setting_type_cpp2 }},
-            &valueRead,
-            InternalSettingScope::{{setting.Scope|default('PrivatePalKey')}}{% if subs.StringLength %}, {{subs.StringLength}}{% endif %}))
+            &valueRead{% if IsPalSettings %}, InternalSettingScope::{{setting.Scope|default('PrivatePalKey')}}{% endif %}{% if subs.StringLength %}, {{subs.StringLength}}{% endif %}))
         {
-            m_settings.{{setting.VariableName}}.{{subs.VariableName}} = valueRead;
+            {{var_name}} = valueRead;
         }
     }
 {% else %}
-    pDevice->ReadSetting(
-        p{{setting.VariableName}}_{{subs.VariableName}}HashStr,
+    ReadSetting(
+        {%+ if subs.Scope == "PublicCatalystKey" %}"{{setting.Name}}.{{subs.Name}}"{% else %}p{{setting.Name}}_{{subs.VariableName}}HashStr{% endif %},
         {{ subs.Type|setting_type_cpp2 }},
-        &m_settings.{{setting.VariableName}}.{{subs.VariableName}},
-        InternalSettingScope::{{setting.Scope|default('PrivatePalKey')}}{% if subs.StringLength %}, {{subs.StringLength}}{% endif %}))
+        &{{var_name}}{% if IsPalSettings %}, InternalSettingScope::{{setting.Scope|default('PrivatePalKey')}}{% endif %}{% if subs.StringLength %}, {{subs.StringLength}}{% endif %});
 {% endif %}
 {{ prep_cond_end(subs.BuildTypes, subs.OrBuildTypes) -}}
 {% endfor %}
 {% else %}
 {{ prep_cond_begin(setting.BuildTypes, setting.OrBuildTypes) }}
+{% set var_name = "m_settings." + setting.VariableName %}
 {% if setting.IsOptional %}
     {
-        {{setting.RawVariableType}} valueRead{};
-        if (pDevice->ReadSetting(
-            p{{setting.Name}}HashStr,
+        decltype({{var_name}})::ValueType valueRead{};
+        if (ReadSetting(
+            {%+ if setting.Scope == "PublicCatalystKey" %}"{{setting.Name}}"{% else %}p{{setting.Name}}HashStr{% endif %},
             {{ setting.Type|setting_type_cpp2 }},
-            &valueRead,
-            InternalSettingScope::{{setting.scope|default('PrivatePalKey')}}{% if setting.StringLength %}, {{setting.StringLength}}{% endif %}))
+            &valueRead{% if IsPalSettings %}, InternalSettingScope::{{setting.Scope|default('PrivatePalKey')}}{% endif %}{% if setting.StringLength %}, {{setting.StringLength}}{% endif %}))
         {
-            m_settings.{{setting.VariableName}} = valueRead;
+            {{var_name}} = valueRead;
         }
     }
 {% else %}
-    pDevice->ReadSetting(
-        p{{setting.Name}}HashStr,
+    ReadSetting(
+        {%+ if setting.Scope == "PublicCatalystKey" %}"{{setting.Name}}"{% else %}p{{setting.Name}}HashStr{% endif %},
         {{ setting.Type|setting_type_cpp2 }},
-        m_settings.{{setting.VariableName}},
-        InternalSettingScope::{{setting.scope|default('PrivatePalKey')}}{% if setting.StringLength %}, {{setting.StringLength}}{% endif %}))
+        &{{var_name}}{% if IsPalSettings %}, InternalSettingScope::{{setting.Scope|default('PrivatePalKey')}}{% endif %}{% if setting.StringLength %}, {{setting.StringLength}}{% endif %});
 {% endif %}
 {{ prep_cond_end(setting.BuildTypes, setting.OrBuildTypes) -}}
 {% endif %}
@@ -134,11 +147,36 @@ void {{ClassName}}::ReadSettings(Pal::Device* pDevice)
 }
 {% endif %}
 
-{% if DxcSettings %}
-// Read settings from registry for DXCP settings.
-void {{className}}::ReadSettings(DdiAdapter* pAdapter)
+{% if ComponentName == "Dxc" %}
+void {{ClassName}}::LogSettings(
+    const char* pLabel)
 {
-    (void)pAdapter;
+#if DXC_DEVELOPER
+    if (m_settings.enableGlobalSettingsDumping == true)
+    {
+        Util::File file;
+        Util::Result result = file.Open(m_settings.globalSettingsDumpFile, Util::FileAccessMode::FileAccessAppend);
+        if (result == Util::Result::Success)
+        {
+            result = file.Printf("Location:%s\n", pLabel);
+            DXC_ASSERT(result == Util::Result::Success);
+
+            {% for setting in Settings %}
+            {% set var_name = "m_settings." + setting.VariableName %}
+            {% if setting.IsOptional %}
+            result = {{var_name}}.HasValue()
+                ? file.Printf("{{setting.VariableName}}={{ setting.Type|setting_format_string }}\n", {{var_name}}.Value())
+                : file.Printf("{{setting.VariableName}}=unset\n");
+            {% else %}
+            result = file.Printf("{{setting.VariableName}}={{ setting.Type|setting_format_string }}\n", {{var_name}});
+            {% endif %}
+            DXC_ASSERT(result == Util::Result::Success);
+
+            {% endfor %}
+            file.Close();
+        }
+    }
+#endif
 }
 {% endif %}
 
@@ -177,4 +215,6 @@ const uint8_t* {{ComponentName}}SettingsBlobNode::GetBlob(uint32_t* pOutSize)
     return s_settingsBlob;
 }
 
-} // namespace {{Namespace}}
+{% for namespace in Namespaces %}
+} // {{namespace}}
+{% endfor %}

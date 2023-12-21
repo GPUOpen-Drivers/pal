@@ -30,15 +30,6 @@ include_guard()
 # GPU Overrides
 
 if(PAL_BUILD_GFX9)
-    # Generic support for GFX9 cards
-    set(ADDR_GFX9_BUILD   ON)
-    set(ADDR_VEGA12_BUILD ON)
-    set(ADDR_VEGA20_BUILD ON)
-    set(ADDR_RAVEN1_BUILD ON)
-    set(ADDR_RAVEN2_BUILD ON)
-    set(ADDR_RENOIR_BUILD ON)
-
-    set(ADDR_GFX9_CHIP_DIR "${PROJECT_SOURCE_DIR}/src/core/hw/gfxip/gfx9/chip")
 
     set(ADDR_GFX10_BUILD ON)
 

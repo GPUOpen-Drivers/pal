@@ -162,6 +162,112 @@ uint32 CmdStream::GetChainSizeInDwords(
 }
 
 // =====================================================================================================================
+// Writes any context, SH, or uconfig register range. Register ranges may not cross register space boundaries.
+// Any indexed registers must be written with a "count" parameter of 1.
+// This function does not support writing perf counter regs.
+// This is a high overhead function which should only be used when the callee does not know the register space
+uint32* CmdStream::WriteRegisters(
+    uint32        startAddr,
+    uint32        count,
+    const uint32* pRegData,
+    uint32*       pCmdSpace)
+{
+#if PAL_ENABLE_PRINTS_ASSERTS
+    if (count > 1)
+    {
+        // Indexed registers must be written individually with no other registers.
+        for (uint32 i = 0; i < count; i++)
+        {
+            PAL_ASSERT(CmdUtil::IsIndexedRegister(startAddr + i) == false);
+        }
+    }
+#endif
+
+    constexpr uint32 ComputePeristentStart = mmCOMPUTE_DISPATCH_INITIATOR;
+    const uint32 endAddr = startAddr + count - 1;
+
+    if ((count == 1) && (startAddr == mmVGT_LS_HS_CONFIG))
+    {
+        // Handle indexed context
+        regVGT_LS_HS_CONFIG vgtLsHsConfig;
+        vgtLsHsConfig.u32All = *pRegData;
+        pCmdSpace = WriteSetVgtLsHsConfig(vgtLsHsConfig, pCmdSpace);
+    }
+    else if ((count == 1) &&
+             ((startAddr == mmSPI_SHADER_PGM_RSRC3_GS) ||
+              (startAddr == mmSPI_SHADER_PGM_RSRC4_GS) ||
+              (startAddr == mmSPI_SHADER_PGM_RSRC3_HS) ||
+              (startAddr == mmSPI_SHADER_PGM_RSRC4_HS) ||
+              (startAddr == mmSPI_SHADER_PGM_RSRC3_PS) ||
+              (startAddr == Gfx10Plus::mmSPI_SHADER_PGM_RSRC4_PS) ||
+              (startAddr == HasHwVs::mmSPI_SHADER_PGM_RSRC3_VS) ||
+              (startAddr == Gfx10::mmSPI_SHADER_PGM_RSRC4_VS)))
+    {
+        // Handle indexed SH
+        pCmdSpace = WriteSetOneShRegIndex(
+            startAddr,
+            *pRegData,
+            ShaderGraphics,
+            index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
+            pCmdSpace);
+    }
+    else if ((count == 1) &&
+             ((startAddr == mmVGT_PRIMITIVE_TYPE) ||
+              (startAddr == mmVGT_INDEX_TYPE) ||
+              (startAddr == mmVGT_NUM_INSTANCES) ||
+              (startAddr == Gfx09::mmIA_MULTI_VGT_PARAM)))
+    {
+        // Handle indexed uconfig
+        PFP_SET_UCONFIG_REG_INDEX_index_enum index = index__pfp_set_uconfig_reg_index__default;
+        if (startAddr == mmVGT_PRIMITIVE_TYPE)
+        {
+            index = index__pfp_set_uconfig_reg_index__prim_type__GFX09;
+        }
+        else if (startAddr == mmVGT_INDEX_TYPE)
+        {
+            index = index__pfp_set_uconfig_reg_index__index_type;
+        }
+        else if (startAddr == mmVGT_NUM_INSTANCES)
+        {
+            index = index__pfp_set_uconfig_reg_index__num_instances;
+        }
+        else if (startAddr == Gfx09::mmIA_MULTI_VGT_PARAM)
+        {
+            index = index__pfp_set_uconfig_reg_index__multi_vgt_param__GFX09;
+        }
+
+        pCmdSpace = WriteSetOneConfigReg( startAddr, *pRegData, pCmdSpace, index);
+    }
+    else if ((startAddr >= CONTEXT_SPACE_START) &&
+             ((startAddr + count) < CntxRegUsedRangeEnd))
+    {
+        pCmdSpace = WriteSetSeqContextRegs(startAddr, endAddr, pRegData, pCmdSpace);
+    }
+    else if ((startAddr >= PERSISTENT_SPACE_START) &&
+             ((startAddr + count) < ComputePeristentStart))
+    {
+        pCmdSpace = WriteSetSeqShRegs(startAddr, endAddr, ShaderGraphics, pRegData, pCmdSpace);
+    }
+    else if ((startAddr >= ComputePeristentStart) &&
+             ((startAddr + count) < ShRegUsedRangeEnd))
+    {
+        pCmdSpace = WriteSetSeqShRegs(startAddr, endAddr, ShaderCompute, pRegData, pCmdSpace);
+    }
+    else if ((startAddr >= UCONFIG_SPACE_START) &&
+             ((startAddr + count) < UCONFIG_SPACE_END))
+    {
+        pCmdSpace = WriteSetSeqConfigRegs<false>(startAddr, endAddr, pRegData, pCmdSpace);
+    }
+    else
+    {
+        // We aren't expecting inputs to this function to cross register range boundries.
+        PAL_ASSERT_ALWAYS();
+    }
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
 void CmdStream::CleanupTempObjects()
 {
     // Clean up the temporary PM4 optimizer object.
@@ -257,6 +363,24 @@ template
 uint32* CmdStream::WriteSetVgtLsHsConfig<false>(
     regVGT_LS_HS_CONFIG vgtLsHsConfig,
     uint32*             pCmdSpace);
+
+// =====================================================================================================================
+// Wrapper for the real WriteSetVgtLsHsConfig() when it isn't known whether the immediate pm4 optimizer is enabled.
+uint32* CmdStream::WriteSetVgtLsHsConfig(
+    regVGT_LS_HS_CONFIG vgtLsHsConfig,
+    uint32*             pCmdSpace)
+{
+    if (m_flags.optimizeCommands)
+    {
+        pCmdSpace = WriteSetVgtLsHsConfig<true>(vgtLsHsConfig, pCmdSpace);
+    }
+    else
+    {
+        pCmdSpace = WriteSetVgtLsHsConfig<false>(vgtLsHsConfig, pCmdSpace);
+    }
+
+    return pCmdSpace;
+}
 
 // =====================================================================================================================
 // Builds a PM4 packet to set the given register unless the PM4 optimizer indicates that it is redundant.
@@ -1483,34 +1607,6 @@ void CmdStream::TempSetPm4OptimizerMode(
     {
         m_pPm4Optimizer->TempSetPm4OptimizerMode(isEnabled);
     }
-}
-
-// =====================================================================================================================
-uint32* CmdStream::WriteDynamicLaunchDesc(
-    gpusize     launchDescGpuVa,
-    uint32*     pCmdSpace)
-{
-    if (m_cmdUtil.HasEnhancedLoadShRegIndex())
-    {
-        pCmdSpace += m_cmdUtil.BuildLoadShRegsIndex(index__pfp_load_sh_reg_index__indirect_addr__GFX103COREPLUS,
-                                                    data_format__pfp_load_sh_reg_index__offset_and_data,
-                                                    launchDescGpuVa,
-                                                    0,
-                                                    DynamicCsLaunchDescRegCount,
-                                                    Pm4ShaderType::ShaderCompute,
-                                                    pCmdSpace);
-    }
-    else
-    {
-        PAL_ASSERT_ALWAYS();
-    }
-
-    if (m_pPm4Optimizer != nullptr)
-    {
-        m_pPm4Optimizer->HandleDynamicLaunchDesc();
-    }
-
-    return pCmdSpace;
 }
 
 } // Gfx9

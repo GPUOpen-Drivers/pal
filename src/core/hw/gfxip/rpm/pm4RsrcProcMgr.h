@@ -60,8 +60,7 @@ public:
         const GenerateInfo& genInfo,
         CmdStreamChunk**    ppChunkLists[],
         uint32              NumChunkLists,
-        uint32*             pNumGenChunks
-        ) const;
+        uint32*             pNumGenChunks) const;
 
     virtual void CmdCopyImage(
         GfxCmdBuffer*          pCmdBuffer,

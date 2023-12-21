@@ -478,61 +478,14 @@ void DmaCmdBuffer::CmdCopyMemory(
     uint32                  regionCount,
     const MemoryCopyRegion* pRegions)
 {
+    const GpuMemory& srcMemory = static_cast<const GpuMemory&>(srcGpuMemory);
     const GpuMemory& dstMemory = static_cast<const GpuMemory&>(dstGpuMemory);
-    bool p2pBltInfoRequired    = m_pDevice->IsP2pBltWaRequired(dstMemory);
-
-    uint32 newRegionCount = 0;
-    if (p2pBltInfoRequired)
-    {
-        m_pDevice->P2pBltWaModifyRegionListMemory(dstMemory,
-                                                  regionCount,
-                                                  pRegions,
-                                                  &newRegionCount,
-                                                  nullptr,
-                                                  nullptr);
-    }
-
-    AutoBuffer<MemoryCopyRegion, 32, Platform> newRegions(newRegionCount, m_pDevice->GetPlatform());
-    AutoBuffer<gpusize, 32, Platform> chunkAddrs(newRegionCount, m_pDevice->GetPlatform());
-    if (p2pBltInfoRequired)
-    {
-        if ((newRegions.Capacity() >= newRegionCount) && (chunkAddrs.Capacity() >= newRegionCount))
-        {
-            m_pDevice->P2pBltWaModifyRegionListMemory(dstMemory,
-                                                      regionCount,
-                                                      pRegions,
-                                                      &newRegionCount,
-                                                      &newRegions[0],
-                                                      &chunkAddrs[0]);
-            regionCount = newRegionCount;
-            pRegions    = &newRegions[0];
-
-            P2pBltWaCopyBegin(&dstMemory, regionCount, &chunkAddrs[0]);
-        }
-        else
-        {
-            NotifyAllocFailure();
-            p2pBltInfoRequired = false;
-        }
-    }
-
-    const DmaCopyFlags flags =
-        static_cast<const GpuMemory&>(srcGpuMemory).IsTmzProtected() ? DmaCopyFlags::TmzCopy : DmaCopyFlags::None;
+    DmaCopyFlags flags = srcMemory.IsTmzProtected() ? DmaCopyFlags::TmzCopy : DmaCopyFlags::None;
 
     // Splits up each region's copy size into chunks that the specific hardware can handle.
     for (uint32 rgnIdx = 0; rgnIdx < regionCount; rgnIdx++)
     {
-        if (p2pBltInfoRequired)
-        {
-            P2pBltWaCopyNextRegion(chunkAddrs[rgnIdx]);
-        }
-
         CopyMemoryRegion(srcGpuMemory.Desc().gpuVirtAddr, dstGpuMemory.Desc().gpuVirtAddr, flags, pRegions[rgnIdx]);
-    }
-
-    if (p2pBltInfoRequired)
-    {
-        P2pBltWaCopyEnd();
     }
 }
 
@@ -543,19 +496,12 @@ void DmaCmdBuffer::CmdCopyMemoryByGpuVa(
     uint32                  regionCount,
     const MemoryCopyRegion* pRegions)
 {
-    // We cannot know if the the P2P PCI BAR work around is required for the destination memory, so set an error
-    // to make the client aware of the problem.
-    if (m_pDevice->ChipProperties().p2pBltWaInfo.required)
+
+    // Splits up each region's copy size into chunks that the specific hardware can handle.
+    constexpr DmaCopyFlags Flags = DmaCopyFlags::None;
+    for (uint32 rgnIdx = 0; rgnIdx < regionCount; rgnIdx++)
     {
-        SetCmdRecordingError(Result::ErrorIncompatibleDevice);
-    }
-    else
-    {
-        // Splits up each region's copy size into chunks that the specific hardware can handle.
-        for (uint32 rgnIdx = 0; rgnIdx < regionCount; rgnIdx++)
-        {
-            CopyMemoryRegion(srcGpuVirtAddr, dstGpuVirtAddr, DmaCopyFlags::None, pRegions[rgnIdx]);
-        }
+        CopyMemoryRegion(srcGpuVirtAddr, dstGpuVirtAddr, Flags, pRegions[rgnIdx]);
     }
 }
 
@@ -852,47 +798,6 @@ void DmaCmdBuffer::CmdCopyImage(
     const Image&     srcImg    = static_cast<const Image&>(srcImage);
     const Image&     dstImg    = static_cast<const Image&>(dstImage);
 
-    bool p2pBltInfoRequired = m_pDevice->IsP2pBltWaRequired(*dstImg.GetBoundGpuMemory().Memory());
-
-    uint32 newRegionCount = 0;
-    if (p2pBltInfoRequired)
-    {
-        m_pDevice->P2pBltWaModifyRegionListImage(srcImg,
-                                                 dstImg,
-                                                 regionCount,
-                                                 pRegions,
-                                                 &newRegionCount,
-                                                 nullptr,
-                                                 nullptr);
-    }
-
-    AutoBuffer<ImageCopyRegion, 32, Platform> newRegions(newRegionCount, m_pDevice->GetPlatform());
-    AutoBuffer<gpusize, 32, Platform> chunkAddrs(newRegionCount, m_pDevice->GetPlatform());
-
-    if (p2pBltInfoRequired)
-    {
-        if ((newRegions.Capacity() >= newRegionCount) && (chunkAddrs.Capacity() >= newRegionCount))
-        {
-            m_pDevice->P2pBltWaModifyRegionListImage(srcImg,
-                                                     dstImg,
-                                                     regionCount,
-                                                     pRegions,
-                                                     &newRegionCount,
-                                                     &newRegions[0],
-                                                     &chunkAddrs[0]);
-
-            regionCount = newRegionCount;
-            pRegions    = &newRegions[0];
-
-            P2pBltWaCopyBegin(dstImg.GetBoundGpuMemory().Memory(), regionCount, &chunkAddrs[0]);
-        }
-        else
-        {
-            NotifyAllocFailure();
-            p2pBltInfoRequired = false;
-        }
-    }
-
     uint32* pCmdSpace;
     uint32* pPredCmd;
 
@@ -903,11 +808,6 @@ void DmaCmdBuffer::CmdCopyImage(
         DmaImageCopyInfo imageCopyInfo = {};
         uint32           srcTexelScale = 1;
         uint32           dstTexelScale = 1;
-
-        if (p2pBltInfoRequired)
-        {
-            P2pBltWaCopyNextRegion(chunkAddrs[rgnIdx]);
-        }
 
         SetupDmaInfoSurface(srcImage,
                             region.srcSubres,
@@ -1030,11 +930,6 @@ void DmaCmdBuffer::CmdCopyImage(
             }
         }
     }
-
-    if (p2pBltInfoRequired)
-    {
-        P2pBltWaCopyEnd();
-    }
 }
 
 // =====================================================================================================================
@@ -1049,56 +944,12 @@ void DmaCmdBuffer::CmdCopyMemoryToImage(
     const Image&     dstImg    = static_cast<const Image&>(dstImage);
     const ImageType  imageType = GetImageType(dstImage);
 
-    bool p2pBltInfoRequired = m_pDevice->IsP2pBltWaRequired(*dstImg.GetBoundGpuMemory().Memory());
-
-    uint32 newRegionCount = 0;
-    if (p2pBltInfoRequired)
-    {
-        m_pDevice->P2pBltWaModifyRegionListMemoryToImage(srcMemory,
-                                                         dstImg,
-                                                         regionCount,
-                                                         pRegions,
-                                                         &newRegionCount,
-                                                         nullptr,
-                                                         nullptr);
-    }
-
-    AutoBuffer<MemoryImageCopyRegion, 32, Platform> newRegions(newRegionCount, m_pDevice->GetPlatform());
-    AutoBuffer<gpusize, 32, Platform> chunkAddrs(newRegionCount, m_pDevice->GetPlatform());
-    if (p2pBltInfoRequired)
-    {
-        if ((newRegions.Capacity() >= newRegionCount) && (chunkAddrs.Capacity() >= newRegionCount))
-        {
-            m_pDevice->P2pBltWaModifyRegionListMemoryToImage(srcMemory,
-                                                             dstImg,
-                                                             regionCount,
-                                                             pRegions,
-                                                             &newRegionCount,
-                                                             &newRegions[0],
-                                                             &chunkAddrs[0]);
-            regionCount = newRegionCount;
-            pRegions    = &newRegions[0];
-
-            P2pBltWaCopyBegin(dstImg.GetBoundGpuMemory().Memory(), regionCount, &chunkAddrs[0]);
-        }
-        else
-        {
-            NotifyAllocFailure();
-            p2pBltInfoRequired = false;
-        }
-    }
-
     // For each region, determine which specific hardware copy type (memory-to-tiled or memory-to-linear) is necessary.
     for (uint32 rgnIdx = 0; rgnIdx < regionCount ; rgnIdx++)
     {
         MemoryImageCopyRegion region     = pRegions[rgnIdx];
         DmaImageInfo          imageInfo  = {};
         uint32                texelScale = 1;
-
-        if (p2pBltInfoRequired)
-        {
-            P2pBltWaCopyNextRegion(chunkAddrs[rgnIdx]);
-        }
 
         SetupDmaInfoSurface(dstImage, region.imageSubres, region.imageOffset, dstImageLayout, &imageInfo, &texelScale);
 
@@ -1142,11 +993,6 @@ void DmaCmdBuffer::CmdCopyMemoryToImage(
             WriteCopyMemImageDwordUnalignedCmd(true, isLinearImg, srcMemory, imageInfo, region);
         }
     }
-
-    if (p2pBltInfoRequired)
-    {
-        P2pBltWaCopyEnd();
-    }
 }
 
 // =====================================================================================================================
@@ -1162,55 +1008,11 @@ void DmaCmdBuffer::CmdCopyImageToMemory(
     const Image&     srcImg    = static_cast<const Image&>(srcImage);
     const ImageType  imageType = GetImageType(srcImage);
 
-    bool p2pBltInfoRequired = m_pDevice->IsP2pBltWaRequired(dstMemory);
-
-    uint32 newRegionCount = 0;
-    if (p2pBltInfoRequired)
-    {
-        m_pDevice->P2pBltWaModifyRegionListImageToMemory(srcImg,
-                                                         dstMemory,
-                                                         regionCount,
-                                                         pRegions,
-                                                         &newRegionCount,
-                                                         nullptr,
-                                                         nullptr);
-    }
-
-    AutoBuffer<MemoryImageCopyRegion, 32, Platform> newRegions(newRegionCount, m_pDevice->GetPlatform());
-    AutoBuffer<gpusize, 32, Platform> chunkAddrs(newRegionCount, m_pDevice->GetPlatform());
-    if (p2pBltInfoRequired)
-    {
-        if ((newRegions.Capacity() >= newRegionCount) && (chunkAddrs.Capacity() >= newRegionCount))
-        {
-            m_pDevice->P2pBltWaModifyRegionListImageToMemory(srcImg,
-                                                             dstMemory,
-                                                             regionCount,
-                                                             pRegions,
-                                                             &newRegionCount,
-                                                             &newRegions[0],
-                                                             &chunkAddrs[0]);
-            regionCount = newRegionCount;
-            pRegions    = &newRegions[0];
-
-            P2pBltWaCopyBegin(&dstMemory, regionCount, &chunkAddrs[0]);
-        }
-        else
-        {
-            NotifyAllocFailure();
-            p2pBltInfoRequired = false;
-        }
-    }
-
     for (uint32 rgnIdx = 0; rgnIdx < regionCount ; rgnIdx++)
     {
         MemoryImageCopyRegion region     = pRegions[rgnIdx];
         DmaImageInfo          imageInfo  = {};
         uint32                texelScale = 1;
-
-        if (p2pBltInfoRequired)
-        {
-            P2pBltWaCopyNextRegion(chunkAddrs[rgnIdx]);
-        }
 
         SetupDmaInfoSurface(srcImage, region.imageSubres, region.imageOffset, srcImageLayout, &imageInfo, &texelScale);
 
@@ -1253,11 +1055,6 @@ void DmaCmdBuffer::CmdCopyImageToMemory(
 
             WriteCopyMemImageDwordUnalignedCmd(false, isLinearImg, dstMemory, imageInfo, region);
         }
-    }
-
-    if (p2pBltInfoRequired)
-    {
-        P2pBltWaCopyEnd();
     }
 }
 
@@ -1847,8 +1644,7 @@ void DmaCmdBuffer::WriteCopyMemImageDwordUnalignedCmd(
                         memToEmbeddedRgn.srcOffset = memOffset;
                         memToEmbeddedRgn.dstOffset = embeddedOffset;
 
-                        const DmaCopyFlags flags =
-                            gpuMemory.IsTmzProtected() ? DmaCopyFlags::TmzCopy : DmaCopyFlags::None;
+                        DmaCopyFlags flags = gpuMemory.IsTmzProtected() ? DmaCopyFlags::TmzCopy : DmaCopyFlags::None;
 
                         CopyMemoryRegion(gpuMemory.Desc().gpuVirtAddr,
                                          m_pT2tEmbeddedGpuMemory->Desc().gpuVirtAddr,
@@ -1888,7 +1684,7 @@ void DmaCmdBuffer::WriteCopyMemImageDwordUnalignedCmd(
                         embeddedToMemRgn.srcOffset = embeddedOffset;
                         embeddedToMemRgn.dstOffset = memOffset;
 
-                        const DmaCopyFlags flags =
+                        DmaCopyFlags flags =
                             m_pT2tEmbeddedGpuMemory->IsTmzProtected() ? DmaCopyFlags::TmzCopy : DmaCopyFlags::None;
 
                         // Copy from embedded region to memory

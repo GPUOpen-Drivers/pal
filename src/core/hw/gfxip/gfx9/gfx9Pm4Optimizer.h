@@ -126,8 +126,6 @@ public:
         { HandlePm4LoadReg(loadData, PM4_ME_LOAD_CONTEXT_REG_SIZEDW__CORE, &m_cntxRegs); }
     void HandleLoadContextRegsIndex(const PM4_PFP_LOAD_CONTEXT_REG_INDEX& loadData);
 
-    void HandleDynamicLaunchDesc();
-
 #if PAL_DEVELOPER_BUILD
     void IssueHotRegisterReport(Pm4CmdBuffer* pCmdBuf) const;
 #endif

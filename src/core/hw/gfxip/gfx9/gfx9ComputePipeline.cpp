@@ -151,6 +151,16 @@ Result ComputePipeline::HwlInit(
     computePgmRsrc2.bitfields.LDS_SIZE =
         RoundUpQuotient(NumBytesToNumDwords(desc.group_segment_fixed_size), Gfx9LdsDwGranularity);
 
+    if (metadata.UsesDynamicStack())
+    {
+        PAL_ASSERT_ALWAYS_MSG("Dynamic stack is unsupported!");
+        result = Result::Unsupported;
+    }
+    if (metadata.UniformWorkgroupSize() != 1)
+    {
+        PAL_ASSERT_ALWAYS_MSG("non-uniform workgroups are unsupported!");
+        result = Result::Unsupported;
+    }
     if (result == Result::Success)
     {
         // These features aren't yet implemented in PAL's HSA ABI path.
@@ -486,7 +496,6 @@ uint32* ComputePipeline::WriteCommands(
     CmdStream*                      pCmdStream,
     uint32*                         pCmdSpace,
     const DynamicComputeShaderInfo& csInfo,
-    gpusize                         launchDescGpuVa,
     bool                            prefetch
     ) const
 {
@@ -496,45 +505,7 @@ uint32* ComputePipeline::WriteCommands(
                                            m_shPairsPacketSupportedCs,
 #endif
                                            csInfo,
-                                           launchDescGpuVa,
                                            prefetch);
-
-    return pCmdSpace;
-}
-
-// =====================================================================================================================
-// Writes the PM4 commands required to bind this pipeline. Returns a pointer to the next unused DWORD in pCmdSpace.
-uint32* ComputePipeline::WriteLaunchDescriptor(
-    CmdStream*                      pCmdStream,
-    uint32*                         pCmdSpace,
-    const DynamicComputeShaderInfo& csInfo,
-    gpusize                         launchDescGpuVa
-    ) const
-{
-    PAL_ASSERT((launchDescGpuVa != 0uLL) && SupportDynamicDispatch());
-
-    HwRegInfo::Dynamic dynamicRegs = m_chunkCs.HwInfo().dynamic;
-    pCmdSpace = m_chunkCs.UpdateDynamicRegInfo(pCmdStream, pCmdSpace, &dynamicRegs, csInfo, launchDescGpuVa);
-
-#if PAL_BUILD_GFX11
-    if (m_shPairsPacketSupportedCs)
-    {
-        PackedRegisterPair regPairs[NumDynamicRegs];
-        uint32             numRegs = 0;
-
-        static_assert(NumDynamicRegs <= Gfx11RegPairMaxRegCount, "Requesting too many registers!");
-
-        m_chunkCs.AccumulateShCommandsDynamic(regPairs, &numRegs, dynamicRegs, launchDescGpuVa);
-
-        PAL_ASSERT(numRegs <= NumDynamicRegs);
-
-        pCmdSpace = pCmdStream->WriteSetShRegPairs<ShaderCompute>(regPairs, numRegs, pCmdSpace);
-    }
-    else
-#endif
-    {
-        pCmdSpace = m_chunkCs.WriteShCommandsDynamic(pCmdStream, pCmdSpace, dynamicRegs, launchDescGpuVa);
-    }
 
     return pCmdSpace;
 }

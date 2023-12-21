@@ -286,6 +286,17 @@ void BarrierMgr::TransitionDepthStencil(
                 pSyncReqs->glxCaches |= SyncGlmInv | SyncGl1Inv | SyncGlvInv;
             }
 
+            // The driver assumes that all meta-data surfaces are channel-aligned, but there are cases where the HW does not
+            // actually channel-align the data.  In these cases, the L2 cache needs to be flushed and invalidated prior to the
+            // metadata being read by a shader. Note we have to apply it if the next operation is going to be a shader or if
+            // the client didn't specify cache mask, in which case we don't know it and we have to be conservative.
+            if (earlyPhase                                                           &&
+                (noCacheFlags || TestAnyFlagSet(dstCacheMask, MaybeTccMdShaderMask)) &&
+                gfx9Image.NeedFlushForMetadataPipeMisalignment(subresRange))
+            {
+                pSyncReqs->glxCaches |= SyncGl2WbInv;
+            }
+
             // Note: If the client didn't provide any cache information, we cannot be sure whether or not they wish to
             // have the result of this transition flushed out to memory.  That would require an L2 Flush & Invalidate
             // to be safe.  However, we are already doing an L2 Flush in our per-submit postamble, so it is safe to
@@ -642,6 +653,17 @@ void BarrierMgr::ExpandColor(
         if (TestAnyFlagSet(dstCacheMask, MaybeTccMdShaderMask) || noCacheFlags)
         {
              pSyncReqs->glxCaches |= SyncGlmInv | SyncGl1Inv | SyncGlvInv;
+        }
+
+        // The driver assumes that all meta-data surfaces are channel-aligned, but there are cases where the HW does not
+        // actually channel-align the data.  In these cases, the L2 cache needs to be flushed and invalidated prior to the
+        // metadata being read by a shader. Note we have to apply it if the next operation is going to be a shader or if
+        // the client didn't specify cache mask, in which case we don't know it and we have to be conservative.
+        if (earlyPhase                                                           &&
+            (noCacheFlags || TestAnyFlagSet(dstCacheMask, MaybeTccMdShaderMask)) &&
+            gfx9Image.NeedFlushForMetadataPipeMisalignment(subresRange))
+        {
+            pSyncReqs->glxCaches |= SyncGl2WbInv;
         }
 
         // Note: If the client didn't provide any cache information, we cannot be sure whether or not they wish to have
@@ -1082,7 +1104,7 @@ void BarrierMgr::Barrier(
     {
         HwPipePoint pipePoint = barrier.pPipePoints[i];
 
-        pCmdBuf->OptimizePipePoint(&pipePoint);
+        GfxBarrierMgr::OptimizePipePoint(pCmdBuf, &pipePoint);
 
         if (origCmdBufStateFlags.cpBltActive)
         {

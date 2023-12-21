@@ -45,6 +45,7 @@ constexpr uint8  ElfOsAbiAmdgpuPal = 65;        ///< ELFOSABI_AMDGPU_PAL
 constexpr uint8  ElfAbiVersionAmdgpuHsaV2 = 0;  ///< ELFABIVERSION_AMDGPU_HSA_V2
 constexpr uint8  ElfAbiVersionAmdgpuHsaV3 = 1;  ///< ELFABIVERSION_AMDGPU_HSA_V3
 constexpr uint8  ElfAbiVersionAmdgpuHsaV4 = 2;  ///< ELFABIVERSION_AMDGPU_HSA_V4
+constexpr uint8  ElfAbiVersionAmdgpuHsaV5 = 3;  ///< ELFABIVERSION_AMDGPU_HSA_V5
 constexpr uint8  ElfAbiVersionAmdgpuPal   = 0;  ///< ELFABIVERSION_AMDGPU_PAL
 
 constexpr uint32 MetadataNoteType                = 32;   ///< NT_AMDGPU_METADATA
@@ -515,6 +516,7 @@ enum class UserDataMapping : uint32
                                          ///  extra shader work for generated prim counts in PipelineStats queries
     SampleInfo            = 0x10000018,  ///< Sample Info, 16-bit numsamples + 16-bit Sample Pattern
     ColorExportAddr       = 0x10000020,  ///< 32-bit pointer to GPU memory containing the color export shader
+    DynamicDualSrcBlendInfo = 0x10000022,  ///< 32-bit dynamicDualSourceBlend info
 
     NotMapped             = 0xFFFFFFFF,  ///< Register is not mapped to any user-data entry.
 
@@ -778,6 +780,24 @@ enum class CbConstUsageType : uint8
     Lt0Int,
     Gt0Int,
     Other
+};
+
+/// Defines the various methods for how tessellated patches can be distributed amongst the GPU's shader engines.
+enum class TessDistributionMode : uint8
+{
+    NoDist = 0,   ///< Tessellated patches are not distributed amongst the shader engines.
+    Patches,      ///< Whole tessellated patches are distributed.
+    Donuts,       ///< Donut-shaped groups of tessellated geometry are distributed.
+    Trapezoids,   ///< Trapezoid-shaped groups of tessellated geometry are distributed.
+};
+
+/// Indicates the type of Z testing.
+enum class ZOrder : uint8
+{
+    LateZ = 0,
+    EarlyZThenLateZ,
+    ReZ,
+    EarlyZThenReZ
 };
 
  } //Abi

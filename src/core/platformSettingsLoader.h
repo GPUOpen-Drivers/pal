@@ -25,11 +25,9 @@
 
 #pragma once
 
-#include "palSettingsLoader.h"
-#include "palAssert.h"
-#include "palDbgPrint.h"
-#include "core/platform.h"
+#include "dd_settings_base.h"
 #include "g_platformSettings.h"
+#include "palInlineFuncs.h"
 
 namespace Pal
 {
@@ -39,52 +37,46 @@ class Platform;
 
 // =====================================================================================================================
 // This class is responsible for loading the PAL Platform settings structure specified in the constructor
-class PlatformSettingsLoader : public ISettingsLoader
+class PlatformSettingsLoader : public DevDriver::SettingsBase
 {
 public:
     explicit PlatformSettingsLoader(Pal::Platform* pPlatform);
     virtual ~PlatformSettingsLoader();
 
-    virtual Result Init() override;
+    Result Init();
 
     const PalPlatformSettings& GetSettings() const { return m_settings; }
     PalPlatformSettings* GetSettingsPtr() { return &m_settings; }
 
     void OverrideDefaults();
-    void ValidateSettings();
 
-    // auto-generated function
-    void ReadSettings(Pal::Device* pDevice);
+    void ValidateSettings(bool hasDdUserOverride);
 
-protected:
-    virtual DevDriver::Result PerformSetValue(
-        SettingNameHash     hash,
-        const SettingValue& settingValue) override;
+    bool ReadSetting(
+        const char*          pSettingName,
+        Util::ValueType       valueType,
+        void*                pValue,
+        InternalSettingScope settingType,
+        size_t               bufferSize=0);
+
+    // auto-generated functions
+    virtual void ReadSettings() override;
+    virtual uint64 GetSettingsBlobHash() const override;
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+    void ReadAssertAndPrintSettings(Pal::Device* pDevice);
+#endif
 
 private:
     PAL_DISALLOW_COPY_AND_ASSIGN(PlatformSettingsLoader);
     PAL_DISALLOW_DEFAULT_CTOR(PlatformSettingsLoader);
 
-    // Generate the settings hash which is based on HW-specific setting.
-    void GenerateSettingHash();
-
-    #if PAL_ENABLE_PRINTS_ASSERTS
-        void ReadAssertAndPrintSettings(Pal::Device* pDevice);
-    #endif
-
     Pal::Platform*       m_pPlatform;
     PalPlatformSettings  m_settings;
 
-    // This base class function will be empty for the platform settings. Instead a separate function is defined that
-    // will take a device pointer as a parameter which is required for reading from the registry or settings file.
-    virtual void ReadSettings() override {};
-
     // auto-generated functions
-    virtual void SetupDefaults() override;
-    virtual void InitSettingsInfo() override;
-    virtual void DevDriverRegister() override;
-
-    const char*const m_pComponentName;
+    virtual const char* GetComponentName() const override;
+    virtual DD_RESULT SetupDefaultsAndPopulateMap() override;
 };
 
 } // Pal

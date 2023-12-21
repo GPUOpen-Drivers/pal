@@ -172,10 +172,6 @@ public:
         size_t*                  pSize,
         void*                    pBuffer) override;
 
-    virtual Result CreateLaunchDescriptor(
-        void* pOut,
-        bool  resolve) override { return Result::Unsupported; }
-
     virtual Result LinkWithLibraries(
         const IShaderLibrary*const* ppLibraryList,
         uint32                      libraryCount) override;
@@ -204,9 +200,9 @@ public:
 
     bool IsTaskShaderEnabled() const { return (m_flags.taskShaderEnabled != 0); }
 
-    bool SupportDynamicDispatch() const { return (m_flags.supportDynamicDispatch != 0); }
-
     bool IsInternal() const { return m_flags.isInternal != 0; }
+
+    const void* GetPipelineBinary() const { return m_pPipelineBinary; }
 
 #if PAL_BUILD_GFX11
     static bool DispatchInterleaveSizeIsValid(
@@ -250,7 +246,6 @@ protected:
         const Util::PalAbi::CodeObjectMetadata& metadata) const;
 
     void SetTaskShaderEnabled() { m_flags.taskShaderEnabled = 1; }
-    void SetDynamicDispatchSupported() { m_flags.supportDynamicDispatch = 1; }
 
     Device*const  m_pDevice;
 
@@ -276,8 +271,7 @@ private:
         {
             uint32  isInternal             :  1;  // True if this Pipeline object was created internally by PAL.
             uint32  taskShaderEnabled      :  1;
-            uint32  supportDynamicDispatch :  1;
-            uint32  reserved               : 29;
+            uint32  reserved               : 30;
         };
         uint32  value;  // Flags packed as a uint32.
     } m_flags;

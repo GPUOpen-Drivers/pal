@@ -373,19 +373,37 @@ Result CreateRpmComputePipelines(
             RpmComputePipeline::ExpandMaskRamMs8x, pDevice, pTable, pPipelineMem);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+#if PAL_BUILD_NAVI31|| PAL_BUILD_NAVI32|| PAL_BUILD_NAVI33|| PAL_BUILD_PHOENIX1
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#endif
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::FastDepthClear, pDevice, pTable, pPipelineMem);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+#if PAL_BUILD_NAVI31|| PAL_BUILD_NAVI32|| PAL_BUILD_NAVI33|| PAL_BUILD_PHOENIX1
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#endif
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::FastDepthExpClear, pDevice, pTable, pPipelineMem);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+#if PAL_BUILD_NAVI31|| PAL_BUILD_NAVI32|| PAL_BUILD_NAVI33|| PAL_BUILD_PHOENIX1
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#endif
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::FastDepthStExpClear, pDevice, pTable, pPipelineMem);
@@ -415,19 +433,37 @@ Result CreateRpmComputePipelines(
             RpmComputePipeline::GenerateMipmapsLowp, pDevice, pTable, pPipelineMem);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+#if PAL_BUILD_NAVI31|| PAL_BUILD_NAVI32|| PAL_BUILD_NAVI33|| PAL_BUILD_PHOENIX1
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#endif
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::HtileCopyAndFixUp, pDevice, pTable, pPipelineMem);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+#if PAL_BUILD_NAVI31|| PAL_BUILD_NAVI32|| PAL_BUILD_NAVI33|| PAL_BUILD_PHOENIX1
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#endif
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::HtileSR4xUpdate, pDevice, pTable, pPipelineMem);
     }
 
-    if (result == Result::Success)
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+#if PAL_BUILD_NAVI31|| PAL_BUILD_NAVI32|| PAL_BUILD_NAVI33|| PAL_BUILD_PHOENIX1
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#endif
+        ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::HtileSRUpdate, pDevice, pTable, pPipelineMem);

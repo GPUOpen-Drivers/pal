@@ -26,6 +26,7 @@
 #pragma once
 
 #include "pal.h"
+#include "palCmdBuffer.h"
 #include "palDeveloperHooks.h"
 
 namespace Pal
@@ -152,17 +153,6 @@ public:
         const AcquireReleaseInfo&     barrierInfo,
         Developer::BarrierOperations* pBarrierOps) const { PAL_NEVER_CALLED(); }
 
-    virtual void OptimizePipePoint(const Pm4CmdBuffer* pCmdBuf, HwPipePoint* pPipePoint) const;
-
-    virtual void OptimizeSrcCacheMask(const Pm4CmdBuffer* pCmdBuf, uint32* pCacheMask) const;
-
-    virtual void OptimizePipeStageAndCacheMask(
-        const Pm4CmdBuffer* pCmdBuf,
-        uint32*             pSrcStageMask,
-        uint32*             pSrcAccessMask,
-        uint32*             pDstStageMask,
-        uint32*             pDstAccessMask) const;
-
     void DescribeBarrier(
         GfxCmdBuffer*                 pGfxCmdBuf,
         const BarrierTransition*      pTransition,
@@ -181,7 +171,40 @@ public:
         AcquireReleaseInfo* pBarrier,
         bool*               pMemAllocated);
 
+    static void OptimizePipePoint(const Pm4CmdBuffer* pCmdBuf, HwPipePoint* pPipePoint);
+
+    static void OptimizeSrcCacheMask(const Pm4CmdBuffer* pCmdBuf, uint32* pCacheMask);
+
+    static void OptimizePipeStageAndCacheMask(
+        const Pm4CmdBuffer* pCmdBuf,
+        uint32*             pSrcStageMask,
+        uint32*             pSrcAccessMask,
+        uint32*             pDstStageMask,
+        uint32*             pDstAccessMask);
+
+    static void SetBarrierOperationsRbCacheSynced(Developer::BarrierOperations* pOperations)
+    {
+        pOperations->caches.flushCb = 1;
+        pOperations->caches.invalCb = 1;
+        pOperations->caches.flushDb = 1;
+        pOperations->caches.invalDb = 1;
+        pOperations->caches.flushCbMetadata = 1;
+        pOperations->caches.invalCbMetadata = 1;
+        pOperations->caches.flushDbMetadata = 1;
+        pOperations->caches.invalDbMetadata = 1;
+    }
+
 protected:
+    static uint32 GetPipelineStageMaskFromBarrierInfo(const BarrierInfo& barrierInfo, uint32* pSrcStageMask);
+
+    static bool IsReadOnlyTransition(uint32 srcAccessMask, uint32 dstAccessMask);
+
+    // Cache coherency masks that are writable.
+    static constexpr uint32 CacheCoherWriteMask  = CoherCpu         | CoherShaderWrite        | CoherStreamOut |
+                                                   CoherColorTarget | CoherClear              | CoherCopyDst   |
+                                                   CoherResolveDst  | CoherDepthStencilTarget | CoherCeDump    |
+                                                   CoherQueueAtomic | CoherTimestamp          | CoherMemory;
+
     GfxDevice*const   m_pGfxDevice;
     Pal::Device*const m_pDevice;
     Platform*const    m_pPlatform;

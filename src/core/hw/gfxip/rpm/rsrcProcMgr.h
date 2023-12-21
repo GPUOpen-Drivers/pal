@@ -127,7 +127,8 @@ public:
         uint32                  regionCount,
         const MemoryCopyRegion* pRegions,
         bool                    preferWideFormatCopy,
-        const gpusize*          pP2pBltInfoChunks) const;
+        bool                    srcIsCompressed,
+        bool                    dstIsCompressed) const;
 
     virtual void CmdCopyImage(
         GfxCmdBuffer*          pCmdBuffer,
@@ -423,8 +424,7 @@ protected:
         ImageLayout            dstImageLayout,
         uint32                 regionCount,
         const ImageCopyRegion* pRegions,
-        uint32                 flags,
-        const gpusize*         pP2pBltInfoChunks) const;
+        uint32                 flags) const;
 
     void GetCopyImageCsInfo(
         const Image&           srcImage,
@@ -446,8 +446,7 @@ protected:
         bool                         isFmaskCopy,
         uint32                       regionCount,
         const MemoryImageCopyRegion* pRegions,
-        bool                         includePadding,
-        const gpusize*               pP2pBltInfoChunks) const;
+        bool                         includePadding) const;
 
     void ResolveImageCompute(
         GfxCmdBuffer*             pCmdBuffer,

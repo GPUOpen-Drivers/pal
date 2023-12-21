@@ -319,7 +319,8 @@ struct GpuMemoryProperties
             uint32 supportsTmz                :  1; // Indicates TMZ (or HSFB) protected memory is supported.
             uint32 supportsMall               :  1; // Indicates that this device supports the MALL.
             uint32 supportPageFaultInfo       :  1; // Indicates support for querying page fault information
-            uint32 reserved                   : 15;
+            uint32 reserved1                  :  1;
+            uint32 reserved                   : 14;
         };
         uint32 u32All;
     } flags;
@@ -619,6 +620,7 @@ struct Gfx9PerfCounterInfo
         } perModule[Gfx9MaxUmcchPerfModules];
     } umcchRegAddr[Gfx9MaxUmcchInstances];
 };
+
 #endif
 
 // Everything PAL & its clients would ever need to know about the actual GPU hardware.
@@ -679,6 +681,7 @@ struct GpuChipProperties
         uint32                 minPitchAlignPixel;
         Extent3d               maxImageDimension;
         uint32                 maxImageArraySize;
+        uint32                 maxImageMipLevels;
         PrtFeatureFlags        prtFeatures;
         gpusize                prtTileSize;
         MsaaFlags              msaaSupport;
@@ -731,7 +734,8 @@ struct GpuChipProperties
         uint32 maxGsTotalOutputComponents;           // Maximum number of GS output components totally.
         uint32 maxGsInvocations;                     // Maximum number of GS prim instances, corresponding to geometry
                                                      // shader invocation in glsl.
-        uint32 dynamicLaunchDescSize;                // Dynamic compute pipeline launch descriptor size in bytes
+        uint32 soCtrlBufSize;
+
         // Mask of active pixel packers. The mask is 128 bits wide, assuming a max of 32 SEs and a max of 4 pixel
         // packers (indicated by a single bit each) per physical SE (includes harvested SEs).
         uint32 activePixelPackerMask[ActivePixelPackerMaskDwords];
@@ -761,7 +765,9 @@ struct GpuChipProperties
             uint32 supportFloat64SharedAtomicMinMax :  1; // Indicates support for float64 shared atomics min and max op
             uint32 support1dDispatchInterleave      :  1; // Indicates support for 1D Dispatch Interleave
             uint32 placeholder1                     :  1;
-            uint32 reserved                         : 14;
+            uint32 gfx6DataValid                    :  1;
+            uint32 gfx9DataValid                    :  1;
+            uint32 reserved                         : 12;
         };
     } gfxip;
 #endif
@@ -916,12 +922,14 @@ struct GpuChipProperties
                 uint64 reserved                           :  9;
             };
 
-            RayTracingIpLevel rayTracingIp;      //< HW RayTracing IP version
+            RayTracingIpLevel        rayTracingIp;      //< HW RayTracing IP version
 
             UseExecuteIndirectPacket executeIndirectSupport; //< Specifies which CmdTypes of ExecuteIndirect are
                                                              //< supported by this FW version.
-
-            Gfx9PerfCounterInfo perfCounterInfo; // Contains info for perf counters for a specific hardware block
+            union
+            {
+                Gfx9PerfCounterInfo  gfx9Info;   // Contains gfx9 info for perf counters for a specific hardware block
+            } perfCounterInfo;
 
         } gfx9;
     };
@@ -955,26 +963,13 @@ struct GpuChipProperties
         const void* pNullSampler;
     } nullSrds;
 
-   uint32 pciDomainNumber;              // PCI domain number in the system for this GPU
-   uint32 pciBusNumber;                 // PCI bus number in the system for this GPU
-   uint32 pciDeviceNumber;              // PCI device number in the system for this GPU
-   uint32 pciFunctionNumber;            // PCI function number in the system for this GPU
-   bool   gpuConnectedViaThunderbolt;   // GPU connects to system through thunder bolt
-   bool   requiresOnionAccess;          // Some APUs have issues with Garlic that can be worked around by using Onion
-
-   // Data controlling the P2P PCI BAR workaround required for some hardware.  Note that this is not tied to GFXIP.
-   struct
-   {
-       bool   required;              // True if this chip requires the workaround.
-       uint32 maxCopyChunkSize;      // Maximum size of a chunk.  A chunk here refers to a range of VA that can be
-                                     // written by a stream of P2P BLT commands without reprogramming the PCI BAR.
-       uint32 gfxPlaceholderDwords;  // How many dwords of NOPs need to be inserted before each chunk when executing
-                                     // P2P BLTs on GFX engines.  KMD will eventually patch over these NOP areas with
-                                     // commands that will reprogram the PCI BAR.
-       uint32 dmaPlaceholderDwords;  // Same as gfxPlaceholderDwords, but for the SDMA engine ("DMA" engine type in
-                                     // PAL terminology).
-   } p2pBltWaInfo;
-
+    uint32 pciDomainNumber;              // PCI domain number in the system for this GPU
+    uint32 pciBusNumber;                 // PCI bus number in the system for this GPU
+    uint32 pciDeviceNumber;              // PCI device number in the system for this GPU
+    uint32 pciFunctionNumber;            // PCI function number in the system for this GPU
+    bool   gpuConnectedViaThunderbolt;   // GPU connects to system through thunder bolt
+    bool   requiresOnionAccess;          // Some APUs have issues with Garlic that can be worked around by using Onion
+    bool   pcieAtomicOpsSupported;       // Pcie atomics support
     union
     {
         struct
@@ -1822,6 +1817,8 @@ public:
     bool UsePwsLateAcquirePoint(EngineType engineType) const;
 #endif
 
+    const char* GetDumpDirName() const { return m_cmdBufDumpPath; }
+
 #if PAL_ENABLE_PRINTS_ASSERTS
     bool IsCmdBufDumpEnabledViaHotkey() const { return m_cmdBufDumpEnabledViaHotkey; }
 #else
@@ -1841,44 +1838,6 @@ public:
 
     static bool EngineSupportsCompute(EngineType  engineType);
     static bool EngineSupportsGraphics(EngineType  engineType);
-
-    bool IsP2pBltWaRequired(const GpuMemory& dstGpuMemory) const
-        { return (ChipProperties().p2pBltWaInfo.required && dstGpuMemory.AccessesPeerMemory()); }
-
-    Result P2pBltWaModifyRegionListMemory(
-        const IGpuMemory&       dstGpuMemory,
-        uint32                  regionCount,
-        const MemoryCopyRegion* pRegions,
-        uint32*                 pNewRegionCount,
-        MemoryCopyRegion*       pNewRegions,
-        gpusize*                pChunkAddrs) const;
-
-    Result P2pBltWaModifyRegionListImage(
-        const Pal::Image&      srcImage,
-        const Pal::Image&      dstImage,
-        uint32                 regionCount,
-        const ImageCopyRegion* pRegions,
-        uint32*                pNewRegionCount,
-        ImageCopyRegion*       pNewRegions,
-        gpusize*               pChunkAddrs) const;
-
-    Result P2pBltWaModifyRegionListImageToMemory(
-        const Pal::Image&            srcImage,
-        const IGpuMemory&            dstGpuMemory,
-        uint32                       regionCount,
-        const MemoryImageCopyRegion* pRegions,
-        uint32*                      pNewRegionCount,
-        MemoryImageCopyRegion*       pNewRegions,
-        gpusize*                     pChunkAddrs) const;
-
-    Result P2pBltWaModifyRegionListMemoryToImage(
-        const IGpuMemory&            srcGpuMemory,
-        const Pal::Image&            dstImage,
-        uint32                       regionCount,
-        const MemoryImageCopyRegion* pRegions,
-        uint32*                      pNewRegionCount,
-        MemoryImageCopyRegion*       pNewRegions,
-        gpusize*                     pChunkAddrs) const;
 
     const BoundGpuMemory& GetDummyChunkMem() const { return m_dummyChunkMem; }
 
@@ -2053,6 +2012,12 @@ protected:
         void*                      pPlacementAddr,
         CmdBuffer**                ppCmdBuffer) const;
 
+    Result CreateCmdBufferHelper(
+        const CmdBufferCreateInfo&         createInfo,
+        const CmdBufferInternalCreateInfo& internalInfo,
+        void*                              pPlacementAddr,
+        CmdBuffer**                        ppCmdBuffer) const;
+
     // Constructs a new GpuMemory object in preallocated memory.
     virtual GpuMemory* ConstructGpuMemoryObject(
         void* pPlacementAddr) = 0;
@@ -2162,6 +2127,7 @@ protected:
     DmaUploadRing* m_pDmaUploadRing;
 
     uint32         m_staticVmidRefCount;
+    char m_cmdBufDumpPath[Util::MaxPathStrLen];
 
 private:
     Result HwlEarlyInit();
@@ -2286,12 +2252,14 @@ inline bool IsGfx11(const Device& device)
 
 inline bool IsGfx11Plus(GfxIpLevel gfxLevel)
 {
-    return IsGfx11(gfxLevel);
+    return IsGfx11(gfxLevel)
+           ;
 }
 
 inline bool IsGfx11Plus(const Device& device)
 {
-    return IsGfx11(device.ChipProperties().gfxLevel);
+    return IsGfx11(device.ChipProperties().gfxLevel)
+           ;
 }
 
 #if PAL_BUILD_NAVI31

@@ -31,6 +31,11 @@ add_subdirectory(src)
 
 target_compile_definitions(vam PRIVATE $<$<CONFIG:Debug>:VAM_DEBUG>)
 
+# Enable workaround when the target platform isn't Windows.
+if (PAL_CLIENT_WINDOWS_SUBSYSTEM)
+    target_compile_definitions(vam PUBLIC VAM_CLIENT_WINDOWS_SUBSYSTEM=1)
+endif()
+
 set_target_properties(vam PROPERTIES
     CXX_STANDARD              11
     CXX_STANDARD_REQUIRED     ON

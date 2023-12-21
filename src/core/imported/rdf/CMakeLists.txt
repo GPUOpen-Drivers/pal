@@ -35,7 +35,7 @@ endif()
 option(RDF_BUILD_TESTS         "Build the tests"  ${RDF_IS_TOP_LEVEL})
 option(RDF_BUILD_TOOLS         "Build RDF tools"  ${RDF_IS_TOP_LEVEL})
 option(RDF_BUILD_INSTALL       "Install RDF libs" ${RDF_IS_TOP_LEVEL})
-option(RDF_ENABLE_CXX_BINDINGS "Allow usage of C++ interface for RDF library" ON)
+option(RDF_ENABLE_CXX_BINDINGS "Enable the C++ interface" ON)
 option(RDF_STATIC              "Build RDF as a static library" OFF)
 
 if(RDF_BUILD_TESTS)
@@ -64,7 +64,60 @@ if (RDF_IS_TOP_LEVEL)
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 endif()
 
-add_subdirectory(imported)
+################################################################################
+# Import third party libraries
+# For each library, three steps are checked to ensure it is present:
+#   1. Check if target is already provided
+#   2. Try to find lib via vcpkg
+#   3. Add target locally
+# We have to do this here for VCPKG to work, as we can't alias targets from
+# VCPKG in a subdirectory, and VCPKG uses different target names which we
+# don't want to force on everyone
+# We use QUIET on all finds because failure is an option (we just fall back
+# to our internal copy.)
+
+if(NOT TARGET zstd)
+    find_package(zstd QUIET)
+	if(TARGET zstd::libzstd_shared)
+		add_library(zstd ALIAS zstd::libzstd_shared)
+	elseif(TARGET zstd::libzstd_static)
+		add_library(zstd ALIAS zstd::libzstd_static)
+    else()
+	    add_subdirectory(imported/zstd)
+	endif()
+endif()
+
+if(RDF_BUILD_TESTS AND (NOT TARGET catch2))
+    find_package(Catch2 QUIET)
+    if(TARGET Catch2::Catch2)
+		add_library(catch2 ALIAS Catch2::Catch2WithMain)
+    else()
+		add_subdirectory(imported/catch2)
+    endif()
+endif()
+
+if(RDF_BUILD_TOOLS)
+    if(NOT TARGET cli11)
+        find_package(CLI11 QUIET)
+        if(TARGET CLI11::CLI11)
+            add_library(cli11 ALIAS CLI11::CLI11)
+        else()
+            add_subdirectory(imported/cli11)
+        endif()
+    endif()
+
+    if(NOT TARGET json)
+        find_package(nlohmann_json QUIET)
+        if(TARGET nlohmann_json::nlohmann_json)
+            add_library(json ALIAS nlohmann_json::nlohmann_json)
+        else()
+            add_subdirectory(imported/json)
+        endif()
+    endif()
+endif()
+
+################################################################################
+# Project build
 add_subdirectory(rdf)
 if(RDF_BUILD_TOOLS)
     add_subdirectory(rdfi)

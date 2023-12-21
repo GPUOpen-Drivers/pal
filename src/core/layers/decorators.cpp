@@ -1271,37 +1271,55 @@ size_t DeviceDecorator::GetGraphicsPipelineSize(
 }
 
 // =====================================================================================================================
+Result DeviceDecorator::CallNextCreateGraphicsPipeline(
+    const GraphicsPipelineCreateInfo& createInfo,
+    void*                             pNextPlacementAddr,
+    IPipeline**                       ppNextPipeline)
+{
+    Result result = Result::Success;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 816
+    if (createInfo.numShaderLibraries > 0)
+    {
+        AutoBuffer<const IShaderLibrary*, 3, PlatformDecorator> nextLayerObjects(createInfo.numShaderLibraries,
+            GetPlatform());
+
+        if (nextLayerObjects.Capacity() < createInfo.numShaderLibraries)
+        {
+            result = Result::ErrorOutOfMemory;
+        }
+        else
+        {
+            for (uint32 i = 0; i < createInfo.numShaderLibraries; i++)
+            {
+                nextLayerObjects[i] = NextShaderLibrary(createInfo.ppShaderLibraries[i]);
+            }
+
+            GraphicsPipelineCreateInfo localCreateInfo = createInfo;
+            localCreateInfo.ppShaderLibraries = nextLayerObjects.Data();
+
+            result = m_pNextLayer->CreateGraphicsPipeline(localCreateInfo, pNextPlacementAddr, ppNextPipeline);
+        }
+    }
+    else
+#endif
+    {
+        result = m_pNextLayer->CreateGraphicsPipeline(createInfo, pNextPlacementAddr, ppNextPipeline);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 Result DeviceDecorator::CreateGraphicsPipeline(
     const GraphicsPipelineCreateInfo& createInfo,
     void*                             pPlacementAddr,
     IPipeline**                       ppPipeline)
 {
     IPipeline* pPipeline = nullptr;
-    Result result = Result::Success;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 816
-    if (createInfo.numShaderLibraries > 0)
-    {
-        AutoBuffer<const IShaderLibrary*, 3, PlatformDecorator> nextLayerObjects(createInfo.numShaderLibraries,
-                                                                                 GetPlatform());
-
-        GraphicsPipelineCreateInfo localCreateInfo = createInfo;
-        for (uint32_t i = 0; i < createInfo.numShaderLibraries; i++)
-        {
-            nextLayerObjects[i] = reinterpret_cast<const ShaderLibraryDecorator*>(
-                createInfo.ppShaderLibraries[i])->GetNextLayer();
-        }
-        localCreateInfo.ppShaderLibraries = nextLayerObjects.Data();
-        result = m_pNextLayer->CreateGraphicsPipeline(localCreateInfo,
-                                                      NextObjectAddr<PipelineDecorator>(pPlacementAddr),
-                                                      &pPipeline);
-    }
-    else
-#endif
-    {
-        result = m_pNextLayer->CreateGraphicsPipeline(createInfo,
-                                                      NextObjectAddr<PipelineDecorator>(pPlacementAddr),
-                                                      &pPipeline);
-    }
+    Result result = CallNextCreateGraphicsPipeline(createInfo,
+                                                   NextObjectAddr<PipelineDecorator>(pPlacementAddr),
+                                                   &pPipeline);
 
     if (result == Result::Success)
     {
@@ -2642,52 +2660,7 @@ Result PlatformDecorator::CreateLogDir(
 
     if (m_logDirCreated == false)
     {
-        // Try to create the root log directory first, which may already exist.
-        const Result tmpResult = MkDir(pBaseDir);
-        result = (tmpResult == Result::AlreadyExists) ? Result::Success : tmpResult;
-
-        if (result == Result::Success)
-        {
-            // Even if the dir already exists we try to set permissions in case it was device user who ceated the dir but
-            // with not enough permisions.
-            result = SetRwxFilePermissions(pBaseDir);
-            PAL_ASSERT_MSG(result == Result::Success, "Failed to set main logs directory permissions to RWX for all");
-        }
-
-        // Create a directory name that will hold any dumped logs this session.  The name will be composed of the
-        // executable name and current date/time, looking something like this: app.exe_2015-08-26_07.49.20.
-        // Note that we will append a suffix if some other platform already made this directory in this same second.
-        // (Yes, this can actually happen in reality.)
-        char  executableNameBuffer[256] = {};
-        char* pExecutableName = nullptr;
-
-        if (result == Result::Success)
-        {
-            result = GetExecutableName(executableNameBuffer, &pExecutableName, sizeof(executableNameBuffer));
-        }
-
-        if (result == Result::Success)
-        {
-            const time_t   rawTime   = time(nullptr);
-            const tm*const pTimeInfo = localtime(&rawTime);
-
-            char  dateTimeBuffer[64] = {};
-            strftime(dateTimeBuffer, sizeof(dateTimeBuffer), "%Y-%m-%d_%H.%M.%S", pTimeInfo);
-
-            Snprintf(m_logDirPath, sizeof(m_logDirPath), "%s/%s_%s", pBaseDir, pExecutableName, dateTimeBuffer);
-
-            // Try to create the directory. If it already exists, keep incrementing the suffix until it works.
-            const size_t suffixOffset = strlen(m_logDirPath);
-            uint32       suffix       = 0;
-
-            do
-            {
-                Snprintf(m_logDirPath + suffixOffset, sizeof(m_logDirPath) - suffixOffset, "_%02d", suffix++);
-                result = MkDir(m_logDirPath);
-            }
-            while (result == Result::AlreadyExists);
-        }
-
+        result = Util::CreateLogDir(pBaseDir, m_logDirPath, sizeof(m_logDirPath));
         m_logDirCreated = (result == Result::Success);
     }
 
@@ -2762,7 +2735,7 @@ Result QueueDecorator::Submit(
     }
     else
     {
-        MultiSubmitInfo nextSubmitInfo    = {};
+        MultiSubmitInfo nextSubmitInfo    = submitInfo;
         uint32          currCmdBufIdx     = 0;
         uint32          currCmdBufInfoIdx = 0;
 
@@ -2830,17 +2803,12 @@ Result QueueDecorator::Submit(
         }
 
         nextSubmitInfo.pPerSubQueueInfo     = nextPerSubQueueInfo.Data();
-        nextSubmitInfo.perSubQueueInfoCount = submitInfo.perSubQueueInfoCount;
-        nextSubmitInfo.gpuMemRefCount       = submitInfo.gpuMemRefCount;
         nextSubmitInfo.pGpuMemoryRefs       = &nextGpuMemoryRefs[0];
-        nextSubmitInfo.doppRefCount         = submitInfo.doppRefCount;
         nextSubmitInfo.pDoppRefs            = &nextDoppRefs[0];
 
         const IGpuMemory* pNextBlockIfFlipping[MaxBlockIfFlippingCount] = {};
         PAL_ASSERT(submitInfo.blockIfFlippingCount <= MaxBlockIfFlippingCount);
-        nextSubmitInfo.blockIfFlippingCount = submitInfo.blockIfFlippingCount;
         nextSubmitInfo.ppBlockIfFlipping    = &pNextBlockIfFlipping[0];
-        nextSubmitInfo.fenceCount           = submitInfo.fenceCount;
         nextSubmitInfo.ppFences             = &nextFences[0];
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 764
         nextSubmitInfo.pFreeMuxMemory       = NextGpuMemory(submitInfo.pFreeMuxMemory);

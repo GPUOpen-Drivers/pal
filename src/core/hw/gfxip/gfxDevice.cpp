@@ -36,6 +36,8 @@
 #include "core/hw/gfxip/rpm/rsrcProcMgr.h"
 #include "palHashMapImpl.h"
 #include "addrinterface.h"
+#include "dd_settings_base.h"
+#include "dd_settings_service.h"
 
 using namespace Util;
 
@@ -80,7 +82,14 @@ GfxDevice::GfxDevice(
     m_waEnableDccCacheFlushAndInvalidate(false),
     m_waTcCompatZRange(false),
     m_degeneratePrimFilter(false),
-    m_pSettingsLoader(nullptr)
+    m_pSettingsLoader(nullptr),
+    m_pDdSettingsLoader(nullptr),
+    m_computeTrapHandler(),
+    m_computeTrapBuffer(),
+    m_graphicsTrapHandler(),
+    m_graphicsTrapBuffer(),
+    m_queueContextUpdateLock(),
+    m_queueContextUpdateCounter(0)
 {
     for (uint32 i = 0; i < QueueType::QueueTypeCount; i++)
     {
@@ -98,6 +107,11 @@ GfxDevice::~GfxDevice()
     if (m_pSettingsLoader != nullptr)
     {
         PAL_SAFE_DELETE(m_pSettingsLoader, m_pParent->GetPlatform());
+    }
+
+    if (m_pDdSettingsLoader != nullptr)
+    {
+        PAL_SAFE_DELETE(m_pDdSettingsLoader, m_pParent->GetPlatform());
     }
 }
 
@@ -154,27 +168,35 @@ Result GfxDevice::InitHwlSettings(
 #if PAL_BUILD_GFX11
         case GfxIpLevel::GfxIp11_0:
 #endif
-            m_pSettingsLoader = Gfx9::CreateSettingsLoader(m_pParent);
+            m_pDdSettingsLoader = Gfx9::CreateSettingsLoader(m_pParent);
             break;
         case GfxIpLevel::None:
         default:
             break;
         }
 
-        if (m_pSettingsLoader == nullptr)
+        if ((m_pSettingsLoader == nullptr) && (m_pDdSettingsLoader == nullptr))
         {
             ret = Result::ErrorOutOfMemory;
         }
         else
         {
-            ret = m_pSettingsLoader->Init();
-        }
-    }
+            ret = InitSettings();
+            if (ret == Result::Success)
+            {
+                HwlOverrideDefaultSettings(pSettings);
 
-    if (ret == Result::Success)
-    {
-        HwlOverrideDefaultSettings(pSettings);
-        HwlRereadSettings();
+                HwlReadSettings();
+
+                // Register this component to receive setting user-overrides via DevDriver network.
+                DevDriver::SettingsRpcService* pSettingsRpcService
+                    = m_pParent->GetPlatform()->GetSettingsRpcService();
+                if ((pSettingsRpcService != nullptr) && (m_pDdSettingsLoader != nullptr))
+                {
+                    pSettingsRpcService->RegisterSettingsComponent(m_pDdSettingsLoader);
+                }
+            }
+        }
     }
 
     return ret;
@@ -440,6 +462,59 @@ void GfxDevice::DestroyMsaaStateInternal(
 Platform* GfxDevice::GetPlatform() const
 {
     return m_pParent->GetPlatform();
+}
+
+// =====================================================================================================================
+uint32 GfxDevice::QueueContextUpdateCounter()
+{
+    const MutexAuto lock(&m_queueContextUpdateLock);
+    return m_queueContextUpdateCounter;
+}
+
+// =====================================================================================================================
+// Updates the GPU memory bound for use as a trap handler for either compute or graphics pipelines.  Updates the queue
+// context update counter so that the next submission on each queue will properly process this update.
+void GfxDevice::BindTrapHandler(
+    PipelineBindPoint pipelineType,
+    IGpuMemory*       pGpuMemory,
+    gpusize           offset)
+{
+    const MutexAuto lock(&m_queueContextUpdateLock);
+
+    if (pipelineType == PipelineBindPoint::Graphics)
+    {
+        m_graphicsTrapHandler.Update(pGpuMemory, offset);
+    }
+    else
+    {
+        PAL_ASSERT(pipelineType == PipelineBindPoint::Compute);
+        m_computeTrapHandler.Update(pGpuMemory, offset);
+    }
+
+    m_queueContextUpdateCounter++;
+}
+
+// =====================================================================================================================
+// Updates the GPU memory bound for use as a trap buffer for either compute or graphics pipelines.  Updates the queue
+// context update counter so that the next submission on each queue will properly process this update.
+void GfxDevice::BindTrapBuffer(
+    PipelineBindPoint pipelineType,
+    IGpuMemory*       pGpuMemory,
+    gpusize           offset)
+{
+    const MutexAuto lock(&m_queueContextUpdateLock);
+
+    if (pipelineType == PipelineBindPoint::Graphics)
+    {
+        m_graphicsTrapBuffer.Update(pGpuMemory, offset);
+    }
+    else
+    {
+        PAL_ASSERT(pipelineType == PipelineBindPoint::Compute);
+        m_computeTrapBuffer.Update(pGpuMemory, offset);
+    }
+
+    m_queueContextUpdateCounter++;
 }
 
 // =====================================================================================================================

@@ -111,20 +111,17 @@ public:
     uint32* UpdateDynamicRegInfo(
         CmdStream*                      pCmdStream,
         uint32*                         pCmdSpace,
-        HwRegInfo::Dynamic*             pDynamicRegs,
-        const DynamicComputeShaderInfo& csInfo,
-        gpusize                         launchDescGpuVa) const;
+        HwRegInfo::Dynamic*             pDynamcRegs,
+        const DynamicComputeShaderInfo& csInfo) const;
 
 #if PAL_BUILD_GFX11
     void AccumulateShCommandsDynamic(
         PackedRegisterPair* pRegPairs,
         uint32*             pNumRegs,
-        HwRegInfo::Dynamic  dynamicRegs,
-        gpusize             launchDescGpuVa) const;
+        HwRegInfo::Dynamic  dynamicRegs) const;
     void AccumulateShCommandsSetPath(
         PackedRegisterPair* pRegPairs,
-        uint32*             pNumRegs,
-        bool                usingLaunchDesc) const;
+        uint32*             pNumRegs) const;
 #endif
 
     uint32* WriteShCommands(
@@ -134,19 +131,16 @@ public:
         bool                            regPairsSupported,
 #endif
         const DynamicComputeShaderInfo& csInfo,
-        gpusize                         launchDescGpuVa,
         bool                            prefetch) const;
 
     uint32* WriteShCommandsDynamic(
         CmdStream*         pCmdStream,
         uint32*            pCmdSpace,
-        HwRegInfo::Dynamic dynamicRegs,
-        gpusize            launchDescGpuVa) const;
+        HwRegInfo::Dynamic dynamicRegs) const;
 
     uint32* WriteShCommandsSetPath(
         CmdStream* pCmdStream,
-        uint32*    pCmdSpace,
-        bool       usingLauncDesc) const;
+        uint32*    pCmdSpace) const;
 
     gpusize CsProgramGpuVa() const
         { return GetOriginalAddress(m_regs.computePgmLo.bits.DATA, 0); }
@@ -157,8 +151,6 @@ public:
         regCOMPUTE_PGM_RSRC1 Rsrc1,
         regCOMPUTE_PGM_RSRC2 Rsrc2,
         regCOMPUTE_PGM_RSRC3 Rsrc3);
-
-    Result CreateLaunchDescriptor(void* pOut, bool resolve);
 
     void Clone(const PipelineChunkCs& chunkCs);
 

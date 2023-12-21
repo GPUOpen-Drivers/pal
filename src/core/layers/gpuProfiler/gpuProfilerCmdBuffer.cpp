@@ -82,7 +82,6 @@ CmdBuffer::CmdBuffer(
     m_funcTable.pfnCmdDispatch                  = CmdDispatch;
     m_funcTable.pfnCmdDispatchIndirect          = CmdDispatchIndirect;
     m_funcTable.pfnCmdDispatchOffset            = CmdDispatchOffset;
-    m_funcTable.pfnCmdDispatchDynamic           = CmdDispatchDynamic;
     m_funcTable.pfnCmdDispatchMesh              = CmdDispatchMesh;
     m_funcTable.pfnCmdDispatchMeshIndirectMulti = CmdDispatchMeshIndirectMulti;
 
@@ -1843,19 +1842,15 @@ void CmdBuffer::ReplayCmdDrawIndexed(
 
 // =====================================================================================================================
 void PAL_STDCALL CmdBuffer::CmdDrawIndirectMulti(
-    ICmdBuffer*       pCmdBuffer,
-    const IGpuMemory& gpuMemory,
-    gpusize           offset,
-    uint32            stride,
-    uint32            maximumCount,
-    gpusize           countGpuAddr)
+    ICmdBuffer*          pCmdBuffer,
+    GpuVirtAddrAndStride gpuVirtAddrAndStride,
+    uint32               maximumCount,
+    gpusize              countGpuAddr)
 {
     auto* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
     pThis->InsertToken(CmdBufCallId::CmdDrawIndirectMulti);
-    pThis->InsertToken(&gpuMemory);
-    pThis->InsertToken(offset);
-    pThis->InsertToken(stride);
+    pThis->InsertToken(gpuVirtAddrAndStride);
     pThis->InsertToken(maximumCount);
     pThis->InsertToken(countGpuAddr);
 }
@@ -1865,35 +1860,29 @@ void CmdBuffer::ReplayCmdDrawIndirectMulti(
     Queue*           pQueue,
     TargetCmdBuffer* pTgtCmdBuffer)
 {
-    auto pGpuMemory   = ReadTokenVal<IGpuMemory*>();
-    auto offset       = ReadTokenVal<gpusize>();
-    auto stride       = ReadTokenVal<uint32>();
-    auto maximumCount = ReadTokenVal<uint32>();
-    auto countGpuAddr = ReadTokenVal<gpusize>();
+    auto gpuVirtAddrAndStride = ReadTokenVal<GpuVirtAddrAndStride>();
+    auto maximumCount         = ReadTokenVal<uint32>();
+    auto countGpuAddr         = ReadTokenVal<gpusize>();
 
     LogItem logItem = { };
     logItem.cmdBufCall.flags.draw = 1;
 
     LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdDrawIndirectMulti);
-    pTgtCmdBuffer->CmdDrawIndirectMulti(*pGpuMemory, offset, stride, maximumCount, countGpuAddr);
+    pTgtCmdBuffer->CmdDrawIndirectMulti(gpuVirtAddrAndStride, maximumCount, countGpuAddr);
     LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
 }
 
 // =====================================================================================================================
 void PAL_STDCALL CmdBuffer::CmdDrawIndexedIndirectMulti(
-    ICmdBuffer*       pCmdBuffer,
-    const IGpuMemory& gpuMemory,
-    gpusize           offset,
-    uint32            stride,
-    uint32            maximumCount,
-    gpusize           countGpuAddr)
+    ICmdBuffer*          pCmdBuffer,
+    GpuVirtAddrAndStride gpuVirtAddrAndStride,
+    uint32               maximumCount,
+    gpusize              countGpuAddr)
 {
     auto* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
     pThis->InsertToken(CmdBufCallId::CmdDrawIndexedIndirectMulti);
-    pThis->InsertToken(&gpuMemory);
-    pThis->InsertToken(offset);
-    pThis->InsertToken(stride);
+    pThis->InsertToken(gpuVirtAddrAndStride);
     pThis->InsertToken(maximumCount);
     pThis->InsertToken(countGpuAddr);
 }
@@ -1903,17 +1892,15 @@ void CmdBuffer::ReplayCmdDrawIndexedIndirectMulti(
     Queue*           pQueue,
     TargetCmdBuffer* pTgtCmdBuffer)
 {
-    auto pGpuMemory   = ReadTokenVal<IGpuMemory*>();
-    auto offset       = ReadTokenVal<gpusize>();
-    auto stride       = ReadTokenVal<uint32>();
-    auto maximumCount = ReadTokenVal<uint32>();
-    auto countGpuAddr = ReadTokenVal<gpusize>();
+    auto gpuVirtAddrAndStride = ReadTokenVal<GpuVirtAddrAndStride>();
+    auto maximumCount         = ReadTokenVal<uint32>();
+    auto countGpuAddr         = ReadTokenVal<gpusize>();
 
     LogItem logItem = { };
     logItem.cmdBufCall.flags.draw = 1;
 
     LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdDrawIndexedIndirectMulti);
-    pTgtCmdBuffer->CmdDrawIndexedIndirectMulti(*pGpuMemory, offset, stride, maximumCount, countGpuAddr);
+    pTgtCmdBuffer->CmdDrawIndexedIndirectMulti(gpuVirtAddrAndStride, maximumCount, countGpuAddr);
     LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
 }
 
@@ -1946,15 +1933,13 @@ void CmdBuffer::ReplayCmdDispatch(
 
 // =====================================================================================================================
 void PAL_STDCALL CmdBuffer::CmdDispatchIndirect(
-    ICmdBuffer*       pCmdBuffer,
-    const IGpuMemory& gpuMemory,
-    gpusize           offset)
+    ICmdBuffer* pCmdBuffer,
+    gpusize     gpuVirtAddr)
 {
     auto* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
     pThis->InsertToken(CmdBufCallId::CmdDispatchIndirect);
-    pThis->InsertToken(&gpuMemory);
-    pThis->InsertToken(offset);
+    pThis->InsertToken(gpuVirtAddr);
 }
 
 // =====================================================================================================================
@@ -1962,14 +1947,13 @@ void CmdBuffer::ReplayCmdDispatchIndirect(
     Queue*           pQueue,
     TargetCmdBuffer* pTgtCmdBuffer)
 {
-    const auto pGpuMemory = ReadTokenVal<IGpuMemory*>();
-    const auto offset     = ReadTokenVal<gpusize>();
+    const auto gpuVirtAddr = ReadTokenVal<gpusize>();
 
     LogItem logItem = { };
     logItem.cmdBufCall.flags.dispatch = 1;
 
     LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdDispatchIndirect);
-    pTgtCmdBuffer->CmdDispatchIndirect(*pGpuMemory, offset);
+    pTgtCmdBuffer->CmdDispatchIndirect(gpuVirtAddr);
     LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
 }
 
@@ -2007,36 +1991,6 @@ void CmdBuffer::ReplayCmdDispatchOffset(
 }
 
 // =====================================================================================================================
-void CmdBuffer::CmdDispatchDynamic(
-    ICmdBuffer*  pCmdBuffer,
-    gpusize      gpuVa,
-    DispatchDims size)
-{
-    auto* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
-
-    pThis->InsertToken(CmdBufCallId::CmdDispatchDynamic);
-    pThis->InsertToken(gpuVa);
-    pThis->InsertToken(size);
-}
-
-// =====================================================================================================================
-void CmdBuffer::ReplayCmdDispatchDynamic(
-    Queue*           pQueue,
-    TargetCmdBuffer* pTgtCmdBuffer)
-{
-    const auto gpuVa = ReadTokenVal<gpusize>();
-    const auto size  = ReadTokenVal<DispatchDims>();
-
-    LogItem logItem = { };
-    logItem.cmdBufCall.flags.dispatch            = 1;
-    logItem.cmdBufCall.dispatch.threadGroupCount = size.x * size.y * size.z;
-
-    LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdDispatchDynamic);
-    pTgtCmdBuffer->CmdDispatchDynamic(gpuVa, size);
-    LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
-}
-
-// =====================================================================================================================
 void CmdBuffer::CmdDispatchMesh(
     ICmdBuffer*  pCmdBuffer,
     DispatchDims size)
@@ -2065,19 +2019,15 @@ void CmdBuffer::ReplayCmdDispatchMesh(
 
 // =====================================================================================================================
 void CmdBuffer::CmdDispatchMeshIndirectMulti(
-    ICmdBuffer*       pCmdBuffer,
-    const IGpuMemory& gpuMemory,
-    gpusize           offset,
-    uint32            stride,
-    uint32            maximumCount,
-    gpusize           countGpuAddr)
+    ICmdBuffer*          pCmdBuffer,
+    GpuVirtAddrAndStride gpuVirtAddrAndStride,
+    uint32               maximumCount,
+    gpusize              countGpuAddr)
 {
     auto* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
     pThis->InsertToken(CmdBufCallId::CmdDispatchMeshIndirectMulti);
-    pThis->InsertToken(&gpuMemory);
-    pThis->InsertToken(offset);
-    pThis->InsertToken(stride);
+    pThis->InsertToken(gpuVirtAddrAndStride);
     pThis->InsertToken(maximumCount);
     pThis->InsertToken(countGpuAddr);
 }
@@ -2087,17 +2037,15 @@ void CmdBuffer::ReplayCmdDispatchMeshIndirectMulti(
     Queue*           pQueue,
     TargetCmdBuffer* pTgtCmdBuffer)
 {
-    auto pGpuMemory      = ReadTokenVal<IGpuMemory*>();
-    auto offset          = ReadTokenVal<gpusize>();
-    uint32  stride       = ReadTokenVal<uint32>();
-    uint32  maximumCount = ReadTokenVal<uint32>();
-    gpusize countGpuAddr = ReadTokenVal<gpusize>();
+    auto gpuVirtAddrAndStride = ReadTokenVal<GpuVirtAddrAndStride>();
+    uint32  maximumCount      = ReadTokenVal<uint32>();
+    gpusize countGpuAddr      = ReadTokenVal<gpusize>();
 
     LogItem logItem                   = { };
     logItem.cmdBufCall.flags.taskmesh = 1;
 
     LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdDispatchMeshIndirectMulti);
-    pTgtCmdBuffer->CmdDispatchMeshIndirectMulti(*pGpuMemory, offset, stride, maximumCount, countGpuAddr);
+    pTgtCmdBuffer->CmdDispatchMeshIndirectMulti(gpuVirtAddrAndStride, maximumCount, countGpuAddr);
     LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
 }
 
@@ -3622,15 +3570,13 @@ void CmdBuffer::ReplayCmdExecuteNestedCmdBuffers(
 // =====================================================================================================================
 void CmdBuffer::CmdExecuteIndirectCmds(
     const IIndirectCmdGenerator& generator,
-    const IGpuMemory&            gpuMemory,
-    gpusize                      offset,
+    gpusize                      gpuVirtAddr,
     uint32                       maximumCount,
     gpusize                      countGpuAddr)
 {
     InsertToken(CmdBufCallId::CmdExecuteIndirectCmds);
     InsertToken(&generator);
-    InsertToken(&gpuMemory);
-    InsertToken(offset);
+    InsertToken(gpuVirtAddr);
     InsertToken(maximumCount);
     InsertToken(countGpuAddr);
 }
@@ -3640,16 +3586,18 @@ void CmdBuffer::ReplayCmdExecuteIndirectCmds(
     Queue*           pQueue,
     TargetCmdBuffer* pTgtCmdBuffer)
 {
-    const auto*const pGenerator   = ReadTokenVal<const IIndirectCmdGenerator*>();
-    const auto*const pGpuMemory   = ReadTokenVal<const IGpuMemory*>();
-    const gpusize    offset       = ReadTokenVal<gpusize>();
-    const uint32     maximumCount = ReadTokenVal<uint32>();
-    const gpusize    countGpuAddr = ReadTokenVal<gpusize>();
+    const auto* pGenerator   = ReadTokenVal<const IIndirectCmdGenerator*>();
+    gpusize     gpuVirtAddr  = ReadTokenVal<gpusize>();
+    uint32      maximumCount = ReadTokenVal<uint32>();
+    gpusize     countGpuAddr = ReadTokenVal<gpusize>();
 
     LogItem logItem = { };
 
     LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdExecuteIndirectCmds);
-    pTgtCmdBuffer->CmdExecuteIndirectCmds(*pGenerator, *pGpuMemory, offset, maximumCount, countGpuAddr);
+    pTgtCmdBuffer->CmdExecuteIndirectCmds(*pGenerator,
+                                          gpuVirtAddr,
+                                          maximumCount,
+                                          countGpuAddr);
     LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
 }
 
@@ -4059,7 +4007,7 @@ void CmdBuffer::CmdPostProcessFrame(
     InsertToken((pAddedGpuWork != nullptr) ? *pAddedGpuWork : false);
 
     // Pass this command on to the next layer.  Clients depend on the pAddedGpuWork output parameter.
-    CmdPostProcessFrameInfo nextPostProcessInfo = {};
+    CmdPostProcessFrameInfo nextPostProcessInfo = postProcessInfo;
     NextLayer()->CmdPostProcessFrame(*NextCmdPostProcessFrameInfo(postProcessInfo, &nextPostProcessInfo),
                                      pAddedGpuWork);
 }
@@ -4229,7 +4177,6 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdDispatch,
         &CmdBuffer::ReplayCmdDispatchIndirect,
         &CmdBuffer::ReplayCmdDispatchOffset,
-        &CmdBuffer::ReplayCmdDispatchDynamic,
         &CmdBuffer::ReplayCmdDispatchMesh,
         &CmdBuffer::ReplayCmdDispatchMeshIndirectMulti,
         &CmdBuffer::ReplayCmdUpdateMemory,

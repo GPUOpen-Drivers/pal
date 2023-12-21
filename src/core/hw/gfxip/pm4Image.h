@@ -94,19 +94,6 @@ public:
     uint32  GetFceRefCount() const;
     void    IncrementFceRefCount();
 
-    // Helper function for AddrMgr1 to initialize the AddrLib surface info strucutre for a subresource.
-    virtual Result Addr1InitSurfaceInfo(
-        uint32                           subResIdx,
-        ADDR_COMPUTE_SURFACE_INFO_INPUT* pSurfInfo) { return Result::ErrorUnavailable; }
-
-    // Helper function for AddrMgr1 to finalize the subresource and tiling info for a subresource after
-    // calling AddrLib.
-    virtual void Addr1FinalizeSubresource(
-        uint32                                  subResIdx,
-        SubResourceInfo*                        pSubResInfoList,
-        void*                                   pTileInfoList,
-        const ADDR_COMPUTE_SURFACE_INFO_OUTPUT& surfInfo) { PAL_NEVER_CALLED(); }
-
 protected:
     Pm4Image(
         Image*        pParentImage,

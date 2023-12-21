@@ -44,59 +44,39 @@ union GraphicsStateFlags
 {
     struct
     {
-        union
-        {
-            // These bits are tested in ValidateDraw()
-            struct
-            {
-                uint32 colorBlendState        :  1; // Gfx9 only
-                uint32 depthStencilState      :  1; // Gfx9 only
-                uint32 msaaState              :  1; // Gfx9 only
-                uint32 quadSamplePatternState :  1; // Gfx9 only
-                uint32 viewports              :  1; // Gfx9 only
-                uint32 scissorRects           :  1; // Gfx9 only
-                uint32 inputAssemblyState     :  1; // Gfx9 only
-                uint32 triangleRasterState    :  1; // Gfx9 only
-                uint32 occlusionQueryActive   :  1; // Gfx9 only
-                uint32 lineStippleState       :  1; // Gfx9 only
-                uint32 colorTargetView        :  1; // Gfx9 only
-                uint32 depthStencilView       :  1; // Gfx9 only
-                uint32 vrsRateParams          :  1; // 10.3+ only
-                uint32 vrsCenterState         :  1; // 10.3+ only
-                uint32 vrsImage               :  1; // 10.3+ only
-                uint32 reserved               : 17;
-            };
-
-            uint32 u32All;
-
-        } validationBits;
-
-        union
-        {
-            // These bits are not tested in ValidateDraw()
-            struct
-            {
-                uint32 streamOutTargets          : 1;
-                uint32 iaState                   : 1;
-                uint32 blendConstState           : 1;
-                uint32 depthBiasState            : 1;
-                uint32 depthBoundsState          : 1;
-                uint32 pointLineRasterState      : 1;
-                uint32 stencilRefMaskState       : 1;
-                uint32 globalScissorState        : 1;
-                uint32 clipRectsState            : 1;
-                uint32 pipelineStatsQuery        : 1;
-                uint32 reservedNonValidationBits : 22;
-            };
-
-            uint32 u32All;
-        } nonValidationBits;
+        uint32 colorBlendState        : 1;
+        uint32 depthStencilState      : 1;
+        uint32 msaaState              : 1;
+        uint32 quadSamplePatternState : 1;
+        uint32 viewports              : 1;
+        uint32 scissorRects           : 1;
+        uint32 inputAssemblyState     : 1;
+        uint32 triangleRasterState    : 1;
+        uint32 occlusionQueryActive   : 1;
+        uint32 lineStippleState       : 1;
+        uint32 colorTargetView        : 1;
+        uint32 depthStencilView       : 1;
+        uint32 vrsRateParams          : 1;
+        uint32 vrsCenterState         : 1;
+        uint32 vrsImage               : 1;
+        uint32 streamOutTargets       : 1;
+        uint32 iaState                : 1;
+        uint32 blendConstState        : 1;
+        uint32 depthBiasState         : 1;
+        uint32 depthBoundsState       : 1;
+        uint32 pointLineRasterState   : 1;
+        uint32 stencilRefMaskState    : 1;
+        uint32 globalScissorState     : 1;
+        uint32 clipRectsState         : 1;
+        uint32 pipelineStatsQuery     : 1;
+        uint32 streamoutStatsQuery    : 1;
+        uint32 reserved               : 6;
     };
 
-    uint64 u64All;
+    uint32 u32All;
 };
 
-static_assert(sizeof(GraphicsStateFlags) == sizeof(uint64), "Bad bitfield size.");
+static_assert(sizeof(GraphicsStateFlags) == sizeof(uint32), "Bad bitfield size.");
 
 constexpr uint32 MaxScissorExtent = 16384;
 
@@ -177,14 +157,17 @@ struct GraphicsState
 
 struct ValidateDrawInfo
 {
-    uint32 vtxIdxCount;       // Vertex or index count for the draw (depending on if the it is indexed).
-    uint32 instanceCount;     // Instance count for the draw. A count of zero indicates draw-indirect.
-    uint32 firstVertex;       // First vertex
-    uint32 firstInstance;     // First instance
-    uint32 firstIndex;        // First index
-    uint32 drawIndex;         // draw index
-    bool   useOpaque;         // If draw opaque
-    bool   multiIndirectDraw; // Is multi indirect draw?
+    uint32       vtxIdxCount;           // Vertex or index count for the draw (depending on if the it is indexed).
+    uint32       instanceCount;         // Instance count for the draw. A count of zero indicates draw-indirect.
+    uint32       firstVertex;           // First vertex
+    uint32       firstInstance;         // First instance
+    uint32       firstIndex;            // First index
+    uint32       drawIndex;             // draw index
+    DispatchDims meshDispatchDims;      // Dispatch dimensions of mesh shader
+    bool         useOpaque;             // If draw opaque
+    bool         multiIndirectDraw;     // Is multi indirect draw?
+    bool         isAdvancedIndirect;    // Is Execute Indirect or task+mesh draw call?
+    uint32       indirectDrawArgsHi;    // High part of GPU virtual address argument from the client indirect draw
 };
 
 // =====================================================================================================================
@@ -303,15 +286,16 @@ protected:
 
     bool IsAnyGfxUserDataDirty() const;
 
-    void SetGraphicsState(const GraphicsState& newGraphicsState);
+    virtual void SetGraphicsState(const GraphicsState& newGraphicsState);
+    virtual void SetGraphicsState(const GraphicsState& newGraphicsState,
+                                  GraphicsStateFlags   setGraphicsStateFlags,
+                                  PipelineStateFlags   setPipelineStateFlags);
 
     GraphicsState  m_graphicsState;        // Currently bound graphics command buffer state.
     GraphicsState  m_graphicsRestoreState; // State pushed by the previous call to CmdSaveGraphicsState.
 
     GfxBlendOptimizer::BlendOpts  m_blendOpts[MaxColorTargets]; // Current blend optimization state
 
-    virtual void P2pBltWaCopyNextRegion(gpusize chunkAddr) override
-        { CmdBuffer::P2pBltWaCopyNextRegion(m_pDeCmdStream, chunkAddr); }
     virtual uint32* WriteNops(uint32* pCmdSpace, uint32 numDwords) const override
         { return pCmdSpace + m_pDeCmdStream->BuildNop(numDwords, pCmdSpace); }
 
@@ -331,8 +315,9 @@ protected:
     uint8 m_contextStatesPerBin;
     uint8 m_persistentStatesPerBin;
 
+    const GfxDevice& m_device;
+
 private:
-    const GfxDevice&     m_device;
     Pm4::CmdStream*const m_pDeCmdStream; // Draw engine command buffer stream.
     Pm4::CmdStream*const m_pCeCmdStream; // Constant engine command buffer stream.
     const bool           m_blendOptEnable;

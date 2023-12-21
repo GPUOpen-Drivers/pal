@@ -1002,14 +1002,6 @@ UINT_32 Gfx11Lib::GetMetaBlkSize(
                 metablkSizeLog2 = Max(metablkSizeLog2, 11 + numPipesLog2);
             }
 
-            const INT_32 compFragLog2 = numSamplesLog2;
-
-            if  (IsRtOptSwizzle(swizzleMode) && (compFragLog2 > 1) && (pipeRotateLog2 >= 1))
-            {
-                const INT_32 tmp = 8 + m_pipesLog2 + Max(pipeRotateLog2, compFragLog2 - 1);
-
-                metablkSizeLog2 = Max(metablkSizeLog2, tmp);
-            }
         }
 
         const INT_32 metablkBitsLog2 =
@@ -2259,7 +2251,7 @@ BOOL_32 Gfx11Lib::ValidateSwModeParams(
     {
         if (((swizzleMask & Gfx11Rsrc3dSwModeMask) == 0) ||
             (prt && ((swizzleMask & Gfx11Rsrc3dPrtSwModeMask) == 0)) ||
-            (thin3d && ((swizzleMask & Gfx11Rsrc3dThinSwModeMask) == 0)))
+            (thin3d && ((swizzleMask & Gfx11Rsrc3dViewAs2dSwModeMask) == 0)))
         {
             ADDR_ASSERT_ALWAYS();
             valid = FALSE;
@@ -2495,7 +2487,17 @@ ADDR_E_RETURNCODE Gfx11Lib::HwlGetPreferredSurfaceSetting(
 
                     if (pIn->flags.view3dAs2dArray)
                     {
-                        allowedSwModeSet.value &= Gfx11Rsrc3dThinSwModeMask;
+                        // Under no circumstances should a 3D block-compressed image support SW_LINEAR,
+                        // and the funniest thing is that a 2D block-compressed image supports SW_LINEAR.
+                        // So we only disable linear for 3D BCn when view3dAs2dArray is true.
+                        if (ElemLib::IsBlockCompressed(pIn->format))
+                        {
+                            allowedSwModeSet.value &= Gfx11Rsrc3dThinSwModeMask;
+                        }
+                        else
+                        {
+                            allowedSwModeSet.value &= Gfx11Rsrc3dViewAs2dSwModeMask;
+                        }
                     }
                     break;
 
@@ -2980,7 +2982,17 @@ ADDR_E_RETURNCODE Gfx11Lib::HwlGetPossibleSwizzleModes(
 
                 if (pIn->flags.view3dAs2dArray)
                 {
-                    allowedSwModeSet.value &= Gfx11Rsrc3dThinSwModeMask;
+                    // Under no circumstances should a 3D block-compressed image support SW_LINEAR,
+                    // and the funniest thing is that a 2D block-compressed image supports SW_LINEAR.
+                    // So we only disable linear for 3D BCn when view3dAs2dArray is true.
+                    if (ElemLib::IsBlockCompressed(pIn->format))
+                    {
+                        allowedSwModeSet.value &= Gfx11Rsrc3dThinSwModeMask;
+                    }
+                    else
+                    {
+                        allowedSwModeSet.value &= Gfx11Rsrc3dViewAs2dSwModeMask;
+                    }
                 }
                 break;
 

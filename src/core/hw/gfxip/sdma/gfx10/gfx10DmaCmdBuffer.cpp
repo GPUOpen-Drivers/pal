@@ -26,6 +26,7 @@
 #include "core/cmdStream.h"
 #include "core/device.h"
 #include "core/settingsLoader.h"
+#include "core/hw/gfxip/gfxDevice.h"
 #include "core/hw/gfxip/gfx9/gfx9FormatInfo.h"
 #include "core/hw/gfxip/gfx9/gfx9Image.h"
 #include "core/hw/gfxip/sdma/gfx10/gfx10DmaCmdBuffer.h"
@@ -48,10 +49,10 @@ constexpr uint32 UpdateMemoryPacketHdrSizeInDwords = (sizeof(SDMA_PKT_WRITE_UNTI
 
 // =====================================================================================================================
 DmaCmdBuffer::DmaCmdBuffer(
-    Device&                    device,
+    Pal::Device&               device,
     const CmdBufferCreateInfo& createInfo)
     :
-    Pal::DmaCmdBuffer(device.Parent(), createInfo, ((1 << static_cast<uint32>(ImageType::Count)) - 1))
+    Pal::DmaCmdBuffer(&device, createInfo, ((1 << static_cast<uint32>(ImageType::Count)) - 1))
 {
     // Regarding copyOverlapHazardSyncs value in the constructor above:
     //   While GFX10 may execute sequences of small copies/writes asynchronously, the hardware should
@@ -202,7 +203,7 @@ Result DmaCmdBuffer::AddPostamble()
 
         // The GPU address for mem_incr must be 8 byte aligned.
         constexpr uint32 SemaphoreAlign = 8;
-        PAL_ASSERT(Pow2Align(gpuAddr, SemaphoreAlign) == gpuAddr);
+        PAL_ASSERT(IsPow2Aligned(gpuAddr, SemaphoreAlign));
 
         packet.HEADER_UNION.op          = SDMA_OP_SEM;
         packet.HEADER_UNION.sub_op      = SDMA_SUBOP_MEM_INCR;
@@ -365,6 +366,22 @@ uint32* DmaCmdBuffer::WriteFenceCmd(
 }
 
 // =====================================================================================================================
+Gfx10SdmaBypassMall DmaCmdBuffer::GetSettingByPassMall() const
+{
+    const auto& settings = GetGfx9Settings(*m_pDevice);
+
+    return Gfx10SdmaBypassMall(settings.sdmaBypassMall);
+}
+
+// =====================================================================================================================
+bool DmaCmdBuffer::GetSettingPreferCompressedSource() const
+{
+    const auto& settings = GetGfx9Settings(*m_pDevice);
+
+    return settings.sdmaPreferCompressedSource;
+}
+
+// =====================================================================================================================
 // See the GetMallBypass function for how the llc (last level cache) policy is determined.
 uint32 DmaCmdBuffer::GetCpvFromLlcPolicy(
     uint32 llcPolicy
@@ -373,10 +390,11 @@ uint32 DmaCmdBuffer::GetCpvFromLlcPolicy(
     // llcPolicy is a one bit field; ensure that no other bits are set
     PAL_ASSERT((llcPolicy & 0xFFFFFFFE) == 0);
 
-    // Setting the CPV to be true if the "SdmaBypassMall" setting was not set to "Default" AND the cache-policies as provided by the KMD were valid.
-    const auto& settings   = GetGfx9Settings(*m_pDevice);
+    // Setting the CPV to be true if the "SdmaBypassMall" setting was not set to "Default" AND the cache-policies as
+    // provided by the KMD were valid.
 
-    return ((settings.sdmaBypassMall != Gfx10SdmaBypassMallOnDefault) && m_pDevice->ChipProperties().gfx9.sdmaL2PolicyValid);
+    return ((GetSettingByPassMall() != Gfx10SdmaBypassMallOnDefault) &&
+           m_pDevice->ChipProperties().gfx9.sdmaL2PolicyValid);
 }
 
 // =====================================================================================================================
@@ -390,22 +408,20 @@ uint32 DmaCmdBuffer::GetCpvFromCachePolicy(
 
     // Setting the CPV (cache policy valid) bit causes all three cachePolicy bits to be true
     // if the "SdmaBypassMall" setting was not "Default" AND the cache-policies as provided by the KMD were valid
-    const auto& settings   = GetGfx9Settings(*m_pDevice);
 
-    return ((settings.sdmaBypassMall != Gfx10SdmaBypassMallOnDefault) && m_pDevice->ChipProperties().gfx9.sdmaL2PolicyValid);
+    return ((GetSettingByPassMall() != Gfx10SdmaBypassMallOnDefault) &&
+           m_pDevice->ChipProperties().gfx9.sdmaL2PolicyValid);
 }
 
 // =====================================================================================================================
 // Returns true if the panel settings are enabled to bypass the MALL for the specified flag.
 bool DmaCmdBuffer::GetMallBypass(
-    Gfx10SdmaBypassMall  bypassFlag
+    Gfx10SdmaBypassMall bypassFlag
     ) const
 {
-    const auto& settings   = GetGfx9Settings(*m_pDevice);
-
     // Look for products that might have a MALL and not just the products that *do* have a MALL so that (by default)
     // we disable the MALL on products that have the control bits in the various SDMA packets.
-    const bool  bypassMall = (IsNavi2x(*m_pDevice) && TestAnyFlagSet(settings.sdmaBypassMall, bypassFlag));
+    const bool  bypassMall = (IsNavi2x(*m_pDevice) && TestAnyFlagSet(GetSettingByPassMall(), bypassFlag));
 
     return bypassMall;
 }
@@ -420,7 +436,7 @@ bool DmaCmdBuffer::GetMallBypass(
 //    2) The MSB of the cache-policy field (determined here) along with the CPV bit is set.  CPV is "cache policy
 //       valid".
 uint32 DmaCmdBuffer::GetCachePolicy(
-    Gfx10SdmaBypassMall  bypassFlag
+    Gfx10SdmaBypassMall bypassFlag
     ) const
 {
     // The various "cache-policy" fields in the SDMA packets are all three bits wide.  The MSB pertains to the MALL;
@@ -480,7 +496,7 @@ uint32* DmaCmdBuffer::WriteCopyGpuMemoryCmd(
     const size_t packetDwords = Util::NumBytesToNumDwords(sizeof(SDMA_PKT_COPY_LINEAR));
     auto*const   pPacket      = reinterpret_cast<SDMA_PKT_COPY_LINEAR*>(pCmdSpace);
 
-    SDMA_PKT_COPY_LINEAR packet;
+    SDMA_PKT_COPY_LINEAR packet = {};
 
     packet.HEADER_UNION.DW_0_DATA           = 0;
     packet.HEADER_UNION.op                  = SDMA_OP_COPY;
@@ -526,7 +542,7 @@ uint32* DmaCmdBuffer::WriteCopyGpuMemoryCmd(
 //
 uint32* DmaCmdBuffer::WriteCopyTypedBuffer(
     const DmaTypedBufferCopyInfo& typedBufferInfo,
-    uint32* pCmdSpace
+    uint32*                       pCmdSpace
     ) const
 {
     const size_t packetDwords = Util::NumBytesToNumDwords(sizeof(SDMA_PKT_COPY_LINEAR_SUBWIN));
@@ -639,7 +655,7 @@ uint32* DmaCmdBuffer::WriteCopyImageLinearToLinearCmd(
     packet.HEADER_UNION.tmz         = IsImageTmzProtected(imageCopyInfo.src);
 
     // Base addresses should be dword aligned.
-    PAL_ASSERT (((imageCopyInfo.src.baseAddr & 0x3) == 0) && ((imageCopyInfo.dst.baseAddr & 0x3) == 0));
+    PAL_ASSERT(((imageCopyInfo.src.baseAddr & 0x3) == 0) && ((imageCopyInfo.dst.baseAddr & 0x3) == 0));
 
     // Setup the source base address.
     packet.SRC_ADDR_LO_UNION.src_addr_31_0  = LowPart(imageCopyInfo.src.baseAddr);
@@ -716,7 +732,8 @@ uint32* DmaCmdBuffer::WriteCopyImageTiledToLinearCmd(
 // =====================================================================================================================
 // Returns true if the supplied image has any meta-data associated with it.
 bool DmaCmdBuffer::ImageHasMetaData(
-    const DmaImageInfo& imageInfo)
+    const DmaImageInfo& imageInfo
+    ) const
 {
     const Pal::Image*  pPalImage = static_cast<const Pal::Image*>(imageInfo.pImage);
     const Image*       pGfxImage = static_cast<const Image*>(pPalImage->GetGfxImage());
@@ -739,7 +756,6 @@ uint32* DmaCmdBuffer::WriteCopyImageTiledToTiledCmd(
     const auto& dst        = imageCopyInfo.dst;
     const auto  srcSwizzle = GetSwizzleMode(src);
     const auto  dstSwizzle = GetSwizzleMode(dst);
-    const auto& settings   = GetGfx9Settings(*m_pDevice);
 
     const size_t packetDwords = Util::NumBytesToNumDwords(sizeof(SDMA_PKT_COPY_T2T));
 
@@ -813,7 +829,7 @@ uint32* DmaCmdBuffer::WriteCopyImageTiledToTiledCmd(
     // SDMA engine can either read a compressed source or write to a compressed destination, but not both.
     const bool  srcHasMetaData = ImageHasMetaData(src);
     const bool  dstHasMetaData = ImageHasMetaData(dst);
-    const bool  metaIsSrc      = ((srcHasMetaData && dstHasMetaData && settings.sdmaPreferCompressedSource) ||
+    const bool  metaIsSrc      = ((srcHasMetaData && dstHasMetaData && GetSettingPreferCompressedSource()) ||
                                   (srcHasMetaData && (dstHasMetaData == false)));
 
     // If both surfaces are compressed and the panel requests compressed sources -or-
@@ -1082,7 +1098,7 @@ uint32* DmaCmdBuffer::WriteCopyLinearImageToMemCmd(
 }
 
 // =====================================================================================================================
-uint32*  DmaCmdBuffer::BuildUpdateMemoryPacket(
+uint32* DmaCmdBuffer::BuildUpdateMemoryPacket(
     gpusize        dstAddr,
     uint32         dwordsToWrite,
     const uint32*  pSrcData,
@@ -1324,9 +1340,9 @@ uint32* DmaCmdBuffer::WriteNops(
 //
 template <typename PacketName>
 void DmaCmdBuffer::SetupMetaData(
-    const DmaImageInfo&  image,
-    PacketName*          pPacket,
-    bool                 imageIsDst)
+    const DmaImageInfo& image,
+    PacketName*         pPacket,
+    bool                imageIsDst)
 {
     const Pal::Image*   pPalImage  = static_cast<const Pal::Image*>(image.pImage);
     const Pal::Device*  pPalDevice = pPalImage->GetDevice();
@@ -1432,8 +1448,8 @@ void DmaCmdBuffer::SetupMetaData(
 
 // =====================================================================================================================
 uint32* DmaCmdBuffer::UpdateImageMetaData(
-    const DmaImageInfo&  image,
-    uint32*              pCmdSpace)
+    const DmaImageInfo& image,
+    uint32*             pCmdSpace)
 {
     const Pal::Image*           pPalImage  = static_cast<const Pal::Image*>(image.pImage);
     const Image*                pGfxImage  = static_cast<const Image*>(pPalImage->GetGfxImage());
@@ -1547,13 +1563,18 @@ uint32* DmaCmdBuffer::CopyImageLinearTiledTransform(
                                                 GetCpvFromCachePolicy(pCachePolicy->tile_cache_policy);
     }
 
-    SetupMetaData(tiledImg, &packet, (deTile == false));
+    const bool hasMetadata = ImageHasMetaData(tiledImg);
+
+    if (hasMetadata)
+    {
+        SetupMetaData(tiledImg, &packet, (deTile == false));
+    }
 
     auto*const   pPacket = reinterpret_cast<SDMA_PKT_COPY_TILED_SUBWIN*>(pCmdSpace);
     *pPacket   = packet;
     pCmdSpace += PacketDwords;
 
-    if (deTile == false)
+    if (hasMetadata && (deTile == false))
     {
         pCmdSpace = UpdateImageMetaData(tiledImg, pCmdSpace);
     }
@@ -1643,13 +1664,18 @@ uint32* DmaCmdBuffer::CopyImageMemTiledTransform(
                                                 GetCpvFromCachePolicy(pCachePolicy->tile_cache_policy);
     }
 
-    SetupMetaData(image, &packet, (deTile == false));
+    const bool hasMetadata = ImageHasMetaData(image);
+
+    if (hasMetadata)
+    {
+        SetupMetaData(image, &packet, (deTile == false));
+    }
 
     auto*const  pPacket = reinterpret_cast<SDMA_PKT_COPY_TILED_SUBWIN*>(pCmdSpace);
     *pPacket   = packet;
     pCmdSpace += PacketDwords;
 
-    if (deTile == false)
+    if (hasMetadata && (deTile == false))
     {
         pCmdSpace = UpdateImageMetaData(image, pCmdSpace);
     }

@@ -288,6 +288,9 @@ public:
     /// Advances the iterator to the next position (move forward).
     void Next();
 
+    /// Resets the iterator to its starting point.
+    void Reset();
+
 private:
     HashIterator(const Container* pHashContainer, uint32 startBucket);
 
@@ -327,7 +330,7 @@ private:
  * pretty much always, so packing the items together would not be a significant gain, and the cost in memory usage is
  * (relatively) small.
  *
- * The initial hash container will use up about (buckets * PAL_CACHE_LINE_BYTES) bytes.
+ * The initial hash container will use up about (buckets * GroupSize) bytes.
  ***********************************************************************************************************************
  */
 template<
@@ -365,7 +368,7 @@ protected:
     /// @internal Constructor
     ///
     /// @param [in] numBuckets Number of buckets to allocate for this hash container.  The initial hash container will
-    ///                        take (buckets * PAL_CACHELINE_BYTES) bytes.
+    ///                        take (buckets * GroupSize) bytes.
     /// @param [in] pAllocator The allocator that will allocate memory if required.
     explicit HashBase(uint32 numBuckets, Allocator*const pAllocator);
     virtual ~HashBase() { PAL_SAFE_FREE(m_pMemory, &m_allocator); }

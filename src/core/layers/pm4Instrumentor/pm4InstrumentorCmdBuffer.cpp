@@ -60,7 +60,6 @@ CmdBuffer::CmdBuffer(
     m_funcTable.pfnCmdDispatch                 = CmdDispatchDecorator;
     m_funcTable.pfnCmdDispatchIndirect         = CmdDispatchIndirectDecorator;
     m_funcTable.pfnCmdDispatchOffset           = CmdDispatchOffsetDecorator;
-    m_funcTable.pfnCmdDispatchDynamic          = CmdDispatchDynamicDecorator;
 }
 
 // =====================================================================================================================
@@ -351,35 +350,31 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndexedDecorator(
 
 // =====================================================================================================================
 void PAL_STDCALL CmdBuffer::CmdDrawIndirectMultiDecorator(
-    ICmdBuffer*       pCmdBuffer,
-    const IGpuMemory& gpuMemory,
-    gpusize           offset,
-    uint32            stride,
-    uint32            maximumCount,
-    gpusize           countGpuAddr)
+    ICmdBuffer*          pCmdBuffer,
+    GpuVirtAddrAndStride gpuVirtAddrAndStride,
+    uint32               maximumCount,
+    gpusize              countGpuAddr)
 {
     CmdBuffer*const  pThis = static_cast<CmdBuffer*>(pCmdBuffer);
     ICmdBuffer*const pNext = pThis->GetNextLayer();
 
     pThis->PreDrawCall();
-    pNext->CmdDrawIndirectMulti(*NextGpuMemory(&gpuMemory), offset, stride, maximumCount, countGpuAddr);
+    pNext->CmdDrawIndirectMulti(gpuVirtAddrAndStride, maximumCount, countGpuAddr);
     pThis->PostDrawCall(CmdBufCallId::CmdDrawIndirectMulti);
 }
 
 // =====================================================================================================================
 void PAL_STDCALL CmdBuffer::CmdDrawIndexedIndirectMultiDecorator(
-    ICmdBuffer*       pCmdBuffer,
-    const IGpuMemory& gpuMemory,
-    gpusize           offset,
-    uint32            stride,
-    uint32            maximumCount,
-    gpusize           countGpuAddr)
+    ICmdBuffer*          pCmdBuffer,
+    GpuVirtAddrAndStride gpuVirtAddrAndStride,
+    uint32               maximumCount,
+    gpusize              countGpuAddr)
 {
     CmdBuffer*const  pThis = static_cast<CmdBuffer*>(pCmdBuffer);
     ICmdBuffer*const pNext = pThis->GetNextLayer();
 
     pThis->PreDrawCall();
-    pNext->CmdDrawIndexedIndirectMulti(*NextGpuMemory(&gpuMemory), offset, stride, maximumCount, countGpuAddr);
+    pNext->CmdDrawIndexedIndirectMulti(gpuVirtAddrAndStride, maximumCount, countGpuAddr);
     pThis->PostDrawCall(CmdBufCallId::CmdDrawIndexedIndirectMulti);
 }
 
@@ -399,14 +394,13 @@ void PAL_STDCALL CmdBuffer::CmdDispatchDecorator(
 // =====================================================================================================================
 void PAL_STDCALL CmdBuffer::CmdDispatchIndirectDecorator(
     ICmdBuffer*       pCmdBuffer,
-    const IGpuMemory& gpuMemory,
-    gpusize           offset)
+    gpusize           gpuVirtAddr)
 {
     CmdBuffer*const  pThis = static_cast<CmdBuffer*>(pCmdBuffer);
     ICmdBuffer*const pNext = pThis->GetNextLayer();
 
     pThis->PreDispatchCall();
-    pNext->CmdDispatchIndirect(*NextGpuMemory(&gpuMemory), offset);
+    pNext->CmdDispatchIndirect(gpuVirtAddr);
     pThis->PostDispatchCall(CmdBufCallId::CmdDispatchIndirect);
 }
 
@@ -423,20 +417,6 @@ void PAL_STDCALL CmdBuffer::CmdDispatchOffsetDecorator(
     pThis->PreDispatchCall();
     pNext->CmdDispatchOffset(offset, launchSize, logicalSize);
     pThis->PostDispatchCall(CmdBufCallId::CmdDispatchOffset);
-}
-
-// =====================================================================================================================
-void PAL_STDCALL CmdBuffer::CmdDispatchDynamicDecorator(
-    ICmdBuffer*  pCmdBuffer,
-    gpusize      gpuVa,
-    DispatchDims size)
-{
-    CmdBuffer* const  pThis = static_cast<CmdBuffer*>(pCmdBuffer);
-    ICmdBuffer* const pNext = pThis->GetNextLayer();
-
-    pThis->PreDispatchCall();
-    pNext->CmdDispatchDynamic(gpuVa, size);
-    pThis->PostDispatchCall(CmdBufCallId::CmdDispatchDynamic);
 }
 
 // =====================================================================================================================
@@ -1503,13 +1483,12 @@ void CmdBuffer::CmdRestoreComputeState(
 // =====================================================================================================================
 void CmdBuffer::CmdExecuteIndirectCmds(
     const IIndirectCmdGenerator& generator,
-    const IGpuMemory&            gpuMemory,
-    gpusize                      offset,
+    gpusize                      gpuVirtAddr,
     uint32                       maximumCount,
     gpusize                      countGpuAddr)
 {
     PreCall();
-    CmdBufferFwdDecorator::CmdExecuteIndirectCmds(generator, gpuMemory, offset, maximumCount, countGpuAddr);
+    CmdBufferFwdDecorator::CmdExecuteIndirectCmds(generator, gpuVirtAddr, maximumCount, countGpuAddr);
     PostCall(CmdBufCallId::CmdExecuteIndirectCmds);
 }
 

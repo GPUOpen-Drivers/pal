@@ -686,7 +686,7 @@ void LogContext::Struct(
     }
 #endif
 
-    static_assert(CheckReservedBits<decltype(value.flags)>(32, 16), "Update interfaceLogger!");
+    static_assert(CheckReservedBits<decltype(value.flags)>(32, 15), "Update interfaceLogger!");
 
     EndList();
 
@@ -735,9 +735,9 @@ void LogContext::Struct(
         Value("realtimeComputeUnits");
     }
 
-    if (value.flags.realtimeComputeUnits)
+    if (value.flags.dispatchTunneling)
     {
-        Value("realtimeComputeUnits");
+        Value("dispatchTunneling");
     }
 
     static_assert(CheckReservedBits<decltype(value.flags)>(32, 28), "Update CmdBufferCreateInfo interfaceLogger!");
@@ -2661,7 +2661,6 @@ void LogContext::Struct(
 {
     BeginMap(false);
     KeyAndValue("clientInternal", value.clientInternal);
-    KeyAndValue("supportDynamicDispatch", value.supportDynamicDispatch);
     EndMap();
 
     static_assert(CheckReservedBits<decltype(value)>(32, 29), "Update PipelineCreateFlags interfaceLogger!");

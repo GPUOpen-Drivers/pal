@@ -80,7 +80,6 @@ CmdBuffer::CmdBuffer(
     m_funcTable.pfnCmdDispatch                  = CmdDispatchDecorator;
     m_funcTable.pfnCmdDispatchIndirect          = CmdDispatchIndirectDecorator;
     m_funcTable.pfnCmdDispatchOffset            = CmdDispatchOffsetDecorator;
-    m_funcTable.pfnCmdDispatchDynamic           = CmdDispatchDynamicDecorator;
     m_funcTable.pfnCmdDispatchMesh              = CmdDispatchMeshDecorator;
     m_funcTable.pfnCmdDispatchMeshIndirectMulti = CmdDispatchMeshIndirectMultiDecorator;
 }
@@ -428,41 +427,37 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndexedDecorator(
 
 // =====================================================================================================================
 void PAL_STDCALL CmdBuffer::CmdDrawIndirectMultiDecorator(
-    ICmdBuffer*       pCmdBuffer,
-    const IGpuMemory& gpuMemory,
-    gpusize           offset,
-    uint32            stride,
-    uint32            maximumCount,
-    gpusize           countGpuAddr)
+    ICmdBuffer*          pCmdBuffer,
+    GpuVirtAddrAndStride gpuVirtAddrAndStride,
+    uint32               maximumCount,
+    gpusize              countGpuAddr)
 {
     const char          markerName[]   = "DrawIndirectMulti";
     constexpr uint32    markerNameSize = static_cast<uint32>(sizeof(markerName) - 1);
     CmdBuffer*const     pThis          = static_cast<CmdBuffer*>(pCmdBuffer);
 
     pThis->InsertBeginMarker(MarkerSource::Pal, &markerName[0], markerNameSize);
-    pThis->GetNextLayer()->CmdDrawIndirectMulti(*NextGpuMemory(&gpuMemory), offset, stride, maximumCount, countGpuAddr);
+    pThis->GetNextLayer()->CmdDrawIndirectMulti(gpuVirtAddrAndStride,
+                                                maximumCount,
+                                                countGpuAddr);
     pThis->InsertEndMarker(MarkerSource::Pal);
 }
 
 // =====================================================================================================================
 void PAL_STDCALL CmdBuffer::CmdDrawIndexedIndirectMultiDecorator(
-    ICmdBuffer*       pCmdBuffer,
-    const IGpuMemory& gpuMemory,
-    gpusize           offset,
-    uint32            stride,
-    uint32            maximumCount,
-    gpusize           countGpuAddr)
+    ICmdBuffer*          pCmdBuffer,
+    GpuVirtAddrAndStride gpuVirtAddrAndStride,
+    uint32               maximumCount,
+    gpusize              countGpuAddr)
 {
     const char          markerName[]   = "DrawIndexedIndirectMulti";
     constexpr uint32    markerNameSize = static_cast<uint32>(sizeof(markerName) - 1);
     CmdBuffer*const     pThis          = static_cast<CmdBuffer*>(pCmdBuffer);
 
     pThis->InsertBeginMarker(MarkerSource::Pal, &markerName[0], markerNameSize);
-    pThis->GetNextLayer()->CmdDrawIndexedIndirectMulti(*NextGpuMemory(&gpuMemory),
-                                                       offset,
-                                                       stride,
-                                                       maximumCount,
-                                                       countGpuAddr);
+    pThis->GetNextLayer()->CmdDrawIndirectMulti(gpuVirtAddrAndStride,
+                                                maximumCount,
+                                                countGpuAddr);
     pThis->InsertEndMarker(MarkerSource::Pal);
 }
 
@@ -482,16 +477,15 @@ void PAL_STDCALL CmdBuffer::CmdDispatchDecorator(
 
 // =====================================================================================================================
 void PAL_STDCALL CmdBuffer::CmdDispatchIndirectDecorator(
-    ICmdBuffer*       pCmdBuffer,
-    const IGpuMemory& gpuMemory,
-    gpusize           offset)
+    ICmdBuffer* pCmdBuffer,
+    gpusize     gpuVirtAddr)
 {
     const char          markerName[]   = "DispatchIndirect";
     constexpr uint32    markerNameSize = static_cast<uint32>(sizeof(markerName) - 1);
     CmdBuffer*const     pThis          = static_cast<CmdBuffer*>(pCmdBuffer);
 
     pThis->InsertBeginMarker(MarkerSource::Pal, &markerName[0], markerNameSize);
-    pThis->GetNextLayer()->CmdDispatchIndirect(*NextGpuMemory(&gpuMemory), offset);
+    pThis->GetNextLayer()->CmdDispatchIndirect(gpuVirtAddr);
     pThis->InsertEndMarker(MarkerSource::Pal);
 }
 
@@ -512,21 +506,6 @@ void PAL_STDCALL CmdBuffer::CmdDispatchOffsetDecorator(
 }
 
 // =====================================================================================================================
-void PAL_STDCALL CmdBuffer::CmdDispatchDynamicDecorator(
-    ICmdBuffer*  pCmdBuffer,
-    gpusize      gpuVa,
-    DispatchDims size)
-{
-    const char          markerName[]   = "DispatchDynamic";
-    constexpr uint32    markerNameSize = static_cast<uint32>(sizeof(markerName) - 1);
-    CmdBuffer*const     pThis          = static_cast<CmdBuffer*>(pCmdBuffer);
-
-    pThis->InsertBeginMarker(MarkerSource::Pal, &markerName[0], markerNameSize);
-    pThis->GetNextLayer()->CmdDispatchDynamic(gpuVa, size);
-    pThis->InsertEndMarker(MarkerSource::Pal);
-}
-
-// =====================================================================================================================
 void PAL_STDCALL CmdBuffer::CmdDispatchMeshDecorator(
     ICmdBuffer*  pCmdBuffer,
     DispatchDims size)
@@ -542,21 +521,17 @@ void PAL_STDCALL CmdBuffer::CmdDispatchMeshDecorator(
 
 // =====================================================================================================================
 void PAL_STDCALL CmdBuffer::CmdDispatchMeshIndirectMultiDecorator(
-    ICmdBuffer*       pCmdBuffer,
-    const IGpuMemory& gpuMemory,
-    gpusize           offset,
-    uint32            stride,
-    uint32            maximumCount,
-    gpusize           countGpuAddr)
+    ICmdBuffer*          pCmdBuffer,
+    GpuVirtAddrAndStride gpuVirtAddrAndStride,
+    uint32               maximumCount,
+    gpusize              countGpuAddr)
 {
     const char          markerName[]   = "DispatchMeshIndirectMultiDecorator";
     constexpr uint32    markerNameSize = static_cast<uint32>(sizeof(markerName) - 1);
     CmdBuffer*const     pThis          = static_cast<CmdBuffer*>(pCmdBuffer);
 
     pThis->InsertBeginMarker(MarkerSource::Pal, &markerName[0], markerNameSize);
-    pThis->GetNextLayer()->CmdDispatchMeshIndirectMulti(*NextGpuMemory(&gpuMemory),
-                                                        offset,
-                                                        stride,
+    pThis->GetNextLayer()->CmdDispatchMeshIndirectMulti(gpuVirtAddrAndStride,
                                                         maximumCount,
                                                         countGpuAddr);
     pThis->InsertEndMarker(MarkerSource::Pal);

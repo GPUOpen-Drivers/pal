@@ -233,6 +233,7 @@ void StreamoutStatsQueryPool::End(
 // =====================================================================================================================
 // Adds the PM4 commands needed to stall the ME until the results of the query range are in memory.
 void StreamoutStatsQueryPool::WaitForSlots(
+    GfxCmdBuffer*   pCmdBuffer,
     Pal::CmdStream* pCmdStream,
     uint32          startQuery,
     uint32          queryCount

@@ -622,14 +622,5 @@ void Pm4Optimizer::IssueHotRegisterReport(
 }
 #endif
 
-// =====================================================================================================================
-// Handle registers that are part of a dynamic launch descriptor
-void Pm4Optimizer::HandleDynamicLaunchDesc()
-{
-    for (uint32 i = 0; i < DynamicCsLaunchDescRegCount; ++i)
-    {
-        m_shRegs.state[DynamicCsLaunchDescRegOffsets[i] - PERSISTENT_SPACE_START].flags.valid = 0;
-    }
-}
 } // Gfx9
 } // Pal

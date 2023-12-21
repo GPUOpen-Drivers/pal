@@ -82,4 +82,6 @@ void DevDriverFree(
     void* pUserdata,
     void* pMemory);
 
+Result DdResultToPalResult(DD_RESULT ddResult);
+
 } // Pal

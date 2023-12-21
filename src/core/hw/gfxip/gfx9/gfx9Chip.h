@@ -29,6 +29,7 @@
 #include "palAssert.h"
 #include "palInlineFuncs.h"
 #include "palCmdBuffer.h"
+#include "palMetroHash.h"
 #include "palPipelineAbi.h"
 #include "palSparseVector.h"
 #include "palLiterals.h"
@@ -598,6 +599,9 @@ struct GraphicsPipelineSignature
     // Register address for passing the 32-bit GPU virtual address of the color export shader entry
     uint16  colorExportAddr;
 
+    // Register address for dynamicDualSourceBlend
+    uint16  dualSourceBlendInfoRegAddr;
+
     // First user-data entry which is spilled to GPU memory. A value of 'NoUserDataSpilling' indicates the pipeline
     // does not spill user-data entries to memory.
     uint16  spillThreshold;
@@ -606,6 +610,9 @@ struct GraphicsPipelineSignature
     // of the highest user-data entry accessed by the pipeline.
     uint16  userDataLimit;
 
+    // Register address for passing 32-bit flag which controls the outputting of generated primitives counts.
+    uint16  primsNeededCntAddr;
+
     // Address of each shader stage's user-SGPR for view ID.  This is a compacted list, so it is not safe to assume
     // that each index of this array corresponds to the associated HW shader stage enum value.
     uint16  viewIdRegAddr[NumHwShaderStagesGfx];
@@ -613,6 +620,19 @@ struct GraphicsPipelineSignature
     // Hash of each stages user-data mapping, used to speed up pipeline binds.
     uint64  userDataHash[NumHwShaderStagesGfx];
 };
+
+// =====================================================================================================================
+// Compute a hash of the user data mapping
+static uint64 ComputeUserDataHash(
+    const UserDataEntryMap* pStage)
+{
+    uint64 hash = 0;
+    Util::MetroHash64::Hash(
+        reinterpret_cast<const uint8*>(pStage),
+        sizeof(UserDataEntryMap),
+        reinterpret_cast<uint8* const>(&hash));
+    return hash;
+}
 
 // User-data signature for an unbound graphics pipeline.
 extern const GraphicsPipelineSignature NullGfxSignature;
@@ -646,42 +666,6 @@ constexpr uint32 MaxNumPwsSyncEvents = 64;
 #endif
 
 constexpr uint32 Gfx103UcodeVersionLoadShRegIndexIndirectAddr = 39;
-
-// =====================================================================================================================
-// Layout of a compute launch descriptor in GPU memory.  A launch descriptor is just a LOAD_SH_REG_INDEX packet pointing
-// to GPU memory where the registers are loaded from.  This structure defines the layout of the GPU memory pointed-to
-// by the "descriptor".
-struct DynamicCsLaunchDescLayout
-{
-    uint32                     mmComputePgmLo;
-    regCOMPUTE_PGM_LO          computePgmLo;
-
-    uint32                     mmComputePgmRsrc1;
-    regCOMPUTE_PGM_RSRC1       computePgmRsrc1;
-
-    uint32                     mmComputePgmRsrc2;
-    regCOMPUTE_PGM_RSRC2       computePgmRsrc2;
-
-    uint32                     mmComputeUserData0;
-    regCOMPUTE_USER_DATA_0     userDataInternalTable;
-
-    // GFX10+
-    uint32                     mmComputePgmRsrc3;
-    regCOMPUTE_PGM_RSRC3       computePgmRsrc3;
-};
-
-constexpr uint32 DynamicCsLaunchDescRegOffsets[] =
-{
-    mmCOMPUTE_PGM_LO,
-    mmCOMPUTE_PGM_RSRC1,
-    mmCOMPUTE_PGM_RSRC2,
-    mmCOMPUTE_USER_DATA_0,
-    Gfx10Plus::mmCOMPUTE_PGM_RSRC3,
-};
-
-constexpr uint32 DynamicCsLaunchDescRegCount = Util::ArrayLen32(DynamicCsLaunchDescRegOffsets);
-static_assert(DynamicCsLaunchDescRegCount == sizeof(DynamicCsLaunchDescLayout) / (2 * sizeof(uint32)),
-              "Unexpected number of DynamicCsLaunchDesc registers!");
 
 // Abstract cache sync flags modeled after the hardware GCR flags.The "Glx" flags apply to the GL2, GL1, and L0 caches
 // which are accessable from both graphics and compute engines.

@@ -57,8 +57,6 @@ bool QueryAppContentDistributionId(
                 constexpr size_t contsBufferSize = 250;
                 char contentDistributionChart[contsBufferSize] = {0};
 
-                PAL_ASSERT(bufferLength > contsBufferSize);
-
                 Util::Strncpy(contentDistributionChart, pEnvVarName[id], contsBufferSize);
                 Util::Strncat(contentDistributionChart, contsBufferSize, ":");
                 Util::Strncat(contentDistributionChart, contsBufferSize, pEnvVarValue);

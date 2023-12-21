@@ -67,6 +67,8 @@ void GpuMemory::TranslateHeapInfo(
     GpuHeap*                   pOutHeaps,
     uint32*                    pOutHeapCount)
 {
+    bool cpuInvisible = createInfo.flags.cpuInvisible;
+
     switch (createInfo.heapAccess)
     {
     case GpuHeapAccess::GpuHeapAccessExplicit:
@@ -76,6 +78,8 @@ void GpuMemory::TranslateHeapInfo(
         {
             if ((heap == 0) || (createInfo.heaps[heap] != GpuHeapGartCacheable))
             {
+                cpuInvisible |= (createInfo.heaps[heap] == GpuHeap::GpuHeapInvisible);
+
                 pOutHeaps[(*pOutHeapCount)++] = createInfo.heaps[heap];
             }
             else
@@ -87,6 +91,8 @@ void GpuMemory::TranslateHeapInfo(
         break;
     case GpuHeapAccess::GpuHeapAccessCpuNoAccess:
     {
+        cpuInvisible = true;
+
         // declarative heap selection; memory does not need to be CPU accessible
         const GpuChipProperties& chipProps = device.ChipProperties();
         switch (chipProps.gpuType)
@@ -196,6 +202,32 @@ void GpuMemory::TranslateHeapInfo(
                               pOutHeaps,
                               pOutHeapCount,
                               createInfo.flags.tmzProtected);
+        }
+    }
+
+    // Disallow local heaps for CPU-accessible memory if requested by setting.
+    if (device.Settings().forceCpuAccessibleAllocationsToNonLocal && (cpuInvisible == false))
+    {
+        PAL_ASSERT(*pOutHeapCount > 0);
+
+        const uint32 preFilterCount = *pOutHeapCount;
+        *pOutHeapCount = 0;
+
+        for (uint32 i = 0; i < preFilterCount; i++)
+        {
+            if ((pOutHeaps[i] != GpuHeap::GpuHeapLocal) &&
+                (pOutHeaps[i] != GpuHeap::GpuHeapInvisible))
+            {
+                pOutHeaps[*pOutHeapCount] = pOutHeaps[i];
+                (*pOutHeapCount)++;
+            }
+        }
+
+        // If we filtered out all the heaps, add a single GartUswc heap choice.
+        if (*pOutHeapCount == 0)
+        {
+            pOutHeaps[0]   = GpuHeap::GpuHeapGartUswc;
+            *pOutHeapCount = 1;
         }
     }
 }
@@ -595,7 +627,7 @@ Result GpuMemory::Init(
     m_flags.gpuReadOnly          = internalInfo.flags.gpuReadOnly;
     m_flags.kmdShareUmdSysMem    = createInfo.flags.kmdShareUmdSysMem;
 #if PAL_AMDGPU_BUILD
-    m_flags.initializeToZero    =  createInfo.flags.initializeToZero;
+    m_flags.initializeToZero     =  createInfo.flags.initializeToZero;
 #endif
 
     if (IsClient() == false)
@@ -1196,14 +1228,14 @@ void GpuMemory::DestroyInternal()
 }
 
 // =====================================================================================================================
-// Set mapppedToPeerMemory flag for virtual GPU memory when mapped to peer real memory.
-void GpuMemory::SetMapDestPeerMem(GpuMemory* pMapDestPeerMem)
+// Set mappedToPeerMemory flag for virtual GPU memory when mapped to peer real memory.
+void GpuMemory::SetMapDestPeerMem(
+    GpuMemory* pMapDestPeerMem)
 {
-    // The p2p workaround only supports one mapping per virtual GPU memory object.
     PAL_ASSERT(pMapDestPeerMem->IsPeer());
     PAL_ASSERT((m_pMapDestPeerMem == nullptr) || (m_pMapDestPeerMem == pMapDestPeerMem));
     m_pMapDestPeerMem = pMapDestPeerMem;
-    m_flags.mapppedToPeerMemory = 1;
+    m_flags.mappedToPeerMemory = 1;
 }
 
 // =====================================================================================================================

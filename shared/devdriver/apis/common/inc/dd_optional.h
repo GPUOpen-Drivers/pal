@@ -50,6 +50,8 @@ private:
     bool                   m_hasValue;
 
 public:
+    using ValueType = T;
+
     constexpr Optional() noexcept
         : m_hasValue(false)
     {}
@@ -118,7 +120,7 @@ public:
         return m_value;
     }
 
-    constexpr std::remove_const_t<T> ValueOr(T& defaultValue) const&
+    constexpr std::remove_const_t<T> ValueOr(const T& defaultValue) const&
     {
         if (HasValue())
         {
@@ -165,11 +167,35 @@ template<typename T1, typename T2>
 constexpr bool operator==(const Optional<T1>& left, const Optional<T2>& right) noexcept
 {
     return (left.HasValue() && right.HasValue()) ?
-        (left.Value() == right.Value()) : (left.Value() == right.Value());
+        (left.Value() == right.Value()) : (left.Empty() == right.Empty());
+}
+
+template<typename T1, typename T2>
+constexpr bool operator==(const Optional<T1>& left, const T2& right) noexcept
+{
+    return (left.HasValue() && (left.Value() == right));
+}
+
+template<typename T1, typename T2>
+constexpr bool operator==(const T1& left, const Optional<T2>& right) noexcept
+{
+    return (right.HasValue() && (left == right.Value()));
 }
 
 template<typename T1, typename T2>
 constexpr bool operator!=(const Optional<T1>& left, const Optional<T2>& right) noexcept
+{
+    return !(left == right);
+}
+
+template<typename T1, typename T2>
+constexpr bool operator!=(const Optional<T1>& left, const T2& right) noexcept
+{
+    return !(left == right);
+}
+
+template<typename T1, typename T2>
+constexpr bool operator!=(const T1& left, const Optional<T2>& right) noexcept
 {
     return !(left == right);
 }

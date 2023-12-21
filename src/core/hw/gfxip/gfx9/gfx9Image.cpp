@@ -1113,30 +1113,15 @@ Result Image::CreateDccObject(
 // to force decompressions which will force image-replacement in the copy code.
 bool Image::DoesImageSupportCopyCompression() const
 {
-    const Platform&   platform            = *m_device.GetPlatform();
-    const GfxIpLevel  gfxLevel            = m_device.ChipProperties().gfxLevel;
-    ChNumFormat       copyFormat          = m_createInfo.swizzledFormat.format;
-    bool              supportsCompression = true;
+    const Platform&               platform   = *m_device.GetPlatform();
+    const GfxIpLevel              gfxLevel   = m_device.ChipProperties().gfxLevel;
+    const MergedFlatFmtInfo*const pFmtInfo   = MergedChannelFlatFmtInfoTbl(gfxLevel, &platform.PlatformSettings());
+    ChNumFormat                   copyFormat = m_createInfo.swizzledFormat.format;
 
     // CmdCopyImageToMemory always forces sRGB to UNORM.
     copyFormat = IsSrgb(copyFormat) ? Formats::ConvertToUnorm(copyFormat) : copyFormat;
 
-    if (gfxLevel == GfxIpLevel::GfxIp9)
-    {
-        const auto*const      pFmtInfo        = MergedChannelFmtInfoTbl(gfxLevel, &platform.PlatformSettings());
-        const BUF_DATA_FORMAT hwBufferDataFmt = HwBufDataFmt(pFmtInfo, copyFormat);
-
-        supportsCompression = (hwBufferDataFmt != BUF_DATA_FORMAT_INVALID);
-    }
-    else
-    {
-        const auto*const pFmtInfo       = MergedChannelFlatFmtInfoTbl(gfxLevel, &platform.PlatformSettings());
-        const BUF_FMT    hwBufferFormat = HwBufFmt(pFmtInfo, copyFormat);
-
-        supportsCompression = (hwBufferFormat != BUF_FMT_INVALID);
-    }
-
-    return supportsCompression;
+    return (HwBufFmt(pFmtInfo, copyFormat) != BUF_FMT_INVALID);
 }
 
 // =====================================================================================================================
@@ -2236,6 +2221,15 @@ uint32 Image::GetTileSwizzle(
     ) const
 {
     return AddrMgr2::GetTileInfo(m_pParent, subresId)->pipeBankXor;
+}
+
+// =====================================================================================================================
+uint32 Image::GetHwSwizzleMode(
+    const SubResourceInfo* pSubResInfo
+    ) const
+{
+    const auto& addrSettings = GetAddrSettings(pSubResInfo);
+    return static_cast<const AddrMgr2::AddrMgr2*>(m_device.GetAddrMgr())->GetHwSwizzleMode(addrSettings.swizzleMode);
 }
 
 // =====================================================================================================================

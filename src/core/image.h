@@ -41,9 +41,6 @@ struct     PrivateScreenCreateInfo;
 struct     SubresId;
 enum class ImageAspect : uint32;
 
-// Maximum number of mipmap levels we expect to see in an Image.
-constexpr uint32 MaxImageMipLevels = 15;
-
 // Shift the 64-bit wide address by 8 to get 256 byte-aligned address, and return the low DWORD of that shifted
 // address.
 //
@@ -193,10 +190,10 @@ struct ImageInternalCreateInfo
     {
         struct
         {
-            AddrSwizzleMode    sharedSwizzleMode;               // Swizzle mode for shared iamge
-            uint32             sharedPipeBankXor[MaxNumPlanes]; // Pipe-bank-xor setting per plane for shared image
-            uint32             sharedPipeBankXorFmask;          // Pipe-bank-xor setting for fmask
-            DccState           sharedDccState;                  // DCC state shared
+            AddrSwizzleMode     sharedSwizzleMode;               // Swizzle mode for shared iamge
+            uint32              sharedPipeBankXor[MaxNumPlanes]; // Pipe-bank-xor setting per plane for shared image
+            uint32              sharedPipeBankXorFmask;          // Pipe-bank-xor setting for fmask
+            DccState            sharedDccState;                  // DCC state shared
         } gfx9;
     };
 

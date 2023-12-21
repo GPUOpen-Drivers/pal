@@ -39,6 +39,15 @@ function(add_flag_if_exists TARGET flag cachevarname)
 endfunction()
 
 function(pal_compiler_warnings_gnu_or_clang TARGET)
+
+    if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
+        if ("${CMAKE_CXX_COMPILER_VERSION}" VERSION_LESS "12.0.0")
+            # Clang largely supports C++20 from Clang 10, but the [[unlikely]] attribute is not supported
+            # until Clang 12. Suppress the warning caused by the use of [[unlikely]] in palAssert.h.
+            target_compile_options(${TARGET} PUBLIC -Wno-unknown-attributes)
+        endif()
+    endif()
+
     target_compile_options(${TARGET}
     PRIVATE
         # This turns off a lot of warnings related to unused code

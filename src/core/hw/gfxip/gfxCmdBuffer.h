@@ -110,7 +110,6 @@ struct ComputeState
     PipelineState            pipelineState;     // Common pipeline state
     DynamicComputeShaderInfo dynamicCsInfo;     // Info used during pipeline bind.
     UserDataEntries          csUserDataEntries;
-    gpusize                  dynamicLaunchGpuVa;
     uint8*                   pKernelArguments;
 };
 

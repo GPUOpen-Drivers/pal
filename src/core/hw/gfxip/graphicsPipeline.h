@@ -101,6 +101,7 @@ protected:
     bool IsFastClearEliminate() const { return m_flags.fastClearElim; }
     bool IsFmaskDecompress()    const { return m_flags.fmaskDecompress; }
     bool IsLateAllocVsLimit()   const { return m_flags.lateAllocVsLimit; }
+    bool IsPartialPipeline()    const { return m_flags.isPartialPipeline; }
     bool WritesDepth()          const { return m_flags.psWritesDepth; }
 
     void SetIsGsOnChip(bool onChip) { m_flags.isGsOnchip = onChip; }
@@ -148,7 +149,8 @@ private:
             uint32 psWritesUavs          :  1; // PS writes at least one UAV.
             uint32 primIdUsed            :  1; // One shader in this pipeline uses PrimID.
             uint32 reserved1             :  1;
-            uint32 reserved              : 11;
+            uint32 isPartialPipeline     :  1; // True if it is a partial pipeline in Graphics shader library
+            uint32 reserved              : 10;
         };
         uint32 u32All;
     } m_flags;

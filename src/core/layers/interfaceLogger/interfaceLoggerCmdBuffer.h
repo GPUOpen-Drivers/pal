@@ -477,8 +477,7 @@ public:
         uint32 stateFlags) override;
     virtual void CmdExecuteIndirectCmds(
         const IIndirectCmdGenerator& generator,
-        const IGpuMemory&            gpuMemory,
-        gpusize                      offset,
+        gpusize                      gpuVirtAddr,
         uint32                       maximumCount,
         gpusize                      countGpuAddr) override;
 
@@ -555,45 +554,34 @@ private:
         uint32      instanceCount,
         uint32      drawId);
     static void PAL_STDCALL CmdDrawIndirectMulti(
-        ICmdBuffer*       pCmdBuffer,
-        const IGpuMemory& gpuMemory,
-        gpusize           offset,
-        uint32            stride,
-        uint32            maximumCount,
-        gpusize           countGpuAddr);
+        ICmdBuffer*          pCmdBuffer,
+        GpuVirtAddrAndStride gpuVirtAddrAndStride,
+        uint32               maximumCount,
+        gpusize              countGpuAddr);
     static void PAL_STDCALL CmdDrawIndexedIndirectMulti(
-        ICmdBuffer*       pCmdBuffer,
-        const IGpuMemory& gpuMemory,
-        gpusize           offset,
-        uint32            stride,
-        uint32            maximumCount,
-        gpusize           countGpuAddr);
+        ICmdBuffer*          pCmdBuffer,
+        GpuVirtAddrAndStride gpuVirtAddrAndStride,
+        uint32               maximumCount,
+        gpusize              countGpuAddr);
     static void PAL_STDCALL CmdDispatch(
         ICmdBuffer*  pCmdBuffer,
         DispatchDims size);
     static void PAL_STDCALL CmdDispatchIndirect(
-        ICmdBuffer*       pCmdBuffer,
-        const IGpuMemory& gpuMemory,
-        gpusize           offset);
+        ICmdBuffer* pCmdBuffer,
+        gpusize     gpuVirtAddr);
     static void PAL_STDCALL CmdDispatchOffset(
         ICmdBuffer*  pCmdBuffer,
         DispatchDims offset,
         DispatchDims launchSize,
         DispatchDims logicalSize);
-    static void PAL_STDCALL CmdDispatchDynamic(
-        ICmdBuffer*  pCmdBuffer,
-        gpusize      gpuVa,
-        DispatchDims size);
     static void PAL_STDCALL CmdDispatchMesh(
         ICmdBuffer*  pCmdBuffer,
         DispatchDims size);
     static void PAL_STDCALL CmdDispatchMeshIndirectMulti(
-        ICmdBuffer*       pCmdBuffer,
-        const IGpuMemory& gpuMemory,
-        gpusize           offset,
-        uint32            stride,
-        uint32            maximumCount,
-        gpusize           countGpuAddr);
+        ICmdBuffer*          pCmdBuffer,
+        GpuVirtAddrAndStride gpuVirtAddrAndStride,
+        uint32               maximumCount,
+        gpusize              countGpuAddr);
 
     Platform*const   m_pPlatform;
     const uint32     m_objectId;

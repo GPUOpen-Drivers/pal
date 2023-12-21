@@ -123,6 +123,9 @@ constexpr uint32 Gfx11Rsrc3dThick256KBSwModeMask = Gfx11Rsrc3dThickSwModeMask & 
 
 #endif
 
+// Maximum number of mipmap levels of image in gfx9+.
+constexpr uint32 MaxImageMipLevels = 15;
+
 // Unique image tile token.
 union TileToken
 {

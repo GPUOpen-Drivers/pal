@@ -25,8 +25,11 @@
 
 #pragma once
 
-#include "palSettingsLoader.h"
+#include "dd_settings_base.h"
 #include "g_coreSettings.h"
+#include "palDevice.h"
+#include "palInlineFuncs.h"
+#include "palMetroHash.h"
 
 namespace Pal
 {
@@ -35,17 +38,22 @@ class Device;
 
 // =====================================================================================================================
 // This class is responsible for loading the PAL Core runtime settings structure specified in the constructor
-class SettingsLoader : public ISettingsLoader
+class SettingsLoader : public DevDriver::SettingsBase
 {
 public:
     explicit SettingsLoader(Device* pDevice);
     virtual ~SettingsLoader();
 
-    virtual Result Init() override;
+    Result Init();
     void FinalizeSettings();
 
     const PalSettings& GetSettings() const { return m_settings; }
     PalSettings* GetSettingsPtr() { return &m_settings; }
+
+    Util::MetroHash::Hash GetSettingsHash() const { return m_settingsHash; };
+
+    // auto-generated functions
+    virtual uint64 GetSettingsBlobHash() const override;
 
 protected:
     void ValidateSettings();
@@ -54,33 +62,30 @@ private:
     PAL_DISALLOW_COPY_AND_ASSIGN(SettingsLoader);
     PAL_DISALLOW_DEFAULT_CTOR(SettingsLoader);
 
-    virtual bool ReadSetting(
+    bool ReadSetting(
         const char*          pSettingName,
-        void*                pValue,
         Util::ValueType      valueType,
-        size_t               bufferSize,
-        InternalSettingScope settingType) override;
+        void*                pValue,
+        InternalSettingScope settingType,
+        size_t               bufferSize = 0);
 
     // Generate the settings hash which is based on HW-specific setting.
     void GenerateSettingHash();
 
     void OverrideDefaults();
 
-    #if PAL_ENABLE_PRINTS_ASSERTS
-        void InitDpLevelSettings();
-    #endif
+#if PAL_ENABLE_PRINTS_ASSERTS
+    void InitDpLevelSettings();
+#endif
 
-    Device*      m_pDevice;
-    PalSettings  m_settings;
+    Device* m_pDevice;
+    PalSettings m_settings;
+    Util::MetroHash::Hash m_settingsHash;
 
     // auto-generated functions
-    virtual void SetupDefaults() override;
+    virtual const char* GetComponentName() const override;
+    virtual DD_RESULT SetupDefaultsAndPopulateMap() override;
     virtual void ReadSettings() override;
-    virtual void RereadSettings() override;
-    virtual void InitSettingsInfo() override;
-    virtual void DevDriverRegister() override;
-
-    const char*const m_pComponentName;
 };
 
 } // Pal

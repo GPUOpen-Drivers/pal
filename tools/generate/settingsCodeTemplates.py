@@ -80,6 +80,7 @@ HeaderIncludes = """
 
 CppIncludes = """#include \"core/device.h\"
 #include \"core/settingsLoader.h\"
+#include \"palLiterals.h\"
 """
 
 IncludeDir = ""
@@ -94,6 +95,7 @@ DevDriverIncludes = """
 
 using namespace DevDriver::SettingsURIService;
 using namespace SettingsRpcService;
+using namespace Util::Literals;
 
 """
 

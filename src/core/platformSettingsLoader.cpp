@@ -23,20 +23,11 @@
  *
  **********************************************************************************************************************/
 
-#include "palHashMapImpl.h"
 #include "core/device.h"
 #include "core/platform.h"
 #include "core/platformSettingsLoader.h"
-#include "palInlineFuncs.h"
-#include "palSysMemory.h"
-
-#include "devDriverServer.h"
-#include "protocols/ddSettingsService.h"
-#include "settingsService.h"
-
-using namespace DevDriver::SettingsURIService;
-
-#include <limits.h>
+#include "core/devDriverUtil.h"
+#include "palDbgPrint.h"
 
 using namespace Util;
 
@@ -48,41 +39,23 @@ namespace Pal
 PlatformSettingsLoader::PlatformSettingsLoader(
     Platform* pPlatform)
     :
-    ISettingsLoader(pPlatform, static_cast<DriverSettings*>(&m_settings), g_palPlatformNumSettings),
-    m_pPlatform(pPlatform),
-    m_settings(),
-    m_pComponentName("Pal_Platform")
+    DevDriver::SettingsBase(&m_settings, sizeof(m_settings)),
+    m_pPlatform(pPlatform)
 {
-    memset(&m_settings, 0, sizeof(PalPlatformSettings));
 }
 
 // =====================================================================================================================
 PlatformSettingsLoader::~PlatformSettingsLoader()
 {
-    auto* pRpcSettingsService = m_pPlatform->GetSettingsService();
-    if (pRpcSettingsService != nullptr)
-    {
-        pRpcSettingsService->UnregisterComponent(m_pComponentName);
-    }
-
-    auto* pDevDriverServer = m_pPlatform->GetDevDriverServer();
-    if (pDevDriverServer != nullptr)
-    {
-        auto* pSettingsService = pDevDriverServer->GetSettingsService();
-        if (pSettingsService != nullptr)
-        {
-            pSettingsService->UnregisterComponent(m_pComponentName);
-        }
-    }
 }
 
 #if PAL_ENABLE_PRINTS_ASSERTS
 
 static struct DebugPrintSettingsTable
 {
-    SettingNameHash  hash;
-    const char*      pRegString;
-    DbgPrintCategory palCategory;
+    DD_SETTINGS_NAME_HASH  hash;
+    const char*            pRegString;
+    DbgPrintCategory       palCategory;
 } DbgPrintSettingsTbl[] =
 {
     3336086055, "Info",    DbgPrintCategory::DbgPrintCatInfoMsg,
@@ -145,149 +118,52 @@ void PlatformSettingsLoader::ReadAssertAndPrintSettings(
         }
     }
 }
+
 #endif
 
 // =====================================================================================================================
-// Performs required processing to set updated print and assert setting values.
-DevDriver::Result PlatformSettingsLoader::PerformSetValue(
-    SettingNameHash     hash,
-    const SettingValue& settingValue)
-{
-    DevDriver::Result ret = DevDriver::Result::NotReady;
-
-#if PAL_ENABLE_PRINTS_ASSERTS
-    for (uint32 dpTblIdx = 0; DbgPrintSettingsTbl[dpTblIdx].hash != 0; dpTblIdx++)
-    {
-        if (DbgPrintSettingsTbl[dpTblIdx].hash == hash)
-        {
-            PAL_ASSERT(settingValue.pValuePtr != nullptr);
-            DbgPrintMode* pNewMode = reinterpret_cast<DbgPrintMode*>(settingValue.pValuePtr);
-            SetDbgPrintMode(DbgPrintSettingsTbl[dpTblIdx].palCategory, *pNewMode);
-            ret = DevDriver::Result::Success;
-        }
-    }
-
-    for (uint32 idx = 0; AssertSettingsTbl[idx].hash != 0; idx++)
-    {
-        if (AssertSettingsTbl[idx].hash == hash)
-        {
-            PAL_ASSERT(settingValue.pValuePtr != nullptr);
-            bool* pEnable = reinterpret_cast<bool*>(settingValue.pValuePtr);
-            EnableAssertMode(AssertSettingsTbl[idx].category, *pEnable);
-            ret = DevDriver::Result::Success;
-        }
-    }
-#endif
-
-#if PAL_DEVELOPER_BUILD
-    constexpr uint32 CmdBufferLoggerAnnotations = 462141291;
-    constexpr uint32 CmdBufferLoggerSingleStepHash = 1570291248;
-    constexpr uint32 CmdBufferLoggerEmbedDrawDispatchInfo = 1801313176;
-    if ((hash == CmdBufferLoggerAnnotations) ||
-        (hash == CmdBufferLoggerSingleStepHash) ||
-        (hash == CmdBufferLoggerEmbedDrawDispatchInfo))
-    {
-        auto* pEmbedDrawDispatchInfo = m_settingsInfoMap.FindKey(CmdBufferLoggerEmbedDrawDispatchInfo);
-        if ((hash == CmdBufferLoggerEmbedDrawDispatchInfo) && (pEmbedDrawDispatchInfo != nullptr))
-        {
-            memcpy(pEmbedDrawDispatchInfo->pValuePtr, settingValue.pValuePtr, settingValue.valueSize);
-
-            auto* pInfo = m_settingsInfoMap.FindKey(CmdBufferLoggerAnnotations);
-            if (pInfo != nullptr)
-            {
-                constexpr uint32 NoAnnotations = 0;
-                memcpy(pInfo->pValuePtr, &NoAnnotations, pInfo->valueSize);
-            }
-            pInfo = m_settingsInfoMap.FindKey(CmdBufferLoggerSingleStepHash);
-            if (pInfo != nullptr)
-            {
-                constexpr uint32 NoSingleStepping = 0;
-                memcpy(pInfo->pValuePtr, &NoSingleStepping, pInfo->valueSize);
-            }
-
-            ret = DevDriver::Result::Success;
-        }
-        else if ((hash == CmdBufferLoggerSingleStepHash) || (hash == CmdBufferLoggerAnnotations))
-        {
-            bool embedDrawDispatchInfo = false;
-            if (pEmbedDrawDispatchInfo != nullptr)
-            {
-                embedDrawDispatchInfo = *static_cast<bool*>(pEmbedDrawDispatchInfo->pValuePtr);
-            }
-
-            auto* pInfo = m_settingsInfoMap.FindKey(hash);
-            if (pInfo != nullptr)
-            {
-                PAL_ASSERT(settingValue.pValuePtr != nullptr);
-                uint32 value = *static_cast<uint32*>(settingValue.pValuePtr);
-
-                if (embedDrawDispatchInfo)
-                {
-                    // Annotations and single-stepping is unsupported while embedding the draw/dispatch info
-                    // for external tooling.
-                    value = 0;
-                }
-                else if (hash == CmdBufferLoggerSingleStepHash)
-                {
-                    // If the user has requested any of the WaitIdle flags for the CmdBufferLogger,
-                    // we must enable the corresponding timestamp value as well.
-                    constexpr uint32 WaitIdleMask = 0x3E0;
-                    constexpr uint32 WaitIdleOffset = 5;
-                    if (TestAnyFlagSet(value, WaitIdleMask))
-                    {
-                        value |= (value >> WaitIdleOffset);
-                    }
-                }
-
-                memcpy(pInfo->pValuePtr, &value, settingValue.valueSize);
-                ret = DevDriver::Result::Success;
-            }
-        }
-    }
-#endif
-
-    return ret;
-}
-
-// =====================================================================================================================
-// Initializes the settings structure, setting default values, reading overrides and registering with the developer mode
-// (if available).
+// Initializes the settings structure, setting default values.
 Result PlatformSettingsLoader::Init()
 {
-    Result ret = m_settingsInfoMap.Init();
-
-    if (ret == Result::Success)
-    {
-        // Init Settings Info HashMap
-        InitSettingsInfo();
-
-        // setup default values for the settings.
-        SetupDefaults();
-
-        m_state = SettingsLoaderState::EarlyInit;
-
-        // Register with the DevDriver settings service
-        DevDriverRegister();
-    }
-
-    return ret;
+    DD_RESULT ddResult = SetupDefaultsAndPopulateMap();
+    return DdResultToPalResult(ddResult);
 }
 
 // =====================================================================================================================
 // Overrides defaults for the settings based on runtime information.
 void PlatformSettingsLoader::OverrideDefaults()
 {
-    // There are no current overrides for platform settings, just update our state.
-
-    m_state = SettingsLoaderState::LateInit;
+    // There are no current overrides for platform settings.
 }
 
 // =====================================================================================================================
 // Validates that the settings structure has legal values. Variables that require complicated initialization can also be
 // initialized here.
-void PlatformSettingsLoader::ValidateSettings()
+void PlatformSettingsLoader::ValidateSettings(
+    bool hasDdUserOverride)
 {
-    m_state = SettingsLoaderState::Final;
+#if PAL_ENABLE_PRINTS_ASSERTS
+    if (hasDdUserOverride)
+    {
+        // For DXCPanel, VkPanel, etc, the print-assert related settings are not part of any settings component, instead
+        // they are hard-coded in the panel code and are read directly in ReadAssertAndPrintSettings() by names. For
+        // DevDriver settings to achieve parity, the following settings are added to Platform settings component. They
+        // can only be updated via DevDriver network.
+        //
+        // To avoid accidentally override settings read in ReadAssertAndPrintSettings(), we only set print and assert
+        // here when we know developers are using DevDriver settings panel. `hasDdUserOverride` check should be removed
+        // once DXCPanel and the like are deprecated and removed.
+        EnableAssertMode(AssertCatAlert, m_settings.enableSoftAssert);
+        EnableAssertMode(AssertCatAssert, m_settings.enableHardAssert);
+
+        SetDbgPrintMode(DbgPrintCatInfoMsg, static_cast<DbgPrintMode>(m_settings.dbgPrintInfoMode));
+        SetDbgPrintMode(DbgPrintCatWarnMsg, static_cast<DbgPrintMode>(m_settings.dbgPrintWarnMode));
+        SetDbgPrintMode(DbgPrintCatErrorMsg, static_cast<DbgPrintMode>(m_settings.dbgPrintErrorMode));
+        SetDbgPrintMode(DbgPrintCatScMsg, static_cast<DbgPrintMode>(m_settings.dbgPrintScMsgMode));
+        SetDbgPrintMode(DbgPrintCatEventPrintMsg, static_cast<DbgPrintMode>(m_settings.dbgPrintEventMode));
+        SetDbgPrintMode(DbgPrintCatEventPrintCallbackMsg, static_cast<DbgPrintMode>(m_settings.dbgPrintEventCallbackMode));
+    }
+#endif
 
 #if PAL_ENABLE_LOGGING
     // Overrides debug log directory path to expected value.
@@ -306,6 +182,34 @@ void PlatformSettingsLoader::ValidateSettings()
     Snprintf(m_settings.dbgLoggerFileConfig.logDirectory, sizeof(m_settings.dbgLoggerFileConfig.logDirectory),
              "%s/%s", pRootPath, subDir);
 #endif
+
+#if PAL_DEVELOPER_BUILD
+    if (m_settings.cmdBufferLoggerConfig.embedDrawDispatchInfo)
+    {
+        // Annotations is unsupported while embedding the draw/dispatch info for external tooling.
+        m_settings.cmdBufferLoggerConfig.cmdBufferLoggerAnnotations = 0x0;
+    }
+#endif
+}
+
+// =====================================================================================================================
+bool PlatformSettingsLoader::ReadSetting(
+    const char*          pSettingName,
+    ValueType            valueType,
+    void*                pValue,
+    InternalSettingScope settingType,
+    size_t               bufferSize)
+{
+    PAL_ASSERT(m_pPlatform != nullptr);
+    Device* pDevice = m_pPlatform->GetDevice(0);
+    PAL_ASSERT(pDevice != nullptr);
+
+    return pDevice->ReadSetting(
+        pSettingName,
+        valueType,
+        pValue,
+        settingType,
+        bufferSize);
 }
 
 } // Pal

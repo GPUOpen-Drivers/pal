@@ -66,6 +66,11 @@ public:
         return (((m_flags.blendCommutative >> slot) & 0x1) != 0);
     }
 
+    uint32* HandleAlphaToCoverage(
+        CmdStream* pCmdStream,
+        bool       alphaToCoverageEnable,
+        uint32*    pCmdSpace) const;
+
 private:
     virtual ~ColorBlendState() { }
 

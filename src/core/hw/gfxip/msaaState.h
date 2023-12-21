@@ -25,6 +25,7 @@
 
 #pragma once
 
+#include "metrohash64.h"
 #include "palMsaaState.h"
 
 namespace Pal
@@ -37,9 +38,19 @@ class MsaaState : public IMsaaState
 public:
     virtual void Destroy() override { this->~MsaaState(); }
 
+    uint64 GetStableHash() const { return m_stableHash; }
+
 protected:
-    MsaaState() {}
+    MsaaState(
+        const MsaaStateCreateInfo& createInfo)
+    {
+        Util::MetroHash64::Hash(reinterpret_cast<const uint8*>(&createInfo),
+                                sizeof(createInfo),
+                                reinterpret_cast<uint8*>(&m_stableHash));
+    }
     virtual ~MsaaState() {}
+
+    uint64 m_stableHash;
 
 private:
     PAL_DISALLOW_COPY_AND_ASSIGN(MsaaState);

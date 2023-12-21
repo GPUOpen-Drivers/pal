@@ -179,8 +179,7 @@ void GfxCmdBuffer::DescribeDispatch(
     Developer::DrawDispatchType cmdType,
     DispatchDims                size)
 {
-    PAL_ASSERT((cmdType == Developer::DrawDispatchType::CmdDispatch)        ||
-               (cmdType == Developer::DrawDispatchType::CmdDispatchDynamic) ||
+    PAL_ASSERT((cmdType == Developer::DrawDispatchType::CmdDispatch) ||
                (cmdType == Developer::DrawDispatchType::CmdDispatchAce));
 
     RgpMarkerSubQueueFlags subQueueFlags { };
@@ -300,24 +299,16 @@ void GfxCmdBuffer::CmdCopyMemoryByGpuVa(
 {
     PAL_ASSERT(pRegions != nullptr);
 
-    // We cannot know if the the P2P PCI BAR work around is required for the destination memory, so set an error
-    // to make the client aware of the problem.
-    if (m_device.Parent()->ChipProperties().p2pBltWaInfo.required)
-    {
-        SetCmdRecordingError(Result::ErrorIncompatibleDevice);
-    }
-    else
-    {
-        m_device.RsrcProcMgr().CopyMemoryCs(this,
-                                            srcGpuVirtAddr,
-                                            *m_device.Parent(),
-                                            dstGpuVirtAddr,
-                                            *m_device.Parent(),
-                                            regionCount,
-                                            pRegions,
-                                            false,
-                                            nullptr);
-    }
+    m_device.RsrcProcMgr().CopyMemoryCs(this,
+                                        srcGpuVirtAddr,
+                                        *m_device.Parent(),
+                                        dstGpuVirtAddr,
+                                        *m_device.Parent(),
+                                        regionCount,
+                                        pRegions,
+                                        false,
+                                        true,
+                                        true);
 }
 
 // =====================================================================================================================

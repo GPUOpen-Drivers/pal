@@ -1201,10 +1201,12 @@ size_t CmdUtil::BuildCondIndirectBuffer(
     // We always implement both a "then" and an "else" clause
     packet.ordinal2.bitfields.mode = mode__pfp_cond_indirect_buffer__if_then_else;
 
-    // Make sure our comparison address is aligned properly
+    // Make sure our comparison address is aligned properly.
+    // Note that the packet definition makes it seem like 8 byte alignment is required, but only 4 is actually
+    // necessary.
+    PAL_ASSERT(IsPow2Aligned(compareGpuAddr, 4));
     packet.ordinal3.u32All          = LowPart(compareGpuAddr);
     packet.ordinal4.compare_addr_hi = HighPart(compareGpuAddr);
-    PAL_ASSERT(packet.ordinal3.bitfields.reserved1 == 0);
 
     packet.ordinal5.mask_lo      = LowPart(mask);
     packet.ordinal6.mask_hi      = HighPart(mask);

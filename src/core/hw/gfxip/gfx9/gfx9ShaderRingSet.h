@@ -100,7 +100,7 @@ struct ShaderRingMemory
     uint64      timestamp;      // last submitted timestamp value
 };
 
-typedef Util::Vector<ShaderRingMemory, 8, Platform> ShaderRingMemList;
+typedef Util::Deque<ShaderRingMemory, Platform> ShaderRingMemDeque;
 
 // =====================================================================================================================
 // A ShaderRingSet object contains all of the shader Rings used by command buffers which run on a particular Queue.
@@ -140,8 +140,7 @@ protected:
     const GfxIpLevel  m_gfxLevel;
     BoundGpuMemory    m_srdTableMem;
 
-    ShaderRingMemList m_deferredFreeMemList;
-    uint32            m_freedItemCount;
+    ShaderRingMemDeque m_deferredFreeMemDeque;
 
 private:
     PAL_DISALLOW_DEFAULT_CTOR(ShaderRingSet);

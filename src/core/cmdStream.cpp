@@ -107,12 +107,6 @@ CmdStream::CmdStream(
     // Cannot init flags bitfield in the initializer list.
     m_flags.value = 0;
 
-    if (engineInfo.flags.mustBuildCmdBuffersInSystemMem ||
-        (isNested && (engineInfo.flags.indirectBufferSupport == 0)))
-    {
-        m_flags.buildInSysMem = 1;
-    }
-
     // The autoMemoryReuse bit should be set based on m_pCmdAllocator.
     m_flags.autoMemoryReuse = (m_pCmdAllocator != nullptr) && (m_pCmdAllocator->AutomaticMemoryReuse());
 
@@ -131,6 +125,8 @@ CmdStream::CmdStream(
 
         m_flags.supportPreemption = m_flags.enablePreemption;
     }
+
+    m_flags.isNested = isNested;
 
 }
 
@@ -156,6 +152,8 @@ Result CmdStream::Begin(
 {
     m_flags.prefetchCommands = flags.prefetchCommands;
     m_flags.optimizeCommands = flags.optimizeCommands;
+
+    const auto& engineInfo = m_pDevice->EngineProperties().perEngine[m_engineType];
 
     // Save the caller's memory allocator for later use.
     m_pMemAllocator = pMemAllocator;

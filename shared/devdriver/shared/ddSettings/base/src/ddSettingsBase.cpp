@@ -254,7 +254,7 @@ DD_RESULT SettingsBase::ApplyUserOverrideImpl(
     DDSettingsValueRef valueRef = {};
     valueRef.hash = useroverride.nameHash;
     valueRef.type = useroverride.type;
-    valueRef.size = useroverride.size;
+    valueRef.size = static_cast<uint16_t>(useroverride.size);
 
     switch (useroverride.type)
     {

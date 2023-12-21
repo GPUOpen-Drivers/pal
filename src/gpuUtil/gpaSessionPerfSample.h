@@ -78,12 +78,13 @@ public:
     void SetCopySampleMemInfo(Pal::IGpuMemory* pSrcGpuMem, Pal::gpusize srcOffset);
     void SetSampleMemoryProperties(const GpuMemoryInfo& pGpuMemory, Pal::gpusize offset, Pal::gpusize buffersize);
 
-    GpuMemoryInfo    GetSampleDataGpuMem()     { return m_sampleDataGpuMemoryInfo; }
-    Pal::gpusize     GetGcSampleDataOffset()   { return m_gcSampleDataOffset; }
-    Pal::gpusize     GetGcSampleDataSize()     { return m_pGcSampleDataBufferSize; }
-    void*            GetPerfExpResults()       { return m_pPerfExpResults; }
-    Pal::IGpuMemory* GetCopySampleDataGpuMem() { return m_pCopySampleGpuMem; }
-    Pal::gpusize     GetCopySampleDataOffset() { return m_copySampleOffset; }
+    GpuMemoryInfo    GetSampleDataGpuMem()     const { return m_sampleDataGpuMemoryInfo; }
+    Pal::gpusize     GetGcSampleDataOffset()   const { return m_gcSampleDataOffset; }
+    Pal::gpusize     GetGcSampleDataSize()     const { return m_pGcSampleDataBufferSize; }
+    void*            GetPerfExpResults()             { return m_pPerfExpResults; }
+    const void*      GetPerfExpResults()       const { return m_pPerfExpResults; }
+    Pal::IGpuMemory* GetCopySampleDataGpuMem()       { return m_pCopySampleGpuMem; }
+    Pal::gpusize     GetCopySampleDataOffset() const { return m_copySampleOffset; }
 
     const SampleTraceApiInfo& GetSampleTraceApiInfo() const { return m_traceApiInfo; }
     void SetSampleTraceApiInfo(SampleTraceApiInfo traceApiInfo) { m_traceApiInfo = traceApiInfo; }
@@ -97,7 +98,13 @@ protected:
         m_pDevice(pDevice),
         m_pAllocator(pAllocator),
         m_pPerfExperiment(pPerfExperiment),
-        m_traceApiInfo()
+        m_sampleDataGpuMemoryInfo(),
+        m_gcSampleDataOffset(),
+        m_pGcSampleDataBufferSize(),
+        m_pPerfExpResults(),
+        m_traceApiInfo(),
+        m_pCopySampleGpuMem(),
+        m_copySampleOffset()
     {}
 
     Pal::IDevice*         m_pDevice;
@@ -114,8 +121,7 @@ protected:
     Pal::IGpuMemory*      m_pCopySampleGpuMem;      // Src sample's gpu memory containing sample results.
     Pal::gpusize          m_copySampleOffset;       // Src sample's results offset in gpu memory.
 
-    private:
-
+private:
     PAL_DISALLOW_COPY_AND_ASSIGN(PerfSample);
     PAL_DISALLOW_DEFAULT_CTOR(PerfSample);
 };

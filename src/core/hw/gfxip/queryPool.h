@@ -94,7 +94,11 @@ public:
 
     // Writes commands to pCmdStream to wait until the given query slots are full of valid data. This will hang the GPU
     // if it was not preceded by a pair of calls to Begin and End.
-    virtual void WaitForSlots(CmdStream* pCmdStream, uint32 startQuery, uint32 queryCount) const = 0;
+    virtual void WaitForSlots(
+        GfxCmdBuffer* pCmdBuffer,
+        CmdStream*    pCmdStream,
+        uint32        startQuery,
+        uint32        queryCount) const = 0;
 
     const GpuMemory& GpuMemory() const { return *m_gpuMemory.Memory(); }
 
@@ -113,6 +117,8 @@ public:
     virtual bool HasForcedQueryResult() const { return false; }
     virtual uint32 GetForcedQueryResult() const { return 0; }
 
+    virtual bool RequiresHybridCmdStream() const { return false; }
+
 #if PAL_BUILD_GFX11
     // Checks if this query pool requires any samples to be taken on the ganged-ACE queue of a Universal
     // command buffer.  This should not be called on Compute command buffers!
@@ -125,6 +131,8 @@ public:
         CmdStream*    pAceCmdStream,
         uint32        slot) const { PAL_NEVER_CALLED(); }
 #endif
+
+    Result ValidateSlot(uint32 slot) const;
 
 protected:
     QueryPool(const Device&              device,
@@ -146,8 +154,6 @@ protected:
         CmdStream*    pCmdStream,
         uint32        startQuery,
         uint32        queryCount) const = 0;
-
-    Result ValidateSlot(uint32 slot) const;
 
     virtual size_t GetResultSizeForOneSlot(QueryResultFlags flags) const = 0;
     virtual bool ComputeResults(

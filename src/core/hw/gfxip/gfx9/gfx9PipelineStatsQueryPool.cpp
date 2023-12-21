@@ -417,6 +417,7 @@ void PipelineStatsQueryPool::End(
 // =====================================================================================================================
 // Adds the PM4 commands needed to stall the ME until the results of the query range are in memory.
 void PipelineStatsQueryPool::WaitForSlots(
+    GfxCmdBuffer*   pCmdBuffer,
     Pal::CmdStream* pCmdStream,
     uint32          startQuery,
     uint32          queryCount
@@ -456,6 +457,7 @@ void PipelineStatsQueryPool::WaitForSlots(
         pCmdStream->CommitCommands(pCmdSpace);
         remainingWaits -= waitsToWrite;
     }
+
 }
 
 // =====================================================================================================================
@@ -469,11 +471,7 @@ Result PipelineStatsQueryPool::Reset(
 
     if (result == Result::Success)
     {
-        result = DoReset(startQuery,
-                         queryCount,
-                         pMappedCpuAddr,
-                         4,
-                         &PipelineStatsResetMemValue32);
+        result = DoReset(startQuery, queryCount, pMappedCpuAddr, 4, &PipelineStatsResetMemValue32);
     }
 
     return result;

@@ -34,7 +34,7 @@ if (DD_BUILD_RDF)
 endif()
 
 if (DD_BP_ENABLE_DD_SETTINGS)
-    add_subdirectory(ddSettings)
+    add_subdirectory_if_exist(ddSettings)
 endif()
 
 if (DD_BP_ENABLE_DD_TEST_UTIL)

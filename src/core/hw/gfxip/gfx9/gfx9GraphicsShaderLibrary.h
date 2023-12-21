@@ -44,10 +44,12 @@ public:
     explicit GraphicsShaderLibrary(Device* pDevice);
     virtual ~GraphicsShaderLibrary() {};
     virtual const Pal::GraphicsPipeline* GetPartialPipeline() const override { return &m_partialPipeline; }
-
     const PipelineChunkCs& GetTaskChunk() const { return m_task; }
     const ShaderStageInfo& GetTaskStageInfo() const { return m_taskStageInfo; }
     const ComputeShaderSignature GetTaskSignature() const { return m_taskSignature; }
+    virtual Result GetShaderFunctionStats(
+        Util::StringView<char> shaderExportName,
+        ShaderLibStats* pShaderStats) const override;
 protected:
     virtual Result HwlInit(
         const ShaderLibraryCreateInfo&          createInfo,
@@ -61,7 +63,6 @@ private:
     PipelineChunkCs        m_task;
     ShaderStageInfo        m_taskStageInfo;
     ComputeShaderSignature m_taskSignature;
-
     // Disable the default constructor and assignment operator
     PAL_DISALLOW_DEFAULT_CTOR(GraphicsShaderLibrary);
     PAL_DISALLOW_COPY_AND_ASSIGN(GraphicsShaderLibrary);

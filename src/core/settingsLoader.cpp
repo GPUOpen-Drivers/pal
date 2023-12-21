@@ -23,22 +23,10 @@
  *
  **********************************************************************************************************************/
 
-#include "palHashMapImpl.h"
-#include "core/platform.h"
+#include "core/devDriverUtil.h"
 #include "core/device.h"
 #include "core/settingsLoader.h"
-#include "palAssert.h"
-#include "palInlineFuncs.h"
-#include "palSysMemory.h"
-
-#include "core/hw/amdgpu_asic.h"
-#include "devDriverServer.h"
-#include "protocols/ddSettingsService.h"
-#include "settingsService.h"
-
-using namespace DevDriver::SettingsURIService;
-
-#include <limits.h>
+#include "core/platform.h"
 
 using namespace Util;
 
@@ -50,73 +38,41 @@ namespace Pal
 SettingsLoader::SettingsLoader(
     Device* pDevice)
     :
-    ISettingsLoader(pDevice->GetPlatform(), static_cast<DriverSettings*>(&m_settings), g_palNumSettings),
-    m_pDevice(pDevice),
-    m_settings(),
-    m_pComponentName("Pal")
+    DevDriver::SettingsBase(&m_settings, sizeof(m_settings)),
+    m_pDevice(pDevice)
 {
-    memset(&m_settings, 0, sizeof(PalSettings));
 }
 
 // =====================================================================================================================
 SettingsLoader::~SettingsLoader()
 {
-    SettingsRpcService::SettingsService* pRpcSettingsService = m_pDevice->GetPlatform()->GetSettingsService();
-    if (pRpcSettingsService != nullptr)
-    {
-        pRpcSettingsService->UnregisterComponent(m_pComponentName);
-    }
-
-    auto* pDevDriverServer = m_pDevice->GetPlatform()->GetDevDriverServer();
-    if (pDevDriverServer != nullptr)
-    {
-        auto* pSettingsService = pDevDriverServer->GetSettingsService();
-        if (pSettingsService != nullptr)
-        {
-            pSettingsService->UnregisterComponent(m_pComponentName);
-        }
-    }
 }
 
 // =====================================================================================================================
 // Initializes the environment settings to their default values
 Result SettingsLoader::Init()
 {
-    Result ret = m_settingsInfoMap.Init();
+    DD_RESULT ddResult = SetupDefaultsAndPopulateMap();
 
-    if (ret == Result::Success)
+    if (ddResult == DD_RESULT_SUCCESS)
     {
-        // Init Settings Info HashMap
-        InitSettingsInfo();
-
-        // setup default values for the settings.
-        SetupDefaults();
-
-        m_state = SettingsLoaderState::EarlyInit;
-
-        // Read the rest of the settings from the registry
-        ReadSettings();
-
-        // Register with the DevDriver settings service
-        DevDriverRegister();
-
         // We want to override the default values for any platform specific reasons
         OverrideDefaults();
 
-        // Before we pass the settings to the client, perform a reread of any settings that need rereading
-        RereadSettings();
+        // Read settings from Windows registry.
+        ReadSettings();
     }
 
-    return ret;
+    return DdResultToPalResult(ddResult);
 }
 
 // =====================================================================================================================
 bool SettingsLoader::ReadSetting(
     const char*          pSettingName,
+    ValueType            valueType,
     void*                pValue,
-    Util::ValueType      valueType,
-    size_t               bufferSize,
-    InternalSettingScope settingType)
+    InternalSettingScope settingType,
+    size_t               bufferSize)
 {
     return m_pDevice->ReadSetting(
         pSettingName,
@@ -131,6 +87,8 @@ bool SettingsLoader::ReadSetting(
 void SettingsLoader::OverrideDefaults()
 {
     m_pDevice->OverrideDefaultSettings(&m_settings);
+
+    const GfxIpLevel gfxLevel = m_pDevice->ChipProperties().gfxLevel;
 
 #if PAL_BUILD_GFX11
     if (IsGfx11(*m_pDevice))
@@ -179,8 +137,6 @@ void SettingsLoader::OverrideDefaults()
             m_settings.ifh = IfhModeKmd;
         }
     }
-
-    m_state = SettingsLoaderState::LateInit;
 }
 
 // =====================================================================================================================
@@ -223,9 +179,10 @@ void SettingsLoader::ValidateSettings()
     auto* pPlatformSettings = m_pDevice->GetPlatform()->PlatformSettingsPtr();
     if (pRootPath != nullptr)
     {
-        char subDir[MaxPathStrLen];
+        char subDir[DD_SETTINGS_MAX_PATH_SIZE];
 
         Strncpy(subDir, m_settings.cmdBufDumpDirectory, sizeof(subDir));
+
         Snprintf(m_settings.cmdBufDumpDirectory, sizeof(m_settings.cmdBufDumpDirectory),
                  "%s/%s", pRootPath, subDir);
 
@@ -267,8 +224,6 @@ void SettingsLoader::ValidateSettings()
 #endif
 
     }
-
-    m_state = SettingsLoaderState::Final;
 }
 
 // =====================================================================================================================
@@ -288,14 +243,14 @@ void SettingsLoader::FinalizeSettings()
 void SettingsLoader::GenerateSettingHash()
 {
     // Temporarily ignore these CCC settings when computing a settings hash as described in the function header.
-    uint32 textureOptLevel = m_settings.textureOptLevel;
-    m_settings.textureOptLevel = 0;
+    uint32 textureOptLevel = m_settings.tfq;
+    m_settings.tfq = 0;
 
     MetroHash128::Hash(
         reinterpret_cast<const uint8*>(&m_settings),
         sizeof(PalSettings),
-        m_settingHash.bytes);
+        m_settingsHash.bytes);
 
-    m_settings.textureOptLevel = textureOptLevel;
+    m_settings.tfq = textureOptLevel;
 }
 } // Pal

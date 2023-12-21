@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2021-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -23,18 +23,37 @@
  #
  #######################################################################################################################
 
-devdriver_library(dd_settings STATIC)
-target_sources(dd_settings
-    PRIVATE
-        inc/dd_settings_base.h
-        inc/dd_settings_blob.h
-        src/dd_settings_base.cpp
-        src/dd_settings_blob.cpp
+####################################################################################
+# This file is auto generated, see the source for details on updating this
+####################################################################################
+
+add_library(SettingsRpcService2 STATIC)
+
+set_target_properties(SettingsRpcService2
+    PROPERTIES
+        CXX_STANDARD 11
 )
-target_include_directories(dd_settings PUBLIC inc)
-target_link_libraries(dd_settings
+
+target_sources(SettingsRpcService2 PRIVATE
+    inc/g_SettingsRpcService2.h
+    src/g_SettingsRpcService2.cpp
+)
+
+target_include_directories(SettingsRpcService2
     PUBLIC
-        dd_settings_api
-        dd_common
-        devdriver
+        inc
+    PRIVATE
+        src
 )
+
+target_link_libraries(SettingsRpcService2
+    PRIVATE
+        ddCommon
+    PUBLIC
+        ddRpcServer
+)
+
+# Need to apply devdriver specific warning configuration, because
+# this target indirectly includes ddPlatform.h which causes some
+# compiler warnings.
+apply_devdriver_warnings(SettingsRpcService2)

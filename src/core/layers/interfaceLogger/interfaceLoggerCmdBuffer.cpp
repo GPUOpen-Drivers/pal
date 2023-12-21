@@ -65,7 +65,6 @@ CmdBuffer::CmdBuffer(
     m_funcTable.pfnCmdDispatch                  = CmdDispatch;
     m_funcTable.pfnCmdDispatchIndirect          = CmdDispatchIndirect;
     m_funcTable.pfnCmdDispatchOffset            = CmdDispatchOffset;
-    m_funcTable.pfnCmdDispatchDynamic           = CmdDispatchDynamic;
     m_funcTable.pfnCmdDispatchMesh              = CmdDispatchMesh;
     m_funcTable.pfnCmdDispatchMeshIndirectMulti = CmdDispatchMeshIndirectMulti;
 }
@@ -3285,8 +3284,7 @@ void CmdBuffer::CmdRestoreComputeState(
 // =====================================================================================================================
 void CmdBuffer::CmdExecuteIndirectCmds(
     const IIndirectCmdGenerator& generator,
-    const IGpuMemory&            gpuMemory,
-    gpusize                      offset,
+    gpusize                      gpuVirtAddr,
     uint32                       maximumCount,
     gpusize                      countGpuAddr)
 {
@@ -3295,8 +3293,7 @@ void CmdBuffer::CmdExecuteIndirectCmds(
     funcInfo.objectId     = m_objectId;
     funcInfo.preCallTime  = m_pPlatform->GetTime();
     m_pNextLayer->CmdExecuteIndirectCmds(*NextIndirectCmdGenerator(&generator),
-                                         *NextGpuMemory(&gpuMemory),
-                                         offset,
+                                         gpuVirtAddr,
                                          maximumCount,
                                          countGpuAddr);
     funcInfo.postCallTime = m_pPlatform->GetTime();
@@ -3306,8 +3303,7 @@ void CmdBuffer::CmdExecuteIndirectCmds(
     {
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("generator", &generator);
-        pLogContext->KeyAndObject("gpuMemory", &gpuMemory);
-        pLogContext->KeyAndValue("offset", offset);
+        pLogContext->KeyAndValue("gpuVirtAddr", gpuVirtAddr);
         pLogContext->KeyAndValue("maximumCount", maximumCount);
         pLogContext->KeyAndValue("countGpuAddr", countGpuAddr);
         pLogContext->EndInput();
@@ -3321,7 +3317,7 @@ void CmdBuffer::CmdPostProcessFrame(
     const CmdPostProcessFrameInfo& postProcessInfo,
     bool*                          pAddedGpuWork)
 {
-    CmdPostProcessFrameInfo nextPostProcessInfo = {};
+    CmdPostProcessFrameInfo nextPostProcessInfo = postProcessInfo;
     bool addedGpuWork = false;
 
     BeginFuncInfo funcInfo;
@@ -3649,12 +3645,10 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndexed(
 
 // =====================================================================================================================
 void PAL_STDCALL CmdBuffer::CmdDrawIndirectMulti(
-    ICmdBuffer*       pCmdBuffer,
-    const IGpuMemory& gpuMemory,
-    gpusize           offset,
-    uint32            stride,
-    uint32            maximumCount,
-    gpusize           countGpuAddr)
+    ICmdBuffer*          pCmdBuffer,
+    GpuVirtAddrAndStride gpuVirtAddrAndStride,
+    uint32               maximumCount,
+    gpusize              countGpuAddr)
 {
     auto*const pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
@@ -3662,16 +3656,16 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndirectMulti(
     funcInfo.funcId       = InterfaceFunc::CmdBufferCmdDrawIndirectMulti;
     funcInfo.objectId     = pThis->m_objectId;
     funcInfo.preCallTime  = pThis->m_pPlatform->GetTime();
-    pThis->m_pNextLayer->CmdDrawIndirectMulti(*NextGpuMemory(&gpuMemory), offset, stride, maximumCount, countGpuAddr);
+    pThis->m_pNextLayer->CmdDrawIndirectMulti(gpuVirtAddrAndStride,
+                                              maximumCount,
+                                              countGpuAddr);
     funcInfo.postCallTime = pThis->m_pPlatform->GetTime();
 
     LogContext* pLogContext = nullptr;
     if (pThis->m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
     {
         pLogContext->BeginInput();
-        pLogContext->KeyAndObject("gpuMemory", &gpuMemory);
-        pLogContext->KeyAndValue("offset", offset);
-        pLogContext->KeyAndValue("stride", stride);
+        pLogContext->KeyAndStruct("gpuVirtAddrAndStride", gpuVirtAddrAndStride);
         pLogContext->KeyAndValue("maximumCount", maximumCount);
         pLogContext->KeyAndValue("countGpuAddr", countGpuAddr);
         pLogContext->EndInput();
@@ -3682,12 +3676,10 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndirectMulti(
 
 // =====================================================================================================================
 void PAL_STDCALL CmdBuffer::CmdDrawIndexedIndirectMulti(
-    ICmdBuffer*       pCmdBuffer,
-    const IGpuMemory& gpuMemory,
-    gpusize           offset,
-    uint32            stride,
-    uint32            maximumCount,
-    gpusize           countGpuAddr)
+    ICmdBuffer*          pCmdBuffer,
+    GpuVirtAddrAndStride gpuVirtAddrAndStride,
+    uint32               maximumCount,
+    gpusize              countGpuAddr)
 {
     auto*const pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
@@ -3695,9 +3687,7 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndexedIndirectMulti(
     funcInfo.funcId       = InterfaceFunc::CmdBufferCmdDrawIndexedIndirectMulti;
     funcInfo.objectId     = pThis->m_objectId;
     funcInfo.preCallTime  = pThis->m_pPlatform->GetTime();
-    pThis->m_pNextLayer->CmdDrawIndexedIndirectMulti(*NextGpuMemory(&gpuMemory),
-                                                     offset,
-                                                     stride,
+    pThis->m_pNextLayer->CmdDrawIndexedIndirectMulti(gpuVirtAddrAndStride,
                                                      maximumCount,
                                                      countGpuAddr);
     funcInfo.postCallTime = pThis->m_pPlatform->GetTime();
@@ -3706,9 +3696,7 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndexedIndirectMulti(
     if (pThis->m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
     {
         pLogContext->BeginInput();
-        pLogContext->KeyAndObject("gpuMemory", &gpuMemory);
-        pLogContext->KeyAndValue("offset", offset);
-        pLogContext->KeyAndValue("stride", stride);
+        pLogContext->KeyAndStruct("gpuVirtAddrAndStride", gpuVirtAddrAndStride);
         pLogContext->KeyAndValue("maximumCount", maximumCount);
         pLogContext->KeyAndValue("countGpuAddr", countGpuAddr);
         pLogContext->EndInput();
@@ -3744,9 +3732,8 @@ void PAL_STDCALL CmdBuffer::CmdDispatch(
 
 // =====================================================================================================================
 void PAL_STDCALL CmdBuffer::CmdDispatchIndirect(
-    ICmdBuffer*       pCmdBuffer,
-    const IGpuMemory& gpuMemory,
-    gpusize           offset)
+    ICmdBuffer* pCmdBuffer,
+    gpusize     gpuVirtAddr)
 {
     auto*const pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
@@ -3754,15 +3741,15 @@ void PAL_STDCALL CmdBuffer::CmdDispatchIndirect(
     funcInfo.funcId       = InterfaceFunc::CmdBufferCmdDispatchIndirect;
     funcInfo.objectId     = pThis->m_objectId;
     funcInfo.preCallTime  = pThis->m_pPlatform->GetTime();
-    pThis->m_pNextLayer->CmdDispatchIndirect(*NextGpuMemory(&gpuMemory), offset);
+    pThis->m_pNextLayer->CmdDispatchIndirect(gpuVirtAddr);
     funcInfo.postCallTime = pThis->m_pPlatform->GetTime();
 
     LogContext* pLogContext = nullptr;
     if (pThis->m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
     {
         pLogContext->BeginInput();
-        pLogContext->KeyAndObject("gpuMemory", &gpuMemory);
-        pLogContext->KeyAndValue("offset", offset);
+
+        pLogContext->KeyAndValue("gpuVirtAddr", gpuVirtAddr);
         pLogContext->EndInput();
 
         pThis->m_pPlatform->LogEndFunc(pLogContext);
@@ -3799,34 +3786,6 @@ void PAL_STDCALL CmdBuffer::CmdDispatchOffset(
 }
 
 // =====================================================================================================================
-void CmdBuffer::CmdDispatchDynamic(
-    ICmdBuffer*  pCmdBuffer,
-    gpusize      gpuVa,
-    DispatchDims size)
-{
-    auto* const pThis = static_cast<CmdBuffer*>(pCmdBuffer);
-
-    BeginFuncInfo funcInfo = {};
-    funcInfo.funcId      = InterfaceFunc::CmdBufferCmdDispatchIndirect;
-    funcInfo.objectId    = pThis->m_objectId;
-    funcInfo.preCallTime = pThis->m_pPlatform->GetTime();
-
-    pThis->m_pNextLayer->CmdDispatchDynamic(gpuVa, size);
-    funcInfo.postCallTime = pThis->m_pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (pThis->m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
-    {
-        pLogContext->BeginInput();
-        pLogContext->KeyAndValue("gpuVa", gpuVa);
-        pLogContext->KeyAndStruct("size", size);
-        pLogContext->EndInput();
-
-        pThis->m_pPlatform->LogEndFunc(pLogContext);
-    }
-}
-
-// =====================================================================================================================
 void CmdBuffer::CmdDispatchMesh(
     ICmdBuffer*  pCmdBuffer,
     DispatchDims size)
@@ -3854,12 +3813,10 @@ void CmdBuffer::CmdDispatchMesh(
 
 // =====================================================================================================================
 void CmdBuffer::CmdDispatchMeshIndirectMulti(
-    ICmdBuffer*       pCmdBuffer,
-    const IGpuMemory& gpuMemory,
-    gpusize           offset,
-    uint32            stride,
-    uint32            maximumCount,
-    gpusize           countGpuAddr)
+    ICmdBuffer*          pCmdBuffer,
+    GpuVirtAddrAndStride gpuVirtAddrAndStride,
+    uint32               maximumCount,
+    gpusize              countGpuAddr)
 {
     auto*const pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
@@ -3867,9 +3824,7 @@ void CmdBuffer::CmdDispatchMeshIndirectMulti(
     funcInfo.funcId        = InterfaceFunc::CmdBufferCmdDispatchMeshIndirectMulti;
     funcInfo.objectId      = pThis->m_objectId;
     funcInfo.preCallTime   = pThis->m_pPlatform->GetTime();
-    pThis->m_pNextLayer->CmdDispatchMeshIndirectMulti(*NextGpuMemory(&gpuMemory),
-                                                      offset,
-                                                      stride,
+    pThis->m_pNextLayer->CmdDispatchMeshIndirectMulti(gpuVirtAddrAndStride,
                                                       maximumCount,
                                                       countGpuAddr);
     funcInfo.postCallTime = pThis->m_pPlatform->GetTime();
@@ -3878,9 +3833,7 @@ void CmdBuffer::CmdDispatchMeshIndirectMulti(
     if (pThis->m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
     {
         pLogContext->BeginInput();
-        pLogContext->KeyAndObject("gpuMemory", &gpuMemory);
-        pLogContext->KeyAndValue("offset", offset);
-        pLogContext->KeyAndValue("stride", stride);
+        pLogContext->KeyAndStruct("gpuVirtAddrAndStride", gpuVirtAddrAndStride);
         pLogContext->KeyAndValue("maximumCount", maximumCount);
         pLogContext->KeyAndValue("countGpuAddr", countGpuAddr);
         pLogContext->EndInput();

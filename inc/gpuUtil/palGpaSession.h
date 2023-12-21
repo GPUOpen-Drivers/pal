@@ -411,6 +411,22 @@ enum class ApiType : Pal::uint32
     Hip       = 5,    ///< Represents HIP API type.
 };
 
+/// Struct used for storing SQTT-specific trace information
+struct SqttTraceInfo
+{
+    Pal::uint32 shaderEngine;    ///< Shader engine index
+    Pal::uint32 computeUnit;     ///< Compute unit index
+    Pal::uint32 sqttVersion;     ///< SQTT version
+};
+
+/// Struct used for storing SPM-specific trace information
+struct SpmTraceInfo
+{
+    Pal::uint32 numSpmCounters;  ///< The number of SPM counters sampled in the trace
+    Pal::uint32 numTimestamps;   ///< The number of timestamps that samples were taken
+    Pal::uint32 sampleFrequency; ///< The SPM counter sampling frequency
+};
+
 /**
 ***********************************************************************************************************************
 * @class GpaSession
@@ -683,6 +699,65 @@ public:
         Pal::uint32 sampleId,
         size_t*     pSizeInBytes,
         void*       pData) const;
+
+    /// Retrieves the SQTT results. Only valid for sessions in the _complete_ state.
+    ///
+    /// @param [in]     sampleId       Sample to be reported.  Corresponds to value returned by BeginSample().
+    /// @param [in]     traceIndex     The index of the trace to get.
+    /// @param [out]    pTraceInfoOut  Optional pointer to a structure which will be written with information about the trace.
+    /// @param [in,out] pSizeInBytes   If pData is non-null, the input value of *pSizeInBytes is the amount of space
+    ///                                available in pData, and *pSizeInBytes will be set to the amount of space written
+    ///                                to pData.  If pData is null, *pSizeInBytes will be set to the amount of space
+    ///                                required.
+    /// @param [out]    pData          Can be null to query how much size is required.
+    ///                                If non-null, the sample results will be written to this location.
+    ///
+    /// @returns Success if the sample results are successfully written to pData (or, if pData is null, the required
+    ///          size is successfully written to pSizeInBytes).  Otherwise, possible errors include:
+    ///          + ErrorUnavailable if the session is not in the _ready_ state.
+    ///          + NotFound if the given index is not valid.
+    ///          + ErrorOutOfGpuMemory if the session wasn't properly built due to running out of GPU memory resources.
+    ///          + ErrorInvalidMemorySize if *pSizeInBytes isn't big enough to hold the results.
+    //           + ErrorInvalidPointer if pSizeInBytes is NULL.
+    Pal::Result GetSqttTraceData(
+        Pal::uint32    sampleId,
+        Pal::uint32    traceIndex,
+        SqttTraceInfo* pTraceInfo,
+        size_t*        pSizeInBytes,
+        void*          pData) const;
+
+    /// Retrieves the SPM trace results of a particular sample. Only valid for 'Trace' type samples and sessions
+    /// in the _complete_ state.
+    ///
+    /// Results in the output buffer are a binary blob formatted according to the RGP specification.
+    /// The data layout of the populated output buffer is as follows:
+    ///     - Timestamps array        [size: "numTimestamps * sizeof(uint64)" bytes]
+    ///     - SpmCounterInfo array    [size: "numSpmCounters * sizeof(SpmCounterInfo)" bytes]
+    ///     - SPM Counter Data matrix [size: "*pSizeInBytes - (timestamps array + SpmCounterInfo array size)" bytes]
+    ///
+    /// The SPM Counter Data matrix is laid out linearly in a row-major format. There are "numSpmCounters" rows and
+    /// "numTimestamps" columns. Each element in the matrix is either 16- or 32-bits, based on the "dataSize" field
+    /// of the corresponding "SpmCounterInfo" entry.
+    ///
+    /// @param [in]     sampleId          Sample to be reported.  Corresponds to value returned by BeginSample().
+    /// @param [out]    pTraceInfo        Optional. If non-null, this structure is populated with trace metadata.
+    /// @param [in,out] pSizeInBytes      If pData is non-null, the input value of *pSizeInBytes is the amount of space
+    ///                                   available in pData.
+    ///                                   If pData is null, *pSizeInBytes will be set to the amount of space
+    ///                                   required.
+    /// @param [out]    pData             Can be null to query how much size is required.
+    ///                                   If non-null, the sample results will be written to this location.
+    ///
+    /// @returns Success if the sample results are successfully written to pData (or, if pData is null, the required
+    ///          size is successfully written to pSizeInBytes).  Otherwise, possible errors include:
+    ///          + ErrorUnavailable if the session is not in the _ready_ state.
+    ///          + ErrorOutOfGpuMemory if the session wasn't properly built due to running out of GPU memory resources.
+    ///          + ErrorInvalidMemorySize if *pSizeInBytes isn't big enough to hold the results.
+    Pal::Result GetSpmTraceData(
+        Pal::uint32   sampleId,
+        SpmTraceInfo* pTraceInfo,
+        size_t*       pSizeInBytes,
+        void*         pData) const;
 
     /// Moves the session to the _reset_ state, marking all sessions resources as unused and available for reuse when
     /// the session is re-built.

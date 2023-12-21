@@ -71,6 +71,7 @@ target_link_libraries(devdriver
         ddCore
         metrohash
         dd_event_registry
+        ddApi
     PRIVATE
         mpack)
 

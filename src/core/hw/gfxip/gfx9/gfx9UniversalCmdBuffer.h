@@ -65,27 +65,28 @@ struct UniversalCmdBufferState
             // Tracks whether or not *ANY* piece of ring memory being dumped-to by the CE (by PAL or the client) has
             // wrapped back to the beginning within this command buffer. If no ring has wrapped yet, there is no need
             // to ever stall the CE from getting too far ahead or to ask the DE to invalidate the Kcache for us.
-            uint32 ceHasAnyRingWrapped   :  1;
+            uint32 ceHasAnyRingWrapped     :  1;
             // CE memory dumps go through the L2 cache, but not the L1 cache! In order for the shader cores to read
             // correct data out of piece of ring memory, we need to occasionally invalidate the Kcache when waiting
             // for the CE to finish dumping its memory. If set, the next INCREMENT_CE_COUNTER inserted into the DE
             // stream should also invalidate the Kcache.
-            uint32 ceInvalidateKcache    :  1;
-            uint32 ceWaitOnDeCounterDiff :  1;
-            uint32 deCounterDirty        :  1;
-            uint32 containsDrawIndirect  :  1;
-            uint32 optimizeLinearGfxCpy  :  1;
-            uint32 firstDrawExecuted     :  1;
-            uint32 meshShaderEnabled     :  1;
-            uint32 taskShaderEnabled     :  1;
-            uint32 fastLaunchMode        :  2;
-            uint32 cbTargetMaskChanged   :  1; // Flag setup at Pipeline bind-time informing the draw-time set
-                                               // that the CB_TARGET_MASK has been changed.
-            uint32 occlusionQueriesActive : 1; // Indicates if the current validated cmd buf state has occulsion
-                                               // queries enabled.
-            uint32 reserved0             :  3;
-            uint32 cbColorInfoDirtyRtv   :  8; // Per-MRT dirty mask for CB_COLORx_INFO as a result of RTV
-            uint32 reserved1             :  8;
+            uint32 ceInvalidateKcache      :  1;
+            uint32 ceWaitOnDeCounterDiff   :  1;
+            uint32 deCounterDirty          :  1;
+            uint32 containsDrawIndirect    :  1;
+            uint32 optimizeLinearGfxCpy    :  1;
+            uint32 firstDrawExecuted       :  1;
+            uint32 meshShaderEnabled       :  1;
+            uint32 taskShaderEnabled       :  1;
+            uint32 fastLaunchMode          :  2;
+            uint32 cbTargetMaskChanged     :  1; // Flag setup at Pipeline bind-time informing the draw-time set
+                                                 // that the CB_TARGET_MASK has been changed.
+            uint32 occlusionQueriesActive  :  1; // Indicates if the current validated cmd buf state has occulsion
+                                                 // queries enabled.
+            uint32 drawTimeAlphaToCoverage :  1; // Tracks alphaToCoverageState to be updated per draw.
+            uint32 reserved0               :  2;
+            uint32 cbColorInfoDirtyRtv     :  8; // Per-MRT dirty mask for CB_COLORx_INFO as a result of RTV
+            uint32 reserved1               :  8;
         };
         uint32 u32All;
     } flags;
@@ -340,7 +341,10 @@ struct VrsCopyMapping
 class UniversalCmdBuffer final : public Pal::Pm4::UniversalCmdBuffer
 {
     // Shorthand for function pointers which validate graphics user-data at Draw-time.
-    typedef uint32* (UniversalCmdBuffer::*ValidateUserDataGfxFunc)(const GraphicsPipelineSignature*, uint32*);
+    typedef uint32* (UniversalCmdBuffer::*ValidateUserDataGfxFunc)(UserDataTableState*,
+                                                                   UserDataEntries*,
+                                                                   const GraphicsPipelineSignature*,
+                                                                   uint32*);
 
 public:
     static size_t GetSize(const Device& device);
@@ -605,22 +609,19 @@ public:
 
     void ExecuteIndirectPacket(
         const IIndirectCmdGenerator& generator,
-        const IGpuMemory&            gpuMemory,
-        gpusize                      offset,
+        gpusize                      gpuVirtAddr,
         uint32                       maximumCount,
         gpusize                      countGpuAddr);
 
     void ExecuteIndirectShader(
         const IIndirectCmdGenerator& generator,
-        const IGpuMemory&            gpuMemory,
-        gpusize                      offset,
+        gpusize                      gpuVirtAddr,
         uint32                       maximumCount,
         gpusize                      countGpuAddr);
 
     virtual void CmdExecuteIndirectCmds(
         const IIndirectCmdGenerator& generator,
-        const IGpuMemory&            gpuMemory,
-        gpusize                      offset,
+        gpusize                      gpuVirtAddr,
         uint32                       maximumCount,
         gpusize                      countGpuAddr) override;
 
@@ -679,6 +680,8 @@ public:
     void SetWaMiscPopsMissedOverlapHasBeenApplied() { m_hasWaMiscPopsMissedOverlapBeenApplied = true; }
 
     virtual gpusize GetMeshPipeStatsGpuAddr() const override { return m_meshPipeStatsGpuAddr; }
+
+    const CmdUtil& GetCmdUtil() const { return m_cmdUtil; }
 
     // checks if the entire command buffer can be preempted or not
     virtual bool IsPreemptable() const override;
@@ -742,13 +745,6 @@ protected:
     // Gets draw index register address.
     uint16 GetDrawIndexRegAddr()  const { return m_drawIndexReg; }
 
-    virtual void P2pBltWaCopyBegin(
-        const GpuMemory* pDstMemory,
-        uint32           regionCount,
-        const gpusize*   pChunkAddrs) override;
-    virtual void P2pBltWaCopyNextRegion(gpusize chunkAddr) override;
-    virtual void P2pBltWaCopyEnd() override;
-
 private:
     template <bool IssueSqttMarkerEvent,
               bool HasUavExport,
@@ -789,21 +785,17 @@ private:
 
     template <bool IssueSqttMarkerEvent, bool ViewInstancingEnable, bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDrawIndirectMulti(
-        ICmdBuffer*       pCmdBuffer,
-        const IGpuMemory& gpuMemory,
-        gpusize           offset,
-        uint32            stride,
-        uint32            maximumCount,
-        gpusize           countGpuAddr);
+        ICmdBuffer*          pCmdBuffer,
+        GpuVirtAddrAndStride gpuVirtAddrAndStride,
+        uint32               maximumCount,
+        gpusize              countGpuAddr);
 
     template <bool IssueSqttMarkerEvent, bool ViewInstancingEnable, bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDrawIndexedIndirectMulti(
-        ICmdBuffer*       pCmdBuffer,
-        const IGpuMemory& gpuMemory,
-        gpusize           offset,
-        uint32            stride,
-        uint32            maximumCount,
-        gpusize           countGpuAddr);
+        ICmdBuffer*          pCmdBuffer,
+        GpuVirtAddrAndStride gpuVirtAddrAndStride,
+        uint32               maximumCount,
+        gpusize              countGpuAddr);
 
     template <bool HsaAbi, bool IssueSqttMarkerEvent, bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDispatch(
@@ -811,20 +803,15 @@ private:
         DispatchDims size);
     template <bool IssueSqttMarkerEvent, bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDispatchIndirect(
-        ICmdBuffer*       pCmdBuffer,
-        const IGpuMemory& gpuMemory,
-        gpusize           offset);
+        ICmdBuffer* pCmdBuffer,
+        gpusize     gpuVirtAddr
+    );
     template <bool HsaAbi, bool IssueSqttMarkerEvent, bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDispatchOffset(
         ICmdBuffer*  pCmdBuffer,
         DispatchDims offset,
         DispatchDims launchSize,
         DispatchDims logicalSize);
-    template <bool IssueSqttMarkerEvent, bool DescribeDrawDispatch>
-    static void PAL_STDCALL CmdDispatchDynamic(
-        ICmdBuffer*  pCmdBuffer,
-        gpusize      gpuVa,
-        DispatchDims size);
 #if PAL_BUILD_GFX11
     template <bool IssueSqttMarkerEvent,
               bool HasUavExport,
@@ -845,12 +832,10 @@ private:
               bool ViewInstancingEnable,
               bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDispatchMeshIndirectMulti(
-        ICmdBuffer*       pCmdBuffer,
-        const IGpuMemory& gpuMemory,
-        gpusize           offset,
-        uint32            stride,
-        uint32            maximumCount,
-        gpusize           countGpuAddr);
+        ICmdBuffer*          pCmdBuffer,
+        GpuVirtAddrAndStride GpuVirtAddrAndStride,
+        uint32               maximumCount,
+        gpusize              countGpuAddr);
     template <bool IssueSqttMarkerEvent,
               bool HasUavExport,
               bool ViewInstancingEnable,
@@ -862,12 +847,10 @@ private:
               bool ViewInstancingEnable,
               bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDispatchMeshIndirectMultiTask(
-        ICmdBuffer*       pCmdBuffer,
-        const IGpuMemory& gpuMemory,
-        gpusize           offset,
-        uint32            stride,
-        uint32            maximumCount,
-        gpusize           countGpuAddr);
+        ICmdBuffer*          pCmdBuffer,
+        GpuVirtAddrAndStride GpuVirtAddrAndStride,
+        uint32               maximumCount,
+        gpusize              countGpuAddr);
 
     template <bool IsNgg>
     uint32 CalcGeCntl(
@@ -880,7 +863,7 @@ private:
         uint32*                  pDeCmdSpace);
 
     template <bool Pm4OptImmediate, bool PipelineDirty, bool StateDirty>
-    uint32* ValidateCbColorInfo(
+    uint32* ValidateCbColorInfoAndBlendState(
         uint32* pDeCmdSpace);
     uint32* ValidateDbRenderOverride(
         uint32* pDeCmdSpace);
@@ -895,6 +878,8 @@ private:
     static uint32 GetHwVrsCombinerState(
         const VrsRateParams&  rateParams,
         VrsCombinerStage      combinerStage);
+
+    bool IsVrsStateDirty() const;
 
     void ValidateVrsState();
 
@@ -948,7 +933,6 @@ private:
         ComputeState* pComputeState,
         CmdStream*    pCmdStream,
         gpusize       indirectGpuVirtAddr,
-        gpusize       launchDescGpuVirtAddr,
         DispatchDims  logicalSize);
 
     void ValidateDispatchHsaAbi(
@@ -962,8 +946,12 @@ private:
         const GraphicsPipeline*          pCurrPipeline,
         uint32*                          pDeCmdSpace);
 
+    void UpdateViewportScissorDirty(bool usesMultiViewports, DepthClampMode depthClampMode);
+
     template <bool HasPipelineChanged, bool TessEnabled, bool GsEnabled, bool VsEnabled>
     uint32* ValidateGraphicsUserData(
+        UserDataTableState*              pSpillTable,
+        UserDataEntries*                 pUserDataEntries,
         const GraphicsPipelineSignature* pPrevSignature,
         uint32*                          pDeCmdSpace);
 
@@ -979,12 +967,14 @@ private:
 
     template <bool TessEnabled, bool GsEnabled, bool VsEnabled>
     uint32* WriteDirtyUserDataEntriesToSgprsGfx(
+        const UserDataEntries*           pUserDataEntries,
         const GraphicsPipelineSignature* pPrevSignature,
         uint8                            alreadyWrittenStageMask,
         uint32*                          pDeCmdSpace);
 
     template <bool TessEnabled, bool GsEnabled, bool VsEnabled>
     uint8 FixupUserSgprsOnPipelineSwitch(
+        const UserDataEntries*           pUserDataEntries,
         const GraphicsPipelineSignature* pPrevSignature,
         uint32**                         ppDeCmdSpace);
 
@@ -1011,8 +1001,6 @@ private:
                              const Extent2d* pBinSize);
 
     void DescribeDraw(Developer::DrawDispatchType cmdType, bool includedGangedAce = false);
-
-    void P2pBltWaSync();
 
     uint32* UpdateNggCullingDataBufferWithCpu(
         uint32* pDeCmdSpace);
@@ -1067,8 +1055,7 @@ private:
     void       IssueGangedBarrierDeWaitAceIncr();
     void       UpdateTaskMeshRingSize();
     void       ValidateTaskMeshDispatch(gpusize indirectGpuVirtAddr, DispatchDims size);
-
-    void        ValidateExecuteNestedCmdBuffer();
+    void       ValidateExecuteNestedCmdBuffer();
 
 #if PAL_BUILD_GFX11
     gpusize    SwStreamoutDataAddr();
@@ -1139,11 +1126,11 @@ private:
         std::max({ alignof(Tn)... })>::type;
 
 #if PAL_BUILD_GFX11
-    using ColorTargetViewStorage  = ViewStorage<Gfx9ColorTargetView, Gfx10ColorTargetView, Gfx11ColorTargetView>;
+    using ColorTargetViewStorage  = ViewStorage<Gfx10ColorTargetView, Gfx11ColorTargetView>;
 #else
-    using ColorTargetViewStorage  = ViewStorage<Gfx9ColorTargetView, Gfx10ColorTargetView>;
+    using ColorTargetViewStorage  = ViewStorage<Gfx10ColorTargetView>;
 #endif
-    using DepthStencilViewStorage = ViewStorage<Gfx9DepthStencilView, Gfx10DepthStencilView>;
+    using DepthStencilViewStorage = ViewStorage<Gfx10DepthStencilView>;
 
     IColorTargetView* StoreColorTargetView(uint32 slot, const BindTargetParams& params);
 
@@ -1180,11 +1167,12 @@ private:
         {
             struct
             {
-                uint32  usesTess  :  1;
-                uint32  usesGs    :  1;
-                uint32  isNgg     :  1;
-                uint32  gsCutMode :  2;
-                uint32  reserved  : 27;
+                uint32  usesTess    :  1;
+                uint32  usesGs      :  1;
+                uint32  isNgg       :  1;
+                uint32  gsCutMode   :  2;
+                uint32  reserved1   :  1;
+                uint32  reserved    : 26;
             };
             uint32 u32All;
         } flags; // Flags describing the currently active pipeline stages.
@@ -1306,6 +1294,19 @@ private:
 
     static constexpr uint32     InvalidPaSuScModeCntlVal = (7 << PA_SU_SC_MODE_CNTL__POLYMODE_BACK_PTYPE__SHIFT);
     regPA_SU_SC_MODE_CNTL       m_paSuScModeCntl;      // Current written value of PA_SU_SC_MODE_CNTL
+
+    // Mask of PA_SC_BINNER_CNTL_0 fields that do not change
+    static constexpr uint32     PaScBinnerCntl0StaticMask =
+        PA_SC_BINNER_CNTL_0__FPOVS_PER_BATCH_MASK       |
+        PA_SC_BINNER_CNTL_0__OPTIMAL_BIN_SELECTION_MASK |
+        Gfx09_1xPlus::PA_SC_BINNER_CNTL_0__FLUSH_ON_BINNING_TRANSITION_MASK |
+        PA_SC_BINNER_CNTL_0__DISABLE_START_OF_PRIM_MASK |
+        PA_SC_BINNER_CNTL_0__CONTEXT_STATES_PER_BIN_MASK |
+        PA_SC_BINNER_CNTL_0__PERSISTENT_STATES_PER_BIN_MASK;
+
+    // Mask of PA_SC_BINNER_CNTL_1 fields that do not change
+    static constexpr uint32     PaScBinnerCntl1StaticMask =
+        PA_SC_BINNER_CNTL_1__MAX_PRIM_PER_BATCH_MASK;
 
     bool             m_hasWaMiscPopsMissedOverlapBeenApplied;
     bool             m_enabledPbb;       // PBB is currently enabled or disabled.

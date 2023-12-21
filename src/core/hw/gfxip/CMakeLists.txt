@@ -74,6 +74,7 @@ target_sources(pal PRIVATE
     pm4MaskRam.h
     pm4UniversalCmdBuffer.cpp
     pm4UniversalCmdBuffer.h
+    regPairHandler.h
     queryPool.cpp
     queryPool.h
     shaderLibrary.cpp

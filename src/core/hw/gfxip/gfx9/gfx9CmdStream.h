@@ -62,6 +62,8 @@ public:
 
     uint32 GetChainSizeInDwords(const Device& device, EngineType engineType, bool isNested) const;
 
+    uint32* WriteRegisters(uint32 startAddr, uint32 count, const uint32* pRegData, uint32* pCmdSpace);
+
     template <bool pm4OptImmediate>
     uint32* WriteContextRegRmw(uint32 regAddr, uint32 regMask, uint32 regData, uint32* pCmdSpace);
     uint32* WriteContextRegRmw(uint32 regAddr, uint32 regMask, uint32 regData, uint32* pCmdSpace);
@@ -124,6 +126,7 @@ public:
     uint32* WriteSetZeroSeqConfigRegs(uint32 startRegAddr, uint32 endRegAddr, uint32* pCmdSpace);
     template <bool pm4OptImmediate>
     uint32* WriteSetVgtLsHsConfig(regVGT_LS_HS_CONFIG vgtLsHsConfig, uint32* pCmdSpace);
+    uint32* WriteSetVgtLsHsConfig(regVGT_LS_HS_CONFIG vgtLsHsConfig, uint32* pCmdSpace);
 
     template <bool IgnoreDirtyFlags, Pm4ShaderType shaderType>
     uint32* WriteUserDataEntriesToSgprs(
@@ -179,10 +182,6 @@ public:
     uint32* WriteClearState(
         PFP_CLEAR_STATE_cmd_enum  clearMode,
         uint32*                   pCmdSpace);
-
-    uint32* WriteDynamicLaunchDesc(
-        gpusize launchDescGpuVa,
-        uint32* pCmdSpace);
 
     // In rare cases some packets will modify register state behind the scenes (e.g., DrawIndirect). This function must
     // be called in those cases to ensure that immediate mode PM4 optimization invalidates its copy of the register.

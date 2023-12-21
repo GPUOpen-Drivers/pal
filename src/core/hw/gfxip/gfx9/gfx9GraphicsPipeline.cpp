@@ -37,7 +37,6 @@
 #include "core/hw/gfxip/gfx9/gfx9UniversalCmdBuffer.h"
 #include "palFormatInfo.h"
 #include "palInlineFuncs.h"
-#include "palMetroHash.h"
 
 using namespace Util;
 
@@ -63,9 +62,11 @@ const GraphicsPipelineSignature NullGfxSignature =
     UserDataNotMapped,          // Ring index for the mesh shader.
     UserDataNotMapped,          // Mesh pipeline stats buffer register address
     UserDataNotMapped,          // SampleInfo register address
+    UserDataNotMapped,          // DualSourceBlendInfo register address
     UserDataNotMapped,          // Color export shader entry
     NoUserDataSpilling,         // Spill threshold
     0,                          // User-data entry limit
+    UserDataNotMapped,          // Needs primsNeededCntAddr register address
     { UserDataNotMapped, },     // Compacted view ID register addresses
     { 0, },                     // User-data mapping hashes per-stage
 };
@@ -1616,7 +1617,7 @@ void GraphicsPipeline::SetupNonShaderRegisters(
     m_regs.other.sxBlendOptControlDual = m_regs.other.sxBlendOptControl;
 
     // Initialize RB+ registers for pipelines which are able to use the feature.
-    if (settings.gfx9RbPlusEnable &&
+    if (settings.rbPlusEnable &&
         (createInfo.cbState.dualSourceBlendEnable == false) &&
         (m_regs.other.cbColorControl.bits.MODE != CB_RESOLVE__GFX09_10))
     {
@@ -1662,6 +1663,8 @@ void GraphicsPipeline::SetupNonShaderRegisters(
     {
         m_flags.uavExportRequiresFlush = (createInfo.cbState.uavExportSingleDraw == false);
     }
+
+    m_flags.alphaToCoverageEnable = (createInfo.cbState.alphaToCoverageEnable == true);
 
     // Override some register settings based on toss points.  These toss points cannot be processed in the hardware
     // independent class because they cannot be overridden by altering the pipeline creation info.
@@ -1776,7 +1779,8 @@ uint32 GraphicsPipeline::CalcMaxLateAllocLimit(
 void GraphicsPipeline::UpdateRingSizes(
     const PalAbi::CodeObjectMetadata& metadata)
 {
-    const Gfx9PalSettings& settings = m_pDevice->Settings();
+    const Gfx9PalSettings& settings    = m_pDevice->Settings();
+    const PalSettings&     palSettings = m_pDevice->Parent()->Settings();
 
     if (IsGsEnabled())
     {
@@ -1791,7 +1795,7 @@ void GraphicsPipeline::UpdateRingSizes(
 
         // NOTE: the off-chip LDS buffer's item-size refers to the "number of buffers" that the hardware uses (i.e.,
         // VGT_HS_OFFCHIP_PARAM::OFFCHIP_BUFFERING).
-        m_ringSizes.itemSize[static_cast<size_t>(ShaderRingType::OffChipLds)] = settings.numOffchipLdsBuffers;
+        m_ringSizes.itemSize[static_cast<size_t>(ShaderRingType::OffChipLds)] = palSettings.numOffchipLdsBuffers;
     }
 
     m_ringSizes.itemSize[static_cast<size_t>(ShaderRingType::GfxScratch)] = ComputeScratchMemorySize(metadata);
@@ -2068,6 +2072,13 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
                 PAL_ASSERT(stage == HwShaderStage::Ps);
                 m_signature.sampleInfoRegAddr = offset;
             }
+            else if (value == static_cast<uint32>(Abi::UserDataMapping::DynamicDualSrcBlendInfo))
+            {
+                PAL_ASSERT((m_signature.dualSourceBlendInfoRegAddr == offset) ||
+                           (m_signature.dualSourceBlendInfoRegAddr == UserDataNotMapped));
+                PAL_ASSERT(stage == HwShaderStage::Ps);
+                m_signature.dualSourceBlendInfoRegAddr = offset;
+            }
             else if (value == static_cast<uint32>(Abi::UserDataMapping::PerShaderPerfData))
             {
                 constexpr uint32 PalToAbiHwShaderStage[] =
@@ -2116,6 +2127,12 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
                 PAL_ASSERT(stage == HwShaderStage::Ps);
                 m_signature.colorExportAddr = offset;
             }
+            else if (value == static_cast<uint32>(Abi::UserDataMapping::EnPrimsNeededCnt))
+            {
+                PAL_ASSERT((m_signature.primsNeededCntAddr == offset) ||
+                           (m_signature.primsNeededCntAddr == UserDataNotMapped));
+                m_signature.primsNeededCntAddr = offset;
+            }
             else
             {
                 // This appears to be an illegally-specified user-data register!
@@ -2132,11 +2149,8 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
         }
     }
 
-    // Compute a hash of the regAddr array and spillTableRegAddr for the CS stage.
-    MetroHash64::Hash(
-        reinterpret_cast<const uint8*>(pStage),
-        sizeof(UserDataEntryMap),
-        reinterpret_cast<uint8* const>(&m_signature.userDataHash[stageId]));
+    // Compute a hash of the user data mapping and spill table
+    m_signature.userDataHash[stageId] = ComputeUserDataHash(pStage);
 }
 
 // =====================================================================================================================
@@ -2565,6 +2579,8 @@ Result GraphicsPipeline::LinkGraphicsLibraries(
     const GraphicsPipeline* pPreRasterLib = nullptr;
     const GraphicsPipeline* pPsLib        = nullptr;
     const GraphicsPipeline* pExpLib       = nullptr;
+    const GraphicsShaderLibrary* pPsShaderLibrary = nullptr;
+    const GraphicsShaderLibrary* pExpShaderLibrary = nullptr;
 
     for (uint32 i = 0; i < NumGfxShaderLibraries(); i++)
     {
@@ -2574,11 +2590,13 @@ Result GraphicsPipeline::LinkGraphicsLibraries(
         {
             PAL_ASSERT(pExpLib == nullptr);
             pExpLib = reinterpret_cast<const GraphicsPipeline*>(pLib->GetPartialPipeline());
+            pExpShaderLibrary = pLib;
         }
         else if (Util::TestAnyFlagSet(apiShaderMask, 1 << static_cast<uint32>(ShaderType::Pixel)))
         {
             PAL_ASSERT(pPsLib == nullptr);
             pPsLib = reinterpret_cast<const GraphicsPipeline*>(pLib->GetPartialPipeline());
+            pPsShaderLibrary = pLib;
         }
         else
         {
@@ -2594,6 +2612,7 @@ Result GraphicsPipeline::LinkGraphicsLibraries(
     if (pExpLib == nullptr)
     {
         pExpLib = pPsLib;
+        pExpShaderLibrary = pPsShaderLibrary;
     }
 
     // Operations in EarlyInit.
@@ -2620,7 +2639,7 @@ Result GraphicsPipeline::LinkGraphicsLibraries(
     {
         m_chunkHs.Clone(pPreRasterLib->m_chunkHs);
     }
-    m_chunkVsPs.Clone(pPreRasterLib->m_chunkVsPs, pPsLib->m_chunkVsPs, pExpLib->m_chunkVsPs);
+    m_chunkVsPs.Clone(pPreRasterLib->m_chunkVsPs, pPsLib->m_chunkVsPs, pExpShaderLibrary);
 
     SetupCommonRegistersFromLibs(createInfo, pPreRasterLib, pPsLib, pExpLib);
     SetupNonShaderRegisters(createInfo);
@@ -2760,12 +2779,14 @@ void GraphicsPipeline::SetupSignatureFromLib(
     m_signature.meshRingIndexAddr       = pPreRasterLib->m_signature.meshRingIndexAddr;
     m_signature.meshPipeStatsBufRegAddr = pPreRasterLib->m_signature.meshPipeStatsBufRegAddr;
     m_signature.nggCullingDataAddr      = pPreRasterLib->m_signature.nggCullingDataAddr;
+    m_signature.primsNeededCntAddr      = pPreRasterLib->m_signature.primsNeededCntAddr;
 #if PAL_BUILD_GFX11
     m_signature.streamoutCntlBufRegAddr = pPreRasterLib->m_signature.streamoutCntlBufRegAddr;
 #endif
     m_signature.uavExportTableAddr      = pPsLib->m_signature.uavExportTableAddr;
     m_signature.sampleInfoRegAddr       = pPsLib->m_signature.sampleInfoRegAddr;
     m_signature.colorExportAddr         = pPsLib->m_signature.colorExportAddr;
+    m_signature.dualSourceBlendInfoRegAddr = pPsLib->m_signature.dualSourceBlendInfoRegAddr;
     if (IsTessEnabled())
     {
         SetupSignatureForStageFromLib(pPreRasterLib, HwShaderStage::Hs);
@@ -2910,6 +2931,5 @@ void GraphicsPipeline::SetupCommonRegistersFromLibs(
         }
     }
 }
-
 } // Gfx9
 } // Pal

@@ -32,6 +32,7 @@
 #pragma once
 
 #include <cstring>
+#include <stdlib.h>
 
 namespace Util
 {
@@ -81,6 +82,16 @@ extern bool ConvertUtf16StringToUtf8(
     char*          pDst,
     const wchar_t* pSrc,
     size_t         dstSizeInBytes);
+
+/// Convert wchar_t string to UTF-8 string. Works whether wchar_t is 16 or 32 bits.
+/// If wchar_t is 16 bits, this decodes UTF-16.
+///
+/// @param [out]  dst string
+/// @param [in]   src string
+/// @param [in]   size of the destination buffer in bytes
+///
+/// @returns Returns whether or not the conversion was successful.
+bool ConvertWcharStringToUtf8(char* pDst, const wchar_t* pSrc, size_t dstSizeInBytes);
 
 /// When the -fshort-char compiler option is specified, wchar_t is 16 bits, but wcsncpy still treats its arguments
 /// as 32 bit so we provide our own implementation.

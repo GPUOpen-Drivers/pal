@@ -51,7 +51,9 @@ static bool MatchesAnySupportedAbi(
     }
     else if (osAbi == ElfOsAbiAmdgpuHsa)
     {
-        result = (version == ElfAbiVersionAmdgpuHsaV3) || (version == ElfAbiVersionAmdgpuHsaV4);
+        result = (version == ElfAbiVersionAmdgpuHsaV3) ||
+                 (version == ElfAbiVersionAmdgpuHsaV4) ||
+                 (version == ElfAbiVersionAmdgpuHsaV5);
     }
 
     return result;
@@ -87,7 +89,12 @@ Result PipelineAbiReader::Init()
             ElfReader::Symbols symbols(m_elfReader, sectionIndex);
             for (uint32 symbolIndex = 0; symbolIndex < symbols.GetNumSymbols(); symbolIndex++)
             {
-                if (symbols.GetSymbol(symbolIndex).st_shndx == 0)
+                // We are not interested in symbol table entries of type SymbolTableEntryType::Section, since we use
+                // m_genericSymbolsMap to look up function addresses. Moreover, they have no name in the symbol table
+                // itself, so we cannot insert them in m_genericSymbolsMap (HashString asserts that its argument is not
+                // the empty string).
+                if ((symbols.GetSymbol(symbolIndex).st_shndx == 0) ||
+                    (symbols.GetSymbolType(symbolIndex) == Elf::SymbolTableEntryType::Section))
                 {
                     continue;
                 }

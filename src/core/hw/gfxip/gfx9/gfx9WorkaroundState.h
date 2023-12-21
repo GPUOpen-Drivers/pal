@@ -67,14 +67,14 @@ public:
         CmdStream*                pDeCmdStream,
         UniversalCmdBuffer*       pCmdBuffer,
         uint32*                   pCmdSpace);
-    uint32* SwitchFromNggPipelineToLegacy(
-        bool    nextPipelineUsesGs,
-        uint32* pCmdSpace) const;
-    uint32* SwitchBetweenLegacyPipelines(
+    uint32* SwitchToLegacyPipeline(
         bool                    oldPipelineUsesGs,
+        bool                    oldPipelineNgg,
         uint32                  oldCutMode,
+        bool                    oldPipelineUnknown,
         const GraphicsPipeline* pNewPipeline,
-        uint32*                 pCmdSpace) const;
+        uint32*                 pCmdSpace
+        ) const;
     void HandleZeroIndexBuffer(
         UniversalCmdBuffer* pCmdBuffer,
         gpusize*            pIndexBufferAddr,

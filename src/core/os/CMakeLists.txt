@@ -31,6 +31,10 @@ add_subdirectory(nullDevice)
 
 set(PAL_GLOBAL_INCLUDES "${GLOBAL_ROOT_SRC_DIR}/drivers/inc/shared")
 
+if (PAL_CLIENT_WINDOWS_SUBSYSTEM)
+    list(APPEND PAL_GLOBAL_INCLUDES "${GLOBAL_ROOT_SRC_DIR}/drivers/pxproxy/inc")
+endif()
+
 target_include_directories(pal PRIVATE ${PAL_GLOBAL_INCLUDES})
 
 target_sources(pal PRIVATE CMakeLists.txt)

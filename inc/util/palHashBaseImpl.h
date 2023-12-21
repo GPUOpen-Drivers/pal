@@ -351,6 +351,33 @@ template<
     typename HashFunc,
     typename EqualFunc,
     typename AllocFunc,
+    size_t GroupSize>
+void HashIterator<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::Reset()
+{
+    m_currentBucket = m_startBucket;
+    m_indexInGroup = 0;
+
+    if (m_startBucket < m_pContainer->m_numBuckets)
+    {
+        m_pCurrentGroup = static_cast<Entry*>(VoidPtrInc(m_pContainer->m_pMemory,
+                                                         m_startBucket * GroupSize));
+    }
+    else
+    {
+        m_pCurrentGroup = nullptr;
+    }
+
+    m_pCurrentEntry = m_pCurrentGroup;
+}
+
+// =====================================================================================================================
+template<
+    typename Key,
+    typename Entry,
+    typename Allocator,
+    typename HashFunc,
+    typename EqualFunc,
+    typename AllocFunc,
     size_t   GroupSize>
 Result HashBase<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::Init()
 {

@@ -32,7 +32,7 @@
 #include "core/hw/gfxip/gfx9/gfx9ShaderRing.h"
 #include "core/hw/gfxip/gfx9/gfx9ShaderRingSet.h"
 
-#include "palVectorImpl.h"
+#include "palDequeImpl.h"
 
 using namespace Util;
 
@@ -55,8 +55,7 @@ ShaderRingSet::ShaderRingSet(
     m_ppRings(nullptr),
     m_pSrdTable(nullptr),
     m_gfxLevel(m_pDevice->Parent()->ChipProperties().gfxLevel),
-    m_deferredFreeMemList(pDevice->GetPlatform()),
-    m_freedItemCount(0)
+    m_deferredFreeMemDeque(pDevice->GetPlatform())
 {
 }
 
@@ -245,7 +244,7 @@ Result ShaderRingSet::Validate(
                 // If any shaderRing need to defer free ring memory,
                 // the current shadertable map / unmap needs to be deferred also
                 deferFreeSrdTable = true;
-                m_deferredFreeMemList.PushBack(deferredMem);
+                m_deferredFreeMemDeque.PushBack(deferredMem);
                 updateSrdTable = true;
             }
 
@@ -264,7 +263,7 @@ Result ShaderRingSet::Validate(
             ShaderRingMemory ringMem = {m_srdTableMem.Memory(),
                                         m_srdTableMem.Offset(),
                                         lastTimeStamp};
-            m_deferredFreeMemList.PushBack(ringMem);
+            m_deferredFreeMemDeque.PushBack(ringMem);
             m_srdTableMem.Update(nullptr, 0);
 
             // Allocate a new shaderTable
@@ -332,27 +331,23 @@ Result ShaderRingSet::Validate(
 void ShaderRingSet::ClearDeferredFreeMemory(
     SubmissionContext* pSubmissionCtx)
 {
-    if (m_deferredFreeMemList.NumElements() > 0)
+    InternalMemMgr* const pMemMgr = m_pDevice->Parent()->MemMgr();
+
+    while (m_deferredFreeMemDeque.NumElements() > 0)
     {
-        InternalMemMgr*const pMemMgr = m_pDevice->Parent()->MemMgr();
+        const ShaderRingMemory& ringMem = m_deferredFreeMemDeque.Front();
 
-        for (uint32 i = 0; i < m_deferredFreeMemList.NumElements(); i++)
+        if (pSubmissionCtx->IsTimestampRetired(ringMem.timestamp))
         {
-            ShaderRingMemory pRingMem = m_deferredFreeMemList.At(i);
-            if (pRingMem.pGpuMemory != nullptr)
+            if (ringMem.pGpuMemory != nullptr)
             {
-                if (pSubmissionCtx->IsTimestampRetired(pRingMem.timestamp))
-                {
-                    pMemMgr->FreeGpuMem(pRingMem.pGpuMemory, pRingMem.offset);
-                    m_freedItemCount++;
-                }
+                pMemMgr->FreeGpuMem(ringMem.pGpuMemory, ringMem.offset);
             }
+            m_deferredFreeMemDeque.PopFront(nullptr);
         }
-
-        if (m_freedItemCount == m_deferredFreeMemList.NumElements())
+        else
         {
-            m_deferredFreeMemList.Clear();
-            m_freedItemCount = 0;
+            break;
         }
     }
 }
@@ -436,12 +431,13 @@ Result UniversalRingSet::Init()
         // setting.
         if (IsGfx103PlusExclusive(device))
         {
-            m_regs.vgtHsOffchipParam.gfx103PlusExclusive.OFFCHIP_GRANULARITY = m_pDevice->Settings().offchipLdsBufferSize;
+            m_regs.vgtHsOffchipParam.gfx103PlusExclusive.OFFCHIP_GRANULARITY =
+                m_pDevice->Parent()->Settings().offchipLdsBufferSize;
         }
         else if (IsGfx9(device) || IsGfx101(device)
            )
         {
-            m_regs.vgtHsOffchipParam.most.OFFCHIP_GRANULARITY = m_pDevice->Settings().offchipLdsBufferSize;
+            m_regs.vgtHsOffchipParam.most.OFFCHIP_GRANULARITY = m_pDevice->Parent()->Settings().offchipLdsBufferSize;
         }
         else
         {

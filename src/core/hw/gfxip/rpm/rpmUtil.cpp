@@ -652,7 +652,8 @@ void BuildRawBufferViewInfo(
     BufferViewInfo* pInfo,
     const Device&   device,
     gpusize         gpuVirtAddr,
-    gpusize         sizeInBytes)
+    gpusize         sizeInBytes,
+    bool            isCompressed)
 {
     const auto* pPublicSettings = device.GetPublicSettings();
 
@@ -675,7 +676,11 @@ void BuildRawBufferViewInfo(
     gpusize           byteOffset)
 {
     const auto& desc = bufferMemory.Desc();
-    BuildRawBufferViewInfo(pInfo, *bufferMemory.GetDevice(), (desc.gpuVirtAddr + byteOffset), (desc.size - byteOffset));
+    BuildRawBufferViewInfo(pInfo,
+                           *bufferMemory.GetDevice(),
+                           (desc.gpuVirtAddr + byteOffset),
+                           (desc.size - byteOffset),
+                           false);
 }
 
 // =====================================================================================================================
@@ -686,7 +691,11 @@ void BuildRawBufferViewInfo(
     gpusize           byteOffset,
     gpusize           range)
 {
-    BuildRawBufferViewInfo(pInfo, *bufferMemory.GetDevice(), (bufferMemory.Desc().gpuVirtAddr + byteOffset), range);
+    BuildRawBufferViewInfo(pInfo,
+                           *bufferMemory.GetDevice(),
+                           (bufferMemory.Desc().gpuVirtAddr + byteOffset),
+                           range,
+                           false);
 }
 
 // =====================================================================================================================

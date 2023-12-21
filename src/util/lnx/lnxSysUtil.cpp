@@ -817,7 +817,7 @@ void SplitFilePath(
 Result MkDir(
     const char* pPathName)
 {
-    int lnxResult = mkdir(pPathName, S_IRWXU);
+    int lnxResult = mkdir(pPathName, S_IRWXU | S_IRWXG | S_IRWXO);
 
     Result result = Result::Success;
 

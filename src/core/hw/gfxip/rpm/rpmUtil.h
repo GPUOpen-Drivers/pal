@@ -58,7 +58,8 @@ constexpr DispatchDims MinThreadGroupsXyz(DispatchDims minThreads, DispatchDims 
 extern void BuildRawBufferViewInfo(BufferViewInfo* pInfo,
                                    const Device&   device,
                                    gpusize         gpuVirtAddr,
-                                   gpusize         sizeInBytes);
+                                   gpusize         sizeInBytes,
+                                   bool            isCompressed);
 extern void BuildRawBufferViewInfo(BufferViewInfo* pInfo, const GpuMemory& bufferMemory, gpusize byteOffset);
 extern void BuildRawBufferViewInfo(BufferViewInfo*  pInfo,
                                    const GpuMemory& bufferMemory,

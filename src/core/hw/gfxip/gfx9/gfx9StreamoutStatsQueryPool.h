@@ -57,7 +57,11 @@ public:
         QueryType       queryType,
         uint32          slot) const override;
 
-    virtual void WaitForSlots(Pal::CmdStream* pCmdStream, uint32 startQuery, uint32 queryCount) const override;
+    virtual void WaitForSlots(
+        GfxCmdBuffer*   pCmdBuffer,
+        Pal::CmdStream* pCmdStream,
+        uint32          startQuery,
+        uint32          queryCount) const override;
 
     virtual Result Reset(
         uint32  startQuery,

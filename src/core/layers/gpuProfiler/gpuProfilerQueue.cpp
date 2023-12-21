@@ -586,12 +586,9 @@ Result Queue::Submit(
                sizeof(PerSubQueueSubmitInfo) * submitInfo.perSubQueueInfoCount);
         memset(nextCmdBufInfoList.Data(), 0, sizeof(CmdBufInfo) * Max(cmdBufferCount, 1u));
 
-        MultiSubmitInfo nextSubmitInfo      = {};
-        nextSubmitInfo.gpuMemRefCount       = submitInfo.gpuMemRefCount;
+        MultiSubmitInfo nextSubmitInfo      = submitInfo;
         nextSubmitInfo.pGpuMemoryRefs       = &nextGpuMemoryRefs[0];
-        nextSubmitInfo.doppRefCount         = submitInfo.doppRefCount;
         nextSubmitInfo.pDoppRefs            = &nextDoppRefs[0];
-        nextSubmitInfo.blockIfFlippingCount = submitInfo.blockIfFlippingCount;
         nextSubmitInfo.ppBlockIfFlipping    = &pNextBlockIfFlipping[0];
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 764
         nextSubmitInfo.pFreeMuxMemory       = NextGpuMemory(submitInfo.pFreeMuxMemory);
@@ -823,10 +820,8 @@ Result Queue::Submit(
         {
             // Make sure we didn't overflow the next arrays.
             PAL_ASSERT((globalCmdBufIdx == cmdBufferCount) && (globalCmdBufInfoIdx <= cmdBufferCount));
-            nextSubmitInfo.perSubQueueInfoCount = submitInfo.perSubQueueInfoCount;
             nextSubmitInfo.pPerSubQueueInfo     = &nextPerSubQueueInfos[0];
             nextSubmitInfo.ppFences   = &nextFences[0];
-            nextSubmitInfo.fenceCount = submitInfo.fenceCount;
 
             result = InternalSubmit(nextSubmitInfo, releaseObjects);
         }

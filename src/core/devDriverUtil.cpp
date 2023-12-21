@@ -424,4 +424,49 @@ void DevDriverFree(
     PAL_FREE(pMemory, pAllocator);
 }
 
+// =====================================================================================================================
+// Convert DD_RESULT to Util::Result.
+Result DdResultToPalResult(DD_RESULT ddResult)
+{
+    Result palResult = Result::ErrorUnknown;
+
+    switch (ddResult)
+    {
+    case DD_RESULT_SUCCESS:
+        palResult = Result::Success;
+        break;
+    case DD_RESULT_DD_GENERIC_NOT_READY:
+        palResult = Result::NotReady;
+        break;
+    case DD_RESULT_COMMON_UNSUPPORTED:
+        palResult = Result::Unsupported;
+        break;
+    case DD_RESULT_COMMON_OUT_OF_HEAP_MEMORY:
+        palResult = Result::ErrorOutOfMemory;
+        break;
+    case DD_RESULT_COMMON_ALREADY_EXISTS:
+    case DD_RESULT_FS_ALREADY_EXISTS:
+    case DD_RESULT_NET_CONNECTION_EXISTS:
+        palResult = Result::AlreadyExists;
+        break;
+    case DD_RESULT_COMMON_DOES_NOT_EXIST:
+    case DD_RESULT_FS_NOT_FOUND:
+        palResult = Result::NotFound;
+        break;
+    case DD_RESULT_FS_TIMED_OUT:
+    case DD_RESULT_NET_TIMED_OUT:
+        palResult = Result::Timeout;
+        break;
+    case DD_RESULT_DD_GENERIC_UNAVAILABLE:
+        palResult = Result::ErrorUnavailable;
+        break;
+    case DD_RESULT_NET_UNKNOWN:
+    default:
+        palResult = Result::ErrorUnknown;
+        break;
+    }
+
+    return palResult;
+}
+
 } // Pal

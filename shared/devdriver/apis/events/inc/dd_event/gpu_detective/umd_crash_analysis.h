@@ -34,7 +34,7 @@ namespace UmdCrashAnalysisEvents
 {
 
 constexpr uint32_t VersionMajor = 0;
-constexpr uint32_t VersionMinor = 2;
+constexpr uint32_t VersionMinor = 3;
 constexpr uint32_t ProviderId   = 0x50434145;
 
 /// A marker that matches this value indicates the associated command buffer hasn't started.
@@ -50,16 +50,31 @@ enum class EventId : uint8_t
     ExecutionMarkerTop    = DDCommonEventId::FirstEventIdForIndividualProvider + 0,
     ExecutionMarkerBottom = DDCommonEventId::FirstEventIdForIndividualProvider + 1,
     CrashDebugMarkerValue = DDCommonEventId::FirstEventIdForIndividualProvider + 2,
-    CmdBufferReset        = DDCommonEventId::FirstEventIdForIndividualProvider + 3
+    ExecutionMarkerInfo   = DDCommonEventId::FirstEventIdForIndividualProvider + 3
 };
 
 /// The source from which execution markers were inserted.
 enum class ExecutionMarkerSource : uint8_t
 {
-    Application = 0,
-    Api         = 1,
-    Pal         = 2,
-    Hardware    = 3
+    Application = 0,        // Marker issued from the application
+    Api         = 1,        // Marker issued from client driver (DX12/Vulkan/...)
+    Pal         = 2,        // Marker issued from PAL
+    Hardware    = 3,        // Marker issued from Hardware
+
+    CmdBufInfo  = 250,      // Driver internal use, provide info for CmdBuffer
+    OpInfo      = 251,      // Driver internal use, provide info for an CmdBuffer event
+    SqttEvent   = 252       // Driver internal use, provide SqttEvent type for an CmdBuffer event
+};
+
+enum class ExecutionMarkerInfoType : uint8_t
+{
+    CmdBufStart  = 0,       // Indicate that the header precedes a CmdBufferInfo struct
+    PipelineBind = 1,       // Indicate that the header precedes a PipelineInfo struct
+    Draw         = 2,       // Indicate that the header precedes a DrawInfo struct
+    DrawUserData = 3,       // Indicate that the header precedes a DrawUserData struct
+    Dispatch     = 4,       // Indicate that the header precedes a DispatchInfo struct
+    BarrierBegin = 5,       // Indicate that the header precedes a BarrierBeginInfo struct
+    BarrierEnd   = 6        // Indicate that the header precedes a BarrierEndInfo struct
 };
 
 /// Execution marker inserted at the top of pipe.
@@ -80,20 +95,6 @@ struct ExecutionMarkerTop
     /// A user-defined name for the marker, encoded in UTF-8. Note, this string is not
     /// necessarily null-terminated.
     uint8_t markerName[150];
-
-    void FromBuffer(const uint8_t* buffer)
-    {
-        memcpy(&cmdBufferId, buffer, sizeof(cmdBufferId));
-        buffer += sizeof(cmdBufferId);
-
-        memcpy(&marker, buffer, sizeof(marker));
-        buffer += sizeof(marker);
-
-        memcpy(&markerNameSize, buffer, sizeof(markerNameSize));
-        buffer += sizeof(markerNameSize);
-
-        memcpy(markerName, buffer, markerNameSize);
-    }
 
     /// Fill the pre-allocated `buffer` with the data in this struct. The size of
     /// the buffer has to be at least `sizeof(ExecutionMarkerTop)` big.
@@ -131,14 +132,6 @@ struct ExecutionMarkerBottom
     /// value.
     uint32_t marker;
 
-    void FromBuffer(const uint8_t* buffer)
-    {
-        memcpy(&cmdBufferId, buffer, sizeof(cmdBufferId));
-        buffer += sizeof(cmdBufferId);
-
-        memcpy(&marker, buffer, sizeof(marker));
-    }
-
     /// Fill the pre-allocated `buffer` with the data of this struct. The size of
     /// the buffer has to be at least `sizeof(ExecutionMarkerBottom)` big.
     ///
@@ -171,17 +164,6 @@ struct CrashDebugMarkerValue
     /// ended. Should be equal to one of `ExecutionMarkerBottom::marker`s.
     uint32_t bottomMarkerValue;
 
-    void FromBuffer(const uint8_t* buffer)
-    {
-        memcpy(&cmdBufferId, buffer, sizeof(cmdBufferId));
-        buffer += sizeof(cmdBufferId);
-
-        memcpy(&topMarkerValue, buffer, sizeof(topMarkerValue));
-        buffer += sizeof(topMarkerValue);
-
-        memcpy(&bottomMarkerValue, buffer, sizeof(bottomMarkerValue));
-    }
-
     /// Fill the pre-allocated `buffer` with the data of this struct. The size of
     /// the buffer has to be at least `sizeof(CrashDebugMarkerValue)` big.
     ///
@@ -203,21 +185,64 @@ struct CrashDebugMarkerValue
     }
 };
 
-/// A command buffer has been reset to an initial state.
-struct CmdBufferReset
+/// Execution marker that provide additional information
+//
+//  The most typical use of the event is to describe an already existing ExecutionMarkerTop event.
+//  Take 'Draw' as an example, here is what the tool can expect to see
+//
+//  => ExecutionMarkerTop({marker=0x10000003, makerName="Draw"}
+//  => ExecutionMarkerInfo({
+//          marker=0x10000003,
+//          markerInfo={ExecutionMarkerHeader({typeInfo=Draw}) + DrawInfo({drawType=...})
+//  => ExecutionMarkerBottom({marker=0x10000003})
+//
+//  A couple of things to note
+//  1. ExecutionMarkerInfo have the same markerValue as the ExecutionMarkerTop that it is describing.
+//  2. ExecutionMarkerInfo is only used inside driver so ExecutionMarkerTop(Application)+ExecutionMarkerInfo
+//     is not a possible combination. Currently, tool can expect to see back-to-back Top->Info->Bottom if Info
+//     is available. However, this may not be true when we generate timestamps for all internal calls in the future.
+//
+//  There are situations where ExecutionMarkerTop and ExecutionMarkerInfo does not have 1-to-1 relations.
+//  1. When using ExecutionMarkerInfo to provide additional info for a CmdBuffer, there will be timestamp but
+//     no ExecutionMarkerTop/ExecutionMarkerBottom events. In this case, ExecutionMarkerInfo.marker is set to
+//     0xFFFFAAAA (InitialExecutionMarkerValue).
+//  2. There will be an ExecutionMarkerInfo for PipelineBind but not timestamp generated for that because binding
+//     a pipeline does not cause any GPU work. Therefore no timestamp is needed.
+//  3. Barrier operation will have one timestamp generated but 2 different ExecutionMarkerInfo generated (BarrierBegin
+//     and BarrierEnd). Expect MarkerTop + MarkerInfo(BarrierBegin) + MarkerInfo(BarrierEnd) + MarkerBottom in this case.
+//
+struct ExecutionMarkerInfo
 {
-    /// An integer uniquely identifying a command buffer.
+    // Unique identifier of the relevant command buffer
     uint32_t cmdBufferId;
 
-    /// Deserializes a buffer into this event object
+    /// Execution marker value (see comment in ExecutionMarkerTop). The ExecutionMarkerInfo generally describes an
+    /// existing ExecutionMarkerTop and the marker is how ExecutionMarkerInfo relates to an ExecutionMarkerTop.
+    uint32_t marker;
+
+    /// The length of `markerInfo`.
+    uint16_t markerInfoSize;
+
+    /// Used as a buffer to host additonal structural data. It should starts with ExecutionMarkerInfoHeader followed
+    /// by a data structure that ExecutionMarkerInfoHeader.infoType dictates. All the structure are tightly packed
+    /// (no paddings).
+    uint8_t markerInfo[64];
+
     void FromBuffer(const uint8_t* buffer)
     {
         memcpy(&cmdBufferId, buffer, sizeof(cmdBufferId));
+        buffer += sizeof(cmdBufferId);
+
+        memcpy(&marker, buffer, sizeof(marker));
+        buffer += sizeof(marker);
+
+        memcpy(&markerInfoSize, buffer, sizeof(markerInfoSize));
+        buffer += sizeof(markerInfoSize);
+
+        memcpy(markerInfo, buffer, markerInfoSize);
     }
 
-    /// Fill the pre-allocated `buffer` with the data of this struct. The size of
-    /// the buffer has to be at least `sizeof(CmdBufferReset)` big.
-    ///
+    /// Fill the pre-allocated `buffer` with the data in this struct.
     /// Return the actual amount of bytes copied into `buffer`.
     uint32_t ToBuffer(uint8_t* buffer) const
     {
@@ -226,8 +251,84 @@ struct CmdBufferReset
         memcpy(buffer + copySize, &cmdBufferId, sizeof(cmdBufferId));
         copySize += sizeof(cmdBufferId);
 
+        memcpy(buffer + copySize, &marker, sizeof(marker));
+        copySize += sizeof(marker);
+
+        memcpy(buffer + copySize, &markerInfoSize, sizeof(markerInfoSize));
+        copySize += sizeof(markerInfoSize);
+
+        memcpy(buffer + copySize, markerInfo, markerInfoSize);
+        copySize += markerInfoSize;
+
         return copySize;
     }
 };
+
+#pragma pack(push, 1)
+
+// Header information on how to interpret the info struct
+struct ExecutionMarkerInfoHeader
+{
+    ExecutionMarkerInfoType infoType;
+};
+
+/// CmdBufferInfo follows header with ExecutionMarkerInfoType::CmdBufStart
+struct CmdBufferInfo
+{
+    uint8_t     queueType;      // SqttQueueType from sqtt_file_format.h
+    uint64_t    deviceId;       // Device handle in D3D12 & Vulkan
+    uint32_t    queueFlags;     // 0 in D3D12. VkQueueFlagBits in Vulkan
+};
+
+/// PipelineInfo follows header with ExecutionMarkerInfoType::PipelineBind
+struct PipelineInfo
+{
+    uint32_t    bindPoint;      // Pal::PipelineBindPoint
+    uint64_t    apiPsoHash;     // Api Pipeline hash
+};
+
+/// DrawUserData follows header with ExecutionMarkerInfoType::DrawUserData
+struct DrawUserData
+{
+    uint32_t     vertexOffset;   // Vertex offset (first vertex) user data register index
+    uint32_t     instanceOffset; // Instance offset (start instance) user data register index
+    uint32_t     drawId;         // Draw ID SPI user data register index
+};
+
+/// DrawInfo follows header with ExecutionMarkerInfoType::Draw
+struct DrawInfo
+{
+    uint32_t     drawType;
+    uint32_t     vtxIdxCount;    // Vertex/Index count
+    uint32_t     instanceCount;  // Instance count
+    uint32_t     startIndex;     // Start index
+    DrawUserData userData;
+};
+
+/// DispatchInfo follows header with ExecutionMarkerInfoType::Dispatch
+struct DispatchInfo
+{
+    uint32_t    dispatchType;   // Api specific. RgpSqttMarkerApiType(DXCP) or RgpSqttMarkerEventType(Vulkan)
+    uint32_t    threadX;        // Number of thread groups in X dimension
+    uint32_t    threadY;        // Number of thread groups in Y dimension
+    uint32_t    threadZ;        // Number of thread groups in Z dimension
+};
+
+/// BarrierBeginInfo follows header with ExecutionMarkerInfoType::BarrierBegin
+struct BarrierBeginInfo
+{
+    uint32_t    type;       // Pal::Developer::BarrierType
+    uint32_t    reason;     // Pal::Developer::BarrierReason
+};
+
+/// BarrierEndInfo follows header with ExecutionMarkerInfoType::BarrierEnd
+struct BarrierEndInfo
+{
+    uint16_t    pipelineStalls;     // Pal::Developer::BarrierOperations.pipelineStalls
+    uint16_t    layoutTransitions;  // Pal::Developer::BarrierOperations.layoutTransitions
+    uint16_t    caches;             // Pal::Developer::BarrierOperations.caches
+};
+
+#pragma pack(pop)
 
 } // namespace UmdCrashAnalysisEvents

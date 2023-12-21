@@ -70,7 +70,7 @@ extern bool DetectGfx11SoftwareWorkaroundsByGfxIp(
     Gfx11SwWarDetection* pWorkarounds);
 
 // Number of workarounds that are represented in Gfx11SwWarDetection.
-constexpr uint32_t Gfx11NumWorkarounds = 47;
+constexpr uint32_t Gfx11NumWorkarounds = 48;
 
 // Number of DWORDs that make up the Gfx11SwWarDetection structure.
 constexpr uint32_t Gfx11StructDwords = 2;
@@ -81,7 +81,7 @@ constexpr uint32_t Gfx11StructDwords = 2;
 constexpr uint32_t Gfx11InactiveMask[] =
 {
     0x00000000,
-    0xffff8000,
+    0xffff0000,
 };
 
 // Bitfield structure containing all workarounds active for the Gfx11 family.
@@ -90,256 +90,262 @@ union Gfx11SwWarDetection
     struct
     {
 #if SWD_BUILD_NAVI31|| SWD_BUILD_NAVI32|| SWD_BUILD_NAVI33 || SWD_BUILD_PHX1
-        uint32_t ppPbbPBBBreakBatchDifferenceWithPrimLimit_FpovLimit_DeallocLimit_A_                                                                                                 : 1;
+        uint32_t ppPbbPBBBreakBatchDifferenceWithPrimLimit_FpovLimit_DeallocLimit_A_                                                                                                  : 1;
 #else
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 #endif
 
 #if SWD_BUILD_NAVI31|| SWD_BUILD_NAVI32|| SWD_BUILD_NAVI33 || SWD_BUILD_PHX1
-        uint32_t shaderSpsubvectorExecutionSubv1SharedVgprGotWrongData_A_                                                                                                            : 1;
+        uint32_t shaderSpsubvectorExecutionSubv1SharedVgprGotWrongData_A_                                                                                                             : 1;
 #else
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 #endif
 
 #if SWD_BUILD_PHX1
-        uint32_t shaderSqSqgSQPERFSNAPSHOT_ClockCyclesCountingModeDoesNotConsiderVMIDMASK_B_                                                                                         : 1;
+        uint32_t shaderSqSqgSQPERFSNAPSHOT_ClockCyclesCountingModeDoesNotConsiderVMIDMASK_B_                                                                                          : 1;
 #else
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 #endif
 
 #if SWD_BUILD_NAVI31|| SWD_BUILD_NAVI32|| SWD_BUILD_NAVI33
-        uint32_t shaderSqSqgSQPERFSNAPSHOT_ClockCyclesCountingModeDoesNotConsiderVMIDMASK_A_                                                                                         : 1;
+        uint32_t shaderSqSqgSQPERFSNAPSHOT_ClockCyclesCountingModeDoesNotConsiderVMIDMASK_A_                                                                                          : 1;
 #else
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 #endif
 
 #if SWD_BUILD_NAVI31|| SWD_BUILD_NAVI32|| SWD_BUILD_NAVI33 || SWD_BUILD_PHX1
-        uint32_t shaderSpQSADAndMADI64U64SrcDataCorruptionDueToIntraInstructionForwarding_A_                                                                                         : 1;
+        uint32_t shaderSpQSADAndMADI64U64SrcDataCorruptionDueToIntraInstructionForwarding_A_                                                                                          : 1;
 #else
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 #endif
 
 #if SWD_BUILD_NAVI31|| SWD_BUILD_NAVI32
-        uint32_t shaderSpDPPStallDueToExecutionMaskForwardingMissesPermlane16_x__A_                                                                                                  : 1;
+        uint32_t shaderSpDPPStallDueToExecutionMaskForwardingMissesPermlane16_x__A_                                                                                                   : 1;
 #else
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 #endif
 
 #if SWD_BUILD_NAVI31|| SWD_BUILD_NAVI32|| SWD_BUILD_NAVI33 || SWD_BUILD_PHX1
-        uint32_t shaderSpfailedToDetectPartialForwardingStall_A_                                                                                                                     : 1;
+        uint32_t shaderSpfailedToDetectPartialForwardingStall_A_                                                                                                                      : 1;
 #else
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 #endif
 
 #if SWD_BUILD_NAVI31|| SWD_BUILD_NAVI32|| SWD_BUILD_NAVI33 || SWD_BUILD_PHX1
-        uint32_t shaderSqSqgSCLAUSEFollowedByVALU_SDELAYALUCoIssuePairCanExceedClauseLength_A_                                                                                       : 1;
+        uint32_t shaderSqSqgSCLAUSEFollowedByVALU_SDELAYALUCoIssuePairCanExceedClauseLength_A_                                                                                        : 1;
 #else
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 #endif
 
 #if SWD_BUILD_NAVI31|| SWD_BUILD_NAVI32 || SWD_BUILD_PHX1
-        uint32_t cmmUtcl0UTCL0PrefetchRequest_permissions_0_Issue_A_                                                                                                                 : 1;
+        uint32_t cmmUtcl0UTCL0PrefetchRequest_permissions_0_Issue_A_                                                                                                                  : 1;
 #else
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 #endif
 
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 
 #if SWD_BUILD_NAVI31|| SWD_BUILD_NAVI32|| SWD_BUILD_NAVI33
-        uint32_t ppPbbPBBMayErroneouslyDropBinsWhenConfiguredTo24SEs_A_                                                                                                              : 1;
+        uint32_t ppPbbPBBMayErroneouslyDropBinsWhenConfiguredTo24SEs_A_                                                                                                               : 1;
 #else
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 #endif
 
 #if SWD_BUILD_NAVI31|| SWD_BUILD_NAVI32|| SWD_BUILD_NAVI33 || SWD_BUILD_PHX1
-        uint32_t ppDbDBDEBUG__FORCEMISSIFNOTINFLIGHTCausesADeadlockBetweenDbDtt_Osb_A_                                                                                               : 1;
+        uint32_t ppDbDBDEBUG__FORCEMISSIFNOTINFLIGHTCausesADeadlockBetweenDbDtt_Osb_A_                                                                                                : 1;
 #else
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 #endif
 
 #if SWD_BUILD_NAVI31|| SWD_BUILD_NAVI32|| SWD_BUILD_NAVI33|| SWD_BUILD_PHX1
-        uint32_t ppDbPWSIssueForDepthWrite_TextureRead_A_                                                                                                                            : 1;
+        uint32_t ppDbPWSIssueForDepthWrite_TextureRead_A_                                                                                                                             : 1;
 #else
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 #endif
 
 #if SWD_BUILD_NAVI31|| SWD_BUILD_NAVI32|| SWD_BUILD_NAVI33 || SWD_BUILD_PHX1
-        uint32_t geometryGeGEWdTe11ClockCanStayHighAfterShaderMessageThdgrp_A_                                                                                                       : 1;
+        uint32_t geometryGeGEWdTe11ClockCanStayHighAfterShaderMessageThdgrp_A_                                                                                                        : 1;
 #else
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 #endif
 
 #if SWD_BUILD_NAVI31|| SWD_BUILD_NAVI32|| SWD_BUILD_NAVI33 || SWD_BUILD_PHX1
-        uint32_t ppDbLostSamplesForRB_QuadsAt16xaaMayCauseCorruption_A_                                                                                                              : 1;
+        uint32_t ppDbLostSamplesForRB_QuadsAt16xaaMayCauseCorruption_A_                                                                                                               : 1;
 #else
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 #endif
 
 #if SWD_BUILD_NAVI31|| SWD_BUILD_NAVI32|| SWD_BUILD_NAVI33 || SWD_BUILD_PHX1
-        uint32_t sioSxvmidResetForMrtZOnlyPixelShaderHitSXAssertion_A_                                                                                                               : 1;
+        uint32_t sioSxvmidResetForMrtZOnlyPixelShaderHitSXAssertion_A_                                                                                                                : 1;
 #else
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 #endif
 
 #if SWD_BUILD_NAVI31|| SWD_BUILD_NAVI32|| SWD_BUILD_NAVI33 || SWD_BUILD_PHX1
-        uint32_t shaderSqSqgSQGTTWPTRIssues_A_                                                                                                                                       : 1;
+        uint32_t shaderSqSqgSQGTTWPTRIssues_A_                                                                                                                                        : 1;
 #else
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 #endif
 
 #if SWD_BUILD_NAVI31 || SWD_BUILD_NAVI33
-        uint32_t shaderSqSqgPCSentToSQThrCmdBusMayBeDropped_A_                                                                                                                       : 1;
+        uint32_t shaderSqSqgPCSentToSQThrCmdBusMayBeDropped_A_                                                                                                                        : 1;
 #else
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 #endif
 
 #if SWD_BUILD_NAVI31|| SWD_BUILD_NAVI32|| SWD_BUILD_NAVI33 || SWD_BUILD_PHX1
-        uint32_t sioPcSioSpiBciSPIAndPCCanGetOutOfSyncForNoLdsInitWavesWhenEXTRALDSSIZE_0_A_                                                                                         : 1;
+        uint32_t sioPcSioSpiBciSPIAndPCCanGetOutOfSyncForNoLdsInitWavesWhenEXTRALDSSIZE_0_A_                                                                                          : 1;
 #else
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 #endif
 
 #if  SWD_BUILD_NAVI31|| SWD_BUILD_NAVI32|| SWD_BUILD_NAVI33 || SWD_BUILD_PHX1
-        uint32_t ppDbPWS_RtlTimeout_TimeStampEventPwsStall_eopDoneNotSentForOldestTSWaitingForSyncComplete__FlusherStalledInOpPipe_A_                                                : 1;
+        uint32_t ppDbPWS_RtlTimeout_TimeStampEventPwsStall_eopDoneNotSentForOldestTSWaitingForSyncComplete__FlusherStalledInOpPipe_A_                                                 : 1;
 #else
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 #endif
 
 #if SWD_BUILD_NAVI31|| SWD_BUILD_NAVI32|| SWD_BUILD_NAVI33 || SWD_BUILD_PHX1
-        uint32_t sioSpiBciSoftLockIssue_A_                                                                                                                                           : 1;
+        uint32_t sioSpiBciSoftLockIssue_A_                                                                                                                                            : 1;
 #else
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 #endif
 
 #if SWD_BUILD_NAVI33
-        uint32_t sioSpiBciSpyGlassRevealedABugInSpiRaRscselGsThrottleModuleWhichIsCausedByGsPsVgprLdsInUsesVariableDroppingMSBInRelevantMathExpression_A_                            : 1;
+        uint32_t sioSpiBciSpyGlassRevealedABugInSpiRaRscselGsThrottleModuleWhichIsCausedByGsPsVgprLdsInUsesVariableDroppingMSBInRelevantMathExpression_A_                             : 1;
 #else
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 #endif
 
 #if SWD_BUILD_NAVI31|| SWD_BUILD_NAVI32|| SWD_BUILD_NAVI33 || SWD_BUILD_PHX1
-        uint32_t geometryPaStereoPositionNanCheckBug_A_                                                                                                                              : 1;
+        uint32_t geometryPaStereoPositionNanCheckBug_A_                                                                                                                               : 1;
 #else
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 #endif
 
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 
-        uint32_t                                                                                                                                                                     : 1;
-
-#if SWD_BUILD_NAVI31|| SWD_BUILD_NAVI32|| SWD_BUILD_NAVI33 || SWD_BUILD_PHX1
-        uint32_t geometryPaPALineStippleResetError_A_                                                                                                                                : 1;
-#else
-        uint32_t                                                                                                                                                                     : 1;
-#endif
+        uint32_t                                                                                                                                                                      : 1;
 
 #if SWD_BUILD_NAVI31|| SWD_BUILD_NAVI32|| SWD_BUILD_NAVI33 || SWD_BUILD_PHX1
-        uint32_t gcPvPpCbCBPerfcountersStuckAtZeroAfterPerfcounterStopEventReceived_A_                                                                                               : 1;
+        uint32_t geometryPaPALineStippleResetError_A_                                                                                                                                 : 1;
 #else
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 #endif
 
 #if SWD_BUILD_NAVI31|| SWD_BUILD_NAVI32|| SWD_BUILD_NAVI33 || SWD_BUILD_PHX1
-        uint32_t ppDbPpScSCDBHangNotSendingWaveConflictBackToSPI_A_                                                                                                                  : 1;
+        uint32_t gcPvPpCbCBPerfcountersStuckAtZeroAfterPerfcounterStopEventReceived_A_                                                                                                : 1;
 #else
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
+#endif
+
+#if SWD_BUILD_NAVI31|| SWD_BUILD_NAVI32|| SWD_BUILD_NAVI33 || SWD_BUILD_PHX1
+        uint32_t ppDbPpScSCDBHangNotSendingWaveConflictBackToSPI_A_                                                                                                                   : 1;
+#else
+        uint32_t                                                                                                                                                                      : 1;
 #endif
 
 #if SWD_BUILD_NAVI31|| SWD_BUILD_NAVI32|| SWD_BUILD_NAVI33|| SWD_BUILD_PHX1
-        uint32_t sioSpiBciSPI_TheOverRestrictedExportConflictHQ_HoldingQueue_PtrRuleMayReduceTheTheoreticalExpGrantThroughput_PotentiallyIncreaseOldNewPSWavesInterleavingChances_A_ : 1;
+        uint32_t sioSpiBciSPI_TheOverRestrictedExportConflictHQ_HoldingQueue_PtrRuleMayReduceTheTheoreticalExpGrantThroughput_PotentiallyIncreaseOldNewPSWavesInterleavingChances_A_  : 1;
 #else
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 #endif
 
 #if SWD_BUILD_NAVI31|| SWD_BUILD_NAVI32|| SWD_BUILD_NAVI33 || SWD_BUILD_PHX1
-        uint32_t textureTaGfx11TAUnableToSupportScratchSVS_A_                                                                                                                        : 1;
+        uint32_t textureTaGfx11TAUnableToSupportScratchSVS_A_                                                                                                                         : 1;
 #else
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 #endif
 
 #if   SWD_BUILD_NAVI31|| SWD_BUILD_NAVI32|| SWD_BUILD_NAVI33 || SWD_BUILD_PHX1
-        uint32_t cmmGl2GL2WriteAfterReadOrderingIssueDuringGL2INV_A_                                                                                                                 : 1;
+        uint32_t cmmGl2GL2WriteAfterReadOrderingIssueDuringGL2INV_A_                                                                                                                  : 1;
 #else
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 #endif
 
 #if SWD_BUILD_NAVI31|| SWD_BUILD_NAVI32|| SWD_BUILD_NAVI33 || SWD_BUILD_PHX1
-        uint32_t shaderSqcMissingTTTokens_A_                                                                                                                                         : 1;
+        uint32_t shaderSqcMissingTTTokens_A_                                                                                                                                          : 1;
 #else
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 #endif
 
 #if SWD_BUILD_NAVI31|| SWD_BUILD_NAVI32|| SWD_BUILD_NAVI33 || SWD_BUILD_PHX1
-        uint32_t controlRlcHw36RlcSpmIsAlwaysBusyIfISpmStopIssuedSoCloseToPerfSample_A_                                                                                              : 1;
+        uint32_t controlRlcHw36RlcSpmIsAlwaysBusyIfISpmStopIssuedSoCloseToPerfSample_A_                                                                                               : 1;
 #else
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 #endif
 
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 
 #if SWD_BUILD_NAVI31|| SWD_BUILD_NAVI32|| SWD_BUILD_NAVI33 || SWD_BUILD_PHX1
-        uint32_t shaderSpSPSrcOperandInvalidatedByTdLdsDataReturn_A_                                                                                                                 : 1;
+        uint32_t shaderSpSPSrcOperandInvalidatedByTdLdsDataReturn_A_                                                                                                                  : 1;
 #else
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 #endif
 
 #if SWD_BUILD_NAVI31|| SWD_BUILD_NAVI32|| SWD_BUILD_NAVI33 || SWD_BUILD_PHX1
-        uint32_t textureTaGfx11ImageMsaaLoadNotHonoringDstSel_A_                                                                                                                     : 1;
+        uint32_t textureTaGfx11ImageMsaaLoadNotHonoringDstSel_A_                                                                                                                      : 1;
 #else
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 #endif
 
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 
 #if SWD_BUILD_NAVI31|| SWD_BUILD_NAVI32|| SWD_BUILD_NAVI33 || SWD_BUILD_PHX1
-        uint32_t controlCpUTCL1CAMInCPGGotErrorMoreThenOneCAMEntryMatchedWhenDCOffsetAddressIsSamePAWithMQDBaseAddress_A_                                                            : 1;
+        uint32_t controlCpUTCL1CAMInCPGGotErrorMoreThenOneCAMEntryMatchedWhenDCOffsetAddressIsSamePAWithMQDBaseAddress_A_                                                             : 1;
 #else
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 #endif
 
 #if  SWD_BUILD_NAVI31|| SWD_BUILD_NAVI32|| SWD_BUILD_NAVI33 || SWD_BUILD_PHX1
-        uint32_t shaderSqSqgWave64VALUReadSGPRMaskToSALUDepdency_A_                                                                                                                  : 1;
+        uint32_t shaderSqSqgWave64VALUReadSGPRMaskToSALUDepdency_A_                                                                                                                   : 1;
 #else
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 #endif
 
 #if  SWD_BUILD_NAVI31|| SWD_BUILD_NAVI32|| SWD_BUILD_NAVI33 || SWD_BUILD_PHX1
-        uint32_t geometryGeSioPcSioSpiBciATMDeallocsDoNotWaitForGSDONE_A_                                                                                                            : 1;
+        uint32_t geometryGeSioPcSioSpiBciATMDeallocsDoNotWaitForGSDONE_A_                                                                                                             : 1;
 #else
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 #endif
 
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 
 #if SWD_BUILD_NAVI31|| SWD_BUILD_NAVI32|| SWD_BUILD_NAVI33 || SWD_BUILD_PHX1
-        uint32_t shaderSpTranscendentalOpFollowedByALUDoesntEnforceDependency_A_                                                                                                     : 1;
+        uint32_t shaderSpTranscendentalOpFollowedByALUDoesntEnforceDependency_A_                                                                                                      : 1;
 #else
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 #endif
 
 #if   SWD_BUILD_PHX1
-        uint32_t controlCp1PHXRS64D_RS64MemoryRAWCoherencyIsBrokenOnAsyncHeavyWeightShootdown_A_                                                                                     : 1;
+        uint32_t controlCp1PHXRS64D_RS64MemoryRAWCoherencyIsBrokenOnAsyncHeavyWeightShootdown_A_                                                                                      : 1;
 #else
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 #endif
 
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 
 #if SWD_BUILD_NAVI32
-        uint32_t entireSubsystemUndershootCausesHighDroop_A_                                                                                                                         : 1;
+        uint32_t entireSubsystemUndershootCausesHighDroop_A_                                                                                                                          : 1;
 #else
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 #endif
 
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 
-#if   SWD_BUILD_NAVI31|| SWD_BUILD_NAVI32|| SWD_BUILD_NAVI33 || SWD_BUILD_PHX1
-        uint32_t ppCbGFX11DCC31DXXPNeedForSpeedHeat_BlackFlickeringDotCorruption_A_                                                                                                  : 1;
+#if SWD_BUILD_NAVI31|| SWD_BUILD_NAVI32|| SWD_BUILD_NAVI33 || SWD_BUILD_PHX1
+        uint32_t ppCbGFX11DCC31DXXPNeedForSpeedHeat_BlackFlickeringDotCorruption_A_                                                                                                   : 1;
 #else
-        uint32_t                                                                                                                                                                     : 1;
+        uint32_t                                                                                                                                                                      : 1;
 #endif
 
-        uint32_t reserved                                                                                                                                                            : 17;
+#if   SWD_BUILD_NAVI31|| SWD_BUILD_NAVI32|| SWD_BUILD_NAVI33|| SWD_BUILD_PHX1
+        uint32_t ppDbDBOreoOpaqueModeHWBug_UdbOreoScoreBoard_udbOsbData_udbOsbdMonitor_ostSampleMaskMismatchOREOScoreboardStoresInvalidEWaveIDAndIncorrectlySetsRespectiveValidBit_A_ : 1;
+#else
+        uint32_t                                                                                                                                                                      : 1;
+#endif
+
+        uint32_t reserved                                                                                                                                                             : 16;
     };
 
     uint32_t u32All[Gfx11StructDwords];
@@ -356,41 +362,42 @@ namespace swd_internal
 void DetectNavi31A0Workarounds(
     Gfx11SwWarDetection* pWorkarounds)
 {
-    pWorkarounds->cmmGl2GL2WriteAfterReadOrderingIssueDuringGL2INV_A_                                                                                                                 = 1;
-    pWorkarounds->cmmUtcl0UTCL0PrefetchRequest_permissions_0_Issue_A_                                                                                                                 = 1;
-    pWorkarounds->controlCpUTCL1CAMInCPGGotErrorMoreThenOneCAMEntryMatchedWhenDCOffsetAddressIsSamePAWithMQDBaseAddress_A_                                                            = 1;
-    pWorkarounds->controlRlcHw36RlcSpmIsAlwaysBusyIfISpmStopIssuedSoCloseToPerfSample_A_                                                                                              = 1;
-    pWorkarounds->gcPvPpCbCBPerfcountersStuckAtZeroAfterPerfcounterStopEventReceived_A_                                                                                               = 1;
-    pWorkarounds->geometryGeGEWdTe11ClockCanStayHighAfterShaderMessageThdgrp_A_                                                                                                       = 1;
-    pWorkarounds->geometryGeSioPcSioSpiBciATMDeallocsDoNotWaitForGSDONE_A_                                                                                                            = 1;
-    pWorkarounds->geometryPaPALineStippleResetError_A_                                                                                                                                = 1;
-    pWorkarounds->geometryPaStereoPositionNanCheckBug_A_                                                                                                                              = 1;
-    pWorkarounds->ppCbGFX11DCC31DXXPNeedForSpeedHeat_BlackFlickeringDotCorruption_A_                                                                                                  = 1;
-    pWorkarounds->ppDbDBDEBUG__FORCEMISSIFNOTINFLIGHTCausesADeadlockBetweenDbDtt_Osb_A_                                                                                               = 1;
-    pWorkarounds->ppDbLostSamplesForRB_QuadsAt16xaaMayCauseCorruption_A_                                                                                                              = 1;
-    pWorkarounds->ppDbPWSIssueForDepthWrite_TextureRead_A_                                                                                                                            = 1;
-    pWorkarounds->ppDbPWS_RtlTimeout_TimeStampEventPwsStall_eopDoneNotSentForOldestTSWaitingForSyncComplete__FlusherStalledInOpPipe_A_                                                = 1;
-    pWorkarounds->ppDbPpScSCDBHangNotSendingWaveConflictBackToSPI_A_                                                                                                                  = 1;
-    pWorkarounds->ppPbbPBBBreakBatchDifferenceWithPrimLimit_FpovLimit_DeallocLimit_A_                                                                                                 = 1;
-    pWorkarounds->ppPbbPBBMayErroneouslyDropBinsWhenConfiguredTo24SEs_A_                                                                                                              = 1;
-    pWorkarounds->shaderSpDPPStallDueToExecutionMaskForwardingMissesPermlane16_x__A_                                                                                                  = 1;
-    pWorkarounds->shaderSpQSADAndMADI64U64SrcDataCorruptionDueToIntraInstructionForwarding_A_                                                                                         = 1;
-    pWorkarounds->shaderSpSPSrcOperandInvalidatedByTdLdsDataReturn_A_                                                                                                                 = 1;
-    pWorkarounds->shaderSpTranscendentalOpFollowedByALUDoesntEnforceDependency_A_                                                                                                     = 1;
-    pWorkarounds->shaderSpfailedToDetectPartialForwardingStall_A_                                                                                                                     = 1;
-    pWorkarounds->shaderSpsubvectorExecutionSubv1SharedVgprGotWrongData_A_                                                                                                            = 1;
-    pWorkarounds->shaderSqSqgPCSentToSQThrCmdBusMayBeDropped_A_                                                                                                                       = 1;
-    pWorkarounds->shaderSqSqgSCLAUSEFollowedByVALU_SDELAYALUCoIssuePairCanExceedClauseLength_A_                                                                                       = 1;
-    pWorkarounds->shaderSqSqgSQGTTWPTRIssues_A_                                                                                                                                       = 1;
-    pWorkarounds->shaderSqSqgSQPERFSNAPSHOT_ClockCyclesCountingModeDoesNotConsiderVMIDMASK_A_                                                                                         = 1;
-    pWorkarounds->shaderSqSqgWave64VALUReadSGPRMaskToSALUDepdency_A_                                                                                                                  = 1;
-    pWorkarounds->shaderSqcMissingTTTokens_A_                                                                                                                                         = 1;
-    pWorkarounds->sioPcSioSpiBciSPIAndPCCanGetOutOfSyncForNoLdsInitWavesWhenEXTRALDSSIZE_0_A_                                                                                         = 1;
-    pWorkarounds->sioSpiBciSPI_TheOverRestrictedExportConflictHQ_HoldingQueue_PtrRuleMayReduceTheTheoreticalExpGrantThroughput_PotentiallyIncreaseOldNewPSWavesInterleavingChances_A_ = 1;
-    pWorkarounds->sioSpiBciSoftLockIssue_A_                                                                                                                                           = 1;
-    pWorkarounds->sioSxvmidResetForMrtZOnlyPixelShaderHitSXAssertion_A_                                                                                                               = 1;
-    pWorkarounds->textureTaGfx11ImageMsaaLoadNotHonoringDstSel_A_                                                                                                                     = 1;
-    pWorkarounds->textureTaGfx11TAUnableToSupportScratchSVS_A_                                                                                                                        = 1;
+    pWorkarounds->cmmGl2GL2WriteAfterReadOrderingIssueDuringGL2INV_A_                                                                                                                  = 1;
+    pWorkarounds->cmmUtcl0UTCL0PrefetchRequest_permissions_0_Issue_A_                                                                                                                  = 1;
+    pWorkarounds->controlCpUTCL1CAMInCPGGotErrorMoreThenOneCAMEntryMatchedWhenDCOffsetAddressIsSamePAWithMQDBaseAddress_A_                                                             = 1;
+    pWorkarounds->controlRlcHw36RlcSpmIsAlwaysBusyIfISpmStopIssuedSoCloseToPerfSample_A_                                                                                               = 1;
+    pWorkarounds->gcPvPpCbCBPerfcountersStuckAtZeroAfterPerfcounterStopEventReceived_A_                                                                                                = 1;
+    pWorkarounds->geometryGeGEWdTe11ClockCanStayHighAfterShaderMessageThdgrp_A_                                                                                                        = 1;
+    pWorkarounds->geometryGeSioPcSioSpiBciATMDeallocsDoNotWaitForGSDONE_A_                                                                                                             = 1;
+    pWorkarounds->geometryPaPALineStippleResetError_A_                                                                                                                                 = 1;
+    pWorkarounds->geometryPaStereoPositionNanCheckBug_A_                                                                                                                               = 1;
+    pWorkarounds->ppCbGFX11DCC31DXXPNeedForSpeedHeat_BlackFlickeringDotCorruption_A_                                                                                                   = 1;
+    pWorkarounds->ppDbDBDEBUG__FORCEMISSIFNOTINFLIGHTCausesADeadlockBetweenDbDtt_Osb_A_                                                                                                = 1;
+    pWorkarounds->ppDbDBOreoOpaqueModeHWBug_UdbOreoScoreBoard_udbOsbData_udbOsbdMonitor_ostSampleMaskMismatchOREOScoreboardStoresInvalidEWaveIDAndIncorrectlySetsRespectiveValidBit_A_ = 1;
+    pWorkarounds->ppDbLostSamplesForRB_QuadsAt16xaaMayCauseCorruption_A_                                                                                                               = 1;
+    pWorkarounds->ppDbPWSIssueForDepthWrite_TextureRead_A_                                                                                                                             = 1;
+    pWorkarounds->ppDbPWS_RtlTimeout_TimeStampEventPwsStall_eopDoneNotSentForOldestTSWaitingForSyncComplete__FlusherStalledInOpPipe_A_                                                 = 1;
+    pWorkarounds->ppDbPpScSCDBHangNotSendingWaveConflictBackToSPI_A_                                                                                                                   = 1;
+    pWorkarounds->ppPbbPBBBreakBatchDifferenceWithPrimLimit_FpovLimit_DeallocLimit_A_                                                                                                  = 1;
+    pWorkarounds->ppPbbPBBMayErroneouslyDropBinsWhenConfiguredTo24SEs_A_                                                                                                               = 1;
+    pWorkarounds->shaderSpDPPStallDueToExecutionMaskForwardingMissesPermlane16_x__A_                                                                                                   = 1;
+    pWorkarounds->shaderSpQSADAndMADI64U64SrcDataCorruptionDueToIntraInstructionForwarding_A_                                                                                          = 1;
+    pWorkarounds->shaderSpSPSrcOperandInvalidatedByTdLdsDataReturn_A_                                                                                                                  = 1;
+    pWorkarounds->shaderSpTranscendentalOpFollowedByALUDoesntEnforceDependency_A_                                                                                                      = 1;
+    pWorkarounds->shaderSpfailedToDetectPartialForwardingStall_A_                                                                                                                      = 1;
+    pWorkarounds->shaderSpsubvectorExecutionSubv1SharedVgprGotWrongData_A_                                                                                                             = 1;
+    pWorkarounds->shaderSqSqgPCSentToSQThrCmdBusMayBeDropped_A_                                                                                                                        = 1;
+    pWorkarounds->shaderSqSqgSCLAUSEFollowedByVALU_SDELAYALUCoIssuePairCanExceedClauseLength_A_                                                                                        = 1;
+    pWorkarounds->shaderSqSqgSQGTTWPTRIssues_A_                                                                                                                                        = 1;
+    pWorkarounds->shaderSqSqgSQPERFSNAPSHOT_ClockCyclesCountingModeDoesNotConsiderVMIDMASK_A_                                                                                          = 1;
+    pWorkarounds->shaderSqSqgWave64VALUReadSGPRMaskToSALUDepdency_A_                                                                                                                   = 1;
+    pWorkarounds->shaderSqcMissingTTTokens_A_                                                                                                                                          = 1;
+    pWorkarounds->sioPcSioSpiBciSPIAndPCCanGetOutOfSyncForNoLdsInitWavesWhenEXTRALDSSIZE_0_A_                                                                                          = 1;
+    pWorkarounds->sioSpiBciSPI_TheOverRestrictedExportConflictHQ_HoldingQueue_PtrRuleMayReduceTheTheoreticalExpGrantThroughput_PotentiallyIncreaseOldNewPSWavesInterleavingChances_A_  = 1;
+    pWorkarounds->sioSpiBciSoftLockIssue_A_                                                                                                                                            = 1;
+    pWorkarounds->sioSxvmidResetForMrtZOnlyPixelShaderHitSXAssertion_A_                                                                                                                = 1;
+    pWorkarounds->textureTaGfx11ImageMsaaLoadNotHonoringDstSel_A_                                                                                                                      = 1;
+    pWorkarounds->textureTaGfx11TAUnableToSupportScratchSVS_A_                                                                                                                         = 1;
 }
 #endif
 
@@ -399,40 +406,41 @@ void DetectNavi31A0Workarounds(
 void DetectNavi32A0Workarounds(
     Gfx11SwWarDetection* pWorkarounds)
 {
-    pWorkarounds->cmmGl2GL2WriteAfterReadOrderingIssueDuringGL2INV_A_                                                                                                                 = 1;
-    pWorkarounds->cmmUtcl0UTCL0PrefetchRequest_permissions_0_Issue_A_                                                                                                                 = 1;
-    pWorkarounds->controlCpUTCL1CAMInCPGGotErrorMoreThenOneCAMEntryMatchedWhenDCOffsetAddressIsSamePAWithMQDBaseAddress_A_                                                            = 1;
-    pWorkarounds->controlRlcHw36RlcSpmIsAlwaysBusyIfISpmStopIssuedSoCloseToPerfSample_A_                                                                                              = 1;
-    pWorkarounds->gcPvPpCbCBPerfcountersStuckAtZeroAfterPerfcounterStopEventReceived_A_                                                                                               = 1;
-    pWorkarounds->geometryGeGEWdTe11ClockCanStayHighAfterShaderMessageThdgrp_A_                                                                                                       = 1;
-    pWorkarounds->geometryGeSioPcSioSpiBciATMDeallocsDoNotWaitForGSDONE_A_                                                                                                            = 1;
-    pWorkarounds->geometryPaPALineStippleResetError_A_                                                                                                                                = 1;
-    pWorkarounds->geometryPaStereoPositionNanCheckBug_A_                                                                                                                              = 1;
-    pWorkarounds->ppCbGFX11DCC31DXXPNeedForSpeedHeat_BlackFlickeringDotCorruption_A_                                                                                                  = 1;
-    pWorkarounds->ppDbDBDEBUG__FORCEMISSIFNOTINFLIGHTCausesADeadlockBetweenDbDtt_Osb_A_                                                                                               = 1;
-    pWorkarounds->ppDbLostSamplesForRB_QuadsAt16xaaMayCauseCorruption_A_                                                                                                              = 1;
-    pWorkarounds->ppDbPWSIssueForDepthWrite_TextureRead_A_                                                                                                                            = 1;
-    pWorkarounds->ppDbPWS_RtlTimeout_TimeStampEventPwsStall_eopDoneNotSentForOldestTSWaitingForSyncComplete__FlusherStalledInOpPipe_A_                                                = 1;
-    pWorkarounds->ppDbPpScSCDBHangNotSendingWaveConflictBackToSPI_A_                                                                                                                  = 1;
-    pWorkarounds->ppPbbPBBBreakBatchDifferenceWithPrimLimit_FpovLimit_DeallocLimit_A_                                                                                                 = 1;
-    pWorkarounds->ppPbbPBBMayErroneouslyDropBinsWhenConfiguredTo24SEs_A_                                                                                                              = 1;
-    pWorkarounds->shaderSpDPPStallDueToExecutionMaskForwardingMissesPermlane16_x__A_                                                                                                  = 1;
-    pWorkarounds->shaderSpQSADAndMADI64U64SrcDataCorruptionDueToIntraInstructionForwarding_A_                                                                                         = 1;
-    pWorkarounds->shaderSpSPSrcOperandInvalidatedByTdLdsDataReturn_A_                                                                                                                 = 1;
-    pWorkarounds->shaderSpTranscendentalOpFollowedByALUDoesntEnforceDependency_A_                                                                                                     = 1;
-    pWorkarounds->shaderSpfailedToDetectPartialForwardingStall_A_                                                                                                                     = 1;
-    pWorkarounds->shaderSpsubvectorExecutionSubv1SharedVgprGotWrongData_A_                                                                                                            = 1;
-    pWorkarounds->shaderSqSqgSCLAUSEFollowedByVALU_SDELAYALUCoIssuePairCanExceedClauseLength_A_                                                                                       = 1;
-    pWorkarounds->shaderSqSqgSQGTTWPTRIssues_A_                                                                                                                                       = 1;
-    pWorkarounds->shaderSqSqgSQPERFSNAPSHOT_ClockCyclesCountingModeDoesNotConsiderVMIDMASK_A_                                                                                         = 1;
-    pWorkarounds->shaderSqSqgWave64VALUReadSGPRMaskToSALUDepdency_A_                                                                                                                  = 1;
-    pWorkarounds->shaderSqcMissingTTTokens_A_                                                                                                                                         = 1;
-    pWorkarounds->sioPcSioSpiBciSPIAndPCCanGetOutOfSyncForNoLdsInitWavesWhenEXTRALDSSIZE_0_A_                                                                                         = 1;
-    pWorkarounds->sioSpiBciSPI_TheOverRestrictedExportConflictHQ_HoldingQueue_PtrRuleMayReduceTheTheoreticalExpGrantThroughput_PotentiallyIncreaseOldNewPSWavesInterleavingChances_A_ = 1;
-    pWorkarounds->sioSpiBciSoftLockIssue_A_                                                                                                                                           = 1;
-    pWorkarounds->sioSxvmidResetForMrtZOnlyPixelShaderHitSXAssertion_A_                                                                                                               = 1;
-    pWorkarounds->textureTaGfx11ImageMsaaLoadNotHonoringDstSel_A_                                                                                                                     = 1;
-    pWorkarounds->textureTaGfx11TAUnableToSupportScratchSVS_A_                                                                                                                        = 1;
+    pWorkarounds->cmmGl2GL2WriteAfterReadOrderingIssueDuringGL2INV_A_                                                                                                                  = 1;
+    pWorkarounds->cmmUtcl0UTCL0PrefetchRequest_permissions_0_Issue_A_                                                                                                                  = 1;
+    pWorkarounds->controlCpUTCL1CAMInCPGGotErrorMoreThenOneCAMEntryMatchedWhenDCOffsetAddressIsSamePAWithMQDBaseAddress_A_                                                             = 1;
+    pWorkarounds->controlRlcHw36RlcSpmIsAlwaysBusyIfISpmStopIssuedSoCloseToPerfSample_A_                                                                                               = 1;
+    pWorkarounds->gcPvPpCbCBPerfcountersStuckAtZeroAfterPerfcounterStopEventReceived_A_                                                                                                = 1;
+    pWorkarounds->geometryGeGEWdTe11ClockCanStayHighAfterShaderMessageThdgrp_A_                                                                                                        = 1;
+    pWorkarounds->geometryGeSioPcSioSpiBciATMDeallocsDoNotWaitForGSDONE_A_                                                                                                             = 1;
+    pWorkarounds->geometryPaPALineStippleResetError_A_                                                                                                                                 = 1;
+    pWorkarounds->geometryPaStereoPositionNanCheckBug_A_                                                                                                                               = 1;
+    pWorkarounds->ppCbGFX11DCC31DXXPNeedForSpeedHeat_BlackFlickeringDotCorruption_A_                                                                                                   = 1;
+    pWorkarounds->ppDbDBDEBUG__FORCEMISSIFNOTINFLIGHTCausesADeadlockBetweenDbDtt_Osb_A_                                                                                                = 1;
+    pWorkarounds->ppDbDBOreoOpaqueModeHWBug_UdbOreoScoreBoard_udbOsbData_udbOsbdMonitor_ostSampleMaskMismatchOREOScoreboardStoresInvalidEWaveIDAndIncorrectlySetsRespectiveValidBit_A_ = 1;
+    pWorkarounds->ppDbLostSamplesForRB_QuadsAt16xaaMayCauseCorruption_A_                                                                                                               = 1;
+    pWorkarounds->ppDbPWSIssueForDepthWrite_TextureRead_A_                                                                                                                             = 1;
+    pWorkarounds->ppDbPWS_RtlTimeout_TimeStampEventPwsStall_eopDoneNotSentForOldestTSWaitingForSyncComplete__FlusherStalledInOpPipe_A_                                                 = 1;
+    pWorkarounds->ppDbPpScSCDBHangNotSendingWaveConflictBackToSPI_A_                                                                                                                   = 1;
+    pWorkarounds->ppPbbPBBBreakBatchDifferenceWithPrimLimit_FpovLimit_DeallocLimit_A_                                                                                                  = 1;
+    pWorkarounds->ppPbbPBBMayErroneouslyDropBinsWhenConfiguredTo24SEs_A_                                                                                                               = 1;
+    pWorkarounds->shaderSpDPPStallDueToExecutionMaskForwardingMissesPermlane16_x__A_                                                                                                   = 1;
+    pWorkarounds->shaderSpQSADAndMADI64U64SrcDataCorruptionDueToIntraInstructionForwarding_A_                                                                                          = 1;
+    pWorkarounds->shaderSpSPSrcOperandInvalidatedByTdLdsDataReturn_A_                                                                                                                  = 1;
+    pWorkarounds->shaderSpTranscendentalOpFollowedByALUDoesntEnforceDependency_A_                                                                                                      = 1;
+    pWorkarounds->shaderSpfailedToDetectPartialForwardingStall_A_                                                                                                                      = 1;
+    pWorkarounds->shaderSpsubvectorExecutionSubv1SharedVgprGotWrongData_A_                                                                                                             = 1;
+    pWorkarounds->shaderSqSqgSCLAUSEFollowedByVALU_SDELAYALUCoIssuePairCanExceedClauseLength_A_                                                                                        = 1;
+    pWorkarounds->shaderSqSqgSQGTTWPTRIssues_A_                                                                                                                                        = 1;
+    pWorkarounds->shaderSqSqgSQPERFSNAPSHOT_ClockCyclesCountingModeDoesNotConsiderVMIDMASK_A_                                                                                          = 1;
+    pWorkarounds->shaderSqSqgWave64VALUReadSGPRMaskToSALUDepdency_A_                                                                                                                   = 1;
+    pWorkarounds->shaderSqcMissingTTTokens_A_                                                                                                                                          = 1;
+    pWorkarounds->sioPcSioSpiBciSPIAndPCCanGetOutOfSyncForNoLdsInitWavesWhenEXTRALDSSIZE_0_A_                                                                                          = 1;
+    pWorkarounds->sioSpiBciSPI_TheOverRestrictedExportConflictHQ_HoldingQueue_PtrRuleMayReduceTheTheoreticalExpGrantThroughput_PotentiallyIncreaseOldNewPSWavesInterleavingChances_A_  = 1;
+    pWorkarounds->sioSpiBciSoftLockIssue_A_                                                                                                                                            = 1;
+    pWorkarounds->sioSxvmidResetForMrtZOnlyPixelShaderHitSXAssertion_A_                                                                                                                = 1;
+    pWorkarounds->textureTaGfx11ImageMsaaLoadNotHonoringDstSel_A_                                                                                                                      = 1;
+    pWorkarounds->textureTaGfx11TAUnableToSupportScratchSVS_A_                                                                                                                         = 1;
 }
 #endif
 
@@ -441,41 +449,42 @@ void DetectNavi32A0Workarounds(
 void DetectNavi32GLXLWorkarounds(
     Gfx11SwWarDetection* pWorkarounds)
 {
-    pWorkarounds->cmmGl2GL2WriteAfterReadOrderingIssueDuringGL2INV_A_                                                                                                                 = 1;
-    pWorkarounds->cmmUtcl0UTCL0PrefetchRequest_permissions_0_Issue_A_                                                                                                                 = 1;
-    pWorkarounds->controlCpUTCL1CAMInCPGGotErrorMoreThenOneCAMEntryMatchedWhenDCOffsetAddressIsSamePAWithMQDBaseAddress_A_                                                            = 1;
-    pWorkarounds->controlRlcHw36RlcSpmIsAlwaysBusyIfISpmStopIssuedSoCloseToPerfSample_A_                                                                                              = 1;
-    pWorkarounds->entireSubsystemUndershootCausesHighDroop_A_                                                                                                                         = 1;
-    pWorkarounds->gcPvPpCbCBPerfcountersStuckAtZeroAfterPerfcounterStopEventReceived_A_                                                                                               = 1;
-    pWorkarounds->geometryGeGEWdTe11ClockCanStayHighAfterShaderMessageThdgrp_A_                                                                                                       = 1;
-    pWorkarounds->geometryGeSioPcSioSpiBciATMDeallocsDoNotWaitForGSDONE_A_                                                                                                            = 1;
-    pWorkarounds->geometryPaPALineStippleResetError_A_                                                                                                                                = 1;
-    pWorkarounds->geometryPaStereoPositionNanCheckBug_A_                                                                                                                              = 1;
-    pWorkarounds->ppCbGFX11DCC31DXXPNeedForSpeedHeat_BlackFlickeringDotCorruption_A_                                                                                                  = 1;
-    pWorkarounds->ppDbDBDEBUG__FORCEMISSIFNOTINFLIGHTCausesADeadlockBetweenDbDtt_Osb_A_                                                                                               = 1;
-    pWorkarounds->ppDbLostSamplesForRB_QuadsAt16xaaMayCauseCorruption_A_                                                                                                              = 1;
-    pWorkarounds->ppDbPWSIssueForDepthWrite_TextureRead_A_                                                                                                                            = 1;
-    pWorkarounds->ppDbPWS_RtlTimeout_TimeStampEventPwsStall_eopDoneNotSentForOldestTSWaitingForSyncComplete__FlusherStalledInOpPipe_A_                                                = 1;
-    pWorkarounds->ppDbPpScSCDBHangNotSendingWaveConflictBackToSPI_A_                                                                                                                  = 1;
-    pWorkarounds->ppPbbPBBBreakBatchDifferenceWithPrimLimit_FpovLimit_DeallocLimit_A_                                                                                                 = 1;
-    pWorkarounds->ppPbbPBBMayErroneouslyDropBinsWhenConfiguredTo24SEs_A_                                                                                                              = 1;
-    pWorkarounds->shaderSpDPPStallDueToExecutionMaskForwardingMissesPermlane16_x__A_                                                                                                  = 1;
-    pWorkarounds->shaderSpQSADAndMADI64U64SrcDataCorruptionDueToIntraInstructionForwarding_A_                                                                                         = 1;
-    pWorkarounds->shaderSpSPSrcOperandInvalidatedByTdLdsDataReturn_A_                                                                                                                 = 1;
-    pWorkarounds->shaderSpTranscendentalOpFollowedByALUDoesntEnforceDependency_A_                                                                                                     = 1;
-    pWorkarounds->shaderSpfailedToDetectPartialForwardingStall_A_                                                                                                                     = 1;
-    pWorkarounds->shaderSpsubvectorExecutionSubv1SharedVgprGotWrongData_A_                                                                                                            = 1;
-    pWorkarounds->shaderSqSqgSCLAUSEFollowedByVALU_SDELAYALUCoIssuePairCanExceedClauseLength_A_                                                                                       = 1;
-    pWorkarounds->shaderSqSqgSQGTTWPTRIssues_A_                                                                                                                                       = 1;
-    pWorkarounds->shaderSqSqgSQPERFSNAPSHOT_ClockCyclesCountingModeDoesNotConsiderVMIDMASK_A_                                                                                         = 1;
-    pWorkarounds->shaderSqSqgWave64VALUReadSGPRMaskToSALUDepdency_A_                                                                                                                  = 1;
-    pWorkarounds->shaderSqcMissingTTTokens_A_                                                                                                                                         = 1;
-    pWorkarounds->sioPcSioSpiBciSPIAndPCCanGetOutOfSyncForNoLdsInitWavesWhenEXTRALDSSIZE_0_A_                                                                                         = 1;
-    pWorkarounds->sioSpiBciSPI_TheOverRestrictedExportConflictHQ_HoldingQueue_PtrRuleMayReduceTheTheoreticalExpGrantThroughput_PotentiallyIncreaseOldNewPSWavesInterleavingChances_A_ = 1;
-    pWorkarounds->sioSpiBciSoftLockIssue_A_                                                                                                                                           = 1;
-    pWorkarounds->sioSxvmidResetForMrtZOnlyPixelShaderHitSXAssertion_A_                                                                                                               = 1;
-    pWorkarounds->textureTaGfx11ImageMsaaLoadNotHonoringDstSel_A_                                                                                                                     = 1;
-    pWorkarounds->textureTaGfx11TAUnableToSupportScratchSVS_A_                                                                                                                        = 1;
+    pWorkarounds->cmmGl2GL2WriteAfterReadOrderingIssueDuringGL2INV_A_                                                                                                                  = 1;
+    pWorkarounds->cmmUtcl0UTCL0PrefetchRequest_permissions_0_Issue_A_                                                                                                                  = 1;
+    pWorkarounds->controlCpUTCL1CAMInCPGGotErrorMoreThenOneCAMEntryMatchedWhenDCOffsetAddressIsSamePAWithMQDBaseAddress_A_                                                             = 1;
+    pWorkarounds->controlRlcHw36RlcSpmIsAlwaysBusyIfISpmStopIssuedSoCloseToPerfSample_A_                                                                                               = 1;
+    pWorkarounds->entireSubsystemUndershootCausesHighDroop_A_                                                                                                                          = 1;
+    pWorkarounds->gcPvPpCbCBPerfcountersStuckAtZeroAfterPerfcounterStopEventReceived_A_                                                                                                = 1;
+    pWorkarounds->geometryGeGEWdTe11ClockCanStayHighAfterShaderMessageThdgrp_A_                                                                                                        = 1;
+    pWorkarounds->geometryGeSioPcSioSpiBciATMDeallocsDoNotWaitForGSDONE_A_                                                                                                             = 1;
+    pWorkarounds->geometryPaPALineStippleResetError_A_                                                                                                                                 = 1;
+    pWorkarounds->geometryPaStereoPositionNanCheckBug_A_                                                                                                                               = 1;
+    pWorkarounds->ppCbGFX11DCC31DXXPNeedForSpeedHeat_BlackFlickeringDotCorruption_A_                                                                                                   = 1;
+    pWorkarounds->ppDbDBDEBUG__FORCEMISSIFNOTINFLIGHTCausesADeadlockBetweenDbDtt_Osb_A_                                                                                                = 1;
+    pWorkarounds->ppDbDBOreoOpaqueModeHWBug_UdbOreoScoreBoard_udbOsbData_udbOsbdMonitor_ostSampleMaskMismatchOREOScoreboardStoresInvalidEWaveIDAndIncorrectlySetsRespectiveValidBit_A_ = 1;
+    pWorkarounds->ppDbLostSamplesForRB_QuadsAt16xaaMayCauseCorruption_A_                                                                                                               = 1;
+    pWorkarounds->ppDbPWSIssueForDepthWrite_TextureRead_A_                                                                                                                             = 1;
+    pWorkarounds->ppDbPWS_RtlTimeout_TimeStampEventPwsStall_eopDoneNotSentForOldestTSWaitingForSyncComplete__FlusherStalledInOpPipe_A_                                                 = 1;
+    pWorkarounds->ppDbPpScSCDBHangNotSendingWaveConflictBackToSPI_A_                                                                                                                   = 1;
+    pWorkarounds->ppPbbPBBBreakBatchDifferenceWithPrimLimit_FpovLimit_DeallocLimit_A_                                                                                                  = 1;
+    pWorkarounds->ppPbbPBBMayErroneouslyDropBinsWhenConfiguredTo24SEs_A_                                                                                                               = 1;
+    pWorkarounds->shaderSpDPPStallDueToExecutionMaskForwardingMissesPermlane16_x__A_                                                                                                   = 1;
+    pWorkarounds->shaderSpQSADAndMADI64U64SrcDataCorruptionDueToIntraInstructionForwarding_A_                                                                                          = 1;
+    pWorkarounds->shaderSpSPSrcOperandInvalidatedByTdLdsDataReturn_A_                                                                                                                  = 1;
+    pWorkarounds->shaderSpTranscendentalOpFollowedByALUDoesntEnforceDependency_A_                                                                                                      = 1;
+    pWorkarounds->shaderSpfailedToDetectPartialForwardingStall_A_                                                                                                                      = 1;
+    pWorkarounds->shaderSpsubvectorExecutionSubv1SharedVgprGotWrongData_A_                                                                                                             = 1;
+    pWorkarounds->shaderSqSqgSCLAUSEFollowedByVALU_SDELAYALUCoIssuePairCanExceedClauseLength_A_                                                                                        = 1;
+    pWorkarounds->shaderSqSqgSQGTTWPTRIssues_A_                                                                                                                                        = 1;
+    pWorkarounds->shaderSqSqgSQPERFSNAPSHOT_ClockCyclesCountingModeDoesNotConsiderVMIDMASK_A_                                                                                          = 1;
+    pWorkarounds->shaderSqSqgWave64VALUReadSGPRMaskToSALUDepdency_A_                                                                                                                   = 1;
+    pWorkarounds->shaderSqcMissingTTTokens_A_                                                                                                                                          = 1;
+    pWorkarounds->sioPcSioSpiBciSPIAndPCCanGetOutOfSyncForNoLdsInitWavesWhenEXTRALDSSIZE_0_A_                                                                                          = 1;
+    pWorkarounds->sioSpiBciSPI_TheOverRestrictedExportConflictHQ_HoldingQueue_PtrRuleMayReduceTheTheoreticalExpGrantThroughput_PotentiallyIncreaseOldNewPSWavesInterleavingChances_A_  = 1;
+    pWorkarounds->sioSpiBciSoftLockIssue_A_                                                                                                                                            = 1;
+    pWorkarounds->sioSxvmidResetForMrtZOnlyPixelShaderHitSXAssertion_A_                                                                                                                = 1;
+    pWorkarounds->textureTaGfx11ImageMsaaLoadNotHonoringDstSel_A_                                                                                                                      = 1;
+    pWorkarounds->textureTaGfx11TAUnableToSupportScratchSVS_A_                                                                                                                         = 1;
 }
 #endif
 
@@ -484,40 +493,41 @@ void DetectNavi32GLXLWorkarounds(
 void DetectNavi33A0Workarounds(
     Gfx11SwWarDetection* pWorkarounds)
 {
-    pWorkarounds->cmmGl2GL2WriteAfterReadOrderingIssueDuringGL2INV_A_                                                                                                                 = 1;
-    pWorkarounds->controlCpUTCL1CAMInCPGGotErrorMoreThenOneCAMEntryMatchedWhenDCOffsetAddressIsSamePAWithMQDBaseAddress_A_                                                            = 1;
-    pWorkarounds->controlRlcHw36RlcSpmIsAlwaysBusyIfISpmStopIssuedSoCloseToPerfSample_A_                                                                                              = 1;
-    pWorkarounds->gcPvPpCbCBPerfcountersStuckAtZeroAfterPerfcounterStopEventReceived_A_                                                                                               = 1;
-    pWorkarounds->geometryGeGEWdTe11ClockCanStayHighAfterShaderMessageThdgrp_A_                                                                                                       = 1;
-    pWorkarounds->geometryGeSioPcSioSpiBciATMDeallocsDoNotWaitForGSDONE_A_                                                                                                            = 1;
-    pWorkarounds->geometryPaPALineStippleResetError_A_                                                                                                                                = 1;
-    pWorkarounds->geometryPaStereoPositionNanCheckBug_A_                                                                                                                              = 1;
-    pWorkarounds->ppCbGFX11DCC31DXXPNeedForSpeedHeat_BlackFlickeringDotCorruption_A_                                                                                                  = 1;
-    pWorkarounds->ppDbDBDEBUG__FORCEMISSIFNOTINFLIGHTCausesADeadlockBetweenDbDtt_Osb_A_                                                                                               = 1;
-    pWorkarounds->ppDbLostSamplesForRB_QuadsAt16xaaMayCauseCorruption_A_                                                                                                              = 1;
-    pWorkarounds->ppDbPWSIssueForDepthWrite_TextureRead_A_                                                                                                                            = 1;
-    pWorkarounds->ppDbPWS_RtlTimeout_TimeStampEventPwsStall_eopDoneNotSentForOldestTSWaitingForSyncComplete__FlusherStalledInOpPipe_A_                                                = 1;
-    pWorkarounds->ppDbPpScSCDBHangNotSendingWaveConflictBackToSPI_A_                                                                                                                  = 1;
-    pWorkarounds->ppPbbPBBBreakBatchDifferenceWithPrimLimit_FpovLimit_DeallocLimit_A_                                                                                                 = 1;
-    pWorkarounds->ppPbbPBBMayErroneouslyDropBinsWhenConfiguredTo24SEs_A_                                                                                                              = 1;
-    pWorkarounds->shaderSpQSADAndMADI64U64SrcDataCorruptionDueToIntraInstructionForwarding_A_                                                                                         = 1;
-    pWorkarounds->shaderSpSPSrcOperandInvalidatedByTdLdsDataReturn_A_                                                                                                                 = 1;
-    pWorkarounds->shaderSpTranscendentalOpFollowedByALUDoesntEnforceDependency_A_                                                                                                     = 1;
-    pWorkarounds->shaderSpfailedToDetectPartialForwardingStall_A_                                                                                                                     = 1;
-    pWorkarounds->shaderSpsubvectorExecutionSubv1SharedVgprGotWrongData_A_                                                                                                            = 1;
-    pWorkarounds->shaderSqSqgPCSentToSQThrCmdBusMayBeDropped_A_                                                                                                                       = 1;
-    pWorkarounds->shaderSqSqgSCLAUSEFollowedByVALU_SDELAYALUCoIssuePairCanExceedClauseLength_A_                                                                                       = 1;
-    pWorkarounds->shaderSqSqgSQGTTWPTRIssues_A_                                                                                                                                       = 1;
-    pWorkarounds->shaderSqSqgSQPERFSNAPSHOT_ClockCyclesCountingModeDoesNotConsiderVMIDMASK_A_                                                                                         = 1;
-    pWorkarounds->shaderSqSqgWave64VALUReadSGPRMaskToSALUDepdency_A_                                                                                                                  = 1;
-    pWorkarounds->shaderSqcMissingTTTokens_A_                                                                                                                                         = 1;
-    pWorkarounds->sioPcSioSpiBciSPIAndPCCanGetOutOfSyncForNoLdsInitWavesWhenEXTRALDSSIZE_0_A_                                                                                         = 1;
-    pWorkarounds->sioSpiBciSPI_TheOverRestrictedExportConflictHQ_HoldingQueue_PtrRuleMayReduceTheTheoreticalExpGrantThroughput_PotentiallyIncreaseOldNewPSWavesInterleavingChances_A_ = 1;
-    pWorkarounds->sioSpiBciSoftLockIssue_A_                                                                                                                                           = 1;
-    pWorkarounds->sioSpiBciSpyGlassRevealedABugInSpiRaRscselGsThrottleModuleWhichIsCausedByGsPsVgprLdsInUsesVariableDroppingMSBInRelevantMathExpression_A_                            = 1;
-    pWorkarounds->sioSxvmidResetForMrtZOnlyPixelShaderHitSXAssertion_A_                                                                                                               = 1;
-    pWorkarounds->textureTaGfx11ImageMsaaLoadNotHonoringDstSel_A_                                                                                                                     = 1;
-    pWorkarounds->textureTaGfx11TAUnableToSupportScratchSVS_A_                                                                                                                        = 1;
+    pWorkarounds->cmmGl2GL2WriteAfterReadOrderingIssueDuringGL2INV_A_                                                                                                                  = 1;
+    pWorkarounds->controlCpUTCL1CAMInCPGGotErrorMoreThenOneCAMEntryMatchedWhenDCOffsetAddressIsSamePAWithMQDBaseAddress_A_                                                             = 1;
+    pWorkarounds->controlRlcHw36RlcSpmIsAlwaysBusyIfISpmStopIssuedSoCloseToPerfSample_A_                                                                                               = 1;
+    pWorkarounds->gcPvPpCbCBPerfcountersStuckAtZeroAfterPerfcounterStopEventReceived_A_                                                                                                = 1;
+    pWorkarounds->geometryGeGEWdTe11ClockCanStayHighAfterShaderMessageThdgrp_A_                                                                                                        = 1;
+    pWorkarounds->geometryGeSioPcSioSpiBciATMDeallocsDoNotWaitForGSDONE_A_                                                                                                             = 1;
+    pWorkarounds->geometryPaPALineStippleResetError_A_                                                                                                                                 = 1;
+    pWorkarounds->geometryPaStereoPositionNanCheckBug_A_                                                                                                                               = 1;
+    pWorkarounds->ppCbGFX11DCC31DXXPNeedForSpeedHeat_BlackFlickeringDotCorruption_A_                                                                                                   = 1;
+    pWorkarounds->ppDbDBDEBUG__FORCEMISSIFNOTINFLIGHTCausesADeadlockBetweenDbDtt_Osb_A_                                                                                                = 1;
+    pWorkarounds->ppDbDBOreoOpaqueModeHWBug_UdbOreoScoreBoard_udbOsbData_udbOsbdMonitor_ostSampleMaskMismatchOREOScoreboardStoresInvalidEWaveIDAndIncorrectlySetsRespectiveValidBit_A_ = 1;
+    pWorkarounds->ppDbLostSamplesForRB_QuadsAt16xaaMayCauseCorruption_A_                                                                                                               = 1;
+    pWorkarounds->ppDbPWSIssueForDepthWrite_TextureRead_A_                                                                                                                             = 1;
+    pWorkarounds->ppDbPWS_RtlTimeout_TimeStampEventPwsStall_eopDoneNotSentForOldestTSWaitingForSyncComplete__FlusherStalledInOpPipe_A_                                                 = 1;
+    pWorkarounds->ppDbPpScSCDBHangNotSendingWaveConflictBackToSPI_A_                                                                                                                   = 1;
+    pWorkarounds->ppPbbPBBBreakBatchDifferenceWithPrimLimit_FpovLimit_DeallocLimit_A_                                                                                                  = 1;
+    pWorkarounds->ppPbbPBBMayErroneouslyDropBinsWhenConfiguredTo24SEs_A_                                                                                                               = 1;
+    pWorkarounds->shaderSpQSADAndMADI64U64SrcDataCorruptionDueToIntraInstructionForwarding_A_                                                                                          = 1;
+    pWorkarounds->shaderSpSPSrcOperandInvalidatedByTdLdsDataReturn_A_                                                                                                                  = 1;
+    pWorkarounds->shaderSpTranscendentalOpFollowedByALUDoesntEnforceDependency_A_                                                                                                      = 1;
+    pWorkarounds->shaderSpfailedToDetectPartialForwardingStall_A_                                                                                                                      = 1;
+    pWorkarounds->shaderSpsubvectorExecutionSubv1SharedVgprGotWrongData_A_                                                                                                             = 1;
+    pWorkarounds->shaderSqSqgPCSentToSQThrCmdBusMayBeDropped_A_                                                                                                                        = 1;
+    pWorkarounds->shaderSqSqgSCLAUSEFollowedByVALU_SDELAYALUCoIssuePairCanExceedClauseLength_A_                                                                                        = 1;
+    pWorkarounds->shaderSqSqgSQGTTWPTRIssues_A_                                                                                                                                        = 1;
+    pWorkarounds->shaderSqSqgSQPERFSNAPSHOT_ClockCyclesCountingModeDoesNotConsiderVMIDMASK_A_                                                                                          = 1;
+    pWorkarounds->shaderSqSqgWave64VALUReadSGPRMaskToSALUDepdency_A_                                                                                                                   = 1;
+    pWorkarounds->shaderSqcMissingTTTokens_A_                                                                                                                                          = 1;
+    pWorkarounds->sioPcSioSpiBciSPIAndPCCanGetOutOfSyncForNoLdsInitWavesWhenEXTRALDSSIZE_0_A_                                                                                          = 1;
+    pWorkarounds->sioSpiBciSPI_TheOverRestrictedExportConflictHQ_HoldingQueue_PtrRuleMayReduceTheTheoreticalExpGrantThroughput_PotentiallyIncreaseOldNewPSWavesInterleavingChances_A_  = 1;
+    pWorkarounds->sioSpiBciSoftLockIssue_A_                                                                                                                                            = 1;
+    pWorkarounds->sioSpiBciSpyGlassRevealedABugInSpiRaRscselGsThrottleModuleWhichIsCausedByGsPsVgprLdsInUsesVariableDroppingMSBInRelevantMathExpression_A_                             = 1;
+    pWorkarounds->sioSxvmidResetForMrtZOnlyPixelShaderHitSXAssertion_A_                                                                                                                = 1;
+    pWorkarounds->textureTaGfx11ImageMsaaLoadNotHonoringDstSel_A_                                                                                                                      = 1;
+    pWorkarounds->textureTaGfx11TAUnableToSupportScratchSVS_A_                                                                                                                         = 1;
 }
 #endif
 
@@ -526,39 +536,40 @@ void DetectNavi33A0Workarounds(
 void DetectPhoenix1A0Workarounds(
     Gfx11SwWarDetection* pWorkarounds)
 {
-    pWorkarounds->cmmGl2GL2WriteAfterReadOrderingIssueDuringGL2INV_A_                                                                                                                 = 1;
-    pWorkarounds->cmmUtcl0UTCL0PrefetchRequest_permissions_0_Issue_A_                                                                                                                 = 1;
-    pWorkarounds->controlCp1PHXRS64D_RS64MemoryRAWCoherencyIsBrokenOnAsyncHeavyWeightShootdown_A_                                                                                     = 1;
-    pWorkarounds->controlCpUTCL1CAMInCPGGotErrorMoreThenOneCAMEntryMatchedWhenDCOffsetAddressIsSamePAWithMQDBaseAddress_A_                                                            = 1;
-    pWorkarounds->controlRlcHw36RlcSpmIsAlwaysBusyIfISpmStopIssuedSoCloseToPerfSample_A_                                                                                              = 1;
-    pWorkarounds->gcPvPpCbCBPerfcountersStuckAtZeroAfterPerfcounterStopEventReceived_A_                                                                                               = 1;
-    pWorkarounds->geometryGeGEWdTe11ClockCanStayHighAfterShaderMessageThdgrp_A_                                                                                                       = 1;
-    pWorkarounds->geometryGeSioPcSioSpiBciATMDeallocsDoNotWaitForGSDONE_A_                                                                                                            = 1;
-    pWorkarounds->geometryPaPALineStippleResetError_A_                                                                                                                                = 1;
-    pWorkarounds->geometryPaStereoPositionNanCheckBug_A_                                                                                                                              = 1;
-    pWorkarounds->ppCbGFX11DCC31DXXPNeedForSpeedHeat_BlackFlickeringDotCorruption_A_                                                                                                  = 1;
-    pWorkarounds->ppDbDBDEBUG__FORCEMISSIFNOTINFLIGHTCausesADeadlockBetweenDbDtt_Osb_A_                                                                                               = 1;
-    pWorkarounds->ppDbLostSamplesForRB_QuadsAt16xaaMayCauseCorruption_A_                                                                                                              = 1;
-    pWorkarounds->ppDbPWSIssueForDepthWrite_TextureRead_A_                                                                                                                            = 1;
-    pWorkarounds->ppDbPWS_RtlTimeout_TimeStampEventPwsStall_eopDoneNotSentForOldestTSWaitingForSyncComplete__FlusherStalledInOpPipe_A_                                                = 1;
-    pWorkarounds->ppDbPpScSCDBHangNotSendingWaveConflictBackToSPI_A_                                                                                                                  = 1;
-    pWorkarounds->ppPbbPBBBreakBatchDifferenceWithPrimLimit_FpovLimit_DeallocLimit_A_                                                                                                 = 1;
-    pWorkarounds->shaderSpQSADAndMADI64U64SrcDataCorruptionDueToIntraInstructionForwarding_A_                                                                                         = 1;
-    pWorkarounds->shaderSpSPSrcOperandInvalidatedByTdLdsDataReturn_A_                                                                                                                 = 1;
-    pWorkarounds->shaderSpTranscendentalOpFollowedByALUDoesntEnforceDependency_A_                                                                                                     = 1;
-    pWorkarounds->shaderSpfailedToDetectPartialForwardingStall_A_                                                                                                                     = 1;
-    pWorkarounds->shaderSpsubvectorExecutionSubv1SharedVgprGotWrongData_A_                                                                                                            = 1;
-    pWorkarounds->shaderSqSqgSCLAUSEFollowedByVALU_SDELAYALUCoIssuePairCanExceedClauseLength_A_                                                                                       = 1;
-    pWorkarounds->shaderSqSqgSQGTTWPTRIssues_A_                                                                                                                                       = 1;
-    pWorkarounds->shaderSqSqgSQPERFSNAPSHOT_ClockCyclesCountingModeDoesNotConsiderVMIDMASK_B_                                                                                         = 1;
-    pWorkarounds->shaderSqSqgWave64VALUReadSGPRMaskToSALUDepdency_A_                                                                                                                  = 1;
-    pWorkarounds->shaderSqcMissingTTTokens_A_                                                                                                                                         = 1;
-    pWorkarounds->sioPcSioSpiBciSPIAndPCCanGetOutOfSyncForNoLdsInitWavesWhenEXTRALDSSIZE_0_A_                                                                                         = 1;
-    pWorkarounds->sioSpiBciSPI_TheOverRestrictedExportConflictHQ_HoldingQueue_PtrRuleMayReduceTheTheoreticalExpGrantThroughput_PotentiallyIncreaseOldNewPSWavesInterleavingChances_A_ = 1;
-    pWorkarounds->sioSpiBciSoftLockIssue_A_                                                                                                                                           = 1;
-    pWorkarounds->sioSxvmidResetForMrtZOnlyPixelShaderHitSXAssertion_A_                                                                                                               = 1;
-    pWorkarounds->textureTaGfx11ImageMsaaLoadNotHonoringDstSel_A_                                                                                                                     = 1;
-    pWorkarounds->textureTaGfx11TAUnableToSupportScratchSVS_A_                                                                                                                        = 1;
+    pWorkarounds->cmmGl2GL2WriteAfterReadOrderingIssueDuringGL2INV_A_                                                                                                                  = 1;
+    pWorkarounds->cmmUtcl0UTCL0PrefetchRequest_permissions_0_Issue_A_                                                                                                                  = 1;
+    pWorkarounds->controlCp1PHXRS64D_RS64MemoryRAWCoherencyIsBrokenOnAsyncHeavyWeightShootdown_A_                                                                                      = 1;
+    pWorkarounds->controlCpUTCL1CAMInCPGGotErrorMoreThenOneCAMEntryMatchedWhenDCOffsetAddressIsSamePAWithMQDBaseAddress_A_                                                             = 1;
+    pWorkarounds->controlRlcHw36RlcSpmIsAlwaysBusyIfISpmStopIssuedSoCloseToPerfSample_A_                                                                                               = 1;
+    pWorkarounds->gcPvPpCbCBPerfcountersStuckAtZeroAfterPerfcounterStopEventReceived_A_                                                                                                = 1;
+    pWorkarounds->geometryGeGEWdTe11ClockCanStayHighAfterShaderMessageThdgrp_A_                                                                                                        = 1;
+    pWorkarounds->geometryGeSioPcSioSpiBciATMDeallocsDoNotWaitForGSDONE_A_                                                                                                             = 1;
+    pWorkarounds->geometryPaPALineStippleResetError_A_                                                                                                                                 = 1;
+    pWorkarounds->geometryPaStereoPositionNanCheckBug_A_                                                                                                                               = 1;
+    pWorkarounds->ppCbGFX11DCC31DXXPNeedForSpeedHeat_BlackFlickeringDotCorruption_A_                                                                                                   = 1;
+    pWorkarounds->ppDbDBDEBUG__FORCEMISSIFNOTINFLIGHTCausesADeadlockBetweenDbDtt_Osb_A_                                                                                                = 1;
+    pWorkarounds->ppDbDBOreoOpaqueModeHWBug_UdbOreoScoreBoard_udbOsbData_udbOsbdMonitor_ostSampleMaskMismatchOREOScoreboardStoresInvalidEWaveIDAndIncorrectlySetsRespectiveValidBit_A_ = 1;
+    pWorkarounds->ppDbLostSamplesForRB_QuadsAt16xaaMayCauseCorruption_A_                                                                                                               = 1;
+    pWorkarounds->ppDbPWSIssueForDepthWrite_TextureRead_A_                                                                                                                             = 1;
+    pWorkarounds->ppDbPWS_RtlTimeout_TimeStampEventPwsStall_eopDoneNotSentForOldestTSWaitingForSyncComplete__FlusherStalledInOpPipe_A_                                                 = 1;
+    pWorkarounds->ppDbPpScSCDBHangNotSendingWaveConflictBackToSPI_A_                                                                                                                   = 1;
+    pWorkarounds->ppPbbPBBBreakBatchDifferenceWithPrimLimit_FpovLimit_DeallocLimit_A_                                                                                                  = 1;
+    pWorkarounds->shaderSpQSADAndMADI64U64SrcDataCorruptionDueToIntraInstructionForwarding_A_                                                                                          = 1;
+    pWorkarounds->shaderSpSPSrcOperandInvalidatedByTdLdsDataReturn_A_                                                                                                                  = 1;
+    pWorkarounds->shaderSpTranscendentalOpFollowedByALUDoesntEnforceDependency_A_                                                                                                      = 1;
+    pWorkarounds->shaderSpfailedToDetectPartialForwardingStall_A_                                                                                                                      = 1;
+    pWorkarounds->shaderSpsubvectorExecutionSubv1SharedVgprGotWrongData_A_                                                                                                             = 1;
+    pWorkarounds->shaderSqSqgSCLAUSEFollowedByVALU_SDELAYALUCoIssuePairCanExceedClauseLength_A_                                                                                        = 1;
+    pWorkarounds->shaderSqSqgSQGTTWPTRIssues_A_                                                                                                                                        = 1;
+    pWorkarounds->shaderSqSqgSQPERFSNAPSHOT_ClockCyclesCountingModeDoesNotConsiderVMIDMASK_B_                                                                                          = 1;
+    pWorkarounds->shaderSqSqgWave64VALUReadSGPRMaskToSALUDepdency_A_                                                                                                                   = 1;
+    pWorkarounds->shaderSqcMissingTTTokens_A_                                                                                                                                          = 1;
+    pWorkarounds->sioPcSioSpiBciSPIAndPCCanGetOutOfSyncForNoLdsInitWavesWhenEXTRALDSSIZE_0_A_                                                                                          = 1;
+    pWorkarounds->sioSpiBciSPI_TheOverRestrictedExportConflictHQ_HoldingQueue_PtrRuleMayReduceTheTheoreticalExpGrantThroughput_PotentiallyIncreaseOldNewPSWavesInterleavingChances_A_  = 1;
+    pWorkarounds->sioSpiBciSoftLockIssue_A_                                                                                                                                            = 1;
+    pWorkarounds->sioSxvmidResetForMrtZOnlyPixelShaderHitSXAssertion_A_                                                                                                                = 1;
+    pWorkarounds->textureTaGfx11ImageMsaaLoadNotHonoringDstSel_A_                                                                                                                      = 1;
+    pWorkarounds->textureTaGfx11TAUnableToSupportScratchSVS_A_                                                                                                                         = 1;
 }
 #endif
 

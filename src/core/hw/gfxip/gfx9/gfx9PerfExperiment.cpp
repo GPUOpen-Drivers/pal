@@ -345,7 +345,7 @@ PerfExperiment::PerfExperiment(
     :
     Pal::PerfExperiment(pDevice->Parent(), createInfo, GpuMemoryAlignment),
     m_chipProps(pDevice->Parent()->ChipProperties()),
-    m_counterInfo(pDevice->Parent()->ChipProperties().gfx9.perfCounterInfo),
+    m_counterInfo(pDevice->Parent()->ChipProperties().gfx9.perfCounterInfo.gfx9Info),
     m_settings(pDevice->Settings()),
     m_registerInfo(pDevice->CmdUtil().GetRegInfo()),
     m_cmdUtil(pDevice->CmdUtil()),
@@ -1408,7 +1408,7 @@ Result PerfExperiment::AddThreadTrace(
 #if PAL_BUILD_GFX11
                 if (IsGfx11(*m_pDevice))
                 {
-                    cuIndex = (Util::CountSetBits(m_chipProps.gfx9.gfx10.activeWgpMask[realInstance][shIndex]) - 1) * 2;
+                    cuIndex = (m_chipProps.gfx9.gfx10.maxNumWgpPerSa - 1) * 2;
                 }
 #endif
 #endif

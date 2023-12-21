@@ -46,9 +46,6 @@ pal_bp(PAL_BUILD_GPUUTIL ON)
 pal_bp(PAL_DEVELOPER_BUILD OFF)
 #endif
 
-# Allows RPC in settings. The default is to use the URI path
-pal_bp(PAL_ENABLE_RPC_SETTINGS OFF)
-
 # Build PAL with Operating System support
 pal_bp(PAL_BUILD_OSS    ON)
 #if PAL_BUILD_OSS2_4

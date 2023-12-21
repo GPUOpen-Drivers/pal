@@ -61,7 +61,7 @@ MsaaState::MsaaState(
     const Device&              device,
     const MsaaStateCreateInfo& createInfo)
     :
-    Pal::MsaaState(),
+    Pal::MsaaState(createInfo),
     m_log2Samples(0),
     m_log2OcclusionQuerySamples(0)
 {
@@ -257,7 +257,7 @@ void MsaaState::Init(
         m_regs.dbReservedReg2 = Gfx101::DB_RESERVED_REG_2__FIELD_1_MASK & 0x1;
     }
 
-    if (settings.waWrite1xAASampleLocationsToZero && (m_log2Samples == 0) && (usedMask != 0))
+    if (settings.waWrite1xAaSampleLocationsToZero && (m_log2Samples == 0) && (usedMask != 0))
     {
         // Writing to PA_SC_AA_SAMPLE_LOCS_X*Y* is not needed because it's set to all 0s in BuildPm4Headers(),
         // and the value will not be changed unless it's non-1xAA case (msaaState.coverageSamples > 1)

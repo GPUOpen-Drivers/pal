@@ -41,11 +41,11 @@ ColorBlendState::ColorBlendState(
     const Device&                    device,
     const ColorBlendStateCreateInfo& createInfo)
     :
-    Pal::ColorBlendState(),
+    Pal::ColorBlendState(createInfo),
     m_device(device)
 {
     m_flags.u32All = 0;
-    m_flags.rbPlus = device.Settings().gfx9RbPlusEnable;
+    m_flags.rbPlus = device.Settings().rbPlusEnable;
 
     memset(&m_blendOpts[0], 0, sizeof(m_blendOpts));
     memset(&m_regs,         0, sizeof(m_regs));
@@ -674,6 +674,31 @@ void ColorBlendState::InitBlendMasks(
             m_flags.blendCommutative |= (1 << rtIdx);
         }
     }
+}
+
+// =====================================================================================================================
+// Helper function which adds commands into the command stream to sxMrtBlendOpt base on alphatocoverage.
+// Returns the address to where future commands will be written.
+uint32* ColorBlendState::HandleAlphaToCoverage(
+    CmdStream* pCmdStream,
+    bool       alphaToCoverageEnable,
+    uint32*    pCmdSpace
+    ) const
+{
+#if PAL_BUILD_GFX11
+    const Pal::Device& device = *(m_device.Parent());
+
+    if (IsGfx11(device)                &&
+        (m_flags.dualSourceBlend == 0) &&
+        (m_flags.rbPlus != 0)          &&
+        IsBlendEnabled(0))
+    {
+        const uint32 sxMrt0BlendOptValue = alphaToCoverageEnable ? 0ul : m_regs.sxMrtBlendOpt[0].u32All;
+        pCmdSpace = pCmdStream->WriteSetOneContextReg(mmSX_MRT0_BLEND_OPT, sxMrt0BlendOptValue, pCmdSpace);
+    }
+#endif
+
+    return pCmdSpace;
 }
 
 } // Gfx9

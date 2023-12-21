@@ -87,22 +87,6 @@ Result ComputePipeline::Init(
 
     if (result == Result::Success)
     {
-        if (createInfo.flags.supportDynamicDispatch == 1)
-        {
-            // Dynamic dispatch support can only be requested on supported hardware
-            if (m_pDevice->ChipProperties().gfxip.dynamicLaunchDescSize == 0)
-            {
-                result = Result::ErrorInvalidFlags;
-            }
-            else
-            {
-                SetDynamicDispatchSupported();
-            }
-        }
-    }
-
-    if (result == Result::Success)
-    {
         PAL_ASSERT((m_pPipelineBinary != nullptr) && (m_pipelineBinaryLen != 0));
 
         const uint8 abi = abiReader.GetOsAbi();

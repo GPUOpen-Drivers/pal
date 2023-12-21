@@ -48,6 +48,7 @@
 #include "gpuUtil/asicInfoTraceSource.h"
 #include "gpuUtil/apiInfoTraceSource.h"
 #include "gpuUtil/clockCalibTraceSource.h"
+#include "gpuUtil/gpuPerfExperimentTraceSource.h"
 #include "gpuUtil/uberTraceService.h"
 #include "gpuUtil/frameTraceController.h"
 #endif
@@ -58,8 +59,8 @@
 #include "protocols/driverControlServer.h"
 #include "protocols/rgpServer.h"
 #include "protocols/ddInfoService.h"
-#include "settingsService.h"
 #include "driverUtilsService.h"
+#include "dd_settings_service.h"
 
 using namespace Util;
 
@@ -114,6 +115,7 @@ Platform::Platform(
     m_clientApiMinorVer(createInfo.apiMinorVer),
     m_pDevDriverServer(nullptr),
     m_pSettingsService(nullptr),
+    m_pSettingsRpcService(nullptr),
     m_pDriverUtilsService(nullptr),
     m_pEventServer(nullptr),
     m_settingsLoader(this),
@@ -124,6 +126,7 @@ Platform::Platform(
     m_pAsicInfoTraceSource(nullptr),
     m_pApiInfoTraceSource(nullptr),
     m_pClockCalibTraceSource(nullptr),
+    m_pGpuPerfExpTraceSource(nullptr),
     m_pUberTraceService(nullptr),
 #endif
     m_rpcServer(DD_API_INVALID_HANDLE),
@@ -546,15 +549,8 @@ Result Platform::EarlyInitDevDriver()
             {
                 m_pEventServer = m_pDevDriverServer->GetEventServer();
 
-#if PAL_ENABLE_RPC_SETTINGS
-                DevDriver::AllocCb allocCb = {};
-                allocCb.pUserdata = this;
-                allocCb.pfnAlloc = &DevDriverAlloc;
-                allocCb.pfnFree = &DevDriverFree;
-
-                m_pSettingsService = PAL_NEW(SettingsRpcService::SettingsService, this, AllocInternal)(allocCb);
-                PAL_ASSERT(m_pSettingsService != nullptr);
-#endif
+                m_pSettingsRpcService = PAL_NEW(DevDriver::SettingsRpcService, this, AllocInternal)();
+                PAL_ASSERT(m_pSettingsRpcService != nullptr);
 
                 m_pDriverUtilsService = PAL_NEW(DriverUtilsService::DriverUtilsService, this, AllocInternal)(this);
             }
@@ -668,18 +664,34 @@ void Platform::LateInitDevDriver()
         pDriverControlServer->SetDeviceClockCallback(deviceClockCallbackInfo);
     }
 
+    // Override the settings default values based on runtime info.
+    m_settingsLoader.OverrideDefaults();
+
     // Now that we have some valid devices we can look for settings overrides in the registry/settings file.
     // Note, we don't really care if this is the device that will actually be used for rendering, we just
     // need a device object for the OS specific ReadSetting function.
     if (m_deviceCount >= 1)
     {
-        m_settingsLoader.ReadSettings(m_pDevice[0]);
+#if PAL_ENABLE_PRINTS_ASSERTS
+        // First setup the debug print and assert settings based on settings in Windows registry.
+        m_settingsLoader.ReadAssertAndPrintSettings(m_pDevice[0]);
+#endif
+        m_settingsLoader.ReadSettings();
     }
 
-    // And then before finishing init we have an opportunity to override the settings default values based on
-    // runtime info
-    m_settingsLoader.OverrideDefaults();
-    m_settingsLoader.ValidateSettings(); // Also, validate them.
+    // Total number of setting user-overrides sent via DevDriver network.
+    size_t totalUserOverrides = 0;
+
+    if (m_pSettingsRpcService != nullptr)
+    {
+        // Register this settings component to receive setting user-overrides via DevDriver network.
+        m_pSettingsRpcService->RegisterSettingsComponent(&m_settingsLoader);
+
+        totalUserOverrides = m_pSettingsRpcService->TotalUserOverrideCount();
+    }
+
+    // This could override previously applied user-overrides for the settings whose values are deemed invalid.
+    m_settingsLoader.ValidateSettings(totalUserOverrides > 0);
 
 #if PAL_ENABLE_LOGGING
     // Configure debug log manager as soon as settings are overridden.
@@ -804,10 +816,12 @@ Result Platform::InitDefaultTraceSources()
     m_pAsicInfoTraceSource   = PAL_NEW(GpuUtil::AsicInfoTraceSource, this, AllocInternal) (this);
     m_pApiInfoTraceSource    = PAL_NEW(GpuUtil::ApiInfoTraceSource, this, AllocInternal) (this);
     m_pClockCalibTraceSource = PAL_NEW(GpuUtil::ClockCalibrationTraceSource, this, AllocInternal) (this);
+    m_pGpuPerfExpTraceSource = PAL_NEW(GpuUtil::GpuPerfExperimentTraceSource, this, AllocInternal) (this);
 
     if ((m_pAsicInfoTraceSource   == nullptr) ||
         (m_pApiInfoTraceSource    == nullptr) ||
-        (m_pClockCalibTraceSource == nullptr))
+        (m_pClockCalibTraceSource == nullptr) ||
+        (m_pGpuPerfExpTraceSource == nullptr))
     {
         result = Result::ErrorOutOfMemory;
     }
@@ -831,6 +845,11 @@ Result Platform::RegisterDefaultTraceSources()
         result = m_pTraceSession->RegisterSource(m_pClockCalibTraceSource);
     }
 
+    if (Util::IsErrorResult(result) == false)
+    {
+        result = m_pTraceSession->RegisterSource(m_pGpuPerfExpTraceSource);
+    }
+
     return result;
 }
 
@@ -849,6 +868,10 @@ void Platform::DestroyDefaultTraceSources()
     if (m_pClockCalibTraceSource != nullptr)
     {
         PAL_SAFE_DELETE(m_pClockCalibTraceSource, this);
+    }
+    if (m_pGpuPerfExpTraceSource != nullptr)
+    {
+        PAL_SAFE_DELETE(m_pGpuPerfExpTraceSource, this);
     }
 }
 
@@ -892,9 +915,9 @@ void Platform::RegisterRpcServices()
         }
 #endif
 
-        if (m_pSettingsService != nullptr)
+        if (m_pSettingsRpcService != nullptr)
         {
-            devDriverResult = SettingsRpc::RegisterService(m_rpcServer, m_pSettingsService);
+            devDriverResult = SettingsRpc::RegisterService(m_rpcServer, m_pSettingsRpcService);
             PAL_ASSERT(devDriverResult == DD_RESULT_SUCCESS);
         }
 
@@ -923,9 +946,10 @@ void Platform::DestroyRpcServices()
         PAL_SAFE_DELETE(m_pUberTraceService, this);
     }
 #endif
-    if (m_pSettingsService != nullptr)
+
+    if (m_pSettingsRpcService != nullptr)
     {
-        PAL_SAFE_DELETE(m_pSettingsService, this);
+        PAL_SAFE_DELETE(m_pSettingsRpcService, this);
     }
 
     if (m_pDriverUtilsService != nullptr)

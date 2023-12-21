@@ -71,6 +71,9 @@ namespace KernelMetadataKey
     static constexpr char SgprSpillCount[]          = ".sgpr_spill_count";
     static constexpr char VgprSpillCount[]          = ".vgpr_spill_count";
     static constexpr char Kind[]                    = ".kind";
+    static constexpr char UsesDynamicStack[]        = ".uses_dynamic_stack";
+    static constexpr char WorkgroupProcessorMode[]  = ".workgroup_processor_mode";
+    static constexpr char UniformWorkgroupSize[]    = ".uniform_work_group_size";
 };
 
 // =====================================================================================================================
@@ -134,6 +137,39 @@ static Result UnpackNextValueKind(
             break;
         case HashLiteralString("hidden_multigrid_sync_arg"):
             *pEnum = ValueKind::HiddenMultigridSyncArg;
+            break;
+        case HashLiteralString("hidden_block_count_x"):
+            *pEnum = ValueKind::HiddenBlockCountX;
+            break;
+        case HashLiteralString("hidden_block_count_y"):
+            *pEnum = ValueKind::HiddenBlockCountY;
+            break;
+        case HashLiteralString("hidden_block_count_z"):
+            *pEnum = ValueKind::HiddenBlockCountZ;
+            break;
+        case HashLiteralString("hidden_group_size_x"):
+            *pEnum = ValueKind::HiddenGroupSizeX;
+            break;
+        case HashLiteralString("hidden_group_size_y"):
+            *pEnum = ValueKind::HiddenGroupSizeY;
+            break;
+        case HashLiteralString("hidden_group_size_z"):
+            *pEnum = ValueKind::HiddenGroupSizeZ;
+            break;
+        case HashLiteralString("hidden_remainder_x"):
+            *pEnum = ValueKind::HiddenRemainderX;
+            break;
+        case HashLiteralString("hidden_remainder_y"):
+            *pEnum = ValueKind::HiddenRemainderY;
+            break;
+        case HashLiteralString("hidden_remainder_z"):
+            *pEnum = ValueKind::HiddenRemainderZ;
+            break;
+        case HashLiteralString("hidden_grid_dims"):
+            *pEnum = ValueKind::HiddenGridDims;
+            break;
+        case HashLiteralString("hidden_heap_v1"):
+            *pEnum = ValueKind::HiddenHeapV1;
             break;
         default:
             // This probably means we have a bug in this code rather than a bad metadata section.
@@ -494,7 +530,10 @@ Result CodeObjectMetadata::DeserializeKernel(
             uint32 sgprSpillCount          : 1;
             uint32 vgprSpillCount          : 1;
             uint32 kind                    : 1;
-            uint32 reserved                : 12;
+            uint32 uniformWorkgroupSize    : 1;
+            uint32 usesDynamicStack        : 1;
+            uint32 workgroupProcessorMode  : 1;
+            uint32 reserved                : 9;
         };
         uint32 u32All;
     } hasEntry = {};
@@ -610,6 +649,21 @@ Result CodeObjectMetadata::DeserializeKernel(
                 hasEntry.kind = 1;
                 result = UnpackNextKind(pReader, &m_kind);
                 break;
+            case HashLiteralString(KernelMetadataKey::UniformWorkgroupSize):
+                PAL_ASSERT(hasEntry.workgroupProcessorMode == 0);
+                hasEntry.uniformWorkgroupSize = 1;
+                result = pReader->UnpackNext(&m_uniformWorkgroupSize);
+                break;
+            case HashLiteralString(KernelMetadataKey::UsesDynamicStack):
+                PAL_ASSERT(hasEntry.usesDynamicStack == 0);
+                hasEntry.usesDynamicStack = 1;
+                result = pReader->UnpackNext(&m_usesDynamicStack);
+                break;
+            case HashLiteralString(KernelMetadataKey::WorkgroupProcessorMode):
+                PAL_ASSERT(hasEntry.workgroupProcessorMode == 0);
+                hasEntry.workgroupProcessorMode = 1;
+                result = pReader->UnpackNext(&m_workgroupProcessorMode);
+                break;
             default:
                 // Note that we don't extract some valid keys because we don't use them.
                 result = pReader->Skip(1);
@@ -653,7 +707,11 @@ Result CodeObjectMetadata::SetVersion(
 
     // The current metadata version is 1.0. We assume minor changes are backwards compatible but major changes are not.
     constexpr uint32 HsaMetadataMajorVersion = 1u;
-
+    if(m_codeVersionMinor < 2)
+    {
+        // metadata v5 changes some semantics, before it, always uniform.
+        m_uniformWorkgroupSize = 1;
+    }
     return (metadataMajorVer == HsaMetadataMajorVersion) ? Result::Success
                                                          : Result::ErrorUnsupportedPipelineElfAbiVersion;
 }

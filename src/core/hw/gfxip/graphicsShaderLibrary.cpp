@@ -69,7 +69,7 @@ Result GraphicsShaderLibrary::PostInit(
             const auto& func = pReader->Get().as;
             result = (pReader->Type() == CWP_ITEM_MAP) ? Result::Success : Result::ErrorInvalidValue;
             const char* pColExpSymbol =
-                Abi::PipelineAbiSymbolNameStrings[static_cast<unsigned>(Abi::PipelineSymbolType::PsColorExportEntry)];
+                Abi::PipelineAbiSymbolNameStrings[static_cast<uint32>(Abi::PipelineSymbolType::PsColorExportEntry)];
             for (uint32 i = func.map.size; ((result == Result::Success) && (i > 0)); --i)
             {
                 result = pReader->Next(CWP_ITEM_STR);
@@ -85,4 +85,5 @@ Result GraphicsShaderLibrary::PostInit(
 
     return Result::Success;
 }
+
 } // Pal

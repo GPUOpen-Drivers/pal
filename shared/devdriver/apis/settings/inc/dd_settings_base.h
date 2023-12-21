@@ -26,6 +26,7 @@
 #pragma once
 
 #include <dd_settings_api.h>
+#include <dd_dynamic_buffer.h>
 
 #include <util/hashMap.h>
 
@@ -67,6 +68,9 @@ public:
 
     virtual const char* GetComponentName() const = 0;
 
+    // The hash value of the settings JSON blob of this component.
+    virtual uint64_t GetSettingsBlobHash() const = 0;
+
     /// Set the value of a setting.
     DD_RESULT SetValue(const DDSettingsValueRef& srcValueRef);
 
@@ -78,6 +82,9 @@ public:
     /// `pValueRef->type`   [out] The type of the setting when this function succeeds.
     DD_RESULT GetValue(DDSettingsValueRef* pValueRef);
 
+    /// Write all values of this settings component to `recvBuffer`.
+    DD_RESULT GetAllValues(DynamicBuffer& recvBuffer, size_t* pOutNumValues);
+
     /// Returns a 32-bit hash of an input string using the FNV-1a non-cryptographic hash function.
     /// `pStr` a pointer to the input string.
     /// 'strSize` the size of the input string, not including null-terminator
@@ -85,7 +92,7 @@ public:
     {
         // Both `prime` and `hash` must match the ones used in settings_codegen.py.
         constexpr uint32_t prime = 0x01000193;
-        uint32_t           hash = 0x811C9DC5;
+        uint32_t           hash  = 0x811C9DC5;
         for (size_t i = 0; i < strSize; ++i)
         {
             hash = (hash ^ pStr[i]) * prime;
@@ -94,22 +101,25 @@ public:
     }
 
 protected:
-    /// This function is called in `SetValue()` before actually setting the
-    /// value, giving derived classes a chance to intercept and perform
-    /// custom actions. If this function returns true, `SetValue` will stop
-    /// setting the value. Otherwise, `SetValue` sets the value as usual via memcpy.
+    /// This function is called in `SetValue()` before the default value-updating logic is run, giving derived classes
+    /// a chance to intercept and perform custom actions. If this function returns true, `SetValue` will skip its
+    /// default value-updating code. Otherwise, `SetValue` updates the value as usual via memcpy.
+    /// WARNING: `valueRef.pValue` might point to an unaligned memory address. To err on the size of caution, please
+    /// use memcpy to update setting values, for example: `memcpy(&mySetting, valueRef.pValue, valueRef.size);`.
     virtual bool CustomSetValue(const DDSettingsValueRef& valueRef)
     {
         (void)valueRef;
         return false;
     }
 
+    /// Helper function to get the memory address of the inner value of an optional setting.
+    /// NOTE, if the optional doesn't have value, nullptr is returned.
+    const void* OptionalInnerValueAddr(const DDSettingsValueRef& valueRef);
+
     /// Auto-generated. Set default setting values, and populate `m_pSettingsMap`.
     virtual DD_RESULT SetupDefaultsAndPopulateMap() = 0;
-    /// Auto-generated Function signature for PAL related Settings..
-    virtual void ReadSettings(Pal::Device*) {}
-    /// Auto-generated. Function signature for DXC related Settings.
-    virtual void ReadSettings(DdiAdapter*) {}
+    /// Auto-generated. Function signature for reading settings from Windows registry.
+    virtual void ReadSettings() {}
 
 private:
     SettingsBase() = delete;

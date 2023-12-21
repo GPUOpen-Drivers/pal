@@ -26,6 +26,8 @@
 #ifndef DD_ALLOCATOR_H
 #define DD_ALLOCATOR_H
 
+#include <stddef.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif

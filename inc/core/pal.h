@@ -150,6 +150,8 @@ enum class SubEngineType : uint32
     Primary        = 0, // Subqueue that is the queue itself, rather than an ancilliary queue.
     ConstantEngine = 1, // CP constant update engine that runs in parallel with draw engine.
     AsyncCompute   = 2, // Auxiliary ACE subqueue, together with a primary subqueue forms a "ganged" submit.
+    Pup            = 3, // Subqueue that is the queue itself but for PUP-style packets, rather than an
+                        // ancillaiary queue.
     Count,
 };
 

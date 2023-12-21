@@ -192,10 +192,6 @@ function(pal_compile_definitions TARGET)
     # Describe the client
     target_compile_definitions(${TARGET} PUBLIC PAL_CLIENT_${PAL_CLIENT}=1)
 
-    # This will be defined if we should get KMD headers from https://github.com/microsoft/libdxg
-    # instead of the WDK
-    target_compile_definitions(${TARGET} PUBLIC PAL_USE_LIBDXG=$<BOOL:${PAL_USE_LIBDXG}>)
-
     target_compile_definitions(${TARGET} PRIVATE PAL_BUILD_CORE=$<BOOL:${PAL_BUILD_CORE}>)
 
     if(PAL_AMDGPU_BUILD)

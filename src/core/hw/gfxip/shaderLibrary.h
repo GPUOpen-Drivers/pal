@@ -73,10 +73,23 @@ public:
 
     virtual Result GetShaderFunctionStats(
         Util::StringView<char>  shaderExportName,
-        ShaderLibStats*         pStats) const override
+        ShaderLibStats* pStats) const override
     {
         return Result::ErrorUnavailable;
     }
+
+    Result GetShaderFunctionInfos(
+        Util::StringView<char>  shaderExportName,
+        ShaderLibStats* pStats,
+        const AbiReader& abiReader,
+        Util::MsgPackReader* pMetadataReader,
+        Util::PalAbi::CodeObjectMetadata& metadata) const;
+
+    Result UnpackShaderFunctionStats(
+        Util::StringView<char>            shaderExportName,
+        const Util::PalAbi::CodeObjectMetadata& metadata,
+        Util::MsgPackReader* pMetadataReader,
+        ShaderLibStats* pShaderStats) const;
 
     const void* GetCodeObject(size_t* pSize) const
     {

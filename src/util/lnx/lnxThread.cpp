@@ -27,6 +27,7 @@
 #include <errno.h>
 #include <pthread.h>
 #include "palThread.h"
+#include "palInlineFuncs.h"
 
 namespace Util
 {
@@ -112,6 +113,20 @@ Result Thread::Begin(
 bool Thread::IsCreated() const
 {
     return m_threadStatus == Result::Success;
+}
+
+// =====================================================================================================================
+/// Assigns a name to a thread
+Result Thread::SetThreadName(
+    const char* pName
+    ) const
+{
+    // pthread_setname_np restricts to 16 char, including the terminating null byte
+    char tmp[16] = { };
+    Util::Strncpy(tmp, pName, 15);
+    int err = pthread_setname_np(m_threadId, tmp);
+
+    return (err == 0) ? Result::Success : Result::ErrorUnknown;
 }
 
 // =====================================================================================================================

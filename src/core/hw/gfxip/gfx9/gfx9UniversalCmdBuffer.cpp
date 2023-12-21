@@ -124,6 +124,10 @@ constexpr VGT_DI_PRIM_TYPE TopologyToPrimTypeTable[] =
 constexpr uint32 PipelineDbRenderOverrideMask = DB_RENDER_OVERRIDE__FORCE_SHADER_Z_ORDER_MASK  |
                                                 DB_RENDER_OVERRIDE__DISABLE_VIEWPORT_CLAMP_MASK;
 
+// Use an unused HW bit in these tracked registers to indicate that they are dirty and must and must be written.
+// PAL will never set this bit in HW.
+constexpr uint32 PaScConsRastCntlDirtyBit = uint32(1 << 31);
+constexpr uint32 VgtLsHsConfigDirtyBit    = uint32(1 << 31);
 #if PAL_BUILD_GFX11
 // The DB_SHADER_CONTROL fields owned by the graphics pipeline.
 constexpr uint32 Gfx11PipelineDbShaderControlMask = ~(Gfx11::DB_SHADER_CONTROL__OVERRIDE_INTRINSIC_RATE_ENABLE_MASK |
@@ -330,7 +334,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
                                  &m_deCmdStream,
                                  &m_ceCmdStream,
                                  nullptr,
-                                 device.Settings().blendOptimizationsEnable),
+                                 device.Settings().blendOptimizationEnable),
     m_device(device),
     m_cmdUtil(device.CmdUtil()),
     m_deCmdStream(device,
@@ -424,7 +428,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_cachedSettings.hiDepthDisabled            = !settings.hiDepthEnable;
     m_cachedSettings.hiStencilDisabled          = !settings.hiStencilEnable;
     m_cachedSettings.ignoreCsBorderColorPalette = settings.disableBorderColorPaletteBinds;
-    m_cachedSettings.blendOptimizationsEnable   = settings.blendOptimizationsEnable;
+    m_cachedSettings.blendOptimizationsEnable   = settings.blendOptimizationEnable;
     m_cachedSettings.outOfOrderPrimsEnable      = static_cast<uint32>(settings.enableOutOfOrderPrimitives);
     m_cachedSettings.scissorChangeWa            = settings.waMiscScissorRegisterChange;
     m_cachedSettings.padParamCacheSpace        =
@@ -560,6 +564,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_pbbCntlRegs.paScBinnerCntl0.u32All                     = 0;
     m_pbbCntlRegs.paScBinnerCntl0.bits.FPOVS_PER_BATCH       = settings.binningFpovsPerBatch;
     m_pbbCntlRegs.paScBinnerCntl0.bits.OPTIMAL_BIN_SELECTION = settings.binningOptimalBinSelection;
+    m_pbbCntlRegs.paScBinnerCntl0.bits.DISABLE_START_OF_PRIM = 1;
 
     // Hardware detects binning transitions when this is set so SW can hardcode it.
     // This has no effect unless the KMD has also set PA_SC_ENHANCE_1.FLUSH_ON_BINNING_TRANSITION=1
@@ -568,14 +573,25 @@ UniversalCmdBuffer::UniversalCmdBuffer(
         m_pbbCntlRegs.paScBinnerCntl0.gfx09_1xPlus.FLUSH_ON_BINNING_TRANSITION = 1;
     }
 
-    m_cachedPbbSettings.maxAllocCountNgg       = (settings.binningMaxAllocCountNggOnChip  - 1);
-    m_cachedPbbSettings.maxAllocCountLegacy    = (settings.binningMaxAllocCountLegacy     - 1);
+    m_cachedPbbSettings.maxAllocCountNgg       = settings.binningMaxAllocCountNggOnChip;
+    m_cachedPbbSettings.maxAllocCountLegacy    = settings.binningMaxAllocCountLegacy;
+    if (IsGfx9(palDevice) || IsGfx10(palDevice))
+    {
+        PAL_ASSERT(m_cachedPbbSettings.maxAllocCountLegacy > 0);
+        PAL_ASSERT(m_cachedPbbSettings.maxAllocCountNgg    > 0);
+        m_cachedPbbSettings.maxAllocCountNgg     -= 1;
+        m_cachedPbbSettings.maxAllocCountLegacy  -= 1;
+    }
     m_cachedPbbSettings.maxPrimsPerBatch       = (pPublicSettings->binningMaxPrimPerBatch - 1);
     m_cachedPbbSettings.persistentStatesPerBin = (m_persistentStatesPerBin                - 1);
 
-    PAL_ASSERT(m_cachedPbbSettings.maxAllocCountNgg    == (0xFFFF & (settings.binningMaxAllocCountNggOnChip  - 1)));
-    PAL_ASSERT(m_cachedPbbSettings.maxAllocCountLegacy == (0xFFFF & (settings.binningMaxAllocCountLegacy     - 1)));
-    PAL_ASSERT(m_cachedPbbSettings.maxPrimsPerBatch    == (0xFFFF & (pPublicSettings->binningMaxPrimPerBatch - 1)));
+    PAL_ASSERT(((IsGfx9(palDevice) || IsGfx10(palDevice)) ?
+                m_cachedPbbSettings.maxAllocCountNgg    == (0xFFFF & (settings.binningMaxAllocCountNggOnChip - 1)) :
+                m_cachedPbbSettings.maxAllocCountNgg    == (0xFFFF & settings.binningMaxAllocCountNggOnChip)));
+    PAL_ASSERT(((IsGfx9(palDevice) || IsGfx10(palDevice)) ?
+                m_cachedPbbSettings.maxAllocCountLegacy == (0xFFFF & (settings.binningMaxAllocCountLegacy - 1)) :
+                m_cachedPbbSettings.maxAllocCountLegacy == (0xFFFF & settings.binningMaxAllocCountLegacy)));
+    PAL_ASSERT(m_cachedPbbSettings.maxPrimsPerBatch     == (0xFFFF & (pPublicSettings->binningMaxPrimPerBatch - 1)));
 
     m_pbbCntlRegs.paScBinnerCntl1.u32All                         = 0;
     m_pbbCntlRegs.paScBinnerCntl1.bits.MAX_PRIM_PER_BATCH        = m_cachedPbbSettings.maxPrimsPerBatch;
@@ -697,14 +713,12 @@ void UniversalCmdBuffer::SetDispatchFunctions()
 
     if (HsaAbi)
     {
-        // Note that CmdDispatchIndirect and CmdDispatchDynamic do not support the HSA ABI.
+        // Note that CmdDispatchIndirect does not support the HSA ABI.
         m_funcTable.pfnCmdDispatchIndirect = nullptr;
-        m_funcTable.pfnCmdDispatchDynamic  = nullptr;
     }
     else
     {
         m_funcTable.pfnCmdDispatchIndirect = CmdDispatchIndirect<IssueSqttMarkerEvent, DescribeDrawDispatch>;
-        m_funcTable.pfnCmdDispatchDynamic  = CmdDispatchDynamic<IssueSqttMarkerEvent, DescribeDrawDispatch>;
     }
 }
 
@@ -905,16 +919,47 @@ void UniversalCmdBuffer::ResetState()
 
     m_spiVsOutConfig.u32All         = 0;
     m_spiPsInControl.u32All         = 0;
-    m_vgtLsHsConfig.u32All          = 0;
     m_geCntl.u32All                 = 0;
     m_dbShaderControl.u32All        = 0;
     m_dbDfsmControl.u32All          =
         ((m_cmdUtil.GetRegInfo().mmDbDfsmControl != 0) ? m_device.GetDbDfsmControl() : 0);
     m_paScAaConfigNew.u32All        = 0;
-    m_paScAaConfigLast.u32All       = 0;
     m_paSuLineStippleCntl.u32All    = 0;
     m_paScLineStipple.u32All        = 0;
     m_paSuScModeCntl.u32All         = InvalidPaSuScModeCntlVal;
+
+    {
+        Extent2d binSize = {};
+        binSize.width  = m_minBinSizeX;
+        binSize.height = m_minBinSizeY;
+        m_pbbCntlRegs.paScBinnerCntl0.bits.BINNING_MODE = m_cachedSettings.pbbDisableBinMode;
+        if (binSize.width != 0)
+        {
+            m_pbbCntlRegs.paScBinnerCntl0.bits.BIN_SIZE_Y        = 0;
+            m_pbbCntlRegs.paScBinnerCntl0.bits.BIN_SIZE_Y_EXTEND = Device::GetBinSizeEnum(binSize.height);
+            if (binSize.width == 16)
+            {
+                m_pbbCntlRegs.paScBinnerCntl0.bits.BIN_SIZE_X        = 1;
+                m_pbbCntlRegs.paScBinnerCntl0.bits.BIN_SIZE_X_EXTEND = 0;
+            }
+            else
+            {
+                m_pbbCntlRegs.paScBinnerCntl0.bits.BIN_SIZE_X        = 0;
+                m_pbbCntlRegs.paScBinnerCntl0.bits.BIN_SIZE_X_EXTEND = Device::GetBinSizeEnum(binSize.width);
+            }
+
+            if (binSize.height == 16)
+            {
+                m_pbbCntlRegs.paScBinnerCntl0.bits.BIN_SIZE_Y        = 1;
+                m_pbbCntlRegs.paScBinnerCntl0.bits.BIN_SIZE_Y_EXTEND = 0;
+            }
+            else
+            {
+                m_pbbCntlRegs.paScBinnerCntl0.bits.BIN_SIZE_Y        = 0;
+                m_pbbCntlRegs.paScBinnerCntl0.bits.BIN_SIZE_Y_EXTEND = Device::GetBinSizeEnum(binSize.height);
+            }
+        }
+    }
 
     // Disable PBB at the start of each command buffer unconditionally. Each draw can set the appropriate
     // PBB state at validate time.
@@ -955,7 +1000,6 @@ void UniversalCmdBuffer::ResetState()
             m_pbbCntlRegs.paScBinnerCntl0.bits.BIN_SIZE_Y_EXTEND = Device::GetBinSizeEnum(binSize.height);
         }
     }
-    m_pbbCntlRegs.paScBinnerCntl0.bits.DISABLE_START_OF_PRIM = 1;
 
     // Reset the command buffer's HWL state tracking
     m_state.flags.u32All                                  = 0;
@@ -1029,18 +1073,33 @@ void UniversalCmdBuffer::ResetState()
 #if PAL_BUILD_GFX11
     // All user data entries are invalid upon state reset.  No need to increment this if we don't have anything to
     // invalidate.
-    if (m_numValidUserEntries > 0)
+
+    // In order to wrap, we'd need to have 2^32 draws or dispatches occur.
+    // So we'd like to always handle the wrapping logic in ResetState(), then we wouldn't need to check it at all
+    // during dispatch or draw validation.
+    // (We can be pretty sure that no command buffer is going to have that many draws or dispatches
+    // in a single command buffer -- GPUs are doing a few dozen millions of draws per second,
+    // 2^32 is 4 billion per command buffer.)
+    if (m_minValidUserEntryLookupValue > 1)
     {
         memset(&m_validUserEntryRegPairsLookup[0], 0, sizeof(m_validUserEntryRegPairsLookup));
         m_minValidUserEntryLookupValue = 1;
         m_numValidUserEntries = 0;
     }
+    else
+    {
+        PAL_ASSERT(m_numValidUserEntries == 0);
+    }
 
-    if (m_numValidUserEntriesCs > 0)
+    if (m_minValidUserEntryLookupValueCs > 1)
     {
         memset(&m_validUserEntryRegPairsLookupCs[0], 0, sizeof(m_validUserEntryRegPairsLookupCs));
         m_minValidUserEntryLookupValueCs = 1;
         m_numValidUserEntriesCs = 0;
+    }
+    else
+    {
+        PAL_ASSERT(m_numValidUserEntriesCs == 0);
     }
 #endif
 
@@ -1062,7 +1121,10 @@ void UniversalCmdBuffer::CmdBindPipeline(
         auto*const pNewPipeline = static_cast<const GraphicsPipeline*>(params.pPipeline);
         auto*const pOldPipeline = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
 
-        if (pNewPipeline != pOldPipeline)
+        const bool disableFiltering =
+            false;
+
+        if (disableFiltering || (pNewPipeline != pOldPipeline))
         {
             const bool isNgg       = (pNewPipeline != nullptr) && pNewPipeline->IsNgg();
             const bool tessEnabled = (pNewPipeline != nullptr) && pNewPipeline->IsTessEnabled();
@@ -1082,7 +1144,8 @@ void UniversalCmdBuffer::CmdBindPipeline(
             const GsFastLaunchMode newFastLaunchMode = (pNewPipeline != nullptr) ? pNewPipeline->FastLaunchMode()
                                                                                  : GsFastLaunchMode::Disabled;
 
-            if (static_cast<uint32>(meshEnabled) != m_state.flags.meshShaderEnabled)
+            if (disableFiltering ||
+                (static_cast<uint32>(meshEnabled) != m_state.flags.meshShaderEnabled))
             {
                 // When mesh shader is either being enabled or being disabled, we need to re-write VGT_PRIMITIVE_TYPE:
                 // - Enabling mesh shader requires using the point-list VGT topology;
@@ -1157,7 +1220,8 @@ void UniversalCmdBuffer::CmdBindPipeline(
                                           (newFastLaunchMode != oldFastLaunchMode);
 #endif
 
-            if ((oldNeedsUavExportFlush != newNeedsUavExportFlush) ||
+            if (disableFiltering ||
+                (oldNeedsUavExportFlush != newNeedsUavExportFlush) ||
                 (oldUsesViewInstancing  != newUsesViewInstancing)  ||
 #if PAL_BUILD_GFX11
                 (meshEnabled && changeMsFunction)                  ||
@@ -1176,7 +1240,8 @@ void UniversalCmdBuffer::CmdBindPipeline(
                 ((pNewPipeline == nullptr) ? 0 : pNewPipeline->VertexBufferCount() * DwordsPerSrd);
             PAL_DEBUG_BUILD_ONLY_ASSERT(vbTableDwords <= m_vbTable.state.sizeInDwords);
 
-            if (vbTableDwords > m_vbTable.watermark)
+            if (disableFiltering ||
+                (vbTableDwords > m_vbTable.watermark))
             {
                 // If the current high watermark is increasing, we need to mark the contents as dirty because data which
                 // was previously uploaded to CE RAM wouldn't have been dumped to GPU memory before the previous Draw.
@@ -1191,7 +1256,8 @@ void UniversalCmdBuffer::CmdBindPipeline(
                 m_uavExportTable.maxColorTargets = maxTargets;
                 m_uavExportTable.tableSizeDwords = NumBytesToNumDwords(maxTargets * sizeof(ImageSrd));
 
-                if (oldUsesUavExport == false)
+                if (disableFiltering ||
+                    (oldUsesUavExport == false))
                 {
                     // Invalidate color caches so upcoming uav exports don't overlap previous normal exports
                     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
@@ -1435,13 +1501,14 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
     PAL_ASSERT(pCurrPipeline != nullptr);
 
     const auto& cmdUtil             = m_device.CmdUtil();
-    const bool  isFirstDrawInCmdBuf = (m_state.flags.firstDrawExecuted == 0);
     const bool  wasPrevPipelineNull = (pPrevSignature == &NullGfxSignature);
-    const bool  wasPrevPipelineNgg  = m_pipelineState.flags.isNgg;
+    const bool  wasPrevPipelineNgg  = m_pipelineState.flags.isNgg
+                                      ;
     const bool  isNgg               = pCurrPipeline->IsNgg();
     const bool  tessEnabled         = pCurrPipeline->IsTessEnabled();
     const bool  gsEnabled           = pCurrPipeline->IsGsEnabled();
-    bool        disableFiltering    = wasPrevPipelineNull;
+    const bool  disableFiltering    = wasPrevPipelineNull
+                                      ;
 
     const uint32 ctxRegHash = pCurrPipeline->GetContextRegHash();
     const bool ctxRegDirty = disableFiltering || (m_pipelineCtxRegHash != ctxRegHash);
@@ -1511,7 +1578,7 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
         )
     {
         const ShaderHash& psHash = pCurrPipeline->GetInfo().shader[static_cast<uint32>(ShaderType::Pixel)].hash;
-        if (wasPrevPipelineNull || (ShaderHashesEqual(m_pipelinePsHash, psHash) == false))
+        if (disableFiltering || (ShaderHashesEqual(m_pipelinePsHash, psHash) == false))
         {
             m_pipelinePsHash = psHash;
             breakBatch = true;
@@ -1582,32 +1649,7 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
         m_spiPsInControl = spiPsInControl;
     }
 
-    const bool usesMultiViewports       = pCurrPipeline->UsesMultipleViewports();
-    const bool mvDirty                  = (usesMultiViewports != (m_graphicsState.enableMultiViewport != 0));
-    const bool depthClampDirty          =
-        (m_depthClampMode != static_cast<DepthClampMode>(m_graphicsState.depthClampMode));
-    if (mvDirty || depthClampDirty)
-    {
-        // If the previously bound pipeline differed in its use of multiple viewports we will need to rewrite the
-        // viewport and scissor state on draw.
-        if (m_graphicsState.viewportState.count != 0)
-        {
-            // If viewport is never set, no need to rewrite viewport, this happens in D3D12 nested command list.
-            m_graphicsState.dirtyFlags.validationBits.viewports    |=
-                mvDirty ||
-                (depthClampDirty && (m_depthClampMode != DepthClampMode::_None));
-            m_nggState.flags.dirty                                 |= mvDirty;
-        }
-
-        if (m_graphicsState.scissorRectState.count != 0)
-        {
-            // If scissor is never set, no need to rewrite scissor, this happens in D3D12 nested command list.
-            m_graphicsState.dirtyFlags.validationBits.scissorRects |= mvDirty;
-        }
-
-        m_graphicsState.enableMultiViewport = usesMultiViewports;
-        m_graphicsState.depthClampMode = static_cast<uint32>(m_depthClampMode);
-    }
+    UpdateViewportScissorDirty(pCurrPipeline->UsesMultipleViewports(), m_depthClampMode);
 
     if (m_vertexOffsetReg != m_pSignatureGfx->vertexOffsetRegAddr)
     {
@@ -1654,17 +1696,17 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
     }
 #endif
 
-    if (wasPrevPipelineNgg && (isNgg == false))
+    if (isNgg == false)
     {
-        pDeCmdSpace = m_workaroundState.SwitchFromNggPipelineToLegacy(gsEnabled, pDeCmdSpace);
-    }
+        const bool oldPipelineUnknown = (wasPrevPipelineNull && IsNested())
+            ;
 
-    if ((wasPrevPipelineNull == false) && (wasPrevPipelineNgg == false) && (isNgg == false))
-    {
-        pDeCmdSpace = m_workaroundState.SwitchBetweenLegacyPipelines(m_pipelineState.flags.usesGs,
-                                                                     m_pipelineState.flags.gsCutMode,
-                                                                     pCurrPipeline,
-                                                                     pDeCmdSpace);
+        pDeCmdSpace = m_workaroundState.SwitchToLegacyPipeline(m_pipelineState.flags.usesGs,
+                                                               wasPrevPipelineNgg,
+                                                               m_pipelineState.flags.gsCutMode,
+                                                               oldPipelineUnknown,
+                                                               pCurrPipeline,
+                                                               pDeCmdSpace);
     }
 
     // Save the set of pipeline flags for the next pipeline transition.  This should come last because the previous
@@ -1677,6 +1719,40 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
     m_state.flags.cbTargetMaskChanged = false;
 
     return pDeCmdSpace;
+}
+
+// =====================================================================================================================
+// Updates the dirty bits for viewport, scissor, and NGG on pipeline change.
+// Also update the tracked state of multi-viewport and depth clamp
+void UniversalCmdBuffer::UpdateViewportScissorDirty(
+    bool            usesMultiViewports,
+    DepthClampMode  depthClampMode)
+{
+    const bool mvDirty                  = (usesMultiViewports != (m_graphicsState.enableMultiViewport != 0));
+    const bool depthClampDirty          =
+        (depthClampMode != static_cast<DepthClampMode>(m_graphicsState.depthClampMode));
+    if (mvDirty || depthClampDirty)
+    {
+        // If the previously bound pipeline differed in its use of multiple viewports we will need to rewrite the
+        // viewport and scissor state on draw.
+        if (m_graphicsState.viewportState.count != 0)
+        {
+            // If viewport is never set, no need to rewrite viewport, this happens in D3D12 nested command list.
+            m_graphicsState.dirtyFlags.viewports    |=
+                mvDirty ||
+                (depthClampDirty && (depthClampMode != DepthClampMode::_None));
+            m_nggState.flags.dirty                                 |= mvDirty;
+        }
+
+        if (m_graphicsState.scissorRectState.count != 0)
+        {
+            // If scissor is never set, no need to rewrite scissor, this happens in D3D12 nested command list.
+            m_graphicsState.dirtyFlags.scissorRects |= mvDirty;
+        }
+
+        m_graphicsState.enableMultiViewport = usesMultiViewports;
+        m_graphicsState.depthClampMode      = static_cast<uint32>(depthClampMode);
+    }
 }
 
 // =====================================================================================================================
@@ -1693,8 +1769,8 @@ void UniversalCmdBuffer::CmdSetMsaaQuadSamplePattern(
     m_graphicsState.useCustomSamplePattern =
         (memcmp(&quadSamplePattern, &defaultSamplePattern, sizeof(MsaaQuadSamplePattern)) != 0);
 
-    m_graphicsState.dirtyFlags.validationBits.quadSamplePatternState = 1;
-    m_nggState.flags.dirty                                           = 1;
+    m_graphicsState.dirtyFlags.quadSamplePatternState = 1;
+    m_nggState.flags.dirty                            = 1;
 
     // MsaaQuadSamplePattern owns MAX_SAMPLE_DIST
     m_paScAaConfigNew.bits.MAX_SAMPLE_DIST = MsaaState::ComputeMaxSampleDistance(numSamplesPerPixel, quadSamplePattern);
@@ -1717,12 +1793,12 @@ void UniversalCmdBuffer::CmdSetViewports(
     memcpy(&m_graphicsState.viewportState.viewports[0],     &params.viewports[0],     viewportSize);
     memcpy(&m_graphicsState.viewportState.horzDiscardRatio, &params.horzDiscardRatio, GuardbandSize);
 
-    m_graphicsState.dirtyFlags.validationBits.viewports = 1;
-    m_nggState.flags.dirty                              = 1;
+    m_graphicsState.dirtyFlags.viewports = 1;
+    m_nggState.flags.dirty               = 1;
 
     // Also set scissor dirty flag here since we need cross-validation to handle the case of scissor regions
     // being greater than the viewport regions.
-    m_graphicsState.dirtyFlags.validationBits.scissorRects = 1;
+    m_graphicsState.dirtyFlags.scissorRects = 1;
 }
 
 // =====================================================================================================================
@@ -1734,7 +1810,7 @@ void UniversalCmdBuffer::CmdSetScissorRects(
     m_graphicsState.scissorRectState.count = params.count;
     memcpy(&m_graphicsState.scissorRectState.scissors[0], &params.scissors[0], scissorSize);
 
-    m_graphicsState.dirtyFlags.validationBits.scissorRects = 1;
+    m_graphicsState.dirtyFlags.scissorRects = 1;
 }
 
 // =====================================================================================================================
@@ -1798,9 +1874,9 @@ void UniversalCmdBuffer::CmdBindMsaaState(
         m_state.primShaderCullingCb.enableConservativeRasterization = 0;
     }
 
-    m_graphicsState.pMsaaState                          = pNewState;
-    m_graphicsState.dirtyFlags.validationBits.msaaState = 1;
-    m_nggState.flags.dirty                              = 1;
+    m_graphicsState.pMsaaState           = pNewState;
+    m_graphicsState.dirtyFlags.msaaState = 1;
+    m_nggState.flags.dirty               = 1;
 }
 
 // =====================================================================================================================
@@ -1845,8 +1921,8 @@ void UniversalCmdBuffer::CmdBindColorBlendState(
         m_deCmdStream.CommitCommands(pDeCmdSpace);
     }
 
-    m_graphicsState.pColorBlendState                          = pNewState;
-    m_graphicsState.dirtyFlags.validationBits.colorBlendState = 1;
+    m_graphicsState.pColorBlendState           = pNewState;
+    m_graphicsState.dirtyFlags.colorBlendState = 1;
 }
 
 // =====================================================================================================================
@@ -1862,8 +1938,8 @@ void UniversalCmdBuffer::CmdBindDepthStencilState(
         m_deCmdStream.CommitCommands(pDeCmdSpace);
     }
 
-    m_graphicsState.pDepthStencilState                          = pNewState;
-    m_graphicsState.dirtyFlags.validationBits.depthStencilState = 1;
+    m_graphicsState.pDepthStencilState           = pNewState;
+    m_graphicsState.dirtyFlags.depthStencilState = 1;
 }
 
 // =====================================================================================================================
@@ -1871,8 +1947,8 @@ void UniversalCmdBuffer::CmdBindDepthStencilState(
 void UniversalCmdBuffer::CmdSetBlendConst(
     const BlendConstParams& params)
 {
-    m_graphicsState.blendConstState                              = params;
-    m_graphicsState.dirtyFlags.nonValidationBits.blendConstState = 1;
+    m_graphicsState.blendConstState            = params;
+    m_graphicsState.dirtyFlags.blendConstState = 1;
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
     pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmCB_BLEND_RED,
@@ -1888,8 +1964,8 @@ void UniversalCmdBuffer::CmdSetBlendConst(
 void UniversalCmdBuffer::CmdSetDepthBounds(
     const DepthBoundsParams& params)
 {
-    m_graphicsState.depthBoundsState                              = params;
-    m_graphicsState.dirtyFlags.nonValidationBits.depthBoundsState = 1;
+    m_graphicsState.depthBoundsState            = params;
+    m_graphicsState.dirtyFlags.depthBoundsState = 1;
 
     const float depthBounds[2] = { params.min, params.max, };
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
@@ -1940,8 +2016,8 @@ void UniversalCmdBuffer::CmdSetInputAssemblyState(
 
     m_vgtMultiPrimIbResetEn.bits.MATCH_ALL_BITS = static_cast<uint32>(params.primitiveRestartMatchAllBits);
 
-    m_graphicsState.inputAssemblyState = params;
-    m_graphicsState.dirtyFlags.validationBits.inputAssemblyState   = 1;
+    m_graphicsState.inputAssemblyState            = params;
+    m_graphicsState.dirtyFlags.inputAssemblyState = 1;
 }
 
 // =====================================================================================================================
@@ -1952,7 +2028,7 @@ void UniversalCmdBuffer::CmdSetStencilRefMasks(
     if (params.flags.u8All != 0x0)
     {
         SetStencilRefMasksState(params, &m_graphicsState.stencilRefMaskState);
-        m_graphicsState.dirtyFlags.nonValidationBits.stencilRefMaskState = 1;
+        m_graphicsState.dirtyFlags.stencilRefMaskState = 1;
 
         struct
         {
@@ -2560,8 +2636,8 @@ void UniversalCmdBuffer::CmdBindTargets(
     m_graphicsState.bindTargets.depthTarget.depthLayout        = params.depthTarget.depthLayout;
     m_graphicsState.bindTargets.depthTarget.stencilLayout      = params.depthTarget.stencilLayout;
     m_graphicsState.bindTargets.depthTarget.pDepthStencilView  = StoreDepthStencilView(params);
-    m_graphicsState.dirtyFlags.validationBits.colorTargetView  = 1;
-    m_graphicsState.dirtyFlags.validationBits.depthStencilView = 1;
+    m_graphicsState.dirtyFlags.colorTargetView                 = 1;
+    m_graphicsState.dirtyFlags.depthStencilView                = 1;
     PAL_ASSERT(m_graphicsState.inheritedState.stateFlags.targetViewState == 0);
 }
 
@@ -2572,12 +2648,7 @@ IColorTargetView* UniversalCmdBuffer::StoreColorTargetView(
 {
     IColorTargetView* pColorTargetView = nullptr;
 
-    if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
-    {
-        pColorTargetView = PAL_PLACEMENT_NEW(&m_colorTargetViewStorage[slot])
-            Gfx9ColorTargetView(*static_cast<const Gfx9ColorTargetView*>(params.colorTargets[slot].pColorTargetView));
-    }
-    else if (IsGfx10(m_gfxIpLevel))
+    if (IsGfx10(m_gfxIpLevel))
     {
         pColorTargetView = PAL_PLACEMENT_NEW(&m_colorTargetViewStorage[slot])
             Gfx10ColorTargetView(*static_cast<const Gfx10ColorTargetView*>(params.colorTargets[slot].pColorTargetView));
@@ -2589,6 +2660,10 @@ IColorTargetView* UniversalCmdBuffer::StoreColorTargetView(
             Gfx11ColorTargetView(*static_cast<const Gfx11ColorTargetView*>(params.colorTargets[slot].pColorTargetView));
     }
 #endif
+    else
+    {
+        PAL_ASSERT_ALWAYS();
+    }
 
     return pColorTargetView;
 }
@@ -2624,16 +2699,8 @@ IDepthStencilView* UniversalCmdBuffer::StoreDepthStencilView(
 
     if (params.depthTarget.pDepthStencilView != nullptr)
     {
-        if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
-        {
-            pDepthStencilView = PAL_PLACEMENT_NEW(&m_depthStencilViewStorage)
-                Gfx9DepthStencilView(*static_cast<const Gfx9DepthStencilView*>(params.depthTarget.pDepthStencilView));
-        }
-        else if (IsGfx10Plus(m_gfxIpLevel))
-        {
-            pDepthStencilView = PAL_PLACEMENT_NEW(&m_depthStencilViewStorage)
-                Gfx10DepthStencilView(*static_cast<const Gfx10DepthStencilView*>(params.depthTarget.pDepthStencilView));
-        }
+        pDepthStencilView = PAL_PLACEMENT_NEW(&m_depthStencilViewStorage)
+            Gfx10DepthStencilView(*static_cast<const Gfx10DepthStencilView*>(params.depthTarget.pDepthStencilView));
     }
 
     return pDepthStencilView;
@@ -2746,8 +2813,8 @@ void UniversalCmdBuffer::CmdBindStreamOutTargets(
     // need to update the whole table at Draw-time anyway.
     m_streamOut.state.dirty = 1;
 
-    m_graphicsState.bindStreamOutTargets                          = params;
-    m_graphicsState.dirtyFlags.nonValidationBits.streamOutTargets = 1;
+    m_graphicsState.bindStreamOutTargets        = params;
+    m_graphicsState.dirtyFlags.streamOutTargets = 1;
 }
 
 // =====================================================================================================================
@@ -2763,10 +2830,10 @@ void UniversalCmdBuffer::CmdSetTriangleRasterStateInternal(
     const TriangleRasterStateParams& params,
     bool                             optimizeLinearDestGfxCopy)
 {
-    m_state.flags.optimizeLinearGfxCpy                               = optimizeLinearDestGfxCopy;
-    m_graphicsState.triangleRasterState                              = params;
-    m_graphicsState.dirtyFlags.validationBits.triangleRasterState    = 1;
-    m_nggState.flags.dirty                                           = 1;
+    m_state.flags.optimizeLinearGfxCpy             = optimizeLinearDestGfxCopy;
+    m_graphicsState.triangleRasterState            = params;
+    m_graphicsState.dirtyFlags.triangleRasterState = 1;
+    m_nggState.flags.dirty                         = 1;
 
     if (static_cast<TossPointMode>(m_cachedSettings.tossPointMode) == TossPointWireframe)
     {
@@ -2785,8 +2852,8 @@ void UniversalCmdBuffer::CmdSetTriangleRasterStateInternal(
 void UniversalCmdBuffer::CmdSetPointLineRasterState(
     const PointLineRasterStateParams& params)
 {
-    m_graphicsState.pointLineRasterState                              = params;
-    m_graphicsState.dirtyFlags.nonValidationBits.pointLineRasterState = 1;
+    m_graphicsState.pointLineRasterState            = params;
+    m_graphicsState.dirtyFlags.pointLineRasterState = 1;
 
     // Point radius and line width are in 4-bit sub-pixel precision
     constexpr float  HalfSizeInSubPixels = 8.0f;
@@ -2825,8 +2892,8 @@ void UniversalCmdBuffer::CmdSetPointLineRasterState(
 void UniversalCmdBuffer::CmdSetDepthBiasState(
     const DepthBiasParams& params)
 {
-    m_graphicsState.depthBiasState                              = params;
-    m_graphicsState.dirtyFlags.nonValidationBits.depthBiasState = 1;
+    m_graphicsState.depthBiasState            = params;
+    m_graphicsState.dirtyFlags.depthBiasState = 1;
 
     struct
     {
@@ -2861,8 +2928,8 @@ void UniversalCmdBuffer::CmdSetDepthBiasState(
 void UniversalCmdBuffer::CmdSetGlobalScissor(
     const GlobalScissorParams& params)
 {
-    m_graphicsState.globalScissorState                              = params;
-    m_graphicsState.dirtyFlags.nonValidationBits.globalScissorState = 1;
+    m_graphicsState.globalScissorState            = params;
+    m_graphicsState.dirtyFlags.globalScissorState = 1;
 
     struct
     {
@@ -3276,18 +3343,25 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
 // We will rely on the HW to discard the draw for us.
 template <bool IssueSqttMarkerEvent, bool ViewInstancingEnable, bool DescribeDrawDispatch>
 void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndirectMulti(
-    ICmdBuffer*       pCmdBuffer,
-    const IGpuMemory& gpuMemory,
-    gpusize           offset,
-    uint32            stride,
-    uint32            maximumCount,
-    gpusize           countGpuAddr)
+    ICmdBuffer*          pCmdBuffer,
+    GpuVirtAddrAndStride gpuVirtAddrAndStride,
+    uint32               maximumCount,
+    gpusize              countGpuAddr)
 {
     auto* pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
 
+    gpusize gpuVirtAddr = gpuVirtAddrAndStride.gpuVirtAddr;
+    uint32  stride      = static_cast<uint32>(gpuVirtAddrAndStride.stride);
+
+    // These are not the true BaseAddr and offset, but in order to preserve the SET_BASE optimization,
+    // we set the high 32-bits of the virtual address as the base. The low 32 bits are used as
+    // the offset in the DISPATCH_INDIRECT packet.
+    gpusize gpuBaseAddr = HighPart64(gpuVirtAddr);
+    gpusize offset      = LowPart(gpuVirtAddr);
+
     PAL_ASSERT(IsPow2Aligned(offset, sizeof(uint32)) && IsPow2Aligned(countGpuAddr, sizeof(uint32)));
-    PAL_ASSERT((countGpuAddr != 0) ||
-               (offset + (sizeof(DrawIndirectArgs) * maximumCount) <= gpuMemory.Desc().size));
+
+    PAL_ASSERT((countGpuAddr != 0uLL) || (maximumCount != 0));
 
     Pm4::ValidateDrawInfo drawInfo;
     drawInfo.vtxIdxCount       = 0;
@@ -3310,7 +3384,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndirectMulti(
 
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
-    pDeCmdSpace = pThis->m_deCmdStream.WriteSetBase(gpuMemory.Desc().gpuVirtAddr,
+    pDeCmdSpace = pThis->m_deCmdStream.WriteSetBase(gpuBaseAddr,
                                                     base_index__pfp_set_base__patch_table_base,
                                                     ShaderGraphics,
                                                     pDeCmdSpace);
@@ -3416,18 +3490,25 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndirectMulti(
 // We will rely on the HW to discard the draw for us.
 template <bool IssueSqttMarkerEvent, bool ViewInstancingEnable, bool DescribeDrawDispatch>
 void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
-    ICmdBuffer*       pCmdBuffer,
-    const IGpuMemory& gpuMemory,
-    gpusize           offset,
-    uint32            stride,
-    uint32            maximumCount,
-    gpusize           countGpuAddr)
+    ICmdBuffer*          pCmdBuffer,
+    GpuVirtAddrAndStride gpuVirtAddrAndStride,
+    uint32               maximumCount,
+    gpusize              countGpuAddr)
 {
     auto* pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
 
+    gpusize gpuVirtAddr = gpuVirtAddrAndStride.gpuVirtAddr;
+    uint32  stride      = static_cast<uint32>(gpuVirtAddrAndStride.stride);
+
+    // These values are not the true BaseAddr and offset, but in order to preserve the SET_BASE optimization,
+    // we set the high 32-bits of the virtual address as the base. The low 32 bits are used as
+    // the offset in the DISPATCH_INDIRECT packet.
+    gpusize gpuBaseAddr = HighPart64(gpuVirtAddr);
+    gpusize offset      = LowPart(gpuVirtAddr);
+
     PAL_ASSERT(IsPow2Aligned(offset, sizeof(uint32)) && IsPow2Aligned(countGpuAddr, sizeof(uint32)));
-    PAL_ASSERT((countGpuAddr != 0) ||
-               (offset + (sizeof(DrawIndexedIndirectArgs) * maximumCount) <= gpuMemory.Desc().size));
+
+    PAL_ASSERT((countGpuAddr != 0) || (maximumCount != 0));
 
     Pm4::ValidateDrawInfo drawInfo;
     drawInfo.vtxIdxCount       = 0;
@@ -3450,7 +3531,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
 
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
-    pDeCmdSpace = pThis->m_deCmdStream.WriteSetBase(gpuMemory.Desc().gpuVirtAddr,
+    pDeCmdSpace = pThis->m_deCmdStream.WriteSetBase(gpuBaseAddr,
                                                     base_index__pfp_set_base__patch_table_base,
                                                     ShaderGraphics,
                                                     pDeCmdSpace);
@@ -3568,7 +3649,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatch(
     }
     else
     {
-        pThis->ValidateDispatchPalAbi(&pThis->m_computeState, &pThis->m_deCmdStream, 0uLL, 0uLL, size);
+        pThis->ValidateDispatchPalAbi(&pThis->m_computeState, &pThis->m_deCmdStream, 0uLL, size);
     }
 
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
@@ -3596,28 +3677,30 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatch(
 // discard the dispatch for us.
 template <bool IssueSqttMarkerEvent, bool DescribeDrawDispatch>
 void PAL_STDCALL UniversalCmdBuffer::CmdDispatchIndirect(
-    ICmdBuffer*       pCmdBuffer,
-    const IGpuMemory& gpuMemory,
-    gpusize           offset)
+    ICmdBuffer*      pCmdBuffer,
+    gpusize          gpuVirtAddr)
 {
     auto*        pThis   = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
     const auto&  cmdUtil = pThis->m_device.CmdUtil();
+
+    // These values are not the true BaseAddr and offset, but in order to preserve the SET_BASE optimization,
+    // we set the high 32-bits of the virtual address as the base. The low 32 bits are used as
+    // the offset in the DISPATCH_INDIRECT packet.
+    gpusize gpuBaseAddr = HighPart64(gpuVirtAddr);
+    gpusize offset      = LowPart(gpuVirtAddr);
+
+    PAL_ASSERT(IsPow2Aligned(offset, sizeof(uint32)));
 
     if (DescribeDrawDispatch)
     {
         pThis->DescribeDispatchIndirect();
     }
 
-    PAL_ASSERT(IsPow2Aligned(offset, sizeof(uint32)));
-    PAL_ASSERT(offset + sizeof(DispatchIndirectArgs) <= gpuMemory.Desc().size);
-
-    const gpusize gpuMemBaseAddr = gpuMemory.Desc().gpuVirtAddr;
-
-    pThis->ValidateDispatchPalAbi(&pThis->m_computeState, &pThis->m_deCmdStream, gpuMemBaseAddr + offset, 0uLL, {});
+    pThis->ValidateDispatchPalAbi(&pThis->m_computeState, &pThis->m_deCmdStream, gpuVirtAddr, {});
 
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
     pDeCmdSpace = pThis->WaitOnCeCounter(pDeCmdSpace);
-    pDeCmdSpace = pThis->m_deCmdStream.WriteSetBase(gpuMemBaseAddr,
+    pDeCmdSpace = pThis->m_deCmdStream.WriteSetBase(gpuBaseAddr,
                                                     base_index__pfp_set_base__patch_table_base,
                                                     ShaderCompute,
                                                     pDeCmdSpace);
@@ -3660,7 +3743,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchOffset(
     }
     else
     {
-        pThis->ValidateDispatchPalAbi(&pThis->m_computeState, &pThis->m_deCmdStream, 0uLL, 0uLL, logicalSize);
+        pThis->ValidateDispatchPalAbi(&pThis->m_computeState, &pThis->m_deCmdStream, 0uLL, logicalSize);
     }
 
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
@@ -3680,44 +3763,6 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchOffset(
                                                                       pThis->UsesDispatchTunneling(),
                                                                       false,
                                                                       pDeCmdSpace);
-
-    if (IssueSqttMarkerEvent)
-    {
-        pDeCmdSpace += pThis->m_cmdUtil.BuildNonSampleEventWrite(THREAD_TRACE_MARKER, EngineTypeUniversal, pDeCmdSpace);
-    }
-
-    pDeCmdSpace = pThis->IncrementDeCounter(pDeCmdSpace);
-
-    pThis->m_deCmdStream.CommitCommands(pDeCmdSpace);
-}
-
-// =====================================================================================================================
-template <bool IssueSqttMarkerEvent, bool DescribeDrawDispatch>
-void PAL_STDCALL UniversalCmdBuffer::CmdDispatchDynamic(
-    ICmdBuffer*  pCmdBuffer,
-    gpusize      gpuVa,
-    DispatchDims size)
-{
-    auto* pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
-
-    PAL_ASSERT(pThis->m_cmdUtil.HasEnhancedLoadShRegIndex());
-
-    if (DescribeDrawDispatch)
-    {
-        pThis->DescribeDispatch(Developer::DrawDispatchType::CmdDispatchDynamic, size);
-    }
-
-    pThis->ValidateDispatchPalAbi(&pThis->m_computeState, &pThis->m_deCmdStream, 0uLL, gpuVa, size);
-
-    uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
-    pDeCmdSpace  = pThis->WaitOnCeCounter(pDeCmdSpace);
-
-    pDeCmdSpace += pThis->m_cmdUtil.BuildDispatchDirect<false, true>(size,
-                                                                     pThis->PacketPredicate(),
-                                                                     pThis->m_pSignatureCs->flags.isWave32,
-                                                                     pThis->UsesDispatchTunneling(),
-                                                                     false,
-                                                                     pDeCmdSpace);
 
     if (IssueSqttMarkerEvent)
     {
@@ -3944,19 +3989,23 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMeshNative(
 // =====================================================================================================================
 template <bool IssueSqttMarkerEvent, bool ViewInstancingEnable, bool DescribeDrawDispatch>
 void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMeshIndirectMulti(
-    ICmdBuffer*       pCmdBuffer,
-    const IGpuMemory& gpuMemory,
-    gpusize           offset,
-    uint32            stride,
-    uint32            maximumCount,
-    gpusize           countGpuAddr)
+    ICmdBuffer*          pCmdBuffer,
+    GpuVirtAddrAndStride gpuVirtAddrAndStride,
+    uint32               maximumCount,
+    gpusize              countGpuAddr)
 {
-    PAL_ASSERT(IsPow2Aligned(offset, sizeof(uint32)));
-    PAL_ASSERT(offset + sizeof(DispatchMeshIndirectArgs) <= gpuMemory.Desc().size);
-
-    const gpusize gpuMemBaseAddr = gpuMemory.Desc().gpuVirtAddr;
-
     auto*const pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
+
+    gpusize gpuVirtAddr = gpuVirtAddrAndStride.gpuVirtAddr;
+    uint32  stride      = static_cast<uint32>(gpuVirtAddrAndStride.stride);
+
+    // These are not the true BaseAddr and offset, but in order to preserve the SET_BASE optimization,
+    // we set the high 32-bits of the virtual address as the base. The low 32 bits are used as
+    // the offset in the DISPATCH_INDIRECT packet.
+    gpusize gpuBaseAddr = HighPart64(gpuVirtAddr);
+    gpusize offset      = LowPart(gpuVirtAddr);
+
+    PAL_ASSERT(IsPow2Aligned(offset, sizeof(uint32)));
 
     constexpr Pm4::ValidateDrawInfo DrawInfo = { };
     pThis->ValidateDraw<false, true>(DrawInfo);
@@ -3970,7 +4019,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMeshIndirectMulti(
 
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
-    pDeCmdSpace = pThis->m_deCmdStream.WriteSetBase(gpuMemory.Desc().gpuVirtAddr,
+    pDeCmdSpace = pThis->m_deCmdStream.WriteSetBase(gpuBaseAddr,
                                                     base_index__pfp_set_base__patch_table_base,
                                                     ShaderGraphics,
                                                     pDeCmdSpace);
@@ -4246,26 +4295,24 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMeshTask(
 // Indirect version of CmdDispatchMeshTask for execution of pipelines with both Task and Mesh shaders.
 template <bool IssueSqttMarkerEvent, bool ViewInstancingEnable, bool DescribeDrawDispatch>
 void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMeshIndirectMultiTask(
-    ICmdBuffer*       pCmdBuffer,
-    const IGpuMemory& gpuMemory,
-    gpusize           offset,
-    uint32            stride,
-    uint32            maximumCount,
-    gpusize           countGpuAddr)
+    ICmdBuffer*          pCmdBuffer,
+    GpuVirtAddrAndStride gpuVirtAddrAndStride,
+    uint32               maximumCount,
+    gpusize              countGpuAddr)
 {
-    PAL_ASSERT(IsPow2Aligned(offset, sizeof(uint32)));
-    PAL_ASSERT(offset + sizeof(DispatchMeshIndirectArgs) <= gpuMemory.Desc().size);
-
     auto*   pThis   = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
     Device* pDevice = const_cast<Device*>(&pThis->m_device);
+
+    gpusize gpuVirtAddr = gpuVirtAddrAndStride.gpuVirtAddr;
+    uint32  stride      = static_cast<uint32>(gpuVirtAddrAndStride.stride);
+
+    PAL_ASSERT(IsPow2Aligned(gpuVirtAddr, sizeof(uint32)));
 
     pThis->m_ringSizes.itemSize[static_cast<size_t>(ShaderRingType::PayloadData)] =
         Max<size_t>(pThis->m_ringSizes.itemSize[static_cast<size_t>(ShaderRingType::PayloadData)], 1);
 
     pThis->m_ringSizes.itemSize[static_cast<size_t>(ShaderRingType::TaskMeshCtrlDrawRing)] =
         Max<size_t>(pThis->m_ringSizes.itemSize[static_cast<size_t>(ShaderRingType::TaskMeshCtrlDrawRing)], 1);
-
-    const gpusize indirectGpuAddr = gpuMemory.Desc().gpuVirtAddr + offset;
 
     CmdStream* pAceCmdStream = pThis->GetAceCmdStream();
     PAL_ASSERT(pAceCmdStream != nullptr);
@@ -4279,7 +4326,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMeshIndirectMultiTask(
 
     pThis->CmdAceWaitDe();
 
-    pThis->ValidateTaskMeshDispatch(indirectGpuAddr, {});
+    pThis->ValidateTaskMeshDispatch(gpuVirtAddr, {});
 
     const uint16 taskDispatchDimsReg = taskSignature.taskDispatchDimsAddr;
     const uint16 taskRingIndexReg    = taskSignature.taskRingIndexAddr;
@@ -4316,7 +4363,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMeshIndirectMultiTask(
                                                                    CmdUtil::DispatchTaskMeshIndirectMecSize,
                                                                    pAceCmdSpace);
                 }
-                pAceCmdSpace += CmdUtil::BuildDispatchTaskMeshIndirectMultiAce(indirectGpuAddr,
+                pAceCmdSpace += CmdUtil::BuildDispatchTaskMeshIndirectMultiAce(gpuVirtAddr,
                                                                                taskRingIndexReg,
                                                                                taskDispatchDimsReg,
                                                                                taskDispatchIdxReg,
@@ -4337,7 +4384,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMeshIndirectMultiTask(
                                                             CmdUtil::DispatchTaskMeshIndirectMecSize,
                                                             pAceCmdSpace);
         }
-        pAceCmdSpace += CmdUtil::BuildDispatchTaskMeshIndirectMultiAce(indirectGpuAddr,
+        pAceCmdSpace += CmdUtil::BuildDispatchTaskMeshIndirectMultiAce(gpuVirtAddr,
                                                                        taskRingIndexReg,
                                                                        taskDispatchDimsReg,
                                                                        taskDispatchIdxReg,
@@ -4868,13 +4915,6 @@ Result UniversalCmdBuffer::AddPreamble()
     PAL_ASSERT(m_ceCmdStream.IsEmpty());
     PAL_ASSERT(m_deCmdStream.IsEmpty());
 
-    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-
-    if (m_cachedSettings.disablePreamblePipelineStats == false)
-    {
-        pDeCmdSpace += cmdUtil.BuildNonSampleEventWrite(PIPELINESTAT_START, EngineTypeUniversal, pDeCmdSpace);
-    }
-
     // DB_RENDER_OVERRIDE bits are updated via depth-stencil view and at draw time validation based on dirty
     // depth-stencil state.
     m_dbRenderOverride.u32All = 0;
@@ -4888,138 +4928,149 @@ Result UniversalCmdBuffer::AddPreamble()
         m_dbRenderOverride.bits.FORCE_HIS_ENABLE1 = FORCE_DISABLE;
     }
 
-    if (isNested == false)
     {
-        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmDB_RENDER_OVERRIDE, m_dbRenderOverride.u32All, pDeCmdSpace);
-        m_prevDbRenderOverride.u32All = m_dbRenderOverride.u32All;
-    }
+        uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
-    // The draw-time validation will get confused unless we set PA_SC_AA_CONFIG to a known last value.
-    pDeCmdSpace = m_deCmdStream.WriteSetOneContextRegNoOpt(mmPA_SC_AA_CONFIG, m_paScAaConfigLast.u32All, pDeCmdSpace);
-
-    // Set patch and donut distribution thresholds for tessellation.
-    pDeCmdSpace = WriteTessDistributionFactors(pDeCmdSpace);
-
-    if (isNested)
-    {
-        // Clear out the blend optimizations explicitly here as the chained command buffers don't have a way to check
-        // inherited state and the optimizations won't be cleared unless cleared in this command buffer.
-        BlendOpt dontRdDst    = FORCE_OPT_AUTO;
-        BlendOpt discardPixel = FORCE_OPT_AUTO;
-
-        if (m_cachedSettings.blendOptimizationsEnable == false)
+        if (m_cachedSettings.disablePreamblePipelineStats == false)
         {
-            dontRdDst    = FORCE_OPT_DISABLE;
-            discardPixel = FORCE_OPT_DISABLE;
+            pDeCmdSpace += cmdUtil.BuildNonSampleEventWrite(PIPELINESTAT_START, EngineTypeUniversal, pDeCmdSpace);
         }
 
-        for (uint32 idx = 0; idx < MaxColorTargets; idx++)
-        {
-            constexpr uint32 BlendOptRegMask = (CB_COLOR0_INFO__BLEND_OPT_DONT_RD_DST_MASK |
-                                                CB_COLOR0_INFO__BLEND_OPT_DISCARD_PIXEL_MASK);
-
-            regCB_COLOR0_INFO regValue            = {};
-            regValue.bits.BLEND_OPT_DONT_RD_DST   = dontRdDst;
-            regValue.bits.BLEND_OPT_DISCARD_PIXEL = discardPixel;
-
-            if (m_deCmdStream.Pm4OptimizerEnabled())
-            {
-                pDeCmdSpace = m_deCmdStream.WriteContextRegRmw<true>(mmCB_COLOR0_INFO + idx * CbRegsPerSlot,
-                                                                     BlendOptRegMask,
-                                                                     regValue.u32All,
-                                                                     pDeCmdSpace);
-            }
-            else
-            {
-                pDeCmdSpace = m_deCmdStream.WriteContextRegRmw<false>(mmCB_COLOR0_INFO + idx * CbRegsPerSlot,
-                                                                      BlendOptRegMask,
-                                                                      regValue.u32All,
-                                                                      pDeCmdSpace);
-            }
-        }
-    }
-
-    // PA_SC_CONSERVATIVE_RASTERIZATION_CNTL is the same value for most Pipeline objects. Prime it in the Preamble
-    // to the disabled state. At draw-time, we check if a new value is needed based on (Pipeline || MSAA) being dirty.
-    // It is expected that Pipeline and MSAA is always known even on nested command buffers.
-    pDeCmdSpace = m_deCmdStream.WriteSetOneContextRegNoOpt(mmPA_SC_CONSERVATIVE_RASTERIZATION_CNTL,
-                                                           m_paScConsRastCntl.u32All,
-                                                           pDeCmdSpace);
-
-    // Initialize VGT_LS_HS_CONFIG. It will be rewritten at draw-time if its value changes.
-    if (m_deCmdStream.Pm4OptimizerEnabled())
-    {
-        pDeCmdSpace = m_deCmdStream.WriteSetVgtLsHsConfig<true>(m_vgtLsHsConfig, pDeCmdSpace);
-    }
-    else
-    {
-        pDeCmdSpace = m_deCmdStream.WriteSetVgtLsHsConfig<false>(m_vgtLsHsConfig, pDeCmdSpace);
-    }
-
-    // With the PM4 optimizer enabled, certain registers are only updated via RMW packets and not having an initial
-    // value causes the optimizer to skip optimizing redundant RMW packets.
-    if (m_deCmdStream.Pm4OptimizerEnabled())
-    {
         if (isNested == false)
         {
-            // Nested command buffers inherit parts of the following registers and hence must not be reset
-            // in the preamble.
-            constexpr uint32 ZeroStencilRefMasks[] = { 0, 0 };
-            pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmDB_STENCILREFMASK,
-                                                               mmDB_STENCILREFMASK_BF,
-                                                               &ZeroStencilRefMasks[0],
+            pDeCmdSpace =
+                m_deCmdStream.WriteSetOneContextReg(mmDB_RENDER_OVERRIDE, m_dbRenderOverride.u32All, pDeCmdSpace);
+            m_prevDbRenderOverride.u32All = m_dbRenderOverride.u32All;
+        }
+
+        // The draw-time validation will get confused unless we set PA_SC_AA_CONFIG to a known last value.
+        pDeCmdSpace =
+            m_deCmdStream.WriteSetOneContextRegNoOpt(mmPA_SC_AA_CONFIG, m_paScAaConfigLast.u32All, pDeCmdSpace);
+
+        // Set patch and donut distribution thresholds for tessellation.
+        pDeCmdSpace = WriteTessDistributionFactors(pDeCmdSpace);
+
+        if (isNested)
+        {
+            // Clear out the blend optimizations explicitly here as the chained command buffers don't have a way to
+            // check inherited state and the optimizations won't be cleared unless cleared in this command buffer.
+            BlendOpt dontRdDst    = FORCE_OPT_AUTO;
+            BlendOpt discardPixel = FORCE_OPT_AUTO;
+
+            if (m_cachedSettings.blendOptimizationsEnable == false)
+            {
+                dontRdDst    = FORCE_OPT_DISABLE;
+                discardPixel = FORCE_OPT_DISABLE;
+            }
+
+            for (uint32 idx = 0; idx < MaxColorTargets; idx++)
+            {
+                constexpr uint32 BlendOptRegMask = (CB_COLOR0_INFO__BLEND_OPT_DONT_RD_DST_MASK |
+                                                    CB_COLOR0_INFO__BLEND_OPT_DISCARD_PIXEL_MASK);
+
+                regCB_COLOR0_INFO regValue            = {};
+                regValue.bits.BLEND_OPT_DONT_RD_DST   = dontRdDst;
+                regValue.bits.BLEND_OPT_DISCARD_PIXEL = discardPixel;
+
+                if (m_deCmdStream.Pm4OptimizerEnabled())
+                {
+                    pDeCmdSpace = m_deCmdStream.WriteContextRegRmw<true>(mmCB_COLOR0_INFO + idx * CbRegsPerSlot,
+                                                                         BlendOptRegMask,
+                                                                         regValue.u32All,
+                                                                         pDeCmdSpace);
+                }
+                else
+                {
+                    pDeCmdSpace = m_deCmdStream.WriteContextRegRmw<false>(mmCB_COLOR0_INFO + idx * CbRegsPerSlot,
+                                                                          BlendOptRegMask,
+                                                                          regValue.u32All,
+                                                                          pDeCmdSpace);
+                }
+            }
+        }
+
+        // PA_SC_CONSERVATIVE_RASTERIZATION_CNTL is the same value for most Pipeline objects. Prime it in the Preamble
+        // to the disabled state. At draw-time, we check if a new value is needed based on (Pipeline || MSAA) being
+        // dirty. It is expected that Pipeline and MSAA is always known even on nested command buffers.
+        pDeCmdSpace = m_deCmdStream.WriteSetOneContextRegNoOpt(mmPA_SC_CONSERVATIVE_RASTERIZATION_CNTL,
+                                                               m_paScConsRastCntl.u32All,
+                                                               pDeCmdSpace);
+
+        // Initialize VGT_LS_HS_CONFIG. It will be rewritten at draw-time if its value changes.
+        if (m_deCmdStream.Pm4OptimizerEnabled())
+        {
+            pDeCmdSpace = m_deCmdStream.WriteSetVgtLsHsConfig<true>(m_vgtLsHsConfig, pDeCmdSpace);
+        }
+        else
+        {
+            pDeCmdSpace = m_deCmdStream.WriteSetVgtLsHsConfig<false>(m_vgtLsHsConfig, pDeCmdSpace);
+        }
+
+        // With the PM4 optimizer enabled, certain registers are only updated via RMW packets and not having an initial
+        // value causes the optimizer to skip optimizing redundant RMW packets.
+        if (m_deCmdStream.Pm4OptimizerEnabled())
+        {
+            if (isNested == false)
+            {
+                // Nested command buffers inherit parts of the following registers and hence must not be reset
+                // in the preamble.
+                constexpr uint32 ZeroStencilRefMasks[] = { 0, 0 };
+                pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmDB_STENCILREFMASK,
+                                                                   mmDB_STENCILREFMASK_BF,
+                                                                   &ZeroStencilRefMasks[0],
+                                                                   pDeCmdSpace);
+            }
+        }
+
+        pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmPA_SC_BINNER_CNTL_0,
+                                                           mmPA_SC_BINNER_CNTL_1,
+                                                           &m_pbbCntlRegs,
+                                                           pDeCmdSpace);
+
+        if (isNested == false)
+        {
+            // Initialize screen scissor value.
+            struct
+            {
+                regPA_SC_SCREEN_SCISSOR_TL tl;
+                regPA_SC_SCREEN_SCISSOR_BR br;
+            } paScScreenScissor = { };
+
+            paScScreenScissor.br.bits.BR_X = m_graphicsState.targetExtent.width;
+            paScScreenScissor.br.bits.BR_Y = m_graphicsState.targetExtent.height;
+
+            pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmPA_SC_SCREEN_SCISSOR_TL,
+                                                               mmPA_SC_SCREEN_SCISSOR_BR,
+                                                               &paScScreenScissor,
                                                                pDeCmdSpace);
         }
-    }
 
-    pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmPA_SC_BINNER_CNTL_0,
-                                                       mmPA_SC_BINNER_CNTL_1,
-                                                       &m_pbbCntlRegs,
-                                                       pDeCmdSpace);
-
-    if (isNested == false)
-    {
-        // Initialize screen scissor value.
-        struct
+        if (m_cmdUtil.GetRegInfo().mmDbDfsmControl != 0)
         {
-            regPA_SC_SCREEN_SCISSOR_TL tl;
-            regPA_SC_SCREEN_SCISSOR_BR br;
-        } paScScreenScissor = { };
+            pDeCmdSpace = m_deCmdStream.WriteSetOneContextRegNoOpt(m_cmdUtil.GetRegInfo().mmDbDfsmControl,
+                                                                   m_dbDfsmControl.u32All,
+                                                                   pDeCmdSpace);
+        }
 
-        paScScreenScissor.br.bits.BR_X = m_graphicsState.targetExtent.width;
-        paScScreenScissor.br.bits.BR_Y = m_graphicsState.targetExtent.height;
+        // Initialize m_acqRelFenceValGpuVa.
+        if (AcqRelFenceValBaseGpuVa() != 0)
+        {
+            const uint32 data[static_cast<uint32>(AcqRelEventType::Count)] = {};
 
-        pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmPA_SC_SCREEN_SCISSOR_TL,
-                                                           mmPA_SC_SCREEN_SCISSOR_BR,
-                                                           &paScScreenScissor,
-                                                           pDeCmdSpace);
+            WriteDataInfo writeDataInfo = { };
+            writeDataInfo.engineType = m_engineType;
+            writeDataInfo.engineSel  = engine_sel__pfp_write_data__prefetch_parser;
+            writeDataInfo.dstSel     = dst_sel__pfp_write_data__memory;
+            writeDataInfo.dstAddr    = AcqRelFenceValBaseGpuVa();
+
+            pDeCmdSpace += CmdUtil::BuildWriteData(writeDataInfo,
+                                                   (sizeof(data) / sizeof(uint32)),
+                                                   reinterpret_cast<const uint32*>(&data),
+                                                   pDeCmdSpace);
+        }
+
+        m_deCmdStream.CommitCommands(pDeCmdSpace);
     }
-
-    if (m_cmdUtil.GetRegInfo().mmDbDfsmControl != 0)
-    {
-        pDeCmdSpace = m_deCmdStream.WriteSetOneContextRegNoOpt(m_cmdUtil.GetRegInfo().mmDbDfsmControl,
-                                                               m_dbDfsmControl.u32All,
-                                                               pDeCmdSpace);
-    }
-
-    // Initialize m_acqRelFenceValGpuVa.
-    if (AcqRelFenceValBaseGpuVa() != 0)
-    {
-        const uint32 data[static_cast<uint32>(AcqRelEventType::Count)] = {};
-
-        WriteDataInfo writeDataInfo = { };
-        writeDataInfo.engineType = m_engineType;
-        writeDataInfo.engineSel  = engine_sel__pfp_write_data__prefetch_parser;
-        writeDataInfo.dstSel     = dst_sel__pfp_write_data__memory;
-        writeDataInfo.dstAddr    = AcqRelFenceValBaseGpuVa();
-
-        pDeCmdSpace += CmdUtil::BuildWriteData(writeDataInfo,
-                                               (sizeof(data) / sizeof(uint32)),
-                                               reinterpret_cast<const uint32*>(&data),
-                                               pDeCmdSpace);
-    }
-
-    m_deCmdStream.CommitCommands(pDeCmdSpace);
 
     // Clients may not bind a PointLineRasterState until they intend to do wireframe rendering. This means that the
     // wireframe tosspoint may render a bunch of zero-width lines (i.e. nothing) until that state is bound. When that
@@ -5176,7 +5227,7 @@ void UniversalCmdBuffer::WriteEventCmd(
     uint32                data)
 {
     // This will replace PipelineStageBlt with a more specific set of flags if we haven't done any CP DMAs.
-    OptimizePipeStageAndCacheMask(&stageMask, nullptr, nullptr, nullptr);
+    BarrierMgr::OptimizePipeStageAndCacheMask(this, &stageMask, nullptr, nullptr, nullptr);
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
@@ -5284,6 +5335,7 @@ uint32* UniversalCmdBuffer::IncrementDeCounter(
 // Returns a mask of which hardware shader stages' user-data mappings have changed.
 template <bool TessEnabled, bool GsEnabled, bool VsEnabled>
 uint8 UniversalCmdBuffer::FixupUserSgprsOnPipelineSwitch(
+    const UserDataEntries*           pUserDataEntries,
     const GraphicsPipelineSignature* pPrevSignature,
     uint32**                         ppDeCmdSpace)
 {
@@ -5304,7 +5356,7 @@ uint8 UniversalCmdBuffer::FixupUserSgprsOnPipelineSwitch(
         {
             changedStageMask |= (1 << HsStageId);
             CmdStream::AccumulateUserDataEntriesForSgprs<true>(m_pSignatureGfx->stage[HsStageId],
-                                                               m_graphicsState.gfxUserDataEntries,
+                                                               *pUserDataEntries,
                                                                m_baseUserDataReg[HwShaderStage::Hs],
                                                                m_validUserEntryRegPairs,
                                                                &m_validUserEntryRegPairsLookup[LookupIndexHs],
@@ -5315,7 +5367,7 @@ uint8 UniversalCmdBuffer::FixupUserSgprsOnPipelineSwitch(
         {
             changedStageMask |= (1 << GsStageId);
             CmdStream::AccumulateUserDataEntriesForSgprs<true>(m_pSignatureGfx->stage[GsStageId],
-                                                               m_graphicsState.gfxUserDataEntries,
+                                                               *pUserDataEntries,
                                                                m_baseUserDataReg[HwShaderStage::Gs],
                                                                m_validUserEntryRegPairs,
                                                                &m_validUserEntryRegPairsLookup[LookupIndexGs],
@@ -5326,7 +5378,7 @@ uint8 UniversalCmdBuffer::FixupUserSgprsOnPipelineSwitch(
         {
             changedStageMask |= (1 << PsStageId);
             CmdStream::AccumulateUserDataEntriesForSgprs<true>(m_pSignatureGfx->stage[PsStageId],
-                                                               m_graphicsState.gfxUserDataEntries,
+                                                               *pUserDataEntries,
                                                                m_baseUserDataReg[HwShaderStage::Ps],
                                                                m_validUserEntryRegPairs,
                                                                &m_validUserEntryRegPairsLookup[LookupIndexPs],
@@ -5344,7 +5396,7 @@ uint8 UniversalCmdBuffer::FixupUserSgprsOnPipelineSwitch(
             changedStageMask |= (1 << HsStageId);
             pDeCmdSpace =
                 m_deCmdStream.WriteUserDataEntriesToSgprs<true, ShaderGraphics>(m_pSignatureGfx->stage[HsStageId],
-                                                                                m_graphicsState.gfxUserDataEntries,
+                                                                                *pUserDataEntries,
                                                                                 pDeCmdSpace);
         }
         if (GsEnabled && (m_pSignatureGfx->userDataHash[GsStageId] != pPrevSignature->userDataHash[GsStageId]))
@@ -5352,7 +5404,7 @@ uint8 UniversalCmdBuffer::FixupUserSgprsOnPipelineSwitch(
             changedStageMask |= (1 << GsStageId);
             pDeCmdSpace =
                 m_deCmdStream.WriteUserDataEntriesToSgprs<true, ShaderGraphics>(m_pSignatureGfx->stage[GsStageId],
-                                                                                m_graphicsState.gfxUserDataEntries,
+                                                                                *pUserDataEntries,
                                                                                 pDeCmdSpace);
         }
         if (VsEnabled && (m_pSignatureGfx->userDataHash[VsStageId] != pPrevSignature->userDataHash[VsStageId]))
@@ -5360,7 +5412,7 @@ uint8 UniversalCmdBuffer::FixupUserSgprsOnPipelineSwitch(
             changedStageMask |= (1 << VsStageId);
             pDeCmdSpace =
                 m_deCmdStream.WriteUserDataEntriesToSgprs<true, ShaderGraphics>(m_pSignatureGfx->stage[VsStageId],
-                                                                                m_graphicsState.gfxUserDataEntries,
+                                                                                *pUserDataEntries,
                                                                                 pDeCmdSpace);
         }
         if (m_pSignatureGfx->userDataHash[PsStageId] != pPrevSignature->userDataHash[PsStageId])
@@ -5368,7 +5420,7 @@ uint8 UniversalCmdBuffer::FixupUserSgprsOnPipelineSwitch(
             changedStageMask |= (1 << PsStageId);
             pDeCmdSpace =
                 m_deCmdStream.WriteUserDataEntriesToSgprs<true, ShaderGraphics>(m_pSignatureGfx->stage[PsStageId],
-                                                                                m_graphicsState.gfxUserDataEntries,
+                                                                                *pUserDataEntries,
                                                                                 pDeCmdSpace);
         }
 
@@ -5383,6 +5435,7 @@ uint8 UniversalCmdBuffer::FixupUserSgprsOnPipelineSwitch(
 // not do anything with entries which are mapped to the spill table.
 template <bool TessEnabled, bool GsEnabled, bool VsEnabled>
 uint32* UniversalCmdBuffer::WriteDirtyUserDataEntriesToSgprsGfx(
+    const UserDataEntries*           pUserDataEntries,
     const GraphicsPipelineSignature* pPrevSignature,
     uint8                            alreadyWrittenStageMask,
     uint32*                          pDeCmdSpace)
@@ -5403,7 +5456,7 @@ uint32* UniversalCmdBuffer::WriteDirtyUserDataEntriesToSgprsGfx(
             if (TessEnabled && (dirtyStageMask & (1 << HsStageId)))
             {
                 CmdStream::AccumulateUserDataEntriesForSgprs<false>(m_pSignatureGfx->stage[HsStageId],
-                                                                    m_graphicsState.gfxUserDataEntries,
+                                                                    *pUserDataEntries,
                                                                     m_baseUserDataReg[HwShaderStage::Hs],
                                                                     m_validUserEntryRegPairs,
                                                                     &m_validUserEntryRegPairsLookup[LookupIndexHs],
@@ -5413,7 +5466,7 @@ uint32* UniversalCmdBuffer::WriteDirtyUserDataEntriesToSgprsGfx(
             if (GsEnabled && (dirtyStageMask & (1 << GsStageId)))
             {
                 CmdStream::AccumulateUserDataEntriesForSgprs<false>(m_pSignatureGfx->stage[GsStageId],
-                                                                    m_graphicsState.gfxUserDataEntries,
+                                                                    *pUserDataEntries,
                                                                     m_baseUserDataReg[HwShaderStage::Gs],
                                                                     m_validUserEntryRegPairs,
                                                                     &m_validUserEntryRegPairsLookup[LookupIndexGs],
@@ -5424,7 +5477,7 @@ uint32* UniversalCmdBuffer::WriteDirtyUserDataEntriesToSgprsGfx(
             if (dirtyStageMask & (1 << PsStageId))
             {
                 CmdStream::AccumulateUserDataEntriesForSgprs<false>(m_pSignatureGfx->stage[PsStageId],
-                                                                    m_graphicsState.gfxUserDataEntries,
+                                                                    *pUserDataEntries,
                                                                     m_baseUserDataReg[HwShaderStage::Ps],
                                                                     m_validUserEntryRegPairs,
                                                                     &m_validUserEntryRegPairsLookup[LookupIndexPs],
@@ -5439,28 +5492,28 @@ uint32* UniversalCmdBuffer::WriteDirtyUserDataEntriesToSgprsGfx(
             {
                 pDeCmdSpace =
                     m_deCmdStream.WriteUserDataEntriesToSgprs<false, ShaderGraphics>(m_pSignatureGfx->stage[HsStageId],
-                                                                                     m_graphicsState.gfxUserDataEntries,
+                                                                                    *pUserDataEntries,
                                                                                      pDeCmdSpace);
             }
             if (GsEnabled && (dirtyStageMask & (1 << GsStageId)))
             {
                 pDeCmdSpace =
                     m_deCmdStream.WriteUserDataEntriesToSgprs<false, ShaderGraphics>(m_pSignatureGfx->stage[GsStageId],
-                                                                                     m_graphicsState.gfxUserDataEntries,
+                                                                                    *pUserDataEntries,
                                                                                      pDeCmdSpace);
             }
             if (VsEnabled && (dirtyStageMask & (1 << VsStageId)))
             {
                 pDeCmdSpace =
                     m_deCmdStream.WriteUserDataEntriesToSgprs<false, ShaderGraphics>(m_pSignatureGfx->stage[VsStageId],
-                                                                                     m_graphicsState.gfxUserDataEntries,
+                                                                                    *pUserDataEntries,
                                                                                      pDeCmdSpace);
             }
             if (dirtyStageMask & (1 << PsStageId))
             {
                 pDeCmdSpace =
                     m_deCmdStream.WriteUserDataEntriesToSgprs<false, ShaderGraphics>(m_pSignatureGfx->stage[PsStageId],
-                                                                                     m_graphicsState.gfxUserDataEntries,
+                                                                                    *pUserDataEntries,
                                                                                      pDeCmdSpace);
             }
         }
@@ -5728,6 +5781,8 @@ uint32* UniversalCmdBuffer::SetSeqUserSgprRegs(
 // Draw-time validation.  This version uses the CPU & embedded data for user-data table management.
 template <bool HasPipelineChanged, bool TessEnabled, bool GsEnabled, bool VsEnabled>
 uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
+    UserDataTableState*              pSpillTable,
+    UserDataEntries*                 pUserDataEntries,
     const GraphicsPipelineSignature* pPrevSignature,
     uint32*                          pDeCmdSpace)
 {
@@ -5836,6 +5891,20 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
                                                      pDeCmdSpace);
     } // if shader pipeline stats buffer is mapped by current pipeline
 
+    const uint16 primsNeededCntAddr = m_pSignatureGfx->primsNeededCntAddr;
+    if ((HasPipelineChanged || (m_graphicsState.dirtyFlags.streamoutStatsQuery != 0)) &&
+        (primsNeededCntAddr != UserDataNotMapped))
+    {
+        // The enablement is that bit 0 is set to 1, otherwise the feature is disabled.
+        uint32 queryActiveFlag = (IsQueryActive(QueryPoolType::StreamoutStats)) ? 1 : 0;
+        pDeCmdSpace = SetUserSgprReg<ShaderGraphics>(primsNeededCntAddr,
+                                                     queryActiveFlag,
+#if PAL_BUILD_GFX11
+                                                     false,
+#endif
+                                                     pDeCmdSpace);
+    }
+
     const uint16 sampleInfoAddr = m_pSignatureGfx->sampleInfoRegAddr;
     if (HasPipelineChanged && (sampleInfoAddr != UserDataNotMapped))
     {
@@ -5850,11 +5919,25 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
                                                      pDeCmdSpace);
     }
 
+    const uint16 dualSourceBlendInfoAddr = m_pSignatureGfx->dualSourceBlendInfoRegAddr;
+    if (HasPipelineChanged && (dualSourceBlendInfoAddr != UserDataNotMapped))
+    {
+        uint32 dualSourceBlendInfo;
+        dualSourceBlendInfo = m_graphicsState.dynamicGraphicsInfo.dynamicState.enable.dualSourceBlendEnable &&
+                              m_graphicsState.dynamicGraphicsInfo.dynamicState.dualSourceBlendEnable;
+        pDeCmdSpace = SetUserSgprReg<ShaderGraphics>(dualSourceBlendInfoAddr,
+                                                     dualSourceBlendInfo,
+#if PAL_BUILD_GFX11
+                                                     false,
+#endif
+                                                     pDeCmdSpace);
+    }
+
     // Update uav export srds if enabled
     const uint16 uavExportEntry = m_pSignatureGfx->uavExportTableAddr;
     if (uavExportEntry != UserDataNotMapped)
     {
-        const auto dirtyFlags = m_graphicsState.dirtyFlags.validationBits;
+        const auto dirtyFlags = m_graphicsState.dirtyFlags;
         if (HasPipelineChanged || (dirtyFlags.colorTargetView))
         {
             UpdateUavExportTable();
@@ -5890,17 +5973,19 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
     uint8 alreadyWrittenStageMask = 0;
     if (HasPipelineChanged)
     {
-        alreadyWrittenStageMask = FixupUserSgprsOnPipelineSwitch<TessEnabled, GsEnabled, VsEnabled>(pPrevSignature,
+        alreadyWrittenStageMask = FixupUserSgprsOnPipelineSwitch<TessEnabled, GsEnabled, VsEnabled>(pUserDataEntries,
+                                                                                                    pPrevSignature,
                                                                                                     &pDeCmdSpace);
     }
 
     const uint16 spillThreshold   = m_pSignatureGfx->spillThreshold;
     bool         reUpload         = false;
-    const bool   anyUserDataDirty = IsAnyGfxUserDataDirty();
+    const bool   anyUserDataDirty = IsAnyUserDataDirty(pUserDataEntries);
 
     if (anyUserDataDirty)
     {
-        pDeCmdSpace = WriteDirtyUserDataEntriesToSgprsGfx<TessEnabled, GsEnabled, VsEnabled>(pPrevSignature,
+        pDeCmdSpace = WriteDirtyUserDataEntriesToSgprsGfx<TessEnabled, GsEnabled, VsEnabled>(pUserDataEntries,
+                                                                                             pPrevSignature,
                                                                                              alreadyWrittenStageMask,
                                                                                              pDeCmdSpace);
     }
@@ -5916,7 +6001,7 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
             // Step #3:
             // Because the spill table is managed using CPU writes to embedded data, it must be fully re-uploaded for
             // any Draw/Dispatch whenever *any* contents have changed.
-            reUpload = (m_spillTable.stateGfx.dirty != 0);
+            reUpload = (pSpillTable->dirty != 0);
             if (HasPipelineChanged &&
                 ((spillThreshold < pPrevSignature->spillThreshold) || (userDataLimit > pPrevSignature->userDataLimit)))
             {
@@ -5931,7 +6016,7 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
                 const uint32 lastMaskId  = (lastUserData   / UserDataEntriesPerMask);
                 for (uint32 maskId = firstMaskId; maskId <= lastMaskId; ++maskId)
                 {
-                    size_t dirtyMask = m_graphicsState.gfxUserDataEntries.dirty[maskId];
+                    size_t dirtyMask = pUserDataEntries->dirty[maskId];
                     if (maskId == firstMaskId)
                     {
                         // Ignore the dirty bits for any entries below the spill threshold.
@@ -5957,10 +6042,10 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
             // Re-upload spill table contents if necessary, and write the new GPU virtual address to the user-SGPR(s).
             if (reUpload)
             {
-                UpdateUserDataTableCpu(&m_spillTable.stateGfx,
+                UpdateUserDataTableCpu(pSpillTable,
                                        (userDataLimit - spillThreshold),
                                        spillThreshold,
-                                       &m_graphicsState.gfxUserDataEntries.entries[0]);
+                                       &pUserDataEntries->entries[0]);
             }
 
             // NOTE: If the pipeline is changing, we may need to re-write the spill table address to any shader stage,
@@ -5987,7 +6072,7 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
 
         // All dirtied user-data entries have been written to user-SGPR's or to the spill table somewhere in this
         // method, so it is safe to clear these bits.
-        size_t* pDirtyMask = &m_graphicsState.gfxUserDataEntries.dirty[0];
+        size_t* pDirtyMask = &pUserDataEntries->dirty[0];
         for (uint32 i = 0; i < NumUserDataFlagsParts; i++)
         {
             pDirtyMask[i] = 0;
@@ -6185,14 +6270,7 @@ template <bool Indexed, bool Indirect, bool Pm4OptImmediate>
 void UniversalCmdBuffer::ValidateDraw(
     const Pm4::ValidateDrawInfo & drawInfo)
 {
-    const auto&  dirtyFlags = m_graphicsState.dirtyFlags.validationBits;
-
-    if ((dirtyFlags.vrsRateParams || dirtyFlags.vrsImage || dirtyFlags.depthStencilView) &&
-        m_cachedSettings.supportsVrs
-#if PAL_BUILD_GFX11
-        && IsGfx10(m_gfxIpLevel)
-#endif
-        )
+    if (IsVrsStateDirty())
     {
         // This has the potential to write a *LOT* of PM4 so do this outside the "main" reserve / commit commands
         // checks below.  It also has the potential to set new dirty states, so do all this stuff early.
@@ -6248,7 +6326,10 @@ void UniversalCmdBuffer::ValidateDraw(
 
         pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
-        pDeCmdSpace = (this->*m_pfnValidateUserDataGfxPipelineSwitch)(pPrevSignature, pDeCmdSpace);
+        pDeCmdSpace = (this->*m_pfnValidateUserDataGfxPipelineSwitch)(&m_spillTable.stateGfx,
+                                                                      &m_graphicsState.gfxUserDataEntries,
+                                                                      pPrevSignature,
+                                                                      pDeCmdSpace);
 
 #if PAL_DEVELOPER_BUILD
         if (m_cachedSettings.enablePm4Instrumentation != 0)
@@ -6274,7 +6355,10 @@ void UniversalCmdBuffer::ValidateDraw(
 
         uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
-        pDeCmdSpace = (this->*m_pfnValidateUserDataGfx)(nullptr, pDeCmdSpace);
+        pDeCmdSpace = (this->*m_pfnValidateUserDataGfx)(&m_spillTable.stateGfx,
+                                                        &m_graphicsState.gfxUserDataEntries,
+                                                        nullptr,
+                                                        pDeCmdSpace);
 
 #if PAL_DEVELOPER_BUILD
         if (m_cachedSettings.enablePm4Instrumentation != 0)
@@ -6314,10 +6398,26 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     const Pm4::ValidateDrawInfo& drawInfo,
     uint32*                      pDeCmdSpace)
 {
+    constexpr Pm4::GraphicsStateFlags ValidationDirtyBits = { { .colorBlendState        = 1,
+                                                                .depthStencilState      = 1,
+                                                                .msaaState              = 1,
+                                                                .quadSamplePatternState = 1,
+                                                                .viewports              = 1,
+                                                                .scissorRects           = 1,
+                                                                .inputAssemblyState     = 1,
+                                                                .triangleRasterState    = 1,
+                                                                .occlusionQueryActive   = 1,
+                                                                .lineStippleState       = 1,
+                                                                .colorTargetView        = 1,
+                                                                .depthStencilView       = 1,
+                                                                .vrsRateParams          = 1,
+                                                                .vrsCenterState         = 1,
+                                                                .vrsImage               = 1 } };
+
     // Strictly speaking, paScModeCntl1 is not similar dirty bits as tracked in validationBits. However for best CPU
     // performance in <PipelineDirty=false, StateDirty=false> path, manually make it as part of StateDirty path as
     // it is not frequently updated.
-     const bool stateDirty = ((m_graphicsState.dirtyFlags.validationBits.u32All |
+     const bool stateDirty = (((m_graphicsState.dirtyFlags.u32All & ValidationDirtyBits.u32All) |
                               (m_drawTimeHwState.valid.paScModeCntl1 == 0)) != 0);
 
     if (stateDirty)
@@ -6486,15 +6586,16 @@ uint32* UniversalCmdBuffer::UpdateNggCullingDataBufferWithCpu(
 // =====================================================================================================================
 template <bool PipelineDirty, bool StateDirty>
 uint32* UniversalCmdBuffer::ValidateTriangleRasterState(
-    const GraphicsPipeline*  pPipeline,
-    uint32*                  pDeCmdSpace)
+    const GraphicsPipeline* pPipeline,
+    uint32*                 pDeCmdSpace)
 {
     regPA_SU_SC_MODE_CNTL paSuScModeCntl;
     paSuScModeCntl.u32All  = m_paSuScModeCntl.u32All;
     const auto& params     = m_graphicsState.triangleRasterState;
-    const auto& dirtyFlags = m_graphicsState.dirtyFlags.validationBits;
+    const auto  dirtyFlags = m_graphicsState.dirtyFlags;
 
-    if (StateDirty && dirtyFlags.triangleRasterState)
+    if ((StateDirty && dirtyFlags.triangleRasterState) ||
+        (m_paSuScModeCntl.u32All == InvalidPaSuScModeCntlVal))
     {
         paSuScModeCntl.bits.POLY_OFFSET_FRONT_ENABLE = params.flags.frontDepthBiasEnable;
         paSuScModeCntl.bits.POLY_OFFSET_BACK_ENABLE  = params.flags.backDepthBiasEnable;
@@ -6573,7 +6674,7 @@ void UniversalCmdBuffer::BarrierMightDirtyVrsRateImage(
 
     // We only need to force VRS state validation if the image is currently bound as a VRS rate image. This covers the
     // case where the app binds a rate image, does a draw, and then modifies the rate image before the next draw.
-    m_graphicsState.dirtyFlags.validationBits.vrsImage |= (m_graphicsState.pVrsImage == pImage);
+    m_graphicsState.dirtyFlags.vrsImage |= (m_graphicsState.pVrsImage == pImage);
 
     // We must dirty all prior VRS copies that read from this image, if any.
     EraseVrsCopiesFromRateImage(pImage);
@@ -6593,11 +6694,22 @@ void UniversalCmdBuffer::DirtyVrsDepthImage(
     const auto* pView = static_cast<const DepthStencilView*>(m_graphicsState.bindTargets.depthTarget.pDepthStencilView);
     const auto* pImage = static_cast<const Pal::Image*>(pDepthImage);
 
-    m_graphicsState.dirtyFlags.validationBits.vrsImage |=
-        ((pView != nullptr) && (pView->GetImage()->Parent() == pImage));
+    m_graphicsState.dirtyFlags.vrsImage |= ((pView != nullptr) && (pView->GetImage()->Parent() == pImage));
 
     // We must dirty all prior VRS copies that wrote to this image, if any.
     EraseVrsCopiesToDepthImage(pImage);
+}
+
+// =====================================================================================================================
+bool UniversalCmdBuffer::IsVrsStateDirty() const
+{
+    const auto dirtyFlags = m_graphicsState.dirtyFlags;
+    return ((dirtyFlags.vrsRateParams || dirtyFlags.vrsImage || dirtyFlags.depthStencilView) &&
+            m_cachedSettings.supportsVrs
+#if PAL_BUILD_GFX11
+            && IsGfx10(m_gfxIpLevel)
+#endif
+        );
 }
 
 // =====================================================================================================================
@@ -6605,7 +6717,7 @@ void UniversalCmdBuffer::DirtyVrsDepthImage(
 // CmdBindSampleRateImage interface.
 void UniversalCmdBuffer::ValidateVrsState()
 {
-    const auto&            dirtyFlags             = m_graphicsState.dirtyFlags.validationBits;
+    const auto             dirtyFlags             = m_graphicsState.dirtyFlags;
     const auto&            vrsRate                = m_graphicsState.vrsRateState;
     constexpr uint32       ImageCombinerStage     = static_cast<uint32>(VrsCombinerStage::Image);
     constexpr uint32       PrimitiveCombinerStage = static_cast<uint32>(VrsCombinerStage::Primitive);
@@ -6761,7 +6873,7 @@ void UniversalCmdBuffer::ValidateVrsState()
     if (bindNewRateParams)
     {
         WritePerDrawVrsRate(newRateParams);
-        m_graphicsState.dirtyFlags.validationBits.vrsRateParams = 1;
+        m_graphicsState.dirtyFlags.vrsRateParams = 1;
     }
 }
 
@@ -6784,13 +6896,13 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     const auto*const pDsView     =
         static_cast<const DepthStencilView*>(m_graphicsState.bindTargets.depthTarget.pDepthStencilView);
 
-    const auto dirtyFlags = m_graphicsState.dirtyFlags.validationBits;
+    const auto dirtyFlags = m_graphicsState.dirtyFlags;
 
     // If we're about to launch a draw we better have a pipeline bound.
     PAL_DEBUG_BUILD_ONLY_ASSERT(pPipeline != nullptr);
 
     // All of our dirty state will leak to the caller.
-    m_graphicsState.leakFlags.u64All |= m_graphicsState.dirtyFlags.u64All;
+    m_graphicsState.leakFlags.u32All |= m_graphicsState.dirtyFlags.u32All;
     if (Indexed                                                 &&
         IsNgg                                                   &&
         (Indirect == false)                                     &&
@@ -6828,7 +6940,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
 
     if (PipelineDirty || (StateDirty && (dirtyFlags.colorBlendState || dirtyFlags.colorTargetView)))
     {
-        pDeCmdSpace = ValidateCbColorInfo<Pm4OptImmediate, PipelineDirty, StateDirty>(pDeCmdSpace);
+        pDeCmdSpace = ValidateCbColorInfoAndBlendState<Pm4OptImmediate, PipelineDirty, StateDirty>(pDeCmdSpace);
     }
 
 #if PAL_BUILD_GFX11
@@ -6927,7 +7039,8 @@ uint32* UniversalCmdBuffer::ValidateDraw(
 
     // Writing the viewport and scissor-rect state is deferred until draw-time because they depend on both the
     // viewport/scissor-rect state and the active pipeline.
-    if (StateDirty && dirtyFlags.viewports)
+    if (StateDirty && dirtyFlags.viewports
+        )
     {
         pDeCmdSpace = ValidateViewports<Pm4OptImmediate>(pDeCmdSpace);
     }
@@ -6953,7 +7066,9 @@ uint32* UniversalCmdBuffer::ValidateDraw(
 #if PAL_BUILD_GFX11
         // If VRS surfaces are enabled, then we can not set the "WALK_ALIGNMENT" or the
         // "WALK_ALIGN8_PRIM_FITS_ST" fields of PA_SC_MODE_CNTL_1.
-        if (IsGfx11(m_gfxIpLevel) && (m_graphicsState.pVrsImage != nullptr))
+        if (IsGfx11(m_gfxIpLevel) &&
+            ((m_graphicsState.pVrsImage != nullptr)
+            ))
         {
             paScModeCntl1.bits.WALK_ALIGNMENT           = 0;
             paScModeCntl1.bits.WALK_ALIGN8_PRIM_FITS_ST = 0;
@@ -7022,6 +7137,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
 
         if (vgtLsHsConfig.u32All != m_vgtLsHsConfig.u32All)
         {
+            PAL_ASSERT((vgtLsHsConfig.u32All & VgtLsHsConfigDirtyBit) == 0);
             m_vgtLsHsConfig = vgtLsHsConfig;
             pDeCmdSpace = m_deCmdStream.WriteSetVgtLsHsConfig<Pm4OptImmediate>(vgtLsHsConfig, pDeCmdSpace);
         }
@@ -7050,6 +7166,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
             }
 
             // Since the vast majority of pipelines do not use ConservativeRast, only update if it changed.
+            PAL_ASSERT((paScConsRastCntl.u32All & PaScConsRastCntlDirtyBit) == 0);
             if (m_paScConsRastCntl.u32All != paScConsRastCntl.u32All)
             {
                 pDeCmdSpace = m_deCmdStream.WriteSetOneContextRegNoOpt(mmPA_SC_CONSERVATIVE_RASTERIZATION_CNTL,
@@ -7214,7 +7331,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
 #endif
 
     // Clear the dirty-state flags.
-    m_graphicsState.dirtyFlags.u64All               = 0;
+    m_graphicsState.dirtyFlags.u32All               = 0;
     m_graphicsState.pipelineState.dirtyFlags.u32All = 0;
     m_deCmdStream.ResetDrawTimeState();
 
@@ -7830,7 +7947,7 @@ uint32* UniversalCmdBuffer::ValidateViewports(
     uint32* pDeCmdSpace)
 {
     const ViewportParams& params = m_graphicsState.viewportState;
-    PAL_ASSERT(m_graphicsState.dirtyFlags.validationBits.viewports != 0);
+    PAL_ASSERT(m_graphicsState.dirtyFlags.viewports != 0);
 
     const uint32 viewportCount = (m_graphicsState.enableMultiViewport) ? params.count : 1;
     VportRegs    viewportRegs  = {};
@@ -7967,10 +8084,10 @@ uint32* UniversalCmdBuffer::ValidateViewports(
 // =====================================================================================================================
 // Validate CB_COLORx_INFO registers. Depends on RTV state for much of the register and Pipeline | Blend for BlendOpt.
 template <bool Pm4OptImmediate, bool PipelineDirty, bool StateDirty>
-uint32* UniversalCmdBuffer::ValidateCbColorInfo(
+uint32* UniversalCmdBuffer::ValidateCbColorInfoAndBlendState(
     uint32* pDeCmdSpace)
 {
-    const auto dirtyFlags = m_graphicsState.dirtyFlags.validationBits;
+    const auto dirtyFlags = m_graphicsState.dirtyFlags;
 
     // Should only be called if pipeline is dirty or blendState/colorTarget is changed.
     PAL_DEBUG_BUILD_ONLY_ASSERT(PipelineDirty || (StateDirty && (dirtyFlags.colorBlendState || dirtyFlags.colorTargetView)));
@@ -7998,6 +8115,29 @@ uint32* UniversalCmdBuffer::ValidateCbColorInfo(
                 m_cachedSettings.blendOptimizationsEnable,
                 &m_blendOpts[0],
                 m_cbColorInfo);
+
+            const bool alphaToCoverage = m_graphicsState.dynamicGraphicsInfo.dynamicState.enable.alphaToCoverageEnable
+                                         ? m_graphicsState.dynamicGraphicsInfo.dynamicState.alphaToCoverageEnable
+                                         : pPipeline->AlphaToCoverageEanble();
+
+            // If BlendState is changed, always need to check and modify the blendState when alphaToCoverage is in use.
+            if (StateDirty && dirtyFlags.colorBlendState)
+            {
+                if (alphaToCoverage)
+                {
+                    pDeCmdSpace = pBlendState->HandleAlphaToCoverage(&m_deCmdStream, true, pDeCmdSpace);
+                }
+            }
+            // If Only pipeline is changed, always adjust the blend state based on alphaToCoverage state.
+            else if (PipelineDirty)
+            {
+                if (m_state.flags.drawTimeAlphaToCoverage != (alphaToCoverage ? 1u : 0u))
+                {
+                    pDeCmdSpace = pBlendState->HandleAlphaToCoverage(&m_deCmdStream, alphaToCoverage, pDeCmdSpace);
+                }
+            }
+
+            m_state.flags.drawTimeAlphaToCoverage = alphaToCoverage ? 1u : 0u;
         }
     }
 
@@ -8131,26 +8271,26 @@ bool UniversalCmdBuffer::NeedsToValidateScissorRectsWa(
         // When PM4 optimizer is disabled ContextRollDetected() represents individual context register writes in the
         // driver. Thus, if any other graphics state is dirtied we must assume a context roll has occurred.
         needsValidation = (m_cachedSettings.scissorChangeWa &&
-                           (m_deCmdStream.ContextRollDetected()               ||
-                            dirtyFlags.validationBits.colorBlendState         ||
-                            dirtyFlags.validationBits.depthStencilState       ||
-                            dirtyFlags.validationBits.msaaState               ||
-                            dirtyFlags.validationBits.quadSamplePatternState  ||
-                            dirtyFlags.validationBits.viewports               ||
-                            dirtyFlags.validationBits.depthStencilView        ||
-                            dirtyFlags.validationBits.inputAssemblyState      ||
-                            dirtyFlags.validationBits.triangleRasterState     ||
-                            dirtyFlags.validationBits.colorTargetView         ||
-                            dirtyFlags.validationBits.lineStippleState        ||
-                            dirtyFlags.nonValidationBits.streamOutTargets     ||
-                            dirtyFlags.nonValidationBits.globalScissorState   ||
-                            dirtyFlags.nonValidationBits.blendConstState      ||
-                            dirtyFlags.nonValidationBits.depthBiasState       ||
-                            dirtyFlags.nonValidationBits.depthBoundsState     ||
-                            dirtyFlags.nonValidationBits.pointLineRasterState ||
-                            dirtyFlags.nonValidationBits.stencilRefMaskState  ||
-                            dirtyFlags.nonValidationBits.clipRectsState       ||
-                            pipelineFlags.borderColorPalette                  ||
+                           (m_deCmdStream.ContextRollDetected() ||
+                            dirtyFlags.colorBlendState          ||
+                            dirtyFlags.depthStencilState        ||
+                            dirtyFlags.msaaState                ||
+                            dirtyFlags.quadSamplePatternState   ||
+                            dirtyFlags.viewports                ||
+                            dirtyFlags.depthStencilView         ||
+                            dirtyFlags.inputAssemblyState       ||
+                            dirtyFlags.triangleRasterState      ||
+                            dirtyFlags.colorTargetView          ||
+                            dirtyFlags.lineStippleState         ||
+                            dirtyFlags.streamOutTargets         ||
+                            dirtyFlags.globalScissorState       ||
+                            dirtyFlags.blendConstState          ||
+                            dirtyFlags.depthBiasState           ||
+                            dirtyFlags.depthBoundsState         ||
+                            dirtyFlags.pointLineRasterState     ||
+                            dirtyFlags.stencilRefMaskState      ||
+                            dirtyFlags.clipRectsState           ||
+                            pipelineFlags.borderColorPalette    ||
                             pipelineFlags.pipeline));
     }
 
@@ -8272,15 +8412,18 @@ uint32* UniversalCmdBuffer::ValidateScissorRects(
 uint32* UniversalCmdBuffer::ValidatePaScAaConfig(
     uint32* pDeCmdSpace)
 {
-    pDeCmdSpace = m_deCmdStream.WriteSetOneContextRegNoOpt(mmPA_SC_AA_CONFIG,
-                                                           m_paScAaConfigNew.u32All,
-                                                           pDeCmdSpace);
+    {
+        pDeCmdSpace = m_deCmdStream.WriteSetOneContextRegNoOpt(mmPA_SC_AA_CONFIG,
+                                                               m_paScAaConfigNew.u32All,
+                                                               pDeCmdSpace);
+    }
 
     m_paScAaConfigLast.u32All = m_paScAaConfigNew.u32All;
     return pDeCmdSpace;
 }
 
 // =====================================================================================================================
+// Translates the supplied IA_MULTI_VGT_PARAM register to its equivalent GE_CNTL value
 // Calculates the GE_CNTL register value.
 template <bool IsNgg>
 uint32 UniversalCmdBuffer::CalcGeCntl(
@@ -8503,7 +8646,7 @@ uint32* UniversalCmdBuffer::ValidateDrawTimeHwState(
     if (Indexed)
     {
         // Note that leakFlags.iaState implies an IB has been bound.
-        if (m_graphicsState.leakFlags.nonValidationBits.iaState == 1)
+        if (m_graphicsState.leakFlags.iaState == 1)
         {
             // Direct indexed draws use DRAW_INDEX_2 which contains the IB base and size. This means that
             // we only have to validate the IB base and size for indirect indexed draws.
@@ -8591,10 +8734,10 @@ void UniversalCmdBuffer::ValidateTaskMeshDispatch(
         static_cast<const HybridGraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
     const auto& taskSignature = pHybridPipeline->GetTaskSignature();
 
-    ComputeState tempComputeState                           = m_computeState;
-    tempComputeState.pipelineState.pPipeline                = pHybridPipeline;
-    tempComputeState.pipelineState.apiPsoHash               = m_graphicsState.pipelineState.apiPsoHash;
-    tempComputeState.pipelineState.dirtyFlags.pipeline      = 1;
+    ComputeState tempComputeState                      = m_computeState;
+    tempComputeState.pipelineState.pPipeline           = pHybridPipeline;
+    tempComputeState.pipelineState.apiPsoHash          = m_graphicsState.pipelineState.apiPsoHash;
+    tempComputeState.pipelineState.dirtyFlags.pipeline = 1;
 
     // Copy the gfx user-data entries on to this temporary ComputeState.
     memcpy(&tempComputeState.csUserDataEntries.entries,
@@ -8607,7 +8750,6 @@ void UniversalCmdBuffer::ValidateTaskMeshDispatch(
     ValidateDispatchPalAbi(&tempComputeState,
                            static_cast<CmdStream*>(m_pAceCmdStream),
                            indirectGpuVirtAddr,
-                           0uLL,
                            size);
 }
 
@@ -8617,7 +8759,6 @@ void UniversalCmdBuffer::ValidateDispatchPalAbi(
     ComputeState* pComputeState,
     CmdStream*    pCmdStream,
     gpusize       indirectGpuVirtAddr,
-    gpusize       launchDescGpuVirtAddr,
     DispatchDims  logicalSize)
 {
 #if PAL_DEVELOPER_BUILD
@@ -8633,10 +8774,6 @@ void UniversalCmdBuffer::ValidateDispatchPalAbi(
 #if PAL_BUILD_GFX11
     bool onAce = (pCmdStream == m_pAceCmdStream);
 #endif
-
-    const bool supportDynamicDispatch = pComputeState->pipelineState.pPipeline->SupportDynamicDispatch();
-    PAL_ASSERT(((supportDynamicDispatch == true)  && (launchDescGpuVirtAddr != 0)) ||
-               ((supportDynamicDispatch == false) && (launchDescGpuVirtAddr == 0)));
 
     uint32* pCmdSpace = pCmdStream->ReserveCommands();
 
@@ -8681,7 +8818,6 @@ void UniversalCmdBuffer::ValidateDispatchPalAbi(
             pCmdSpace = pNewPipeline->WriteCommands(pCmdStream,
                                                     pCmdSpace,
                                                     pComputeState->dynamicCsInfo,
-                                                    launchDescGpuVirtAddr,
                                                     m_buildFlags.prefetchShaders);
 
             m_pSignatureCs = &pNewPipeline->Signature();
@@ -8711,27 +8847,6 @@ void UniversalCmdBuffer::ValidateDispatchPalAbi(
     }
     else
     {
-        if ((launchDescGpuVirtAddr != 0) && (launchDescGpuVirtAddr != pComputeState->dynamicLaunchGpuVa))
-        {
-            const auto* const pPipeline = static_cast<const ComputePipeline*>(pComputeState->pipelineState.pPipeline);
-            pCmdSpace = pPipeline->WriteLaunchDescriptor(pCmdStream,
-                                                         pCmdSpace,
-                                                         pComputeState->dynamicCsInfo,
-                                                         launchDescGpuVirtAddr);
-
-#if PAL_DEVELOPER_BUILD
-            if (m_cachedSettings.enablePm4Instrumentation != 0)
-            {
-                // GetUsedSize() is not accurate if called inside a Reserve/Commit block.
-                pCmdStream->CommitCommands(pCmdSpace);
-                const uint32 pipelineCmdLen = (GetUsedSize(CommandDataAlloc) - startingCmdLen);
-                m_device.DescribeBindPipelineValidation(this, pipelineCmdLen);
-                startingCmdLen += pipelineCmdLen;
-                pCmdSpace       = pCmdStream->ReserveCommands();
-            }
-#endif
-        } // if Launch Descriptor is changing
-
         pCmdSpace = ValidateComputeUserData<false>(this,
                                                    pUserDataTable,
                                                    &pComputeState->csUserDataEntries,
@@ -8753,7 +8868,6 @@ void UniversalCmdBuffer::ValidateDispatchPalAbi(
 #endif
 
     pComputeState->pipelineState.dirtyFlags.u32All = 0;
-    pComputeState->dynamicLaunchGpuVa = launchDescGpuVirtAddr;
 
     if (pNewSignature->numWorkGroupsRegAddr != UserDataNotMapped)
     {
@@ -8817,9 +8931,6 @@ void UniversalCmdBuffer::ValidateDispatchHsaAbi(
     uint32*          pCmdSpace = pCmdStream->ReserveCommands();
     const auto*const pPipeline = static_cast<const ComputePipeline*>(pComputeState->pipelineState.pPipeline);
 
-    // We didn't implement support for dynamic dispatch.
-    PAL_ASSERT(pPipeline->SupportDynamicDispatch() == false);
-
     if (pComputeState->pipelineState.dirtyFlags.pipeline)
     {
         // We don't expect any HSA ABI pipelines to support task shaders.
@@ -8828,7 +8939,6 @@ void UniversalCmdBuffer::ValidateDispatchHsaAbi(
         pCmdSpace = pPipeline->WriteCommands(pCmdStream,
                                              pCmdSpace,
                                              pComputeState->dynamicCsInfo,
-                                             0,
                                              m_buildFlags.prefetchShaders);
 
         m_pSignatureCs = &pPipeline->Signature();
@@ -8849,8 +8959,8 @@ void UniversalCmdBuffer::ValidateDispatchHsaAbi(
     // PAL thinks in terms of threadgroups but the HSA ABI thinks in terms of global threads, we need to convert.
     const DispatchDims threads = pPipeline->ThreadsPerGroupXyz();
 
-    offset      *= threads;
-    logicalSize *= threads;
+    offset *= threads;
+    const DispatchDims logicalSizeInWorkItems = logicalSize * threads;
 
     // Now we write the required SGPRs. These depend on per-dispatch state so we don't have dirty bit tracking.
     const HsaAbi::CodeObjectMetadata&        metadata    = pPipeline->HsaMetadata();
@@ -8906,9 +9016,9 @@ void UniversalCmdBuffer::ValidateDispatchHsaAbi(
         pAqlPacket->workgroup_size_x     = static_cast<uint16>(threads.x);
         pAqlPacket->workgroup_size_y     = static_cast<uint16>(threads.y);
         pAqlPacket->workgroup_size_z     = static_cast<uint16>(threads.z);
-        pAqlPacket->grid_size_x          = logicalSize.x;
-        pAqlPacket->grid_size_y          = logicalSize.y;
-        pAqlPacket->grid_size_z          = logicalSize.z;
+        pAqlPacket->grid_size_x          = logicalSizeInWorkItems.x;
+        pAqlPacket->grid_size_y          = logicalSizeInWorkItems.y;
+        pAqlPacket->grid_size_z          = logicalSizeInWorkItems.z;
         pAqlPacket->private_segment_size = metadata.PrivateSegmentFixedSize();
         pAqlPacket->group_segment_size   = ((m_computeState.dynamicCsInfo.ldsBytesPerTg > 0)
                                                 ? m_computeState.dynamicCsInfo.ldsBytesPerTg
@@ -8927,10 +9037,15 @@ void UniversalCmdBuffer::ValidateDispatchHsaAbi(
     if (TestAnyFlagSet(desc.kernel_code_properties, AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_KERNARG_SEGMENT_PTR))
     {
         // Copy the kernel argument buffer into GPU memory.
-        gpusize      gpuVa      = 0;
-        const uint32 allocSize  = NumBytesToNumDwords(metadata.KernargSegmentSize());
-        const uint32 allocAlign = NumBytesToNumDwords(metadata.KernargSegmentAlign());
-        uint8*const  pParams    = reinterpret_cast<uint8*>(CmdAllocateEmbeddedData(allocSize, allocAlign, &gpuVa));
+        gpusize      gpuVa          = 0;
+        const uint32 allocSize      = NumBytesToNumDwords(metadata.KernargSegmentSize());
+        const uint32 allocAlign     = NumBytesToNumDwords(metadata.KernargSegmentAlign());
+        uint8*const  pParams        = reinterpret_cast<uint8*>(CmdAllocateEmbeddedData(allocSize, allocAlign, &gpuVa));
+        const uint16 threadsX       = static_cast<uint16>(threads.x);
+        const uint16 threadsY       = static_cast<uint16>(threads.y);
+        const uint16 threadsZ       = static_cast<uint16>(threads.z);
+        uint16 remainderSize        = 0; // no incomplete workgroups supported at this time.
+        const uint32 dimensionality = (logicalSize.x > 1) + (logicalSize.y > 1) + (logicalSize.z > 1);
 
         memcpy(pParams, m_computeState.pKernelArguments, metadata.KernargSegmentSize());
 
@@ -8940,19 +9055,55 @@ void UniversalCmdBuffer::ValidateDispatchHsaAbi(
         for (uint32 idx = 0; idx < metadata.NumArguments(); ++idx)
         {
             const HsaAbi::KernelArgument& arg = metadata.Arguments()[idx];
+            switch (arg.valueKind)
+            {
+                case HsaAbi::ValueKind::HiddenGlobalOffsetX:
+                    memcpy(pParams + arg.offset, &offset.x, Min<size_t>(sizeof(offset.x), arg.size));
+                    break;
+                case HsaAbi::ValueKind::HiddenGlobalOffsetY:
+                    memcpy(pParams + arg.offset, &offset.y, Min<size_t>(sizeof(offset.y), arg.size));
+                    break;
+                case HsaAbi::ValueKind::HiddenGlobalOffsetZ:
+                    memcpy(pParams + arg.offset, &offset.z, Min<size_t>(sizeof(offset.z), arg.size));
+                    break;
+                case HsaAbi::ValueKind::HiddenBlockCountX:
+                    memcpy(pParams + arg.offset, &logicalSize.x, Min<size_t>(sizeof(logicalSize.x), arg.size));
+                    break;
+                case HsaAbi::ValueKind::HiddenBlockCountY:
+                    memcpy(pParams + arg.offset, &logicalSize.y, Min<size_t>(sizeof(logicalSize.y), arg.size));
+                    break;
+                case HsaAbi::ValueKind::HiddenBlockCountZ:
+                    memcpy(pParams + arg.offset, &logicalSize.z, Min<size_t>(sizeof(logicalSize.z), arg.size));
+                    break;
+                case HsaAbi::ValueKind::HiddenGroupSizeX:
+                    memcpy(pParams + arg.offset, &threadsX, Min<size_t>(sizeof(threadsX), arg.size));
+                    break;
+                case HsaAbi::ValueKind::HiddenGroupSizeY:
+                    memcpy(pParams + arg.offset, &threadsY, Min<size_t>(sizeof(threadsY), arg.size));
+                    break;
+                case HsaAbi::ValueKind::HiddenGroupSizeZ:
+                    memcpy(pParams + arg.offset, &threadsZ, Min<size_t>(sizeof(threadsZ), arg.size));
+                    break;
+                case HsaAbi::ValueKind::HiddenRemainderX:
+                    memcpy(pParams + arg.offset, &remainderSize, Min<size_t>(sizeof(remainderSize), arg.size));
+                    break;
+                case HsaAbi::ValueKind::HiddenRemainderY:
+                    memcpy(pParams + arg.offset, &remainderSize, Min<size_t>(sizeof(remainderSize), arg.size));
+                    break;
+                case HsaAbi::ValueKind::HiddenRemainderZ:
+                    memcpy(pParams + arg.offset, &remainderSize, Min<size_t>(sizeof(remainderSize), arg.size));
+                    break;
+                case HsaAbi::ValueKind::HiddenGridDims:
+                    memcpy(pParams + arg.offset, &dimensionality, Min<size_t>(sizeof(dimensionality), arg.size));
+                    break;
+                case HsaAbi::ValueKind::ByValue:
+                case HsaAbi::ValueKind::GlobalBuffer:
+                    break; // these are handled by kernargs
+                default:
+                    PAL_ASSERT_ALWAYS();
 
-            if (arg.valueKind == HsaAbi::ValueKind::HiddenGlobalOffsetX)
-            {
-                memcpy(pParams + arg.offset, &offset.x, Min<size_t>(sizeof(offset.x), arg.size));
             }
-            else if (arg.valueKind == HsaAbi::ValueKind::HiddenGlobalOffsetY)
-            {
-                memcpy(pParams + arg.offset, &offset.y, Min<size_t>(sizeof(offset.y), arg.size));
-            }
-            else if (arg.valueKind == HsaAbi::ValueKind::HiddenGlobalOffsetZ)
-            {
-                memcpy(pParams + arg.offset, &offset.z, Min<size_t>(sizeof(offset.z), arg.size));
-            }
+
         }
 
         pCmdSpace = SetSeqUserSgprRegs<ShaderCompute>(startReg,
@@ -8981,7 +9132,6 @@ void UniversalCmdBuffer::ValidateDispatchHsaAbi(
 #endif
 
     pComputeState->pipelineState.dirtyFlags.u32All = 0;
-    pComputeState->dynamicLaunchGpuVa = 0;
 
     PAL_ASSERT(m_pSignatureCs->numWorkGroupsRegAddr == UserDataNotMapped);
 
@@ -9021,6 +9171,10 @@ void UniversalCmdBuffer::AddQuery(
                 // If pipeline stats are disabled in preamble, need to activate first queries of type PipelineStats
                 ActivateQueryType(queryType);
             }
+            if (queryType == QueryPoolType::StreamoutStats)
+            {
+                m_graphicsState.dirtyFlags.streamoutStatsQuery = 1;
+            }
         }
         else
         {
@@ -9048,7 +9202,7 @@ void UniversalCmdBuffer::RemoveQuery(
         }
         else if (queryPoolType == QueryPoolType::StreamoutStats)
         {
-            // Nothing needs to do for Streamout stats query
+            m_graphicsState.dirtyFlags.streamoutStatsQuery = 1;
         }
         else
         {
@@ -9256,7 +9410,7 @@ void UniversalCmdBuffer::DeactivateQueryType(
     case QueryPoolType::Occlusion:
         // Due to apps tendencies to do sequences of {BeginQuery, Draw, EndQuery}, query validation
         // is delayed until draw time when we know the the required query state.
-        m_graphicsState.dirtyFlags.validationBits.occlusionQueryActive = m_state.flags.occlusionQueriesActive;
+        m_graphicsState.dirtyFlags.occlusionQueryActive = m_state.flags.occlusionQueriesActive;
         break;
 
     default:
@@ -9298,7 +9452,7 @@ void UniversalCmdBuffer::ActivateQueryType(
     case QueryPoolType::Occlusion:
         // Due to apps tendencies to do sequences of {BeginQuery, Draw, EndQuery}, query validation
         // is delayed until draw time when we know the the required query state.
-        m_graphicsState.dirtyFlags.validationBits.occlusionQueryActive = (m_state.flags.occlusionQueriesActive == 0);
+        m_graphicsState.dirtyFlags.occlusionQueryActive = (m_state.flags.occlusionQueriesActive == 0);
         break;
 
     default:
@@ -10445,8 +10599,7 @@ gpusize UniversalCmdBuffer::ConstructExecuteIndirectIb2(
 // This method creates and uses a CP packet to perform the ExecuteIndirect operation.
 void UniversalCmdBuffer::ExecuteIndirectPacket(
     const IIndirectCmdGenerator& generator,
-    const IGpuMemory&            gpuMemory,
-    gpusize                      offset,
+    gpusize                      gpuVirtAddr,
     uint32                       maximumCount,
     gpusize                      countGpuAddr)
 {
@@ -10509,7 +10662,7 @@ void UniversalCmdBuffer::ExecuteIndirectPacket(
         }
         else
         {
-            ValidateDispatchPalAbi(&m_computeState, &m_deCmdStream, 0uLL, 0uLL, {});
+            ValidateDispatchPalAbi(&m_computeState, &m_deCmdStream, 0uLL, {});
             CommandGeneratorTouchedUserData(m_computeState.csUserDataEntries.touched, gfx9Generator, *m_pSignatureCs);
         }
 
@@ -10533,7 +10686,7 @@ void UniversalCmdBuffer::ExecuteIndirectPacket(
         ExecuteIndirectPacketInfo packetInfo{ };
 
         packetInfo.commandBufferAddr         = ib2GpuVa;
-        packetInfo.argumentBufferAddr        = gpuMemory.Desc().gpuVirtAddr + offset;
+        packetInfo.argumentBufferAddr        = gpuVirtAddr;
         packetInfo.countBufferAddr           = countGpuAddr;
         packetInfo.spillTableAddr            = spillTableAddress;
         packetInfo.spillTableInstanceCnt     = spillTableInstCount;
@@ -10588,8 +10741,7 @@ void UniversalCmdBuffer::ExecuteIndirectPacket(
 // then execute them.
 void UniversalCmdBuffer::ExecuteIndirectShader(
     const IIndirectCmdGenerator& generator,
-    const IGpuMemory&            gpuMemory,
-    gpusize                      offset,
+    gpusize                      gpuVirtAddr,
     uint32                       maximumCount,
     gpusize                      countGpuAddr)
 {
@@ -10651,6 +10803,7 @@ void UniversalCmdBuffer::ExecuteIndirectShader(
 
         if (cmdGenUseAce)
         {
+            EnableImplicitGangedSubQueueCount(1);
             GetAceCmdStream();
             CmdAceWaitDe();
         }
@@ -10677,7 +10830,7 @@ void UniversalCmdBuffer::ExecuteIndirectShader(
                 gfx9Generator,
                 m_graphicsState.iaState.indexCount,
                 maximumCount,
-                (gpuMemory.Desc().gpuVirtAddr + offset),
+                gpuVirtAddr,
                 countGpuAddr
             };
 
@@ -10773,7 +10926,7 @@ void UniversalCmdBuffer::ExecuteIndirectShader(
             }
             else
             {
-                ValidateDispatchPalAbi(&m_computeState, &m_deCmdStream, 0uLL, 0uLL, {});
+                ValidateDispatchPalAbi(&m_computeState, &m_deCmdStream, 0uLL, {});
                 CommandGeneratorTouchedUserData(m_computeState.csUserDataEntries.touched,
                                                 gfx9Generator,
                                                 *m_pSignatureCs);
@@ -10819,18 +10972,18 @@ void UniversalCmdBuffer::ExecuteIndirectShader(
 
             pDeCmdSpace = IncrementDeCounter(pDeCmdSpace);
             m_deCmdStream.CommitCommands(pDeCmdSpace);
+        } // For each set bit in the mask.
 
-        }
     }
 }
 
 // =====================================================================================================================
 void UniversalCmdBuffer::CmdExecuteIndirectCmds(
     const IIndirectCmdGenerator& generator,
-    const IGpuMemory&            gpuMemory,
-    gpusize                      offset,
+    gpusize                      gpuVirtAddr,
     uint32                       maximumCount,
-    gpusize                      countGpuAddr)
+    gpusize                      countGpuAddr
+)
 {
     const auto& gfx9Generator      = static_cast<const IndirectCmdGenerator&>(generator);
     const auto* const pGfxPipeline = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
@@ -10852,7 +11005,7 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
     {
         // The case where countGpuAddr is zero is handled by packet.ordinal4.bitfields.core.count_indirect_enable in
         // Pal::Gfx9::CmdUtil::BuildExecuteIndirect()
-        ExecuteIndirectPacket(generator, gpuMemory, offset, maximumCount, countGpuAddr);
+        ExecuteIndirectPacket(generator, gpuVirtAddr, maximumCount, countGpuAddr);
     }
     else
     {
@@ -10864,7 +11017,7 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
             uint32* pMemory = CmdAllocateEmbeddedData(1, 1, &countGpuAddr);
             *pMemory = maximumCount;
         }
-        ExecuteIndirectShader(generator, gpuMemory, offset, maximumCount, countGpuAddr);
+        ExecuteIndirectShader(generator, gpuVirtAddr, maximumCount, countGpuAddr);
     }
 }
 
@@ -10890,10 +11043,10 @@ void UniversalCmdBuffer::CmdDispatchAce(
 
     // We create a new local compute state and mark all the bits dirty so that we rewrite entries on ValidateDispatch
     // on this CmdStream because state on the ACE stream cannot be relied on here.
-    ComputeState tempComputeState                           = m_computeState;
-    tempComputeState.pipelineState.pPipeline                = m_computeState.pipelineState.pPipeline;
-    tempComputeState.pipelineState.apiPsoHash               = m_computeState.pipelineState.apiPsoHash;
-    tempComputeState.pipelineState.dirtyFlags.pipeline      = 1;
+    ComputeState tempComputeState                      = m_computeState;
+    tempComputeState.pipelineState.pPipeline           = m_computeState.pipelineState.pPipeline;
+    tempComputeState.pipelineState.apiPsoHash          = m_computeState.pipelineState.apiPsoHash;
+    tempComputeState.pipelineState.dirtyFlags.pipeline = 1;
 
     // Copy the cs user-data entries on to this temporary ComputeState.
     memcpy(&tempComputeState.csUserDataEntries.entries,
@@ -10902,7 +11055,7 @@ void UniversalCmdBuffer::CmdDispatchAce(
 
     memset(&tempComputeState.csUserDataEntries.dirty, -1, sizeof(tempComputeState.csUserDataEntries.dirty));
 
-    ValidateDispatchPalAbi(&tempComputeState, pAceCmdStream, 0uLL, 0uLL, size);
+    ValidateDispatchPalAbi(&tempComputeState, pAceCmdStream, 0uLL, size);
 
     uint32* pAceCmdSpace = pAceCmdStream->ReserveCommands();
 
@@ -11088,12 +11241,12 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
 {
     Pal::Pm4::UniversalCmdBuffer::LeakNestedCmdBufferState(cmdBuffer);
 
-    if (cmdBuffer.m_graphicsState.leakFlags.validationBits.colorTargetView != 0)
+    if (cmdBuffer.m_graphicsState.leakFlags.colorTargetView != 0)
     {
         CopyColorTargetViewStorage(m_colorTargetViewStorage, cmdBuffer.m_colorTargetViewStorage, &m_graphicsState);
     }
 
-    if (cmdBuffer.m_graphicsState.leakFlags.validationBits.depthStencilView != 0)
+    if (cmdBuffer.m_graphicsState.leakFlags.depthStencilView != 0)
     {
         CopyDepthStencilViewStorage(&m_depthStencilViewStorage, &cmdBuffer.m_depthStencilViewStorage, &m_graphicsState);
     }
@@ -11141,7 +11294,7 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
             &(m_cbColorInfo[x].u32All), cmdBuffer.m_cbColorInfo[x].u32All, ~ColorTargetView::CbColorInfoMask);
     }
 
-    if (cmdBuffer.m_graphicsState.leakFlags.validationBits.depthStencilView)
+    if (cmdBuffer.m_graphicsState.leakFlags.depthStencilView)
     {
         BitfieldUpdateSubfield(&(m_dbRenderOverride.u32All),
                                cmdBuffer.m_dbRenderOverride.u32All,
@@ -11150,20 +11303,20 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
 
     // If the nested command buffer updated PA_SC_CONS_RAST_CNTL, leak its state back to the caller.
     if ((cmdBuffer.m_graphicsState.pipelineState.pPipeline != nullptr) ||
-        (cmdBuffer.m_graphicsState.leakFlags.validationBits.msaaState))
+        (cmdBuffer.m_graphicsState.leakFlags.msaaState))
     {
         m_paScConsRastCntl.u32All = cmdBuffer.m_paScConsRastCntl.u32All;
     }
 
     // If the nested command buffer updated PA_SU_SC_MODE_CNTL, leak its state back to the caller.
-    if (cmdBuffer.m_graphicsState.leakFlags.validationBits.triangleRasterState)
+    if (cmdBuffer.m_graphicsState.leakFlags.triangleRasterState)
     {
         m_paSuScModeCntl.u32All = cmdBuffer.m_paSuScModeCntl.u32All;
     }
 
     // If the nested command buffer updated color target view (and implicitly big_page settings), leak the state back to
     // caller as the state tracking is needed for correctly making the WA.
-    if (cmdBuffer.m_graphicsState.leakFlags.validationBits.colorTargetView)
+    if (cmdBuffer.m_graphicsState.leakFlags.colorTargetView)
     {
         m_cbRmiGl2CacheControl.bits.COLOR_BIG_PAGE = cmdBuffer.m_cbRmiGl2CacheControl.bits.COLOR_BIG_PAGE;
 
@@ -11201,7 +11354,7 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
     m_drawTimeHwState.valid.u32All = 0;
 
     //Update vgtDmaIndexType register if the nested command buffer updated the graphics iaStates
-    if (m_graphicsState.dirtyFlags.nonValidationBits.iaState !=0 )
+    if (m_graphicsState.dirtyFlags.iaState !=0 )
     {
         m_drawTimeHwState.dirty.indexType = 1;
         m_vgtDmaIndexType.bits.INDEX_TYPE = VgtIndexTypeLookup[static_cast<uint32>(m_graphicsState.iaState.indexType)];
@@ -11370,7 +11523,7 @@ void UniversalCmdBuffer::CmdSetClipRects(
     {
         m_graphicsState.clipRectsState.rectList[i] = pRectList[i];
     }
-    m_graphicsState.dirtyFlags.nonValidationBits.clipRectsState = 1;
+    m_graphicsState.dirtyFlags.clipRectsState = 1;
 
     constexpr uint32 RegStride = (mmPA_SC_CLIPRECT_1_TL - mmPA_SC_CLIPRECT_0_TL);
     const uint32 endRegAddr    = (mmPA_SC_CLIPRECT_RULE + rectCount * RegStride);
@@ -11416,16 +11569,16 @@ void UniversalCmdBuffer::CmdXdmaWaitFlipPending()
 void UniversalCmdBuffer::ValidateExecuteNestedCmdBuffer()
 {
     uint32*    pDeCmdSpace = m_deCmdStream.ReserveCommands();
-    const auto dirtyFlags  = m_graphicsState.dirtyFlags.validationBits;
+    const auto dirtyFlags  = m_graphicsState.dirtyFlags;
     if (m_graphicsState.pipelineState.dirtyFlags.pipeline)
     {
         if (dirtyFlags.u32All)
         {
-            pDeCmdSpace = ValidateCbColorInfo<false, true, true>(pDeCmdSpace);
+            pDeCmdSpace = ValidateCbColorInfoAndBlendState<false, true, true>(pDeCmdSpace);
         }
         else
         {
-            pDeCmdSpace = ValidateCbColorInfo<false, true, false>(pDeCmdSpace);
+            pDeCmdSpace = ValidateCbColorInfoAndBlendState<false, true, false>(pDeCmdSpace);
         }
         pDeCmdSpace = ValidateDbRenderOverride(pDeCmdSpace);
     }
@@ -11433,7 +11586,7 @@ void UniversalCmdBuffer::ValidateExecuteNestedCmdBuffer()
     {
         if (dirtyFlags.colorBlendState || dirtyFlags.colorTargetView)
         {
-            pDeCmdSpace = ValidateCbColorInfo<false, false, true>(pDeCmdSpace);
+            pDeCmdSpace = ValidateCbColorInfoAndBlendState<false, false, true>(pDeCmdSpace);
         }
         if (m_graphicsState.pipelineState.dirtyFlags.dynamicState || dirtyFlags.depthStencilView)
         {
@@ -11449,7 +11602,6 @@ void UniversalCmdBuffer::ValidateExecuteNestedCmdBuffer()
     }
 
     m_deCmdStream.CommitCommands(pDeCmdSpace);
-
 }
 
 // =====================================================================================================================
@@ -11576,87 +11728,6 @@ void UniversalCmdBuffer::CmdOverwriteRbPlusFormatForBlits(
 bool UniversalCmdBuffer::HasStreamOutBeenSet() const
 {
     return ((m_device.GetBaseAddress(&m_streamOut.srd[0]) & 1) == 0);
-}
-
-// =====================================================================================================================
-// Inserts sync commands after each chunk to idle and flush all relevant caches.
-void UniversalCmdBuffer::P2pBltWaSync()
-{
-    constexpr HwPipePoint PipePoint = HwPipePoint::HwPipeBottom;
-
-    BarrierTransition transition   = { };
-    transition.dstCacheMask        = CoherMemory;
-    transition.srcCacheMask        = CoherColorTarget | CoherShader;
-
-    BarrierInfo barrierInfo        = { };
-    barrierInfo.waitPoint          = HwPipePoint::HwPipeTop;
-    barrierInfo.pipePointWaitCount = 1;
-    barrierInfo.pPipePoints        = &PipePoint;
-    barrierInfo.transitionCount    = 1;
-    barrierInfo.pTransitions       = &transition;
-    barrierInfo.reason             = Developer::BarrierReasonP2PBlitSync;
-
-    CmdBarrier(barrierInfo);
-}
-
-// =====================================================================================================================
-// MCBP must be disabled when the P2P BAR workaround is being applied.  This can be done by temporarily disabling
-// state shadowing with a CONTEXT_CONTROL packet.  Shadowing will be re-enabled in P2pBltWaCopyEnd().
-void UniversalCmdBuffer::P2pBltWaCopyBegin(
-    const GpuMemory* pDstMemory,
-    uint32           regionCount,
-    const gpusize*   pChunkAddrs)
-{
-    if (m_device.Parent()->IsPreemptionSupported(EngineType::EngineTypeUniversal))
-    {
-        PM4_PFP_CONTEXT_CONTROL contextControl = m_device.GetContextControl();
-
-        contextControl.ordinal3.bitfields.shadow_per_context_state = 0;
-        contextControl.ordinal3.bitfields.shadow_cs_sh_regs        = 0;
-        contextControl.ordinal3.bitfields.shadow_gfx_sh_regs       = 0;
-        contextControl.ordinal3.bitfields.shadow_global_config     = 0;
-        contextControl.ordinal3.bitfields.shadow_global_uconfig    = 0;
-
-        uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
-        pCmdSpace += CmdUtil::BuildContextControl(contextControl, pCmdSpace);
-        m_deCmdStream.CommitCommands(pCmdSpace);
-    }
-
-    Pal::Pm4::UniversalCmdBuffer::P2pBltWaCopyBegin(pDstMemory, regionCount, pChunkAddrs);
-}
-
-// =====================================================================================================================
-// Called before each region of a P2P BLT where the P2P PCI BAR workaround is enabled.  Graphics BLTs require a idle
-// and cache flush between chunks.
-void UniversalCmdBuffer::P2pBltWaCopyNextRegion(
-    gpusize chunkAddr)
-{
-    // An idle is only required if the new chunk address is different than the last chunk entry.  This logic must be
-    // mirrored in P2pBltWaCopyBegin().
-    if (chunkAddr != m_p2pBltWaLastChunkAddr)
-    {
-        P2pBltWaSync();
-    }
-
-    Pal::Pm4::UniversalCmdBuffer::P2pBltWaCopyNextRegion(chunkAddr);
-}
-
-// =====================================================================================================================
-// Re-enabled MCBP if it was disabled in P2pBltWaCopyBegin().
-void UniversalCmdBuffer::P2pBltWaCopyEnd()
-{
-    P2pBltWaSync();
-
-    Pal::Pm4::UniversalCmdBuffer::P2pBltWaCopyEnd();
-
-    if (m_device.Parent()->IsPreemptionSupported(EngineType::EngineTypeUniversal))
-    {
-        PM4_PFP_CONTEXT_CONTROL contextControl = m_device.GetContextControl();
-
-        uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
-        pCmdSpace += CmdUtil::BuildContextControl(contextControl, pCmdSpace);
-        m_deCmdStream.CommitCommands(pCmdSpace);
-    }
 }
 
 // =====================================================================================================================
@@ -12184,7 +12255,7 @@ void UniversalCmdBuffer::CmdBindSampleRateImage(
 
     // The optimizeNullSourceImage setings requires us to re-validate the vrs rate params when transitioning
     // between a null and non-null vrsImage
-    m_graphicsState.dirtyFlags.validationBits.vrsRateParams |=
+    m_graphicsState.dirtyFlags.vrsRateParams |=
         (m_cachedSettings.optimizeNullSourceImage) &&
         ((pImage == nullptr) != (m_graphicsState.pVrsImage == nullptr));
 

@@ -186,7 +186,7 @@ Result UniversalCmdBuffer::End()
     if (result == Result::Success)
     {
 
-        m_graphicsState.leakFlags.u64All |= m_graphicsState.dirtyFlags.u64All;
+        m_graphicsState.leakFlags.u32All |= m_graphicsState.dirtyFlags.u32All;
 
         const Pal::CmdStream* cmdStreams[] = { m_pDeCmdStream, m_pCeCmdStream, m_pAceCmdStream };
         EndCmdBufferDump(cmdStreams, 3);
@@ -433,10 +433,10 @@ void UniversalCmdBuffer::CmdBindIndexData(
     PAL_ASSERT((indexType == IndexType::Idx8)  || (indexType == IndexType::Idx16) || (indexType == IndexType::Idx32));
 
     // Update the currently active index buffer state.
-    m_graphicsState.iaState.indexAddr                    = gpuAddr;
-    m_graphicsState.iaState.indexCount                   = indexCount;
-    m_graphicsState.iaState.indexType                    = indexType;
-    m_graphicsState.dirtyFlags.nonValidationBits.iaState = 1;
+    m_graphicsState.iaState.indexAddr  = gpuAddr;
+    m_graphicsState.iaState.indexCount = indexCount;
+    m_graphicsState.iaState.indexType  = indexType;
+    m_graphicsState.dirtyFlags.iaState = 1;
 }
 
 // =====================================================================================================================
@@ -451,8 +451,8 @@ void UniversalCmdBuffer::CmdSetViewInstanceMask(
 void UniversalCmdBuffer::CmdSetLineStippleState(
     const LineStippleStateParams& params)
 {
-    m_graphicsState.lineStippleState = params;
-    m_graphicsState.dirtyFlags.validationBits.lineStippleState = 1;
+    m_graphicsState.lineStippleState            = params;
+    m_graphicsState.dirtyFlags.lineStippleState = 1;
 }
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 778
@@ -640,12 +640,28 @@ void UniversalCmdBuffer::CmdRestoreGraphicsStateInternal(
 
 // =====================================================================================================================
 // Set all specified state on this command buffer.
+// State will be set if it differs from the current graphics state.
 void UniversalCmdBuffer::SetGraphicsState(
     const GraphicsState& newGraphicsState)
 {
+    GraphicsStateFlags setGraphicsStateFlags { };
+    PipelineStateFlags setPipelineStateFlags { };
+    SetGraphicsState(newGraphicsState, setGraphicsStateFlags, setPipelineStateFlags);
+}
+
+// =====================================================================================================================
+// Set all specified state on this command buffer.
+// State will be set if it differs from the currently graphics state or the corresponding dirty bit is set in the
+// input flag parameters
+void UniversalCmdBuffer::SetGraphicsState(
+    const GraphicsState& newGraphicsState,
+    GraphicsStateFlags   setGraphicStateFlags,
+    PipelineStateFlags   setPipelineStateFlags)
+{
     const auto& pipelineState = newGraphicsState.pipelineState;
 
-    if (pipelineState.pPipeline != m_graphicsState.pipelineState.pPipeline ||
+    if (setPipelineStateFlags.pipeline ||
+        (pipelineState.pPipeline != m_graphicsState.pipelineState.pPipeline) ||
         (memcmp(&newGraphicsState.dynamicGraphicsInfo.dynamicState,
                 &m_graphicsState.dynamicGraphicsInfo.dynamicState,
                 sizeof(DynamicGraphicsState)) != 0))
@@ -659,7 +675,8 @@ void UniversalCmdBuffer::SetGraphicsState(
         CmdBindPipeline(bindParams);
     }
 
-    if (pipelineState.pBorderColorPalette != m_graphicsState.pipelineState.pBorderColorPalette)
+    if (setPipelineStateFlags.borderColorPalette ||
+        (pipelineState.pBorderColorPalette != m_graphicsState.pipelineState.pBorderColorPalette))
     {
         CmdBindBorderColorPalette(PipelineBindPoint::Graphics, pipelineState.pBorderColorPalette);
     }
@@ -668,17 +685,29 @@ void UniversalCmdBuffer::SetGraphicsState(
     for (uint32 i = 0; i < NumUserDataFlagsParts; ++i)
     {
         m_graphicsState.gfxUserDataEntries.dirty[i] |= newGraphicsState.gfxUserDataEntries.touched[i];
+
+        if (setPipelineStateFlags.pipeline)
+        {
+            m_graphicsState.gfxUserDataEntries.dirty[i] = 0;
+            m_graphicsState.gfxUserDataEntries.dirty[i] = ~m_graphicsState.gfxUserDataEntries.dirty[i];
+        }
     }
 
     // The target state that we would restore is invalid if this is a nested command buffer that inherits target
     // view state. The only allowed BLTs in a nested command buffer are CmdClearBoundColorTargets and
     // CmdClearBoundDepthStencilTargets, neither of which will overwrite the bound targets.
-    if (m_graphicsState.inheritedState.stateFlags.targetViewState == 0)
+    if ((m_graphicsState.inheritedState.stateFlags.targetViewState == 0) &&
+        ((setGraphicStateFlags.colorTargetView  ||
+          setGraphicStateFlags.depthStencilView ||
+          (memcmp(&newGraphicsState.bindTargets,
+                  &m_graphicsState.bindTargets,
+                  sizeof(m_graphicsState.bindTargets)) != 0))))
     {
         CmdBindTargets(newGraphicsState.bindTargets);
     }
 
-    if ((newGraphicsState.iaState.indexAddr  != m_graphicsState.iaState.indexAddr)  ||
+    if (setGraphicStateFlags.iaState ||
+        (newGraphicsState.iaState.indexAddr  != m_graphicsState.iaState.indexAddr)  ||
         (newGraphicsState.iaState.indexCount != m_graphicsState.iaState.indexCount) ||
         (newGraphicsState.iaState.indexType  != m_graphicsState.iaState.indexType))
     {
@@ -687,28 +716,32 @@ void UniversalCmdBuffer::SetGraphicsState(
                          newGraphicsState.iaState.indexType);
     }
 
-    if (memcmp(&newGraphicsState.inputAssemblyState,
-               &m_graphicsState.inputAssemblyState,
-               sizeof(m_graphicsState.inputAssemblyState)) != 0)
+    if (setGraphicStateFlags.inputAssemblyState ||
+        (memcmp(&newGraphicsState.inputAssemblyState,
+                &m_graphicsState.inputAssemblyState,
+                sizeof(m_graphicsState.inputAssemblyState)) != 0))
     {
         CmdSetInputAssemblyState(newGraphicsState.inputAssemblyState);
     }
 
-    if (newGraphicsState.pColorBlendState != m_graphicsState.pColorBlendState)
+    if (setGraphicStateFlags.colorBlendState ||
+        (newGraphicsState.pColorBlendState != m_graphicsState.pColorBlendState))
     {
         CmdBindColorBlendState(newGraphicsState.pColorBlendState);
     }
 
-    if (memcmp(newGraphicsState.blendConstState.blendConst,
-               m_graphicsState.blendConstState.blendConst,
-               sizeof(m_graphicsState.blendConstState.blendConst)) != 0)
+    if (setGraphicStateFlags.blendConstState ||
+        (memcmp(newGraphicsState.blendConstState.blendConst,
+                m_graphicsState.blendConstState.blendConst,
+                sizeof(m_graphicsState.blendConstState.blendConst)) != 0))
     {
         CmdSetBlendConst(newGraphicsState.blendConstState);
     }
 
-    if (memcmp(&newGraphicsState.stencilRefMaskState,
-               &m_graphicsState.stencilRefMaskState,
-               sizeof(m_graphicsState.stencilRefMaskState)) != 0)
+    if (setGraphicStateFlags.stencilRefMaskState ||
+        (memcmp(&newGraphicsState.stencilRefMaskState,
+                &m_graphicsState.stencilRefMaskState,
+                sizeof(m_graphicsState.stencilRefMaskState)) != 0))
     {
         // Setting StencilRefMaskState flags to 0xFF so that the faster command is used instead of read-modify-write
         StencilRefMaskParams stencilRefMaskState = newGraphicsState.stencilRefMaskState;
@@ -717,32 +750,37 @@ void UniversalCmdBuffer::SetGraphicsState(
         CmdSetStencilRefMasks(stencilRefMaskState);
     }
 
-    if (newGraphicsState.pDepthStencilState != m_graphicsState.pDepthStencilState)
+    if (setGraphicStateFlags.depthStencilState ||
+        (newGraphicsState.pDepthStencilState != m_graphicsState.pDepthStencilState))
     {
         CmdBindDepthStencilState(newGraphicsState.pDepthStencilState);
     }
 
-    if ((newGraphicsState.depthBoundsState.min != m_graphicsState.depthBoundsState.min) ||
+    if (setGraphicStateFlags.depthBoundsState ||
+        (newGraphicsState.depthBoundsState.min != m_graphicsState.depthBoundsState.min) ||
         (newGraphicsState.depthBoundsState.max != m_graphicsState.depthBoundsState.max))
     {
         CmdSetDepthBounds(newGraphicsState.depthBoundsState);
     }
 
-    if (newGraphicsState.pMsaaState != m_graphicsState.pMsaaState)
+    if (setGraphicStateFlags.msaaState ||
+        newGraphicsState.pMsaaState != m_graphicsState.pMsaaState)
     {
         CmdBindMsaaState(newGraphicsState.pMsaaState);
     }
 
-    if (memcmp(&newGraphicsState.lineStippleState,
-               &m_graphicsState.lineStippleState,
-               sizeof(LineStippleStateParams)) != 0)
+    if (setGraphicStateFlags.lineStippleState ||
+        (memcmp(&newGraphicsState.lineStippleState,
+                &m_graphicsState.lineStippleState,
+                sizeof(LineStippleStateParams)) != 0))
     {
         CmdSetLineStippleState(newGraphicsState.lineStippleState);
     }
 
-    if (memcmp(&newGraphicsState.quadSamplePatternState,
-               &m_graphicsState.quadSamplePatternState,
-               sizeof(MsaaQuadSamplePattern)) != 0)
+    if (setGraphicStateFlags.quadSamplePatternState ||
+        (memcmp(&newGraphicsState.quadSamplePatternState,
+                &m_graphicsState.quadSamplePatternState,
+                sizeof(MsaaQuadSamplePattern)) != 0))
     {
         // numSamplesPerPixel can be 0 if the client never called CmdSetMsaaQuadSamplePattern.
         if (newGraphicsState.numSamplesPerPixel != 0)
@@ -752,23 +790,26 @@ void UniversalCmdBuffer::SetGraphicsState(
         }
     }
 
-    if (memcmp(&newGraphicsState.triangleRasterState,
-               &m_graphicsState.triangleRasterState,
-               sizeof(m_graphicsState.triangleRasterState)) != 0)
+    if (setGraphicStateFlags.triangleRasterState ||
+        (memcmp(&newGraphicsState.triangleRasterState,
+                &m_graphicsState.triangleRasterState,
+                sizeof(m_graphicsState.triangleRasterState)) != 0))
     {
         CmdSetTriangleRasterState(newGraphicsState.triangleRasterState);
     }
 
-    if (memcmp(&newGraphicsState.pointLineRasterState,
-               &m_graphicsState.pointLineRasterState,
-               sizeof(m_graphicsState.pointLineRasterState)) != 0)
+    if (setGraphicStateFlags.pointLineRasterState ||
+        (memcmp(&newGraphicsState.pointLineRasterState,
+                &m_graphicsState.pointLineRasterState,
+                sizeof(m_graphicsState.pointLineRasterState)) != 0))
     {
         CmdSetPointLineRasterState(newGraphicsState.pointLineRasterState);
     }
 
     const auto& restoreDepthBiasState = newGraphicsState.depthBiasState;
 
-    if ((restoreDepthBiasState.depthBias            != m_graphicsState.depthBiasState.depthBias)      ||
+    if (setGraphicStateFlags.depthBiasState ||
+        (restoreDepthBiasState.depthBias            != m_graphicsState.depthBiasState.depthBias)      ||
         (restoreDepthBiasState.depthBiasClamp       != m_graphicsState.depthBiasState.depthBiasClamp) ||
         (restoreDepthBiasState.slopeScaledDepthBias != m_graphicsState.depthBiasState.slopeScaledDepthBias))
     {
@@ -778,8 +819,9 @@ void UniversalCmdBuffer::SetGraphicsState(
     const auto& restoreViewports = newGraphicsState.viewportState;
     const auto& currentViewports = m_graphicsState.viewportState;
 
-    if ((restoreViewports.count            != currentViewports.count)            ||
-        (restoreViewports.depthRange       != currentViewports.depthRange)       ||
+    if (setGraphicStateFlags.viewports ||
+        (restoreViewports.count != currentViewports.count) ||
+        (restoreViewports.depthRange != currentViewports.depthRange) ||
         (restoreViewports.horzDiscardRatio != currentViewports.horzDiscardRatio) ||
         (restoreViewports.vertDiscardRatio != currentViewports.vertDiscardRatio) ||
         (restoreViewports.horzClipRatio    != currentViewports.horzClipRatio)    ||
@@ -794,7 +836,8 @@ void UniversalCmdBuffer::SetGraphicsState(
     const auto& restoreScissorRects = newGraphicsState.scissorRectState;
     const auto& currentScissorRects = m_graphicsState.scissorRectState;
 
-    if ((restoreScissorRects.count != currentScissorRects.count) ||
+    if (setGraphicStateFlags.scissorRects ||
+        (restoreScissorRects.count != currentScissorRects.count) ||
         (memcmp(&restoreScissorRects.scissors[0],
                 &currentScissorRects.scissors[0],
                 restoreScissorRects.count * sizeof(restoreScissorRects.scissors[0])) != 0))
@@ -805,7 +848,8 @@ void UniversalCmdBuffer::SetGraphicsState(
     const auto& restoreGlobalScissor = newGraphicsState.globalScissorState.scissorRegion;
     const auto& currentGlobalScissor = m_graphicsState.globalScissorState.scissorRegion;
 
-    if ((restoreGlobalScissor.offset.x      != currentGlobalScissor.offset.x)     ||
+    if (setGraphicStateFlags.globalScissorState ||
+        (restoreGlobalScissor.offset.x      != currentGlobalScissor.offset.x)     ||
         (restoreGlobalScissor.offset.y      != currentGlobalScissor.offset.y)     ||
         (restoreGlobalScissor.extent.width  != currentGlobalScissor.extent.width) ||
         (restoreGlobalScissor.extent.height != currentGlobalScissor.extent.height))
@@ -816,7 +860,8 @@ void UniversalCmdBuffer::SetGraphicsState(
     const auto& restoreClipRects = newGraphicsState.clipRectsState;
     const auto& currentClipRects = m_graphicsState.clipRectsState;
 
-    if ((restoreClipRects.clipRule != currentClipRects.clipRule)   ||
+    if (setGraphicStateFlags.clipRectsState ||
+        (restoreClipRects.clipRule != currentClipRects.clipRule)   ||
         (restoreClipRects.rectCount != currentClipRects.rectCount) ||
         (memcmp(&restoreClipRects.rectList[0],
                 &currentClipRects.rectList[0],
@@ -827,17 +872,20 @@ void UniversalCmdBuffer::SetGraphicsState(
                         newGraphicsState.clipRectsState.rectList);
     }
 
-    if (memcmp(&newGraphicsState.vrsRateState, &m_graphicsState.vrsRateState, sizeof(VrsRateParams)) != 0)
+    if (setGraphicStateFlags.vrsRateParams ||
+        (memcmp(&newGraphicsState.vrsRateState, &m_graphicsState.vrsRateState, sizeof(VrsRateParams)) != 0))
     {
         CmdSetPerDrawVrsRate(newGraphicsState.vrsRateState);
     }
 
-    if (memcmp(&newGraphicsState.vrsCenterState, &m_graphicsState.vrsCenterState, sizeof(VrsCenterState)) != 0)
+    if (setGraphicStateFlags.vrsCenterState ||
+        (memcmp(&newGraphicsState.vrsCenterState, &m_graphicsState.vrsCenterState, sizeof(VrsCenterState)) != 0))
     {
         CmdSetVrsCenterState(newGraphicsState.vrsCenterState);
     }
 
-    if (newGraphicsState.pVrsImage != m_graphicsState.pVrsImage)
+    if (setGraphicStateFlags.vrsImage ||
+        (newGraphicsState.pVrsImage != m_graphicsState.pVrsImage))
     {
         // Restore the pointer to the client's original VRS rate image.  On GFX10 products, if the bound depth stencil
         // image has changed, this will be re-copied into hTile on the next draw.
@@ -885,7 +933,7 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
         m_graphicsState.depthClampMode         = graphics.depthClampMode;
     }
 
-    if (graphics.leakFlags.validationBits.colorTargetView != 0)
+    if (graphics.leakFlags.colorTargetView != 0)
     {
         memcpy(&m_graphicsState.bindTargets.colorTargets[0],
                &graphics.bindTargets.colorTargets[0],
@@ -894,88 +942,88 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
         m_graphicsState.targetExtent                 = graphics.targetExtent;
     }
 
-    if (graphics.leakFlags.validationBits.depthStencilView != 0)
+    if (graphics.leakFlags.depthStencilView != 0)
     {
         m_graphicsState.bindTargets.depthTarget = graphics.bindTargets.depthTarget;
         m_graphicsState.targetExtent            = graphics.targetExtent;
     }
 
-    if (graphics.leakFlags.nonValidationBits.streamOutTargets != 0)
+    if (graphics.leakFlags.streamOutTargets != 0)
     {
         m_graphicsState.bindStreamOutTargets = graphics.bindStreamOutTargets;
     }
 
-    if (graphics.leakFlags.nonValidationBits.iaState != 0)
+    if (graphics.leakFlags.iaState != 0)
     {
         m_graphicsState.iaState = graphics.iaState;
     }
 
-    if (graphics.leakFlags.validationBits.inputAssemblyState != 0)
+    if (graphics.leakFlags.inputAssemblyState != 0)
     {
         m_graphicsState.inputAssemblyState = graphics.inputAssemblyState;
     }
 
-    if (graphics.leakFlags.nonValidationBits.blendConstState != 0)
+    if (graphics.leakFlags.blendConstState != 0)
     {
         m_graphicsState.blendConstState = graphics.blendConstState;
     }
 
-    if (graphics.leakFlags.nonValidationBits.depthBiasState != 0)
+    if (graphics.leakFlags.depthBiasState != 0)
     {
         m_graphicsState.depthBiasState = graphics.depthBiasState;
     }
 
-    if (graphics.leakFlags.nonValidationBits.depthBoundsState != 0)
+    if (graphics.leakFlags.depthBoundsState != 0)
     {
         m_graphicsState.depthBoundsState = graphics.depthBoundsState;
     }
 
-    if (graphics.leakFlags.nonValidationBits.pointLineRasterState != 0)
+    if (graphics.leakFlags.pointLineRasterState != 0)
     {
         m_graphicsState.pointLineRasterState = graphics.pointLineRasterState;
     }
 
-    if (graphics.leakFlags.nonValidationBits.stencilRefMaskState != 0)
+    if (graphics.leakFlags.stencilRefMaskState != 0)
     {
         m_graphicsState.stencilRefMaskState = graphics.stencilRefMaskState;
     }
 
-    if (graphics.leakFlags.validationBits.triangleRasterState != 0)
+    if (graphics.leakFlags.triangleRasterState != 0)
     {
         m_graphicsState.triangleRasterState = graphics.triangleRasterState;
     }
 
-    if (graphics.leakFlags.validationBits.viewports != 0)
+    if (graphics.leakFlags.viewports != 0)
     {
         m_graphicsState.viewportState = graphics.viewportState;
     }
 
-    if (graphics.leakFlags.validationBits.scissorRects != 0)
+    if (graphics.leakFlags.scissorRects != 0)
     {
         m_graphicsState.scissorRectState = graphics.scissorRectState;
     }
 
-    if (graphics.leakFlags.nonValidationBits.globalScissorState != 0)
+    if (graphics.leakFlags.globalScissorState != 0)
     {
         m_graphicsState.globalScissorState = graphics.globalScissorState;
     }
 
-    if (graphics.leakFlags.nonValidationBits.clipRectsState != 0)
+    if (graphics.leakFlags.clipRectsState != 0)
     {
         m_graphicsState.clipRectsState = graphics.clipRectsState;
     }
 
-    if (graphics.leakFlags.validationBits.vrsRateParams != 0)
+    if (graphics.leakFlags.vrsRateParams != 0)
     {
         m_graphicsState.vrsRateState = graphics.vrsRateState;
     }
 
-    if (graphics.leakFlags.validationBits.vrsCenterState != 0)
+    if (graphics.leakFlags.vrsCenterState != 0)
     {
         m_graphicsState.vrsCenterState = graphics.vrsCenterState;
     }
 
-    if (graphics.leakFlags.validationBits.vrsImage != 0)
+    if (graphics.leakFlags.vrsImage != 0)
     {
         m_graphicsState.pVrsImage = graphics.pVrsImage;
     }
@@ -1002,7 +1050,7 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
 
     m_graphicsState.viewInstanceMask = graphics.viewInstanceMask;
 
-    m_graphicsState.dirtyFlags.u64All |= graphics.leakFlags.u64All;
+    m_graphicsState.dirtyFlags.u32All |= graphics.leakFlags.u32All;
 
     memcpy(&m_blendOpts[0], &cmdBuffer.m_blendOpts[0], sizeof(m_blendOpts));
 
@@ -1028,7 +1076,8 @@ const CmdStream* UniversalCmdBuffer::GetCmdStream(
     switch (cmdStreamIdx)
     {
     case 0:
-        pStream = m_pAceCmdStream;
+        PAL_ASSERT(ImplicitGangedSubQueueCount() <= 1); // Only one ganged ACE supported currently!
+        pStream = (ImplicitGangedSubQueueCount() > 0) ? m_pAceCmdStream : nullptr;
         break;
     case 1:
         pStream = m_pCeCmdStream;
@@ -1099,8 +1148,8 @@ void UniversalCmdBuffer::CmdSetPerDrawVrsRate(
     const VrsRateParams&  rateParams)
 {
     // Record the state so that we can restore it after RPM operations
-    m_graphicsState.vrsRateState = rateParams;
-    m_graphicsState.dirtyFlags.validationBits.vrsRateParams = 1;
+    m_graphicsState.vrsRateState             = rateParams;
+    m_graphicsState.dirtyFlags.vrsRateParams = 1;
 }
 
 // =====================================================================================================================
@@ -1109,8 +1158,8 @@ void UniversalCmdBuffer::CmdSetVrsCenterState(
     const VrsCenterState&  centerState)
 {
     // Record the state so that we can restore it after RPM operations.
-    m_graphicsState.vrsCenterState = centerState;
-    m_graphicsState.dirtyFlags.validationBits.vrsCenterState = 1;
+    m_graphicsState.vrsCenterState            = centerState;
+    m_graphicsState.dirtyFlags.vrsCenterState = 1;
 }
 
 // =====================================================================================================================
@@ -1122,7 +1171,7 @@ void UniversalCmdBuffer::CmdBindSampleRateImage(
     PAL_ASSERT((pImage == nullptr) || (m_device.Parent()->ChipProperties().imageProperties.vrsTileSize.width != 0));
 
     m_graphicsState.pVrsImage = static_cast<const Image*>(pImage);
-    m_graphicsState.dirtyFlags.validationBits.vrsImage = 1;
+    m_graphicsState.dirtyFlags.vrsImage = 1;
 }
 
 } // Pm4

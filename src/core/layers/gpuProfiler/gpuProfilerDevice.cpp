@@ -518,10 +518,9 @@ Result Device::CreateGraphicsPipeline(
 {
     IPipeline* pNextPipeline = nullptr;
     Pipeline* pPipeline = nullptr;
-
-    Result result = m_pNextLayer->CreateGraphicsPipeline(createInfo,
-                                                         NextObjectAddr<Pipeline>(pPlacementAddr),
-                                                         &pNextPipeline);
+    Result result = CallNextCreateGraphicsPipeline(createInfo,
+                                                   NextObjectAddr<Pipeline>(pPlacementAddr),
+                                                   &pNextPipeline);
 
     if (result == Result::Success)
     {

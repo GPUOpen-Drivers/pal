@@ -2594,7 +2594,7 @@ BOOL_32 Gfx10Lib::ValidateSwModeParams(
     {
         if (((swizzleMask & Gfx10Rsrc3dSwModeMask) == 0) ||
             (prt && ((swizzleMask & Gfx10Rsrc3dPrtSwModeMask) == 0)) ||
-            (thin3d && ((swizzleMask & Gfx10Rsrc3dThinSwModeMask) == 0)))
+            (thin3d && ((swizzleMask & Gfx10Rsrc3dViewAs2dSwModeMask) == 0)))
         {
             ADDR_ASSERT_ALWAYS();
             valid = FALSE;
@@ -2912,7 +2912,17 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlGetPreferredSurfaceSetting(
 
                     if (pIn->flags.view3dAs2dArray)
                     {
-                        allowedSwModeSet.value &= Gfx10Rsrc3dThinSwModeMask;
+                        // Under no circumstances should a 3D block-compressed image support SW_LINEAR,
+                        // and the funniest thing is that a 2D block-compressed image supports SW_LINEAR.
+                        // So we only disable linear for 3D BCn when view3dAs2dArray is true.
+                        if (ElemLib::IsBlockCompressed(pIn->format))
+                        {
+                            allowedSwModeSet.value &= Gfx10Rsrc3dThinSwModeMask;
+                        }
+                        else
+                        {
+                            allowedSwModeSet.value &= Gfx10Rsrc3dViewAs2dSwModeMask;
+                        }
                     }
                     break;
 

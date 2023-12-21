@@ -100,5 +100,34 @@ Result GraphicsShaderLibrary::HwlInit(
     return result;
 }
 
+// =====================================================================================================================
+// Obtains the shader pre and post compilation stats/params for the specified shader.
+// In this path, values for isWave32, ldsSizePerThreadGroup, numAvailableSgprs,
+// numAvailableVgprs, and scratchMemUsageInBytes will not be determined, but it can be extended here
+// if any varibale will be used.
+Result GraphicsShaderLibrary::GetShaderFunctionStats(
+    Util::StringView<char> shaderExportName,
+    ShaderLibStats* pShaderStats
+) const
+{
+    Result result = Result::Success;
+
+    PAL_ASSERT(pShaderStats != nullptr);
+    memset(pShaderStats, 0, sizeof(ShaderLibStats));
+    AbiReader abiReader(m_pDevice->GetPlatform(), m_pCodeObjectBinary);
+    result = abiReader.Init();
+    if (result == Result::Success)
+    {
+        MsgPackReader              metadataReader;
+        PalAbi::CodeObjectMetadata metadata;
+        result = abiReader.GetMetadata(&metadataReader, &metadata);
+        if (result == Result::Success)
+        {
+            result = GetShaderFunctionInfos(shaderExportName, pShaderStats, abiReader, &metadataReader, metadata);
+        }
+    }
+    return result;
+}
+
 } // namespace Gfx9
 } // namespace Pal

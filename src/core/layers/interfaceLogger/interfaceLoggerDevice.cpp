@@ -1616,14 +1616,14 @@ Result Device::CreateGraphicsPipeline(
 {
     auto*const pPlatform     = static_cast<Platform*>(m_pPlatform);
     IPipeline* pNextPipeline = nullptr;
-
     BeginFuncInfo funcInfo;
     funcInfo.funcId       = InterfaceFunc::DeviceCreateGraphicsPipeline;
     funcInfo.objectId     = m_objectId;
     funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = m_pNextLayer->CreateGraphicsPipeline(createInfo,
-                                                                 NextObjectAddr<Pipeline>(pPlacementAddr),
-                                                                 &pNextPipeline);
+    Result result = CallNextCreateGraphicsPipeline(createInfo,
+                                                   NextObjectAddr<Pipeline>(pPlacementAddr),
+                                                   &pNextPipeline);
+
     funcInfo.postCallTime = pPlatform->GetTime();
 
     if (result == Result::Success)

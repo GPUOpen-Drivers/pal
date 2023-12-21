@@ -151,8 +151,7 @@ public:
         ICmdBuffer*const* ppCmdBuffers) override;
     virtual void CmdExecuteIndirectCmds(
         const IIndirectCmdGenerator& generator,
-        const IGpuMemory&            gpuMemory,
-        gpusize                      offset,
+        gpusize                      gpuVirtAddr,
         uint32                       maximumCount,
         gpusize                      countGpuAddr) override;
 
@@ -225,27 +224,21 @@ private:
         DispatchDims size);
     template <bool IssueSqttMarkerEvent>
     static void PAL_STDCALL CmdDispatchIndirect(
-        ICmdBuffer*       pCmdBuffer,
-        const IGpuMemory& gpuMemory,
-        gpusize           offset);
+        ICmdBuffer* pCmdBuffer,
+        gpusize     gpuVirtAddr
+    );
     template <bool HsaAbi, bool IssueSqttMarkerEvent>
     static void PAL_STDCALL CmdDispatchOffset(
         ICmdBuffer*  pCmdBuffer,
         DispatchDims offset,
         DispatchDims launchSize,
         DispatchDims logicalSize);
-    template <bool IssueSqttMarkerEvent>
-    static void PAL_STDCALL CmdDispatchDynamic(
-        ICmdBuffer*  pCmdBuffer,
-        gpusize      gpuVa,
-        DispatchDims size);
 
     virtual void ActivateQueryType(QueryPoolType queryPoolType) override;
     virtual void DeactivateQueryType(QueryPoolType queryPoolType) override;
 
     uint32* ValidateDispatchPalAbi(
         gpusize      indirectGpuVirtAddr,
-        gpusize      launchDescGpuVirtAddr,
         DispatchDims logicalSize,
         uint32*      pCmdSpace);
 

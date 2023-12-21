@@ -239,7 +239,8 @@ void RsrcProcMgr::CopyMemoryCs(
                  regionCount,
                  pRegions,
                  preferWideFormatCopy,
-                 nullptr);
+                 false,
+                 false);
 }
 
 // =====================================================================================================================
@@ -253,7 +254,8 @@ void RsrcProcMgr::CopyMemoryCs(
     uint32                  regionCount,
     const MemoryCopyRegion* pRegions,
     bool                    preferWideFormatCopy,
-    const gpusize*          pP2pBltInfoChunks
+    bool                    srcIsCompressed,
+    bool                    dstIsCompressed
     ) const
 {
     constexpr uint32  NumGpuMemory  = 2;        // source & destination.
@@ -265,11 +267,6 @@ void RsrcProcMgr::CopyMemoryCs(
     // Now begin processing the list of copy regions.
     for (uint32 idx = 0; idx < regionCount; ++idx)
     {
-        if (pP2pBltInfoChunks != nullptr)
-        {
-            pCmdBuffer->P2pBltWaCopyNextRegion(pP2pBltInfoChunks[idx]);
-        }
-
         const gpusize srcOffset  = pRegions[idx].srcOffset;
         const gpusize dstOffset  = pRegions[idx].dstOffset;
         const gpusize copySize   = pRegions[idx].copySize;
@@ -324,25 +321,22 @@ void RsrcProcMgr::CopyMemoryCs(
             RpmUtil::BuildRawBufferViewInfo(&rawBufferView,
                                             dstDevice,
                                             (dstGpuVirtAddr + dstOffset + copyOffset),
-                                            copySectionSize);
+                                            copySectionSize,
+                                            dstIsCompressed);
             m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &rawBufferView, pSrdTable);
             pSrdTable += SrdDwordAlignment();
 
             RpmUtil::BuildRawBufferViewInfo(&rawBufferView,
                                             srcDevice,
                                             (srcGpuVirtAddr + srcOffset + copyOffset),
-                                            copySectionSize);
+                                            copySectionSize,
+                                            srcIsCompressed);
             m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &rawBufferView, pSrdTable);
 
             const uint32 regionUserData[3] = { 0, 0, copySectionSize };
             pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 1, 3, regionUserData);
             pCmdBuffer->CmdDispatch({numThreadGroups, 1, 1});
         }
-    }
-
-    if (pP2pBltInfoChunks != nullptr)
-    {
-        pCmdBuffer->P2pBltWaCopyEnd();
     }
 
     // Restore command buffer state.
@@ -385,8 +379,7 @@ void RsrcProcMgr::CopyImageCs(
     ImageLayout            dstImageLayout,
     uint32                 regionCount,
     const ImageCopyRegion* pRegions,
-    uint32                 flags,
-    const gpusize*         pP2pBltInfoChunks // nullptr or an array with one per region.
+    uint32                 flags
     ) const
 {
     const Device&          device        = *m_pDevice->Parent();
@@ -428,11 +421,6 @@ void RsrcProcMgr::CopyImageCs(
             PAL_ASSERT(copyRegion.numSlices == copyRegion.extent.depth);
         }
 #endif
-
-        if (pP2pBltInfoChunks != nullptr)
-        {
-            pCmdBuffer->P2pBltWaCopyNextRegion(pP2pBltInfoChunks[idx]);
-        }
 
         // Setup image formats per-region. This is different than the graphics path because the compute path must be
         // able to copy depth-stencil images.
@@ -530,11 +518,6 @@ void RsrcProcMgr::CopyImageCs(
         const DispatchDims texels = {copyRegion.extent.width, copyRegion.extent.height, numSlices};
 
         pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz(texels, csInfo.texelsPerGroup));
-    }
-
-    if (pP2pBltInfoChunks != nullptr)
-    {
-        pCmdBuffer->P2pBltWaCopyEnd();
     }
 
     pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
@@ -831,7 +814,7 @@ void RsrcProcMgr::CopyImageCompute(
 {
     PAL_ASSERT(TestAnyFlagSet(flags, CopyEnableScissorTest) == false);
 
-    CopyImageCs(pCmdBuffer, srcImage, srcImageLayout, dstImage, dstImageLayout, regionCount, pRegions, flags, nullptr);
+    CopyImageCs(pCmdBuffer, srcImage, srcImageLayout, dstImage, dstImageLayout, regionCount, pRegions, flags);
 }
 
 // =====================================================================================================================
@@ -1183,8 +1166,7 @@ void RsrcProcMgr::CopyBetweenMemoryAndImageCs(
     bool                         isFmaskCopy,
     uint32                       regionCount,
     const MemoryImageCopyRegion* pRegions,
-    bool                         includePadding,
-    const gpusize*               pP2pBltInfoChunks
+    bool                         includePadding
     ) const
 {
     const auto& imgCreateInfo   = image.GetImageCreateInfo();
@@ -1207,11 +1189,6 @@ void RsrcProcMgr::CopyBetweenMemoryAndImageCs(
         // 3D images can't have slices and non-3D images shouldn't specify depth > 1 so we expect at least one
         // of them to be set to 1.
         PAL_ASSERT((copyRegion.numSlices == 1) || (copyRegion.imageExtent.depth == 1));
-
-        if (pP2pBltInfoChunks != nullptr)
-        {
-            pCmdBuffer->P2pBltWaCopyNextRegion(pP2pBltInfoChunks[idx]);
-        }
 
         // It will be faster to use a raw format, but we must stick with the base format if replacement isn't an option.
         SwizzledFormat    viewFormat = image.SubresourceInfo(copyRegion.imageSubres)->format;
@@ -1382,11 +1359,6 @@ void RsrcProcMgr::CopyBetweenMemoryAndImageCs(
         }
     }
 
-    if (pP2pBltInfoChunks != nullptr)
-    {
-        pCmdBuffer->P2pBltWaCopyEnd();
-    }
-
     // Restore command buffer state.
     pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
 }
@@ -1417,8 +1389,7 @@ void RsrcProcMgr::CopyBetweenMemoryAndImage(
                                 isFmaskCopy,
                                 regionCount,
                                 pRegions,
-                                includePadding,
-                                nullptr);
+                                includePadding);
 }
 
 // =====================================================================================================================
@@ -1686,7 +1657,6 @@ void RsrcProcMgr::CmdCopyTypedBuffer(
                                                           RpmViewsBypassMallOnRead);
         bufferView.flags.bypassMallWrite = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
                                                           RpmViewsBypassMallOnWrite);
-
         device.CreateTypedBufferViewSrds(1, &bufferView, pUserDataTable);
         pUserDataTable += SrdDwordAlignment();
 
@@ -3474,8 +3444,9 @@ void RsrcProcMgr::CmdClearDepthStencil(
                     PAL_ASSERT(m_pDevice->Parent()->SupportsStencil(imageFormat, ImageTiling::Optimal));
 
                     // For Stencil plane we use the stencil value directly.
-                    clearColor.type        = ClearColorType::Uint;
-                    clearColor.u32Color[0] = stencil;
+                    clearColor.type                = ClearColorType::Uint;
+                    clearColor.u32Color[0]         = stencil;
+                    clearColor.disabledChannelMask = ~stencilWriteMask;
                 }
 
                 // This avoids an assert in the generic clear function below.  I think it's safe to add here without

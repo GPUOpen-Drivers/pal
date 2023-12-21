@@ -59,6 +59,7 @@
 #include "devDriverServer.h"
 #include "protocols/driverControlServer.h"
 #include "protocols/rgpServer.h"
+#include "dd_settings_service.h"
 
 using namespace Util;
 using namespace Util::Literals;
@@ -543,9 +544,12 @@ Result Device::SetupPublicSettingDefaults()
     m_publicSettings.limitCbFetch256B = false;
 #endif
 
-    m_publicSettings.binningMode            = DeferredBatchBinAccurate;
-    m_publicSettings.customBatchBinSize     = 0x800080;
-    m_publicSettings.binningMaxPrimPerBatch = 1024;
+    m_publicSettings.binningMode        = DeferredBatchBinAccurate;
+    m_publicSettings.customBatchBinSize = 0x800080;
+
+    {
+        m_publicSettings.binningMaxPrimPerBatch = 1024;
+    }
 
     m_publicSettings.pwsMode = PwsMode::Enabled;
 
@@ -585,19 +589,21 @@ Result Device::HwlEarlyInit()
     pfnTable.pfnDecodeImageViewSrd       = &DefaultDecodeImageViewSrd;
 
 #if PAL_BUILD_GFX
-    switch (ChipProperties().gfxLevel)
     {
-    case GfxIpLevel::GfxIp9:
-    case GfxIpLevel::GfxIp10_1:
-    case GfxIpLevel::GfxIp10_3:
+        switch (ChipProperties().gfxLevel)
+        {
+        case GfxIpLevel::GfxIp9:
+        case GfxIpLevel::GfxIp10_1:
+        case GfxIpLevel::GfxIp10_3:
 #if PAL_BUILD_GFX11
-    case GfxIpLevel::GfxIp11_0:
+        case GfxIpLevel::GfxIp11_0:
 #endif
-        result = Gfx9::CreateDevice(this, pGfxPlacementAddr, &pfnTable, &m_pGfxDevice);
-        break;
-    default:
-        PAL_ASSERT(m_hwDeviceSizes.gfx == 0);
-        break;
+            result = Gfx9::CreateDevice(this, pGfxPlacementAddr, &pfnTable, &m_pGfxDevice);
+            break;
+        default:
+            PAL_ASSERT(m_hwDeviceSizes.gfx == 0);
+            break;
+        }
     }
 #endif
 
@@ -774,9 +780,16 @@ Result Device::InitSettings()
             ret = m_pSettingsLoader->Init();
         }
 
-        // If the regular settings initialize successfully, then initialize the public settings too.
         if (ret == Result::Success)
         {
+            // Register this settings component to receive setting user-overrides via DevDriver network.
+            DevDriver::SettingsRpcService* pSettingsRpcService = GetPlatform()->GetSettingsRpcService();
+            if (pSettingsRpcService)
+            {
+                pSettingsRpcService->RegisterSettingsComponent(m_pSettingsLoader);
+            }
+
+            // If the regular settings initialize successfully, then initialize the public settings too.
             ret = SetupPublicSettingDefaults();
         }
     }
@@ -1243,8 +1256,19 @@ Result Device::CommitSettingsAndInit()
 #if PAL_ENABLE_PRINTS_ASSERTS
     m_settingsCommitted = true;
 #endif
+    Result result = Result::Success;
 
-    return LateInit();
+    if (Settings().cmdBufDumpMode != CmdBufDumpModeDisabled)
+    {
+        result = CreateLogDir(Settings().cmdBufDumpDirectory, m_cmdBufDumpPath, sizeof(m_cmdBufDumpPath));
+    }
+
+    if (result == Result::Success)
+    {
+        result = LateInit();
+    }
+
+    return result;
 }
 
 // =====================================================================================================================
@@ -2026,8 +2050,9 @@ Result Device::GetProperties(
         pInfo->pciProperties.flags.u32All                     = 0;
         pInfo->pciProperties.flags.gpuConnectedViaThunderbolt = m_chipProperties.gpuConnectedViaThunderbolt ? 1 : 0;
         pInfo->pciProperties.flags.gpuEmulatedInSoftware      = GetPlatform()->IsEmulationEnabled() ? 1 : 0;
-        pInfo->pciProperties.flags.gpuEmulatedInHardware      = IsHwEmulationEnabled() ? 1 : 0;
-
+        pInfo->pciProperties.flags.gpuEmulatedInHardware      = ((GetPlatform()->IsEmulationEnabled() == false) &&
+                                                                 IsHwEmulationEnabled()) ? 1 : 0;
+        pInfo->pciProperties.flags.atomicOpsSupported         = m_chipProperties.pcieAtomicOpsSupported ? 1 : 0;
         pInfo->gfxipProperties.cpUcodeVersion    = m_chipProperties.cpUcodeVersion;
         pInfo->gfxipProperties.pfpUcodeVersion   = m_chipProperties.pfpUcodeVersion;
 
@@ -2036,14 +2061,11 @@ Result Device::GetProperties(
 
 #endif
 
-        switch (m_chipProperties.gfxLevel)
-        {
-        case GfxIpLevel::GfxIp9:
-        case GfxIpLevel::GfxIp10_1:
-        case GfxIpLevel::GfxIp10_3:
-#if PAL_BUILD_GFX11
-        case GfxIpLevel::GfxIp11_0:
-#endif
+        // Only one may be valid.
+        PAL_ASSERT(CountSetBits((m_chipProperties.gfxip.gfx6DataValid << 0) |
+                                (m_chipProperties.gfxip.gfx9DataValid << 1)) == 1);
+
+        if (m_chipProperties.gfxip.gfx9DataValid)
         {
             const auto& gfx9Props = m_chipProperties.gfx9;
 
@@ -2183,16 +2205,12 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.supportInt4Dot     = gfx9Props.supportInt4Dot;
             pInfo->gfxipProperties.flags.support2DRectList  = gfx9Props.support2DRectList;
             pInfo->gfxipProperties.flags.support3dUavZRange = gfx9Props.support3dUavZRange;
-            break;
         }
-
-        default:
+        else
+        {
             // What is this?
             PAL_NOT_IMPLEMENTED();
-            break;
         }
-
-        pInfo->gfxipProperties.dynamicLaunchDescSize          = m_chipProperties.gfxip.dynamicLaunchDescSize;
 
         pInfo->gfxipProperties.maxThreadGroupSize             = m_chipProperties.gfxip.maxThreadGroupSize;
         pInfo->gfxipProperties.maxAsyncComputeThreadGroupSize = m_chipProperties.gfxip.maxAsyncComputeThreadGroupSize;
@@ -2637,9 +2655,9 @@ uint64  Device::GetTimeoutValueInNs(
     constexpr uint64  NanosecondsPerSecond = 1000000000ull;
 
     const auto&  settings    = Settings();
-    const uint64 timeoutInNs = (((appTimeoutInNs == 0) || (settings.fenceTimeoutOverrideInSec == 0))
+    const uint64 timeoutInNs = (((appTimeoutInNs == 0) || (settings.fenceTimeoutOverride == 0))
                                 ? appTimeoutInNs // no timeout requested by app or no override in settings
-                                : settings.fenceTimeoutOverrideInSec * NanosecondsPerSecond);
+                                : settings.fenceTimeoutOverride * NanosecondsPerSecond);
 
     return timeoutInNs;
 }
@@ -2809,6 +2827,34 @@ Result Device::ConstructCmdBuffer(
 }
 
 // =====================================================================================================================
+// Helper function to share code between CreateCmdBuffer and CreateInternalCmdBuffer
+Result Device::CreateCmdBufferHelper(
+    const CmdBufferCreateInfo&         createInfo,
+    const CmdBufferInternalCreateInfo& internalInfo,
+    void*                              pPlacementAddr,
+    CmdBuffer**                        ppCmdBuffer
+    ) const
+{
+    CmdBuffer* pCmdBuffer = nullptr;
+    Result result = ConstructCmdBuffer(createInfo, pPlacementAddr, &pCmdBuffer);
+
+    if (result == Result::Success)
+    {
+        result = pCmdBuffer->Init(internalInfo);
+
+        if (result != Result::Success)
+        {
+            pCmdBuffer->Destroy();
+            pCmdBuffer = nullptr;
+        }
+
+        (*ppCmdBuffer) = pCmdBuffer;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 // Creates a new CmdBuffer object in preallocated memory provided by the caller.
 // NOTE: Part of the public IDevice interface.
 Result Device::CreateCmdBuffer(
@@ -2821,21 +2867,10 @@ Result Device::CreateCmdBuffer(
     if ((pPlacementAddr != nullptr) && (ppCmdBuffer != nullptr))
     {
         CmdBuffer* pCmdBuffer = nullptr;
-        result = ConstructCmdBuffer(createInfo, pPlacementAddr, &pCmdBuffer);
+        constexpr CmdBufferInternalCreateInfo InternalInfo = {};
+        result = CreateCmdBufferHelper(createInfo, InternalInfo, pPlacementAddr, &pCmdBuffer);
 
-        if (result == Result::Success)
-        {
-            constexpr CmdBufferInternalCreateInfo InternalInfo = {};
-            result = pCmdBuffer->Init(InternalInfo);
-
-            if (result != Result::Success)
-            {
-                pCmdBuffer->Destroy();
-                pCmdBuffer = nullptr;
-            }
-
-            (*ppCmdBuffer) = pCmdBuffer;
-        }
+        (*ppCmdBuffer) = pCmdBuffer;
     }
 
     return result;
@@ -2853,7 +2888,7 @@ Result Device::CreateInternalCmdBuffer(
 
     if (pObjectMem != nullptr)
     {
-        result = CreateCmdBuffer(createInfo, pObjectMem, reinterpret_cast<ICmdBuffer**>(ppCmdBuffer));
+        result = CreateCmdBufferHelper(createInfo, internalInfo, pObjectMem, ppCmdBuffer);
 
         if (result != Result::Success)
         {
@@ -4794,7 +4829,7 @@ void Device::ApplyDevOverlay(
     }
 
     // If the setting is enabled, display a visual confirmation of HDR Mode
-    if (Settings().overlayReportHDR)
+    if (Settings().overlayReportHdr)
     {
         Util::Snprintf(overlayTextBuffer,
                        OverlayTextBufferSize,
@@ -4866,121 +4901,6 @@ bool Device::EngineSupportsGraphics(
     const bool supportsGfx = (engineType == EngineTypeUniversal);
 
     return supportsGfx;
-}
-
-// =====================================================================================================================
-// P2P WA can be required from either GFX or OSSIP, but we wanted to put the bulk of the implementation in some hardware
-// layer.  Forward this call to the GFX HWL regardless of the caller IP.
-Result Device::P2pBltWaModifyRegionListMemory(
-    const IGpuMemory&       dstGpuMemory,
-    uint32                  regionCount,
-    const MemoryCopyRegion* pRegions,
-    uint32*                 pNewRegionCount,
-    MemoryCopyRegion*       pNewRegions,
-    gpusize*                pChunkAddrs
-    ) const
-{
-    Result result = Result::Success;
-
-    if (m_pGfxDevice != nullptr)
-    {
-        result = m_pGfxDevice->P2pBltWaModifyRegionListMemory(dstGpuMemory,
-                                                              regionCount,
-                                                              pRegions,
-                                                              pNewRegionCount,
-                                                              pNewRegions,
-                                                              pChunkAddrs);
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-// P2P WA can be required from either GFX or OSSIP, but we wanted to put the bulk of the implementation in some hardware
-// layer.  Forward this call to the GFX HWL regardless of the caller IP.
-Result Device::P2pBltWaModifyRegionListImage(
-    const Pal::Image&      srcImage,
-    const Pal::Image&      dstImage,
-    uint32                 regionCount,
-    const ImageCopyRegion* pRegions,
-    uint32*                pNewRegionCount,
-    ImageCopyRegion*       pNewRegions,
-    gpusize*               pChunkAddrs
-    ) const
-{
-    Result result = Result::Success;
-
-    if (m_pGfxDevice != nullptr)
-    {
-        result = m_pGfxDevice->P2pBltWaModifyRegionListImage(srcImage,
-                                                             dstImage,
-                                                             regionCount,
-                                                             pRegions,
-                                                             pNewRegionCount,
-                                                             pNewRegions,
-                                                             pChunkAddrs);
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-// P2P WA can be required from either GFX or OSSIP, but we wanted to put the bulk of the implementation in some hardware
-// layer.  Forward this call to the GFX HWL regardless of the caller IP.
-Result Device::P2pBltWaModifyRegionListImageToMemory(
-    const Pal::Image&            srcImage,
-    const IGpuMemory&            dstGpuMemory,
-    uint32                       regionCount,
-    const MemoryImageCopyRegion* pRegions,
-    uint32*                      pNewRegionCount,
-    MemoryImageCopyRegion*       pNewRegions,
-    gpusize*                     pChunkAddrs
-    ) const
-{
-    Result result = Result::Success;
-
-    // Implementation
-    if (m_pGfxDevice != nullptr)
-    {
-        result = m_pGfxDevice->P2pBltWaModifyRegionListImageToMemory(srcImage,
-                                                                     dstGpuMemory,
-                                                                     regionCount,
-                                                                     pRegions,
-                                                                     pNewRegionCount,
-                                                                     pNewRegions,
-                                                                     pChunkAddrs);
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-// P2P WA can be required from either GFX or OSSIP, but we wanted to put the bulk of the implementation in some hardware
-// layer.  Forward this call to the GFX HWL regardless of the caller IP.
-Result Device::P2pBltWaModifyRegionListMemoryToImage(
-    const IGpuMemory&            srcGpuMemory,
-    const Pal::Image&            dstImage,
-    uint32                       regionCount,
-    const MemoryImageCopyRegion* pRegions,
-    uint32*                      pNewRegionCount,
-    MemoryImageCopyRegion*       pNewRegions,
-    gpusize*                     pChunkAddrs
-    ) const
-{
-    Result result = Result::Success;
-
-    if (m_pGfxDevice != nullptr)
-    {
-        result = m_pGfxDevice->P2pBltWaModifyRegionListMemoryToImage(srcGpuMemory,
-                                                                     dstImage,
-                                                                     regionCount,
-                                                                     pRegions,
-                                                                     pNewRegionCount,
-                                                                     pNewRegions,
-                                                                     pChunkAddrs);
-    }
-
-    return result;
 }
 
 // =====================================================================================================================

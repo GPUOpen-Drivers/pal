@@ -69,9 +69,6 @@ enum RegisterRangeType : uint32
 #endif
 };
 
-// Forward decl
-static const Gfx9PalSettings& GetGfx9Settings(const Pal::Device& device);
-
 #if PAL_BUILD_GFX11
 // =====================================================================================================================
 // Sets an offset and value in a packed context register pair.
@@ -179,6 +176,19 @@ public:
     virtual Result HwlValidateImageViewInfo(const ImageViewInfo& viewInfo) const override;
     virtual Result HwlValidateSamplerInfo(const SamplerInfo& samplerInfo)  const override;
 
+    virtual Result InitSettings() const override
+    {
+        PAL_ASSERT(m_pDdSettingsLoader != nullptr);
+        return static_cast<Pal::Gfx9::SettingsLoader*>(m_pDdSettingsLoader)->Init();
+    }
+
+    virtual Util::MetroHash::Hash GetSettingsHash() const override
+    {
+        Util::MetroHash::Hash zeroHash = {};
+        return (m_pDdSettingsLoader != nullptr) ?
+            static_cast<Pal::Gfx9::SettingsLoader*>(m_pDdSettingsLoader)->GetSettingsHash() : zeroHash;
+    }
+
     //            rbAligned must be true for ASICs with > 1 RBs, otherwise there would be access violation
     //            between different RBs
     virtual bool IsRbAligned() const
@@ -186,25 +196,24 @@ public:
 
     virtual void HwlValidateSettings(PalSettings* pSettings) override
     {
-        static_cast<Pal::Gfx9::SettingsLoader*>(m_pSettingsLoader)->ValidateSettings(pSettings);
+        static_cast<Pal::Gfx9::SettingsLoader*>(m_pDdSettingsLoader)->ValidateSettings(pSettings);
     }
 
     virtual void HwlOverrideDefaultSettings(PalSettings* pSettings) override
     {
-        static_cast<Pal::Gfx9::SettingsLoader*>(m_pSettingsLoader)->OverrideDefaults(pSettings);
+        static_cast<Pal::Gfx9::SettingsLoader*>(m_pDdSettingsLoader)->OverrideDefaults(pSettings);
     }
 
-    virtual void HwlRereadSettings() override
+    virtual void HwlRereadSettings() override {}
+
+    virtual void HwlReadSettings()
     {
-        m_pSettingsLoader->RereadSettings();
+        static_cast<Pal::Gfx9::SettingsLoader*>(m_pDdSettingsLoader)->ReadSettings();
     }
 
     virtual void FinalizeChipProperties(GpuChipProperties* pChipProperties) const override;
 
     virtual Result GetLinearImageAlignments(LinearImageAlignments* pAlignments) const override;
-
-    virtual void BindTrapHandler(PipelineBindPoint pipelineType, IGpuMemory* pGpuMemory, gpusize offset) override;
-    virtual void BindTrapBuffer(PipelineBindPoint pipelineType, IGpuMemory* pGpuMemory, gpusize offset) override;
 
     virtual Result CreateEngine(
         EngineType engineType,
@@ -349,7 +358,7 @@ public:
 
     const Gfx9PalSettings& Settings() const
     {
-        return static_cast<const Pal::Gfx9::SettingsLoader*>(m_pSettingsLoader)->GetSettings();
+        return static_cast<const Pal::Gfx9::SettingsLoader*>(m_pDdSettingsLoader)->GetSettings();
     }
 
     static uint32 CalcNumRecords(
@@ -375,8 +384,6 @@ public:
     const uint32* OcclusionSlotResetValue() const
         { return reinterpret_cast<const uint32*>(m_occlusionSlotResetValues); }
 
-    uint32 QueueContextUpdateCounter();
-
     virtual Result SetSamplePatternPalette(const SamplePatternPalette& palette) override;
     void GetSamplePatternPalette(SamplePatternPalette* pSamplePatternPalette);
 
@@ -393,27 +400,6 @@ public:
         const SwizzledFormat& swizzledFormat,
         const SwizzledFormat* pViewFormats,
         uint32                viewFormatCount) const override;
-
-    // Function definition for creating typed buffer view SRDs.
-    static void PAL_STDCALL Gfx9CreateTypedBufferViewSrds(
-        const IDevice*        pDevice,
-        uint32                count,
-        const BufferViewInfo* pBufferViewInfo,
-        void*                 pOut);
-
-    // Function definition for creating untyped buffer view SRDs.
-    static void PAL_STDCALL Gfx9CreateUntypedBufferViewSrds(
-        const IDevice*        pDevice,
-        uint32                count,
-        const BufferViewInfo* pBufferViewInfo,
-        void*                 pOut);
-
-    // Function definition for creating image view SRDs.
-    static void PAL_STDCALL Gfx9CreateImageViewSrds(
-        const IDevice*       pDevice,
-        uint32               count,
-        const ImageViewInfo* pImgViewInfo,
-        void*                pOut);
 
     uint32 GetCuEnableMaskHi(uint32 disabledCuMmask, uint32 enabledCuMaskSetting) const;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 789
@@ -473,23 +459,6 @@ public:
         void*                        pOut) const;
 
     // Function definition for creating a sampler SRD.
-    static void PAL_STDCALL Gfx9CreateSamplerSrds(
-        const IDevice*      pDevice,
-        uint32              count,
-        const SamplerInfo*  pSamplerInfo,
-        void*               pOut);
-
-    static void PAL_STDCALL Gfx9DecodeBufferViewSrd(
-        const IDevice*  pDevice,
-        const void*     pBufferViewSrd,
-        BufferViewInfo* pViewInfo);
-
-    static void PAL_STDCALL Gfx9DecodeImageViewSrd(
-        const IDevice*   pDevice,
-        const IImage*    pImage,
-        const void*      pImageViewSrd,
-        DecodedImageSrd* pDecodedInfo);
-
     static void PAL_STDCALL Gfx10DecodeBufferViewSrd(
         const IDevice*  pDevice,
         const void*     pBufferViewSrd,
@@ -518,11 +487,6 @@ public:
     uint32 GetHwAllocLdsGranularityBytes() const { return Parent()->ChipProperties().gfxip.ldsGranularity; }
 
     static uint32 GetMaxWavesPerSh(const GpuChipProperties& chipProps, bool isCompute);
-
-    const BoundGpuMemory& TrapHandler(PipelineBindPoint pipelineType) const override
-        { return (pipelineType == PipelineBindPoint::Graphics) ? m_graphicsTrapHandler : m_computeTrapHandler; }
-    const BoundGpuMemory& TrapBuffer(PipelineBindPoint pipelineType) const override
-        { return (pipelineType == PipelineBindPoint::Graphics) ? m_graphicsTrapBuffer : m_computeTrapBuffer; }
 
     static uint32 GetBinSizeEnum(uint32  binSize);
 
@@ -556,41 +520,6 @@ public:
         uint32*            pRangeEntries) const;
 
     PM4_PFP_CONTEXT_CONTROL GetContextControl() const;
-
-    virtual Result P2pBltWaModifyRegionListMemory(
-        const IGpuMemory&            dstGpuMemory,
-        uint32                       regionCount,
-        const MemoryCopyRegion*      pRegions,
-        uint32*                      pNewRegionCount,
-        MemoryCopyRegion*            pNewRegions,
-        gpusize*                     pChunkAddrs) const override;
-
-    virtual Result P2pBltWaModifyRegionListImage(
-        const Pal::Image&            srcImage,
-        const Pal::Image&            dstImage,
-        uint32                       regionCount,
-        const ImageCopyRegion*       pRegions,
-        uint32*                      pNewRegionCount,
-        ImageCopyRegion*             pNewRegions,
-        gpusize*                     pChunkAddrs) const override;
-
-    virtual Result P2pBltWaModifyRegionListImageToMemory(
-        const Pal::Image&            srcImage,
-        const IGpuMemory&            dstGpuMemory,
-        uint32                       regionCount,
-        const MemoryImageCopyRegion* pRegions,
-        uint32*                      pNewRegionCount,
-        MemoryImageCopyRegion*       pNewRegions,
-        gpusize*                     pChunkAddrs) const override;
-
-    virtual Result P2pBltWaModifyRegionListMemoryToImage(
-        const IGpuMemory&            srcGpuMemory,
-        const Pal::Image&            dstImage,
-        uint32                       regionCount,
-        const MemoryImageCopyRegion* pRegions,
-        uint32*                      pNewRegionCount,
-        MemoryImageCopyRegion*       pNewRegions,
-        gpusize*                     pChunkAddrs) const override;
 
     virtual void PatchPipelineInternalSrdTable(
         void*       pDstSrdTable,
@@ -649,27 +578,12 @@ private:
     BoundGpuMemory m_occlusionSrcMem;   // If occlusionQueryDmaBufferSlots is in use, this is the source memory.
     BoundGpuMemory m_dummyZpassDoneMem; // A GFX9 workaround requires dummy ZPASS_DONE events which write to memory.
 
-    // Keep a watermark for sample-pos palette updates to the queue context. When a QueueContext pre-processes a submit, it
-    // will check its watermark against the one owned by the device and update accordingly.
-     // Access to this object must be serialized using m_queueContextUpdateLock.
-    volatile uint32               m_queueContextUpdateCounter;
-    Util::Mutex                   m_queueContextUpdateLock;
-
     // Tracks the sample pattern palette for sample pos shader ring. Access to this object must be
     // serialized using m_samplePatternLock.
     volatile SamplePatternPalette m_samplePatternPalette;
 
     // An image of reset values for an entire occlusion query slot
     OcclusionQueryResultPair m_occlusionSlotResetValues[MaxNumRbs];
-
-    // Store GPU memory and offsets for compute/graphics trap handlers and trap buffers.  Trap handlers are client-
-    // installed hardware shaders that can be executed based on exceptions occurring in the main shader or in other
-    // situations like supporting a debugger.  Trap buffers are just scratch memory that can be accessed from a trap
-    // handler.  GFX9 has only one trap handler/buffer per VMID.
-    BoundGpuMemory m_computeTrapHandler;
-    BoundGpuMemory m_computeTrapBuffer;
-    BoundGpuMemory m_graphicsTrapHandler;
-    BoundGpuMemory m_graphicsTrapBuffer;
 
     // PAL will track the current application states: Resolution and MSAA rate.
     // MSAA will be determined by tracking images created that support being bound as a color target.

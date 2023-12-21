@@ -1132,7 +1132,6 @@ struct DeviceProperties
 
                 /// Support for querying page fault information
                 uint32 supportPageFaultInfo             : 1;
-
                 uint32 reserved13 : 1;
                 /// Reserved for future use.
                 uint32 reserved : 18;
@@ -1262,9 +1261,10 @@ struct DeviceProperties
         uint32 maxGsInvocations;            ///< Maximum number of GS prim instances, corresponding to geometry shader
                                             ///  invocation in glsl.
 
-        uint32 dynamicLaunchDescSize;   ///< Dynamic launch descriptor size. Zero indicates this feature is not
-                                        ///  supported. @ref IPipeline::CreateLaunchDescriptor()
-
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 837
+        uint32 dynamicLaunchDescSize; ///< Dynamic launch descriptor size. Zero indicates this feature is not
+                                      /// supported. @ref IPipeline::CreateLaunchDescriptor()
+#endif
         RayTracingIpLevel       rayTracingIp;       ///< HW RayTracing IP version
 
         uint32                  cpUcodeVersion;   ///< Command processor feature version.
@@ -1605,7 +1605,8 @@ struct DeviceProperties
                 uint32 gpuEmulatedInHardware      :  1; ///< Device is a hardware emulated GPU.  This is meant for
                                                         ///  pre-silicon development.
                 uint32 gpuVirtualization          :  1; ///< Set if running under VM.
-                uint32 reserved                   : 28; ///< Reserved for future use.
+                uint32 atomicOpsSupported         :  1; ///< Set if pcie atomic is supported.
+                uint32 reserved                   : 27; ///< Reserved for future use.
             };
             uint32 u32All;                  ///< Flags packed as 32-bit uint.
         } flags;                            ///< PCI bus property flags.
@@ -5026,6 +5027,19 @@ public:
     virtual Result SetPowerProfile(
         PowerProfile        profile,
         CustomPowerProfile* pInfo) = 0;
+
+    /// Sends an escape call to the KMD to enable power optimizations for DirectML/ROCm workloads. The client must call
+    /// this function when the context for any ROCm or DirectML workload is created or destroyed.
+    ///
+    /// @param [in] enableOptimization Set to true if called during context creation (enable power optimizations),
+    ///                                false if context destroyed (restore defaults).
+    ///
+    /// @returns Success if the power optimization is set successfully. Otherwise, one of the following errors may be
+    ///          returned:
+    ///          + ErrorUnavailable if this function is not available on this OS.
+    ///          + ErrorUnknown if an unexpected internal error occurs.
+    virtual Result SetMlPowerOptimization(
+        bool enableOptimization) const = 0;
 
     /// Queries workstation caps on this device.
     ///

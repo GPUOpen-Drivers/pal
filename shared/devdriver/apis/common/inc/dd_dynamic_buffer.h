@@ -86,6 +86,11 @@ public:
     /// @param pSrcBuf Source buffer to copy data from.
     /// @param srcSize The size of the source buffer.
     void Copy(const void* pSrcBuf, size_t srcSize);
+
+    /// Transfer the ownership of the internal buffer to the caller.
+    /// @param[out] pOutBufSize To receive the size of the internal buffer.
+    /// @return The pointer to the internal buffer.
+    void* Transfer(size_t* pOutBufSize);
 };
 
 } // namespace DevDriver

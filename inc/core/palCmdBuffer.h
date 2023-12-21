@@ -546,6 +546,8 @@ union CmdBufferBuildFlags
         /// non-TMZ memory, the results are undefined. Only valid for graphics and compute.
         uint32  enableTmz                      :  1;
 
+        uint32 placeholder3                    :  1;
+
         /// If set, internal operations such as blits, copies, etc. will not affect active Query results.
         /// Otherwise they may affect the results.
         uint32 disableQueryInternalOps         :  1;
@@ -559,8 +561,7 @@ union CmdBufferBuildFlags
         uint32 placeholder763_2                :  2;
 #endif
         /// Reserved for future use.
-        uint32 reserved                        : 16;
-
+        uint32 reserved                        :  15;
     };
 
     /// Flags packed as 32-bit uint.
@@ -1523,23 +1524,19 @@ typedef void (PAL_STDCALL *CmdDrawIndexedFunc)(
 ///
 /// @see ICmdBuffer::CmdDrawIndirectMulti().
 typedef void (PAL_STDCALL *CmdDrawIndirectMultiFunc)(
-    ICmdBuffer*       pCmdBuffer,
-    const IGpuMemory& gpuMemory,
-    gpusize           offset,
-    uint32            stride,
-    uint32            maximumCount,
-    gpusize           countGpuAddr);
+    ICmdBuffer*           pCmdBuffer,
+    GpuVirtAddrAndStride  gpuVirtAddrAndStride,
+    uint32                maximumCount,
+    gpusize               countGpuAddr);
 
 /// @internal Function pointer type definition for issuing indexed, indirect draws.
 ///
 /// @see ICmdBuffer::CmdDrawIndexedIndirectMulti().
 typedef void (PAL_STDCALL *CmdDrawIndexedIndirectMultiFunc)(
-    ICmdBuffer*       pCmdBuffer,
-    const IGpuMemory& gpuMemory,
-    gpusize           offset,
-    uint32            stride,
-    uint32            maximumCount,
-    gpusize           countGpuAddr);
+    ICmdBuffer*           pCmdBuffer,
+    GpuVirtAddrAndStride  gpuVirtAddrAndStride,
+    uint32                maximumCount,
+    gpusize               countGpuAddr);
 
 /// @internal Function pointer type definition for issuing direct dispatches.
 ///
@@ -1552,10 +1549,8 @@ typedef void (PAL_STDCALL *CmdDispatchFunc)(
 ///
 /// @see ICmdBuffer::CmdDispatchIndirect().
 typedef void (PAL_STDCALL *CmdDispatchIndirectFunc)(
-    ICmdBuffer*       pCmdBuffer,
-    const IGpuMemory& gpuMemory,
-    gpusize           offset);
-
+    ICmdBuffer* pCmdBuffer,
+    gpusize     gpuVirtAddr);
 /// @internal Function pointer type definition for issuing direct dispatches with threadgroup offsets.
 ///
 /// @see ICmdBuffer::CmdDispatchOffset().
@@ -1564,14 +1559,6 @@ typedef void (PAL_STDCALL *CmdDispatchOffsetFunc)(
     DispatchDims offset,
     DispatchDims launchSize,
     DispatchDims logicalSize);
-
-/// @internal Function pointer type definition for issuing dynamic compute dispatches.
-///
-/// @see ICmdBuffer::CmdDispatchDynamic().
-typedef void (PAL_STDCALL* CmdDispatchDynamicFunc)(
-    ICmdBuffer*  pCmdBuffer,
-    gpusize      gpuVa,
-    DispatchDims size);
 
 /// @internal Function pointer type definition for issuing direct mesh dispatches.
 ///
@@ -1584,12 +1571,10 @@ typedef void (PAL_STDCALL *CmdDispatchMeshFunc)(
 ///
 /// @see ICmdBuffer::CmdDispatchMeshIndirectMulti().
 typedef void (PAL_STDCALL *CmdDispatchMeshIndirectMultiFunc)(
-    ICmdBuffer*       pCmdBuffer,
-    const IGpuMemory& gpuMemory,
-    gpusize           offset,
-    uint32            stride,
-    uint32            maximumCount,
-    gpusize           countGpuAddr);
+    ICmdBuffer*          pCmdBuffer,
+    GpuVirtAddrAndStride gpuVirtAddrAndStride,
+    uint32               maximumCount,
+    gpusize              countGpuAddr);
 
 /// Specifies input assembler state for draws.
 /// @see ICmdBuffer::CmdSetInputAssemblyState
@@ -2864,26 +2849,34 @@ public:
     /// the next indirect args structure in gpuMemory.  Each draw call will be discarded if its vertexCount or
     /// instanceCount is zero.
     ///
-    /// The draw argument data offset in memory must be 4-byte aligned.  The layout of the argument data is defined in
-    /// the DrawIndirectArgs structure.
+    /// The layout of the argument data is defined in the @ref DrawIndirectArgs structure.
     ///
     /// It is an error if the currently bound pipeline contains a mesh and/or task shader.
     ///
-    /// This function requires use of the following barrier flags on @ref gpuMemory:
+    /// This function requires use of the following barrier flags on the indirect memory:
     /// - PipelineStage:  @ref PipelineStageFetchIndirectArgs
     /// - CacheCoherency: @ref CoherIndirectArgs
     ///
     /// @see CmdDraw
     /// @see DrawIndirectArgs
     ///
-    /// @param [in] gpuMemory     GPU memory object where the indirect argument data is located.
-    /// @param [in] offset        Offset in bytes into the GPU memory object where the indirect argument data is
-    ///                           located.
-    /// @param [in] stride        Stride in memory from one data structure to the next.
-    /// @param [in] maximumCount  Maximum count of data structures to loop through.  If countGpuAddr is nonzero, the
-    ///                           value at that memory location is clamped to this maximum. If countGpuAddr is zero,
-    ///                           Then the number of draws issued exactly matches this number.
-    /// @param [in] countGpuAddr  GPU virtual address where the number of draws is stored.  Must be 4-byte aligned.
+    /// @param [in] gpuVirtAddrAndStride  GPU virtual address where the indirect argument data is located and stride in
+    ///                                   memory from one structure to another.
+    ///                                   The virtual address must be 4 byte aligned.
+    /// @param [in] maximumCount          Maximum count of data structures to loop through.  If countGpuAddr
+    ///                                   is nonzero, the value at that memory location is clamped to
+    ///                                   this maximum. If countGpuAddr is zero, then the number of draws
+    ///                                   issued exactly matches this number.
+    /// @param [in] countGpuAddr          GPU virtual address where the number of draws is stored.
+    ///                                   Must be 4-byte aligned.
+    void CmdDrawIndirectMulti(
+        GpuVirtAddrAndStride gpuVirtAddrAndStride,
+        uint32               maximumCount,
+        gpusize              countGpuAddr)
+    {
+        m_funcTable.pfnCmdDrawIndirectMulti(this, gpuVirtAddrAndStride, maximumCount, countGpuAddr);
+    }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 839
     void CmdDrawIndirectMulti(
         const IGpuMemory& gpuMemory,
         gpusize           offset,
@@ -2891,34 +2884,49 @@ public:
         uint32            maximumCount,
         gpusize           countGpuAddr)
     {
-        m_funcTable.pfnCmdDrawIndirectMulti(this, gpuMemory, offset, stride, maximumCount, countGpuAddr);
+      const GpuVirtAddrAndStride gpuVirtAddrAndStride =
+      {
+          .gpuVirtAddr = gpuMemory.Desc().gpuVirtAddr + offset,
+          .stride = stride
+      };
+      m_funcTable.pfnCmdDrawIndirectMulti(this, gpuVirtAddrAndStride,
+                                          maximumCount, countGpuAddr);
     }
+#endif
 
     /// Issues instanced, indexed draw calls using the command buffer's currently bound graphics state.  The draw
     /// arguments come from GPU memory. This command will issue count draw calls, using the provided stride to find
     /// the next indirect args structure in gpuMemory.  Each draw call will be discarded if its indexCount or
     /// instanceCount is zero.
     ///
-    /// The draw argument data offset in memory must be 4-byte aligned.  The layout of the argument data is defined in
-    /// the DrawIndexedIndirectArgs structure.
+    /// The layout of the argument data is defined in the @ref DrawIndexedIndirectArgs structure.
     ///
     /// It is an error if the currently bound pipeline contains a mesh and/or task shader.
     ///
-    /// This function requires use of the following barrier flags on @ref gpuMemory:
+    /// This function requires use of the following barrier flags on the indirect memory:
     /// - PipelineStage:  @ref PipelineStageFetchIndirectArgs
     /// - CacheCoherency: @ref CoherIndirectArgs
     ///
     /// @see CmdDrawIndexed
-    /// @see DrawIndexedIndirectArgs.
+    /// @see DrawIndexedIndirectArgs
     ///
-    /// @param [in] gpuMemory     GPU memory object where the indirect argument data is located.
-    /// @param [in] offset        Offset in bytes into the GPU memory object where the indirect argument data is
-    ///                           located.
-    /// @param [in] stride        Stride in memory from one data structure to the next.
-    /// @param [in] maximumCount  Maximum count of data structures to loop through.  If countGpuAddr is nonzero, the
-    ///                           value at that memory location is clamped to this maximum. If countGpuAddr is zero,
-    ///                           Then the number of draws issued exactly matches this number.
-    /// @param [in] countGpuAddr  GPU virtual address where the number of draws is stored.  Must be 4-byte aligned.
+    /// @param [in] gpuVirtAddrAndStride  GPU virtual address where the indirect argument data is located and stride in
+    ///                                   memory from one structure to another.
+    ///                                   The virtual address must be 4 byte aligned.
+    /// @param [in] maximumCount          Maximum count of data structures to loop through.  If countGpuAddr
+    ///                                   is nonzero, the value at that memory location is clamped to
+    ///                                   this maximum. If countGpuAddr is zero, then the number of draws
+    ///                                   issued exactly matches this number.
+    /// @param [in] countGpuAddr          GPU virtual address where the number of draws is stored.
+    ///                                   Must be 4-byte aligned.
+    void CmdDrawIndexedIndirectMulti(
+        GpuVirtAddrAndStride gpuVirtAddrAndStride,
+        uint32               maximumCount,
+        gpusize              countGpuAddr)
+    {
+        m_funcTable.pfnCmdDrawIndexedIndirectMulti(this, gpuVirtAddrAndStride, maximumCount, countGpuAddr);
+    }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 839
     void CmdDrawIndexedIndirectMulti(
         const IGpuMemory& gpuMemory,
         gpusize           offset,
@@ -2926,8 +2934,15 @@ public:
         uint32            maximumCount,
         gpusize           countGpuAddr)
     {
-        m_funcTable.pfnCmdDrawIndexedIndirectMulti(this, gpuMemory, offset, stride, maximumCount, countGpuAddr);
+      const GpuVirtAddrAndStride gpuVirtAddrAndStride =
+      {
+          .gpuVirtAddr = gpuMemory.Desc().gpuVirtAddr + offset,
+          .stride = stride
+      };
+      m_funcTable.pfnCmdDrawIndexedIndirectMulti(this, gpuVirtAddrAndStride,
+                                                 maximumCount, countGpuAddr);
     }
+#endif
 
     /// Dispatches a compute workload of the given dimensions using the command buffer's currently bound compute state.
     ///
@@ -2955,27 +2970,32 @@ public:
     /// Dispatches a compute workload using the command buffer's currently bound compute state.  The dimensions of the
     /// workload come from GPU memory.  The dispatch will be discarded if any of its dimensions are zero.
     ///
-    /// The dispatch argument data offset in memory must be 4-byte aligned.  The layout of the argument data is defined
-    /// in the @ref DispatchIndirectArgs structure.
-    ///
-    /// This function requires use of the following barrier flags on @ref gpuMemory:
-    /// - PipelineStage:  @ref PipelineStageFetchIndirectArgs
-    /// - CacheCoherency: @ref CoherIndirectArgs
+    /// The layout of the argument data is defined in the @ref DispatchIndirectArgs structure.
     ///
     /// @warning Does not support HSA ABI pipelines.
+    ///
+    /// This function requires use of the following barrier flags on the indirect memory:
+    /// - PipelineStage:  @ref PipelineStageFetchIndirectArgs
+    /// - CacheCoherency: @ref CoherIndirectArgs
     ///
     /// @see CmdDispatch
     /// @see DispatchIndirectArgs
     ///
-    /// @param [in] gpuMemory  GPU memory object where the indirect argument data is located.
-    /// @param [in] offset     Offset in bytes into the GPU memory object where the indirect argument data is located.
+    /// @param [in] gpuVirtAddr  GPU virtual memory address where the indirect argument data is located.
+    ///                          The virtual address must be 4-byte aligned.
+    void CmdDispatchIndirect(
+        gpusize gpuVirtAddr)
+    {
+        m_funcTable.pfnCmdDispatchIndirect(this, gpuVirtAddr);
+    }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 838
     void CmdDispatchIndirect(
         const IGpuMemory& gpuMemory,
         gpusize           offset)
     {
-        m_funcTable.pfnCmdDispatchIndirect(this, gpuMemory, offset);
+        m_funcTable.pfnCmdDispatchIndirect(this, gpuMemory.Desc().gpuVirtAddr + offset);
     }
-
+#endif
     /// Dispatches a compute workload of the given dimensions and offsets using the command buffer's currently bound
     /// compute state. This command allows targeting regions of thread groups without adding the offset computations in
     /// the shader.
@@ -3017,6 +3037,7 @@ public:
     }
 #endif
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 837
     /// Dispatches a compute workload of the given dimensions using the command buffer's currently bound compute state
     /// and dynamic pipeline state from GPU memory. The memory address provided contains the gpuVa of the pipeline
     /// launch descriptor previously obtained by calling @ref IPipeline::CreateLaunchDescriptor on a pipeline
@@ -3038,7 +3059,7 @@ public:
         gpusize      gpuVa,
         DispatchDims size)
     {
-        m_funcTable.pfnCmdDispatchDynamic(this, gpuVa, size);
+        PAL_NOT_IMPLEMENTED();
     }
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 771
@@ -3048,8 +3069,9 @@ public:
         uint32  yDim,
         uint32  zDim)
     {
-        m_funcTable.pfnCmdDispatchDynamic(this, gpuVa, {xDim, yDim, zDim});
+        PAL_NOT_IMPLEMENTED();
     }
+#endif
 #endif
 
     /// Dispatches a mesh shader workload using the command buffer's currently bound graphics state.  It is an error if
@@ -3078,24 +3100,32 @@ public:
     /// the currently bound graphics pipeline does not contain a mesh shader.  The dimensions of the workload come from
     /// GPU memory.  The dispatch will be discarded if any of its dimensions are zero.
     ///
-    /// The dispatch argument data offset in memory must be 4-byte aligned.  The layout of the argument data is defined
-    /// in the @ref DispatchMeshIndirectArgs structure.
+    /// The layout of the argument data is defined in the @ref DispatchMeshIndirectArgs structure.
     ///
-    /// This function requires use of the following barrier flags on @ref gpuMemory:
+    /// This function requires use of the following barrier flags on the indirect memory:
     /// - PipelineStage:  @ref PipelineStageFetchIndirectArgs
     /// - CacheCoherency: @ref CoherIndirectArgs
     ///
     /// @see CmdDispatchMesh
     /// @see DispatchMeshIndirectArgs
     ///
-    /// @param [in] gpuMemory     GPU memory object where the indirect argument data is located.
-    /// @param [in] offset        Offset in bytes into the GPU memory object where the indirect argument data is
-    ///                           located.
-    /// @param [in] stride        Stride in memory from one data structure to the next.
-    /// @param [in] maximumCount  Maximum count of data structures to loop through.  If countGpuAddr is nonzero, the
-    ///                           value at that memory location is clamped to this maximum. If countGpuAddr is zero,
-    ///                           Then the number of draws issued exactly matches this number.
-    /// @param [in] countGpuAddr  GPU virtual address where the number of draws is stored.  Must be 4-byte aligned.
+    /// @param [in] gpuVirtAddrAndStride  GPU virtual address where the indirect argument data is located and stride in
+    ///                                   memory from one structure to another.
+    ///                                   The virtual address must be 4 byte aligned.
+    /// @param [in] maximumCount          Maximum count of data structures to loop through.  If countGpuAddr
+    ///                                   is nonzero, the value at that memory location is clamped to
+    ///                                   this maximum. If countGpuAddr is zero, then the number of draws
+    ///                                   issued exactly matches this number.
+    /// @param [in] countGpuAddr          GPU virtual address where the number of draws is stored.
+    ///                                   Must be 4-byte aligned.
+    void CmdDispatchMeshIndirectMulti(
+        GpuVirtAddrAndStride gpuVirtAddrAndStride,
+        uint32               maximumCount,
+        gpusize              countGpuAddr)
+    {
+        m_funcTable.pfnCmdDispatchMeshIndirectMulti(this, gpuVirtAddrAndStride, maximumCount, countGpuAddr);
+    }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 838
     void CmdDispatchMeshIndirectMulti(
         const IGpuMemory& gpuMemory,
         gpusize           offset,
@@ -3103,14 +3133,23 @@ public:
         uint32            maximumCount,
         gpusize           countGpuAddr)
     {
-        m_funcTable.pfnCmdDispatchMeshIndirectMulti(this, gpuMemory, offset, stride, maximumCount, countGpuAddr);
+      const GpuVirtAddrAndStride gpuVirtAddrAndStride =
+      {
+          .gpuVirtAddr = gpuMemory.Desc().gpuVirtAddr + offset,
+          .stride = stride
+      };
+      m_funcTable.pfnCmdDispatchMeshIndirectMulti(this, gpuVirtAddrAndStride,
+                                                  maximumCount, countGpuAddr);
     }
+#endif
 
     /// Copies multiple regions from one GPU memory allocation to another.
     ///
     /// None of the destination regions are allowed to overlap each other, nor are destination and source regions
     /// allowed to overlap when the source and destination GPU memory allocations are the same.  Any illegal overlapping
     /// will cause undefined results.
+    ///
+    /// This call should be used for buffer memory copy only; don't use it for image memory.
     ///
     /// For best performance, offsets and copy sizes should be 4-byte aligned.
     ///
@@ -3121,7 +3160,7 @@ public:
     /// @param [in] srcGpuMemory  GPU memory allocation where the source regions are located.
     /// @param [in] dstGpuMemory  GPU memory allocation where the destination regions are located.
     /// @param [in] regionCount   Number of regions to copy; size of the pRegions array.
-    /// @param [in] pRegions      Array of copy regions, each entry specifynig a source offset, destination offset, and
+    /// @param [in] pRegions      Array of copy regions, each entry specifying a source offset, destination offset, and
     ///                           copy size.
     virtual void CmdCopyMemory(
         const IGpuMemory&       srcGpuMemory,
@@ -4515,6 +4554,8 @@ public:
     /// Issues commands which complete two tasks: using the provided @ref IIndirectCmdGenerator object to translate the
     /// indirect argument buffer into a format understandable by the GPU; and then executing the generated commands.
     ///
+    /// The virtual address must be 4-byte aligned.
+    ///
     /// The indirect argument data offset in memory must be 4-byte aligned. The expected layout of the argument data
     /// is defined by the @ref IIndirectCmdGenerator object.
     ///
@@ -4522,25 +4563,33 @@ public:
     /// or optimizeExclusiveSubmit flags. This is because there is a potential race condition if the same command buffer
     /// is generating indirect commands on multiple Queues simultaneously.
     ///
-    /// This function requires use of the following barrier flags on @ref gpuMemory:
+    /// This function requires use of the following barrier flags on the indirect memory:
     /// - PipelineStage:  @ref PipelineStageFetchIndirectArgs
     /// - CacheCoherency: @ref CoherIndirectArgs
     ///
     /// @param [in] generator     Indirect command generator object which can translate the indirect argument buffer
     ///                           into a command buffer format which the GPU can understand.
-    /// @param [in] gpuMemory     GPU memory object where the indirect argument data is located.
-    /// @param [in] offset        Offset in bytes into the GPU memory object where the indirect argument data is
-    ///                           located.
+    /// @param [in] gpuVirtAddr   Gpu virtual address where the indirect argument data is located.
     /// @param [in] maximumCount  Maximum count of data structures to loop through.  If countGpuAddr is nonzero, the
     ///                           value at that memory location is clamped to this maximum. If countGpuAddr is zero,
     ///                           Then the number of draws issued exactly matches this number.
     /// @param [in] countGpuAddr  GPU virtual address where the number of draws is stored.  Must be 4-byte aligned.
     virtual void CmdExecuteIndirectCmds(
         const IIndirectCmdGenerator& generator,
+        gpusize                      gpuVirtAddr,
+        uint32                       maximumCount,
+        gpusize                      countGpuAddr) = 0;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 838
+    void CmdExecuteIndirectCmds(
+        const IIndirectCmdGenerator& generator,
         const IGpuMemory&            gpuMemory,
         gpusize                      offset,
         uint32                       maximumCount,
-        gpusize                      countGpuAddr) = 0;
+        gpusize                      countGpuAddr)
+    {
+        CmdExecuteIndirectCmds(generator, gpuMemory.Desc().gpuVirtAddr+offset, maximumCount, countGpuAddr);
+    }
+#endif
 
     /// Updates one or more HiS pretests bound to the given stencil image within a range of mip levels.
     /// See @ref HiSPretests for a summary of HiS.
@@ -4713,7 +4762,6 @@ protected:
         CmdDispatchFunc                  pfnCmdDispatch;                  ///< CmdDispatch function pointer.
         CmdDispatchIndirectFunc          pfnCmdDispatchIndirect;          ///< CmdDispatchIndirect function pointer.
         CmdDispatchOffsetFunc            pfnCmdDispatchOffset;            ///< CmdDispatchOffset function pointer.
-        CmdDispatchDynamicFunc           pfnCmdDispatchDynamic;           ///< CmdDispatchDynamic function pointer.
         CmdDispatchMeshFunc              pfnCmdDispatchMesh;              ///< CmdDispatchmesh function pointer.
         CmdDispatchMeshIndirectMultiFunc pfnCmdDispatchMeshIndirectMulti; ///< CmdDispatchMeshIndirect function pointer.
     } m_funcTable;     ///< Function pointer table for Cmd* functions.

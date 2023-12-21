@@ -336,11 +336,8 @@ void PipelineChunkCs::SetupSignatureFromElf(
     pSignature->spillThreshold = 0xFFFF;
     pSignature->userDataLimit  = 0;
 
-    // Compute a hash of the regAddr array and spillTableRegAddr for the CS stage.
-    MetroHash64::Hash(
-        reinterpret_cast<const uint8*>(&pSignature->stage),
-        sizeof(UserDataEntryMap),
-        reinterpret_cast<uint8* const>(&pSignature->userDataHash));
+    // Compute a hash of the user data mapping
+    pSignature->userDataHash = ComputeUserDataHash(&pSignature->stage);
 
     // Only gfx10+ can run in wave32 mode.
     pSignature->flags.isWave32 = IsGfx10Plus(*m_device.Parent()) && (metadata.WavefrontSize() == 32);
@@ -365,11 +362,8 @@ void PipelineChunkCs::SetupSignatureFromElf(
         pSignature->userDataLimit = static_cast<uint16>(metadata.pipeline.userDataLimit);
     }
 
-    // Compute a hash of the regAddr array and spillTableRegAddr for the CS stage.
-    MetroHash64::Hash(
-        reinterpret_cast<const uint8*>(&pSignature->stage),
-        sizeof(UserDataEntryMap),
-        reinterpret_cast<uint8* const>(&pSignature->userDataHash));
+    // Compute a hash of the user data mapping
+    pSignature->userDataHash = ComputeUserDataHash(&pSignature->stage);
 
     // We don't bother checking the wavefront size for pre-Gfx10 GPU's since it is implicitly 64 before Gfx10. Any ELF
     // which doesn't specify a wavefront size is assumed to use 64, even on Gfx10 and newer.
@@ -563,15 +557,9 @@ uint32* PipelineChunkCs::UpdateDynamicRegInfo(
     CmdStream*                      pCmdStream,
     uint32*                         pCmdSpace,
     HwRegInfo::Dynamic*             pDynamicRegs,
-    const DynamicComputeShaderInfo& csInfo,
-    gpusize                         launchDescGpuVa
+    const DynamicComputeShaderInfo& csInfo
     ) const
 {
-    if (launchDescGpuVa != 0uLL)
-    {
-        pCmdSpace = pCmdStream->WriteDynamicLaunchDesc(launchDescGpuVa, pCmdSpace);
-    }
-
     const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
 
     // TG_PER_CU: Sets the CS threadgroup limit per CU. Range is 1 to 15, 0 disables the limit.
@@ -618,18 +606,14 @@ uint32* PipelineChunkCs::UpdateDynamicRegInfo(
 void PipelineChunkCs::AccumulateShCommandsDynamic(
     PackedRegisterPair* pRegPairs,
     uint32*             pNumRegs,
-    HwRegInfo::Dynamic  dynamicRegs,
-    gpusize             launchDescGpuVa
+    HwRegInfo::Dynamic  dynamicRegs
     ) const
 {
 #if PAL_ENABLE_PRINTS_ASSERTS
     const uint32 startingIdx = *pNumRegs;
 #endif
 
-    if (launchDescGpuVa == 0uLL)
-    {
-        SetOneShRegValPairPacked(pRegPairs, pNumRegs, mmCOMPUTE_PGM_RSRC2, dynamicRegs.computePgmRsrc2.u32All);
-    }
+    SetOneShRegValPairPacked(pRegPairs, pNumRegs, mmCOMPUTE_PGM_RSRC2, dynamicRegs.computePgmRsrc2.u32All);
 
     SetOneShRegValPairPacked(pRegPairs,
                              pNumRegs,
@@ -645,8 +629,7 @@ void PipelineChunkCs::AccumulateShCommandsDynamic(
 // Accumulates a set of registers into an array of packed register pairs, analagous to WriteShCommandsDynamic().
 void PipelineChunkCs::AccumulateShCommandsSetPath(
     PackedRegisterPair* pRegPairs,
-    uint32*             pNumRegs,
-    bool                usingLaunchDesc
+    uint32*             pNumRegs
     ) const
 {
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -659,30 +642,27 @@ void PipelineChunkCs::AccumulateShCommandsSetPath(
                              mmCOMPUTE_NUM_THREAD_Z,
                              &m_regs.computeNumThreadX);
 
-    if (usingLaunchDesc == false)
+    SetOneShRegValPairPacked(pRegPairs,
+                             pNumRegs,
+                             mmCOMPUTE_PGM_LO,
+                             m_regs.computePgmLo.u32All);
+
+    SetOneShRegValPairPacked(pRegPairs,
+                             pNumRegs,
+                             mmCOMPUTE_PGM_RSRC1,
+                             m_regs.computePgmRsrc1.u32All);
+
+    SetOneShRegValPairPacked(pRegPairs,
+                             pNumRegs,
+                             Gfx10Plus::mmCOMPUTE_PGM_RSRC3,
+                             m_regs.computePgmRsrc3.u32All);
+
+    if (m_regs.userDataInternalTable.u32All != InvalidUserDataInternalTable)
     {
         SetOneShRegValPairPacked(pRegPairs,
                                  pNumRegs,
-                                 mmCOMPUTE_PGM_LO,
-                                 m_regs.computePgmLo.u32All);
-
-        SetOneShRegValPairPacked(pRegPairs,
-                                 pNumRegs,
-                                 mmCOMPUTE_PGM_RSRC1,
-                                 m_regs.computePgmRsrc1.u32All);
-
-        SetOneShRegValPairPacked(pRegPairs,
-                                 pNumRegs,
-                                 Gfx10Plus::mmCOMPUTE_PGM_RSRC3,
-                                 m_regs.computePgmRsrc3.u32All);
-
-        if (m_regs.userDataInternalTable.u32All != InvalidUserDataInternalTable)
-        {
-            SetOneShRegValPairPacked(pRegPairs,
-                                     pNumRegs,
-                                     mmCOMPUTE_USER_DATA_0 + ConstBufTblStartReg,
-                                     m_regs.userDataInternalTable.u32All);
-        }
+                                 mmCOMPUTE_USER_DATA_0 + ConstBufTblStartReg,
+                                 m_regs.userDataInternalTable.u32All);
     }
 
     SetOneShRegValPairPacked(pRegPairs,
@@ -717,12 +697,12 @@ uint32* PipelineChunkCs::WriteShCommands(
     bool                            regPairsSupported,
 #endif
     const DynamicComputeShaderInfo& csInfo,
-    gpusize                         launchDescGpuVa,
     bool                            prefetch
     ) const
 {
     HwRegInfo::Dynamic dynamicRegs = m_regs.dynamic; // "Dynamic" bind-time register state.
-    pCmdSpace = UpdateDynamicRegInfo(pCmdStream, pCmdSpace, &dynamicRegs, csInfo, launchDescGpuVa);
+
+    pCmdSpace = UpdateDynamicRegInfo(pCmdStream, pCmdSpace, &dynamicRegs, csInfo);
 
 #if PAL_BUILD_GFX11
     if (regPairsSupported)
@@ -732,8 +712,8 @@ uint32* PipelineChunkCs::WriteShCommands(
 
         static_assert(NumHwRegInfoRegs <= Gfx11RegPairMaxRegCount, "Requesting too many registers!");
 
-        AccumulateShCommandsSetPath(regPairs, &numRegs, (launchDescGpuVa != 0uLL));
-        AccumulateShCommandsDynamic(regPairs, &numRegs, dynamicRegs, launchDescGpuVa);
+        AccumulateShCommandsSetPath(regPairs, &numRegs);
+        AccumulateShCommandsDynamic(regPairs, &numRegs, dynamicRegs);
 
         if (m_pCsPerfDataInfo->regOffset != UserDataNotMapped)
         {
@@ -747,9 +727,8 @@ uint32* PipelineChunkCs::WriteShCommands(
     else
 #endif
     {
-        pCmdSpace = WriteShCommandsSetPath(pCmdStream, pCmdSpace, (launchDescGpuVa != 0uLL));
-
-        pCmdSpace = WriteShCommandsDynamic(pCmdStream, pCmdSpace, dynamicRegs, launchDescGpuVa);
+        pCmdSpace = WriteShCommandsSetPath(pCmdStream, pCmdSpace);
+        pCmdSpace = WriteShCommandsDynamic(pCmdStream, pCmdSpace, dynamicRegs);
 
         if (m_pCsPerfDataInfo->regOffset != UserDataNotMapped)
         {
@@ -785,18 +764,14 @@ uint32* PipelineChunkCs::WriteShCommands(
 // Writes PM4 set commands to the specified command stream.  This is used for writing pipeline state registers whose
 // values are not known until pipeline bind time. Returns the next unused DWORD in pCmdSpace.
 uint32* PipelineChunkCs::WriteShCommandsDynamic(
-    CmdStream*                      pCmdStream,
-    uint32*                         pCmdSpace,
-    HwRegInfo::Dynamic              dynamicRegs,
-    gpusize                         launchDescGpuVa
+    CmdStream*         pCmdStream,
+    uint32*            pCmdSpace,
+    HwRegInfo::Dynamic dynamicRegs
     ) const
 {
-    if (launchDescGpuVa == 0uLL)
-    {
-        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PGM_RSRC2,
-                                                                dynamicRegs.computePgmRsrc2.u32All,
-                                                                pCmdSpace);
-    }
+    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PGM_RSRC2,
+                                                            dynamicRegs.computePgmRsrc2.u32All,
+                                                            pCmdSpace);
 
     pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_RESOURCE_LIMITS,
                                                             dynamicRegs.computeResourceLimits.u32All,
@@ -810,8 +785,7 @@ uint32* PipelineChunkCs::WriteShCommandsDynamic(
 // not in use and we need to use the SET path fallback. Returns the next unused DWORD in pCmdSpace.
 uint32* PipelineChunkCs::WriteShCommandsSetPath(
     CmdStream* pCmdStream,
-    uint32*    pCmdSpace,
-    bool       usingLaunchDesc
+    uint32*    pCmdSpace
     ) const
 {
     const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
@@ -822,29 +796,26 @@ uint32* PipelineChunkCs::WriteShCommandsSetPath(
                                               &m_regs.computeNumThreadX,
                                               pCmdSpace);
 
-    if (usingLaunchDesc == false)
+    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PGM_LO,
+                                                            m_regs.computePgmLo.u32All,
+                                                            pCmdSpace);
+
+    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PGM_RSRC1,
+                                                            m_regs.computePgmRsrc1.u32All,
+                                                            pCmdSpace);
+
+    if (IsGfx10Plus(chipProps.gfxLevel))
     {
-        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PGM_LO,
-                                                                m_regs.computePgmLo.u32All,
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(Gfx10Plus::mmCOMPUTE_PGM_RSRC3,
+                                                                m_regs.computePgmRsrc3.u32All,
                                                                 pCmdSpace);
+    }
 
-        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PGM_RSRC1,
-                                                                m_regs.computePgmRsrc1.u32All,
+    if (m_regs.userDataInternalTable.u32All != InvalidUserDataInternalTable)
+    {
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_USER_DATA_0 + ConstBufTblStartReg,
+                                                                m_regs.userDataInternalTable.u32All,
                                                                 pCmdSpace);
-
-        if (IsGfx10Plus(chipProps.gfxLevel))
-        {
-            pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(Gfx10Plus::mmCOMPUTE_PGM_RSRC3,
-                                                                    m_regs.computePgmRsrc3.u32All,
-                                                                    pCmdSpace);
-        }
-
-        if (m_regs.userDataInternalTable.u32All != InvalidUserDataInternalTable)
-        {
-            pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_USER_DATA_0 + ConstBufTblStartReg,
-                                                                    m_regs.userDataInternalTable.u32All,
-                                                                    pCmdSpace);
-        }
     }
 
 #if PAL_BUILD_GFX11
@@ -876,72 +847,6 @@ void PipelineChunkCs::UpdateComputePgmRsrsAfterLibraryLink(
     m_regs.computePgmRsrc1         = rsrc1;
     m_regs.dynamic.computePgmRsrc2 = rsrc2;
     m_regs.computePgmRsrc3         = rsrc3;
-}
-
-// =====================================================================================================================
-Result PipelineChunkCs::CreateLaunchDescriptor(
-    void* pOut,
-    bool  resolve)
-{
-    PAL_ASSERT(IsGfx10Plus(*m_device.Parent()) == true);
-
-    DynamicCsLaunchDescLayout layout = { };
-    layout.mmComputePgmLo = (mmCOMPUTE_PGM_LO - PERSISTENT_SPACE_START);
-    layout.computePgmLo   = m_regs.computePgmLo;
-
-    layout.mmComputePgmRsrc1 = (mmCOMPUTE_PGM_RSRC1 - PERSISTENT_SPACE_START);
-    layout.computePgmRsrc1   = m_regs.computePgmRsrc1;
-    layout.mmComputePgmRsrc2 = (mmCOMPUTE_PGM_RSRC2 - PERSISTENT_SPACE_START);
-    layout.computePgmRsrc2   = m_regs.dynamic.computePgmRsrc2;
-
-    layout.mmComputeUserData0 = (mmCOMPUTE_USER_DATA_0 + ConstBufTblStartReg - PERSISTENT_SPACE_START);
-    layout.userDataInternalTable = m_regs.userDataInternalTable;
-
-    layout.mmComputePgmRsrc3 = (Gfx10Plus::mmCOMPUTE_PGM_RSRC3 - PERSISTENT_SPACE_START);
-    layout.computePgmRsrc3 = m_regs.computePgmRsrc3;
-
-    // Resolve operation for cases where the launch descriptor is shared between pipelines
-    if (resolve)
-    {
-        DynamicCsLaunchDescLayout* pIn = static_cast<DynamicCsLaunchDescLayout*>(pOut);
-
-        layout.computePgmRsrc1.bits.VGPRS = Max(layout.computePgmRsrc1.bits.VGPRS, pIn->computePgmRsrc1.bits.VGPRS);
-        layout.computePgmRsrc1.bits.SGPRS = Max(layout.computePgmRsrc1.bits.SGPRS, pIn->computePgmRsrc1.bits.SGPRS);
-
-        layout.computePgmRsrc2.bits.LDS_SIZE =
-            Max(layout.computePgmRsrc2.bits.LDS_SIZE, pIn->computePgmRsrc2.bits.LDS_SIZE);
-
-        // All remaining bits in COMPUTE_PGM_RSRC2 register must be identical
-        constexpr uint32 ComputePgmRsrc2BitMask =
-            COMPUTE_PGM_RSRC2__EXCP_EN_MASK        |
-            COMPUTE_PGM_RSRC2__EXCP_EN_MSB_MASK    |
-            COMPUTE_PGM_RSRC2__SCRATCH_EN_MASK     |
-            COMPUTE_PGM_RSRC2__TGID_X_EN_MASK      |
-            COMPUTE_PGM_RSRC2__TGID_Y_EN_MASK      |
-            COMPUTE_PGM_RSRC2__TGID_Z_EN_MASK      |
-            COMPUTE_PGM_RSRC2__TG_SIZE_EN_MASK     |
-            COMPUTE_PGM_RSRC2__TIDIG_COMP_CNT_MASK |
-            COMPUTE_PGM_RSRC2__TRAP_PRESENT_MASK   |
-            COMPUTE_PGM_RSRC2__USER_SGPR_MASK;
-
-        const uint32 computePgmRsrc2ValidBitsIn = (pIn->computePgmRsrc2.u32All & ComputePgmRsrc2BitMask);
-        const uint32 computePgmRsrc2ValidBitsOut = (layout.computePgmRsrc2.u32All & ComputePgmRsrc2BitMask);
-        PAL_ASSERT(computePgmRsrc2ValidBitsIn == computePgmRsrc2ValidBitsOut);
-
-        layout.computePgmRsrc3.bits.SHARED_VGPR_CNT =
-            Max(layout.computePgmRsrc3.bits.SHARED_VGPR_CNT, pIn->computePgmRsrc3.bits.SHARED_VGPR_CNT);
-    }
-
-    // NOTE: when userDataInternalTable isn't used by shader, we should not write USER_DATA_1.
-    if (m_regs.userDataInternalTable.u32All == InvalidUserDataInternalTable)
-    {
-        layout.mmComputeUserData0 = layout.mmComputePgmRsrc2;
-        layout.userDataInternalTable.u32All = layout.computePgmRsrc2.u32All;
-    }
-
-    memcpy(pOut, &layout, sizeof(layout));
-
-    return Result::Success;
 }
 
 // =====================================================================================================================

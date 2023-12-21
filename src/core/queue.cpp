@@ -858,10 +858,6 @@ Result Queue::OpenCommandDumpFile(
         };
 
         const uint32 frameCnt = m_pDevice->GetFrameCount();
-        const char* pLogDir = &settings.cmdBufDumpDirectory[0];
-
-        // Create the directory. We don't care if it fails (existing is fine, failure is caught when opening the file).
-        MkDir(pLogDir);
 
         // Maximum length of a filename allowed for command buffer dumps, seems more reasonable than 32
         constexpr uint32 MaxFilenameLength = 512;
@@ -882,12 +878,12 @@ Result Queue::OpenCommandDumpFile(
         if (settings.dumpCmdBufPerFrame)
         {
             // Append the frameCnt to the path and create dir
-            Snprintf(logDir, MaxFilenameLength, "%s/Frame%u", pLogDir, frameCnt);
+            Snprintf(logDir, MaxFilenameLength, "%s/Frame%u", m_pDevice->GetDumpDirName(), frameCnt);
             MkDir(logDir);
         }
         else
         {
-            Snprintf(logDir, MaxFilenameLength, "%s", pLogDir);
+            Snprintf(logDir, MaxFilenameLength, "%s", m_pDevice->GetDumpDirName());
         }
 
         // Add queue type and this pointer to file name to make name unique since there could be multiple queues/engines

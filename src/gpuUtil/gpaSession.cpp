@@ -2110,6 +2110,152 @@ Result GpaSession::GetResults(
 }
 
 // =====================================================================================================================
+// Outputs the captured trace data. Only valid for sessions in the _complete_ state.
+Result GpaSession::GetSqttTraceData(
+    uint32         sampleId,
+    uint32         traceIndex,
+    SqttTraceInfo* pTraceInfo,
+    size_t*        pSizeInBytes,
+    void*          pData
+    ) const
+{
+    Result             result       = Result::Success;
+    const SampleItem*  pSampleItem  = m_sampleItemArray.At(sampleId);
+    const TraceSample* pTraceSample = (pSampleItem != nullptr) ?
+                                      static_cast<TraceSample*>(pSampleItem->pPerfSample) :
+                                      nullptr;
+
+    // validate GpaSession state
+    if ((m_sessionState != GpaSessionState::Complete)            ||
+        (pSampleItem == nullptr)                                 ||
+        (pSampleItem->sampleConfig.type != GpaSampleType::Trace) ||
+        (pTraceSample == nullptr)                                ||
+        (pTraceSample->IsThreadTraceEnabled() == false)          ||
+        (pTraceSample->GetTraceBufferSize() == 0))
+    {
+        result = Result::ErrorUnavailable;
+    }
+    // validate input params
+    else if (pSizeInBytes == nullptr)
+    {
+        result = Result::ErrorInvalidPointer;
+    }
+    else
+    {
+        const ThreadTraceLayout* pThreadTraceLayout = pTraceSample->GetThreadTraceLayout();
+
+        if (traceIndex < pThreadTraceLayout->traceCount)
+        {
+            const ThreadTraceSeLayout& seLayout = pThreadTraceLayout->traces[traceIndex];
+
+            const void* pResults = pTraceSample->GetPerfExpResults();
+            const void* pBuffer  = Util::VoidPtrInc(pResults, seLayout.dataOffset);
+
+            const auto& info = *static_cast<const ThreadTraceInfoData*>(Util::VoidPtrInc(pResults, seLayout.infoOffset));
+
+            // info.curOffset reports the amount of SQTT data written by the hardware in units of 32 bytes
+            const size_t sqttBytesWritten = info.curOffset * 32;
+
+            // output the trace information if requested by the caller
+            if (pTraceInfo != nullptr)
+            {
+                pTraceInfo->shaderEngine = seLayout.shaderEngine;
+                pTraceInfo->computeUnit  = seLayout.computeUnit;
+                pTraceInfo->sqttVersion  = GfxipToSqttVersion(m_deviceProps.gfxLevel);
+            }
+
+            // keep a copy of the size originally passed by the user because the value will be overwitten
+            size_t userProvidedDataSizeInBytes = *pSizeInBytes;
+            // inform the user how big this trace is
+            *pSizeInBytes                      = sqttBytesWritten;
+
+            if (pData != nullptr)
+            {
+                // if the user provided an output buffer and sufficient space then output the trace
+                // otherwise return ErrorInvalidMemorySize
+                if (userProvidedDataSizeInBytes >= sqttBytesWritten)
+                {
+                    memcpy(pData, pBuffer, sqttBytesWritten);
+                }
+                else
+                {
+                    result = Result::ErrorInvalidMemorySize;
+                }
+            }
+        }
+        else
+        {
+            // invalid trace index
+            result = Result::NotFound;
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+Result GpaSession::GetSpmTraceData(
+    uint32        sampleId,
+    SpmTraceInfo* pTraceInfo,
+    size_t*       pSizeInBytes,
+    void*         pData
+    ) const
+{
+    PAL_ASSERT(m_sessionState == GpaSessionState::Complete);
+
+    Result result = Result::ErrorUnavailable;
+
+    SampleItem* pSampleItem = m_sampleItemArray.At(sampleId);
+
+    if ((pSampleItem != nullptr) && (pSampleItem->sampleConfig.type == GpaSampleType::Trace))
+    {
+        TraceSample* pTraceSample = static_cast<TraceSample*>(pSampleItem->pPerfSample);
+
+        if ((pTraceSample->GetTraceBufferSize() > 0) && (pTraceSample->IsSpmTraceEnabled()))
+        {
+            // Write out either the SPM trace data or the required buffer size, depending on
+            // whether pData is NULL or not
+            if (pSizeInBytes != nullptr)
+            {
+                // If `pData` is not provided, just return the size of the buffer required
+                if (pData == nullptr)
+                {
+                    gpusize spmDataSize   = 0;
+                    gpusize numSpmSamples = 0;
+                    pTraceSample->GetSpmResultsSize(&spmDataSize, &numSpmSamples);
+
+                    (*pSizeInBytes) = static_cast<size_t>(spmDataSize);
+                    result = Result::Success;
+                }
+                // Otherwise, write the SPM data to the provided buffer
+                else
+                {
+                    result = pTraceSample->GetSpmTraceResults(pData, *pSizeInBytes);
+                }
+            }
+            else
+            {
+                result = Result::ErrorInvalidPointer;
+            }
+
+            // Write out the optional parameters if the callee requests them
+            if (pTraceInfo != nullptr)
+            {
+                gpusize spmDataSize   = 0;
+                gpusize numSpmSamples = 0;
+                pTraceSample->GetSpmResultsSize(&spmDataSize, &numSpmSamples);
+
+                pTraceInfo->numTimestamps   = static_cast<uint32>(numSpmSamples);
+                pTraceInfo->numSpmCounters  = pTraceSample->GetNumSpmCounters();
+                pTraceInfo->sampleFrequency = pTraceSample->GetSpmSampleInterval();
+            }
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 // Moves the session to the _reset_ state, marking all sessions resources as unused and available for reuse when
 // the session is re-built.
 Result GpaSession::Reset()

@@ -323,15 +323,12 @@ public:
     gpusize GetFmask256BAddrSwizzled() const
         { return GetFmask256BAddr() | GetFmask()->GetPipeBankXor(); }
 
-    gpusize GetSubresourceAddr(SubresId  subResId) const;
+    virtual gpusize GetSubresourceAddr(SubresId  subResId) const override;
 
     gpusize GetHtile256BAddr() const
         { return GetMaskRamBaseAddr(GetHtile(), 0) >> 8; }
     gpusize GetHtile256BAddrSwizzled() const
         { return GetHtile256BAddr() | GetHtile()->GetPipeBankXor(0); }
-
-    gpusize GetSubresource256BAddr(SubresId  subResId) const
-        { return GetSubresourceAddr(subResId) >> 8; }
 
     bool HasDccStateMetaData(uint32 plane) const
         { return (m_dccStateMetaDataOffset[plane] != 0); }
@@ -386,6 +383,7 @@ public:
         { return GetAddrSettings(pSubResInfo).swizzleMode; }
 
     virtual uint32 GetTileSwizzle(const SubresId& subresId) const override;
+    virtual uint32 GetHwSwizzleMode(const SubResourceInfo* pSubResInfo) const override;
 
     virtual void InitMetadataFill(
         Pal::CmdBuffer*    pCmdBuffer,

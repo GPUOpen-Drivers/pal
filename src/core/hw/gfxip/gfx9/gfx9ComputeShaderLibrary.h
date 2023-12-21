@@ -78,12 +78,6 @@ protected:
         const Util::PalAbi::CodeObjectMetadata& metadata,
         Util::MsgPackReader*                    pMetadataReader) override;
 
-    Result UnpackShaderFunctionStats(
-        Util::StringView<char>                  shaderExportName,
-        const Util::PalAbi::CodeObjectMetadata& metadata,
-        Util::MsgPackReader*                    pMetadataReader,
-        ShaderLibStats*                         pShaderStats) const;
-
     // Update m_hwInfo afer HwlInit
     void UpdateHwInfo();
 

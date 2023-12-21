@@ -3381,7 +3381,10 @@ void RsrcProcMgr::ResolveImageFixedFunc(
     bindTargetsInfo.colorTargets[0].imageLayout.usages  = LayoutColorTarget;
     bindTargetsInfo.colorTargets[0].imageLayout.engines = LayoutUniversalEngine;
     bindTargetsInfo.colorTargets[1].pColorTargetView    = nullptr;
-    bindTargetsInfo.colorTargets[1].imageLayout.usages  = LayoutColorTarget;
+
+    // CB currently only does 1 DCC Key probe per quad and it is currently only done for the source (AA / MRT0) surface.
+    // Thus, add LayoutResolveDst to the usage of the destination color target for DCC decompression.
+    bindTargetsInfo.colorTargets[1].imageLayout.usages  = LayoutColorTarget | LayoutResolveDst;
     bindTargetsInfo.colorTargets[1].imageLayout.engines = LayoutUniversalEngine;
 
     // Save current command buffer state and bind graphics state which is common for all regions.

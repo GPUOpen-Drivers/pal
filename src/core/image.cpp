@@ -148,8 +148,6 @@ Image::Image(
         pGfxDevice->IncreaseMsaaHistogram(createInfo.samples);
     }
 }
-static_assert(ADDR_TM_LINEAR_GENERAL == 0,
-              "If ADDR_TM_LINEAR_GENERAL does not equal 0, the default in internalCreateInfo must be set to it.");
 
 // =====================================================================================================================
 Image::~Image()
@@ -400,7 +398,7 @@ Result Image::ValidateCreateInfo(
         // Verify the size of the mip-chain is valid for the given image type and format.
         if (ret == Result::Success)
         {
-            if ((imageInfo.mipLevels == 0) || (imageInfo.mipLevels > MaxImageMipLevels))
+            if ((imageInfo.mipLevels == 0) || (imageInfo.mipLevels > imageProperties.maxImageMipLevels))
             {
                 ret = Result::ErrorInvalidMipCount;
             }
@@ -940,7 +938,7 @@ void Image::GetGpuMemoryRequirements(
 {
     const auto& settings = m_pDevice->Settings();
     pMemReqs->size         = m_gpuMemSize + settings.debugForceResourceAdditionalPadding;
-    pMemReqs->alignment    = Max(m_gpuMemAlignment, settings.debugForceSurfaceAlignment);
+    pMemReqs->alignment    = Max(m_gpuMemAlignment, settings.debugForceResourceAlignment);
     pMemReqs->flags.u32All = 0;
 
     const bool noInvisibleMem = (m_pDevice->HeapLogicalSize(GpuHeapInvisible) == 0);
@@ -1212,7 +1210,7 @@ AddrFormat Image::GetAddrFormat(
             break;
         case ChNumFormat::Y216:
         case ChNumFormat::Y210:
-#if (ADDRLIB_VERSION_MAJOR >= 8) && (ADDRLIB_VERSION_MINOR >= 9)
+#if ADDRLIB_VERSION >= 0x80009
             ret = ADDR_FMT_BG_RG_16_16_16_16;
 #else
             ret = ADDR_FMT_INVALID;

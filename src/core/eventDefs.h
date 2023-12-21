@@ -686,8 +686,6 @@ static void SerializeResourceDescriptionPipeline(
     {
         pJsonWriter->KeyAndBeginMap("CreateFlags", false);
         pJsonWriter->KeyAndValue("ClientInternal", static_cast<bool>(data.pCreateFlags->clientInternal));
-        pJsonWriter->KeyAndValue("SupportDynamicDispatch",
-            static_cast<bool>(data.pCreateFlags->supportDynamicDispatch));
         pJsonWriter->EndMap();
 
         pJsonWriter->KeyAndValue("InternalPipelineHashStable", data.pPipelineInfo->internalPipelineHash.stable);

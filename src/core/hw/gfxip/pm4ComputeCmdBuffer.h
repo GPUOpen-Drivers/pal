@@ -33,6 +33,7 @@ namespace Pal
 
 namespace Pm4
 {
+class BarrierMgr;
 
 // =====================================================================================================================
 // Class for executing basic hardware-specific functionality common to all pm4 based compute command buffers.
@@ -75,12 +76,6 @@ public:
 
     virtual uint32 GetUsedSize(CmdAllocType type) const override;
 
-    virtual void OptimizePipeStageAndCacheMask(
-        uint32* pSrcStageMask,
-        uint32* pSrcAccessMask,
-        uint32* pDstStageMask,
-        uint32* pDstAccessMask) const override;
-
 protected:
     ComputeCmdBuffer(
         const GfxDevice&           device,
@@ -97,8 +92,6 @@ protected:
     void LeakNestedCmdBufferState(
         const ComputeCmdBuffer& cmdBuffer);
 
-    virtual void P2pBltWaCopyNextRegion(gpusize chunkAddr) override
-        { CmdBuffer::P2pBltWaCopyNextRegion(m_pCmdStream, chunkAddr); }
     virtual uint32* WriteNops(uint32* pCmdSpace, uint32 numDwords) const override
         { return pCmdSpace + m_pCmdStream->BuildNop(numDwords, pCmdSpace); }
 

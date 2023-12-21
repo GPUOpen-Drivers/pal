@@ -87,8 +87,7 @@ enable_language(C)
 # Clients include "gpuopen.h"
 target_link_libraries(pal
     PUBLIC
-        ddSettings
-        ddSettingsRpcService
-        dd_event_registry
         devdriver
+        dd_settings
+        ddSettingsRpcService
 )

@@ -523,7 +523,7 @@ DevDriver::Vector<uint8_t> SettingsService::WriteAllComponentValues(
 
         SettingsHashValuePair* pHashValPair = (SettingsHashValuePair*)pairWriteBuffer;
         pHashValPair->hash = settingItr->key;
-        pHashValPair->type = settingItr->value.type;
+        pHashValPair->type = static_cast<DD_SETTINGS_TYPE>(settingItr->value.type);
         pHashValPair->valueBufSize = settingItr->value.size;
 
         // Calculate aligned total size of `SettingsHashValuePair` plus the
@@ -576,7 +576,7 @@ DD_RESULT SettingsService::SetValue(
             {
                 DDSettingsValueRef valPtr = {};
                 valPtr.type = pParam->hashValPair.type;
-                valPtr.size = pParam->hashValPair.valueBufSize;
+                valPtr.size = static_cast<uint16_t>(pParam->hashValPair.valueBufSize);
                 valPtr.pValue = (void*)(pParam->hashValPair.valueBuf);
                 result = settings->SetValue(pParam->hashValPair.hash, valPtr);
             }

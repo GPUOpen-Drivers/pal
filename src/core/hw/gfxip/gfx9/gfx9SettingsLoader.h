@@ -25,9 +25,8 @@
 
 #pragma once
 
-#include "palSettingsLoader.h"
+#include "dd_settings_base.h"
 #include "g_gfx9Settings.h"
-#include "palAssert.h"
 
 namespace Pal
 {
@@ -41,39 +40,47 @@ namespace Gfx9
 // This class is responsible for loading the Gfx9-specific portion of the PalSettings
 // structure specified in the constructor.  This is a helper class that only exists for a short
 // time while the settings are initialized.
-class SettingsLoader final : public Pal::ISettingsLoader
+class SettingsLoader final : public DevDriver::SettingsBase
 {
 public:
     explicit SettingsLoader(Pal::Device* pDevice);
     virtual ~SettingsLoader();
 
-    virtual Result Init() override;
+    Result Init();
 
     const Gfx9PalSettings& GetSettings() const { return m_settings; }
 
     void ValidateSettings(PalSettings* pSettings);
     void OverrideDefaults(PalSettings* pSettings);
 
-    virtual void RereadSettings() override;
+    Util::MetroHash::Hash GetSettingsHash() const { return m_settingsHash; }
+
+    // auto-generated functions
+    virtual uint64 GetSettingsBlobHash() const override;
+    virtual void ReadSettings() override;
 
 private:
     PAL_DISALLOW_COPY_AND_ASSIGN(SettingsLoader);
     PAL_DISALLOW_DEFAULT_CTOR(SettingsLoader);
 
+    bool ReadSetting(
+        const char*          pSettingName,
+        Util::ValueType      valueType,
+        void*                pValue,
+        InternalSettingScope settingType,
+        size_t               bufferSize = 0);
+
     void GenerateSettingHash();
 
     // Private members
-    Pal::Device*     m_pDevice;
-    Gfx9PalSettings  m_settings;  ///< Gfx9 settings pointer
-    const GfxIpLevel m_gfxLevel;
+    Pal::Device*          m_pDevice;
+    Gfx9PalSettings       m_settings;  ///< Gfx9 settings pointer
+    const GfxIpLevel      m_gfxLevel;
+    Util::MetroHash::Hash m_settingsHash;
 
     // auto-generated functions
-    virtual void SetupDefaults() override;
-    virtual void ReadSettings() override;
-    virtual void InitSettingsInfo() override;
-    virtual void DevDriverRegister() override;
-
-    const char* m_pComponentName;
+    virtual const char* GetComponentName() const override;
+    virtual DD_RESULT SetupDefaultsAndPopulateMap() override;
 };
 
 } // Gfx9

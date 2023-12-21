@@ -233,9 +233,9 @@ union PipelineCreateFlags
     struct
     {
         uint32 clientInternal              :  1; ///< Internal pipeline not created by the application.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 837
         uint32 supportDynamicDispatch      :  1; ///< Pipeline will be used with @ref ICmdBuffer::CmdDynamicDispatch.
-                                                 ///  This flag must only be set if the device reports support
-                                                 ///  via DeviceProperties.
+#endif
         uint32 reserved1                   :  1; ///< Reserved.
         uint32 reserved                    : 29; ///< Reserved for future use.
     };
@@ -752,6 +752,7 @@ public:
         size_t*                  pSize,
         void*                    pBuffer) = 0;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 837
     /// Creates a new dynamic launch descriptor for this pipeline.  These descriptors are only usable as input to
     /// @ref ICmdBuffer::CmdDispatchDynamic().  Each launch descriptor acts as a GPU-side "handle" to a pipeline and
     /// a set of shader libraries it is linked with. The size of the launch descriptor can be queried from
@@ -769,7 +770,8 @@ public:
     ///          + ErrorInvalidPointer if pCpuAddr is null.
     virtual Result CreateLaunchDescriptor(
         void* pCpuAddr,
-        bool  resolve) = 0;
+        bool  resolve) { return Result::Unsupported; }
+#endif
 
     /// Notifies PAL that this pipeline may make indirect function calls to any function contained within any of the
     /// specified @ref IShaderLibrary objects.  This gives PAL a chance to perform any late linking steps required to

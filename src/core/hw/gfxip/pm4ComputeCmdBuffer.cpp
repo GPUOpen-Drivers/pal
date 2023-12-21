@@ -216,29 +216,5 @@ uint32 ComputeCmdBuffer::GetUsedSize(
     return sizeInBytes;
 }
 
-// =====================================================================================================================
-void ComputeCmdBuffer::OptimizePipeStageAndCacheMask(
-    uint32* pSrcStageMask,
-    uint32* pSrcAccessMask,
-    uint32* pDstStageMask,
-    uint32* pDstAccessMask
-    ) const
-{
-    Pm4CmdBuffer::OptimizePipeStageAndCacheMask(pSrcStageMask, pSrcAccessMask, pDstStageMask, pDstAccessMask);
-
-    // Mark off all graphics path specific stages and caches if command buffer doesn't support graphics.
-    if ((pSrcStageMask != nullptr) && (pSrcAccessMask != nullptr))
-    {
-        *pSrcStageMask  &= ~PipelineStagesGraphicsOnly;
-        *pSrcAccessMask &= ~CacheCoherencyGraphicsOnly;
-    }
-
-    if ((pDstStageMask != nullptr) && (pDstAccessMask != nullptr))
-    {
-        *pDstStageMask  &= ~PipelineStagesGraphicsOnly;
-        *pDstAccessMask &= ~CacheCoherencyGraphicsOnly;
-    }
-}
-
 } // Pm4
 } // Pal

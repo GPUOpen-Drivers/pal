@@ -555,6 +555,19 @@ extern size_t DumpStackTrace(
 /// @param [in] duration  Amount of time to sleep for, in milliseconds.
 extern void SleepMs(uint32 duration);
 
+/// Create Directory and SubDirectory of Executable's Name at pBaseDir
+/// Like if pBaseDir="amdPal/" then final pLogDir will be created like this: amdpal/app.exe/
+///
+/// @param [in] pBaseDir        Base Dir Path
+/// @param [out] pLogDir        Pointer to Memory where Final Path will be saved
+/// @param [in] logDirSize      Size of pLogDir in chars
+///
+/// @returns Result::Success if the directories were created and pLogDir was populated.
+extern Result CreateLogDir(
+    const char* pBaseDir,
+    char*       pLogDir,
+    size_t      logDirSize);
+
 /// Check if the requested key is combo key.
 ///
 /// @param [in]  key    The requested key value

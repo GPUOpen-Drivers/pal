@@ -63,38 +63,45 @@ WorkaroundState::WorkaroundState(
 }
 
 // =====================================================================================================================
-uint32* WorkaroundState::SwitchFromNggPipelineToLegacy(
-    bool    nextPipelineUsesGs,
-    uint32* pCmdSpace
-    ) const
-{
-    if (m_cachedSettings.waVgtFlushNggToLegacy || (m_cachedSettings.waVgtFlushNggToLegacyGs && nextPipelineUsesGs))
-    {
-        //  GE has a bug where a legacy GS draw following an NGG draw can cause the legacy GS draw to interfere with
-        //  pending NGG primitives, causing the GE to drop the pending NGG primitives and eventually lead to a hang.
-        //  The suggested workaround is to create a bubble for the GE. Since determining the necessary size of this
-        //  bubble is workload dependent, it is safer to issue a VGT_FLUSH between this transition.
-        //  GE has a second bug with the same software workaround. A legacy draw following an NGG draw will cause GE to
-        //  internally transition from NGG to legacy prematurely. This leads to GE sending the enable legacy event to
-        //  only some PAs on legacy path, and SC is left waiting for events from the others. Issuing a VGT_FLUSH
-        //  prevents this from happening.
-        pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(VGT_FLUSH, EngineTypeUniversal, pCmdSpace);
-    }
-
-    return pCmdSpace;
-}
-
-// =====================================================================================================================
-uint32* WorkaroundState::SwitchBetweenLegacyPipelines(
+// This function handles various workarounds required when binding a legacy pipeline.
+uint32* WorkaroundState::SwitchToLegacyPipeline(
     bool                    oldPipelineUsesGs,
+    bool                    oldPipelineNgg,
     uint32                  oldCutMode,
+    bool                    oldPipelineUnknown,
     const GraphicsPipeline* pNewPipeline,
     uint32*                 pCmdSpace
     ) const
 {
-    if (m_cachedSettings.waLegacyGsCutModeFlush            &&
-        (oldPipelineUsesGs && pNewPipeline->IsGsEnabled()) &&
-        (oldCutMode != pNewPipeline->VgtGsMode().bits.CUT_MODE))
+    PAL_ASSERT(pNewPipeline->IsNgg() == false);
+
+    //  GE has a bug where a legacy GS draw following an NGG draw can cause the legacy GS draw to interfere with
+    //  pending NGG primitives, causing the GE to drop the pending NGG primitives and eventually lead to a hang.
+    //  The suggested workaround is to create a bubble for the GE. Since determining the necessary size of this
+    //  bubble is workload dependent, it is safer to issue a VGT_FLUSH between this transition.
+    bool vgtFlush = m_cachedSettings.waVgtFlushNggToLegacy &&
+                    ((oldPipelineNgg == false) || oldPipelineUnknown);
+
+    if (vgtFlush == false)
+    {
+        //  GE has a second bug with the same software workaround. A legacy draw following an NGG draw will cause GE to
+        //  internally transition from NGG to legacy prematurely. This leads to GE sending the enable legacy event to
+        //  only some PAs on legacy path, and SC is left waiting for events from the others. Issuing a VGT_FLUSH
+        //  prevents this from happening.
+        vgtFlush = m_cachedSettings.waVgtFlushNggToLegacyGs &&
+                   pNewPipeline->IsGsEnabled() &&
+                   ((oldPipelineNgg == false) || oldPipelineUnknown);
+    }
+
+    if (vgtFlush == false)
+    {
+        vgtFlush = m_cachedSettings.waLegacyGsCutModeFlush &&
+                   pNewPipeline->IsGsEnabled() &&
+                   (oldPipelineUnknown ||
+                    (oldPipelineUsesGs && (oldCutMode != pNewPipeline->VgtGsMode().bits.CUT_MODE)));
+    }
+
+    if (vgtFlush)
     {
         pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(VGT_FLUSH, EngineTypeUniversal, pCmdSpace);
     }
@@ -146,8 +153,7 @@ uint32* WorkaroundState::PreDraw(
     const bool colorBlendWorkaroundsActive = m_cachedSettings.waColorCacheControllerInvalidEviction ||
                                              m_cachedSettings.waRotatedSwizzleDisablesOverwriteCombiner;
 
-    const bool targetsDirty = dirtyFlags.validationBits.colorTargetView ||
-                              dirtyFlags.validationBits.colorBlendState;
+    const bool targetsDirty = dirtyFlags.colorTargetView || dirtyFlags.colorBlendState;
 
     // If the pipeline is dirty and it matters, then we have to look at all the bound targets
     if (pipelineDirty  ||
@@ -204,8 +210,7 @@ uint32* WorkaroundState::PreDraw(
         PAL_ASSERT(m_device.Settings().waStalledPopsMode == false);
 
         if ((PipelineDirty && gfxState.pipelineState.dirtyFlags.pipeline) ||
-            (StateDirty && (dirtyFlags.validationBits.msaaState ||
-                            dirtyFlags.validationBits.depthStencilView)))
+            (StateDirty && (dirtyFlags.msaaState || dirtyFlags.depthStencilView)))
         {
             bool setPopsDrainPsOnOverlap = false;
 
@@ -255,12 +260,11 @@ uint32* WorkaroundState::PreDraw(
     // is disabled to avoid corruption. It is expected that we should rarely hit this case.
     // Since we should rarely hit this and to keep this "simple," we won't handle the case where a legacy tessellation
     // pipeline is bound and fillMode goes from Wireframe to NOT wireframe.
-    if ((StateDirty || PipelineDirty)                       &&
-        m_cachedSettings.waTessIncorrectRelativeIndex       &&
-        (gfxState.pipelineState.dirtyFlags.pipeline ||
-         dirtyFlags.validationBits.triangleRasterState)     &&
-        pPipeline->IsTessEnabled()                          &&
-        (pPipeline->IsNgg() == false)                       &&
+    if ((StateDirty || PipelineDirty)                                                  &&
+        m_cachedSettings.waTessIncorrectRelativeIndex                                  &&
+        (gfxState.pipelineState.dirtyFlags.pipeline || dirtyFlags.triangleRasterState) &&
+        pPipeline->IsTessEnabled()                                                     &&
+        (pPipeline->IsNgg() == false)                                                  &&
         ((gfxState.triangleRasterState.frontFillMode == FillMode::Wireframe) ||
          (gfxState.triangleRasterState.backFillMode == FillMode::Wireframe)))
     {
@@ -270,10 +274,12 @@ uint32* WorkaroundState::PreDraw(
     }
 
     // This must go last in order to validate that no other context rolls can occur before the draw.
-    if ((StateDirty && dirtyFlags.validationBits.scissorRects) ||
+    if ((StateDirty && dirtyFlags.scissorRects) ||
         pCmdBuffer->NeedsToValidateScissorRectsWa(Pm4OptImmediate))
     {
-        pCmdSpace = pCmdBuffer->ValidateScissorRects(pCmdSpace);
+        {
+            pCmdSpace = pCmdBuffer->ValidateScissorRects(pCmdSpace);
+        }
     }
 
     return pCmdSpace;

@@ -24,46 +24,50 @@
  **********************************************************************************************************************/
 
 #pragma once
-#include "ddPlatform.h"
-#include "ddAmdLogInterface.h"
+
+#include <dd_settings_rpc_types.h>
+#include <dd_settings_base.h>
+#include <dd_mutex.h>
+
+#include <g_SettingsRpcService2.h>
+
+#include <util/hashMap.h>
+#include <util/vector.h>
+#include <ddPlatform.h>
 
 namespace DevDriver
 {
-class IIoCtlDevice;
 
-// This callback allows the Logger to use the UMDs escape code paths rather than implement it
-// directly in DevDriver.
-typedef Result (*pfnAmdlogEscapeCb)(uint32_t gpuIdx,    // [in] GPU Index
-                                    void*    pUserdata, // [in] Userdata pointer
-                                    void*    pData,     // [in] Pointer to the log info
-                                    size_t   dataSize); // [in] Size of the data
-
-// Helper structure for pfnAmdlogEscapeCb
-struct AmdLogEscapeCb
+class SettingsRpcService: public SettingsRpc::ISettingsRpcService
 {
-    void*             pUserData;   // [in] Userdata pointer
-    pfnAmdlogEscapeCb pfnCallback; // [in] Pointer to a data callback function
-};
+private:
+    AllocCb m_allocCb;
 
-class AmdLogLogger
-{
+    HashMap<const char*, SettingsBase*> m_settingsComponents;
+    Mutex                               m_settingsComponentsMutex;
+
+    // User-overrides for all settings components.
+    uint8_t* m_pAllUserOverridesData;
+    HashMap<const char*, Vector<DDSettingsValueRef>> m_allUserOverrides;
+
 public:
-    AmdLogLogger(const AllocCb& allocCb, const AmdLogEscapeCb& escapeCb);
-    ~AmdLogLogger();
+    SettingsRpcService();
+    ~SettingsRpcService();
 
-    Result WriteAmdlogData(uint32_t logFlags, AmdlogEventId eventId, void* pData, size_t dataSize);
-    Result WriteAmdlogString(uint32_t logFlags, const char* pFormat, ...);
+    void RegisterSettingsComponent(SettingsBase* pSettingsComponent);
 
-protected:
+    // Get number of user-overrides across all settings components.
+    size_t TotalUserOverrideCount() const;
 
-    Result Init();
-    Result WriteDataInternal(AmdLogEventInfo* pEventInfo);
+    bool ApplyUserOverride(
+        const char*           pComponentName,
+        DD_SETTINGS_NAME_HASH nameHash,
+        void*                 pSetting,
+        size_t                settingSize) const;
 
-    IIoCtlDevice*          m_pIoCtlDevice;
-    AllocCb                m_allocCb;
-    AmdLogEscapeCb         m_escapeCb;
-    bool                   m_isUWPApp;
-    bool                   m_isInit;
+    // Settings RPC implementations
+    DD_RESULT SendAllUserOverrides(const void* pParamBuf, size_t paramBufSize) override;
+    DD_RESULT QueryAllCurrentValues(const DDByteWriter& writer) override;
 };
 
-} // DevDriver
+} // namespace DevDriver

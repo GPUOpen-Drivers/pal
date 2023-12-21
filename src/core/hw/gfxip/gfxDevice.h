@@ -41,6 +41,7 @@ namespace Util { enum SystemAllocType : uint32; }
 namespace Util { class File; }
 namespace Util { class FileView; }
 namespace Util { class Mutex; }
+namespace DevDriver { class SettingsBase; }
 
 namespace Pal
 {
@@ -92,7 +93,6 @@ struct     ImageCreateInfo;
 struct     ImageInfo;
 struct     ImageViewInfo;
 struct     MsaaStateCreateInfo;
-struct     PalSettings;
 struct     PerfExperimentCreateInfo;
 struct     QueryPoolCreateInfo;
 struct     PalSettings;
@@ -390,14 +390,6 @@ enum PrefetchMethod : uint32
     PrefetchPrimeUtcL2 = 2,
 };
 
-enum OffchipLdsBufferSize : uint32
-{
-    OffchipLdsBufferSize8192 = 0,
-    OffchipLdsBufferSize4096 = 1,
-    OffchipLdsBufferSize2048 = 2,
-    OffchipLdsBufferSize1024 = 3,
-};
-
 enum DecompressMask : uint32
 {
     DecompressDcc = 0x00000001,
@@ -454,9 +446,16 @@ public:
     virtual Result HwlValidateSamplerInfo(const SamplerInfo& samplerInfo)  const { return Result::Success; }
 
     Result InitHwlSettings(PalSettings* pSettings);
-    Util::MetroHash::Hash GetSettingsHash() const
+
+    virtual Result InitSettings() const
+    {
+        return (m_pSettingsLoader != nullptr) ? m_pSettingsLoader->Init() : Result::ErrorOutOfMemory;
+    }
+
+    virtual Util::MetroHash::Hash GetSettingsHash() const
     {
         static const Util::MetroHash::Hash zeroHash = { };
+
         return (m_pSettingsLoader != nullptr) ? m_pSettingsLoader->GetSettingsHash() : zeroHash;
     }
 
@@ -464,6 +463,7 @@ public:
     virtual void HwlValidateSettings(PalSettings* pSettings) = 0;
     virtual void HwlOverrideDefaultSettings(PalSettings* pSettings) = 0;
     virtual void HwlRereadSettings() = 0;
+    virtual void HwlReadSettings() {}
 
     // This gives the GFX device an opportunity to override and/or fixup some of the PAL device properties after all
     // settings have been read. Called during IDevice::CommitSettingsAndInit().
@@ -471,10 +471,14 @@ public:
 
     virtual Result GetLinearImageAlignments(LinearImageAlignments* pAlignments) const = 0;
 
-    virtual void BindTrapHandler(PipelineBindPoint pipelineType, IGpuMemory* pGpuMemory, gpusize offset) = 0;
-    virtual void BindTrapBuffer(PipelineBindPoint pipelineType, IGpuMemory* pGpuMemory, gpusize offset) = 0;
-    virtual const BoundGpuMemory& TrapHandler(PipelineBindPoint pipelineType) const = 0;
-    virtual const BoundGpuMemory& TrapBuffer(PipelineBindPoint pipelineType) const  = 0;
+    virtual void BindTrapHandler(PipelineBindPoint pipelineType, IGpuMemory* pGpuMemory, gpusize offset);
+    virtual void BindTrapBuffer(PipelineBindPoint pipelineType, IGpuMemory* pGpuMemory, gpusize offset);
+    const BoundGpuMemory& TrapHandler(PipelineBindPoint pipelineType) const
+        { return (pipelineType == PipelineBindPoint::Graphics) ? m_graphicsTrapHandler : m_computeTrapHandler; }
+    const BoundGpuMemory& TrapBuffer(PipelineBindPoint pipelineType) const
+        { return (pipelineType == PipelineBindPoint::Graphics) ? m_graphicsTrapBuffer : m_computeTrapBuffer; }
+
+    uint32 QueueContextUpdateCounter();
 
     virtual Result CreateEngine(
         EngineType engineType,
@@ -738,57 +742,6 @@ public:
     }
 #endif
 
-    virtual Result P2pBltWaModifyRegionListMemory(
-        const IGpuMemory&       dstGpuMemory,
-        uint32                  regionCount,
-        const MemoryCopyRegion* pRegions,
-        uint32*                 pNewRegionCount,
-        MemoryCopyRegion*       pNewRegions,
-        gpusize*                pChunkAddrs) const
-    {
-        PAL_NEVER_CALLED();
-        return Result::Success;
-    }
-
-    virtual Result P2pBltWaModifyRegionListImage(
-        const Pal::Image&      srcImage,
-        const Pal::Image&      dstImage,
-        uint32                 regionCount,
-        const ImageCopyRegion* pRegions,
-        uint32*                pNewRegionCount,
-        ImageCopyRegion*       pNewRegions,
-        gpusize*               pChunkAddrs) const
-    {
-        PAL_NEVER_CALLED();
-        return Result::Success;
-    }
-
-    virtual Result P2pBltWaModifyRegionListImageToMemory(
-        const Pal::Image&            srcImage,
-        const IGpuMemory&            dstGpuMemory,
-        uint32                       regionCount,
-        const MemoryImageCopyRegion* pRegions,
-        uint32*                      pNewRegionCount,
-        MemoryImageCopyRegion*       pNewRegions,
-        gpusize*                     pChunkAddrs) const
-    {
-        PAL_NEVER_CALLED();
-        return Result::Success;
-    }
-
-    virtual Result P2pBltWaModifyRegionListMemoryToImage(
-        const IGpuMemory&            srcGpuMemory,
-        const Pal::Image&            dstImage,
-        uint32                       regionCount,
-        const MemoryImageCopyRegion* pRegions,
-        uint32*                      pNewRegionCount,
-        MemoryImageCopyRegion*       pNewRegions,
-        gpusize*                     pChunkAddrs) const
-    {
-        PAL_NEVER_CALLED();
-        return Result::Success;
-    }
-
     bool   UseFixedLateAllocVsLimit() const { return m_useFixedLateAllocVsLimit; }
     uint32 LateAllocVsLimit() const { return m_lateAllocVsLimit; }
 
@@ -804,11 +757,7 @@ public:
         gpusize     dataGpuVirtAddr) const = 0;
     uint32* AllocateFceRefCount();
 
-    virtual uint32 GetVarBlockSize() const
-    {
-        PAL_NEVER_CALLED();
-        return 0;
-    }
+    virtual uint32 GetVarBlockSize() const { return 0; }
 
     virtual void InitAddrLibChipId(ADDR_CREATE_INPUT*  pInput) const;
 
@@ -892,9 +841,30 @@ protected:
     bool    m_waEnableDccCacheFlushAndInvalidate;
     bool    m_waTcCompatZRange;
     bool    m_degeneratePrimFilter;
-    ISettingsLoader*  m_pSettingsLoader;
+
+    ISettingsLoader*         m_pSettingsLoader;
+
+    // The new DevDriver based settings. As more gfx settings are converted, this variable will be renamed to replace
+    // m_pSettingsLoader.
+    DevDriver::SettingsBase* m_pDdSettingsLoader;
 
     PAL_ALIGN(32) uint32 m_fastClearImageRefs[MaxNumFastClearImageRefs];
+
+    // Store GPU memory and offsets for compute/graphics trap handlers and trap buffers.  Trap handlers are client-
+    // installed hardware shaders that can be executed based on exceptions occurring in the main shader or in other
+    // situations like supporting a debugger.  Trap buffers are just scratch memory that can be accessed from a trap
+    // handler.
+    BoundGpuMemory m_computeTrapHandler;
+    BoundGpuMemory m_computeTrapBuffer;
+    BoundGpuMemory m_graphicsTrapHandler;
+    BoundGpuMemory m_graphicsTrapBuffer;
+
+    Util::Mutex       m_queueContextUpdateLock;
+
+    // Keep a watermark for sample-pos palette updates to the queue context. When a QueueContext pre-processes a submit, it
+    // will check its watermark against the one owned by the device and update accordingly.
+    // Access to this object must be serialized using m_queueContextUpdateLock.
+    volatile uint32   m_queueContextUpdateCounter;
 
 private:
     PAL_DISALLOW_DEFAULT_CTOR(GfxDevice);
@@ -925,7 +895,8 @@ extern Result CreateDevice(
     DeviceInterfacePfnTable*  pPfnTable,
     GfxDevice**               ppGfxDevice);
 // Creates SettingsLoader object for Gfx9/10 hardware layer
-extern Pal::ISettingsLoader* CreateSettingsLoader(Pal::Device* pDevice);
+extern DevDriver::SettingsBase* CreateSettingsLoader(Pal::Device* pDevice);
 } // Gfx9
 
 } // Pal
+

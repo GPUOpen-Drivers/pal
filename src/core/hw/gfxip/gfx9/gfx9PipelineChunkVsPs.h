@@ -38,6 +38,7 @@ namespace Gfx9
 
 class  CmdStream;
 class  Device;
+class  GraphicsShaderLibrary;
 struct GraphicsPipelineLoadInfo;
 
 struct VsPsRegs
@@ -172,10 +173,9 @@ public:
     }
     const ShaderStageInfo& StageInfoVs() const { return m_stageInfoVs; }
     const ShaderStageInfo& StageInfoPs() const { return m_stageInfoPs; }
-
     void Clone(const PipelineChunkVsPs& chunkVs,
                const PipelineChunkVsPs& chunkPs,
-               const PipelineChunkVsPs& chunkExp);
+               const GraphicsShaderLibrary* expShaderLibrary);
 
     void AccumulateRegistersHash(Util::MetroHash64& hasher)  const { hasher.Update(m_regs.context); }
 private:
@@ -200,6 +200,7 @@ private:
     regPA_SC_AA_CONFIG m_paScAaConfig; // This register is only written in the draw-time validation code.
 
     gpusize            m_colorExportAddr;
+    uint32             m_psWaveFrontSize;
     PAL_DISALLOW_DEFAULT_CTOR(PipelineChunkVsPs);
     PAL_DISALLOW_COPY_AND_ASSIGN(PipelineChunkVsPs);
 };

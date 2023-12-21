@@ -347,6 +347,11 @@ typedef int32 (*AmdgpuQuerySharedAperture)(
             uint64*               pStartVa,
             uint64*               pEndVa);
 
+typedef int32 (*AmdgpuQueryGpuvmFaultInfo)(
+            amdgpu_device_handle  hDevice,
+            uint32                size,
+            void*                 value);
+
 typedef int32 (*AmdgpuBoGetPhysAddress)(
             amdgpu_bo_handle  hBuffer,
             uint64*           pPhysAddress);
@@ -1035,6 +1040,12 @@ struct DrmLoaderFuncs
     bool pfnAmdgpuQuerySharedApertureisValid() const
     {
         return (pfnAmdgpuQuerySharedAperture != nullptr);
+    }
+
+    AmdgpuQueryGpuvmFaultInfo         pfnAmdgpuQueryGpuvmFaultInfo;
+    bool pfnAmdgpuQueryGpuvmFaultInfoisValid() const
+    {
+        return (pfnAmdgpuQueryGpuvmFaultInfo != nullptr);
     }
 
     AmdgpuBoGetPhysAddress            pfnAmdgpuBoGetPhysAddress;
@@ -2070,6 +2081,16 @@ public:
     bool pfnAmdgpuQuerySharedApertureisValid() const
     {
         return (m_pFuncs->pfnAmdgpuQuerySharedAperture != nullptr);
+    }
+
+    int32 pfnAmdgpuQueryGpuvmFaultInfo(
+            amdgpu_device_handle  hDevice,
+            uint32                size,
+            void*                 value) const;
+
+    bool pfnAmdgpuQueryGpuvmFaultInfoisValid() const
+    {
+        return (m_pFuncs->pfnAmdgpuQueryGpuvmFaultInfo != nullptr);
     }
 
     int32 pfnAmdgpuBoGetPhysAddress(

@@ -666,7 +666,7 @@ DebugOverlayLocation FpsMgr::GetDebugOverlayLocation()
 {
     PAL_ASSERT(m_pDevice != nullptr);
     DebugOverlayLocation overlayLocation =
-        m_pDevice->GetPlatform()->PlatformSettings().debugOverlayConfig.overlayLocation;
+        m_pDevice->GetPlatform()->PlatformSettings().debugOverlayConfig.debugOverlayLocation;
 
     // If F10 is held then shift the overlay
     if (Util::IsKeyPressed(Util::KeyCode::F10))
@@ -682,7 +682,7 @@ DebugOverlayLocation FpsMgr::GetTimeGraphLocation()
 {
     PAL_ASSERT(m_pDevice != nullptr);
     const DebugOverlayLocation overlayLocation =
-        m_pDevice->GetPlatform()->PlatformSettings().debugOverlayConfig.overlayLocation;
+        m_pDevice->GetPlatform()->PlatformSettings().debugOverlayConfig.debugOverlayLocation;
 
     DebugOverlayLocation timeGraphLocation = DebugOverlayLowerRight;
 

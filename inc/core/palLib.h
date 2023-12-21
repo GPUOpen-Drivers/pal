@@ -47,7 +47,7 @@
 #endif
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MAJOR_VERSION 836
+#define PAL_INTERFACE_MAJOR_VERSION 841
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 831
 /// Minor interface version.  Note that the interface version is distinct from the PAL version itself, which is returned
@@ -133,8 +133,9 @@ enum class NullGpuId : uint32
 #if PAL_BUILD_PHOENIX1
     Phoenix1         = 0x1F,
 #endif
-    Max              = 0x25,
-    All              = 0x26
+
+    Max = 0x27,
+    All = 0x28,
 };
 
 /// Specifies which graphics IP level (GFXIP) this device has.

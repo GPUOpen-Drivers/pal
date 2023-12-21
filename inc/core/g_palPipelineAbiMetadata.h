@@ -182,7 +182,7 @@ struct HardwareStageMetadata
             uint16 usesAppendConsume : 1;
             /// The shader uses PrimID.
             uint16 usesPrimId        : 1;
-            uint16 reserved          : 1;
+            uint16 placeholder0      : 1;
         };
         uint16 uAll;
     } flags;
@@ -229,7 +229,8 @@ struct HardwareStageMetadata
             uint64 writesDepth               : 1;
             uint64 usesAppendConsume         : 1;
             uint64 usesPrimId                : 1;
-            uint64 reserved                  : 26;
+            uint64 placeholder1              : 1;
+            uint64 reserved                  : 25;
         };
         uint64 uAll;
     } hasEntry;
@@ -1825,31 +1826,35 @@ struct GraphicsRegisterMetadata
             uint64 spiPsInputAddr             : 1;
             uint64 spiShaderColFormat         : 1;
             uint64 spiShaderZFormat           : 1;
+            uint64 placeholder2               : 1;
+            uint64 reserved                   : 63;
         };
-        uint64 uAll;
+        uint64 uAll[2];
     } hasEntry;
 };
 
 /// Abstracted compute-only register values.
 struct ComputeRegisterMetadata
 {
+
     /// Specifies how many thread_id_in_group terms to write into VGPR.
     /// 0 = X, 1 = XY, 2 = XYZ
-    uint8 tidigCompCnt;
+    uint8  tidigCompCnt;
 
     union
     {
         struct
         {
             /// Enables loading of TGID.X into SGPR.
-            uint8 tgidXEn  : 1;
+            uint8 tgidXEn       : 1;
             /// Enables loading of TGID.Y into SGPR.
-            uint8 tgidYEn  : 1;
+            uint8 tgidYEn       : 1;
             /// Enables loading of TGID.Z into SGPR.
-            uint8 tgidZEn  : 1;
+            uint8 tgidZEn       : 1;
             /// Enables loading of threadgroup related info into SGPR.
-            uint8 tgSizeEn : 1;
-            uint8 reserved : 4;
+            uint8 tgSizeEn      : 1;
+            uint8 placeholder0  : 1;
+            uint8 reserved      : 3;
         };
         uint8 uAll;
     } flags;
@@ -1858,12 +1863,14 @@ struct ComputeRegisterMetadata
     {
         struct
         {
-            uint8 tgidXEn      : 1;
-            uint8 tgidYEn      : 1;
-            uint8 tgidZEn      : 1;
-            uint8 tgSizeEn     : 1;
-            uint8 tidigCompCnt : 1;
-            uint8 reserved     : 3;
+            uint8 tgidXEn       : 1;
+            uint8 tgidYEn       : 1;
+            uint8 tgidZEn       : 1;
+            uint8 tgSizeEn      : 1;
+            uint8 placeholder0  : 1;
+            uint8 placeholder1  : 1;
+            uint8 placeholder2  : 1;
+            uint8 tidigCompCnt  : 1;
         };
         uint8 uAll;
     } hasEntry;
@@ -2043,11 +2050,12 @@ namespace PipelineMetadataKey
 
 namespace ComputeRegisterMetadataKey
 {
-    static constexpr char TgidXEn[]      = ".tgid_x_en";
-    static constexpr char TgidYEn[]      = ".tgid_y_en";
-    static constexpr char TgidZEn[]      = ".tgid_z_en";
-    static constexpr char TgSizeEn[]     = ".tg_size_en";
-    static constexpr char TidigCompCnt[] = ".tidig_comp_cnt";
+    static constexpr char TgidXEn[]       = ".tgid_x_en";
+    static constexpr char TgidYEn[]       = ".tgid_y_en";
+    static constexpr char TgidZEn[]       = ".tgid_z_en";
+    static constexpr char TgSizeEn[]      = ".tg_size_en";
+
+    static constexpr char TidigCompCnt[]  = ".tidig_comp_cnt";
 };
 
 namespace GraphicsRegisterMetadataKey
@@ -2122,6 +2130,7 @@ namespace GraphicsRegisterMetadataKey
     static constexpr char SpiPsInputAddr[]             = ".spi_ps_input_addr";
     static constexpr char SpiShaderColFormat[]         = ".spi_shader_col_format";
     static constexpr char SpiShaderZFormat[]           = ".spi_shader_z_format";
+
 };
 
 namespace SpiShaderColFormatMetadataKey
@@ -2509,6 +2518,7 @@ namespace HardwareStageMetadataKey
     static constexpr char WritesDepth[]               = ".writes_depth";
     static constexpr char UsesAppendConsume[]         = ".uses_append_consume";
     static constexpr char UsesPrimId[]                = ".uses_prim_id";
+
 };
 
 namespace CbConstUsageMetadataKey

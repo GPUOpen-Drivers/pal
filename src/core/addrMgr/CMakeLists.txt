@@ -32,3 +32,4 @@ target_sources(pal PRIVATE
 if(PAL_BUILD_GFX9)
     add_subdirectory(addrMgr2)
 endif()
+

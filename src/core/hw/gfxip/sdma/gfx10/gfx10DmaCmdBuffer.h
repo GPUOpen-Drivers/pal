@@ -43,7 +43,7 @@ public:
 
     static uint32* BuildNops(uint32* pCmdSpace, uint32 numDwords);
 
-    DmaCmdBuffer(Device& device, const CmdBufferCreateInfo& createInfo);
+    DmaCmdBuffer(Pal::Device& device, const CmdBufferCreateInfo& createInfo);
 
     virtual void CmdUpdateMemory(
         const IGpuMemory& dstGpuMemory,
@@ -185,7 +185,8 @@ private:
     template <typename PacketName>
     static void SetupMetaData(const DmaImageInfo&  image, PacketName*  pPacket, bool  imageIsDst);
 
-    static bool ImageHasMetaData(const DmaImageInfo& imageInfo);
+    bool ImageHasMetaData(const DmaImageInfo& imageInfo) const;
+
     uint32* WriteCondExecCmd(uint32* pCmdSpace, gpusize predMemory, uint32 skipCountInDwords) const;
     uint32* WriteFenceCmd(uint32* pCmdSpace, gpusize memory, uint32 predCopyData) const;
 
@@ -228,6 +229,9 @@ private:
         uint32*              pCmdSpace);
 
     void WriteTimestampCmd(gpusize dstAddr);
+
+    Gfx10SdmaBypassMall GetSettingByPassMall() const;
+    bool GetSettingPreferCompressedSource() const;
 };
 
 } // Oss4

@@ -265,40 +265,6 @@ static CompSetting ComputeCompSetting(
 }
 
 // =====================================================================================================================
-// Retrieves the hardware color-buffer format for a given PAL format type.
-static ColorFormat HwColorFormat(
-    const Device*    pDevice,
-    Pal::ChNumFormat format)
-{
-    ColorFormat hwColorFmt = COLOR_INVALID;
-    GfxIpLevel gfxLevel = pDevice->Parent()->ChipProperties().gfxLevel;
-
-    switch (gfxLevel)
-    {
-    case GfxIpLevel::GfxIp9:
-        hwColorFmt = HwColorFmt(MergedChannelFmtInfoTbl(gfxLevel, &pDevice->GetPlatform()->PlatformSettings()),
-                                format);
-        break;
-
-    case GfxIpLevel::GfxIp10_1:
-    case GfxIpLevel::GfxIp10_3:
-#if PAL_BUILD_GFX11
-    case GfxIpLevel::GfxIp11_0:
-#endif
-        hwColorFmt = HwColorFmt(MergedChannelFlatFmtInfoTbl(gfxLevel, &pDevice->GetPlatform()->PlatformSettings()),
-                                format);
-        break;
-
-    default:
-        PAL_NEVER_CALLED();
-        break;
-    }
-
-    PAL_ASSERT(hwColorFmt != COLOR_INVALID);
-    return hwColorFmt;
-}
-
-// =====================================================================================================================
 // Derives the hardware pixel shader export format for a particular RT view slot.  Value should be used to determine
 // programming for SPI_SHADER_COL_FORMAT.
 //
@@ -321,9 +287,9 @@ const SPI_SHADER_EX_FORMAT RsrcProcMgr::DeterminePsExportFmt(
     const bool isSint  = Formats::IsSint(format.format);
     const bool isSrgb  = Formats::IsSrgb(format.format);
 
-    const uint32 maxCompSize = Formats::MaxComponentBitCount(format.format);
-
-    const ColorFormat hwColorFmt  = HwColorFormat(m_pDevice, format.format);
+    const uint32      maxCompSize = Formats::MaxComponentBitCount(format.format);
+    const ColorFormat hwColorFmt  = m_pDevice->GetHwColorFmt(format);
+    PAL_ASSERT(hwColorFmt != COLOR_INVALID);
 
     bool foundSwizzles[4] = {};
     SwizzledFormat pipelineFormat = format;
@@ -662,7 +628,7 @@ void RsrcProcMgr::CmdResolveQueryComputeShader(
     {
         // Wait for the query data to get to memory if it was requested.
         // The shader is required to implement the wait if the query pool doesn't have timestamps.
-        queryPool.WaitForSlots(pStream, startQuery, queryCount);
+        queryPool.WaitForSlots(pCmdBuffer, pStream, startQuery, queryCount);
     }
 
     // On GFX9, we don't need to invalidate the L2, as DB writes timestamps directly to it.
@@ -5226,7 +5192,7 @@ bool Gfx10RsrcProcMgr::PreferComputeForNonLocalDestCopy(
     const bool isMgpu = (m_pDevice->GetPlatform()->GetDeviceCount() > 1);
 
     if (IsGfx103Plus(*m_pDevice->Parent())                                        &&
-        m_pDevice->Settings().nonLocalDestPreferCompute                           &&
+        m_pDevice->Settings().gfx102NonLocalDestPreferCompute                     &&
         ((dstImage.IsDepthStencilTarget() == false) || (createInfo.samples == 1)) &&
         (isMgpu == false))
     {

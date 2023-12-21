@@ -189,67 +189,6 @@ protected:
 };
 
 // Set of context registers associated with a color-target view object.
-struct Gfx9ColorTargetViewRegs
-{
-    regCB_COLOR0_BASE           cbColorBase;
-    regCB_COLOR0_BASE_EXT       cbColorBaseExt;
-    regCB_COLOR0_ATTRIB2        cbColorAttrib2;
-    regCB_COLOR0_VIEW           cbColorView;
-    regCB_COLOR0_INFO           cbColorInfo;
-    regCB_COLOR0_ATTRIB         cbColorAttrib;
-    regCB_COLOR0_DCC_CONTROL    cbColorDccControl;
-    regCB_COLOR0_CMASK          cbColorCmask;
-    regCB_COLOR0_CMASK_BASE_EXT cbColorCmaskBaseExt;
-    regCB_COLOR0_FMASK          cbColorFmask;
-    regCB_COLOR0_FMASK_BASE_EXT cbColorFmaskBaseExt;
-    regCB_COLOR0_DCC_BASE       cbColorDccBase;
-    regCB_COLOR0_DCC_BASE_EXT   cbColorDccBaseExt;
-    regCB_MRT0_EPITCH           cbMrtEpitch;
-
-    gpusize  fastClearMetadataGpuVa;
-};
-
-// =====================================================================================================================
-// Gfx9 specific extension of the base Pal::Gfx9::ColorTargetView class
-class Gfx9ColorTargetView final : public ColorTargetView
-{
-public:
-    Gfx9ColorTargetView(
-        const Device*                     pDevice,
-        const ColorTargetViewCreateInfo&  createInfo,
-        ColorTargetViewInternalCreateInfo internalInfo,
-        uint32                            uniqueId);
-
-    Gfx9ColorTargetView(const Gfx9ColorTargetView&) = default;
-    Gfx9ColorTargetView& operator=(const Gfx9ColorTargetView&) = default;
-    Gfx9ColorTargetView(Gfx9ColorTargetView&&) = default;
-    Gfx9ColorTargetView& operator=(Gfx9ColorTargetView&&) = default;
-
-    virtual uint32* WriteCommands(
-        uint32             slot,
-        ImageLayout        imageLayout,
-        CmdStream*         pCmdStream,
-        uint32*            pCmdSpace,
-        regCB_COLOR0_INFO* pCbColorInfo) const override;
-
-protected:
-    virtual ~Gfx9ColorTargetView()
-    {
-        // This destructor, and the destructors of all member and base classes, must always be empty: PAL color target
-        // views guarantee to the client that they do not have to be explicitly destroyed.
-        PAL_NEVER_CALLED();
-    }
-
-private:
-    void InitRegisters(
-        const Device&                     device,
-        const ColorTargetViewCreateInfo&  createInfo,
-        ColorTargetViewInternalCreateInfo internalInfo);
-
-    Gfx9ColorTargetViewRegs  m_regs;
-};
-
-// Set of context registers associated with a color-target view object.
 struct Gfx10ColorTargetViewRegs
 {
     regCB_COLOR0_BASE         cbColorBase;

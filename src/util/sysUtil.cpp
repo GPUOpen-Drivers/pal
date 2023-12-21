@@ -28,6 +28,7 @@
 #include "palSysUtil.h"
 #include "palVector.h"
 #include "palVectorImpl.h"
+#include <ctime>
 
 namespace Util
 {
@@ -369,6 +370,66 @@ Result RemoveOldestFilesOfDirUntilSize(
     PAL_SAFE_FREE(pFileNames, &allocator);
     PAL_SAFE_FREE(pFileNameBuffer, &allocator);
     PAL_SAFE_FREE(pFullFilePath, &allocator);
+
+    return result;
+}
+
+// =====================================================================================================================
+Result CreateLogDir(
+    const char* pBaseDir,
+    char*       pLogDir,
+    size_t      logDirSize
+)
+{
+    if ((pBaseDir == nullptr) || (pLogDir == nullptr))
+    {
+        return Result::ErrorInvalidPointer;
+    }
+
+    // Try to create the root log directory first, which may already exist.
+    const Result tmpResult = MkDir(pBaseDir);
+    Result result = (tmpResult == Result::AlreadyExists) ? Result::Success : tmpResult;
+
+    if (result == Result::Success)
+    {
+        // Even if the dir already exists we try to set permissions in case it was device user who ceated the dir but
+        // with not enough permisions.
+        result = SetRwxFilePermissions(pBaseDir);
+        PAL_ASSERT_MSG(result == Result::Success, "Failed to set main logs directory permissions to RWX for all");
+    }
+
+    // Create a directory name that will hold any dumped logs this session.  The name will be composed of the
+    // executable name and current date/time, looking something like this: app.exe_2015-08-26_07.49.20.
+    // Note that we will append a suffix if some other platform already made this directory in this same second.
+    // (Yes, this can actually happen in reality.)
+    char  executableNameBuffer[256] = {};
+    char* pExecutableName = nullptr;
+
+    if (result == Result::Success)
+    {
+        result = GetExecutableName(executableNameBuffer, &pExecutableName, sizeof(executableNameBuffer));
+    }
+
+    if (result == Result::Success)
+    {
+        const time_t   rawTime   = time(nullptr);
+        const tm*const pTimeInfo = localtime(&rawTime);
+
+        char  dateTimeBuffer[64] = {};
+        strftime(dateTimeBuffer, sizeof(dateTimeBuffer), "%Y-%m-%d_%H.%M.%S", pTimeInfo);
+        Snprintf(pLogDir, logDirSize, "%s/%s_%s", pBaseDir, pExecutableName, dateTimeBuffer);
+
+        // Try to create the directory. If it already exists, keep incrementing the suffix until it works.
+        const size_t suffixOffset = strlen(pLogDir);
+        uint32       suffix       = 0;
+
+        do
+        {
+            Snprintf(pLogDir + suffixOffset, logDirSize - suffixOffset, "_%02d", suffix++);
+            result = MkDir(pLogDir);
+        }
+        while (result == Result::AlreadyExists);
+    }
 
     return result;
 }

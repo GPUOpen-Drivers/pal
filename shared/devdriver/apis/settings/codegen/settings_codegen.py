@@ -26,7 +26,6 @@
 import argparse
 import io
 import time
-import jsonschema
 import sys
 import json
 import copy
@@ -53,8 +52,7 @@ def fnv1a(bytes: bytes):
     return hval
 
 def buildtypes_to_c_macro(and_build_types, or_build_types) -> str:
-    """A Jinja filter that transform build types to C preprocessor macros.
-    """
+    """A Jinja filter that transform build types to C preprocessor macros."""
     assert (and_build_types is not None) and (or_build_types is not None)
 
     logical_op = " && " if and_build_types else " || "
@@ -85,11 +83,15 @@ def setup_default(setting: dict, group_name: str) -> str:
             default_str = ""
             default_value = defaults[platform]
             if setting_type == "enum":
-                enum_name = setting["ValidValues"]["Name"]
+                enum_name = setting["EnumReference"]
                 if isinstance(default_value, str):
-                    default_str = f'{enum_name}::{default_value}'
+                    # If the default value provides the scope, use it instead of building it up:
+                    if "::" in default_value:
+                        default_str = default_value
+                    else:
+                        default_str = f"{enum_name}::{default_value}"
                 elif isinstance(default_value, int):
-                    default_str = f'({enum_name}){str(default_value)}'
+                    default_str = f"({enum_name}){str(default_value)}"
                 else:
                     raise ValueError(
                         f"{setting_name} is an Enum. Its default value must be either "
@@ -105,19 +107,25 @@ def setup_default(setting: dict, group_name: str) -> str:
                 else:
                     default_str = str(default_value)
             elif isinstance(default_value, float):
-                default_str = f'{str(default_value)}f'
+                assert (
+                    setting_type == "float"
+                ), f'In the setting {setting_name}, "Type" field is {setting_type} but the actual type of "Defaults" are float.'
+
+                # Print floating numbers without scientific notion. Python requires manually specifying
+                # precision, so pick a large enough number 20.
+                default_str = format(default_value, ".20f").rstrip("0") + "f"
             elif isinstance(default_value, str):
-                if setting_type == "float":
-                    default_str = default_value
-                    if default_str[-1:] == "f":
-                        default_str += "f"
+                flags = setting.get("Flags", None)
+
+                if setting_type == "string":
+                    # Convert `\` to `\\` in the generated C++ string literal.
+                    default_str = default_value.replace("\\", "\\\\")
+                elif setting_type == "float":
+                    raise ValueError(f'In the setting {setting_name}, "Type" field is {setting_type} but the actual type of "Defaults" are string.')
+                elif setting_type == "bool":
+                    raise ValueError(f'In the setting {setting_name}, "Type" field is {setting_type} but the actual type of "Defaults" are string.')
                 else:
-                    flags = setting.get("Flags", None)
-                    if flags and ("IsDir" in flags or "IsFile" in flags):
-                        # `\` in paths cannot be an escape character. Convert `\` to `\\` in the generated C++ string literal.
-                        default_str = default_value.replace('\\', '\\\\')
-                    else:
-                        default_str = default_value
+                    default_str = default_value
             else:
                 raise ValueError(
                     f'Invalid type of default value for the setting "{setting_name}"'
@@ -137,7 +145,9 @@ def setup_default(setting: dict, group_name: str) -> str:
             if setting["Type"] == "string":
                 assignment_line = f"        m_settings.{setting_name}[0] = '\\0';"
             else:
-                assignment_line = f"        m_settings.{setting_name} = DevDriver::NullOpt;"
+                assignment_line = (
+                    f"        m_settings.{setting_name} = DevDriver::NullOpt;"
+                )
 
         return assignment_line
 
@@ -157,12 +167,14 @@ def setup_default(setting: dict, group_name: str) -> str:
             check_count += 1
 
         if default_linux:
-            result += "#if " if check_count == 0 else "\n#elif " + "defined(__unix__)\n"
+            result += "#if " if check_count == 0 else "\n#elif "
+            result += "defined(__unix__)\n"
             result += assign_line(setting, "Linux", group_name)
             check_count += 1
 
         if default_android:
-            result += "#if " if check_count == 0 else "\n#elif " + "defined(__ANDROID__)\n"
+            result += "#if " if check_count == 0 else "\n#elif "
+            result += "defined(__ANDROID__)\n"
             result += assign_line(setting, "Android", group_name)
             check_count += 1
 
@@ -222,34 +234,92 @@ def setting_type_cpp2(setting_type: str) -> str:
     else:
         return f'"Invalid value ({setting_type}) for "Type" field."'
 
+def setting_format_string(setting_type: str) -> str:
+    if setting_type == "bool":
+        return "%u"
+    elif setting_type in ["int8", "int16", "int32"]:
+        return "%d"
+    elif setting_type in ["uint8", "uint16", "uint32", "enum"]:
+        return "%u"
+    elif setting_type == "uint64":
+        return "%llu"
+    elif setting_type == "float":
+        return "%.2f"
+    elif setting_type == "string":
+        return "%s"
+    else:
+        return f'"Invalid value ({setting_type}) for "Type" field."'
+
 def gen_variable_name(name: str) -> str:
     """Generate C++ variable names.
-    The variable name is generated by lowercasing the first character if
-    it's followed by a lowercase character. If `name` starts with multiple
-    uppercase characters, the first n-1 characters are lowercased, unless
-    all characters in `name` are uppercase, in which case all are lowercased.
+    Try our best to convert to camelCase style.
 
     For example:
     "PeerMemoryEnabled" -> "peerMemoryEnabled"
     "RISSharpness" -> "risSharpness"
     "TFQ" -> "tfq"
+    "VpeForceTFCalculation" -> "vpeForceTfCalculation"
+    "EnableLLPC" -> "enableLlpc"
     """
-    uppercase_len = 0
-    for i in range(len(name)):
-        if name[i].isupper():
-            uppercase_len += 1
-        else:
-            break
+    var_name = ""
 
-    var_name = None
-    if uppercase_len == len(name):
-        var_name = name.lower()
-    elif uppercase_len == 0:
-        var_name = name
-    elif uppercase_len == 1:
-        var_name = name[0].lower() + name[1:]
-    else:
-        var_name = name[: uppercase_len - 1].lower() + name[uppercase_len - 1 :]
+    upper_case_start = -1
+    upper_case_len = 0
+    unprocessed_char_index = 0
+    for char_index in range(len(name)):
+        # Find a sequence of uppercase letters.
+        if name[char_index].isupper():
+            if upper_case_start == -1:
+
+                # Process prior letters which should all be lowercase.
+                if char_index > 0:
+                    var_name += name[unprocessed_char_index : char_index]
+                    unprocessed_char_index = char_index
+
+                upper_case_start = char_index
+
+            upper_case_len += 1
+        else:
+            if upper_case_len > 0:
+                # Process previous sequence of uppercase letters.
+                upper_case_end = upper_case_start + upper_case_len
+
+                if upper_case_start == 0:
+                    if upper_case_len == 1:
+                        var_name += name[upper_case_start].lower()
+                    else:
+                        var_name += name[upper_case_start : upper_case_end - 1].lower()
+                        var_name += name[upper_case_end - 1]
+                else:
+                    if upper_case_len == 1:
+                        var_name += name[upper_case_start]
+                    elif upper_case_len == 2:
+                        if name[char_index].isalpha():
+                            var_name += name[upper_case_start : upper_case_end]
+                        else:
+                            var_name += name[upper_case_start]
+                            var_name += name[upper_case_start + 1].lower()
+                    else:
+                        # Lowercase the letters in the middle.
+                        var_name += name[upper_case_start]
+                        var_name += name[upper_case_start + 1 : upper_case_end - 1].lower()
+                        var_name += name[upper_case_end - 1]
+
+                unprocessed_char_index = upper_case_start + upper_case_len
+                upper_case_start = -1
+                upper_case_len = 0
+
+    if unprocessed_char_index < len(name):
+        # Process anything left at the end.
+        if upper_case_len > 0:
+            if upper_case_start == 0:
+                var_name += name[upper_case_start:].lower()
+            else:
+                var_name += name[upper_case_start]
+                if upper_case_len > 1:
+                    var_name += name[upper_case_start + 1:].lower()
+        else:
+            var_name += name[unprocessed_char_index:]
 
     return var_name
 
@@ -297,7 +367,9 @@ def validate_tag(tag: str):
         )
 
 # Generate a encoded byte array of the settings json data.
-def gen_settings_blob(settings_root: dict, magic_buf: bytes, magic_buf_start_index: int) -> bytearray:
+def gen_settings_blob(
+    settings_root: dict, magic_buf: bytes, magic_buf_start_index: int
+) -> bytearray:
     settings_stream = io.StringIO()
     json.dump(settings_root, settings_stream)
 
@@ -326,7 +398,9 @@ def gen_settings_blob(settings_root: dict, magic_buf: bytes, magic_buf_start_ind
 
         # Convert both byte arrays to large intergers.
         settings_int = int.from_bytes(settings_bytes, byteorder="little", signed=False)
-        magic_int = int.from_bytes(magic_bytes[:settings_bytes_len], byteorder="little", signed=False)
+        magic_int = int.from_bytes(
+            magic_bytes[:settings_bytes_len], byteorder="little", signed=False
+        )
 
         encoded_settings_int = settings_int ^ magic_int
         return encoded_settings_int.to_bytes(
@@ -349,38 +423,39 @@ def gen_setting_name_hashes(settings: list):
         name = setting["Name"]
         validate_settings_name(name)
 
+        assert name not in setting_name_set, f'Duplicate setting name: "{name}".'
+        setting_name_set.add(name)
+
         if "Structure" in setting:
-            subsetting_name_set = set() # used to detect duplicate in subsettings.
-            subsetting_name_hash_map = dict() # used to detect duplicate in subsettings.
+            subsetting_name_set = set()  # used to detect duplicate in subsettings.
 
             for subsetting in setting["Structure"]:
                 subsetting_name = subsetting["Name"]
                 validate_settings_name(subsetting_name)
 
-                assert subsetting_name not in subsetting_name_set, f'Duplicate subsetting name "{subsetting_name}" found in Structure "{name}".'
+                assert (
+                    subsetting_name not in subsetting_name_set
+                ), f'Duplicate subsetting name "{subsetting_name}" found in Structure "{name}".'
                 subsetting_name_set.add(subsetting_name)
 
-                full_name = f'{name}.{subsetting_name}'
+                full_name = f"{name}.{subsetting_name}"
                 name_hash = fnv1a(bytes(full_name.encode(encoding="utf-8")))
 
-                if name_hash in subsetting_name_hash_map:
-                    colliding_hash_name = subsetting_name_hash_map[name_hash]
-                    raise ValueError(f'"{subsetting_name}" and "{colliding_hash_name}" in the Structure "{name}" have the same name hash.')
+                if name_hash in setting_name_hash_map:
+                    colliding_hash_name = setting_name_hash_map[name_hash]
+                    raise ValueError(
+                        f"Hash collision detected between setting names: {full_name}, {colliding_hash_name}"
+                    )
                 else:
                     subsetting["NameHash"] = name_hash
-                    subsetting_name_hash_map[name_hash] = subsetting_name
-
-            setting_name_set.add(name)
-            # Don't need to add `name` to `setting_name_hash_map` since Structure name is not
-            # directly hashed.
+                    setting_name_hash_map[name_hash] = full_name
         else:
-            assert name not in setting_name_set, f'Duplicate setting name: "{name}".'
-            setting_name_set.add(name)
-
             name_hash = fnv1a(bytes(name.encode(encoding="utf-8")))
             if name_hash in setting_name_hash_map:
                 colliding_hash_name = setting_name_hash_map[name_hash]
-                raise ValueError(f'Hash collision detected between setting names: {name}, {colliding_hash_name}')
+                raise ValueError(
+                    f"Hash collision detected between setting names: {name}, {colliding_hash_name}"
+                )
             else:
                 setting["NameHash"] = name_hash
                 setting_name_hash_map[name_hash] = name
@@ -392,72 +467,111 @@ def prepare_enums(settings_root: dict):
     duplicate enums are found.
     """
 
-    def validate_enum_name(name: str):
-        if not name[0].isalpha() or not name[0].isupper():
-            raise ValueError(f'Enum name ("{name}") must start with an upper-case alphabetic letter.')
-        if not name.isalnum():
-            raise ValueError(f'Enum name ("{name}") can only have alphanumeric characters.')
-
     def validate_enum_reference(setting: dict, enums_list):
+        valid_values = setting.get("ValidValues", None)
         setting_type = setting["Type"]
         if setting_type == "enum":
-            valid_values = setting.get("ValidValues")
-            setting_name = setting["Name"]
-            assert valid_values, f'Setting "{setting_name}" is an enum, but misses "ValidValues" field.'
+            assert valid_values, f'Setting {setting["Name"]} is of enum type, but misses "ValidValues" field.'
 
             valid_values_name = valid_values.get("Name", None)
             values = valid_values.get("Values", None)
             if not values:
                 # ValidValues doesn't define an enum, make sure it references an item from the top-level "Enums" list.
                 if all(enum["Name"] != valid_values_name for enum in enums_list):
-                    raise ValueError(f'Setting "{setting_name}" references an enum that does not exist in the top-level "Enums" list')
+                    raise ValueError(
+                        f'Setting {setting["Name"]} references an enum that does not exist in the top-level "Enums" list'
+                    )
 
-    enum_names = []
-    enums = settings_root.get("Enums", [])
-    for enum in enums:
-        name = enum["Name"]
-        validate_enum_name(name)
-        enum_names.append(name)
+        if valid_values:
+            # Since we extracted ValidValues from inside individual settings to the top-level "Enums" list, we can
+            # remove them from within settings, so that all settings reference enums from the top-level Enums list,
+            # making it easier for tools to parse.
+            valid_values_name = valid_values.get("Name", None)
+            if valid_values_name:
+                del setting["ValidValues"]
+                setting["EnumReference"] = valid_values_name
 
-    enum_names_unique = set(enum_names)
+    def extract_enum(setting: dict, enums_list, enum_names_unique):
+        """Extract enum definitions from individual settings to the top-level Enums list."""
 
-    if len(enum_names) != len(enum_names_unique):
-        duplicates = [x for x in enum_names_unique if enum_names.count(x) > 1]
-        raise ValueError(f"Duplicate Enum names: {duplicates}")
-
-    # Extract "ValidValues" from individual settings and append them to the top-level "Enums" list.
-    for setting in settings_root["Settings"]:
         valid_values = setting.get("ValidValues", None)
         if valid_values and valid_values.get("IsEnum", False):
-
             name = valid_values.get("Name", None)
-            assert name is not None, \
-                'ValidValues in the setting "{}" does not have a "Name" field'.format(setting["Name"])
+            assert (
+                name is not None
+            ), 'ValidValues in the setting "{}" does not have a "Name" field'.format(
+                setting["Name"]
+            )
 
-            values = valid_values.get("Values", None)
-            if values:
+            if "Values" in valid_values:
                 # Presence of "Values" field means it's enum definition. Check name duplication.
-                if name in enum_names_unique:
+                skip_gen = valid_values.get("SkipGen", False)
+                if (skip_gen == False) and (name in enum_names_unique):
                     setting_name = setting["Name"]
-                    raise ValueError(f'The enum name "{name}" in the setting "{setting_name}" already exists.')
+                    raise ValueError(
+                        f'The enum name "{name}" in the setting "{setting_name}" already exists.'
+                    )
 
-                enums.append(valid_values)
+                enums_list.append(valid_values)
                 enum_names_unique.add(name)
             else:
                 # No "Values" means this is a reference to an enum defined in top-level "Enums" list.
                 if name not in enum_names_unique:
-                    raise ValueError(f'The enum name "{name}" in the setting "{setting_name}" does not reference any item in the top-level "Enums" list.')
+                    raise ValueError(
+                        f'The enum name "{name}" in the setting "{setting_name}" does not reference any item in the top-level "Enums" list.'
+                    )
+
+    top_level_enums = settings_root.get("Enums", [])
+    top_level_enum_names = [enum["Name"] for enum in top_level_enums]
+
+    enum_names_unique = set(top_level_enum_names)
+
+    if len(top_level_enum_names) != len(enum_names_unique):
+        duplicates = [x for x in enum_names_unique if top_level_enum_names.count(x) > 1]
+        raise ValueError(f"Duplicate Enum names: {duplicates}")
+
+    # Extract "ValidValues" from individual settings and append them to the top-level "Enums" list.
+    for setting in settings_root["Settings"]:
+        subsettings = setting.get("Structure", None)
+        if subsettings:
+            for subs in subsettings:
+                extract_enum(subs, top_level_enums, enum_names_unique)
+        else:
+            extract_enum(setting, top_level_enums, enum_names_unique)
 
     for setting in settings_root["Settings"]:
         # If the setting is an enum, validate it.
         if "Structure" in setting:
             for subsetting in setting["Structure"]:
-                validate_enum_reference(subsetting, enums)
+                validate_enum_reference(subsetting, top_level_enums)
         else:
-            validate_enum_reference(setting, enums)
+            validate_enum_reference(setting, top_level_enums)
 
     if "Enums" not in settings_root:
-        settings_root["Enums"] = enums
+        settings_root["Enums"] = top_level_enums
+
+    for enum in top_level_enums:
+        values = enum["Values"]
+
+        # Convert enum values from hex string to int.
+        for value_item in values:
+            value = value_item["Value"]
+            if isinstance(value, str):
+                if value.startswith("0x") or value.startswith("0X"):
+                    value_item["Value"] = int(value, base=16)
+                else:
+                    raise ValueError(f'Enum {enum["Name"]} contains value ({value_item["Name"]}) that is not an integer, nor a string starting with "0x"/"0X".')
+
+        # Check whether an enum needs to be defined uint64 as its unerlying type.
+        MAX_UINT32 = 0xFFFF_FFFF
+        if "Is64Bit" not in enum:
+            if len(values) > 32:
+                found_64bit_value = False
+                for value in values:
+                   if value["Value"] > MAX_UINT32:
+                       found_64bit_value = True
+                if found_64bit_value:
+                    raise ValueError(f'Enum {enum["Name"]} contains value that is greater than MAX_UINT32, please add `"Is64Bit": true` to this enum definition.')
 
 def prepare_settings_meta(
     settings_root: dict, magic_buf: bytes, codegen_header: str, settings_header: str
@@ -482,7 +596,7 @@ def prepare_settings_meta(
 
     # Generating the blob before adding anything else to settings root object.
     random.seed(int(time.time()))
-    magic_buf_start = random.randint(0, 0xffffffff)
+    magic_buf_start = random.randint(0, 0xFFFFFFFF)
     settings_blob = gen_settings_blob(settings_root, magic_buf, magic_buf_start)
     settings_root["MagicOffset"] = magic_buf_start
 
@@ -505,8 +619,7 @@ def prepare_settings_meta(
     settings_root["ComponentNameLower"] = component_name[0].lower() + component_name[1:]
 
 def add_variable_type(setting: dict):
-    """ Add a "VariableType" field to `setting`, used for generating C++ variable type.
-    """
+    """Add a "VariableType" field to `setting`, used for generating C++ variable type."""
     setting_name = setting["Name"]
     variable_type = ""
 
@@ -514,11 +627,12 @@ def add_variable_type(setting: dict):
     flags = setting.get("Flags", None)
 
     if type_str == "enum":
-        valid_values = setting["ValidValues"]
-        variable_type = valid_values["Name"]
+        variable_type = setting["EnumReference"]
     elif flags and "IsBitmask" in flags:
-        assert type_str == "uint32", f'Because setting "{setting_name}" is a bitmask, its "Type" must be "uint32".'
-        variable_type = "uint32_t"
+        assert (
+            type_str == "uint32" or type_str == "uint64"
+        ), f'Because setting "{setting_name}" is a bitmask, its "Type" must be "uint32" or "uint64".'
+        variable_type = type_str + "_t"
     elif type_str == "string":
         variable_type = "char"
         if flags and flags.get("IsDir", False):
@@ -534,8 +648,6 @@ def add_variable_type(setting: dict):
     else:
         raise ValueError(f'Setting "{setting_name}" has invalid "Type" field.')
 
-    setting["RawVariableType"] = variable_type
-
     defaults = setting.get("Defaults", [])
     if (len(defaults) == 0) and (type_str != "string"):
         variable_type = f"DevDriver::Optional<{variable_type}>"
@@ -543,20 +655,68 @@ def add_variable_type(setting: dict):
 
     setting["VariableType"] = variable_type
 
-def prepare_settings_list(settings: dict):
+def prepare_settings_list(settings: dict, top_level_enum_list: list):
+    def validate_fields(setting: dict, top_level_enum_list: list):
+        if "VariableName" in setting:
+            raise ValueError(f'"VariableName" field is not allowed in the setting {setting["Name"]}. '
+                             'The generated C++ variable name of this setting will be derived from the "Name" field.')
+
+        if "DependsOn" in setting:
+            raise ValueError(f'"DependsOn" field found in the setting {setting["Name"]}. It is deprecated and no longer allowed.')
+
+        defaults = setting.get("Defaults", None)
+        if defaults:
+            assert "Default" in defaults, f'Setting {setting["Name"]}\'s "Defaults" field is missing the platform-agnostic "Default" field.'
+            assert "WinDefault" not in defaults, f'"WinDefault" field found in the setting {setting["Name"]}. It is deprecated, please use "Windows" instead.'
+            assert "LnxDefault" not in defaults, f'"LnxDefault" field found in the setting {setting["Name"]}. It is deprecated, please use "Linux" instead.'
+
+            setting_type = setting["Type"]
+            for platform, value in defaults.items():
+                if setting_type == "enum" or setting_type.startswith("int") or setting_type.startswith("uint"):
+                    if isinstance(value, str):
+                        if value.startswith("0x") or value.startswith("0X"):
+                            # Convert hex strings to integers.
+                            defaults[platform] = int(value, base=16)
+                        else:
+                            is_bitmask = setting.get("Flags", {}).get("IsBitmask", False)
+                            if is_bitmask or setting_type == "enum":
+                                # Convert default values from string of enum value names to integers.
+
+                                enum_ref = setting["EnumReference"] # "EnumReference" should have been added in prepare_enum().
+                                enum = next(enum for enum in top_level_enum_list if enum["Name"] == enum_ref)
+
+                                enum_value_names = [value_name.strip() for value_name in value.split("|")]
+                                enum_value_int = 0
+                                for value_name in enum_value_names:
+                                    # If the default value has a scope on it, remove it before looking up the value:
+                                    if "::" in value_name:
+                                        value_name = value_name.split("::")[-1]
+
+                                    # value["Value"] should have already been converted to integer in prepare_enum().
+                                    enum_value = next((value["Value"] for value in enum["Values"] if value["Name"] == value_name), None)
+                                    if enum_value is None:
+                                        raise ValueError(f'Setting {setting["Name"]} is bitmask or enum. Its default value is a string, '
+                                                         f'but the string does not match any one or combination of values of its referenced enum {enum_ref}.'
+                                                         f'Only enum value names and \'|\' are allowed in the string.')
+                                    else:
+                                        enum_value_int |= enum_value
+                                defaults[platform] = enum_value_int
+                            else:
+                                raise ValueError(f'Setting {setting["Name"]} is of type {setting_type}. Its default values can only be integers or strings starting with "0x".')
+
     for setting in settings:
         structure = setting.get("Structure", None)
         scope = setting.get("Scope", None)
         if structure:
             for subsetting in structure:
-                # Settings 2.0 schema no longer contains 'VariableName'. It's generated
-                # from 'Name'.
+                validate_fields(subsetting, top_level_enum_list)
                 subsetting["VariableName"] = gen_variable_name(subsetting["Name"])
                 add_variable_type(subsetting)
 
                 if "Scope" not in subsetting:
                     subsetting["Scope"] = scope
         else:
+            validate_fields(setting, top_level_enum_list)
             add_variable_type(setting)
 
         setting["VariableName"] = gen_variable_name(setting["Name"])
@@ -598,13 +758,25 @@ def main():
     parser.add_argument(
         "--classname",
         required=False,
-        help="The Settings class name override. By default, it's `<component>Settings`.",
+        help="The SettingsLoader class name override. By default, it's `<componentName>SettingsLoader`.",
     )
     parser.add_argument(
-        "--pal",
-        action="store_true",
+        "--settings-struct-name",
         required=False,
-        help="The generated files for PAL settings need to include some dependent PAL files.",
+        help="The name of the generated C++ struct that contains all settings' definitions specified in the input JSON"
+             " file. By default, it's `<ComponentName>Settings`.",
+    )
+    parser.add_argument(
+        "--namespaces",
+        nargs="*",
+        default=[],
+        help="C++ namespace(s) within which settings will be defined.",
+    )
+    parser.add_argument(
+        "--include-headers",
+        nargs="*",
+        default=[],
+        help="C++ header files that the generated settings header file needs to '#include'. For example, a header file containing an existing enum definition.",
     )
     parser.add_argument(
         "--encoded",
@@ -629,15 +801,18 @@ def main():
     with open(args.input) as file:
         settings_root = json.load(file)
 
-    settings_root["IsPalSettings"] = args.pal
-    settings_root["Namespace"] = "Pal" if args.pal else settings_root["ComponentName"]
-
     settings_root["IsEncoded"] = args.encoded
 
     settings_root["ClassName"] = (
         args.classname
         if args.classname
         else settings_root["ComponentName"] + "SettingsLoader"
+    )
+
+    settings_root["SettingsStructName"] = (
+        args.settings_struct_name
+        if args.settings_struct_name
+        else settings_root["ComponentName"] + "Settings"
     )
 
     magic_buf = None
@@ -649,6 +824,10 @@ def main():
 
     gen_setting_name_hashes(settings_root["Settings"])
 
+    prepare_enums(settings_root)
+
+    prepare_settings_list(settings_root["Settings"], settings_root["Enums"])
+
     prepare_settings_meta(
         settings_root,
         magic_buf,
@@ -656,10 +835,15 @@ def main():
         args.settings_filename,
     )
 
-    prepare_enums(settings_root)
-    prepare_settings_list(settings_root["Settings"])
+    if settings_root["ComponentName"] in ["Pal", "PalPlatform", "Gfx6Pal", "Gfx9Pal", "MGfxPal"]:
+        settings_root["IsPalSettings"] = True
 
-    ### Set up Jinja Environment.
+    settings_root["IsDxSettings"] = True if settings_root["ComponentName"] == "Dxc" else False
+
+    settings_root["Namespaces"] = args.namespaces
+    settings_root["IncludeHeaders"] = args.include_headers
+
+    # Set up Jinja Environment.
 
     jinja_env = JinjaEnv(
         trim_blocks=True,
@@ -672,11 +856,12 @@ def main():
     jinja_env.filters["setup_default"] = setup_default
     jinja_env.filters["setting_type_cpp"] = setting_type_cpp
     jinja_env.filters["setting_type_cpp2"] = setting_type_cpp2
+    jinja_env.filters["setting_format_string"] = setting_format_string
 
     header_template = jinja_env.get_template("settings.h.jinja2")
     source_template = jinja_env.get_template("settings.cpp.jinja2")
 
-    # ### Render template.
+    # Render template.
 
     with open(g_header_path, "w") as generated_file:
         generated_file.write(header_template.render(settings_root))
@@ -685,11 +870,8 @@ def main():
         generated_file.write(source_template.render(settings_root))
 
     execution_time = time.monotonic() - timer_start
-    print(
-        "Settings C++ code generated successfully, in {} milliseconds.".format(
-            execution_time * 1000
-        )
-    )
+    # Comment out printing to avoid polluting compilation output. But leave it here so we can easily check timing during development.
+    # print("Settings C++ code generated successfully, in {} milliseconds.".format(execution_time * 1000))
 
     return 0
 

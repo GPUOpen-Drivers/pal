@@ -30,6 +30,7 @@
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9GraphicsPipeline.h"
 #include "core/hw/gfxip/gfx9/gfx9PipelineChunkVsPs.h"
+#include "core/hw/gfxip/gfx9/gfx9GraphicsShaderLibrary.h"
 
 using namespace Util;
 
@@ -67,6 +68,7 @@ PipelineChunkVsPs::PipelineChunkVsPs(
 
     m_stageInfoVs.stageId = Abi::HardwareStage::Vs;
     m_stageInfoPs.stageId = Abi::HardwareStage::Ps;
+    m_psWaveFrontSize = 32;
     m_regs.sh.userDataInternalTableVs.u32All = InvalidUserDataInternalTable;
     m_regs.sh.userDataInternalTablePs.u32All = InvalidUserDataInternalTable;
 }
@@ -134,6 +136,7 @@ void PipelineChunkVsPs::LateInit(
         m_stageInfoPs.disassemblyLength = static_cast<size_t>(pElfSymbol->st_size);
     }
 
+    m_psWaveFrontSize = metadata.pipeline.hardwareStage[uint32(Util::Abi::HardwareStage::Ps)].wavefrontSize;
     m_regs.sh.spiShaderPgmRsrc1Ps.u32All = AbiRegisters::SpiShaderPgmRsrc1Ps(metadata, m_device, chipProps.gfxLevel);
     m_regs.sh.spiShaderPgmRsrc2Ps.u32All = AbiRegisters::SpiShaderPgmRsrc2Ps(metadata, chipProps.gfxLevel);
     m_regs.dynamic.spiShaderPgmRsrc3Ps.u32All =
@@ -608,8 +611,10 @@ void PipelineChunkVsPs::AccumulateShRegsPs(
 void PipelineChunkVsPs::Clone(
     const PipelineChunkVsPs& chunkVs,
     const PipelineChunkVsPs& chunkPs,
-    const PipelineChunkVsPs& chunkExp)
+    const GraphicsShaderLibrary* pExpLibrary)
 {
+    const GraphicsPipeline* pExpLib = static_cast<const GraphicsPipeline*>(pExpLibrary->GetPartialPipeline());
+    const PipelineChunkVsPs& chunkExp = pExpLib->GetChunkVsPs();
     // Stage info
     m_stageInfoPs  = chunkPs.m_stageInfoPs;
     m_stageInfoVs  = chunkVs.m_stageInfoVs;
@@ -659,6 +664,20 @@ void PipelineChunkVsPs::Clone(
     m_regs.context.dbShaderControl.bits.ALPHA_TO_MASK_DISABLE &=
         chunkExp.m_regs.context.dbShaderControl.bits.ALPHA_TO_MASK_DISABLE;
     m_colorExportAddr = chunkExp.m_colorExportAddr;
+
+    if (m_colorExportAddr != 0)
+    {
+        ShaderLibStats shaderStats = {};
+        const char* pColExpSymbol =
+            Abi::PipelineAbiSymbolNameStrings[static_cast<uint32>(Abi::PipelineSymbolType::PsColorExportEntry)];
+        pExpLibrary->GetShaderFunctionStats(pColExpSymbol, &shaderStats);
+        uint32 expVgprNum =
+            AbiRegisters::CalcNumVgprs(shaderStats.common.numUsedVgprs, chunkPs.m_psWaveFrontSize == 32);
+        uint32 expSgprNum =
+            AbiRegisters::CalcNumSgprs(shaderStats.common.numUsedSgprs);
+        m_regs.sh.spiShaderPgmRsrc1Ps.bits.VGPRS = Max(expVgprNum, m_regs.sh.spiShaderPgmRsrc1Ps.bits.VGPRS);
+        m_regs.sh.spiShaderPgmRsrc1Ps.bits.SGPRS = Max(expSgprNum, m_regs.sh.spiShaderPgmRsrc1Ps.bits.SGPRS);
+    }
 
     if ((chunkPs.m_semanticCount > 0) && (chunkVs.m_semanticCount > 0))
     {

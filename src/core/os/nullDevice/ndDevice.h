@@ -236,6 +236,9 @@ public:
         PowerProfile         profile,
         CustomPowerProfile*  pInfo) override;
 
+    virtual Result SetMlPowerOptimization(
+        bool enableOptimization) const override;
+
     virtual Result FlglQueryState(
         Pal::FlglState* pState) override { return Result::Success; }
 

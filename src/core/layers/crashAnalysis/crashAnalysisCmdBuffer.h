@@ -141,45 +141,35 @@ private:
         uint32            instanceCount,
         uint32            drawId);
     static void PAL_STDCALL CmdDrawIndirectMultiDecorator(
-        ICmdBuffer*       pCmdBuffer,
-        const IGpuMemory& gpuMemory,
-        gpusize           offset,
-        uint32            stride,
-        uint32            maximumCount,
-        gpusize           countGpuAddr);
+        ICmdBuffer*          pCmdBuffer,
+        GpuVirtAddrAndStride gpuVirtAddrAndStride,
+        uint32               maximumCount,
+        gpusize              countGpuAddr);
     static void PAL_STDCALL CmdDrawIndexedIndirectMultiDecorator(
-        ICmdBuffer*       pCmdBuffer,
-        const IGpuMemory& gpuMemory,
-        gpusize           offset,
-        uint32            stride,
-        uint32            maximumCount,
-        gpusize           countGpuAddr);
+        ICmdBuffer*          pCmdBuffer,
+        GpuVirtAddrAndStride gpuVirtAddrAndStride,
+        uint32               maximumCount,
+        gpusize              countGpuAddr);
     static void PAL_STDCALL CmdDispatchDecorator(
         ICmdBuffer*       pCmdBuffer,
         DispatchDims      size);
     static void PAL_STDCALL CmdDispatchIndirectDecorator(
-        ICmdBuffer*       pCmdBuffer,
-        const IGpuMemory& gpuMemory,
-        gpusize           offset);
+        ICmdBuffer* pCmdBuffer,
+        gpusize     gpuVirtAddr
+    );
     static void PAL_STDCALL CmdDispatchOffsetDecorator(
         ICmdBuffer*       pCmdBuffer,
         DispatchDims      offset,
         DispatchDims      launchSize,
         DispatchDims      logicalSize);
-    static void PAL_STDCALL CmdDispatchDynamicDecorator(
-        ICmdBuffer*       pCmdBuffer,
-        gpusize           gpuVa,
-        DispatchDims      size);
     static void PAL_STDCALL CmdDispatchMeshDecorator(
         ICmdBuffer*       pCmdBuffer,
         DispatchDims      size);
     static void PAL_STDCALL CmdDispatchMeshIndirectMultiDecorator(
-        ICmdBuffer*       pCmdBuffer,
-        const IGpuMemory& gpuMemory,
-        gpusize           offset,
-        uint32            stride,
-        uint32            maximumCount,
-        gpusize           countGpuAddr);
+        ICmdBuffer*          pCmdBuffer,
+        GpuVirtAddrAndStride gpuVirtAddrAndStride,
+        uint32               maximumCount,
+        gpusize              countGpuAddr);
 
     Device*const   m_pDevice;
     Platform*const m_pPlatform;

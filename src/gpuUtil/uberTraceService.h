@@ -40,10 +40,6 @@ class Platform;
 namespace GpuUtil
 {
 
-// Translates a Pal::Result to a DD_RESULT
-static DD_RESULT DdResultToPalResult(
-    Pal::Result result);
-
 // =====================================================================================================================
 // UberTraceService based off of DevDriver's UberTrace protocol. This is required in order for Tools to drive PAL's
 // TraceSession remotely. This service will mostly just forward network requests into the TraceSession object.

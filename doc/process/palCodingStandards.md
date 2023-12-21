@@ -5,6 +5,67 @@ Copyright (c) 2019-2023 Advanced Micro Devices, Inc. All rights reserved.
 <!--
 -->
 
+- [Introduction](#introduction)
+  - [Fundamental Underlying Principle:](#fundamental-underlying-principle)
+  - [Why Coding Standards](#why-coding-standards)
+- [Coding Standards and Guidelines](#coding-standards-and-guidelines)
+  - [General](#general)
+  - [General Language Restrictions](#general-language-restrictions)
+  - [Preprocessor](#preprocessor)
+  - [Naming Conventions](#naming-conventions)
+  - [Namespaces](#namespaces)
+  - [Files](#files)
+  - [Documentation and Comments](#documentation-and-comments)
+    - [Copyright](#copyright)
+<!--
+-->
+    - [Public Interface](#public-interface)
+    - [Internal code](#internal-code)
+      - [Motivation](#motivation)
+<!--
+-->
+  - [Types and Declarations](#types-and-declarations)
+  - [General Functions](#general-functions)
+    - [Calling Conventions](#calling-conventions)
+    - [Inline Functions](#inline-functions)
+    - [Static Functions](#static-functions)
+    - [Lambdas](#lambdas)
+    - [Formatting and Commenting](#formatting-and-commenting)
+    - [Function Contents](#function-contents)
+  - [Classes](#classes)
+    - [General](#general-1)
+    - [Inheritance](#inheritance)
+    - [Constructors](#constructors)
+    - [Destructors](#destructors)
+    - [Methods](#methods)
+    - [Member Variables](#member-variables)
+  - [Const Usage](#const-usage)
+  - [Casting](#casting)
+    - [`const_cast`](#const_cast)
+  - [Structures and Typedefs](#structures-and-typedefs)
+  - [Enumerations](#enumerations)
+  - [Ifs, Loops, and Switch Statements](#ifs-loops-and-switch-statements)
+  - [Error Checking](#error-checking)
+  - [Memory Allocation](#memory-allocation)
+  - [Construction and Destruction](#construction-and-destruction)
+    - [Simple Construction and Initialization](#simple-construction-and-initialization)
+    - [Generic Construction and Initialization](#generic-construction-and-initialization)
+      - [Construction](#construction)
+      - [Destruction](#destruction)
+      - [Destruction with Implicit Deallocation](#destruction-with-implicit-deallocation)
+    - [Error Handling During Construction](#error-handling-during-construction)
+      - [Member Variables](#member-variables-1)
+      - [Factories](#factories)
+  - [Concurrency and Thread Safety](#concurrency-and-thread-safety)
+  - [Templates](#templates)
+    - [Use of Templates](#use-of-templates)
+    - [General Template Guidelines](#general-template-guidelines)
+    - [Class Template Guidelines](#class-template-guidelines)
+    - [Function Template Guidelines](#function-template-guidelines)
+    - [Container Guidelines](#container-guidelines)
+<!--
+-->
+
 Introduction
 ============
 
@@ -205,6 +266,8 @@ General Language Restrictions
 -   **Avoid** overloading function names for class hierarchies. This can
     lead to tedious casting of the class that defines the function.
 
+-   Inline assembly ***must*** not be used.<a id="inline-assembly"></a>
+
 Preprocessor
 ------------
 
@@ -222,7 +285,7 @@ Preprocessor
         e.g. `#if defined(__unix__)`
 
 -   Preprocessor macros are ***highly discouraged***. Instead, methods
-    or functions ***should*** be implemented and used.
+    or functions ***should*** be implemented and used. <a id="preprocessor-macro"></a>
 
 -   ***Avoid*** the use of blocks of code that are commented out or
     compiled out with an `#if 0` / `#endif` wrapper. If there is a
@@ -588,7 +651,7 @@ separate section covering specific requirements for member variables.
 
 -   A set of typedefs are available in palUtil.h for width-specified
     integer formats (int8, uint32, etc.) which ***must*** be used
-    in lieu of the int and unsigned int intrinsic types.
+    in lieu of the int and unsigned int intrinsic types. <a id="std-types"></a>
 
 > These typedefs break the UpperCamelCase convention for typedefs in
 > order to be consistent with the built-in types.
@@ -597,7 +660,7 @@ separate section covering specific requirements for member variables.
     only*** be used in OS-specific code that directly interacts with
     the operating system.
 
--   Global variables are ***strongly*** ***discouraged***.
+-   Global variables are ***strongly*** ***discouraged***. <a id="global-variable"></a>
 
 -   Static variables local to a particular function ***must not*** be
     used. constexpr ***should*** be used instead.
@@ -705,9 +768,9 @@ General Functions
         - Member functions of template classes that are not full
           specializations
 
--   The `PAL_FORCE_INLINE` compiler directive is ***strongly
-    discouraged*** and ***should not*** be used except in cases where
-    it provably provides a significant benefit. In general, rely on
+-   <a id="force-inline"></a> The `PAL_FORCE_INLINE` compiler directive is
+    ***strongly discouraged*** and ***should not*** be used except in cases
+    where it provably provides a significant benefit. In general, rely on
     link-time code generation and the compiler to do inlining, but this
     hint ***may*** be used when it provides a benefit.
 
@@ -1024,10 +1087,10 @@ public:
     not*** consist of more than three to four statements.
 
 -   The explicit `inline` specifier ***should not*** be used unless it is
-    used to resolve One-Definition Rule (ODR) violations.
+    used to resolve One-Definition Rule (ODR) violations. <a id="explicit-inline"></a>
 
 -   The `PAL_FORCE_INLINE` compiler directive is ***strongly
-    discouraged*** and ***should not*** be used.
+    discouraged*** and ***should not*** be used. <a id="method-force-inline"></a>
 
 -   Inherited, non-virtual method ***must not*** be redefined.
 
@@ -1932,3 +1995,6 @@ advantages. "Clever" use of templates is not desirable.
     of a new container ***must*** follow the patterns of the
     interfaces to existing containers. (That is not to say there
     should be an interface class for them).
+
+<!--
+-->

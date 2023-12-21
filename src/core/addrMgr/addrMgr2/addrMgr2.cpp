@@ -499,7 +499,7 @@ void AddrMgr2::InitTilingCaps(
 
         // Disable 4kB swizzle mode so more surfaces get DCC memory.
         // Should only set disable4kBSwizzleMode for testing purposes.
-        const uint32 disable4KBSwizzleMode = settings.addr2Disable4kBSwizzleMode;
+        const uint32 disable4KBSwizzleMode = settings.addr2Disable4KbSwizzleMode;
 
         const auto imageType = pImage->GetGfxImage()->GetOverrideImageType();
 
@@ -1165,6 +1165,8 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
     // Enable gfx9 to handle 2d sampling on 3d despite its hardware always interpreting as 3d
     // The tile size doesn't matter, though, so we still let AddrLib handle this case.
     // D-mode isn't supported in all cases (PRT, depth-major mipmaps), so watch for overrides.
+    // For gfx10, only Z/R/linear swizzle modes are valid for 3D image when regarded as 2D.
+    // See address-lib logic for Gfx10Rsrc3dViewAs2dSwModeMask.
     if (createInfo.imageType == ImageType::Tex3d)
     {
         surfSettingInput.flags.view3dAs2dArray = createInfo.flags.view3dAs2dArray;
@@ -1373,14 +1375,17 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
         PAL_ASSERT((forFmask == false) || IsZSwizzle(pOut->swizzleMode));
 
         // view3dAs2dArray can only use D-swizzle for gfx9, so fail if the hint was overriden. See full details above.
+        // However, gfx10 can use linear, Z or R swizzle for 3D image as 2D as valid.
+        // See address-lib logic for Gfx10Rsrc3dViewAs2dSwModeMask.
         if (createInfo.flags.view3dAs2dArray != 0)
         {
             if (IsGfx9(*m_pDevice) && (IsDisplayableSwizzle(pOut->swizzleMode) == false))
             {
                 result = Result::ErrorInvalidFlags;
             }
-            else if (IsGfx10(*m_pDevice)                      &&
-                     (IsZSwizzle(pOut->swizzleMode) == false) &&
+            else if (IsGfx10(*m_pDevice)                               &&
+                     (IsZSwizzle(pOut->swizzleMode) == false)          &&
+                     (IsLinearSwizzleMode(pOut->swizzleMode) == false) &&
                      (IsRotatedSwizzle(pOut->swizzleMode) == false))
             {
                 result = Result::ErrorInvalidFlags;

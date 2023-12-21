@@ -47,13 +47,20 @@ static DD_RESULT PalResultToDdResult(
         break;
     case Result::ErrorInvalidPointer:
     case Result::ErrorInvalidValue:
-        devDriverResult = DD_RESULT_COMMON_INVALID_PARAMETER;
+        devDriverResult = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
         break;
     case Result::ErrorUnavailable:
-        devDriverResult = DD_RESULT_COMMON_UNSUPPORTED;
+        devDriverResult = DD_RESULT_DD_GENERIC_UNAVAILABLE;
         break;
+    case Result::NotReady:
+        devDriverResult = DD_RESULT_DD_GENERIC_NOT_READY;
+        break;
+    case Result::ErrorInvalidMemorySize:
+        devDriverResult = DD_RESULT_DD_GENERIC_INSUFFICIENT_MEMORY;
+        break;
+    case Result::ErrorUnknown:
     default:
-        devDriverResult = DD_RESULT_DD_UNKNOWN;
+        devDriverResult = DD_RESULT_UNKNOWN;
         break;
     }
 
@@ -102,35 +109,35 @@ DD_RESULT UberTraceService::RequestTrace()
 DD_RESULT UberTraceService::CollectTrace(
     const DDByteWriter& writer)
 {
-    DD_RESULT devDriverResult = DD_RESULT_COMMON_UNSUPPORTED;
-    size_t    pDataSize       = 0;
-    char*     pData           = nullptr;
+    size_t pDataSize = 0;
+    char*  pData     = nullptr;
 
     // CollectTrace needs to be called twice: (1) to retrieve the correct trace data size for buffer allocation and
     // (2) to consume any trace data stored within TraceSession. When the buffer pointer is null, CollectTrace returns
     // only the data size.
-    Result result = m_pPlatform->GetTraceSession()->CollectTrace(pData, &pDataSize);
-    if (result == Result::Success)
+    DD_RESULT result = PalResultToDdResult(m_pPlatform->GetTraceSession()->CollectTrace(pData, &pDataSize));
+
+    if (result == DD_RESULT_SUCCESS)
     {
         pData  = PAL_NEW_ARRAY(char, pDataSize, m_pPlatform, Util::AllocInternalTemp);
-        result = m_pPlatform->GetTraceSession()->CollectTrace(pData, &pDataSize);
+        result = PalResultToDdResult(m_pPlatform->GetTraceSession()->CollectTrace(pData, &pDataSize));
     }
 
-    if (result == Result::Success)
+    if (result == DD_RESULT_SUCCESS)
     {
-        devDriverResult = writer.pfnBegin(writer.pUserdata, &pDataSize);
+        result = writer.pfnBegin(writer.pUserdata, &pDataSize);
 
-        if (devDriverResult == DD_RESULT_SUCCESS)
+        if (result == DD_RESULT_SUCCESS)
         {
-            devDriverResult = writer.pfnWriteBytes(writer.pUserdata, pData, pDataSize);
+            result = writer.pfnWriteBytes(writer.pUserdata, pData, pDataSize);
         }
 
-        writer.pfnEnd(writer.pUserdata, devDriverResult);
+        writer.pfnEnd(writer.pUserdata, result);
 
         PAL_SAFE_DELETE_ARRAY(pData, m_pPlatform);
     }
 
-    return devDriverResult;
+    return result;
 }
 }
 #endif

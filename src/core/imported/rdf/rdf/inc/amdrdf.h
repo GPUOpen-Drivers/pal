@@ -45,7 +45,7 @@
      (static_cast<std::uint32_t>(minor) << 12) | \
      (static_cast<std::uint32_t>(patch)))
 
-#define RDF_INTERFACE_VERSION RDF_MAKE_VERSION(1, 1, 2)
+#define RDF_INTERFACE_VERSION RDF_MAKE_VERSION(1, 2, 0)
 
 extern "C" {
 struct rdfChunkFile;
@@ -89,13 +89,23 @@ struct rdfStreamFromFileCreateInfo
 /**
  * @brief User-provided I/O callbacks
  *
- * There are five callback functions here which will be called with the user-
+ * There are six callback functions here which will be called with the user-
  * provided context variable:
  *
  * - Seek/Tell/GetSize must be always non-null
  * - Read/Write can be null. Note that a stream which has both set to null
  *   is invalid. The chunk writer can work with a stream that is in write-
  *   only mode only if it's not appending.
+ * - Close can be null. This function will be called when the stream is closed,
+ *   which can be used to clean-up the context. A closed stream cannot be
+ *   reused, and it's the responsibility of the user to ensure a stream
+ *   is not closed more than once.
+ *
+ * The first argument is always the context provided along with the user
+ * stream. Notice that the context pointer is copied internally, so you can't
+ * rely on the address of the context to be the same as the one passed into
+ * the various create functions. Specifically, you can't use `&ctx` to modify
+ * the context provided at creation time.
 */
 struct rdfUserStream
 {
@@ -156,10 +166,20 @@ struct rdfUserStream
      *
      * This function must be always provided.
      *
-     * -  `size` must not be `null`
+     * - `size` must not be `null`
      * - The provided context will be passed into `ctx`
     */
     int (*GetSize)(void* ctx, std::int64_t* size);
+
+    /**
+    * @brief Close the stream.
+    * @return rdfResult
+    *
+    * This function can be `null` if the stream handles closing elsewhere.
+    *
+    * @since 1.2
+    */
+    int (*Close)(void* ctx);
 
     void* context;
 };

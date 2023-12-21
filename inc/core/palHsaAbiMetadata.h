@@ -60,6 +60,17 @@ enum class ValueKind : uint32
     HiddenDefaultQueue,     ///< A global address space pointer to the default OpenCL device enqueue queue.
     HiddenCompletionAction, ///< A global address space pointer to help link enqueued kernels into the ancestor tree.
     HiddenMultigridSyncArg, ///< A global address space pointer for multi-grid synchronization.
+    HiddenBlockCountX,      ///< The grid dispatch complete work-group count for the X dimension
+    HiddenBlockCountY,      ///< The grid dispatch complete work-group count for the Y dimension
+    HiddenBlockCountZ,      ///< The grid dispatch complete work-group count for the Z dimension
+    HiddenGroupSizeX,       ///< total grid size for complete workgroups for X dim (in work-items)
+    HiddenGroupSizeY,       ///< total grid size for complete workgroups for Y dim (in work-items)
+    HiddenGroupSizeZ,       ///< total grid size for complete workgroups for Z dim (in work-items)
+    HiddenRemainderX,       ///< Dispatch workgroup size of the partial work group of the X dimension, if it exists.
+    HiddenRemainderY,       ///< Dispatch workgroup size of the partial work group of the Y dimension, if it exists.
+    HiddenRemainderZ,       ///< Dispatch workgroup size of the partial work group of the Z dimension, if it exists.
+    HiddenGridDims,         ///< Dispatch grid dimensionality, value between 1 and 3
+    HiddenHeapV1            ///< Global address pointer to an initialized memory buffer for device side malloc/free
 };
 
 /// An enum of the legal ".address_space" strings.
@@ -92,7 +103,7 @@ enum class Kind : uint32
 };
 
 /// A single kernel argument.
-/// See: https://llvm.org/docs/AMDGPUUsage.html#amdgpu-amdhsa-code-object-kernel-argument-metadata-map-table-v3
+/// See: https://llvm.org/docs/AMDGPUUsage.html#amdgpu-amdhsa-code-object-kernel-argument-metadata-map-table-v5
 struct KernelArgument
 {
     const char*  pName;        ///< Optional: Kernel argument name.
@@ -124,7 +135,7 @@ struct KernelArgument
 
 // =====================================================================================================================
 /// The set of all HSA code object metadata we need.
-/// See: https://llvm.org/docs/AMDGPUUsage.html#amdgpu-amdhsa-code-object-kernel-metadata-map-table-v3
+/// See: https://llvm.org/docs/AMDGPUUsage.html#code-object-v5-metadata
 class CodeObjectMetadata final
 {
 public:
@@ -197,6 +208,12 @@ public:
     /// Returns the amount of fixed private address space memory (scratch) required by a work-item in bytes.
     uint32 PrivateSegmentFixedSize() const { return m_privateSegmentFixedSize; }
 
+    uint32 UniformWorkgroupSize() const { return m_uniformWorkgroupSize; }
+
+    bool UsesDynamicStack() const { return m_usesDynamicStack; }
+
+    bool WorkgroupProcessorMode() const { return m_workgroupProcessorMode; }
+
     /// Returns what kind of kernel this is.
     Kind KernelKind() const { return m_kind; }
 
@@ -232,13 +249,16 @@ private:
     uint32      m_sgprSpillCount;          ///< Optional: Number of stores from a scalar register to the spill location.
     uint32      m_vgprSpillCount;          ///< Optional: Number of stores from a vector register to the spill location.
     Kind        m_kind;                    ///< Optional: What kind of kernel this is, Normal if not present.
+    uint32      m_uniformWorkgroupSize;    ///< Optional: If kernel requires that grid dim is multiple of workgroup size
+    bool        m_usesDynamicStack;        ///< Optional: The generated machine code is using a dynamically sized stack.
+    bool        m_workgroupProcessorMode;  ///< Optional: Is this WGP mode or CU mode
 
     PAL_DISALLOW_COPY_AND_ASSIGN(CodeObjectMetadata);
 };
 
 // This is templated so we need to define it in the header.
 template <typename Allocator>
-CodeObjectMetadata::CodeObjectMetadata(Allocator*const pAllocator)
+CodeObjectMetadata::CodeObjectMetadata(Allocator* const pAllocator)
     :
     m_allocator(pAllocator),
     m_codeVersionMajor(0),
@@ -263,7 +283,10 @@ CodeObjectMetadata::CodeObjectMetadata(Allocator*const pAllocator)
     m_maxFlatWorkgroupSize(0),
     m_sgprSpillCount(0),
     m_vgprSpillCount(0),
-    m_kind(Kind::Normal)
+    m_kind(Kind::Normal),
+    m_uniformWorkgroupSize(0),
+    m_usesDynamicStack(false),
+    m_workgroupProcessorMode(false)
 {
 }
 

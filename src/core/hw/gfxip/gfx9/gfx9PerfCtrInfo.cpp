@@ -642,7 +642,7 @@ static void Gfx9InitBasicBlockInfo(
     const Pal::Device& device,
     GpuChipProperties* pProps)
 {
-    Gfx9PerfCounterInfo*const pInfo    = &pProps->gfx9.perfCounterInfo;
+    Gfx9PerfCounterInfo*const pInfo    = &pProps->gfx9.perfCounterInfo.gfx9Info;
     const bool                isGfx9_0 = (IsVega10(device) || IsRaven(device));
     const MaxEventIds&        maxIds   = GetEventLimits(device);
     const uint32              rbPerSa  = pProps->gfx9.maxNumRbPerSe / pProps->gfx9.numShaderArrays;
@@ -1176,7 +1176,7 @@ static void Gfx10InitBasicBlockInfo(
     const Pal::Device& device,
     GpuChipProperties* pProps)
 {
-    Gfx9PerfCounterInfo*const pInfo    = &pProps->gfx9.perfCounterInfo;
+    Gfx9PerfCounterInfo*const pInfo    = &pProps->gfx9.perfCounterInfo.gfx9Info;
     const MaxEventIds&        maxIds   = GetEventLimits(device);
     const GfxIpLevel          gfxip    = device.ChipProperties().gfxLevel;
     const uint32              rbPerSa  = pProps->gfx9.maxNumRbPerSe / pProps->gfx9.numShaderArrays;
@@ -1978,7 +1978,7 @@ static void Gfx11InitBasicBlockInfo(
     const Pal::Device& device,
     GpuChipProperties* pProps)
 {
-    Gfx9PerfCounterInfo*const pInfo    = &pProps->gfx9.perfCounterInfo;
+    Gfx9PerfCounterInfo*const pInfo    = &pProps->gfx9.perfCounterInfo.gfx9Info;
     const MaxEventIds&        maxIds   = GetEventLimits(device);
     const GfxIpLevel          gfxip    = device.ChipProperties().gfxLevel;
     const uint32              rbPerSa  = pProps->gfx9.maxNumRbPerSe / pProps->gfx9.numShaderArrays;
@@ -2695,7 +2695,7 @@ void InitPerfCtrInfo(
     // Something pretty terrible will probably happen if this isn't true.
     PAL_ASSERT(pProps->gfx9.numShaderEngines <= Gfx9MaxShaderEngines);
 
-    Gfx9PerfCounterInfo*const pInfo = &pProps->gfx9.perfCounterInfo;
+    Gfx9PerfCounterInfo*const pInfo = &pProps->gfx9.perfCounterInfo.gfx9Info;
 
     // The caller should already have zeroed this struct a long time ago but let's do it again just to be sure.
     // We depend very heavily on unsupported fields being zero by default.

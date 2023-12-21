@@ -111,6 +111,77 @@ void GfxBarrierMgr::DescribeBarrierEnd(
 }
 
 // =====================================================================================================================
+// Return converted dstStageMask.
+uint32 GfxBarrierMgr::GetPipelineStageMaskFromBarrierInfo(
+    const BarrierInfo& barrierInfo,
+    uint32*            pSrcStageMask)
+{
+    PAL_ASSERT(pSrcStageMask != nullptr);
+    *pSrcStageMask = 0;
+
+    for (uint32 i = 0; i < barrierInfo.pipePointWaitCount; i++)
+    {
+        // Note that don't convert HwPipePostPrefetch to FetchIndices as it will cause heavier VS stall.
+        constexpr uint32 SrcPipeStageTbl[] =
+        {
+            Pal::PipelineStageTopOfPipe,         // HwPipeTop              = 0x0
+            Pal::PipelineStageFetchIndirectArgs, // HwPipePostPrefetch     = 0x1
+            Pal::PipelineStageVs |
+            Pal::PipelineStageHs |
+            Pal::PipelineStageDs |
+            Pal::PipelineStageGs,                // HwPipePreRasterization = 0x2
+            Pal::PipelineStagePs,                // HwPipePostPs           = 0x3
+            Pal::PipelineStageLateDsTarget,      // HwPipePreColorTarget   = 0x4
+            Pal::PipelineStageCs,                // HwPipePostCs           = 0x5
+            Pal::PipelineStageBlt,               // HwPipePostBlt          = 0x6
+            Pal::PipelineStageBottomOfPipe,      // HwPipeBottom           = 0x7
+        };
+
+        *pSrcStageMask |= SrcPipeStageTbl[barrierInfo.pPipePoints[i]];
+    }
+
+    for (uint32 i = 0; i < barrierInfo.rangeCheckedTargetWaitCount; i++)
+    {
+        const Pal::Image* pImage = static_cast<const Pal::Image*>(barrierInfo.ppTargets[i]);
+
+        if (pImage != nullptr)
+        {
+            *pSrcStageMask |= pImage->IsDepthStencilTarget()
+                              ? (Pal::PipelineStageEarlyDsTarget | Pal::PipelineStageLateDsTarget)
+                              : Pal::PipelineStageColorTarget;
+        }
+    }
+
+    constexpr uint32 DstPipeStageTbl[] =
+    {
+        Pal::PipelineStageTopOfPipe,     // HwPipeTop              = 0x0
+        Pal::PipelineStageCs |
+        Pal::PipelineStageVs |
+        Pal::PipelineStageBlt,           // HwPipePostPrefetch     = 0x1
+        Pal::PipelineStageEarlyDsTarget, // HwPipePreRasterization = 0x2
+        Pal::PipelineStageLateDsTarget,  // HwPipePostPs           = 0x3
+        Pal::PipelineStageColorTarget,   // HwPipePreColorTarget   = 0x4
+        Pal::PipelineStageBottomOfPipe,  // HwPipePostCs           = 0x5
+        Pal::PipelineStageBottomOfPipe,  // HwPipePostBlt          = 0x6
+        Pal::PipelineStageBottomOfPipe,  // HwPipeBottom           = 0x7
+    };
+
+    const uint32 dstStageMask = DstPipeStageTbl[barrierInfo.waitPoint];
+
+    return dstStageMask;
+}
+
+// =====================================================================================================================
+bool GfxBarrierMgr::IsReadOnlyTransition(
+    uint32 srcAccessMask,
+    uint32 dstAccessMask)
+{
+    return (srcAccessMask != 0) &&
+           (dstAccessMask != 0) &&
+           (TestAnyFlagSet(srcAccessMask | dstAccessMask, CacheCoherWriteMask) == false);
+}
+
+// =====================================================================================================================
 // Helper function that takes a BarrierInfo, and splits the SubresRanges in the BarrierTransitions that have multiple
 // planes specified into BarrierTransitions with a single plane SubresRange specified. If the this function allocates
 // memory pMemAllocated is set to true and the caller is responsible for deleting the memory.
@@ -269,8 +340,7 @@ Result GfxBarrierMgr::SplitImgBarriers(
 //       a client-facing HwPipePoint (e.g., if there are CP DMA BLTs in flight).
 void GfxBarrierMgr::OptimizePipePoint(
     const Pm4CmdBuffer* pCmdBuf,
-    HwPipePoint*        pPipePoint
-    ) const
+    HwPipePoint*        pPipePoint)
 {
     if (pPipePoint != nullptr)
     {
@@ -311,8 +381,7 @@ void GfxBarrierMgr::OptimizePipePoint(
 // Helper function to optimize cache mask by clearing unnecessary coherency flags. This is for legacy barrier interface.
 void GfxBarrierMgr::OptimizeSrcCacheMask(
     const Pm4CmdBuffer* pCmdBuf,
-    uint32*             pCacheMask
-    ) const
+    uint32*             pCacheMask)
 {
     if (pCacheMask != nullptr)
     {
@@ -328,8 +397,6 @@ void GfxBarrierMgr::OptimizeSrcCacheMask(
             const Pm4CmdBufferStateFlags cmdBufStateFlags = pCmdBuf->GetPm4CmdBufState().flags;
             const bool                   isCopySrcOnly    = (*pCacheMask == CoherCopySrc);
 
-            *pCacheMask &= ~CacheCoherencyBlt;
-
             *pCacheMask |= cmdBufStateFlags.cpWriteCachesDirty ? CoherCp : 0;
             *pCacheMask |= cmdBufStateFlags.cpMemoryWriteL2CacheStale ? CoherMemory : 0;
 
@@ -343,6 +410,8 @@ void GfxBarrierMgr::OptimizeSrcCacheMask(
                 *pCacheMask |= cmdBufStateFlags.gfxWriteCachesDirty ? CoherColorTarget : 0;
                 *pCacheMask |= cmdBufStateFlags.csWriteCachesDirty ? CoherShader : 0;
             }
+
+            *pCacheMask &= ~CacheCoherencyBlt;
         }
     }
 }
@@ -357,8 +426,7 @@ void GfxBarrierMgr::OptimizePipeStageAndCacheMask(
     uint32*             pSrcStageMask,
     uint32*             pSrcAccessMask,
     uint32*             pDstStageMask,
-    uint32*             pDstAccessMask
-    ) const
+    uint32*             pDstAccessMask)
 {
     const Pm4CmdBufferStateFlags cmdBufStateFlags = pCmdBuf->GetPm4CmdBufState().flags;
 
@@ -406,7 +474,6 @@ void GfxBarrierMgr::OptimizePipeStageAndCacheMask(
             // - If a CP L2 BLT occurred, alias these srcCaches to CoherCp.
             // - If a CP direct-to-memory write occurred, alias these srcCaches to CoherMemory.
             // Clear the original srcCaches from the srcCache mask for the rest of this scope.
-            localAccessMask &= ~CacheCoherencyBlt;
 
             localAccessMask |= cmdBufStateFlags.cpWriteCachesDirty ? CoherCp : 0;
             localAccessMask |= cmdBufStateFlags.cpMemoryWriteL2CacheStale ? CoherMemory : 0;
@@ -421,6 +488,8 @@ void GfxBarrierMgr::OptimizePipeStageAndCacheMask(
                 localAccessMask |= cmdBufStateFlags.gfxWriteCachesDirty ? CoherColorTarget : 0;
                 localAccessMask |= cmdBufStateFlags.csWriteCachesDirty ? CoherShader : 0;
             }
+
+            localAccessMask &= ~CacheCoherencyBlt;
         }
 
         *pSrcAccessMask = localAccessMask;

@@ -290,6 +290,8 @@ void Pm4CmdBuffer::ResetState()
         m_pm4CmdBufState.flags.gfxWriteCachesDirty = 1;
     }
 
+    // It's possible that another of our command buffers still has blts in flight, except for CP blts which must be
+    // flushed in each command buffer postamble.
     if (IsComputeSupported())
     {
         m_pm4CmdBufState.flags.csBltActive        = 1;
@@ -298,9 +300,8 @@ void Pm4CmdBuffer::ResetState()
 
     if (IsCpDmaSupported())
     {
-        // A previous, chained command buffer could have used a CP blt which may have accessed L2 or memory directly.
-        // By convention, our CP blts will only use L2 if the HW supports it so we only need to set one bit here.
         {
+            // PAL sends CP reads and writes through the GL2 by default, we'll need GL2 flushes.
             m_pm4CmdBufState.flags.cpWriteCachesDirty = 1;
         }
     }
@@ -374,7 +375,8 @@ Result Pm4CmdBuffer::BeginCommandStreams(
 
     Result result = GfxCmdBuffer::BeginCommandStreams(cmdStreamFlags, doReset);
 
-    if (result == Result::Success)
+    if ((result == Result::Success)
+        )
     {
         // Allocate acquire/release synchronization fence value GPU memory from the command allocator.
         // AllocateGpuScratchMem() always returns a valid GPU address, even if we fail to obtain memory from the
@@ -410,168 +412,6 @@ void Pm4CmdBuffer::ResetFastClearReferenceCounts()
             m_fceRefCountVec.PopBack(&pCounter);
             Util::AtomicDecrement(pCounter);
         }
-    }
-}
-
-// =====================================================================================================================
-// Helper function to convert certain pipeline points to more accurate ones. This is for legacy barrier interface.
-// Note: HwPipePostBlt will be converted to a more accurate stage based on the underlying implementation of
-//       outstanding BLTs, but will be left as HwPipePostBlt if the internal outstanding BLTs can't be expressed as
-//       a client-facing HwPipePoint (e.g., if there are CP DMA BLTs in flight).
-void Pm4CmdBuffer::OptimizePipePoint(
-    HwPipePoint* pPipePoint
-) const
-{
-    if (pPipePoint != nullptr)
-    {
-        if (*pPipePoint == HwPipePostBlt)
-        {
-            // Check xxxBltActive states in order
-            const Pm4CmdBufferStateFlags cmdBufStateFlags = GetPm4CmdBufState().flags;
-            if (cmdBufStateFlags.gfxBltActive)
-            {
-                *pPipePoint = HwPipeBottom;
-            }
-            else if (cmdBufStateFlags.csBltActive)
-            {
-                *pPipePoint = HwPipePostCs;
-            }
-            else if (cmdBufStateFlags.cpBltActive)
-            {
-                // Leave it as HwPipePostBlt because CP DMA BLTs cannot be expressed as more specific HwPipePoint.
-            }
-            else
-            {
-                // If there are no BLTs in flight at this point, we will set the pipe point to HwPipeTop. This will
-                // optimize any redundant stalls when called from the barrier implementation. Otherwise, this function
-                // remaps the pipe point based on the gfx block that performed the BLT operation.
-                *pPipePoint = HwPipeTop;
-            }
-        }
-        else if (*pPipePoint == HwPipePreColorTarget)
-        {
-            // HwPipePreColorTarget is only valid as wait point. But for the sake of robustness, if it's used as pipe
-            // point to wait on, it's equivalent to HwPipePostPs.
-            *pPipePoint = HwPipePostPs;
-        }
-    }
-}
-
-// =====================================================================================================================
-// Helper function to optimize cache mask by clearing unnecessary coherency flags. This is for legacy barrier interface.
-void Pm4CmdBuffer::OptimizeSrcCacheMask(
-    uint32* pCacheMask
-) const
-{
-    if (pCacheMask != nullptr)
-    {
-        // There are various srcCache BLTs (Copy, Clear, and Resolve) which we can further optimize if we know which
-        // write caches have been dirtied:
-        // - If a graphics BLT occurred, alias these srcCaches to CoherColorTarget.
-        // - If a compute BLT occurred, alias these srcCaches to CoherShader.
-        // - If a CP L2 BLT occured, alias these srcCaches to CoherCp.
-        // - If a CP direct-to-memory write occured, alias these srcCaches to CoherMemory.
-        // Clear the original srcCaches from the srcCache mask for the rest of this scope.
-        if (TestAnyFlagSet(*pCacheMask, CacheCoherencyBlt))
-        {
-            const Pm4CmdBufferStateFlags cmdBufStateFlags = GetPm4CmdBufState().flags;
-            const bool                   isCopySrcOnly    = (*pCacheMask == CoherCopySrc);
-
-            *pCacheMask &= ~CacheCoherencyBlt;
-
-            *pCacheMask |= cmdBufStateFlags.cpWriteCachesDirty ? CoherCp : 0;
-            *pCacheMask |= cmdBufStateFlags.cpMemoryWriteL2CacheStale ? CoherMemory : 0;
-
-            if (isCopySrcOnly)
-            {
-                *pCacheMask |= cmdBufStateFlags.gfxWriteCachesDirty ? CoherShaderRead : 0;
-                *pCacheMask |= cmdBufStateFlags.csWriteCachesDirty ? CoherShaderRead : 0;
-            }
-            else
-            {
-                *pCacheMask |= cmdBufStateFlags.gfxWriteCachesDirty ? CoherColorTarget : 0;
-                *pCacheMask |= cmdBufStateFlags.csWriteCachesDirty ? CoherShader : 0;
-            }
-        }
-    }
-}
-
-// =====================================================================================================================
-// Helper function to optimize pipeline stages and cache access masks for BLTs. This is for acquire/release interface.
-// Note: PipelineStageBlt will be converted to a more accurate stage based on the underlying implementation of
-//       outstanding BLTs, but will be left as PipelineStageBlt if the internal outstanding BLTs can't be expressed as
-//       a client-facing PipelineStage (e.g., if there are CP DMA BLTs in flight).
-void Pm4CmdBuffer::OptimizePipeStageAndCacheMask(
-    uint32* pSrcStageMask,
-    uint32* pSrcAccessMask,
-    uint32* pDstStageMask,
-    uint32* pDstAccessMask
-    ) const
-{
-    const Pm4CmdBufferStateFlags cmdBufStateFlags = GetPm4CmdBufState().flags;
-
-    // Update pipeline stages if valid input stage mask is provided.
-    if (pSrcStageMask != nullptr)
-    {
-        uint32 localStageMask = *pSrcStageMask;
-
-        if (TestAnyFlagSet(localStageMask, PipelineStageBlt))
-        {
-            localStageMask &= ~PipelineStageBlt;
-
-            // Check xxxBltActive states in order.
-            if (cmdBufStateFlags.gfxBltActive)
-            {
-                localStageMask |= PipelineStageEarlyDsTarget | PipelineStageLateDsTarget | PipelineStageColorTarget;
-            }
-            if (cmdBufStateFlags.csBltActive)
-            {
-                localStageMask |= PipelineStageCs;
-            }
-            if (cmdBufStateFlags.cpBltActive)
-            {
-                // Add back PipelineStageBlt because we cannot express it with a more accurate stage.
-                localStageMask |= PipelineStageBlt;
-            }
-        }
-
-        *pSrcStageMask = localStageMask;
-    }
-
-    // Update cache access masks if valid input access mask is provided.
-    if (pSrcAccessMask != nullptr)
-    {
-        uint32 localAccessMask = *pSrcAccessMask;
-
-        if (TestAnyFlagSet(localAccessMask, CacheCoherencyBlt))
-        {
-            const bool isCopySrcOnly = (localAccessMask == CoherCopySrc);
-
-            // There are various srcCache BLTs (Copy, Clear, and Resolve) which we can further optimize if we know
-            // which write caches have been dirtied:
-            // - If a graphics BLT occurred, alias these srcCaches to CoherColorTarget.
-            // - If a compute BLT occurred, alias these srcCaches to CoherShader.
-            // - If a CP L2 BLT occured, alias these srcCaches to CoherCp.
-            // - If a CP direct-to-memory write occured, alias these srcCaches to CoherMemory.
-            // Clear the original srcCaches from the srcCache mask for the rest of this scope.
-            localAccessMask &= ~CacheCoherencyBlt;
-
-            localAccessMask |= cmdBufStateFlags.cpWriteCachesDirty ? CoherCp : 0;
-            localAccessMask |= cmdBufStateFlags.cpMemoryWriteL2CacheStale ? CoherMemory : 0;
-
-            if (isCopySrcOnly)
-            {
-                localAccessMask |= cmdBufStateFlags.gfxWriteCachesDirty ? CoherShaderRead : 0;
-                localAccessMask |= cmdBufStateFlags.csWriteCachesDirty ? CoherShaderRead : 0;
-            }
-            else
-            {
-                localAccessMask |= cmdBufStateFlags.gfxWriteCachesDirty ? CoherColorTarget : 0;
-                localAccessMask |= cmdBufStateFlags.csWriteCachesDirty ? CoherShader : 0;
-            }
-        }
-
-        *pSrcAccessMask = localAccessMask;
     }
 }
 
@@ -924,29 +764,14 @@ void Pm4CmdBuffer::OptimizeBarrierReleaseInfo(
     uint32*            pCacheMask
     ) const
 {
-    if (m_pBarrierMgr != nullptr)
+    for (uint32 i = 0; i < pipePointCount; i++)
     {
-        for (uint32 i = 0; i < pipePointCount; i++)
-        {
-            m_pBarrierMgr->OptimizePipePoint(this, &pPipePoints[i]);
-        }
-
-        if (pCacheMask != nullptr)
-        {
-            m_pBarrierMgr->OptimizeSrcCacheMask(this, pCacheMask);
-        }
+        GfxBarrierMgr::OptimizePipePoint(this, &pPipePoints[i]);
     }
-    else
-    {
-        for (uint32 i = 0; i < pipePointCount; i++)
-        {
-            OptimizePipePoint(&pPipePoints[i]);
-        }
 
-        if (pCacheMask != nullptr)
-        {
-            OptimizeSrcCacheMask(pCacheMask);
-        }
+    if (pCacheMask != nullptr)
+    {
+        GfxBarrierMgr::OptimizeSrcCacheMask(this, pCacheMask);
     }
 }
 
@@ -956,14 +781,7 @@ void Pm4CmdBuffer::OptimizeAcqRelReleaseInfo(
     uint32*                   pAccessMasks
     ) const
 {
-    if (m_pBarrierMgr != nullptr)
-    {
-        m_pBarrierMgr->OptimizePipeStageAndCacheMask(this, pStageMask, pAccessMasks, nullptr, nullptr);
-    }
-    else
-    {
-        OptimizePipeStageAndCacheMask(pStageMask, pAccessMasks, nullptr, nullptr);
-    }
+    GfxBarrierMgr::OptimizePipeStageAndCacheMask(this, pStageMask, pAccessMasks, nullptr, nullptr);
 }
 
 // =====================================================================================================================

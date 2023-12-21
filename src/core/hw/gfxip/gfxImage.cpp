@@ -87,6 +87,14 @@ bool GfxImage::IsRestrictedTiledMultiMediaSurface() const
 }
 
 // =====================================================================================================================
+// Helper method to check if the surface is a multimedia surface with some tile mode restrictions.
+bool GfxImage::IsNv12OrP010FormatSurface() const
+{
+    return ((m_createInfo.swizzledFormat.format == ChNumFormat::NV12) ||
+            (m_createInfo.swizzledFormat.format == ChNumFormat::P010));
+}
+
+// =====================================================================================================================
 uint32 GfxImage::GetStencilPlane() const
 {
     return ((m_pImageInfo->numPlanes == 1) ? 0 : 1);

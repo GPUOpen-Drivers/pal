@@ -88,7 +88,8 @@ union CmdStreamFlags
                                        // destroy a non-autoMemoryReuse allocator first. Dereferencing a deleted
                                        // allocator to see if it has autoMemoryReuse enabled is illegal, so we must
                                        // cache that state in the command stream.
-        uint32 reserved          : 24;
+        uint32 isNested          :  1; // This is a stream for a nested command buffer
+        uint32 reserved          : 23;
     };
     uint32     value;
 };
@@ -100,7 +101,8 @@ union CmdStreamBeginFlags
     {
         uint32 prefetchCommands :  1; // The command stream should be prefetched into the GPU cache.
         uint32 optimizeCommands :  1; // The command stream contents should be optimized.
-        uint32 reserved         : 30;
+        uint32 placeholder1     :  1;
+        uint32 reserved         : 29;
     };
     uint32     value;
 };

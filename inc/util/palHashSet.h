@@ -93,7 +93,7 @@ public:
     /// @internal Constructor
     ///
     /// @param [in] numBuckets Number of buckets to allocate for this hash container.  The initial hash container will
-    ///                        take (buckets * PAL_CACHELINE_BYTES) bytes.
+    ///                        take (buckets * GroupSize) bytes.
     /// @param [in] pAllocator Pointer to an allocator that will create system memory requested by this hash container.
     explicit HashSet(uint32 numBuckets, Allocator*const pAllocator) : Base::HashBase(numBuckets, pAllocator) {}
     virtual ~HashSet() { }

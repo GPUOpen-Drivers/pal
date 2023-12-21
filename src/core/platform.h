@@ -43,6 +43,7 @@ class TraceSession;
 class AsicInfoTraceSource;
 class ApiInfoTraceSource;
 class ClockCalibrationTraceSource;
+class GpuPerfExperimentTraceSource;
 class UberTraceService;
 class FrameTraceController;
 }
@@ -62,6 +63,11 @@ namespace DevDriver
     {
         class RGPServer;
     }
+}
+
+namespace DevDriver
+{
+    class SettingsRpcService;
 }
 
 namespace Pal
@@ -161,6 +167,7 @@ public:
     virtual DevDriver::EventProtocol::EventServer* GetEventServer() override { return m_pEventServer; }
 
     virtual SettingsRpcService::SettingsService* GetSettingsService() override { return m_pSettingsService; }
+    virtual DevDriver::SettingsRpcService* GetSettingsRpcService() override { return m_pSettingsRpcService; }
 
     bool IsDeveloperModeEnabled() const { return (m_pDevDriverServer != nullptr); }
     bool IsDevDriverProfilingEnabled() const;
@@ -313,6 +320,8 @@ private:
 
     // Settings RPC Service for DevDriver tool connection
     SettingsRpcService::SettingsService* m_pSettingsService;
+    // Intended to replace `m_pSettingsService` once all settings components have been updated.
+    DevDriver::SettingsRpcService* m_pSettingsRpcService;
 
     // Service for misc driver utils
     DriverUtilsService::DriverUtilsService* m_pDriverUtilsService;
@@ -343,9 +352,10 @@ private:
     GpuUtil::FrameTraceController* m_pFrameTraceController;
 
     // Trace sources that send data to PAL-owned TraceSession
-    GpuUtil::AsicInfoTraceSource*         m_pAsicInfoTraceSource;
-    GpuUtil::ApiInfoTraceSource*          m_pApiInfoTraceSource;
-    GpuUtil::ClockCalibrationTraceSource* m_pClockCalibTraceSource;
+    GpuUtil::AsicInfoTraceSource*          m_pAsicInfoTraceSource;
+    GpuUtil::ApiInfoTraceSource*           m_pApiInfoTraceSource;
+    GpuUtil::ClockCalibrationTraceSource*  m_pClockCalibTraceSource;
+    GpuUtil::GpuPerfExperimentTraceSource* m_pGpuPerfExpTraceSource;
 
     // UberTraceService that communicates with Tools
     GpuUtil::UberTraceService* m_pUberTraceService;

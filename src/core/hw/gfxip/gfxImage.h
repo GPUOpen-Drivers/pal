@@ -93,6 +93,8 @@ struct SharedMetadataInfo
     uint64              resourceId; // This id is a unique name for the cross-process shared memory used to pass extra
                                     // information. Currently it's composed by the image object pointer and process id.
     AddrSwizzleMode     fmaskSwizzleMode;
+    gpusize             hiZOffset;
+    gpusize             hiSOffset;
 };
 
 // Display Dcc state for a plane
@@ -141,6 +143,8 @@ public:
 
     virtual bool IsRestrictedTiledMultiMediaSurface() const;
 
+    virtual bool IsNv12OrP010FormatSurface() const;
+
     // Answers the question: "If I do shader writes in this layout, will it break my metadata?". For example, this
     // would return true if we promised that CopyDst would be compressed but tried to use a compute copy path.
     virtual bool ShaderWriteIncompatibleWithLayout(const SubresId& subresId, ImageLayout layout) const = 0;
@@ -153,19 +157,23 @@ public:
     virtual void SetMallCursorCacheSize(uint32 cursorSize) { }
     virtual gpusize GetMallCursorCacheOffset() { return 0; }
 
+    virtual gpusize GetSubresourceAddr(SubresId  subResId) const = 0;
+    gpusize GetSubresource256BAddr(SubresId  subResId) const
+        { return GetSubresourceAddr(subResId) >> 8; }
     virtual gpusize GetPlaneBaseAddr(uint32 plane, uint32 arraySlice = 0) const { PAL_NEVER_CALLED(); return 0; }
 
     // Returns an integer that represents the tiling mode associated with the specified subresource.
     virtual uint32 GetSwTileMode(const SubResourceInfo* pSubResInfo) const = 0;
 
     virtual uint32 GetTileSwizzle(const SubresId& subResId) const = 0;
+    virtual uint32 GetHwSwizzleMode(const SubResourceInfo* pSubResInfo) const = 0;
 
     // Returns true if this subresource is effectively swizzled as a 2D image.
     virtual bool   IsSwizzleThin(const SubresId& subResId) const;
 
     uint32 GetStencilPlane() const;
 
-    void PadYuvPlanarViewActualExtent(SubresId subresource, Extent3d* pActualExtent) const;
+    virtual void PadYuvPlanarViewActualExtent(SubresId subresource, Extent3d* pActualExtent) const;
 
     // Initializes the metadata in the given subresource range using CmdFillMemory calls. It may not be possible
     // for some gfxip layers to implement this function.

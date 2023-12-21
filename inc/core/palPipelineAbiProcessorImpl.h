@@ -1017,24 +1017,13 @@ Result PipelineAbiProcessor<Allocator>::LoadFromBuffer(
             {
                 sectionType = AbiSectionType::LlvmIr;
             }
-            else if ((sectionIndex == pSections->GetSectionIndex(".rodata")) ||
-                     (sectionIndex == pSections->GetSectionIndex(".rodata.cached")) ||
-                     (sectionIndex == pSections->GetSectionIndex(".rodata.cst32")))
-            {
-                // NOTE: This is dummy check. Just to make sure symbols from .rodata section and its variants are
-                // valid and expected.
-            }
-            else if (sectionIndex != 0)
-            {
-                PAL_ASSERT_ALWAYS();
-            }
 
             const PipelineSymbolType pipelineSymbolType = GetSymbolTypeFromName(pName);
             if (pipelineSymbolType != PipelineSymbolType::Unknown)
             {
                 result = AddPipelineSymbolEntry({pipelineSymbolType, type, sectionType, value, size});
             }
-            else
+            else if ((pName != nullptr) && (*pName != '\0'))
             {
                 result = AddGenericSymbolEntry({pName, type, sectionType, value, size});
             }

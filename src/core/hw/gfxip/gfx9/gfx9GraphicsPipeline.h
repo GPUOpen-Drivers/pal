@@ -241,6 +241,7 @@ public:
     bool UsesUavExport() const { return (m_signature.uavExportTableAddr != UserDataNotMapped); }
     bool NeedsUavExportFlush() const { return m_flags.uavExportRequiresFlush; }
     bool IsLineStippleTexEnabled() const { return m_chunkVsPs.SpiPsInputEna().bits.LINE_STIPPLE_TEX_ENA != 0; }
+    bool AlphaToCoverageEanble() const { return m_flags.alphaToCoverageEnable; }
     uint32* WriteShCommands(
         CmdStream*                        pCmdStream,
         uint32*                           pCmdSpace,
@@ -284,6 +285,7 @@ public:
 
     bool CanRbPlusOptimizeDepthOnly() const;
     const PipelineChunkGs& GetChunkGs() const { return m_chunkGs; }
+    const PipelineChunkVsPs& GetChunkVsPs() const { return m_chunkVsPs; }
 protected:
     virtual Result HwlInit(
         const GraphicsPipelineCreateInfo&       createInfo,
@@ -403,6 +405,7 @@ private:
         {
             uint8 uavExportRequiresFlush      : 1; // If false, must flush after each draw when UAV export is enabled
             uint8 binningAllowed              : 1;
+            uint8 alphaToCoverageEnable       : 1;
 #if PAL_BUILD_GFX11
             uint8 contextPairsPacketSupported : 1;
             uint8 shPairsPacketSupported      : 1;
@@ -410,7 +413,7 @@ private:
 #else
             uint8 placeholder                 : 3;
 #endif
-            uint8 reserved                    : 3;
+            uint8 reserved                    : 2;
         };
         uint8 u8All;
     } m_flags;

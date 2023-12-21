@@ -800,6 +800,7 @@ Result Device::EarlyInit(
         InitGfx9ChipProperties();
         Gfx9::InitializeGpuEngineProperties(m_chipProperties, &m_engineProperties);
         break;
+
     case GfxIpLevel::None:
         // No Graphics IP block found or recognized!
     default:
@@ -1228,6 +1229,17 @@ Result Device::SetMaxQueuedFrames(
 Result Device::SetPowerProfile(
     PowerProfile         profile,
     CustomPowerProfile*  pInfo)
+{
+    PAL_NOT_IMPLEMENTED();
+
+    return Result::Success;
+}
+
+// =====================================================================================================================
+// This is not supported for the NULL device.
+Result Device::SetMlPowerOptimization(
+    bool enableOptimization
+    ) const
 {
     PAL_NOT_IMPLEMENTED();
 

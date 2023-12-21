@@ -294,7 +294,8 @@ Result Queue::Init(
     // Note that the presence of the command upload ring will be used later to determine if these conditions are true.
     if ((result == Result::Success)                                              &&
         (m_device.EngineProperties().perEngine[EngineTypeDma].numAvailable != 0) &&
-        (m_pQueueInfos[0].createInfo.submitOptMode != SubmitOptMode::Disabled))
+        (m_pQueueInfos[0].createInfo.submitOptMode != SubmitOptMode::Disabled)
+        )
     {
         const bool supportsGraphics = Pal::Device::EngineSupportsGraphics(GetEngineType());
         const bool supportsCompute  = Pal::Device::EngineSupportsCompute(GetEngineType());
@@ -325,8 +326,15 @@ Result Queue::Init(
             for (auto iter = m_pDummyCmdStream->GetFwdIterator();
                     (iter.IsValid()) && (result == Result::Success); iter.Next())
             {
-                m_numDummyResourcesInList++;
                 GpuMemory* pGpuMemory = static_cast<GpuMemory*>(iter.Get()->GpuMemory());
+
+                if (pGpuMemory->IsVmAlwaysValid() == true)
+                {
+                    continue;
+                }
+
+                m_numDummyResourcesInList++;
+
                 dummyResourceList.PushBack(pGpuMemory->SurfaceHandle());
 
                 // For GpuMemory to be submitted in list, export and save its KMS handle.
@@ -349,14 +357,15 @@ Result Queue::Init(
             result = Result::ErrorOutOfMemory;
         }
 
-        if (result == Result::Success)
+        if ((result == Result::Success) && (dummyResourceList.NumElements() > 0))
         {
             result = pDevice->CreateResourceList(dummyResourceList.NumElements(),
                                                  &(dummyResourceList.Front()),
                                                  nullptr,
                                                  &m_hDummyResourceList);
         }
-        if (result == Result::Success && pDevice->UseBoListCreate())
+        if ((result == Result::Success) &&
+            (pDevice->UseBoListCreate()) && (dummyResourceList.NumElements() > 0))
         {
             result = pDevice->CreateResourceListRaw(dummyResourceList.NumElements(),
                                                     m_dummyResourceEntryList.Data(),

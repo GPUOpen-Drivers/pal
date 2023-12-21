@@ -210,154 +210,42 @@ Result ComputeShaderLibrary::GetShaderFunctionStats(
 {
     Result result = Result::Success;
 
-    const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
-
     PAL_ASSERT(pShaderStats != nullptr);
     memset(pShaderStats, 0, sizeof(ShaderLibStats));
 
-    pShaderStats->palInternalLibraryHash       = m_info.internalLibraryHash;
-    pShaderStats->common.ldsSizePerThreadGroup = chipProps.gfxip.ldsSizePerThreadGroup;
-    pShaderStats->common.flags.isWave32        = IsWave32();
-
-    // We can re-parse the saved pipeline ELF binary to extract shader statistics.
     AbiReader abiReader(m_pDevice->GetPlatform(), m_pCodeObjectBinary);
     result = abiReader.Init();
     if (result == Result::Success)
     {
-        const Elf::SymbolTableEntry* pSymbol = abiReader.GetGenericSymbol(shaderExportName);
-        if (pSymbol != nullptr)
-        {
-            pShaderStats->isaSizeInBytes = static_cast<size_t>(pSymbol->st_size);
-        }
-    }
-
-    MsgPackReader              metadataReader;
-    PalAbi::CodeObjectMetadata metadata;
-
-    if (result == Result::Success)
-    {
+        MsgPackReader              metadataReader;
+        PalAbi::CodeObjectMetadata metadata;
         result = abiReader.GetMetadata(&metadataReader, &metadata);
-    }
-
-    if (result == Result::Success)
-    {
-        const auto&  stageMetadata = metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Cs)];
-
-        const auto& gpuInfo = m_pDevice->Parent()->ChipProperties();
-
-        pShaderStats->numAvailableSgprs = (stageMetadata.hasEntry.sgprLimit != 0)
-                                            ? stageMetadata.sgprLimit
-                                            : gpuInfo.gfx9.numShaderVisibleSgprs;
-        pShaderStats->numAvailableVgprs = (stageMetadata.hasEntry.vgprLimit != 0)
-                                               ? stageMetadata.vgprLimit
-                                               : MaxVgprPerShader;
-
-        pShaderStats->common.scratchMemUsageInBytes = stageMetadata.scratchMemorySize;
-    }
-
-    if (result == Result::Success)
-    {
-        result = UnpackShaderFunctionStats(shaderExportName,
-                                           metadata,
-                                           &metadataReader,
-                                           pShaderStats);
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-// Obtains the shader function stack frame size
-Result ComputeShaderLibrary::UnpackShaderFunctionStats(
-    Util::StringView<char>            shaderExportName,
-    const PalAbi::CodeObjectMetadata& metadata,
-    Util::MsgPackReader*              pMetadataReader,
-    ShaderLibStats*                   pShaderStats
-    ) const
-{
-    Result result = pMetadataReader->Seek(metadata.pipeline.shaderFunctions);
-
-    if (result == Result::Success)
-    {
-        result    = (pMetadataReader->Type() == CWP_ITEM_MAP) ? Result::Success : Result::ErrorInvalidValue;
-        const auto& item = pMetadataReader->Get().as;
-
-        for (uint32 i = item.map.size; ((result == Result::Success) && (i > 0)); --i)
+        if (result == Result::Success)
         {
-            StringView<char> symbolName;
-            result = pMetadataReader->UnpackNext(&symbolName);
-
+            result = GetShaderFunctionInfos(shaderExportName, pShaderStats, abiReader, &metadataReader, metadata);
             if (result == Result::Success)
             {
-                result = pMetadataReader->Next(CWP_ITEM_MAP);
-            }
-
-            for (uint32 j = item.map.size; ((result == Result::Success) && (j > 0)); --j)
-            {
-                result = pMetadataReader->Next(CWP_ITEM_STR);
+                const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
+                pShaderStats->common.ldsSizePerThreadGroup = chipProps.gfxip.ldsSizePerThreadGroup;
+                pShaderStats->common.flags.isWave32 = IsWave32();
 
                 if (result == Result::Success)
                 {
-                    if (shaderExportName == symbolName)
-                    {
-                        switch (HashString(static_cast<const char*>(item.str.start), item.str.length))
-                        {
-                        case HashLiteralString(".stack_frame_size_in_bytes"):
-                        {
-                            result = pMetadataReader->UnpackNext(&pShaderStats->stackFrameSizeInBytes);
-                        }
-                        break;
-                        case HashLiteralString(PalAbi::ShaderMetadataKey::ShaderSubtype):
-                        {
-                            Abi::ApiShaderSubType shaderSubType;
-                            result = PalAbi::Metadata::DeserializeEnum(pMetadataReader, &shaderSubType);
-                            pShaderStats->shaderSubType = ShaderSubType(shaderSubType);
-                        }
-                        break;
-                        case HashLiteralString(PalAbi::HardwareStageMetadataKey::VgprCount):
-                        {
-                            result = pMetadataReader->UnpackNext(&pShaderStats->common.numUsedVgprs);
-                        }
-                        break;
-                        case HashLiteralString(PalAbi::HardwareStageMetadataKey::SgprCount):
-                        {
-                            result = pMetadataReader->UnpackNext(&pShaderStats->common.numUsedSgprs);
-                        }
-                        break;
-                        case HashLiteralString(PalAbi::HardwareStageMetadataKey::LdsSize):
-                        {
-                            result = pMetadataReader->UnpackNext(&pShaderStats->common.ldsUsageSizeInBytes);
-                        }
-                        break;
-                        case HashLiteralString(PalAbi::ShaderMetadataKey::ApiShaderHash):
-                        {
-                            uint64 shaderHash[2] = {};
-                            result = pMetadataReader->UnpackNext(&shaderHash);
-                            pShaderStats->shaderHash = { shaderHash[0], shaderHash[1] };
-                        }
-                        break;
-                        case HashLiteralString(PalAbi::HardwareStageMetadataKey::FrontendStackSize):
-                        {
-                            result = pMetadataReader->UnpackNext(&pShaderStats->cpsStackSizes.frontendSize);
-                        }
-                        break;
-                        case HashLiteralString(PalAbi::HardwareStageMetadataKey::BackendStackSize):
-                        {
-                            result = pMetadataReader->UnpackNext(&pShaderStats->cpsStackSizes.backendSize);
-                        }
-                        break;
-                        default:
-                            result = pMetadataReader->Skip(1);
-                            break;
-                        }
-                    }
-                    else
-                    {
-                        result = pMetadataReader->Skip(1);
-                    }
+                    const auto& stageMetadata =
+                        metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Cs)];
+
+                    const auto& gpuInfo = m_pDevice->Parent()->ChipProperties();
+
+                    pShaderStats->numAvailableSgprs = (stageMetadata.hasEntry.sgprLimit != 0)
+                        ? stageMetadata.sgprLimit
+                        : gpuInfo.gfx9.numShaderVisibleSgprs;
+                    pShaderStats->numAvailableVgprs = (stageMetadata.hasEntry.vgprLimit != 0)
+                        ? stageMetadata.vgprLimit
+                        : MaxVgprPerShader;
+
+                    pShaderStats->common.scratchMemUsageInBytes = stageMetadata.scratchMemorySize;
                 }
             }
-
         }
     }
 

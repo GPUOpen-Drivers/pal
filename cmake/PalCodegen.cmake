@@ -30,7 +30,7 @@ find_package(Python3 3.6 QUIET REQUIRED
     COMPONENTS Interpreter
 )
 
-function(convert_pal_settings_name SETTINGS_FILE OUT_BASENAME_VAR)
+function(convert_pal_settings_name SETTINGS_FILE OUT_BASENAME_VAR FOR_FILE)
     # Convert input name convention to output.
     # eg, settings_core.json -> g_coreSettings
 
@@ -41,8 +41,12 @@ function(convert_pal_settings_name SETTINGS_FILE OUT_BASENAME_VAR)
     # 3. reverse
     list(REVERSE OUT_PARTS)
     # 4. first part goes in unmodified
-    list(POP_FRONT OUT_PARTS OUT_BASENAME)
-    string(PREPEND OUT_BASENAME "g_")
+    if(FOR_FILE)
+        list(POP_FRONT OUT_PARTS OUT_BASENAME)
+        string(PREPEND OUT_BASENAME "g_")
+    else()
+        set(OUT_BASENAME "")
+    endif()
     # 5. remaining parts get capitalized
     foreach(OUT_PART ${OUT_PARTS})
         string(SUBSTRING ${OUT_PART} 0 1 FIRST_LETTER)
@@ -57,7 +61,7 @@ endfunction()
 function(target_pal_settings TARGET)
     set(options NO_REGISTRY)
     set(singleValArgs MAGIC_BUF CLASS_NAME CODE_TEMPLATE OUT_DIR OUT_BASENAME ROOT_BINARY_DIR)
-    set(multiValArgs SETTINGS ENSURE_DELETED)
+    set(multiValArgs SETTINGS ENSURE_DELETED ADDL_NAMESPACES)
     cmake_parse_arguments(PARSE_ARGV 1 SETGEN "${options}" "${singleValArgs}" "${multiValArgs}")
 
     # Asserts
@@ -105,6 +109,9 @@ function(target_pal_settings TARGET)
     if (SETGEN_CLASS_NAME)
         list(APPEND ADDL_ARGS "--classNameOverride" "${SETGEN_CLASS_NAME}")
     endif()
+    if (SETGEN_ADDL_NAMESPACES)
+        list(APPEND ADDL_ARGS "--additionalNamespaces" "${SETGEN_ADDL_NAMESPACES}")
+    endif()
 
     if (SETGEN_MAGIC_BUF)
         get_filename_component(SETGEN_MAGIC_BUF "${SETGEN_MAGIC_BUF}" ABSOLUTE)
@@ -120,7 +127,7 @@ function(target_pal_settings TARGET)
         if (SETGEN_OUT_BASENAME)
             set(OUT_BASENAME ${SETGEN_OUT_BASENAME})
         else()
-            convert_pal_settings_name(${SETTINGS_FILE} OUT_BASENAME)
+            convert_pal_settings_name(${SETTINGS_FILE} OUT_BASENAME TRUE)
         endif()
 
         get_filename_component(SETTINGS_FILE "${SETTINGS_FILE}" ABSOLUTE)
@@ -147,10 +154,8 @@ function(target_pal_settings TARGET)
             )
         endif()
 
-        # Note this doesn't track imported python libs/exe (mostly system deps).
-        add_custom_command(
-            OUTPUT ${SETGEN_OUT_DIR}/${OUT_BASENAME}.cpp
-                   ${SETGEN_OUT_DIR}/${OUT_BASENAME}.h
+        convert_pal_settings_name(${SETTINGS_FILE} SETTING_TGT FALSE)
+        add_custom_target(${SETTING_TGT}
             COMMAND ${Python3_EXECUTABLE} ${PAL_GEN_DIR}/genSettingsCode.py
                     --settingsFile ${SETTINGS_FILE}
                     --outFilename ${OUT_BASENAME}
@@ -158,7 +163,17 @@ function(target_pal_settings TARGET)
             COMMENT "Generating settings from ${SETTINGS_FILE}..."
             DEPENDS ${SETTINGS_FILE}
                     ${ADDL_DEPS}
+            BYPRODUCTS ${SETGEN_OUT_DIR}/${OUT_BASENAME}.cpp
+                       ${SETGEN_OUT_DIR}/${OUT_BASENAME}.h
+            SOURCES ${SETGEN_OUT_DIR}/${OUT_BASENAME}.cpp
+                    ${SETGEN_OUT_DIR}/${OUT_BASENAME}.h
         )
+        add_dependencies(${TARGET} ${SETTING_TGT})
+        set_target_properties(${SETTING_TGT}
+            PROPERTIES
+                FOLDER "${CMAKE_FOLDER}/Generate/Settings"
+        )
+
         if (SETGEN_ROOT_BINARY_DIR)
             source_group(
                 TREE ${PAL_BINARY_DIR}
@@ -176,27 +191,139 @@ function(target_pal_settings TARGET)
     endforeach()
 endfunction()
 
+function(pal_gen_settings)
+    # INPUT_JSON:
+    #     Path to a JSON file describing all settings of a component.
+    # GENERATED_FILENAME:
+    #     The name of the generated C++ files. The final name will be prefixed with 'g_' and
+    #     suffixed with '.h'/'.cpp'.
+    # HEADER_FILE:
+    #     Path to the existing C++ header file that contains the class declaration (and its methods
+    #     declaration) for this settings component.
+    # OUT_DIR:
+    #     Path to output directory.
+    # CLASS_NAME:
+    #     The class name for this settings component.
+    # NAMESPACES:
+    #     The C++ namespace(s) within which settings are defined.
+    # INCLUDE_HEADERS:
+    #     Header files the generated settings file needs to '#include'. For example, a header file
+    #     that contains an existing enum definition.
+    set(oneValueArgs INPUT_JSON GENERATED_FILENAME HEADER_FILE OUT_DIR CLASS_NAME)
+    set(multiValArgs NAMESPACES INCLUDE_HEADERS)
+    cmake_parse_arguments(PARSE_ARGV 0 SETTINGS "${options}" "${oneValueArgs}" "${multiValArgs}")
+
+    if (NOT SETTINGS_INPUT_JSON)
+        message(FATAL_ERROR "No settings input json file provided.")
+    endif()
+
+    set(GENERATED_HEADER_FILENAME "g_${SETTINGS_GENERATED_FILENAME}.h")
+    set(GENERATED_SOURCE_FILENAME "g_${SETTINGS_GENERATED_FILENAME}.cpp")
+
+    file(MAKE_DIRECTORY ${SETTINGS_OUT_DIR})
+    target_include_directories(pal PRIVATE ${SETTINGS_OUT_DIR})
+
+    target_sources(pal PRIVATE
+        ${SETTINGS_OUT_DIR}/${GENERATED_HEADER_FILENAME}
+        ${SETTINGS_OUT_DIR}/${GENERATED_SOURCE_FILENAME}
+    )
+
+    set_source_files_properties(
+        ${SETTINGS_OUT_DIR}/${GENERATED_HEADER_FILENAME}
+        ${SETTINGS_OUT_DIR}/${GENERATED_SOURCE_FILENAME}
+        TARGET_DIRECTORY pal
+        PROPERTIES GENERATED ON
+    )
+
+    if (${PAL_DEVDRIVER_PATH} STREQUAL "default")
+        set(DEVDRIVER_PATH ${PAL_SOURCE_DIR}/shared/devdriver)
+    else()
+        set(DEVDRIVER_PATH ${PAL_DEVDRIVER_PATH})
+    endif()
+
+    if (SETTINGS_CLASS_NAME)
+        list(APPEND CODEGEN_OPTIONAL_ARGS "--classname" "${SETTINGS_CLASS_NAME}")
+    endif()
+
+    if ((NOT EXISTS ${SETTINGS_OUT_DIR}/${GENERATED_HEADER_FILENAME}) OR
+        (NOT EXISTS ${SETTINGS_OUT_DIR}/${GENERATED_SOURCE_FILENAME}))
+        # Generate these during configuration so that they are guaranteed to exist.
+        execute_process(
+            COMMAND ${Python3_EXECUTABLE} ${DEVDRIVER_PATH}/apis/settings/codegen/settings_codegen.py
+                    --input ${PAL_SOURCE_DIR}/${SETTINGS_INPUT_JSON}
+                    --generated-filename ${SETTINGS_GENERATED_FILENAME}
+                    --settings-filename ${SETTINGS_HEADER_FILE}
+                    --outdir ${SETTINGS_OUT_DIR}
+                    --namespaces ${SETTINGS_NAMESPACES}
+                    ${CODEGEN_OPTIONAL_ARGS}
+            COMMAND_ECHO STDOUT
+        )
+    endif()
+
+    convert_pal_settings_name(${SETTINGS_INPUT_JSON} SETTING_TGT FALSE)
+    add_custom_target(${SETTING_TGT}
+        COMMAND ${Python3_EXECUTABLE} ${DEVDRIVER_PATH}/apis/settings/codegen/settings_codegen.py
+                --input ${PAL_SOURCE_DIR}/${SETTINGS_INPUT_JSON}
+                --generated-filename ${SETTINGS_GENERATED_FILENAME}
+                --settings-filename ${SETTINGS_HEADER_FILE}
+                --outdir ${SETTINGS_OUT_DIR}
+                --namespaces ${SETTINGS_NAMESPACES}
+                --include-headers ${SETTINGS_INCLUDE_HEADERS}
+                ${CODEGEN_OPTIONAL_ARGS}
+        COMMENT "Generating settings from ${SETTINGS_FILE}..."
+        DEPENDS ${PAL_SOURCE_DIR}/${SETTINGS_INPUT_JSON}
+                ${DEVDRIVER_PATH}/apis/settings/codegen/settings_codegen.py
+                ${DEVDRIVER_PATH}/apis/settings/codegen/settings_schema.yaml
+                ${DEVDRIVER_PATH}/apis/settings/codegen/settings.cpp.jinja2
+                ${DEVDRIVER_PATH}/apis/settings/codegen/settings.h.jinja2
+        BYPRODUCTS ${SETTINGS_OUT_DIR}/${GENERATED_HEADER_FILENAME}
+                   ${SETTINGS_OUT_DIR}/${GENERATED_SOURCE_FILENAME}
+        SOURCES ${SETTINGS_OUT_DIR}/${GENERATED_HEADER_FILENAME}
+                ${SETTINGS_OUT_DIR}/${GENERATED_SOURCE_FILENAME}
+    )
+    add_dependencies(pal ${SETTING_TGT})
+    set_target_properties(${SETTING_TGT}
+        PROPERTIES
+            FOLDER "${CMAKE_FOLDER}/Generate/Settings"
+    )
+
+    source_group(
+        TREE ${PAL_BINARY_DIR}
+        FILES
+            ${SETTINGS_OUT_DIR}/${GENERATED_HEADER_FILENAME}
+            ${SETTINGS_OUT_DIR}/${GENERATED_SOURCE_FILENAME}
+    )
+endfunction()
+
 function(pal_setup_generated_code)
     set(COMMON_ARGS "ROOT_BINARY_DIR" ${PAL_BINARY_DIR})
-    target_pal_settings(pal SETTINGS src/core/settings_core.json
-                            OUT_DIR  ${PAL_BINARY_DIR}/src/core
-                            ${COMMON_ARGS}
-                            ENSURE_DELETED src/core/g_palSettings.h
-                                           src/core/g_palSettings.cpp)
-    target_pal_settings(pal SETTINGS src/core/settings_platform.json
-                            OUT_DIR  ${PAL_BINARY_DIR}/src/core
-                            ${COMMON_ARGS}
-                            CODE_TEMPLATE ${PAL_GEN_DIR}/platformSettingsCodeTemplates.py
-                            CLASS_NAME PlatformSettingsLoader
-                            ENSURE_DELETED src/core/g_palPlatformSettings.h
-                                           src/core/g_palPlatformSettings.cpp)
+
+    pal_gen_settings(INPUT_JSON         src/core/settings_core.json
+                     GENERATED_FILENAME coreSettings
+                     HEADER_FILE        core/settingsLoader.h
+                     OUT_DIR            ${PAL_BINARY_DIR}/src/core
+                     CLASS_NAME         SettingsLoader
+                     NAMESPACES         Pal)
+
+    pal_gen_settings(INPUT_JSON         src/core/settings_platform.json
+                     GENERATED_FILENAME platformSettings
+                     HEADER_FILE        core/platformSettingsLoader.h
+                     OUT_DIR            ${PAL_BINARY_DIR}/src/core
+                     CLASS_NAME         PlatformSettingsLoader
+                     NAMESPACES         Pal
+                     INCLUDE_HEADERS    palDevice.h
+                                        palDbgPrint.h)
+
     if (PAL_BUILD_GFX9)
-        target_pal_settings(pal SETTINGS src/core/hw/gfxip/gfx9/settings_gfx9.json
-                                OUT_DIR  ${PAL_BINARY_DIR}/src/core/hw/gfxip/gfx9
-                                ${COMMON_ARGS}
-                                ENSURE_DELETED src/core/hw/gfxip/gfx9/g_gfx9PalSettings.h
-                                               src/core/hw/gfxip/gfx9/g_gfx9PalSettings.cpp)
+        pal_gen_settings(INPUT_JSON         src/core/hw/gfxip/gfx9/settings_gfx9.json
+                         GENERATED_FILENAME gfx9Settings
+                         HEADER_FILE        core/hw/gfxip/gfx9/gfx9SettingsLoader.h
+                         OUT_DIR            ${PAL_BINARY_DIR}/src/core/hw/gfxip/gfx9
+                         CLASS_NAME         SettingsLoader
+                         NAMESPACES         Pal Gfx9
+                         INCLUDE_HEADERS    core/hw/gfxip/gfxDevice.h)
     endif()
+
 endfunction()
 
 function(nongen_source_groups DIR)

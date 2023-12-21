@@ -595,169 +595,6 @@ bool DepthStencilView::Equals(
 }
 
 // =====================================================================================================================
-Gfx9DepthStencilView::Gfx9DepthStencilView(
-    const Device*                             pDevice,
-    const DepthStencilViewCreateInfo&         createInfo,
-    const DepthStencilViewInternalCreateInfo& internalInfo,
-    uint32                                    uniqueId)
-    :
-    DepthStencilView(pDevice, createInfo, internalInfo, uniqueId)
-{
-    m_flags.waTcCompatZRange = m_pImage->HasWaTcCompatZRangeMetaData();
-
-    memset(&m_regs, 0, sizeof(m_regs));
-    InitRegisters(*pDevice, createInfo, internalInfo);
-
-    if (IsVaLocked())
-    {
-        UpdateImageVa(&m_regs);
-    }
-}
-
-// =====================================================================================================================
-// Finalizes the PM4 packet image by setting up the register values used to write this View object to hardware.
-void Gfx9DepthStencilView::InitRegisters(
-    const Device&                             device,
-    const DepthStencilViewCreateInfo&         createInfo,
-    const DepthStencilViewInternalCreateInfo& internalInfo)
-{
-    const MergedFmtInfo*const pFmtInfo =
-        MergedChannelFmtInfoTbl(GfxIpLevel::GfxIp9, &device.GetPlatform()->PlatformSettings());
-
-    InitRegistersCommon(device, createInfo, internalInfo, pFmtInfo, &m_regs);
-
-    const Pal::Image*           pParent              = m_pImage->Parent();
-    const Pal::Device*          pPalDevice           = pParent->GetDevice();
-    const auto*                 pAddrMgr             = static_cast<const AddrMgr2::AddrMgr2*>(pPalDevice->GetAddrMgr());
-    const SubResourceInfo*const pDepthSubResInfo     = pParent->SubresourceInfo(m_depthSubresource);
-    const SubResourceInfo*const pStencilSubResInfo   = pParent->SubresourceInfo(m_stencilSubresource);
-    const SubresId              baseDepthSubResId    = { m_depthSubresource.plane, 0 , 0 };
-    const SubResourceInfo*const pBaseDepthSubResInfo = pParent->SubresourceInfo(baseDepthSubResId);
-
-    const ADDR2_COMPUTE_SURFACE_INFO_OUTPUT*const pDepthAddrInfo = m_pImage->GetAddrOutput(pDepthSubResInfo);
-    const ADDR2_COMPUTE_SURFACE_INFO_OUTPUT*const pStAddrInfo    = m_pImage->GetAddrOutput(pStencilSubResInfo);
-
-    const auto& depthAddrSettings   = m_pImage->GetAddrSettings(pDepthSubResInfo);
-    const auto& stencilAddrSettings = m_pImage->GetAddrSettings(pStencilSubResInfo);
-
-    // Setup the size
-    m_regs.dbDepthSize.gfx09.X_MAX = (pBaseDepthSubResInfo->extentTexels.width  - 1);
-    m_regs.dbDepthSize.gfx09.Y_MAX = (pBaseDepthSubResInfo->extentTexels.height - 1);
-
-    // From the reg-spec:  Indicates that compressed data must be iterated on flush every pipe interleave bytes in
-    //                     order to be readable by TC
-    m_regs.dbZInfo.gfx09.ITERATE_FLUSH       = m_flags.depthMetadataTexFetch;
-    m_regs.dbStencilInfo.gfx09.ITERATE_FLUSH = m_flags.stencilMetadataTexFetch;
-
-    m_regs.dbZInfo.gfx09.FAULT_BEHAVIOR        = FAULT_ZERO;
-    m_regs.dbStencilInfo.gfx09.FAULT_BEHAVIOR  = FAULT_ZERO;
-    m_regs.dbZInfo.bits.SW_MODE                = pAddrMgr->GetHwSwizzleMode(depthAddrSettings.swizzleMode);
-    m_regs.dbZInfo2.bits.EPITCH                = AddrMgr2::CalcEpitch(pDepthAddrInfo);
-    m_regs.dbStencilInfo2.bits.EPITCH          = AddrMgr2::CalcEpitch(pStAddrInfo);
-    m_regs.dbStencilInfo.bits.SW_MODE          = pAddrMgr->GetHwSwizzleMode(stencilAddrSettings.swizzleMode);
-}
-
-// =====================================================================================================================
-// Writes the PM4 commands required to bind to depth/stencil slot. Returns the next unused DWORD in pCmdSpace.
-uint32* Gfx9DepthStencilView::WriteCommands(
-    ImageLayout            depthLayout,   // Allowed usages/queues for the depth plane. Implies compression state.
-    ImageLayout            stencilLayout, // Allowed usages/queues for the stencil plane. Implies compression state.
-    CmdStream*             pCmdStream,
-    bool                   isNested,
-    regDB_RENDER_OVERRIDE* pDbRenderOverride,
-    uint32*                pCmdSpace
-    ) const
-{
-    Gfx9DepthStencilViewRegs regs = m_regs;
-    pCmdSpace = WriteCommandsCommon(depthLayout, stencilLayout, pCmdStream, pCmdSpace, &regs);
-
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx09::mmDB_Z_INFO,
-                                                   Gfx09::mmDB_STENCIL_WRITE_BASE_HI,
-                                                   &regs.dbZInfo,
-                                                   pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx09::mmDB_Z_INFO2,
-                                                   Gfx09::mmDB_STENCIL_INFO2,
-                                                   &regs.dbZInfo2,
-                                                   pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_DEPTH_VIEW, regs.dbDepthView.u32All, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmDB_RENDER_OVERRIDE2,
-                                                   Gfx09::mmDB_DEPTH_SIZE,
-                                                   &regs.dbRenderOverride2,
-                                                   pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_HTILE_SURFACE, regs.dbHtileSurface.u32All, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_RENDER_CONTROL, regs.dbRenderControl.u32All, pCmdSpace);
-
-    // We need to write dbHtileDataBaseHi to support PAL's hi-address bit on gfx9 DB
-    pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx09::mmDB_HTILE_DATA_BASE_HI,
-                                                  regs.dbHtileDataBaseHi.u32All,
-                                                  pCmdSpace);
-
-    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmPA_SU_POLY_OFFSET_DB_FMT_CNTL,
-                                                  regs.paSuPolyOffsetDbFmtCntl.u32All,
-                                                  pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmCOHER_DEST_BASE_0, regs.coherDestBase0.u32All, pCmdSpace);
-
-    // Update just the portion owned by DSV.
-    BitfieldUpdateSubfield(&(pDbRenderOverride->u32All), regs.dbRenderOverride.u32All, DbRenderOverrideRmwMask);
-
-    if (isNested)
-    {
-        pCmdSpace = pCmdStream->WriteContextRegRmw(mmDB_RENDER_OVERRIDE,
-                                                   DbRenderOverrideRmwMask,
-                                                   regs.dbRenderOverride.u32All,
-                                                   pCmdSpace);
-    }
-
-    return pCmdSpace;
-}
-
-// =====================================================================================================================
-// On Gfx9, there is a bug on cleared TC-compatible surfaces where the ZRange is not reset after LateZ kills pixels.
-// The workaround for this is to set DB_Z_INFO.ZRANGE_PRECISION to match the last fast clear value. Since
-// ZRANGE_PRECISION is currently always set to 1 by default, we only need to re-write it if the last fast clear
-// value is 0.0f.
-//
-//
-// This function writes the PM4 to set ZRANGE_PRECISION to 0. There are two cases where this needs to be called:
-//      1. After binding a TC-compatible depth target. We need to check the workaroud metadata to know if the last
-//         clear value was 0.0f, so requiresCondExec should be true.
-//      2. After a compute-based fast clear to 0.0f if this view is currently bound as a depth target. We do not need
-//         to look at the metadata in this case, so requiresCondExec should be false.
-//
-// Returns the next unused DWORD in pCmdSpace.
-uint32* Gfx9DepthStencilView::UpdateZRangePrecision(
-    bool       requiresCondExec,
-    CmdStream* pCmdStream,
-    uint32*    pCmdSpace
-    ) const
-{
-    if (m_flags.waTcCompatZRange != 0)
-    {
-        // This workaround only applies to depth-stencil image that is using "ZRange" format hitle
-        PAL_ASSERT(m_pImage->GetHtile()->TileStencilDisabled() == false);
-
-        if (requiresCondExec)
-        {
-            const gpusize    metaDataVirtAddr  = m_pImage->GetWaTcCompatZRangeMetaDataAddr(MipLevel());
-            constexpr uint32 SetContextRegSize = CmdUtil::ContextRegSizeDwords + 1;
-
-            // Build a COND_EXEC to check the workaround metadata. If the last clear value was 0.0f, the metadata will
-            // be non-zero and the register will be re-written, otherwise the metadata will be 0 and register write
-            // will be skipped.
-            pCmdSpace += CmdUtil::BuildCondExec(metaDataVirtAddr, SetContextRegSize, pCmdSpace);
-        }
-
-        // DB_Z_INFO is the same for all compression states
-        regDB_Z_INFO dbZInfo = m_regs.dbZInfo;
-        dbZInfo.bits.ZRANGE_PRECISION = 0;
-
-        pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx09::mmDB_Z_INFO, dbZInfo.u32All, pCmdSpace);
-    }
-
-    return pCmdSpace;
-}
-
-// =====================================================================================================================
 Gfx10DepthStencilView::Gfx10DepthStencilView(
     const Device*                             pDevice,
     const DepthStencilViewCreateInfo&         createInfo,
@@ -795,7 +632,7 @@ void Gfx10DepthStencilView::SetGfx11StaticDbRenderControlFields(
     // The FORCE_OREO_MODE is intended only for workarounds and should otherwise be set to 0
     pDbRenderControl->gfx11.FORCE_OREO_MODE    = settings.gfx11ForceOreoMode ? 1 : 0;
 
-    pDbRenderControl->gfx11.FORCE_EXPORT_ORDER = settings.gfx11ForceExportOrder ? 1 : 0;
+    pDbRenderControl->gfx11.FORCE_EXPORT_ORDER = settings.gfx11ForceExportOrderControl ? 1 : 0;
 
 #if PAL_BUILD_NAVI3X
     if (IsNavi3x(palDevice))
@@ -890,8 +727,8 @@ void Gfx10DepthStencilView::InitRegisters(
         PAL_ASSERT(IsGfx103Plus(palDevice) && (stencilAddrSettings.swizzleMode == ADDR_SW_VAR_Z_X));
     }
 
-    m_regs.dbZInfo.bits.SW_MODE       = pAddrMgr->GetHwSwizzleMode(depthAddrSettings.swizzleMode);
-    m_regs.dbStencilInfo.bits.SW_MODE = pAddrMgr->GetHwSwizzleMode(stencilAddrSettings.swizzleMode);
+    m_regs.dbZInfo.bits.SW_MODE       = m_pImage->GetHwSwizzleMode(pDepthSubResInfo);
+    m_regs.dbStencilInfo.bits.SW_MODE = m_pImage->GetHwSwizzleMode(pStencilSubResInfo);
 
     m_regs.dbZInfo.gfx10Plus.FAULT_BEHAVIOR       = FAULT_ZERO;
     m_regs.dbStencilInfo.gfx10Plus.FAULT_BEHAVIOR = FAULT_ZERO;

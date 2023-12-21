@@ -129,12 +129,6 @@ extern SwizzledFormat AmdgpuFormatToPalFormat(
     bool*               pFormatChange,
     bool*               pDepthStencilUsage);
 
-extern uint32 AmdGpuToAddrTileModeConversion(
-    AMDGPU_TILE_MODE tileMode);
-
-extern AMDGPU_TILE_MODE AddrToAmdGpuTileModeConversion(
-    uint32 tileMode);
-
 extern AMDGPU_PIXEL_FORMAT PalToAmdGpuFormatConversion(
     SwizzledFormat format);
 } // Amdgpu

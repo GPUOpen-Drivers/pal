@@ -62,6 +62,7 @@ libdrm_amdgpu.so.1 @proc  int32 amdgpu_query_sensor_info (amdgpu_device_handle h
 libdrm_amdgpu.so.1 @proc  int32 amdgpu_query_info (amdgpu_device_handle hDevice, uint32 infoId, uint32 size, void* pValue)
 libdrm_amdgpu.so.1 @proc  int32 amdgpu_query_private_aperture (amdgpu_device_handle hDevice, uint64* pStartVa, uint64* pEndVa)
 libdrm_amdgpu.so.1 @proc  int32 amdgpu_query_shared_aperture (amdgpu_device_handle hDevice, uint64* pStartVa, uint64* pEndVa)
+libdrm_amdgpu.so.1 @proc  int32 amdgpu_query_gpuvm_fault_info (amdgpu_device_handle hDevice, uint32 size, void* value)
 libdrm_amdgpu.so.1 @proc  int32 amdgpu_bo_get_phys_address (amdgpu_bo_handle hBuffer, uint64* pPhysAddress)
 libdrm_amdgpu.so.1 @proc  int32 amdgpu_cs_reserved_vmid (amdgpu_device_handle hDevice)
 libdrm_amdgpu.so.1 @proc  int32 amdgpu_cs_unreserved_vmid (amdgpu_device_handle hDevice)

@@ -145,6 +145,16 @@ constexpr uint32 LowPart(
     return (value & 0x00000000FFFFFFFF);
 }
 
+/// Returns the high 32 bits of a 64-bit integer as a 64-bit integer.
+///
+/// @returns Returns the high 32 bits of a 64-bit integer as a 64-bit integer
+/// without shifting
+constexpr uint64 HighPart64(
+    uint64 value)  ///< 64-bit input value.
+{
+    return (value & 0xFFFFFFFF00000000);
+}
+
 /// Combines the low and high 32 bits of a 64-bit integer.
 ///
 /// @returns Returns the 64-bit integer.
@@ -1138,25 +1148,26 @@ inline void Mbstowcs(
 #if defined(PAL_SHORT_WCHAR)
     result = ConvertCharStringToUtf16(pDst, pSrc, dstSizeInWords);
 #else
-    size_t retCode = mbstowcs(pDst, pSrc, (dstSizeInWords - 1));
+    size_t retCode = mbstowcs(pDst, pSrc, dstSizeInWords);
 
     result = (retCode == static_cast<size_t>(-1)) ? false : true;
+
+    if (retCode == dstSizeInWords)
+    {
+        // Alert the user when the string has been truncated.
+        PAL_ALERT_ALWAYS();
+
+        // NULL terminate the string.
+        pDst[dstSizeInWords - 1] = '\0';
+    }
 #endif
 
     if (result == false)
     {
-        // A non-convertible character was encountered.
-        PAL_ASSERT_ALWAYS();
+        // A non-convertible character was encountered or the string was truncated on the mbstowcs_s or
+        // ConvertCharStringToUtf16 code paths.
+        PAL_ALERT_ALWAYS();
         pDst[0] = '\0';
-    }
-
-    if (strlen(pSrc) >= dstSizeInWords)
-    {
-        // Assert to alert the user when the string has been truncated.
-        PAL_ASSERT_ALWAYS();
-
-        // NULL terminate the string.
-        pDst[dstSizeInWords - 1] = '\0';
     }
 }
 
@@ -1338,6 +1349,16 @@ inline wchar_t* Wcsrchr(wchar_t *pStr, wchar_t wc)
 #else
     return wcsrchr(pStr, wc);
 #endif
+}
+
+/// Compile-time function to report if two values from unrelated strong enums are equivalent.  This is useful for
+/// static asserts ensuring it is safe to cast an enum without a conversion lookup table.
+template <typename T1, typename T2>
+inline constexpr bool EnumSameVal(
+    T1 lhs,
+    T2 rhs)
+{
+    return (static_cast<uint64>(lhs) == static_cast<uint64>(rhs));
 }
 
 /// Comparison function for Sort() below.

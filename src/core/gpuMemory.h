@@ -78,7 +78,8 @@ struct GpuMemoryInternalCreateInfo
             uint32 gpuReadOnly        :  1; // Indicates the memory is read-only on the GPU
             uint32 dfSpmTraceBuffer   :  1; // GPU memory will be used for a DF SPM trace buffer.
             uint32 appRequested       :  1; // GPU memory is Pal internal, but app requested
-            uint32 reserved           : 13;
+            uint32 placeholder        :  1;
+            uint32 reserved           : 12;
         };
         uint32 u32All;
     } flags;
@@ -151,7 +152,7 @@ union GpuMemoryFlags
         uint32 busAddressable           :  1; // GPU memory is Bus Addressable memory
         uint32 autoPriority             :  1; // GPU memory priority is to be managed automatically
         uint32 peerWritable             :  1; // GPU memory can be open as peer memory and be writable
-        uint32 mapppedToPeerMemory      :  1; // GPU memory is remapped to at least one peer physical memory.
+        uint32 mappedToPeerMemory       :  1; // GPU memory is remapped to at least one peer physical memory.
         uint32 tmzProtected             :  1; // GPU memory is TMZ protected.
         uint32 tmzUserQueue             :  1; // GPU memory is a user queue for TMZ submission.
         uint32 placeholder0             :  1; // Placeholder.
@@ -166,6 +167,7 @@ union GpuMemoryFlags
         uint32 kmdShareUmdSysMem        :  1; // GPU memory is shared with KMD
         uint32 deferCpuVaReservation    :  1; // GPU memory can be locked for read on CPU, but will not reserve CPU VA.
         uint32 placeholder1             :  1; // Placeholder.
+        uint32 placeholder3             :  2;
 #if PAL_AMDGPU_BUILD
         uint32 initializeToZero         :  1; // If set, PAL will request that the host OS zero-initializes
                                               // the allocation upon creation, currently, only GpuHeapLocal and
@@ -173,7 +175,7 @@ union GpuMemoryFlags
 #else
         uint32 placeholder2             :  1; // Placeholder.
 #endif
-        uint32 reserved                 : 16;
+        uint32 reserved                 : 14;
     };
     uint64  u64All;
 };
@@ -285,7 +287,7 @@ public:
     bool IsCrossAdapter()        const { return (m_flags.crossAdapter             != 0); }
     bool IsTmzProtected()        const { return (m_flags.tmzProtected             != 0); }
     bool IsTmzUserQueue()        const { return (m_flags.tmzUserQueue             != 0); }
-    bool IsMapppedToPeerMemory() const { return (m_flags.mapppedToPeerMemory      != 0); }
+    bool IsMappedToPeerMemory()  const { return (m_flags.mappedToPeerMemory       != 0); }
     bool IsSvmAlloc()            const { return (m_desc.flags.isSvmAlloc          != 0); }
     bool IsExecutable()          const { return (m_desc.flags.isExecutable        != 0); }
     bool IsReadOnlyOnGpu()       const { return (m_flags.gpuReadOnly              != 0); }
@@ -317,9 +319,9 @@ public:
     GpuMemory* OriginalGpuMem() const { return (IsPeer() ? m_pOriginalMem : nullptr); }
 
     void SetMapDestPeerMem(GpuMemory* pMapDestPeerMem);
-    GpuMemory* MapDestPeerGpuMem() const { return (IsMapppedToPeerMemory() ? m_pMapDestPeerMem : nullptr); }
+    GpuMemory* MapDestPeerGpuMem() const { return (IsMappedToPeerMemory() ? m_pMapDestPeerMem : nullptr); }
 
-    bool AccessesPeerMemory() const { return (IsPeer() || IsMapppedToPeerMemory()); }
+    bool AccessesPeerMemory() const { return (IsPeer() || IsMappedToPeerMemory()); }
 
 protected:
     explicit GpuMemory(Device* pDevice);

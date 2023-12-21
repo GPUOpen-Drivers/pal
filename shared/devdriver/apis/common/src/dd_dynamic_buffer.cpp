@@ -164,4 +164,17 @@ void DynamicBuffer::Copy(const void* pSrcBuf, size_t srcSize)
     }
 }
 
+void* DynamicBuffer::Transfer(size_t* pOutBufSize)
+{
+    void* pBuf   = m_pBuf;
+    *pOutBufSize = m_capacity;
+
+    m_pBuf     = nullptr;
+    m_size     = 0;
+    m_capacity = 0;
+    m_error    = DD_RESULT_SUCCESS;
+
+    return pBuf;
+}
+
 } // namespace DevDriver

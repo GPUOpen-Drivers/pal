@@ -97,6 +97,15 @@ public:
     /// Returns true if the thread was created successfully
     bool IsCreated() const;
 
+    /// Assigns a name to a thread, which can be useful for debugging multithreaded applications.
+    ///
+    /// @param [in] pName Name for this thread. This should be unique in order to be useful, but this is not enforced.
+    ///
+    /// @returns @ref Success if name was assigned successfully or @ref ErrorUnknown if an internal error occurs.
+    ///
+    /// @warning On Linux name is restricted to 16 characters, including the terminating null byte.
+    Result SetThreadName(const char* pName) const;
+
     /// Static method to get current thread ID, only useful to give to ThreadIdEqual().
     static ThreadId GetCurrentThreadId();
 

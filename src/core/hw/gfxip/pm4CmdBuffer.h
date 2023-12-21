@@ -54,6 +54,7 @@ class IPerfExperiment;
 namespace Pm4
 {
 class IndirectCmdGenerator;
+class BarrierMgr;
 }
 
 // Tracks the state of a user-data table stored in GPU memory.  The table's contents are managed using embedded data
@@ -187,15 +188,6 @@ public:
     bool AnyBltActive() const { return (m_pm4CmdBufState.flags.cpBltActive | m_pm4CmdBufState.flags.csBltActive |
                                         m_pm4CmdBufState.flags.gfxBltActive) != 0; }
 
-    // Helper functions
-    void OptimizePipePoint(HwPipePoint* pPipePoint) const;
-    void OptimizeSrcCacheMask(uint32* pCacheMask) const;
-    virtual void OptimizePipeStageAndCacheMask(
-        uint32* pSrcStageMask,
-        uint32* pSrcAccessMask,
-        uint32* pDstStageMask,
-        uint32* pDstAccessMask) const;
-
     void SetGfxBltState(bool gfxBltActive) { m_pm4CmdBufState.flags.gfxBltActive = gfxBltActive; }
     void SetCsBltState(bool csBltActive) { m_pm4CmdBufState.flags.csBltActive = csBltActive; }
     void SetCpBltState(bool cpBltActive) { m_pm4CmdBufState.flags.cpBltActive = cpBltActive; }
@@ -246,18 +238,6 @@ public:
 
     void AddFceSkippedImageCounter(Pm4Image* pPm4Image);
 
-    static void SetBarrierOperationsRbCacheSynced(Developer::BarrierOperations* pOperations)
-    {
-        pOperations->caches.flushCb = 1;
-        pOperations->caches.invalCb = 1;
-        pOperations->caches.flushDb = 1;
-        pOperations->caches.invalDb = 1;
-        pOperations->caches.flushCbMetadata = 1;
-        pOperations->caches.invalCbMetadata = 1;
-        pOperations->caches.flushDbMetadata = 1;
-        pOperations->caches.invalDbMetadata = 1;
-    }
-
     void SetPrevCmdBufInactive() { m_pm4CmdBufState.flags.prevCmdBufActive = 0; }
 
     gpusize AcqRelFenceValBaseGpuVa() const { return m_acqRelFenceValGpuVa; }
@@ -282,6 +262,8 @@ public:
 
     virtual uint32* WriteWaitCsIdle(uint32* pCmdSpace)
         { PAL_NEVER_CALLED(); return pCmdSpace; }
+
+    const GfxDevice& GetGfxDevice() const { return m_device; }
 
 protected:
     Pm4CmdBuffer(

@@ -36,6 +36,10 @@ trailComment = "  //< "
 comment = "// "
 newline = "\n"
 
+MaxFilePathLen = 512
+MaxFileNameLen = 256
+MaxMiscStrLen  = 256
+
 def fnv1a(str):
     fnv_prime = 0x01000193
     hval      = 0x811c9dc5
@@ -208,7 +212,7 @@ def sha1(str):
 def defineEnum(valueList, enumType):
     enumDef = ""
     # IsEnum indicates that the valid values should be used to create an enum definition
-    if ("IsEnum" in valueList) and valueList["IsEnum"]:
+    if ("IsEnum" in valueList) and valueList["IsEnum"] and (valueList.get("SkipGen", False) == False):
         # This will be the full list of value definitions
         enumData = ""
         # build the enum definition by starting with the list of value definitions
@@ -381,6 +385,7 @@ parser.add_argument('--magicBufferOffset', dest='magicBufferOffset', type=int,
 
 parser.add_argument('--genRegistryCode', dest='genRegistryCode', action='store_true',
                     help='Flag that, when set, instructs the script to generate code to read overrides from the Windows registry.')
+parser.add_argument('--additionalNamespaces', nargs='+', default=[])
 
 args = parser.parse_args()
 
@@ -454,8 +459,14 @@ for setting in settingsData["Settings"]:
     isHex = "Flags" in setting and "IsHex" in setting["Flags"] and setting["Flags"]["IsHex"] == True
     # Make sure that the "Structure" object exists for struct types (and is not present for non-structs)
     assertExit(((setting["Type"] != "struct") or isStruct), "Wrong type or Structure defintiion missing for setting: " + setting["Name"])
-    # Make sure the "Size" field exists for string types
-    assertExit((not(isString) or ("Size" in setting)), "Size missing from string setting: " + setting["Name"])
+    # If "Size" field doesn't exist for a string, provide a default value
+    if isString and ("Size" not in setting):
+        setting["Size"] = MaxMiscStrLen
+        if "Flags" in setting:
+            if setting["Flags"].get("IsDir", False):
+                setting["Size"] = MaxFilePathLen
+            elif setting["Flags"].get("IsFile", False):
+                setting["Size"] = MaxFileNameLen
 
     ifDefTmp   = ""
     endDefTmp  = ""
@@ -962,7 +973,10 @@ headerIncludeList = codeTemplates.HeaderIncludes
 
 if hardwareLayer != "":
     headerIncludeList += "\n#include \"core/hw/gfxip/gfxDevice.h\"\n"
-    includeFileList += "\n#include \"" + codeTemplates.HwlIncludeDir.replace("%Hwl%", hardwareLayerLower)
+    if "hw/gfxip/pup/" in args.outDir:
+        includeFileList += "\n#include \"" + codeTemplates.HwlIncludeDir.replace("%Hwl%", "pup/" + hardwareLayerLower)
+    else:
+        includeFileList += "\n#include \"" + codeTemplates.HwlIncludeDir.replace("%Hwl%", hardwareLayerLower)
     includeFileList += hardwareLayerLower + codeTemplates.PrefixName + "SettingsLoader.h\"\n"
     includeFileList += "#include \"" + headerFileName + "\"\n"
 else:
@@ -1077,6 +1091,10 @@ headerDoxComment = codeTemplates.HeaderFileDoxComment.replace("%FileName%", head
 copyrightAndWarning = codeTemplates.CopyrightAndWarning
 namespaceStart = codeTemplates.NamespaceStart
 namespaceEnd   = codeTemplates.NamespaceEnd
+for namespace in args.additionalNamespaces:
+    namespaceStart += codeTemplates.HwlNamespaceStart.replace("%Hwl%", namespace)
+    namespaceEnd    = codeTemplates.HwlNamespaceEnd.replace("%Hwl%", namespace) + namespaceEnd
+
 if hardwareLayer != "":
     namespaceStart += codeTemplates.HwlNamespaceStart.replace("%Hwl%", hardwareLayer)
     namespaceEnd   = codeTemplates.HwlNamespaceEnd.replace("%Hwl%", hardwareLayer) + namespaceEnd

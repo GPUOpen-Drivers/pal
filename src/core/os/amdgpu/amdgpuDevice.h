@@ -339,6 +339,9 @@ public:
         PowerProfile        profile,
         CustomPowerProfile* pInfo) override { return Result::ErrorUnavailable; }
 
+    virtual Result SetMlPowerOptimization(
+        bool enableOptimization) const override { return Result::ErrorUnavailable; }
+
     virtual Result QueryWorkStationCaps(
         WorkStationCaps* pCaps) const override;
 

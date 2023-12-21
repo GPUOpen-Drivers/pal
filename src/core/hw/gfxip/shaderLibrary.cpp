@@ -159,4 +159,129 @@ void ShaderLibrary::DumpLibraryElf(
         m_codeObjectBinaryLen);
 }
 
+// =====================================================================================================================
+// Obtains the shader pre and post compilation stats/params for the specified shader.
+Result ShaderLibrary::GetShaderFunctionInfos(
+    Util::StringView<char> shaderExportName,
+    ShaderLibStats* pShaderStats,
+    const AbiReader& abiReader,
+    Util::MsgPackReader* pMetadataReader,
+    PalAbi::CodeObjectMetadata& metadata
+) const
+{
+    Result result = Result::Success;
+    // We can re-parse the saved pipeline ELF binary to extract shader statistics.
+    const Elf::SymbolTableEntry* pSymbol = abiReader.GetGenericSymbol(shaderExportName);
+    if (pSymbol != nullptr)
+    {
+        pShaderStats->isaSizeInBytes = static_cast<size_t>(pSymbol->st_size);
+    }
+    pShaderStats->palInternalLibraryHash = m_info.internalLibraryHash;
+
+    result = UnpackShaderFunctionStats(shaderExportName,
+        metadata,
+        pMetadataReader,
+        pShaderStats);
+
+    return result;
+}
+
+// =====================================================================================================================
+// Obtains the shader function stack frame size
+Result ShaderLibrary::UnpackShaderFunctionStats(
+    Util::StringView<char>            shaderExportName,
+    const PalAbi::CodeObjectMetadata& metadata,
+    Util::MsgPackReader* pMetadataReader,
+    ShaderLibStats* pShaderStats
+) const
+{
+    Result result = pMetadataReader->Seek(metadata.pipeline.shaderFunctions);
+    if (result == Result::Success)
+    {
+        result = (pMetadataReader->Type() == CWP_ITEM_MAP) ? Result::Success : Result::ErrorInvalidValue;
+        const auto& item = pMetadataReader->Get().as;
+
+        for (uint32 i = item.map.size; ((result == Result::Success) && (i > 0)); --i)
+        {
+            StringView<char> symbolName;
+            result = pMetadataReader->UnpackNext(&symbolName);
+
+            if (result == Result::Success)
+            {
+                result = pMetadataReader->Next(CWP_ITEM_MAP);
+            }
+
+            for (uint32 j = item.map.size; ((result == Result::Success) && (j > 0)); --j)
+            {
+                result = pMetadataReader->Next(CWP_ITEM_STR);
+
+                if (result == Result::Success)
+                {
+                    if (shaderExportName == symbolName)
+                    {
+                        switch (HashString(static_cast<const char*>(item.str.start), item.str.length))
+                        {
+                        case HashLiteralString(".stack_frame_size_in_bytes"):
+                        {
+                            result = pMetadataReader->UnpackNext(&pShaderStats->stackFrameSizeInBytes);
+                        }
+                        break;
+                        case HashLiteralString(PalAbi::ShaderMetadataKey::ShaderSubtype):
+                        {
+                            Abi::ApiShaderSubType shaderSubType;
+                            result = PalAbi::Metadata::DeserializeEnum(pMetadataReader, &shaderSubType);
+                            pShaderStats->shaderSubType = ShaderSubType(shaderSubType);
+                        }
+                        break;
+                        case HashLiteralString(PalAbi::HardwareStageMetadataKey::VgprCount):
+                        {
+                            result = pMetadataReader->UnpackNext(&pShaderStats->common.numUsedVgprs);
+                        }
+                        break;
+                        case HashLiteralString(PalAbi::HardwareStageMetadataKey::SgprCount):
+                        {
+                            result = pMetadataReader->UnpackNext(&pShaderStats->common.numUsedSgprs);
+                        }
+                        break;
+                        case HashLiteralString(PalAbi::HardwareStageMetadataKey::LdsSize):
+                        {
+                            result = pMetadataReader->UnpackNext(&pShaderStats->common.ldsUsageSizeInBytes);
+                        }
+                        break;
+                        case HashLiteralString(PalAbi::ShaderMetadataKey::ApiShaderHash):
+                        {
+                            uint64 shaderHash[2] = {};
+                            result = pMetadataReader->UnpackNext(&shaderHash);
+                            pShaderStats->shaderHash = { shaderHash[0], shaderHash[1] };
+                        }
+                        break;
+                        case HashLiteralString(PalAbi::HardwareStageMetadataKey::FrontendStackSize):
+                        {
+                            result = pMetadataReader->UnpackNext(&pShaderStats->cpsStackSizes.frontendSize);
+                        }
+                        break;
+                        case HashLiteralString(PalAbi::HardwareStageMetadataKey::BackendStackSize):
+                        {
+                            result = pMetadataReader->UnpackNext(&pShaderStats->cpsStackSizes.backendSize);
+                        }
+                        break;
+                        default:
+                            result = pMetadataReader->Skip(1);
+                            break;
+                        }
+
+                    }
+                    else
+                    {
+                        result = pMetadataReader->Skip(1);
+                    }
+                }
+            }
+
+        }
+    }
+
+    return result;
+}
+
 } // Pal

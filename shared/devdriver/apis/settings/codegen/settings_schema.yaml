@@ -197,10 +197,6 @@ $defs:
           IsBitmask:
             type: boolean
             description: Indicate this is a bitmask. Default to false.
-          IsOptional:
-            type: boolean
-            description: If a setting doesn't have a default value, it's considered optional. An
-              optional setting is wrapped in "std::optional<>" in the generated C++ code, except for string settings.
         description: The flags describing various attributes of this setting.
       ValidValues:
         type: string

@@ -40,6 +40,11 @@ typedef struct
     uint32_t patch;
 } DDVersion;
 
+typedef uint16_t DDConnectionId;
+
+/// GPU ID Determined from (BusID << 16) | (DeviceID << 8) | FunctionID
+typedef uint32_t DDGpuId;
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

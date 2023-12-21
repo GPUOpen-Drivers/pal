@@ -52,14 +52,7 @@ public:
         CmdStream*                      pCmdStream,
         uint32*                         pCmdSpace,
         const DynamicComputeShaderInfo& csInfo,
-        gpusize                         launchDescGpuVa,
         bool                            prefetch) const;
-
-    uint32* WriteLaunchDescriptor(
-        CmdStream*                      pCmdStream,
-        uint32*                         pCmdSpace,
-        const DynamicComputeShaderInfo& csInfo,
-        gpusize                         launchDescGpuVa) const;
 
     virtual Result GetShaderStats(
         ShaderType   shaderType,
@@ -79,14 +72,6 @@ public:
     static uint32 CalcMaxWavesPerSh(
         const GpuChipProperties& chipProps,
         float                    maxWavesPerCu);
-
-    virtual Result CreateLaunchDescriptor(
-        void* pOut,
-        bool  resolve) override
-    {
-        return SupportDynamicDispatch() ?
-            m_chunkCs.CreateLaunchDescriptor(pOut, resolve) : Result::ErrorUnavailable;
-    }
 
     virtual Result LinkWithLibraries(
         const IShaderLibrary*const* ppLibraryList,

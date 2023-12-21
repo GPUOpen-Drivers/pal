@@ -31,6 +31,7 @@
 #include "util/ddJsonWriter.h"
 
 using namespace Pal;
+using DevDriver::StructuredValue;
 
 namespace GpuUtil
 {
@@ -50,6 +51,8 @@ static Result RdfResultToPalResult(
         result = Result::Success;
         break;
     case rdfResult::rdfResultInvalidArgument:
+        result = Result::ErrorInvalidValue;
+        break;
     case rdfResult::rdfResultError:
     default:
         // The default case is being included here, since more error codes may be added to rdf in the future.
@@ -203,14 +206,11 @@ Result TraceSession::RegisterSource(
                     *ppMapEntry = pSource;
 
                     // Update source configs if available
-                    DevDriver::StructuredValue** ppSourceConfig = m_traceSourcesConfigs.FindKey(pSource->GetName());
+                    StructuredValue** ppSourceConfig = m_traceSourcesConfigs.FindKey(pSource->GetName());
 
-                    if (ppSourceConfig != nullptr)
+                    if ((ppSourceConfig != nullptr) && (*ppSourceConfig != nullptr))
                     {
-                        if (*ppSourceConfig != nullptr)
-                        {
-                            pSource->OnConfigUpdated(*ppSourceConfig);
-                        }
+                        pSource->OnConfigUpdated(*ppSourceConfig);
                     }
                 }
             }
@@ -287,20 +287,20 @@ Result TraceSession::UpdateTraceConfig(
         if (devDriverResult == DevDriver::Result::Success)
         {
             result = Result::Success;
-            const DevDriver::StructuredValue root = m_pReader->GetRoot();
+            const StructuredValue root = m_pReader->GetRoot();
 
             // Update configs of registered TraceControllers
-            const DevDriver::StructuredValue traceControllers    = root["controllers"];
-            const size_t                     numTraceControllers = traceControllers.GetArrayLength();
+            const StructuredValue traceControllers    = root["controllers"];
+            const size_t          numTraceControllers = traceControllers.GetArrayLength();
 
             if (traceControllers.IsNull() == false)
             {
                 for (uint32 idx = 0; idx < numTraceControllers; ++idx)
                 {
                     // Grab the config for each controller
-                    const DevDriver::StructuredValue traceController       = traceControllers[idx];
-                    const char*                      pName                 = traceController["name"].GetStringPtr();
-                    DevDriver::StructuredValue       traceControllerConfig = traceController["config"];
+                    const StructuredValue traceController       = traceControllers[idx];
+                    const char*           pName                 = traceController["name"].GetStringPtr();
+                    StructuredValue       traceControllerConfig = traceController["config"];
 
                     if ((pName != nullptr) && (traceControllerConfig.IsNull() == false))
                     {
@@ -318,8 +318,8 @@ Result TraceSession::UpdateTraceConfig(
             // Configs of TraceSources will be updated later during registration. This is because clients might register
             // sources during DevDriver's LateDeviceInit and require that configs be updated at that time. In the future,
             // we might want to move LateDeviceInit from client's responsibility to PAL's.
-            const DevDriver::StructuredValue traceSources    = root["sources"];
-            const size_t                     numTraceSources = traceSources.GetArrayLength();
+            const StructuredValue traceSources    = root["sources"];
+            const size_t          numTraceSources = traceSources.GetArrayLength();
 
             if (traceSources.IsNull() == false)
             {
@@ -328,9 +328,9 @@ Result TraceSession::UpdateTraceConfig(
                 for (uint32 idx = 0; idx < numTraceSources; ++idx)
                 {
                     // Grab the config for each source
-                    const DevDriver::StructuredValue traceSource       = traceSources[idx];
-                    const char*                      pName             = traceSource["name"].GetStringPtr();
-                    DevDriver::StructuredValue       traceSourceConfig = traceSource["config"];
+                    const StructuredValue traceSource       = traceSources[idx];
+                    const char*           pName             = traceSource["name"].GetStringPtr();
+                    StructuredValue       traceSourceConfig = traceSource["config"];
 
                     if ((pName != nullptr) && (traceSourceConfig.IsNull() == false))
                     {
@@ -345,16 +345,17 @@ Result TraceSession::UpdateTraceConfig(
                         }
 
                         // Store configs of TraceSources
-                        bool existed = false;
-                        DevDriver::StructuredValue** ppMapEntry;
+                        bool              existed    = false;
+                        StructuredValue** ppMapEntry = nullptr;
                         result = m_traceSourcesConfigs.FindAllocate(pName, &existed, &ppMapEntry);
+
                         if (result == Result::Success)
                         {
                             // don't want to re-allocate memory if the entry already exists
                             if (existed == false)
                             {
                                 // Ensure deallocations when TraceSession is destroyed
-                                *ppMapEntry = PAL_NEW(DevDriver::StructuredValue, m_pPlatform, Util::AllocInternalTemp);
+                                *ppMapEntry = PAL_NEW(StructuredValue, m_pPlatform, Util::AllocInternalTemp);
                             }
                             if (*ppMapEntry != nullptr)
                             {
@@ -405,10 +406,24 @@ Result TraceSession::AcceptTrace(
             {
                 Util::RWLockAuto<Util::RWLock::ReadOnly> traceSourceLock(&m_registerTraceSourceLock);
 
-                // Notify all trace sources that the trace has been accepted
-                for (auto iter = m_registeredTraceSources.Begin(); iter.Get() != nullptr; iter.Next())
+                // Grab the "sources" field from the trace config
+                const StructuredValue traceSources = m_pReader->GetRoot()["sources"];
+
+                // Notify all requested trace sources that the trace has been accepted
+                for (uint32 i = 0; i < traceSources.GetArrayLength(); i++)
                 {
-                    iter.Get()->value->OnTraceAccepted();
+                    const char* pName = traceSources[i]["name"].GetStringPtr();
+
+                    if (pName != nullptr)
+                    {
+                        // Search for and notify the TraceSource object named in the trace configuration
+                        GpuUtil::ITraceSource** ppSource = m_registeredTraceSources.FindKey(pName);
+
+                        if ((ppSource != nullptr) && (*ppSource != nullptr))
+                        {
+                            (*ppSource)->OnTraceAccepted();
+                        }
+                    }
                 }
             }
         }
@@ -437,10 +452,24 @@ Result TraceSession::BeginTrace()
     {
         Util::RWLockAuto<Util::RWLock::ReadOnly> traceSourceLock(&m_registerTraceSourceLock);
 
-        // Notify all trace sources that the trace has begun
-        for (auto iter = m_registeredTraceSources.Begin(); iter.Get() != nullptr; iter.Next())
+        // Grab the "sources" field from the trace config
+        const StructuredValue traceSources = m_pReader->GetRoot()["sources"];
+
+        // Notify all requested trace sources that the trace has begun
+        for (uint32 i = 0; i < traceSources.GetArrayLength(); i++)
         {
-            iter.Get()->value->OnTraceBegin(gpuIndex, pBeginCmdBuf);
+            const char* pName = traceSources[i]["name"].GetStringPtr();
+
+            if (pName != nullptr)
+            {
+                // Search for and notify the TraceSource object named in the trace configuration
+                GpuUtil::ITraceSource** ppSource = m_registeredTraceSources.FindKey(pName);
+
+                if ((ppSource != nullptr) && (*ppSource != nullptr))
+                {
+                    (*ppSource)->OnTraceBegin(gpuIndex, pBeginCmdBuf);
+                }
+            }
         }
     }
 
@@ -463,10 +492,24 @@ Result TraceSession::EndTrace()
     {
         Util::RWLockAuto<Util::RWLock::ReadOnly> traceSourceLock(&m_registerTraceSourceLock);
 
-        // Notify all trace sources that the trace has begun
-        for (auto iter = m_registeredTraceSources.Begin(); iter.Get() != nullptr; iter.Next())
+        // Grab the "sources" field from the trace config
+        const StructuredValue traceSources = m_pReader->GetRoot()["sources"];
+
+        // Notify all requested trace sources that the trace has ended
+        for (uint32 i = 0; i < traceSources.GetArrayLength(); i++)
         {
-            iter.Get()->value->OnTraceEnd(gpuIndex, pCmdBuf);
+            const char* pName = traceSources[i]["name"].GetStringPtr();
+
+            if (pName != nullptr)
+            {
+                // Search for and notify the TraceSource object named in the trace configuration
+                GpuUtil::ITraceSource** ppSource = m_registeredTraceSources.FindKey(pName);
+
+                if ((ppSource != nullptr) && (*ppSource != nullptr))
+                {
+                    (*ppSource)->OnTraceEnd(gpuIndex, pCmdBuf);
+                }
+            }
         }
     }
 
@@ -480,13 +523,15 @@ Result TraceSession::CollectTrace(
 {
     Result result = Result::ErrorUnknown;
 
-    if (pDataSize == nullptr)
+    switch (m_sessionState)
     {
-        result = Result::ErrorInvalidPointer;
-    }
-    else
+    case TraceSessionState::Completed:
     {
-        if (m_sessionState == TraceSessionState::Completed)
+        if (pDataSize == nullptr)
+        {
+            result = Result::ErrorInvalidPointer;
+        }
+        else
         {
             int64 streamSize = static_cast<int64>(*pDataSize);
 
@@ -539,10 +584,23 @@ Result TraceSession::CollectTrace(
                 *pDataSize = streamSize;
             }
         }
-        else
-        {
-            result = Result::ErrorUnavailable;
-        }
+        break;
+    }
+    case TraceSessionState::Requested:
+    case TraceSessionState::Running:
+    case TraceSessionState::Waiting:
+    {
+        // If the trace is currently in progress, return "NotReady" to inform callees
+        // that the trace data is not ready to be collected
+        result = Result::NotReady;
+        break;
+    }
+    case TraceSessionState::Ready:
+    {
+        // If the session state is idle, trace results are "unavailable"
+        result = Result::ErrorUnavailable;
+        break;
+    }
     }
 
     return result;
@@ -585,10 +643,20 @@ void TraceSession::FinishTrace()
 {
     Util::RWLockAuto<Util::RWLock::ReadOnly> traceSourceLock(&m_registerTraceSourceLock);
 
-    // Notify all trace sources that the trace has finished
-    for (auto iter = m_registeredTraceSources.Begin(); iter.Get() != nullptr; iter.Next())
+    // Notify all requested trace sources that the trace has finished
+    const StructuredValue traceSources = m_pReader->GetRoot()["sources"];
+    for (uint32 i = 0; i < traceSources.GetArrayLength(); i++)
     {
-        iter.Get()->value->OnTraceFinished(); // Writes data into TraceSession
+        const char* pName = traceSources[i]["name"].GetStringPtr();
+        if (pName != nullptr)
+        {
+            GpuUtil::ITraceSource** ppSource = m_registeredTraceSources.FindKey(pName);
+
+            if ((ppSource != nullptr) && (*ppSource != nullptr))
+            {
+                (*ppSource)->OnTraceFinished(); // Writes data into TraceSession
+            }
+        }
     }
 }
 

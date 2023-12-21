@@ -39,10 +39,18 @@ class IImage;
 // Bitmask values that can be ORed together to specify special properties of DMA copies.
 enum DmaCopyFlags : uint32
 {
-    None       = 0x00000000,  ///< No flags specified
-    TmzCopy    = 0x00000002,  ///< Whether the copy source is in TMZ memory. Results are undefined if the destination
-                              ///  is not in TMZ memory.
+    None              = 0x00000000,  ///< No flags specified
+    TmzCopy           = 0x00000002,  ///< Whether the copy source is in TMZ memory. Results are undefined if
+                                     ///  the destination is not in TMZ memory.
 };
+
+// operator overloads for DmaCopyFlags
+constexpr DmaCopyFlags operator|(DmaCopyFlags lhs, DmaCopyFlags rhs) { return DmaCopyFlags(uint32(lhs) | uint32(rhs)); }
+constexpr DmaCopyFlags operator&(DmaCopyFlags lhs, DmaCopyFlags rhs) { return DmaCopyFlags(uint32(lhs) & uint32(rhs)); }
+constexpr DmaCopyFlags operator~(DmaCopyFlags val) { return DmaCopyFlags(~uint32(val)); }
+
+constexpr DmaCopyFlags& operator|=(DmaCopyFlags& lhs, DmaCopyFlags rhs) { lhs = lhs | rhs;  return lhs; }
+constexpr DmaCopyFlags& operator&=(DmaCopyFlags& lhs, DmaCopyFlags rhs) { lhs = lhs & rhs;  return lhs; }
 
 // DmaImageInfo contains all necessary information about a single subresource for an image copy.
 struct DmaImageInfo
@@ -336,9 +344,6 @@ protected:
     virtual gpusize GetSubresourceBaseAddr(const Image& image, const SubresId& subresource) const = 0;
 
     virtual uint32 GetLinearRowPitchAlignment(uint32 bytesPerPixel) const = 0;
-
-    virtual void P2pBltWaCopyNextRegion(gpusize chunkAddr) override
-        { CmdBuffer::P2pBltWaCopyNextRegion(&m_cmdStream, chunkAddr); }
 
     static ImageType GetImageType(const IImage&  image);
 

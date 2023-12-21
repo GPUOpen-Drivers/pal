@@ -1284,7 +1284,7 @@ void Device::InitGfx9CuMask(
             }
             // For Gfx11, the concept of always on CUs is dropped, and the Gfx core is either ON or OFF entirely
             // So we can treat all active CUs as always on CUs on Gfx11
-            else if (IsGfx11(m_chipProperties.gfxLevel))
+            else if (IsGfx11Plus(m_chipProperties.gfxLevel))
             {
                 pChipInfo->alwaysOnCuMask[seIndex][shIndex] = pChipInfo->activeCuMask[seIndex][shIndex];
             }
@@ -1562,7 +1562,15 @@ Result Device::InitMemInfo()
             m_memoryProperties.flags.globalGpuVaSupport      = 0; // Not supported
             m_memoryProperties.flags.svmSupport              = 1; // Supported
             m_memoryProperties.flags.autoPrioritySupport     = 0; // Not supported
-            m_memoryProperties.flags.supportPageFaultInfo    = 0; // Not supported
+
+            if ((m_drmMinorVer >= 55) && m_drmProcs.pfnAmdgpuQueryGpuvmFaultInfoisValid())
+            {
+                m_memoryProperties.flags.supportPageFaultInfo    = 1; // Supported
+            }
+            else
+            {
+                m_memoryProperties.flags.supportPageFaultInfo    = 0; // Not Supported
+            }
 
             // Linux don't support High Bandwidth Cache Controller (HBCC) memory segment
             m_memoryProperties.hbccSizeInBytes   = 0;
@@ -1735,6 +1743,11 @@ Result Device::InitQueueInfo()
                 pEngineInfo->sizeAlignInDwords = 1;
                 break;
 
+                // not supported on linux
+                pEngineInfo->numAvailable       = 0;
+                pEngineInfo->startAlign         = 1;
+                pEngineInfo->sizeAlignInDwords  = 1;
+                break;
             default:
                 PAL_ASSERT_ALWAYS();
                 break;
@@ -5212,40 +5225,82 @@ Result Device::CheckExecutionState(
     PageFaultStatus* pPageFaultStatus)
 {
     Result result = Result::Success;
-    MutexAuto lock(&m_contextListLock);
 
-    if (m_contextList.NumElements() == 0)
+    // Check page fault status
+    if (m_memoryProperties.flags.supportPageFaultInfo)
     {
-        return Result::ErrorInvalidValue;
-    }
-
-    amdgpu_context_handle queryContext = *m_contextList.Begin().Get();
-
-    if (m_drmMinorVer >= 24)
-    {
-        uint64 flags;
-        result = CheckResult(m_drmProcs.pfnAmdgpuCsQueryResetState2(
-            queryContext, &flags), Result::Success);
+        drm_amdgpu_info_gpuvm_fault gpuVmfault = {0};
+        result = CheckResult(m_drmProcs.pfnAmdgpuQueryGpuvmFaultInfo(
+                                                m_hDevice,
+                                                sizeof(gpuVmfault),
+                                                &gpuVmfault),
+                             Result::Success);
 
         if (result == Result::Success)
         {
-            if (flags & AMDGPU_CTX_QUERY2_FLAGS_RESET)
+            if (gpuVmfault.status != 0)
             {
-                result = Result::ErrorDeviceLost;
+                // At present, the R/W flag of the GCVM_L2_PROTECTION_FAULT_STATUS register is the 18th bit on all ASICs.
+                // It need to be checked and updated according to the ASIC version if future products have changes.
+                constexpr uint32 GcvmL2ProtectionFaultStatusRwBit  = 18;
+
+                pPageFaultStatus->flags.pageFault = 1;
+
+                // Read the GCVM_L2_PROTECTION_FAULT_STATUS register's 18th bit to check the RW
+                pPageFaultStatus->flags.readFault = (Util::BitfieldIsSet(gpuVmfault.status, GcvmL2ProtectionFaultStatusRwBit) == false);
+                pPageFaultStatus->faultAddress = gpuVmfault.addr;
+
+                result = Result::ErrorGpuPageFaultDetected;
             }
         }
-    }
-    else
-    {
-        uint32_t state, hangs;
-        result = CheckResult(m_drmProcs.pfnAmdgpuCsQueryResetState(
-            queryContext, &state, &hangs), Result::Success);
-
-        if (result == Result::Success)
+        else
         {
-            if (state != AMDGPU_CTX_NO_RESET)
+            result = Result::ErrorUnknown;
+        }
+    }
+
+    // check device lost
+    if (result != Result::ErrorGpuPageFaultDetected)
+    {
+
+        MutexAuto lock(&m_contextListLock);
+
+        if (m_contextList.NumElements() == 0)
+        {
+            result = Result::ErrorInvalidValue;
+        }
+        else
+        {
+            amdgpu_context_handle queryContext = *m_contextList.Begin().Get();
+
+            if (m_drmMinorVer >= 24)
             {
-                result = Result::ErrorDeviceLost;
+                uint64 flags = 0;
+                result = CheckResult(m_drmProcs.pfnAmdgpuCsQueryResetState2(
+                    queryContext, &flags), Result::Success);
+
+                if (result == Result::Success)
+                {
+                    if (flags & AMDGPU_CTX_QUERY2_FLAGS_RESET)
+                    {
+                        result = Result::ErrorDeviceLost;
+                    }
+                }
+            }
+            else
+            {
+                uint32 state = 0;
+                uint32 hangs = 0;
+                result = CheckResult(m_drmProcs.pfnAmdgpuCsQueryResetState(
+                    queryContext, &state, &hangs), Result::Success);
+
+                if (result == Result::Success)
+                {
+                    if (state != AMDGPU_CTX_NO_RESET)
+                    {
+                        result = Result::ErrorDeviceLost;
+                    }
+                }
             }
         }
     }

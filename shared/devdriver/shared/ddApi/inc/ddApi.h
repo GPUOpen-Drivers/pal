@@ -587,6 +587,33 @@ inline int ddIsVersionCompatible(
             (requiredVersion.patch  <= actualVersion.patch));
 }
 
+/// Helper function similar to the above except this only checks minor version when major version is zero.
+inline int ddIsMajorVersionCompatible(
+    DDApiVersion requiredVersion,
+    DDApiVersion actualVersion)
+{
+    // In semantic versioning, if the major revision number is 0, then the API is considered to be in the
+    // "initial development" state and any change may break API compatibility at any time.
+    // In this situation, we use the minor version as the major version instead since that's how the semantic
+    // versioning FAQ says libraries should be versioning themselves for the initial development period.
+
+    // Make sure we reject invalid version structures
+    const uint32_t isRequiredVersionValid = ddIsVersionValid(requiredVersion);
+    const uint32_t isActualVersionValid   = ddIsVersionValid(actualVersion);
+
+    uint32_t requiredMajorVersion = requiredVersion.major;
+    uint32_t actualMajorVersion   = actualVersion.major;
+
+    if ((requiredVersion.major == 0) && (actualVersion.major == 0))
+    {
+        requiredMajorVersion = requiredVersion.minor;
+        actualMajorVersion   = actualVersion.minor;
+    }
+
+    return ((isRequiredVersionValid && isActualVersionValid) &&
+            (requiredMajorVersion   == actualMajorVersion));
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// Unique ID assigned when a client connects to the developer mode message bus
 typedef uint16_t DDClientId;

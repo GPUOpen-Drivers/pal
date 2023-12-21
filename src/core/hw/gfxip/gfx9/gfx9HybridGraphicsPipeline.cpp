@@ -188,7 +188,6 @@ uint32* HybridGraphicsPipeline::WriteTaskCommands(
                                        m_shPairsPacketSupportedCs,
 #endif
                                        info,
-                                       0uLL,
                                        prefetch);
 
     return pCmdSpace;

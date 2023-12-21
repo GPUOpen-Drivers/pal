@@ -675,7 +675,9 @@ PipelineUploader::PipelineUploader(
     m_pagingFenceVal(0),
     m_pipelineHeapType(GpuHeap::GpuHeapCount),
     m_slotId(0),
-    m_heapInvisUploadOffset(0)
+    m_heapInvisUploadOffset(0),
+    m_prefetchGpuVirtAddr(0),
+    m_prefetchSize(0)
 {
 }
 

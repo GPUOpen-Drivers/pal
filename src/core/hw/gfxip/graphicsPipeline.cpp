@@ -156,11 +156,11 @@ void GraphicsPipeline::InitFlags(
 
     m_flags.perpLineEndCapsEnable = createInfo.rsState.perpLineEndCapsEnable;
 
-    m_flags.fastClearElim    = internalInfo.flags.fastClearElim;
-    m_flags.fmaskDecompress  = internalInfo.flags.fmaskDecompress;
-    m_flags.dccDecompress    = internalInfo.flags.dccDecompress;
-    m_flags.resolveFixedFunc = internalInfo.flags.resolveFixedFunc;
-
+    m_flags.fastClearElim     = internalInfo.flags.fastClearElim;
+    m_flags.fmaskDecompress   = internalInfo.flags.fmaskDecompress;
+    m_flags.dccDecompress     = internalInfo.flags.dccDecompress;
+    m_flags.resolveFixedFunc  = internalInfo.flags.resolveFixedFunc;
+    m_flags.isPartialPipeline = internalInfo.flags.isPartialPipeline;
     m_binningOverride = createInfo.rsState.binningOverride;
 
     m_flags.lateAllocVsLimit = createInfo.useLateAllocVsLimit;
@@ -199,21 +199,21 @@ Result GraphicsPipeline::InitFromLibraries(
     Util::MetroHash::Hash uniqueHash64 = {};
     Util::MetroHash::Hash resourceHash64 = {};
 
-    uint32_t pipelineApiShaderMask = 0;
-    uint32_t pipelineHwStageMask   = 0;
+    uint32 pipelineApiShaderMask = 0;
+    uint32 pipelineHwStageMask   = 0;
 
     PAL_ASSERT((createInfo.numShaderLibraries <= MaxGfxShaderLibraryCount) && (createInfo.numShaderLibraries > 0));
-    m_numGfxShaderLibraries = static_cast<uint32_t>(createInfo.numShaderLibraries);
+    m_numGfxShaderLibraries = static_cast<uint32>(createInfo.numShaderLibraries);
 
     // Merge flags and command info from partial pipeline
-    for (uint32_t i = 0; i < createInfo.numShaderLibraries; i++)
+    for (uint32 i = 0; i < createInfo.numShaderLibraries; i++)
     {
         const GraphicsShaderLibrary* pLib =
             reinterpret_cast<const GraphicsShaderLibrary*>(createInfo.ppShaderLibraries[i]);
         m_gfxShaderLibraries[i] = pLib;
 
         const GraphicsPipeline*      pPartialPipeline = pLib->GetPartialPipeline();
-        uint32_t                     apiShaderMask    = pLib->GetApiShaderMask();
+        uint32                       apiShaderMask    = pLib->GetApiShaderMask();
 
         if (Util::TestAnyFlagSet(pipelineApiShaderMask, pLib->GetApiShaderMask()) ||
             Util::TestAnyFlagSet(pipelineHwStageMask, pLib->GetHwShaderMask()))

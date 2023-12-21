@@ -196,7 +196,8 @@ const FormatInfo FormatInfoTable[] =
     {
         8,   1,                             // 8 bpp,  1 component
         {  8,  0,  0,  0, },
-        ChannelFlags::X,                    // Channel Mask: X---
+        ChannelFlags::X |
+         ChannelFlags::W, // Channel Mask: X--W
         0,                                  // Format Properties
         NumericSupportFlags::Unorm,
     },

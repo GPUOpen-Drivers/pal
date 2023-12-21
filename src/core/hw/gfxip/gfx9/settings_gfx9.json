@@ -1,8 +1,5 @@
 {
-  "ComponentName": "Gfx9_Pal",
-  "DriverState": [
-    "HaltedOnDeviceInit"
-  ],
+  "ComponentName": "Gfx9Pal",
   "Hwl": "Gfx9",
   "Tags": [
     "General",
@@ -55,9 +52,7 @@
         "Shader Options",
         "Gfx9"
       ],
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Defaults": {
         "Default": "Gfx10LdsPsGroupSizeNone"
       },
@@ -66,7 +61,6 @@
       "OrBuildTypes": [
         "PAL_BUILD_GFX11"
       ],
-      "VariableName": "ldsPsGroupSize",
       "Name": "LdsPsGroupSize"
     },
     {
@@ -115,7 +109,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "allowBigPage",
       "Name": "AllowBigPage"
     },
     {
@@ -129,7 +122,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "disableBorderColorPaletteBinds",
       "Name": "DisableBorderColorPaletteBinds"
     },
     {
@@ -163,7 +155,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "printMetaEquationInfo",
       "Name": "PrintMetaEquationInfo"
     },
     {
@@ -207,7 +198,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "optimizedFastClear",
       "Name": "OptimizedFastClear"
     },
     {
@@ -238,12 +228,14 @@
         "General",
         "Gfx9"
       ],
+      "Flags": {
+        "RereadSetting": true
+      },
       "Defaults": {
         "Default": "DefaultBlockSize"
       },
       "Scope": "PrivatePalGfx9Key",
-      "Type": "uint32",
-      "VariableName": "minDccCompressedBlockSize",
+      "Type": "enum",
       "Name": "MinDccCompressedBlockSize"
     },
     {
@@ -270,7 +262,9 @@
             "Description": "Fast clear eliminate."
           }
         ],
-        "Name": "DecompressMask"
+        "Name": "DecompressMask",
+        "SkipGen": true,
+        "IsEnum": true
       },
       "Description": "Controls whether the specified decompress / expand / eliminate operations will always occur when requested.",
       "Tags": [
@@ -286,7 +280,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "alwaysDecompress",
       "Name": "AlwaysDecompress"
     },
     {
@@ -299,7 +292,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "treat1dAs2d",
       "Name": "Treat1dAs2d"
     },
     {
@@ -345,7 +337,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "enum",
-      "VariableName": "forceWaveBreakSize",
       "Name": "ForceWaveBreakSize"
     },
     {
@@ -359,7 +350,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "sdmaPreferCompressedSource",
       "Name": "SdmaPreferCompressedSource"
     },
     {
@@ -423,7 +413,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "useCompToSingle",
       "Name": "UseCompToSingle"
     },
     {
@@ -437,7 +426,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "forceRegularClearCode",
       "Name": "ForceRegularClearCode"
     },
     {
@@ -469,7 +457,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "enum",
-      "VariableName": "gfx11SlowClearMethod",
       "Description": "Determines whether slow clears should occur as UAVs or render targets.  GFX11 only",
       "OrBuildTypes": [
         "PAL_BUILD_GFX11"
@@ -486,7 +473,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "gfx11AlwaysAllowDccFormatReplacement",
       "Name": "Gfx11AlwaysAllowDccFormatReplacement",
       "OrBuildTypes": [
         "PAL_BUILD_GFX11"
@@ -503,7 +489,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "gfx11SampleMaskTrackerWatermark",
       "Name": "Gfx11SampleMaskTrackerWatermark",
       "OrBuildTypes": [
         "PAL_BUILD_GFX11"
@@ -529,7 +514,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "gfx11MetadataSizeMultiplier",
       "Name": "Gfx11MetadataSizeMultiplier",
       "OrBuildTypes": [
         "PAL_BUILD_GFX11"
@@ -549,7 +533,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "gfx11OverrideMetadataAlignment",
       "Name": "Gfx11OverrideMetadataAlignment",
       "OrBuildTypes": [
         "PAL_BUILD_GFX11"
@@ -566,7 +549,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "forceGraphicsFillMemoryPath",
       "Name": "ForceGraphicsFillMemoryPath"
     },
     {
@@ -580,7 +562,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waitOnMetadataMipTail",
       "Name": "WaitOnMetadataMipTail"
     },
     {
@@ -612,15 +593,13 @@
       ],
       "Flags": {
         "IsBitmask": true,
-        "IsHex": true,
-        "RereadSetting": true
+        "IsHex": true
       },
       "Defaults": {
         "Default": 0
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "waitOnFlush",
       "Name": "WaitOnFlush"
     },
     {
@@ -634,7 +613,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "blendOptimizationsEnable",
       "Name": "BlendOptimizationEnable"
     },
     {
@@ -648,7 +626,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "fastColorClearEnable",
       "Name": "FastColorClearEnable"
     },
     {
@@ -662,8 +639,7 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "fastColorClearOn3dEnable",
-      "Name": "FastColorClearOn3DEnable"
+      "Name": "FastColorClearOn3dEnable"
     },
     {
       "Description": "Controls the setting of the CB_COLOR_INFO.FMASK_COMPRESSION_DISABLE bit.",
@@ -676,7 +652,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "fmaskCompressDisable",
       "Name": "FmaskCompressDisable"
     },
     {
@@ -690,7 +665,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "fmaskAllowPipeBankXor",
       "Name": "FmaskAllowPipeBankXor"
     },
     {
@@ -724,7 +698,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "dccOnComputeEnable",
       "Name": "DccOnComputeEnable"
     },
     {
@@ -781,15 +754,13 @@
       ],
       "Flags": {
         "IsBitmask": true,
-        "IsHex": true,
-        "RereadSetting": true
+        "IsHex": true
       },
       "Defaults": {
         "Default": 0
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "cbDbCachePolicy",
       "Name": "CbDbCachePolicy"
     },
     {
@@ -816,7 +787,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "csMaxWavesPerCu",
       "Name": "CsMaxWavesPerCu"
     },
     {
@@ -843,7 +813,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "csLockThreshold",
       "Name": "CsLockThreshold"
     },
     {
@@ -865,7 +834,9 @@
             "Description": "Forces SIMD_DEST_CNTL to 0."
           }
         ],
-        "Name": "CsSimdDestCntlMode"
+        "Name": "CsSimdDestCntlMode",
+        "SkipGen": true,
+        "IsEnum": true
       },
       "Description": "Controls the SIMD_DEST_CNTL field of the COMPUTE_RESOURCE_LIMITS register. By default, this flag is calulated based on the number of waves in the dispatch. If the number of waves is a multiple of 4, this flag is set, otherwise it is cleared.",
       "Tags": [
@@ -877,7 +848,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "enum",
-      "VariableName": "csSimdDestCntl",
       "Name": "CsSimdDestCntl"
     },
     {
@@ -894,7 +864,9 @@
             "Description": "Disables COLOR_TRANSFORM behavior."
           }
         ],
-        "Name": "ColorTransformValue"
+        "Name": "ColorTransformValue",
+        "SkipGen": true,
+        "IsEnum": true
       },
       "Description": "Controls the COLOR_TRANSFORM field of the CB_COLOR0_DCC_CONTROL/CB_COLOR0_FDCC_CONTROL register.",
       "Tags": [
@@ -906,7 +878,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "enum",
-      "VariableName": "colorTransform",
       "Name": "ColorTransform"
     },
     {
@@ -956,7 +927,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "enum",
-      "VariableName": "overrideCsDispatchInterleaveSize",
       "Name": "OverrideCsDispatchInterleaveSize",
       "OrBuildTypes": [
         "PAL_BUILD_GFX11"
@@ -973,7 +943,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "htileEnable",
       "Name": "HtileEnable"
     },
     {
@@ -989,7 +958,6 @@
       ],
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "useLegacyDbZInfo",
       "Name": "UseLegacyDbZInfo"
     },
     {
@@ -1005,7 +973,6 @@
       ],
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "gfx11DisableRbPlusWithBlending",
       "Name": "Gfx11DisableRbPlusWithBlending"
     },
     {
@@ -1021,10 +988,7 @@
       ],
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "Flags": {
-        "RereadSetting": true
-      },
-      "VariableName": "waEnableIntrinsicRateEnable",
+      "Flags": {},
       "Name": "WaEnableIntrinsicRateEnable"
     },
     {
@@ -1061,10 +1025,7 @@
       ],
       "Scope": "PrivatePalGfx9Key",
       "Type": "enum",
-      "Flags": {
-        "RereadSetting": true
-      },
-      "VariableName": "waDisableAc01",
+      "Flags": {},
       "Name": "WaDisableAc01"
     },
     {
@@ -1078,7 +1039,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "disableIterate256Opt",
       "Name": "DisableIterate256Opt"
     },
     {
@@ -1090,12 +1050,9 @@
       "Defaults": {
         "Default": true
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "allowDepthCopyResolve",
       "Name": "AllowDepthCopyResolve"
     },
     {
@@ -1107,19 +1064,8 @@
       "Defaults": {
         "Default": true
       },
-      "DependsOn": {
-        "Settings": [
-          {
-            "Values": [
-              true
-            ],
-            "Name": "Gfx9HtileEnable"
-          }
-        ]
-      },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "depthCompressEnable",
       "Name": "DepthCompressEnable"
     },
     {
@@ -1131,19 +1077,8 @@
       "Defaults": {
         "Default": true
       },
-      "DependsOn": {
-        "Settings": [
-          {
-            "Values": [
-              true
-            ],
-            "Name": "Gfx9HtileEnable"
-          }
-        ]
-      },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "stencilCompressEnable",
       "Name": "StencilCompressEnable"
     },
     {
@@ -1155,19 +1090,8 @@
       "Defaults": {
         "Default": true
       },
-      "DependsOn": {
-        "Settings": [
-          {
-            "Values": [
-              true
-            ],
-            "Name": "Gfx9HtileEnable"
-          }
-        ]
-      },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "dbPreloadEnable",
       "Name": "DbPreloadEnable"
     },
     {
@@ -1179,19 +1103,8 @@
       "Defaults": {
         "Default": false
       },
-      "DependsOn": {
-        "Settings": [
-          {
-            "Values": [
-              true
-            ],
-            "Name": "Gfx9HtileEnable"
-          }
-        ]
-      },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "dbPreloadWinEnable",
       "Name": "DbPreloadWinEnable"
     },
     {
@@ -1203,19 +1116,8 @@
       "Defaults": {
         "Default": false
       },
-      "DependsOn": {
-        "Settings": [
-          {
-            "Values": [
-              true
-            ],
-            "Name": "Gfx9HtileEnable"
-          }
-        ]
-      },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "dbPerTileExpClearEnable",
       "Name": "DbPerTileExpClearEnable"
     },
     {
@@ -1227,19 +1129,8 @@
       "Defaults": {
         "Default": true
       },
-      "DependsOn": {
-        "Settings": [
-          {
-            "Values": [
-              true
-            ],
-            "Name": "Gfx9HtileEnable"
-          }
-        ]
-      },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "hiDepthEnable",
       "Name": "HiDepthEnable"
     },
     {
@@ -1251,19 +1142,8 @@
       "Defaults": {
         "Default": true
       },
-      "DependsOn": {
-        "Settings": [
-          {
-            "Values": [
-              true
-            ],
-            "Name": "Gfx9HtileEnable"
-          }
-        ]
-      },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "hiStencilEnable",
       "Name": "HiStencilEnable"
     },
     {
@@ -1289,7 +1169,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "dbRequestSize",
       "Name": "DbRequestSize",
       "Flags": {
         "IsHex": true
@@ -1306,7 +1185,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "dbDisableColorOnValidation",
       "Name": "DbDisableColorOnValidation"
     },
     {
@@ -1334,7 +1212,9 @@
             "Description": "Always enable."
           }
         ],
-        "Name": "OutOfOrderPrimMode"
+        "Name": "OutOfOrderPrimMode",
+        "SkipGen": true,
+        "IsEnum": true
       },
       "Description": "Enable out-of-order primitive mode. Only available on parts that have more than one VGT.",
       "Tags": [
@@ -1346,7 +1226,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "enum",
-      "VariableName": "enableOutOfOrderPrimitives",
       "Name": "EnableOutOfOrderPrimitives"
     },
     {
@@ -1369,7 +1248,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "outOfOrderWatermark",
       "Name": "OutOfOrderWatermark"
     },
     {
@@ -1383,7 +1261,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "disableGeCntlVtxGrouping",
       "Name": "DisableGeCntlVtxGrouping"
     },
     {
@@ -1397,7 +1274,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "disablePaBroadcast",
       "Name": "DisablePaBroadcast"
     },
     {
@@ -1411,7 +1287,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "gsCuGroupEnabled",
       "Name": "GsCuGroupEnabled"
     },
     {
@@ -1434,7 +1309,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "gsMaxLdsSize",
       "Name": "GsMaxLdsSize"
     },
     {
@@ -1456,7 +1330,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "lateAllocGs",
       "Name": "LateAllocGs"
     },
     {
@@ -1491,7 +1364,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "enum",
-      "VariableName": "lateAllocVs",
       "Name": "LateAllocVs"
     },
     {
@@ -1505,31 +1377,7 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "float",
-      "VariableName": "maxTessFactor",
       "Name": "MaxTessFactor"
-    },
-    {
-      "ValidValues": {
-        "Values": [
-          {
-            "LogicOp": "LessThanOrEqual",
-            "Description": "Number of offchip tessellation buffers.",
-            "Value": 508
-          }
-        ]
-      },
-      "Description": "Controls the number of LDS buffers used for offchip tessellation: Gfx9: 1->508: Number of offchip tessellation buffers.",
-      "Tags": [
-        "Graphics Pipelines",
-        "Gfx9"
-      ],
-      "Defaults": {
-        "Default": 508
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "uint32",
-      "VariableName": "numOffchipLdsBuffers",
-      "Name": "NumOffchipLdsBuffers"
     },
     {
       "Description": "Controls the number of patches-per-thread-group to run when tessellationis enabled. This value is normally limited by hardware resources (LDS,TFBuffer, Threads). - Setting to 1 will always work, but is slowest. - Setting to 0 will allow the driver to choose the optimal value. - Any other value will be used (clamped based on HW resources). Offchip Tess rounds this to the nearest multiple of four.",
@@ -1542,48 +1390,7 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "numTessPatchesPerTg",
       "Name": "NumTessPatchesPerThreadGroup"
-    },
-    {
-      "ValidValues": {
-        "IsExclusive": true,
-        "Values": [
-          {
-            "Name": "OffchipLdsBufferSize8192",
-            "Value": 0,
-            "Description": "8k DWORDs."
-          },
-          {
-            "Name": "OffchipLdsBufferSize4096",
-            "Value": 1,
-            "Description": "4k DWORDs."
-          },
-          {
-            "Name": "OffchipLdsBufferSize2048",
-            "Value": 2,
-            "Description": "2k DWORDs."
-          },
-          {
-            "Name": "OffchipLdsBufferSize1024",
-            "Value": 3,
-            "Description": "1k DWORDs."
-          }
-        ],
-        "Name": "OffchipLdsBufferSize"
-      },
-      "Description": "Controls the size of each offchip LDS Buffer.",
-      "Tags": [
-        "Graphics Pipelines",
-        "Gfx9"
-      ],
-      "Defaults": {
-        "Default": "OffchipLdsBufferSize8192"
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "enum",
-      "VariableName": "offchipLdsBufferSize",
-      "Name": "OffchipLdsBufferSize"
     },
     {
       "Description": "Number of primitives sent to one VGT before switching to the next. Valid range is 1-65536, values larger than 256 are expected to hurtperformance. This setting only affects non-tessellation and non-NGG pipelines.",
@@ -1596,8 +1403,7 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "primGroupSize",
-      "Name": "PrimgroupSize"
+      "Name": "PrimGroupSize"
     },
     {
       "Description": "If true, RbPlus will be enabled for ASIC of RbPlus capability.",
@@ -1610,7 +1416,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "gfx9RbPlusEnable",
       "Name": "RbPlusEnable"
     },
     {
@@ -1633,7 +1438,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "gfx10SpiShaderLateAllocVsNumLines",
       "Name": "Gfx10SpiShaderLateAllocVsNumLines"
     },
     {
@@ -1647,11 +1451,9 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "gfx10GePcAllocNumLinesPerSeLegacyNggPassthru",
       "Name": "Gfx10GePcAllocNumLinesPerSeLegacyNggPassthru",
       "Flags": {
-        "IsHex": true,
-        "RereadSetting": true
+        "IsHex": true
       }
     },
     {
@@ -1666,11 +1468,8 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "allowNggOnAllCusWgps",
       "Name": "AllowNggOnAllCusWgps",
-      "Flags": {
-        "RereadSetting": true
-      }
+      "Flags": {}
     },
     {
       "Description": "Value to program GE_PC_ALLOC::NUM_PC_LINES to for NGG-culling pipelines. The value in this setting is per shader-engine. The driver multiplies this value by the number of shader engines and then subtracts 1.",
@@ -1683,11 +1482,9 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "gfx10GePcAllocNumLinesPerSeNggCulling",
       "Name": "Gfx10GePcAllocNumLinesPerSeNggCulling",
       "Flags": {
-        "IsHex": true,
-        "RereadSetting": true
+        "IsHex": true
       }
     },
     {
@@ -1701,7 +1498,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "numPsWavesSoftGroupedPerCu",
       "Name": "NumPsWavesSoftGroupedPerCu"
     },
     {
@@ -1715,7 +1511,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "numVsWavesSoftGroupedPerCu",
       "Name": "NumVsWavesSoftGroupedPerCu"
     },
     {
@@ -1729,22 +1524,7 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "switchVgtOnDraw",
       "Name": "SwitchVgtOnDraw"
-    },
-    {
-      "Description": "Controls the size of the tess-factor buffer. This size is per-SE, andmeasured in DWORDs.",
-      "Tags": [
-        "Graphics Pipelines",
-        "Gfx9"
-      ],
-      "Defaults": {
-        "Default": "0x3000"
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "uint32",
-      "VariableName": "tessFactorBufferSizePerSe",
-      "Name": "TessFactorBufferSizePerSe"
     },
     {
       "Description": "Vertex walking pattern for tessellation: 0: (default) Donut walking pattern for optimal reuse. 1: Single-ring walking pattern, has suboptimal reuse.",
@@ -1757,7 +1537,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "disableTessDonutWalkPattern",
       "Name": "TessWalkPattern"
     },
     {
@@ -1771,7 +1550,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "useMaxOffchipLdsBuffers",
       "Name": "UseMaxOffchipLdsBuffers"
     },
     {
@@ -1785,7 +1563,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "vsHalfPackThreshold",
       "Name": "VsHalfPackThreshold"
     },
     {
@@ -1799,7 +1576,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "vsForcePartialWave",
       "Name": "VsForcePartialWave"
     },
     {
@@ -1813,7 +1589,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "disableCoverageAaMask",
       "Name": "DisableCoverageAaMask"
     },
     {
@@ -1824,12 +1599,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "batchBreakOnNewPixelShader",
       "Name": "BatchBreakOnNewPixelShader"
     },
     {
@@ -1840,12 +1612,9 @@
       "Defaults": {
         "Default": true
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "useClearStateToInitialize",
       "Name": "UseClearStateToInitialize"
     },
     {
@@ -1859,7 +1628,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "gsCuEnLimitMask",
       "Name": "GsCuEnLimitMask",
       "Flags": {
         "IsHex": true
@@ -1876,7 +1644,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "vsCuEnLimitMask",
       "Name": "VsCuEnLimitMask",
       "Flags": {
         "IsHex": true
@@ -1893,7 +1660,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "psCuEnLimitMask",
       "Name": "PsCuEnLimitMask",
       "Flags": {
         "IsHex": true
@@ -1910,7 +1676,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "csCuEnLimitMask",
       "Name": "CsCuEnLimitMask",
       "Flags": {
         "IsHex": true
@@ -1927,11 +1692,9 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "defaultSpiGsThrottleCntl1",
       "Name": "DefaultSpiGsThrottleCntl1",
       "Flags": {
-        "IsHex": true,
-        "RereadSetting": true
+        "IsHex": true
       },
       "OrBuildTypes": [
         "PAL_BUILD_GFX11"
@@ -1948,11 +1711,9 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "defaultSpiGsThrottleCntl2",
       "Name": "DefaultSpiGsThrottleCntl2",
       "Flags": {
-        "IsHex": true,
-        "RereadSetting": true
+        "IsHex": true
       },
       "OrBuildTypes": [
         "PAL_BUILD_GFX11"
@@ -1978,7 +1739,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "gfx11GeCntlPrimGrpSize",
       "Name": "Gfx11GeCntlPrimGrpSize",
       "OrBuildTypes": [
         "PAL_BUILD_GFX11"
@@ -2016,7 +1776,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "gfx11GeCntlGcrMode",
       "Name": "Gfx11GeCntlGcrMode",
       "OrBuildTypes": [
         "PAL_BUILD_GFX11"
@@ -2052,7 +1811,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "rsrc4GsThrottleEn",
       "Name": "Rsrc4GsThrottleEn",
       "OrBuildTypes": [
         "PAL_BUILD_GFX11"
@@ -2064,15 +1822,12 @@
         "Graphics Pipelines",
         "Gfx11"
       ],
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Defaults": {
         "Default": 1398101
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "gfx11VertexAttributesRingBufferSizePerSe",
       "Name": "Gfx11VertexAttributesRingBufferSizePerSe",
       "OrBuildTypes": [
         "PAL_BUILD_GFX11"
@@ -2083,15 +1838,12 @@
       "Tags": [
         "Graphics Pipelines"
       ],
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Defaults": {
         "Default": true
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "enablePreamblePipelineStats",
       "Name": "EnablePreamblePipelineStats"
     },
     {
@@ -2129,7 +1881,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "gfx11OreoModeControl",
       "Name": "Gfx11OreoModeControl",
       "OrBuildTypes": [
         "PAL_BUILD_GFX11"
@@ -2148,7 +1899,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "gfx11ForceOreoMode",
       "Name": "Gfx11ForceOreoMode",
       "OrBuildTypes": [
         "PAL_BUILD_GFX11"
@@ -2168,7 +1918,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "gfx11ForceExportOrder",
       "Name": "Gfx11ForceExportOrderControl",
       "OrBuildTypes": [
         "PAL_BUILD_GFX11"
@@ -2183,12 +1932,9 @@
       "Defaults": {
         "Default": 4294967295
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "shaderPrefetchSizeBytes",
       "Name": "ShaderPrefetchSizeBytes"
     },
     {
@@ -2200,12 +1946,9 @@
       "Defaults": {
         "Default": 256
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "numTsMsDrawEntriesPerSe",
       "Name": "NumTsMsDrawEntriesPerSe"
     },
     {
@@ -2217,12 +1960,9 @@
       "Defaults": {
         "Default": true
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "nggSupported",
       "Name": "NggSupported"
     },
     {
@@ -2236,11 +1976,8 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "int32",
-      "VariableName": "overrideNggLateAllocGs",
       "Name": "OverrideNggLateAllocGs",
-      "Flags": {
-        "RereadSetting": true
-      }
+      "Flags": {}
     },
     {
       "Description": "Controls the minimum batch bin size used.",
@@ -2252,18 +1989,14 @@
         "Default": 0
       },
       "Scope": "PrivatePalGfx9Key",
-      "VariableName": "minBatchBinSize",
       "Name": "MinBatchBinSize",
       "Flags": {
-        "IsHex": true,
-        "RereadSetting": true
+        "IsHex": true
       },
-      "Type": "struct",
       "Structure": [
         {
           "Description": "Minimum batch bin size width.  Value must be a power-of-two between 16 and 512.  Set to 0 to use default limit.",
           "Type": "uint16",
-          "VariableName": "width",
           "Name": "Width",
           "Defaults": {
             "Default": 0
@@ -2272,7 +2005,6 @@
         {
           "Description": "Minimum batch bin size height.  Value must be a power-of-two between 16 and 512.  Set to 0 to use default limit.",
           "Type": "uint16",
-          "VariableName": "height",
           "Name": "Height",
           "Defaults": {
             "Default": 0
@@ -2289,12 +2021,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "ignoreDepthForBinSizeIfColorBound",
       "Name": "IgnoreDepthForBinSizeIfColorBound"
     },
     {
@@ -2306,12 +2035,9 @@
       "Defaults": {
         "Default": 3
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "disableBinningMode",
       "Name": "DisableBinningMode"
     },
     {
@@ -2325,11 +2051,10 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "binningMaxAllocCountLegacy",
       "Name": "BinningMaxAllocCountLegacy"
     },
     {
-      "Description": "Maximum amount of parameter storage per batch when using NGG with the on-chip parameter cache. Zero means calculate an optimal value based on the hardware configuration. On GFX9, this value is in units of 2 param cache lines.",
+      "Description": "Maximum amount of parameter storage per batch when using NGG with the on-chip parameter cache. Any negative value means calculate an optimal value based on the hardware configuration. 0 means unlimited except on GFX9 and GFX10, where it also chooses an optimal value. On GFX9, this value is in units of 2 param cache lines.",
       "Tags": [
         "PBB and DFSM",
         "Gfx9"
@@ -2338,8 +2063,7 @@
         "Default": 0
       },
       "Scope": "PrivatePalGfx9Key",
-      "Type": "uint32",
-      "VariableName": "binningMaxAllocCountNggOnChip",
+      "Type": "int32",
       "Name": "BinningMaxAllocCountNggOnChip"
     },
     {
@@ -2353,7 +2077,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "binningFpovsPerBatch",
       "Name": "BinningFpovsPerBatch"
     },
     {
@@ -2367,7 +2090,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "binningOptimalBinSelection",
       "Name": "BinningOptimalBinSelection"
     },
     {
@@ -2381,7 +2103,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "binningBinSizeRbOverride",
       "Name": "BinningBinSizeRbOverride"
     },
     {
@@ -2395,7 +2116,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "binningBinSizePipesOverride",
       "Name": "BinningBinSizePipesOverride"
     },
     {
@@ -2409,8 +2129,7 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "disableBinningAppendConsume",
-      "Name": "BinningDisableBinningAppendConsume"
+      "Name": "DisableBinningAppendConsume"
     },
     {
       "Description": "Use this prefetch method when the client sets prefetchShaders on a graphics command stream.",
@@ -2439,11 +2158,12 @@
             "Description": "Just prime the UTCL2, not the data L2."
           }
         ],
-        "Name": "PrefetchMethod"
+        "Name": "PrefetchMethod",
+        "SkipGen": true,
+        "IsEnum": true
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "enum",
-      "VariableName": "shaderPrefetchMethodGfx",
       "Name": "ShaderPrefetchMethodGfx"
     },
     {
@@ -2473,11 +2193,12 @@
             "Description": "Just prime the UTCL2, not the data L2."
           }
         ],
-        "Name": "PrefetchMethod"
+        "Name": "PrefetchMethod",
+        "SkipGen": true,
+        "IsEnum": true
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "enum",
-      "VariableName": "shaderPrefetchMethodAce",
       "Name": "ShaderPrefetchMethodAce"
     },
     {
@@ -2502,11 +2223,12 @@
             "Description": "Use CP DMA to stream data into the L2."
           }
         ],
-        "Name": "PrefetchMethod"
+        "Name": "PrefetchMethod",
+        "SkipGen": true,
+        "IsEnum": true
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "enum",
-      "VariableName": "commandPrefetchMethodGfx",
       "Name": "CommandPrefetchMethodGfx"
     },
     {
@@ -2531,11 +2253,12 @@
             "Description": "Use CP DMA to stream data into the L2."
           }
         ],
-        "Name": "PrefetchMethod"
+        "Name": "PrefetchMethod",
+        "SkipGen": true,
+        "IsEnum": true
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "enum",
-      "VariableName": "commandPrefetchMethodAce",
       "Name": "CommandPrefetchMethodAce"
     },
     {
@@ -2549,7 +2272,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "anisoFilterOptEnabled",
       "Name": "AnisoFilterOptEnabled"
     },
     {
@@ -2563,7 +2285,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "samplerCeilingLogicEnabled",
       "Name": "CeilingLogicEnabled"
     },
     {
@@ -2577,8 +2298,7 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "samplerPrecisionFixEnabled",
-      "Name": "PrecisionFixEnabled"
+      "Name": "SamplerPrecisionFixEnabled"
     },
     {
       "Description": "Controls the value of the PERF_MIP field in Sampler SRD's.",
@@ -2591,7 +2311,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "samplerPerfMip",
       "Name": "SamplerPerfMip"
     },
     {
@@ -2605,7 +2324,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "samplerAnisoThreshold",
       "Name": "SamplerAnisoThreshold"
     },
     {
@@ -2619,7 +2337,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "samplerAnisoBias",
       "Name": "SamplerAnisoBias"
     },
     {
@@ -2633,7 +2350,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "samplerSecAnisoBias",
       "Name": "SamplerSecAnisoBias"
     },
     {
@@ -2644,15 +2360,12 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "OrBuildTypes": [
         "PAL_BUILD_NAVI3X"
       ],
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waReplaceEventsWithTsEvents",
       "Name": "WaReplaceEventsWithTsEvents"
     },
     {
@@ -2663,15 +2376,12 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "OrBuildTypes": [
         "PAL_BUILD_NAVI3X"
       ],
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waAddPostambleEvent",
       "Name": "WaAddPostambleEvent"
     },
     {
@@ -2682,15 +2392,12 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "OrBuildTypes": [
         "PAL_BUILD_GFX11"
       ],
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waLineStippleReset",
       "Name": "WaLineStippleReset"
     },
     {
@@ -2701,12 +2408,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waAutoFlushModePolarityInversed",
       "Name": "WaAutoFlushModePolarityInversed"
     },
     {
@@ -2717,12 +2421,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waRestrictMetaDataUseInMipTail",
       "Name": "WaRestrictMetaDataUseInMipTail"
     },
     {
@@ -2754,12 +2455,9 @@
       "Defaults": {
         "Default": "NoFix"
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "enum",
-      "VariableName": "waVrsStencilUav",
       "Name": "WaVrsStencilUav"
     },
     {
@@ -2770,12 +2468,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waLogicOpDisablesOverwriteCombiner",
       "Name": "WaLogicOpDisablesOverwriteCombiner"
     },
     {
@@ -2786,12 +2481,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waRotatedSwizzleDisablesOverwriteCombiner",
       "Name": "WaRotatedSwizzleDisablesOverwriteCombiner"
     },
     {
@@ -2802,12 +2494,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waDisableFmaskNofetchOpOnFmaskCompressionDisable",
       "Name": "WaDisableFmaskNofetchOpOnFmaskCompressionDisable"
     },
     {
@@ -2818,12 +2507,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waDisableVrsWithDsExports",
       "Name": "WaDisableVrsWithDsExports"
     },
     {
@@ -2834,12 +2520,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waFixPostZConservativeRasterization",
       "Name": "WaFixPostZConservativeRasterization"
     },
     {
@@ -2850,12 +2533,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waClampQuadDistributionFactor",
       "Name": "WaClampQuadDistributionFactor"
     },
     {
@@ -2866,12 +2546,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waWrite1xAASampleLocationsToZero",
       "Name": "WaWrite1xAASampleLocationsToZero"
     },
     {
@@ -2882,12 +2559,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waColorCacheControllerInvalidEviction",
       "Name": "WaColorCacheControllerInvalidEviction"
     },
     {
@@ -2898,12 +2572,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waForceZonlyHtileForMipmaps",
       "Name": "WaForceZonlyHtileForMipmaps"
     },
     {
@@ -2914,12 +2585,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waOverwriteCombinerTargetMaskOnly",
       "Name": "WaOverwriteCombinerTargetMaskOnly"
     },
     {
@@ -2930,12 +2598,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waDisableHtilePrefetch",
       "Name": "WaDisableHtilePrefetch"
     },
     {
@@ -2946,12 +2611,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waMiscPopsMissedOverlap",
       "Name": "WaMiscPopsMissedOverlap"
     },
     {
@@ -2962,12 +2624,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waMiscScissorRegisterChange",
       "Name": "WaMiscScissorRegisterChange"
     },
     {
@@ -2978,12 +2637,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waMiscPsFlushScissorChange",
       "Name": "WaMiscPsFlushScissorChange"
     },
     {
@@ -2994,12 +2650,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waHtilePipeBankXorMustBeZero",
       "Name": "WaHtilePipeBankXorMustBeZero"
     },
     {
@@ -3010,12 +2663,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waDisable24BitHWFormatForTCCompatibleDepth",
       "Name": "WaDisable24BitHWFormatForTCCompatibleDepth"
     },
     {
@@ -3026,12 +2676,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waDummyZpassDoneBeforeTs",
       "Name": "WaDummyZpassDoneBeforeTs"
     },
     {
@@ -3042,12 +2689,9 @@
       "Defaults": {
         "Default": true
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waMetaAliasingFixEnabled",
       "Name": "WaMetaAliasingFixEnabled"
     },
     {
@@ -3058,12 +2702,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waCmaskImageSyncs",
       "Name": "WaCmaskImageSyncs"
     },
     {
@@ -3076,7 +2717,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waSdmaPreventCompressedSurfUse",
       "Name": "WaSdmaPreventCompressedSurfUse"
     },
     {
@@ -3087,12 +2727,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waVgtFlushNggToLegacyGs",
       "Name": "WaVgtFlushNggToLegacyGs"
     },
     {
@@ -3103,12 +2740,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waVgtFlushNggToLegacy",
       "Name": "WaVgtFlushNggToLegacy"
     },
     {
@@ -3119,12 +2753,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waEnableIndexBufferPrefetchForNgg",
       "Name": "WaEnableIndexBufferPrefetchForNgg"
     },
     {
@@ -3135,12 +2766,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waZ16Unorm1xAaDecompressUninitialized",
       "Name": "WaZ16Unorm1xAaDecompressUninitialized"
     },
     {
@@ -3151,12 +2779,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waLateAllocGs0",
       "Name": "WaLateAllocGs0"
     },
     {
@@ -3167,12 +2792,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waIndexBufferZeroSize",
       "Name": "WaIndexBufferZeroSize"
     },
     {
@@ -3183,12 +2805,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waStalledPopsMode",
       "Name": "WaStalledPopsMode"
     },
     {
@@ -3199,12 +2818,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalKey",
       "Type": "bool",
-      "VariableName": "waCeDisableIb2",
       "Name": "WaCeDisableIb2"
     },
     {
@@ -3215,12 +2831,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalKey",
       "Type": "bool",
-      "VariableName": "waDisableSCompressSOnly",
       "Name": "WaDisableSCompressSOnly"
     },
     {
@@ -3231,12 +2844,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waDisableInstancePacking",
       "Name": "WaDisableInstancePacking"
     },
     {
@@ -3247,12 +2857,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waNoSqttRegStall",
       "Name": "WaNoSqttRegStall"
     },
     {
@@ -3282,7 +2889,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "enum",
-      "VariableName": "vrsHtileEncoding",
       "Name": "VrsHtileEncoding"
     },
     {
@@ -3296,7 +2902,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "vrsForceRateFine",
       "Name": "VrsForceRateFine"
     },
     {
@@ -3310,7 +2915,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "privateDepthIsHtileOnly",
       "Name": "PrivateDepthIsHtileOnly"
     },
     {
@@ -3324,7 +2928,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "optimizeNullSourceImage",
       "Name": "OptimizeNullSourceImage"
     },
     {
@@ -3338,7 +2941,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "vrsImageSize",
       "Name": "VrsImageSize",
       "Flags": {
         "IsHex": true
@@ -3352,12 +2954,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waUtcL0InconsistentBigPage",
       "Name": "WaUtcL0InconsistentBigPage"
     },
     {
@@ -3368,12 +2967,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waTwoPlanesIterate256",
       "Name": "WaTwoPlanesIterate256"
     },
     {
@@ -3384,12 +2980,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waTessIncorrectRelativeIndex",
       "Name": "WaTessIncorrectRelativeIndex"
     },
     {
@@ -3400,12 +2993,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waLimitLateAllocGsNggFifo",
       "Name": "WaLimitLateAllocGsNggFifo"
     },
     {
@@ -3416,12 +3006,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waClampGeCntlVertGrpSize",
       "Name": "WaClampGeCntlVertGrpSize"
     },
     {
@@ -3432,12 +3019,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waBadSqttFinishResults",
       "Name": "WaBadSqttFinishResults"
     },
     {
@@ -3448,12 +3032,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waLegacyGsCutModeFlush",
       "Name": "WaLegacyGsCutModeFlush"
     },
     {
@@ -3492,7 +3073,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "sdmaBypassMall",
       "Name": "SdmaBypassMall"
     },
     {
@@ -3506,7 +3086,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "enableMallCursorCache",
       "Name": "EnableMallCursorCache"
     },
     {
@@ -3519,11 +3098,9 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "depthStencilFastClearComputeThresholdSingleSampled",
       "Name": "DepthStencilFastClearComputeThresholdSingleSampled",
       "Flags": {
-        "IsHex": false,
-        "RereadSetting": true
+        "IsHex": false
       }
     },
     {
@@ -3536,11 +3113,9 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "depthStencilFastClearComputeThresholdMultiSampled",
       "Name": "DepthStencilFastClearComputeThresholdMultiSampled",
       "Flags": {
-        "IsHex": false,
-        "RereadSetting": true
+        "IsHex": false
       }
     },
     {
@@ -3567,11 +3142,9 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "gfx10MaxFpovsInWave",
       "Name": "Gfx10MaxFpovsInWave",
       "Flags": {
-        "IsHex": false,
-        "RereadSetting": true
+        "IsHex": false
       }
     },
     {
@@ -3585,7 +3158,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "disableAceCsPartialFlush",
       "Name": "DisableAceCsPartialFlush"
     },
     {
@@ -3602,7 +3174,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
-      "VariableName": "addrLibGbAddrConfigOverride",
       "Name": "AddrLibGbAddrConfigOverride"
     },
     {
@@ -3617,7 +3188,6 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "nonLocalDestPreferCompute",
       "Description": "Prefer compute for non-local copies on gfx10.2+. This can increase PCIe throughput."
     },
     {
@@ -3629,12 +3199,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "gfx103PlusDisableAsymmetricWgpForPs",
       "Description": "On WGP harvesting asymmetric configuration, we scan all of the SAs to find the minimal number of WGPs to override the psCuEnLimitMask setting for performance."
     },
     {
@@ -3646,12 +3213,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": false
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "enableHoleyOptimization",
       "Description": "Enable the 'holey' optimization to minimize CP overhead. Unnecessary for ASICs running F32 cores."
     },
     {
@@ -3664,12 +3228,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "gfx11EnableContextRegPairOptimization",
       "Description": "Optimize draw launch rate by enabling use of SET_CONTEXT_REG_PAIR_PACKED packets. GFX11 specific and overridden to true unless this setting is explicitly set to false.",
       "OrBuildTypes": [
         "PAL_BUILD_GFX11"
@@ -3685,12 +3246,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "gfx11EnableShRegPairOptimization",
       "Description": "Optimize draw launch rate by enabling use of SET_SH_REG_PAIR_PACKED packets including compute on graphics user data. GFX11 specific and overridden to true unless this setting is explicitly set to false.",
       "OrBuildTypes": [
         "PAL_BUILD_GFX11"
@@ -3706,12 +3264,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "gfx11EnableShRegPairOptimizationCs",
       "Description": "Optimize draw launch rate by enabling use of SET_SH_REG_PAIR_PACKED packets for compute on ace. GFX11 specific and overridden to true unless this setting is explicitly set to false.",
       "OrBuildTypes": [
         "PAL_BUILD_GFX11"
@@ -3727,12 +3282,9 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "gfx11EnableZpassPacketOptimization",
       "Description": "Reduce RS64 CP overhead by writing a simplified EVENT_WRITE packet, EVENT_WRITE_ZPASS. GFX11 specific and overridden to true unless this setting is explicitly set to false.",
       "OrBuildTypes": [
         "PAL_BUILD_GFX11"
@@ -3743,15 +3295,12 @@
       "Tags": [
         "Hardware Workarounds"
       ],
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Defaults": {
         "Default": false
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waNeverStopSqCounters",
       "Name": "WaNeverStopSqCounters"
     },
     {
@@ -3762,15 +3311,12 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "OrBuildTypes": [
         "PAL_BUILD_GFX11"
       ],
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waSqgTtWptrOffsetFixup",
       "Name": "WaSqgTtWptrOffsetFixup"
     },
     {
@@ -3781,15 +3327,12 @@
       "Defaults": {
         "Default": false
       },
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "OrBuildTypes": [
         "PAL_BUILD_GFX11"
       ],
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waCbPerfCounterStuckZero",
       "Name": "WaCbPerfCounterStuckZero"
     },
     {
@@ -3799,15 +3342,12 @@
         "Gfx11",
         "PWS"
       ],
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Defaults": {
         "Default": false
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waForcePrePixShaderWaitPoint",
       "Name": "WaForcePrePixShaderWaitPoint",
       "OrBuildTypes": [
         "PAL_BUILD_GFX11"
@@ -3819,15 +3359,12 @@
         "Hardware Workarounds",
         "Gfx11"
       ],
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Defaults": {
         "Default": false
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waForceLockThresholdZero",
       "Name": "WaForceLockThresholdZero",
       "OrBuildTypes": [
         "PAL_BUILD_GFX11"
@@ -3839,15 +3376,12 @@
         "Hardware Workarounds",
         "Gfx11"
       ],
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Defaults": {
         "Default": false
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waForceSpiThrottleModeNonZero",
       "Name": "WaForceSpiThrottleModeNonZero",
       "OrBuildTypes": [
         "PAL_BUILD_GFX11"
@@ -3859,15 +3393,12 @@
         "Hardware Workarounds",
         "Gfx11"
       ],
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Defaults": {
         "Default": false
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waSetVsXyNanToInfZero",
       "Name": "WaSetVsXyNanToInfZero",
       "OrBuildTypes": [
         "PAL_BUILD_GFX11"
@@ -3879,15 +3410,12 @@
         "Hardware Workarounds",
         "Gfx11"
       ],
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Defaults": {
         "Default": false
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "waIncorrectMaxAllowedTilesInWave",
       "Name": "WaIncorrectMaxAllowedTilesInWave",
       "OrBuildTypes": [
         "PAL_BUILD_GFX11"

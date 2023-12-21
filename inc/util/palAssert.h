@@ -175,13 +175,21 @@ do {                                                                \
 /// specified reason.
 ///
 /// @note This assert should not be used in constant evaluated contexts (e.g., constexpr functions).
+//
+// This previously said:
+//    if (_expr_eval == false) [[unlikely]]
+//    {
+//        PAL_TRIGGER_ASSERT(...);
+//    }
+// However there is a bug in the initial gcc implementation of [[unlikely]] that means you cannot
+// attach it to a compound statement. So:
+// 1. we ignore PAL coding standards and don't use a compound statement;
+// 2. we don't use [[unlikely]] as the expansion of PAL_TRIGGER_ASSERT already has one.
 #define PAL_ASSERT_MSG(_expr, _pReasonFmt, ...)                                                   \
 do {                                                                                              \
     const bool _expr_eval = static_cast<bool>(_expr);                                             \
-    if (_expr_eval == false) [[unlikely]]                                                         \
-    {                                                                                             \
+    if (_expr_eval == false)                                                                      \
         PAL_TRIGGER_ASSERT("Assertion failed: %s | Reason: " _pReasonFmt, #_expr, ##__VA_ARGS__); \
-    }                                                                                             \
     PAL_ANALYSIS_ASSUME(_expr_eval);                                                              \
 } while (false)
 
@@ -218,13 +226,19 @@ constexpr void PalTriggerAssertImpl(
 }
 
 // gcc 5.4 implementation of PAL_CONSTEXPR_ASSERT_MSG that ignores the additional reason for the assertion
+//
+// This previously said:
+//    if (_expr_eval == false) [[unlikely]]
+//    {
+//        PalTriggerAssertImpl(...);
+//    }
+// However there is a bug in the initial gcc implementation of [[unlikely]] that means you cannot
+// attach it to a compound statement. So we ignore PAL coding standards and don't use a compound statement.
 #define PAL_CONSTEXPR_ASSERT_MSG(_expr, _pReasonFmt, ...)                                               \
 do {                                                                                                    \
     const bool _expr_eval = static_cast<bool>(_expr);                                                   \
     if (_expr_eval == false) [[unlikely]]                                                               \
-    {                                                                                                   \
         PalTriggerAssertImpl("Assertion failed: %s (%s:%d:%s)", #_expr,  __FILE__, __LINE__, __func__); \
-    }                                                                                                   \
     PAL_ANALYSIS_ASSUME(_expr_eval);                                                                    \
 } while (false)
 
@@ -237,13 +251,19 @@ do {                                                                            
 /// @note This assert uses an immediately-invoked function expression in the form of an internal lambda to signal a
 ///       failed assert. Since PAL_TRIGGER_ASSERT is not constexpr, an _expr that evaluates to false will fail to
 ///       compile the function operator of the lambda.
+//
+// This previously said:
+//    if (_expr_eval == false) [[unlikely]]
+//    {
+//        [&] { PAL_TRIGGER_ASSERT(...); }();
+//    }
+// However there is a bug in the initial gcc implementation of [[unlikely]] that means you cannot
+// attach it to a compound statement. So we ignore PAL coding standards and don't use a compound statement.
 #define PAL_CONSTEXPR_ASSERT_MSG(_expr, _pReasonFmt, ...)                                                    \
 do {                                                                                                         \
     const bool _expr_eval = static_cast<bool>(_expr);                                                        \
     if (_expr_eval == false) [[unlikely]]                                                                    \
-    {                                                                                                        \
         [&] { PAL_TRIGGER_ASSERT("Assertion failed: %s | Reason: " _pReasonFmt, #_expr, ##__VA_ARGS__); }(); \
-    }                                                                                                        \
     PAL_ANALYSIS_ASSUME(_expr_eval);                                                                         \
 } while (false)
 
@@ -285,12 +305,20 @@ do {                                                                \
     }                                                               \
 } while (false)
 
+//
+// This previously said:
+//    if (_expr) [[unlikely]]
+//    {
+//        PAL_TRIGGER_ASSERT(...);
+//    }
+// However there is a bug in the initial gcc implementation of [[unlikely]] that means you cannot
+// attach it to a compound statement. So:
+// 1. we ignore PAL coding standards and don't use a compound statement;
+// 2. we don't use [[unlikely]] as the expansion of PAL_TRIGGER_ASSERT already has one.
 #define PAL_ALERT_MSG(_expr, _pReasonFmt, ...)                                                  \
 do {                                                                                            \
-    if (_expr) [[unlikely]]                                                                     \
-    {                                                                                           \
+    if (_expr)                                                                                  \
         PAL_TRIGGER_ALERT("Alert triggered: %s | Reason: " _pReasonFmt, #_expr, ##__VA_ARGS__); \
-    }                                                                                           \
 } while (false)
 
 /// Calls the PAL_ALERT_MSG macro with a generic reason string

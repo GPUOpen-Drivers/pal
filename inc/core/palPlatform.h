@@ -45,6 +45,7 @@ namespace EventProtocol
 {
 class EventServer;
 }
+class SettingsRpcService;
 }
 
 namespace SettingsRpcService
@@ -94,6 +95,20 @@ struct Version
 {
     uint16 major;  ///< Major version number.
     uint16 minor;  ///< Minor version number.
+};
+
+/// Union defining the DevDriver GPU ID layout.
+/// This is specifically used by DevDriver across multiple tools/driver and should not be changed.
+union PciId
+{
+    struct
+    {
+        uint32 functionId : 8; ///< PCI function number in the system for this GPU.
+        uint32 deviceId   : 8; ///< PCI device number in the system for this GPU.
+        uint32 busId      : 8; ///< PCI bus number in the system for this GPU.
+        uint32 reserved   : 8; ///< Reserved for future use.
+    };
+    uint32 u32All;             ///< Fields packed as 32-bit uint.
 };
 
 /// Reports capabilities and general properties of this instantiation of the PAL library.
@@ -385,7 +400,13 @@ public:
     ///          enabled, nullptr will be returned.
     virtual DevDriver::DevDriverServer* GetDevDriverServer() = 0;
 
+    /// Will be replaced by GetSettingsRpcService().
     virtual SettingsRpcService::SettingsService* GetSettingsService() = 0;
+
+    /// Client drivers can register their DevDriver based settings components via SettingsRpcService.
+    ///
+    /// @returns A pointer to a SettingsRpcService object. Could be nullptr if developer driver mode is not enabled.
+    virtual DevDriver::SettingsRpcService* GetSettingsRpcService() = 0;
 
     /// Returns a pointer to the event server object. The event server will soon move out of the DevDriver
     /// server. Hence the need to provide a separate interface to access the event server.

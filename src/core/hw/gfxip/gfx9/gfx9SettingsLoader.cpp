@@ -33,6 +33,7 @@
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/pm4CmdBuffer.h"
 #include "core/hw/amdgpu_asic.h"
+#include "core/devDriverUtil.h"
 #include "devDriverServer.h"
 #include "protocols/ddSettingsService.h"
 #include "settingsService.h"
@@ -67,13 +68,10 @@ constexpr uint32 MinPfpVersionEventWriteZpassPacket  = 1458;
 SettingsLoader::SettingsLoader(
     Pal::Device* pDevice)
     :
-    Pal::ISettingsLoader(pDevice->GetPlatform(),
-                         static_cast<DriverSettings*>(&m_settings),
-                         g_gfx9PalNumSettings),
+    DevDriver::SettingsBase(&m_settings, sizeof(m_settings)),
     m_pDevice(pDevice),
     m_settings{},
-    m_gfxLevel(pDevice->ChipProperties().gfxLevel),
-    m_pComponentName("Gfx9_Pal")
+    m_gfxLevel(pDevice->ChipProperties().gfxLevel)
 {
 
 }
@@ -81,48 +79,14 @@ SettingsLoader::SettingsLoader(
 // =====================================================================================================================
 SettingsLoader::~SettingsLoader()
 {
-    SettingsRpcService::SettingsService* pRpcSettingsService = m_pDevice->GetPlatform()->GetSettingsService();
-
-    if (pRpcSettingsService != nullptr)
-    {
-        pRpcSettingsService->UnregisterComponent(m_pComponentName);
-    }
-
-    auto* pDevDriverServer = m_pDevice->GetPlatform()->GetDevDriverServer();
-    if (pDevDriverServer != nullptr)
-    {
-        auto* pSettingsService = pDevDriverServer->GetSettingsService();
-        if (pSettingsService != nullptr)
-        {
-            pSettingsService->UnregisterComponent(m_pComponentName);
-        }
-    }
 }
 
 // =====================================================================================================================
-// Initializes the HWL environment settings.
+// Initializes the settings struct and assign default setting values.
 Result SettingsLoader::Init()
 {
-    Result ret = m_settingsInfoMap.Init();
-
-    if (ret == Result::Success)
-    {
-        // Init Settings Info HashMap
-        InitSettingsInfo();
-
-        // setup default values
-        SetupDefaults();
-
-        m_state = SettingsLoaderState::EarlyInit;
-
-        // Read the rest of the settings from the registry
-        ReadSettings();
-
-        // Register with the DevDriver settings service
-        DevDriverRegister();
-    }
-
-    return ret;
+    DD_RESULT ddResult = SetupDefaultsAndPopulateMap();
+    return DdResultToPalResult(ddResult);
 }
 
 // =====================================================================================================================
@@ -163,11 +127,10 @@ void SettingsLoader::ValidateSettings(
             m_settings.binningMaxAllocCountLegacy = gfx9Props.parameterCacheLines / 3;
         }
     }
-
-    if (m_settings.binningMaxAllocCountNggOnChip == 0)
-    {
 #if PAL_BUILD_GFX11
-        if (IsGfx11(*m_pDevice))
+    if (IsGfx11(*m_pDevice))
+    {
+        if (m_settings.binningMaxAllocCountNggOnChip < 0)
         {
             // GFX11 eliminates the parameter cache, so the determination needs to come from elsewhere.
             // In addition, binningMaxAllocCountLegacy has no affect on GFX11.
@@ -177,15 +140,16 @@ void SettingsLoader::ValidateSettings(
             // perf investigations continue to progress.
             m_settings.binningMaxAllocCountNggOnChip = 16;
         }
-        else
+    }
+    else
 #endif
-        {
-            // With NGG + on chip PC there is a single view of the PC rather than a
-            // division per SE. The recommended value for this is to allow a single batch to
-            // consume at most 1/3 of the parameter cache lines.
-            // This applies to all of Gfx10, as the PC only has a single view for both legacy and NGG.
-            m_settings.binningMaxAllocCountNggOnChip = gfx9Props.parameterCacheLines / 3;
-        }
+    if (m_settings.binningMaxAllocCountNggOnChip <= 0)
+    {
+        // With NGG + on chip PC there is a single view of the PC rather than a
+        // division per SE. The recommended value for this is to allow a single batch to
+        // consume at most 1/3 of the parameter cache lines.
+        // This applies to all of Gfx10, as the PC only has a single view for both legacy and NGG.
+        m_settings.binningMaxAllocCountNggOnChip = gfx9Props.parameterCacheLines / 3;
 
         if (IsGfx9(*m_pDevice))
         {
@@ -244,35 +208,21 @@ void SettingsLoader::ValidateSettings(
     }
 
     // Validate the number of offchip LDS buffers used for tessellation.
-    if (m_settings.numOffchipLdsBuffers > 0)
+    if (pSettings->numOffchipLdsBuffers > 0)
     {
         if (m_settings.useMaxOffchipLdsBuffers == true)
         {
             // Use the maximum amount of offchip-LDS buffers.
-            m_settings.numOffchipLdsBuffers = maxOffchipLdsBuffers;
+            pSettings->numOffchipLdsBuffers = maxOffchipLdsBuffers;
         }
         else
         {
             // Clamp to the maximum amount of offchip LDS buffers.
-            m_settings.numOffchipLdsBuffers =
-                    Min(maxOffchipLdsBuffers, m_settings.numOffchipLdsBuffers);
+            pSettings->numOffchipLdsBuffers =
+                    Min(maxOffchipLdsBuffers, pSettings->numOffchipLdsBuffers);
         }
     }
 
-    if ((chipProps.gpuType == GpuType::Integrated)
-    )
-    {
-        //
-        //
-        m_settings.minDccCompressedBlockSize = Gfx9MinDccCompressedBlockSize::BlockSize64B;
-
-    }
-    else if (m_settings.minDccCompressedBlockSize == Gfx9MinDccCompressedBlockSize::DefaultBlockSize)
-    {
-        m_settings.minDccCompressedBlockSize = Gfx9MinDccCompressedBlockSize::BlockSize32B;
-    }
-
-    // If HTile is disabled, also disable the other settings whic
     // If HTile is disabled, also disable the other settings which depend on it:
     if (m_settings.htileEnable == false)
     {
@@ -303,7 +253,7 @@ void SettingsLoader::ValidateSettings(
     // if the ASIC doesn't support Rb+.
     if (gfx9Props.rbPlus == 0)
     {
-        m_settings.gfx9RbPlusEnable = false;
+        m_settings.rbPlusEnable = false;
         pPalSettings->optDepthOnlyExportRate = false;
     }
 
@@ -356,7 +306,7 @@ void SettingsLoader::ValidateSettings(
             }
         }
 
-        if (m_settings.gfx9RbPlusEnable)
+        if (m_settings.rbPlusEnable)
         {
             m_settings.useCompToSingle |= (Gfx10UseCompToSingle8bpp | Gfx10UseCompToSingle16bpp);
         }
@@ -393,9 +343,9 @@ void SettingsLoader::ValidateSettings(
 
     // Default values for Tess Factor buffer are safe. This could have been changed by the panel settings so for a
     // sanity check let's adjust the tess factor buffer size down if it's to big:
-    if ((m_settings.tessFactorBufferSizePerSe * tessFactScalar) > tessFactRingSizeMask)
+    if ((pSettings->tessFactorBufferSizePerSe * tessFactScalar) > tessFactRingSizeMask)
     {
-        m_settings.tessFactorBufferSizePerSe = Pow2AlignDown(tessFactRingSizeMask, tessFactScalar) / tessFactScalar;
+        pSettings->tessFactorBufferSizePerSe = Pow2AlignDown(tessFactRingSizeMask, tessFactScalar) / tessFactScalar;
         static_assert(VGT_TF_RING_SIZE__SIZE__SHIFT == 0, "VGT_TF_RING_SIZE::SIZE shift is no longer zero!");
     }
 
@@ -523,8 +473,6 @@ void SettingsLoader::ValidateSettings(
     {
         pSettings->nonlocalDestGraphicsCopyRbs = UINT_MAX;
     }
-
-    m_state = SettingsLoaderState::Final;
 }
 
 // =====================================================================================================================
@@ -824,7 +772,7 @@ static void SetupGfx11Workarounds(
 #if PAL_ENABLE_PRINTS_ASSERTS
     constexpr uint32 HandledWaMask[] = { 0x1E793001, 0x00004B00 }; // Workarounds handled by PAL.
     constexpr uint32 OutsideWaMask[] = { 0xE0068DFE, 0x000014FC }; // Workarounds handled by other components.
-    constexpr uint32 MissingWaMask[] = { 0x00004000, 0x00002001 }; // Workarounds that should be handled by PAL that
+    constexpr uint32 MissingWaMask[] = { 0x00004000, 0x0000A001 }; // Workarounds that should be handled by PAL that
                                                                    // are not yet implemented or are unlikey to be
                                                                    // implemented.
     constexpr uint32 InvalidWaMask[] = { 0x01800200, 0x00002002 }; // Workarounds marked invalid, thus not handled.
@@ -840,9 +788,9 @@ static void SetupGfx11Workarounds(
                   "Workaround Masks do not match!");
 #endif
 
-    static_assert(Gfx11NumWorkarounds == 47, "Workaround count mismatch between PAL and SWD");
+    static_assert(Gfx11NumWorkarounds == 48, "Workaround count mismatch between PAL and SWD");
 
-#if PAL_BUILD_NAVI31
+#if PAL_BUILD_NAVI31|| PAL_BUILD_NAVI32|| PAL_BUILD_NAVI33|| PAL_BUILD_PHOENIX1
     if (workarounds.ppPbbPBBBreakBatchDifferenceWithPrimLimit_FpovLimit_DeallocLimit_A_)
     {
         if (pSettings->binningFpovsPerBatch == 0)
@@ -941,6 +889,8 @@ void SettingsLoader::OverrideDefaults(
     uint16 minBatchBinSizeWidth  = 128;
     uint16 minBatchBinSizeHeight = 64;
 
+    pSettings->tessFactorBufferSizePerSe = 0x3000;
+
     // Enable workarounds which are common to all Gfx9 hardware.
     if (IsGfx9(device))
     {
@@ -968,13 +918,13 @@ void SettingsLoader::OverrideDefaults(
         {
             m_settings.waHtilePipeBankXorMustBeZero = true;
 
-            m_settings.waWrite1xAASampleLocationsToZero = true;
+            m_settings.waWrite1xAaSampleLocationsToZero = true;
 
             m_settings.waMiscPopsMissedOverlap = true;
 
             m_settings.waMiscScissorRegisterChange = true;
 
-            m_settings.waDisable24BitHWFormatForTCCompatibleDepth = true;
+            m_settings.waDisable24BitHwFormatForTcCompatibleDepth = true;
         }
 
         if (device.ChipProperties().gfx9.rbPlus != 0)
@@ -1085,7 +1035,37 @@ void SettingsLoader::OverrideDefaults(
         m_settings.minBatchBinSize.height = minBatchBinSizeHeight;
     }
 
-    m_state = SettingsLoaderState::LateInit;
+    // Use the default minimum DCC block compression size for the device
+    if (m_settings.minDccCompressedBlockSize == Gfx9MinDccCompressedBlockSize::DefaultBlockSize)
+    {
+        if (device.ChipProperties().gpuType == GpuType::Integrated
+        )
+        {
+            //
+            //
+            m_settings.minDccCompressedBlockSize = Gfx9MinDccCompressedBlockSize::BlockSize64B;
+        }
+        else
+        {
+            m_settings.minDccCompressedBlockSize = Gfx9MinDccCompressedBlockSize::BlockSize32B;
+        }
+    }
+}
+
+// =====================================================================================================================
+bool SettingsLoader::ReadSetting(
+    const char*          pSettingName,
+    Util::ValueType      valueType,
+    void*                pValue,
+    InternalSettingScope settingType,
+    size_t               bufferSize)
+{
+    return m_pDevice->ReadSetting(
+        pSettingName,
+        valueType,
+        pValue,
+        settingType,
+        bufferSize);
 }
 
 // =====================================================================================================================
@@ -1096,7 +1076,7 @@ void SettingsLoader::GenerateSettingHash()
     MetroHash128::Hash(
         reinterpret_cast<const uint8*>(&m_settings),
         sizeof(Gfx9PalSettings),
-        m_settingHash.bytes);
+        m_settingsHash.bytes);
 }
 
 } // Gfx9

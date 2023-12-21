@@ -56,7 +56,7 @@ add_subdirectory(common)
 add_subdirectory(events)
 
 if (DD_BP_ENABLE_TOOL_LIBRARIES)
-    add_subdirectory(tools)
+    add_subdirectory_if_exist(tools)
 endif()
 
-add_subdirectory(settings)
+add_subdirectory_if_exist(settings)

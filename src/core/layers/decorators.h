@@ -378,6 +378,11 @@ public:
         return m_pNextLayer->GetSettingsService();
     }
 
+    virtual DevDriver::SettingsRpcService* GetSettingsRpcService() override
+    {
+        return m_pNextLayer->GetSettingsRpcService();
+    }
+
 #if PAL_BUILD_RDF
     virtual GpuUtil::TraceSession* GetTraceSession() override
     {
@@ -1122,6 +1127,9 @@ public:
         PowerProfile        profile,
         CustomPowerProfile* pInfo) override;
 
+    virtual Result SetMlPowerOptimization(
+        bool enableOptimization) const override { return m_pNextLayer->SetMlPowerOptimization(enableOptimization); }
+
     virtual Result QueryWorkStationCaps(
         WorkStationCaps* pCaps) const override { return m_pNextLayer->QueryWorkStationCaps(pCaps); }
 
@@ -1298,6 +1306,11 @@ public:
     PlatformDecorator*        GetPlatform()  const { return m_pPlatform; }
 
 protected:
+    Result CallNextCreateGraphicsPipeline(
+        const GraphicsPipelineCreateInfo& createInfo,
+        void*                             pNextPlacementAddr,
+        IPipeline**                       ppNextPipeline);
+
     DeviceFinalizeInfo      m_finalizeInfo;
     IDevice*const           m_pNextLayer;
     PlatformDecorator*      m_pPlatform;
@@ -1448,7 +1461,6 @@ public:
         m_funcTable.pfnCmdDispatch                  = CmdDispatchDecorator;
         m_funcTable.pfnCmdDispatchIndirect          = CmdDispatchIndirectDecorator;
         m_funcTable.pfnCmdDispatchOffset            = CmdDispatchOffsetDecorator;
-        m_funcTable.pfnCmdDispatchDynamic           = CmdDispatchDynamicDecorator;
         m_funcTable.pfnCmdDispatchMesh              = CmdDispatchMeshDecorator;
         m_funcTable.pfnCmdDispatchMeshIndirectMulti = CmdDispatchMeshIndirectMultiDecorator;
     }
@@ -2195,14 +2207,12 @@ public:
 
     virtual void CmdExecuteIndirectCmds(
         const IIndirectCmdGenerator& generator,
-        const IGpuMemory&            gpuMemory,
-        gpusize                      offset,
+        gpusize                      gpuVirtAddr,
         uint32                       maximumCount,
         gpusize                      countGpuAddr) override
     {
         m_pNextLayer->CmdExecuteIndirectCmds(*NextIndirectCmdGenerator(&generator),
-                                             *NextGpuMemory(&gpuMemory),
-                                             offset,
+                                             gpuVirtAddr,
                                              maximumCount,
                                              countGpuAddr);
     }
@@ -2369,27 +2379,27 @@ private:
     }
 
     static void PAL_STDCALL CmdDrawIndirectMultiDecorator(
-        ICmdBuffer*       pCmdBuffer,
-        const IGpuMemory& gpuMemory,
-        gpusize           offset,
-        uint32            stride,
-        uint32            maximumCount,
-        gpusize           countGpuAddr)
+        ICmdBuffer*          pCmdBuffer,
+        GpuVirtAddrAndStride gpuVirtAddrAndStride,
+        uint32               maximumCount,
+        gpusize              countGpuAddr)
     {
         ICmdBuffer* pNextLayer = static_cast<CmdBufferFwdDecorator*>(pCmdBuffer)->m_pNextLayer;
-        pNextLayer->CmdDrawIndirectMulti(*NextGpuMemory(&gpuMemory), offset, stride, maximumCount, countGpuAddr);
+        pNextLayer->CmdDrawIndirectMulti(gpuVirtAddrAndStride,
+                                         maximumCount,
+                                         countGpuAddr);
     }
 
     static void PAL_STDCALL CmdDrawIndexedIndirectMultiDecorator(
-        ICmdBuffer*       pCmdBuffer,
-        const IGpuMemory& gpuMemory,
-        gpusize           offset,
-        uint32            stride,
-        uint32            maximumCount,
-        gpusize           countGpuAddr)
+        ICmdBuffer*          pCmdBuffer,
+        GpuVirtAddrAndStride gpuVirtAddrAndStride,
+        uint32               maximumCount,
+        gpusize              countGpuAddr)
     {
         ICmdBuffer* pNextLayer = static_cast<CmdBufferFwdDecorator*>(pCmdBuffer)->m_pNextLayer;
-        pNextLayer->CmdDrawIndexedIndirectMulti(*NextGpuMemory(&gpuMemory), offset, stride, maximumCount, countGpuAddr);
+        pNextLayer->CmdDrawIndexedIndirectMulti(gpuVirtAddrAndStride,
+                                                maximumCount,
+                                                countGpuAddr);
     }
 
     static void PAL_STDCALL CmdDispatchDecorator(
@@ -2401,12 +2411,11 @@ private:
     }
 
     static void PAL_STDCALL CmdDispatchIndirectDecorator(
-        ICmdBuffer*       pCmdBuffer,
-        const IGpuMemory& gpuMemory,
-        gpusize           offset)
+        ICmdBuffer* pCmdBuffer,
+        gpusize     gpuVirtAddr)
     {
         ICmdBuffer* pNextLayer = static_cast<CmdBufferFwdDecorator*>(pCmdBuffer)->m_pNextLayer;
-        pNextLayer->CmdDispatchIndirect(*NextGpuMemory(&gpuMemory), offset);
+        pNextLayer->CmdDispatchIndirect(gpuVirtAddr);
     }
 
     static void PAL_STDCALL CmdDispatchOffsetDecorator(
@@ -2419,15 +2428,6 @@ private:
         pNextLayer->CmdDispatchOffset(offset, launchSize, logicalSize);
     }
 
-    static void PAL_STDCALL CmdDispatchDynamicDecorator(
-        ICmdBuffer*  pCmdBuffer,
-        gpusize      gpuVa,
-        DispatchDims size)
-    {
-        ICmdBuffer* pNextLayer = static_cast<CmdBufferFwdDecorator*>(pCmdBuffer)->m_pNextLayer;
-        pNextLayer->CmdDispatchDynamic(gpuVa, size);
-    }
-
     static void PAL_STDCALL CmdDispatchMeshDecorator(
         ICmdBuffer*  pCmdBuffer,
         DispatchDims size)
@@ -2437,17 +2437,13 @@ private:
     }
 
     static void PAL_STDCALL CmdDispatchMeshIndirectMultiDecorator(
-        ICmdBuffer*       pCmdBuffer,
-        const IGpuMemory& gpuMemory,
-        gpusize           offset,
-        uint32            stride,
-        uint32            maximumCount,
-        gpusize           countGpuAddr)
+        ICmdBuffer*          pCmdBuffer,
+        GpuVirtAddrAndStride gpuVirtAddrAndStride,
+        uint32               maximumCount,
+        gpusize              countGpuAddr)
     {
         ICmdBuffer* pNextLayer = static_cast<CmdBufferFwdDecorator*>(pCmdBuffer)->m_pNextLayer;
-        pNextLayer->CmdDispatchMeshIndirectMulti(*NextGpuMemory(&gpuMemory),
-                                                 offset,
-                                                 stride,
+        pNextLayer->CmdDispatchMeshIndirectMulti(gpuVirtAddrAndStride,
                                                  maximumCount,
                                                  countGpuAddr);
     }
@@ -2953,10 +2949,6 @@ public:
 
     virtual Result GetPerformanceData(Util::Abi::HardwareStage hardwareStage, size_t* pSize, void* pBuffer) override
         { return m_pNextLayer->GetPerformanceData(hardwareStage, pSize, pBuffer); }
-
-    virtual Result CreateLaunchDescriptor(
-        void* pOut, bool resolve) override
-        { return m_pNextLayer->CreateLaunchDescriptor(pOut, resolve); }
 
     virtual Result LinkWithLibraries(
         const IShaderLibrary*const* ppLibraryList,

@@ -63,7 +63,11 @@ public:
         uint32          slot) const override;
 
     // This function should never be called for GFX9 occlusion queries, as waiting is implemented in the shader.
-    virtual void WaitForSlots(Pal::CmdStream* pCmdStream, uint32 startQuery, uint32 queryCount) const override
+    virtual void WaitForSlots(
+        GfxCmdBuffer*   pCmdBuffer,
+        Pal::CmdStream* pCmdStream,
+        uint32          startQuery,
+        uint32          queryCount) const override
         { PAL_NEVER_CALLED(); }
 
 protected:

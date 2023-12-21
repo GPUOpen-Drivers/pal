@@ -11,9 +11,15 @@
 #include <dd_settings_base.h>
 #include <dd_settings_blob.h>
 #include <dd_optional.h>
-{% if component == "PalPlatform"%}
-#include "pal.h"
-#include "palDevice.h"
+{% for header in IncludeHeaders%}
+#include <{{header}}>
+{% endfor -%}
+
+{% if ComponentName == "Vulkan" %}
+typedef Util::uint64 uint64;
+typedef Util::uint32 uint32;
+typedef Util::uint8 uint8;
+typedef Pal::gpusize gpusize;
 {% endif -%}
 
 {% macro prep_cond_begin(build_types, or_build_types) %}
@@ -29,42 +35,51 @@
 {% endif %}
 {% endmacro %}
 
-namespace {{Namespace}}
+{% for namespace in Namespaces %}
+namespace {{namespace}}
 {
+{% endfor %}
+
 /// Enums /////////////////////////////////////////////////////////////////////
 {% for enum in Enums %}
-{% if enum.skipGen %}
-{# skip generating enum defintion #}
-{% else %}
+{% if not enum.SkipGen %}
 {{ prep_cond_begin(enum.BuildTypes, enum.OrBuildTypes) -}}
-enum {{enum.Name}} : uint32_t
+enum {{enum.Name}} : {% if enum.Is64Bit %} uint64_t {% else %} uint32_t {% endif %}{{ '\n' }}
+
 {
 {% for value in enum.Values %}
 {{ prep_cond_begin(value.BuildTypes, value.OrBuildTypes) -}}
-{{'    '}}{{value.Name}} = {{value.Value}}, {% if value.Description %}// {{value.Description}}{% endif +%}
-{{ prep_cond_end(value.BuildTypes, value.OrBuildTypes) -}}
+{{'    '}}{{value.Name}} = {{'0x%X'|format(value.Value)}}, {% if value.Description %}// {{value.Description}}{% endif %}
+
+{{ prep_cond_end(value.BuildTypes, value.OrBuildTypes) }}
+
 {% endfor %}
 };
 {{ prep_cond_end(enum.BuildTypes, enum.OrBuildTypes) -}}
 {% endif %}
 {% endfor %}
 
-struct {{ComponentName}}Settings
+struct {{SettingsStructName}}
 {
 {% for setting in Settings %}
 {% if setting.Structure %}
+    {%+ if setting.Description %}// {{setting.Description | wordwrap(100) | replace('\n', '\n    // ')}}{{ '\n' }}{% endif %}
 
     struct {
 {% for subs in setting.Structure %}
-{{ prep_cond_begin(subs.BuildTypes, subs.OrBuildTypes) -}}
-{{'        '}}{{subs.VariableType}} {{subs.VariableName}}{% if subs.StringLength %}[{{subs.StringLength}}]{% endif %};
+{{ prep_cond_begin(subs.BuildTypes, subs.OrBuildTypes) }}
+        {%+ if subs.Description %}// {{subs.Description | wordwrap(100) | replace('\n', '\n        // ')}}{{ '\n' }}{% endif %}
+
+        {{subs.VariableType}} {{subs.VariableName}}{% if subs.StringLength %}[{{subs.StringLength}}]{% endif %};
 {{ prep_cond_end(subs.BuildTypes, subs.OrBuildTypes) -}}
 {% endfor %}
     } {{setting.VariableName}};
 
 {% else %}
-{{ prep_cond_begin(setting.BuildTypes, setting.OrBuildTypes) -}}
-{{'    '}}{{setting.VariableType}} {{setting.VariableName}}{% if setting.StringLength %}[{{setting.StringLength}}]{% endif %};
+{{ prep_cond_begin(setting.BuildTypes, setting.OrBuildTypes) }}
+    {%+ if setting.Description %}// {{setting.Description | wordwrap(100) | replace('\n', '\n    // ')}}{{ '\n' }}{% endif %}
+
+    {{setting.VariableType}} {{setting.VariableName}}{% if setting.StringLength %}[{{setting.StringLength}}]{% endif %};
 {{ prep_cond_end(setting.BuildTypes, setting.OrBuildTypes) -}}
 {% endif %}
 {% endfor %}
@@ -100,4 +115,6 @@ public:
     uint64_t GetBlobHash() override;
 };
 
-} // namespace {{Namespace}}
+{% for namespace in Namespaces %}
+} // {{namespace}}
+{% endfor %}

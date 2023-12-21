@@ -36,7 +36,7 @@ namespace Gfx9
 DepthStencilState::DepthStencilState(
     const DepthStencilStateCreateInfo& createInfo)
     :
-    Pal::DepthStencilState()
+    Pal::DepthStencilState(createInfo)
 {
     memset(&m_flags, 0, sizeof(m_flags));
 

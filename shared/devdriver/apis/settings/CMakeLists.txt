@@ -23,9 +23,28 @@
  #
  #######################################################################################################################
 
-devdriver_library(dd_settings_api INTERFACE)
-target_sources(dd_settings_api INTERFACE inc/dd_settings_api.h)
-target_include_directories(dd_settings_api INTERFACE inc)
-target_link_libraries(dd_settings_api INTERFACE dd_common_api)
+add_subdirectory(rpc/g_service)
 
-add_subdirectory(base)
+devdriver_library(dd_settings STATIC)
+target_sources(dd_settings
+    PRIVATE
+        inc/dd_settings_api.h
+        inc/dd_settings_base.h
+        inc/dd_settings_blob.h
+        inc/dd_settings_iterator.h
+        inc/dd_settings_rpc_types.h
+        inc/dd_settings_service.h
+        src/dd_settings_base.cpp
+        src/dd_settings_blob.cpp
+        src/dd_settings_iterator.cpp
+        src/dd_settings_service.cpp
+)
+target_include_directories(dd_settings PUBLIC inc)
+target_link_libraries(dd_settings
+    PUBLIC
+        dd_common
+        devdriver
+        SettingsRpcService2
+    PRIVATE
+        ddCommon
+)

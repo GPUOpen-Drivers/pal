@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2021-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -25,38 +25,33 @@
 
 #pragma once
 
-#include "ddPlatform.h"
+#include <ddRpcServer.h>
 
-namespace DevDriver
+namespace SettingsRpc
 {
-constexpr uint32_t AmdLogVersionMajor = 0;
-constexpr uint32_t AmdLogVersionMinor = 1;
 
-struct AmdLogEventVersion
+class ISettingsRpcService
 {
-    uint16_t major;
-    uint16_t minor;
+public:
+    virtual ~ISettingsRpcService() {}
+
+    static const DDRpcServerRegisterServiceInfo kServiceInfo;
+
+    // Send user overrides of all components to the driver.
+    virtual DD_RESULT SendAllUserOverrides(
+        const void* pParamBuffer,
+        size_t      paramBufferSize
+    ) = 0;
+
+    // Query current setting values of all components from the driver.
+    virtual DD_RESULT QueryAllCurrentValues(
+        const DDByteWriter& writer
+    ) = 0;
+
+protected:
+    ISettingsRpcService() {}
 };
 
-enum struct AmdLogEventInfoFlags : uint32
-{
-    Default     = 0,
-    RealTime    = 1,
-};
+DD_RESULT RegisterService(DDRpcServer hServer, ISettingsRpcService* pService);
 
-enum AmdlogEventId
-{
-    IfVersion,
-    String,
-    Count
-};
-
-DD_NETWORK_STRUCT(AmdLogEventInfo, 8)
-{
-    uint32_t eventId;
-    uint32_t flags;
-    void*    pData;
-    size_t   dataSize;
-};
-
-}
+} // namespace SettingsRpc
