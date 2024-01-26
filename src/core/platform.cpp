@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -49,6 +49,7 @@
 #include "gpuUtil/apiInfoTraceSource.h"
 #include "gpuUtil/clockCalibTraceSource.h"
 #include "gpuUtil/gpuPerfExperimentTraceSource.h"
+#include "gpuUtil/traceConfigTraceSource.h"
 #include "gpuUtil/uberTraceService.h"
 #include "gpuUtil/frameTraceController.h"
 #endif
@@ -127,6 +128,7 @@ Platform::Platform(
     m_pApiInfoTraceSource(nullptr),
     m_pClockCalibTraceSource(nullptr),
     m_pGpuPerfExpTraceSource(nullptr),
+    m_pTraceConfigTraceSource(nullptr),
     m_pUberTraceService(nullptr),
 #endif
     m_rpcServer(DD_API_INVALID_HANDLE),
@@ -152,9 +154,7 @@ Platform::Platform(
     m_flags.disableInternalResidencyOpts = createInfo.flags.disableInternalResidencyOpts;
     m_flags.supportRgpTraces             = createInfo.flags.supportRgpTraces;
     m_flags.dontOpenPrimaryNode          = createInfo.flags.dontOpenPrimaryNode;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 765
     m_flags.disableDevDriver             = createInfo.flags.disableDevDriver;
-#endif
 
     if (createInfo.pLogInfo != nullptr)
     {
@@ -793,13 +793,20 @@ Result Platform::RegisterTraceControllers()
     return result;
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 844
 // =====================================================================================================================
+void Platform::UpdateFrameTraceController(
+    IQueue* pQueue)
+{
+    m_pFrameTraceController->UpdateFrame(pQueue);
+}
+#else
 void Platform::UpdateFrameTraceController(
     CmdBuffer* pCmdBuffer)
 {
     m_pFrameTraceController->UpdateFrame(pCmdBuffer);
 }
-
+#endif
 // =====================================================================================================================
 void Platform::DestroyTraceControllers()
 {
@@ -813,15 +820,18 @@ void Platform::DestroyTraceControllers()
 Result Platform::InitDefaultTraceSources()
 {
     Result result = Result::Success;
-    m_pAsicInfoTraceSource   = PAL_NEW(GpuUtil::AsicInfoTraceSource, this, AllocInternal) (this);
-    m_pApiInfoTraceSource    = PAL_NEW(GpuUtil::ApiInfoTraceSource, this, AllocInternal) (this);
-    m_pClockCalibTraceSource = PAL_NEW(GpuUtil::ClockCalibrationTraceSource, this, AllocInternal) (this);
-    m_pGpuPerfExpTraceSource = PAL_NEW(GpuUtil::GpuPerfExperimentTraceSource, this, AllocInternal) (this);
 
-    if ((m_pAsicInfoTraceSource   == nullptr) ||
-        (m_pApiInfoTraceSource    == nullptr) ||
-        (m_pClockCalibTraceSource == nullptr) ||
-        (m_pGpuPerfExpTraceSource == nullptr))
+    m_pAsicInfoTraceSource    = PAL_NEW(GpuUtil::AsicInfoTraceSource, this, AllocInternal) (this);
+    m_pApiInfoTraceSource     = PAL_NEW(GpuUtil::ApiInfoTraceSource, this, AllocInternal) (this);
+    m_pClockCalibTraceSource  = PAL_NEW(GpuUtil::ClockCalibrationTraceSource, this, AllocInternal) (this);
+    m_pGpuPerfExpTraceSource  = PAL_NEW(GpuUtil::GpuPerfExperimentTraceSource, this, AllocInternal) (this);
+    m_pTraceConfigTraceSource = PAL_NEW(GpuUtil::TraceConfigTraceSource, this, AllocInternal) (this);
+
+    if ((m_pAsicInfoTraceSource    == nullptr) ||
+        (m_pApiInfoTraceSource     == nullptr) ||
+        (m_pClockCalibTraceSource  == nullptr) ||
+        (m_pGpuPerfExpTraceSource  == nullptr) ||
+        (m_pTraceConfigTraceSource == nullptr))
     {
         result = Result::ErrorOutOfMemory;
     }
@@ -850,6 +860,11 @@ Result Platform::RegisterDefaultTraceSources()
         result = m_pTraceSession->RegisterSource(m_pGpuPerfExpTraceSource);
     }
 
+    if (Util::IsErrorResult(result) == false)
+    {
+        result = m_pTraceSession->RegisterSource(m_pTraceConfigTraceSource);
+    }
+
     return result;
 }
 
@@ -872,6 +887,10 @@ void Platform::DestroyDefaultTraceSources()
     if (m_pGpuPerfExpTraceSource != nullptr)
     {
         PAL_SAFE_DELETE(m_pGpuPerfExpTraceSource, this);
+    }
+    if (m_pTraceConfigTraceSource != nullptr)
+    {
+        PAL_SAFE_DELETE(m_pTraceConfigTraceSource, this);
     }
 }
 

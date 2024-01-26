@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -2770,6 +2770,52 @@ Result GpaSession::RegisterPipeline(
     const RegisterPipelineInfo&  clientInfo)
 {
     PAL_ASSERT(pPipeline != nullptr);
+
+    // Handle an archive pipeline.
+    Result result = Result::Success;
+    bool allExist = true;
+    for (const IPipeline* pSinglePipeline : pPipeline->GetPipelines())
+    {
+        result = RegisterSinglePipeline(pSinglePipeline, clientInfo);
+        if (result == Result::Success)
+        {
+            allExist = false;
+        }
+        else if (result != Result::AlreadyExists)
+        {
+            break;
+        }
+        result = Result::Success;
+    }
+    if (result == Result::Success)
+    {
+        for (const IShaderLibrary* pLibrary : pPipeline->GetLibraries())
+        {
+            result = RegisterLibrary(pLibrary, { clientInfo.apiPsoHash });
+            if (result == Result::Success)
+            {
+                allExist = false;
+            }
+            else if (result != Result::AlreadyExists)
+            {
+                break;
+            }
+            result = Result::Success;
+        }
+    }
+    if ((result == Result::Success) && allExist)
+    {
+        result = Result::AlreadyExists;
+    }
+    return result;
+}
+
+// =====================================================================================================================
+// Registers a single (non-archive) pipeline with the GpaSession. Returns AlreadyExists on duplicate PAL pipeline.
+Result GpaSession::RegisterSinglePipeline(
+    const IPipeline*             pPipeline,
+    const RegisterPipelineInfo&  clientInfo)
+{
     const PipelineInfo& pipeInfo = pPipeline->GetInfo();
 
     // Even if the pipeline was already previously encountered, we still want to record every time it gets loaded.
@@ -2869,6 +2915,35 @@ Result GpaSession::RegisterPipeline(
 // =====================================================================================================================
 // Unregisters a pipeline from the GpaSession.
 Result GpaSession::UnregisterPipeline(
+    const IPipeline* pPipeline)
+{
+    // Handle an archive pipeline.
+    Result result = Result::Success;
+    for (const IPipeline* pSinglePipeline : pPipeline->GetPipelines())
+    {
+        result = UnregisterSinglePipeline(pSinglePipeline);
+        if (result != Result::Success)
+        {
+            break;
+        }
+    }
+    if (result == Result::Success)
+    {
+        for (const IShaderLibrary* pLibrary : pPipeline->GetLibraries())
+        {
+            result = UnregisterLibrary(pLibrary);
+            if (result != Result::Success)
+            {
+                break;
+            }
+        }
+    }
+    return result;
+}
+
+// =====================================================================================================================
+// Unregisters a single (non-archive) pipeline from the GpaSession.
+Result GpaSession::UnregisterSinglePipeline(
     const IPipeline* pPipeline)
 {
     return AddCodeObjectLoadEvent(pPipeline, CodeObjectLoadEventType::UnloadFromGpuMemory);
@@ -3753,11 +3828,15 @@ Result GpaSession::AcquirePerfExperiment(
 
                 const bool skipInstTokens = sampleConfig.sqtt.flags.supressInstructionTokens;
                 ThreadTraceInfo sqttInfo = { };
-                sqttInfo.traceType                              = PerfTraceType::ThreadTrace;
-                sqttInfo.optionFlags.bufferSize                 = 1;
-                sqttInfo.optionFlags.threadTraceStallBehavior   = 1;
-                sqttInfo.optionFlags.threadTraceTokenConfig     = 1;
-                sqttInfo.optionFlags.threadTraceShaderTypeMask  = 1;
+                sqttInfo.traceType                                         = PerfTraceType::ThreadTrace;
+                sqttInfo.optionFlags.bufferSize                            = 1;
+                sqttInfo.optionFlags.threadTraceStallBehavior              = 1;
+                sqttInfo.optionFlags.threadTraceTokenConfig                = 1;
+                sqttInfo.optionFlags.threadTraceShaderTypeMask             = 1;
+                sqttInfo.optionFlags.threadTraceExcludeNonDetailShaderData =
+                    sampleConfig.sqtt.flags.excludeNonDetailShaderData;
+                sqttInfo.optionValues.threadTraceExcludeNonDetailShaderData =
+                    (sampleConfig.sqtt.flags.excludeNonDetailShaderData != 0);
                 sqttInfo.optionValues.threadTraceStallBehavior  = sampleConfig.sqtt.flags.stallMode;
                 sqttInfo.optionValues.threadTraceShaderTypeMask = PerfShaderMaskAll;
 

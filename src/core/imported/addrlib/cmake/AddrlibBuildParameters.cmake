@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2021-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2021-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -55,47 +55,14 @@ endif()
 
 addrlib_bp(ADDR_LNX_KERNEL_BUILD ${addrlib_is_linux} MSG "Linux kernel build?" DEPENDS_ON ${addrlib_is_linux})
 
-# Build the SI HWL lib
-addrlib_bp(ADDR_SI_BUILD ON)
-
-# Build the CI HWL lib
-addrlib_bp(ADDR_CI_BUILD ON)
-
 # Build with "always" assertions by default
 addrlib_bp(ADDR_SILENCE_ASSERT_ALWAYS OFF)
 
 # Build support for fmask addressing and addr5Swizzle
 addrlib_bp(ADDR_AM_BUILD ${ADDRLIB_IS_TOP_LEVEL} MSG "Build support for fmask addressing and addr5Swizzle?")
 
-# TODO: Fully deprecate this support.
-set(ADDR_R800_BUILD OFF)
-
-# GFX9 CARDS ######################################
-addrlib_bp(ADDR_GFX9_BUILD ON)
-
 # GFX10 CARDS ######################################
-
 addrlib_bp(ADDR_GFX10_BUILD ON)
-
-addrlib_bp(ADDR_RENOIR_BUILD ON DEPENDS_ON ${ADDR_GFX10_BUILD})
-
-addrlib_bp(ADDR_NAVI12_BUILD ON DEPENDS_ON ${ADDR_GFX10_BUILD})
-
-addrlib_bp(ADDR_NAVI14_BUILD ON DEPENDS_ON ${ADDR_GFX10_BUILD})
-
-addrlib_bp(ADDR_NAVI21_BUILD ON DEPENDS_ON ${ADDR_GFX10_BUILD})
-
-addrlib_bp(ADDR_NAVI22_BUILD ON DEPENDS_ON ${ADDR_GFX10_BUILD})
-
-addrlib_bp(ADDR_NAVI23_BUILD ON DEPENDS_ON ${ADDR_GFX10_BUILD})
-
-addrlib_bp(ADDR_NAVI24_BUILD ON DEPENDS_ON ${ADDR_GFX10_BUILD})
-
-addrlib_bp(ADDR_REMBRANDT_BUILD ON DEPENDS_ON ${ADDR_GFX10_BUILD})
-
-addrlib_bp(ADDR_RAPHAEL_BUILD ON DEPENDS_ON ${ADDR_GFX10_BUILD})
-
-addrlib_bp(ADDR_MENDOCINO_BUILD ON DEPENDS_ON ${ADDR_GFX10_BUILD})
 
 #if ADDR_GFX11_BUILD
 # GFX11 CARDS #####################################

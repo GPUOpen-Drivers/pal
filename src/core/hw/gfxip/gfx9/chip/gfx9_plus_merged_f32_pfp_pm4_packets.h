@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -2484,7 +2484,9 @@ enum PFP_LOAD_SH_REG_INDEX_index_enum
 {
     index__pfp_load_sh_reg_index__direct_addr                   =  0,
     index__pfp_load_sh_reg_index__offset                        =  1,
+#if  CHIP_HDR_NAVI21|| CHIP_HDR_NAVI22|| CHIP_HDR_NAVI23|| CHIP_HDR_NAVI24|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1 || CHIP_HDR_RAPHAEL|| CHIP_HDR_REMBRANDT
     index__pfp_load_sh_reg_index__indirect_addr__GFX103COREPLUS =  2,
+#endif
 };
 
 // ---------------------------- PFP_LOAD_SH_REG_INDEX_data_format_enum ----------------------------
@@ -2522,11 +2524,13 @@ typedef struct PM4_PFP_LOAD_SH_REG_INDEX
                 uint32_t                         index      :  1; // PFP_LOAD_SH_REG_INDEX_index_enum
                 uint32_t                         reserved3  : 31;
             } gfx101;
+#if  CHIP_HDR_NAVI21|| CHIP_HDR_NAVI22|| CHIP_HDR_NAVI23|| CHIP_HDR_NAVI24|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1 || CHIP_HDR_RAPHAEL|| CHIP_HDR_REMBRANDT
             struct
             {
                 PFP_LOAD_SH_REG_INDEX_index_enum index      :  2;
                 uint32_t                         reserved4  : 30;
             } gfx103CorePlus;
+#endif
         } bitfields;
         uint32_t u32All;
     } ordinal2;
@@ -2892,7 +2896,9 @@ enum PFP_SET_BASE_base_index_enum
     base_index__pfp_set_base__patch_table_base                          =  1,
     base_index__pfp_set_base__load_reg_index_base                       =  4,
     base_index__pfp_set_base__indirect_data_base                        =  5,
+#if  CHIP_HDR_NAVI21|| CHIP_HDR_NAVI22|| CHIP_HDR_NAVI23|| CHIP_HDR_NAVI24|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1 || CHIP_HDR_RAPHAEL|| CHIP_HDR_REMBRANDT
     base_index__pfp_set_base__executeindirect_v2_memory__GFX103COREPLUS =  6,
+#endif
 };
 
 // --------------------------------------- PM4_PFP_SET_BASE ---------------------------------------
@@ -4388,6 +4394,7 @@ typedef struct PM4_PFP_LOAD_UCONFIG_REG_INDEX
 
 constexpr unsigned int PM4_PFP_LOAD_UCONFIG_REG_INDEX_SIZEDW__GFX10PLUS = 5;
 
+#if  CHIP_HDR_NAVI21|| CHIP_HDR_NAVI22|| CHIP_HDR_NAVI23|| CHIP_HDR_NAVI24|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1 || CHIP_HDR_RAPHAEL|| CHIP_HDR_REMBRANDT
 // ---------------------------- PFP_EXECUTE_INDIRECT_V2_operation_enum ----------------------------
 enum PFP_EXECUTE_INDIRECT_V2_operation_enum
 {
@@ -4397,7 +4404,9 @@ enum PFP_EXECUTE_INDIRECT_V2_operation_enum
     operation__pfp_execute_indirect_v2__dispatch_mesh__GFX103COREPLUS =  3,
     operation__pfp_execute_indirect_v2__dispatch_rays__GFX103COREPLUS =  4,
 };
+#endif
 
+#if  CHIP_HDR_NAVI21|| CHIP_HDR_NAVI22|| CHIP_HDR_NAVI23|| CHIP_HDR_NAVI24|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1 || CHIP_HDR_RAPHAEL|| CHIP_HDR_REMBRANDT
 // -------------------- PFP_EXECUTE_INDIRECT_V2_REG_SCATTER_MODE_function_enum --------------------
 enum PFP_EXECUTE_INDIRECT_V2_REG_SCATTER_MODE_function_enum
 {
@@ -4405,7 +4414,9 @@ enum PFP_EXECUTE_INDIRECT_V2_REG_SCATTER_MODE_function_enum
     function__pfp_execute_indirect_v2__reg_scatter_mode_psgs__GFX103COREPLUS       =  1,
     function__pfp_execute_indirect_v2__reg_scatter_mode_psgshs__GFX103COREPLUS     =  2,
 };
+#endif
 
+#if  CHIP_HDR_NAVI21|| CHIP_HDR_NAVI22|| CHIP_HDR_NAVI23|| CHIP_HDR_NAVI24|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1 || CHIP_HDR_RAPHAEL|| CHIP_HDR_REMBRANDT
 // ---------------------------------- PM4_PFP_EXECUTE_INDIRECT_V2 ----------------------------------
 typedef struct PM4_PFP_EXECUTE_INDIRECT_V2
 {
@@ -4423,7 +4434,7 @@ typedef struct PM4_PFP_EXECUTE_INDIRECT_V2
             {
                 uint32_t                                               count_indirect_enable        :  1;
                 uint32_t                                               user_data_dw_count           :  5;
-                uint32_t                                               reserved1                    :  1;
+                uint32_t                                               command_index_enable         :  1;
                 uint32_t                                               userdata_gfx_register_enable :  1;
                 uint32_t                                               num_spill_regs               :  2;
                 uint32_t                                               init_mem_copy_count          :  3;
@@ -4432,8 +4443,8 @@ typedef struct PM4_PFP_EXECUTE_INDIRECT_V2
                 PFP_EXECUTE_INDIRECT_V2_operation_enum                 operation                    :  3;
                 uint32_t                                               fetch_index_attributes       :  1;
                 PFP_EXECUTE_INDIRECT_V2_REG_SCATTER_MODE_function_enum userdata_scatter_mode        :  3;
-                uint32_t                                               reserved2                    :  4;
-                uint32_t                                               vertex_bounds_check_disable  :  1;
+                uint32_t                                               reserved1                    :  4;
+                uint32_t                                               vertex_bounds_check_enable   :  1;
                 uint32_t                                               thread_trace_enable          :  1;
             } gfx103CorePlus;
         } bitfields;
@@ -4582,6 +4593,7 @@ typedef struct PM4_PFP_EXECUTE_INDIRECT_V2
 } PM4_PFP_EXECUTE_INDIRECT_V2;
 
 constexpr unsigned int PM4_PFP_EXECUTE_INDIRECT_V2_SIZEDW__GFX103COREPLUS = 13;
+#endif
 
 #if  CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 // --------------------------------- PM4_PFP_DISPATCH_MESH_DIRECT ---------------------------------

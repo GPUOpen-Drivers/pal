@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2023-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -26,7 +26,7 @@
 devdriver_library(dd_common STATIC)
 target_include_directories(dd_common PUBLIC inc)
 target_sources(dd_common
-    PUBLIC
+    PRIVATE
         inc/dd_allocator_api.h
         inc/dd_assert.h
         inc/dd_constants.h
@@ -34,7 +34,6 @@ target_sources(dd_common
         inc/dd_logger_api.h
         inc/dd_mutex.h
         inc/dd_optional.h
-    PRIVATE
         src/dd_dynamic_buffer.cpp
         src/dd_logger.cpp
 )

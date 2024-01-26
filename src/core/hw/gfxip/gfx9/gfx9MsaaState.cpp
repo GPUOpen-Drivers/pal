@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -139,10 +139,7 @@ void MsaaState::Init(
     m_regs.paScModeCntl0.bits.VPORT_SCISSOR_ENABLE = 1;
     m_regs.paScModeCntl0.bits.MSAA_ENABLE          = (((NumSamples() > 1) ||
                                                       (msaaState.flags.enable1xMsaaSampleLocations)) ? 1 : 0);
-
-    {
-        m_regs.paScModeCntl0.core.ALTERNATE_RBS_PER_TILE = 1;
-    }
+    m_regs.paScModeCntl0.core.ALTERNATE_RBS_PER_TILE = 1;
 
     // Setup the PA_SC_AA_CONFIG and DB_EQAA registers.
     m_regs.dbEqaa.bits.STATIC_ANCHOR_ASSOCIATIONS = 1;

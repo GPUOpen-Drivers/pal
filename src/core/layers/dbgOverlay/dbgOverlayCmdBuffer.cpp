@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -112,9 +112,6 @@ void CmdBuffer::CmdColorSpaceConversionCopy(
         pFpsMgr->UpdateFps();
         pFpsMgr->UpdateGpuFps();
         pFpsMgr->UpdateBenchmark();
-
-        Platform* pPlatform = static_cast<Platform*>(m_pDevice->GetPlatform());
-        pPlatform->ResetGpuWork();
     }
 
     m_pNextLayer->CmdColorSpaceConversionCopy(*NextImage(&srcImage),
@@ -214,13 +211,7 @@ void CmdBuffer::CmdPostProcessFrame(
         (m_pDevice->GetSettings()->disableDebugOverlayVisualConfirm == false) &&
         Device::DetermineDbgOverlaySupport(m_queueType))
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 787
         DrawOverlay(postProcessInfo.pSrcImage, postProcessInfo.debugOverlay);
-#else
-        CmdPostProcessDebugOverlayInfo debugOverlay = {};
-        debugOverlay.presentMode = postProcessInfo.presentMode;
-        DrawOverlay(postProcessInfo.pSrcImage, debugOverlay);
-#endif
 
         if (pAddedGpuWork != nullptr)
         {

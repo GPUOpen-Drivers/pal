@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -254,7 +254,7 @@ enum PipelineStageFlag : uint32
     PipelineStageBlt               = 0x00008000,
     PipelineStageBottomOfPipe      = 0x00010000,
     PipelineStageAllStages         = 0x0001FFFF
-#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 770
+#else
     PipelineStageFetchIndices      = 0x00000004,
     PipelineStageStreamOut         = 0x00000008,
     PipelineStageVs                = 0x00000010,
@@ -269,20 +269,6 @@ enum PipelineStageFlag : uint32
     PipelineStageBlt               = 0x00002000,
     PipelineStageBottomOfPipe      = 0x00004000,
     PipelineStageAllStages         = 0x00007FFF
-#else
-    PipelineStageFetchIndices      = 0x00000004,
-    PipelineStageVs                = 0x00000008,
-    PipelineStageHs                = 0x00000010,
-    PipelineStageDs                = 0x00000020,
-    PipelineStageGs                = 0x00000040,
-    PipelineStagePs                = 0x00000080,
-    PipelineStageEarlyDsTarget     = 0x00000100,
-    PipelineStageLateDsTarget      = 0x00000200,
-    PipelineStageColorTarget       = 0x00000400,
-    PipelineStageCs                = 0x00000800,
-    PipelineStageBlt               = 0x00001000,
-    PipelineStageBottomOfPipe      = 0x00002000,
-    PipelineStageAllStages         = 0x00003FFF
 #endif
 };
 
@@ -403,6 +389,7 @@ enum ResolveImageFlags : uint32
                                             ///  The flag cannot be set when @ref ImageResolveDstAsNorm is set.
     ImageResolveDstAsNorm   = 0x00000004,   ///< If set, a srgb destination image will be treated as non-srgb format.
                                             ///  The flag cannot be set when @ref ImageResolveDstAsSrgb is set.
+    ImageResolveSrcAsNorm   = 0x00000008,   ///< If set, a srgb source image will be treated as non-srgb format.
 };
 
 /// Specifies properties for creation of an ICmdBuffer object.  Input structure to IDevice::CreateCmdBuffer().
@@ -533,12 +520,6 @@ union CmdBufferBuildFlags
         /// the optimizeExclusiveSubmit flag is also set. This flag is ignored for root command buffers.
         uint32 disallowNestedLaunchViaIb2      :  1;
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 780)
-        /// Enables execution marker support, which adds structured NOPs and timestamps to the command buffer to allow
-        /// for fine-grained hang identification.
-        uint32 enableExecutionMarkerSupport    :  1;
-#endif
-
         /// placeholder
         uint32 placeholder1                    :  2;
 
@@ -552,16 +533,11 @@ union CmdBufferBuildFlags
         /// Otherwise they may affect the results.
         uint32 disableQueryInternalOps         :  1;
 
-        uint32 placeholder763                  :  1;
-
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 763)
         uint32 optimizeContextStatesPerBin     :  1;
         uint32 optimizePersistentStatesPerBin  :  1;
-#else
-        uint32 placeholder763_2                :  2;
-#endif
+
         /// Reserved for future use.
-        uint32 reserved                        :  15;
+        uint32 reserved                        :  16;
     };
 
     /// Flags packed as 32-bit uint.
@@ -624,18 +600,16 @@ struct CmdBufferBuildInfo
     /// optimizeTessDistributionFactors flag for these custom factors to take effect.
     TessDistributionFactors clientTessDistributionFactors;
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 763)
-    // Number of context states per PBB bin.
-    // Client must also set @ref CmdBufferBuildFlags::optimizeContextStatesPerBin for this to take effect.
+    /// Number of context states per PBB bin.
+    /// Client must also set @ref CmdBufferBuildFlags::optimizeContextStatesPerBin for this to take effect.
     uint8 contextStatesPerBin;
 
-    // Number of persistent states per PBB bin.
-    // Client must also set @ref CmdBufferBuildFlags::optimizePersistentStatesPerBin for this to take effect.
+    /// Number of persistent states per PBB bin.
+    /// Client must also set @ref CmdBufferBuildFlags::optimizePersistentStatesPerBin for this to take effect.
     uint8 persistentStatesPerBin;
-#endif
 
-    uint64 execMarkerClientHandle; ///< Client/app data handle. This can have an arbitrary value and is used to uniquely
-                                   ///  identify this command buffer.
+    /// Client/app data handle. This can have an arbitrary value and is used to uniquely identify this command buffer.
+    uint64 execMarkerClientHandle;
 };
 
 /// Specifies info on how a compute shader should use resources.
@@ -671,17 +645,19 @@ struct DynamicGraphicsShaderInfo
                          ///  This option is converted internally to set HW WavesPerSh setting and the non-integer
                          ///  maxWavesPerCu value provides more flexibility to allow arbitrary WavesPerSh value; for
                          ///  example specify less number of waves than number of CUs per shader array.
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 789
-    uint32 cuEnableMask;  ///< This mask is AND-ed with a PAL decided CU enable mask mask to further allow limiting of
-                          ///  enabled CUs.  If the hardware has one CU enable mask for multiple shader stages PAL will
-                          ///  select the most strict limit.  A value of 0 will be ignored.
-#endif
 };
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 842
+static_assert((static_cast<uint32>(LogicOp::Count)        <= 0x10) &&
+              (static_cast<uint32>(DepthRange::Count)     <= 0x2)  &&
+              (static_cast<uint32>(DepthClampMode::Count) <= 0x4),
+              "LogicOp/DepthRange/DepthClampMode size has changed! Update bitstride below!");
+#endif
 
 /// Specifies dynamic states of a graphics pipeline
 struct DynamicGraphicsState
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 842
     DepthClampMode depthClampMode;               ///< Depth clamping behavior.
     DepthRange     depthRange;                   ///< Specifies Z dimensions of screen space (i.e., post viewport
                                                  ///  transform: 0 to 1 or -1 to 1).
@@ -697,6 +673,27 @@ struct DynamicGraphicsState
     uint32         dualSourceBlendEnable   :  1; ///< Enable dual source blend
     uint32         vertexBufferCount       :  6; ///< Number of vertex buffer slots which are accessed by this pipeline
     uint32         reserved                : 19; ///< Reserved for future use.
+#else
+    uint32             colorWriteMask;               ///< Color target write mask. 4b / RT (8 count)
+    struct
+    {
+        uint32         switchWinding              : 1; ///< Whether to reverse vertex ordering for tessellation.
+        uint32         depthClipNearEnable        : 1; ///< Enable clipping based on Near Z coordinate.
+        uint32         depthClipFarEnable         : 1; ///< Enable clipping based on Far Z coordinate.
+        uint32         alphaToCoverageEnable      : 1; ///< Enable alpha to coverage.
+        uint32         perpLineEndCapsEnable      : 1; ///< Forces the use of perpendicular line end caps as opposed to
+                                                       ///  axis-aligned line end caps during line rasterization.
+        uint32         rasterizerDiscardEnable    : 1; ///< Whether to kill all rasterized pixels.
+        uint32         dualSourceBlendEnable      : 1; ///< Enable dual source blend
+        uint32         vertexBufferCount          : 6; ///< Number vertex buffer slots accessed by this pipeline
+        LogicOp        logicOp                    : 4; ///< Logic operation to perform.
+        DepthRange     depthRange                 : 1; ///< Specifies Z dimensions of screen space (i.e., post viewport
+                                                       ///  transform: 0 to 1 or -1 to 1).
+        DepthClampMode depthClampMode             : 2; ///< Depth clamping behavior.
+        uint32         reserved1                  : 7; ///< Reserved
+        uint32         reserved                   : 5; ///< Reserved for future use.
+    };
+#endif
 
     union
     {
@@ -713,12 +710,18 @@ struct DynamicGraphicsState
             uint32 rasterizerDiscardEnable :  1;  ///< Whether to enable dynamic state rasterizerDiscardEnable.
             uint32 dualSourceBlendEnable   :  1;  ///< Whether to enable dynamic state dualSourceBlendEnable
             uint32 vertexBufferCount       :  1;  ///< Whether to enable dynamic state vertexBufferCount.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 842
             uint32 reserved                : 21;  ///< Reserved for future use.
+#else
+            uint32 reserved1               :  1;  ///< Reserved.
+            uint32 reserved                : 20;  ///< Reserved for future use.
+#endif
         };
         uint32     u32All;
     } enable;
 };
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 842
 /// Specifies info on how graphics shaders should use resources.
 struct DynamicGraphicsShaderInfos
 {
@@ -741,6 +744,46 @@ struct DynamicGraphicsShaderInfos
         uint32 u32All;                   ///< Flags packed as 32-bit uint.
     } flags;                             ///< BindPipeline flags.
 };
+#else
+/// Specifies info on how graphics shaders should use resources.
+struct DynamicGraphicsShaderInfos
+{
+    union
+    {
+        // VS/HS/DS/GS or TS/MS are active
+        struct
+        {
+            DynamicGraphicsShaderInfo vs;  ///< Dynamic Vertex shader information.
+            DynamicGraphicsShaderInfo hs;  ///< Dynamic Hull shader information.
+            DynamicGraphicsShaderInfo ds;  ///< Dynamic Domain shader information.
+            DynamicGraphicsShaderInfo gs;  ///< Dynamic Geometry shader information.
+        };
+        struct
+        {
+            DynamicGraphicsShaderInfo ts;  ///< Dynamic Task shader information.
+            DynamicGraphicsShaderInfo ms;  ///< Dynamic Mesh shader information.
+        };
+    };
+
+    DynamicGraphicsShaderInfo ps;  ///< Dynamic Pixel shader information.
+
+    union
+    {
+        struct
+        {
+            uint8 vs       : 1; // If set, there is dynamic VS shader info.
+            uint8 hs       : 1; // If set, there is dynamic HS shader info.
+            uint8 ds       : 1; // If set, there is dynamic DS shader info.
+            uint8 gs       : 1; // If set, there is dynamic GS shader info.
+            uint8 ps       : 1; // If set, there is dynamic PS shader info.
+            uint8 ts       : 1; // If set, there is dynamic TS shader info.
+            uint8 ms       : 1; // If set, there is dynamic MS shader info.
+            uint8 reserved : 1; // Reserved.
+        };
+        uint8 u8All;
+    } enable;
+};
+#endif
 
 /// Specifies parameters for binding a pipeline.
 /// @see ICmdBuffer::CmdBindPipeline
@@ -755,7 +798,15 @@ struct PipelineBindParams
     union
     {
         DynamicComputeShaderInfo   cs;        ///< Dynamic Compute shader information.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 842
         DynamicGraphicsShaderInfos graphics;  ///< Dynamic Graphics shader information.
+#else
+        struct
+        {
+            DynamicGraphicsShaderInfos gfxShaderInfo;
+            DynamicGraphicsState       gfxDynState;
+        };
+#endif
     };
 };
 
@@ -937,14 +988,14 @@ struct MemBarrier
 
     GpuMemSubAllocInfo memory;             ///< Specifies a portion of an IGpuMemory object this memory barrier affects.
                                            ///  Zero values of memory structure indicate full range barrier operations.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+
     uint32             srcStageMask;       ///< Bitmask of PipelineStageFlag values defining the synchronization
                                            ///  scope that must be confirmed complete as part of a release.  Must be
                                            ///  0 when passed in to CmdAcquire or CmdAcquireEvent.
     uint32             dstStageMask;       ///< Bitmask of PipelineStageFlag values defining the synchronization
                                            ///  scope of operations to be performed after the acquire.  Must be
                                            ///  0 when passed in to CmdRelease or CmdReleaseEvent.
-#endif
+
     uint32             srcAccessMask;      ///< CacheCoherencyUsageFlags mask which defines the access scope for the
                                            ///  availability operation, as defined in the struct comment header.
                                            ///  This mask must be 0 when passed to CmdAcquire or CmdAcquireEvent.
@@ -976,14 +1027,14 @@ struct ImgBarrier
                                  ///  implementation may not be able to optimize particular cases and may expand the
                                  ///  barrier to cover the entire subresource range.  Specifying a subregion with a box
                                  ///  when newLayout includes @ref LayoutUninitializedTarget is not supported.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+
     uint32        srcStageMask;  ///< Bitmask of PipelineStageFlag values defining the synchronization
                                  ///  scope that must be confirmed complete as part of a release.  Must be
                                  ///  0 when passed in to CmdAcquire or CmdAcquireEvent.
     uint32        dstStageMask;  ///< Bitmask of PipelineStageFlag values defining the synchronization
                                  ///  scope of operations to be performed after the acquire.  Must be
                                  ///  0 when passed in to CmdRelease or CmdReleaseEvent.
-#endif
+
     uint32        srcAccessMask; ///< CacheCoherencyUsageFlags mask which defines the access scope for the
                                  ///  availability operation, as defined in the struct comment header.
                                  ///  This mask must be 0 when passed to CmdAcquire or CmdAcquireEvent.
@@ -1025,21 +1076,13 @@ struct ImgBarrier
 /// MemBarrier and the other is writeable MemBarrier; both are then passed together to the barrier call.
 struct AcquireReleaseInfo
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     uint32               srcGlobalStageMask;  ///< Bitmask of PipelineStageFlag values defining the global
                                               ///  synchronization scope that must be confirmed complete as part of a
                                               ///  release.  Must be 0 when passed in to CmdAcquire or CmdAcquireEvent.
     uint32               dstGlobalStageMask;  ///< Bitmask of PipelineStageFlag values defining the global
                                               ///  synchronization scope of operations to be performed after the
                                               ///  acquire.  Must be 0 when passed in to CmdRelease or CmdReleaseEvent.
-#else
-    uint32               srcStageMask;        ///< Bitmask of PipelineStageFlag values defining the synchronization
-                                              ///  scope that must be confirmed complete as part of a release.  Must be
-                                              ///  0 when passed in to CmdAcquire or CmdAcquireEvent.
-    uint32               dstStageMask;        ///< Bitmask of PipelineStageFlag values defining the synchronization
-                                              ///  scope of operations to be performed after the acquire.  Must be
-                                              ///  0 when passed in to CmdRelease or CmdReleaseEvent.
-#endif
+
     uint32               srcGlobalAccessMask; ///< *Access scope* for the global availability operation.  Serves the
                                               ///  same purpose as srcAccessMask in @ref MemoryBarrier, but will cause
                                               ///  all relevant caches to be flushed without range checking.
@@ -1816,16 +1859,6 @@ struct GlobalScissorParams
     Rect scissorRegion; ///< Rectangle of the global scissor window.
 };
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 778
-/// Specifies parameters for dynamically setting color write mask.
-/// @see ICmdBuffer::CmdSetColorWriteMask
-struct ColorWriteMaskParams
-{
-    uint32 count;                           ///< Number of dynamic color write masks to write
-    uint8  colorWriteMask[MaxColorTargets]; ///< Color write mask values, populated from 0 to count - 1, no gaps allowed
-};
-#endif
-
 /// Specifies parameters for binding the color targets and depth target.
 /// @see ICmdBuffer::CmdBindTargets
 struct BindTargetParams
@@ -1964,9 +1997,7 @@ struct CmdBufInfo
                                            ///  captureBegin or captureEnd is set. Otherwise set this to nullptr.
     const IGpuMemory*  pPrivFlipMemory;    ///< The gpu memory object of the private flip primary surface for the
                                            ///  DirectCapture feature.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 779
     const Util::Event* pEarlyPresentEvent; ///< The 'early present' event object. This variable can be nullptr.
-#endif
     uint64             frameIndex;         ///< The frame index of this command buffer. It is only required for the
                                            ///  DirectCapture feature
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 822
@@ -2035,12 +2066,7 @@ struct CmdPostProcessFrameInfo
                                            ///  Must have been created as a typed buffer.
     };
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 787
-    CmdPostProcessDebugOverlayInfo debugOverlay;
-#else
-    PresentMode presentMode;               /// The Presentation Mode of the application.
-#endif
-
+    CmdPostProcessDebugOverlayInfo      debugOverlay;
     FullScreenFrameMetadataControlFlags fullScreenFrameMetadataControlFlags;
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 836
@@ -2598,24 +2624,6 @@ public:
     virtual void CmdSetGlobalScissor(
         const GlobalScissorParams& params) = 0;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 778
-    /// Sets color write mask.  The color write mask must be a subset of the currently bound pipeline's color write
-    /// mask.  This ensures that CmdSetColorWriteMask will only turn off (and not turn on) writes after the pipeline
-    /// is bound.  The updated color write mask is overwritten when binding a new pipeline.  Also, if you pass in a
-    /// count of 0, then colorWriteMask will be updated to match the full cb target mask.
-    ///
-    /// @param [in] params  Parameters for dynamically setting color write mask for multiple color targets
-    virtual void CmdSetColorWriteMask(
-        const ColorWriteMaskParams& params) = 0;
-
-    /// Sets dynamically rasterizer discard enable bit. The updated rasterizerDiscardEnable will be
-    /// overwritten when binding a new pipeline.
-    ///
-    /// @param [in] rasterizerDiscardEnable  Parameters for dynamically setting rasterizer discard enable bit
-    virtual void CmdSetRasterizerDiscardEnable(
-        bool rasterizerDiscardEnable) = 0;
-#endif
-
     /// Inserts a barrier in the current command stream that can stall GPU execution, flush/invalidate caches, or
     /// decompress images before further, dependent work can continue in this command buffer.
     ///
@@ -2957,16 +2965,6 @@ public:
         m_funcTable.pfnCmdDispatch(this, size);
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 771
-    void CmdDispatch(
-        uint32 xDim,
-        uint32 yDim,
-        uint32 zDim)
-    {
-        m_funcTable.pfnCmdDispatch(this, {xDim, yDim, zDim});
-    }
-#endif
-
     /// Dispatches a compute workload using the command buffer's currently bound compute state.  The dimensions of the
     /// workload come from GPU memory.  The dispatch will be discarded if any of its dimensions are zero.
     ///
@@ -3024,19 +3022,6 @@ public:
         m_funcTable.pfnCmdDispatchOffset(this, offset, launchSize, logicalSize);
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 771
-    void CmdDispatchOffset(
-        uint32 xOffset,
-        uint32 yOffset,
-        uint32 zOffset,
-        uint32 xDim,
-        uint32 yDim,
-        uint32 zDim)
-    {
-        m_funcTable.pfnCmdDispatchOffset(this, {xOffset, yOffset, zOffset}, {xDim, yDim, zDim}, {xDim, yDim, zDim});
-    }
-#endif
-
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 837
     /// Dispatches a compute workload of the given dimensions using the command buffer's currently bound compute state
     /// and dynamic pipeline state from GPU memory. The memory address provided contains the gpuVa of the pipeline
@@ -3061,17 +3046,6 @@ public:
     {
         PAL_NOT_IMPLEMENTED();
     }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 771
-    void CmdDispatchDynamic(
-        gpusize gpuVa,
-        uint32  xDim,
-        uint32  yDim,
-        uint32  zDim)
-    {
-        PAL_NOT_IMPLEMENTED();
-    }
-#endif
 #endif
 
     /// Dispatches a mesh shader workload using the command buffer's currently bound graphics state.  It is an error if
@@ -3085,16 +3059,6 @@ public:
     {
         m_funcTable.pfnCmdDispatchMesh(this, size);
     }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 771
-    void CmdDispatchMesh(
-        uint32 xDim,
-        uint32 yDim,
-        uint32 zDim)
-    {
-        m_funcTable.pfnCmdDispatchMesh(this, {xDim, yDim, zDim});
-    }
-#endif
 
     /// Dispatches a mesh shader workload using the command buffer's currently bound graphics state.  It is an error if
     /// the currently bound graphics pipeline does not contain a mesh shader.  The dimensions of the workload come from
@@ -3675,22 +3639,6 @@ public:
         uint32                boxCount,
         const Box*            pBoxes,
         uint32                flags) = 0;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 762
-    inline void CmdClearColorImage(
-        const IImage&      image,
-        ImageLayout        imageLayout,
-        const ClearColor&  color,
-        uint32             rangeCount,
-        const SubresRange* pRanges,
-        uint32             boxCount,
-        const Box*         pBoxes,
-        uint32             flags)
-    {
-        CmdClearColorImage(image, imageLayout, color, UndefinedSwizzledFormat,
-                           rangeCount, pRanges, boxCount, pBoxes, flags);
-    }
-#endif
 
     /// Clears the currently bound depth/stencil targets to the specified clear values.
     ///
@@ -4637,14 +4585,6 @@ public:
     virtual void CmdNop(
         const void* pPayload,
         uint32      payloadSize) = 0;
-
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 780)
-    /// Inserts a bottom-of-pipe timestamp and embedded payload inside of a NOP packet that allows crash-dump analysis
-    /// tools to identify how far command buffer execution has progressed before a crash or hang.
-    ///
-    /// @returns Counter value of the embedded execution marker.
-    virtual uint32 CmdInsertExecutionMarker() { return 0; };
-#endif
 
     /// Marks the begin or end of a user-defined region of GPU work; analyzed post-mortem in crash-dump analysis tools.
     /// Each 'Begin' marker must be paired with a corresponding 'End' marker; however, markers may be nested by

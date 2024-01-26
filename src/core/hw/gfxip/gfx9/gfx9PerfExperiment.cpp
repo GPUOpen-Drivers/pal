@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -313,7 +313,7 @@ static regSQ_THREAD_TRACE_TOKEN_MASK GetGfx10SqttTokenMask(
     // activity could cause GPU hang or generate lot of thread trace traffic.
     PAL_ALERT(grbmCsDataRegs || regReads);
 
-#if  PAL_BUILD_GFX11
+#if PAL_BUILD_GFX11
     // The enum is renamed, but the functionality is unchanged to the average thread trace user.
     // If you wanted 'other' for debugging, you probably wanted everything anyways.
     static_assert(SQ_TT_TOKEN_MASK_OTHER_SHIFT__GFX10CORE == SQ_TT_TOKEN_MASK_ALL_SHIFT__GFX104PLUS,
@@ -1364,7 +1364,6 @@ Result PerfExperiment::AddThreadTrace(
 
         // By default stall always so that we get accurate data.
         const uint32 stallMode =
-            m_settings.waNoSqttRegStall                           ? GpuProfilerStallLoseDetail                      :
             (traceInfo.optionFlags.threadTraceStallBehavior != 0) ? traceInfo.optionValues.threadTraceStallBehavior :
                                                                     GpuProfilerStallAlways;
 
@@ -1523,8 +1522,8 @@ Result PerfExperiment::AddThreadTrace(
                                static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_LS_BIT__GFX10CORE)),
                            "We assume that the SQ_TT_WTYPE enum matches PerfExperimentShaderFlags.");
 
-#if  PAL_BUILD_GFX11
-            if (IsGfx104Plus(*m_pDevice))
+#if PAL_BUILD_GFX11
+            if (IsGfx11Plus(*m_pDevice))
             {
                 // ES/LS are unsupported, unset those flags
                 uint32 validFlags = ~(static_cast<uint32>(PerfShaderMaskEs) | static_cast<uint32>(PerfShaderMaskLs));
@@ -1534,6 +1533,9 @@ Result PerfExperiment::AddThreadTrace(
                     validFlags &= ~(static_cast<uint32>(PerfShaderMaskVs));
                 }
                 m_sqtt[realInstance].mask.gfx10Plus.WTYPE_INCLUDE = static_cast<uint32>(shaderMask) & validFlags;
+                m_sqtt[realInstance].mask.gfx104Plus.EXCLUDE_NONDETAIL_SHADERDATA =
+                    (traceInfo.optionFlags.threadTraceExcludeNonDetailShaderData != 0) &&
+                    (traceInfo.optionValues.threadTraceExcludeNonDetailShaderData);
             }
             else
 #endif
@@ -1933,24 +1935,23 @@ void PerfExperiment::FillMuxselRam(
         if (segment == SpmDataSegmentType::Global)
         {
             // The global segment always starts with a 64-bit timestamp, that's 4 16-bit counters worth of data.
-#if PAL_BUILD_GFX11
-            if (IsGfx11(*m_pDevice))
-            {
-                pMappings[evenLineIdx].muxsel[evenCounterIdx++].u16All = 0xF840;
-                pMappings[evenLineIdx].muxsel[evenCounterIdx++].u16All = 0xF841;
-                pMappings[evenLineIdx].muxsel[evenCounterIdx++].u16All = 0xF842;
-                pMappings[evenLineIdx].muxsel[evenCounterIdx++].u16All = 0xF843;
-            }
-            else
-#endif
-            {
-                constexpr uint32 GlobalTimestampCounters = sizeof(uint64) / sizeof(uint16);
-                constexpr uint16 GlobalTimestampSelect   = 0xF0F0;
+            constexpr uint32 NumGlobalTimestampCounters = sizeof(uint64) / sizeof(uint16);
+            MuxselEncoding timestampMuxsel              = {};
+            timestampMuxsel.u16All                      = 0xF0F0;
 
-                for (uint32 idx = 0; idx < GlobalTimestampCounters; ++idx)
+            for (; evenCounterIdx < NumGlobalTimestampCounters; evenCounterIdx++)
+            {
+#if PAL_BUILD_GFX11
+                // Gfx11 requires different timestamp programming
+                if (IsGfx11(*m_pDevice))
                 {
-                    pMappings[evenLineIdx].muxsel[evenCounterIdx++].u16All = GlobalTimestampSelect;
+                    timestampMuxsel                = {};
+                    timestampMuxsel.gfx11.block    = 31; // RSPM
+                    timestampMuxsel.gfx11.instance =  2; // REFCLK timestamp count
+                    timestampMuxsel.gfx11.counter  = evenCounterIdx;
                 }
+#endif
+                pMappings[evenLineIdx].muxsel[evenCounterIdx] = timestampMuxsel;
             }
         }
 
@@ -2380,8 +2381,8 @@ void PerfExperiment::IssueBegin(
                 sqPerfCounterCtrl.gfx09_10.VS_EN = TestAnyFlagSet(sqShaderMask, PerfShaderMaskVs);
             }
 
-#if  PAL_BUILD_GFX11
-            if (IsGfx104Plus(*m_pDevice) == false)
+#if PAL_BUILD_GFX11
+            if (IsGfx11Plus(*m_pDevice) == false)
 #endif
             {
                 static_assert((Gfx09::SQ_PERFCOUNTER_CTRL__LS_EN_MASK == Gfx10Core::SQ_PERFCOUNTER_CTRL__LS_EN_MASK) &&
@@ -2745,8 +2746,8 @@ void PerfExperiment::UpdateSqttTokenMask(
                     tokenMask.gfx10Plus.INST_EXCLUDE   = m_sqtt[idx].tokenMask.gfx10Plus.INST_EXCLUDE;
                     tokenMask.gfx10Plus.REG_DETAIL_ALL = m_sqtt[idx].tokenMask.gfx10Plus.REG_DETAIL_ALL;
 
-#if  PAL_BUILD_GFX11
-                    if (IsGfx104Plus(*m_pDevice))
+#if PAL_BUILD_GFX11
+                    if (IsGfx11Plus(*m_pDevice))
                     {
                         pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(Gfx104Plus::mmSQ_THREAD_TRACE_TOKEN_MASK,
                                                                       tokenMask.u32All,
@@ -2795,8 +2796,8 @@ void PerfExperiment::UpdateSqttTokenMaskStatic(
                                                       tokenMask.u32All,
                                                       pCmdSpace);
     }
-#if  PAL_BUILD_GFX11
-    else if (IsGfx104Plus(palDevice))
+#if PAL_BUILD_GFX11
+    else if (IsGfx11Plus(palDevice))
     {
         regSQ_THREAD_TRACE_TOKEN_MASK tokenMask = GetGfx10SqttTokenMask(palDevice, sqttTokenConfig);
 
@@ -3400,8 +3401,8 @@ uint32* PerfExperiment::WriteStartThreadTraces(
                                                               m_sqtt[idx].mode.u32All,
                                                               pCmdSpace);
             }
-#if  PAL_BUILD_GFX11
-            else if (IsGfx104Plus(*m_pDevice))
+#if PAL_BUILD_GFX11
+            else if (IsGfx11Plus(*m_pDevice))
             {
                 regSQ_THREAD_TRACE_BUF0_BASE sqttBuf0Base = {};
                 regSQ_THREAD_TRACE_BUF0_SIZE sqttBuf0Size = {};
@@ -3579,8 +3580,8 @@ uint32* PerfExperiment::WriteStopThreadTraces(
                                                                         pCmdSpace);
                 }
             }
-#if  PAL_BUILD_GFX11
-            else if (IsGfx104Plus(*m_pDevice))
+#if PAL_BUILD_GFX11
+            else if (IsGfx11Plus(*m_pDevice))
             {
                 // Poll the status register's finish_done bit to be sure that the trace buffer is written out.
                 pCmdSpace += m_cmdUtil.BuildWaitRegMem(engineType,
@@ -3880,17 +3881,20 @@ uint32* PerfExperiment::WriteSelectRegisters(
                 {
                     PAL_ASSERT(m_counterInfo.umcchRegAddr[instance].perModule[idx].perfMonCtl != 0);
 
-                    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(
-                                                m_counterInfo.umcchRegAddr[instance].perModule[idx].perfMonCtl,
-                                                m_select.umcch[instance].perfmonCntl[idx].u32All,
-                                                pCmdSpace);
-
+                    {
+                        pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(
+                            m_counterInfo.umcchRegAddr[instance].perModule[idx].perfMonCtl,
+                            m_select.umcch[instance].perfmonCntl[idx].u32All,
+                            pCmdSpace);
+                    }
                     if (IsGfx103Plus(*m_pDevice) && m_select.umcch[instance].thresholdSet[idx])
                     {
-                       pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(
-                                                    m_counterInfo.umcchRegAddr[instance].perModule[idx].perfMonCtrHi,
-                                                    m_select.umcch[instance].perfmonCtrHi[idx].u32All,
-                                                    pCmdSpace);
+                        {
+                            pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(
+                                                         m_counterInfo.umcchRegAddr[instance].perModule[idx].perfMonCtrHi,
+                                                         m_select.umcch[instance].perfmonCtrHi[idx].u32All,
+                                                         pCmdSpace);
+                        }
                     }
                 }
             }
@@ -4059,6 +4063,7 @@ uint32* PerfExperiment::WriteEnableCfgRegisters(
     // The UMCCH has a per-instance register that acts just like a rslt_cntl register. Let's enable it here.
     for (uint32 instance = 0; instance < ArrayLen(m_select.umcch); ++instance)
     {
+
         if (m_select.umcch[instance].hasCounters)
         {
             PAL_ASSERT(m_counterInfo.umcchRegAddr[instance].perfMonCtlClk != 0);
@@ -4086,17 +4091,21 @@ uint32* PerfExperiment::WriteEnableCfgRegisters(
                     perfmonCtlClk.u32All |= GblbRsrcMskMask;
                 }
 
-                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(m_counterInfo.umcchRegAddr[instance].perfMonCtlClk,
-                                                              perfmonCtlClk.u32All,
-                                                              pCmdSpace);
+                {
+                    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(m_counterInfo.umcchRegAddr[instance].perfMonCtlClk,
+                                                                  perfmonCtlClk.u32All,
+                                                                  pCmdSpace);
+                }
             }
 
             regPerfMonCtlClk perfmonCtlClk = {};
             perfmonCtlClk.most.GlblMonEn = enable;
 
-            pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(m_counterInfo.umcchRegAddr[instance].perfMonCtlClk,
-                                                          perfmonCtlClk.u32All,
-                                                          pCmdSpace);
+            {
+                pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(m_counterInfo.umcchRegAddr[instance].perfMonCtlClk,
+                                                              perfmonCtlClk.u32All,
+                                                              pCmdSpace);
+            }
 
             // Assume each counter uses the same amount of space and determine if next loop we'll run out
             pCmdSpace = pCmdStream->ReReserveCommands(pCmdSpace, pCmdSpace - pStartSpace);
@@ -4315,12 +4324,15 @@ uint32* PerfExperiment::WriteStopAndSampleGlobalCounters(
         {
             // The UMCCH is global and has registers that vary per-instance and per-counter.
             pCmdSpace = WriteGrbmGfxIndexBroadcastGlobal(pCmdStream, pCmdSpace);
-            pCmdSpace = WriteCopy64BitCounter(
-                            m_counterInfo.umcchRegAddr[instance].perModule[mapping.counterId].perfMonCtrLo,
-                            m_counterInfo.umcchRegAddr[instance].perModule[mapping.counterId].perfMonCtrHi,
-                            destBaseAddr + mapping.offset,
-                            pCmdStream,
-                            pCmdSpace);
+
+            {
+                pCmdSpace = WriteCopy64BitCounter(
+                                m_counterInfo.umcchRegAddr[instance].perModule[mapping.counterId].perfMonCtrLo,
+                                m_counterInfo.umcchRegAddr[instance].perModule[mapping.counterId].perfMonCtrHi,
+                                destBaseAddr + mapping.offset,
+                                pCmdStream,
+                                pCmdSpace);
+            }
         }
         else if (mapping.general.block == GpuBlock::DfMall)
         {
@@ -4330,11 +4342,13 @@ uint32* PerfExperiment::WriteStopAndSampleGlobalCounters(
             const PerfCounterRegAddr& regAddr = m_counterInfo.block[static_cast<uint32>(GpuBlock::DfMall)].regAddr;
             const PerfCounterRegAddrPerModule& regs = regAddr.perfcounter[mapping.counterId];
 
-            pCmdSpace = WriteCopy64BitCounter(regs.lo,
-                                              regs.hi,
-                                              destBaseAddr + mapping.offset,
-                                              pCmdStream,
-                                              pCmdSpace);
+            {
+                pCmdSpace = WriteCopy64BitCounter(regs.lo,
+                                                  regs.hi,
+                                                  destBaseAddr + mapping.offset,
+                                                  pCmdStream,
+                                                  pCmdSpace);
+            }
         }
         else if (m_select.pGeneric[block] != nullptr)
         {
@@ -4438,9 +4452,6 @@ uint32* PerfExperiment::WriteStopAndSampleGlobalCounters(
     return pCmdSpace;
 }
 
-// =====================================================================================================================
-// A helper function for WriteSampleGlobalCounters which writes two COPY_DATAs to read out a 64-bit counter for some
-// counter in some block.
 uint32* PerfExperiment::WriteCopy64BitCounter(
     uint32     regAddrLo,
     uint32     regAddrHi,

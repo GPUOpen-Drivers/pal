@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2007-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2007-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -154,43 +154,17 @@ ADDR_E_RETURNCODE Lib::Create(
 
         switch (pCreateIn->chipEngine)
         {
-#if ADDR_R800_BUILD
-            case CIASICIDGFXENGINE_R800:
-                pLib = R800HwlInit(&client);
-                break;
-#endif
-#if ADDR_SI_BUILD
-            case CIASICIDGFXENGINE_SOUTHERNISLAND:
-                switch (pCreateIn->chipFamily)
-                {
-#if ADDR_CI_BUILD
-                    case FAMILY_POLARIS:
-                        pLib = CiHwlInit(&client);
-                        break;
-#endif
-                    default:
-                        ADDR_ASSERT_ALWAYS();
-                        break;
-                }
-                break;
-#endif
             case CIASICIDGFXENGINE_ARCTICISLAND:
                 switch (pCreateIn->chipFamily)
                 {
-#if ADDR_GFX9_BUILD
-                    case FAMILY_AI:
-#if ADDR_RAVEN1_BUILD
-                    case FAMILY_RV:
-#endif
-                        pLib = Gfx9HwlInit(&client);
-                        break;
-#endif
+#if ADDR_GFX10_BUILD
                     case FAMILY_NV:
                     case FAMILY_RMB:
                     case FAMILY_RPL:
                     case FAMILY_MDN:
                         pLib = Gfx10HwlInit(&client);
                         break;
+#endif
 #if ADDR_GFX11_BUILD
 #if ADDR_NAVI31_BUILD || ADDR_NAVI32_BUILD || ADDR_NAVI33_BUILD
                     case FAMILY_NV3:

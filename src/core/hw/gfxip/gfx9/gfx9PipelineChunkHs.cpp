@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -167,15 +167,6 @@ uint32* PipelineChunkHs::WriteDynamicRegs(
         // GFX9 GPUs have a HW bug where a wave limit size of 0 does not correctly map to "no limit",
         // potentially breaking high-priority compute.
         dynamic.spiShaderPgmRsrc3Hs.bits.WAVE_LIMIT = m_device.GetMaxWavesPerSh(chipProps, false);
-    }
-#endif
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 789
-    if (hsStageInfo.cuEnableMask != 0)
-    {
-        dynamic.spiShaderPgmRsrc3Hs.bits.CU_EN &= hsStageInfo.cuEnableMask;
-        dynamic.spiShaderPgmRsrc4Hs.gfx10Plus.CU_EN =
-            Device::AdjustCuEnHi(dynamic.spiShaderPgmRsrc4Hs.gfx10Plus.CU_EN, hsStageInfo.cuEnableMask);
     }
 #endif
 

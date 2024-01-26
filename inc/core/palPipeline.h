@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -98,7 +98,10 @@ enum class PrimitiveType : uint32
 enum class DepthRange : uint32
 {
     ZeroToOne        = 0x0,
-    NegativeOneToOne = 0x1
+    NegativeOneToOne = 0x1,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 842
+    Count
+#endif
 };
 
 /// Specifies whether the v/t texture coordinates of a point sprite map 0 to 1 from top to bottom or bottom to top.
@@ -142,7 +145,10 @@ enum class LogicOp : uint32
     CopyInverted = 0xC,
     OrInverted   = 0xD,
     Nand         = 0xE,
-    Set          = 0xF
+    Set          = 0xF,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 842
+    Count
+#endif
 };
 
 #if PAL_BUILD_GFX11
@@ -224,6 +230,10 @@ enum class DepthClampMode : uint32
     // undefing None before including this header or using _None when dealing with PAL.
 #ifndef None
     None = _None,       ///< Disables depth clamping
+#endif
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 842
+    Count
 #endif
 };
 
@@ -419,12 +429,10 @@ struct GraphicsPipelineCreateInfo
     uint32              lateAllocVsLimit;      ///< The number of VS waves that can be in flight without having param
                                                ///  cache and position buffer space. If useLateAllocVsLimit flag is set,
                                                ///  PAL will use this limit instead of the PAL-specified limit.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 781
     bool                useLateAllocGsLimit;   ///< If set, use the specified lateAllocVsLimit instead of PAL internally
                                                ///  determining the limit.
     uint32              lateAllocGsLimit;      ///< Controls GS LateAlloc val (for pos/prim allocations NOT param cache)
                                                ///  on NGG pipelines. Can be no more than 127.
-#endif
     struct
     {
         struct
@@ -624,13 +632,7 @@ struct ShaderStats
 
     struct
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 771
         DispatchDims numThreadsPerGroup; ///< Number of compute threads per thread group in X, Y, and Z dimensions.
-#else
-        uint32 numThreadsPerGroupX;      ///< Number of compute threads per thread group in X dimension.
-        uint32 numThreadsPerGroupY;      ///< Number of compute threads per thread group in Y dimension.
-        uint32 numThreadsPerGroupZ;      ///< Number of compute threads per thread group in Z dimension.
-#endif
     } cs;                                ///< Parameters specific to compute shader only.
 
     union
@@ -861,6 +863,13 @@ public:
     ///
     /// @returns The array of underlying pipelines.
     virtual Util::Span<const IPipeline* const> GetPipelines() const = 0;
+
+    /// Get the array of underlying shader libraries that this pipeline contains. For a normal non-multi-pipeline,
+    /// this returns the empty array. The contents of the returned array remain valid until the IPipeline is
+    /// destroyed.
+    ///
+    /// @returns The array of underlying shader libraries.
+    virtual Util::Span<const IShaderLibrary* const> GetLibraries() const { return {}; }
 
 protected:
     /// @internal Constructor. Prevent use of new operator on this interface. Client must create objects by explicitly

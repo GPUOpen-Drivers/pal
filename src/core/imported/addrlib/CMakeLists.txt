@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2020-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2020-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -57,8 +57,6 @@ target_sources(addrlib PRIVATE src/core/addrcommon.h
                                src/core/addrelemlib.cpp
                                src/core/addrlib.h
                                src/core/addrlib.cpp
-                               src/core/addrlib1.h
-                               src/core/addrlib1.cpp
                                src/core/addrlib2.h
                                src/core/addrlib2.cpp
                                src/core/coord.h
@@ -68,51 +66,6 @@ if(ADDR_SILENCE_ASSERT_ALWAYS)
     target_compile_definitions(addrlib PRIVATE ADDR_SILENCE_ASSERT_ALWAYS)
 endif()
 
-if(ADDR_R800_BUILD)
-    target_sources(addrlib PRIVATE src/chip/r800/r800_gb_reg.h
-                                   src/r800/r800addrlib.h
-                                   src/r800/r800addrlib.cpp)
-
-    target_compile_definitions(addrlib PRIVATE ADDR_R800_BUILD)
-endif()
-
-if(ADDR_SI_BUILD)
-    target_sources(addrlib PRIVATE src/chip/r800/si_gb_reg.h
-                                   src/r800/siaddrlib.h
-                                   src/r800/siaddrlib.cpp)
-
-    target_compile_definitions(addrlib PRIVATE ADDR_SI_BUILD)
-endif()
-
-if(ADDR_CI_BUILD)
-    target_sources(addrlib PRIVATE src/r800/ciaddrlib.h
-                                   src/r800/ciaddrlib.cpp)
-
-    target_compile_definitions(addrlib PRIVATE ADDR_CI_BUILD)
-endif()
-
-if(ADDR_R800_BUILD OR ADDR_SI_BUILD OR ADDR_CI_BUILD)
-    target_sources(addrlib PRIVATE src/r800/egbaddrlib.h
-                                   src/r800/egbaddrlib.cpp)
-
-    target_include_directories(addrlib PRIVATE src/chip/r800)
-endif()
-
-if(ADDR_GFX9_BUILD)
-    target_sources(addrlib PRIVATE src/chip/gfx9/gfx9_gb_reg.h
-                                   src/gfx9/gfx9addrlib.h
-                                   src/gfx9/gfx9addrlib.cpp)
-
-    target_include_directories(addrlib PRIVATE src/chip/gfx9)
-
-    target_compile_definitions(addrlib PRIVATE ADDR_GFX9_BUILD)
-    target_compile_definitions(addrlib PRIVATE ADDR_VEGA12_BUILD)
-    target_compile_definitions(addrlib PRIVATE ADDR_RAVEN1_BUILD)
-    target_compile_definitions(addrlib PRIVATE ADDR_VEGA20_BUILD)
-    target_compile_definitions(addrlib PRIVATE ADDR_RAVEN2_BUILD)
-    target_compile_definitions(addrlib PRIVATE ADDR_RENOIR_BUILD)
-endif()
-
 if(ADDR_GFX10_BUILD)
     target_sources(addrlib PRIVATE src/chip/gfx10/gfx10_gb_reg.h
                                    src/gfx10/gfx10SwizzlePattern.h
@@ -120,35 +73,8 @@ if(ADDR_GFX10_BUILD)
                                    src/gfx10/gfx10addrlib.cpp)
 
     target_include_directories(addrlib PRIVATE src/chip/gfx10)
-
     target_compile_definitions(addrlib PRIVATE ADDR_GFX10_BUILD)
-    if(ADDR_NAVI12_BUILD)
-        target_compile_definitions(addrlib PRIVATE ADDR_NAVI12_BUILD)
-    endif()
-    if(ADDR_NAVI14_BUILD)
-        target_compile_definitions(addrlib PRIVATE ADDR_NAVI14_BUILD)
-    endif()
-    if(ADDR_NAVI21_BUILD)
-        target_compile_definitions(addrlib PRIVATE ADDR_NAVI21_BUILD)
-    endif()
-    if(ADDR_NAVI22_BUILD)
-        target_compile_definitions(addrlib PRIVATE ADDR_NAVI22_BUILD)
-    endif()
-    if(ADDR_NAVI23_BUILD)
-        target_compile_definitions(addrlib PRIVATE ADDR_NAVI23_BUILD)
-    endif()
-    if(ADDR_NAVI24_BUILD)
-        target_compile_definitions(addrlib PRIVATE ADDR_NAVI24_BUILD)
-    endif()
-    if(ADDR_REMBRANDT_BUILD)
-        target_compile_definitions(addrlib PRIVATE ADDR_REMBRANDT_BUILD)
-    endif()
-    if(ADDR_RAPHAEL_BUILD)
-        target_compile_definitions(addrlib PRIVATE ADDR_RAPHAEL_BUILD)
-    endif()
-    if(ADDR_MENDOCINO_BUILD)
-        target_compile_definitions(addrlib PRIVATE ADDR_MENDOCINO_BUILD)
-    endif()
+
 endif()
 
 #if ADDR_GFX11_BUILD

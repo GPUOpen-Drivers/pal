@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -178,7 +178,6 @@ public:
 
     virtual Result InitSettings() const override
     {
-        PAL_ASSERT(m_pDdSettingsLoader != nullptr);
         return static_cast<Pal::Gfx9::SettingsLoader*>(m_pDdSettingsLoader)->Init();
     }
 
@@ -402,9 +401,6 @@ public:
         uint32                viewFormatCount) const override;
 
     uint32 GetCuEnableMaskHi(uint32 disabledCuMmask, uint32 enabledCuMaskSetting) const;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 789
-    static uint16 AdjustCuEnHi(uint16  val, uint32  mask) { return ((val & mask) >> 16); }
-#endif
 
     // Function definition for creating typed buffer view SRDs.
     static void PAL_STDCALL Gfx10CreateTypedBufferViewSrds(
@@ -533,7 +529,7 @@ public:
 
     virtual uint32 GetVarBlockSize() const override { return m_varBlockSize; }
 
-#if  PAL_BUILD_GFX11
+#if PAL_BUILD_GFX11
     uint32 GetShaderPrefetchSize(size_t  shaderSizeBytes) const;
 #endif
 

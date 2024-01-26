@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2007-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2007-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -154,47 +154,6 @@ typedef enum _ADDR_E_RETURNCODE
     ADDR_INVALIDGBREGVALUES,
 
 } ADDR_E_RETURNCODE;
-
-/**
-****************************************************************************************************
-* @brief
-*   Neutral enums that define tile modes for all H/W
-* @note
-*   R600/R800 tiling mode can be cast to hw enums directly but never cast into HW enum from
-*   ADDR_TM_2D_TILED_XTHICK
-*
-****************************************************************************************************
-*/
-typedef enum _AddrTileMode
-{
-    ADDR_TM_LINEAR_GENERAL      = 0,    ///< Least restrictions, pitch: multiple of 8 if not buffer
-    ADDR_TM_LINEAR_ALIGNED      = 1,    ///< Requests pitch or slice to be multiple of 64 pixels
-    ADDR_TM_1D_TILED_THIN1      = 2,    ///< Linear array of 8x8 tiles
-    ADDR_TM_1D_TILED_THICK      = 3,    ///< Linear array of 8x8x4 tiles
-    ADDR_TM_2D_TILED_THIN1      = 4,    ///< A set of macro tiles consist of 8x8 tiles
-    ADDR_TM_2D_TILED_THIN2      = 5,    ///< 600 HWL only, macro tile ratio is 1:4
-    ADDR_TM_2D_TILED_THIN4      = 6,    ///< 600 HWL only, macro tile ratio is 1:16
-    ADDR_TM_2D_TILED_THICK      = 7,    ///< A set of macro tiles consist of 8x8x4 tiles
-    ADDR_TM_2B_TILED_THIN1      = 8,    ///< 600 HWL only, with bank swap
-    ADDR_TM_2B_TILED_THIN2      = 9,    ///< 600 HWL only, with bank swap and ratio is 1:4
-    ADDR_TM_2B_TILED_THIN4      = 10,   ///< 600 HWL only, with bank swap and ratio is 1:16
-    ADDR_TM_2B_TILED_THICK      = 11,   ///< 600 HWL only, with bank swap, consists of 8x8x4 tiles
-    ADDR_TM_3D_TILED_THIN1      = 12,   ///< Macro tiling w/ pipe rotation between slices
-    ADDR_TM_3D_TILED_THICK      = 13,   ///< Macro tiling w/ pipe rotation bwtween slices, thick
-    ADDR_TM_3B_TILED_THIN1      = 14,   ///< 600 HWL only, with bank swap
-    ADDR_TM_3B_TILED_THICK      = 15,   ///< 600 HWL only, with bank swap, thick
-    ADDR_TM_2D_TILED_XTHICK     = 16,   ///< Tile is 8x8x8, valid from NI
-    ADDR_TM_3D_TILED_XTHICK     = 17,   ///< Tile is 8x8x8, valid from NI
-    ADDR_TM_POWER_SAVE          = 18,   ///< Power save mode, only used by KMD on NI
-    ADDR_TM_PRT_TILED_THIN1     = 19,   ///< No bank/pipe rotation or hashing beyond macrotile size
-    ADDR_TM_PRT_2D_TILED_THIN1  = 20,   ///< Same as 2D_TILED_THIN1, PRT only
-    ADDR_TM_PRT_3D_TILED_THIN1  = 21,   ///< Same as 3D_TILED_THIN1, PRT only
-    ADDR_TM_PRT_TILED_THICK     = 22,   ///< No bank/pipe rotation or hashing beyond macrotile size
-    ADDR_TM_PRT_2D_TILED_THICK  = 23,   ///< Same as 2D_TILED_THICK, PRT only
-    ADDR_TM_PRT_3D_TILED_THICK  = 24,   ///< Same as 3D_TILED_THICK, PRT only
-    ADDR_TM_UNKNOWN             = 25,   ///< Unkown tile mode, should be decided by address lib
-    ADDR_TM_COUNT               = 26,   ///< Must be the value of the last tile mode
-} AddrTileMode;
 
 /**
 ****************************************************************************************************
@@ -555,74 +514,6 @@ typedef enum _AddrSurfaceSwap {
     ADDR_SWAP_STD_REV                             = 0x00000002,
     ADDR_SWAP_ALT_REV                             = 0x00000003,
 } AddrSurfaceSwap;
-
-/**
-****************************************************************************************************
-*   AddrHtileBlockSize
-*
-*   @brief
-*       Size of HTILE blocks, valid values are 4 or 8 for now
-****************************************************************************************************
-*/
-typedef enum _AddrHtileBlockSize
-{
-    ADDR_HTILE_BLOCKSIZE_4 = 4,
-    ADDR_HTILE_BLOCKSIZE_8 = 8,
-} AddrHtileBlockSize;
-
-/**
-****************************************************************************************************
-*   AddrPipeCfg
-*
-*   @brief
-*       The pipe configuration field specifies both the number of pipes and
-*       how pipes are interleaved on the surface.
-*       The expression of number of pipes, the shader engine tile size, and packer tile size
-*       is encoded in a PIPE_CONFIG register field.
-*       In general the number of pipes usually matches the number of memory channels of the
-*       hardware configuration.
-*       For hw configurations w/ non-pow2 memory number of memory channels, it usually matches
-*       the number of ROP units(? TODO: which registers??)
-*       The enum value = hw enum + 1 which is to reserve 0 for requesting default.
-****************************************************************************************************
-*/
-typedef enum _AddrPipeCfg
-{
-    ADDR_PIPECFG_INVALID              = 0,
-    ADDR_PIPECFG_P2                   = 1, /// 2 pipes,
-    ADDR_PIPECFG_P4_8x16              = 5, /// 4 pipes,
-    ADDR_PIPECFG_P4_16x16             = 6,
-    ADDR_PIPECFG_P4_16x32             = 7,
-    ADDR_PIPECFG_P4_32x32             = 8,
-    ADDR_PIPECFG_P8_16x16_8x16        = 9, /// 8 pipes
-    ADDR_PIPECFG_P8_16x32_8x16        = 10,
-    ADDR_PIPECFG_P8_32x32_8x16        = 11,
-    ADDR_PIPECFG_P8_16x32_16x16       = 12,
-    ADDR_PIPECFG_P8_32x32_16x16       = 13,
-    ADDR_PIPECFG_P8_32x32_16x32       = 14,
-    ADDR_PIPECFG_P8_32x64_32x32       = 15,
-    ADDR_PIPECFG_P16_32x32_8x16       = 17, /// 16 pipes
-    ADDR_PIPECFG_P16_32x32_16x16      = 18,
-    ADDR_PIPECFG_UNUSED               = 19,
-    ADDR_PIPECFG_MAX                  = 20,
-} AddrPipeCfg;
-
-/**
-****************************************************************************************************
-* AddrTileType
-*
-*   @brief
-*       Neutral enums that specifies micro tile type (MICRO_TILE_MODE)
-****************************************************************************************************
-*/
-typedef enum _AddrTileType
-{
-    ADDR_DISPLAYABLE        = 0,    ///< Displayable tiling
-    ADDR_NON_DISPLAYABLE    = 1,    ///< Non-displayable tiling, a.k.a thin micro tiling
-    ADDR_DEPTH_SAMPLE_ORDER = 2,    ///< Same as non-displayable plus depth-sample-order
-    ADDR_ROTATED            = 3,    ///< Rotated displayable tiling
-    ADDR_THICK              = 4,    ///< Thick micro-tiling, only valid for THICK and XTHICK
-} AddrTileType;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 //

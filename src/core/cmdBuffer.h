@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -175,6 +175,11 @@ public:
         { return m_pCmdAllocator->ChunkSize(LargeEmbeddedDataAlloc) / sizeof(uint32); }
 #endif
 
+    virtual void CmdNop(
+        const void* pPayload,
+        uint32      payloadSize) override
+        { PAL_NEVER_CALLED(); }
+
     virtual void CmdBarrier(const BarrierInfo& barrierInfo) override;
 
     virtual void OptimizeBarrierReleaseInfo(
@@ -300,16 +305,6 @@ public:
     virtual void CmdSetGlobalScissor(
         const GlobalScissorParams& params) override
         { PAL_NEVER_CALLED(); }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 778
-    virtual void CmdSetColorWriteMask(
-        const ColorWriteMaskParams& params) override
-        { PAL_NEVER_CALLED(); }
-
-    virtual void CmdSetRasterizerDiscardEnable(
-        bool rasterizerDiscardEnable) override
-        { PAL_NEVER_CALLED(); }
-#endif
 
     virtual void CmdCopyMemory(
         const IGpuMemory&       srcGpuMemory,
@@ -1010,11 +1005,6 @@ protected:
     Util::File* DumpFile() { return &m_file; }
     virtual uint32 UniqueId() const override { return m_uniqueId; }
     uint32      NumBegun() const { return m_numCmdBufsBegun; }
-
-    virtual void CmdNop(
-        const void* pPayload,
-        uint32      payloadSize) override
-        { PAL_NEVER_CALLED(); }
 
     virtual uint32 CmdInsertExecutionMarker(
         bool         isBegin,

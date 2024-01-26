@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -1582,12 +1582,12 @@ Result Image::ComputePipeBankXor(
             else if (isColorPlane || isDepthStencil)
             {
                 // If this is a shared image, then the pipe/bank xor value has been given to us. Just take that.
-                *pPipeBankXor = m_pImageInfo->internalCreateInfo.gfx9.sharedPipeBankXor[plane];
+                *pPipeBankXor = m_pImageInfo->internalCreateInfo.sharedPipeBankXor[plane];
             }
             else if (Formats::IsYuv(m_createInfo.swizzledFormat.format))
             {
                 // If this is a shared Yuv image, then the pipe/bank xor value has been given to us. Just take that.
-                *pPipeBankXor = m_pImageInfo->internalCreateInfo.gfx9.sharedPipeBankXor[plane];
+                *pPipeBankXor = m_pImageInfo->internalCreateInfo.sharedPipeBankXor[plane];
                 PAL_ALERT_ALWAYS_MSG("Shared YUV image with PipeBankXor enabled may result in unexpected behavior.");
             }
             else

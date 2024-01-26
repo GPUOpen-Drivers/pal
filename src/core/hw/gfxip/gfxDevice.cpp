@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -89,7 +89,8 @@ GfxDevice::GfxDevice(
     m_graphicsTrapHandler(),
     m_graphicsTrapBuffer(),
     m_queueContextUpdateLock(),
-    m_queueContextUpdateCounter(0)
+    m_queueContextUpdateCounter(0),
+    m_pipelineLoader(pDevice)
 {
     for (uint32 i = 0; i < QueueType::QueueTypeCount; i++)
     {
@@ -664,18 +665,9 @@ void GfxDevice::DescribeDispatch(
     data.pCmdBuffer           = pCmdBuf;
     data.subQueueFlags        = subQueueFlags;
     data.cmdType              = cmdType;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 771
     data.dispatch.groupStart  = offset;
     data.dispatch.groupDims   = launchSize;
     data.dispatch.logicalSize = logicalSize;
-#else
-    data.dispatch.groupStart[0] = offset.x;
-    data.dispatch.groupStart[1] = offset.y;
-    data.dispatch.groupStart[2] = offset.z;
-    data.dispatch.groupDims[0]  = launchSize.x;
-    data.dispatch.groupDims[1]  = launchSize.y;
-    data.dispatch.groupDims[2]  = launchSize.z;
-#endif
 
     m_pParent->DeveloperCb(Developer::CallbackType::DrawDispatch, &data);
 }

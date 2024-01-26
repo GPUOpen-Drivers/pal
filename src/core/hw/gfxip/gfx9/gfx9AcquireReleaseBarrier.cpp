@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2018-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2018-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -457,10 +457,8 @@ AcquirePoint BarrierMgr::GetAcquirePoint(
     // initialize register VGT_STRMOUT_DRAW_OPAQUE_BUFFER_FILLED_SIZE. PFP_SYNC_ME is issued before load packet so
     // we're safe to acquire at ME stage here.
     constexpr uint32 AcqMeStages        = PipelineStagePostPrefetch | PipelineStageBlt | PipelineStageStreamOut;
-#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 770
-    constexpr uint32 AcqMeStages        = PipelineStageBlt | PipelineStageStreamOut;
 #else
-    constexpr uint32 AcqMeStages        = PipelineStageBlt;
+    constexpr uint32 AcqMeStages        = PipelineStageBlt | PipelineStageStreamOut;
 #endif
     constexpr uint32 AcqPreShaderStages = PipelineStageVs | PipelineStageHs | PipelineStageDs |
                                           PipelineStageGs | PipelineStageCs;
@@ -710,7 +708,6 @@ static void GetBltStageAccessInfo(
     }
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
 // =====================================================================================================================
 // e.g. PS|CS ShaderRead -> CS ShaderRead -> RT, can optimize to only release srcStageMask= PS as CS will be released
 // in the second transition.
@@ -720,11 +717,7 @@ static uint32 GetOptimizedSrcStagesForReadOnlyBarrier(
     uint32        dstStageMask)
 {
     constexpr uint32 ReleaseVsStages = PipelineStageVs | PipelineStageHs |PipelineStageDs | PipelineStageGs |
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 770
                                        PipelineStageFetchIndices | PipelineStageStreamOut;
-#else
-                                       PipelineStageFetchIndices;
-#endif
 
     uint32 optSrcStageMask = (srcStageMask & ~dstStageMask);
 
@@ -832,7 +825,6 @@ bool BarrierMgr::OptimizeReadOnlyImgBarrier(
 
     return canSkip;
 }
-#endif
 
 // =====================================================================================================================
 // Prepare and get all image layout transition info
@@ -841,18 +833,14 @@ bool BarrierMgr::GetAcqRelLayoutTransitionBltInfo(
     CmdStream*                    pCmdStream,
     const AcquireReleaseInfo&     barrierInfo,
     AcqRelTransitionInfo*         pTransitionInfo,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
-    uint32*                       pSrcStageMask, // OR with all image srcStageMask as output
-    uint32*                       pDstStageMask, // OR with all image dstStageMask as output
-#endif
+    uint32*                       pSrcStageMask,  // OR with all image srcStageMask as output
+    uint32*                       pDstStageMask,  // OR with all image dstStageMask as output
     uint32*                       pSrcAccessMask, // OR with all image srcAccessMask as output
     uint32*                       pDstAccessMask, // OR with all image dstAccessMask as output
     Developer::BarrierOperations* pBarrierOps
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
-    PAL_ASSERT((pSrcStageMask != nullptr) && (pDstStageMask != nullptr));
-#endif
+    PAL_ASSERT((pSrcStageMask  != nullptr) && (pDstStageMask  != nullptr));
     PAL_ASSERT((pSrcAccessMask != nullptr) && (pDstAccessMask != nullptr));
 
     // Assert caller has initialized all members of pTransitonInfo.
@@ -873,7 +861,6 @@ bool BarrierMgr::GetAcqRelLayoutTransitionBltInfo(
         // Prepare a layout transition BLT info and do pre-BLT preparation work.
         const LayoutTransitionInfo layoutTransInfo = PrepareBltInfo(pCmdBuf, imageBarrier);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
         // Can safely skip transition between depth read and depth write.
         bool skipTransition = (imageBarrier.srcAccessMask == CoherDepthStencilTarget) &&
                               (imageBarrier.dstAccessMask == CoherDepthStencilTarget);
@@ -883,6 +870,7 @@ bool BarrierMgr::GetAcqRelLayoutTransitionBltInfo(
         if (TestAnyFlagSet(imageBarrier.dstStageMask, PipelineStagePfpMask))
         {
             imageBarrier.dstStageMask &= ~PipelineStagePfpMask;
+
             // If no dstStageMask flag after removing PFP flags, force waiting at ME.
             if (imageBarrier.dstStageMask == 0)
             {
@@ -903,14 +891,12 @@ bool BarrierMgr::GetAcqRelLayoutTransitionBltInfo(
         }
 
         if (skipTransition == false)
-#endif
         {
             *pSrcAccessMask |= imageBarrier.srcAccessMask;
             *pDstAccessMask |= imageBarrier.dstAccessMask;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
             *pSrcStageMask  |= imageBarrier.srcStageMask;
             *pDstStageMask  |= imageBarrier.dstStageMask;
-#endif
+
             uint32 stageMask  = 0;
             uint32 accessMask = 0;
             if (layoutTransInfo.blt[0] != HwLayoutTransition::None)
@@ -1636,7 +1622,10 @@ void BarrierMgr::IssueReleaseThenAcquireSync(
         // HW limitation: Can only do GCR op at ME stage for Acquire.
         // Optimization : issue lighter VS_PARTIAL_FLUSH instead of PWS+ packet which needs bump VsDone to
         //                heavier PsDone or Eop.
-        if ((acquireCaches != SyncGlxNone) || releaseEvents.vs)
+        //
+        // If no release event but with late acquire point, force it to be ME so it can go through the right path to
+        // handle cache operation correctly.
+        if ((acquireCaches != SyncGlxNone) || releaseEvents.vs || (releaseEvents.u8All == 0))
         {
             acquirePoint = AcquirePoint::Me;
         }
@@ -2145,11 +2134,7 @@ uint32 BarrierMgr::Release(
 {
     auto*const pCmdBuf = static_cast<Pm4CmdBuffer*>(pGfxCmdBuf);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     uint32 srcGlobalStageMask  = releaseInfo.srcGlobalStageMask;
-#else
-    uint32 srcGlobalStageMask  = releaseInfo.srcStageMask;
-#endif
     uint32 srcGlobalAccessMask = releaseInfo.srcGlobalAccessMask;
 
     // Check if global barrier needs refresh L2
@@ -2160,11 +2145,9 @@ uint32 BarrierMgr::Release(
     {
         const MemBarrier& barrier = releaseInfo.pMemoryBarriers[i];
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
         srcGlobalStageMask  |= barrier.srcStageMask;
-#endif
-        // globallyAvailable is processed in Acquire().
         srcGlobalAccessMask |= barrier.srcAccessMask;
+        // globallyAvailable is processed in Acquire().
     }
 
     // A container to cache the calculated BLT transitions and some cache info for reuse.
@@ -2183,10 +2166,8 @@ uint32 BarrierMgr::Release(
                                                              pCmdStream,
                                                              releaseInfo,
                                                              &transInfo,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
                                                              &srcGlobalStageMask,
                                                              &unusedStageMask,
-#endif
                                                              &srcGlobalAccessMask,
                                                              &unusedAccessMask,
                                                              pBarrierOps);
@@ -2241,11 +2222,7 @@ void BarrierMgr::Acquire(
 {
     auto*const pCmdBuf = static_cast<Pm4CmdBuffer*>(pGfxCmdBuf);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     uint32 dstGlobalStageMask  = acquireInfo.dstGlobalStageMask;
-#else
-    uint32 dstGlobalStageMask  = acquireInfo.dstStageMask;
-#endif
     uint32 dstGlobalAccessMask = acquireInfo.dstGlobalAccessMask;
     bool   globalRefreshTcc    = false;
 
@@ -2257,9 +2234,7 @@ void BarrierMgr::Acquire(
     {
         const MemBarrier& barrier = acquireInfo.pMemoryBarriers[i];
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
         dstGlobalStageMask  |= barrier.dstStageMask;
-#endif
         dstGlobalAccessMask |= barrier.dstAccessMask;
         dstGlobalAccessMask |= barrier.flags.globallyAvailable ? CoherMemory : 0;
     }
@@ -2279,10 +2254,8 @@ void BarrierMgr::Acquire(
                                                                          pCmdStream,
                                                                          acquireInfo,
                                                                          &transInfo,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
                                                                          &unusedStageMask,
                                                                          &dstGlobalStageMask,
-#endif
                                                                          &unusedAccessMask,
                                                                          &dstGlobalAccessMask,
                                                                          pBarrierOps);
@@ -2341,13 +2314,8 @@ void BarrierMgr::ReleaseThenAcquire(
 {
     auto*const pCmdBuf = static_cast<Pm4CmdBuffer*>(pGfxCmdBuf);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     uint32 srcGlobalStageMask  = barrierInfo.srcGlobalStageMask;
     uint32 dstGlobalStageMask  = barrierInfo.dstGlobalStageMask;
-#else
-    uint32 srcGlobalStageMask  = barrierInfo.srcStageMask;
-    uint32 dstGlobalStageMask  = barrierInfo.dstStageMask;
-#endif
     uint32 srcGlobalAccessMask = barrierInfo.srcGlobalAccessMask;
     uint32 dstGlobalAccessMask = barrierInfo.dstGlobalAccessMask;
 
@@ -2366,7 +2334,6 @@ void BarrierMgr::ReleaseThenAcquire(
     {
         MemBarrier barrier = barrierInfo.pMemoryBarriers[i];
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
         if (IsReadOnlyTransition(barrier.srcAccessMask, barrier.dstAccessMask) &&
             // Only make sense to optimize if clients provide src/dstStageMask.
             ((barrier.srcStageMask | barrier.dstStageMask) != 0))
@@ -2376,7 +2343,6 @@ void BarrierMgr::ReleaseThenAcquire(
 
         srcGlobalStageMask  |= barrier.srcStageMask;
         dstGlobalStageMask  |= barrier.dstStageMask;
-#endif
         srcGlobalAccessMask |= barrier.srcAccessMask;
         dstGlobalAccessMask |= barrier.dstAccessMask;
         dstGlobalAccessMask |= barrier.flags.globallyAvailable ? CoherMemory : 0;
@@ -2395,10 +2361,8 @@ void BarrierMgr::ReleaseThenAcquire(
                                                              pCmdStream,
                                                              barrierInfo,
                                                              &transInfo,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
                                                              &srcGlobalStageMask,
                                                              &dstGlobalStageMask,
-#endif
                                                              &srcGlobalAccessMask,
                                                              &dstGlobalAccessMask,
                                                              pBarrierOps);
@@ -2809,11 +2773,7 @@ void BarrierMgr::ReleaseEvent(
 {
     auto*const pCmdBuf = static_cast<Pm4CmdBuffer*>(pGfxCmdBuf);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     uint32 srcGlobalStageMask  = releaseInfo.srcGlobalStageMask;
-#else
-    uint32 srcGlobalStageMask  = releaseInfo.srcStageMask;
-#endif
     uint32 srcGlobalAccessMask = releaseInfo.srcGlobalAccessMask;
 
     // Check if global barrier needs refresh L2
@@ -2824,11 +2784,9 @@ void BarrierMgr::ReleaseEvent(
     {
         const MemBarrier& barrier = releaseInfo.pMemoryBarriers[i];
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
         srcGlobalStageMask  |= barrier.srcStageMask;
-#endif
-        // globallyAvailable is processed in AcquireEvent().
         srcGlobalAccessMask |= barrier.srcAccessMask;
+        // globallyAvailable is processed in AcquireEvent().
     }
 
     // A container to cache the calculated BLT transitions and some cache info for reuse.
@@ -2846,10 +2804,8 @@ void BarrierMgr::ReleaseEvent(
                                                              pCmdStream,
                                                              releaseInfo,
                                                              &transInfo,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
                                                              &srcGlobalStageMask,
                                                              &unusedStageMask,
-#endif
                                                              &srcGlobalAccessMask,
                                                              &unusedAccessMask,
                                                              pBarrierOps);
@@ -2918,11 +2874,7 @@ void BarrierMgr::AcquireEvent(
 {
     auto*const pCmdBuf = static_cast<Pm4CmdBuffer*>(pGfxCmdBuf);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     uint32 dstGlobalStageMask  = acquireInfo.dstGlobalStageMask;
-#else
-    uint32 dstGlobalStageMask  = acquireInfo.dstStageMask;
-#endif
     uint32 dstGlobalAccessMask = acquireInfo.dstGlobalAccessMask;
     bool   globalRefreshTcc    = false;
 
@@ -2934,9 +2886,7 @@ void BarrierMgr::AcquireEvent(
     {
         const MemBarrier& barrier = acquireInfo.pMemoryBarriers[i];
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
         dstGlobalStageMask  |= barrier.dstStageMask;
-#endif
         dstGlobalAccessMask |= barrier.dstAccessMask;
         dstGlobalAccessMask |= barrier.flags.globallyAvailable ? CoherMemory : 0;
     }
@@ -2956,10 +2906,8 @@ void BarrierMgr::AcquireEvent(
                                                                          pCmdStream,
                                                                          acquireInfo,
                                                                          &transInfo,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
                                                                          &unusedStageMask,
                                                                          &dstGlobalStageMask,
-#endif
                                                                          &unusedAccessMask,
                                                                          &dstGlobalAccessMask,
                                                                          pBarrierOps);

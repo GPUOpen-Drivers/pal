@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2022-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -27,23 +27,109 @@
 #include "core/layers/crashAnalysis/crashAnalysisDevice.h"
 #include "core/layers/crashAnalysis/crashAnalysisPlatform.h"
 
+#include "palEventDefs.h"   // included for checking struct layout with static_assert
+#include "palMutex.h"
 #include "palSysMemory.h"
 #include "palVectorImpl.h"
-#include "palMutex.h"
 
 namespace Pal
 {
 namespace CrashAnalysis
 {
 
+static_assert(Pal::RgdMarkerSourceApplication == static_cast<uint8>(MarkerSource::Application));
+static_assert(Pal::RgdMarkerSourceApi == static_cast<uint8>(MarkerSource::Api));
+static_assert(Pal::RgdMarkerSourcePal == static_cast<uint8>(MarkerSource::Pal));
+static_assert(Pal::RgdMarkerSourceHardware == static_cast<uint8>(MarkerSource::Hardware));
+static_assert(Pal::RgdMarkerSourceCmdBufInfo ==
+    static_cast<uint8>(UmdCrashAnalysisEvents::ExecutionMarkerSource::CmdBufInfo));
+static_assert(Pal::RgdMarkerSourceOpInfo ==
+    static_cast<uint8>(UmdCrashAnalysisEvents::ExecutionMarkerSource::OpInfo));
+static_assert(Pal::RgdMarkerSourceSqttEventInfo ==
+    static_cast<uint8>(UmdCrashAnalysisEvents::ExecutionMarkerSource::SqttEvent));
+
+static_assert(Pal::RgdMarkerInfoTypeInvalid ==
+    static_cast<uint8>(UmdCrashAnalysisEvents::ExecutionMarkerInfoType::Invalid));
+static_assert(Pal::RgdMarkerInfoTypeCmdBufStart ==
+    static_cast<uint8>(UmdCrashAnalysisEvents::ExecutionMarkerInfoType::CmdBufStart));
+static_assert(Pal::RgdMarkerInfoTypePipelineBind ==
+    static_cast<uint8>(UmdCrashAnalysisEvents::ExecutionMarkerInfoType::PipelineBind));
+static_assert(Pal::RgdMarkerInfoTypeDraw ==
+    static_cast<uint8>(UmdCrashAnalysisEvents::ExecutionMarkerInfoType::Draw));
+static_assert(Pal::RgdMarkerInfoTypeDrawUserData ==
+    static_cast<uint8>(UmdCrashAnalysisEvents::ExecutionMarkerInfoType::DrawUserData));
+static_assert(Pal::RgdMarkerInfoTypeDispatch ==
+    static_cast<uint8>(UmdCrashAnalysisEvents::ExecutionMarkerInfoType::Dispatch));
+static_assert(Pal::RgdMarkerInfoTypeBarrierBegin ==
+    static_cast<uint8>(UmdCrashAnalysisEvents::ExecutionMarkerInfoType::BarrierBegin));
+static_assert(Pal::RgdMarkerInfoTypeBarrierEnd ==
+    static_cast<uint8>(UmdCrashAnalysisEvents::ExecutionMarkerInfoType::BarrierEnd));
+
+static_assert(sizeof(Pal::RgdMarkerInfoHeader) ==
+    sizeof(UmdCrashAnalysisEvents::ExecutionMarkerInfoHeader));
+
+static_assert(sizeof(Pal::RgdMarkerInfoCmdBufData) ==
+    sizeof(Pal::RgdMarkerInfoHeader) + sizeof(UmdCrashAnalysisEvents::CmdBufferInfo));
+static_assert(offsetof(RgdMarkerInfoCmdBufData, queue) ==
+    offsetof(UmdCrashAnalysisEvents::CmdBufferInfo, queue) + sizeof(Pal::RgdMarkerInfoHeader));
+static_assert(offsetof(RgdMarkerInfoCmdBufData, deviceId) ==
+    offsetof(UmdCrashAnalysisEvents::CmdBufferInfo, deviceId) + sizeof(Pal::RgdMarkerInfoHeader));
+static_assert(offsetof(RgdMarkerInfoCmdBufData, queueFlags) ==
+    offsetof(UmdCrashAnalysisEvents::CmdBufferInfo, queueFlags) + sizeof(Pal::RgdMarkerInfoHeader));
+
+static_assert(sizeof(Pal::RgdMarkerInfoBarrierBeginData) ==
+    sizeof(Pal::RgdMarkerInfoHeader) + sizeof(UmdCrashAnalysisEvents::BarrierBeginInfo));
+static_assert(offsetof(RgdMarkerInfoBarrierBeginData, type) ==
+    offsetof(UmdCrashAnalysisEvents::BarrierBeginInfo, type) + sizeof(Pal::RgdMarkerInfoHeader));
+static_assert(offsetof(RgdMarkerInfoBarrierBeginData, reason) ==
+    offsetof(UmdCrashAnalysisEvents::BarrierBeginInfo, reason) + sizeof(Pal::RgdMarkerInfoHeader));
+
+static_assert(sizeof(Pal::RgdMarkerInfoBarrierEndData) ==
+    sizeof(Pal::RgdMarkerInfoHeader) + sizeof(UmdCrashAnalysisEvents::BarrierEndInfo));
+static_assert(offsetof(RgdMarkerInfoBarrierEndData, pipelineStalls) ==
+    offsetof(UmdCrashAnalysisEvents::BarrierEndInfo, pipelineStalls) + sizeof(Pal::RgdMarkerInfoHeader));
+static_assert(offsetof(RgdMarkerInfoBarrierEndData, layoutTransitions) ==
+    offsetof(UmdCrashAnalysisEvents::BarrierEndInfo, layoutTransitions) + sizeof(Pal::RgdMarkerInfoHeader));
+static_assert(offsetof(RgdMarkerInfoBarrierEndData, caches) ==
+    offsetof(UmdCrashAnalysisEvents::BarrierEndInfo, caches) + sizeof(Pal::RgdMarkerInfoHeader));
+
+static_assert(sizeof(Pal::RgdMarkerInfoDrawUserData) ==
+    sizeof(Pal::RgdMarkerInfoHeader) + sizeof(UmdCrashAnalysisEvents::DrawUserData));
+static_assert(offsetof(RgdMarkerInfoDrawUserData, vertexOffset) ==
+    offsetof(UmdCrashAnalysisEvents::DrawUserData, vertexOffset) + sizeof(Pal::RgdMarkerInfoHeader));
+static_assert(offsetof(RgdMarkerInfoDrawUserData, instanceOffset) ==
+    offsetof(UmdCrashAnalysisEvents::DrawUserData, instanceOffset) + sizeof(Pal::RgdMarkerInfoHeader));
+static_assert(offsetof(RgdMarkerInfoDrawUserData, drawId) ==
+    offsetof(UmdCrashAnalysisEvents::DrawUserData, drawId) + sizeof(Pal::RgdMarkerInfoHeader));
+
+static_assert(sizeof(Pal::RgdMarkerInfoDispatchData) ==
+    sizeof(Pal::RgdMarkerInfoHeader) + sizeof(UmdCrashAnalysisEvents::DispatchInfo));
+static_assert(offsetof(RgdMarkerInfoDispatchData, type) ==
+    offsetof(UmdCrashAnalysisEvents::DispatchInfo, dispatchType) + sizeof(Pal::RgdMarkerInfoHeader));
+static_assert(offsetof(RgdMarkerInfoDispatchData, threadX) ==
+    offsetof(UmdCrashAnalysisEvents::DispatchInfo, threadX) + sizeof(Pal::RgdMarkerInfoHeader));
+static_assert(offsetof(RgdMarkerInfoDispatchData, threadY) ==
+    offsetof(UmdCrashAnalysisEvents::DispatchInfo, threadY) + sizeof(Pal::RgdMarkerInfoHeader));
+static_assert(offsetof(RgdMarkerInfoDispatchData, threadZ) ==
+    offsetof(UmdCrashAnalysisEvents::DispatchInfo, threadZ) + sizeof(Pal::RgdMarkerInfoHeader));
+
 // =====================================================================================================================
 // Generates a Crash Analysis marker from an origination source and a marker ID.
-constexpr uint32 GenerateMarker(const MarkerSource source, const uint32 value)
+constexpr uint32 GenerateMarker(
+    MarkerSource source,
+    uint32       value)
 {
     PAL_ASSERT_MSG((0x0fffffff | value) == 0x0fffffff,
                    "Malformed value (0x%X): unexpected top bits",
                     value);
     return ((static_cast<uint32>(source) << 28) | (value & 0x0fffffff));
+}
+
+// =====================================================================================================================
+constexpr MarkerSource ExtractSourceFromMarker(
+    uint32 markerValue)
+{
+    return static_cast<MarkerSource>(markerValue >> 28);
 }
 
 // =====================================================================================================================
@@ -253,18 +339,48 @@ uint32 CmdBuffer::CmdInsertExecutionMarker(
     const char*  pMarkerName,
     uint32       markerNameSize)
 {
-    PAL_ASSERT_MSG((sourceId & 0xF0) == 0, "Source ID must be 4 bits");
-
     const MarkerSource source = static_cast<MarkerSource>(sourceId);
-    uint32 marker;
+    uint32 marker = 0;
 
-    if (isBegin)
+    if (source == MarkerSource::OpInfo)
     {
-        marker = InsertBeginMarker(source, pMarkerName, markerNameSize);
+        UmdCrashAnalysisEvents::EventId lastEventId;
+        uint32      markerValue = 0;
+        const char* pDontCare   = nullptr;
+
+        // Get last eventId and markerValue
+        m_pEventCache->GetEventAt(m_pEventCache->Count() - 1,
+            &lastEventId,
+            nullptr,
+            &markerValue,
+            &pDontCare,
+            nullptr
+        );
+
+        InsertInfoMarker(markerValue, pMarkerName, markerNameSize);
+        marker = markerValue;
+    }
+    else if (source == MarkerSource::CmdBufInfo)
+    {
+        InsertInfoMarker(CrashAnalysis::InitialMarkerValue, pMarkerName, markerNameSize);
+        marker = CrashAnalysis::InitialMarkerValue;
+    }
+    else if (source == MarkerSource::SqttEvent)
+    {
+        PAL_ASSERT(markerNameSize == sizeof(uint32));
+        PAL_ASSERT(pMarkerName != nullptr);
+        m_stgSqttEvent = *reinterpret_cast<const uint32*>(pMarkerName);
     }
     else
     {
-        marker = InsertEndMarker(source);
+        if (isBegin)
+        {
+            marker = InsertBeginMarker(source, pMarkerName, markerNameSize);
+        }
+        else
+        {
+            marker = InsertEndMarker(source);
+        }
     }
 
     return marker;
@@ -308,6 +424,50 @@ uint32 CmdBuffer::InsertEndMarker(
     }
 
     return marker;
+}
+
+// =====================================================================================================================
+void CmdBuffer::InsertInfoMarker(
+    uint32      marker,
+    const char* pMarkerInfo,
+    uint32      markerInfoSize)
+{
+    auto pHeader = reinterpret_cast<const UmdCrashAnalysisEvents::ExecutionMarkerInfoHeader*>(pMarkerInfo);
+
+    if (pHeader->infoType == UmdCrashAnalysisEvents::ExecutionMarkerInfoType::DrawUserData)
+    {
+        PAL_ASSERT(markerInfoSize == sizeof(*pHeader) + sizeof(UmdCrashAnalysisEvents::DrawUserData));
+        const char* pData = pMarkerInfo + sizeof(UmdCrashAnalysisEvents::ExecutionMarkerInfoHeader);
+
+#pragma pack(push, 1)
+        struct
+        {
+            UmdCrashAnalysisEvents::ExecutionMarkerInfoHeader header;
+            UmdCrashAnalysisEvents::DrawInfo drawInfo;
+        } info{};
+#pragma pack(pop)
+
+        info.header.infoType        = UmdCrashAnalysisEvents::ExecutionMarkerInfoType::Draw;
+        info.drawInfo.drawType      = m_stgSqttEvent;
+        info.drawInfo.instanceCount = m_stgDrawInfo.instanceCount;
+        info.drawInfo.startIndex    = m_stgDrawInfo.startIndex;
+        info.drawInfo.vtxIdxCount   = m_stgDrawInfo.vtxIdxCount;
+        info.drawInfo.userData      = *reinterpret_cast<const UmdCrashAnalysisEvents::DrawUserData*>(pData);
+
+        m_pEventCache->CacheExecutionMarkerInfo(
+            m_cmdBufferId,
+            marker,
+            reinterpret_cast<const char*>(&info),
+            sizeof(info));
+    }
+    else
+    {
+        m_pEventCache->CacheExecutionMarkerInfo(
+            m_cmdBufferId,
+            marker,
+            pMarkerInfo,
+            markerInfoSize);
+    }
 }
 
 // =====================================================================================================================
@@ -363,12 +523,49 @@ void CmdBuffer::CmdExecuteNestedCmdBuffers(
     ICmdBuffer* const* ppCmdBuffers)
 {
     const char          markerName[]   = "ExecuteNestedCmdBuffers";
-    constexpr uint32    markerNameSize = static_cast<uint32>(sizeof(markerName) - 1);
+    constexpr uint32    MarkerNameSize = static_cast<uint32>(sizeof(markerName) - 1);
 
-    InsertBeginMarker(MarkerSource::Pal, &markerName[0], markerNameSize);
+    InsertBeginMarker(MarkerSource::Pal, &markerName[0], MarkerNameSize);
     CmdBufferFwdDecorator::CmdExecuteNestedCmdBuffers(cmdBufferCount, ppCmdBuffers);
     InsertEndMarker(MarkerSource::Pal);
 }
+
+// =====================================================================================================================
+void CmdBuffer::CmdBarrier(
+    const BarrierInfo& barrierInfo)
+{
+    const char       markerName[]   = "Barrier";
+    constexpr uint32 MarkerNameSize = static_cast<uint32>(sizeof(markerName) - 1);
+
+    InsertBeginMarker(MarkerSource::Pal, &markerName[0], MarkerNameSize);
+    CmdBufferFwdDecorator::CmdBarrier(barrierInfo);
+    InsertEndMarker(MarkerSource::Pal);
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdBindPipeline(
+    const PipelineBindParams& params)
+{
+#pragma pack(push, 1)
+    struct
+    {
+        UmdCrashAnalysisEvents::ExecutionMarkerInfoHeader header;
+        UmdCrashAnalysisEvents::PipelineInfo pipelineInfo;
+    } info{};
+#pragma pack(pop)
+
+    info.header.infoType         = UmdCrashAnalysisEvents::ExecutionMarkerInfoType::PipelineBind;
+    info.pipelineInfo.bindPoint  = static_cast<uint32>(params.pipelineBindPoint);
+    info.pipelineInfo.apiPsoHash = params.apiPsoHash;
+
+    // Generate a new markerValue without inserting timestamp because no GPU work for BindPipeline
+    const uint32 markerValue = GenerateMarker(MarkerSource::Pal, (++m_markerCounter));
+    InsertInfoMarker(markerValue, reinterpret_cast<const char*>(&info), sizeof(info));
+
+    CmdBufferFwdDecorator::CmdBindPipeline(params);
+}
+
+// =====================================================================================================================
 
 // =====================================================================================================================
 void PAL_STDCALL CmdBuffer::CmdDrawDecorator(
@@ -380,10 +577,15 @@ void PAL_STDCALL CmdBuffer::CmdDrawDecorator(
     uint32      drawId)
 {
     const char          markerName[]   = "Draw";
-    constexpr uint32    markerNameSize = static_cast<uint32>(sizeof(markerName) - 1);
-    CmdBuffer*const     pThis          = static_cast<CmdBuffer*>(pCmdBuffer);
+    constexpr uint32    MarkerNameSize = static_cast<uint32>(sizeof(markerName) - 1);
+    CmdBuffer* const    pThis          = static_cast<CmdBuffer*>(pCmdBuffer);
 
-    pThis->InsertBeginMarker(MarkerSource::Pal, &markerName[0], markerNameSize);
+    // Don't have complete DrawInfo yet so store the info and wait
+    pThis->m_stgDrawInfo.vtxIdxCount    = vertexCount;
+    pThis->m_stgDrawInfo.instanceCount  = instanceCount;
+    pThis->m_stgDrawInfo.startIndex     = firstVertex;
+
+    pThis->InsertBeginMarker(MarkerSource::Pal, &markerName[0], MarkerNameSize);
     pThis->GetNextLayer()->CmdDraw(firstVertex, vertexCount, firstInstance, instanceCount, drawId);
     pThis->InsertEndMarker(MarkerSource::Pal);
 }
@@ -398,10 +600,10 @@ void PAL_STDCALL CmdBuffer::CmdDrawOpaqueDecorator(
     uint32  instanceCount)
 {
     const char          markerName[]   = "DrawOpaque";
-    constexpr uint32    markerNameSize = static_cast<uint32>(sizeof(markerName) - 1);
+    constexpr uint32    MarkerNameSize = static_cast<uint32>(sizeof(markerName) - 1);
     CmdBuffer*const     pThis          = static_cast<CmdBuffer*>(pCmdBuffer);
 
-    pThis->InsertBeginMarker(MarkerSource::Pal, &markerName[0], markerNameSize);
+    pThis->InsertBeginMarker(MarkerSource::Pal, &markerName[0], MarkerNameSize);
     pThis->GetNextLayer()->CmdDrawOpaque(streamOutFilledSizeVa, streamOutOffset, stride, firstInstance, instanceCount);
     pThis->InsertEndMarker(MarkerSource::Pal);
 }
@@ -417,10 +619,14 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndexedDecorator(
     uint32      drawId)
 {
     const char          markerName[]   = "DrawIndexed";
-    constexpr uint32    markerNameSize = static_cast<uint32>(sizeof(markerName) - 1);
+    constexpr uint32    MarkerNameSize = static_cast<uint32>(sizeof(markerName) - 1);
     CmdBuffer*const     pThis          = static_cast<CmdBuffer*>(pCmdBuffer);
 
-    pThis->InsertBeginMarker(MarkerSource::Pal, &markerName[0], markerNameSize);
+    pThis->m_stgDrawInfo.vtxIdxCount   = indexCount;
+    pThis->m_stgDrawInfo.instanceCount = instanceCount;
+    pThis->m_stgDrawInfo.startIndex    = firstIndex;
+
+    pThis->InsertBeginMarker(MarkerSource::Pal, &markerName[0], MarkerNameSize);
     pThis->GetNextLayer()->CmdDrawIndexed(firstIndex, indexCount, vertexOffset, firstInstance, instanceCount, drawId);
     pThis->InsertEndMarker(MarkerSource::Pal);
 }
@@ -433,10 +639,10 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndirectMultiDecorator(
     gpusize              countGpuAddr)
 {
     const char          markerName[]   = "DrawIndirectMulti";
-    constexpr uint32    markerNameSize = static_cast<uint32>(sizeof(markerName) - 1);
+    constexpr uint32    MarkerNameSize = static_cast<uint32>(sizeof(markerName) - 1);
     CmdBuffer*const     pThis          = static_cast<CmdBuffer*>(pCmdBuffer);
 
-    pThis->InsertBeginMarker(MarkerSource::Pal, &markerName[0], markerNameSize);
+    pThis->InsertBeginMarker(MarkerSource::Pal, &markerName[0], MarkerNameSize);
     pThis->GetNextLayer()->CmdDrawIndirectMulti(gpuVirtAddrAndStride,
                                                 maximumCount,
                                                 countGpuAddr);
@@ -451,10 +657,10 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndexedIndirectMultiDecorator(
     gpusize              countGpuAddr)
 {
     const char          markerName[]   = "DrawIndexedIndirectMulti";
-    constexpr uint32    markerNameSize = static_cast<uint32>(sizeof(markerName) - 1);
+    constexpr uint32    MarkerNameSize = static_cast<uint32>(sizeof(markerName) - 1);
     CmdBuffer*const     pThis          = static_cast<CmdBuffer*>(pCmdBuffer);
 
-    pThis->InsertBeginMarker(MarkerSource::Pal, &markerName[0], markerNameSize);
+    pThis->InsertBeginMarker(MarkerSource::Pal, &markerName[0], MarkerNameSize);
     pThis->GetNextLayer()->CmdDrawIndirectMulti(gpuVirtAddrAndStride,
                                                 maximumCount,
                                                 countGpuAddr);
@@ -467,10 +673,10 @@ void PAL_STDCALL CmdBuffer::CmdDispatchDecorator(
     DispatchDims size)
 {
     const char          markerName[]   = "Dispatch";
-    constexpr uint32    markerNameSize = static_cast<uint32>(sizeof(markerName) - 1);
+    constexpr uint32    MarkerNameSize = static_cast<uint32>(sizeof(markerName) - 1);
     CmdBuffer*const     pThis          = static_cast<CmdBuffer*>(pCmdBuffer);
 
-    pThis->InsertBeginMarker(MarkerSource::Pal, &markerName[0], markerNameSize);
+    pThis->InsertBeginMarker(MarkerSource::Pal, &markerName[0], MarkerNameSize);
     pThis->GetNextLayer()->CmdDispatch(size);
     pThis->InsertEndMarker(MarkerSource::Pal);
 }
@@ -481,10 +687,10 @@ void PAL_STDCALL CmdBuffer::CmdDispatchIndirectDecorator(
     gpusize     gpuVirtAddr)
 {
     const char          markerName[]   = "DispatchIndirect";
-    constexpr uint32    markerNameSize = static_cast<uint32>(sizeof(markerName) - 1);
+    constexpr uint32    MarkerNameSize = static_cast<uint32>(sizeof(markerName) - 1);
     CmdBuffer*const     pThis          = static_cast<CmdBuffer*>(pCmdBuffer);
 
-    pThis->InsertBeginMarker(MarkerSource::Pal, &markerName[0], markerNameSize);
+    pThis->InsertBeginMarker(MarkerSource::Pal, &markerName[0], MarkerNameSize);
     pThis->GetNextLayer()->CmdDispatchIndirect(gpuVirtAddr);
     pThis->InsertEndMarker(MarkerSource::Pal);
 }
@@ -497,10 +703,10 @@ void PAL_STDCALL CmdBuffer::CmdDispatchOffsetDecorator(
     DispatchDims logicalSize)
 {
     const char          markerName[]   = "CmdDispatchOffset";
-    constexpr uint32    markerNameSize = static_cast<uint32>(sizeof(markerName) - 1);
+    constexpr uint32    MarkerNameSize = static_cast<uint32>(sizeof(markerName) - 1);
     CmdBuffer*const     pThis          = static_cast<CmdBuffer*>(pCmdBuffer);
 
-    pThis->InsertBeginMarker(MarkerSource::Pal, &markerName[0], markerNameSize);
+    pThis->InsertBeginMarker(MarkerSource::Pal, &markerName[0], MarkerNameSize);
     pThis->GetNextLayer()->CmdDispatchOffset(offset, launchSize, logicalSize);
     pThis->InsertEndMarker(MarkerSource::Pal);
 }
@@ -511,10 +717,10 @@ void PAL_STDCALL CmdBuffer::CmdDispatchMeshDecorator(
     DispatchDims size)
 {
     const char          markerName[]   = "DispatchMesh";
-    constexpr uint32    markerNameSize = static_cast<uint32>(sizeof(markerName) - 1);
+    constexpr uint32    MarkerNameSize = static_cast<uint32>(sizeof(markerName) - 1);
     CmdBuffer*const     pThis          = static_cast<CmdBuffer*>(pCmdBuffer);
 
-    pThis->InsertBeginMarker(MarkerSource::Pal, &markerName[0], markerNameSize);
+    pThis->InsertBeginMarker(MarkerSource::Pal, &markerName[0], MarkerNameSize);
     pThis->GetNextLayer()->CmdDispatchMesh(size);
     pThis->InsertEndMarker(MarkerSource::Pal);
 }

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2022-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -2158,11 +2158,9 @@ void RsrcProcMgr::PreComputeColorClearSync(
     {
         ImgBarrier imgBarrier = {};
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
         imgBarrier.srcStageMask  = PipelineStageColorTarget;
         // Fast clear path may have CP to update metadata state/values, wait at BLT/ME stage for safe.
         imgBarrier.dstStageMask  = PipelineStageBlt;
-#endif
         imgBarrier.srcAccessMask = CoherColorTarget;
         imgBarrier.dstAccessMask = CoherShader;
         imgBarrier.subresRange   = subres;
@@ -2172,11 +2170,6 @@ void RsrcProcMgr::PreComputeColorClearSync(
 
         AcquireReleaseInfo acqRelInfo = {};
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 767
-        acqRelInfo.srcStageMask      = PipelineStageColorTarget;
-        // Fast clear path may have CP to update metadata state/values, wait at BLT/ME stage for safe.
-        acqRelInfo.dstStageMask      = PipelineStageBlt;
-#endif
         acqRelInfo.imageBarrierCount = 1;
         acqRelInfo.pImageBarriers    = &imgBarrier;
         acqRelInfo.reason            = Developer::BarrierReasonPreComputeColorClear;
@@ -2227,10 +2220,8 @@ void RsrcProcMgr::PostComputeColorClearSync(
         //               SRC caches. Both cs fast clear and ColorTarget access metadata in direct mode, so no need
         //               L2 flush/inv even if the metadata is misaligned. See WaRefreshTccOnMetadataMisalignment()
         //               for more details. Safe to pass 0 here, so no cache operation and PWS can wait at PreColor.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
         imgBarrier.srcStageMask  = PipelineStageCs;
         imgBarrier.dstStageMask  = PipelineStageColorTarget;
-#endif
         imgBarrier.srcAccessMask = csFastClear ? 0 : CoherShader;
         imgBarrier.dstAccessMask = csFastClear ? 0 : CoherColorTarget;
         imgBarrier.subresRange   = subres;
@@ -2240,10 +2231,6 @@ void RsrcProcMgr::PostComputeColorClearSync(
 
         AcquireReleaseInfo acqRelInfo = {};
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 767
-        acqRelInfo.srcStageMask      = PipelineStageCs;
-        acqRelInfo.dstStageMask      = PipelineStageColorTarget;
-#endif
         acqRelInfo.imageBarrierCount = 1;
         acqRelInfo.pImageBarriers    = &imgBarrier;
         acqRelInfo.reason            = Developer::BarrierReasonPostComputeColorClear;
@@ -2333,10 +2320,8 @@ void RsrcProcMgr::PostComputeDepthStencilClearSync(
         //               mode, so no need L2 flush/inv even if the metadata is misaligned. See
         //               WaRefreshTccOnMetadataMisalignment() for more details. Safe to pass 0 here, so no cache
         //               operation and PWS can wait at PreDepth.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
         imgBarrier.srcStageMask  = PipelineStageCs;
         imgBarrier.dstStageMask  = PipelineStageEarlyDsTarget | PipelineStageLateDsTarget;
-#endif
         imgBarrier.srcAccessMask = csFastClear ? 0 : CoherShader;
         imgBarrier.dstAccessMask = csFastClear ? 0 : CoherDepthStencilTarget;
         imgBarrier.subresRange   = subres;
@@ -2346,10 +2331,6 @@ void RsrcProcMgr::PostComputeDepthStencilClearSync(
 
         AcquireReleaseInfo acqRelInfo = {};
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 767
-        acqRelInfo.srcStageMask      = PipelineStageCs;
-        acqRelInfo.dstStageMask      = PipelineStageEarlyDsTarget | PipelineStageLateDsTarget;
-#endif
         acqRelInfo.imageBarrierCount = 1;
         acqRelInfo.pImageBarriers    = &imgBarrier;
         acqRelInfo.reason            = Developer::BarrierReasonPostComputeDepthStencilClear;
@@ -2924,8 +2905,13 @@ void RsrcProcMgr::SlowClearGraphics(
         if (pColor->disabledChannelMask != 0)
         {
             // Overwrite CbTargetMask for different writeMasks.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 842
             bindPipelineInfo.graphics.dynamicState.enable.colorWriteMask = 1;
-            bindPipelineInfo.graphics.dynamicState.colorWriteMask = ~pColor->disabledChannelMask;
+            bindPipelineInfo.graphics.dynamicState.colorWriteMask        = ~pColor->disabledChannelMask;
+#else
+            bindPipelineInfo.gfxDynState.enable.colorWriteMask = 1;
+            bindPipelineInfo.gfxDynState.colorWriteMask        = ~pColor->disabledChannelMask;
+#endif
         }
 
         VrsShadingRate clearRate = VrsShadingRate::_2x2;

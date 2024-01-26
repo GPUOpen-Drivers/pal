@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -192,7 +192,7 @@ void Queue::OpenLogFile(
         }
     }
 
-    if (m_pDevice->IsThreadTraceEnabled() || m_pDevice->IsSpmTraceEnabled())
+    if (IsSqttEnabled() || m_pDevice->IsSpmTraceEnabled())
     {
         m_logFile.Printf("TraceId,");
     }
@@ -601,7 +601,7 @@ void Queue::OutputFrameToFile(
             }
         }
 
-        if (m_pDevice->IsThreadTraceEnabled())
+        if (IsSqttEnabled())
         {
             m_logFile.Printf("ThreadTraceId,");
         }
@@ -780,7 +780,7 @@ void Queue::OutputTraceDataToFile(
     const auto& settings = m_pDevice->GetPlatform()->PlatformSettings();
 
     if ((m_pDevice->NumGlobalPerfCounters() == 0) &&
-        (m_pDevice->IsSpmTraceEnabled() || m_pDevice->IsThreadTraceEnabled()) &&
+        (m_pDevice->IsSpmTraceEnabled() || IsSqttEnabled()) &&
         (HasValidGpaSample(&logItem, GpuUtil::GpaSampleType::Trace)))
     {
         // Output trace data in RGP format.
@@ -817,16 +817,14 @@ void Queue::OutputTraceDataToFile(
 
             if (result == Result::Success)
             {
-                result = logItem.pGpaSession->GetResults(logItem.gpaSampleId,
-                                                                 &dataSize,
-                                                                 pResult);
+                result = logItem.pGpaSession->GetResults(logItem.gpaSampleId, &dataSize, pResult);
             }
 
             // Below crack open the .rgp blob in the GpuProfiler to extract the raw SQTT data. We assume
             // SQTT data comes before SPM data.
             if (result == Result::Success)
             {
-                if (m_pDevice->IsThreadTraceEnabled())
+                if (IsSqttEnabled())
                 {
                     // Find the first SQTT_DESC chunk, stopping if we reach the end before finding any.
                     size_t      offset = sizeof(SqttFileHeader);

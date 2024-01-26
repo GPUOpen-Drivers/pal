@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2022-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -560,7 +560,17 @@ def prepare_enums(settings_root: dict):
                 if value.startswith("0x") or value.startswith("0X"):
                     value_item["Value"] = int(value, base=16)
                 else:
-                    raise ValueError(f'Enum {enum["Name"]} contains value ({value_item["Name"]}) that is not an integer, nor a string starting with "0x"/"0X".')
+                    # If an enum value references other values in the enum, expand them.
+                    for v in values:
+                        if v["Name"] in value:
+                            value = value.replace(v["Name"], str(v["Value"]))
+                    try:
+                        # Some clients use math expressions, try to evaluate them:
+                        value_item["Value"] = eval(value)
+                    except:
+                        raise ValueError(f'Enum {enum["Name"]} contains value ({value_item["Name"]}) that is of invalid format. '
+                                         'The valid formats are: 1. an integer 2. a string starting with "0x"/"0X" '
+                                         '3. a string of math expression 4. a string containing previously defined enum values.')
 
         # Check whether an enum needs to be defined uint64 as its unerlying type.
         MAX_UINT32 = 0xFFFF_FFFF
@@ -656,6 +666,29 @@ def add_variable_type(setting: dict):
     setting["VariableType"] = variable_type
 
 def prepare_settings_list(settings: dict, top_level_enum_list: list):
+    def convert_enum_value(setting: dict, top_level_enum_list: list, value: str):
+        enum_ref = setting["EnumReference"]  # "EnumReference" should have been added in prepare_enum().
+        enum = next(enum for enum in top_level_enum_list if enum["Name"] == enum_ref)
+
+        enum_value_names = [value_name.strip() for value_name in value.split("|")]
+        enum_value_int = 0
+        for value_name in enum_value_names:
+            # If the default value has a scope on it, remove it before looking up the value:
+            if "::" in value_name:
+                value_name = value_name.split("::")[-1]
+
+            # value["Value"] should have already been converted to integer in prepare_enum().
+            enum_value = next((value["Value"] for value in enum["Values"] if value["Name"] == value_name), None)
+            if enum_value is None:
+                raise ValueError(f'Setting {setting["Name"]} is bitmask, enum or has enum values. Its default value is a string, '
+                                 f'but the string does not match any one or combination of values of its referenced enum {enum_ref}.'
+                                 f'Only enum value names and \'|\' are allowed in the string.')
+            else:
+                enum_value_int |= enum_value
+
+        return enum_value_int
+
+
     def validate_fields(setting: dict, top_level_enum_list: list):
         if "VariableName" in setting:
             raise ValueError(f'"VariableName" field is not allowed in the setting {setting["Name"]}. '
@@ -674,33 +707,20 @@ def prepare_settings_list(settings: dict, top_level_enum_list: list):
             for platform, value in defaults.items():
                 if setting_type == "enum" or setting_type.startswith("int") or setting_type.startswith("uint"):
                     if isinstance(value, str):
+                        is_bitmask = setting.get("Flags", {}).get("IsBitmask", False)
                         if value.startswith("0x") or value.startswith("0X"):
                             # Convert hex strings to integers.
                             defaults[platform] = int(value, base=16)
+                        elif not is_bitmask and setting_type != "enum":
+                            if "EnumReference" in setting:
+                                raise ValueError(f'Non-bitmask setting {setting["Name"]} references an enum. But its "Type" is not "enum".')
+                            else:
+                                # This could be a math expressions, so evaluate it:
+                                defaults[platform] = eval(value)
                         else:
-                            is_bitmask = setting.get("Flags", {}).get("IsBitmask", False)
                             if is_bitmask or setting_type == "enum":
                                 # Convert default values from string of enum value names to integers.
-
-                                enum_ref = setting["EnumReference"] # "EnumReference" should have been added in prepare_enum().
-                                enum = next(enum for enum in top_level_enum_list if enum["Name"] == enum_ref)
-
-                                enum_value_names = [value_name.strip() for value_name in value.split("|")]
-                                enum_value_int = 0
-                                for value_name in enum_value_names:
-                                    # If the default value has a scope on it, remove it before looking up the value:
-                                    if "::" in value_name:
-                                        value_name = value_name.split("::")[-1]
-
-                                    # value["Value"] should have already been converted to integer in prepare_enum().
-                                    enum_value = next((value["Value"] for value in enum["Values"] if value["Name"] == value_name), None)
-                                    if enum_value is None:
-                                        raise ValueError(f'Setting {setting["Name"]} is bitmask or enum. Its default value is a string, '
-                                                         f'but the string does not match any one or combination of values of its referenced enum {enum_ref}.'
-                                                         f'Only enum value names and \'|\' are allowed in the string.')
-                                    else:
-                                        enum_value_int |= enum_value
-                                defaults[platform] = enum_value_int
+                                defaults[platform] = convert_enum_value(setting, top_level_enum_list, value)
                             else:
                                 raise ValueError(f'Setting {setting["Name"]} is of type {setting_type}. Its default values can only be integers or strings starting with "0x".')
 
@@ -784,6 +804,12 @@ def main():
         required=False,
         help="If this flag is present, the generated settings blob is not encoded by a magic buffer.",
     )
+    parser.add_argument(
+        "--is-pal-settings",
+        action="store_true",
+        required=False,
+        help="If this flag is present, the settings are part of PAL.",
+    )
 
     args = parser.parse_args()
 
@@ -835,7 +861,11 @@ def main():
         args.settings_filename,
     )
 
-    if settings_root["ComponentName"] in ["Pal", "PalPlatform", "Gfx6Pal", "Gfx9Pal", "MGfxPal"]:
+    settings_root["IsPalSettings"] = args.is_pal_settings
+
+    # Because PAL hasn't been updated to use `--is-pal-settings`, this if-statement needs to
+    # stay to pass the rc branch's ci. Should be removed once this code is checked in PAL.
+    if settings_root["ComponentName"] in ["Pal", "PalPlatform", "Gfx9Pal"]:
         settings_root["IsPalSettings"] = True
 
     settings_root["IsDxSettings"] = True if settings_root["ComponentName"] == "Dxc" else False
@@ -846,8 +876,6 @@ def main():
     # Set up Jinja Environment.
 
     jinja_env = JinjaEnv(
-        trim_blocks=True,
-        lstrip_blocks=True,
         keep_trailing_newline=True,
         # Jinja2 templates should be in the same directory as this script.
         loader=JinjaLoader(running_script_dir),
@@ -859,6 +887,11 @@ def main():
     jinja_env.filters["setting_format_string"] = setting_format_string
 
     header_template = jinja_env.get_template("settings.h.jinja2")
+
+    # Turn on global trim-spaces flag for the source file template.
+    jinja_env.trim_blocks = True
+    jinja_env.lstrip_blocks = True
+
     source_template = jinja_env.get_template("settings.cpp.jinja2")
 
     # Render template.

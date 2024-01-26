@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -136,9 +136,9 @@ IndirectCmdGenerator::IndirectCmdGenerator(
 #endif
                 ) ||
                 ((pCheckParam->type == IndirectParamType::BindVertexData) &&
-                    (settings.useExecuteIndirectPacket < UseExecuteIndirectPacketForDrawSpillAndVbTable)) ||
+                    (settings.useExecuteIndirectPacket < UseExecuteIndirectV1PacketForDrawSpillAndVbTable)) ||
                 ((pCheckParam->type == IndirectParamType::Dispatch) &&
-                    (settings.useExecuteIndirectPacket < UseExecuteIndirectPacketForDrawDispatch)))
+                    (settings.useExecuteIndirectPacket < UseExecuteIndirectV1PacketForDrawDispatch)))
             {
                 canUseExecuteIndirectPacket = false;
                 break;
@@ -146,7 +146,7 @@ IndirectCmdGenerator::IndirectCmdGenerator(
         }
 
         if ((canUseExecuteIndirectPacket == true) &&
-            (settings.useExecuteIndirectPacket >= UseExecuteIndirectPacketForDraw))
+            (settings.useExecuteIndirectPacket >= UseExecuteIndirectV1PacketForDraw))
         {
             m_usingExecuteIndirectPacket = true;
         }

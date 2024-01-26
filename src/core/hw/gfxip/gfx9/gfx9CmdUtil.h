@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -26,6 +26,7 @@
 #pragma once
 
 #include "core/hw/gfxip/gfx9/gfx9Chip.h"
+#include "core/hw/gfxip/gfx9/gfx9ExecuteIndirectCmdUtil.h"
 #include "core/hw/gfxip/gfxDevice.h"
 #include "palDevice.h"
 #include "palLiterals.h"
@@ -232,7 +233,7 @@ struct ExecuteIndirectPacketInfo
     gpusize      spillTableAddr;
     uint32       spillTableInstanceCnt;
     uint32       maxCount;
-    uint32       commandBufferSizeDwords;
+    uint32       commandBufferSizeBytes;
     uint32       argumentBufferStrideBytes;
     uint32       spillTableStrideBytes;
     union
@@ -241,7 +242,8 @@ struct ExecuteIndirectPacketInfo
         const ComputePipelineSignature*   pSignatureCs;
     } pipelineSignature;
     uint32       vbTableRegOffset;
-    uint32       vbTableSize;
+    uint32       vbTableSizeDwords;
+    uint32       xyzDimLoc;
 };
 
 struct BuildUntypedSrdInfo
@@ -421,6 +423,14 @@ public:
         const ExecuteIndirectPacketInfo& packetInfo,
         const bool                       resetPktFilter,
         void*                            pBuffer);
+    static size_t BuildExecuteIndirectV2(
+        Pm4Predicate                     predicate,
+        const bool                       isGfx,
+        const ExecuteIndirectPacketInfo& packetInfo,
+        const bool                       resetPktFilter,
+        ExecuteIndirectV2Op*             pPacketOp,
+        ExecuteIndirectV2Meta*           pMeta,
+        void*                            pBuffer);
     static size_t BuildDrawIndex2(
         uint32       indexCount,
         uint32       indexBufSize,
@@ -445,6 +455,7 @@ public:
         uint32       startInstLoc,
         Pm4Predicate predicate,
         void*        pBuffer) const;
+    template <bool IssueSqttMarkerEvent>
     size_t BuildDrawIndexIndirectMulti(
         gpusize      offset,
         uint32       baseVtxLoc,
@@ -455,7 +466,8 @@ public:
         gpusize      countGpuAddr,
         Pm4Predicate predicate,
         void*        pBuffer) const;
-    static size_t BuildDrawIndirectMulti(
+    template <bool IssueSqttMarkerEvent>
+    size_t BuildDrawIndirectMulti(
         gpusize      offset,
         uint32       baseVtxLoc,
         uint32       startInstLoc,
@@ -464,7 +476,7 @@ public:
         uint32       count,
         gpusize      countGpuAddr,
         Pm4Predicate predicate,
-        void*        pBuffer);
+        void*        pBuffer) const;
     static size_t BuildDrawIndexAuto(
         uint32       indexCount,
         bool         useOpaque,
@@ -491,6 +503,7 @@ public:
         Pm4Predicate predicate,
         void*        pBuffer);
 #endif
+    template <bool IssueSqttMarkerEvent>
     size_t BuildDispatchMeshIndirectMulti(
         gpusize      dataOffset,
         uint32       xyzOffset,
@@ -503,7 +516,8 @@ public:
         bool         usesLegacyMsFastLaunch,
 #endif
         void*        pBuffer) const;
-    static size_t BuildDispatchTaskMeshIndirectMultiAce(
+    template <bool IssueSqttMarkerEvent>
+    size_t BuildDispatchTaskMeshIndirectMultiAce(
         gpusize      dataOffset,
         uint32       ringEntryLoc,
         uint32       xyzDimLoc,
@@ -513,7 +527,7 @@ public:
         gpusize      countGpuAddr,
         bool         isWave32,
         Pm4Predicate predicate,
-        void*        pBuffer);
+        void*        pBuffer) const;
     static size_t BuildDispatchTaskMeshDirectAce(
         DispatchDims size,
         uint32       ringEntryLoc,

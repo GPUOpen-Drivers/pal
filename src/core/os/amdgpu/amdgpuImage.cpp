@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -216,24 +216,23 @@ Result Image::CreatePresentableImage(
 
         ImageInternalCreateInfo internalInfo = {};
 #if PAL_DISPLAY_DCC
-            if ((imgCreateInfo.usageFlags.disableOptimizedDisplay == 0) &&
-                (pDevice->SupportDisplayDcc() == true) &&
-                // VCAM_SURFACE_DESC does not support YUV presentable yet
-                (Formats::IsYuv(imgCreateInfo.swizzledFormat.format) == false))
-            {
-                DisplayDccCaps displayDcc = { };
+        if ((imgCreateInfo.usageFlags.disableOptimizedDisplay == 0) &&
+            (pDevice->SupportDisplayDcc() == true))
+        {
+            DisplayDccCaps displayDcc = { };
 
-                pDevice->GetDisplayDccInfo(displayDcc);
-                PAL_ASSERT(displayDcc.dcc_256_128_128 ||
-                           displayDcc.dcc_128_128_unconstrained ||
-                           displayDcc.dcc_256_64_64);
-                if (displayDcc.pipeAligned == 0)
+            pDevice->GetDisplayDccInfo(displayDcc);
+
+            if (pDevice->EnableDisplayDcc(displayDcc, imgCreateInfo.swizzledFormat))
+            {
+                internalInfo.displayDcc.value        = displayDcc.value;
+                internalInfo.displayDcc.enabled      = 1;
+
                 {
-                    internalInfo.displayDcc.value   = displayDcc.value;
-                    internalInfo.displayDcc.enabled = 1;
-                    imgCreateInfo.flags.optimalShareable     = 1;
+                    imgCreateInfo.flags.optimalShareable = 1;
                 }
             }
+        }
 #endif
 
         result = pDevice->CreateInternalImage(imgCreateInfo, internalInfo, pImagePlacementAddr, &pImage);
@@ -591,10 +590,10 @@ Result Image::CreateExternalSharedImage(
         }
         else
         {
-            internalCreateInfo.gfx9.sharedPipeBankXor[0] = pMetadata->pipeBankXor;
+            internalCreateInfo.sharedPipeBankXor[0] = pMetadata->pipeBankXor;
             for (uint32 plane = 1; plane < MaxNumPlanes; plane++)
             {
-                internalCreateInfo.gfx9.sharedPipeBankXor[plane] = pMetadata->additionalPipeBankXor[plane - 1];
+                internalCreateInfo.sharedPipeBankXor[plane] = pMetadata->additionalPipeBankXor[plane - 1];
             }
 
             internalCreateInfo.gfx9.sharedSwizzleMode = static_cast<AddrSwizzleMode>(pMetadata->swizzleMode);

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -106,7 +106,7 @@ void ConvertColorToX9Y9Z9E5(
     constexpr int32 MaxBiasedExponent = 31; // Maximum allowed biased exponent values
     constexpr int32 MantissaValues    = (1 << MantissaBits);
 
-    constexpr float SharedExpMax = ((MantissaValues - 1) * (1 << (MaxBiasedExponent - MantissaBits))) / MantissaValues;
+    constexpr float SharedExpMax = ((MantissaValues - 1) * (1 << (MaxBiasedExponent - ExponentBias))) / MantissaValues;
 
     // The RGB compenents are clamped
     const float redC   = Max(0.f, Min(SharedExpMax, pColorIn[0]));

@@ -629,6 +629,30 @@
       "Name": "DisableOptimizedDisplay"
     },
     {
+      "Name": "GenerateHangReports",
+      "Tags": [
+        "Debug"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "Description": "Generate reports when driver detect GPU hang only on Linux. an implicit idle will be applied to each submission, only use in non-performance critical hang debug"
+    },
+    {
+      "Name": "GfxTimeout",
+      "Tags": [
+        "Debug"
+      ],
+      "Defaults": {
+        "Default": 10
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "uint32",
+      "Description": "Graphic engine timeout in seconds for Linux"
+    },
+    {
       "Description": "(DEBUG ONLY) Skip the GFX DCC to Display DCC retile shader.",
       "Tags": [
         "General"
@@ -1739,29 +1763,34 @@
             "Description": "ExecuteIndirect packet is not supported, so use the RPM IndirectCmdGen shaders."
           },
           {
-            "Name": "UseExecuteIndirectPacketForDraw",
+            "Name": "UseExecuteIndirectV1PacketForDraw",
             "Value": 1,
             "Description": "IndirectDraw functionality is supported by the new ExecuteIndirect Packet."
           },
           {
-            "Name": "UseExecuteIndirectPacketForDrawSpillTable",
+            "Name": "UseExecuteIndirectV1PacketForDrawSpillTable",
             "Value": 2,
             "Description": "Spill table for user data is supported with DMA_DATA_INDIRECT."
           },
           {
-            "Name": "UseExecuteIndirectPacketForDrawSpillAndVbTable",
+            "Name": "UseExecuteIndirectV1PacketForDrawSpillAndVbTable",
             "Value": 3,
             "Description": "VertexBufferTable requires BUILD_UNTYPED_SRD."
           },
           {
-            "Name": "UseExecuteIndirectPacketForDrawDispatch",
+            "Name": "UseExecuteIndirectV1PacketForDrawDispatch",
             "Value": 4,
-            "Description": "Dispatch functionality on compute queue is now supported."
+            "Description": "Dispatch functionality on GFX queue added to EI V1."
           },
           {
-            "Name": "UseExecuteIndirectPacketDefault",
+            "Name": "UseExecuteIndirectV2Packet",
             "Value": 5,
-            "Description": "Packet feature is completely functional and can be used in place of the CmdGen shaders."
+            "Description": "Use the new PM4 ExecuteIndirectV2 for the above operations."
+          },
+          {
+            "Name": "UseExecuteIndirectV2PacketDefault",
+            "Value": 6,
+            "Description": "CmdGenShaders won't be used and EIV2 will be the default for EI operations."
           }
         ],
         "Name": "UseExecuteIndirectPacket"

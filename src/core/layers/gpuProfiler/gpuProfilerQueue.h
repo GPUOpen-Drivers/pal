@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -160,9 +160,9 @@ typedef Util::Deque<TargetCmdBuffer*, Platform> CmdBufDeque;
 // This struct tracks per subQueue info when we do gang submission.
 struct SubQueueInfo
 {
-    QueueType  queueType;
-    EngineType engineType;
-    uint32     engineIndex;
+    QueueType    queueType;
+    EngineType   engineType;
+    uint32       engineIndex;
     // For each subQueue, track 2 lists of various objects.  Objects that may still be queued for hardware access are
     // in the busy list, others are in the available list.
     CmdBufDeque* pAvailableCmdBufs;
@@ -178,10 +178,10 @@ struct SubQueueInfo
 class Queue final : public QueueDecorator
 {
 public:
-    Queue(IQueue*    pNextQueue,
-          Device*    pDevice,
-          uint32     queueCount,
-          uint32     masterQueueId);
+    Queue(IQueue* pNextQueue,
+          Device* pDevice,
+          uint32  queueCount,
+          uint32  masterQueueId);
 
     Result Init(const QueueCreateInfo* pCreateInfo);
 
@@ -226,6 +226,8 @@ public:
 
     const GpuUtil::GpaSampleConfig& GetGpaSessionSampleConfig() const { return m_gpaSessionSampleConfig; }
     GpuUtil::GpaSession* GetPerFrameGpaSession() { return m_perFrameLogItem.pGpaSession; }
+
+    bool IsSqttEnabled() const { return m_gpaSessionSampleConfig.sqtt.flags.enable; }
 
     // Check if the logItem contains a valid GPA sample.
     bool HasValidGpaSample(const LogItem* pLogItem, GpuUtil::GpaSampleType type) const;

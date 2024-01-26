@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2017-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2017-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -160,18 +160,10 @@ enum GfxIpStepping : uint16
 
     // GFXIP 10.3.x steppings:
     GfxIpSteppingNavi21        = 0,
-
-    // GFXIP 10.3.x steppings:
     GfxIpSteppingNavi22        = 1,
-
-    // GFXIP 10.3.x steppings:
     GfxIpSteppingNavi23        = 2,
-
-    // GFXIP 10.3.x steppings:
     GfxIpSteppingNavi24        = 4,
-
     GfxIpSteppingRembrandt     = 5,
-
     GfxIpSteppingRaphael       = 6,
 
 #if PAL_BUILD_NAVI31
@@ -249,6 +241,9 @@ constexpr const char* PipelineAbiSymbolNameStrings[] =
     "_amdgpu_gs_amdil",
     "_amdgpu_mesh_amdil",
     "_amdgpu_ps_amdil",
+    "_amdgpu_reserved38",
+    "_amdgpu_reserved39",
+    "_amdgpu_reserved40",
     "color_export_shader",
 };
 
@@ -373,6 +368,9 @@ enum class PipelineSymbolType : uint32
                        ///  Associated with the .AMDGPU.commd.amdil section.
     PsAmdIl,           ///< API PS shader AMDIL disassembly.  Optional.
                        ///  Associated with the .AMDGPU.comment.amdil section.
+    Reserved38,
+    Reserved39,
+    Reserved40,
     PsColorExportEntry,///< PS color export shader entry point. Optional.
     Count,
 

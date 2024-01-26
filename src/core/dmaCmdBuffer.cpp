@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -406,20 +406,19 @@ void DmaCmdBuffer::CmdReleaseThenAcquire(
 
     // For certain versions of SDMA, some copy/write execution happens asynchronously and the driver is responsible
     // for synchronizing hazards when such copies overlap by inserting a NOP packet, which acts as a fence command.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     uint32 srcStageMask = barrierInfo.srcGlobalStageMask;
+
     for (uint32 i = 0; i < barrierInfo.memoryBarrierCount; i++)
     {
         srcStageMask |= barrierInfo.pMemoryBarriers[i].srcStageMask;
     }
+
     for (uint32 i = 0; i < barrierInfo.imageBarrierCount; i++)
     {
         srcStageMask |= barrierInfo.pImageBarriers[i].srcStageMask;
     }
+
     if (imageTypeRequiresCopyOverlapHazardSyncs && (srcStageMask != 0))
-#else
-    if (imageTypeRequiresCopyOverlapHazardSyncs && (barrierInfo.srcStageMask != 0))
-#endif
     {
         pCmdSpace = WriteNops(pCmdSpace, 1);
     }

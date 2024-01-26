@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -420,6 +420,15 @@ public:
     /// @returns A valid TraceSession pointer if a session currently exists. If a trace session was not created during
     ///          startup, nullptr will be returned.
     virtual GpuUtil::TraceSession* GetTraceSession() = 0;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 844
+    /// Indicate frame count increment to frame trace controller.
+    /// Client driver is responsible for calling this method once per frame.
+    ///
+    /// @param [in] pQueue The queue on which a new frame has been detected
+    virtual void UpdateFrameTraceController(
+        IQueue *pQueue) = 0;
+#endif
 #endif
 
     /// Indicates whether tracing has been enabled.

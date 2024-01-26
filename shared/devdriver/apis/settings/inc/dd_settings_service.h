@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2023-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -54,16 +54,22 @@ public:
     SettingsRpcService();
     ~SettingsRpcService();
 
+    // Register a settings component to the settings rpc service. Also apply user-overrides to the registered
+    // component if available.
     void RegisterSettingsComponent(SettingsBase* pSettingsComponent);
+
+    // Apply all available user-overrides to the settings component pointed to by `pSettingsComponent`.
+    void ApplyComponentUserOverrides(SettingsBase* pSettingsComponent);
+
+    // Apply a single user-override identified by `nameHash`.
+    bool ApplyUserOverride(
+        SettingsBase*         pSettingsComponent,
+        DD_SETTINGS_NAME_HASH nameHash,
+        void*                 pSetting,
+        size_t                settingSize);
 
     // Get number of user-overrides across all settings components.
     size_t TotalUserOverrideCount() const;
-
-    bool ApplyUserOverride(
-        const char*           pComponentName,
-        DD_SETTINGS_NAME_HASH nameHash,
-        void*                 pSetting,
-        size_t                settingSize) const;
 
     // Settings RPC implementations
     DD_RESULT SendAllUserOverrides(const void* pParamBuf, size_t paramBufSize) override;

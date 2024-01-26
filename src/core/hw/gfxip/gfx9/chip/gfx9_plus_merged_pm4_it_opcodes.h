@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -166,12 +166,16 @@ typedef enum IT_OpCodeType {
     IT_DISPATCH_TASKMESH_DIRECT_ACE__GFX101            = 0x000000aa,
     IT_DISPATCH_TASKMESH_INDIRECT_MULTI_ACE__GFX101    = 0x000000ad,
     IT_BUILD_UNTYPED_SRD__GFX101                       = 0x000000af,
+#if  CHIP_HDR_NAVI21|| CHIP_HDR_NAVI22|| CHIP_HDR_NAVI23|| CHIP_HDR_NAVI24|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1 || CHIP_HDR_RAPHAEL|| CHIP_HDR_REMBRANDT
     IT_PERFMON_CONTROL__GFX103COREPLUS                 = 0x00000054,
+#endif
+#if  CHIP_HDR_NAVI21|| CHIP_HDR_NAVI22|| CHIP_HDR_NAVI23|| CHIP_HDR_NAVI24|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1 || CHIP_HDR_RAPHAEL|| CHIP_HDR_REMBRANDT
     IT_WAIT_FOR_WRITE_CONFIRM__GFX103PLUSEXCLUSIVE     = 0x00000092,
     IT_CONTEXT_PUSH__GFX103PLUSEXCLUSIVE               = 0x000000ab,
     IT_CONTEXT_POP__GFX103PLUSEXCLUSIVE                = 0x000000ac,
     IT_DRAW_MULTI_PREAMBLE__GFX103PLUSEXCLUSIVE        = 0x000000fe,
     IT_AQL_PACKET__GFX103PLUSEXCLUSIVE                 = 0x000000ff,
+#endif
     IT_LOAD_UCONFIG_REG_INDEX__GFX10PLUS               = 0x00000064,
 #if  CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
     IT_DISPATCH_MESH_INDIRECT_MULTI__GFX11             = 0x0000004c,
@@ -197,12 +201,14 @@ typedef enum IT_OpCodeType {
 #endif
     IT_CLEAR_STATE__HASCLEARSTATE                      = 0x00000012,
     IT_PREAMBLE_CNTL__HASCLEARSTATE                    = 0x0000004a,
+#if CHIP_HDR_NAVI21 || CHIP_HDR_NAVI22 || CHIP_HDR_NAVI23 || CHIP_HDR_NAVI24
     IT_DISPATCH_DRAW_PREAMBLE__NV2X                    = 0x0000008c,
     IT_DISPATCH_DRAW_PREAMBLE_ACE__NV2X                = 0x0000008c,
     IT_DISPATCH_DRAW__NV2X                             = 0x0000008d,
     IT_DISPATCH_DRAW_ACE__NV2X                         = 0x0000008d,
     IT_BUILD_UNTYPED_SRD__NV2X                         = 0x000000af,
     IT_EXECUTE_INDIRECT_V2__NV2X                       = 0x000000b4,
+#endif
     IT_BUILD_UNTYPED_SRD__VEGA                         = 0x000000af,
 } IT_OpCodeType;
 

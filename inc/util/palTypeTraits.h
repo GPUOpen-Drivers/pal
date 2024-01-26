@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2021-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2021-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -36,35 +36,6 @@
 
 namespace Util
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 783
-/// Convenience alias to typename std::integral_constant for the common case where T is bool
-/// Deprecated by C++17's std::bool_constant
-template<bool B>
-using BoolConstant = std::integral_constant<bool, B>;
-
-/// Type trait to form a logical negation (NOT) of a type trait.
-/// Deprecated by C++17's std::negation
-template<class B>
-struct Negation : BoolConstant<!bool(B::value)>{};
-
-/// Type trait to form a logical conjution (AND) between a sequence of type traits.
-/// Deprecated by C++17's std::conjunction
-template<class...>
-struct Conjunction : std::true_type{};
-template<class B>
-struct Conjunction<B> : B{};
-template<class B, class... Bn>
-struct Conjunction<B, Bn...> : std::conditional_t<bool(B::value), Conjunction<Bn...>, B>{};
-
-/// Type trait to form a logical disjunction (OR) between a sequence of type traits.
-/// Deprecated by C++17's std::disjunction
-template<class...>
-struct Disjunction : std::false_type{};
-template<class B>
-struct Disjunction<B> : B{};
-template<class B, class... Bn>
-struct Disjunction<B, Bn...> : std::conditional_t<bool(B::value), B, Disjunction<Bn...>>{};
-#endif
 
 /// Type trait to determine if a given type is a scoped enum.
 /// Will be deprecated by C++23's std::is_scoped_enum.
@@ -76,18 +47,6 @@ struct IsScopedEnum<E, true> : public std::bool_constant<!std::is_convertible<E,
 /// Type trait to determine if a given type is an unscoped enum.
 template<typename E>
 using IsUnscopedEnum = std::conjunction<std::is_enum<E>, std::negation<IsScopedEnum<E>>>;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 784
-/// Type trait to determine if two types are the same scoped enums.
-template<typename T1, typename T2>
-using AreSameScopedEnum = std::conjunction<IsScopedEnum<T1>, IsScopedEnum<T2>, std::is_same<T1, T2>>;
-
-/// Type trait to determine if, of two types, one is a scoped enum and one is an integral.
-/// It must be one and the other, not both.
-template<typename T1, typename T2>
-using OneIsScopedEnumOneIsIntegral = std::disjunction<std::conjunction<IsScopedEnum<T1>, std::is_integral<T2>>,
-                                                      std::conjunction<IsScopedEnum<T2>, std::is_integral<T1>>>;
-#endif
 
 /// Type trait to determine if the given type is an enum or integral.
 template<typename T>

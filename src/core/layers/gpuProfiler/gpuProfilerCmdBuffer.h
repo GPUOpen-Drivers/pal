@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -34,7 +34,7 @@
 // Forward declarations.
 namespace GpuUtil
 {
-    class      GpaSession;
+    class GpaSession;
 }
 
 namespace Pal
@@ -64,7 +64,7 @@ enum class LogType : uint32
 // various command buffer calls are tokenized and stored for later replay.  The Replay() interface will replay the
 // tokenized sequence of calls made on this command buffer into a separate command buffer, while adding any
 // instrumentation required for GPU profiling.  By this process, the same command buffer from the client/app perspective
-// can be in flight multiple times simultanesouly while counters for the separate invocations are collected in
+// can be in flight multiple times simultaneously while counters for the separate invocations are collected in
 // difference sections of memory.
 class CmdBuffer final : public CmdBufferDecorator
 {
@@ -72,8 +72,7 @@ public:
     CmdBuffer(ICmdBuffer*                pNextCmdBuffer,
               Device*                    pDevice,
               const CmdBufferCreateInfo& createInfo,
-              bool                       logPipeStats,
-              bool                       enableSqThreadTrace);
+              bool                       logPipeStats);
 
     // This function will playback the commands recorded by this command buffer into the specified target command
     // buffer while instrumenting it with additional commands to gather timing, perf counters, etc.
@@ -146,12 +145,6 @@ public:
         const ScissorRectParams& params) override;
     virtual void CmdSetGlobalScissor(
         const GlobalScissorParams& params) override;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 778
-    virtual void CmdSetColorWriteMask(
-        const ColorWriteMaskParams& params) override;
-    virtual void CmdSetRasterizerDiscardEnable(
-        bool rasterizerDiscardEnable) override;
-#endif
     virtual void CmdBarrier(
         const BarrierInfo& barrierInfo) override;
     virtual void OptimizeBarrierReleaseInfo(
@@ -756,10 +749,6 @@ private:
     void ReplayCmdSetViewports(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetScissorRects(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetGlobalScissor(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 778
-    void ReplayCmdSetColorWriteMask(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
-    void ReplayCmdSetRasterizerDiscardEnable(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
-#endif
     void ReplayCmdBarrier(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdRelease(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdAcquire(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
@@ -867,11 +856,10 @@ private:
 
     struct
     {
-        uint32 logPipeStats        :  1;  // Pipeline stats should be collected based on specified data granularity.
-        uint32 enableSqThreadTrace :  1;  // Thread traces should be collected based on specified data granularity.
-        uint32 containsPresent     :  1;  // A CmdPresent() call is made in this command buffer.
-        uint32 nested              :  1;  // This is a nested command buffer.
-        uint32 reserved            : 28;
+        uint32 logPipeStats    :  1;  // Pipeline stats should be collected based on specified data granularity.
+        uint32 containsPresent :  1;  // A CmdPresent() call is made in this command buffer.
+        uint32 nested          :  1;  // This is a nested command buffer.
+        uint32 reserved        : 29;
     } m_flags;
 
     union

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -693,11 +693,9 @@ void Gfx10ColorTargetView::InitRegisters(
 
         // Specifying a non-zero buffer offset only works with linear-general surfaces
         m_regs.cbColorInfo.gfx10Plus.LINEAR_GENERAL  = 1;
-        {
-            m_regs.cbColorAttrib.most.FORCE_DST_ALPHA_1 = Formats::HasUnusedAlpha(m_swizzledFormat);
-            m_regs.cbColorAttrib.most.NUM_SAMPLES       = 0;
-            m_regs.cbColorAttrib.most.NUM_FRAGMENTS     = 0;
-        }
+        m_regs.cbColorAttrib.most.FORCE_DST_ALPHA_1 = Formats::HasUnusedAlpha(m_swizzledFormat);
+        m_regs.cbColorAttrib.most.NUM_SAMPLES       = 0;
+        m_regs.cbColorAttrib.most.NUM_FRAGMENTS     = 0;
     }
     else
     {
@@ -742,12 +740,10 @@ void Gfx10ColorTargetView::InitRegisters(
         // Prior to gfx10.1 it was necessary to set LIMIT_COLOR_FETCH_TO_256B_MAX if in miptail, to workaround
         // possible corruptions when multiple mip levels in same 1k address space.
         // A fix for this was applied to gfx10.1 and newer asics, so the workaround is no longer needed.
-        {
-            m_regs.cbColorAttrib.most.NUM_SAMPLES       = Log2(imageCreateInfo.samples);
-            m_regs.cbColorAttrib.most.NUM_FRAGMENTS     = Log2(imageCreateInfo.fragments);
-            m_regs.cbColorAttrib.most.FORCE_DST_ALPHA_1 = Formats::HasUnusedAlpha(m_swizzledFormat);
-            m_regs.cbColorAttrib.gfx10Core.LIMIT_COLOR_FETCH_TO_256B_MAX = 0;
-        }
+        m_regs.cbColorAttrib.most.NUM_SAMPLES       = Log2(imageCreateInfo.samples);
+        m_regs.cbColorAttrib.most.NUM_FRAGMENTS     = Log2(imageCreateInfo.fragments);
+        m_regs.cbColorAttrib.most.FORCE_DST_ALPHA_1 = Formats::HasUnusedAlpha(m_swizzledFormat);
+        m_regs.cbColorAttrib.gfx10Core.LIMIT_COLOR_FETCH_TO_256B_MAX = 0;
 
         m_regs.cbColorAttrib3.bits.MIP0_DEPTH    =
             ((imageType == ImageType::Tex3d) ? imageCreateInfo.extent.depth : imageCreateInfo.arraySize) - 1;
@@ -772,15 +768,11 @@ void Gfx10ColorTargetView::InitRegisters(
              (settings.waDisableFmaskNofetchOpOnFmaskCompressionDisable &&
               m_regs.cbColorInfo.gfx09_10.FMASK_COMPRESSION_DISABLE)))
         {
-            {
-                m_regs.cbColorAttrib.gfx10Core.DISABLE_FMASK_NOFETCH_OPT = 1;
-            }
+            m_regs.cbColorAttrib.gfx10Core.DISABLE_FMASK_NOFETCH_OPT = 1;
         }
     }
 
-    {
-        m_regs.cbColorAttrib3.gfx10Core.RESOURCE_LEVEL = 1;
-    }
+    m_regs.cbColorAttrib3.gfx10Core.RESOURCE_LEVEL = 1;
 }
 
 // =====================================================================================================================
@@ -1049,11 +1041,9 @@ void Gfx11ColorTargetView::InitRegisters(
         m_extent.width  = extent.width;
         m_extent.height = extent.height;
 
-        m_regs.cbColorAttrib.gfx11.NUM_FRAGMENTS     = Log2(imageCreateInfo.fragments);
-        m_regs.cbColorAttrib.gfx11.FORCE_DST_ALPHA_1 = Formats::HasUnusedAlpha(m_swizzledFormat);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 790
+        m_regs.cbColorAttrib.gfx11.NUM_FRAGMENTS                 = Log2(imageCreateInfo.fragments);
+        m_regs.cbColorAttrib.gfx11.FORCE_DST_ALPHA_1             = Formats::HasUnusedAlpha(m_swizzledFormat);
         m_regs.cbColorAttrib.gfx11.LIMIT_COLOR_FETCH_TO_256B_MAX = pPublicSettings->limitCbFetch256B;
-#endif
 
         m_regs.cbColorAttrib3.bits.MIP0_DEPTH    =
             ((imageType == ImageType::Tex3d) ? imageCreateInfo.extent.depth : imageCreateInfo.arraySize) - 1;

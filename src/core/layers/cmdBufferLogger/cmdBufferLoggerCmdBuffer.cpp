@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -1347,6 +1347,43 @@ void DumpColorTargetViewInfo(
 }
 
 // =====================================================================================================================
+void DumpDepthStencilTargetViewInfo(
+    CmdBuffer*                        pCmdBuffer,
+    const DepthStencilViewDecorator*  pView)
+{
+    if (pView != nullptr)
+    {
+        LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
+        char*       pString         = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
+        ICmdBuffer* pNextCmdBuffer  = pCmdBuffer->GetNextLayer();
+        const auto& viewCreateInfo  = pView->GetCreateInfo();
+        const auto* pImage          = viewCreateInfo.pImage;
+        const auto& imageCreateInfo = pImage->GetImageCreateInfo();
+
+        Snprintf(pString, StringLength, "\t\tdepthOnlyView     = %d", viewCreateInfo.flags.depthOnlyView);
+        pNextCmdBuffer->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "\t\tstencilOnlyView   = %d", viewCreateInfo.flags.stencilOnlyView);
+        pNextCmdBuffer->CmdCommentString(pString);
+
+        Snprintf(pString,
+                 StringLength,
+                 "\t\tImage Format      = %s",
+                 FormatToString(imageCreateInfo.swizzledFormat.format));
+        pNextCmdBuffer->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "\t\tImage Swizzle     = ");
+        SwizzleToString(imageCreateInfo.swizzledFormat.swizzle, pString);
+        pNextCmdBuffer->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "%s\t\tImage Pointer     = 0x%016" PRIXPTR, "", pImage);
+        pNextCmdBuffer->CmdCommentString(pString);
+
+        PAL_SAFE_DELETE_ARRAY(pString, &allocator);
+    }
+}
+
+// =====================================================================================================================
 void DumpBindTargetParams(
     CmdBuffer*              pCmdBuffer,
     const BindTargetParams& params)
@@ -1392,8 +1429,9 @@ void DumpBindTargetParams(
     pNextCmdBuffer->CmdCommentString(pString);
 
     const auto& depthTarget = params.depthTarget;
+    const auto* pView       = static_cast<const DepthStencilViewDecorator*>(depthTarget.pDepthStencilView);
 
-    Snprintf(pString, StringLength, "\t\tpDepthStencilView = 0x%016" PRIXPTR, depthTarget.pDepthStencilView);;
+    Snprintf(pString, StringLength, "\t\tpDepthStencilView = 0x%016" PRIXPTR, pView);
     pNextCmdBuffer->CmdCommentString(pString);
 
     Snprintf(pString, StringLength, "\t\tdepthLayout       = ");
@@ -1403,6 +1441,8 @@ void DumpBindTargetParams(
     Snprintf(pString, StringLength, "\t\tstencilLayout     = ");
     ImageLayoutToString(depthTarget.stencilLayout, pString);
     pNextCmdBuffer->CmdCommentString(pString);
+
+    DumpDepthStencilTargetViewInfo(pCmdBuffer, pView);
 
     Snprintf(pString, StringLength, "\t } // depthTarget");
     pNextCmdBuffer->CmdCommentString(pString);
@@ -2097,48 +2137,6 @@ void CmdBuffer::CmdSetGlobalScissor(
     GetNextLayer()->CmdSetGlobalScissor(params);
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 778
-// =====================================================================================================================
-void CmdBuffer::CmdSetColorWriteMask(
-    const ColorWriteMaskParams& params)
-{
-    if (m_annotations.logCmdSets)
-    {
-        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetColorWriteMask));
-
-        LinearAllocatorAuto<VirtualLinearAllocator> allocator(Allocator(), false);
-        char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
-
-        Snprintf(pString, StringLength, "count = %u", params.count);
-        GetNextLayer()->CmdCommentString(pString);
-
-        for (uint32 i = 0; i < MaxColorTargets; ++i)
-        {
-            Snprintf(pString, StringLength, "colorWriteMask[%u] = %u",
-                     i,
-                     params.colorWriteMask[i]);
-            GetNextLayer()->CmdCommentString(pString);
-        }
-
-        PAL_SAFE_DELETE_ARRAY(pString, &allocator);
-    }
-
-    GetNextLayer()->CmdSetColorWriteMask(params);
-}
-
-// =====================================================================================================================
-void CmdBuffer::CmdSetRasterizerDiscardEnable(
-    bool rasterizerDiscardEnable)
-{
-    if (m_annotations.logCmdSets)
-    {
-        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetRasterizerDiscardEnable));
-    }
-
-    GetNextLayer()->CmdSetRasterizerDiscardEnable(rasterizerDiscardEnable);
-}
-#endif
-
 // =====================================================================================================================
 static const char* HwPipePointToString(
     HwPipePoint pipePoint)
@@ -2193,9 +2191,7 @@ static void PipelineStageFlagToString(
         "PostPrefetch", // PipelineStagePostPrefetch
 #endif
         "Indices",      // PipelineStageFetchIndices
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 770
         "StreamOut",    // PipelineStageStreamOut
-#endif
         "Vs",           // PipelineStageVs
         "Hs",           // PipelineStageHs
         "Ds",           // PipelineStageDs
@@ -3080,14 +3076,12 @@ static void MemoryBarrierTransitionToString(
 
     pCmdBuffer->CmdCommentString("\t] // GpuMemSubAllocInfo");
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     Snprintf(pString, StringLength, "srcStageMask->dstStageMask = { ");
     PipelineStageFlagToString(pString, transition.srcStageMask);
     AppendString(pString, " } -> { ");
     PipelineStageFlagToString(pString, transition.dstStageMask);
     AppendString(pString, " }");
     pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
-#endif
 
     Snprintf(pString, StringLength, "\tsrcAccessMask->dstAccessMask = { ");
     CacheCoherencyUsageToString(pString, transition.srcAccessMask);
@@ -3112,14 +3106,12 @@ static void ImageBarrierTransitionToString(
     Snprintf(&string[0], StringLength, "barrierInfo.pImageBarriers[%u] = {", index);
     pNextCmdBuffer->CmdCommentString(&string[0]);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     Snprintf(string, StringLength, "srcStageMask->dstStageMask = { ");
     PipelineStageFlagToString(string, transition.srcStageMask);
     AppendString(string, " } -> { ");
     PipelineStageFlagToString(string, transition.dstStageMask);
     AppendString(string, " }");
     pNextCmdBuffer->CmdCommentString(string);
-#endif
 
     Snprintf(string, StringLength, "\t\tsrcAccessMask->dstAccessMask = ");
     CacheCoherencyUsageToString(string, transition.srcAccessMask);
@@ -3167,13 +3159,8 @@ static void CmdReleaseToString(
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
     char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     Snprintf(pString, StringLength, "releaseInfo.srcGlobalStageMask = ");
     PipelineStageFlagToString(pString, barrierInfo.srcGlobalStageMask);
-#else
-    Snprintf(pString, StringLength, "releaseInfo.srcStageMask = ");
-    PipelineStageFlagToString(pString, barrierInfo.srcStageMask);
-#endif
     pNextCmdBuffer->CmdCommentString(pString);
 
     Snprintf(pString, StringLength, "releaseInfo.srcGlobalAccessMask = ");
@@ -3224,13 +3211,8 @@ static void CmdAcquireToString(
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
     char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     Snprintf(pString, StringLength, "acquireInfo.dstGlobalStageMask = ");
     PipelineStageFlagToString(pString, barrierInfo.dstGlobalStageMask);
-#else
-    Snprintf(pString, StringLength, "acquireInfo.dstStageMask = ");
-    PipelineStageFlagToString(pString, barrierInfo.dstStageMask);
-#endif
     pNextCmdBuffer->CmdCommentString(pString);
 
     Snprintf(pString, StringLength, "acquireInfo.dstGlobalAccessMask = ");
@@ -3290,17 +3272,10 @@ static void CmdAcquireReleaseToString(
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
     char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     Snprintf(pString, StringLength, "acqRelInfo.srcGlobalStageMask->dstGlobalStageMask = { ");
     PipelineStageFlagToString(pString, barrierInfo.srcGlobalStageMask);
     AppendString(pString, " } -> { ");
     PipelineStageFlagToString(pString, barrierInfo.dstGlobalStageMask);
-#else
-    Snprintf(pString, StringLength, "acqRelInfo.srcStageMask->dstStageMask = { ");
-    PipelineStageFlagToString(pString, barrierInfo.srcStageMask);
-    AppendString(pString, " } -> { ");
-    PipelineStageFlagToString(pString, barrierInfo.dstStageMask);
-#endif
     AppendString(pString, " }");
     pNextCmdBuffer->CmdCommentString(pString);
 
@@ -3432,13 +3407,8 @@ static void CmdReleaseEventToString(
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
     char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     Snprintf(pString, StringLength, "releaseInfo.srcGlobalStageMask = ");
     PipelineStageFlagToString(pString, barrierInfo.srcGlobalStageMask);
-#else
-    Snprintf(pString, StringLength, "releaseInfo.srcStageMask = ");
-    PipelineStageFlagToString(pString, barrierInfo.srcStageMask);
-#endif
     pNextCmdBuffer->CmdCommentString(pString);
 
     Snprintf(pString, StringLength, "releaseInfo.srcGlobalAccessMask = ");
@@ -3528,13 +3498,8 @@ static void CmdAcquireEventToString(
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
     char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     Snprintf(pString, StringLength, "acquireInfo.dstGlobalStageMask = ");
     PipelineStageFlagToString(pString, barrierInfo.dstGlobalStageMask);
-#else
-    Snprintf(pString, StringLength, "acquireInfo.dstStageMask = ");
-    PipelineStageFlagToString(pString, barrierInfo.dstStageMask);
-#endif
     pNextCmdBuffer->CmdCommentString(pString);
 
     Snprintf(pString, StringLength, "acquireInfo.dstGlobalAccessMask = ");

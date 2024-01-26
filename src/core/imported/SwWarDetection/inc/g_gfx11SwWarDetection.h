@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -70,7 +70,7 @@ extern bool DetectGfx11SoftwareWorkaroundsByGfxIp(
     Gfx11SwWarDetection* pWorkarounds);
 
 // Number of workarounds that are represented in Gfx11SwWarDetection.
-constexpr uint32_t Gfx11NumWorkarounds = 48;
+constexpr uint32_t Gfx11NumWorkarounds = 49;
 
 // Number of DWORDs that make up the Gfx11SwWarDetection structure.
 constexpr uint32_t Gfx11StructDwords = 2;
@@ -81,7 +81,7 @@ constexpr uint32_t Gfx11StructDwords = 2;
 constexpr uint32_t Gfx11InactiveMask[] =
 {
     0x00000000,
-    0xffff0000,
+    0xfffe0000,
 };
 
 // Bitfield structure containing all workarounds active for the Gfx11 family.
@@ -345,7 +345,9 @@ union Gfx11SwWarDetection
         uint32_t                                                                                                                                                                      : 1;
 #endif
 
-        uint32_t reserved                                                                                                                                                             : 16;
+        uint32_t                                                                                                                                                                      : 1;
+
+        uint32_t reserved                                                                                                                                                             : 15;
     };
 
     uint32_t u32All[Gfx11StructDwords];

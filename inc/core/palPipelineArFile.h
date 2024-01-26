@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2022-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -118,7 +118,8 @@ public:
                 (isxdigit(name[0])))
             {
                 uint32 numCharsUsed = 0;
-                sscanf(name.Data(), "%" SCNx64 "%n", &elfHash, &numCharsUsed);
+                // Use field width "16" to limit it even though the string is not 0-terminated.
+                sscanf(name.Data(), "%16" SCNx64 "%n", &elfHash, &numCharsUsed);
                 if (numCharsUsed != 16)
                 {
                     elfHash = 0;

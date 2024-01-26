@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -71,33 +71,18 @@ Result CreateRpmComputePipelines(
     switch (properties.revision)
     {
     case AsicRevision::Navi10:
-        pTable = rpmComputeBinaryTableNavi10;
-        break;
-
     case AsicRevision::Navi12:
-        pTable = rpmComputeBinaryTableNavi12;
-        break;
-
     case AsicRevision::Navi14:
-        pTable = rpmComputeBinaryTableNavi14;
+        pTable = rpmComputeBinaryTableNavi10;
         break;
 
     case AsicRevision::Navi21:
     case AsicRevision::Navi22:
     case AsicRevision::Navi23:
-        pTable = rpmComputeBinaryTableNavi21;
-        break;
-
     case AsicRevision::Navi24:
-        pTable = rpmComputeBinaryTableNavi24;
-        break;
-
     case AsicRevision::Rembrandt:
-        pTable = rpmComputeBinaryTableRembrandt;
-        break;
-
     case AsicRevision::Raphael:
-        pTable = rpmComputeBinaryTableRaphael;
+        pTable = rpmComputeBinaryTableNavi21;
         break;
 
 #if PAL_BUILD_NAVI31

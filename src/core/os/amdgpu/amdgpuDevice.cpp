@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -210,7 +210,7 @@ Result Device::Create(
                                          pPlatform,
                                          &ipLevels) == false)
         {
-            result = Result::ErrorInitializationFailed;
+            result = Result::Unsupported;
         }
     }
 
@@ -1605,18 +1605,11 @@ Result Device::InitMemInfo()
                                                       m_memoryProperties.fragmentSize);
             }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 766
             m_heapProperties[GpuHeapLocal].logicalSize      = localHeapSize;
             m_heapProperties[GpuHeapLocal].physicalSize     = localHeapSize;
             m_memoryProperties.barSize                      = localHeapSize;
             m_heapProperties[GpuHeapInvisible].logicalSize  = invisibleHeapSize;
             m_heapProperties[GpuHeapInvisible].physicalSize = invisibleHeapSize;
-#else
-            m_heapProperties[GpuHeapLocal].heapSize             = localHeapSize;
-            m_heapProperties[GpuHeapLocal].physicalHeapSize     = localHeapSize;
-            m_heapProperties[GpuHeapInvisible].heapSize         = invisibleHeapSize;
-            m_heapProperties[GpuHeapInvisible].physicalHeapSize = invisibleHeapSize;
-#endif
 
             SystemInfo systemInfo = {};
             if (QuerySystemInfo(&systemInfo) == Result::Success)
@@ -1788,9 +1781,30 @@ Result Device::InitQueueInfo()
 
         if (IsGfx103PlusExclusive(m_chipProperties.gfxLevel))
         {
+            // Task-shader CTS may fail on Linux upstream stack due to the low FW version.
+            bool fwSupportTaskShader = false;
+
+            if (IsGfx103(m_chipProperties.gfxLevel))
+            {
+                if (m_chipProperties.pfpUcodeVersion >= 95)
+                {
+                    fwSupportTaskShader = true;
+                }
+            }
+#if PAL_BUILD_GFX11
+            else if (IsGfx11(m_chipProperties.gfxLevel))
+            {
+                if (m_chipProperties.pfpUcodeVersion >= 1549)
+                {
+                    fwSupportTaskShader = true;
+                }
+            }
+#endif
+
             m_chipProperties.gfx9.supportMeshShader =  m_chipProperties.gfx9.supportImplicitPrimitiveShader;
             m_chipProperties.gfx9.supportTaskShader = (m_chipProperties.gfx9.supportImplicitPrimitiveShader &&
-                                                       supportsGangSubmit);
+                                                       supportsGangSubmit                                   &&
+                                                       fwSupportTaskShader);
         }
         m_chipProperties.gfxip.supportAceOffload = 0;
 
@@ -2208,21 +2222,20 @@ Result Device::CreateImage(
 #if PAL_DISPLAY_DCC
     else if ((createInfo.flags.flippable == true) &&
              (createInfo.usageFlags.disableOptimizedDisplay == 0) &&
-             (SupportDisplayDcc() == true) &&
-             // VCAM_SURFACE_DESC does not support YUV presentable yet
-             (Formats::IsYuv(createInfo.swizzledFormat.format) == false))
+             (SupportDisplayDcc() == true))
     {
         DisplayDccCaps displayDcc = { };
 
         GetDisplayDccInfo(displayDcc);
-        PAL_ASSERT(displayDcc.dcc_256_128_128 ||
-                   displayDcc.dcc_128_128_unconstrained ||
-                   displayDcc.dcc_256_64_64);
-        if (displayDcc.pipeAligned == 0)
+
+        if (EnableDisplayDcc(displayDcc, createInfo.swizzledFormat))
         {
-            internalInfo.displayDcc.value                 = displayDcc.value;
-            internalInfo.displayDcc.enabled               = 1;
-            modifiedCreateInfo.flags.optimalShareable     = 1;
+            internalInfo.displayDcc.value   = displayDcc.value;
+            internalInfo.displayDcc.enabled = 1;
+
+            {
+                modifiedCreateInfo.flags.optimalShareable = 1;
+            }
         }
     }
 #endif
@@ -2271,6 +2284,7 @@ void Device::GetDisplayDccInfo(
     {
         displayDcc.pipeAligned = 0;
         displayDcc.rbAligned   = 0;
+
         {
             // Refer to gfx9_compute_surface function of Mesa3d,if gfxLevel greater or equal to GfxIp10_3,
             // displaydcc parameter should be set to "Independent64=1, Independent128=1, maxCompress=64B"
@@ -5262,7 +5276,6 @@ Result Device::CheckExecutionState(
     // check device lost
     if (result != Result::ErrorGpuPageFaultDetected)
     {
-
         MutexAuto lock(&m_contextListLock);
 
         if (m_contextList.NumElements() == 0)

@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2022-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -155,7 +155,9 @@ function(target_pal_settings TARGET)
         endif()
 
         convert_pal_settings_name(${SETTINGS_FILE} SETTING_TGT FALSE)
-        add_custom_target(${SETTING_TGT}
+        add_custom_command(
+            OUTPUT ${SETGEN_OUT_DIR}/${OUT_BASENAME}.cpp
+                   ${SETGEN_OUT_DIR}/${OUT_BASENAME}.h
             COMMAND ${Python3_EXECUTABLE} ${PAL_GEN_DIR}/genSettingsCode.py
                     --settingsFile ${SETTINGS_FILE}
                     --outFilename ${OUT_BASENAME}
@@ -163,11 +165,14 @@ function(target_pal_settings TARGET)
             COMMENT "Generating settings from ${SETTINGS_FILE}..."
             DEPENDS ${SETTINGS_FILE}
                     ${ADDL_DEPS}
-            BYPRODUCTS ${SETGEN_OUT_DIR}/${OUT_BASENAME}.cpp
-                       ${SETGEN_OUT_DIR}/${OUT_BASENAME}.h
+        )
+        add_custom_target(${SETTING_TGT}
+            DEPENDS ${SETGEN_OUT_DIR}/${OUT_BASENAME}.cpp
+                    ${SETGEN_OUT_DIR}/${OUT_BASENAME}.h
             SOURCES ${SETGEN_OUT_DIR}/${OUT_BASENAME}.cpp
                     ${SETGEN_OUT_DIR}/${OUT_BASENAME}.h
         )
+
         add_dependencies(${TARGET} ${SETTING_TGT})
         set_target_properties(${SETTING_TGT}
             PROPERTIES
@@ -245,6 +250,8 @@ function(pal_gen_settings)
         list(APPEND CODEGEN_OPTIONAL_ARGS "--classname" "${SETTINGS_CLASS_NAME}")
     endif()
 
+    list(APPEND CODEGEN_OPTIONAL_ARGS "--is-pal-settings")
+
     if ((NOT EXISTS ${SETTINGS_OUT_DIR}/${GENERATED_HEADER_FILENAME}) OR
         (NOT EXISTS ${SETTINGS_OUT_DIR}/${GENERATED_SOURCE_FILENAME}))
         # Generate these during configuration so that they are guaranteed to exist.
@@ -255,13 +262,16 @@ function(pal_gen_settings)
                     --settings-filename ${SETTINGS_HEADER_FILE}
                     --outdir ${SETTINGS_OUT_DIR}
                     --namespaces ${SETTINGS_NAMESPACES}
+                    --include-headers ${SETTINGS_INCLUDE_HEADERS}
                     ${CODEGEN_OPTIONAL_ARGS}
             COMMAND_ECHO STDOUT
         )
     endif()
 
     convert_pal_settings_name(${SETTINGS_INPUT_JSON} SETTING_TGT FALSE)
-    add_custom_target(${SETTING_TGT}
+    add_custom_command(
+        OUTPUT  ${SETTINGS_OUT_DIR}/${GENERATED_HEADER_FILENAME}
+                ${SETTINGS_OUT_DIR}/${GENERATED_SOURCE_FILENAME}
         COMMAND ${Python3_EXECUTABLE} ${DEVDRIVER_PATH}/apis/settings/codegen/settings_codegen.py
                 --input ${PAL_SOURCE_DIR}/${SETTINGS_INPUT_JSON}
                 --generated-filename ${SETTINGS_GENERATED_FILENAME}
@@ -270,14 +280,16 @@ function(pal_gen_settings)
                 --namespaces ${SETTINGS_NAMESPACES}
                 --include-headers ${SETTINGS_INCLUDE_HEADERS}
                 ${CODEGEN_OPTIONAL_ARGS}
-        COMMENT "Generating settings from ${SETTINGS_FILE}..."
+        COMMENT "Generating settings from ${PAL_SOURCE_DIR}/${SETTINGS_INPUT_JSON}..."
         DEPENDS ${PAL_SOURCE_DIR}/${SETTINGS_INPUT_JSON}
                 ${DEVDRIVER_PATH}/apis/settings/codegen/settings_codegen.py
                 ${DEVDRIVER_PATH}/apis/settings/codegen/settings_schema.yaml
                 ${DEVDRIVER_PATH}/apis/settings/codegen/settings.cpp.jinja2
                 ${DEVDRIVER_PATH}/apis/settings/codegen/settings.h.jinja2
-        BYPRODUCTS ${SETTINGS_OUT_DIR}/${GENERATED_HEADER_FILENAME}
-                   ${SETTINGS_OUT_DIR}/${GENERATED_SOURCE_FILENAME}
+    )
+    add_custom_target(${SETTING_TGT}
+        DEPENDS ${SETTINGS_OUT_DIR}/${GENERATED_HEADER_FILENAME}
+                ${SETTINGS_OUT_DIR}/${GENERATED_SOURCE_FILENAME}
         SOURCES ${SETTINGS_OUT_DIR}/${GENERATED_HEADER_FILENAME}
                 ${SETTINGS_OUT_DIR}/${GENERATED_SOURCE_FILENAME}
     )

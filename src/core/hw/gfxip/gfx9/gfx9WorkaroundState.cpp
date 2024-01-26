@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -80,7 +80,7 @@ uint32* WorkaroundState::SwitchToLegacyPipeline(
     //  The suggested workaround is to create a bubble for the GE. Since determining the necessary size of this
     //  bubble is workload dependent, it is safer to issue a VGT_FLUSH between this transition.
     bool vgtFlush = m_cachedSettings.waVgtFlushNggToLegacy &&
-                    ((oldPipelineNgg == false) || oldPipelineUnknown);
+                    (oldPipelineNgg || oldPipelineUnknown);
 
     if (vgtFlush == false)
     {
@@ -90,7 +90,7 @@ uint32* WorkaroundState::SwitchToLegacyPipeline(
         //  prevents this from happening.
         vgtFlush = m_cachedSettings.waVgtFlushNggToLegacyGs &&
                    pNewPipeline->IsGsEnabled() &&
-                   ((oldPipelineNgg == false) || oldPipelineUnknown);
+                   (oldPipelineNgg || oldPipelineUnknown);
     }
 
     if (vgtFlush == false)

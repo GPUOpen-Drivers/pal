@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2022-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -69,11 +69,17 @@ public:
         uint32 cmdBufferId,
         uint32 markerValue);
 
+    void LogExecutionMarkerInfo(
+        uint32      cmdBufferId,
+        uint32      markerValue,
+        const char* pMarkerInfo,
+        uint32      markerInfoSize);
+
     void LogCrashDebugMarkerData(
         const CrashAnalysis::MarkerState* pMarkerHeader);
 
     void ReplayEventCache(
-        CrashAnalysis::EventCache* pEventCache);
+        const CrashAnalysis::EventCache* pEventCache);
 
     // End of Event Log Functions
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

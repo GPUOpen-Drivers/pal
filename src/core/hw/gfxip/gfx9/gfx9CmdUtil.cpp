@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -1601,7 +1601,7 @@ size_t CmdUtil::BuildExecuteIndirect(
     packet.ordinal2.bitfields.core.cmd_base_lo           = LowPart(packetInfo.commandBufferAddr) >> 2;
     packet.ordinal3.cmd_base_hi                          = HighPart(packetInfo.commandBufferAddr);
     packet.ordinal4.bitfields.core.count_indirect_enable = (packetInfo.countBufferAddr != 0);
-    packet.ordinal4.bitfields.core.ib_size               = packetInfo.commandBufferSizeDwords;
+    packet.ordinal4.bitfields.core.ib_size               = packetInfo.commandBufferSizeBytes/sizeof(uint32);
     packet.ordinal5.max_count                            = packetInfo.maxCount;
     packet.ordinal6.bitfields.core.count_addr_lo         = LowPart(packetInfo.countBufferAddr) >> 2;
     packet.ordinal7.count_addr_hi                        = HighPart(packetInfo.countBufferAddr);
@@ -1632,10 +1632,192 @@ size_t CmdUtil::BuildExecuteIndirect(
         packet.ordinal14.bitfields.core.spill_table_instance_count = packetInfo.spillTableInstanceCnt;
     }
     packet.ordinal15.bitfields.core.vb_table_reg_offset = ShRegOffset(packetInfo.vbTableRegOffset);
-    packet.ordinal15.bitfields.core.vb_table_size       = packetInfo.vbTableSize;
+    packet.ordinal15.bitfields.core.vb_table_size       = packetInfo.vbTableSizeDwords * sizeof(uint32);
 
     memcpy(pBuffer, &packet, PacketSize * sizeof(uint32));
     return PacketSize;
+}
+
+// =====================================================================================================================
+// Builds execute indirect V2 packet for the GFX engine. Returns the size of the PM4 command assembled, in DWORDs.
+// This function only supports Graphics Queue usage.
+size_t CmdUtil::BuildExecuteIndirectV2(
+    Pm4Predicate                     predicate,
+    const bool                       isGfx,
+    const ExecuteIndirectPacketInfo& packetInfo,
+    const bool                       resetPktFilter,
+    ExecuteIndirectV2Op*             pPacketOp,
+    ExecuteIndirectV2Meta*           pMeta,
+    void*                            pBuffer)
+{
+    const Pm4ShaderType shaderType = isGfx ? ShaderGraphics : ShaderCompute;
+
+    ExecuteIndirectV2MetaData* pMetaData = pMeta->GetMetaData();
+
+    PM4_PFP_EXECUTE_INDIRECT_V2 packet = {};
+
+    constexpr uint32 PacketDwSize = PM4_PFP_EXECUTE_INDIRECT_V2_SIZEDW__GFX103COREPLUS;
+    constexpr uint32 EightBitMask = 0xff;
+    constexpr uint32 TenBitMask   = 0x3ff;
+
+    uint32 opDwSize = 0;
+
+    switch (pMetaData->opType)
+    {
+    case operation__pfp_execute_indirect_v2__draw__GFX103COREPLUS          :
+        opDwSize = (sizeof(EIV2Draw) / sizeof(uint32));
+        break;
+    case operation__pfp_execute_indirect_v2__drawindex__GFX103COREPLUS     :
+        opDwSize = (sizeof(EIV2DrawIndexed) / sizeof(uint32));
+        break;
+    case operation__pfp_execute_indirect_v2__dispatch__GFX103COREPLUS      :
+        opDwSize = (sizeof(EIV2Dispatch) / sizeof(uint32));
+        break;
+    case operation__pfp_execute_indirect_v2__dispatch_mesh__GFX103COREPLUS :
+        opDwSize = (sizeof(EIV2DispatchMesh) / sizeof(uint32));
+        break;
+    default:
+        PAL_NOT_IMPLEMENTED();
+        break;
+    };
+
+    packet.ordinal2.bitfields.gfx103CorePlus.count_indirect_enable      = (packetInfo.countBufferAddr != 0);
+    packet.ordinal2.bitfields.gfx103CorePlus.user_data_dw_count         = pMetaData->userDataDwCount;
+    packet.ordinal2.bitfields.gfx103CorePlus.command_index_enable       = pMetaData->commandIndexEnable;
+    packet.ordinal2.bitfields.gfx103CorePlus.init_mem_copy_count        = pMetaData->initMemCopyCount;
+    packet.ordinal2.bitfields.gfx103CorePlus.build_srd_count            = pMetaData->buildSrdCount;
+    packet.ordinal2.bitfields.gfx103CorePlus.update_mem_copy_count      = pMetaData->updateMemCopyCount;
+    packet.ordinal2.bitfields.gfx103CorePlus.operation                  = pMetaData->opType;
+    packet.ordinal2.bitfields.gfx103CorePlus.fetch_index_attributes     = pMetaData->fetchIndexAttributes;
+    packet.ordinal2.bitfields.gfx103CorePlus.userdata_scatter_mode      = pMetaData->userDataScatterMode;
+    packet.ordinal2.bitfields.gfx103CorePlus.vertex_bounds_check_enable = pMetaData->vertexBoundsCheckEnable;
+    packet.ordinal2.bitfields.gfx103CorePlus.thread_trace_enable        = pMetaData->threadTraceEnable;
+    packet.ordinal3.bitfields.gfx103CorePlus.count_addr_lo              = LowPart(packetInfo.countBufferAddr) >> 2;
+    packet.ordinal4.bitfields.gfx103CorePlus.count_addr_hi              = HighPart(packetInfo.countBufferAddr);
+    packet.ordinal5.max_count                                           = packetInfo.maxCount;
+    packet.ordinal6.stride                                              = packetInfo.argumentBufferStrideBytes;
+    packet.ordinal7.bitfields.gfx103CorePlus.data_addr_lo               = LowPart(packetInfo.argumentBufferAddr) >> 2;
+    packet.ordinal8.bitfields.gfx103CorePlus.data_addr_hi               = HighPart(packetInfo.argumentBufferAddr);
+    packet.ordinal8.bitfields.gfx103CorePlus.index_attributes_offset    = pMetaData->indexAttributesOffset;
+    if (packetInfo.vbTableRegOffset != 0)
+    {
+        packet.ordinal9.bitfields.gfx103CorePlus.userdata_gfx_register =
+            ShRegOffset(packetInfo.vbTableRegOffset) & EightBitMask;
+        packet.ordinal2.bitfields.gfx103CorePlus.userdata_gfx_register_enable = 1;
+    }
+    packet.ordinal9.bitfields.gfx103CorePlus.userdata_offset            = pMetaData->userDataOffset;
+    packet.ordinal10.bitfields.gfx103CorePlus.spill_table_addr_lo       = LowPart(packetInfo.spillTableAddr) >> 2;
+    packet.ordinal11.bitfields.gfx103CorePlus.spill_table_addr_hi       = HighPart(packetInfo.spillTableAddr);
+
+    uint32 numSpillRegsActive = 0;
+    if (packetInfo.spillTableAddr != 0)
+    {
+        if (isGfx)
+        {
+            const GraphicsPipelineSignature* pGraphicsSignature = packetInfo.pipelineSignature.pSignatureGfx;
+            for (uint32 stgId = 0; stgId < NumHwShaderStagesGfx; stgId++)
+            {
+                // Graphics Registers are 8-bits wide.  We do the following ops to store up to 3 GraphicsRegs' data and
+                // then extract it into the PM4 ordinal. Ordinal13 contains the regs for the 3 possible shader stages.
+                if (pGraphicsSignature->stage[stgId].spillTableRegAddr)
+                {
+                    uint32 dataReg = (ShRegOffset(pGraphicsSignature->stage[stgId].spillTableRegAddr) & EightBitMask);
+                    // Ordinal13 is spill_graphics_regs_0, spill_graphics_regs_1, spill_graphics_regs_2
+                    packet.ordinal13.u32All |= (dataReg << (8 * (numSpillRegsActive++)));
+                }
+            }
+            const uint32 paddedVbTableBytes =
+                (Pow2Align(static_cast<uint32>(packetInfo.vbTableSizeDwords * sizeof(uint32)), 32));
+            packet.ordinal12.bitfields.gfx103CorePlus.vb_table_size      = paddedVbTableBytes;
+            packet.ordinal12.bitfields.gfx103CorePlus.spill_table_stride = (numSpillRegsActive != 0) ?
+                packetInfo.spillTableStrideBytes : paddedVbTableBytes;
+        }
+        else
+        {
+            const ComputePipelineSignature* pComputeSignature = packetInfo.pipelineSignature.pSignatureCs;
+            // Compute Registers are 16-bits wide with 10-bits of useful data. We do the following ops to store the
+            // ComputeRegs' data and then extract it into the PM4 ordinal.
+            if (pComputeSignature->stage.spillTableRegAddr)
+            {
+                packet.ordinal13.bitfieldsB.gfx103CorePlus.spill_compute_reg0 =
+                    (ShRegOffset(pComputeSignature->stage.spillTableRegAddr) & TenBitMask);
+                numSpillRegsActive++;
+            }
+            packet.ordinal12.bitfields.gfx103CorePlus.spill_table_stride = packetInfo.spillTableStrideBytes;
+        }
+        packet.ordinal2.bitfields.gfx103CorePlus.num_spill_regs = numSpillRegsActive;
+    }
+
+    uint32* pOut = reinterpret_cast<uint32*>(pBuffer);
+
+    uint32 offset = PacketDwSize;
+
+    // Init and Update MemCopy are the CP MemCopy structs that decide slots on how to copy Spilled UserData Entries
+    // from the ArgBuffer into the reserved queue specific VB+Spill Buffer.
+    // 16 BitsPerComponent for RegPacked writing in initMemCpyCount, updateMemCpyCount and buildSrdCount structs.
+    if (pMetaData->initMemCopyCount != 0)
+    {
+        offset += ExecuteIndirectV2Meta::ExecuteIndirectV2WritePacked(&pOut[offset],
+                                                                      16,
+                                                                      pMetaData->initMemCopyCount,
+                                                                      pMetaData->copyInitSrcOffsets,
+                                                                      pMetaData->copyInitDstOffsets,
+                                                                      pMetaData->copyInitSizes);
+    }
+
+    if (pMetaData->updateMemCopyCount != 0)
+    {
+        offset += ExecuteIndirectV2Meta::ExecuteIndirectV2WritePacked(&pOut[offset],
+                                                                     16,
+                                                                     pMetaData->updateMemCopyCount,
+                                                                     pMetaData->copyUpdateSrcOffsets,
+                                                                     pMetaData->copyUpdateDstOffsets,
+                                                                     pMetaData->copyUpdateSizes);
+    }
+
+    // SRD build, typically the VBTable.
+    if (pMetaData->buildSrdCount != 0)
+    {
+        offset += ExecuteIndirectV2Meta::ExecuteIndirectV2WritePacked(&pOut[offset],
+                                                                      16,
+                                                                      pMetaData->buildSrdCount,
+                                                                      pMetaData->buildSrdSrcOffsets,
+                                                                      pMetaData->buildSrdDstOffsets);
+    }
+
+    // UserDataEntries to be updated in Registers.
+    if (pMetaData->userDataDwCount != 0)
+    {
+        uint32* pInputs[EiV2NumInputsWritePacked] = {};
+        const uint32 count = pMetaData->stageUsageCount;
+        for (uint32 i = 0; i < count; i++)
+        {
+            pInputs[i] = &pMetaData->userData[i * NumUserDataRegisters];
+        }
+        offset += ExecuteIndirectV2Meta::ExecuteIndirectV2WritePacked(&pOut[offset],
+                                                                      isGfx ? 8 : 16,
+                                                                      pMetaData->userDataDwCount,
+                                                                      pInputs[0],
+                                                                      pInputs[1],
+                                                                      pInputs[2]);
+    }
+
+    // Copy Op MetaData at an offset the base PM4.
+    memcpy(&pOut[offset], pPacketOp, opDwSize * sizeof(uint32));
+    offset += opDwSize;
+
+    // Update header when we have final Packet+Op Dword size as offset.
+#if PAL_BUILD_GFX11
+    packet.ordinal1.header.u32All =
+        (Type3Header(IT_EXECUTE_INDIRECT_V2__GFX11, offset, resetPktFilter, shaderType, predicate)).u32All;
+#else
+    packet.ordinal1.header.u32All =
+        (Type3Header(IT_EXECUTE_INDIRECT_V2__NV2X, offset, resetPktFilter, shaderType, predicate)).u32All;
+#endif
+
+    memcpy(pBuffer, &packet, sizeof(packet));
+
+    return offset;
 }
 
 // =====================================================================================================================
@@ -1841,6 +2023,7 @@ size_t CmdUtil::BuildDrawIndexIndirect(
 // =====================================================================================================================
 // Builds a PM4 packet which issues an indexed, indirect draw command into the given DE command stream. Returns the size
 // of the PM4 command assembled, in DWORDs.
+template <bool IssueSqttMarkerEvent>
 size_t CmdUtil::BuildDrawIndexIndirectMulti(
     gpusize      offset,        // Byte offset to the indirect args data.
     uint32       baseVtxLoc,    // Register VS expects to read baseVtxLoc from.
@@ -1875,6 +2058,12 @@ size_t CmdUtil::BuildDrawIndexIndirectMulti(
         ordinal5.bitfields.draw_index_enable = 1;
         ordinal5.bitfields.draw_index_loc    = drawIndexLoc - PERSISTENT_SPACE_START;
     }
+#if (PAL_BUILD_BRANCH >= 2410)
+    if (IssueSqttMarkerEvent)
+    {
+        ordinal5.bitfields.gfx10Plus.thread_trace_marker_enable = 1;
+    }
+#endif
     ordinal5.bitfields.count_indirect_enable = (countGpuAddr != 0);
 
     packet.ordinal5               = ordinal5;
@@ -1892,9 +2081,33 @@ size_t CmdUtil::BuildDrawIndexIndirectMulti(
     return packetSize;
 }
 
+template
+size_t CmdUtil::BuildDrawIndexIndirectMulti<true>(
+    gpusize      offset,
+    uint32       baseVtxLoc,
+    uint32       startInstLoc,
+    uint32       drawIndexLoc,
+    uint32       stride,
+    uint32       count,
+    gpusize      countGpuAddr,
+    Pm4Predicate predicate,
+    void*        pBuffer) const;
+template
+size_t CmdUtil::BuildDrawIndexIndirectMulti<false>(
+    gpusize      offset,
+    uint32       baseVtxLoc,
+    uint32       startInstLoc,
+    uint32       drawIndexLoc,
+    uint32       stride,
+    uint32       count,
+    gpusize      countGpuAddr,
+    Pm4Predicate predicate,
+    void*        pBuffer) const;
+
 // =====================================================================================================================
 // Builds a PM4 packet which issues a draw indirect multi command into the given DE command stream. Returns the size of
 // the PM4 command assembled, in DWORDs.
+template <bool IssueSqttMarkerEvent>
 size_t CmdUtil::BuildDrawIndirectMulti(
     gpusize      offset,       // Byte offset to the indirect args data.
     uint32       baseVtxLoc,   // Register VS expects to read baseVtxLoc from.
@@ -1904,7 +2117,8 @@ size_t CmdUtil::BuildDrawIndirectMulti(
     uint32       count,        // Number of draw calls to loop through, or max draw calls if count is in GPU memory.
     gpusize      countGpuAddr, // GPU address containing the count.
     Pm4Predicate predicate,
-    void*        pBuffer)      // [out] Build the PM4 packet in this buffer.
+    void*        pBuffer       // [out] Build the PM4 packet in this buffer.
+    ) const
 {
     // Draw argument offset in the buffer has to be 4-byte aligned.
     PAL_ASSERT(IsPow2Aligned(offset, 4));
@@ -1924,6 +2138,12 @@ size_t CmdUtil::BuildDrawIndirectMulti(
         ordinal5.bitfields.draw_index_enable = 1;
         ordinal5.bitfields.draw_index_loc    = drawIndexLoc - PERSISTENT_SPACE_START;
     }
+#if (PAL_BUILD_BRANCH >= 2410)
+    if (IssueSqttMarkerEvent)
+    {
+        ordinal5.bitfields.gfx10Plus.thread_trace_marker_enable = 1;
+    }
+#endif
     ordinal5.bitfields.count_indirect_enable = (countGpuAddr != 0);
 
     packet.ordinal5               = ordinal5;
@@ -1940,6 +2160,29 @@ size_t CmdUtil::BuildDrawIndirectMulti(
     memcpy(pBuffer, &packet, sizeof(packet));
     return PacketSize;
 }
+
+template
+size_t CmdUtil::BuildDrawIndirectMulti<true>(
+    gpusize      offset,
+    uint32       baseVtxLoc,
+    uint32       startInstLoc,
+    uint32       drawIndexLoc,
+    uint32       stride,
+    uint32       count,
+    gpusize      countGpuAddr,
+    Pm4Predicate predicate,
+    void*        pBuffer) const;
+template
+size_t CmdUtil::BuildDrawIndirectMulti<false>(
+    gpusize      offset,
+    uint32       baseVtxLoc,
+    uint32       startInstLoc,
+    uint32       drawIndexLoc,
+    uint32       stride,
+    uint32       count,
+    gpusize      countGpuAddr,
+    Pm4Predicate predicate,
+    void*        pBuffer) const;
 
 // =====================================================================================================================
 // Builds a DISPATCH_TASK_STATE_INIT packet for any engine (ME or MEC) which provides the virtual address with which
@@ -2008,10 +2251,15 @@ size_t CmdUtil::BuildDispatchTaskMeshGfx(
                                            ShaderGraphics,
                                            predicate);
 
-    packet.ordinal2.bitfields.gfx10CorePlus.xyz_dim_loc                = (tgDimOffset != UserDataNotMapped)?
-                                                                           tgDimOffset - PERSISTENT_SPACE_START : 0;
-    packet.ordinal2.bitfields.gfx10CorePlus.ring_entry_loc             = ringEntryLoc - PERSISTENT_SPACE_START;
-    packet.ordinal3.bitfields.gfx10CorePlus.thread_trace_marker_enable = (IssueSqttMarkerEvent) ? 1 : 0;
+    packet.ordinal2.bitfields.gfx10CorePlus.xyz_dim_loc    = (tgDimOffset != UserDataNotMapped) ?
+                                                              tgDimOffset - PERSISTENT_SPACE_START : 0;
+    packet.ordinal2.bitfields.gfx10CorePlus.ring_entry_loc = ringEntryLoc - PERSISTENT_SPACE_START;
+#if (PAL_BUILD_BRANCH >= 2410)
+    if (IssueSqttMarkerEvent)
+    {
+        packet.ordinal3.bitfields.gfx10CorePlus.thread_trace_marker_enable = 1;
+    }
+#endif
 
 #if PAL_BUILD_GFX11
     if (IsGfx11(m_chipProps.gfxLevel) && (tgDimOffset != UserDataNotMapped))
@@ -2086,6 +2334,7 @@ size_t CmdUtil::BuildDispatchMeshDirect(
 
 // =====================================================================================================================
 // Builds a PM4_ME_DISPATCH_MESH_INDIRECT_MULTI packet for the PFP & ME engines.
+template <bool IssueSqttMarkerEvent>
 size_t CmdUtil::BuildDispatchMeshIndirectMulti(
     gpusize      dataOffset,             // Byte offset of the indirect buffer.
     uint32       xyzOffset,              // First of three consecutive user-SGPRs specifying the dimension.
@@ -2122,6 +2371,12 @@ size_t CmdUtil::BuildDispatchMeshIndirectMulti(
     packet.ordinal2.data_offset                         = LowPart(dataOffset);
     packet.ordinal3.bitfields.gfx10CorePlus.xyz_dim_loc = (xyzOffset != UserDataNotMapped) ?
                                                           xyzOffset - PERSISTENT_SPACE_START : 0;
+#if (PAL_BUILD_BRANCH >= 2410)
+    if (IssueSqttMarkerEvent)
+    {
+        packet.ordinal4.bitfields.gfx10CorePlus.thread_trace_marker_enable = 1;
+    }
+#endif
 
     if (drawIndexOffset != UserDataNotMapped)
     {
@@ -2160,8 +2415,36 @@ size_t CmdUtil::BuildDispatchMeshIndirectMulti(
     return PacketSize;
 }
 
+template
+size_t CmdUtil::BuildDispatchMeshIndirectMulti<true>(
+    gpusize      dataOffset,
+    uint32       xyzOffset,
+    uint32       drawIndexOffset,
+    uint32       count,
+    uint32       stride,
+    gpusize      countGpuAddr,
+    Pm4Predicate predicate,
+#if PAL_BUILD_GFX11
+    bool         usesLegacyMsFastLaunch,
+#endif
+    void*        pBuffer) const;
+template
+size_t CmdUtil::BuildDispatchMeshIndirectMulti<false>(
+    gpusize      dataOffset,
+    uint32       xyzOffset,
+    uint32       drawIndexOffset,
+    uint32       count,
+    uint32       stride,
+    gpusize      countGpuAddr,
+    Pm4Predicate predicate,
+#if PAL_BUILD_GFX11
+    bool         usesLegacyMsFastLaunch,
+#endif
+    void*        pBuffer) const;
+
 // =====================================================================================================================
 // Builds a PM4_ME_DISPATCH_MESH_INDIRECT_MULTI_ACE packet for the compute engine.
+template <bool IssueSqttMarkerEvent>
 size_t CmdUtil::BuildDispatchTaskMeshIndirectMultiAce(
     gpusize      dataOffset,       // Byte offset of the indirect buffer.
     uint32       ringEntryLoc,     // Offset of user-SGPR where the CP writes the ring entry WPTR.
@@ -2172,7 +2455,8 @@ size_t CmdUtil::BuildDispatchTaskMeshIndirectMultiAce(
     gpusize      countGpuAddr,     // GPU address containing the count.
     bool         isWave32,         // Meaningful for GFX10 only, set if wave-size is 32 for bound compute shader.
     Pm4Predicate predicate,        // Predication enable control.
-    void*        pBuffer)          // [out] Build the PM4 packet in this buffer.
+    void*        pBuffer          // [out] Build the PM4 packet in this buffer.
+    ) const
 {
     // Draw argument offset in the buffer has to be 4-byte aligned.
     PAL_ASSERT(IsPow2Aligned(dataOffset, 4));
@@ -2193,6 +2477,12 @@ size_t CmdUtil::BuildDispatchTaskMeshIndirectMultiAce(
 
     packet.ordinal3.data_addr_hi                           = HighPart(dataOffset);
     packet.ordinal4.bitfields.gfx10CorePlus.ring_entry_loc = ringEntryLoc - PERSISTENT_SPACE_START;
+#if (PAL_BUILD_BRANCH >= 2410)
+    if (IssueSqttMarkerEvent)
+    {
+        packet.ordinal5.bitfields.gfx10CorePlus.thread_trace_marker_enable = 1;
+    }
+#endif
 
     if (dispatchIndexLoc != UserDataNotMapped)
     {
@@ -2236,6 +2526,31 @@ size_t CmdUtil::BuildDispatchTaskMeshIndirectMultiAce(
     memcpy(pBuffer, &packet, sizeof(packet));
     return PacketSize;
 }
+
+template
+size_t CmdUtil::BuildDispatchTaskMeshIndirectMultiAce<true>(
+    gpusize      dataOffset,
+    uint32       ringEntryLoc,
+    uint32       xyzDimLoc,
+    uint32       dispatchIndexLoc,
+    uint32       count,
+    uint32       stride,
+    gpusize      countGpuAddr,
+    bool         isWave32,
+    Pm4Predicate predicate,
+    void*        pBuffer) const;
+template
+size_t CmdUtil::BuildDispatchTaskMeshIndirectMultiAce<false>(
+    gpusize      dataOffset,
+    uint32       ringEntryLoc,
+    uint32       xyzDimLoc,
+    uint32       dispatchIndexLoc,
+    uint32       count,
+    uint32       stride,
+    gpusize      countGpuAddr,
+    bool         isWave32,
+    Pm4Predicate predicate,
+    void*        pBuffer) const;
 
 // =====================================================================================================================
 // Builds a PM4_MEC_DISPATCH_TASKMESH_DIRECT_ACE packet for the compute engine, which directly starts the task/mesh
@@ -2592,7 +2907,7 @@ size_t CmdUtil::BuildSampleEventWrite(
     // Make sure the supplied VGT event is legal.
     PAL_ASSERT(vgtEvent < (sizeof(VgtEventIndex) / sizeof(VGT_EVENT_TYPE)));
 
-#if ( PAL_BUILD_GFX11)
+#if PAL_BUILD_GFX11
     const bool vsPartialFlushValid = (vgtEvent == VS_PARTIAL_FLUSH) && (m_chipProps.gfxip.supportsSwStrmout != 0);
 #else
     const bool vsPartialFlushValid = false;
@@ -2611,7 +2926,7 @@ size_t CmdUtil::BuildSampleEventWrite(
 
     PAL_ASSERT(vgtEvent != 0x9);
 
-#if ( PAL_BUILD_GFX11)
+#if PAL_BUILD_GFX11
     const bool vsPartialFlushEventIndexValid =
         ((VgtEventIndex[vgtEvent] == event_index__me_event_write__cs_vs_ps_partial_flush) &&
          (m_chipProps.gfxip.supportsSwStrmout != 0));

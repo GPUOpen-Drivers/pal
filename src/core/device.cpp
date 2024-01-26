@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -534,16 +534,7 @@ Result Device::SetupPublicSettingDefaults()
         m_publicSettings.optDepthOnlyExportRate    = false;
     }
 
-#if PAL_BUILD_GFX11
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 777)
-    m_publicSettings.gfx11SampleMaskTrackerWatermark = 0;
-#endif
-#endif
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 790
-    m_publicSettings.limitCbFetch256B = false;
-#endif
-
+    m_publicSettings.limitCbFetch256B   = false;
     m_publicSettings.binningMode        = DeferredBatchBinAccurate;
     m_publicSettings.customBatchBinSize = 0x800080;
 
@@ -727,26 +718,16 @@ void Device::InitMemoryHeapProperties()
             m_heapProperties[i].flags.cpuUncached = 1;
             break;
         case GpuHeapGartCacheable:
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 766
             m_heapProperties[i].logicalSize  = m_memoryProperties.nonLocalHeapSize;
             m_heapProperties[i].physicalSize = m_memoryProperties.nonLocalHeapSize;
-#else
-            m_heapProperties[i].heapSize         = m_memoryProperties.nonLocalHeapSize;
-            m_heapProperties[i].physicalHeapSize = m_memoryProperties.nonLocalHeapSize;
-#endif
             m_heapProperties[i].flags.cpuVisible     = 1;
             m_heapProperties[i].flags.cpuGpuCoherent = 1;
             m_heapProperties[i].flags.holdsPinned    = 1;
             m_heapProperties[i].flags.shareable      = 1;
             break;
         case GpuHeapGartUswc:
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 766
             m_heapProperties[i].logicalSize  = m_memoryProperties.nonLocalHeapSize;
             m_heapProperties[i].physicalSize = m_memoryProperties.nonLocalHeapSize;
-#else
-            m_heapProperties[i].heapSize         = m_memoryProperties.nonLocalHeapSize;
-            m_heapProperties[i].physicalHeapSize = m_memoryProperties.nonLocalHeapSize;
-#endif
             m_heapProperties[i].flags.cpuVisible       = 1;
             m_heapProperties[i].flags.cpuGpuCoherent   = 1;
             m_heapProperties[i].flags.cpuUncached      = 1;
@@ -1989,28 +1970,18 @@ Result Device::GetProperties(
             m_memoryProperties.vaRange[static_cast<uint32>(VaPartition::DescriptorTable)].baseVirtAddr;
         pInfo->gpuMemoryProperties.shadowDescTableVaStart =
             m_memoryProperties.vaRange[static_cast<uint32>(VaPartition::ShadowDescriptorTable)].baseVirtAddr;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 766
-        pInfo->gpuMemoryProperties.maxPhysicalMemSize = (m_heapProperties[GpuHeapLocal].physicalSize +
-                                                         m_heapProperties[GpuHeapInvisible].physicalSize +
-                                                         m_memoryProperties.nonLocalHeapSize);
-        pInfo->gpuMemoryProperties.maxLocalMemSize    = (m_heapProperties[GpuHeapLocal].logicalSize +
-                                                         m_heapProperties[GpuHeapInvisible].logicalSize);
-        pInfo->gpuMemoryProperties.barSize            = m_memoryProperties.barSize;
-#else
-        pInfo->gpuMemoryProperties.maxPhysicalMemSize = (m_heapProperties[GpuHeapLocal].physicalHeapSize +
-                                                         m_heapProperties[GpuHeapInvisible].physicalHeapSize +
-                                                         m_memoryProperties.nonLocalHeapSize);
-        pInfo->gpuMemoryProperties.maxLocalMemSize    = (m_heapProperties[GpuHeapLocal].heapSize +
-                                                         m_heapProperties[GpuHeapInvisible].heapSize);
-#endif
-        pInfo->gpuMemoryProperties.localMemoryType    = m_memoryProperties.localMemoryType;
 
-        pInfo->gpuMemoryProperties.privateApertureBase         = m_memoryProperties.privateApertureBase;
-        pInfo->gpuMemoryProperties.sharedApertureBase          = m_memoryProperties.sharedApertureBase;
-        pInfo->gpuMemoryProperties.busAddressableMemSize       = m_memoryProperties.busAddressableMemSize;
-
-        pInfo->gpuMemoryProperties.largePageSizeInBytes =
-                m_memoryProperties.largePageSupport.largePageSizeInBytes;
+        pInfo->gpuMemoryProperties.maxPhysicalMemSize    = (m_heapProperties[GpuHeapLocal].physicalSize +
+                                                            m_heapProperties[GpuHeapInvisible].physicalSize +
+                                                            m_memoryProperties.nonLocalHeapSize);
+        pInfo->gpuMemoryProperties.maxLocalMemSize       = (m_heapProperties[GpuHeapLocal].logicalSize +
+                                                            m_heapProperties[GpuHeapInvisible].logicalSize);
+        pInfo->gpuMemoryProperties.barSize               = m_memoryProperties.barSize;
+        pInfo->gpuMemoryProperties.localMemoryType       = m_memoryProperties.localMemoryType;
+        pInfo->gpuMemoryProperties.privateApertureBase   = m_memoryProperties.privateApertureBase;
+        pInfo->gpuMemoryProperties.sharedApertureBase    = m_memoryProperties.sharedApertureBase;
+        pInfo->gpuMemoryProperties.busAddressableMemSize = m_memoryProperties.busAddressableMemSize;
+        pInfo->gpuMemoryProperties.largePageSizeInBytes  = m_memoryProperties.largePageSupport.largePageSizeInBytes;
 
         pInfo->gpuMemoryProperties.performance.maxMemClock     = static_cast<float>(m_chipProperties.maxMemoryClock);
         pInfo->gpuMemoryProperties.performance.memPerfRating   = m_chipProperties.memoryPerfRating;
@@ -2100,11 +2071,7 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.supportSplitReleaseAcquire       = gfx9Props.supportSplitReleaseAcquire;
             pInfo->gfxipProperties.flags.supportCooperativeMatrix         = gfx9Props.supportCooperativeMatrix;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 776
             pInfo->gfxipProperties.shaderCore.numShaderEngines     = gfx9Props.numActiveShaderEngines;
-#else
-            pInfo->gfxipProperties.shaderCore.numShaderEngines     = gfx9Props.numShaderEngines;
-#endif
             pInfo->gfxipProperties.shaderCore.numShaderArrays      = gfx9Props.numShaderArrays;
             pInfo->gfxipProperties.shaderCore.numCusPerShaderArray = gfx9Props.numCuPerSh;
             pInfo->gfxipProperties.shaderCore.maxCusPerShaderArray = gfx9Props.maxNumCuPerSh;
@@ -2161,7 +2128,6 @@ Result Device::GetProperties(
             PAL_ASSERT((gfx9Props.numShaderEngines <= MaxShaderEngines) &&
                        (gfx9Props.numShaderArrays  <= MaxShaderArraysPerSe));
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 776
             // Remove any holes in the CuMask and PixelPacker before passing it up to the client
             const uint32 pixelPackersPerSe = m_chipProperties.gfx9.numScPerSe * m_chipProperties.gfx9.numPackerPerSc;
             uint32 activeSe = 0;
@@ -2185,21 +2151,6 @@ Result Device::GetProperties(
                     activeSe++;
                 }
             }
-#else
-            for (uint32 se = 0; se < gfx9Props.numShaderEngines; ++se)
-            {
-                for (uint32 sa = 0; sa < gfx9Props.numShaderArrays; ++sa)
-                {
-                    pInfo->gfxipProperties.shaderCore.activeCuMask[se][sa] = gfx9Props.activeCuMask[se][sa];
-                }
-            }
-
-            static_assert(sizeof(m_chipProperties.gfxip.activePixelPackerMask) ==
-                sizeof(pInfo->gfxipProperties.shaderCore.activePixelPackerMask),
-                "PAL Device and interface active pixel packer mask sizes do not match!");
-            memcpy(pInfo->gfxipProperties.shaderCore.activePixelPackerMask, m_chipProperties.gfxip.activePixelPackerMask,
-                sizeof(pInfo->gfxipProperties.shaderCore.activePixelPackerMask));
-#endif
 
             pInfo->gfxipProperties.flags.supportInt8Dot     = gfx9Props.supportInt8Dot;
             pInfo->gfxipProperties.flags.supportInt4Dot     = gfx9Props.supportInt4Dot;
@@ -4943,6 +4894,14 @@ bool Device::IssueSqttMarkerEvents() const
 }
 
 // =====================================================================================================================
+bool Device::IssueCrashAnalysisMarkerEvents() const
+{
+    const PalPlatformSettings& platformSettings = m_pPlatform->PlatformSettings();
+
+    return m_pPlatform->IsCrashAnalysisModeEnabled();
+}
+
+// =====================================================================================================================
 bool Device::EnablePerfCountersInPreamble() const
 {
     const PalPlatformSettings& platformSettings = m_pPlatform->PlatformSettings();
@@ -5036,6 +4995,29 @@ void Device::LogCodeObjectToDisk(
             PAL_ASSERT(result == Result::Success);
         }
     }
+}
+
+// =====================================================================================================================
+bool Device::EnableDisplayDcc(
+    const DisplayDccCaps& dccCaps,
+    const SwizzledFormat& swizzledFormat
+    ) const
+{
+    bool enable = false;
+
+    {
+        PAL_ASSERT(dccCaps.dcc_256_128_128 ||
+                   dccCaps.dcc_128_128_unconstrained ||
+                   dccCaps.dcc_256_64_64);
+
+        // It's very inefficient for the DCN's metadata cache to support pipe-aligned metadata as the
+        // cache would have to buffer up many lines for a horizontal or vertical walk.
+        enable = (dccCaps.pipeAligned == 0) &&
+                 // VCAM_SURFACE_DESC does not support YUV presentable yet
+                 (Formats::IsYuv(swizzledFormat.format) == false);
+    }
+
+    return enable;
 }
 
 #if PAL_BUILD_GFX11

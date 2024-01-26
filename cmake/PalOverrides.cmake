@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2020-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2020-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -30,26 +30,18 @@ include_guard()
 # GPU Overrides
 
 if(PAL_BUILD_GFX9)
-
     set(ADDR_GFX10_BUILD ON)
 
-    set(ADDR_NAVI12_BUILD        ${PAL_BUILD_NAVI12})
-
-    set(ADDR_NAVI14_BUILD        ${PAL_BUILD_NAVI14})
-
-    set(ADDR_NAVI21_BUILD        ${PAL_BUILD_NAVI21})
-
-    set(ADDR_NAVI22_BUILD        ${PAL_BUILD_NAVI22})
-
-    set(ADDR_NAVI23_BUILD        ${PAL_BUILD_NAVI23})
-
-    set(ADDR_NAVI24_BUILD        ${PAL_BUILD_NAVI24})
-
-    set(ADDR_REMBRANDT_BUILD        ${PAL_BUILD_REMBRANDT})
-
-    set(ADDR_RAPHAEL_BUILD          ${PAL_BUILD_RAPHAEL})
-
-    set(ADDR_MENDOCINO_BUILD        ${PAL_BUILD_MENDOCINO})
+    # These ASICs don't have build macros, they're always present if this HWL is enabled.
+    set(ADDR_NAVI12_BUILD ON)
+    set(ADDR_NAVI14_BUILD ON)
+    set(ADDR_NAVI21_BUILD ON)
+    set(ADDR_NAVI22_BUILD ON)
+    set(ADDR_NAVI23_BUILD ON)
+    set(ADDR_NAVI24_BUILD ON)
+    set(ADDR_REMBRANDT_BUILD ON)
+    set(ADDR_RAPHAEL_BUILD ON)
+    set(ADDR_MENDOCINO_BUILD ON)
 
 #if PAL_BUILD_GFX11
     set(ADDR_GFX11_BUILD        ${PAL_BUILD_GFX11})

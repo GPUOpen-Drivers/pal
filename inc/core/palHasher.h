@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2022-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -141,13 +141,13 @@ public:
         {
             Hash(info.lateAllocVsLimit);
         }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 781
+
         Hash(info.useLateAllocGsLimit);
+
         if (info.useLateAllocGsLimit)
         {
             Hash(info.lateAllocGsLimit);
         }
-#endif
 
         m_hasher.Update(reinterpret_cast<const uint8*>(&(info.iaState)), sizeof(info.iaState));
         Hash(info.rsState);

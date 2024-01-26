@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -136,10 +136,6 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::CmdBufferCmdSetViewports,                                  InterfaceObject::CmdBuffer,            "CmdSetViewports"                         },
     { InterfaceFunc::CmdBufferCmdSetScissorRects,                               InterfaceObject::CmdBuffer,            "CmdSetScissorRects"                      },
     { InterfaceFunc::CmdBufferCmdSetGlobalScissor,                              InterfaceObject::CmdBuffer,            "CmdSetGlobalScissor"                     },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 778
-    { InterfaceFunc::CmdBufferCmdSetColorWriteMask,                             InterfaceObject::CmdBuffer,            "CmdSetColorWriteMask"                    },
-    { InterfaceFunc::CmdBufferCmdSetRasterizerDiscardEnable,                    InterfaceObject::CmdBuffer,            "CmdSetRasterizerDiscardEnable"           },
-#endif
     { InterfaceFunc::CmdBufferCmdBarrier,                                       InterfaceObject::CmdBuffer,            "CmdBarrier"                              },
     { InterfaceFunc::CmdBufferCmdRelease,                                       InterfaceObject::CmdBuffer,            "CmdRelease"                              },
     { InterfaceFunc::CmdBufferCmdAcquire,                                       InterfaceObject::CmdBuffer,            "CmdAcquire"                              },
@@ -908,7 +904,7 @@ void LogContext::PipelineStageFlags(
         "PipelineStageCs",                //= 0x00004000,
         "PipelineStageBlt",               //= 0x00008000,
         "PipelineStageBottomOfPipe",      //= 0x00010000,
-#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 770
+#else
         "PipelineStageFetchIndices",      //= 0x00000004,
         "PipelineStageStreamOut",         //= 0x00000008,
         "PipelineStageVs",                //= 0x00000010,
@@ -922,19 +918,6 @@ void LogContext::PipelineStageFlags(
         "PipelineStageCs",                //= 0x00001000,
         "PipelineStageBlt",               //= 0x00002000,
         "PipelineStageBottomOfPipe",      //= 0x00004000,
-#else
-        "PipelineStageFetchIndices",      //= 0x00000004,
-        "PipelineStageVs",                //= 0x00000008,
-        "PipelineStageHs",                //= 0x00000010,
-        "PipelineStageDs",                //= 0x00000020,
-        "PipelineStageGs",                //= 0x00000040,
-        "PipelineStagePs",                //= 0x00000080,
-        "PipelineStageEarlyDsTarget",     //= 0x00000100,
-        "PipelineStageLateDsTarget",      //= 0x00000200,
-        "PipelineStageColorTarget",       //= 0x00000400,
-        "PipelineStageCs",                //= 0x00000800,
-        "PipelineStageBlt",               //= 0x00001000,
-        "PipelineStageBottomOfPipe",      //= 0x00002000,
 #endif
     };
 
@@ -1251,7 +1234,10 @@ void LogContext::ResolveImageFlags(
 {
     const char*const StringTable[] =
     {
-        "ImageResolveInvertY", // 0x1,
+        "ImageResolveInvertY",   // 0x1,
+        "ImageResolveDstAsSrgb", // 0x2,
+        "ImageResolveDstAsNorm", // 0x4,
+        "ImageResolveSrcAsNorm", // 0x8,
     };
 
     BeginList(false);

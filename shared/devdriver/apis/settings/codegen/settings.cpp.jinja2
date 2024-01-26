@@ -154,8 +154,13 @@ void {{ClassName}}::LogSettings(
 #if DXC_DEVELOPER
     if (m_settings.enableGlobalSettingsDumping == true)
     {
+        static bool firstCall = true;
+        const Util::FileAccessMode access =
+            firstCall ? Util::FileAccessMode::FileAccessWrite : Util::FileAccessMode::FileAccessAppend;
+        firstCall = false;
+
         Util::File file;
-        Util::Result result = file.Open(m_settings.globalSettingsDumpFile, Util::FileAccessMode::FileAccessAppend);
+        Util::Result result = file.Open(m_settings.globalSettingsDumpFile, access);
         if (result == Util::Result::Success)
         {
             result = file.Printf("Location:%s\n", pLabel);

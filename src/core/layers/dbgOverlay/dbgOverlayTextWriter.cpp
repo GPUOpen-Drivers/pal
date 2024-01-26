@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -177,6 +177,9 @@ void TextWriter::WriteVisualConfirm(
                 (BufSize - indexOffset), "  %d  ", index);
         }
     }
+
+    pPlatform->ResetGpuWork();
+
     textLines++;
 
     if (settings.debugOverlayConfig.dateTimeEnabled)
@@ -327,17 +330,10 @@ void TextWriter::WriteVisualConfirm(
                        combinedNonLocal ? peakSysCombGpuMem : peakSysUswcGpuMem, peakSysCacheGpuMem);
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 766
     const float localHeapSize    = m_pDevice->GetMemHeapProps(GpuHeapLocal).logicalSize         / OneMb;
     const float invisHeapSize    = m_pDevice->GetMemHeapProps(GpuHeapInvisible).logicalSize     / OneMb;
     const float sysUswcHeapSize  = m_pDevice->GetMemHeapProps(GpuHeapGartUswc).logicalSize      / OneMb;
     const float sysCacheHeapSize = m_pDevice->GetMemHeapProps(GpuHeapGartCacheable).logicalSize / OneMb;
-#else
-    const float localHeapSize    = m_pDevice->GetMemHeapProps(GpuHeapLocal).heapSize            / OneMb;
-    const float invisHeapSize    = m_pDevice->GetMemHeapProps(GpuHeapInvisible).heapSize        / OneMb;
-    const float sysUswcHeapSize  = m_pDevice->GetMemHeapProps(GpuHeapGartUswc).heapSize         / OneMb;
-    const float sysCacheHeapSize = m_pDevice->GetMemHeapProps(GpuHeapGartCacheable).heapSize    / OneMb;
-#endif
     const float sysCombHeapSize  = sysUswcHeapSize + sysCacheHeapSize;
 
     Util::Snprintf(&overlayText[textLines++][0], BufSize,

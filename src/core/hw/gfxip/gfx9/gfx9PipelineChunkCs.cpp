@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -224,8 +224,8 @@ void PipelineChunkCs::InitRegisters(
     {
         m_regs.computePgmRsrc3.u32All = registers.At(Gfx10Plus::mmCOMPUTE_PGM_RSRC3);
 
-#if  PAL_BUILD_GFX11
-        if (IsGfx104Plus(chipProps.gfxLevel))
+#if PAL_BUILD_GFX11
+        if (IsGfx11Plus(chipProps.gfxLevel))
         {
             m_regs.computePgmRsrc3.gfx104Plus.INST_PREF_SIZE =
                 m_device.GetShaderPrefetchSize(m_pStageInfo->codeLength);

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2021-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2021-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -141,7 +141,7 @@ typedef struct RmtFileChunkHeader
 
     // This version number matches the spec revision version
     #define RMT_FILE_DATA_CHUNK_MAJOR_VERSION 1
-    #define RMT_FILE_DATA_CHUNK_MINOR_VERSION 8
+    #define RMT_FILE_DATA_CHUNK_MINOR_VERSION 9
 
 /// A structure encapsulating information about the location of the RMT data within the RMT file itself.
 typedef struct RmtFileChunkRmtData

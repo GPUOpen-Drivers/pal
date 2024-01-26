@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -89,7 +89,6 @@ constexpr GpuInfo GpuInfoLookupTable[] =
     { AsicRevision::Navi10,     NullGpuId::Navi10,     GfxIpLevel::GfxIp10_1, FAMILY_NV, NV_NAVI10_P_A2,      PRID_NV_NAVI10_00,       GfxEngineGfx9, DEVICE_ID_NV_NAVI10_P_7310,      "NAVI10:gfx1010" },
     { AsicRevision::Navi12,     NullGpuId::Navi12,     GfxIpLevel::GfxIp10_1, FAMILY_NV, NV_NAVI12_P_A0,      PRID_NV_NAVI12_00,       GfxEngineGfx9, DEVICE_ID_NV_NAVI12_P_7360,      "NAVI12:gfx1011" },
     { AsicRevision::Navi14,     NullGpuId::Navi14,     GfxIpLevel::GfxIp10_1, FAMILY_NV, NV_NAVI14_M_A0,      PRID_NV_NAVI14_00,       GfxEngineGfx9, DEVICE_ID_NV_NAVI14_M_7340,      "NAVI14:gfx1012" },
-
     { AsicRevision::Navi21,     NullGpuId::Navi21,     GfxIpLevel::GfxIp10_3, FAMILY_NV,  NV_NAVI21_P_A0,      PRID_NV_NAVI10_00, GfxEngineGfx9, DEVICE_ID_NV_NAVI10_P_7310, "NAVI21:gfx1030" },
     { AsicRevision::Navi22,     NullGpuId::Navi22,     GfxIpLevel::GfxIp10_3, FAMILY_NV,  NV_NAVI22_P_A0,      PRID_NV_NAVI10_00, GfxEngineGfx9, DEVICE_ID_NV_NAVI10_P_7310, "NAVI22:gfx1031" },
     { AsicRevision::Navi23,     NullGpuId::Navi23,     GfxIpLevel::GfxIp10_3, FAMILY_NV,  NV_NAVI23_P_A0,      PRID_NV_NAVI10_00, GfxEngineGfx9, DEVICE_ID_NV_NAVI10_P_7310, "NAVI23:gfx1032" },

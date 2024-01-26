@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -849,24 +849,18 @@ uint32 CmdBuffer::CmdRelease(
     const AcquireReleaseInfo& releaseInfo)
 {
     // Validate input data.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     PAL_ASSERT(releaseInfo.dstGlobalStageMask == 0);
-#else
-    PAL_ASSERT(releaseInfo.dstStageMask == 0);
-#endif
     PAL_ASSERT(releaseInfo.dstGlobalAccessMask == 0);
+
     for (uint32 i = 0; i < releaseInfo.memoryBarrierCount; i++)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
         PAL_ASSERT(releaseInfo.pMemoryBarriers[i].dstStageMask == 0);
-#endif
         PAL_ASSERT(releaseInfo.pMemoryBarriers[i].dstAccessMask == 0);
     }
+
     for (uint32 i = 0; i < releaseInfo.imageBarrierCount; i++)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
         PAL_ASSERT(releaseInfo.pImageBarriers[i].dstStageMask == 0);
-#endif
         PAL_ASSERT(releaseInfo.pImageBarriers[i].dstAccessMask == 0);
     }
 
@@ -884,24 +878,18 @@ void CmdBuffer::CmdAcquire(
     const uint32*             pSyncTokens)
 {
     // Validate input data.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     PAL_ASSERT(acquireInfo.srcGlobalStageMask == 0);
-#else
-    PAL_ASSERT(acquireInfo.srcStageMask == 0);
-#endif
     PAL_ASSERT(acquireInfo.srcGlobalAccessMask == 0);
+
     for (uint32 i = 0; i < acquireInfo.memoryBarrierCount; i++)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
         PAL_ASSERT(acquireInfo.pMemoryBarriers[i].srcStageMask == 0);
-#endif
         PAL_ASSERT(acquireInfo.pMemoryBarriers[i].srcAccessMask == 0);
     }
+
     for (uint32 i = 0; i < acquireInfo.imageBarrierCount; i++)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
         PAL_ASSERT(acquireInfo.pImageBarriers[i].srcStageMask == 0);
-#endif
         PAL_ASSERT(acquireInfo.pImageBarriers[i].srcAccessMask == 0);
     }
 
@@ -918,24 +906,18 @@ void CmdBuffer::CmdReleaseEvent(
     const IGpuEvent*          pGpuEvent)
 {
     // Validate input data.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     PAL_ASSERT(releaseInfo.dstGlobalStageMask == 0);
-#else
-    PAL_ASSERT(releaseInfo.dstStageMask == 0);
-#endif
     PAL_ASSERT(releaseInfo.dstGlobalAccessMask == 0);
+
     for (uint32 i = 0; i < releaseInfo.memoryBarrierCount; i++)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
         PAL_ASSERT(releaseInfo.pMemoryBarriers[i].dstStageMask == 0);
-#endif
         PAL_ASSERT(releaseInfo.pMemoryBarriers[i].dstAccessMask == 0);
     }
+
     for (uint32 i = 0; i < releaseInfo.imageBarrierCount; i++)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
         PAL_ASSERT(releaseInfo.pImageBarriers[i].dstStageMask == 0);
-#endif
         PAL_ASSERT(releaseInfo.pImageBarriers[i].dstAccessMask == 0);
     }
 
@@ -953,24 +935,18 @@ void CmdBuffer::CmdAcquireEvent(
     const IGpuEvent*const*    ppGpuEvents)
 {
     // Validate input data.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     PAL_ASSERT(acquireInfo.srcGlobalStageMask == 0);
-#else
-    PAL_ASSERT(acquireInfo.srcStageMask == 0);
-#endif
     PAL_ASSERT(acquireInfo.srcGlobalAccessMask == 0);
+
     for (uint32 i = 0; i < acquireInfo.memoryBarrierCount; i++)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
         PAL_ASSERT(acquireInfo.pMemoryBarriers[i].srcStageMask == 0);
-#endif
         PAL_ASSERT(acquireInfo.pMemoryBarriers[i].srcAccessMask == 0);
     }
+
     for (uint32 i = 0; i < acquireInfo.imageBarrierCount; i++)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
         PAL_ASSERT(acquireInfo.pImageBarriers[i].srcStageMask == 0);
-#endif
         PAL_ASSERT(acquireInfo.pImageBarriers[i].srcAccessMask == 0);
     }
 

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -285,39 +285,40 @@ union CachedSettings
 
         uint64 supportsVrs                               :  1;
         uint64 vrsForceRateFine                          :  1;
-#if (PAL_BUILD_GFX11)
+#if PAL_BUILD_GFX11
         uint64 supportsSwStrmout                         :  1;
 #else
         uint64 reserved7                                 :  1;
 #endif
         uint64 supportAceOffload                         :  1;
-        uint64 useExecuteIndirectPacket                  :  2;
+        uint64 useExecuteIndirectPacket                  :  3;
         uint64 disablePreamblePipelineStats              :  1;
 #if PAL_BUILD_GFX11
-        uint64 primGrpSize                 :  9; // For programming GE_CNTL::PRIM_GRP_SIZE
-        uint64 geCntlGcrMode               :  2; // For programming GE_CNTL::GCR_DISABLE
-        uint64 useLegacyDbZInfo            :  1;
-        uint64 waLineStippleReset          :  1;
-        uint64 disableRbPlusWithBlending   :  1;
-        uint64 waEnableIntrinsicRateEnable :  1;
-        uint64 supportsShPairsPacket       :  1;
-        uint64 supportsShPairsPacketCs     :  1;
+        uint64 primGrpSize                               :  9; // For programming GE_CNTL::PRIM_GRP_SIZE
+        uint64 geCntlGcrMode                             :  2; // For programming GE_CNTL::GCR_DISABLE
+        uint64 useLegacyDbZInfo                          :  1;
+        uint64 waLineStippleReset                        :  1;
+        uint64 disableRbPlusWithBlending                 :  1;
+        uint64 waEnableIntrinsicRateEnable               :  1;
+        uint64 supportsShPairsPacket                     :  1;
+        uint64 supportsShPairsPacketCs                   :  1;
 #else
-        uint64 reserved8                   : 17;
+        uint64 reserved8                                 : 17;
 #endif
 #if PAL_BUILD_NAVI3X
-        uint64 waAddPostambleEvent        :  1;
+        uint64 waAddPostambleEvent                       :  1;
 #else
-        uint64 reserved10                 :  1;
+        uint64 reserved10                                :  1;
 #endif
 
-        uint64 optimizeDepthOnlyFmt       :  1;
-        uint64 has32bPred                 :  1;
-        uint64 optimizeNullSourceImage    :  1;
-        uint64 waitAfterCbFlush           :  1;
-        uint64 waitAfterDbFlush           :  1;
-        uint64 rbHarvesting               :  1;
-        uint64 reserved                   : 57;
+        uint64 optimizeDepthOnlyFmt                      :  1;
+        uint64 has32bPred                                :  1;
+        uint64 optimizeNullSourceImage                   :  1;
+        uint64 waitAfterCbFlush                          :  1;
+        uint64 waitAfterDbFlush                          :  1;
+        uint64 rbHarvesting                              :  1;
+        uint64 reserved1                                 : 12;
+        uint64 reserved2                                 : 64;
     };
     uint64 u64All[3];
 };
@@ -589,23 +590,26 @@ public:
 
     uint32 BuildExecuteIndirectIb2Packets(
         const IndirectCmdGenerator& gfx9Generator,
-        const GraphicsPipeline&     gfxPipeline,
-        const ComputePipeline&      csPipeline,
+        ExecuteIndirectPacketInfo*  pPacketInfo,
         const bool                  isGfx,
+        const bool                  usesLegacyMsFastLaunch,
         uint32*                     pDeCmdIb2Space);
 
-    gpusize ConstructExecuteIndirectIb2(
+    uint32 PopulateExecuteIndirectV2Params(
+        const IndirectCmdGenerator& gfx9Generator,
+        const bool                  isGfx,
+        ExecuteIndirectPacketInfo*  pPacketInfo,
+        ExecuteIndirectV2Op*        pPacketOp,
+        ExecuteIndirectV2Meta*      pMeta);
+
+    gpusize ConstructExecuteIndirectPacket(
         const IndirectCmdGenerator& gfx9Generator,
         PipelineBindPoint           bindPoint,
-        const uint32                maximumCount,
         const GraphicsPipeline*     pGfxPipeline,
         const ComputePipeline*      pCsPipeline,
-        gpusize*                    pIb2GpuSize,
-        gpusize*                    pSpillTableAddress,
-        uint32*                     pSpillTableInstCnt,
-        uint32*                     pSpillTableStride,
-        uint32*                     pVbTableRegOffset,
-        uint32*                     pVbTableSize);
+        ExecuteIndirectPacketInfo*  pPacketInfo,
+        ExecuteIndirectV2Op*        pPacketOp,
+        ExecuteIndirectV2Meta*      pMeta);
 
     void ExecuteIndirectPacket(
         const IIndirectCmdGenerator& generator,
@@ -685,6 +689,8 @@ public:
 
     // checks if the entire command buffer can be preempted or not
     virtual bool IsPreemptable() const override;
+
+    bool GetExecuteIndirectV2Usage() const { return m_hasExecuteIndirectV2; }
 
     virtual uint32* WriteWaitEop(HwPipePoint waitPoint, uint32 hwGlxSync, uint32 hwRbSync, uint32* pCmdSpace) override;
     virtual uint32* WriteWaitCsIdle(uint32* pCmdSpace) override;
@@ -1085,7 +1091,7 @@ private:
         return (m_pipelineState.flags.isNgg != 0);
     }
 
-#if (PAL_BUILD_GFX11)
+#if PAL_BUILD_GFX11
     bool SupportsSwStrmout() const { return m_cachedSettings.supportsSwStrmout; }
 #endif
 
@@ -1177,6 +1183,8 @@ private:
             uint32 u32All;
         } flags; // Flags describing the currently active pipeline stages.
     }  m_pipelineState;
+
+    bool m_pipelineDynRegsDirty;
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     bool m_pipelineStateValid; /// Debug flag for knowing when m_pipelineState is valid (most of draw-time).
@@ -1348,6 +1356,9 @@ private:
     gpusize m_gangedCmdStreamSemAddr;
     uint32  m_semCountAceWaitDe;
     uint32  m_semCountDeWaitAce;
+
+    // Indicates that this CmdBuffer contains an ExecuteIndirectV2 PM4.
+    bool m_hasExecuteIndirectV2;
 
 #if PAL_BUILD_GFX11
     gpusize m_swStreamoutDataAddr;

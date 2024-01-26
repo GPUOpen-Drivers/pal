@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2020-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2020-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -409,14 +409,18 @@ void CmdBuffer::SurfaceCaptureHashMatch()
 
 // =====================================================================================================================
 // Creates images and memory for surface capture and copies data to those images
-void CmdBuffer::CaptureSurfaces()
+void CmdBuffer::CaptureSurfaces(
+    Developer::DrawDispatchType drawDispatchType)
 {
     PAL_ASSERT(m_surfaceCapture.actionId >= m_surfaceCapture.actionIdStart);
 
     const uint32 actionIndex = m_surfaceCapture.actionId - m_surfaceCapture.actionIdStart;
     PAL_ASSERT(actionIndex < m_surfaceCapture.actionIdCount);
 
-    ActionInfo* pAction = &m_surfaceCapture.pActions[actionIndex];
+    ActionInfo* pAction         = &m_surfaceCapture.pActions[actionIndex];
+    pAction->drawId             = m_surfaceCapture.drawId;
+    pAction->drawDispatchType   = drawDispatchType;
+
     for (uint32 mrt = 0; mrt < m_boundTargets.colorTargetCount; mrt++)
     {
         const ColorTargetView* pCtv =
@@ -935,6 +939,29 @@ void CmdBuffer::OutputSurfaceCapture()
                          pAction->actionHash.unique);
             }
 
+            const char* DrawNameStrs[] =
+            {
+                "CmdDraw",
+                "CmdDrawOpaque",
+                "CmdDrawIndexed",
+                "CmdDrawIndirectMulti",
+                "CmdDrawIndexedIndirectMulti",
+                "CmdDispatchMesh",
+                "CmdDispatchMeshIndirectMulti",
+                "CmdDispatch",
+                "CmdDispatchAce",
+                "CmdDispatchIndirect",
+                "CmdDispatchOffset",
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 837
+                "CmdDispatchDynamic",
+#endif
+            };
+            static_assert(ArrayLen(DrawNameStrs) == static_cast<uint32>(Developer::DrawDispatchType::Count));
+
+            const char* pDrawNameStr =
+                (pAction->drawDispatchType < Developer::DrawDispatchType::Count) ?
+                DrawNameStrs[uint32(pAction->drawDispatchType)] : "UnknownDrawType";
+
             // Output render targets
             for (uint32 mrt = 0; mrt < MaxColorTargets; mrt++)
             {
@@ -944,13 +971,14 @@ void CmdBuffer::OutputSurfaceCapture()
                 {
                     Snprintf(fileName,
                              sizeof(fileName),
-                             "Frame%d_CmdBuf%d_Draw%d_TS0x%llx_CaptureId%d_%sDraw_RT%d",
+                             "Frame%d_CmdBuf%d_Action%d_TS0x%llx_CaptureId%d_%s_%s_RT%d",
                              frameId,
                              UniqueId(),
                              pAction->drawId,
                              captureTS,
                              m_surfaceCapture.actionIdStart + action,
                              hashStr,
+                             pDrawNameStr,
                              mrt);
 
                     OutputSurfaceCaptureImage(pImage, &filePath[0], &fileName[0]);
@@ -966,13 +994,14 @@ void CmdBuffer::OutputSurfaceCapture()
                 {
                     Snprintf(fileName,
                              sizeof(fileName),
-                             "Frame%d_CmdBuf%d_Draw%d_TS0x%llx_CaptureId%d_%sDraw_DSV%d",
+                             "Frame%d_CmdBuf%d_Action%d_TS0x%llx_CaptureId%d_%s_%s_DSV%d",
                              frameId,
                              UniqueId(),
                              pAction->drawId,
                              captureTS,
                              m_surfaceCapture.actionIdStart + action,
                              hashStr,
+                             pDrawNameStr,
                              plane);
 
                     OutputSurfaceCaptureImage(pImage, &filePath[0], &fileName[0]);
@@ -1971,40 +2000,6 @@ void CmdBuffer::ReplayCmdSetGlobalScissor(
     pTgtCmdBuffer->CmdSetGlobalScissor(ReadTokenVal<GlobalScissorParams>());
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 778
-// =====================================================================================================================
-void CmdBuffer::CmdSetColorWriteMask(
-    const ColorWriteMaskParams& params)
-{
-    InsertToken(CmdBufCallId::CmdSetColorWriteMask);
-    InsertToken(params);
-}
-
-// =====================================================================================================================
-void CmdBuffer::ReplayCmdSetColorWriteMask(
-    Queue*           pQueue,
-    TargetCmdBuffer* pTgtCmdBuffer)
-{
-    pTgtCmdBuffer->CmdSetColorWriteMask(ReadTokenVal<ColorWriteMaskParams>());
-}
-
-// =====================================================================================================================
-void CmdBuffer::CmdSetRasterizerDiscardEnable(
-    bool rasterizerDiscardEnable)
-{
-    InsertToken(CmdBufCallId::CmdSetRasterizerDiscardEnable);
-    InsertToken(rasterizerDiscardEnable);
-}
-
-// =====================================================================================================================
-void CmdBuffer::ReplayCmdSetRasterizerDiscardEnable(
-    Queue*           pQueue,
-    TargetCmdBuffer* pTgtCmdBuffer)
-{
-    pTgtCmdBuffer->CmdSetRasterizerDiscardEnable(ReadTokenVal<bool>());
-}
-#endif
-
 // =====================================================================================================================
 void CmdBuffer::CmdBarrierInternal(
     const BarrierInfo& barrierInfo)
@@ -2047,13 +2042,8 @@ uint32 CmdBuffer::CmdRelease(
     HandleBarrierBlt(true, true);
 
     InsertToken(CmdBufCallId::CmdRelease);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     InsertToken(releaseInfo.srcGlobalStageMask);
     InsertToken(releaseInfo.dstGlobalStageMask);
-#else
-    InsertToken(releaseInfo.srcStageMask);
-    InsertToken(releaseInfo.dstStageMask);
-#endif
     InsertToken(releaseInfo.srcGlobalAccessMask);
     InsertToken(releaseInfo.dstGlobalAccessMask);
     InsertTokenArray(releaseInfo.pMemoryBarriers, releaseInfo.memoryBarrierCount);
@@ -2077,13 +2067,8 @@ void CmdBuffer::ReplayCmdRelease(
 {
     AcquireReleaseInfo releaseInfo;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     releaseInfo.srcGlobalStageMask  = ReadTokenVal<uint32>();
     releaseInfo.dstGlobalStageMask  = ReadTokenVal<uint32>();
-#else
-    releaseInfo.srcStageMask        = ReadTokenVal<uint32>();
-    releaseInfo.dstStageMask        = ReadTokenVal<uint32>();
-#endif
     releaseInfo.srcGlobalAccessMask = ReadTokenVal<uint32>();
     releaseInfo.dstGlobalAccessMask = ReadTokenVal<uint32>();
     releaseInfo.memoryBarrierCount  = ReadTokenArray(&releaseInfo.pMemoryBarriers);
@@ -2106,13 +2091,8 @@ void CmdBuffer::CmdAcquire(
     HandleBarrierBlt(true, true);
 
     InsertToken(CmdBufCallId::CmdAcquire);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     InsertToken(acquireInfo.srcGlobalStageMask);
     InsertToken(acquireInfo.dstGlobalStageMask);
-#else
-    InsertToken(acquireInfo.srcStageMask);
-    InsertToken(acquireInfo.dstStageMask);
-#endif
     InsertToken(acquireInfo.srcGlobalAccessMask);
     InsertToken(acquireInfo.dstGlobalAccessMask);
     InsertTokenArray(acquireInfo.pMemoryBarriers, acquireInfo.memoryBarrierCount);
@@ -2131,13 +2111,8 @@ void CmdBuffer::ReplayCmdAcquire(
 {
     AcquireReleaseInfo acquireInfo;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     acquireInfo.srcGlobalStageMask  = ReadTokenVal<uint32>();
     acquireInfo.dstGlobalStageMask  = ReadTokenVal<uint32>();
-#else
-    acquireInfo.srcStageMask        = ReadTokenVal<uint32>();
-    acquireInfo.dstStageMask        = ReadTokenVal<uint32>();
-#endif
     acquireInfo.srcGlobalAccessMask = ReadTokenVal<uint32>();
     acquireInfo.dstGlobalAccessMask = ReadTokenVal<uint32>();
     acquireInfo.memoryBarrierCount  = ReadTokenArray(&acquireInfo.pMemoryBarriers);
@@ -2168,13 +2143,8 @@ void CmdBuffer::CmdReleaseEvent(
     HandleBarrierBlt(true, true);
 
     InsertToken(CmdBufCallId::CmdReleaseEvent);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     InsertToken(releaseInfo.srcGlobalStageMask);
     InsertToken(releaseInfo.dstGlobalStageMask);
-#else
-    InsertToken(releaseInfo.srcStageMask);
-    InsertToken(releaseInfo.dstStageMask);
-#endif
     InsertToken(releaseInfo.srcGlobalAccessMask);
     InsertToken(releaseInfo.dstGlobalAccessMask);
     InsertTokenArray(releaseInfo.pMemoryBarriers, releaseInfo.memoryBarrierCount);
@@ -2193,13 +2163,8 @@ void CmdBuffer::CmdAcquireEvent(
     HandleBarrierBlt(true, true);
 
     InsertToken(CmdBufCallId::CmdAcquireEvent);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     InsertToken(acquireInfo.srcGlobalStageMask);
     InsertToken(acquireInfo.dstGlobalStageMask);
-#else
-    InsertToken(acquireInfo.srcStageMask);
-    InsertToken(acquireInfo.dstStageMask);
-#endif
     InsertToken(acquireInfo.srcGlobalAccessMask);
     InsertToken(acquireInfo.dstGlobalAccessMask);
     InsertTokenArray(acquireInfo.pMemoryBarriers, acquireInfo.memoryBarrierCount);
@@ -2218,13 +2183,8 @@ void CmdBuffer::ReplayCmdReleaseEvent(
 {
     AcquireReleaseInfo releaseInfo;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     releaseInfo.srcGlobalStageMask  = ReadTokenVal<uint32>();
     releaseInfo.dstGlobalStageMask  = ReadTokenVal<uint32>();
-#else
-    releaseInfo.srcStageMask        = ReadTokenVal<uint32>();
-    releaseInfo.dstStageMask        = ReadTokenVal<uint32>();
-#endif
     releaseInfo.srcGlobalAccessMask = ReadTokenVal<uint32>();
     releaseInfo.dstGlobalAccessMask = ReadTokenVal<uint32>();
     releaseInfo.memoryBarrierCount  = ReadTokenArray(&releaseInfo.pMemoryBarriers);
@@ -2242,13 +2202,8 @@ void CmdBuffer::ReplayCmdAcquireEvent(
 {
     AcquireReleaseInfo acquireInfo;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     acquireInfo.srcGlobalStageMask  = ReadTokenVal<uint32>();
     acquireInfo.dstGlobalStageMask  = ReadTokenVal<uint32>();
-#else
-    acquireInfo.srcStageMask        = ReadTokenVal<uint32>();
-    acquireInfo.dstStageMask        = ReadTokenVal<uint32>();
-#endif
     acquireInfo.srcGlobalAccessMask = ReadTokenVal<uint32>();
     acquireInfo.dstGlobalAccessMask = ReadTokenVal<uint32>();
     acquireInfo.memoryBarrierCount  = ReadTokenArray(&acquireInfo.pMemoryBarriers);
@@ -2268,13 +2223,8 @@ void CmdBuffer::CmdReleaseThenAcquire(
     HandleBarrierBlt(true, true);
 
     InsertToken(CmdBufCallId::CmdReleaseThenAcquire);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     InsertToken(barrierInfo.srcGlobalStageMask);
     InsertToken(barrierInfo.dstGlobalStageMask);
-#else
-    InsertToken(barrierInfo.srcStageMask);
-    InsertToken(barrierInfo.dstStageMask);
-#endif
     InsertToken(barrierInfo.srcGlobalAccessMask);
     InsertToken(barrierInfo.dstGlobalAccessMask);
     InsertTokenArray(barrierInfo.pMemoryBarriers, barrierInfo.memoryBarrierCount);
@@ -2291,13 +2241,8 @@ void CmdBuffer::ReplayCmdReleaseThenAcquire(
 {
     AcquireReleaseInfo barrierInfo;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     barrierInfo.srcGlobalStageMask  = ReadTokenVal<uint32>();
     barrierInfo.dstGlobalStageMask  = ReadTokenVal<uint32>();
-#else
-    barrierInfo.srcStageMask        = ReadTokenVal<uint32>();
-    barrierInfo.dstStageMask        = ReadTokenVal<uint32>();
-#endif
     barrierInfo.srcGlobalAccessMask = ReadTokenVal<uint32>();
     barrierInfo.dstGlobalAccessMask = ReadTokenVal<uint32>();
     barrierInfo.memoryBarrierCount  = ReadTokenArray(&barrierInfo.pMemoryBarriers);
@@ -2533,7 +2478,7 @@ void CmdBuffer::HandleDrawDispatch(
 
         if (IsSurfaceCaptureActive(NoBlitCapture))
         {
-            CaptureSurfaces();
+            CaptureSurfaces(drawDispatchType);
         }
 
         if ((isDraw
@@ -5178,10 +5123,6 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdSetViewports,
         &CmdBuffer::ReplayCmdSetScissorRects,
         &CmdBuffer::ReplayCmdSetGlobalScissor,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 778
-        &CmdBuffer::ReplayCmdSetColorWriteMask,
-        &CmdBuffer::ReplayCmdSetRasterizerDiscardEnable,
-#endif
         &CmdBuffer::ReplayCmdBarrier,
         &CmdBuffer::ReplayCmdRelease,
         &CmdBuffer::ReplayCmdAcquire,

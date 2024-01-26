@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -1045,18 +1045,11 @@ Result Device::InitMemoryProperties()
     m_memoryProperties.privateApertureBase = 0;
     m_memoryProperties.sharedApertureBase  = 0;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 766
     m_heapProperties[GpuHeapLocal].logicalSize      = 1048576;
     m_heapProperties[GpuHeapLocal].physicalSize     = 1048576;
     m_memoryProperties.barSize                      = 1048576;
     m_heapProperties[GpuHeapInvisible].logicalSize  = 1048576;
     m_heapProperties[GpuHeapInvisible].physicalSize = 1048576;
-#else
-    m_heapProperties[GpuHeapLocal].heapSize             = 1048576;
-    m_heapProperties[GpuHeapLocal].physicalHeapSize     = 1048576;
-    m_heapProperties[GpuHeapInvisible].heapSize         = 1048576;
-    m_heapProperties[GpuHeapInvisible].physicalHeapSize = 1048576;
-#endif
     m_memoryProperties.nonLocalHeapSize             = 1048576;
 
     m_memoryProperties.flags.ptbInNonLocal              = 0;

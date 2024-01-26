@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2023-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -112,13 +112,8 @@ constexpr uint32 EopWaitStageMask = (PipelineStageEarlyDsTarget | PipelineStageL
 #endif
 // PFP sets IB base and size to register VGT_DMA_BASE & VGT_DMA_SIZE and send request to VGT for indices fetch,
 // which is done in GE. So need VsDone to make sure indices fetch done.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 770
 constexpr uint32 VsWaitStageMask  = (PipelineStageFetchIndices | PipelineStageStreamOut |
                                      PipelineStageVs | PipelineStageHs | PipelineStageDs | PipelineStageGs);
-#else
-constexpr uint32 VsWaitStageMask  = (PipelineStageFetchIndices |
-                                     PipelineStageVs | PipelineStageHs | PipelineStageDs | PipelineStageGs);
-#endif
 constexpr uint32 PsWaitStageMask  = PipelineStagePs;
 constexpr uint32 CsWaitStageMask  = PipelineStageCs;
 
@@ -281,10 +276,8 @@ private:
         CmdStream*                    pCmdStream,
         const AcquireReleaseInfo&     barrierInfo,
         AcqRelTransitionInfo*         pTransitionInfo,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
         uint32*                       pSrcStageMask,
         uint32*                       pDstStageMask,
-#endif
         uint32*                       pSrcAccessMask,
         uint32*                       pDstAccessMask,
         Developer::BarrierOperations* pBarrierOps) const;
@@ -350,10 +343,8 @@ private:
         const IGpuEvent* const*       ppGpuEvents,
         Developer::BarrierOperations* pBarrierOps) const;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     void OptimizeReadOnlyMemBarrier(Pm4CmdBuffer* pCmdBuf, MemBarrier* pTransition) const;
     bool OptimizeReadOnlyImgBarrier(Pm4CmdBuffer* pCmdBuf, ImgBarrier* pTransition) const;
-#endif
 
     AcquirePoint GetAcquirePoint(uint32 dstStageMask, EngineType engineType) const;
 

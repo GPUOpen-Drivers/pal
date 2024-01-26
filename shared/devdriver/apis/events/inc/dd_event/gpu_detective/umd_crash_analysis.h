@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2022-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -68,13 +68,14 @@ enum class ExecutionMarkerSource : uint8_t
 
 enum class ExecutionMarkerInfoType : uint8_t
 {
-    CmdBufStart  = 0,       // Indicate that the header precedes a CmdBufferInfo struct
-    PipelineBind = 1,       // Indicate that the header precedes a PipelineInfo struct
-    Draw         = 2,       // Indicate that the header precedes a DrawInfo struct
-    DrawUserData = 3,       // Indicate that the header precedes a DrawUserData struct
-    Dispatch     = 4,       // Indicate that the header precedes a DispatchInfo struct
-    BarrierBegin = 5,       // Indicate that the header precedes a BarrierBeginInfo struct
-    BarrierEnd   = 6        // Indicate that the header precedes a BarrierEndInfo struct
+    Invalid      = 0,       // Indicate an invalid MarkerInfoType
+    CmdBufStart  = 1,       // Indicate that the header precedes a CmdBufferInfo struct
+    PipelineBind = 2,       // Indicate that the header precedes a PipelineInfo struct
+    Draw         = 3,       // Indicate that the header precedes a DrawInfo struct
+    DrawUserData = 4,       // Indicate that the header precedes a DrawUserData struct
+    Dispatch     = 5,       // Indicate that the header precedes a DispatchInfo struct
+    BarrierBegin = 6,       // Indicate that the header precedes a BarrierBeginInfo struct
+    BarrierEnd   = 7        // Indicate that the header precedes a BarrierEndInfo struct
 };
 
 /// Execution marker inserted at the top of pipe.
@@ -275,7 +276,7 @@ struct ExecutionMarkerInfoHeader
 /// CmdBufferInfo follows header with ExecutionMarkerInfoType::CmdBufStart
 struct CmdBufferInfo
 {
-    uint8_t     queueType;      // SqttQueueType from sqtt_file_format.h
+    uint8_t     queue;          // Api-specific queue family index
     uint64_t    deviceId;       // Device handle in D3D12 & Vulkan
     uint32_t    queueFlags;     // 0 in D3D12. VkQueueFlagBits in Vulkan
 };

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -976,7 +976,7 @@ Result DeviceDecorator::CreateDepthStencilView(
         PAL_ASSERT(pNextView != nullptr);
         pNextView->SetClientData(pPlacementAddr);
 
-        (*ppDepthStencilView) = PAL_PLACEMENT_NEW(pPlacementAddr) DepthStencilViewDecorator(pNextView, this);
+        (*ppDepthStencilView) = PAL_PLACEMENT_NEW(pPlacementAddr) DepthStencilViewDecorator(pNextView, createInfo, this);
     }
 
     return result;
@@ -1225,6 +1225,12 @@ Result DeviceDecorator::CreateComputePipeline(
         pPipeline->SetClientData(pPlacementAddr);
 
         (*ppPipeline) = PAL_PLACEMENT_NEW(pPlacementAddr) PipelineDecorator(pPipeline, this);
+        result = static_cast<PipelineDecorator*>(*ppPipeline)->Init();
+        if (result != Result::Success)
+        {
+            (*ppPipeline)->Destroy();
+            *ppPipeline = nullptr;
+        }
     }
 
     return result;
@@ -2791,10 +2797,8 @@ Result QueueDecorator::Submit(
                         }
 
                         pNextCmdBufInfoList->frameIndex = origSubQueueInfo.pCmdBufInfoList[cmdBufIdx].frameIndex;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 779
                         pNextCmdBufInfoList->pEarlyPresentEvent =
                             origSubQueueInfo.pCmdBufInfoList[cmdBufIdx].pEarlyPresentEvent;
-#endif
                     }
                 }
 
@@ -2808,11 +2812,10 @@ Result QueueDecorator::Submit(
 
         const IGpuMemory* pNextBlockIfFlipping[MaxBlockIfFlippingCount] = {};
         PAL_ASSERT(submitInfo.blockIfFlippingCount <= MaxBlockIfFlippingCount);
+
         nextSubmitInfo.ppBlockIfFlipping    = &pNextBlockIfFlipping[0];
         nextSubmitInfo.ppFences             = &nextFences[0];
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 764
         nextSubmitInfo.pFreeMuxMemory       = NextGpuMemory(submitInfo.pFreeMuxMemory);
-#endif
 
         for (uint32 i = 0; i < submitInfo.gpuMemRefCount; i++)
         {
@@ -2989,17 +2992,87 @@ Result SwapChainDecorator::AcquireNextImage(
 }
 
 // =====================================================================================================================
-// Initialize the PipelineDecorator. Populates the m_pipelines vector.
+PipelineDecorator::~PipelineDecorator()
+{
+    // For each of the component pipelines that we layered, run the destructor on the layer we added. Do not
+    // run Destroy(), as that also destroys the underlying component pipeline that we layered on, which is wrong.
+    if (m_pPipelineDecorators)
+    {
+        for (uint32 idx = 0; idx != m_pipelines.NumElements(); ++idx)
+        {
+            m_pPipelineDecorators[idx].~PipelineDecorator();
+        }
+        PAL_FREE(m_pPipelineDecorators, m_pDevice->GetPlatform());
+    }
+}
+
+// =====================================================================================================================
+// Initialize the PipelineDecorator. Populates the m_ppPipelines array.
 Result PipelineDecorator::Init()
 {
     Result result = Result::Success;
-    for (const IPipeline* pPipeline : GetNextLayer()->GetPipelines())
+    Util::Span<const IPipeline* const> pipelines = GetNextLayer()->GetPipelines();
+    if ((pipelines.NumElements() == 1) && (pipelines[0] == GetNextLayer()))
     {
-        result = m_pipelines.PushBack(PreviousObject(pPipeline));
-        if (result != Result::Success)
+        // Non-archive pipeline which just returns a single-entry array of itself.
+        // This PushBack is guaranteed to work because the vector has an initial capacity of 1.
+        m_pipelines.PushBack(this);
+    }
+    else if (pipelines.NumElements() != 0)
+    {
+        // Archive pipeline. Set up our m_pipelines where each entry points into m_pPipelineDecorators, containing
+        // our layer for the component pipeline.
+        result = m_pipelines.Reserve(uint32(pipelines.NumElements()));
+        if (result == Result::Success)
         {
-            break;
+            m_pPipelineDecorators = static_cast<PipelineDecorator*>(
+                  PAL_MALLOC(pipelines.NumElements() * sizeof(PipelineDecorator),
+                             m_pDevice->GetPlatform(), Util::AllocInternal));
+            if (m_pPipelineDecorators == nullptr)
+            {
+                result = Result::ErrorOutOfMemory;
+            }
         }
+        for (uint32 idx = 0; (result == Result::Success) && (idx != pipelines.NumElements()); ++idx)
+        {
+            // Casting away the const of the component pipeline here is a bit dodgy. But the alternative
+            // would be to remove const from the return type of GetPipelines(), even though nothing outside
+            // the layering mechanism needs it.
+            IPipeline* pPipeline = const_cast<IPipeline*>(pipelines[idx]);
+            pPipeline->SetClientData(&m_pPipelineDecorators[idx]);
+            PipelineDecorator* pPipelineDecorator =
+                PAL_PLACEMENT_NEW(&m_pPipelineDecorators[idx]) PipelineDecorator(pPipeline, m_pDevice);
+            m_pipelines.PushBack(pPipelineDecorator);
+            result = pPipelineDecorator->Init();
+        }
+    }
+
+    Util::Span<const IShaderLibrary* const> libraries = GetNextLayer()->GetLibraries();
+    if ((result == Result::Success) && (libraries.IsEmpty() == false))
+    {
+        // Archive pipeline with libraries. Set up our m_libraries analogously to m_pipelines above.
+        result = m_libraries.Reserve(uint32(libraries.NumElements()));
+        if (result == Result::Success)
+        {
+            m_pLibraryDecorators = static_cast<ShaderLibraryDecorator*>(
+                  PAL_MALLOC(libraries.NumElements() * sizeof(ShaderLibraryDecorator),
+                             m_pDevice->GetPlatform(), Util::AllocInternal));
+            if (m_pLibraryDecorators == nullptr)
+            {
+                result = Result::ErrorOutOfMemory;
+            }
+        }
+    }
+    for (uint32 idx = 0; (result == Result::Success) && (idx != libraries.NumElements()); ++idx)
+    {
+        // Casting away the const of the component shaderLibrary here is a bit dodgy. But the alternative
+        // would be to remove const from the return type of GetShaderLibraries(), even though nothing outside
+        // the layering mechanism needs it.
+        IShaderLibrary* pLibrary = const_cast<IShaderLibrary*>(libraries[idx]);
+        pLibrary->SetClientData(&m_pLibraryDecorators[idx]);
+        ShaderLibraryDecorator* pLibraryDecorator =
+            PAL_PLACEMENT_NEW(&m_pLibraryDecorators[idx]) ShaderLibraryDecorator(pLibrary, m_pDevice);
+        m_libraries.PushBack(pLibraryDecorator);
     }
     return result;
 }

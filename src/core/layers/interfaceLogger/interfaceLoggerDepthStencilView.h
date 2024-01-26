@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -38,8 +38,15 @@ namespace InterfaceLogger
 class DepthStencilView final : public DepthStencilViewDecorator
 {
 public:
-    DepthStencilView(IDepthStencilView* pNextView, const DeviceDecorator* pDevice, uint32 objectId)
-        : DepthStencilViewDecorator(pNextView, pDevice), m_objectId(objectId) { }
+    DepthStencilView(
+        IDepthStencilView*                 pNextView,
+        const DepthStencilViewCreateInfo&  createInfo,
+        const DeviceDecorator*             pDevice,
+        uint32                             objectId)
+        :
+        DepthStencilViewDecorator(pNextView, createInfo, pDevice),
+        m_objectId(objectId)
+    {}
 
     // Returns this object's unique ID.
     uint32 ObjectId() const { return m_objectId; }

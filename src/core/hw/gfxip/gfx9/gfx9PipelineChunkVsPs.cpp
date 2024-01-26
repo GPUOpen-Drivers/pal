@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -278,15 +278,6 @@ uint32* PipelineChunkVsPs::WriteDynamicRegs(
     }
 #endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 789
-    if (psStageInfo.cuEnableMask != 0)
-    {
-        dynamic.spiShaderPgmRsrc3Ps.bits.CU_EN &= psStageInfo.cuEnableMask;
-        dynamic.spiShaderPgmRsrc4Ps.bits.CU_EN  =
-            Device::AdjustCuEnHi(dynamic.spiShaderPgmRsrc4Ps.bits.CU_EN, psStageInfo.cuEnableMask);
-    }
-#endif
-
     if (isNgg == false)
     {
         if (vsStageInfo.wavesPerSh != 0)
@@ -299,15 +290,6 @@ uint32* PipelineChunkVsPs::WriteDynamicRegs(
             // GFX9 GPUs have a HW bug where a wave limit size of 0 does not correctly map to "no limit",
             // potentially breaking high-priority compute.
             dynamic.spiShaderPgmRsrc3Vs.bits.WAVE_LIMIT = m_device.GetMaxWavesPerSh(chipProps, false);
-        }
-#endif
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 789
-        if (vsStageInfo.cuEnableMask != 0)
-        {
-            dynamic.spiShaderPgmRsrc3Vs.bits.CU_EN &= vsStageInfo.cuEnableMask;
-            dynamic.spiShaderPgmRsrc4Vs.bits.CU_EN =
-                Device::AdjustCuEnHi(dynamic.spiShaderPgmRsrc4Vs.bits.CU_EN, vsStageInfo.cuEnableMask);
         }
 #endif
     }
@@ -667,14 +649,13 @@ void PipelineChunkVsPs::Clone(
 
     if (m_colorExportAddr != 0)
     {
-        ShaderLibStats shaderStats = {};
-        const char* pColExpSymbol =
-            Abi::PipelineAbiSymbolNameStrings[static_cast<uint32>(Abi::PipelineSymbolType::PsColorExportEntry)];
-        pExpLibrary->GetShaderFunctionStats(pColExpSymbol, &shaderStats);
+        PAL_ASSERT(pExpLibrary->IsColorExportShader());
+        ColorExportProperty colorExportProperty = {};
+        pExpLibrary->GetColorExportProperty(&colorExportProperty);
         uint32 expVgprNum =
-            AbiRegisters::CalcNumVgprs(shaderStats.common.numUsedVgprs, chunkPs.m_psWaveFrontSize == 32);
+            AbiRegisters::CalcNumVgprs(colorExportProperty.vgprCount, chunkPs.m_psWaveFrontSize == 32);
         uint32 expSgprNum =
-            AbiRegisters::CalcNumSgprs(shaderStats.common.numUsedSgprs);
+            AbiRegisters::CalcNumSgprs(colorExportProperty.sgprCount);
         m_regs.sh.spiShaderPgmRsrc1Ps.bits.VGPRS = Max(expVgprNum, m_regs.sh.spiShaderPgmRsrc1Ps.bits.VGPRS);
         m_regs.sh.spiShaderPgmRsrc1Ps.bits.SGPRS = Max(expSgprNum, m_regs.sh.spiShaderPgmRsrc1Ps.bits.SGPRS);
     }
@@ -683,12 +664,12 @@ void PipelineChunkVsPs::Clone(
     {
         constexpr uint32 DefaultValOffset = (1 << 5);
         constexpr uint32 ValOffsetMask    = ((1 << 5) - 1);
-        for (uint32 i = 0; i < chunkVs.m_semanticCount; i++)
+        for (uint32 i = 0; i < chunkPs.m_semanticCount; i++)
         {
             uint32 index = DefaultValOffset;
-            for (uint32 j = 0; j < chunkPs.m_semanticCount; j++)
+            for (uint32 j = 0; j < chunkVs.m_semanticCount; j++)
             {
-                if (chunkVs.m_semanticInfo[i].semantic == chunkPs.m_semanticInfo[j].semantic)
+                if (chunkVs.m_semanticInfo[j].semantic == chunkPs.m_semanticInfo[i].semantic)
                 {
                     index = chunkVs.m_semanticInfo[j].index;
                 }

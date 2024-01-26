@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -492,22 +492,6 @@ enum class Result : int32
     ErrorStaticVmidOpFailed                 = -(0x00000068),
 
 };
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 785
-/// Length of date field used in BuildUniqueId
-static constexpr uint8 DateLength = 12;
-/// Length of time field used in BuildUniqueId
-static constexpr uint8 TimeLength = 9;
-/// Opaque data type representing an ID that uniquely identifies a particular build of PAL.  Such an ID will be stored
-/// with all serialized pipelines and in the shader cache, and used during load of that data to ensure the version of
-/// PAL that loads the data is exactly the same as the version that stored it.  Currently, this ID is just the date
-/// and time when PAL was built.
-struct BuildUniqueId
-{
-    uint8 buildDate[DateLength];
-    uint8 buildTime[TimeLength];
-};
-#endif
 
 ///Specifies a ratio of two unsigned integers.
 struct Rational

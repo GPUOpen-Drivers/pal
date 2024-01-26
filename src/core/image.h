@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -175,7 +175,8 @@ union DisplayDccCaps
         uint32 dcc_256_128_128           : 1;
         uint32 dcc_128_128_unconstrained : 1;
         uint32 dcc_256_64_64             : 1;
-        uint32 reserved                  : 25;
+        uint32 reserved1                 : 6;
+        uint32 reserved                  : 19;
     };
     uint32 value;
 };
@@ -186,14 +187,16 @@ struct ImageInternalCreateInfo
     DisplayDccCaps     displayDcc;            // DisplayDcc parameters
     uint32             primaryTilingCaps;     // tiling caps for primaries(flippable images)
     uint32             mallCursorCacheSize;   // Size of the MALL cursor cache in bytes
+
+    uint32             sharedPipeBankXor[MaxNumPlanes]; // Pipe-bank-xor setting per plane for shared image
+
     union
     {
         struct
         {
-            AddrSwizzleMode     sharedSwizzleMode;               // Swizzle mode for shared iamge
-            uint32              sharedPipeBankXor[MaxNumPlanes]; // Pipe-bank-xor setting per plane for shared image
-            uint32              sharedPipeBankXorFmask;          // Pipe-bank-xor setting for fmask
-            DccState            sharedDccState;                  // DCC state shared
+            AddrSwizzleMode     sharedSwizzleMode;      // Swizzle mode for shared image
+            uint32              sharedPipeBankXorFmask; // Pipe-bank-xor setting for fmask
+            DccState            sharedDccState;         // DCC state shared
         } gfx9;
     };
 

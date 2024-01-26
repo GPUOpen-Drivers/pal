@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -614,26 +614,6 @@ void CmdBuffer::CmdSetGlobalScissor(
     CmdBufferFwdDecorator::CmdSetGlobalScissor(params);
     PostCall(CmdBufCallId::CmdSetGlobalScissor);
 }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 778
-// =====================================================================================================================
-void CmdBuffer::CmdSetColorWriteMask(
-    const ColorWriteMaskParams& params)
-{
-    PreCall();
-    CmdBufferFwdDecorator::CmdSetColorWriteMask(params);
-    PostCall(CmdBufCallId::CmdSetColorWriteMask);
-}
-
-// =====================================================================================================================
-void CmdBuffer::CmdSetRasterizerDiscardEnable(
-    bool rasterizerDiscardEnable)
-{
-    PreCall();
-    CmdBufferFwdDecorator::CmdSetRasterizerDiscardEnable(rasterizerDiscardEnable);
-    PostCall(CmdBufCallId::CmdSetRasterizerDiscardEnable);
-}
-#endif
 
 // =====================================================================================================================
 void CmdBuffer::CmdBarrier(

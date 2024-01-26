@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2007-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2007-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -168,28 +168,6 @@
 namespace Addr
 {
 
-namespace V1
-{
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// Common constants
-////////////////////////////////////////////////////////////////////////////////////////////////////
-static const UINT_32 MicroTileWidth      = 8;       ///< Micro tile width, for 1D and 2D tiling
-static const UINT_32 MicroTileHeight     = 8;       ///< Micro tile height, for 1D and 2D tiling
-static const UINT_32 ThickTileThickness  = 4;       ///< Micro tile thickness, for THICK modes
-static const UINT_32 XThickTileThickness = 8;       ///< Extra thick tiling thickness
-static const UINT_32 PowerSaveTileBytes  = 64;      ///< Nuber of bytes per tile for power save 64
-static const UINT_32 CmaskCacheBits      = 1024;    ///< Number of bits for CMASK cache
-static const UINT_32 CmaskElemBits       = 4;       ///< Number of bits for CMASK element
-static const UINT_32 HtileCacheBits      = 16384;   ///< Number of bits for HTILE cache 512*32
-
-static const UINT_32 MicroTilePixels     = MicroTileWidth * MicroTileHeight;
-
-static const INT_32 TileIndexInvalid        = TILEINDEX_INVALID;
-static const INT_32 TileIndexLinearGeneral  = TILEINDEX_LINEAR_GENERAL;
-static const INT_32 TileIndexNoMacroIndex   = -3;
-
-} // V1
-
 namespace V2
 {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -221,17 +199,10 @@ static const UINT_32 MaxSurfaceHeight = 16384;
 enum ChipFamily
 {
     ADDR_CHIP_FAMILY_IVLD,    ///< Invalid family
-    ADDR_CHIP_FAMILY_R6XX,
-    ADDR_CHIP_FAMILY_R7XX,
-    ADDR_CHIP_FAMILY_R8XX,
-    ADDR_CHIP_FAMILY_NI,
-    ADDR_CHIP_FAMILY_POLARIS,
-    ADDR_CHIP_FAMILY_UNKNOWN,
-
-#if ADDR_GFX9_BUILD
-    ADDR_CHIP_FAMILY_AI,
-#endif
+#if ADDR_GFX10_BUILD|| ADDR_GFX11_BUILD
     ADDR_CHIP_FAMILY_NAVI,
+#endif
+    ADDR_CHIP_FAMILY_UNKNOWN,
 };
 
 /**
@@ -617,42 +588,6 @@ static inline UINT_32 QLog2(
 static inline VOID SafeAssign(
     UINT_32*    pLVal,  ///< [in] Pointer to left val
     UINT_32     rVal)   ///< [in] Right value
-{
-    if (pLVal)
-    {
-        *pLVal = rVal;
-    }
-}
-
-/**
-****************************************************************************************************
-*   SafeAssign
-*
-*   @brief
-*       NULL pointer safe assignment for 64bit values
-****************************************************************************************************
-*/
-static inline VOID SafeAssign(
-    UINT_64*    pLVal,  ///< [in] Pointer to left val
-    UINT_64     rVal)   ///< [in] Right value
-{
-    if (pLVal)
-    {
-        *pLVal = rVal;
-    }
-}
-
-/**
-****************************************************************************************************
-*   SafeAssign
-*
-*   @brief
-*       NULL pointer safe assignment for AddrTileMode
-****************************************************************************************************
-*/
-static inline VOID SafeAssign(
-    AddrTileMode*    pLVal, ///< [in] Pointer to left val
-    AddrTileMode     rVal)  ///< [in] Right value
 {
     if (pLVal)
     {

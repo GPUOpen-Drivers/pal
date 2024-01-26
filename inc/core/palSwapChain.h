@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -176,12 +176,8 @@ struct SwapChainCreateInfo
             uint32 isDxgiStereo              :  1; ///< DXGI only, if Stereo is On, an intermediate render target is used
                                                    ///< as the swapchain backbuffer which is then copied into the DXGI
                                                    ///  backbuffer. (left and right slice)
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 768
             uint32 clientBlockIfFlipping     :  1; ///< If toggled, swapchain will offload block if flipping (write
-                                                   /// primary) responsibility to client.
-#else
-            uint32 reserved768               :  1; ///< Reserved for future use.
-#endif
+                                                   ///  primary) responsibility to client.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 802
             uint32 enablePresentThread       :  1; ///< DXGI only, present from a different thread, can help hide
                                                    ///  latency in CPU bound apps.

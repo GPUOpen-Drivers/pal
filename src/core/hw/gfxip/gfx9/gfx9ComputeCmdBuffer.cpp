@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -56,6 +56,8 @@ ComputeCmdBuffer::ComputeCmdBuffer(
     m_device(device),
     m_cmdUtil(device.CmdUtil()),
     m_issueSqttMarkerEvent(device.Parent()->IssueSqttMarkerEvents()),
+    m_describeDispatch(device.Parent()->IssueCrashAnalysisMarkerEvents() ||
+                       device.Parent()->IssueCrashAnalysisMarkerEvents()),
     m_cmdStream(device,
                 createInfo.pCmdAllocator,
                 EngineTypeCompute,
@@ -206,11 +208,14 @@ void ComputeCmdBuffer::CmdBindPipeline(
 
 // =====================================================================================================================
 // Sets-up function pointers for the Dispatch entrypoint and all variants using template parameters.
-template <bool HsaAbi, bool IssueSqttMarkerEvent>
+template <bool HsaAbi, bool IssueSqttMarkerEvent, bool DescribeCallback>
 void ComputeCmdBuffer::SetDispatchFunctions()
 {
-    m_funcTable.pfnCmdDispatch       = CmdDispatch<HsaAbi, IssueSqttMarkerEvent>;
-    m_funcTable.pfnCmdDispatchOffset = CmdDispatchOffset<HsaAbi, IssueSqttMarkerEvent>;
+    static_assert(DescribeCallback || (IssueSqttMarkerEvent == false),
+                  "DescribeCallback must be true if IssueSqttMarkerEvent is true!");
+
+    m_funcTable.pfnCmdDispatch       = CmdDispatch<HsaAbi, IssueSqttMarkerEvent, DescribeCallback>;
+    m_funcTable.pfnCmdDispatchOffset = CmdDispatchOffset<HsaAbi, IssueSqttMarkerEvent, DescribeCallback>;
 
     if (HsaAbi)
     {
@@ -219,7 +224,7 @@ void ComputeCmdBuffer::SetDispatchFunctions()
     }
     else
     {
-        m_funcTable.pfnCmdDispatchIndirect = CmdDispatchIndirect<IssueSqttMarkerEvent>;
+        m_funcTable.pfnCmdDispatchIndirect = CmdDispatchIndirect<IssueSqttMarkerEvent, DescribeCallback>;
     }
 
 }
@@ -233,22 +238,30 @@ void ComputeCmdBuffer::SetDispatchFunctions(
     {
         if (m_issueSqttMarkerEvent)
         {
-            SetDispatchFunctions<true, true>();
+            SetDispatchFunctions<true, true, true>();
+        }
+        else if (m_describeDispatch)
+        {
+            SetDispatchFunctions<true, false, true>();
         }
         else
         {
-            SetDispatchFunctions<true, false>();
+            SetDispatchFunctions<true, false, false>();
         }
     }
     else
     {
         if (m_issueSqttMarkerEvent)
         {
-            SetDispatchFunctions<false, true>();
+            SetDispatchFunctions<false, true, true>();
+        }
+        else if (m_describeDispatch)
+        {
+            SetDispatchFunctions<false, false, true>();
         }
         else
         {
-            SetDispatchFunctions<false, false>();
+            SetDispatchFunctions<false, false, false>();
         }
     }
 }
@@ -256,14 +269,14 @@ void ComputeCmdBuffer::SetDispatchFunctions(
 // =====================================================================================================================
 // Issues a direct dispatch command. X, Y, and Z are in numbers of thread groups. We must discard the dispatch if x, y,
 // or z are zero. To avoid branching, we will rely on the HW to discard the dispatch for us.
-template <bool HsaAbi, bool IssueSqttMarkerEvent>
+template <bool HsaAbi, bool IssueSqttMarkerEvent, bool DescribeCallback>
 void PAL_STDCALL ComputeCmdBuffer::CmdDispatch(
     ICmdBuffer*  pCmdBuffer,
     DispatchDims size)
 {
     auto* pThis = static_cast<ComputeCmdBuffer*>(pCmdBuffer);
 
-    if (IssueSqttMarkerEvent)
+    if (DescribeCallback)
     {
         pThis->DescribeDispatch(Developer::DrawDispatchType::CmdDispatch, size);
     }
@@ -302,14 +315,14 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatch(
 // =====================================================================================================================
 // Issues an indirect dispatch command. We must discard the dispatch if x, y, or z are zero. We will rely on the HW to
 // discard the dispatch for us.
-template <bool IssueSqttMarkerEvent>
+template <bool IssueSqttMarkerEvent, bool DescribeCallback>
 void PAL_STDCALL ComputeCmdBuffer::CmdDispatchIndirect(
     ICmdBuffer* pCmdBuffer,
     gpusize     gpuVirtAddr)
 {
     auto* pThis = static_cast<ComputeCmdBuffer*>(pCmdBuffer);
 
-    if (IssueSqttMarkerEvent)
+    if (DescribeCallback)
     {
         pThis->DescribeDispatchIndirect();
     }
@@ -342,7 +355,7 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchIndirect(
 // =====================================================================================================================
 // Issues an direct dispatch command with immediate threadgroup offsets. We must discard the dispatch if x, y, or z are
 // zero. To avoid branching, we will rely on the HW to discard the dispatch for us.
-template <bool HsaAbi, bool IssueSqttMarkerEvent>
+template <bool HsaAbi, bool IssueSqttMarkerEvent, bool DescribeCallback>
 void PAL_STDCALL ComputeCmdBuffer::CmdDispatchOffset(
     ICmdBuffer*  pCmdBuffer,
     DispatchDims offset,
@@ -351,7 +364,7 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchOffset(
 {
     auto* pThis = static_cast<ComputeCmdBuffer*>(pCmdBuffer);
 
-    if (IssueSqttMarkerEvent)
+    if (DescribeCallback)
     {
         pThis->DescribeDispatchOffset(offset, launchSize, logicalSize);
     }

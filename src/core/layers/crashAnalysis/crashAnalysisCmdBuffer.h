@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2022-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -71,6 +71,12 @@ public:
     uint32 InsertEndMarker(
         MarkerSource source);
 
+    // Provide additional information for a specific event
+    void InsertInfoMarker(
+        uint32      markerValue,
+        const char* pMarkerInfo,
+        uint32      markerInfoSize);
+
     // Public ICmdBuffer interface methods:
     virtual Result Begin(
         const CmdBufferBuildInfo& info) override;
@@ -86,6 +92,11 @@ public:
     virtual void CmdExecuteNestedCmdBuffers(
         uint32            cmdBufferCount,
         ICmdBuffer*const* ppCmdBuffers) override;
+
+    virtual void CmdBarrier(const BarrierInfo& barrierInfo) override;
+
+    virtual void CmdBindPipeline(
+        const PipelineBindParams& params) override;
 
     EventCache* GetEventCache();
 
@@ -178,6 +189,14 @@ private:
     MemoryChunk*   m_pMemoryChunk;
     EventCache*    m_pEventCache;
     Util::Vector<MarkerStack, MarkerStackCount, IPlatform> m_markerStack;
+
+    uint32 m_stgSqttEvent;      // Temp sqttEvent info storage
+    struct
+    {
+        uint32_t vtxIdxCount;
+        uint32_t instanceCount;
+        uint32_t startIndex;
+    } m_stgDrawInfo;            // Temp partial DrawInfo stroage
 
     PAL_DISALLOW_DEFAULT_CTOR(CmdBuffer);
     PAL_DISALLOW_COPY_AND_ASSIGN(CmdBuffer);

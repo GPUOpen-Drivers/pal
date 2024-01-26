@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2022-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -189,9 +189,36 @@ void CrashAnalysisEventProvider::LogExecutionMarkerEnd(
 }
 
 // =====================================================================================================================
+void CrashAnalysisEventProvider::LogExecutionMarkerInfo(
+    uint32      cmdBufferId,
+    uint32      markerValue,
+    const char* pMarkerInfo,
+    uint32      markerInfoSize)
+{
+    using namespace UmdCrashAnalysisEvents;
+
+    const uint32 eventId = static_cast<uint32>(EventId::ExecutionMarkerInfo);
+
+    if (ShouldLog())
+    {
+        ExecutionMarkerInfo eventInfo = { };
+        eventInfo.cmdBufferId    = cmdBufferId;
+        eventInfo.marker         = markerValue;
+        eventInfo.markerInfoSize = markerInfoSize;
+        memcpy(eventInfo.markerInfo, pMarkerInfo, markerInfoSize);
+
+        uint8 eventData[sizeof(ExecutionMarkerInfo)];
+
+        const uint32 eventSize = eventInfo.ToBuffer(eventData);
+
+        WriteEvent(eventId, eventData, eventSize);
+    }
+}
+
+// =====================================================================================================================
 // This function deserializes an EventCache and replays the events contained within it.
 void CrashAnalysisEventProvider::ReplayEventCache(
-    CrashAnalysis::EventCache* pEventCache)
+    const CrashAnalysis::EventCache* pEventCache)
 {
     using namespace UmdCrashAnalysisEvents;
 
@@ -230,6 +257,11 @@ void CrashAnalysisEventProvider::ReplayEventCache(
             case EventId::ExecutionMarkerBottom:
             {
                 LogExecutionMarkerEnd(cmdBufferId, markerValue);
+                break;
+            }
+            case EventId::ExecutionMarkerInfo:
+            {
+                LogExecutionMarkerInfo(cmdBufferId, markerValue, pMarkerName, markerNameSize);
                 break;
             }
             default:

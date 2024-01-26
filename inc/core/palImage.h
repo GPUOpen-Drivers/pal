@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -206,10 +206,8 @@ union ImageCreateFlags
 
         uint32 tmzProtected            :  1; ///< Indicate this image is protected or not.
         uint32 sharedWithMesa          :  1; ///< Indicate this Image was opened from a Mesa shared Image
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 769) && PAL_BUILD_GFX11
+#if PAL_BUILD_GFX11
         uint32 enable256KBSwizzleModes :  1; ///< Enable 256 KiB swizzle modes
-#else
-        uint32 reserved769             :  1; ///< Reserved for future use.
 #endif
         uint32 hasModifier             :  1; ///< Set if the image uses drm format modifier.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 813

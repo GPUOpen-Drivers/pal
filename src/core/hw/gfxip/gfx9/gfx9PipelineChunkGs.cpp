@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -123,10 +123,6 @@ void PipelineChunkGs::LateInit(
     if (metadata.pipeline.hasEntry.esGsLdsSize != 0)
     {
         m_regs.sh.userDataLdsEsGsSize.u32All = metadata.pipeline.esGsLdsSize;
-    }
-    else
-    {
-        PAL_ASSERT(loadInfo.enableNgg || (loadInfo.usesOnChipGs == false));
     }
 
     m_regs.context.vgtGsInstanceCnt.u32All    = AbiRegisters::VgtGsInstanceCnt(metadata, chipProps.gfxLevel);
@@ -256,26 +252,6 @@ uint32* PipelineChunkGs::WriteDynamicRegs(
         // GFX9 GPUs have a HW bug where a wave limit size of 0 does not correctly map to "no limit",
         // potentially breaking high-priority compute.
         dynamic.spiShaderPgmRsrc3Gs.bits.WAVE_LIMIT = m_device.GetMaxWavesPerSh(chipProps, false);
-    }
-#endif
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 789
-    if (gsStageInfo.cuEnableMask != 0)
-    {
-        dynamic.spiShaderPgmRsrc3Gs.bits.CU_EN &= gsStageInfo.cuEnableMask;
-
-        if (IsGfx10(chipProps.gfxLevel))
-        {
-            dynamic.spiShaderPgmRsrc4Gs.gfx10.CU_EN =
-                Device::AdjustCuEnHi(dynamic.spiShaderPgmRsrc4Gs.gfx10.CU_EN, gsStageInfo.cuEnableMask);
-        }
-#if PAL_BUILD_GFX11
-        else
-        {
-            // This field is now reserved.
-            dynamic.spiShaderPgmRsrc4Gs.gfx11.CU_EN = 0;
-        }
-#endif
     }
 #endif
 

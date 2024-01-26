@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2023-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -71,8 +71,11 @@ void SettingsRpcService::RegisterSettingsComponent(SettingsBase* pSettingsCompon
     Result result = m_settingsComponents.Insert(pSettingsComponent->GetComponentName(), pSettingsComponent);
     DD_ASSERT(result == Result::Success);
 
-    // Apply user-overrides to this component.
+    ApplyComponentUserOverrides(pSettingsComponent);
+}
 
+void SettingsRpcService::ApplyComponentUserOverrides(SettingsBase* pSettingsComponent)
+{
     Vector<DDSettingsValueRef>* pOverrides = m_allUserOverrides.FindValue(pSettingsComponent->GetComponentName());
     if (pOverrides)
     {
@@ -91,28 +94,18 @@ void SettingsRpcService::RegisterSettingsComponent(SettingsBase* pSettingsCompon
     }
 }
 
-size_t SettingsRpcService::TotalUserOverrideCount() const
-{
-    size_t count = 0;
-    for (const auto& component : m_allUserOverrides)
-    {
-        count += component.value.Size();
-    }
-    return count;
-}
-
 bool SettingsRpcService::ApplyUserOverride(
-    const char*           pComponentName,
+    SettingsBase*         pSettingsComponent,
     DD_SETTINGS_NAME_HASH nameHash,
     void*                 pSetting,
-    size_t                settingSize) const
+    size_t                settingSize)
 {
     bool applied = false;
 
-    auto pOverrides = m_allUserOverrides.FindValue(pComponentName);
+    Vector<DDSettingsValueRef>* pOverrides = m_allUserOverrides.FindValue(pSettingsComponent->GetComponentName());
     if (pOverrides != nullptr)
     {
-        for (const auto& override : *pOverrides)
+        for (const DDSettingsValueRef& override : *pOverrides)
         {
             if (override.hash == nameHash)
             {
@@ -127,6 +120,16 @@ bool SettingsRpcService::ApplyUserOverride(
     }
 
     return applied;
+}
+
+size_t SettingsRpcService::TotalUserOverrideCount() const
+{
+    size_t count = 0;
+    for (const auto& component : m_allUserOverrides)
+    {
+        count += component.value.Size();
+    }
+    return count;
 }
 
 DD_RESULT SettingsRpcService::SendAllUserOverrides(const void* pParamBuf, size_t paramBufSize)

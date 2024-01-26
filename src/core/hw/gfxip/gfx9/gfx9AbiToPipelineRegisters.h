@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2022-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -93,8 +93,8 @@ static uint32 VgtShaderStagesEn(
         vgtShaderStagesEn.gfx10Plus.PRIMGEN_PASSTHRU_EN = vgtShaderStagesEnMetadata.flags.primgenPassthruEn;
     }
 
-#if  PAL_BUILD_GFX11
-    if (IsGfx104Plus(gfxLevel))
+#if PAL_BUILD_GFX11
+    if (IsGfx11Plus(gfxLevel))
     {
         vgtShaderStagesEn.gfx104Plus.PRIMGEN_PASSTHRU_NO_MSG = vgtShaderStagesEnMetadata.flags.primgenPassthruNoMsg;
     }
@@ -653,14 +653,10 @@ static uint32 SpiShaderPgmRsrc4Gs(
 
     SPI_SHADER_PGM_RSRC4_GS spiShaderPgmRsrc4Gs = {};
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 781
-    uint32 nggLateAllocWaves = (createInfo.useLateAllocGsLimit) ? createInfo.lateAllocGsLimit :
-                                                                  pPublicSettings->nggLateAllocGs;
-#else
-    uint32 nggLateAllocWaves = pPublicSettings->nggLateAllocGs;
-#endif
-    uint32 lateAllocWaves    = (nggEnabled) ? nggLateAllocWaves : settings.lateAllocGs;
-    uint32 lateAllocLimit    = 127;
+    const uint32 nggLateAllocWaves = createInfo.useLateAllocGsLimit ? createInfo.lateAllocGsLimit
+                                                                    : pPublicSettings->nggLateAllocGs;
+    uint32 lateAllocWaves = nggEnabled ? nggLateAllocWaves : settings.lateAllocGs;
+    uint32 lateAllocLimit = 127;
 
     if (nggEnabled == false)
     {
@@ -715,8 +711,8 @@ static uint32 SpiShaderPgmRsrc4Gs(
 #endif
     }
 
-#if  PAL_BUILD_GFX11
-    if (IsGfx104Plus(gfxLevel))
+#if PAL_BUILD_GFX11
+    if (IsGfx11Plus(gfxLevel))
     {
         spiShaderPgmRsrc4Gs.gfx104Plus.INST_PREF_SIZE = device.GetShaderPrefetchSize(codeLength);
     }
@@ -1082,14 +1078,12 @@ static uint32 SpiShaderPgmRsrc4Hs(
     {
         spiShaderPgmRsrc4Hs.gfx10Plus.CU_EN = device.GetCuEnableMaskHi(0, UINT_MAX);
 
-#if  PAL_BUILD_GFX11
-        if (IsGfx104Plus(gfxLevel))
+#if PAL_BUILD_GFX11
+        if (IsGfx11Plus(gfxLevel))
         {
             spiShaderPgmRsrc4Hs.gfx104Plus.INST_PREF_SIZE = device.GetShaderPrefetchSize(codeLength);
         }
-#endif
 
-#if PAL_BUILD_GFX11
         // PWS+ only support pre-shader waits if the IMAGE_OP bit is set. Theoretically we only set it for shaders that
         // do an image operation. However that would mean that our use of the pre-shader PWS+ wait is dependent on us
         // only waiting on image resources, which we don't know in our interface. For now always set the IMAGE_OP bit
@@ -1247,8 +1241,8 @@ static uint32 SpiShaderPgmRsrc3Ps(
 
     spiShaderPgmRsrc3Ps.bits.CU_EN = device.GetCuEnableMask(0, settings.psCuEnLimitMask);
 
-#if  PAL_BUILD_GFX11
-    if (IsGfx104Plus(gfxLevel))
+#if PAL_BUILD_GFX11
+    if (IsGfx11Plus(gfxLevel))
     {
         if (createInfo.ldsPsGroupSizeOverride != LdsPsGroupSizeOverride::Default)
         {
@@ -1281,14 +1275,12 @@ static uint32 SpiShaderPgmRsrc4Ps(
     {
         spiShaderPgmRsrc4Ps.bits.CU_EN = device.GetCuEnableMaskHi(0, settings.psCuEnLimitMask);
 
-#if  PAL_BUILD_GFX11
-        if (IsGfx104Plus(gfxLevel))
+#if PAL_BUILD_GFX11
+        if (IsGfx11Plus(gfxLevel))
         {
             spiShaderPgmRsrc4Ps.gfx104Plus.INST_PREF_SIZE = device.GetShaderPrefetchSize(codeLength);
         }
-#endif
 
-#if PAL_BUILD_GFX11
         // PWS+ only support pre-shader waits if the IMAGE_OP bit is set. Theoretically we only set it for shaders
         // that do an image operation. However that would mean that our use of the pre-shader PWS+ wait is dependent
         // on us only waiting on image resources, which we don't know in our interface. For now always set the
@@ -1445,7 +1437,6 @@ static uint32 SpiShaderPgmRsrc4Vs(
     {
         const uint16 vsCuDisableMaskHi = 0;
         spiShaderPgmRsrc4Vs.bits.CU_EN = device.GetCuEnableMaskHi(vsCuDisableMaskHi, settings.vsCuEnLimitMask);
-
     }
 
     return spiShaderPgmRsrc4Vs.u32All;
@@ -1978,15 +1969,13 @@ static uint32 ComputePgmRsrc3(
     {
         computePgmRsrc3.bits.SHARED_VGPR_CNT = (hwCs.sharedVgprCnt) / 8;
 
-#if  PAL_BUILD_GFX11
-        if (IsGfx104Plus(gfxLevel))
+#if PAL_BUILD_GFX11
+        if (IsGfx11Plus(gfxLevel))
         {
             computePgmRsrc3.gfx104Plus.INST_PREF_SIZE =
                 device.GetShaderPrefetchSize(shaderStageInfoCodeLength);
         }
-#endif
 
-#if PAL_BUILD_GFX11
         // PWS+ only support pre-shader waits if the IMAGE_OP bit is set. Theoretically we only set it for shaders that
         // do an image operation. However that would mean that our use of the pre-shader PWS+ wait is dependent on us
         // only waiting on image resources, which we don't know in our interface. For now always set the IMAGE_OP bit

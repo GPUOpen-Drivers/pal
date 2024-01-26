@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2023-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -51,7 +51,11 @@ constexpr uint32 DefaultSeMask                  = 0;
 constexpr bool   DefaultEnableInstructionTokens = true;
 
 constexpr uint32 InstrumentationSpecVersion     = 1;
+#if (PAL_BUILD_BRANCH >= 2410)
+constexpr uint32 InstrumentationApiVersion      = 4;
+#else
 constexpr uint32 InstrumentationApiVersion      = 3;
+#endif
 
 // =====================================================================================================================
 // Extracts Client API information from a PAL Platform and converts it into a GpaSession-friendly format.
@@ -218,10 +222,11 @@ void GpuPerfExperimentTraceSource::OnTraceBegin(
             // Configure SQTT
             if (m_sqttTraceConfig.enabled)
             {
-                sampleConfig.sqtt.flags.enable                   = true;
-                sampleConfig.sqtt.flags.supressInstructionTokens = (m_sqttTraceConfig.enableInstructionTokens == false);
-                sampleConfig.sqtt.seMask                         = m_sqttTraceConfig.seMask;
-                sampleConfig.sqtt.gpuMemoryLimit                 = m_sqttTraceConfig.memoryLimitInMb * 1_MiB;
+                sampleConfig.sqtt.flags.enable                     = true;
+                sampleConfig.sqtt.flags.supressInstructionTokens   =
+                    (m_sqttTraceConfig.enableInstructionTokens == false);
+                sampleConfig.sqtt.seMask                           = m_sqttTraceConfig.seMask;
+                sampleConfig.sqtt.gpuMemoryLimit                   = m_sqttTraceConfig.memoryLimitInMb * 1_MiB;
             }
 
             // Configure SPM

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -497,10 +497,6 @@ void GraphicsPipeline::CalcDynamicStageInfo(
     {
         pStageInfo->wavesPerSh   = CalcMaxWavesPerSh(shaderInfo.maxWavesPerCu, 0);
     }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 789
-    pStageInfo->cuEnableMask = shaderInfo.cuEnableMask;
-#endif
 }
 
 // =====================================================================================================================
@@ -519,9 +515,6 @@ void GraphicsPipeline::CalcDynamicStageInfo(
     {
         pStageInfo->wavesPerSh   = CalcMaxWavesPerSh(shaderInfo1.maxWavesPerCu, shaderInfo2.maxWavesPerCu);
     }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 789
-    pStageInfo->cuEnableMask = shaderInfo1.cuEnableMask & shaderInfo2.cuEnableMask;
-#endif
 }
 
 // =====================================================================================================================
@@ -735,7 +728,13 @@ uint32* GraphicsPipeline::WriteDynamicRegisters(
     ) const
 {
     DynamicStageInfos stageInfos = {};
-    CalcDynamicStageInfos(graphicsInfo, &stageInfos);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 842
+    if (graphicsInfo.enable.u8All != 0)
+#endif
+    {
+        CalcDynamicStageInfos(graphicsInfo, &stageInfos);
+    }
 
     if (IsTessEnabled())
     {
@@ -1505,7 +1504,6 @@ void GraphicsPipeline::SetupNonShaderRegisters(
         const uint32 rtShift  = (rt * 4); // Each RT uses four bits of CB_TARGET_MASK.
 
         m_regs.other.cbTargetMask.u32All |= ((cbTarget.channelWriteMask & 0xF) << rtShift);
-
     }
 
     //      The bug manifests itself when an MRT is not enabled in the shader mask but is enabled in the target
@@ -2653,10 +2651,25 @@ Result GraphicsPipeline::LinkGraphicsLibraries(
 
     DetermineBinningOnOff();
 
+    // Update scratch size
     m_ringSizes = pPreRasterLib->m_ringSizes;
-    m_ringSizes.itemSize[static_cast<uint32>(ShaderRingType::GfxScratch)] =
-        Util::Max(m_ringSizes.itemSize[static_cast<uint32>(ShaderRingType::GfxScratch)],
-                  pPsLib->m_ringSizes.itemSize[static_cast<uint32>(ShaderRingType::GfxScratch)]);
+    m_ringSizes.itemSize[uint32(ShaderRingType::GfxScratch)] =
+        Util::Max(m_ringSizes.itemSize[uint32(ShaderRingType::GfxScratch)],
+                  pPsLib->m_ringSizes.itemSize[uint32(ShaderRingType::GfxScratch)]);
+    if (pExpShaderLibrary->IsColorExportShader())
+    {
+        const bool isGfx10Plus = IsGfx10Plus(m_gfxLevel);
+        const bool isWave32Tbl = isGfx10Plus && (m_regs.other.spiPsInControl.gfx10Plus.PS_W32_EN != 0);
+
+        ColorExportProperty colorExportProperty = {};
+        pExpShaderLibrary->GetColorExportProperty(&colorExportProperty);
+        size_t scratchMemorySize = isWave32Tbl ?
+            colorExportProperty.scratchMemorySize :
+            colorExportProperty.scratchMemorySize * 2;
+
+        m_ringSizes.itemSize[uint32(ShaderRingType::GfxScratch)] =
+            Util::Max(m_ringSizes.itemSize[uint32(ShaderRingType::GfxScratch)], scratchMemorySize);
+    }
 
     // Update prefetch ranges
     m_prefetchRangeCount = 0;
@@ -2779,8 +2792,8 @@ void GraphicsPipeline::SetupSignatureFromLib(
     m_signature.meshRingIndexAddr       = pPreRasterLib->m_signature.meshRingIndexAddr;
     m_signature.meshPipeStatsBufRegAddr = pPreRasterLib->m_signature.meshPipeStatsBufRegAddr;
     m_signature.nggCullingDataAddr      = pPreRasterLib->m_signature.nggCullingDataAddr;
-    m_signature.primsNeededCntAddr      = pPreRasterLib->m_signature.primsNeededCntAddr;
 #if PAL_BUILD_GFX11
+    m_signature.primsNeededCntAddr      = pPreRasterLib->m_signature.primsNeededCntAddr;
     m_signature.streamoutCntlBufRegAddr = pPreRasterLib->m_signature.streamoutCntlBufRegAddr;
 #endif
     m_signature.uavExportTableAddr      = pPsLib->m_signature.uavExportTableAddr;

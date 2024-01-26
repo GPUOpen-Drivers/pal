@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -32,6 +32,7 @@
 #include "core/platform.h"
 #include "palHashMap.h"
 #include "palSysMemory.h"
+#include "core/hw/gfxip/pipelineLoader.h"
 
 typedef union _ADDR_CREATE_FLAGS ADDR_CREATE_FLAGS;
 typedef struct _ADDR_REGISTER_VALUE ADDR_REGISTER_VALUE;
@@ -791,6 +792,8 @@ public:
         PAL_ASSERT_ALWAYS();
     }
 
+    PipelineLoader* GetPipelineLoader() { return &m_pipelineLoader; }
+
 protected:
     static void FixupDecodedSrdFormat(
         const SwizzledFormat& imageFormat,
@@ -865,6 +868,8 @@ protected:
     // will check its watermark against the one owned by the device and update accordingly.
     // Access to this object must be serialized using m_queueContextUpdateLock.
     volatile uint32   m_queueContextUpdateCounter;
+
+    PipelineLoader  m_pipelineLoader;
 
 private:
     PAL_DISALLOW_DEFAULT_CTOR(GfxDevice);

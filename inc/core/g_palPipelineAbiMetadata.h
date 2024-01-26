@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -102,9 +102,9 @@ struct HardwareStageMetadata
     Abi::PipelineSymbolType entryPoint;
     /// Scratch memory size in bytes.
     uint32                  scratchMemorySize;
-    /// size in bytes of the stack managed by the compiler backend.
+    /// size in bytes (per lane/thread) of the stack managed by the compiler backend.
     uint32                  backendStackSize;
-    /// size in bytes of the stack managed by the frontend.
+    /// size in bytes (per lane/thread) of the stack managed by the frontend.
     uint32                  frontendStackSize;
     /// Local Data Share size in bytes.
     uint32                  ldsSize;

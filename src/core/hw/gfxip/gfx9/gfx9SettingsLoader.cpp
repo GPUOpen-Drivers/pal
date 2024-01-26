@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -130,7 +130,7 @@ void SettingsLoader::ValidateSettings(
 #if PAL_BUILD_GFX11
     if (IsGfx11(*m_pDevice))
     {
-        if (m_settings.binningMaxAllocCountNggOnChip < 0)
+        if (m_settings.binningMaxAllocCountNggOnChip == UINT32_MAX)
         {
             // GFX11 eliminates the parameter cache, so the determination needs to come from elsewhere.
             // In addition, binningMaxAllocCountLegacy has no affect on GFX11.
@@ -143,7 +143,7 @@ void SettingsLoader::ValidateSettings(
     }
     else
 #endif
-    if (m_settings.binningMaxAllocCountNggOnChip <= 0)
+    if ((m_settings.binningMaxAllocCountNggOnChip == 0) || (m_settings.binningMaxAllocCountNggOnChip == UINT32_MAX))
     {
         // With NGG + on chip PC there is a single view of the PC rather than a
         // division per SE. The recommended value for this is to allow a single batch to
@@ -261,28 +261,17 @@ void SettingsLoader::ValidateSettings(
     {
         m_settings.enableOutOfOrderPrimitives = OutOfOrderPrimDisable;
     }
+    if (pPalSettings->binningContextStatesPerBin == 0)
     {
-        if (pPalSettings->binningContextStatesPerBin == 0)
-        {
-            pPalSettings->binningContextStatesPerBin = 1;
-        }
-        if (pPalSettings->binningPersistentStatesPerBin == 0)
-        {
-            pPalSettings->binningPersistentStatesPerBin = 1;
-        }
+        pPalSettings->binningContextStatesPerBin = 1;
     }
-
+    if (pPalSettings->binningPersistentStatesPerBin == 0)
+    {
+        pPalSettings->binningPersistentStatesPerBin = 1;
+    }
     if (pPalSettings->disableBinningPsKill == OverrideMode::Default)
     {
-        if (
-            false)
-        {
-            pPalSettings->disableBinningPsKill = OverrideMode::Disabled;
-        }
-        else
-        {
-            pPalSettings->disableBinningPsKill = OverrideMode::Enabled;
-        }
+        pPalSettings->disableBinningPsKill = OverrideMode::Enabled;
     }
 
     if (IsGfx10(*m_pDevice))
@@ -381,13 +370,8 @@ void SettingsLoader::ValidateSettings(
         m_settings.optimizeNullSourceImage = false;
 
         // Clamp the sample-mask-tracker to the HW-legal values of 3-15.
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 777)
-        pPalSettings->gfx11SampleMaskTrackerWatermark = ((pPalSettings->gfx11SampleMaskTrackerWatermark == 0) ?
-            0 : Clamp(pPalSettings->gfx11SampleMaskTrackerWatermark, 3u, 15u));
-#else
         m_settings.gfx11SampleMaskTrackerWatermark = ((m_settings.gfx11SampleMaskTrackerWatermark == 0) ?
             0 : Clamp(m_settings.gfx11SampleMaskTrackerWatermark, 3u, 15u));
-#endif
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 818
         // Replace the "PublicSetting" enum with a final value. The rest of PAL can ignore Ac01WaPublicSetting.
@@ -598,7 +582,7 @@ static void SetupNavi10Workarounds(
     pSettings->waTessIncorrectRelativeIndex = true;
 
     pSettings->waForceZonlyHtileForMipmaps = true;
-} // PAL_BUILD_NAVI10
+}
 
 // =====================================================================================================================
 // Setup workarounds that only apply to Navi14.
@@ -694,7 +678,7 @@ static void SetupNavi23Workarounds(
 }
 
 // =====================================================================================================================
-// Setup workarounds that only apply to Navi23.
+// Setup workarounds that only apply to Navi24.
 static void SetupNavi24Workarounds(
     const Pal::Device&  device,
     Gfx9PalSettings*    pSettings)
@@ -771,7 +755,7 @@ static void SetupGfx11Workarounds(
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     constexpr uint32 HandledWaMask[] = { 0x1E793001, 0x00004B00 }; // Workarounds handled by PAL.
-    constexpr uint32 OutsideWaMask[] = { 0xE0068DFE, 0x000014FC }; // Workarounds handled by other components.
+    constexpr uint32 OutsideWaMask[] = { 0xE0068DFE, 0x000114FC }; // Workarounds handled by other components.
     constexpr uint32 MissingWaMask[] = { 0x00004000, 0x0000A001 }; // Workarounds that should be handled by PAL that
                                                                    // are not yet implemented or are unlikey to be
                                                                    // implemented.
@@ -788,7 +772,7 @@ static void SetupGfx11Workarounds(
                   "Workaround Masks do not match!");
 #endif
 
-    static_assert(Gfx11NumWorkarounds == 48, "Workaround count mismatch between PAL and SWD");
+    static_assert(Gfx11NumWorkarounds == 49, "Workaround count mismatch between PAL and SWD");
 
 #if PAL_BUILD_NAVI31|| PAL_BUILD_NAVI32|| PAL_BUILD_NAVI33|| PAL_BUILD_PHOENIX1
     if (workarounds.ppPbbPBBBreakBatchDifferenceWithPrimLimit_FpovLimit_DeallocLimit_A_)
@@ -862,11 +846,7 @@ static void SetupGfx11Workarounds(
     }
 
 #if PAL_BUILD_GFX11
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 777)
-    if (device.GetPublicSettings()->gfx11SampleMaskTrackerWatermark > 0)
-#else
     if (pSettings->gfx11SampleMaskTrackerWatermark > 0)
-#endif
     {
         pSettings->waitOnFlush |= (WaitAfterCbFlush | WaitBeforeBarrierEopWithCbFlush);
     }
@@ -943,13 +923,13 @@ void SettingsLoader::OverrideDefaults(
         {
             SetupNavi10Workarounds(device, &m_settings, pSettings);
         }
-        else if (IsNavi14(device))
-        {
-            SetupNavi14Workarounds(device, &m_settings, pSettings);
-        }
         else if (IsNavi12(device))
         {
             SetupNavi12Workarounds(device, &m_settings, pSettings);
+        }
+        else if (IsNavi14(device))
+        {
+            SetupNavi14Workarounds(device, &m_settings, pSettings);
         }
         else if (IsNavi21(device))
         {
@@ -979,7 +959,6 @@ void SettingsLoader::OverrideDefaults(
         {
             SetupMendocinoWorkarounds(device, &m_settings);
         }
-
     }
 #if PAL_BUILD_GFX11
     else if (IsGfx11(device))
@@ -1038,8 +1017,7 @@ void SettingsLoader::OverrideDefaults(
     // Use the default minimum DCC block compression size for the device
     if (m_settings.minDccCompressedBlockSize == Gfx9MinDccCompressedBlockSize::DefaultBlockSize)
     {
-        if (device.ChipProperties().gpuType == GpuType::Integrated
-        )
+        if (device.ChipProperties().gpuType == GpuType::Integrated)
         {
             //
             //

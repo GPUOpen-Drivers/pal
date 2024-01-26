@@ -1026,6 +1026,14 @@
       "Scope": "PrivatePalKey",
       "Structure": [
         {
+          "Name": "ExcludeNonDetailShaderData",
+          "Defaults": {
+            "Default": false
+          },
+          "Type": "bool",
+          "Description": "If true, only emit the shader_data tokens from the SIMD that have been selected for detail instruction tracing"
+        },
+        {
           "Name": "SupressInstructionTokens",
           "Defaults": {
             "Default": false
@@ -1437,6 +1445,18 @@
           },
           "Type": "bool",
           "Description": "Determine if issuing marker event is allowed when SQTT is enabled."
+        },
+        {
+          "Name": "QueueIdMask",
+          "Flags": {
+            "IsBitmask": true,
+            "IsHex": true
+          },
+          "Defaults": {
+            "Default": "0xFFFFFFFF"
+          },
+          "Type": "uint32",
+          "Description": "Mask indicating which queue ids are requested to dump thread trace. 0xFFFFFFFF means to trace all queue ids. This must be set as 0xFFFFFFFF for per-frame granularity."
         }
       ],
       "Description": "Configuration options for capturing a SQ Thread Trace through the PAL GPU Profiler layer."

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -962,52 +962,6 @@ void CmdBuffer::CmdSetGlobalScissor(
         m_pPlatform->LogEndFunc(pLogContext);
     }
 }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 778
-// =====================================================================================================================
-void CmdBuffer::CmdSetColorWriteMask(
-    const ColorWriteMaskParams& params)
-{
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSetColorWriteMask;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdSetColorWriteMask(params);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
-    {
-        pLogContext->BeginInput();
-        pLogContext->KeyAndStruct("params", params);
-        pLogContext->EndInput();
-
-        m_pPlatform->LogEndFunc(pLogContext);
-    }
-}
-
-// =====================================================================================================================
-void CmdBuffer::CmdSetRasterizerDiscardEnable(
-    bool rasterizerDiscardEnable)
-{
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSetRasterizerDiscardEnable;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdSetRasterizerDiscardEnable(rasterizerDiscardEnable);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
-    {
-        pLogContext->BeginInput();
-        pLogContext->KeyAndValue("rasterizerDiscardEnable", rasterizerDiscardEnable);
-        pLogContext->EndInput();
-
-        m_pPlatform->LogEndFunc(pLogContext);
-    }
-}
-#endif
 
 // =====================================================================================================================
 void CmdBuffer::CmdBarrier(

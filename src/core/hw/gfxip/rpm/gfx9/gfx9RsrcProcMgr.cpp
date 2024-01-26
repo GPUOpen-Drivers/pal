@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -1661,11 +1661,9 @@ void RsrcProcMgr::PreComputeDepthStencilClearSync(
 
         ImgBarrier imgBarrier = {};
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
         imgBarrier.srcStageMask  = PipelineStageEarlyDsTarget | PipelineStageLateDsTarget;
         // Fast clear path may have CP to update metadata state/values, wait at BLT/ME stage for safe.
         imgBarrier.dstStageMask  = PipelineStageBlt;
-#endif
         imgBarrier.srcAccessMask = CoherDepthStencilTarget;
         imgBarrier.dstAccessMask = CoherShader;
         imgBarrier.subresRange   = subres;
@@ -1675,11 +1673,6 @@ void RsrcProcMgr::PreComputeDepthStencilClearSync(
 
         AcquireReleaseInfo acqRelInfo = {};
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 767
-        acqRelInfo.srcStageMask      = PipelineStageEarlyDsTarget | PipelineStageLateDsTarget;
-        // Fast clear path may have CP to update metadata state/values, wait at BLT/ME stage for safe.
-        acqRelInfo.dstStageMask      = PipelineStageBlt;
-#endif
         acqRelInfo.imageBarrierCount = 1;
         acqRelInfo.pImageBarriers    = &imgBarrier;
         acqRelInfo.reason            = Developer::BarrierReasonPreComputeDepthStencilClear;
@@ -2155,6 +2148,13 @@ void RsrcProcMgr::HwlResolveImageGraphics(
             PAL_ASSERT(Formats::IsUndefined(dstFormat.format) == false);
         }
 
+        // SRGB can be treated as Non-SRGB when copying from srgb image
+        if (TestAnyFlagSet(flags, ImageResolveSrcAsNorm))
+        {
+            srcFormat.format = Formats::ConvertToUnorm(srcFormat.format);
+            PAL_ASSERT(Formats::IsUndefined(srcFormat.format) == false);
+        }
+
         colorViewInfo.swizzledFormat = dstFormat;
 
         // Only switch to the appropriate graphics pipeline if it differs from the previous region's pipeline.
@@ -2506,7 +2506,7 @@ void RsrcProcMgr::InitDepthClearMetaData(
     metaDataRange.numSlices              = createInfo.arraySize;
 
     const uint32 metaDataInitFlags = (range.numPlanes == 2)
-                                     ? (HtilePlaneStencil | HtilePlaneStencil)
+                                     ? (HtilePlaneDepth | HtilePlaneStencil)
                                      : (dstImage.Parent()->IsDepthPlane(range.startSubres.plane) ?
                                        HtilePlaneDepth : HtilePlaneStencil);
 
@@ -2684,8 +2684,14 @@ void RsrcProcMgr::DepthStencilClearGraphics(
         // Enable viewport clamping if depth values are in the [0, 1] range. This avoids writing expanded depth
         // when using a float depth format. DepthExpand pipeline disables clamping by default.
         const bool disableClamp = ((depth < 0.0f) || (depth > 1.0f));
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 842
         bindParams.graphics.dynamicState.enable.depthClampMode = 1;
-        bindParams.graphics.dynamicState.depthClampMode = disableClamp ? DepthClampMode::_None : DepthClampMode::Viewport;
+        bindParams.graphics.dynamicState.depthClampMode =
+            disableClamp ? DepthClampMode::_None : DepthClampMode::Viewport;
+#else
+        bindParams.gfxDynState.enable.depthClampMode = 1;
+        bindParams.gfxDynState.depthClampMode        = disableClamp ? DepthClampMode::_None : DepthClampMode::Viewport;
+#endif
     }
     pCmdBuffer->CmdBindPipeline(bindParams);
     pCmdBuffer->CmdBindMsaaState(GetMsaaState(dstImage.Parent()->GetImageCreateInfo().samples,

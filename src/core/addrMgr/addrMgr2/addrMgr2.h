@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -313,16 +313,19 @@ constexpr bool IsXorSwizzle(
 }
 
 // =====================================================================================================================
-// Returns true if it is non BC view compatible swizzle mode.
+// Viewing a BCn image with a non-BC format requires adjusting the array slice which in turns requires the use of a
+// swizzle mode that is the same between 3D and 2D-array images.
 constexpr bool IsNonBcViewCompatible(
     AddrSwizzleMode swizzleMode,
     ImageType       imageType)
 {
-    //2D or 3D with 3dThin swizzle mode.
     return ((imageType == ImageType::Tex2d) ||
             ((imageType == ImageType::Tex3d) &&
              ((swizzleMode == ADDR_SW_64KB_Z_X)
               || (swizzleMode == ADDR_SW_64KB_R_X)
+              // Addrlib supports linear swizzle modes for 2D/3D BCn images so we must add this back so 3D thin BCn
+              // images can call addrlib ComputeNonBlockCompressedView for not missing mips.
+              || (swizzleMode == ADDR_SW_LINEAR)
 #if PAL_BUILD_GFX11
               || (swizzleMode == ADDR_SW_256KB_Z_X)
               || (swizzleMode == ADDR_SW_256KB_R_X)

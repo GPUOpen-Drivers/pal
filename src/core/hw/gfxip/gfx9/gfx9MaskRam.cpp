@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -4130,45 +4130,43 @@ void Gfx9Dcc::GetXyzInc(
 
     if ((imageType == ImageType::Tex2d) || isEffective2d)
     {
+        constexpr uint32 XyzIncSizes[][3]=
         {
-            constexpr uint32 XyzIncSizes[][3]=
-            {
-                { 16, 16, 1 },  // 8bpp
-                { 16,  8, 1 },  // 16bpp
-                {  8,  8, 1 },  // 32bpp
-                {  8,  4, 1 },  // 64bpp
-                {  4,  4, 1 },  // 128bpp
-            };
+            { 16, 16, 1 },  // 8bpp
+            { 16,  8, 1 },  // 16bpp
+            {  8,  8, 1 },  // 32bpp
+            {  8,  4, 1 },  // 64bpp
+            {  4,  4, 1 },  // 128bpp
+        };
 
-            *pXinc = XyzIncSizes[bppLog2][0];
-            *pYinc = XyzIncSizes[bppLog2][1];
-            *pZinc = XyzIncSizes[bppLog2][2];
+        *pXinc = XyzIncSizes[bppLog2][0];
+        *pYinc = XyzIncSizes[bppLog2][1];
+        *pZinc = XyzIncSizes[bppLog2][2];
 
 #if PAL_BUILD_GFX11
-            if (IsGfx11(palDevice))
+        if (IsGfx11(palDevice))
+        {
+            uint32  numSamples = m_image.Parent()->GetImageCreateInfo().samples;
+
+            // Note that we can't have MSAA for 3D images.
+            //    Color MSAA surfaces are sample interleaved, the way depth always has been.  So each 256 Bytes region
+            //    is smaller than [it was previously].  It will halve in Morton order.
+            while (numSamples > 1)
             {
-                uint32  numSamples = m_image.Parent()->GetImageCreateInfo().samples;
-
-                // Note that we can't have MSAA for 3D images.
-                //    Color MSAA surfaces are sample interleaved, the way depth always has been.  So each 256 Bytes region
-                //    is smaller than [it was previously].  It will halve in Morton order.
-                while (numSamples > 1)
+                // The general rule is that when dividing a square, divide the height, otherwise, divide the width
+                if (*pXinc == *pYinc)
                 {
-                    // The general rule is that when dividing a square, divide the height, otherwise, divide the width
-                    if (*pXinc == *pYinc)
-                    {
-                        *pYinc /= 2;
-                    }
-                    else
-                    {
-                        *pXinc /= 2;
-                    }
-
-                    numSamples = numSamples / 2;
+                    *pYinc /= 2;
                 }
+                else
+                {
+                    *pXinc /= 2;
+                }
+
+                numSamples = numSamples / 2;
             }
-#endif
         }
+#endif
     }
     else if (imageType == ImageType::Tex3d)
     {

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2007-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2007-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -419,11 +419,9 @@ private:
     ElemLib*    m_pElemLib;             ///< Element Lib pointer
 };
 
-Lib* R600HwlInit( const Client* pClient);
-Lib* R800HwlInit (const Client* pClient);
-Lib* CiHwlInit   (const Client* pClient);
-Lib* Gfx9HwlInit (const Client* pClient);
+#if ADDR_GFX10_BUILD
 Lib* Gfx10HwlInit(const Client* pClient);
+#endif
 #if ADDR_GFX11_BUILD
 Lib* Gfx11HwlInit(const Client* pClient);
 #endif

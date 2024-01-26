@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2017-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2017-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -622,11 +622,11 @@ constexpr uint32 Gfx10NumShShadowRanges    = static_cast<uint32>(Util::ArrayLen(
 constexpr uint32 Gfx10NumCsShShadowRanges  = static_cast<uint32>(Util::ArrayLen(Gfx10CsShShadowRange));
 
 constexpr uint32 Gfx10NumUserConfigShadowRanges = Util::Max(Nv10NumUserConfigShadowRanges,
-                                                            Gfx103NumUserConfigShadowRanges
-                                                            , 0u);
+                                                            Gfx103NumUserConfigShadowRanges,
+                                                            0u);
 constexpr uint32 Gfx10NumContextShadowRanges    = Util::Max(Nv10NumContextShadowRanges,
-                                                            Gfx103NumContextShadowRanges
-                                                            , 0u);
+                                                            Gfx103NumContextShadowRanges,
+                                                            0u);
 
 constexpr uint32 MaxNumUserConfigRanges  = Util::Max(Gfx9NumUserConfigShadowRanges, Gfx10NumUserConfigShadowRanges);
 constexpr uint32 MaxNumContextRanges     = Util::Max(Gfx9NumContextShadowRanges,    Gfx10NumContextShadowRanges);

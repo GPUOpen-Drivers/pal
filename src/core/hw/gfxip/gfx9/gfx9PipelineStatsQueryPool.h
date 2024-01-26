@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -118,11 +118,11 @@ private:
     uint32* SampleQueryDataOnGangedAce(
         gpusize gpuVirtAddr,
         uint32* pAceCmdSpace) const;
+#endif
 
     uint32* FixupQueryForNoGangedAce(
         gpusize gpuVirtAddr,
         uint32* pCmdSpace) const;
-#endif
 
     const Device& m_device;
     const uint32  m_numEnabledStats;

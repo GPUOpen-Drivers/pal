@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -55,33 +55,18 @@ Pal::Result CreateTextWriterComputePipelines(
     switch (properties.revision)
     {
     case Pal::AsicRevision::Navi10:
-        pTable = textWriterComputeBinaryTableNavi10;
-        break;
-
     case Pal::AsicRevision::Navi12:
-        pTable = textWriterComputeBinaryTableNavi12;
-        break;
-
     case Pal::AsicRevision::Navi14:
-        pTable = textWriterComputeBinaryTableNavi14;
+        pTable = textWriterComputeBinaryTableNavi10;
         break;
 
     case Pal::AsicRevision::Navi21:
     case Pal::AsicRevision::Navi22:
     case Pal::AsicRevision::Navi23:
-        pTable = textWriterComputeBinaryTableNavi21;
-        break;
-
     case Pal::AsicRevision::Navi24:
-        pTable = textWriterComputeBinaryTableNavi24;
-        break;
-
     case Pal::AsicRevision::Rembrandt:
-        pTable = textWriterComputeBinaryTableRembrandt;
-        break;
-
     case Pal::AsicRevision::Raphael:
-        pTable = textWriterComputeBinaryTableRaphael;
+        pTable = textWriterComputeBinaryTableNavi21;
         break;
 
 #if PAL_BUILD_NAVI31

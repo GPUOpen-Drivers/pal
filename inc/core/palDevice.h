@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -690,13 +690,6 @@ struct PalPublicSettings
     /// Optimize color export format for depth only rendering. Only applicable for RB+ parts
     bool optDepthOnlyExportRate;
 
-#if PAL_BUILD_GFX11
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 777)
-    /// Controls the value of CB_FDCC_CONTROL.SAMPLE_MASK_TRACKER_WATERMARK.Valid values are 0 and 3 - 15
-    uint32 gfx11SampleMaskTrackerWatermark;
-#endif
-#endif
-
     /// Controls whether or not we should expand Hi-Z to full range rather than doing fine-grain resummarize
     /// operations.  Expanding Hi-Z leaves the Hi-Z data in a less optimal state but is a much faster operation
     /// than the fine-grain resummarize.
@@ -706,11 +699,9 @@ struct PalPublicSettings
     /// dump without the involvement of dev driver.
     bool enableSqttMarkerEvent;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 790
     /// Controls the value of CB_COLOR0_ATTRIB.LIMIT_COLOR_FETCH_TO_256B_MAX. This bit limits CB fetch to 256B on cache
     /// miss, regardless of sector size.
     bool limitCbFetch256B;
-#endif
 
     /// Controls whether or not deferred batch binning is enabled 0 : Batch binning always disabled 1 : Use custom bin
     /// sizes 2 : Optimal.
@@ -1166,9 +1157,7 @@ struct DeviceProperties
         gpusize maxLocalMemSize;            ///< Total VRAM available on the GPU (Local + Invisible heap sizes).
         LocalMemoryType localMemoryType;    ///< Type of local memory used by the GPU.
         gpusize maxCaptureReplaySize;       ///< Total virtual GPU available for Capture/Replay
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 766
         gpusize barSize;                    ///< Total VRAM which can be accessed by the CPU.
-#endif
 
         struct
         {
@@ -1806,15 +1795,9 @@ struct GpuMemoryHeapProperties
         uint32 u32All;                     ///< Flags packed as 32-bit uint.
     } flags;                               ///< GPU memory heap property flags.
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 766
     gpusize logicalSize;                   ///< Size of the heap in bytes. If HBCC is enabled, certain heaps may be
                                            ///  virtualized and the logical size will exceed the physical size.
     gpusize physicalSize;                  ///< Physical size of the heap in bytes
-#else
-    gpusize  heapSize;                     ///< Size of the heap in bytes. If HBCC is enabled, certain heaps may be
-                                           ///  virtualized and the logical size will exceed the physical size.
-    gpusize  physicalHeapSize;             ///< Physical size of the heap in bytes
-#endif
 };
 
 /// Reports properties of a specific GPU block required for interpretting performance experiment data from that block.
@@ -2907,11 +2890,6 @@ public:
 #else
     virtual Result CheckExecutionState(
         PageFaultStatus* pPageFaultStatus) const = 0;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 772
-    inline Result CheckExecutionState() const
-        { return CheckExecutionState(nullptr); }
-#endif
 #endif
 
     /// Returns this devices client-visible settings structure initialized with appropriate defaults.  Clients can
@@ -5291,11 +5269,7 @@ public:
         char*  pBuffer,
         size_t bufferLength) const = 0;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 774
     /// Queries the base Driver Release Version string.
-#else
-    /// Queries the base Driver Version string.
-#endif
     ///
     /// @param [out]  pBuffer           A non-null pointer to the buffer where the string will be written.
     /// @param [in]   bufferLength      The byte size of the string buffer (must be non-zero).
@@ -5303,17 +5277,9 @@ public:
     /// @returns Success if the string was successfully retrieved. Otherwise, one of the following errors
     ///          may be returned:
     ///          + Unsupported if this function is not available on this environment.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 774
     ///          + NotFound if the Release Version string is not present.
-#else
-    ///          + NotFound if the Windows Driver Version string is not present.
-#endif
     ///          + ErrorInvalidValue if nullptr was passed for pBuffer or 0 for bufferLength.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 774
     virtual Result QueryReleaseVersion(
-#else
-    virtual Result QueryDriverVersion(
-#endif
         char* pBuffer,
         size_t bufferLength) const = 0;
 
@@ -5359,14 +5325,27 @@ public:
     ///
     /// @param [in] pTrapHandlerCode   A pointer to the piece of memory containing the trap handler code
     ///                                This may be nullptr, which indicates that there is no secondary trap handler.
+    /// @param [in] codeOffset         An offset, in bytes, into the pTrapHandlerCode's memory region
     /// @param [in] pTrapHandlerMemory A pointer to the piece of memory containing the trap handler's memory
     ///                                This may be nullptr, which indicates that there is no valid trap handler
     ///                                memory.
+    /// @param [in] memoryOffset       An offset, in bytes, into the pTrapHandlerMemory's memory region
     ///
     /// @returns Result for error handling.
     virtual Result SetHipTrapHandler(
         const IGpuMemory* pTrapHandlerCode,
-        const IGpuMemory* pTrapHandlerMemory) const = 0;
+        gpusize           codeOffset,
+        const IGpuMemory* pTrapHandlerMemory,
+        gpusize           memoryOffset) const = 0;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 843
+    inline Result SetHipTrapHandler(
+        const IGpuMemory* pTrapHandlerCode,
+        const IGpuMemory* pTrapHandlerMemory) const
+    {
+        return SetHipTrapHandler(pTrapHandlerCode, 0, pTrapHandlerMemory, 0);
+    }
+#endif
 
 protected:
     /// @internal Constructor. Prevent use of new operator on this interface. Client must create objects by explicitly

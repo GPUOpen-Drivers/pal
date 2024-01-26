@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -40,6 +40,7 @@
 #include "palDequeImpl.h"
 #include "palListImpl.h"
 #include "palHashMapImpl.h"
+#include "palHashSetImpl.h"
 #include "palVectorImpl.h"
 
 #if PAL_BUILD_RDF
@@ -202,6 +203,8 @@ Queue::Queue(
     m_pDummyCmdStream(nullptr),
     m_globalRefMap(static_cast<Device*>(m_pDevice)->IsVmAlwaysValidSupported() ? MemoryRefMapElementsPerVmBo :
                    MemoryRefMapElements, m_pDevice->GetPlatform()),
+    m_amdgpuHandlesInResourceList(static_cast<Device*>(m_pDevice)->IsVmAlwaysValidSupported() ?
+        MemoryRefMapElementsPerVmBo : MemoryRefMapElements, m_pDevice->GetPlatform()),
     m_globalRefDirty(true),
     m_appMemRefCount(0),
     m_pendingWait(false),
@@ -289,6 +292,11 @@ Result Queue::Init(
     if (result == Result::Success)
     {
         result = m_globalRefMap.Init();
+    }
+
+    if (result == Result::Success)
+    {
+        result = m_amdgpuHandlesInResourceList.Init();
     }
 
     // Note that the presence of the command upload ring will be used later to determine if these conditions are true.
@@ -786,9 +794,10 @@ Result Queue::OsSubmit(
                 if (pCmdBuffer->IsUsedInEndTrace())
                 {
                     this->WaitIdle();
-                    GpuUtil::FrameTraceController* frameController = m_device.GetPlatform()->GetFrameTraceController();
-                    frameController->FinishTrace();
+                    GpuUtil::FrameTraceController* pFrameController = m_device.GetPlatform()->GetFrameTraceController();
+                    // reset the EndTrace flag before calling FinishTrace, so FinishTrace may free the command buffer
                     pCmdBuffer->SetEndTraceFlag(0);
+                    pFrameController->FinishTrace();
                 }
             }
         }
@@ -1472,6 +1481,156 @@ void Queue::IncrementDummySubmitCount(
 }
 
 // =====================================================================================================================
+// execute the command by open child process, and dump the output of the commandline into log file
+static void DumpCmd(
+    const char* pCmd,
+    Util::File* pFile)
+{
+    FILE* pChild  = popen(pCmd, "r");
+
+    if (pChild != nullptr)
+    {
+        char line[2048];
+        while (fgets(line, sizeof(line), pChild) != nullptr)
+        {
+            pFile->Printf(line);
+        }
+        pFile->Printf("\n");
+        pclose(pChild);
+    }
+}
+
+// =====================================================================================================================
+// Using UMR to dump the active waves on the GPU shader core
+static void DumpUMRWaves(
+    uint32      ipType,
+    Util::File* pFile,
+    const char* pPciId)
+{
+    if (ipType == AMDGPU_HW_IP_GFX)
+    {
+        char cmd[128] = {};
+        //the pPCiID has format of "pci:xxxx:xxxx:xxxx.xx", skip the four chars for UMR commandline
+        Util::Snprintf(&cmd[0], sizeof(cmd), "umr --pci %s -O bits,halt_waves -go 0 -wa gfx_0.0.0 -go 1 2>&1", &pPciId[4]);
+        pFile->Printf("\nUMR GFX waves:\n\n");
+        DumpCmd(cmd, pFile);
+    }
+}
+
+// =====================================================================================================================
+// Using UMR to dump the GFX ring buffer
+static void DumpUMRRing(
+    uint32      ipType,
+    Util::File* pFile,
+    const char* pPciId)
+{
+    if (ipType == AMDGPU_HW_IP_GFX)
+    {
+        char cmd[128] = {};
+        //the pPCiID has format of "pci:xxxx:xxxx:xxxx.xx", skip the four chars for UMR commandline
+        Util::Snprintf(&cmd[0], sizeof(cmd), "umr --pci %s -R gfx_0.0.0 2>&1", &pPciId[4]);
+        pFile->Printf("\nUMR GFX ring:\n\n");
+        DumpCmd(cmd, pFile);
+    }
+}
+
+// =====================================================================================================================
+// check if UMR is correctly installed or user has the previlige to run UMR
+static bool CheckUMRAvailabe()
+{
+    char line[2048];
+    bool ret = false;
+
+    FILE* pChild = popen("umddr --enumerate 2>&1 ; echo $?", "r");
+
+    if (pChild != nullptr)
+    {
+        while (fgets(line, sizeof(line), pChild) != nullptr)
+        {
+            // reaching the last line, do nothing
+        }
+
+        // the exit code is zero(success) or non-zero(fail)
+        if( atoi(line) == 0)
+        {
+            ret = true;
+        }
+
+        pclose(pChild);
+    }
+
+    return ret;
+}
+
+// =====================================================================================================================
+// Dump the hang reports
+void Queue::DumpHangReport()
+{
+    auto*const pContext = static_cast<SubmissionContext*>(m_pSubmissionContext);
+    auto*const pDevice  = static_cast<Device*>(m_pDevice);
+
+    Util::File logFile;
+    char logDirPath[512];
+    char baseDir[128];
+    char logFileName[512];
+    Result status;
+
+    Util::Snprintf(baseDir, sizeof(baseDir), "%s/hang-reports", m_pDevice->GetDebugFilePath());
+    status = Util::CreateLogDir(baseDir, logDirPath, sizeof(logDirPath));
+    PAL_ASSERT(status == Result::Success);
+
+    // Check if UMR is correctly installed/ user has correct permission
+    bool success = CheckUMRAvailabe();
+
+    if (success == true)
+    {
+        Util::Snprintf(logFileName, sizeof(logFileName), "%s/%s", &logDirPath, "umr_waves.log");
+        status = logFile.Open(logFileName, Util::FileAccessWrite);
+        if (status == Result::Success)
+        {
+            DumpUMRWaves(pContext->IpType(), &logFile, pDevice->GetBusId());
+            logFile.Close();
+        }
+
+        // Dump UMR ring.
+        Util::Snprintf(logFileName, sizeof(logFileName), "%s/%s", &logDirPath,"umr_ring.log");
+        status = logFile.Open(logFileName, Util::FileAccessWrite);
+        if (status == Result::Success)
+        {
+            DumpUMRRing(pContext->IpType(), &logFile, pDevice->GetBusId());
+            logFile.Close();
+        }
+
+        PageFaultStatus pageFault;
+
+        status = pDevice->CheckExecutionState(&pageFault);
+
+        // Dump VM fault info.
+        if (status == Result::ErrorGpuPageFaultDetected)
+        {
+            Util::Snprintf(logFileName, sizeof(logFileName), "%s/%s", &logDirPath, "vm_fault.log");
+            status = logFile.Open(logFileName, Util::FileAccessWrite);
+            if (status == Result::Success)
+            {
+                logFile.Printf("VM fault report.\n\n");
+                logFile.Printf("Failing VM page: 0x%08" PRIx64 "\n", pageFault.faultAddress);
+                logFile.Close();
+            }
+        }
+    }
+    else
+    {
+        Util::Snprintf(logFileName, sizeof(logFileName), "%s/%s", &logDirPath, "error.log");
+        status = logFile.Open(logFileName, Util::FileAccessWrite);
+        if (status == Result::Success)
+        {
+            logFile.Printf("UMR is not correctly installed, or you need root previlige to run UMR \n");
+            logFile.Close();
+        }
+    }
+}
+
+// =====================================================================================================================
 // Wait all the commands was submit by this queue to be finished.
 Result Queue::OsWaitIdle()
 {
@@ -1489,7 +1648,10 @@ Result Queue::OsWaitIdle()
         queryFence.ip_instance = 0;
         queryFence.ip_type     = context.IpType();
 
-        result = static_cast<Device*>(m_pDevice)->QueryFenceStatus(&queryFence, AMDGPU_TIMEOUT_INFINITE);
+        // Theoratically we should have different timeout value for different engine, but for simplity we just use
+        // gfxTimeout for all type of engines right now.
+        result = static_cast<Device*>(m_pDevice)->QueryFenceStatus(&queryFence,
+                                                                   m_pDevice->Settings().gfxTimeout * 1000000000ull);
     }
 
     return result;
@@ -1592,6 +1754,9 @@ Result Queue::UpdateResourceList(
             }
         }
 
+        // Reset this set after append to resource list for this time submit
+        m_amdgpuHandlesInResourceList.Reset();
+
         auto*const pDevice  = static_cast<Device*>(m_pDevice);
         // raw2 submit not supported.
         if (!(pDevice->IsRaw2SubmitSupported()))
@@ -1636,9 +1801,14 @@ Result Queue::AppendResourceToList(
 {
     PAL_ASSERT(pGpuMemory != nullptr);
 
-    Result result = Result::ErrorTooManyMemoryReferences;
+    Result result = Result::Success;
 
-    if ((m_numResourcesInList + 1) <= m_resourceListSize)
+    if ((m_numResourcesInList + 1) > m_resourceListSize)
+    {
+        result = Result::ErrorTooManyMemoryReferences;
+    }
+
+    if (result == Result::Success)
     {
         // If VM is always valid, not necessary to add into the resource list.
         if (pGpuMemory->IsVmAlwaysValid() == false)
@@ -1650,6 +1820,14 @@ Result Queue::AppendResourceToList(
                 pGpuMemory->Desc().gpuVirtAddr, pGpuMemory->IsExplicitSync());
 
             auto*const pDevice  = static_cast<Device*>(m_pDevice);
+
+            // Some GpuMemory object reference the same Handle, while this will cause the
+            // KMD report try to lock the same object twice when parsing the BO list. So use
+            // the m_amdgpuHandlesInResourceList to guarantee the unique handle uploaded to KMD
+            bool alreadyExists = false;
+
+            amdgpu_bo_handle amdgpuBoHandle = pGpuMemory->SurfaceHandle();
+
             // Use raw2 submit.
             if (pDevice->IsRaw2SubmitSupported())
             {
@@ -1657,7 +1835,7 @@ Result Queue::AppendResourceToList(
                 uint32 kmsHandle = pGpuMemory->SurfaceKmsHandle();
                 if (kmsHandle == 0)
                 {
-                    result = pDevice->ExportBuffer(pGpuMemory->SurfaceHandle(),
+                    result = pDevice->ExportBuffer(amdgpuBoHandle,
                                                    amdgpu_bo_handle_type_kms,
                                                    &kmsHandle);
                     if (result == Result::Success)
@@ -1665,14 +1843,29 @@ Result Queue::AppendResourceToList(
                         pGpuMemory->SetSurfaceKmsHandle(kmsHandle);
                     }
                 }
-                m_pResourceObjectList[m_numResourcesInList] = pGpuMemory;
+
+                if (result == Result::Success)
+                {
+                    alreadyExists = m_amdgpuHandlesInResourceList.Contains(amdgpuBoHandle);
+                    if (alreadyExists == false)
+                    {
+                        m_pResourceObjectList[m_numResourcesInList] = pGpuMemory;
+                        result = m_amdgpuHandlesInResourceList.Insert(amdgpuBoHandle);
+                    }
+                }
             }
             else
             {
-                m_pResourceList[m_numResourcesInList] = pGpuMemory->SurfaceHandle();
+                alreadyExists = m_amdgpuHandlesInResourceList.Contains(amdgpuBoHandle);
+                if (alreadyExists == false)
+                {
+                    m_pResourceList[m_numResourcesInList] = amdgpuBoHandle;
+                    result = m_amdgpuHandlesInResourceList.Insert(amdgpuBoHandle);
+                }
             }
 
-            if (m_pResourcePriorityList != nullptr)
+            if ((result == Result::Success) && (alreadyExists == false) &&
+                (m_pResourcePriorityList != nullptr))
             {
                 // Max priority that Os accepts is 32, see AMDGPU_BO_LIST_MAX_PRIORITY.
                 // We reserve 3 bits for priority while 2 bits for offset
@@ -1687,10 +1880,13 @@ Result Queue::AppendResourceToList(
                     (LnxResourcePriorityTable[static_cast<size_t>(pGpuMemory->Priority())] << 2) | offsetBits;
             }
 
-            ++m_numResourcesInList;
+            if ((alreadyExists == false) && (result == Result::Success))
+            {
+                ++m_numResourcesInList;
+            }
+
         }
 
-        result = Result::Success;
     }
 
     return result;
@@ -2083,6 +2279,13 @@ Result Queue::SubmitIbsRaw(
         PAL_FREE(pMemory, m_pDevice->GetPlatform());
         // all pending waited semaphore has been poped already.
         PAL_ASSERT(m_waitSemList.IsEmpty());
+
+        if (m_pDevice->Settings().generateHangReports &&
+            (pContext->IpType() == AMDGPU_HW_IP_GFX) &&
+            (OsWaitIdle() != Result::Success))
+        {
+            DumpHangReport();
+        }
     }
 
     return result;

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2018-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2018-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -216,11 +216,13 @@ const RegisterRange Gfx103NonShadowedRanges[] =
         Gfx101::mmSPI_CONFIG_CNTL_REMAP,
         1
     },
+#if CHIP_HDR_NAVI21
     // SQ thread trace registers are always not shadowed.
     {
         Gfx10Core::mmSQ_THREAD_TRACE_BUF0_BASE,
         Gfx103::mmSQ_THREAD_TRACE_STATUS2 - Gfx10Core::mmSQ_THREAD_TRACE_BUF0_BASE + 1
     },
+#endif
     {
         mmSQ_THREAD_TRACE_USERDATA_0,
         Gfx10Plus::mmSQ_THREAD_TRACE_USERDATA_7 - mmSQ_THREAD_TRACE_USERDATA_0 + 1,
@@ -231,10 +233,12 @@ const RegisterRange Gfx103NonShadowedRanges[] =
         UserConfigRegPerfStart,
         UserConfigRegPerfEnd - UserConfigRegPerfStart + 1
     },
+#if CHIP_HDR_NAVI21
     {
         Gfx103::mmATC_PERFCOUNTER0_CFG,
         Gfx103::mmATC_PERFCOUNTER_HI - Gfx103::mmATC_PERFCOUNTER0_CFG + 1
     },
+#endif
     {
         Gfx10Core::mmRPB_PERFCOUNTER_LO,
         Gfx10Core::mmRPB_PERFCOUNTER_RSLT_CNTL - Gfx10Core::mmRPB_PERFCOUNTER_LO + 1

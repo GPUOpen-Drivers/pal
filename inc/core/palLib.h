@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -47,7 +47,7 @@
 #endif
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MAJOR_VERSION 841
+#define PAL_INTERFACE_MAJOR_VERSION 845
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 831
 /// Minor interface version.  Note that the interface version is distinct from the PAL version itself, which is returned
@@ -65,7 +65,7 @@
 /// compatibility. When it is equal to PAL_INTERFACE_MAJOR_VERSION, only the latest interface version is supported.
 ///
 /// @ingroup LibInit
-#define PAL_MINIMUM_INTERFACE_MAJOR_VERSION 761
+#define PAL_MINIMUM_INTERFACE_MAJOR_VERSION 792
 
 /// Minimum supported major interface version for devdriver library. This is the minimum interface version of the
 /// devdriver library that PAL is backwards compatible to.
@@ -299,11 +299,7 @@ struct PlatformCreateInfo
                                                         ///  use this flag and the hardware support flag to setup the
                                                         ///  DevDriver RgpServer.
             uint32 dontOpenPrimaryNode            :  1; ///< No primary node is needed (Linux only)
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 765
-            uint32 disableDevDriver               : 1;  ///< If no DevDriverMgr should be created with this Platform.
-#else
-            uint32 placeholder765                 : 1;
-#endif
+            uint32 disableDevDriver               :  1; ///< If no DevDriverMgr should be created with this Platform.
             uint32 reserved                       : 23; ///< Reserved for future use.
         };
         uint32 u32All;                                  ///< Flags packed as 32-bit uint.

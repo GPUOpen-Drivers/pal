@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -34,13 +34,21 @@
 
 namespace Pal
 {
+/// Properties of color export library
+struct ColorExportProperty
+{
+    uint16 sgprCount;
+    uint16 vgprCount;
+    uint32 scratchMemorySize;
+};
 
 /// Properties of a graphics shader library.
 struct GraphicsShaderLibraryInfo
 {
-    uint16 apiShaderMask;   // ShaderType mask, include all present shader in the library
-    uint16 hwShaderMask;    // HardwareStage mask, include all present hw shader stage in the library
-    bool   isColorExport;   // True if color export shader is included in the library
+    uint16 apiShaderMask;                    // ShaderType mask, include all present shader in the library
+    uint16 hwShaderMask;                     // HardwareStage mask, include all present hw shader stage in the library
+    ColorExportProperty colorExportProperty; // Color export shader special properties
+    bool    isColorExport;                   // True if color export shader is included in the library
 };
 
 // =====================================================================================================================
@@ -66,6 +74,8 @@ public:
     uint32 GetHwShaderMask() const { return m_gfxLibInfo.hwShaderMask; }
     uint32 GetApiShaderMask() const { return m_gfxLibInfo.apiShaderMask; }
     bool IsColorExportShader() const { return m_gfxLibInfo.isColorExport; }
+
+    void GetColorExportProperty(ColorExportProperty* pProperty) const { *pProperty = m_gfxLibInfo.colorExportProperty; }
 private:
     virtual Result PostInit(
         const Util::PalAbi::CodeObjectMetadata& metadata,

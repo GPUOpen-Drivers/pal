@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2023-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -42,7 +42,7 @@ extern "C" {
 #define DD_SETTINGS_API_VERSION_PATCH 0
 
 #define DD_SETTINGS_MAX_COMPONENT_NAME_SIZE 41 // include null-terminator
-#define DD_SETTINGS_MAX_PATH_SIZE           512
+#define DD_SETTINGS_MAX_PATH_SIZE           256
 #define DD_SETTINGS_MAX_FILE_NAME_SIZE      256
 #define DD_SETTINGS_MAX_MISC_STRING_SIZE    256
 

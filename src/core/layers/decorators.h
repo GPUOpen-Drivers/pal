@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -388,6 +388,12 @@ public:
     {
         return m_pNextLayer->GetTraceSession();
     }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 844
+    virtual void UpdateFrameTraceController(Pal::IQueue *pQueue) override
+    {
+        m_pNextLayer->UpdateFrameTraceController(m_layerEnabled ? NextQueue(pQueue) : pQueue);
+    }
+#endif
 #endif
 
     virtual bool IsTracingEnabled() const override
@@ -1269,18 +1275,10 @@ public:
         size_t bufferLength) const override
         { return m_pNextLayer->QueryRadeonSoftwareVersion(pBuffer, bufferLength); }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 774
     virtual Result QueryReleaseVersion(
-#else
-    virtual Result QueryDriverVersion(
-#endif
         char* pBuffer,
         size_t bufferLength) const override
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 774
         { return m_pNextLayer->QueryReleaseVersion(pBuffer, bufferLength); }
-#else
-        { return m_pNextLayer->QueryDriverVersion(pBuffer, bufferLength); }
-#endif
 
     virtual Result RegisterHipRuntimeState(const HipRuntimeSetup& runtimeState) const override
     {
@@ -1288,9 +1286,12 @@ public:
     }
     virtual Result SetHipTrapHandler(
         const IGpuMemory* pTrapHandlerCode,
-        const IGpuMemory* pTrapHandlerMemory) const override
+        gpusize           codeOffset,
+        const IGpuMemory* pTrapHandlerMemory,
+        gpusize           memoryOffset) const override
     {
-        return m_pNextLayer->SetHipTrapHandler(NextGpuMemory(pTrapHandlerCode), NextGpuMemory(pTrapHandlerMemory));
+        return m_pNextLayer->SetHipTrapHandler(NextGpuMemory(pTrapHandlerCode), codeOffset,
+            NextGpuMemory(pTrapHandlerMemory), memoryOffset);
     }
 
 #if defined(__unix__)
@@ -1587,16 +1588,6 @@ public:
     virtual void CmdSetGlobalScissor(
         const GlobalScissorParams& params) override
         { m_pNextLayer->CmdSetGlobalScissor(params); }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 778
-    virtual void CmdSetColorWriteMask(
-        const ColorWriteMaskParams& params) override
-        { m_pNextLayer->CmdSetColorWriteMask(params); }
-
-    virtual void CmdSetRasterizerDiscardEnable(
-        bool rasterizerDiscardEnable) override
-        { m_pNextLayer->CmdSetRasterizerDiscardEnable(rasterizerDiscardEnable); }
-#endif
 
     virtual void CmdBarrier(const BarrierInfo& barrierInfo) override;
 
@@ -2555,13 +2546,19 @@ private:
 class DepthStencilViewDecorator : public IDepthStencilView
 {
 public:
-    DepthStencilViewDecorator(IDepthStencilView* pNextView, const DeviceDecorator* pNextDevice)
+    DepthStencilViewDecorator(
+        IDepthStencilView*                pNextView,
+        const DepthStencilViewCreateInfo& createInfo,
+        const DeviceDecorator*            pNextDevice)
         :
         m_nextLayerOffset(Util::VoidPtrDiff(pNextView, this)),
+        m_createInfo(createInfo),
         m_pDevice(pNextDevice)
     {}
 
     const IDevice*     GetDevice() const { return m_pDevice; }
+    const DepthStencilViewCreateInfo&  GetCreateInfo() const { return m_createInfo; }
+
     const IDepthStencilView* GetNextLayer() const
     {
         return static_cast<const IDepthStencilView*>(Util::VoidPtrInc(this, m_nextLayerOffset));
@@ -2570,8 +2567,9 @@ public:
 protected:
     virtual ~DepthStencilViewDecorator() {}
 
-    const size_t                m_nextLayerOffset;
-    const DeviceDecorator*const m_pDevice;
+    const size_t                      m_nextLayerOffset;
+    const DepthStencilViewCreateInfo  m_createInfo;
+    const DeviceDecorator*const       m_pDevice;
 
 private:
     PAL_DISALLOW_DEFAULT_CTOR(DepthStencilViewDecorator);
@@ -2932,7 +2930,9 @@ class PipelineDecorator : public IPipeline
 public:
     PipelineDecorator(IPipeline* pNextPipeline, const DeviceDecorator* pNextDevice)
         :
-        m_pNextLayer(pNextPipeline), m_pDevice(pNextDevice), m_pipelines(pNextDevice->GetPlatform())
+        m_pNextLayer(pNextPipeline), m_pDevice(pNextDevice),
+        m_pipelines(pNextDevice->GetPlatform()), m_pPipelineDecorators(nullptr),
+        m_libraries(pNextDevice->GetPlatform()), m_pLibraryDecorators(nullptr)
     {}
 
     virtual Result GetShaderStats(
@@ -2978,6 +2978,8 @@ public:
 
     virtual Util::Span<const IPipeline* const> GetPipelines() const override { return m_pipelines; }
 
+    virtual Util::Span<const IShaderLibrary* const> GetLibraries() const { return m_libraries; }
+
     // Part of the IDestroyable public interface.
     virtual void Destroy() override
     {
@@ -3000,7 +3002,7 @@ public:
     IPipeline*      GetNextLayer() const { return m_pNextLayer; }
 
 protected:
-    virtual ~PipelineDecorator() {}
+    virtual ~PipelineDecorator();
 
     IPipeline*const             m_pNextLayer;
     const DeviceDecorator*const m_pDevice;
@@ -3010,7 +3012,12 @@ private:
     PAL_DISALLOW_COPY_AND_ASSIGN(PipelineDecorator);
 
     // Array of pipelines to be returned by GetPipelines()
-    Util::Vector<const IPipeline*, 1, PlatformDecorator> m_pipelines;
+    Util::Vector<const IPipeline*, 1, PlatformDecorator>      m_pipelines;
+    PipelineDecorator*                                        m_pPipelineDecorators;
+    // Array of libraries to be returned by GetLibraries()
+    Util::Vector<const IShaderLibrary*, 1, PlatformDecorator> m_libraries;
+    ShaderLibraryDecorator*                                   m_pLibraryDecorators;
+
 };
 
 // =====================================================================================================================

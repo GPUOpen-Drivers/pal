@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -434,7 +434,7 @@ Result Queue::BeginNextFrame(
                 const bool perfExp = (m_pDevice->NumGlobalPerfCounters() > 0)      ||
                                      (m_pDevice->NumStreamingPerfCounters() > 0)   ||
                                      (m_pDevice->NumDfStreamingPerfCounters() > 0) ||
-                                     (m_pDevice->IsThreadTraceEnabled());
+                                     (IsSqttEnabled());
 
                 pStartFrameTgtCmdBuf->BeginSample(this, &m_perFrameLogItem, false, perfExp);
 
@@ -586,13 +586,11 @@ Result Queue::Submit(
                sizeof(PerSubQueueSubmitInfo) * submitInfo.perSubQueueInfoCount);
         memset(nextCmdBufInfoList.Data(), 0, sizeof(CmdBufInfo) * Max(cmdBufferCount, 1u));
 
-        MultiSubmitInfo nextSubmitInfo      = submitInfo;
-        nextSubmitInfo.pGpuMemoryRefs       = &nextGpuMemoryRefs[0];
-        nextSubmitInfo.pDoppRefs            = &nextDoppRefs[0];
-        nextSubmitInfo.ppBlockIfFlipping    = &pNextBlockIfFlipping[0];
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 764
-        nextSubmitInfo.pFreeMuxMemory       = NextGpuMemory(submitInfo.pFreeMuxMemory);
-#endif
+        MultiSubmitInfo nextSubmitInfo   = submitInfo;
+        nextSubmitInfo.pGpuMemoryRefs    = &nextGpuMemoryRefs[0];
+        nextSubmitInfo.pDoppRefs         = &nextDoppRefs[0];
+        nextSubmitInfo.ppBlockIfFlipping = &pNextBlockIfFlipping[0];
+        nextSubmitInfo.pFreeMuxMemory    = NextGpuMemory(submitInfo.pFreeMuxMemory);
 
         // In most cases, we want to release all newly acquired objects with each submit, since they are only used
         // by one command buffer.  However, when doing frame-granularity captures, we can't release resources used
@@ -757,10 +755,8 @@ Result Queue::Submit(
                                 }
 
                                 pNextCmdBufInfoList->frameIndex = origSubQueueInfo.pCmdBufInfoList[i].frameIndex;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 779
                                 pNextCmdBufInfoList->pEarlyPresentEvent =
                                     origSubQueueInfo.pCmdBufInfoList[i].pEarlyPresentEvent;
-#endif
                             }
                         }
 
@@ -1506,15 +1502,23 @@ Result Queue::BuildGpaSessionSampleConfig()
             }
 
             // Thread trace specific config.
-            m_gpaSessionSampleConfig.sqtt.flags.enable                   = m_pDevice->IsThreadTraceEnabled();
-            m_gpaSessionSampleConfig.sqtt.seMask                         = m_pDevice->GetSeMask();
-            m_gpaSessionSampleConfig.sqtt.gpuMemoryLimit                 = settings.gpuProfilerSqttConfig.bufferSize;
-            m_gpaSessionSampleConfig.sqtt.flags.stallMode                = m_pDevice->GetSqttStallMode();
-            m_gpaSessionSampleConfig.sqtt.flags.supressInstructionTokens =
-                settings.gpuProfilerSqttConfig.supressInstructionTokens;
+            if (m_pDevice->IsThreadTraceEnabled())
+            {
+                const auto&  sqttSettings = settings.gpuProfilerSqttConfig;
+                const uint32 queueIdMask  = sqttSettings.queueIdMask;
+
+                m_gpaSessionSampleConfig.sqtt.flags.enable                     = (queueIdMask == UINT32_MAX) ||
+                                                                                 BitfieldIsSet(queueIdMask, m_queueId);
+                m_gpaSessionSampleConfig.sqtt.seMask                           = m_pDevice->GetSeMask();
+                m_gpaSessionSampleConfig.sqtt.gpuMemoryLimit                   = sqttSettings.bufferSize;
+                m_gpaSessionSampleConfig.sqtt.flags.stallMode                  = m_pDevice->GetSqttStallMode();
+                m_gpaSessionSampleConfig.sqtt.flags.supressInstructionTokens   = sqttSettings.supressInstructionTokens;
+                m_gpaSessionSampleConfig.sqtt.flags.excludeNonDetailShaderData =
+                sqttSettings.excludeNonDetailShaderData;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 824
-            m_gpaSessionSampleConfig.sqtt.tokenMask                      = settings.gpuProfilerSqttConfig.tokenMask;
+                m_gpaSessionSampleConfig.sqtt.tokenMask                      = sqttSettings.tokenMask;
 #endif
+            }
         }
         else
         {
@@ -1529,6 +1533,7 @@ Result Queue::BuildGpaSessionSampleConfig()
     return result;
 }
 
+// =====================================================================================================================
 Result Queue::FillOutSpmGpaSessionSampleConfig(
     uint32              numSpmCountersRequested,
     const  PerfCounter* pStreamingCounters,

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -651,6 +651,8 @@ UniversalQueueContext::UniversalQueueContext(
     m_shadowGpuMem(),
     m_shadowGpuMemSizeInBytes(0),
     m_shadowedRegCount(0),
+    m_usesExecuteIndirectV2(false),
+    m_executeIndirectMemGfx(),
     m_supportsAceGang(pDevice->Parent()->EngineProperties().perEngine[EngineTypeCompute].numAvailable != 0),
     m_deCmdStream(*pDevice,
                   pDevice->Parent()->InternalUntrackedCmdAllocator(),
@@ -700,6 +702,12 @@ UniversalQueueContext::~UniversalQueueContext()
     {
         m_pDevice->Parent()->MemMgr()->FreeGpuMem(m_shadowGpuMem.Memory(), m_shadowGpuMem.Offset());
         m_shadowGpuMem.Update(nullptr, 0);
+    }
+
+    if (m_executeIndirectMemGfx.IsBound())
+    {
+        m_pDevice->Parent()->MemMgr()->FreeGpuMem(m_executeIndirectMemGfx.Memory(), m_executeIndirectMemGfx.Offset());
+        m_executeIndirectMemGfx.Update(nullptr, 0);
     }
 
     if (m_pAcePreambleCmdStream != nullptr)
@@ -774,6 +782,50 @@ Result UniversalQueueContext::Init()
         result = RebuildCommandStreams(m_cmdsUseTmzRing, 0);
     }
 
+    return result;
+}
+
+// =====================================================================================================================
+// Allocate a Buffer in GpuMemory to store the ExecuteIndirect V2 PM4 commands.
+Result UniversalQueueContext::AllocateExecuteIndirectBufferGfx()
+{
+    // We allocate this buffer only once per queue context so if it has already been allocated. What's happening?
+    PAL_ASSERT(m_executeIndirectMemGfx.IsBound() == false);
+
+    // Global SpillTable for Firmware to store data for a large number of Cmds (Draws/Dispatches) MaxCmdsInFlight
+    // represents an approximation for how many Cmd's data can be stored assuming 1KB data (could be more or less in
+    // practice) per Cmd.
+    constexpr uint32 MaxCmdsInFlight   = 1024;
+    constexpr uint32 HwWaPadding       = 32;   // 32kb padding for a HW workaround.
+    constexpr uint32 AllocSizeInBytes  = (MaxCmdsInFlight + HwWaPadding) * 1024;
+
+    GpuMemoryCreateInfo createInfo = {};
+    createInfo.vaRange   = VaRange::DescriptorTable;
+    createInfo.alignment = 0;
+    createInfo.size      = AllocSizeInBytes;
+    createInfo.priority  = GpuMemPriority::Normal;
+    createInfo.heaps[0]  = GpuHeapInvisible;
+    createInfo.heapCount = 1;
+
+    GpuMemoryInternalCreateInfo internalCreateInfo = {};
+    internalCreateInfo.flags.alwaysResident = 1;
+
+    GpuMemory* pMemObj   = nullptr;
+    gpusize    memOffset = 0;
+
+    Result result = m_pDevice->Parent()->MemMgr()->AllocateGpuMem(createInfo,
+                                                                  internalCreateInfo,
+                                                                  false,
+                                                                  &pMemObj,
+                                                                  &memOffset);
+    if (result == Result::Success)
+    {
+        m_executeIndirectMemGfx.Update(pMemObj, memOffset);
+    }
+    else
+    {
+        result = Result::ErrorOutOfGpuMemory;
+    }
     return result;
 }
 
@@ -1147,7 +1199,28 @@ Result UniversalQueueContext::PreProcessSubmit(
                               cmdBufferCount,
                               ppCmdBuffers);
 
-        if ((result == Result::Success) && (hasUpdated || (m_cmdsUseTmzRing != isTmz)))
+        // Check if any of the CmdBuffers uses ExecuteIndirectV2.
+        for (uint32 ndxCmd = 0; ndxCmd < cmdBufferCount; ++ndxCmd)
+        {
+            const UniversalCmdBuffer* pCmdBuf = static_cast<const UniversalCmdBuffer*>(ppCmdBuffers[ndxCmd]);
+            if (pCmdBuf->GetExecuteIndirectV2Usage())
+            {
+                m_usesExecuteIndirectV2 = true;
+                break;
+            }
+        }
+
+        // If required make the allocation of ExecuteIndirectV2 buffer here. This will only be done once per queue
+        // context.
+        const bool mustAllocateExecuteIndirectV2Mem =
+            m_usesExecuteIndirectV2 && (m_executeIndirectMemGfx.IsBound() == false);
+        if (mustAllocateExecuteIndirectV2Mem)
+        {
+            result = AllocateExecuteIndirectBufferGfx();
+        }
+
+        if ((result == Result::Success) &&
+            (hasUpdated || (m_cmdsUseTmzRing != isTmz) || mustAllocateExecuteIndirectV2Mem))
         {
             result = RebuildCommandStreams(isTmz, lastTimeStamp);
         }
@@ -1394,6 +1467,19 @@ Result UniversalQueueContext::RebuildCommandStreams(
         else
         {
             pCmdSpace = m_ringSet.WriteCommands(&m_deCmdStream, pCmdSpace);
+        }
+
+        if (m_executeIndirectMemGfx.IsBound())
+        {
+            const gpusize bufferVa = m_executeIndirectMemGfx.GpuVirtAddr();
+
+            // The ExecuteIndirectMem V2 Buffer is unified or ShaderType agnostic. We assign ShaderGraphics here
+            // even though it doesn't matter just because the SetBase PM4 requires it.
+            pCmdSpace = m_deCmdStream.WriteSetBase(
+                                        bufferVa,
+                                        base_index__pfp_set_base__executeindirect_v2_memory__GFX103COREPLUS,
+                                        ShaderGraphics,
+                                        pCmdSpace);
         }
         pCmdSpace += cmdUtil.BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
         pCmdSpace += cmdUtil.BuildNonSampleEventWrite(VS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
@@ -1741,11 +1827,7 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
             }
         }
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 777)
-        cbFdccControl.bits.SAMPLE_MASK_TRACKER_WATERMARK = pPublicSettings->gfx11SampleMaskTrackerWatermark;
-#else
         cbFdccControl.bits.SAMPLE_MASK_TRACKER_WATERMARK = settings.gfx11SampleMaskTrackerWatermark;
-#endif
 
         pCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx11::mmCB_FDCC_CONTROL,
                                                         cbFdccControl.u32All,

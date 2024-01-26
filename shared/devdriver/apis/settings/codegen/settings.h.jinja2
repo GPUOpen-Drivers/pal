@@ -22,18 +22,17 @@ typedef Util::uint8 uint8;
 typedef Pal::gpusize gpusize;
 {% endif -%}
 
-{% macro prep_cond_begin(build_types, or_build_types) %}
-{% if build_types or or_build_types %}
+{% macro prep_cond_begin(build_types, or_build_types) -%}
+{% if build_types or or_build_types -%}
 {{build_types|buildtypes_to_c_macro(or_build_types)}}
-{% endif %}
-{% endmacro %}
+{% endif -%}
+{% endmacro -%}
 
-{% macro prep_cond_end(build_types, or_build_types) %}
-{% if build_types or or_build_types %}
+{% macro prep_cond_end(build_types, or_build_types) -%}
+{% if build_types or or_build_types -%}
 #endif
-
-{% endif %}
-{% endmacro %}
+{% endif -%}
+{% endmacro -%}
 
 {% for namespace in Namespaces %}
 namespace {{namespace}}
@@ -41,44 +40,38 @@ namespace {{namespace}}
 {% endfor %}
 
 /// Enums /////////////////////////////////////////////////////////////////////
-{% for enum in Enums %}
-{% if not enum.SkipGen %}
+{% for enum in Enums -%}
+{% if not enum.SkipGen -%}
 {{ prep_cond_begin(enum.BuildTypes, enum.OrBuildTypes) -}}
-enum {{enum.Name}} : {% if enum.Is64Bit %} uint64_t {% else %} uint32_t {% endif %}{{ '\n' }}
-
+enum {{enum.Name}} : {% if enum.Is64Bit %} uint64_t {% else %} uint32_t {% endif %}
 {
-{% for value in enum.Values %}
+{% for value in enum.Values -%}
 {{ prep_cond_begin(value.BuildTypes, value.OrBuildTypes) -}}
 {{'    '}}{{value.Name}} = {{'0x%X'|format(value.Value)}}, {% if value.Description %}// {{value.Description}}{% endif %}
-
-{{ prep_cond_end(value.BuildTypes, value.OrBuildTypes) }}
-
-{% endfor %}
+{{ prep_cond_end(value.BuildTypes, value.OrBuildTypes) -}}
+{% endfor -%}
 };
-{{ prep_cond_end(enum.BuildTypes, enum.OrBuildTypes) -}}
-{% endif %}
-{% endfor %}
+{{ prep_cond_end(enum.BuildTypes, enum.OrBuildTypes) }}
+{% endif -%}
+{% endfor -%}
 
 struct {{SettingsStructName}}
 {
-{% for setting in Settings %}
-{% if setting.Structure %}
-    {%+ if setting.Description %}// {{setting.Description | wordwrap(100) | replace('\n', '\n    // ')}}{{ '\n' }}{% endif %}
-
+{% for setting in Settings -%}
+{% if setting.Structure -%}
+{% if setting.Description %}    // {{setting.Description | wordwrap(100) | replace('\n', '\n    // ')}}{% endif %}
     struct {
-{% for subs in setting.Structure %}
+{% for subs in setting.Structure -%}
 {{ prep_cond_begin(subs.BuildTypes, subs.OrBuildTypes) }}
-        {%+ if subs.Description %}// {{subs.Description | wordwrap(100) | replace('\n', '\n        // ')}}{{ '\n' }}{% endif %}
-
+        {% if subs.Description %}// {{subs.Description | wordwrap(100) | replace('\n', '\n        // ')}}{% endif %}
         {{subs.VariableType}} {{subs.VariableName}}{% if subs.StringLength %}[{{subs.StringLength}}]{% endif %};
 {{ prep_cond_end(subs.BuildTypes, subs.OrBuildTypes) -}}
 {% endfor %}
     } {{setting.VariableName}};
 
-{% else %}
-{{ prep_cond_begin(setting.BuildTypes, setting.OrBuildTypes) }}
-    {%+ if setting.Description %}// {{setting.Description | wordwrap(100) | replace('\n', '\n    // ')}}{{ '\n' }}{% endif %}
-
+{% else -%}
+{{ prep_cond_begin(setting.BuildTypes, setting.OrBuildTypes) -}}
+{% if setting.Description %}    // {{setting.Description | wordwrap(100) | replace('\n', '\n    // ')}}{% endif %}
     {{setting.VariableType}} {{setting.VariableName}}{% if setting.StringLength %}[{{setting.StringLength}}]{% endif %};
 {{ prep_cond_end(setting.BuildTypes, setting.OrBuildTypes) -}}
 {% endif %}
@@ -87,21 +80,21 @@ struct {{SettingsStructName}}
 
 const uint32_t g_{{ComponentNameLower}}NumSettings = {{NumSettings}};
 
-{% for setting in Settings %}
-{% if setting.Structure %}
-{% for subs in setting.Structure %}
+{% for setting in Settings -%}
+{% if setting.Structure -%}
+{% for subs in setting.Structure -%}
 {{ prep_cond_begin(subs.BuildTypes, subs.OrBuildTypes) -}}
 constexpr DD_SETTINGS_NAME_HASH {{setting.VariableName}}_{{subs.VariableName}}Hash = {{subs.NameHash}};
 constexpr const char* p{{setting.Name}}_{{subs.VariableName}}HashStr = "#{{subs.NameHash}}";
 {{ prep_cond_end(subs.BuildTypes, subs.OrBuildTypes) -}}
-{% endfor %}
-{% else %}
+{% endfor -%}
+{% else -%}
 {{ prep_cond_begin(setting.BuildTypes, setting.OrBuildTypes) -}}
 constexpr DD_SETTINGS_NAME_HASH {{setting.VariableName}}Hash = {{setting.NameHash}};
 constexpr const char* p{{setting.Name}}HashStr = "#{{setting.NameHash}}";
 {{ prep_cond_end(setting.BuildTypes, setting.OrBuildTypes) -}}
-{% endif %}
-{% endfor %}
+{% endif -%}
+{% endfor -%}
 
 // =======================================================================================
 // SettingsBlob

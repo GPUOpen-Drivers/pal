@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -2171,8 +2171,10 @@ void RsrcProcMgr::ScaledCopyImageCompute(
     const auto& srcInfo      = pSrcImage->GetImageCreateInfo();
     const auto& dstInfo      = pDstImage->GetImageCreateInfo();
 
-    const bool imageTypeMatch = (pSrcGfxImage->GetOverrideImageType() == pDstGfxImage->GetOverrideImageType());
-    const bool is3d           = (imageTypeMatch && (pSrcGfxImage->GetOverrideImageType() == ImageType::Tex3d));
+    // We don't need to match between shader declared resource type and image's real type,
+    // if we just use inputs to calculate pixel address. Dst resource only used to store values
+    // to a pixel, src resource also need do sample. Thus, we use src type to choose pipline type.
+    const bool is3d           = (pSrcGfxImage->GetOverrideImageType() == ImageType::Tex3d);
     bool       isFmaskCopy    = false;
 
     // Get the appropriate pipeline object.
@@ -3308,13 +3310,8 @@ void RsrcProcMgr::CmdClearColorImage(
     if (needComputeClearSync)
     {
         AcquireReleaseInfo acqRelInfo = {};
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
         acqRelInfo.srcGlobalStageMask  = PipelineStageColorTarget;
         acqRelInfo.dstGlobalStageMask  = PipelineStageCs;
-#else
-        acqRelInfo.srcStageMask        = PipelineStageColorTarget;
-        acqRelInfo.dstStageMask        = PipelineStageCs;
-#endif
         acqRelInfo.srcGlobalAccessMask = CoherColorTarget;
         acqRelInfo.dstGlobalAccessMask = CoherShader;
         acqRelInfo.reason              = Developer::BarrierReasonPreComputeColorClear;
@@ -3343,13 +3340,8 @@ void RsrcProcMgr::CmdClearColorImage(
     if (needComputeClearSync)
     {
         AcquireReleaseInfo acqRelInfo = {};
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
         acqRelInfo.srcGlobalStageMask  = PipelineStageCs;
         acqRelInfo.dstGlobalStageMask  = PipelineStageColorTarget;
-#else
-        acqRelInfo.srcStageMask        = PipelineStageCs;
-        acqRelInfo.dstStageMask        = PipelineStageColorTarget;
-#endif
         acqRelInfo.srcGlobalAccessMask = CoherShader;
         acqRelInfo.dstGlobalAccessMask = CoherColorTarget;
         acqRelInfo.reason              = Developer::BarrierReasonPostComputeColorClear;
@@ -3395,13 +3387,8 @@ void RsrcProcMgr::CmdClearDepthStencil(
         if (needComputeClearSync)
         {
             AcquireReleaseInfo acqRelInfo = {};
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
             acqRelInfo.srcGlobalStageMask  = PipelineStageEarlyDsTarget | PipelineStageLateDsTarget;
             acqRelInfo.dstGlobalStageMask  = PipelineStageCs;
-#else
-            acqRelInfo.srcStageMask        = PipelineStageEarlyDsTarget | PipelineStageLateDsTarget;
-            acqRelInfo.dstStageMask        = PipelineStageCs;
-#endif
             acqRelInfo.srcGlobalAccessMask = CoherDepthStencilTarget;
             acqRelInfo.dstGlobalAccessMask = CoherShader;
             acqRelInfo.reason              = Developer::BarrierReasonPreComputeDepthStencilClear;
@@ -3468,14 +3455,8 @@ void RsrcProcMgr::CmdClearDepthStencil(
         if (needComputeClearSync)
         {
             AcquireReleaseInfo acqRelInfo = {};
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
             acqRelInfo.srcGlobalStageMask  = PipelineStageCs;
             acqRelInfo.dstGlobalStageMask  = PipelineStageEarlyDsTarget | PipelineStageLateDsTarget;
-#else
-            acqRelInfo.srcStageMask        = PipelineStageCs;
-            acqRelInfo.dstStageMask        = PipelineStageEarlyDsTarget | PipelineStageLateDsTarget;
-#endif
-
             acqRelInfo.srcGlobalAccessMask = CoherShader;
             acqRelInfo.dstGlobalAccessMask = CoherDepthStencilTarget;
             acqRelInfo.reason              = Developer::BarrierReasonPostComputeDepthStencilClear;
@@ -4418,6 +4399,13 @@ void RsrcProcMgr::ResolveImageCompute(
         {
             dstFormat.format = Formats::ConvertToUnorm(dstFormat.format);
             PAL_ASSERT(Formats::IsUndefined(dstFormat.format) == false);
+        }
+
+        // SRGB can be treated as Non-SRGB when copying from srgb image
+        if (TestAnyFlagSet(flags, ImageResolveSrcAsNorm))
+        {
+            srcFormat.format = Formats::ConvertToUnorm(srcFormat.format);
+            PAL_ASSERT(Formats::IsUndefined(srcFormat.format) == false);
         }
 
         // All resolve shaders use a 10-dword constant buffer with this layout:

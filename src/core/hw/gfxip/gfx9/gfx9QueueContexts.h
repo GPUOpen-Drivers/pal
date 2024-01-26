@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -130,6 +130,10 @@ public:
 
     virtual gpusize ShadowMemVa() const override { return  m_shadowGpuMem.GpuVirtAddr(); }
 
+    Result AllocateExecuteIndirectBufferGfx();
+
+    const BoundGpuMemory& GetExecuteIndirectGfxBuffer() const { return m_executeIndirectMemGfx; }
+
 private:
     Result BuildShadowPreamble();
 
@@ -193,6 +197,12 @@ private:
     // This is used for setting up state on the ACE queue for the DispatchDraw mechanism.
     bool       m_supportsAceGang;
     CmdStream* m_pAcePreambleCmdStream;
+
+    // Indicates at least one of the CmdBuffers submitted on this queue contain an ExecuteIndirectV2 PM4.
+    bool m_usesExecuteIndirectV2;
+    // Bound GpuMemory object for the per-queue buffer allocation required for Spill+VBTable data as a memory
+    // optimization.
+    BoundGpuMemory m_executeIndirectMemGfx;
 
     Util::Deque<UniversalQueueDeferFreeList, Platform> m_deferCmdStreamChunks;
 

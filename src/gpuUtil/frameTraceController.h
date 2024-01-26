@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2021-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2021-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -59,27 +59,51 @@ public:
 
     void FinishTrace();
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 844
+    void UpdateFrame(Pal::IQueue *pQueue);
+#else
     void UpdateFrame(Pal::CmdBuffer* pCmdBuffer);
+#endif
     void OnFrameUpdated();
 
     Pal::uint32 FrameCount() const { return m_frameCount; }
 
 private:
+    Pal::Result SubmitBeginTraceGpuWork() const;
+    Pal::Result SubmitEndTraceGpuWork() const;
+    Pal::Result SubmitGpuWork(Pal::ICmdBuffer* pCmdBuf,
+                              Pal::IFence*     pFence) const;
+
+    Pal::Result CreateFence(Pal::Device*  pDevice,
+                            Pal::IFence** ppFence) const;
+
+    Pal::Result CreateCommandBuffer(Pal::Device*      pDevice,
+                                    bool              traceEnd,
+                                    Pal::ICmdBuffer** ppCmdBuf) const;
+
+    Pal::Result WaitForTraceEndGpuWorkCompletion() const;
+
     Pal::Platform* const m_pPlatform;   // Platform associated with this TraceController
-    Pal::Device* m_pCurrentDevice;
 
     Pal::uint64 m_supportedGpuMask;      // Bit mask of GPU indices that are capable of participating in the trace
 
-    Pal::uint32 m_frameCount;
-    Pal::uint32 m_numPrepFrames;          // Number of "warm-up" frames before the start index
-    Pal::uint32 m_captureStartIndex;      // Frame index where trace will be started, if accepted
-    Pal::uint32 m_currentTraceStartIndex; // Starting frame index of current running trace
-    Pal::uint32 m_captureFrameCount;      // Number of frames to wait before ending the trace
+    Pal::uint32      m_frameCount;
+    Pal::uint32      m_numPrepFrames;          // Number of "warm-up" frames before the start index
+    Pal::uint32      m_captureStartIndex;      // Frame index where trace will be started, if accepted
+    Pal::uint32      m_currentTraceStartIndex; // Starting frame index of current running trace
+    Pal::uint32      m_captureFrameCount;      // Number of frames to wait before ending the trace
 
-    Pal::CmdBuffer* m_pCurrentCmdBuffer;  // GPU CmdBuffers for TraceSources to submit gpu-work at trace start/end
-    Util::Mutex m_framePresentLock;
+    Util::Mutex      m_framePresentLock;
 
-    TraceSession* m_pTraceSession;
+    TraceSession*    m_pTraceSession;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 844
+    Pal::IQueue*     m_pQueue;              // the queue being used to submit Begin/End GPU trace command buffers
+    Pal::ICmdBuffer* m_pCmdBufTraceBegin;   // command buffer to submit Trace Begin
+    Pal::ICmdBuffer* m_pCmdBufTraceEnd;     // command buffer to submit Trace End
+    Pal::IFence*     m_pTraceEndFence;      // fence to wait for Trace End command buffer completion
+#else
+    Pal::CmdBuffer* m_pCurrentCmdBuffer;    // GPU CmdBuffers for TraceSources to submit gpu-work at trace start/end
+#endif
 };
 
 }

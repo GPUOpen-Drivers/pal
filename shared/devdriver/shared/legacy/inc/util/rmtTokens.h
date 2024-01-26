@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2021-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2021-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -79,8 +79,9 @@ enum RMT_PROCESS_EVENT_TYPE
 // bytes for the resource id value.
 #define RMT_ENCODED_RESOURCE_ID_SIZE (static_cast<uint32>(sizeof(uint32) + 1))
 
-// For debug event and implicit resource V2 events, a 64-bit time delay is added to compensate for the
-// delay associated with ETW events being captured.
+// For debug name and implicit resource V2 events, a 64-bit time delay is added to compensate for the
+// delay associated with ETW events being captured.  In addition, implicit resource V2 events also include
+// the HeapType property from the ETW Resource event.
 #define RMT_ENCODED_NAME_EVENT_TIME_DELAY_SIZE (static_cast<uint32>(sizeof(uint64)))
 
 // Enumeration of Userdata event types
@@ -452,14 +453,16 @@ public:
 struct RMT_MSG_USERDATA_MARK_IMPLICIT_RESOURCE_V2 : RMT_TOKEN_DATA
 {
 private:
-    static uint32 constexpr RMT_ENCODED_RESOURCE_SIZE = sizeof(uint32);
-    static uint32 constexpr PAYLOAD_SIZE              = RMT_ENCODED_RESOURCE_SIZE + RMT_ENCODED_NAME_EVENT_TIME_DELAY_SIZE;
+    static uint32 constexpr RMT_ENCODED_RESOURCE_SIZE  = sizeof(uint32);
+    static uint32 constexpr RMT_ENCODED_HEAP_TYPE_SIZE = sizeof(uint8);
+    static uint32 constexpr PAYLOAD_SIZE =
+        RMT_ENCODED_RESOURCE_SIZE + RMT_ENCODED_NAME_EVENT_TIME_DELAY_SIZE + RMT_ENCODED_HEAP_TYPE_SIZE;
 
 public:
     uint8 bytes[RMT_MSG_USERDATA_TOKEN_BYTES_SIZE + PAYLOAD_SIZE] = {};
 
     // Initializes the token fields
-    RMT_MSG_USERDATA_MARK_IMPLICIT_RESOURCE_V2(uint8 delta, uint32 resourceId, uint64 lagTime)
+    RMT_MSG_USERDATA_MARK_IMPLICIT_RESOURCE_V2(uint8 delta, uint32 resourceId, uint64 lagTime, uint8 heapType)
     {
         sizeInBytes = sizeof(bytes);
         pByteData   = &bytes[0];
@@ -481,6 +484,12 @@ public:
 
         // Insert the time delay into the payload after the resource id.
         memcpy(&bytes[RMT_MSG_USERDATA_TOKEN_BYTES_SIZE + RMT_ENCODED_RESOURCE_SIZE], &lagTime, sizeof(lagTime));
+
+        // Insert the heapType into the payload after the lag time.
+        memcpy(&bytes[RMT_MSG_USERDATA_TOKEN_BYTES_SIZE + RMT_ENCODED_RESOURCE_SIZE +
+                      RMT_ENCODED_NAME_EVENT_TIME_DELAY_SIZE],
+               &heapType,
+               sizeof(heapType));
     }
 };
 

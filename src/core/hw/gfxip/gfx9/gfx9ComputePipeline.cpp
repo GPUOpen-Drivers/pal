@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -453,13 +453,12 @@ Result ComputePipeline::LinkWithLibraries(
         if (IsGfx10Plus(gpuInfo.gfxLevel))
         {
             // FWD_PROGRESS and WGP_MODE should match across all the shader functions and the main shader.
-            //
-            /// @note Currently we do not support null main shader, but OR the FWD_PROGRESS and WGP_MODE registers from
-            ///       the shader functions anyway to make it work with null main shader in the future.
-            PAL_ASSERT((computePgmRsrc1.gfx10Plus.FWD_PROGRESS ==
-                            libObjRegInfo.libRegs.computePgmRsrc1.gfx10Plus.FWD_PROGRESS) &&
-                       (computePgmRsrc1.gfx10Plus.WGP_MODE     ==
-                            libObjRegInfo.libRegs.computePgmRsrc1.gfx10Plus.WGP_MODE));
+            PAL_ALERT_MSG((computePgmRsrc1.gfx10Plus.FWD_PROGRESS !=
+                            libObjRegInfo.libRegs.computePgmRsrc1.gfx10Plus.FWD_PROGRESS),
+                            "Running non-FWD_PROGRESS work in FWD_PROGRESS pipeline is supported but suboptimal");
+            PAL_ALERT_MSG((computePgmRsrc1.gfx10Plus.WGP_MODE     !=
+                            libObjRegInfo.libRegs.computePgmRsrc1.gfx10Plus.WGP_MODE),
+                            "Running non-WGP_MODE work in WGP_MODE pipeline is supported but suboptimal");
 
             computePgmRsrc1.gfx10Plus.MEM_ORDERED  |= libObjRegInfo.libRegs.computePgmRsrc1.gfx10Plus.MEM_ORDERED;
             computePgmRsrc1.gfx10Plus.FWD_PROGRESS |= libObjRegInfo.libRegs.computePgmRsrc1.gfx10Plus.FWD_PROGRESS;
@@ -530,13 +529,7 @@ Result ComputePipeline::GetShaderStats(
         {
             pShaderStats->shaderStageMask              = ApiShaderStageCompute;
             pShaderStats->palShaderHash                = m_info.shader[static_cast<uint32>(shaderType)].hash;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 771
             pShaderStats->cs.numThreadsPerGroup        = m_threadsPerTg;
-#else
-            pShaderStats->cs.numThreadsPerGroupX       = m_threadsPerTg.x;
-            pShaderStats->cs.numThreadsPerGroupY       = m_threadsPerTg.y;
-            pShaderStats->cs.numThreadsPerGroupZ       = m_threadsPerTg.z;
-#endif
             pShaderStats->common.gpuVirtAddress        = m_chunkCs.CsProgramGpuVa();
             pShaderStats->common.ldsSizePerThreadGroup = chipProps.gfxip.ldsSizePerThreadGroup;
         }

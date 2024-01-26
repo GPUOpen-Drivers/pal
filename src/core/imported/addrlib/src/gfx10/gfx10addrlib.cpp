@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2007-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2007-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -2912,17 +2912,8 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlGetPreferredSurfaceSetting(
 
                     if (pIn->flags.view3dAs2dArray)
                     {
-                        // Under no circumstances should a 3D block-compressed image support SW_LINEAR,
-                        // and the funniest thing is that a 2D block-compressed image supports SW_LINEAR.
-                        // So we only disable linear for 3D BCn when view3dAs2dArray is true.
-                        if (ElemLib::IsBlockCompressed(pIn->format))
-                        {
-                            allowedSwModeSet.value &= Gfx10Rsrc3dThinSwModeMask;
-                        }
-                        else
-                        {
-                            allowedSwModeSet.value &= Gfx10Rsrc3dViewAs2dSwModeMask;
-                        }
+                        // SW_LINEAR can be used for 3D thin images, including BCn image format.
+                        allowedSwModeSet.value &= Gfx10Rsrc3dViewAs2dSwModeMask;
                     }
                     break;
 

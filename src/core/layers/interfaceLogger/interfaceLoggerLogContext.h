@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -110,10 +110,6 @@ enum class InterfaceFunc : uint32
     CmdBufferCmdSetViewports,
     CmdBufferCmdSetScissorRects,
     CmdBufferCmdSetGlobalScissor,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 778
-    CmdBufferCmdSetColorWriteMask,
-    CmdBufferCmdSetRasterizerDiscardEnable,
-#endif
     CmdBufferCmdBarrier,
     CmdBufferCmdRelease,
     CmdBufferCmdAcquire,
@@ -512,9 +508,6 @@ public:
     void Struct(const FullScreenFrameMetadataControlFlags& value);
     void Struct(const GammaRamp& value);
     void Struct(const GlobalScissorParams& value);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 778
-    void Struct(const ColorWriteMaskParams& value);
-#endif
     void Struct(const GpuEventCreateInfo& value);
     void Struct(GpuMemoryCreateFlags value);
     void Struct(const GpuMemoryCreateInfo& value);

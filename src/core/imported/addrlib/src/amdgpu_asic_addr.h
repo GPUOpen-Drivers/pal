@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2017-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2017-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -35,38 +35,32 @@
 #define FAMILY_UNKNOWN 0x00
 #define FAMILY_TN      0x69
 #define FAMILY_POLARIS 0x82
-#if ADDR_GFX9_BUILD
-#define FAMILY_AI      0x8D
-#endif
-#if ADDR_RAVEN1_BUILD
-#define FAMILY_RV      0x8E
-#endif
+#if ADDR_GFX10_BUILD
 #define FAMILY_NV      0x8F
+#endif
 #if ADDR_GFX11_BUILD
 #define FAMILY_NV3     0x91
 #if ADDR_PHOENIX_BUILD
 #define FAMILY_PHX     0x94
 #endif
 #endif
+#if ADDR_GFX10_BUILD
 #define FAMILY_RMB     0x92
 #define FAMILY_RPL     0x95
 #define FAMILY_MDN     0x97
+#endif
 
 // AMDGPU_FAMILY_IS(familyId, familyName)
 #define FAMILY_IS(f, fn)     (f == FAMILY_##fn)
 #define FAMILY_IS_TN(f)      FAMILY_IS(f, TN)
 #define FAMILY_IS_POLARIS(f) FAMILY_IS(f, POLARIS)
-#if ADDR_GFX9_BUILD
-#define FAMILY_IS_AI(f)      FAMILY_IS(f, AI)
-#endif
-#if ADDR_RAVEN1_BUILD
-#define FAMILY_IS_RV(f)      FAMILY_IS(f, RV)
-#endif
+#if ADDR_GFX10_BUILD
 #define FAMILY_IS_NV(f)      FAMILY_IS(f, NV)
+#define FAMILY_IS_RMB(f)     FAMILY_IS(f, RMB)
+#endif
 #if ADDR_GFX11_BUILD
 #define FAMILY_IS_NV3(f)     FAMILY_IS(f, NV3)
 #endif
-#define FAMILY_IS_RMB(f)     FAMILY_IS(f, RMB)
 
 #define AMDGPU_UNKNOWN          0xFF
 
@@ -96,20 +90,7 @@
 #define AMDGPU_BRISTOL_RANGE    0x10, 0x21
 #define AMDGPU_STONEY_RANGE     0x61, 0xFF
 
-#if ADDR_GFX9_BUILD
-#define AMDGPU_VEGA10_RANGE     0x01, 0x14
-#endif
-#if ADDR_VEGA12_BUILD
-#define AMDGPU_VEGA12_RANGE     0x14, 0x28
-#endif
-#define AMDGPU_VEGA20_RANGE     0x28, 0xFF
-
-#if ADDR_RAVEN1_BUILD
-#define AMDGPU_RAVEN_RANGE      0x01, 0x81
-#endif
-#define AMDGPU_RAVEN2_RANGE     0x81, 0x90
-#define AMDGPU_RENOIR_RANGE     0x91, 0xFF
-
+#if ADDR_GFX10_BUILD
 #define AMDGPU_NAVI10_RANGE     0x01, 0x0A
 
 #define AMDGPU_NAVI12_RANGE     0x0A, 0x14
@@ -123,6 +104,8 @@
 #define AMDGPU_NAVI23_RANGE     0x3C, 0x46
 
 #define AMDGPU_NAVI24_RANGE     0x46, 0x50
+
+#endif
 
 #if ADDR_GFX11_BUILD
 #if ADDR_NAVI31_BUILD
@@ -141,11 +124,11 @@
 #endif
 #endif
 
+#if ADDR_GFX10_BUILD
 #define AMDGPU_REMBRANDT_RANGE  0x01, 0xFF
-
 #define AMDGPU_RAPHAEL_RANGE    0x01, 0xFF
-
 #define AMDGPU_MENDOCINO_RANGE  0x01, 0xFF
+#endif
 
 #define AMDGPU_EXPAND_FIX(x) x
 #define AMDGPU_RANGE_HELPER(val, min, max) ((val >= min) && (val < max))
@@ -164,22 +147,7 @@
 #define ASICREV_IS_CARRIZO_BRISTOL(r)  ASICREV_IS(r, BRISTOL)
 #define ASICREV_IS_STONEY(r)           ASICREV_IS(r, STONEY)
 
-#if ADDR_GFX9_BUILD
-#define ASICREV_IS_VEGA10_M(r)         ASICREV_IS(r, VEGA10)
-#define ASICREV_IS_VEGA10_P(r)         ASICREV_IS(r, VEGA10)
-#endif
-#if ADDR_VEGA12_BUILD
-#define ASICREV_IS_VEGA12_P(r)         ASICREV_IS(r, VEGA12)
-#define ASICREV_IS_VEGA12_p(r)         ASICREV_IS(r, VEGA12)
-#endif
-#define ASICREV_IS_VEGA20_P(r)         ASICREV_IS(r, VEGA20)
-
-#if ADDR_RAVEN1_BUILD
-#define ASICREV_IS_RAVEN(r)            ASICREV_IS(r, RAVEN)
-#endif
-#define ASICREV_IS_RAVEN2(r)           ASICREV_IS(r, RAVEN2)
-#define ASICREV_IS_RENOIR(r)           ASICREV_IS(r, RENOIR)
-
+#if ADDR_GFX10_BUILD
 #define ASICREV_IS_NAVI10_P(r)         ASICREV_IS(r, NAVI10)
 
 #define ASICREV_IS_NAVI12_P(r)         ASICREV_IS(r, NAVI12)
@@ -193,6 +161,8 @@
 #define ASICREV_IS_NAVI23_P(r)         ASICREV_IS(r, NAVI23)
 
 #define ASICREV_IS_NAVI24_P(r)         ASICREV_IS(r, NAVI24)
+
+#endif
 
 #if ADDR_GFX11_BUILD
 #if ADDR_NAVI31_BUILD
@@ -211,10 +181,10 @@
 #endif
 #endif
 
+#if ADDR_GFX10_BUILD
 #define ASICREV_IS_REMBRANDT(r)        ASICREV_IS(r, REMBRANDT)
-
 #define ASICREV_IS_RAPHAEL(r)          ASICREV_IS(r, RAPHAEL)
-
 #define ASICREV_IS_MENDOCINO(r)        ASICREV_IS(r, MENDOCINO)
+#endif
 
 #endif

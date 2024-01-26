@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -23,7 +23,7 @@
  *
  **********************************************************************************************************************/
 
-### Copyright (c) 2023 Advanced Micro Devices, Inc. All rights reserved. ###
+### Copyright (c) 2023-2024 Advanced Micro Devices, Inc. All rights reserved. ###
 [CsIl]
 il_cs_2_0
 dcl_global_flags refactoringAllowed

@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2021-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2021-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -31,6 +31,8 @@ add_subdirectory(rpm)
 add_subdirectory(sdma)
 
 target_sources(pal PRIVATE
+    archivePipeline.cpp
+    archivePipeline.h
     borderColorPalette.cpp
     borderColorPalette.h
     CMakeLists.txt
@@ -61,6 +63,8 @@ target_sources(pal PRIVATE
     msaaState.h
     pipeline.cpp
     pipeline.h
+    pipelineLoader.cpp
+    pipelineLoader.h
     pm4CmdBuffer.cpp
     pm4CmdBuffer.h
     pm4CmdStream.cpp

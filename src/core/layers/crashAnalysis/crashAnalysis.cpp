@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2023-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -101,7 +101,7 @@ void EventCache::Destroy()
 }
 
 // =====================================================================================================================
-// Serializes an ExecutionMarkerTop event info the event cache.
+// Serializes an ExecutionMarkerTop event into the event cache.
 Result EventCache::CacheExecutionMarkerBegin(
     uint32      cmdBufferId,
     uint32      markerValue,
@@ -154,6 +154,43 @@ Result EventCache::CacheExecutionMarkerEnd(
 }
 
 // =====================================================================================================================
+// Serializes an ExecutionMarkerTop event into the event cache.
+Result EventCache::CacheExecutionMarkerInfo(
+    uint32      cmdBufferId,
+    uint32      markerValue,
+    const char* pMarkerInfo,
+    uint32      markerInfoSize)
+{
+    Result result = Result::Success;
+
+    EventData eventData   = { };
+    eventData.eventId     = EventId::ExecutionMarkerInfo;
+    eventData.cmdBufferId = cmdBufferId;
+    eventData.markerValue = markerValue;
+
+    if ((markerInfoSize == 0) || (pMarkerInfo == nullptr))
+    {
+        // If an invalid marker info is provided, reflect that with an invalid handle.
+        eventData.markerNameHandle = Util::StringBagHandle<char>();
+        PAL_ALERT(eventData.markerNameHandle.IsValid() == false);
+    }
+    else
+    {
+        // Otherwise, store the marker info in the string bag and cache the handle.
+        eventData.markerNameHandle = m_markerNameBag.PushBack(pMarkerInfo,
+                                                              markerInfoSize,
+                                                              &result);
+    }
+
+    if (result == Result::Success)
+    {
+        result = m_eventCache.PushBack(eventData);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 Result EventCache::GetEventAt(
     uint32                           index,
     UmdCrashAnalysisEvents::EventId* pEventId,
@@ -168,17 +205,21 @@ Result EventCache::GetEventAt(
     {
         const EventData& eventData = m_eventCache.At(index);
 
-        if ((pEventId        != nullptr) &&
-            (pCmdBufferId    != nullptr) &&
-            (pMarkerValue    != nullptr) &&
-            (ppMarkerName    != nullptr) &&
-            (pMarkerNameSize != nullptr))
+        if (pEventId != nullptr)
         {
             (*pEventId)        = eventData.eventId;
+        }
+        if (pCmdBufferId != nullptr)
+        {
             (*pCmdBufferId)    = eventData.cmdBufferId;
+        }
+        if (pMarkerValue != nullptr)
+        {
             (*pMarkerValue)    = eventData.markerValue;
-
-            if ((eventData.eventId == EventId::ExecutionMarkerTop) &&
+        }
+        if ((ppMarkerName != nullptr) && (pMarkerNameSize != nullptr))
+        {
+            if (((eventData.eventId == EventId::ExecutionMarkerTop) || (eventData.eventId == EventId::ExecutionMarkerInfo)) &&
                 (eventData.markerNameHandle.IsValid()))
             {
                 Util::StringView<char> markerName = m_markerNameBag.At(eventData.markerNameHandle);
@@ -190,9 +231,9 @@ Result EventCache::GetEventAt(
                 (*ppMarkerName)    = nullptr;
                 (*pMarkerNameSize) = 0;
             }
-
-            result = Result::Success;
         }
+
+        result = Result::Success;
     }
 
     return result;

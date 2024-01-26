@@ -2054,7 +2054,7 @@
       "Name": "BinningMaxAllocCountLegacy"
     },
     {
-      "Description": "Maximum amount of parameter storage per batch when using NGG with the on-chip parameter cache. Any negative value means calculate an optimal value based on the hardware configuration. 0 means unlimited except on GFX9 and GFX10, where it also chooses an optimal value. On GFX9, this value is in units of 2 param cache lines.",
+      "Description": "Maximum amount of parameter storage per batch when using NGG with the on-chip parameter cache. UINT_MAX means calculate an optimal value based on the hardware configuration. 0 means unlimited except on GFX9 and GFX10, where it also chooses an optimal value. On GFX9, this value is in units of 2 param cache lines.",
       "Tags": [
         "PBB and DFSM",
         "Gfx9"
@@ -2063,7 +2063,7 @@
         "Default": 0
       },
       "Scope": "PrivatePalGfx9Key",
-      "Type": "int32",
+      "Type": "uint32",
       "Name": "BinningMaxAllocCountNggOnChip"
     },
     {
@@ -2848,19 +2848,6 @@
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
       "Name": "WaDisableInstancePacking"
-    },
-    {
-      "Description": "If true, disable GRBM Register stalling for SQTT",
-      "Tags": [
-        "Hardware Workarounds"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Flags": {},
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "Name": "WaNoSqttRegStall"
     },
     {
       "ValidValues": {

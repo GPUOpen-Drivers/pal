@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2007-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2007-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -130,14 +130,7 @@ Lib::~Lib()
 Lib* Lib::GetLib(
     ADDR_HANDLE hLib)   ///< [in] handle of ADDR_HANDLE
 {
-    Addr::Lib* pAddrLib = Addr::Lib::GetLib(hLib);
-    if ((pAddrLib != NULL) &&
-        (pAddrLib->GetChipFamily() <= ADDR_CHIP_FAMILY_POLARIS))
-    {
-        // only valid and GFX9+ ASIC can use AddrLib2 function.
-        ADDR_ASSERT_ALWAYS();
-        hLib = NULL;
-    }
+
     return static_cast<Lib*>(hLib);
 }
 
@@ -1594,20 +1587,6 @@ Dim3d Lib::GetMipTailDim(
     {
         ADDR_ASSERT(IsThin(resourceType, swizzleMode));
 
-#if DEBUG && ADDR_GFX9_BUILD
-        // GFX9/GFX10 use different dimension shrinking logic for mipmap tail: say for 128KB block + 2BPE, the maximum
-        // dimension of mipmap tail level will be [256W * 128H] on GFX9 ASICs and [128W * 256H] on GFX10 ASICs. Since
-        // GFX10 is newer HWL so we make its implementation into base class, in order to save future change on new HWLs.
-        // And assert log2BlkSize will always be an even value on GFX9, so we never need the logic wrapped by DEBUG...
-        if ((log2BlkSize & 1) && (m_chipFamily == ADDR_CHIP_FAMILY_AI))
-        {
-            // Should never go here...
-            ADDR_ASSERT_ALWAYS();
-
-            out.h >>= 1;
-        }
-        else
-#endif
         {
             out.w >>= 1;
         }

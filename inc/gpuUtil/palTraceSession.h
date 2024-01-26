@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2021-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2021-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -518,6 +518,18 @@ public:
         m_tracingEnabled = true;
     }
 
+    /// Returns a pointer to a byte array containing the trace configuration.
+    ///
+    /// @param [out] pTraceConfigSize  Sets *pTraceConfigSize to the number of bytes in the trace config
+    ///
+    /// @returns A pointer to the trace configuration data
+    const void* GetTraceConfig(size_t* pTraceConfigSize) const
+    {
+        PAL_ASSERT(pTraceConfigSize != nullptr);
+        (*pTraceConfigSize) = m_configDataSize;
+        return m_pConfigData;
+    }
+
 private:
     typedef Pal::IPlatform TraceAllocator;
 
@@ -561,5 +573,7 @@ private:
     rdfStream*          m_pCurrentStream;    // Active RDF stream for writing chunks
     Pal::int32          m_currentChunkIndex; // The current chunk index of the RDF stream
     bool                m_tracingEnabled;    // Flag indicating UberTrace tracing is enabled tool-side
+    void*               m_pConfigData;       // Buffer containing the cached trace configurationn
+    size_t              m_configDataSize;    // Size of the cached trace config buffer
 };
 } // GpuUtil

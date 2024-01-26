@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -950,6 +950,17 @@ typedef uint32_t DDRpcFunctionId;
 /// Macro used to set up a QueryXApi export function
 #define DD_DEFINE_QUERY_API_FUNC(ApiName) \
     extern "C" DD_API const DD ## ApiName ## Api* Query ## ApiName ## Api(void)
+
+// Driver Overlay string sizes:
+const size_t kNumOverlayStrings      = 4;
+const size_t kMaxOverlayStringLength = 255;
+
+// Structure to set driver overlay strings
+typedef struct DDOverlayInfo
+{
+    uint32_t strIdx;
+    char     str[kMaxOverlayStringLength];
+} DDOverlayInfo;
 
 #ifdef __cplusplus
 } // extern "C"

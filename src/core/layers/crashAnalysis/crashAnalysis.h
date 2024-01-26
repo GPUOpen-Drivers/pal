@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2022-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -117,6 +117,12 @@ public:
     Result CacheExecutionMarkerEnd(
         uint32      cmdBufferId,
         uint32      markerValue);
+
+    Result CacheExecutionMarkerInfo(
+        uint32      cmdBufferId,
+        uint32      markerValue,
+        const char* pMarkerInfo,
+        uint32      markerInfoSize);
 
     uint32 Count() const { return m_eventCache.NumElements(); }
 

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -306,23 +306,24 @@ struct ThreadTraceInfo
         struct
         {
             // Options common to all traces
-            uint32 bufferSize                :  1;
+            uint32 bufferSize                            :  1;
 
             // Thread trace only options
-            uint32 threadTraceTargetSh       :  1;
-            uint32 threadTraceTargetCu       :  1;
-            uint32 threadTraceSh0CounterMask :  1;
-            uint32 threadTraceSh1CounterMask :  1;
-            uint32 threadTraceSimdMask       :  1;
-            uint32 threadTraceVmIdMask       :  1;
-            uint32 threadTraceRandomSeed     :  1;
-            uint32 threadTraceShaderTypeMask :  1;
-            uint32 threadTraceIssueMask      :  1;
-            uint32 threadTraceWrapBuffer     :  1;
-            uint32 threadTraceStallBehavior  :  1;
-            uint32 threadTraceTokenConfig    :  1;
-            uint32 placeholder1              :  1;
-            uint32 reserved                  : 18;
+            uint32 threadTraceTargetSh                   :  1;
+            uint32 threadTraceTargetCu                   :  1;
+            uint32 threadTraceSh0CounterMask             :  1;
+            uint32 threadTraceSh1CounterMask             :  1;
+            uint32 threadTraceSimdMask                   :  1;
+            uint32 threadTraceVmIdMask                   :  1;
+            uint32 threadTraceRandomSeed                 :  1;
+            uint32 threadTraceShaderTypeMask             :  1;
+            uint32 threadTraceIssueMask                  :  1;
+            uint32 threadTraceWrapBuffer                 :  1;
+            uint32 threadTraceStallBehavior              :  1;
+            uint32 threadTraceTokenConfig                :  1;
+            uint32 placeholder1                          :  1;
+            uint32 threadTraceExcludeNonDetailShaderData :  1;
+            uint32 reserved                              : 17;
         };
         uint32 u32All;
     } optionFlags;
@@ -345,6 +346,7 @@ struct ThreadTraceInfo
         uint32                    threadTraceIssueMask;
         bool                      threadTraceWrapBuffer;
         uint32                    threadTraceStallBehavior;
+        bool                      threadTraceExcludeNonDetailShaderData;
     } optionValues;
 };
 

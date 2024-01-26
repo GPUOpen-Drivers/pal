@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -91,7 +91,12 @@ struct GraphicsState
 {
     PipelineState               pipelineState;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 842
     DynamicGraphicsShaderInfos  dynamicGraphicsInfo; // Info used during pipeline bind.
+#else
+    DynamicGraphicsShaderInfos  dynamicGraphicsInfo; // Dynamic gfx pipeline info.
+    DynamicGraphicsState        dynamicState;        // Dynamic pipeline bind state.
+#endif
 
     BindTargetParams            bindTargets;
     // Lower MaxColorTargets bits are used. Each indicate how this slot is bound.
@@ -195,12 +200,6 @@ public:
 
     virtual void CmdSetLineStippleState(
         const LineStippleStateParams& params) override;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 778
-    virtual void CmdSetColorWriteMask(const ColorWriteMaskParams& params) override;
-
-    virtual void CmdSetRasterizerDiscardEnable(bool rasterizerDiscardEnable) override;
-#endif
 
     // This function allows us to dump the contents of this command buffer to a file at submission time.
     virtual void DumpCmdStreamsToFile(Util::File* pFile, CmdBufDumpFormat mode) const override;

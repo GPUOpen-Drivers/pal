@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -1999,7 +1999,9 @@ enum ME_LOAD_SH_REG_INDEX_index_enum
 {
     index__me_load_sh_reg_index__direct_addr                   =  0,
     index__me_load_sh_reg_index__offset                        =  1,
+#if  CHIP_HDR_NAVI21|| CHIP_HDR_NAVI22|| CHIP_HDR_NAVI23|| CHIP_HDR_NAVI24|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1 || CHIP_HDR_RAPHAEL|| CHIP_HDR_REMBRANDT
     index__me_load_sh_reg_index__indirect_addr__GFX103COREPLUS =  2,
+#endif
 };
 
 // ----------------------------- ME_LOAD_SH_REG_INDEX_data_format_enum -----------------------------
@@ -2037,11 +2039,13 @@ typedef struct PM4_ME_LOAD_SH_REG_INDEX
                 uint32_t                        index      :  1; // ME_LOAD_SH_REG_INDEX_index_enum
                 uint32_t                        reserved3  : 31;
             } gfx101;
+#if  CHIP_HDR_NAVI21|| CHIP_HDR_NAVI22|| CHIP_HDR_NAVI23|| CHIP_HDR_NAVI24|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1 || CHIP_HDR_RAPHAEL|| CHIP_HDR_REMBRANDT
             struct
             {
                 ME_LOAD_SH_REG_INDEX_index_enum index      :  2;
                 uint32_t                        reserved4  : 30;
             } gfx103CorePlus;
+#endif
         } bitfields;
         uint32_t u32All;
     } ordinal2;
@@ -3714,13 +3718,16 @@ typedef struct PM4_ME_LOAD_UCONFIG_REG_INDEX
 
 constexpr unsigned int PM4_ME_LOAD_UCONFIG_REG_INDEX_SIZEDW__GFX10PLUS = 5;
 
+#if  CHIP_HDR_NAVI21|| CHIP_HDR_NAVI22|| CHIP_HDR_NAVI23|| CHIP_HDR_NAVI24|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1 || CHIP_HDR_RAPHAEL|| CHIP_HDR_REMBRANDT
 // -------------------------------- ME_PERFMON_CONTROL_pmc_en_enum --------------------------------
 enum ME_PERFMON_CONTROL_pmc_en_enum
 {
     pmc_en__me_perfmon_control__perfmon_disable__GFX103COREPLUS =  0,
     pmc_en__me_perfmon_control__perfmon_enable__GFX103COREPLUS  =  1,
 };
+#endif
 
+#if  CHIP_HDR_NAVI21|| CHIP_HDR_NAVI22|| CHIP_HDR_NAVI23|| CHIP_HDR_NAVI24|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1 || CHIP_HDR_RAPHAEL|| CHIP_HDR_REMBRANDT
 // ------------------------------------ PM4_ME_PERFMON_CONTROL ------------------------------------
 typedef struct PM4_ME_PERFMON_CONTROL
 {
@@ -3761,6 +3768,7 @@ typedef struct PM4_ME_PERFMON_CONTROL
 } PM4_ME_PERFMON_CONTROL;
 
 constexpr unsigned int PM4_ME_PERFMON_CONTROL_SIZEDW__GFX103COREPLUS = 3;
+#endif
 
 #if  CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 // ---------------------------------- PM4_ME_DISPATCH_MESH_DIRECT ----------------------------------

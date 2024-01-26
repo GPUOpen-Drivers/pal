@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -38,7 +38,7 @@
 #define RGP_FILE_FORMAT_SPEC_MAJOR_VER 1
 
 /// The minor version number of the RGP file format specification that this header corresponds to.
-#define RGP_FILE_FORMAT_SPEC_MINOR_VER 5
+#define RGP_FILE_FORMAT_SPEC_MINOR_VER 6
 
 struct RgpChunkVersionNumbers
 {

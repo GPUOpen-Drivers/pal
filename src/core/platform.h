@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -44,6 +44,7 @@ class AsicInfoTraceSource;
 class ApiInfoTraceSource;
 class ClockCalibrationTraceSource;
 class GpuPerfExperimentTraceSource;
+class TraceConfigTraceSource;
 class UberTraceService;
 class FrameTraceController;
 }
@@ -139,7 +140,11 @@ public:
 #if PAL_BUILD_RDF
     virtual GpuUtil::TraceSession* GetTraceSession() override { return m_pTraceSession; }
     GpuUtil::FrameTraceController* GetFrameTraceController() { return m_pFrameTraceController; }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 844
+    virtual void UpdateFrameTraceController(IQueue *pQueue) override;
+#else
     void UpdateFrameTraceController(CmdBuffer* pCmdBuffer);
+#endif
 #endif
 
     uint32       GetDeviceCount()  const { return m_deviceCount; }
@@ -356,6 +361,7 @@ private:
     GpuUtil::ApiInfoTraceSource*           m_pApiInfoTraceSource;
     GpuUtil::ClockCalibrationTraceSource*  m_pClockCalibTraceSource;
     GpuUtil::GpuPerfExperimentTraceSource* m_pGpuPerfExpTraceSource;
+    GpuUtil::TraceConfigTraceSource*       m_pTraceConfigTraceSource;
 
     // UberTraceService that communicates with Tools
     GpuUtil::UberTraceService* m_pUberTraceService;

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -50,8 +50,7 @@ CmdBuffer::CmdBuffer(
     ICmdBuffer*                pNextCmdBuffer,
     Device*                    pDevice,
     const CmdBufferCreateInfo& createInfo,
-    bool                       logPipeStats,
-    bool                       enableSqThreadTrace)
+    bool                       logPipeStats)
     :
     CmdBufferDecorator(pNextCmdBuffer, pDevice),
     m_pDevice(pDevice),
@@ -94,7 +93,6 @@ CmdBuffer::CmdBuffer(
 
     m_flags.nested              = createInfo.flags.nested;
     m_flags.logPipeStats        = logPipeStats;
-    m_flags.enableSqThreadTrace = enableSqThreadTrace;
 }
 
 // =====================================================================================================================
@@ -255,12 +253,12 @@ void CmdBuffer::ReplayBegin(
                 enablePerfExp    = (m_pDevice->NumGlobalPerfCounters() > 0)      ||
                                    (m_pDevice->NumStreamingPerfCounters() > 0)   ||
                                    (m_pDevice->NumDfStreamingPerfCounters() > 0) ||
-                                   (m_flags.enableSqThreadTrace != 0);
+                                   (pQueue->IsSqttEnabled());
                 enablePerfExp   &= pTgtCmdBuffer->IsFromMasterSubQue();
                 enablePipeStats  = m_flags.logPipeStats && pTgtCmdBuffer->IsFromMasterSubQue();
             }
 
-            m_sampleFlags.sqThreadTraceActive = (enablePerfExp && m_flags.enableSqThreadTrace);
+            m_sampleFlags.sqThreadTraceActive = (enablePerfExp && pQueue->IsSqttEnabled());
             pTgtCmdBuffer->BeginSample(pQueue, &m_cmdBufLogItem, enablePipeStats, enablePerfExp);
         }
         else
@@ -1005,40 +1003,6 @@ void CmdBuffer::ReplayCmdSetGlobalScissor(
     pTgtCmdBuffer->CmdSetGlobalScissor(ReadTokenVal<GlobalScissorParams>());
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 778
-// =====================================================================================================================
-void CmdBuffer::CmdSetColorWriteMask(
-    const ColorWriteMaskParams& params)
-{
-    InsertToken(CmdBufCallId::CmdSetColorWriteMask);
-    InsertToken(params);
-}
-
-// =====================================================================================================================
-void CmdBuffer::ReplayCmdSetColorWriteMask(
-    Queue*           pQueue,
-    TargetCmdBuffer* pTgtCmdBuffer)
-{
-    pTgtCmdBuffer->CmdSetColorWriteMask(ReadTokenVal<ColorWriteMaskParams>());
-}
-
-// =====================================================================================================================
-void CmdBuffer::CmdSetRasterizerDiscardEnable(
-    bool rasterizerDiscardEnable)
-{
-    InsertToken(CmdBufCallId::CmdSetRasterizerDiscardEnable);
-    InsertToken(rasterizerDiscardEnable);
-}
-
-// =====================================================================================================================
-void CmdBuffer::ReplayCmdSetRasterizerDiscardEnable(
-    Queue*           pQueue,
-    TargetCmdBuffer* pTgtCmdBuffer)
-{
-    pTgtCmdBuffer->CmdSetRasterizerDiscardEnable(ReadTokenVal<bool>());
-}
-#endif
-
 // =====================================================================================================================
 void CmdBuffer::CmdBarrier(
     const BarrierInfo& barrierInfo)
@@ -1107,13 +1071,8 @@ uint32 CmdBuffer::CmdRelease(
     const AcquireReleaseInfo& releaseInfo)
 {
     InsertToken(CmdBufCallId::CmdRelease);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     InsertToken(releaseInfo.srcGlobalStageMask);
     InsertToken(releaseInfo.dstGlobalStageMask);
-#else
-    InsertToken(releaseInfo.srcStageMask);
-    InsertToken(releaseInfo.dstStageMask);
-#endif
     InsertToken(releaseInfo.srcGlobalAccessMask);
     InsertToken(releaseInfo.dstGlobalAccessMask);
     InsertTokenArray(releaseInfo.pMemoryBarriers, releaseInfo.memoryBarrierCount);
@@ -1135,13 +1094,8 @@ void CmdBuffer::ReplayCmdRelease(
 {
     AcquireReleaseInfo releaseInfo;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     releaseInfo.srcGlobalStageMask  = ReadTokenVal<uint32>();
     releaseInfo.dstGlobalStageMask  = ReadTokenVal<uint32>();
-#else
-    releaseInfo.srcStageMask        = ReadTokenVal<uint32>();
-    releaseInfo.dstStageMask        = ReadTokenVal<uint32>();
-#endif
     releaseInfo.srcGlobalAccessMask = ReadTokenVal<uint32>();
     releaseInfo.dstGlobalAccessMask = ReadTokenVal<uint32>();
     releaseInfo.memoryBarrierCount  = ReadTokenArray(&releaseInfo.pMemoryBarriers);
@@ -1214,13 +1168,8 @@ void CmdBuffer::CmdAcquire(
     const uint32*             pSyncTokens)
 {
     InsertToken(CmdBufCallId::CmdAcquire);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     InsertToken(acquireInfo.srcGlobalStageMask);
     InsertToken(acquireInfo.dstGlobalStageMask);
-#else
-    InsertToken(acquireInfo.srcStageMask);
-    InsertToken(acquireInfo.dstStageMask);
-#endif
     InsertToken(acquireInfo.srcGlobalAccessMask);
     InsertToken(acquireInfo.dstGlobalAccessMask);
     InsertTokenArray(acquireInfo.pMemoryBarriers, acquireInfo.memoryBarrierCount);
@@ -1237,13 +1186,8 @@ void CmdBuffer::ReplayCmdAcquire(
 {
     AcquireReleaseInfo acquireInfo;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     acquireInfo.srcGlobalStageMask  = ReadTokenVal<uint32>();
     acquireInfo.dstGlobalStageMask  = ReadTokenVal<uint32>();
-#else
-    acquireInfo.srcStageMask        = ReadTokenVal<uint32>();
-    acquireInfo.dstStageMask        = ReadTokenVal<uint32>();
-#endif
     acquireInfo.srcGlobalAccessMask = ReadTokenVal<uint32>();
     acquireInfo.dstGlobalAccessMask = ReadTokenVal<uint32>();
     acquireInfo.memoryBarrierCount  = ReadTokenArray(&acquireInfo.pMemoryBarriers);
@@ -1328,13 +1272,8 @@ void CmdBuffer::CmdReleaseEvent(
     const IGpuEvent*          pGpuEvent)
 {
     InsertToken(CmdBufCallId::CmdReleaseEvent);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     InsertToken(releaseInfo.srcGlobalStageMask);
     InsertToken(releaseInfo.dstGlobalStageMask);
-#else
-    InsertToken(releaseInfo.srcStageMask);
-    InsertToken(releaseInfo.dstStageMask);
-#endif
     InsertToken(releaseInfo.srcGlobalAccessMask);
     InsertToken(releaseInfo.dstGlobalAccessMask);
     InsertTokenArray(releaseInfo.pMemoryBarriers, releaseInfo.memoryBarrierCount);
@@ -1351,13 +1290,8 @@ void CmdBuffer::CmdAcquireEvent(
     const IGpuEvent* const*   ppGpuEvents)
 {
     InsertToken(CmdBufCallId::CmdAcquireEvent);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     InsertToken(acquireInfo.srcGlobalStageMask);
     InsertToken(acquireInfo.dstGlobalStageMask);
-#else
-    InsertToken(acquireInfo.srcStageMask);
-    InsertToken(acquireInfo.dstStageMask);
-#endif
     InsertToken(acquireInfo.srcGlobalAccessMask);
     InsertToken(acquireInfo.dstGlobalAccessMask);
     InsertTokenArray(acquireInfo.pMemoryBarriers, acquireInfo.memoryBarrierCount);
@@ -1374,13 +1308,8 @@ void CmdBuffer::ReplayCmdReleaseEvent(
 {
     AcquireReleaseInfo releaseInfo;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     releaseInfo.srcGlobalStageMask  = ReadTokenVal<uint32>();
     releaseInfo.dstGlobalStageMask  = ReadTokenVal<uint32>();
-#else
-    releaseInfo.srcStageMask        = ReadTokenVal<uint32>();
-    releaseInfo.dstStageMask        = ReadTokenVal<uint32>();
-#endif
     releaseInfo.srcGlobalAccessMask = ReadTokenVal<uint32>();
     releaseInfo.dstGlobalAccessMask = ReadTokenVal<uint32>();
     releaseInfo.memoryBarrierCount  = ReadTokenArray(&releaseInfo.pMemoryBarriers);
@@ -1446,13 +1375,8 @@ void CmdBuffer::ReplayCmdAcquireEvent(
 {
     AcquireReleaseInfo acquireInfo;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     acquireInfo.srcGlobalStageMask  = ReadTokenVal<uint32>();
     acquireInfo.dstGlobalStageMask  = ReadTokenVal<uint32>();
-#else
-    acquireInfo.srcStageMask        = ReadTokenVal<uint32>();
-    acquireInfo.dstStageMask        = ReadTokenVal<uint32>();
-#endif
     acquireInfo.srcGlobalAccessMask = ReadTokenVal<uint32>();
     acquireInfo.dstGlobalAccessMask = ReadTokenVal<uint32>();
     acquireInfo.memoryBarrierCount  = ReadTokenArray(&acquireInfo.pMemoryBarriers);
@@ -1517,13 +1441,8 @@ void CmdBuffer::CmdReleaseThenAcquire(
     const AcquireReleaseInfo& barrierInfo)
 {
     InsertToken(CmdBufCallId::CmdReleaseThenAcquire);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     InsertToken(barrierInfo.srcGlobalStageMask);
     InsertToken(barrierInfo.dstGlobalStageMask);
-#else
-    InsertToken(barrierInfo.srcStageMask);
-    InsertToken(barrierInfo.dstStageMask);
-#endif
     InsertToken(barrierInfo.srcGlobalAccessMask);
     InsertToken(barrierInfo.dstGlobalAccessMask);
     InsertTokenArray(barrierInfo.pMemoryBarriers, barrierInfo.memoryBarrierCount);
@@ -1538,13 +1457,8 @@ void CmdBuffer::ReplayCmdReleaseThenAcquire(
 {
     AcquireReleaseInfo barrierInfo;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     barrierInfo.srcGlobalStageMask  = ReadTokenVal<uint32>();
     barrierInfo.dstGlobalStageMask  = ReadTokenVal<uint32>();
-#else
-    barrierInfo.srcStageMask        = ReadTokenVal<uint32>();
-    barrierInfo.dstStageMask        = ReadTokenVal<uint32>();
-#endif
     barrierInfo.srcGlobalAccessMask = ReadTokenVal<uint32>();
     barrierInfo.dstGlobalAccessMask = ReadTokenVal<uint32>();
     barrierInfo.memoryBarrierCount  = ReadTokenArray(&barrierInfo.pMemoryBarriers);
@@ -4156,10 +4070,6 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdSetViewports,
         &CmdBuffer::ReplayCmdSetScissorRects,
         &CmdBuffer::ReplayCmdSetGlobalScissor,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 778
-        &CmdBuffer::ReplayCmdSetColorWriteMask,
-        &CmdBuffer::ReplayCmdSetRasterizerDiscardEnable,
-#endif
         &CmdBuffer::ReplayCmdBarrier,
         &CmdBuffer::ReplayCmdRelease,
         &CmdBuffer::ReplayCmdAcquire,
@@ -4309,7 +4219,7 @@ void CmdBuffer::LogPreTimedCall(
             pLogItem->cmdBufCall.draw.pipelineInfo = m_gfxpState.pipelineInfo;
             pLogItem->cmdBufCall.draw.apiPsoHash   = m_gfxpState.apiPsoHash;
 
-            if (m_flags.enableSqThreadTrace &&
+            if (pQueue->IsSqttEnabled() &&
                 (m_forceDrawGranularityLogging ||
                  m_pDevice->SqttEnabledForPipeline(m_gfxpState, PipelineBindPoint::Graphics)))
             {
@@ -4333,7 +4243,7 @@ void CmdBuffer::LogPreTimedCall(
             pLogItem->cmdBufCall.dispatch.pipelineInfo = m_cpState.pipelineInfo;
             pLogItem->cmdBufCall.dispatch.apiPsoHash   = m_cpState.apiPsoHash;
 
-            if (m_flags.enableSqThreadTrace &&
+            if (pQueue->IsSqttEnabled() &&
                 (m_forceDrawGranularityLogging ||
                  m_pDevice->SqttEnabledForPipeline(m_cpState, PipelineBindPoint::Compute)))
             {
@@ -4535,8 +4445,7 @@ void TargetCmdBuffer::AppendCommentString(
 
         pCommentString->stringSize = currentStringLength + newStrLen + NullTerminatorStrSize;
 
-        Snprintf(pCommentString->pString + currentStringLength,
-                 newStrLen + NullTerminatorStrSize, "%s\n", pString);
+        Snprintf(pCommentString->pString + currentStringLength, newStrLen + NullTerminatorStrSize, "%s\n", pString);
     }
 }
 
@@ -4792,7 +4701,7 @@ void TargetCmdBuffer::UpdateCommentString(
                       (sizeof(((Developer::BarrierOperations*)0)->layoutTransitions) * 8),
                       "Number of layout transitions has changed!");
 
-        uint32 data      = pData->operations.layoutTransitions.u16All;
+        uint32 data = pData->operations.layoutTransitions.u16All;
         for (uint32 lowSetBit : BitIter32(data))
         {
             const char* pString = LayoutTransitionStrings[lowSetBit];
@@ -4829,7 +4738,7 @@ void TargetCmdBuffer::UpdateCommentString(
                       (sizeof(((Developer::BarrierOperations*)0)->pipelineStalls) * 8),
                       "Number of pipeline stalls has changed!");
 
-        uint32 data      = pData->operations.pipelineStalls.u16All;
+        uint32 data = pData->operations.pipelineStalls.u16All;
         for (uint32 lowSetBit : BitIter32(data))
         {
             const char* pString = PipelineStallsStrings[lowSetBit];

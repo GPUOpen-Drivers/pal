@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -97,16 +97,15 @@ Result UniversalCmdBuffer::Begin(
     // need to be set before the base class Begin() is called.
     // These values are read be ResetState() in the HWL which is called by Begin().
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 763)
     if (info.flags.optimizeContextStatesPerBin)
     {
         m_contextStatesPerBin = info.contextStatesPerBin;
     }
+
     if (info.flags.optimizePersistentStatesPerBin)
     {
         m_persistentStatesPerBin = info.persistentStatesPerBin;
     }
-#endif
 
     Result result = Pm4CmdBuffer::Begin(info);
 
@@ -285,7 +284,12 @@ void UniversalCmdBuffer::CmdBindPipeline(
     {
         m_graphicsState.pipelineState.dirtyFlags.pipeline |= (m_graphicsState.pipelineState.pPipeline !=
                                                              static_cast<const Pipeline*>(params.pPipeline)) ? 1 : 0;
-        m_graphicsState.dynamicGraphicsInfo      = params.graphics;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 842
+        m_graphicsState.dynamicGraphicsInfo = params.graphics;
+#else
+        m_graphicsState.dynamicGraphicsInfo = params.gfxShaderInfo;
+        m_graphicsState.dynamicState        = params.gfxDynState;
+#endif
         m_graphicsState.pipelineState.pPipeline  = static_cast<const Pipeline*>(params.pPipeline);
         m_graphicsState.pipelineState.apiPsoHash = params.apiPsoHash;
     }
@@ -455,72 +459,6 @@ void UniversalCmdBuffer::CmdSetLineStippleState(
     m_graphicsState.dirtyFlags.lineStippleState = 1;
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 778
-// =====================================================================================================================
-// Sets color write mask params
-void UniversalCmdBuffer::CmdSetColorWriteMask(
-    const ColorWriteMaskParams& params)
-{
-    const auto*const pPipeline = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
-
-    if (pPipeline != nullptr)
-    {
-        uint32 updatedColorWriteMask      = 0;
-        const uint8*const targetWriteMask = pPipeline->TargetWriteMasks();
-        const uint32 maskShift            = 0x4;
-
-        for (uint32 i = 0; i < pPipeline->NumColorTargets(); ++i)
-        {
-            if (i < params.count)
-            {
-                // The new color write mask must be a subset of the currently bound pipeline's color write mask.  Use
-                // bitwise & to clear any bits not set in the pipeline's original mask.
-                updatedColorWriteMask |= (params.colorWriteMask[i] & targetWriteMask[i]) << (i * maskShift);
-            }
-            else
-            {
-                // Enable any targets of the pipeline that are not specified in params.
-                updatedColorWriteMask |= targetWriteMask[i] << (i * maskShift);
-            }
-        }
-
-        PipelineBindParams bindParams = {};
-        bindParams.pipelineBindPoint = PipelineBindPoint::Graphics;
-        bindParams.pPipeline         = pPipeline;
-        bindParams.apiPsoHash        = m_graphicsState.pipelineState.apiPsoHash;
-        bindParams.graphics          = m_graphicsState.dynamicGraphicsInfo;
-        bindParams.graphics.dynamicState.enable.colorWriteMask = 1;
-        bindParams.graphics.dynamicState.colorWriteMask        = updatedColorWriteMask;
-
-        CmdBindPipeline(bindParams);
-    }
-}
-
-// =====================================================================================================================
-// Sets dynamic rasterizer discard enable bit
-void UniversalCmdBuffer::CmdSetRasterizerDiscardEnable(
-    bool rasterizerDiscardEnable)
-{
-    const auto*const pPipeline = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
-
-    if (pPipeline != nullptr)
-    {
-        const TossPointMode tossPointMode = static_cast<TossPointMode>(m_device.Parent()->Settings().tossPointMode);
-
-        PipelineBindParams bindParams = {};
-        bindParams.pipelineBindPoint = PipelineBindPoint::Graphics;
-        bindParams.pPipeline         = pPipeline;
-        bindParams.apiPsoHash        = m_graphicsState.pipelineState.apiPsoHash;
-        bindParams.graphics          = m_graphicsState.dynamicGraphicsInfo;
-        bindParams.graphics.dynamicState.enable.rasterizerDiscardEnable = 1;
-        bindParams.graphics.dynamicState.rasterizerDiscardEnable        =
-            rasterizerDiscardEnable || (tossPointMode == TossPointAfterRaster);
-
-        CmdBindPipeline(bindParams);
-    }
-}
-#endif
-
 // =====================================================================================================================
 // Dumps this command buffer's DE and CE command streams to the given file with an appropriate header.
 void UniversalCmdBuffer::DumpCmdStreamsToFile(
@@ -661,15 +599,30 @@ void UniversalCmdBuffer::SetGraphicsState(
     const auto& pipelineState = newGraphicsState.pipelineState;
 
     if (setPipelineStateFlags.pipeline ||
-        (pipelineState.pPipeline != m_graphicsState.pipelineState.pPipeline) ||
+        pipelineState.pPipeline != m_graphicsState.pipelineState.pPipeline ||
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 842
         (memcmp(&newGraphicsState.dynamicGraphicsInfo.dynamicState,
                 &m_graphicsState.dynamicGraphicsInfo.dynamicState,
-                sizeof(DynamicGraphicsState)) != 0))
+                sizeof(DynamicGraphicsState)) != 0)
+#else
+        (memcmp(&newGraphicsState.dynamicState,
+                &m_graphicsState.dynamicState,
+                sizeof(m_graphicsState.dynamicState)) != 0) ||
+        (memcmp(&newGraphicsState.dynamicGraphicsInfo,
+                &m_graphicsState.dynamicGraphicsInfo,
+                sizeof(m_graphicsState.dynamicGraphicsInfo)) != 0)
+#endif
+        )
     {
         PipelineBindParams bindParams = {};
         bindParams.pipelineBindPoint  = PipelineBindPoint::Graphics;
         bindParams.pPipeline          = pipelineState.pPipeline;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 842
         bindParams.graphics           = newGraphicsState.dynamicGraphicsInfo;
+#else
+        bindParams.gfxShaderInfo      = newGraphicsState.dynamicGraphicsInfo;
+        bindParams.gfxDynState        = newGraphicsState.dynamicState;
+#endif
         bindParams.apiPsoHash         = pipelineState.apiPsoHash;
 
         CmdBindPipeline(bindParams);

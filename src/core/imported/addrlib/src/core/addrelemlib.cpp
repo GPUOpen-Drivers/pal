@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2007-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2007-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -53,26 +53,8 @@ ElemLib::ElemLib(
     Object(pAddrLib->GetClient()),
     m_pAddrLib(pAddrLib)
 {
-    switch (m_pAddrLib->GetChipFamily())
-    {
-        case ADDR_CHIP_FAMILY_R6XX:
-            m_depthPlanarType = ADDR_DEPTH_PLANAR_R600;
-            m_fp16ExportNorm = 0;
-            break;
-        case ADDR_CHIP_FAMILY_R7XX:
-            m_depthPlanarType = ADDR_DEPTH_PLANAR_R600;
-            m_fp16ExportNorm = 1;
-            break;
-        case ADDR_CHIP_FAMILY_R8XX:
-        case ADDR_CHIP_FAMILY_NI: // Same as 8xx
-            m_depthPlanarType = ADDR_DEPTH_PLANAR_R800;
-            m_fp16ExportNorm = 1;
-            break;
-        default:
             m_fp16ExportNorm = 1;
             m_depthPlanarType = ADDR_DEPTH_PLANAR_R800;
-            break;
-    }
 
     m_configFlags.value = 0;
 }
@@ -1210,28 +1192,6 @@ VOID ElemLib::AdjustSurfaceInfo(
             }
             else
             {
-                // Evergreen family workaround
-                if (bBCnFormat && (m_pAddrLib->GetChipFamily() == ADDR_CHIP_FAMILY_R8XX))
-                {
-                    // For BCn we now pad it to POW2 at the beginning so it is safe to
-                    // divide by 4 directly
-                    basePitch = basePitch / expandX;
-                    width     = width  / expandX;
-                    height    = height / expandY;
-#if DEBUG
-                    width     = (width == 0) ? 1 : width;
-                    height    = (height == 0) ? 1 : height;
-
-                    if ((*pWidth > PowTwoAlign(width, 8) * expandX) ||
-                        (*pHeight > PowTwoAlign(height, 8) * expandY)) // 8 is 1D tiling alignment
-                    {
-                        // if this assertion is hit we may have issues if app samples
-                        // rightmost/bottommost pixels
-                        ADDR_ASSERT_ALWAYS();
-                    }
-#endif
-                }
-                else // Not BCn format we still keep old way (FMT_1? No real test yet)
                 {
                     basePitch = (basePitch + expandX - 1) / expandX;
                     width     = (width + expandX - 1) / expandX;

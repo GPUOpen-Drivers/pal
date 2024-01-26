@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2021-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2021-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -80,7 +80,9 @@ TraceSession::TraceSession(
     m_pChunkFileWriter(nullptr),
     m_pCurrentStream(nullptr),
     m_currentChunkIndex(0),
-    m_tracingEnabled(false)
+    m_tracingEnabled(false),
+    m_pConfigData(nullptr),
+    m_configDataSize(0)
 {
 }
 
@@ -102,6 +104,11 @@ TraceSession::~TraceSession()
     if (m_pReader != nullptr)
     {
         DevDriver::IStructuredReader::Destroy(&m_pReader);
+    }
+
+    if (m_pConfigData != nullptr)
+    {
+        PAL_SAFE_FREE(m_pConfigData, m_pPlatform);
     }
 }
 
@@ -280,13 +287,37 @@ Result TraceSession::UpdateTraceConfig(
         // Parse the JSON string into a structured reader
         DevDriver::Result devDriverResult
             = DevDriver::IStructuredReader::CreateFromJson(pData,
-                                                            dataSize,
-                                                            DevDriver::Platform::GenericAllocCb,
-                                                            &m_pReader);
+                                                           dataSize,
+                                                           DevDriver::Platform::GenericAllocCb,
+                                                           &m_pReader);
 
-        if (devDriverResult == DevDriver::Result::Success)
+        result = (devDriverResult == DevDriver::Result::Success) ? Result::Success : Result::ErrorUnknown;
+
+        // Cache the raw JSON config for later use
+        if (result == Result::Success)
         {
-            result = Result::Success;
+            if (m_pConfigData != nullptr)
+            {
+                PAL_SAFE_FREE(m_pConfigData, m_pPlatform);
+            }
+
+            m_pConfigData = PAL_MALLOC(dataSize, m_pPlatform, Util::AllocInternal);
+
+            if (m_pConfigData != nullptr)
+            {
+                m_configDataSize = dataSize;
+                memcpy(m_pConfigData, pData, dataSize);
+            }
+            else
+            {
+                m_configDataSize = 0;
+                result = Result::ErrorOutOfMemory;
+            }
+        }
+
+        // Update configs of TraceControllers and TraceSources
+        if (result == Result::Success)
+        {
             const StructuredValue root = m_pReader->GetRoot();
 
             // Update configs of registered TraceControllers

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -226,6 +226,7 @@ void PipelineStatsQueryPool::DeferredBeginOnGangedAce(
         pAceCmdStream->CommitCommands(pAceCmdSpace);
     }
 }
+#endif
 
 // =====================================================================================================================
 // If the ganged ACE was not initialized by the time the query ends, then no work using it must have ocurred within
@@ -268,7 +269,6 @@ uint32* PipelineStatsQueryPool::FixupQueryForNoGangedAce(
 
     return pCmdSpace;
 }
-#endif
 
 // =====================================================================================================================
 // Begins a single query
@@ -397,10 +397,10 @@ void PipelineStatsQueryPool::End(
                 pHybridCmdStream->CommitCommands(pAceCmdSpace);
             }
             else
+#endif
             {
                 pCmdSpace = FixupQueryForNoGangedAce(gpuAddr, pCmdSpace);
             }
-#endif
         }
 
         ReleaseMemGeneric releaseInfo = {};

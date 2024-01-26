@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -3063,6 +3063,7 @@ namespace Gfx101
     constexpr unsigned int mmWD_ENHANCE_DEFAULT                               = 0xCDCDCDCD;
 } // namespace Gfx101
 
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI22|| CHIP_HDR_NAVI23|| CHIP_HDR_NAVI24|| CHIP_HDR_RAPHAEL|| CHIP_HDR_REMBRANDT
 namespace Gfx103
 {
     constexpr unsigned int mmCB_CACHE_EVICT_POINTS_DEFAULT                    = 0xE101410;
@@ -3087,7 +3088,9 @@ namespace Gfx103
     constexpr unsigned int mmSQ_PERFCOUNTER15_SELECT_DEFAULT                  = 0x0000;
     constexpr unsigned int mmTA_POWER_CNTL_DEFAULT                            = 0x22222222;
 } // namespace Gfx103
+#endif
 
+#if  CHIP_HDR_NAVI21|| CHIP_HDR_NAVI22|| CHIP_HDR_NAVI23|| CHIP_HDR_NAVI24|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1 || CHIP_HDR_RAPHAEL|| CHIP_HDR_REMBRANDT
 namespace Gfx103CorePlus
 {
     constexpr unsigned int mmPA_SC_ENHANCE_1_DEFAULT                          = 0x40C2000;
@@ -3099,7 +3102,9 @@ namespace Gfx103CorePlus
     constexpr unsigned int mmSDMA0_PERFCNT_PERFCOUNTER_RSLT_CNTL_DEFAULT      = 0x4000000;
     constexpr unsigned int mmSPI_CSG_PIPE_CONTROL_DEFAULT                     = 0x0000;
 } // namespace Gfx103CorePlus
+#endif
 
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI22|| CHIP_HDR_NAVI23|| CHIP_HDR_NAVI24|| CHIP_HDR_RAPHAEL|| CHIP_HDR_REMBRANDT
 namespace Gfx103Derivative
 {
     constexpr unsigned int mmCB_HW_CONTROL_DEFAULT                            = 0x0100;
@@ -3110,7 +3115,9 @@ namespace Gfx103Derivative
     constexpr unsigned int mmSPI_IND_INDEX_DEFAULT                            = 0x0000;
     constexpr unsigned int mmSPI_SX_EXPORT_BUFFER_SIZES_DEFAULT               = 0x10000800;
 } // namespace Gfx103Derivative
+#endif
 
+#if   CHIP_HDR_NAVI21|| CHIP_HDR_NAVI22|| CHIP_HDR_NAVI23|| CHIP_HDR_NAVI24|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1 || CHIP_HDR_RAPHAEL|| CHIP_HDR_REMBRANDT
 namespace Gfx103Plus
 {
     constexpr unsigned int mmPA_SC_BINNER_EVENT_CNTL_0_DEFAULT                = 0x842A4C02;
@@ -3131,7 +3138,9 @@ namespace Gfx103Plus
     constexpr unsigned int mmSX_PERFCOUNTER3_SELECT_DEFAULT                   = 0x03FF;
     constexpr unsigned int mmVGT_MC_LAT_CNTL_DEFAULT                          = 0x0002;
 } // namespace Gfx103Plus
+#endif
 
+#if  CHIP_HDR_NAVI21|| CHIP_HDR_NAVI22|| CHIP_HDR_NAVI23|| CHIP_HDR_NAVI24|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1 || CHIP_HDR_RAPHAEL|| CHIP_HDR_REMBRANDT
 namespace Gfx103PlusExclusive
 {
     constexpr unsigned int mmCB_HW_CONTROL_1_DEFAULT                          = 0x0000;
@@ -3148,6 +3157,7 @@ namespace Gfx103PlusExclusive
     constexpr unsigned int mmSX_PS_DOWNCONVERT_CONTROL_DEFAULT                = 0x0000;
     constexpr unsigned int mmTA_CNTL_AUX_DEFAULT                              = 0x1030000;
 } // namespace Gfx103PlusExclusive
+#endif
 
 #if  CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 namespace Gfx104Plus
@@ -3526,6 +3536,7 @@ namespace Gfx10Plus
     constexpr unsigned int mmUTCL1_PERFCOUNTER1_LO_DEFAULT                    = 0x0000;
 } // namespace Gfx10Plus
 
+#if  CHIP_HDR_NAVI21|| CHIP_HDR_NAVI22|| CHIP_HDR_NAVI23|| CHIP_HDR_NAVI24|| CHIP_HDR_RAPHAEL|| CHIP_HDR_REMBRANDT
 namespace Gfx10Vrs
 {
     constexpr unsigned int mmCB_HW_CONTROL_4_DEFAULT                          = 0x3C0014;
@@ -3535,6 +3546,7 @@ namespace Gfx10Vrs
     constexpr unsigned int mmRLC_SPM_PERFMON_SWA_SEGMENT_SIZE_DEFAULT         = 0x0000;
     constexpr unsigned int mmRLC_SPM_SE_MUXSEL_ADDR_OFFSET_DEFAULT            = 0x0000;
 } // namespace Gfx10Vrs
+#endif
 
 #if  CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 namespace Gfx11
@@ -4618,6 +4630,7 @@ namespace NotGfx10
     constexpr unsigned int mmWD_ENHANCE_DEFAULT                               = 0xCDCDCDCD;
 } // namespace NotGfx10
 
+#if CHIP_HDR_NAVI21
 namespace Nv21
 {
     constexpr unsigned int mmDB_EXCEPTION_CONTROL_DEFAULT                     = 0xF80000;
@@ -4915,7 +4928,9 @@ namespace Nv21
     constexpr unsigned int mmVGT_SHADER_STAGES_EN_DEFAULT                     = 0x1CDCDCD;
     constexpr unsigned int mmVGT_VS_MAX_WAVE_ID_DEFAULT                       = 0x02FF;
 } // namespace Nv21
+#endif
 
+#if CHIP_HDR_NAVI22
 namespace Nv22
 {
     constexpr unsigned int mmDB_EXCEPTION_CONTROL_DEFAULT                     = 0xF80000;
@@ -5113,7 +5128,9 @@ namespace Nv22
     constexpr unsigned int mmVGT_SHADER_STAGES_EN_DEFAULT                     = 0x1CDCDCD;
     constexpr unsigned int mmVGT_VS_MAX_WAVE_ID_DEFAULT                       = 0x017F;
 } // namespace Nv22
+#endif
 
+#if CHIP_HDR_NAVI23
 namespace Nv23
 {
     constexpr unsigned int mmDB_EXCEPTION_CONTROL_DEFAULT                     = 0x880000;
@@ -5235,7 +5252,9 @@ namespace Nv23
     constexpr unsigned int mmVGT_SHADER_STAGES_EN_DEFAULT                     = 0x5CDCDCD;
     constexpr unsigned int mmVGT_VS_MAX_WAVE_ID_DEFAULT                       = 0x017F;
 } // namespace Nv23
+#endif
 
+#if CHIP_HDR_NAVI24
 namespace Nv24
 {
     constexpr unsigned int mmDB_EXCEPTION_CONTROL_DEFAULT                     = 0x880000;
@@ -5271,7 +5290,9 @@ namespace Nv24
     constexpr unsigned int mmVGT_SHADER_STAGES_EN_DEFAULT                     = 0x5CDCDCD;
     constexpr unsigned int mmVGT_VS_MAX_WAVE_ID_DEFAULT                       = 0x00BF;
 } // namespace Nv24
+#endif
 
+#if CHIP_HDR_NAVI21 || CHIP_HDR_NAVI22 || CHIP_HDR_NAVI23 || CHIP_HDR_NAVI24
 namespace Nv2x
 {
     constexpr unsigned int mmCB_BLEND0_CONTROL_DEFAULT                        = 0x4DCD0DCD;
@@ -6542,6 +6563,7 @@ namespace Nv2x
     constexpr unsigned int mmWD_CNTL_STATUS_DEFAULT                           = 0xDCDCDCD;
     constexpr unsigned int mmWD_ENHANCE_DEFAULT                               = 0xCDCDCDCD;
 } // namespace Nv2x
+#endif
 
 #if CHIP_HDR_NAVI31
 namespace Nv31
@@ -7730,6 +7752,7 @@ namespace Phx1
 } // namespace Phx1
 #endif
 
+#if CHIP_HDR_RAPHAEL
 namespace Raphael
 {
     constexpr unsigned int mmCB_BLEND0_CONTROL_DEFAULT                        = 0x4DCD0DCD;
@@ -8907,6 +8930,7 @@ namespace Raphael
     constexpr unsigned int mmWD_CNTL_STATUS_DEFAULT                           = 0xDCDCDCD;
     constexpr unsigned int mmWD_ENHANCE_DEFAULT                               = 0xCDCDCDCD;
 } // namespace Raphael
+#endif
 
 namespace Raven
 {
@@ -8914,6 +8938,7 @@ namespace Raven
     constexpr unsigned int mmVGT_STRMOUT_DELAY_DEFAULT                        = 0x92410;
 } // namespace Raven
 
+#if CHIP_HDR_REMBRANDT
 namespace Rembrandt
 {
     constexpr unsigned int mmCB_BLEND0_CONTROL_DEFAULT                        = 0x0000;
@@ -10067,6 +10092,7 @@ namespace Rembrandt
     constexpr unsigned int mmWD_CNTL_STATUS_DEFAULT                           = 0x0000;
     constexpr unsigned int mmWD_ENHANCE_DEFAULT                               = 0x0000;
 } // namespace Rembrandt
+#endif
 
 namespace Rn
 {
@@ -10389,10 +10415,12 @@ namespace Vg20
     constexpr unsigned int mmTA_EDC_CNT_DEFAULT                               = 0x0000;
 } // namespace Vg20
 
+#if CHIP_HDR_NAVI21 || CHIP_HDR_NAVI22 || CHIP_HDR_NAVI23 || CHIP_HDR_NAVI24 || CHIP_HDR_NAVI31 || CHIP_HDR_NAVI32 || CHIP_HDR_NAVI33
 namespace Mall
 {
     constexpr unsigned int mmDB_RMI_L2_CACHE_CONTROL_DEFAULT                  = 0xD0D00CD;
 } // namespace Mall
+#endif
 
 } // inline namespace Chip
 } // namespace Gfx9

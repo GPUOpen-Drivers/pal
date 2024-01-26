@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -55,33 +55,18 @@ Pal::Result CreateTimeGraphComputePipelines(
     switch (properties.revision)
     {
     case Pal::AsicRevision::Navi10:
-        pTable = timeGraphComputeBinaryTableNavi10;
-        break;
-
     case Pal::AsicRevision::Navi12:
-        pTable = timeGraphComputeBinaryTableNavi12;
-        break;
-
     case Pal::AsicRevision::Navi14:
-        pTable = timeGraphComputeBinaryTableNavi14;
+        pTable = timeGraphComputeBinaryTableNavi10;
         break;
 
     case Pal::AsicRevision::Navi21:
     case Pal::AsicRevision::Navi22:
     case Pal::AsicRevision::Navi23:
-        pTable = timeGraphComputeBinaryTableNavi21;
-        break;
-
     case Pal::AsicRevision::Navi24:
-        pTable = timeGraphComputeBinaryTableNavi24;
-        break;
-
     case Pal::AsicRevision::Rembrandt:
-        pTable = timeGraphComputeBinaryTableRembrandt;
-        break;
-
     case Pal::AsicRevision::Raphael:
-        pTable = timeGraphComputeBinaryTableRaphael;
+        pTable = timeGraphComputeBinaryTableNavi21;
         break;
 
 #if PAL_BUILD_NAVI31

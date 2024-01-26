@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2020-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2020-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -85,69 +85,6 @@ endif() # PAL_BUILD_GFX
 
 # If the client wants Gfx9 support, them give them all the neccessary build parameters they need to fill out.
 if (PAL_BUILD_GFX9)
-    pal_bp( PAL_BUILD_NAVI12 ON MODE "AUTHOR_WARNING"
-            ASIC_CONFIG
-                CHIP_HDR_NAVI12
-          )
-
-    pal_bp( PAL_BUILD_NAVI14 ON MODE "AUTHOR_WARNING"
-            ASIC_CONFIG
-                CHIP_HDR_NAVI14
-          )
-
-    pal_bp( PAL_BUILD_NAVI21 ON MODE "AUTHOR_WARNING"
-            ASIC_CONFIG
-                PAL_BUILD_GFX103
-                PAL_BUILD_GFX10_3
-                PAL_BUILD_NAVI2X
-                CHIP_HDR_NAVI21
-          )
-
-    pal_bp( PAL_BUILD_NAVI22 ON MODE "AUTHOR_WARNING"
-            ASIC_CONFIG
-                PAL_BUILD_GFX103
-                PAL_BUILD_GFX10_3
-                PAL_BUILD_NAVI2X
-                CHIP_HDR_NAVI22
-          )
-
-    pal_bp( PAL_BUILD_NAVI23 ON MODE "AUTHOR_WARNING"
-            ASIC_CONFIG
-                PAL_BUILD_GFX103
-                PAL_BUILD_GFX10_3
-                PAL_BUILD_NAVI2X
-                CHIP_HDR_NAVI23
-          )
-
-    pal_bp( PAL_BUILD_NAVI24 ON MODE "AUTHOR_WARNING"
-            ASIC_CONFIG
-                PAL_BUILD_GFX103
-                PAL_BUILD_GFX10_3
-                PAL_BUILD_NAVI2X
-                CHIP_HDR_NAVI24
-          )
-
-    pal_bp( PAL_BUILD_REMBRANDT ON MODE "AUTHOR_WARNING"
-            ASIC_CONFIG
-                PAL_BUILD_GFX103
-                PAL_BUILD_GFX10_3
-                CHIP_HDR_REMBRANDT
-          )
-
-    pal_bp( PAL_BUILD_MENDOCINO ON MODE "AUTHOR_WARNING"
-            ASIC_CONFIG
-                PAL_BUILD_GFX103
-                PAL_BUILD_GFX10_3
-                PAL_BUILD_RAPHAEL
-                CHIP_HDR_RAPHAEL
-          )
-
-    pal_bp( PAL_BUILD_RAPHAEL ON MODE "AUTHOR_WARNING"
-            ASIC_CONFIG
-                PAL_BUILD_GFX103
-                PAL_BUILD_GFX10_3
-                CHIP_HDR_RAPHAEL
-          )
 
 #if PAL_BUILD_NAVI31
     pal_bp( PAL_BUILD_NAVI31 ON MODE "AUTHOR_WARNING"

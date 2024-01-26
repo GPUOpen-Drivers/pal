@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -6460,6 +6460,7 @@ namespace Gfx101
     constexpr unsigned int WD_CNTL_STATUS__WD_SPL_DMA_BUSY__SHIFT             = 0x00000001;
 } // namespace Gfx101
 
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI22|| CHIP_HDR_NAVI23|| CHIP_HDR_NAVI24|| CHIP_HDR_RAPHAEL|| CHIP_HDR_REMBRANDT
 namespace Gfx103
 {
     constexpr unsigned int CB_CGTT_SCLK_CTRL1__OFF_HYSTERESIS__SHIFT          = 0x00000004;
@@ -6555,7 +6556,9 @@ namespace Gfx103
     constexpr unsigned int TA_POWER_CNTL__WRITEDATA_CLK_EN_MODE__SHIFT        = 0x0000001b;
     constexpr unsigned int TA_POWER_CNTL__WRITEDATA_CLK_VALID_DELAY__SHIFT    = 0x00000018;
 } // namespace Gfx103
+#endif
 
+#if  CHIP_HDR_NAVI21|| CHIP_HDR_NAVI22|| CHIP_HDR_NAVI23|| CHIP_HDR_NAVI24|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1 || CHIP_HDR_RAPHAEL|| CHIP_HDR_REMBRANDT
 namespace Gfx103CorePlus
 {
     constexpr unsigned int GDS_PERFCOUNTER1_SELECT1__PERF_MODE2__SHIFT        = 0x0000001c;
@@ -6609,7 +6612,9 @@ namespace Gfx103CorePlus
     constexpr unsigned int SPI_CONFIG_PS_CU_EN__PKR_OFFSET__SHIFT             = 0x00000000;
     constexpr unsigned int SPI_CSG_PIPE_CONTROL__HYSTERESIS_CNT__SHIFT        = 0x00000000;
 } // namespace Gfx103CorePlus
+#endif
 
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI22|| CHIP_HDR_NAVI23|| CHIP_HDR_NAVI24|| CHIP_HDR_RAPHAEL|| CHIP_HDR_REMBRANDT
 namespace Gfx103Derivative
 {
     constexpr unsigned int CB_COLOR0_DCC_CONTROL__DCC_COMPRESS_DISABLE__SHIFT = 0x00000016;
@@ -6672,7 +6677,9 @@ namespace Gfx103Derivative
     constexpr unsigned int WD_CNTL_STATUS__VR2_BUSY__SHIFT                    = 0x00000001;
     constexpr unsigned int WD_CNTL_STATUS__VR3_BUSY__SHIFT                    = 0x00000000;
 } // namespace Gfx103Derivative
+#endif
 
+#if   CHIP_HDR_NAVI21|| CHIP_HDR_NAVI22|| CHIP_HDR_NAVI23|| CHIP_HDR_NAVI24|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1 || CHIP_HDR_RAPHAEL|| CHIP_HDR_REMBRANDT
 namespace Gfx103Plus
 {
     constexpr unsigned int DB_RENDER_OVERRIDE2__CENTROID_COMPUTATION_MODE__SHIFT = 0x0000001b;
@@ -6760,7 +6767,9 @@ namespace Gfx103Plus
     constexpr unsigned int VGT_DRAW_PAYLOAD_CNTL__EN_VRS_RATE__SHIFT          = 0x00000006;
     constexpr unsigned int VGT_INDEX_TYPE__DISABLE_INSTANCE_PACKING__SHIFT    = 0x0000000e;
 } // namespace Gfx103Plus
+#endif
 
+#if  CHIP_HDR_NAVI21|| CHIP_HDR_NAVI22|| CHIP_HDR_NAVI23|| CHIP_HDR_NAVI24|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1 || CHIP_HDR_RAPHAEL|| CHIP_HDR_REMBRANDT
 namespace Gfx103PlusExclusive
 {
     constexpr unsigned int CB_DCC_CONFIG__DCC_CACHE_NUM_TAGS__SHIFT           = 0x00000019;
@@ -7008,6 +7017,7 @@ namespace Gfx103PlusExclusive
     constexpr unsigned int VGT_HS_OFFCHIP_PARAM__OFFCHIP_GRANULARITY__SHIFT   = 0x0000000a;
     constexpr unsigned int VGT_SYS_CONFIG__NUM_SUBGROUPS_IN_FLIGHT__SHIFT     = 0x00000008;
 } // namespace Gfx103PlusExclusive
+#endif
 
 #if  CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 namespace Gfx104Plus
@@ -8441,6 +8451,7 @@ namespace Gfx10Plus
     constexpr unsigned int WD_UTCL1_CNTL__MTYPE_OVERRIDE__SHIFT               = 0x0000001d;
 } // namespace Gfx10Plus
 
+#if  CHIP_HDR_NAVI21|| CHIP_HDR_NAVI22|| CHIP_HDR_NAVI23|| CHIP_HDR_NAVI24|| CHIP_HDR_RAPHAEL|| CHIP_HDR_REMBRANDT
 namespace Gfx10Vrs
 {
     constexpr unsigned int CB_COLOR0_ATTRIB3__VRS_RATE_HINT_ENABLE__SHIFT     = 0x0000001f;
@@ -8478,6 +8489,7 @@ namespace Gfx10Vrs
     constexpr unsigned int RLC_SPM_SE_MUXSEL_ADDR_OFFSET__OFFSET__SHIFT       = 0x00000000;
     constexpr unsigned int RLC_SPM_SE_MUXSEL_ADDR_OFFSET__RESERVED__SHIFT     = 0x00000010;
 } // namespace Gfx10Vrs
+#endif
 
 #if  CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 namespace Gfx11
@@ -9480,6 +9492,7 @@ namespace NotGfx10
     constexpr unsigned int SPI_WCL_PIPE_PERCENT_CS7__VALUE__SHIFT             = 0x00000000;
 } // namespace NotGfx10
 
+#if CHIP_HDR_NAVI21
 namespace Nv21
 {
     constexpr unsigned int PA_CL_CNTL_STATUS__UTC_FAULT_DETECTED__SHIFT       = 0x00000000;
@@ -9651,7 +9664,9 @@ namespace Nv21
     constexpr unsigned int WD_CNTL_STATUS__WD_TE11_BUSY__SHIFT                = 0x00000012;
     constexpr unsigned int WD_CNTL_STATUS__WLC_BUSY__SHIFT                    = 0x0000001c;
 } // namespace Nv21
+#endif
 
+#if CHIP_HDR_NAVI22
 namespace Nv22
 {
     constexpr unsigned int PA_CL_CNTL_STATUS__UTC_FAULT_DETECTED__SHIFT       = 0x00000000;
@@ -9736,7 +9751,9 @@ namespace Nv22
     constexpr unsigned int WD_CNTL_STATUS__WD_TE11_BUSY__SHIFT                = 0x00000017;
     constexpr unsigned int WD_CNTL_STATUS__WLC_BUSY__SHIFT                    = 0x0000001d;
 } // namespace Nv22
+#endif
 
+#if CHIP_HDR_NAVI23
 namespace Nv23
 {
     constexpr unsigned int PA_SC_ENHANCE_3__DISABLE_SET_VPZ_DIRTY_EOPKT_LAST_PHASE_ONLY__SHIFT = 0x00000009;
@@ -9802,7 +9819,9 @@ namespace Nv23
     constexpr unsigned int WD_CNTL_STATUS__WD_TE11_BUSY__SHIFT                = 0x00000017;
     constexpr unsigned int WD_CNTL_STATUS__WLC_BUSY__SHIFT                    = 0x0000001d;
 } // namespace Nv23
+#endif
 
+#if CHIP_HDR_NAVI24
 namespace Nv24
 {
     constexpr unsigned int PA_SC_ENHANCE_3__DISABLE_SET_VPZ_DIRTY_EOPKT_LAST_PHASE_ONLY__SHIFT = 0x00000009;
@@ -9824,7 +9843,9 @@ namespace Nv24
     constexpr unsigned int WD_CNTL_STATUS__WD_TE11_BUSY__SHIFT                = 0x00000017;
     constexpr unsigned int WD_CNTL_STATUS__WLC_BUSY__SHIFT                    = 0x0000001d;
 } // namespace Nv24
+#endif
 
+#if CHIP_HDR_NAVI21 || CHIP_HDR_NAVI22 || CHIP_HDR_NAVI23 || CHIP_HDR_NAVI24
 namespace Nv2x
 {
     constexpr unsigned int CB_RMI_GL2_CACHE_CONTROL__CMASK_L3_BYPASS__SHIFT   = 0x00000018;
@@ -10105,6 +10126,7 @@ namespace Nv2x
     constexpr unsigned int VGT_TF_RING_SIZE_UMD__SIZE__SHIFT                  = 0x00000000;
     constexpr unsigned int WD_UTCL1_CNTL__LLC_NOALLOC_OVERRIDE__SHIFT         = 0x0000001e;
 } // namespace Nv2x
+#endif
 
 #if CHIP_HDR_NAVI31
 namespace Nv31
@@ -10795,6 +10817,7 @@ namespace Oss50
     constexpr unsigned int SDMA1_PERFMON_CNTL__PERF_SEL1__SHIFT               = 0x0000000c;
 } // namespace Oss50
 
+#if CHIP_HDR_RAPHAEL
 namespace Raphael
 {
     constexpr unsigned int DF_PIE_AON_PerfMonCtlHi0__EventSelectHi__SHIFT     = 0x00000000;
@@ -10970,6 +10993,7 @@ namespace Raphael
     constexpr unsigned int WD_CNTL_STATUS__WD_TE11_BUSY__SHIFT                = 0x00000017;
     constexpr unsigned int WD_CNTL_STATUS__WLC_BUSY__SHIFT                    = 0x0000001d;
 } // namespace Raphael
+#endif
 
 namespace Raven
 {
@@ -10978,6 +11002,7 @@ namespace Raven
     constexpr unsigned int RLC_SPM_PERFMON_CNTL__RLC_DBG_STRM_EXT_SAMPLE__SHIFT = 0x00000001;
 } // namespace Raven
 
+#if CHIP_HDR_REMBRANDT
 namespace Rembrandt
 {
     constexpr unsigned int DF_PIE_AON_PerfMonCtlHi0__BypassEn__SHIFT          = 0x0000001f;
@@ -11097,6 +11122,7 @@ namespace Rembrandt
     constexpr unsigned int WD_CNTL_STATUS__WD_TE11_BUSY__SHIFT                = 0x00000017;
     constexpr unsigned int WD_CNTL_STATUS__WLC_BUSY__SHIFT                    = 0x0000001d;
 } // namespace Rembrandt
+#endif
 
 namespace Rn
 {
@@ -11369,6 +11395,7 @@ namespace Vg20_Rn
     constexpr unsigned int SQ_CONFIG__UNUSED__SHIFT                           = 0x00000001;
 } // namespace Vg20_Rn
 
+#if CHIP_HDR_NAVI21 || CHIP_HDR_NAVI22 || CHIP_HDR_NAVI23 || CHIP_HDR_NAVI24 || CHIP_HDR_NAVI31 || CHIP_HDR_NAVI32 || CHIP_HDR_NAVI33
 namespace Mall
 {
     constexpr unsigned int CB_RMI_GL2_CACHE_CONTROL__COLOR_L3_BYPASS__SHIFT   = 0x0000001b;
@@ -11378,6 +11405,7 @@ namespace Mall
     constexpr unsigned int DB_RMI_L2_CACHE_CONTROL__ZPCPSD_NOALLOC__SHIFT     = 0x0000001d;
     constexpr unsigned int DB_RMI_L2_CACHE_CONTROL__Z_NOALLOC__SHIFT          = 0x0000001a;
 } // namespace Mall
+#endif
 
 } // inline namespace Chip
 } // namespace Gfx9

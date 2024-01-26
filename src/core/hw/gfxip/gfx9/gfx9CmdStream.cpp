@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -1454,12 +1454,11 @@ uint32* CmdStream::WriteSetOnePerfCtrReg(
 {
     if (m_cmdUtil.IsUserConfigReg(regAddr) == false)
     {
-        // We must use the perfcounters select if the target isn't a user config register.
-        ME_COPY_DATA_dst_sel_enum dstSelect = dst_sel__me_copy_data__perfcounters;
+        PAL_ASSERT(CmdUtil::CanUseCopyDataRegOffset(regAddr));
 
         pCmdSpace += m_cmdUtil.BuildCopyData(GetEngineType(),
                                              engine_sel__me_copy_data__micro_engine,
-                                             dstSelect,
+                                             dst_sel__me_copy_data__perfcounters,
                                              regAddr,
                                              src_sel__me_copy_data__immediate_data,
                                              value,
@@ -1504,13 +1503,11 @@ uint32* CmdStream::WriteCopyPerfCtrRegToMemory(
 {
     PAL_ASSERT(srcReg != 0);
 
-    ME_COPY_DATA_src_sel_enum srcSelect = src_sel__me_copy_data__perfcounters;
-
     pCmdSpace += m_cmdUtil.BuildCopyData(GetEngineType(),
                                          engine_sel__me_copy_data__micro_engine,
                                          dst_sel__me_copy_data__tc_l2,
                                          dstGpuVa,
-                                         srcSelect,
+                                         src_sel__me_copy_data__perfcounters,
                                          srcReg,
                                          count_sel__me_copy_data__32_bits_of_data,
                                          wr_confirm__me_copy_data__wait_for_confirmation,

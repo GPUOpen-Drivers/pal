@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -29,6 +29,7 @@
 #include "core/cmdBuffer.h"
 #include "core/os/amdgpu/amdgpuHeaders.h"
 #include "palHashMap.h"
+#include "palHashSet.h"
 #include "palVector.h"
 
 // It is a temporary solution while we are waiting for open source promotion.
@@ -270,6 +271,8 @@ private:
         ICmdBuffer*const*        &ppCmdBuffers,
         uint32                   &cmdBufferCount);
 
+    void DumpHangReport();
+
     void ResetIbs()
     {
         m_numIbs = 0;
@@ -278,6 +281,9 @@ private:
 
     // Tracks global memory references for this queue. Each key is a GPU memory object and each value is a refcount.
     typedef Util::HashMap<IGpuMemory*, uint32, Pal::Platform> MemoryRefMap;
+
+    // Track the amdgpu handle
+    typedef Util::HashSet<amdgpu_bo_handle, Pal::Platform> AmdgpuHandleRefSet;
 
     // Kernel object representing a list of GPU memory allocations referenced by a submit.
     // Stored as a member variable to prevent re-creating the kernel object on every submit
@@ -289,6 +295,8 @@ private:
                                                    // Used by amdgpu_cs_submit_raw2, saves kms_handle and priority
     Pal::CmdStream*    m_pDummyCmdStream;          // The dummy command stream used by dummy submission.
     MemoryRefMap       m_globalRefMap;             // A hashmap acting as a refcounted list of memory references.
+    AmdgpuHandleRefSet  m_amdgpuHandlesInResourceList;
+                                                   // A hashset that stores the unique handle of amdgpu_bo_handle type
     bool               m_globalRefDirty;           // Indicates m_globalRefMap has changed since the last submit.
     Util::RWLock       m_globalRefLock;            // Protect m_globalRefMap from muli-thread access.
     uint32             m_appMemRefCount;           // Store count of application's submission memory references.

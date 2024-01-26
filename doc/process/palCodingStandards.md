@@ -1,5 +1,5 @@
 ```
-Copyright (c) 2019-2023 Advanced Micro Devices, Inc. All rights reserved.
+Copyright (c) 2019-2024 Advanced Micro Devices, Inc. All rights reserved.
 ```
 
 <!--
@@ -752,6 +752,16 @@ General Functions
     ***must*** be one of the following abstracted calling conventions:
     `PAL_STDCALL` (`__stdcall`), or `PAL_CDECL` (`__cdecl`).
 
+### Function Declarations
+
+-   The extern qualifier is not required for functions as it is the default.
+
+-   The `extern` qualifier ***must*** be used on non-class functions where the implementation is
+    not in the corresponding cpp file. This is to serve as a hint to the reader to look elsewhere
+    for the implementation. For example,
+    - If `void func()` is defined in module.cpp and declared in module.h, `extern` ***must not*** be used.
+    - If `void func()` is defined in module.cpp and declared in moduleFuncs.h, `extern` ***must*** be used.
+
 ### Inline Functions
 
 -   Short functions (3-4 statements) may be defined in a header file to
@@ -761,12 +771,12 @@ General Functions
     files that are not implicitly inline to avoid One-Definition Rule (ODR)
     violations. Implicitly inline functions that ***should not*** be defined
     with the `inline` specifier are
-        - Function templates
-        - Constexpr functions
-        - Functions defined within a class/struct/union definition
-        - Deleted functions
-        - Member functions of template classes that are not full
-          specializations
+    - Function templates
+    - Constexpr functions
+    - Functions defined within a class/struct/union definition
+    - Deleted functions
+    - Member functions of template classes that are not full
+      specializations
 
 -   <a id="force-inline"></a> The `PAL_FORCE_INLINE` compiler directive is
     ***strongly discouraged*** and ***should not*** be used except in cases

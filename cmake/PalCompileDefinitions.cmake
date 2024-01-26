@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2020-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2020-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -46,43 +46,33 @@ function(pal_compile_definitions_gpu TARGET)
 
         # PAL GFXx BUILD Defines
         target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_GFX9=$<BOOL:${PAL_BUILD_GFX9}>)
-        target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_GFX10=$<BOOL:${PAL_BUILD_GFX10}>)
-        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_GFX103=$<BOOL:${PAL_BUILD_GFX103}>)
 #if PAL_BUILD_GFX11
         target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_GFX11=$<BOOL:${PAL_BUILD_GFX11}>)
 #endif
 
+        # PAL no longer references these defines and our clients must remove their references when upgrading.
+        if (PAL_CLIENT_INTERFACE_MAJOR_VERSION LESS 845)
+            target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_GFX10=$<BOOL:${PAL_BUILD_GFX9}>)
+            target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_GFX103=$<BOOL:${PAL_BUILD_GFX9}>)
+            target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_NAVI12=$<BOOL:${PAL_BUILD_GFX9}>)
+            target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_NAVI14=$<BOOL:${PAL_BUILD_GFX9}>)
+            target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_NAVI2X=$<BOOL:${PAL_BUILD_GFX9}>)
+            target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_NAVI21=$<BOOL:${PAL_BUILD_GFX9}>)
+            target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_NAVI22=$<BOOL:${PAL_BUILD_GFX9}>)
+            target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_NAVI23=$<BOOL:${PAL_BUILD_GFX9}>)
+            target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_NAVI24=$<BOOL:${PAL_BUILD_GFX9}>)
+            target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_REMBRANDT=$<BOOL:${PAL_BUILD_GFX9}>)
+            target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_RAPHAEL=$<BOOL:${PAL_BUILD_GFX9}>)
+            target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_MENDOCINO=$<BOOL:${PAL_BUILD_GFX9}>)
+        endif()
+
         # PAL ASIC BUILD Defines
-
-        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_NAVI12=$<BOOL:${PAL_BUILD_NAVI12}>)
-        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_NAVI12=$<BOOL:${CHIP_HDR_NAVI12}>)
-
-        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_NAVI14=$<BOOL:${PAL_BUILD_NAVI14}>)
-        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_NAVI14=$<BOOL:${CHIP_HDR_NAVI14}>)
-
-        # Define for ASIC Family and is not associated with a CHIP_HDR
-        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_NAVI2X=$<BOOL:${PAL_BUILD_NAVI2X}>)
-
-        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_NAVI21=$<BOOL:${PAL_BUILD_NAVI21}>)
-        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_NAVI21=$<BOOL:${CHIP_HDR_NAVI21}>)
-
-        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_NAVI22=$<BOOL:${PAL_BUILD_NAVI22}>)
-        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_NAVI22=$<BOOL:${CHIP_HDR_NAVI22}>)
-
-        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_NAVI23=$<BOOL:${PAL_BUILD_NAVI23}>)
-        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_NAVI23=$<BOOL:${CHIP_HDR_NAVI23}>)
-
-        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_NAVI24=$<BOOL:${PAL_BUILD_NAVI24}>)
-        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_NAVI24=$<BOOL:${CHIP_HDR_NAVI24}>)
-
-        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_REMBRANDT=$<BOOL:${PAL_BUILD_REMBRANDT}>)
-        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_REMBRANDT=$<BOOL:${CHIP_HDR_REMBRANDT}>)
-
-        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_RAPHAEL=$<BOOL:${PAL_BUILD_RAPHAEL}>)
-        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_RAPHAEL=$<BOOL:${CHIP_HDR_RAPHAEL}>)
-
-        # MENDOCINO inherits from CHIP_HDR_RAPHAEL
-        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_MENDOCINO=$<BOOL:${PAL_BUILD_MENDOCINO}>)
+        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_NAVI21=$<BOOL:${PAL_BUILD_GFX9}>)
+        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_NAVI22=$<BOOL:${PAL_BUILD_GFX9}>)
+        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_NAVI23=$<BOOL:${PAL_BUILD_GFX9}>)
+        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_NAVI24=$<BOOL:${PAL_BUILD_GFX9}>)
+        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_REMBRANDT=$<BOOL:${PAL_BUILD_GFX9}>)
+        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_RAPHAEL=$<BOOL:${PAL_BUILD_GFX9}>)
 
 #if PAL_BUILD_NAVI3X
         # Define for ASIC Family and is not associated with a CHIP_HDR

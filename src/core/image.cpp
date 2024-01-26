@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -147,6 +147,10 @@ Image::Image(
     {
         pGfxDevice->IncreaseMsaaHistogram(createInfo.samples);
     }
+
+    // Create the GfxImage object, we've already accounted for the size of the object in GetSize so we can just
+    // place the object after this Image object
+    pGfxDevice->CreateImage(this, &m_imageInfo, m_pGfxImage, &m_pGfxImage);
 }
 
 // =====================================================================================================================
@@ -700,10 +704,6 @@ Result Image::Init()
             mipDepth  = DegradeMipDimension(mipDepth);
         }
     }
-
-    // Create the GfxImage object, we've already accounted for the size of the object in GetSize so we can just
-    // place the object after this Image object
-    pGfxDevice->CreateImage(this, &m_imageInfo, m_pGfxImage, &m_pGfxImage);
 
     // Initialize all of our subresources using the AddrMgr. We also need to track whether any of the subresources are
     // unable to support DCC, because some hardware needs to disable DCC for an entire Image if any of the subresources

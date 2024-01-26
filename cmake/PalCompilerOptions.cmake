@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2020-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2020-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -95,7 +95,7 @@ function(pal_compiler_options TARGET)
 
         # The MacOS linker does not have --build-id. That is OK because we do not support building
         # a driver on MacOS; it is only used for experimental building of standalone tools.
-        if (NOT CMAKE_OSX_DEPLOYMENT_TARGET)
+        if (NOT "${CMAKE_SYSTEM_NAME}" STREQUAL "Darwin")
             target_link_options(${TARGET} PUBLIC "LINKER:--build-id")
         endif()
     else()

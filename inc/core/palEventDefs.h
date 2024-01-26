@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -199,10 +199,10 @@ struct CrashAnalysisExecutionMarker
 /// Image ResourceTypes.
 struct ResourceDescriptionImage
 {
-    const ImageCreateInfo*   pCreateInfo;    //< Pointer to the image create info.
-    const ImageMemoryLayout* pMemoryLayout;  //< Pointer to the image memory layout.
-    bool                     isPresentable;  //< Flag indicating if the image is presentable.
-    bool                     isFullscreen;   //< Flag indicating if the image can be used for fullscreen present.
+    const ImageCreateInfo*   pCreateInfo;    ///< Pointer to the image create info.
+    const ImageMemoryLayout* pMemoryLayout;  ///< Pointer to the image memory layout.
+    bool                     isPresentable;  ///< Flag indicating if the image is presentable.
+    bool                     isFullscreen;   ///< Flag indicating if the image can be used for fullscreen present.
 };
 
 /// Bitmask flags used to describe Buffer creation info for GPU memory event logging. This list mirrors the VK list.
@@ -238,24 +238,24 @@ enum class ResourceDescriptionBufferUsageFlags : uint32
 /// Buffer ResourceTypes.
 struct ResourceDescriptionBuffer
 {
-    uint64 size;        //< Size of the buffer, in bytes.
-    uint32 createFlags; //< Buffer create flags, see @ResourceDescriptionBufferCreateFlags
-    uint32 usageFlags;  //< Buffer usage flags, see @ResourceDescriptionBufferUsageFlags
+    uint64 size;        ///< Size of the buffer, in bytes.
+    uint32 createFlags; ///< Buffer create flags, see @ResourceDescriptionBufferCreateFlags
+    uint32 usageFlags;  ///< Buffer usage flags, see @ResourceDescriptionBufferUsageFlags
 };
 
 /// Describes a Pipeline Resource, passed to @IPlatform::LogResourceDescEvent() as the pResourceDescription parameter for
 /// Pipeline ResourceTypes.
 struct ResourceDescriptionPipeline
 {
-    const PipelineInfo*        pPipelineInfo;  //< Pointer to the PipelineInfo.
-    const PipelineCreateFlags* pCreateFlags;   //< Pipeline create flags.
+    const PipelineInfo*        pPipelineInfo;  ///< Pointer to the PipelineInfo.
+    const PipelineCreateFlags* pCreateFlags;   ///< Pipeline create flags.
 };
 
 /// Describes a Shader Library Resource,
 struct ResourceDescriptionShaderLibrary
 {
-    const LibraryInfo*        pLibrarynfo;  //< Pointer to the LibraryInfo.
-    const LibraryCreateFlags* pCreateFlags; //< LibraryInfo create flags.
+    const LibraryInfo*        pLibrarynfo;  ///< Pointer to the LibraryInfo.
+    const LibraryCreateFlags* pCreateFlags; ///< LibraryInfo create flags.
 };
 
 /// Bitmask flags used to describe a Heap resource for GPU memory event logging.
@@ -273,24 +273,24 @@ enum class ResourceDescriptionHeapFlags : uint32
 /// Heap ResourceTypes.
 struct ResourceDescriptionHeap
 {
-    uint64  size;              //< Size of the heap, in bytes.
-    uint64  alignment;         //< Alignment of the heap.
-    GpuHeap preferredGpuHeap;  //< The GPU heap that the heap was requested to be placed in.
-    uint32  flags;             //< Flags associated with the heap. see @ResourceDescriptionHeapFlags.
+    uint64  size;              ///< Size of the heap, in bytes.
+    uint64  alignment;         ///< Alignment of the heap.
+    GpuHeap preferredGpuHeap;  ///< The GPU heap that the heap was requested to be placed in.
+    uint32  flags;             ///< Flags associated with the heap. see @ResourceDescriptionHeapFlags.
 };
 
 /// Describes a GpuEvent Resource, passed to @IPlatform::LogResourceDescEvent() as the pResourceDescription parameter
 /// for GpuEvent ResourceTypes.
 struct ResourceDescriptionGpuEvent
 {
-    const GpuEventCreateInfo* pCreateInfo;   //< Pointer to GpuEvent create info.
+    const GpuEventCreateInfo* pCreateInfo;   ///< Pointer to GpuEvent create info.
 };
 
 /// Describes a BorderColorPalette Resource passed to @IPlatform::LogResourceDescEvent() as the pResourceDescription
 /// parameter for BorderColorPalette ResourceTypes.
 struct ResourceDescriptionBorderColorPalette
 {
-    const BorderColorPaletteCreateInfo* pCreateInfo;  //< Pointer to BorderColorPalette create info.
+    const BorderColorPaletteCreateInfo* pCreateInfo;  ///< Pointer to BorderColorPalette create info.
 
 };
 
@@ -298,16 +298,16 @@ struct ResourceDescriptionBorderColorPalette
 /// parameter for PerfExperiment ResourceTypes.
 struct ResourceDescriptionPerfExperiment
 {
-    gpusize spmSize;            //< Bytes of GPU memory required by this perf experiment for SPM data.
-    gpusize sqttSize;           //< Bytes of GPU memory required by this perf experiment for SQTT data.
-    gpusize perfCounterSize;    //< Bytes of GPU memory required by this perf experiment for Perf Counter data.
+    gpusize spmSize;            ///< Bytes of GPU memory required by this perf experiment for SPM data.
+    gpusize sqttSize;           ///< Bytes of GPU memory required by this perf experiment for SQTT data.
+    gpusize perfCounterSize;    ///< Bytes of GPU memory required by this perf experiment for Perf Counter data.
 };
 
 /// Describes a QueryPool Resource, passed to @IPlatform::LogResourceDescEvent() as the pResourceDescription parameter
 /// for QueryPool ResourceTypes.
 struct ResourceDescriptionQueryPool
 {
-    const QueryPoolCreateInfo* pCreateInfo;  //< Pointer to the QueryPool create info.
+    const QueryPoolCreateInfo* pCreateInfo;  ///< Pointer to the QueryPool create info.
 };
 
 /// Describes a VideoEncoder Resource, passed to @IPlatform::LogResourceDescEvent() as the pResourceDescription
@@ -348,34 +348,34 @@ enum class ResourceDescriptionDescriptorType : uint32
 /// parameter for DescriptorHeap ResourceTypes.
 struct ResourceDescriptionDescriptorHeap
 {
-    ResourceDescriptionDescriptorType type;            //< Type of descriptors this heap contains.
-    bool                              isShaderVisible; //< Flag indicating whether the heap is shader-visible.
-    uint32                            nodeMask;        //< For single adapter this is set to zero, for multiple adapter
-                                                       //< mode this is a bitmask to identify which adapters the heap applies to.
-    uint32                            numDescriptors;  //< The number of descriptors in the heap.
+    ResourceDescriptionDescriptorType type;            ///< Type of descriptors this heap contains.
+    bool                              isShaderVisible; ///< Flag indicating whether the heap is shader-visible.
+    uint32                            nodeMask;        ///< For single adapter this is set to zero, for multiple adapter
+                                                       ///< mode this is a bitmask to identify which adapters the heap applies to.
+    uint32                            numDescriptors;  ///< The number of descriptors in the heap.
 };
 
 /// Describes the type and size for a particular decriptor type in a Descriptor Pool
 struct ResourceDescriptionPoolSize
 {
-    ResourceDescriptionDescriptorType type;           //< Type of descriptors this pool contains.
-    uint32                            numDescriptors; //< Number of descriptors to be allocated by this pool.
+    ResourceDescriptionDescriptorType type;           ///< Type of descriptors this pool contains.
+    uint32                            numDescriptors; ///< Number of descriptors to be allocated by this pool.
 };
 
 /// Describes a Descriptor Pool, passed to @IPlatform::LogResourceDescEvent() as the pResourceDescription.
 /// parameter for DescriptorPool ResourceTypes.
 struct ResourceDescriptionDescriptorPool
 {
-    uint32                             maxSets;      //< Maximum number of descriptor sets that can be allocated from the pool.
-    uint32                             numPoolSize;  //< The number of pool size structs in pPoolSizes;
-    const ResourceDescriptionPoolSize* pPoolSizes;   //< Array of PoolSize structs.
+    uint32                             maxSets;      ///< Maximum number of descriptor sets that can be allocated from the pool.
+    uint32                             numPoolSize;  ///< The number of pool size structs in pPoolSizes;
+    const ResourceDescriptionPoolSize* pPoolSizes;   ///< Array of PoolSize structs.
 };
 
 /// Describes a CmdAllocator Resource, passed to @IPlatform::LogResourceDescEvent() as the pResourceDescription
 /// parameter for CmdAllocator ResourceTypes
 struct ResourceDescriptionCmdAllocator
 {
-    const CmdAllocatorCreateInfo* pCreateInfo;  //< Pointer to the CmdAllocator create info.
+    const CmdAllocatorCreateInfo* pCreateInfo;  ///< Pointer to the CmdAllocator create info.
 };
 
 /// Enumeration of the miscellaneous types of internal GPU memory allocation
@@ -402,6 +402,82 @@ enum class MiscInternalAllocType : uint32
 /// Describes a miscellaneous internal GPU memory allocation
 struct ResourceDescriptionMiscInternal
 {
-    MiscInternalAllocType type; //< The type of the miscellaneous internal allocation
+    MiscInternalAllocType type; ///< The type of the miscellaneous internal allocation
 };
+
+/// Value matching UmdCrashAnalysisEvents::ExecutionMarkerSource
+constexpr uint8 RgdMarkerSourceApplication   = 0;
+constexpr uint8 RgdMarkerSourceApi           = 1;
+constexpr uint8 RgdMarkerSourcePal           = 2;
+constexpr uint8 RgdMarkerSourceHardware      = 3;
+constexpr uint8 RgdMarkerSourceCmdBufInfo    = 250;
+constexpr uint8 RgdMarkerSourceOpInfo        = 251;
+constexpr uint8 RgdMarkerSourceSqttEventInfo = 252;
+
+/// Value matching UmdCrashAnalysisEvents::ExecutionMarkerInfoType
+constexpr uint8 RgdMarkerInfoTypeInvalid      = 0;
+constexpr uint8 RgdMarkerInfoTypeCmdBufStart  = 1;
+constexpr uint8 RgdMarkerInfoTypePipelineBind = 2;
+constexpr uint8 RgdMarkerInfoTypeDraw         = 3;
+constexpr uint8 RgdMarkerInfoTypeDrawUserData = 4;
+constexpr uint8 RgdMarkerInfoTypeDispatch     = 5;
+constexpr uint8 RgdMarkerInfoTypeBarrierBegin = 6;
+constexpr uint8 RgdMarkerInfoTypeBarrierEnd   = 7;
+
+/// RGD structs that go through CmdInsertExecutionMarker interface
+#pragma pack(push, 1)
+
+struct RgdMarkerInfoHeader
+{
+    uint8  infoType;    ///< One of the RgdMarkerInfoType* values to indicate what follows
+};
+
+// matching CmdBufInfo
+struct RgdMarkerInfoCmdBufData
+{
+    Pal::RgdMarkerInfoHeader header;        ///< header.infoType = RgdMarkerInfoTypeCmdBufStart
+    uint8                    queue;         ///< API-specific queue family index
+    uint64                   deviceId;      ///< Device handle
+    uint32                   queueFlags;    ///< API-specific queue flags
+};
+
+// matching BarrierBeginInfo
+struct RgdMarkerInfoBarrierBeginData
+{
+    RgdMarkerInfoHeader         header;     ///< header.infoType = RgdMarkerInfoBarrierBegin
+    Pal::Developer::BarrierType type;       ///< Barrier type
+    uint32                      reason;     ///< enum BarrierReason
+};
+
+// matching BarrierEndInfo
+struct RgdMarkerInfoBarrierEndData
+{
+    RgdMarkerInfoHeader header;             ///< header.infoType = RgdMarkerInfoBarrierEnd
+    uint16              pipelineStalls;     ///< information about pipelineStalls performed
+    uint16              layoutTransitions;  ///< Information about layout translation performed.
+    uint16              caches;             ///< Information about cache operations performed for the barrier
+};
+
+// matching DrawUserData
+struct RgdMarkerInfoDrawUserData
+{
+    RgdMarkerInfoHeader header;         ///< header.infoType = RgdMarkerInfoDrawUserData
+    uint32              vertexOffset;   ///< Vertex offset (first vertex) user data register index
+    uint32              instanceOffset; ///< Instance offset (start instance) user data register index
+    uint32              drawId;         ///< Draw ID SPI user data register index
+};
+
+// matching DispatchInfo
+struct RgdMarkerInfoDispatchData
+{
+    Pal::RgdMarkerInfoHeader header;    ///< header.infoType = RgdMarkerInfoDispatch
+    uint32                   type;      ///< DispatchType (RgpSqttMarkerEventType or RgpSqttMarkerApiType)
+    uint32                   threadX;   ///< Thread group count in X dimension
+    uint32                   threadY;   ///< Thread group count in Y dimension
+    uint32                   threadZ;   ///< Thread group count in Z dimension
+};
+
+// RGD structs that go through CmdInsertExecutionMarker interface
+#pragma pack(pop)
+
 } // Pal

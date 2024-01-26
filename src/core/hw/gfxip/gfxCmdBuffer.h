@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -83,9 +83,8 @@ union PipelineStateFlags
     struct
     {
         uint32 pipeline             :  1;
-        uint32 dynamicState         :  1;
         uint32 borderColorPalette   :  1;
-        uint32 reserved             : 29;
+        uint32 reserved             : 30;
     };
 
     uint32 u32All;

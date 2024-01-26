@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -62,14 +62,15 @@ Result GraphicsShaderLibrary::PostInit(
 
     if (metadata.pipeline.shaderFunctions != 0)
     {
-        // Travese the shader function section to find color export shader
+        // Traverses the shader function section to find color export shader
+        const char* pColExpSymbol =
+                Abi::PipelineAbiSymbolNameStrings[static_cast<uint32>(Abi::PipelineSymbolType::PsColorExportEntry)];
         Result result = pReader->Seek(metadata.pipeline.shaderFunctions);
         if (result == Result::Success)
         {
             const auto& func = pReader->Get().as;
             result = (pReader->Type() == CWP_ITEM_MAP) ? Result::Success : Result::ErrorInvalidValue;
-            const char* pColExpSymbol =
-                Abi::PipelineAbiSymbolNameStrings[static_cast<uint32>(Abi::PipelineSymbolType::PsColorExportEntry)];
+
             for (uint32 i = func.map.size; ((result == Result::Success) && (i > 0)); --i)
             {
                 result = pReader->Next(CWP_ITEM_STR);
@@ -80,6 +81,15 @@ Result GraphicsShaderLibrary::PostInit(
                     break;
                 }
             }
+        }
+
+        if (m_gfxLibInfo.isColorExport)
+        {
+            ShaderLibStats shaderStats = {};
+            UnpackShaderFunctionStats(pColExpSymbol, metadata, pReader, &shaderStats);
+            m_gfxLibInfo.colorExportProperty.vgprCount = shaderStats.common.numUsedVgprs;
+            m_gfxLibInfo.colorExportProperty.sgprCount = shaderStats.common.numUsedSgprs;
+            m_gfxLibInfo.colorExportProperty.scratchMemorySize = shaderStats.stackFrameSizeInBytes;
         }
     }
 

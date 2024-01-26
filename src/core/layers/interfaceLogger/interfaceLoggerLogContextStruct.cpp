@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -135,16 +135,10 @@ void LogContext::Struct(
     const AcquireReleaseInfo& value)
 {
     BeginMap(false);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
     KeyAndPipelineStageFlags("srcGlobalStageMask", value.srcGlobalStageMask);
     KeyAndPipelineStageFlags("dstGlobalStageMask", value.dstGlobalStageMask);
-#else
-    KeyAndPipelineStageFlags("srcStageMask", value.srcStageMask);
-    KeyAndPipelineStageFlags("dstStageMask", value.dstStageMask);
-#endif
     KeyAndCacheCoherencyUsageFlags("srcGlobalAccessMask", value.srcGlobalAccessMask);
     KeyAndCacheCoherencyUsageFlags("dstGlobalAccessMask", value.dstGlobalAccessMask);
-
     KeyAndBeginList("memoryBarriers", false);
 
     for (uint32 idx = 0; idx < value.memoryBarrierCount; ++idx)
@@ -165,12 +159,8 @@ void LogContext::Struct(
         KeyAndValue("address",     memoryBarrier.memory.address);
         KeyAndValue("offset",      memoryBarrier.memory.offset);
         KeyAndValue("size",        memoryBarrier.memory.size);
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
         KeyAndPipelineStageFlags("srcStageMask", memoryBarrier.srcStageMask);
         KeyAndPipelineStageFlags("dstStageMask", memoryBarrier.dstStageMask);
-#endif
-
         KeyAndCacheCoherencyUsageFlags("srcAccessMask", memoryBarrier.srcAccessMask);
         KeyAndCacheCoherencyUsageFlags("dstAccessMask", memoryBarrier.dstAccessMask);
 
@@ -191,11 +181,8 @@ void LogContext::Struct(
         if (imageBarrier.pImage != nullptr)
         {
             KeyAndStruct("subresRange", imageBarrier.subresRange);
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
             KeyAndPipelineStageFlags("srcStageMask", imageBarrier.srcStageMask);
             KeyAndPipelineStageFlags("dstStageMask", imageBarrier.dstStageMask);
-#endif
             KeyAndCacheCoherencyUsageFlags("srcAccessMask", imageBarrier.srcAccessMask);
             KeyAndCacheCoherencyUsageFlags("dstAccessMask", imageBarrier.dstAccessMask);
             KeyAndStruct("box", imageBarrier.box);
@@ -236,7 +223,12 @@ void LogContext::Struct(
     }
     else
     {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 842
         KeyAndStruct("graphics", value.graphics);
+#else
+        KeyAndStruct("gfxShaderInfo", value.gfxShaderInfo);
+        KeyAndStruct("gfxDynState",   value.gfxDynState);
+#endif
     }
 
     EndMap();
@@ -674,7 +666,6 @@ void LogContext::Struct(
         Value("disableQueryInternalOps");
     }
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 763)
     if (value.flags.optimizeContextStatesPerBin)
     {
         Value("optimizeContextStatesPerBin");
@@ -684,9 +675,8 @@ void LogContext::Struct(
     {
         Value("optimizePersistentStatesPerBin");
     }
-#endif
 
-    static_assert(CheckReservedBits<decltype(value.flags)>(32, 15), "Update interfaceLogger!");
+    static_assert(CheckReservedBits<decltype(value.flags)>(32, 16), "Update interfaceLogger!");
 
     EndList();
 
@@ -842,12 +832,10 @@ void LogContext::Struct(
 
     KeyAndValue("frameIndex", value.frameIndex);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 779
     if (value.pEarlyPresentEvent != nullptr)
     {
         KeyAndValue("pEarlyPresentEvent", value.pEarlyPresentEvent);
     }
-#endif
 
     EndMap();
 }
@@ -1172,9 +1160,6 @@ void LogContext::Struct(
 {
     BeginMap(false);
     KeyAndValue("maxWavesPerCu", value.maxWavesPerCu);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 789
-    KeyAndValue("cuEnableMask", value.cuEnableMask);
-#endif
     EndMap();
 }
 
@@ -1183,6 +1168,7 @@ void LogContext::Struct(
     const DynamicGraphicsShaderInfos& value)
 {
     BeginMap(false);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 842
     KeyAndStruct("vs", value.vs);
     KeyAndStruct("hs", value.hs);
     KeyAndStruct("ds", value.ds);
@@ -1191,11 +1177,46 @@ void LogContext::Struct(
     KeyAndStruct("ms", value.ms);
     KeyAndStruct("ps", value.ps);
     KeyAndStruct("dynamicState", value.dynamicState);
+#else
+    if (value.enable.vs)
+    {
+        KeyAndStruct("vs", value.vs);
+    }
+    if (value.enable.hs)
+    {
+        KeyAndStruct("hs", value.hs);
+    }
+    if (value.enable.ds)
+    {
+        KeyAndStruct("ds", value.ds);
+    }
+    if (value.enable.gs)
+    {
+        KeyAndStruct("gs", value.gs);
+    }
+    if (value.enable.ps)
+    {
+        KeyAndStruct("ps", value.ps);
+    }
+    if (value.enable.ts)
+    {
+        KeyAndStruct("ts", value.ts);
+    }
+    if (value.enable.ms)
+    {
+        KeyAndStruct("ms", value.ms);
+    }
+#endif
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 842
     KeyAndBeginList("flags", true);
 
     EndList();
+#endif
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 842
     static_assert(CheckReservedBits<decltype(value.flags)>(32, 24), "Update interfaceLogger!");
+#endif
 
     EndMap();
 }
@@ -1217,6 +1238,9 @@ void LogContext::Struct(
     KeyAndValue("rasterizerDiscardEnable", value.rasterizerDiscardEnable);
     KeyAndValue("dualSourceBlendEnable",   value.dualSourceBlendEnable);
     KeyAndValue("vertexBufferCount",       value.vertexBufferCount);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 842
+#endif
 
     KeyAndBeginList("enable", true);
     if (value.enable.depthClampMode)
@@ -1264,10 +1288,21 @@ void LogContext::Struct(
     {
         Value("vertexBufferCount");
     }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 842
+#endif
     EndList();
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 842
     static_assert(sizeof(DynamicGraphicsState) == 24, "Update interfaceLogger!");
     static_assert(CheckReservedBits<DynamicGraphicsState>(192, 19), "Update interfaceLogger!");
     static_assert(CheckReservedBits<decltype(value.enable)>(32, 21), "Update interfaceLogger!");
+#else
+    static_assert(sizeof(DynamicGraphicsState) == 12, "Update interfaceLogger!");
+    static_assert(CheckReservedBits<DynamicGraphicsState>(96, 5), "Update interfaceLogger!");
+    static_assert(CheckReservedBits<decltype(value.enable)>(32, 20), "Update interfaceLogger!");
+#endif
+
     EndMap();
 }
 
@@ -1499,28 +1534,6 @@ void LogContext::Struct(
     KeyAndStruct("scissorRegion", value.scissorRegion);
     EndMap();
 }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 778
-// =====================================================================================================================
-void LogContext::Struct(
-    const ColorWriteMaskParams& value)
-{
-    BeginMap(false);
-
-    KeyAndValue("count", value.count);
-
-    KeyAndValue("colorWriteMask[0]", value.colorWriteMask[0]);
-    KeyAndValue("colorWriteMask[1]", value.colorWriteMask[1]);
-    KeyAndValue("colorWriteMask[2]", value.colorWriteMask[2]);
-    KeyAndValue("colorWriteMask[3]", value.colorWriteMask[3]);
-    KeyAndValue("colorWriteMask[4]", value.colorWriteMask[4]);
-    KeyAndValue("colorWriteMask[5]", value.colorWriteMask[5]);
-    KeyAndValue("colorWriteMask[6]", value.colorWriteMask[6]);
-    KeyAndValue("colorWriteMask[7]", value.colorWriteMask[7]);
-
-    EndMap();
-}
-#endif
 
 // =====================================================================================================================
 void LogContext::Struct(
@@ -1860,10 +1873,8 @@ void LogContext::Struct(
     KeyAndStruct("flags", value.flags);
     KeyAndValue("useLateAllocVsLimit", value.useLateAllocVsLimit);
     KeyAndValue("lateAllocVsLimit", value.lateAllocVsLimit);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 781
     KeyAndValue("useLateAllocGsLimit", value.useLateAllocGsLimit);
     KeyAndValue("lateAllocGsLimit", value.lateAllocGsLimit);
-#endif
 
     KeyAndBeginMap("iaState", false);
     {
@@ -2151,7 +2162,7 @@ void LogContext::Struct(
         Value("sharedWithMesa");
     }
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 769) && PAL_BUILD_GFX11
+#if PAL_BUILD_GFX11
     if (value.enable256KBSwizzleModes)
     {
         Value("enable256KBSwizzleModes");

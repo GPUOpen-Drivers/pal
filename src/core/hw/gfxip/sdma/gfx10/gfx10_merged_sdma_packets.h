@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2023-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -66,10 +66,12 @@ constexpr unsigned int SDMA_SUBOP_TIMESTAMP_SET                 = 0;
 constexpr unsigned int SDMA_SUBOP_WRITE_LINEAR                  = 0;
 constexpr unsigned int SDMA_SUBOP_WRITE_TILED                   = 1;
 
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 namespace Gfx103Plus
 {
     constexpr unsigned int SDMA_SUBOP_COPY_LINEAR_SUB_WIND_LARGE    = 36;
 } // namespace Gfx103Plus
+#endif
 
 namespace Gfx10x
 {
@@ -101,6 +103,7 @@ typedef struct SDMA_PKT_ATOMIC_TAG
             unsigned int                                :  6;
             unsigned int atomic_op                      :  7;
         };
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int                                : 20;
@@ -109,6 +112,7 @@ typedef struct SDMA_PKT_ATOMIC_TAG
             unsigned int cpv                            :  1;
             unsigned int                                :  7;
         } gfx103Plus;
+#endif
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -188,6 +192,7 @@ typedef struct SDMA_PKT_COND_EXE_TAG
             unsigned int sub_op                         :  8;
             unsigned int                                : 16;
         };
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int                                : 24;
@@ -196,6 +201,7 @@ typedef struct SDMA_PKT_COND_EXE_TAG
             unsigned int cpv                            :  1;
             unsigned int                                :  3;
         } gfx103Plus;
+#endif
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -250,6 +256,7 @@ typedef struct SDMA_PKT_CONSTANT_FILL_TAG
             unsigned int                                : 12;
             unsigned int fillsize                       :  2;
         };
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int                                : 24;
@@ -258,6 +265,7 @@ typedef struct SDMA_PKT_CONSTANT_FILL_TAG
             unsigned int cpv                            :  1;
             unsigned int                                :  3;
         } gfx103Plus;
+#endif
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -324,22 +332,26 @@ typedef struct SDMA_PKT_COPY_BROADCAST_LINEAR_TAG
             unsigned int                                :  1;
             unsigned int                                :  1;
         };
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int                                : 19;
             unsigned int cpv                            :  1;
             unsigned int                                : 12;
         } gfx103Plus;
+#endif
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
     union
     {
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int count                          : 30;
             unsigned int                                :  2;
         } gfx103Plus;
+#endif
         struct
         {
             unsigned int count                          : 22;
@@ -360,6 +372,7 @@ typedef struct SDMA_PKT_COPY_BROADCAST_LINEAR_TAG
             unsigned int src_sw                         :  2;
             unsigned int                                :  6;
         };
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int                                : 10;
@@ -370,6 +383,7 @@ typedef struct SDMA_PKT_COPY_BROADCAST_LINEAR_TAG
             unsigned int src_cache_policy               :  3;
             unsigned int                                :  3;
         } gfx103Plus;
+#endif
         unsigned int DW_2_DATA;
     } PARAMETER_UNION;
 
@@ -442,12 +456,14 @@ typedef struct SDMA_PKT_COPY_DIRTY_PAGE_TAG
             unsigned int                                : 12;
             unsigned int all                            :  1;
         };
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int                                : 19;
             unsigned int cpv                            :  1;
             unsigned int                                : 12;
         } gfx103Plus;
+#endif
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -484,6 +500,7 @@ typedef struct SDMA_PKT_COPY_DIRTY_PAGE_TAG
             unsigned int src_snoop                      :  1;
             unsigned int src_gpa                        :  1;
         };
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int                                :  8;
@@ -493,6 +510,7 @@ typedef struct SDMA_PKT_COPY_DIRTY_PAGE_TAG
             unsigned int dst_sw                         :  2;
             unsigned int                                : 13;
         } gfx103Plus;
+#endif
         struct
         {
             unsigned int                                : 16;
@@ -558,12 +576,14 @@ typedef struct SDMA_PKT_COPY_L2T_BROADCAST_TAG
             unsigned int                                :  1;
             unsigned int                                :  1;
         };
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int                                : 19;
             unsigned int cpv                            :  1;
             unsigned int                                : 12;
         } gfx103Plus;
+#endif
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -674,6 +694,7 @@ typedef struct SDMA_PKT_COPY_L2T_BROADCAST_TAG
             unsigned int tile_sw                        :  2;
             unsigned int                                :  6;
         };
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int                                : 10;
@@ -684,6 +705,7 @@ typedef struct SDMA_PKT_COPY_L2T_BROADCAST_TAG
             unsigned int tile_cache_policy              :  3;
             unsigned int                                :  3;
         } gfx103Plus;
+#endif
         unsigned int DW_10_DATA;
     } DW_10_UNION;
 
@@ -726,11 +748,13 @@ typedef struct SDMA_PKT_COPY_L2T_BROADCAST_TAG
 
     union
     {
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int count                          : 30;
             unsigned int                                :  2;
         } gfx103Plus;
+#endif
         struct
         {
             unsigned int count                          : 22;
@@ -760,22 +784,26 @@ typedef struct SDMA_PKT_COPY_LINEAR_TAG
             unsigned int                                :  1;
             unsigned int                                :  1;
         };
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int                                : 19;
             unsigned int cpv                            :  1;
             unsigned int                                : 12;
         } gfx103Plus;
+#endif
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
     union
     {
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int count                          : 30;
             unsigned int                                :  2;
         } gfx103Plus;
+#endif
         struct
         {
             unsigned int count                          : 22;
@@ -794,6 +822,7 @@ typedef struct SDMA_PKT_COPY_LINEAR_TAG
             unsigned int src_sw                         :  2;
             unsigned int                                :  6;
         };
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int                                : 18;
@@ -802,6 +831,7 @@ typedef struct SDMA_PKT_COPY_LINEAR_TAG
             unsigned int src_cache_policy               :  3;
             unsigned int                                :  3;
         } gfx103Plus;
+#endif
         unsigned int DW_2_DATA;
     } PARAMETER_UNION;
 
@@ -856,12 +886,14 @@ typedef struct SDMA_PKT_COPY_LINEAR_SUBWIN_TAG
             unsigned int                                : 10;
             unsigned int elementsize                    :  3;
         };
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int                                : 19;
             unsigned int cpv                            :  1;
             unsigned int                                : 12;
         } gfx103Plus;
+#endif
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -988,6 +1020,7 @@ typedef struct SDMA_PKT_COPY_LINEAR_SUBWIN_TAG
             unsigned int src_sw                         :  2;
             unsigned int                                :  6;
         };
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int                                : 18;
@@ -996,11 +1029,13 @@ typedef struct SDMA_PKT_COPY_LINEAR_SUBWIN_TAG
             unsigned int src_cache_policy               :  3;
             unsigned int                                :  3;
         } gfx103Plus;
+#endif
         unsigned int DW_12_DATA;
     } DW_12_UNION;
 
 } SDMA_PKT_COPY_LINEAR_SUBWIN;
 
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 typedef struct SDMA_PKT_COPY_LINEAR_SUBWIN_LARGE_TAG
 {
     union
@@ -1196,6 +1231,7 @@ typedef struct SDMA_PKT_COPY_LINEAR_SUBWIN_LARGE_TAG
     } DW_19_UNION;
 
 } SDMA_PKT_COPY_LINEAR_SUBWIN_LARGE;
+#endif
 
 typedef struct SDMA_PKT_COPY_PHYSICAL_LINEAR_TAG
 {
@@ -1209,12 +1245,14 @@ typedef struct SDMA_PKT_COPY_PHYSICAL_LINEAR_TAG
             unsigned int tmz                            :  1;
             unsigned int                                : 13;
         };
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int                                : 19;
             unsigned int cpv                            :  1;
             unsigned int                                : 12;
         } gfx103Plus;
+#endif
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -1253,6 +1291,7 @@ typedef struct SDMA_PKT_COPY_PHYSICAL_LINEAR_TAG
             unsigned int src_snoop                      :  1;
             unsigned int src_gpa                        :  1;
         };
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int                                :  8;
@@ -1262,6 +1301,7 @@ typedef struct SDMA_PKT_COPY_PHYSICAL_LINEAR_TAG
             unsigned int dst_sw                         :  2;
             unsigned int                                : 13;
         } gfx103Plus;
+#endif
         struct
         {
             unsigned int                                : 16;
@@ -1322,12 +1362,14 @@ typedef struct SDMA_PKT_COPY_STRUCT_TAG
             unsigned int                                : 12;
             unsigned int detile                         :  1;
         };
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int                                : 28;
             unsigned int cpv                            :  1;
             unsigned int                                :  3;
         } gfx103Plus;
+#endif
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -1378,6 +1420,7 @@ typedef struct SDMA_PKT_COPY_STRUCT_TAG
             unsigned int struct_sw                      :  2;
             unsigned int                                :  6;
         };
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int                                : 18;
@@ -1386,6 +1429,7 @@ typedef struct SDMA_PKT_COPY_STRUCT_TAG
             unsigned int struct_cache_policy            :  3;
             unsigned int                                :  3;
         } gfx103Plus;
+#endif
         unsigned int DW_5_DATA;
     } DW_5_UNION;
 
@@ -1423,12 +1467,14 @@ typedef struct SDMA_PKT_COPY_T2T_TAG
             unsigned int                                : 11;
             unsigned int dcc_dir                        :  1;
         };
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int                                : 28;
             unsigned int cpv                            :  1;
             unsigned int                                :  3;
         } gfx103Plus;
+#endif
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -1595,6 +1641,7 @@ typedef struct SDMA_PKT_COPY_T2T_TAG
             unsigned int src_sw                         :  2;
             unsigned int                                :  6;
         };
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int                                : 18;
@@ -1603,6 +1650,7 @@ typedef struct SDMA_PKT_COPY_T2T_TAG
             unsigned int src_cache_policy               :  3;
             unsigned int                                :  3;
         } gfx103Plus;
+#endif
         unsigned int DW_14_DATA;
     } DW_14_UNION;
 
@@ -1641,12 +1689,14 @@ typedef struct SDMA_PKT_COPY_T2T_TAG
             unsigned int                                :  1;
             unsigned int pipe_aligned                   :  1;
         };
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int                                : 14;
             unsigned int meta_llc                       :  1;
             unsigned int                                : 17;
         } gfx103Plus;
+#endif
         unsigned int DW_17_DATA;
     } META_CONFIG_UNION;
 
@@ -1667,12 +1717,14 @@ typedef struct SDMA_PKT_COPY_TILED_TAG
             unsigned int                                :  1;
             unsigned int detile                         :  1;
         };
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int                                : 19;
             unsigned int cpv                            :  1;
             unsigned int                                : 12;
         } gfx103Plus;
+#endif
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -1754,6 +1806,7 @@ typedef struct SDMA_PKT_COPY_TILED_TAG
             unsigned int tile_sw                        :  2;
             unsigned int                                :  6;
         };
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int                                : 18;
@@ -1762,6 +1815,7 @@ typedef struct SDMA_PKT_COPY_TILED_TAG
             unsigned int tile_cache_policy              :  3;
             unsigned int                                :  3;
         } gfx103Plus;
+#endif
         struct
         {
             unsigned int                                : 20;
@@ -1810,11 +1864,13 @@ typedef struct SDMA_PKT_COPY_TILED_TAG
 
     union
     {
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int count                          : 30;
             unsigned int                                :  2;
         } gfx103Plus;
+#endif
         struct
         {
             unsigned int count                          : 22;
@@ -1839,12 +1895,14 @@ typedef struct SDMA_PKT_COPY_TILED_SUBWIN_TAG
             unsigned int                                : 11;
             unsigned int detile                         :  1;
         };
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int                                : 28;
             unsigned int cpv                            :  1;
             unsigned int                                :  3;
         } gfx103Plus;
+#endif
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -1993,6 +2051,7 @@ typedef struct SDMA_PKT_COPY_TILED_SUBWIN_TAG
             unsigned int tile_sw                        :  2;
             unsigned int                                :  6;
         };
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int                                : 18;
@@ -2001,6 +2060,7 @@ typedef struct SDMA_PKT_COPY_TILED_SUBWIN_TAG
             unsigned int tile_cache_policy              :  3;
             unsigned int                                :  3;
         } gfx103Plus;
+#endif
         unsigned int DW_13_DATA;
     } DW_13_UNION;
 
@@ -2039,12 +2099,14 @@ typedef struct SDMA_PKT_COPY_TILED_SUBWIN_TAG
             unsigned int                                :  1;
             unsigned int pipe_aligned                   :  1;
         };
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int                                : 14;
             unsigned int meta_llc                       :  1;
             unsigned int                                : 17;
         } gfx103Plus;
+#endif
         unsigned int DW_16_DATA;
     } META_CONFIG_UNION;
 
@@ -2113,6 +2175,7 @@ typedef struct SDMA_PKT_DATA_FILL_MULTI_TAG
             unsigned int                                : 15;
             unsigned int memlog_clr                     :  1;
         };
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int                                : 24;
@@ -2121,6 +2184,7 @@ typedef struct SDMA_PKT_DATA_FILL_MULTI_TAG
             unsigned int cpv                            :  1;
             unsigned int                                :  3;
         } gfx103Plus;
+#endif
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -2214,6 +2278,7 @@ typedef struct SDMA_PKT_FENCE_TAG
             unsigned int l2_policy                      :  2;
             unsigned int                                :  6;
         };
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int                                : 26;
@@ -2222,6 +2287,7 @@ typedef struct SDMA_PKT_FENCE_TAG
             unsigned int cpv                            :  1;
             unsigned int                                :  3;
         } gfx103Plus;
+#endif
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -2485,6 +2551,7 @@ typedef struct SDMA_PKT_MEM_INCR_TAG
             unsigned int sub_op                         :  8;
             unsigned int                                : 16;
         };
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int                                : 24;
@@ -2494,6 +2561,7 @@ typedef struct SDMA_PKT_MEM_INCR_TAG
             unsigned int cpv                            :  1;
             unsigned int                                :  3;
         } gfx103Plus;
+#endif
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -2553,6 +2621,7 @@ typedef struct SDMA_PKT_POLL_DBIT_WRITE_MEM_TAG
             unsigned int ea                             :  2;
             unsigned int                                : 14;
         };
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int                                : 24;
@@ -2561,6 +2630,7 @@ typedef struct SDMA_PKT_POLL_DBIT_WRITE_MEM_TAG
             unsigned int cpv                            :  1;
             unsigned int                                :  3;
         } gfx103Plus;
+#endif
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -2614,6 +2684,7 @@ typedef struct SDMA_PKT_POLL_MEM_VERIFY_TAG
             unsigned int                                : 15;
             unsigned int mode                           :  1;
         };
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int                                : 24;
@@ -2622,6 +2693,7 @@ typedef struct SDMA_PKT_POLL_MEM_VERIFY_TAG
             unsigned int cpv                            :  1;
             unsigned int                                :  3;
         } gfx103Plus;
+#endif
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -2654,10 +2726,12 @@ typedef struct SDMA_PKT_POLL_MEM_VERIFY_TAG
 
     union
     {
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int cmp0_end_31_0                  : 32;
         } gfx103Plus;
+#endif
         struct
         {
             unsigned int cmp1_end_31_0                  : 32;
@@ -2667,10 +2741,12 @@ typedef struct SDMA_PKT_POLL_MEM_VERIFY_TAG
 
     union
     {
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int cmp0_end_63_32                 : 32;
         } gfx103Plus;
+#endif
         struct
         {
             unsigned int cmp1_end_63_32                 : 32;
@@ -2753,6 +2829,7 @@ typedef struct SDMA_PKT_POLL_REGMEM_TAG
             unsigned int func                           :  3;
             unsigned int mem_poll                       :  1;
         };
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int                                : 20;
@@ -2761,6 +2838,7 @@ typedef struct SDMA_PKT_POLL_REGMEM_TAG
             unsigned int cpv                            :  1;
             unsigned int                                :  7;
         } gfx103Plus;
+#endif
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -2823,6 +2901,7 @@ typedef struct SDMA_PKT_POLL_REG_WRITE_MEM_TAG
             unsigned int sub_op                         :  8;
             unsigned int                                : 16;
         };
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int                                : 24;
@@ -2831,6 +2910,7 @@ typedef struct SDMA_PKT_POLL_REG_WRITE_MEM_TAG
             unsigned int cpv                            :  1;
             unsigned int                                :  3;
         } gfx103Plus;
+#endif
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -3018,6 +3098,7 @@ typedef struct SDMA_PKT_TIMESTAMP_GET_TAG
             unsigned int sub_op                         :  8;
             unsigned int                                : 16;
         };
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int                                : 24;
@@ -3027,6 +3108,7 @@ typedef struct SDMA_PKT_TIMESTAMP_GET_TAG
             unsigned int cpv                            :  1;
             unsigned int                                :  3;
         } gfx103Plus;
+#endif
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -3061,6 +3143,7 @@ typedef struct SDMA_PKT_TIMESTAMP_GET_GLOBAL_TAG
             unsigned int sub_op                         :  8;
             unsigned int                                : 16;
         };
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int                                : 24;
@@ -3070,6 +3153,7 @@ typedef struct SDMA_PKT_TIMESTAMP_GET_GLOBAL_TAG
             unsigned int cpv                            :  1;
             unsigned int                                :  3;
         } gfx103Plus;
+#endif
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -3227,6 +3311,7 @@ typedef struct SDMA_PKT_WRITE_INCR_TAG
             unsigned int sub_op                         :  8;
             unsigned int                                : 16;
         };
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int                                : 24;
@@ -3235,6 +3320,7 @@ typedef struct SDMA_PKT_WRITE_INCR_TAG
             unsigned int cpv                            :  1;
             unsigned int                                :  3;
         } gfx103Plus;
+#endif
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -3336,12 +3422,14 @@ typedef struct SDMA_PKT_WRITE_TILED_TAG
             unsigned int                                : 12;
             unsigned int                                :  1;
         };
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int                                : 28;
             unsigned int cpv                            :  1;
             unsigned int                                :  3;
         } gfx103Plus;
+#endif
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -3421,12 +3509,14 @@ typedef struct SDMA_PKT_WRITE_TILED_TAG
             unsigned int sw                             :  2;
             unsigned int                                :  6;
         };
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int                                : 26;
             unsigned int cache_policy                   :  3;
             unsigned int                                :  3;
         } gfx103Plus;
+#endif
         unsigned int DW_7_DATA;
     } DW_7_UNION;
 
@@ -3465,12 +3555,14 @@ typedef struct SDMA_PKT_WRITE_UNTILED_TAG
             unsigned int                                : 12;
             unsigned int                                :  1;
         };
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int                                : 28;
             unsigned int cpv                            :  1;
             unsigned int                                :  3;
         } gfx103Plus;
+#endif
         unsigned int DW_0_DATA;
     } HEADER_UNION;
 
@@ -3501,12 +3593,14 @@ typedef struct SDMA_PKT_WRITE_UNTILED_TAG
             unsigned int sw                             :  2;
             unsigned int                                :  6;
         };
+#if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
         struct
         {
             unsigned int                                : 26;
             unsigned int cache_policy                   :  3;
             unsigned int                                :  3;
         } gfx103Plus;
+#endif
         unsigned int DW_3_DATA;
     } DW_3_UNION;
 

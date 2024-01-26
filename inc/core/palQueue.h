@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -274,11 +274,8 @@ struct MultiSubmitInfo
                                                   ///  multiply by 2 if a Wave64 shader that needs scratch is used.
                                                   ///  Note that the size will not shrink for the lifetime of the queue
                                                   ///  once it is grown and only affects compute scratch ring.
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 764
     const IGpuMemory*       pFreeMuxMemory;       ///< The gpu memory object of the private flip primary surface for the
                                                   ///  FreeMux feature.
-#endif
 };
 
 typedef MultiSubmitInfo SubmitInfo;

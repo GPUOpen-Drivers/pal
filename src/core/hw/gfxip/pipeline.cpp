@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -1045,6 +1045,7 @@ Result PipelineUploader::ApplyRelocationSection(
             const SectionInfo* pSymSection = m_memoryMap.FindSection(symbol.st_shndx);
             if (pSymSection == nullptr)
             {
+                PAL_ASSERT_ALWAYS_MSG("Relocation symbol not found: %s", symbols.GetSymbolName(relocation.r_info.sym));
                 result = Result::ErrorInvalidPipelineElf;
                 break;
             }

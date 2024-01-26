@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -241,9 +241,7 @@ struct GpuMemoryProperties
                                 // will ensure high performance by migrating pages accessed by hardware to local.
                                 // This HBCC memory segment is only available on certain platforms.
     gpusize busAddressableMemSize;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 766
     gpusize barSize;            // Total VRAM which can be accessed by the CPU.
-#endif
 
     gpusize vaStart;        // Starting address of the GPU's virtual address space
     gpusize vaEnd;          // Ending address of the GPU's virtual address space
@@ -1643,17 +1641,8 @@ public:
     GfxDevice* GetGfxDevice() const { return m_pGfxDevice; }
     const AddrMgr* GetAddrMgr() const { return m_pAddrMgr;   }
 
-    const GpuMemoryHeapProperties& HeapProperties(GpuHeap heap) const
-    { return m_heapProperties[heap]; }
-
-    gpusize HeapLogicalSize(GpuHeap heap) const
-    {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 766
-        return HeapProperties(heap).logicalSize;
-#else
-        return HeapProperties(heap).heapSize;
-#endif
-    }
+    const GpuMemoryHeapProperties& HeapProperties(GpuHeap heap) const { return m_heapProperties[heap]; }
+    gpusize HeapLogicalSize(GpuHeap heap) const { return HeapProperties(heap).logicalSize; }
 
     const GpuMemoryProperties& MemoryProperties() const { return m_memoryProperties; }
     const GpuEngineProperties& EngineProperties() const { return m_engineProperties; }
@@ -1892,6 +1881,7 @@ public:
     bool HasLargeLocalHeap() const;
 
     bool IssueSqttMarkerEvents() const;
+    bool IssueCrashAnalysisMarkerEvents() const;
     bool EnablePerfCountersInPreamble() const;
 
     const FlglState& GetFlglState() const { return m_flglState; }
@@ -1902,8 +1892,10 @@ public:
     }
 
     virtual Result SetHipTrapHandler(
-        const IGpuMemory* trapHandlerCode,
-        const IGpuMemory* trapHandlerMemory) const override
+        const IGpuMemory* pTrapHandlerCode,
+        gpusize           codeOffset,
+        const IGpuMemory* pTrapHandlerMemory,
+        gpusize           memoryOffset) const override
     {
         return Result::Unsupported;
     }
@@ -1919,6 +1911,8 @@ public:
     bool IsFinalized() const { return m_deviceFinalized; }
     size_t NumQueues() const { return m_queues.NumElements(); }
     uint32 AttachedScreenCount() const { return m_attachedScreenCount; }
+
+    bool EnableDisplayDcc(const DisplayDccCaps& dccCaps, const SwizzledFormat& swizzledFormat) const;
 
 protected:
     Device(
@@ -2331,105 +2325,9 @@ constexpr bool IsGfx10Plus(GfxIpLevel gfxLevel)
 #endif
            ;
 }
-
 inline bool IsGfx10Plus(const Device& device)
 {
     return IsGfx10Plus(device.ChipProperties().gfxLevel);
-}
-
-inline bool IsTahiti(const Device& device)
-{
-    return AMDGPU_IS_TAHITI(device.ChipProperties().familyId, device.ChipProperties().eRevId);
-}
-
-inline bool IsPitcairn(const Device& device)
-{
-    return AMDGPU_IS_PITCAIRN(device.ChipProperties().familyId, device.ChipProperties().eRevId);
-}
-
-inline bool IsCapeVerde(const Device& device)
-{
-    return AMDGPU_IS_CAPEVERDE(device.ChipProperties().familyId, device.ChipProperties().eRevId);
-}
-
-inline bool IsOland(const Device& device)
-{
-    return AMDGPU_IS_OLAND(device.ChipProperties().familyId, device.ChipProperties().eRevId);
-}
-
-inline bool IsHainan(const Device& device)
-{
-    return AMDGPU_IS_HAINAN(device.ChipProperties().familyId, device.ChipProperties().eRevId);
-}
-
-inline bool IsBonaire(const Device& device)
-{
-    return AMDGPU_IS_BONAIRE(device.ChipProperties().familyId, device.ChipProperties().eRevId);
-}
-
-inline bool IsHawaii(const Device& device)
-{
-    return AMDGPU_IS_HAWAII(device.ChipProperties().familyId, device.ChipProperties().eRevId);
-}
-
-inline bool IsSpectre(const Device& device)
-{
-    return AMDGPU_IS_SPECTRE(device.ChipProperties().familyId, device.ChipProperties().eRevId);
-}
-
-inline bool IsSpooky(const Device& device)
-{
-    return AMDGPU_IS_SPOOKY(device.ChipProperties().familyId, device.ChipProperties().eRevId);
-}
-
-inline bool IsKalindi(const Device& device)
-{
-    return AMDGPU_IS_KALINDI(device.ChipProperties().familyId, device.ChipProperties().eRevId);
-}
-
-inline bool IsGodavari(const Device& device)
-{
-    return AMDGPU_IS_GODAVARI(device.ChipProperties().familyId, device.ChipProperties().eRevId);
-}
-
-inline bool IsIceland(const Device& device)
-{
-    return AMDGPU_IS_ICELAND(device.ChipProperties().familyId, device.ChipProperties().eRevId);
-}
-
-inline bool IsTonga(const Device& device)
-{
-    return AMDGPU_IS_TONGA(device.ChipProperties().familyId, device.ChipProperties().eRevId);
-}
-
-inline bool IsFiji(const Device& device)
-{
-    return AMDGPU_IS_FIJI(device.ChipProperties().familyId, device.ChipProperties().eRevId);
-}
-
-inline bool IsPolaris10(const Device& device)
-{
-    return AMDGPU_IS_POLARIS10(device.ChipProperties().familyId, device.ChipProperties().eRevId);
-}
-
-inline bool IsPolaris11(const Device& device)
-{
-    return AMDGPU_IS_POLARIS11(device.ChipProperties().familyId, device.ChipProperties().eRevId);
-}
-
-inline bool IsPolaris12(const Device& device)
-{
-    return AMDGPU_IS_POLARIS12(device.ChipProperties().familyId, device.ChipProperties().eRevId);
-}
-
-inline bool IsCarrizo(const Device& device)
-{
-    return AMDGPU_IS_CARRIZO(device.ChipProperties().familyId, device.ChipProperties().eRevId);
-}
-
-inline bool IsStoney(const Device& device)
-{
-    return AMDGPU_IS_STONEY(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
 
 inline bool IsVega10(const Device& device)
@@ -2466,6 +2364,7 @@ inline bool IsRenoir(const Device& device)
     return AMDGPU_IS_RENOIR(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
 
+// Gfx10 / Navi1x
 inline bool IsNavi(const Device& device)
 {
     return AMDGPU_IS_NAVI(device.ChipProperties().familyId, device.ChipProperties().eRevId);
@@ -2478,21 +2377,16 @@ inline bool IsNavi12(const Device& device)
 {
     return AMDGPU_IS_NAVI12(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
-
-// The ASICs for are still referred within the interface and null backend.
-// So we still keep identification suppport for them though they're no longer supported
 inline bool IsNavi14(const Device& device)
 {
     return AMDGPU_IS_NAVI14(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
 inline bool IsNavi1x(const Device& device)
 {
-        return (
-            IsNavi10(device)
-            || IsNavi12(device)
-            || IsNavi14(device)
-           );
+    return (IsNavi10(device) || IsNavi12(device) || IsNavi14(device));
 }
+
+// Gfx10.3 / Navi2x
 inline bool IsNavi21(const Device& device)
 {
     return AMDGPU_IS_NAVI21(device.ChipProperties().familyId, device.ChipProperties().eRevId);
@@ -2511,26 +2405,16 @@ inline bool IsNavi24(const Device& device)
 }
 inline bool IsNavi2x(const Device& device)
 {
-    return (IsNavi21(device) ||
-            IsNavi22(device) ||
-            IsNavi23(device)
-            || IsNavi24(device)
-           );
+    return (IsNavi21(device) || IsNavi22(device) || IsNavi23(device) || IsNavi24(device));
 }
-
-// The ASICs are still referred within the interface and null backend.
-// So we still keep identification suppport for them though they're no longer supported.
-
 inline bool IsRembrandt(const Device& device)
 {
     return AMDGPU_IS_REMBRANDT(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
-
 inline bool IsRaphael(const Device& device)
 {
     return AMDGPU_IS_RAPHAEL(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
-
 inline bool IsMendocino(const Device& device)
 {
     return AMDGPU_IS_MENDOCINO(device.ChipProperties().familyId, device.ChipProperties().eRevId);

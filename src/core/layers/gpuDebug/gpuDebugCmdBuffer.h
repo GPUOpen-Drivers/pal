@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2020-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2020-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -137,12 +137,6 @@ public:
         const ScissorRectParams& params) override;
     virtual void CmdSetGlobalScissor(
         const GlobalScissorParams& params) override;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 778
-    virtual void CmdSetColorWriteMask(
-        const ColorWriteMaskParams& params) override;
-    virtual void CmdSetRasterizerDiscardEnable(
-        bool rasterizerDiscardEnable) override;
-#endif
     virtual void CmdBarrier(
         const BarrierInfo& barrierInfo) override;
     virtual void OptimizeBarrierReleaseInfo(
@@ -760,10 +754,6 @@ private:
     void ReplayCmdSetViewports(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetScissorRects(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetGlobalScissor(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 778
-    void ReplayCmdSetColorWriteMask(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
-    void ReplayCmdSetRasterizerDiscardEnable(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
-#endif
     void ReplayCmdBarrier(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdRelease(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdAcquire(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
@@ -864,7 +854,7 @@ private:
     bool IsSurfaceCaptureEnabled() const { return m_surfaceCapture.actionIdCount > 0; }
     bool IsSurfaceCaptureActive(EnabledBlitOperations checkMask) const;
     void SurfaceCaptureHashMatch();
-    void CaptureSurfaces();
+    void CaptureSurfaces(Developer::DrawDispatchType drawDispatchType);
     void DestroySurfaceCaptureData();
 
     Result CaptureImageSurface(const IImage*                  pSrcImage,
@@ -902,12 +892,13 @@ private:
 
     struct ActionInfo
     {
-       PipelineHash actionHash;                             // Pipeline or shader hash of this action
-       uint32_t     drawId;                                 // Draw Id in the command buffer
-       Image*       pColorTargetDsts[MaxColorTargets];      // Array of Image*s of color target copy destinations
-       Image*       pDepthTargetDsts[MaxDepthTargetPlanes]; // Array of Image*s of depth target copy destinations
-       Image*       pBlitImg;                               // Recorded blit image
-       uint32_t     blitOpMask;                             // Record the blit operations corresponding to the image
+        PipelineHash actionHash;                            // Pipeline or shader hash of this action
+        uint32_t     drawId;                                // Draw Id in the command buffer
+        Developer::DrawDispatchType drawDispatchType;       // Draw type of this action
+        Image*       pColorTargetDsts[MaxColorTargets];     // Array of Image*s of color target copy destinations
+        Image*       pDepthTargetDsts[MaxDepthTargetPlanes]; // Array of Image*s of depth target copy destinations
+        Image*       pBlitImg;                              // Recorded blit image
+        uint32_t     blitOpMask;                            // Record the blit operations corresponding to the image
                                                             // above.
     };
 

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -256,12 +256,14 @@ struct GpaSampleConfig
         {
             struct
             {
-                Pal::uint32 enable                   :  1;  ///< Include SQTT data in the trace.
-                Pal::uint32 supressInstructionTokens :  1;  ///< Prevents capturing instruction-level SQTT tokens,
-                                                            ///  significantly reducing the amount of sample data.
-                Pal::uint32 stallMode                :  2;  ///< Describes behavior when buffer full
-                Pal::uint32 placeholder1             :  1;
-                Pal::uint32 reserved                 : 27;  ///< Reserved for future use.
+                Pal::uint32 enable                     :  1;  ///< Include SQTT data in the trace.
+                Pal::uint32 supressInstructionTokens   :  1;  ///< Prevents capturing instruction-level SQTT tokens,
+                                                              ///  significantly reducing the amount of sample data.
+                Pal::uint32 stallMode                  :  2;  ///< Describes behavior when buffer full
+                Pal::uint32 placeholder1               :  1;
+                Pal::uint32 excludeNonDetailShaderData :  1;  ///< Only emit shader tokens from the SIMD that have been
+                                                              ///  selected for detail instruction tracing
+                Pal::uint32 reserved                   : 26;  ///< Reserved for future use.
             };
             Pal::uint32 u32All;                             ///< Bit flags packed as uint32.
         } flags;                                            ///< Bit flags controlling SQTT samples.
@@ -874,6 +876,12 @@ private:
         Pal::uint64        apiPsoHash;
         Pal::PipelineHash  internalPipelineHash;
     };
+
+    // Registers a single (non-archive) pipeline with the GpaSession. Returns AlreadyExists on duplicate PAL pipeline.
+    Pal::Result RegisterSinglePipeline(const Pal::IPipeline* pPipeline, const RegisterPipelineInfo& clientInfo);
+
+    // Unregisters a single (non-archive) pipeline from the GpaSession.
+    Pal::Result UnregisterSinglePipeline(const Pal::IPipeline* pPipeline);
 
     Pal::IDevice*const            m_pDevice;                    // Device associated with this GpaSession.
     Pal::DeviceProperties         m_deviceProps;
