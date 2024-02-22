@@ -634,7 +634,6 @@ void Gfx10DepthStencilView::SetGfx11StaticDbRenderControlFields(
 
     pDbRenderControl->gfx11.FORCE_EXPORT_ORDER = settings.gfx11ForceExportOrderControl ? 1 : 0;
 
-#if PAL_BUILD_NAVI3X
     if (IsNavi3x(palDevice))
     {
         switch (numFragments)
@@ -652,12 +651,7 @@ void Gfx10DepthStencilView::SetGfx11StaticDbRenderControlFields(
             break;
         }
     }
-    else
-#endif
-    if (false
-#if PAL_BUILD_PHOENIX
-        || IsPhoenixFamily(palDevice)
-#endif
+    else if (IsPhoenixFamily(palDevice)
         )
     {
         switch (numFragments)

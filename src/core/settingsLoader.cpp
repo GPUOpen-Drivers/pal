@@ -98,9 +98,15 @@ void SettingsLoader::OverrideDefaults()
 #endif
 
     // This is set by PAL based on when certain aspects of this feature were added to the uCode by PFP FW version
-    // of this device. This setting is Reread() enabled which means the stable value determined here can be
+    // of this device. This setting is Read again from the Panel which means the stable value determined here can be
     // overridden by the value set in Panel/Registry settings.
     m_settings.useExecuteIndirectPacket = m_pDevice->ChipProperties().gfx9.executeIndirectSupport;
+#if PAL_BUILD_GFX11
+    if (IsNavi3x(*m_pDevice) && (m_settings.useExecuteIndirectPacket == UseExecuteIndirectV2Packet))
+    {
+        m_settings.useExecuteIndirectPacket = UseExecuteIndirectV1PacketForDrawDispatch;
+    }
+#endif
 
     if (m_pDevice->PhysicalEnginesAvailable())
     {

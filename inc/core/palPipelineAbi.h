@@ -91,16 +91,10 @@ enum class AmdGpuMachineType : uint8
     Gfx1034 = 0x3e,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1034
     Gfx1035 = 0x3d,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1035
     Gfx1036 = 0x45,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1036
-#if PAL_BUILD_NAVI31
+#if PAL_BUILD_GFX11
     Gfx1100 = 0x41,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1100
-#endif
-#if PAL_BUILD_NAVI32
     Gfx1101 = 0x46,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1101
-#endif
-#if PAL_BUILD_NAVI33
     Gfx1102 = 0x47,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1102
-#endif
-#if PAL_BUILD_PHOENIX
     Gfx1103 = 0x44,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1103
 #endif
 };
@@ -166,23 +160,11 @@ enum GfxIpStepping : uint16
     GfxIpSteppingRembrandt     = 5,
     GfxIpSteppingRaphael       = 6,
 
-#if PAL_BUILD_NAVI31
+#if PAL_BUILD_GFX11
     // GFXIP 11.0.x steppings:
     GfxIpSteppingNavi31        = 0,
-#endif
-
-#if PAL_BUILD_NAVI32
-    // GFXIP 11.0.x steppings:
     GfxIpSteppingNavi32        = 1,
-#endif
-
-#if PAL_BUILD_NAVI33
-    // GFXIP 11.0.x steppings:
     GfxIpSteppingNavi33        = 2,
-#endif
-
-#if PAL_BUILD_PHOENIX
-    // GFXIP 11.0.x steppings:
     GfxIpSteppingPhoenix       = 3,
 #endif
 

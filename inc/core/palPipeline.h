@@ -56,7 +56,11 @@ struct KernelArgument;
 namespace Pal
 {
 struct GpuMemSubAllocInfo;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 848
+enum class PrimitiveTopology : uint8;
+#else
 enum class PrimitiveTopology : uint32;
+#endif
 
 /// Specifies a shader type (i.e., what stage of the pipeline this shader was written for).
 enum class ShaderType : uint32
@@ -99,9 +103,6 @@ enum class DepthRange : uint32
 {
     ZeroToOne        = 0x0,
     NegativeOneToOne = 0x1,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 842
-    Count
-#endif
 };
 
 /// Specifies whether the v/t texture coordinates of a point sprite map 0 to 1 from top to bottom or bottom to top.
@@ -146,9 +147,6 @@ enum class LogicOp : uint32
     OrInverted   = 0xD,
     Nand         = 0xE,
     Set          = 0xF,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 842
-    Count
-#endif
 };
 
 #if PAL_BUILD_GFX11
@@ -230,10 +228,6 @@ enum class DepthClampMode : uint32
     // undefing None before including this header or using _None when dealing with PAL.
 #ifndef None
     None = _None,       ///< Disables depth clamping
-#endif
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 842
-    Count
 #endif
 };
 

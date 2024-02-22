@@ -3408,6 +3408,9 @@ public:
     virtual Result SetHdrMetaData(const ScreenColorConfig& colorConfig) override
         { return m_pNextLayer->SetHdrMetaData(colorConfig); }
 
+    virtual Result Resize(uint32 width, uint32 height) override
+        { return m_pNextLayer->Resize(width, height); }
+
     const IDevice*  GetDevice() const { return m_pDevice; }
     ISwapChain*     GetNextLayer() const { return m_pNextLayer; }
 

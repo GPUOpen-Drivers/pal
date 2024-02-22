@@ -79,6 +79,8 @@ static_assert(offsetof(RgdMarkerInfoCmdBufData, queueFlags) ==
 
 static_assert(sizeof(Pal::RgdMarkerInfoBarrierBeginData) ==
     sizeof(Pal::RgdMarkerInfoHeader) + sizeof(UmdCrashAnalysisEvents::BarrierBeginInfo));
+static_assert(offsetof(RgdMarkerInfoBarrierBeginData, isInternal) ==
+    offsetof(UmdCrashAnalysisEvents::BarrierBeginInfo, isInternal) + sizeof(Pal::RgdMarkerInfoHeader));
 static_assert(offsetof(RgdMarkerInfoBarrierBeginData, type) ==
     offsetof(UmdCrashAnalysisEvents::BarrierBeginInfo, type) + sizeof(Pal::RgdMarkerInfoHeader));
 static_assert(offsetof(RgdMarkerInfoBarrierBeginData, reason) ==
@@ -543,6 +545,73 @@ void CmdBuffer::CmdBarrier(
 }
 
 // =====================================================================================================================
+uint32 CmdBuffer::CmdRelease(
+    const AcquireReleaseInfo& releaseInfo)
+{
+    const char       markerName[]   = "Release";
+    constexpr uint32 MarkerNameSize = static_cast<uint32>(sizeof(markerName) - 1);
+
+    InsertBeginMarker(MarkerSource::Pal, &markerName[0], MarkerNameSize);
+    uint32 syncToken = CmdBufferFwdDecorator::CmdRelease(releaseInfo);
+    InsertEndMarker(MarkerSource::Pal);
+
+    return syncToken;
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdAcquire(
+    const AcquireReleaseInfo& acquireInfo,
+    uint32                    syncTokenCount,
+    const uint32*             pSyncTokens)
+{
+    const char       markerName[]   = "Acquire";
+    constexpr uint32 MarkerNameSize = static_cast<uint32>(sizeof(markerName) - 1);
+
+    InsertBeginMarker(MarkerSource::Pal, &markerName[0], MarkerNameSize);
+    CmdBufferFwdDecorator::CmdAcquire(acquireInfo, syncTokenCount, pSyncTokens);
+    InsertEndMarker(MarkerSource::Pal);
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdReleaseEvent(
+    const AcquireReleaseInfo& releaseInfo,
+    const IGpuEvent*          pGpuEvent)
+{
+    const char       markerName[]   = "ReleaseEvent";
+    constexpr uint32 MarkerNameSize = static_cast<uint32>(sizeof(markerName) - 1);
+
+    InsertBeginMarker(MarkerSource::Pal, &markerName[0], MarkerNameSize);
+    CmdBufferFwdDecorator::CmdReleaseEvent(releaseInfo, pGpuEvent);
+    InsertEndMarker(MarkerSource::Pal);
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdAcquireEvent(
+    const AcquireReleaseInfo& acquireInfo,
+    uint32                    gpuEventCount,
+    const IGpuEvent* const*   ppGpuEvents)
+{
+    const char       markerName[]   = "AcquireEvent";
+    constexpr uint32 MarkerNameSize = static_cast<uint32>(sizeof(markerName) - 1);
+
+    InsertBeginMarker(MarkerSource::Pal, &markerName[0], MarkerNameSize);
+    CmdBufferFwdDecorator::CmdAcquireEvent(acquireInfo, gpuEventCount, ppGpuEvents);
+    InsertEndMarker(MarkerSource::Pal);
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdReleaseThenAcquire(
+    const AcquireReleaseInfo& barrierInfo)
+{
+    const char       markerName[]   = "ReleaseThenAcquire";
+    constexpr uint32 MarkerNameSize = static_cast<uint32>(sizeof(markerName) - 1);
+
+    InsertBeginMarker(MarkerSource::Pal, &markerName[0], MarkerNameSize);
+    CmdBufferFwdDecorator::CmdReleaseThenAcquire(barrierInfo);
+    InsertEndMarker(MarkerSource::Pal);
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdBindPipeline(
     const PipelineBindParams& params)
 {
@@ -720,8 +789,29 @@ void PAL_STDCALL CmdBuffer::CmdDispatchMeshDecorator(
     constexpr uint32    MarkerNameSize = static_cast<uint32>(sizeof(markerName) - 1);
     CmdBuffer*const     pThis          = static_cast<CmdBuffer*>(pCmdBuffer);
 
-    pThis->InsertBeginMarker(MarkerSource::Pal, &markerName[0], MarkerNameSize);
+    uint32 markerValue = pThis->InsertBeginMarker(MarkerSource::Pal, &markerName[0], MarkerNameSize);
     pThis->GetNextLayer()->CmdDispatchMesh(size);
+
+#pragma pack(push, 1)
+    struct
+    {
+        UmdCrashAnalysisEvents::ExecutionMarkerInfoHeader header;
+        UmdCrashAnalysisEvents::DispatchInfo dispatch;
+    } info{};
+#pragma pack(pop)
+
+    // Matching RgpSqttMarkerEventType::CmdUnknown/RgpSqttMarkerApiType::RGP_SQTT_MARKER_API_UNKNOWN
+    constexpr uint32 UnknownEvent = 0x7fff;
+
+    // DisptachMesh is a Draw rather than a Dispatch. Dimension information is lost in client callback and has to be
+    // collected here.
+    info.header.infoType       = UmdCrashAnalysisEvents::ExecutionMarkerInfoType::Dispatch;
+    info.dispatch.dispatchType = UnknownEvent;  // Client specific type is not available here
+    info.dispatch.threadX      = size.x;
+    info.dispatch.threadY      = size.y;
+    info.dispatch.threadZ      = size.z;
+    pThis->InsertInfoMarker(markerValue, reinterpret_cast<const char*>(&info), sizeof(info));
+
     pThis->InsertEndMarker(MarkerSource::Pal);
 }
 
@@ -732,7 +822,7 @@ void PAL_STDCALL CmdBuffer::CmdDispatchMeshIndirectMultiDecorator(
     uint32               maximumCount,
     gpusize              countGpuAddr)
 {
-    const char          markerName[]   = "DispatchMeshIndirectMultiDecorator";
+    const char          markerName[]   = "DispatchMeshIndirectMulti";
     constexpr uint32    markerNameSize = static_cast<uint32>(sizeof(markerName) - 1);
     CmdBuffer*const     pThis          = static_cast<CmdBuffer*>(pCmdBuffer);
 

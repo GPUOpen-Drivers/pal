@@ -173,6 +173,7 @@ public:
 
     virtual SettingsRpcService::SettingsService* GetSettingsService() override { return m_pSettingsService; }
     virtual DevDriver::SettingsRpcService* GetSettingsRpcService() override { return m_pSettingsRpcService; }
+    DriverUtilsService::DriverUtilsService* GetDriverUtilsService() { return m_pDriverUtilsService; };
 
     bool IsDeveloperModeEnabled() const { return (m_pDevDriverServer != nullptr); }
     bool IsDevDriverProfilingEnabled() const;

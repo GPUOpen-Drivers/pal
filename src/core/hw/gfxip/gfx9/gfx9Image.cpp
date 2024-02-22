@@ -150,6 +150,61 @@ Image::~Image()
 }
 
 // =====================================================================================================================
+// Convert addr2 swizzle modes to PAL swizzle modes
+static SwizzleMode ConvertSwizzleModes(AddrSwizzleMode addrSwizzleMode)
+{
+    SwizzleMode swizzleMode;
+    static constexpr SwizzleMode ConversionTable[] =
+    {
+        SwizzleModeLinear,     // ADDR_SW_LINEAR = 0,
+        SwizzleMode256BS,      // ADDR_SW_256B_S = 1,
+        SwizzleMode256BD,      // ADDR_SW_256B_D = 2,
+        SwizzleMode256BR,      // ADDR_SW_256B_R = 3,
+        SwizzleMode4KbZ,       // ADDR_SW_4KB_Z = 4,
+        SwizzleMode4KbS,       // ADDR_SW_4KB_S = 5,
+        SwizzleMode4KbD,       // ADDR_SW_4KB_D = 6,
+        SwizzleMode4KbR,       // ADDR_SW_4KB_R = 7,
+        SwizzleMode64KbZ,      // ADDR_SW_64KB_Z = 8,
+        SwizzleMode64KbS,      // ADDR_SW_64KB_S = 9,
+        SwizzleMode64KbD,      // ADDR_SW_64KB_D = 10,
+        SwizzleMode64KbR,      // ADDR_SW_64KB_R = 11,
+        SwizzleModeCount,      // ADDR_SW_MISCDEF12 = 12,
+        SwizzleModeCount,      // ADDR_SW_MISCDEF13 = 13,
+        SwizzleModeCount,      // ADDR_SW_MISCDEF14 = 14,
+        SwizzleModeCount,      // ADDR_SW_MISCDEF15 = 15,
+        SwizzleMode64KbZT,     // ADDR_SW_64KB_Z_T = 16,
+        SwizzleMode64KbST,     // ADDR_SW_64KB_S_T = 17,
+        SwizzleMode64KbDT,     // ADDR_SW_64KB_D_T = 18,
+        SwizzleMode64KbRT,     // ADDR_SW_64KB_R_T = 19,
+        SwizzleMode4KbZX,      // ADDR_SW_4KB_Z_X = 20,
+        SwizzleMode4KbSX,      // ADDR_SW_4KB_S_X = 21,
+        SwizzleMode4KbDX,      // ADDR_SW_4KB_D_X = 22,
+        SwizzleMode4KbRX,      // ADDR_SW_4KB_R_X = 23,
+        SwizzleMode64KbZX,     // ADDR_SW_64KB_Z_X = 24,
+        SwizzleMode64KbSX,     // ADDR_SW_64KB_S_X = 25,
+        SwizzleMode64KbDX,     // ADDR_SW_64KB_D_X = 26,
+        SwizzleMode64KbRX,     // ADDR_SW_64KB_R_X = 27,
+#if PAL_BUILD_GFX11
+        SwizzleMode256KbVarZX, // ADDR_SW_256KB_Z_X = 28,
+        SwizzleMode256KbVarSX, // ADDR_SW_256KB_S_X = 29,
+        SwizzleMode256KbVarDX, // ADDR_SW_256KB_D_X = 30,
+        SwizzleMode256KbVarRX, // ADDR_SW_256KB_R_X = 31,
+#else
+        SwizzleMode256KbVarZX, // ADDR_SW_VAR_Z_X = 28,
+        SwizzleModeCount,      // ADDR_SW_MISCDEF29 = 29,
+        SwizzleModeCount,      // ADDR_SW_MISCDEF30 = 30,
+        SwizzleMode256KbVarRX, // ADDR_SW_VAR_Z_X = 31,
+#endif
+        SwizzleModeLinear      // ADDR_SW_LINEAR_GENERAL = 32
+    };
+    static_assert(ArrayLen(ConversionTable) == ADDR_SW_MAX_TYPE);
+    PAL_ASSERT(addrSwizzleMode < ADDR_SW_MAX_TYPE);
+    swizzleMode = ConversionTable[addrSwizzleMode];
+    PAL_ASSERT_MSG(swizzleMode != SwizzleModeCount, "Unsupported Swizzle mode!");
+    return swizzleMode;
+}
+
+// =====================================================================================================================
 // Saves state from the AddrMgr about a particular plane for this Image and computes the bank/pipe XOR value for
 // the plane.
 Result Image::Addr2FinalizePlane(
@@ -170,6 +225,8 @@ Result Image::Addr2FinalizePlane(
     }
 
     auto*const pTileInfo = static_cast<AddrMgr2::TileInfo*>(pBaseTileInfo);
+
+    pBaseSubRes->swizzleMode = ConvertSwizzleModes(m_addrSurfSetting[plane].swizzleMode);
 
     // Compute the pipe/bank XOR value for the subresource.
     return ComputePipeBankXor(plane, false, &surfaceSetting, &pTileInfo->pipeBankXor);

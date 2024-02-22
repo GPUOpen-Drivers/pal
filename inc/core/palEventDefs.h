@@ -445,6 +445,7 @@ struct RgdMarkerInfoCmdBufData
 struct RgdMarkerInfoBarrierBeginData
 {
     RgdMarkerInfoHeader         header;     ///< header.infoType = RgdMarkerInfoBarrierBegin
+    bool                        isInternal; ///< Inernal Barrier or external Barrier
     Pal::Developer::BarrierType type;       ///< Barrier type
     uint32                      reason;     ///< enum BarrierReason
 };

@@ -1009,7 +1009,7 @@ Result Image::GetSubresourceLayout(
         pLayout->mipTailCoord.z = pSubResInfo->mipTailCoord.z;
         pLayout->elementBytes   = pSubResInfo->bitsPerTexel >> 3;
         pLayout->planeFormat    = pSubResInfo->format;
-
+        pLayout->swizzleMode    = pSubResInfo->swizzleMode;
         ret = Result::Success;
     }
 

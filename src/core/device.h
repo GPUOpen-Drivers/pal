@@ -2256,7 +2256,6 @@ inline bool IsGfx11Plus(const Device& device)
            ;
 }
 
-#if PAL_BUILD_NAVI31
 inline bool IsNavi31(const Device& device)
 {
     return AMDGPU_IS_NAVI31(device.ChipProperties().familyId, device.ChipProperties().eRevId);
@@ -2267,8 +2266,7 @@ inline bool IsNavi31XtxA0(const Device& device)
                                 device.ChipProperties().eRevId,
                                 device.ChipProperties().revisionId);
 }
-#endif
-#if PAL_BUILD_NAVI32
+
 inline bool IsNavi32(const Device& device)
 {
     return AMDGPU_IS_NAVI32(device.ChipProperties().familyId, device.ChipProperties().eRevId);
@@ -2279,31 +2277,27 @@ inline bool IsNavi32XlA0(const Device& device)
                                device.ChipProperties().eRevId,
                                device.ChipProperties().revisionId);
 }
-#endif
-#if PAL_BUILD_NAVI33
+
 inline bool IsNavi33(const Device& device)
 {
     return AMDGPU_IS_NAVI33(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
-#endif
-#if PAL_BUILD_NAVI3X
+
 inline bool IsNavi3x(const Device& device)
 {
     return (device.ChipProperties().familyId == FAMILY_NV3);
 }
-#endif
-#if PAL_BUILD_PHOENIX1
+
 inline bool IsPhoenix1(const Device& device)
 {
     return AMDGPU_IS_PHOENIX1(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
-#endif
-#if PAL_BUILD_PHOENIX
+
 inline bool IsPhoenixFamily(const Device& device)
 {
     return FAMILY_IS_PHX(device.ChipProperties().familyId);
 }
-#endif
+
 #endif
 
 constexpr bool IsGfx10(GfxIpLevel gfxLevel)

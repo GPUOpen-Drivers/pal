@@ -318,6 +318,7 @@ struct DispatchInfo
 /// BarrierBeginInfo follows header with ExecutionMarkerInfoType::BarrierBegin
 struct BarrierBeginInfo
 {
+    bool        isInternal; // Internal Barrier or external Barrier
     uint32_t    type;       // Pal::Developer::BarrierType
     uint32_t    reason;     // Pal::Developer::BarrierReason
 };

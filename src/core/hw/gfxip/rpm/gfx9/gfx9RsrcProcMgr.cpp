@@ -1071,19 +1071,11 @@ bool RsrcProcMgr::ExpandDepthStencil(
 {
     PAL_ASSERT(range.numPlanes == 1);
 
-    const auto&  device              = *m_pDevice->Parent();
-    const auto&  settings            = m_pDevice->Settings();
-    const auto*  pGfxImage           = reinterpret_cast<const Image*>(image.GetGfxImage());
-    const bool   supportsComputePath = pCmdBuffer->IsComputeSupported() &&
-                                       pGfxImage->SupportsComputeDecompress(range);
+    const auto&  device      = *m_pDevice->Parent();
+    const auto*  pGfxImage   = reinterpret_cast<const Image*>(image.GetGfxImage());
+    bool         usedCompute = false;
 
-    bool usedCompute = false;
-
-    // To do a compute expand, we need to either
-    //   a) Be on the compute queue.  In this case we can't do a gfx decompress because it'll hang.
-    //   b) Have a compute-capable image and- have the "compute" path forced through settings.
-    if ((pCmdBuffer->GetEngineType() == EngineTypeCompute) ||
-        (supportsComputePath && (TestAnyFlagSet(Image::UseComputeExpand, UseComputeExpandAlways))))
+    if (WillDecompressDepthStencilWithCompute(pCmdBuffer, *pGfxImage, range))
     {
         const auto&       createInfo        = image.GetImageCreateInfo();
         const auto*       pPipeline         = GetComputeMaskRamExpandPipeline(image);
@@ -1212,7 +1204,24 @@ bool RsrcProcMgr::ExpandDepthStencil(
 }
 
 // =====================================================================================================================
-bool RsrcProcMgr::WillDecompressWithCompute(
+bool RsrcProcMgr::WillDecompressColorWithCompute(
+    const GfxCmdBuffer* pCmdBuffer,
+    const Image&        gfxImage,
+    const SubresRange&  range
+    ) const
+{
+    const bool  supportsComputePath = gfxImage.SupportsComputeDecompress(range);
+    const auto* pSubResInfo         = gfxImage.Parent()->SubresourceInfo(range.startSubres);
+    const auto& addrSettings        = gfxImage.GetAddrSettings(pSubResInfo);
+
+    return ((pCmdBuffer->GetEngineType() == EngineTypeCompute)           ||
+            AddrMgr2::IsSwizzleModeComputeOnly(addrSettings.swizzleMode) ||
+            (gfxImage.Parent()->IsRenderTarget() == false)               ||
+            (supportsComputePath && TestAnyFlagSet(Image::UseComputeExpand, UseComputeExpandAlways)));
+}
+
+// =====================================================================================================================
+bool RsrcProcMgr::WillDecompressDepthStencilWithCompute(
     const GfxCmdBuffer* pCmdBuffer,
     const Image&        gfxImage,
     const SubresRange&  range
@@ -1220,8 +1229,37 @@ bool RsrcProcMgr::WillDecompressWithCompute(
 {
     const bool supportsComputePath = gfxImage.SupportsComputeDecompress(range);
 
+    // To do a compute expand, we need to either
+    //   a) Be on the compute queue.  In this case we can't do a gfx decompress because it'll hang.
+    //   b) Have a compute-capable image and- have the "compute" path forced through settings.
+
     return ((pCmdBuffer->IsGraphicsSupported() == false) ||
-            (supportsComputePath && (TestAnyFlagSet(Image::UseComputeExpand, UseComputeExpandAlways))));
+            (supportsComputePath && TestAnyFlagSet(Image::UseComputeExpand, UseComputeExpandAlways)));
+}
+
+// =====================================================================================================================
+bool RsrcProcMgr::WillResummarizeWithCompute(
+    const GfxCmdBuffer* pCmdBuffer,
+    const Pal::Image&   image
+    ) const
+{
+    const auto* pPublicSettings = m_pDevice->Parent()->GetPublicSettings();
+
+    // Use compute if:
+    //   - We're on the compute engine
+    //   - or we should force ExpandHiZRange for resummarize and we support compute operations
+    //   - or we have a workaround which indicates if we need to use the compute path.
+    const auto& createInfo = image.GetImageCreateInfo();
+    const bool  z16Unorm1xAaDecompressUninitializedActive =
+        (m_pDevice->Settings().waZ16Unorm1xAaDecompressUninitialized &&
+        (createInfo.samples == 1) &&
+        ((createInfo.swizzledFormat.format == ChNumFormat::X16_Unorm) ||
+        (createInfo.swizzledFormat.format == ChNumFormat::D16_Unorm_S8_Uint)));
+
+    return ((pCmdBuffer->GetEngineType() == EngineTypeCompute) ||
+            (pCmdBuffer->IsComputeSupported() &&
+             (pPublicSettings->expandHiZRangeForResummarize ||
+              z16Unorm1xAaDecompressUninitializedActive)));
 }
 
 // =====================================================================================================================
@@ -3031,10 +3069,7 @@ void RsrcProcMgr::DccDecompress(
         const auto* pSubResInfo         = image.Parent()->SubresourceInfo(range.startSubres);
         const auto& addrSettings        = image.GetAddrSettings(pSubResInfo);
 
-        if ((pCmdBuffer->GetEngineType() == EngineTypeCompute)           ||
-            AddrMgr2::IsSwizzleModeComputeOnly(addrSettings.swizzleMode) ||
-            (image.Parent()->IsRenderTarget() == false)                  ||
-            (supportsComputePath && (TestAnyFlagSet(Image::UseComputeExpand, UseComputeExpandAlways))))
+        if (WillDecompressColorWithCompute(pCmdBuffer, image, range))
         {
             // We should have already done a fast-clear-eliminate on the graphics engine when we transitioned to
             // whatever state we're now transitioning out of, so there's no need to do that again.

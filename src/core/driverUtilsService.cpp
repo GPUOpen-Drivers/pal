@@ -51,8 +51,10 @@ DriverUtilsService::DriverUtilsService(
     m_crashAnalysisModeEnabled(false),
     m_raytracingShaderTokenEnabled(false),
     m_staticVmid(false),
+    m_useOverlayBuffer(false),
     m_pPlatform(pPlatform)
 {
+    memset(m_overlayBuffer, 0, kNumOverlayStrings * kMaxOverlayStringLength);
 }
 
 // =====================================================================================================================
@@ -194,4 +196,30 @@ DD_RESULT DriverUtilsService::EnableDriverFeatures(
 
     return result;
 }
+
+// =====================================================================================================================
+DD_RESULT DriverUtilsService::SetOverlayString(
+    const void* pParamBuffer,
+    size_t      paramBufferSize)
+{
+    DD_RESULT result = DD_RESULT_SUCCESS;
+
+    DDOverlayInfo* pOverlayData = (DDOverlayInfo*)pParamBuffer;
+
+    if ((pOverlayData != nullptr)                   &&
+        (pOverlayData->strIdx < kNumOverlayStrings) &&
+        (paramBufferSize == sizeof(DDOverlayInfo)))
+    {
+        DevDriver::LockGuard lock(m_overlayMutex);
+        Util::Strncpy(m_overlayBuffer[pOverlayData->strIdx], pOverlayData->str, kMaxOverlayStringLength);
+        m_useOverlayBuffer = true;
+    }
+    else
+    {
+        result = DD_RESULT_COMMON_INVALID_PARAMETER;
+    }
+
+    return result;
+}
+
 }

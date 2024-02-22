@@ -48,3 +48,4 @@ target_link_libraries(dd_settings
     PRIVATE
         ddCommon
 )
+

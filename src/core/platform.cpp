@@ -443,10 +443,15 @@ bool Platform::OverrideGpuId(
     const PalPlatformSettings& settings = PlatformSettings();
 
 #if PAL_BUILD_NULL_DEVICE
-    if (strcmp(settings.spoofNullGpuIfh, "") != 0)
+    const char* pSpoofGpuStr = getenv("AMD_SPOOF_GPU");
+    if (pSpoofGpuStr == nullptr)
+    {
+        pSpoofGpuStr = &settings.spoofNullGpuIfh[0];
+    }
+    if (strcmp(pSpoofGpuStr, "") != 0)
     {
         GpuInfo gpuInfo = {};
-        if (GetGpuInfoForName(settings.spoofNullGpuIfh, &gpuInfo) == Result::Success)
+        if (GetGpuInfoForName(pSpoofGpuStr, &gpuInfo) == Result::Success)
         {
             pGpuId->gfxEngineId = gpuInfo.gfxEngineId;
             pGpuId->familyId    = gpuInfo.familyId;
@@ -553,6 +558,7 @@ Result Platform::EarlyInitDevDriver()
                 PAL_ASSERT(m_pSettingsRpcService != nullptr);
 
                 m_pDriverUtilsService = PAL_NEW(DriverUtilsService::DriverUtilsService, this, AllocInternal)(this);
+                PAL_ASSERT(m_pDriverUtilsService != nullptr);
             }
         }
         else

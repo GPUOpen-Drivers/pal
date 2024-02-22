@@ -940,7 +940,12 @@ protected:
 
     // Resets and initializes all internal state that this command buffer uses to build commands. This must not interact
     // with the command allocator and is intended to be called during Begin().
-    virtual void ResetState() { }
+    virtual void ResetState()
+    {
+        // This hasHybridPipeline flag needs to be reset otherwise reuse of this cmdBuffer would cause issue on
+        // gang-submit related tests.
+        m_flags.hasHybridPipeline = 0;
+    }
 
     virtual void WriteEventCmd(const BoundGpuMemory& boundMemObj, uint32 stageMask, uint32 data) = 0;
 

@@ -27,6 +27,7 @@
 
 #include "platform.h"
 #include "g_DriverUtilsService.h"
+#include <dd_mutex.h>
 
 namespace DriverUtilsService
 {
@@ -44,17 +45,25 @@ public:
     virtual DD_RESULT EnableCrashAnalysisMode() override;
     virtual DD_RESULT QueryPalDriverInfo(const DDByteWriter& writer) override;
     virtual DD_RESULT EnableDriverFeatures(const void* pParamBuffer, size_t paramBufferSize) override;
+    virtual DD_RESULT SetOverlayString(const void* pParamBuffer, size_t paramBufferSize) override;
 
     bool IsTracingEnabled() const { return m_isTracingEnabled; }
     bool IsCrashAnalysisModeEnabled() const { return m_crashAnalysisModeEnabled; }
     bool IsRaytracingShaderTokenRequested() const { return m_raytracingShaderTokenEnabled; }
     bool IsStaticVmidRequested() const { return m_staticVmid; }
+    const char* GetOverlayBufferString(Pal::uint32 idx) const { return m_overlayBuffer[idx]; }
+    void LockOverlayBuffer() { m_overlayMutex.Lock(); }
+    void UnlockOverlayBuffer() { m_overlayMutex.Unlock(); }
+    bool UseOverlayBuffer() const { return m_useOverlayBuffer; }
 
 private:
-    bool m_isTracingEnabled;
-    bool m_crashAnalysisModeEnabled;
-    bool m_raytracingShaderTokenEnabled;
-    bool m_staticVmid;
-    Pal::Platform* m_pPlatform;
+    bool             m_isTracingEnabled;
+    bool             m_crashAnalysisModeEnabled;
+    bool             m_raytracingShaderTokenEnabled;
+    bool             m_staticVmid;
+    bool             m_useOverlayBuffer;
+    Pal::Platform*   m_pPlatform;
+    char             m_overlayBuffer[kNumOverlayStrings][kMaxOverlayStringLength];
+    DevDriver::Mutex m_overlayMutex;
 };
 }

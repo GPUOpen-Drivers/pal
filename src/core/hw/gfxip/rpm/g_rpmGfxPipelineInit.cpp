@@ -72,25 +72,15 @@ Result CreateRpmGraphicsPipelines(
         pTable = rpmGfxBinaryTableNavi21;
         break;
 
-#if PAL_BUILD_NAVI31
+#if PAL_BUILD_GFX11
     case AsicRevision::Navi31:
+    case AsicRevision::Navi32:
+    case AsicRevision::Navi33:
         pTable = rpmGfxBinaryTableNavi31;
         break;
 #endif
 
-#if PAL_BUILD_NAVI32
-    case AsicRevision::Navi32:
-        pTable = rpmGfxBinaryTableNavi32;
-        break;
-#endif
-
-#if PAL_BUILD_NAVI33
-    case AsicRevision::Navi33:
-        pTable = rpmGfxBinaryTableNavi33;
-        break;
-#endif
-
-#if PAL_BUILD_PHOENIX1
+#if PAL_BUILD_GFX11
     case AsicRevision::Phoenix1:
         pTable = rpmGfxBinaryTablePhoenix1;
         break;
@@ -259,7 +249,7 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success && (false
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-#if PAL_BUILD_NAVI31|| PAL_BUILD_NAVI32|| PAL_BUILD_NAVI33|| PAL_BUILD_PHOENIX1
+#if PAL_BUILD_GFX11
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
 #endif
         ))
@@ -3552,9 +3542,9 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-#if PAL_BUILD_NAVI31|| PAL_BUILD_NAVI32|| PAL_BUILD_NAVI33|| PAL_BUILD_PHOENIX1
+#if PAL_BUILD_GFX11
     if (result == Result::Success && (false
-#if PAL_BUILD_NAVI31|| PAL_BUILD_NAVI32|| PAL_BUILD_NAVI33|| PAL_BUILD_PHOENIX1
+#if PAL_BUILD_GFX11
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
 #endif
         ))
@@ -3587,7 +3577,7 @@ Result CreateRpmGraphicsPipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_NAVI31|| PAL_BUILD_NAVI32|| PAL_BUILD_NAVI33|| PAL_BUILD_PHOENIX1
+#if PAL_BUILD_GFX11
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
 #endif
         ))
@@ -3620,7 +3610,7 @@ Result CreateRpmGraphicsPipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_NAVI31|| PAL_BUILD_NAVI32|| PAL_BUILD_NAVI33|| PAL_BUILD_PHOENIX1
+#if PAL_BUILD_GFX11
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
 #endif
         ))
@@ -3653,7 +3643,7 @@ Result CreateRpmGraphicsPipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_NAVI31|| PAL_BUILD_NAVI32|| PAL_BUILD_NAVI33|| PAL_BUILD_PHOENIX1
+#if PAL_BUILD_GFX11
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
 #endif
         ))
@@ -3686,7 +3676,7 @@ Result CreateRpmGraphicsPipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_NAVI31|| PAL_BUILD_NAVI32|| PAL_BUILD_NAVI33|| PAL_BUILD_PHOENIX1
+#if PAL_BUILD_GFX11
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
 #endif
         ))
@@ -3719,7 +3709,7 @@ Result CreateRpmGraphicsPipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_NAVI31|| PAL_BUILD_NAVI32|| PAL_BUILD_NAVI33|| PAL_BUILD_PHOENIX1
+#if PAL_BUILD_GFX11
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
 #endif
         ))
@@ -3752,7 +3742,7 @@ Result CreateRpmGraphicsPipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_NAVI31|| PAL_BUILD_NAVI32|| PAL_BUILD_NAVI33|| PAL_BUILD_PHOENIX1
+#if PAL_BUILD_GFX11
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
 #endif
         ))
@@ -3785,7 +3775,7 @@ Result CreateRpmGraphicsPipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_NAVI31|| PAL_BUILD_NAVI32|| PAL_BUILD_NAVI33|| PAL_BUILD_PHOENIX1
+#if PAL_BUILD_GFX11
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
 #endif
         ))
@@ -3821,42 +3811,5 @@ Result CreateRpmGraphicsPipelines(
 #endif
     return result;
 }
-
-// Make sure interface changes have been propagated to RPM.
-static_assert((
-    (offsetof(StencilRefMaskParams, frontRef)       == 0) &&
-    (offsetof(StencilRefMaskParams, frontReadMask)  == 1) &&
-    (offsetof(StencilRefMaskParams, frontWriteMask) == 2) &&
-    (offsetof(StencilRefMaskParams, frontOpValue)   == 3) &&
-    (offsetof(StencilRefMaskParams, backRef)        == 4) &&
-    (offsetof(StencilRefMaskParams, backReadMask)   == 5) &&
-    (offsetof(StencilRefMaskParams, backWriteMask)  == 6) &&
-    (offsetof(StencilRefMaskParams, backOpValue)    == 7) &&
-    (offsetof(StencilRefMaskParams, flags)          == 8)),
-    "StencilRefMaskParams interface change not propagated. Update this file to match interface changes.");
-
-static_assert((offsetof(InputAssemblyStateParams, topology) == 0),
-    "PrimitiveTopologyParams interface change not propagated. Update this file to match interface changes.");
-
-static_assert((
-    (offsetof(DepthBiasParams, depthBias)            == 0) &&
-    (offsetof(DepthBiasParams, depthBiasClamp)       == sizeof(float)) &&
-    (offsetof(DepthBiasParams, slopeScaledDepthBias) == (2 * sizeof(float)))),
-    "DepthBiasParams interface change not propagated. Update this file to match interface changes.");
-
-static_assert((
-    (offsetof(PointLineRasterStateParams, pointSize) == 0) &&
-    (offsetof(PointLineRasterStateParams, lineWidth) == sizeof(float))),
-    "PointLineRasterStateParams interface change not propagated. Update this file to match interface changes.");
-
-static_assert((
-    (offsetof(TriangleRasterStateParams, frontFillMode)   == 0) &&
-    (offsetof(TriangleRasterStateParams, backFillMode)    == sizeof(Pal::FillMode)) &&
-    (offsetof(TriangleRasterStateParams, cullMode)        == 2 * sizeof(Pal::FillMode)) &&
-    (offsetof(TriangleRasterStateParams, frontFace)       == 2 * sizeof(Pal::FillMode) + sizeof(Pal::CullMode)) &&
-    (offsetof(TriangleRasterStateParams, provokingVertex) == 2 * sizeof(Pal::FillMode) +
-                                                             sizeof(Pal::CullMode) +
-                                                             sizeof(Pal::FaceOrientation))),
-    "TriangleRasterStateParams interface change not propagated. Update this file to match interface changes.");
 
 } // Pal

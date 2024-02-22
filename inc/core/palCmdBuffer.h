@@ -83,7 +83,11 @@ enum class PipelineBindPoint : uint32
 };
 
 /// Fully specifies a type of graphics primitive and vertex ordering for geometry.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 848
+enum class PrimitiveTopology : uint8
+#else
 enum class PrimitiveTopology : uint32
+#endif
 {
     PointList        = 0x0,
     LineList         = 0x1,
@@ -646,13 +650,6 @@ struct DynamicGraphicsShaderInfo
                          ///  maxWavesPerCu value provides more flexibility to allow arbitrary WavesPerSh value; for
                          ///  example specify less number of waves than number of CUs per shader array.
 };
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 842
-static_assert((static_cast<uint32>(LogicOp::Count)        <= 0x10) &&
-              (static_cast<uint32>(DepthRange::Count)     <= 0x2)  &&
-              (static_cast<uint32>(DepthClampMode::Count) <= 0x4),
-              "LogicOp/DepthRange/DepthClampMode size has changed! Update bitstride below!");
-#endif
 
 /// Specifies dynamic states of a graphics pipeline
 struct DynamicGraphicsState
@@ -1623,6 +1620,21 @@ typedef void (PAL_STDCALL *CmdDispatchMeshIndirectMultiFunc)(
 /// @see ICmdBuffer::CmdSetInputAssemblyState
 struct InputAssemblyStateParams
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 848
+    PrimitiveTopology topology;                     ///< Defines how vertices should be interpretted and rendered by
+                                                    ///  the graphics pipeline.
+    uint8             patchControlPoints;           ///< # of control points per patch. [0-32] valid. Should be set to
+                                                    ///  0 by clients if topology is not PrimitiveTopology::Patch.
+    bool              primitiveRestartEnable;       ///< Enables the index specified by primitiveRestartIndex to _cut_
+                                                    ///  a primitive (i.e., triangle strip) and begin a new primitive
+                                                    ///  with the next index.
+    bool              primitiveRestartMatchAllBits; ///< Specifies which bits from primitiveRestartIndex to use.
+                                                    ///  false - only check relevant bits based on index type
+                                                    ///  true  - check all 32 bits irrespective of index type
+    uint32            primitiveRestartIndex;        ///< When primitiveRestartEnable is true, this is the index value
+                                                    ///  that will restart a primitive.  When using a 16-bit index
+                                                    ///  buffer, the upper 16 bits of this value will be ignored.
+#else
     PrimitiveTopology topology;                     ///< Defines how vertices should be interpretted and rendered by
                                                     ///  the graphics pipeline.
     uint32            patchControlPoints;           ///< Number of control points per patch.  Should be set to 0 by
@@ -1636,6 +1648,7 @@ struct InputAssemblyStateParams
     bool              primitiveRestartMatchAllBits; ///< Specifies which bits from primitiveRestartIndex to use.
                                                     ///  false - only check relevant bits based on index type
                                                     ///  true  - check all 32 bits irrespective of index type
+#endif
 };
 
 /// Specifies parameters for controlling triangle rasterization.

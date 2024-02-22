@@ -252,6 +252,7 @@ struct SubResourceInfo
     } flags;
 
     ImageLayout defaultGfxLayout;
+    SwizzleMode swizzleMode;
 };
 
 enum class DccFormatEncoding : uint32

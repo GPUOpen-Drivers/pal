@@ -63,13 +63,27 @@ constexpr uint32 SubPixelBits = 4;
 /// Each pixel is subdivided into Pow2(SubPixelBits) x Pow2(SubPixelBits) grid of possible sample locations.
 constexpr Extent2d SubPixelGridSize = { 16, 16 };
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 847
+/// Represents a 2D coordinate with each component in [-8/16, 7/16]
+struct SampleLocation
+{
+    int8 x; ///< X offset.
+    int8 y; ///< Y offset.
+
+    /// Conversion operator that does sign-extension.
+    operator Offset2d() const { return { x, y }; }
+};
+#else
+typedef Offset2d SampleLocation;
+#endif
+
 /// Specifies a custom multisample pattern for a pixel quad.
 struct MsaaQuadSamplePattern
 {
-    Offset2d topLeft[MaxMsaaRasterizerSamples];      ///< Sample locations for TL pixel of quad.
-    Offset2d topRight[MaxMsaaRasterizerSamples];     ///< Sample locations for TR pixel of quad.
-    Offset2d bottomLeft[MaxMsaaRasterizerSamples];   ///< Sample locations for BL pixel of quad.
-    Offset2d bottomRight[MaxMsaaRasterizerSamples];  ///< Sample locations for BR pixel of quad.
+    SampleLocation topLeft[MaxMsaaRasterizerSamples];       ///< Sample locations for TL pixel of quad.
+    SampleLocation topRight[MaxMsaaRasterizerSamples];      ///< Sample locations for TR pixel of quad.
+    SampleLocation bottomLeft[MaxMsaaRasterizerSamples];    ///< Sample locations for BL pixel of quad.
+    SampleLocation bottomRight[MaxMsaaRasterizerSamples];   ///< Sample locations for BR pixel of quad.
 };
 
 /// Specifies properties for creation of an @ref IMsaaState object.  Input structure to IDevice::CreateMsaaState().

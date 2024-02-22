@@ -508,6 +508,58 @@ struct ImageLayout
     uint32 engines :  8;  ///< Bitmask of @ref ImageLayoutEngineFlags values.
 };
 
+/**
+****************************************************************************************************
+* @brief
+*   Enumerates swizzle modes useable on any supported GPU.
+* @note
+* For details please check _AddrSwizzleMode
+*
+****************************************************************************************************
+*/
+enum SwizzleMode : uint32
+{
+    SwizzleModeLinear = 0,
+    SwizzleMode256BS,
+    SwizzleMode256BD,
+    SwizzleMode256BR,
+    SwizzleMode4KbZ,
+    SwizzleMode4KbS,
+    SwizzleMode4KbD,
+    SwizzleMode4KbR,
+    SwizzleMode64KbZ,
+    SwizzleMode64KbS,
+    SwizzleMode64KbD,
+    SwizzleMode64KbR,
+    SwizzleMode64KbZT,
+    SwizzleMode64KbST,
+    SwizzleMode64KbDT,
+    SwizzleMode64KbRT,
+    SwizzleMode4KbZX,
+    SwizzleMode4KbSX,
+    SwizzleMode4KbDX,
+    SwizzleMode4KbRX,
+    SwizzleMode64KbZX,
+    SwizzleMode64KbSX,
+    SwizzleMode64KbDX,
+    SwizzleMode64KbRX,
+    SwizzleMode256KbVarZX,
+    SwizzleMode256KbVarSX,
+    SwizzleMode256KbVarDX,
+    SwizzleMode256KbVarRX,
+
+    ///< the meaning of swizzle mode varies by generation,
+    /// do not compare directly with the _R / _S / _D / _S types".
+    SwizzleMode256B2D,
+    SwizzleMode4Kb2D,
+    SwizzleMode4Kb3D,
+    SwizzleMode64Kb2D,
+    SwizzleMode64Kb3D,
+    SwizzleMode256Kb2D,
+    SwizzleMode256Kb3D,
+    SwizzleModeCount,
+};
+
 /// Reports position and memory layout information for a specific subresource in an image.  Output structure for
 /// IImage::GetSubresourceLayout().
 struct SubresLayout
@@ -537,7 +589,7 @@ struct SubresLayout
 
     SwizzledFormat planeFormat; ///< Swizzled format for plane. Planar resource like D32-S8
                                 /// will have different swizzled format per plane.
-
+    SwizzleMode swizzleMode;    ///< Swizzle mode for plane, based on AddrSwizzleMode
 };
 
 /// Selects a specific subresource of an image resource.

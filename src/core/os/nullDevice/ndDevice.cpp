@@ -566,66 +566,6 @@ void Device::FillGfx9ChipProperties(
         pChipInfo->gsPrimBufferDepth       =  1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =    32; // GPU__GC__NUM_MAX_GS_THDS;
     }
-#if PAL_BUILD_NAVI31
-    else if (AMDGPU_IS_NAVI31(familyId, eRevId))
-    {
-        pChipInfo->supportSpiPrefPriority  =     1;
-        pChipInfo->doubleOffchipLdsBuffers =     1;
-        pChipInfo->gbAddrConfig            = 0x545; // GB_ADDR_CONFIG_DEFAULT;
-        pChipInfo->numShaderEngines        =     6; // GC__NUM_SE;
-        pChipInfo->numShaderArrays         =     2; // GC__NUM_SA_PER_SE
-        pChipInfo->maxNumRbPerSe           =     4; // GC__NUM_RB_PER_SE;
-        pChipInfo->nativeWavefrontSize     =    32; // GC__SQ_WAVE_SIZE;
-        pChipInfo->minWavefrontSize        =    32;
-        pChipInfo->maxWavefrontSize        =    64;
-        pChipInfo->numPhysicalVgprsPerSimd =  1536; // GC__NUM_GPRS;
-        pChipInfo->maxNumCuPerSh           =     8; // GC__NUM_WGP_PER_SA * 2;
-        pChipInfo->numTccBlocks            =    24; // GC__NUM_GL2C;
-        pChipInfo->gsVgtTableDepth         =    32; // GPU__VGT__GS_TABLE_DEPTH;
-        pChipInfo->gsPrimBufferDepth       =  1792; // GC__GSPRIM_BUFF_DEPTH;
-        pChipInfo->maxGsWavesPerVgt        =    32; // GC__NUM_MAX_GS_THDS;
-    }
-#endif
-#if PAL_BUILD_NAVI32
-    else if (AMDGPU_IS_NAVI32(familyId, eRevId))
-    {
-        pChipInfo->supportSpiPrefPriority  =     1;
-        pChipInfo->doubleOffchipLdsBuffers =     1;
-        pChipInfo->gbAddrConfig            = 0x545; // GB_ADDR_CONFIG_DEFAULT;
-        pChipInfo->numShaderEngines        =     3; // GC__NUM_SE;
-        pChipInfo->numShaderArrays         =     2; // GC__NUM_SA_PER_SE
-        pChipInfo->maxNumRbPerSe           =     4; // GC__NUM_RB_PER_SE;
-        pChipInfo->nativeWavefrontSize     =    32; // GC__SQ_WAVE_SIZE;
-        pChipInfo->minWavefrontSize        =    32;
-        pChipInfo->maxWavefrontSize        =    64;
-        pChipInfo->numPhysicalVgprsPerSimd =  1536; // GC__NUM_GPRS;
-        pChipInfo->maxNumCuPerSh           =    10; // GC__NUM_WGP_PER_SA * 2;
-        pChipInfo->numTccBlocks            =    16; // GC__NUM_GL2C;
-        pChipInfo->gsVgtTableDepth         =    32; // GPU__VGT__GS_TABLE_DEPTH;
-        pChipInfo->gsPrimBufferDepth       =  1792; // GC__GSPRIM_BUFF_DEPTH;
-        pChipInfo->maxGsWavesPerVgt        =    32; // GC__NUM_MAX_GS_THDS;
-    }
-#endif
-#if PAL_BUILD_NAVI33
-    else if (AMDGPU_IS_NAVI33(familyId, eRevId))
-    {
-        pChipInfo->supportSpiPrefPriority  =     1;
-        pChipInfo->doubleOffchipLdsBuffers =     1;
-        pChipInfo->gbAddrConfig            = 0x343; // GB_ADDR_CONFIG_DEFAULT;
-        pChipInfo->numShaderEngines        =     2; // GC__NUM_SE;
-        pChipInfo->numShaderArrays         =     2; // GC__NUM_SA_PER_SE
-        pChipInfo->maxNumRbPerSe           =     4; // GC__NUM_RB_PER_SE;
-        pChipInfo->nativeWavefrontSize     =    32; // GC__SQ_WAVE_SIZE;
-        pChipInfo->minWavefrontSize        =    32;
-        pChipInfo->maxWavefrontSize        =    64;
-        pChipInfo->numPhysicalVgprsPerSimd =  1024; // GC__NUM_GPRS;
-        pChipInfo->maxNumCuPerSh           =     8; // GC__NUM_WGP_PER_SA * 2;
-        pChipInfo->numTccBlocks            =     8; // GC__NUM_GL2C;
-        pChipInfo->gsVgtTableDepth         =    32; // GPU__VGT__GS_TABLE_DEPTH;
-        pChipInfo->gsPrimBufferDepth       =  1792; // GC__GSPRIM_BUFF_DEPTH;
-        pChipInfo->maxGsWavesPerVgt        =    32; // GC__NUM_MAX_GS_THDS;
-    }
-#endif
     else if (AMDGPU_IS_RAPHAEL(familyId, eRevId))
     {
         pChipInfo->supportSpiPrefPriority  =     1;
@@ -664,7 +604,61 @@ void Device::FillGfx9ChipProperties(
         pChipInfo->gsPrimBufferDepth           =  1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt            =    32; // GPU__GC__NUM_MAX_GS_THDS;
     }
-#if PAL_BUILD_PHOENIX1
+#if PAL_BUILD_GFX11
+    else if (AMDGPU_IS_NAVI31(familyId, eRevId))
+    {
+        pChipInfo->supportSpiPrefPriority  =     1;
+        pChipInfo->doubleOffchipLdsBuffers =     1;
+        pChipInfo->gbAddrConfig            = 0x545; // GB_ADDR_CONFIG_DEFAULT;
+        pChipInfo->numShaderEngines        =     6; // GC__NUM_SE;
+        pChipInfo->numShaderArrays         =     2; // GC__NUM_SA_PER_SE
+        pChipInfo->maxNumRbPerSe           =     4; // GC__NUM_RB_PER_SE;
+        pChipInfo->nativeWavefrontSize     =    32; // GC__SQ_WAVE_SIZE;
+        pChipInfo->minWavefrontSize        =    32;
+        pChipInfo->maxWavefrontSize        =    64;
+        pChipInfo->numPhysicalVgprsPerSimd =  1536; // GC__NUM_GPRS;
+        pChipInfo->maxNumCuPerSh           =     8; // GC__NUM_WGP_PER_SA * 2;
+        pChipInfo->numTccBlocks            =    24; // GC__NUM_GL2C;
+        pChipInfo->gsVgtTableDepth         =    32; // GPU__VGT__GS_TABLE_DEPTH;
+        pChipInfo->gsPrimBufferDepth       =  1792; // GC__GSPRIM_BUFF_DEPTH;
+        pChipInfo->maxGsWavesPerVgt        =    32; // GC__NUM_MAX_GS_THDS;
+    }
+    else if (AMDGPU_IS_NAVI32(familyId, eRevId))
+    {
+        pChipInfo->supportSpiPrefPriority  =     1;
+        pChipInfo->doubleOffchipLdsBuffers =     1;
+        pChipInfo->gbAddrConfig            = 0x545; // GB_ADDR_CONFIG_DEFAULT;
+        pChipInfo->numShaderEngines        =     3; // GC__NUM_SE;
+        pChipInfo->numShaderArrays         =     2; // GC__NUM_SA_PER_SE
+        pChipInfo->maxNumRbPerSe           =     4; // GC__NUM_RB_PER_SE;
+        pChipInfo->nativeWavefrontSize     =    32; // GC__SQ_WAVE_SIZE;
+        pChipInfo->minWavefrontSize        =    32;
+        pChipInfo->maxWavefrontSize        =    64;
+        pChipInfo->numPhysicalVgprsPerSimd =  1536; // GC__NUM_GPRS;
+        pChipInfo->maxNumCuPerSh           =    10; // GC__NUM_WGP_PER_SA * 2;
+        pChipInfo->numTccBlocks            =    16; // GC__NUM_GL2C;
+        pChipInfo->gsVgtTableDepth         =    32; // GPU__VGT__GS_TABLE_DEPTH;
+        pChipInfo->gsPrimBufferDepth       =  1792; // GC__GSPRIM_BUFF_DEPTH;
+        pChipInfo->maxGsWavesPerVgt        =    32; // GC__NUM_MAX_GS_THDS;
+    }
+    else if (AMDGPU_IS_NAVI33(familyId, eRevId))
+    {
+        pChipInfo->supportSpiPrefPriority  =     1;
+        pChipInfo->doubleOffchipLdsBuffers =     1;
+        pChipInfo->gbAddrConfig            = 0x343; // GB_ADDR_CONFIG_DEFAULT;
+        pChipInfo->numShaderEngines        =     2; // GC__NUM_SE;
+        pChipInfo->numShaderArrays         =     2; // GC__NUM_SA_PER_SE
+        pChipInfo->maxNumRbPerSe           =     4; // GC__NUM_RB_PER_SE;
+        pChipInfo->nativeWavefrontSize     =    32; // GC__SQ_WAVE_SIZE;
+        pChipInfo->minWavefrontSize        =    32;
+        pChipInfo->maxWavefrontSize        =    64;
+        pChipInfo->numPhysicalVgprsPerSimd =  1024; // GC__NUM_GPRS;
+        pChipInfo->maxNumCuPerSh           =     8; // GC__NUM_WGP_PER_SA * 2;
+        pChipInfo->numTccBlocks            =     8; // GC__NUM_GL2C;
+        pChipInfo->gsVgtTableDepth         =    32; // GPU__VGT__GS_TABLE_DEPTH;
+        pChipInfo->gsPrimBufferDepth       =  1792; // GC__GSPRIM_BUFF_DEPTH;
+        pChipInfo->maxGsWavesPerVgt        =    32; // GC__NUM_MAX_GS_THDS;
+    }
     else if (AMDGPU_IS_PHOENIX1(familyId, eRevId))
     {
         pChipInfo->supportSpiPrefPriority  =     1;
@@ -726,7 +720,6 @@ void Device::FillGfx9ChipProperties(
             }
         }
     }
-
 }
 
 // =====================================================================================================================

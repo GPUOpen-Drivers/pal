@@ -142,10 +142,19 @@ public:
         const MemoryImageCopyRegion* pRegions,
         bool                         includePadding) const override;
 
-    bool WillDecompressWithCompute(
+    bool WillDecompressColorWithCompute(
         const GfxCmdBuffer* pCmdBuffer,
         const Image&        gfxImage,
         const SubresRange&  range) const;
+
+    bool WillDecompressDepthStencilWithCompute(
+        const GfxCmdBuffer* pCmdBuffer,
+        const Image&        gfxImage,
+        const SubresRange&  range) const;
+
+    bool WillResummarizeWithCompute(
+        const GfxCmdBuffer* pCmdBuffer,
+        const Pal::Image&   image) const;
 
     void EchoGlobalInternalTableAddr(
         GfxCmdBuffer* pCmdBuffer,

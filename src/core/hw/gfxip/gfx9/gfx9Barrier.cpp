@@ -209,25 +209,7 @@ void BarrierMgr::TransitionDepthStencil(
             // this same barrier, we have just initialized the htile to known values.
             if (TestAnyFlagSet(transition.imageInfo.oldLayout.usages, LayoutUninitializedTarget) == false)
             {
-                const auto& gfx9Device      = *static_cast<Device*>(m_pGfxDevice);
-                const auto* pPublicSettings = m_pDevice->GetPublicSettings();
-
-                // Use compute if:
-                //   - We're on the compute engine
-                //   - or we should force ExpandHiZRange for resummarize and we support compute operations
-                //   - or we have a workaround which indicates if we need to use the compute path.
-                const auto& createInfo = image.GetImageCreateInfo();
-                const bool  z16Unorm1xAaDecompressUninitializedActive =
-                    (gfx9Device.Settings().waZ16Unorm1xAaDecompressUninitialized &&
-                     (createInfo.samples == 1) &&
-                     ((createInfo.swizzledFormat.format == ChNumFormat::X16_Unorm) ||
-                      (createInfo.swizzledFormat.format == ChNumFormat::D16_Unorm_S8_Uint)));
-                const bool  useCompute = ((pCmdBuf->GetEngineType() == EngineTypeCompute) ||
-                                          (pCmdBuf->IsComputeSupported() &&
-                                           (pPublicSettings->expandHiZRangeForResummarize ||
-                                            z16Unorm1xAaDecompressUninitializedActive)));
-
-                if (useCompute)
+                if (RsrcProcMgr().WillResummarizeWithCompute(pCmdBuf, image))
                 {
                     pOperations->layoutTransitions.htileHiZRangeExpand = 1;
                     DescribeBarrier(pCmdBuf, &transition, pOperations);

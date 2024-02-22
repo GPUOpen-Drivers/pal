@@ -385,25 +385,17 @@ static const MaxEventIds& GetEventLimits(
     case Pal::AsicRevision::Raphael:
         pOut = &RaphaelMaxPerfEventIds;
         break;
-#if PAL_BUILD_NAVI31
+#if PAL_BUILD_GFX11
     case Pal::AsicRevision::Navi31:
         pOut = &Nv31MaxPerfEventIds;
         break;
-#endif
-#if PAL_BUILD_NAVI32
     case Pal::AsicRevision::Navi32:
         pOut = &Nv32MaxPerfEventIds;
         break;
-#endif
-#if PAL_BUILD_NAVI33
     case Pal::AsicRevision::Navi33:
         pOut = &Nv33MaxPerfEventIds;
         break;
-#endif
-#if PAL_BUILD_PHOENIX1
-#if PAL_BUILD_PHOENIX1
     case Pal::AsicRevision::Phoenix1:
-#endif
         pOut = &Phx1MaxPerfEventIds;
         break;
 #endif
@@ -449,7 +441,6 @@ static void Gfx11UpdateRpbBlockInfo(
     const Pal::Device&    device,
     PerfCounterBlockInfo* pInfo)
 {
-#if PAL_BUILD_NAVI3X
     if (IsNavi3x(device))
     {
         pInfo->regAddr = { Nv3x::mmRPB_PERFCOUNTER_RSLT_CNTL, {
@@ -459,13 +450,7 @@ static void Gfx11UpdateRpbBlockInfo(
             { Nv3x::mmRPB_PERFCOUNTER3_CFG, 0, Nv3x::mmRPB_PERFCOUNTER_LO, Nv3x::mmRPB_PERFCOUNTER_HI },
         }};
     }
-    else
-#endif
-#if PAL_BUILD_PHOENIX1
-    if (false
-#if PAL_BUILD_PHOENIX1
-        || IsPhoenix1(device)
-#endif
+    else if (IsPhoenix1(device)
        )
     {
         pInfo->regAddr = { Phx1::mmRPB_PERFCOUNTER_RSLT_CNTL, {
@@ -476,7 +461,6 @@ static void Gfx11UpdateRpbBlockInfo(
         }};
     }
     else
-#endif
     {
         PAL_NOT_IMPLEMENTED();
     }
@@ -2251,8 +2235,6 @@ static void Gfx11InitBasicBlockInfo(
     pGrbmSe->maxEventId                = MaxGrbmSe0PerfSelGfx11;
 
     // By convention we access the counter register address array using the SE index.
-#if PAL_BUILD_NAVI3X
-#if PAL_BUILD_NAVI31
     if (IsNavi31(device))
     {
         pGrbmSe->regAddr = { 0, {
@@ -2262,9 +2244,7 @@ static void Gfx11InitBasicBlockInfo(
             { Nv31::mmGRBM_SE3_PERFCOUNTER_SELECT, 0, Nv31::mmGRBM_SE3_PERFCOUNTER_LO, Nv31::mmGRBM_SE3_PERFCOUNTER_HI },
         }};
     }
-    else
-#endif
-    if (IsNavi3x(device))
+    else if (IsNavi3x(device))
     {
         pGrbmSe->regAddr = { 0, {
             { mmGRBM_SE0_PERFCOUNTER_SELECT,       0, mmGRBM_SE0_PERFCOUNTER_LO,       mmGRBM_SE0_PERFCOUNTER_HI       },
@@ -2273,7 +2253,6 @@ static void Gfx11InitBasicBlockInfo(
         }};
     }
     else
-#endif
     {
         pGrbmSe->regAddr = { 0, {
             { mmGRBM_SE0_PERFCOUNTER_SELECT,       0, mmGRBM_SE0_PERFCOUNTER_LO,       mmGRBM_SE0_PERFCOUNTER_HI       },
@@ -2313,15 +2292,14 @@ static void Gfx11InitBasicBlockInfo(
                                  Gfx103CorePlus::mmSDMA0_PERFCOUNTER0_LO,     Gfx103CorePlus::mmSDMA0_PERFCOUNTER0_HI };
     pInfo->sdmaRegAddr[0][1] = { Gfx103CorePlus::mmSDMA0_PERFCOUNTER1_SELECT, Gfx103CorePlus::mmSDMA0_PERFCOUNTER1_SELECT1,
                                  Gfx103CorePlus::mmSDMA0_PERFCOUNTER1_LO,     Gfx103CorePlus::mmSDMA0_PERFCOUNTER1_HI };
-#if PAL_BUILD_NAVI3X
-    if(IsNavi3x(device))
+
+    if (IsNavi3x(device))
     {
         pInfo->sdmaRegAddr[1][0] = { Nv3x::mmSDMA1_PERFCOUNTER0_SELECT, Nv3x::mmSDMA1_PERFCOUNTER0_SELECT1,
                                      Nv3x::mmSDMA1_PERFCOUNTER0_LO,     Nv3x::mmSDMA1_PERFCOUNTER0_HI };
         pInfo->sdmaRegAddr[1][1] = { Nv3x::mmSDMA1_PERFCOUNTER1_SELECT, Nv3x::mmSDMA1_PERFCOUNTER1_SELECT1,
                                      Nv3x::mmSDMA1_PERFCOUNTER1_LO,     Nv3x::mmSDMA1_PERFCOUNTER1_HI };
     }
-#endif
 
     PerfCounterBlockInfo*const pCpg = &pInfo->block[static_cast<uint32>(GpuBlock::Cpg)];
     pCpg->distribution              = PerfCounterDistribution::GlobalBlock;
@@ -2633,7 +2611,6 @@ static void Gfx11InitBasicBlockInfo(
         { Gfx11::mmUTCL1_PERFCOUNTER1_SELECT, 0, Gfx11::mmUTCL1_PERFCOUNTER1_LO, Gfx11::mmUTCL1_PERFCOUNTER1_HI },
     }};
 
-#if PAL_BUILD_NAVI3X
     // The GUS and the blocks that exist to service it should exist as a unit. They are present on all gfx10.1 ASICs.
     // The CHCG connects the CH to the GUS, similar to how the CHC connects the CH to the GL2.
     if (pProps->gpuType == GpuType::Discrete)
@@ -2673,7 +2650,6 @@ static void Gfx11InitBasicBlockInfo(
             { Nv3x::mmGUS_PERFCOUNTER2_SELECT, Nv3x::mmGUS_PERFCOUNTER2_SELECT1, Nv3x::mmGUS_PERFCOUNTER2_LO, Nv3x::mmGUS_PERFCOUNTER2_HI },
         }};
     }
-#endif
 }
 #endif
 

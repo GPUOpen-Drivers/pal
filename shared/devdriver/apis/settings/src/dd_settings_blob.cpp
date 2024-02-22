@@ -24,10 +24,26 @@
  **********************************************************************************************************************/
 
 #include "../inc/dd_settings_blob.h"
+#include <string.h>
 #include <ddPlatform.h>
 
 namespace DevDriver
 {
+
+uint32_t CalcSettingsBlobSizeAligned(uint32_t blobSize)
+{
+    // Align to 8 bytes on 32-bit and 64-bit machines.
+    const uint32_t WORD_SIZE = sizeof(uint64_t);
+
+    // `unalignedSize` equals the offset of `blob[blobSize]` relative to the
+    // beginning of `SettingsBlob`. Can't use `offsetof` because `blobSize` is
+    // not a constant.
+    size_t unalignedSize = (size_t)&(((SettingsBlob*)0)->blob[blobSize]);
+
+    uint32_t alignedSize = (unalignedSize + WORD_SIZE - 1) & ~(WORD_SIZE - 1);
+
+    return alignedSize;
+}
 
 SettingsBlobNode* SettingsBlobNode::s_pFirst = nullptr;
 SettingsBlobNode* SettingsBlobNode::s_pLast = nullptr;

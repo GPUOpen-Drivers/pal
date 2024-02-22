@@ -5959,20 +5959,8 @@ GfxIpLevel DetermineIpLevel(
         {
             level = GfxIpLevel::GfxIp10_1;
         }
-        else if (AMDGPU_IS_NAVI21(familyId, eRevId)
-                 )
-        {
-            level = GfxIpLevel::GfxIp10_3;
-        }
-        else if (AMDGPU_IS_NAVI22(familyId, eRevId))
-        {
-            level = GfxIpLevel::GfxIp10_3;
-        }
-        else if (AMDGPU_IS_NAVI23(familyId, eRevId))
-        {
-            level = GfxIpLevel::GfxIp10_3;
-        }
-        else if (AMDGPU_IS_NAVI24(familyId, eRevId))
+        else if (AMDGPU_IS_NAVI21(familyId, eRevId) || AMDGPU_IS_NAVI22(familyId, eRevId) ||
+                 AMDGPU_IS_NAVI23(familyId, eRevId) || AMDGPU_IS_NAVI24(familyId, eRevId))
         {
             level = GfxIpLevel::GfxIp10_3;
         }
@@ -6015,44 +6003,25 @@ GfxIpLevel DetermineIpLevel(
         }
         break;
 
-#if PAL_BUILD_NAVI3X
+#if PAL_BUILD_GFX11
     case FAMILY_NV3:
-#if PAL_BUILD_NAVI31
-        if (AMDGPU_IS_NAVI31(familyId, eRevId))
+        if (AMDGPU_IS_NAVI31(familyId, eRevId) || AMDGPU_IS_NAVI32(familyId, eRevId) ||
+            AMDGPU_IS_NAVI33(familyId, eRevId))
         {
             level = GfxIpLevel::GfxIp11_0;
         }
         else
-#endif
-#if PAL_BUILD_NAVI32
-        if (AMDGPU_IS_NAVI32(familyId, eRevId))
-        {
-            level = GfxIpLevel::GfxIp11_0;
-        }
-        else
-#endif
-#if PAL_BUILD_NAVI33
-        if (AMDGPU_IS_NAVI33(familyId, eRevId))
-        {
-            level = GfxIpLevel::GfxIp11_0;
-        }
-        else
-#endif
         {
             PAL_NOT_IMPLEMENTED_MSG("FAMILY_NV3 Revision %d unsupported", eRevId);
         }
         break;
-#endif
 
-#if PAL_BUILD_PHOENIX
     case FAMILY_PHX:
-#if PAL_BUILD_PHOENIX1
         if (AMDGPU_IS_PHOENIX1(familyId, eRevId))
         {
             level = GfxIpLevel::GfxIp11_0;
         }
         else
-#endif
         {
             PAL_NOT_IMPLEMENTED_MSG("FAMILY_PHX Revision %d unsupported", eRevId);
         }
@@ -6392,28 +6361,19 @@ void InitializeGpuChipProperties(
         pInfo->gfx9.numPhysicalSgprs        = pInfo->gfx9.numWavesPerSimd * Gfx10NumSgprsPerWave;
         pInfo->gfx9.sgprAllocGranularity    = Gfx10NumSgprsPerWave;
         pInfo->gfx9.minSgprAlloc            = pInfo->gfx9.sgprAllocGranularity;
-#if PAL_BUILD_NAVI31
-        if (AMDGPU_IS_NAVI31(pInfo->familyId, pInfo->eRevId))
+
+        if (AMDGPU_IS_NAVI31(pInfo->familyId, pInfo->eRevId) || AMDGPU_IS_NAVI32(pInfo->familyId, pInfo->eRevId))
         {
-            // Navi31 supports 1.5x VGPR
+            // Navi31 and Navi32 supports 1.5x VGPR
             pInfo->gfx9.numPhysicalVgprs     = 1536;
             pInfo->gfx9.vgprAllocGranularity = 24;
         }
         else
-#endif
-#if PAL_BUILD_NAVI32
-        if (AMDGPU_IS_NAVI32(pInfo->familyId, pInfo->eRevId))
-        {
-            // Navi32 supports 1.5x VGPR
-            pInfo->gfx9.numPhysicalVgprs     = 1536;
-            pInfo->gfx9.vgprAllocGranularity = 24;
-        }
-        else
-#endif
         {
             pInfo->gfx9.numPhysicalVgprs     = 1024;
             pInfo->gfx9.vgprAllocGranularity = 16;
         }
+
         pInfo->gfx9.minVgprAlloc            = pInfo->gfx9.vgprAllocGranularity;
         pInfo->gfxip.shaderPrefetchBytes    = 3 * ShaderICacheLineSize;
         pInfo->gfxip.supportsSwStrmout      = 1;
@@ -6446,9 +6406,9 @@ void InitializeGpuChipProperties(
         pInfo->gfx9.support3dUavZRange = 1;
     }
 
-#if PAL_BUILD_NAVI3X
+#if PAL_BUILD_GFX11
     // RS64 FW identifier for Gfx11 is PFP uCode Version being greater than 300.
-    constexpr uint32 Rs64VersionStart   = 300;
+    constexpr uint32 Rs64VersionStart = 300;
 #endif
 
     // FW version where initial ExecuteIndirect PM4 was added with Draw Support on Gfx9.
@@ -6773,7 +6733,7 @@ void InitializeGpuChipProperties(
         pInfo->gfx9.numTccBlocks = pInfo->gfx9.gfx10.numGl2c;
         break;
 
-#if PAL_BUILD_NAVI3X
+#if PAL_BUILD_GFX11
     case FAMILY_NV3:
         pInfo->gpuType = GpuType::Discrete;
 
@@ -6814,7 +6774,6 @@ void InitializeGpuChipProperties(
         //  Navi3x products don't support EQAA
         pInfo->imageProperties.msaaSupport = static_cast<MsaaFlags>(MsaaS1F1 | MsaaS2F2 | MsaaS4F4 | MsaaS8F8);
 
-#if PAL_BUILD_NAVI31
         if (AMDGPU_IS_NAVI31(pInfo->familyId, pInfo->eRevId))
         {
             pInfo->revision              = AsicRevision::Navi31;
@@ -6831,10 +6790,7 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.gfx10.numWgpAboveSpi = 4; // GPU__GC__NUM_WGP0_PER_SA
             pInfo->gfx9.gfx10.numWgpBelowSpi = 0; // GPU__GC__NUM_WGP1_PER_SA
         }
-        else
-#endif
-#if PAL_BUILD_NAVI32
-        if (AMDGPU_IS_NAVI32(pInfo->familyId, pInfo->eRevId))
+        else if (AMDGPU_IS_NAVI32(pInfo->familyId, pInfo->eRevId))
         {
             pInfo->revision              = AsicRevision::Navi32;
             pInfo->gfxStepping           = Abi::GfxIpSteppingNavi32;
@@ -6849,10 +6805,7 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.gfx10.numWgpAboveSpi = 5; // GPU__GC__NUM_WGP0_PER_SA
             pInfo->gfx9.gfx10.numWgpBelowSpi = 0; // GPU__GC__NUM_WGP1_PER_SA
         }
-        else
-#endif
-#if PAL_BUILD_NAVI33
-        if (AMDGPU_IS_NAVI33(pInfo->familyId, pInfo->eRevId))
+        else if (AMDGPU_IS_NAVI33(pInfo->familyId, pInfo->eRevId))
         {
             pInfo->revision              = AsicRevision::Navi33;
             pInfo->gfxStepping           = Abi::GfxIpSteppingNavi33;
@@ -6868,7 +6821,6 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.gfx10.numWgpBelowSpi = 0; // GPU__GC__NUM_WGP1_PER_SA
         }
         else
-#endif
         {
             PAL_ASSERT_ALWAYS_MSG("Unknown NV3 Revision %d", pInfo->eRevId);
         }
@@ -6960,9 +6912,8 @@ void InitializeGpuChipProperties(
         pInfo->gfx9.numTccBlocks = pInfo->gfx9.gfx10.numGl2c;
         break;
 
-#if PAL_BUILD_PHOENIX
+#if PAL_BUILD_GFX11
     case FAMILY_PHX:
-#if PAL_BUILD_PHOENIX1
         if (AMDGPU_IS_PHOENIX1(pInfo->familyId, pInfo->eRevId))
         {
             pInfo->gpuType                             = GpuType::Integrated;
@@ -6995,7 +6946,6 @@ void InitializeGpuChipProperties(
                 UINT_MAX);
         }
         else
-#endif
         {
             PAL_ASSERT_ALWAYS_MSG("Unknown PHX Revision %d", pInfo->eRevId);
         }

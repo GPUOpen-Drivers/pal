@@ -292,6 +292,16 @@ public:
     ///          + Unsupported Swapchain does not support setting metadata through this interface
     virtual Result SetHdrMetaData(const ScreenColorConfig& colorConfig) = 0;
 
+    /// Adjust Swapchain to new width/height.
+    /// Not all SwapChain objects will necessarily support this operation.
+    /// If this operation returns Result::Unsupported, the client is responsible for destroying and
+    /// re-creating the swap chain object as a fallback.
+    ///
+    /// @param  [in]    width     New width.
+    /// @param  [in]    width     New height.
+    /// @returns Success, if the Swapchain coud be reconfigured to the new size.
+    virtual Result Resize(uint32 width, uint32 height) = 0;
+
     /// Returns the value of the associated arbitrary client data pointer.
     /// Can be used to associate arbitrary data with a particular PAL object.
     ///

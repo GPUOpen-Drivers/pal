@@ -493,7 +493,6 @@ const RegisterRange Gfx11NonShadowedRanges[] =
         Gfx103CorePlus::mmSDMA0_PERFCOUNTER0_SELECT,
         Gfx103CorePlus::mmSDMA0_PERFCOUNTER1_SELECT1 - Gfx103CorePlus::mmSDMA0_PERFCOUNTER0_SELECT + 1
     },
-#if PAL_BUILD_NAVI3X
     {
         Nv3x::mmSDMA1_PERFCOUNTER0_SELECT,
         Nv3x::mmSDMA1_PERFCOUNTER1_SELECT1 - Nv3x::mmSDMA1_PERFCOUNTER0_SELECT + 1
@@ -502,7 +501,6 @@ const RegisterRange Gfx11NonShadowedRanges[] =
         Nv3x::mmSDMA1_PERFCNT_PERFCOUNTER_LO,
         Nv3x::mmSDMA1_PERFCOUNTER1_HI - Nv3x::mmSDMA1_PERFCNT_PERFCOUNTER_LO + 1
     },
-#endif
     {
         Gfx103CorePlus::mmSDMA0_PERFCNT_PERFCOUNTER_LO,
         Gfx103CorePlus::mmSDMA0_PERFCOUNTER1_HI - Gfx103CorePlus::mmSDMA0_PERFCNT_PERFCOUNTER_LO + 1

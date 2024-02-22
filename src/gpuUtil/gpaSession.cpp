@@ -50,8 +50,9 @@ namespace GpuUtil
 
 // =====================================================================================================================
 // Translation table for obtaining Sqtt thread trace gfx ip level given the Pal::GfxIpLevel.
-SqttGfxIpLevel GfxipToSqttGfxIpLevel(
-    Pal::GfxIpLevel gfxIpLevel)
+static SqttGfxIpLevel GfxipToSqttGfxIpLevel(
+    GfxIpLevel   gfxIpLevel,
+    AsicRevision revision)
 {
     SqttGfxIpLevel sqttLevel = SQTT_GFXIP_LEVEL_NONE;
 
@@ -323,7 +324,7 @@ void FillSqttAsicInfo(
     pAsicInfo->sgprAllocGranularity       = shaderCoreProps.sgprAllocGranularity;
     pAsicInfo->hardwareContexts           = properties.gfxipProperties.hardwareContexts;
     pAsicInfo->gpuType                    = static_cast<SqttGpuType>(properties.gpuType);
-    pAsicInfo->gfxIpLevel                 = GfxipToSqttGfxIpLevel(properties.gfxLevel);
+    pAsicInfo->gfxIpLevel                 = GfxipToSqttGfxIpLevel(properties.gfxLevel, properties.revision);
     pAsicInfo->gpuIndex                   = properties.gpuIndex;
     pAsicInfo->ceRamSize                  = properties.gfxipProperties.ceRamSize;
 

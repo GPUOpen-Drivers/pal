@@ -848,7 +848,8 @@ bool BarrierMgr::GetAcqRelLayoutTransitionBltInfo(
                (pTransitionInfo->bltCount == 0) && (pTransitionInfo->bltStageMask == 0) &&
                (pTransitionInfo->bltAccessMask == 0) && (pTransitionInfo->hasMetadata == false));
 
-    bool refreshTcc = false;
+    bool refreshTcc                = false;
+    bool needCacheFlushandInvEvent = false;
 
     // Loop through image transitions to update client requested access.
     for (uint32 i = 0; i < barrierInfo.imageBarrierCount; i++)
@@ -892,16 +893,48 @@ bool BarrierMgr::GetAcqRelLayoutTransitionBltInfo(
 
         if (skipTransition == false)
         {
-            *pSrcAccessMask |= imageBarrier.srcAccessMask;
-            *pDstAccessMask |= imageBarrier.dstAccessMask;
-            *pSrcStageMask  |= imageBarrier.srcStageMask;
-            *pDstStageMask  |= imageBarrier.dstStageMask;
+            uint32 stageMask         = 0;
+            uint32 accessMask        = 0;
+            bool   skipPreBltBarrier = false;
 
-            uint32 stageMask  = 0;
-            uint32 accessMask = 0;
             if (layoutTransInfo.blt[0] != HwLayoutTransition::None)
             {
                 GetBltStageAccessInfo(layoutTransInfo, &stageMask, &accessMask);
+
+                // If the image was previously in RB cache, and an incoming decompress operation can be pipelined.
+                if ((imageBarrier.srcStageMask  == PipelineStageColorTarget) &&
+                    (imageBarrier.srcAccessMask == CoherColorTarget) &&
+                    (stageMask  == PipelineStageColorTarget) &&
+                    (accessMask == CoherColorTarget))
+                {
+                    const auto& gfx9Device = *static_cast<Device*>(m_pGfxDevice);
+                    const auto& gfx9Image  = static_cast<Image&>(*pImage->GetGfxImage());
+
+                    if ((layoutTransInfo.blt[0] == HwLayoutTransition::DccDecompress) &&
+                        gfx9Device.WaEnableDccCacheFlushAndInvalidate())
+                    {
+                        needCacheFlushandInvEvent = true;
+                    }
+                    else if ((layoutTransInfo.blt[0] == HwLayoutTransition::FastClearEliminate) &&
+                             gfx9Device.WaEnableDccCacheFlushAndInvalidate() &&
+                             gfx9Image.HasDccData())
+                    {
+                        needCacheFlushandInvEvent = true;
+                    }
+                    else if (layoutTransInfo.blt[0] == HwLayoutTransition::FmaskDecompress)
+                    {
+                        needCacheFlushandInvEvent = true;
+                    }
+
+                    skipPreBltBarrier = true;
+                }
+                else if ((imageBarrier.srcStageMask  == (PipelineStageEarlyDsTarget | PipelineStageLateDsTarget)) &&
+                         (imageBarrier.srcAccessMask == CoherDepthStencilTarget) &&
+                         (stageMask  == (PipelineStageEarlyDsTarget | PipelineStageLateDsTarget)) &&
+                         (accessMask == CoherDepthStencilTarget))
+                {
+                    skipPreBltBarrier = true;
+                }
 
                 (*pTransitionInfo->pBltList)[pTransitionInfo->bltCount].imgBarrier      = imageBarrier;
                 (*pTransitionInfo->pBltList)[pTransitionInfo->bltCount].layoutTransInfo = layoutTransInfo;
@@ -915,6 +948,14 @@ bool BarrierMgr::GetAcqRelLayoutTransitionBltInfo(
                 pTransitionInfo->bltAccessMask |= (layoutTransInfo.blt[0] == HwLayoutTransition::InitMaskRam)
                                                   ? 0 : accessMask;
             }
+
+            if (skipPreBltBarrier == false)
+            {
+                *pSrcAccessMask |= imageBarrier.srcAccessMask;
+                *pSrcStageMask  |= imageBarrier.srcStageMask;
+            }
+            *pDstAccessMask |= imageBarrier.dstAccessMask;
+            *pDstStageMask  |= imageBarrier.dstStageMask;
 
             pTransitionInfo->hasMetadata |= (pImage->GetMemoryLayout().metadataSize != 0);
 
@@ -939,6 +980,13 @@ bool BarrierMgr::GetAcqRelLayoutTransitionBltInfo(
                 UpdateDccStateMetaDataIfNeeded(pCmdBuf, pCmdStream, &imageBarrier, pBarrierOps);
             }
         }
+    }
+
+    if (needCacheFlushandInvEvent)
+    {
+        uint32* pCmdSpace = pCmdStream->ReserveCommands();
+        pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CACHE_FLUSH_AND_INV_EVENT, pCmdBuf->GetEngineType(), pCmdSpace);
+        pCmdStream->CommitCommands(pCmdSpace);
     }
 
     return refreshTcc;
@@ -1890,7 +1938,7 @@ LayoutTransitionInfo BarrierMgr::PrepareColorBlt(
             {
                 transitionInfo.blt[bltIndex++] = HwLayoutTransition::DccDecompress;
 
-                if (RsrcProcMgr().WillDecompressWithCompute(pCmdBuf, gfx9ImageConst, subresRange))
+                if (RsrcProcMgr().WillDecompressColorWithCompute(pCmdBuf, gfx9ImageConst, subresRange))
                 {
                     transitionInfo.flags.useComputePath = 1;
                 }
@@ -1933,7 +1981,7 @@ LayoutTransitionInfo BarrierMgr::PrepareColorBlt(
                 // implicitly.
                 transitionInfo.blt[bltIndex++] = HwLayoutTransition::DccDecompress;
 
-                if (RsrcProcMgr().WillDecompressWithCompute(pCmdBuf, gfx9ImageConst, subresRange))
+                if (RsrcProcMgr().WillDecompressColorWithCompute(pCmdBuf, gfx9ImageConst, subresRange))
                 {
                     transitionInfo.flags.useComputePath = 1;
                 }
@@ -2012,7 +2060,7 @@ LayoutTransitionInfo BarrierMgr::PrepareDepthStencilBlt(
     {
         transitionInfo.blt[0] = HwLayoutTransition::ExpandDepthStencil;
 
-        if (RsrcProcMgr().WillDecompressWithCompute(pCmdBuf, gfx9Image, subresRange))
+        if (RsrcProcMgr().WillDecompressDepthStencilWithCompute(pCmdBuf, gfx9Image, subresRange))
         {
             transitionInfo.flags.useComputePath = 1;
         }
@@ -2021,24 +2069,7 @@ LayoutTransitionInfo BarrierMgr::PrepareDepthStencilBlt(
     // state to something that uses HiZ.
     else if ((oldState == DepthStencilDecomprNoHiZ) && (newState != DepthStencilDecomprNoHiZ))
     {
-        const auto& gfx9Device      = *static_cast<Device*>(m_pGfxDevice);
-        const auto* pPublicSettings = m_pDevice->GetPublicSettings();
-
-        // Use compute if:
-        //   - We're on the compute engine
-        //   - or we should force ExpandHiZRange for resummarize and we support compute operations
-        //   - or we have a workaround which indicates if we need to use the compute path.
-        const auto& createInfo = image.GetImageCreateInfo();
-        const bool  z16Unorm1xAaDecompressUninitializedActive =
-            (gfx9Device.Settings().waZ16Unorm1xAaDecompressUninitialized &&
-             (createInfo.samples == 1) &&
-             ((createInfo.swizzledFormat.format == ChNumFormat::X16_Unorm) ||
-              (createInfo.swizzledFormat.format == ChNumFormat::D16_Unorm_S8_Uint)));
-        const bool  useCompute = ((pCmdBuf->GetEngineType() == EngineTypeCompute) ||
-                                  (pCmdBuf->IsComputeSupported() &&
-                                   (pPublicSettings->expandHiZRangeForResummarize ||
-                                    z16Unorm1xAaDecompressUninitializedActive)));
-        if (useCompute)
+        if (RsrcProcMgr().WillResummarizeWithCompute(pCmdBuf, image))
         {
             // CS blit to open-up the HiZ range.
             transitionInfo.blt[0] = HwLayoutTransition::HwlExpandHtileHiZRange;

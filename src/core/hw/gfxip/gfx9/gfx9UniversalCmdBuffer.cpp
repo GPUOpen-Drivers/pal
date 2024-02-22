@@ -462,11 +462,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_cachedSettings.vrsForceRateFine                          = settings.vrsForceRateFine;
 #if PAL_BUILD_GFX11
     m_cachedSettings.supportsSwStrmout                         = chipProps.gfxip.supportsSwStrmout;
-#endif
-#if PAL_BUILD_NAVI3X
     m_cachedSettings.waAddPostambleEvent                       = settings.waAddPostambleEvent;
-#endif
-#if PAL_BUILD_GFX11
     m_cachedSettings.useLegacyDbZInfo                          = settings.useLegacyDbZInfo;
     m_cachedSettings.waLineStippleReset                        = settings.waLineStippleReset;
     m_cachedSettings.disableRbPlusWithBlending                 = settings.gfx11DisableRbPlusWithBlending;
@@ -5092,7 +5088,11 @@ Result UniversalCmdBuffer::AddPreamble()
     // Clients may not bind a PointLineRasterState until they intend to do wireframe rendering. This means that the
     // wireframe tosspoint may render a bunch of zero-width lines (i.e. nothing) until that state is bound. When that
     // tosspoint is enabled we should bind some default state to be sure that we will see some lines.
-    if (static_cast<TossPointMode>(m_cachedSettings.tossPointMode) == TossPointWireframe)
+    //
+    // This is not desirable for nested command buffers as we can rely on the state from the parent.
+    // By skipping this bind on nested, we can maintain any state set by the client.
+    if ((static_cast<TossPointMode>(m_cachedSettings.tossPointMode) == TossPointWireframe) &&
+        (IsNested() == false))
     {
         Pal::PointLineRasterStateParams rasterState = {};
         rasterState.lineWidth = 1.0f;
@@ -5210,7 +5210,7 @@ Result UniversalCmdBuffer::AddPostamble()
                                                pDeCmdSpace);
     }
 
-#if PAL_BUILD_NAVI3X
+#if PAL_BUILD_GFX11
     if (m_cachedSettings.waAddPostambleEvent && (IsNested() == false))
     {
         // If the last draw was a tessellation draw with shader messages enabled on the last threadgroup, then a hang
@@ -10833,7 +10833,8 @@ gpusize UniversalCmdBuffer::ConstructExecuteIndirectPacket(
             // replace the UserData entries stored in the current SpillTable buffer with the next set of entries from
             // the Argument Buffer. spillTableInstCnt should always be a power of 2.
             // ExecuteIndirectV2 needs to maintain a single instance of UserData for the copy over to the queue
-            // specific reserved memory buffer.
+            // specific reserved memory buffer with the CP InitMemCpy operation. CP UpdateMemCpy operation will then
+            // update UserData slots based on data from the Argument Buffer.
             pPacketInfo->spillTableInstanceCnt = useExecuteIndirectV2 ? 1 : ComputeSpillTableInstanceCnt(spillDwords,
                                                                                           vertexBufTableDwords,
                                                                                           pPacketInfo->maxCount
@@ -10890,14 +10891,6 @@ gpusize UniversalCmdBuffer::ConstructExecuteIndirectPacket(
         // UserData that spills over the assigned SGPRs.
         if (pPacketInfo->spillTableStrideBytes > 0)
         {
-            pPacketInfo->spillTableInstanceCnt = 1;
-             pUserDataSpace = CmdAllocateEmbeddedData(
-                    (spillDwords * pPacketInfo->spillTableInstanceCnt),
-                    CacheLineDwords,
-                    &(pPacketInfo->spillTableAddr));
-             memcpy(pUserDataSpace, m_computeState.csUserDataEntries.entries, (sizeof(uint32) * spillDwords));
-             pUserDataSpace += spillDwords;
-
             pPacketInfo->spillTableInstanceCnt = useExecuteIndirectV2 ? 1 : ComputeSpillTableInstanceCnt(spillDwords,
                                                                                           0,
                                                                                           pPacketInfo->maxCount

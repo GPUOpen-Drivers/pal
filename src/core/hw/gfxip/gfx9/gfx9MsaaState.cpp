@@ -272,9 +272,9 @@ void MsaaState::Init(
 // =====================================================================================================================
 // Sets the centroid priority register fields based on the specified sample positions.
 static void SetCentroidPriorities(
-    PaScCentroid*   pPaScCentroid,
-    const Offset2d* pSampleLocations,
-    uint32          numSamples)
+    PaScCentroid*         pPaScCentroid,
+    const SampleLocation* pSampleLocations,
+    uint32                numSamples)
 {
     // distance from center of the pixel for each sample location
     uint32 distances[NumSampleLocations];
@@ -340,7 +340,7 @@ static void SetQuadSamplePattern(
     const MsaaQuadSamplePattern& quadSamplePattern,
     uint32                       numSamples)
 {
-    const Offset2d* pSampleLocations = nullptr;
+    const SampleLocation* pSampleLocations = nullptr;
 
     constexpr size_t NumOfPixelsInQuad         = 4;
     constexpr size_t NumSamplesPerRegister     = 4;

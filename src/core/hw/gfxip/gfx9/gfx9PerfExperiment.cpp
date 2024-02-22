@@ -767,7 +767,7 @@ Result PerfExperiment::AddCounter(
                         // Current DCQ is 64x1 in size, so to replicate old fixed events set:
                         //   ThreshCntEn=2 (>)
                         //   ThreshCnt=00 to count all (>0%), 14 to count >25%, 31 to count >50%, 47 to count >75%
-#if PAL_BUILD_NAVI3X
+#if PAL_BUILD_GFX11
 #endif
                         m_select.umcch[info.instance].perfmonCtrHi[idx].nv2x.ThreshCntEn = info.umc.eventThresholdEn;
                         m_select.umcch[info.instance].perfmonCtrHi[idx].nv2x.ThreshCnt   = info.umc.eventThreshold;
@@ -4073,7 +4073,7 @@ uint32* PerfExperiment::WriteEnableCfgRegisters(
                 regPerfMonCtlClk perfmonCtlClk = {};
                 perfmonCtlClk.most.GlblReset   = 1;
 
-#if PAL_BUILD_NAVI3X
+#if PAL_BUILD_GFX11
                 if (IsNavi3x(*m_pDevice))
                 {
                     constexpr uint32 GblbRsrcMskMask = Nv3x::PerfMonCtlClk__GlblResetMsk_MASK;

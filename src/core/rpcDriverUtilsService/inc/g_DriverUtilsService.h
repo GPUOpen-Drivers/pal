@@ -35,8 +35,6 @@ class IDriverUtilsService
 public:
     virtual ~IDriverUtilsService() {}
 
-    static const DDRpcServerRegisterServiceInfo kServiceInfo;
-
     // Informs driver we are collecting trace data
     virtual DD_RESULT EnableTracing() = 0;
 
@@ -50,6 +48,12 @@ public:
 
     // Informs driver to enable different features: Tracing, CrashAnalysis, RT Shader Data Tokens, Debug Vmid
     virtual DD_RESULT EnableDriverFeatures(
+        const void* pParamBuffer,
+        size_t      paramBufferSize
+    ) = 0;
+
+    // Sends a string to PAL to display in the driver overlay
+    virtual DD_RESULT SetOverlayString(
         const void* pParamBuffer,
         size_t      paramBufferSize
     ) = 0;

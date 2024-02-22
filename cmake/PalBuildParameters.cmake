@@ -86,41 +86,29 @@ endif() # PAL_BUILD_GFX
 # If the client wants Gfx9 support, them give them all the neccessary build parameters they need to fill out.
 if (PAL_BUILD_GFX9)
 
-#if PAL_BUILD_NAVI31
-    pal_bp( PAL_BUILD_NAVI31 ON MODE "AUTHOR_WARNING"
-            ASIC_CONFIG
-                PAL_BUILD_GFX11
-                PAL_BUILD_NAVI3X
-                CHIP_HDR_NAVI31
-          )
-#endif
+#if PAL_BUILD_GFX11
+    # Clients should directly set PAL_BUILD_GFX11 in their cmakes to request support for these GPUs.
+    if (PAL_CLIENT_INTERFACE_MAJOR_VERSION LESS 846)
+        pal_bp( PAL_BUILD_NAVI31 ON MODE "AUTHOR_WARNING"
+                ASIC_CONFIG
+                    PAL_BUILD_GFX11
+              )
 
-#if PAL_BUILD_NAVI32
-    pal_bp( PAL_BUILD_NAVI32 ON MODE "AUTHOR_WARNING"
-            ASIC_CONFIG
-                PAL_BUILD_GFX11
-                PAL_BUILD_NAVI3X
-                CHIP_HDR_NAVI32
-          )
-#endif
+        pal_bp( PAL_BUILD_NAVI32 ON MODE "AUTHOR_WARNING"
+                ASIC_CONFIG
+                    PAL_BUILD_GFX11
+              )
 
-#if PAL_BUILD_NAVI33
-    pal_bp( PAL_BUILD_NAVI33 ON MODE "AUTHOR_WARNING"
-            ASIC_CONFIG
-                PAL_BUILD_GFX11
-                PAL_BUILD_NAVI3X
-                CHIP_HDR_NAVI33
-          )
-#endif
+        pal_bp( PAL_BUILD_NAVI33 ON MODE "AUTHOR_WARNING"
+                ASIC_CONFIG
+                    PAL_BUILD_GFX11
+              )
 
-#if PAL_BUILD_PHOENIX1
-    pal_bp( PAL_BUILD_PHOENIX1 ON MODE "AUTHOR_WARNING"
-            ASIC_CONFIG
-                PAL_BUILD_GFX11
-                PAL_BUILD_PHOENIX
-                PAL_BUILD_NPI
-                CHIP_HDR_PHOENIX1
-          )
+        pal_bp( PAL_BUILD_PHOENIX1 ON MODE "AUTHOR_WARNING"
+                ASIC_CONFIG
+                    PAL_BUILD_GFX11
+              )
+    endif()
 #endif
 
 endif() # PAL_BUILD_GFX9

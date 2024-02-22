@@ -60,6 +60,8 @@ public:
 
     virtual Result SetHdrMetaData(const ScreenColorConfig& colorConfig) override { return Result::Unsupported; }
 
+    virtual Result Resize(uint32 width, uint32 height) { return Result::Unsupported; }
+
     // These begin and end a swap chain present. The present scheduler must call PresentComplete once it has scheduled
     // the present and all necessary synchronization.
     // Note that the DXGI swapchain is an exception to the above rule and all necessary functionality is self
@@ -89,9 +91,9 @@ protected:
     // Called when it's safe to allow the application to reacquire the given image.
     void ReuseImage(uint32 imageIndex);
 
-    const SwapChainCreateInfo m_createInfo;
-    Device*const              m_pDevice;
-    PresentScheduler*         m_pScheduler; // Created by the OS-specific subclasses.
+    SwapChainCreateInfo m_createInfo;
+    Device*const        m_pDevice;
+    PresentScheduler*   m_pScheduler; // Created by the OS-specific subclasses.
 
     uint32           m_unusedImageQueue[MaxSwapChainLength]; // Indices of unused images from least to most recent.
     uint32           m_unusedImageCount;                     // The number of unused images in the queue above.

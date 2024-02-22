@@ -65,6 +65,16 @@ function(pal_compile_definitions_gpu TARGET)
             target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_RAPHAEL=$<BOOL:${PAL_BUILD_GFX9}>)
             target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_MENDOCINO=$<BOOL:${PAL_BUILD_GFX9}>)
         endif()
+#if PAL_BUILD_GFX11
+        if (PAL_CLIENT_INTERFACE_MAJOR_VERSION LESS 846)
+            target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_NAVI3X=$<BOOL:${PAL_BUILD_GFX11}>)
+            target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_NAVI31=$<BOOL:${PAL_BUILD_GFX11}>)
+            target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_NAVI32=$<BOOL:${PAL_BUILD_GFX11}>)
+            target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_NAVI33=$<BOOL:${PAL_BUILD_GFX11}>)
+            target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_PHOENIX=$<BOOL:${PAL_BUILD_GFX11}>)
+            target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_PHOENIX1=$<BOOL:${PAL_BUILD_GFX11}>)
+        endif()
+#endif
 
         # PAL ASIC BUILD Defines
         target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_NAVI21=$<BOOL:${PAL_BUILD_GFX9}>)
@@ -73,35 +83,11 @@ function(pal_compile_definitions_gpu TARGET)
         target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_NAVI24=$<BOOL:${PAL_BUILD_GFX9}>)
         target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_REMBRANDT=$<BOOL:${PAL_BUILD_GFX9}>)
         target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_RAPHAEL=$<BOOL:${PAL_BUILD_GFX9}>)
-
-#if PAL_BUILD_NAVI3X
-        # Define for ASIC Family and is not associated with a CHIP_HDR
-        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_NAVI3X=$<BOOL:${PAL_BUILD_NAVI3X}>)
-#endif
-
-#if PAL_BUILD_NAVI31
-        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_NAVI31=$<BOOL:${PAL_BUILD_NAVI31}>)
-        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_NAVI31=$<BOOL:${CHIP_HDR_NAVI31}>)
-#endif
-
-#if PAL_BUILD_NAVI32
-        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_NAVI32=$<BOOL:${PAL_BUILD_NAVI32}>)
-        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_NAVI32=$<BOOL:${CHIP_HDR_NAVI32}>)
-#endif
-
-#if PAL_BUILD_NAVI33
-        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_NAVI33=$<BOOL:${PAL_BUILD_NAVI33}>)
-        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_NAVI33=$<BOOL:${CHIP_HDR_NAVI33}>)
-#endif
-
-#if PAL_BUILD_PHOENIX
-        # Define for ASIC Family and is not associated with a CHIP_HDR
-        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_PHOENIX=$<BOOL:${PAL_BUILD_PHOENIX}>)
-#endif
-
-#if PAL_BUILD_PHOENIX1
-        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_PHOENIX1=$<BOOL:${PAL_BUILD_PHOENIX1}>)
-        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_PHOENIX1=$<BOOL:${CHIP_HDR_PHOENIX1}>)
+#if PAL_BUILD_GFX11
+        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_NAVI31=$<BOOL:${PAL_BUILD_GFX11}>)
+        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_NAVI32=$<BOOL:${PAL_BUILD_GFX11}>)
+        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_NAVI33=$<BOOL:${PAL_BUILD_GFX11}>)
+        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_PHOENIX1=$<BOOL:${PAL_BUILD_GFX11}>)
 #endif
 
     endif()

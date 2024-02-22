@@ -211,6 +211,26 @@ constexpr bool TestAllFlagsSet(
     return ((src & test) == test);
 }
 
+/// Determines if any of the bits set in "test" are also set in "src".
+///
+/// @returns True if any bits in "test" are set in "src", false otherwise.
+constexpr bool TestAnyFlagSet64(
+    uint64 src,   ///< Source pattern.
+    uint64 test)  ///< Test pattern.
+{
+    return ((src & test) != 0);
+}
+
+/// Determines if all of the bits set in "test" are also set in "src".
+///
+/// @returns True if all bits set in "test" are also set in "src", false otherwise.
+constexpr bool TestAllFlagsSet64(
+    uint64 src,   ///< Source pattern.
+    uint64 test)  ///< Test pattern.
+{
+    return ((src & test) == test);
+}
+
 /// Tests if a single bit in a bitfield is set.
 ///
 /// @param [in] bitfield  Bitfield being tested

@@ -60,6 +60,7 @@
 #include "protocols/driverControlServer.h"
 #include "protocols/rgpServer.h"
 #include "dd_settings_service.h"
+#include "driverUtilsService.h"
 
 using namespace Util;
 using namespace Util::Literals;
@@ -178,10 +179,8 @@ bool Device::DetermineGpuIpLevels(
     case FAMILY_RMB:
     case FAMILY_RPL:
     case FAMILY_MDN:
-#if PAL_BUILD_NAVI3X
+#if PAL_BUILD_GFX11
     case FAMILY_NV3:
-#endif
-#if PAL_BUILD_PHOENIX
     case FAMILY_PHX:
 #endif
         pIpLevels->gfx = Gfx9::DetermineIpLevel(familyId, eRevId, cpMicrocodeVersion);
@@ -4694,56 +4693,86 @@ void Device::ApplyDevOverlay(
                                      letterHeight);
         letterHeight += GpuUtil::TextWriterFont::LetterHeight;
 
-        // Write the device clock mode
+        // Write the device clock mode or write DevDriver messages:
 
-        // These labels differ from the DeviceClockMode enum name so as to match the names used by RDP.
-        constexpr const char* pClockModeTable[] = {
-            "Unknown",          // Corresponds with DeviceClockMode::Unknown
-            "Normal",           // Corresponds with DeviceClockMode::Default
-            "Stable",           // Corresponds with DeviceClockMode::Profiling
-            "Minimum Memory",   // Corresponds with DeviceClockMode::MinimumMemory
-            "Minimum Engine",   // Corresponds with DeviceClockMode::MinimumEngine
-            "Peak"              // Corresponds with DeviceClockMode::Peak
-        };
+        DriverUtilsService::DriverUtilsService* pUtilsService = m_pPlatform->GetDriverUtilsService();
 
-        static_assert(static_cast<uint32>(DevDriver::DriverControlProtocol::DeviceClockMode::Unknown)       == 0,
-                      "Unexpected DeviceClockMode::Unknown");
-        static_assert(static_cast<uint32>(DevDriver::DriverControlProtocol::DeviceClockMode::Default)       == 1,
-                      "Unexpected DeviceClockMode::Default");
-        static_assert(static_cast<uint32>(DevDriver::DriverControlProtocol::DeviceClockMode::Profiling)     == 2,
-                      "Unexpected DeviceClockMode::Profiling");
-        static_assert(static_cast<uint32>(DevDriver::DriverControlProtocol::DeviceClockMode::MinimumMemory) == 3,
-                      "Unexpected DeviceClockMode::MinimumMemory");
-        static_assert(static_cast<uint32>(DevDriver::DriverControlProtocol::DeviceClockMode::MinimumEngine) == 4,
-                      "Unexpected DeviceClockMode::MinimumEngine");
-        static_assert(static_cast<uint32>(DevDriver::DriverControlProtocol::DeviceClockMode::Peak)          == 5,
-                      "Unexpected DeviceClockMode::Peak");
-        static_assert(static_cast<uint32>(DevDriver::DriverControlProtocol::DeviceClockMode::Count)         == 6,
-                      "Unexpected DeviceClockMode::Count");
+        if (pUtilsService->UseOverlayBuffer() == false)
+        {
+            // These labels differ from the DeviceClockMode enum name so as to match the names used by RDP.
+            constexpr const char* pClockModeTable[] = {
+                "Unknown",          // Corresponds with DeviceClockMode::Unknown
+                "Normal",           // Corresponds with DeviceClockMode::Default
+                "Stable",           // Corresponds with DeviceClockMode::Profiling
+                "Minimum Memory",   // Corresponds with DeviceClockMode::MinimumMemory
+                "Minimum Engine",   // Corresponds with DeviceClockMode::MinimumEngine
+                "Peak"              // Corresponds with DeviceClockMode::Peak
+            };
 
-        // Get the DriverControlServer object
-        DevDriver::DriverControlProtocol::DriverControlServer* pDriverControlServer =
-            pDevDriverServer->GetDriverControlServer();
+            static_assert(static_cast<uint32>(DevDriver::DriverControlProtocol::DeviceClockMode::Unknown) == 0,
+                          "Unexpected DeviceClockMode::Unknown");
+            static_assert(static_cast<uint32>(DevDriver::DriverControlProtocol::DeviceClockMode::Default) == 1,
+                          "Unexpected DeviceClockMode::Default");
+            static_assert(static_cast<uint32>(DevDriver::DriverControlProtocol::DeviceClockMode::Profiling) == 2,
+                          "Unexpected DeviceClockMode::Profiling");
+            static_assert(static_cast<uint32>(DevDriver::DriverControlProtocol::DeviceClockMode::MinimumMemory) == 3,
+                          "Unexpected DeviceClockMode::MinimumMemory");
+            static_assert(static_cast<uint32>(DevDriver::DriverControlProtocol::DeviceClockMode::MinimumEngine) == 4,
+                          "Unexpected DeviceClockMode::MinimumEngine");
+            static_assert(static_cast<uint32>(DevDriver::DriverControlProtocol::DeviceClockMode::Peak) == 5,
+                          "Unexpected DeviceClockMode::Peak");
+            static_assert(static_cast<uint32>(DevDriver::DriverControlProtocol::DeviceClockMode::Count) == 6,
+                          "Unexpected DeviceClockMode::Count");
 
-        // This pointer should always be valid if developer mode is enabled.
-        PAL_ASSERT(pDriverControlServer != nullptr);
+            // Get the DriverControlServer object
+            DevDriver::DriverControlProtocol::DriverControlServer* pDriverControlServer =
+                pDevDriverServer->GetDriverControlServer();
 
-        // Get the device clock mode
-        const DevDriver::DriverControlProtocol::DeviceClockMode clockMode =
-            pDriverControlServer->GetDeviceClockMode(GetDeviceIndex());
-        PAL_ASSERT(clockMode < DevDriver::DriverControlProtocol::DeviceClockMode::Count);
+            // This pointer should always be valid if developer mode is enabled.
+            PAL_ASSERT(pDriverControlServer != nullptr);
 
-        // Print the clock mode on screen
-        Util::Snprintf(overlayTextBuffer,
-                       OverlayTextBufferSize,
-                       "Clock Mode: %s",
-                       pClockModeTable[static_cast<uint32>(clockMode)]);
-        m_pTextWriter->DrawDebugText(dstImage,
-                                     pCmdBuffer,
-                                     overlayTextBuffer,
-                                     0,
-                                     letterHeight);
-        letterHeight += GpuUtil::TextWriterFont::LetterHeight;
+            // Get the device clock mode
+            const DevDriver::DriverControlProtocol::DeviceClockMode clockMode =
+                pDriverControlServer->GetDeviceClockMode(GetDeviceIndex());
+            PAL_ASSERT(clockMode < DevDriver::DriverControlProtocol::DeviceClockMode::Count);
+
+            // Print the clock mode on screen
+            Util::Snprintf(overlayTextBuffer,
+                           OverlayTextBufferSize,
+                           "Clock Mode: %s",
+                           pClockModeTable[static_cast<uint32>(clockMode)]);
+            m_pTextWriter->DrawDebugText(dstImage,
+                                         pCmdBuffer,
+                                         overlayTextBuffer,
+                                         0,
+                                         letterHeight);
+            letterHeight += GpuUtil::TextWriterFont::LetterHeight;
+        }
+        else
+        {
+            pUtilsService->LockOverlayBuffer();
+
+            for (uint32 i = 0; i < kNumOverlayStrings; i++)
+            {
+                const char* pStr = pUtilsService->GetOverlayBufferString(i);
+
+                if (strlen(pStr) > 0)
+                {
+                    Util::Snprintf(overlayTextBuffer,
+                                   OverlayTextBufferSize, "%s",
+                                   pStr);
+
+                    m_pTextWriter->DrawDebugText(dstImage,
+                                                 pCmdBuffer,
+                                                 overlayTextBuffer,
+                                                 0,
+                                                 letterHeight);
+                    letterHeight += GpuUtil::TextWriterFont::LetterHeight;
+                }
+            }
+
+            pUtilsService->UnlockOverlayBuffer();
+        }
 
         // Print the client string and Client Id on screen
         Util::Snprintf(overlayTextBuffer,

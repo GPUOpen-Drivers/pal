@@ -69,25 +69,15 @@ Pal::Result CreateTimeGraphComputePipelines(
         pTable = timeGraphComputeBinaryTableNavi21;
         break;
 
-#if PAL_BUILD_NAVI31
+#if PAL_BUILD_GFX11
     case Pal::AsicRevision::Navi31:
+    case Pal::AsicRevision::Navi32:
+    case Pal::AsicRevision::Navi33:
         pTable = timeGraphComputeBinaryTableNavi31;
         break;
 #endif
 
-#if PAL_BUILD_NAVI32
-    case Pal::AsicRevision::Navi32:
-        pTable = timeGraphComputeBinaryTableNavi32;
-        break;
-#endif
-
-#if PAL_BUILD_NAVI33
-    case Pal::AsicRevision::Navi33:
-        pTable = timeGraphComputeBinaryTableNavi33;
-        break;
-#endif
-
-#if PAL_BUILD_PHOENIX1
+#if PAL_BUILD_GFX11
     case Pal::AsicRevision::Phoenix1:
         pTable = timeGraphComputeBinaryTablePhoenix1;
         break;

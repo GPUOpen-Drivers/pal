@@ -355,7 +355,13 @@ struct PresentSwapChainInfo
 #else
             uint32 reserved794          :  1;
 #endif
-            uint32 reserved             : 29;   ///< Reserved for future use.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 849
+            uint32 syncInterval         : 3;    ///< 0 - The presentation occurs immediately, there is no synchronization.
+                                                ///< 1 through 4 - Synchronize presentation after the nth vertical blank.
+#else
+            uint32 reserved848          : 3;
+#endif
+            uint32 reserved             : 26;   ///< Reserved for future use.
         };
         uint32 u32All;                          ///< Flags packed as 32-bit uint.
     } flags;                                    ///< PresentSwapChainInfo flags.

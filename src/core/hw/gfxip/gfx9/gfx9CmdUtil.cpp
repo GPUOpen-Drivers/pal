@@ -2829,7 +2829,7 @@ size_t CmdUtil::BuildNonSampleEventWrite(
 
     size_t totalSize = 0;
 
-#if PAL_BUILD_NAVI3X
+#if PAL_BUILD_GFX11
     if (Pal::Device::EngineSupportsGraphics(engineType) &&
         m_device.Settings().waReplaceEventsWithTsEvents &&
         ((vgtEvent == CACHE_FLUSH_AND_INV_EVENT) ||
@@ -4127,7 +4127,7 @@ size_t CmdUtil::BuildReleaseMemInternalGfx10(
     // This function is named "BuildGfx10..." so don't call it on gfx9.
     PAL_ASSERT(IsGfx10Plus(m_chipProps.gfxLevel));
 
-#if PAL_BUILD_NAVI3X
+#if PAL_BUILD_GFX11
     if ((vgtEvent == CACHE_FLUSH_TS) && m_device.Settings().waReplaceEventsWithTsEvents)
     {
         // If this workaround is enabled we need to upgrade to a flush and invalidate to avoid a hang.

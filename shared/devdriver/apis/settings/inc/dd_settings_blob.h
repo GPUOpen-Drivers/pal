@@ -25,8 +25,8 @@
 
 #pragma once
 
+#include <dd_common_api.h>
 #include <stddef.h>
-#include <string.h>
 #include <stdint.h>
 
 namespace DevDriver
@@ -62,21 +62,6 @@ struct SettingsBlobsAll
     /// The number of blobs in a buffer.
     uint32_t nblobs;
 };
-
-inline uint32_t CalcSettingsBlobSizeAligned(uint32_t blobSize)
-{
-    // Align to 8 bytes on 32-bit and 64-bit machines.
-    const uint32_t WORD_SIZE = sizeof(uint64_t);
-
-    // `unalignedSize` equals the offset of `blob[blobSize]` relative to the
-    // beginning of `SettingsBlob`. Can't use `offsetof` because `blobSize` is
-    // not a constant.
-    size_t unalignedSize = (size_t)&(((SettingsBlob*)0)->blob[blobSize]);
-
-    uint32_t alignedSize = (unalignedSize + WORD_SIZE - 1) & ~(WORD_SIZE - 1);
-
-    return alignedSize;
-}
 
 /// Each subclass of `SettingsBlob` holds a raw buffer of Settings data string
 /// blob, and is intended to be linked in a global linked list. All
@@ -115,15 +100,17 @@ public:
         return m_pNext;
     }
 
-    /// Fill the `pBuffer` with Settings blobs from all linked
-    /// `SettingsBlobNode`s. All Settings blobs are packed into one buffer. See
-    /// `SettingsBlobsAll` to learn how they are packed.
+    /// Fill the `pBuffer` with Settings blobs from all linked `SettingsBlobNode`s. All
+    /// Settings blobs are packed into one buffer. See `SettingsBlobsAll` to learn how they
+    /// are packed.
     ///
-    /// `pBuffer` points to a buffer to receive all Settings blobs. It can be nullptr.
-    /// `bufferSize` is the size of `pBuffer`.
+    /// @param pBuffer A pointer to a buffer to receive all Settings blobs. It can be nullptr.
+    /// @param bufferSize The size of \param pBuffer.
     ///
-    /// Return the size required for a buffer to receive all Settings blobs.
+    /// @return The size required for a buffer to receive all Settings blobs, regardless of
+    /// whether \param pBuffer is nullptr.
     static uint32_t GetAllSettingsBlobs(uint8_t* pBuffer, uint32_t bufferSize);
+
 };
 
 } // namespace DevDriver

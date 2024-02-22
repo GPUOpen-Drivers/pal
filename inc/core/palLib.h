@@ -47,7 +47,7 @@
 #endif
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MAJOR_VERSION 845
+#define PAL_INTERFACE_MAJOR_VERSION 849
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 831
 /// Minor interface version.  Note that the interface version is distinct from the PAL version itself, which is returned
@@ -120,17 +120,13 @@ enum class NullGpuId : uint32
     Navi23           = 0x11,
     Navi24           = 0x12,
     Rembrandt        = 0x14,
-#if PAL_BUILD_NAVI31
+#if PAL_BUILD_GFX11
     Navi31           = 0x1A,
-#endif
-#if PAL_BUILD_NAVI32
     Navi32           = 0x1B,
-#endif
-#if PAL_BUILD_NAVI33
     Navi33           = 0x1C,
 #endif
     Raphael          = 0x1E,
-#if PAL_BUILD_PHOENIX1
+#if PAL_BUILD_GFX11
     Phoenix1         = 0x1F,
 #endif
 
@@ -141,12 +137,12 @@ enum class NullGpuId : uint32
 /// Specifies which graphics IP level (GFXIP) this device has.
 enum class GfxIpLevel : uint32
 {
-    _None    = 0x0,   ///< @internal The device does not have an GFXIP block, or its level cannot be determined
+    _None     = 0x0,   ///< @internal The device does not have an GFXIP block, or its level cannot be determined
 
     // Unfortunately for Linux clients, X.h includes a "#define None 0" macro.  Clients have their choice of either
     // undefing None before including this header or using _None when dealing with PAL.
 #ifndef None
-    None     = _None, ///< The device does not have an GFXIP block, or its level cannot be determined
+    None      = _None, ///< The device does not have an GFXIP block, or its level cannot be determined
 #endif
 
     GfxIp6    = 0x1,
@@ -209,19 +205,15 @@ enum class AsicRevision : uint32
     Navi22           = 0x25,
     Navi23           = 0x26,
     Navi24           = 0x27,
-#if PAL_BUILD_NAVI31
+#if PAL_BUILD_GFX11
     Navi31           = 0x2C,
-#endif
-#if PAL_BUILD_NAVI32
     Navi32           = 0x2D,
-#endif
-#if PAL_BUILD_NAVI33
     Navi33           = 0x2E,
 #endif
     Rembrandt        = 0x2F,
     Raphael          = 0x34,
-#if PAL_BUILD_PHOENIX1
-    Phoenix1          = 0x35,
+#if PAL_BUILD_GFX11
+    Phoenix1         = 0x35,
 #endif
 };
 

@@ -268,7 +268,6 @@ union CachedSettings
         uint64 waUtcL0InconsistentBigPage :  1;
         uint64 waClampGeCntlVertGrpSize   :  1;
         uint64 reserved4                  :  1;
-        uint64 reserved11                 :  2;
         uint64 ignoreDepthForBinSize      :  1; // Ignore depth when calculating Bin Size (unless no color bound)
         uint64 pbbDisableBinMode          :  2; // BINNING_MODE value to use when PBB is disabled
 
@@ -305,23 +304,25 @@ union CachedSettings
 #else
         uint64 reserved8                                 : 17;
 #endif
-#if PAL_BUILD_NAVI3X
+
+        // The second uint64 starts here.
+#if PAL_BUILD_GFX11
         uint64 waAddPostambleEvent                       :  1;
 #else
-        uint64 reserved10                                :  1;
+        uint64 reserved9                                 :  1;
 #endif
-
         uint64 optimizeDepthOnlyFmt                      :  1;
         uint64 has32bPred                                :  1;
         uint64 optimizeNullSourceImage                   :  1;
         uint64 waitAfterCbFlush                          :  1;
         uint64 waitAfterDbFlush                          :  1;
         uint64 rbHarvesting                              :  1;
-        uint64 reserved1                                 : 12;
-        uint64 reserved2                                 : 64;
+        uint64 reserved                                  : 57;
     };
-    uint64 u64All[3];
+    uint64 u64All[2];
 };
+
+static_assert(sizeof(CachedSettings) == 2 * sizeof(uint64));
 
 // Tracks a prior VRS rate image to HTile copy so that we can skip redundant rate image copies.
 struct VrsCopyMapping

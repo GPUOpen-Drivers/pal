@@ -136,14 +136,15 @@ void SettingsLoader::ValidateSettings(
             // In addition, binningMaxAllocCountLegacy has no affect on GFX11.
             // The expectation is that a value of ~16, which is a workload size of 1024 prims, assuming 2 verts per
             // prim and 16 attribute groups (256 verts * 16 attr groups / 2 verts per prim / 2 screen tiles = 1024),
-            // should be sufficient for building a batch. This value can be tuned further as more apps are running and
-            // perf investigations continue to progress.
+            // should be sufficient for building a batch. This value can be tuned further as more apps are running
+            // and perf investigations continue to progress.
             m_settings.binningMaxAllocCountNggOnChip = 16;
         }
     }
     else
 #endif
-    if ((m_settings.binningMaxAllocCountNggOnChip == 0) || (m_settings.binningMaxAllocCountNggOnChip == UINT32_MAX))
+    if ((m_settings.binningMaxAllocCountNggOnChip == 0) ||
+        (m_settings.binningMaxAllocCountNggOnChip == UINT32_MAX))
     {
         // With NGG + on chip PC there is a single view of the PC rather than a
         // division per SE. The recommended value for this is to allow a single batch to
@@ -438,19 +439,6 @@ void SettingsLoader::ValidateSettings(
 
     // nggLateAllocGs can NOT be greater than 127.
     pPalSettings->nggLateAllocGs = Min(pPalSettings->nggLateAllocGs, 127u);
-
-#if PAL_BUILD_NAVI33
-    constexpr uint32 Navi33GopherUltraLite = 0x74;
-
-    if ((chipProps.revision == AsicRevision::Navi33) && (chipProps.deviceId == Navi33GopherUltraLite))
-    {
-        // Navi33 Ultra Lite Model has 1 SEs, 2 SAs/SE, 1 WGP/SA
-        // In this model if a CU is reserved for PS firestrike hangs
-        constexpr uint32 MaskEnableAll  = UINT_MAX;
-        m_settings.gsCuEnLimitMask      = MaskEnableAll;
-        m_settings.allowNggOnAllCusWgps = true;
-    }
-#endif
 
     // Since XGMI is much faster than PCIe, PAL should not reduce the number of RBs to increase the PCIe throughput
     if (chipProps.p2pSupport.xgmiEnabled != 0)
@@ -774,7 +762,6 @@ static void SetupGfx11Workarounds(
 
     static_assert(Gfx11NumWorkarounds == 49, "Workaround count mismatch between PAL and SWD");
 
-#if PAL_BUILD_NAVI31|| PAL_BUILD_NAVI32|| PAL_BUILD_NAVI33|| PAL_BUILD_PHOENIX1
     if (workarounds.ppPbbPBBBreakBatchDifferenceWithPrimLimit_FpovLimit_DeallocLimit_A_)
     {
         if (pSettings->binningFpovsPerBatch == 0)
@@ -787,27 +774,18 @@ static void SetupGfx11Workarounds(
             pSettings->binningMaxAllocCountNggOnChip = 255;
         }
     }
-#endif
 
-#if PAL_BUILD_NAVI33
     pSettings->waForceSpiThrottleModeNonZero =
         workarounds.sioSpiBciSpyGlassRevealedABugInSpiRaRscselGsThrottleModuleWhichIsCausedByGsPsVgprLdsInUsesVariableDroppingMSBInRelevantMathExpression_A_;
-#endif
 
-#if PAL_BUILD_NAVI3X
     pSettings->waReplaceEventsWithTsEvents = workarounds.ppDbPWSIssueForDepthWrite_TextureRead_A_;
-
-    pSettings->waAddPostambleEvent = workarounds.geometryGeGEWdTe11ClockCanStayHighAfterShaderMessageThdgrp_A_;
-#endif
-
-#if PAL_BUILD_GFX11
-    pSettings->waLineStippleReset             = workarounds.geometryPaPALineStippleResetError_A_;
+    pSettings->waAddPostambleEvent         = workarounds.geometryGeGEWdTe11ClockCanStayHighAfterShaderMessageThdgrp_A_;
+    pSettings->waLineStippleReset          = workarounds.geometryPaPALineStippleResetError_A_;
 
     // These two settings are different ways of solving the same problem.  We've experimentally
     // determined that "intrinsic rate enable" has better performance.
     pSettings->gfx11DisableRbPlusWithBlending = false;
     pSettings->waEnableIntrinsicRateEnable    = workarounds.sioSpiBciSPI_TheOverRestrictedExportConflictHQ_HoldingQueue_PtrRuleMayReduceTheTheoreticalExpGrantThroughput_PotentiallyIncreaseOldNewPSWavesInterleavingChances_A_;
-#endif
 
     // This workaround requires disabling use of the AC01 clear codees, which is what the "force regular clear code"
     // panel setting is already designed to do.
@@ -833,24 +811,21 @@ static void SetupGfx11Workarounds(
 
     pSettings->waIncorrectMaxAllowedTilesInWave = workarounds.ppDbPpScSCDBHangNotSendingWaveConflictBackToSPI_A_;
 
-    if (false
-#if PAL_BUILD_NAVI31
-        || IsNavi31(device)
-#endif
-#if PAL_BUILD_NAVI32
-        || IsNavi32(device)
-#endif
-        )
+    if (IsNavi31(device) || IsNavi32(device))
     {
         pSettings->shaderPrefetchSizeBytes = 0;
     }
 
-#if PAL_BUILD_GFX11
     if (pSettings->gfx11SampleMaskTrackerWatermark > 0)
     {
-        pSettings->waitOnFlush |= (WaitAfterCbFlush | WaitBeforeBarrierEopWithCbFlush);
+
+        // Restrict WA to discrete GPUs in order to allow APUs which should not be affected by the bug the full
+        // benefit of the opt
+        if (device.ChipProperties().gpuType == GpuType::Discrete)
+        {
+            pSettings->waitOnFlush |= (WaitAfterCbFlush | WaitBeforeBarrierEopWithCbFlush);
+        }
     }
-#endif
 
 }
 #endif
@@ -963,6 +938,13 @@ void SettingsLoader::OverrideDefaults(
 #if PAL_BUILD_GFX11
     else if (IsGfx11(device))
     {
+#if PAL_BUILD_NAVI31
+
+        if (IsNavi31(device))
+        {
+            m_settings.binningMaxAllocCountNggOnChip = 255;
+        }
+#endif
         SetupGfx11Workarounds(device, &m_settings);
 
         m_settings.numTsMsDrawEntriesPerSe = 1024;
@@ -985,6 +967,8 @@ void SettingsLoader::OverrideDefaults(
             // APU tuning with 2MB L2 Cache shows ATM Ring Buffer size 768 KiB yields best performance
             m_settings.gfx11VertexAttributesRingBufferSizePerSe = 768_KiB;
 
+            // For Gfx11+ APUs only we want to set SMT watermark opt to 15
+            m_settings.gfx11SampleMaskTrackerWatermark = 15;
         }
     }
 #endif

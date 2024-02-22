@@ -28,18 +28,6 @@
 namespace DriverUtils
 {
 
-const DDRpcServerRegisterServiceInfo IDriverUtilsService::kServiceInfo = []() -> DDRpcServerRegisterServiceInfo {
-    DDRpcServerRegisterServiceInfo info = {};
-    info.id                             = 0x24815012;
-    info.version.major                  = 1;
-    info.version.minor                  = 2;
-    info.version.patch                  = 0;
-    info.pName                          = "DriverUtils";
-    info.pDescription                   = "A utilities service for modifying the driver.";
-
-    return info;
-}();
-
 static DD_RESULT RegisterFunctions(
     DDRpcServer hServer,
     IDriverUtilsService* pService)
@@ -130,6 +118,27 @@ static DD_RESULT RegisterFunctions(
         result = ddRpcServerRegisterFunction(hServer, &info);
     }
 
+    // Register "SetOverlayString"
+    if (result == DD_RESULT_SUCCESS)
+    {
+        DDRpcServerRegisterFunctionInfo info = {};
+        info.serviceId                       = 0x24815012;
+        info.id                              = 0x5;
+        info.pName                           = "SetOverlayString";
+        info.pDescription                    = "Sends a string to PAL to display in the driver overlay";
+        info.pFuncUserdata                   = pService;
+        info.pfnFuncCb                       = [](
+            const DDRpcServerCallInfo* pCall) -> DD_RESULT
+        {
+            auto* pService = reinterpret_cast<IDriverUtilsService*>(pCall->pUserdata);
+
+            // Execute the service implementation
+            return pService->SetOverlayString(pCall->pParameterData, pCall->parameterDataSize);
+        };
+
+        result = ddRpcServerRegisterFunction(hServer, &info);
+    }
+
     return result;
 }
 
@@ -138,8 +147,16 @@ DD_RESULT RegisterService(
     IDriverUtilsService* pService
 )
 {
+    DDRpcServerRegisterServiceInfo info = {};
+    info.id                             = 0x24815012;
+    info.version.major                  = 1;
+    info.version.minor                  = 3;
+    info.version.patch                  = 0;
+    info.pName                          = "DriverUtils";
+    info.pDescription                   = "A utilities service for modifying the driver.";
+
     // Register the service
-    DD_RESULT result = ddRpcServerRegisterService(hServer, &IDriverUtilsService::kServiceInfo);
+    DD_RESULT result = ddRpcServerRegisterService(hServer, &info);
 
     // Register individual functions
     if (result == DD_RESULT_SUCCESS)
@@ -149,7 +166,7 @@ DD_RESULT RegisterService(
         if (result != DD_RESULT_SUCCESS)
         {
             // Unregister the service if registering functions fails
-            ddRpcServerUnregisterService(hServer, IDriverUtilsService::kServiceInfo.id);
+            ddRpcServerUnregisterService(hServer, info.id);
         }
     }
 
