@@ -91,12 +91,10 @@ enum class AmdGpuMachineType : uint8
     Gfx1034 = 0x3e,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1034
     Gfx1035 = 0x3d,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1035
     Gfx1036 = 0x45,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1036
-#if PAL_BUILD_GFX11
     Gfx1100 = 0x41,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1100
     Gfx1101 = 0x46,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1101
     Gfx1102 = 0x47,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1102
     Gfx1103 = 0x44,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1103
-#endif
 };
 
 /// AmdGpuFeatureV4Type for the feature selection mask bits in e_flags.
@@ -160,13 +158,11 @@ enum GfxIpStepping : uint16
     GfxIpSteppingRembrandt     = 5,
     GfxIpSteppingRaphael       = 6,
 
-#if PAL_BUILD_GFX11
     // GFXIP 11.0.x steppings:
     GfxIpSteppingNavi31        = 0,
     GfxIpSteppingNavi32        = 1,
     GfxIpSteppingNavi33        = 2,
     GfxIpSteppingPhoenix       = 3,
-#endif
 
 };
 
@@ -398,6 +394,21 @@ union ApiSampleInfo
     uint32 u32All;      ///< Flags packed as 32-bit uint.
 };
 
+/// This packed bitfield is used to set UserDataMapping::CompositeData
+union ApiCompositeDataValue
+{
+    struct
+    {
+        uint32 primInfo           : 2; ///< Number of vertex per primitive
+        uint32 numSamples         : 5; ///< Number of coverage samples
+        uint32 dynamicSourceBlend : 1; ///< Whether to enable dynamic dual source blend.
+        uint32 rasterStream       : 3; ///< Which vertex stream to rasterize. Reserved for future.
+        uint32 reserved           : 21;
+    };
+
+    uint32 u32All; ///< Flags packed as 32-bit uint.
+};
+
 /// Helper function to get a pipeline symbol type for a specific hardware shader stage.
 ///
 /// @param [in] symbolType Type of Pipeline Symbol to retrieve
@@ -488,15 +499,16 @@ enum class UserDataMapping : uint32
                                          ///  stage (task shader stage) in a hybrid graphics pipeline.
     MeshPipeStatsBuf      = 0x10000014,  ///< 32-bit GPU virtual address of a buffer storing the shader-emulated mesh
                                          ///  pipeline stats query.
-#if PAL_BUILD_GFX11
     StreamOutControlBuf   = 0x10000016, ///< 32-bit GPU virtual address to the streamout control buffer for GPUs that
                                         ///  use software-emulated streamout.
-#endif
     EnPrimsNeededCnt      = 0x10000017,  ///< Address of userdata register that will be used to dynamically enable/disable
                                          ///  extra shader work for generated prim counts in PipelineStats queries
     SampleInfo            = 0x10000018,  ///< Sample Info, 16-bit numsamples + 16-bit Sample Pattern
     ColorExportAddr       = 0x10000020,  ///< 32-bit pointer to GPU memory containing the color export shader
-    DynamicDualSrcBlendInfo = 0x10000022,  ///< 32-bit dynamicDualSourceBlend info
+    DynamicDualSrcBlendInfo = 0x10000022, ///< 32-bit dynamicDualSourceBlend info
+
+    CompositeData           = 0x10000023, ///< The composite structure that includes sample info, DynamicDualSrcBlendInfo
+                                          ///   and topology. It can be valid for various shader stages.
 
     NotMapped             = 0xFFFFFFFF,  ///< Register is not mapped to any user-data entry.
 

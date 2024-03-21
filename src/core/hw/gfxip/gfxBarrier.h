@@ -94,6 +94,10 @@ constexpr uint32 PipelineStagesGraphicsOnly = PipelineStageFetchIndices  |
                                               PipelineStageLateDsTarget  |
                                               PipelineStageColorTarget;
 
+constexpr uint32 PipelineStagePfpMask       = PipelineStageTopOfPipe         |
+                                              PipelineStageFetchIndirectArgs |
+                                              PipelineStageFetchIndices;
+
 constexpr uint32 CacheCoherencyGraphicsOnly = CoherColorTarget        |
                                               CoherDepthStencilTarget |
                                               CoherSampleRate         |
@@ -107,6 +111,15 @@ constexpr uint32 CacheCoherencyGraphicsOnly = CoherColorTarget        |
 constexpr uint32 CacheCoherencyBltSrc = CoherCopySrc | CoherResolveSrc | CoherClear;
 constexpr uint32 CacheCoherencyBltDst = CoherCopyDst | CoherResolveDst | CoherClear;
 constexpr uint32 CacheCoherencyBlt    = CacheCoherencyBltSrc | CacheCoherencyBltDst;
+
+// Mask of all GPU memory access through RB cache.
+constexpr uint32 CacheCoherRbAccessMask = CoherColorTarget | CoherDepthStencilTarget;
+
+// Cache coherency masks that are writable.
+constexpr uint32 CacheCoherWriteMask  = CoherCpu         | CoherShaderWrite        | CoherStreamOut |
+                                        CoherColorTarget | CoherClear              | CoherCopyDst   |
+                                        CoherResolveDst  | CoherDepthStencilTarget | CoherCeDump    |
+                                        CoherQueueAtomic | CoherTimestamp          | CoherMemory;
 
 // =====================================================================================================================
 // BASE barrier Processing Manager: only contain execution and memory dependencies.
@@ -173,12 +186,25 @@ public:
 
     static void OptimizeSrcCacheMask(const Pm4CmdBuffer* pCmdBuf, uint32* pCacheMask);
 
-    static void OptimizePipeStageAndCacheMask(
+    virtual void OptimizeStageMask(
         const Pm4CmdBuffer* pCmdBuf,
+        BarrierType         barrierType,
+        uint32*             pSrcStageMask,
+        uint32*             pDstStageMask) const;
+
+    virtual void OptimizeAccessMask(
+        const Pm4CmdBuffer* pCmdBuf,
+        BarrierType         barrierType,
+        uint32*             pSrcAccessMask,
+        uint32*             pDstAccessMask) const;
+
+    void OptimizeStageAndAccessMask(
+        const Pm4CmdBuffer* pCmdBuf,
+        BarrierType         barrierType,
         uint32*             pSrcStageMask,
         uint32*             pSrcAccessMask,
         uint32*             pDstStageMask,
-        uint32*             pDstAccessMask);
+        uint32*             pDstAccessMask) const;
 
     static void SetBarrierOperationsRbCacheSynced(Developer::BarrierOperations* pOperations)
     {
@@ -196,12 +222,6 @@ protected:
     static uint32 GetPipelineStageMaskFromBarrierInfo(const BarrierInfo& barrierInfo, uint32* pSrcStageMask);
 
     static bool IsReadOnlyTransition(uint32 srcAccessMask, uint32 dstAccessMask);
-
-    // Cache coherency masks that are writable.
-    static constexpr uint32 CacheCoherWriteMask  = CoherCpu         | CoherShaderWrite        | CoherStreamOut |
-                                                   CoherColorTarget | CoherClear              | CoherCopyDst   |
-                                                   CoherResolveDst  | CoherDepthStencilTarget | CoherCeDump    |
-                                                   CoherQueueAtomic | CoherTimestamp          | CoherMemory;
 
     GfxDevice*const   m_pGfxDevice;
     Pal::Device*const m_pDevice;

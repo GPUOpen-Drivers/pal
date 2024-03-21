@@ -117,10 +117,11 @@ namespace DevDriver
     // Information required to establish a new session
     struct EstablishSessionInfo
     {
-        Protocol protocol;
-        Version  minProtocolVersion;
-        Version  maxProtocolVersion;
-        ClientId remoteClientId;
+        Protocol    protocol;
+        Version     minProtocolVersion;
+        Version     maxProtocolVersion;
+        ClientId    remoteClientId;
+        const char* pSessionName;
     };
 
     // "Temporary" structure to pack all create info without breaking back-compat

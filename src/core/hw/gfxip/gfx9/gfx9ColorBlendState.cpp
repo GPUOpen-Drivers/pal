@@ -89,7 +89,6 @@ BlendOp ColorBlendState::HwBlendOp(
 
         hwOp = BlendOpTbl[static_cast<size_t>(blendOp)];
     }
-#if PAL_BUILD_GFX11
     else if (IsGfx11(device))
     {
         constexpr BlendOp BlendOpTbl[] =
@@ -117,7 +116,6 @@ BlendOp ColorBlendState::HwBlendOp(
 
         hwOp = BlendOpTbl[static_cast<size_t>(blendOp)];
     }
-#endif
 
     return hwOp;
 }
@@ -685,7 +683,6 @@ uint32* ColorBlendState::HandleAlphaToCoverage(
     uint32*    pCmdSpace
     ) const
 {
-#if PAL_BUILD_GFX11
     const Pal::Device& device = *(m_device.Parent());
 
     if (IsGfx11(device)                &&
@@ -696,7 +693,6 @@ uint32* ColorBlendState::HandleAlphaToCoverage(
         const uint32 sxMrt0BlendOptValue = alphaToCoverageEnable ? 0ul : m_regs.sxMrtBlendOpt[0].u32All;
         pCmdSpace = pCmdStream->WriteSetOneContextReg(mmSX_MRT0_BLEND_OPT, sxMrt0BlendOptValue, pCmdSpace);
     }
-#endif
 
     return pCmdSpace;
 }

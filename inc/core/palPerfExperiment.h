@@ -90,9 +90,7 @@ enum class GpuBlock : uint32
     GeDist  = 0x2E,
     GeSe    = 0x2F,
     DfMall  = 0x30, // The DF subblocks have unique instances and event IDs but they all share the DF's perf counters.
-#if PAL_BUILD_GFX11
     SqWgp   = 0x31, // SQ counters that can be sampled at WGP granularity.
-#endif
     Count
 };
 
@@ -163,7 +161,6 @@ union PerfExperimentDeviceFeatureFlags
 /// Specifies properties for a perf counter being added to a perf experiment.  Input structure to
 /// IPerfExperiment::AddCounter().
 ///
-#if PAL_BUILD_GFX11
 /// A note for GpuBlock::SqWgp
 /// Client of palPerfExperiment may configure counters of GpuBlock::SqWgp based on a per-wgp granularity
 /// only if the following are disabled: GFXOFF, virtualization/SRIOV, VDDGFX (power down features), clock gating (CGCG)
@@ -174,7 +171,6 @@ union PerfExperimentDeviceFeatureFlags
 /// are enabled. It's all still per-WGP in HW, we just can't support different counter configs within the same SE.
 /// The counter data is still reported per WGP (not aggregated for the whole SE).
 ///
-#endif
 struct PerfCounterInfo
 {
     PerfCounterType              counterType; ///< Type of counter to add.
@@ -385,10 +381,8 @@ enum class SpmDataSegmentType : uint32
     Se1,
     Se2,
     Se3,
-#if PAL_BUILD_GFX11
     Se4,
     Se5,
-#endif
     Global,
     Count
 };
@@ -478,11 +472,7 @@ struct PerfExperimentCreateInfo
             uint32 cacheFlushOnCounterCollection :  1;
             uint32 sampleInternalOperations      :  1;
             uint32 sqShaderMask                  :  1;
-#if PAL_BUILD_GFX11
             uint32 sqWgpShaderMask               :  1;
-#else
-            uint32 reserved1                     :  1;
-#endif
             uint32 reserved                      : 28;
         };
         uint32 u32All;
@@ -493,9 +483,7 @@ struct PerfExperimentCreateInfo
         bool                      cacheFlushOnCounterCollection;
         bool                      sampleInternalOperations;
         PerfExperimentShaderFlags sqShaderMask;    ///< GpuBlock::Sq counters only look at these shader types.
-#if PAL_BUILD_GFX11
         PerfExperimentShaderFlags sqWgpShaderMask; ///< GpuBlock::SqWgp counters only look at these shader types.
-#endif
     } optionValues;
 };
 

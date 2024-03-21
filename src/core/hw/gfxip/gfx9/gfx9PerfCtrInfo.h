@@ -49,15 +49,10 @@ constexpr gpusize SqttBufferAlignment  = 0x1 << SqttBufferAlignShift;
 
 // Constants defining special block configurations that we must share between InitPerfCtrInfo and the perf experiment.
 constexpr uint32 Gfx9MaxSqgPerfmonModules = 16; // The SQG can have up to 16 custom perfmon modules.
-
-constexpr uint32 Gfx10NumRmiSubInstances = 2; // PAL considers each RMI isntance to consist of sub-instances.
-
-constexpr uint32 Gfx10MaxDfPerfMon = 8; // The DF has 8 global perf counters.
-
-#if PAL_BUILD_GFX11
+constexpr uint32 Gfx10NumRmiSubInstances = 2;   // PAL considers each RMI isntance to consist of sub-instances.
+constexpr uint32 Gfx10MaxDfPerfMon = 8;         // The DF has 8 global perf counters.
 constexpr uint32 Gfx11MaxSqgPerfmonModules = 8; // The SQG can have up to 8 custom perfmon modules.
 constexpr uint32 Gfx11MaxSqPerfmonModules = 16; // The SQ can have up to 16 custom perfmon modules.
-#endif
 
 // Called during device init to populate the perf counter info.
 extern void InitPerfCtrInfo(const Pal::Device& device, GpuChipProperties* pProps);

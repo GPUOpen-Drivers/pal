@@ -2157,7 +2157,6 @@ Result Queue::SubmitIbsRaw(
             }
         }
 
-#if PAL_BUILD_GFX11
         struct drm_amdgpu_cs_chunk_cp_gfx_shadow shadowInfo = {};
         if (m_pDevice->SupportStateShadowingByCpFwUserAlloc() && (GetEngineType() == EngineTypeUniversal))
         {
@@ -2190,7 +2189,6 @@ Result Queue::SubmitIbsRaw(
 
             currentChunk++;
         }
-#endif
 
     // Serialize access to internalMgr and queue memory list
     RWLockAuto<RWLock::ReadWrite> lockMgr(m_pDevice->MemMgr()->GetRefListLock());

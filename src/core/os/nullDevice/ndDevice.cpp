@@ -32,6 +32,7 @@
 #include "core/os/nullDevice/ndPlatform.h"
 #include "core/os/nullDevice/ndQueue.h"
 #include "palFormatInfo.h"
+#include "palSettingsFileMgrImpl.h"
 #include "palSysMemory.h"
 
 #include <limits.h>
@@ -46,6 +47,7 @@ namespace NullDevice
 // =====================================================================================================================
 Device::Device(
     Platform*              pPlatform,
+    const char*            pSettingsPath,
     const GpuInfo&         gpuInfo,
     const HwIpDeviceSizes& hwDeviceSizes)
     :
@@ -55,7 +57,9 @@ Device::Device(
                 sizeof(Device),
                 hwDeviceSizes,
                 UINT_MAX), // max semaphore count
-    m_gpuInfo(gpuInfo)
+    m_gpuInfo(gpuInfo),
+    m_settingFileMgr(SettingsFileName, pPlatform),
+    m_pSettingsPath(pSettingsPath)
 {
     Strncpy(&m_gpuName[0], gpuInfo.pGpuName, sizeof(m_gpuName));
 }
@@ -64,9 +68,10 @@ Device::Device(
 // Factory function for creating Device objects. Creates a new Windows::Device object if the GPU is supported by
 // the PAL library.
 Result Device::Create(
-    Platform*  pPlatform,
-    Device**   ppDeviceOut,
-    NullGpuId  nullGpuId)
+    Platform*   pPlatform,
+    const char* pSettingsPath,
+    Device**    ppDeviceOut,
+    NullGpuId   nullGpuId)
 {
     Result result = Result::ErrorInitializationFailed;
 
@@ -93,6 +98,7 @@ Result Device::Create(
         if (pMemory != nullptr)
         {
             (*ppDeviceOut) = PAL_PLACEMENT_NEW(pMemory) Device(pPlatform,
+                                                               pSettingsPath,
                                                                gpuInfo,
                                                                hwDeviceSizes);
 
@@ -604,7 +610,6 @@ void Device::FillGfx9ChipProperties(
         pChipInfo->gsPrimBufferDepth           =  1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt            =    32; // GPU__GC__NUM_MAX_GS_THDS;
     }
-#if PAL_BUILD_GFX11
     else if (AMDGPU_IS_NAVI31(familyId, eRevId))
     {
         pChipInfo->supportSpiPrefPriority  =     1;
@@ -677,7 +682,6 @@ void Device::FillGfx9ChipProperties(
         pChipInfo->gsPrimBufferDepth       =  1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =    32; // GPU__GC__NUM_MAX_GS_THDS;
     }
-#endif
     else
     {
         // Unknown device id
@@ -706,7 +710,7 @@ void Device::FillGfx9ChipProperties(
         }
     }
 
-    if (AMDGPU_IS_NAVI(familyId, eRevId))
+    if (IsGfx10Plus(pChipProps->gfxLevel))
     {
         PAL_ASSERT(pChipInfo->numCuPerSh <= 32);      // avoid overflow in activeWgpMask
         PAL_ASSERT((pChipInfo->numCuPerSh & 1) == 0); // CUs come in WGP pairs in gfx10
@@ -784,9 +788,7 @@ Result Device::EarlyInit(
     case GfxIpLevel::GfxIp10_1:
     case GfxIpLevel::GfxIp9:
     case GfxIpLevel::GfxIp10_3:
-#if PAL_BUILD_GFX11
     case GfxIpLevel::GfxIp11_0:
-#endif
         m_pFormatPropertiesTable = Gfx9::GetFormatPropertiesTable(m_chipProperties.gfxLevel,
                                                                   GetPlatform()->PlatformSettings());
 
@@ -812,6 +814,18 @@ Result Device::EarlyInit(
 
     // Init paths
     InitOutputPaths();
+
+    if (result == Result::Success)
+    {
+        result = m_settingFileMgr.Init(m_pSettingsPath);
+
+        if (result == Result::ErrorUnavailable)
+        {
+            // Unavailable means that the file was not found, which is an acceptable failure.
+            PAL_DPINFO("No settings file loaded.");
+            result = Result::Success;
+        }
+    }
 
     if (result == Result::Success)
     {
@@ -1182,7 +1196,7 @@ bool Device::ReadSetting(
     size_t               bufferSz
     ) const
 {
-    return false;
+    return m_settingFileMgr.GetValue(pSettingName, valueType, pValue, bufferSz);
 }
 
 // =====================================================================================================================

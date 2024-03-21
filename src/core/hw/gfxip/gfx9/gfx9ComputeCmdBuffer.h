@@ -134,11 +134,10 @@ public:
         uint32      mask,
         CompareFunc compareFunc) override;
     virtual void CmdWaitMemoryValue(
-        const IGpuMemory& gpuMemory,
-        gpusize           offset,
-        uint32            data,
-        uint32            mask,
-        CompareFunc       compareFunc) override;
+        gpusize     gpuVirtAddr,
+        uint32      data,
+        uint32      mask,
+        CompareFunc compareFunc) override;
 
     virtual void CmdWaitBusAddressableMemoryMarker(
         const IGpuMemory& gpuMemory,
@@ -270,11 +269,9 @@ private:
         const ComputePipelineSignature* pPrevSignature,
         uint32**                        ppCmdSpace);
 
-#if PAL_BUILD_GFX11
     template <bool Pm4OptImmediate>
     uint32* WritePackedUserDataEntriesToSgprs(uint32* pCmdSpace);
     uint32* WritePackedUserDataEntriesToSgprs(uint32* pCmdSpace);
-#endif
 
     void LeakNestedCmdBufferState(
         const ComputeCmdBuffer& cmdBuffer);
@@ -294,9 +291,7 @@ private:
     const ComputePipelineSignature*  m_pSignatureCs;
 
     const uint16 m_baseUserDataRegCs;
-
-#if PAL_BUILD_GFX11
-    const bool m_supportsShPairsPacketCs;
+    const bool   m_supportsShPairsPacketCs;
 
     // Array of valid packed register pairs holding user entries to be written into SGPRs.
     PackedRegisterPair m_validUserEntryRegPairsCs[Gfx11MaxPackedUserEntryCountCs];
@@ -308,7 +303,6 @@ private:
     // Total number of valid packed register pair entries mapped in m_validUserEntryRegPairsCs. This also functions as
     // the index to the valid packed register pair lookup.
     uint32             m_numValidUserEntriesCs;
-#endif
 
     // SET_PREDICATION is not supported on compute queue so what we work out here is an emulation using cond exec
     // Note m_gfxCmdBuff.clientPredicate and m_gfxCmdBuff.packetPredicate bits are 0 when:

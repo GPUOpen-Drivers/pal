@@ -1115,7 +1115,7 @@ void PipelineAbiProcessor<Allocator>::AssertNotStandardSection(
     }
     static constexpr char const* UsedSectionNames[] = { ".rel.text", ".rel.data", ".rela.text", ".rela.data",
         AmdGpuDisassemblyName, AmdGpuCommentName, AmdGpuCommentAmdIlName, AmdGpuCommentLlvmIrName };
-    for (uint32 i = 0; i < static_cast<uint32>(Util::ArrayLen(UsedSectionNames)); ++i)
+    for (uint32 i = 0; i < Util::ArrayLen32(UsedSectionNames); ++i)
     {
         PAL_ASSERT(strcmp(UsedSectionNames[i], pName) != 0);
     }

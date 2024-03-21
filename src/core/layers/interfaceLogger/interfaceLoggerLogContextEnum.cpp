@@ -128,7 +128,6 @@ void LogContext::Enum(
     }
 }
 
-#if PAL_BUILD_GFX11
 // =====================================================================================================================
 void LogContext::Enum(
     DispatchInterleaveSize value)
@@ -159,7 +158,6 @@ void LogContext::Enum(
 
     Value(StringTable[idx]);
 }
-#endif
 
 // =====================================================================================================================
 void LogContext::Enum(
@@ -1070,22 +1068,12 @@ void LogContext::Enum(
         nullptr,
         nullptr,
         nullptr,
-#if PAL_BUILD_GFX11
         "Navi31",
         "Navi32",
         "Navi33",
-#else
-        nullptr,
-        nullptr,
-        nullptr,
-#endif
         nullptr,
         "Raphael",
-#if PAL_BUILD_GFX11
         "Phoenix1",
-#else
-        nullptr,
-#endif
         nullptr,
         nullptr,
         nullptr,

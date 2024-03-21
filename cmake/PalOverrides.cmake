@@ -31,37 +31,33 @@ include_guard()
 
 if(PAL_BUILD_GFX9)
     set(ADDR_GFX10_BUILD ON)
+#if ADDR_GFX11_BUILD
+    set(ADDR_GFX11_BUILD ON)
+#endif
 
     # These ASICs don't have build macros, they're always present if this HWL is enabled.
-    set(ADDR_NAVI12_BUILD ON)
-    set(ADDR_NAVI14_BUILD ON)
-    set(ADDR_NAVI21_BUILD ON)
-    set(ADDR_NAVI22_BUILD ON)
-    set(ADDR_NAVI23_BUILD ON)
-    set(ADDR_NAVI24_BUILD ON)
+    set(ADDR_NAVI12_BUILD    ON)
+    set(ADDR_NAVI14_BUILD    ON)
+    set(ADDR_NAVI21_BUILD    ON)
+    set(ADDR_NAVI22_BUILD    ON)
+    set(ADDR_NAVI23_BUILD    ON)
+    set(ADDR_NAVI24_BUILD    ON)
     set(ADDR_REMBRANDT_BUILD ON)
-    set(ADDR_RAPHAEL_BUILD ON)
+    set(ADDR_RAPHAEL_BUILD   ON)
     set(ADDR_MENDOCINO_BUILD ON)
+    set(ADDR_NAVI31_BUILD    ON)
+    set(ADDR_NAVI32_BUILD    ON)
+    set(ADDR_NAVI33_BUILD    ON)
+    set(ADDR_PHOENIX_BUILD   ON)
+    set(ADDR_PHOENIX1_BUILD  ON)
 
-#if PAL_BUILD_GFX11
-    if(PAL_BUILD_GFX11)
-        set(ADDR_GFX11_BUILD     ON)
-        set(ADDR_NAVI31_BUILD    ON)
-        set(ADDR_NAVI32_BUILD    ON)
-        set(ADDR_NAVI33_BUILD    ON)
-        set(ADDR_PHOENIX_BUILD   ON)
-        set(ADDR_PHOENIX1_BUILD  ON)
-
-        set(PAL_SWD_BUILD_GFX11  ON)
-        set(PAL_SWD_BUILD_NAVI3X ON)
-        set(PAL_SWD_BUILD_NAVI31 ON)
-        set(PAL_SWD_BUILD_NAVI32 ON)
-        set(PAL_SWD_BUILD_NAVI33 ON)
-        set(PAL_SWD_BUILD_PHX    ON)
-        set(PAL_SWD_BUILD_PHX1   ON)
-
-    endif() # PAL_BUILD_GFX11
-#endif
+    set(PAL_SWD_BUILD_GFX11  ON)
+    set(PAL_SWD_BUILD_NAVI3X ON)
+    set(PAL_SWD_BUILD_NAVI31 ON)
+    set(PAL_SWD_BUILD_NAVI32 ON)
+    set(PAL_SWD_BUILD_NAVI33 ON)
+    set(PAL_SWD_BUILD_PHX    ON)
+    set(PAL_SWD_BUILD_PHX1   ON)
 
 endif() # PAL_BUILD_GFX9
 

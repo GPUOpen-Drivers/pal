@@ -124,18 +124,12 @@ public:
         const GlobalScissorParams& params) override;
     virtual void CmdBarrier(
         const BarrierInfo& barrierInfo) override;
-    virtual void OptimizeBarrierReleaseInfo(
-        uint32       pipePointWaitCount,
-        HwPipePoint* pPipePoints,
-        uint32*      pCacheMask) const override
-    {
-        GetNextLayer()->OptimizeBarrierReleaseInfo(pipePointWaitCount, pPipePoints, pCacheMask);
-    }
     virtual void OptimizeAcqRelReleaseInfo(
-        uint32* pStageMask,
-        uint32* pAccessMask) const override
+        BarrierType barrierType,
+        uint32*     pStageMask,
+        uint32*     pAccessMask) const override
     {
-        GetNextLayer()->OptimizeAcqRelReleaseInfo(pStageMask, pAccessMask);
+        GetNextLayer()->OptimizeAcqRelReleaseInfo(barrierType, pStageMask, pAccessMask);
     }
     virtual uint32 CmdRelease(
         const AcquireReleaseInfo& releaseInfo) override;
@@ -394,11 +388,10 @@ public:
         uint32      mask,
         CompareFunc compareFunc) override;
     virtual void CmdWaitMemoryValue(
-        const IGpuMemory& gpuMemory,
-        gpusize           offset,
-        uint32            data,
-        uint32            mask,
-        CompareFunc       compareFunc) override;
+        gpusize     gpuVirtAddr,
+        uint32      data,
+        uint32      mask,
+        CompareFunc compareFunc) override;
     virtual void CmdWaitBusAddressableMemoryMarker(
         const IGpuMemory& gpuMemory,
         uint32            data,

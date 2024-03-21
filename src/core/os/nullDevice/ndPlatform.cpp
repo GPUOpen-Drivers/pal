@@ -121,7 +121,7 @@ Result Platform::ReQueryDevices()
     {
         NullDevice::Device* pDevice = nullptr;
 
-        result = Device::Create(this, &pDevice, nullGpus[nullGpu].nullGpuId);
+        result = Device::Create(this, &m_settingsPath[0], &pDevice, nullGpus[nullGpu].nullGpuId);
 
         if ((result == Result::Success) && (pDevice != nullptr))
         {

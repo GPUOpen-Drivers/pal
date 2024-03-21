@@ -60,6 +60,17 @@ public:
         size_t      paramBufferSize
     );
 
+    /// Query the current Enhanced Crash Info configuration
+    DD_RESULT QueryEnhancedCrashInfoConfig(
+        const DDByteWriter& writer
+    );
+
+    /// Set the Enhanced Crash Info configuration
+    DD_RESULT SetEnhancedCrashInfoConfig(
+        const void* pParamBuffer,
+        size_t      paramBufferSize
+    );
+
 private:
     DDRpcClient m_hClient = DD_API_INVALID_HANDLE;
 };

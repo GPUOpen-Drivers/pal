@@ -63,7 +63,6 @@ inline uint32 Get256BAddrHi(
     return static_cast<uint32>(virtAddr >> 40);
 }
 
-#if PAL_BUILD_GFX11
 // Shift the 64-bit wide address by 7 to get 128 byte-aligned address, and return the low DWORD of that shifted
 // address.
 //
@@ -87,7 +86,6 @@ inline uint32 Get128BAddrHi(
     PAL_ASSERT((virtAddr & 0x7F) == 0);
     return static_cast<uint32>(virtAddr >> 39);
 }
-#endif
 
 // Shifts and combines the low and high DWORD's of a 256 byte-aligned address to get the original GPU virtual
 // address.
@@ -335,6 +333,8 @@ public:
 
     virtual const ImageMemoryLayout& GetMemoryLayout() const override
         { return m_gpuMemLayout; }
+
+    bool HasMetadata() const { return m_gpuMemLayout.metadataSize > 0;}
 
     // Gets base address of a subresource
     gpusize GetSubresourceBaseAddr(const SubresId& subresource) const

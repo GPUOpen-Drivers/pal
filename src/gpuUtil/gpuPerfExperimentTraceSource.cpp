@@ -447,7 +447,8 @@ void GpuPerfExperimentTraceSource::WriteSqttDataChunks()
 
             if (pChunk != nullptr)
             {
-                SqttTraceInfo traceInfo = {};
+                SqttTraceInfo traceInfo = { };
+                pChunk->pciId                      = m_pPlatform->GetPciId(DefaultDeviceIndex).u32All;
                 pChunk->instrumentationVersionSpec = InstrumentationSpecVersion;
                 pChunk->instrumentationVersionApi  = InstrumentationApiVersion;
 
@@ -556,6 +557,7 @@ Result GpuPerfExperimentTraceSource::WriteSpmSessionChunk(
     size_t              timestampBufferSize)
 {
     SpmSessionHeader sessionHeader = {
+        .pciId            = m_pPlatform->GetPciId(DefaultDeviceIndex).u32All,
         .flags            = 0x0, // unused
         .samplingInterval = spmTraceInfo.sampleFrequency,
         .numTimestamps    = spmTraceInfo.numTimestamps,
@@ -587,6 +589,7 @@ Result GpuPerfExperimentTraceSource::WriteSpmCounterDataChunks(
     for (uint32 i = 0; (i < spmTraceInfo.numSpmCounters) && (result == Result::Success); i++)
     {
         SpmCounterDataHeader counterHeader = {
+            .pciId         = m_pPlatform->GetPciId(DefaultDeviceIndex).u32All,
             .gpuBlock      = static_cast<GpuBlock>(pCounterInfo[i].block),
             .blockInstance = pCounterInfo[i].instance,
             .eventIndex    = pCounterInfo[i].eventIndex,

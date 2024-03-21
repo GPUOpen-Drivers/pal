@@ -24,6 +24,7 @@
  **********************************************************************************************************************/
 
 #if PAL_BUILD_RDF
+
 #include "palAutoBuffer.h"
 #include "core/platform.h"
 #include "core/device.h"
@@ -73,11 +74,9 @@ void PopulateTraceGfxIpLevel(
     case GfxIpLevel::GfxIp10_3:
         *pTraceGfxIpLevel = { 10, 3, 0 };
         break;
-#if PAL_BUILD_GFX11
     case GfxIpLevel::GfxIp11_0:
         *pTraceGfxIpLevel = { 11, 0, 0 };
         break;
-#endif
 #endif
     default:
         PAL_ASSERT_ALWAYS();
@@ -141,22 +140,21 @@ Result AsicInfoTraceSource::SampleGpuClocks(
 }
 
 // =====================================================================================================================
-Result AsicInfoTraceSource::FillTraceChunkAsicInfo(
+void AsicInfoTraceSource::FillTraceChunkAsicInfo(
     const Pal::DeviceProperties&         properties,
     const Pal::PerfExperimentProperties& perfExpProps,
     const GpuClocksSample&               gpuClocks,
     TraceChunkAsicInfo*                  pAsicInfo)
 {
-    Result result = (pAsicInfo == nullptr) ? Result::ErrorInvalidPointer : Result::Success;
-
+    pAsicInfo->pciId                      = m_pPlatform->GetPciId(properties.gpuIndex).u32All;
     pAsicInfo->shaderCoreClockFrequency   = gpuClocks.gpuEngineClockSpeed * 1000000;
     pAsicInfo->memoryClockFrequency       = gpuClocks.gpuMemoryClockSpeed * 1000000;
-
     pAsicInfo->deviceId                   = properties.deviceId;
     pAsicInfo->deviceRevisionId           = properties.revisionId;
     pAsicInfo->vgprsPerSimd               = properties.gfxipProperties.shaderCore.vgprsPerSimd;
     pAsicInfo->sgprsPerSimd               = properties.gfxipProperties.shaderCore.sgprsPerSimd;
     pAsicInfo->shaderEngines              = properties.gfxipProperties.shaderCore.numShaderEngines;
+
     uint32 computeUnitPerShaderEngine     = 0;
     for (uint32 seIndex = 0; seIndex < properties.gfxipProperties.shaderCore.numShaderEngines; seIndex++)
     {
@@ -173,6 +171,7 @@ Result AsicInfoTraceSource::FillTraceChunkAsicInfo(
         }
     }
     pAsicInfo->computeUnitPerShaderEngine = computeUnitPerShaderEngine;
+
     pAsicInfo->simdPerComputeUnit         = properties.gfxipProperties.shaderCore.numSimdsPerCu;
     pAsicInfo->wavefrontsPerSimd          = properties.gfxipProperties.shaderCore.numWavefrontsPerSimd;
     pAsicInfo->minimumVgprAlloc           = properties.gfxipProperties.shaderCore.minVgprAlloc;
@@ -230,23 +229,20 @@ Result AsicInfoTraceSource::FillTraceChunkAsicInfo(
                         properties.gfxipProperties.shaderCore.activeCuMask[se][sa], 0xffff0000) == false);
         }
     }
-
-    return result;
 }
 
 // =====================================================================================================================
-// Translate TraceChunkAsicInfo to TraceChunkInfo and write it into TraceSession
-void AsicInfoTraceSource::WriteAsicInfoTraceChunk()
+void AsicInfoTraceSource::OnTraceFinished()
 {
     Result result = Result::Success;
-    uint32 deviceCount = m_pPlatform->GetDeviceCount();
+    const uint32 deviceCount = m_pPlatform->GetDeviceCount();
 
-    for (uint32 i = 0 ; (i < deviceCount) && (result == Result::Success) ; i++)
+    for (uint32 i = 0; (i < deviceCount) && (result == Result::Success); i++)
     {
         Device* pDevice = m_pPlatform->GetDevice(i);
 
-        Pal::DeviceProperties deviceProps;
-        Pal::PerfExperimentProperties perfExperimentProps;
+        Pal::DeviceProperties         deviceProps         = { };
+        Pal::PerfExperimentProperties perfExperimentProps = { };
 
         // Load device properties
         result = pDevice->GetProperties(&deviceProps);
@@ -260,48 +256,30 @@ void AsicInfoTraceSource::WriteAsicInfoTraceChunk()
         if (result == Result::Success)
         {
             // Populate gpu clock values
-            GpuClocksSample gpuClocksSample = {};
+            GpuClocksSample gpuClocksSample = { };
             SampleGpuClocks(&gpuClocksSample, pDevice, deviceProps);
 
             // Populate the TraceAsicChunk with the Asic details
-            TraceChunkAsicInfo traceChunkAsicInfo = {};
-            result = FillTraceChunkAsicInfo(deviceProps, perfExperimentProps, gpuClocksSample, &traceChunkAsicInfo);
+            TraceChunkAsicInfo traceChunkAsicInfo = { };
+            FillTraceChunkAsicInfo(deviceProps, perfExperimentProps, gpuClocksSample, &traceChunkAsicInfo);
 
             // Prepare the chunk header and write the chunk data (ie. device info) into TraceSession.
             // Each device corresponds to one chunk in the RDF file.
-            if (result == Result::Success)
-            {
-                TraceChunkInfo info;
-                memcpy(info.id, chunkTextIdentifier, GpuUtil::TextIdentifierSize);
-                info.pHeader           = nullptr;
-                info.headerSize        = 0;
-                info.version           = 1;
-                info.pData             = &traceChunkAsicInfo;
-                info.dataSize          = sizeof(TraceChunkAsicInfo);
-                info.enableCompression = false;
+            TraceChunkInfo info = { };
+            memcpy(info.id, AsicInfoChunkId, TextIdentifierSize);
+            info.pHeader           = nullptr;
+            info.headerSize        = 0;
+            info.version           = AsicInfoChunkVersion;
+            info.pData             = &traceChunkAsicInfo;
+            info.dataSize          = sizeof(TraceChunkAsicInfo);
+            info.enableCompression = false;
 
-                result = m_pPlatform->GetTraceSession()->WriteDataChunk(this, info);
-            }
+            result = m_pPlatform->GetTraceSession()->WriteDataChunk(this, info);
         }
-        if (result != Result::Success)
-        {
-            const char errorMessage[] = "[AsicInfoChunk] Error Writing Chunk Data";
 
-            m_pPlatform->GetTraceSession()->ReportError(
-                chunkTextIdentifier,
-                errorMessage,
-                sizeof(errorMessage),
-                TraceErrorPayload::ErrorString,
-                result);
-        }
+        PAL_ASSERT(result == Result::Success);
     }
 }
 
-// =====================================================================================================================
-void AsicInfoTraceSource::OnTraceFinished()
-{
-    WriteAsicInfoTraceChunk();
-}
-
-}
+} // namespace GpuUtil
 #endif

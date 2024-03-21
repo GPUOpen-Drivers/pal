@@ -48,53 +48,59 @@ ApiInfoTraceSource::~ApiInfoTraceSource()
 }
 
 // =====================================================================================================================
-void ApiInfoTraceSource::FillTraceChunkApiInfo(TraceChunkApiInfo* pApiInfo)
+void ApiInfoTraceSource::FillTraceChunkApiInfo(
+    TraceChunk::ApiInfo* pApiInfo)
 {
-    pApiInfo->apiType         = TraceApiType::VULKAN;
+    switch (m_pPlatform->GetClientApiId())
+    {
+    case ClientApi::Dx9:
+        pApiInfo->apiType = TraceChunk::ApiType::DirectX9;
+        break;
+    case ClientApi::Dx12:
+        pApiInfo->apiType = TraceChunk::ApiType::DirectX12;
+        break;
+    case ClientApi::Vulkan:
+        pApiInfo->apiType = TraceChunk::ApiType::Vulkan;
+        break;
+    case ClientApi::Mantle:
+        pApiInfo->apiType = TraceChunk::ApiType::Mantle;
+        break;
+    case ClientApi::OpenCl:
+        pApiInfo->apiType = TraceChunk::ApiType::OpenCl;
+        break;
+    case ClientApi::Hip:
+        pApiInfo->apiType = TraceChunk::ApiType::Hip;
+        break;
+    case ClientApi::Pal:
+    case ClientApi::Amf:
+    default:
+        pApiInfo->apiType = TraceChunk::ApiType::Generic;
+        break;
+    }
+
     pApiInfo->apiVersionMajor = m_pPlatform->GetClientApiMajorVer();
     pApiInfo->apiVersionMinor = m_pPlatform->GetClientApiMinorVer();
 }
 
 // =====================================================================================================================
-// Translate TraceChunkApiInfo to TraceChunkInfo and write it into TraceSession
-void ApiInfoTraceSource::WriteApiInfoTraceChunk()
-{
-    Result result = Result::Success;
-    // Populate the TraceApiChunk with the Api details
-    TraceChunkApiInfo traceChunkApiInfo = {};
-    memset(&traceChunkApiInfo, 0, sizeof(TraceChunkApiInfo));
-    FillTraceChunkApiInfo(&traceChunkApiInfo);
-
-    TraceChunkInfo info;
-    memcpy(info.id, apiChunkTextIdentifier, GpuUtil::TextIdentifierSize);
-    info.pHeader           = nullptr;
-    info.headerSize        = 0;
-    info.version           = 1;
-    info.pData             = &traceChunkApiInfo;
-    info.dataSize          = sizeof(TraceChunkApiInfo);
-    info.enableCompression = false;
-
-    result = m_pPlatform->GetTraceSession()->WriteDataChunk(this, info);
-
-    if (result != Result::Success)
-    {
-        const char errorMessage[] = "[ApiInfoChunk] Error Writing Chunk Data";
-
-        m_pPlatform->GetTraceSession()->ReportError(
-            info.id,
-            errorMessage,
-            sizeof(errorMessage),
-            TraceErrorPayload::ErrorString,
-            result);
-    }
-
-}
-
-// =====================================================================================================================
 void ApiInfoTraceSource::OnTraceFinished()
 {
-    WriteApiInfoTraceChunk();
+    TraceChunk::ApiInfo apiInfo = { };
+    FillTraceChunkApiInfo(&apiInfo);
+
+    TraceChunkInfo info = {
+        .version           = TraceChunk::ApiChunkVersion,
+        .pHeader           = nullptr,
+        .headerSize        = 0,
+        .pData             = &apiInfo,
+        .dataSize          = sizeof(TraceChunk::ApiInfo),
+        .enableCompression = false
+    };
+    memcpy(info.id, TraceChunk::ApiChunkTextIdentifier, TextIdentifierSize);
+
+    Result result = m_pPlatform->GetTraceSession()->WriteDataChunk(this, info);
+    PAL_ASSERT(result == Result::Success);
 }
 
-}
+} // namespace GpuUtil
 #endif

@@ -190,11 +190,7 @@ struct GpaSampleConfig
             Pal::uint32 cacheFlushOnCounterCollection :  1;  ///< Insert cache flush and invalidate events before and
                                                              ///  after every sample.
             Pal::uint32 sqShaderMask                  :  1;  ///< If sqShaderMask is valid.
-#if PAL_BUILD_GFX11
             Pal::uint32 sqWgpShaderMask               :  1;  ///< If sqWgpShaderMask is valid.
-#else
-            Pal::uint32 reserved1                     :  1;  ///< Reserved for future use.
-#endif
             Pal::uint32 reserved                      : 28;  ///< Reserved for future use.
         };
         Pal::uint32 u32All;                                  ///< Bit flags packed as uint32.
@@ -203,10 +199,8 @@ struct GpaSampleConfig
 
     Pal::PerfExperimentShaderFlags sqShaderMask;    ///< Which shader stages are sampled by GpuBlock::Sq counters.
                                                     ///< Only used if flags.sqShaderMask is set to 1.
-#if PAL_BUILD_GFX11
     Pal::PerfExperimentShaderFlags sqWgpShaderMask; ///< Which shader stages are sampled by GpuBlock::SqWgp counters.
                                                     ///< Only used if flags.sqWgpShaderMask is set to 1.
-#endif
 
     struct
     {
@@ -429,6 +423,15 @@ struct SpmTraceInfo
     Pal::uint32 sampleFrequency; ///< The SPM counter sampling frequency
 };
 
+/// Struct used for storing QueueTimings-specific trace information
+struct QueueTimingsTraceInfo
+{
+    Pal::uint32 numQueueInfoRecords;
+    Pal::uint32 numQueueEventRecords;
+    Pal::uint32 queueInfoTableSize;
+    Pal::uint32 queueEventTableSize;
+};
+
 /**
 ***********************************************************************************************************************
 * @class GpaSession
@@ -584,7 +587,6 @@ public:
     /// the session will be marked invalid and no sample commands will be inserted.  Reporting of this error is
     /// delayed until GetResults().
     ///
-#if PAL_BUILD_GFX11
     /// A note for GpuBlock::SqWgp
     /// Client of palPerfExperiment may configure counters of GpuBlock::SqWgp based on a per-wgp granularity
     /// only if the following are disabled: GFXOFF, virtualization/SRIOV, VDDGFX (power down features), clock
@@ -596,7 +598,6 @@ public:
     /// The counter data is still reported per WGP (not aggregated for the whole SE).
     ///
     /// Check the following two documents for details:
-#endif
     ///
     /// @param [in]  pCmdBuf      Command buffer to issue the begin sample commands.  All operations performed
     ///                           between executing the BeginSample() and EndSample() GPU commands will contribute to
@@ -760,6 +761,25 @@ public:
         SpmTraceInfo* pTraceInfo,
         size_t*       pSizeInBytes,
         void*         pData) const;
+
+    /// Retrieves the Queue Timings data from the active GpaSession.
+    /// Only valid when the GpaSession had `enableQueueTiming` flag set.
+    ///
+    /// @param [out]    pTraceInfo        Optional. If non-null, this structure is populated with metadata.
+    /// @param [in,out] pSizeInBytes      If pData is non-null, the input value of *pSizeInBytes is the amount of space
+    ///                                   available in pData.
+    ///                                   If pData is null, *pSizeInBytes will be set to the amount of space
+    ///                                   required.
+    /// @param [out]    pData             Can be null to query how much size is required.
+    ///                                   If non-null, the sample results will be written to this location.
+    ///
+    /// @returns Success if the sample results are successfully written to pData (or, if pData is null, the required
+    ///          size is successfully written to pSizeInBytes).  Otherwise, possible errors include:
+    ///          + ErrorUnavailable if the session was not configured with `enableQueueTiming`.
+    Pal::Result GetQueueTimingsData(
+        QueueTimingsTraceInfo* pTraceInfo,
+        size_t*                pSizeInBytes,
+        void*                  pData) const;
 
     /// Moves the session to the _reset_ state, marking all sessions resources as unused and available for reuse when
     /// the session is re-built.

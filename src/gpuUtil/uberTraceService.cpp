@@ -24,6 +24,7 @@
  **********************************************************************************************************************/
 
 #if PAL_BUILD_RDF
+
 #include "core/platform.h"
 #include "uberTraceService.h"
 #include <util/ddStructuredReader.h>
@@ -92,52 +93,52 @@ DD_RESULT UberTraceService::ConfigureTraceParams(
     const void* pParamBuffer,
     size_t      paramBufferSize)
 {
-    Result    result          = m_pPlatform->GetTraceSession()->UpdateTraceConfig(pParamBuffer, paramBufferSize);
-    DD_RESULT devDriverResult = PalResultToDdResult(result);
-    return devDriverResult;
+    const Result result = m_pPlatform->GetTraceSession()->UpdateTraceConfig(pParamBuffer, paramBufferSize);
+    return PalResultToDdResult(result);
 }
 
 // =====================================================================================================================
 DD_RESULT UberTraceService::RequestTrace()
 {
-    DD_RESULT devDriverResult = (m_pPlatform->GetTraceSession()->RequestTrace() == Result::Success) ?
-                                DD_RESULT_SUCCESS : DD_RESULT_DD_GENERIC_UNAVAILABLE;
-    return devDriverResult;
+    const Result result = m_pPlatform->GetTraceSession()->RequestTrace();
+    return PalResultToDdResult(result);
 }
 
 // =====================================================================================================================
 DD_RESULT UberTraceService::CollectTrace(
     const DDByteWriter& writer)
 {
-    size_t pDataSize = 0;
-    char*  pData     = nullptr;
+    size_t dataSize = 0;
+    uint8* pData    = nullptr;
 
-    // CollectTrace needs to be called twice: (1) to retrieve the correct trace data size for buffer allocation and
-    // (2) to consume any trace data stored within TraceSession. When the buffer pointer is null, CollectTrace returns
-    // only the data size.
-    DD_RESULT result = PalResultToDdResult(m_pPlatform->GetTraceSession()->CollectTrace(pData, &pDataSize));
+    // CollectTrace needs to be called twice:
+    //   (1) To retrieve the correct trace data size for buffer allocation, and
+    //   (2) To consume any trace data stored within TraceSession. When the buffer pointer is null,
+    //       CollectTrace returns only the data size.
+    DD_RESULT result = PalResultToDdResult(m_pPlatform->GetTraceSession()->CollectTrace(pData, &dataSize));
 
     if (result == DD_RESULT_SUCCESS)
     {
-        pData  = PAL_NEW_ARRAY(char, pDataSize, m_pPlatform, Util::AllocInternalTemp);
-        result = PalResultToDdResult(m_pPlatform->GetTraceSession()->CollectTrace(pData, &pDataSize));
+        pData  = PAL_NEW_ARRAY(uint8, dataSize, m_pPlatform, Util::AllocInternalTemp);
+        result = PalResultToDdResult(m_pPlatform->GetTraceSession()->CollectTrace(pData, &dataSize));
     }
 
     if (result == DD_RESULT_SUCCESS)
     {
-        result = writer.pfnBegin(writer.pUserdata, &pDataSize);
+        result = writer.pfnBegin(writer.pUserdata, &dataSize);
 
         if (result == DD_RESULT_SUCCESS)
         {
-            result = writer.pfnWriteBytes(writer.pUserdata, pData, pDataSize);
+            result = writer.pfnWriteBytes(writer.pUserdata, pData, dataSize);
         }
 
         writer.pfnEnd(writer.pUserdata, result);
-
-        PAL_SAFE_DELETE_ARRAY(pData, m_pPlatform);
     }
+
+    PAL_SAFE_DELETE_ARRAY(pData, m_pPlatform);
 
     return result;
 }
-}
+
+} // namespace GpuUtil
 #endif

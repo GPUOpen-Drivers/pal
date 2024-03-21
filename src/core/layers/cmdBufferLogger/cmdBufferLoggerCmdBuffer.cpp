@@ -3647,11 +3647,10 @@ void CmdBuffer::CmdWaitRegisterValue(
 
 // =====================================================================================================================
 void CmdBuffer::CmdWaitMemoryValue(
-    const IGpuMemory& gpuMemory,
-    gpusize           offset,
-    uint32            data,
-    uint32            mask,
-    CompareFunc       compareFunc)
+    gpusize     gpuVirtAddr,
+    uint32      data,
+    uint32      mask,
+    CompareFunc compareFunc)
 {
     if (m_annotations.logMiscellaneous)
     {
@@ -3660,7 +3659,7 @@ void CmdBuffer::CmdWaitMemoryValue(
         // TODO: Add comment string.
     }
 
-    GetNextLayer()->CmdWaitMemoryValue(*NextGpuMemory(&gpuMemory), offset, data, mask, compareFunc);
+    GetNextLayer()->CmdWaitMemoryValue(gpuVirtAddr, data, mask, compareFunc);
 }
 
 // =====================================================================================================================

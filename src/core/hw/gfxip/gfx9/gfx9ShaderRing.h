@@ -294,7 +294,6 @@ private:
     PAL_DISALLOW_COPY_AND_ASSIGN(TaskMeshCtrlDrawRing);
 };
 
-#if PAL_BUILD_GFX11
 // =====================================================================================================================
 // Implements shader ring functionality for vertex and primitive atributes through memory
 class VertexAttributeRing final : public ShaderRing
@@ -316,7 +315,6 @@ private:
     PAL_DISALLOW_DEFAULT_CTOR(VertexAttributeRing);
     PAL_DISALLOW_COPY_AND_ASSIGN(VertexAttributeRing);
 };
-#endif
 
 } // Gfx9
 } // Pal

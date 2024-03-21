@@ -614,7 +614,6 @@ Gfx10DepthStencilView::Gfx10DepthStencilView(
     }
 }
 
-#if PAL_BUILD_GFX11
 // =====================================================================================================================
 // Helper to initialize the GFX11 DB_RENDER_CONTROL reg based on panel settings and necessary workarounds.
 void Gfx10DepthStencilView::SetGfx11StaticDbRenderControlFields(
@@ -670,7 +669,6 @@ void Gfx10DepthStencilView::SetGfx11StaticDbRenderControlFields(
         }
     }
 }
-#endif
 
 // =====================================================================================================================
 // Finalizes the PM4 packet image by setting up the register values used to write this View object to hardware.
@@ -780,14 +778,12 @@ void Gfx10DepthStencilView::InitRegisters(
         }
     }
 
-#if PAL_BUILD_GFX11
     if (IsGfx11(palDevice))
     {
         const ImageCreateInfo& imageCreateInfo = pParentImg->GetImageCreateInfo();
 
         SetGfx11StaticDbRenderControlFields(device, imageCreateInfo.fragments, &m_regs.dbRenderControl);
     }
-#endif
 }
 
 // =====================================================================================================================

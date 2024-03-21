@@ -184,17 +184,10 @@ static SwizzleMode ConvertSwizzleModes(AddrSwizzleMode addrSwizzleMode)
         SwizzleMode64KbSX,     // ADDR_SW_64KB_S_X = 25,
         SwizzleMode64KbDX,     // ADDR_SW_64KB_D_X = 26,
         SwizzleMode64KbRX,     // ADDR_SW_64KB_R_X = 27,
-#if PAL_BUILD_GFX11
         SwizzleMode256KbVarZX, // ADDR_SW_256KB_Z_X = 28,
         SwizzleMode256KbVarSX, // ADDR_SW_256KB_S_X = 29,
         SwizzleMode256KbVarDX, // ADDR_SW_256KB_D_X = 30,
         SwizzleMode256KbVarRX, // ADDR_SW_256KB_R_X = 31,
-#else
-        SwizzleMode256KbVarZX, // ADDR_SW_VAR_Z_X = 28,
-        SwizzleModeCount,      // ADDR_SW_MISCDEF29 = 29,
-        SwizzleModeCount,      // ADDR_SW_MISCDEF30 = 30,
-        SwizzleMode256KbVarRX, // ADDR_SW_VAR_Z_X = 31,
-#endif
         SwizzleModeLinear      // ADDR_SW_LINEAR_GENERAL = 32
     };
     static_assert(ArrayLen(ConversionTable) == ADDR_SW_MAX_TYPE);
@@ -519,12 +512,10 @@ Result Image::Finalize(
 
     Result result = Result::Success;
 
-#if PAL_BUILD_GFX11
     if (IsGfx11(m_device) && (Parent()->IsEqaa() == false))
     {
         m_pImageInfo->resolveMethod.shaderPs = 1;
     }
-#endif
 
     if (useSharedMetadata)
     {
@@ -537,12 +528,10 @@ Result Image::Finalize(
         // Fast-clear metadata is a must for shared DCC and HTILE. Sharing is disabled if it is not provided.
         // however, when dcc is shared from mesa, fastClearMetaDataOffset doesn't exist for mesa, so add the filter.
         if (useDcc &&
-            (sharedMetadata.fastClearMetaDataOffset[0] == 0) && (m_createInfo.flags.sharedWithMesa != 1)
-#if PAL_BUILD_GFX11
+            (sharedMetadata.fastClearMetaDataOffset[0] == 0) &&
+            (m_createInfo.flags.sharedWithMesa != 1) &&
             // Fast-clear metadata do not exist on GFX11, so we should not check it.
-            && (IsGfx11(m_device) == false)
-#endif
-            )
+            (IsGfx11(m_device) == false))
         {
             useDcc = false;
             result = Result::ErrorNotShareable;
@@ -716,7 +705,6 @@ Result Image::Finalize(
                 needsFastColorClearMetaData = false;
                 needsDccStateMetaData = false;
             }
-#if PAL_BUILD_GFX11
             else if (IsGfx11(m_device))
             {
                 // The fast-color-clear meta-data is used for storing values associated with the
@@ -727,7 +715,6 @@ Result Image::Finalize(
                 // unnecessary decompresses and is still useful for GFX11.
                 needsFastColorClearMetaData = false;
             }
-#endif
         }
     } // End check for (useDcc != false)
 
@@ -1270,16 +1257,13 @@ void Image::InitLayoutStateMasks()
                 }
             }
 
-#if PAL_BUILD_GFX11
             // Gfx11 can always support compressed reads if the image is tc-compatible
             if (IsGfx11(m_device))
             {
                 compressedLayout.usages |= LayoutShaderRead;
             }
-#endif
-            const GfxIpLevel  gfxLevel = m_device.ChipProperties().gfxLevel;
 
-            if (HasDccData() && (gfxLevel == GfxIpLevel::GfxIp10_1))
+            if (HasDccData() && (m_device.ChipProperties().gfxLevel == GfxIpLevel::GfxIp10_1))
             {
                 // Verify that transitions to presentable state will invoke a DCC decompress on GFX10 for texture-
                 // fetchable images.
@@ -1299,10 +1283,7 @@ void Image::InitLayoutStateMasks()
 
             // Also since we can't be tc-compatible we must not have dcc data
             PAL_ASSERT(HasDccData() == false);
-
-#if PAL_BUILD_GFX11
             PAL_ASSERT(IsGfx11(m_device) == false);
-#endif
 
             // The only case it won't work if DCC is allocated and yet this surface is not tc-compatible, if dcc
             // was never allocated then we can keep entire image color compressed (isComprFmaskShaderReadable takes
@@ -1348,12 +1329,10 @@ void Image::InitLayoutStateMasks()
         // but we are including it here for easier client implementation. If the implementation is impossible
         // then we don't need to decompress because of it since it can't happen. This could come up of a client
         // has a simple implementation where e.g. GENERAL layout includes every usage without checking image caps.
-
-#if PAL_BUILD_GFX11
+        //
         // GFX11 doesn't support fixed function resolves, so LayoutResolveSrc can only remain compressed
         // if the image is TC-compatible.
         if ((IsGfx11(m_device) == false) || pBaseSubResInfo->flags.supportMetaDataTexFetch)
-#endif
         {
             compressedLayout.usages |= LayoutResolveSrc;
         }
@@ -1752,7 +1731,6 @@ Result Image::ComputePipeBankXor(
                 {
                     *pPipeBankXor = pipeBankXorOutput.pipeBankXor;
 
-#if PAL_BUILD_GFX11
                     if (IsGfx11(m_device))
                     {
                         // GFX9 and GFX10 have the pipe-bank XOR value included in the address starting at bit 8;
@@ -1761,7 +1739,6 @@ Result Image::ComputePipeBankXor(
                         // to be shifted eight more times.
                         *pPipeBankXor <<= 2;
                     }
-#endif
                 }
                 else
                 {
@@ -2179,11 +2156,9 @@ bool Image::IsFormatReplaceable(
             // because they have different black and white values and HW will convert which changes the data.
             isFormatReplaceable =
                 (((HasDccData() == false)                                                               ||
-#if PAL_BUILD_GFX11
                   // GFX11 can always allow format replacement since the original format is encoded
                   // into the DCC key; gate by the panel setting.
                   (IsGfx11(m_device) && GetGfx9Settings(m_device).gfx11AlwaysAllowDccFormatReplacement) ||
-#endif
                   (ImageLayoutToColorCompressionState(m_layoutToState.color, layout) == ColorDecompressed)) &&
                  (isMmFormat == false));
         }
@@ -3911,7 +3886,6 @@ uint32 Image::GetPipeMisalignedMetadataFirstMip(
         const int32 samplesOverlap = Min(log2Samples, overlap);
         const bool  isNonPow2Vram  = (IsPowerOfTwo(m_gfxDevice.Parent()->MemoryProperties().vramBusBitWidth) == false);
 
-#if PAL_BUILD_GFX11
         // Add case of mips in the metadata mip-tail for GFX11
         if (IsGfx11(chipProps.gfxLevel))
         {
@@ -3927,7 +3901,6 @@ uint32 Image::GetPipeMisalignedMetadataFirstMip(
                 }
             }
         }
-#endif
 
         if (isDepth)
         {
@@ -3937,7 +3910,6 @@ uint32 Image::GetPipeMisalignedMetadataFirstMip(
                firstMip = 0;
             }
         }
-#if PAL_BUILD_GFX11
         else if (IsGfx11(chipProps.gfxLevel))
         {
             if (HasDccData() && (baseSubRes.flags.supportMetaDataTexFetch != 0) && (isNonPow2Vram || (overlap > 0)))
@@ -3945,7 +3917,6 @@ uint32 Image::GetPipeMisalignedMetadataFirstMip(
                 firstMip = 0;
             }
         }
-#endif
         else
         {
             const int32 log2SamplesFragsDiff = Max<int32>(0, (log2Samples - gbAddrConfig.bits.MAX_COMPRESSED_FRAGS));

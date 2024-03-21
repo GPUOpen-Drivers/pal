@@ -45,6 +45,9 @@ typedef uint16_t DDConnectionId;
 /// GPU ID Determined from (BusID << 16) | (DeviceID << 8) | FunctionID
 typedef uint32_t DDGpuId;
 
+/// GPU ID used when it is unknown which GPU the message relates to
+static const DDGpuId DDGpuIdUnknown = 0xFFFFFFFF;
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

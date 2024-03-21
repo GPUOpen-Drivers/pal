@@ -372,11 +372,10 @@ public:
         uint32      mask,
         CompareFunc compareFunc) override;
     virtual void CmdWaitMemoryValue(
-        const IGpuMemory& gpuMemory,
-        gpusize           offset,
-        uint32            data,
-        uint32            mask,
-        CompareFunc       compareFunc) override;
+        gpusize     gpuVirtAddr,
+        uint32      data,
+        uint32      mask,
+        CompareFunc compareFunc) override;
     virtual void CmdWaitBusAddressableMemoryMarker(
         const IGpuMemory& gpuMemory,
         uint32            data,

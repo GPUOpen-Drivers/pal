@@ -189,8 +189,6 @@ private:
         AcqRelAutoBuffer* pBltList;       // List of AcqRelImgTransitionInfo that need layout transition BLT.
         uint32            bltCount;       // Number of valid entries in pBltList.
         uint32            bltStageMask;   // Pipeline stage mask for all layout transition BLTs in pBltList.
-        uint32            bltAccessMask;  // Coherency access mask for all layout transition BLTs in pBltList.
-        bool              hasMetadata;    // If any image of the transition images has metadata.
     };
 
     const RsrcProcMgr& RsrcProcMgr() const;
@@ -250,18 +248,44 @@ private:
         Pm4CmdBuffer*       pCmdBuf,
         const ImgBarrier&   imageBarrier) const;
 
-    SyncGlxFlags GetAcquireCacheFlags(
-        uint32                        accessMask,
-        bool                          refreshTcc,
-        bool                          mayHaveMetadata,
-        Developer::BarrierOperations* pBarrierOps) const;
+    SyncGlxFlags GetCacheSyncOps(
+        Pm4CmdBuffer*       pCmdBuf,
+        bool                isGlobalBarrier,
+        const ImgBarrier*   pImgBarrier,
+        uint32              srcAccessMask,
+        uint32              dstAccessMask,
+        bool                shaderMdAccessIndirectOnly,
+        bool*               pSyncRbCache) const;
 
-    SyncGlxFlags GetReleaseThenAcquireCacheFlags(
-        uint32                        srcAccessMask,
-        uint32                        dstAccessMask,
-        bool                          refreshTcc,
-        bool                          mayHaveMetadata,
-        Developer::BarrierOperations* pBarrierOps) const;
+    SyncGlxFlags GetGlobalCacheSyncOps(
+        Pm4CmdBuffer*       pCmdBuf,
+        uint32              srcAccessMask,
+        uint32              dstAccessMask,
+        bool*               pSyncRbCache) const
+    {
+        return GetCacheSyncOps(pCmdBuf, true, nullptr, srcAccessMask, dstAccessMask, true, pSyncRbCache);
+    }
+
+    SyncGlxFlags GetBufferCacheSyncOps(
+        Pm4CmdBuffer*       pCmdBuf,
+        uint32              srcAccessMask,
+        uint32              dstAccessMask,
+        bool*               pSyncRbCache) const
+    {
+        return GetCacheSyncOps(pCmdBuf, false, nullptr, srcAccessMask, dstAccessMask, true, pSyncRbCache);
+    }
+
+    SyncGlxFlags GetImageCacheSyncOps(
+        Pm4CmdBuffer*       pCmdBuf,
+        const ImgBarrier*   pImgBarrier,
+        uint32              srcAccessMask,
+        uint32              dstAccessMask,
+        bool                shaderMdAccessIndirectOnly,
+        bool*               pSyncRbCache) const
+    {
+        return GetCacheSyncOps(pCmdBuf, false, pImgBarrier, srcAccessMask, dstAccessMask,
+                               shaderMdAccessIndirectOnly, pSyncRbCache);
+    }
 
     bool IssueBlt(
         Pm4CmdBuffer*                 pCmdBuf,
@@ -271,21 +295,28 @@ private:
         bool*                         pPreInitHtileSynced,
         Developer::BarrierOperations* pBarrierOps) const;
 
-    bool GetAcqRelLayoutTransitionBltInfo(
+    bool OptimizeImageBarrier(
+        Pm4CmdBuffer*               pCmdBuf,
+        ImgBarrier*                 pImgBarrier,
+        const LayoutTransitionInfo& layoutTransInfo,
+        uint32                      bltStageMask,
+        uint32                      bltAccessMask) const;
+
+    SyncGlxFlags GetAcqRelLayoutTransitionBltInfo(
         Pm4CmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         const AcquireReleaseInfo&     barrierInfo,
         AcqRelTransitionInfo*         pTransitionInfo,
         uint32*                       pSrcStageMask,
         uint32*                       pDstStageMask,
-        uint32*                       pSrcAccessMask,
-        uint32*                       pDstAccessMask,
+        bool*                         pSyncRbCache,
         Developer::BarrierOperations* pBarrierOps) const;
 
-    bool IssueAcqRelLayoutTransitionBlt(
+    SyncGlxFlags IssueAcqRelLayoutTransitionBlt(
         Pm4CmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         AcqRelTransitionInfo*         pTransitonInfo,
+        bool*                         pSyncRbCache,
         Developer::BarrierOperations* pBarrierOps) const;
 
     bool AcqRelInitMaskRam(
@@ -297,17 +328,15 @@ private:
         Pm4CmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         uint32                        stageMask,
-        uint32                        accessMask,
-        bool                          refreshTcc,
+        SyncGlxFlags                  acquireCaches,
+        bool                          syncRbCache,
         Developer::BarrierOperations* pBarrierOps) const;
 
     void IssueAcquireSync(
         Pm4CmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         uint32                        stageMask,
-        uint32                        accessMask,
-        bool                          refreshTcc,
-        bool                          mayHaveMetadata,
+        SyncGlxFlags                  acquireCaches,
         uint32                        syncTokenCount,
         const AcqRelSyncToken*        pSyncTokens,
         Developer::BarrierOperations* pBarrierOps) const;
@@ -317,18 +346,16 @@ private:
         CmdStream*                    pCmdStream,
         uint32                        srcStageMask,
         uint32                        dstStageMask,
-        uint32                        srcAccessMask,
-        uint32                        dstAccessMask,
-        bool                          refreshTcc,
-        bool                          mayHaveMetadata,
+        SyncGlxFlags                  acquireCaches,
+        bool                          syncRbCache,
         Developer::BarrierOperations* pBarrierOps) const;
 
     void IssueReleaseSyncEvent(
         Pm4CmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         uint32                        stageMask,
-        uint32                        accessMask,
-        bool                          refreshTcc,
+        SyncGlxFlags                  acquireCaches,
+        bool                          syncRbCache,
         const IGpuEvent*              pGpuEvent,
         Developer::BarrierOperations* pBarrierOps) const;
 
@@ -336,15 +363,18 @@ private:
         Pm4CmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         uint32                        stageMask,
-        uint32                        accessMask,
-        bool                          refreshTcc,
-        bool                          mayHaveMetadata,
+        SyncGlxFlags                  acquireCaches,
         uint32                        gpuEventCount,
         const IGpuEvent* const*       ppGpuEvents,
         Developer::BarrierOperations* pBarrierOps) const;
 
-    void OptimizeReadOnlyMemBarrier(Pm4CmdBuffer* pCmdBuf, MemBarrier* pTransition) const;
-    bool OptimizeReadOnlyImgBarrier(Pm4CmdBuffer* pCmdBuf, ImgBarrier* pTransition) const;
+    void OptimizeReadOnlyBarrier(
+        Pm4CmdBuffer*     pCmdBuf,
+        const ImgBarrier* pImgBarrier,
+        uint32*           pSrcStageMask,
+        uint32*           pDstStageMask,
+        uint32*           pSrcAccessMask,
+        uint32*           pDstAccessMask) const;
 
     AcquirePoint GetAcquirePoint(uint32 dstStageMask, EngineType engineType) const;
 

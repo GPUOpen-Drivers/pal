@@ -62,14 +62,11 @@ enum RegisterRangeType : uint32
     RegRangeSh                   = 0x2,
     RegRangeCsSh                 = 0x3,
     RegRangeNonShadowed          = 0x4,
-#if PAL_BUILD_GFX11
     RegRangeCpRs64InitSh         = 0x5,
     RegRangeCpRs64InitCsSh       = 0x6,
     RegRangeCpRs64InitUserConfig = 0x7,
-#endif
 };
 
-#if PAL_BUILD_GFX11
 // =====================================================================================================================
 // Sets an offset and value in a packed context register pair.
 static void SetOneContextRegValPairPacked(
@@ -157,7 +154,6 @@ static void SetSeqUserDataEntryPairPackedValues(
                                                       minLookupValue,
                                                       pNumValidRegs);
 }
-#endif
 
 // =====================================================================================================================
 // GFX9 hardware layer implementation of GfxDevice. Responsible for creating HW-specific objects such as Queue contexts
@@ -205,7 +201,7 @@ public:
 
     virtual void HwlRereadSettings() override {}
 
-    virtual void HwlReadSettings()
+    virtual void HwlReadSettings() override
     {
         static_cast<Pal::Gfx9::SettingsLoader*>(m_pDdSettingsLoader)->ReadSettings();
     }
@@ -261,23 +257,19 @@ public:
     virtual bool DetermineHwStereoRenderingSupported(
         const GraphicPipelineViewInstancingInfo& viewInstancingInfo) const override;
 
-    virtual size_t GetColorBlendStateSize(const ColorBlendStateCreateInfo& createInfo, Result* pResult) const override;
+    virtual size_t GetColorBlendStateSize() const override;
     virtual Result CreateColorBlendState(
         const ColorBlendStateCreateInfo& createInfo,
         void*                            pPlacementAddr,
         IColorBlendState**               ppColorBlendState) const override;
 
-    virtual size_t GetDepthStencilStateSize(
-        const DepthStencilStateCreateInfo& createInfo,
-        Result*                            pResult) const override;
+    virtual size_t GetDepthStencilStateSize() const override;
     virtual Result CreateDepthStencilState(
         const DepthStencilStateCreateInfo& createInfo,
         void*                              pPlacementAddr,
         IDepthStencilState**               ppDepthStencilState) const override;
 
-    virtual size_t GetMsaaStateSize(
-        const MsaaStateCreateInfo& createInfo,
-        Result*                    pResult) const override;
+    virtual size_t GetMsaaStateSize() const override;
     virtual Result CreateMsaaState(
         const MsaaStateCreateInfo& createInfo,
         void*                      pPlacementAddr,
@@ -367,16 +359,10 @@ public:
     // Gets the memory object used to accelerate occlusion query resets.
     const BoundGpuMemory& OcclusionResetMem() const { return m_occlusionSrcMem; }
 
-    // Suballocated memory large enough to hold the output of a ZPASS_DONE event. It is only bound if the workaround
-    // that requires it is enabled.
-    const BoundGpuMemory& DummyZpassDoneMem() const { return m_dummyZpassDoneMem; }
-
-#if PAL_BUILD_GFX11
     // Gets the memory object for vertex attributes
     const BoundGpuMemory& VertexAttributesMem(bool isTmz) const { return m_vertexAttributesMem[isTmz]; }
-#endif
 
-    uint16 GetBaseUserDataReg(HwShaderStage  shaderStage) const;
+    static uint16 GetBaseUserDataReg(HwShaderStage shaderStage);
 
     // Gets a copy of the reset value for a single occlusion query slot. The caller is responsible for determining the
     // size of the slot so that they do not read past the end of this buffer.
@@ -529,15 +515,11 @@ public:
 
     virtual uint32 GetVarBlockSize() const override { return m_varBlockSize; }
 
-#if PAL_BUILD_GFX11
-    uint32 GetShaderPrefetchSize(size_t  shaderSizeBytes) const;
-#endif
+    uint32 GetShaderPrefetchSize(size_t shaderSizeBytes) const;
 
     uint32 BufferSrdResourceLevel() const;
 
-#if PAL_BUILD_GFX11
     Result AllocateVertexAttributesMem(bool isTmz);
-#endif
 
     virtual ClearMethod GetDefaultSlowClearMethod(
         const ImageCreateInfo&  createInfo,
@@ -572,7 +554,6 @@ private:
     Gfx9::BarrierMgr m_barrierMgr;
 
     BoundGpuMemory m_occlusionSrcMem;   // If occlusionQueryDmaBufferSlots is in use, this is the source memory.
-    BoundGpuMemory m_dummyZpassDoneMem; // A GFX9 workaround requires dummy ZPASS_DONE events which write to memory.
 
     // Tracks the sample pattern palette for sample pos shader ring. Access to this object must be
     // serialized using m_samplePatternLock.
@@ -605,10 +586,8 @@ private:
     mutable std::atomic<uint32> m_nextColorTargetViewId;
     mutable std::atomic<uint32> m_nextDepthStencilViewId;
 
-#if PAL_BUILD_GFX11
     // 0 - Non-TMZ, 1 - TMZ
     BoundGpuMemory m_vertexAttributesMem[2];
-#endif
 
     PAL_DISALLOW_DEFAULT_CTOR(Device);
     PAL_DISALLOW_COPY_AND_ASSIGN(Device);

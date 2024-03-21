@@ -55,8 +55,8 @@ dd_bp(DD_BP_ENABLE_DD_TEST_UTIL ${DEVDRIVER_IS_TOP_LEVEL})
 # Configure whether to build ddSettings.
 dd_bp(DD_BP_ENABLE_DD_SETTINGS ${DEVDRIVER_IS_TOP_LEVEL})
 
-# Configure whether to build tests and examples.
-dd_bp(DD_BP_BUILD_TESTS_EXAMPLES ${DEVDRIVER_IS_TOP_LEVEL})
+# Configure whether to build tests.
+dd_bp(DD_BP_BUILD_TESTS ${DEVDRIVER_IS_TOP_LEVEL})
 
 # Configure whether documentation is built
 dd_bp(DD_BP_BUILD_DOCS OFF)

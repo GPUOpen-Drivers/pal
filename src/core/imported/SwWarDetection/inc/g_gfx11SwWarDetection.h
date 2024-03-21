@@ -70,7 +70,7 @@ extern bool DetectGfx11SoftwareWorkaroundsByGfxIp(
     Gfx11SwWarDetection* pWorkarounds);
 
 // Number of workarounds that are represented in Gfx11SwWarDetection.
-constexpr uint32_t Gfx11NumWorkarounds = 49;
+constexpr uint32_t Gfx11NumWorkarounds = 51;
 
 // Number of DWORDs that make up the Gfx11SwWarDetection structure.
 constexpr uint32_t Gfx11StructDwords = 2;
@@ -81,7 +81,7 @@ constexpr uint32_t Gfx11StructDwords = 2;
 constexpr uint32_t Gfx11InactiveMask[] =
 {
     0x00000000,
-    0xfffe0000,
+    0xfff80000,
 };
 
 // Bitfield structure containing all workarounds active for the Gfx11 family.
@@ -199,7 +199,7 @@ union Gfx11SwWarDetection
         uint32_t                                                                                                                                                                      : 1;
 #endif
 
-#if  SWD_BUILD_NAVI31|| SWD_BUILD_NAVI32|| SWD_BUILD_NAVI33 || SWD_BUILD_PHX1
+#if   SWD_BUILD_NAVI31|| SWD_BUILD_NAVI32|| SWD_BUILD_NAVI33 || SWD_BUILD_PHX1
         uint32_t ppDbPWS_RtlTimeout_TimeStampEventPwsStall_eopDoneNotSentForOldestTSWaitingForSyncComplete__FlusherStalledInOpPipe_A_                                                 : 1;
 #else
         uint32_t                                                                                                                                                                      : 1;
@@ -347,7 +347,15 @@ union Gfx11SwWarDetection
 
         uint32_t                                                                                                                                                                      : 1;
 
-        uint32_t reserved                                                                                                                                                             : 15;
+        uint32_t                                                                                                                                                                      : 1;
+
+#if SWD_BUILD_NAVI31 || SWD_BUILD_NAVI32 || SWD_BUILD_NAVI33
+        uint32_t textureTcpGfx11MainTCPHangsWhenSClauseHasTooManyInstrWithNoValidThreads_A_                                                                                           : 1;
+#else
+        uint32_t                                                                                                                                                                      : 1;
+#endif
+
+        uint32_t reserved                                                                                                                                                             : 13;
     };
 
     uint32_t u32All[Gfx11StructDwords];
@@ -400,6 +408,7 @@ void DetectNavi31A0Workarounds(
     pWorkarounds->sioSxvmidResetForMrtZOnlyPixelShaderHitSXAssertion_A_                                                                                                                = 1;
     pWorkarounds->textureTaGfx11ImageMsaaLoadNotHonoringDstSel_A_                                                                                                                      = 1;
     pWorkarounds->textureTaGfx11TAUnableToSupportScratchSVS_A_                                                                                                                         = 1;
+    pWorkarounds->textureTcpGfx11MainTCPHangsWhenSClauseHasTooManyInstrWithNoValidThreads_A_                                                                                           = 1;
 }
 #endif
 
@@ -443,6 +452,7 @@ void DetectNavi32A0Workarounds(
     pWorkarounds->sioSxvmidResetForMrtZOnlyPixelShaderHitSXAssertion_A_                                                                                                                = 1;
     pWorkarounds->textureTaGfx11ImageMsaaLoadNotHonoringDstSel_A_                                                                                                                      = 1;
     pWorkarounds->textureTaGfx11TAUnableToSupportScratchSVS_A_                                                                                                                         = 1;
+    pWorkarounds->textureTcpGfx11MainTCPHangsWhenSClauseHasTooManyInstrWithNoValidThreads_A_                                                                                           = 1;
 }
 #endif
 
@@ -487,6 +497,7 @@ void DetectNavi32GLXLWorkarounds(
     pWorkarounds->sioSxvmidResetForMrtZOnlyPixelShaderHitSXAssertion_A_                                                                                                                = 1;
     pWorkarounds->textureTaGfx11ImageMsaaLoadNotHonoringDstSel_A_                                                                                                                      = 1;
     pWorkarounds->textureTaGfx11TAUnableToSupportScratchSVS_A_                                                                                                                         = 1;
+    pWorkarounds->textureTcpGfx11MainTCPHangsWhenSClauseHasTooManyInstrWithNoValidThreads_A_                                                                                           = 1;
 }
 #endif
 
@@ -530,6 +541,7 @@ void DetectNavi33A0Workarounds(
     pWorkarounds->sioSxvmidResetForMrtZOnlyPixelShaderHitSXAssertion_A_                                                                                                                = 1;
     pWorkarounds->textureTaGfx11ImageMsaaLoadNotHonoringDstSel_A_                                                                                                                      = 1;
     pWorkarounds->textureTaGfx11TAUnableToSupportScratchSVS_A_                                                                                                                         = 1;
+    pWorkarounds->textureTcpGfx11MainTCPHangsWhenSClauseHasTooManyInstrWithNoValidThreads_A_                                                                                           = 1;
 }
 #endif
 

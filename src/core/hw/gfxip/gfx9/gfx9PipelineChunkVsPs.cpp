@@ -387,7 +387,6 @@ uint32* PipelineChunkVsPs::WriteContextCommands(
     return pCmdSpace;
 }
 
-#if PAL_BUILD_GFX11
 // =====================================================================================================================
 // Accumulates this pipeline chunk's SH registers into an array of packed register pairs.
 void PipelineChunkVsPs::AccumulateShRegs(
@@ -484,7 +483,6 @@ void PipelineChunkVsPs::AccumulateContextRegs(
     PAL_ASSERT(InRange(*pNumRegs, startingIdx, startingIdx + VsPsRegs::NumContextReg));
 #endif
 }
-#endif
 
 // =====================================================================================================================
 // Writes PM4 commands to program the SH registers for the VS. Returns the next unused DWORD in pCmdSpace.
@@ -554,7 +552,6 @@ uint32* PipelineChunkVsPs::WriteShCommandsSetPathPs(
     return pCmdSpace;
 }
 
-#if PAL_BUILD_GFX11
 // =====================================================================================================================
 // Accumulates registers into an array of packed register pairs to program the SH registers for the PS
 void PipelineChunkVsPs::AccumulateShRegsPs(
@@ -586,7 +583,6 @@ void PipelineChunkVsPs::AccumulateShRegsPs(
                                  m_regs.sh.spiShaderPgmChksumPs.u32All);
     }
 }
-#endif
 
 // =====================================================================================================================
 // Merge Vs register chunk and Ps register chunk into single chunk.

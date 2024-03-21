@@ -549,7 +549,6 @@ void Pipeline::DumpPipelineElf(
         m_pipelineBinaryLen);
 }
 
-#if PAL_BUILD_GFX11
 // =====================================================================================================================
 bool Pipeline::DispatchInterleaveSizeIsValid(
     DispatchInterleaveSize   interleave,
@@ -588,7 +587,6 @@ bool Pipeline::DispatchInterleaveSizeIsValid(
 
     return isValid;
 };
-#endif
 
 // =====================================================================================================================
 void* SectionInfo::GetCpuMappedAddr(

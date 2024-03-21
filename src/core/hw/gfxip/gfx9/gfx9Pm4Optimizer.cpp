@@ -285,7 +285,6 @@ uint32* Pm4Optimizer::WriteOptimizedSetSeqContextRegs(
     return pNewCmdSpace;
 }
 
-#if PAL_BUILD_GFX11
 // =====================================================================================================================
 // Returns a pointer to the next unused DWORD in pCmdSpace.
 template <Pm4ShaderType ShaderType>
@@ -375,7 +374,6 @@ uint32* Pm4Optimizer::OptimizePm4SetRegPairsPacked(
 
     return pDstCmd;
 }
-#endif
 
 // =====================================================================================================================
 // Optimize the specified PM4 SET packet. May remove the SET packet completely, reduce the range of registers it sets,

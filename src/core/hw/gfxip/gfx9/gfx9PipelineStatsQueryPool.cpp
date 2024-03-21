@@ -160,16 +160,11 @@ uint32* PipelineStatsQueryPool::FixupQueryDataOnAsyncCompute(
     return pCmdSpace;
 }
 
-#if PAL_BUILD_GFX11
 // =====================================================================================================================
 bool PipelineStatsQueryPool::RequiresSamplingFromGangedAce() const
 {
-#if   PAL_BUILD_GFX11
-    // Otherwise, on GFX11 GPUs, this is only required if the query is supposed to include TsInvocations.
+    // On GFX11 GPUs, this is only required if the query is supposed to include TsInvocations.
     return (IsGfx11(*m_device.Parent()) && TestAnyFlagSet(m_createInfo.enabledStats, QueryPipelineStatsTsInvocations));
-#else
-    return false;
-#endif
 }
 
 // =====================================================================================================================
@@ -181,7 +176,6 @@ uint32* PipelineStatsQueryPool::SampleQueryDataOnGangedAce(
 {
     const CmdUtil& cmdUtil = m_device.CmdUtil();
 
-#if PAL_BUILD_GFX11
     // On GFX11, Mesh Shader pipeline statistics are handled automatically when sampling the other graphics pipeline
     // statistics.  However, the Task shader is not included, because that work runs on the ganged ACE queue.
     if (IsGfx11(*(m_device.Parent())))
@@ -196,7 +190,6 @@ uint32* PipelineStatsQueryPool::SampleQueryDataOnGangedAce(
             (gpuVirtAddr + offsetof(Gfx9PipelineStatsData, tsInvocations)),
             pAceCmdSpace);
     }
-#endif
 
     return pAceCmdSpace;
 }
@@ -204,14 +197,14 @@ uint32* PipelineStatsQueryPool::SampleQueryDataOnGangedAce(
 // =====================================================================================================================
 // Handles properly beginning the query on a ganged ACE command stream when the query was begun before the ganged ACE
 // stream was initialized.
-void PipelineStatsQueryPool::DeferredBeginOnGangedAce(
+uint32* PipelineStatsQueryPool::DeferredBeginOnGangedAce(
     GfxCmdBuffer*   pCmdBuffer,
-    Pal::CmdStream* pAceCmdStream,
+    uint32*         pCmdSpace,
     uint32          slot
     ) const
 {
     PAL_ASSERT((pCmdBuffer != nullptr) && (pCmdBuffer->GetEngineType() == EngineTypeUniversal));
-    PAL_ASSERT(pAceCmdStream != nullptr);
+    PAL_ASSERT(pCmdSpace != nullptr);
 
     gpusize gpuAddr = 0;
     Result  result  = GetQueryGpuAddress(slot, &gpuAddr);
@@ -221,12 +214,11 @@ void PipelineStatsQueryPool::DeferredBeginOnGangedAce(
     {
         // Note: There is no need to register the query with the command buffer here; it was done already in Begin().
 
-        uint32* pAceCmdSpace = pAceCmdStream->ReserveCommands();
-        pAceCmdSpace = SampleQueryDataOnGangedAce(gpuAddr, pAceCmdSpace);
-        pAceCmdStream->CommitCommands(pAceCmdSpace);
+        pCmdSpace = SampleQueryDataOnGangedAce(gpuAddr, pCmdSpace);
     }
+
+    return pCmdSpace;
 }
-#endif
 
 // =====================================================================================================================
 // If the ganged ACE was not initialized by the time the query ends, then no work using it must have ocurred within
@@ -306,9 +298,7 @@ void PipelineStatsQueryPool::Begin(
         pCmdSpace += cmdUtil.BuildSampleEventWrite(SAMPLE_PIPELINESTAT,
                                                    event_index__me_event_write__sample_pipelinestat,
                                                    engineType,
-#if PAL_BUILD_GFX11
                                                    samp_plst_cntr_mode__mec_event_write__legacy_mode__GFX11,
-#endif
                                                    gpuAddr,
                                                    pCmdSpace);
 
@@ -320,14 +310,12 @@ void PipelineStatsQueryPool::Begin(
                 pCmdSpace = CopyMeshPipeStatsToQuerySlots(pCmdBuffer, gpuAddr, pCmdSpace);
             }
 
-#if PAL_BUILD_GFX11
             if (pHybridCmdStream != nullptr)
             {
                 uint32* pAceCmdSpace = pHybridCmdStream->ReserveCommands();
                 pAceCmdSpace = SampleQueryDataOnGangedAce(gpuAddr, pAceCmdSpace);
                 pHybridCmdStream->CommitCommands(pAceCmdSpace);
             }
-#endif
         }
 
         pCmdStream->CommitCommands(pCmdSpace);
@@ -375,9 +363,7 @@ void PipelineStatsQueryPool::End(
         pCmdSpace += cmdUtil.BuildSampleEventWrite(SAMPLE_PIPELINESTAT,
                                                    event_index__me_event_write__sample_pipelinestat,
                                                    engineType,
-#if PAL_BUILD_GFX11
                                                    samp_plst_cntr_mode__mec_event_write__legacy_mode__GFX11,
-#endif
                                                    gpuAddr,
                                                    pCmdSpace);
 
@@ -389,7 +375,6 @@ void PipelineStatsQueryPool::End(
                 pCmdSpace = CopyMeshPipeStatsToQuerySlots(pCmdBuffer, gpuAddr, pCmdSpace);
             }
 
-#if PAL_BUILD_GFX11
             if (pHybridCmdStream != nullptr)
             {
                 uint32* pAceCmdSpace = pHybridCmdStream->ReserveCommands();
@@ -397,7 +382,6 @@ void PipelineStatsQueryPool::End(
                 pHybridCmdStream->CommitCommands(pAceCmdSpace);
             }
             else
-#endif
             {
                 pCmdSpace = FixupQueryForNoGangedAce(gpuAddr, pCmdSpace);
             }

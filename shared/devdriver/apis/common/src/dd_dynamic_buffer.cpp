@@ -139,10 +139,10 @@ void DynamicBuffer::Copy(const void* pSrcBuf, size_t srcSize)
 
             if ((m_capacity - m_size) < srcSize)
             {
-                size_t newSize = (srcSize > m_capacity) ? (m_capacity + srcSize) : (m_capacity * 2);
-                DD_ASSERT(newSize > m_capacity);
+                size_t newCapacity = (srcSize > m_capacity) ? (m_capacity + srcSize) : (m_capacity * 2);
+                DD_ASSERT(newCapacity > m_capacity);
 
-                m_pBuf = (uint8_t*)m_alloc.Realloc(m_alloc.pInstance, m_pBuf, m_capacity, newSize);
+                m_pBuf = (uint8_t*)m_alloc.Realloc(m_alloc.pInstance, m_pBuf, m_capacity, newCapacity);
                 if (m_pBuf == nullptr)
                 {
                     m_error = DD_RESULT_COMMON_OUT_OF_HEAP_MEMORY;
@@ -150,7 +150,7 @@ void DynamicBuffer::Copy(const void* pSrcBuf, size_t srcSize)
                 else
                 {
                     pDestBuf   = static_cast<uint8_t*>(m_pBuf) + m_size;
-                    m_capacity = newSize;
+                    m_capacity = newCapacity;
                 }
 
             }

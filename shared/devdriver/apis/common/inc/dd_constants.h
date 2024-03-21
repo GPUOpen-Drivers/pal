@@ -23,14 +23,9 @@
  *
  **********************************************************************************************************************/
 
-#ifndef DD_CONSTANTS_H
-#define DD_CONSTANTS_H
+#pragma once
 
-#include <stdint.h>
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <cstdint>
 
 /// How long to wait before timing out when connecting to a router.
 constexpr uint32_t kRouterConnectionTimeoutMillisec = 5000;
@@ -38,8 +33,3 @@ constexpr uint32_t kRouterConnectionTimeoutMillisec = 5000;
 /// How long to wait before timing out when connection driver control for initialization.
 constexpr uint32_t kDriverControlConnectTimeoutMillisec = 1000;
 
-#ifdef __cplusplus
-} // extern "C"
-#endif
-
-#endif

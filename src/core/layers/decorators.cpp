@@ -1346,11 +1346,9 @@ Result DeviceDecorator::CreateGraphicsPipeline(
 
 // =====================================================================================================================
 size_t DeviceDecorator::GetMsaaStateSize(
-    const MsaaStateCreateInfo& createInfo,
-    Result*                    pResult
     ) const
 {
-    return m_pNextLayer->GetMsaaStateSize(createInfo, pResult) + sizeof(MsaaStateDecorator);
+    return m_pNextLayer->GetMsaaStateSize() + sizeof(MsaaStateDecorator);
 }
 
 // =====================================================================================================================
@@ -1379,11 +1377,9 @@ Result DeviceDecorator::CreateMsaaState(
 
 // =====================================================================================================================
 size_t DeviceDecorator::GetColorBlendStateSize(
-    const ColorBlendStateCreateInfo& createInfo,
-    Result*                          pResult
     ) const
 {
-    return m_pNextLayer->GetColorBlendStateSize(createInfo, pResult) + sizeof(ColorBlendStateDecorator);
+    return m_pNextLayer->GetColorBlendStateSize() + sizeof(ColorBlendStateDecorator);
 }
 
 // =====================================================================================================================
@@ -1412,11 +1408,9 @@ Result DeviceDecorator::CreateColorBlendState(
 
 // =====================================================================================================================
 size_t DeviceDecorator::GetDepthStencilStateSize(
-    const DepthStencilStateCreateInfo& createInfo,
-    Result*                            pResult
     ) const
 {
-    return m_pNextLayer->GetDepthStencilStateSize(createInfo, pResult) + sizeof(DepthStencilStateDecorator);
+    return m_pNextLayer->GetDepthStencilStateSize() + sizeof(DepthStencilStateDecorator);
 }
 
 // =====================================================================================================================

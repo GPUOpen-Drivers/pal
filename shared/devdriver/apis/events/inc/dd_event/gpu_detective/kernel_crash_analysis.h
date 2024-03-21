@@ -29,9 +29,11 @@
 
 #include <stdint.h>
 #include <string.h>
+#include <algorithm>
 
 namespace KernelCrashAnalysisEvents
 {
+#pragma pack(push, 1)
 
 constexpr uint32_t VersionMajor = 0;
 constexpr uint32_t VersionMinor = 1;
@@ -42,7 +44,10 @@ constexpr uint32_t ProviderId = 0xE43C9C8E;
 /// struct with the same name.
 enum class EventId : uint8_t
 {
-    PageFault = DDCommonEventId::FirstEventIdForIndividualProvider,
+    PageFault        = DDCommonEventId::FirstEventIdForIndividualProvider,
+    ShaderWaves      = DDCommonEventId::FirstEventIdForIndividualProvider + 1,
+    SeInfo           = DDCommonEventId::FirstEventIdForIndividualProvider + 2,
+    MmrRegisters     = DDCommonEventId::FirstEventIdForIndividualProvider + 3,
 };
 
 /// Data generated from kernel driver when a VM Page Fault happens.
@@ -106,4 +111,228 @@ struct PageFault
     }
 };
 
+// offset and data of a single memory mapped register
+struct MmrRegisterInfo
+{
+    uint32_t offset;
+    uint32_t data;
+};
+
+struct MmrRegistersData
+{
+    uint32_t version;
+
+    // GPU identifier for these register events
+    uint32_t gpuId;
+
+    // number of MMrRegisterInfo structures which follow
+    uint32_t numRegisters;
+
+    // array of MMrRegisterInfo
+    // actual array length is `numRegisters`
+    MmrRegisterInfo registerInfos[1];
+
+    static size_t CalculateStructureSize(uint32_t numRegisterInfoForCalculation)
+    {
+        // std::max wrapped in parenthesis to ensure use of std::max instead of
+        // Windows header 'max' macro
+        numRegisterInfoForCalculation = (std::max)(1U, numRegisterInfoForCalculation);
+        return sizeof(MmrRegistersData) +
+               sizeof(MmrRegisterInfo) * (numRegisterInfoForCalculation - 1);
+    }
+
+    static size_t CalculateBufferSize(uint32_t numRegisterInfoForCalculation)
+    {
+        return sizeof(MmrRegistersData) +
+               sizeof(MmrRegisterInfo) * (numRegisterInfoForCalculation - 1);
+    }
+
+    static uint32_t GetNumMmrRegistersFromBuffer(const uint8_t *pBuffer)
+    {
+        pBuffer += offsetof(MmrRegistersData, numRegisters);
+        return *reinterpret_cast<const uint32_t*>(pBuffer);
+    }
+
+    size_t FromBuffer(const uint8_t* pBuffer)
+    {
+        uint32_t numRegistersInBuffer = GetNumMmrRegistersFromBuffer(pBuffer);
+        size_t   copySize             = CalculateBufferSize(numRegistersInBuffer);
+        memcpy(this, pBuffer, copySize);
+        return copySize;
+    }
+
+    size_t ToBuffer(uint8_t* pBuffer)
+    {
+        size_t copySize = CalculateBufferSize(numRegisters);
+        memcpy(pBuffer, this, copySize);
+        return copySize;
+    }
+};
+
+// Graphics Register Bus Manager status registers
+struct GrbmStatusSeRegs
+{
+    uint32_t    version;
+    uint32_t    grbmStatusSe0;
+    uint32_t    grbmStatusSe1;
+    uint32_t    grbmStatusSe2;
+    uint32_t    grbmStatusSe3;
+    // SE4 and SE5 are NV31 specific, 2x does not have this
+    uint32_t    grbmStatusSe4;
+    uint32_t    grbmStatusSe5;
+};
+
+// NOTE: WaveInfo member variables must match the WaveInfo structure in kmdEventDefs.h
+struct WaveInfo
+{
+    uint32_t    version;
+    uint32_t    waveId;
+    uint32_t    simdId;
+    uint32_t    wgpId;
+    uint32_t    saId;
+    uint32_t    seId;
+    uint32_t    sqWaveStatus;
+    uint32_t    sqWavePcHi;
+    uint32_t    sqWavePcLo;
+    uint32_t    sqWaveTrapsts;
+    uint32_t    sqWaveIbSts;
+    uint32_t    sqWaveIbSts2;
+    uint32_t    sqWaveActive;
+    uint32_t    sqWaveExecHi;
+    uint32_t    sqWaveExecLo;
+    uint32_t    sqWaveHwId1;
+    uint32_t    sqWaveHwId2;
+    uint32_t    sqWaveValidAndIdle;
+};
+
+// NOTE: HangType must match the Hangtype enum in kmdEventDefs.h
+enum HangType : uint32_t
+{
+    pageFault     = 0,
+    nonPageFault  = 1,
+    Unknown       = 2,
+};
+
+struct ShaderWaves
+{
+    // structure version
+    uint32_t         version;
+
+    // GPU identifier for these register events
+    uint32_t         gpuId;
+
+    HangType         typeOfHang;
+    GrbmStatusSeRegs grbmStatusSeRegs;
+
+    uint32_t         numberOfHungWaves;
+    uint32_t         numberOfActiveWaves;
+
+    // aray of hung waves followed by active waves
+    // KmdWaveInfo * [numberOfHungWaves]
+    // KmdWaveInfo * [numberOfActiveWaves]
+    WaveInfo         waveInfos[1];
+
+    static size_t CalculateStructureSize(uint32_t numWaveInfoForCalculation)
+    {
+        // std::max wrapped in parenthesis to ensure use of std::max instead of
+        // Windows header 'max' macro
+        numWaveInfoForCalculation = (std::max)(1U, numWaveInfoForCalculation);
+        return sizeof(ShaderWaves) +
+               sizeof(WaveInfo) * (numWaveInfoForCalculation - 1);
+    }
+
+    static size_t CalculateBufferSize(uint32_t numWaveInfoForCalculation)
+    {
+        return sizeof(ShaderWaves) +
+               sizeof(WaveInfo) * (numWaveInfoForCalculation - 1);
+    }
+
+    static uint32_t GetTotalNumWavesFromBuffer(const uint8_t *pBuffer)
+    {
+        uint32_t actualNumberOfHungWaves;
+        uint32_t actualNumberOfActiveWaves;
+
+        pBuffer += offsetof(ShaderWaves, numberOfHungWaves);
+        actualNumberOfHungWaves   = *reinterpret_cast<const uint32_t*>(pBuffer);
+
+        pBuffer += sizeof(numberOfHungWaves);
+        actualNumberOfActiveWaves = *reinterpret_cast<const uint32_t*>(pBuffer);
+
+        return actualNumberOfHungWaves + actualNumberOfActiveWaves;
+    }
+
+    size_t FromBuffer(const uint8_t* pBuffer)
+    {
+        uint32_t numWavesInBuffer = GetTotalNumWavesFromBuffer(pBuffer);
+        size_t   copySize         = CalculateBufferSize(numWavesInBuffer);
+        memcpy(this, pBuffer, copySize);
+        return copySize;
+    }
+
+    size_t ToBuffer(uint8_t* pBuffer)
+    {
+        size_t copySize = CalculateBufferSize(numberOfHungWaves + numberOfActiveWaves);
+        memcpy(pBuffer, this, copySize);
+        return copySize;
+    }
+};
+
+struct SeRegsInfo
+{
+    uint32_t version;
+    uint32_t spiDebugBusy;
+    uint32_t sqDebugStsGlobal;
+    uint32_t sqDebugStsGlobal2;
+};
+
+struct SeInfo
+{
+    // structure version
+    uint32_t   version;
+
+    // GPU identifier for these register events
+    uint32_t   gpuId;
+
+    // number of SeRegsInfo structures in seRegsInfos array
+    uint32_t   numSe;
+    SeRegsInfo seRegsInfos[1];
+
+    static size_t CalculateStructureSize(uint32_t numSeRegsInfoForCalculation)
+    {
+        // std::max wrapped in parenthesis to ensure use of std::max instead of
+        // Windows header 'max' macro
+        numSeRegsInfoForCalculation = (std::max)(1U, numSeRegsInfoForCalculation);
+        return sizeof(SeInfo) +
+               sizeof(SeRegsInfo) * (numSeRegsInfoForCalculation - 1);
+    }
+
+    static size_t CalculateBufferSize(uint32_t numSeRegsInfoForCalculation)
+    {
+        return sizeof(SeInfo) +
+               sizeof(SeRegsInfo) * (numSeRegsInfoForCalculation - 1);
+    }
+
+    static uint32_t GetTotalSeRegsInfosFromBuffer(const uint8_t *pBuffer)
+    {
+        pBuffer += offsetof(SeInfo, numSe);
+        return *reinterpret_cast<const uint32_t*>(pBuffer);
+    }
+
+    size_t FromBuffer(const uint8_t* pBuffer)
+    {
+        uint32_t numSeInBuffer = GetTotalSeRegsInfosFromBuffer(pBuffer);
+        size_t   copySize      = CalculateBufferSize(numSeInBuffer);
+        memcpy(this, pBuffer, copySize);
+        return copySize;
+    }
+
+    size_t ToBuffer(uint8_t* pBuffer)
+    {
+        size_t copySize = CalculateBufferSize(numSe);
+        memcpy(pBuffer, this, copySize);
+        return copySize;
+   }
+};
+
+#pragma pack(pop)
 } // namespace KernelCrashAnalysisEvents

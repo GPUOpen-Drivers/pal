@@ -42,22 +42,22 @@ typedef struct DDAllocator
 
     /// This function acts similarly to `std::realloc()`.
     ///
-    /// @param pInstance Must be \ref DDModulesApi.pInstance.
-    /// @param pMemory A pointer to a block of memory returned by a previous call to `Realloc()`. This
+    /// @param[in] pInstance Must be \ref DDModulesApi.pInstance.
+    /// @param[in] pMemory A pointer to a block of memory returned by a previous call to `Realloc()`. This
     /// parameter can be NULL.
-    /// @param oldSize The size of the memory pointed to by \param pMemory. Unlike `std::realloc()` Callers
+    /// @param[in] oldSize The size of the memory pointed to by \param pMemory. Unlike `std::realloc()` Callers
     /// of this function must keep track of memory size themselves. Passing 0 will result in failure and
     /// NULL pointer returned, except when \param pMemory is NULL.
-    /// @param newSize The new size of memory to allocate.
+    /// @param[in] newSize The new size of memory to allocate.
     /// @return A pointer to a block of memory the size of \param newSize.
     void* (*Realloc)(DDAllocatorInstance* pInstance, void* pMemory, size_t oldSize, size_t newSize);
 
     /// Deallocates a block of memory previously allocated by \ref DDAllocator.Realloc.
     ///
-    /// @param pInstance Must be \ref DDModulesApi.pInstance.
-    /// @param pMem A pointer to a block of memory. This pointer must be obtained by an earlier call
+    /// @param[in] pInstance Must be \ref DDModulesApi.pInstance.
+    /// @param[in] pMem A pointer to a block of memory. This pointer must be obtained by an earlier call
     /// to \ref DDAllocator.Realloc.
-    /// @param size The size of the memory to be deallocated.
+    /// @param[in] size The size of the memory to be deallocated.
     void (*Free)(DDAllocatorInstance* pInstance, void* pMem, size_t size);
 } DDAllocator;
 

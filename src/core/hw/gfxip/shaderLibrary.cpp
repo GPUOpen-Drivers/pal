@@ -160,6 +160,30 @@ void ShaderLibrary::DumpLibraryElf(
 }
 
 // =====================================================================================================================
+Result ShaderLibrary::GetAggregateFunctionStats(
+    ShaderLibStats* pStats
+    ) const
+{
+    const ShaderLibraryFunctionInfo* pFunctionInfo = GetShaderLibFunctionInfos().Data();
+    const size_t functionCount = GetShaderLibFunctionInfos().NumElements();
+    Result result = Result::Success;
+    for (uint32 i = 0; i < functionCount; i++)
+    {
+        ShaderLibStats currLibStats = {};
+        result = GetShaderFunctionStats(pFunctionInfo[i].symbolName, &currLibStats);
+        if (result != Result::Success)
+        {
+            break;
+        }
+        pStats->common.numUsedVgprs = Max(currLibStats.common.numUsedVgprs, pStats->common.numUsedVgprs);
+        pStats->common.numUsedSgprs = Max(currLibStats.common.numUsedSgprs, pStats->common.numUsedSgprs);
+        pStats->common.ldsUsageSizeInBytes =
+            Max(currLibStats.common.ldsUsageSizeInBytes, pStats->common.ldsUsageSizeInBytes);
+    }
+    return result;
+}
+
+// =====================================================================================================================
 // Obtains the shader pre and post compilation stats/params for the specified shader.
 Result ShaderLibrary::GetShaderFunctionInfos(
     Util::StringView<char> shaderExportName,

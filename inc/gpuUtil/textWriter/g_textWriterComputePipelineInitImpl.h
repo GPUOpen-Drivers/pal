@@ -69,19 +69,15 @@ Pal::Result CreateTextWriterComputePipelines(
         pTable = textWriterComputeBinaryTableNavi21;
         break;
 
-#if PAL_BUILD_GFX11
     case Pal::AsicRevision::Navi31:
     case Pal::AsicRevision::Navi32:
     case Pal::AsicRevision::Navi33:
         pTable = textWriterComputeBinaryTableNavi31;
         break;
-#endif
 
-#if PAL_BUILD_GFX11
     case Pal::AsicRevision::Phoenix1:
         pTable = textWriterComputeBinaryTablePhoenix1;
         break;
-#endif
 
     default:
         result = Pal::Result::ErrorUnknown;

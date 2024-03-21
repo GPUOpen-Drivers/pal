@@ -132,6 +132,7 @@ namespace DevDriver
         virtual Result Send(uint32 payloadSizeInBytes, const void* pPayload, uint32 timeoutInMs) = 0;
         virtual Result Receive(uint32 payloadSizeInBytes, void *pPayload, uint32 *pBytesReceived, uint32 timeoutInMs) = 0;
         virtual Result WaitForConnection(uint32 timeoutInMs) = 0;
+        virtual Result WaitForDisconnection(uint32 timeoutInMs) = 0;
 
         virtual bool IsClosed() const = 0;
 

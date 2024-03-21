@@ -98,10 +98,8 @@ public:
         CmdStream* pCmdStream,
         uint32*    pCmdSpace) const;
 
-#if PAL_BUILD_GFX11
     void AccumulateShRegs(PackedRegisterPair* pRegPairs, uint32* pNumRegs) const;
     void AccumulateContextRegs(PackedRegisterPair* pRegPairs, uint32* pNumRegs) const;
-#endif
 
     gpusize LsProgramGpuVa() const
     {

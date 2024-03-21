@@ -471,13 +471,9 @@ struct VgtShaderStagesEnMetadata
             uint16 nggWaveIdEn          : 1;
             /// Whether the NGG pipeline is run in passthrough mode.
             uint16 primgenPassthruEn    : 1;
-#if PAL_BUILD_GFX11
             /// When the NGG pipeline is in passthrough mode, whether or not the shader must send the allocation
             /// message.
             uint16 primgenPassthruNoMsg : 1;
-#else
-            uint16 placeholder0         : 1;
-#endif
             uint16 reserved             : 7;
         };
         uint16 uAll;
@@ -499,11 +495,7 @@ struct VgtShaderStagesEnMetadata
             uint16 nggWaveIdEn          : 1;
             uint16 gsFastLaunch         : 1;
             uint16 primgenPassthruEn    : 1;
-#if PAL_BUILD_GFX11
             uint16 primgenPassthruNoMsg : 1;
-#else
-            uint16 placeholder0         : 1;
-#endif
             uint16 reserved             : 3;
         };
         uint16 uAll;
@@ -734,12 +726,8 @@ struct SpiPsInputCntlMetadata
             /// Whether the hardware will provide provoking vertex ID and rotate the raw attribute parameter cache
             /// pointers accordingly.
             uint8 rotatePcPtr    : 1;
-#if PAL_BUILD_GFX11
             /// Whether this parameter is a primitive attribute.
             uint8 primAttr       : 1;
-#else
-            uint8 placeholder0   : 1;
-#endif
             uint8 reserved       : 1;
         };
         uint8 uAll;
@@ -758,18 +746,13 @@ struct SpiPsInputCntlMetadata
             uint16 attr0Valid     : 1;
             uint16 attr1Valid     : 1;
             uint16 rotatePcPtr    : 1;
-#if PAL_BUILD_GFX11
             uint16 primAttr       : 1;
-#else
-            uint16 placeholder0   : 1;
-#endif
             uint16 reserved       : 6;
         };
         uint16 uAll;
     } hasEntry;
 };
 
-#if PAL_BUILD_GFX11
 struct SpiShaderGsMeshletDimMetadata
 {
     /// Threadgroup size in the X dimension.
@@ -794,9 +777,7 @@ struct SpiShaderGsMeshletDimMetadata
         uint8 uAll;
     } hasEntry;
 };
-#endif
 
-#if PAL_BUILD_GFX11
 struct SpiShaderGsMeshletExpAllocMetadata
 {
     /// Maximum position export space per meshlet subgroup.
@@ -815,7 +796,6 @@ struct SpiShaderGsMeshletExpAllocMetadata
         uint8 uAll;
     } hasEntry;
 };
-#endif
 
 struct VgtGsInstanceCntMetadata
 {
@@ -994,12 +974,8 @@ struct PaClVsOutCntlMetadata
             uint32 bypassPrimRateCombiner : 1;
             /// Use the GsCutFlag output from the VS.
             uint32 useVtxGsCutFlag        : 1;
-#if PAL_BUILD_GFX11
             /// Use the FSR select output from the VS.
             uint32 useVtxFsrSelect        : 1;
-#else
-            uint32 placeholder0           : 1;
-#endif
             uint32 reserved               : 1;
         };
         uint32 uAll;
@@ -1039,11 +1015,7 @@ struct PaClVsOutCntlMetadata
             uint32 bypassVtxRateCombiner  : 1;
             uint32 bypassPrimRateCombiner : 1;
             uint32 useVtxGsCutFlag        : 1;
-#if PAL_BUILD_GFX11
             uint32 useVtxFsrSelect        : 1;
-#else
-            uint32 placeholder0           : 1;
-#endif
             uint32 reserved               : 1;
         };
         uint32 uAll;
@@ -1644,12 +1616,8 @@ struct GraphicsRegisterMetadata
     /// range (0.0, 64.0) are legal. If the incoming factor is a Nan, a negative number or Zero, it is not clamped
     /// against this value.
     float                              vgtHosMaxTessLevel;
-#if PAL_BUILD_GFX11
     SpiShaderGsMeshletDimMetadata      spiShaderGsMeshletDim;
-#endif
-#if PAL_BUILD_GFX11
     SpiShaderGsMeshletExpAllocMetadata spiShaderGsMeshletExpAlloc;
-#endif
     /// Maximum number of verts that can be emitted from a geometry shader.
     uint16                             vgtGsMaxVertOut;
     VgtGsInstanceCntMetadata           vgtGsInstanceCnt;
@@ -1786,13 +1754,8 @@ struct GraphicsRegisterMetadata
             uint64 spiPsInputCntl             : 1;
             uint64 vgtHosMinTessLevel         : 1;
             uint64 vgtHosMaxTessLevel         : 1;
-#if PAL_BUILD_GFX11
             uint64 spiShaderGsMeshletDim      : 1;
             uint64 spiShaderGsMeshletExpAlloc : 1;
-#else
-            uint64 placeholder0               : 1;
-            uint64 placeholder1               : 1;
-#endif
             uint64 meshLinearDispatchFromTask : 1;
             uint64 vgtGsMaxVertOut            : 1;
             uint64 vgtGsInstanceCnt           : 1;
@@ -1826,7 +1789,7 @@ struct GraphicsRegisterMetadata
             uint64 spiPsInputAddr             : 1;
             uint64 spiShaderColFormat         : 1;
             uint64 spiShaderZFormat           : 1;
-            uint64 placeholder2               : 1;
+            uint64 placeholder0               : 1;
             uint64 reserved                   : 63;
         };
         uint64 uAll[2];
@@ -2089,14 +2052,8 @@ namespace GraphicsRegisterMetadataKey
     static constexpr char SpiPsInputCntl[]             = ".spi_ps_input_cntl";
     static constexpr char VgtHosMinTessLevel[]         = ".vgt_hos_min_tess_level";
     static constexpr char VgtHosMaxTessLevel[]         = ".vgt_hos_max_tess_level";
-#if PAL_BUILD_GFX11
     static constexpr char SpiShaderGsMeshletDim[]      = ".spi_shader_gs_meshlet_dim";
-#endif
-
-#if PAL_BUILD_GFX11
     static constexpr char SpiShaderGsMeshletExpAlloc[] = ".spi_shader_gs_meshlet_exp_alloc";
-#endif
-
     static constexpr char MeshLinearDispatchFromTask[] = ".mesh_linear_dispatch_from_task";
     static constexpr char VgtGsMaxVertOut[]            = ".vgt_gs_max_vert_out";
     static constexpr char VgtGsInstanceCnt[]           = ".vgt_gs_instance_cnt";
@@ -2298,10 +2255,7 @@ namespace PaClVsOutCntlMetadataKey
     static constexpr char BypassVtxRateCombiner[]  = ".bypass_vtx_rate_combiner";
     static constexpr char BypassPrimRateCombiner[] = ".bypass_prim_rate_combiner";
     static constexpr char UseVtxGsCutFlag[]        = ".use_vtx_gs_cut_flag";
-#if PAL_BUILD_GFX11
     static constexpr char UseVtxFsrSelect[]        = ".use_vtx_fsr_select";
-#endif
-
 };
 
 namespace VgtGsOnchipCntlMetadataKey
@@ -2333,15 +2287,12 @@ namespace VgtGsInstanceCntMetadataKey
     static constexpr char EnMaxVertOutPerGsInstance[] = ".en_max_vert_out_per_gs_instance";
 };
 
-#if PAL_BUILD_GFX11
 namespace SpiShaderGsMeshletExpAllocMetadataKey
 {
     static constexpr char MaxExpVerts[] = ".max_exp_verts";
     static constexpr char MaxExpPrims[] = ".max_exp_prims";
 };
-#endif
 
-#if PAL_BUILD_GFX11
 namespace SpiShaderGsMeshletDimMetadataKey
 {
     static constexpr char NumThreadX[]      = ".num_thread_x";
@@ -2349,7 +2300,6 @@ namespace SpiShaderGsMeshletDimMetadataKey
     static constexpr char NumThreadZ[]      = ".num_thread_z";
     static constexpr char ThreadgroupSize[] = ".threadgroup_size";
 };
-#endif
 
 namespace SpiPsInputCntlMetadataKey
 {
@@ -2362,10 +2312,7 @@ namespace SpiPsInputCntlMetadataKey
     static constexpr char Attr0Valid[]     = ".attr0_valid";
     static constexpr char Attr1Valid[]     = ".attr1_valid";
     static constexpr char RotatePcPtr[]    = ".rotate_pc_ptr";
-#if PAL_BUILD_GFX11
     static constexpr char PrimAttr[]       = ".prim_attr";
-#endif
-
 };
 
 namespace SpiInterpControlMetadataKey
@@ -2426,10 +2373,7 @@ namespace VgtShaderStagesEnMetadataKey
     static constexpr char NggWaveIdEn[]          = ".ngg_wave_id_en";
     static constexpr char GsFastLaunch[]         = ".gs_fast_launch";
     static constexpr char PrimgenPassthruEn[]    = ".primgen_passthru_en";
-#if PAL_BUILD_GFX11
     static constexpr char PrimgenPassthruNoMsg[] = ".primgen_passthru_no_msg";
-#endif
-
 };
 
 namespace PaSuVtxCntlMetadataKey

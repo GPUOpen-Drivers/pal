@@ -118,8 +118,6 @@ target_sources(pal PRIVATE
     gfx10ShadowedRegisters.h
     gfx10ShadowedRegisters_gfx103.h
     gfx10ShadowedRegisters_nv10.h
-#if PAL_BUILD_GFX11
     gfx11ShadowedRegisters.h
-#endif
     settings_gfx9.json
 )

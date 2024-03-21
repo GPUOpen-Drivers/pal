@@ -2130,7 +2130,6 @@ void InitializeContextRegistersGfx103(
     }
 }
 
-#if PAL_BUILD_GFX11
 // =====================================================================================================================
 // Initialize several structures with the ClearState values, the Set registers are the same as ContextShadowRange.
 void InitializeContextRegistersGfx11(
@@ -2791,6 +2790,5 @@ void InitializeContextRegistersGfx11(
     }
 }
 
-#endif
 } // namespace Gfx9
 } // namespace Pal

@@ -86,7 +86,10 @@ struct UniversalCmdBufferState
             uint32 drawTimeAlphaToCoverage :  1; // Tracks alphaToCoverageState to be updated per draw.
             uint32 reserved0               :  2;
             uint32 cbColorInfoDirtyRtv     :  8; // Per-MRT dirty mask for CB_COLORx_INFO as a result of RTV
-            uint32 reserved1               :  8;
+            uint32 needsEiV2GlobalSpill    :  1; // Indicates that this CmdBuffer contains an ExecuteIndirectV2 PM4
+                                                 // which will have mutliple instances of SpilledUserData Tables that
+                                                 // will use the Global SpillTable Buffer.
+            uint32 reserved1               :  7;
         };
         uint32 u32All;
     } flags;
@@ -281,18 +284,12 @@ union CachedSettings
         uint64 waIndexBufferZeroSize                     :  1;
         uint64 waLegacyGsCutModeFlush                    :  1;
         uint64 waClampQuadDistributionFactor             :  1;
-
         uint64 supportsVrs                               :  1;
         uint64 vrsForceRateFine                          :  1;
-#if PAL_BUILD_GFX11
         uint64 supportsSwStrmout                         :  1;
-#else
-        uint64 reserved7                                 :  1;
-#endif
         uint64 supportAceOffload                         :  1;
         uint64 useExecuteIndirectPacket                  :  3;
         uint64 disablePreamblePipelineStats              :  1;
-#if PAL_BUILD_GFX11
         uint64 primGrpSize                               :  9; // For programming GE_CNTL::PRIM_GRP_SIZE
         uint64 geCntlGcrMode                             :  2; // For programming GE_CNTL::GCR_DISABLE
         uint64 useLegacyDbZInfo                          :  1;
@@ -301,16 +298,9 @@ union CachedSettings
         uint64 waEnableIntrinsicRateEnable               :  1;
         uint64 supportsShPairsPacket                     :  1;
         uint64 supportsShPairsPacketCs                   :  1;
-#else
-        uint64 reserved8                                 : 17;
-#endif
 
         // The second uint64 starts here.
-#if PAL_BUILD_GFX11
         uint64 waAddPostambleEvent                       :  1;
-#else
-        uint64 reserved9                                 :  1;
-#endif
         uint64 optimizeDepthOnlyFmt                      :  1;
         uint64 has32bPred                                :  1;
         uint64 optimizeNullSourceImage                   :  1;
@@ -542,11 +532,10 @@ public:
         CompareFunc compareFunc) override;
 
     virtual void CmdWaitMemoryValue(
-        const IGpuMemory& gpuMemory,
-        gpusize           offset,
-        uint32            data,
-        uint32            mask,
-        CompareFunc       compareFunc) override;
+        gpusize     gpuVirtAddr,
+        uint32      data,
+        uint32      mask,
+        CompareFunc compareFunc) override;
 
     virtual void CmdWaitBusAddressableMemoryMarker(
         const IGpuMemory& gpuMemory,
@@ -691,7 +680,7 @@ public:
     // checks if the entire command buffer can be preempted or not
     virtual bool IsPreemptable() const override;
 
-    bool GetExecuteIndirectV2Usage() const { return m_hasExecuteIndirectV2; }
+    bool ExecuteIndirectV2NeedsGlobalSpill() const { return m_state.flags.needsEiV2GlobalSpill; }
 
     virtual uint32* WriteWaitEop(HwPipePoint waitPoint, uint32 hwGlxSync, uint32 hwRbSync, uint32* pCmdSpace) override;
     virtual uint32* WriteWaitCsIdle(uint32* pCmdSpace) override;
@@ -819,7 +808,6 @@ private:
         DispatchDims offset,
         DispatchDims launchSize,
         DispatchDims logicalSize);
-#if PAL_BUILD_GFX11
     template <bool IssueSqttMarkerEvent,
               bool HasUavExport,
               bool ViewInstancingEnable,
@@ -827,7 +815,6 @@ private:
     static void PAL_STDCALL CmdDispatchMeshNative(
         ICmdBuffer*  pCmdBuffer,
         DispatchDims size);
-#endif
     template <bool IssueSqttMarkerEvent,
               bool HasUavExport,
               bool ViewInstancingEnable,
@@ -989,9 +976,7 @@ private:
         const UserDataEntries&          userData,
         const ComputePipelineSignature* pCurrSignature,
         const ComputePipelineSignature* pPrevSignature,
-#if PAL_BUILD_GFX11
         const bool                      onAce,
-#endif
         uint32**                        ppDeCmdSpace);
 
     void LeakNestedCmdBufferState(
@@ -1021,9 +1006,7 @@ private:
     void SwitchDrawFunctions(
         bool hasUavExport,
         bool viewInstancingEnable,
-#if PAL_BUILD_GFX11
         bool nativeMsEnable,
-#endif
         bool hasTaskShader);
 
     template <bool IssueSqtt,
@@ -1031,9 +1014,7 @@ private:
     void SwitchDrawFunctionsInternal(
         bool hasUavExport,
         bool viewInstancingEnable,
-#if PAL_BUILD_GFX11
         bool nativeMsEnable,
-#endif
         bool hasTaskShader);
 
     template <bool ViewInstancing,
@@ -1041,9 +1022,7 @@ private:
               bool DescribeDrawDispatch>
     void SwitchDrawFunctionsInternal(
         bool hasUavExport,
-#if PAL_BUILD_GFX11
         bool nativeMsEnable,
-#endif
         bool hasTaskShader);
 
     template <bool ViewInstancing,
@@ -1051,9 +1030,7 @@ private:
               bool IssueSqtt,
               bool DescribeDrawDispatch>
     void SwitchDrawFunctionsInternal(
-#if PAL_BUILD_GFX11
         bool nativeMsEnable,
-#endif
         bool hasTaskShader);
 
     CmdStream* GetAceCmdStream();
@@ -1064,9 +1041,7 @@ private:
     void       ValidateTaskMeshDispatch(gpusize indirectGpuVirtAddr, DispatchDims size);
     void       ValidateExecuteNestedCmdBuffer();
 
-#if PAL_BUILD_GFX11
     gpusize    SwStreamoutDataAddr();
-#endif
 
     bool IsTessEnabled() const
     {
@@ -1092,25 +1067,21 @@ private:
         return (m_pipelineState.flags.isNgg != 0);
     }
 
-#if PAL_BUILD_GFX11
     bool SupportsSwStrmout() const { return m_cachedSettings.supportsSwStrmout; }
-#endif
 
     void WritePerDrawVrsRate(const VrsRateParams&  rateParams);
 
-#if PAL_BUILD_GFX11
     template <Pm4ShaderType ShaderType, bool Pm4OptImmediate>
     uint32* WritePackedUserDataEntriesToSgprs(uint32* pDeCmdSpace);
+
     template <Pm4ShaderType ShaderType>
     uint32* WritePackedUserDataEntriesToSgprs(uint32* pDeCmdSpace);
-#endif
+
     template <Pm4ShaderType ShaderType>
     uint32* SetUserSgprReg(
         uint16  regAddr,
         uint32  regValue,
-#if PAL_BUILD_GFX11
         bool    onAce,
-#endif
         uint32* pDeCmdSpace);
 
     template <Pm4ShaderType ShaderType>
@@ -1118,9 +1089,7 @@ private:
         uint16      startAddr,
         uint16      endAddr,
         const void* pValues,
-    #if PAL_BUILD_GFX11
         bool        onAce,
-    #endif
         uint32*     pDeCmdSpace);
 
     bool UpdateNggPrimCb(
@@ -1132,11 +1101,7 @@ private:
         std::max({ sizeof(Tn)... }),
         std::max({ alignof(Tn)... })>::type;
 
-#if PAL_BUILD_GFX11
     using ColorTargetViewStorage  = ViewStorage<Gfx10ColorTargetView, Gfx11ColorTargetView>;
-#else
-    using ColorTargetViewStorage  = ViewStorage<Gfx10ColorTargetView>;
-#endif
     using DepthStencilViewStorage = ViewStorage<Gfx10DepthStencilView>;
 
     IColorTargetView* StoreColorTargetView(uint32 slot, const BindTargetParams& params);
@@ -1174,12 +1139,12 @@ private:
         {
             struct
             {
-                uint32  usesTess    :  1;
-                uint32  usesGs      :  1;
-                uint32  isNgg       :  1;
-                uint32  gsCutMode   :  2;
-                uint32  reserved1   :  1;
-                uint32  reserved    : 26;
+                uint32  usesTess             :  1;
+                uint32  usesGs               :  1;
+                uint32  isNgg                :  1;
+                uint32  gsCutMode            :  2;
+                uint32  reserved1            :  1;
+                uint32  reserved             : 26;
             };
             uint32 u32All;
         } flags; // Flags describing the currently active pipeline stages.
@@ -1341,7 +1306,6 @@ private:
     // during Reset() if the reset doesn't affect any pending queries.
     Util::IntervalTree<gpusize, bool, Platform>  m_activeOcclusionQueryWriteRanges;
 
-#if PAL_BUILD_GFX11
     // This list tracks the set of active pipeline-stats queries which need to have some of their Begin() operations
     // done on the ganged ACE queue.  We generally don't want to initialize that queue whenever a pipeline-stats query
     // begun, so track all such queries which have begun but not yet ended.
@@ -1351,23 +1315,15 @@ private:
         uint32            slot;
     };
     Util::Vector<ActiveQueryState, 4, Platform>  m_deferredPipelineStatsQueries;
-#endif
 
     // Used to sync the ACE and DE in a ganged submit.
     gpusize m_gangedCmdStreamSemAddr;
     uint32  m_semCountAceWaitDe;
     uint32  m_semCountDeWaitAce;
 
-    // Indicates that this CmdBuffer contains an ExecuteIndirectV2 PM4.
-    bool m_hasExecuteIndirectV2;
-
-#if PAL_BUILD_GFX11
     gpusize m_swStreamoutDataAddr;
-#endif
+    uint16  m_baseUserDataReg[HwShaderStage::Last];
 
-    uint16 m_baseUserDataReg[HwShaderStage::Last];
-
-#if PAL_BUILD_GFX11
     // Lookup tables for setting user data.  Entries have their lastSetVal field updated to
     // m_minValidUserEntryLookupValue the first time data is written after being invalidated. Every time user data is
     // invalidated, m_minValidUserEntryLookupValue is incremented. This makes any entry with
@@ -1386,7 +1342,6 @@ private:
     // Total number of registers packed into m_validUserEntryRegPairs.
     uint32                 m_numValidUserEntries;
     uint32                 m_numValidUserEntriesCs;
-#endif
 
     // MS/TS pipeline stats query is emulated by shader. A 6-DWORD scratch memory chunk is needed to store for shader
     // to store the three counter values.

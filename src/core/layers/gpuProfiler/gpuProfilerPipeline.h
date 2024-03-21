@@ -71,6 +71,9 @@ private:
         void*                 pPerfData,
         size_t                perfDataSize) const;
 
+    // Dump the perf data for a single non-archive pipeline.
+    void DumpPipelinePerfData(const IPipeline* pPipeline);
+
     const Device*                    m_pDevice;
     Platform*                        m_pPlatform;
     bool                             m_hasPerformanceData;

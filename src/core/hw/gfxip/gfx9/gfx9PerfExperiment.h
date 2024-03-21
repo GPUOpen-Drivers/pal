@@ -151,14 +151,12 @@ struct GlobalSelectState
         bool                       perfmonInUse[Gfx9MaxSqgPerfmonModules];
         bool                       hasCounters;
         regGRBM_GFX_INDEX          grbmGfxIndex;
-#if PAL_BUILD_GFX11
+
         // The register definitions of SQG_PERFCOUNTER0_SELECT and SQ_PERFCOUNTER0_SELECT are bit compatible.
         // For gfx11, it's safe to store PERF_SEL, SPM_MODE, PERF_MODE fields here.
-#endif
         regSQ_PERFCOUNTER0_SELECT  perfmon[Gfx9MaxSqgPerfmonModules];
     } sqg[Gfx9MaxShaderEngines];
 
-#if PAL_BUILD_GFX11
     struct
     {
         bool                       perfmonInUse[Gfx11MaxSqPerfmonModules];
@@ -166,7 +164,6 @@ struct GlobalSelectState
         regGRBM_GFX_INDEX          grbmGfxIndex;
         regSQ_PERFCOUNTER0_SELECT  perfmon[Gfx11MaxSqPerfmonModules];
     } sqWgp[Gfx11MaxWgps];
-#endif
 
     // The GRBM is a global block but it defines one special counter per SE. We treat its global counters generically
     // under GpuBlock::Grbm but special case the per-SE counters using GpuBlock::GrbmSe.
@@ -175,14 +172,6 @@ struct GlobalSelectState
         bool                           hasCounter;
         regGRBM_SE0_PERFCOUNTER_SELECT select;     // This is a non-standard select register as well.
     } grbmSe[Gfx9MaxShaderEngines];
-
-    // Each SDMA engine defines two global counters controlled by one register. This should only be used on ASICs
-    // that do not have generic SDMA counters.
-    struct
-    {
-        bool                  hasCounter[2]; // Each SDMA legacy control manages two global counters.
-        regSDMA0_PERFMON_CNTL perfmonCntl;   // This acts as two selects.
-    } legacySdma[Gfx9MaxSdmaInstances];
 
     // Each UMCCH instance defines a set of special global counters. Note that all UMCCH instances use copies of the
     // generic "PerfMon" registers for their perf counters. Some ASICs defines them per-block (regUMCCH0_PerfMonCtl1)
@@ -218,10 +207,8 @@ enum class SpmDataSegmentType : uint32
     Se1,
     Se2,
     Se3,
-#if PAL_BUILD_GFX11
     Se4,
     Se5,
-#endif
     Global,
     Count
 };
@@ -245,7 +232,6 @@ union MuxselEncoding
         uint16 instance    : 5; // The local instance of the block.
     } gfx10Se;                   // Use this version in the per-SE muxsel rams on gfx10.
 
-#if PAL_BUILD_GFX11
     struct
     {
         uint16 counter     : 5;
@@ -253,7 +239,6 @@ union MuxselEncoding
         uint16 shaderArray : 1;
         uint16 block       : 5;
     } gfx11;
-#endif
 
     uint16 u16All; // All the fields above as a single uint16
 };
@@ -377,11 +362,10 @@ private:
 
     bool HasRmiSubInstances(GpuBlock block) const;
     bool IsSqLevelEvent(uint32 eventId) const;
+    bool IsSqWgpLevelEvent(uint32 eventId) const;
+
     uint32 VirtualSeToRealSe(const uint32 index) const;
     uint32 RealSeToVirtualSe(const uint32 index) const;
-#if PAL_BUILD_GFX11
-    bool IsSqWgpLevelEvent(uint32 eventId) const;
-#endif
 
     // Here are a few helper functions which write into reserved command space.
     uint32* WriteSpmSetup(CmdStream* pCmdStream, uint32* pCmdSpace) const;
@@ -415,7 +399,6 @@ private:
     const GpuChipProperties&   m_chipProps;
     const Gfx9PerfCounterInfo& m_counterInfo;
     const Gfx9PalSettings&     m_settings;
-    const RegisterInfo&        m_registerInfo;
     const CmdUtil&             m_cmdUtil;
 
     // Global counters are added iteratively so just use a vector to hold them.
@@ -440,9 +423,7 @@ private:
     // Global SPM state.
     SpmCounterMapping* m_pSpmCounters;                      // The list of all enabled SPM counters.
     uint32             m_numSpmCounters;
-#if PAL_BUILD_GFX11
     uint32             m_maxSeMuxSelLines;                  // The max muxsel lines needed by any shader engine.
-#endif
     SpmLineMapping*    m_pMuxselRams[MaxNumSpmSegments];    // One array of muxsel programmings for each segment.
     uint32             m_numMuxselLines[MaxNumSpmSegments];
     uint32             m_spmSampleLines;                    // The size of a full SPM sample (all segments) in lines.

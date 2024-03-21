@@ -1,0 +1,85 @@
+{
+  "Version": 1,
+  "ComponentName": "PalExperiments",
+  "Settings": [
+    {
+      "Description": "Enable or disable depth-stencil texture compression in the driver.",
+      "Tags": [
+        "Safety"
+      ],
+      "Type": "bool",
+      "Name": "ExpDepthStencilTextureCompression",
+      "ExperimentName": "Depth-stencil texture compression",
+      "ExperimentDefault": true
+    },
+    {
+      "Description": "Synchronization/barrier optimizations.",
+      "Tags": [
+        "Safety"
+      ],
+      "Type": "bool",
+      "Name": "ExpSynchronizationOptimizationOreoModeControl",
+      "ExperimentName": "Synchronization/barrier optimizations",
+      "ExperimentDefault": false
+    },
+    {
+      "Description": "Enable/disable extra cache flush/invalidate around each draw call, dispatch, and other GPU commands.",
+      "Tags": [
+        "Safety"
+      ],
+      "ValidValues": {
+        "IsEnum": true,
+        "Name": "ExpBeforeAfterAction",
+        "Values": [
+          {
+            "Name": "ExpNoDrawAction",
+            "Value": 0
+          },
+          {
+            "Name": "ExpBeforeDraw",
+            "Value": 1
+          },
+          {
+            "Name": "ExpAfterDraw",
+            "Value": 2
+          },
+          {
+            "Name": "ExpBeforeDispatch",
+            "Value": 4
+          },
+          {
+            "Name": "ExpAfterDispatch",
+            "Value": 8
+          },
+          {
+            "Name": "ExpBeforeBarrier",
+            "Value": 16
+          },
+          {
+            "Name": "ExpAfterBarrier",
+            "Value": 32
+          },
+          {
+            "Name": "ExpBeforeBlt",
+            "Value": 64
+          },
+          {
+            "Name": "ExpAfterBlt",
+            "Value": 128
+          }
+        ]
+      },
+      "Flags": {
+        "IsHex": true,
+        "IsBitmask": true
+      },
+      "Type": "enum",
+      "Name": "ExpFlushInvalidateCacheOnCommand",
+      "ExperimentName": "Flush/invalidate cache on command",
+      "ExperimentDefault": "ExpNoDrawAction"
+    }
+  ],
+  "Tags": [
+    "Safety"
+  ]
+}

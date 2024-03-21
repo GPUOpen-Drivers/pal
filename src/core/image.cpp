@@ -1523,11 +1523,7 @@ void Image::SetPrivateScreen(
 // Returns whether or not this image prefers CB fixed function resolve
 bool Image::PreferCbResolve() const
 {
-    return ((m_createInfo.flags.repetitiveResolve != 0)
-#if PAL_BUILD_GFX11
-            && (IsGfx11(*m_pDevice) == false)
-#endif
-           );
+    return ((m_createInfo.flags.repetitiveResolve != 0) && (IsGfx11(*m_pDevice) == false));
 }
 
 } // Pal

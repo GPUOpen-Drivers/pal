@@ -120,6 +120,7 @@ Platform::Platform(
     m_pDriverUtilsService(nullptr),
     m_pEventServer(nullptr),
     m_settingsLoader(this),
+    m_experimentsLoader(this),
     m_pRgpServer(nullptr),
 #if PAL_BUILD_RDF
     m_pTraceSession(nullptr),
@@ -568,8 +569,13 @@ Result Platform::EarlyInitDevDriver()
         }
     }
 
-    // Initialize Platform settings
-    Result result = m_settingsLoader.Init();
+    // Initialize settings and experiments
+    Result result = m_experimentsLoader.Init();
+
+    if (result == Result::Success)
+    {
+        result = m_settingsLoader.Init();
+    }
 
     if ((result == Result::Success) && (m_pDevDriverServer != nullptr))
     {
@@ -620,6 +626,30 @@ Result Platform::EarlyInitDevDriver()
     }
 
     return result;
+}
+
+// =====================================================================================================================
+PciId Platform::GetPciId(
+    uint32 palGpuIndex)
+{
+    PciId id  = {};
+    id.u32All = DDGpuIdUnknown;
+
+    if (palGpuIndex < m_deviceCount)
+    {
+        Device* pPalDevice = m_pDevice[palGpuIndex];
+
+        if (pPalDevice != nullptr)
+        {
+            const GpuChipProperties& properties = pPalDevice->ChipProperties();
+            id.u32All                           = 0; // Zero again to ensure all bits are cleared
+            id.busId                            = properties.pciBusNumber;
+            id.deviceId                         = properties.pciDeviceNumber;
+            id.functionId                       = properties.pciFunctionNumber;
+        }
+    }
+
+    return id;
 }
 
 // =====================================================================================================================
@@ -694,6 +724,10 @@ void Platform::LateInitDevDriver()
         m_pSettingsRpcService->RegisterSettingsComponent(&m_settingsLoader);
 
         totalUserOverrides = m_pSettingsRpcService->TotalUserOverrideCount();
+
+        m_pSettingsRpcService->RegisterSettingsComponent(&m_experimentsLoader);
+
+        m_settingsLoader.ApplyExperiments();
     }
 
     // This could override previously applied user-overrides for the settings whose values are deemed invalid.

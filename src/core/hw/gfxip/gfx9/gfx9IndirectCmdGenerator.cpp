@@ -130,11 +130,8 @@ IndirectCmdGenerator::IndirectCmdGenerator(
         for (uint32_t i = 0; i < createInfo.paramCount; i++)
         {
             IndirectParam* pCheckParam = m_pCreationParam + i;
-            if (((pCheckParam->type == IndirectParamType::DispatchMesh)
-#if PAL_BUILD_GFX11
-                && (IsGfx11Plus(Properties().gfxLevel) == false)
-#endif
-                ) ||
+            if (((pCheckParam->type == IndirectParamType::DispatchMesh) &&
+                    (IsGfx11Plus(Properties().gfxLevel) == false)) ||
                 ((pCheckParam->type == IndirectParamType::BindVertexData) &&
                     (settings.useExecuteIndirectPacket < UseExecuteIndirectV1PacketForDrawSpillAndVbTable)) ||
                 ((pCheckParam->type == IndirectParamType::Dispatch) &&
@@ -322,11 +319,9 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
     case IndirectOpType::Skip:
         // INDIRECT_TABLE_SRD and SKIP operations don't directly generate any PM4 packets.
         break;
-#if PAL_BUILD_GFX11
     case IndirectOpType::DispatchMesh:
         size = Gfx11DispatchMeshCmdBufSize;
         break;
-#endif
     default:
         PAL_NOT_IMPLEMENTED();
         break;
@@ -371,9 +366,7 @@ void IndirectCmdGenerator::InitParamBuffer(
     const IndirectCmdGeneratorCreateInfo& createInfo)
 {
     constexpr uint32 BufferSrdDwords = ((sizeof(BufferSrd) / sizeof(uint32)));
-#if PAL_BUILD_GFX11
-    const bool isGfx11               = IsGfx11(Properties().gfxLevel);
-#endif
+    const bool       isGfx11         = IsGfx11(Properties().gfxLevel);
 
     memset(m_pParamData, 0, (sizeof(IndirectParamData) * PaddedParamCount(ParameterCount())));
 
@@ -416,14 +409,10 @@ void IndirectCmdGenerator::InitParamBuffer(
                 m_pParamData[p].data[0] = argBufOffsetIndices;
                 break;
             case IndirectParamType::DispatchMesh:
-#if PAL_BUILD_GFX11
                 // We use different programming for Gfx11 and Gfx103 so we use IndirectOpType::DispatchMesh
                 // for Gfx11 and IndirectOpType::DrawIndexAuto for Gfx103.
-                m_pParamData[p].type    = (isGfx11) ? IndirectOpType::DispatchMesh
-                                                    : IndirectOpType::DrawIndexAuto;
-#else
-                m_pParamData[p].type    = IndirectOpType::DrawIndexAuto;
-#endif
+                m_pParamData[p].type = isGfx11 ? IndirectOpType::DispatchMesh
+                                               : IndirectOpType::DrawIndexAuto;
                 break;
             case IndirectParamType::SetUserData:
                 m_pParamData[p].type    = IndirectOpType::SetUserData;
@@ -474,18 +463,13 @@ void IndirectCmdGenerator::PopulateParameterBuffer(
     void*           pSrd
     ) const
 {
-#if PAL_BUILD_GFX11
     const GsFastLaunchMode fastLaunchMode = (Type() == Pm4::GeneratorType::DispatchMesh)
-                                          ? static_cast<const GraphicsPipeline*>(pPipeline)->FastLaunchMode()
-                                          : GsFastLaunchMode::Disabled;
+                                                ? static_cast<const GraphicsPipeline*>(pPipeline)->FastLaunchMode()
+                                                : GsFastLaunchMode::Disabled;
     const bool usesLegacyMsFastLaunch     = (IsGfx11(Properties().gfxLevel) &&
                                             (fastLaunchMode == GsFastLaunchMode::VertInLane));
-#endif
-    if (m_cmdSizeNeedPipeline
-#if PAL_BUILD_GFX11
-        || usesLegacyMsFastLaunch
-#endif
-       )
+
+    if (m_cmdSizeNeedPipeline || usesLegacyMsFastLaunch)
     {
         PAL_ASSERT(Type() != Pm4::GeneratorType::Dispatch);
         const auto& signature = static_cast<const GraphicsPipeline*>(pPipeline)->Signature();
@@ -528,7 +512,6 @@ void IndirectCmdGenerator::PopulateParameterBuffer(
                 uint32 size = (CmdUtil::ShRegSizeDwords + param.userData.entryCount) * numHwStages;
                 pData[p].cmdBufSize = sizeof(uint32) * size;
             }
-#if PAL_BUILD_GFX11
             else if ((param.type == IndirectParamType::DispatchMesh) && usesLegacyMsFastLaunch)
             {
                 // In the case that we're using VertInLane on Gfx11 for MS, we must change the IndirectOpType
@@ -536,7 +519,6 @@ void IndirectCmdGenerator::PopulateParameterBuffer(
                 pData[p].type       = IndirectOpType::DrawIndexAuto;
                 pData[p].cmdBufSize = DetermineMaxCmdBufSize(Type(), pData[p].type, param);
             }
-#endif
 
             pData[p].cmdBufOffset = cmdBufOffset;
             cmdBufOffset += pData[p].cmdBufSize;
@@ -555,19 +537,16 @@ uint32 IndirectCmdGenerator::CmdBufStride(
     const Pipeline* pPipeline
     ) const
 {
-#if PAL_BUILD_GFX11
+
     const GsFastLaunchMode fastLaunchMode = (Type() == Pm4::GeneratorType::DispatchMesh)
-                                          ? static_cast<const GraphicsPipeline*>(pPipeline)->FastLaunchMode()
-                                          : GsFastLaunchMode::Disabled;
+                                                ? static_cast<const GraphicsPipeline*>(pPipeline)->FastLaunchMode()
+                                                : GsFastLaunchMode::Disabled;
     const bool usesLegacyMsFastLaunch     = (IsGfx11(Properties().gfxLevel) &&
                                             (fastLaunchMode == GsFastLaunchMode::VertInLane));
-#endif
-    uint32  cmdBufStride = 0;
-    if (m_cmdSizeNeedPipeline
-#if PAL_BUILD_GFX11
-        || usesLegacyMsFastLaunch
-#endif
-       )
+
+    uint32 cmdBufStride = 0;
+
+    if (m_cmdSizeNeedPipeline || usesLegacyMsFastLaunch)
     {
         const auto& signature = static_cast<const GraphicsPipeline*>(pPipeline)->Signature();
 
@@ -596,18 +575,17 @@ uint32 IndirectCmdGenerator::CmdBufStride(
                 uint32 size = (CmdUtil::ShRegSizeDwords + param.userData.entryCount) * numHwStages;
                 cmdSize = sizeof(uint32) * size;
             }
-#if PAL_BUILD_GFX11
             else if ((param.type == IndirectParamType::DispatchMesh) && usesLegacyMsFastLaunch)
             {
                 // In the case that we're using VertInLane on Gfx11 for MS, we must update the cmdBufStride
                 // as we've changed the IndirectOpType.
                 cmdSize = DetermineMaxCmdBufSize(Type(), IndirectOpType::DrawIndexAuto, param);
             }
-#endif
             else
             {
                 cmdSize = m_pParamData[p].cmdBufSize;
             }
+
             cmdBufStride += cmdSize;
         }
     }
@@ -616,7 +594,7 @@ uint32 IndirectCmdGenerator::CmdBufStride(
         cmdBufStride = m_properties.cmdBufStride;
     }
 
-    return (cmdBufStride);
+    return cmdBufStride;
 }
 
 // =====================================================================================================================
@@ -626,18 +604,13 @@ void IndirectCmdGenerator::PopulatePropertyBuffer(
     void*           pSrd
     ) const
 {
-#if PAL_BUILD_GFX11
     const GsFastLaunchMode fastLaunchMode = (Type() == Pm4::GeneratorType::DispatchMesh)
-                                          ? static_cast<const GraphicsPipeline*>(pPipeline)->FastLaunchMode()
-                                          : GsFastLaunchMode::Disabled;
+                                                ? static_cast<const GraphicsPipeline*>(pPipeline)->FastLaunchMode()
+                                                : GsFastLaunchMode::Disabled;
     const bool usesLegacyMsFastLaunch     = (IsGfx11(Properties().gfxLevel) &&
                                             (fastLaunchMode == GsFastLaunchMode::VertInLane));
-#endif
-    if (m_cmdSizeNeedPipeline
-#if PAL_BUILD_GFX11
-        || usesLegacyMsFastLaunch
-#endif
-       )
+
+    if (m_cmdSizeNeedPipeline || usesLegacyMsFastLaunch)
     {
         BufferViewInfo viewInfo = { };
         viewInfo.stride        = (sizeof(uint32) * 4);
@@ -712,9 +685,7 @@ void IndirectCmdGenerator::PopulateInvocationBuffer(
 
         dispatchInitiator.bits.COMPUTE_SHADER_EN  = 1;
         dispatchInitiator.bits.ORDER_MODE         = 1;
-#if PAL_BUILD_GFX11
         dispatchInitiator.gfx11.AMP_SHADER_EN     = isTaskEnabled;
-#endif
 
         if (IsGfx10Plus(*m_device.Parent()))
         {

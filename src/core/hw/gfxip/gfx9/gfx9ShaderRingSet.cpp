@@ -184,13 +184,11 @@ Result ShaderRingSet::Init()
                 m_ppRings[idx] =
                     PAL_NEW(TaskMeshCtrlDrawRing, m_pDevice->GetPlatform(), AllocObject)(m_pDevice, m_pSrdTable, m_tmzEnabled);
                 break;
-#if PAL_BUILD_GFX11
             case ShaderRingType::VertexAttributes:
                 m_ppRings[idx] =
                     PAL_NEW(VertexAttributeRing, m_pDevice->GetPlatform(), AllocObject)
                            (m_pDevice, m_pSrdTable, m_tmzEnabled);
                 break;
-#endif
 
             default:
                 PAL_ASSERT_ALWAYS();
@@ -400,13 +398,12 @@ Result UniversalRingSet::Init()
             static_cast<ScratchRing*>(m_ppRings[static_cast<size_t>(ShaderRingType::GfxScratch)]);
 
         m_regs.gfxScratchRingSize.bits.WAVES    = pScratchRingGfx->CalculateWaves();
-#if PAL_BUILD_GFX11
+
         if (IsGfx11(device))
         {
             m_regs.gfxScratchRingSize.gfx11.WAVESIZE = pScratchRingGfx->CalculateWaveSize();
         }
         else
-#endif
         {
             m_regs.gfxScratchRingSize.gfx09_10.WAVESIZE = pScratchRingGfx->CalculateWaveSize();
         }
@@ -416,13 +413,12 @@ Result UniversalRingSet::Init()
             static_cast<ScratchRing*>(m_ppRings[static_cast<size_t>(ShaderRingType::ComputeScratch)]);
 
         m_regs.computeScratchRingSize.bits.WAVES    = pScratchRingCs->CalculateWaves();
-#if PAL_BUILD_GFX11
+
         if (IsGfx11(device))
         {
             m_regs.computeScratchRingSize.gfx11.WAVESIZE = pScratchRingCs->CalculateWaveSize();
         }
         else
-#endif
         {
             m_regs.computeScratchRingSize.gfx09_10.WAVESIZE = pScratchRingCs->CalculateWaveSize();
         }
@@ -445,13 +441,11 @@ Result UniversalRingSet::Init()
             PAL_ASSERT_ALWAYS();
         }
 
-#if PAL_BUILD_GFX11
         m_regs.spiAttributeRingSize.bits.BIG_PAGE                 = 0;
         m_regs.spiAttributeRingSize.bits.L1_POLICY                = GL1_CACHE_POLICY_MISS_EVICT;
         m_regs.spiAttributeRingSize.bits.L2_POLICY                = GL2_CACHE_POLICY_LRU;
         m_regs.spiAttributeRingSize.bits.LLC_NOALLOC              = 0;
         m_regs.spiAttributeRingSize.bits.GL1_PERF_COUNTER_DISABLE = 0;
-#endif
     }
 
     if (result == Result::Success)
@@ -522,44 +516,38 @@ Result UniversalRingSet::Validate(
 
         // Scratch rings:
         m_regs.gfxScratchRingSize.bits.WAVES        = pScratchRingGfx->CalculateWaves();
-#if PAL_BUILD_GFX11
+
         if (IsGfx11(device))
         {
             m_regs.gfxScratchRingSize.gfx11.WAVESIZE     = pScratchRingGfx->CalculateWaveSize();
         }
         else
-#endif
         {
             m_regs.gfxScratchRingSize.gfx09_10.WAVESIZE     = pScratchRingGfx->CalculateWaveSize();
         }
 
-#if PAL_BUILD_GFX11
         if (pScratchRingGfx->IsMemoryValid())
         {
             m_regs.spiGfxScratchBaseLo.bits.DATA = Get256BAddrLo(pScratchRingGfx->GpuVirtAddr());
             m_regs.spiGfxScratchBaseHi.bits.DATA = Get256BAddrHi(pScratchRingGfx->GpuVirtAddr());
         }
-#endif
 
         m_regs.computeScratchRingSize.bits.WAVES    = pScratchRingCs->CalculateWaves();
-#if PAL_BUILD_GFX11
+
         if (IsGfx11(device))
         {
             m_regs.computeScratchRingSize.gfx11.WAVESIZE = pScratchRingCs->CalculateWaveSize();
         }
         else
-#endif
         {
             m_regs.computeScratchRingSize.gfx09_10.WAVESIZE = pScratchRingCs->CalculateWaveSize();
         }
 
-#if PAL_BUILD_GFX11
         if (pScratchRingCs->IsMemoryValid())
         {
             m_regs.computeDispatchScratchBaseLo.bits.DATA = Get256BAddrLo(pScratchRingCs->GpuVirtAddr());
             m_regs.computeDispatchScratchBaseHi.bits.DATA = Get256BAddrHi(pScratchRingCs->GpuVirtAddr());
         }
-#endif
 
         // ES/GS and GS/VS ring size registers are in units of 64 DWORD's.
         constexpr uint32 GsRingSizeAlignmentShift = 6;
@@ -575,13 +563,11 @@ Result UniversalRingSet::Validate(
             m_regs.vgtTfMemoryBaseLo.bits.BASE    = addrLo;
             m_regs.vgtTfMemoryBaseHi.bits.BASE_HI = addrHi;
 
-#if PAL_BUILD_GFX11
             if (IsGfx11(m_gfxLevel))
             {
                 m_regs.vgtTfRingSize.gfx11.SIZE = pTfBuffer->TfRingSize();
             }
             else
-#endif
             {
                 m_regs.vgtTfRingSize.gfx09_10.SIZE = pTfBuffer->TfRingSize();
             }
@@ -604,8 +590,8 @@ Result UniversalRingSet::Validate(
 
         }
 
-#if PAL_BUILD_GFX11
         const ShaderRing*const pAttribThruMem = m_ppRings[static_cast<size_t>(ShaderRingType::VertexAttributes)];
+
         if (pAttribThruMem->IsMemoryValid())
         {
             // AttribThruMem addr and size registers are in units of 64KB
@@ -619,7 +605,6 @@ Result UniversalRingSet::Validate(
             m_regs.spiAttributeRingSize.bits.MEM_SIZE =
                 ((pAttribThruMem->MemorySizeBytes() / numSes) >> AttribThruMemShift) - 1;
         }
-#endif
     }
 
     return result;
@@ -634,8 +619,7 @@ uint32* UniversalRingSet::WriteCommands(
 {
     const uint32 srdTableBaseLo = LowPart(m_srdTableMem.GpuVirtAddr());
 
-    const CmdUtil& cmdUtil  = m_pDevice->CmdUtil();
-    const auto&    regInfo  = cmdUtil.GetRegInfo();
+    const CmdUtil& cmdUtil = m_pDevice->CmdUtil();
 
     // Issue VS_PARTIAL_FLUSH and VGT_FLUSH events to make sure it is safe to write the ring config registers.
     pCmdSpace += cmdUtil.BuildNonSampleEventWrite(VS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
@@ -683,21 +667,21 @@ uint32* UniversalRingSet::WriteCommands(
                                                             m_regs.computeScratchRingSize.u32All,
                                                             pCmdSpace);
 
-    const uint32 gfxSrdTableGpuVaLo[] =
+    constexpr uint32 GfxSrdTableGpuVaLo[] =
     {
-        static_cast<uint32>(m_pDevice->GetBaseUserDataReg(HwShaderStage::Hs) + InternalTblStartReg),
-        static_cast<uint32>(regInfo.mmUserDataStartGsShaderStage             + InternalTblStartReg),
-        mmSPI_SHADER_USER_DATA_PS_0                                          + InternalTblStartReg,
-        HasHwVs::mmSPI_SHADER_USER_DATA_VS_0                                 + InternalTblStartReg,
+        Gfx10Plus::mmSPI_SHADER_USER_DATA_HS_0 + InternalTblStartReg,
+        Gfx10Plus::mmSPI_SHADER_USER_DATA_GS_0 + InternalTblStartReg,
+        mmSPI_SHADER_USER_DATA_PS_0            + InternalTblStartReg,
+        HasHwVs::mmSPI_SHADER_USER_DATA_VS_0   + InternalTblStartReg,
     };
 
     size_t gfxSrdRegLocsCount = m_pDevice->Parent()->ChipProperties().gfxip.supportsHwVs ?
-                                ArrayLen(gfxSrdTableGpuVaLo) :
-                                ArrayLen(gfxSrdTableGpuVaLo) - 1;
+                                ArrayLen(GfxSrdTableGpuVaLo) :
+                                ArrayLen(GfxSrdTableGpuVaLo) - 1;
 
     for (uint32 s = 0; s < gfxSrdRegLocsCount; ++s)
     {
-        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(gfxSrdTableGpuVaLo[s], srdTableBaseLo, pCmdSpace);
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(GfxSrdTableGpuVaLo[s], srdTableBaseLo, pCmdSpace);
     }
 
     const ShaderRing* const  pControlBuffer = m_ppRings[static_cast<size_t>(ShaderRingType::TaskMeshCtrlDrawRing)];
@@ -709,8 +693,8 @@ uint32* UniversalRingSet::WriteCommands(
                                                  pCmdSpace);
     }
 
-#if PAL_BUILD_GFX11
     const ShaderRing* const pVertexAttributes = m_ppRings[static_cast<size_t>(ShaderRingType::VertexAttributes)];
+
     if (pVertexAttributes->IsMemoryValid())
     {
         // GPU page fault or application corruption is observed when ATM base address switch during HP3D <-> LP3D
@@ -740,7 +724,6 @@ uint32* UniversalRingSet::WriteCommands(
                                                        &m_regs.spiGfxScratchBaseLo,
                                                        pCmdSpace);
     }
-#endif
 
     return pCmdStream->WriteSetOneContextReg(mmSPI_TMPRING_SIZE, m_regs.gfxScratchRingSize.u32All, pCmdSpace);
 }
@@ -763,7 +746,8 @@ uint32* UniversalRingSet::WriteComputeCommands(
     pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_TMPRING_SIZE,
                                                             m_regs.computeScratchRingSize.u32All,
                                                             pCmdSpace);
-    const ShaderRing* const  pControlBuffer = m_ppRings[static_cast<size_t>(ShaderRingType::TaskMeshCtrlDrawRing)];
+    const ShaderRing* const pControlBuffer = m_ppRings[static_cast<size_t>(ShaderRingType::TaskMeshCtrlDrawRing)];
+
     if (pControlBuffer->IsMemoryValid())
     {
         pCmdSpace += CmdUtil::BuildTaskStateInit(ShaderCompute,
@@ -772,7 +756,6 @@ uint32* UniversalRingSet::WriteComputeCommands(
                                                  pCmdSpace);
     }
 
-#if PAL_BUILD_GFX11
     if (IsGfx11(m_gfxLevel))
     {
         pCmdSpace = pCmdStream->WriteSetSeqShRegs(mmCOMPUTE_DISPATCH_SCRATCH_BASE_LO,
@@ -781,7 +764,6 @@ uint32* UniversalRingSet::WriteComputeCommands(
                                                   &m_regs.computeDispatchScratchBaseLo,
                                                   pCmdSpace);
     }
-#endif
 
     return pCmdSpace;
 }
@@ -813,13 +795,12 @@ Result ComputeRingSet::Init()
             static_cast<ScratchRing*>(m_ppRings[static_cast<size_t>(ShaderRingType::ComputeScratch)]);
 
         m_regs.computeScratchRingSize.bits.WAVES    = pScratchRingCs->CalculateWaves();
-#if PAL_BUILD_GFX11
+
         if (IsGfx11(*(m_pDevice->Parent())))
         {
             m_regs.computeScratchRingSize.gfx11.WAVESIZE = pScratchRingCs->CalculateWaveSize();
         }
         else
-#endif
         {
             m_regs.computeScratchRingSize.gfx09_10.WAVESIZE = pScratchRingCs->CalculateWaveSize();
         }
@@ -847,24 +828,21 @@ Result ComputeRingSet::Validate(
             static_cast<ScratchRing*>(m_ppRings[static_cast<size_t>(ShaderRingType::ComputeScratch)]);
 
         m_regs.computeScratchRingSize.bits.WAVES    = pScratchRingCs->CalculateWaves();
-#if PAL_BUILD_GFX11
+
         if (IsGfx11(*(m_pDevice->Parent())))
         {
             m_regs.computeScratchRingSize.gfx11.WAVESIZE = pScratchRingCs->CalculateWaveSize();
         }
         else
-#endif
         {
             m_regs.computeScratchRingSize.gfx09_10.WAVESIZE = pScratchRingCs->CalculateWaveSize();
         }
 
-#if PAL_BUILD_GFX11
         if (pScratchRingCs->IsMemoryValid())
         {
             m_regs.computeDispatchScratchBaseLo.bits.DATA = Get256BAddrLo(pScratchRingCs->GpuVirtAddr());
             m_regs.computeDispatchScratchBaseHi.bits.DATA = Get256BAddrHi(pScratchRingCs->GpuVirtAddr());
         }
-#endif
     }
 
     return result;
@@ -883,7 +861,6 @@ uint32* ComputeRingSet::WriteCommands(
                                                             srdTableBaseLo,
                                                             pCmdSpace);
 
-#if PAL_BUILD_GFX11
     if (IsGfx11(m_gfxLevel))
     {
         pCmdSpace = pCmdStream->WriteSetSeqShRegs(mmCOMPUTE_DISPATCH_SCRATCH_BASE_LO,
@@ -892,7 +869,6 @@ uint32* ComputeRingSet::WriteCommands(
                                                   &m_regs.computeDispatchScratchBaseLo,
                                                   pCmdSpace);
     }
-#endif
 
     return pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_TMPRING_SIZE,
                                                        m_regs.computeScratchRingSize.u32All,

@@ -515,10 +515,9 @@ const RegisterRange Gfx11NonShadowedRanges[] =
     }
 };
 
-constexpr uint32 Gfx11NumNonShadowedRanges      = static_cast<uint32>(Util::ArrayLen(Gfx11NonShadowedRanges));
+constexpr uint32 Gfx11NumNonShadowedRanges      = Util::ArrayLen32(Gfx11NonShadowedRanges);
 #endif
 
-#if PAL_BUILD_GFX11
 // Defines the set of ranges of GFX SH registers we want to initialize in per submit preamble.
 const RegisterRange Gfx11CpRs64InitShRanges[] =
 {
@@ -572,7 +571,7 @@ const RegisterRange Gfx11CpRs64InitShRanges[] =
     },
 };
 
-constexpr uint32 Gfx11NumCpRs64InitShRanges = static_cast<uint32>(Util::ArrayLen(Gfx11CpRs64InitShRanges));
+constexpr uint32 Gfx11NumCpRs64InitShRanges = Util::ArrayLen32(Gfx11CpRs64InitShRanges);
 
 // Defines the set of ranges of Compute SH registers we want to initialize in per submit preamble.
 const RegisterRange Gfx11CpRs64InitCsShRanges[] =
@@ -623,7 +622,7 @@ const RegisterRange Gfx11CpRs64InitCsShRanges[] =
     },
 };
 
-constexpr uint32 Gfx11NumCpRs64InitCsShRanges = static_cast<uint32>(Util::ArrayLen(Gfx11CpRs64InitCsShRanges));
+constexpr uint32 Gfx11NumCpRs64InitCsShRanges = Util::ArrayLen32(Gfx11CpRs64InitCsShRanges);
 
 // Defines the set of ranges of UserConfig registers we want to initialize in per submit preamble.
 const RegisterRange Gfx11CpRs64InitUserConfigRanges[] =
@@ -674,16 +673,12 @@ const RegisterRange Gfx11CpRs64InitUserConfigRanges[] =
     },
 };
 
-constexpr uint32 Gfx11NumCpRs64InitUserConfigRanges
-                                                = static_cast<uint32>(Util::ArrayLen(Gfx11CpRs64InitUserConfigRanges));
-
-#endif
-
-constexpr uint32 Gfx11NumUserConfigShadowRanges = static_cast<uint32>(Util::ArrayLen(Gfx11UserConfigShadowRange));
-constexpr uint32 Gfx11NumContextShadowRanges    = static_cast<uint32>(Util::ArrayLen(Gfx11ContextShadowRange));
-constexpr uint32 Gfx11NumContextEmuShadowRanges = static_cast<uint32>(Util::ArrayLen(Gfx11ContextEmuShadowRange));
-constexpr uint32 Gfx11NumShShadowRanges         = static_cast<uint32>(Util::ArrayLen(Gfx11ShShadowRange));
-constexpr uint32 Gfx11NumCsShShadowRanges       = static_cast<uint32>(Util::ArrayLen(Gfx11CsShShadowRange));
+constexpr uint32 Gfx11NumCpRs64InitUserConfigRanges = Util::ArrayLen32(Gfx11CpRs64InitUserConfigRanges);
+constexpr uint32 Gfx11NumUserConfigShadowRanges     = Util::ArrayLen32(Gfx11UserConfigShadowRange);
+constexpr uint32 Gfx11NumContextShadowRanges        = Util::ArrayLen32(Gfx11ContextShadowRange);
+constexpr uint32 Gfx11NumContextEmuShadowRanges     = Util::ArrayLen32(Gfx11ContextEmuShadowRange);
+constexpr uint32 Gfx11NumShShadowRanges             = Util::ArrayLen32(Gfx11ShShadowRange);
+constexpr uint32 Gfx11NumCsShShadowRanges           = Util::ArrayLen32(Gfx11CsShShadowRange);
 
 } // Gfx9
 } // Pal

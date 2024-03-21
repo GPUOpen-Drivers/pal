@@ -182,12 +182,10 @@ public:
 
     virtual void CmdBarrier(const BarrierInfo& barrierInfo) override;
 
-    virtual void OptimizeBarrierReleaseInfo(
-        uint32       pipePointCount,
-        HwPipePoint* pPipePoints,
-        uint32*      pCacheMask) const override { }
-
-    virtual void OptimizeAcqRelReleaseInfo(uint32* pStageMask, uint32* pAccessMask) const override { }
+    virtual void OptimizeAcqRelReleaseInfo(
+        BarrierType barrierType,
+        uint32*     pStageMask,
+        uint32*     pAccessMask) const override { }
 
     virtual uint32 CmdRelease(const AcquireReleaseInfo& releaseInfo) override;
 
@@ -642,8 +640,7 @@ public:
         { PAL_NEVER_CALLED(); }
 
     virtual void CmdWaitMemoryValue(
-        const IGpuMemory& gpuMemory,
-        gpusize           offset,
+        gpusize           gpuVirtAddr,
         uint32            data,
         uint32            mask,
         CompareFunc       compareFunc) override

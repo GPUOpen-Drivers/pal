@@ -88,6 +88,7 @@ enum class TraceMemoryType : Pal::uint32
 /// in TraceSession.
 typedef struct TraceChunkAsicInfo
 {
+    uint32_t        pciId;                                     // The ID of the GPU queried
     uint64_t        shaderCoreClockFrequency;                  // Gpu core clock frequency in Hz
     uint64_t        memoryClockFrequency;                      // Memory clock frequency in Hz
     uint64_t        gpuTimestampFrequency;                     // Frequency of the gpu timestamp clock in Hz
@@ -132,10 +133,11 @@ typedef struct TraceChunkAsicInfo
 namespace GpuUtil
 {
 
-constexpr char AsicInfoTraceSourceName[] = "asicinfo";
-constexpr Pal::uint32 AsicInfoTraceSourceVersion = 1;
+constexpr char AsicInfoTraceSourceName[]         = "asicinfo";
+constexpr Pal::uint32 AsicInfoTraceSourceVersion = 2;
 
-const char chunkTextIdentifier[GpuUtil::TextIdentifierSize] = "AsicInfo";
+const char AsicInfoChunkId[TextIdentifierSize]   = "AsicInfo";
+constexpr Pal::uint32 AsicInfoChunkVersion       = 2;
 
 // =====================================================================================================================
 // A trace source that sends ASIC information to the trace session. This is one of the "default" trace sources that are
@@ -159,22 +161,19 @@ public:
 
     virtual Pal::uint32 GetVersion() const override { return AsicInfoTraceSourceVersion; }
 
+private:
     // Helper function to fill in the TraceChunkAsicInfo struct based on the DeviceProperties and
     // PerfExperimentProperties provided.
-    Pal::Result FillTraceChunkAsicInfo(const Pal::DeviceProperties& properties,
-                                       const Pal::PerfExperimentProperties& perfExpProps,
-                                       const GpuClocksSample& gpuClocks,
-                                       TraceChunkAsicInfo* pAsicInfo);
+    void FillTraceChunkAsicInfo(const Pal::DeviceProperties&         properties,
+                                const Pal::PerfExperimentProperties& perfExpProps,
+                                const GpuClocksSample&               gpuClocks,
+                                TraceChunkAsicInfo*                  pAsicInfo);
 
     // Queries the engine and memory clocks from DeviceProperties
-    Pal::Result SampleGpuClocks(GpuClocksSample* pGpuClocksSample,
-                                Pal::Device* pDevice,
+    Pal::Result SampleGpuClocks(GpuClocksSample*      pGpuClocksSample,
+                                Pal::Device*          pDevice,
                                 Pal::DeviceProperties deviceProps) const;
 
-    // Translate TraceChunkAsicInfo to TraceChunkInfo and write it into TraceSession
-    void WriteAsicInfoTraceChunk();
-
-private:
     Pal::Platform* const m_pPlatform; // Platform associated with this TraceSource
 };
 

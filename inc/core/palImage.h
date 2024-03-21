@@ -206,9 +206,7 @@ union ImageCreateFlags
 
         uint32 tmzProtected            :  1; ///< Indicate this image is protected or not.
         uint32 sharedWithMesa          :  1; ///< Indicate this Image was opened from a Mesa shared Image
-#if PAL_BUILD_GFX11
         uint32 enable256KBSwizzleModes :  1; ///< Enable 256 KiB swizzle modes
-#endif
         uint32 hasModifier             :  1; ///< Set if the image uses drm format modifier.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 813
         uint32 disableDccStateTracking :  1; ///< Disable a PAL optimization which is commonly broken by app bugs.
@@ -370,7 +368,7 @@ struct PresentableImageCreateInfo
 #else
             uint32 placeholder0     :  1; ///< Placeholder.
 #endif
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 811) && PAL_BUILD_GFX11
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 811
             uint32 enable256KBSwizzleModes :  1; ///< Enable 256 KiB swizzle modes.
 #else
             uint32 placeholder1            :  1; ///< Placeholder.

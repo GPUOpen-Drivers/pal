@@ -69,19 +69,15 @@ Pal::Result CreateTimeGraphComputePipelines(
         pTable = timeGraphComputeBinaryTableNavi21;
         break;
 
-#if PAL_BUILD_GFX11
     case Pal::AsicRevision::Navi31:
     case Pal::AsicRevision::Navi32:
     case Pal::AsicRevision::Navi33:
         pTable = timeGraphComputeBinaryTableNavi31;
         break;
-#endif
 
-#if PAL_BUILD_GFX11
     case Pal::AsicRevision::Phoenix1:
         pTable = timeGraphComputeBinaryTablePhoenix1;
         break;
-#endif
 
     default:
         result = Pal::Result::ErrorUnknown;

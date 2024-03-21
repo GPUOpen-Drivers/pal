@@ -2280,15 +2280,13 @@ void CmdBuffer::ReplayCmdWaitRegisterValue(
 
 // =====================================================================================================================
 void CmdBuffer::CmdWaitMemoryValue(
-    const IGpuMemory& gpuMemory,
-    gpusize           offset,
-    uint32            data,
-    uint32            mask,
-    CompareFunc       compareFunc)
+    gpusize     gpuVirtAddr,
+    uint32      data,
+    uint32      mask,
+    CompareFunc compareFunc)
 {
     InsertToken(CmdBufCallId::CmdWaitMemoryValue);
-    InsertToken(&gpuMemory);
-    InsertToken(offset);
+    InsertToken(gpuVirtAddr);
     InsertToken(data);
     InsertToken(mask);
     InsertToken(compareFunc);
@@ -2299,12 +2297,11 @@ void CmdBuffer::ReplayCmdWaitMemoryValue(
     Queue*           pQueue,
     TargetCmdBuffer* pTgtCmdBuffer)
 {
-    auto pGpuMemory  = ReadTokenVal<IGpuMemory*>();
-    auto offset      = ReadTokenVal<gpusize>();
+    auto gpuVirtAddr = ReadTokenVal<gpusize>();
     auto data        = ReadTokenVal<uint32>();
     auto mask        = ReadTokenVal<uint32>();
     auto compareFunc = ReadTokenVal<CompareFunc>();
-    pTgtCmdBuffer->CmdWaitMemoryValue(*pGpuMemory, offset, data, mask, compareFunc);
+    pTgtCmdBuffer->CmdWaitMemoryValue(gpuVirtAddr, data, mask, compareFunc);
 }
 
 // =====================================================================================================================

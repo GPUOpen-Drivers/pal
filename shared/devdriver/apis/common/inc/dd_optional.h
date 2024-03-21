@@ -28,7 +28,6 @@
 #include <dd_assert.h>
 
 #include <type_traits>
-#include <utility>
 
 namespace DevDriver
 {
@@ -53,11 +52,14 @@ public:
     using ValueType = T;
 
     constexpr Optional() noexcept
-        : m_hasValue(false)
-    {}
+        : m_value{},
+          m_hasValue{false}
+    {
+    }
 
     constexpr Optional(NullOptType) noexcept
-        : m_hasValue(false)
+        : m_value{}
+        , m_hasValue{false}
     {}
 
     constexpr Optional(const Optional<T>& other)

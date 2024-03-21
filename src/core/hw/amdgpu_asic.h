@@ -43,13 +43,9 @@
 #define FAMILY_AI      0x8D
 #define FAMILY_RV      0x8E
 #define FAMILY_NV      0x8F
-#if PAL_BUILD_GFX11
 #define FAMILY_NV3     0x91
-#endif
 #define FAMILY_RMB     0x92
-#if PAL_BUILD_GFX11
 #define FAMILY_PHX     0x94
-#endif
 #define FAMILY_RPL     0x95
 #define FAMILY_MDN     0x97
 
@@ -71,11 +67,9 @@
 #define FAMILY_IS_RPL(f)     FAMILY_IS(f, RPL)
 #define FAMILY_IS_MDN(f)     FAMILY_IS(f, MDN)
 
-#if PAL_BUILD_GFX11
 // Gfx11.0
 #define FAMILY_IS_NV3(f)     FAMILY_IS(f, NV3)
 #define FAMILY_IS_PHX(f)     FAMILY_IS(f, PHX)
-#endif
 
 #define AMDGPU_UNKNOWN          0xFF
 
@@ -127,13 +121,11 @@
 #define AMDGPU_RAPHAEL_RANGE       0x01, 0xff
 #define AMDGPU_MENDOCINO_RANGE     0x01, 0xff
 
-#if PAL_BUILD_GFX11
 // Gfx11.0
 #define AMDGPU_NAVI31_RANGE        0x01, 0x10
 #define AMDGPU_NAVI33_RANGE        0x10, 0x20
 #define AMDGPU_NAVI32_RANGE        0x20, 0xff
 #define AMDGPU_PHOENIX1_RANGE      0x01, 0x80
-#endif
 
 #define AMDGPU_EXPAND_FIX(x) x
 #define AMDGPU_RANGE_HELPER(val, min, max) ((val >= min) && (val < max))
@@ -191,13 +183,11 @@
 #define ASICREV_IS_RAPHAEL(r)          ASICREV_IS(r, RAPHAEL)
 #define ASICREV_IS_MENDOCINO(r)        ASICREV_IS(r, MENDOCINO)
 
-#if PAL_BUILD_GFX11
 // Gfx11.0
 #define ASICREV_IS_NAVI31(r)           ASICREV_IS(r, NAVI31)
 #define ASICREV_IS_NAVI32(r)           ASICREV_IS(r, NAVI32)
 #define ASICREV_IS_NAVI33(r)           ASICREV_IS(r, NAVI33)
 #define ASICREV_IS_PHOENIX1(r)         ASICREV_IS(r, PHOENIX1)
-#endif
 
 // AMDGPU_IS(familyId, eRevisionId, familyName, revisionName)
 #define AMDGPU_IS(f, r, fn, rn)    (FAMILY_IS(f, fn) && ASICREV_IS(r, rn))
@@ -236,7 +226,6 @@
 #define AMDGPU_IS_RENOIR(f, r)     AMDGPU_IS(f, r, RV, RENOIR)
 
 // Gfx10.1
-#define AMDGPU_IS_NAVI(f, r)          FAMILY_IS_NV(f)
 #define AMDGPU_IS_NAVI10(f, r)        AMDGPU_IS(f, r, NV, NAVI10)
 #define AMDGPU_IS_NAVI12(f, r)        AMDGPU_IS(f, r, NV, NAVI12)
 #define AMDGPU_IS_NAVI14(f, r)        AMDGPU_IS(f, r, NV, NAVI14)
@@ -248,13 +237,11 @@
 #define AMDGPU_IS_NAVI24(f, r)        AMDGPU_IS(f, r, NV, NAVI24)
 #define AMDGPU_IS_REMBRANDT(f, r)     AMDGPU_IS(f, r, RMB, REMBRANDT)
 
-#if PAL_BUILD_GFX11
 // Gfx11.0
 #define AMDGPU_IS_NAVI31(f, r)        AMDGPU_IS(f, r, NV3, NAVI31)
 #define AMDGPU_IS_NAVI32(f, r)        AMDGPU_IS(f, r, NV3, NAVI32)
 #define AMDGPU_IS_NAVI33(f, r)        AMDGPU_IS(f, r, NV3, NAVI33)
 #define AMDGPU_IS_PHOENIX1(f, r)      AMDGPU_IS(f, r, PHX, PHOENIX1)
-#endif
 
 #define AMDGPU_IS_RAPHAEL(f, r)       AMDGPU_IS(f, r, RPL, RAPHAEL)
 #define AMDGPU_IS_MENDOCINO(f, r)     AMDGPU_IS(f, r, MDN, MENDOCINO)
@@ -306,7 +293,6 @@
 #define DEVICE_ID_RPL_164E              0x164E
 #define DEVICE_ID_MDN_1506              0x1506
 
-#if PAL_BUILD_GFX11
 // Gfx11.0
 #define DEVICE_ID_NV3_NAVI31_P_73BF     0x73BF
 #define DEVICE_ID_NV3_NAVI31_P_744C     0x744C
@@ -314,16 +300,13 @@
 #define DEVICE_ID_NV3_NAVI32_P_73DF     0x73DF
 #define DEVICE_ID_NV3_NAVI33_P_73F0     0x73F0
 #define DEVICE_ID_PHX1_15BF             0x15BF
-#endif
 
 // DEVICE_IS(deviceId, deviceName)
 #define DEVICE_IS(d, dn) (d == DEVICE_ID_##dn)
 
-#if PAL_BUILD_GFX11
 // Gfx11.0
 #define DEVICE_IS_NAVI31(d) (DEVICE_IS(d, NV3_NAVI31_P_744C) | DEVICE_IS(d, NV3_NAVI31_P_73BF))
 #define DEVICE_IS_NAVI32(d) DEVICE_IS(d, NV3_NAVI32_P_73DF)
-#endif
 
 // Revision IDs
 #define SI_TAHITI_P_A21              5
@@ -371,22 +354,18 @@
 #define RAPHAEL_A0                0x01
 #define MENDOCINO_A0              0x01
 
-#if PAL_BUILD_GFX11
 // Gfx11.0
 #define NAVI31_P_A0               0x01
 #define NAVI33_P_A0               0x10
 #define NAVI32_P_A0               0x20
 #define PHOENIX1_A0               0x01
-#endif
 
 // SPIN_IS(revisionId, revisionName)
 #define SPIN_IS(r, rn) (r == rn)
 
-#if PAL_BUILD_GFX11
 // Gfx11.0
 #define SPIN_IS_NAVI31_A0(r) SPIN_IS(r, NAVI31_P_A0)
 #define SPIN_IS_NAVI32_A0(r) SPIN_IS(r, NAVI32_P_A0)
-#endif
 
 // PRIDs
 #define PRID_SI_TAHITI              0x00
@@ -431,7 +410,6 @@
 #define PRID_RPL_00                 0x00
 #define PRID_MDN_00                 0x00
 
-#if PAL_BUILD_GFX11
 // Gfx11.0
 #define PRID_NV3_NAVI31_00          0x00
 #define PRID_NV3_NAVI31_18          0x18
@@ -481,18 +459,15 @@
 #define PRID_NV3_NAVI33_F7          0xF7
 
 #define PRID_PHX_00                 0x00
-#endif
 
 // VARIANT_IS(prid, variantName)
 #define VARIANT_IS(v, vn) (v == PRID_##vn)
 
-#if PAL_BUILD_GFX11
 // Gfx11.0
 #define VARIANT_IS_NAVI31_XTX(v) (VARIANT_IS(v, NV3_NAVI31_C8 ) | VARIANT_IS(v, NV3_NAVI31_D4))
 #define VARIANT_IS_NAVI32_XL(v) VARIANT_IS(v, NV3_NAVI32_BF)
 
 #define SKU_IS_NAVI31_XTX_A0(d, r, v) (DEVICE_IS_NAVI31(d) && SPIN_IS_NAVI31_A0(r) && VARIANT_IS_NAVI31_XTX(v))
 #define SKU_IS_NAVI32_XL_A0(d, r, v)  (DEVICE_IS_NAVI32(d) && SPIN_IS_NAVI32_A0(r) && VARIANT_IS_NAVI32_XL(v))
-#endif
 
 #endif

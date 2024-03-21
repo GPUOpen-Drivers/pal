@@ -60,8 +60,6 @@ public:
     virtual Result Begin(CmdStreamBeginFlags flags, Util::VirtualLinearAllocator* pMemAllocator) override;
     virtual void   Reset(CmdAllocator* pNewAllocator, bool returnGpuMemory) override;
 
-    uint32 GetChainSizeInDwords(const Device& device, EngineType engineType, bool isNested) const;
-
     uint32* WriteRegisters(uint32 startAddr, uint32 count, const uint32* pRegData, uint32* pCmdSpace);
 
     template <bool pm4OptImmediate>
@@ -124,9 +122,6 @@ public:
     uint32* WriteSetSeqConfigRegs(uint32 startRegAddr, uint32 endRegAddr, const void* pData, uint32* pCmdSpace);
     template <bool isPerfCtr = false>
     uint32* WriteSetZeroSeqConfigRegs(uint32 startRegAddr, uint32 endRegAddr, uint32* pCmdSpace);
-    template <bool pm4OptImmediate>
-    uint32* WriteSetVgtLsHsConfig(regVGT_LS_HS_CONFIG vgtLsHsConfig, uint32* pCmdSpace);
-    uint32* WriteSetVgtLsHsConfig(regVGT_LS_HS_CONFIG vgtLsHsConfig, uint32* pCmdSpace);
 
     template <bool IgnoreDirtyFlags, Pm4ShaderType shaderType>
     uint32* WriteUserDataEntriesToSgprs(
@@ -139,7 +134,6 @@ public:
         const UserDataEntries&  entries,
         uint32*                 pCmdSpace);
 
-#if PAL_BUILD_GFX11
     template <bool IgnoreDirtyFlags>
     static void AccumulateUserDataEntriesForSgprs(
         const UserDataEntryMap& entryMap,
@@ -165,7 +159,6 @@ public:
     uint32* WriteSetContextRegPairs(PackedRegisterPair* pRegPairs,
                                     uint32              numRegs,
                                     uint32*             pCmdSpace);
-#endif
 
     template <bool Pm4OptEnabled>
     uint32* WriteSetBase(
@@ -235,9 +228,7 @@ private:
     bool           m_contextRollDetected; // This will only be set if a context roll has been detected since the
                                           // last draw.
 
-#if PAL_BUILD_GFX11
     const bool     m_supportsHoleyOptimization;
-#endif
 
     PAL_DISALLOW_COPY_AND_ASSIGN(CmdStream);
     PAL_DISALLOW_DEFAULT_CTOR(CmdStream);

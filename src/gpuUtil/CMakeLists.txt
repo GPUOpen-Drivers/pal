@@ -39,4 +39,6 @@ target_sources(pal PRIVATE
     traceConfigTraceSource.cpp
     uberTraceService.cpp
     frameTraceController.cpp
+    queueTimingsTraceSource.cpp
 )
+

@@ -114,9 +114,7 @@ Result CreateDevice(
         {
         case GfxIpLevel::GfxIp10_1:
         case GfxIpLevel::GfxIp10_3:
-#if PAL_BUILD_GFX11
         case GfxIpLevel::GfxIp11_0:
-#endif
             pPfnTable->pfnCreateTypedBufViewSrds   = &Device::Gfx10CreateTypedBufferViewSrds;
             pPfnTable->pfnCreateUntypedBufViewSrds = &Device::Gfx10CreateUntypedBufferViewSrds;
             pPfnTable->pfnCreateImageViewSrds      = &Device::Gfx10CreateImageViewSrds;
@@ -182,17 +180,11 @@ Device::Device(
     PAL_ASSERT(((GetGbAddrConfig().bits.NUM_PIPES - GetGbAddrConfig().bits.NUM_RB_PER_SE) < 2) ||
                IsGfx10Plus(m_gfxIpLevel));
 
-    memset(const_cast<uint32*>(&m_msaaHistogram[0]), 0, sizeof(m_msaaHistogram));
-
-#if PAL_BUILD_GFX11
+    memset(const_cast<uint32*>(&m_msaaHistogram[0]),               0, sizeof(m_msaaHistogram));
     memset(const_cast<BoundGpuMemory*>(&m_vertexAttributesMem[0]), 0, sizeof(m_vertexAttributesMem));
-#endif
 
-    if (IsGfx103PlusExclusive(*Parent())
-#if PAL_BUILD_GFX11
-        && (IsGfx11(*Parent()) == false)
-#endif
-       )
+    if (IsGfx103PlusExclusive(*Parent()) &&
+        (IsGfx11(*Parent()) == false))
     {
 #if PAL_ENABLE_PRINTS_ASSERTS
         // The packer-based number of SA's can be less than the physical number of SA's, but it better not be more.
@@ -233,13 +225,6 @@ Result Device::Cleanup()
         }
     }
 
-    if (m_dummyZpassDoneMem.IsBound())
-    {
-        result = m_pParent->MemMgr()->FreeGpuMem(m_dummyZpassDoneMem.Memory(), m_dummyZpassDoneMem.Offset());
-        m_dummyZpassDoneMem.Update(nullptr, 0);
-    }
-
-#if PAL_BUILD_GFX11
     for (uint32 i = 0; i < ArrayLen(m_vertexAttributesMem); i++)
     {
         if (m_vertexAttributesMem[i].IsBound())
@@ -248,7 +233,6 @@ Result Device::Cleanup()
             m_vertexAttributesMem[i].Update(nullptr, 0);
         }
     }
-#endif
 
     if (m_pVrsDepthView != nullptr)
     {
@@ -344,12 +328,10 @@ void Device::SetupWorkarounds()
         m_waEnableDccCacheFlushAndInvalidate = true;
 
     }
-#if PAL_BUILD_GFX11
     else if (IsGfx11(*m_pParent))
     {
         m_waEnableDccCacheFlushAndInvalidate = true;
     }
-#endif
 }
 
 // =====================================================================================================================
@@ -401,6 +383,7 @@ void Device::FinalizeChipProperties(
     pChipProperties->gfxip.tessFactorBufferSizePerSe = palSettings.tessFactorBufferSizePerSe;
 
     pChipProperties->gfx9.gfx10.supportVrsWithDsExports = settings.waDisableVrsWithDsExports ? false : true;
+
 }
 
 // =====================================================================================================================
@@ -419,13 +402,11 @@ Result Device::Finalize()
         result = InitOcclusionResetMem();
     }
 
-#if PAL_BUILD_GFX11
     if (result == Result::Success)
     {
         // Start off by allocating the non-TMZ version.
         result = AllocateVertexAttributesMem(false);
     }
-#endif
 
     // CreateVrsDepthView dependents on GetImageSize, which isn't supported on NullDevice. Since VrsDepthView isn't used
     // on NullDevice, so we skip it now.
@@ -444,13 +425,11 @@ Result Device::Finalize()
                 // hTile buffer isn't bound. Defer allocation to on demand.
                 m_vrsDepthViewMayBeNeeded = true;
             }
-#if PAL_BUILD_GFX11
             else if (IsGfx11(*Parent()))
             {
                 // GFX11 supports VRS, but it won't utilize the hTile buffer to do so, so the CreateVrsDepthView
                 // function is useless on that platform.  GFX11 VRS implementation hasn't been contemplated yet.
             }
-#endif
         }
 
     }
@@ -550,38 +529,9 @@ Result Device::InitOcclusionResetMem()
         result = m_occlusionSrcMem.Unmap();
     }
 
-    if (gfx9Settings.waDummyZpassDoneBeforeTs)
-    {
-        // This unprotected memory will be written under TMZ state. So align to 64 bytes for Tmz Write Block Size.
-        constexpr uint32 TmzWriteBlockSize = 64;
-
-        // We need enough space for a full occlusion query slot because the DBs write to every other result location.
-        // According to the packet spec it must be QWORD-aligned. We prefer the local heap to avoid impacting timestamp
-        // performance and expect to get suballocated out of the same raft as the occlusion reset memory above.
-        const uint32 gpuMemSize = chipProps.gfx9.numTotalRbs * sizeof(OcclusionQueryResultPair);
-        GpuMemoryCreateInfo zPassDoneCreateInfo = {};
-        zPassDoneCreateInfo.alignment = TmzWriteBlockSize;
-        zPassDoneCreateInfo.size      = Util::Pow2Align(gpuMemSize, TmzWriteBlockSize);
-        zPassDoneCreateInfo.priority  = GpuMemPriority::Normal;
-        zPassDoneCreateInfo.heaps[0]  = GpuHeapLocal;
-        zPassDoneCreateInfo.heaps[1]  = GpuHeapGartUswc;
-        zPassDoneCreateInfo.heapCount = 2;
-
-        pMemObj   = nullptr;
-        memOffset = 0;
-
-        result = m_pParent->MemMgr()->AllocateGpuMem(zPassDoneCreateInfo, internalInfo, false, &pMemObj, &memOffset);
-
-        if (result == Result::Success)
-        {
-            m_dummyZpassDoneMem.Update(pMemObj, memOffset);
-        }
-    }
-
     return result;
 }
 
-#if PAL_BUILD_GFX11
 // =====================================================================================================================
 // Allocate the ring buffer for attributes through memory.
 Result Device::AllocateVertexAttributesMem(
@@ -635,7 +585,6 @@ Result Device::AllocateVertexAttributesMem(
 
     return result;
 }
-#endif
 
 // =====================================================================================================================
 // Gets the maximum alignments for images created with a linear tiling mode assuming the images' elements are no larger
@@ -673,13 +622,10 @@ bool Device::UseStateShadowing(
     EngineType engineType
     ) const
 {
-    return ForceStateShadowing ||
-#if PAL_BUILD_GFX11
-           // Context register shadowing should always be enabled for gfx11+
-           (Pal::Device::EngineSupportsGraphics(engineType) &&
-            IsGfx11(*Parent()))                             ||
-#endif
-           Parent()->IsPreemptionSupported(engineType);
+    return (ForceStateShadowing ||
+            // Context register shadowing should always be enabled for gfx11+
+            (Pal::Device::EngineSupportsGraphics(engineType) && IsGfx11(*Parent())) ||
+            Parent()->IsPreemptionSupported(engineType));
 }
 
 #if DEBUG
@@ -935,7 +881,6 @@ static Result ConvertAbiRegistersToMetadata(
     if ((result == Result::Success) && (registers.NumElements() > 0))
     {
         const GpuChipProperties& chipProps  = palDevice.ChipProperties();
-        const RegisterInfo&      regInfo    = pDevice->CmdUtil().GetRegInfo();
         const bool               hasHwVs    = chipProps.gfxip.supportsHwVs;
         const bool               supportSpp = chipProps.gfx9.supportSpp;
 
@@ -1006,14 +951,12 @@ static Result ConvertAbiRegistersToMetadata(
                     }
                 }
 
-#if PAL_BUILD_GFX11
                 if (IsGfx11Plus(palDevice))
                 {
                     PAL_SET_ABI_FLAG(pVgtShaderStagesEn,
                                      primgenPassthruNoMsg,
                                      vgtShaderStagesEn.gfx104Plus.PRIMGEN_PASSTHRU_NO_MSG);
                 }
-#endif
             }
 
             // VGT_GS_MODE
@@ -1153,13 +1096,12 @@ static Result ConvertAbiRegistersToMetadata(
 
                 bool foundReg = false;
                 VGT_GS_OUT_PRIM_TYPE vgtGsOutPrimType;
-#if PAL_BUILD_GFX11
+
                 if (IsGfx11(palDevice))
                 {
                     foundReg = registers.HasEntry(Gfx11::mmVGT_GS_OUT_PRIM_TYPE, &vgtGsOutPrimType.u32All);
                 }
                 else
-#endif
                 {
                     foundReg = registers.HasEntry(Gfx09_10::mmVGT_GS_OUT_PRIM_TYPE, &vgtGsOutPrimType.u32All);
                 }
@@ -1363,7 +1305,6 @@ static Result ConvertAbiRegistersToMetadata(
                 }
             }
 
-#if PAL_BUILD_GFX11
             // SPI_SHADER_GS_MESHLET_DIM
             {
                 PalAbi::SpiShaderGsMeshletDimMetadata* pSpiShaderGsMeshletDim = &pGfxRegisters->spiShaderGsMeshletDim;
@@ -1404,7 +1345,6 @@ static Result ConvertAbiRegistersToMetadata(
                                       spiShaderGsMeshletExpAlloc.bits.MAX_EXP_PRIMS);
                 }
             }
-#endif
 
             // VGT_GS_INSTANCE_CNT
             {
@@ -1797,13 +1737,11 @@ static Result ConvertAbiRegistersToMetadata(
                                          paClVsOutCntl.gfx103Plus.BYPASS_PRIM_RATE_COMBINER);
                     }
 
-#if PAL_BUILD_GFX11
                     if (IsGfx11(palDevice)
                         )
                     {
                         PAL_SET_ABI_FLAG(pPaClVsOutCntl, useVtxFsrSelect, paClVsOutCntl.gfx110.USE_VTX_FSR_SELECT);
                     }
-#endif
                 }
             }
 
@@ -1886,12 +1824,10 @@ static Result ConvertAbiRegistersToMetadata(
                                              spiPsInputCntl.gfx103PlusExclusive.ROTATE_PC_PTR);
                         }
 
-#if PAL_BUILD_GFX11
                         if (IsGfx11(palDevice))
                         {
                             PAL_SET_ABI_FLAG(pSpiPsInputCntl, primAttr, spiPsInputCntl.gfx11.PRIM_ATTR);
                         }
-#endif
                     }
                     else
                     {
@@ -2253,12 +2189,8 @@ static Result ConvertAbiRegistersToMetadata(
                     PAL_SET_ABI_FLAG(pHwPs, scratchEn,    rsrc2.bits.SCRATCH_EN);
                     PAL_SET_ABI_FLAG(pHwPs, trapPresent,  rsrc2.bits.TRAP_PRESENT);
 
-#if PAL_BUILD_GFX11
                     const uint32 psExtraLdsDwGranularity = (IsGfx11(palDevice)) ? Gfx11PsExtraLdsDwGranularity :
                                                                                   Gfx9PsExtraLdsDwGranularity;
-#else
-                    const uint32 psExtraLdsDwGranularity = Gfx9PsExtraLdsDwGranularity;
-#endif
 
                     PAL_SET_ABI_FIELD(pGfxRegisters,
                                       psExtraLdsSize,
@@ -2523,7 +2455,7 @@ static Result ConvertAbiRegistersToMetadata(
                 // If we already have a mapping here, don't bother going over them.
                 if (pHwStage->hasEntry.userDataRegMap == 0)
                 {
-                    const uint16 baseRegAddr = pDevice->GetBaseUserDataReg(hwStage);
+                    const uint16 baseRegAddr = Device::GetBaseUserDataReg(hwStage);
                     const uint16 lastRegAddr = baseRegAddr + ((hwStage != HwShaderStage::Cs) ? 32 : 16);
 
                     for (uint16 offset = baseRegAddr; offset < lastRegAddr; ++offset)
@@ -2945,15 +2877,8 @@ void Device::GetSamplePatternPalette(
 
 // =====================================================================================================================
 size_t Device::GetColorBlendStateSize(
-    const ColorBlendStateCreateInfo& createInfo,
-    Result*                          pResult
     ) const
 {
-    if (pResult != nullptr)
-    {
-        *pResult = Result::Success;
-    }
-
     return sizeof(ColorBlendState);
 }
 
@@ -2972,15 +2897,8 @@ Result Device::CreateColorBlendState(
 
 // =====================================================================================================================
 size_t Device::GetDepthStencilStateSize(
-    const DepthStencilStateCreateInfo& createInfo,
-    Result*                            pResult
     ) const
 {
-    if (pResult != nullptr)
-    {
-        (*pResult) = Result::Success;
-    }
-
     return sizeof(DepthStencilState);
 }
 
@@ -2999,15 +2917,8 @@ Result Device::CreateDepthStencilState(
 
 // =====================================================================================================================
 size_t Device::GetMsaaStateSize(
-    const MsaaStateCreateInfo& createInfo,
-    Result*                    pResult
     ) const
 {
-    if (pResult != nullptr)
-    {
-        (*pResult) = Result::Success;
-    }
-
     return sizeof(MsaaState);
 }
 
@@ -3233,16 +3144,7 @@ size_t Device::GetColorTargetViewSize(
         (*pResult) = Result::Success;
     }
 
-    size_t viewSize = sizeof(Gfx10ColorTargetView);
-
-#if PAL_BUILD_GFX11
-    if (IsGfx11(m_gfxIpLevel))
-    {
-        viewSize = sizeof(Gfx11ColorTargetView);
-    }
-#endif
-
-    return viewSize;
+    return IsGfx11(m_gfxIpLevel) ? sizeof(Gfx11ColorTargetView) : sizeof(Gfx10ColorTargetView);
 }
 
 // =====================================================================================================================
@@ -3261,13 +3163,11 @@ Result Device::CreateColorTargetView(
         (*ppColorTargetView) =
             PAL_PLACEMENT_NEW(pPlacementAddr) Gfx10ColorTargetView(this, createInfo, internalInfo, viewId);
     }
-#if PAL_BUILD_GFX11
     else if (IsGfx11(m_gfxIpLevel))
     {
         (*ppColorTargetView) =
             PAL_PLACEMENT_NEW(pPlacementAddr) Gfx11ColorTargetView(this, createInfo, internalInfo, viewId);
     }
-#endif
     else
     {
         PAL_ASSERT_ALWAYS();
@@ -3286,9 +3186,7 @@ size_t Device::GetDepthStencilViewSize(
         (*pResult) = Result::Success;
     }
 
-#if PAL_BUILD_GFX11
     // Reuse the Gfx10-implementation of depth views for GFX11.
-#endif
     return sizeof(Gfx10DepthStencilView);
 }
 
@@ -3303,9 +3201,7 @@ Result Device::CreateDepthStencilView(
 {
     const uint32 viewId = m_nextDepthStencilViewId++;
 
-#if PAL_BUILD_GFX11
     // Reuse the Gfx10-implementation of depth views for GFX11.
-#endif
     (*ppDepthStencilView) =
         PAL_PLACEMENT_NEW(pPlacementAddr) Gfx10DepthStencilView(this, createInfo, internalInfo, viewId);
 
@@ -3434,7 +3330,6 @@ DccFormatEncoding Device::ComputeDccFormatEncoding(
 
     if (viewFormatCount == AllCompatibleFormats)
     {
-#if PAL_BUILD_GFX11
         const auto& palSettings = palDevice.Settings();
 
         if (IsGfx11(palDevice) && TestAnyFlagSet(palSettings.useDcc, UseDcc::UseDccForAllCompatibleFormats))
@@ -3443,20 +3338,15 @@ DccFormatEncoding Device::ComputeDccFormatEncoding(
             dccFormatEncoding = DccFormatEncoding::Optimal;
         }
         else
-#endif
         {
             // If all compatible formats are allowed as view formats then the image is not DCC compatible as none of
             // the format compatibility classes comprise only of formats that are DCC compatible.
             dccFormatEncoding = DccFormatEncoding::Incompatible;
         }
     }
-#if PAL_BUILD_GFX11
     // If this is not a GFX11 or if we have disabled DCC format replacement, then we need to check if the various
     // formats in use by this surface work with DCC compression.
     else if ((IsGfx11(palDevice) == false) || (Settings().gfx11AlwaysAllowDccFormatReplacement == false))
-#else
-    else
-#endif
     {
         // If an array of possible view formats is specified at image creation time we can check whether all of
         // those are DCC compatible with each other or not.
@@ -3679,17 +3569,13 @@ static uint32 CalcLlcNoalloc(
 // =====================================================================================================================
 uint32 Device::BufferSrdResourceLevel() const
 {
-    const Pal::Device& device = *(Parent());
-
     uint32  resourceLevel = 1;
 
-#if PAL_BUILD_GFX11
     // GFX11 parts don't have a "resource level" bit in their buffer SRDs.
-    if (IsGfx11(device))
+    if (IsGfx11(*Parent()))
     {
         resourceLevel = 0;
     }
-#endif
 
     return resourceLevel;
 }
@@ -3702,10 +3588,8 @@ void PAL_STDCALL Device::Gfx10CreateTypedBufferViewSrds(
     const BufferViewInfo* pBufferViewInfo,
     void*                 pOut)
 {
-#if PAL_BUILD_GFX11
     static_assert((Gfx10CoreSqBufRsrcTWord3FormatShift == Gfx104PlusSqBufRsrcTWord3FormatShift),
                   "LSB of sq_buf_rsrc_t.format field is different between GFX10 and GFX11.");
-#endif
 
     PAL_ASSERT((pDevice != nullptr) && (pOut != nullptr) && (pBufferViewInfo != nullptr) && (count > 0));
     const auto*const pPalDevice = static_cast<const Pal::Device*>(pDevice);
@@ -4142,13 +4026,11 @@ static uint32 Gfx10RetrieveHwFmtFromSrd(
 {
     uint32 hwFmt = 0;
 
-#if PAL_BUILD_GFX11
     if (IsGfx11Plus(palDevice))
     {
         hwFmt = pSrd->gfx104Plus.format;
     }
     else
-#endif
     {
         PAL_ASSERT(IsGfx10(palDevice));
 
@@ -4260,13 +4142,11 @@ void PAL_STDCALL Device::Gfx10DecodeImageViewSrd(
         depth     = LowPart(pSrd->gfx10.depth);
         baseArray = LowPart(pSrd->gfx10.base_array);
     }
-#if PAL_BUILD_GFX11
     else if (IsGfx11(gfxLevel))
     {
         depth     = LowPart(pSrd->gfx11.depth);
         baseArray = LowPart(pSrd->gfx11.base_array);
     }
-#endif
     else
     {
         PAL_ASSERT_ALWAYS();
@@ -4345,14 +4225,12 @@ void Device::Gfx10SetImageSrdDims(
         pSrd->gfx10.width_hi = (width - 1) >> WidthLowSize;
         pSrd->gfx10.height   = (height - 1);
     }
-#if PAL_BUILD_GFX11
     else
     {
         pSrd->gfx11.width_lo = (width - 1) & ((1 << WidthLowSize) - 1);
         pSrd->gfx11.width_hi = (width - 1) >> WidthLowSize;
         pSrd->gfx11.height   = (height - 1);
     }
-#endif
 }
 
 // =====================================================================================================================
@@ -4603,7 +4481,6 @@ static void Gfx10UpdateLinkedResourceViewSrd(
         constexpr uint32  BigPageShaderMask = Gfx10AllowBigPageShaderWrite | Gfx10AllowBigPageShaderRead;
         const bool  isBigPage           = IsImageBigPageCompatible(mapImage, BigPageShaderMask);
 
-#if PAL_BUILD_GFX11
         if (IsGfx11(*pPalDevice))
         {
             // "big_page" was originally setup to reflect the big-page settings of the parent image, but it
@@ -4614,7 +4491,6 @@ static void Gfx10UpdateLinkedResourceViewSrd(
             pLinkedRsrc->gfx11.max_mip  = mapCreateInfo.mipLevels - 1;
         }
         else
-#endif
         {
             // "big_page" was originally setup to reflect the big-page settings of the parent image, but it
             // needs to reflect the big-page setup of the map image instead.
@@ -4927,7 +4803,6 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
                                                                   Gfx9MinLodFracBits,
                                                                   true);
 
-#if PAL_BUILD_GFX11
         if (IsGfx11(*pPalDevice))
         {
             srd.gfx11.min_lod_lo  = minLod & ((1 << 5) - 1);
@@ -4935,7 +4810,6 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             srd.gfx104Plus.format = Formats::Gfx9::HwImgFmt(pFmtInfo, format);
         }
         else
-#endif
         {
             srd.gfx10Core.min_lod = minLod;
             srd.gfx10Core.format  = Formats::Gfx9::HwImgFmt(pFmtInfo, format);
@@ -4951,13 +4825,11 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
         {
             // This special format indicates to HW that this is a promoted 24-bit surface, so sample_c and border color
             // can be treated differently.
-#if PAL_BUILD_GFX11
             if (IsGfx11(*pPalDevice))
             {
                 srd.gfx104Plus.format = IMG_FMT_32_FLOAT_CLAMP__GFX104PLUS;
             }
             else
-#endif
             {
                 srd.gfx10Core.format = IMG_FMT_32_FLOAT_CLAMP__GFX10CORE;
             }
@@ -5059,13 +4931,11 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             maxMipField    = mipLevels - 1;
         }
 
-#if PAL_BUILD_GFX11
         if (IsGfx11(*pPalDevice))
         {
             srd.gfx104Plus.max_mip = maxMipField;
         }
         else
-#endif
         {
             srd.gfx10Core.max_mip = maxMipField;
         }
@@ -5125,13 +4995,11 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             depth = (viewInfo.subresRange.startSubres.arraySlice + viewInfo.subresRange.numSlices - 1);
         }
 
-#if PAL_BUILD_GFX11
         if (IsGfx11(*pPalDevice))
         {
             srd.gfx11.depth = depth;
         }
         else
-#endif
         {
             srd.gfx10.depth = depth;
         }
@@ -5150,26 +5018,23 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             {
                 srd.gfx10.depth = pitchInPixels - 1;
             }
-#if PAL_BUILD_GFX11
             else if (IsGfx11(*pPalDevice))
             {
-                srd.gfx11.depth = (pitchInPixels - 1);
+                srd.gfx11.depth    = (pitchInPixels - 1);
                 srd.gfx11.pitch_13 = (pitchInPixels - 1) >> 13;
             }
-#endif
         }
 
         if (pPalDevice->MemoryProperties().flags.supportsMall != 0)
         {
             const uint32  llcNoAlloc = CalcLlcNoalloc(viewInfo.flags.bypassMallRead,
                                                       viewInfo.flags.bypassMallWrite);
-#if PAL_BUILD_GFX11
+
             if (IsGfx11(*pPalDevice))
             {
                 srd.gfx104Plus.llc_noalloc = llcNoAlloc;
             }
             else
-#endif
             {
                 // The SRD has a two-bit field where the high-bit is the control for "read" operations
                 // and the low bit is the control for bypassing the MALL on write operations.
@@ -5183,12 +5048,10 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
         {
             srd.gfx10.base_array   = baseArraySlice;
         }
-#if PAL_BUILD_GFX11
         else if (IsGfx11(*pPalDevice))
         {
             srd.gfx11.base_array   = baseArraySlice;
         }
-#endif
 
         srd.meta_pipe_aligned  = ((pMaskRam != nullptr) ? pMaskRam->PipeAligned() : 0);
         srd.corner_samples     = imageCreateInfo.usageFlags.cornerSampling;
@@ -5222,13 +5085,11 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
                                                            : Gfx10AllowBigPageShaderRead;
             const uint32            bigPageCompat = IsImageBigPageCompatible(image, bigPageUsage);
 
-#if PAL_BUILD_GFX11
             if (IsGfx11(*pPalDevice))
             {
                 srd.gfx104Plus.big_page = bigPageCompat;
             }
             else
-#endif
             {
                 srd.gfx10Core.big_page  = bigPageCompat;
             }
@@ -5269,7 +5130,6 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
                     // The color image's meta-data always points at the DCC surface.  Any existing cMask or fMask
                     // meta-data is only required for compressed texture fetches of MSAA surfaces, and that feature
                     // requires enabling an extension and use of an fMask image view.
-#if PAL_BUILD_GFX11
                     //
                     // GFX11 changes the rules as to whether or not the "swizzle" value associated with this surface
                     // applies to the SRD or not.
@@ -5278,7 +5138,6 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
                         srd.meta_data_address = image.GetDcc256BAddrSwizzled(baseSubResId);
                     }
                     else
-#endif
                     {
                         srd.meta_data_address = image.GetDcc256BAddr(baseSubResId);
                     }
@@ -5319,12 +5178,10 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             // Fill the unused 4 bits of word6 with sample pattern index
             srd.gfx10._reserved_206_203  = viewInfo.samplePatternIdx;
         }
-#if PAL_BUILD_GFX11
         else if (IsGfx11(*pPalDevice))
         {
             srd.gfx11.sample_pattern_offset = viewInfo.samplePatternIdx;
         }
-#endif
 
         //   PRT unmapped returns 0.0 or 1.0 if this bit is 0 or 1 respectively
         //   Only used with image ops (sample/load)
@@ -5593,12 +5450,10 @@ void Device::SetSrdBorderColorPtr(
     {
         pSrd->gfx10Core.border_color_ptr = borderColorPtr;
     }
-#if PAL_BUILD_GFX11
     else
     {
         pSrd->gfx104Plus.border_color_ptr = borderColorPtr;
     }
-#endif
 }
 
 // =====================================================================================================================
@@ -5807,7 +5662,6 @@ void PAL_STDCALL Device::Gfx10CreateSamplerSrds(
                     PAL_ASSERT(pSrd->gfx10Core.border_color_ptr == pLinkedRsrcSrd->gfx103.linked_resource_slopes);
 
                 }
-#if PAL_BUILD_GFX11
                 else
                 {
                     pLinkedRsrcSrd->gfx11.linked_resource_slopes = (((pInfo->uvSlope.x  & 0x7) << 0) |
@@ -5815,7 +5669,6 @@ void PAL_STDCALL Device::Gfx10CreateSamplerSrds(
                                                                     ((pInfo->uvSlope.y  & 0x7) << 6) |
                                                                     ((biasedOffsetY     & 0x7) << 9));
                 }
-#endif
             }
         } // end loop through temp SRDs
 
@@ -5909,7 +5762,6 @@ void PAL_STDCALL Device::CreateBvhSrds(
         //    MSB must be set-- 0x8
         bvhSrd.type         = 0x8;
 
-#if PAL_BUILD_GFX11
         if (chipProperties.gfx9.rayTracingIp >= RayTracingIpLevel::RtIp2_0)
         {
             bvhSrd.rtIp2Plus.pointer_flags = bvhInfo.flags.pointerFlags;
@@ -5921,7 +5773,6 @@ void PAL_STDCALL Device::CreateBvhSrds(
         {
             bvhSrd.rtIp2Plus.box_sorting_heuristic = static_cast<uint32>(bvhInfo.boxSortHeuristic);
         }
-#endif
 
         memcpy(VoidPtrInc(pOut, idx * sizeof(sq_bvh_rsrc_t)),
                &bvhSrd,
@@ -6003,7 +5854,6 @@ GfxIpLevel DetermineIpLevel(
         }
         break;
 
-#if PAL_BUILD_GFX11
     case FAMILY_NV3:
         if (AMDGPU_IS_NAVI31(familyId, eRevId) || AMDGPU_IS_NAVI32(familyId, eRevId) ||
             AMDGPU_IS_NAVI33(familyId, eRevId))
@@ -6026,7 +5876,6 @@ GfxIpLevel DetermineIpLevel(
             PAL_NOT_IMPLEMENTED_MSG("FAMILY_PHX Revision %d unsupported", eRevId);
         }
         break;
-#endif
 
     default:
         PAL_ASSERT_ALWAYS();
@@ -6052,11 +5901,9 @@ const MergedFormatPropertiesTable* GetFormatPropertiesTable(
     case GfxIpLevel::GfxIp10_3:
         pTable = &Gfx10_3MergedFormatPropertiesTable;
         break;
-#if PAL_BUILD_GFX11
     case GfxIpLevel::GfxIp11_0:
         pTable = &Gfx11MergedFormatPropertiesTable;
         break;
-#endif
 
     default:
         // What is this?
@@ -6181,7 +6028,6 @@ void InitializeGpuChipProperties(
     pInfo->gfxip.maxComputeThreadGroupCountY = UINT16_MAX;
     pInfo->gfxip.maxComputeThreadGroupCountZ = UINT16_MAX;
 
-#if PAL_BUILD_GFX11
     if (IsGfx11(pInfo->gfxLevel))
     {
         // NGG is required on GFX11, so the max verts/prim per subgroup is 256.
@@ -6189,7 +6035,6 @@ void InitializeGpuChipProperties(
         pInfo->gfxip.maxGsTotalOutputComponents = 1024;
     }
     else
-#endif
     {
         pInfo->gfxip.maxGsOutputVert            = 1023; // power of two minus one
         pInfo->gfxip.maxGsTotalOutputComponents = 4095; // power of two minus one
@@ -6233,11 +6078,8 @@ void InitializeGpuChipProperties(
                                                (1 << static_cast<uint32>(VrsShadingRate::_2x2)));
     }
 
-    if ((IsGfx103(pInfo->gfxLevel) && (cpUcodeVersion >= Gfx103UcodeVersionLoadShRegIndexIndirectAddr))
-#if PAL_BUILD_GFX11
-        || IsGfx11(pInfo->gfxLevel)
-#endif
-       )
+    if ((IsGfx103(pInfo->gfxLevel) && (cpUcodeVersion >= Gfx103UcodeVersionLoadShRegIndexIndirectAddr)) ||
+        IsGfx11(pInfo->gfxLevel))
     {
         // PAL implements almost all of its HSA ABI support in a generic gfx9-10.3 way but we require LOAD_SH_REG_INDEX
         // packet support on compute queues. That was only implemented on gfx10.3+ for dynamic launch support.
@@ -6329,7 +6171,6 @@ void InitializeGpuChipProperties(
         pInfo->gfx9.minVgprAlloc            = pInfo->gfx9.vgprAllocGranularity;
         pInfo->gfxip.shaderPrefetchBytes    = 2 * ShaderICacheLineSize;
     }
-#if PAL_BUILD_GFX11
     else if (IsGfx11(pInfo->gfxLevel))
     {
         pInfo->gfx9.supportAddrOffsetDumpAndSetShPkt = 1;
@@ -6382,7 +6223,6 @@ void InitializeGpuChipProperties(
         pInfo->gfxip.gl1cSizePerSa          = 256_KiB;
 
     }
-#endif
 
     pInfo->gfx9.gsVgtTableDepth         = 32;
     pInfo->gfx9.gsPrimBufferDepth       = 1792;
@@ -6406,10 +6246,8 @@ void InitializeGpuChipProperties(
         pInfo->gfx9.support3dUavZRange = 1;
     }
 
-#if PAL_BUILD_GFX11
     // RS64 FW identifier for Gfx11 is PFP uCode Version being greater than 300.
     constexpr uint32 Rs64VersionStart = 300;
-#endif
 
     // FW version where initial ExecuteIndirect PM4 was added with Draw Support on Gfx9.
     constexpr uint32 PfpUcodeVersionNativeExecuteIndirectGfx9 = 192;
@@ -6733,7 +6571,6 @@ void InitializeGpuChipProperties(
         pInfo->gfx9.numTccBlocks = pInfo->gfx9.gfx10.numGl2c;
         break;
 
-#if PAL_BUILD_GFX11
     case FAMILY_NV3:
         pInfo->gpuType = GpuType::Discrete;
 
@@ -6828,7 +6665,6 @@ void InitializeGpuChipProperties(
         // The GL2C is the TCC.
         pInfo->gfx9.numTccBlocks = pInfo->gfx9.gfx10.numGl2c;
         break;
-#endif
 
     case FAMILY_RPL:
         if (AMDGPU_IS_RAPHAEL(pInfo->familyId, pInfo->eRevId))
@@ -6912,7 +6748,6 @@ void InitializeGpuChipProperties(
         pInfo->gfx9.numTccBlocks = pInfo->gfx9.gfx10.numGl2c;
         break;
 
-#if PAL_BUILD_GFX11
     case FAMILY_PHX:
         if (AMDGPU_IS_PHOENIX1(pInfo->familyId, pInfo->eRevId))
         {
@@ -6960,7 +6795,6 @@ void InitializeGpuChipProperties(
         // The GL2C is the TCC.
         pInfo->gfx9.numTccBlocks = pInfo->gfx9.gfx10.numGl2c;
         break;
-#endif
 
     default:
         PAL_ASSERT_ALWAYS();
@@ -7028,7 +6862,6 @@ void InitializeGpuChipProperties(
 
         }
     }
-#if PAL_BUILD_GFX11
     else if (IsGfx11(pInfo->gfxLevel))
     {
         // GFX11 doesn't support cMask or fMask
@@ -7057,7 +6890,6 @@ void InitializeGpuChipProperties(
 
         pInfo->gfx9.rayTracingIp = RayTracingIpLevel::RtIp2_0;
     }
-#endif
 
 }
 
@@ -7220,6 +7052,7 @@ void InitializeGpuEngineProperties(
     pUniversal->flags.supportsImageInitPerSubresource = 1;
     pUniversal->flags.supportsUnmappedPrtPageAccess   = 1;
     pUniversal->flags.supportsClearCopyMsaaDsDst      = 1;
+    pUniversal->flags.supportsPws                     = IsGfx11(gfxIpLevel);
     pUniversal->maxControlFlowNestingDepth            = CmdStream::CntlFlowNestingLimit;
     pUniversal->minTiledImageCopyAlignment.width      = 1;
     pUniversal->minTiledImageCopyAlignment.height     = 1;
@@ -7234,25 +7067,11 @@ void InitializeGpuEngineProperties(
     pUniversal->queueSupport                          = SupportQueueTypeUniversal;
 
     if ((IsGfx9(gfxIpLevel)      && (chipProps.cpUcodeVersion >= 52)) ||
-        (IsGfx10Plus(gfxIpLevel) && (chipProps.cpUcodeVersion >= 32))
-#if PAL_BUILD_GFX11
-        || IsGfx11Plus(gfxIpLevel)
-#endif
-        )
+        (IsGfx10Plus(gfxIpLevel) && (chipProps.cpUcodeVersion >= 32)) ||
+        IsGfx11Plus(gfxIpLevel))
     {
         pUniversal->flags.memory32bPredicationSupport = 1;
     }
-
-#if PAL_BUILD_GFX11
-    if (IsGfx11(gfxIpLevel))
-    {
-        pUniversal->flags.supportsPws = 1;
-    }
-    else
-    {
-        pUniversal->flags.supportsPws = 0;
-    }
-#endif
 
     auto*const pCompute = &pInfo->perEngine[EngineTypeCompute];
 
@@ -7308,9 +7127,7 @@ void InitializeGpuEngineProperties(
 // Returns the value for the DB_DFSM_CONTROL register
 uint32 Device::GetDbDfsmControl() const
 {
-#if PAL_BUILD_GFX11
     PAL_ASSERT(IsGfx11(m_gfxIpLevel) == false);
-#endif
 
     regDB_DFSM_CONTROL dbDfsmControl = {};
 
@@ -7533,18 +7350,17 @@ bool Device::UpdateSppState(
 
 // =====================================================================================================================
 uint16 Device::GetBaseUserDataReg(
-    HwShaderStage  shaderStage
-    ) const
+    HwShaderStage shaderStage)
 {
     uint16  baseUserDataReg = 0;
 
     switch (shaderStage)
     {
     case HwShaderStage::Hs:
-        baseUserDataReg = CmdUtil().GetRegInfo().mmUserDataStartHsShaderStage;
+        baseUserDataReg = Gfx10Plus::mmSPI_SHADER_USER_DATA_HS_0;
         break;
     case HwShaderStage::Gs:
-        baseUserDataReg = CmdUtil().GetRegInfo().mmUserDataStartGsShaderStage;
+        baseUserDataReg = Gfx10Plus::mmSPI_SHADER_USER_DATA_GS_0;
         break;
     case HwShaderStage::Vs:
         baseUserDataReg = HasHwVs::mmSPI_SHADER_USER_DATA_VS_0;
@@ -7560,8 +7376,6 @@ uint16 Device::GetBaseUserDataReg(
         PAL_ASSERT_ALWAYS();
         break;
     }
-
-    PAL_ASSERT(baseUserDataReg != 0);
 
     return baseUserDataReg;
 }
@@ -7655,13 +7469,11 @@ void Device::InitBufferSrd(
             pSrd->gfx10.cache_swizzle      = 0;
             pSrd->gfx10.swizzle_enable     = 0;
         }
-#if PAL_BUILD_GFX11
         else if (IsGfx11(m_gfxIpLevel))
         {
             pSrd->gfx104Plus.format    = BUF_FMT_32_FLOAT;
             pSrd->gfx11.swizzle_enable = 0;
         }
-#endif
         else
         {
             PAL_ASSERT_ALWAYS();
@@ -7874,7 +7686,6 @@ const RegisterRange* Device::GetRegisterRange(
             break;
         }
     }
-#if PAL_BUILD_GFX11
     else if (IsGfx11(m_gfxIpLevel))
     {
         switch (rangeType)
@@ -7929,7 +7740,6 @@ const RegisterRange* Device::GetRegisterRange(
             break;
         }
     }
-#endif
 
     PAL_ASSERT(pRange != nullptr);
 
@@ -7967,14 +7777,12 @@ PM4_PFP_CONTEXT_CONTROL Device::GetContextControl() const
         contextControl.ordinal3.bitfields.shadow_global_uconfig    = 1;
     }
 
-#if PAL_BUILD_GFX11
     if (IsGfx11(*Parent()))
     {
         // No CE RAM on GFX11 devices.
         contextControl.ordinal2.bitfields.core.load_ce_ram = 0;
 
     }
-#endif
 
     return contextControl;
 }
@@ -8322,7 +8130,6 @@ ClearMethod  Device::GetDefaultSlowClearMethod(
     uint32 texelScale = 1;
     RpmUtil::GetRawFormat(clearFormat.format, &texelScale, nullptr);
 
-#if PAL_BUILD_GFX11
     // Compute-based slow clears rely on the ability to do format replacement; whether or not a format replacement is
     // safe is dependent on a great many factors including the layout of the slow clear image and whether or not
     // DCC is available for the image, etc., both factors that we don't know at this time.
@@ -8340,10 +8147,6 @@ ClearMethod  Device::GetDefaultSlowClearMethod(
             (texelScale > 1))
             ? ClearMethod::NormalCompute
             : ClearMethod::NormalGraphics;
-#else
-    // Force clears of scaled formats to the compute engine
-    return (texelScale > 1) ? ClearMethod::NormalCompute : ClearMethod::NormalGraphics;
-#endif
 }
 
 // =====================================================================================================================
@@ -8353,12 +8156,9 @@ bool Device::DisableAc01ClearCodes() const
     const Gfx9PalSettings& settings = GetGfx9Settings(*Parent());
 
     // Are AC01 codes disabled because the panel has requested it?
-    return (settings.forceRegularClearCode
-#if PAL_BUILD_GFX11
+    return (settings.forceRegularClearCode ||
             // Are AC01 codes disabled because there's an active workaround that prevents their usage?
-            || (settings.waDisableAc01 == Ac01WaForbidAc01)
-#endif
-            );
+            (settings.waDisableAc01 == Ac01WaForbidAc01));
 }
 
 // =====================================================================================================================
@@ -8441,7 +8241,6 @@ void Device::UpdateDisplayDcc(
     }
 }
 
-#if PAL_BUILD_GFX11
 // =====================================================================================================================
 // Calculate the value for the various INST_PREF_SIZE fields.  Default behavior is to prefetch the entire shader.
 uint32 Device::GetShaderPrefetchSize(
@@ -8466,7 +8265,6 @@ uint32 Device::GetShaderPrefetchSize(
     // And return in terms of regsiter units.  Don't allow a value larger than what the register supports.
     return Min(MaxPrefetchSize, (prefetchSizeAligned / CachelineSizeBytes));
 }
-#endif
 
 } // Gfx9
 } // Pal

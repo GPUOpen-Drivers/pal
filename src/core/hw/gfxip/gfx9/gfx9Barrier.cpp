@@ -171,7 +171,15 @@ void BarrierMgr::TransitionDepthStencil(
     //
     // Note: Looking at this transition's cache mask in isolation to determine if the transition can be done during the
     // early phase is intentional!
-    if (earlyPhase == (isGfxSupported && TestAnyFlagSet(transition.srcCacheMask, CoherDepthStencilTarget)))
+    //
+    // CoherDepthStencilTarget can be a read-only access and thus be combined with other read-only accesses.
+    // E.g: the last access to the image could be via SRV from a compute shader; that dispatch must complete before a
+    // layout transition. Do an exact equality check of srcCacheMask to determine if the last access was by the DB;
+    // check oldLayout too for good measure.
+    const bool dbDirtyData = (transition.srcCacheMask == CoherDepthStencilTarget) &&
+                             (transition.imageInfo.oldLayout.usages == LayoutDepthStencilTarget);
+    const bool allowEarly = isGfxSupported && dbDirtyData;
+    if (earlyPhase == allowEarly)
     {
         PAL_ASSERT(image.IsDepthStencilTarget());
 
@@ -775,7 +783,6 @@ void BarrierMgr::IssueSyncs(
         syncReqs.waitOnEopTs = 1;
     }
 
-#if PAL_BUILD_GFX11
     // CmdBarrier as a whole assumes that cache operations are either synchronous with the CP or fully asynchronous.
     // If PWS is enabled, the HW can actually wait further down the pipeline (e.g., before rasterization) which creates
     // a race condition between this IssueSyncs call and other IssueSyncs calls before or after this one. For example,
@@ -786,7 +793,6 @@ void BarrierMgr::IssueSyncs(
     {
         waitPoint = HwPipePostPrefetch;
     }
-#endif
 
     if (syncReqs.waitOnEopTs)
     {
@@ -905,14 +911,14 @@ void BarrierMgr::IssueSyncs(
         if (isGfxSupported)
         {
             AcquireMemGfxSurfSync acquireInfo = {};
-            acquireInfo.flags.pfpWait              = (waitPoint == HwPipeTop);
-            acquireInfo.flags.cbTargetStall        = syncReqs.cbTargetStall;
-            acquireInfo.flags.dbTargetStall        = syncReqs.dbTargetStall;
-            acquireInfo.flags.gfx9Gfx10CbDataWbInv = TestAnyFlagSet(syncReqs.rbCaches, SyncCbDataWbInv);
-            acquireInfo.flags.gfx9Gfx10DbWbInv     = TestAnyFlagSet(syncReqs.rbCaches, SyncDbWbInv);
-            acquireInfo.cacheSync                  = syncReqs.glxCaches;
-            acquireInfo.rangeBase                  = rangeBase;
-            acquireInfo.rangeSize                  = rangeSize;
+            acquireInfo.flags.pfpWait          = (waitPoint == HwPipeTop);
+            acquireInfo.flags.cbTargetStall    = syncReqs.cbTargetStall;
+            acquireInfo.flags.dbTargetStall    = syncReqs.dbTargetStall;
+            acquireInfo.flags.gfx10CbDataWbInv = TestAnyFlagSet(syncReqs.rbCaches, SyncCbDataWbInv);
+            acquireInfo.flags.gfx10DbWbInv     = TestAnyFlagSet(syncReqs.rbCaches, SyncDbWbInv);
+            acquireInfo.cacheSync              = syncReqs.glxCaches;
+            acquireInfo.rangeBase              = rangeBase;
+            acquireInfo.rangeSize              = rangeSize;
 
             pCmdSpace += m_cmdUtil.BuildAcquireMemGfxSurfSync(acquireInfo, pCmdSpace);
 

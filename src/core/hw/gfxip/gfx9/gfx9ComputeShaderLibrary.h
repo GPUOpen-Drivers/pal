@@ -63,9 +63,13 @@ public:
     const LibraryHwInfo& HwInfo() const { return m_hwInfo; }
 
     virtual Result GetShaderFunctionCode(
-        const char*  pShaderExportName,
-        size_t*      pSize,
-        void*        pBuffer) const override;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 852
+        Util::StringView<char> shaderExportName,
+#else
+        const char*            pShaderExportName,
+#endif
+        size_t*                pSize,
+        void*                  pBuffer) const override;
 
     virtual Result GetShaderFunctionStats(
         Util::StringView<char> shaderExportName,

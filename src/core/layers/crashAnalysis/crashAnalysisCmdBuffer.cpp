@@ -730,7 +730,7 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndexedIndirectMultiDecorator(
     CmdBuffer*const     pThis          = static_cast<CmdBuffer*>(pCmdBuffer);
 
     pThis->InsertBeginMarker(MarkerSource::Pal, &markerName[0], MarkerNameSize);
-    pThis->GetNextLayer()->CmdDrawIndirectMulti(gpuVirtAddrAndStride,
+    pThis->GetNextLayer()->CmdDrawIndexedIndirectMulti(gpuVirtAddrAndStride,
                                                 maximumCount,
                                                 countGpuAddr);
     pThis->InsertEndMarker(MarkerSource::Pal);

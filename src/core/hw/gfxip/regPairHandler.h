@@ -219,13 +219,17 @@ private:
                 }
                 lastSh = i;
             }
-            else
+            else if (Ip::IsUConfig(t[i]))
             {
                 if (lastOther != UINT32_MAX)
                 {
                     valid = (lastOther + 1) == i;
                 }
                 lastOther = i;
+            }
+            else
+            {
+                valid = false;
             }
         }
 

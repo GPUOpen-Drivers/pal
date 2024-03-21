@@ -25,9 +25,11 @@
 
 #pragma once
 
+#include "palGpaSession.h"
 #include "palGpuUtil.h"
 #include "palTraceSession.h"
 #include "palVector.h"
+#include "palHashSet.h"
 #include "palMutex.h"
 
 namespace Pal
@@ -50,17 +52,23 @@ namespace TraceChunk
 
 /// "CodeObject" RDF chunk identifier & version
 constexpr char        CodeObjectChunkId[TextIdentifierSize] = "CodeObject";
-constexpr Pal::uint32 CodeObjectChunkVersion                = 1;
+constexpr Pal::uint32 CodeObjectChunkVersion                = 2;
 
 /// Header for the "CodeObject" RDF chunk
 struct CodeObjectHeader
 {
+    Pal::uint32     pciId;          /// The ID of the GPU the trace was run on
     Pal::ShaderHash codeObjectHash; /// Hash of the code object binary
 };
 
 /// "COLoadEvent" RDF chunk identifier & version
 constexpr char        CodeObjectLoadEventChunkId[TextIdentifierSize] = "COLoadEvent";
-constexpr Pal::uint32 CodeObjectLoadEventChunkVersion                = 1;
+constexpr Pal::uint32 CodeObjectLoadEventChunkVersion                = 3;
+
+struct CodeObjectLoadEventHeader
+{
+    Pal::uint32 count; /// Number of load events in this chunk
+};
 
 /// Describes whether a load event was into GPU memory or from.
 enum class CodeObjectLoadEventType : Pal::uint32
@@ -72,6 +80,7 @@ enum class CodeObjectLoadEventType : Pal::uint32
 /// Describes a GPU load/unload of a Code Object. Payload for "COLoadEvent" RDF chunk.
 struct CodeObjectLoadEvent
 {
+    Pal::uint32             pciId;          /// The ID of the GPU the trace was run on
     CodeObjectLoadEventType eventType;      /// Type of loader event
     Pal::uint64             baseAddress;    /// Base address where the code object was loaded
     Pal::ShaderHash         codeObjectHash; /// Hash of the (un)loaded code object binary
@@ -80,11 +89,17 @@ struct CodeObjectLoadEvent
 
 /// "PsoCorrelation" RDF chunk identifier & version
 constexpr char        PsoCorrelationChunkId[TextIdentifierSize] = "PsoCorrelation";
-constexpr Pal::uint32 PsoCorrelationChunkVersion                = 1;
+constexpr Pal::uint32 PsoCorrelationChunkVersion                = 3;
+
+struct PsoCorrelationHeader
+{
+    Pal::uint32 count;  /// Number of PSO correlations in this chunk
+};
 
 /// Payload for the "PsoCorrelation" RDF chunk
 struct PsoCorrelation
 {
+    Pal::uint32       pciId;                  /// The ID of the GPU the trace was run on
     Pal::uint64       apiPsoHash;             /// Hash of the API-level Pipeline State Object
     Pal::PipelineHash internalPipelineHash;   /// Hash of all inputs to the pipeline compiler
     char              apiLevelObjectName[64]; /// Debug object name (null-terminated)
@@ -94,7 +109,7 @@ struct PsoCorrelation
 
 /// CodeObject Trace Source name & version
 constexpr char        CodeObjectTraceSourceName[]  = "codeobject";
-constexpr Pal::uint32 CodeObjectTraceSourceVersion = 1;
+constexpr Pal::uint32 CodeObjectTraceSourceVersion = 3;
 
 // =====================================================================================================================
 class CodeObjectTraceSource : public ITraceSource
@@ -147,7 +162,8 @@ private:
         Pal::ShaderHash codeObjectHash;
     };
 
-    Pal::IPlatform* const                                             m_pPlatform;
+    Pal::IPlatform* const m_pPlatform;
+
     Util::RWLock                                                      m_registerPipelineLock;
     Util::Vector<CodeObjectDatabaseRecord*,       8, Pal::IPlatform>  m_codeObjectRecords;
     Util::Vector<TraceChunk::CodeObjectLoadEvent, 8, Pal::IPlatform>  m_loadEventRecords;

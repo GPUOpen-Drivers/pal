@@ -52,13 +52,11 @@ const MergedFlatFmtInfo* MergedChannelFlatFmtInfoTbl(
 
     const MergedFlatFmtInfo*  pFlatFmtInfo = nullptr;
 
-#if PAL_BUILD_GFX11
     if (IsGfx11(gfxIpLevel))
     {
         pFlatFmtInfo = Gfx11MergedChannelFmtInfoTbl;
     }
     else
-#endif
     if (IsGfx103PlusExclusive(gfxIpLevel))
     {
         pFlatFmtInfo = Gfx10_3MergedChannelFmtInfoTbl;
@@ -150,12 +148,10 @@ ChNumFormat FmtFromHwImgFmt(
     {
         format = Gfx10MergedImgDataFmtTbl[imgFmt];
     }
-#if PAL_BUILD_GFX11
     else if (IsGfx11(gfxIpLevel) && (imgFmt < Gfx11MergedImgDataFmtCount))
     {
         format = Gfx11MergedImgDataFmtTbl[imgFmt];
     }
-#endif
     else
     {
         PAL_ASSERT_ALWAYS();
@@ -188,12 +184,10 @@ ChNumFormat FmtFromHwBufFmt(
     {
         format = Gfx10MergedBufDataFmtTbl[bufFmt];
     }
-#if PAL_BUILD_GFX11
     else if (IsGfx11(gfxIpLevel) && (bufFmt < Gfx11MergedBufDataFmtCount))
     {
         format = Gfx11MergedBufDataFmtTbl[bufFmt];
     }
-#endif
     else
     {
         // What is this?

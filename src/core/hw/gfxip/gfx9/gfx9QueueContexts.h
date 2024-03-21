@@ -198,8 +198,10 @@ private:
     bool       m_supportsAceGang;
     CmdStream* m_pAcePreambleCmdStream;
 
-    // Indicates at least one of the CmdBuffers submitted on this queue contain an ExecuteIndirectV2 PM4.
-    bool m_usesExecuteIndirectV2;
+    // Indicates at least one of the CmdBuffers submitted on this queue contain an ExecuteIndirectV2 PM4 which needs a
+    // Global SpillTable Buffer that will be allocated on this queue.
+    bool m_needsEiV2GlobalSpillBuffer;
+
     // Bound GpuMemory object for the per-queue buffer allocation required for Spill+VBTable data as a memory
     // optimization.
     BoundGpuMemory m_executeIndirectMemGfx;

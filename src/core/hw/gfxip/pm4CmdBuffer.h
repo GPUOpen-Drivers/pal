@@ -292,12 +292,10 @@ protected:
 
     virtual void InheritStateFromCmdBuf(const Pm4CmdBuffer* pCmdBuffer) = 0;
 
-    virtual void OptimizeBarrierReleaseInfo(
-        uint32       pipePointCount,
-        HwPipePoint* pPipePoints,
-        uint32*      pCacheMask) const override;
-
-    virtual void OptimizeAcqRelReleaseInfo(uint32* pStageMask, uint32* pAccessMask) const override;
+    virtual void OptimizeAcqRelReleaseInfo(
+        BarrierType barrierType,
+        uint32*     pStageMask,
+        uint32*     pAccessMask) const override;
 
     void UpdateUserDataTableCpu(
         UserDataTableState * pTable,

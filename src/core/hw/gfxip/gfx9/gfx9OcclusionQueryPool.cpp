@@ -96,9 +96,7 @@ void OcclusionQueryPool::Begin(
             cmdUtil.BuildSampleEventWrite(PIXEL_PIPE_STAT_DUMP,
                                           event_index__me_event_write__pixel_pipe_stat_control_or_dump,
                                           pCmdBuffer->GetEngineType(),
-#if PAL_BUILD_GFX11
                                           samp_plst_cntr_mode__mec_event_write__legacy_mode__GFX11,
-#endif
                                           gpuAddr + offsetof(OcclusionQueryResultPair, begin),
                                           pCmdSpace);
         pCmdStream->CommitCommands(pCmdSpace);
@@ -133,9 +131,7 @@ void OcclusionQueryPool::End(
             cmdUtil.BuildSampleEventWrite(PIXEL_PIPE_STAT_DUMP,
                                           event_index__me_event_write__pixel_pipe_stat_control_or_dump,
                                           engineType,
-#if PAL_BUILD_GFX11
                                           samp_plst_cntr_mode__mec_event_write__legacy_mode__GFX11,
-#endif
                                           gpuAddr + offsetof(OcclusionQueryResultPair, end),
                                           pCmdSpace);
 

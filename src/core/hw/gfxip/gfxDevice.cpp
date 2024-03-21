@@ -166,9 +166,7 @@ Result GfxDevice::InitHwlSettings(
         case GfxIpLevel::GfxIp10_1:
         case GfxIpLevel::GfxIp9:
         case GfxIpLevel::GfxIp10_3:
-#if PAL_BUILD_GFX11
         case GfxIpLevel::GfxIp11_0:
-#endif
             m_pDdSettingsLoader = Gfx9::CreateSettingsLoader(m_pParent);
             break;
         case GfxIpLevel::None:
@@ -349,9 +347,8 @@ Result GfxDevice::CreateColorBlendStateInternal(
     Util::SystemAllocType            allocType
     ) const
 {
-    Result result = Result::ErrorOutOfMemory;
-
-    void* pMemory = PAL_MALLOC(GetColorBlendStateSize(createInfo, nullptr), GetPlatform(), allocType);
+    Result result  = Result::ErrorOutOfMemory;
+    void*  pMemory = PAL_MALLOC(GetColorBlendStateSize(), GetPlatform(), allocType);
 
     if (pMemory != nullptr)
     {
@@ -389,9 +386,8 @@ Result GfxDevice::CreateDepthStencilStateInternal(
     Util::SystemAllocType              allocType
     ) const
 {
-    Result result = Result::ErrorOutOfMemory;
-
-    void* pMemory = PAL_MALLOC(GetDepthStencilStateSize(createInfo, nullptr), GetPlatform(), allocType);
+    Result result  = Result::ErrorOutOfMemory;
+    void*  pMemory = PAL_MALLOC(GetDepthStencilStateSize(), GetPlatform(), allocType);
 
     if (pMemory != nullptr)
     {
@@ -429,9 +425,8 @@ Result GfxDevice::CreateMsaaStateInternal(
     Util::SystemAllocType      allocType
     ) const
 {
-    Result result = Result::ErrorOutOfMemory;
-
-    void* pMemory = PAL_MALLOC(GetMsaaStateSize(createInfo, nullptr), GetPlatform(), allocType);
+    Result result  = Result::ErrorOutOfMemory;
+    void*  pMemory = PAL_MALLOC(GetMsaaStateSize(), GetPlatform(), allocType);
 
     if (pMemory != nullptr)
     {
@@ -899,6 +894,43 @@ uint32 GfxDevice::VertsPerPrimitive(
 
     default:
         PAL_ASSERT_ALWAYS();
+        break;
+    }
+
+    return vertsPerPrimitive;
+}
+
+// =====================================================================================================================
+uint32 GfxDevice::VertsPerPrimitive(
+    PrimitiveTopology topology)
+{
+    uint32 vertsPerPrimitive = 1;
+    switch (topology)
+    {
+    case PrimitiveTopology::PointList:
+        vertsPerPrimitive = 1;
+        break;
+    case PrimitiveTopology::LineList:
+    case PrimitiveTopology::LineStrip:
+    case PrimitiveTopology::LineLoop:
+    case PrimitiveTopology::LineListAdj:
+    case PrimitiveTopology::LineStripAdj:
+        vertsPerPrimitive = 2;
+        break;
+    case PrimitiveTopology::TriangleList:
+    case PrimitiveTopology::TriangleStrip:
+    case PrimitiveTopology::RectList:
+    case PrimitiveTopology::TriangleFan:
+    case PrimitiveTopology::Polygon:
+    case PrimitiveTopology::TwoDRectList:
+    case PrimitiveTopology::QuadList:
+    case PrimitiveTopology::QuadStrip:
+    case PrimitiveTopology::TriangleListAdj:
+    case PrimitiveTopology::TriangleStripAdj:
+        vertsPerPrimitive = 3;
+        break;
+
+    default:
         break;
     }
 

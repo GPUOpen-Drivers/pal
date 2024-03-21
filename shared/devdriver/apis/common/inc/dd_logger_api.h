@@ -75,16 +75,16 @@ typedef struct
     /// string with the log level passed. For example:
     /// [ERROR] example log string.
     ///
-    /// @param pInstance Must be \ref DDLoggerApi.pInstance.
-    /// @param level Log level.
-    /// @param pFormat printf style format string.
+    /// @param[in] pInstance Must be \ref DDLoggerApi.pInstance.
+    /// @param[in] level Log level.
+    /// @param[in] pFormat printf style format string.
     void (*Log)(DDLoggerInstance* pInstance, DD_LOG_LVL level, const char* pFormat, ...);
 } DDLoggerApi;
 
 /// Create an instance of \ref DDLoggerApi.
 ///
-/// @param pCreateInfo See \ref DDLoggerCreateInfo.
-/// @param ppOutLoggerApi[in/out] Will be set to an instance of \ref DDLoggerApi. If the function succeeds,
+/// @param[in] pCreateInfo See \ref DDLoggerCreateInfo.
+/// @param[in/out] ppOutLoggerApi Will be set to an instance of \ref DDLoggerApi. If the function succeeds,
 /// a valid logger is created, which writes log messages to the file specified by
 /// \ref DDLoggerCreateInfo.pFilePath. Upon failure, `*pOutLoggerApi` is set to a dummy logger that simply
 /// discards log messages. This parameter cannot be NULL.
@@ -95,7 +95,7 @@ DD_RESULT DDLoggerCreate(DDLoggerCreateInfo* pCreateInfo, DDLoggerApi* pOutLogge
 
 /// Destroy an instance of \ref DDLoggerApi.
 ///
-/// @param ppLoggerApi[in/out] A pointer to an instance of \ref DDLoggerApi.
+/// @param[in/out] ppLoggerApi A pointer to an instance of \ref DDLoggerApi.
 void DDLoggerDestroy(DDLoggerApi* pLoggerApi);
 
 #ifdef __cplusplus

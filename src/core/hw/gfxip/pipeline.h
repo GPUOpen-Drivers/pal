@@ -201,11 +201,9 @@ public:
 
     const void* GetPipelineBinary() const { return m_pPipelineBinary; }
 
-#if PAL_BUILD_GFX11
     static bool DispatchInterleaveSizeIsValid(
         DispatchInterleaveSize   interleave,
         const GpuChipProperties& chipProps);
-#endif
 
 protected:
     Pipeline(Device* pDevice, bool isInternal);

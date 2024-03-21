@@ -67,7 +67,7 @@ namespace DevDriver
         ///
         /// Internal interface for SessionManager
         ///
-        Session(IMsgChannel* pMsgChannel, SessionType type, Protocol protocol);
+        Session(IMsgChannel* pMsgChannel, SessionType type, Protocol protocol, const char* pSessionName);
 
         Result Connect(ClientId  remoteClientId,
                        SessionId sessionId,
@@ -113,6 +113,11 @@ namespace DevDriver
         Result WaitForConnection(uint32 timeoutInMs) override final
         {
             return m_connectionEvent.Wait(timeoutInMs);
+        }
+
+        Result WaitForDisconnection(uint32 timeoutInMs) override final
+        {
+            return m_disconnectionEvent.Wait(timeoutInMs);
         }
 
         bool IsClosed() const override final
@@ -265,5 +270,7 @@ namespace DevDriver
         Version                             m_minClientProtocolVersion;
         SessionProtocol::SessionVersion     m_sessionVersion;
         Platform::Event                     m_connectionEvent;
+        Platform::Event                     m_disconnectionEvent;
+        char                                m_sessionName[64];
     };
 } // DevDriver

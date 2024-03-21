@@ -66,7 +66,6 @@ if (PAL_BUILD_GFX11)
 
     include(${PAL_SWD_PATH}/SwdInclude.cmake)
     swd_add_to_target(pal PAL)
-
 endif()
 #endif
 

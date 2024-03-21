@@ -2218,8 +2218,8 @@ void RsrcProcMgr::PostComputeColorClearSync(
 
         // Optimization: For post CS fast Clear to ColorTarget transition, no need flush DST caches and invalidate
         //               SRC caches. Both cs fast clear and ColorTarget access metadata in direct mode, so no need
-        //               L2 flush/inv even if the metadata is misaligned. See WaRefreshTccOnMetadataMisalignment()
-        //               for more details. Safe to pass 0 here, so no cache operation and PWS can wait at PreColor.
+        //               L2 flush/inv even if the metadata is misaligned. See GetCacheSyncOps() for more details.
+        //               Safe to pass 0 here, so no cache operation and PWS can wait at PreColor.
         imgBarrier.srcStageMask  = PipelineStageCs;
         imgBarrier.dstStageMask  = PipelineStageColorTarget;
         imgBarrier.srcAccessMask = csFastClear ? 0 : CoherShader;
@@ -2317,9 +2317,8 @@ void RsrcProcMgr::PostComputeDepthStencilClearSync(
 
         // Optimization: For post CS fast Clear to DepthStencilTarget transition, no need flush DST caches and
         //               invalidate SRC caches. Both cs fast clear and DepthStencilTarget access metadata in direct
-        //               mode, so no need L2 flush/inv even if the metadata is misaligned. See
-        //               WaRefreshTccOnMetadataMisalignment() for more details. Safe to pass 0 here, so no cache
-        //               operation and PWS can wait at PreDepth.
+        //               mode, so no need L2 flush/inv even if the metadata is misaligned. See GetCacheSyncOps() for
+        //               more details. Safe to pass 0 here, so no cache operation and PWS can wait at PreDepth.
         imgBarrier.srcStageMask  = PipelineStageCs;
         imgBarrier.dstStageMask  = PipelineStageEarlyDsTarget | PipelineStageLateDsTarget;
         imgBarrier.srcAccessMask = csFastClear ? 0 : CoherShader;
@@ -2796,6 +2795,7 @@ void RsrcProcMgr::CmdCopyMemory(
         {
             // We will copy this region later on.
             useCsCopy = true;
+            break;
         }
     }
 
@@ -3261,7 +3261,6 @@ void RsrcProcMgr::CmdResolveImage(
                                                  pRegions,
                                                  flags);
             }
-#if PAL_BUILD_GFX11
             else if (IsGfx11(*m_pDevice->Parent()))
             {
                 HwlResolveImageGraphics(pPm4CmdBuffer,
@@ -3273,7 +3272,6 @@ void RsrcProcMgr::CmdResolveImage(
                                         pRegions,
                                         flags);
             }
-#endif
             else
             {
                 PAL_NOT_IMPLEMENTED();

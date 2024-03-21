@@ -34,7 +34,12 @@ namespace DevDriver
     namespace DriverControlProtocol
     {
         DriverControlClient::DriverControlClient(IMsgChannel* pMsgChannel)
-            : LegacyProtocolClient(pMsgChannel, Protocol::DriverControl, DRIVERCONTROL_CLIENT_MIN_VERSION, DRIVERCONTROL_CLIENT_MAX_VERSION)
+            : LegacyProtocolClient(
+                pMsgChannel,
+                Protocol::DriverControl,
+                DRIVERCONTROL_CLIENT_MIN_VERSION,
+                DRIVERCONTROL_CLIENT_MAX_VERSION,
+                "DriverControl")
         {
         }
 

@@ -42,11 +42,12 @@ namespace TraceChunk
 {
 /// "SpmSession" RDF chunk identifier & version
 constexpr char        SpmSessionChunkId[TextIdentifierSize] = "SpmSession";
-constexpr Pal::uint32 SpmSessionChunkVersion                = 1;
+constexpr Pal::uint32 SpmSessionChunkVersion                = 2;
 
 /// Header for the "SpmSession" RDF chunk
 struct SpmSessionHeader
 {
+    Pal::uint32 pciId;            /// The ID of the GPU the trace ran on
     Pal::uint32 flags;            /// SPM trace configuration flags (reserved for future use)
     Pal::uint32 samplingInterval; /// Perf. counter sampling interval
     Pal::uint32 numTimestamps;    /// Number of timestamps in the SPM trace data
@@ -55,22 +56,25 @@ struct SpmSessionHeader
 
 /// "SpmCounterData" RDF chunk identifier & version
 constexpr char        SpmCounterDataChunkId[TextIdentifierSize] = "SpmCounterData";
-constexpr Pal::uint32 SpmCounterDataChunkVersion                = 1;
+constexpr Pal::uint32 SpmCounterDataChunkVersion                = 2;
 
 /// Header for the "SpmCounterData" RDF chunk
 struct SpmCounterDataHeader
 {
+    Pal::uint32   pciId;         /// The ID of the GPU the trace ran on
     Pal::GpuBlock gpuBlock;      /// GPU block encoding
     Pal::uint32   blockInstance; /// Instance of the block in the ASIC
     Pal::uint32   eventIndex;    /// Index of the perf. counter event within the block
     Pal::uint32   dataSize;      /// Size (in bytes) of a single counter data item
 };
 
-constexpr char SqttDataTextId[TextIdentifierSize] = "SqttData";
+constexpr char        SqttDataTextId[TextIdentifierSize] = "SqttData";
+constexpr Pal::uint32 SqttDataChunkVersion               = 2;
 
 /// SQTT Data RDF chunk
 struct TraceChunkSqttData
 {
+    Pal::uint32 pciId;
     Pal::uint32 shaderEngine;
     Pal::uint32 sqttVersion;
     Pal::uint32 instrumentationVersionSpec;

@@ -214,6 +214,9 @@ function(pal_gen_settings)
     # INCLUDE_HEADERS:
     #     Header files the generated settings file needs to '#include'. For example, a header file
     #     that contains an existing enum definition.
+    # EXPERIMENTS:
+    #     Optional flag to indicate to the script that this is for experiments
+    set(options EXPERIMENTS)
     set(oneValueArgs INPUT_JSON GENERATED_FILENAME HEADER_FILE OUT_DIR CLASS_NAME)
     set(multiValArgs NAMESPACES INCLUDE_HEADERS)
     cmake_parse_arguments(PARSE_ARGV 0 SETTINGS "${options}" "${oneValueArgs}" "${multiValArgs}")
@@ -251,6 +254,10 @@ function(pal_gen_settings)
     endif()
 
     list(APPEND CODEGEN_OPTIONAL_ARGS "--is-pal-settings")
+
+    if (SETTINGS_EXPERIMENTS)
+        list(APPEND CODEGEN_OPTIONAL_ARGS "--is-experiments")
+    endif()
 
     if ((NOT EXISTS ${SETTINGS_OUT_DIR}/${GENERATED_HEADER_FILENAME}) OR
         (NOT EXISTS ${SETTINGS_OUT_DIR}/${GENERATED_SOURCE_FILENAME}))
@@ -325,6 +332,14 @@ function(pal_setup_generated_code)
                      NAMESPACES         Pal
                      INCLUDE_HEADERS    palDevice.h
                                         palDbgPrint.h)
+
+    pal_gen_settings(INPUT_JSON         src/core/experiments_settings.json
+                     GENERATED_FILENAME expSettings
+                     HEADER_FILE        core/experimentsLoader.h
+                     OUT_DIR            ${PAL_BINARY_DIR}/src/core
+                     CLASS_NAME         ExperimentsLoader
+                     EXPERIMENTS
+                     NAMESPACES         Pal)
 
     if (PAL_BUILD_GFX9)
         pal_gen_settings(INPUT_JSON         src/core/hw/gfxip/gfx9/settings_gfx9.json

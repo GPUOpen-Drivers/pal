@@ -89,6 +89,7 @@ function(swd_add_to_target TARGET PREFIX)
 #if SWD_BUILD_GFX11
     if(${PREFIX}_SWD_BUILD_GFX11)
         target_sources(${TARGET} PRIVATE ${SWD_SOURCE_DIR}/inc/g_gfx11SwWarDetection.h)
+        set_source_files_properties(${SWD_SOURCE_DIR}/inc/g_gfx11SwWarDetection.h TARGET_DIRECTORY ${TARGET} PROPERTIES GENERATED ON)
     endif()
 #endif
 

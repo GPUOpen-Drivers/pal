@@ -127,7 +127,7 @@ typedef struct
     /// @param reload Whether to reload settings blobs from the driver.
     /// @param[out] ppSettingsBlobs Will be set to a pointer to the buffer to receive settings blobs.
     /// @param[out] pSettingsBlobsSize Will be set to the size of the buffer of settings blobs.
-    /// @param alloc Used to allocate the buffer to receive settings blobs.
+    /// @param[int] alloc Used to allocate the buffer to receive settings blobs.
     DD_RESULT (*QuerySettingsBlobsAll)(
         DDSettingsInstance*     pInstance,
         DD_SETTINGS_DRIVER_TYPE driverType,
@@ -141,8 +141,8 @@ typedef struct
     /// Send user overrides of all settings components to a driver.
     ///
     /// @param[in] pInstance Must be \ref DDSettingsApi.pInstance.
-    /// @param umdConnectionId The id for the umd connection over which user overrides will be sent.
-    /// @param numComponents Number of items in the array pointed to by \param pComponentsOverrides.
+    /// @param[in] umdConnectionId The id for the umd connection over which user overrides will be sent.
+    /// @param[in] numComponents Number of items in the array pointed to by \param pComponentsOverrides.
     /// @param[in] pComponentsOverrides A pointer to an array of \ref DDSettingsComponentValueRefs.
     DD_RESULT (*SendAllUserOverrides)(
         DDSettingsInstance*                 pInstance,
@@ -156,7 +156,7 @@ typedef struct
     /// @param umdConnectionId The id for the umd connection over which user overrides will be sent.
     /// @param[out] ppBuffer Will be set to a pointer to a byte-array containing settings values.
     /// @param[out] pSize The size of the byte-array pointed to by *\param ppBuffer.
-    /// @param alloc Will be used to allocate the byte-array mentioned above.
+    /// @param[in] alloc Will be used to allocate the byte-array mentioned above.
     DD_RESULT (*QueryAllCurrentValues)(
         DDSettingsInstance* pInstance,
         uint16_t            umdConnectionId,

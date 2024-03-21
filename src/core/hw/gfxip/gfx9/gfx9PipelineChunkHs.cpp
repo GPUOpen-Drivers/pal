@@ -60,11 +60,7 @@ void PipelineChunkHs::LateInit(
     const PalAbi::CodeObjectMetadata& metadata,
     PipelineUploader*                 pUploader)
 {
-    const GpuChipProperties& chipProps    = m_device.Parent()->ChipProperties();
-    const RegisterInfo&      registerInfo = m_device.CmdUtil().GetRegInfo();
-
-    const uint16 mmSpiShaderUserDataHs0 = registerInfo.mmUserDataStartHsShaderStage;
-    const uint16 mmSpiShaderPgmLoLs     = registerInfo.mmSpiShaderPgmLoLs;
+    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
 
     const auto& hwHs = metadata.pipeline.hardwareStage[uint32(Abi::HardwareStage::Hs)];
 
@@ -109,12 +105,7 @@ uint32* PipelineChunkHs::WriteShCommands(
 {
     const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
 
-    const RegisterInfo& registerInfo = m_device.CmdUtil().GetRegInfo();
-
-    const uint16 mmSpiShaderUserDataHs0 = registerInfo.mmUserDataStartHsShaderStage;
-    const uint16 mmSpiShaderPgmLoLs     = registerInfo.mmSpiShaderPgmLoLs;
-
-    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSpiShaderPgmLoLs,
+    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(Gfx10Plus::mmSPI_SHADER_PGM_LO_LS,
                                                              m_regs.sh.spiShaderPgmLoLs.u32All,
                                                              pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqShRegs(mmSPI_SHADER_PGM_RSRC1_HS,
@@ -124,9 +115,10 @@ uint32* PipelineChunkHs::WriteShCommands(
                                               pCmdSpace);
     if (m_regs.sh.userDataInternalTable != InvalidUserDataInternalTable)
     {
-        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSpiShaderUserDataHs0 + ConstBufTblStartReg,
-                                                                 m_regs.sh.userDataInternalTable,
-                                                                 pCmdSpace);
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(
+                                    Gfx10Plus::mmSPI_SHADER_USER_DATA_HS_0 + ConstBufTblStartReg,
+                                    m_regs.sh.userDataInternalTable,
+                                    pCmdSpace);
     }
 
     if (chipProps.gfx9.supportSpp != 0)
@@ -202,7 +194,6 @@ uint32* PipelineChunkHs::WriteContextCommands(
                                               pCmdSpace);
 }
 
-#if PAL_BUILD_GFX11
 // =====================================================================================================================
 // Accumulates this pipeline chunk's SH registers into an array of packed register pairs.
 void PipelineChunkHs::AccumulateShRegs(
@@ -216,21 +207,16 @@ void PipelineChunkHs::AccumulateShRegs(
 
     const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
 
-    const RegisterInfo& registerInfo = m_device.CmdUtil().GetRegInfo();
-
-    const uint16 mmSpiShaderUserDataHs0 = registerInfo.mmUserDataStartHsShaderStage;
-    const uint16 mmSpiShaderPgmLoLs     = registerInfo.mmSpiShaderPgmLoLs;
-
     SetOneShRegValPairPacked(pRegPairs,
                              pNumRegs,
-                             mmSpiShaderPgmLoLs,
+                             Gfx10Plus::mmSPI_SHADER_PGM_LO_LS,
                              m_regs.sh.spiShaderPgmLoLs.u32All);
 
     if (m_regs.sh.userDataInternalTable != InvalidUserDataInternalTable)
     {
         SetOneShRegValPairPacked(pRegPairs,
                                  pNumRegs,
-                                 mmSpiShaderUserDataHs0 + ConstBufTblStartReg,
+                                 Gfx10Plus::mmSPI_SHADER_USER_DATA_HS_0 + ConstBufTblStartReg,
                                  m_regs.sh.userDataInternalTable);
     }
 
@@ -282,7 +268,6 @@ void PipelineChunkHs::AccumulateContextRegs(
     PAL_ASSERT(InRange(*pNumRegs, startingIdx, startingIdx + HsRegs::NumContextReg));
 #endif
 }
-#endif
 
 // =====================================================================================================================
 void PipelineChunkHs::Clone(

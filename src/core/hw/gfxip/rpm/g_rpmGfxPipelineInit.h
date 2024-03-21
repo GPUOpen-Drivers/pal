@@ -155,7 +155,6 @@ enum RpmGfxPipeline : uint32
     ScaledCopyMsaaDepthStencil   = 116,
     ScaledCopyMsaaStencil        = 117,
     ScaledCopyStencil            = 118,
-#if PAL_BUILD_GFX11
     Gfx11ResolveGraphics_32ABGR  = 119,
     Gfx11ResolveGraphics_32GR    = 120,
     Gfx11ResolveGraphics_32R     = 121,
@@ -164,7 +163,6 @@ enum RpmGfxPipeline : uint32
     Gfx11ResolveGraphics_SNORM16 = 124,
     Gfx11ResolveGraphics_UINT16  = 125,
     Gfx11ResolveGraphics_UNORM16 = 126,
-#endif
     RpmGfxPipelineCount
 };
 

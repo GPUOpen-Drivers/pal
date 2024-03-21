@@ -87,9 +87,7 @@ constexpr uint32 MinVaRangeNumBits = 36u;
 // PAL minimum fragment size for local memory allocations
 constexpr gpusize PageSize = 0x1000u;
 
-#if defined(__unix__)
 constexpr char SettingsFileName[] = "amdVulkanSettings.cfg";
-#endif
 
 // Maximum number of excluded virtual address ranges.
 constexpr size_t MaxExcludedVaRanges = 32;
@@ -416,11 +414,7 @@ struct GpuEngineProperties
                 uint32 supportsUnmappedPrtPageAccess   :  1;
                 uint32 memory32bPredicationEmulated    :  1;
                 uint32 supportsClearCopyMsaaDsDst      :  1;
-#if PAL_BUILD_GFX11
                 uint32 supportsPws                     :  1; // HW supports pixel wait sync plus.
-#else
-                uint32 reserved1                       :  1;
-#endif
                 uint32 reserved                        :  6;
             };
             uint32 u32All;
@@ -578,7 +572,6 @@ struct PerfCounterBlockInfo
 constexpr uint32 Gfx9MaxSdmaInstances   = 2;
 constexpr uint32 Gfx9MaxSdmaPerfModules = 2;
 
-#if PAL_BUILD_GFX11
 constexpr uint32 Gfx9MaxShaderEngines = 6;  // GFX11 parts have six SE's
 // In gfx11, the max number of wgp instances per shader array is 5.
 // The max number of shader array per shader engine is 2.
@@ -586,9 +579,6 @@ constexpr uint32 Gfx9MaxShaderEngines = 6;  // GFX11 parts have six SE's
 constexpr uint32 Gfx11MaxWgps = 5 * 6 * 2;
 // Minimum PFP uCode version that indicates the device is running in RS64 mode
 constexpr uint32 Gfx11Rs64MinPfpUcodeVersion = 300;
-#else
-constexpr uint32 Gfx9MaxShaderEngines = 4;  // We can't have more than 4 SEs on gfx9+.
-#endif
 
 // UMC is the block that interfaces between the Scalable Data Fabric (SDF) and the physical DRAM. Each UMC block
 // has 1..n channels. Typically, there is one UMC channel per EA block, or one per SDP (Scalable Data Port). We
@@ -743,11 +733,7 @@ struct GpuChipProperties
             uint32 supportGl2Uncached               :  1; // Indicates support for the allocation of GPU L2
                                                           // un-cached memory. See gl2UncachedCpuCoherency
             uint32 supportsVrs                      :  1; // Indicates support for variable rate shading
-#if (PAL_BUILD_GFX11)
             uint32 supportsSwStrmout                :  1; // Indicates support for software streamout
-#else
-            uint32 reserved2                        :  1;
-#endif
             uint32 supportsHwVs                     :  1; // Indicates hardware support for Vertex Shaders
             uint32 reserved3                        :  1;
             uint32 supportCaptureReplay             :  1; // Indicates support for Capture Replay
@@ -843,81 +829,78 @@ struct GpuChipProperties
             struct
             {
 
-                uint64 doubleOffchipLdsBuffers            :  1; // HW supports 2x number of offchip LDS buffers
-                                                                // per SE
-                uint64 supportFp16Fetch                   :  1;
-                uint64 supportFp16Dot2                    :  1;
-                uint64 support16BitInstructions           :  1;
-                uint64 support64BitInstructions           :  1;
-                uint64 supportBorderColorSwizzle          :  1;
-                uint64 supportFloat64Atomics              :  1;
-                uint64 supportDoubleRate16BitInstructions :  1;
-                uint64 rbPlus                             :  1;
-                uint64 supportConservativeRasterization   :  1;
-                uint64 supportPrtBlendZeroMode            :  1;
-                uint64 supports2BitSignedValues           :  1;
-                uint64 supportPrimitiveOrderedPs          :  1;
-                uint64 lbpwEnabled                        :  1; // Indicates Load Balance Per Watt is enabled
-                uint64 supportPatchTessDistribution       :  1; // HW supports patch distribution mode.
-                uint64 supportDonutTessDistribution       :  1; // HW supports donut distribution mode.
-                uint64 supportTrapezoidTessDistribution   :  1; // HW supports trapezoidal distribution mode.
-                uint64 supportAddrOffsetDumpAndSetShPkt   :  1; // Indicates support for DUMP_CONST_RAM_OFFSET
-                                                                // and SET_SH_REG_OFFSET indexed packet.
-                uint64 supportAddrOffsetSetSh256Pkt       :  1; // Indicates support for SET_SH_REG_OFFSET_256B
-                                                                // indexed packet.
-                uint64 supportImplicitPrimitiveShader     :  1;
-                uint64 supportSpp                         :  1; // HW supports Shader Profiling for Power
-                uint64 validPaScTileSteeringOverride      :  1; // Value of paScTileSteeringOverride is valid
-                uint64 placeholder0                       :  1; // Placeholder. Do not use.
-                uint64 supportPerShaderStageWaveSize      :  1; // HW supports changing the wave size
-                uint64 supportCustomWaveBreakSize         :  1;
-                uint64 supportMsaaCoverageOut             :  1; // HW supports MSAA coverage samples
-                uint64 supportPostDepthCoverage           :  1; // HW supports post depth coverage feature
-                uint64 supportSpiPrefPriority             :  1;
-                uint64 timestampResetOnIdle               :  1; // GFX OFF feature causes the timestamp to reset.
-                uint64 support1xMsaaSampleLocations       :  1; // HW supports 1xMSAA custom quad sample patterns
-                uint64 supportReleaseAcquireInterface     :  1; // Set if HW supports the basic functionalities of
-                                                                // acquire /release-based barrier interface.This
-                                                                // provides CmdReleaseThenAcquire() as a convenient
-                                                                // way to replace the legacy barrier interface's
-                                                                // CmdBarrier() to handle single point barriers.
-                uint64 supportSplitReleaseAcquire         :  1; // Set if HW supports additional split barrier feature
-                                                                // on top of basic acquire/release interface support.
-                                                                // This provides CmdAcquire() and CmdRelease() to
-                                                                // implement split barriers.
-                                                                // Note: supportReleaseAcquireInterface is a
-                                                                // prerequisite to supportSplitReleaseAcquire.
-                uint64 eccProtectedGprs                   :  1; // Are VGPR's ECC-protected?
-                uint64 overrideDefaultSpiConfigCntl       :  1; // KMD provides default value for SPI_CONFIG_CNTL.
-                uint64 supportOutOfOrderPrimitives        :  1; // HW supports higher throughput for out of order
-                uint64 supportIntersectRayBarycentrics    :  1; // HW supports the ray intersection mode which
-                                                                // returns triangle barycentrics.
-                uint64 supportShaderSubgroupClock         :  1; // HW supports clock functions across subgroup.
-                uint64 supportShaderDeviceClock           :  1; // HW supports clock functions across device.
-                uint64 supportAlphaToOne                  :  1; // HW supports forcing alpha channel to one
-                uint64 supportSingleChannelMinMaxFilter   :  1; // HW supports any min/max filter.
-                uint64 supportSortAgnosticBarycentrics    :  1; // HW provides provoking vertex for custom interp
-                uint64 supportMeshShader                  :  1;
-                uint64 supportTaskShader                  :  1;
-                uint64 supportMsFullRangeRtai             :  1; // HW supports full range render target array
-                                                                // for Mesh Shaders.
-#if PAL_BUILD_GFX11
-                uint64 supportRayTraversalStack           :  1;
-                uint64 supportPointerFlags                :  1;
-#else
-                uint64 placeholder5                       :  2;
-#endif
-                uint64 supportTextureGatherBiasLod        :  1; // HW supports SQ_IMAGE_GATHER4_L_O
-                uint64 supportInt8Dot                     :  1; // HW supports a dot product 8bit.
-                uint64 supportInt4Dot                     :  1; // HW supports a dot product 4bit.
-                uint64 support2DRectList                  :  1; // HW supports PrimitiveTopology::TwoDRectList.
-                uint64 supportImageViewMinLod             :  1; // Indicates image srd supports min_lod.
-                uint64 stateShadowingByCpFw               :  1; // Indicates that state shadowing is done is CP FW.
-                uint64 stateShadowingByCpFwUserAlloc      :  1; // FW state shadowing memory is allocated by PAL.
-                uint64 support3dUavZRange                 :  1; // HW supports read-write ImageViewSrds of 3D images
-                                                                // with zRange specified.
-                uint64 supportCooperativeMatrix           :  1; // HW supports cooperative matrix
-                uint64 reserved                           :  9;
+                uint64 doubleOffchipLdsBuffers             :  1; // HW supports 2x number of offchip LDS buffers
+                                                                 // per SE
+                uint64 supportFp16Fetch                    :  1;
+                uint64 supportFp16Dot2                     :  1;
+                uint64 support16BitInstructions            :  1;
+                uint64 support64BitInstructions            :  1;
+                uint64 supportBorderColorSwizzle           :  1;
+                uint64 supportFloat64Atomics               :  1;
+                uint64 supportDoubleRate16BitInstructions  :  1;
+                uint64 rbPlus                              :  1;
+                uint64 supportConservativeRasterization    :  1;
+                uint64 supportPrtBlendZeroMode             :  1;
+                uint64 supports2BitSignedValues            :  1;
+                uint64 supportPrimitiveOrderedPs           :  1;
+                uint64 lbpwEnabled                         :  1; // Indicates Load Balance Per Watt is enabled
+                uint64 supportPatchTessDistribution        :  1; // HW supports patch distribution mode.
+                uint64 supportDonutTessDistribution        :  1; // HW supports donut distribution mode.
+                uint64 supportTrapezoidTessDistribution    :  1; // HW supports trapezoidal distribution mode.
+                uint64 supportAddrOffsetDumpAndSetShPkt    :  1; // Indicates support for DUMP_CONST_RAM_OFFSET
+                                                                 // and SET_SH_REG_OFFSET indexed packet.
+                uint64 supportAddrOffsetSetSh256Pkt        :  1; // Indicates support for SET_SH_REG_OFFSET_256B
+                                                                 // indexed packet.
+                uint64 supportImplicitPrimitiveShader      :  1;
+                uint64 supportSpp                          :  1; // HW supports Shader Profiling for Power
+                uint64 validPaScTileSteeringOverride       :  1; // Value of paScTileSteeringOverride is valid
+                uint64 placeholder0                        :  1; // Placeholder. Do not use.
+                uint64 supportPerShaderStageWaveSize       :  1; // HW supports changing the wave size
+                uint64 supportCustomWaveBreakSize          :  1;
+                uint64 supportMsaaCoverageOut              :  1; // HW supports MSAA coverage samples
+                uint64 supportPostDepthCoverage            :  1; // HW supports post depth coverage feature
+                uint64 supportSpiPrefPriority              :  1;
+                uint64 timestampResetOnIdle                :  1; // GFX OFF feature causes the timestamp to reset.
+                uint64 support1xMsaaSampleLocations        :  1; // HW supports 1xMSAA custom quad sample patterns
+                uint64 supportReleaseAcquireInterface      :  1; // Set if HW supports the basic functionalities of
+                                                                 // acquire /release-based barrier interface.This
+                                                                 // provides CmdReleaseThenAcquire() as a convenient
+                                                                 // way to replace the legacy barrier interface's
+                                                                 // CmdBarrier() to handle single point barriers.
+                uint64 supportSplitReleaseAcquire          :  1; // Set if HW supports additional split barrier feature
+                                                                 // on top of basic acquire/release interface support.
+                                                                 // This provides CmdAcquire() and CmdRelease() to
+                                                                 // implement split barriers.
+                                                                   // Note: supportReleaseAcquireInterface is a
+                                                                  // prerequisite to supportSplitReleaseAcquire.
+                uint64 eccProtectedGprs                    :  1; // Are VGPR's ECC-protected?
+                uint64 overrideDefaultSpiConfigCntl        :  1; // KMD provides default value for SPI_CONFIG_CNTL.
+                uint64 supportOutOfOrderPrimitives         :  1; // HW supports higher throughput for out of order
+                uint64 supportIntersectRayBarycentrics     :  1; // HW supports the ray intersection mode which
+                                                                 // returns triangle barycentrics.
+                uint64 supportShaderSubgroupClock          :  1; // HW supports clock functions across subgroup.
+                uint64 supportShaderDeviceClock            :  1; // HW supports clock functions across device.
+                uint64 supportAlphaToOne                   :  1; // HW supports forcing alpha channel to one
+                uint64 supportSingleChannelMinMaxFilter    :  1; // HW supports any min/max filter.
+                uint64 supportSortAgnosticBarycentrics     :  1; // HW provides provoking vertex for custom interp
+                uint64 supportMeshShader                   :  1;
+                uint64 supportTaskShader                   :  1;
+                uint64 supportMsFullRangeRtai              :  1; // HW supports full range render target array
+                                                                 // for Mesh Shaders.
+                uint64 supportRayTraversalStack            :  1;
+                uint64 supportPointerFlags                 :  1;
+                uint64 supportTextureGatherBiasLod         :  1; // HW supports SQ_IMAGE_GATHER4_L_O
+                uint64 supportInt8Dot                      :  1; // HW supports a dot product 8bit.
+                uint64 supportInt4Dot                      :  1; // HW supports a dot product 4bit.
+                uint64 support2DRectList                   :  1; // HW supports PrimitiveTopology::TwoDRectList.
+                uint64 supportImageViewMinLod              :  1; // Indicates image srd supports min_lod.
+                uint64 stateShadowingByCpFw                :  1; // Indicates that state shadowing is done is CP FW.
+                uint64 stateShadowingByCpFwUserAlloc       :  1; // FW state shadowing memory is allocated by PAL.
+                uint64 support3dUavZRange                  :  1; // HW supports read-write ImageViewSrds of 3D images
+                                                                 // with zRange specified.
+                uint64 supportCooperativeMatrix            :  1; // HW supports cooperative matrix
+                uint64 placeholder6                        :  1;
+                uint64 reserved                            :  8;
             };
 
             RayTracingIpLevel        rayTracingIp;      //< HW RayTracing IP version
@@ -1349,11 +1332,9 @@ public:
         IPipeline**                       ppPipeline) override;
 
     // NOTE: Part of the public IDevice interface.
-    virtual size_t GetMsaaStateSize(
-        const MsaaStateCreateInfo& createInfo,
-        Result*                    pResult) const override
+    virtual size_t GetMsaaStateSize() const override
     {
-        return (m_pGfxDevice == nullptr) ? 0 : m_pGfxDevice->GetMsaaStateSize(createInfo, pResult);
+        return (m_pGfxDevice == nullptr) ? 0 : m_pGfxDevice->GetMsaaStateSize();
     }
 
     // NOTE: Part of the public IDevice interface.
@@ -1367,11 +1348,9 @@ public:
     }
 
     // NOTE: Part of the public IDevice interface.
-    virtual size_t GetColorBlendStateSize(
-        const ColorBlendStateCreateInfo& createInfo,
-        Result*                          pResult) const override
+    virtual size_t GetColorBlendStateSize() const override
     {
-        return (m_pGfxDevice == nullptr) ? 0 : m_pGfxDevice->GetColorBlendStateSize(createInfo, pResult);
+        return (m_pGfxDevice == nullptr) ? 0 : m_pGfxDevice->GetColorBlendStateSize();
     }
 
     // NOTE: Part of the public IDevice interface.
@@ -1392,12 +1371,9 @@ public:
     }
 
     // NOTE: Part of the public IDevice interface.
-    virtual size_t GetDepthStencilStateSize(
-        const DepthStencilStateCreateInfo& createInfo,
-        Result*                            pResult) const override
+    virtual size_t GetDepthStencilStateSize() const override
     {
-        return (m_pGfxDevice == nullptr) ? 0 :
-                m_pGfxDevice->GetDepthStencilStateSize(createInfo, pResult);
+        return (m_pGfxDevice == nullptr) ? 0 : m_pGfxDevice->GetDepthStencilStateSize();
     }
 
     // NOTE: Part of the public IDevice interface.
@@ -1798,13 +1774,11 @@ public:
     bool IsConstantEngineSupported(EngineType engineType) const
         { return (m_engineProperties.perEngine[engineType].flags.constantEngineSupport != 0); }
 
-#if PAL_BUILD_GFX11
     // Returns whether any pixel-wait-sync-plus feature can be enabled.
     bool UsePws(EngineType engineType) const;
 
     // Returns whether the pixel-wait-sync-plus late acquire point feature can be enabled.
     bool UsePwsLateAcquirePoint(EngineType engineType) const;
-#endif
 
     const char* GetDumpDirName() const { return m_cmdBufDumpPath; }
 
@@ -2232,7 +2206,6 @@ inline bool IsGfx9(const Device& device)
     return IsGfx9(device.ChipProperties().gfxLevel);
 }
 
-#if PAL_BUILD_GFX11
 constexpr bool IsGfx11(GfxIpLevel gfxLevel)
 {
     return (gfxLevel == GfxIpLevel::GfxIp11_0)
@@ -2298,8 +2271,6 @@ inline bool IsPhoenixFamily(const Device& device)
     return FAMILY_IS_PHX(device.ChipProperties().familyId);
 }
 
-#endif
-
 constexpr bool IsGfx10(GfxIpLevel gfxLevel)
 {
     return ((gfxLevel == GfxIpLevel::GfxIp10_1)
@@ -2313,11 +2284,8 @@ inline bool IsGfx10(const Device& device)
 
 constexpr bool IsGfx10Plus(GfxIpLevel gfxLevel)
 {
-    return IsGfx10(gfxLevel)
-#if PAL_BUILD_GFX11
-           || IsGfx11(gfxLevel)
-#endif
-           ;
+    return (IsGfx10(gfxLevel) || IsGfx11(gfxLevel)
+           );
 }
 inline bool IsGfx10Plus(const Device& device)
 {
@@ -2359,10 +2327,6 @@ inline bool IsRenoir(const Device& device)
 }
 
 // Gfx10 / Navi1x
-inline bool IsNavi(const Device& device)
-{
-    return AMDGPU_IS_NAVI(device.ChipProperties().familyId, device.ChipProperties().eRevId);
-}
 inline bool IsNavi10(const Device& device)
 {
     return AMDGPU_IS_NAVI10(device.ChipProperties().familyId, device.ChipProperties().eRevId);
@@ -2470,32 +2434,21 @@ inline bool IsGfx10Bard(const Device& device)
     return (false
             );
 }
-#if  PAL_BUILD_GFX11
 inline bool IsGfx104Plus(const Device& device)
 {
-    return (false
-#if PAL_BUILD_GFX11
-            || IsGfx11(device)
-#endif
+    return (IsGfx11(device)
     );
 }
 constexpr bool IsGfx104Plus(GfxIpLevel gfxLevel)
 {
-    return (false
-#if PAL_BUILD_GFX11
-            || IsGfx11(gfxLevel)
-#endif
+    return (IsGfx11(gfxLevel)
     );
 }
-#endif
 
 inline bool IsGfx091xPlus(const Device& device)
 {
-    return (IsVega12(device) || IsVega20(device) || IsRaven2(device) || IsRenoir(device) || IsGfx10(device)
-#if PAL_BUILD_GFX11
-            || IsGfx11(device)
-#endif
-           );
+    return (IsVega12(device) || IsVega20(device) || IsRaven2(device) || IsRenoir(device) || IsGfx10(device) ||
+            IsGfx11(device));
 }
 
 } // Pal

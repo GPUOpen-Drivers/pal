@@ -38,7 +38,11 @@ namespace Pal
 {
 
 /// Specifies conservative rasterization mode
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 854
+enum class ConservativeRasterizationMode : uint8
+#else
 enum class ConservativeRasterizationMode : uint32
+#endif
 {
     Overestimate    = 0x0,  ///< Fragments will be generated if the primitive area covers any portion of the pixel.
     Underestimate   = 0x1,  ///< Fragments will be generated if all of the pixel is covered by the primitive.
@@ -89,6 +93,48 @@ struct MsaaQuadSamplePattern
 /// Specifies properties for creation of an @ref IMsaaState object.  Input structure to IDevice::CreateMsaaState().
 struct MsaaStateCreateInfo
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 854
+    uint8 coverageSamples;                ///< Number of rasterizer samples. Must be greater than or equal to all
+                                          ///  sample rates in the pipeline. Valid values are 1, 2, 4, 8, and 16.
+    uint8 exposedSamples;                 ///< Number of samples exposed in the pixel shader coverage mask.
+                                          ///  Must be less than or equal to coverageSamples.
+                                          ///  Valid values are 1, 2, 4, and 8.
+    uint8 pixelShaderSamples;             ///< Controls the pixel shader execution rate. Must be less than or equal to
+                                          ///  coverageSamples. Valid values are 1, 2, 4, and 8.
+    uint8 depthStencilSamples;            ///< Number of samples in the bound depth target. Must be less than or equal
+                                          ///  to coverageSamples. Valid values are 1, 2, 4, and 8.
+    uint8 shaderExportMaskSamples;        ///< Number of samples to use in the shader export mask. Should match the
+                                          ///  number of color target fragments clamped to
+                                          ///  @ref DeviceProperties imageProperties.maxMsaaFragments.
+    uint8 sampleClusters;                 ///< Number of sample clusters to control over-rasterization (all samples
+                                          ///  in a cluster are rasterized if any are hit). Must be less than or
+                                          ///  equal to coverageSamples. Valid values are 1, 2, 4, and 8.
+    uint8 alphaToCoverageSamples;         ///< How many samples of quality to generate with alpha-to-coverage. Must be
+                                          ///  less than or equal to coverageSamples.
+                                          ///  Valid values are 1, 2, 4, 8, and 16.
+    uint8 occlusionQuerySamples;          ///< Controls the number of samples to use for occlusion queries
+                                          ///  This value must never exceed the MSAA rate.
+    uint16 sampleMask;                    ///< Bitmask of which color target and depth/stencil samples should be
+                                          ///  updated.  The lowest bit corresponds to sample 0.
+    ConservativeRasterizationMode conservativeRasterizationMode;
+                                          ///< Selects overestimate or underestimate conservative
+                                          ///  rasterization mode. Used only if
+                                          ///  @ref MsaaStateCreateInfo::flags::enableConservativeRasterization
+                                          ///  is set to true.
+    union
+    {
+        struct
+        {
+            uint8 enableConservativeRasterization : 1; ///< Set to true to enable conservative rasterization
+            uint8 enable1xMsaaSampleLocations     : 1; ///< Set to true to enable 1xMSAA quad sample pattern
+            uint8 disableAlphaToCoverageDither    : 1; ///< Disables coverage dithering.
+            uint8 enableLineStipple               : 1; ///< Set to true to enable line stippling
+            uint8 reserved                        : 4; ///<  Reserved for future use
+        };
+        uint8 u8All;
+    } flags;
+
+#else
     uint32 coverageSamples;               ///< Number of rasterizer samples. Must be greater than or equal to all
                                           ///  sample rates in the pipeline. Valid values are 1, 2, 4, 8, and 16.
     uint32 exposedSamples;                ///< Number of samples exposed in the pixel shader coverage mask.
@@ -131,6 +177,7 @@ struct MsaaStateCreateInfo
 
         uint32  u32All;
     } flags;
+#endif
 };
 
 /**

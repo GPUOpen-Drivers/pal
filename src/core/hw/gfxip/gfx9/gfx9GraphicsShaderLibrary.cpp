@@ -83,9 +83,7 @@ Result GraphicsShaderLibrary::HwlInit(
         m_task.LateInit(metadata,
                         wavefrontSize,
                         &threadsPerTg,
-#if PAL_BUILD_GFX11
                         DispatchInterleaveSize::Default,
-#endif
                         nullptr);
 
         const  Elf::SymbolTableEntry* pElfSymbol = abiReader.GetPipelineSymbol(Abi::PipelineSymbolType::CsDisassembly);

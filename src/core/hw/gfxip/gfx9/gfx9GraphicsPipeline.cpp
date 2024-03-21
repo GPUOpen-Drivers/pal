@@ -51,9 +51,7 @@ const GraphicsPipelineSignature NullGfxSignature =
     { 0, },                     // User-data mapping for each shader stage
     UserDataNotMapped,          // Vertex buffer table register address
     UserDataNotMapped,          // Stream-out table register address
-#if PAL_BUILD_GFX11
     UserDataNotMapped,          // Stream-out control buffer register address
-#endif
     UserDataNotMapped,          // UAV export table mapping
     UserDataNotMapped,          // NGG culling data constant buffer
     UserDataNotMapped,          // Vertex offset register address
@@ -68,6 +66,7 @@ const GraphicsPipelineSignature NullGfxSignature =
     0,                          // User-data entry limit
     UserDataNotMapped,          // Needs primsNeededCntAddr register address
     { UserDataNotMapped, },     // Compacted view ID register addresses
+    { UserDataNotMapped, },     // CompositeData register address
     { 0, },                     // User-data mapping hashes per-stage
 };
 static_assert(UserDataNotMapped == 0, "Unexpected value for indicating unmapped user-data entries!");
@@ -193,9 +192,7 @@ GraphicsPipeline::GraphicsPipeline(
     m_fastLaunchMode(GsFastLaunchMode::Disabled),
     m_nggSubgroupSize(0),
     m_flags{},
-#if PAL_BUILD_GFX11
     m_strmoutVtxStride(),
-#endif
     m_primAmpFactor(1),
     m_chunkHs(*pDevice,
               &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Hs)]),
@@ -210,10 +207,8 @@ GraphicsPipeline::GraphicsPipeline(
     m_signature{NullGfxSignature},
     m_ringSizes{}
 {
-#if PAL_BUILD_GFX11
     m_flags.contextPairsPacketSupported = pDevice->Settings().gfx11EnableContextRegPairOptimization;
     m_flags.shPairsPacketSupported      = pDevice->Settings().gfx11EnableShRegPairOptimization;
-#endif
 }
 
 // =====================================================================================================================
@@ -237,12 +232,10 @@ void GraphicsPipeline::EarlyInit(
             GsFastLaunchMode::Disabled;
     }
 
-#if PAL_BUILD_GFX11
     m_flags.writeVgtGsOutPrimType = (IsGfx11(m_gfxLevel) &&
                                      (IsGsEnabled()   ||
                                       HasMeshShader() ||
                                       (m_fastLaunchMode != GsFastLaunchMode::Disabled)));
-#endif
 
     m_nggSubgroupSize = (metadata.pipeline.hasEntry.nggSubgroupSize) ? metadata.pipeline.nggSubgroupSize : 0;
 
@@ -257,14 +250,12 @@ void GraphicsPipeline::EarlyInit(
         SetIsGsOnChip(true);
     }
 
-#if PAL_BUILD_GFX11
     if (metadata.pipeline.hasEntry.streamoutVertexStrides)
     {
         memcpy(m_strmoutVtxStride,
                metadata.pipeline.streamoutVertexStrides,
                sizeof(m_strmoutVtxStride));
     }
-#endif
 
     // Must be called *after* determining active HW stages!
     SetupSignatureFromElf(metadata, &pInfo->esGsLdsSizeRegGs, &pInfo->esGsLdsSizeRegVs);
@@ -604,7 +595,6 @@ uint32* GraphicsPipeline::WriteShCommands(
 {
     PAL_ASSERT(pCmdStream != nullptr);
 
-#if PAL_BUILD_GFX11
     if (m_flags.shPairsPacketSupported)
     {
         constexpr uint32 MaxNumRegisters = GfxPipelineRegs::NumShReg +
@@ -633,7 +623,6 @@ uint32* GraphicsPipeline::WriteShCommands(
         pCmdSpace = pCmdStream->WriteSetShRegPairs<ShaderGraphics>(regPairs, numRegs, pCmdSpace);
     }
     else
-#endif
     {
         // If NGG is enabled, there is no hardware-VS, so there is no need to write the late-alloc VS limit.
         if (IsNgg() == false)
@@ -669,7 +658,6 @@ uint32* GraphicsPipeline::WriteContextCommands(
 {
     PAL_ASSERT(pCmdStream != nullptr);
 
-#if PAL_BUILD_GFX11
     if (m_flags.contextPairsPacketSupported)
     {
         constexpr uint32 MaxNumRegisters = GfxPipelineRegs::NumContextReg +
@@ -701,7 +689,6 @@ uint32* GraphicsPipeline::WriteContextCommands(
         pCmdSpace = pCmdStream->WriteSetContextRegPairs(regPairs, numRegs, pCmdSpace);
     }
     else
-#endif
     {
         pCmdSpace = WriteContextCommandsSetPath(pCmdStream, pCmdSpace);
 
@@ -769,7 +756,6 @@ uint32* GraphicsPipeline::WriteConfigCommandsGfx10(
                                                  m_regs.uconfig.geUserVgprEn.u32All,
                                                  pCmdSpace);
 
-#if PAL_BUILD_GFX11
     if (m_flags.writeVgtGsOutPrimType)
     {
         // Prim type is implicitly set for API VS without fast-launch, but needs to be set otherwise.
@@ -777,7 +763,6 @@ uint32* GraphicsPipeline::WriteConfigCommandsGfx10(
                                                      m_regs.uconfig.vgtGsOutPrimType.u32All,
                                                      pCmdSpace);
     }
-#endif
 
     return pCmdSpace;
 }
@@ -827,7 +812,7 @@ uint32* GraphicsPipeline::WriteContextCommandsSetPath(
                                                   m_regs.context.spiInterpControl0.u32All,
                                                   pCmdSpace);
 
-    if (IsGfx9(m_gfxLevel) || ((IsGsEnabled() == false) && (IsNgg() == false)))
+    if ((IsGsEnabled() == false) && (IsNgg() == false))
     {
         pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSPI_SHADER_POS_FORMAT,
                                                        mmSPI_SHADER_COL_FORMAT,
@@ -852,25 +837,15 @@ uint32* GraphicsPipeline::WriteContextCommandsSetPath(
                                                       pCmdSpace);
     }
 
-    if (regInfo.mmPaStereoCntl != 0)
-    {
-        pCmdSpace = pCmdStream->WriteSetOneContextReg(regInfo.mmPaStereoCntl,
-                                                      m_regs.context.paStereoCntl.u32All,
-                                                      pCmdSpace);
-    }
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10Plus::mmPA_STEREO_CNTL,
+                                                  m_regs.context.paStereoCntl.u32All,
+                                                  pCmdSpace);
 
-    if (IsGfx10Plus(m_gfxLevel))
-    {
-        pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10Plus::mmCB_COVERAGE_OUT_CONTROL,
-                                                      m_regs.context.cbCoverageOutCntl.u32All,
-                                                      pCmdSpace);
-    }
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10Plus::mmCB_COVERAGE_OUT_CONTROL,
+                                                  m_regs.context.cbCoverageOutCntl.u32All,
+                                                  pCmdSpace);
 
-    if ((IsGsEnabled() || IsNgg() || IsTessEnabled())
-#if PAL_BUILD_GFX11
-        && (IsGfx11(m_gfxLevel) == false)
-#endif
-       )
+    if ((IsGsEnabled() || IsNgg() || IsTessEnabled()) && (IsGfx11(m_gfxLevel) == false))
     {
         pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx09_10::mmVGT_GS_ONCHIP_CNTL,
                                                       m_regs.context.vgtGsOnchipCntl.u32All,
@@ -880,7 +855,6 @@ uint32* GraphicsPipeline::WriteContextCommandsSetPath(
     return pCmdSpace;
 }
 
-#if PAL_BUILD_GFX11
 // =====================================================================================================================
 void GraphicsPipeline::AccumulateContextRegisters(
     PackedRegisterPair* pRegPairs,
@@ -903,7 +877,7 @@ void GraphicsPipeline::AccumulateContextRegisters(
     SetOneContextRegValPairPacked(pRegPairs, pNumRegs, mmSPI_INTERP_CONTROL_0, m_regs.context.spiInterpControl0.u32All);
     SetOneContextRegValPairPacked(pRegPairs, pNumRegs, mmCB_SHADER_MASK,       m_regs.context.cbShaderMask.u32All);
 
-    if (IsGfx9(m_gfxLevel) || ((IsGsEnabled() == false) && (IsNgg() == false)))
+    if ((IsGsEnabled() == false) && (IsNgg() == false))
     {
         SetSeqContextRegValPairPacked(pRegPairs,
                                       pNumRegs,
@@ -932,27 +906,17 @@ void GraphicsPipeline::AccumulateContextRegisters(
                                       m_regs.context.vgtVertexReuseBlockCntl.u32All);
     }
 
-    if (regInfo.mmPaStereoCntl != 0)
-    {
-        SetOneContextRegValPairPacked(pRegPairs,
-                                      pNumRegs,
-                                      regInfo.mmPaStereoCntl,
-                                      m_regs.context.paStereoCntl.u32All);
-    }
+    SetOneContextRegValPairPacked(pRegPairs,
+                                  pNumRegs,
+                                  Gfx10Plus::mmPA_STEREO_CNTL,
+                                  m_regs.context.paStereoCntl.u32All);
 
-    if (IsGfx10Plus(m_gfxLevel))
-    {
-        SetOneContextRegValPairPacked(pRegPairs,
-                                      pNumRegs,
-                                      Gfx10Plus::mmCB_COVERAGE_OUT_CONTROL,
-                                      m_regs.context.cbCoverageOutCntl.u32All);
-    }
+    SetOneContextRegValPairPacked(pRegPairs,
+                                  pNumRegs,
+                                  Gfx10Plus::mmCB_COVERAGE_OUT_CONTROL,
+                                  m_regs.context.cbCoverageOutCntl.u32All);
 
-    if ((IsGsEnabled() || IsNgg() || IsTessEnabled())
-#if PAL_BUILD_GFX11
-        && (IsGfx11(m_gfxLevel) == false)
-#endif
-       )
+    if ((IsGsEnabled() || IsNgg() || IsTessEnabled()) && (IsGfx11(m_gfxLevel) == false))
     {
         SetOneContextRegValPairPacked(pRegPairs,
                                       pNumRegs,
@@ -960,7 +924,6 @@ void GraphicsPipeline::AccumulateContextRegisters(
                                       m_regs.context.vgtGsOnchipCntl.u32All);
     }
 }
-#endif
 
 // =====================================================================================================================
 // Updates the RB+ register values for a single render target slot.  It is only expected that this will be called for
@@ -1017,20 +980,16 @@ void GraphicsPipeline::SetupCommonRegisters(
     m_regs.context.vgtGsMode.u32All          = AbiRegisters::VgtGsMode(metadata);
     m_regs.context.vgtGsOnchipCntl.u32All    = AbiRegisters::VgtGsOnchipCntl(metadata);
     m_regs.context.vgtReuseOff.u32All        = AbiRegisters::VgtReuseOff(metadata);
-
     m_regs.context.vgtDrawPayloadCntl.u32All = AbiRegisters::VgtDrawPayloadCntl(metadata, *m_pDevice, m_gfxLevel);
     m_regs.context.cbShaderMask.u32All       = AbiRegisters::CbShaderMask(metadata);
-
-#if PAL_BUILD_GFX11
     m_regs.uconfig.vgtGsOutPrimType.u32All   = AbiRegisters::VgtGsOutPrimType(metadata, m_gfxLevel);
-#endif
-    m_regs.other.paClClipCntl.u32All   = AbiRegisters::PaClClipCntl(metadata, *m_pDevice, createInfo);
-    m_regs.other.vgtTfParam.u32All     = AbiRegisters::VgtTfParam(metadata, m_gfxLevel);
-    m_regs.other.spiPsInControl.u32All = AbiRegisters::SpiPsInControl(metadata, m_gfxLevel);
-    m_regs.other.spiVsOutConfig.u32All = AbiRegisters::SpiVsOutConfig(metadata, *m_pDevice, m_gfxLevel);
-    m_regs.other.vgtLsHsConfig.u32All  = AbiRegisters::VgtLsHsConfig(metadata);
-    m_regs.other.paScModeCntl1.u32All  = AbiRegisters::PaScModeCntl1(metadata, createInfo, *m_pDevice);
-    m_info.ps.flags.perSampleShading   = m_regs.other.paScModeCntl1.bits.PS_ITER_SAMPLE;
+    m_regs.other.paClClipCntl.u32All         = AbiRegisters::PaClClipCntl(metadata, *m_pDevice, createInfo);
+    m_regs.other.vgtTfParam.u32All           = AbiRegisters::VgtTfParam(metadata, m_gfxLevel);
+    m_regs.other.spiPsInControl.u32All       = AbiRegisters::SpiPsInControl(metadata, m_gfxLevel);
+    m_regs.other.spiVsOutConfig.u32All       = AbiRegisters::SpiVsOutConfig(metadata, *m_pDevice, m_gfxLevel);
+    m_regs.other.vgtLsHsConfig.u32All        = AbiRegisters::VgtLsHsConfig(metadata);
+    m_regs.other.paScModeCntl1.u32All        = AbiRegisters::PaScModeCntl1(metadata, createInfo, *m_pDevice);
+    m_info.ps.flags.perSampleShading         = m_regs.other.paScModeCntl1.bits.PS_ITER_SAMPLE;
 
     // DB_RENDER_OVERRIDE
     {
@@ -1561,13 +1520,11 @@ void GraphicsPipeline::SetupNonShaderRegisters(
     }
     else if (IsDccDecompress())
     {
-#if PAL_BUILD_GFX11
         if (IsGfx11(*m_pDevice->Parent()))
         {
             m_regs.other.cbColorControl.bits.MODE = CB_DCC_DECOMPRESS__GFX11;
         }
         else
-#endif
         {
             m_regs.other.cbColorControl.bits.MODE = CB_DCC_DECOMPRESS__GFX09_10;
         }
@@ -1806,10 +1763,8 @@ void GraphicsPipeline::UpdateRingSizes(
         m_ringSizes.itemSize[static_cast<size_t>(ShaderRingType::MeshScratch)] = metadata.pipeline.meshScratchMemorySize;
     }
 
-#if PAL_BUILD_GFX11
     m_ringSizes.itemSize[static_cast<size_t>(ShaderRingType::VertexAttributes)] =
         settings.gfx11VertexAttributesRingBufferSizePerSe;
-#endif
 }
 
 // =====================================================================================================================
@@ -1934,11 +1889,11 @@ uint32 GraphicsPipeline::GetVsUserDataBaseOffset() const
 
     if (IsTessEnabled())
     {
-        regBase = m_pDevice->GetBaseUserDataReg(HwShaderStage::Hs);
+        regBase = Device::GetBaseUserDataReg(HwShaderStage::Hs);
     }
     else if (IsNgg() || IsGsEnabled())
     {
-        regBase = m_pDevice->GetBaseUserDataReg(HwShaderStage::Gs);
+        regBase = Device::GetBaseUserDataReg(HwShaderStage::Gs);
     }
     else
     {
@@ -1956,7 +1911,7 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
     HwShaderStage                     stage,
     uint16*                           pEsGsLdsSizeReg)
 {
-    const uint16 baseRegAddr = m_pDevice->GetBaseUserDataReg(stage);
+    const uint16 baseRegAddr = Device::GetBaseUserDataReg(stage);
 
     const uint32 stageId = static_cast<uint32>(stage);
     auto*const   pStage  = &m_signature.stage[stageId];
@@ -2077,6 +2032,10 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
                 PAL_ASSERT(stage == HwShaderStage::Ps);
                 m_signature.dualSourceBlendInfoRegAddr = offset;
             }
+            else if (value == static_cast<uint32>(Abi::UserDataMapping::CompositeData))
+            {
+                m_signature.compositeDataAddr[stageId] = offset;
+            }
             else if (value == static_cast<uint32>(Abi::UserDataMapping::PerShaderPerfData))
             {
                 constexpr uint32 PalToAbiHwShaderStage[] =
@@ -2107,7 +2066,6 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
                 PAL_ASSERT(stage == HwShaderStage::Gs);
                 m_signature.nggCullingDataAddr = offset;
             }
-#if PAL_BUILD_GFX11
             else if (value == static_cast<uint32>(Abi::UserDataMapping::StreamOutControlBuf))
             {
                 // There can be only one instance of the streamoutCntlBufRegAddr per pipeline.
@@ -2117,7 +2075,6 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
 
                 m_signature.streamoutCntlBufRegAddr = offset;
             }
-#endif
             else if (value == static_cast<uint32>(Abi::UserDataMapping::ColorExportAddr))
             {
                 PAL_ASSERT((m_signature.colorExportAddr == offset) ||
@@ -2373,13 +2330,11 @@ uint32 GraphicsPipeline::StrmoutVtxStrideDw(
 {
     uint32 strideDw = 0;
 
-#if PAL_BUILD_GFX11
     if (m_pDevice->Parent()->ChipProperties().gfxip.supportsSwStrmout)
     {
         strideDw = m_strmoutVtxStride[idx];
     }
     else
-#endif
     {
         strideDw = m_chunkVsPs.VgtStrmoutVtxStride(idx).u32All;
     }
@@ -2617,14 +2572,11 @@ Result GraphicsPipeline::LinkGraphicsLibraries(
     m_regs.context.vgtShaderStagesEn = pPreRasterLib->m_regs.context.vgtShaderStagesEn;
     m_fastLaunchMode = pPreRasterLib->m_fastLaunchMode;
 
-#if PAL_BUILD_GFX11
     m_flags.writeVgtGsOutPrimType = pPreRasterLib->m_flags.writeVgtGsOutPrimType;
-#endif
 
     m_nggSubgroupSize = pPreRasterLib->m_nggSubgroupSize;
-#if PAL_BUILD_GFX11
+
     memcpy(m_strmoutVtxStride, pPreRasterLib->m_strmoutVtxStride, sizeof(m_strmoutVtxStride));
-#endif
 
     SetupSignatureFromLib(pPreRasterLib, pPsLib, pExpLib);
 
@@ -2737,7 +2689,6 @@ void GraphicsPipeline::BuildRegistersHash()
             sizeof(m_regs.uconfig.gePcAlloc) +
             sizeof(m_regs.uconfig.geUserVgprEn));
 
-#if PAL_BUILD_GFX11
         // Refer to WriteConfigCommandsGfx10(), the uconfig.vgtGsOutPrimType will be set conditionally.
         // Here we need to make sure the difference hash value based on uconfig.vgtGsOutPrimType condition.
         // Or which will lead to skip set uconfig.vgtGsOutPrimType if different piplines has same hash value.
@@ -2745,7 +2696,6 @@ void GraphicsPipeline::BuildRegistersHash()
         {
             hasher.Update(m_regs.uconfig.vgtGsOutPrimType);
         }
-#endif
 
         hasher.Finalize(hash.bytes);
         m_configRegHash = MetroHash::Compact32(&hash);
@@ -2758,7 +2708,7 @@ void GraphicsPipeline::SetupSignatureForStageFromLib(
     const GraphicsPipeline*           pPartialPipeline,
     HwShaderStage                     stage)
 {
-    const uint16                  baseRegAddr = m_pDevice->GetBaseUserDataReg(stage);
+    const uint16                  baseRegAddr = Device::GetBaseUserDataReg(stage);
     const uint32                  stageId     = static_cast<uint32>(stage);
     UserDataEntryMap* const       pStage      = &m_signature.stage[stageId];
     const UserDataEntryMap* const pSrcStage   = &pPartialPipeline->m_signature.stage[stageId];
@@ -2792,10 +2742,8 @@ void GraphicsPipeline::SetupSignatureFromLib(
     m_signature.meshRingIndexAddr       = pPreRasterLib->m_signature.meshRingIndexAddr;
     m_signature.meshPipeStatsBufRegAddr = pPreRasterLib->m_signature.meshPipeStatsBufRegAddr;
     m_signature.nggCullingDataAddr      = pPreRasterLib->m_signature.nggCullingDataAddr;
-#if PAL_BUILD_GFX11
     m_signature.primsNeededCntAddr      = pPreRasterLib->m_signature.primsNeededCntAddr;
     m_signature.streamoutCntlBufRegAddr = pPreRasterLib->m_signature.streamoutCntlBufRegAddr;
-#endif
     m_signature.uavExportTableAddr      = pPsLib->m_signature.uavExportTableAddr;
     m_signature.sampleInfoRegAddr       = pPsLib->m_signature.sampleInfoRegAddr;
     m_signature.colorExportAddr         = pPsLib->m_signature.colorExportAddr;
@@ -2821,6 +2769,12 @@ void GraphicsPipeline::SetupSignatureFromLib(
     PAL_ASSERT(m_signature.viewIdRegAddr[HwShaderStage::Ps] == UserDataNotMapped);
     m_signature.viewIdRegAddr[HwShaderStage::Ps] = pPsLib->m_signature.viewIdRegAddr[0];
     PackArray(m_signature.viewIdRegAddr, UserDataNotMapped);
+
+    memcpy(m_signature.compositeDataAddr,
+           pPreRasterLib->m_signature.compositeDataAddr,
+           sizeof(pPreRasterLib->m_signature.compositeDataAddr));
+    PAL_ASSERT(m_signature.compositeDataAddr[HwShaderStage::Ps] == UserDataNotMapped);
+    m_signature.compositeDataAddr[HwShaderStage::Ps] = pPsLib->m_signature.compositeDataAddr[HwShaderStage::Ps];
 }
 
 // ==================================================================================================================== =
@@ -2856,9 +2810,7 @@ void GraphicsPipeline::SetupCommonRegistersFromLibs(
     m_regs.context.vgtReuseOff        = pPreRasterLib->m_regs.context.vgtReuseOff;
     m_regs.context.vgtDrawPayloadCntl = pPreRasterLib->m_regs.context.vgtDrawPayloadCntl;
     m_regs.context.vgtVertexReuseBlockCntl = pPreRasterLib->m_regs.context.vgtVertexReuseBlockCntl;
-#if PAL_BUILD_GFX11
     m_regs.uconfig.vgtGsOutPrimType   = pPreRasterLib->m_regs.uconfig.vgtGsOutPrimType;
-#endif
     m_regs.uconfig.geStereoCntl       = pPreRasterLib->m_regs.uconfig.geStereoCntl;
     m_regs.uconfig.geUserVgprEn.u32All = 0; // We do not support this feature.
     m_regs.uconfig.gePcAlloc          = pPreRasterLib->m_regs.uconfig.gePcAlloc;

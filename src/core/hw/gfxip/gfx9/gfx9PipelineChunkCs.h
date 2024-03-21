@@ -53,14 +53,12 @@ struct HwRegInfo
     regCOMPUTE_PGM_RSRC3           computePgmRsrc3;
     regCOMPUTE_USER_DATA_0         userDataInternalTable;
     regCOMPUTE_SHADER_CHKSUM       computeShaderChksum;
-#if PAL_BUILD_GFX11
     regCOMPUTE_DISPATCH_INTERLEAVE computeDispatchInterleave;
-#endif
 
     struct Dynamic
     {
-        regCOMPUTE_PGM_RSRC2        computePgmRsrc2;
-        regCOMPUTE_RESOURCE_LIMITS  computeResourceLimits;
+        regCOMPUTE_PGM_RSRC2       computePgmRsrc2;
+        regCOMPUTE_RESOURCE_LIMITS computeResourceLimits;
     } dynamic; // Contains state which depends on bind-time parameters.
 };
 
@@ -94,18 +92,14 @@ public:
         const Util::PalAbi::CodeObjectMetadata& metadata,
         uint32                                  wavefrontSize,
         DispatchDims*                           pThreadsPerTg,
-#if PAL_BUILD_GFX11
         DispatchInterleaveSize                  interleaveSize,
-#endif
         PipelineUploader*                       pUploader);
 
     void LateInit(
         const RegisterVector&                   registers,
         uint32                                  wavefrontSize,
         DispatchDims*                           pThreadsPerTg,
-#if PAL_BUILD_GFX11
         DispatchInterleaveSize                  interleaveSize,
-#endif
         PipelineUploader*                       pUploader);
 
     uint32* UpdateDynamicRegInfo(
@@ -114,7 +108,6 @@ public:
         HwRegInfo::Dynamic*             pDynamcRegs,
         const DynamicComputeShaderInfo& csInfo) const;
 
-#if PAL_BUILD_GFX11
     void AccumulateShCommandsDynamic(
         PackedRegisterPair* pRegPairs,
         uint32*             pNumRegs,
@@ -122,14 +115,11 @@ public:
     void AccumulateShCommandsSetPath(
         PackedRegisterPair* pRegPairs,
         uint32*             pNumRegs) const;
-#endif
 
     uint32* WriteShCommands(
         CmdStream*                      pCmdStream,
         uint32*                         pCmdSpace,
-#if PAL_BUILD_GFX11
         bool                            regPairsSupported,
-#endif
         const DynamicComputeShaderInfo& csInfo,
         bool                            prefetch) const;
 
@@ -160,16 +150,12 @@ public:
 private:
     void InitRegisters(
         const Util::PalAbi::CodeObjectMetadata& metadata,
-#if PAL_BUILD_GFX11
         DispatchInterleaveSize                  interleaveSize,
-#endif
         uint32                                  wavefrontSize);
 
     void InitRegisters(
         const RegisterVector&                   registers,
-#if PAL_BUILD_GFX11
         DispatchInterleaveSize                  interleaveSize,
-#endif
         uint32                                  wavefrontSize);
 
     void DoLateInit(DispatchDims* pThreadsPerTg, PipelineUploader* pUploader);

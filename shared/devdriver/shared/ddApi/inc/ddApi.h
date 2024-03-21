@@ -952,7 +952,7 @@ typedef uint32_t DDRpcFunctionId;
     extern "C" DD_API const DD ## ApiName ## Api* Query ## ApiName ## Api(void)
 
 // Driver Overlay string sizes:
-const size_t kNumOverlayStrings      = 4;
+const size_t kNumOverlayStrings      = 8;
 const size_t kMaxOverlayStringLength = 255;
 
 // Structure to set driver overlay strings

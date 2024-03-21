@@ -36,7 +36,7 @@ namespace GpuUtil
 
 // =====================================================================================================================
 // Writes a clock calibration chunk for each device to the trace session.
-void ClockCalibrationTraceSource::WriteClockCalibrationChunks()
+void ClockCalibrationTraceSource::OnTraceFinished()
 {
     Result result = Result::Success;
     const uint32 deviceCount = m_pPlatform->GetDeviceCount();
@@ -44,7 +44,8 @@ void ClockCalibrationTraceSource::WriteClockCalibrationChunks()
     for (uint32 i = 0; ((i < deviceCount) && (result == Result::Success)); i++)
     {
         TraceChunkClockCalibration chunk = { };
-        Device* pDevice = m_pPlatform->GetDevice(i);
+
+        const Device* pDevice = m_pPlatform->GetDevice(i);
 
         DeviceProperties props = { };
         result = pDevice->GetProperties(&props);
@@ -54,46 +55,47 @@ void ClockCalibrationTraceSource::WriteClockCalibrationChunks()
             CalibratedTimestamps timestamps = { };
             result = pDevice->GetCalibratedTimestamps(&timestamps);
 
-            chunk.gpuTimestamp = timestamps.gpuTimestamp;
+            if (result == Result::Success)
+            {
+                chunk.pciId        = m_pPlatform->GetPciId(props.gpuIndex).u32All;
+                chunk.gpuTimestamp = timestamps.gpuTimestamp;
 
-            if (props.osProperties.timeDomains.supportQueryPerformanceCounter != 0)
-            {
-                chunk.cpuTimestamp = timestamps.cpuQueryPerfCounterTimestamp;
-            }
-            else if (props.osProperties.timeDomains.supportClockMonotonic != 0)
-            {
-                chunk.cpuTimestamp = timestamps.cpuClockMonotonicTimestamp;
-            }
-            else if (props.osProperties.timeDomains.supportClockMonotonicRaw != 0)
-            {
-                chunk.cpuTimestamp = timestamps.cpuClockMonotonicRawTimestamp;
-            }
-            else
-            {
-                result = Result::ErrorUnknown;
+                if (props.osProperties.timeDomains.supportQueryPerformanceCounter != 0)
+                {
+                    chunk.cpuTimestamp = timestamps.cpuQueryPerfCounterTimestamp;
+                }
+                else if (props.osProperties.timeDomains.supportClockMonotonic != 0)
+                {
+                    chunk.cpuTimestamp = timestamps.cpuClockMonotonicTimestamp;
+                }
+                else if (props.osProperties.timeDomains.supportClockMonotonicRaw != 0)
+                {
+                    chunk.cpuTimestamp = timestamps.cpuClockMonotonicRawTimestamp;
+                }
+                else
+                {
+                    result = Result::ErrorUnknown;
+                }
             }
         }
 
         if (result == Result::Success)
         {
-            TraceChunkInfo info = { };
-            memcpy(info.id, ClockCalibTextId, GpuUtil::TextIdentifierSize);
-            info.pHeader           = nullptr;
-            info.headerSize        = 0;
-            info.version           = GetVersion();
-            info.pData             = &chunk;
-            info.dataSize          = sizeof(TraceChunkClockCalibration);
-            info.enableCompression = false;
+            TraceChunkInfo info    = {
+                .version           = ClockCalibChunkVersion,
+                .pHeader           = nullptr,
+                .headerSize        = 0,
+                .pData             = &chunk,
+                .dataSize          = sizeof(TraceChunkClockCalibration),
+                .enableCompression = false
+            };
+            memcpy(info.id, ClockCalibTextId, TextIdentifierSize);
 
-            m_pPlatform->GetTraceSession()->WriteDataChunk(this, info);
+            result = m_pPlatform->GetTraceSession()->WriteDataChunk(this, info);
         }
-    }
-}
 
-// =====================================================================================================================
-void ClockCalibrationTraceSource::OnTraceFinished()
-{
-    WriteClockCalibrationChunks();
+        PAL_ASSERT(result == Result::Success);
+    }
 }
 
 } // namespace GpuUtil

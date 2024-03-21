@@ -257,12 +257,12 @@ const RegisterRange Navi10NonShadowedRanges[] =
     },
 };
 
-constexpr uint32 Navi10NumNonShadowedRanges      = static_cast<uint32>(Util::ArrayLen(Navi10NonShadowedRanges));
+constexpr uint32 Navi10NumNonShadowedRanges      = Util::ArrayLen32(Navi10NonShadowedRanges);
 
 #endif
 
-constexpr uint32 Nv10NumUserConfigShadowRanges   = static_cast<uint32>(Util::ArrayLen(Nv10UserConfigShadowRange));
-constexpr uint32 Nv10NumContextShadowRanges      = static_cast<uint32>(Util::ArrayLen(Nv10ContextShadowRange));
+constexpr uint32 Nv10NumUserConfigShadowRanges   = Util::ArrayLen32(Nv10UserConfigShadowRange);
+constexpr uint32 Nv10NumContextShadowRanges      = Util::ArrayLen32(Nv10ContextShadowRange);
 
 } // Gfx9
 } // Pal

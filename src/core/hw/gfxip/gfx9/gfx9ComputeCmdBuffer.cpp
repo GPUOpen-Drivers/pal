@@ -65,13 +65,11 @@ ComputeCmdBuffer::ComputeCmdBuffer(
                 CmdStreamUsage::Workload,
                 IsNested()),
     m_pSignatureCs(&NullCsSignature),
-    m_baseUserDataRegCs(device.GetBaseUserDataReg(HwShaderStage::Cs)),
-#if PAL_BUILD_GFX11
+    m_baseUserDataRegCs(Device::GetBaseUserDataReg(HwShaderStage::Cs)),
     m_supportsShPairsPacketCs(device.Settings().gfx11EnableShRegPairOptimizationCs),
     m_validUserEntryRegPairsCs{},
     m_numValidUserEntriesCs(0),
     m_minValidUserEntryLookupValueCs(1),
-#endif
     m_predGpuAddr(0),
     m_inheritedPredication(false),
     m_globalInternalTableAddr(0),
@@ -80,9 +78,7 @@ ComputeCmdBuffer::ComputeCmdBuffer(
     // Compute command buffers suppors compute ops and CP DMA.
     m_engineSupport = CmdBufferEngineSupport::Compute | CmdBufferEngineSupport::CpDma;
 
-#if PAL_BUILD_GFX11
     memset(&m_validUserEntryRegPairsLookupCs[0], 0, sizeof(m_validUserEntryRegPairsLookupCs));
-#endif
 
     // Assume PAL ABI compute pipelines by default.
     SetDispatchFunctions(false);
@@ -113,7 +109,6 @@ void ComputeCmdBuffer::ResetState()
 
     m_pSignatureCs = &NullCsSignature;
 
-#if PAL_BUILD_GFX11
     // All user data entries are invalid upon a state reset.
 
     // In order to wrap, we'd need to have 2^32 draws or dispatches occur.
@@ -132,7 +127,6 @@ void ComputeCmdBuffer::ResetState()
     {
         PAL_ASSERT(m_numValidUserEntriesCs == 0);
     }
-#endif
 
     // Command buffers start without a valid predicate GPU address.
     m_predGpuAddr             = 0;
@@ -294,7 +288,12 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatch(
 
     if (pThis->m_pm4CmdBufState.flags.packetPredicate != 0)
     {
-        pCmdSpace += pThis->m_cmdUtil.BuildCondExec(pThis->m_predGpuAddr, CmdUtil::DispatchDirectSize, pCmdSpace);
+        uint32 predSize = CmdUtil::DispatchDirectSize;
+        if (IssueSqttMarkerEvent)
+        {
+            predSize += CmdUtil::WriteNonSampleEventDwords;
+        }
+        pCmdSpace += pThis->m_cmdUtil.BuildCondExec(pThis->m_predGpuAddr, predSize, pCmdSpace);
     }
 
     pCmdSpace += pThis->m_cmdUtil.BuildDispatchDirect<false, true>(size,
@@ -335,7 +334,12 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchIndirect(
 
     if (pThis->m_pm4CmdBufState.flags.packetPredicate != 0)
     {
-        pCmdSpace += pThis->m_cmdUtil.BuildCondExec(pThis->m_predGpuAddr, CmdUtil::DispatchIndirectMecSize, pCmdSpace);
+        uint32 size = CmdUtil::DispatchIndirectMecSize;
+        if (IssueSqttMarkerEvent)
+        {
+            size += CmdUtil::WriteNonSampleEventDwords;
+        }
+        pCmdSpace += pThis->m_cmdUtil.BuildCondExec(pThis->m_predGpuAddr, size, pCmdSpace);
     }
 
     pCmdSpace += pThis->m_cmdUtil.BuildDispatchIndirectMec(gpuVirtAddr,
@@ -388,7 +392,12 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchOffset(
 
     if (pThis->m_pm4CmdBufState.flags.packetPredicate != 0)
     {
-        pCmdSpace += pThis->m_cmdUtil.BuildCondExec(pThis->m_predGpuAddr, CmdUtil::DispatchDirectSize, pCmdSpace);
+        uint32 size = CmdUtil::DispatchDirectSize;
+        if (IssueSqttMarkerEvent)
+        {
+            size += CmdUtil::WriteNonSampleEventDwords;
+        }
+        pCmdSpace += pThis->m_cmdUtil.BuildCondExec(pThis->m_predGpuAddr, size, pCmdSpace);
     }
 
     // The DIM_X/Y/Z in DISPATCH_DIRECT packet are used to program COMPUTE_DIM_X/Y/Z registers, which are actually the
@@ -514,7 +523,7 @@ void ComputeCmdBuffer::CmdWriteTimestamp(
     {
         pCmdSpace += m_cmdUtil.BuildCopyData(EngineTypeCompute,
                                              0,
-                                             dst_sel__mec_copy_data__memory__GFX09,
+                                             dst_sel__mec_copy_data__tc_l2_obsolete__GFX10PLUS,
                                              address,
                                              src_sel__mec_copy_data__gpu_clock_count,
                                              0,
@@ -558,7 +567,7 @@ void ComputeCmdBuffer::CmdWriteImmediate(
     {
         pCmdSpace += m_cmdUtil.BuildCopyData(EngineTypeCompute,
                                              0,
-                                             dst_sel__mec_copy_data__memory__GFX09,
+                                             dst_sel__mec_copy_data__tc_l2_obsolete__GFX10PLUS,
                                              address,
                                              src_sel__mec_copy_data__immediate_data,
                                              data,
@@ -607,10 +616,10 @@ void ComputeCmdBuffer::CmdBindBorderColorPalette(
 // =====================================================================================================================
 // Helper function to write a single user-sgpr. This function should always be preferred for user data writes over
 // WriteSetOneShReg() if the SGPR is written before or during draw/dispatch validation.
-#if PAL_BUILD_GFX11
+//
 // On GFX11, this function will add the register offset and value into the relevant array of packed register pairs to be
 // written in WritePackedUserDataEntriesToSgprs().
-#endif
+//
 // Returns the next unused DWORD in pDeCmdSpace.
 uint32* ComputeCmdBuffer::SetUserSgprReg(
     uint16  regAddr,
@@ -628,10 +637,10 @@ uint32* ComputeCmdBuffer::SetUserSgprReg(
 // =====================================================================================================================
 // Helper function to write a sequence of user-sgprs. This function should always be preferred for user data writes over
 // WriteSetSeqShRegs() if the SGPRs are written before or during draw/dispatch validation.
-#if PAL_BUILD_GFX11
+//
 // On GFX11, this function will add the offsets/values into the relevant array of packed register pairs to be written
 // in WritePackedUserDataEntriesToSgprs().
-#endif
+//
 // Returns the next unused DWORD in pCmdSpace.
 uint32* ComputeCmdBuffer::SetSeqUserSgprRegs(
     uint16      startAddr,
@@ -643,7 +652,6 @@ uint32* ComputeCmdBuffer::SetSeqUserSgprRegs(
     // non user-SGPR SH reg writes.
     PAL_ASSERT(InRange<uint16>(startAddr, m_baseUserDataRegCs, m_baseUserDataRegCs + NumUserDataRegistersCompute));
 
-#if PAL_BUILD_GFX11
     if (m_supportsShPairsPacketCs)
     {
         uint16 baseUserDataReg = m_baseUserDataRegCs;
@@ -657,7 +665,6 @@ uint32* ComputeCmdBuffer::SetSeqUserSgprRegs(
                                             &m_numValidUserEntriesCs);
     }
     else
-#endif
     {
         pCmdSpace = m_cmdStream.WriteSetSeqShRegs(startAddr, endAddr, ShaderCompute, pValues, pCmdSpace);
     }
@@ -693,7 +700,6 @@ uint32* ComputeCmdBuffer::ValidateUserData(
 
     if (alreadyWritten == false)
     {
-#if PAL_BUILD_GFX11
         if (m_supportsShPairsPacketCs)
         {
             CmdStream::AccumulateUserDataEntriesForSgprs<false>(m_pSignatureCs->stage,
@@ -705,7 +711,6 @@ uint32* ComputeCmdBuffer::ValidateUserData(
                                                                 &m_numValidUserEntriesCs);
         }
         else
-#endif
         {
             pCmdSpace = m_cmdStream.WriteUserDataEntriesToSgprs<false, ShaderCompute>(m_pSignatureCs->stage,
                                                                                       *pUserData,
@@ -862,12 +867,10 @@ uint32* ComputeCmdBuffer::ValidateDispatchPalAbi(
                                        pCmdSpace);
     }
 
-#if PAL_BUILD_GFX11
     if (m_numValidUserEntriesCs > 0)
     {
         pCmdSpace = WritePackedUserDataEntriesToSgprs(pCmdSpace);
     }
-#endif
 
 #if PAL_DEVELOPER_BUILD
     if (enablePm4Instrumentation)
@@ -1044,12 +1047,10 @@ uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
     PAL_ASSERT((startReg - mmCOMPUTE_USER_DATA_0) <= computePgmRsrc2.bitfields.USER_SGPR);
 #endif
 
-#if PAL_BUILD_GFX11
     if (m_numValidUserEntriesCs > 0)
     {
         pCmdSpace = WritePackedUserDataEntriesToSgprs(pCmdSpace);
     }
-#endif
 
 #if PAL_DEVELOPER_BUILD
     if (enablePm4Instrumentation)
@@ -1097,7 +1098,6 @@ bool ComputeCmdBuffer::FixupUserSgprsOnPipelineSwitch(
 
     if (m_pSignatureCs->userDataHash != pPrevSignature->userDataHash)
     {
-#if PAL_BUILD_GFX11
         if (m_supportsShPairsPacketCs && (m_numValidUserEntriesCs > 0))
         {
             // Even though we ignore dirty flags here, we still need to accumulate user data entries into packed
@@ -1115,7 +1115,6 @@ bool ComputeCmdBuffer::FixupUserSgprsOnPipelineSwitch(
                                                                &m_numValidUserEntriesCs);
         }
         else
-#endif
         {
             pCmdSpace = m_cmdStream.WriteUserDataEntriesToSgprs<true, ShaderCompute>(m_pSignatureCs->stage,
                                                                                      userData,
@@ -1129,7 +1128,6 @@ bool ComputeCmdBuffer::FixupUserSgprsOnPipelineSwitch(
     return written;
 }
 
-#if PAL_BUILD_GFX11
 // =====================================================================================================================
 // Helper function to validate and write packed user data entries to SGPRs. Returns next unused DWORD in command space.
 template <bool Pm4OptImmediate>
@@ -1171,7 +1169,6 @@ uint32* ComputeCmdBuffer::WritePackedUserDataEntriesToSgprs(
 
     return pCmdSpace;
 }
-#endif
 
 // =====================================================================================================================
 // Adds PM4 commands needed to write any registers associated with starting a query.
@@ -1332,11 +1329,10 @@ void ComputeCmdBuffer::CmdWaitRegisterValue(
 
 // =====================================================================================================================
 void ComputeCmdBuffer::CmdWaitMemoryValue(
-    const IGpuMemory& gpuMemory,
-    gpusize           offset,
-    uint32            data,
-    uint32            mask,
-    CompareFunc       compareFunc)
+    gpusize     gpuVirtAddr,
+    uint32      data,
+    uint32      mask,
+    CompareFunc compareFunc)
 {
     uint32* pCmdSpace = m_cmdStream.ReserveCommands();
 
@@ -1344,7 +1340,7 @@ void ComputeCmdBuffer::CmdWaitMemoryValue(
                                            mem_space__me_wait_reg_mem__memory_space,
                                            CmdUtil::WaitRegMemFunc(compareFunc),
                                            engine_sel__me_wait_reg_mem__micro_engine,
-                                           gpuMemory.Desc().gpuVirtAddr + offset,
+                                           gpuVirtAddr,
                                            data,
                                            mask,
                                            pCmdSpace);
@@ -1785,7 +1781,7 @@ void ComputeCmdBuffer::GetChunkForCmdGeneration(
     (pChunkOutputs->embeddedDataSize) = ((pChunkOutputs->commandsInChunk) * embeddedDwords);
 
     // Populate command buffer chain size required later for an indirect command generation optimization.
-    (pChunkOutputs->chainSizeInDwords) = m_cmdStream.GetChainSizeInDwords(m_device, EngineTypeCompute, IsNested());
+    (pChunkOutputs->chainSizeInDwords) = CmdUtil::ChainSizeInDwords(EngineTypeCompute);
 
     if (spillDwords > 0)
     {

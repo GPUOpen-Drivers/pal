@@ -28,9 +28,7 @@
 #include "palInlineFuncs.h"
 #include "core/hw/gfxip/gfx9/gfx9Chip.h"
 #include "core/hw/gfxip/gfx9/gfx10ShadowedRegisters.h"
-#if PAL_BUILD_GFX11
 #include "core/hw/gfxip/gfx9/gfx11ShadowedRegisters.h"
-#endif
 
 namespace Pal
 {
@@ -85,7 +83,7 @@ const RegisterRange Gfx9UserConfigShadowRange[] =
     },
 
 };
-constexpr uint32 Gfx9NumUserConfigShadowRanges = static_cast<uint32>(Util::ArrayLen(Gfx9UserConfigShadowRange));
+constexpr uint32 Gfx9NumUserConfigShadowRanges = Util::ArrayLen32(Gfx9UserConfigShadowRange);
 
 // Defines the set of ranges of context registers we shadow when mid command buffer preemption is enabled.
 const RegisterRange Gfx9ContextShadowRange[] =
@@ -175,7 +173,7 @@ const RegisterRange Gfx9ContextShadowRange[] =
         (Gfx09::mmCB_COLOR7_DCC_BASE_EXT - mmPA_SC_CENTROID_PRIORITY_0 + 1),
     },
 };
-constexpr uint32 Gfx9NumContextShadowRanges = static_cast<uint32>(Util::ArrayLen(Gfx9ContextShadowRange));
+constexpr uint32 Gfx9NumContextShadowRanges = Util::ArrayLen32(Gfx9ContextShadowRange);
 
 // Defines the set of ranges of GFX SH registers we shadow when mid command buffer preemption is enabled.
 const RegisterRange Gfx9ShShadowRange[] =
@@ -209,7 +207,7 @@ const RegisterRange Gfx9ShShadowRange[] =
         (Gfx09::mmSPI_SHADER_USER_DATA_LS_31 - mmSPI_SHADER_PGM_LO_HS + 1),
     },
 };
-constexpr uint32 Gfx9NumShShadowRanges = static_cast<uint32>(Util::ArrayLen(Gfx9ShShadowRange));
+constexpr uint32 Gfx9NumShShadowRanges = Util::ArrayLen32(Gfx9ShShadowRange);
 
 // Defines the set of ranges of CS SH registers we shadow when mid command buffer preemption is enabled.
 const RegisterRange Gfx9CsShShadowRange[] =
@@ -243,7 +241,7 @@ const RegisterRange Gfx9CsShShadowRange[] =
         (mmCOMPUTE_USER_DATA_15 - mmCOMPUTE_USER_DATA_0 + 1),
     },
 };
-constexpr uint32 Gfx9NumCsShShadowRanges = static_cast<uint32>(Util::ArrayLen(Gfx9CsShShadowRange));
+constexpr uint32 Gfx9NumCsShShadowRanges = Util::ArrayLen32(Gfx9CsShShadowRange);
 
 // Defines the set of ranges of GFX SH registers we shadow when mid command buffer preemption is enabled.
 const RegisterRange Gfx9ShShadowRangeRaven2[] =
@@ -285,7 +283,7 @@ const RegisterRange Gfx9ShShadowRangeRaven2[] =
         (Gfx09::mmSPI_SHADER_USER_DATA_LS_31 - mmSPI_SHADER_PGM_LO_HS + 1),
     },
 };
-constexpr uint32 Gfx9NumShShadowRangesRaven2 = static_cast<uint32>(Util::ArrayLen(Gfx9ShShadowRangeRaven2));
+constexpr uint32 Gfx9NumShShadowRangesRaven2 = Util::ArrayLen32(Gfx9ShShadowRangeRaven2);
 
 // Defines the set of ranges of CS SH registers we shadow when mid command buffer preemption is enabled.
 const RegisterRange Gfx9CsShShadowRangeRaven2[] =
@@ -323,7 +321,7 @@ const RegisterRange Gfx9CsShShadowRangeRaven2[] =
         (mmCOMPUTE_USER_DATA_15 - mmCOMPUTE_USER_DATA_0 + 1),
     },
 };
-constexpr uint32 Gfx9NumCsShShadowRangesRaven2 = static_cast<uint32>(Util::ArrayLen(Gfx9CsShShadowRangeRaven2));
+constexpr uint32 Gfx9NumCsShShadowRangesRaven2 = Util::ArrayLen32(Gfx9CsShShadowRangeRaven2);
 
 #if PAL_ENABLE_PRINTS_ASSERTS
 // Defines the set of ranges of registers which cannot be shadowed for various reasons.
@@ -468,7 +466,7 @@ const RegisterRange Gfx90NonShadowedRanges[] =
         Gfx09_0::mmGCEA_PERFCOUNTER_RSLT_CNTL - Gfx09_0::mmGCEA_PERFCOUNTER0_CFG + 1
     },
 };
-constexpr uint32 Gfx90NumNonShadowedRanges = static_cast<uint32>(Util::ArrayLen(Gfx90NonShadowedRanges));
+constexpr uint32 Gfx90NumNonShadowedRanges = Util::ArrayLen32(Gfx90NonShadowedRanges);
 
 const RegisterRange Gfx91NonShadowedRanges[] =
 {
@@ -614,19 +612,17 @@ const RegisterRange Gfx91NonShadowedRanges[] =
         Gfx09_1x::mmGCEA_PERFCOUNTER_RSLT_CNTL - Gfx09_1x::mmGCEA_PERFCOUNTER0_CFG + 1
     },
 };
-constexpr uint32 Gfx91NumNonShadowedRanges = static_cast<uint32>(Util::ArrayLen(Gfx91NonShadowedRanges));
+constexpr uint32 Gfx91NumNonShadowedRanges = Util::ArrayLen32(Gfx91NonShadowedRanges);
 
 #endif
 
-constexpr uint32 Gfx10NumShShadowRanges    = static_cast<uint32>(Util::ArrayLen(Gfx10ShShadowRange));
-constexpr uint32 Gfx10NumCsShShadowRanges  = static_cast<uint32>(Util::ArrayLen(Gfx10CsShShadowRange));
+constexpr uint32 Gfx10NumShShadowRanges    = Util::ArrayLen32(Gfx10ShShadowRange);
+constexpr uint32 Gfx10NumCsShShadowRanges  = Util::ArrayLen32(Gfx10CsShShadowRange);
 
 constexpr uint32 Gfx10NumUserConfigShadowRanges = Util::Max(Nv10NumUserConfigShadowRanges,
-                                                            Gfx103NumUserConfigShadowRanges,
-                                                            0u);
+                                                            Gfx103NumUserConfigShadowRanges);
 constexpr uint32 Gfx10NumContextShadowRanges    = Util::Max(Nv10NumContextShadowRanges,
-                                                            Gfx103NumContextShadowRanges,
-                                                            0u);
+                                                            Gfx103NumContextShadowRanges);
 
 constexpr uint32 MaxNumUserConfigRanges  = Util::Max(Gfx9NumUserConfigShadowRanges, Gfx10NumUserConfigShadowRanges);
 constexpr uint32 MaxNumContextRanges     = Util::Max(Gfx9NumContextShadowRanges,    Gfx10NumContextShadowRanges);

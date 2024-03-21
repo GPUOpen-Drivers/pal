@@ -176,13 +176,11 @@ Result RsrcProcMgr::LateInit()
                 pipeInfo.pPipelineBinary = Gfx10EchoGlobalTableElfBinary;
                 pipeInfo.pipelineBinarySize = sizeof(Gfx10EchoGlobalTableElfBinary);
             }
-#if PAL_BUILD_GFX11
             else if (IsGfx11(*m_pDevice->Parent()))
             {
                 pipeInfo.pPipelineBinary = Gfx11EchoGlobalTableElfBinary;
                 pipeInfo.pipelineBinarySize = sizeof(Gfx11EchoGlobalTableElfBinary);
             }
-#endif
         }
 
         if (pipeInfo.pPipelineBinary != nullptr)
@@ -1018,18 +1016,13 @@ const Pal::GraphicsPipeline* RsrcProcMgr::GetGfxPipelineByTargetIndexAndFormat(
     SwizzledFormat format
     ) const
 {
-    // There are only four ranges of pipelines that vary by export format and these are their bases.
-
-    bool validPipe =
-#if PAL_BUILD_GFX11
-                    (basePipeline == Gfx11ResolveGraphics_32ABGR) ||
-#endif
-                    (basePipeline == Copy_32ABGR)                 ||
-                    (basePipeline == ResolveFixedFunc_32ABGR)     ||
-                    (basePipeline == SlowColorClear0_32ABGR)      ||
-                    (basePipeline == ScaledCopy2d_32ABGR)         ||
-                    (basePipeline == ScaledCopy3d_32ABGR);
-    PAL_ASSERT(validPipe);
+    // There are only 6 ranges of pipelines that vary by export format and these are their bases.
+    PAL_ASSERT((basePipeline == Gfx11ResolveGraphics_32ABGR) ||
+               (basePipeline == Copy_32ABGR)                 ||
+               (basePipeline == ResolveFixedFunc_32ABGR)     ||
+               (basePipeline == SlowColorClear0_32ABGR)      ||
+               (basePipeline == ScaledCopy2d_32ABGR)         ||
+               (basePipeline == ScaledCopy3d_32ABGR));
 
     const SPI_SHADER_EX_FORMAT exportFormat = DeterminePsExportFmt(format,
                                                                    false,  // Blend disabled
@@ -1688,7 +1681,6 @@ void RsrcProcMgr::PreComputeDepthStencilClearSync(
     ImageLayout        layout
     ) const
 {
-#if PAL_BUILD_GFX11
     if (IsGfx11(*m_pDevice->Parent()))
     {
         // The most efficient way to wait for DB-idle and flush and invalidate the DB caches on pre-gfx11 HW
@@ -1718,7 +1710,6 @@ void RsrcProcMgr::PreComputeDepthStencilClearSync(
         pCmdBuffer->CmdReleaseThenAcquire(acqRelInfo);
     }
     else
-#endif
     {
         Pal::Pm4::RsrcProcMgr::PreComputeDepthStencilClearSync(pCmdBuffer, gfxImage, subres, layout);
     }
@@ -2060,7 +2051,6 @@ void RsrcProcMgr::HwlDepthStencilClear(
     }
 }
 
-#if PAL_BUILD_GFX11
 // =====================================================================================================================
 // Sets up an optimized shader for GFX11 that uses a pixel shader to do the resolve
 void RsrcProcMgr::HwlResolveImageGraphics(
@@ -2072,7 +2062,7 @@ void RsrcProcMgr::HwlResolveImageGraphics(
     uint32                    regionCount,
     const ImageResolveRegion* pRegions,
     uint32                    flags
-) const
+    ) const
 {
     // This path only supports gfx11.
     PAL_ASSERT(IsGfx11(*m_pDevice->Parent()));
@@ -2333,7 +2323,6 @@ void RsrcProcMgr::HwlResolveImageGraphics(
         srcImageInfo.resolveMethod,
         false);
 }
-#endif
 
 // =====================================================================================================================
 // Check if for all the regions, the format and swizzle mode matches for src and dst image.
@@ -2667,7 +2656,6 @@ void RsrcProcMgr::DepthStencilClearGraphics(
 
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
 
-#if PAL_BUILD_GFX11
         // We should prefer using a pre_depth PWS wait when it's supported. WriteWaitEop will use PWS by default.
         // Moving the wait down to the pre_depth sync point should make the wait nearly free. Otherwise, the legacy
         // surf-sync support should be faster than a full EOP wait at the CP.
@@ -2676,13 +2664,12 @@ void RsrcProcMgr::DepthStencilClearGraphics(
             pCmdSpace = pPm4CmdBuf->WriteWaitEop(HwPipePreRasterization, SyncGlxNone, SyncDbWbInv, pCmdSpace);
         }
         else
-#endif
         {
             AcquireMemGfxSurfSync acquireInfo = {};
             acquireInfo.rangeBase = dstImage.Parent()->GetGpuVirtualAddr();
             acquireInfo.rangeSize = dstImage.GetGpuMemSyncSize();
-            acquireInfo.flags.dbTargetStall    = 1;
-            acquireInfo.flags.gfx9Gfx10DbWbInv = 1;
+            acquireInfo.flags.dbTargetStall = 1;
+            acquireInfo.flags.gfx10DbWbInv  = 1;
 
             pCmdSpace += m_cmdUtil.BuildAcquireMemGfxSurfSync(acquireInfo, pCmdSpace);
 
@@ -4150,11 +4137,8 @@ void Gfx10RsrcProcMgr::ClearDccCompute(
                     }
                 }
 
-                if ((clearCode == static_cast<uint8>(Gfx9DccClearColor::Gfx10ClearColorCompToSingle))
-#if PAL_BUILD_GFX11
-                    || (clearCode == static_cast<uint8>(Gfx9DccClearColor::Gfx11ClearColorCompToSingle))
-#endif
-                   )
+                if ((clearCode == uint8(Gfx9DccClearColor::Gfx10ClearColorCompToSingle)) ||
+                    (clearCode == uint8(Gfx9DccClearColor::Gfx11ClearColorCompToSingle)))
                 {
                     // If this image doesn't support comp-to-single fast clears, then how did we wind up with the
                     // comp-to-single clear code???
@@ -4208,18 +4192,15 @@ void Gfx10RsrcProcMgr::ClearDccComputeSetFirstPixelOfBlock(
     const Pal::Image*        pPalImage  = dstImage.Parent();
     const ImageCreateInfo&   createInfo = pPalImage->GetImageCreateInfo();
     const Gfx9Dcc*           pDcc       = dstImage.GetDcc(plane);
-    const RpmComputePipeline pipeline   = (((createInfo.samples == 1)
-#if PAL_BUILD_GFX11
+    const RpmComputePipeline pipeline   = (((createInfo.samples == 1) ||
                                             //   On GFX11, MSAA surfaces are sample interleaved, the way depth always
                                             //   has been.
                                             //
                                             // Since "GetXyzInc" already incorporates the # of samples,  we don't
                                             // have to store the clear color for each sample anymore.
-                                            || IsGfx11(*(m_pDevice->Parent()))
-#endif
-                                            )
-                                            ? RpmComputePipeline::Gfx10ClearDccComputeSetFirstPixel
-                                            : RpmComputePipeline::Gfx10ClearDccComputeSetFirstPixelMsaa);
+                                            IsGfx11(*(m_pDevice->Parent())))
+                                                ? RpmComputePipeline::Gfx10ClearDccComputeSetFirstPixel
+                                                : RpmComputePipeline::Gfx10ClearDccComputeSetFirstPixelMsaa);
     const Pal::ComputePipeline*const pPipeline = GetPipeline(pipeline);
 
     // Bind Compute Pipeline used for the clear.
@@ -4689,12 +4670,9 @@ const Pal::ComputePipeline* Gfx10RsrcProcMgr::GetCmdGenerationPipeline(
     case Pm4::GeneratorType::DispatchMesh:
         PAL_ASSERT(Pal::Device::EngineSupportsGraphics(engineType) &&
                    Pal::Device::EngineSupportsCompute(engineType));
-#if PAL_BUILD_GFX11
+
         pipeline = (IsGfx11(generator.Properties().gfxLevel)) ? RpmComputePipeline::Gfx11GenerateCmdDispatchTaskMesh
                                                               : RpmComputePipeline::Gfx10GenerateCmdDispatchTaskMesh;
-#else
-        pipeline = RpmComputePipeline::Gfx10GenerateCmdDispatchTaskMesh;
-#endif
         break;
     default:
         PAL_ASSERT_ALWAYS();
@@ -5130,7 +5108,6 @@ ImageCopyEngine Gfx10RsrcProcMgr::GetImageToImageCopyEngine(
     ImageCopyEngine copyEngine = PreferComputeForNonLocalDestCopy(dstImage) ? ImageCopyEngine::Compute :
         Pm4::RsrcProcMgr::GetImageToImageCopyEngine(pCmdBuffer, srcImage, dstImage, regionCount, pRegions, copyFlags);
 
-#if PAL_BUILD_GFX11
     // Profiling shows that gfx11's draw-based copy performance craters when you go from 4xAA to 8xAA on either of
     // the two-plane depth+stencil formats. The single-plane depth-only formats seem unaffected.
     //
@@ -5145,7 +5122,6 @@ ImageCopyEngine Gfx10RsrcProcMgr::GetImageToImageCopyEngine(
     {
         copyEngine = ImageCopyEngine::Compute;
     }
-#endif
 
     // If the copy will use the graphics engine anyway then there's no need to go through this as graphics
     // copies won't corrupt the VRS encoding.
@@ -5198,7 +5174,6 @@ bool Gfx10RsrcProcMgr::ScaledCopyImageUseGraphics(
 {
     bool useGraphicsCopy = Pm4::RsrcProcMgr::ScaledCopyImageUseGraphics(pCmdBuffer, copyInfo);
 
-#if PAL_BUILD_GFX11
     // Profiling shows that gfx11's draw-based copy performance craters when you go from 4xAA to 8xAA on either of
     // the two-plane depth+stencil formats. The single-plane depth-only formats seem unaffected.
     // ScaledCopyImageUseGraphics should have a Gfx10RsrcProcMgr overload that optimizes the case where OREO runs slow
@@ -5214,7 +5189,6 @@ bool Gfx10RsrcProcMgr::ScaledCopyImageUseGraphics(
     {
         useGraphicsCopy = false;
     }
-#endif
 
     return  useGraphicsCopy;
 }
@@ -5261,13 +5235,9 @@ bool Gfx10RsrcProcMgr::CopyImageCsUseMsaaMorton(
     const Pal::Image& dstImage
     ) const
 {
-#if PAL_BUILD_GFX11
     // In gfx11, all MSAA swizzle modes were made identical to gfx10's "Z" swizzle modes. That means all gfx11
     // MSAA images store their samples sequentially and store pixels in micro-tiles in Morton/Z order.
     return IsGfx11(*m_pDevice->Parent()) || Pal::RsrcProcMgr::CopyImageCsUseMsaaMorton(dstImage);
-#else
-    return Pal::RsrcProcMgr::CopyImageCsUseMsaaMorton(dstImage);
-#endif
 }
 
 // =====================================================================================================================

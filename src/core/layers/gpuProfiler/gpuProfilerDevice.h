@@ -158,6 +158,8 @@ public:
 
     GpuProfilerMode GetProfilerMode() const { return static_cast<Platform*>(GetPlatform())->GetProfilerMode(); }
 
+    void CommandBufferBegin();
+
     // Returns true if the settings config has successfully requested for SQ thread trace.
     bool IsThreadTraceEnabled() const
     {
@@ -227,6 +229,9 @@ private:
     GpuProfilerStallMode   m_stallMode;
     uint32                 m_startFrame;
     uint32                 m_endFrame;
+    uint32                 m_startCommandBuffer;
+    uint32                 m_endCommandBuffer;
+    uint32                 m_commandBufferCount;
     uint32                 m_minTimestampAlignment[EngineTypeCount];
     uint32                 m_seMask;
 

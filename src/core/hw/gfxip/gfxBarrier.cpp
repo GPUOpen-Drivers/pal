@@ -421,92 +421,128 @@ void GfxBarrierMgr::OptimizeSrcCacheMask(
 // Note: PipelineStageBlt will be converted to a more accurate stage based on the underlying implementation of
 //       outstanding BLTs, but will be left as PipelineStageBlt if the internal outstanding BLTs can't be expressed as
 //       a client-facing PipelineStage (e.g., if there are CP DMA BLTs in flight).
-void GfxBarrierMgr::OptimizePipeStageAndCacheMask(
+// This function also mask off all graphics path specific stage and access mask flags for non-universal command buffer.
+void GfxBarrierMgr::OptimizeStageAndAccessMask(
     const Pm4CmdBuffer* pCmdBuf,
+    BarrierType         barrierType,
     uint32*             pSrcStageMask,
     uint32*             pSrcAccessMask,
     uint32*             pDstStageMask,
-    uint32*             pDstAccessMask)
+    uint32*             pDstAccessMask
+    ) const
 {
-    const Pm4CmdBufferStateFlags cmdBufStateFlags = pCmdBuf->GetPm4CmdBufState().flags;
+    OptimizeStageMask(pCmdBuf, barrierType, pSrcStageMask, pDstStageMask);
+
+    OptimizeAccessMask(pCmdBuf, barrierType, pSrcAccessMask, pDstAccessMask);
+}
+
+// =====================================================================================================================
+// Helper function to optimize pipeline access masks for BLTs. This is for acquire/release interface.
+// This function also mask off all graphics path specific stage mask flags for non-universal command buffer as well as
+// remove some invalid pfp stage mask on dstStageMask to avoid unnecessary PFP_SYNC_ME stall.
+void GfxBarrierMgr::OptimizeStageMask(
+    const Pm4CmdBuffer* pCmdBuf,
+    BarrierType         barrierType,
+    uint32*             pSrcStageMask,
+    uint32*             pDstStageMask
+    ) const
+{
+    const Pm4CmdBufferStateFlags stateFlags = pCmdBuf->GetPm4CmdBufState().flags;
 
     // Update pipeline stages if valid input stage mask is provided.
-    if (pSrcStageMask != nullptr)
+    if ((pSrcStageMask != nullptr) && TestAnyFlagSet(*pSrcStageMask, PipelineStageBlt))
     {
-        uint32 localStageMask = *pSrcStageMask;
+        constexpr uint32 PipelineStagesRb = PipelineStageEarlyDsTarget | PipelineStageLateDsTarget |
+                                            PipelineStageColorTarget;
+        const bool       isNotBuffer      = (barrierType != BarrierType::Buffer);
 
-        if (TestAnyFlagSet(localStageMask, PipelineStageBlt))
-        {
-            localStageMask &= ~PipelineStageBlt;
+        *pSrcStageMask &= ~PipelineStageBlt;
 
-            // Check xxxBltActive states in order.
-            if (cmdBufStateFlags.gfxBltActive)
-            {
-                localStageMask |= PipelineStageEarlyDsTarget | PipelineStageLateDsTarget | PipelineStageColorTarget;
-            }
-            if (cmdBufStateFlags.csBltActive)
-            {
-                localStageMask |= PipelineStageCs;
-            }
-            if (cmdBufStateFlags.cpBltActive)
-            {
-                // Add back PipelineStageBlt because we cannot express it with a more accurate stage.
-                localStageMask |= PipelineStageBlt;
-            }
-        }
-
-        *pSrcStageMask = localStageMask;
-    }
-
-    // Update cache access masks if valid input access mask is provided.
-    if (pSrcAccessMask != nullptr)
-    {
-        uint32 localAccessMask = *pSrcAccessMask;
-
-        if (TestAnyFlagSet(localAccessMask, CacheCoherencyBlt))
-        {
-            const bool isCopySrcOnly = (localAccessMask == CoherCopySrc);
-
-            // There are various srcCache BLTs (Copy, Clear, and Resolve) which we can further optimize if we know
-            // which write caches have been dirtied:
-            // - If a graphics BLT occurred, alias these srcCaches to CoherColorTarget.
-            // - If a compute BLT occurred, alias these srcCaches to CoherShader.
-            // - If a CP L2 BLT occurred, alias these srcCaches to CoherCp.
-            // - If a CP direct-to-memory write occurred, alias these srcCaches to CoherMemory.
-            // Clear the original srcCaches from the srcCache mask for the rest of this scope.
-
-            localAccessMask |= cmdBufStateFlags.cpWriteCachesDirty ? CoherCp : 0;
-            localAccessMask |= cmdBufStateFlags.cpMemoryWriteL2CacheStale ? CoherMemory : 0;
-
-            if (isCopySrcOnly)
-            {
-                localAccessMask |= cmdBufStateFlags.gfxWriteCachesDirty ? CoherShaderRead : 0;
-                localAccessMask |= cmdBufStateFlags.csWriteCachesDirty ? CoherShaderRead : 0;
-            }
-            else
-            {
-                localAccessMask |= cmdBufStateFlags.gfxWriteCachesDirty ? CoherColorTarget : 0;
-                localAccessMask |= cmdBufStateFlags.csWriteCachesDirty ? CoherShader : 0;
-            }
-
-            localAccessMask &= ~CacheCoherencyBlt;
-        }
-
-        *pSrcAccessMask = localAccessMask;
+        *pSrcStageMask |= ((stateFlags.gfxBltActive && isNotBuffer) ? PipelineStagesRb : 0) |
+                          (stateFlags.csBltActive                   ? PipelineStageCs  : 0) |
+                          // Add back PipelineStageBlt because we cannot express it with a more accurate stage.
+                          (stateFlags.cpBltActive                   ? PipelineStageBlt : 0);
     }
 
     // Mark off all graphics path specific stages and caches if command buffer doesn't support graphics.
     if (pCmdBuf->GetEngineType() != EngineTypeUniversal)
     {
-        if ((pSrcStageMask != nullptr) && (pSrcAccessMask != nullptr))
+        if (pSrcStageMask != nullptr)
         {
-            *pSrcStageMask  &= ~PipelineStagesGraphicsOnly;
+            *pSrcStageMask &= ~PipelineStagesGraphicsOnly;
+        }
+
+        if (pDstStageMask != nullptr)
+        {
+            *pDstStageMask &= ~PipelineStagesGraphicsOnly;
+        }
+    }
+
+    // No need acquire at PFP for image barriers. Image may have metadata that's accessed by PFP by
+    // it's handled properly internally and no need concern here.
+    if ((barrierType == BarrierType::Image) &&
+        (pDstStageMask != nullptr)          &&
+        TestAnyFlagSet(*pDstStageMask, PipelineStagePfpMask))
+    {
+        *pDstStageMask &= ~PipelineStagePfpMask;
+
+        // If no dstStageMask flag after removing PFP flags, force waiting at ME.
+        if (*pDstStageMask == 0)
+        {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 835
+            *pDstStageMask = PipelineStagePostPrefetch;
+#else
+            *pDstStageMask = PipelineStageBlt;
+#endif
+        }
+    }
+}
+
+// =====================================================================================================================
+// Helper function to optimize pipeline cache access masks for BLTs. This is for acquire/release interface.
+// This function also mask off all graphics path specific access mask flags for non-universal command buffer.
+void GfxBarrierMgr::OptimizeAccessMask(
+    const Pm4CmdBuffer* pCmdBuf,
+    BarrierType         barrierType,
+    uint32*             pSrcAccessMask,
+    uint32*             pDstAccessMask
+    ) const
+{
+    const Pm4CmdBufferStateFlags stateFlags = pCmdBuf->GetPm4CmdBufState().flags;
+
+    // Update cache access masks if valid input access mask is provided.
+    if ((pSrcAccessMask != nullptr) && TestAnyFlagSet(*pSrcAccessMask, CacheCoherencyBlt))
+    {
+        const bool isBltCopySrcOnly = ((*pSrcAccessMask & CacheCoherencyBlt) == CoherCopySrc);
+        const bool isNotBuffer      = (barrierType != BarrierType::Buffer);
+
+        *pSrcAccessMask &= ~CacheCoherencyBlt;
+
+        *pSrcAccessMask |= (stateFlags.cpWriteCachesDirty         ? CoherCp     : 0) |
+                           (stateFlags.cpMemoryWriteL2CacheStale  ? CoherMemory : 0);
+
+        if (isBltCopySrcOnly)
+        {
+            *pSrcAccessMask |= ((stateFlags.gfxWriteCachesDirty && isNotBuffer) ||
+                                stateFlags.csWriteCachesDirty) ? CoherShaderRead : 0;
+        }
+        else // For Clear, CopyDst, ResolveSrc and ResolveDst. ResolveSrc is bound to CB for fixed-func resolve.
+        {
+            *pSrcAccessMask |= ((stateFlags.gfxWriteCachesDirty && isNotBuffer) ? CoherColorTarget : 0) |
+                               (stateFlags.csWriteCachesDirty                   ? CoherShader      : 0);
+        }
+    }
+
+    // Mark off all graphics path specific stages and caches if command buffer doesn't support graphics.
+    if (pCmdBuf->GetEngineType() != EngineTypeUniversal)
+    {
+        if (pSrcAccessMask != nullptr)
+        {
             *pSrcAccessMask &= ~CacheCoherencyGraphicsOnly;
         }
 
-        if ((pDstStageMask != nullptr) && (pDstAccessMask != nullptr))
+        if (pDstAccessMask != nullptr)
         {
-            *pDstStageMask  &= ~PipelineStagesGraphicsOnly;
             *pDstAccessMask &= ~CacheCoherencyGraphicsOnly;
         }
     }

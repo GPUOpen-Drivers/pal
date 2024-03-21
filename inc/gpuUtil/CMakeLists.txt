@@ -48,4 +48,6 @@ target_sources(pal PRIVATE
     palTraceSession.h
     palMsaaImageCopyUtil.h
     palMsaaImageCopyUtilImpl.h
+    palQueueTimingsTraceSource.h
 )
+

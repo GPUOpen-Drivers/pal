@@ -121,9 +121,7 @@ private:
     size_t                   m_ringSizeComputeScratch;
     PipelineChunkCs          m_chunkCs;
     bool                     m_disablePartialPreempt;
-#if PAL_BUILD_GFX11
     const bool               m_shPairsPacketSupportedCs;
-#endif
 
     PAL_DISALLOW_DEFAULT_CTOR(ComputePipeline);
     PAL_DISALLOW_COPY_AND_ASSIGN(ComputePipeline);

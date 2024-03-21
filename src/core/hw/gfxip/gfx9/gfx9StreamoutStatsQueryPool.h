@@ -36,7 +36,7 @@ namespace Gfx9
 class Device;
 
 // =====================================================================================================================
-// Query Pool for counting the number of samples that pass the depth and stencil tests.
+// Query pool for retrieving the number of primitives written and primitives needed from the geometry pipeline.
 class StreamoutStatsQueryPool final : public QueryPool
 {
 public:

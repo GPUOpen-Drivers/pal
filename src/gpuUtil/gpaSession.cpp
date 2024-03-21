@@ -70,11 +70,9 @@ static SqttGfxIpLevel GfxipToSqttGfxIpLevel(
     case Pal::GfxIpLevel::GfxIp10_3:
         sqttLevel = SQTT_GFXIP_LEVEL_GFXIP_10_3;
         break;
-#if PAL_BUILD_GFX11
     case Pal::GfxIpLevel::GfxIp11_0:
         sqttLevel = SQTT_GFXIP_LEVEL_GFXIP_11_0;
         break;
-#endif
     default:
         PAL_ASSERT_ALWAYS_MSG("Unknown GfxIpLevel value: %u!", static_cast<uint32>(gfxIpLevel));
         break;
@@ -102,11 +100,9 @@ SqttVersion GfxipToSqttVersion(
     case Pal::GfxIpLevel::GfxIp10_3:
         version = SQTT_VERSION_3_0;
         break;
-#if PAL_BUILD_GFX11
     case Pal::GfxIpLevel::GfxIp11_0:
         version = SQTT_VERSION_3_2;
         break;
-#endif
     default:
         PAL_ASSERT_ALWAYS_MSG("Unknown GfxIpLevel value: %u!", static_cast<uint32>(gfxIpLevel));
         break;
@@ -2257,6 +2253,161 @@ Result GpaSession::GetSpmTraceData(
 }
 
 // =====================================================================================================================
+Pal::Result GpaSession::GetQueueTimingsData(
+    QueueTimingsTraceInfo* pTraceInfo,
+    size_t*                pSizeInBytes,
+    void*                  pData
+    ) const
+{
+    PAL_ASSERT(m_sessionState == GpaSessionState::Complete);
+
+    Result result = (m_flags.enableQueueTiming == 1) ? Result::Success : Result::ErrorUnavailable;
+
+    // Only write queue timing and calibration chunks if queue timing was enabled during the session.
+    if (result == Result::Success)
+    {
+        const uint32 numQueueInfoRecords  = m_timedQueuesArray.NumElements();
+        const uint32 numQueueEventRecords = m_queueEvents.NumElements();
+        const uint32 queueInfoTableSize   = numQueueInfoRecords  * sizeof(SqttQueueInfoRecord);
+        const uint32 queueEventTableSize  = numQueueEventRecords * sizeof(SqttQueueEventRecord);
+
+        const uint32 totalDataSize = queueInfoTableSize + queueEventTableSize;
+
+        if (pTraceInfo != nullptr)
+        {
+            (*pTraceInfo) = QueueTimingsTraceInfo {
+                .numQueueInfoRecords  = numQueueInfoRecords,
+                .numQueueEventRecords = numQueueEventRecords,
+                .queueInfoTableSize   = queueInfoTableSize,
+                .queueEventTableSize  = queueEventTableSize
+            };
+        }
+
+        if (pSizeInBytes != nullptr)
+        {
+            if (pData == nullptr)
+            {
+                // Return the required buffer size for storing queue info & event records
+                (*pSizeInBytes) = totalDataSize;
+            }
+            else if (*pSizeInBytes < totalDataSize)
+            {
+                // Not enough space in the buffer to write queue data
+                result = Result::ErrorInvalidMemorySize;
+            }
+            else
+            {
+                void* pDataOffset = pData;
+
+                // ----- Write QueueInfo ---------------------------------------------------
+                for (uint32 queueIndex = 0; queueIndex < numQueueInfoRecords; ++queueIndex)
+                {
+                    TimedQueueState* pQueueState = m_timedQueuesArray.At(queueIndex);
+
+                    SqttQueueInfoRecord queueInfoRecord     = {};
+                    queueInfoRecord.queueID                 = pQueueState->queueId;
+                    queueInfoRecord.queueContext            = pQueueState->queueContext;
+                    queueInfoRecord.hardwareInfo.queueType  = PalQueueTypeToSqttQueueType[pQueueState->queueType];
+                    queueInfoRecord.hardwareInfo.engineType = PalEngineTypeToSqttEngineType[pQueueState->engineType];
+
+                    memcpy(pDataOffset, &queueInfoRecord, sizeof(queueInfoRecord));
+
+                    pDataOffset = Util::VoidPtrInc(pDataOffset, sizeof(queueInfoRecord));
+                }
+
+                // ----- Write QueueEvent ---------------------------------------------------
+                for (uint32 eventIndex = 0; eventIndex < numQueueEventRecords; ++eventIndex)
+                {
+                    const TimedQueueEventItem* pQueueEvent = &m_queueEvents.At(eventIndex);
+
+                    SqttQueueEventRecord queueEventRecord = {};
+                    queueEventRecord.frameIndex           = pQueueEvent->frameIndex;
+                    queueEventRecord.queueInfoIndex       = pQueueEvent->queueIndex;
+                    queueEventRecord.cpuTimestamp         = pQueueEvent->cpuTimestamp;
+
+                    switch (pQueueEvent->eventType)
+                    {
+                    case TimedQueueEventType::Submit:
+                    {
+                        const uint64* pPreTimestamp = reinterpret_cast<const uint64*>(Util::VoidPtrInc(
+                            pQueueEvent->gpuTimestamps.memInfo[0].pCpuAddr,
+                            static_cast<size_t>(pQueueEvent->gpuTimestamps.offsets[0])));
+
+                        const uint64* pPostTimestamp = reinterpret_cast<const uint64*>(Util::VoidPtrInc(
+                            pQueueEvent->gpuTimestamps.memInfo[1].pCpuAddr,
+                            static_cast<size_t>(pQueueEvent->gpuTimestamps.offsets[1])));
+
+                        queueEventRecord.eventType        = SQTT_QUEUE_TIMING_EVENT_CMDBUF_SUBMIT;
+                        queueEventRecord.gpuTimestamps[0] = *pPreTimestamp;
+                        queueEventRecord.gpuTimestamps[1] = *pPostTimestamp;
+                        queueEventRecord.apiId            = pQueueEvent->apiId;
+                        queueEventRecord.sqttCbId         = pQueueEvent->sqttCmdBufId;
+                        queueEventRecord.submitSubIndex   = pQueueEvent->submitSubIndex;
+                        break;
+                    }
+                    case TimedQueueEventType::Signal:
+                    {
+                        queueEventRecord.eventType        = SQTT_QUEUE_TIMING_EVENT_SIGNAL_SEMAPHORE;
+                        queueEventRecord.apiId            = pQueueEvent->apiId;
+                        break;
+                    }
+                    case TimedQueueEventType::Wait:
+                    {
+                        queueEventRecord.eventType        = SQTT_QUEUE_TIMING_EVENT_WAIT_SEMAPHORE;
+                        queueEventRecord.apiId            = pQueueEvent->apiId;
+                        break;
+                    }
+                    case TimedQueueEventType::Present:
+                    {
+                        const uint64* pTimestamp = reinterpret_cast<const uint64*>(Util::VoidPtrInc(
+                            pQueueEvent->gpuTimestamps.memInfo[0].pCpuAddr,
+                            static_cast<size_t>(pQueueEvent->gpuTimestamps.offsets[0])));
+
+                        queueEventRecord.eventType        = SQTT_QUEUE_TIMING_EVENT_PRESENT;
+                        queueEventRecord.gpuTimestamps[0] = *pTimestamp;
+                        queueEventRecord.apiId            = pQueueEvent->apiId;
+                        break;
+                    }
+                    case TimedQueueEventType::ExternalSignal:
+                    {
+                        queueEventRecord.eventType        = SQTT_QUEUE_TIMING_EVENT_SIGNAL_SEMAPHORE;
+                        queueEventRecord.gpuTimestamps[0] = ExtractGpuTimestampFromQueueEvent(*pQueueEvent);
+                        queueEventRecord.apiId            = pQueueEvent->apiId;
+                        break;
+                    }
+                    case TimedQueueEventType::ExternalWait:
+                    {
+                        queueEventRecord.eventType        = SQTT_QUEUE_TIMING_EVENT_WAIT_SEMAPHORE;
+                        queueEventRecord.gpuTimestamps[0] = ExtractGpuTimestampFromQueueEvent(*pQueueEvent);
+                        queueEventRecord.apiId            = pQueueEvent->apiId;
+                        break;
+                    }
+                    default:
+                    {
+                        // Invalid event type
+                        PAL_ASSERT_ALWAYS();
+                        result = Result::ErrorUnknown;
+                        break;
+                    }
+                    }
+
+                    memcpy(pDataOffset, &queueEventRecord, sizeof(queueEventRecord));
+
+                    pDataOffset = Util::VoidPtrInc(pDataOffset, sizeof(queueEventRecord));
+                }
+            }
+        }
+        else
+        {
+            // `pSizeInBytes` is required for both modes of this function
+            result = Result::ErrorInvalidPointer;
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 // Moves the session to the _reset_ state, marking all sessions resources as unused and available for reuse when
 // the session is re-built.
 Result GpaSession::Reset()
@@ -3701,10 +3852,8 @@ Result GpaSession::AcquirePerfExperiment(
     createInfo.optionFlags.sqShaderMask  = sampleConfig.flags.sqShaderMask;
     createInfo.optionValues.sqShaderMask = sampleConfig.sqShaderMask;
 
-#if PAL_BUILD_GFX11
     createInfo.optionFlags.sqWgpShaderMask  = sampleConfig.flags.sqWgpShaderMask;
     createInfo.optionValues.sqWgpShaderMask = sampleConfig.sqWgpShaderMask;
-#endif
 
     const size_t perfExperimentSize = m_pDevice->GetPerfExperimentSize(createInfo, nullptr);
     const bool   memoryExists       = ((m_pAvailablePerfExpMem != nullptr) &&
@@ -5051,4 +5200,4 @@ void GpaSession::RecycleSampleItemArray()
     }
 }
 
-} //GpuUtil
+} // namespace GpuUtil

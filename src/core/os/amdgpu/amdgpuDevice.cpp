@@ -982,9 +982,7 @@ Result Device::InitGpuProperties()
     case GfxIpLevel::GfxIp10_1:
     case GfxIpLevel::GfxIp9:
     case GfxIpLevel::GfxIp10_3:
-#if PAL_BUILD_GFX11
     case GfxIpLevel::GfxIp11_0:
-#endif
         m_chipProperties.gfxEngineId = CIASICIDGFXENGINE_ARCTICISLAND;
         m_pFormatPropertiesTable     = Gfx9::GetFormatPropertiesTable(m_chipProperties.gfxLevel,
                                                                       GetPlatform()->PlatformSettings());
@@ -1103,7 +1101,6 @@ static bool TestCuAlwaysOnBitmap(
     {
         for (uint32 shIndex = 0; shIndex < pDeviceInfo->num_shader_arrays_per_engine; shIndex++)
         {
-#if PAL_BUILD_GFX11
             // The cu_bitmap is a 4x4 array, so Linux KMD uses cu_bitmap[][2] and cu_bitmap[][3] to represent the mask
             // of SEs > 4 like this:
             //      |SE0 SH0|SE0 SH1|SE4 SH0|SE4 SH1|
@@ -1111,9 +1108,6 @@ static bool TestCuAlwaysOnBitmap(
             //      |SE2 SH0|SE2 SH1|...............
             //      |SE3 SH0|SE3 SH1|...............
             if (pDeviceInfo->cu_ao_bitmap[seIndex % 4][shIndex + 2 * (seIndex / 4)] != 0)
-#else
-            if (pDeviceInfo->cu_ao_bitmap[seIndex][shIndex] != 0)
-#endif
             {
                 result = true;
                 break;
@@ -1188,14 +1182,12 @@ void Device::InitGfx9ChipProperties()
 
             pChipInfo->gfx10.numTcpPerSa = 2 * wgpPerSa;
         }
-#if PAL_BUILD_GFX11
         else if (IsGfx11(m_chipProperties.gfxLevel))
         {
             pChipInfo->gfx10.numTcpPerSa    =  8; // GC__NUM_TCP_PER_SA
             pChipInfo->gfx10.numWgpAboveSpi =  4; // GC__NUM_WGP0_PER_SA
             pChipInfo->gfx10.numWgpBelowSpi =  0; // GC__NUM_WGP1_PER_SA
         }
-#endif
 
         InitGfx9CuMask(&deviceInfo);
     }
@@ -1228,7 +1220,7 @@ void Device::InitGfx9ChipProperties()
     if (m_gpuInfo.ids_flags & AMDGPU_IDS_FLAGS_PREEMPTION)
     {
         pUniversalEngProps->flags.supportsMidCmdBufPreemption = 1;
-#if PAL_BUILD_GFX11
+
         if ((deviceInfo.shadow_size != 0) && IsGfx11(*this))
         {
             m_chipProperties.gfx9.stateShadowingByCpFw          = 1;
@@ -1240,7 +1232,6 @@ void Device::InitGfx9ChipProperties()
             pUniversalEngProps->gdsSaveAreaSize                 = 0;
             pUniversalEngProps->gdsSaveAreaAlignment            = 0;
         }
-#endif
     }
     else
     {
@@ -1267,7 +1258,6 @@ void Device::InitGfx9CuMask(
     {
         for (uint32 shIndex = 0; shIndex < m_gpuInfo.num_shader_arrays_per_engine; shIndex++)
         {
-#if PAL_BUILD_GFX11
             // The cu_bitmap is a 4x4 array, so Linux KMD uses cu_bitmap[][2] and cu_bitmap[][3] to represent the mask
             // of SEs > 4 like this:
             //      |SE0 SH0|SE0 SH1|SE4 SH0|SE4 SH1|
@@ -1288,14 +1278,6 @@ void Device::InitGfx9CuMask(
             {
                 pChipInfo->alwaysOnCuMask[seIndex][shIndex] = pChipInfo->activeCuMask[seIndex][shIndex];
             }
-#else
-            pChipInfo->activeCuMask[seIndex][shIndex] = m_gpuInfo.cu_bitmap[seIndex][shIndex];
-
-            if (hasValidAoBitmap)
-            {
-                pChipInfo->alwaysOnCuMask[seIndex][shIndex] = pDeviceInfo->cu_ao_bitmap[seIndex][shIndex];
-            }
-#endif
             else
             {
                 constexpr uint32 AlwaysOnSeMaskSize = 16;
@@ -1791,7 +1773,6 @@ Result Device::InitQueueInfo()
                     fwSupportTaskShader = true;
                 }
             }
-#if PAL_BUILD_GFX11
             else if (IsGfx11(m_chipProperties.gfxLevel))
             {
                 if (m_chipProperties.pfpUcodeVersion >= 1549)
@@ -1799,7 +1780,6 @@ Result Device::InitQueueInfo()
                     fwSupportTaskShader = true;
                 }
             }
-#endif
 
             m_chipProperties.gfx9.supportMeshShader =  m_chipProperties.gfx9.supportImplicitPrimitiveShader;
             m_chipProperties.gfx9.supportTaskShader = (m_chipProperties.gfx9.supportImplicitPrimitiveShader &&
@@ -6585,7 +6565,6 @@ void Device::GetModifiersList(
 
         AddModifier(format, pModifierCount, pModifiersList, DRM_FORMAT_MOD_LINEAR);
     }
-#if PAL_BUILD_GFX11
     else if (IsGfx11(*this))
     {
         uint32 pipeXorBits = pGfx9Device->GetNumPipesLog2();
@@ -6777,7 +6756,6 @@ void Device::GetModifiersList(
 
         AddModifier(format, pModifierCount, pModifiersList, DRM_FORMAT_MOD_LINEAR);
     }
-#endif
 }
 
 } // Amdgpu

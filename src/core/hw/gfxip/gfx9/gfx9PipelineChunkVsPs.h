@@ -136,10 +136,8 @@ public:
         CmdStream* pCmdStream,
         uint32*    pCmdSpace) const;
 
-#if PAL_BUILD_GFX11
     void AccumulateShRegs(PackedRegisterPair* pRegPairs, uint32* pNumRegs) const;
     void AccumulateContextRegs(PackedRegisterPair* pRegPairs, uint32* pNumRegs) const;
-#endif
 
     bool UsesHwStreamout() const { return (m_regs.context.vgtStrmoutConfig.u32All != 0);  }
     regVGT_STRMOUT_VTX_STRIDE_0 VgtStrmoutVtxStride(uint32 idx) const
@@ -181,16 +179,13 @@ public:
 private:
     uint32* WriteShCommandsSetPathVs(CmdStream* pCmdStream, uint32* pCmdSpace) const;
     uint32* WriteShCommandsSetPathPs(CmdStream* pCmdStream, uint32* pCmdSpace) const;
-#if PAL_BUILD_GFX11
+
     void AccumulateShRegsPs(PackedRegisterPair* pRegPairs, uint32* pNumRegs) const;
-#endif
 
-    const Device&  m_device;
-
-    VsPsRegs m_regs;
-
-    SemanticInfo m_semanticInfo[MaxPsInputSemantics];
-    uint32       m_semanticCount;
+    const Device& m_device;
+    VsPsRegs      m_regs;
+    SemanticInfo  m_semanticInfo[MaxPsInputSemantics];
+    uint32        m_semanticCount;
 
     const PerfDataInfo*const  m_pVsPerfDataInfo;   // VS performance data information.
     const PerfDataInfo*const  m_pPsPerfDataInfo;   // PS performance data information.

@@ -36,7 +36,11 @@ def main(fileName, outputDir="./"):
 
     libraryDictAlts = None
 
-    procMgr  = proc.ProcMgr(fileName, libraryDict, needSpecializedInit=True, libraryDictAlts=libraryDictAlts)
+    procMgr  = proc.ProcMgr(fileName,
+                            libraryDict,
+                            needSpecializedInit=True,
+                            libraryDictAlts=libraryDictAlts,
+                            needsLibraryGetter=True)
 
     intro = "Modify the procAnalysis.py and drmLoader.py in the tools/generate directory OR drmLoader.proc instead"
 

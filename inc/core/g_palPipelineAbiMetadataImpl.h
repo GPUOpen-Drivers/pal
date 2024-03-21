@@ -2106,7 +2106,6 @@ inline Result DeserializeVgtShaderStagesEnMetadata(
                 break;
             }
 
-#if PAL_BUILD_GFX11
             case HashLiteralString(VgtShaderStagesEnMetadataKey::PrimgenPassthruNoMsg):
             {
                 PAL_ASSERT(pMetadata->hasEntry.primgenPassthruNoMsg == 0);
@@ -2121,8 +2120,6 @@ inline Result DeserializeVgtShaderStagesEnMetadata(
                 pMetadata->hasEntry.primgenPassthruNoMsg = (result == Result::Success);
                 break;
             }
-
-#endif
 
             default:
                 result = pReader->Skip(1);
@@ -2610,7 +2607,6 @@ inline Result DeserializeSpiPsInputCntlMetadata(
                     break;
                 }
 
-#if PAL_BUILD_GFX11
                 case HashLiteralString(SpiPsInputCntlMetadataKey::PrimAttr):
                 {
                     PAL_ASSERT(pMetadata[j].hasEntry.primAttr == 0);
@@ -2625,8 +2621,6 @@ inline Result DeserializeSpiPsInputCntlMetadata(
                     pMetadata[j].hasEntry.primAttr = (result == Result::Success);
                     break;
                 }
-
-#endif
                 default:
                     result = pReader->Skip(1);
                     break;
@@ -2638,7 +2632,6 @@ inline Result DeserializeSpiPsInputCntlMetadata(
     return result;
 }
 
-#if PAL_BUILD_GFX11
 // =====================================================================================================================
 inline Result DeserializeSpiShaderGsMeshletDimMetadata(
     MsgPackReader*  pReader,
@@ -2688,9 +2681,7 @@ inline Result DeserializeSpiShaderGsMeshletDimMetadata(
 
     return result;
 }
-#endif
 
-#if PAL_BUILD_GFX11
 // =====================================================================================================================
 inline Result DeserializeSpiShaderGsMeshletExpAllocMetadata(
     MsgPackReader*  pReader,
@@ -2728,7 +2719,6 @@ inline Result DeserializeSpiShaderGsMeshletExpAllocMetadata(
 
     return result;
 }
-#endif
 
 // =====================================================================================================================
 inline Result DeserializeVgtGsInstanceCntMetadata(
@@ -3405,7 +3395,6 @@ inline Result DeserializePaClVsOutCntlMetadata(
                 break;
             }
 
-#if PAL_BUILD_GFX11
             case HashLiteralString(PaClVsOutCntlMetadataKey::UseVtxFsrSelect):
             {
                 PAL_ASSERT(pMetadata->hasEntry.useVtxFsrSelect == 0);
@@ -3420,8 +3409,6 @@ inline Result DeserializePaClVsOutCntlMetadata(
                 pMetadata->hasEntry.useVtxFsrSelect = (result == Result::Success);
                 break;
             }
-
-#endif
 
             default:
                 result = pReader->Skip(1);
@@ -5078,7 +5065,6 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 pMetadata->hasEntry.vgtHosMaxTessLevel = (result == Result::Success);;
                 break;
 
-#if PAL_BUILD_GFX11
             case HashLiteralString(GraphicsRegisterMetadataKey::SpiShaderGsMeshletDim):
                 PAL_ASSERT(pMetadata->hasEntry.spiShaderGsMeshletDim == 0);
                 pReader->Next();
@@ -5087,9 +5073,6 @@ inline Result DeserializeGraphicsRegisterMetadata(
                     pMetadata->hasEntry.spiShaderGsMeshletDim = (result == Result::Success);
                 break;
 
-#endif
-
-#if PAL_BUILD_GFX11
             case HashLiteralString(GraphicsRegisterMetadataKey::SpiShaderGsMeshletExpAlloc):
                 PAL_ASSERT(pMetadata->hasEntry.spiShaderGsMeshletExpAlloc == 0);
                 pReader->Next();
@@ -5097,8 +5080,6 @@ inline Result DeserializeGraphicsRegisterMetadata(
                         pReader, &pMetadata->spiShaderGsMeshletExpAlloc);
                     pMetadata->hasEntry.spiShaderGsMeshletExpAlloc = (result == Result::Success);
                 break;
-
-#endif
 
             case HashLiteralString(GraphicsRegisterMetadataKey::MeshLinearDispatchFromTask):
             {

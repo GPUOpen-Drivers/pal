@@ -225,12 +225,10 @@ public:
     Gfx10DepthStencilView(Gfx10DepthStencilView&&) = default;
     Gfx10DepthStencilView& operator=(Gfx10DepthStencilView&&) = default;
 
-#if PAL_BUILD_GFX11
     static void SetGfx11StaticDbRenderControlFields(
         const Device&         device,
         const uint8           numFragments,
         regDB_RENDER_CONTROL* pDbRenderControl);
-#endif
 
     uint32* WriteCommands(
         ImageLayout            depthLayout,

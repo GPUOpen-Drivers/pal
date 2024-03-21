@@ -51,6 +51,9 @@
 #include "palTextWriterImpl.h"
 #include "palDepthStencilView.h"
 #include "palGpuMemory.h"
+#if PAL_BUILD_RDF
+#include "palTraceSession.h"
+#endif
 
 #include <limits.h>
 
@@ -179,10 +182,8 @@ bool Device::DetermineGpuIpLevels(
     case FAMILY_RMB:
     case FAMILY_RPL:
     case FAMILY_MDN:
-#if PAL_BUILD_GFX11
     case FAMILY_NV3:
     case FAMILY_PHX:
-#endif
         pIpLevels->gfx = Gfx9::DetermineIpLevel(familyId, eRevId, cpMicrocodeVersion);
         break;
 
@@ -520,22 +521,10 @@ Result Device::SetupPublicSettingDefaults()
     m_publicSettings.rpmViewsBypassMall                       = RpmViewsBypassMallOff;
     m_publicSettings.expandHiZRangeForResummarize             = false;
 
-    if (false
-#if PAL_BUILD_GFX11
-        || IsGfx11(gfxLevel)
-#endif
-        )
-    {
-        m_publicSettings.optDepthOnlyExportRate    = true;
-    }
-    else
-    {
-        m_publicSettings.optDepthOnlyExportRate    = false;
-    }
-
-    m_publicSettings.limitCbFetch256B   = false;
-    m_publicSettings.binningMode        = DeferredBatchBinAccurate;
-    m_publicSettings.customBatchBinSize = 0x800080;
+    m_publicSettings.optDepthOnlyExportRate = IsGfx104Plus(gfxLevel);
+    m_publicSettings.limitCbFetch256B       = false;
+    m_publicSettings.binningMode            = DeferredBatchBinAccurate;
+    m_publicSettings.customBatchBinSize     = 0x800080;
 
     {
         m_publicSettings.binningMaxPrimPerBatch = 1024;
@@ -585,9 +574,7 @@ Result Device::HwlEarlyInit()
         case GfxIpLevel::GfxIp9:
         case GfxIpLevel::GfxIp10_1:
         case GfxIpLevel::GfxIp10_3:
-#if PAL_BUILD_GFX11
         case GfxIpLevel::GfxIp11_0:
-#endif
             result = Gfx9::CreateDevice(this, pGfxPlacementAddr, &pfnTable, &m_pGfxDevice);
             break;
         default:
@@ -652,9 +639,7 @@ void Device::InitPerformanceRatings()
             break;
         case GfxIpLevel::GfxIp10_1:
         case GfxIpLevel::GfxIp10_3:
-#if PAL_BUILD_GFX11
         case GfxIpLevel::GfxIp11_0:
-#endif
             simdWidthMultiplier = 32;
             numShaderEngines    = m_chipProperties.gfx9.numShaderEngines;
             numShaderArrays     = m_chipProperties.gfx9.numShaderArrays;
@@ -792,9 +777,7 @@ void Device::GetHwIpDeviceSizes(
     case GfxIpLevel::GfxIp9:
     case GfxIpLevel::GfxIp10_1:
     case GfxIpLevel::GfxIp10_3:
-#if PAL_BUILD_GFX11
     case GfxIpLevel::GfxIp11_0:
-#endif
         pHwDeviceSizes->gfx = Gfx9::GetDeviceSize(ipLevels.gfx);
         *pAddrMgrSize       = AddrMgr2::GetSize();
         break;
@@ -2093,36 +2076,30 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.shaderCore.gsPrimBufferDepth    = gfx9Props.gsPrimBufferDepth;
             pInfo->gfxipProperties.shaderCore.gsVgtTableDepth      = gfx9Props.gsVgtTableDepth;
 
-            pInfo->gfxipProperties.shaderCore.flags.u32All = 0;
-            pInfo->gfxipProperties.shaderCore.flags.eccProtectedGprs = gfx9Props.eccProtectedGprs;
+            pInfo->gfxipProperties.shaderCore.flags.u32All                             = 0;
+            pInfo->gfxipProperties.shaderCore.flags.eccProtectedGprs                   = gfx9Props.eccProtectedGprs;
 
             // Tessellation distribution mode flags.
             pInfo->gfxipProperties.flags.supportPatchTessDistribution     = gfx9Props.supportPatchTessDistribution;
             pInfo->gfxipProperties.flags.supportDonutTessDistribution     = gfx9Props.supportDonutTessDistribution;
             pInfo->gfxipProperties.flags.supportTrapezoidTessDistribution = gfx9Props.supportTrapezoidTessDistribution;
 
-            pInfo->gfxipProperties.flags.supportMsaaCoverageOut         = gfx9Props.supportMsaaCoverageOut;
-            pInfo->gfxipProperties.flags.supportPostDepthCoverage       = gfx9Props.supportPostDepthCoverage;
-            pInfo->gfxipProperties.flags.supportSpiPrefPriority         = gfx9Props.supportSpiPrefPriority;
-            pInfo->gfxipProperties.flags.supportWaveBreakSize           = gfx9Props.supportCustomWaveBreakSize;
-            pInfo->gfxipProperties.flags.supportsPerShaderStageWaveSize = gfx9Props.supportPerShaderStageWaveSize;
-
-            pInfo->gfxipProperties.flags.support1xMsaaSampleLocations   = gfx9Props.support1xMsaaSampleLocations;
-            pInfo->gfxipProperties.flags.supportOutOfOrderPrimitives    = gfx9Props.supportOutOfOrderPrimitives;
-            pInfo->gfxipProperties.flags.supportTextureGatherBiasLod    = gfx9Props.supportTextureGatherBiasLod;
-
+            pInfo->gfxipProperties.flags.supportMsaaCoverageOut          = gfx9Props.supportMsaaCoverageOut;
+            pInfo->gfxipProperties.flags.supportPostDepthCoverage        = gfx9Props.supportPostDepthCoverage;
+            pInfo->gfxipProperties.flags.supportSpiPrefPriority          = gfx9Props.supportSpiPrefPriority;
+            pInfo->gfxipProperties.flags.supportWaveBreakSize            = gfx9Props.supportCustomWaveBreakSize;
+            pInfo->gfxipProperties.flags.supportsPerShaderStageWaveSize  = gfx9Props.supportPerShaderStageWaveSize;
+            pInfo->gfxipProperties.flags.support1xMsaaSampleLocations    = gfx9Props.support1xMsaaSampleLocations;
+            pInfo->gfxipProperties.flags.supportOutOfOrderPrimitives     = gfx9Props.supportOutOfOrderPrimitives;
+            pInfo->gfxipProperties.flags.supportTextureGatherBiasLod     = gfx9Props.supportTextureGatherBiasLod;
             pInfo->gfxipProperties.flags.supportIntersectRayBarycentrics = gfx9Props.supportIntersectRayBarycentrics;
-#if PAL_BUILD_GFX11
             pInfo->gfxipProperties.flags.supportRayTraversalStack        = gfx9Props.supportRayTraversalStack;
             pInfo->gfxipProperties.flags.supportPointerFlags             = gfx9Props.supportPointerFlags;
-#endif
-
-            pInfo->gfxipProperties.supportedVrsRates                     = gfx9Props.gfx10.supportedVrsRates;
-            pInfo->gfxipProperties.flags.supportVrsWithDsExports         = gfx9Props.gfx10.supportVrsWithDsExports ? 1 : 0;
-
-            pInfo->gfxipProperties.rayTracingIp    = gfx9Props.rayTracingIp;
-
             pInfo->gfxipProperties.flags.supportSortAgnosticBarycentrics = gfx9Props.supportSortAgnosticBarycentrics;
+            pInfo->gfxipProperties.flags.supportVrsWithDsExports         = gfx9Props.gfx10.supportVrsWithDsExports;
+
+            pInfo->gfxipProperties.supportedVrsRates = gfx9Props.gfx10.supportedVrsRates;
+            pInfo->gfxipProperties.rayTracingIp      = gfx9Props.rayTracingIp;
 
             PAL_ASSERT((gfx9Props.numShaderEngines <= MaxShaderEngines) &&
                        (gfx9Props.numShaderArrays  <= MaxShaderArraysPerSe));
@@ -4641,64 +4618,85 @@ void Device::ApplyDevOverlay(
 
     if (pDevDriverServer->IsConnected())
     {
-        // Get the RGPServer object
-        DevDriver::RGPProtocol::RGPServer* pRgpServer = pDevDriverServer->GetRGPServer();
-        // This pointer should always be valid if developer mode is enabled.
-        PAL_ASSERT(pRgpServer != nullptr);
-
-        // Check the profiling status
-        const char* pTraceStatusString = "Disabled";
-        if (pRgpServer->TracesEnabled())
-        {
-            pTraceStatusString = pRgpServer->IsTracePending() ? "Pending" : "Ready";
-        }
-
-        // Print the profiling status string
-        Util::Snprintf(overlayTextBuffer,
-                       OverlayTextBufferSize, "RGP Profiling: %s",
-                       pTraceStatusString);
-        m_pTextWriter->DrawDebugText(dstImage,
-                                     pCmdBuffer,
-                                     overlayTextBuffer,
-                                     0,
-                                     letterHeight);
-        letterHeight += GpuUtil::TextWriterFont::LetterHeight;
-
-        // Check the RMV trace status
-        const char* pRmvTraceStatusString = m_pPlatform->GetGpuMemoryEventProvider()->IsMemoryProfilingEnabled() ?
-            "Active": "Inactive";
-
-        // Print the RMV trace status string
-        Util::Snprintf(overlayTextBuffer,
-                       OverlayTextBufferSize, "RMV Tracing: %s",
-                       pRmvTraceStatusString);
-        m_pTextWriter->DrawDebugText(dstImage,
-                                     pCmdBuffer,
-                                     overlayTextBuffer,
-                                     0,
-                                     letterHeight);
-        letterHeight += GpuUtil::TextWriterFont::LetterHeight;
-
-        // Check Crash Analysis Status
-        const char* pRgdTraceStatusString = m_pPlatform->IsCrashAnalysisModeEnabled() ? "Active" : "Inactive";
-
-        //Print Crash Analysis Status
-        Util::Snprintf(overlayTextBuffer,
-                       OverlayTextBufferSize, "Crash Analysis: %s",
-                       pRgdTraceStatusString);
-        m_pTextWriter->DrawDebugText(dstImage,
-                                     pCmdBuffer,
-                                     overlayTextBuffer,
-                                     0,
-                                     letterHeight);
-        letterHeight += GpuUtil::TextWriterFont::LetterHeight;
-
-        // Write the device clock mode or write DevDriver messages:
-
+        // Write the original overlay details or write DevDriver messages:
         DriverUtilsService::DriverUtilsService* pUtilsService = m_pPlatform->GetDriverUtilsService();
 
         if (pUtilsService->UseOverlayBuffer() == false)
         {
+            // Get the RGPServer object
+            DevDriver::RGPProtocol::RGPServer* pRgpServer = pDevDriverServer->GetRGPServer();
+            // This pointer should always be valid if developer mode is enabled.
+            PAL_ASSERT(pRgpServer != nullptr);
+
+            // Check the profiling status
+            const char* pTraceStatusString = "Disabled";
+            if (pRgpServer->TracesEnabled())
+            {
+                pTraceStatusString = pRgpServer->IsTracePending() ? "Pending" : "Ready";
+            }
+
+            // Print the profiling status string
+            Snprintf(overlayTextBuffer,
+                     OverlayTextBufferSize, "RGP Profiling: %s",
+                     pTraceStatusString);
+            m_pTextWriter->DrawDebugText(dstImage,
+                                         pCmdBuffer,
+                                         overlayTextBuffer,
+                                         0,
+                                         letterHeight);
+            letterHeight += GpuUtil::TextWriterFont::LetterHeight;
+
+            // Check the RMV trace status
+            const char* pRmvTraceStatusString = m_pPlatform->GetGpuMemoryEventProvider()->IsMemoryProfilingEnabled() ?
+                "Active": "Inactive";
+
+            // Print the RMV trace status string
+            Snprintf(overlayTextBuffer,
+                     OverlayTextBufferSize, "RMV Tracing: %s",
+                     pRmvTraceStatusString);
+            m_pTextWriter->DrawDebugText(dstImage,
+                                         pCmdBuffer,
+                                         overlayTextBuffer,
+                                         0,
+                                         letterHeight);
+            letterHeight += GpuUtil::TextWriterFont::LetterHeight;
+
+#if PAL_BUILD_RDF
+            // Print the UberTrace status string
+            constexpr const char* pSessionStateTable[] = {
+                "Ready",
+                "Requested",
+                "Preparing",
+                "Running",
+                "Waiting",
+                "Completed"
+            };
+
+            static_assert(static_cast<uint32>(GpuUtil::TraceSessionState::Count) == ArrayLen32(pSessionStateTable));
+
+            const uint32 stateTableIdx = uint32(m_pPlatform->GetTraceSession()->GetTraceSessionState());
+
+            Snprintf(overlayTextBuffer, OverlayTextBufferSize,
+                     "UberTrace Tracing: %s", pSessionStateTable[stateTableIdx]);
+
+            m_pTextWriter->DrawDebugText(dstImage, pCmdBuffer, overlayTextBuffer, 0, letterHeight);
+            letterHeight += GpuUtil::TextWriterFont::LetterHeight;
+#endif
+
+            // Check Crash Analysis Status
+            const char* pRgdTraceStatusString = m_pPlatform->IsCrashAnalysisModeEnabled() ? "Active" : "Inactive";
+
+            // Print Crash Analysis Status
+            Snprintf(overlayTextBuffer,
+                     OverlayTextBufferSize, "Crash Analysis: %s",
+                     pRgdTraceStatusString);
+            m_pTextWriter->DrawDebugText(dstImage,
+                                         pCmdBuffer,
+                                         overlayTextBuffer,
+                                         0,
+                                         letterHeight);
+            letterHeight += GpuUtil::TextWriterFont::LetterHeight;
+
             // These labels differ from the DeviceClockMode enum name so as to match the names used by RDP.
             constexpr const char* pClockModeTable[] = {
                 "Unknown",          // Corresponds with DeviceClockMode::Unknown
@@ -4737,10 +4735,10 @@ void Device::ApplyDevOverlay(
             PAL_ASSERT(clockMode < DevDriver::DriverControlProtocol::DeviceClockMode::Count);
 
             // Print the clock mode on screen
-            Util::Snprintf(overlayTextBuffer,
-                           OverlayTextBufferSize,
-                           "Clock Mode: %s",
-                           pClockModeTable[static_cast<uint32>(clockMode)]);
+            Snprintf(overlayTextBuffer,
+                     OverlayTextBufferSize,
+                     "Clock Mode: %s",
+                     pClockModeTable[uint32(clockMode)]);
             m_pTextWriter->DrawDebugText(dstImage,
                                          pCmdBuffer,
                                          overlayTextBuffer,
@@ -4758,9 +4756,9 @@ void Device::ApplyDevOverlay(
 
                 if (strlen(pStr) > 0)
                 {
-                    Util::Snprintf(overlayTextBuffer,
-                                   OverlayTextBufferSize, "%s",
-                                   pStr);
+                    Snprintf(overlayTextBuffer,
+                             OverlayTextBufferSize, "%s",
+                             pStr);
 
                     m_pTextWriter->DrawDebugText(dstImage,
                                                  pCmdBuffer,
@@ -4775,7 +4773,7 @@ void Device::ApplyDevOverlay(
         }
 
         // Print the client string and Client Id on screen
-        Util::Snprintf(overlayTextBuffer,
+        Snprintf(overlayTextBuffer,
             OverlayTextBufferSize,
             "Client: %s",
             m_pPlatform->GetClientApiStr());
@@ -4786,10 +4784,10 @@ void Device::ApplyDevOverlay(
             letterHeight);
         letterHeight += GpuUtil::TextWriterFont::LetterHeight;
 
-        Util::Snprintf(overlayTextBuffer,
-                       OverlayTextBufferSize,
-                       "Client Id: %d",
-                       m_devDriverClientId);
+        Snprintf(overlayTextBuffer,
+                 OverlayTextBufferSize,
+                 "Client Id: %d",
+                 m_devDriverClientId);
         m_pTextWriter->DrawDebugText(dstImage,
                                      pCmdBuffer,
                                      overlayTextBuffer,
@@ -4811,11 +4809,11 @@ void Device::ApplyDevOverlay(
     // If the setting is enabled, display a visual confirmation of HDR Mode
     if (Settings().overlayReportHdr)
     {
-        Util::Snprintf(overlayTextBuffer,
-                       OverlayTextBufferSize,
-                       "HDR: %s - Colorspace Format: %u",
-                       UsingHdrColorspaceFormat() ? "Enabled" : "Disabled",
-                       m_hdrColorspaceFormat);
+        Snprintf(overlayTextBuffer,
+                 OverlayTextBufferSize,
+                 "HDR: %s - Colorspace Format: %u",
+                 UsingHdrColorspaceFormat() ? "Enabled" : "Disabled",
+                 m_hdrColorspaceFormat);
 
         m_pTextWriter->DrawDebugText(dstImage,
                                      pCmdBuffer,
@@ -4828,12 +4826,12 @@ void Device::ApplyDevOverlay(
     // If the setting is enabled, display a visual confirmation of MES HWS Mode (only for supported HW)
     if (Settings().overlayReportMes && (ChipProperties().gfxLevel >= GfxIpLevel::GfxIp10_1))
     {
-        Util::Snprintf(overlayTextBuffer,
-                       OverlayTextBufferSize,
-                       "MES HWS: %s",
-                       (GetHwsInfo().gfxHwsEnabled     ||
-                        GetHwsInfo().computeHwsEnabled ||
-                        GetHwsInfo().dmaHwsEnabled) ? "Enabled" : "Disabled");
+        Snprintf(overlayTextBuffer,
+                 OverlayTextBufferSize,
+                 "MES HWS: %s",
+                 (GetHwsInfo().gfxHwsEnabled     ||
+                  GetHwsInfo().computeHwsEnabled ||
+                  GetHwsInfo().dmaHwsEnabled) ? "Enabled" : "Disabled");
 
         m_pTextWriter->DrawDebugText(dstImage,
                                      pCmdBuffer,
@@ -5049,8 +5047,6 @@ bool Device::EnableDisplayDcc(
     return enable;
 }
 
-#if PAL_BUILD_GFX11
-
 // =====================================================================================================================
 bool Device::UsePws(
     EngineType engineType
@@ -5068,7 +5064,5 @@ bool Device::UsePwsLateAcquirePoint(
     return m_engineProperties.perEngine[engineType].flags.supportsPws &&
            (m_publicSettings.pwsMode == PwsMode::Enabled);
 }
-
-#endif
 
 } // Pal

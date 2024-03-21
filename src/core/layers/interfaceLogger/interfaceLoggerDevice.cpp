@@ -1737,11 +1737,9 @@ Result Device::CreateShaderLibrary(
 
 // =====================================================================================================================
 size_t Device::GetMsaaStateSize(
-    const MsaaStateCreateInfo& createInfo,
-    Result*                    pResult
     ) const
 {
-    return m_pNextLayer->GetMsaaStateSize(createInfo, pResult) + sizeof(MsaaState);
+    return m_pNextLayer->GetMsaaStateSize() + sizeof(MsaaState);
 }
 
 // =====================================================================================================================
@@ -1793,11 +1791,9 @@ Result Device::CreateMsaaState(
 
 // =====================================================================================================================
 size_t Device::GetColorBlendStateSize(
-    const ColorBlendStateCreateInfo& createInfo,
-    Result*                          pResult
     ) const
 {
-    return m_pNextLayer->GetColorBlendStateSize(createInfo, pResult) + sizeof(ColorBlendState);
+    return m_pNextLayer->GetColorBlendStateSize() + sizeof(ColorBlendState);
 }
 
 // =====================================================================================================================
@@ -1849,11 +1845,9 @@ Result Device::CreateColorBlendState(
 
 // =====================================================================================================================
 size_t Device::GetDepthStencilStateSize(
-    const DepthStencilStateCreateInfo& createInfo,
-    Result*                            pResult
     ) const
 {
-    return m_pNextLayer->GetDepthStencilStateSize(createInfo, pResult) + sizeof(DepthStencilState);
+    return m_pNextLayer->GetDepthStencilStateSize() + sizeof(DepthStencilState);
 }
 
 // =====================================================================================================================

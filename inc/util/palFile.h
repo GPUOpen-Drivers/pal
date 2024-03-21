@@ -49,6 +49,7 @@ enum FileAccessMode : uint32
     FileAccessAppend    = 0x4,  ///< Append access.
     FileAccessBinary    = 0x8,  ///< Binary access.
     FileAccessNoDiscard = 0x10, ///< Don't discard existing file.
+    FileAccessShared    = 0x20, ///< Require shared file access (simultaneous reading/writing by more than one process)
 };
 
 /**
@@ -98,7 +99,7 @@ public:
         End     = SEEK_END
     };
 
-    File() : m_pFileHandle(nullptr) {}
+    File() : m_pFileHandle(nullptr), m_ownsHandle(false) {}
 
     /// Closes the file if it is still open.
     ~File() { Close(); }
@@ -110,6 +111,15 @@ public:
     ///
     /// @returns Success if successful, otherwise an appropriate error.
     Result Open(const char* pFilename, uint32 accessFlags);
+
+    /// Borrows an externally opened C runtime file handle for use by a File object.
+    ///
+    /// The caller is still responsible for closing this handle after the File object is destroyed.
+    ///
+    /// @param [in] pFile Externally opened C runtime file handle to borrow.
+    ///
+    /// @returns Success if successful, otherwise an appropriate error.
+    Result FromNative(std::FILE* pFile);
 
     /// Closes the file handle.
     void Close();
@@ -248,6 +258,7 @@ public:
 
 private:
     std::FILE* m_pFileHandle;
+    bool       m_ownsHandle; // This object owns the file handle and will close it on destruction.
 
     PAL_DISALLOW_COPY_AND_ASSIGN(File);
 };

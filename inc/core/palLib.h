@@ -47,7 +47,7 @@
 #endif
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MAJOR_VERSION 849
+#define PAL_INTERFACE_MAJOR_VERSION 858
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 831
 /// Minor interface version.  Note that the interface version is distinct from the PAL version itself, which is returned
@@ -120,15 +120,11 @@ enum class NullGpuId : uint32
     Navi23           = 0x11,
     Navi24           = 0x12,
     Rembrandt        = 0x14,
-#if PAL_BUILD_GFX11
     Navi31           = 0x1A,
     Navi32           = 0x1B,
     Navi33           = 0x1C,
-#endif
     Raphael          = 0x1E,
-#if PAL_BUILD_GFX11
     Phoenix1         = 0x1F,
-#endif
 
     Max = 0x27,
     All = 0x28,
@@ -152,9 +148,7 @@ enum class GfxIpLevel : uint32
     GfxIp9    = 0x5,
     GfxIp10_1 = 0x7,
     GfxIp10_3 = 0x9,
-#if PAL_BUILD_GFX11
     GfxIp11_0 = 0xC,
-#endif
 };
 
 /// Specifies the hardware revision.  Enumerations are in family order (Southern Islands, Sea Islands, Kaveri,
@@ -205,16 +199,12 @@ enum class AsicRevision : uint32
     Navi22           = 0x25,
     Navi23           = 0x26,
     Navi24           = 0x27,
-#if PAL_BUILD_GFX11
     Navi31           = 0x2C,
     Navi32           = 0x2D,
     Navi33           = 0x2E,
-#endif
     Rembrandt        = 0x2F,
     Raphael          = 0x34,
-#if PAL_BUILD_GFX11
     Phoenix1         = 0x35,
-#endif
 };
 
 /// Maps a null GPU ID to its associated text name.

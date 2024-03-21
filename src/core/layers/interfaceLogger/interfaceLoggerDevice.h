@@ -224,23 +224,17 @@ public:
         const ShaderLibraryCreateInfo& createInfo,
         void*                          pPlacementAddr,
         IShaderLibrary**               ppLibrary) override;
-    virtual size_t GetMsaaStateSize(
-        const MsaaStateCreateInfo& createInfo,
-        Result*                    pResult) const override;
+    virtual size_t GetMsaaStateSize() const override;
     virtual Result CreateMsaaState(
         const MsaaStateCreateInfo& createInfo,
         void*                      pPlacementAddr,
         IMsaaState**               ppMsaaState) const override;
-    virtual size_t GetColorBlendStateSize(
-        const ColorBlendStateCreateInfo& createInfo,
-        Result*                          pResult) const override;
+    virtual size_t GetColorBlendStateSize() const override;
     virtual Result CreateColorBlendState(
         const ColorBlendStateCreateInfo& createInfo,
         void*                            pPlacementAddr,
         IColorBlendState**               ppColorBlendState) const override;
-    virtual size_t GetDepthStencilStateSize(
-        const DepthStencilStateCreateInfo& createInfo,
-        Result*                            pResult) const override;
+    virtual size_t GetDepthStencilStateSize() const override;
     virtual Result CreateDepthStencilState(
         const DepthStencilStateCreateInfo& createInfo,
         void*                              pPlacementAddr,

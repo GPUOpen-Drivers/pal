@@ -1298,14 +1298,13 @@ void CmdBuffer::CmdWaitRegisterValue(
 
 // =====================================================================================================================
 void CmdBuffer::CmdWaitMemoryValue(
-    const IGpuMemory& gpuMemory,
-    gpusize           offset,
-    uint32            data,
-    uint32            mask,
-    CompareFunc       compareFunc)
+    gpusize     gpuVirtAddr,
+    uint32      data,
+    uint32      mask,
+    CompareFunc compareFunc)
 {
     PreCall();
-    CmdBufferFwdDecorator::CmdWaitMemoryValue(gpuMemory, offset, data, mask, compareFunc);
+    CmdBufferFwdDecorator::CmdWaitMemoryValue(gpuVirtAddr, data, mask, compareFunc);
     PostCall(CmdBufCallId::CmdWaitMemoryValue);
 }
 

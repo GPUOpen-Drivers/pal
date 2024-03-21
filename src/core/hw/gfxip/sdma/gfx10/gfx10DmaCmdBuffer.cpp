@@ -1266,7 +1266,6 @@ uint32* DmaCmdBuffer::WriteFillMemoryCmd(
 
         packet.COUNT_UNION.gfx10x.count     = *pBytesCopied - 1;
     }
-#if PAL_BUILD_GFX11
     else
     {
         // Because we will set fillsize = 2, the low two bits of our "count" are ignored, but we still program
@@ -1279,7 +1278,6 @@ uint32* DmaCmdBuffer::WriteFillMemoryCmd(
 
         packet.COUNT_UNION.gfx11.count      = *pBytesCopied - 1;
     }
-#endif
 
     if (m_pDevice->MemoryProperties().flags.supportsMall != 0)
     {

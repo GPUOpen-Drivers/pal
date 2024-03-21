@@ -171,10 +171,8 @@ uint32* ColorTargetView::WriteUpdateFastClearColor(
     uint32*      pCmdSpace
     ) const
 {
-#if PAL_BUILD_GFX11
     // These registers physically exist on GFX11 (for now...) but don't do anything.
     if (IsGfx11(m_gfxLevel) == false)
-#endif
     {
         const uint32 slotOffset = (slot * CbRegsPerSlot);
 
@@ -238,12 +236,10 @@ regCB_COLOR0_INFO ColorTargetView::InitCbColorInfo(
         cbColorInfo.gfx09_10.ENDIAN  = ENDIAN_NONE;
         cbColorInfo.gfx09_10.FORMAT  = Formats::Gfx9::HwColorFmt(pFmtInfo, m_swizzledFormat.format);
     }
-#if PAL_BUILD_GFX11
     else
     {
         cbColorInfo.gfx11.FORMAT     = Formats::Gfx9::HwColorFmt(pFmtInfo, m_swizzledFormat.format);
     }
-#endif
 
     cbColorInfo.bits.NUMBER_TYPE = Formats::Gfx9::ColorSurfNum(pFmtInfo, m_swizzledFormat.format);
     cbColorInfo.bits.COMP_SWAP   = Formats::Gfx9::ColorCompSwap(m_swizzledFormat);
@@ -313,9 +309,7 @@ void ColorTargetView::InitCommonImageView(
         regCB_COLOR0_DCC_CONTROL dccControl = m_pImage->GetDcc(m_subresource.plane)->GetControlReg();
         const SubResourceInfo*const pSubResInfo = m_pImage->Parent()->SubresourceInfo(m_subresource);
         if (IsGfx091xPlus(palDevice)      &&
-#if PAL_BUILD_GFX11
             (IsGfx11(palDevice) == false) &&
-#endif
             (internalInfo.flags.fastClearElim || pSubResInfo->flags.supportMetaDataTexFetch))
         {
             // Without this, the CB will not expand the compress-to-register (0x20) keys.
@@ -392,9 +386,7 @@ void ColorTargetView::UpdateImageVa(
 
                 if (m_pImage->HasFastClearMetaData(m_subresource.plane))
                 {
-#if PAL_BUILD_GFX11
                     PAL_ASSERT(IsGfx11(palDevice) == false);
-#endif
 
                     // Invariant: On Gfx10 (and gfx9), if we have DCC we also have fast clear metadata.
                     pRegs->fastClearMetadataGpuVa = m_pImage->FastClearMetaDataAddr(m_subresource);
@@ -420,9 +412,7 @@ void ColorTargetView::UpdateImageVa(
             {
                 if (m_pImage->HasFastClearMetaData(m_subresource.plane))
                 {
-#if PAL_BUILD_GFX11
                     PAL_ASSERT(IsGfx11(palDevice) == false);
-#endif
 
                     // Invariant: On Gfx10 (and gfx9), if we have DCC we also have fast clear metadata.
                     pRegs->fastClearMetadataGpuVa = m_pImage->FastClearMetaDataAddr(m_subresource);
@@ -498,12 +488,10 @@ uint32* ColorTargetView::WriteCommandsCommon(
                 // CB_COLOR_DCC_CONTROL.
                 pRegs->cbColorInfo.u32All      &= ~CbColorInfoDecompressedMask;
             }
-#if PAL_BUILD_GFX11
             else
             {
                 // GFX11 doesn't have fmask or a "compression" field; DCC_ENABLE has moved to CB_COLOR_FDCC_CONTROL.
             }
-#endif
         }
     } // if isBufferView == 0
 
@@ -914,7 +902,6 @@ bool Gfx10ColorTargetView::IsFmaskBigPage() const
                         : IsFmaskBigPageCompatible(*m_pImage, Gfx10AllowBigPageRenderTarget);
 }
 
-#if PAL_BUILD_GFX11
 // =====================================================================================================================
 Gfx11ColorTargetView::Gfx11ColorTargetView(
     const Device*                     pDevice,
@@ -1166,7 +1153,6 @@ bool Gfx11ColorTargetView::IsColorBigPage() const
                 ? m_flags.colorBigPage
                 : IsImageBigPageCompatible(*m_pImage, Gfx10AllowBigPageRenderTarget);
 }
-#endif
 
 } // Gfx9
 } // Pal

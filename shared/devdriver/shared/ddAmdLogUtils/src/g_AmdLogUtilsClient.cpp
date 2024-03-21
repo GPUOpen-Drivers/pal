@@ -135,3 +135,54 @@ DD_RESULT AmdLogUtilsClient::SetClockMode(
 
     return result;
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+DD_RESULT AmdLogUtilsClient::QueryEnhancedCrashInfoConfig(
+    const DDByteWriter& writer
+)
+{
+    // No parameter
+    const void* pParamBuffer     = nullptr;
+    const size_t paramBufferSize = 0;
+
+    const DDByteWriter* pResponseWriter = &writer;
+
+    DDRpcClientCallInfo info  = {};
+    info.service              = 0x676f6c64;
+    info.serviceVersion.major = 0;
+    info.serviceVersion.minor = 1;
+    info.serviceVersion.patch = 0;
+    info.function             = 0x4;
+    info.pParamBuffer         = pParamBuffer;
+    info.paramBufferSize      = paramBufferSize;
+    info.pResponseWriter      = pResponseWriter;
+
+    const DD_RESULT result = ddRpcClientCall(m_hClient, &info);
+
+    return result;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+DD_RESULT AmdLogUtilsClient::SetEnhancedCrashInfoConfig(
+    const void* pParamBuffer,
+    size_t      paramBufferSize
+)
+{
+    // No return
+    EmptyByteWriter<DD_RESULT_DD_RPC_FUNC_RESPONSE_REJECTED> writer;
+    const DDByteWriter* pResponseWriter = writer.Writer();
+
+    DDRpcClientCallInfo info  = {};
+    info.service              = 0x676f6c64;
+    info.serviceVersion.major = 0;
+    info.serviceVersion.minor = 1;
+    info.serviceVersion.patch = 0;
+    info.function             = 0x5;
+    info.pParamBuffer         = pParamBuffer;
+    info.paramBufferSize      = paramBufferSize;
+    info.pResponseWriter      = pResponseWriter;
+
+    const DD_RESULT result = ddRpcClientCall(m_hClient, &info);
+
+    return result;
+}

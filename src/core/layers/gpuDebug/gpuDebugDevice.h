@@ -173,9 +173,7 @@ public:
         void*                             pPlacementAddr,
         IDepthStencilView**               ppDepthStencilView) const override;
 
-    virtual size_t GetColorBlendStateSize(
-        const ColorBlendStateCreateInfo& createInfo,
-        Result*                          pResult) const override;
+    virtual size_t GetColorBlendStateSize() const override;
 
     virtual Result CreateColorBlendState(
         const ColorBlendStateCreateInfo& createInfo,

@@ -877,9 +877,7 @@ enum class RayTracingIpLevel : uint32
 
     RtIp1_0 = 0x1,     ///< First Implementation of HW RT
     RtIp1_1 = 0x2,     ///< Added computation of triangle barycentrics into HW
-#if PAL_BUILD_GFX11
     RtIp2_0 = 0x3,     ///< Added more Hardware RayTracing features, such as BoxSort, PointerFlag, etc
-#endif
 };
 
 /// Reports various properties of a particular IDevice to the client.  @see IDevice::GetProperties.
@@ -1339,13 +1337,9 @@ struct DeviceProperties
                 uint64 supportSortAgnosticBarycentrics    :  1; ///< HW supports sort-agnostic Barycentrics for PS
                 uint64 supportVrsWithDsExports            :  1; ///< If true, asic support coarse VRS rates
                                                                 ///  when z or stencil exports are enabled
-#if PAL_BUILD_GFX11
                 uint64 supportRayTraversalStack           :  1; ///< HW assisted ray tracing traversal stack support
                 uint64 supportPointerFlags                :  1; ///< Ray tracing HW supports flags embedded in the node
                                                                 ///  pointer bits
-#else
-                uint64 placeholder11                      :  2; ///< Placeholder, do not use
-#endif
                 uint64 supportTextureGatherBiasLod        :  1; ///< HW supports SQ_IMAGE_GATHER4_L_O
                 uint64 supportInt8Dot                     :  1; ///< Hardware supports a dot product 8bit.
                 uint64 supportInt4Dot                     :  1; ///< Hardware supports a dot product 4bit.
@@ -1407,8 +1401,10 @@ struct DeviceProperties
             {
                 struct
                 {
-                    uint32 eccProtectedGprs :  1; ///< Whether or not the GPU has ECC protection on its VGPR's
-                    uint32 reserved         : 31; ///< Reserved for future use.
+                    uint32 eccProtectedGprs                    :  1; ///< Whether or not the GPU has ECC protection
+                                                                     ///< on its VGPR's
+                    uint32 placeholder0                        :  1;
+                    uint32 reserved                            : 30; ///< Reserved for future use.
                 };
                 uint32     u32All;                ///< Flags packed as a 32-bit unsigned integer.
             } flags;
@@ -2200,11 +2196,7 @@ struct BvhInfo
             /// only on GPUs that have supportsMall set in DeviceProperties.
             uint32    bypassMallRead        :  1;
             uint32    bypassMallWrite       :  1;
-#if PAL_BUILD_GFX11
             uint32    pointerFlags          :  1; ///< If set, flags are encoded in the node pointer bits
-#else
-            uint32    placeholder           :  1; ///< Reserved for future HW
-#endif
 
             uint32    placeholder2          :  4;
 
@@ -4461,15 +4453,26 @@ public:
     /// Determines the amount of system memory required for a MSAA state object.  An allocation of this amount of memory
     /// must be provided in the pPlacementAddr parameter of CreateMsaaState().
     ///
-    /// @param [in]  createInfo MSAA state creation properties.
-    /// @param [out] pResult    The validation result if pResult is non-null. This argument can be null to avoid
-    ///                         the additional validation.
-    ///
-    /// @returns Size, in bytes, of system memory required for an @ref IMsaaState object with the specified properties.
-    ///          A return value of 0 indicates the createInfo was invalid.
+    /// @returns Size, in bytes, of system memory required for an @ref IMsaaState object.
+    ///          This value will always be non-zero if the device has GfxIp support.
+    virtual size_t GetMsaaStateSize() const = 0;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 855
     virtual size_t GetMsaaStateSize(
         const MsaaStateCreateInfo& createInfo,
-        Result*                    pResult) const = 0;
+        Result*                    pResult
+        ) const
+    {
+        const size_t size = GetMsaaStateSize();
+
+        if (pResult != nullptr)
+        {
+            *pResult = (size > 0) ? Result::Success : Result::ErrorUnknown;
+        }
+
+        return size;
+    }
+#endif
 
     /// Creates an @ref IMsaaState object with the requested properties.
     ///
@@ -4493,15 +4496,26 @@ public:
     /// Determines the amount of system memory required for a color blend state object.  An allocation of this amount of
     /// memory must be provided in the pPlacementAddr parameter of CreateColorBlendState().
     ///
-    /// @param [in]  createInfo Color blend state creation properties.
-    /// @param [out] pResult    The validation result if pResult is non-null. This argument can be null to avoid the
-    ///                         additional validation.
-    ///
-    /// @returns Size, in bytes, of system memory required for an @ref IColorBlendState object with the specified
-    ///          properties.  A return value of 0 indicates the createInfo was invalid.
+    /// @returns Size, in bytes, of system memory required for an @ref IColorBlendState object.
+    ///          This value will always be non-zero if the device has GfxIp support.
+    virtual size_t GetColorBlendStateSize() const = 0;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 855
     virtual size_t GetColorBlendStateSize(
         const ColorBlendStateCreateInfo& createInfo,
-        Result*                          pResult) const = 0;
+        Result*                          pResult
+        ) const
+    {
+        const size_t size = GetColorBlendStateSize();
+
+        if (pResult != nullptr)
+        {
+            *pResult = (size > 0) ? Result::Success : Result::ErrorUnknown;
+        }
+
+        return size;
+    }
+#endif
 
     /// Creates an @ref IColorBlendState object with the requested properties.
     ///
@@ -4525,15 +4539,26 @@ public:
     /// Determines the amount of system memory required for a depth/stencil state object.  An allocation of this amount
     /// of memory must be provided in the pPlacementAddr parameter of CreateDepthStencilState().
     ///
-    /// @param [in]  createInfo Depth/stencil state creation properties.
-    /// @param [out] pResult    The validation result if pResult is non-null. This argument can be null to avoid
-    ///                         the additional validation.
-    ///
-    /// @returns Size, in bytes, of system memory required for an @ref IDepthStencilState object with the specified
-    ///          properties.  A return value of 0 indicates the createInfo was invalid.
+    /// @returns Size, in bytes, of system memory required for an @ref IDepthStencilState object.
+    ///          This value will always be non-zero if the device has GfxIp support.
+    virtual size_t GetDepthStencilStateSize() const = 0;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 855
     virtual size_t GetDepthStencilStateSize(
         const DepthStencilStateCreateInfo& createInfo,
-        Result*                            pResult) const = 0;
+        Result*                            pResult
+        ) const
+    {
+        const size_t size = GetDepthStencilStateSize();
+
+        if (pResult != nullptr)
+        {
+            *pResult = (size > 0) ? Result::Success : Result::ErrorUnknown;
+        }
+
+        return size;
+    }
+#endif
 
     /// Creates an @ref IDepthStencilState object with the requested properties.
     ///

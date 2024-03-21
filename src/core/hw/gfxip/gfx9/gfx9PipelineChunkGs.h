@@ -50,10 +50,9 @@ struct GsRegs
         regSPI_SHADER_PGM_CHKSUM_GS        spiShaderPgmChksumGs;
         regSPI_SHADER_USER_DATA_GS_0       userDataInternalTable;
         regSPI_SHADER_USER_DATA_GS_0       userDataLdsEsGsSize;
-#if PAL_BUILD_GFX11
         regSPI_SHADER_GS_MESHLET_DIM       spiShaderGsMeshletDim;
         regSPI_SHADER_GS_MESHLET_EXP_ALLOC spiShaderGsMeshletExpAlloc;
-#endif
+
         uint16  ldsEsGsSizeRegAddrGs;
         uint16  ldsEsGsSizeRegAddrVs;
     } sh;
@@ -132,7 +131,6 @@ public:
         CmdStream* pCmdStream,
         uint32*    pCmdSpace) const;
 
-#if PAL_BUILD_GFX11
     void AccumulateShRegs(
         PackedRegisterPair* pRegPairs,
         uint32*             pNumRegs,
@@ -140,7 +138,6 @@ public:
     void AccumulateContextRegs(
         PackedRegisterPair* pRegPairs,
         uint32*             pNumRegs) const;
-#endif
 
     uint32 GsVsRingItemSize() const { return m_regs.context.vgtGsVsRingItemSize.bits.ITEMSIZE; }
 

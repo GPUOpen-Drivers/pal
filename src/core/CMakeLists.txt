@@ -59,9 +59,14 @@ target_sources(pal PRIVATE
     dmaCmdBuffer.h
     dmaUploadRing.cpp
     dmaUploadRing.h
+    driverUtilsService.cpp
+    driverUtilsService.h
     engine.cpp
     engine.h
     eventDefs.h
+    experimentsLoader.cpp
+    experimentsLoader.h
+    experiments_settings.json
     fence.cpp
     fence.h
     formatInfo.cpp
@@ -110,6 +115,4 @@ target_sources(pal PRIVATE
     swapChain.h
     vamMgr.cpp
     vamMgr.h
-    driverUtilsService.h
-    driverUtilsService.cpp
 )

@@ -137,6 +137,28 @@ void PlatformSettingsLoader::OverrideDefaults()
 }
 
 // =====================================================================================================================
+// Applies any experiments that are set. This routine is called separately from override defaults, because the loader
+// won't be registered until after override defaults has completed.
+void PlatformSettingsLoader::ApplyExperiments()
+{
+    const PalExperimentsSettings& expSettings = m_pPlatform->GetExpSettings();
+
+    if (expSettings.expFlushInvalidateCacheOnCommand.HasValue())
+    {
+        // If these values are modified, ensure that the final experiment values are as well
+        static_assert(ExpBeforeDraw     == static_cast<ExpBeforeAfterAction>(BeforeDraw));
+        static_assert(ExpAfterDraw      == static_cast<ExpBeforeAfterAction>(AfterDraw));
+        static_assert(ExpBeforeDispatch == static_cast<ExpBeforeAfterAction>(BeforeDispatch));
+        static_assert(ExpAfterDispatch  == static_cast<ExpBeforeAfterAction>(AfterDispatch));
+        static_assert(ExpBeforeBarrier  == static_cast<ExpBeforeAfterAction>(BeforeBarrier));
+        static_assert(ExpAfterBarrier   == static_cast<ExpBeforeAfterAction>(AfterBarrier));
+        static_assert(ExpBeforeBlt      == static_cast<ExpBeforeAfterAction>(BeforeBlt));
+        static_assert(ExpAfterBlt       == static_cast<ExpBeforeAfterAction>(AfterBlt));
+        m_settings.gpuDebugConfig.cacheFlushInvOnAction = expSettings.expFlushInvalidateCacheOnCommand.Value();
+    }
+}
+
+// =====================================================================================================================
 // Validates that the settings structure has legal values. Variables that require complicated initialization can also be
 // initialized here.
 void PlatformSettingsLoader::ValidateSettings(
@@ -190,6 +212,10 @@ void PlatformSettingsLoader::ValidateSettings(
         m_settings.cmdBufferLoggerConfig.cmdBufferLoggerAnnotations = 0x0;
     }
 #endif
+    // Final step of settings, update the experiment values:
+    PalExperimentsSettings* pExpSettings = m_pPlatform->GetExpSettingsPtr();
+    pExpSettings->expFlushInvalidateCacheOnCommand
+        = static_cast<ExpBeforeAfterAction>(m_settings.gpuDebugConfig.cacheFlushInvOnAction);
 }
 
 // =====================================================================================================================

@@ -207,7 +207,7 @@ Result Image::CreatePresentableImage(
         imgCreateInfo.pViewFormats          = createInfo.pViewFormats;
         imgCreateInfo.flags.flippable       = 1;
         imgCreateInfo.flags.presentable     = 1;
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 811) && PAL_BUILD_GFX11
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 811
         imgCreateInfo.flags.enable256KBSwizzleModes = createInfo.flags.enable256KBSwizzleModes;
 #endif
 

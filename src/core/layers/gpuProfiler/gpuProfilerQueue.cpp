@@ -1317,9 +1317,19 @@ void Queue::ProcessIdleSubmits()
         for (uint32 i = 0; i < submitInfo.gpaSessionCount; i++)
         {
             GpuUtil::GpaSession* pGpaSession = nullptr;
+            const auto&          settings    = pPlatform->PlatformSettings();
+
             m_busyGpaSessions.PopFront(&pGpaSession);
-            pGpaSession->Reset();
-            m_availableGpaSessions.PushBack(pGpaSession);
+
+            if (settings.gpuProfilerConfig.disableGpaSessionReuse)
+            {
+                PAL_SAFE_DELETE(pGpaSession, pPlatform);
+            }
+            else
+            {
+                pGpaSession->Reset();
+                m_availableGpaSessions.PushBack(pGpaSession);
+            }
         }
 
         m_pDevice->ResetFences(1, &submitInfo.pFence);
@@ -1419,10 +1429,8 @@ Result Queue::BuildGpaSessionSampleConfig()
     m_gpaSessionSampleConfig.flags.sqShaderMask = 1;
     m_gpaSessionSampleConfig.sqShaderMask       = PerfShaderMaskAll;
 
-#if PAL_BUILD_GFX11
     m_gpaSessionSampleConfig.flags.sqWgpShaderMask = 1;
     m_gpaSessionSampleConfig.sqWgpShaderMask       = PerfShaderMaskAll;
-#endif
 
     PerfExperimentProperties perfExpProps;
     Result result = m_pDevice->GetPerfExperimentProperties(&perfExpProps);

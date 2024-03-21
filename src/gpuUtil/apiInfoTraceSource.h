@@ -35,34 +35,40 @@ namespace Pal
 class Platform;
 }
 
-enum class TraceApiType : Pal::uint32
-{
-    DIRECTX_9  = 0,
-    DIRECTX_11 = 1,
-    DIRECTX_12 = 2,
-    VULKAN     = 3,
-    OPENGL     = 4,
-    OPENCL     = 5,
-    MANTLE     = 6,
-    GENERIC    = 7
-};
-
-/// Api Info struct, based off of SqttFileChunkApiInfo. This is to be mapped to the RDF-based TraceChunkInfo
-/// in TraceSession.
-struct TraceChunkApiInfo
-{
-    TraceApiType apiType;
-    uint16_t     apiVersionMajor; // Major client API version
-    uint16_t     apiVersionMinor; // Minor client API version
-};
-
 namespace GpuUtil
 {
 
-constexpr char ApiInfoTraceSourceName[] = "apiinfo";
-constexpr Pal::uint32 ApiInfoTraceSourceVersion = 1;
+namespace TraceChunk
+{
 
-const char apiChunkTextIdentifier[GpuUtil::TextIdentifierSize] = "ApiInfo";
+const Pal::uint32 ApiChunkVersion = 2;
+const char        ApiChunkTextIdentifier[TextIdentifierSize] = "ApiInfo";
+
+enum class ApiType : Pal::uint32
+{
+    Generic    = 0,
+    DirectX9   = 1,
+    DirectX11  = 2,
+    DirectX12  = 3,
+    Vulkan     = 4,
+    OpenGl     = 5,
+    OpenCl     = 6,
+    Mantle     = 7,
+    Hip        = 8,
+};
+
+/// API Info struct, based off of SqttFileChunkApiInfo.
+struct ApiInfo
+{
+    ApiType     apiType;         // Client API type
+    Pal::uint16 apiVersionMajor; // Major client API version
+    Pal::uint16 apiVersionMinor; // Minor client API version
+};
+
+} // namespace TraceChunk
+
+const Pal::uint32 ApiInfoTraceSourceVersion = 2;
+const char        ApiInfoTraceSourceName[]  = "apiinfo";
 
 // =====================================================================================================================
 // A trace source that sends ASIC information to the trace session. This is one of the "default" trace sources that are
@@ -83,16 +89,13 @@ public:
     virtual void OnTraceFinished() override;
 
     virtual const char* GetName() const override { return ApiInfoTraceSourceName; }
-
     virtual Pal::uint32 GetVersion() const override { return ApiInfoTraceSourceVersion; }
 
-    void FillTraceChunkApiInfo(TraceChunkApiInfo* pApiInfo);
-
-    // Translate TraceChunkApiInfo to TraceChunkInfo and write it into TraceSession
-    void WriteApiInfoTraceChunk();
-
 private:
-    Pal::Platform* const m_pPlatform; // Platform associated with this TraceSource
+    void FillTraceChunkApiInfo(TraceChunk::ApiInfo* pApiInfo);
+
+    Pal::Platform* const m_pPlatform;
 };
 
-}
+} // namespace GpuUtil
+

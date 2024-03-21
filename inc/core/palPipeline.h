@@ -149,7 +149,6 @@ enum class LogicOp : uint32
     Set          = 0xF,
 };
 
-#if PAL_BUILD_GFX11
 /// Shader Engine Dispatch Interleave Size
 ///
 /// This determines how many Threads or Threadgroups are sent to one SE before switching to the next SE.
@@ -181,7 +180,6 @@ enum class DispatchInterleaveSize : uint32
     Count
 #endif
 };
-#endif
 
 /// Specifies whether to override binning setting for pipeline. Enum value of Default follows the PBB global setting.
 /// Enable or Disable value overrides PBB global setting for the pipeline and sets binning accordingly.
@@ -309,10 +307,8 @@ struct ComputePipelineCreateInfo
                                            ///  can occur when thread group granularity preemption is available and
                                            ///  instruction level (CWSR) is not. This setting is useful for allowing
                                            ///  dispatches with interdependent thread groups.
-#if PAL_BUILD_GFX11
     DispatchInterleaveSize interleaveSize; ///< Controls how many thread groups are sent to one SE before switching to
                                            ///  the next one.
-#endif
 
     /// PAL expects a fixed 3D thread group size for each compute pipeline but the HSA ABI supports dynamic group sizes.
     /// If this pipeline's ELF binary metadata doesn't specify a fixed thread group size, this should be used to force
@@ -454,11 +450,9 @@ struct GraphicsPipelineCreateInfo
                                                    ///  of the graphics pipeline
     MsaaCoverageOutDescriptor coverageOutDesc;     ///< Descriptor describes input parameters for MSAA coverage out.
     ViewportInfo              viewportInfo;        ///< Viewport info.
-#if PAL_BUILD_GFX11
     DispatchInterleaveSize    taskInterleaveSize;  ///< Ignored for pipelines without a task shader. For pipelines with
                                                    ///  a task shader, controls how many thread groups are sent to one
                                                    ///  SE before switching to the next one.
-#endif
     LdsPsGroupSizeOverride ldsPsGroupSizeOverride; ///< Whether to override ldsPsGroupSize setting for pipeline.
 
 };

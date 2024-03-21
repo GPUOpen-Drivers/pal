@@ -267,7 +267,6 @@ private:
     ImageSrd  m_uavExportSrd;
 };
 
-#if PAL_BUILD_GFX11
 // Set of context registers associated with a color-target view object.
 struct Gfx11ColorTargetViewRegs
 {
@@ -342,7 +341,6 @@ private:
     //  known in advance.
     ImageSrd  m_uavExportSrd;
 };
-#endif
 
 } // Gfx9
 } // Pal

@@ -854,6 +854,22 @@
           "Name": "FrameCount"
         },
         {
+          "Description": "Command buffer number to begin performance data collection. Command buffers are numbered globally at the device level, the order of which is non-deterministic for submissions to multiple queues. GpuProfiler records command buffers at submission time, so command buffer numbering reflects the order of submission, not cmdbuffer API calls.",
+          "Defaults": {
+            "Default": 0
+          },
+          "Type": "uint32",
+          "Name": "StartCommandBuffer"
+        },
+        {
+          "Description": "Number of command buffers to enable performance data collection.",
+          "Defaults": {
+            "Default": 0
+          },
+          "Type": "uint32",
+          "Name": "CommandBufferCount"
+        },
+        {
           "Description": "Enable recording of pipeline stats for each operation on the compute or universal queue. Enabling this may adversely affect quality of the GPU timing data.  Not supported for frame-granularity captures.",
           "Defaults": {
             "Default": false
@@ -884,6 +900,14 @@
           },
           "Type": "bool",
           "Name": "UseFullPipelineHash"
+        },
+        {
+          "Description": "Disables GPA session re-use.",
+          "Defaults": {
+            "Default": false
+          },
+          "Type": "bool",
+          "Name": "DisableGpaSessionReuse"
         },
         {
           "ValidValues": {

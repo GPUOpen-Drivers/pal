@@ -28,10 +28,12 @@
 #include "palLib.h"
 #include "palPlatform.h"
 #include "platformSettingsLoader.h"
+#include "experimentsLoader.h"
 #include "core/gpuMemoryEventProvider.h"
 #include "core/layers/crashAnalysis/crashAnalysisEventProvider.h"
 #include "g_coreSettings.h"
 #include "g_platformSettings.h"
+#include "g_expSettings.h"
 #include "ver.h"
 #include "ddApi.h"
 
@@ -152,6 +154,9 @@ public:
     virtual const PalPlatformSettings& PlatformSettings() const override { return m_settingsLoader.GetSettings(); }
     PalPlatformSettings* PlatformSettingsPtr() { return m_settingsLoader.GetSettingsPtr(); }
 
+    const PalExperimentsSettings& GetExpSettings() const { return m_experimentsLoader.GetSettings(); }
+    PalExperimentsSettings* GetExpSettingsPtr() { return m_experimentsLoader.GetSettingsPtr(); }
+
     const PlatformProperties& GetProperties() const { return m_properties; }
 
     bool IsEmulationEnabled() const
@@ -174,6 +179,8 @@ public:
     virtual SettingsRpcService::SettingsService* GetSettingsService() override { return m_pSettingsService; }
     virtual DevDriver::SettingsRpcService* GetSettingsRpcService() override { return m_pSettingsRpcService; }
     DriverUtilsService::DriverUtilsService* GetDriverUtilsService() { return m_pDriverUtilsService; };
+
+    virtual PciId GetPciId(uint32 gpuIndex) override;
 
     bool IsDeveloperModeEnabled() const { return (m_pDevDriverServer != nullptr); }
     bool IsDevDriverProfilingEnabled() const;
@@ -320,6 +327,7 @@ private:
     DevDriver::DevDriverServer* m_pDevDriverServer;
     DevDriver::EventProtocol::EventServer* m_pEventServer;
     PlatformSettingsLoader m_settingsLoader;
+    ExperimentsLoader m_experimentsLoader;
 
     // Locally cached pointers to protocol servers.
     DevDriver::RGPProtocol::RGPServer* m_pRgpServer;

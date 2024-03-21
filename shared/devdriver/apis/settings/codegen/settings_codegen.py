@@ -688,7 +688,6 @@ def prepare_settings_list(settings: dict, top_level_enum_list: list):
 
         return enum_value_int
 
-
     def validate_fields(setting: dict, top_level_enum_list: list):
         if "VariableName" in setting:
             raise ValueError(f'"VariableName" field is not allowed in the setting {setting["Name"]}. '
@@ -811,6 +810,13 @@ def main():
         help="If this flag is present, the settings are part of PAL.",
     )
 
+    parser.add_argument(
+        "--is-experiments",
+        action="store_true",
+        required=False,
+        help="If this flag is present, the settings are driver experiments.",
+    )
+
     args = parser.parse_args()
 
     assert not args.generated_filename.endswith(
@@ -862,6 +868,8 @@ def main():
     )
 
     settings_root["IsPalSettings"] = args.is_pal_settings
+
+    settings_root["IsExperiments"] = args.is_experiments
 
     # Because PAL hasn't been updated to use `--is-pal-settings`, this if-statement needs to
     # stay to pass the rc branch's ci. Should be removed once this code is checked in PAL.

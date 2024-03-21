@@ -29,12 +29,7 @@
     "Gfx8",
     "Gfx9",
     "Gfx10",
-    {
-      "Name": "Gfx11",
-      "OrBuildTypes": [
-        "PAL_BUILD_GFX11"
-      ]
-    }
+    "Gfx11"
   ],
   "Settings": [
     {
@@ -438,10 +433,7 @@
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "Name": "Addr2NewSwizzleModeDetermination",
-      "OrBuildTypes": [
-        "PAL_BUILD_GFX11"
-      ]
+      "Name": "Addr2NewSwizzleModeDetermination"
     },
     {
       "Name": "Addr2Disable256BSwizzleMode",
@@ -1827,9 +1819,6 @@
         ],
         "Name": "NoXor"
       },
-      "BuildTypes": [
-        "PAL_BUILD_GFX11"
-      ],
       "Description": "Bitmask of cases where XOR swizzle modes are disallowed.  GFX11 only",
       "Tags": [
         "Resource Settings"

@@ -183,7 +183,25 @@ size_t Pipeline::DumpShaderPerfData(
 // =====================================================================================================================
 void Pipeline::Destroy()
 {
-    const auto& info = GetInfo();
+
+    // A new path ray-tracing "pipeline" is an archive with possibly multiple compute pipelines (or none).
+    // A new path workgraphs "pipeline" is an archive with no compute pipelines.
+    // If it is an archive, process each compute pipeline.
+    Util::Span<const IPipeline* const> pipelines = GetPipelines();
+    for (const IPipeline* pPipeline : pipelines)
+    {
+        DumpPipelinePerfData(pPipeline);
+    }
+
+    PipelineDecorator::Destroy();
+}
+
+// =====================================================================================================================
+// Dump the perf data for a single non-archive pipeline.
+void Pipeline::DumpPipelinePerfData(
+    const IPipeline* pPipeline) // (in) The non-archive pipeline to dump perf data from
+{
+    const auto& info = pPipeline->GetInfo();
 
     // Pipelines can only be destroyed if they are not being used by the GPU, so it is safe to perform the performance
     // data retrieval now.
@@ -253,8 +271,6 @@ void Pipeline::Destroy()
             file.Close();
         }
     }
-
-    PipelineDecorator::Destroy();
 }
 
 // =====================================================================================================================
@@ -314,11 +330,41 @@ Result Pipeline::InitGfx(
 Result Pipeline::InitCompute(
     const ComputePipelineCreateInfo& createInfo)
 {
-    Result result = Result::ErrorInvalidPointer;
+    Util::Span<const IPipeline* const> pipelines;
+    Result result              = PipelineDecorator::Init();
+    const IPipeline* pPipeline = nullptr;
+    void* pElfBuffer           = nullptr;
 
-    if ((createInfo.pPipelineBinary != nullptr) && (createInfo.pipelineBinarySize > 0))
+    // A new path ray-tracing "pipeline" is an archive with possibly multiple compute pipelines (or none).
+    // A new path workgraphs "pipeline" is an archive with no compute pipelines.
+    // If it is an archive, get the first compute pipeline if any, then get the ELF, and parse metadata from that.
+    if (result == Result::Success)
     {
-        PipelineAbiReader abiReader(m_pDevice->GetPlatform(), createInfo.pPipelineBinary);
+        pipelines = GetPipelines();
+    }
+    if (pipelines.IsEmpty() == false)
+    {
+        pPipeline = pipelines[0];
+    }
+
+    if (pPipeline != nullptr)
+    {
+        uint32 size      = 0;
+        result = pPipeline->GetCodeObject(&size, nullptr);
+        if (result == Result::Success)
+        {
+            pElfBuffer = PAL_MALLOC(size, m_pDevice->GetPlatform(), Util::AllocInternal);
+            result = Result::ErrorOutOfMemory;
+            if (pElfBuffer != nullptr)
+            {
+                result = pPipeline->GetCodeObject(&size, pElfBuffer);
+            }
+        }
+    }
+
+    if ((result == Result::Success) && (pElfBuffer != nullptr))
+    {
+        PipelineAbiReader abiReader(m_pDevice->GetPlatform(), pElfBuffer);
         result = abiReader.Init();
 
         MsgPackReader              metadataReader;
@@ -345,9 +391,11 @@ Result Pipeline::InitCompute(
                 }
             }
         }
+
+        PAL_FREE(pElfBuffer, m_pDevice->GetPlatform());
     }
 
-    // This function only exists to parse some PAL ABI metadata from the ELF. It's not it's job to validate the ELF.
+    // This function only exists to parse some PAL ABI metadata from the ELF. It's not its job to validate the ELF.
     // If this code thinks the ELF is invalid that's OK, we can just force off the performance data feature. The core
     // PAL code will return an error instead if the ELF is really invalid.
     if (result != Result::Success)

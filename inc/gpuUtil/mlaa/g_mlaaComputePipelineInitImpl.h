@@ -114,24 +114,18 @@ Pal::Result CreateMlaaComputePipelines(
         pTable = mlaaComputeBinaryTableNavi21;
         break;
 
-#if PAL_BUILD_GFX11
     case Pal::AsicRevision::Navi31:
     case Pal::AsicRevision::Navi32:
         pTable = mlaaComputeBinaryTableNavi31;
         break;
-#endif
 
-#if PAL_BUILD_GFX11
     case Pal::AsicRevision::Navi33:
         pTable = mlaaComputeBinaryTableNavi33;
         break;
-#endif
 
-#if PAL_BUILD_GFX11
     case Pal::AsicRevision::Phoenix1:
         pTable = mlaaComputeBinaryTablePhoenix1;
         break;
-#endif
 
     default:
         result = Pal::Result::ErrorUnknown;

@@ -5245,8 +5245,6 @@ constexpr ChNumFormat Gfx10_3MergedBufDataFmtTbl[] =
 
 constexpr uint32 Gfx10_3MergedBufDataFmtCount = sizeof(Gfx10_3MergedBufDataFmtTbl) / sizeof(ChNumFormat);
 
-#if PAL_BUILD_GFX11
-
 // Lookup table for GPU access capabilities for each format/tiling-type pairing in Gfx11.
 constexpr MergedFormatPropertiesTable Gfx11MergedFormatPropertiesTable =
 {
@@ -7639,7 +7637,6 @@ constexpr ChNumFormat Gfx11MergedBufDataFmtTbl[] =
 };
 
 constexpr uint32 Gfx11MergedBufDataFmtCount = sizeof(Gfx11MergedBufDataFmtTbl) / sizeof(ChNumFormat);
-#endif
 
 } // Gfx9
 } // Formats

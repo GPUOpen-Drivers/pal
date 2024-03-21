@@ -49,6 +49,7 @@ public:
     PalPlatformSettings* GetSettingsPtr() { return &m_settings; }
 
     void OverrideDefaults();
+    void ApplyExperiments();
 
     void ValidateSettings(bool hasDdUserOverride);
 

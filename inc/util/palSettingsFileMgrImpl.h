@@ -67,7 +67,6 @@ Result SettingsFileMgr<Allocator>::Init(
 
     if (File::Exists(&fileAbsPath[0]) == false)
     {
- #if defined(__unix__)
         char fallbackFileAbsPath[512];
         Snprintf(&fallbackFileAbsPath[0], sizeof(fallbackFileAbsPath), "%s/amdPalSettings.cfg", pSettingsPath);
 
@@ -79,9 +78,6 @@ Result SettingsFileMgr<Allocator>::Init(
         {
             ret = m_settingsFile.Open(&fallbackFileAbsPath[0], FileAccessRead);
         }
-#else
-        ret = Result::ErrorUnavailable;
-#endif
     }
     else
     {

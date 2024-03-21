@@ -26,7 +26,6 @@
 #pragma once
 
 #include <dd_common_api.h>
-#include <stddef.h>
 #include <stdint.h>
 
 namespace DevDriver
@@ -63,9 +62,9 @@ struct SettingsBlobsAll
     uint32_t nblobs;
 };
 
-/// Each subclass of `SettingsBlob` holds a raw buffer of Settings data string
-/// blob, and is intended to be linked in a global linked list. All
-/// `SettingsBlob`s can be received together in one buffer.
+/// Each subclass of `SettingsBlobNode` holds a raw buffer of Settings data string
+/// blob, and is intended to be linked in a global linked list. All `SettingsBlobNode`s
+/// can be received together in one buffer.
 class SettingsBlobNode
 {
 public:

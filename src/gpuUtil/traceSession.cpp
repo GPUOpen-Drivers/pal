@@ -22,7 +22,9 @@
  *  SOFTWARE.
  *
  **********************************************************************************************************************/
+
 #if PAL_BUILD_RDF
+
 #include "palTraceSession.h"
 #include "palHashMapImpl.h"
 #include "core/imported/rdf/rdf/inc/amdrdf.h"
@@ -41,11 +43,11 @@ static_assert(TextIdentifierSize == RDF_IDENTIFIER_SIZE,
 // =====================================================================================================================
 // Translates a rdfResult to a Pal::Result
 static Result RdfResultToPalResult(
-    int rResult)
+    int rdfResult)
 {
     Result result;
 
-    switch (rResult)
+    switch (rdfResult)
     {
     case rdfResult::rdfResultOk:
         result = Result::Success;
@@ -89,6 +91,8 @@ TraceSession::TraceSession(
 // =====================================================================================================================
 TraceSession::~TraceSession()
 {
+    PAL_ASSERT(TraceSessionState::Ready == GetTraceSessionState());
+
     // Free config memory of each TraceSource
     if (m_traceSourcesConfigs.GetNumEntries() > 0)
     {
@@ -143,10 +147,10 @@ Result TraceSession::RegisterController(
             Util::RWLockAuto<Util::RWLock::ReadWrite> traceControllerLock(&m_registerTraceControllerLock);
 
             bool existed = false;
-            ITraceController** ppMapEntry;
+            ITraceController** ppMapEntry = nullptr;
             result = m_registeredTraceControllers.FindAllocate(pController->GetName(), &existed, &ppMapEntry);
 
-            if(result == Result::Success)
+            if (result == Result::Success)
             {
                 if (existed)
                 {
@@ -154,7 +158,7 @@ Result TraceSession::RegisterController(
                 }
                 else
                 {
-                    *(ppMapEntry) = pController;
+                    (*ppMapEntry) = pController;
                 }
             }
         }
@@ -337,7 +341,7 @@ Result TraceSession::UpdateTraceConfig(
                     {
                         Util::RWLockAuto<Util::RWLock::ReadOnly> traceControllerLock(&m_registerTraceControllerLock);
 
-                        auto ppController = m_registeredTraceControllers.FindKey(pName);
+                        ITraceController** ppController = m_registeredTraceControllers.FindKey(pName);
                         if (ppController != nullptr)
                         {
                             (*ppController)->OnConfigUpdated(&traceControllerConfig);
@@ -366,7 +370,7 @@ Result TraceSession::UpdateTraceConfig(
                     if ((pName != nullptr) && (traceSourceConfig.IsNull() == false))
                     {
                         // Update source configs if available
-                        GpuUtil::ITraceSource** ppSource = m_registeredTraceSources.FindKey(pName);
+                        ITraceSource** ppSource = m_registeredTraceSources.FindKey(pName);
                         if (ppSource != nullptr)
                         {
                             if (*ppSource != nullptr)
@@ -382,15 +386,16 @@ Result TraceSession::UpdateTraceConfig(
 
                         if (result == Result::Success)
                         {
-                            // don't want to re-allocate memory if the entry already exists
+                            // Don't want to re-allocate memory if the entry already exists
                             if (existed == false)
                             {
                                 // Ensure deallocations when TraceSession is destroyed
-                                *ppMapEntry = PAL_NEW(StructuredValue, m_pPlatform, Util::AllocInternalTemp);
+                                (*ppMapEntry) = PAL_NEW(StructuredValue, m_pPlatform, Util::AllocInternalTemp);
                             }
-                            if (*ppMapEntry != nullptr)
+
+                            if ((*ppMapEntry) != nullptr)
                             {
-                                **ppMapEntry = traceSourceConfig;
+                                (**ppMapEntry) = traceSourceConfig;
                             }
                         }
                     }
@@ -411,6 +416,8 @@ Result TraceSession::AcceptTrace(
     ITraceController* pController,
     uint64            supportedGpuMask)
 {
+    PAL_ASSERT(TraceSessionState::Requested == GetTraceSessionState());
+
     Result result = Result::ErrorUnknown;
 
     if (pController == nullptr)
@@ -448,7 +455,7 @@ Result TraceSession::AcceptTrace(
                     if (pName != nullptr)
                     {
                         // Search for and notify the TraceSource object named in the trace configuration
-                        GpuUtil::ITraceSource** ppSource = m_registeredTraceSources.FindKey(pName);
+                        ITraceSource** ppSource = m_registeredTraceSources.FindKey(pName);
 
                         if ((ppSource != nullptr) && (*ppSource != nullptr))
                         {
@@ -470,14 +477,14 @@ Result TraceSession::AcceptTrace(
 // =====================================================================================================================
 Result TraceSession::BeginTrace()
 {
-    Result result = Result::Success;
+    PAL_ASSERT(TraceSessionState::Preparing == GetTraceSessionState());
 
     // GPU Index has been hardcoded for now
-    uint32 gpuIndex = 0;
+    uint32      gpuIndex     = 0;
     ICmdBuffer* pBeginCmdBuf = nullptr;
 
     // Notify the active controller of any required GPU work
-    result = m_pActiveController->OnBeginGpuWork(gpuIndex, &pBeginCmdBuf);
+    Result result = m_pActiveController->OnBeginGpuWork(gpuIndex, &pBeginCmdBuf);
 
     if (result == Result::Success)
     {
@@ -494,7 +501,7 @@ Result TraceSession::BeginTrace()
             if (pName != nullptr)
             {
                 // Search for and notify the TraceSource object named in the trace configuration
-                GpuUtil::ITraceSource** ppSource = m_registeredTraceSources.FindKey(pName);
+                ITraceSource** ppSource = m_registeredTraceSources.FindKey(pName);
 
                 if ((ppSource != nullptr) && (*ppSource != nullptr))
                 {
@@ -510,14 +517,14 @@ Result TraceSession::BeginTrace()
 // =====================================================================================================================
 Result TraceSession::EndTrace()
 {
-    Result result = Result::Success;
+    PAL_ASSERT(TraceSessionState::Running == GetTraceSessionState());
 
     // GPU Index has been hardcoded for now
     uint32 gpuIndex = 0;
     ICmdBuffer* pCmdBuf = nullptr;
 
     // Notify the active controller of any required GPU work
-    result = m_pActiveController->OnEndGpuWork(gpuIndex, &pCmdBuf);
+    Result result = m_pActiveController->OnEndGpuWork(gpuIndex, &pCmdBuf);
 
     if (result == Result::Success)
     {
@@ -534,7 +541,7 @@ Result TraceSession::EndTrace()
             if (pName != nullptr)
             {
                 // Search for and notify the TraceSource object named in the trace configuration
-                GpuUtil::ITraceSource** ppSource = m_registeredTraceSources.FindKey(pName);
+                ITraceSource** ppSource = m_registeredTraceSources.FindKey(pName);
 
                 if ((ppSource != nullptr) && (*ppSource != nullptr))
                 {
@@ -569,9 +576,9 @@ Result TraceSession::CollectTrace(
             // Check if the ChunkWriter hasn't already been closed ie. don't destroy it twice.
             if (m_pChunkFileWriter != nullptr)
             {
-                // Destroying(ie.closing) the ChunkWriter ensures that all data, both compressed and uncompressed, is written
-                // to the data stream. This step also completes the RDF file by adding the final parts(index entries) of the
-                // file. Trace data and data-sizes will be correctly outputted only after this step.
+                // Destroying (i.e. closing) the ChunkWriter ensures that all data, both compressed and uncompressed,
+                // is written to the data stream. This step also completes the RDF file by adding the final parts
+                // (index entries) of the file. Trace data and data-sizes will be correctly output only after this step.
                 result = RdfResultToPalResult(rdfChunkFileWriterDestroy(&m_pChunkFileWriter));
 
                 // We need to move the RDF offset manually to the beginning of the data stream
@@ -612,12 +619,13 @@ Result TraceSession::CollectTrace(
             }
             else
             {
-                *pDataSize = streamSize;
+                (*pDataSize) = streamSize;
             }
         }
         break;
     }
     case TraceSessionState::Requested:
+    case TraceSessionState::Preparing:
     case TraceSessionState::Running:
     case TraceSessionState::Waiting:
     {
@@ -643,30 +651,26 @@ Result TraceSession::WriteDataChunk(
     ITraceSource*         pSource,
     const TraceChunkInfo& info)
 {
-    Result result = Result::Success;
-
     // Populate rdfChunkCreateInfo parameters from TraceChunkInfo struct
-    rdfChunkCreateInfo currentChunkInfo;
-    currentChunkInfo.headerSize  = info.headerSize;
-    currentChunkInfo.compression = info.enableCompression ?
-                                   rdfCompression::rdfCompressionZstd : rdfCompression::rdfCompressionNone;
-    currentChunkInfo.version     = info.version;
-    currentChunkInfo.pHeader     = info.pHeader;
+    rdfChunkCreateInfo currentChunkInfo = {
+        .headerSize  = info.headerSize,
+        .pHeader     = info.pHeader,
+        .compression = info.enableCompression ? rdfCompression::rdfCompressionZstd :
+                                                rdfCompression::rdfCompressionNone,
+        .version     = info.version
+    };
     memcpy(currentChunkInfo.identifier, info.id, TextIdentifierSize);
 
     Util::RWLockAuto<Util::RWLock::ReadWrite> chunkAppendLock(&m_chunkAppendLock);
 
     // Append the incoming chunk to the data stream
-    if (result == Result::Success)
-    {
-        result = RdfResultToPalResult(rdfChunkFileWriterWriteChunk(m_pChunkFileWriter,
-                                                                   &currentChunkInfo,
-                                                                   info.dataSize,
-                                                                   info.pData,
-                                                                   &m_currentChunkIndex));
-    }
+    int result = rdfChunkFileWriterWriteChunk(m_pChunkFileWriter,
+                                              &currentChunkInfo,
+                                              info.dataSize,
+                                              info.pData,
+                                              &m_currentChunkIndex);
 
-    return result;
+    return RdfResultToPalResult(result);
 }
 
 // =====================================================================================================================
@@ -692,35 +696,35 @@ void TraceSession::FinishTrace()
 }
 
 // =====================================================================================================================
-Pal::Result TraceSession::ReportError(
+Result TraceSession::ReportError(
     const char        chunkId[TextIdentifierSize],
     const void*       pPayload,
-    Pal::uint64       payloadSize,
+    uint64            payloadSize,
     TraceErrorPayload payloadType,
-    Pal::Result       resultCode)
+    Result            errorResult)
 {
-    Result result = Result::Success;
-
-    // Fill Error Trace Header
-    TraceErrorHeader errTraceHeader = {};
+    TraceErrorHeader errTraceHeader = {
+        .chunkIndex  = static_cast<uint32>(m_currentChunkIndex),
+        .resultCode  = errorResult,
+        .payloadType = payloadType
+    };
     memcpy(errTraceHeader.chunkId, chunkId, TextIdentifierSize);
-    errTraceHeader.chunkIndex  = m_currentChunkIndex;
-    errTraceHeader.resultCode  = resultCode;
-    errTraceHeader.payloadType = payloadType;
 
-    TraceChunkInfo info = {};
+    TraceChunkInfo info = {
+        .version           = ErrorTraceChunkVersion,
+        .pHeader           = &errTraceHeader,
+        .headerSize        = sizeof(TraceErrorHeader),
+        .pData             = pPayload,
+        .dataSize          = static_cast<int64>(payloadSize),
+        .enableCompression = false
+    };
     memcpy(info.id, ErrorChunkTextIdentifier, TextIdentifierSize);
-    info.pHeader           = &errTraceHeader;
-    info.headerSize        = sizeof(TraceErrorHeader);
-    info.version           = ErrorTraceChunkVersion;
-    info.pData             = pPayload;
-    info.dataSize          = payloadSize;
-    info.enableCompression = false;
 
-    result = WriteDataChunk(nullptr, info);
+    Result result = WriteDataChunk(nullptr, info);
 
     return result;
 }
 
-}// GpuUtil
+} // namespace GpuUtil
+
 #endif

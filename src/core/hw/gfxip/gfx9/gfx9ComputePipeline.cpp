@@ -24,6 +24,7 @@
  **********************************************************************************************************************/
 
 #include "core/platform.h"
+#include "core/hw/gfxip/gfx9/gfx9AbiToPipelineRegisters.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdStream.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"
 #include "core/hw/gfxip/gfx9/gfx9ComputePipeline.h"
@@ -70,10 +71,8 @@ ComputePipeline::ComputePipeline(
     m_chunkCs(*pDevice,
               &m_stageInfo,
               &m_perfDataInfo[static_cast<uint32>(Abi::HardwareStage::Cs)]),
-    m_disablePartialPreempt(false)
-#if PAL_BUILD_GFX11
-    , m_shPairsPacketSupportedCs(pDevice->Settings().gfx11EnableShRegPairOptimizationCs)
-#endif
+    m_disablePartialPreempt(false),
+    m_shPairsPacketSupportedCs(pDevice->Settings().gfx11EnableShRegPairOptimizationCs)
 {
 }
 
@@ -182,10 +181,8 @@ Result ComputePipeline::HwlInit(
         {
             if (computePgmRsrc2.bits.SCRATCH_EN != 0)
             {
-#if PAL_BUILD_GFX11
                 //Navi3+ can support scratch usage due to different scrach allocation system from previous hardware
                 if (IsGfx11Plus(*m_pDevice->Parent()) == false)
-#endif
                 {
                     PAL_ASSERT_ALWAYS_MSG("Scratch cannot be used on this device");
                     result = Result::Unsupported;
@@ -283,9 +280,7 @@ Result ComputePipeline::HwlInit(
         m_chunkCs.LateInit(registers,
                            wavefrontSize,
                            &m_threadsPerTg,
-#if PAL_BUILD_GFX11
                            createInfo.interleaveSize,
-#endif
                            &uploader);
         PAL_ASSERT(m_uploadFenceToken == 0);
         result = uploader.End(&m_uploadFenceToken);
@@ -330,9 +325,7 @@ Result ComputePipeline::HwlInit(
         m_chunkCs.LateInit(metadata,
                            wavefrontSize,
                            &m_threadsPerTg,
-#if PAL_BUILD_GFX11
                            createInfo.interleaveSize,
-#endif
                            &uploader);
         PAL_ASSERT(m_uploadFenceToken == 0);
         result = uploader.End(&m_uploadFenceToken);
@@ -435,13 +428,27 @@ Result ComputePipeline::LinkWithLibraries(
             break;
         }
 
-        computePgmRsrc1.bits.SGPRS = Max(computePgmRsrc1.bits.SGPRS, libObjRegInfo.libRegs.computePgmRsrc1.bits.SGPRS);
-        computePgmRsrc1.bits.VGPRS = Max(computePgmRsrc1.bits.VGPRS, libObjRegInfo.libRegs.computePgmRsrc1.bits.VGPRS);
+        ShaderLibStats libStats = {};
+        result = pLibObj->GetAggregateFunctionStats(&libStats);
+        if (result != Result::Success)
+        {
+            break;
+        }
+
+        const uint32 libLdsWords  = static_cast<uint32>(libStats.common.ldsUsageSizeInBytes >> 2);
+        const uint32 libLds       = RoundUpQuotient(libLdsWords, Gfx9LdsDwGranularity);
+        const uint32 libSgprs     = AbiRegisters::CalcNumSgprs(libStats.common.numUsedSgprs);
+        const uint32 libVgprs     = AbiRegisters::CalcNumVgprs(libStats.common.numUsedVgprs, IsWave32());
+
+        computePgmRsrc1.bits.SGPRS =
+            Max(computePgmRsrc1.bits.SGPRS, libSgprs, libObjRegInfo.libRegs.computePgmRsrc1.bits.SGPRS);
+        computePgmRsrc1.bits.VGPRS =
+            Max(computePgmRsrc1.bits.VGPRS, libVgprs, libObjRegInfo.libRegs.computePgmRsrc1.bits.VGPRS);
 
         computePgmRsrc2.bits.USER_SGPR =
             Max(computePgmRsrc2.bits.USER_SGPR, libObjRegInfo.libRegs.computePgmRsrc2.bits.USER_SGPR);
         computePgmRsrc2.bits.LDS_SIZE =
-            Max(computePgmRsrc2.bits.LDS_SIZE, libObjRegInfo.libRegs.computePgmRsrc2.bits.LDS_SIZE);
+            Max(computePgmRsrc2.bits.LDS_SIZE, libLds, libObjRegInfo.libRegs.computePgmRsrc2.bits.LDS_SIZE);
         computePgmRsrc2.bits.TIDIG_COMP_CNT =
             Max(computePgmRsrc2.bits.TIDIG_COMP_CNT, libObjRegInfo.libRegs.computePgmRsrc2.bits.TIDIG_COMP_CNT);
         computePgmRsrc2.bits.SCRATCH_EN |= libObjRegInfo.libRegs.computePgmRsrc2.bits.SCRATCH_EN;
@@ -500,9 +507,7 @@ uint32* ComputePipeline::WriteCommands(
 {
     pCmdSpace =  m_chunkCs.WriteShCommands(pCmdStream,
                                            pCmdSpace,
-#if PAL_BUILD_GFX11
                                            m_shPairsPacketSupportedCs,
-#endif
                                            csInfo,
                                            prefetch);
 

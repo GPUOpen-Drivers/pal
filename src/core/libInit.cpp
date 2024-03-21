@@ -96,12 +96,10 @@ constexpr GpuInfo GpuInfoLookupTable[] =
     { AsicRevision::Rembrandt,  NullGpuId::Rembrandt,  GfxIpLevel::GfxIp10_3, FAMILY_RMB, REMBRANDT_B0,        PRID_RMB_00,       GfxEngineGfx9, DEVICE_ID_RMB_1681,         "REMBRANDT:gfx1035" },
     { AsicRevision::Raphael,    NullGpuId::Raphael,    GfxIpLevel::GfxIp10_3, FAMILY_RPL, RAPHAEL_A0,          PRID_RPL_00,       GfxEngineGfx9, DEVICE_ID_RPL_164E,         "RAPHAEL:gfx1036" },
 
-#if PAL_BUILD_GFX11
     { AsicRevision::Navi31,   NullGpuId::Navi31,   GfxIpLevel::GfxIp11_0, FAMILY_NV3, NAVI31_P_A0, PRID_NV3_NAVI31_00, GfxEngineGfx9, DEVICE_ID_NV3_NAVI31_P_73BF, "NAVI31:gfx1100" },
     { AsicRevision::Navi32,   NullGpuId::Navi32,   GfxIpLevel::GfxIp11_0, FAMILY_NV3, NAVI32_P_A0, PRID_NV3_NAVI32_00, GfxEngineGfx9, DEVICE_ID_NV3_NAVI32_P_73DF, "NAVI32:gfx1101" },
     { AsicRevision::Navi33,   NullGpuId::Navi33,   GfxIpLevel::GfxIp11_0, FAMILY_NV3, NAVI33_P_A0, PRID_NV3_NAVI33_00, GfxEngineGfx9, DEVICE_ID_NV3_NAVI33_P_73F0, "NAVI33:gfx1102" },
     { AsicRevision::Phoenix1, NullGpuId::Phoenix1, GfxIpLevel::GfxIp11_0, FAMILY_PHX, PHOENIX1_A0, PRID_PHX_00,        GfxEngineGfx9, DEVICE_ID_PHX1_15BF,         "PHOENIX1:gfx1103" },
-#endif
 
 };
 

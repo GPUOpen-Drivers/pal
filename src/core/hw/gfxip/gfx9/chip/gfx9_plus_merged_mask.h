@@ -2885,7 +2885,6 @@ namespace Apu103
     constexpr unsigned int VGT_SHADER_STAGES_EN__PRIMGEN_PASSTHRU_NO_MSG_MASK = 0x04000000;
 } // namespace Apu103
 
-#if  CHIP_HDR_PHOENIX1
 namespace Apu11
 {
     constexpr unsigned int ATC_PERFCOUNTER0_CFG__CLEAR_MASK                   = 0x20000000;
@@ -2960,7 +2959,6 @@ namespace Apu11
     constexpr unsigned int RLC_SPM_ACCUM_CTRLRAM_ADDR__RESERVED_MASK          = 0xfffffe00;
     constexpr unsigned int RLC_SPM_MC_CNTL__RESERVED_2_MASK                   = 0x00002000;
 } // namespace Apu11
-#endif
 
 namespace Core
 {
@@ -6594,7 +6592,6 @@ namespace Gfx103
 } // namespace Gfx103
 #endif
 
-#if  CHIP_HDR_NAVI21|| CHIP_HDR_NAVI22|| CHIP_HDR_NAVI23|| CHIP_HDR_NAVI24|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1 || CHIP_HDR_RAPHAEL|| CHIP_HDR_REMBRANDT
 namespace Gfx103CorePlus
 {
     constexpr unsigned int GDS_PERFCOUNTER1_SELECT1__PERF_MODE2_MASK          = 0xf0000000;
@@ -6648,7 +6645,6 @@ namespace Gfx103CorePlus
     constexpr unsigned int SPI_CONFIG_PS_CU_EN__PKR_OFFSET_MASK               = 0x0000000f;
     constexpr unsigned int SPI_CSG_PIPE_CONTROL__HYSTERESIS_CNT_MASK          = 0x00001fff;
 } // namespace Gfx103CorePlus
-#endif
 
 #if CHIP_HDR_NAVI21|| CHIP_HDR_NAVI22|| CHIP_HDR_NAVI23|| CHIP_HDR_NAVI24|| CHIP_HDR_RAPHAEL|| CHIP_HDR_REMBRANDT
 namespace Gfx103Derivative
@@ -6716,7 +6712,6 @@ namespace Gfx103Derivative
 } // namespace Gfx103Derivative
 #endif
 
-#if   CHIP_HDR_NAVI21|| CHIP_HDR_NAVI22|| CHIP_HDR_NAVI23|| CHIP_HDR_NAVI24|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1 || CHIP_HDR_RAPHAEL|| CHIP_HDR_REMBRANDT
 namespace Gfx103Plus
 {
     constexpr unsigned int DB_RENDER_OVERRIDE2__CENTROID_COMPUTATION_MODE_MASK = 0x18000000;
@@ -6817,9 +6812,7 @@ namespace Gfx103Plus
     constexpr unsigned int VGT_DRAW_PAYLOAD_CNTL__EN_VRS_RATE_MASK            = 0x00000040;
     constexpr unsigned int VGT_INDEX_TYPE__DISABLE_INSTANCE_PACKING_MASK      = 0x00004000;
 } // namespace Gfx103Plus
-#endif
 
-#if  CHIP_HDR_NAVI21|| CHIP_HDR_NAVI22|| CHIP_HDR_NAVI23|| CHIP_HDR_NAVI24|| CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1 || CHIP_HDR_RAPHAEL|| CHIP_HDR_REMBRANDT
 namespace Gfx103PlusExclusive
 {
     constexpr unsigned int CB_DCC_CONFIG__DCC_CACHE_NUM_TAGS_MASK             = 0xfe000000;
@@ -7071,9 +7064,7 @@ namespace Gfx103PlusExclusive
     constexpr unsigned int VGT_HS_OFFCHIP_PARAM__OFFCHIP_GRANULARITY_MASK     = 0x00000c00;
     constexpr unsigned int VGT_SYS_CONFIG__NUM_SUBGROUPS_IN_FLIGHT_MASK       = 0x0007ff00;
 } // namespace Gfx103PlusExclusive
-#endif
 
-#if  CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 namespace Gfx104Plus
 {
     constexpr unsigned int CB_PERFCOUNTER0_SELECT1__PERF_SEL2_MASK            = 0x000003ff;
@@ -7195,7 +7186,6 @@ namespace Gfx104Plus
     constexpr unsigned int TA_CNTL__TA_SQ_XNACK_FGCG_DISABLE_MASK             = 0x00000001;
     constexpr unsigned int VGT_SHADER_STAGES_EN__PRIMGEN_PASSTHRU_NO_MSG_MASK = 0x04000000;
 } // namespace Gfx104Plus
-#endif
 
 namespace Gfx10Core
 {
@@ -8606,7 +8596,6 @@ namespace Gfx10Vrs
 } // namespace Gfx10Vrs
 #endif
 
-#if  CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 namespace Gfx11
 {
     constexpr unsigned int CB_CACHE_EVICT_POINTS__CC_COLOR_EVICT_POINT_MASK   = 0x000000ff;
@@ -9233,9 +9222,7 @@ namespace Gfx11
     constexpr unsigned int WD_CNTL_STATUS__WD_TE11_BUSY_MASK                  = 0x00000008;
     constexpr unsigned int WD_CNTL_STATUS__WLC_BUSY_MASK                      = 0x00000020;
 } // namespace Gfx11
-#endif
 
-#if CHIP_HDR_NAVI31|| CHIP_HDR_NAVI32|| CHIP_HDR_NAVI33|| CHIP_HDR_PHOENIX1
 namespace Gfx110
 {
     constexpr unsigned int CB_CGTT_SCLK_CTRL__OFF_HYSTERESIS_MASK             = 0x00000ff0;
@@ -9356,7 +9343,6 @@ namespace Gfx110
     constexpr unsigned int RLC_SPM_GLOBAL_DELAY_IND_DATA__DATA_MASK           = 0x0000003f;
     constexpr unsigned int RLC_SPM_SE_DELAY_IND_DATA__DATA_MASK               = 0x0000003f;
 } // namespace Gfx110
-#endif
 
 namespace HasHwVs
 {
@@ -10259,7 +10245,6 @@ namespace Nv2x
 } // namespace Nv2x
 #endif
 
-#if CHIP_HDR_NAVI31
 namespace Nv31
 {
     constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlHi0__EventSelectHi_MASK   = 0x0000003f;
@@ -10434,9 +10419,7 @@ namespace Nv31
     constexpr unsigned int RLC_SPM_ACCUM_MODE__SE5_LoadOverride_MASK          = 0x00200000;
     constexpr unsigned int RLC_SPM_ACCUM_MODE__SE5_SwaLoadOverride_MASK       = 0x00400000;
 } // namespace Nv31
-#endif
 
-#if CHIP_HDR_NAVI32
 namespace Nv32
 {
     constexpr unsigned int DF_MCD_PIE_AON_PerfMonCtlHi0__EventSelectHi_MASK   = 0x0000003f;
@@ -10586,16 +10569,12 @@ namespace Nv32
     constexpr unsigned int RLC_SPM_ACCUM_MODE__SE2_LoadOverride_MASK          = 0x00008000;
     constexpr unsigned int RLC_SPM_ACCUM_MODE__SE2_SwaLoadOverride_MASK       = 0x00010000;
 } // namespace Nv32
-#endif
 
-#if CHIP_HDR_NAVI33
 namespace Nv33
 {
     constexpr unsigned int PA_SC_VRS_SURFACE_CNTL__VRC_REPROBE_DISABLE_MASK   = 0x00000020;
 } // namespace Nv33
-#endif
 
-#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI32 || CHIP_HDR_NAVI33
 namespace Nv3x
 {
     constexpr unsigned int CHCG_PERFCOUNTER0_HI__PERFCOUNTER_HI_MASK          = 0xffffffff;
@@ -10900,7 +10879,6 @@ namespace Nv3x
     constexpr unsigned int SDMA1_PERFCOUNTER1_SELECT__PERF_SEL_MASK           = 0x000003ff;
     constexpr unsigned int WD_UTCL1_CNTL__LLC_NOALLOC_OVERRIDE_MASK           = 0x40000000;
 } // namespace Nv3x
-#endif
 
 namespace Oss50
 {
@@ -10950,12 +10928,10 @@ namespace Oss50
     constexpr unsigned int SDMA1_PERFMON_CNTL__PERF_SEL1_MASK                 = 0x000ff000;
 } // namespace Oss50
 
-#if CHIP_HDR_PHOENIX1
 namespace Phx1
 {
     constexpr unsigned int PA_SC_TILE_STEERING_OVERRIDE__NUM_PACKER_PER_SC_MASK = 0x00300000;
 } // namespace Phx1
-#endif
 
 #if CHIP_HDR_RAPHAEL
 namespace Raphael
@@ -11538,7 +11514,6 @@ namespace Vg20_Rn
     constexpr unsigned int SQ_CONFIG__UNUSED_MASK                             = 0x0000007e;
 } // namespace Vg20_Rn
 
-#if CHIP_HDR_NAVI21 || CHIP_HDR_NAVI22 || CHIP_HDR_NAVI23 || CHIP_HDR_NAVI24 || CHIP_HDR_NAVI31 || CHIP_HDR_NAVI32 || CHIP_HDR_NAVI33
 namespace Mall
 {
     constexpr unsigned int CB_RMI_GL2_CACHE_CONTROL__COLOR_L3_BYPASS_MASK     = 0x08000000;
@@ -11548,7 +11523,6 @@ namespace Mall
     constexpr unsigned int DB_RMI_L2_CACHE_CONTROL__ZPCPSD_NOALLOC_MASK       = 0x20000000;
     constexpr unsigned int DB_RMI_L2_CACHE_CONTROL__Z_NOALLOC_MASK            = 0x04000000;
 } // namespace Mall
-#endif
 
 } // inline namespace Chip
 } // namespace Gfx9

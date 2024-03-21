@@ -457,6 +457,11 @@ protected:
 
     void TearDownGpus();
 
+    virtual PciId GetPciId(uint32 gpuIndex) override
+    {
+        return m_pNextLayer->GetPciId(gpuIndex);
+    }
+
     virtual void InstallDeveloperCb(
         Developer::Callback pfnDeveloperCb,
         void*               pPrivateData) override;
@@ -961,31 +966,27 @@ public:
         void*                             pPlacementAddr,
         IPipeline**                       ppPipeline) override;
 
-    virtual size_t GetMsaaStateSize(
-        const MsaaStateCreateInfo& createInfo,
-        Result*                    pResult) const override;
+    virtual size_t GetMsaaStateSize() const override;
 
     virtual Result CreateMsaaState(
         const MsaaStateCreateInfo& createInfo,
         void*                      pPlacementAddr,
         IMsaaState**               ppMsaaState) const override;
-    virtual size_t GetColorBlendStateSize(
-        const ColorBlendStateCreateInfo& createInfo,
-        Result*                          pResult) const override;
+
+    virtual size_t GetColorBlendStateSize() const override;
 
     virtual Result CreateColorBlendState(
         const ColorBlendStateCreateInfo& createInfo,
         void*                            pPlacementAddr,
         IColorBlendState**               ppColorBlendState) const override;
 
-    virtual size_t GetDepthStencilStateSize(
-        const DepthStencilStateCreateInfo& createInfo,
-        Result*                            pResult) const override;
+    virtual size_t GetDepthStencilStateSize() const override;
 
     virtual Result CreateDepthStencilState(
         const DepthStencilStateCreateInfo& createInfo,
         void*                              pPlacementAddr,
         IDepthStencilState**               ppDepthStencilState) const override;
+
     virtual size_t GetQueueSemaphoreSize(
         const QueueSemaphoreCreateInfo& createInfo,
         Result*                         pResult) const override;
@@ -1591,16 +1592,11 @@ public:
 
     virtual void CmdBarrier(const BarrierInfo& barrierInfo) override;
 
-    virtual void OptimizeBarrierReleaseInfo(
-        uint32       pipePointCount,
-        HwPipePoint* pPipePoints,
-        uint32*      pCacheMask) const override
-    { m_pNextLayer->OptimizeBarrierReleaseInfo(pipePointCount, pPipePoints, pCacheMask); }
-
     virtual void OptimizeAcqRelReleaseInfo(
-        uint32*                   pStageMask,
-        uint32*                   pAccessMask) const override
-    { m_pNextLayer->OptimizeAcqRelReleaseInfo(pStageMask, pAccessMask); }
+        BarrierType barrierType,
+        uint32*     pStageMask,
+        uint32*     pAccessMask) const override
+    { m_pNextLayer->OptimizeAcqRelReleaseInfo(barrierType, pStageMask, pAccessMask); }
 
     virtual uint32 CmdRelease(
         const AcquireReleaseInfo& releaseInfo) override;
@@ -2083,12 +2079,11 @@ public:
         { m_pNextLayer->CmdWaitRegisterValue(registerOffset, data, mask, compareFunc); }
 
     virtual void CmdWaitMemoryValue(
-        const IGpuMemory& gpuMemory,
-        gpusize           offset,
-        uint32            data,
-        uint32            mask,
-        CompareFunc       compareFunc) override
-        { m_pNextLayer->CmdWaitMemoryValue(*NextGpuMemory(&gpuMemory), offset, data, mask, compareFunc); }
+        gpusize     gpuVirtAddr,
+        uint32      data,
+        uint32      mask,
+        CompareFunc compareFunc) override
+        { m_pNextLayer->CmdWaitMemoryValue(gpuVirtAddr, data, mask, compareFunc); }
 
     virtual void CmdWaitBusAddressableMemoryMarker(
         const IGpuMemory& gpuMemory,
@@ -3105,11 +3100,19 @@ public:
         { return m_pNextLayer->GetCodeObject(pSize, pBuffer); }
 
     virtual Result GetShaderFunctionCode(
-        const char*  pShaderExportName,
-        size_t*      pSize,
-        void*        pBuffer) const override
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 852
+        Util::StringView<char> shaderExportName,
+#else
+        const char*            pShaderExportName,
+#endif
+        size_t*                pSize,
+        void*                  pBuffer) const override
     {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 852
+        return m_pNextLayer->GetShaderFunctionCode(shaderExportName, pSize, pBuffer);
+#else
         return m_pNextLayer->GetShaderFunctionCode(pShaderExportName, pSize, pBuffer);
+#endif
     }
 
     virtual Result GetShaderFunctionStats(

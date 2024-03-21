@@ -2823,25 +2823,23 @@ void CmdBuffer::CmdWaitRegisterValue(
 
 // =====================================================================================================================
 void CmdBuffer::CmdWaitMemoryValue(
-    const IGpuMemory& gpuMemory,
-    gpusize           offset,
-    uint32            data,
-    uint32            mask,
-    CompareFunc       compareFunc)
+    gpusize     gpuVirtAddr,
+    uint32      data,
+    uint32      mask,
+    CompareFunc compareFunc)
 {
     BeginFuncInfo funcInfo;
     funcInfo.funcId       = InterfaceFunc::CmdBufferCmdWaitMemoryValue;
     funcInfo.objectId     = m_objectId;
     funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdWaitMemoryValue(*NextGpuMemory(&gpuMemory), offset, data, mask, compareFunc);
+    m_pNextLayer->CmdWaitMemoryValue(gpuVirtAddr, data, mask, compareFunc);
     funcInfo.postCallTime = m_pPlatform->GetTime();
 
     LogContext* pLogContext = nullptr;
     if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
     {
         pLogContext->BeginInput();
-        pLogContext->KeyAndObject("gpuMemory", &gpuMemory);
-        pLogContext->KeyAndValue("offset", offset);
+        pLogContext->KeyAndValue("gpuVirtAddr", gpuVirtAddr);
         pLogContext->KeyAndValue("data", data);
         pLogContext->KeyAndValue("mask", mask);
         pLogContext->KeyAndEnum("compareFunc", compareFunc);

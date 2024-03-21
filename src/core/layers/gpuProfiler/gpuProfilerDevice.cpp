@@ -68,6 +68,8 @@ Device::Device(
     m_stallMode(GpuProfilerStallAlways),
     m_startFrame(0),
     m_endFrame(0),
+    m_startCommandBuffer(0),
+    m_endCommandBuffer(0),
     m_pGlobalPerfCounters(nullptr),
     m_numGlobalPerfCounters(0),
     m_pStreamingPerfCounters(nullptr),
@@ -101,6 +103,13 @@ Result Device::Cleanup()
 }
 
 // =====================================================================================================================
+// Track recorded command buffer count across all queues. Thread-safe
+void Device::CommandBufferBegin()
+{
+    AtomicIncrement(&m_commandBufferCount);
+}
+
+// =====================================================================================================================
 // Determines if logging is currently enabled, either due to the current frame range or because the user hit Shift-F11
 // to force this frame to be captured.
 bool Device::LoggingEnabled() const
@@ -108,7 +117,11 @@ bool Device::LoggingEnabled() const
     const Platform& platform = *static_cast<const Platform*>(m_pPlatform);
     const uint32    frameId  = platform.FrameId();
 
-    return (platform.IsLoggingForced() || ((frameId >= m_startFrame) && (frameId < m_endFrame)));
+    // Command buffer count may not deterministically identify command buffers for measurement. Command buffers can be
+    // recorded in parallel across multiple queues' submissions leading to different ordering for which command buffers
+    // occur first. Because this only impacts profiling data, the risk is permissible.
+    return (platform.IsLoggingForced() || ((frameId >= m_startFrame) && (frameId < m_endFrame)) ||
+            ((m_commandBufferCount >= m_startCommandBuffer) && (m_commandBufferCount < m_endCommandBuffer)));
 }
 
 // =====================================================================================================================
@@ -198,6 +211,8 @@ Result Device::CommitSettingsAndInit()
 
         m_startFrame          = settings.gpuProfilerConfig.startFrame;
         m_endFrame            = m_startFrame + settings.gpuProfilerConfig.frameCount;
+        m_startCommandBuffer = settings.gpuProfilerConfig.startCommandBuffer;
+        m_endCommandBuffer   = m_startCommandBuffer + settings.gpuProfilerConfig.commandBufferCount;
 
         for (uint32 i = 0; i < EngineTypeCount; i++)
         {
@@ -1279,9 +1294,7 @@ GpuBlock StringToGpuBlock(
         "GE_DIST", // GpuBlock::GeDist
         "GE_SE",   // GpuBlock::GeSe
         "DF_MALL", // GpuBlock::DfMall
-#if PAL_BUILD_GFX11
         "SQWGP",   // GpuBlock::SqWgp
-#endif
     };
 
     static_assert(ArrayLen(TranslationTbl) == static_cast<uint32>(GpuBlock::Count),

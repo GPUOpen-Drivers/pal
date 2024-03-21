@@ -52,17 +52,15 @@ CmdStream::CmdStream(
                    engineType,
                    subEngineType,
                    cmdStreamUsage,
-                   GetChainSizeInDwords(device, engineType, isNested),
+                   CmdUtil::ChainSizeInDwords(engineType),
                    CmdUtil::MinNopSizeInDwords,
                    CmdUtil::CondIndirectBufferSize,
                    isNested),
     m_cmdUtil(device.CmdUtil()),
     m_pPm4Optimizer(nullptr),
     m_pChunkPreamble(nullptr),
-    m_contextRollDetected(false)
-#if PAL_BUILD_GFX11
-    , m_supportsHoleyOptimization(GetGfx9Settings(*m_device.Parent()).enableHoleyOptimization)
-#endif
+    m_contextRollDetected(false),
+    m_supportsHoleyOptimization(GetGfx9Settings(*m_device.Parent()).enableHoleyOptimization)
 {
 }
 
@@ -139,29 +137,6 @@ void CmdStream::Reset(
 }
 
 // =====================================================================================================================
-// Helper function for determining the command buffer chain size (in DWORD's). Early versions of the CP microcode did
-// not properly support IB2 chaining, so we need to check the ucode version before enabling chaining for IB2's.
-uint32 CmdStream::GetChainSizeInDwords(
-    const Device& device,
-    EngineType    engineType,
-    bool          isNested) const
-{
-    const Pal::Device* pPalDevice = device.Parent();
-    uint32              chainSize = CmdUtil::ChainSizeInDwords(engineType);
-
-    constexpr uint32 UcodeVersionWithIb2ChainingFix = 31;
-    if (isNested &&
-        (pPalDevice->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9) &&
-        (pPalDevice->ChipProperties().cpUcodeVersion < UcodeVersionWithIb2ChainingFix))
-    {
-        // Disable chaining for nested command buffers if the microcode version does not support the IB2 chaining fix.
-        chainSize = 0;
-    }
-
-    return chainSize;
-}
-
-// =====================================================================================================================
 // Writes any context, SH, or uconfig register range. Register ranges may not cross register space boundaries.
 // Any indexed registers must be written with a "count" parameter of 1.
 // This function does not support writing perf counter regs.
@@ -186,22 +161,15 @@ uint32* CmdStream::WriteRegisters(
     constexpr uint32 ComputePeristentStart = mmCOMPUTE_DISPATCH_INITIATOR;
     const uint32 endAddr = startAddr + count - 1;
 
-    if ((count == 1) && (startAddr == mmVGT_LS_HS_CONFIG))
-    {
-        // Handle indexed context
-        regVGT_LS_HS_CONFIG vgtLsHsConfig;
-        vgtLsHsConfig.u32All = *pRegData;
-        pCmdSpace = WriteSetVgtLsHsConfig(vgtLsHsConfig, pCmdSpace);
-    }
-    else if ((count == 1) &&
-             ((startAddr == mmSPI_SHADER_PGM_RSRC3_GS) ||
-              (startAddr == mmSPI_SHADER_PGM_RSRC4_GS) ||
-              (startAddr == mmSPI_SHADER_PGM_RSRC3_HS) ||
-              (startAddr == mmSPI_SHADER_PGM_RSRC4_HS) ||
-              (startAddr == mmSPI_SHADER_PGM_RSRC3_PS) ||
-              (startAddr == Gfx10Plus::mmSPI_SHADER_PGM_RSRC4_PS) ||
-              (startAddr == HasHwVs::mmSPI_SHADER_PGM_RSRC3_VS) ||
-              (startAddr == Gfx10::mmSPI_SHADER_PGM_RSRC4_VS)))
+    if ((count == 1) &&
+        ((startAddr == mmSPI_SHADER_PGM_RSRC3_GS) ||
+         (startAddr == mmSPI_SHADER_PGM_RSRC4_GS) ||
+         (startAddr == mmSPI_SHADER_PGM_RSRC3_HS) ||
+         (startAddr == mmSPI_SHADER_PGM_RSRC4_HS) ||
+         (startAddr == mmSPI_SHADER_PGM_RSRC3_PS) ||
+         (startAddr == Gfx10Plus::mmSPI_SHADER_PGM_RSRC4_PS) ||
+         (startAddr == HasHwVs::mmSPI_SHADER_PGM_RSRC3_VS) ||
+         (startAddr == Gfx10::mmSPI_SHADER_PGM_RSRC4_VS)))
     {
         // Handle indexed SH
         pCmdSpace = WriteSetOneShRegIndex(
@@ -211,29 +179,18 @@ uint32* CmdStream::WriteRegisters(
             index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
             pCmdSpace);
     }
-    else if ((count == 1) &&
-             ((startAddr == mmVGT_PRIMITIVE_TYPE) ||
-              (startAddr == mmVGT_INDEX_TYPE) ||
-              (startAddr == mmVGT_NUM_INSTANCES) ||
-              (startAddr == Gfx09::mmIA_MULTI_VGT_PARAM)))
+    else if ((count == 1) && ((startAddr == mmVGT_INDEX_TYPE) || (startAddr == mmVGT_NUM_INSTANCES)))
     {
         // Handle indexed uconfig
         PFP_SET_UCONFIG_REG_INDEX_index_enum index = index__pfp_set_uconfig_reg_index__default;
-        if (startAddr == mmVGT_PRIMITIVE_TYPE)
-        {
-            index = index__pfp_set_uconfig_reg_index__prim_type__GFX09;
-        }
-        else if (startAddr == mmVGT_INDEX_TYPE)
+
+        if (startAddr == mmVGT_INDEX_TYPE)
         {
             index = index__pfp_set_uconfig_reg_index__index_type;
         }
         else if (startAddr == mmVGT_NUM_INSTANCES)
         {
             index = index__pfp_set_uconfig_reg_index__num_instances;
-        }
-        else if (startAddr == Gfx09::mmIA_MULTI_VGT_PARAM)
-        {
-            index = index__pfp_set_uconfig_reg_index__multi_vgt_param__GFX09;
         }
 
         pCmdSpace = WriteSetOneConfigReg( startAddr, *pRegData, pCmdSpace, index);
@@ -326,57 +283,6 @@ uint32* CmdStream::WriteContextRegRmw(
     else
     {
         pCmdSpace = WriteContextRegRmw<false>(regAddr, regMask, regData, pCmdSpace);
-    }
-
-    return pCmdSpace;
-}
-
-// =====================================================================================================================
-// Builds a PM4 packet to set the given register unless the PM4 optimizer indicates that it is redundant.
-// Returns a pointer to the next unused DWORD in pCmdSpace.
-template <bool Pm4OptEnabled>
-uint32* CmdStream::WriteSetVgtLsHsConfig(
-    regVGT_LS_HS_CONFIG vgtLsHsConfig,
-    uint32*             pCmdSpace)
-{
-    PAL_ASSERT(m_flags.optimizeCommands == Pm4OptEnabled);
-
-    if ((Pm4OptEnabled == false) || m_pPm4Optimizer->MustKeepSetContextReg(mmVGT_LS_HS_CONFIG, vgtLsHsConfig.u32All))
-    {
-        const size_t totalDwords = m_cmdUtil.BuildSetOneContextReg(
-                                        mmVGT_LS_HS_CONFIG,
-                                        pCmdSpace,
-                                        index__pfp_set_context_reg_index__vgt_ls_hs_config__GFX09);
-        m_contextRollDetected = true;
-        pCmdSpace[CmdUtil::ContextRegSizeDwords] = vgtLsHsConfig.u32All;
-        pCmdSpace += totalDwords;
-    }
-
-    return pCmdSpace;
-}
-
-template
-uint32* CmdStream::WriteSetVgtLsHsConfig<true>(
-    regVGT_LS_HS_CONFIG vgtLsHsConfig,
-    uint32*             pCmdSpace);
-template
-uint32* CmdStream::WriteSetVgtLsHsConfig<false>(
-    regVGT_LS_HS_CONFIG vgtLsHsConfig,
-    uint32*             pCmdSpace);
-
-// =====================================================================================================================
-// Wrapper for the real WriteSetVgtLsHsConfig() when it isn't known whether the immediate pm4 optimizer is enabled.
-uint32* CmdStream::WriteSetVgtLsHsConfig(
-    regVGT_LS_HS_CONFIG vgtLsHsConfig,
-    uint32*             pCmdSpace)
-{
-    if (m_flags.optimizeCommands)
-    {
-        pCmdSpace = WriteSetVgtLsHsConfig<true>(vgtLsHsConfig, pCmdSpace);
-    }
-    else
-    {
-        pCmdSpace = WriteSetVgtLsHsConfig<false>(vgtLsHsConfig, pCmdSpace);
     }
 
     return pCmdSpace;
@@ -732,7 +638,6 @@ uint32* CmdStream::WriteSetSeqShRegsIndex(
     return pCmdSpace;
 }
 
-#if PAL_BUILD_GFX11
 // =====================================================================================================================
 // Helper function for accumulating the user-SGPR's mapped to user-data entries into packed register pairs for graphics
 // or compute shader stages.
@@ -914,7 +819,6 @@ uint32* CmdStream::WriteSetContextRegPairs(
 
     return pCmdSpace;
 }
-#endif
 
 // =====================================================================================================================
 // Helper function for writing user-SGPRs mapped to user-data entries for a graphics or compute shader stage.
@@ -1006,7 +910,6 @@ uint32* CmdStream::WriteUserDataEntriesToSgprs(
             }
         }
     }
-#if PAL_BUILD_GFX11
     else if (m_supportsHoleyOptimization)
     {
         // Bitmasks of which sgpr needed to be updated since the corresponding user data entry is dirty.
@@ -1075,7 +978,6 @@ uint32* CmdStream::WriteUserDataEntriesToSgprs(
             }
         }
     }
-#endif
     else
     {
         // If we are honoring the dirty flags, then there may be multiple packets because skipping dirty entries
@@ -1466,28 +1368,15 @@ uint32* CmdStream::WriteSetOnePerfCtrReg(
                                              wr_confirm__me_copy_data__wait_for_confirmation,
                                              pCmdSpace);
     }
+    // Use a normal SET_DATA command for normal user-config registers. The resetFilterCam bit is not valid for the
+    // Compute Micro Engine. Setting this bit would cause a hang in compute-only engines.
+    else if (GetEngineType() == EngineTypeUniversal)
+    {
+        pCmdSpace = WriteSetOneConfigReg<true>(regAddr, value, pCmdSpace);
+    }
     else
     {
-        // Use a normal SET_DATA command for normal user-config registers.
-        if (m_device.Parent()->ChipProperties().gfxLevel != GfxIpLevel::GfxIp9)
-        {
-            const auto engineType = GetEngineType();
-
-            // The resetFilterCam bit is not valid for the Compute Micro Engine. Setting this bit would cause a hang in
-            // compute-only engines.
-            if (engineType == EngineTypeUniversal)
-            {
-                pCmdSpace = WriteSetOneConfigReg<true>(regAddr, value, pCmdSpace);
-            }
-            else
-            {
-                pCmdSpace = WriteSetOneConfigReg<false>(regAddr, value, pCmdSpace);
-            }
-        }
-        else
-        {
-            pCmdSpace = WriteSetOneConfigReg<false>(regAddr, value, pCmdSpace);
-        }
+        pCmdSpace = WriteSetOneConfigReg<false>(regAddr, value, pCmdSpace);
     }
 
     return pCmdSpace;

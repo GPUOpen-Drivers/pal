@@ -28,15 +28,25 @@
 
 namespace DevDriver
 {
-    LegacyProtocolClient::LegacyProtocolClient(IMsgChannel* pMsgChannel, Protocol protocol, Version minVersion, Version maxVersion)
+    LegacyProtocolClient::LegacyProtocolClient(
+        IMsgChannel* pMsgChannel,
+        Protocol protocol,
+        Version minVersion,
+        Version maxVersion,
+        const char* pProtocolName)
         : m_pMsgChannel(pMsgChannel)
         , m_state(ClientState::Disconnected)
         , m_protocol(protocol)
         , m_minVersion(minVersion)
         , m_maxVersion(maxVersion)
         , m_pSession()
+        , m_protocolName {}
     {
         DD_ASSERT(m_pMsgChannel != nullptr);
+        if (pProtocolName != nullptr)
+        {
+            Platform::Snprintf(m_protocolName, "%s", pProtocolName);
+        }
     }
 
     bool LegacyProtocolClient::IsConnected() const
@@ -108,6 +118,7 @@ namespace DevDriver
             sessionInfo.minProtocolVersion = m_minVersion;
             sessionInfo.maxProtocolVersion = m_maxVersion;
             sessionInfo.remoteClientId = clientId;
+            sessionInfo.pSessionName = m_protocolName;
 
             SharedPointer<ISession> pSession;
             result = m_pMsgChannel->EstablishSessionForClient(&pSession, sessionInfo);

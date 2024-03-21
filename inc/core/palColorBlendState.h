@@ -38,7 +38,11 @@ namespace Pal
 {
 
 /// Specifies coefficient for the source or destination part of the blend equation.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 853
+enum class Blend : uint8
+#else
 enum class Blend : uint32
+#endif
 {
     Zero                  = 0x00,
     One                   = 0x01,
@@ -63,7 +67,11 @@ enum class Blend : uint32
 };
 
 /// Specifies the blend function in a blend equation.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 853
+enum class BlendFunc : uint8
+#else
 enum class BlendFunc : uint32
+#endif
 {
     Add             = 0x0,
     Subtract        = 0x1,

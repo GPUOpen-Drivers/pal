@@ -714,11 +714,9 @@ const ComputePipeline* RsrcProcMgr::GetScaledCopyImageComputePipeline(
     }
     else if (srcInfo.fragments > 1)
     {
-#if PAL_BUILD_GFX11
         // HW doesn't support UAV writes to depth/stencil MSAA surfaces on pre-gfx11.
         // On gfx11, UAV writes to MSAA D + S images will work if HTile is fully decompressed.
         if (IsGfx11(*m_pDevice->Parent()) == false)
-#endif
         {
             PAL_ASSERT((srcImage.IsDepthStencilTarget() == false) && (dstImage.IsDepthStencilTarget() == false));
         }
@@ -3569,14 +3567,10 @@ void RsrcProcMgr::SlowClearCompute(
         // Non-DS images use swizzle modes which group up samples from different texels. Basically imagine all of the
         // "sample index 0" values come first, then all of the "sample index 1" values, and so on. This sort of image
         // requires a shader which treats the sample index like an extra array slice index or Z-plane index.
-#if PAL_BUILD_GFX11
         //
         // Note that gfx11 switched all images over to sample major memory layouts. We should never use the MsaaPlanar
         // path on gfx11 and as such we don't compile it for that hardware.
         if (dstImage.IsDepthStencilTarget() || IsGfx11Plus(*m_pDevice->Parent()))
-#else
-        if (dstImage.IsDepthStencilTarget())
-#endif
         {
             info.pipelineEnum = RpmComputePipeline::ClearImageMsaaSampleMajor;
         }

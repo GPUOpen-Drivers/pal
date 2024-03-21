@@ -34,13 +34,9 @@
 namespace Util
 {
 
-/// Definitions for Unix ar file format with SysV/GNU exetended names, but none of the symbol table stuff.
+/// Definitions for Unix ar file format.
 struct ArFileFormat
 {
-    // Max length of a non-extended name. The SVR4/GNU format we're trying to emulate insists on having
-    // a terminator char at the end of the name, so the name cannot completely fill the "name" field.
-    static constexpr const size_t MaxNameLen = 15;
-
     struct GlobalHeader
     {
         char magic[8];
@@ -65,6 +61,8 @@ struct ArFileFormat
 class ArFileWriter : private ArFileFormat
 {
 public:
+    ArFileWriter() : m_extendedNamesLen(0), m_format(Format::Traditional) {}
+
     /// Get the overall size in bytes of the archive file to be written.
     ///
     /// @returns Size in bytes
@@ -108,7 +106,15 @@ private:
     /// @param [out] pWrite Where to write the header
     void WriteFileHeader(Span<const char> name, size_t size, void* pWrite);
 
+    enum class Format : uint32
+    {
+        Traditional, // Traditional ar format with names <= 16 bytes and no spaces
+        Svr4Short,   // SVR4 ar format with names <= 15 bytes (we add '/' terminator)
+        Svr4Long,    // SVR4 ar format with extended names
+    };
+
     size_t m_extendedNamesLen;
+    Format m_format;
 };
 
 // =====================================================================================================================

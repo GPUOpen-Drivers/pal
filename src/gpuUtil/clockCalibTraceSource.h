@@ -36,19 +36,23 @@ class Platform;
 
 struct TraceChunkClockCalibration
 {
-    Pal::uint64 cpuTimestamp;
-    Pal::uint64 gpuTimestamp;
+    Pal::uint32 pciId;        // The ID of the GPU sampled
+    Pal::uint64 cpuTimestamp; // CPU timestamp counter
+    Pal::uint64 gpuTimestamp; // GPU timestamp counter
 };
 
 namespace GpuUtil
 {
 
 constexpr char        ClockCalibTraceSourceName[]  = "clockcalibration";
-constexpr Pal::uint32 ClockCalibTraceSourceVersion = 1;
+constexpr Pal::uint32 ClockCalibTraceSourceVersion = 2;
+
 const char ClockCalibTextId[TextIdentifierSize]    = /* "ClockCalibration" */
     { 'C','l','o','c','k','C','a','l','i','b','r','a','t','i','o','n' }; // Using array form, since the null-terminator
                                                                          // from a string literal would put us over
                                                                          // 16 chars
+
+constexpr Pal::uint32 ClockCalibChunkVersion       = 2;
 
 // =====================================================================================================================
 class ClockCalibrationTraceSource : public ITraceSource
@@ -71,9 +75,6 @@ public:
     virtual Pal::uint32 GetVersion() const override { return ClockCalibTraceSourceVersion; }
 
 private:
-    // Writes a clock calibration chunk for each Platform-held device to the trace session.
-    void WriteClockCalibrationChunks();
-
     Pal::Platform* const m_pPlatform;
 };
 

@@ -211,12 +211,13 @@ class Variable:
     def GetLibrary(self):
         return self.library
 class ProcMgr:
-    def __init__(self, fileName, libraryDict, needSpecializedInit, libraryDictAlts=None):
+    def __init__(self, fileName, libraryDict, needSpecializedInit, libraryDictAlts=None, needsLibraryGetter=False):
         self.fileName = fileName
         self.libraryDict = libraryDict
         self.libraryDictAlts = libraryDictAlts
         self.libraries = {}
         self.needSpecializedInit = needSpecializedInit
+        self.needsLibraryGetter = needsLibraryGetter
         self.var = []
         fp  = open(fileName)
         contents = fp.readlines()
@@ -328,6 +329,8 @@ class ProcMgr:
         fp.write("\n    Result Init(Platform* pPlatform);\n")
         if self.needSpecializedInit:
             fp.write("    void   SpecializedInit(Platform* pPlatform, char*  pDtifLibName);\n")
+        if self.needsLibraryGetter:
+            fp.write("    Util::Library* GetLibDrmAmdgpu() { return &m_library[LibDrmAmdgpu]; }\n")
         if self.var:
             fp.write("\n")
             for var in self.var:

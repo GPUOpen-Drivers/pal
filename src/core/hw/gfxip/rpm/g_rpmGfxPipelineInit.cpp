@@ -68,23 +68,22 @@ Result CreateRpmGraphicsPipelines(
     case AsicRevision::Navi23:
     case AsicRevision::Navi24:
     case AsicRevision::Rembrandt:
-    case AsicRevision::Raphael:
         pTable = rpmGfxBinaryTableNavi21;
         break;
 
-#if PAL_BUILD_GFX11
+    case AsicRevision::Raphael:
+        pTable = rpmGfxBinaryTableRaphael;
+        break;
+
     case AsicRevision::Navi31:
     case AsicRevision::Navi32:
     case AsicRevision::Navi33:
         pTable = rpmGfxBinaryTableNavi31;
         break;
-#endif
 
-#if PAL_BUILD_GFX11
     case AsicRevision::Phoenix1:
         pTable = rpmGfxBinaryTablePhoenix1;
         break;
-#endif
 
     default:
         result = Result::ErrorUnknown;
@@ -249,9 +248,7 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success && (false
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-#if PAL_BUILD_GFX11
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#endif
         ))
     {
         pipeInfo = { };
@@ -3542,11 +3539,8 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-#if PAL_BUILD_GFX11
     if (result == Result::Success && (false
-#if PAL_BUILD_GFX11
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#endif
         ))
     {
         pipeInfo = { };
@@ -3577,9 +3571,7 @@ Result CreateRpmGraphicsPipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_GFX11
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#endif
         ))
     {
         pipeInfo = { };
@@ -3610,9 +3602,7 @@ Result CreateRpmGraphicsPipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_GFX11
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#endif
         ))
     {
         pipeInfo = { };
@@ -3643,9 +3633,7 @@ Result CreateRpmGraphicsPipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_GFX11
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#endif
         ))
     {
         pipeInfo = { };
@@ -3676,9 +3664,7 @@ Result CreateRpmGraphicsPipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_GFX11
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#endif
         ))
     {
         pipeInfo = { };
@@ -3709,9 +3695,7 @@ Result CreateRpmGraphicsPipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_GFX11
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#endif
         ))
     {
         pipeInfo = { };
@@ -3742,9 +3726,7 @@ Result CreateRpmGraphicsPipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_GFX11
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#endif
         ))
     {
         pipeInfo = { };
@@ -3775,9 +3757,7 @@ Result CreateRpmGraphicsPipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_GFX11
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#endif
         ))
     {
         pipeInfo = { };
@@ -3806,7 +3786,6 @@ Result CreateRpmGraphicsPipelines(
             &pPipelineMem[Gfx11ResolveGraphics_UNORM16],
             AllocInternal);
     }
-#endif
 
 #endif
     return result;

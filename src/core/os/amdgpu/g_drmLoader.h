@@ -2816,6 +2816,7 @@ public:
 
     Result Init(Platform* pPlatform);
     void   SpecializedInit(Platform* pPlatform, char*  pDtifLibName);
+    Util::Library* GetLibDrmAmdgpu() { return &m_library[LibDrmAmdgpu]; }
 
 private:
     Util::Library m_library[DrmLoaderLibrariesCount];

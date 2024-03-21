@@ -27,7 +27,6 @@
 
 #include "core/platform.h"
 #include "core/device.h"
-#include "palGpaSession.h"
 #include "palDequeImpl.h"
 #include "palVectorImpl.h"
 #include "palHashSetImpl.h"
@@ -39,12 +38,14 @@ using namespace Pal;
 using namespace Util;
 using namespace GpuUtil::TraceChunk;
 
+constexpr uint32 DefaultDeviceIndex = 0;
+
 namespace GpuUtil
 {
 
 // =====================================================================================================================
 CodeObjectTraceSource::CodeObjectTraceSource(
-    Pal::IPlatform* pPlatform)
+    IPlatform* pPlatform)
     :
     m_pPlatform(pPlatform),
     m_codeObjectRecords(pPlatform),
@@ -109,9 +110,11 @@ Result CodeObjectTraceSource::WriteCodeObjectChunks()
         const void* pCodeObjectBlob = VoidPtrInc(pRecord, sizeof(CodeObjectDatabaseRecord));
 
         CodeObjectHeader header = {
-            .codeObjectHash     = {
-                .lower = pRecord->codeObjectHash.lower,
-                .upper = pRecord->codeObjectHash.upper
+            .pciId              = m_pPlatform->GetPciId(DefaultDeviceIndex).u32All,
+            .codeObjectHash     =
+            {
+                .lower          = pRecord->codeObjectHash.lower,
+                .upper          = pRecord->codeObjectHash.upper
             }
         };
 
@@ -152,10 +155,14 @@ Result CodeObjectTraceSource::WriteLoaderEventsChunk()
                 static_cast<CodeObjectLoadEvent*>(pBuffer)[i] = m_loadEventRecords[i];
             }
 
+            CodeObjectLoadEventHeader header = {
+                .count  = static_cast<uint32>(m_loadEventRecords.NumElements())
+            };
+
             TraceChunkInfo info    = {
                 .version           = CodeObjectLoadEventChunkVersion,
-                .pHeader           = nullptr,
-                .headerSize        = 0,
+                .pHeader           = &header,
+                .headerSize        = sizeof(header),
                 .pData             = pBuffer,
                 .dataSize          = static_cast<int64>(bufferSize),
                 .enableCompression = false
@@ -196,10 +203,14 @@ Result CodeObjectTraceSource::WritePsoCorrelationChunk()
                 static_cast<PsoCorrelation*>(pBuffer)[i] = m_psoCorrelationRecords[i];
             }
 
+            PsoCorrelationHeader header = {
+                .count  = static_cast<uint32>(m_psoCorrelationRecords.NumElements())
+            };
+
             TraceChunkInfo info    = {
                 .version           = PsoCorrelationChunkVersion,
-                .pHeader           = nullptr,
-                .headerSize        = 0,
+                .pHeader           = &header,
+                .headerSize        = sizeof(header),
                 .pData             = pBuffer,
                 .dataSize          = static_cast<int64>(bufferSize),
                 .enableCompression = false
@@ -241,6 +252,7 @@ Result CodeObjectTraceSource::AddCodeObjectLoadEvent(
     if (result == Result::Success)
     {
         CodeObjectLoadEvent record = {
+            .pciId          = m_pPlatform->GetPciId(DefaultDeviceIndex).u32All,
             .eventType      = eventType,
             .baseAddress    = (gpuSubAlloc.address + gpuSubAlloc.offset),
             .codeObjectHash = { info.internalLibraryHash.stable, info.internalLibraryHash.unique },
@@ -277,6 +289,7 @@ Result CodeObjectTraceSource::AddCodeObjectLoadEvent(
     if (result == Result::Success)
     {
         CodeObjectLoadEvent record = {
+            .pciId          = m_pPlatform->GetPciId(DefaultDeviceIndex).u32All,
             .eventType      = eventType,
             .baseAddress    = (gpuSubAlloc.address + gpuSubAlloc.offset),
             .codeObjectHash = { info.internalPipelineHash.stable, info.internalPipelineHash.unique },
@@ -301,6 +314,7 @@ Result CodeObjectTraceSource::AddCodeObjectLoadEvent(
     PAL_ASSERT(elfBinaryInfo.pGpuMemory != nullptr);
 
     CodeObjectLoadEvent record = {
+        .pciId          = m_pPlatform->GetPciId(DefaultDeviceIndex).u32All,
         .eventType      = eventType,
         .baseAddress    = elfBinaryInfo.pGpuMemory->Desc().gpuVirtAddr + elfBinaryInfo.offset,
         .codeObjectHash = { elfBinaryInfo.originalHash, elfBinaryInfo.compiledHash },
@@ -342,6 +356,7 @@ Result CodeObjectTraceSource::RegisterLibrary(
         {
             // Record a mapping of API hash -> internal library hash so they can be correlated.
             TraceChunk::PsoCorrelation record = {
+                .pciId                = m_pPlatform->GetPciId(DefaultDeviceIndex).u32All,
                 .apiPsoHash           = clientInfo.apiHash,
                 .internalPipelineHash = libraryInfo.internalLibraryHash,
                 .apiLevelObjectName   = { '\0' } // unused
@@ -437,7 +452,7 @@ Result CodeObjectTraceSource::RegisterPipeline(
     m_registerPipelineLock.LockForWrite();
     if ((result == Result::Success) && (pipelineInfo.apiPsoHash != 0))
     {
-        MetroHash::Hash tempHash = {};
+        MetroHash::Hash tempHash = { };
 
         MetroHash128 hasher;
         hasher.Update(pipelineInfo.apiPsoHash);
@@ -450,6 +465,7 @@ Result CodeObjectTraceSource::RegisterPipeline(
         {
             // Record a mapping of API PSO hash -> internal pipeline hash so they can be correlated.
             TraceChunk::PsoCorrelation record = {
+                .pciId                = m_pPlatform->GetPciId(DefaultDeviceIndex).u32All,
                 .apiPsoHash           = pipelineInfo.apiPsoHash,
                 .internalPipelineHash = pipeInfo.internalPipelineHash,
                 .apiLevelObjectName   = { '\0' } // unused
@@ -557,12 +573,13 @@ Result CodeObjectTraceSource::RegisterElfBinary(
         if (m_registeredApiHashes.Contains(uniqueHash) == false)
         {
             // Record a mapping of API hash -> internal library hash so they can be correlated.
-            PsoCorrelation record = {
+            PsoCorrelation record     = {
+                .pciId                = m_pPlatform->GetPciId(DefaultDeviceIndex).u32All,
                 .apiPsoHash           = elfBinaryInfo.originalHash,
                 .internalPipelineHash =
                 {
-                    .stable = elfBinaryInfo.compiledHash,
-                    .unique = uniqueHash
+                    .stable           = elfBinaryInfo.compiledHash,
+                    .unique           = uniqueHash
                 }
             };
             result = m_psoCorrelationRecords.PushBack(record);

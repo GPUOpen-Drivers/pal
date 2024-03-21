@@ -117,9 +117,7 @@ Result ComputeShaderLibrary::HwlInit(
         m_chunkCs.LateInit(metadata,
                            (IsWave32() ? 32 : 64),
                            &threadsPerTg,
-#if PAL_BUILD_GFX11
                            DispatchInterleaveSize::Default,
-#endif
                            &uploader);
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 827
         GetFunctionGpuVirtAddrs(uploader, createInfo.pFuncList, createInfo.funcCount);
@@ -176,9 +174,13 @@ void ComputeShaderLibrary::UpdateHwInfo()
 // =====================================================================================================================
 // Obtains the compiled shader ISA code for the shader specified.
 Result ComputeShaderLibrary::GetShaderFunctionCode(
-    const char*  pShaderExportName,
-    size_t*      pSize,
-    void*        pBuffer
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 852
+    Util::StringView<char> shaderExportName,
+#else
+    const char*            pShaderExportName,
+#endif
+    size_t*                pSize,
+    void*                  pBuffer
     ) const
 {
     // To extract the shader code, we can re-parse the saved ELF binary and lookup the shader's program
@@ -187,7 +189,11 @@ Result ComputeShaderLibrary::GetShaderFunctionCode(
     Result result = abiReader.Init();
     if (result == Result::Success)
     {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 852
+        const Elf::SymbolTableEntry* pSymbol = abiReader.GetGenericSymbol(shaderExportName);
+#else
         const Elf::SymbolTableEntry* pSymbol = abiReader.GetGenericSymbol(pShaderExportName);
+#endif
         if (pSymbol != nullptr)
         {
             result = abiReader.GetElfReader().CopySymbol(*pSymbol, pSize, pBuffer);

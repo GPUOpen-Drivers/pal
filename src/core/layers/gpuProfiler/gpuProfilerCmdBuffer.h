@@ -147,17 +147,10 @@ public:
         const GlobalScissorParams& params) override;
     virtual void CmdBarrier(
         const BarrierInfo& barrierInfo) override;
-    virtual void OptimizeBarrierReleaseInfo(
-        uint32       pipePointWaitCount,
-        HwPipePoint* pPipePoints,
-        uint32*      pCacheMask) const override
-    {
-        // The optimization works in PAL core level. If any replay layer is enabled, this function should immediately
-        // return the original pipe and cache info, and drop the call from propagating to next layer.
-    }
     virtual void OptimizeAcqRelReleaseInfo(
-        uint32* pStageMask,
-        uint32* pAccessMask) const override
+        BarrierType barrierType,
+        uint32*     pStageMask,
+        uint32*     pAccessMask) const override
     {
         // The optimization works in PAL core level. If any replay layer is enabled, this function should immediately
         // return the original pipe and cache info, and drop the call from propagating to next layer.
@@ -184,11 +177,10 @@ public:
 
     virtual void CmdReleaseThenAcquire(const AcquireReleaseInfo& barrierInfo) override;
     virtual void CmdWaitMemoryValue(
-        const IGpuMemory& gpuMemory,
-        gpusize           offset,
-        uint32            data,
-        uint32            mask,
-        CompareFunc       compareFunc) override;
+        gpusize     gpuVirtAddr,
+        uint32      data,
+        uint32      mask,
+        CompareFunc compareFunc) override;
     virtual void CmdPrimeGpuCaches(
         uint32                    rangeCount,
         const PrimeGpuCacheRange* pRanges) override;

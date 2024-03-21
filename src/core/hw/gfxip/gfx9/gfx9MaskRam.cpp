@@ -2257,12 +2257,10 @@ void Gfx9MetaEqGenerator::GetData2DParamsNew(
                               (3 - static_cast<int32>(microBlockLog2.height)) -
                               overlap;
 
-#if PAL_BUILD_GFX11
     if (IsGfx11(*pPalDevice) && (blockSizeLog2 != 16))
     {
         tempTileSplitBits = overlap;
     }
-#endif
 
     pParams->tileSplitBits   = static_cast<uint32>(Max(0, tempTileSplitBits));
     pParams->tileSplitBits   = Min(numSamplesLog2, pParams->tileSplitBits);
@@ -2355,7 +2353,6 @@ void Gfx9MetaEqGenerator::GetData2DParamsNew(
                pParams->pipeRotateBit1--;
             }
 
-#if PAL_BUILD_GFX11
             if (IsGfx11(*pPalDevice) && (numSamplesLog2 == 3))
             {
                 if ((blockSizeLog2 > 16) && (numPipesLog2 == 4) && (bppLog2 == 3))
@@ -2368,7 +2365,6 @@ void Gfx9MetaEqGenerator::GetData2DParamsNew(
                     pParams->pipeRotateBit1 -= 4;
                 }
             }
-#endif
         }
 
         // This makes sure that the msb sample bits get into the pipe if any sample bits are needed in SW_R
@@ -2485,10 +2481,9 @@ int32 Gfx9MetaEqGenerator::GetMetaOverlap() const
     }
 
     // In 16Bpp 8xaa, we lose 1 overlap bit because the block size reduction eats into a pipe anchor bit (y4)
-#if PAL_BUILD_GFX11
     if (IsGfx11(*pPalDevice))
     {
-        if((bppLog2 == 4) && (numSamplesLog2 == 3) && (blockSizeLog2 == 16))
+        if ((bppLog2 == 4) && (numSamplesLog2 == 3) && (blockSizeLog2 == 16))
         {
             overlap--;
         }
@@ -2496,7 +2491,6 @@ int32 Gfx9MetaEqGenerator::GetMetaOverlap() const
         overlap += 16 - blockSizeLog2;
     }
     else
-#endif
     {
         if ((bppLog2 == 4) && (numSamplesLog2 == 3))
         {
@@ -2848,9 +2842,7 @@ void Gfx9MetaEqGenerator::CalcMetaEquationGfx10Plus()
                         subTileXYBits = 0;
                     }
 
-#if PAL_BUILD_GFX11
                     if (IsGfx11(*pPalDevice) == false)
-#endif
                     {
                         tileSplitBits = (3 - compBlockLog2.width ) +
                                         (3 - compBlockLog2.height) -
@@ -2870,7 +2862,6 @@ void Gfx9MetaEqGenerator::CalcMetaEquationGfx10Plus()
                         flipY1Y2 = true;
                     }
 
-#if PAL_BUILD_GFX11
                     if (IsGfx11(*pPalDevice)  &&
                         (blockSizeLog2 == 18) &&
                         (numSamplesLog2 == 3) &&
@@ -2880,7 +2871,6 @@ void Gfx9MetaEqGenerator::CalcMetaEquationGfx10Plus()
                     {
                         flipY1Y2 = true;
                     }
-#endif
                 }
             }
 
@@ -3172,7 +3162,6 @@ void Gfx9MetaEqGenerator::CalcMetaEquationGfx10Plus()
                 m_meta.Rotate(1, start + metaOverlap - 1, start + metaOverlap);
             }
 
-#if PAL_BUILD_GFX11
             bool swapB0B1 = false;
             bool swapB1B2 = false;
             bool swapB0B5 = false;
@@ -3336,7 +3325,6 @@ void Gfx9MetaEqGenerator::CalcMetaEquationGfx10Plus()
                       ((numPipesLog2 == 6) && (numShaderArraysLog2 == 3) && (bppLog2 == 4) && (numSamplesLog2 == 3)) ||
                       ((numPipesLog2 == 6) && (numShaderArraysLog2 == 4) && (bppLog2 == 3) && (numSamplesLog2 == 3))));
             } // end check for GFX11 and color surfaces
-#endif
 
             end = cachelineSize + metaOverlap;
 
@@ -3361,7 +3349,6 @@ void Gfx9MetaEqGenerator::CalcMetaEquationGfx10Plus()
                                       pipeInterleaveLog2 + nibbleOffset);
                 }
 
-#if PAL_BUILD_GFX11
             if (IsGfx11(*pPalDevice))
             {
                 if (m_pParent->IsColor())
@@ -3413,7 +3400,6 @@ void Gfx9MetaEqGenerator::CalcMetaEquationGfx10Plus()
                     }
                 }
             }
-#endif
 
                 if (m_pParent->IsDepth() && IsGfx103Plus(*pPalDevice))
                 {
@@ -3492,10 +3478,8 @@ HtileUsageFlags Gfx9Htile::UseHtileForImage(
         // be bound during a VRS-enabled draw, then
         // Does this device support VRS?
         if (device.ChipProperties().gfxip.supportsVrs &&
-#if PAL_BUILD_GFX11
             // Does this device record VRS data into hTile memory?
             IsGfx10(device)                           &&
-#endif
             // Has the client indicated that this depth image will potentially be bound during a VRS-enabled draw?
             (createInfo.usageFlags.vrsDepth != 0))
         {
@@ -4143,7 +4127,6 @@ void Gfx9Dcc::GetXyzInc(
         *pYinc = XyzIncSizes[bppLog2][1];
         *pZinc = XyzIncSizes[bppLog2][2];
 
-#if PAL_BUILD_GFX11
         if (IsGfx11(palDevice))
         {
             uint32  numSamples = m_image.Parent()->GetImageCreateInfo().samples;
@@ -4166,7 +4149,6 @@ void Gfx9Dcc::GetXyzInc(
                 numSamples = numSamples / 2;
             }
         }
-#endif
     }
     else if (imageType == ImageType::Tex3d)
     {
@@ -4224,7 +4206,6 @@ Result Gfx9Dcc::Init(
 
     if (result == Result::Success)
     {
-#if PAL_BUILD_GFX11
         if (IsGfx11(*(m_pGfxDevice->Parent())))
         {
             const Gfx9PalSettings& settings = GetGfx9Settings(*(m_pGfxDevice->Parent()));
@@ -4232,7 +4213,6 @@ Result Gfx9Dcc::Init(
             m_alignment  = Max(m_alignment, static_cast<gpusize>(settings.gfx11OverrideMetadataAlignment));
             m_totalSize *= settings.gfx11MetadataSizeMultiplier;
         }
-#endif
 
         // Compute our aligned GPU memory offset and update the caller-provided running total.
         UpdateGpuMemOffset(pGpuOffset);
@@ -4376,12 +4356,10 @@ void Gfx9Dcc::SetControlReg(
             {
                 m_dccControl.gfx10.INDEPENDENT_128B_BLOCKS  = 1;
             }
-#if PAL_BUILD_GFX11
             else
             {
                 m_dccControl.gfx11.INDEPENDENT_128B_BLOCKS  = 1;
             }
-#endif
 
             PAL_ASSERT(m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE <= m_dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE);
 
@@ -4427,12 +4405,10 @@ void Gfx9Dcc::SetControlReg(
         {
             m_dccControl.gfx10.INDEPENDENT_128B_BLOCKS = internalInfo.gfx9.sharedDccState.independentBlk128B;
         }
-#if PAL_BUILD_GFX11
         else
         {
             m_dccControl.gfx11.INDEPENDENT_128B_BLOCKS = internalInfo.gfx9.sharedDccState.independentBlk128B;
         }
-#endif
     }
 }
 
@@ -4709,8 +4685,8 @@ bool Gfx9Dcc::SupportFastColorClearWithoutFormatCheck(
     // - The Image is a Color Target - (ensured by caller)
     // - If the image is shader write-able, it's shader-writeable in a good way
     // - The Image is not linear tiled.
-    return  fastColorClearEnable                                                     &&
-#if PAL_BUILD_GFX11
+    return fastColorClearEnable                                                     &&
+
             // The only fast color clear mode available on GFX11 is comp-to-single;
             // if this has been disabled, then we can't do a fast clear.
             //
@@ -4718,9 +4694,9 @@ bool Gfx9Dcc::SupportFastColorClearWithoutFormatCheck(
             // always possible.
             ((IsGfx11(gfxLevel) == false) ||
                 (pGfxDevice->DisableAc01ClearCodes() == false) ||
-                image.Gfx10UseCompToSingleFastClears()) &&
-#endif
-            allowShaderWriteableSurfaces                                             &&
+                image.Gfx10UseCompToSingleFastClears())                             &&
+
+            allowShaderWriteableSurfaces                                            &&
             (AddrMgr2::IsLinearSwizzleMode(swizzleMode) == false);
 }
 
@@ -4828,9 +4804,7 @@ uint8 Gfx9Dcc::GetFastClearCode(
 
             PAL_ASSERT(pSwizzle[rgbaIdx] == ChannelSwizzle::X);
 
-#if PAL_BUILD_GFX11
             if (IsGfx11(*pDevice) == false)
-#endif
             {
 
                 // For most gfx9 and gfx10 asic and for single-component format:
@@ -4842,13 +4816,11 @@ uint8 Gfx9Dcc::GetFastClearCode(
                 color[2] = alphaOnMsb ? 0 : pConvertedColor[rgbaIdx];
                 color[3] = alphaOnMsb ? pConvertedColor[rgbaIdx] : 0;
             }
-#if PAL_BUILD_GFX11
             else
             {
                 color[2] =
                 color[3] = pConvertedColor[rgbaIdx];
             }
-#endif
 
             color[0] =
             color[1] = color[2];
@@ -4972,12 +4944,10 @@ uint8 Gfx9Dcc::GetFastClearCode(
             {
                 clearCode = Gfx9DccClearColor::Gfx10ClearColorCompToSingle;
             }
-#if PAL_BUILD_GFX11
             else if (IsGfx11(*pDevice))
             {
                 clearCode = Gfx9DccClearColor::Gfx11ClearColorCompToSingle;
             }
-#endif
             else
             {
                 // Which GPU is this?
@@ -4990,7 +4960,6 @@ uint8 Gfx9Dcc::GetFastClearCode(
             // so we have to use comp-to-reg.
             clearCode = Gfx9DccClearColor::ClearColorCompToReg;
 
-#if PAL_BUILD_GFX11
             // Navi3x has deprecated comp-to-reg support
             // one normal scenario to be here:
             // 128bpp dcc fastclear needs to know the clear value in advance, see func call
@@ -5000,7 +4969,6 @@ uint8 Gfx9Dcc::GetFastClearCode(
             {
                 clearCode = Gfx9DccClearColor::ClearColorInvalid;
             }
-#endif
         }
     }
 
@@ -5021,10 +4989,7 @@ void Gfx9Dcc::GetBlackOrWhiteClearCode(
     uint8*             pClearCode)      // [in, out] the clear code corresponding to the supplied clear color if it's
                                         //           black or white...  Othewrise unchanged from input.
 {
-#if PAL_BUILD_GFX11
-    const Pal::Device&  palDevice  = *pImage->GetDevice();
-
-    if (IsGfx11(palDevice))
+    if (IsGfx11(*pImage->GetDevice()))
     {
         const ChNumFormat createFormat = pImage->GetImageCreateInfo().swizzledFormat.format;
 
@@ -5103,7 +5068,6 @@ void Gfx9Dcc::GetBlackOrWhiteClearCode(
         }
     }
     else
-#endif
     {
         constexpr uint8 ClearColor0000 = 0x00;
         constexpr uint8 ClearColor0001 = 0x40;
@@ -5156,13 +5120,11 @@ void Gfx9Dcc::GetState(
     pState->maxUncompressedBlockSize = m_dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE;
     pState->independentBlk64B        = m_dccControl.bits.INDEPENDENT_64B_BLOCKS;
 
-#if PAL_BUILD_GFX11
     if (IsGfx11(*(m_pGfxDevice->Parent())))
     {
         pState->independentBlk128B   = m_dccControl.gfx11.INDEPENDENT_128B_BLOCKS;
     }
     else
-#endif
     {
         pState->independentBlk128B   = m_dccControl.gfx10.INDEPENDENT_128B_BLOCKS;
     }
@@ -5362,24 +5324,19 @@ bool Gfx9Cmask::UseCmaskForImage(
     {
         useCmask = (pParent->GetInternalCreateInfo().sharedMetadata.cmaskOffset != 0);
     }
+    else if (IsGfx10(device))
+    {
+        // Forcing CMask usage forces FMask usage, which is required for EQAA.
+        useCmask = (pParent->IsEqaa() ||
+                    (pParent->IsRenderTarget()                       &&
+                    (pParent->IsShared()                   == false) &&
+                    (pParent->IsMetadataDisabledByClient() == false) &&
+                    (pParent->GetImageCreateInfo().samples > 1)));
+    }
     else
     {
-#if PAL_BUILD_GFX11
         // GFX11 products have no concept of cMask or fMask
-        if (IsGfx11(device))
-        {
-            useCmask = false;
-        }
-        else
-#endif
-        {
-            // Forcing CMask usage forces FMask usage, which is required for EQAA.
-            useCmask = (pParent->IsEqaa() ||
-                        (pParent->IsRenderTarget()                        &&
-                         (pParent->IsShared()                   == false) &&
-                         (pParent->IsMetadataDisabledByClient() == false) &&
-                         (pParent->GetImageCreateInfo().samples > 1)));
-        }
+        PAL_ASSERT(IsGfx11(device));
     }
 
     return useCmask;
@@ -5647,16 +5604,13 @@ bool Gfx9MetaEqGenerator::IsZSwizzle(
     AddrSwizzleMode  swizzleMode
     ) const
 {
-    bool  isZ = AddrMgr2::IsZSwizzle(swizzleMode);
+    bool isZ = AddrMgr2::IsZSwizzle(swizzleMode);
 
-#if PAL_BUILD_GFX11
-    const Pal::Device*  pDevice = m_pParent->GetGfxDevice()->Parent();
-    if (IsGfx11(*pDevice))
+    if (IsGfx11(*m_pParent->GetGfxDevice()->Parent()))
     {
         //    The data organization (addressing equations) for SW_*_Z_X and SW_*_R_X are now identical
         isZ |= AddrMgr2::IsRotatedSwizzle(swizzleMode);
     }
-#endif
 
     return isZ;
 }
@@ -5666,11 +5620,9 @@ bool Gfx9MetaEqGenerator::IsRotatedSwizzle(
     AddrSwizzleMode  swizzleMode
     ) const
 {
-    bool  isR = AddrMgr2::IsRotatedSwizzle(swizzleMode);
+    bool isR = AddrMgr2::IsRotatedSwizzle(swizzleMode);
 
-#if PAL_BUILD_GFX11
-    const Pal::Device*  pDevice = m_pParent->GetGfxDevice()->Parent();
-    if (IsGfx11(*pDevice))
+    if (IsGfx11(*m_pParent->GetGfxDevice()->Parent()))
     {
         //    The data organization (addressing equations) for SW_*_Z_X and SW_*_R_X are now identical
         //
@@ -5678,7 +5630,6 @@ bool Gfx9MetaEqGenerator::IsRotatedSwizzle(
         // is now *false*.
         isR = false;
     }
-#endif
 
     return isR;
 }

@@ -25,7 +25,6 @@
 
 #include "../inc/dd_logger_api.h"
 #include "../inc/dd_assert.h"
-#include "../inc/dd_mutex.h"
 
 #include <stb_sprintf.h>
 

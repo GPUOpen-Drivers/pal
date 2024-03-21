@@ -205,7 +205,6 @@ inline void MachineTypeToGfxIpVersion(
         *pGfxIpMinorVer = 3;
         *pGfxIpStepping = 6;
         break;
-#if PAL_BUILD_GFX11
     case AmdGpuMachineType::Gfx1100:
         *pGfxIpMajorVer = 11;
         *pGfxIpMinorVer = 0;
@@ -226,7 +225,6 @@ inline void MachineTypeToGfxIpVersion(
         *pGfxIpMinorVer = 0;
         *pGfxIpStepping = 3;
         break;
-#endif
     default:
         // What is this?
         PAL_ASSERT_ALWAYS();
@@ -364,7 +362,6 @@ inline void GfxIpVersionToMachineType(
             break;
         }
         break;
-#if PAL_BUILD_GFX11
     case 11:
         switch(gfxIpMinorVer)
         {
@@ -391,7 +388,6 @@ inline void GfxIpVersionToMachineType(
             break;
         }
         break;
-#endif
     default:
         PAL_ASSERT_ALWAYS();
         break;

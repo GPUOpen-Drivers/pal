@@ -138,7 +138,8 @@ namespace DevDriver
                 SharedPointer<Session>::Create(m_allocCb,
                                                m_pMessageChannel,
                                                SessionType::Client,
-                                               sessionInfo.protocol);
+                                               sessionInfo.protocol,
+                                               sessionInfo.pSessionName);
             if (!pNewSession.IsNull())
             {
                 // Create a new sessionRef.
@@ -406,7 +407,8 @@ namespace DevDriver
                         pSession = SharedPointer<Session>::Create(m_allocCb,
                                                                   m_pMessageChannel,
                                                                   SessionType::Server,
-                                                                  pServer->GetProtocol());
+                                                                  pServer->GetProtocol(),
+                                                                  nullptr);
                         if (!pSession.IsNull())
                         {
                             // Assuming we made it this far, generate a new session ID and bind the session to the

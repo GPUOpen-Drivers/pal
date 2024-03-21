@@ -110,7 +110,11 @@ enum class PrimitiveTopology : uint32
 };
 
 /// Specifies how triangle primitives should be rasterized.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 851
+enum class FillMode : uint8
+#else
 enum class FillMode : uint32
+#endif
 {
     Points    = 0x0,
     Wireframe = 0x1,
@@ -118,7 +122,11 @@ enum class FillMode : uint32
 };
 
 /// Specifies the triangle face direction that should result in culled primitives.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 851
+enum class CullMode : uint8
+#else
 enum class CullMode : uint32
+#endif
 {
     _None         = 0x0,  ///< All triangles are rasterized.
     Front         = 0x1,  ///< Front facing triangles are culled.
@@ -133,7 +141,11 @@ enum class CullMode : uint32
 };
 
 /// Specifies vertex winding order corresponding to a front facing triangle.  @see CullMode.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 851
+enum class FaceOrientation : uint8
+#else
 enum class FaceOrientation : uint32
+#endif
 {
     Ccw = 0x0,  ///< Counter-clockwise vertex winding primitives are front facing.
     Cw  = 0x1   ///< Clockwise vertex winding primitives are front facing.
@@ -141,7 +153,11 @@ enum class FaceOrientation : uint32
 
 /// Specifies which vertex of a primitive is the _provoking vertex_.  This impacts which vertex's "flat" VS outputs
 /// are passed to the PS (i.e., flat shading).
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 851
+enum class ProvokingVertex : uint8
+#else
 enum class ProvokingVertex : uint32
+#endif
 {
     First = 0x0,
     Last  = 0x1
@@ -1101,6 +1117,14 @@ struct AcquireReleaseInfo
                                               ///  clients may define their own as well
 };
 
+/// Specifies barrier type, global (potentially mixed cases of buffer and image), buffer or image.
+enum class BarrierType : uint32
+{
+    Global,
+    Buffer,
+    Image
+};
+
 /// Specifies parameters for a copy from one range of a source GPU memory allocation to a range of the same size in a
 /// destination GPU memory allocation.  Used as an input to ICmdBuffer::CmdCopyMemory().
 struct MemoryCopyRegion
@@ -1655,6 +1679,29 @@ struct InputAssemblyStateParams
 /// @see ICmdBuffer::CmdSetTriangleRasterState
 struct TriangleRasterStateParams
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 851
+    struct
+    {
+        FillMode        frontFillMode   : 2; ///< Whether front-facing triangles should be rendered solid or wireframe.
+        FillMode        backFillMode    : 2; ///< Whether back-facing triangles should be rendered solid or wireframe.
+        CullMode        cullMode        : 2; ///< Specifies which, if any, triangles should be culled based on whether
+                                             ///  they are front or back facing.
+        FaceOrientation frontFace       : 1; ///< Specifies the vertex winding that results in a front-facing triangle.
+        ProvokingVertex provokingVertex : 1; ///< Specifies whether the first or last vertex of a primitive is the
+    };                                       ///  provoking vertex as it affects flat shading.
+    union
+    {
+        struct
+        {
+            uint8 frontDepthBiasEnable : 1; ///< Enable depth bias (i.e. polygon offset) for front-facing
+                                            ///  triangle-based primitives
+            uint8 backDepthBiasEnable  : 1; ///< Enable depth bias (i.e. polygon offset) for back-facing
+                                            ///  triangle-based primitives
+            uint8 reserved             : 6; ///< Reserved for future use.
+        };
+        uint8 u8All;                        ///< Flags packed as 8-bit uint.
+    } flags;                                ///< Triangle raster state flags.
+#else
     FillMode        frontFillMode;   ///< Specifies whether front-facing triangles should be rendered solid or wireframe.
     FillMode        backFillMode;    ///< Specifies whether back-facing triangles should be rendered solid or wireframe.
     CullMode        cullMode;        ///< Specifies which, if any, triangles should be culled based on whether they are
@@ -1674,6 +1721,7 @@ struct TriangleRasterStateParams
         };
         uint32 u32All;               ///< Flags packed as 32-bit uint.
     } flags;                         ///< Triangle raster state flags.
+#endif
 };
 
 /// Specifies parameters for controlling point and line rasterization.
@@ -2646,6 +2694,7 @@ public:
     virtual void CmdBarrier(
         const BarrierInfo& barrierInfo) = 0;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 857
     /// Perform source pipeline point and cache access optimization based on the legacy barrier interface.
     ///
     /// @param [in]     pipePointWaitCount Number of entries in pPipePoints.
@@ -2655,13 +2704,15 @@ public:
     /// @note HwPipePostBlt will be converted to a more accurate stage based on the underlying implementation of
     ///       outstanding BLTs, but will be left as HwPipePostBlt if the internal outstanding BLTs can't be expressed
     ///       as a client-facing HwPipePoint (e.g., if there are CP DMA BLTs in flight).
-    virtual void OptimizeBarrierReleaseInfo(
+    void OptimizeBarrierReleaseInfo(
         uint32       pipePointWaitCount,
         HwPipePoint* pPipePoints,
-        uint32*      pCacheMask) const = 0;
+        uint32*      pCacheMask) const { PAL_NOT_IMPLEMENTED(); }
+#endif
 
     /// Perform source pipeline stage and cache access optimization based on the acquire/release interface.
     ///
+    /// @param [in/out] barrierType Barrier transition type @ref BarrierType.
     /// @param [in/out] pStageMask  A mask of ORed @ref PipelineStageFlag to optimize.
     /// @param [in/out] pAccessMask A mask of ORed @ref CacheCoherencyUsageFlags to optimize.
     ///
@@ -2669,8 +2720,18 @@ public:
     ///       outstanding BLTs, but will be left as PipelineStageBlt if the internal outstanding BLTs can't be expressed
     ///       as a client-facing PipelineStage (e.g., if there are CP DMA BLTs in flight).
     virtual void OptimizeAcqRelReleaseInfo(
-        uint32* pStageMask,
-        uint32* pAccessMask) const = 0;
+        BarrierType barrierType,
+        uint32*     pStageMask,
+        uint32*     pAccessMask) const = 0;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 858
+    void OptimizeAcqRelReleaseInfo(
+        uint32*     pStageMask,
+        uint32*     pAccessMask) const
+    {
+        OptimizeAcqRelReleaseInfo(BarrierType::Global, pStageMask, pAccessMask);
+    }
+#endif
 
     /// Performs the release portion of an acquire/release-based barrier.  This releases a set of resources from their
     /// current usage, while CmdAcquire() is expected to be called to acquire access to the resources for future,
@@ -2905,12 +2966,12 @@ public:
         uint32            maximumCount,
         gpusize           countGpuAddr)
     {
-      const GpuVirtAddrAndStride gpuVirtAddrAndStride =
-      {
-          .gpuVirtAddr = gpuMemory.Desc().gpuVirtAddr + offset,
-          .stride = stride
-      };
-      m_funcTable.pfnCmdDrawIndirectMulti(this, gpuVirtAddrAndStride,
+        const GpuVirtAddrAndStride gpuVirtAddrAndStride =
+        {
+            .gpuVirtAddr = gpuMemory.Desc().gpuVirtAddr + offset,
+            .stride      = stride
+        };
+        m_funcTable.pfnCmdDrawIndirectMulti(this, gpuVirtAddrAndStride,
                                           maximumCount, countGpuAddr);
     }
 #endif
@@ -2955,12 +3016,12 @@ public:
         uint32            maximumCount,
         gpusize           countGpuAddr)
     {
-      const GpuVirtAddrAndStride gpuVirtAddrAndStride =
-      {
-          .gpuVirtAddr = gpuMemory.Desc().gpuVirtAddr + offset,
-          .stride = stride
-      };
-      m_funcTable.pfnCmdDrawIndexedIndirectMulti(this, gpuVirtAddrAndStride,
+        const GpuVirtAddrAndStride gpuVirtAddrAndStride =
+        {
+            .gpuVirtAddr = gpuMemory.Desc().gpuVirtAddr + offset,
+            .stride      = stride
+        };
+        m_funcTable.pfnCmdDrawIndexedIndirectMulti(this, gpuVirtAddrAndStride,
                                                  maximumCount, countGpuAddr);
     }
 #endif
@@ -3110,12 +3171,12 @@ public:
         uint32            maximumCount,
         gpusize           countGpuAddr)
     {
-      const GpuVirtAddrAndStride gpuVirtAddrAndStride =
-      {
-          .gpuVirtAddr = gpuMemory.Desc().gpuVirtAddr + offset,
-          .stride = stride
-      };
-      m_funcTable.pfnCmdDispatchMeshIndirectMulti(this, gpuVirtAddrAndStride,
+        const GpuVirtAddrAndStride gpuVirtAddrAndStride =
+        {
+            .gpuVirtAddr = gpuMemory.Desc().gpuVirtAddr + offset,
+            .stride      = stride
+        };
+        m_funcTable.pfnCmdDispatchMeshIndirectMulti(this, gpuVirtAddrAndStride,
                                                   maximumCount, countGpuAddr);
     }
 #endif
@@ -4222,24 +4283,31 @@ public:
     ///
     /// The client (or application) is expected to transiton the memory to proper state before calling this function.
     /// The memory location for the condition must be 4-byte aligned.
-    ///
-    /// This function requires use of the following barrier flags on @ref gpuMemory:
+    /// This function requires use of the following barrier flags on @ref gpuVirtAddr:
     /// - PipelineStage:  @ref PipelineStagePostPrefetch
     /// - CacheCoherency: @ref CoherCp
     ///
-    /// @param [in] gpuMemory    GPU memory object containing the memory location to be tested.
-    /// @param [in] offset       Offset within the memory object where the tested memory location begins.
+    /// @param [in] gpuVirtAddr  GPU memory address containing the data to be tested.
     /// @param [in] data         Source data to compare against the value in GPU memory.
     /// @param [in] mask         Mask to apply to the GPU memory (via bitwise AND) prior to comparison.
     /// @param [in] compareFunc  Function controlling how the data operands are compared. CompareFunc::Never should not
     ///                          be used as the hardware does not support it.
     virtual void CmdWaitMemoryValue(
+        gpusize     gpuVirtAddr,
+        uint32      data,
+        uint32      mask,
+        CompareFunc compareFunc) = 0;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 856
+    virtual void CmdWaitMemoryValue(
         const IGpuMemory& gpuMemory,
         gpusize           offset,
         uint32            data,
         uint32            mask,
-        CompareFunc       compareFunc) = 0;
-
+        CompareFunc       compareFunc)
+    {
+        CmdWaitMemoryValue(gpuMemory.Desc().gpuVirtAddr + offset, data, mask, compareFunc);
+    }
+#endif
     /// Stalls a command buffer execution until an external device writes to the marker surface in the GPU bus
     /// addressable memory location.
     ///

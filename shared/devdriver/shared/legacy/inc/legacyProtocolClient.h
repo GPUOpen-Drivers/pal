@@ -58,8 +58,15 @@ namespace DevDriver
         ClientId GetRemoteClientId() const override final;
         Version GetSessionVersion() const override final;
 
+        Result WaitForDisconnection(uint32 timeoutMillis) { return m_pSession->WaitForDisconnection(timeoutMillis); }
+
     protected:
-        LegacyProtocolClient(IMsgChannel* pMsgChannel, Protocol protocol, Version minVersion, Version maxVersion);
+        LegacyProtocolClient(
+            IMsgChannel* pMsgChannel,
+            Protocol protocol,
+            Version minVersion,
+            Version maxVersion,
+            const char* pProtocolName = nullptr);
 
         // Default implementation of ResetState that does nothing
         virtual void ResetState() {};
@@ -207,6 +214,8 @@ namespace DevDriver
         const Version m_maxVersion;
 
         SharedPointer<ISession> m_pSession;
+
+        char m_protocolName[64];
     };
 
 } // DevDriver

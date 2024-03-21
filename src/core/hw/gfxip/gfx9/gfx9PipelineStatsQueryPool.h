@@ -72,13 +72,11 @@ public:
         uint32  queryCount,
         void*   pMappedCpuAddr) override;
 
-#if PAL_BUILD_GFX11
     virtual bool RequiresSamplingFromGangedAce() const override;
-    virtual void DeferredBeginOnGangedAce(
+    virtual uint32* DeferredBeginOnGangedAce(
         GfxCmdBuffer*   pCmdBuffer,
-        Pal::CmdStream* pAceCmdStream,
+        uint32*         pCmdSpace,
         uint32          slot) const override;
-#endif
 
 protected:
     virtual ~PipelineStatsQueryPool() {}
@@ -114,11 +112,9 @@ private:
         gpusize gpuVirtAddr,
         uint32* pCmdSpace) const;
 
-#if PAL_BUILD_GFX11
     uint32* SampleQueryDataOnGangedAce(
         gpusize gpuVirtAddr,
         uint32* pAceCmdSpace) const;
-#endif
 
     uint32* FixupQueryForNoGangedAce(
         gpusize gpuVirtAddr,

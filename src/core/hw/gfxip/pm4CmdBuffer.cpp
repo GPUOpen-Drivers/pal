@@ -760,30 +760,13 @@ void Pm4CmdBuffer::CmdEndPerfExperiment(
 }
 
 // =====================================================================================================================
-void Pm4CmdBuffer::OptimizeBarrierReleaseInfo(
-    uint32             pipePointCount,
-    HwPipePoint*       pPipePoints,
-    uint32*            pCacheMask
-    ) const
-{
-    for (uint32 i = 0; i < pipePointCount; i++)
-    {
-        GfxBarrierMgr::OptimizePipePoint(this, &pPipePoints[i]);
-    }
-
-    if (pCacheMask != nullptr)
-    {
-        GfxBarrierMgr::OptimizeSrcCacheMask(this, pCacheMask);
-    }
-}
-
-// =====================================================================================================================
 void Pm4CmdBuffer::OptimizeAcqRelReleaseInfo(
-    uint32*                   pStageMask,
-    uint32*                   pAccessMasks
+    BarrierType barrierType,
+    uint32*     pStageMask,
+    uint32*     pAccessMask
     ) const
 {
-    GfxBarrierMgr::OptimizePipeStageAndCacheMask(this, pStageMask, pAccessMasks, nullptr, nullptr);
+    m_pBarrierMgr->OptimizeStageAndAccessMask(this, barrierType, pStageMask, pAccessMask, nullptr, nullptr);
 }
 
 // =====================================================================================================================
@@ -839,13 +822,21 @@ void Pm4CmdBuffer::UpdateUserDataTableCpu(
     //    can never allocate embeded data in the range that can underflow. This will waste VA space and seems hacky.
     PAL_DEBUG_BUILD_ONLY_ASSERT(HighPart(gpuVirtAddr) == HighPart(pTable->gpuVirtAddr));
 
+    // Optimize the loop with a memcpy if dwordsNeeded is large enough ( 6 DWORDs is the threshold measured )
     uint32* pDstData = (pTable->pCpuVirtAddr + offsetInDwords);
     pSrcData += offsetInDwords;
-    for (uint32 i = 0; i < dwordsNeeded; ++i)
+    if (dwordsNeeded >= 6)
     {
-        *pDstData = *pSrcData;
-        ++pDstData;
-        ++pSrcData;
+        memcpy(pDstData, pSrcData, dwordsNeeded * sizeof(uint32));
+    }
+    else
+    {
+        for (uint32 i = 0; i < dwordsNeeded; ++i)
+        {
+            *pDstData = *pSrcData;
+            ++pDstData;
+            ++pSrcData;
+        }
     }
 
     // Mark that the latest contents of the user-data table have been uploaded to the current embedded data chunk.

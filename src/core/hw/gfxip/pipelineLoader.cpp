@@ -81,9 +81,7 @@ Result PipelineLoader::GetElf(
     hasher.Update(createInfo.flags);
     hasher.Update(createInfo.maxFunctionCallDepth);
     hasher.Update(createInfo.disablePartialDispatchPreemption);
-#if PAL_BUILD_GFX11
     hasher.Update(createInfo.interleaveSize);
-#endif
     uint64 hash = 0;
     hasher.Finalize(reinterpret_cast<uint8*>(&hash));
 

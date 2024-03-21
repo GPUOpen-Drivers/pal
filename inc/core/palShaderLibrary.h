@@ -211,10 +211,15 @@ public:
     ///
     /// @returns Success if the shader ISA code was fetched successfully.
     ///          +ErrorUnavailable if the shader ISA code was not fetched successfully.
+
     virtual Result GetShaderFunctionCode(
-        const char*  pShaderExportName,
-        size_t*      pSize,
-        void*        pBuffer) const = 0;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 852
+        Util::StringView<char> shaderExportName,
+#else
+        const char*            pShaderExportName,
+#endif
+        size_t*                pSize,
+        void*                  pBuffer) const = 0;
 
     /// Obtains the shader pre and post compilation stats/params for the specified shader.
     ///

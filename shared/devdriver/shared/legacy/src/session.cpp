@@ -66,7 +66,7 @@ namespace DevDriver
     DD_STATIC_CONST float kMaxRetransmitDelay = 2000.0f;
     DD_STATIC_CONST uint32 kMaxUnacknowledgedThreshold = 5;
 
-    Session::Session(IMsgChannel* pMsgChannel, SessionType type, Protocol protocol) :
+    Session::Session(IMsgChannel* pMsgChannel, SessionType type, Protocol protocol, const char* pSessionName) :
         m_pMsgChannel(pMsgChannel),
         m_protocol(protocol),
         m_pSessionUserdata(nullptr),
@@ -80,8 +80,14 @@ namespace DevDriver
         m_protocolVersion(0),
         m_minClientProtocolVersion(0),
         m_sessionVersion(kSessionProtocolVersion),
-        m_connectionEvent(false)
+        m_connectionEvent(false),
+        m_disconnectionEvent(false),
+        m_sessionName{}
     {
+        if (pSessionName != nullptr)
+        {
+            Snprintf(m_sessionName, "%s", pSessionName);
+        }
     }
 
     // Transmits a message and closes the session on error. This helps catches instances where the underlying transport
@@ -750,6 +756,11 @@ namespace DevDriver
                     m_callbackState = SessionCallbackState::TerminatedCalled;
                 }
             }
+        }
+
+        if (m_sessionState == SessionState::Closed)
+        {
+            m_disconnectionEvent.Signal();
         }
     }
 

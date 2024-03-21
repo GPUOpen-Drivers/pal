@@ -81,6 +81,10 @@ pal_bp(PAL_BUILD_GFX ON)
 
 if (PAL_BUILD_GFX)
     pal_bp(PAL_BUILD_GFX9 ${PAL_BUILD_GFX} MODE "AUTHOR_WARNING")
+#if PAL_BUILD_GFX11
+    # PAL's GFX11 support is part of its GFX9 HWL so you need to enable both to get GFX11.
+    pal_bp(PAL_BUILD_GFX11 ${PAL_BUILD_GFX} DEPENDS_ON PAL_BUILD_GFX9 MODE "AUTHOR_WARNING")
+#endif
 endif() # PAL_BUILD_GFX
 
 # If the client wants Gfx9 support, them give them all the neccessary build parameters they need to fill out.
@@ -119,3 +123,4 @@ pal_bp(PAL_BUILD_RDF ON)
 
 # "This must always be enabled unless the client guarantees they do not use GFX/3D queues"
 pal_bp(PAL_BUILD_RPM_GFX_SHADERS ON)
+

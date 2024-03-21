@@ -30,8 +30,8 @@
 #endif
 
 #ifdef DD_OPT_ASSERTS_ENABLE
-        #include <cstdlib>
-        #define DD_ASSERT(condition) do { if (!(condition)) *(volatile int*)0 = 0; } while(0)
+        #include <signal.h>
+        #define DD_ASSERT(condition) do { if (!(condition)) raise(SIGTRAP); } while(0)
 #else
-    #define DD_ASSERT(condition)
+    #define DD_ASSERT(condition) (void)(condition)
 #endif

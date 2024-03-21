@@ -431,6 +431,15 @@ public:
 #endif
 #endif
 
+    /// Gets the GPU ID for a given pal device index.
+    ///
+    /// The GPU ID is determined from (BusID << 16) | (DeviceID << 8) | FunctionID
+    ///
+    /// @param [in] gpuIndex The index of the GPU
+    ///
+    /// @returns A GPU ID described above or UnknownGPUID if the device doesn't exist
+    virtual PciId GetPciId(uint32 gpuIndex) = 0;
+
     /// Indicates whether tracing has been enabled.
     ///
     /// @returns True if tracing is enabled, false otherwise.

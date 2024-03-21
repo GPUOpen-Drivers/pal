@@ -42,10 +42,8 @@ HybridGraphicsPipeline::HybridGraphicsPipeline(
     GraphicsPipeline(pDevice, false),
     m_task(*pDevice, &m_taskStageInfo, &m_perfDataInfo[static_cast<uint32>(Abi::HardwareStage::Cs)]),
     m_taskStageInfo(),
-    m_taskSignature{NullCsSignature}
-#if PAL_BUILD_GFX11
-    , m_shPairsPacketSupportedCs(pDevice->Settings().gfx11EnableShRegPairOptimizationCs)
-#endif
+    m_taskSignature{NullCsSignature},
+    m_shPairsPacketSupportedCs(pDevice->Settings().gfx11EnableShRegPairOptimizationCs)
 {
 }
 
@@ -86,10 +84,8 @@ Result HybridGraphicsPipeline::HwlInit(
         m_task.LateInit(metadata,
                         wavefrontSize,
                         &threadsPerTg,
-#if PAL_BUILD_GFX11
                         createInfo.taskInterleaveSize,
-#endif
-                        & uploader);
+                        &uploader);
 
         const auto* pElfSymbol = abiReader.GetPipelineSymbol(Abi::PipelineSymbolType::CsDisassembly);
 
@@ -181,16 +177,11 @@ uint32* HybridGraphicsPipeline::WriteTaskCommands(
     bool                            prefetch
     ) const
 {
-    auto* pGfx9CmdStream = static_cast<CmdStream*>(pCmdStream);
-    pCmdSpace = m_task.WriteShCommands(pGfx9CmdStream,
-                                       pCmdSpace,
-#if PAL_BUILD_GFX11
-                                       m_shPairsPacketSupportedCs,
-#endif
-                                       info,
-                                       prefetch);
-
-    return pCmdSpace;
+    return m_task.WriteShCommands(static_cast<CmdStream*>(pCmdStream),
+                                  pCmdSpace,
+                                  m_shPairsPacketSupportedCs,
+                                  info,
+                                  prefetch);
 }
 
 } // namespace Gfx9

@@ -107,7 +107,11 @@ struct     ViewportStateCreateInfo;
 enum class PipelineBindPoint : uint32;
 enum class ShaderType : uint32;
 enum class DccFormatEncoding : uint32;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 853
+enum class Blend : uint8;
+#else
 enum class Blend : uint32;
+#endif
 enum class ClearMethod : uint32;
 
 // Additional information for creating PAL-internal color target views.
@@ -202,7 +206,6 @@ struct RegisterValuePair
     uint32 value;  // Register data to write
 };
 
-#if PAL_BUILD_GFX11
 // =====================================================================================================================
 // Defines two registers and their associated offsets and values.
 struct PackedRegisterPair
@@ -335,7 +338,6 @@ static void SetSeqPackedRegPairLookup(
                                             pNumRegs);
     }
 }
-#endif
 
 enum LateAllocVsMode : uint32
 {
@@ -542,7 +544,7 @@ public:
         const GraphicPipelineViewInstancingInfo& viewInstancingInfo) const
         { return false; }
 
-    virtual size_t GetColorBlendStateSize(const ColorBlendStateCreateInfo& createInfo, Result* pResult) const = 0;
+    virtual size_t GetColorBlendStateSize() const = 0;
     virtual Result CreateColorBlendState(
         const ColorBlendStateCreateInfo& createInfo,
         void*                            pPlacementAddr,
@@ -554,9 +556,7 @@ public:
     void DestroyColorBlendStateInternal(
         ColorBlendState* pColorBlendState) const;
 
-    virtual size_t GetDepthStencilStateSize(
-        const DepthStencilStateCreateInfo& createInfo,
-        Result*                            pResult) const = 0;
+    virtual size_t GetDepthStencilStateSize() const = 0;
     virtual Result CreateDepthStencilState(
         const DepthStencilStateCreateInfo& createInfo,
         void*                              pPlacementAddr,
@@ -568,9 +568,7 @@ public:
     void DestroyDepthStencilStateInternal(
         DepthStencilState* pDepthStencilState) const;
 
-    virtual size_t GetMsaaStateSize(
-        const MsaaStateCreateInfo& createInfo,
-        Result*                    pResult) const = 0;
+    virtual size_t GetMsaaStateSize() const = 0;
     virtual Result CreateMsaaState(
         const MsaaStateCreateInfo& createInfo,
         void*                      pPlacementAddr,
@@ -769,6 +767,8 @@ public:
     static uint32 VertsPerPrimitive(
         PrimitiveTopology topology,
         uint32            patchControlPoints);
+
+    static uint32 VertsPerPrimitive(PrimitiveTopology topology);
 
     void DescribeBarrier(
         GfxCmdBuffer*                 pCmdBuf,

@@ -118,24 +118,18 @@ Pal::Result CreateMsaaImageCopyComputePipelines(
         pTable = msaaImageCopyComputeBinaryTableNavi21;
         break;
 
-#if PAL_BUILD_GFX11
     case Pal::AsicRevision::Navi31:
     case Pal::AsicRevision::Navi32:
         pTable = msaaImageCopyComputeBinaryTableNavi31;
         break;
-#endif
 
-#if PAL_BUILD_GFX11
     case Pal::AsicRevision::Navi33:
         pTable = msaaImageCopyComputeBinaryTableNavi33;
         break;
-#endif
 
-#if PAL_BUILD_GFX11
     case Pal::AsicRevision::Phoenix1:
         pTable = msaaImageCopyComputeBinaryTablePhoenix1;
         break;
-#endif
 
     default:
         result = Pal::Result::ErrorUnknown;

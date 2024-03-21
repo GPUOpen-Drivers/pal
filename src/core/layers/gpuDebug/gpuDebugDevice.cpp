@@ -630,11 +630,9 @@ Result Device::CreateDepthStencilView(
 
 // =====================================================================================================================
 size_t Device::GetColorBlendStateSize(
-    const ColorBlendStateCreateInfo& createInfo,
-    Result*                          pResult
     ) const
 {
-    return m_pNextLayer->GetColorBlendStateSize(createInfo, pResult) + sizeof(ColorBlendState);
+    return m_pNextLayer->GetColorBlendStateSize() + sizeof(ColorBlendState);
 }
 
 // =====================================================================================================================

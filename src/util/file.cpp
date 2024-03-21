@@ -42,7 +42,7 @@ static Result OpenFileMode(
 {
     Result result = Result::Success;
 
-    switch (accessFlags)
+    switch (accessFlags & ~FileAccessShared)
     {
     case FileAccessRead:
         fileMode[0] = 'r';
@@ -153,7 +153,6 @@ Result File::Open(
     uint32      accessFlags)  // ORed mask of FileAccessMode values describing how the file will be used.
 {
     Result result = Result::Success;
-
     if (m_pFileHandle != nullptr)
     {
         result = Result::ErrorUnavailable;
@@ -168,10 +167,12 @@ Result File::Open(
         {
         case FileAccessRead:
             m_pFileHandle = stdin;
+            m_ownsHandle  = false;
             break;
         case FileAccessWrite:
         case FileAccessAppend:
             m_pFileHandle = stdout;
+            m_ownsHandle  = false;
             break;
         default:
             PAL_ASSERT_ALWAYS();
@@ -181,6 +182,8 @@ Result File::Open(
     }
     else
     {
+        m_ownsHandle = true;
+
         char fileMode[5] = {};
         result = OpenFileMode(accessFlags, fileMode);
         if (result == Result::Success)
@@ -198,16 +201,42 @@ Result File::Open(
 }
 
 // =====================================================================================================================
+Result File::FromNative(
+    std::FILE* pFile)
+{
+    Result result;
+
+    if (m_pFileHandle != nullptr)
+    {
+        result = Result::ErrorUnavailable;
+    }
+    else if (pFile == nullptr)
+    {
+        result = Result::ErrorInvalidExternalHandle;
+    }
+    else
+    {
+        m_pFileHandle = pFile;
+        m_ownsHandle  = false;
+
+        result = Result::Success;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 // Closes the file handle if still open.
 void File::Close()
 {
     if (m_pFileHandle != nullptr)
     {
-        if ((m_pFileHandle != stdin) && (m_pFileHandle != stdout))
+        if (m_ownsHandle)
         {
             fclose(m_pFileHandle);
         }
         m_pFileHandle = nullptr;
+        m_ownsHandle  = false;
     }
 }
 

@@ -429,7 +429,7 @@ Result MemoryCacheLayer::WaitForEntry(
                     result = Result::ErrorInvalidValue;
                     break;
                 }
-                if ((ppFound != nullptr) && ((*ppFound)->Data() != nullptr))
+                if ((*ppFound)->Data() != nullptr)
                 {
                     result = Result::Success;
                     break;

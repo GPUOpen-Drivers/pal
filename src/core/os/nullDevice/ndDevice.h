@@ -29,6 +29,7 @@
 
 #include "core/device.h"
 #include "core/os/nullDevice/ndDmaUploadRing.h"
+#include "palSettingsFileMgr.h"
 #include "palPlatform.h"
 
 namespace Pal
@@ -43,9 +44,10 @@ class Platform;
 class Device final : public Pal::Device
 {
 public:
-    static Result Create(Platform*  pPlatform,
-                         Device**   ppDeviceOut,
-                         NullGpuId  nullGpuId);
+    static Result Create(Platform*   pPlatform,
+                         const char* pSettingsPath,
+                         Device**    ppDeviceOut,
+                         NullGpuId   nullGpuId);
 
     virtual Result AddEmulatedPrivateScreen(
         const PrivateScreenCreateInfo& createInfo,
@@ -319,6 +321,7 @@ public:
 protected:
     Device(
         Platform*              pPlatform,
+        const char*            pSettingsPath,
         const GpuInfo&         gpuInfo,
         const HwIpDeviceSizes& hwDeviceSizes);
 
@@ -390,6 +393,8 @@ private:
     void InitGfx9ChipProperties();
 
     const GpuInfo&  m_gpuInfo;
+    Util::SettingsFileMgr<Platform> m_settingFileMgr; // File Mangager.
+    const char* m_pSettingsPath;
 
     PAL_DISALLOW_DEFAULT_CTOR(Device);
     PAL_DISALLOW_COPY_AND_ASSIGN(Device);

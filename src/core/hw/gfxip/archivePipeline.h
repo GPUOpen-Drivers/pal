@@ -146,11 +146,11 @@ public:
 
     // Get the array of underlying pipelines that this pipeline contains. For a multi-pipeline compiled in
     // dynamic launch mode, this returns an empty array.
-    virtual Util::Span<const IPipeline* const> GetPipelines() const
+    virtual Util::Span<const IPipeline* const> GetPipelines() const override
         { return { m_pipelines.Data(), m_pipelines.NumElements() }; }
 
     // Get the array of underlying shader libraries that this pipeline contains.
-    virtual Util::Span<const IShaderLibrary* const> GetLibraries() const
+    virtual Util::Span<const IShaderLibrary* const> GetLibraries() const override
         { return { m_libraries.Data(), m_libraries.NumElements() }; }
 
 private:

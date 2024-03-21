@@ -42,13 +42,40 @@ size_t ArFileWriter::GetSize()
 {
     size_t dataLen = 0;
     uint32 numMembers = GetNumMembers();
+
+    // Determine the ar format by looking at the names.
+    uint32 maxNameLen = 0;
+    bool haveSpaceInName = false;
+    for (uint32 idx = 0; idx != numMembers; ++idx)
+    {
+        Span<const char> name = GetMemberName(idx);
+        maxNameLen = Util::Max(maxNameLen, uint32(name.NumElements()));
+        if (haveSpaceInName == false)
+        {
+            haveSpaceInName = (memchr(name.Data(), ' ', name.NumElements()) != nullptr);
+        }
+    }
+    if ((maxNameLen <= sizeof(FileHeader::name)) && (haveSpaceInName == false))
+    {
+        m_format = Format::Traditional;
+    }
+    else if (maxNameLen < sizeof(FileHeader::name))
+    {
+        m_format = Format::Svr4Short;
+    }
+    else
+    {
+        m_format = Format::Svr4Long;
+    }
+
+    // Add up size, including size of extended names table.
     m_extendedNamesLen = 0;
     for (uint32 idx = 0; idx != numMembers; ++idx)
     {
         Span<const char> name = GetMemberName(idx);
-        if (name.NumElements() > MaxNameLen)
+        if (m_format == Format::Svr4Long)
         {
-            m_extendedNamesLen += name.NumElements() + 1;
+            m_extendedNamesLen += name.NumElements() + 2;
         }
         // Round up member size to even number of bytes.
         size_t memberDataLen = GetMember(idx, nullptr, 0);
@@ -86,7 +113,7 @@ void ArFileWriter::Write(
         if ((m_extendedNamesLen != 0) && (pBufferEnd - pWrite >= sizeof(FileHeader) + m_extendedNamesLen))
         {
             // Write header for extended names and leave space for the extended names.
-            WriteFileHeader(Span<const char>("/", 1),
+            WriteFileHeader(Span<const char>("//", 2),
                             m_extendedNamesLen,
                             pWrite);
             pWrite += sizeof(FileHeader);
@@ -109,14 +136,15 @@ void ArFileWriter::Write(
 
         // Handle extended name.
         char nameBuf[sizeof(FileHeader::name) + 1];
-        if (name.NumElements() > MaxNameLen)
+        if (m_format == Format::Svr4Long)
         {
             uint32 nameOffset = uint32(pExtendedNamesWrite - pExtendedNamesStart);
-            if (pExtendedNamesWrite + name.NumElements() + 1 <= pBufferEnd)
+            if (pExtendedNamesWrite + name.NumElements() + 2 <= pBufferEnd)
             {
                 memcpy(pExtendedNamesWrite, name.Data(), name.NumElements());
                 pExtendedNamesWrite += name.NumElements();
-                *pExtendedNamesWrite++ = '\n';
+                memcpy(pExtendedNamesWrite, "/\n", 2);
+                pExtendedNamesWrite += 2;
             }
             // Set the standard non-extended name to point to the extended name.
             Snprintf(nameBuf, sizeof(nameBuf), "/%u", nameOffset);
@@ -154,7 +182,7 @@ void ArFileWriter::WriteFileHeader(
     void*            pWrite)
 {
     // Write:
-    // char name[16];    // Name is /-terminated (SysV extension) then space padded
+    // char name[16];    // Name is /-terminated (Format::Svr4Short) then space padded
     // char modTime[12]; // We write 0
     // char owner[6];    // We write 0
     // char group[6];    // We write 0
@@ -163,13 +191,14 @@ void ArFileWriter::WriteFileHeader(
     // char endChars[2]; // Separately written to avoid the snprintf's 0 termination overwriting the next
     //                      thing
     FileHeader* pWriteHeader = static_cast<FileHeader*>(pWrite);
+    const char* pNamePadding = "/                " + (m_format != Format::Svr4Short);
     Snprintf(pWriteHeader->name,
              sizeof(FileHeader),
              "%.*s%.*s0           0     0     644     %-10u",
              int(name.NumElements()),
              name.Data(),
              int(sizeof(pWriteHeader->name) - name.NumElements()),
-             "/               ",  // space padding of name, plus SysV extension to /-terminate name
+             pNamePadding,
              size);
     memcpy(pWriteHeader->endChars, EndChars, sizeof(pWriteHeader->endChars));
 }
@@ -259,6 +288,10 @@ bool ArFileReader::Iterator::IsValidHeader()
                     if (pTerminator != nullptr)
                     {
                         m_name = m_name.Subspan(0, pTerminator - m_name.Data());
+                        if ((m_name.NumElements() >= 2) && (m_name.Back() == '/'))
+                        {
+                            m_name = m_name.DropBack(1);
+                        }
                         isValid = true;
                     }
                 }
