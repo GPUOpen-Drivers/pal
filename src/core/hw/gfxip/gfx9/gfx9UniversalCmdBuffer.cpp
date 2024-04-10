@@ -10152,7 +10152,7 @@ uint32 UniversalCmdBuffer::BuildExecuteIndirectIb2Packets(
                                                                                      drawIndexReg,
                                                                                      1,
                                                                                      pParamData[cmdIndex].argBufSize,
-                                                                                     NULL,
+                                                                                     0uLL,
                                                                                      PacketPredicate(),
                                                                                      usesLegacyMsFastLaunch,
                                                                                      pDeCmdIb2Space);
@@ -10164,7 +10164,7 @@ uint32 UniversalCmdBuffer::BuildExecuteIndirectIb2Packets(
                                                                                       drawIndexReg,
                                                                                       1,
                                                                                       pParamData[cmdIndex].argBufSize,
-                                                                                      NULL,
+                                                                                      0uLL,
                                                                                       PacketPredicate(),
                                                                                       usesLegacyMsFastLaunch,
                                                                                       pDeCmdIb2Space);
