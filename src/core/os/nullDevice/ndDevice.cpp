@@ -44,6 +44,9 @@ namespace Pal
 namespace NullDevice
 {
 
+constexpr char UserDefaultCacheFileSubPath[]  = "/.cache";
+constexpr char UserDefaultDebugFilePath[]     = "/var/tmp";
+
 // =====================================================================================================================
 Device::Device(
     Platform*              pPlatform,
@@ -1096,11 +1099,13 @@ void Device::InitOutputPaths()
     // 1. Find APPDATA to keep backward compatibility.
     pPath = getenv("APPDATA");
 
-    if (pPath != nullptr)
+    if (pPath == nullptr)
     {
-        Strncpy(m_cacheFilePath, pPath, sizeof(m_cacheFilePath));
-        Strncpy(m_debugFilePath, pPath, sizeof(m_debugFilePath));
+        pPath = UserDefaultDebugFilePath;
     }
+
+    Snprintf(m_cacheFilePath, sizeof(m_cacheFilePath), "%s%s", pPath, UserDefaultCacheFileSubPath);
+    Strncpy(m_debugFilePath, pPath, sizeof(m_debugFilePath));
 }
 
 // =====================================================================================================================
