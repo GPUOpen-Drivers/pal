@@ -25,7 +25,7 @@
 
 #pragma once
 
-#include "../../../apis/settings/inc/dd_settings_api.h"
+#include "../../../apis/apis/dd_settings_api.h"
 #include <ddApi.h>
 #include <ddDefs.h>
 

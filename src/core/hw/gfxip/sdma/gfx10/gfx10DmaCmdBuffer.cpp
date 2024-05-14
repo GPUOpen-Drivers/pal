@@ -616,7 +616,7 @@ uint32 DmaCmdBuffer::GetImageZ(
     uint32               offsetZ
     ) const
 {
-    const ImageType imageType = GetImageType(*dmaImageInfo.pImage);
+    const ImageType imageType = dmaImageInfo.pImage->GetImageCreateInfo().imageType;
     uint32          imageZ    = 0;
 
     if (imageType == ImageType::Tex3d)
@@ -904,15 +904,11 @@ bool DmaCmdBuffer::UseT2tScanlineCopy(
             {  2, 2, 4 }, // 16bpp
         };
 
-        const Pal::Image*  pPalSrcImg = static_cast<const Pal::Image*>(src.pImage);
-        const ImageType    srcImgType = pPalSrcImg->GetGfxImage()->GetOverrideImageType();
-        const Pal::Image*  pPalDstImg = static_cast<const Pal::Image*>(dst.pImage);
-
         // 1D images have to be linear, what are we doing here?
-        PAL_ASSERT(srcImgType != ImageType::Tex1d);
+        PAL_ASSERT(srcCreateInfo.imageType != ImageType::Tex1d);
 
         // This is a violation of the PAL API...
-        PAL_ASSERT(srcImgType == pPalDstImg->GetGfxImage()->GetOverrideImageType());
+        PAL_ASSERT(srcCreateInfo.imageType == dstCreateInfo.imageType);
 
         // SDMA engine can't do format conversions.
         PAL_ASSERT(src.bytesPerPixel == dst.bytesPerPixel);
@@ -1686,7 +1682,7 @@ uint32* DmaCmdBuffer::CopyImageMemTiledTransform(
 uint32 DmaCmdBuffer::GetHwDimension(
     const DmaImageInfo&  dmaImageInfo)
 {
-    Pal::ImageType  imageType = GetImageType(*dmaImageInfo.pImage);
+    Pal::ImageType imageType = dmaImageInfo.pImage->GetImageCreateInfo().imageType;
 
     if ((imageType == ImageType::Tex1d) || (imageType == ImageType::Tex3d))
     {

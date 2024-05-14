@@ -589,6 +589,17 @@ Result Platform::EarlyInitDevDriver()
 
         if (result == Result::Success)
         {
+#if PAL_ENABLE_LOGGING
+            // By default allow all origination sources and all Error & Critical messages.
+            Util::DbgLogBaseSettings baseSettings = {};
+            baseSettings.origTypeMask = 0xFFFFFFFF;
+            baseSettings.severityLevel = Util::SeverityLevel::Error;
+            result = DbgLoggerDevDriver::CreateDevDriverLogger(baseSettings, this, &m_pDevDriverLogger);
+#endif
+        }
+
+        if (result == Result::Success)
+        {
 #if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION < GPUOPEN_DRIVER_CONTROL_CLEANUP_VERSION
             m_pDevDriverServer->StartDeviceInit();
 #else
@@ -615,6 +626,9 @@ Result Platform::EarlyInitDevDriver()
                 // so we can safely destroy all of the previously initialized DevDriver infrastructure.
                 m_gpuMemoryEventProvider.Destroy();
                 m_crashAnalysisEventProvider.Destroy();
+#if PAL_ENABLE_LOGGING
+                DbgLoggerDevDriver::DestroyDevDriverLogger(m_pDevDriverLogger, this);
+#endif
 
 #if PAL_BUILD_RDF
                 DestroyRpcServices();
@@ -726,17 +740,10 @@ void Platform::LateInitDevDriver()
         totalUserOverrides = m_pSettingsRpcService->TotalUserOverrideCount();
 
         m_pSettingsRpcService->RegisterSettingsComponent(&m_experimentsLoader);
-
-        m_settingsLoader.ApplyExperiments();
     }
 
     // This could override previously applied user-overrides for the settings whose values are deemed invalid.
     m_settingsLoader.ValidateSettings(totalUserOverrides > 0);
-
-#if PAL_ENABLE_LOGGING
-    // Configure debug log manager as soon as settings are overridden.
-    g_dbgLogMgr.SetLoggingEnabled(PlatformSettings().dbgLogEnabled);
-#endif
 
     // Late init only needs to be performed if we actually set up the developer driver object earlier.
 #if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_DRIVER_CONTROL_CLEANUP_VERSION
@@ -1083,6 +1090,7 @@ void Platform::GetDbgLoggerFileSettings(
     Util::DbgLoggerFileSettings* pSettings)
 {
     const PalPlatformSettings& platformSettings = PlatformSettings();
+    pSettings->dbgLoggerEnabled  = platformSettings.dbgLogEnabled;
     pSettings->pLogDirectory     = platformSettings.dbgLoggerFileConfig.logDirectory;
     pSettings->fileSettingsFlags = platformSettings.dbgLoggerFileConfig.fileSettingsFlags;
     pSettings->fileAccessFlags   = platformSettings.dbgLoggerFileConfig.fileAccessFlags;
@@ -1154,6 +1162,11 @@ bool Platform::IsDevDriverProfilingEnabled() const
     if (m_pRgpServer != nullptr)
     {
         isProfilingEnabled = m_pRgpServer->TracesEnabled();
+    }
+
+    if (m_pTraceSession != nullptr)
+    {
+        isProfilingEnabled |= m_pTraceSession->IsTracingEnabled();
     }
 
     return isProfilingEnabled;

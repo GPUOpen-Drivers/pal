@@ -59,7 +59,6 @@ CmdStream::CmdStream(
     m_cmdUtil(device.CmdUtil()),
     m_pPm4Optimizer(nullptr),
     m_pChunkPreamble(nullptr),
-    m_contextRollDetected(false),
     m_supportsHoleyOptimization(GetGfx9Settings(*m_device.Parent()).enableHoleyOptimization)
 {
 }
@@ -130,8 +129,7 @@ void CmdStream::Reset(
     bool          returnGpuMemory)
 {
     // Reset all tracked state.
-    m_pChunkPreamble      = nullptr;
-    m_contextRollDetected = false;
+    m_pChunkPreamble = nullptr;
 
     Pm4::CmdStream::Reset(pNewAllocator, returnGpuMemory);
 }
@@ -249,7 +247,6 @@ uint32* CmdStream::WriteContextRegRmw(
     if ((Pm4OptEnabled == false) || m_pPm4Optimizer->MustKeepContextRegRmw(regAddr, regMask, regData))
     {
         pCmdSpace += m_cmdUtil.BuildContextRegRmw(regAddr, regMask, regData, pCmdSpace);
-        m_contextRollDetected = true;
     }
 
     return pCmdSpace;
@@ -403,8 +400,6 @@ uint32* CmdStream::WriteSetOneContextReg(
 
         pCmdSpace[CmdUtil::ContextRegSizeDwords] = regData;
         pCmdSpace += totalDwords;
-        m_contextRollDetected = true;
-
     }
 
     return pCmdSpace;
@@ -453,7 +448,6 @@ uint32* CmdStream::WriteSetOneContextRegNoOpt(
 
     pCmdSpace[CmdUtil::ContextRegSizeDwords] = regData;
     pCmdSpace += totalDwords;
-    m_contextRollDetected = true;
 
     return pCmdSpace;
 }
@@ -1106,7 +1100,6 @@ uint32* CmdStream::WriteSetSeqContextRegs(
         m_cmdUtil.BuildSetSeqContextRegs(startRegAddr, endRegAddr, &setData);
 
         pCmdSpace = m_pPm4Optimizer->WriteOptimizedSetSeqContextRegs(setData,
-                                                                     &m_contextRollDetected,
                                                                      static_cast<const uint32*>(pData),
                                                                      pCmdSpace);
     }
@@ -1434,40 +1427,6 @@ void CmdStream::NotifyNestedCmdBufferExecute()
         m_pPm4Optimizer->Reset();
     }
 }
-
-// =====================================================================================================================
-// Resets any draw time state in the CmdStream or the Pm4Optimizer.
-void CmdStream::ResetDrawTimeState()
-{
-    m_contextRollDetected = false;
-
-    if (m_flags.optimizeCommands == 1)
-    {
-        m_pPm4Optimizer->ResetContextRollState();
-    }
-}
-
-// =====================================================================================================================
-// Sets context roll detected state to true if a context roll occurred
-template <bool canBeOptimized>
-void CmdStream::SetContextRollDetected()
-{
-    // If the context roll is due to a context register write, the PM4 optimizer may eliminate it. If the context roll
-    // is due to an ACQUIRE_MEM, it should not be affected by the PM4 optimizer.
-    if ((m_flags.optimizeCommands == 1) && canBeOptimized)
-    {
-        m_contextRollDetected |= m_pPm4Optimizer->GetContextRollState();
-    }
-    else
-    {
-        m_contextRollDetected = true;
-    }
-}
-
-template
-void CmdStream::SetContextRollDetected<true>();
-template
-void CmdStream::SetContextRollDetected<false>();
 
 #if PAL_DEVELOPER_BUILD
 // =====================================================================================================================

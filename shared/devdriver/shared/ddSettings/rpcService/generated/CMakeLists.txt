@@ -31,7 +31,7 @@ add_library(SettingsRpcService STATIC)
 
 set_target_properties(SettingsRpcService
     PROPERTIES
-        CXX_STANDARD 11
+        CXX_STANDARD 17
 )
 
 target_sources(SettingsRpcService PRIVATE

@@ -116,7 +116,9 @@ public:
         Hash(info.binningOverride);
         Hash(info.depthClampMode);
         Hash(info.clipDistMask);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 869
         Hash(info.forcedShadingRate);
+#endif
         Hash(info.dx10DiamondTestDisable);
     }
     void Hash(const ViewportInfo& info)

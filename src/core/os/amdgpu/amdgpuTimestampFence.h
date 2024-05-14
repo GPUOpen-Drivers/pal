@@ -69,11 +69,11 @@ public:
     uint64 Timestamp() const { return m_timestamp; }
 
     virtual Result WaitForFences(
-        const Pal::Device&      device,
-        uint32                  fenceCount,
-        const Pal::Fence*const* ppFenceList,
-        bool                    waitAll,
-        uint64                  timeout) const override;
+        const Pal::Device&       device,
+        uint32                   fenceCount,
+        const Pal::Fence*const*  ppFenceList,
+        bool                     waitAll,
+        std::chrono::nanoseconds timeout) const override;
 
     bool IsBatched() const { return m_timestamp == BatchedTimestamp; }
 

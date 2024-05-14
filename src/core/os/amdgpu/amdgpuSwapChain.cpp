@@ -33,6 +33,7 @@
 #include <time.h>
 
 using namespace Util;
+using namespace std::chrono_literals;
 
 namespace Pal
 {
@@ -221,14 +222,14 @@ void SwapChain::WaitForImageIdle(
 // each image in the mailbox list until it finds at least one unused image. It would be more efficient if we could block
 // the thread until any one of the idle fences became signaled but we can only wait for one fence at a time.
 Result SwapChain::ReclaimUnusedImages(
-    uint64 timeout)
+    std::chrono::nanoseconds timeout)
 {
     Result   result   = Result::Success;
     timespec stopTime = {};
 
-    if (timeout > 0)
+    if (timeout > 0ns)
     {
-        ComputeTimeoutExpiration(&stopTime, timeout);
+        ComputeTimeoutExpiration(&stopTime, timeout.count());
     }
 
     // Note that we don't need to take the unused image lock because this is the only thread that should be looking at
@@ -274,7 +275,7 @@ Result SwapChain::ReclaimUnusedImages(
         // If none of the mailbox images were ready we should sleep for a bit and try again.
         if (m_unusedImageCount == 0)
         {
-            if ((timeout == 0) || IsTimeoutExpired(&stopTime))
+            if ((timeout == 0ns) || IsTimeoutExpired(&stopTime))
             {
                 result = CollapseResults(result, Result::Timeout);
                 break;

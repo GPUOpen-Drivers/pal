@@ -31,6 +31,7 @@
 #include <sqtt_file_format.h>
 
 using namespace Pal;
+using namespace Util;
 
 namespace GpuUtil
 {
@@ -141,6 +142,7 @@ QueueTimingsTraceSource::~QueueTimingsTraceSource()
     {
         PAL_SAFE_FREE(m_pGpaSession, m_pPlatform);
     }
+
 }
 
 // =====================================================================================================================
@@ -157,7 +159,8 @@ Result QueueTimingsTraceSource::RegisterTimedQueue(
     uint64  queueId,
     uint64  queueContext)
 {
-    return m_pGpaSession->RegisterTimedQueue(pQueue, queueId, queueContext);
+    return (m_pGpaSession != nullptr) ? m_pGpaSession->RegisterTimedQueue(pQueue, queueId, queueContext)
+                                      : Result::ErrorUnavailable;
 }
 
 // =====================================================================================================================
@@ -165,7 +168,8 @@ Result QueueTimingsTraceSource::RegisterTimedQueue(
 Result QueueTimingsTraceSource::UnregisterTimedQueue(
     IQueue* pQueue)
 {
-    return m_pGpaSession->UnregisterTimedQueue(pQueue);
+    return (m_pGpaSession != nullptr) ? m_pGpaSession->UnregisterTimedQueue(pQueue)
+                                      : Result::ErrorUnavailable;
 }
 
 // =====================================================================================================================
@@ -175,29 +179,38 @@ Result QueueTimingsTraceSource::TimedSubmit(
     const MultiSubmitInfo& submitInfo,
     const TimedSubmitInfo& timedSubmitInfo)
 {
-    return m_pGpaSession->TimedSubmit(pQueue, submitInfo, timedSubmitInfo);
+    return (m_pGpaSession != nullptr) ? m_pGpaSession->TimedSubmit(pQueue, submitInfo, timedSubmitInfo)
+                                      : Result::ErrorUnavailable;
 }
 
 // =====================================================================================================================
 // Injects timing commands into a queue signal operation.
-Pal::Result QueueTimingsTraceSource::TimedSignalQueueSemaphore(
-    Pal::IQueue*                   pQueue,
+Result QueueTimingsTraceSource::TimedSignalQueueSemaphore(
+    IQueue*                        pQueue,
     IQueueSemaphore*               pQueueSemaphore,
     const TimedQueueSemaphoreInfo& timedSignalInfo,
-    Pal::uint64                    value)
+    uint64                         value)
 {
-    return m_pGpaSession->TimedSignalQueueSemaphore(pQueue, pQueueSemaphore, timedSignalInfo, value);
+    return (m_pGpaSession != nullptr) ? m_pGpaSession->TimedSignalQueueSemaphore(pQueue,
+                                                                                 pQueueSemaphore,
+                                                                                 timedSignalInfo,
+                                                                                 value)
+                                      : Result::ErrorUnavailable;
 }
 
 // =====================================================================================================================
 // Injects timing commands into a queue wait operation.
-Pal::Result QueueTimingsTraceSource::TimedWaitQueueSemaphore(
-    Pal::IQueue*                   pQueue,
+Result QueueTimingsTraceSource::TimedWaitQueueSemaphore(
+    IQueue*                        pQueue,
     IQueueSemaphore*               pQueueSemaphore,
     const TimedQueueSemaphoreInfo& timedWaitInfo,
-    Pal::uint64                    value)
+    uint64                         value)
 {
-    return m_pGpaSession->TimedWaitQueueSemaphore(pQueue, pQueueSemaphore, timedWaitInfo, value);
+    return (m_pGpaSession != nullptr) ? m_pGpaSession->TimedWaitQueueSemaphore(pQueue,
+                                                                               pQueueSemaphore,
+                                                                               timedWaitInfo,
+                                                                               value)
+                                      : Result::ErrorUnavailable;
 }
 
 // =====================================================================================================================
@@ -208,10 +221,11 @@ Result QueueTimingsTraceSource::ExternalTimedWaitQueueSemaphore(
     uint64                         cpuCompletionTimestamp,
     const TimedQueueSemaphoreInfo& timedWaitInfo)
 {
-    return m_pGpaSession->ExternalTimedWaitQueueSemaphore(queueContext,
-                                                          cpuSubmissionTimestamp,
-                                                          cpuCompletionTimestamp,
-                                                          timedWaitInfo);
+    return (m_pGpaSession != nullptr) ? m_pGpaSession->ExternalTimedWaitQueueSemaphore(queueContext,
+                                                                                       cpuSubmissionTimestamp,
+                                                                                       cpuCompletionTimestamp,
+                                                                                       timedWaitInfo)
+                                      : Result::ErrorUnavailable;
 }
 
 // =====================================================================================================================
@@ -222,10 +236,11 @@ Result QueueTimingsTraceSource::ExternalTimedSignalQueueSemaphore(
     uint64                         cpuCompletionTimestamp,
     const TimedQueueSemaphoreInfo& timedSignalInfo)
 {
-    return m_pGpaSession->ExternalTimedSignalQueueSemaphore(queueContext,
-                                                            cpuSubmissionTimestamp,
-                                                            cpuCompletionTimestamp,
-                                                            timedSignalInfo);
+    return (m_pGpaSession != nullptr) ? m_pGpaSession->ExternalTimedSignalQueueSemaphore(queueContext,
+                                                                                         cpuSubmissionTimestamp,
+                                                                                         cpuCompletionTimestamp,
+                                                                                         timedSignalInfo)
+                                      : Result::ErrorUnavailable;
 }
 
 // =====================================================================================================================
@@ -233,7 +248,8 @@ Result QueueTimingsTraceSource::TimedQueuePresent(
     IQueue*                      pQueue,
     const TimedQueuePresentInfo& timedPresentInfo)
 {
-    return m_pGpaSession->TimedQueuePresent(pQueue, timedPresentInfo);
+    return (m_pGpaSession != nullptr) ? m_pGpaSession->TimedQueuePresent(pQueue, timedPresentInfo)
+                                      : Result::ErrorUnavailable;
 }
 
 // =====================================================================================================================
@@ -248,18 +264,8 @@ Result QueueTimingsTraceSource::Init(
 {
     Result result = Result::Success;
 
-    m_pGpaSession = PAL_NEW(GpuUtil::GpaSession,
-                            m_pPlatform,
-                            Util::SystemAllocType::AllocInternal)
-                            (
-                                m_pPlatform,
-                                pDevice,
-                                0, // apiMajorVersion
-                                0, // apiMinorVersion
-                                ApiType::Generic,
-                                0, // instrumentationSpecVersion
-                                0  // instrumentationApiVersion
-                            );
+    m_pGpaSession = PAL_NEW(GpaSession, m_pPlatform, SystemAllocType::AllocInternal)
+                           (m_pPlatform, pDevice, 0, 0, ApiType::Generic, 0, 0);
 
     if (m_pGpaSession != nullptr)
     {
@@ -294,7 +300,7 @@ void QueueTimingsTraceSource::OnTraceAccepted()
     else
     {
         // This is called each time a user starts a new trace, so log an error message if we cannot proceed
-        ReportInternalError("Error starting trace.", Result::ErrorUnavailable);
+        ReportInternalError("Error starting trace", Result::ErrorUnavailable);
     }
 }
 
@@ -314,6 +320,7 @@ void QueueTimingsTraceSource::OnTraceBegin(
         {
             ReportInternalError("Error encountered when beginning a GpaSession", result);
         }
+
     }
 }
 
@@ -326,6 +333,7 @@ void QueueTimingsTraceSource::OnTraceEnd(
 
     if (m_traceIsHealthy)
     {
+
         Result result = m_pGpaSession->End(pCmdBuf);
 
         if (result != Result::Success)
@@ -350,7 +358,7 @@ void QueueTimingsTraceSource::OnTraceFinished()
 
             if (result == Result::Success)
             {
-                pData = PAL_MALLOC(dataSize, m_pPlatform, Util::SystemAllocType::AllocInternalTemp);
+                pData = PAL_MALLOC(dataSize, m_pPlatform, SystemAllocType::AllocInternalTemp);
 
                 if (pData != nullptr)
                 {
@@ -371,7 +379,7 @@ void QueueTimingsTraceSource::OnTraceFinished()
             {
                 const SqttQueueInfoRecord*  pQueueInfoRecords  = static_cast<SqttQueueInfoRecord*>(pData);
                 const SqttQueueEventRecord* pQueueEventRecords = static_cast<SqttQueueEventRecord*>(
-                    Util::VoidPtrInc(pData, sizeof(SqttQueueInfoRecord) * traceInfo.numQueueInfoRecords));
+                    VoidPtrInc(pData, sizeof(SqttQueueInfoRecord) * traceInfo.numQueueInfoRecords));
 
                 WriteQueueInfoChunks(pQueueInfoRecords,
                                      traceInfo.numQueueInfoRecords);

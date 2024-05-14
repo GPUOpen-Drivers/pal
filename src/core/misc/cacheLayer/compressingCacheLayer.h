@@ -42,8 +42,6 @@ public:
 
     virtual ~CompressingCacheLayer();
 
-    virtual Result Init();
-
     virtual Result Query(
         const Hash128*  pHashId,
         uint32          policy,
@@ -97,8 +95,9 @@ private:
     PAL_DISALLOW_COPY_AND_ASSIGN(CompressingCacheLayer);
 
     Lz4Compressor    m_compressor;
+
     ForwardAllocator m_allocator;
-    Mutex            m_compressMutex;
+
     ICacheLayer*     m_pNextLayer;
     bool             m_decompressOnly;
 };

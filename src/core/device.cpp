@@ -55,6 +55,7 @@
 #include "palTraceSession.h"
 #endif
 
+#include <algorithm>
 #include <limits.h>
 
 // Dev Driver includes
@@ -67,6 +68,7 @@
 
 using namespace Util;
 using namespace Util::Literals;
+using namespace std::chrono;
 
 namespace Pal
 {
@@ -155,6 +157,43 @@ uint32 MemoryOpsPerClock(
     return MemoryOpsPerClockTable[static_cast<uint32>(memoryType)];
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 863
+// These have to be defined in a .cpp file because using any sort of a min()/max() function can conflict with clients
+// still using Microsoft's min()/max() macros.
+
+// =====================================================================================================================
+Result IDevice::WaitForFences(
+    uint32               fenceCount,
+    const IFence* const* ppFences,
+    bool                 waitAll,
+    uint64               timeoutNs
+) const
+{
+    return WaitForFences(
+        fenceCount,
+        ppFences,
+        waitAll,
+        nanoseconds{ std::min(timeoutNs, uint64(nanoseconds::max().count())) });
+}
+
+// =====================================================================================================================
+Result IDevice::WaitForSemaphores(
+    uint32                        semaphoreCount,
+    const IQueueSemaphore* const* ppSemaphores,
+    const uint64*                 pValues,
+    uint32                        flags,
+    uint64                        timeoutNs
+) const
+{
+    return WaitForSemaphores(
+        semaphoreCount,
+        ppSemaphores,
+        pValues,
+        flags,
+        nanoseconds{ std::min(timeoutNs, uint64(nanoseconds::max().count())) });
+}
+#endif
+
 // =====================================================================================================================
 // Looks at the ATI family and revision ID's to determine the IP levels of each of the GPU's HWIP blocks. Return whether
 // or not the GPU is actually supported by PAL.
@@ -176,8 +215,6 @@ bool Device::DetermineGpuIpLevels(
 
     switch (familyId)
     {
-    case FAMILY_AI:
-    case FAMILY_RV:
     case FAMILY_NV:
     case FAMILY_RMB:
     case FAMILY_RPL:
@@ -521,7 +558,7 @@ Result Device::SetupPublicSettingDefaults()
     m_publicSettings.rpmViewsBypassMall                       = RpmViewsBypassMallOff;
     m_publicSettings.expandHiZRangeForResummarize             = false;
 
-    m_publicSettings.optDepthOnlyExportRate = IsGfx104Plus(gfxLevel);
+    m_publicSettings.optDepthOnlyExportRate = IsGfx11(gfxLevel);
     m_publicSettings.limitCbFetch256B       = false;
     m_publicSettings.binningMode            = DeferredBatchBinAccurate;
     m_publicSettings.customBatchBinSize     = 0x800080;
@@ -571,7 +608,6 @@ Result Device::HwlEarlyInit()
     {
         switch (ChipProperties().gfxLevel)
         {
-        case GfxIpLevel::GfxIp9:
         case GfxIpLevel::GfxIp10_1:
         case GfxIpLevel::GfxIp10_3:
         case GfxIpLevel::GfxIp11_0:
@@ -592,8 +628,18 @@ Result Device::HwlEarlyInit()
 
     if (result == Result::Success)
     {
+        switch (ChipProperties().gfxLevel)
         {
+        case GfxIpLevel::GfxIp10_1:
+        case GfxIpLevel::GfxIp10_3:
+        case GfxIpLevel::GfxIp11_0:
             result = AddrMgr2::Create(this, pAddrMgrPlacementAddr, &m_pAddrMgr);
+            break;
+        default:
+            // PAL always needs an AddrMgr!
+            PAL_ASSERT_ALWAYS();
+            result = Result::ErrorUnavailable;
+            break;
         }
     }
 
@@ -630,13 +676,6 @@ void Device::InitPerformanceRatings()
 #if PAL_BUILD_GFX
     switch (m_chipProperties.gfxLevel)
     {
-        case GfxIpLevel::GfxIp9:
-            numShaderEngines = m_chipProperties.gfx9.numShaderEngines;
-            numShaderArrays  = m_chipProperties.gfx9.numShaderArrays;
-            numCuPerSh       = m_chipProperties.gfx9.numCuPerSh;
-            numSimdPerCu     = m_chipProperties.gfx9.numSimdPerCu;
-            numWavesPerSimd  = m_chipProperties.gfx9.numWavesPerSimd;
-            break;
         case GfxIpLevel::GfxIp10_1:
         case GfxIpLevel::GfxIp10_3:
         case GfxIpLevel::GfxIp11_0:
@@ -774,7 +813,6 @@ void Device::GetHwIpDeviceSizes(
     // Note that Addrlib always ties its version number to the gfxip level.
     switch (ipLevels.gfx)
     {
-    case GfxIpLevel::GfxIp9:
     case GfxIpLevel::GfxIp10_1:
     case GfxIpLevel::GfxIp10_3:
     case GfxIpLevel::GfxIp11_0:
@@ -2048,7 +2086,6 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.supportPrimitiveOrderedPs        = gfx9Props.supportPrimitiveOrderedPs;
             pInfo->gfxipProperties.flags.supportImplicitPrimitiveShader   = gfx9Props.supportImplicitPrimitiveShader;
             pInfo->gfxipProperties.flags.supportSpp                       = gfx9Props.supportSpp;
-            pInfo->gfxipProperties.flags.timestampResetOnIdle             = gfx9Props.timestampResetOnIdle;
             pInfo->gfxipProperties.flags.supportReleaseAcquireInterface   = gfx9Props.supportReleaseAcquireInterface;
             pInfo->gfxipProperties.flags.supportSplitReleaseAcquire       = gfx9Props.supportSplitReleaseAcquire;
             pInfo->gfxipProperties.flags.supportCooperativeMatrix         = gfx9Props.supportCooperativeMatrix;
@@ -2575,18 +2612,16 @@ Result Device::ResetFences(
 // =====================================================================================================================
 // Returns the timeout value that the fence is supplied with in terms of nanoseconds.  Takes into consideration any
 // timeout override specified in the settings.
-uint64  Device::GetTimeoutValueInNs(
-    uint64  appTimeoutInNs ///< application-specified timeout, in nanoseconds
+nanoseconds Device::GetTimeoutValueInNs(
+    nanoseconds appTimeout ///< application-specified timeout, in nanoseconds
     ) const
 {
-    constexpr uint64  NanosecondsPerSecond = 1000000000ull;
+    const auto& settings = Settings();
+    const nanoseconds timeout = ((appTimeout.count() == 0) || (settings.fenceTimeoutOverride == 0))
+        ? appTimeout // no timeout requested by app or no override in settings
+        : seconds{ settings.fenceTimeoutOverride };
 
-    const auto&  settings    = Settings();
-    const uint64 timeoutInNs = (((appTimeoutInNs == 0) || (settings.fenceTimeoutOverride == 0))
-                                ? appTimeoutInNs // no timeout requested by app or no override in settings
-                                : settings.fenceTimeoutOverride * NanosecondsPerSecond);
-
-    return timeoutInNs;
+    return timeout;
 }
 
 // =====================================================================================================================
@@ -2598,7 +2633,7 @@ Result Device::WaitForFences(
     uint32              fenceCount,
     const IFence*const* ppFenceList,
     bool                waitAll,
-    uint64              timeout
+    nanoseconds         timeout
     ) const
 {
     Result result = Result::ErrorInvalidPointer;
@@ -2609,14 +2644,12 @@ Result Device::WaitForFences(
     }
     else if (ppFenceList != nullptr)
     {
-        const uint64  timeoutInNs = GetTimeoutValueInNs(timeout);
-
         result = static_cast<const Fence *>(ppFenceList[0])->WaitForFences(
                                       *this,
                                       fenceCount,
                                       reinterpret_cast<const Fence*const*>(ppFenceList),
                                       waitAll,
-                                      timeoutInNs);
+                                      GetTimeoutValueInNs(timeout));
     }
 
     return result;
@@ -5045,6 +5078,15 @@ bool Device::EnableDisplayDcc(
     }
 
     return enable;
+}
+
+// =====================================================================================================================
+bool Device::IsMultiVf() const
+{
+    // m_chipProperties.gpuPerformanceCapacity:
+    // 0: baremetal; UINT16_MAX: SRIOV 1VF; other value: SRIOV multiple VF
+    return ((m_chipProperties.gpuPerformanceCapacity != 0) &&
+            (m_chipProperties.gpuPerformanceCapacity < UINT16_MAX));
 }
 
 // =====================================================================================================================

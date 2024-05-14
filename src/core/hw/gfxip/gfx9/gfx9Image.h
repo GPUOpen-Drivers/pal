@@ -293,20 +293,10 @@ public:
         uint32               value,
         Pm4Predicate         predicate,
         uint32*              pCmdSpace) const;
-    uint32* UpdateWaTcCompatZRangeMetaData(
-        const SubresRange&   range,
-        float                depthValue,
-        Pm4Predicate         predicate,
-        uint32*              pCmdSpace) const;
 
     gpusize GetFastClearEliminateMetaDataAddr(const SubresId&  subResId) const;
     gpusize GetFastClearEliminateMetaDataOffset(const SubresId&  subResId) const;
     gpusize GetFastClearEliminateMetaDataSize(uint32 numMips) const;
-
-    bool HasWaTcCompatZRangeMetaData() const { return m_waTcCompatZRangeMetaDataOffset != 0; }
-    gpusize GetWaTcCompatZRangeMetaDataAddr(uint32 mipLevel) const;
-    gpusize WaTcCompatZRangeMetaDataOffset(uint32 mipLevel) const;
-    gpusize WaTcCompatZRangeMetaDataSize(uint32 numMips) const;
 
     gpusize GetDcc256BAddr(const SubresId& subResId) const
         { return GetMaskRamBaseAddr(GetDcc(subResId.plane), subResId.plane) >> 8; }
@@ -417,8 +407,6 @@ public:
 
     bool IsComprFmaskShaderReadable(const SubresId& subresource) const;
 
-    virtual ImageType GetOverrideImageType() const override;
-
     virtual gpusize GetPlaneBaseAddr(uint32 plane, uint32 arraySlice = 0) const override;
 
     virtual void GetSharedMetadataInfo(SharedMetadataInfo* pMetadataInfo) const override;
@@ -436,7 +424,7 @@ public:
     bool CanMipSupportMetaData(uint32 mip) const override;
 
     uint32 GetIterate256(const SubResourceInfo*  pSubResInfo) const;
-    bool Gfx10UseCompToSingleFastClears() const { return m_useCompToSingleForFastClears; };
+    bool Gfx10UseCompToSingleFastClears() const { return m_useCompToSingleForFastClears; }
 
     gpusize GetGpuMemSyncSize() const { return m_gpuMemSyncSize; }
 
@@ -484,9 +472,6 @@ private:
     gpusize  m_fastClearEliminateMetaDataOffset[MaxNumPlanes]; // Offset to start of FCE metadata
     gpusize  m_fastClearEliminateMetaDataSize[MaxNumPlanes];   // Size of the FCE metadata
 
-    gpusize m_waTcCompatZRangeMetaDataOffset;       // Offset to start of waTcCompatZRange MetaData
-    gpusize m_waTcCompatZRangeMetaDataSizePerMip;   // Size of the waTcCompatZRange MetaData per mip level
-
     gpusize m_dccLookupTableOffset; // Offset to lookup table for dcc.
     gpusize m_dccLookupTableSize;   // Size of lookup table for dcc.
 
@@ -525,9 +510,6 @@ private:
         uint32             plane,
         ImageMemoryLayout* pGpuMemLayout,
         gpusize*           pGpuMemSize);
-    void InitWaTcCompatZRangeMetaData(
-        ImageMemoryLayout* pGpuMemLayout,
-        gpusize*           pGpuMemSize);
     void InitDccLookupTable(
         ImageMemoryLayout* pGpuMemLayout,
         gpusize*           pGpuOffset,
@@ -538,12 +520,6 @@ private:
     bool IsFastClearStencilMetaFetchable(uint8 stencil) const;
     void SetupPlaneOffsets();
 
-    void Addr2InitSubResInfoGfx9(
-        const SubResIterator&  subResIt,
-        SubResourceInfo*       pSubResInfoList,
-        void*                  pSubResTileInfoList,
-        gpusize*               pGpuMemSize);
-
     void CheckCompToSingle();
 
     Result CreateDccObject(
@@ -551,12 +527,6 @@ private:
         ImageMemoryLayout* pGpuMemLayout,
         gpusize*           pGpuMemSize,
         gpusize*           pGpuMemAlignment);
-
-    void Addr2InitSubResInfoGfx10(
-        const SubResIterator&  subResIt,
-        SubResourceInfo*       pSubResInfoList,
-        void*                  pSubResTileInfoList,
-        gpusize*               pGpuMemSize);
 
     // Returns a bitfield indicating what the possible uses of the hTile surface are.  No bits will
     // be set if hTile does not exist.
@@ -569,9 +539,7 @@ private:
 
     void InitLayoutStateMasks();
     void InitPipeMisalignedMetadataFirstMip();
-    uint32 GetPipeMisalignedMetadataFirstMip(
-        const ImageCreateInfo& createInfo,
-        const SubResourceInfo& baseSubRes) const;
+    uint32 GetPipeMisalignedMetadataFirstMip(const SubResourceInfo& baseSubRes) const;
 
     bool SupportsMetaDataTextureFetch(AddrSwizzleMode tileMode, ChNumFormat format, const SubresId& subResource) const;
     bool ColorImageSupportsMetaDataTextureFetch() const;

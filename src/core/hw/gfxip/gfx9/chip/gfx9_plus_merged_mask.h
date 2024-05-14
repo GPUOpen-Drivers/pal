@@ -8923,6 +8923,50 @@ namespace Gfx11
     constexpr unsigned int PA_SC_VRS_SURFACE_CNTL__VRC_PARTIAL_FLUSH_DISABLE_MASK = 0x00010000;
     constexpr unsigned int PA_SC_VRS_SURFACE_CNTL__VRC_PREFETCH_DISABLE_MASK  = 0x00002000;
     constexpr unsigned int PA_SC_VRS_SURFACE_CNTL__VRS_FEEDBACK_RATE_OVERRIDE_MASK = 0x00000080;
+    constexpr unsigned int PC_PERFCOUNTER0_HI__PERFCOUNTER_HI_MASK            = 0xffffffff;
+    constexpr unsigned int PC_PERFCOUNTER0_LO__PERFCOUNTER_LO_MASK            = 0xffffffff;
+    constexpr unsigned int PC_PERFCOUNTER0_SELECT1__PERF_MODE2_MASK           = 0xf0000000;
+    constexpr unsigned int PC_PERFCOUNTER0_SELECT1__PERF_MODE3_MASK           = 0x0f000000;
+    constexpr unsigned int PC_PERFCOUNTER0_SELECT1__PERF_SEL2_MASK            = 0x000003ff;
+    constexpr unsigned int PC_PERFCOUNTER0_SELECT1__PERF_SEL3_MASK            = 0x000ffc00;
+    constexpr unsigned int PC_PERFCOUNTER0_SELECT__CNTR_MODE_MASK             = 0x00f00000;
+    constexpr unsigned int PC_PERFCOUNTER0_SELECT__PERF_MODE1_MASK            = 0x0f000000;
+    constexpr unsigned int PC_PERFCOUNTER0_SELECT__PERF_MODE_MASK             = 0xf0000000;
+    constexpr unsigned int PC_PERFCOUNTER0_SELECT__PERF_SEL1_MASK             = 0x000ffc00;
+    constexpr unsigned int PC_PERFCOUNTER0_SELECT__PERF_SEL_MASK              = 0x000003ff;
+    constexpr unsigned int PC_PERFCOUNTER1_HI__PERFCOUNTER_HI_MASK            = 0xffffffff;
+    constexpr unsigned int PC_PERFCOUNTER1_LO__PERFCOUNTER_LO_MASK            = 0xffffffff;
+    constexpr unsigned int PC_PERFCOUNTER1_SELECT1__PERF_MODE2_MASK           = 0xf0000000;
+    constexpr unsigned int PC_PERFCOUNTER1_SELECT1__PERF_MODE3_MASK           = 0x0f000000;
+    constexpr unsigned int PC_PERFCOUNTER1_SELECT1__PERF_SEL2_MASK            = 0x000003ff;
+    constexpr unsigned int PC_PERFCOUNTER1_SELECT1__PERF_SEL3_MASK            = 0x000ffc00;
+    constexpr unsigned int PC_PERFCOUNTER1_SELECT__CNTR_MODE_MASK             = 0x00f00000;
+    constexpr unsigned int PC_PERFCOUNTER1_SELECT__PERF_MODE1_MASK            = 0x0f000000;
+    constexpr unsigned int PC_PERFCOUNTER1_SELECT__PERF_MODE_MASK             = 0xf0000000;
+    constexpr unsigned int PC_PERFCOUNTER1_SELECT__PERF_SEL1_MASK             = 0x000ffc00;
+    constexpr unsigned int PC_PERFCOUNTER1_SELECT__PERF_SEL_MASK              = 0x000003ff;
+    constexpr unsigned int PC_PERFCOUNTER2_HI__PERFCOUNTER_HI_MASK            = 0xffffffff;
+    constexpr unsigned int PC_PERFCOUNTER2_LO__PERFCOUNTER_LO_MASK            = 0xffffffff;
+    constexpr unsigned int PC_PERFCOUNTER2_SELECT1__PERF_MODE2_MASK           = 0xf0000000;
+    constexpr unsigned int PC_PERFCOUNTER2_SELECT1__PERF_MODE3_MASK           = 0x0f000000;
+    constexpr unsigned int PC_PERFCOUNTER2_SELECT1__PERF_SEL2_MASK            = 0x000003ff;
+    constexpr unsigned int PC_PERFCOUNTER2_SELECT1__PERF_SEL3_MASK            = 0x000ffc00;
+    constexpr unsigned int PC_PERFCOUNTER2_SELECT__CNTR_MODE_MASK             = 0x00f00000;
+    constexpr unsigned int PC_PERFCOUNTER2_SELECT__PERF_MODE1_MASK            = 0x0f000000;
+    constexpr unsigned int PC_PERFCOUNTER2_SELECT__PERF_MODE_MASK             = 0xf0000000;
+    constexpr unsigned int PC_PERFCOUNTER2_SELECT__PERF_SEL1_MASK             = 0x000ffc00;
+    constexpr unsigned int PC_PERFCOUNTER2_SELECT__PERF_SEL_MASK              = 0x000003ff;
+    constexpr unsigned int PC_PERFCOUNTER3_HI__PERFCOUNTER_HI_MASK            = 0xffffffff;
+    constexpr unsigned int PC_PERFCOUNTER3_LO__PERFCOUNTER_LO_MASK            = 0xffffffff;
+    constexpr unsigned int PC_PERFCOUNTER3_SELECT1__PERF_MODE2_MASK           = 0xf0000000;
+    constexpr unsigned int PC_PERFCOUNTER3_SELECT1__PERF_MODE3_MASK           = 0x0f000000;
+    constexpr unsigned int PC_PERFCOUNTER3_SELECT1__PERF_SEL2_MASK            = 0x000003ff;
+    constexpr unsigned int PC_PERFCOUNTER3_SELECT1__PERF_SEL3_MASK            = 0x000ffc00;
+    constexpr unsigned int PC_PERFCOUNTER3_SELECT__CNTR_MODE_MASK             = 0x00f00000;
+    constexpr unsigned int PC_PERFCOUNTER3_SELECT__PERF_MODE1_MASK            = 0x0f000000;
+    constexpr unsigned int PC_PERFCOUNTER3_SELECT__PERF_MODE_MASK             = 0xf0000000;
+    constexpr unsigned int PC_PERFCOUNTER3_SELECT__PERF_SEL1_MASK             = 0x000ffc00;
+    constexpr unsigned int PC_PERFCOUNTER3_SELECT__PERF_SEL_MASK              = 0x000003ff;
     constexpr unsigned int RLC_CGTT_MGCG_OVERRIDE__GC_CAC_MGCG_CLK_CNTL_MASK  = 0x00020000;
     constexpr unsigned int RLC_CGTT_MGCG_OVERRIDE__GFXIP_REPEATER_FGCG_OVERRIDE_MASK = 0x00000200;
     constexpr unsigned int RLC_CGTT_MGCG_OVERRIDE__PERFMON_CLOCK_STATE_MASK   = 0x00000400;
@@ -10932,6 +10976,11 @@ namespace Phx1
 {
     constexpr unsigned int PA_SC_TILE_STEERING_OVERRIDE__NUM_PACKER_PER_SC_MASK = 0x00300000;
 } // namespace Phx1
+
+namespace Phx2
+{
+    constexpr unsigned int PA_SC_TILE_STEERING_OVERRIDE__NUM_PACKER_PER_SC_MASK = 0x00100000;
+} // namespace Phx2
 
 #if CHIP_HDR_RAPHAEL
 namespace Raphael

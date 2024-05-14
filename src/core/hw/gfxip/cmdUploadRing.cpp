@@ -36,6 +36,7 @@
 #include "palVectorImpl.h"
 
 using namespace Util;
+using namespace std::chrono_literals;
 
 namespace Pal
 {
@@ -329,8 +330,7 @@ Result CmdUploadRing::UploadCmdBuffers(
     // If the alert trips we should increase the size of the copy ring.
     PAL_ALERT(pCopy->pFence->GetStatus() == Result::NotReady);
 
-    constexpr uint64 TwoSeconds = 2000000000ull;
-    Result           result     = m_pDevice->WaitForFences(1, &pCopy->pFence, true, TwoSeconds);
+    Result result = m_pDevice->WaitForFences(1, &pCopy->pFence, true, 2s);
 
     if (result == Result::Success)
     {

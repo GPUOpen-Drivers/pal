@@ -4820,6 +4820,10 @@ void TargetCmdBuffer::BeginSample(
 
             Result result = m_pGpaSession->BeginSample(this, queryConfig, &pLogItem->gpaSampleIdQuery);
             SetLastResult(result);
+            if (result != Result::Success)
+            {
+                GPUPROFILER_ERROR("Failed to begin PipeStats sample, error: %d", result);
+            }
         }
         else
         {
@@ -4834,6 +4838,10 @@ void TargetCmdBuffer::BeginSample(
         {
             Result result = m_pGpaSession->BeginSample(this, config, &pLogItem->gpaSampleId);
             SetLastResult(result);
+            if (result != Result::Success)
+            {
+                GPUPROFILER_ERROR("Failed to begin PerfExperiment sample, error: %d", result);
+            }
 
             if (result == Result::ErrorOutOfMemory)
             {
@@ -4861,6 +4869,10 @@ void TargetCmdBuffer::BeginSample(
 
         Result result = m_pGpaSession->BeginSample(this, tsConfig, &pLogItem->gpaSampleIdTs);
         SetLastResult(result);
+        if (result != Result::Success)
+        {
+            GPUPROFILER_ERROR("Failed to begin timestamps sample, error: %d", result);
+        }
     }
 }
 
@@ -4902,6 +4914,11 @@ Result TargetCmdBuffer::BeginGpaSession(
     {
         GpuUtil::GpaSessionBeginInfo info = {};
         result = m_pGpaSession->Begin(info);
+
+        if (result != Result::Success)
+        {
+            GPUPROFILER_ERROR("Failed to begin GPA session, error: %d", result);
+        }
     }
 
     return result;

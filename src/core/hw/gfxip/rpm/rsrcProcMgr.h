@@ -130,6 +130,13 @@ public:
         bool                    srcIsCompressed,
         bool                    dstIsCompressed) const;
 
+    void CopyMemoryCs(
+        GfxCmdBuffer*           pCmdBuffer,
+        const GpuMemory&        srcGpuMemory,
+        const GpuMemory&        dstGpuMemory,
+        uint32                  regionCount,
+        const MemoryCopyRegion* pRegions) const;
+
     virtual void CmdCopyImage(
         GfxCmdBuffer*          pCmdBuffer,
         const Image&           srcImage,
@@ -353,10 +360,9 @@ protected:
         { return false; }
 
     // Some blts need to use GFXIP-specific algorithms to pick the proper state. The baseState is the first
-    // graphics state in a series of states that vary only on target format and target index.
-    virtual const GraphicsPipeline* GetGfxPipelineByTargetIndexAndFormat(
+    // graphics state in a series of states that vary only on target format.
+    virtual const GraphicsPipeline* GetGfxPipelineByFormat(
         RpmGfxPipeline basePipeline,
-        uint32         targetIndex,
         SwizzledFormat format) const = 0;
 
     const ComputePipeline* GetPipeline(RpmComputePipeline pipeline) const
@@ -391,13 +397,6 @@ protected:
         const SubresRange&      clearRange,
         uint32                  boxCount,
         const Box*              pBoxes) const;
-
-    virtual void CopyMemoryCs(
-        GfxCmdBuffer*           pCmdBuffer,
-        const GpuMemory&        srcGpuMemory,
-        const GpuMemory&        dstGpuMemory,
-        uint32                  regionCount,
-        const MemoryCopyRegion* pRegions) const;
 
     const ComputePipeline* GetScaledCopyImageComputePipeline(
         const Image& srcImage,

@@ -676,11 +676,13 @@ void BuildRawBufferViewInfo(
     gpusize           byteOffset)
 {
     const auto& desc = bufferMemory.Desc();
+
     BuildRawBufferViewInfo(pInfo,
                            *bufferMemory.GetDevice(),
                            (desc.gpuVirtAddr + byteOffset),
                            (desc.size - byteOffset),
-                           false);
+                           false
+                           );
 }
 
 // =====================================================================================================================
@@ -695,7 +697,8 @@ void BuildRawBufferViewInfo(
                            *bufferMemory.GetDevice(),
                            (bufferMemory.Desc().gpuVirtAddr + byteOffset),
                            range,
-                           false);
+                           false
+                           );
 }
 
 // =====================================================================================================================
@@ -717,24 +720,20 @@ void BuildImageViewInfo(
     static_assert(static_cast<uint32>(ImageType::Tex3d) == static_cast<uint32>(ImageViewType::Tex3d),
                   "RPM assumes that ImageType::Tex3d == ImageViewType::Tex3d");
 
-    const ImageType  imageType       = image.GetGfxImage()->GetOverrideImageType();
-    const Device*    pDevice         = image.GetDevice();
-    const auto*      pPublicSettings = pDevice->GetPublicSettings();
-
-    pInfo->pImage               = &image;
-    pInfo->viewType             = static_cast<ImageViewType>(imageType);
-    pInfo->minLod               = 0;
-    pInfo->subresRange          = subresRange;
-    pInfo->swizzledFormat       = swizzledFormat;
-    pInfo->texOptLevel          = texOptLevel;
-    pInfo->possibleLayouts      = imgLayout;
-
-    pInfo->flags.bypassMallRead =
-        TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall, RpmViewsBypassMallOnRead);
-    pInfo->flags.bypassMallWrite =
-        TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall, RpmViewsBypassMallOnWrite);
+    pInfo->pImage          = &image;
+    pInfo->viewType        = static_cast<ImageViewType>(image.GetImageCreateInfo().imageType);
+    pInfo->minLod          = 0;
+    pInfo->subresRange     = subresRange;
+    pInfo->swizzledFormat  = swizzledFormat;
+    pInfo->texOptLevel     = texOptLevel;
+    pInfo->possibleLayouts = imgLayout;
 
     pInfo->possibleLayouts.usages |= (isShaderWriteable ? LayoutShaderWrite : 0u);
+
+    const PalPublicSettings& settings = *image.GetDevice()->GetPublicSettings();
+
+    pInfo->flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall, RpmViewsBypassMallOnRead);
+    pInfo->flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall, RpmViewsBypassMallOnWrite);
 }
 
 // =====================================================================================================================

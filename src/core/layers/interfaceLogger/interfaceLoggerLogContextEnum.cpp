@@ -1076,7 +1076,7 @@ void LogContext::Enum(
         "Phoenix1",
         nullptr,
         nullptr,
-        nullptr,
+        "Phoenix2",
         nullptr,
         nullptr,
         nullptr,

@@ -80,13 +80,6 @@ public:
     virtual void SetStackSizeInBytes(
         uint32 stackSizeInBytes) override;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 797
-    virtual Result GetStackSizes(
-        CompilerStackSizes* pSizes) const override;
-#else
-    virtual uint32 GetStackSizeInBytes() const override;
-#endif
-
     bool DisablePartialPreempt() const { return m_disablePartialPreempt; }
 
     // Returns the scratch memory size in dwords

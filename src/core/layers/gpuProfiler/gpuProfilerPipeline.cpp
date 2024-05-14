@@ -274,55 +274,30 @@ void Pipeline::DumpPipelinePerfData(
 }
 
 // =====================================================================================================================
-Result Pipeline::InitGfx(
-    const GraphicsPipelineCreateInfo& createInfo)
+Result Pipeline::InitGfx()
 {
-    Result result = Result::ErrorInvalidPointer;
+    Result result = PipelineDecorator::Init();
 
-    if ((createInfo.pPipelineBinary != nullptr) && (createInfo.pipelineBinarySize > 0))
+    if (result == Result::Success)
     {
-        PipelineAbiReader abiReader(m_pDevice->GetPlatform(), createInfo.pPipelineBinary);
-        result = abiReader.Init();
+        static_assert(((static_cast<uint32>(HardwareStage::Cs) + 1) ==
+            static_cast<uint32>(HardwareStage::Count)),
+            "HardwareStage::Cs is not located at the end of the HardwareStage enum!");
 
-        MsgPackReader              metadataReader;
-        PalAbi::CodeObjectMetadata metadata;
-
-        if (result == Result::Success)
+        // We need to check if any graphics stage contains performance data.
+        for (uint32 i = 0; i < static_cast<uint32>(HardwareStage::Cs); i++)
         {
-            result = abiReader.GetMetadata(&metadataReader, &metadata);
-        }
-
-        if (result == Result::Success)
-        {
-            static_assert(((static_cast<uint32>(HardwareStage::Cs) + 1) ==
-                            static_cast<uint32>(HardwareStage::Count)),
-                          "HardwareStage::Cs is not located at the end of the HardwareStage enum!");
-
-            // We need to check if any graphics stage contains performance data.
-            for (uint32 i = 0; i < static_cast<uint32>(HardwareStage::Cs); i++)
+            size_t perfDataSize = 0;
+            const Result getPerfDataResult = m_pNextLayer->GetPerformanceData(HardwareStage(i), &perfDataSize, nullptr);
+            if ((getPerfDataResult == Result::Success) && (perfDataSize > 0))
             {
-                if (metadata.pipeline.hardwareStage[i].hasEntry.perfDataBufferSize != 0)
-                {
-                    // If the ELF contains any of the performance data buffer size entries, then one of the stages
-                    // contains performance data.
-                    m_hasPerformanceData = true;
-                    break;
-                }
+                m_hasPerformanceData = true;
+                break;
             }
 
-            result = Result::Unsupported;
-
-            for (uint32 s = 0; s < static_cast<uint32>(ApiShaderType::Count); ++s)
-            {
-                if (metadata.pipeline.shader[s].hasEntry.hardwareMapping)
-                {
-                    m_apiHwMapping.apiShaders[s] = static_cast<uint8>(metadata.pipeline.shader[s].hardwareMapping);
-                    result = Result::Success;
-                }
-            }
         }
+        m_apiHwMapping = m_pNextLayer->ApiHwShaderMapping();
     }
-
     return result;
 }
 

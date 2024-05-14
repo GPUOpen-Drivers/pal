@@ -271,7 +271,7 @@ struct GpuMemoryCreateInfo
                                                       ///  be ignored if @ref heapAccess is to something other than
                                                       ///  @ref GpuHeapAccess::GpuHeapAccessExplicit.
     IImage*                      pImage;              ///< The pointer to an Image object the memory object will be
-                                                      ///  bound to.  It must only be used in special cases where a
+                                                      ///  bound to.  It must be specified in special cases where a
                                                       ///  memory object is permanently linked to an Image such as
                                                       ///  presentable images or shared resources on Windows.
     TypedBufferCreateInfo        typedBufferInfo;     ///< If typedBuffer is set this GPU memory will be permanently

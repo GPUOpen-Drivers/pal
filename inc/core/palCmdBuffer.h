@@ -273,6 +273,7 @@ enum PipelineStageFlag : uint32
     PipelineStageCs                = 0x00004000,
     PipelineStageBlt               = 0x00008000,
     PipelineStageBottomOfPipe      = 0x00010000,
+    PipelineStageDsTarget          = PipelineStageEarlyDsTarget | PipelineStageLateDsTarget,
     PipelineStageAllStages         = 0x0001FFFF
 #else
     PipelineStageFetchIndices      = 0x00000004,
@@ -288,6 +289,7 @@ enum PipelineStageFlag : uint32
     PipelineStageCs                = 0x00001000,
     PipelineStageBlt               = 0x00002000,
     PipelineStageBottomOfPipe      = 0x00004000,
+    PipelineStageDsTarget          = PipelineStageEarlyDsTarget | PipelineStageLateDsTarget,
     PipelineStageAllStages         = 0x00007FFF
 #endif
 };
@@ -980,8 +982,13 @@ struct BarrierInfo
 /// If they are provided PAL may detect cases where future read operations use the same caches as the prior read
 /// operations and thus can skip the usual visibility operations.
 ///
-/// Note that if the client does provide read operation flags in a source mask they *must* guarantee that the same
-/// flags were provided to a prior barrier's destination mask(s). Incorrect behavior may occur otherwise.
+/// Note that,
+///   1. If the client does provide read operation flags in a source mask they *must* guarantee that the same flags
+///      were provided to a prior barrier's destination mask(s). Incorrect behavior may occur otherwise.
+///   2. One @ref MemBarrier or @ImgBarrier object can only be applied to a single resource otherwise PAL's internal
+///      optimization may be incorrect. Don't OR multiple resource transitions' stage or access mask into one
+///      @ref MemBarrier or @ImgBarrier when making PAL barrier call. However, you are allowed to OR multiple resource
+///      transitions' stage or access mask into the global transition mask.
 ///
 /// This struct is used by @ref AcquireReleaseInfo.
 struct MemBarrier
@@ -2066,6 +2073,9 @@ struct CmdBufInfo
                                            ///  a valid vidPnSourceId when privateFlip flag is set and pDirectCapMemory
                                            ///  is nullptr.
 #endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 865
+    uint64             frameId;            ///< Present frame index, incremented at each present
+#endif
 };
 
 /// Specifies rotation angle between two images.  Used as input to ICmdBuffer::CmdScaledCopyImage.
@@ -2712,24 +2722,70 @@ public:
 
     /// Perform source pipeline stage and cache access optimization based on the acquire/release interface.
     ///
-    /// @param [in/out] barrierType Barrier transition type @ref BarrierType.
-    /// @param [in/out] pStageMask  A mask of ORed @ref PipelineStageFlag to optimize.
-    /// @param [in/out] pAccessMask A mask of ORed @ref CacheCoherencyUsageFlags to optimize.
+    /// @param [in]     barrierType    Barrier transition type @ref BarrierType.
+    /// @param [in]     pImage         Image pointer for image transition, required when @ref BarrierType is
+    ///                                BarrierType::Image.
+    /// @param [in/out] pSrcStageMask  A source mask of ORed @ref PipelineStageFlag to optimize, can't be null.
+    /// @param [in/out] pSrcAccessMask A source mask of ORed @ref CacheCoherencyUsageFlags to optimize, can't be null.
+    /// @param [in/out] pDstStageMask  A destination mask of ORed @ref PipelineStageFlag to optimize, can't be null.
+    /// @param [in/out] pDstAccessMask A destination mask of ORed @ref CacheCoherencyUsageFlags to optimize.
+    ///
+    /// @returns If need flush and invalidate GL2 cache.
     ///
     /// @note PipelineStageBlt will be converted to more accurate stage(s) based on the underlying implementation of
     ///       outstanding BLTs, but will be left as PipelineStageBlt if the internal outstanding BLTs can't be expressed
     ///       as a client-facing PipelineStage (e.g., if there are CP DMA BLTs in flight).
-    virtual void OptimizeAcqRelReleaseInfo(
-        BarrierType barrierType,
-        uint32*     pStageMask,
-        uint32*     pAccessMask) const = 0;
+    virtual bool OptimizeAcqRelReleaseInfo(
+        BarrierType   barrierType,
+        const IImage* pImage,
+        uint32*       pSrcStageMask,
+        uint32*       pSrcAccessMask,
+        uint32*       pDstStageMask,
+        uint32*       pDstAccessMask) const = 0;
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 858
+    /// @param [in/out] pSrcStageMask  A mask of ORed @ref PipelineStageFlag to optimize, can't be null.
+    /// @param [in/out] pSrcAccessMask A mask of ORed @ref CacheCoherencyUsageFlags to optimize, can't be null.
     void OptimizeAcqRelReleaseInfo(
-        uint32*     pStageMask,
-        uint32*     pAccessMask) const
+        uint32*     pSrcStageMask,
+        uint32*     pSrcAccessMask) const
     {
-        OptimizeAcqRelReleaseInfo(BarrierType::Global, pStageMask, pAccessMask);
+        uint32 unusedStageMask  = 0;
+        uint32 unusedAccessMask = 0;
+        OptimizeAcqRelReleaseInfo(BarrierType::Global, nullptr,
+                                  pSrcStageMask, pSrcAccessMask, &unusedStageMask, &unusedAccessMask);
+    }
+#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION < 864
+    /// @param [in/out] barrierType Barrier transition type @ref BarrierType.
+    /// @param [in/out] pSrcStageMask  A mask of ORed @ref PipelineStageFlag to optimize, can't be null.
+    /// @param [in/out] pSrcAccessMask A mask of ORed @ref CacheCoherencyUsageFlags to optimize, can't be null.
+    void OptimizeAcqRelReleaseInfo(
+        BarrierType barrierType,
+        uint32*     pSrcStageMask,
+        uint32*     pSrcAccessMask) const
+    {
+        uint32 unusedStageMask  = 0;
+        uint32 unusedAccessMask = 0;
+        OptimizeAcqRelReleaseInfo(barrierType, nullptr,
+                                  pSrcStageMask, pSrcAccessMask, &unusedStageMask, &unusedAccessMask);
+    }
+#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION < 867
+    /// @param [in]     barrierType    Barrier transition type @ref BarrierType.
+    /// @param [in/out] pSrcStageMask  A source mask of ORed @ref PipelineStageFlag to optimize, can't be null.
+    /// @param [in/out] pSrcAccessMask A source mask of ORed @ref CacheCoherencyUsageFlags to optimize, can't be null.
+    /// @param [in/out] pDstStageMask  A destination mask of ORed @ref PipelineStageFlag to optimize, can't be null.
+    /// @param [in/out] pDstAccessMask A destination mask of ORed @ref CacheCoherencyUsageFlags to optimize.
+    void OptimizeAcqRelReleaseInfo(
+        BarrierType barrierType,
+        uint32*     pSrcStageMask,
+        uint32*     pSrcAccessMask,
+        uint32*     pDstStageMask,
+        uint32*     pDstAccessMask) const
+    {
+        uint32 unusedStageMask  = 0;
+        uint32 unusedAccessMask = 0;
+        OptimizeAcqRelReleaseInfo(barrierType, nullptr,
+                                  pSrcStageMask, pSrcAccessMask, &unusedStageMask, &unusedAccessMask);
     }
 #endif
 

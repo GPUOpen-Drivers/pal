@@ -24,6 +24,7 @@
  **********************************************************************************************************************/
 
 #include "palFile.h"
+#include "palFormatInfo.h"
 #include "core/device.h"
 #include "g_coreSettings.h"
 #include "core/platform.h"
@@ -69,34 +70,15 @@ static bool IsDualSrcBlendOption(
 // =====================================================================================================================
 GfxDevice::GfxDevice(
     Device*           pDevice,
-    Pal::RsrcProcMgr* pRsrcProcMgr,
-    uint32            frameCountRegOffset)
+    Pal::RsrcProcMgr* pRsrcProcMgr)
     :
     m_pParent(pDevice),
     m_pRsrcProcMgr(pRsrcProcMgr),
-    m_frameCountGpuMem(),
-    m_frameCntReg(frameCountRegOffset),
-    m_useFixedLateAllocVsLimit(false),
-    m_lateAllocVsLimit(LateAllocVsInvalid),
-    m_smallPrimFilter(SmallPrimFilterEnableAll),
-    m_waEnableDccCacheFlushAndInvalidate(false),
-    m_waTcCompatZRange(false),
-    m_degeneratePrimFilter(false),
     m_pSettingsLoader(nullptr),
     m_pDdSettingsLoader(nullptr),
-    m_computeTrapHandler(),
-    m_computeTrapBuffer(),
-    m_graphicsTrapHandler(),
-    m_graphicsTrapBuffer(),
-    m_queueContextUpdateLock(),
     m_queueContextUpdateCounter(0),
     m_pipelineLoader(pDevice)
 {
-    for (uint32 i = 0; i < QueueType::QueueTypeCount; i++)
-    {
-        m_pFrameCountCmdBuffer[i] = nullptr;
-    }
-
     memset(m_fastClearImageRefs, 0, sizeof(m_fastClearImageRefs));
 }
 
@@ -139,15 +121,6 @@ Result GfxDevice::Cleanup()
     }
 #endif
 
-    for (uint32 i = 0; i < QueueType::QueueTypeCount; i++)
-    {
-        if (m_pFrameCountCmdBuffer[i] != nullptr)
-        {
-            m_pFrameCountCmdBuffer[i]->DestroyInternal();
-            m_pFrameCountCmdBuffer[i] = nullptr;
-        }
-    }
-
     return result;
 }
 
@@ -164,7 +137,6 @@ Result GfxDevice::InitHwlSettings(
         switch (m_pParent->ChipProperties().gfxLevel)
         {
         case GfxIpLevel::GfxIp10_1:
-        case GfxIpLevel::GfxIp9:
         case GfxIpLevel::GfxIp10_3:
         case GfxIpLevel::GfxIp11_0:
             m_pDdSettingsLoader = Gfx9::CreateSettingsLoader(m_pParent);
@@ -557,91 +529,6 @@ bool GfxDevice::SupportsCePreamblePerSubmit() const
     // We can only submit a CE preamble stream with each submission if the Device supports at least five command
     // streams per submission.
     return (Parent()->QueueProperties().maxNumCmdStreamsPerSubmit >= 5);
-}
-
-// =====================================================================================================================
-// Returns the buffer that contains command to write to frame count register and increment the GPU memory. If it`s
-// called the first time, the buffer will be initialized.
-Result GfxDevice::InitAndGetFrameCountCmdBuffer(
-    QueueType      queueType,
-    EngineType     engineType,
-    GfxCmdBuffer** ppBuffer)
-{
-    PAL_ASSERT((queueType == QueueType::QueueTypeCompute) || (queueType == QueueType::QueueTypeUniversal));
-
-    Result result = Result::Success;
-
-    if ((m_pFrameCountCmdBuffer[queueType] == nullptr) && (m_frameCntReg != 0))
-    {
-        if(m_frameCountGpuMem.Memory() == nullptr)
-        {
-            GpuMemoryCreateInfo createInfo = {};
-            createInfo.alignment = sizeof(uint32);
-            createInfo.size      = sizeof(uint32);
-            createInfo.priority  = GpuMemPriority::Normal;
-            createInfo.heaps[0]  = GpuHeapLocal;
-            createInfo.heaps[1]  = GpuHeapGartUswc;
-            createInfo.heapCount = 2;
-
-            GpuMemoryInternalCreateInfo internalInfo = {};
-            internalInfo.flags.alwaysResident = 1;
-
-            gpusize    memOffset    = 0;
-            GpuMemory* pFrameGpuMem = nullptr;
-
-            result = m_pParent->MemMgr()->AllocateGpuMem(createInfo,
-                                                         internalInfo,
-                                                         false,
-                                                         &pFrameGpuMem,
-                                                         &memOffset);
-            m_frameCountGpuMem.Update(pFrameGpuMem, memOffset);
-
-            if (result == Result::Success)
-            {
-                char* pData = nullptr;
-                result = m_frameCountGpuMem.Map(reinterpret_cast<void**>(&pData));
-
-                if (result == Result::Success)
-                {
-                    memset(pData, 0, sizeof(uint32));
-                    result = m_frameCountGpuMem.Unmap();
-                }
-            }
-        }
-
-        if (result == Result::Success)
-        {
-            CmdBuffer** ppFrameCountCmdBuffer = reinterpret_cast<CmdBuffer**>(&m_pFrameCountCmdBuffer[queueType]);
-
-            CmdBufferCreateInfo cmdBufferCreateInfo = {};
-            cmdBufferCreateInfo.pCmdAllocator = m_pParent->InternalCmdAllocator(engineType);
-            cmdBufferCreateInfo.queueType     = queueType;
-
-            cmdBufferCreateInfo.engineType    = engineType;
-
-            CmdBufferInternalCreateInfo cmdBufferInternalInfo = {};
-            cmdBufferInternalInfo.flags.isInternal = 1;
-
-            result = m_pParent->CreateInternalCmdBuffer(cmdBufferCreateInfo,
-                                                        cmdBufferInternalInfo,
-                                                        ppFrameCountCmdBuffer);
-        }
-
-        if (result == Result::Success)
-        {
-            CmdBufferBuildInfo buildInfo = {};
-            result = m_pFrameCountCmdBuffer[queueType]->Begin(buildInfo);
-        }
-
-        if (result == Result::Success)
-        {
-            m_pFrameCountCmdBuffer[queueType]->AddPerPresentCommands(m_frameCountGpuMem.GpuVirtAddr(), m_frameCntReg);
-            result = m_pFrameCountCmdBuffer[queueType]->End();
-        }
-    }
-    *ppBuffer = m_pFrameCountCmdBuffer[queueType];
-
-    return result;
 }
 
 // =====================================================================================================================
@@ -1096,6 +983,25 @@ ClearMethod GfxDevice::GetDefaultSlowClearMethod(
 
     // Force clears of scaled formats to the compute engine
     return (texelScale > 1) ? ClearMethod::NormalCompute : ClearMethod::NormalGraphics;
+}
+
+// =====================================================================================================================
+// This function checks to see if an override is needed for the image format. The TC hardware treats YUV422 formats as
+// 32bpp memory addressing instead of 16bpp. The HW scales the SRD width and x-coordinate accordingly for these formats.
+bool GfxDevice::IsImageFormatOverrideNeeded(
+    ChNumFormat* pFormat,
+    uint32*      pPixelsPerBlock)
+{
+    bool isOverrideNeeded = false;
+
+    if (Formats::IsMacroPixelPacked(*pFormat))
+    {
+        isOverrideNeeded = true;
+        *pFormat         = Pal::ChNumFormat::X32_Uint;
+        *pPixelsPerBlock = 2;
+    }
+
+    return isOverrideNeeded;
 }
 
 } // Pal

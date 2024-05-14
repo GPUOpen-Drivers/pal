@@ -150,8 +150,7 @@ uint32* WorkaroundState::PreDraw(
 
     // colorBlendWorkaoundsActive will be true if the state of the view and / or blend state
     // is important.
-    const bool colorBlendWorkaroundsActive = m_cachedSettings.waColorCacheControllerInvalidEviction ||
-                                             m_cachedSettings.waRotatedSwizzleDisablesOverwriteCombiner;
+    const bool colorBlendWorkaroundsActive = m_cachedSettings.waColorCacheControllerInvalidEviction;
 
     const bool targetsDirty = dirtyFlags.colorTargetView || dirtyFlags.colorBlendState;
 
@@ -167,12 +166,8 @@ uint32* WorkaroundState::PreDraw(
 
             if (pView != nullptr)
             {
-                const bool viewCanNeedWa =
-                    (pView->HasMultipleFragments() && pView->HasDcc()) ||
-                    pView->IsRotatedSwizzleOverwriteCombinerDisabled();
-
                 // Macro check if the view can possibly need the WA so we avoid it in many cases
-                if (viewCanNeedWa)
+                if (pView->HasMultipleFragments() && pView->HasDcc())
                 {
                     const bool rop3Enabled     = (m_cachedSettings.waLogicOpDisablesOverwriteCombiner &&
                                                   (pPipeline->GetLogicOp() != LogicOp::Copy));
@@ -188,10 +183,6 @@ uint32* WorkaroundState::PreDraw(
                     {
                         cbColorDccControl.gfx09_10.OVERWRITE_COMBINER_DISABLE = 1;
                     }
-                    else if (pView->IsRotatedSwizzleOverwriteCombinerDisabled())
-                    {
-                        cbColorDccControl.gfx09_10.OVERWRITE_COMBINER_DISABLE = 1;
-                    }
 
                     pCmdSpace = pDeCmdStream->WriteContextRegRmw<Pm4OptImmediate>(
                         mmCB_COLOR0_DCC_CONTROL + (cbIdx * CbRegsPerSlot),
@@ -199,59 +190,6 @@ uint32* WorkaroundState::PreDraw(
                         cbColorDccControl.u32All,
                         pCmdSpace);
                 }
-            }
-        }
-    }
-
-    if (m_cachedSettings.waMiscPopsMissedOverlap)
-    {
-        // This should be unreachable since waStalledPopsMode applies to GFX10 only and waMiscPopsMissedOverlap
-        // applies to GFX9 only.
-        PAL_ASSERT(m_device.Settings().waStalledPopsMode == false);
-
-        if ((PipelineDirty && gfxState.pipelineState.dirtyFlags.pipeline) ||
-            (StateDirty && (dirtyFlags.msaaState || dirtyFlags.depthStencilView)))
-        {
-            bool setPopsDrainPsOnOverlap = false;
-
-            if (pPipeline->PsUsesRovs())
-            {
-                if ((pMsaaState != nullptr) && (pMsaaState->Log2NumSamples() >= 3))
-                {
-                    setPopsDrainPsOnOverlap = true;
-                }
-
-                if ((pDepthTargetView != nullptr) && (pDepthTargetView->GetImage() != nullptr))
-                {
-                    const auto& imageCreateInfo = pDepthTargetView->GetImage()->Parent()->GetImageCreateInfo();
-
-                    if (imageCreateInfo.samples >= 8)
-                    {
-                        setPopsDrainPsOnOverlap = true;
-                    }
-                }
-            }
-
-            // This WA is rarely needed - once it is applied during a CmdBuffer we need to start validating it.
-            if (setPopsDrainPsOnOverlap || pCmdBuffer->HasWaMiscPopsMissedOverlapBeenApplied())
-            {
-                regDB_DFSM_CONTROL* pPrevDbDfsmControl = pCmdBuffer->GetDbDfsmControl();
-                regDB_DFSM_CONTROL  dbDfsmControl      = *pPrevDbDfsmControl;
-
-                dbDfsmControl.most.POPS_DRAIN_PS_ON_OVERLAP = ((setPopsDrainPsOnOverlap) ? 1 : 0);
-
-                if (dbDfsmControl.u32All != pPrevDbDfsmControl->u32All)
-                {
-                    pCmdSpace = pDeCmdStream->WriteSetOneContextRegNoOpt(m_cmdUtil.GetRegInfo().mmDbDfsmControl,
-                                                                         dbDfsmControl.u32All,
-                                                                         pCmdSpace);
-
-                    pPrevDbDfsmControl->u32All = dbDfsmControl.u32All;
-                }
-
-                // Mark CmdBuffer bool that this WA has been applied, so we re-validate it for the remainder of the
-                // CmdBuffer disabling it as necessary.
-                pCmdBuffer->SetWaMiscPopsMissedOverlapHasBeenApplied();
             }
         }
     }
@@ -274,8 +212,7 @@ uint32* WorkaroundState::PreDraw(
     }
 
     // This must go last in order to validate that no other context rolls can occur before the draw.
-    if ((StateDirty && dirtyFlags.scissorRects) ||
-        pCmdBuffer->NeedsToValidateScissorRectsWa(Pm4OptImmediate))
+    if (StateDirty && dirtyFlags.scissorRects)
     {
         {
             pCmdSpace = pCmdBuffer->ValidateScissorRects(pCmdSpace);

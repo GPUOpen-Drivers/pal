@@ -25,19 +25,21 @@
 
 #include "lz4Compressor.h"
 
+#include "palInlineFuncs.h"
 #include "lz4hc.h"
 
 namespace Util
 {
+// Used to store state information on a thread by thread basis.
+// We need to create our own global allocator because it needs to last the lifetime of the process,
+// since we do not know when threads will be destroyed.
+GenericAllocator g_lz4CompressorGlobalAllocator{};
+thread_local Lz4Compressor::ThreadLocalData g_lz4CompressorThreadLocalData;
 
 // =====================================================================================================================
 Lz4Compressor::Lz4Compressor(
-    const AllocCallbacks& callbacks,
     bool useHighCompression)
-    : m_allocator(callbacks)
-    , m_useHighCompression(useHighCompression)
-    , m_stateInitialized(false)
-    , m_pState(nullptr)
+    : m_useHighCompression(useHighCompression)
 {
     if (m_useHighCompression == true)
     {
@@ -50,56 +52,27 @@ Lz4Compressor::Lz4Compressor(
 }
 
 // =====================================================================================================================
-Lz4Compressor::~Lz4Compressor()
-{
-    if (m_pState != nullptr)
-    {
-        PAL_SAFE_FREE(m_pState, &m_allocator);
-    }
-}
-
-// =====================================================================================================================
-Result Lz4Compressor::Init()
-{
-    Result result = Result::Success;
-
-    if (m_pState == nullptr)
-    {
-        int stateSize = (m_useHighCompression == true) ? LZ4_sizeofStateHC() : LZ4_sizeofState();
-        constexpr int lz4StateAlignmentRequirement = 8;
-
-        m_pState = PAL_MALLOC_ALIGNED(stateSize, lz4StateAlignmentRequirement, &m_allocator, AllocInternal);
-
-        if (m_pState == nullptr)
-        {
-            result = Result::ErrorOutOfMemory;
-        }
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-int Lz4Compressor::GetCompressBound(
-    int inputSize
+int32 Lz4Compressor::GetCompressBound(
+    int32 inputSize
     ) const
 {
-    int bound = LZ4_compressBound(inputSize);
+    int32 bound = LZ4_compressBound(inputSize);
     if (bound > 0)
     {
-        bound += static_cast<int>(sizeof(FrameHeader));
+        bound += static_cast<int32>(sizeof(FrameHeader));
     }
+
     return bound;
 }
 
 // =====================================================================================================================
-int Lz4Compressor::GetDecompressedSize(
+int32 Lz4Compressor::GetDecompressedSize(
     const char* src,
-    int srcSize
+    int32 srcSize
     ) const
 {
-    int size = 0;
-    if ((srcSize > 0) && (srcSize > static_cast<int>(sizeof(FrameHeader))))
+    int32 size = 0;
+    if ((srcSize > 0) && (srcSize > static_cast<int32>(sizeof(FrameHeader))))
     {
         const FrameHeader* header = reinterpret_cast<const FrameHeader*>(src);
         if (header->identifier == HeaderIdentifier)
@@ -115,22 +88,68 @@ int Lz4Compressor::GetDecompressedSize(
 Result Lz4Compressor::Compress(
     const char* src,
     char* dst,
-    int srcSize,
-    int dstCapacity,
-    int* pBytesWritten)
+    int32 srcSize,
+    int32 dstCapacity,
+    int32* pBytesWritten)
 {
     Result result = Result::Success;
 
-    // Sanity check/error handling.
-    if ((dstCapacity > 0) && (dstCapacity > static_cast<int>(sizeof(FrameHeader))))
+    // Allocate (thread local) state if necessary.
+    bool stateNeedsInit = false;
+    void* pState = nullptr;
+    if (result == Result::Success)
     {
-        FrameHeader* header = reinterpret_cast<FrameHeader*>(dst);
-        header->identifier = HeaderIdentifier;
-        header->uncompressedSize = srcSize;
+        pState = (m_useHighCompression == false) ? g_lz4CompressorThreadLocalData.m_pState :
+            g_lz4CompressorThreadLocalData.m_pStateHC;
+
+        if (pState == nullptr)
+        {
+            stateNeedsInit = true;
+
+            constexpr int32 Lz4StateAlignmentRequirement = 8;
+            // We want to align to cache line size to ensure no sharing of cache lines between cores.
+            constexpr int32 stateAlignment = Util::Max(Lz4StateAlignmentRequirement, PAL_CACHE_LINE_BYTES);
+
+            // NOTE:
+            // We use global malloc for thread local data as it persists for the lifetime of the thread,
+            // and we otherwise have no guarantee any other allocator we may use is still around when the thread ends.
+            pState = PAL_MALLOC_ALIGNED(((m_useHighCompression == false) ? LZ4_sizeofState() : LZ4_sizeofStateHC()),
+                stateAlignment,
+                &g_lz4CompressorGlobalAllocator,
+                AllocInternal);
+
+            if (pState == nullptr)
+            {
+                result = Result::ErrorOutOfMemory;
+            }
+            else
+            {
+                // Store in the thread local data
+                if (m_useHighCompression == false)
+                {
+                    g_lz4CompressorThreadLocalData.m_pState = pState;
+                }
+                else
+                {
+                    g_lz4CompressorThreadLocalData.m_pStateHC = pState;
+                }
+            }
+        }
     }
-    else
+
+    // Sanity check/error handling.
+    if (result == Result::Success)
     {
-        result = Result::ErrorInvalidMemorySize;
+        if ((dstCapacity > 0) && (dstCapacity > static_cast<int32>(sizeof(FrameHeader))))
+        {
+            FrameHeader* header = reinterpret_cast<FrameHeader*>(dst);
+            header->identifier = HeaderIdentifier;
+            header->uncompressedSize = srcSize;
+        }
+        else
+        {
+            result = Result::ErrorInvalidMemorySize;
+        }
     }
 
     // Compression
@@ -142,19 +161,17 @@ Result Lz4Compressor::Compress(
 
         int returnCode = 0;
 
-        if (m_stateInitialized == false)
+        if (stateNeedsInit == true)
         {
-            m_stateInitialized = true;
-
             if (m_useHighCompression == true)
             {
                 returnCode =
-                    LZ4_compress_HC_extStateHC(m_pState, src, dst, srcSize, dstCapacity, m_compressionParam);
+                    LZ4_compress_HC_extStateHC(pState, src, dst, srcSize, dstCapacity, m_compressionParam);
             }
             else
             {
                 returnCode =
-                    LZ4_compress_fast_extState(m_pState, src, dst, srcSize, dstCapacity, m_compressionParam);
+                    LZ4_compress_fast_extState(pState, src, dst, srcSize, dstCapacity, m_compressionParam);
             }
         }
         else
@@ -162,12 +179,12 @@ Result Lz4Compressor::Compress(
             if (m_useHighCompression == true)
             {
                 returnCode =
-                    LZ4_compress_HC_extStateHC_fastReset(m_pState, src, dst, srcSize, dstCapacity, m_compressionParam);
+                    LZ4_compress_HC_extStateHC_fastReset(pState, src, dst, srcSize, dstCapacity, m_compressionParam);
             }
             else
             {
                 returnCode =
-                    LZ4_compress_fast_extState_fastReset(m_pState, src, dst, srcSize, dstCapacity, m_compressionParam);
+                    LZ4_compress_fast_extState_fastReset(pState, src, dst, srcSize, dstCapacity, m_compressionParam);
             }
         }
 
@@ -192,17 +209,17 @@ Result Lz4Compressor::Compress(
 Result Lz4Compressor::Decompress(
     const char* src,
     char* dst,
-    int srcSize,
-    int dstCapacity,
-    int* pBytesWritten
+    int32 srcSize,
+    int32 dstCapacity,
+    int32* pBytesWritten
     ) const
 {
     Result result = Result::Success;
 
-    int headerStoredUncompressedSize = 0;
+    int32 headerStoredUncompressedSize = 0;
 
     // Sanity check/error handling.
-    if ((srcSize > 0) && (srcSize > static_cast<int>(sizeof(FrameHeader))))
+    if ((srcSize > 0) && (srcSize > static_cast<int32>(sizeof(FrameHeader))))
     {
         const FrameHeader* header = reinterpret_cast<const FrameHeader*>(src);
         if (header->identifier == HeaderIdentifier)
@@ -249,6 +266,13 @@ Result Lz4Compressor::Decompress(
     }
 
     return result;
+}
+
+// =====================================================================================================================
+Lz4Compressor::ThreadLocalData::~ThreadLocalData()
+{
+    PAL_SAFE_FREE(m_pState, &g_lz4CompressorGlobalAllocator);
+    PAL_SAFE_FREE(m_pStateHC, &g_lz4CompressorGlobalAllocator);
 }
 
 } //namespace Util

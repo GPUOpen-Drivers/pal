@@ -686,12 +686,9 @@ void IndirectCmdGenerator::PopulateInvocationBuffer(
         dispatchInitiator.bits.COMPUTE_SHADER_EN  = 1;
         dispatchInitiator.bits.ORDER_MODE         = 1;
         dispatchInitiator.gfx11.AMP_SHADER_EN     = isTaskEnabled;
+        dispatchInitiator.gfx10Plus.CS_W32_EN     = csWave32;
+        dispatchInitiator.gfx10Plus.TUNNEL_ENABLE = pCmdBuffer->UsesDispatchTunneling();
 
-        if (IsGfx10Plus(*m_device.Parent()))
-        {
-            dispatchInitiator.gfx10Plus.CS_W32_EN     = csWave32;
-            dispatchInitiator.gfx10Plus.TUNNEL_ENABLE = pCmdBuffer->UsesDispatchTunneling();
-        }
         if (disablePartialPreempt)
         {
             dispatchInitiator.u32All |= ComputeDispatchInitiatorDisablePartialPreemptMask;

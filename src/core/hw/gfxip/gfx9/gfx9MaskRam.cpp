@@ -640,317 +640,8 @@ void Gfx9MetaEqGenerator::SetRbAppendedBit(
     uint32  bitPos,
     uint32  bitVal)
 {
-    const Gfx9PalSettings&  settings = GetGfx9Settings(*(m_pParent->GetGfxDevice()->Parent()));
-
-    // There's no need for this setting unless this workaround is enabled.  Other code depends on the
-    // "m_rbAppendedWithPipeBits" setting remaining zero if this workaround is disabled.
-    if (settings.waMetaAliasingFixEnabled)
-    {
-        m_rbAppendedWithPipeBits &= ~(1u << bitPos);
-        m_rbAppendedWithPipeBits |= (bitVal << bitPos);
-    }
-}
-
-// =====================================================================================================================
-void Gfx9MetaEqGenerator::CalcMetaEquationGfx9()
-{
-    const Pal::Device* pDevice = m_pParent->GetGfxDevice()->Parent();
-
-    PAL_ASSERT(pDevice->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9);
-
-    const ADDR2_META_FLAGS  metaFlags          = m_pParent->GetMetaFlags();
-    const auto*             pCreateInfo        = &m_pParent->GetImage().Parent()->GetImageCreateInfo();
-    const uint32            numSamplesLog2     = m_pParent->GetNumSamplesLog2();
-    const uint32            maxFragsLog2       = m_pParent->GetGfxDevice()->GetMaxFragsLog2();
-    const uint32            pipeInterleaveLog2 = m_pParent->GetGfxDevice()->GetPipeInterleaveLog2();
-    const uint32            bppLog2            = m_pParent->GetBytesPerPixelLog2();
-    const Gfx9PalSettings&  settings           = GetGfx9Settings(*pDevice);
-
-    // The RB equation can't have more bits than we have RBs
-    MetaDataAddrEquation  rb(m_pParent->GetGfxDevice()->GetNumShaderEnginesLog2() +
-                                m_pParent->GetGfxDevice()->GetNumRbsPerSeLog2(),
-                                "rb");
-    MetaDataAddrEquation  pipe(27, "pipe");
-    MetaDataAddrEquation  dataOffset(27, "dataOffset");
-
-    // Min metablock size if thick is 64KB, otherwise 4KB
-    uint32 minMetaBlockSizeLog2     = (IsThick() ? 16 : 12);
-    uint32 metaDataWordsPerPageLog2 = minMetaBlockSizeLog2 - m_metaDataWordSizeLog2;
-    uint32 numSesLog2               = m_pParent->GetGfxDevice()->GetNumShaderEnginesLog2();
-    uint32 numRbsLog2               = m_pParent->GetGfxDevice()->GetNumRbsPerSeLog2();
-
-    // Get the total # of RB's before modifying due to rb align
-    const uint32 numTotalRbsPreRbAlignLog2 = numSesLog2 + numRbsLog2;
-
-    uint32  numPipesLog2   = CapPipe();
-    uint32  numSesDataLog2 = numSesLog2;      // Cap the pipe bits to block size
-
-    int32 compFragLog2 = (m_pParent->IsColor() && (numSamplesLog2 > maxFragsLog2))
-                         ? maxFragsLog2
-                         : numSamplesLog2;
-    int32 uncompFragLog2 = numSamplesLog2 - compFragLog2;
-
-    CalcDataOffsetEquation(&dataOffset);
-
-    // if not pipe aligned, reduce the working number of pipes and SEs
-    if (metaFlags.pipeAligned == false)
-    {
-        numPipesLog2   = 0;
-        numSesDataLog2 = 0;
-    }
-
-    // if not rb aligned, reduce the number of SEs and RBs to 0; note, this is done after generating the
-    // data equation
-    if (metaFlags.rbAligned == false)
-    {
-        numSesLog2 = 0;
-        numRbsLog2 = 0;
-    }
-
-    CalcPipeEquation(&pipe, &dataOffset, numPipesLog2);
-    CalcRbEquation(&rb, numSesLog2, numRbsLog2);
-
-    uint32 numTotalRbsLog2 = numSesLog2 + numRbsLog2;
-
-    int32                compBlkSizeLog2 = 8;
-    Gfx9MaskRamBlockSize compBlkDimsLog2 = {};
-    m_pParent->CalcCompBlkSizeLog2(&compBlkDimsLog2);
-    if (m_pParent->IsColor())
-    {
-        metaDataWordsPerPageLog2 -= numSamplesLog2;  // factor out num fragments for color surfaces
-    }
-    else
-    {
-        compBlkSizeLog2 = 6 + numSamplesLog2 + bppLog2;
-    }
-
-    // Compute meta block width and height
-    uint32 numCompBlksPerMetaBlk = metaDataWordsPerPageLog2;
-    if ((numPipesLog2 != 0) ||
-        (numSesLog2   != 0) ||
-        (numRbsLog2   != 0))
-    {
-        const uint32  thinImageAdder = ((settings.waMetaAliasingFixEnabled  == false)
-                                        ? 10
-                                        : Max(10u, pipeInterleaveLog2));
-        numCompBlksPerMetaBlk        = numTotalRbsPreRbAlignLog2 + (IsThick() ? 18 : thinImageAdder);
-
-        if ((numCompBlksPerMetaBlk + compBlkSizeLog2) > (27 + bppLog2))
-        {
-            numCompBlksPerMetaBlk = 27 + bppLog2 - compBlkSizeLog2;
-        }
-
-        numCompBlksPerMetaBlk = Max(numCompBlksPerMetaBlk, metaDataWordsPerPageLog2);
-    }
-
-    Gfx9MaskRamBlockSize  metaBlockSizeLog2 = {};
-    m_pParent->CalcMetaBlkSizeLog2(&metaBlockSizeLog2);
-
-    // Use the growing square or growing cube order for thick as a starting point for the metadata address
-    if (IsThick())
-    {
-        CompPair  cx = { MetaDataAddrCompX, 0};
-        CompPair  cy = { MetaDataAddrCompY, 0};
-        CompPair  cz = { MetaDataAddrCompZ, 0};
-
-        if (pCreateInfo->mipLevels > 1)
-        {
-            m_meta.Mort3d(&cy, &cx, &cz);
-        }
-        else
-        {
-            m_meta.Mort3d(&cx, &cy, &cz);
-        }
-    }
-    else
-    {
-        CompPair  cx = { MetaDataAddrCompX, 0};
-        CompPair  cy = { MetaDataAddrCompY, 0};
-
-        if (pCreateInfo->mipLevels > 1)
-        {
-            m_meta.Mort2d(m_pParent->GetGfxDevice(), &cy, &cx, compFragLog2);
-        }
-        else
-        {
-            m_meta.Mort2d(m_pParent->GetGfxDevice(), &cx, &cy, compFragLog2);
-        }
-
-        // Put the compressible fragments at the lsb
-        // the uncompressible frags will be at the msb of the micro address
-        for(int32 s = 0; s < compFragLog2; s++)
-        {
-            m_meta.SetBit(s, MetaDataAddrCompS, s);
-        }
-    }
-
-    // Keep a copy of the pipe and rb equations
-    MetaDataAddrEquation  origRbEquation(rb.GetNumValidBits(), "origRbEquation");
-    rb.Copy(&origRbEquation);
-    MetaDataAddrEquation  origPipeEquation(pipe.GetNumValidBits(), "origPipeEquation");
-    pipe.Copy(&origPipeEquation);
-
-    // filter out everything under the compressed block size
-    CompPair  cx = MetaDataAddrEquation::SetCompPair(MetaDataAddrCompX, compBlkDimsLog2.width);
-    m_meta.Filter(cx, MetaDataAddrCompareLt, 0, cx.compType);
-
-    CompPair  cy = MetaDataAddrEquation::SetCompPair(MetaDataAddrCompY, compBlkDimsLog2.height);
-    m_meta.Filter(cy, MetaDataAddrCompareLt, 0, cy.compType);
-
-    CompPair  cz = MetaDataAddrEquation::SetCompPair(MetaDataAddrCompZ, compBlkDimsLog2.depth);
-    m_meta.Filter(cz, MetaDataAddrCompareLt, 0, cz.compType);
-
-    // For non-color, filter out sample bits
-    if (m_pParent->IsColor() == false)
-    {
-        CompPair  co = { MetaDataAddrCompX, 0 };
-
-        m_meta.Filter(co, MetaDataAddrCompareLt, 0, MetaDataAddrCompS);
-    }
-
-    // filter out everything above the metablock size
-    cx = MetaDataAddrEquation::SetCompPair(MetaDataAddrCompX, metaBlockSizeLog2.width - 1);
-    m_meta.Filter(cx, MetaDataAddrCompareGt, 0, cx.compType);
-    pipe.Filter(cx, MetaDataAddrCompareGt, 0, cx.compType);
-
-    cy = MetaDataAddrEquation::SetCompPair(MetaDataAddrCompY, metaBlockSizeLog2.height - 1);
-    m_meta.Filter(cy, MetaDataAddrCompareGt, 0, cy.compType);
-    pipe.Filter(cy, MetaDataAddrCompareGt, 0, cy.compType);
-
-    cz = MetaDataAddrEquation::SetCompPair(MetaDataAddrCompZ, metaBlockSizeLog2.depth - 1);
-    m_meta.Filter(cz, MetaDataAddrCompareGt, 0, cz.compType);
-    pipe.Filter(cz, MetaDataAddrCompareGt, 0, cz.compType);
-
-    // Make sure we still have the same number of channel bits
-    PAL_ASSERT(pipe.GetNumValidBits() == numPipesLog2);
-
-    // Loop through all channel and rb bits, and make sure these components exist in the metadata address
-    for (uint32 bitPos = 0; bitPos < numPipesLog2; bitPos++)
-    {
-        for (uint32  compType = 0; compType < MetaDataAddrCompNumTypes; compType++)
-        {
-            const uint32  pipeData = pipe.Get(bitPos, compType);
-            const uint32  rbData   = rb.Get(bitPos, compType);
-
-            PAL_ASSERT(m_meta.Exists(compType, pipeData));
-            PAL_ASSERT(m_meta.Exists(compType, rbData));
-        }
-    }
-
-    // Loop through each rb id bit; if it is equal to any of the filtered channel bits, clear it
-    for (uint32 i = 0; i < numTotalRbsLog2; i++)
-    {
-        for (uint32 j = 0; j < numPipesLog2; j++)
-        {
-            bool  rbEqualsPipe = true;
-
-            if (settings.waMetaAliasingFixEnabled == false)
-            {
-                rbEqualsPipe = pipe.IsEqual(rb, j, i);
-            }
-            else
-            {
-                CompPair             compPair = { MetaDataAddrCompZ, MinMetaEqCompPos };
-                MetaDataAddrEquation filteredPipeEq(1, "filtered");
-
-                pipe.Copy(&filteredPipeEq, j, 1);
-                filteredPipeEq.Filter(compPair, MetaDataAddrCompareGt, 0, MetaDataAddrCompZ);
-                rbEqualsPipe = rb.IsEqual(filteredPipeEq, i, 0);
-            }
-
-            for (uint32  compType = 0; rbEqualsPipe && (compType < MetaDataAddrCompNumTypes); compType++)
-            {
-                rb.ClearBits(i, compType, 0);
-            }
-        }
-    }
-
-    // Loop through each bit of the channel, get the smallest coordinate, and remove it from the metaaddr,
-    // and the rb_equation
-    MergePipeAndRbEq(&rb, &pipe);
-
-    // Loop through the rb bits and see what remain; filter out the smallest coordinate if it remains
-    const uint32  rbBitsLeft = RemoveSmallRbBits(&rb);
-
-    // capture the size of the metaaddr
-    uint32  metaEquationSize = m_meta.GetNumValidBits();
-
-    // resize to 32 bits...make this a nibble address
-    m_meta.SetEquationSize(32);
-
-    // Concatenate the macro address above the current address
-    for(uint32 j = 0; metaEquationSize < m_meta.GetNumValidBits(); metaEquationSize++, j++)
-    {
-        m_meta.SetBit(metaEquationSize, MetaDataAddrCompM, j);
-    }
-
-    // Multiply by meta element size (in nibbles)
-    if (m_pParent->IsColor())
-    {
-        m_meta.Shift(1); // Byte size element
-    }
-    else if (pCreateInfo->usageFlags.depthStencil)
-    {
-        m_meta.Shift(3); // 4 Byte size elements
-    }
-
-    // Note the pipe_interleave_log2+1 is because address is a nibble address
-    // Shift up from pipe interleave number of channel and rb bits left, and uncompressed fragments
-    m_meta.Shift(numPipesLog2 + rbBitsLeft + uncompFragLog2, pipeInterleaveLog2 + 1);
-
-    for (uint32 i = 0; i < numPipesLog2; i++ )
-    {
-        for (uint32  compType = 0; compType < MetaDataAddrCompNumTypes; compType++)
-        {
-            const uint32                     origPipeData = origPipeEquation.Get(i, compType);
-            const uint32                     metaBitPos   = pipeInterleaveLog2 + 1 + i;
-            const MetaDataAddrComponentType  addrCompType = static_cast<MetaDataAddrComponentType>(compType);
-
-            m_meta.ClearBits(metaBitPos,  addrCompType, 0);
-            m_meta.SetMask(metaBitPos, addrCompType, origPipeData);
-        }
-    }
-
-    // Put in remaining rb bits
-    for (uint32 i = 0, j = 0; j < rbBitsLeft; i = (i + 1) % numTotalRbsLog2)
-    {
-        const uint32  numComponents  = rb.GetNumComponents(i);
-        const bool    isRbEqAppended = (numComponents > GetRbAppendedBit(i));
-
-        if (isRbEqAppended)
-        {
-            for (uint32  compType = 0; compType < MetaDataAddrCompNumTypes; compType++)
-            {
-                const uint32  origRbData = origRbEquation.Get(i, compType);
-
-                m_meta.SetMask(pipeInterleaveLog2 + 1 + numPipesLog2 + j,
-                               static_cast<MetaDataAddrComponentType>(compType),
-                               origRbData);
-            }
-
-            j++;
-        }
-    }
-
-    // Put in the uncompressed fragment bits
-    for (uint32 i = 0; i < static_cast<uint32>(uncompFragLog2); i++)
-    {
-        m_meta.SetBit(pipeInterleaveLog2 + 1 + numPipesLog2 + rbBitsLeft + i,
-                      MetaDataAddrCompS,
-                      compFragLog2 + i);
-    }
-
-    // Ok, we always calculate the meta-equation to be 32-bits long, but that's enough to address 4Gnibbles.
-    // Trim this down to be no bigger than log2(mask-ram-size)
-    FinalizeMetaEquation(m_pParent->TotalSize());
-
-    // After meta equation calculation is done extract meta equation parameter information
-    m_meta.GenerateMetaEqParamConst(m_pParent->GetImage(), maxFragsLog2, m_firstUploadBit, &m_metaEqParam);
-
-    // m_effectiveSamples == 1 means that samples do not affect the equation's formula; assert if there is some other
-    // discrepancy between m_effectiveSamples and numSamplesLog2.
-    PAL_ASSERT ((m_effectiveSamples == 1) ||
-                ((m_effectiveSamples > 1) && (m_effectiveSamples == (1u << numSamplesLog2))));
+    m_rbAppendedWithPipeBits &= ~(1u << bitPos);
+    m_rbAppendedWithPipeBits |= (bitVal << bitPos);
 }
 
 // =====================================================================================================================
@@ -1005,12 +696,6 @@ void Gfx9MetaEqGenerator::CalcRbEquation(
 
         rbRegion[MetaDataAddrCompX]++;
         rbRegion[MetaDataAddrCompY]++;
-
-        if (settings.waMetaAliasingFixEnabled == false)
-        {
-            pRb->SetBit(0, MetaDataAddrCompY, rbRegion[MetaDataAddrCompY]);
-        }
-
         start++;
     }
 
@@ -1239,38 +924,6 @@ void Gfx9MetaEqGenerator::CpuUploadEq(
         const uint32   numUploadBytes  = MetaDataAddrCompNumTypes * numUploadEqBits * sizeof(uint32);
 
         memcpy(pWriteMem, pEquation, numUploadBytes);
-    }
-}
-
-// =====================================================================================================================
-// Calculates the meta equation for this mask-ram.  The meta-equation is ultimately used by a compute shader for
-// determining the real location of any coordinates within the meta-data.
-//
-// Compute shader pseudo-code:
-//      metaOffset = 0
-//      for (n = 0; n < numBitsInEquation; n++)
-//      {
-//          // Yes, there is an IL instruction called "countBits".  It does exactly what we need.  :-)
-//          b =        countBits(m_equation[n][MetaDataAddrCompX] & x) & 0x1
-//          b = b XOR (countBits(m_equation[n][MetaDataAddrCompY] & y) & 0x1)
-//          b = b XOR (countBits(m_equation[n][MetaDataAddrCompZ] & z) & 0x1)
-//          b = b XOR (countBits(m_equation[n][MetaDataAddrCompS] & s) & 0x1)
-//          b = b XOR (countBits(m_equation[n][MetaDataAddrCompM] & m) & 0x1)
-//
-//          metaOffset |= (b << n)
-//      }
-void Gfx9MetaEqGenerator::CalcMetaEquation()
-{
-    const Pal::Image*  pParent   = m_pParent->GetImage().Parent();
-    const Pal::Device& palDevice = *(m_pParent->GetGfxDevice()->Parent());
-
-    if (IsGfx9(palDevice))
-    {
-        CalcMetaEquationGfx9();
-    }
-    else if (IsGfx10Plus(palDevice))
-    {
-        CalcMetaEquationGfx10Plus();
     }
 }
 
@@ -2632,7 +2285,23 @@ uint32 Gfx9MetaEqGenerator::GetPipeRotateAmount() const
 }
 
 // =====================================================================================================================
-void Gfx9MetaEqGenerator::CalcMetaEquationGfx10Plus()
+// Calculates the meta equation for this mask-ram.  The meta-equation is ultimately used by a compute shader for
+// determining the real location of any coordinates within the meta-data.
+//
+// Compute shader pseudo-code:
+//      metaOffset = 0
+//      for (n = 0; n < numBitsInEquation; n++)
+//      {
+//          // Yes, there is an IL instruction called "countBits".  It does exactly what we need.  :-)
+//          b =        countBits(m_equation[n][MetaDataAddrCompX] & x) & 0x1
+//          b = b XOR (countBits(m_equation[n][MetaDataAddrCompY] & y) & 0x1)
+//          b = b XOR (countBits(m_equation[n][MetaDataAddrCompZ] & z) & 0x1)
+//          b = b XOR (countBits(m_equation[n][MetaDataAddrCompS] & s) & 0x1)
+//          b = b XOR (countBits(m_equation[n][MetaDataAddrCompM] & m) & 0x1)
+//
+//          metaOffset |= (b << n)
+//      }
+void Gfx9MetaEqGenerator::CalcMetaEquation()
 {
     Gfx9MaskRamBlockSize   metaBlockSizeLog2 = {};
 
@@ -2842,7 +2511,7 @@ void Gfx9MetaEqGenerator::CalcMetaEquationGfx10Plus()
                         subTileXYBits = 0;
                     }
 
-                    if (IsGfx11(*pPalDevice) == false)
+                    if (IsGfx10(*pPalDevice))
                     {
                         tileSplitBits = (3 - compBlockLog2.width ) +
                                         (3 - compBlockLog2.height) -
@@ -3440,20 +3109,6 @@ HtileUsageFlags Gfx9Htile::UseHtileForImage(
                                  (pParent->IsTmz()                      == false) &&
                                  (settings.htileEnable                  == true));
 
-        if (settings.waDisable24BitHwFormatForTcCompatibleDepth == true)
-        {
-            constexpr uint32 MinHtileWidth  = 8;
-            constexpr uint32 MinHtileHeight = 8;
-
-            if ((hTileUsage.dsMetadata != 0)              &&
-                pParent->IsDepthAsZ24()                   &&
-                (createInfo.extent.width < MinHtileWidth) &&
-                (createInfo.extent.height < MinHtileHeight))
-            {
-                hTileUsage.dsMetadata = 0;
-            }
-        }
-
         //
         // Verify that hTile should be allowed (i.e, minus the workaround) to silence the below assert for
         // non-depth images.  i.e., this function is called for all images not just depth images.
@@ -3515,19 +3170,6 @@ Gfx9Htile::Gfx9Htile(
 }
 
 // =====================================================================================================================
-// Returns the pipe-bank xor setting for this hTile sruface.
-uint32 Gfx9Htile::GetPipeBankXor(
-    uint32 plane
-    ) const
-{
-    const Pal::Device*     pDevice  = m_pGfxDevice->Parent();
-    const Gfx9PalSettings& settings = GetGfx9Settings(*pDevice);
-
-    // Due to a HW bug, some GPU's don't support the use of a pipe-bank xor value for hTile surfaces.
-    return (settings.waHtilePipeBankXorMustBeZero ? 0 : Gfx9MaskRam::GetPipeBankXor(plane));
-}
-
-// =====================================================================================================================
 uint32 Gfx9Htile::GetNumSamplesLog2() const
 {
     return Log2(m_image.Parent()->GetImageCreateInfo().samples);
@@ -3549,18 +3191,8 @@ Result Gfx9Htile::Init(
     m_flags.compressZ = settings.depthCompressEnable   && (m_hTileUsage.dsMetadata != 0);
     m_flags.compressS = settings.stencilCompressEnable && (m_hTileUsage.dsMetadata != 0);
 
-    // Some HW has a problem with S compression on ZS images that use stencil only targets
-    if (settings.waDisableSCompressSOnly &&
-        imageCreateInfo.usageFlags.stencilOnlyTarget &&
-        pParent->HasDepthPlane())
-    {
-        m_flags.compressS = false;
-    }
-
     // NOTE: Default ZRANGE_PRECISION to 1, since this is typically the optimal value for DX applications, since they
-    // usually clear Z to 1.0f and use a < depth comparison for their depth testing. But we change ZRANGE_PRECISION
-    // to 0 via UpdateZRangePrecision() when we detect there is a clear Z to 0.0f. We want more precision on the
-    // far Z plane.
+    // usually clear Z to 1.0f and use a < depth comparison for their depth testing.
     m_flags.zrangePrecision = 1;
 
     // If the associated image is a Z-only format, then setup hTile to not include stencil data.
@@ -3650,12 +3282,7 @@ Result Gfx9Htile::ComputeHtileInfo(
         {
             m_dbHtileSurface[mipLevel].bits.PIPE_ALIGNED = addrHtileIn.hTileFlags.pipeAligned;
 
-            if (device.ChipProperties().gfxLevel == GfxIpLevel::GfxIp9)
-            {
-                m_dbHtileSurface[mipLevel].gfx09.RB_ALIGNED = addrHtileIn.hTileFlags.rbAligned;
-            }
-            // does this device support VRS
-            else if (device.ChipProperties().gfxip.supportsVrs)
+            if (device.ChipProperties().gfxip.supportsVrs)
             {
                 // If the hTile surface has VRS data (either specified by the client or an internally created
                 // "image" that has VRS data), then setup the regs to indicate VRS encoding in hTile.
@@ -3942,7 +3569,6 @@ uint32 Gfx9Dcc::PipeAligned() const
     uint32 pipeAligned = (m_displayDcc == false);
 
     //     Meta surfaces with SW_256B_D and SW_256B_S data swizzle mode must not be pipe aligned
-    //
     if (Is256BSwizzle(swizzleMode))
     {
         pipeAligned = 0;
@@ -3968,13 +3594,8 @@ gpusize Gfx9Dcc::SliceOffset(
 {
     // Always assume mip zero.  The HW is expecting the base address of the allocation; on GFX10, mip 0 is not
     // necessarily where the allocation begins.  Adding in the offset to where "mip 0" actually begins is bad.
-    constexpr  uint32  MipLevel = 0;
-
-    const auto&  palDevice   = *(m_pGfxDevice->Parent());
-    const auto&  addrMipInfo = GetAddrMipInfo(MipLevel); // assume mip zero
-
-    // Slice offset of DCC is meaningless except on GFX10+ products.
-    PAL_ASSERT(IsGfx10Plus(palDevice) || (arraySlice == 0));
+    constexpr uint32           MipLevel    = 0;
+    const ADDR2_META_MIP_INFO& addrMipInfo = GetAddrMipInfo(MipLevel); // assume mip zero
 
     // We should only really be requesting either the base subresource (i.e., slice = mip = 0) or a distinct slice
     // (for YUV surfaces only).
@@ -4083,9 +3704,9 @@ void Gfx9Dcc::GetXyzInc(
     uint32*  pZinc  // [out] Num Z pixels that get compressed into one DCC byte
     ) const
 {
-    const uint32          bppLog2     = GetBytesPerPixelLog2();
-    const ImageType       imageType   = m_image.GetOverrideImageType();
-    const AddrSwizzleMode swizzleMode = GetSwizzleMode();
+    const uint32           bppLog2     = GetBytesPerPixelLog2();
+    const ImageCreateInfo& createInfo  = m_image.Parent()->GetImageCreateInfo();
+    const AddrSwizzleMode  swizzleMode = GetSwizzleMode();
 
     // There are instances where 3D images use the 2D layout.
     bool  isEffective2d    = AddrMgr2::IsDisplayableSwizzle(swizzleMode);
@@ -4093,7 +3714,7 @@ void Gfx9Dcc::GetXyzInc(
 
     const Pal::Device& palDevice = *(m_pGfxDevice->Parent());
 
-    if (IsGfx10Plus(palDevice) && (imageType == ImageType::Tex3d))
+    if (createInfo.imageType == ImageType::Tex3d)
     {
         //   SW_Z and SW_R are use the same 256B block dimensions, whether 1d, 2d, or 3d.
         //   3D_D mode has the same dimensions as what's shown for 3D_Z.
@@ -4112,7 +3733,7 @@ void Gfx9Dcc::GetXyzInc(
         useZswizzleFor3d = AddrMgr2::IsDisplayableSwizzle(swizzleMode);
     }
 
-    if ((imageType == ImageType::Tex2d) || isEffective2d)
+    if ((createInfo.imageType == ImageType::Tex2d) || isEffective2d)
     {
         constexpr uint32 XyzIncSizes[][3]=
         {
@@ -4129,7 +3750,7 @@ void Gfx9Dcc::GetXyzInc(
 
         if (IsGfx11(palDevice))
         {
-            uint32  numSamples = m_image.Parent()->GetImageCreateInfo().samples;
+            uint32 numSamples = createInfo.samples;
 
             // Note that we can't have MSAA for 3D images.
             //    Color MSAA surfaces are sample interleaved, the way depth always has been.  So each 256 Bytes region
@@ -4150,7 +3771,7 @@ void Gfx9Dcc::GetXyzInc(
             }
         }
     }
-    else if (imageType == ImageType::Tex3d)
+    else if (createInfo.imageType == ImageType::Tex3d)
     {
         if (useZswizzleFor3d)
         {
@@ -4192,7 +3813,7 @@ void Gfx9Dcc::GetXyzInc(
     {
         PAL_ASSERT_ALWAYS();
 
-        // 1D images...  should never get here.  GFX9 1D images don't support DCC.
+        // 1D images should never get here.
     }
 }
 
@@ -4295,30 +3916,9 @@ void Gfx9Dcc::SetControlReg(
     const DisplayDccCaps&          dispDcc      = internalInfo.displayDcc;
 
     // Setup DCC control registers with suggested value from spec
-    m_dccControl.gfx09_10.KEY_CLEAR_ENABLE = 0; // not supported on VI
-
-    // MAX_UNCOMPRESSED_BLOCK_SIZE 3:2 none Sets the maximum amount of data that may be compressed into one block. Some
-    // other clients may not be able to handle larger sizes. CB_RESOLVEs cannot have this setting larger than the size
-    // of one sample's data.
-    // 64B (Set for 8bpp 2+ fragment surfaces needing HW resolves)
-    // 128B (Set for 16bpp 2+ fragment surfaces needing HW resolves)
-    // 256B (default)
-    m_dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE = static_cast<uint32>(Gfx9DccMaxBlockSize::BlockSize256B);
-    if ((gfxLevel == GfxIpLevel::GfxIp9) && (createInfo.samples >= 2))
-    {
-        const uint32 bitsPerPixel = BitsPerPixel(createInfo.swizzledFormat.format);
-
-        if (bitsPerPixel == 8)
-        {
-            m_dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE = static_cast<uint32>(Gfx9DccMaxBlockSize::BlockSize64B);
-        }
-        else if (bitsPerPixel == 16)
-        {
-            m_dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE = static_cast<uint32>(Gfx9DccMaxBlockSize::BlockSize128B);
-        }
-    }
-
-    m_dccControl.bits.MIN_COMPRESSED_BLOCK_SIZE = settings.minDccCompressedBlockSize;
+    m_dccControl.gfx09_10.KEY_CLEAR_ENABLE        = 0;
+    m_dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE = uint32(Gfx9DccMaxBlockSize::BlockSize256B);
+    m_dccControl.bits.MIN_COMPRESSED_BLOCK_SIZE   = settings.minDccCompressedBlockSize;
 
     static_assert(DCC_CT_AUTO == 0, "ColorTransform Enum values change!");
     static_assert(DCC_CT_NONE == 1, "ColorTransform Enum values change!");
@@ -4340,36 +3940,26 @@ void Gfx9Dcc::SetControlReg(
         // In GFX10 the GEN_TWO TC-compatible DCC compression setting is
         //   1) max_uncomp_blk_size = 256B, max_comp_blk_size = 128B, independent_blk = 128B.
         //   2) max_uncomp_blk_size = 128B, max_comp_blk_size = 128B, independent_blk = unconstrained
-        if (IsGfx10Plus(gfxLevel))
+        if (dispDcc.dcc_256_64_64 == 0)
         {
-            if (dispDcc.dcc_256_64_64 == 0)
+            m_dccControl.bits.INDEPENDENT_64B_BLOCKS = 0;
+
             {
-                m_dccControl.bits.INDEPENDENT_64B_BLOCKS    = 0;
-
-                {
-                    m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE =
-                        static_cast<uint32>(Gfx9DccMaxBlockSize::BlockSize128B);
-                }
+                m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE = uint32(Gfx9DccMaxBlockSize::BlockSize128B);
             }
+        }
 
-            if (IsGfx10(gfxLevel))
-            {
-                m_dccControl.gfx10.INDEPENDENT_128B_BLOCKS  = 1;
-            }
-            else
-            {
-                m_dccControl.gfx11.INDEPENDENT_128B_BLOCKS  = 1;
-            }
-
-            PAL_ASSERT(m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE <= m_dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE);
-
+        if (IsGfx10(gfxLevel))
+        {
+            m_dccControl.gfx10.INDEPENDENT_128B_BLOCKS  = 1;
         }
         else
         {
-            // Verify that we only have DCC memory for shader writeable surfaces on GFX10 or it is ForceEnabled.
-            PAL_ASSERT((createInfo.usageFlags.shaderWrite == 0) ||
-                       (createInfo.metadataMode == Pal::MetadataMode::ForceEnabled));
+            m_dccControl.gfx11.INDEPENDENT_128B_BLOCKS  = 1;
         }
+
+        PAL_ASSERT(m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE <= m_dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE);
+
     }
     else
     {
@@ -4438,7 +4028,6 @@ bool Gfx9Dcc::UseDccForImage(
 
     const bool isNotARenderTarget = (pParent->IsRenderTarget() == false);
     const bool isDepthStencil     = pParent->IsDepthStencilTarget();
-    const bool isGfx9             = (pDevice->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9);
 
     // GFX9+ resources have the same swizzle mode for all mip-levels and slices, so just look at the base level.
     const SubResourceInfo*const pSubResInfo = pParent->SubresourceInfo(0);
@@ -4482,8 +4071,7 @@ bool Gfx9Dcc::UseDccForImage(
         useDcc = false;
         mustDisableDcc = true;
     }
-    else if (IsGfx10Plus(*pDevice) &&
-             (AddrMgr2::IsStandardSwzzle(swizzleMode) || AddrMgr2::IsDisplayableSwizzle(swizzleMode)))
+    else if (AddrMgr2::IsStandardSwzzle(swizzleMode) || AddrMgr2::IsDisplayableSwizzle(swizzleMode))
     {
         //   1) SW_D does not support DCC.
         //   2) The restriction [on SW_S] is that you can't bind it to all CBs for a single draw.  If you want
@@ -4499,10 +4087,9 @@ bool Gfx9Dcc::UseDccForImage(
         // sort of frequency
         PAL_ALERT(isNotARenderTarget == false);
     }
-    else if (isDepthStencil || (isNotARenderTarget && isGfx9))
+    else if (isDepthStencil)
     {
-        // DCC does not make sense for non-render targets in gfx9. It also does not make sense for any
-        // depth/stencil image because they have Htile data.
+        // DCC does not make sense for any depth/stencil image because they have Htile data.
         useDcc = false;
         mustDisableDcc = true;
     }
@@ -4538,14 +4125,6 @@ bool Gfx9Dcc::UseDccForImage(
         useDcc = false;
         mustDisableDcc = true;
     }
-    else if (allMipsShaderWritable && isGfx9)
-    {
-        // DCC does not make sense for UAVs or RT+UAVs (all mips are shader writeable) in gfx9.
-        useDcc = false;
-        // Give a chance for clients to force enabling DCC for RT+UAVs. i.e. App flags the resource as both render
-        // target and unordered access but never uses it as UAV.
-        mustDisableDcc = isNotARenderTarget;
-    }
     // Msaa image with resolveSrc usage flag will go through shader based resolve if fixed function resolve is not
     // preferred, the image will be readable by a shader.
     else if ((pParent->IsShaderReadable() ||
@@ -4572,7 +4151,7 @@ bool Gfx9Dcc::UseDccForImage(
     }
     else
     {
-        if (IsGfx10Plus(*pDevice) && allMipsShaderWritable)
+        if (allMipsShaderWritable)
         {
             if (isNotARenderTarget)
             {
@@ -4661,43 +4240,20 @@ bool Gfx9Dcc::SupportFastColorClearWithoutFormatCheck(
     const Image&       image,
     AddrSwizzleMode    swizzleMode)
 {
-    const Pal::Image*const pParent    = image.Parent();
-    const ImageCreateInfo& createInfo = pParent->GetImageCreateInfo();
+    const ImageCreateInfo& createInfo = image.Parent()->GetImageCreateInfo();
     const Gfx9PalSettings& settings   = GetGfx9Settings(device);
-    const GfxIpLevel       gfxLevel   = pParent->GetDevice()->ChipProperties().gfxLevel;
-    const Device*const     pGfxDevice = static_cast<Device*>(device.GetGfxDevice());
 
     // Choose which fast-clear setting to examine based on the type of Image we have.
     const bool fastColorClearEnable = (createInfo.imageType == ImageType::Tex2d) ?
                                        settings.fastColorClearEnable : settings.fastColorClearOn3dEnable;
 
-    // Sometimes shader-writeable surfaces still allow fast-clears...  check that status here
-    const bool allowShaderWriteableSurfaces =
-            // If ths image isn't shader-writeable at all, then there isn't a problem
-            ((pParent->IsShaderWritable() == false) ||
-            // GFX10+ parts don't have a problem with shader-writeable surfaces anyway
-             IsGfx10Plus(gfxLevel)                  ||
-            // Enable Fast Clear Support if some mips are not shader writable.
-             (pParent->FirstShaderWritableMip() != 0));
+    // The only fast color clear mode available on GFX11 is comp-to-single; if this has been disabled, then we can't
+    // do a fast clear. Note that this is not strictly true as fast clears to "black" or "white" are always possible.
+    const bool enableAc01Clears   = (static_cast<Device*>(device.GetGfxDevice())->DisableAc01ClearCodes() == false);
+    const bool fastClearAvailable = (IsGfx10(device) || enableAc01Clears || image.Gfx10UseCompToSingleFastClears());
 
-    // Only enable fast color clear iff:
-    // - The Image's format supports it.
-    // - The Image is a Color Target - (ensured by caller)
-    // - If the image is shader write-able, it's shader-writeable in a good way
-    // - The Image is not linear tiled.
-    return fastColorClearEnable                                                     &&
-
-            // The only fast color clear mode available on GFX11 is comp-to-single;
-            // if this has been disabled, then we can't do a fast clear.
-            //
-            // Note that this is not strictly true as fast clears to "black" or "white" are
-            // always possible.
-            ((IsGfx11(gfxLevel) == false) ||
-                (pGfxDevice->DisableAc01ClearCodes() == false) ||
-                image.Gfx10UseCompToSingleFastClears())                             &&
-
-            allowShaderWriteableSurfaces                                            &&
-            (AddrMgr2::IsLinearSwizzleMode(swizzleMode) == false);
+    // Fast clears must be: 1. enabled, 2: available for this image, 3: used on non-linear swizzle modes.
+    return (fastColorClearEnable && fastClearAvailable && (AddrMgr2::IsLinearSwizzleMode(swizzleMode) == false));
 }
 
 // =====================================================================================================================
@@ -4804,14 +4360,13 @@ uint8 Gfx9Dcc::GetFastClearCode(
 
             PAL_ASSERT(pSwizzle[rgbaIdx] == ChannelSwizzle::X);
 
-            if (IsGfx11(*pDevice) == false)
+            if (IsGfx10(*pDevice))
             {
 
-                // For most gfx9 and gfx10 asic and for single-component format:
+                // For Gfx10 ASICs and for single-component format:
                 // alpha_is_on_msbs == 1, the component is alpha.
                 // alpha_is_on_msbs == 0, the component is color.
-                // On Raven 2 and Renoir, the reverse is true.
-                const bool alphaOnMsb = (surfSwap == SWAP_ALT_REV) != (IsRaven2(*pDevice) || IsRenoir(*pDevice));
+                const bool alphaOnMsb = (surfSwap == SWAP_ALT_REV);
 
                 color[2] = alphaOnMsb ? 0 : pConvertedColor[rgbaIdx];
                 color[3] = alphaOnMsb ? pConvertedColor[rgbaIdx] : 0;
@@ -4944,14 +4499,9 @@ uint8 Gfx9Dcc::GetFastClearCode(
             {
                 clearCode = Gfx9DccClearColor::Gfx10ClearColorCompToSingle;
             }
-            else if (IsGfx11(*pDevice))
-            {
-                clearCode = Gfx9DccClearColor::Gfx11ClearColorCompToSingle;
-            }
             else
             {
-                // Which GPU is this?
-                PAL_ASSERT_ALWAYS();
+                clearCode = Gfx9DccClearColor::Gfx11ClearColorCompToSingle;
             }
         }
         else
@@ -5292,13 +4842,6 @@ Result Gfx9Cmask::Init(
         UpdateGpuMemOffset(pGpuOffset);
 
         // GFX10 has no use for the cmask addressing equation, so save the CPU cycles needed to generate it.
-        if (IsGfx9(*(m_pGfxDevice->Parent())))
-        {
-            // The addressing equation is the same for all sub-resources, so only bother to calculate it once
-            PAL_ASSERT(HasMetaEqGenerator());
-            m_pEqGenerator->CalcMetaEquation();
-        }
-
         if (hasEqGpuAccess)
         {
             // Calculate info as to where the GPU can find the cMask equation
@@ -5336,7 +4879,6 @@ bool Gfx9Cmask::UseCmaskForImage(
     else
     {
         // GFX11 products have no concept of cMask or fMask
-        PAL_ASSERT(IsGfx11(device));
     }
 
     return useCmask;

@@ -262,6 +262,11 @@ Result TraceSession::RequestTrace()
     if (m_sessionState == TraceSessionState::Ready)
     {
         m_sessionState = TraceSessionState::Requested;
+
+        if (m_pActiveController != nullptr)
+        {
+            result = m_pActiveController->OnTraceRequested();
+        }
     }
     else
     {
@@ -344,6 +349,25 @@ Result TraceSession::UpdateTraceConfig(
                         ITraceController** ppController = m_registeredTraceControllers.FindKey(pName);
                         if (ppController != nullptr)
                         {
+                            if (numTraceControllers > 1)
+                            {
+                                // If there're multiple trace controllers now, we need to specify active controller
+                                // in the config and set it here. Eventually, we should have only one controller per
+                                // TraceSession in the config. If the active controller is not specified at the time of
+                                // config update, we will default to the FrameTraceController during AcceptTrace().
+                                bool isActiveController = false;
+                                const bool success = traceControllerConfig["enabled"].GetBool(&isActiveController);
+
+                                if (success && isActiveController)
+                                {
+                                    m_pActiveController = *ppController;
+                                }
+                            }
+                            else
+                            {
+                                m_pActiveController = *ppController;
+                            }
+
                             (*ppController)->OnConfigUpdated(&traceControllerConfig);
                         }
                     }

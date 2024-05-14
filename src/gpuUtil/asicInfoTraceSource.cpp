@@ -68,9 +68,6 @@ void PopulateTraceGfxIpLevel(
     case GfxIpLevel::GfxIp10_1:
         *pTraceGfxIpLevel = { 10, 1, 0 };
         break;
-    case GfxIpLevel::GfxIp9:
-        *pTraceGfxIpLevel = { 9, 0, 0 };
-        break;
     case GfxIpLevel::GfxIp10_3:
         *pTraceGfxIpLevel = { 10, 3, 0 };
         break;

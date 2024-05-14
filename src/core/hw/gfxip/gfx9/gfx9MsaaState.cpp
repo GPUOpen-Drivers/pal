@@ -70,6 +70,9 @@ MsaaState::MsaaState(
     m_flags.u32All = 0;
     m_flags.waFixPostZConservativeRasterization = device.Settings().waFixPostZConservativeRasterization;
     m_flags.gfx10_3 = IsGfx103Plus(*device.Parent());
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 854
+    m_flags.forceSampleRateShading = createInfo.flags.forceSampleRateShading;
+#endif
 
     memset(&m_regs, 0, sizeof(m_regs));
     Init(device, createInfo);
@@ -252,17 +255,6 @@ void MsaaState::Init(
         // NOTE: A check to confirm equivalence b/w DB_RESERVED_REG_2__FIELD_1_MASK offset for Gfx101 and Gfx103 is
         //       already performed in WriteCommands() above.
         m_regs.dbReservedReg2 = Gfx101::DB_RESERVED_REG_2__FIELD_1_MASK & 0x1;
-    }
-
-    if (settings.waWrite1xAaSampleLocationsToZero && (m_log2Samples == 0) && (usedMask != 0))
-    {
-        // Writing to PA_SC_AA_SAMPLE_LOCS_X*Y* is not needed because it's set to all 0s in BuildPm4Headers(),
-        // and the value will not be changed unless it's non-1xAA case (msaaState.coverageSamples > 1)
-
-        m_regs.paScAaMask1.bits.AA_MASK_X0Y0 = 1;
-        m_regs.paScAaMask1.bits.AA_MASK_X1Y0 = 1;
-        m_regs.paScAaMask2.bits.AA_MASK_X0Y1 = 1;
-        m_regs.paScAaMask2.bits.AA_MASK_X1Y1 = 1;
     }
 
     // Make sure we don't write outside of the state this class owns.

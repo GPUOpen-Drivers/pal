@@ -182,11 +182,6 @@ public:
 
     void NotifyNestedCmdBufferExecute();
 
-    void ResetDrawTimeState();
-    template <bool canBeOptimized>
-    void SetContextRollDetected();
-    bool ContextRollDetected() const { return m_contextRollDetected; }
-
 #if PAL_DEVELOPER_BUILD
     void IssueHotRegisterReport(Pm4CmdBuffer* pCmdBuf) const;
 #endif
@@ -225,9 +220,6 @@ private:
     const CmdUtil& m_cmdUtil;
     Pm4Optimizer*  m_pPm4Optimizer;       // This will only be created if optimization is enabled for this stream.
     uint32*        m_pChunkPreamble;      // If non-null, the current chunk preamble was allocated here.
-    bool           m_contextRollDetected; // This will only be set if a context roll has been detected since the
-                                          // last draw.
-
     const bool     m_supportsHoleyOptimization;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(CmdStream);

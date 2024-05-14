@@ -953,9 +953,9 @@ Result GpuMemory::Init(
 {
     Result result = Result::Success;
 
-    m_flags.isPinned     = 1;
-    m_flags.nonLocalOnly = 1; // Pinned allocations always go into a non-local heap.
-    m_flags.cpuVisible   = 1; // Pinned allocations are by definition CPU visible.
+    m_flags.isPinned          = 1;
+    m_flags.nonLocalOnly      = 1; // Pinned allocations always go into a non-local heap.
+    m_flags.cpuVisible        = 1; // Pinned allocations are by definition CPU visible.
 
     m_flags.useReservedGpuVa = createInfo.flags.useReservedGpuVa;
 
@@ -1034,10 +1034,10 @@ Result GpuMemory::Init(
 Result GpuMemory::Init(
     const PinnedGpuMemoryCreateInfo& createInfo)
 {
-    m_flags.isPinned     = 1;
-    m_flags.isClient     = 1;
-    m_flags.nonLocalOnly = 1; // Pinned allocations always go into a non-local heap.
-    m_flags.cpuVisible   = 1; // Pinned allocations are by definition CPU visible.
+    m_flags.isPinned          = 1;
+    m_flags.isClient          = 1;
+    m_flags.nonLocalOnly      = 1; // Pinned allocations always go into a non-local heap.
+    m_flags.cpuVisible        = 1; // Pinned allocations are by definition CPU visible.
 
     m_pPinnedMemory   = createInfo.pSysMem;
     m_mallPolicy      = createInfo.mallPolicy;
@@ -1103,17 +1103,17 @@ Result GpuMemory::Init(
         m_desc.heaps[i] = m_pOriginalMem->m_heaps[i];
     }
 
-    m_desc.heapCount         = m_heapCount;
-    m_desc.flags.isShared    = 1;
-    m_flags.isShareable      = m_pOriginalMem->m_flags.isShareable;
-    m_flags.isFlippable      = m_pOriginalMem->m_flags.isFlippable;
-    m_flags.isStereo         = m_pOriginalMem->m_flags.isStereo;
-    m_flags.localOnly        = m_pOriginalMem->m_flags.localOnly;
-    m_flags.nonLocalOnly     = m_pOriginalMem->m_flags.nonLocalOnly;
-    m_flags.isLocalPreferred = m_pOriginalMem->m_flags.isLocalPreferred;
-    m_flags.interprocess     = m_pOriginalMem->m_flags.interprocess;
-    m_flags.globalGpuVa      = m_pOriginalMem->m_flags.globalGpuVa;
-    m_flags.cpuVisible       = m_pOriginalMem->m_flags.cpuVisible;
+    m_desc.heapCount          = m_heapCount;
+    m_desc.flags.isShared     = 1;
+    m_flags.isShareable       = m_pOriginalMem->m_flags.isShareable;
+    m_flags.isFlippable       = m_pOriginalMem->m_flags.isFlippable;
+    m_flags.isStereo          = m_pOriginalMem->m_flags.isStereo;
+    m_flags.localOnly         = m_pOriginalMem->m_flags.localOnly;
+    m_flags.nonLocalOnly      = m_pOriginalMem->m_flags.nonLocalOnly;
+    m_flags.isLocalPreferred  = m_pOriginalMem->m_flags.isLocalPreferred;
+    m_flags.interprocess      = m_pOriginalMem->m_flags.interprocess;
+    m_flags.globalGpuVa       = m_pOriginalMem->m_flags.globalGpuVa;
+    m_flags.cpuVisible        = m_pOriginalMem->m_flags.cpuVisible;
 
     // Set the gpuVirtAddr if the GPU VA is visible to all devices
     if (IsGlobalGpuVa())
@@ -1174,19 +1174,19 @@ Result GpuMemory::Init(
         m_desc.heaps[i] = m_pOriginalMem->m_heaps[i];
     }
 
-    m_desc.heapCount         = m_heapCount;
-    m_desc.flags.isPeer      = 1;
-    m_flags.isShareable      = m_pOriginalMem->m_flags.isShareable;
-    m_flags.isFlippable      = m_pOriginalMem->m_flags.isFlippable;
-    m_flags.isStereo         = m_pOriginalMem->m_flags.isStereo;
-    m_flags.localOnly        = m_pOriginalMem->m_flags.localOnly;
-    m_flags.nonLocalOnly     = m_pOriginalMem->m_flags.nonLocalOnly;
-    m_flags.isLocalPreferred = m_pOriginalMem->m_flags.isLocalPreferred;
-    m_flags.interprocess     = m_pOriginalMem->m_flags.interprocess;
-    m_flags.globalGpuVa      = m_pOriginalMem->m_flags.globalGpuVa;
-    m_flags.useReservedGpuVa = (m_vaPartition == VaPartition::Svm);
-    m_flags.cpuVisible       = m_pOriginalMem->m_flags.cpuVisible;
-    m_flags.peerWritable     = m_pOriginalMem->m_flags.peerWritable;
+    m_desc.heapCount          = m_heapCount;
+    m_desc.flags.isPeer       = 1;
+    m_flags.isShareable       = m_pOriginalMem->m_flags.isShareable;
+    m_flags.isFlippable       = m_pOriginalMem->m_flags.isFlippable;
+    m_flags.isStereo          = m_pOriginalMem->m_flags.isStereo;
+    m_flags.localOnly         = m_pOriginalMem->m_flags.localOnly;
+    m_flags.nonLocalOnly      = m_pOriginalMem->m_flags.nonLocalOnly;
+    m_flags.isLocalPreferred  = m_pOriginalMem->m_flags.isLocalPreferred;
+    m_flags.interprocess      = m_pOriginalMem->m_flags.interprocess;
+    m_flags.globalGpuVa       = m_pOriginalMem->m_flags.globalGpuVa;
+    m_flags.useReservedGpuVa  = (m_vaPartition == VaPartition::Svm);
+    m_flags.cpuVisible        = m_pOriginalMem->m_flags.cpuVisible;
+    m_flags.peerWritable      = m_pOriginalMem->m_flags.peerWritable;
 
     // Set the gpuVirtAddr if the GPU VA is visible to all devices
     if (IsGlobalGpuVa() || IsGpuVaPreReserved())

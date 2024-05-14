@@ -36,6 +36,7 @@
 #include "core/layers/interfaceLogger/interfaceLoggerSwapChain.h"
 
 using namespace Util;
+using namespace std::chrono;
 
 namespace Pal
 {
@@ -271,7 +272,7 @@ Result Queue::PresentSwapChain(
 
 // =====================================================================================================================
 Result Queue::Delay(
-    float delay)
+    Util::fmilliseconds delay)
 {
     BeginFuncInfo funcInfo;
     funcInfo.funcId       = InterfaceFunc::QueueDelay;
@@ -284,7 +285,7 @@ Result Queue::Delay(
     if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
     {
         pLogContext->BeginInput();
-        pLogContext->KeyAndValue("delay", delay);
+        pLogContext->KeyAndValue("delay", delay.count());
         pLogContext->EndInput();
 
         pLogContext->BeginOutput();
@@ -299,21 +300,21 @@ Result Queue::Delay(
 
 // =====================================================================================================================
 Result Queue::DelayAfterVsync(
-    float                 delayInUs,
+    Util::fmicroseconds   delay,
     const IPrivateScreen* pScreen)
 {
     BeginFuncInfo funcInfo;
     funcInfo.funcId       = InterfaceFunc::QueueDelayAfterVsync;
     funcInfo.objectId     = m_objectId;
     funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = QueueDecorator::DelayAfterVsync(delayInUs, pScreen);
+    const Result result   = QueueDecorator::DelayAfterVsync(delay, pScreen);
     funcInfo.postCallTime = m_pPlatform->GetTime();
 
     LogContext* pLogContext = nullptr;
     if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
     {
         pLogContext->BeginInput();
-        pLogContext->KeyAndValue("delayInUs", delayInUs);
+        pLogContext->KeyAndValue("delayInUs", delay.count());
         pLogContext->KeyAndObject("screen", pScreen);
         pLogContext->EndInput();
 

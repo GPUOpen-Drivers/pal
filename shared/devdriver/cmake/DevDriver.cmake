@@ -40,11 +40,6 @@ if (NOT DEVDRIVER_IS_TOP_LEVEL)
     list(APPEND CMAKE_MESSAGE_CONTEXT "${PROJECT_NAME}")
 endif()
 
-# https://cmake.org/cmake/help/v3.21/policy/CMP0092.html?highlight=w3
-# Our CI needs this outside the top level check, since we build devdriver via add_subdirectory.
-# There isn't any harm in having this check outside the top level check anyway.
-string(REPLACE " /W3" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-
 if (DEVDRIVER_IS_TOP_LEVEL)
     set(DD_BRANCH_STRING "dev")
 
@@ -52,7 +47,7 @@ if (DEVDRIVER_IS_TOP_LEVEL)
 
     if (MSVC_IDE)
         # Build with Multiple Processes, this is a nice quality of life for VS users
-        # This is the preferred way of speeding up vs builds.
+        # This is the preferred way of speeding up VS builds.
         add_compile_options(/MP)
 
         # Put ZERO_CHECK, INSTALL, etc default targets in a separate folder in VS solutions
@@ -84,13 +79,6 @@ macro(apply_devdriver_build_flags _target)
         CXX_EXTENSIONS FALSE
     )
 
-    # Make a DD_SHORT_FILE macro that includes a shorter, partial file path.
-    # The additional / is important to remove the last character from the path.
-    # Note that it does not matter if the OS uses / or \, because we are only
-    # saving the path size.
-    string(LENGTH "${CMAKE_SOURCE_DIR}/" SOURCE_PATH_SIZE)
-    target_compile_definitions(${_target} PUBLIC "DD_SHORT_FILE=(__FILE__+${SOURCE_PATH_SIZE})")
-
     if (WIN32)
         # Allow usage of unsafe C run time functionality
         target_compile_definitions(${_target} PUBLIC
@@ -114,20 +102,7 @@ function(apply_devdriver_warnings name)
         )
     endif()
 
-    if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-        # Apply special options for GCC 8.x+
-        if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8.0)
-            target_compile_options(${name}
-                PRIVATE
-                    # This warning triggers when you memcpy into or out of a "non trivial" type.
-                    # The requirements for "trivial type" are hard - e.g. some user supplied constructors are enough to make
-                    #   it not count.
-                    #   Properly fixing this would require embracing more C++14 than we currently do. (e.g. `= default` ctors)
-                    #   This warning is new in gcc 8.x
-                    -Wno-class-memaccess
-            )
-        endif()
-    elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+    if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
         if (DD_MSVC_CODE_ANALYZE)
             target_compile_options(${name} PRIVATE
                 # Additional static analysis. This can be loud, so we disable
@@ -162,6 +137,16 @@ function(apply_devdriver_build_configs name)
     )
 endfunction()
 
+function(apply_devdriver_compile_definitions name)
+    if (WIN32)
+        target_compile_definitions(${name} PRIVATE DD_TARGET_PLATFORM_WINDOWS)
+    elseif (LINUX)
+        target_compile_definitions(${name} PRIVATE DD_TARGET_PLATFORM_LINUX)
+    elseif (ANDROID)
+        target_compile_definitions(${name} PRIVATE DD_TARGET_PLATFORM_ANDROID)
+    endif()
+endfunction()
+
 function(devdriver_target name)
     amd_target(${name} ${ARGN})
 
@@ -171,6 +156,7 @@ function(devdriver_target name)
 
         apply_devdriver_build_flags(${name})
         apply_devdriver_build_configs(${name})
+        apply_devdriver_compile_definitions(${name})
 
         # Apply this last, since it may override previous options
         if (DD_ENABLE_WARNINGS)

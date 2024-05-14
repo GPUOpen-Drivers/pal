@@ -32,6 +32,7 @@ add_subdirectory(settingsblob)
 target_link_libraries(ddSettings
     PUBLIC
         ddApi
+        dd_interface
     PRIVATE
         devdriver
         ddCommon
@@ -42,10 +43,6 @@ target_link_libraries(ddSettings
 target_include_directories(ddSettings
     PUBLIC
         base/inc
-        # For "reasons" we need to include dd_settings_api.h which in turn includes dd_allocator_api.h. This gives
-        # us access to dd_allocator_api.h. This hack and the entire ddSettings will be removed once dd_settings
-        # is ready.
-        ../../apis/common/inc
 )
 
 target_sources(ddSettings PRIVATE

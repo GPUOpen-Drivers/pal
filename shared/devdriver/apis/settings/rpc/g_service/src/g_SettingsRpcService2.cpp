@@ -28,18 +28,6 @@
 namespace SettingsRpc
 {
 
-const DDRpcServerRegisterServiceInfo ISettingsRpcService::kServiceInfo = []() -> DDRpcServerRegisterServiceInfo {
-    DDRpcServerRegisterServiceInfo info = {};
-    info.id                             = 0x15375127;
-    info.version.major                  = 2;
-    info.version.minor                  = 1;
-    info.version.patch                  = 0;
-    info.pName                          = "SettingsRpc";
-    info.pDescription                   = "A service that queries/modifies driver settings.";
-
-    return info;
-}();
-
 static DD_RESULT RegisterFunctions(
     DDRpcServer hServer,
     ISettingsRpcService* pService)
@@ -88,6 +76,27 @@ static DD_RESULT RegisterFunctions(
         result = ddRpcServerRegisterFunction(hServer, &info);
     }
 
+    // Register "GetUnsupportedExperiments"
+    if (result == DD_RESULT_SUCCESS)
+    {
+        DDRpcServerRegisterFunctionInfo info = {};
+        info.serviceId                       = 0x15375127;
+        info.id                              = 0x3;
+        info.pName                           = "GetUnsupportedExperiments";
+        info.pDescription                    = "Query currently unsupported experiments for all components from the driver.";
+        info.pFuncUserdata                   = pService;
+        info.pfnFuncCb                       = [](
+            const DDRpcServerCallInfo* pCall) -> DD_RESULT
+        {
+            auto* pService = reinterpret_cast<ISettingsRpcService*>(pCall->pUserdata);
+
+            // Execute the service implementation
+            return pService->GetUnsupportedExperiments(*pCall->pWriter);
+        };
+
+        result = ddRpcServerRegisterFunction(hServer, &info);
+    }
+
     return result;
 }
 
@@ -96,8 +105,16 @@ DD_RESULT RegisterService(
     ISettingsRpcService* pService
 )
 {
+    DDRpcServerRegisterServiceInfo info = {};
+    info.id                             = 0x15375127;
+    info.version.major                  = 2;
+    info.version.minor                  = 1;
+    info.version.patch                  = 0;
+    info.pName                          = "SettingsRpc";
+    info.pDescription                   = "A service that queries/modifies driver settings.";
+
     // Register the service
-    DD_RESULT result = ddRpcServerRegisterService(hServer, &ISettingsRpcService::kServiceInfo);
+    DD_RESULT result = ddRpcServerRegisterService(hServer, &info);
 
     // Register individual functions
     if (result == DD_RESULT_SUCCESS)
@@ -107,11 +124,25 @@ DD_RESULT RegisterService(
         if (result != DD_RESULT_SUCCESS)
         {
             // Unregister the service if registering functions fails
-            ddRpcServerUnregisterService(hServer, ISettingsRpcService::kServiceInfo.id);
+            ddRpcServerUnregisterService(hServer, info.id);
         }
     }
 
     return result;
+}
+
+void UnRegisterService(DDRpcServer hServer)
+{
+    DDRpcServerRegisterServiceInfo info = {};
+    info.id                             = 0x15375127;
+    info.version.major                  = 2;
+    info.version.minor                  = 1;
+    info.version.patch                  = 0;
+    info.pName                          = "SettingsRpc";
+    info.pDescription                   = "A service that queries/modifies driver settings.";
+
+    // Unregister the service if registering functions fails
+    ddRpcServerUnregisterService(hServer, info.id);
 }
 
 } // namespace SettingsRpc

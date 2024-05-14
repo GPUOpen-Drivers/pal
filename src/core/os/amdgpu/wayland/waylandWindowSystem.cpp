@@ -31,6 +31,9 @@
 #include "palFormatInfo.h"
 #include "palHashSetImpl.h"
 
+#include <sys/mman.h>
+#include <sys/sysmacros.h>
+
 using namespace Util;
 
 extern "C" {
@@ -42,10 +45,15 @@ extern "C" {
 #define wl_buffer_interface wlBufferInterface
 static struct wl_interface wlBufferInterface = {};
 
+#define WL_SURFACE_INTERFACE
+#define wl_surface_interface wlSurfaceInterface
+static struct wl_interface wlSurfaceInterface = {};
+
 // Also remove any symbol exports
 #undef WL_EXPORT
 #define WL_EXPORT
 
+#include "core/os/amdgpu/wayland/mesa/wayland-dmabuf-protocol.inc"
 #include "core/os/amdgpu/wayland/mesa/wayland-drm-protocol.inc"
 }
 
@@ -57,71 +65,74 @@ namespace Amdgpu
 // Define a function type for listeners to be added to proxy
 typedef void (*Listener)(void);
 
-struct WlFormatMapping
+// Mapping table between wayland, Linux DRM and PAL formats.
+// There can be duplicates for unorm vs sgrb, so this table always assumes unorm.
+struct FormatMapping
 {
-    wl_drm_format  wlFormat;
+    wl_drm_format  wlDrmFormat; // Defined by wl_drm protocol in wayland-drm-client-protocl.h
+    uint32         drmFormat;   // Native DRM format defined in <drm_fourcc.h>
     SwizzledFormat palFormat;
 };
 
 // Mapping table between wayland and PAL formats.
 // There can be duplicates for unorm vs sgrb, so this table always assumes unorm.
-constexpr WlFormatMapping WlFormatMappings[] = {
-    { WL_DRM_FORMAT_ARGB8888,
+constexpr FormatMapping FormatMappings[] = {
+    { WL_DRM_FORMAT_ARGB8888, DRM_FORMAT_ARGB8888,
       {
          ChNumFormat::X8Y8Z8W8_Unorm,
          {{{ ChannelSwizzle::Z, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::W }}}
       } },
-    { WL_DRM_FORMAT_XRGB8888,
+    { WL_DRM_FORMAT_XRGB8888, DRM_FORMAT_XRGB8888,
       {
          ChNumFormat::X8Y8Z8W8_Unorm,
          {{{ ChannelSwizzle::Z, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::One }}}
       } },
-    { WL_DRM_FORMAT_ABGR8888,
+    { WL_DRM_FORMAT_ABGR8888, DRM_FORMAT_ABGR8888,
       {
          ChNumFormat::X8Y8Z8W8_Unorm,
          {{{ ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W }}}
       } },
-    { WL_DRM_FORMAT_XBGR8888,
+    { WL_DRM_FORMAT_XBGR8888, DRM_FORMAT_XBGR8888,
       {
          ChNumFormat::X8Y8Z8W8_Unorm,
          {{{ ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::One }}}
       } },
-    { WL_DRM_FORMAT_ARGB2101010,
+    { WL_DRM_FORMAT_ARGB2101010, DRM_FORMAT_ARGB2101010,
       {
          ChNumFormat::X10Y10Z10W2_Unorm,
          {{{ ChannelSwizzle::Z, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::W }}}
       } },
-    { WL_DRM_FORMAT_XRGB2101010,
+    { WL_DRM_FORMAT_XRGB2101010, DRM_FORMAT_XRGB2101010,
       {
          ChNumFormat::X10Y10Z10W2_Unorm,
          {{{ ChannelSwizzle::Z, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::One }}}
       } },
-    { WL_DRM_FORMAT_ABGR2101010,
+    { WL_DRM_FORMAT_ABGR2101010, DRM_FORMAT_ABGR2101010,
       {
          ChNumFormat::X10Y10Z10W2_Unorm,
          {{{ ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W }}}
       } },
-    { WL_DRM_FORMAT_XBGR2101010,
+    { WL_DRM_FORMAT_XBGR2101010, DRM_FORMAT_XBGR2101010,
       {
          ChNumFormat::X10Y10Z10W2_Unorm,
          {{{ ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::One }}}
       } },
-    { WL_DRM_FORMAT_RGB565,
+    { WL_DRM_FORMAT_RGB565, DRM_FORMAT_RGB565,
       {
          ChNumFormat::X5Y6Z5_Unorm,
          {{{ ChannelSwizzle::Z, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::One }}}
       } },
-    { WL_DRM_FORMAT_BGR565,
+    { WL_DRM_FORMAT_BGR565, DRM_FORMAT_BGR565,
       {
          ChNumFormat::X5Y6Z5_Unorm,
          {{{ ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::One }}}
       } },
-    { WL_DRM_FORMAT_ABGR16F,
+    { WL_DRM_FORMAT_ABGR16F, DRM_FORMAT_ABGR16161616,
       {
          ChNumFormat::X16Y16Z16W16_Float,
          {{{ ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W }}}
       } },
-    { WL_DRM_FORMAT_XBGR16F,
+    { WL_DRM_FORMAT_XBGR16F, DRM_FORMAT_XRGB16161616,
       {
          ChNumFormat::X16Y16Z16W16_Float,
          {{{ ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::One }}}
@@ -129,14 +140,15 @@ constexpr WlFormatMapping WlFormatMappings[] = {
 };
 
 // ====================================================================================================================a
-static SwizzledFormat WlDrmToPalFormat(
-    wl_drm_format  format)
+// Convert Linux Drm format to PAL format
+static SwizzledFormat DrmToPalFormat(
+    uint32 format)
 {
     SwizzledFormat outFormat = UndefinedSwizzledFormat;
 
-    for (const auto& fmtPair : WlFormatMappings)
+    for (const auto& fmtPair : FormatMappings)
     {
-        if (fmtPair.wlFormat == format)
+        if (fmtPair.drmFormat == format)
         {
             outFormat = fmtPair.palFormat;
             break;
@@ -147,12 +159,12 @@ static SwizzledFormat WlDrmToPalFormat(
 }
 
 // ====================================================================================================================a
-// Convert PAL format to Wayland Drm format
-static wl_drm_format PalToWlDrmFormat(
+// Convert PAL format to Linux Drm format
+static uint32 PalToDrmFormat(
     SwizzledFormat format,
     bool           alpha)
 {
-    wl_drm_format waylandDrmFormat = WL_DRM_FORMAT_XRGB8888;
+    uint32 drmFormat = DRM_FORMAT_XRGB8888;
 
     if (alpha == false)
     {
@@ -166,11 +178,11 @@ static wl_drm_format PalToWlDrmFormat(
     }
 
     bool found = false;
-    for (const auto& fmtPair : WlFormatMappings)
+    for (const auto& fmtPair : FormatMappings)
     {
         if (Formats::IsSameFormat(fmtPair.palFormat, format))
         {
-            waylandDrmFormat = fmtPair.wlFormat;
+            drmFormat = fmtPair.drmFormat;
             found = true;
             break;
         }
@@ -178,13 +190,31 @@ static wl_drm_format PalToWlDrmFormat(
 
     if (found == false)
     {
-        PAL_ASSERT_ALWAYS_MSG("No wayland format mapping for PAL format %u with swizzle 0x%08x!",
+        PAL_ASSERT_ALWAYS_MSG("No native format mapping for PAL format %u with swizzle 0x%08x!",
                               format.format, format.swizzle);
     }
 
-    return waylandDrmFormat;
+    return drmFormat;
 }
+// ====================================================================================================================a
+// Convert Wayland Drm format to Linux Drm format
+static uint32 WlDrmToDrmFormat(
+    wl_drm_format format
+)
+{
+    uint32 outFormat = DRM_FORMAT_XRGB8888;
 
+    for (const auto& fmtPair : FormatMappings)
+    {
+        if (fmtPair.wlDrmFormat == format)
+        {
+            outFormat = fmtPair.drmFormat;
+            break;
+        }
+    }
+
+    return outFormat;
+}
 // =====================================================================================================================
 // Get the notification of the path of the drm device which is used by the server. For multi-GPU, Pal should use this
 // device for creating local buffers.
@@ -199,7 +229,7 @@ static void DrmHandleDevice(
 }
 
 // =====================================================================================================================
-// Get the formats that Wayland compositor supports
+// Get the formats that Wayland compositor supports if using wl_drm
 static void DrmHandleFormat(
     void*   pData,
     wl_drm* pDrm,
@@ -215,9 +245,7 @@ static void DrmHandleFormat(
 static void DrmHandleAuthenticated(
     void*   pData,
     wl_drm* pDrm)
-{
-
-}
+{}
 
 // =====================================================================================================================
 // Bitmask of capabilities the wl_drm supports, WL_DRM_CAPABILITY_PRIME is a must, otherwise can't create prime buffer.
@@ -232,7 +260,7 @@ static void DrmHandleCapabilities(
 }
 
 // The listener for wl_drm to get the drm device, buffer format and capabilities.
-static const wl_drm_listener WaylandDrmListener =
+static constexpr wl_drm_listener WaylandDrmListener =
 {
     DrmHandleDevice,
     DrmHandleFormat,
@@ -241,7 +269,169 @@ static const wl_drm_listener WaylandDrmListener =
 };
 
 // =====================================================================================================================
-// This function is called while there is any global interface is registered to server. Check if wl_drm is registered.
+// Get the formats that Wayland compositor supports
+// The formats are also advertized through the zwp_linux_dmabuf_v1.handle_modfier event
+// so we don't need to handle it here
+static void DmaHandleFormat(
+    void*                pData,
+    zwp_linux_dmabuf_v1* pDmaBuf,
+    uint32               format)
+{}
+
+// =====================================================================================================================
+// Get the formats the Wayland compositor supports along with any modifiers it supports with that format
+// formats and modifiers are defined in <drm_fourcc.h>
+static void DmaHandleModifier(
+    void*                pData,
+    zwp_linux_dmabuf_v1* pDmaBuf,
+    uint32               format,
+    uint32               modifierHi,
+    uint32               modifierLo)
+{
+    WaylandWindowSystem* pWaylandWindowSystem = static_cast<WaylandWindowSystem*>(pData);
+    // The compositor already advertised formats via the default feedback
+    if (pWaylandWindowSystem->GetDefaultFeedback())
+    {
+        return;
+    }
+
+    const ZwpDmaBufFormat fmt = {
+        .format = format,
+        .padding = 0,
+        .modifier = Util::Uint64CombineParts(modifierLo, modifierHi)
+    };
+    pWaylandWindowSystem->AddFormat(fmt);
+}
+
+// The listener to handle recieving format and modifier info via the dmabuf interface directly
+// In newer versions of the protocol this is handled via the zwp_dmabuf_default_feedback_v1 interface
+static constexpr zwp_linux_dmabuf_v1_listener DmaBufListener =
+{
+    DmaHandleFormat,
+    DmaHandleModifier,
+};
+
+// =====================================================================================================================
+// Get the buffer created from calling zwp_linux_buffer_params_v1_create
+static void DmaCreateBuffer(
+    void *pData,
+    zwp_linux_buffer_params_v1 *pBufferParams,
+    wl_buffer *buffer)
+{}
+
+// =====================================================================================================================
+// Failure callback if zwp_linux_buffer_params_v1_create failed to create a buffer
+static void DmaCreateBufferFailed(
+    void *pData,
+    zwp_linux_buffer_params_v1 *pBufferParams)
+{}
+// =====================================================================================================================
+// The listener to handle wl_buffer creation and wl_buffer creation failure
+static constexpr zwp_linux_buffer_params_v1_listener DmaBufParamsListener =
+{
+    DmaCreateBuffer,
+    DmaCreateBufferFailed
+};
+// =====================================================================================================================
+// Event indicates that all feedback from the compositor has been sent
+static void DmaDone(
+    void *pData,
+    struct zwp_linux_dmabuf_feedback_v1 *pDmaBufFeedback)
+{}
+
+// =====================================================================================================================
+// Get the formats the Wayland compositor supports along with any modifiers it supports with that format via a
+// memory-mappable fd, each entry in the table is a 32-bit format followed by 16 bits of unused padding and a 64-bit
+// modifier
+
+// The client must map the fd in read-only private mode
+static void DmaFormatTable(
+    void *pData,
+    struct zwp_linux_dmabuf_feedback_v1 *pDmaBufFeedback,
+    int32_t fd,
+    uint32_t size)
+{
+    WaylandWindowSystem* pWaylandWindowSystem = static_cast<WaylandWindowSystem*>(pData);
+    WlFormatTable& globalFormatTable = pWaylandWindowSystem->GetGlobalFormatTable();
+
+    globalFormatTable.size = size;
+    globalFormatTable.pData = reinterpret_cast<ZwpDmaBufFormat*>(mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0));
+}
+
+// =====================================================================================================================
+// Get the preferred device by the server when direct scan-out to the target device isn't available
+static void DmaMainDevice(
+    void *pData,
+    struct zwp_linux_dmabuf_feedback_v1 *pDmaBufFeedback,
+    struct wl_array *device)
+{
+    WaylandWindowSystem* pWaylandWindowSystem = static_cast<WaylandWindowSystem*>(pData);
+    PAL_ASSERT(device->size == sizeof(dev_t));
+    pWaylandWindowSystem->SetDmaDevice(device);
+}
+
+// =====================================================================================================================
+// Get the indices within the mapped format table of supported formats. The indices are 16-but unsigned integers
+static void DmaTrancheFormats(
+    void *pData,
+    struct zwp_linux_dmabuf_feedback_v1 *pDmaBufFeedback,
+    struct wl_array *indices)
+{
+    WaylandWindowSystem* pWaylandWindowSystem = static_cast<WaylandWindowSystem*>(pData);
+    WlFormatTable& globalFormatTable = pWaylandWindowSystem->GetGlobalFormatTable();
+
+    if ((globalFormatTable.pData != MAP_FAILED) && (globalFormatTable.pData != nullptr))
+    {
+        uint16* pFormatTableIdxs = reinterpret_cast<uint16*>(indices->data);
+        for (uint32 idx = 0; idx < indices->size; ++idx)
+        {
+            pWaylandWindowSystem->AddFormat(globalFormatTable.pData[pFormatTableIdxs[idx]]);
+        }
+
+        munmap(globalFormatTable.pData, globalFormatTable.size);
+    }
+}
+
+// =====================================================================================================================
+// Event inidcates that a preference tranche has been sent
+static void DmaTrancheDone(
+    void *pData,
+    struct zwp_linux_dmabuf_feedback_v1 *pDmaBufFeedback)
+{}
+
+// =====================================================================================================================
+// Get the target device for buffer creation for a given tranche. This is a preferred device, but the buffer must be
+// accessible to the main device
+static void DmaTrancheTargetDevice(
+    void *pData,
+    struct zwp_linux_dmabuf_feedback_v1 *pDmaBufFeedback,
+    struct wl_array *device)
+{}
+
+// =====================================================================================================================
+// Get any flags associated with a given tranche
+static void DmaTrancheFlags(
+    void *pData,
+    struct zwp_linux_dmabuf_feedback_v1 *pDmaBufFeedback,
+    uint32_t flags)
+{}
+
+// Listener for receiving supported formats, modifiers, the main device
+static constexpr zwp_linux_dmabuf_feedback_v1_listener FeedbackListener =
+{
+    DmaDone,
+    DmaFormatTable,
+    DmaMainDevice,
+    DmaTrancheDone,
+    DmaTrancheTargetDevice,
+    DmaTrancheFormats,
+    DmaTrancheFlags,
+};
+
+// =====================================================================================================================
+// This function is called while there is any global interface is registered to server. Check if
+// zwp_linux_dmabuf_v1 is registered if setting indicated to use it, otherwise we check for wl_drm and override
+// the cached setting
 static void RegistryHandleGlobal(
     void*        pData,
     wl_registry* pRegistry,
@@ -250,29 +440,62 @@ static void RegistryHandleGlobal(
     uint32       version)
 {
     WaylandWindowSystem* pWaylandWindowSystem = static_cast<WaylandWindowSystem*>(pData);
+    if (pWaylandWindowSystem->UseZwpDmaBufProtocol() == true)
+    {
+        if (strcmp(pInterface, "zwp_linux_dmabuf_v1") == 0)
+        {
+            PAL_ASSERT(version >= ZWP_LINUX_DMABUF_V1_GET_DEFAULT_FEEDBACK_SINCE_VERSION);
 
+            zwp_linux_dmabuf_v1* pDmaBuffer = reinterpret_cast<struct zwp_linux_dmabuf_v1*>(
+                pWaylandWindowSystem->GetWaylandProcs().pfnWlProxyMarshalConstructorVersioned(
+                    reinterpret_cast<wl_proxy*>(pRegistry),
+                    WL_REGISTRY_BIND,
+                    &zwp_linux_dmabuf_v1_interface,
+                    version,
+                    name,
+                    zwp_linux_dmabuf_v1_interface.name,
+                    version,
+                    nullptr));
+
+            if (pDmaBuffer != nullptr)
+            {
+                pWaylandWindowSystem->GetWaylandProcs().pfnWlProxyAddListener(
+                    reinterpret_cast<wl_proxy*>(pDmaBuffer),
+                    reinterpret_cast<Listener*>(const_cast<zwp_linux_dmabuf_v1_listener*>
+                        (&DmaBufListener)),
+                    pWaylandWindowSystem);
+
+                pWaylandWindowSystem->SetDmaBuffer(pDmaBuffer);
+                return;
+            }
+        }
+    }
+    // If the zwp_linux_dmabuf_v1 protocol isn't supported by the compositor, we fallback to wl_drm
     if (strcmp(pInterface, "wl_drm") == 0)
     {
         PAL_ASSERT(version >= 2);
 
-        wl_drm* pWaylandDrm = reinterpret_cast<struct wl_drm*>(pWaylandWindowSystem->GetWaylandProcs().pfnWlProxyMarshalConstructorVersioned(
-                                                               reinterpret_cast<wl_proxy*>(pRegistry),
-                                                               WL_REGISTRY_BIND,
-                                                               &wl_drm_interface,
-                                                               version,
-                                                               name,
-                                                               wl_drm_interface.name,
-                                                               version,
-                                                               nullptr));
+        wl_drm* pWaylandDrm = reinterpret_cast<struct wl_drm*>(
+            pWaylandWindowSystem->GetWaylandProcs().pfnWlProxyMarshalConstructorVersioned(
+                reinterpret_cast<wl_proxy*>(pRegistry),
+                WL_REGISTRY_BIND,
+                &wl_drm_interface,
+                version,
+                name,
+                wl_drm_interface.name,
+                version,
+                nullptr));
 
         if (pWaylandDrm != nullptr)
         {
-            pWaylandWindowSystem->GetWaylandProcs().pfnWlProxyAddListener(reinterpret_cast<wl_proxy*>(pWaylandDrm),
-                                               reinterpret_cast<Listener*>(const_cast<wl_drm_listener*>
-                                                   (&WaylandDrmListener)),
-                                               pWaylandWindowSystem);
+            pWaylandWindowSystem->GetWaylandProcs().pfnWlProxyAddListener(
+                reinterpret_cast<wl_proxy*>(pWaylandDrm),
+                reinterpret_cast<Listener*>(const_cast<wl_drm_listener*>
+                    (&WaylandDrmListener)),
+                pWaylandWindowSystem);
 
             pWaylandWindowSystem->SetWaylandDrm(pWaylandDrm);
+            pWaylandWindowSystem->SetZwpDmaBufProtocolUsage(false);
         }
     }
 }
@@ -287,8 +510,8 @@ static void RegistryHandleGlobalRemove(
 
 }
 
-// A listener to handle global interfaces registered to server
-static const wl_registry_listener RegistryListener =
+// A listener to handle the interfaces registered to server
+static constexpr wl_registry_listener RegistryListener =
 {
     RegistryHandleGlobal,
     RegistryHandleGlobalRemove,
@@ -306,7 +529,7 @@ static void BufferHandleRelease(
 }
 
 // A listener for event that buffer is released from Wayland server.
-static const wl_buffer_listener BufferListener =
+static constexpr wl_buffer_listener BufferListener =
 {
     BufferHandleRelease,
 };
@@ -327,7 +550,7 @@ static void FrameHandleDone(
 }
 
 // Handle the notification when it is a good time to start drawing a new frame
-static const wl_callback_listener FrameListener =
+static constexpr wl_callback_listener FrameListener =
 {
     FrameHandleDone,
 };
@@ -406,14 +629,16 @@ Result WaylandPresentFence::WaitForCompletion(
         do
         {
             // Dispatch the event in pending status so that quick check if the present fence is signaled.
-            m_windowSystem.GetWaylandProcs().pfnWlDisplayDispatchQueuePending(m_windowSystem.GetDisplay(), m_windowSystem.GetEventQueue());
+            m_windowSystem.GetWaylandProcs().pfnWlDisplayDispatchQueuePending(m_windowSystem.GetDisplay(),
+                                                                              m_windowSystem.GetEventQueue());
 
             signaled = m_pImage->GetIdle();
 
             if (!signaled)
             {
                 // Block until all of the requests are processed by the server.
-                m_windowSystem.GetWaylandProcs().pfnWlDisplayRoundtripQueue(m_windowSystem.GetDisplay(), m_windowSystem.GetEventQueue());
+                m_windowSystem.GetWaylandProcs().pfnWlDisplayRoundtripQueue(m_windowSystem.GetDisplay(),
+                                                                            m_windowSystem.GetEventQueue());
                 signaled = m_pImage->GetIdle();
             }
 
@@ -465,7 +690,6 @@ WaylandWindowSystem::WaylandWindowSystem(
     m_device(device),
     m_pDisplay(static_cast<wl_display*>(createInfo.hDisplay)),
     m_pSurface(static_cast<wl_surface*>(createInfo.hWindow.pSurface)),
-    m_pWaylandDrm(nullptr),
     m_waylandLoader(device.GetPlatform()->GetWaylandLoader()),
 #if defined(PAL_DEBUG_PRINTS)
     m_waylandProcs(m_waylandLoader.GetProcsTableProxy()),
@@ -477,29 +701,42 @@ WaylandWindowSystem::WaylandWindowSystem(
     m_pSurfaceEventQueue(nullptr),
     m_pDisplayWrapper(nullptr),
     m_pSurfaceWrapper(nullptr),
+    m_pDmaBuffer(nullptr),
+    m_pWaylandDrm(nullptr),
     m_pWaylandDrmWrapper(nullptr),
+    m_pDefaultDmaBuffFeedback(nullptr),
+    m_DmaDevice(0), // This is a valid dev_t, must change
+    m_globalFormatTable({}),
     m_pFrameCallback(nullptr),
     m_frameCompleted(false),
     m_capabilities(0),
-    m_surfaceVersion(0)
-{
-    memset(m_deviceName, 0, sizeof(m_deviceName));
-}
+    m_surfaceVersion(0),
+    m_useZwpDmaBufProtocol(false)
+{}
 
 // =====================================================================================================================
 WaylandWindowSystem::~WaylandWindowSystem()
 {
     // The wrapper object must be destroyed before the object it was created from.
+    if (m_pDmaBuffer != nullptr)
+    {
+        m_waylandProcs.pfnWlProxyMarshal(reinterpret_cast<wl_proxy*>(m_pDmaBuffer), ZWP_LINUX_DMABUF_V1_DESTROY);
+        m_waylandProcs.pfnWlProxyDestroy(reinterpret_cast<wl_proxy*>(m_pDmaBuffer));
+    }
+    if (m_pDefaultDmaBuffFeedback != nullptr)
+    {
+        m_waylandProcs.pfnWlProxyMarshal(reinterpret_cast<wl_proxy*>(m_pDefaultDmaBuffFeedback),
+                                         ZWP_LINUX_DMABUF_FEEDBACK_V1_DESTROY);
+        m_waylandProcs.pfnWlProxyDestroy(reinterpret_cast<wl_proxy*>(m_pDefaultDmaBuffFeedback));
+    }
     if (m_pWaylandDrmWrapper != nullptr)
     {
         m_waylandProcs.pfnWlProxyWrapperDestroy(reinterpret_cast<void*>(m_pWaylandDrmWrapper));
     }
-
     if (m_pWaylandDrm != nullptr)
     {
         m_waylandProcs.pfnWlProxyDestroy(reinterpret_cast<wl_proxy*>(m_pWaylandDrm));
     }
-
     if (m_pFrameCallback != nullptr)
     {
         m_waylandProcs.pfnWlProxyDestroy(reinterpret_cast<wl_proxy*>(m_pFrameCallback));
@@ -533,9 +770,12 @@ Result WaylandWindowSystem::Init()
     wl_registry* pRegistry = nullptr;
 
     // wlBufferInterface must be set before calling any wl_drm interfaces.
-    wlBufferInterface = *m_waylandLoader.GetWlBufferInterface();
+    // wlBufferInterface and wlSurfaceInterface must be set before calling any zwp_linux_dmabuf_v1 interfaces.
+    wlBufferInterface       = *m_waylandLoader.GetWlBufferInterface();
+    wlSurfaceInterface      = *m_waylandLoader.GetWlSurfaceInterface();
 
-    m_pEventQueue = m_waylandProcs.pfnWlDisplayCreateQueue(m_pDisplay);
+    m_pEventQueue           = m_waylandProcs.pfnWlDisplayCreateQueue(m_pDisplay);
+    m_useZwpDmaBufProtocol  = m_device.Settings().useZwpDmaBufProtocol;
 
     if (m_pEventQueue == nullptr)
     {
@@ -589,36 +829,15 @@ Result WaylandWindowSystem::Init()
                                                  (&RegistryListener)),
                                              this);
 
+        //At this point, round-trip to build the global instance
         m_waylandProcs.pfnWlDisplayRoundtripQueue(m_pDisplay, m_pEventQueue);
 
-        if (m_pWaylandDrm == nullptr)
-        {
-            result = Result::ErrorUnavailable;
-        }
+        result = FinishInit();
     }
 
     if (result == Result::Success)
     {
-        m_waylandProcs.pfnWlDisplayRoundtripQueue(m_pDisplay, m_pEventQueue);
 
-        if (!(m_capabilities & WL_DRM_CAPABILITY_PRIME))
-        {
-            result = Result::ErrorUnavailable;
-        }
-    }
-
-    if (result == Result::Success)
-    {
-        m_pWaylandDrmWrapper = reinterpret_cast<wl_drm*>(m_waylandProcs.pfnWlProxyCreateWrapper(m_pWaylandDrm));
-
-        if (m_pWaylandDrmWrapper == nullptr)
-        {
-            result = Result::ErrorInitializationFailed;
-        }
-    }
-
-    if (result == Result::Success)
-    {
         m_pSurfaceWrapper = reinterpret_cast<wl_surface*>(m_waylandProcs.pfnWlProxyCreateWrapper(m_pSurface));
 
         if (m_pSurfaceWrapper == nullptr)
@@ -639,7 +858,7 @@ Result WaylandWindowSystem::Init()
 
     if (result == Result::Success)
     {
-        m_device.IsSameGpu(m_deviceName, &m_presentOnSameGpu);
+        ConfigPresentOnSameGpu();
     }
 
     return result;
@@ -652,9 +871,9 @@ Result WaylandWindowSystem::CreatePresentableImage(
     Image*     pImage,
     int32      sharedBufferFd)
 {
-    Result                      result      = Result::Success;
-    const SubResourceInfo*const pSubResInfo = pImage->SubresourceInfo(0);
-    wl_buffer*                  pBuffer     = nullptr;
+    Result                      result        = Result::Success;
+    const SubResourceInfo*const pSubResInfo   = pImage->SubresourceInfo(0);
+    wl_buffer*                  pBuffer       = nullptr;
 
     const uint32 width  = pSubResInfo->extentTexels.width;
     const uint32 height = pSubResInfo->extentTexels.height;
@@ -662,8 +881,8 @@ Result WaylandWindowSystem::CreatePresentableImage(
     const uint32 bpp    = pSubResInfo->bitsPerTexel;
     const bool   alpha  = pSwapChain->CreateInfo().compositeAlpha == CompositeAlphaMode::PostMultiplied;
 
-    wl_drm_format format = PalToWlDrmFormat(pSubResInfo->format, alpha);
-    PAL_ASSERT(m_validFormats.Contains(format));
+    uint32 format = PalToDrmFormat(pSubResInfo->format, alpha);
+    PAL_ASSERT(IsSupportedFormat(format) == true);
 
     if ((width == 0) || (height == 0) || (stride == 0) || (bpp == 0) || (sharedBufferFd == InvalidFd))
     {
@@ -672,31 +891,9 @@ Result WaylandWindowSystem::CreatePresentableImage(
 
     if (result == Result::Success)
     {
-        wl_interface* pBufferInterface = m_waylandLoader.GetWlBufferInterface();
+        result = CreateWlBuffer(width, height, stride, format, 0, sharedBufferFd, &pBuffer);
 
-        pBuffer = reinterpret_cast<wl_buffer*>(m_waylandProcs.pfnWlProxyMarshalConstructor(
-                                                   reinterpret_cast<wl_proxy*>(m_pWaylandDrmWrapper),
-                                                   WL_DRM_CREATE_PRIME_BUFFER,
-                                                   pBufferInterface,
-                                                   nullptr,
-                                                   sharedBufferFd,
-                                                   width,
-                                                   height,
-                                                   format,
-                                                   0,
-                                                   stride,
-                                                   0,
-                                                   0,
-                                                   0,
-                                                   0));
-
-        close(sharedBufferFd);
-
-        if (pBuffer == nullptr)
-        {
-            result = Result::ErrorUnknown;
-        }
-        else
+        if (result == Result::Success)
         {
             m_waylandProcs.pfnWlProxySetQueue(reinterpret_cast<wl_proxy*>(pBuffer), m_pEventQueue);
         }
@@ -859,7 +1056,7 @@ Result WaylandWindowSystem::GetWindowProperties(
                 break;
             }
 
-            SwizzledFormat palFormat = WlDrmToPalFormat(fmtIter.Get()->key);
+            SwizzledFormat palFormat = DrmToPalFormat(fmtIter.Get()->key);
             if (palFormat.format != UndefinedSwizzledFormat.format)
             {
                 pSwapChainProperties->imageFormat[pSwapChainProperties->imageFormatCount] = palFormat;
@@ -889,6 +1086,245 @@ Result WaylandWindowSystem::DeterminePresentationSupported(
     int64               visualId)
 {
     return Result::Success;
+}
+
+// =====================================================================================================================
+// Check whether the advertised present target is our current device
+void WaylandWindowSystem::ConfigPresentOnSameGpu()
+{
+   if (m_useZwpDmaBufProtocol == true)
+   {
+        DrmNodeProperties drmProps;
+        Pal::Result result = m_device.GetDrmNodeProperties(&drmProps);
+
+        PAL_ASSERT(result == Result::Success);
+
+        int64 drmNodeMajor, drmNodeMinor;
+        if (drmProps.flags.hasRenderDrmNode)
+        {
+            drmNodeMajor = drmProps.renderDrmNodeMajor;
+            drmNodeMinor = drmProps.renderDrmNodeMinor;
+        }
+        if (drmProps.flags.hasPrimaryDrmNode)
+        {
+            drmNodeMajor = drmProps.primaryDrmNodeMajor;
+            drmNodeMinor = drmProps.primaryDrmNodeMinor;
+
+        }
+        if ((major(m_DmaDevice) == drmNodeMajor) &&
+            (minor(m_DmaDevice) == drmNodeMinor))
+        {
+            m_presentOnSameGpu = true;
+        }
+    }
+    else
+    {
+        PAL_ASSERT(strlen(m_deviceName) > 0);
+        m_device.IsSameGpu(m_deviceName, &m_presentOnSameGpu);
+    }
+}
+
+// Finalize initialization specific to the wl_drm interface
+Result WaylandWindowSystem::FinishWlDrmInit()
+{
+    Result result = Result::Success;
+
+    if (m_pWaylandDrm == nullptr)
+    {
+        result = Result::ErrorInitializationFailed;
+    }
+
+    if (result == Result::Success)
+    {
+        m_waylandProcs.pfnWlDisplayRoundtripQueue(m_pDisplay, m_pEventQueue);
+
+        if (!(m_capabilities & WL_DRM_CAPABILITY_PRIME))
+        {
+            result = Result::ErrorUnavailable;
+        }
+
+    }
+
+    if (result == Result::Success)
+    {
+        m_pWaylandDrmWrapper = reinterpret_cast<wl_drm*>(m_waylandProcs.pfnWlProxyCreateWrapper(m_pWaylandDrm));
+
+        if (m_pWaylandDrmWrapper == nullptr)
+        {
+            result = Result::ErrorInitializationFailed;
+        }
+    }
+    return result;
+}
+
+// Finalize initialization specific to the zwp_linux_dmabuf_v1 interface
+Result WaylandWindowSystem::FinishZwpDmaBufInit()
+{
+    Result result = Result::Success;
+
+    if (m_pDmaBuffer == nullptr)
+    {
+        result = Result::ErrorInitializationFailed;
+    }
+
+    if (result == Result::Success)
+    {
+        m_waylandProcs.pfnWlDisplayRoundtripQueue(m_pDisplay, m_pEventQueue);
+
+        m_pDefaultDmaBuffFeedback = reinterpret_cast<zwp_linux_dmabuf_feedback_v1*>(
+                                                    m_waylandProcs.pfnWlProxyMarshalConstructor(
+                                                        reinterpret_cast<wl_proxy*>(m_pDmaBuffer),
+                                                        ZWP_LINUX_DMABUF_V1_GET_DEFAULT_FEEDBACK,
+                                                        m_waylandLoader.GetZwpLinuxDmabufFeedbackV1Interface(),
+                                                        nullptr));
+
+        if (m_pDefaultDmaBuffFeedback == nullptr)
+        {
+            m_waylandProcs.pfnWlProxyAddListener(
+                reinterpret_cast<wl_proxy*>(m_pDefaultDmaBuffFeedback),
+                reinterpret_cast<Listener*>(
+                const_cast<zwp_linux_dmabuf_feedback_v1_listener*>(&FeedbackListener)),
+                this);
+
+            m_waylandProcs.pfnWlDisplayRoundtripQueue(m_pDisplay, m_pEventQueue);
+        }
+        else
+        {
+            result = Result::ErrorInitializationFailed;
+        }
+
+    }
+
+    return result;
+}
+
+// Finalize configuration-specific initialization
+Result WaylandWindowSystem::FinishInit()
+{
+    Result result = Result::Success;
+
+    if (m_useZwpDmaBufProtocol == true)
+    {
+        result = FinishZwpDmaBufInit();
+    }
+    else
+    {
+        // We default back to the wayland drm extension
+        result = FinishWlDrmInit();
+    }
+
+    return result;
+}
+
+// Create a wl_buffer from a given image
+// Buffer creation differs on whether we use the wl_drm or zwp_linux_dmabuf_v1 interfaces
+Result WaylandWindowSystem::CreateWlBuffer(
+    uint32 width,
+    uint32 height,
+    uint32 stride,
+    uint32 format,
+    uint32 flags,
+    int32 sharedBufferFd,
+    wl_buffer** ppWlBuf)
+{
+    wl_buffer*                  pBuffer       = nullptr;
+    zwp_linux_buffer_params_v1* pBufferParams = nullptr;
+    Result result                             = Result::Success;
+
+    if (m_useZwpDmaBufProtocol == true)
+    {
+        pBufferParams = reinterpret_cast<zwp_linux_buffer_params_v1*>(m_waylandProcs.pfnWlProxyMarshalConstructor(
+            reinterpret_cast<wl_proxy*>(m_pDmaBuffer),
+            ZWP_LINUX_DMABUF_V1_CREATE_PARAMS,
+            m_waylandLoader.GetZwpLinuxBufferParamsV1Interface(),
+            nullptr
+        ));
+
+        if (pBufferParams == nullptr)
+        {
+            result = Result::ErrorUnknown;
+        }
+        else
+        {
+            // All of our supported formats are linear
+            m_waylandProcs.pfnWlProxyMarshal(reinterpret_cast<wl_proxy*>(pBufferParams),
+                                            ZWP_LINUX_BUFFER_PARAMS_V1_ADD,
+                                            sharedBufferFd,
+                                            0,
+                                            0,
+                                            stride,
+                                            Util::HighPart(DRM_FORMAT_MOD_LINEAR),
+                                            Util::LowPart(DRM_FORMAT_MOD_LINEAR));
+
+            pBuffer = reinterpret_cast<wl_buffer*>(m_waylandProcs.pfnWlProxyMarshalConstructor(
+                                                    reinterpret_cast<wl_proxy*>(pBufferParams),
+                                                    ZWP_LINUX_BUFFER_PARAMS_V1_CREATE_IMMED,
+                                                    m_waylandLoader.GetWlBufferInterface(),
+                                                    nullptr,
+                                                    width,
+                                                    height,
+                                                    format,
+                                                    0));
+        }
+    }
+    else
+    {
+        pBuffer = reinterpret_cast<wl_buffer*>(m_waylandProcs.pfnWlProxyMarshalConstructor(
+                                                   reinterpret_cast<wl_proxy*>(m_pWaylandDrmWrapper),
+                                                   WL_DRM_CREATE_PRIME_BUFFER,
+                                                   m_waylandLoader.GetWlBufferInterface(),
+                                                   nullptr,
+                                                   sharedBufferFd,
+                                                   width,
+                                                   height,
+                                                   format,
+                                                   0,
+                                                   stride,
+                                                   0,
+                                                   0,
+                                                   0,
+                                                   0));
+    }
+
+    if (pBuffer == nullptr)
+    {
+        result = Result::ErrorUnknown;
+    }
+    else if (ppWlBuf != nullptr)
+    {
+        *ppWlBuf = pBuffer;
+    }
+
+    close(sharedBufferFd);
+
+    //Destroy params
+    if (pBufferParams != nullptr)
+    {
+        m_waylandProcs.pfnWlProxyMarshal(reinterpret_cast<wl_proxy*>(pBufferParams), ZWP_LINUX_BUFFER_PARAMS_V1_DESTROY);
+        m_waylandProcs.pfnWlProxyDestroy(reinterpret_cast<wl_proxy*>(pBufferParams));
+    }
+
+    return result;
+}
+
+// Add a format advertised via the zwp_linux_dmabuf_v1 or zwp_linux_dmabuf_default_feedback_v1 interfaces
+Result WaylandWindowSystem::AddFormat(ZwpDmaBufFormat fmt)
+{
+    return m_validFormats.Insert(fmt.format);
+}
+
+// Add a format advertised via the wl_drm interface
+Result WaylandWindowSystem::AddFormat(wl_drm_format fmt)
+{
+    uint32 drmFormat = WlDrmToDrmFormat(fmt);
+    return m_validFormats.Insert(drmFormat);
+}
+
+// For now the modifiers won't impact the rendered image so we check against a HashSet,
+// but in the future supporting modifiers would require more complex logic
+bool WaylandWindowSystem::IsSupportedFormat(uint32 fmt)
+{
+    return (m_validFormats.Contains(fmt) != false);
 }
 
 } // Amdgpu

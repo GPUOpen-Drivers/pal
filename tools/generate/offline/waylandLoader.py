@@ -40,6 +40,7 @@ def main(fileName, outputDir="./"):
     procMgr.GenerateIntro(fp, intro)
     # adding special include files or customized lines
     fp.write("#pragma once\n\n")
+    fp.write("#include \"core/os/amdgpu/wayland/mesa/wayland-dmabuf-client-protocol.h\"\n\n")
     fp.write("#include \"core/os/amdgpu/wayland/mesa/wayland-drm-client-protocol.h\"\n\n")
     fp.write("#ifdef None\n")
     fp.write("#undef None\n")

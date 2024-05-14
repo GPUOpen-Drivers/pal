@@ -225,7 +225,7 @@ Result ComputePipeline::HwlInit(
         result = registers.Insert(mmCOMPUTE_PGM_RSRC2, computePgmRsrc2.u32All);
     }
 
-    if ((result == Result::Success) && IsGfx10Plus(*m_pDevice->Parent()))
+    if (result == Result::Success)
     {
         result = registers.Insert(Gfx10Plus::mmCOMPUTE_PGM_RSRC3, desc.compute_pgm_rsrc3);
     }
@@ -457,35 +457,27 @@ Result ComputePipeline::LinkWithLibraries(
         computePgmRsrc2.bits.TGID_Z_EN  |= libObjRegInfo.libRegs.computePgmRsrc2.bits.TGID_Z_EN;
         computePgmRsrc2.bits.TG_SIZE_EN |= libObjRegInfo.libRegs.computePgmRsrc2.bits.TG_SIZE_EN;
 
-        if (IsGfx10Plus(gpuInfo.gfxLevel))
-        {
-            // FWD_PROGRESS and WGP_MODE should match across all the shader functions and the main shader.
-            PAL_ALERT_MSG((computePgmRsrc1.gfx10Plus.FWD_PROGRESS !=
-                            libObjRegInfo.libRegs.computePgmRsrc1.gfx10Plus.FWD_PROGRESS),
-                            "Running non-FWD_PROGRESS work in FWD_PROGRESS pipeline is supported but suboptimal");
-            PAL_ALERT_MSG((computePgmRsrc1.gfx10Plus.WGP_MODE     !=
-                            libObjRegInfo.libRegs.computePgmRsrc1.gfx10Plus.WGP_MODE),
-                            "Running non-WGP_MODE work in WGP_MODE pipeline is supported but suboptimal");
+        // FWD_PROGRESS and WGP_MODE should match across all the shader functions and the main shader.
+        PAL_ALERT_MSG((computePgmRsrc1.gfx10Plus.FWD_PROGRESS !=
+                       libObjRegInfo.libRegs.computePgmRsrc1.gfx10Plus.FWD_PROGRESS),
+                      "Running non-FWD_PROGRESS work in FWD_PROGRESS pipeline is supported but suboptimal");
+        PAL_ALERT_MSG((computePgmRsrc1.gfx10Plus.WGP_MODE     !=
+                       libObjRegInfo.libRegs.computePgmRsrc1.gfx10Plus.WGP_MODE),
+                      "Running non-WGP_MODE work in WGP_MODE pipeline is supported but suboptimal");
 
-            computePgmRsrc1.gfx10Plus.MEM_ORDERED  |= libObjRegInfo.libRegs.computePgmRsrc1.gfx10Plus.MEM_ORDERED;
-            computePgmRsrc1.gfx10Plus.FWD_PROGRESS |= libObjRegInfo.libRegs.computePgmRsrc1.gfx10Plus.FWD_PROGRESS;
-            computePgmRsrc1.gfx10Plus.WGP_MODE     |= libObjRegInfo.libRegs.computePgmRsrc1.gfx10Plus.WGP_MODE;
+        computePgmRsrc1.gfx10Plus.MEM_ORDERED  |= libObjRegInfo.libRegs.computePgmRsrc1.gfx10Plus.MEM_ORDERED;
+        computePgmRsrc1.gfx10Plus.FWD_PROGRESS |= libObjRegInfo.libRegs.computePgmRsrc1.gfx10Plus.FWD_PROGRESS;
+        computePgmRsrc1.gfx10Plus.WGP_MODE     |= libObjRegInfo.libRegs.computePgmRsrc1.gfx10Plus.WGP_MODE;
 
-            computePgmRsrc3.bits.SHARED_VGPR_CNT =
-                Max(computePgmRsrc3.bits.SHARED_VGPR_CNT, libObjRegInfo.libRegs.computePgmRsrc3.bits.SHARED_VGPR_CNT);
-        }
+        computePgmRsrc3.bits.SHARED_VGPR_CNT =
+            Max(computePgmRsrc3.bits.SHARED_VGPR_CNT, libObjRegInfo.libRegs.computePgmRsrc3.bits.SHARED_VGPR_CNT);
 
         const uint32 stackSizeNeededInBytes = pLibObj->GetMaxStackSizeInBytes() * m_maxFunctionCallDepth;
 
-        bool update = false;
         if (stackSizeNeededInBytes > m_stackSizeInBytes)
         {
-            update = true;
             m_stackSizeInBytes = stackSizeNeededInBytes;
-        }
 
-        if (update)
-        {
             UpdateRingSizeComputeScratch(m_stackSizeInBytes / sizeof(uint32));
         }
     }
@@ -552,31 +544,6 @@ void ComputePipeline::SetStackSizeInBytes(
     UpdateRingSizeComputeScratch(stackSizeInBytes / sizeof(uint32));
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 797
-// =====================================================================================================================
-// Get the size of the stack managed by the compiler, including the backend and the frontend.
-Result ComputePipeline::GetStackSizes(
-    CompilerStackSizes* pSizes
-    ) const
-{
-    Result result = Result::ErrorInvalidPointer;
-
-    if (pSizes != nullptr)
-    {
-        *pSizes = m_cpsStackSizeInBytes;
-        result = Result::Success;
-    }
-    return result;
-}
-#else
-// =====================================================================================================================
-// Get the size of the stack managed by the compiler backend.
-uint32 ComputePipeline::GetStackSizeInBytes() const
-{
-    return m_cpsStackSizeInBytes.backendSize;
-}
-#endif
-
 // =====================================================================================================================
 uint32 ComputePipeline::CalcScratchMemSize(
     GfxIpLevel                        gfxIpLevel,
@@ -590,9 +557,8 @@ uint32 ComputePipeline::CalcScratchMemSize(
         scratchMemorySize = csStageMetadata.scratchMemorySize;
     }
 
-    if (IsGfx10Plus(gfxIpLevel) &&
-        // If there is no metadata entry for wavefront size, we assume it is Wave64.
-        ((csStageMetadata.hasEntry.wavefrontSize == 0) || (csStageMetadata.wavefrontSize == 64)))
+    // If there is no metadata entry for wavefront size, we assume it is Wave64.
+    if ((csStageMetadata.hasEntry.wavefrontSize == 0) || (csStageMetadata.wavefrontSize == 64))
     {
         // We allocate scratch memory based on the minimum wave size for the chip, which for Gfx10+ ASICs will
         // be Wave32. In order to appropriately size the scratch memory (reported in the ELF as per-thread) for
@@ -609,7 +575,7 @@ uint32 ComputePipeline::CalcScratchMemSize(
 {
     uint32 scratchMemorySize = metadata.PrivateSegmentFixedSize();
 
-    if (IsGfx10Plus(gfxIpLevel) && (metadata.WavefrontSize() == 64))
+    if (metadata.WavefrontSize() == 64)
     {
         // We allocate scratch memory based on the minimum wave size for the chip, which for Gfx10+ ASICs will
         // be Wave32. In order to appropriately size the scratch memory (reported in the ELF as per-thread) for

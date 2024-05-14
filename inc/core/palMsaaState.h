@@ -100,7 +100,10 @@ struct MsaaStateCreateInfo
                                           ///  Must be less than or equal to coverageSamples.
                                           ///  Valid values are 1, 2, 4, and 8.
     uint8 pixelShaderSamples;             ///< Controls the pixel shader execution rate. Must be less than or equal to
-                                          ///  coverageSamples. Valid values are 1, 2, 4, and 8.
+                                          ///  coverageSamples. Valid values are 1, 2, 4, and 8. Note that value
+                                          ///  with greater than 1 doesn't mean sample rate shading is enabled.
+                                          ///  Sample rate shading is enabled by either @ref forceSampleRateShading
+                                          ///  or pixel shader.
     uint8 depthStencilSamples;            ///< Number of samples in the bound depth target. Must be less than or equal
                                           ///  to coverageSamples. Valid values are 1, 2, 4, and 8.
     uint8 shaderExportMaskSamples;        ///< Number of samples to use in the shader export mask. Should match the
@@ -129,7 +132,14 @@ struct MsaaStateCreateInfo
             uint8 enable1xMsaaSampleLocations     : 1; ///< Set to true to enable 1xMSAA quad sample pattern
             uint8 disableAlphaToCoverageDither    : 1; ///< Disables coverage dithering.
             uint8 enableLineStipple               : 1; ///< Set to true to enable line stippling
-            uint8 reserved                        : 4; ///<  Reserved for future use
+            uint8 forceSampleRateShading          : 1; ///< Sample rate shading can be enabled by either the pixel
+                                                       ///  shader, or forced here with forceSampleRateShading = 1.
+                                                       ///  Value 0 means sample rate shading is decided by pixel shader
+                                                       ///  and value 1 means sample rate shading is forced enabled.
+                                                       ///  This bit is for openGL glMinSampleShading, where sample rate
+                                                       ///  shading can be enabled by glEnable(GL_SAMPLE_SHADING)
+                                                       ///  instead of by the pixel shader.
+            uint8 reserved                        : 3; ///<  Reserved for future use
         };
         uint8 u8All;
     } flags;

@@ -35,6 +35,7 @@
 
 #pragma once
 
+#include "core/os/amdgpu/wayland/mesa/wayland-dmabuf-client-protocol.h"
 #include "core/os/amdgpu/wayland/mesa/wayland-drm-client-protocol.h"
 
 #ifdef None
@@ -398,11 +399,19 @@ public:
     wl_interface* GetWlRegistryInterface() const;
     wl_interface* GetWlBufferInterface() const;
     wl_interface* GetWlCallbackInterface() const;
+    wl_interface* GetWlSurfaceInterface() const;
+    wl_interface* GetZwpLinuxDmabufV1Interface() const;
+    wl_interface* GetZwpLinuxBufferParamsV1Interface() const;
+    wl_interface* GetZwpLinuxDmabufFeedbackV1Interface() const;
 
 private:
     wl_interface* m_pWlRegistryInterface;
     wl_interface* m_pWlBufferInterface;
     wl_interface* m_pWlCallbackInterface;
+    wl_interface* m_pWlSurfaceInterface;
+    wl_interface* m_pZwpLinuxDmabufV1Interface;
+    wl_interface* m_pZwpLinuxBufferParamsV1Interface;
+    wl_interface* m_pZwpLinuxDmabufFeedbackV1Interface;
 
     Util::Library m_library[WaylandLoaderLibrariesCount];
     bool          m_initialized;

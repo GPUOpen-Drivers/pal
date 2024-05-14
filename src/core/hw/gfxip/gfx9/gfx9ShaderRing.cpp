@@ -43,24 +43,6 @@ constexpr size_t ScratchWaveSizeGranularityShiftNv31 = 6;
 constexpr size_t ScratchWaveSizeGranularityNv31      = (1ull << ScratchWaveSizeGranularityShiftNv31);
 
 // =====================================================================================================================
-// On GFXIP 9 hardware, buffer SRD's which set the ADD_TID_ENABLE bit in word3 changes the meaning of the DATA_FORMAT
-// field to stride bits [17:14] used for scratch offset boundary checks instead of the format.
-static void AdjustRingDataFormat(
-    const GpuChipProperties& chipProps,
-    BufferSrd*               pGenericSrd)
-{
-    if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
-    {
-        auto*  pSrd = &pGenericSrd->gfx9;
-
-        if (pSrd->word3.bits.ADD_TID_ENABLE != 0)
-        {
-            pSrd->word3.bits.DATA_FORMAT = BUF_DATA_FORMAT_INVALID; // Sets the extended stride to zero.
-        }
-    }
-}
-
-// =====================================================================================================================
 ShaderRing::ShaderRing(
     Device*        pDevice,
     BufferSrd*     pSrdTable,
@@ -254,15 +236,8 @@ ScratchRing::ScratchRing(
     BufferSrd*const   pGenericSrd = &m_pSrdTable[static_cast<size_t>(srdTableIndex)];
 
     m_pDevice->InitBufferSrd(pGenericSrd, 0, 0);
-    if (m_gfxLevel == GfxIpLevel::GfxIp9)
-    {
-        auto*const  pSrd = &pGenericSrd->gfx9;
 
-        pSrd->word1.bits.SWIZZLE_ENABLE  = 1;
-        pSrd->word3.bits.INDEX_STRIDE    = BUF_INDEX_STRIDE_64B;
-        pSrd->word3.bits.ADD_TID_ENABLE  = 1;
-    }
-    else if (IsGfx10(m_gfxLevel))
+    if (IsGfx10(m_gfxLevel))
     {
         auto*const  pSrd = &pGenericSrd->gfx10;
 
@@ -270,7 +245,7 @@ ScratchRing::ScratchRing(
         pSrd->index_stride         = BUF_INDEX_STRIDE_64B;
         pSrd->add_tid_enable       = 1;
     }
-    else if (IsGfx11(m_gfxLevel))
+    else
     {
         auto*const  pSrd = &pGenericSrd->gfx10;
 
@@ -278,12 +253,6 @@ ScratchRing::ScratchRing(
         pSrd->index_stride         = BUF_INDEX_STRIDE_64B;
         pSrd->add_tid_enable       = 1;
     }
-    else
-    {
-        PAL_ASSERT_ALWAYS();
-    }
-
-    AdjustRingDataFormat(chipProps, pGenericSrd);
 }
 
 // =====================================================================================================================
@@ -419,17 +388,7 @@ GsVsRing::GsVsRing(
         pDevice->InitBufferSrd(pBufferSrdWr, 0, 0);
         pDevice->SetNumRecords(pBufferSrdWr, NumRecordsWrite);
 
-        if (m_gfxLevel == GfxIpLevel::GfxIp9)
-        {
-            auto*const  pSrdWr = &pBufferSrdWr->gfx9;
-
-            pSrdWr->word1.bits.SWIZZLE_ENABLE = 1;
-            pSrdWr->word3.bits.DATA_FORMAT    = BUF_DATA_FORMAT_INVALID;
-            pSrdWr->word3.bits.NUM_FORMAT     = BUF_NUM_FORMAT_FLOAT;
-            pSrdWr->word3.bits.INDEX_STRIDE   = BUF_INDEX_STRIDE_16B;
-            pSrdWr->word3.bits.ADD_TID_ENABLE = 1;
-        }
-        else if (IsGfx10(m_gfxLevel))
+        if (IsGfx10(m_gfxLevel))
         {
             auto*const  pSrdWr = &pBufferSrdWr->gfx10;
 
@@ -437,7 +396,7 @@ GsVsRing::GsVsRing(
             pSrdWr->index_stride         = BUF_INDEX_STRIDE_16B;
             pSrdWr->add_tid_enable       = 1;
         }
-        else if (IsGfx11(m_gfxLevel))
+        else
         {
             auto*const  pSrdWr = &pBufferSrdWr->gfx10;
 
@@ -445,18 +404,10 @@ GsVsRing::GsVsRing(
             pSrdWr->index_stride         = BUF_INDEX_STRIDE_16B;
             pSrdWr->add_tid_enable       = 1;
         }
-        else
-        {
-            PAL_ASSERT_ALWAYS();
-        }
-
-        AdjustRingDataFormat(chipProps, pGenericSrdWr + idx);
     }
 
     // Set-up static SRD fields for Read:
     pDevice->InitBufferSrd(pGenericSrdRd, 0, 0);
-
-    AdjustRingDataFormat(chipProps, pGenericSrdRd);
 }
 
 // =====================================================================================================================
@@ -480,18 +431,7 @@ void GsVsRing::UpdateSrds() const
         // All four WriteSrds are programmed to the same base address and a stride of zero.
         // These SRDs are patched by the geometry shader with values from a geometry constant buffer for
         // accurate rendering.
-        if (m_gfxLevel == GfxIpLevel::GfxIp9)
-        {
-            pSrdWr->gfx9.word1.bits.STRIDE = 0;
-        }
-        else if (IsGfx10Plus(m_gfxLevel))
-        {
-            pSrdWr->gfx10.stride = 0;
-        }
-        else
-        {
-            PAL_ASSERT_ALWAYS();
-        }
+        pSrdWr->gfx10.stride = 0;
     }
 }
 
@@ -503,14 +443,10 @@ TessFactorBuffer::TessFactorBuffer(
     :
     ShaderRing(pDevice, pSrdTable, isTmz, ShaderRingType::TfBuffer)
 {
-    const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
-
     BufferSrd*const pGenericSrd = &m_pSrdTable[static_cast<size_t>(ShaderRingSrd::TessFactorBuffer)];
 
     // Set-up static SRD fields:
     pDevice->InitBufferSrd(pGenericSrd, 0, 0);
-
-    AdjustRingDataFormat(chipProps, pGenericSrd);
 }
 
 // =====================================================================================================================
@@ -558,13 +494,9 @@ OffchipLdsBuffer::OffchipLdsBuffer(
     :
     ShaderRing(pDevice, pSrdTable, isTmz, ShaderRingType::OffChipLds)
 {
-    const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
-
     BufferSrd*const pGenericSrd = &m_pSrdTable[static_cast<size_t>(ShaderRingSrd::OffChipLdsBuffer)];
 
     pDevice->InitBufferSrd(pGenericSrd, 0, 0);
-
-    AdjustRingDataFormat(chipProps, pGenericSrd);
 }
 
 // =====================================================================================================================
@@ -616,13 +548,10 @@ SamplePosBuffer::SamplePosBuffer(
 {
     constexpr uint32 SamplePosBufStride = sizeof(float) * 4;
 
-    const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
-
     BufferSrd*const pGenericSrd = &m_pSrdTable[static_cast<size_t>(ShaderRingSrd::SamplePosBuffer)];
 
     // Set-up static SRD fields:
     pDevice->InitBufferSrd(pGenericSrd, 0, SamplePosBufStride);
-    AdjustRingDataFormat(chipProps, pGenericSrd);
 }
 
 // =====================================================================================================================
@@ -670,10 +599,9 @@ MeshScratchRing::MeshScratchRing(
     ShaderRing(pDevice, pSrdTable, isTmz, ShaderRingType::MeshScratch),
     m_maxThreadgroupsPerChip(1 << CountSetBits(VGT_GS_MAX_WAVE_ID__MAX_WAVE_ID_MASK))
 {
-    BufferSrd*const   pGenericSrd = &m_pSrdTable[static_cast<size_t>(ShaderRingSrd::MeshScratch)];
+    BufferSrd*const pGenericSrd = &m_pSrdTable[static_cast<size_t>(ShaderRingSrd::MeshScratch)];
 
     m_pDevice->InitBufferSrd(pGenericSrd, 0, 0);
-    AdjustRingDataFormat(m_pDevice->Parent()->ChipProperties(), pGenericSrd);
 }
 
 // =====================================================================================================================
@@ -713,10 +641,8 @@ PayloadDataRing::PayloadDataRing(
     m_maxNumEntries(Pow2Pad(m_pDevice->Settings().numTsMsDrawEntriesPerSe *
                             pDevice->Parent()->ChipProperties().gfx9.numShaderEngines))
 {
-    const GpuChipProperties& chipProps   = m_pDevice->Parent()->ChipProperties();
     BufferSrd*const          pGenericSrd = &m_pSrdTable[static_cast<size_t>(ShaderRingSrd::PayloadDataRing)];
     m_pDevice->InitBufferSrd(pGenericSrd, 0, PayloadDataEntrySize);
-    AdjustRingDataFormat(chipProps, pGenericSrd);
 }
 
 // =====================================================================================================================
@@ -742,14 +668,11 @@ TaskMeshCtrlDrawRing::TaskMeshCtrlDrawRing(
                               pDevice->Parent()->ChipProperties().gfx9.numShaderEngines)),
     m_drawRingTotalBytes(m_drawRingEntries * DrawDataEntrySize)
 {
-    const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
     BufferSrd*const          pDrawData = &m_pSrdTable[static_cast<size_t>(ShaderRingSrd::DrawDataRing)];
     m_pDevice->InitBufferSrd(pDrawData, 0, DrawDataEntrySize);
-    AdjustRingDataFormat(chipProps, pDrawData);
 
     BufferSrd*const          pTaskMeshCt = &m_pSrdTable[static_cast<size_t>(ShaderRingSrd::TaskMeshControl)];
     m_pDevice->InitBufferSrd(pTaskMeshCt, 0, 0);
-    AdjustRingDataFormat(chipProps, pTaskMeshCt);
 }
 
 // =====================================================================================================================
@@ -758,8 +681,7 @@ void TaskMeshCtrlDrawRing::InitializeControlBufferAndDrawRingBuffer()
     ControlBufferLayout controlBuffer = {};
 
     constexpr uint32 AlignmentBytes = 64;
-
-    gpusize drawRingAddr = GetDrawRingVirtAddr();
+    const gpusize    drawRingAddr   = GetDrawRingVirtAddr();
 
     // The draw ring base address must be aligned to 64-bytes.
     PAL_ASSERT(Util::IsPow2Aligned(drawRingAddr, AlignmentBytes));
@@ -819,14 +741,11 @@ VertexAttributeRing::VertexAttributeRing(
     :
     ShaderRing(pDevice, pSrdTable, isTmz, ShaderRingType::VertexAttributes)
 {
-    const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
-
     BufferSrd*const pSrd = &m_pSrdTable[static_cast<size_t>(ShaderRingSrd::VertexAttributes)];
 
     // Set-up static SRD fields:
     pDevice->InitBufferSrd(pSrd, 0, Stride);
 
-    AdjustRingDataFormat(chipProps, pSrd);
     pSrd->gfx10.index_stride          = BUF_INDEX_STRIDE_32B;
     pSrd->gfx10.gfx104Plus.format     = BUF_FMT_32_32_32_32_FLOAT__GFX104PLUS;
     pSrd->gfx10.gfx11.swizzle_enable  = 3;

@@ -77,6 +77,8 @@ pal_bp(PAL_BUILD_NULL_DEVICE ON)
 # Build PAL with Graphics support?
 pal_bp(PAL_BUILD_GFX ON)
 
+pal_bp(PAL_BUILD_BRANCH "2410")
+
 ### Specify GPU build options ##########################################################################################
 
 if (PAL_BUILD_GFX)
@@ -113,6 +115,12 @@ if (PAL_BUILD_GFX9)
                     PAL_BUILD_GFX11
               )
     endif()
+
+    pal_bp( PAL_BUILD_PHOENIX2 ON MODE "AUTHOR_WARNING"
+            ASIC_CONFIG
+                PAL_BUILD_GFX11
+                CHIP_HDR_PHOENIX2
+          )
 #endif
 
 endif() # PAL_BUILD_GFX9

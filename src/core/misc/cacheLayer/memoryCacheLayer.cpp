@@ -29,6 +29,8 @@
 #include "palAssert.h"
 #include "core/platform.h"
 
+using namespace std::chrono_literals;
+
 namespace Util
 {
 
@@ -397,7 +399,6 @@ Result MemoryCacheLayer::GetCacheData(
 
 }
 
-static constexpr uint32_t CacheTimeout = 500;
 // =====================================================================================================================
 // Wait for the specified entry ready
 Result MemoryCacheLayer::WaitForEntry(
@@ -435,7 +436,7 @@ Result MemoryCacheLayer::WaitForEntry(
                     break;
                 }
             }
-            m_conditionVariable.Wait(&m_conditionMutex, CacheTimeout);
+            m_conditionVariable.Wait(&m_conditionMutex, 500ms);
         }
         m_conditionMutex.Unlock();
     }

@@ -69,10 +69,10 @@ struct SpmCounterDataHeader
 };
 
 constexpr char        SqttDataTextId[TextIdentifierSize] = "SqttData";
-constexpr Pal::uint32 SqttDataChunkVersion               = 2;
+constexpr Pal::uint32 SqttDataChunkVersion               = 3;
 
 /// SQTT Data RDF chunk
-struct TraceChunkSqttData
+struct SqttDataHeader
 {
     Pal::uint32 pciId;
     Pal::uint32 shaderEngine;
@@ -80,6 +80,7 @@ struct TraceChunkSqttData
     Pal::uint32 instrumentationVersionSpec;
     Pal::uint32 instrumentationVersionApi;
     Pal::uint32 wgpIndex;
+    Pal::uint64 traceBufferSize;
 };
 
 } // namespace TraceChunk
@@ -122,7 +123,7 @@ private:
     void OnSpmConfigUpdated(DevDriver::StructuredValue* pJsonConfig);
     void OnSqttConfigUpdated(DevDriver::StructuredValue* pJsonConfig);
 
-    void ReportInternalError(const char* pErrorMsg, Pal::Result result);
+    void ReportInternalError(const char* pErrorMsg, Pal::Result result, bool isSqttError);
 
     Pal::Result WriteSpmSessionChunk(
         const SpmTraceInfo& traceInfo,

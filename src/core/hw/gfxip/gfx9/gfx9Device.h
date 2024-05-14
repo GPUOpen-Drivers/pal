@@ -55,6 +55,12 @@ class Gfx10DepthStencilView;
 // This value is the result Log2(MaxMsaaRasterizerSamples) + 1.
 constexpr uint32 MsaaLevelCount = 5;
 
+enum LateAllocVsMode : uint32
+{
+    LateAllocVsDisable = 0x00000000,
+    LateAllocVsInvalid = 0xFFFFFFFF,
+};
+
 enum RegisterRangeType : uint32
 {
     RegRangeUserConfig           = 0x0,
@@ -376,11 +382,6 @@ public:
         ADDR_CREATE_FLAGS*   pCreateFlags,
         ADDR_REGISTER_VALUE* pRegValue) const override;
 
-    virtual bool IsImageFormatOverrideNeeded(
-        const ImageCreateInfo& imageCreateInfo,
-        ChNumFormat*           pFormat,
-        uint32*                pPixelsPerBlock) const override;
-
     virtual DccFormatEncoding ComputeDccFormatEncoding(
         const SwizzledFormat& swizzledFormat,
         const SwizzledFormat* pViewFormats,
@@ -463,8 +464,6 @@ public:
 
     uint32 GetPipeInterleaveLog2() const;
 
-    uint32 GetDbDfsmControl() const;
-
     // This is the granularity that LDS is actually allocated in in terms of bytes
     uint32 GetHwAllocLdsGranularityBytes() const { return Parent()->ChipProperties().gfxip.ldsGranularity; }
 
@@ -483,6 +482,9 @@ public:
     uint32 GetMsaaRate() const override { return m_msaaRate; }
 
     bool UseStateShadowing(EngineType engineType) const;
+
+    bool   UseFixedLateAllocVsLimit() const { return m_useFixedLateAllocVsLimit; }
+    uint32 LateAllocVsLimit() const { return m_lateAllocVsLimit; }
 
 #if DEBUG
     uint32* TemporarilyHangTheGpu(EngineType engineType, uint32 number, uint32* pCmdSpace) const override;
@@ -543,11 +545,6 @@ private:
 
     Result InitOcclusionResetMem();
 
-    void Gfx9CreateFmaskViewSrdsInternal(
-        const FmaskViewInfo&         viewInfo,
-        const FmaskViewInternalInfo* pFmaskViewInternalInfo,
-        Gfx9ImageSrd*                pSrd) const;
-
     void SetupWorkarounds();
 
     Gfx9::CmdUtil    m_cmdUtil;
@@ -588,6 +585,9 @@ private:
 
     // 0 - Non-TMZ, 1 - TMZ
     BoundGpuMemory m_vertexAttributesMem[2];
+
+    bool   m_useFixedLateAllocVsLimit;
+    uint32 m_lateAllocVsLimit;
 
     PAL_DISALLOW_DEFAULT_CTOR(Device);
     PAL_DISALLOW_COPY_AND_ASSIGN(Device);

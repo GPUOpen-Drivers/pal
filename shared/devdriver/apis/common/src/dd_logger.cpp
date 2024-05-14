@@ -23,8 +23,8 @@
  *
  **********************************************************************************************************************/
 
-#include "../inc/dd_logger_api.h"
-#include "../inc/dd_assert.h"
+#include <dd_logger_api.h>
+#include <dd_assert.h>
 
 #include <stb_sprintf.h>
 

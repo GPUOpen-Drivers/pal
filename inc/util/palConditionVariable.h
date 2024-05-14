@@ -37,6 +37,7 @@
 #if   defined(__unix__)
 #include <pthread.h>
 #endif
+#include <chrono>
 
 namespace Util
 {
@@ -61,13 +62,16 @@ public:
     /// Atomically releases the given mutex lock and initiates a sleep waiting for WakeOne() or WakeAll() to be called
     /// on this condition variable from a different thread.
     ///
-    /// @param [in] pMutex       Mutex object to be released when the sleep is begun and reacquired before returning
-    ///                          control to the caller.
-    /// @param [in] milliseconds Number of milliseconds to sleep before timing out the operation and returning.  The
-    ///                          mutex will be re-acquired before returning even if a timeout occurs.
+    /// @param [in] pMutex   Mutex object to be released when the sleep is begun and reacquired before returning
+    ///                      control to the caller.
+    /// @param [in] timeout  Number of milliseconds to sleep before timing out the operation and returning.  The
+    ///                      mutex will be re-acquired before returning even if a timeout occurs.
     ///
     /// @returns True if the call succeeded and the thread was successfully awoken, false if the sleep timed out.
-    bool Wait(Mutex* pMutex, uint32 milliseconds);
+    bool Wait(Mutex* pMutex, std::chrono::milliseconds timeout);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 863
+    bool Wait(Mutex* pMutex, uint32 timeoutMs);
+#endif
 
     /// Wakes up one thread that is waiting on this condition variable.
     void WakeOne();

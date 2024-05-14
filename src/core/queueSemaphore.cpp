@@ -27,8 +27,24 @@
 #include "core/queueSemaphore.h"
 #include "palAssert.h"
 
+#include <algorithm>
+
+using namespace std::chrono;
+
 namespace Pal
 {
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 863
+// =====================================================================================================================
+// This has to be defined in a .cpp file because using any sort of a min()/max() function can conflict with clients
+// still using Microsoft's min()/max() macros.
+Result IQueueSemaphore::WaitSemaphoreValue(
+    uint64                   value,
+    uint64                   timeoutNs)
+{
+    return WaitSemaphoreValue(value, nanoseconds{ std::min(timeoutNs, uint64(nanoseconds::max().count())) });
+}
+#endif
 
 // =====================================================================================================================
 QueueSemaphore::QueueSemaphore(

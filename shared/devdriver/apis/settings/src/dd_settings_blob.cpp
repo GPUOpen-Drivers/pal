@@ -23,7 +23,7 @@
  *
  **********************************************************************************************************************/
 
-#include "../inc/dd_settings_blob.h"
+#include <dd_settings_blob.h>
 #include <string.h>
 #include <ddPlatform.h>
 

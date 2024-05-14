@@ -142,10 +142,7 @@ struct BatchedQueueCmdData
             PresentDirectInfo info;
         } presentDirect;
 
-        struct
-        {
-            float time;
-        } delay;
+        Util::fmilliseconds delay;
 
         struct
         {
@@ -258,10 +255,10 @@ public:
     virtual Result PresentSwapChain(const PresentSwapChainInfo& presentInfo) override;
 
     // NOTE: Part of the public IQueue interface.
-    virtual Result Delay(float delay) override;
+    virtual Result Delay(Util::fmilliseconds delay) override;
 
     // NOTE: Part of the public IQueue interface.
-    virtual Result DelayAfterVsync(float delayInUs, const IPrivateScreen* pScreen) override;
+    virtual Result DelayAfterVsync(Util::fmicroseconds delay, const IPrivateScreen* pScreen) override;
 
     // NOTE: Part of the public IQueue interface.
     virtual Result RemapVirtualMemoryPages(
@@ -347,7 +344,7 @@ protected:
     virtual Result OsWaitIdle() = 0;
 
     // Performs OS-specific Queue delay behavior. Only supported on Timer Queues.
-    virtual Result OsDelay(float delay, const IPrivateScreen* pPrivateScreen) = 0;
+    virtual Result OsDelay(Util::fmicroseconds delay, const IPrivateScreen* pPrivateScreen) = 0;
 
     // Performs OS-specific Queue direct presentation behavior.
     virtual Result OsPresentDirect(const PresentDirectInfo& presentInfo) = 0;
@@ -435,8 +432,10 @@ private:
     // Each queue must register itself with its device and engine so that they can manage their internal lists.
     Util::IntrusiveListNode<Queue>              m_deviceMembershipNode;
 
-    uint32           m_lastFrameCnt;       // Most recent frame in which the queue submission occurs
-    uint32           m_submitIdPerFrame;   // The Nth queue submission of the frame
+    // This state is all for OpenCommandDumpFile.
+    const uint32     m_queueId;          // A unique ID to identify commands logged by this queue.
+    uint32           m_lastFrameCnt;     // Most recent frame in which the queue submission occurs
+    uint32           m_submitIdPerFrame; // The Nth queue submission of the frame
 
     PAL_DISALLOW_DEFAULT_CTOR(Queue);
     PAL_DISALLOW_COPY_AND_ASSIGN(Queue);

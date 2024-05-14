@@ -90,7 +90,7 @@ public:
 
 protected:
     // Can't delay a queue that doesn't exist in HW.
-    virtual Result OsDelay(float delay, const IPrivateScreen* pScreen) override { return Result::ErrorUnavailable; }
+    virtual Result OsDelay(Util::fmicroseconds delay, const IPrivateScreen* pScreen) override { return Result::ErrorUnavailable; }
 
     virtual Result OsPresentDirect(const PresentDirectInfo& presentInfo) override;
 

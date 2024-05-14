@@ -26,6 +26,7 @@
 #pragma once
 
 #include "palFence.h"
+#include <chrono>
 #include <climits>
 
 namespace Pal
@@ -70,11 +71,11 @@ public:
     bool IsOpened() const                    { return (m_fenceState.isOpened != 0);}
 
     virtual Result WaitForFences(
-        const Device&      device,
-        uint32             fenceCount,
-        const Fence*const* ppFenceList,
-        bool               waitAll,
-        uint64             timeout) const = 0;
+        const Device&            device,
+        uint32                   fenceCount,
+        const Fence*const*       ppFenceList,
+        bool                     waitAll,
+        std::chrono::nanoseconds timeout) const = 0;
 
 protected:
     // NOTE: winFence does not need initialSignalState and neverSubmitted after ErrorFenceNeverSubmitted is removed.

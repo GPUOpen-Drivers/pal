@@ -34,8 +34,12 @@
 #if PAL_ENABLE_LOGGING
 
 #include "palDbgLogger.h"
+#include "palDbgLogMgr.h"
+#include "palDbgLogHelper.h"
 #include "protocols/ddEventProvider.h"
 #include "pal.h"
+#include "palPlatform.h"
+#include "palVector.h"
 
 namespace Pal
 {
@@ -66,33 +70,28 @@ public:
 
     /// Establishes a connection to the DevDriver event server by registering itself.
     ///
-    /// @param [in] pDbgLoggerDevDriver      Pointer to the DevDriver logger that uses this event provider. This is
-    ///                                      used to pass the incoming SeverityLevel and OriginationType set from a
-    ///                                      connected tool to the DevDriver logger. The DevDriver logger uses this
-    ///                                      information to filter the debug messages.
     /// @returns Success if provider registration is successful, otherwise returns one of the following:
     ///          ErrorInvalidPointer - if event server is a null pointer.
     ///          ErrorUnknown - if provider registration failed.
-    Util::Result Init(DbgLoggerDevDriver* pDbgLoggerDevDriver);
+    Util::Result Init();
 
     /// Closes the connection to the DevDriver event server by unregistering itself.
     void Destroy();
 
     /// Logs the incoming raw data with the DevDriver.
     ///
-    /// @param [in] eventId      Bit position of debug log message's OriginationType. The DevDriver maintains a bit
-    ///                          mask of OriginationType and SeverityLevel packed into one uint32 word. It checks
-    ///                          the bit at eventId in this word and if set, logs the incoming message out to the
-    ///                          connected tool.
-    /// @param [in] dataSize     Size of incoming raw data.
-    /// @param [in] pData        Pointer to the raw data that needs to be logged.
+    /// @param [in] severity     Specifies the severity level of the log message
+    /// @param [in] source       Specifies the origination type (source) of the log message
+    /// @param [in] pClientTag   Indicates the client that logs a message. Only the first 'ClientTagSize'
+    ///                          number of characters will be used to identify the client.
+    /// @param [in] dataSize     Size of raw data.
+    /// @param [in] pData        Pointer to raw data.
     void LogMessage(
-        uint32      eventId,
-        size_t      dataSize,
-        const void* pData)
-    {
-        WriteEvent(eventId, pData, dataSize);
-    }
+        Util::SeverityLevel   severity,
+        Util::OriginationType source,
+        const char*           pClientTag,
+        size_t                dataSize,
+        const void*           pData);
 
     /// @returns the Id of this provider.
     virtual DevDriver::EventProtocol::EventProviderId GetId() const override
@@ -110,11 +109,27 @@ public:
     virtual uint32 GetEventDescriptionDataSize() const override;
 
 private:
+    /// The data output with a LogStringEvent by this provider will consist of this structure followed by the
+    /// variable length string
+    struct LogStringEventInfo
+    {
+        uint32 severity;
+        uint32 originationType;
+        char   pClientTag[Util::ClientTagSize];
+        uint32 logStringLength;
+    };
+
     /// LogEventProvider's provider Id is the chain of ASCII codes of each letter in 'LogE'
     static constexpr DevDriver::EventProtocol::EventProviderId ProviderId = 0x4C6F6745; // 'LogE'
 
-    DevDriver::EventProtocol::EventServer* m_pEventServer;        ///< used to pass log messages out to the tool.
-    DbgLoggerDevDriver*                    m_pDbgLoggerDevDriver; ///< Logger that contains this provider.
+    /// Used to pass log messages out to the tool.
+    DevDriver::EventProtocol::EventServer* m_pEventServer;
+
+    /// Vector used as a resizable buffer to hold event data
+    Util::Vector<uint8, sizeof(LogStringEventInfo) + 256, IPlatform> m_eventData;
+
+    // Event ID for a string log message
+    static const uint32 KLogStringEventId = 1;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(LogEventProvider);
     PAL_DISALLOW_DEFAULT_CTOR(LogEventProvider);
@@ -139,10 +154,12 @@ private:
 class DbgLoggerDevDriver final : public Util::IDbgLogger
 {
 public:
-    /// Constructor. Initializes the base class with all severity levels and origination types. These settings will
+    /// Constructor. Initializes the base class with the provided severity level and origination types. These settings will
     /// be overridden later if the user changes them from the connected tool.
-    /// @param [in] pPlatform     Pointer to the IPlatform object used to access the DevDriver event server.
+    /// @param [in] settings   Settings for this logger
+    /// @param [in] pPlatform  Pointer to the IPlatform object used to access the DevDriver event server.
     DbgLoggerDevDriver(
+        Util::DbgLogBaseSettings settings,
         IPlatform* pPlatform);
 
     /// Destructor
@@ -151,12 +168,30 @@ public:
         Cleanup();
     }
 
+    /// Create a DevDriver logger that clients can use.
+    ///
+    /// @param [in]  settings             Settings for this logger
+    /// @param [in]  pAllocator           Memory allocator
+    /// @param [out] ppDbgLoggerDevDriver Pointer to hold the newly created DevDriver logger
+    static Result CreateDevDriverLogger(
+        Util::DbgLogBaseSettings settings,
+        IPlatform*               pPlatform,
+        DbgLoggerDevDriver**     ppDbgLoggerDevDriver);
+
+    /// Destroy the DevDriver logger.
+    ///
+    /// @param [in]  DbgLoggerDevDriver Print logger to destroy
+    /// @param [in]  pAllocator         Memory allocator with which it was allocated
+    static void DestroyDevDriverLogger(
+        DbgLoggerDevDriver* pDbgLoggerDevDriver,
+        IPlatform*          pPlatform);
+
     /// Initializes the LogEventProvider object.
     ///
     /// @returns the code from LogEventProvider initialization.
     Util::Result Init()
     {
-        return m_logEventProvider.Init(this);
+        return m_logEventProvider.Init();
     }
 
     /// Cleanup any data structures used by the logger.
@@ -181,7 +216,8 @@ protected:
         size_t                dataSize,
         const void*           pData) override
     {
-        m_logEventProvider.LogMessage(uint32(source), dataSize, pData);
+        // Just pass the message through to the event provider
+        m_logEventProvider.LogMessage(severity, source, pClientTag, dataSize, pData);
     }
 
 private:

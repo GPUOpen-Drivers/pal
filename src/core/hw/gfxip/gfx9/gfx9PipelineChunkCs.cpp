@@ -159,18 +159,13 @@ void PipelineChunkCs::InitRegisters(
     DispatchInterleaveSize            interleaveSize,
     uint32                            wavefrontSize)
 {
-    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
-    const GfxIpLevel         gfxLevel  = chipProps.gfxLevel;
-
-    m_regs.computePgmRsrc1.u32All         = AbiRegisters::ComputePgmRsrc1(metadata, gfxLevel);
-    m_regs.dynamic.computePgmRsrc2.u32All = AbiRegisters::ComputePgmRsrc2(metadata, m_device);
+    m_regs.computePgmRsrc1.u32All         = AbiRegisters::ComputePgmRsrc1(metadata);
+    m_regs.dynamic.computePgmRsrc2.u32All = AbiRegisters::ComputePgmRsrc2(metadata);
 
     // These are optional for shader libraries.
-    {
-        m_regs.computeNumThreadX.u32All = AbiRegisters::ComputeNumThreadX(metadata);
-        m_regs.computeNumThreadY.u32All = AbiRegisters::ComputeNumThreadY(metadata);
-        m_regs.computeNumThreadZ.u32All = AbiRegisters::ComputeNumThreadZ(metadata);
-    }
+    m_regs.computeNumThreadX.u32All = AbiRegisters::ComputeNumThreadX(metadata);
+    m_regs.computeNumThreadY.u32All = AbiRegisters::ComputeNumThreadY(metadata);
+    m_regs.computeNumThreadZ.u32All = AbiRegisters::ComputeNumThreadZ(metadata);
 
     m_regs.computePgmRsrc3.u32All = AbiRegisters::ComputePgmRsrc3(metadata, m_device, m_pStageInfo->codeLength);
     m_regs.computeShaderChksum.u32All = AbiRegisters::ComputeShaderChkSum(metadata, m_device);
@@ -197,24 +192,18 @@ void PipelineChunkCs::InitRegisters(
     registers.HasEntry(mmCOMPUTE_NUM_THREAD_Y, &m_regs.computeNumThreadY.u32All);
     registers.HasEntry(mmCOMPUTE_NUM_THREAD_Z, &m_regs.computeNumThreadZ.u32All);
 
-    if (IsGfx10Plus(chipProps.gfxLevel))
-    {
-        m_regs.computePgmRsrc3.u32All = registers.At(Gfx10Plus::mmCOMPUTE_PGM_RSRC3);
+    m_regs.computePgmRsrc3.u32All = registers.At(Gfx10Plus::mmCOMPUTE_PGM_RSRC3);
 
-        if (IsGfx11Plus(chipProps.gfxLevel))
-        {
-            m_regs.computePgmRsrc3.gfx104Plus.INST_PREF_SIZE =
-                m_device.GetShaderPrefetchSize(m_pStageInfo->codeLength);
-        }
+    if (IsGfx11(chipProps.gfxLevel))
+    {
+        m_regs.computePgmRsrc3.gfx104Plus.INST_PREF_SIZE =
+            m_device.GetShaderPrefetchSize(m_pStageInfo->codeLength);
 
         // PWS+ only support pre-shader waits if the IMAGE_OP bit is set. Theoretically we only set it for shaders that
         // do an image operation. However that would mean that our use of the pre-shader PWS+ wait is dependent on us
         // only waiting on image resources, which we don't know in our interface. For now always set the IMAGE_OP bit
         // for corresponding shaders, making the pre-shader waits global.
-        if (IsGfx11(chipProps.gfxLevel))
-        {
-            m_regs.computePgmRsrc3.gfx11.IMAGE_OP = 1;
-        }
+        m_regs.computePgmRsrc3.gfx11.IMAGE_OP = 1;
     }
 
     if (chipProps.gfx9.supportSpp == 1)
@@ -238,18 +227,6 @@ void PipelineChunkCs::InitRegisters(
     if (((chipProps.gfx9.numShaderArrays * chipProps.gfx9.numCuPerSh) & 0x3) && (wavesPerGroup == 1))
     {
         m_regs.dynamic.computeResourceLimits.bits.FORCE_SIMD_DIST = 1;
-    }
-
-    if (m_device.Parent()->LegacyHwsTrapHandlerPresent() && (chipProps.gfxLevel == GfxIpLevel::GfxIp9))
-    {
-
-        // If the legacy HWS's trap handler is present, compute shaders must always set the TRAP_PRESENT
-        // flag.
-
-        // TODO: Handle the case where the client enabled a trap handler and the hardware scheduler's trap handler
-        // is already active!
-        PAL_ASSERT(m_regs.dynamic.computePgmRsrc2.bits.TRAP_PRESENT == 0);
-        m_regs.dynamic.computePgmRsrc2.bits.TRAP_PRESENT = 1;
     }
 
     const auto& settings = m_device.Settings();
@@ -308,7 +285,7 @@ void PipelineChunkCs::SetupSignatureFromElf(
     pSignature->userDataHash = ComputeUserDataHash(&pSignature->stage);
 
     // Only gfx10+ can run in wave32 mode.
-    pSignature->flags.isWave32 = IsGfx10Plus(*m_device.Parent()) && (metadata.WavefrontSize() == 32);
+    pSignature->flags.isWave32 = (metadata.WavefrontSize() == 32);
 }
 
 // =====================================================================================================================
@@ -333,16 +310,11 @@ void PipelineChunkCs::SetupSignatureFromElf(
     // Compute a hash of the user data mapping
     pSignature->userDataHash = ComputeUserDataHash(&pSignature->stage);
 
-    // We don't bother checking the wavefront size for pre-Gfx10 GPU's since it is implicitly 64 before Gfx10. Any ELF
-    // which doesn't specify a wavefront size is assumed to use 64, even on Gfx10 and newer.
-    if (IsGfx9(*(m_device.Parent())) == false)
+    const auto& csMetadata = metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Cs)];
+    if (csMetadata.hasEntry.wavefrontSize != 0)
     {
-        const auto& csMetadata = metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Cs)];
-        if (csMetadata.hasEntry.wavefrontSize != 0)
-        {
-            PAL_ASSERT((csMetadata.wavefrontSize == 64) || (csMetadata.wavefrontSize == 32));
-            pSignature->flags.isWave32 = (csMetadata.wavefrontSize == 32);
-        }
+        PAL_ASSERT((csMetadata.wavefrontSize == 64) || (csMetadata.wavefrontSize == 32));
+        pSignature->flags.isWave32 = (csMetadata.wavefrontSize == 32);
     }
 }
 
@@ -535,18 +507,10 @@ uint32* PipelineChunkCs::UpdateDynamicRegInfo(
     pDynamicRegs->computeResourceLimits.bits.TG_PER_CU = Min(csInfo.maxThreadGroupsPerCu, Gfx9MaxTgPerCu);
     if (csInfo.maxWavesPerCu > 0)
     {
-        pDynamicRegs->computeResourceLimits.bits.WAVES_PER_SH = IsGfx10Plus(chipProps.gfxLevel) ?
-                            ComputePipeline::CalcMaxWavesPerSe(chipProps, csInfo.maxWavesPerCu) :
-                            ComputePipeline::CalcMaxWavesPerSh(chipProps, csInfo.maxWavesPerCu);
+        // Yes, this is actually WAVES_PER_SE.
+        pDynamicRegs->computeResourceLimits.bits.WAVES_PER_SH =
+                            ComputePipeline::CalcMaxWavesPerSe(chipProps, csInfo.maxWavesPerCu);
     }
-#if PAL_AMDGPU_BUILD
-    else if (IsGfx9(chipProps.gfxLevel) && (pDynamicRegs->computeResourceLimits.bits.WAVES_PER_SH == 0))
-    {
-        // GFX9 GPUs have a HW bug where a wave limit size of 0 does not correctly map to "no limit",
-        // potentially breaking high-priority compute.
-        pDynamicRegs->computeResourceLimits.bits.WAVES_PER_SH = m_device.GetMaxWavesPerSh(chipProps, true);
-    }
-#endif
 
     // CU_GROUP_COUNT: Sets the number of CS threadgroups to attempt to send to a single CU before moving to the next CU.
     // Range is 1 to 8, 0 disables the limit.
@@ -764,12 +728,9 @@ uint32* PipelineChunkCs::WriteShCommandsSetPath(
                                                             m_regs.computePgmRsrc1.u32All,
                                                             pCmdSpace);
 
-    if (IsGfx10Plus(chipProps.gfxLevel))
-    {
-        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(Gfx10Plus::mmCOMPUTE_PGM_RSRC3,
-                                                                m_regs.computePgmRsrc3.u32All,
-                                                                pCmdSpace);
-    }
+    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(Gfx10Plus::mmCOMPUTE_PGM_RSRC3,
+                                                            m_regs.computePgmRsrc3.u32All,
+                                                            pCmdSpace);
 
     if (m_regs.userDataInternalTable.u32All != InvalidUserDataInternalTable)
     {

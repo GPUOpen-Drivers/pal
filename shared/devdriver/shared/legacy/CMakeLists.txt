@@ -70,6 +70,7 @@ target_link_libraries(devdriver
     PUBLIC
         ddCore
         metrohash
+        dd_interface
         dd_event_registry
         ddApi
     PRIVATE

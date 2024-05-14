@@ -31,6 +31,8 @@
 #include "palSysMemory.h"
 #include "palInlineFuncs.h"
 
+using namespace std::chrono;
+
 namespace Pal
 {
 namespace NullDevice

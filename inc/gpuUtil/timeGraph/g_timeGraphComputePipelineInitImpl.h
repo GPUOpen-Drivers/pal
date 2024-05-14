@@ -79,6 +79,10 @@ Pal::Result CreateTimeGraphComputePipelines(
         pTable = timeGraphComputeBinaryTablePhoenix1;
         break;
 
+    case Pal::AsicRevision::Phoenix2:
+        pTable = timeGraphComputeBinaryTablePhoenix2;
+        break;
+
     default:
         result = Pal::Result::ErrorUnknown;
         PAL_NOT_IMPLEMENTED();

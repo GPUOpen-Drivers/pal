@@ -71,10 +71,10 @@ public:
         uint32              fenceCount,
         IFence*const*       ppFences) const override;
     virtual Result WaitForFences(
-        uint32              fenceCount,
-        const IFence*const* ppFences,
-        bool                waitAll,
-        uint64              timeout) const override;
+        uint32                   fenceCount,
+        const IFence*const*      ppFences,
+        bool                     waitAll,
+        std::chrono::nanoseconds timeout) const override;
     virtual void BindTrapHandler(
         PipelineBindPoint pipelineType,
         IGpuMemory*       pGpuMemory,

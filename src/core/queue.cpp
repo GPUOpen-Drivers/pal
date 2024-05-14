@@ -42,10 +42,16 @@
 #include "palSysUtil.h"
 #include "palAutoBuffer.h"
 
+#include <atomic>
+
 using namespace Util;
+using namespace std::chrono;
 
 namespace Pal
 {
+
+// Hands out unique IDs to each queue object. These are only used when naming our command buffer log files.
+static std::atomic<uint32> g_nextQueueId{};
 
 // Struct for passing the log file and pal setting pointers to the command buffer dump callback.
 struct CmdDumpToFilePayload
@@ -286,6 +292,9 @@ void SubmissionContext::ReleaseReference()
     }
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 870
+#endif
+
 // =====================================================================================================================
 Queue::Queue(
     uint32                 queueCount,
@@ -302,6 +311,7 @@ Queue::Queue(
     m_batchedSubmissionCount(0),
     m_batchedCmds(pDevice->GetPlatform()),
     m_deviceMembershipNode(this),
+    m_queueId(g_nextQueueId.fetch_add(1, std::memory_order_relaxed)),
     m_lastFrameCnt(0),
     m_submitIdPerFrame(0)
 {
@@ -888,10 +898,10 @@ Result Queue::OpenCommandDumpFile(
 
         // Add queue type and this pointer to file name to make name unique since there could be multiple queues/engines
         // and/or multiple vitual queues (on the same engine on) which command buffers are submitted
-        Snprintf(filename, MaxFilenameLength, "%s/Frame_%u_%p_%u_%04u%s",
+        Snprintf(filename, MaxFilenameLength, "%s/Frame_%u_%u_%u_%04u%s",
                  logDir,
                  Type(),
-                 this,
+                 m_queueId,
                  frameCnt,
                  m_submitIdPerFrame,
                  pSuffix[dumpFormat]);
@@ -1183,7 +1193,7 @@ Result Queue::PresentSwapChain(
 // Queues.
 // NOTE: Part of the public IQueue interface.
 Result Queue::Delay(
-    float delay)
+    fmilliseconds delay)
 {
     Result result = Result::ErrorUnavailable;
 
@@ -1202,9 +1212,11 @@ Result Queue::Delay(
             MutexAuto lock(&m_batchedCmdsLock);
             if (m_stalled)
             {
-                BatchedQueueCmdData cmdData = { };
-                cmdData.command    = BatchedQueueCmd::Delay;
-                cmdData.delay.time = delay;
+                BatchedQueueCmdData cmdData
+                {
+                    .command = BatchedQueueCmd::Delay,
+                    .delay   = delay
+                };
 
                 result = m_batchedCmds.PushBack(cmdData);
             }
@@ -1222,7 +1234,7 @@ Result Queue::Delay(
 // Inserts a delay of a specified amount of time after a vsync on a private screen. Only supported on Timer Queues.
 // NOTE: Part of the public IQueue interface.
 Result Queue::DelayAfterVsync(
-    float                 delayInUs,
+    Util::fmicroseconds   delay,
     const IPrivateScreen* pScreen)
 {
     Result result = Result::ErrorUnavailable;
@@ -1232,7 +1244,7 @@ Result Queue::DelayAfterVsync(
         // Either execute the delay immediately, or enqueue it for later, depending on whether or not we are stalled.
         if (m_stalled == false)
         {
-            result = OsDelay(delayInUs, pScreen);
+            result = OsDelay(delay, pScreen);
         }
         else
         {
@@ -1242,7 +1254,7 @@ Result Queue::DelayAfterVsync(
             MutexAuto lock(&m_batchedCmdsLock);
             if (m_stalled == false)
             {
-                result = OsDelay(delayInUs, pScreen);
+                result = OsDelay(delay, pScreen);
             }
             else
             {
@@ -1537,7 +1549,7 @@ Result Queue::ReleaseFromStalledState(
 
         case BatchedQueueCmd::Delay:
             PAL_ASSERT(Type() == QueueTypeTimer);
-            result = OsDelay(cmdData.delay.time, nullptr);
+            result = OsDelay(cmdData.delay, nullptr);
             break;
 
         case BatchedQueueCmd::RemapVirtualMemoryPages:

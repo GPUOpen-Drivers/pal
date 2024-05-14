@@ -47,7 +47,7 @@
 #endif
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MAJOR_VERSION 858
+#define PAL_INTERFACE_MAJOR_VERSION 870
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 831
 /// Minor interface version.  Note that the interface version is distinct from the PAL version itself, which is returned
@@ -125,6 +125,7 @@ enum class NullGpuId : uint32
     Navi33           = 0x1C,
     Raphael          = 0x1E,
     Phoenix1         = 0x1F,
+    Phoenix2         = 0x22,
 
     Max = 0x27,
     All = 0x28,
@@ -205,6 +206,7 @@ enum class AsicRevision : uint32
     Rembrandt        = 0x2F,
     Raphael          = 0x34,
     Phoenix1         = 0x35,
+    Phoenix2         = 0x38,
 };
 
 /// Maps a null GPU ID to its associated text name.

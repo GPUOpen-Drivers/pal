@@ -50,6 +50,7 @@
 #include <climits>
 
 using namespace Util;
+using namespace std::chrono_literals;
 
 namespace Pal
 {
@@ -180,7 +181,7 @@ bool SubmissionContext::IsTimestampRetired(
     queryFence.ip_instance = 0;
     queryFence.ip_type     = m_ipType;
 
-    return (m_pDevice->QueryFenceStatus(&queryFence, 0) == Result::Success);
+    return (m_pDevice->QueryFenceStatus(&queryFence, 0ns) == Result::Success);
 }
 
 // =====================================================================================================================
@@ -617,15 +618,6 @@ Result Queue::SignalSemaphore(
         }
     }
     return result;
-}
-
-// =====================================================================================================================
-// Perform low-level Delay behavior for a Queue. NOTE: Linux doesn't yet support Timer Queues.
-Result Queue::OsDelay(
-    float                 delay,
-    const IPrivateScreen* pScreen)
-{
-    return Result::ErrorUnavailable;
 }
 
 // =====================================================================================================================
@@ -1651,7 +1643,7 @@ Result Queue::OsWaitIdle()
         // Theoratically we should have different timeout value for different engine, but for simplity we just use
         // gfxTimeout for all type of engines right now.
         result = static_cast<Device*>(m_pDevice)->QueryFenceStatus(&queryFence,
-                                                                   m_pDevice->Settings().gfxTimeout * 1000000000ull);
+                                                                   std::chrono::seconds{ m_pDevice->Settings().gfxTimeout });
     }
 
     return result;

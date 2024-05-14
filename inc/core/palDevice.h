@@ -42,6 +42,7 @@
 #include "palPerfExperiment.h"
 #include "palPipeline.h"
 #include "palQueue.h"
+#include <chrono>
 
 namespace Util
 {
@@ -3282,7 +3283,7 @@ public:
     /// @param [in] ppFences   Array of fences to be waited on.
     /// @param [in] waitAll    If true, wait for completion of all fences in the array before returning; if false,
     ///                        return after any single fence in the array has completed.
-    /// @param [in] timeoutNs  This method will return after this many nanoseconds even if the fences do not complete.
+    /// @param [in] timeout    This method will return after this many nanoseconds even if the fences do not complete.
     ///
     /// @returns Success if the specified fences have been reached, or Timeout if the fences have not been reached but
     ///          the specified timeout time has elapsed.  Otherwise, one of the following errors may be returned:
@@ -3294,10 +3295,17 @@ public:
     ///          + ErrorFenceNeverSubmitted if:
     ///              - Any of the specified fences haven't been submitted.
     virtual Result WaitForFences(
-        uint32              fenceCount,
-        const IFence*const* ppFences,
-        bool                waitAll,
-        uint64              timeoutNs) const = 0;
+        uint32                   fenceCount,
+        const IFence*const*      ppFences,
+        bool                     waitAll,
+        std::chrono::nanoseconds timeout) const = 0;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 863
+    Result WaitForFences(
+        uint32               fenceCount,
+        const IFence* const* ppFences,
+        bool                 waitAll,
+        uint64               timeoutNs) const;
+#endif
 
     /// Stalls the current thread until one or all of the specified Semaphores have been reached by the device.
     ///
@@ -3309,7 +3317,7 @@ public:
     /// @param [in] pValues        Array of semaphores's value to be waited on.
     /// @param [in] flags          Combination of zero or more @ref HostWaitFlags values describing the behavior of this
     ///                            wait operation. See @ref HostWaitFlags for more details.
-    /// @param [in] timeoutNs      This method will return after this many nanoseconds even if the semaphores do not
+    /// @param [in] timeout        This method will return after this many nanoseconds even if the semaphores do not
     ///                            complete.
     ///
     /// @returns Success if the specified semaphores have been reached, or Timeout if the semaphores have not been
@@ -3325,7 +3333,15 @@ public:
         const IQueueSemaphore*const* ppSemaphores,
         const uint64*                pValues,
         uint32                       flags,
-        uint64                       timeoutNs) const = 0;
+        std::chrono::nanoseconds     timeout) const = 0;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 863
+    Result WaitForSemaphores(
+        uint32                       semaphoreCount,
+        const IQueueSemaphore*const* ppSemaphores,
+        const uint64*                pValues,
+        uint32                       flags,
+        uint64                       timeoutNs) const;
+#endif
 
     /// Correlates a GPU timestamp with the corresponding CPU timestamps, for tighter CPU/GPU timeline synchronization
     ///
@@ -5270,12 +5286,25 @@ public:
     virtual bool DetermineHwStereoRenderingSupported(
         const GraphicPipelineViewInstancingInfo& viewInstancingInfo) const = 0;
 
-    /// Get file path used to put all files for cache purpose
+    /// Get file path used to put all files for cache purpose.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 861
+    /// UTF-8 encoding.
+#else
+    /// ASCII encoding.
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 868
+    /// On Windows, the returned path depends on Util::GetProcessIntegrityLevel and Util::IsProcessInAppContainer.
+#endif
     ///
     /// @returns Pointer to cache file path.
     virtual const char* GetCacheFilePath() const = 0;
 
-    /// Get file path used to put all files for debug purpose (such as logs, dumps, replace shader)
+    /// Get file path used to put all files for debug purpose (such as logs, dumps, replace shader).
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 861
+    /// UTF-8 encoding.
+#else
+    /// ASCII encoding.
+#endif
     ///
     /// @returns Pointer to debug file path.
     virtual const char* GetDebugFilePath() const = 0;

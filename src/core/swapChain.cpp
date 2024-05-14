@@ -27,7 +27,11 @@
 #include "core/presentScheduler.h"
 #include "core/swapChain.h"
 #include "palQueueSemaphore.h"
+
+#include <algorithm>
+
 using namespace Util;
+using namespace std::chrono;
 
 namespace Pal
 {
@@ -157,19 +161,20 @@ Result SwapChain::AcquireNextImage(
     // algorithm which requires a signal on m_availableImageSemaphore each time an image can be reused.
     if (m_createInfo.swapChainMode == SwapChainMode::Mailbox)
     {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 863
         result = ReclaimUnusedImages(acquireInfo.timeout);
+#else
+        result = ReclaimUnusedImages(nanoseconds{ std::min(acquireInfo.timeout, uint64(nanoseconds::max().count())) });
+#endif
     }
     else
     {
-        // The given timeout must be converted from a 64-bit, nanosecond time into a 32-bit, millisecond time while:
-        // 1. Mapping UINT64_MAX to UINT32_MAX, indicating an infinite wait.
-        // 2. Rounding up so that a positive timeout of less than a millisecond doesn't round to zero.
-        constexpr uint64 NsecPerMsec = 1000 * 1000;
-        const uint32     timeoutMsec = (acquireInfo.timeout == UINT64_MAX)
-                                            ? UINT32_MAX
-                                            : static_cast<uint32>(RoundUpQuotient(acquireInfo.timeout, NsecPerMsec));
-
-        result = m_availableImageSemaphore.Wait(timeoutMsec);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 863
+        result = m_availableImageSemaphore.Wait(TimeoutCast<milliseconds>(acquireInfo.timeout));
+#else
+        result = m_availableImageSemaphore.Wait(TimeoutCast<milliseconds>(
+            nanoseconds{ std::min(acquireInfo.timeout, uint64(nanoseconds::max().count())) }));
+#endif
     }
 
     if (result == Result::Success)

@@ -101,6 +101,10 @@ Result CreateRpmComputePipelines(
         pTable = rpmComputeBinaryTablePhoenix1;
         break;
 
+    case AsicRevision::Phoenix2:
+        pTable = rpmComputeBinaryTablePhoenix2;
+        break;
+
     default:
         result = Result::ErrorUnknown;
         PAL_NOT_IMPLEMENTED();
@@ -841,6 +845,16 @@ Result CreateRpmComputePipelines(
         ))
     {
         result = CreateRpmComputePipeline(
+            RpmComputePipeline::Gfx9FillDirtyTileMapBuffer, pDevice, pTable, pPipelineMem);
+    }
+
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+        ))
+    {
+        result = CreateRpmComputePipeline(
             RpmComputePipeline::Gfx10BuildDccLookupTable, pDevice, pTable, pPipelineMem);
     }
 
@@ -894,12 +908,42 @@ Result CreateRpmComputePipelines(
     }
 
     if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+        ))
+    {
+        result = CreateRpmComputePipeline(
+            RpmComputePipeline::Gfx10GetDccDirtyTileMultipleCoverage, pDevice, pTable, pPipelineMem);
+    }
+
+    if (result == Result::Success && (false
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
         ))
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::Gfx10GfxDccToDisplayDcc, pDevice, pTable, pPipelineMem);
+    }
+
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+        ))
+    {
+        result = CreateRpmComputePipeline(
+            RpmComputePipeline::Gfx10LookupTableGetDccDirtyTile, pDevice, pTable, pPipelineMem);
+    }
+
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+        ))
+    {
+        result = CreateRpmComputePipeline(
+            RpmComputePipeline::Gfx10LookupTableGetDccDirtyTileMultipleCoverage, pDevice, pTable, pPipelineMem);
     }
 
     if (result == Result::Success && (false

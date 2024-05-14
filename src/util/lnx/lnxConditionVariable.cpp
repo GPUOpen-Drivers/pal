@@ -37,8 +37,8 @@ namespace Util
 // sleep, reacquire the critical section.  Returns false if the specified number of milliseconds elapse before it is
 // awoken.
 bool ConditionVariable::Wait(
-    Mutex* pMutex,
-    uint32 milliseconds)  // Can be set to 0xFFFFFFFF to wait forever.
+    Mutex*                    pMutex,
+    std::chrono::milliseconds waitTime)
 {
     bool result = false;
 
@@ -47,8 +47,7 @@ bool ConditionVariable::Wait(
         Mutex::MutexData*const pOsMutex  = pMutex->GetMutexData();
         pthread_cond_t*const   pOsCndVar = &m_osCondVariable;
 
-        constexpr uint32 Infinite = 0xFFFFFFFF;
-        if (milliseconds == Infinite)
+        if (waitTime == std::chrono::milliseconds::max())
         {
             // Wait on the condition variable indefinitely.
             const int32 ret = pthread_cond_wait(pOsCndVar, pOsMutex);
@@ -58,8 +57,9 @@ bool ConditionVariable::Wait(
         }
         else
         {
+            using namespace std::chrono;
             timespec timeout = {};
-            ComputeTimeoutExpiration(&timeout, milliseconds * 1000 * 1000);
+            ComputeTimeoutExpiration(&timeout, TimeoutCast<nanoseconds>(waitTime).count());
 
             // Wait on the condition variable until a timeout occurs.
             const int32 ret = pthread_cond_timedwait(pOsCndVar, pOsMutex, &timeout);

@@ -26,6 +26,7 @@
 #include "core/layers/crashAnalysis/crashAnalysisCmdBuffer.h"
 #include "core/layers/crashAnalysis/crashAnalysisDevice.h"
 #include "core/layers/crashAnalysis/crashAnalysisPlatform.h"
+#include "core/layers/crashAnalysis/tdrTraceController.h"
 #include "palSysUtil.h"
 
 using namespace Util;
@@ -51,6 +52,11 @@ Platform::Platform(
                       pNextPlatform),
     m_pCrashAnalysisEventProvider(pEventProvider),
     m_resourceId(0)
+{
+}
+
+// =====================================================================================================================
+Platform::~Platform()
 {
 }
 
@@ -91,7 +97,9 @@ Result Platform::Create(
 // =====================================================================================================================
 Result Platform::Init()
 {
-    return PlatformDecorator::Init();
+    Result result = PlatformDecorator::Init();
+
+    return result;
 }
 
 // =====================================================================================================================

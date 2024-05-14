@@ -28,7 +28,11 @@
 #include "palSysUtil.h"
 #include "palVector.h"
 #include "palVectorImpl.h"
+#include <algorithm>
 #include <ctime>
+#include <thread>
+
+using namespace std::chrono;
 
 namespace Util
 {
@@ -268,28 +272,26 @@ Result RemoveOldestFilesOfDirUntilSize(
     // Get the number of files in the dir.
     Result result = CountFilesInDir(pPathName, &fileCount, &bytesReq);
 
-    // Allocate mem for storing file names
-    StringView<char>* pFileNames = nullptr;
-    char* pFileNameBuffer = nullptr;
-    char* pFullFilePath   = nullptr;
+    // If we've already failed, then get out of here.
+    // The directory could've been empty, in which case don't do anything and return.
+    if ((result != Result::Success) || (fileCount <= 0))
+    {
+        return result;
+    }
 
     const size_t pathLen = std::strlen(pPathName) + 1; // Add one to append a '/'
     const size_t fullPathSize = pathLen + 1 + Util::MaxFileNameStrLen;
 
+    // Allocate mem for storing file names
     Util::GenericAllocator allocator;
-    if (result == Result::Success)
-    {
-        pFileNames = static_cast<StringView<char>*>(
-            PAL_CALLOC(fileCount * sizeof(StringView<char>), &allocator, AllocInternalTemp));
-        pFileNameBuffer = static_cast<char*>(
-            PAL_CALLOC(bytesReq, &allocator, AllocInternalTemp));
-        pFullFilePath = static_cast<char*>(
-            PAL_CALLOC(fullPathSize * sizeof(char), &allocator, AllocInternalTemp));
+    StringView<char>* pFileNames = static_cast<StringView<char>*>(
+        PAL_CALLOC(fileCount * sizeof(StringView<char>), &allocator, AllocInternalTemp));
+    char* pFileNameBuffer = static_cast<char*>(PAL_CALLOC(bytesReq, &allocator, AllocInternalTemp));
+    char* pFullFilePath = static_cast<char*>(PAL_CALLOC(fullPathSize * sizeof(char), &allocator, AllocInternalTemp));
 
-        if ((pFileNames == nullptr) || (pFileNameBuffer == nullptr) || (pFullFilePath == nullptr))
-        {
-            result = Result::ErrorOutOfMemory;
-        }
+    if ((pFileNames == nullptr) || (pFileNameBuffer == nullptr) || (pFullFilePath == nullptr))
+    {
+        result = Result::ErrorOutOfMemory;
     }
 
     // Get the file names in the dir
@@ -434,4 +436,37 @@ Result CreateLogDir(
     return result;
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 863
+// These have to be defined in a .cpp file because using any sort of a min()/max() function can conflict with clients
+// still using Microsoft's min()/max() macros.
+
+// =====================================================================================================================
+Result RemoveFilesOfDirOlderThan(
+    const char* pPathName,
+    uint64      thresholdSeconds)
+{
+    return RemoveFilesOfDirOlderThan(
+        pPathName,
+        SecondsSinceEpoch{ seconds{ std::min(thresholdSeconds, uint64(seconds::max().count())) } });
+}
+
+// =====================================================================================================================
+Result GetStatusOfDir(
+    const char* pPathName,
+    uint64*     pTotalSize,
+    uint64*     pOldestTime)
+{
+    SecondsSinceEpoch oldestTime;
+    const Result ret = GetStatusOfDir(pPathName, pTotalSize, &oldestTime);
+    *pOldestTime = oldestTime.time_since_epoch().count();
+    return ret;
+}
+#endif
+
+// =====================================================================================================================
+void Sleep(
+    milliseconds duration)
+{
+    std::this_thread::sleep_for(duration);
+}
 } // Util

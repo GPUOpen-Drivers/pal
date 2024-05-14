@@ -74,14 +74,32 @@ DD_RESULT ddSocketReceiveRaw(
 DD_RESULT ddSocketSend(
     DDSocket    hSocket,   /// [in] Socket handle
     const void* pData,     /// [in] Data to send
-    size_t      dataSize); /// Data size in bytes
+    size_t      dataSize); /// [in] Data size in bytes
+
+/// Same as ddSocketSend, but with a custom timeout threshold.
+DD_RESULT ddSocketSendWithTimeout(
+    DDSocket    hSocket,      /// [in] Socket handle
+    const void* pData,        /// [in] Data to send
+    size_t      dataSize,     /// [in] Data size in bytes
+    uint32_t    timeoutMillis /// [in] Timeout in milliseconds. If timeoutMillis is zero, a default
+                              /// timeout will be used instead (the same behavior as ddSocketSend).
+);
 
 /// Attempts to fill the provided buffer with data from a socket
 /// This function will not return until the whole buffer has been filled or an error is encountered
 DD_RESULT ddSocketReceive(
     DDSocket    hSocket,     /// [in] Socket handle
     void*       pBuffer,     /// [out] Buffer to write data to
-    size_t      bufferSize); /// Size of the buffer in bytes
+    size_t      bufferSize); /// [in] Size of the buffer in bytes
+
+/// Same as ddSocketReceive, but with a custom timeout threshold.
+DD_RESULT ddSocketReceiveWithTimeout(
+    DDSocket    hSocket,      /// [in] Socket handle
+    void*       pBuffer,      /// [out] Buffer to write data to
+    size_t      bufferSize,   /// [in] Size of the buffer in bytes
+    uint32_t    timeoutMillis /// [in] Timeout in milliseconds. If timeoutMillis is zero, a default
+                              /// timeout will be used instead (the same behavior as ddSocketReceive).
+);
 
 /// Same as ddSocketSend, but with a 64-bit size indicator sent before the data
 /// This should be used with the associated ddSocketReceiveWithSizePrefix function to transfer fixed

@@ -23,7 +23,6 @@
  *
  **********************************************************************************************************************/
 
-#if PAL_ENABLE_LOGGING
 #include "palDbgLogger.h"
 #include "palDbgLogMgr.h"
 #include "palSysUtil.h"
@@ -81,12 +80,12 @@ Result CreateLogFileName(
         PAL_ASSERT(pBaseFileName != nullptr);
         if (TestAnyFlagSet(settings.fileSettingsFlags, FileSettings::AddPid))
         {
-            len = Snprintf(pFileName, fileNameSize, "%s%s%s%s_%d.txt", settings.pLogDirectory,
+            len = Snprintf(pFileName, fileNameSize, "%s/%s%s%s_%d.txt", settings.pLogDirectory,
                            pBaseFileName, libNameBuff, processNameBuff, GetIdOfCurrentProcess());
         }
         else
         {
-            len = Snprintf(pFileName, fileNameSize, "%s%s%s%s.txt", settings.pLogDirectory,
+            len = Snprintf(pFileName, fileNameSize, "%s/%s%s%s.txt", settings.pLogDirectory,
                            pBaseFileName, libNameBuff, processNameBuff);
         }
         // Snprintf (see vsnprintf/vsnprintf_s doc) returns a negative number in case of encoding
@@ -140,10 +139,7 @@ Result DbgLoggerFile::Init(
     Result result = Result::ErrorInvalidFlags;
 
     // This logger always writes to a file, so a FileAccessRead mode is invalid.
-    // Also, don't open file if logging is disabled. Otherwise, the log directory
-    // gets littered with useless and empty log files.
-    if ((g_dbgLogMgr.GetLoggingEnabled()) &&
-        (TestAnyFlagSet(fileAccessMask, FileAccessMode::FileAccessRead) == false))
+    if (TestAnyFlagSet(fileAccessMask, FileAccessMode::FileAccessRead) == false)
     {
         result = m_file.Open(pFileName, fileAccessMask);
     }
@@ -166,5 +162,5 @@ void DbgLoggerPrint::WriteMessage(
     // Otherwise, send the string to stderr.
     fputs(pString, stderr);
 }
+
 } //namespace Util
-#endif

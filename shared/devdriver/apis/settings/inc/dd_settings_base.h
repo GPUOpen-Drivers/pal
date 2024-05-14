@@ -29,6 +29,7 @@
 #include <dd_dynamic_buffer.h>
 
 #include <util/hashMap.h>
+#include <util/vector.h>
 
 #include <cstdint>
 
@@ -60,6 +61,7 @@ private:
 
 protected:
     SettingsHashMap m_settingsMap;
+    Vector<DD_SETTINGS_NAME_HASH> m_unsupportedExperiments;
 
 public:
     SettingsBase(void* pSettingsData, size_t settingsDataSize);
@@ -74,6 +76,8 @@ public:
     /// Set the value of a setting.
     DD_RESULT SetValue(const DDSettingsValueRef& srcValueRef);
 
+    void SaveUnsupportedExperiment(DD_SETTINGS_NAME_HASH hash) { m_unsupportedExperiments.PushBack(hash); }
+
     /// Get the value of a setting.
     /// `pValueRef` is an in/out parameter.
     /// `pValueRef->hash`   [in] The hash of the setting to be retrieved.
@@ -84,6 +88,8 @@ public:
 
     /// Write all values of this settings component to `recvBuffer`.
     DD_RESULT GetAllValues(DynamicBuffer& recvBuffer, size_t* pOutNumValues);
+
+    DD_RESULT GetUnsupportedExperiments(DynamicBuffer& recvBuffer, size_t* pOutNumValues);
 
     /// Returns a 32-bit hash of an input string using the FNV-1a non-cryptographic hash function.
     /// `pStr` a pointer to the input string.

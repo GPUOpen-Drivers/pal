@@ -212,13 +212,6 @@ constexpr bool IsLinearSwizzleMode(
 }
 
 // =====================================================================================================================
-constexpr bool IsSwizzleModeComputeOnly(
-    AddrSwizzleMode  swizzleMode)
-{
-    return false;
-}
-
-// =====================================================================================================================
 // Returns true if the associated swizzle mode is PRT capable
 constexpr bool IsPrtSwizzle(
     AddrSwizzleMode  swizzleMode)
@@ -355,21 +348,15 @@ constexpr bool IsNonBcViewCompatible(
 inline AddrSwType GetSwizzleType(
     AddrSwizzleMode swizzleMode)
 {
-    // SW AddrLib will provide public enum ADDR_SW_MAX_SWTYPE/ADDR_SW_L for following private definition soon.
-    constexpr uint32 InvalidSwizzleMode = 5;
-    constexpr uint32 LinearSwizzleMode  = 4;
-    static_assert(LinearSwizzleMode == (static_cast<uint32>(ADDR_SW_R) + 1),
-                  "LinearSwizzleMode tile token is unexpected value!");
+    const AddrSwType swType = IsZSwizzle(swizzleMode)           ? ADDR_SW_Z :
+                              IsStandardSwzzle(swizzleMode)     ? ADDR_SW_S :
+                              IsDisplayableSwizzle(swizzleMode) ? ADDR_SW_D :
+                              IsRotatedSwizzle(swizzleMode)     ? ADDR_SW_R :
+                              IsLinearSwizzleMode(swizzleMode)  ? ADDR_SW_L : ADDR_SW_MAX_SWTYPE;
 
-    uint32 swType = IsZSwizzle(swizzleMode)           ? ADDR_SW_Z         :
-                    IsStandardSwzzle(swizzleMode)     ? ADDR_SW_S         :
-                    IsDisplayableSwizzle(swizzleMode) ? ADDR_SW_D         :
-                    IsRotatedSwizzle(swizzleMode)     ? ADDR_SW_R         :
-                    IsLinearSwizzleMode(swizzleMode)  ? LinearSwizzleMode : InvalidSwizzleMode;
+    PAL_ASSERT(swType != ADDR_SW_MAX_SWTYPE);
 
-    PAL_ASSERT(swType != InvalidSwizzleMode);
-
-    return static_cast<AddrSwType>(swType);
+    return swType;
 }
 
 // =====================================================================================================================
@@ -436,7 +423,7 @@ public:
 
     static bool IsValidToOverride(AddrSwizzleMode primarySwMode, ADDR2_SWMODE_SET validSwModeSet);
 
-    static AddrResourceType GetAddrResourceType(const Pal::Image*  pImage);
+    static AddrResourceType GetAddrResourceType(ImageType imageType);
 
     virtual uint32 GetBlockSize(AddrSwizzleMode swizzleMode) const override;
 

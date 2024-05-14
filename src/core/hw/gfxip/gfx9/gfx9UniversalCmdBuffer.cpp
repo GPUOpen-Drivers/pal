@@ -359,8 +359,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_drawIndexReg(UserDataNotMapped),
     m_log2NumSes(Log2(m_device.Parent()->ChipProperties().gfx9.numShaderEngines)),
     m_log2NumRbPerSe(Log2(m_device.Parent()->ChipProperties().gfx9.maxNumRbPerSe)),
-    m_hasWaMiscPopsMissedOverlapBeenApplied(false),
-    m_enabledPbb(false),
+    m_enabledPbb(true),
     m_customBinSizeX(0),
     m_customBinSizeY(0),
     m_leakCbColorInfoRtv(0),
@@ -418,8 +417,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_cachedSettings.ignoreCsBorderColorPalette = settings.disableBorderColorPaletteBinds;
     m_cachedSettings.blendOptimizationsEnable   = settings.blendOptimizationEnable;
     m_cachedSettings.outOfOrderPrimsEnable      = static_cast<uint32>(settings.enableOutOfOrderPrimitives);
-    m_cachedSettings.scissorChangeWa            = settings.waMiscScissorRegisterChange;
-    m_cachedSettings.padParamCacheSpace        =
+    m_cachedSettings.padParamCacheSpace         =
             ((pPublicSettings->contextRollOptimizationFlags & PadParamCacheSpace) != 0);
     m_cachedSettings.disableVertGrouping       = settings.disableGeCntlVtxGrouping;
 
@@ -435,9 +433,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_cachedSettings.pbbDisableBinMode          = settings.disableBinningMode;
 
     m_cachedSettings.waLogicOpDisablesOverwriteCombiner        = settings.waLogicOpDisablesOverwriteCombiner;
-    m_cachedSettings.waMiscPopsMissedOverlap                   = settings.waMiscPopsMissedOverlap;
     m_cachedSettings.waColorCacheControllerInvalidEviction     = settings.waColorCacheControllerInvalidEviction;
-    m_cachedSettings.waRotatedSwizzleDisablesOverwriteCombiner = settings.waRotatedSwizzleDisablesOverwriteCombiner;
     m_cachedSettings.waTessIncorrectRelativeIndex              = settings.waTessIncorrectRelativeIndex;
     m_cachedSettings.waVgtFlushNggToLegacy                     = settings.waVgtFlushNggToLegacy;
     m_cachedSettings.waVgtFlushNggToLegacyGs                   = settings.waVgtFlushNggToLegacyGs;
@@ -548,14 +544,12 @@ UniversalCmdBuffer::UniversalCmdBuffer(
 
     // Hardware detects binning transitions when this is set so SW can hardcode it.
     // This has no effect unless the KMD has also set PA_SC_ENHANCE_1.FLUSH_ON_BINNING_TRANSITION=1
-    if (IsGfx091xPlus(palDevice))
-    {
-        m_pbbCntlRegs.paScBinnerCntl0.gfx09_1xPlus.FLUSH_ON_BINNING_TRANSITION = 1;
-    }
+    m_pbbCntlRegs.paScBinnerCntl0.gfx09_1xPlus.FLUSH_ON_BINNING_TRANSITION = 1;
 
     m_cachedPbbSettings.maxAllocCountNgg       = settings.binningMaxAllocCountNggOnChip;
     m_cachedPbbSettings.maxAllocCountLegacy    = settings.binningMaxAllocCountLegacy;
-    if (IsGfx9(palDevice) || IsGfx10(palDevice))
+
+    if (IsGfx10(palDevice))
     {
         PAL_ASSERT(m_cachedPbbSettings.maxAllocCountLegacy > 0);
         PAL_ASSERT(m_cachedPbbSettings.maxAllocCountNgg    > 0);
@@ -565,10 +559,10 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_cachedPbbSettings.maxPrimsPerBatch       = (pPublicSettings->binningMaxPrimPerBatch - 1);
     m_cachedPbbSettings.persistentStatesPerBin = (m_persistentStatesPerBin                - 1);
 
-    PAL_ASSERT(((IsGfx9(palDevice) || IsGfx10(palDevice)) ?
+    PAL_ASSERT((IsGfx10(palDevice) ?
                 m_cachedPbbSettings.maxAllocCountNgg    == (0xFFFF & (settings.binningMaxAllocCountNggOnChip - 1)) :
                 m_cachedPbbSettings.maxAllocCountNgg    == (0xFFFF & settings.binningMaxAllocCountNggOnChip)));
-    PAL_ASSERT(((IsGfx9(palDevice) || IsGfx10(palDevice)) ?
+    PAL_ASSERT((IsGfx10(palDevice) ?
                 m_cachedPbbSettings.maxAllocCountLegacy == (0xFFFF & (settings.binningMaxAllocCountLegacy - 1)) :
                 m_cachedPbbSettings.maxAllocCountLegacy == (0xFFFF & settings.binningMaxAllocCountLegacy)));
     PAL_ASSERT(m_cachedPbbSettings.maxPrimsPerBatch     == (0xFFFF & (pPublicSettings->binningMaxPrimPerBatch - 1)));
@@ -594,6 +588,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_cbColorControl.u32All       = 0;
     m_paClClipCntl.u32All         = 0;
     m_cbTargetMask.u32All         = 0;
+    m_cbShaderMask.u32All         = 0;
     m_vgtTfParam.u32All           = 0;
     m_paScLineCntl.u32All         = 0;
     m_paSuScModeCntl.u32All       = InvalidPaSuScModeCntlVal;
@@ -830,8 +825,6 @@ void UniversalCmdBuffer::ResetState()
     m_vgtDmaIndexType.bits.SWAP_MODE  = VGT_DMA_SWAP_NONE;
     m_vgtDmaIndexType.bits.INDEX_TYPE = VgtIndexTypeLookup[0];
 
-    m_hasWaMiscPopsMissedOverlapBeenApplied = false;
-
     m_leakCbColorInfoRtv   = 0;
     m_pipelineDynRegsDirty = false;
 
@@ -849,57 +842,45 @@ void UniversalCmdBuffer::ResetState()
     }
 
     // For IndexBuffers - default to STREAM cache policy so that they get evicted from L2 as soon as possible.
-    if (IsGfx10Plus(m_gfxIpLevel))
+    m_vgtDmaIndexType.gfx10Plus.RDREQ_POLICY = VGT_POLICY_STREAM;
+
+    const uint32 cbDbCachePolicy = m_device.Settings().cbDbCachePolicy;
+
+    m_cbRmiGl2CacheControl.u32All = 0;
+    m_cbRmiGl2CacheControl.bits.DCC_RD_POLICY =
+        (cbDbCachePolicy & Gfx10CbDbCachePolicyLruDcc) ? CACHE_LRU_RD : CACHE_NOA;
+    m_cbRmiGl2CacheControl.bits.COLOR_RD_POLICY =
+        (cbDbCachePolicy & Gfx10CbDbCachePolicyLruColor) ? CACHE_LRU_RD : CACHE_NOA;
+
+    if (IsGfx11(m_gfxIpLevel))
     {
-        m_vgtDmaIndexType.gfx10Plus.RDREQ_POLICY = VGT_POLICY_STREAM;
-
-        const uint32 cbDbCachePolicy = m_device.Settings().cbDbCachePolicy;
-
-        m_cbRmiGl2CacheControl.u32All = 0;
-        m_cbRmiGl2CacheControl.bits.DCC_RD_POLICY =
-            (cbDbCachePolicy & Gfx10CbDbCachePolicyLruDcc) ? CACHE_LRU_RD : CACHE_NOA;
-        m_cbRmiGl2CacheControl.bits.COLOR_RD_POLICY =
-            (cbDbCachePolicy & Gfx10CbDbCachePolicyLruColor) ? CACHE_LRU_RD : CACHE_NOA;
-
-#if PAL_BUILD_GFX11
-        if (IsGfx11(m_gfxIpLevel))
-        {
-            m_cbRmiGl2CacheControl.gfx11.DCC_WR_POLICY =
-                (cbDbCachePolicy & Gfx10CbDbCachePolicyLruDcc) ? CACHE_LRU_WR : CACHE_STREAM;
-            m_cbRmiGl2CacheControl.gfx11.COLOR_WR_POLICY =
-                (cbDbCachePolicy & Gfx10CbDbCachePolicyLruColor) ? CACHE_LRU_WR : CACHE_STREAM;
-        }
-        else
-#endif
-        {
-            m_cbRmiGl2CacheControl.gfx10.CMASK_WR_POLICY =
-                (cbDbCachePolicy & Gfx10CbDbCachePolicyLruCmask) ? CACHE_LRU_WR : CACHE_STREAM;
-            m_cbRmiGl2CacheControl.gfx10.FMASK_WR_POLICY =
-                (cbDbCachePolicy & Gfx10CbDbCachePolicyLruFmask) ? CACHE_LRU_WR : CACHE_STREAM;
-            m_cbRmiGl2CacheControl.gfx10.CMASK_RD_POLICY =
-                (cbDbCachePolicy & Gfx10CbDbCachePolicyLruCmask) ? CACHE_LRU_RD : CACHE_NOA;
-            m_cbRmiGl2CacheControl.gfx10.FMASK_RD_POLICY =
-                (cbDbCachePolicy & Gfx10CbDbCachePolicyLruFmask) ? CACHE_LRU_RD : CACHE_NOA;
-            m_cbRmiGl2CacheControl.gfx10.DCC_WR_POLICY =
-                (cbDbCachePolicy & Gfx10CbDbCachePolicyLruDcc) ? CACHE_LRU_WR : CACHE_STREAM;
-            // If any of the bound color targets are using linear swizzle mode (or 256_S or 256_D, but PAL doesn't
-            // utilize those), then COLOR_WR_POLICY can not be CACHE_BYPASS.
-            m_cbRmiGl2CacheControl.gfx10.COLOR_WR_POLICY =
-                (cbDbCachePolicy & Gfx10CbDbCachePolicyLruColor) ? CACHE_LRU_WR : CACHE_STREAM;
-        }
+        m_cbRmiGl2CacheControl.gfx11.DCC_WR_POLICY =
+            (cbDbCachePolicy & Gfx10CbDbCachePolicyLruDcc) ? CACHE_LRU_WR : CACHE_STREAM;
+        m_cbRmiGl2CacheControl.gfx11.COLOR_WR_POLICY =
+            (cbDbCachePolicy & Gfx10CbDbCachePolicyLruColor) ? CACHE_LRU_WR : CACHE_STREAM;
     }
     else
     {
-        PAL_ASSERT(IsGfx9(m_gfxIpLevel));
-        m_vgtDmaIndexType.gfx09.RDREQ_POLICY = VGT_POLICY_STREAM;
+        m_cbRmiGl2CacheControl.gfx10.CMASK_WR_POLICY =
+            (cbDbCachePolicy & Gfx10CbDbCachePolicyLruCmask) ? CACHE_LRU_WR : CACHE_STREAM;
+        m_cbRmiGl2CacheControl.gfx10.FMASK_WR_POLICY =
+            (cbDbCachePolicy & Gfx10CbDbCachePolicyLruFmask) ? CACHE_LRU_WR : CACHE_STREAM;
+        m_cbRmiGl2CacheControl.gfx10.CMASK_RD_POLICY =
+            (cbDbCachePolicy & Gfx10CbDbCachePolicyLruCmask) ? CACHE_LRU_RD : CACHE_NOA;
+        m_cbRmiGl2CacheControl.gfx10.FMASK_RD_POLICY =
+            (cbDbCachePolicy & Gfx10CbDbCachePolicyLruFmask) ? CACHE_LRU_RD : CACHE_NOA;
+        m_cbRmiGl2CacheControl.gfx10.DCC_WR_POLICY =
+            (cbDbCachePolicy & Gfx10CbDbCachePolicyLruDcc) ? CACHE_LRU_WR : CACHE_STREAM;
+        // If any of the bound color targets are using linear swizzle mode (or 256_S or 256_D, but PAL doesn't
+        // utilize those), then COLOR_WR_POLICY can not be CACHE_BYPASS.
+        m_cbRmiGl2CacheControl.gfx10.COLOR_WR_POLICY =
+            (cbDbCachePolicy & Gfx10CbDbCachePolicyLruColor) ? CACHE_LRU_WR : CACHE_STREAM;
     }
 
     m_spiVsOutConfig.u32All         = 0;
     m_spiPsInControl.u32All         = 0;
     m_geCntl.u32All                 = 0;
     m_dbShaderControl.u32All        = 0;
-    m_dbDfsmControl.u32All          =
-        ((m_cmdUtil.GetRegInfo().mmDbDfsmControl != 0) ? m_device.GetDbDfsmControl() : 0);
     m_paScAaConfigNew.u32All        = 0;
     m_paSuLineStippleCntl.u32All    = 0;
     m_paScLineStipple.u32All        = 0;
@@ -938,9 +919,8 @@ void UniversalCmdBuffer::ResetState()
         }
     }
 
-    // Disable PBB at the start of each command buffer unconditionally. Each draw can set the appropriate
-    // PBB state at validate time.
-    m_enabledPbb = false;
+    // Set to true to enable validate of PBB at draw time.
+    m_enabledPbb = true;
 
     m_pbbCntlRegs.paScBinnerCntl0.bits.CONTEXT_STATES_PER_BIN = (m_contextStatesPerBin - 1);
     m_cachedSettings.batchBreakOnNewPs                        = m_device.Settings().batchBreakOnNewPixelShader ||
@@ -1253,6 +1233,7 @@ void UniversalCmdBuffer::CmdBindPipeline(
             regVGT_TF_PARAM        vgtTfParam       = pNewPipeline->VgtTfParam();
             regPA_CL_CLIP_CNTL     paClClipCntl     = pNewPipeline->PaClClipCntl();
             regPA_SC_LINE_CNTL     paScLineCntl     = pNewPipeline->PaScLineCntl();
+            regCB_SHADER_MASK      cbShaderMask     = pNewPipeline->CbShaderMask();
             regCB_TARGET_MASK      cbTargetMask     = pNewPipeline->CbTargetMask();
             regCB_COLOR_CONTROL    cbColorControl   = pNewPipeline->CbColorControl();
             regDB_SHADER_CONTROL   dbShaderControl  = pNewPipeline->DbShaderControl();
@@ -1392,6 +1373,7 @@ void UniversalCmdBuffer::CmdBindPipeline(
                 (paClClipCntl.u32All     != m_paClClipCntl.u32All)    ||
                 (paScLineCntl.u32All     != m_paScLineCntl.u32All)    ||
                 (cbTargetMask.u32All     != m_cbTargetMask.u32All)    ||
+                (cbShaderMask.u32All     != m_cbShaderMask.u32All)    ||
                 (dbShaderControl.u32All  != m_dbShaderControl.u32All) ||
                 (dbRenderOverride.u32All != m_dbRenderOverride.u32All))
             {
@@ -1404,6 +1386,7 @@ void UniversalCmdBuffer::CmdBindPipeline(
                 m_paClClipCntl     = paClClipCntl;
                 m_paScLineCntl     = paScLineCntl;
                 m_cbTargetMask     = cbTargetMask;
+                m_cbShaderMask     = cbShaderMask;
                 m_dbShaderControl  = dbShaderControl;
                 m_dbRenderOverride = dbRenderOverride;
 
@@ -1494,8 +1477,14 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
             pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(
                 mmPA_CL_CLIP_CNTL, m_paClClipCntl.u32All, pDeCmdSpace);
 
-            pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(
-                mmCB_TARGET_MASK, m_cbTargetMask.u32All, pDeCmdSpace);
+            static_assert(CheckSequentialRegs({
+                {mmCB_TARGET_MASK, offsetof(UniversalCmdBuffer, m_cbTargetMask)},
+                {mmCB_SHADER_MASK, offsetof(UniversalCmdBuffer, m_cbShaderMask)},
+            }), "Regs have moved!");
+            pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmCB_TARGET_MASK,
+                                                               mmCB_SHADER_MASK,
+                                                               &m_cbTargetMask.u32All,
+                                                               pDeCmdSpace);
 
             pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(
                 mmVGT_TF_PARAM, m_vgtTfParam.u32All, pDeCmdSpace);
@@ -1509,20 +1498,14 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
             pDeCmdSpace = ValidateDbRenderOverride(pDeCmdSpace);
         }
 
-        m_deCmdStream.SetContextRollDetected<true>();
-
         m_pipelineCtxRegHash = ctxRegHash;
     }
 
-    // Only gfx10+ pipelines need to set config registers.
-    if (IsGfx10Plus(m_gfxIpLevel))
+    const uint32 cfgRegHash = pCurrPipeline->GetConfigRegHash();
+    if (disableFiltering || (m_pipelineCfgRegHash != cfgRegHash))
     {
-        const uint32 cfgRegHash = pCurrPipeline->GetConfigRegHash();
-        if (disableFiltering || (m_pipelineCfgRegHash != cfgRegHash))
-        {
-            pDeCmdSpace = pCurrPipeline->WriteConfigCommandsGfx10(&m_deCmdStream, pDeCmdSpace);
-            m_pipelineCfgRegHash = cfgRegHash;
-        }
+        pDeCmdSpace = pCurrPipeline->WriteConfigCommands(&m_deCmdStream, pDeCmdSpace);
+        m_pipelineCfgRegHash = cfgRegHash;
     }
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 842
@@ -1541,7 +1524,6 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
                                                            mmSX_BLEND_OPT_CONTROL,
                                                            &m_sxPsDownconvert,
                                                            pDeCmdSpace);
-        m_deCmdStream.SetContextRollDetected<true>();
         m_rbplusRegHash = pCurrPipeline->GetRbplusRegHash(dynamicDualSourceBlendEnabled);
     }
 
@@ -1572,33 +1554,26 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
     // pads the actual parameter cache space required for VS/PS to avoid context rolls.
     if (m_cachedSettings.padParamCacheSpace)
     {
-        const bool padVsOut = IsGfx9(m_gfxIpLevel) || IsGfx10(m_gfxIpLevel);
-        const bool padPsIn  = padVsOut || IsGfx11(m_gfxIpLevel);
-
-        if (padVsOut)
+        if (IsGfx10(m_gfxIpLevel))
         {
             spiVsOutConfig.bits.VS_EXPORT_COUNT =
                 Max(m_spiVsOutConfig.bits.VS_EXPORT_COUNT, spiVsOutConfig.bits.VS_EXPORT_COUNT);
         }
 
-        if (padPsIn)
+        spiPsInControl.bits.NUM_INTERP = Max(m_spiPsInControl.bits.NUM_INTERP, spiPsInControl.bits.NUM_INTERP);
+
+        // On Gfx11, padding PS_IN > VS_OUT+1 triggers a hazard.
+        //
+        // Long-term plan is to perform max-padding just like we did in Gfx10, but for that we need to also disable
+        // wave reuse.
+        //
+        // The current strategy pads PS_IN up to VS_OUT+1, which avoids the hazard. This results in more context
+        // rolls than we would have with the desired/unconstrained max-padding, but it is still effective in
+        // reducing the rolls.
+        if (IsGfx11(m_gfxIpLevel))
         {
             spiPsInControl.bits.NUM_INTERP =
-                Max(m_spiPsInControl.bits.NUM_INTERP, spiPsInControl.bits.NUM_INTERP);
-
-            // On Gfx11, padding PS_IN > VS_OUT+1 triggers a hazard.
-            //
-            // Long-term plan is to perform max-padding just like we did in Gfx10, but for that we need to also disable
-            // wave reuse.
-            //
-            // The current strategy pads PS_IN up to VS_OUT+1, which avoids the hazard. This results in more context
-            // rolls than we would have with the desired/unconstrained max-padding, but it is still effective in
-            // reducing the rolls.
-            if (IsGfx11(m_gfxIpLevel))
-            {
-                spiPsInControl.bits.NUM_INTERP =
-                    Min(spiPsInControl.bits.NUM_INTERP, spiVsOutConfig.bits.VS_EXPORT_COUNT + 1u);
-            }
+                Min(spiPsInControl.bits.NUM_INTERP, spiVsOutConfig.bits.VS_EXPORT_COUNT + 1u);
         }
     }
 
@@ -1920,7 +1895,6 @@ void UniversalCmdBuffer::CmdSetBlendConst(
                                                        &params.blendConst[0],
                                                        pDeCmdSpace);
     m_deCmdStream.CommitCommands(pDeCmdSpace);
-    m_deCmdStream.SetContextRollDetected<true>();
 }
 
 // =====================================================================================================================
@@ -1938,7 +1912,6 @@ void UniversalCmdBuffer::CmdSetDepthBounds(
                                                        &depthBounds[0],
                                                        pDeCmdSpace);
     m_deCmdStream.CommitCommands(pDeCmdSpace);
-    m_deCmdStream.SetContextRollDetected<true>();
 }
 
 // =====================================================================================================================
@@ -2016,7 +1989,6 @@ void UniversalCmdBuffer::CmdSetStencilRefMasks(
                                                            pDeCmdSpace);
 
         m_deCmdStream.CommitCommands(pDeCmdSpace);
-        m_deCmdStream.SetContextRollDetected<true>();
     }
 }
 
@@ -2260,12 +2232,7 @@ void UniversalCmdBuffer::CmdBindTargets(
     constexpr uint32 AllColorTargetSlotMask = 255; // Mask of all color-target slots.
 
     bool colorTargetsChanged = false;
-    // Under gfx9 we need to wait for F/I to finish when targets may share same metadata cache lines.  Because there is
-    // no easy formula for determining this conflict, we'll be conservative and wait on all targets within the Metadata
-    // tail since they will share the same block.
-    bool waitOnMetadataMipTail = false;
 
-    uint32 bppMoreThan64 = 0;
     // BIG_PAGE can only be enabled if all render targets are compatible.  Default to true and disable it later if we
     // find an incompatible target.
     bool   colorBigPage  = true;
@@ -2340,9 +2307,6 @@ void UniversalCmdBuffer::CmdBindTargets(
         if ((pCurrentView != nullptr) && (pCurrentView->Equals(pNewView) == false))
         {
             colorTargetsChanged = true;
-                // Record if this color view we are switching from should trigger a Release_Mem due to being in the
-            // MetaData tail region.
-            waitOnMetadataMipTail |= pCurrentView->WaitOnMetadataMipTail();
         }
     }
 
@@ -2385,10 +2349,6 @@ void UniversalCmdBuffer::CmdBindTargets(
         const Extent2d depthViewExtent = pNewDepthView->GetExtent();
         surfaceExtent.width  = Min(surfaceExtent.width,  depthViewExtent.width);
         surfaceExtent.height = Min(surfaceExtent.height, depthViewExtent.height);
-
-        // Re-write the ZRANGE_PRECISION value for the waTcCompatZRange workaround. We must include the
-        // COND_EXEC which checks the metadata because we don't know the last fast clear value here.
-        pDeCmdSpace = pNewDepthView->UpdateZRangePrecision(true, &m_deCmdStream, pDeCmdSpace);
     }
     else
     {
@@ -2402,10 +2362,6 @@ void UniversalCmdBuffer::CmdBindTargets(
     {
         // Handle the case where the depth view is changing.
         pDeCmdSpace = pCurrentDepthView->HandleBoundTargetChanged(this, pDeCmdSpace);
-
-        // Record if this depth view we are switching from should trigger a Release_Mem due to being in the MetaData
-        // tail region.
-        waitOnMetadataMipTail |= pCurrentDepthView->WaitOnMetadataMipTail();
 
         // Add a stall if needed after Flush events issued in HandleBoundTargetChanged.
         if (m_cachedSettings.waitAfterDbFlush)
@@ -2433,11 +2389,6 @@ void UniversalCmdBuffer::CmdBindTargets(
         pDeCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(BREAK_BATCH, EngineTypeUniversal, pDeCmdSpace);
     }
 
-    if (waitOnMetadataMipTail)
-    {
-        pDeCmdSpace = WriteWaitEop(HwPipePostPrefetch, SyncGlxNone, SyncRbNone, pDeCmdSpace);
-    }
-
     // If next draw(s) that only change D/S targets, don't program CB_RMI_GL2_CACHE_CONTROL and let the state remains.
     // This is especially necessary for following HW bug WA. If client driver disable big page feature completely, then
     // the sync will still be issued for following case without this tweaking:
@@ -2447,7 +2398,7 @@ void UniversalCmdBuffer::CmdBindTargets(
     // By old logic, the sync will be added between both #1/#2 and #2/#3. The sync added for #1/#2 is unnecessary and it
     // will cause minor CPU and CP performance drop; sync added for #2/#3 will do more than that by draining the whole
     // 3D pipeline, and is completely wrong behavior.
-    if (IsGfx10Plus(m_gfxIpLevel) && validCbViewFound)
+    if (validCbViewFound)
     {
         if (m_cachedSettings.waUtcL0InconsistentBigPage &&
             ((static_cast<bool>(m_cbRmiGl2CacheControl.bits.COLOR_BIG_PAGE) != colorBigPage) ||
@@ -2664,16 +2615,8 @@ void UniversalCmdBuffer::CmdBindStreamOutTargets(
                                                                    strideInBytes));
 
             m_device.InitBufferSrd(pBufferSrd, params.target[idx].gpuVirtAddr, strideInBytes);
-            if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
-            {
-                auto*const  pSrd = &pBufferSrd->gfx9;
 
-                // A structured buffer load/store with ADD_TID_ENABLE is an invalid combination for the HW.
-                pSrd->word3.bits.ADD_TID_ENABLE  = 0;
-                pSrd->word3.bits.DATA_FORMAT     = BUF_DATA_FORMAT_32;
-                pSrd->word3.bits.NUM_FORMAT      = BUF_NUM_FORMAT_UINT;
-            }
-            else if (IsGfx10(m_gfxIpLevel))
+            if (IsGfx10(m_gfxIpLevel))
             {
                 auto*const  pSrd = &pBufferSrd->gfx10;
 
@@ -2681,17 +2624,13 @@ void UniversalCmdBuffer::CmdBindStreamOutTargets(
                 pSrd->gfx10Core.format = BUF_FMT_32_UINT;
                 pSrd->oob_select       = SQ_OOB_INDEX_ONLY;
             }
-            else if (IsGfx11(m_gfxIpLevel))
+            else
             {
                 auto*const  pSrd = &pBufferSrd->gfx10;
 
                 pSrd->add_tid_enable    = 0;
                 pSrd->gfx104Plus.format = BUF_FMT_32_UINT;
                 pSrd->oob_select        = SQ_OOB_INDEX_ONLY;
-            }
-            else
-            {
-                PAL_ASSERT_ALWAYS();
             }
         }
         else
@@ -2788,7 +2727,6 @@ void UniversalCmdBuffer::CmdSetPointLineRasterState(
                                                        &regs,
                                                        pDeCmdSpace);
     m_deCmdStream.CommitCommands(pDeCmdSpace);
-    m_deCmdStream.SetContextRollDetected<true>();
 }
 
 // =====================================================================================================================
@@ -2824,7 +2762,6 @@ void UniversalCmdBuffer::CmdSetDepthBiasState(
                                                        &regs,
                                                        pDeCmdSpace);
     m_deCmdStream.CommitCommands(pDeCmdSpace);
-    m_deCmdStream.SetContextRollDetected<true>();
 }
 
 // =====================================================================================================================
@@ -2858,7 +2795,6 @@ void UniversalCmdBuffer::CmdSetGlobalScissor(
                                                        &paScWindowScissor,
                                                        pDeCmdSpace);
     m_deCmdStream.CommitCommands(pDeCmdSpace);
-    m_deCmdStream.SetContextRollDetected<true>();
 }
 
 // =====================================================================================================================
@@ -3388,7 +3324,11 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndirectMulti(
     }
 
     // SQTT Marker was added as a bit in the DrawIndirectMulti PM4 to be set for Gfx10+.
-    if (IssueSqttMarkerEvent && (multiPacketUsed == false))
+    if (IssueSqttMarkerEvent
+#if (PAL_BUILD_BRANCH >= 2410)
+        && (multiPacketUsed == false)
+#endif
+       )
     {
         pDeCmdSpace += pThis->m_cmdUtil.BuildNonSampleEventWrite(THREAD_TRACE_MARKER,
                                                                  EngineTypeUniversal,
@@ -3543,7 +3483,11 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
         }
     }
 
-    if (IssueSqttMarkerEvent && (multiPacketUsed == false))
+    if (IssueSqttMarkerEvent
+#if (PAL_BUILD_BRANCH >= 2410)
+        && (multiPacketUsed == false)
+#endif
+       )
     {
         pDeCmdSpace += pThis->m_cmdUtil.BuildNonSampleEventWrite(THREAD_TRACE_MARKER,
                                                                  EngineTypeUniversal,
@@ -4609,14 +4553,7 @@ void UniversalCmdBuffer::CmdInsertTraceMarker(
         (markerType == PerfTraceMarkerType::A) ? mmSQ_THREAD_TRACE_USERDATA_2 : mmSQ_THREAD_TRACE_USERDATA_3;
 
     uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
-    if (IsGfx9(m_gfxIpLevel) == false)
-    {
-        pCmdSpace = m_deCmdStream.WriteSetOneConfigReg<true>(userDataAddr, markerData, pCmdSpace);
-    }
-    else
-    {
-        pCmdSpace = m_deCmdStream.WriteSetOneConfigReg<false>(userDataAddr, markerData, pCmdSpace);
-    }
+    pCmdSpace = m_deCmdStream.WriteSetOneConfigReg<true>(userDataAddr, markerData, pCmdSpace);
     m_deCmdStream.CommitCommands(pCmdSpace);
 }
 
@@ -4646,14 +4583,7 @@ void UniversalCmdBuffer::CmdInsertRgpTraceMarker(
         if (subQueueFlags.includeMainSubQueue != 0)
         {
             uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
-            if (IsGfx9(m_gfxIpLevel) == false)
-            {
-                pCmdSpace = m_deCmdStream.WriteSetSeqConfigRegs<true>(Start, end, pDwordData, pCmdSpace);
-            }
-            else
-            {
-                pCmdSpace = m_deCmdStream.WriteSetSeqConfigRegs<false>(Start, end, pDwordData, pCmdSpace);
-            }
+            pCmdSpace = m_deCmdStream.WriteSetSeqConfigRegs<true>(Start, end, pDwordData, pCmdSpace);
             m_deCmdStream.CommitCommands(pCmdSpace);
         }
 
@@ -4698,61 +4628,49 @@ uint32* UniversalCmdBuffer::WriteNullDepthTarget(
 
     regDB_RENDER_CONTROL dbRenderControl = { };
 
-    if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
+    if (IsGfx11(m_gfxIpLevel) && m_cachedSettings.useLegacyDbZInfo)
     {
-        pCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(Gfx09::mmDB_Z_INFO,
-                                                         Gfx09::mmDB_STENCIL_INFO,
-                                                         &regs2,
-                                                         pCmdSpace);
+        // When the PA_SC_VRS_SURFACE_CNTL_1.DISABLE_SSAA_DETAIL_TO_EXPOSED_RATE_CLAMPING setting is
+        // zero -- and it always is since this is a config register / chicken bit -- then the VRS rate
+        // is ultimately clamped against the smaller of
+        //      a) DB_Z_INFO.NUM_SAMPLES
+        //      b) PA_SC_AA_CONFIG.MSAA_EXPOSED_SAMPLES
+        //
+        // Note that the HW intentionally looks at DB_Z_INFO.NUM_SAMPLES even if there is no bound depth buffer.
+        //
+        // The latter is properly setup based on the actual MSAA rate, but if there's no depth buffer
+        // (i.e., this case), then we need to ensure that the DB_Z_INFO.NUM_SAMPLE is *not* the constraining
+        // factor.
+        regs2.dbZInfo.bits.NUM_SAMPLES = 3;
     }
-    else
+
+    pCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(Gfx10Plus::mmDB_Z_INFO,
+                                                     Gfx10Plus::mmDB_STENCIL_INFO,
+                                                     &regs2,
+                                                     pCmdSpace);
+
+    if (m_cachedSettings.supportsVrs)
     {
-        PAL_ASSERT(IsGfx10Plus(m_gfxIpLevel));
-
-        if (IsGfx11(m_gfxIpLevel) && m_cachedSettings.useLegacyDbZInfo)
+        if (IsGfx10(m_gfxIpLevel))
         {
-            // When the PA_SC_VRS_SURFACE_CNTL_1.DISABLE_SSAA_DETAIL_TO_EXPOSED_RATE_CLAMPING setting is
-            // zero -- and it always is since this is a config register / chicken bit -- then the VRS rate
-            // is ultimately clamped against the smaller of
-            //      a) DB_Z_INFO.NUM_SAMPLES
-            //      b) PA_SC_AA_CONFIG.MSAA_EXPOSED_SAMPLES
-            //
-            // Note that the HW intentionally looks at DB_Z_INFO.NUM_SAMPLES even if there is no bound depth buffer.
-            //
-            // The latter is properly setup based on the actual MSAA rate, but if there's no depth buffer
-            // (i.e., this case), then we need to ensure that the DB_Z_INFO.NUM_SAMPLE is *not* the constraining
-            // factor.
-            regs2.dbZInfo.bits.NUM_SAMPLES = 3;
+            // If no depth buffer has been bound yet, then make sure we obey the panel setting.  This has an
+            // effect even if depth testing is disabled.
+            regs1.dbRenderOverride2.gfx10Vrs.FORCE_VRS_RATE_FINE = (m_cachedSettings.vrsForceRateFine ? 1 : 0);
         }
 
-        pCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(Gfx10Plus::mmDB_Z_INFO,
-                                                         Gfx10Plus::mmDB_STENCIL_INFO,
-                                                         &regs2,
-                                                         pCmdSpace);
-
-        if (m_cachedSettings.supportsVrs)
+        if (IsGfx103Plus(m_gfxIpLevel))
         {
-            if (IsGfx10(m_gfxIpLevel))
-            {
-                // If no depth buffer has been bound yet, then make sure we obey the panel setting.  This has an
-                // effect even if depth testing is disabled.
-                regs1.dbRenderOverride2.gfx10Vrs.FORCE_VRS_RATE_FINE = (m_cachedSettings.vrsForceRateFine ? 1 : 0);
-            }
-
-            if (IsGfx103Plus(m_gfxIpLevel))
-            {
-                //   For centroid computation you need to set DB_RENDER_OVERRIDE2::CENTROID_COMPUTATION_MODE to pick
-                //   correct sample for centroid, which per DX12 spec is defined as the first covered sample. This
-                //   means that it should use "2: Choose the sample with the smallest {~pixel_num, sample_id} as
-                //   centroid, for all VRS rates"
-                regs1.dbRenderOverride2.gfx103Plus.CENTROID_COMPUTATION_MODE = 2;
-            }
+            //   For centroid computation you need to set DB_RENDER_OVERRIDE2::CENTROID_COMPUTATION_MODE to pick
+            //   correct sample for centroid, which per DX12 spec is defined as the first covered sample. This
+            //   means that it should use "2: Choose the sample with the smallest {~pixel_num, sample_id} as
+            //   centroid, for all VRS rates"
+            regs1.dbRenderOverride2.gfx103Plus.CENTROID_COMPUTATION_MODE = 2;
         }
+    }
 
-        if (IsGfx11(m_gfxIpLevel))
-        {
-            Gfx10DepthStencilView::SetGfx11StaticDbRenderControlFields(m_device, 1, &dbRenderControl);
-        }
+    if (IsGfx11(m_gfxIpLevel))
+    {
+        Gfx10DepthStencilView::SetGfx11StaticDbRenderControlFields(m_device, 1, &dbRenderControl);
     }
 
     pCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmDB_RENDER_OVERRIDE2, mmDB_HTILE_DATA_BASE, &regs1, pCmdSpace);
@@ -4950,9 +4868,19 @@ Result UniversalCmdBuffer::AddPreamble()
 
         if (m_cmdUtil.GetRegInfo().mmDbDfsmControl != 0)
         {
-            pDeCmdSpace = m_deCmdStream.WriteSetOneContextRegNoOpt(m_cmdUtil.GetRegInfo().mmDbDfsmControl,
-                                                                   m_dbDfsmControl.u32All,
-                                                                   pDeCmdSpace);
+            PAL_ASSERT(IsGfx11(m_gfxIpLevel) == false);
+
+            // Force off DFSM.
+            regDB_DFSM_CONTROL dbDfsmControl = {};
+            dbDfsmControl.most.PUNCHOUT_MODE = DfsmPunchoutModeForceOff;
+
+            // Note that waStalledPopsMode prevents us from setting POPS_DRAIN_PS_ON_OVERLAP.
+            PAL_ASSERT((dbDfsmControl.most.POPS_DRAIN_PS_ON_OVERLAP == 0) ||
+                       (m_device.Settings().waStalledPopsMode == false));
+
+            pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(m_cmdUtil.GetRegInfo().mmDbDfsmControl,
+                                                              dbDfsmControl.u32All,
+                                                              pDeCmdSpace);
         }
 
         // Initialize m_acqRelFenceValGpuVa.
@@ -5132,7 +5060,8 @@ void UniversalCmdBuffer::WriteEventCmd(
     uint32                data)
 {
     // This will replace PipelineStageBlt with a more specific set of flags if we haven't done any CP DMAs.
-    m_pBarrierMgr->OptimizeStageMask(this, BarrierType::Global, &stageMask, nullptr);
+    uint32 unusedStageMask = 0;
+    m_pBarrierMgr->OptimizeStageMask(this, BarrierType::Global, &stageMask, &unusedStageMask);
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
@@ -6512,20 +6441,17 @@ uint32* UniversalCmdBuffer::ValidateTriangleRasterState(
         paSuScModeCntl.bits.PROVOKING_VTX_LAST = static_cast<uint32>(params.provokingVertex);
     }
 
-    if (IsGfx10Plus(m_gfxIpLevel))
-    {
-        //  The field was added for both polymode and perpendicular endcap lines.
-        //  The SC reuses some information from the first primitive for other primitives within a polymode group. The
-        //  whole group needs to make it to the SC in the same order it was produced by the PA. When the field is enabled,
-        //  the PA will set a keep_together bit on the first and last primitive of each group. This tells the PBB that the
-        //  primitives must be kept in order
-        //
-        //  it should be enabled when POLY_MODE is enabled.  Also, if the driver ever sets PERPENDICULAR_ENDCAP_ENA, that
-        //  should follow the same rules. POLY_MODE is handled @ set-time as it is known then.
-        paSuScModeCntl.gfx10Plus.KEEP_TOGETHER_ENABLE =
-            ((m_pbbCntlRegs.paScBinnerCntl0.bits.BINNING_MODE != DISABLE_BINNING_USE_LEGACY_SC__GFX09_10) &&
-             (paSuScModeCntl.bits.POLY_MODE || pPipeline->IsPerpEndCapsEnabled()));
-    }
+    //  The field was added for both polymode and perpendicular endcap lines.
+    //  The SC reuses some information from the first primitive for other primitives within a polymode group. The
+    //  whole group needs to make it to the SC in the same order it was produced by the PA. When the field is enabled,
+    //  the PA will set a keep_together bit on the first and last primitive of each group. This tells the PBB that the
+    //  primitives must be kept in order
+    //
+    //  it should be enabled when POLY_MODE is enabled.  Also, if the driver ever sets PERPENDICULAR_ENDCAP_ENA, that
+    //  should follow the same rules. POLY_MODE is handled @ set-time as it is known then.
+    paSuScModeCntl.gfx10Plus.KEEP_TOGETHER_ENABLE =
+        ((m_pbbCntlRegs.paScBinnerCntl0.bits.BINNING_MODE != DISABLE_BINNING_USE_LEGACY_SC__GFX09_10) &&
+         (paSuScModeCntl.bits.POLY_MODE || pPipeline->IsPerpEndCapsEnabled()));
 
     PAL_DEBUG_BUILD_ONLY_ASSERT(paSuScModeCntl.u32All != InvalidPaSuScModeCntlVal);
 
@@ -6685,7 +6611,7 @@ void UniversalCmdBuffer::ValidateVrsState()
                                                      pClientDsView->BaseArraySlice() };
                 const auto*     pSubResInfo      = pDepthImg->Parent()->SubresourceInfo(viewBaseSubResId);
 
-                rpm.CopyVrsIntoHtile(this, pClientDsView, pSubResInfo->extentTexels, m_graphicsState.pVrsImage);
+                rpm.CopyVrsIntoHtile(this, pClientDsView, true, pSubResInfo->extentTexels, m_graphicsState.pVrsImage);
             }
         }
         else
@@ -6739,7 +6665,7 @@ void UniversalCmdBuffer::ValidateVrsState()
                     AddVrsCopyMapping(pDsView, m_graphicsState.pVrsImage);
 
                     // And copy our source data into the image associated with this new view.
-                    rpm.CopyVrsIntoHtile(this, pDsView, depthExtent, m_graphicsState.pVrsImage);
+                    rpm.CopyVrsIntoHtile(this, pDsView, false, depthExtent, m_graphicsState.pVrsImage);
                 }
             }
         } // end check for having a client depth buffer
@@ -6925,6 +6851,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     if (PipelineDirty ||
         (StateDirty && (dirtyFlags.depthStencilState       ||
                         dirtyFlags.colorBlendState         ||
+                        dirtyFlags.msaaState               ||
                         dirtyFlags.depthStencilView        ||
                         dirtyFlags.occlusionQueryActive    ||
                         dirtyFlags.triangleRasterState     ||
@@ -6934,6 +6861,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
                         (m_drawTimeHwState.valid.paScModeCntl1 == 0))))
     {
         paScModeCntl1 = pPipeline->PaScModeCntl1();
+        paScModeCntl1.bits.PS_ITER_SAMPLE |= (pMsaaState != nullptr) ? pMsaaState->ForceSampleRateShading() : 0;
 
         // If VRS surfaces are enabled, then we can not set the "WALK_ALIGNMENT" or the
         // "WALK_ALIGN8_PRIM_FITS_ST" fields of PA_SC_MODE_CNTL_1.
@@ -6979,7 +6907,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         // Typically, ForceWdSwitchOnEop only depends on the primitive topology and restart state.  However, when we
         // disable the hardware WD load balancing feature, we do need to some draw time parameters that can
         // change every draw.
-        const bool            wdSwitchOnEop      = ForceWdSwitchOnEop(*pPipeline, drawInfo);
+        const bool            wdSwitchOnEop      = ForceWdSwitchOnEop(drawInfo);
         regIA_MULTI_VGT_PARAM iaMultiVgtParam    = pPipeline->IaMultiVgtParam(wdSwitchOnEop);
         regVGT_LS_HS_CONFIG   vgtLsHsConfig      = pPipeline->VgtLsHsConfig();
         const uint32          patchControlPoints = m_graphicsState.inputAssemblyState.patchControlPoints;
@@ -7190,304 +7118,10 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     m_graphicsState.dirtyFlags.u32All               = 0;
     m_graphicsState.pipelineState.dirtyFlags.u32All = 0;
     m_pipelineDynRegsDirty                          = false;
-    m_deCmdStream.ResetDrawTimeState();
 
     m_state.flags.firstDrawExecuted = 1;
 
     return pDeCmdSpace;
-}
-
-// =====================================================================================================================
-// Gfx9 specific function for calculating Color PBB bin size.
-void UniversalCmdBuffer::Gfx9GetColorBinSize(
-    Extent2d* pBinSize
-    ) const
-{
-    // TODO: This function needs to be updated to look at the pixel shader and determine which outputs are valid in
-    //       addition to looking at the bound render targets. Bound render targets may not necessarily get a pixel
-    //       shader export. Using the bound render targets means that we may make the bin size smaller than it needs to
-    //       be when a render target is bound, but is not written by the PS. With export cull mask enabled. We need only
-    //       examine the PS output because it will account for any RTs that are not bound.
-
-    // Calculate cColor
-    //   MMRT = (num_frag == 1) ? 1 : (ps_iter == 1) ? num_frag : 2
-    //   CMRT = Bpp * MMRT
-    uint32 cColor = 0;
-
-    const auto& boundTargets = m_graphicsState.bindTargets;
-    const auto* pPipeline    = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
-    const bool  psIterSample = ((pPipeline != nullptr) && (pPipeline->PaScModeCntl1().bits.PS_ITER_SAMPLE == 1));
-    for (uint32  idx = 0; idx < boundTargets.colorTargetCount; idx++)
-    {
-        const auto* pColorView = static_cast<const ColorTargetView*>(boundTargets.colorTargets[idx].pColorTargetView);
-        const auto* pImage     = ((pColorView != nullptr) ? pColorView->GetImage() : nullptr);
-
-        if (pImage != nullptr)
-        {
-            const auto&  info = pImage->Parent()->GetImageCreateInfo();
-            const uint32 mmrt = (info.fragments == 1) ? 1 : (psIterSample ? info.fragments : 2);
-
-            cColor += BytesPerPixel(info.swizzledFormat.format) * mmrt;
-        }
-    }
-
-    // Lookup Color bin size
-    static constexpr CtoBinSize BinSize[][3][8]=
-    {
-        {
-            // One RB / SE
-            {
-                // One shader engine
-                {        0,  128,  128 },
-                {        1,   64,  128 },
-                {        2,   32,  128 },
-                {        3,   16,  128 },
-                {       17,    0,    0 },
-                { UINT_MAX,    0,    0 },
-            },
-            {
-                // Two shader engines
-                {        0,  128,  128 },
-                {        2,   64,  128 },
-                {        3,   32,  128 },
-                {        5,   16,  128 },
-                {       17,    0,    0 },
-                { UINT_MAX,    0,    0 },
-            },
-            {
-                // Four shader engines
-                {        0,  128,  128 },
-                {        3,   64,  128 },
-                {        5,   16,  128 },
-                {       17,    0,    0 },
-                { UINT_MAX,    0,    0 },
-            },
-        },
-        {
-            // Two RB / SE
-            {
-                // One shader engine
-                {        0,  128,  128 },
-                {        2,   64,  128 },
-                {        3,   32,  128 },
-                {        5,   16,  128 },
-                {       33,    0,    0 },
-                { UINT_MAX,    0,    0 },
-            },
-            {
-                // Two shader engines
-                {        0,  128,  128 },
-                {        3,   64,  128 },
-                {        5,   32,  128 },
-                {        9,   16,  128 },
-                {       33,    0,    0 },
-                { UINT_MAX,    0,    0 },
-            },
-            {
-                // Four shader engines
-                {        0,  256,  256 },
-                {        2,  128,  256 },
-                {        3,  128,  128 },
-                {        5,   64,  128 },
-                {        9,   16,  128 },
-                {       33,    0,    0 },
-                { UINT_MAX,    0,    0 },
-            },
-        },
-        {
-            // Four RB / SE
-            {
-                // One shader engine
-                {        0,  128,  256 },
-                {        2,  128,  128 },
-                {        3,   64,  128 },
-                {        5,   32,  128 },
-                {        9,   16,  128 },
-                {       17,    0,    0 },
-                { UINT_MAX,    0,    0 },
-            },
-            {
-                // Two shader engines
-                {        0,  256,  256 },
-                {        2,  128,  256 },
-                {        3,  128,  128 },
-                {        5,   64,  128 },
-                {        9,   32,  128 },
-                {       17,   16,  128 },
-                {       33,    0,    0 },
-                { UINT_MAX,    0,    0 },
-            },
-            {
-                // Four shader engines
-                {        0,  256,  512 },
-                {        2,  128,  512 },
-                {        3,   64,  512 },
-                {        5,   32,  512 },
-                {        9,   32,  256 },
-                {       17,   32,  128 },
-                {       33,    0,    0 },
-                { UINT_MAX,    0,    0 },
-            },
-        },
-    };
-
-    const CtoBinSize* pBinEntry = GetBinSizeValue(&BinSize[m_log2NumRbPerSe][m_log2NumSes][0], cColor);
-    pBinSize->width  = pBinEntry->binSizeX;
-    pBinSize->height = pBinEntry->binSizeY;
-}
-
-// =====================================================================================================================
-// Gfx9 specific function for calculating Depth PBB bin size.
-void UniversalCmdBuffer::Gfx9GetDepthBinSize(
-    Extent2d* pBinSize
-    ) const
-{
-    const auto*  pDepthTargetView =
-            static_cast<const DepthStencilView*>(m_graphicsState.bindTargets.depthTarget.pDepthStencilView);
-    const auto*  pImage           = (pDepthTargetView ? pDepthTargetView->GetImage() : nullptr);
-
-    if (pImage == nullptr)
-    {
-        // Set to max sizes when no depth image bound
-        pBinSize->width  = 512;
-        pBinSize->height = 512;
-    }
-    else
-    {
-        const auto* pDepthStencilState = static_cast<const DepthStencilState*>(m_graphicsState.pDepthStencilState);
-        const auto& imageCreateInfo    = pImage->Parent()->GetImageCreateInfo();
-
-        // Calculate cDepth
-        //   C_per_sample = ((z_enabled) ? 5 : 0) + ((stencil_enabled) ? 1 : 0)
-        //   cDepth = 4 * C_per_sample * num_samples
-        const uint32 cPerDepthSample   = (pDepthStencilState->IsDepthEnabled() &&
-                                          (pDepthTargetView->ReadOnlyDepth() == false)) ? 5 : 0;
-        const uint32 cPerStencilSample = (pDepthStencilState->IsStencilEnabled() &&
-                                          (pDepthTargetView->ReadOnlyStencil() == false)) ? 1 : 0;
-        const uint32 cDepth            = 4 * (cPerDepthSample + cPerStencilSample) * imageCreateInfo.samples;
-
-        // Lookup Depth bin size
-        static constexpr CtoBinSize BinSize[][3][10]=
-        {
-            {
-                // One RB / SE
-                {
-                    // One shader engine
-                    {        0,  64,  512 },
-                    {        2,  64,  256 },
-                    {        4,  64,  128 },
-                    {        7,  32,  128 },
-                    {       13,  16,  128 },
-                    {       49,   0,    0 },
-                    { UINT_MAX,   0,    0 },
-                },
-                {
-                    // Two shader engines
-                    {        0, 128,  512 },
-                    {        2,  64,  512 },
-                    {        4,  64,  256 },
-                    {        7,  64,  128 },
-                    {       13,  32,  128 },
-                    {       25,  16,  128 },
-                    {       49,   0,    0 },
-                    { UINT_MAX,   0,    0 },
-                },
-                {
-                    // Four shader engines
-                    {        0, 256,  512 },
-                    {        2, 128,  512 },
-                    {        4,  64,  512 },
-                    {        7,  64,  256 },
-                    {       13,  64,  128 },
-                    {       25,  16,  128 },
-                    {       49,   0,    0 },
-                    { UINT_MAX,   0,    0 },
-                },
-            },
-            {
-                // Two RB / SE
-                {
-                    // One shader engine
-                    {        0, 128,  512 },
-                    {        2,  64,  512 },
-                    {        4,  64,  256 },
-                    {        7,  64,  128 },
-                    {       13,  32,  128 },
-                    {       25,  16,  128 },
-                    {       97,   0,    0 },
-                    { UINT_MAX,   0,    0 },
-                },
-                {
-                    // Two shader engines
-                    {        0,  256,  512 },
-                    {        2,  128,  512 },
-                    {        4,   64,  512 },
-                    {        7,   64,  256 },
-                    {       13,   64,  128 },
-                    {       25,   32,  128 },
-                    {       49,   16,  128 },
-                    {       97,    0,    0 },
-                    { UINT_MAX,    0,    0 },
-                },
-                {
-                    // Four shader engines
-                    {        0,  512,  512 },
-                    {        2,  256,  512 },
-                    {        4,  128,  512 },
-                    {        7,   64,  512 },
-                    {       13,   64,  256 },
-                    {       25,   64,  128 },
-                    {       49,   16,  128 },
-                    {       97,    0,    0 },
-                    { UINT_MAX,    0,    0 },
-                },
-            },
-            {
-                // Four RB / SE
-                {
-                    // One shader engine
-                    {        0,  256,  512 },
-                    {        2,  128,  512 },
-                    {        4,   64,  512 },
-                    {        7,   64,  256 },
-                    {       13,   64,  128 },
-                    {       25,   32,  128 },
-                    {       49,   16,  128 },
-                    {      193,    0,    0 },
-                    { UINT_MAX,    0,    0 },
-                },
-                {
-                    // Two shader engines
-                    {        0,  512,  512 },
-                    {        2,  256,  512 },
-                    {        4,  128,  512 },
-                    {        7,   64,  512 },
-                    {       13,   64,  256 },
-                    {       25,   64,  128 },
-                    {       49,   32,  128 },
-                    {       97,   16,  128 },
-                    {      193,    0,    0 },
-                    { UINT_MAX,    0,    0 },
-                },
-                {
-                    // Four shader engines
-                    {        0,  512,  512 },
-                    {        4,  256,  512 },
-                    {        7,  128,  512 },
-                    {       13,   64,  512 },
-                    {       25,   32,  512 },
-                    {       49,   32,  256 },
-                    {       97,   16,  128 },
-                    {      193,    0,    0 },
-                    { UINT_MAX,    0,    0 },
-                },
-            },
-        };
-
-        const CtoBinSize* pBinEntry = GetBinSizeValue(&BinSize[m_log2NumRbPerSe][m_log2NumSes][0], cDepth);
-        pBinSize->width  = pBinEntry->binSizeX;
-        pBinSize->height = pBinEntry->binSizeY;
-    }
 }
 
 // =====================================================================================================================
@@ -7496,8 +7130,6 @@ void UniversalCmdBuffer::Gfx10GetColorBinSize(
     Extent2d* pBinSize
     ) const
 {
-    PAL_ASSERT(IsGfx10Plus(m_gfxIpLevel));
-
     // TODO: This function needs to be updated to look at the pixel shader and determine which outputs are valid in
     //       addition to looking at the bound render targets. Bound render targets may not necessarily get a pixel
     //       shader export. Using the bound render targets means that we may make the bin size smaller than it needs to
@@ -7509,7 +7141,9 @@ void UniversalCmdBuffer::Gfx10GetColorBinSize(
 
     const auto& boundTargets = m_graphicsState.bindTargets;
     const auto* pPipeline    = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
-    const bool  psIterSample = ((pPipeline != nullptr) && (pPipeline->PaScModeCntl1().bits.PS_ITER_SAMPLE == 1));
+    const auto* pMsaaState   = static_cast<const MsaaState*>(m_graphicsState.pMsaaState);
+    const bool  psIterSample = ((pPipeline != nullptr) && (pPipeline->PaScModeCntl1().bits.PS_ITER_SAMPLE == 1)) ||
+                               pMsaaState->ForceSampleRateShading();
     for (uint32  idx = 0; idx < boundTargets.colorTargetCount; idx++)
     {
         const auto* pColorView = static_cast<const ColorTargetView*>(boundTargets.colorTargets[idx].pColorTargetView);
@@ -7554,8 +7188,6 @@ void UniversalCmdBuffer::Gfx10GetDepthBinSize(
     Extent2d* pBinSize
     ) const
 {
-    PAL_ASSERT(IsGfx10Plus(m_gfxIpLevel));
-
     const auto*  pDepthTargetView =
             static_cast<const DepthStencilView*>(m_graphicsState.bindTargets.depthTarget.pDepthStencilView);
     const auto*  pImage           = (pDepthTargetView ? pDepthTargetView->GetImage() : nullptr);
@@ -7678,18 +7310,11 @@ uint32* UniversalCmdBuffer::ValidateBinSizes(
             // Go through all the bound color targets and the depth target.
             Extent2d colorBinSize = {};
             Extent2d depthBinSize = {};
-            if (IsGfx10Plus(m_gfxIpLevel))
-            {
-                // Final bin size is choosen from minimum between Depth, Color and Fmask.
-                Gfx10GetColorBinSize(&colorBinSize); // returns minimum of Color and Fmask
-                Gfx10GetDepthBinSize(&depthBinSize);
-            }
-            else
-            {
-                // Final bin size is choosen from minimum between Depth and Color.
-                Gfx9GetColorBinSize(&colorBinSize);
-                Gfx9GetDepthBinSize(&depthBinSize);
-            }
+
+            // Final bin size is choosen from minimum between Depth, Color and Fmask.
+            Gfx10GetColorBinSize(&colorBinSize); // returns minimum of Color and Fmask
+            Gfx10GetDepthBinSize(&depthBinSize);
+
             const uint32 colorArea = colorBinSize.width * colorBinSize.height;
             const uint32 depthArea = depthBinSize.width * depthBinSize.height;
 
@@ -8014,7 +7639,7 @@ uint32* UniversalCmdBuffer::ValidateCbColorInfoAndBlendState(
         {
             const bool isRbPlusOptDepthOnly = (pPipeline != nullptr) ? pPipeline->CanRbPlusOptimizeDepthOnly() : false;
             m_cbColorInfo[0].bits.NUMBER_TYPE = isRbPlusOptDepthOnly ? Chip::NUMBER_FLOAT : Chip::NUMBER_UNORM;
-            if (IsGfx9(m_gfxIpLevel) || IsGfx10(m_gfxIpLevel))
+            if (IsGfx10(m_gfxIpLevel))
             {
                 m_cbColorInfo[0].gfx09_10.FORMAT = isRbPlusOptDepthOnly ? Chip::COLOR_32 : Chip::COLOR_INVALID;
             }
@@ -8105,54 +7730,6 @@ uint32* UniversalCmdBuffer::ValidateDbRenderOverride(
     }
 
     return pDeCmdSpace;
-}
-
-// =====================================================================================================================
-// Returns whether we need to validate scissor rects at draw time.
-bool UniversalCmdBuffer::NeedsToValidateScissorRectsWa(
-    bool pm4OptImmediate
-    ) const
-{
-    bool needsValidation = false;
-
-    if (pm4OptImmediate)
-    {
-        // When PM4 optimizer is enabled ContextRollDetected() will detect all context rolls through the PM4
-        // optimizer.
-        needsValidation = (m_cachedSettings.scissorChangeWa && m_deCmdStream.ContextRollDetected());
-    }
-    else
-    {
-        const auto dirtyFlags    = m_graphicsState.dirtyFlags;
-        const auto pipelineFlags = m_graphicsState.pipelineState.dirtyFlags;
-
-        // When PM4 optimizer is disabled ContextRollDetected() represents individual context register writes in the
-        // driver. Thus, if any other graphics state is dirtied we must assume a context roll has occurred.
-        needsValidation = (m_cachedSettings.scissorChangeWa &&
-                           (m_deCmdStream.ContextRollDetected() ||
-                            dirtyFlags.colorBlendState          ||
-                            dirtyFlags.depthStencilState        ||
-                            dirtyFlags.msaaState                ||
-                            dirtyFlags.quadSamplePatternState   ||
-                            dirtyFlags.viewports                ||
-                            dirtyFlags.depthStencilView         ||
-                            dirtyFlags.inputAssemblyState       ||
-                            dirtyFlags.triangleRasterState      ||
-                            dirtyFlags.colorTargetView          ||
-                            dirtyFlags.lineStippleState         ||
-                            dirtyFlags.streamOutTargets         ||
-                            dirtyFlags.globalScissorState       ||
-                            dirtyFlags.blendConstState          ||
-                            dirtyFlags.depthBiasState           ||
-                            dirtyFlags.depthBoundsState         ||
-                            dirtyFlags.pointLineRasterState     ||
-                            dirtyFlags.stencilRefMaskState      ||
-                            dirtyFlags.clipRectsState           ||
-                            pipelineFlags.borderColorPalette    ||
-                            pipelineFlags.pipeline));
-    }
-
-    return needsValidation;
 }
 
 // =====================================================================================================================
@@ -8457,13 +8034,20 @@ uint32* UniversalCmdBuffer::ValidateDrawTimeHwState(
     if (colorExpRegAddr != UserDataNotMapped)
     {
         auto pPipeline = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
-        if (pPipeline->GetColorExportAddr() != 0)
-        {
-            pDeCmdSpace = SetUserSgprReg<ShaderGraphics>(colorExpRegAddr,
-                                                         pPipeline->GetColorExportAddr(),
-                                                         false,
-                                                         pDeCmdSpace);
-        }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 842
+        const DynamicGraphicsState dynamicState = m_graphicsState.dynamicGraphicsInfo.dynamicState;
+#else
+        const DynamicGraphicsState dynamicState = m_graphicsState.dynamicState;
+#endif
+        const bool dynamicDualSourceBlendEnabled = dynamicState.dualSourceBlendEnable &&
+                                                   dynamicState.enable.dualSourceBlendEnable;
+        pDeCmdSpace = SetUserSgprReg<ShaderGraphics>(colorExpRegAddr,
+                                                     pPipeline->GetColorExportAddr(
+                                                         dynamicDualSourceBlendEnabled ?
+                                                         ColorExportShaderType::DualSourceBlendEnable :
+                                                         ColorExportShaderType::Default),
+                                                     false,
+                                                     pDeCmdSpace);
     }
 
     const bool disableInstancePacking =
@@ -9293,11 +8877,8 @@ uint32* UniversalCmdBuffer::UpdateDbCountControl(
 
         // Even if ZPASS_ENABLE = 0, we should set this flag or it will force OREO to use blend mode in the late_z path.
         // There should be no impact on gfx10 so we did the simple thing and made this a general change.
-        if (IsGfx10Plus(m_gfxIpLevel))
-        {
-            // This field must be set to match GFX9's PERFECT_ZPASS_COUNTS behavior.
-            dbCountControl.gfx10Plus.DISABLE_CONSERVATIVE_ZPASS_COUNTS = 1;
-        }
+        // This field must be set to match GFX9's PERFECT_ZPASS_COUNTS behavior.
+        dbCountControl.gfx10Plus.DISABLE_CONSERVATIVE_ZPASS_COUNTS = 1;
 
         pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg<Pm4OptImmediate>(mmDB_COUNT_CONTROL,
                                                                            dbCountControl.u32All,
@@ -9312,7 +8893,6 @@ uint32* UniversalCmdBuffer::UpdateDbCountControl(
 // =====================================================================================================================
 // Returns true if the current command buffer state requires WD_SWITCH_ON_EOP=1, or if a HW workaround necessitates it.
 bool UniversalCmdBuffer::ForceWdSwitchOnEop(
-    const GraphicsPipeline&      pipeline,
     const Pm4::ValidateDrawInfo& drawInfo
     ) const
 {
@@ -9329,17 +8909,11 @@ bool UniversalCmdBuffer::ForceWdSwitchOnEop(
     //    - Triangle strip
     // add draw opaque.
 
-    const PrimitiveTopology primTopology = m_graphicsState.inputAssemblyState.topology;
+    const PrimitiveTopology primTopology            = m_graphicsState.inputAssemblyState.topology;
     const bool              primitiveRestartEnabled = m_graphicsState.inputAssemblyState.primitiveRestartEnable;
-    bool                    restartPrimsCheck = (primTopology != PrimitiveTopology::PointList) &&
-                                                (primTopology != PrimitiveTopology::LineStrip) &&
-                                                (primTopology != PrimitiveTopology::TriangleStrip);
-
-    if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
-    {
-        // Disable 4x primrate for all primitives when reset index is enabled on gfx9 devices.
-        restartPrimsCheck = true;
-    }
+    const bool              restartPrimsCheck       = (primTopology != PrimitiveTopology::PointList) &&
+                                                      (primTopology != PrimitiveTopology::LineStrip) &&
+                                                      (primTopology != PrimitiveTopology::TriangleStrip);
 
     bool switchOnEop = ((primTopology == PrimitiveTopology::TriangleStripAdj) ||
                         (primTopology == PrimitiveTopology::TriangleFan) ||
@@ -10097,35 +9671,22 @@ uint32 UniversalCmdBuffer::BuildExecuteIndirectIb2Packets(
                 srdInfo.srcGpuVirtAddressOffset = pParamData[cmdIndex].argBufOffset;
                 srdInfo.dstGpuVirtAddressOffset = pParamData[cmdIndex].data[0] * sizeof(uint32);
 
-                if (IsGfx10Plus(m_gfxIpLevel))
-                {
-                    // Always set resource_level = 1 because we're in GEN_TWO  mode
-                    const uint32 resourceLevel = m_device.BufferSrdResourceLevel();
-                    // Always set oob_select = 2 (allow transaction unless numRecords == 0)
-                    constexpr uint32 OobSelect = SQ_OOB_NUM_RECORDS_0;
-                    // Use the LLC for read/write if enabled in Mtype
-                    constexpr uint32 LlcNoalloc = 0x0;
+                // Always set resource_level = 1 because we're in GEN_TWO  mode
+                const uint32 resourceLevel = m_device.BufferSrdResourceLevel();
+                // Always set oob_select = 2 (allow transaction unless numRecords == 0)
+                constexpr uint32 OobSelect = SQ_OOB_NUM_RECORDS_0;
+                // Use the LLC for read/write if enabled in Mtype
+                constexpr uint32 LlcNoalloc = 0x0;
 
-                    srdInfo.srdDword3 = ((SQ_SEL_X        << SqBufRsrcTWord3DstSelXShift)                       |
-                                         (SQ_SEL_Y        << SqBufRsrcTWord3DstSelYShift)                       |
-                                         (SQ_SEL_Z        << SqBufRsrcTWord3DstSelZShift)                       |
-                                         (SQ_SEL_W        << SqBufRsrcTWord3DstSelWShift)                       |
-                                         (BUF_FMT_32_UINT << Gfx10CoreSqBufRsrcTWord3FormatShift)               |
-                                         (resourceLevel   << Gfx10CoreSqBufRsrcTWord3ResourceLevelShift)        |
-                                         (OobSelect       << SqBufRsrcTWord3OobSelectShift)                     |
-                                         (LlcNoalloc      << Gfx103PlusExclusiveSqBufRsrcTWord3LlcNoallocShift) |
-                                         (SQ_RSRC_BUF     << SqBufRsrcTWord3TypeShift));
-                }
-                else
-                {
-                    srdInfo.srdDword3 = ((SQ_RSRC_BUF         << Gfx09::SQ_BUF_RSRC_WORD3__TYPE__SHIFT)        |
-                                         (SQ_SEL_X            << Gfx09::SQ_BUF_RSRC_WORD3__DST_SEL_X__SHIFT)   |
-                                         (SQ_SEL_Y            << Gfx09::SQ_BUF_RSRC_WORD3__DST_SEL_Y__SHIFT)   |
-                                         (SQ_SEL_Z            << Gfx09::SQ_BUF_RSRC_WORD3__DST_SEL_Z__SHIFT)   |
-                                         (SQ_SEL_W            << Gfx09::SQ_BUF_RSRC_WORD3__DST_SEL_W__SHIFT)   |
-                                         (BUF_DATA_FORMAT_32  << Gfx09::SQ_BUF_RSRC_WORD3__DATA_FORMAT__SHIFT) |
-                                         (BUF_NUM_FORMAT_UINT << Gfx09::SQ_BUF_RSRC_WORD3__NUM_FORMAT__SHIFT));
-                }
+                srdInfo.srdDword3 = ((SQ_SEL_X        << SqBufRsrcTWord3DstSelXShift)                       |
+                                     (SQ_SEL_Y        << SqBufRsrcTWord3DstSelYShift)                       |
+                                     (SQ_SEL_Z        << SqBufRsrcTWord3DstSelZShift)                       |
+                                     (SQ_SEL_W        << SqBufRsrcTWord3DstSelWShift)                       |
+                                     (BUF_FMT_32_UINT << Gfx10CoreSqBufRsrcTWord3FormatShift)               |
+                                     (resourceLevel   << Gfx10CoreSqBufRsrcTWord3ResourceLevelShift)        |
+                                     (OobSelect       << SqBufRsrcTWord3OobSelectShift)                     |
+                                     (LlcNoalloc      << Gfx103PlusExclusiveSqBufRsrcTWord3LlcNoallocShift) |
+                                     (SQ_RSRC_BUF     << SqBufRsrcTWord3TypeShift));
 
                 pDeCmdIb2Space += m_cmdUtil.BuildUntypedSrd(
                                                 PacketPredicate(), &srdInfo, ShaderGraphics, pDeCmdIb2Space);
@@ -10814,15 +10375,14 @@ void UniversalCmdBuffer::ExecuteIndirectPacket(
         // Since the execute indirect packet changes the packet stream from IB1 to IB2 and there are separate CP packet
         // filters for both IB1 and IB2, reset the packet filter here for IB1. For ExecuteIndirect V2 PM4 is processed
         // on IB1 but it still requires the resetPktFilter bit set.
-        const bool resetPktFilter = IsGfx10Plus(m_gfxIpLevel);
-        Device* pDevice = const_cast<Device*>(&m_device);
+        constexpr bool ResetPktFilter = true;
 
         if (useExecuteIndirectV2)
         {
             pDeCmdSpace += CmdUtil::BuildExecuteIndirectV2(PacketPredicate(),
                                                            isGfx,
                                                            packetInfo,
-                                                           resetPktFilter,
+                                                           ResetPktFilter,
                                                            &packetOp,
                                                            &meta,
                                                            pDeCmdSpace);
@@ -10832,7 +10392,7 @@ void UniversalCmdBuffer::ExecuteIndirectPacket(
             pDeCmdSpace += CmdUtil::BuildExecuteIndirect(PacketPredicate(),
                                                          isGfx,
                                                          packetInfo,
-                                                         resetPktFilter,
+                                                         ResetPktFilter,
                                                          pDeCmdSpace);
         }
 
@@ -11001,7 +10561,6 @@ void UniversalCmdBuffer::ExecuteIndirectShader(
 
                 pDeCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, EngineTypeUniversal, pDeCmdSpace);
                 pDeCmdSpace += m_cmdUtil.BuildAcquireMemGfxSurfSync(acquireInfo, pDeCmdSpace);
-                m_deCmdStream.SetContextRollDetected<false>();
 
                 m_deCmdStream.CommitCommands(pDeCmdSpace);
             }
@@ -11403,6 +10962,7 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
     m_cbColorControl  = cmdBuffer.m_cbColorControl;
     m_paClClipCntl    = cmdBuffer.m_paClClipCntl;
     m_cbTargetMask    = cmdBuffer.m_cbTargetMask;
+    m_cbShaderMask    = cmdBuffer.m_cbShaderMask;
     m_vgtTfParam      = cmdBuffer.m_vgtTfParam;
     m_paScLineCntl    = cmdBuffer.m_paScLineCntl;
     m_depthClampMode  = cmdBuffer.m_depthClampMode;
@@ -11452,11 +11012,6 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
             m_cbRmiGl2CacheControl.gfx10.FMASK_BIG_PAGE = cmdBuffer.m_cbRmiGl2CacheControl.gfx10.FMASK_BIG_PAGE;
         }
     }
-
-    // DB_DFSM_CONTROL is written at AddPreamble time for all CmdBuffer states and potentially turned off
-    // at draw-time based on Pipeline, MsaaState and DepthStencil Buffer. Always leak back since the nested
-    // cmd buffer always updated the register.
-    m_dbDfsmControl.u32All = cmdBuffer.m_dbDfsmControl.u32All;
 
     // This state is also always updated by the nested command buffer and should leak back.
     m_paScAaConfigNew.u32All  = cmdBuffer.m_paScAaConfigNew.u32All;
@@ -11546,36 +11101,14 @@ uint8 UniversalCmdBuffer::CheckStreamOutBufferStridesOnPipelineSwitch()
             strideInBytes = 1;
         }
 
-        const uint32 sizeInBytes   = LowPart(m_graphicsState.bindStreamOutTargets.target[idx].size);
-        const uint32 numRecords    = StreamOutNumRecords(chipProps, sizeInBytes, strideInBytes);
+        const uint32 sizeInBytes = LowPart(m_graphicsState.bindStreamOutTargets.target[idx].size);
+        const uint32 numRecords  = StreamOutNumRecords(chipProps, sizeInBytes, strideInBytes);
+        auto*const   pBufferSrd  = &m_streamOut.srd[idx];
 
-        auto*const pBufferSrd    = &m_streamOut.srd[idx];
-        uint32     srdNumRecords = 0;
-        uint32     srdStride     = 0;
-
-        if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
+        if ((pBufferSrd->gfx10.num_records != numRecords) || (pBufferSrd->gfx10.stride != strideInBytes))
         {
-            srdNumRecords = pBufferSrd->gfx9.word2.bits.NUM_RECORDS;
-            srdStride     = pBufferSrd->gfx9.word1.bits.STRIDE;
-        }
-        else if (IsGfx10Plus(m_gfxIpLevel))
-        {
-            srdNumRecords = pBufferSrd->gfx10.num_records;
-            srdStride     = pBufferSrd->gfx10.stride;
-        }
-
-        if ((srdNumRecords != numRecords) || (srdStride != strideInBytes))
-        {
-            if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
-            {
-                pBufferSrd->gfx9.word2.bits.NUM_RECORDS = numRecords;
-                pBufferSrd->gfx9.word1.bits.STRIDE      = strideInBytes;
-            }
-            else if (IsGfx10Plus(m_gfxIpLevel))
-            {
-                pBufferSrd->gfx10.num_records = numRecords;
-                pBufferSrd->gfx10.stride      = strideInBytes;
-            }
+            pBufferSrd->gfx10.num_records = numRecords;
+            pBufferSrd->gfx10.stride      = strideInBytes;
 
             // Mark this stream-out target slot as requiring an update.
             dirtySlotMask |= (1 << idx);
@@ -11630,7 +11163,6 @@ void UniversalCmdBuffer::CmdSetUserClipPlanes(
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
     pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(startRegAddr, endRegAddr, pPlanes, pDeCmdSpace);
     m_deCmdStream.CommitCommands(pDeCmdSpace);
-    m_deCmdStream.SetContextRollDetected<true>();
 }
 
 // =====================================================================================================================
@@ -11677,7 +11209,6 @@ void UniversalCmdBuffer::CmdSetClipRects(
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
     pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmPA_SC_CLIPRECT_RULE, endRegAddr, &regs, pDeCmdSpace);
     m_deCmdStream.CommitCommands(pDeCmdSpace);
-    m_deCmdStream.SetContextRollDetected<true>();
 }
 
 // =====================================================================================================================
@@ -11764,10 +11295,7 @@ void UniversalCmdBuffer::CallNestedCmdBuffer(
     PAL_ASSERT(pCallee->IsNested());
 
     const bool exclusiveSubmit  = pCallee->IsExclusiveSubmit();
-    const bool allowIb2Launch   = (((IsNested() == false) &&
-                                   (pCallee->AllowLaunchViaIb2())) &&
-                                   ((pCallee->m_state.flags.containsDrawIndirect == 0) ||
-                                   IsGfx10Plus(m_gfxIpLevel)));
+    const bool allowIb2Launch   = ((IsNested() == false) && pCallee->AllowLaunchViaIb2());
     const bool allowIb2LaunchCe = (allowIb2Launch && (m_cachedSettings.waCeDisableIb2 == 0));
 
     m_deCmdStream.TrackNestedEmbeddedData(pCallee->m_embeddedData.chunkList);
@@ -11805,36 +11333,11 @@ void UniversalCmdBuffer::CallNestedCmdBuffer(
 }
 
 // =====================================================================================================================
-void UniversalCmdBuffer::AddPerPresentCommands(
-    gpusize frameCountGpuAddr,
-    uint32  frameCntReg)
-{
-    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-
-    pDeCmdSpace += CmdUtil::BuildAtomicMem(AtomicOp::IncUint32,
-                                           frameCountGpuAddr,
-                                           UINT32_MAX,
-                                           pDeCmdSpace);
-
-    pDeCmdSpace += m_cmdUtil.BuildCopyData(EngineTypeUniversal,
-                                           engine_sel__me_copy_data__micro_engine,
-                                           dst_sel__me_copy_data__perfcounters,
-                                           frameCntReg,
-                                           src_sel__me_copy_data__tc_l2,
-                                           frameCountGpuAddr,
-                                           count_sel__me_copy_data__32_bits_of_data,
-                                           wr_confirm__me_copy_data__do_not_wait_for_confirmation,
-                                           pDeCmdSpace);
-
-    m_deCmdStream.CommitCommands(pDeCmdSpace);
-}
-
-// =====================================================================================================================
 // When RB+ is enabled, pipelines are created per shader export format.  However, same export format possibly supports
 // several down convert formats. For example, FP16_ABGR supports 8_8_8_8, 5_6_5, 1_5_5_5, 4_4_4_4, etc.  This updates
 // the current RB+ PM4 image with the overridden values.
 // NOTE: This is expected to be called immediately after RPM binds a graphics pipeline!
-void UniversalCmdBuffer::CmdOverwriteRbPlusFormatForBlits(
+void UniversalCmdBuffer::CmdOverwriteColorExportInfoForBlits(
     SwizzledFormat format,
     uint32         targetIndex)
 {
@@ -11842,6 +11345,18 @@ void UniversalCmdBuffer::CmdOverwriteRbPlusFormatForBlits(
     PAL_ASSERT(pPipeline != nullptr);
 
     // Just update our PM4 image for RB+.  It will be written at draw-time along with the other pipeline registers.
+    if (targetIndex != 0)
+    {
+        pPipeline->OverrideMrtMappingRegistersForRpm(targetIndex,
+                                                     &m_cbShaderMask,
+                                                     &m_cbTargetMask,
+                                                     &m_sxPsDownconvert,
+                                                     &m_sxBlendOptEpsilon,
+                                                     &m_sxBlendOptControl);
+        m_pipelineDynRegsDirty = true;
+        m_rbplusRegHash = 0;
+    }
+
     if (m_cachedSettings.rbPlusSupported != 0)
     {
         pPipeline->OverrideRbPlusRegistersForRpm(format,
@@ -11849,6 +11364,7 @@ void UniversalCmdBuffer::CmdOverwriteRbPlusFormatForBlits(
                                                  &m_sxPsDownconvert,
                                                  &m_sxBlendOptEpsilon,
                                                  &m_sxBlendOptControl);
+        m_rbplusRegHash = 0;
     }
 }
 
@@ -12609,9 +12125,6 @@ uint32* UniversalCmdBuffer::WriteWaitEop(
             acquireInfo.cacheSync = glxSync;
 
             pCmdSpace += m_cmdUtil.BuildAcquireMemGfxSurfSync(acquireInfo, pCmdSpace);
-
-            // acquire_mem may cause a context roll on gfx and gfx9 GPUs must be told about this.
-            m_deCmdStream.SetContextRollDetected<false>();
         }
 
         if (waitPoint == HwPipeTop)
@@ -12633,6 +12146,11 @@ uint32* UniversalCmdBuffer::WriteWaitEop(
         // The previous EOP event and wait mean that anything prior to this point, including previous command
         // buffers on this queue, have completed.
         SetPrevCmdBufInactive();
+    }
+
+    if (TestAllFlagsSet(glxSync, SyncGl2WbInv))
+    {
+        ClearBltWriteMisalignMdState();
     }
 
     return pCmdSpace;

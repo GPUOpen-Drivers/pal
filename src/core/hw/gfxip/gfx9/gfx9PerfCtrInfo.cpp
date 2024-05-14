@@ -294,6 +294,9 @@ static const MaxEventIds& GetEventLimits(
     case Pal::AsicRevision::Phoenix1:
         pOut = &Phx1MaxPerfEventIds;
         break;
+    case Pal::AsicRevision::Phoenix2:
+        pOut = &Phx2MaxPerfEventIds;
+        break;
     default:
         PAL_ASSERT_ALWAYS(); // What chip is this?
         pOut = &UnknownMaxEventIds;
@@ -324,6 +327,18 @@ static void Gfx11UpdateRpbBlockInfo(
             { Phx1::mmRPB_PERFCOUNTER1_CFG, 0, Phx1::mmRPB_PERFCOUNTER_LO, Phx1::mmRPB_PERFCOUNTER_HI },
             { Phx1::mmRPB_PERFCOUNTER2_CFG, 0, Phx1::mmRPB_PERFCOUNTER_LO, Phx1::mmRPB_PERFCOUNTER_HI },
             { Phx1::mmRPB_PERFCOUNTER3_CFG, 0, Phx1::mmRPB_PERFCOUNTER_LO, Phx1::mmRPB_PERFCOUNTER_HI },
+        }};
+    }
+    else
+    if (false
+        || IsPhoenix2(device)
+       )
+    {
+        pInfo->regAddr = { Phx2::mmRPB_PERFCOUNTER_RSLT_CNTL, {
+            { Phx2::mmRPB_PERFCOUNTER0_CFG, 0, Phx2::mmRPB_PERFCOUNTER_LO, Phx2::mmRPB_PERFCOUNTER_HI },
+            { Phx2::mmRPB_PERFCOUNTER1_CFG, 0, Phx2::mmRPB_PERFCOUNTER_LO, Phx2::mmRPB_PERFCOUNTER_HI },
+            { Phx2::mmRPB_PERFCOUNTER2_CFG, 0, Phx2::mmRPB_PERFCOUNTER_LO, Phx2::mmRPB_PERFCOUNTER_HI },
+            { Phx2::mmRPB_PERFCOUNTER3_CFG, 0, Phx2::mmRPB_PERFCOUNTER_LO, Phx2::mmRPB_PERFCOUNTER_HI },
         }};
     }
     else
@@ -1334,6 +1349,22 @@ static void Gfx11InitBasicBlockInfo(
         { mmPA_SU_PERFCOUNTER2_SELECT, mmPA_SU_PERFCOUNTER2_SELECT1, mmPA_SU_PERFCOUNTER2_LO, mmPA_SU_PERFCOUNTER2_HI },
         { mmPA_SU_PERFCOUNTER3_SELECT, mmPA_SU_PERFCOUNTER3_SELECT1, mmPA_SU_PERFCOUNTER3_LO, mmPA_SU_PERFCOUNTER3_HI },
     }};
+
+    PerfCounterBlockInfo* const pPc = &pInfo->block[static_cast<uint32>(GpuBlock::Pc)];
+    pPc->distribution = PerfCounterDistribution::PerShaderEngine;
+    pPc->numInstances = 1;
+    pPc->numGenericSpmModules = 4; // PC_PERFCOUNTER0-3
+    pPc->numGenericLegacyModules = 0;
+    pPc->numSpmWires = 8;
+    pPc->spmBlockSelect = Gfx11SpmSeBlockSelectPc;
+    pPc->maxEventId = maxIds[PcPerfcntSelId];
+
+    pPc->regAddr = { 0, {
+        { mmPC_PERFCOUNTER0_SELECT, mmPC_PERFCOUNTER0_SELECT1, mmPC_PERFCOUNTER0_LO, mmPC_PERFCOUNTER0_HI },
+        { mmPC_PERFCOUNTER1_SELECT, mmPC_PERFCOUNTER1_SELECT1, mmPC_PERFCOUNTER1_LO, mmPC_PERFCOUNTER1_HI },
+        { mmPC_PERFCOUNTER2_SELECT, mmPC_PERFCOUNTER2_SELECT1, mmPC_PERFCOUNTER2_LO, mmPC_PERFCOUNTER2_HI },
+        { mmPC_PERFCOUNTER3_SELECT, mmPC_PERFCOUNTER3_SELECT1, mmPC_PERFCOUNTER3_LO, mmPC_PERFCOUNTER3_HI },
+    } };
 
     // In gfx10 SC is subdivided into SCF (SCT) and 2xSCB per SA. The sets of perf counters (PA_SC_PERFCOUNTER{0-7})
     // are instantiated in each of the two SCBs. In the hardware docs these are called packers, thus we're really

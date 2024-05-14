@@ -534,7 +534,7 @@ namespace DevDriver
         }
 
         StructuredValue::OpaqueNode opaque;
-        memcpy(&opaque, &node, sizeof(node));
+        memcpy(reinterpret_cast<void*>(&opaque), &node, sizeof(node));
 
         // Sanity checks
         DD_ASSERT(opaque.blob[0] != nullptr);

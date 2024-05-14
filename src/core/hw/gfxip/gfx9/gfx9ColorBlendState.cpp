@@ -59,10 +59,9 @@ BlendOp ColorBlendState::HwBlendOp(
     Blend blendOp    // Pal::Blend enum value to convert
     ) const
 {
-    const Pal::Device&  device = *(m_device.Parent());
-    BlendOp             hwOp   = BLEND_ZERO;
+    BlendOp hwOp = BLEND_ZERO;
 
-    if (IsGfx9(device) || IsGfx10(device))
+    if (IsGfx10(*m_device.Parent()))
     {
         constexpr BlendOp BlendOpTbl[] =
         {
@@ -89,7 +88,7 @@ BlendOp ColorBlendState::HwBlendOp(
 
         hwOp = BlendOpTbl[static_cast<size_t>(blendOp)];
     }
-    else if (IsGfx11(device))
+    else
     {
         constexpr BlendOp BlendOpTbl[] =
         {

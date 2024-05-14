@@ -127,7 +127,14 @@ void PipelineChunkVsPs::LateInit(
 
     if (pUploader->GetPipelineGpuSymbol(Abi::PipelineSymbolType::PsColorExportEntry, &symbol) == Result::Success)
     {
-        m_colorExportAddr = LowPart(symbol.gpuVirtAddr);
+        m_colorExportAddr[static_cast<uint32>(ColorExportShaderType::Default)] = LowPart(symbol.gpuVirtAddr);
+    }
+
+    if (pUploader->GetPipelineGpuSymbol(Abi::PipelineSymbolType::PsColorExportDualSourceEntry, &symbol) ==
+        Result::Success)
+    {
+        m_colorExportAddr[static_cast<uint32>(ColorExportShaderType::DualSourceBlendEnable)] =
+            LowPart(symbol.gpuVirtAddr);
     }
 
     const Elf::SymbolTableEntry* pElfSymbol = abiReader.GetPipelineSymbol(Abi::PipelineSymbolType::PsDisassembly);
@@ -173,8 +180,7 @@ void PipelineChunkVsPs::LateInit(
         m_regs.sh.spiShaderPgmRsrc2Vs.u32All      = AbiRegisters::SpiShaderPgmRsrc2Vs(metadata, chipProps.gfxLevel);
         m_regs.dynamic.spiShaderPgmRsrc3Vs.u32All =
             AbiRegisters::SpiShaderPgmRsrc3Vs(metadata, m_device, chipProps.gfxLevel);
-        m_regs.dynamic.spiShaderPgmRsrc4Vs.u32All =
-            AbiRegisters::SpiShaderPgmRsrc4Vs(metadata, m_device, chipProps.gfxLevel, m_stageInfoVs.codeLength);
+        m_regs.dynamic.spiShaderPgmRsrc4Vs.u32All = AbiRegisters::SpiShaderPgmRsrc4Vs(metadata, m_device);
         m_regs.sh.spiShaderPgmChksumVs.u32All     = AbiRegisters::SpiShaderPgmChksumVs(metadata, m_device);
     } // if enableNgg == false
 
@@ -185,12 +191,12 @@ void PipelineChunkVsPs::LateInit(
     }
 
     m_regs.context.dbShaderControl.u32All   = AbiRegisters::DbShaderControl(metadata, m_device, chipProps.gfxLevel);
-    m_regs.context.spiBarycCntl.u32All      = AbiRegisters::SpiBarycCntl(metadata, chipProps.gfxLevel);
+    m_regs.context.spiBarycCntl.u32All      = AbiRegisters::SpiBarycCntl(metadata);
     m_regs.context.spiPsInputAddr.u32All    = AbiRegisters::SpiPsInputAddr(metadata);
     m_regs.context.spiPsInputEna.u32All     = AbiRegisters::SpiPsInputEna(metadata);
     m_regs.context.paClVsOutCntl.u32All     = AbiRegisters::PaClVsOutCntl(metadata, createInfo, chipProps.gfxLevel);
     m_regs.context.vgtPrimitiveIdEn.u32All  = AbiRegisters::VgtPrimitiveIdEn(metadata);
-    m_regs.context.paScShaderControl.u32All = AbiRegisters::PaScShaderControl(metadata, m_device, chipProps.gfxLevel);
+    m_regs.context.paScShaderControl.u32All = AbiRegisters::PaScShaderControl(metadata, m_device);
     m_paScAaConfig.u32All                   = AbiRegisters::PaScAaConfig(metadata);
 
      m_semanticCount = 0;
@@ -263,20 +269,12 @@ uint32* PipelineChunkVsPs::WriteDynamicRegs(
     ) const
 {
     const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
+    VsPsRegs::Dynamic        dynamic   = m_regs.dynamic;
 
-    auto dynamic = m_regs.dynamic;
     if (psStageInfo.wavesPerSh > 0)
     {
         dynamic.spiShaderPgmRsrc3Ps.bits.WAVE_LIMIT = psStageInfo.wavesPerSh;
     }
-#if PAL_AMDGPU_BUILD
-    else if (IsGfx9(chipProps.gfxLevel) && (dynamic.spiShaderPgmRsrc3Ps.bits.WAVE_LIMIT == 0))
-    {
-        // GFX9 GPUs have a HW bug where a wave limit size of 0 does not correctly map to "no limit",
-        // potentially breaking high-priority compute.
-        dynamic.spiShaderPgmRsrc3Ps.bits.WAVE_LIMIT = m_device.GetMaxWavesPerSh(chipProps, false);
-    }
-#endif
 
     if (isNgg == false)
     {
@@ -284,14 +282,6 @@ uint32* PipelineChunkVsPs::WriteDynamicRegs(
         {
             dynamic.spiShaderPgmRsrc3Vs.bits.WAVE_LIMIT = vsStageInfo.wavesPerSh;
         }
-#if PAL_AMDGPU_BUILD
-        else if (IsGfx9(chipProps.gfxLevel) && (dynamic.spiShaderPgmRsrc3Vs.bits.WAVE_LIMIT == 0))
-        {
-            // GFX9 GPUs have a HW bug where a wave limit size of 0 does not correctly map to "no limit",
-            // potentially breaking high-priority compute.
-            dynamic.spiShaderPgmRsrc3Vs.bits.WAVE_LIMIT = m_device.GetMaxWavesPerSh(chipProps, false);
-        }
-#endif
     }
 
     pCmdSpace = pCmdStream->WriteSetOneShRegIndex(mmSPI_SHADER_PGM_RSRC3_PS,
@@ -300,14 +290,11 @@ uint32* PipelineChunkVsPs::WriteDynamicRegs(
                                                   index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
                                                   pCmdSpace);
 
-    if (IsGfx10Plus(chipProps.gfxLevel))
-    {
-        pCmdSpace = pCmdStream->WriteSetOneShRegIndex(Gfx10Plus::mmSPI_SHADER_PGM_RSRC4_PS,
-                                                      dynamic.spiShaderPgmRsrc4Ps.u32All,
-                                                      ShaderGraphics,
-                                                      index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
-                                                      pCmdSpace);
-    }
+    pCmdSpace = pCmdStream->WriteSetOneShRegIndex(Gfx10Plus::mmSPI_SHADER_PGM_RSRC4_PS,
+                                                  dynamic.spiShaderPgmRsrc4Ps.u32All,
+                                                  ShaderGraphics,
+                                                  index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
+                                                  pCmdSpace);
 
     if (isNgg == false)
     {
@@ -317,14 +304,11 @@ uint32* PipelineChunkVsPs::WriteDynamicRegs(
                                                       index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
                                                       pCmdSpace);
 
-        if (IsGfx10Plus(chipProps.gfxLevel))
-        {
-            pCmdSpace = pCmdStream->WriteSetOneShRegIndex(Gfx10::mmSPI_SHADER_PGM_RSRC4_VS,
-                                                          dynamic.spiShaderPgmRsrc4Vs.u32All,
-                                                          ShaderGraphics,
-                                                          index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
-                                                          pCmdSpace);
-        }
+        pCmdSpace = pCmdStream->WriteSetOneShRegIndex(Gfx10::mmSPI_SHADER_PGM_RSRC4_VS,
+                                                      dynamic.spiShaderPgmRsrc4Vs.u32All,
+                                                      ShaderGraphics,
+                                                      index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
+                                                      pCmdSpace);
     }
 
     return pCmdSpace;
@@ -641,7 +625,7 @@ void PipelineChunkVsPs::Clone(
     // Need to override ALPHA_TO_MASK_DISABLE with respect to the color export library
     m_regs.context.dbShaderControl.bits.ALPHA_TO_MASK_DISABLE &=
         chunkExp.m_regs.context.dbShaderControl.bits.ALPHA_TO_MASK_DISABLE;
-    m_colorExportAddr = chunkExp.m_colorExportAddr;
+    memcpy(m_colorExportAddr, chunkExp.m_colorExportAddr, sizeof(m_colorExportAddr));
 
     if (m_colorExportAddr != 0)
     {

@@ -74,6 +74,7 @@ public:
     // Settings RPC implementations
     DD_RESULT SendAllUserOverrides(const void* pParamBuf, size_t paramBufSize) override;
     DD_RESULT QueryAllCurrentValues(const DDByteWriter& writer) override;
+    DD_RESULT GetUnsupportedExperiments(const DDByteWriter& writer) override;
 };
 
 } // namespace DevDriver

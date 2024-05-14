@@ -48,7 +48,7 @@ constexpr uint32 DefaultSqttMemoryLimitInMb     = 80;
 constexpr uint32 DefaultSpmMemoryLimitInMb      = 128;
 constexpr uint32 DefaultSampleFrequency         = 4096;
 constexpr uint32 DefaultSeMask                  = 0;
-constexpr bool   DefaultEnableInstructionTokens = true;
+constexpr bool   DefaultEnableInstructionTokens = false;
 
 constexpr uint32 InstrumentationSpecVersion     = 1;
 #if (PAL_BUILD_BRANCH >= 2410)
@@ -190,13 +190,17 @@ void GpuPerfExperimentTraceSource::OnTraceAccepted()
 
         if (result != Result::Success)
         {
-            ReportInternalError("Error encountered when initializing the GpaSession", result);
+            ReportInternalError("Error encountered when initializing the GpaSession",
+                                result,
+                                m_sqttTraceConfig.enabled);
             PAL_SAFE_FREE(m_pGpaSession, m_pPlatform);
         }
     }
     else
     {
-        ReportInternalError("System is out of memory: cannot allocate trace resources", Result::ErrorOutOfMemory);
+        ReportInternalError("System is out of memory: cannot allocate trace resources",
+                            Result::ErrorOutOfMemory,
+                            m_sqttTraceConfig.enabled);
     }
 }
 
@@ -222,11 +226,12 @@ void GpuPerfExperimentTraceSource::OnTraceBegin(
             // Configure SQTT
             if (m_sqttTraceConfig.enabled)
             {
+                sampleConfig.sqtt.seDetailedMask                   = m_sqttTraceConfig.seMask;
+                sampleConfig.sqtt.gpuMemoryLimit                   = m_sqttTraceConfig.memoryLimitInMb * 1_MiB;
+                sampleConfig.sqtt.tokenMask                        = ThreadTraceTokenTypeFlags::All;
                 sampleConfig.sqtt.flags.enable                     = true;
                 sampleConfig.sqtt.flags.supressInstructionTokens   =
                     (m_sqttTraceConfig.enableInstructionTokens == false);
-                sampleConfig.sqtt.seMask                           = m_sqttTraceConfig.seMask;
-                sampleConfig.sqtt.gpuMemoryLimit                   = m_sqttTraceConfig.memoryLimitInMb * 1_MiB;
             }
 
             // Configure SPM
@@ -244,7 +249,9 @@ void GpuPerfExperimentTraceSource::OnTraceBegin(
 
         if (result != Result::Success)
         {
-            ReportInternalError("Error encountered when starting the GpaSession trace sample", result);
+            ReportInternalError("Error encountered when starting the GpaSession trace sample",
+                                result,
+                                m_sqttTraceConfig.enabled);
         }
     }
 }
@@ -263,7 +270,7 @@ void GpuPerfExperimentTraceSource::OnTraceEnd(
 
         if (result != Result::Success)
         {
-            ReportInternalError("Error encountered when ending the GpaSession", result);
+            ReportInternalError("Error encountered when ending the GpaSession", result, m_sqttTraceConfig.enabled);
         }
     }
 }
@@ -295,7 +302,9 @@ void GpuPerfExperimentTraceSource::OnTraceFinished()
         }
         else
         {
-            ReportInternalError("GPA Session is not ready. Could not write chunks.", Result::NotReady);
+            ReportInternalError("GPA Session is not ready: could not write chunks.",
+                                Result::NotReady,
+                                m_sqttTraceConfig.enabled);
         }
     }
 }
@@ -306,7 +315,10 @@ void GpuPerfExperimentTraceSource::OnSqttConfigUpdated(
 {
     StructuredValue value;
 
-    m_sqttTraceConfig.enabled = true;
+    if (pJsonConfig->GetValueByKey("enabled", &value))
+    {
+        m_sqttTraceConfig.enabled = value.GetBoolOr(false);
+    }
 
     if (pJsonConfig->GetValueByKey("memoryLimitInMb", &value))
     {
@@ -330,7 +342,10 @@ void GpuPerfExperimentTraceSource::OnSpmConfigUpdated(
 {
     StructuredValue value;
 
-    m_spmTraceConfig.enabled = true;
+    if (pJsonConfig->GetValueByKey("enabled", &value))
+    {
+        m_spmTraceConfig.enabled = value.GetBoolOr(false);
+    }
 
     if (pJsonConfig->GetValueByKey("sampleFrequency", &value))
     {
@@ -342,15 +357,25 @@ void GpuPerfExperimentTraceSource::OnSpmConfigUpdated(
         m_spmTraceConfig.memoryLimitInMb = value.GetUint32Or(DefaultSpmMemoryLimitInMb);
     }
 
-    if ((pJsonConfig->GetValueByKey("perfCounters", &value)) && (value.IsArray()))
+    if (pJsonConfig->GetValueByKey("perfCounters", &value))
     {
+        Result result = Result::Success;
+
+        if (value.IsArray() == false)
+        {
+            result = Result::ErrorInvalidValue;
+        }
+
         PerfExperimentProperties perfProps = { };
-        Result result = m_pPlatform->GetDevice(DefaultDeviceIndex)->GetPerfExperimentProperties(&perfProps);
-        PAL_ASSERT(result == Result::Success);
+
+        if (result == Result::Success)
+        {
+            result = m_pPlatform->GetDevice(DefaultDeviceIndex)->GetPerfExperimentProperties(&perfProps);
+        }
 
         m_spmTraceConfig.perfCounterIds.Clear();
 
-        for (size_t i = 0; i < value.GetArrayLength(); i++)
+        for (size_t i = 0; (i < value.GetArrayLength()) && (result == Result::Success); i++)
         {
             StructuredValue row = value[i];
 
@@ -364,44 +389,42 @@ void GpuPerfExperimentTraceSource::OnSpmConfigUpdated(
             const uint32 instanceId = row[1].GetUint32Or(0);
             const uint32 eventId    = row[2].GetUint32Or(0);
 
-            if (blockId < static_cast<uint32>(GpuBlock::Count))
+            if (blockId >= static_cast<uint32>(GpuBlock::Count))
             {
-                const GpuBlockPerfProperties& blockPerfProps = perfProps.blocks[blockId];
-                if ((blockPerfProps.available) && (eventId < blockPerfProps.maxEventId))
-                {
-                    if (instanceId == DevDriver::RGPProtocol::kSpmAllInstancesId)
-                    {
-                        // If the instance id has been set to the special "all instances" value, then the user wants to
-                        // gather data from all instances available on the current gpu. Expand this request into as many
-                        // perf counter id values as we need to by iterating over the number of instances in the block.
-                        for (uint32 j = 0; j < blockPerfProps.instanceCount; ++j)
-                        {
-                            PerfCounterId counterId = {
-                                .block    = GpuBlock(blockId),
-                                .instance = j,
-                                .eventId  = eventId
-                            };
+                result = Result::ErrorInvalidValue;
+                break;
+            }
 
-                            m_spmTraceConfig.perfCounterIds.PushBack(counterId);
-                        }
-                    }
-                    else if (instanceId < blockPerfProps.instanceCount)
+            const GpuBlockPerfProperties& blockPerfProps = perfProps.blocks[blockId];
+
+            if ((blockPerfProps.available) && (eventId <= blockPerfProps.maxEventId))
+            {
+                if (instanceId == DevDriver::RGPProtocol::kSpmAllInstancesId)
+                {
+                    // If the instance id has been set to the special "all instances" value, then the user wants to
+                    // gather data from all instances available on the current gpu. Expand this request into as many
+                    // perf counter id values as we need to by iterating over the number of instances in the block.
+                    for (uint32 j = 0; j < blockPerfProps.instanceCount; ++j)
                     {
-                        // This is just a regular counter request.
                         PerfCounterId counterId = {
                             .block    = GpuBlock(blockId),
-                            .instance = instanceId,
+                            .instance = j,
                             .eventId  = eventId
                         };
 
                         m_spmTraceConfig.perfCounterIds.PushBack(counterId);
                     }
-                    else
-                    {
-                        result = Result::ErrorInvalidValue;
-                        break;
-                    }
+                }
+                else if (instanceId < blockPerfProps.instanceCount)
+                {
+                    // This is just a regular counter request.
+                    PerfCounterId counterId = {
+                        .block    = GpuBlock(blockId),
+                        .instance = instanceId,
+                        .eventId  = eventId
+                    };
 
+                    m_spmTraceConfig.perfCounterIds.PushBack(counterId);
                 }
                 else
                 {
@@ -419,7 +442,7 @@ void GpuPerfExperimentTraceSource::OnSpmConfigUpdated(
         // If the SPM counters weren't formatted correctly, emit an error chunk
         if (result != Result::Success)
         {
-            ReportInternalError("Invalid trace configuration: SPM Counters are malformed", result);
+            ReportInternalError("Invalid trace configuration: SPM Counters are malformed", result, false);
         }
     }
 }
@@ -432,7 +455,7 @@ void GpuPerfExperimentTraceSource::WriteSqttDataChunks()
 
     for (uint32 traceIndex = 0; result == Result::Success; traceIndex++)
     {
-        size_t dataSize  = 0;
+        size_t dataSize = 0;
         result = m_pGpaSession->GetSqttTraceData(m_gpaSampleId,
                                                  traceIndex,
                                                  nullptr,
@@ -442,44 +465,44 @@ void GpuPerfExperimentTraceSource::WriteSqttDataChunks()
 
         if (result == Result::Success)
         {
-            TraceChunkSqttData* pChunk = static_cast<TraceChunkSqttData*>(
-                PAL_MALLOC(sizeof(TraceChunkSqttData) + dataSize, m_pPlatform, Util::AllocInternalTemp));
+            void* pSqttTraceData = PAL_MALLOC(dataSize, m_pPlatform, Util::AllocInternalTemp);
 
-            if (pChunk != nullptr)
+            if (pSqttTraceData != nullptr)
             {
                 SqttTraceInfo traceInfo = { };
-                pChunk->pciId                      = m_pPlatform->GetPciId(DefaultDeviceIndex).u32All;
-                pChunk->instrumentationVersionSpec = InstrumentationSpecVersion;
-                pChunk->instrumentationVersionApi  = InstrumentationApiVersion;
 
                 result = m_pGpaSession->GetSqttTraceData(m_gpaSampleId,
                                                          traceIndex,
                                                          &traceInfo,
                                                          &dataSize,
-                                                         // write the data immediately after the fields in chunk,
-                                                         // in the over-allocated area
-                                                         pChunk + 1);
+                                                         pSqttTraceData);
                 PAL_ASSERT(result == Result::Success);
 
                 if (result == Result::Success)
                 {
+                    SqttDataHeader sqttDataHeader = {
+                        .pciId                      = m_pPlatform->GetPciId(DefaultDeviceIndex).u32All,
+                        .shaderEngine               = traceInfo.shaderEngine,
+                        .sqttVersion                = traceInfo.sqttVersion,
+                        .instrumentationVersionSpec = InstrumentationSpecVersion,
+                        .instrumentationVersionApi  = InstrumentationApiVersion,
+                        .wgpIndex                   = traceInfo.computeUnit,
+                        .traceBufferSize            = traceInfo.bufferSize
+                    };
+
                     TraceChunkInfo info = { };
 
-                    pChunk->shaderEngine = traceInfo.shaderEngine;
-                    pChunk->wgpIndex     = traceInfo.computeUnit;
-                    pChunk->sqttVersion  = traceInfo.sqttVersion;
-
-                    memcpy(info.id, SqttDataTextId, GpuUtil::TextIdentifierSize);
-                    info.pHeader           = nullptr;
-                    info.headerSize        = 0;
-                    info.version           = GetVersion();
-                    info.pData             = pChunk;
-                    info.dataSize          = sizeof(TraceChunkSqttData) + dataSize;
+                    memcpy(info.id, SqttDataTextId, TextIdentifierSize);
+                    info.pHeader           = &sqttDataHeader;
+                    info.headerSize        = sizeof(SqttDataHeader);
+                    info.version           = SqttDataChunkVersion;
+                    info.pData             = pSqttTraceData;
+                    info.dataSize          = dataSize;
                     info.enableCompression = false;
                     result = m_pPlatform->GetTraceSession()->WriteDataChunk(this, info);
                 }
 
-                PAL_SAFE_FREE(pChunk, m_pPlatform);
+                PAL_SAFE_FREE(pSqttTraceData, m_pPlatform);
             }
             else
             {
@@ -490,7 +513,7 @@ void GpuPerfExperimentTraceSource::WriteSqttDataChunks()
 
     if ((result != Result::Success) && (result != Result::NotFound))
     {
-        ReportInternalError("Error encountered when writing SQTT data chunks", result);
+        ReportInternalError("Error encountered when writing SQTT data chunks", result, true);
     }
 }
 
@@ -546,7 +569,7 @@ void GpuPerfExperimentTraceSource::WriteSpmDataChunks()
 
     if (result != Result::Success)
     {
-        ReportInternalError("Error encountered when writing SPM data chunks", result);
+        ReportInternalError("Error encountered when writing SPM data chunks", result, false);
     }
 }
 
@@ -618,19 +641,18 @@ Result GpuPerfExperimentTraceSource::WriteSpmCounterDataChunks(
 // =====================================================================================================================
 void GpuPerfExperimentTraceSource::ReportInternalError(
     const char* pErrorMsg,
-    Result      result)
+    Result      result,
+    bool        isSqttError)
 {
     // Mark that an internal error was encountered and the trace cannot proceed
     m_traceIsHealthy = false;
 
     // Emit the error message as an RDF chunk
-    Result errResult = m_pPlatform->GetTraceSession()->ReportError(
-        (m_spmTraceConfig.enabled && !m_sqttTraceConfig.enabled) ? SpmSessionChunkId : SqttDataTextId,
-        pErrorMsg,
-        strlen(pErrorMsg),
-        TraceErrorPayload::ErrorString,
-        result
-    );
+    Result errResult = m_pPlatform->GetTraceSession()->ReportError(isSqttError ? SqttDataTextId : SpmSessionChunkId,
+                                                                   pErrorMsg,
+                                                                   strlen(pErrorMsg),
+                                                                   TraceErrorPayload::ErrorString,
+                                                                   result);
     PAL_ASSERT(errResult == Result::Success);
 }
 

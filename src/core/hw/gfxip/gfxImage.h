@@ -61,14 +61,13 @@ union SharedMetadataFlags
     {
         uint32 shaderFetchable      : 1; // Main metadata is shader fetchable.
         uint32 shaderFetchableFmask : 1; // In case the FMASK shader-fetchable is different from main metadata. - TBD
-        uint32 hasWaTcCompatZRange  : 1; // Extra per-mip uint32 reserved after fast-clear-value.
         uint32 hasEqGpuAccess       : 1; // Metadata equation for GPU access following main metadata (DCC or HTILE).
                                          // CS-based fast-clear is disabled w/o this on GFX9.
         uint32 hasHtileLookupTable  : 1; // Htile look-up table for each mip and slice - DB fixed-func resolve is
                                          // disabled w/o this.
         uint32 htileHasDsMetadata   : 1; // Whether htile has depth/stencil metadata.
         uint32 hasCmaskEqGpuAccess  : 1; // Metadata equation for GPU access following cmask metadata.
-        uint32 reserved             : 25;
+        uint32 reserved             : 26;
     };
     uint32 value;
 };
@@ -122,8 +121,6 @@ public:
     virtual ~GfxImage() {}
 
     Image* Parent() const { return m_pParent; }
-
-    virtual ImageType GetOverrideImageType() const;
 
     virtual bool HasFmaskData() const = 0;
 
@@ -209,6 +206,8 @@ public:
 
     virtual Result GetDefaultGfxLayout(SubresId subresId, ImageLayout* pLayout) const = 0;
 
+    bool HasMisalignedMetadata() const { return m_hasMisalignedMetadata; }
+
 protected:
     GfxImage(
         Image*        pParentImage,
@@ -226,6 +225,7 @@ protected:
     const Device&          m_device;
     const ImageCreateInfo& m_createInfo;
     ImageInfo*const        m_pImageInfo;
+    bool                   m_hasMisalignedMetadata;
 
 private:
     PAL_DISALLOW_DEFAULT_CTOR(GfxImage);

@@ -86,7 +86,7 @@ protected:
     virtual Result Init(void* pPlacementAddr, bool needPresentComplete);
 
     // Abstracts OS-specific logic necessary to find unused images in mailbox mode.
-    virtual Result ReclaimUnusedImages(uint64 timeout) { return Result::ErrorUnavailable; }
+    virtual Result ReclaimUnusedImages(std::chrono::nanoseconds timeout) { return Result::ErrorUnavailable; }
 
     // Called when it's safe to allow the application to reacquire the given image.
     void ReuseImage(uint32 imageIndex);

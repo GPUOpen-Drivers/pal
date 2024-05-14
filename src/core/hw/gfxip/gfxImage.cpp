@@ -45,7 +45,8 @@ GfxImage::GfxImage(
     m_pParent(pParentImage),
     m_device(device),
     m_createInfo(m_pParent->GetImageCreateInfo()),
-    m_pImageInfo(pImageInfo)
+    m_pImageInfo(pImageInfo),
+    m_hasMisalignedMetadata(false)
 {
 
 }
@@ -68,13 +69,6 @@ void GfxImage::UpdateMetaDataLayout(
     {
         pGpuMemLayout->metadataAlignment = alignment;
     }
-}
-
-// =====================================================================================================================
-// By default, the image type does not require any override.
-ImageType GfxImage::GetOverrideImageType() const
-{
-    return Parent()->GetImageCreateInfo().imageType;
 }
 
 // =====================================================================================================================
@@ -133,14 +127,12 @@ bool GfxImage::IsSwizzleThin(
     const SubresId& subResId
     ) const
 {
-    const ImageType         imageType   = GetOverrideImageType();
-    const SubResourceInfo*  pSubResInfo = Parent()->SubresourceInfo(subResId);
-    const uint32            swizzleMode = GetSwTileMode(pSubResInfo);
-    const auto*             pAddrMgr    = Parent()->GetDevice()->GetAddrMgr();
+    const SubResourceInfo* pSubResInfo = Parent()->SubresourceInfo(subResId);
+    const uint32           swizzleMode = GetSwTileMode(pSubResInfo);
 
     // If the image is 1D or 2D, then it's automatically thin... 3D images require help from the addrmgr as then the
     // "thin" determination is dependent on the characteristics of the swizzle mode assigned to this subresource.
-    return (imageType != ImageType::Tex3d) || pAddrMgr->IsThin(swizzleMode);
+    return (m_createInfo.imageType != ImageType::Tex3d) || m_device.GetAddrMgr()->IsThin(swizzleMode);
 }
 
 } // Pal

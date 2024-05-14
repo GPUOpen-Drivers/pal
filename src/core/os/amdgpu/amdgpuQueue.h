@@ -172,7 +172,8 @@ public:
     Result DoAssociateFenceWithLastSubmit(Pal::Fence* pFence) override;
 
 protected:
-    virtual Result OsDelay(float delay, const IPrivateScreen* pScreen) override;
+    virtual Result OsDelay(Util::fmicroseconds delay, const IPrivateScreen* pScreen) override
+    { return Result::ErrorUnavailable; }
 
     virtual Result OsWaitIdle() override;
     virtual Result OsPresentDirect(const PresentDirectInfo& presentInfo) override;

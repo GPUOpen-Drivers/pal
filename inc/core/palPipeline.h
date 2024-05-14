@@ -119,6 +119,7 @@ enum class ShadeMode : uint32
     Flat    = 0x1       ///< Flat shading mode, pixel shader input from provoking vertex
 };
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 869
 /// Specifies pixel shader shading rate
 enum class PsShadingRate : uint32
 {
@@ -126,6 +127,7 @@ enum class PsShadingRate : uint32
     SampleRate = 0x1,   ///< Forced per-sample shading rate
     PixelRate  = 0x2    ///< Forced per-pixel shading rate
 };
+#endif
 
 /// Defines a logical operation applied between the color coming from the pixel shader and the current value in the
 /// target image.
@@ -366,7 +368,9 @@ struct RasterizerState
 
     uint8         cullDistMask;           ///< Mask of which cullDistance exports to leave enabled.
     uint8         clipDistMask;           ///< Mask of which clipDistance exports to leave enabled.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 869
     PsShadingRate forcedShadingRate;      ///< Forced PS shading rate
+#endif
     bool          dx10DiamondTestDisable; ///< Disable DX10 diamond test during line rasterization.
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 804

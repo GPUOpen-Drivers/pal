@@ -432,6 +432,9 @@ inline Result DeserializeEnum(
         case HashLiteralString("_amdgpu_cs_shdr_intrl_tbl"):
             *pValue = Abi::PipelineSymbolType::CsShdrIntrlTblPtr;
             break;
+        case HashLiteralString("_amdgpu_ps_dual_source_shdr_intrl_tbl"):
+            *pValue = Abi::PipelineSymbolType::PsDualSourceShdrIntrlTblPtr;
+            break;
         case HashLiteralString("_amdgpu_ls_disasm"):
             *pValue = Abi::PipelineSymbolType::LsDisassembly;
             break;
@@ -452,6 +455,9 @@ inline Result DeserializeEnum(
             break;
         case HashLiteralString("_amdgpu_cs_disasm"):
             *pValue = Abi::PipelineSymbolType::CsDisassembly;
+            break;
+        case HashLiteralString("_amdgpu_ps_dual_source_disasm"):
+            *pValue = Abi::PipelineSymbolType::PsDualSourceDisassembly;
             break;
         case HashLiteralString("_amdgpu_ls_shdr_intrl_data"):
             *pValue = Abi::PipelineSymbolType::LsShdrIntrlData;
@@ -479,6 +485,9 @@ inline Result DeserializeEnum(
             break;
         case HashLiteralString("color_export_shader"):
             *pValue = Abi::PipelineSymbolType::PsColorExportEntry;
+            break;
+        case HashLiteralString("color_export_shader_dual_source"):
+            *pValue = Abi::PipelineSymbolType::PsColorExportDualSourceEntry;
             break;
         default:
             result = Result::NotFound;
@@ -541,6 +550,9 @@ inline Result SerializeEnum(
     case Abi::PipelineSymbolType::CsShdrIntrlTblPtr:
         pWriter->Pack("_amdgpu_cs_shdr_intrl_tbl");
         break;
+    case Abi::PipelineSymbolType::PsDualSourceShdrIntrlTblPtr:
+        pWriter->Pack("_amdgpu_ps_dual_source_shdr_intrl_tbl");
+        break;
     case Abi::PipelineSymbolType::LsDisassembly:
         pWriter->Pack("_amdgpu_ls_disasm");
         break;
@@ -561,6 +573,9 @@ inline Result SerializeEnum(
         break;
     case Abi::PipelineSymbolType::CsDisassembly:
         pWriter->Pack("_amdgpu_cs_disasm");
+        break;
+    case Abi::PipelineSymbolType::PsDualSourceDisassembly:
+        pWriter->Pack("_amdgpu_ps_dual_source_disasm");
         break;
     case Abi::PipelineSymbolType::LsShdrIntrlData:
         pWriter->Pack("_amdgpu_ls_shdr_intrl_data");
@@ -588,6 +603,9 @@ inline Result SerializeEnum(
         break;
     case Abi::PipelineSymbolType::PsColorExportEntry:
         pWriter->Pack("color_export_shader");
+        break;
+    case Abi::PipelineSymbolType::PsColorExportDualSourceEntry:
+        pWriter->Pack("color_export_shader_dual_source");
         break;
     default:
         break;

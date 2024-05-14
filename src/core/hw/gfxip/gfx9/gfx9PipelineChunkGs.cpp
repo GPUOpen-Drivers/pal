@@ -99,9 +99,8 @@ void PipelineChunkGs::LateInit(
 
     m_fastLaunchMode = static_cast<GsFastLaunchMode>(metadata.pipeline.graphicsRegister.vgtShaderStagesEn.gsFastLaunch);
 
-    m_regs.sh.spiShaderPgmRsrc1Gs.u32All      =
-        AbiRegisters::SpiShaderPgmRsrc1Gs(metadata, m_device, chipProps.gfxLevel);
-    m_regs.sh.spiShaderPgmRsrc2Gs.u32All      = AbiRegisters::SpiShaderPgmRsrc2Gs(metadata, chipProps.gfxLevel);
+    m_regs.sh.spiShaderPgmRsrc1Gs.u32All      = AbiRegisters::SpiShaderPgmRsrc1Gs(metadata, m_device);
+    m_regs.sh.spiShaderPgmRsrc2Gs.u32All      = AbiRegisters::SpiShaderPgmRsrc2Gs(metadata);
     m_regs.dynamic.spiShaderPgmRsrc3Gs.u32All = AbiRegisters::SpiShaderPgmRsrc3Gs(metadata,
                                                                                   m_device,
                                                                                   chipProps.gfxLevel,
@@ -123,7 +122,7 @@ void PipelineChunkGs::LateInit(
         m_regs.sh.userDataLdsEsGsSize.u32All = metadata.pipeline.esGsLdsSize;
     }
 
-    m_regs.context.vgtGsInstanceCnt.u32All    = AbiRegisters::VgtGsInstanceCnt(metadata, chipProps.gfxLevel);
+    m_regs.context.vgtGsInstanceCnt.u32All    = AbiRegisters::VgtGsInstanceCnt(metadata);
     m_regs.context.vgtGsOutPrimType.u32All    = AbiRegisters::VgtGsOutPrimType(metadata, chipProps.gfxLevel);
     m_regs.context.vgtEsGsRingItemSize.u32All = AbiRegisters::VgtEsGsRingItemSize(metadata);
     m_regs.context.vgtGsMaxVertOut.u32All     = AbiRegisters::VgtGsMaxVertOut(metadata);
@@ -150,10 +149,7 @@ void PipelineChunkGs::LateInit(
         PAL_ASSERT(loadInfo.enableNgg || allHere);
     }
 
-    AbiRegisters::GeMaxOutputPerSubgroup(metadata,
-                                         &m_regs.context.vgtGsMaxPrimsPerSubgroup,
-                                         &m_regs.context.geMaxOutputPerSubgroup,
-                                         chipProps.gfxLevel);
+    AbiRegisters::GeMaxOutputPerSubgroup(metadata, &m_regs.context.geMaxOutputPerSubgroup);
 }
 
 // =====================================================================================================================
@@ -232,41 +228,23 @@ uint32* PipelineChunkGs::WriteDynamicRegs(
     ) const
 {
     const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
+    GsRegs::Dynamic          dynamic   = m_regs.dynamic;
 
-    auto dynamic = m_regs.dynamic;
     if (gsStageInfo.wavesPerSh > 0)
     {
         dynamic.spiShaderPgmRsrc3Gs.bits.WAVE_LIMIT = gsStageInfo.wavesPerSh;
     }
-#if PAL_AMDGPU_BUILD
-    else if (IsGfx9(chipProps.gfxLevel) && (dynamic.spiShaderPgmRsrc3Gs.bits.WAVE_LIMIT == 0))
-    {
-        // GFX9 GPUs have a HW bug where a wave limit size of 0 does not correctly map to "no limit",
-        // potentially breaking high-priority compute.
-        dynamic.spiShaderPgmRsrc3Gs.bits.WAVE_LIMIT = m_device.GetMaxWavesPerSh(chipProps, false);
-    }
-#endif
 
     pCmdSpace = pCmdStream->WriteSetOneShRegIndex(mmSPI_SHADER_PGM_RSRC3_GS,
                                                   dynamic.spiShaderPgmRsrc3Gs.u32All,
                                                   ShaderGraphics,
                                                   index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
                                                   pCmdSpace);
-
-    if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
-    {
-        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSPI_SHADER_PGM_RSRC4_GS,
-                                                                 dynamic.spiShaderPgmRsrc4Gs.u32All,
-                                                                 pCmdSpace);
-    }
-    else
-    {
-        pCmdSpace = pCmdStream->WriteSetOneShRegIndex(mmSPI_SHADER_PGM_RSRC4_GS,
-                                                      dynamic.spiShaderPgmRsrc4Gs.u32All,
-                                                      ShaderGraphics,
-                                                      index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
-                                                      pCmdSpace);
-    }
+    pCmdSpace = pCmdStream->WriteSetOneShRegIndex(mmSPI_SHADER_PGM_RSRC4_GS,
+                                                  dynamic.spiShaderPgmRsrc4Gs.u32All,
+                                                  ShaderGraphics,
+                                                  index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
+                                                  pCmdSpace);
 
     return pCmdSpace;
 }
@@ -279,21 +257,12 @@ uint32* PipelineChunkGs::WriteContextCommands(
     uint32*    pCmdSpace
     ) const
 {
-    if (m_device.Parent()->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9)
-    {
-        pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx09::mmVGT_GS_MAX_PRIMS_PER_SUBGROUP,
-                                                      m_regs.context.vgtGsMaxPrimsPerSubgroup.u32All,
-                                                      pCmdSpace);
-    }
-    else
-    {
-        pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10Plus::mmGE_MAX_OUTPUT_PER_SUBGROUP,
-                                                      m_regs.context.geMaxOutputPerSubgroup.u32All,
-                                                      pCmdSpace);
-        pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10Plus::mmGE_NGG_SUBGRP_CNTL,
-                                                      m_regs.context.geNggSubgrpCntl.u32All,
-                                                      pCmdSpace);
-    }
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10Plus::mmGE_MAX_OUTPUT_PER_SUBGROUP,
+                                                  m_regs.context.geMaxOutputPerSubgroup.u32All,
+                                                  pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10Plus::mmGE_NGG_SUBGRP_CNTL,
+                                                  m_regs.context.geNggSubgrpCntl.u32All,
+                                                  pCmdSpace);
 
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmPA_CL_NGG_CNTL,
                                                   m_regs.context.paClNggCntl.u32All,

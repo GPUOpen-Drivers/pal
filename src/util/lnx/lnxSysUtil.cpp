@@ -51,6 +51,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+using namespace std::chrono;
+
 namespace Util
 {
 
@@ -1059,8 +1061,8 @@ Result ListDir(
 // =====================================================================================================================
 // Remove files of a directory at the specified path when file time < threshold.
 static Result RmDir(
-    const char* pDirParentPath,
-    uint64      threshold)
+    const char*      pDirParentPath,
+    SecondsSinceEpoch threshold)
 {
     Result result = Result::Success;
 
@@ -1102,7 +1104,7 @@ static Result RmDir(
             }
             else if (S_ISREG(st.st_mode))
             {
-                uint64 fileTime = Max(st.st_atime, st.st_mtime);
+                const SecondsSinceEpoch fileTime{ seconds{ Max(st.st_atime, st.st_mtime) } };
                 if (fileTime < threshold)
                 {
                     unlink(subPath);
@@ -1122,8 +1124,8 @@ static Result RmDir(
 // =====================================================================================================================
 // Remove all files below threshold of a directory at the specified path.
 Result RemoveFilesOfDirOlderThan(
-    const char* pPathName,
-    uint64      threshold)
+    const char*      pPathName,
+    SecondsSinceEpoch threshold)
 {
     struct stat st = {};
     Result result  = Result::Success;
@@ -1151,9 +1153,9 @@ Result RemoveFilesOfDirOlderThan(
 // =====================================================================================================================
 // Get status of a directory at the specified path.
 Result GetStatusOfDir(
-    const char* pPathName,
-    uint64*     pTotalSize,
-    uint64*     pOldestTime)
+    const char*        pPathName,
+    uint64*            pTotalSize,
+    SecondsSinceEpoch* pOldestTime)
 {
     DIR* pDir               = nullptr;
     struct dirent* pEntry   = nullptr;
@@ -1192,8 +1194,8 @@ Result GetStatusOfDir(
             else
             {
                 *pTotalSize += statBuf.st_size;
-                uint64 fileTime = Max(statBuf.st_atime, statBuf.st_mtime);
-                *pOldestTime = *pOldestTime == 0 ? fileTime : Min(*pOldestTime, fileTime);
+                const SecondsSinceEpoch fileTime{ seconds{ Max(statBuf.st_atime, statBuf.st_mtime) } };
+                *pOldestTime = (pOldestTime->time_since_epoch().count() == 0) ? fileTime : Min(*pOldestTime, fileTime);
             }
         }
 
@@ -1231,6 +1233,7 @@ size_t DumpStackTrace(
     return 0;
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 870
 // =====================================================================================================================
 void SleepMs(
     uint32 duration)
@@ -1263,6 +1266,7 @@ void SleepMs(
         }
     } // while (true)
 }
+#endif
 
 // =====================================================================================================================
 void BeepSound(

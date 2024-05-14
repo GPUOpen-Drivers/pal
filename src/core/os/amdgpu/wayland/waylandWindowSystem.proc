@@ -22,3 +22,7 @@ libwayland-client.so.0 @proc void wl_proxy_wrapper_destroy (void* proxy_wrapper)
 libwayland-client.so.0 @var  struct wl_interface wl_registry_interface
 libwayland-client.so.0 @var  struct wl_interface wl_buffer_interface
 libwayland-client.so.0 @var  struct wl_interface wl_callback_interface
+libwayland-client.so.0 @var  struct wl_interface wl_surface_interface
+libwayland-client.so.0 @var  struct wl_interface zwp_linux_dmabuf_v1_interface
+libwayland-client.so.0 @var  struct wl_interface zwp_linux_buffer_params_v1_interface
+libwayland-client.so.0 @var  struct wl_interface zwp_linux_dmabuf_feedback_v1_interface

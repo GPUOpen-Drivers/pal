@@ -154,14 +154,14 @@ Result QueueSemaphore::QuerySemaphoreValue(
 // Wait on timeline specific point with timeoutNs
 Result QueueSemaphore::WaitSemaphoreValue(
     uint64                   value,
-    uint64                   timeoutNs)
+    std::chrono::nanoseconds timeout)
 {
     uint32 flags = DRM_SYNCOBJ_WAIT_FLAGS_WAIT_ALL |
         DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT;
 
     // Only timeline semaphore supports this method.
     return m_flags.timeline ?
-             static_cast<Amdgpu::Device*>(m_pDevice)->WaitSemaphoreValue(m_hSemaphore, value, flags, timeoutNs) :
+             static_cast<Amdgpu::Device*>(m_pDevice)->WaitSemaphoreValue(m_hSemaphore, value, flags, timeout) :
              Result::ErrorInvalidObjectType;
 }
 
@@ -178,12 +178,12 @@ Result QueueSemaphore::OsQuerySemaphoreLastValue(uint64*  pValue)
 // Wait available on timeline specific point with timeoutNs
 Result QueueSemaphore::WaitSemaphoreValueAvailable(
     uint64                   value,
-    uint64                   timeoutNs)
+    std::chrono::nanoseconds timeout)
 {
     uint32 flags = DRM_SYNCOBJ_WAIT_FLAGS_WAIT_AVAILABLE |
         DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT;
 
-    return static_cast<Amdgpu::Device*>(m_pDevice)->WaitSemaphoreValue(m_hSemaphore, value, flags, timeoutNs);
+    return static_cast<Amdgpu::Device*>(m_pDevice)->WaitSemaphoreValue(m_hSemaphore, value, flags, timeout);
 
 }
 

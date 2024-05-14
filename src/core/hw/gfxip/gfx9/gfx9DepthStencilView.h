@@ -66,19 +66,10 @@ public:
         regDB_RENDER_OVERRIDE* pDbRenderOverride,
         uint32*                pCmdSpace) const = 0;
 
-    virtual uint32* UpdateZRangePrecision(
-        bool       requiresCondExec,
-        CmdStream* pCmdStream,
-        uint32*    pCmdSpace) const
-    {
-        return pCmdSpace;
-    }
-
     const Image* GetImage() const { return m_pImage; }
     uint32 MipLevel() const { return m_depthSubresource.mipLevel; }
 
     bool IsVaLocked() const { return m_flags.viewVaLocked; }
-    bool WaitOnMetadataMipTail() const { return m_flags.waitOnMetadataMipTail; }
     bool ReadOnlyDepth() const { return m_flags.readOnlyDepth; }
     bool ReadOnlyStencil() const { return m_flags.readOnlyStencil; }
 
@@ -144,16 +135,13 @@ protected:
             uint32 depthMetadataTexFetch   :  1;
             uint32 stencilMetadataTexFetch :  1;
             uint32 vrsOnlyDepth            :  1; // Set if the image is used for VRS-only depth
-            uint32 waitOnMetadataMipTail   :  1; // Set if the CmdBindTargets should insert a stall when binding this
-                                                 // view object.
             uint32 viewVaLocked            :  1; // Whether the view's VA range is locked and won't change.
             uint32 hiSPretests             :  1; // Set if the image has HiS pretest metadata
             uint32 dbRenderOverrideLocked  :  1; // Set if DB_RENDER_OVERRIDE cannot change due to bind-time
                                                  // compression state.
             uint32 dbRenderControlLocked   :  1; // Set if DB_RENDER_CONTROL cannot change due to bind-time
                                                  // compression state.
-            uint32 waTcCompatZRange        :  1; // Set if the TC-compatible ZRange precision workaround is active
-            uint32 reserved                : 18;
+            uint32 reserved                : 20;
         };
 
         uint32 u32All;

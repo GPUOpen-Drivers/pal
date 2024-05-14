@@ -394,6 +394,11 @@
                 "Name": "OriginationTypeFlagPipelineCompiler",
                 "Value": 32,
                 "Description": "Originating from pipeline compiler"
+              },
+              {
+                "Name": "OriginationTypeFlagGpuProfiler",
+                "Value": 64,
+                "Description": "Originating from the GpuProfiler PAL layer"
               }
             ],
             "SkipGen": true,
@@ -423,7 +428,7 @@
       ],
       "Scope": "PrivatePalKey",
       "Type": "string",
-      "Description": "Spoofs the current GPU into the given model and enables IFH. See NullIdLookupTable in ndDevice.cpp for options (eg 'RAVEN' from 'RAVEN:gfx902').",
+      "Description": "Spoofs the current GPU into the given model and enables IFH. See GpuInfoLookupTable in libInit.cpp for options (eg 'RAVEN' from 'RAVEN:gfx902').",
       "Defaults": {
         "Default": ""
       },

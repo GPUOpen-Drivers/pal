@@ -29,6 +29,7 @@
 #include "palPlatform.h"
 #include "platformSettingsLoader.h"
 #include "experimentsLoader.h"
+#include "palDbgLoggerDevDriver.h"
 #include "core/gpuMemoryEventProvider.h"
 #include "core/layers/crashAnalysis/crashAnalysisEventProvider.h"
 #include "g_coreSettings.h"
@@ -384,6 +385,9 @@ private:
     Util::LogCallbackInfo      m_logCb;
     GpuMemoryEventProvider     m_gpuMemoryEventProvider;
     CrashAnalysisEventProvider m_crashAnalysisEventProvider;
+#if PAL_ENABLE_LOGGING
+    DbgLoggerDevDriver*        m_pDevDriverLogger;
+#endif
     uint32                     m_enabledCallbackTypesMask;
     bool                       m_subAllocTrackingEnabled;
 

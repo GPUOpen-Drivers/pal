@@ -107,7 +107,8 @@ namespace DevDriver
 
 SettingsBase::SettingsBase(void* pSettingsData, size_t settingsDataSize)
     : m_pSettingsData(pSettingsData)
-    , m_settingsMap(Platform::GenericAllocCb)
+    , m_settingsMap(Platform::GenericAllocCb),
+      m_unsupportedExperiments(Platform::GenericAllocCb)
 {
     // Zero out the entire SettingsData. This ensure the struct paddings
     // are always zero, and is required for generating deterministic hashing
@@ -251,6 +252,20 @@ DD_RESULT SettingsBase::GetAllValues(DynamicBuffer& recvBuffer, size_t* pOutNumV
     if (result == DD_RESULT_SUCCESS)
     {
         *pOutNumValues = numValues;
+    }
+
+    return result;
+}
+
+DD_RESULT SettingsBase::GetUnsupportedExperiments(DynamicBuffer& recvBuffer, size_t* pOutNumValues)
+{
+    DD_RESULT result     = DD_RESULT_COMMON_INVALID_PARAMETER;
+    size_t    sizeNeeded = sizeof(DD_SETTINGS_NAME_HASH) * m_unsupportedExperiments.Size();
+    if ((pOutNumValues != nullptr) && (recvBuffer.Capacity() >= sizeNeeded))
+    {
+        *pOutNumValues = m_unsupportedExperiments.Size();
+        recvBuffer.Copy(m_unsupportedExperiments.Data(), sizeNeeded);
+        result = DD_RESULT_SUCCESS;
     }
 
     return result;

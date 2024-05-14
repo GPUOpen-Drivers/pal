@@ -26,6 +26,7 @@
 #if PAL_ENABLE_LOGGING
 #include "palDbgLoggerDevDriver.h"
 #include "core/devDriverUtil.h"
+#include "palVectorImpl.h"
 
 using namespace DevDriver;
 using namespace EventProtocol;
@@ -34,7 +35,7 @@ using namespace Util;
 namespace Pal
 {
 constexpr uint32 EventFlushTimeoutInMs = 10;
-constexpr uint32 NumLogProviderEvents  = uint32(OriginationType::Count) + uint32(SeverityLevel::Count);
+constexpr uint32 NumLogProviderEvents  = 1;
 constexpr char   EventDescription[]    = "Generic driver log messages";
 
 /// Some defaults for this logger
@@ -50,7 +51,7 @@ LogEventProvider::LogEventProvider(
         NumLogProviderEvents,
         EventFlushTimeoutInMs),
     m_pEventServer(nullptr),
-    m_pDbgLoggerDevDriver(nullptr)
+    m_eventData(pPlatform)
 {
     PAL_ASSERT(pPlatform != nullptr);
     m_pEventServer = pPlatform->GetEventServer();
@@ -58,8 +59,7 @@ LogEventProvider::LogEventProvider(
 
 // =====================================================================================================================
 // Establishes connection with the DevDriver event server by registering itself with this server.
-Result LogEventProvider::Init(
-    DbgLoggerDevDriver* pDbgLoggerDevDriver)
+Result LogEventProvider::Init()
 {
     Result result = Result::ErrorInvalidPointer;
     if (m_pEventServer != nullptr)
@@ -68,7 +68,6 @@ Result LogEventProvider::Init(
             (m_pEventServer->RegisterProvider(this) == DevDriver::Result::Success) ? Result::Success
             : Result::ErrorUnknown;
     }
-    m_pDbgLoggerDevDriver = pDbgLoggerDevDriver;
 
     return result;
 }
@@ -81,7 +80,6 @@ void LogEventProvider::Destroy()
     {
         DD_UNHANDLED_RESULT(m_pEventServer->UnregisterProvider(this));
     }
-    m_pDbgLoggerDevDriver = nullptr;
 }
 
 // =====================================================================================================================
@@ -99,12 +97,88 @@ uint32 LogEventProvider::GetEventDescriptionDataSize() const
 }
 
 // =====================================================================================================================
+// Logs a message through the DevDriver logger
+void LogEventProvider::LogMessage(
+    Util::SeverityLevel   severity,
+    Util::OriginationType source,
+    const char*           pClientTag,
+    size_t                dataSize,
+    const void*           pData)
+{
+    // Currently, the only supported event is a string log message, so we can just directly write that event
+    LogStringEventInfo eventInfo = {};
+    eventInfo.severity = static_cast<uint32>(severity);
+    eventInfo.originationType = static_cast<uint32>(source);
+    const size_t copySize = Util::Min(static_cast<uint32_t>(strlen(pClientTag)), ClientTagSize);
+    Util::Strncpy(eventInfo.pClientTag, pClientTag, copySize);
+
+    const size_t bufferSize = sizeof(LogStringEventInfo) + dataSize;
+    const Result result = m_eventData.Resize(static_cast<uint32>(bufferSize), 0);
+
+    if (result == Result::Success)
+    {
+        void* pBufferPtr = static_cast<void*>(m_eventData.Data());
+        memcpy(pBufferPtr, &eventInfo, sizeof(eventInfo));
+        pBufferPtr = Util::VoidPtrInc(pBufferPtr, sizeof(eventInfo));
+        memcpy(pBufferPtr, pData, dataSize);
+        WriteEvent(KLogStringEventId, static_cast<const void*>(m_eventData.Data()), bufferSize);
+    }
+    else
+    {
+        // If we can't allocate space for the data then we'll just assert and drop the message
+        PAL_ASSERT_ALWAYS();
+    }
+}
+
+// =====================================================================================================================
+// Creates a DevDriver logger
+Result DbgLoggerDevDriver::CreateDevDriverLogger(
+    Util::DbgLogBaseSettings settings,
+    IPlatform*               pPlatform,
+    DbgLoggerDevDriver**     ppDbgLoggerDevDriver)
+{
+    Result result = Result::ErrorOutOfMemory;
+    DbgLoggerDevDriver* pDbgLoggerDevDriver = PAL_NEW(DbgLoggerDevDriver, pPlatform, AllocInternal)
+                                                     (settings, pPlatform);
+    if (pDbgLoggerDevDriver != nullptr)
+    {
+        result = pDbgLoggerDevDriver->Init();
+
+        if (result == Result::Success)
+        {
+            g_dbgLogMgr.AttachDbgLogger(pDbgLoggerDevDriver);
+            (*ppDbgLoggerDevDriver) = pDbgLoggerDevDriver;
+        }
+        else
+        {
+            PAL_DELETE(pDbgLoggerDevDriver, pPlatform);
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+/// Destroy the DevDriver logger.
+void DbgLoggerDevDriver::DestroyDevDriverLogger(
+    DbgLoggerDevDriver* pDbgLoggerDevDriver,
+    IPlatform*          pPlatform)
+{
+    if (pDbgLoggerDevDriver != nullptr)
+    {
+        g_dbgLogMgr.DetachDbgLogger(pDbgLoggerDevDriver);
+        PAL_SAFE_DELETE(pDbgLoggerDevDriver, pPlatform);
+    }
+}
+
+// =====================================================================================================================
 /// Initializes the base class with default severity levels and origination types. These settings will
 /// be overridden later if the user changes them from the connected tool.
 DbgLoggerDevDriver::DbgLoggerDevDriver(
-    IPlatform* pPlatform)
+    Util::DbgLogBaseSettings settings,
+    IPlatform*               pPlatform)
     :
-    IDbgLogger(DefaultSeverityLevel, DefaultOriginationTypes),
+    IDbgLogger(settings.severityLevel, settings.origTypeMask),
     m_logEventProvider(pPlatform)
 {
 }

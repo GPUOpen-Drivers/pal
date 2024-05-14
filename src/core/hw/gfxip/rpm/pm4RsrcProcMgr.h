@@ -73,7 +73,7 @@ public:
         const Rect*            pScissorRect,
         uint32                 flags) const override;
 
-    virtual void CmdCopyMemory(
+    void CmdCopyMemory(
         Pm4CmdBuffer*           pCmdBuffer,
         const GpuMemory&        srcGpuMemory,
         const GpuMemory&        dstGpuMemory,
@@ -227,8 +227,6 @@ protected:
         const SubresRange& subres,
         ImageLayout        layout,
         bool               csFastClear) const;
-
-    const bool m_releaseAcquireSupported; // If acquire release interface is supported.
 
 private:
     virtual void CopyImageGraphics(

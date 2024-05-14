@@ -87,16 +87,16 @@ public:
 protected:
     explicit QueueSemaphore(Device* pDevice);
 
-    virtual Result QuerySemaphoreValue(uint64*  pValue) override;
-    virtual Result WaitSemaphoreValue(uint64  value, uint64 timeoutNs) override;
+    virtual Result QuerySemaphoreValue(uint64* pValue) override;
+    virtual Result WaitSemaphoreValue(uint64 value, std::chrono::nanoseconds timeout) override;
 
     virtual Result OsInit(const QueueSemaphoreCreateInfo& createInfo);
     virtual Result OsSignal(Queue* pQueue, uint64 value);
     virtual Result OsWait(Queue* pQueue, uint64 value); // OsWait doesn't actually do a wait, it defers the real wait until the next submit.
-    virtual Result OsSignalSemaphoreValue(uint64  value);
+    virtual Result OsSignalSemaphoreValue(uint64 value);
     virtual bool   IsWaitBeforeSignal(uint64 value);
-    virtual Result OsQuerySemaphoreLastValue(uint64*  pValue);
-    virtual Result WaitSemaphoreValueAvailable(uint64  value, uint64 timeoutNs);
+    virtual Result OsQuerySemaphoreLastValue(uint64* pValue);
+    virtual Result WaitSemaphoreValueAvailable(uint64 value, std::chrono::nanoseconds timeout);
     Device*const  m_pDevice;
 
     uint64  m_maxWaitsPerSignal;  // Upper limit to number of simultaneous unconsumed signals on this semaphore.

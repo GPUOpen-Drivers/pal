@@ -122,12 +122,12 @@ Result RingBuffer<Allocator>::Destroy(
 // Retrieve next writeable buffer in the ring.
 template <typename Allocator>
 Result RingBuffer<Allocator>::GetBufferForWriting(
-    uint32 waitTimeMs, // Wait time in milliseconds.
-    void** ppBuffer)
+    std::chrono::milliseconds waitTime,
+    void**                    ppBuffer)
 {
     Result result = Result::Timeout;
 
-    if (m_semaWrite.Wait(waitTimeMs) == Result::Success)
+    if (m_semaWrite.Wait(waitTime) == Result::Success)
     {
         (*ppBuffer) = VoidPtrInc(m_pRingBuffer, m_writePointer * m_elementSize);
         result = Result::Success;
@@ -135,6 +135,19 @@ Result RingBuffer<Allocator>::GetBufferForWriting(
 
     return result;
 }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 863
+// =====================================================================================================================
+// Retrieve next writeable buffer in the ring.
+template <typename Allocator>
+inline Result RingBuffer<Allocator>::GetBufferForWriting(
+    uint32 waitTimeMs,
+    void** ppBuffer)
+{
+    using namespace std::chrono;
+    return GetBufferForWriting(milliseconds{ std::min(waitTimeMs, uint32(milliseconds::max().count())) }, ppBuffer);
+}
+#endif
 
 // =====================================================================================================================
 // Releases the held writeable buffer, making it as written and that the ring is ready to fill the next slot.
@@ -150,12 +163,12 @@ void RingBuffer<Allocator>::ReleaseWriteBuffer()
 // Retrieve next readable buffer in the ring.
 template <typename Allocator>
 Result RingBuffer<Allocator>::GetBufferForReading(
-    uint32       waitTimeMs, // Wait time in milliseconds.
-    const void** ppBuffer)
+    std::chrono::milliseconds waitTime,
+    const void**              ppBuffer)
 {
     Result result = Result::Timeout;
 
-    if (m_semaRead.Wait(waitTimeMs) == Result::Success)
+    if (m_semaRead.Wait(waitTime) == Result::Success)
     {
         (*ppBuffer) = VoidPtrInc(m_pRingBuffer, m_readPointer * m_elementSize);
         result = Result::Success;
@@ -163,6 +176,19 @@ Result RingBuffer<Allocator>::GetBufferForReading(
 
     return result;
 }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 863
+// =====================================================================================================================
+// Retrieve next readable buffer in the ring.
+template <typename Allocator>
+Result RingBuffer<Allocator>::GetBufferForReading(
+    uint32       waitTimeMs,
+    const void** ppBuffer)
+{
+    using namespace std::chrono;
+    return GetBufferForReading(milliseconds{ std::min(waitTimeMs, uint32(milliseconds::max().count())) }, ppBuffer);
+}
+#endif
 
 // =====================================================================================================================
 // Releases the held readable buffer, making it as read and that the ring is ready to read the next slot.

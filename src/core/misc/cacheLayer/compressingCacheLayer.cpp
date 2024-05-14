@@ -39,9 +39,8 @@ CompressingCacheLayer::CompressingCacheLayer(
     const AllocCallbacks& callbacks,
     bool useHighCompression,
     bool decompressOnly)
-    : m_compressor(callbacks, useHighCompression)
+    : m_compressor(useHighCompression)
     , m_allocator(callbacks)
-    , m_compressMutex()
     , m_pNextLayer(nullptr)
     , m_decompressOnly(decompressOnly)
 {
@@ -53,12 +52,6 @@ CompressingCacheLayer::CompressingCacheLayer(
 // =====================================================================================================================
 CompressingCacheLayer::~CompressingCacheLayer()
 {
-}
-
-// =====================================================================================================================
-Result CompressingCacheLayer::Init()
-{
-    return m_compressor.Init();
 }
 
 // =====================================================================================================================
@@ -80,7 +73,6 @@ Result CompressingCacheLayer::Query(
     else
     {
         result = m_pNextLayer->Query(pHashId, policy, flags, pQuery);
-
         // After this layer, any promotion will store the decompressed size.
         pQuery->promotionSize = pQuery->dataSize;
     }
@@ -135,6 +127,7 @@ Result CompressingCacheLayer::Store(
         {
             PAL_ASSERT(storeSize <= INT_MAX);
             int neededSize = m_compressor.GetCompressBound(int(storeSize));
+
             void* compressedBuffer = PAL_MALLOC(neededSize, &m_allocator, AllocInternalTemp);
             if (compressedBuffer == nullptr)
             {
@@ -143,13 +136,11 @@ Result CompressingCacheLayer::Store(
             else
             {
                 int bytesWritten = 0;
-                m_compressMutex.Lock();
                 result = m_compressor.Compress(static_cast<const char*>(pData),
                                                static_cast<char*>(compressedBuffer),
                                                int(storeSize),
                                                neededSize,
                                                &bytesWritten);
-                m_compressMutex.Unlock();
 
                 if((result == Result::Success) && (bytesWritten > 0) && (size_t(bytesWritten) < dataSize))
                 {
@@ -290,17 +281,7 @@ Result CreateCompressingCacheLayer(
              pCreateInfo->useHighCompression,
              pCreateInfo->decompressOnly);
 
-        result = pLayer->Init();
-
-        if (result == Result::Success)
-        {
-            *ppCacheLayer       = pLayer;
-        }
-        else
-        {
-            pLayer->Destroy();
-            *ppCacheLayer       = nullptr;
-        }
+        *ppCacheLayer       = pLayer;
     }
 
     return result;

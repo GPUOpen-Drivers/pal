@@ -297,15 +297,18 @@ void Pm4CmdBuffer::ResetState()
     // flushed in each command buffer postamble.
     if (IsComputeSupported())
     {
-        m_pm4CmdBufState.flags.csBltActive        = 1;
-        m_pm4CmdBufState.flags.csWriteCachesDirty = 1;
+        m_pm4CmdBufState.flags.csBltActive                         = 1;
+        m_pm4CmdBufState.flags.csWriteCachesDirty                  = 1;
+        m_pm4CmdBufState.flags.csBltDirectWriteMisalignedMdDirty   = 1;
+        m_pm4CmdBufState.flags.csBltIndirectWriteMisalignedMdDirty = 1;
     }
 
     if (IsCpDmaSupported())
     {
         {
             // PAL sends CP reads and writes through the GL2 by default, we'll need GL2 flushes.
-            m_pm4CmdBufState.flags.cpWriteCachesDirty = 1;
+            m_pm4CmdBufState.flags.cpWriteCachesDirty                 = 1;
+            m_pm4CmdBufState.flags.gfxBltDirectWriteMisalignedMdDirty = 1;
         }
     }
 
@@ -760,13 +763,27 @@ void Pm4CmdBuffer::CmdEndPerfExperiment(
 }
 
 // =====================================================================================================================
-void Pm4CmdBuffer::OptimizeAcqRelReleaseInfo(
-    BarrierType barrierType,
-    uint32*     pStageMask,
-    uint32*     pAccessMask
+bool Pm4CmdBuffer::OptimizeAcqRelReleaseInfo(
+    BarrierType   barrierType,
+    const IImage* pImage,
+    uint32*       pSrcStageMask,
+    uint32*       pSrcAccessMask,
+    uint32*       pDstStageMask,
+    uint32*       pDstAccessMask
     ) const
 {
-    m_pBarrierMgr->OptimizeStageAndAccessMask(this, barrierType, pStageMask, pAccessMask, nullptr, nullptr);
+    PAL_ASSERT((pSrcAccessMask != nullptr) && (pDstAccessMask != nullptr));
+
+    const bool isClearToTarget = GfxBarrierMgr::IsClearToTargetTransition(*pSrcAccessMask, *pDstAccessMask);
+
+    m_pBarrierMgr->OptimizeStageMask(this, barrierType, pSrcStageMask, pDstStageMask, isClearToTarget);
+
+    return m_pBarrierMgr->OptimizeAccessMask(this,
+                                             barrierType,
+                                             static_cast<const Image*>(pImage),
+                                             pSrcAccessMask,
+                                             pDstAccessMask,
+                                             true);
 }
 
 // =====================================================================================================================

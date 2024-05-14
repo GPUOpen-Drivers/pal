@@ -557,7 +557,12 @@ public:
     /// @returns Success if the delay was successfully queued.  Otherwise, one of the following errors may be returned:
     ///          + ErrorInvalidValue if delay is less than 0.
     virtual Result Delay(
-        float delay) = 0;
+        Util::fmilliseconds delay) = 0;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 870
+    Result Delay(
+        float delay)
+    { return Delay(Util::fmilliseconds{ delay }); }
+#endif
 
     /// Inserts a delay of a specified amount of time on this queue after a vsync on a private display object.
     ///
@@ -565,14 +570,20 @@ public:
     /// operations for rendering and presentation in VR as this allows GPU commands of next frame to be sent early but
     /// blocks GPU execution until after vsync.
     ///
-    /// @param [in] delayInUs Time, in microseconds, to delay before processing more commands on this queue.
+    /// @param [in] delay   Time, in microseconds, to delay before processing more commands on this queue.
     /// @param [in] pScreen The private screen object that the vsync is occurring and the delay is waiting on.
     ///
     /// @returns Success if the delay was successfully queued.  Otherwise, one of the following errors may be returned:
     ///          + ErrorInvalidValue if delay is less than 0.
     virtual Result DelayAfterVsync(
-        float                 delayInUs,
+        Util::fmicroseconds   delay,
         const IPrivateScreen* pScreen) = 0;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 870
+    virtual Result DelayAfterVsync(
+        float                 delayInUs,
+        const IPrivateScreen* pScreen)
+    { return DelayAfterVsync(Util::fmicroseconds{ delayInUs }, pScreen); }
+#endif
 
     /// Updates page mappings for virtual GPU memory allocations.
     ///

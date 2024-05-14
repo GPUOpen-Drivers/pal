@@ -138,7 +138,11 @@ struct PerfCounterId
             Pal::uint8  eventThresholdEn; ///< Threshold enable (0 for disabled,1 for <threshold,2 for >threshold)
             Pal::uint8  rdWrMask;         ///< Read/Write mask select (1 for Read, 2 for Write).
         } umc;
-    };
+
+        Pal::uint32 rs64Cntl; ///< CP blocks CPG and CPC have events that can be further filtered for processor events
+
+        Pal::uint32 u32All; ///< Union value for copying, must be increased in size if any element of the union exceeds
+    } subConfig;
 };
 
 /// Defines a set of flags for a particular gpa session.
@@ -413,6 +417,7 @@ struct SqttTraceInfo
     Pal::uint32 shaderEngine;    ///< Shader engine index
     Pal::uint32 computeUnit;     ///< Compute unit index
     Pal::uint32 sqttVersion;     ///< SQTT version
+    Pal::uint64 bufferSize;      ///< SQTT trace buffer size
 };
 
 /// Struct used for storing SPM-specific trace information

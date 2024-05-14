@@ -45,7 +45,7 @@ class Pipeline final : public PipelineDecorator
 public:
     Pipeline(IPipeline* pNextPipeline, const Device* pDevice);
 
-    Result InitGfx(const GraphicsPipelineCreateInfo& createInfo);
+    Result InitGfx();
     Result InitCompute(const ComputePipelineCreateInfo& createInfo);
 
     // Public IDestroyable interface methods:

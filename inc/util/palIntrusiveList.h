@@ -226,6 +226,14 @@ public:
     /// Removes all nodes from the list.
     void EraseAll();
 
+    /// Truncates the list without touching the elements
+    void InvalidateList()
+    {
+        m_sentinel.m_pNext = &m_sentinel;
+        m_sentinel.m_pPrev = &m_sentinel;
+        m_numElements = 0;
+    }
+
 private:
     void InsertBefore(Node* pBeforeMe, Node* pNode);
     void Unlink(Node* pNode);

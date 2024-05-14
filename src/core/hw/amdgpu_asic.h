@@ -126,6 +126,7 @@
 #define AMDGPU_NAVI33_RANGE        0x10, 0x20
 #define AMDGPU_NAVI32_RANGE        0x20, 0xff
 #define AMDGPU_PHOENIX1_RANGE      0x01, 0x80
+#define AMDGPU_PHOENIX2_RANGE      0x80, 0xC0
 
 #define AMDGPU_EXPAND_FIX(x) x
 #define AMDGPU_RANGE_HELPER(val, min, max) ((val >= min) && (val < max))
@@ -188,6 +189,7 @@
 #define ASICREV_IS_NAVI32(r)           ASICREV_IS(r, NAVI32)
 #define ASICREV_IS_NAVI33(r)           ASICREV_IS(r, NAVI33)
 #define ASICREV_IS_PHOENIX1(r)         ASICREV_IS(r, PHOENIX1)
+#define ASICREV_IS_PHOENIX2(r)         ASICREV_IS(r, PHOENIX2)
 
 // AMDGPU_IS(familyId, eRevisionId, familyName, revisionName)
 #define AMDGPU_IS(f, r, fn, rn)    (FAMILY_IS(f, fn) && ASICREV_IS(r, rn))
@@ -242,6 +244,7 @@
 #define AMDGPU_IS_NAVI32(f, r)        AMDGPU_IS(f, r, NV3, NAVI32)
 #define AMDGPU_IS_NAVI33(f, r)        AMDGPU_IS(f, r, NV3, NAVI33)
 #define AMDGPU_IS_PHOENIX1(f, r)      AMDGPU_IS(f, r, PHX, PHOENIX1)
+#define AMDGPU_IS_PHOENIX2(f, r)      AMDGPU_IS(f, r, PHX, PHOENIX2)
 
 #define AMDGPU_IS_RAPHAEL(f, r)       AMDGPU_IS(f, r, RPL, RAPHAEL)
 #define AMDGPU_IS_MENDOCINO(f, r)     AMDGPU_IS(f, r, MDN, MENDOCINO)
@@ -300,6 +303,7 @@
 #define DEVICE_ID_NV3_NAVI32_P_73DF     0x73DF
 #define DEVICE_ID_NV3_NAVI33_P_73F0     0x73F0
 #define DEVICE_ID_PHX1_15BF             0x15BF
+#define DEVICE_ID_PHX2_15C8             0x15C8
 
 // DEVICE_IS(deviceId, deviceName)
 #define DEVICE_IS(d, dn) (d == DEVICE_ID_##dn)
@@ -359,6 +363,7 @@
 #define NAVI33_P_A0               0x10
 #define NAVI32_P_A0               0x20
 #define PHOENIX1_A0               0x01
+#define PHOENIX2_A0               0x80
 
 // SPIN_IS(revisionId, revisionName)
 #define SPIN_IS(r, rn) (r == rn)

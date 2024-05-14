@@ -37,60 +37,16 @@ include(${CMAKE_CURRENT_LIST_DIR}/cmake/SwdHelper.cmake)
 function(swd_add_to_target TARGET PREFIX)
     target_include_directories(${TARGET} PRIVATE ${SWD_SOURCE_DIR}/inc)
 
-#if SWD_BUILD_GFX11
-    swd_bp(${PREFIX}_SWD_BUILD_GFX11 OFF)
-    if(${PREFIX}_SWD_BUILD_GFX11)
-        target_compile_definitions(${TARGET} PRIVATE SWD_BUILD_GFX11=1)
+#if SWD_BUILD_PHX2
+    swd_bp(${PREFIX}_SWD_BUILD_PHX2 OFF)
+    if(${PREFIX}_SWD_BUILD_PHX2)
+        target_compile_definitions(${TARGET} PRIVATE SWD_BUILD_PHX2=1)
     endif()
 #endif
 
-#if SWD_BUILD_GFX11 && SWD_BUILD_NAVI3X
-    swd_bp(${PREFIX}_SWD_BUILD_NAVI3X OFF DEPENDS_ON "${PREFIX}_SWD_BUILD_GFX11")
-    if(${PREFIX}_SWD_BUILD_NAVI3X)
-        target_compile_definitions(${TARGET} PRIVATE SWD_BUILD_NAVI3X=1)
-    endif()
-#endif
-
-#if SWD_BUILD_NAVI3X && SWD_BUILD_GFX11 && SWD_BUILD_NAVI31
-    swd_bp(${PREFIX}_SWD_BUILD_NAVI31 OFF DEPENDS_ON "${PREFIX}_SWD_BUILD_NAVI3X;${PREFIX}_SWD_BUILD_GFX11")
-    if(${PREFIX}_SWD_BUILD_NAVI31)
-        target_compile_definitions(${TARGET} PRIVATE SWD_BUILD_NAVI31=1)
-    endif()
-#endif
-
-#if SWD_BUILD_NAVI3X && SWD_BUILD_GFX11 && SWD_BUILD_NAVI32
-    swd_bp(${PREFIX}_SWD_BUILD_NAVI32 OFF DEPENDS_ON "${PREFIX}_SWD_BUILD_NAVI3X;${PREFIX}_SWD_BUILD_GFX11")
-    if(${PREFIX}_SWD_BUILD_NAVI32)
-        target_compile_definitions(${TARGET} PRIVATE SWD_BUILD_NAVI32=1)
-    endif()
-#endif
-
-#if SWD_BUILD_NAVI3X && SWD_BUILD_GFX11 && SWD_BUILD_NAVI33
-    swd_bp(${PREFIX}_SWD_BUILD_NAVI33 OFF DEPENDS_ON "${PREFIX}_SWD_BUILD_NAVI3X;${PREFIX}_SWD_BUILD_GFX11")
-    if(${PREFIX}_SWD_BUILD_NAVI33)
-        target_compile_definitions(${TARGET} PRIVATE SWD_BUILD_NAVI33=1)
-    endif()
-#endif
-
-#if SWD_BUILD_GFX11 && SWD_BUILD_PHX
-    swd_bp(${PREFIX}_SWD_BUILD_PHX OFF DEPENDS_ON "${PREFIX}_SWD_BUILD_GFX11")
-    if(${PREFIX}_SWD_BUILD_PHX)
-        target_compile_definitions(${TARGET} PRIVATE SWD_BUILD_PHX=1)
-    endif()
-#endif
-
-#if SWD_BUILD_PHX && SWD_BUILD_GFX11 && SWD_BUILD_PHX1
-    swd_bp(${PREFIX}_SWD_BUILD_PHX1 OFF DEPENDS_ON "${PREFIX}_SWD_BUILD_PHX;${PREFIX}_SWD_BUILD_GFX11")
-    if(${PREFIX}_SWD_BUILD_PHX1)
-        target_compile_definitions(${TARGET} PRIVATE SWD_BUILD_PHX1=1)
-    endif()
-#endif
-
-#if SWD_BUILD_GFX11
-    if(${PREFIX}_SWD_BUILD_GFX11)
-        target_sources(${TARGET} PRIVATE ${SWD_SOURCE_DIR}/inc/g_gfx11SwWarDetection.h)
-        set_source_files_properties(${SWD_SOURCE_DIR}/inc/g_gfx11SwWarDetection.h TARGET_DIRECTORY ${TARGET} PROPERTIES GENERATED ON)
-    endif()
-#endif
+    target_sources(${TARGET} PRIVATE ${SWD_SOURCE_DIR}/inc/g_gfx10SwWarDetection.h)
+    set_source_files_properties(${SWD_SOURCE_DIR}/inc/g_gfx10SwWarDetection.h TARGET_DIRECTORY ${TARGET} PROPERTIES GENERATED ON)
+    target_sources(${TARGET} PRIVATE ${SWD_SOURCE_DIR}/inc/g_gfx11SwWarDetection.h)
+    set_source_files_properties(${SWD_SOURCE_DIR}/inc/g_gfx11SwWarDetection.h TARGET_DIRECTORY ${TARGET} PROPERTIES GENERATED ON)
 
 endfunction()

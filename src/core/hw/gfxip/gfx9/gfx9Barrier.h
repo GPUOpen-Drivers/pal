@@ -103,12 +103,11 @@ struct LayoutTransitionInfo
 // This family of constexpr bitmasks defines which source/prior stages require EOP or EOS events to wait for idle.
 // They're mainly used to pick our Release barrier event but are also reused in other places in PAL.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 835
-constexpr uint32 EopWaitStageMask = (PipelineStageSampleRate    |
-                                     PipelineStageEarlyDsTarget | PipelineStageLateDsTarget |
-                                     PipelineStageColorTarget   | PipelineStageBottomOfPipe);
+constexpr uint32 EopWaitStageMask = (PipelineStageSampleRate  | PipelineStageDsTarget    |
+                                     PipelineStageColorTarget | PipelineStageBottomOfPipe);
 #else
-constexpr uint32 EopWaitStageMask = (PipelineStageEarlyDsTarget | PipelineStageLateDsTarget |
-                                     PipelineStageColorTarget   | PipelineStageBottomOfPipe);
+constexpr uint32 EopWaitStageMask = (PipelineStageDsTarget    | PipelineStageColorTarget |
+                                     PipelineStageBottomOfPipe);
 #endif
 // PFP sets IB base and size to register VGT_DMA_BASE & VGT_DMA_SIZE and send request to VGT for indices fetch,
 // which is done in GE. So need VsDone to make sure indices fetch done.
@@ -250,7 +249,7 @@ private:
 
     SyncGlxFlags GetCacheSyncOps(
         Pm4CmdBuffer*       pCmdBuf,
-        bool                isGlobalBarrier,
+        BarrierType         barrierType,
         const ImgBarrier*   pImgBarrier,
         uint32              srcAccessMask,
         uint32              dstAccessMask,
@@ -263,7 +262,7 @@ private:
         uint32              dstAccessMask,
         bool*               pSyncRbCache) const
     {
-        return GetCacheSyncOps(pCmdBuf, true, nullptr, srcAccessMask, dstAccessMask, true, pSyncRbCache);
+        return GetCacheSyncOps(pCmdBuf, BarrierType::Global, nullptr, srcAccessMask, dstAccessMask, true, pSyncRbCache);
     }
 
     SyncGlxFlags GetBufferCacheSyncOps(
@@ -272,7 +271,7 @@ private:
         uint32              dstAccessMask,
         bool*               pSyncRbCache) const
     {
-        return GetCacheSyncOps(pCmdBuf, false, nullptr, srcAccessMask, dstAccessMask, true, pSyncRbCache);
+        return GetCacheSyncOps(pCmdBuf, BarrierType::Buffer, nullptr, srcAccessMask, dstAccessMask, true, pSyncRbCache);
     }
 
     SyncGlxFlags GetImageCacheSyncOps(
@@ -283,7 +282,7 @@ private:
         bool                shaderMdAccessIndirectOnly,
         bool*               pSyncRbCache) const
     {
-        return GetCacheSyncOps(pCmdBuf, false, pImgBarrier, srcAccessMask, dstAccessMask,
+        return GetCacheSyncOps(pCmdBuf, BarrierType::Image, pImgBarrier, srcAccessMask, dstAccessMask,
                                shaderMdAccessIndirectOnly, pSyncRbCache);
     }
 
@@ -295,7 +294,7 @@ private:
         bool*                         pPreInitHtileSynced,
         Developer::BarrierOperations* pBarrierOps) const;
 
-    bool OptimizeImageBarrier(
+    SyncRbFlags OptimizeImageBarrier(
         Pm4CmdBuffer*               pCmdBuf,
         ImgBarrier*                 pImgBarrier,
         const LayoutTransitionInfo& layoutTransInfo,

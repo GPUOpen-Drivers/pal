@@ -34,10 +34,7 @@
 
 using namespace Pal;
 using DevDriver::StructuredValue;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 844
-constexpr uint64 FrameTraceControllerFenceTimeoutNs = 5000000000;
-#endif
+using namespace std::chrono_literals;
 
 namespace GpuUtil
 {
@@ -439,7 +436,7 @@ Result FrameTraceController::WaitForTraceEndGpuWorkCompletion() const
         result = pDevice->WaitForFences(1,
                                         &m_pTraceEndFence,
                                         true,
-                                        FrameTraceControllerFenceTimeoutNs);
+                                        5s);
 
         if (result == Result::Success)
         {

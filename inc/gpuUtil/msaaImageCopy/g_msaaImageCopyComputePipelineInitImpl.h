@@ -120,15 +120,16 @@ Pal::Result CreateMsaaImageCopyComputePipelines(
 
     case Pal::AsicRevision::Navi31:
     case Pal::AsicRevision::Navi32:
-        pTable = msaaImageCopyComputeBinaryTableNavi31;
-        break;
-
     case Pal::AsicRevision::Navi33:
-        pTable = msaaImageCopyComputeBinaryTableNavi33;
+        pTable = msaaImageCopyComputeBinaryTableNavi31;
         break;
 
     case Pal::AsicRevision::Phoenix1:
         pTable = msaaImageCopyComputeBinaryTablePhoenix1;
+        break;
+
+    case Pal::AsicRevision::Phoenix2:
+        pTable = msaaImageCopyComputeBinaryTablePhoenix2;
         break;
 
     default:

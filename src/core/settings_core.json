@@ -411,6 +411,18 @@
       "Description": "Enable adaptive sync (variable refresh rate) for a window of Xserver"
     },
     {
+      "Name": "UseZwpDmaBufProtocol",
+      "Tags": [
+        "General"
+      ],
+      "Defaults": {
+        "Default": true
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "Description": "Enable the use of the 'zwp_linux_dmabuf_v1' interface for creating dma-based wl_buffers for Wayland compositors. If false, PAL will default to using the Mesa wl_drm interface"
+    },
+    {
       "Name": "EnableGangSubmit",
       "Tags": [
         "General",

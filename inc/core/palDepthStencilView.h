@@ -54,6 +54,9 @@ struct DepthStencilViewCreateInfo
                                                  ///  Absolute depth bias: depth bias will be added to z value directly.
                                                  ///  Scaled depth bias: before adding to z value, depth bias will be
                                                  ///  multiplied to minimum representable z value.
+            uint32 useHwFmtforDepthOffset  :  1; ///< Exlusively use Hw format for programming depth offset
+                                                 ///  In practice setting this to true ignores depthAsZ24 but only in
+                                                 ///  regards to depth offset functionality
             uint32 bypassMall              :  1; ///< Set to have this surface bypass the MALL. If zero, this surface
                                                  ///  obeys the GpuMemMallPolicy specified at memory allocation time.
                                                  ///  Meaningful only if supportsMall is set in DeviceProperties.
@@ -67,7 +70,7 @@ struct DepthStencilViewCreateInfo
                                                  ///  this view. This has no effect if the source Image does not have
                                                  ///  depth compression or if the @ref readOnlyDepth flag is set.
             uint32 lowZplanePolyOffsetBits :  1; ///< If set, use decreased precision for Z_16/Z_24 formats.
-            uint32 reserved                : 23; ///< Reserved for future use.
+            uint32 reserved                : 22; ///< Reserved for future use.
         };
         uint32 u32All;            ///< Flags packed as 32-bit uint.
     } flags;                      ///< Depth/stencil view creation flags.

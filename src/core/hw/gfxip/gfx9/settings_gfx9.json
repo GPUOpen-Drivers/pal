@@ -271,18 +271,6 @@
       "Name": "AlwaysDecompress"
     },
     {
-      "Description": "True to override 1D images to be 2D instead.",
-      "Tags": [
-        "General"
-      ],
-      "Defaults": {
-        "Default": true
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "Name": "Treat1dAs2d"
-    },
-    {
       "ValidValues": {
         "IsEnum": true,
         "IsExclusive": true,
@@ -523,19 +511,6 @@
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
       "Name": "ForceGraphicsFillMemoryPath"
-    },
-    {
-      "Description": "Controls whether to wait after F/I when changing targets within a Metadata mip tail region. This can resolve corruptions related to metadata cache conflicts.",
-      "Tags": [
-        "Cache flush",
-        "Gfx9"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "Name": "WaitOnMetadataMipTail"
     },
     {
       "ValidValues": {
@@ -2412,19 +2387,6 @@
       "Name": "WaLogicOpDisablesOverwriteCombiner"
     },
     {
-      "Description": "If the workaround is enabled, then rotated swizzle modes will disable the DCC overwrite combiner.",
-      "Tags": [
-        "Hardware Workarounds"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Flags": {},
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "Name": "WaRotatedSwizzleDisablesOverwriteCombiner"
-    },
-    {
       "Description": "If the workaround is enabled, then disabling fMask compression also sets the DISABLE_FMASK_NOFETCH_OPT bit.",
       "Tags": [
         "Hardware Workarounds"
@@ -2477,19 +2439,6 @@
       "Name": "WaClampQuadDistributionFactor"
     },
     {
-      "Description": "Controls whether the workaround waWrite1xAASampleLocationsToZero is active. FALSE:   Forces the workaround off. TRUE:    Forces the workaround on. Not Set: Allows the driver to decide, based on Chip ID.",
-      "Tags": [
-        "Hardware Workarounds"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Flags": {},
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "Name": "WaWrite1xAASampleLocationsToZero"
-    },
-    {
       "Description": "The overwrite combiner marks something as overwritten even if there are ensuingquads to the same sector that need dest",
       "Tags": [
         "Hardware Workarounds"
@@ -2516,58 +2465,6 @@
       "Name": "WaForceZonlyHtileForMipmaps"
     },
     {
-      "Description": "The overwrite combiner takes only the target mask into consideration while decidingto overwrite combine whereas the other parts of the CB decide on shader mask andtarget mask. This discrepancy may lead to the overwrite combiner incorrectly signalinga read optimization when shader and target mask are different",
-      "Tags": [
-        "Hardware Workarounds"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Flags": {},
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "Name": "WaOverwriteCombinerTargetMaskOnly"
-    },
-    {
-      "Description": "Controls if hTile prefetch is disbled.",
-      "Tags": [
-        "Hardware Workarounds"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Flags": {},
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "Name": "WaDisableHtilePrefetch"
-    },
-    {
-      "Description": "Controls if STALLED_POPS is used or not.",
-      "Tags": [
-        "Hardware Workarounds"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Flags": {},
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "Name": "WaMiscPopsMissedOverlap"
-    },
-    {
-      "Description": "Controls if whenever a context roll is detected whether the scissor registers will be rewritten.",
-      "Tags": [
-        "Hardware Workarounds"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Flags": {},
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "Name": "WaMiscScissorRegisterChange"
-    },
-    {
       "Description": "Controls if a PS_PARTIAL_FLUSH is used whenever the scissor top-left or bottom-right registers change.",
       "Tags": [
         "Hardware Workarounds"
@@ -2579,45 +2476,6 @@
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
       "Name": "WaMiscPsFlushScissorChange"
-    },
-    {
-      "Description": "If set, hTile buffers support non-zero pipe-bank xor values.",
-      "Tags": [
-        "Hardware Workarounds"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Flags": {},
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "Name": "WaHtilePipeBankXorMustBeZero"
-    },
-    {
-      "Description": "If set PAL will not set 24_8 hw format for 24-32bit converted depth surfaces, this will fix fast clear expansion with TC compatible surfaces (but also return incorrect unclamped border color.)",
-      "Tags": [
-        "Hardware Workarounds"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Flags": {},
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "Name": "WaDisable24BitHWFormatForTCCompatibleDepth"
-    },
-    {
-      "Description": "On Gfx9, the meta-addressing equation can theoretically map multiple pixels to the same This fix prevents that from happening.  Meta-equation generated by driver must match the meta equation as generated by the silicon.  Products that do not have the fix have no HW configurations that expose the problem.",
-      "Tags": [
-        "Hardware Workarounds"
-      ],
-      "Defaults": {
-        "Default": true
-      },
-      "Flags": {},
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "Name": "WaMetaAliasingFixEnabled"
     },
     {
       "Description": "If set, align image allocation size up to fragment size when Cmask is present, but continue to issue GCN ranged syncs operations using the original, unpadded size.",
@@ -2747,19 +2605,6 @@
       "Scope": "PrivatePalKey",
       "Type": "bool",
       "Name": "WaCeDisableIb2"
-    },
-    {
-      "Description": "If true, disable stencil compression for ZS images for which a stencil only depth target could be created",
-      "Tags": [
-        "Hardware Workarounds"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Flags": {},
-      "Scope": "PrivatePalKey",
-      "Type": "bool",
-      "Name": "WaDisableSCompressSOnly"
     },
     {
       "Description": "If true, instance packing will be disabled when query pipeline statistics  using *_ADJACENCY primitive and instance > 1.",
@@ -3299,6 +3144,35 @@
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
       "Name": "WaIncorrectMaxAllowedTilesInWave"
+    },
+    {
+      "Description": "workaround that enables and sets CB_COLOR0_FDCC_CONTROL.MAX_COMP_FRAGS based on the ASIC and AA settings",
+      "Tags": [
+        "Hardware Workarounds",
+        "Gfx11"
+      ],
+      "Flags": {},
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "Name": "waDccMaxCompFrags"
+    },
+    {
+      "Description": "Workaround that does a CB flush+inv before DCC decompresses and fast clear eliminates.",
+      "Tags": [
+        "Hardware Workarounds",
+        "Gfx10",
+        "Gfx11"
+      ],
+      "Flags": {},
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "Name": "WaDccCacheFlushAndInv"
     }
   ]
 }

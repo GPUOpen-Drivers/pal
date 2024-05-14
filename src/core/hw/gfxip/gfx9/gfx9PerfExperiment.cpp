@@ -573,13 +573,13 @@ Result PerfExperiment::AddCounter(
                     m_select.umcch[info.instance].perfmonCntl[idx].most.EventSelect = info.eventId;
                     m_select.umcch[info.instance].perfmonCntl[idx].most.Enable      = 1;
 
-                    if (IsGfx103Plus(*m_pDevice) && ((info.umc.rdWrMask >= 1) && (info.umc.rdWrMask <= 2)))
+                    if (IsGfx103Plus(*m_pDevice) && ((info.subConfig.umc.rdWrMask >= 1) && (info.subConfig.umc.rdWrMask <= 2)))
                     {
-                        m_select.umcch[info.instance].perfmonCntl[idx].most.RdWrMask = info.umc.rdWrMask;
+                        m_select.umcch[info.instance].perfmonCntl[idx].most.RdWrMask = info.subConfig.umc.rdWrMask;
                     }
 
                     if (IsGfx103Plus(*m_pDevice) &&
-                        ((info.umc.eventThresholdEn != 0) || (info.umc.eventThreshold != 0)))
+                        ((info.subConfig.umc.eventThresholdEn != 0) || (info.subConfig.umc.eventThreshold != 0)))
                     {
                         // If the client sets these extra values trust that they've got it right.
                         //   Set ThreshCntEn = 2 for > (1 for <).
@@ -589,8 +589,8 @@ Result PerfExperiment::AddCounter(
                         // Current DCQ is 64x1 in size, so to replicate old fixed events set:
                         //   ThreshCntEn=2 (>)
                         //   ThreshCnt=00 to count all (>0%), 14 to count >25%, 31 to count >50%, 47 to count >75%
-                        m_select.umcch[info.instance].perfmonCtrHi[idx].nv2x.ThreshCntEn = info.umc.eventThresholdEn;
-                        m_select.umcch[info.instance].perfmonCtrHi[idx].nv2x.ThreshCnt   = info.umc.eventThreshold;
+                        m_select.umcch[info.instance].perfmonCtrHi[idx].nv2x.ThreshCntEn = info.subConfig.umc.eventThresholdEn;
+                        m_select.umcch[info.instance].perfmonCtrHi[idx].nv2x.ThreshCnt   = info.subConfig.umc.eventThreshold;
 
                         // flag that we need to configure threshold for this event
                         m_select.umcch[info.instance].thresholdSet[idx] = true;
@@ -624,7 +624,7 @@ Result PerfExperiment::AddCounter(
                     pSelect->hasCounters                      = true;
                     pSelect->perfmonConfig[idx].perfmonInUse  = true;
                     pSelect->perfmonConfig[idx].eventSelect   = GetMallEventSelect(info.eventId, subInstance);
-                    pSelect->perfmonConfig[idx].eventUnitMask = info.df.eventQualifier & 0xFFFF;
+                    pSelect->perfmonConfig[idx].eventUnitMask = info.subConfig.df.eventQualifier & 0xFFFF;
 
                     mapping.counterId = idx;
                     searching         = false;
@@ -1328,7 +1328,7 @@ Result PerfExperiment::AddDfSpmTrace(
             PAL_ASSERT(IsGfx11(*m_pDevice) == false);
 
             m_dfSpmPerfmonInfo.perfmonEvents[i]    = GetMallEventSelect(info.eventId, info.instance);
-            m_dfSpmPerfmonInfo.perfmonUnitMasks[i] = info.df.eventQualifier & 0xFF;
+            m_dfSpmPerfmonInfo.perfmonUnitMasks[i] = info.subConfig.df.eventQualifier & 0xFF;
         }
 
         result = AllocateDfSpmBuffers(dfSpmCreateInfo.ringSize);
@@ -3613,14 +3613,9 @@ uint32* PerfExperiment::WriteEnableCfgRegisters(
             rmiPerfCounterCntl.bits.EVENT_BASED_PERF_EN_SEL             = 1;
             rmiPerfCounterCntl.bits.TC_PERF_EN_SEL                      = 1;
             rmiPerfCounterCntl.bits.PERF_EVENT_WINDOW_MASK0             = 0x1;
+            rmiPerfCounterCntl.most.PERF_EVENT_WINDOW_MASK1             = 0x2;
             rmiPerfCounterCntl.bits.PERF_COUNTER_CID                    = 0x8;
             rmiPerfCounterCntl.bits.PERF_COUNTER_BURST_LENGTH_THRESHOLD = 1;
-
-            // This field exists on every ASIC except Raven2.
-            if (IsRaven2(*m_pDevice) == false)
-            {
-                rmiPerfCounterCntl.most.PERF_EVENT_WINDOW_MASK1 = 0x2;
-            }
         }
 
         pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(mmRMI_PERF_COUNTER_CNTL, rmiPerfCounterCntl.u32All, pCmdSpace);
@@ -3766,18 +3761,6 @@ uint32* PerfExperiment::WriteStopAndSampleGlobalCounters(
             // Get fresh command space just in case we're close to running out.
             pCmdStream->CommitCommands(pCmdSpace);
             pCmdSpace = pCmdStream->ReserveCommands();
-        }
-        else if ((mapping.general.block == GpuBlock::Dma) && (mapping.dataType == PerfCounterDataType::Uint32))
-        {
-            // Each legacy SDMA engine is a global block which defines unique 32-bit global counter registers.
-            pCmdSpace = WriteGrbmGfxIndexBroadcastGlobal(pCmdStream, pCmdSpace);
-
-            PAL_ASSERT(m_counterInfo.sdmaRegAddr[instance][mapping.counterId].lo != 0);
-
-            pCmdSpace = pCmdStream->WriteCopyPerfCtrRegToMemory(
-                                        m_counterInfo.sdmaRegAddr[instance][mapping.counterId].lo,
-                                        destBaseAddr + mapping.offset,
-                                        pCmdSpace);
         }
         else if (mapping.general.block == GpuBlock::Umcch)
         {
@@ -4087,10 +4070,6 @@ uint32* PerfExperiment::WriteWaitIdle(
             acquireInfo.flags.dbTargetStall = 1;
 
             pCmdSpace += m_cmdUtil.BuildAcquireMemGfxSurfSync(acquireInfo, pCmdSpace);
-
-            // NOTE: ACQUIRE_MEM has an implicit context roll if the current context is busy. Since we won't be aware
-            //       of a busy context, we must assume all ACQUIRE_MEM's come with a context roll.
-            pCmdStream->SetContextRollDetected<false>();
         }
     }
 

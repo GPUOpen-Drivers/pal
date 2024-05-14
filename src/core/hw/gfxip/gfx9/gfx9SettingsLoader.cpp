@@ -38,12 +38,10 @@
 #include "protocols/ddSettingsService.h"
 #include "settingsService.h"
 
-#if PAL_BUILD_GFX11
 namespace Pal
 {
 #include "g_gfx11SwWarDetection.h"
 }
-#endif
 
 using namespace Util;
 using namespace Util::Literals;
@@ -52,17 +50,6 @@ namespace Pal
 {
 namespace Gfx9
 {
-
-// Minimum microcode feature version that has necessary MCBP fix.
-constexpr uint32 MinUcodeFeatureVersionMcbpFix = 36;
-
-// Minimum ucode version that supports the packed register pairs packet. Temporarily set to UINT_MAX to disable packet
-// usage till additional testing and validation is completed.
-constexpr uint32 MinPfpVersionPackedRegPairsPacket   = 1448;
-// Minimum ucode version that supports the packed register pairs packet for compute. Currently not supported.
-constexpr uint32 MinPfpVersionPackedRegPairsPacketCs = UINT_MAX;
-// Minimum ucode version that supports the EVENT_WRITE_ZPASS packet.
-constexpr uint32 MinPfpVersionEventWriteZpassPacket  = 1458;
 
 // =====================================================================================================================
 SettingsLoader::SettingsLoader(
@@ -73,7 +60,6 @@ SettingsLoader::SettingsLoader(
     m_settings{},
     m_gfxLevel(pDevice->ChipProperties().gfxLevel)
 {
-
 }
 
 // =====================================================================================================================
@@ -101,25 +87,9 @@ void SettingsLoader::ValidateSettings(
 
     auto* pPalSettings = m_pDevice->GetPublicSettings();
 
-    if (IsGfx9(*m_pDevice))
-    {
-        // YUV planar surfaces require the ability to modify the base address to point to individual slices.  Due
-        // to DCC addressing that interleaves slices on GFX9 platforms, we can't accurately point to the start
-        // of a slice in DCC, which makes supporting DCC for YUV planar surfaces impossible.
-        pSettings->useDcc &= ~UseDccYuvPlanar;
-    }
-
     if (m_settings.binningMaxAllocCountLegacy == 0)
     {
-        if (IsGfx9(*m_pDevice))
-        {
-            // The recommended value for MAX_ALLOC_COUNT is min(128, PC size in the number of cache lines/(2*2*NUM_SE)).
-            // The first 2 is to account for the register doubling the value and second 2 is to allow for at least 2
-            // batches to ping-pong.
-            m_settings.binningMaxAllocCountLegacy =
-                Min(128u, gfx9Props.parameterCacheLines / (4u * gfx9Props.numShaderEngines));
-        }
-        else if (IsGfx10(*m_pDevice))
+        if (IsGfx10(*m_pDevice))
         {
             // In Gfx10 there is a single view of the PC rather than a division per SE.
             // The recommended value for this is to allow a single batch to consume at
@@ -149,13 +119,6 @@ void SettingsLoader::ValidateSettings(
         // consume at most 1/3 of the parameter cache lines.
         // This applies to all of Gfx10, as the PC only has a single view for both legacy and NGG.
         m_settings.binningMaxAllocCountNggOnChip = gfx9Props.parameterCacheLines / 3;
-
-        if (IsGfx9(*m_pDevice))
-        {
-            // On GFX9, the PA_SC_BINNER_CNTL_1::MAX_ALLOC_COUNT value is in units of
-            // 2 parameter cache lines. So divide by 2.
-            m_settings.binningMaxAllocCountNggOnChip /= 2;
-        }
     }
 
     // If a specific late-alloc GS value was requested in the panel, we want to supersede a client set value. This may
@@ -169,13 +132,7 @@ void SettingsLoader::ValidateSettings(
     // Compute the number of offchip LDS buffers for the whole chip.
     uint32 maxOffchipLdsBuffers = (gfx9Props.numShaderEngines * maxOffchipLdsBuffersPerSe);
 
-    if (IsVega10(*m_pDevice))
-    {
-        // Vega10 has a HW bug where during Tessellation, the SPI can load incorrect SDATA terms for offchip LDS.
-        // We must limit the number of offchip buffers to 508 (127 offchip buffers per SE).
-        maxOffchipLdsBuffers = Min(maxOffchipLdsBuffers, 508U);
-    }
-    else if (IsGfx11(*m_pDevice))
+    if (IsGfx11(*m_pDevice))
     {
         // Gfx11 has more SEs than our previous products, and so the number of maxOffchipLdsBuffers is now a factor
         // of the number of SEs in the chip and there is no minimum.
@@ -188,18 +145,8 @@ void SettingsLoader::ValidateSettings(
         maxOffchipLdsBuffers = Min(maxOffchipLdsBuffers, 512U);
     }
 
-    // If the current microcode version doesn't support the "indexed" versions of the LOADDATA PM4 packets, we cannot
-    // support MCBP because that feature requires using those packets.
-    // We also need to make sure any microcode versions which are before the microcode fix disable preemption, even if
-    // the user tried to enable it through the panel.
-    if ((m_gfxLevel == GfxIpLevel::GfxIp9) &&
-        (m_pDevice->ChipProperties().cpUcodeVersion < MinUcodeFeatureVersionMcbpFix))
-    {
-        // We don't have a fully correct path to enable in this case. The KMD needs us to respect their MCBP enablement
-        // but we can't support state shadowing without these features.
-        pSettings->cmdBufPreemptionMode = CmdBufPreemptModeFullDisableUnsafe;
-    }
-    else if (m_pDevice->GetPublicSettings()->disableCommandBufferPreemption)
+    // Propagate the public setting to the internal setting that actually controls preemption.
+    if (m_pDevice->GetPublicSettings()->disableCommandBufferPreemption)
     {
         pSettings->cmdBufPreemptionMode = CmdBufPreemptModeDisable;
     }
@@ -273,9 +220,6 @@ void SettingsLoader::ValidateSettings(
 
     if (IsGfx10(*m_pDevice))
     {
-        // GFX10 doesn't need this workaround as it can natively support 1D depth images.
-        m_settings.treat1dAs2d = false;
-
         // GFX10 doesn't use the convoluted meta-addressing scheme that GFX9 does, so disable
         // the "optimized" algorithm for processing the meta-equations.
         m_settings.optimizedFastClear = 0;
@@ -335,9 +279,6 @@ void SettingsLoader::ValidateSettings(
 
     if (IsGfx11(*m_pDevice))
     {
-        // GFX11 doesn't need this workaround as it can natively support 1D depth images.
-        m_settings.treat1dAs2d = false;
-
         // GFX11 doesn't use the convoluted meta-addressing scheme that GFX9 does either, so disable
         // the "optimized" algorithm for processing the meta-equations.
         m_settings.optimizedFastClear = 0;
@@ -390,38 +331,23 @@ void SettingsLoader::ValidateSettings(
     // When WD load balancing flowchart optimization is enabled, the primgroup size cannot exceed 253.
     m_settings.primGroupSize = Min(253u, m_settings.primGroupSize);
 
-    if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
-    {
-        m_settings.nggSupported = false;
-    }
-
     // Set default value for DCC BPP Threshold unless it was already overriden
     if (pPalSettings->dccBitsPerPixelThreshold == UINT_MAX)
     {
-        // Performance testing on Vega20 has shown that it generally performs better when it's restricted
-        // to use DCC at >=64BPP, we thus set it's default DCC threshold to 64BPP unless otherwise overriden.
-        if (IsVega20(*m_pDevice))
-        {
-            pPalSettings->dccBitsPerPixelThreshold = 64;
-        }
-        else
-        {
-            pPalSettings->dccBitsPerPixelThreshold = 0;
-        }
+        pPalSettings->dccBitsPerPixelThreshold = 0;
     }
 
     // For sufficiently small GPUs, we want to disable late-alloc and allow NGG waves access to the whole chip.
-    if (IsGfx10Plus(chipProps.gfxLevel) &&
-        ((chipProps.gfx9.gfx10.minNumWgpPerSa <= 2) || (chipProps.gfx9.numActiveCus < 4)))
+    if ((chipProps.gfx9.gfx10.minNumWgpPerSa <= 2) || (chipProps.gfx9.numActiveCus < 4))
     {
-        constexpr uint32 MaskEnableAll                          = UINT_MAX;
-        m_settings.gsCuEnLimitMask                              = MaskEnableAll;
-        m_settings.allowNggOnAllCusWgps                         = true;
-        pPalSettings->nggLateAllocGs                            = 0;
+        constexpr uint32 MaskEnableAll  = UINT_MAX;
+        m_settings.gsCuEnLimitMask      = MaskEnableAll;
+        m_settings.allowNggOnAllCusWgps = true;
+        pPalSettings->nggLateAllocGs    = 0;
 
         // Gfx11 has attributes through memory, so parameter cache space is not a concern and we can continue to
         // enable LateAlloc for the parameter cache.
-        if (IsGfx11(chipProps.gfxLevel) == false)
+        if (IsGfx10(chipProps.gfxLevel))
         {
             m_settings.gfx10GePcAllocNumLinesPerSeLegacyNggPassthru = 0;
             m_settings.gfx10GePcAllocNumLinesPerSeNggCulling        = 0;
@@ -441,8 +367,8 @@ void SettingsLoader::ValidateSettings(
     Platform* pPlatform                  = m_pDevice->GetPlatform();
     PalExperimentsSettings* pExpSettings = pPlatform->GetExpSettingsPtr();
 
-    pExpSettings->expSynchronizationOptimizationOreoModeControl = m_settings.gfx11ForceOreoMode;
-    pExpSettings->expDepthStencilTextureCompression             = m_settings.htileEnable;
+    pExpSettings->expSynchronizationOptimizationOreoModeControl = (m_settings.gfx11OreoModeControl == Gfx11OreoModeBlend);
+    pExpSettings->expDepthStencilTextureCompression             = !m_settings.htileEnable;
 }
 
 // =====================================================================================================================
@@ -459,6 +385,8 @@ static void SetupGfx10Workarounds(
 
     // We can't use CP_PERFMON_STATE_STOP_COUNTING when using an SQ counters or they can get stuck off until we reboot.
     pSettings->waNeverStopSqCounters = true;
+
+    pSettings->waDccCacheFlushAndInv = true;
 }
 
 // =====================================================================================================================
@@ -731,7 +659,6 @@ static void SetupGfx11Workarounds(
     const Pal::Device&  device,
     Gfx9PalSettings*    pSettings)
 {
-#if PAL_BUILD_GFX11
     const uint32 familyId = device.ChipProperties().familyId;
     const uint32 eRevId   = device.ChipProperties().eRevId;
 
@@ -740,12 +667,12 @@ static void SetupGfx11Workarounds(
     PAL_ASSERT(waFound);
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-    constexpr uint32 HandledWaMask[] = { 0x1E793001, 0x00004B00 }; // Workarounds handled by PAL.
+    constexpr uint32 HandledWaMask[] = { 0x1E793001, 0x00084B00 }; // Workarounds handled by PAL.
     constexpr uint32 OutsideWaMask[] = { 0xE0068DFE, 0x000714FC }; // Workarounds handled by other components.
     constexpr uint32 MissingWaMask[] = { 0x00004000, 0x0000A001 }; // Workarounds that should be handled by PAL that
                                                                    // are not yet implemented or are unlikey to be
                                                                    // implemented.
-    constexpr uint32 InvalidWaMask[] = { 0x01800200, 0x00002002 }; // Workarounds marked invalid, thus not handled.
+    constexpr uint32 InvalidWaMask[] = { 0x01800200, 0x00102002 }; // Workarounds marked invalid, thus not handled.
     static_assert((sizeof(HandledWaMask) == sizeof(Gfx11InactiveMask)) &&
                   (sizeof(OutsideWaMask) == sizeof(Gfx11InactiveMask)) &&
                   (sizeof(MissingWaMask) == sizeof(Gfx11InactiveMask)) &&
@@ -758,7 +685,7 @@ static void SetupGfx11Workarounds(
                   "Workaround Masks do not match!");
 #endif
 
-    static_assert(Gfx11NumWorkarounds == 51, "Workaround count mismatch between PAL and SWD");
+    static_assert(Gfx11NumWorkarounds == 53, "Workaround count mismatch between PAL and SWD");
 
     if (workarounds.ppPbbPBBBreakBatchDifferenceWithPrimLimit_FpovLimit_DeallocLimit_A_)
     {
@@ -816,16 +743,14 @@ static void SetupGfx11Workarounds(
 
     if (pSettings->gfx11SampleMaskTrackerWatermark > 0)
     {
-
-        // Restrict WA to discrete GPUs in order to allow APUs which should not be affected by the bug the full
-        // benefit of the opt
-        if (device.ChipProperties().gpuType == GpuType::Discrete)
-        {
-            pSettings->waitOnFlush |= (WaitAfterCbFlush | WaitBeforeBarrierEopWithCbFlush);
-        }
+        pSettings->waitOnFlush |= (WaitAfterCbFlush | WaitBeforeBarrierEopWithCbFlush);
     }
 
-#endif
+    // Some GFX11 IP included an override for capping the maximum number of fragmants that DCC will try to compress.
+    pSettings->waDccMaxCompFrags = workarounds.ppCbFDCCKeysWithFragComp_MSAASettingCauseHangsInCB_A_;
+
+    // This snuck past the SWD refactor and was just hard-coded on in gfx9Device.cpp. It was moved here instead.
+    pSettings->waDccCacheFlushAndInv = true;
 }
 
 // =====================================================================================================================
@@ -836,72 +761,23 @@ static void SetupGfx11Workarounds(
 void SettingsLoader::OverrideDefaults(
     PalSettings* pSettings)
 {
-    const Pal::Device& device          = *m_pDevice;
-    PalPublicSettings* pPublicSettings = m_pDevice->GetPublicSettings();
+    const Pal::Device&            device          = *m_pDevice;
+    PalPublicSettings*            pPublicSettings = m_pDevice->GetPublicSettings();
+    const PalExperimentsSettings& expSettings     = m_pDevice->GetPlatform()->GetExpSettings();
 
-    uint16 minBatchBinSizeWidth  = 128;
-    uint16 minBatchBinSizeHeight = 64;
-
-    Platform* pPlatform                       = m_pDevice->GetPlatform();
-    const PalExperimentsSettings& expSettings = pPlatform->GetExpSettings();
-
-    if (expSettings.expSynchronizationOptimizationOreoModeControl.HasValue())
+    if (expSettings.expSynchronizationOptimizationOreoModeControl.ValueOr(false))
     {
-        m_settings.gfx11ForceOreoMode = expSettings.expSynchronizationOptimizationOreoModeControl.Value();
+        m_settings.gfx11OreoModeControl = Gfx11OreoModeBlend;
     }
 
-    if (expSettings.expDepthStencilTextureCompression.HasValue())
+    if (expSettings.expDepthStencilTextureCompression.ValueOr(false))
     {
-        m_settings.htileEnable = expSettings.expDepthStencilTextureCompression.Value();
+        m_settings.htileEnable = false;
     }
 
     pSettings->tessFactorBufferSizePerSe = 0x3000;
 
-    // Enable workarounds which are common to all Gfx9 hardware.
-    if (IsGfx9(device))
-    {
-        m_settings.nggSupported = false;
-
-        m_settings.waColorCacheControllerInvalidEviction = true;
-
-        m_settings.waDisableHtilePrefetch = true;
-
-        m_settings.waOverwriteCombinerTargetMaskOnly = true;
-
-        m_settings.waLogicOpDisablesOverwriteCombiner = true;
-
-        // Metadata is not pipe aligned once we get down to the mip chain within the tail
-        m_settings.waitOnMetadataMipTail = true;
-
-        // Set this to 1 in Gfx9 to enable CU soft group for PS by default. VS soft group is turned off by default.
-        m_settings.numPsWavesSoftGroupedPerCu = 1;
-
-        m_settings.waDisableSCompressSOnly = true;
-
-        if (IsVega10(device) || IsRaven(device))
-        {
-            m_settings.waHtilePipeBankXorMustBeZero = true;
-
-            m_settings.waWrite1xAaSampleLocationsToZero = true;
-
-            m_settings.waMiscPopsMissedOverlap = true;
-
-            m_settings.waMiscScissorRegisterChange = true;
-
-            m_settings.waDisable24BitHwFormatForTcCompatibleDepth = true;
-        }
-
-        if (device.ChipProperties().gfx9.rbPlus != 0)
-        {
-            m_settings.waRotatedSwizzleDisablesOverwriteCombiner = true;
-        }
-
-        if (IsVega10(device) || IsRaven(device) || IsRaven2(device) || IsRenoir(device))
-        {
-            m_settings.waMetaAliasingFixEnabled = false;
-        }
-    }
-    else if (IsGfx10(device))
+    if (IsGfx10(device))
     {
         if (IsNavi10(device))
         {
@@ -968,8 +844,13 @@ void SettingsLoader::OverrideDefaults(
             // APU tuning with 2MB L2 Cache shows ATM Ring Buffer size 768 KiB yields best performance
             m_settings.gfx11VertexAttributesRingBufferSizePerSe = 768_KiB;
 
-            // For Gfx11+ APUs only we want to set SMT watermark opt to 15
-            m_settings.gfx11SampleMaskTrackerWatermark = 15;
+            if (false
+                || IsPhoenix2(device)
+               )
+            {
+                // For APU's with smaller L2 Cache, limit ATM Ring Buffer size to 512 KiB
+                m_settings.gfx11VertexAttributesRingBufferSizePerSe = 512_KiB;
+            }
         }
     }
 
@@ -977,6 +858,13 @@ void SettingsLoader::OverrideDefaults(
     {
         m_settings.gfx103PlusDisableAsymmetricWgpForPs = true;
     }
+
+    // Minimum ucode version that supports the packed register pairs packet.
+    constexpr uint32 MinPfpVersionPackedRegPairsPacket   = 1448;
+    // Minimum ucode version that supports the packed register pairs packet for compute. Currently not supported.
+    constexpr uint32 MinPfpVersionPackedRegPairsPacketCs = UINT_MAX;
+    // Minimum ucode version that supports the EVENT_WRITE_ZPASS packet.
+    constexpr uint32 MinPfpVersionEventWriteZpassPacket  = 1458;
 
     const uint32 pfpUcodeVersion = m_pDevice->ChipProperties().pfpUcodeVersion;
 
@@ -986,13 +874,16 @@ void SettingsLoader::OverrideDefaults(
     m_settings.gfx11EnableZpassPacketOptimization    = pfpUcodeVersion >= MinPfpVersionEventWriteZpassPacket;
 
     // If minimum sizes are 0, then use default size.
+    constexpr uint16 MinBatchBinSizeWidth  = 128;
+    constexpr uint16 MinBatchBinSizeHeight = 64;
+
     if (m_settings.minBatchBinSize.width == 0)
     {
-        m_settings.minBatchBinSize.width = minBatchBinSizeWidth;
+        m_settings.minBatchBinSize.width = MinBatchBinSizeWidth;
     }
     if (m_settings.minBatchBinSize.height == 0)
     {
-        m_settings.minBatchBinSize.height = minBatchBinSizeHeight;
+        m_settings.minBatchBinSize.height = MinBatchBinSizeHeight;
     }
 
     // Use the default minimum DCC block compression size for the device

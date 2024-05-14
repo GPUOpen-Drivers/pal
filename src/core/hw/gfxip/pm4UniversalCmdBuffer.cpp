@@ -305,7 +305,7 @@ void UniversalCmdBuffer::CmdBindPipelineWithOverrides(
     uint32                    targetIndex)
 {
     CmdBindPipeline(params);
-    CmdOverwriteRbPlusFormatForBlits(swizzledFormat, targetIndex);
+    CmdOverwriteColorExportInfoForBlits(swizzledFormat, targetIndex);
 }
 
 // =====================================================================================================================
@@ -993,13 +993,18 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
     }
 
     // It is possible that nested command buffer execute operation which affect the data in the primary buffer
-    m_pm4CmdBufState.flags.gfxBltActive              = cmdBuffer.m_pm4CmdBufState.flags.gfxBltActive;
-    m_pm4CmdBufState.flags.csBltActive               = cmdBuffer.m_pm4CmdBufState.flags.csBltActive;
-    m_pm4CmdBufState.flags.cpBltActive               = cmdBuffer.m_pm4CmdBufState.flags.cpBltActive;
-    m_pm4CmdBufState.flags.gfxWriteCachesDirty       = cmdBuffer.m_pm4CmdBufState.flags.gfxWriteCachesDirty;
-    m_pm4CmdBufState.flags.csWriteCachesDirty        = cmdBuffer.m_pm4CmdBufState.flags.csWriteCachesDirty;
-    m_pm4CmdBufState.flags.cpWriteCachesDirty        = cmdBuffer.m_pm4CmdBufState.flags.cpWriteCachesDirty;
-    m_pm4CmdBufState.flags.cpMemoryWriteL2CacheStale = cmdBuffer.m_pm4CmdBufState.flags.cpMemoryWriteL2CacheStale;
+    const Pm4CmdBufferStateFlags srcFlags = cmdBuffer.m_pm4CmdBufState.flags;
+
+    m_pm4CmdBufState.flags.gfxBltActive                        = srcFlags.gfxBltActive;
+    m_pm4CmdBufState.flags.csBltActive                         = srcFlags.csBltActive;
+    m_pm4CmdBufState.flags.cpBltActive                         = srcFlags.cpBltActive;
+    m_pm4CmdBufState.flags.gfxWriteCachesDirty                 = srcFlags.gfxWriteCachesDirty;
+    m_pm4CmdBufState.flags.csWriteCachesDirty                  = srcFlags.csWriteCachesDirty;
+    m_pm4CmdBufState.flags.cpWriteCachesDirty                  = srcFlags.cpWriteCachesDirty;
+    m_pm4CmdBufState.flags.cpMemoryWriteL2CacheStale           = srcFlags.cpMemoryWriteL2CacheStale;
+    m_pm4CmdBufState.flags.csBltDirectWriteMisalignedMdDirty   = srcFlags.csBltDirectWriteMisalignedMdDirty;
+    m_pm4CmdBufState.flags.csBltIndirectWriteMisalignedMdDirty = srcFlags.csBltIndirectWriteMisalignedMdDirty;
+    m_pm4CmdBufState.flags.gfxBltDirectWriteMisalignedMdDirty  = srcFlags.gfxBltDirectWriteMisalignedMdDirty;
 
     m_graphicsState.viewInstanceMask = graphics.viewInstanceMask;
 

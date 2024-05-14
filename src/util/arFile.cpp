@@ -191,7 +191,7 @@ void ArFileWriter::WriteFileHeader(
     // char endChars[2]; // Separately written to avoid the snprintf's 0 termination overwriting the next
     //                      thing
     FileHeader* pWriteHeader = static_cast<FileHeader*>(pWrite);
-    const char* pNamePadding = "/                " + (m_format != Format::Svr4Short);
+    const char* pNamePadding = &"/                "[(m_format != Format::Svr4Short)];
     Snprintf(pWriteHeader->name,
              sizeof(FileHeader),
              "%.*s%.*s0           0     0     644     %-10u",

@@ -120,10 +120,10 @@ protected:
         size_t         dataSize,
         size_t         storeSize) { return Result::Unsupported; }
 
-private:
-
-    ForwardAllocator m_allocator;
     ICacheLayer*     m_pNextLayer;
+
+private:
+    ForwardAllocator m_allocator;
     uint32           m_loadPolicy;
     uint32           m_storePolicy;
 };

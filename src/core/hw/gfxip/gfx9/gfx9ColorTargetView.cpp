@@ -93,11 +93,6 @@ ColorTargetView::ColorTargetView(
         // "isDccCompress" to one as we expect the CB to write to DCC.
         m_flags.isDccDecompress = internalInfo.flags.dccDecompress;
 
-        if (settings.waitOnMetadataMipTail)
-        {
-            m_flags.waitOnMetadataMipTail = m_pImage->IsInMetadataMipTail(m_subresource);
-        }
-
         m_layoutToState = m_pImage->LayoutToColorCompressionState();
 
         // The Y and UV planes of a YUV-planar Image are interleaved, so we need to include padding
@@ -111,28 +106,10 @@ ColorTargetView::ColorTargetView(
             (imageCreateInfo.imageType == ImageType::Tex2d)             &&
             (createInfo.imageInfo.arraySize == 1))
         {
-            // YUV planar surfaces can have DCC on GFX10+ as the slices are individually addressable
-            // on those platforms.
-            PAL_ASSERT((IsGfx10Plus(m_gfxLevel)) || (m_flags.hasDcc == 0));
-
             // There's no reason to ever have MSAA YUV, so there won't ever be cMask or fMask surfaces.
             PAL_ASSERT(m_flags.hasCmaskFmask == 0);
 
             m_flags.useSubresBaseAddr = 1;
-        }
-
-        // Determine whether Overwrite Combiner (OC) should be to be disabled or not
-        if (settings.waRotatedSwizzleDisablesOverwriteCombiner)
-        {
-            const SubresId  subResId = { m_subresource.plane, MipLevel(), 0 };
-            const SubResourceInfo*const pSubResInfo  = m_pImage->Parent()->SubresourceInfo(subResId);
-            const auto&                 surfSettings = m_pImage->GetAddrSettings(pSubResInfo);
-
-            // Disable overwrite-combiner for rotated swizzle modes
-            if (AddrMgr2::IsRotatedSwizzle(surfSettings.swizzleMode))
-            {
-                m_flags.disableRotateSwizzleOC = 1;
-            }
         }
     }
     else
@@ -231,7 +208,7 @@ regCB_COLOR0_INFO ColorTargetView::InitCbColorInfo(
     const Pal::Device*const pParentDevice = device.Parent();
 
     regCB_COLOR0_INFO cbColorInfo = { };
-    if (IsGfx9(*pParentDevice) || IsGfx10(*pParentDevice))
+    if (IsGfx10(*pParentDevice))
     {
         cbColorInfo.gfx09_10.ENDIAN  = ENDIAN_NONE;
         cbColorInfo.gfx09_10.FORMAT  = Formats::Gfx9::HwColorFmt(pFmtInfo, m_swizzledFormat.format);
@@ -275,15 +252,13 @@ void ColorTargetView::InitCommonImageView(
     CbColorViewType*                  pCbColorView
     ) const
 {
-    const Pal::Device&      palDevice       = *(device.Parent());
-    const ImageCreateInfo&  imageCreateInfo = m_pImage->Parent()->GetImageCreateInfo();
-    const ImageType         imageType       = m_pImage->GetOverrideImageType();
-    const Gfx9PalSettings&  settings        = device.Settings();
+    const Pal::Device&     palDevice       = *(device.Parent());
+    const ImageCreateInfo& imageCreateInfo = m_pImage->Parent()->GetImageCreateInfo();
 
     // According to the other UMDs, this is the absolute max mip level. For one mip level, the MAX_MIP is mip #0.
     pRegs->cbColorAttrib2.bits.MAX_MIP = (imageCreateInfo.mipLevels - 1);
 
-    if ((createInfo.flags.zRangeValid == 1) && (imageType == ImageType::Tex3d))
+    if ((createInfo.flags.zRangeValid == 1) && (imageCreateInfo.imageType == ImageType::Tex3d))
     {
         pCbColorView->SLICE_START = createInfo.zRange.offset;
         pCbColorView->SLICE_MAX   = (createInfo.zRange.offset + createInfo.zRange.extent - 1);
@@ -308,9 +283,8 @@ void ColorTargetView::InitCommonImageView(
     {
         regCB_COLOR0_DCC_CONTROL dccControl = m_pImage->GetDcc(m_subresource.plane)->GetControlReg();
         const SubResourceInfo*const pSubResInfo = m_pImage->Parent()->SubresourceInfo(m_subresource);
-        if (IsGfx091xPlus(palDevice)      &&
-            (IsGfx11(palDevice) == false) &&
-            (internalInfo.flags.fastClearElim || pSubResInfo->flags.supportMetaDataTexFetch))
+
+        if (IsGfx10(palDevice) && (internalInfo.flags.fastClearElim || pSubResInfo->flags.supportMetaDataTexFetch))
         {
             // Without this, the CB will not expand the compress-to-register (0x20) keys.
             dccControl.gfx09_1xPlus.DISABLE_CONSTANT_ENCODE_REG = 1;
@@ -318,7 +292,7 @@ void ColorTargetView::InitCommonImageView(
 
         pRegs->cbColorDccControl.u32All = dccControl.u32All;
 
-        if (IsGfx9(palDevice) || IsGfx10(palDevice))
+        if (IsGfx10(palDevice))
         {
             pRegs->cbColorInfo.gfx09_10.DCC_ENABLE = 1;
         }
@@ -331,7 +305,7 @@ void ColorTargetView::InitCommonImageView(
 
         // Setup CB_COLOR*_INFO register fields which depend on CMask or fMask state:
         pRegs->cbColorInfo.gfx09_10.COMPRESSION               = 1;
-        pRegs->cbColorInfo.gfx09_10.FMASK_COMPRESSION_DISABLE = settings.fmaskCompressDisable;
+        pRegs->cbColorInfo.gfx09_10.FMASK_COMPRESSION_DISABLE = device.Settings().fmaskCompressDisable;
 
         if (fMaskTexFetchAllowed                      &&
             (internalInfo.flags.dccDecompress   == 0) &&
@@ -382,13 +356,11 @@ void ColorTargetView::UpdateImageVa(
             // indicate what the clear color is.  (See Gfx9FastColorClearMetaData in gfx9MaskRam.h).
             if (m_flags.hasDcc)
             {
-                PAL_ASSERT(IsGfx10Plus(palDevice));
-
                 if (m_pImage->HasFastClearMetaData(m_subresource.plane))
                 {
                     PAL_ASSERT(IsGfx11(palDevice) == false);
 
-                    // Invariant: On Gfx10 (and gfx9), if we have DCC we also have fast clear metadata.
+                    // Invariant: On Gfx10, if we have DCC we also have fast clear metadata.
                     pRegs->fastClearMetadataGpuVa = m_pImage->FastClearMetaDataAddr(m_subresource);
                     PAL_ASSERT((pRegs->fastClearMetadataGpuVa & 0x3) == 0);
                 }
@@ -414,7 +386,7 @@ void ColorTargetView::UpdateImageVa(
                 {
                     PAL_ASSERT(IsGfx11(palDevice) == false);
 
-                    // Invariant: On Gfx10 (and gfx9), if we have DCC we also have fast clear metadata.
+                    // Invariant: On Gfx10, if we have DCC we also have fast clear metadata.
                     pRegs->fastClearMetadataGpuVa = m_pImage->FastClearMetaDataAddr(m_subresource);
                     PAL_ASSERT((pRegs->fastClearMetadataGpuVa & 0x3) == 0);
                 }
@@ -475,7 +447,7 @@ uint32* ColorTargetView::WriteCommandsCommon(
 
             pRegs->cbColorDccControl.u32All = CbColorDccControlDecompressed;
 
-            if (IsGfx9(parentDev) || IsGfx10(parentDev))
+            if (IsGfx10(parentDev))
             {
                 // Mask of CB_COLOR_INFO bits to clear when compressed rendering is disabled.
                 constexpr uint32 CbColorInfoDecompressedMask =
@@ -510,7 +482,6 @@ void ColorTargetView::SetupExtents(
     ) const
 {
     const auto* const            pImage          = m_pImage->Parent();
-    const auto*                  pPalDevice      = pImage->GetDevice();
     const SubResourceInfo* const pBaseSubResInfo = pImage->SubresourceInfo(baseSubRes);
     const SubResourceInfo* const pSubResInfo     = pImage->SubresourceInfo(m_subresource);
     const ImageCreateInfo&       imageCreateInfo = pImage->GetImageCreateInfo();
@@ -528,21 +499,14 @@ void ColorTargetView::SetupExtents(
     //    the view either spans multiple array slices or starts at a nonzero array slice.
     if (imgIsBc || (pSubResInfo->bitsPerTexel != Formats::BitsPerPixel(m_swizzledFormat.format)))
     {
-        if (IsGfx9(*pPalDevice))
-        {
-            *pBaseExtent = pBaseSubResInfo->extentElements;
-        }
-        else
-        {
-            const uint32  firstMipLevel = this->m_subresource.mipLevel;
+        const uint32 firstMipLevel = this->m_subresource.mipLevel;
 
-            pBaseExtent->width  = Clamp((pSubResInfo->extentElements.width  << firstMipLevel),
-                pBaseSubResInfo->extentElements.width,
-                pBaseSubResInfo->actualExtentElements.width);
-            pBaseExtent->height = Clamp((pSubResInfo->extentElements.height << firstMipLevel),
-                pBaseSubResInfo->extentElements.height,
-                pBaseSubResInfo->actualExtentElements.height);
-        }
+        pBaseExtent->width  = Clamp((pSubResInfo->extentElements.width  << firstMipLevel),
+                                    pBaseSubResInfo->extentElements.width,
+                                    pBaseSubResInfo->actualExtentElements.width);
+        pBaseExtent->height = Clamp((pSubResInfo->extentElements.height << firstMipLevel),
+                                    pBaseSubResInfo->extentElements.height,
+                                    pBaseSubResInfo->actualExtentElements.height);
         *pExtent = pSubResInfo->extentElements;
     }
 
@@ -554,22 +518,12 @@ void ColorTargetView::SetupExtents(
         // pattern used. This will only work for linear-tiled Images.
         PAL_ASSERT(m_pImage->IsSubResourceLinear(baseSubRes));
 
-        if (IsGfx9(*pPalDevice))
-        {
-            // For GFX9, EPITCH field needs to be programmed to the exact pitch instead of width.
-            *pBaseExtent = pBaseSubResInfo->actualExtentTexels;
+        // The width may be odd..., so the assertion below needs to round it up to even.
+        const uint32 evenExtentWidthInTexels = Util::RoundUpToMultiple(pBaseSubResInfo->extentTexels.width, 2u);
+        // Assert that the extentElements must have been adjusted, since use32bppFor422Fmt is 1 for AddrLib.
+        PAL_ASSERT((pBaseSubResInfo->extentElements.width << 1) == evenExtentWidthInTexels);
+        // Nothing is needed, just set modifiedYuvExtent=true to skip copy from extentElements again below.
 
-            pBaseExtent->width >>= 1;
-            pExtent->width     >>= 1;
-        }
-        else
-        {
-            // The width may be odd..., so the assertion below needs to round it up to even.
-            const uint32 evenExtentWidthInTexels = Util::RoundUpToMultiple(pBaseSubResInfo->extentTexels.width, 2u);
-            // Assert that the extentElements must have been adjusted, since use32bppFor422Fmt is 1 for AddrLib.
-            PAL_ASSERT((pBaseSubResInfo->extentElements.width << 1) == evenExtentWidthInTexels);
-            // Nothing is needed, just set modifiedYuvExtent=true to skip copy from extentElements again below.
-        }
         *pModifiedYuvExtent = true;
     }
     else if ((m_flags.useSubresBaseAddr == 0)                            &&
@@ -697,7 +651,7 @@ void Gfx10ColorTargetView::InitRegisters(
         const auto*                 pAddrOutput     = m_pImage->GetAddrOutput(pSubResInfo);
         const auto&                 surfSetting     = m_pImage->GetAddrSettings(pSubResInfo);
         const auto&                 imageCreateInfo = pImage->GetImageCreateInfo();
-        const ImageType             imageType       = m_pImage->GetOverrideImageType();
+        const ImageType             imageType       = imageCreateInfo.imageType;
         const bool                  hasFmask        = m_pImage->HasFmaskData();
 
         // Extents are one of the things that could be changing on GFX10 with respect to certain surface formats,
@@ -986,7 +940,7 @@ void Gfx11ColorTargetView::InitRegisters(
         const auto*                 pAddrOutput     = m_pImage->GetAddrOutput(pSubResInfo);
         const auto&                 surfSetting     = m_pImage->GetAddrSettings(pSubResInfo);
         const auto&                 imageCreateInfo = pImage->GetImageCreateInfo();
-        const ImageType             imageType       = m_pImage->GetOverrideImageType();
+        const ImageType             imageType       = imageCreateInfo.imageType;
 
         PAL_ASSERT((m_pImage->GetCmask() == nullptr) && (m_pImage->GetFmask() == nullptr));
 
@@ -1040,6 +994,14 @@ void Gfx11ColorTargetView::InitRegisters(
 
         m_regs.cbColorAttrib3.bits.DCC_PIPE_ALIGNED   = ((pDcc != nullptr) ? pDcc->PipeAligned() : 0);
 
+        // Set any hardware limit on the number of fragments supported by DCC compression.
+        if (false
+        || (IsPhoenix2(palDevice) && settings.waDccMaxCompFrags)
+            )
+        {
+            m_regs.cbColorDccControl.phx2.MAX_COMP_FRAGS = (imageCreateInfo.samples >= 4);
+            m_regs.cbColorDccControl.phx2.ENABLE_MAX_COMP_FRAG_OVERRIDE = 1;
+        }
     }
 }
 

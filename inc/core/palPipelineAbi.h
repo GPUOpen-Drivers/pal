@@ -196,6 +196,7 @@ constexpr const char* PipelineAbiSymbolNameStrings[] =
     "_amdgpu_vs_shdr_intrl_tbl",
     "_amdgpu_ps_shdr_intrl_tbl",
     "_amdgpu_cs_shdr_intrl_tbl",
+    "_amdgpu_ps_dual_source_shdr_intrl_tbl",
     "_amdgpu_ls_disasm",
     "_amdgpu_hs_disasm",
     "_amdgpu_es_disasm",
@@ -203,6 +204,7 @@ constexpr const char* PipelineAbiSymbolNameStrings[] =
     "_amdgpu_vs_disasm",
     "_amdgpu_ps_disasm",
     "_amdgpu_cs_disasm",
+    "_amdgpu_ps_dual_source_disasm",
     "_amdgpu_ls_shdr_intrl_data",
     "_amdgpu_hs_shdr_intrl_data",
     "_amdgpu_es_shdr_intrl_data",
@@ -223,6 +225,7 @@ constexpr const char* PipelineAbiSymbolNameStrings[] =
     "_amdgpu_reserved39",
     "_amdgpu_reserved40",
     "color_export_shader",
+    "color_export_shader_dual_source",
 };
 
 /// Pipeline category.
@@ -315,6 +318,7 @@ enum class PipelineSymbolType : uint32
     VsShdrIntrlTblPtr, ///< VS shader internal table pointer.  Optional.  Described in Per-Shader Internal Table.
     PsShdrIntrlTblPtr, ///< PS shader internal table pointer.  Optional.  Described in Per-Shader Internal Table.
     CsShdrIntrlTblPtr, ///< CS shader internal table pointer.  Optional.  Described in Per-Shader Internal Table.
+    PsDualSourceShdrIntrlTblPtr, ///< PS dual source shader internal table pointer.  Optional.  Described in Per-Shader Internal Table.
     LsDisassembly,     ///< Hardware LS disassembly.  Optional.  Associated with the .AMDGPU.disasm section.
     HsDisassembly,     ///< Hardware HS disassembly.  Optional.  Associated with the .AMDGPU.disasm section.
     EsDisassembly,     ///< Hardware ES disassembly.  Optional.  Associated with the .AMDGPU.disasm section.
@@ -322,6 +326,7 @@ enum class PipelineSymbolType : uint32
     VsDisassembly,     ///< Hardware VS disassembly.  Optional.  Associated with the .AMDGPU.disasm section.
     PsDisassembly,     ///< Hardware PS disassembly.  Optional.  Associated with the .AMDGPU.disasm section.
     CsDisassembly,     ///< Hardware CS disassembly.  Optional.  Associated with the .AMDGPU.disasm section.
+    PsDualSourceDisassembly, ///< Hardware PS dual source disassembly.  Optional.  Associated with the .AMDGPU.disasm section.
     LsShdrIntrlData,   ///< LS shader internal data pointer.  Optional.
     HsShdrIntrlData,   ///< HS shader internal data pointer.  Optional.
     EsShdrIntrlData,   ///< ES shader internal data pointer.  Optional.
@@ -350,6 +355,7 @@ enum class PipelineSymbolType : uint32
     Reserved39,
     Reserved40,
     PsColorExportEntry,///< PS color export shader entry point. Optional.
+    PsColorExportDualSourceEntry,///< PS color export shader with dual source on entry point. Optional.
     Count,
 
     ShaderMainEntry   = LsMainEntry,        ///< Shorthand for the first shader's entry point

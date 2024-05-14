@@ -137,11 +137,8 @@ static uint32* WriteCommonPreamble(
         // Initializing the COMPUTE_PGM_HI register to 0 is required because PAL command-buffer generation expects it.
         pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PGM_HI, 0, pCmdSpace);
 
-        if (IsGfx10Plus(*device.Parent()))
-        {
-            // For now we always program this to zero. It may become a per-dispatch value in the future.
-            pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(Gfx10Plus::mmCOMPUTE_DISPATCH_TUNNEL, 0, pCmdSpace);
-        }
+        // For now we always program this to zero. It may become a per-dispatch value in the future.
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(Gfx10Plus::mmCOMPUTE_DISPATCH_TUNNEL, 0, pCmdSpace);
 
         // Set every user accumulator contribution to a default "disabled" value (zero).
         if (chipProps.gfx9.supportSpiPrefPriority != 0)
@@ -155,20 +152,12 @@ static uint32* WriteCommonPreamble(
         }
     } // if compute supported
 
-    if (IsGfx11(chipProps.gfxLevel) == false)
+    if (IsGfx10(chipProps.gfxLevel))
     {
         // Give the CP_COHER register (used by acquire-mem packet) a chance to think a little bit before actually
         // doing anything.
         regCP_COHER_START_DELAY cpCoherStartDelay = { };
-
-        if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
-        {
-            cpCoherStartDelay.bits.START_DELAY_COUNT = 0;
-        }
-        else if (IsGfx10(chipProps.gfxLevel))
-        {
-            cpCoherStartDelay.bits.START_DELAY_COUNT = Gfx09_10::mmCP_COHER_START_DELAY_DEFAULT;
-        }
+        cpCoherStartDelay.bits.START_DELAY_COUNT = Gfx09_10::mmCP_COHER_START_DELAY_DEFAULT;
 
         pCmdSpace = pCmdStream->WriteSetOneConfigReg(Gfx09_10::mmCP_COHER_START_DELAY,
                                                      cpCoherStartDelay.u32All,
@@ -1138,33 +1127,27 @@ void UniversalQueueContext::WritePerSubmitPreamble(
 
         // We do this after m_stateShadowPreamble, when the LOADs are done and HW knows the shadow memory.
         // First LOADs will load garbage. InitializeContextRegisters will init the register and also the shadow Memory.
-        if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
+        //
+        // The clear-state value associated with the PA_SC_TILE_STEERING_OVERRIDE register changes depending on
+        // the GPU configuration, so program it as a "special case".
+        const uint32 regOffset = mmPA_SC_TILE_STEERING_OVERRIDE;
+        const uint32 regValue  = chipProps.gfx9.paScTileSteeringOverride;
+
+        if (IsGfx101(*m_pDevice->Parent()))
         {
-            InitializeContextRegistersGfx9(pCmdStream, 0, nullptr, nullptr);
+            InitializeContextRegistersNv10(pCmdStream, 1, &regOffset, &regValue);
+        }
+        else if (IsGfx103(*m_pDevice->Parent()))
+        {
+            InitializeContextRegistersGfx103(pCmdStream, 1, &regOffset, &regValue);
+        }
+        else if (IsGfx11(chipProps.gfxLevel))
+        {
+            InitializeContextRegistersGfx11(pCmdStream, 1, &regOffset, &regValue);
         }
         else
         {
-            // The clear-state value associated with the PA_SC_TILE_STEERING_OVERRIDE register changes depending on
-            // the GPU configuration, so program it as a "special case".
-            const uint32 regOffset = mmPA_SC_TILE_STEERING_OVERRIDE;
-            const uint32 regValue  = chipProps.gfx9.paScTileSteeringOverride;
-
-            if (IsGfx101(*m_pDevice->Parent()))
-            {
-                InitializeContextRegistersNv10(pCmdStream, 1, &regOffset, &regValue);
-            }
-            else if (IsGfx103(*m_pDevice->Parent()))
-            {
-                InitializeContextRegistersGfx103(pCmdStream, 1, &regOffset, &regValue);
-            }
-            else if (IsGfx11(chipProps.gfxLevel))
-            {
-                InitializeContextRegistersGfx11(pCmdStream, 1, &regOffset, &regValue);
-            }
-            else
-            {
-                PAL_ASSERT_ALWAYS_MSG("Need to update shadow memory init for new chip!");
-            }
+            PAL_ASSERT_ALWAYS_MSG("Need to update shadow memory init for new chip!");
         }
     } // if initShadowMemory
 }
@@ -1747,29 +1730,15 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
                                                    pCmdSpace);
 
     regPA_SU_SMALL_PRIM_FILTER_CNTL paSuSmallPrimFilterCntl = { };
-    if (IsGfx091xPlus(device))
-    {
-        // Disable the SC compatability setting to support 1xMSAA sample locations.
-        paSuSmallPrimFilterCntl.gfx09_1xPlus.SC_1XMSAA_COMPATIBLE_DISABLE = 1;
-    }
 
-    const uint32 smallPrimFilter = m_pDevice->GetSmallPrimFilter();
-    if (smallPrimFilter != SmallPrimFilterDisable)
-    {
-        paSuSmallPrimFilterCntl.bits.SMALL_PRIM_FILTER_ENABLE = 1;
+    // Disable the SC compatability setting to support 1xMSAA sample locations.
+    paSuSmallPrimFilterCntl.gfx09_1xPlus.SC_1XMSAA_COMPATIBLE_DISABLE = 1;
 
-        paSuSmallPrimFilterCntl.bits.POINT_FILTER_DISABLE =
-            ((smallPrimFilter & SmallPrimFilterEnablePoint) == 0);
-
-        paSuSmallPrimFilterCntl.bits.LINE_FILTER_DISABLE =
-            ((smallPrimFilter & SmallPrimFilterEnableLine) == 0);
-
-        paSuSmallPrimFilterCntl.bits.TRIANGLE_FILTER_DISABLE =
-            ((smallPrimFilter & SmallPrimFilterEnableTriangle) == 0);
-
-        paSuSmallPrimFilterCntl.bits.RECTANGLE_FILTER_DISABLE =
-            ((smallPrimFilter & SmallPrimFilterEnableRectangle) == 0);
-    }
+    paSuSmallPrimFilterCntl.bits.SMALL_PRIM_FILTER_ENABLE = 1;
+    paSuSmallPrimFilterCntl.bits.POINT_FILTER_DISABLE     = 0;
+    paSuSmallPrimFilterCntl.bits.LINE_FILTER_DISABLE      = 0;
+    paSuSmallPrimFilterCntl.bits.TRIANGLE_FILTER_DISABLE  = 0;
+    paSuSmallPrimFilterCntl.bits.RECTANGLE_FILTER_DISABLE = 0;
 
     struct
     {
@@ -1797,10 +1766,7 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
         paScNggModeCntl.bits.MAX_DEALLOCS_IN_WAVE = chipProps.gfx9.parameterCacheLines / 4;
     }
 
-    if (IsGfx10Plus(device))
-    {
-        paScNggModeCntl.gfx10Plus.MAX_FPOVS_IN_WAVE = settings.gfx10MaxFpovsInWave;
-    }
+    paScNggModeCntl.gfx10Plus.MAX_FPOVS_IN_WAVE = settings.gfx10MaxFpovsInWave;
 
     if (IsGfx11(device))
     {
@@ -1834,50 +1800,41 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
         // Set-and-forget DCC register:
         //  This will stop compression to one of the four "magic" clear colors.
         regCB_DCC_CONTROL cbDccControl = { };
-        if (IsGfx091xPlus(device) && settings.forceRegularClearCode)
-        {
-            cbDccControl.most.DISABLE_CONSTANT_ENCODE_AC01 = 1;
-        }
+        cbDccControl.most.DISABLE_CONSTANT_ENCODE_AC01 = settings.forceRegularClearCode;
 
-        if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
-        {
-            cbDccControl.gfx09.OVERWRITE_COMBINER_MRT_SHARING_DISABLE = 1;
-            cbDccControl.bits.OVERWRITE_COMBINER_WATERMARK            = 4;
-        }
-        else
-        {
-            // ELIMFC = EliMinate Fast Clear, i.e., Fast Clear Eliminate.
-            // So, DISABLE_ELIMFC_SKIP means disable the skipping of the fast-clear elimination.  Got that?
-            //
-            // Without the double negative, leaving this bit at zero means that if a comp-to-single clear was done, any
-            // FCE operation on that image will leave the comp-to-single in place.  Setting this bit to one will mean
-            // that the FCE operation on that image will actually "eliminate the fast clear".  We want to leave this
-            // at zero because the texture pipe can understand comp-to-single, so there's no need to fce those pixels.
-            cbDccControl.most.DISABLE_ELIMFC_SKIP_OF_SINGLE = 0;
+        // ELIMFC = EliMinate Fast Clear, i.e., Fast Clear Eliminate.
+        // So, DISABLE_ELIMFC_SKIP means disable the skipping of the fast-clear elimination.  Got that?
+        //
+        // Without the double negative, leaving this bit at zero means that if a comp-to-single clear was done, any
+        // FCE operation on that image will leave the comp-to-single in place.  Setting this bit to one will mean
+        // that the FCE operation on that image will actually "eliminate the fast clear".  We want to leave this
+        // at zero because the texture pipe can understand comp-to-single, so there's no need to fce those pixels.
+        cbDccControl.most.DISABLE_ELIMFC_SKIP_OF_SINGLE = 0;
 
-            // This register also contains various "DISABLE_CONSTANT_ENCODE" bits.  Those are the master switches
-            // for CB-based rendering.  i.e., setting DISABLE_CONSTANT_ENCODE_REG will disable all compToReg
-            // rendering.  The same bit(s) exist in the CB_COLORx_DCC_CONTROL register for enabling / disabling the
-            // various encoding modes on a per MRT basis.
-            //
-            // Note that the CB registers only control DCC compression occurring through rendering (i.e., through the
-            // CB).  The GL2C_CM_CTRL1 register controls DCC compression occurring through shader writes.  I'd write
-            // it here, but it's privileged, and I can't.  GACK.  By default, both compToReg and compToSingle are
-            // enabled for shader write operations.
+        // This register also contains various "DISABLE_CONSTANT_ENCODE" bits.  Those are the master switches
+        // for CB-based rendering.  i.e., setting DISABLE_CONSTANT_ENCODE_REG will disable all compToReg
+        // rendering.  The same bit(s) exist in the CB_COLORx_DCC_CONTROL register for enabling / disabling the
+        // various encoding modes on a per MRT basis.
+        //
+        // Note that the CB registers only control DCC compression occurring through rendering (i.e., through the
+        // CB).  The GL2C_CM_CTRL1 register controls DCC compression occurring through shader writes.  I'd write
+        // it here, but it's privileged, and I can't.  GACK.  By default, both compToReg and compToSingle are
+        // enabled for shader write operations.
 
-            cbDccControl.bits.OVERWRITE_COMBINER_WATERMARK = 6;
-        }
+        cbDccControl.bits.OVERWRITE_COMBINER_WATERMARK = 6;
 
         pCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx09_10::mmCB_DCC_CONTROL,
                                                         cbDccControl.u32All,
                                                         pCmdSpace);
     }
+
     if (chipProps.gfxip.supportsHwVs)
     {
         pCmdSpace = m_deCmdStream.WriteSetOneContextReg(HasHwVs::mmVGT_OUT_DEALLOC_CNTL,
                                                         vgtOutDeallocCntl.u32All,
                                                         pCmdSpace);
     }
+
     pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SU_SMALL_PRIM_FILTER_CNTL,
                                                     paSuSmallPrimFilterCntl.u32All,
                                                     pCmdSpace);
@@ -1892,123 +1849,105 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
     pCmdStream->CommitCommands(pCmdSpace);
     pCmdSpace = pCmdStream->ReserveCommands();
 
-    if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
-    {
-        struct
-        {
-            regVGT_MAX_VTX_INDX  maxVtxIndx;
-            regVGT_MIN_VTX_INDX  minVtxIndx;
-            regVGT_INDX_OFFSET   indxOffset;
-        } vgt = { };
-        vgt.maxVtxIndx.bits.MAX_INDX = UINT_MAX;
+    regGE_MAX_VTX_INDX geMaxVtxIndx = { };
+    geMaxVtxIndx.bits.MAX_INDX = UINT_MAX;
 
-        pCmdSpace = m_deCmdStream.WriteSetSeqConfigRegs(Gfx09::mmVGT_MAX_VTX_INDX,
-                                                        Gfx09::mmVGT_INDX_OFFSET,
-                                                        &vgt,
+    constexpr struct
+    {
+        regGE_MIN_VTX_INDX  minVtxIndx;
+        regGE_INDX_OFFSET   indxOffset;
+    } Ge = { };
+
+    pCmdSpace = m_deCmdStream.WriteSetOneConfigReg(Gfx10Plus::mmGE_MAX_VTX_INDX, geMaxVtxIndx.u32All, pCmdSpace);
+    pCmdSpace = m_deCmdStream.WriteSetSeqConfigRegs(Gfx10Plus::mmGE_MIN_VTX_INDX,
+                                                    Gfx10Plus::mmGE_INDX_OFFSET,
+                                                    &Ge,
+                                                    pCmdSpace);
+
+    if (IsGfx103PlusExclusive(device))
+    {
+        // Setting all these bits tells the HW to use the driver programmed setting of SX_PS_DOWNCONVERT
+        // instead of automatically calculating the value.
+        regSX_PS_DOWNCONVERT_CONTROL sxPsDownconvertControl = { };
+        sxPsDownconvertControl.u32All = (1 << MaxColorTargets) - 1;
+
+        pCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx103PlusExclusive::mmSX_PS_DOWNCONVERT_CONTROL,
+                                                        sxPsDownconvertControl.u32All,
                                                         pCmdSpace);
     }
-    else if (IsGfx10Plus(chipProps.gfxLevel))
+
+    // We have to explicitly disable VRS for clients that aren't using a version of PAL which exposes the VRS
+    // interface functions.  Otherwise, clients are on their own to setup VRS state themselves.
+    if (chipProps.gfxip.supportsVrs != 0)
     {
-        regGE_MAX_VTX_INDX geMaxVtxIndx = { };
-        geMaxVtxIndx.bits.MAX_INDX = UINT_MAX;
-
-        constexpr struct
+        if (IsGfx10(device))
         {
-            regGE_MIN_VTX_INDX  minVtxIndx;
-            regGE_INDX_OFFSET   indxOffset;
-        } Ge = { };
+            // This register is the master override: set this to passthrough mode or the final VRS rate becomes
+            // whatever was specified in the other fields of this register.
+            regDB_VRS_OVERRIDE_CNTL dbVrsOverrideCntl = { };
+            dbVrsOverrideCntl.bits.VRS_OVERRIDE_RATE_COMBINER_MODE = 0;
 
-        pCmdSpace = m_deCmdStream.WriteSetOneConfigReg(Gfx10Plus::mmGE_MAX_VTX_INDX, geMaxVtxIndx.u32All, pCmdSpace);
-        pCmdSpace = m_deCmdStream.WriteSetSeqConfigRegs(Gfx10Plus::mmGE_MIN_VTX_INDX,
-                                                        Gfx10Plus::mmGE_INDX_OFFSET,
-                                                        &Ge,
-                                                        pCmdSpace);
-
-        if (IsGfx103PlusExclusive(device))
-        {
-            // Setting all these bits tells the HW to use the driver programmed setting of SX_PS_DOWNCONVERT
-            // instead of automatically calculating the value.
-            regSX_PS_DOWNCONVERT_CONTROL sxPsDownconvertControl = { };
-            sxPsDownconvertControl.u32All = (1 << MaxColorTargets) - 1;
-
-            pCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx103PlusExclusive::mmSX_PS_DOWNCONVERT_CONTROL,
-                                                            sxPsDownconvertControl.u32All,
+            pCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx10Vrs::mmDB_VRS_OVERRIDE_CNTL,
+                                                            dbVrsOverrideCntl.u32All,
                                                             pCmdSpace);
         }
-
-        // We have to explicitly disable VRS for clients that aren't using a version of PAL which exposes the VRS
-        // interface functions.  Otherwise, clients are on their own to setup VRS state themselves.
-        if (chipProps.gfxip.supportsVrs != 0)
+        else
         {
-            if (IsGfx10(device))
-            {
-                // This register is the master override: set this to passthrough mode or the final VRS rate becomes
-                // whatever was specified in the other fields of this register.
-                regDB_VRS_OVERRIDE_CNTL dbVrsOverrideCntl = { };
-                dbVrsOverrideCntl.bits.VRS_OVERRIDE_RATE_COMBINER_MODE = 0;
-
-                pCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx10Vrs::mmDB_VRS_OVERRIDE_CNTL,
-                                                                dbVrsOverrideCntl.u32All,
-                                                                pCmdSpace);
-            }
-            else if (IsGfx11(device))
-            {
-                // The "override" disable on GFX11 is controlled via the PA_SC_VRS_OVERRIDE_CNTL register which is
-                // written when the client calls CmdBindSampleRateImage, so there is no need to setup the override
-                // here.
-            }
-        } // if VRS is supported
-
-        // We use the same programming for VS and PS.
-        regSPI_SHADER_REQ_CTRL_VS spiShaderReqCtrl = {};
-
-        if (settings.numPsWavesSoftGroupedPerCu > 0)
-        {
-            spiShaderReqCtrl.bits.SOFT_GROUPING_EN = 1;
-            spiShaderReqCtrl.bits.NUMBER_OF_REQUESTS_PER_CU = settings.numPsWavesSoftGroupedPerCu - 1;
+            // The "override" disable on GFX11 is controlled via the PA_SC_VRS_OVERRIDE_CNTL register which is
+            // written when the client calls CmdBindSampleRateImage, so there is no need to setup the override
+            // here.
         }
+    } // if VRS is supported
+
+    // We use the same programming for VS and PS.
+    regSPI_SHADER_REQ_CTRL_VS spiShaderReqCtrl = {};
+
+    if (settings.numPsWavesSoftGroupedPerCu > 0)
+    {
+        spiShaderReqCtrl.bits.SOFT_GROUPING_EN = 1;
+        spiShaderReqCtrl.bits.NUMBER_OF_REQUESTS_PER_CU = settings.numPsWavesSoftGroupedPerCu - 1;
+    }
+
+    if (chipProps.gfxip.supportsHwVs)
+    {
+        pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(Gfx10::mmSPI_SHADER_REQ_CTRL_VS,
+                                                                   spiShaderReqCtrl.u32All,
+                                                                   pCmdSpace);
+    }
+
+    pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(Gfx10Plus::mmSPI_SHADER_REQ_CTRL_PS,
+                                                               spiShaderReqCtrl.u32All,
+                                                               pCmdSpace);
+
+    // Set every user accumulator contribution to a default "disabled" value (zero).
+    if (chipProps.gfx9.supportSpiPrefPriority != 0)
+    {
+        constexpr uint32 FourZeros[4] = {};
+        pCmdSpace = m_deCmdStream.WriteSetSeqShRegs(Gfx10Plus::mmSPI_SHADER_USER_ACCUM_ESGS_0,
+                                                    Gfx10Plus::mmSPI_SHADER_USER_ACCUM_ESGS_3,
+                                                    ShaderGraphics,
+                                                    &FourZeros,
+                                                    pCmdSpace);
+        pCmdSpace = m_deCmdStream.WriteSetSeqShRegs(Gfx10Plus::mmSPI_SHADER_USER_ACCUM_LSHS_0,
+                                                    Gfx10Plus::mmSPI_SHADER_USER_ACCUM_LSHS_3,
+                                                    ShaderGraphics,
+                                                    &FourZeros,
+                                                    pCmdSpace);
+        pCmdSpace = m_deCmdStream.WriteSetSeqShRegs(Gfx10Plus::mmSPI_SHADER_USER_ACCUM_PS_0,
+                                                    Gfx10Plus::mmSPI_SHADER_USER_ACCUM_PS_3,
+                                                    ShaderGraphics,
+                                                    &FourZeros,
+                                                    pCmdSpace);
 
         if (chipProps.gfxip.supportsHwVs)
         {
-            pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(Gfx10::mmSPI_SHADER_REQ_CTRL_VS,
-                                                                       spiShaderReqCtrl.u32All,
-                                                                       pCmdSpace);
+            pCmdSpace = m_deCmdStream.WriteSetSeqShRegs(Gfx10::mmSPI_SHADER_USER_ACCUM_VS_0,
+                                                        Gfx10::mmSPI_SHADER_USER_ACCUM_VS_3,
+                                                        ShaderGraphics,
+                                                        &FourZeros,
+                                                        pCmdSpace);
         }
-
-        pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(Gfx10Plus::mmSPI_SHADER_REQ_CTRL_PS,
-                                                                   spiShaderReqCtrl.u32All,
-                                                                   pCmdSpace);
-
-        // Set every user accumulator contribution to a default "disabled" value (zero).
-        if (chipProps.gfx9.supportSpiPrefPriority != 0)
-        {
-            constexpr uint32 FourZeros[4] = {};
-            pCmdSpace = m_deCmdStream.WriteSetSeqShRegs(Gfx10Plus::mmSPI_SHADER_USER_ACCUM_ESGS_0,
-                                                        Gfx10Plus::mmSPI_SHADER_USER_ACCUM_ESGS_3,
-                                                        ShaderGraphics,
-                                                        &FourZeros,
-                                                        pCmdSpace);
-            pCmdSpace = m_deCmdStream.WriteSetSeqShRegs(Gfx10Plus::mmSPI_SHADER_USER_ACCUM_LSHS_0,
-                                                        Gfx10Plus::mmSPI_SHADER_USER_ACCUM_LSHS_3,
-                                                        ShaderGraphics,
-                                                        &FourZeros,
-                                                        pCmdSpace);
-            pCmdSpace = m_deCmdStream.WriteSetSeqShRegs(Gfx10Plus::mmSPI_SHADER_USER_ACCUM_PS_0,
-                                                        Gfx10Plus::mmSPI_SHADER_USER_ACCUM_PS_3,
-                                                        ShaderGraphics,
-                                                        &FourZeros,
-                                                        pCmdSpace);
-
-            if (chipProps.gfxip.supportsHwVs)
-            {
-                pCmdSpace = m_deCmdStream.WriteSetSeqShRegs(Gfx10::mmSPI_SHADER_USER_ACCUM_VS_0,
-                                                            Gfx10::mmSPI_SHADER_USER_ACCUM_VS_3,
-                                                            ShaderGraphics,
-                                                            &FourZeros,
-                                                            pCmdSpace);
-            }
-        }
-    } // if Gfx10.x
+    }
 
     if (IsGfx11(chipProps.gfxLevel))
     {
@@ -2023,12 +1962,8 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
                                                         pCmdSpace);
     }
 
-    const uint32 mmSpiShaderPgmHiEs = IsGfx10Plus(device) ? Gfx10Plus::mmSPI_SHADER_PGM_HI_ES :
-                                                            Gfx09::mmSPI_SHADER_PGM_HI_ES;
-    const uint32 mmSpiShaderPgmHiLs = IsGfx10Plus(device) ? Gfx10Plus::mmSPI_SHADER_PGM_HI_LS :
-                                                            Gfx09::mmSPI_SHADER_PGM_HI_LS;
-    pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(mmSpiShaderPgmHiEs, 0, pCmdSpace);
-    pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(mmSpiShaderPgmHiLs, 0, pCmdSpace);
+    pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(Gfx10Plus::mmSPI_SHADER_PGM_HI_ES, 0, pCmdSpace);
+    pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(Gfx10Plus::mmSPI_SHADER_PGM_HI_LS, 0, pCmdSpace);
 
     regPA_SU_PRIM_FILTER_CNTL paSuPrimFilterCntl = { };
 

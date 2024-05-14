@@ -278,7 +278,7 @@ Pal::Result GpaSession::TraceSample::InitDfSpmTrace(
         for (uint32 idx = 0; idx < m_numDfSpmCounters; ++idx)
         {
             m_pDfSpmEventIds[idx]        = pCounters[idx].eventId;
-            m_pDfSpmEventQualifiers[idx] = pCounters[idx].df.eventQualifier;
+            m_pDfSpmEventQualifiers[idx] = pCounters[idx].subConfig.df.eventQualifier;
             m_pDfSpmInstances[idx]       = pCounters[idx].instance;
             m_pDfSpmGpuBlocks[idx]       = static_cast<SpmGpuBlock>(pCounters[idx].block);
         }

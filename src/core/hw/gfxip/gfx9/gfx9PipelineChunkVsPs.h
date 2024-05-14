@@ -98,6 +98,16 @@ struct SemanticInfo
     uint16 index;
 };
 
+// Enumerates the different color-export shader permutations a pipeline can have.
+enum class ColorExportShaderType : uint32
+{
+    Default = 0,            // Default color-export shader.
+                            // Most pipelines with color-export shaders will have only this one.
+    DualSourceBlendEnable,  // Color-export shader which enables dual-source blending. Only used when the pipeline can
+                            // have dual-source blending dynamically enabled or disabled at draw-time.
+    Count,                  // Number of color-export shader permutations.
+};
+
 // =====================================================================================================================
 // Manages the chunk of a graphics pipeline which contains the registers associated with the hardware VS and PS stages.
 // Many of the registers for the hardware VS stage are not required when running in NGG mode.
@@ -165,9 +175,10 @@ public:
                                   m_regs.sh.spiShaderPgmHiPs.bits.MEM_BASE);
     }
 
-    gpusize ColorExportGpuVa() const
+    gpusize ColorExportGpuVa(
+        ColorExportShaderType shaderType = ColorExportShaderType::Default) const
     {
-        return m_colorExportAddr;
+        return m_colorExportAddr[static_cast<uint32>(shaderType)];
     }
     const ShaderStageInfo& StageInfoVs() const { return m_stageInfoVs; }
     const ShaderStageInfo& StageInfoPs() const { return m_stageInfoPs; }
@@ -194,7 +205,7 @@ private:
     ShaderStageInfo    m_stageInfoPs;
     regPA_SC_AA_CONFIG m_paScAaConfig; // This register is only written in the draw-time validation code.
 
-    gpusize            m_colorExportAddr;
+    gpusize            m_colorExportAddr[static_cast<uint32>(ColorExportShaderType::Count)];
     uint32             m_psWaveFrontSize;
     PAL_DISALLOW_DEFAULT_CTOR(PipelineChunkVsPs);
     PAL_DISALLOW_COPY_AND_ASSIGN(PipelineChunkVsPs);

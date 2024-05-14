@@ -25,8 +25,10 @@
 
 #pragma once
 
-#include "palSysMemory.h"
 #include "palUtil.h"
+#include "palThread.h"
+#include "palMutex.h"
+#include "palSysMemory.h"
 
 namespace Util
 {
@@ -38,30 +40,28 @@ namespace Util
 class Lz4Compressor
 {
 public:
-    Lz4Compressor(const AllocCallbacks& callbacks, bool useHighCompression = false);
-    virtual ~Lz4Compressor();
-
-    Result Init();
+    Lz4Compressor(bool useHighCompression = false);
+    virtual ~Lz4Compressor() = default;
 
     // Provides the maximum size that LZ4 compression may output in a "worst case" (uncompressible) scenario.
     // Use this to determine the size of the buffer to send to Compress().
     // Returns 0 on error.
-    int GetCompressBound(int inputSize) const;
+    int32 GetCompressBound(int32 inputSize) const;
 
     // Provides the decompressed size from a compressed buffer.
     // Returns 0 on error.
-    int GetDecompressedSize(const char* src, int srcSize) const;
+    int32 GetDecompressedSize(const char* src, int32 srcSize) const;
 
     // Helper for easy readability.
-    bool IsCompressed(const char* src, int srcSize) const { return (GetDecompressedSize(src, srcSize) > 0); }
+    bool IsCompressed(const char* src, int32 srcSize) const { return (GetDecompressedSize(src, srcSize) > 0); }
 
-    // Compress relies on state, and should be protected via a mutex externally. This function is not thread-safe.
+    // Compress relies on state, which is thread local, and thus this is thread-safe.
     // The destination buffer should be allocated ahead of time and be of GetCompressBound() size.
-    Result Compress(const char* src, char* dst, int srcSize, int dstCapacity, int* pBytesWritten);
+    Result Compress(const char* src, char* dst, int32 srcSize, int32 dstCapacity, int32* pBytesWritten);
 
     // Note that decompress doesn't rely on state, and so can be called from multiple threads.
     // The destination buffer should be allocated ahead of time and be of GetCompressBound() size.
-    Result Decompress(const char* src, char* dst, int srcSize, int dstCapacity, int* pBytesWritten) const;
+    Result Decompress(const char* src, char* dst, int32 srcSize, int32 dstCapacity, int32* pBytesWritten) const;
 
     // If useHighCompression is false, this corresponds with the lz4 "acceleration" param.
     // The larger the param, the faster (and less compression) you get.
@@ -69,7 +69,23 @@ public:
     // In this case, the larger the param the slower (and more compression) we get.
     // ...
     // We choose sane values by default, so this is only for fine tuning.
-    void SetCompressionParam(int param) { m_compressionParam = param; }
+    void SetCompressionParam(int32 param) { m_compressionParam = param; }
+
+    // As thread local data, this can be shared by multiple instances of lz4Compressor.
+    class ThreadLocalData
+    {
+    public:
+        ThreadLocalData()
+            : m_pState(nullptr)
+            , m_pStateHC(nullptr)
+        {}
+        ~ThreadLocalData();
+
+        void* m_pState;
+        void* m_pStateHC;
+    private:
+        PAL_DISALLOW_COPY_AND_ASSIGN(ThreadLocalData);
+    };
 
 private:
     PAL_DISALLOW_DEFAULT_CTOR(Lz4Compressor);
@@ -81,11 +97,8 @@ private:
         int32 uncompressedSize;
     };
 
-    ForwardAllocator m_allocator;
     const bool m_useHighCompression;
     int   m_compressionParam;
-    bool  m_stateInitialized;
-    void* m_pState;
 
     static const int32 HeaderIdentifier = 0x504c5a34; // 'PLZ4' in a portable constant.
 };

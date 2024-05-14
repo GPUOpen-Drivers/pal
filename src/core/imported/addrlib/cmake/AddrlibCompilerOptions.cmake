@@ -64,6 +64,7 @@ if((CMAKE_CXX_COMPILER_ID MATCHES "GNU|[Cc]lang")
         -Wno-ignored-qualifiers
         -Wno-missing-field-initializers
         -Wno-implicit-fallthrough
+        -Wno-shift-negative-value
     )
 
     if (CMAKE_CXX_COMPILER_ID MATCHES "[Cc]lang")
@@ -83,6 +84,15 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         target_compile_options(addrlib PRIVATE /analyze)
     endif()
 
+    if(ADDR_ENABLE_WERROR)
+        target_compile_options(addrlib PRIVATE /WX)
+    endif()
+
+    if(CMAKE_SIZEOF_VOID_P EQUAL 4)
+        # Do not remove frame pointer on x86-32 (eases debugging)
+        target_compile_options(addrlib PRIVATE /Oy-)
+    endif()
+
     target_compile_options(addrlib PRIVATE
         /EHsc # Catches only C++ exceptions and assumes
         # functions declared as extern "C" never throw a C++ exception.
@@ -92,7 +102,6 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 
     target_compile_options(addrlib PRIVATE
         /W4      # Enable warning level 4.
-        /WX      # Treat warnings as errors.
         /wd4018  # signed/unsigned mismatch
         /wd4065  # switch statement contains 'default' but no 'case' labels
         /wd4100  # unreferenced formal parameter

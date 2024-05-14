@@ -84,10 +84,9 @@ void PipelineChunkHs::LateInit(
         m_stageInfo.disassemblyLength = static_cast<size_t>(pElfSymbol->st_size);
     }
 
-    m_regs.sh.spiShaderPgmRsrc1Hs.u32All      = AbiRegisters::SpiShaderPgmRsrc1Hs(metadata, chipProps.gfxLevel);
-    m_regs.sh.spiShaderPgmRsrc2Hs.u32All      = AbiRegisters::SpiShaderPgmRsrc2Hs(metadata, chipProps.gfxLevel);
-    m_regs.dynamic.spiShaderPgmRsrc3Hs.u32All =
-        AbiRegisters::SpiShaderPgmRsrc3Hs(metadata, m_device, chipProps.gfxLevel);
+    m_regs.sh.spiShaderPgmRsrc1Hs.u32All      = AbiRegisters::SpiShaderPgmRsrc1Hs(metadata);
+    m_regs.sh.spiShaderPgmRsrc2Hs.u32All      = AbiRegisters::SpiShaderPgmRsrc2Hs(metadata);
+    m_regs.dynamic.spiShaderPgmRsrc3Hs.u32All = AbiRegisters::SpiShaderPgmRsrc3Hs(metadata, m_device);
     m_regs.dynamic.spiShaderPgmRsrc4Hs.u32All =
         AbiRegisters::SpiShaderPgmRsrc4Hs(metadata, m_device, chipProps.gfxLevel, m_stageInfo.codeLength);
     m_regs.sh.spiShaderPgmChksumHs.u32All     = AbiRegisters::SpiShaderPgmChksumHs(metadata, m_device);
@@ -146,21 +145,12 @@ uint32* PipelineChunkHs::WriteDynamicRegs(
     ) const
 {
     const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
-
-    auto dynamic = m_regs.dynamic;
+    HsRegs::Dynamic          dynamic   = m_regs.dynamic;
 
     if (hsStageInfo.wavesPerSh > 0)
     {
         dynamic.spiShaderPgmRsrc3Hs.bits.WAVE_LIMIT = hsStageInfo.wavesPerSh;
     }
-#if PAL_AMDGPU_BUILD
-    else if (IsGfx9(chipProps.gfxLevel) && (dynamic.spiShaderPgmRsrc3Hs.bits.WAVE_LIMIT == 0))
-    {
-        // GFX9 GPUs have a HW bug where a wave limit size of 0 does not correctly map to "no limit",
-        // potentially breaking high-priority compute.
-        dynamic.spiShaderPgmRsrc3Hs.bits.WAVE_LIMIT = m_device.GetMaxWavesPerSh(chipProps, false);
-    }
-#endif
 
     pCmdSpace = pCmdStream->WriteSetOneShRegIndex(mmSPI_SHADER_PGM_RSRC3_HS,
                                                   dynamic.spiShaderPgmRsrc3Hs.u32All,
@@ -168,14 +158,11 @@ uint32* PipelineChunkHs::WriteDynamicRegs(
                                                   index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
                                                   pCmdSpace);
 
-    if (IsGfx10Plus(chipProps.gfxLevel))
-    {
-        pCmdSpace = pCmdStream->WriteSetOneShRegIndex(mmSPI_SHADER_PGM_RSRC4_HS,
-                                                      dynamic.spiShaderPgmRsrc4Hs.u32All,
-                                                      ShaderGraphics,
-                                                      index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
-                                                      pCmdSpace);
-    }
+    pCmdSpace = pCmdStream->WriteSetOneShRegIndex(mmSPI_SHADER_PGM_RSRC4_HS,
+                                                  dynamic.spiShaderPgmRsrc4Hs.u32All,
+                                                  ShaderGraphics,
+                                                  index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
+                                                  pCmdSpace);
 
     return pCmdSpace;
 }

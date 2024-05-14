@@ -265,8 +265,6 @@ protected:
     const int32           m_metaDataWordSizeLog2;
 
 private:
-    void   CalcMetaEquationGfx9();
-    void   CalcMetaEquationGfx10Plus();
     void   CalcDataOffsetEquation(MetaDataAddrEquation* pDataOffset);
     void   CalcPipeEquation(MetaDataAddrEquation* pPipe, MetaDataAddrEquation* pDataOffset, uint32  numPipesLog2);
     void   CalcRbEquation(MetaDataAddrEquation* pRb, uint32  numSesLog2, uint32  numRbsPerSeLog2);
@@ -320,7 +318,6 @@ public:
 
     static constexpr uint32 Sr1Mask = (3u << 6);
 
-    uint32 GetPipeBankXor(uint32 plane) const override;
     uint32 GetMetaBlockSize(Gfx9MaskRamBlockSize* pExtent) const override;
     uint32 GetNumSamplesLog2() const override;
     uint32 GetMetaCachelineSize() const override { return 8; }

@@ -121,6 +121,9 @@
 #if ADDR_PHOENIX1_BUILD
 #define AMDGPU_PHOENIX1_RANGE      0x01, 0x80
 #endif
+#if ADDR_PHOENIX2_BUILD
+#define AMDGPU_PHOENIX2_RANGE      0x80, 0xC0
+#endif
 #endif
 #endif
 
@@ -177,6 +180,9 @@
 #if ADDR_PHOENIX_BUILD
 #if ADDR_PHOENIX1_BUILD
 #define ASICREV_IS_PHOENIX(r)          ASICREV_IS(r, PHOENIX)
+#endif
+#if ADDR_PHOENIX2_BUILD
+#define ASICREV_IS_PHOENIX2(r)         ASICREV_IS(r, PHOENIX2)
 #endif
 #endif
 #endif

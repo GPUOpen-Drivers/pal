@@ -26,8 +26,8 @@
 #ifndef DD_SETTINGS_API_H
 #define DD_SETTINGS_API_H
 
-#include <dd_allocator_api.h>
-#include <dd_common_api.h>
+#include "dd_allocator_api.h"
+#include "dd_common_api.h"
 
 #include <stdint.h>
 
@@ -158,6 +158,20 @@ typedef struct
     /// @param[out] pSize The size of the byte-array pointed to by *\param ppBuffer.
     /// @param[in] alloc Will be used to allocate the byte-array mentioned above.
     DD_RESULT (*QueryAllCurrentValues)(
+        DDSettingsInstance* pInstance,
+        uint16_t            umdConnectionId,
+        uint8_t**           ppBuffer,
+        size_t*             pSize,
+        DDAllocator         alloc);
+
+    /// Gets the unsupported experiments of all components from a driver.
+    ///
+    /// @param[in] pInstance Must be \ref DDSettingsApi.pInstance.
+    /// @param[in] umdConnectionId The id for the umd connection over which supported settings will be sent.
+    /// @param[out] ppBuffer Will be set to a pointer to a byte-array containing unsupported experiment info.
+    /// @param[out] pSize The size of the byte-array pointed to by *\param ppBuffer.
+    /// @param[in] alloc Will be used to allocate the byte-array mentioned above.
+    DD_RESULT (*GetUnsupportedExperiments)(
         DDSettingsInstance* pInstance,
         uint16_t            umdConnectionId,
         uint8_t**           ppBuffer,

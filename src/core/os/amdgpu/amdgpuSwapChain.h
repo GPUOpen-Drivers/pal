@@ -67,7 +67,7 @@ private:
 
     virtual Result Init(void* pPlacementMem, bool needPresentComplete) override;
 
-    virtual Result ReclaimUnusedImages(uint64 timeout) override;
+    virtual Result ReclaimUnusedImages(std::chrono::nanoseconds timeout) override;
 
     bool OptimizedHandlingForNativeWindowSystem(uint32* pImageIndex);
 

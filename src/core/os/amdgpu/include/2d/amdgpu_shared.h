@@ -278,18 +278,23 @@ typedef union _amdgpu_shared_metadata_flags
 typedef struct _amdgpu_shared_metadata_info
 {
     amdgpu_shared_metadata_flags flags;
-    uint32_t            dcc_offset;
-    uint32_t            cmask_offset;
-    uint32_t            fmask_offset;
-    uint32_t            htile_offset;
-    uint32_t            dcc_state_offset;
-    uint32_t            fast_clear_value_offset;
-    uint32_t            fce_state_offset;
-    uint32_t            htile_lookup_table_offset;
+    union {
+        struct
+        {
+            uint32_t            dcc_offset;
+            uint32_t            cmask_offset;
+            uint32_t            fmask_offset;
+            uint32_t            htile_offset;
+            uint32_t            dcc_state_offset;
+            uint32_t            fast_clear_value_offset;
+            uint32_t            fce_state_offset;
+            uint32_t            htile_lookup_table_offset;
+            AMDGPU_SWIZZLE_MODE fmask_swizzle_mode;
+        } gfx9;
+    };
     uint32_t            resource_id;  ///< This is a unique ID to identify cross-process shared GPU memory.
                                       ///< It is composed of the GPU memory or image object pointer and the process id.
                                       ///< This is the low 32-bits of a 64-bit resource_id.  See resource_id_high32.
-    AMDGPU_SWIZZLE_MODE fmaskSwizzleMode;
     uint32_t            resource_id_high32; ///< This is the high 32-bits of a 64-bit resource_id.  See resource_id.
 } amdgpu_shared_metadata_info;
 
@@ -302,18 +307,18 @@ typedef struct _amdgpu_bo_umd_metadata
 
    AMDGPU_PIXEL_FORMAT      format;
    union {
-            struct
-            {
-                   int32_t  tile_index;
-                   AMDGPU_TILE_MODE         tile_mode;
-                   AMDGPU_MICRO_TILE_MODE   micro_tile_mode;
-                   amdgpu_tile_cfg          tile_config;
-            };
-            struct
-            {
-                    AMDGPU_SWIZZLE_MODE       swizzleMode;       ///< Swizzle Mode for Gfx9
-                    AMDGPU_ADDR_RESOURCE_TYPE resourceType;      ///< Surface type
-            };
+        struct
+        {
+            int32_t  tile_index;
+            AMDGPU_TILE_MODE         tile_mode;
+            AMDGPU_MICRO_TILE_MODE   micro_tile_mode;
+            amdgpu_tile_cfg          tile_config;
+        };
+        struct
+        {
+            AMDGPU_SWIZZLE_MODE       swizzleMode;       ///< Swizzle Mode for Gfx9
+            AMDGPU_ADDR_RESOURCE_TYPE resourceType;      ///< Surface type
+        } gfx9;
     };
     uint32_t    pipeBankXor;            ///< Pipe bank Xor for plane 0
     uint32_t    depth;                  ///< Image depth
@@ -331,7 +336,8 @@ typedef struct _amdgpu_bo_umd_metadata
             uint32_t                  cubemap:          1;
             uint32_t                  optimal_shareable:1;
             uint32_t                  samples:          7;
-            uint32_t                  reserved:         8;
+            uint32_t                  place_holder:     2;
+            uint32_t                  reserved:         6;
         };
         uint32_t    all32;
     } flags;

@@ -28,7 +28,10 @@
 #include "palAssert.h"
 #include "core/layers/interfaceLogger/interfaceLoggerLogContext.h"
 
+#include <algorithm>
+
 using namespace Util;
+using namespace std::chrono;
 
 namespace Pal
 {
@@ -40,7 +43,11 @@ void LogContext::Struct(
     const AcquireNextImageInfo& value)
 {
     BeginMap(false);
-    KeyAndValue("timeout", value.timeout);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 863
+    KeyAndValue("timeout", uint64(value.timeout.count()));
+#else
+    KeyAndValue("timeout", std::min(value.timeout, uint64(nanoseconds::max().count())));
+#endif
     KeyAndObject("semaphore", value.pSemaphore);
     KeyAndObject("fence", value.pFence);
     EndMap();

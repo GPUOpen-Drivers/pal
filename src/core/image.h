@@ -154,7 +154,7 @@ union InternalImageFlags
                                                   // Meant for use with VRS when the client hasn't bound a depth buffer.
         uint32 useSharedDccState           :  1;  // Use the shared dcc block sizing
         uint32 useForcedDcc                :  1;  // Force dcc-enabled or not.
-        uint32 reserved                    : 20;
+        uint32 reserved                    : 19;
     };
     uint32 value;
 };
@@ -506,6 +506,10 @@ public:
     bool IsSubResourceLinear(const SubresId& subresource) const
         { return (m_pGfxImage == nullptr) ? false : m_pGfxImage->IsSubResourceLinear(subresource); }
 
+    // Returns true if has any misaligned metadata.
+    bool HasMisalignedMetadata() const { return (m_pGfxImage != nullptr) ? m_pGfxImage->HasMisalignedMetadata()
+                                                                         : false; }
+
     // Returns whether or not the format of views created from the image can be different than the base format.
     // We can simply use the viewFormatCount parameter provided at image creation time as that's expected to
     // be zero in case the base format is the only valid view format.
@@ -555,9 +559,6 @@ public:
     // Returns whether or not this image prefers CB fixed function resolve
     bool PreferCbResolve() const;
 
-    bool PreferGraphicsScaledCopy() const { return m_preferGraphicsScaledCopy; }
-    void SetPreferGraphicsScaledCopy(bool val) { m_preferGraphicsScaledCopy = val; }
-
 protected:
     Image(Device*                        pDevice,
           void*                          pGfxImagePlacementAddr,
@@ -599,9 +600,6 @@ private:
     uint32          m_privateScreenImageId;
     // A cached index of private display index, this is to avoid a race condition between submission and hotplug.
     uint32          m_privateScreenIndex;
-    // Whether we should use graphic engine when doing scaled copy. By default, use CS. If the image
-    // has DCC and the hardware does not support compressed shader writes(i.e., GFX9), use GFX.
-    bool            m_preferGraphicsScaledCopy;
 
     PAL_DISALLOW_DEFAULT_CTOR(Image);
     PAL_DISALLOW_COPY_AND_ASSIGN(Image);

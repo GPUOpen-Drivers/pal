@@ -345,8 +345,6 @@ protected:
 
     virtual uint32 GetLinearRowPitchAlignment(uint32 bytesPerPixel) const = 0;
 
-    static ImageType GetImageType(const IImage&  image);
-
     static bool IsImageTmzProtected(const DmaImageInfo& imageInfo)
     {
         const BoundGpuMemory& gpuMemory = static_cast<const Image*>(imageInfo.pImage)->GetBoundGpuMemory();

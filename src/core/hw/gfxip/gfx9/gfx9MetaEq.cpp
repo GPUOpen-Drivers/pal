@@ -468,40 +468,20 @@ void MetaDataAddrEquation::Mort2d(
     uint32        start,
     uint32        end)
 {
-    const Pal::Device&  palDevice = *(pGfxDevice->Parent());
-
     if (end == 0)
     {
         end = m_maxBits - 1;
     }
 
-    if (IsGfx9(palDevice))
+    const bool reverse = (end < start);
+
+    for (uint32 i = start; (reverse) ? i >= end : i <= end; ((reverse) ? i-- : i++))
     {
-        for (uint32 i = start; i <= end; i++)
-        {
-            CompPair*  pChosen = pPair0;
+        int select = ((reverse) ? (start - i) : (i - start)) % 2;
 
-            if (((i - start) % 2) != 0)
-            {
-                pChosen = pPair1;
-            }
-
-            SetBit(i, pChosen->compType, pChosen->compPos);
-            pChosen->compPos++;
-        }
-    }
-    else if (IsGfx10Plus(palDevice))
-    {
-        const bool reverse = (end < start);
-
-        for (uint32 i = start; (reverse) ? i >= end : i <= end; ((reverse) ? i-- : i++))
-        {
-            int select = ((reverse) ? (start - i) : (i - start)) % 2;
-
-            CompPair*  pChosen = (select == 0) ? pPair0 : pPair1;
-            SetBit(i, pChosen->compType, pChosen->compPos);
-            pChosen->compPos++;
-        }
+        CompPair*  pChosen = (select == 0) ? pPair0 : pPair1;
+        SetBit(i, pChosen->compType, pChosen->compPos);
+        pChosen->compPos++;
     }
 }
 

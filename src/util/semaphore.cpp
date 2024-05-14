@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2023-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -23,33 +23,22 @@
  *
  **********************************************************************************************************************/
 
-#ifndef DD_COMMON_API_H
-#define DD_COMMON_API_H
+#include "palSemaphore.h"
 
-#include "ddApi.h"
-#include <stdint.h>
+#include <algorithm>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+using namespace std::chrono;
 
-typedef struct
+namespace Util
 {
-    uint32_t major;
-    uint32_t minor;
-    uint32_t patch;
-} DDVersion;
-
-typedef uint16_t DDConnectionId;
-
-/// GPU ID Determined from (BusID << 16) | (DeviceID << 8) | FunctionID
-typedef uint32_t DDGpuId;
-
-/// GPU ID used when it is unknown which GPU the message relates to
-static const DDGpuId DDGpuIdUnknown = 0xFFFFFFFF;
-
-#ifdef __cplusplus
-} // extern "C"
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 863
+// =====================================================================================================================
+// This has to be defined in a .cpp file because using any sort of a min()/max() function can conflict with clients
+// still using Microsoft's min()/max() macros.
+Result Semaphore::Wait(
+    uint32 waitTimeMs)
+{
+    return Wait(milliseconds{ std::min(waitTimeMs, uint32(milliseconds::max().count())) });
+}
 #endif
-
-#endif
+} // namespace Util

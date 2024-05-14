@@ -32,8 +32,8 @@ namespace Util
 CacheLayerBase::CacheLayerBase(
     const AllocCallbacks& callbacks)
     :
-    m_allocator   { callbacks },
     m_pNextLayer  { nullptr },
+    m_allocator   { callbacks },
     m_loadPolicy  { LinkPolicy::PassData | LinkPolicy::PassCalls },
     m_storePolicy { LinkPolicy::PassData }
 {

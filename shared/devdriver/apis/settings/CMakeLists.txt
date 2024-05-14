@@ -28,7 +28,6 @@ add_subdirectory(rpc/g_service)
 devdriver_library(dd_settings STATIC)
 target_sources(dd_settings
     PRIVATE
-        inc/dd_settings_api.h
         inc/dd_settings_base.h
         inc/dd_settings_blob.h
         inc/dd_settings_iterator.h
@@ -43,6 +42,7 @@ target_include_directories(dd_settings PUBLIC inc)
 target_link_libraries(dd_settings
     PUBLIC
         dd_common
+        dd_interface
         devdriver
         SettingsRpcService2
     PRIVATE

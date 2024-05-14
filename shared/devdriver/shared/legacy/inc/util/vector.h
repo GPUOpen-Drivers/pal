@@ -27,7 +27,8 @@
 
 #include <ddPlatform.h>
 
-#include <string.h>
+#include <type_traits>
+#include <cstring>
 
 namespace DevDriver
 {
@@ -339,7 +340,7 @@ namespace DevDriver
                 DD_ASSERT(pData != nullptr);
 
                 // If the struct is not a POD, then we need to construct objects
-                if (!Platform::IsPod<T>::Value)
+                if (std::is_trivial_v<T> == false)
                 {
                     size_t i = 0;
                     // First, we move all existing objects into the vector.
@@ -356,7 +357,10 @@ namespace DevDriver
                 // Otherwise, we just copy the existing data into the new vector and call it good.
                 else
                 {
-                    memcpy(&pData[0], &m_pData[0], sizeof(T) * m_size);
+                    // Need to use reinterpret_cast here because gcc can't seem to evaluate
+                    // `is_trivial_v` at compile-time, thus generating a no-class-memaccess warning.
+                    // `if constexpr` fixes the issue, but AMDLOG's toolchain doesn't support c++17.
+                    memcpy(reinterpret_cast<void*>(&pData[0]), &m_pData[0], sizeof(T) * m_size);
                 }
 
                 if (m_pData != m_data)

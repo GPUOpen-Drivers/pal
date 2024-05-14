@@ -239,8 +239,9 @@ void RsrcProcMgr::CopyMemoryCs(
                  regionCount,
                  pRegions,
                  preferWideFormatCopy,
-                 false,
-                 false);
+                false,
+                false
+                 );
 }
 
 // =====================================================================================================================
@@ -385,7 +386,7 @@ void RsrcProcMgr::CopyImageCs(
     const Device&          device        = *m_pDevice->Parent();
     const ImageCreateInfo& dstCreateInfo = dstImage.GetImageCreateInfo();
     const ImageCreateInfo& srcCreateInfo = srcImage.GetImageCreateInfo();
-    const ImageType        imageType     = srcImage.GetGfxImage()->GetOverrideImageType();
+    const ImageType        imageType     = srcCreateInfo.imageType;
 
     // If the destination format is srgb and we will be doing format conversion copy then we need the shader to
     // perform gamma correction. Note: If both src and dst are srgb then we'll do a raw copy and so no need to change
@@ -521,6 +522,9 @@ void RsrcProcMgr::CopyImageCs(
     }
 
     pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
+
+    Pm4CmdBuffer* pPm4CmdBuffer = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
+    pPm4CmdBuffer->SetCsBltIndirectWriteMisalignedMdState(dstImage.HasMisalignedMetadata());
 
     if (csInfo.isFmaskCopyOptimized || (dstCreateInfo.flags.fullCopyDstOnly != 0))
     {
@@ -1005,10 +1009,10 @@ void RsrcProcMgr::CmdCopyMemoryToImage(
     ) const
 {
     // Select the appropriate pipeline for this copy based on the destination image's properties.
-    const auto& createInfo = dstImage.GetImageCreateInfo();
-    const ComputePipeline* pPipeline = nullptr;
+    const ImageCreateInfo& createInfo = dstImage.GetImageCreateInfo();
+    const ComputePipeline* pPipeline  = nullptr;
 
-    switch (dstImage.GetGfxImage()->GetOverrideImageType())
+    switch (createInfo.imageType)
     {
     case ImageType::Tex1d:
         pPipeline = GetPipeline(RpmComputePipeline::CopyMemToImg1d);
@@ -1086,14 +1090,14 @@ void RsrcProcMgr::CmdCopyImageToMemory(
     ) const
 {
     // Select the appropriate pipeline for this copy based on the source image's properties.
-    const auto&            createInfo = srcImage.GetImageCreateInfo();
+    const ImageCreateInfo& createInfo = srcImage.GetImageCreateInfo();
     const bool             isEqaaSrc  = (createInfo.samples != createInfo.fragments);
     const GfxImage*        pGfxImage  = srcImage.GetGfxImage();
     const ComputePipeline* pPipeline  = nullptr;
 
     bool isFmaskCopy = false;
 
-    switch (pGfxImage->GetOverrideImageType())
+    switch (createInfo.imageType)
     {
     case ImageType::Tex1d:
         pPipeline = GetPipeline(RpmComputePipeline::CopyImgToMem1d);
@@ -1213,7 +1217,7 @@ void RsrcProcMgr::CopyBetweenMemoryAndImageCs(
         {
             uint32 texelScale     = 1;
             uint32 pixelsPerBlock = 1;
-            if (m_pDevice->IsImageFormatOverrideNeeded(imgCreateInfo, &viewFormat.format, &pixelsPerBlock))
+            if (GfxDevice::IsImageFormatOverrideNeeded(&viewFormat.format, &pixelsPerBlock))
             {
                 copyRegion.imageOffset.x     /= pixelsPerBlock;
                 copyRegion.imageExtent.width /= pixelsPerBlock;
@@ -1359,6 +1363,9 @@ void RsrcProcMgr::CopyBetweenMemoryAndImageCs(
 
     // Restore command buffer state.
     pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
+
+    Pm4CmdBuffer* pPm4CmdBuffer = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
+    pPm4CmdBuffer->SetCsBltIndirectWriteMisalignedMdState(isImageDst && image.HasMisalignedMetadata());
 }
 
 // =====================================================================================================================
@@ -1449,7 +1456,7 @@ void RsrcProcMgr::CopyBetweenTypedBufferAndImage(
         {
             uint32 texelScale     = 1;
             uint32 pixelsPerBlock = 1;
-            if (m_pDevice->IsImageFormatOverrideNeeded(imgCreateInfo, &viewFormat.format, &pixelsPerBlock))
+            if (GfxDevice::IsImageFormatOverrideNeeded(&viewFormat.format, &pixelsPerBlock))
             {
                 copyRegion.imageOffset.x     /= pixelsPerBlock;
                 copyRegion.imageExtent.width /= pixelsPerBlock;
@@ -1544,6 +1551,9 @@ void RsrcProcMgr::CopyBetweenTypedBufferAndImage(
 
     // Restore command buffer state.
     pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
+
+    Pm4CmdBuffer* pPm4CmdBuffer = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
+    pPm4CmdBuffer->SetCsBltIndirectWriteMisalignedMdState(isImageDst && image.HasMisalignedMetadata());
 }
 
 // =====================================================================================================================
@@ -1687,13 +1697,11 @@ void RsrcProcMgr::CmdScaledCopyTypedBufferToImage(
     ) const
 {
     // Select the appropriate pipeline for this copy based on the destination image's properties.
-    const auto& createInfo = dstImage.GetImageCreateInfo();
-    const ComputePipeline* pPipeline = GetPipeline(RpmComputePipeline::ScaledCopyTypedBufferToImg2D);
+    const ImageCreateInfo& createInfo = dstImage.GetImageCreateInfo();
+    const ComputePipeline* pPipeline  = GetPipeline(RpmComputePipeline::ScaledCopyTypedBufferToImg2D);
 
     // Currently, this function only support non-MSAA 2d image.
-    PAL_ASSERT((dstImage.GetGfxImage()->GetOverrideImageType() == ImageType::Tex2d) &&
-               (dstImage.GetImageCreateInfo().samples == 1) &&
-               (createInfo.fragments == 1));
+    PAL_ASSERT((createInfo.imageType == ImageType::Tex2d) && (createInfo.samples == 1) && (createInfo.fragments == 1));
 
     // Note that we must call this helper function before and after our compute blit to fix up our image's metadata
     // if the copy isn't compatible with our layout's metadata compression level.
@@ -1716,7 +1724,7 @@ void RsrcProcMgr::CmdScaledCopyTypedBufferToImage(
 
         // If image is created with fullCopyDstOnly=1, there will be no expand when transition to "LayoutCopyDst"; if
         // the copy isn't compressed copy, need fix up dst metadata to uncompressed state.
-        if (dstImage.GetImageCreateInfo().flags.fullCopyDstOnly != 0)
+        if (createInfo.flags.fullCopyDstOnly != 0)
         {
             HwlFixupCopyDstImageMetaData(pCmdBuffer, nullptr, dstImage, dstImageLayout,
                                          &fixupRegions[0], regionCount, false);
@@ -1734,7 +1742,9 @@ void RsrcProcMgr::CmdScaledCopyImage(
     const ScaledCopyInfo&   copyInfo
     ) const
 {
-    const bool useGraphicsCopy = ScaledCopyImageUseGraphics(pCmdBuffer, copyInfo);
+    const bool    useGraphicsCopy = ScaledCopyImageUseGraphics(pCmdBuffer, copyInfo);
+    const Image&  dstImage        = *static_cast<const Image*>(copyInfo.pDstImage);
+    Pm4CmdBuffer* pPm4CmdBuffer   = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
 
     if (useGraphicsCopy)
     {
@@ -1743,12 +1753,12 @@ void RsrcProcMgr::CmdScaledCopyImage(
         ScaledCopyImageGraphics(pCmdBuffer, copyInfo);
         // Restore original command buffer state.
         pCmdBuffer->CmdRestoreGraphicsStateInternal();
+        pPm4CmdBuffer->SetGfxBltDirectWriteMisalignedMdState(dstImage.HasMisalignedMetadata());
     }
     else
     {
         // Note that we must call this helper function before and after our compute blit to fix up our image's
         // metadata if the copy isn't compatible with our layout's metadata compression level.
-        const Image& dstImage = *static_cast<const Image*>(copyInfo.pDstImage);
         AutoBuffer<ImageFixupRegion, 32, Platform> fixupRegions(copyInfo.regionCount, m_pDevice->GetPlatform());
         if (fixupRegions.Capacity() >= copyInfo.regionCount)
         {
@@ -1768,6 +1778,7 @@ void RsrcProcMgr::CmdScaledCopyImage(
             pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
             ScaledCopyImageCompute(pCmdBuffer, copyInfo);
             pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
+            pPm4CmdBuffer->SetCsBltIndirectWriteMisalignedMdState(dstImage.HasMisalignedMetadata());
 
             FixupMetadataForComputeDst(pCmdBuffer, dstImage, copyInfo.dstImageLayout,
                                        copyInfo.regionCount, &fixupRegions[0], false);
@@ -2026,6 +2037,9 @@ void RsrcProcMgr::GenerateMipmapsFast(
     }
 
     pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
+
+    Pm4CmdBuffer* pPm4CmdBuffer = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
+    pPm4CmdBuffer->SetCsBltIndirectWriteMisalignedMdState(image.HasMisalignedMetadata());
 }
 
 // =====================================================================================================================
@@ -2145,13 +2159,16 @@ void RsrcProcMgr::GenerateMipmapsSlow(
     }
 
     // Restore original command buffer state.
+    Pm4CmdBuffer* pPm4CmdBuffer = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
     if (useGraphicsCopy)
     {
         pCmdBuffer->CmdRestoreGraphicsStateInternal();
+        pPm4CmdBuffer->SetGfxBltDirectWriteMisalignedMdState(pImage->HasMisalignedMetadata());
     }
     else
     {
         pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
+        pPm4CmdBuffer->SetCsBltIndirectWriteMisalignedMdState(pImage->HasMisalignedMetadata());
     }
 }
 
@@ -2161,18 +2178,16 @@ void RsrcProcMgr::ScaledCopyImageCompute(
     const ScaledCopyInfo& copyInfo
     ) const
 {
-    const auto& device       = *m_pDevice->Parent();
-    const auto* pSrcImage    = static_cast<const Image*>(copyInfo.pSrcImage);
-    const auto* pSrcGfxImage = pSrcImage->GetGfxImage();
-    const auto* pDstImage    = static_cast<const Image*>(copyInfo.pDstImage);
-    const auto* pDstGfxImage = pDstImage->GetGfxImage();
-    const auto& srcInfo      = pSrcImage->GetImageCreateInfo();
-    const auto& dstInfo      = pDstImage->GetImageCreateInfo();
+    const Device&          device    = *m_pDevice->Parent();
+    const auto*const       pSrcImage = static_cast<const Image*>(copyInfo.pSrcImage);
+    const auto*const       pDstImage = static_cast<const Image*>(copyInfo.pDstImage);
+    const ImageCreateInfo& srcInfo   = pSrcImage->GetImageCreateInfo();
+    const ImageCreateInfo& dstInfo   = pDstImage->GetImageCreateInfo();
 
     // We don't need to match between shader declared resource type and image's real type,
     // if we just use inputs to calculate pixel address. Dst resource only used to store values
     // to a pixel, src resource also need do sample. Thus, we use src type to choose pipline type.
-    const bool is3d           = (pSrcGfxImage->GetOverrideImageType() == ImageType::Tex3d);
+    const bool is3d           = (srcInfo.imageType == ImageType::Tex3d);
     bool       isFmaskCopy    = false;
 
     // Get the appropriate pipeline object.
@@ -2808,6 +2823,9 @@ void RsrcProcMgr::ConvertYuvToRgb(
     } // End loop over regions
 
     pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
+
+    Pm4CmdBuffer* pPm4CmdBuffer = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
+    pPm4CmdBuffer->SetCsBltIndirectWriteMisalignedMdState(dstImage.HasMisalignedMetadata());
 }
 
 // =====================================================================================================================
@@ -2994,6 +3012,9 @@ void RsrcProcMgr::ConvertRgbToYuv(
     } // End loop over regions
 
     pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
+
+    Pm4CmdBuffer* pPm4CmdBuffer = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
+    pPm4CmdBuffer->SetCsBltIndirectWriteMisalignedMdState(dstImage.HasMisalignedMetadata());
 }
 
 // =====================================================================================================================
@@ -3239,8 +3260,7 @@ void RsrcProcMgr::CmdClearBoundColorTargets(
         }
 
         const GraphicsPipeline* pPipeline =
-            GetGfxPipelineByTargetIndexAndFormat(SlowColorClear0_32ABGR,
-                                                 pBoundColorTargets[colorIndex].targetIndex,
+            GetGfxPipelineByFormat(SlowColorClear_32ABGR,
                                                  pBoundColorTargets[colorIndex].swizzledFormat);
 
         pCmdBuffer->CmdBindPipelineWithOverrides({ PipelineBindPoint::Graphics, pPipeline, InternalApiPsoHash, },
@@ -3385,7 +3405,7 @@ void RsrcProcMgr::CmdClearDepthStencil(
         if (needComputeClearSync)
         {
             AcquireReleaseInfo acqRelInfo = {};
-            acqRelInfo.srcGlobalStageMask  = PipelineStageEarlyDsTarget | PipelineStageLateDsTarget;
+            acqRelInfo.srcGlobalStageMask  = PipelineStageDsTarget;
             acqRelInfo.dstGlobalStageMask  = PipelineStageCs;
             acqRelInfo.srcGlobalAccessMask = CoherDepthStencilTarget;
             acqRelInfo.dstGlobalAccessMask = CoherShader;
@@ -3454,7 +3474,7 @@ void RsrcProcMgr::CmdClearDepthStencil(
         {
             AcquireReleaseInfo acqRelInfo = {};
             acqRelInfo.srcGlobalStageMask  = PipelineStageCs;
-            acqRelInfo.dstGlobalStageMask  = PipelineStageEarlyDsTarget | PipelineStageLateDsTarget;
+            acqRelInfo.dstGlobalStageMask  = PipelineStageDsTarget;
             acqRelInfo.srcGlobalAccessMask = CoherShader;
             acqRelInfo.dstGlobalAccessMask = CoherDepthStencilTarget;
             acqRelInfo.reason              = Developer::BarrierReasonPostComputeDepthStencilClear;
@@ -3515,7 +3535,6 @@ void RsrcProcMgr::SlowClearCompute(
 
     // Get some useful information about the image.
     const GfxImage&        gfxImage   = *dstImage.GetGfxImage();
-    const ImageType        imageType  = gfxImage.GetOverrideImageType();
     const ImageCreateInfo& createInfo = dstImage.GetImageCreateInfo();
     const SubResourceInfo& subresInfo = *dstImage.SubresourceInfo(clearRange.startSubres);
     const SwizzledFormat   baseFormat = clearFormat.format == ChNumFormat::Undefined ? subresInfo.format : clearFormat;
@@ -3587,15 +3606,15 @@ void RsrcProcMgr::SlowClearCompute(
     // This feature trades a few ALU instructions to completely decouple our cache access pattern from image type and
     // pipeline binary selection. We can run the ClearImage pipeline on a 1D image with (64, 1, 1) and then run it on
     // a 3D planar image with (8, 8, 1) in the next clear call.
-    if (imageType == ImageType::Tex1d)
+    if (createInfo.imageType == ImageType::Tex1d)
     {
         // We should use a linear group if this is a 1D image. Ideally we'd also send linear tiled images down here
         // too but it's vulnerable to bad cache access patterns due to PAL's hard-coded default dispatch interleave.
         // If we ever make that programmable per dispatch we could revisit this.
         info.groupShape = {64, 1, 1};
     }
-    else if ((imageType == ImageType::Tex2d) ||
-             ((imageType == ImageType::Tex3d) && gfxImage.IsSwizzleThin(clearRange.startSubres)))
+    else if ((createInfo.imageType == ImageType::Tex2d) ||
+             ((createInfo.imageType == ImageType::Tex3d) && gfxImage.IsSwizzleThin(clearRange.startSubres)))
     {
         // 2D images and "thin" 3D images store their data in 2D planes so a 8x8 square works well.
         info.groupShape = {8, 8, 1};
@@ -3709,6 +3728,9 @@ void RsrcProcMgr::SlowClearCompute(
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
     ClearImageCs(pCmdBuffer, info, dstImage, clearRange, boxCount, pBoxes);
     pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData, trackBltActiveFlags);
+
+    Pm4CmdBuffer* pPm4CmdBuffer = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
+    pPm4CmdBuffer->SetCsBltIndirectWriteMisalignedMdState(dstImage.HasMisalignedMetadata());
 }
 
 // =====================================================================================================================
@@ -3783,7 +3805,7 @@ void RsrcProcMgr::ClearImageCs(
     // Boxes are only meaningful if we're clearing a single mip.
     PAL_ASSERT((hasBoxes == false) || ((pBoxes != nullptr) && (clearRange.numMips == 1)));
 
-    const bool is3dImage = (dstImage.GetGfxImage()->GetOverrideImageType() == ImageType::Tex3d);
+    const bool is3dImage = (dstImage.GetImageCreateInfo().imageType == ImageType::Tex3d);
 
     // Track the last user-data we wrote in this loop. We always need to write these the first time but we might be
     // able to skip them in future iterations.
@@ -4497,6 +4519,9 @@ void RsrcProcMgr::ResolveImageCompute(
 
     // Restore the command buffer's state.
     pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
+
+    Pm4CmdBuffer* pPm4CmdBuffer = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
+    pPm4CmdBuffer->SetCsBltIndirectWriteMisalignedMdState(dstImage.HasMisalignedMetadata());
 
     FixupComputeResolveDst(pCmdBuffer, dstImage, regionCount, pRegions);
 

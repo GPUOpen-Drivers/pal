@@ -91,7 +91,7 @@ DD_RESULT {{ClassName}}::SetupDefaultsAndPopulateMap()
     return (result == DevDriver::Result::Success) ? DD_RESULT_SUCCESS : DD_RESULT_COMMON_OUT_OF_HEAP_MEMORY;
 }
 
-{% if not IsExperiments and (IsPalSettings or IsDxSettings or ComponentName == "Vulkan") %}
+{% if not IsExperiments and (IsPalSettings or IsDxSettings or ComponentName == "Vulkan" or ComponentName == "Dxx") %}
 // Read settings from registry for PAL settings.
 void {{ClassName}}::ReadSettings()
 {

@@ -35,8 +35,6 @@ class ISettingsRpcService
 public:
     virtual ~ISettingsRpcService() {}
 
-    static const DDRpcServerRegisterServiceInfo kServiceInfo;
-
     // Send user overrides of all components to the driver.
     virtual DD_RESULT SendAllUserOverrides(
         const void* pParamBuffer,
@@ -48,10 +46,17 @@ public:
         const DDByteWriter& writer
     ) = 0;
 
+    // Query currently unsupported experiments for all components from the driver.
+    virtual DD_RESULT GetUnsupportedExperiments(
+        const DDByteWriter& writer
+    ) = 0;
+
 protected:
     ISettingsRpcService() {}
 };
 
 DD_RESULT RegisterService(DDRpcServer hServer, ISettingsRpcService* pService);
+
+void UnRegisterService(DDRpcServer hServer);
 
 } // namespace SettingsRpc

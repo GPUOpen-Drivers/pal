@@ -38,7 +38,7 @@ extern "C" {
 
 /// Compile time version information
 #define DD_RPC_CLIENT_API_MAJOR_VERSION 1
-#define DD_RPC_CLIENT_API_MINOR_VERSION 0
+#define DD_RPC_CLIENT_API_MINOR_VERSION 1
 #define DD_RPC_CLIENT_API_PATCH_VERSION 0
 
 #define DD_RPC_CLIENT_API_VERSION_STRING DD_API_STRINGIFY_VERSION(DD_RPC_CLIENT_API_MAJOR_VERSION, \
@@ -89,6 +89,9 @@ typedef struct DDRpcClientCallInfo
 
     /// ByteWrier that will receive response data if the call is successful.
     const DDByteWriter* pResponseWriter;
+
+    /// Time (in milliseconds) to wait before data-sending operation times out in one try.
+    uint32_t            sendTimeoutMillis;
 } DDRpcClientCallInfo;
 
 /// Get version of the loaded library to check interface compatibility

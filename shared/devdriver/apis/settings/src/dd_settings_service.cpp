@@ -222,6 +222,73 @@ DD_RESULT SettingsRpcService::QueryAllCurrentValues(const DDByteWriter& writer)
             header.size = SafeIntegerCast<uint16_t, size_t>(compSize);
 
             result = writer.pfnWriteBytes(writer.pUserdata, &header, sizeof(header));
+
+            // Do not write the values buffer if there is nothing in it:
+            if ((result == DD_RESULT_SUCCESS) && (valuesBuf.Size() > 0))
+            {
+                result = writer.pfnWriteBytes(writer.pUserdata, valuesBuf.Data(), valuesBuf.Size());
+            }
+        }
+        valuesBuf.Clear();
+
+        if (result != DD_RESULT_SUCCESS)
+        {
+            break;
+        }
+    }
+
+    writer.pfnEnd(writer.pUserdata, result);
+
+    return result;
+}
+
+DD_RESULT SettingsRpcService::GetUnsupportedExperiments(const DDByteWriter& writer)
+{
+    DD_RESULT result = DD_RESULT_SUCCESS;
+
+    // Data are laid out in the following format:
+    //
+    // DDSettingsAllComponentsHeader
+    // DDSettingsComponentHeader
+    //   DD_SETTINGS_NAME_HASH
+    //   .. repeat for all the experiments in the component
+    // .. repeat for all components
+
+    writer.pfnBegin(writer.pUserdata, nullptr);
+
+    DDSettingsAllComponentsHeader allCompsHeader{};
+    allCompsHeader.version       = 1;
+    allCompsHeader.numComponents = SafeIntegerCast<uint16_t, size_t>(m_settingsComponents.Size());
+
+    writer.pfnWriteBytes(writer.pUserdata, &allCompsHeader, sizeof(allCompsHeader));
+
+    DynamicBuffer valuesBuf;
+    valuesBuf.Reserve(4 * 1024);
+    for (const auto& entry : m_settingsComponents)
+    {
+        size_t numValues = 0;
+
+        // Check for unsupported experiments, but skip writing anything if there weren't any for the component
+        result = entry.value->GetUnsupportedExperiments(valuesBuf, &numValues);
+        if ((result == DD_RESULT_SUCCESS) && (numValues > 0))
+        {
+            DDSettingsComponentHeader header{};
+
+            size_t compNameSize = strlen(entry.value->GetComponentName()) + 1; // + 1 for null-terminator
+            DD_ASSERT(compNameSize <= DD_SETTINGS_MAX_COMPONENT_NAME_SIZE);
+            compNameSize = (compNameSize > DD_SETTINGS_MAX_COMPONENT_NAME_SIZE) ? DD_SETTINGS_MAX_COMPONENT_NAME_SIZE :
+                                                                                  compNameSize;
+            memcpy(header.name, entry.value->GetComponentName(), compNameSize);
+            header.name[DD_SETTINGS_MAX_COMPONENT_NAME_SIZE - 1] = '\0';
+
+            header.blobHash = entry.value->GetSettingsBlobHash();
+
+            header.numValues = SafeIntegerCast<uint16_t, size_t>(numValues);
+
+            size_t compSize = valuesBuf.Size() + sizeof(header);
+            header.size     = SafeIntegerCast<uint16_t, size_t>(compSize);
+
+            result = writer.pfnWriteBytes(writer.pUserdata, &header, sizeof(header));
             if (result == DD_RESULT_SUCCESS)
             {
                 result = writer.pfnWriteBytes(writer.pUserdata, valuesBuf.Data(), valuesBuf.Size());

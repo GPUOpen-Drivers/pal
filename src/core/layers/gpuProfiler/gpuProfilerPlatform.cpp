@@ -26,6 +26,7 @@
 #include "core/layers/gpuProfiler/gpuProfilerCmdBuffer.h"
 #include "core/layers/gpuProfiler/gpuProfilerDevice.h"
 #include "core/layers/gpuProfiler/gpuProfilerPlatform.h"
+
 #include "palSysUtil.h"
 
 #include <cstring>
@@ -51,10 +52,12 @@ Platform::Platform(
                       (mode != GpuProfilerDisabled),
                       pNextPlatform),
     m_profilerMode(mode),
+    m_pLogger(nullptr),
     m_frameId(0),
     m_forceLogging(false),
     m_apiMajorVer(createInfo.apiMajorVer),
-    m_apiMinorVer(createInfo.apiMinorVer)
+    m_apiMinorVer(createInfo.apiMinorVer),
+    m_universalQueueSequence(0)
 {
 }
 
@@ -106,6 +109,13 @@ Result Platform::Create(
 Result Platform::Init()
 {
     return PlatformDecorator::Init();
+}
+
+// =====================================================================================================================
+// Called by device creating a universal queue to identify a unique creation order
+uint32 Platform::GetUniversalQueueSequenceNumber()
+{
+    return AtomicIncrement(&m_universalQueueSequence) - 1;
 }
 
 // =====================================================================================================================

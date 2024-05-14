@@ -193,6 +193,9 @@ public:
     virtual Result GetProperties(
         DeviceProperties* pInfo) const override;
 
+    Result GetDrmNodeProperties(
+        DrmNodeProperties* pInfo) const;
+
     Result QueryScreenModesForConnector(
         uint32      connectorId,
         uint32*     pModeCount,
@@ -593,9 +596,12 @@ public:
         MType            mtype) const;
 
     Result WaitBufferIdle(
-        amdgpu_bo_handle hBuffer,
-        uint64           timeoutNs,
-        bool*            pBufferBusy) const;
+        amdgpu_bo_handle         hBuffer,
+        std::chrono::nanoseconds timeout,
+        bool*                    pBufferBusy) const;
+
+    static int32 ConvertQueuePriorityToAmdgpuPriority(
+        QueuePriority priority);
 
     Result CreateCommandSubmissionContext(
         amdgpu_context_handle* pContextHandle,
@@ -606,6 +612,10 @@ public:
         amdgpu_context_handle* pContextHandle,
         QueuePriority          priority,
         bool                   isTmzOnly) const;
+
+    Result OverrideCommandSubmissionContextPriority(
+        amdgpu_context_handle* pContextHandle,
+        QueuePriority          overridePriority);
 
     Result DestroyCommandSubmissionContext(
         amdgpu_context_handle hContext);
@@ -645,24 +655,24 @@ public:
         const IQueueSemaphore*const* ppSemaphores,
         const uint64*                pValues,
         uint32                       flags,
-        uint64                       timeout) const override;
+        std::chrono::nanoseconds     timeout) const override;
 
     Result QueryFenceStatus(
-        struct amdgpu_cs_fence* pFence,
-        uint64                  timeoutNs) const;
+        struct amdgpu_cs_fence*  pFence,
+        std::chrono::nanoseconds timeout) const;
 
     Result WaitForOsFences(
-        amdgpu_cs_fence* pFences,
-        uint32           fenceCount,
-        bool             waitAll,
-        uint64           timeout) const;
+        amdgpu_cs_fence*         pFences,
+        uint32                   fenceCount,
+        bool                     waitAll,
+        std::chrono::nanoseconds timeout) const;
 
     Result WaitForSyncobjFences(
-        uint32*              pFences,
-        uint32               fenceCount,
-        uint64               timeout,
-        uint32               flags,
-        uint32*              pFirstSignaled) const;
+        uint32*                  pFences,
+        uint32                   fenceCount,
+        std::chrono::nanoseconds timeout,
+        uint32                   flags,
+        uint32*                  pFirstSignaled) const;
 
     Result ResetSyncObject(
         const uint32* pFences,
@@ -760,10 +770,10 @@ public:
         uint32                  flags) const;
 
     Result WaitSemaphoreValue(
-        amdgpu_semaphore_handle hSemaphore,
-        uint64                  value,
-        uint32                  flags,
-        uint64                  timeoutNs) const;
+        amdgpu_semaphore_handle  hSemaphore,
+        uint64                   value,
+        uint32                   flags,
+        std::chrono::nanoseconds timeout) const;
 
     bool IsWaitBeforeSignal(
         amdgpu_semaphore_handle hSemaphore,
@@ -853,9 +863,7 @@ public:
         return m_drmProcs.pfnAmdgpuCsSubmitRaw2isValid();
     }
 
-    bool SupportCsTmz() const {
-        return false;
-    }
+    bool SupportCsTmz() const { return false; }
 
     SemaphoreType GetSemaphoreType() const { return m_semType; }
     FenceType     GetFenceType()     const { return m_fenceType; }

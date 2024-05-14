@@ -442,14 +442,14 @@ Result MasterQueueSemaphore::ThreadReleaseBlockedQueues()
         {
             uint64 nextLast = lastPoint + 1;
             // wait for nextLast in waitThread to catch a signal event from kernel.
-            result = WaitSemaphoreValueAvailable(nextLast, UINT64_MAX);
+            result = WaitSemaphoreValueAvailable(nextLast, std::chrono::nanoseconds::max());
         }
         else
         {
             if (m_waitThreadEnd == false)
             {
                 //if m_blockedQueues is empty, we wait on Util::Semaphore wait.
-                result = m_threadNotify.Wait(UINT32_MAX);
+                result = m_threadNotify.Wait(std::chrono::milliseconds::max());
             }
         }
     }

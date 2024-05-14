@@ -430,7 +430,7 @@ Result UniversalRingSet::Init()
             m_regs.vgtHsOffchipParam.gfx103PlusExclusive.OFFCHIP_GRANULARITY =
                 m_pDevice->Parent()->Settings().offchipLdsBufferSize;
         }
-        else if (IsGfx9(device) || IsGfx101(device)
+        else if (IsGfx101(device)
            )
         {
             m_regs.vgtHsOffchipParam.most.OFFCHIP_GRANULARITY = m_pDevice->Parent()->Settings().offchipLdsBufferSize;
@@ -582,7 +582,7 @@ Result UniversalRingSet::Validate(
             {
                 m_regs.vgtHsOffchipParam.gfx103PlusExclusive.OFFCHIP_BUFFERING = offchipBuffering;
             }
-            else if (IsGfx9(device) || IsGfx10(m_gfxLevel)
+            else if (IsGfx10(m_gfxLevel)
                )
             {
                 m_regs.vgtHsOffchipParam.most.OFFCHIP_BUFFERING = offchipBuffering;
@@ -625,27 +625,17 @@ uint32* UniversalRingSet::WriteCommands(
     pCmdSpace += cmdUtil.BuildNonSampleEventWrite(VS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
     pCmdSpace += cmdUtil.BuildNonSampleEventWrite(VGT_FLUSH, EngineTypeUniversal, pCmdSpace);
 
-    if (m_gfxLevel == GfxIpLevel::GfxIp9)
-    {
-        pCmdSpace = pCmdStream->WriteSetSeqConfigRegs(NotGfx10::mmVGT_TF_MEMORY_BASE,
-                                                      Gfx09::mmVGT_TF_MEMORY_BASE_HI,
-                                                      &m_regs.vgtTfMemoryBaseLo,
-                                                      pCmdSpace);
-    }
-    else if (IsGfx10Plus(m_gfxLevel))
-    {
-        // The use of the "NotGfx10" namespace here is non-intuitive; for GFX10 parts, this is the same offset
-        // as the mmVGT_TF_MEMORY_BASE_UMD register.
-        pCmdSpace = pCmdStream->WriteSetOneConfigReg(NotGfx10::mmVGT_TF_MEMORY_BASE,
-                                                     m_regs.vgtTfMemoryBaseLo.u32All,
-                                                     pCmdSpace);
+    // The use of the "NotGfx10" namespace here is non-intuitive; for GFX10 parts, this is the same offset
+    // as the mmVGT_TF_MEMORY_BASE_UMD register.
+    pCmdSpace = pCmdStream->WriteSetOneConfigReg(NotGfx10::mmVGT_TF_MEMORY_BASE,
+                                                 m_regs.vgtTfMemoryBaseLo.u32All,
+                                                 pCmdSpace);
 
-        // Likewise, this isn't just a GFX10.1 register; this register exists (with and without the UMD extension)
-        // on all GFX10+ parts.
-        pCmdSpace = pCmdStream->WriteSetOneConfigReg(Gfx101::mmVGT_TF_MEMORY_BASE_HI_UMD,
-                                                     m_regs.vgtTfMemoryBaseHi.u32All,
-                                                     pCmdSpace);
-    }
+    // Likewise, this isn't just a GFX10.1 register; this register exists (with and without the UMD extension)
+    // on all GFX10+ parts.
+    pCmdSpace = pCmdStream->WriteSetOneConfigReg(Gfx101::mmVGT_TF_MEMORY_BASE_HI_UMD,
+                                                 m_regs.vgtTfMemoryBaseHi.u32All,
+                                                 pCmdSpace);
 
     pCmdSpace = pCmdStream->WriteSetOneConfigReg(NotGfx10::mmVGT_TF_RING_SIZE, m_regs.vgtTfRingSize.u32All, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneConfigReg(NotGfx10::mmVGT_HS_OFFCHIP_PARAM,

@@ -87,9 +87,17 @@ Result GraphicsShaderLibrary::PostInit(
         {
             ShaderLibStats shaderStats = {};
             UnpackShaderFunctionStats(pColExpSymbol, metadata, pReader, &shaderStats);
-            m_gfxLibInfo.colorExportProperty.vgprCount = shaderStats.common.numUsedVgprs;
-            m_gfxLibInfo.colorExportProperty.sgprCount = shaderStats.common.numUsedSgprs;
-            m_gfxLibInfo.colorExportProperty.scratchMemorySize = shaderStats.stackFrameSizeInBytes;
+            const char* pColExpDualSourceSymbol = Abi::PipelineAbiSymbolNameStrings[
+                static_cast<uint32>(Abi::PipelineSymbolType::PsColorExportDualSourceEntry)];
+            ShaderLibStats shaderDualSourceStats = {};
+            // If there is no dual source export shader, shader stats should be 0.
+            UnpackShaderFunctionStats(pColExpDualSourceSymbol, metadata, pReader, &shaderDualSourceStats);
+            m_gfxLibInfo.colorExportProperty.vgprCount =
+                static_cast<uint16>(Max(shaderStats.common.numUsedVgprs, shaderDualSourceStats.common.numUsedVgprs));
+            m_gfxLibInfo.colorExportProperty.sgprCount =
+                static_cast<uint16>(Max(shaderStats.common.numUsedSgprs, shaderDualSourceStats.common.numUsedSgprs));
+            m_gfxLibInfo.colorExportProperty.scratchMemorySize = Max(shaderStats.stackFrameSizeInBytes,
+                                                                     shaderDualSourceStats.stackFrameSizeInBytes);
         }
     }
 

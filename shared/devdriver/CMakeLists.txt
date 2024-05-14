@@ -23,7 +23,7 @@
  #
  #######################################################################################################################
 
-cmake_minimum_required(VERSION 3.13..3.21)
+cmake_minimum_required(VERSION 3.21)
 
 # Force the new CMP0091 policy: use the CMAKE_MSVC_RUNTIME_LIBRARY abstraction instead of placing MSVC runtime library flags in the default cache entries
 cmake_policy(SET CMP0091 NEW)
@@ -76,6 +76,7 @@ dd_bp(DD_OPT_ASSERTS_ENABLE ${DEVDRIVER_IS_TOP_LEVEL})
 
 add_subdirectory(third_party)
 add_subdirectory(imported)
+add_subdirectory(apis/apis)
 add_subdirectory(shared)
 add_subdirectory(apis)
 

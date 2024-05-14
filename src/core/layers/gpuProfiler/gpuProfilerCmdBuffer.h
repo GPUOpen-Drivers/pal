@@ -147,13 +147,17 @@ public:
         const GlobalScissorParams& params) override;
     virtual void CmdBarrier(
         const BarrierInfo& barrierInfo) override;
-    virtual void OptimizeAcqRelReleaseInfo(
-        BarrierType barrierType,
-        uint32*     pStageMask,
-        uint32*     pAccessMask) const override
+    virtual bool OptimizeAcqRelReleaseInfo(
+        BarrierType   barrierType,
+        const IImage* pImage,
+        uint32*       pSrcStageMask,
+        uint32*       pSrcAccessMask,
+        uint32*       pDstStageMask,
+        uint32*       pDstAccessMask) const override
     {
         // The optimization works in PAL core level. If any replay layer is enabled, this function should immediately
         // return the original pipe and cache info, and drop the call from propagating to next layer.
+        return false;
     }
     virtual void CmdWaitRegisterValue(
         uint32      registerOffset,

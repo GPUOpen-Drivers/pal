@@ -61,9 +61,6 @@ static SqttGfxIpLevel GfxipToSqttGfxIpLevel(
     case Pal::GfxIpLevel::None:
         sqttLevel = SQTT_GFXIP_LEVEL_NONE;
         break;
-    case Pal::GfxIpLevel::GfxIp9:
-        sqttLevel = SQTT_GFXIP_LEVEL_GFXIP_9;
-        break;
     case Pal::GfxIpLevel::GfxIp10_1:
         sqttLevel = SQTT_GFXIP_LEVEL_GFXIP_10_1;
         break;
@@ -92,9 +89,6 @@ SqttVersion GfxipToSqttVersion(
     {
     case Pal::GfxIpLevel::None:
         version = SQTT_VERSION_NONE;
-        break;
-    case Pal::GfxIpLevel::GfxIp9:
-        version = SQTT_VERSION_2_3;
         break;
     case Pal::GfxIpLevel::GfxIp10_1:
     case Pal::GfxIpLevel::GfxIp10_3:
@@ -2159,6 +2153,7 @@ Result GpaSession::GetSqttTraceData(
                 pTraceInfo->shaderEngine = seLayout.shaderEngine;
                 pTraceInfo->computeUnit  = seLayout.computeUnit;
                 pTraceInfo->sqttVersion  = GfxipToSqttVersion(m_deviceProps.gfxLevel);
+                pTraceInfo->bufferSize   = seLayout.dataSize;
             }
 
             // keep a copy of the size originally passed by the user because the value will be overwitten
@@ -3950,7 +3945,7 @@ Result GpaSession::AcquirePerfExperiment(
                         counterInfo.block             = pCounters[i].block;
                         counterInfo.eventId           = pCounters[i].eventId;
                         counterInfo.instance          = pCounters[i].instance;
-                        counterInfo.df.eventQualifier = pCounters[i].df.eventQualifier;
+                        counterInfo.subConfig.u32All  = pCounters[i].subConfig.u32All;
 
                         result = pExperiment->AddCounter(counterInfo);
                     }
@@ -4064,7 +4059,7 @@ Result GpaSession::AcquirePerfExperiment(
                         pCounterInfo->block             = pCounters[i].block;
                         pCounterInfo->eventId           = pCounters[i].eventId;
                         pCounterInfo->instance          = pCounters[i].instance;
-                        pCounterInfo->df.eventQualifier = pCounters[i].df.eventQualifier;
+                        pCounterInfo->subConfig.u32All  = pCounters[i].subConfig.u32All;
                     }
 
                     result = pExperiment->AddSpmTrace(spmCreateInfo);
@@ -4097,10 +4092,10 @@ Result GpaSession::AcquirePerfExperiment(
                     for (uint32 i = 0; i < numStreamingCounters; i++)
                     {
                         pCounterInfo = &(static_cast<PerfCounterInfo*>(pMem)[i]);
-                        pCounterInfo->df.eventQualifier = pCounters[i].df.eventQualifier;
                         pCounterInfo->block             = GpuBlock::DfMall;
                         pCounterInfo->eventId           = pCounters[i].eventId;
                         pCounterInfo->instance          = pCounters[i].instance;
+                        pCounterInfo->subConfig.u32All  = pCounters[i].subConfig.u32All;
                     }
 
                     result = pExperiment->AddDfSpmTrace(dfSpmCreateInfo);

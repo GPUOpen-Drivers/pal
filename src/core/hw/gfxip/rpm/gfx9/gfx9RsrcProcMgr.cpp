@@ -428,10 +428,13 @@ void RsrcProcMgr::CmdCloneImageData(
     copyRegion.dstOffset = dstParent.GetBoundGpuMemory().Offset();
     copyRegion.copySize  = hasMetadata ? srcImgMemLayout.metadataHeaderOffset : dstParent.GetGpuMemSize();
 
-    pCmdBuffer->CmdCopyMemory(*srcParent.GetBoundGpuMemory().Memory(),
-                              *dstParent.GetBoundGpuMemory().Memory(),
-                              1,
-                              &copyRegion);
+    CopyMemoryCs(pCmdBuffer,
+                 *srcParent.GetBoundGpuMemory().Memory(),
+                 *dstParent.GetBoundGpuMemory().Memory(),
+                 1,
+                 &copyRegion);
+
+    static_cast<Pm4CmdBuffer*>(pCmdBuffer)->SetCsBltDirectWriteMisalignedMdState(dstImage.HasMisalignedMetadata());
 }
 
 // =====================================================================================================================
@@ -772,11 +775,6 @@ void RsrcProcMgr::FastDepthStencilClearComputeCommon(
         pCmdSpace  = pPm4CmdBuf->WriteWaitCsIdle(pCmdSpace);
         pCmdSpace += m_cmdUtil.BuildAcquireMemGeneric(acquireInfo, pCmdSpace);
         pCmdStream->CommitCommands(pCmdSpace);
-
-        if (engineType == EngineTypeUniversal)
-        {
-            pCmdStream->SetContextRollDetected<false>();
-        }
     }
 }
 
@@ -855,7 +853,6 @@ bool RsrcProcMgr::InitMaskRam(
         (dstImage.HasDccStateMetaData(range)    ||
          dstImage.HasFastClearMetaData(range)   ||
          dstImage.HasHiSPretestsMetaData()      ||
-         dstImage.HasWaTcCompatZRangeMetaData() ||
          dstImage.HasFastClearEliminateMetaData(range)))
     {
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
@@ -962,19 +959,6 @@ bool RsrcProcMgr::InitMaskRam(
         usedCompute = true;
     }
 
-    // The metadata is used as a COND_EXEC condition, init ZRange meta data with 0(e.g, depth value is 1.0 by default)
-    // to indicate DB_Z_INFO.ZRANGE_PRECISION register filed should not be overwrote via this workaround metadata.
-    if (dstImage.HasWaTcCompatZRangeMetaData() && pParentImg->HasDepthPlane(range))
-    {
-        uint32* pCmdSpace = pCmdStream->ReserveCommands();
-        const Pm4Predicate packetPredicate = static_cast<Pm4Predicate>(
-                        pPm4CmdBuf->GetPm4CmdBufState().flags.packetPredicate);
-
-        pCmdSpace = dstImage.UpdateWaTcCompatZRangeMetaData(range, 1.0f, packetPredicate, pCmdSpace);
-
-        pCmdStream->CommitCommands(pCmdSpace);
-    }
-
     if (dstImage.HasDccStateMetaData(range))
     {
         // We need to initialize the Image's DCC state metadata to indicate that the Image can become DCC compressed
@@ -1009,10 +993,9 @@ bool RsrcProcMgr::InitMaskRam(
 
 // =====================================================================================================================
 // Some blts need to use GFXIP-specific algorithms to pick the proper graphics pipeline. The basePipeline is the first
-// graphics state in a series of states that vary only on target format and target index.
-const Pal::GraphicsPipeline* RsrcProcMgr::GetGfxPipelineByTargetIndexAndFormat(
+// graphics state in a series of states that vary only on target format.
+const Pal::GraphicsPipeline* RsrcProcMgr::GetGfxPipelineByFormat(
     RpmGfxPipeline basePipeline,
-    uint32         targetIndex,
     SwizzledFormat format
     ) const
 {
@@ -1020,7 +1003,7 @@ const Pal::GraphicsPipeline* RsrcProcMgr::GetGfxPipelineByTargetIndexAndFormat(
     PAL_ASSERT((basePipeline == Gfx11ResolveGraphics_32ABGR) ||
                (basePipeline == Copy_32ABGR)                 ||
                (basePipeline == ResolveFixedFunc_32ABGR)     ||
-               (basePipeline == SlowColorClear0_32ABGR)      ||
+               (basePipeline == SlowColorClear_32ABGR)      ||
                (basePipeline == ScaledCopy2d_32ABGR)         ||
                (basePipeline == ScaledCopy3d_32ABGR));
 
@@ -1033,7 +1016,7 @@ const Pal::GraphicsPipeline* RsrcProcMgr::GetGfxPipelineByTargetIndexAndFormat(
     const int32 pipelineOffset = ExportStateMapping[exportFormat];
     PAL_ASSERT(pipelineOffset >= 0);
 
-    return GetGfxPipeline(static_cast<RpmGfxPipeline>(basePipeline + pipelineOffset + targetIndex * NumExportFormats));
+    return GetGfxPipeline(static_cast<RpmGfxPipeline>(basePipeline + pipelineOffset));
 }
 
 // =====================================================================================================================
@@ -1155,20 +1138,7 @@ bool RsrcProcMgr::ExpandDepthStencil(
         // Restore the compute state here as the "initHtile" function is going to push the compute state again
         // for its own purposes.
         pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
-
-        // GFX10 supports shader-writes to an image with mask-ram; i.e., the HW automagically kept the mask-ram
-        // and the image data in sync, so there's no need to mark the hTile data as expanded.  Doing so would
-        // lead to corruption if compressed shader writes were enabled.
-        if (IsGfx9(device))
-        {
-            // Mark all the hTile data as fully expanded
-            InitHtile(pCmdBuffer, pComputeCmdStream, *pGfxImage, range);
-
-            // And wait for that to finish...
-            pComputeCmdSpace = pComputeCmdStream->ReserveCommands();
-            pComputeCmdSpace = pCmdBuffer->WriteWaitCsIdle(pComputeCmdSpace);
-            pComputeCmdStream->CommitCommands(pComputeCmdSpace);
-        }
+        pCmdBuffer->SetCsBltIndirectWriteMisalignedMdState(image.HasMisalignedMetadata());
 
         usedCompute = true;
     }
@@ -1203,12 +1173,9 @@ bool RsrcProcMgr::WillDecompressColorWithCompute(
     const SubresRange&  range
     ) const
 {
-    const bool  supportsComputePath = gfxImage.SupportsComputeDecompress(range);
-    const auto* pSubResInfo         = gfxImage.Parent()->SubresourceInfo(range.startSubres);
-    const auto& addrSettings        = gfxImage.GetAddrSettings(pSubResInfo);
+    const bool supportsComputePath = gfxImage.SupportsComputeDecompress(range);
 
     return ((pCmdBuffer->GetEngineType() == EngineTypeCompute)           ||
-            AddrMgr2::IsSwizzleModeComputeOnly(addrSettings.swizzleMode) ||
             (gfxImage.Parent()->IsRenderTarget() == false)               ||
             (supportsComputePath && TestAnyFlagSet(Image::UseComputeExpand, UseComputeExpandAlways)));
 }
@@ -1312,12 +1279,9 @@ void RsrcProcMgr::HwlFastColorClear(
 
     // When the fast clear color depends on the clear reg, we must store the color for later FCE and update the
     // current clear color.
-    // On GFX9, the CB will always use the value in the fast clear reg even for other clear codes. So the clear
-    // reg must always match the fast clear color.
     // On GFX10 and later, the CB will get the fast clear value from the location indicated by the clear code.
     // So the clear reg should only be updated when we use ClearColorReg.
-    if ((fastClearCode == static_cast<uint8>(Gfx9DccClearColor::ClearColorCompToReg)) ||
-        (IsGfx9(*m_pDevice->Parent())))
+    if (fastClearCode == static_cast<uint8>(Gfx9DccClearColor::ClearColorCompToReg))
     {
         // Stash the clear color with the image so that it can be restored later.
         pCmdSpace = gfx9Image.UpdateColorClearMetaData(clearRange,
@@ -1497,11 +1461,9 @@ void RsrcProcMgr::HwlFixupCopyDstImageMetaData(
             const auto&       gfx9SrcImage = static_cast<const Gfx9::Image&>(*pSrcImage->GetGfxImage());
             const auto*       pSrcFmask    = gfx9SrcImage.GetFmask();
             const auto&       srcBoundMem  = pSrcImage->GetBoundGpuMemory();
-            const IGpuMemory* pSrcMemory   = reinterpret_cast<const IGpuMemory*>(srcBoundMem.Memory());
 
             const auto*       pDstFmask    = gfx9DstImage.GetFmask();
             const auto&       dstBoundMem  = dstImage.GetBoundGpuMemory();
-            const IGpuMemory* pDstMemory   = reinterpret_cast<const IGpuMemory*>(dstBoundMem.Memory());
 
             // Our calculation of "srcCopySize" below assumes that fmask memory comes before the cmask memory in
             // our orginzation of the image data.
@@ -1528,7 +1490,14 @@ void RsrcProcMgr::HwlFixupCopyDstImageMetaData(
             memcpyRegion.dstOffset = dstBoundMem.Offset() + pDstFmask->MemoryOffset();
             memcpyRegion.copySize  = srcCopySize;
 
-            pCmdBuffer->CmdCopyMemory(*pSrcMemory, *pDstMemory, 1, &memcpyRegion);
+            CopyMemoryCs(pCmdBuffer,
+                         *srcBoundMem.Memory(),
+                         *dstBoundMem.Memory(),
+                         1,
+                         &memcpyRegion);
+
+            Pm4CmdBuffer* pPm4CmdBuffer = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
+            pPm4CmdBuffer->SetCsBltDirectWriteMisalignedMdState(dstImage.HasMisalignedMetadata());
         }
         else
         {
@@ -1654,18 +1623,8 @@ void RsrcProcMgr::UpdateBoundFastClearDepthStencil(
                 pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Graphics));
 
             uint32* pCmdSpace = pStream->ReserveCommands();
-
             pCmdSpace = pView->WriteUpdateFastClearDepthStencilValue(metaDataClearFlags, depth, stencil,
-                pStream, pCmdSpace);
-
-            // Re-write the ZRANGE_PRECISION value for the waTcCompatZRange workaround. Does not require a COND_EXEC
-            // checking the metadata because we know the fast clear value here. And we only need to Re-write for the
-            // case that clear Z to 0.0f
-            if ((depth == 0.0f) && ((metaDataClearFlags & HtilePlaneDepth) != 0))
-            {
-                pCmdSpace = pView->UpdateZRangePrecision(false, pStream, pCmdSpace);
-            }
-
+                                                                     pStream, pCmdSpace);
             pStream->CommitCommands(pCmdSpace);
         }
     }
@@ -1691,7 +1650,7 @@ void RsrcProcMgr::PreComputeDepthStencilClearSync(
 
         ImgBarrier imgBarrier = {};
 
-        imgBarrier.srcStageMask  = PipelineStageEarlyDsTarget | PipelineStageLateDsTarget;
+        imgBarrier.srcStageMask  = PipelineStageDsTarget;
         // Fast clear path may have CP to update metadata state/values, wait at BLT/ME stage for safe.
         imgBarrier.dstStageMask  = PipelineStageBlt;
         imgBarrier.srcAccessMask = CoherDepthStencilTarget;
@@ -1806,16 +1765,6 @@ void RsrcProcMgr::HwlDepthStencilClear(
                                                                    stencil,
                                                                    packetPredicate,
                                                                    pCmdSpace);
-
-                    // Update the metadata for the waTcCompatZRange workaround
-                    if (gfx9Image.HasWaTcCompatZRangeMetaData() && ((currentClearFlag & HtilePlaneDepth) != 0))
-                    {
-                        pCmdSpace = gfx9Image.UpdateWaTcCompatZRangeMetaData(pRanges[idx],
-                                                                            depth,
-                                                                            packetPredicate,
-                                                                            pCmdSpace);
-                    }
-
                     pCmdStream->CommitCommands(pCmdSpace);
                 }
 
@@ -2186,12 +2135,12 @@ void RsrcProcMgr::HwlResolveImageGraphics(
         colorViewInfo.swizzledFormat = dstFormat;
 
         // Only switch to the appropriate graphics pipeline if it differs from the previous region's pipeline.
-        const Pal::GraphicsPipeline* const pPipeline = GetGfxPipelineByTargetIndexAndFormat(
-                                                            RpmGfxPipeline::Gfx11ResolveGraphics_32ABGR, 0, dstFormat);
+        const Pal::GraphicsPipeline* const pPipeline = GetGfxPipelineByFormat(
+                                                            RpmGfxPipeline::Gfx11ResolveGraphics_32ABGR, dstFormat);
         if (pPreviousPipeline != pPipeline)
         {
             pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, pPipeline, InternalApiPsoHash, });
-            pCmdBuffer->CmdOverwriteRbPlusFormatForBlits(dstFormat, 0);
+            pCmdBuffer->CmdOverwriteColorExportInfoForBlits(dstFormat, 0);
             pPreviousPipeline = pPipeline;
         }
 
@@ -2315,6 +2264,9 @@ void RsrcProcMgr::HwlResolveImageGraphics(
     // Restore original command buffer state.
     pCmdBuffer->CmdRestoreGraphicsStateInternal();
 
+    Pm4CmdBuffer* pPm4CmdBuffer = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
+    pPm4CmdBuffer->SetGfxBltDirectWriteMisalignedMdState(dstImage.HasMisalignedMetadata());
+
     FixupLateExpandShaderResolveSrc(pCmdBuffer,
         srcImage,
         srcImageLayout,
@@ -2393,10 +2345,8 @@ void RsrcProcMgr::HwlFixupResolveDstImage(
     bool                      computeResolve
     ) const
 {
-    const Image& gfx9Image                      = static_cast<const Image&>(dstImage);
-    const auto&  dstCreateInfo                  = dstImage.Parent()->GetImageCreateInfo();
-    const auto&  device                         = *m_pDevice->Parent();
-    bool         canDoFixupForDstImage          = true;
+    const Image& gfx9Image             = static_cast<const Image&>(dstImage);
+    bool         canDoFixupForDstImage = true;
 
     if (dstImage.Parent()->IsDepthStencilTarget() == true)
     {
@@ -2417,11 +2367,11 @@ void RsrcProcMgr::HwlFixupResolveDstImage(
     else
     {
         canDoFixupForDstImage = (ImageLayoutToColorCompressionState(gfx9Image.LayoutToColorCompressionState(),
-                                                                     dstImageLayout) == ColorCompressed);
+                                                                    dstImageLayout) == ColorCompressed);
     }
 
-    // For Gfx9, we need do fixup after fixfuction or compute shader resolve.
-    if (canDoFixupForDstImage && ((computeResolve == false) || IsGfx9(device)))
+    // For Gfx10, we only need do fixup after fixed function resolve.
+    if (canDoFixupForDstImage && (computeResolve == false))
     {
         BarrierInfo      barrierInfo = {};
         Pal::SubresRange range       = {};
@@ -2672,9 +2622,6 @@ void RsrcProcMgr::DepthStencilClearGraphics(
             acquireInfo.flags.gfx10DbWbInv  = 1;
 
             pCmdSpace += m_cmdUtil.BuildAcquireMemGfxSurfSync(acquireInfo, pCmdSpace);
-
-            // acquire_mem packets can cause a context roll.
-            pCmdStream->SetContextRollDetected<false>();
         }
 
         pCmdStream->CommitCommands(pCmdSpace);
@@ -2835,6 +2782,9 @@ void RsrcProcMgr::DepthStencilClearGraphics(
 
     // Restore original command buffer state and destroy the depth/stencil state.
     pCmdBuffer->CmdRestoreGraphicsStateInternal(trackBltActiveFlags);
+
+    Pm4CmdBuffer* pPm4CmdBuffer = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
+    pPm4CmdBuffer->SetGfxBltDirectWriteMisalignedMdState(dstImage.HasMisalignedMetadata());
 }
 
 // =====================================================================================================================
@@ -3009,32 +2959,15 @@ void RsrcProcMgr::DccDecompressOnCompute(
         image.UpdateDccStateMetaData(pCmdStream, range, false, engineType, PredDisable);
     }
 
-    Pm4CmdBuffer* pPm4CmdBuf = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
+    Pm4CmdBuffer* pPm4CmdBuffer = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
 
     // Make sure that the decompressed image data has been written before we start fixing up DCC memory.
     pComputeCmdSpace = pComputeCmdStream->ReserveCommands();
-    pComputeCmdSpace = pPm4CmdBuf->WriteWaitCsIdle(pComputeCmdSpace);
+    pComputeCmdSpace = pPm4CmdBuffer->WriteWaitCsIdle(pComputeCmdSpace);
     pComputeCmdStream->CommitCommands(pComputeCmdSpace);
 
     pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
-
-    if (IsGfx10Plus(device))
-    {
-        // The SRD is setup so that writing the decompressed value into the destination image will automagically
-        // update DCC memory with the correct initial value.  So there's no need to do it again.
-    }
-    else
-    {
-        // Put DCC memory itself back into a "fully decompressed" state, since only compressed fragments needed
-        // to be written, as initialization of dcc memory will write to uncompressed fragment and hence
-        // they don't need to be written here. Change from init to fastclear.
-        ClearDcc(pCmdBuffer, pCmdStream, image, range, Gfx9Dcc::DecompressedValue, DccClearPurpose::FastClear, true);
-
-        // And let the DCC fixup finish as well
-        pComputeCmdSpace = pComputeCmdStream->ReserveCommands();
-        pComputeCmdSpace = pPm4CmdBuf->WriteWaitCsIdle(pComputeCmdSpace);
-        pComputeCmdStream->CommitCommands(pComputeCmdSpace);
-    }
+    pPm4CmdBuffer->SetCsBltIndirectWriteMisalignedMdState(image.HasMisalignedMetadata());
 }
 
 // =====================================================================================================================
@@ -3206,6 +3139,9 @@ void RsrcProcMgr::ClearFmask(
     info.pSrdCallback   = ClearFmaskCreateSrdCallback;
 
     ClearImageCs(pCmdBuffer, info, *dstImage.Parent(), clearRange, 0, nullptr);
+
+    Pm4CmdBuffer* pPm4CmdBuffer = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
+    pPm4CmdBuffer->SetCsBltDirectWriteMisalignedMdState(dstImage.HasMisalignedMetadata());
 }
 
 // =====================================================================================================================
@@ -3334,6 +3270,10 @@ void RsrcProcMgr::FmaskColorExpand(
             // Execute the dispatch.
             pCmdBuffer->CmdDispatch(threadGroups);
         }
+
+        Pm4CmdBuffer* pPm4CmdBuffer = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
+        pPm4CmdBuffer->SetCsBltDirectWriteMisalignedMdState(image.HasMisalignedMetadata());
+        pPm4CmdBuffer->SetCsBltIndirectWriteMisalignedMdState(image.HasMisalignedMetadata());
     }
 
     pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
@@ -3383,8 +3323,7 @@ void RsrcProcMgr::CommitBeginEndGfxCopy(
     CmdStream*  pGfxCmdStream = reinterpret_cast<CmdStream*>(pCmdStream);
     uint32*     pCmdSpace     = pCmdStream->ReserveCommands();
 
-    PAL_ASSERT((m_pDevice->Parent()->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9) ||
-               (m_pDevice->Parent()->ChipProperties().gfx9.validPaScTileSteeringOverride));
+    PAL_ASSERT(m_pDevice->Parent()->ChipProperties().gfx9.validPaScTileSteeringOverride);
 
     pCmdSpace = pGfxCmdStream->WriteSetOneContextReg(mmPA_SC_TILE_STEERING_OVERRIDE,
                                                      paScTileSteeringOverride,
@@ -3469,7 +3408,6 @@ void RsrcProcMgr::PfpCopyMetadataHeader(
     pCmdSpace += CmdUtil::BuildDmaData<false>(dmaDataInfo, pCmdSpace);
     pCmdStream->CommitCommands(pCmdSpace);
 
-    pPm4CmdBuf->SetCpBltState(true);
     pPm4CmdBuf->SetCpBltWriteCacheState(true);
 }
 
@@ -3551,6 +3489,28 @@ void RsrcProcMgr::HwlImageToImageMissingPixelCopy(
     if (UsePixelCopyForCmdCopyImage(srcImage, dstImage, region))
     {
         CmdCopyImageToImageViaPixels(static_cast<Pm4CmdBuffer*>(pCmdBuffer), srcImage, dstImage, region);
+    }
+}
+
+// ====================================================================================================================
+// The only potential CP DMA copy usage on image is CmdCopyMemory() calls in CmdCopyMemoryFromToImageViaPixels() and
+// CmdCopyImageToImageViaPixels(). Wait CP DMA copy done post these copies to simplify the barrier BLT flags management.
+// e.g. Pm4CmdBufferState.flags.cpBltActive would be for buffer BLT only.
+static void SyncImageCpDmaCopy(
+    const CmdUtil& cmdUtil,
+    Pm4CmdBuffer*  pCmdBuffer)
+{
+    if (pCmdBuffer->GetPm4CmdBufState().flags.cpBltActive)
+    {
+        const auto cmdStreamEngine = pCmdBuffer->IsGraphicsSupported() ? CmdBufferEngineSupport::Graphics
+                                                                       : CmdBufferEngineSupport::Compute;
+        CmdStream* pCmdStream = static_cast<CmdStream*>(pCmdBuffer->GetCmdStreamByEngine(cmdStreamEngine));
+
+        uint32* pCmdSpace = pCmdStream->ReserveCommands();
+        pCmdSpace += cmdUtil.BuildWaitDmaData(pCmdSpace);
+        pCmdStream->CommitCommands(pCmdSpace);
+
+        pCmdBuffer->SetCpBltState(false);
     }
 }
 
@@ -3643,6 +3603,9 @@ void RsrcProcMgr::CmdCopyMemoryFromToImageViaPixels(
             }
         } // End loop through "y" pixels
     } // end loop through the slices
+
+    // Wait image CP DMA blt done explicitly to simplify Pm4CmdBufferState.flags.cpBltActive handling.
+    SyncImageCpDmaCopy(m_cmdUtil, pCmdBuffer);
 }
 
 // ====================================================================================================================
@@ -3653,16 +3616,12 @@ bool RsrcProcMgr::UsePixelCopy(
 {
     bool usePixelCopy = true;
 
-    // gfx10+
-    if (image.GetDevice()->ChipProperties().gfxLevel > GfxIpLevel::GfxIp9)
+    const AddrSwizzleMode swizzleMode =
+                static_cast<AddrSwizzleMode>(image.GetGfxImage()->GetSwTileMode(image.SubresourceInfo(0)));
+
+    if (AddrMgr2::IsNonBcViewCompatible(swizzleMode, image.GetImageCreateInfo().imageType))
     {
-        const ImageCreateInfo& createInfo  = image.GetImageCreateInfo();
-        const AddrSwizzleMode  swizzleMode =
-                    static_cast<AddrSwizzleMode>(image.GetGfxImage()->GetSwTileMode(image.SubresourceInfo(0)));
-        if (AddrMgr2::IsNonBcViewCompatible(swizzleMode, createInfo.imageType))
-        {
-            usePixelCopy = false;
-        }
+        usePixelCopy = false;
     }
 
     if (usePixelCopy)
@@ -3783,6 +3742,9 @@ void RsrcProcMgr::CmdCopyImageToImageViaPixels(
     {
         CmdCopyMemory(pCmdBuffer, *pSrcMem, *pDstMem, newRegionsIdx, &newRegions[0]);
     }
+
+    // Wait image CP DMA blt done explicitly to simplify Pm4CmdBufferState.flags.cpBltActive handling.
+    SyncImageCpDmaCopy(m_cmdUtil, pCmdBuffer);
 }
 
 // ====================================================================================================================
@@ -4172,6 +4134,9 @@ void Gfx10RsrcProcMgr::ClearDccCompute(
     }
 
     pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData, trackBltActiveFlags);
+
+    Pm4CmdBuffer* pPm4CmdBuffer = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
+    pPm4CmdBuffer->SetCsBltDirectWriteMisalignedMdState(dstImage.HasMisalignedMetadata());
 }
 
 // =====================================================================================================================
@@ -4378,7 +4343,7 @@ void Gfx10RsrcProcMgr::InitHtileData(
                                hTileUserData);
 
     bool  wroteLastMipLevel = false;
-    for (uint32 mipIdx = 0; mipIdx < range.numMips; mipIdx++)
+    for (uint32 mipIdx = 0; ((mipIdx < range.numMips) && (wroteLastMipLevel == false)); mipIdx++)
     {
         const uint32  absMip       = mipIdx + range.startSubres.mipLevel;
         const auto&   hTileMipInfo = pHtile->GetAddrMipInfo(absMip);
@@ -4428,6 +4393,9 @@ void Gfx10RsrcProcMgr::InitHtileData(
     } // end loop through mip levels
 
     pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
+
+    Pm4CmdBuffer* pPm4CmdBuffer = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
+    pPm4CmdBuffer->SetCsBltDirectWriteMisalignedMdState(dstImage.HasMisalignedMetadata());
 }
 
 // =====================================================================================================================
@@ -4459,7 +4427,7 @@ void Gfx10RsrcProcMgr::WriteHtileData(
 
     const Pal::ComputePipeline* pPipeline = nullptr;
 
-    for (uint32 mipIdx = 0; mipIdx < range.numMips; mipIdx++)
+    for (uint32 mipIdx = 0; ((mipIdx < range.numMips) && (wroteLastMipLevel == false)); mipIdx++)
     {
         const uint32  absMip       = mipIdx + range.startSubres.mipLevel;
         const auto&   hTileMipInfo = pHtile->GetAddrMipInfo(absMip);
@@ -4608,6 +4576,9 @@ void Gfx10RsrcProcMgr::WriteHtileData(
     } // end loop through mip levels
 
     pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData, trackBltActiveFlags);
+
+    Pm4CmdBuffer* pPm4CmdBuffer = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
+    pPm4CmdBuffer->SetCsBltDirectWriteMisalignedMdState(dstImage.HasMisalignedMetadata());
 }
 
 // =====================================================================================================================
@@ -4876,6 +4847,9 @@ void Gfx10RsrcProcMgr::InitCmask(
                   offset,
                   numSlices * cMaskAddrOut.sliceSize,
                   expandedInitVal);
+
+    Pm4CmdBuffer* pPm4CmdBuffer = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
+    pPm4CmdBuffer->SetCsBltDirectWriteMisalignedMdState(image.HasMisalignedMetadata());
 }
 
 // =====================================================================================================================
@@ -5244,6 +5218,7 @@ bool Gfx10RsrcProcMgr::CopyImageCsUseMsaaMorton(
 void Gfx10RsrcProcMgr::LaunchOptimizedVrsCopyShader(
     GfxCmdBuffer*                 pCmdBuffer,
     const Gfx10DepthStencilView*  pDsView,
+    bool                          isClientDsv,
     const Extent3d&               depthExtent,
     const Pal::Image*             pSrcVrsImg,
     const Gfx9Htile*const         pHtile
@@ -5434,6 +5409,13 @@ void Gfx10RsrcProcMgr::LaunchOptimizedVrsCopyShader(
     }
 
     pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
+
+    // For internal VRS DSV, it's always directly accessed and no need track the status here.
+    if (isClientDsv)
+    {
+        Pm4CmdBuffer* pPm4CmdBuffer = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
+        pPm4CmdBuffer->SetCsBltDirectWriteMisalignedMdState(pHtile->GetImage().HasMisalignedMetadata());
+    }
 }
 
 // =====================================================================================================================
@@ -5445,6 +5427,7 @@ void Gfx10RsrcProcMgr::LaunchOptimizedVrsCopyShader(
 void Gfx10RsrcProcMgr::CopyVrsIntoHtile(
     GfxCmdBuffer*                 pCmdBuffer,
     const Gfx10DepthStencilView*  pDsView,
+    bool                          isClientDsv,
     const Extent3d&               depthExtent,
     const Pal::Image*             pSrcVrsImg
     ) const
@@ -5479,7 +5462,7 @@ void Gfx10RsrcProcMgr::CopyVrsIntoHtile(
     pCmdStream->CommitCommands(pCmdSpace);
 
     {
-        LaunchOptimizedVrsCopyShader(pCmdBuffer, pDsView, depthExtent, pSrcVrsImg, pHtile);
+        LaunchOptimizedVrsCopyShader(pCmdBuffer, pDsView, isClientDsv, depthExtent, pSrcVrsImg, pHtile);
     }
 
     // Step 3: The internal post-CS barrier. We must wait for the copy shader to finish. We invalidated the DB's
@@ -5812,6 +5795,9 @@ void Gfx10RsrcProcMgr::CmdResolvePrtPlusImage(
     } // end loop through the regions
 
     pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
+
+    Pm4CmdBuffer* pPm4CmdBuffer = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
+    pPm4CmdBuffer->SetCsBltIndirectWriteMisalignedMdState(dstPalImage.HasMisalignedMetadata());
 }
 
 // =====================================================================================================================

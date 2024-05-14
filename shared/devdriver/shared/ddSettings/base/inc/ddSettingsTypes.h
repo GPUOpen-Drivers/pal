@@ -28,7 +28,7 @@
 // TODO: remove this once when we remove from ddSettingsServiceTypes.h
 #define GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION 42
 
-#include "../../../apis/settings/inc/dd_settings_api.h"
+#include "../../../apis/apis/dd_settings_api.h"
 #include <ddPlatform.h>
 #include "protocols/ddSettingsServiceTypes.h"
 

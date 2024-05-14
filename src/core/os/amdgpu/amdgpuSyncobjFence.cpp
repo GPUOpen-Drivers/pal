@@ -32,9 +32,12 @@
 #include "palMutex.h"
 #include "palAutoBuffer.h"
 
+#include <algorithm>
 #include <time.h>
 
 using namespace Util;
+using namespace std::chrono;
+using namespace std::chrono_literals;
 
 namespace Pal
 {
@@ -92,7 +95,7 @@ Result SyncobjFence::WaitForFences(
     uint32                  fenceCount,
     const Pal::Fence*const* ppFenceList,
     bool                    waitAll,
-    uint64                  timeout
+    nanoseconds             timeout
     ) const
 {
     PAL_ASSERT((fenceCount > 0) && (ppFenceList != nullptr));
@@ -130,21 +133,14 @@ Result SyncobjFence::WaitForFences(
     if (result == Result::NotReady)
     {
         struct timespec startTime = {};
-        uint64 currentTimeNs = 0;
-        uint64 absTimeoutNs = 0;
         uint32 firstSignaledFence = UINT32_MAX;
-        uint32 flags= 0;
+        uint32 flags = 0;
 
-        ComputeTimeoutExpiration(&startTime, 0);
-        currentTimeNs = startTime.tv_sec * 1000000000ull + startTime.tv_nsec;
-        timeout = Util::Min(UINT64_MAX - currentTimeNs, timeout);
-        absTimeoutNs = currentTimeNs + timeout;
+        const uint64 absTimeoutNs = ComputeAbsTimeout(timeout.count());
+        PAL_ASSERT(absTimeoutNs <= nanoseconds::max().count());
+        const nanoseconds absTimeout{ absTimeoutNs };
 
-        // definition of drm_timeout_abs_to_jiffies (int64_t timeout_nsec) require input to be int64_t,
-        // so trim down the max value to be INT64_MAX, otherwise drm_timeout_abs_to_jiffies compute wrong output.
-        absTimeoutNs= Util::Min(absTimeoutNs, (uint64)INT64_MAX);
-
-        //fix even if the syncobj's submit is still in m_batchedCmds.
+        // fix even if the syncobj's submit is still in m_batchedCmds.
         flags |= DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT;
         if (waitAll)
         {
@@ -155,7 +151,7 @@ Result SyncobjFence::WaitForFences(
         {
             result = m_device.WaitForSyncobjFences(&fenceList[0],
                                                    count,
-                                                   absTimeoutNs,
+                                                   absTimeout,
                                                    flags,
                                                    &firstSignaledFence);
         }
@@ -269,13 +265,12 @@ bool SyncobjFence::IsSyncobjSignaled(
     Result result = Result::Success;
     bool ret = false;
     uint32 count = 1;
-    uint64 timeout = 0;
     uint32 flags = DRM_SYNCOBJ_WAIT_FLAGS_WAIT_ALL;
     uint32 firstSignaledFence = UINT32_MAX;
 
     result = m_device.WaitForSyncobjFences(&syncObj,
                                            count,
-                                           timeout,
+                                           0ns,
                                            flags,
                                            &firstSignaledFence);
     if ((result == Result::Success) && (firstSignaledFence == 0))

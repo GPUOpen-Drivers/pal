@@ -139,6 +139,10 @@ public:
     /// @param [in] pJsonConfig  Configuration data formatted as json and stored as DevDriver's StructuredValue object
     virtual void OnConfigUpdated(DevDriver::StructuredValue* pJsonConfig) = 0;
 
+    /// Called by the associated session to notify the controller that a trace has been requested and it can take
+    /// control of the TraceSession when desired.
+    virtual Pal::Result OnTraceRequested() = 0;
+
     /// Called by TraceSession in to indicate that GPU work is required to begin a trace on the indicated GPU
     ///
     /// The controller MUST return a valid command buffer that is ready to record commands for the target GPU

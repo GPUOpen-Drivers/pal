@@ -59,11 +59,12 @@ Result Fence::Reset()
 
 // =====================================================================================================================
 Result Fence::WaitForFences(
-    const Pal::Device&      device,
-    uint32                  fenceCount,
-    const Pal::Fence*const* ppFenceList,
-    bool                    waitAll,
-    uint64                  timeout) const
+    const Pal::Device&       device,
+    uint32                   fenceCount,
+    const Pal::Fence*const*  ppFenceList,
+    bool                     waitAll,
+    std::chrono::nanoseconds timeout
+    ) const
 {
     return Result::Success;
 }

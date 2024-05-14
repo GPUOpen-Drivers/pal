@@ -69,6 +69,20 @@ public:
         {}
     };
 
+    struct UnsupportedExperiment
+    {
+        DD_SETTINGS_NAME_HASH hash;
+
+        // An opaque offset representing a settings component. Users must not modify this value.
+        size_t offset;
+
+        UnsupportedExperiment()
+            : hash{},
+              offset{ 0 }
+        {
+        }
+    };
+
 private:
     const uint8_t* m_pBuf;
     size_t         m_bufSize;
@@ -97,6 +111,13 @@ public:
     /// To get the first value, the pointed to object must be zero-initialized.
     /// @return true if a valid value is found, false otherwise.
     bool NextValue(const Component& component, Value* pValue);
+
+    /// Get the next experiment support info of the current component in the settings data.
+    ///
+    /// @param[in,out] pExp A pointer to an existing \ref SettingsIterator.UnsupportedExperiment to receive the next support data.
+    /// To get the first value, the pointed to object must be zero-initialized.
+    /// @return true if a valid support info is found, false otherwise.
+    bool NextUnsupportedExperiment(const Component& component, UnsupportedExperiment* pExp);
 };
 
 } // namespace DevDriver

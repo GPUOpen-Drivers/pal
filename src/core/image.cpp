@@ -109,8 +109,7 @@ Image::Image(
     m_gpuMemAlignment(0),
     m_pPrivateScreen(nullptr),
     m_privateScreenImageId(0),
-    m_privateScreenIndex(0),
-    m_preferGraphicsScaledCopy(false)
+    m_privateScreenIndex(0)
 {
     m_imageInfo.internalCreateInfo     = internalCreateInfo;
     m_imageInfo.resolveMethod.u32All   = 0;

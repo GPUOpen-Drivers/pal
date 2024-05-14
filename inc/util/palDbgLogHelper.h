@@ -31,7 +31,6 @@
 
 #pragma once
 
-#if PAL_ENABLE_LOGGING
 #include "palUtil.h"
 
 #if defined(__unix__)
@@ -83,6 +82,7 @@ enum class OriginationType : uint32
     Assert,          ///< Originating from PAL_ASSERT* macros.
     Telemetry,       ///< Used for msgs regarding crash dump and offline analysis
     PipelineCompiler,///< Originating from pipeline compiler
+    GpuProfiler,     ///< Originating from the GpuProfiler PAL layer
     Count
 };
 
@@ -107,16 +107,17 @@ enum OriginationTypeFlags : uint32
     OriginationTypeFlagAlert            = (1ul << uint32(OriginationType::Alert)),
     OriginationTypeFlagAssert           = (1ul << uint32(OriginationType::Assert)),
     OriginationTypeFlagTelemetry        = (1ul << uint32(OriginationType::Telemetry)),
-    OriginationTypeFlagPipelineCompiler = (1ul << uint32(OriginationType::PipelineCompiler))
+    OriginationTypeFlagPipelineCompiler = (1ul << uint32(OriginationType::PipelineCompiler)),
+    OriginationTypeFlagGpuProfiler      = (1ul << uint32(OriginationType::GpuProfiler))
 };
 
-constexpr uint32 AllOriginationTypes = uint32(OriginationTypeFlags::OriginationTypeFlagUnknown)    |
-                                       uint32(OriginationTypeFlags::OriginationTypeFlagDebugPrint) |
-                                       uint32(OriginationTypeFlags::OriginationTypeFlagAlert)      |
-                                       uint32(OriginationTypeFlags::OriginationTypeFlagAssert)     |
-                                       uint32(OriginationTypeFlags::OriginationTypeFlagTelemetry)  |
-                                       uint32(OriginationTypeFlags::OriginationTypeFlagPipelineCompiler);
-
+constexpr uint32 AllOriginationTypes = uint32(OriginationTypeFlags::OriginationTypeFlagUnknown)          |
+                                       uint32(OriginationTypeFlags::OriginationTypeFlagDebugPrint)       |
+                                       uint32(OriginationTypeFlags::OriginationTypeFlagAlert)            |
+                                       uint32(OriginationTypeFlags::OriginationTypeFlagAssert)           |
+                                       uint32(OriginationTypeFlags::OriginationTypeFlagTelemetry)        |
+                                       uint32(OriginationTypeFlags::OriginationTypeFlagPipelineCompiler) |
+                                       uint32(OriginationTypeFlags::OriginationTypeFlagGpuProfiler);
 /// Expected maximum number of characters in the client tag.
 /// A client tag indicates the client that logs a message.
 constexpr uint32 ClientTagSize = 8;
@@ -177,4 +178,3 @@ extern void DbgVLog(
     va_list         argList);
 
 } // Util
-#endif

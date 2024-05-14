@@ -14,3 +14,10 @@ target_include_directories(rapidjson INTERFACE "include")
 # See this blog for more details about these warnings:
 #       https://mariusbancila.ro/blog/2018/07/09/visual-studio-warning-macros-for-c17-deprecated-features/
 target_compile_definitions(rapidjson INTERFACE "_SILENCE_CXX17_ITERATOR_BASE_CLASS_DEPRECATION_WARNING")
+
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 8.0)
+        # We can't change third party libraries' code, so disable triggering warnings instead.
+        target_compile_options(rapidjson INTERFACE -Wno-class-memaccess)
+    endif()
+endif()

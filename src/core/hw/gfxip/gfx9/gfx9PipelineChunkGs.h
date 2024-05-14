@@ -59,28 +59,22 @@ struct GsRegs
 
     struct Context
     {
-        regVGT_GS_MAX_VERT_OUT    vgtGsMaxVertOut;
-        regVGT_GS_INSTANCE_CNT    vgtGsInstanceCnt;
-        regVGT_ESGS_RING_ITEMSIZE vgtEsGsRingItemSize;
-        regVGT_GSVS_RING_ITEMSIZE vgtGsVsRingItemSize;
-        regVGT_GS_PER_VS          vgtGsPerVs;
-        regVGT_GSVS_RING_OFFSET_1 vgtGsVsRingOffset1;
-        regVGT_GSVS_RING_OFFSET_2 vgtGsVsRingOffset2;
-        regVGT_GSVS_RING_OFFSET_3 vgtGsVsRingOffset3;
-        regVGT_GS_OUT_PRIM_TYPE   vgtGsOutPrimType;
-        regVGT_GS_VERT_ITEMSIZE   vgtGsVertItemSize0;
-        regVGT_GS_VERT_ITEMSIZE_1 vgtGsVertItemSize1;
-        regVGT_GS_VERT_ITEMSIZE_2 vgtGsVertItemSize2;
-        regVGT_GS_VERT_ITEMSIZE_3 vgtGsVertItemSize3;
-
-        union
-        {
-            regVGT_GS_MAX_PRIMS_PER_SUBGROUP vgtGsMaxPrimsPerSubgroup;
-            regGE_MAX_OUTPUT_PER_SUBGROUP   geMaxOutputPerSubgroup;
-        };
-
-        regGE_NGG_SUBGRP_CNTL geNggSubgrpCntl;
-        regPA_CL_NGG_CNTL     paClNggCntl;
+        regVGT_GS_MAX_VERT_OUT        vgtGsMaxVertOut;
+        regVGT_GS_INSTANCE_CNT        vgtGsInstanceCnt;
+        regVGT_ESGS_RING_ITEMSIZE     vgtEsGsRingItemSize;
+        regVGT_GSVS_RING_ITEMSIZE     vgtGsVsRingItemSize;
+        regVGT_GS_PER_VS              vgtGsPerVs;
+        regVGT_GSVS_RING_OFFSET_1     vgtGsVsRingOffset1;
+        regVGT_GSVS_RING_OFFSET_2     vgtGsVsRingOffset2;
+        regVGT_GSVS_RING_OFFSET_3     vgtGsVsRingOffset3;
+        regVGT_GS_OUT_PRIM_TYPE       vgtGsOutPrimType;
+        regVGT_GS_VERT_ITEMSIZE       vgtGsVertItemSize0;
+        regVGT_GS_VERT_ITEMSIZE_1     vgtGsVertItemSize1;
+        regVGT_GS_VERT_ITEMSIZE_2     vgtGsVertItemSize2;
+        regVGT_GS_VERT_ITEMSIZE_3     vgtGsVertItemSize3;
+        regGE_MAX_OUTPUT_PER_SUBGROUP geMaxOutputPerSubgroup;
+        regGE_NGG_SUBGRP_CNTL         geNggSubgrpCntl;
+        regPA_CL_NGG_CNTL             paClNggCntl;
     } context;
 
     struct Dynamic

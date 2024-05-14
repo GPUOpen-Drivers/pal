@@ -25,6 +25,8 @@
 
 target_sources(pal PRIVATE
     CMakeLists.txt
+    wayland-dmabuf-client-protocol.h
+    wayland-dmabuf-protocol.inc
     wayland-drm-client-protocol.h
     wayland-drm-protocol.inc
 )

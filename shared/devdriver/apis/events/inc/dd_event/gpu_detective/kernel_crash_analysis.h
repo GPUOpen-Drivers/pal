@@ -118,6 +118,7 @@ struct MmrRegisterInfo
     uint32_t data;
 };
 
+// Note: Must exactly match KmdMmrRegistersEventData in KmdEventDefs.h
 struct MmrRegistersData
 {
     uint32_t version;
@@ -182,15 +183,28 @@ struct GrbmStatusSeRegs
     uint32_t    grbmStatusSe5;
 };
 
-// NOTE: WaveInfo member variables must match the WaveInfo structure in kmdEventDefs.h
+// Note: Must exactly match KmdWaveInfo in KmdEventDefs.h
 struct WaveInfo
 {
     uint32_t    version;
-    uint32_t    waveId;
-    uint32_t    simdId;
-    uint32_t    wgpId;
-    uint32_t    saId;
-    uint32_t    seId;
+
+    union
+    {
+        struct
+        {
+            unsigned int    waveId  : 5;
+            unsigned int            : 3;
+            unsigned int    simdId  : 2;
+            unsigned int    wgpId   : 4;
+            unsigned int            : 2;
+            unsigned int    saId    : 1;
+            unsigned int            : 1;
+            unsigned int    seId    : 4;
+            unsigned int    reserved: 10;
+        };
+        uint32_t        shaderId;
+    };
+
     uint32_t    sqWaveStatus;
     uint32_t    sqWavePcHi;
     uint32_t    sqWavePcLo;
@@ -213,6 +227,7 @@ enum HangType : uint32_t
     Unknown       = 2,
 };
 
+// Note: Must exactly match KmdShaderWavesEventData in kmdEventDefs.h
 struct ShaderWaves
 {
     // structure version

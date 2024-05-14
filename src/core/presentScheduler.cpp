@@ -28,7 +28,9 @@
 #include "core/queue.h"
 #include "core/swapChain.h"
 #include "palIntrusiveListImpl.h"
+
 using namespace Util;
+using namespace std::chrono_literals;
 
 namespace Pal
 {
@@ -396,7 +398,7 @@ Result PresentScheduler::WaitIdle()
             pJob->SetType(PresentJobType::Notify);
             EnqueueJob(pJob);
 
-            result = m_workerThreadNotify.Wait(UINT32_MAX);
+            result = m_workerThreadNotify.Wait(std::chrono::milliseconds::max());
         }
     }
 
@@ -458,7 +460,7 @@ void PresentScheduler::RunWorkerThread()
     while (true)
     {
         // Sleep until we have a job to process.
-        const Result result = m_activeJobSemaphore.Wait(UINT32_MAX);
+        const Result result = m_activeJobSemaphore.Wait(std::chrono::milliseconds::max());
         PAL_ASSERT(IsErrorResult(result) == false);
 
         if (result == Result::Success)
@@ -502,9 +504,8 @@ void PresentScheduler::RunWorkerThread()
 
                     if (isDxgiPresent == false)
                     {
-                        constexpr uint64 Timeout    = 2000000000;
-                        IFence*const     pFence     = pJob->PriorWorkFence();
-                        const Result     waitResult = m_pDevice->WaitForFences(1, &pFence, true, Timeout);
+                        IFence*const pFence     = pJob->PriorWorkFence();
+                        const Result waitResult = m_pDevice->WaitForFences(1, &pFence, true, 2s);
                         PAL_ALERT(IsErrorResult(waitResult) || (waitResult == Result::Timeout));
                     }
 #endif

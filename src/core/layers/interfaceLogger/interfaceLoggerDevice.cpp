@@ -395,10 +395,10 @@ Result Device::ResetFences(
 
 // =====================================================================================================================
 Result Device::WaitForFences(
-    uint32              fenceCount,
-    const IFence*const* ppFences,
-    bool                waitAll,
-    uint64              timeout
+    uint32                   fenceCount,
+    const IFence*const*      ppFences,
+    bool                     waitAll,
+    std::chrono::nanoseconds timeout
     ) const
 {
     auto*const pPlatform = static_cast<Platform*>(m_pPlatform);
@@ -423,7 +423,7 @@ Result Device::WaitForFences(
 
         pLogContext->EndList();
         pLogContext->KeyAndValue("waitAll", waitAll);
-        pLogContext->KeyAndValue("timeout", timeout);
+        pLogContext->KeyAndValue("timeout", uint64(timeout.count()));
         pLogContext->EndInput();
 
         pLogContext->BeginOutput();

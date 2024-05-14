@@ -497,6 +497,21 @@ DD_RESULT ddSocketSend(
     const void* pData,
     size_t      dataSize)
 {
+    return ddSocketSendWithTimeout(hSocket, pData, dataSize, kRetryTimeoutMs);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+DD_RESULT ddSocketSendWithTimeout(
+    DDSocket    hSocket,
+    const void* pData,
+    size_t      dataSize,
+    uint32_t    timeoutMillis)
+{
+    if (timeoutMillis == 0)
+    {
+        timeoutMillis = kRetryTimeoutMs;
+    }
+
     DD_RESULT result = DD_RESULT_SUCCESS;
     const auto* pBytes = static_cast<const uint8_t*>(pData);
     size_t bytesLeft = dataSize;
@@ -506,7 +521,7 @@ DD_RESULT ddSocketSend(
     {
         size_t bytesSent = 0;
 
-        result = ddSocketSendRaw(hSocket, pBytes, bytesLeft, kRetryTimeoutMs, &bytesSent);
+        result = ddSocketSendRaw(hSocket, pBytes, bytesLeft, timeoutMillis, &bytesSent);
 
         if (result == DD_RESULT_SUCCESS)
         {
@@ -530,6 +545,21 @@ DD_RESULT ddSocketReceive(
     void*    pBuffer,
     size_t   bufferSize)
 {
+    return ddSocketReceiveWithTimeout(hSocket, pBuffer, bufferSize, kRetryTimeoutMs);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+DD_RESULT ddSocketReceiveWithTimeout(
+    DDSocket hSocket,
+    void*    pBuffer,
+    size_t   bufferSize,
+    uint32_t timeoutMillis)
+{
+    if (timeoutMillis == 0)
+    {
+        timeoutMillis = kRetryTimeoutMs;
+    }
+
     DD_RESULT result = DD_RESULT_SUCCESS;
     auto* pBytes = static_cast<uint8_t*>(pBuffer);
     size_t bytesLeft = bufferSize;
@@ -539,7 +569,7 @@ DD_RESULT ddSocketReceive(
     {
         size_t bytesRecv = 0;
 
-        result = ddSocketReceiveRaw(hSocket, pBytes, bytesLeft, kRetryTimeoutMs, &bytesRecv);
+        result = ddSocketReceiveRaw(hSocket, pBytes, bytesLeft, timeoutMillis, &bytesRecv);
 
         if (result == DD_RESULT_SUCCESS)
         {

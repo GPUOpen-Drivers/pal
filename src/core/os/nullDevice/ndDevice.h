@@ -110,7 +110,7 @@ public:
         const IQueueSemaphore*const* ppSemaphores,
         const uint64*                pValues,
         uint32                       flags,
-        uint64                       timeout) const override;
+        std::chrono::nanoseconds     timeout) const override;
 
     virtual Result CreateSwapChain(
         const SwapChainCreateInfo& createInfo,

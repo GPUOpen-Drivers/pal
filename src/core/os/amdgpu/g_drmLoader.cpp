@@ -3510,6 +3510,7 @@ Result DrmLoader::Init(
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_syncobj_query2", &m_funcs.pfnAmdgpuCsSyncobjQuery2);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_ctx_create2", &m_funcs.pfnAmdgpuCsCtxCreate2);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_ctx_create3", &m_funcs.pfnAmdgpuCsCtxCreate3);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_ctx_override_priority", &m_funcs.pfnAmdgpuCsCtxOverridePriority);
         }
 
         // resolve symbols from libdrm.so.2

@@ -489,6 +489,12 @@ typedef int32 (*AmdgpuCsCtxCreate3)(
             uint32_t                  flags,
             amdgpu_context_handle*    pContextHandle);
 
+typedef int32 (*AmdgpuCsCtxOverridePriority)(
+            amdgpu_device_handle      hDevice,
+            amdgpu_context_handle     hContext,
+            int32                     masterFd,
+            uint32                    priority);
+
 // symbols from libdrm.so.2
 typedef drmVersionPtr (*DrmGetVersion)(
             int   fd);
@@ -1196,6 +1202,12 @@ struct DrmLoaderFuncs
     bool pfnAmdgpuCsCtxCreate3isValid() const
     {
         return (pfnAmdgpuCsCtxCreate3 != nullptr);
+    }
+
+    AmdgpuCsCtxOverridePriority       pfnAmdgpuCsCtxOverridePriority;
+    bool pfnAmdgpuCsCtxOverridePriorityisValid() const
+    {
+        return (pfnAmdgpuCsCtxOverridePriority != nullptr);
     }
 
     DrmGetVersion                     pfnDrmGetVersion;
@@ -2353,6 +2365,17 @@ public:
     bool pfnAmdgpuCsCtxCreate3isValid() const
     {
         return (m_pFuncs->pfnAmdgpuCsCtxCreate3 != nullptr);
+    }
+
+    int32 pfnAmdgpuCsCtxOverridePriority(
+            amdgpu_device_handle      hDevice,
+            amdgpu_context_handle     hContext,
+            int32                     masterFd,
+            uint32                    priority) const;
+
+    bool pfnAmdgpuCsCtxOverridePriorityisValid() const
+    {
+        return (m_pFuncs->pfnAmdgpuCsCtxOverridePriority != nullptr);
     }
 
     drmVersionPtr pfnDrmGetVersion(

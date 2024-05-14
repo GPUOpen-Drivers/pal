@@ -61,11 +61,11 @@ public:
     virtual Result Reset() override;
 
     virtual Result WaitForFences(
-        const Pal::Device&      device,
-        uint32                  fenceCount,
-        const Pal::Fence*const* ppFenceList,
-        bool                    waitAll,
-        uint64                  timeout) const override;
+        const Pal::Device&       device,
+        uint32                   fenceCount,
+        const Pal::Fence*const*  ppFenceList,
+        bool                     waitAll,
+        std::chrono::nanoseconds timeout) const override;
 
 private:
 

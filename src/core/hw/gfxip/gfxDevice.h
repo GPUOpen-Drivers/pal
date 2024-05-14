@@ -339,24 +339,6 @@ static void SetSeqPackedRegPairLookup(
     }
 }
 
-enum LateAllocVsMode : uint32
-{
-    LateAllocVsDisable = 0x00000000,
-    LateAllocVsInvalid = 0xFFFFFFFF,
-
-};
-
-enum SmallPrimFilterCntl : uint32
-{
-    SmallPrimFilterDisable = 0x00000000,
-    SmallPrimFilterEnablePoint = 0x00000001,
-    SmallPrimFilterEnableLine = 0x00000002,
-    SmallPrimFilterEnableTriangle = 0x00000004,
-    SmallPrimFilterEnableRectangle = 0x00000008,
-    SmallPrimFilterEnableAll = 0x0000000F,
-
-};
-
 // Represents the maximum number of slots in the array of reference counters in the device, used for counting number
 // of gfx cmd buffers that skipped a fast clear eliminate blit and the image that it was skipped for. The counter
 // is stored with the device as images and command buffers can have separate lifetimes.
@@ -651,10 +633,9 @@ public:
         ADDR_CREATE_FLAGS*   pCreateFlags,
         ADDR_REGISTER_VALUE* pRegValue) const = 0;
 
-    virtual bool IsImageFormatOverrideNeeded(
-        const ImageCreateInfo& imageCreateInfo,
-        ChNumFormat*           pFormat,
-        uint32*                pPixelsPerBlock) const = 0;
+    static bool IsImageFormatOverrideNeeded(
+        ChNumFormat* pFormat,
+        uint32*      pPixelsPerBlock);
 
     virtual void IncreaseMsaaHistogram(uint32 samples) {  }
     virtual void DecreaseMsaaHistogram(uint32 samples) {  }
@@ -741,14 +722,6 @@ public:
     }
 #endif
 
-    bool   UseFixedLateAllocVsLimit() const { return m_useFixedLateAllocVsLimit; }
-    uint32 LateAllocVsLimit() const { return m_lateAllocVsLimit; }
-
-    uint32 GetSmallPrimFilter() const { return m_smallPrimFilter; }
-    bool WaEnableDccCacheFlushAndInvalidate() const { return m_waEnableDccCacheFlushAndInvalidate; }
-    bool WaTcCompatZRange() const { return m_waTcCompatZRange; }
-    bool DegeneratePrimFilter() const { return m_degeneratePrimFilter; }
-
     virtual void PatchPipelineInternalSrdTable(
         void*       pDstSrdTable,
         const void* pSrcSrdTable,
@@ -813,45 +786,27 @@ protected:
 
     uint32 GetCuEnableMaskInternal(uint32 disabledCuMmask, uint32 enabledCuMaskSetting) const;
 
-    explicit GfxDevice(Device* pDevice, Pal::RsrcProcMgr* pRsrcProcMgr, uint32 frameCountRegOffset);
+    explicit GfxDevice(Device* pDevice, Pal::RsrcProcMgr* pRsrcProcMgr);
     virtual ~GfxDevice();
 
     static bool IsValidTypedBufferView(const BufferViewInfo& info);
 
     Device*const       m_pParent;
     Pal::RsrcProcMgr*  m_pRsrcProcMgr;
-
-#if DEBUG
-    // Sometimes it is useful to temporarily hang the GPU during debugging to dump command buffers, etc.  This piece of
-    // memory is used as a global location we can wait on using a WAIT_REG_MEM packet.  We only include this in debug
-    // builds because we don't want to add extra overhead to release drivers.
-    BoundGpuMemory  m_debugStallGpuMem;
-#endif
-
-    // Memory of the frame count, will be incremented and written to register when doing present.
-    BoundGpuMemory m_frameCountGpuMem;
-
-    // Command buffers for submitting the frame count. One buffer for each queue type.
-    // Will be initialized when we get the buffer for the first time.
-    GfxCmdBuffer* m_pFrameCountCmdBuffer[QueueType::QueueTypeCount];
-
-    // Offset of the register to write frame count. Will be 0 if the register is not supported.
-    const uint32  m_frameCntReg;
-
-    bool    m_useFixedLateAllocVsLimit;
-    uint32  m_lateAllocVsLimit;
-    uint32  m_smallPrimFilter;
-    bool    m_waEnableDccCacheFlushAndInvalidate;
-    bool    m_waTcCompatZRange;
-    bool    m_degeneratePrimFilter;
-
-    ISettingsLoader*         m_pSettingsLoader;
+    ISettingsLoader*   m_pSettingsLoader;
 
     // The new DevDriver based settings. As more gfx settings are converted, this variable will be renamed to replace
     // m_pSettingsLoader.
     DevDriver::SettingsBase* m_pDdSettingsLoader;
 
     PAL_ALIGN(32) uint32 m_fastClearImageRefs[MaxNumFastClearImageRefs];
+
+#if DEBUG
+    // Sometimes it is useful to temporarily hang the GPU during debugging to dump command buffers, etc.  This piece of
+    // memory is used as a global location we can wait on using a WAIT_REG_MEM packet.  We only include this in debug
+    // builds because we don't want to add extra overhead to release drivers.
+    BoundGpuMemory m_debugStallGpuMem;
+#endif
 
     // Store GPU memory and offsets for compute/graphics trap handlers and trap buffers.  Trap handlers are client-
     // installed hardware shaders that can be executed based on exceptions occurring in the main shader or in other

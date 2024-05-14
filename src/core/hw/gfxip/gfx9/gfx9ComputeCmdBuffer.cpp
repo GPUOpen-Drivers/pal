@@ -1923,31 +1923,6 @@ void ComputeCmdBuffer::CmdUpdateSqttTokenMask(
 }
 
 // =====================================================================================================================
-void ComputeCmdBuffer::AddPerPresentCommands(
-    gpusize frameCountGpuAddr,
-    uint32  frameCntReg)
-{
-    uint32* pCmdSpace = m_cmdStream.ReserveCommands();
-
-    pCmdSpace += m_cmdUtil.BuildAtomicMem(AtomicOp::IncUint32,
-                                          frameCountGpuAddr,
-                                          UINT32_MAX,
-                                          pCmdSpace);
-
-    pCmdSpace += m_cmdUtil.BuildCopyData(EngineTypeCompute,
-                                         0,
-                                         dst_sel__mec_copy_data__perfcounters,
-                                         frameCntReg,
-                                         src_sel__mec_copy_data__tc_l2,
-                                         frameCountGpuAddr,
-                                         count_sel__mec_copy_data__32_bits_of_data,
-                                         wr_confirm__mec_copy_data__do_not_wait_for_confirmation,
-                                         pCmdSpace);
-
-    m_cmdStream.CommitCommands(pCmdSpace);
-}
-
-// =====================================================================================================================
 // Bind the last state set on the specified command buffer
 void ComputeCmdBuffer::InheritStateFromCmdBuf(
     const Pm4CmdBuffer* pCmdBuffer)
@@ -2029,6 +2004,11 @@ uint32* ComputeCmdBuffer::WriteWaitEop(
 
     SetCsBltState(false);
     SetPrevCmdBufInactive();
+
+    if (TestAllFlagsSet(glxSync, SyncGl2WbInv))
+    {
+        ClearBltWriteMisalignMdState();
+    }
 
     return pCmdSpace;
 }

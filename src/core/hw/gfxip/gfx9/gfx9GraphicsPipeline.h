@@ -79,7 +79,6 @@ struct GfxPipelineRegs
         regVGT_SHADER_STAGES_EN         vgtShaderStagesEn;
         regVGT_GS_MODE                  vgtGsMode;
         regVGT_REUSE_OFF                vgtReuseOff;
-        regCB_SHADER_MASK               cbShaderMask;
         regPA_SU_VTX_CNTL               paSuVtxCntl;
         regPA_CL_VTE_CNTL               paClVteCntl;
         regPA_SC_EDGERULE               paScEdgerule;
@@ -125,6 +124,7 @@ struct GfxPipelineRegs
         // These registers may be modified by pipeline dynamic state and are written at draw-time validation.
         regVGT_TF_PARAM          vgtTfParam;
         regCB_COLOR_CONTROL      cbColorControl;
+        regCB_SHADER_MASK        cbShaderMask;
         regCB_TARGET_MASK        cbTargetMask;
         regPA_CL_CLIP_CNTL       paClClipCntl;
         regPA_SC_LINE_CNTL       paScLineCntl;
@@ -196,6 +196,7 @@ public:
     regSPI_VS_OUT_CONFIG SpiVsOutConfig() const { return m_regs.other.spiVsOutConfig; }
     regSPI_PS_IN_CONTROL SpiPsInControl() const { return m_regs.other.spiPsInControl; }
     regCB_TARGET_MASK CbTargetMask() const { return m_regs.other.cbTargetMask; }
+    regCB_SHADER_MASK CbShaderMask() const { return m_regs.other.cbShaderMask; }
     regCB_COLOR_CONTROL CbColorControl() const { return m_regs.other.cbColorControl; }
     regDB_RENDER_OVERRIDE DbRenderOverride() const { return m_regs.other.dbRenderOverride; }
     regPA_SU_VTX_CNTL PaSuVtxCntl() const { return m_regs.context.paSuVtxCntl; }
@@ -248,16 +249,28 @@ public:
         const DynamicGraphicsShaderInfos& graphicsInfo) const;
 
     uint32* WriteContextCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const;
-    uint32* WriteConfigCommandsGfx10(CmdStream* pCmdStream, uint32* pCmdSpace) const;
+    uint32* WriteConfigCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const;
 
     uint32 GetContextRegHash() const { return m_contextRegHash; }
     uint32 GetRbplusRegHash(bool dual) const { return dual ? m_rbplusRegHashDual : m_rbplusRegHash; }
     uint32 GetConfigRegHash() const { return m_configRegHash; }
 
-    gpusize GetColorExportAddr() const { return m_chunkVsPs.ColorExportGpuVa(); }
+    gpusize GetColorExportAddr(
+        ColorExportShaderType shaderType = ColorExportShaderType::Default) const
+    {
+        return m_chunkVsPs.ColorExportGpuVa(shaderType);
+    }
     void OverrideRbPlusRegistersForRpm(
         SwizzledFormat           swizzledFormat,
         uint32                   slot,
+        regSX_PS_DOWNCONVERT*    pSxPsDownconvert,
+        regSX_BLEND_OPT_EPSILON* pSxBlendOptEpsilon,
+        regSX_BLEND_OPT_CONTROL* pSxBlendOptControl) const;
+
+    void OverrideMrtMappingRegistersForRpm(
+        uint32                   slot,
+        regCB_SHADER_MASK*       pCbShaderMask,
+        regCB_TARGET_MASK*       pCbTargetMask,
         regSX_PS_DOWNCONVERT*    pSxPsDownconvert,
         regSX_BLEND_OPT_EPSILON* pSxBlendOptEpsilon,
         regSX_BLEND_OPT_CONTROL* pSxBlendOptControl) const;
@@ -412,7 +425,7 @@ private:
         uint8 u8All;
     } m_flags;
 
-    uint32 m_strmoutVtxStride[MaxStreamOutTargets];
+    uint16 m_strmoutVtxStride[MaxStreamOutTargets];
     uint32 m_primAmpFactor; // Only valid on GFX10 and later with NGG enabled.
 
     // Each pipeline object contains all possibly pipeline chunk sub-objects, even though not every pipeline will

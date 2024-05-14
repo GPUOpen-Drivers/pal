@@ -205,13 +205,15 @@ public:
         IQueueSemaphore* pQueueSemaphore,
         uint64           value) override;
 
+    Result SubmitFrameEndCmdBuf();
+
     virtual Result PresentDirect(
         const PresentDirectInfo& presentInfo) override;
     virtual Result PresentSwapChain(
         const PresentSwapChainInfo& presentInfo) override;
 
     virtual Result Delay(
-        float delay) override;
+        Util::fmilliseconds delay) override;
     virtual Result RemapVirtualMemoryPages(
         uint32                         rangeCount,
         const VirtualMemoryRemapRange* pRanges,
@@ -231,6 +233,8 @@ public:
 
     // Check if the logItem contains a valid GPA sample.
     bool HasValidGpaSample(const LogItem* pLogItem, GpuUtil::GpaSampleType type) const;
+
+    Result BeginNextFrame(bool samplingEnabled);
 
 private:
     virtual ~Queue();
@@ -259,8 +263,6 @@ private:
     Result InternalSubmit(
         const MultiSubmitInfo& submitInfo,
         bool                   releaseObjects);
-
-    Result BeginNextFrame(bool samplingEnabled);
 
     void LogQueueCall(QueueCallId callId);
 

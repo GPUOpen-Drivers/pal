@@ -60,6 +60,7 @@
 
 using namespace Util;
 using namespace Pal::AddrMgr1;
+using namespace std::chrono_literals;
 
 namespace Pal
 {
@@ -891,6 +892,21 @@ Result Device::GetProperties(
 
     return result;
 }
+// =====================================================================================================================
+// Fills out a structure with details on the DRM node properties of this GPU object
+Result Device::GetDrmNodeProperties(
+        DrmNodeProperties* pInfo) const
+{
+    Result result = Result::ErrorInvalidPointer;
+
+    if (pInfo != nullptr)
+    {
+        memcpy(pInfo, &m_drmNodeProperties, sizeof(DrmNodeProperties));
+        result = Result::Success;
+    }
+
+    return result;
+}
 
 // =====================================================================================================================
 // Initializes the GPU properties structures of this object's base class (Device). This includes the GPU-Memory
@@ -980,7 +996,6 @@ Result Device::InitGpuProperties()
     switch (m_chipProperties.gfxLevel)
     {
     case GfxIpLevel::GfxIp10_1:
-    case GfxIpLevel::GfxIp9:
     case GfxIpLevel::GfxIp10_3:
     case GfxIpLevel::GfxIp11_0:
         m_chipProperties.gfxEngineId = CIASICIDGFXENGINE_ARCTICISLAND;
@@ -1014,6 +1029,23 @@ Result Device::InitGpuProperties()
 
     if (result == Result::Success)
     {
+        switch (m_chipProperties.gfxLevel)
+        {
+        case GfxIpLevel::GfxIp10_1:
+        case GfxIpLevel::GfxIp10_3:
+        case GfxIpLevel::GfxIp11_0:
+            Gfx9::InitPerfCtrInfo(*this, &m_chipProperties);
+            Gfx9::InitializePerfExperimentProperties(m_chipProperties, &m_perfExperimentProperties);
+            break;
+        case GfxIpLevel::None:
+            // No Graphics IP block found or recognized!
+        default:
+            break;
+        }
+    }
+
+    if (result == Result::Success)
+    {
         m_engineProperties.perEngine[EngineTypeUniversal].availableCeRamSize = m_gpuInfo.ce_ram_size;
 
         InitPerformanceRatings();
@@ -1038,18 +1070,7 @@ Result Device::InitTmzHeapProperties()
     // set the heap support for protected region
     if (m_memoryProperties.flags.supportsTmz)
     {
-        if (IsRavenFamily(*this))
-        {
-            m_heapProperties[GpuHeapInvisible].flags.supportsTmz     = 1;
-            m_heapProperties[GpuHeapLocal].flags.supportsTmz         = 1;
-
-            if (MemoryProperties().flags.iommuv2Support == false)
-            {
-                m_heapProperties[GpuHeapGartUswc].flags.supportsTmz      = 1;
-                m_heapProperties[GpuHeapGartCacheable].flags.supportsTmz = 1;
-            }
-        }
-        else if (IsNavi1x(*this))
+        if (IsNavi1x(*this))
         {
             m_heapProperties[GpuHeapInvisible].flags.supportsTmz     = 1;
             m_heapProperties[GpuHeapLocal].flags.supportsTmz         = 1;
@@ -1067,18 +1088,13 @@ Result Device::InitTmzHeapProperties()
                 m_heapProperties[GpuHeapGartCacheable].flags.supportsTmz = 1;
             }
         }
-        else if (IsGfx10Plus(*this))
+        else
         {
             // All GFX10+ chips support page based local TMZ memory at least.
             m_heapProperties[GpuHeapInvisible].flags.supportsTmz     = 1;
             m_heapProperties[GpuHeapLocal].flags.supportsTmz         = 1;
             m_heapProperties[GpuHeapGartUswc].flags.supportsTmz      = 0;
             m_heapProperties[GpuHeapGartCacheable].flags.supportsTmz = 0;
-        }
-        else
-        {
-            result = Pal::Result::ErrorUnknown;
-            PAL_NOT_IMPLEMENTED();
         }
 
         //Assert that at least one heap is claimed to support TMZ/VPR from KMD if we're here
@@ -1211,8 +1227,6 @@ void Device::InitGfx9ChipProperties()
         pChipInfo->backendDisableMask = (~m_gpuInfo.enabled_rb_pipes_mask) & ((1 << pChipInfo->numTotalRbs) - 1);
     }
 
-    Gfx9::InitializePerfExperimentProperties(m_chipProperties, &m_perfExperimentProperties);
-
     auto* pUniversalEngProps = &m_engineProperties.perEngine[EngineTypeUniversal];
     pUniversalEngProps->contextSaveAreaSize               = 0;
     pUniversalEngProps->contextSaveAreaAlignment          = 0;
@@ -1290,47 +1304,44 @@ void Device::InitGfx9CuMask(
         }
     }
 
-    if (IsGfx10Plus(m_chipProperties.gfxLevel))
+    // We start by assuming that the most WGP per SA that we get will are the feature defines.
+    pChipInfo->gfx10.minNumWgpPerSa = pChipInfo->gfx10.numWgpAboveSpi + pChipInfo->gfx10.numWgpBelowSpi;
+    pChipInfo->gfx10.maxNumWgpPerSa = 1;
+    PAL_ASSERT(pChipInfo->gfx10.minNumWgpPerSa != 0);
+
+    // We need convert CU mask to WGP mask.
+    for (uint32 seIndex = 0; seIndex < m_gpuInfo.num_shader_engines; seIndex++)
     {
-        // We start by assuming that the most WGP per SA that we get will are the feature defines.
-        pChipInfo->gfx10.minNumWgpPerSa = pChipInfo->gfx10.numWgpAboveSpi + pChipInfo->gfx10.numWgpBelowSpi;
-        pChipInfo->gfx10.maxNumWgpPerSa = 1;
-        PAL_ASSERT(pChipInfo->gfx10.minNumWgpPerSa != 0);
-
-        // In GFX 10, we need convert CU mask to WGP mask.
-        for (uint32 seIndex = 0; seIndex < m_gpuInfo.num_shader_engines; seIndex++)
+        for (uint32 shIndex = 0; shIndex < m_gpuInfo.num_shader_arrays_per_engine; shIndex++)
         {
-            for (uint32 shIndex = 0; shIndex < m_gpuInfo.num_shader_arrays_per_engine; shIndex++)
+            pChipInfo->gfx10.activeWgpMask[seIndex][shIndex] = 0;
+            pChipInfo->gfx10.alwaysOnWgpMask[seIndex][shIndex] = 0;
+            // Each WGP has two CU's, so we'll convert the bit masks(0x3->0x1) accordingly:
+            // CuMask(32 bits) -> WGPmask(16 bits)
+            for (uint32 cuIdx = 0; cuIdx < 32; cuIdx += 2)
             {
-                pChipInfo->gfx10.activeWgpMask[seIndex][shIndex] = 0;
-                pChipInfo->gfx10.alwaysOnWgpMask[seIndex][shIndex] = 0;
-                // For gfx10 each WGP has two CU's, so we'll convert the bit masks(0x3->0x1) accordingly:
-                // CuMask(32 bits) -> WGPmask(16 bits)
-                for (uint32 cuIdx = 0; cuIdx < 32; cuIdx += 2)
+                const uint32 cuBit = 3 << cuIdx;
+                const uint32 wgpMask  = 1 << (cuIdx >> 1);
+                if (TestAnyFlagSet(pChipInfo->activeCuMask[seIndex][shIndex], cuBit))
                 {
-                    const uint32 cuBit = 3 << cuIdx;
-                    const uint32 wgpMask  = 1 << (cuIdx >> 1);
-                    if (TestAnyFlagSet(pChipInfo->activeCuMask[seIndex][shIndex], cuBit))
-                    {
-                        pChipInfo->gfx10.activeWgpMask[seIndex][shIndex] |= wgpMask;
-                    }
-                    if (TestAnyFlagSet(pChipInfo->alwaysOnCuMask[seIndex][shIndex], cuBit))
-                    {
-                        pChipInfo->gfx10.alwaysOnWgpMask[seIndex][shIndex] |= wgpMask;
-                    }
+                    pChipInfo->gfx10.activeWgpMask[seIndex][shIndex] |= wgpMask;
                 }
-
-                const uint32 numActiveWgpPerSa = Util::CountSetBits(pChipInfo->gfx10.activeWgpMask[seIndex][shIndex]);
-                if (numActiveWgpPerSa > 0)
+                if (TestAnyFlagSet(pChipInfo->alwaysOnCuMask[seIndex][shIndex], cuBit))
                 {
-                    pChipInfo->gfx10.minNumWgpPerSa = Min(pChipInfo->gfx10.minNumWgpPerSa, numActiveWgpPerSa);
-                    pChipInfo->gfx10.maxNumWgpPerSa = Max(pChipInfo->gfx10.maxNumWgpPerSa, numActiveWgpPerSa);
+                    pChipInfo->gfx10.alwaysOnWgpMask[seIndex][shIndex] |= wgpMask;
                 }
             }
-        }
 
-        PAL_ASSERT(pChipInfo->gfx10.maxNumWgpPerSa >= 1);
+            const uint32 numActiveWgpPerSa = Util::CountSetBits(pChipInfo->gfx10.activeWgpMask[seIndex][shIndex]);
+            if (numActiveWgpPerSa > 0)
+            {
+                pChipInfo->gfx10.minNumWgpPerSa = Min(pChipInfo->gfx10.minNumWgpPerSa, numActiveWgpPerSa);
+                pChipInfo->gfx10.maxNumWgpPerSa = Max(pChipInfo->gfx10.maxNumWgpPerSa, numActiveWgpPerSa);
+            }
+        }
     }
+
+    PAL_ASSERT(pChipInfo->gfx10.maxNumWgpPerSa >= 1);
 }
 
 // =====================================================================================================================
@@ -1682,12 +1693,9 @@ Result Device::InitQueueInfo()
                     pEngineInfo->sizeAlignInDwords = Pow2Align(engineInfo.ib_size_alignment,
                                                                sizeof(uint32)) / sizeof(uint32);
 
-                    uint32 engineIdx          = 0;
-                    uint32 normalQueueSupport = AnyPriority;
-
-                    for (; engineIdx < pEngineInfo->numAvailable; engineIdx++)
+                    for (uint32 engineIdx = 0; engineIdx < pEngineInfo->numAvailable; engineIdx++)
                     {
-                        pEngineInfo->capabilities[engineIdx].queuePrioritySupport     = normalQueueSupport;
+                        pEngineInfo->capabilities[engineIdx].queuePrioritySupport     = AnyPriority;
                         pEngineInfo->capabilities[engineIdx].flags.supportsMultiQueue = supportsMultiQueue;
 
                         // Kernel doesn't expose this info.
@@ -1764,21 +1772,13 @@ Result Device::InitQueueInfo()
         if (IsGfx103PlusExclusive(m_chipProperties.gfxLevel))
         {
             // Task-shader CTS may fail on Linux upstream stack due to the low FW version.
-            bool fwSupportTaskShader = false;
+            bool fwSupportTaskShader = true;
 
-            if (IsGfx103(m_chipProperties.gfxLevel))
+            if ((IsNavi2x(*this)    && (m_chipProperties.pfpUcodeVersion < 95))   ||
+                (IsRembrandt(*this) && (m_chipProperties.cpUcodeVersion < 42))    ||
+                (IsNavi3x(*this)    && (m_chipProperties.pfpUcodeVersion < 1549)))
             {
-                if (m_chipProperties.pfpUcodeVersion >= 95)
-                {
-                    fwSupportTaskShader = true;
-                }
-            }
-            else if (IsGfx11(m_chipProperties.gfxLevel))
-            {
-                if (m_chipProperties.pfpUcodeVersion >= 1549)
-                {
-                    fwSupportTaskShader = true;
-                }
+                fwSupportTaskShader = false;
             }
 
             m_chipProperties.gfx9.supportMeshShader =  m_chipProperties.gfx9.supportImplicitPrimitiveShader;
@@ -1794,7 +1794,7 @@ Result Device::InitQueueInfo()
 }
 
 // =====================================================================================================================
-// This is help methods. Init cache and debug file paths
+// Helper method to initialize cache and debug file paths.
 void Device::InitOutputPaths()
 {
     const char* pPath;
@@ -2269,7 +2269,7 @@ void Device::GetDisplayDccInfo(
             // Refer to gfx9_compute_surface function of Mesa3d,if gfxLevel greater or equal to GfxIp10_3,
             // displaydcc parameter should be set to "Independent64=1, Independent128=1, maxCompress=64B"
             // to meet DCN requirements, therefore here dcc_256_64_64 should be set to 1.
-            if (ChipProperties().gfxLevel >= GfxIpLevel::GfxIp10_3)
+            if (IsGfx103Plus(*this))
             {
                 displayDcc.dcc_256_256_unconstrained = 0;
                 displayDcc.dcc_256_128_128           = 0;
@@ -2837,14 +2837,14 @@ Result Device::Unmap(
 // =====================================================================================================================
 // Call amdgpu to wait a buffer object idle.
 Result Device::WaitBufferIdle(
-    amdgpu_bo_handle hBuffer,
-    uint64           timeoutNs,
-    bool*            pBufferBusy
+    amdgpu_bo_handle         hBuffer,
+    std::chrono::nanoseconds timeout,
+    bool*                    pBufferBusy
     ) const
 {
     Result result = Result::Success;
 
-    if (m_drmProcs.pfnAmdgpuBoWaitForIdle(hBuffer, timeoutNs, pBufferBusy) != 0)
+    if (m_drmProcs.pfnAmdgpuBoWaitForIdle(hBuffer, timeout.count(), pBufferBusy) != 0)
     {
         result = Result::NotReady;
     }
@@ -2853,10 +2853,34 @@ Result Device::WaitBufferIdle(
 }
 
 // =====================================================================================================================
+// Translate QueuePriority to AmdgpuPriority.
+int32 Device::ConvertQueuePriorityToAmdgpuPriority(
+    QueuePriority priority)
+{
+    constexpr int32 QueuePriorityToAmdgpuPriority[] =
+    {
+        AMDGPU_CTX_PRIORITY_NORMAL,     // QueuePriority::Normal     = 0,
+        AMDGPU_CTX_PRIORITY_LOW,        // QueuePriority::Idle       = 1,
+        AMDGPU_CTX_PRIORITY_NORMAL,     // QueuePriority::Medium     = 2,
+        AMDGPU_CTX_PRIORITY_HIGH,       // QueuePriority::High       = 3,
+        AMDGPU_CTX_PRIORITY_VERY_HIGH,  // QueuePriority::Realtime   = 4,
+    };
+
+    static_assert((static_cast<uint32>(QueuePriority::Normal)   == 0) &&
+                  (static_cast<uint32>(QueuePriority::Idle)     == 1) &&
+                  (static_cast<uint32>(QueuePriority::Medium)   == 2) &&
+                  (static_cast<uint32>(QueuePriority::High)     == 3) &&
+                  (static_cast<uint32>(QueuePriority::Realtime) == 4),
+        "The QueuePriorityToAmdgpuPriority table needs to be updated.");
+
+    return QueuePriorityToAmdgpuPriority[static_cast<uint32>(priority)];
+}
+
+// =====================================================================================================================
 // Call amdgpu to create a command submission context, without checking global contexts
 Result Device::CreateCommandSubmissionContextRaw(
     amdgpu_context_handle* pContextHandle,
-    QueuePriority          priority,
+    QueuePriority          queuePriority,
     bool                   isTmzOnly
     ) const
 {
@@ -2871,37 +2895,24 @@ Result Device::CreateCommandSubmissionContextRaw(
     {
         if (m_featureState.supportQueuePriority != 0)
         {
-            constexpr int32 QueuePriorityToAmdgpuPriority[] =
-            {
-                AMDGPU_CTX_PRIORITY_NORMAL,     // QueuePriority::Normal     = 0,
-                AMDGPU_CTX_PRIORITY_LOW,        // QueuePriority::Idle       = 1,
-                AMDGPU_CTX_PRIORITY_NORMAL,     // QueuePriority::Medium     = 2,
-                AMDGPU_CTX_PRIORITY_HIGH,       // QueuePriority::High       = 3,
-                AMDGPU_CTX_PRIORITY_VERY_HIGH,  // QueuePriority::Realtime   = 4,
-            };
+            const uint32 amdgpuPriority = ConvertQueuePriorityToAmdgpuPriority(queuePriority);
 
-            static_assert((static_cast<uint32>(QueuePriority::Normal)   == 0) &&
-                          (static_cast<uint32>(QueuePriority::Idle)     == 1) &&
-                          (static_cast<uint32>(QueuePriority::Medium)   == 2) &&
-                          (static_cast<uint32>(QueuePriority::High)     == 3) &&
-                          (static_cast<uint32>(QueuePriority::Realtime) == 4),
-                "The QueuePriorityToAmdgpuPriority table needs to be updated.");
             if (m_featureState.supportQueueIfhKmd != 0)
             {
                 uint32 flags = 0;
                 flags |= (Settings().ifh == IfhModeKmd) ? AMDGPU_CTX_FLAGS_IFH : 0;
                 flags |= isTmzOnly ? AMDGPU_CTX_FLAGS_SECURE : 0;
                 result = CheckResult(m_drmProcs.pfnAmdgpuCsCtxCreate3(m_hDevice,
-                                                        QueuePriorityToAmdgpuPriority[static_cast<uint32>(priority)],
-                                                        flags,
-                                                        pContextHandle),
+                                                                      amdgpuPriority,
+                                                                      flags,
+                                                                      pContextHandle),
                                      Result::ErrorInvalidValue);
             }
             else
             {
                 result = CheckResult(m_drmProcs.pfnAmdgpuCsCtxCreate2(m_hDevice,
-                                                        QueuePriorityToAmdgpuPriority[static_cast<uint32>(priority)],
-                                                        pContextHandle),
+                                                                      amdgpuPriority,
+                                                                      pContextHandle),
                                      Result::ErrorInvalidValue);
             }
         }
@@ -2923,8 +2934,7 @@ Result Device::CreateCommandSubmissionContextRaw(
 Result Device::CreateCommandSubmissionContext(
     amdgpu_context_handle* pContextHandle,
     QueuePriority          priority,
-    bool                   isTmzOnly
-    )
+    bool                   isTmzOnly)
 {
     Result result = Result::Success;
     MutexAuto lock(&m_contextListLock);
@@ -2933,6 +2943,14 @@ Result Device::CreateCommandSubmissionContext(
     if (m_useSharedGpuContexts == false)
     {
         result = CreateCommandSubmissionContextRaw(pContextHandle, priority, isTmzOnly);
+
+        // High priority context might be constrained,
+        // need to retry with medium priority.
+        if ((result != Result::Success) && (priority > QueuePriority::Medium))
+        {
+            result = CreateCommandSubmissionContextRaw(pContextHandle, QueuePriority::Medium, isTmzOnly);
+        }
+
         m_contextList.PushBack(*pContextHandle);
     }
     else
@@ -2961,6 +2979,24 @@ Result Device::CreateCommandSubmissionContext(
     }
 
     return result;
+}
+
+// =====================================================================================================================
+// Override the command submission context's priority.
+Result Device::OverrideCommandSubmissionContextPriority(
+    amdgpu_context_handle* pContextHandle,
+    QueuePriority          overridePriority)
+{
+    Result result = Result::Success;
+    MutexAuto lock(&m_contextListLock);
+
+    const uint32 amdgpuPriority = ConvertQueuePriorityToAmdgpuPriority(overridePriority);
+
+    return CheckResult(m_drmProcs.pfnAmdgpuCsCtxOverridePriority(m_hDevice,
+                                                                 *pContextHandle,
+                                                                 m_primaryFileDescriptor,
+                                                                 amdgpuPriority),
+                       Result::ErrorInvalidValue);
 }
 
 // =====================================================================================================================
@@ -3126,13 +3162,13 @@ Result Device::OpenFence(
 // =====================================================================================================================
 // Call amdgpu to get the fence status.
 Result Device::QueryFenceStatus(
-    struct amdgpu_cs_fence* pFence,
-    uint64                  timeoutNs
+    struct amdgpu_cs_fence*  pFence,
+    std::chrono::nanoseconds timeout
     ) const
 {
     Result result  = Result::Success;
     uint32 expired = 0;
-    result = CheckResult(m_drmProcs.pfnAmdgpuCsQueryFenceStatus(pFence, timeoutNs, 0, &expired),
+    result = CheckResult(m_drmProcs.pfnAmdgpuCsQueryFenceStatus(pFence, timeout.count(), 0, &expired),
                          Result::ErrorInvalidValue);
     if (result == Result::Success)
     {
@@ -3147,10 +3183,10 @@ Result Device::QueryFenceStatus(
 // =====================================================================================================================
 // Call amdgpu to wait for multiple fences
 Result Device::WaitForOsFences(
-    amdgpu_cs_fence* pFences,
-    uint32           fenceCount,
-    bool             waitAll,
-    uint64           timeout
+    amdgpu_cs_fence*         pFences,
+    uint32                   fenceCount,
+    bool                     waitAll,
+    std::chrono::nanoseconds timeout
     ) const
 {
     Result result = Result::Success;
@@ -3158,8 +3194,9 @@ Result Device::WaitForOsFences(
     uint32 index  = 0;
     if (m_drmProcs.pfnAmdgpuCsWaitFencesisValid())
     {
-        result = CheckResult(m_drmProcs.pfnAmdgpuCsWaitFences(pFences, fenceCount, waitAll, timeout, &status, &index),
-                             Result::ErrorInvalidValue);
+        result = CheckResult(
+            m_drmProcs.pfnAmdgpuCsWaitFences(pFences, fenceCount, waitAll, timeout.count(), &status, &index),
+            Result::ErrorInvalidValue);
 
         if (result == Result::Success)
         {
@@ -3171,8 +3208,9 @@ Result Device::WaitForOsFences(
     {
         for(;index < fenceCount; index++)
         {
-             result = CheckResult(m_drmProcs.pfnAmdgpuCsQueryFenceStatus(&(pFences[index]), timeout, 0, &status),
-                                  Result::ErrorInvalidValue);
+             result = CheckResult(
+                 m_drmProcs.pfnAmdgpuCsQueryFenceStatus(&(pFences[index]), timeout.count(), 0, &status),
+                 Result::ErrorInvalidValue);
 
              if (result != Result::Success)
              {
@@ -3199,7 +3237,7 @@ Result Device::WaitForSemaphores(
     const IQueueSemaphore*const* ppSemaphores,
     const uint64*                pValues,
     uint32                       flags,
-    uint64                       timeout) const
+    std::chrono::nanoseconds     timeout) const
 {
     Result result = Result::Success;
 
@@ -3249,7 +3287,7 @@ Result Device::WaitForSemaphores(
                                                                   &hSyncobjs[0],
                                                                   &points[0],
                                                                   semaphoreCount,
-                                                                  ComputeAbsTimeout(timeout),
+                                                                  ComputeAbsTimeout(timeout.count()),
                                                                   waitFlags,
                                                                   nullptr);
             result = CheckResult(ret, Result::ErrorUnknown);
@@ -3262,11 +3300,11 @@ Result Device::WaitForSemaphores(
 // =====================================================================================================================
 // Call amdgpu to wait for multiple fences (fence based on Sync Object)
 Result Device::WaitForSyncobjFences(
-    uint32*              pFences,
-    uint32               fenceCount,
-    uint64               timeout,
-    uint32               flags,
-    uint32*              pFirstSignaled
+    uint32*                  pFences,
+    uint32                   fenceCount,
+    std::chrono::nanoseconds timeout,
+    uint32                   flags,
+    uint32*                  pFirstSignaled
     ) const
 {
     Result result = Result::Success;
@@ -3276,7 +3314,7 @@ Result Device::WaitForSyncobjFences(
         result = CheckResult(m_drmProcs.pfnAmdgpuCsSyncobjWait(m_hDevice,
                                                                pFences,
                                                                fenceCount,
-                                                               timeout,
+                                                               timeout.count(),
                                                                flags,
                                                                pFirstSignaled),
                              Result::ErrorInvalidValue);
@@ -3510,16 +3548,19 @@ void Device::UpdateImageInfo(
     {
         if (info.metadata.size_metadata >= PRO_UMD_METADATA_SIZE)
         {
-            auto*const pTileInfo    = static_cast<AddrMgr2::TileInfo*>(pImage->GetSubresourceTileInfo(0));
             auto*const pUmdMetaData = reinterpret_cast<amdgpu_bo_umd_metadata*>
                                         (&info.metadata.umd_metadata[PRO_UMD_METADATA_OFFSET_DWORD]);
-            pTileInfo->pipeBankXor  = pUmdMetaData->pipeBankXor;
-
-            for (uint32 plane = 1; plane < numPlanes; plane++)
+            if (IsGfx9Hwl(*this))
             {
-                auto*const pPlaneTileInfo   = static_cast<AddrMgr2::TileInfo*>
-                                                (pImage->GetSubresourceTileInfo(subResPerPlane * plane));
-                pPlaneTileInfo->pipeBankXor = pUmdMetaData->additionalPipeBankXor[plane - 1];
+                auto*const pTileInfo    = static_cast<AddrMgr2::TileInfo*>(pImage->GetSubresourceTileInfo(0));
+                pTileInfo->pipeBankXor  = pUmdMetaData->pipeBankXor;
+
+                for (uint32 plane = 1; plane < numPlanes; plane++)
+                {
+                    auto*const pPlaneTileInfo   = static_cast<AddrMgr2::TileInfo*>
+                                                    (pImage->GetSubresourceTileInfo(subResPerPlane * plane));
+                    pPlaneTileInfo->pipeBankXor = pUmdMetaData->additionalPipeBankXor[plane - 1];
+                }
             }
         }
     }
@@ -3561,16 +3602,8 @@ void Device::UpdateMetaData(
     auto*const pUmdMetaData = reinterpret_cast<amdgpu_bo_umd_metadata*>
                                 (&metadata.umd_metadata[PRO_UMD_METADATA_OFFSET_DWORD]);
 
-    const ImageCreateInfo& imageCreateInfo = image.GetImageCreateInfo();
-
-    const SubResourceInfo*const    pSubResInfo = image.SubresourceInfo(0);
-    const AddrMgr2::TileInfo*const pTileInfo   = AddrMgr2::GetTileInfo(&image, 0);
-
-    PAL_ASSERT(static_cast<uint32>(AMDGPU_SWIZZLE_MODE_MAX_TYPE) == static_cast<uint32>(ADDR_SW_MAX_TYPE));
-    PAL_ASSERT(static_cast<uint32>(AMDGPU_ADDR_RSRC_TEX_2D)      == static_cast<uint32>(ADDR_RSRC_TEX_2D));
-
-    const auto   curSwizzleMode = static_cast<AMDGPU_SWIZZLE_MODE>(image.GetGfxImage()->GetSwTileMode(pSubResInfo));
-    const uint32 subResPerPlane = (imageCreateInfo.mipLevels * imageCreateInfo.arraySize);
+    const ImageCreateInfo& imageCreateInfo  = image.GetImageCreateInfo();
+    const SubResourceInfo*const pSubResInfo = image.SubresourceInfo(0);
 
     metadata.size_metadata  = PRO_UMD_METADATA_SIZE;
 
@@ -3582,41 +3615,51 @@ void Device::UpdateMetaData(
     pUmdMetaData->aligned_height         = pSubResInfo->actualExtentTexels.height;
     pUmdMetaData->format                 = PalToAmdGpuFormatConversion(pSubResInfo->format);
 
-    pUmdMetaData->pipeBankXor  = pTileInfo->pipeBankXor;
-
-    for (uint32 plane = 1; plane < (image.GetImageInfo().numPlanes); plane++)
+    if (IsGfx9Hwl(*this))
     {
-        const AddrMgr2::TileInfo*const pPlaneTileInfo  = AddrMgr2::GetTileInfo(&image, (subResPerPlane * plane));
-        pUmdMetaData->additionalPipeBankXor[plane - 1] = pPlaneTileInfo->pipeBankXor;
+        const AddrMgr2::TileInfo*const pTileInfo   = AddrMgr2::GetTileInfo(&image, 0);
+        pUmdMetaData->pipeBankXor  = pTileInfo->pipeBankXor;
+
+        PAL_ASSERT(static_cast<uint32>(AMDGPU_SWIZZLE_MODE_MAX_TYPE) == static_cast<uint32>(ADDR_SW_MAX_TYPE));
+        PAL_ASSERT(static_cast<uint32>(AMDGPU_ADDR_RSRC_TEX_2D)      == static_cast<uint32>(ADDR_RSRC_TEX_2D));
+
+        const auto   curSwizzleMode = static_cast<AMDGPU_SWIZZLE_MODE>(image.GetGfxImage()->GetSwTileMode(pSubResInfo));
+        const uint32 subResPerPlane = (imageCreateInfo.mipLevels * imageCreateInfo.arraySize);
+
+        for (uint32 plane = 1; plane < (image.GetImageInfo().numPlanes); plane++)
+        {
+            const AddrMgr2::TileInfo*const pPlaneTileInfo  = AddrMgr2::GetTileInfo(&image, (subResPerPlane * plane));
+            pUmdMetaData->additionalPipeBankXor[plane - 1] = pPlaneTileInfo->pipeBankXor;
+        }
+
+        pUmdMetaData->gfx9.swizzleMode  = curSwizzleMode;
+        pUmdMetaData->gfx9.resourceType = static_cast<AMDGPU_ADDR_RESOURCE_TYPE>(imageCreateInfo.imageType);
+
+        DccState dccState = {};
+
+        // We cannot differentiate displayable DCC from standard DCC in the existing metadata.
+        // However, the control register values should match between displayable DCC and standard DCC.
+        if (image.GetGfxImage()->HasDisplayDccData())
+        {
+            image.GetGfxImage()->GetDisplayDccState(&dccState);
+        }
+        else
+        {
+            image.GetGfxImage()->GetDccState(&dccState);
+        }
+
+        metadata.tiling_info = 0;
+        metadata.tiling_info |= AMDGPU_TILING_SET(SWIZZLE_MODE, curSwizzleMode);
+        // In order to sharing resource metadata with Mesa3D, the definition have to follow Mesa's way.
+        // The swizzle_info is used in Mesa to indicate whether the surface is displyable.
+        metadata.tiling_info |= AMDGPU_TILING_SET(SCANOUT, imageCreateInfo.flags.presentable);
+        metadata.tiling_info |= AMDGPU_TILING_SET(DCC_OFFSET_256B, Get256BAddrLo(dccState.primaryOffset));
+        metadata.tiling_info |= AMDGPU_TILING_SET(DCC_PITCH_MAX, (dccState.pitch - 1));
+        metadata.tiling_info |= AMDGPU_TILING_SET(DCC_INDEPENDENT_64B, dccState.independentBlk64B);
+        metadata.tiling_info |= AMDGPU_TILING_SET(DCC_INDEPENDENT_128B, dccState.independentBlk128B);
+        metadata.tiling_info |= AMDGPU_TILING_SET(DCC_MAX_COMPRESSED_BLOCK_SIZE, dccState.maxCompressedBlockSize);
+        metadata.tiling_info |= AMDGPU_TILING_SET(DCC_MAX_UNCOMPRESSED_BLOCK_SIZE, dccState.maxUncompressedBlockSize);
     }
-
-    pUmdMetaData->swizzleMode  = curSwizzleMode;
-    pUmdMetaData->resourceType = static_cast<AMDGPU_ADDR_RESOURCE_TYPE>(imageCreateInfo.imageType);
-
-    DccState dccState = {};
-
-    // We cannot differentiate displayable DCC from standard DCC in the existing metadata.
-    // However, the control register values should match between displayable DCC and standard DCC.
-    if (image.GetGfxImage()->HasDisplayDccData())
-    {
-        image.GetGfxImage()->GetDisplayDccState(&dccState);
-    }
-    else
-    {
-        image.GetGfxImage()->GetDccState(&dccState);
-    }
-
-    metadata.tiling_info = 0;
-    metadata.tiling_info |= AMDGPU_TILING_SET(SWIZZLE_MODE, curSwizzleMode);
-    // In order to sharing resource metadata with Mesa3D, the definition have to follow Mesa's way.
-    // The swizzle_info is used in Mesa to indicate whether the surface is displyable.
-    metadata.tiling_info |= AMDGPU_TILING_SET(SCANOUT, imageCreateInfo.flags.presentable);
-    metadata.tiling_info |= AMDGPU_TILING_SET(DCC_OFFSET_256B, Get256BAddrLo(dccState.primaryOffset));
-    metadata.tiling_info |= AMDGPU_TILING_SET(DCC_PITCH_MAX, (dccState.pitch - 1));
-    metadata.tiling_info |= AMDGPU_TILING_SET(DCC_INDEPENDENT_64B, dccState.independentBlk64B);
-    metadata.tiling_info |= AMDGPU_TILING_SET(DCC_INDEPENDENT_128B, dccState.independentBlk128B);
-    metadata.tiling_info |= AMDGPU_TILING_SET(DCC_MAX_COMPRESSED_BLOCK_SIZE, dccState.maxCompressedBlockSize);
-    metadata.tiling_info |= AMDGPU_TILING_SET(DCC_MAX_UNCOMPRESSED_BLOCK_SIZE, dccState.maxUncompressedBlockSize);
 
     pUmdMetaData->array_size              = imageCreateInfo.arraySize;
     pUmdMetaData->flags.mip_levels        = imageCreateInfo.mipLevels;
@@ -3639,68 +3682,62 @@ void Device::UpdateMetaData(
 
         auto*const pUmdSharedMetadata = reinterpret_cast<amdgpu_shared_metadata_info*>
                                             (&pUmdMetaData->shared_metadata_info);
-        pUmdSharedMetadata->dcc_offset   = sharedMetadataInfo.dccOffset[0];
-        pUmdSharedMetadata->cmask_offset = sharedMetadataInfo.cmaskOffset;
-        pUmdSharedMetadata->fmask_offset = sharedMetadataInfo.fmaskOffset;
-        pUmdSharedMetadata->htile_offset = sharedMetadataInfo.htileOffset;
 
-        pUmdSharedMetadata->flags.shader_fetchable =
-            sharedMetadataInfo.flags.shaderFetchable;
-        pUmdSharedMetadata->flags.shader_fetchable_fmask =
-            sharedMetadataInfo.flags.shaderFetchableFmask;
-        pUmdSharedMetadata->flags.has_wa_tc_compat_z_range =
-            sharedMetadataInfo.flags.hasWaTcCompatZRange;
-        pUmdSharedMetadata->flags.has_eq_gpu_access =
-            sharedMetadataInfo.flags.hasEqGpuAccess;
-        pUmdSharedMetadata->flags.has_cmask_eq_gpu_access =
-            sharedMetadataInfo.flags.hasCmaskEqGpuAccess;
-        pUmdSharedMetadata->flags.has_htile_lookup_table =
-            sharedMetadataInfo.flags.hasHtileLookupTable;
-        pUmdSharedMetadata->flags.htile_has_ds_metadata =
-            sharedMetadataInfo.flags.htileHasDsMetadata;
-
-        pUmdSharedMetadata->dcc_state_offset =
-            sharedMetadataInfo.dccStateMetaDataOffset[0];
-        pUmdSharedMetadata->fast_clear_value_offset =
-            sharedMetadataInfo.fastClearMetaDataOffset[0];
-        pUmdSharedMetadata->fce_state_offset =
-            sharedMetadataInfo.fastClearEliminateMetaDataOffset[0];
-        if (sharedMetadataInfo.fmaskOffset != 0)
+        if (IsGfx9Hwl(*this))
         {
-            // If the shared surface is a color surface, reuse the htileOffset as fmaskXor.
-            PAL_ASSERT(sharedMetadataInfo.htileOffset == 0);
-            pUmdSharedMetadata->flags.htile_as_fmask_xor = 1;
-            pUmdSharedMetadata->htile_offset = sharedMetadataInfo.fmaskXor;
-            pUmdSharedMetadata->fmaskSwizzleMode = static_cast<AMDGPU_SWIZZLE_MODE>
-                (sharedMetadataInfo.fmaskSwizzleMode);
-        }
-        if (sharedMetadataInfo.flags.hasHtileLookupTable)
-        {
-            PAL_ASSERT(sharedMetadataInfo.dccStateMetaDataOffset[0] == 0);
-            pUmdSharedMetadata->htile_lookup_table_offset =
-                sharedMetadataInfo.htileLookupTableOffset;
-        }
+            pUmdSharedMetadata->gfx9.dcc_offset   = sharedMetadataInfo.dccOffset[0];
+            pUmdSharedMetadata->gfx9.cmask_offset = sharedMetadataInfo.cmaskOffset;
+            pUmdSharedMetadata->gfx9.fmask_offset = sharedMetadataInfo.fmaskOffset;
+            pUmdSharedMetadata->gfx9.htile_offset = sharedMetadataInfo.htileOffset;
 
-        pUmdSharedMetadata->resource_id        = LowPart(pAmdgpuGpuMem->Desc().uniqueId);
-        pUmdSharedMetadata->resource_id_high32 = HighPart(pAmdgpuGpuMem->Desc().uniqueId);
+            pUmdSharedMetadata->flags.shader_fetchable        = sharedMetadataInfo.flags.shaderFetchable;
+            pUmdSharedMetadata->flags.shader_fetchable_fmask  = sharedMetadataInfo.flags.shaderFetchableFmask;
+            pUmdSharedMetadata->flags.has_eq_gpu_access       = sharedMetadataInfo.flags.hasEqGpuAccess;
+            pUmdSharedMetadata->flags.has_cmask_eq_gpu_access = sharedMetadataInfo.flags.hasCmaskEqGpuAccess;
+            pUmdSharedMetadata->flags.has_htile_lookup_table  = sharedMetadataInfo.flags.hasHtileLookupTable;
+            pUmdSharedMetadata->flags.htile_has_ds_metadata   = sharedMetadataInfo.flags.htileHasDsMetadata;
 
-        // In order to support displayable dcc in linux window mode,
-        // it's needed to share standard dcc metadata with Mesa3D when displayable DCC has enabled.
-        // According to Mesa3D metadata parsing function ac_surface_set_umd_metadata,
-        // Mesa3D share standard dcc metadata though first 10 dwords of umd_metadata of struct amdgpu_bo_metadata.
-        if ((ChipProperties().gfxLevel >= GfxIpLevel::GfxIp10_3) &&
-            image.GetGfxImage()->HasDisplayDccData() &&
-            (pUmdSharedMetadata->dcc_offset != 0))
-        {
-            auto*const pMesaUmdMetaData = reinterpret_cast<MesaUmdMetaData*>(&metadata.umd_metadata[0]);
-            // Metadata image format format version 1
-            pMesaUmdMetaData->header.version                        = 1;
-            pMesaUmdMetaData->header.vendorId                       = ATI_VENDOR_ID;
-            pMesaUmdMetaData->header.asicId                         = m_gpuInfo.asic_id;
-            pMesaUmdMetaData->imageSrd.gfx10.metaPipeAligned        = sharedMetadataInfo.pipeAligned[0];
-            // both displayable dcc and standard dcc is enbaled,compression must be enabled.
-            pMesaUmdMetaData->imageSrd.gfx10.compressionEnable      = 1;
-            pMesaUmdMetaData->imageSrd.gfx10.metaDataOffset         = pUmdSharedMetadata->dcc_offset >> 8;
+            pUmdSharedMetadata->gfx9.dcc_state_offset        = sharedMetadataInfo.dccStateMetaDataOffset[0];
+            pUmdSharedMetadata->gfx9.fast_clear_value_offset = sharedMetadataInfo.fastClearMetaDataOffset[0];
+            pUmdSharedMetadata->gfx9.fce_state_offset        = sharedMetadataInfo.fastClearEliminateMetaDataOffset[0];
+
+            if (sharedMetadataInfo.fmaskOffset != 0)
+            {
+                // If the shared surface is a color surface, reuse the htileOffset as fmaskXor.
+                PAL_ASSERT(sharedMetadataInfo.htileOffset == 0);
+                pUmdSharedMetadata->flags.htile_as_fmask_xor = 1;
+                pUmdSharedMetadata->gfx9.htile_offset        = sharedMetadataInfo.fmaskXor;
+                pUmdSharedMetadata->gfx9.fmask_swizzle_mode  = static_cast<AMDGPU_SWIZZLE_MODE>
+                    (sharedMetadataInfo.fmaskSwizzleMode);
+            }
+
+            if (sharedMetadataInfo.flags.hasHtileLookupTable)
+            {
+                PAL_ASSERT(sharedMetadataInfo.dccStateMetaDataOffset[0] == 0);
+                pUmdSharedMetadata->gfx9.htile_lookup_table_offset = sharedMetadataInfo.htileLookupTableOffset;
+            }
+
+            pUmdSharedMetadata->resource_id        = LowPart(pAmdgpuGpuMem->Desc().uniqueId);
+            pUmdSharedMetadata->resource_id_high32 = HighPart(pAmdgpuGpuMem->Desc().uniqueId);
+
+            // In order to support displayable dcc in linux window mode,
+            // it's needed to share standard dcc metadata with Mesa3D when displayable DCC has enabled.
+            // According to Mesa3D metadata parsing function ac_surface_set_umd_metadata,
+            // Mesa3D share standard dcc metadata though first 10 dwords of umd_metadata of struct amdgpu_bo_metadata.
+            if ((IsGfx103Plus(*this)) &&
+                image.GetGfxImage()->HasDisplayDccData() &&
+                (pUmdSharedMetadata->gfx9.dcc_offset != 0))
+            {
+                auto*const pMesaUmdMetaData = reinterpret_cast<MesaUmdMetaData*>(&metadata.umd_metadata[0]);
+                // Metadata image format format version 1
+                pMesaUmdMetaData->header.version                        = 1;
+                pMesaUmdMetaData->header.vendorId                       = ATI_VENDOR_ID;
+                pMesaUmdMetaData->header.asicId                         = m_gpuInfo.asic_id;
+                pMesaUmdMetaData->imageSrd.gfx10.metaPipeAligned        = sharedMetadataInfo.pipeAligned[0];
+                // both displayable dcc and standard dcc is enbaled,compression must be enabled.
+                pMesaUmdMetaData->imageSrd.gfx10.compressionEnable      = 1;
+                pMesaUmdMetaData->imageSrd.gfx10.metaDataOffset         = pUmdSharedMetadata->gfx9.dcc_offset >> 8;
+            }
         }
     }
 
@@ -3790,13 +3827,12 @@ void Device::CheckSyncObjectSupportStatus()
                 if (status == Result::Success)
                 {
                     uint32 count = 1;
-                    uint64 timeout = 0;
                     uint32 flags = DRM_SYNCOBJ_WAIT_FLAGS_WAIT_ALL;
                     uint32 firstSignaledFence = UINT32_MAX;
 
                     status = WaitForSyncobjFences(&hSyncobj,
                                                   count,
-                                                  timeout,
+                                                  0ns,
                                                   flags,
                                                   &firstSignaledFence);
                     if (status == Result::Success)
@@ -4256,7 +4292,7 @@ Result Device::WaitSemaphoreValue(
     amdgpu_semaphore_handle  hSemaphore,
     uint64                   value,
     uint32                   flags,
-    uint64                   timeoutNs
+    std::chrono::nanoseconds timeout
     ) const
 {
     int32 ret = 0;
@@ -4269,7 +4305,7 @@ Result Device::WaitSemaphoreValue(
                                                         &hSyncobj,
                                                         &value,
                                                         1,
-                                                        ComputeAbsTimeout(timeoutNs),
+                                                        ComputeAbsTimeout(timeout.count()),
                                                         flags,
                                                         nullptr);
     }
@@ -5484,9 +5520,9 @@ Result Device::CreateGpuMemoryFromExternalShare(
     pCreateInfo->vaRange   = VaRange::Default;
     pCreateInfo->priority  = GpuMemPriority::High;
 
-    if (sharedInfo.info.preferred_heap & AMDGPU_GEM_DOMAIN_GTT)
+    if (TestAnyFlagSet(sharedInfo.info.preferred_heap, AMDGPU_GEM_DOMAIN_GTT))
     {
-        if (sharedInfo.info.alloc_flags & AMDGPU_GEM_CREATE_CPU_GTT_USWC)
+        if (TestAnyFlagSet(sharedInfo.info.alloc_flags, AMDGPU_GEM_CREATE_CPU_GTT_USWC))
         {
             pCreateInfo->heaps[pCreateInfo->heapCount++] = GpuHeapGartUswc;
         }
@@ -5498,9 +5534,9 @@ Result Device::CreateGpuMemoryFromExternalShare(
 
     const auto& imageCreateInfo = pImage->GetImageCreateInfo();
 
-    if (sharedInfo.info.preferred_heap & AMDGPU_GEM_DOMAIN_VRAM)
+    if (TestAnyFlagSet(sharedInfo.info.preferred_heap, AMDGPU_GEM_DOMAIN_VRAM))
     {
-        if (sharedInfo.info.alloc_flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS)
+        if (TestAnyFlagSet(sharedInfo.info.alloc_flags, AMDGPU_GEM_CREATE_NO_CPU_ACCESS))
         {
             pCreateInfo->heaps[pCreateInfo->heapCount++] = GpuHeapInvisible;
         }
@@ -6372,111 +6408,13 @@ void Device::GetModifiersList(
     uint64*     pModifiersList
     ) const
 {
-    const GpuChipProperties& chipProps   = ChipProperties();
-    const Pal::Gfx9::Device* pGfx9Device = static_cast<const Pal::Gfx9::Device*>(m_pGfxDevice);
+    const auto* pGfx9Device = static_cast<const Pal::Gfx9::Device*>(m_pGfxDevice);
     *pModifierCount = 0;
 
     // These modifiers are renderable and part of them is displayable.
     // All displayable modifiers can be obtained from amdgpu_dm/amdgpu_dm_plane.c.
-    // For gfx9, only DCC_INDEPENDENT_64B is supported.
-    if (IsGfx9(*this))
-    {
-        uint32 pipeXorBits       = Min(pGfx9Device->GetNumPipesLog2() +
-                                     pGfx9Device->GetNumShaderEnginesLog2(), static_cast<uint32>(8));
-        uint32 bankXorBits       = Min(pGfx9Device->GetNumBanksLog2(), static_cast<uint32>(8) - pipeXorBits);
-        uint32 numPipesLog2      = pGfx9Device->GetNumPipesLog2();
-        uint32 numTotalRbsLog2   = pGfx9Device->GetNumRbsPerSeLog2() + pGfx9Device->GetNumShaderEnginesLog2();
-        bool   hasConstantEncode = IsRaven2(*this) || IsRenoir(*this);  // Raven2 and later.
-
-        // Modifier which is dcc_enabled and non-displayable.
-        AddModifier(format, pModifierCount, pModifiersList, AMD_FMT_MOD                  |
-                    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_D_X)                 |
-                    AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9)             |
-                    AMD_FMT_MOD_SET(DCC, 1)                                              |
-                    AMD_FMT_MOD_SET(DCC_PIPE_ALIGN, 1)                                   |
-                    AMD_FMT_MOD_SET(DCC_INDEPENDENT_64B, 1)                              |
-                    AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_64B) |
-                    AMD_FMT_MOD_SET(DCC_CONSTANT_ENCODE, hasConstantEncode)              |
-                    AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipeXorBits)                          |
-                    AMD_FMT_MOD_SET(BANK_XOR_BITS, bankXorBits)                          |
-                    AMD_FMT_MOD_SET(PIPE, numPipesLog2)                                  |
-                    AMD_FMT_MOD_SET(RB, numTotalRbsLog2));
-
-        // Modifier which is dcc_enabled and non-displayable.
-        AddModifier(format, pModifierCount, pModifiersList, AMD_FMT_MOD                  |
-                    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_S_X)                 |
-                    AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9)             |
-                    AMD_FMT_MOD_SET(DCC, 1)                                              |
-                    AMD_FMT_MOD_SET(DCC_PIPE_ALIGN, 1)                                   |
-                    AMD_FMT_MOD_SET(DCC_INDEPENDENT_64B, 1)                              |
-                    AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_64B) |
-                    AMD_FMT_MOD_SET(DCC_CONSTANT_ENCODE, hasConstantEncode)              |
-                    AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipeXorBits)                          |
-                    AMD_FMT_MOD_SET(BANK_XOR_BITS, bankXorBits)                          |
-                    AMD_FMT_MOD_SET(PIPE, numPipesLog2)                                  |
-                    AMD_FMT_MOD_SET(RB, numTotalRbsLog2));
-
-#if PAL_DISPLAY_DCC
-        // Modifier which is dcc_enabled and displayable.
-        // If only 1 rb, there is no dcc_retiling and both gfx and dcn use the same DCC surface
-        // with pipe_align = 0 and rb_align = 0.
-        if (chipProps.gfx9.numTotalRbs == 1)
-        {
-            AddModifier(format, pModifierCount, pModifiersList, AMD_FMT_MOD                  |
-                        AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_S_X)                 |
-                        AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9)             |
-                        AMD_FMT_MOD_SET(DCC, 1)                                              |
-                        AMD_FMT_MOD_SET(DCC_INDEPENDENT_64B, 1)                              |
-                        AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_64B) |
-                        AMD_FMT_MOD_SET(DCC_CONSTANT_ENCODE, hasConstantEncode)              |
-                        AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipeXorBits)                          |
-                        AMD_FMT_MOD_SET(BANK_XOR_BITS, bankXorBits));
-        }
-
-        // If rb > 1, there is dcc_retiling and gfx use DCC surface with both pipe_align and rb_align = 1 and
-        // dcn use DCC surface with both pipe_align and rb_align = 0.
-        AddModifier(format, pModifierCount, pModifiersList, AMD_FMT_MOD                  |
-                    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_S_X)                 |
-                    AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9)             |
-                    AMD_FMT_MOD_SET(DCC, 1)                                              |
-                    AMD_FMT_MOD_SET(DCC_RETILE, 1)                                       |
-                    AMD_FMT_MOD_SET(DCC_INDEPENDENT_64B, 1)                              |
-                    AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_64B) |
-                    AMD_FMT_MOD_SET(DCC_CONSTANT_ENCODE, hasConstantEncode)              |
-                    AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipeXorBits)                          |
-                    AMD_FMT_MOD_SET(BANK_XOR_BITS, bankXorBits)                          |
-                    AMD_FMT_MOD_SET(PIPE, numPipesLog2)                                  |
-                    AMD_FMT_MOD_SET(RB, numTotalRbsLog2));
-#endif
-
-        // For D swizzle the canonical modifier depends on the bpp.
-        // For Raven and later, D swizzle is displayable only with 64bpp.
-        // Swizzlemode ends with X means Chip-specific memory layout.
-        AddModifier(format, pModifierCount, pModifiersList, AMD_FMT_MOD      |
-                    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_D_X)     |
-                    AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9) |
-                    AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipeXorBits)              |
-                    AMD_FMT_MOD_SET(BANK_XOR_BITS, bankXorBits));
-
-        AddModifier(format, pModifierCount, pModifiersList, AMD_FMT_MOD      |
-                    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_S_X)     |
-                    AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9) |
-                    AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipeXorBits)              |
-                    AMD_FMT_MOD_SET(BANK_XOR_BITS, bankXorBits));
-
-        // Chip-independent modifiers which is dcc_disabled and displayable.
-        AddModifier(format, pModifierCount, pModifiersList, AMD_FMT_MOD      |
-                    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_D)       |
-                    AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9));
-
-        AddModifier(format, pModifierCount, pModifiersList, AMD_FMT_MOD      |
-                    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_S)       |
-                    AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9));
-
-        AddModifier(format, pModifierCount, pModifiersList, DRM_FORMAT_MOD_LINEAR);
-    }
     // For gfx10 and later, recommended tile mode for 2d is SW_64KB_R_X.
-    else if (IsGfx10(*this))
+    if (IsGfx10(*this))
     {
         uint32 version     = IsGfx103CorePlus(*this) ? AMD_FMT_MOD_TILE_VER_GFX10_RBPLUS : AMD_FMT_MOD_TILE_VER_GFX10;
         uint32 pipeXorBits = pGfx9Device->GetNumPipesLog2();

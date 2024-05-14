@@ -31,8 +31,6 @@
 
 #pragma once
 
-#if PAL_ENABLE_LOGGING
-
 #include "palDbgLogHelper.h"
 #include "palDbgLogMgr.h"
 #include "palFile.h"
@@ -71,6 +69,7 @@ constexpr uint32 AllFileSettings = FileSettings::LogToDisk     |
 /// Structure of file debug logger settings
 struct DbgLoggerFileSettings : public DbgLogBaseSettings
 {
+    bool         dbgLoggerEnabled;  ///< Is the debug logger enabled in settings
     uint32       fileSettingsFlags; ///< Mask of file settings as defined above in FileSettings
     uint32       fileAccessFlags;   ///< Mask of file access modes as defined in Util::FileAccessMode
     const char*  pLogDirectory;     ///< Directory where log files will be written
@@ -346,7 +345,11 @@ public:
                 result = pDbgLogger->Init(fileName, settings.fileAccessFlags);
                 if (result == Result::Success)
                 {
-                    g_dbgLogMgr.AttachDbgLogger(pDbgLogger);
+                    result = g_dbgLogMgr.AttachDbgLogger(pDbgLogger);
+                }
+
+                if (result == Result::Success)
+                {
                     *ppDbgLoggerFile = pDbgLogger;
                 }
                 else
@@ -357,6 +360,7 @@ public:
                 }
             }
         }
+
         return result;
     }
 
@@ -442,12 +446,22 @@ public:
         Allocator*                   pAllocator,
         DbgLoggerPrint**             ppDbgLoggerPrint)
     {
+        Result result = Result::ErrorUnknown;
+
         DbgLoggerPrint* pDbgLoggerPrint = PAL_NEW(DbgLoggerPrint, pAllocator, AllocInternal)
                                                  (settings.severityLevel, settings.origTypeMask);
         if (pDbgLoggerPrint != nullptr)
         {
-            g_dbgLogMgr.AttachDbgLogger(pDbgLoggerPrint);
+            result = g_dbgLogMgr.AttachDbgLogger(pDbgLoggerPrint);
+        }
+
+        if (result == Result::Success)
+        {
             *ppDbgLoggerPrint = pDbgLoggerPrint;
+        }
+        else
+        {
+            PAL_SAFE_DELETE(pDbgLoggerPrint, pAllocator);
         }
     }
 
@@ -484,4 +498,3 @@ protected:
         const void*     pData);
 };
 } //namespace Util
-#endif

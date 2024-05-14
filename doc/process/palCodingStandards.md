@@ -2,9 +2,6 @@
 Copyright (c) 2019-2024 Advanced Micro Devices, Inc. All rights reserved.
 ```
 
-<!--
--->
-
 - [Introduction](#introduction)
   - [Fundamental Underlying Principle:](#fundamental-underlying-principle)
   - [Why Coding Standards](#why-coding-standards)
@@ -169,6 +166,8 @@ General
      * In VS Code you could also enable trailing whitespace trimming by pressing Ctrl + Shift + P and then searching for Trim Trailing Whitespace.
      * For Visual Studio check out Trailing Whitespace Visualizer extension  (found on the Visual Studio marketplace).
 
+-   AI generated code **must** not be added to the PAL code base.
+
 General Language Restrictions
 -----------------------------
 
@@ -198,6 +197,10 @@ General Language Restrictions
 
         -   The std `atomic` header ***should*** be used to implement atomic
             values and thread barriers.
+
+        -   The std `bit` header **may** be used for bit-casts and bit fiddling.
+
+        -   The std `chrono` header ***should*** be used when dealing with time.
 
 -   goto statements ***must not*** be used.
 

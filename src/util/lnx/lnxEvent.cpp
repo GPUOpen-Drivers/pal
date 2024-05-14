@@ -34,6 +34,8 @@
 #include <sys/select.h>
 #include <sys/timerfd.h>
 
+using namespace std::chrono;
+
 namespace Util
 {
 
@@ -156,23 +158,18 @@ Result Event::Open(
 // =====================================================================================================================
 // Wait for the Event object to become set.
 Result Event::Wait(
-    float timeout // Max time to wait, in seconds.
+    fseconds timeout // Max time to wait, in seconds.
     ) const
 {
-    Result result = Result::Success;
-
-    if (timeout < 0.0f)
-    {
-        result = Result::ErrorInvalidValue;
-    }
-    else
+    Result result = (timeout.count() < 0.f) ? Result::ErrorInvalidValue : Result::Success;
+    if (result == Result::Success)
     {
         pollfd socketPollFd;
         socketPollFd.revents = 0;
         socketPollFd.fd = m_hEvent;
         socketPollFd.events = POLLIN;
 
-        int ret = poll(&socketPollFd, 1, timeout * 1000);  // Timeout in mS
+        const int ret = poll(&socketPollFd, 1, TimeoutCast<milliseconds>(timeout).count());
 
         if (ret == -1)
         {
@@ -185,7 +182,6 @@ Result Event::Wait(
             result = Result::Timeout;
         }
     }
-
     return result;
 }
 } // Util

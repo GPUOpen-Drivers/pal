@@ -26,7 +26,7 @@
 #ifndef DD_LOGGER_API_H
 #define DD_LOGGER_API_H
 
-#include <dd_common_api.h>
+#include "dd_common_api.h"
 #include <stdint.h>
 
 #ifdef __cplusplus

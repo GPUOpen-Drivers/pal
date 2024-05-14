@@ -215,6 +215,7 @@ private:
     GpaSession*           m_pGpaSession;      // Handle to GpaSession object for tracking queue timings
     bool                  m_traceIsHealthy;   // Internal flag for tracking resource and state health
     std::atomic<bool>     m_timingInProgress; // Flag for tracking if queue timings operations are ongoing
+
 };
 
 } // namespace GpuUtil

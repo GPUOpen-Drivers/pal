@@ -32,10 +32,10 @@ namespace DevDriver
 {
 
 SettingsIterator::SettingsIterator(const uint8_t* pBuf, size_t size)
-    : m_pBuf{pBuf}
-    , m_bufSize{size}
-    , m_allComponentsHeader{}
-    , m_error{DD_RESULT_SUCCESS}
+    : m_pBuf {pBuf}
+    , m_bufSize {size}
+    , m_allComponentsHeader {}
+    , m_error {DD_RESULT_SUCCESS}
 {
     if (m_bufSize >= sizeof(m_allComponentsHeader))
     {
@@ -145,6 +145,53 @@ bool SettingsIterator::NextValue(const Component& component, Value* pValue)
         else
         {
             // The current value is the last one. There is no next value.
+        }
+    }
+
+    return foundNextValue;
+}
+
+bool SettingsIterator::NextUnsupportedExperiment(const Component& component, UnsupportedExperiment* pExp)
+{
+    bool foundNextValue = false;
+
+    if (m_error == DD_RESULT_SUCCESS)
+    {
+        DD_ASSERT(component.offset >= sizeof(m_allComponentsHeader));
+
+        const uint8_t* pCurrCompAddr   = m_pBuf + component.offset;
+        auto           pCurrCompHeader = reinterpret_cast<const DDSettingsComponentHeader*>(pCurrCompAddr);
+
+        size_t nextValueOffset = 0;
+        if (pExp->offset == 0)
+        {
+            nextValueOffset = sizeof(*pCurrCompHeader);
+        }
+        else
+        {
+            size_t currValueOffset = pExp->offset;
+            DD_ASSERT(currValueOffset >= sizeof(*pCurrCompHeader));
+            DD_ASSERT(currValueOffset < pCurrCompHeader->size);
+
+            const DD_SETTINGS_NAME_HASH* pCurrValueHeader = nullptr;
+            pCurrValueHeader = reinterpret_cast<const DD_SETTINGS_NAME_HASH*>(pCurrCompAddr + pExp->offset);
+
+            nextValueOffset = currValueOffset + sizeof(*pCurrValueHeader);
+            DD_ASSERT(nextValueOffset > currValueOffset);
+        }
+
+        if (nextValueOffset < pCurrCompHeader->size)
+        {
+            auto pNextValueHeader = reinterpret_cast<const DD_SETTINGS_NAME_HASH*>(pCurrCompAddr + nextValueOffset);
+
+            pExp->hash   = *pNextValueHeader;
+            pExp->offset = nextValueOffset;
+
+            foundNextValue = true;
+        }
+        else
+        {
+            // The current experiment is the last one. There is no next value.
         }
     }
 

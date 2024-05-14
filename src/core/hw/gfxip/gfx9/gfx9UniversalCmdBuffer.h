@@ -249,7 +249,6 @@ union CachedSettings
         uint64 ignoreCsBorderColorPalette :  1; // True if compute border-color palettes should be ignored
         uint64 blendOptimizationsEnable   :  1; // A copy of the blendOptimizationsEnable setting.
         uint64 outOfOrderPrimsEnable      :  2; // The out-of-order primitive rendering mode allowed by settings
-        uint64 scissorChangeWa            :  1; // True if the scissor register workaround is enabled
         uint64 issueSqttMarkerEvent       :  1; // True if settings are such that we need to issue SQ thread trace
                                                 // marker events on draw.
         uint64 enablePm4Instrumentation   :  1; // True if settings are such that we should enable detailed PM4
@@ -275,9 +274,7 @@ union CachedSettings
         uint64 pbbDisableBinMode          :  2; // BINNING_MODE value to use when PBB is disabled
 
         uint64 waLogicOpDisablesOverwriteCombiner        :  1;
-        uint64 waMiscPopsMissedOverlap                   :  1;
         uint64 waColorCacheControllerInvalidEviction     :  1;
-        uint64 waRotatedSwizzleDisablesOverwriteCombiner :  1;
         uint64 waTessIncorrectRelativeIndex              :  1;
         uint64 waVgtFlushNggToLegacy                     :  1;
         uint64 waVgtFlushNggToLegacyGs                   :  1;
@@ -298,16 +295,16 @@ union CachedSettings
         uint64 waEnableIntrinsicRateEnable               :  1;
         uint64 supportsShPairsPacket                     :  1;
         uint64 supportsShPairsPacketCs                   :  1;
-
-        // The second uint64 starts here.
         uint64 waAddPostambleEvent                       :  1;
         uint64 optimizeDepthOnlyFmt                      :  1;
         uint64 has32bPred                                :  1;
+
+        // The second uint64 starts here.
         uint64 optimizeNullSourceImage                   :  1;
         uint64 waitAfterCbFlush                          :  1;
         uint64 waitAfterDbFlush                          :  1;
         uint64 rbHarvesting                              :  1;
-        uint64 reserved                                  : 57;
+        uint64 reserved                                  : 60;
     };
     uint64 u64All[2];
 };
@@ -635,11 +632,7 @@ public:
         const TriangleRasterStateParams& params,
         bool                             optimizeLinearDestGfxCopy);
 
-    virtual void AddPerPresentCommands(
-        gpusize frameCountGpuAddr,
-        uint32  frameCntReg) override;
-
-    virtual void CmdOverwriteRbPlusFormatForBlits(
+    virtual void CmdOverwriteColorExportInfoForBlits(
         SwizzledFormat format,
         uint32         targetIndex) override;
 
@@ -654,8 +647,6 @@ public:
     uint32* ValidateScissorRects(uint32* pDeCmdSpace);
     uint32* ValidateScissorRects(uint32* pDeCmdSpace);
 
-    bool NeedsToValidateScissorRectsWa(bool pm4OptImmediate) const;
-
     uint32* ValidatePaScAaConfig(uint32* pDeCmdSpace);
 
     virtual void CpCopyMemory(gpusize dstAddr, gpusize srcAddr, gpusize numBytes) override;
@@ -668,10 +659,6 @@ public:
     virtual void DirtyVrsDepthImage(const IImage* pDepthImage) override;
 
     void CallNestedCmdBuffer(UniversalCmdBuffer* pCmdBuf);
-
-    regDB_DFSM_CONTROL* GetDbDfsmControl() { return &m_dbDfsmControl; }
-    bool HasWaMiscPopsMissedOverlapBeenApplied() const { return m_hasWaMiscPopsMissedOverlapBeenApplied; }
-    void SetWaMiscPopsMissedOverlapHasBeenApplied() { m_hasWaMiscPopsMissedOverlapBeenApplied = true; }
 
     virtual gpusize GetMeshPipeStatsGpuAddr() const override { return m_meshPipeStatsGpuAddr; }
 
@@ -891,7 +878,7 @@ private:
     template <bool Pm4OptImmediate>
     uint32* UpdateDbCountControl(uint32 log2SampleRate, uint32* pDeCmdSpace);
 
-    bool ForceWdSwitchOnEop(const GraphicsPipeline& pipeline, const Pm4::ValidateDrawInfo& drawInfo) const;
+    bool ForceWdSwitchOnEop(const Pm4::ValidateDrawInfo& drawInfo) const;
 
     VportCenterRect GetViewportsCenterAndScale() const;
 
@@ -984,8 +971,6 @@ private:
 
     uint8 CheckStreamOutBufferStridesOnPipelineSwitch();
 
-    void Gfx9GetColorBinSize(Extent2d* pBinSize) const;
-    void Gfx9GetDepthBinSize(Extent2d* pBinSize) const;
     void Gfx10GetColorBinSize(Extent2d* pBinSize) const;
     void Gfx10GetDepthBinSize(Extent2d* pBinSize) const;
     template <bool IsNgg>
@@ -1221,6 +1206,7 @@ private:
     regCB_COLOR_CONTROL                      m_cbColorControl;    // Register setting for CB_COLOR_CONTROL
     regPA_CL_CLIP_CNTL                       m_paClClipCntl;      // Register setting for PA_CL_CLIP_CNTL
     regCB_TARGET_MASK                        m_cbTargetMask;      // Register setting for CB_TARGET_MASK
+    regCB_SHADER_MASK                        m_cbShaderMask;      // Register setting for CB_SHADER_MASK
     regVGT_TF_PARAM                          m_vgtTfParam;        // Register setting for VGT_TF_PARAM
     regPA_SC_LINE_CNTL                       m_paScLineCntl;      // Register setting for PA_SC_LINE_CNTL
     uint16                                   m_vertexOffsetReg;   // Register where the vertex start offset is written
@@ -1255,7 +1241,6 @@ private:
 
     PaScBinnerCntlRegs      m_pbbCntlRegs;
 
-    regDB_DFSM_CONTROL      m_dbDfsmControl;
     regDB_RENDER_OVERRIDE   m_dbRenderOverride;     // Current value of DB_RENDER_OVERRIDE.
     regDB_RENDER_OVERRIDE   m_prevDbRenderOverride; // Prev value of DB_RENDER_OVERRIDE - only used on primary CmdBuf.
     regVGT_MULTI_PRIM_IB_RESET_EN m_vgtMultiPrimIbResetEn; // Last written value of VGT_MULTI_PRIM_IB_RESET_EN register.
@@ -1282,8 +1267,7 @@ private:
     static constexpr uint32     PaScBinnerCntl1StaticMask =
         PA_SC_BINNER_CNTL_1__MAX_PRIM_PER_BATCH_MASK;
 
-    bool             m_hasWaMiscPopsMissedOverlapBeenApplied;
-    bool             m_enabledPbb;       // PBB is currently enabled or disabled.
+    bool             m_enabledPbb;       // If PBB is enabled or in an unknown state, then true, else false.
     uint16           m_customBinSizeX;   // Custom bin sizes for PBB.  Zero indicates PBB is not using
     uint16           m_customBinSizeY;   // a custom bin size.
 

@@ -163,11 +163,11 @@ Result TimestampFence::Reset()
 // way to truly multiplex the set of Fences in the non-waitAll case.  This means that the best approximation we can make
 // is to poll until we discover that some Fence(s) in the set have finished.
 Result TimestampFence::WaitForFences(
-    const Pal::Device&      device,
-    uint32                  fenceCount,
-    const Pal::Fence*const* ppFenceList,
-    bool                    waitAll,
-    uint64                  timeout) const
+    const Pal::Device&       device,
+    uint32                   fenceCount,
+    const Pal::Fence*const*  ppFenceList,
+    bool                     waitAll,
+    std::chrono::nanoseconds timeout) const
 {
     PAL_ASSERT((fenceCount > 0) && (ppFenceList != nullptr));
 
@@ -237,10 +237,9 @@ Result TimestampFence::WaitForFences(
     {
         struct timespec startTime = {};
         struct timespec stopTime = {};
-        uint64 timeoutLeft = 0;
 
         ComputeTimeoutExpiration(&startTime, 0);
-        ComputeTimeoutExpiration(&stopTime, timeout);
+        ComputeTimeoutExpiration(&stopTime, timeout.count());
 
         if (count > 0)
         {

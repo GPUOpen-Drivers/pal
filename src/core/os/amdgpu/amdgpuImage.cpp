@@ -486,35 +486,21 @@ Result Image::GetExternalSharedImageCreateInfo(
 
     if (result == Result::Success)
     {
-        if (hasMetadata && (pCreateInfo->flags.sharedWithMesa == 0))
-        {
-            pCreateInfo->imageType = static_cast<ImageType>(pMetadata->flags.resource_type);
-        }
-        else
-        {
-            pCreateInfo->imageType = ImageType::Tex2d;
-        }
+        // Defaults values which may be overridden below.
+        pCreateInfo->imageType  = ImageType::Tex2d;
+        pCreateInfo->tiling     = ImageTiling::Linear;
+        pCreateInfo->mipLevels  = 1u;
+        pCreateInfo->arraySize  = 1u;
+        pCreateInfo->samples    = 1u;
+        pCreateInfo->flags.presentable = false;
 
         if (hasMetadata)
         {
-            const auto swizzleMode =
-                (pCreateInfo->flags.sharedWithMesa
-                    ? static_cast<AMDGPU_SWIZZLE_MODE>(
-                        AMDGPU_TILING_GET(sharedInfo.info.metadata.swizzle_info, SWIZZLE_MODE))
-                    : pMetadata->swizzleMode);
+            if (pCreateInfo->flags.sharedWithMesa == 0)
+            {
+                pCreateInfo->imageType = static_cast<ImageType>(pMetadata->flags.resource_type);
+            }
 
-            const bool isLinearTiled = (swizzleMode == AMDGPU_SWIZZLE_MODE_LINEAR) ||
-                                       (swizzleMode == AMDGPU_SWIZZLE_MODE_LINEAR_GENERAL);
-
-            pCreateInfo->tiling = isLinearTiled ? ImageTiling::Linear : ImageTiling::Optimal;
-        }
-        else
-        {
-            pCreateInfo->tiling = ImageTiling::Linear;
-        }
-
-        if (hasMetadata)
-        {
             // For the bo created by other driver(display), the miplevels and
             // arraySize might not be initialized as 1, which will cause seqfault,
             // set the default value as 1 here to provide the robustness when mipLevels and
@@ -532,23 +518,32 @@ Result Image::GetExternalSharedImageCreateInfo(
             pCreateInfo->usageFlags.depthStencil |= pMetadata->flags.depth_stencil;
 
             pCreateInfo->flags.optimalShareable = pMetadata->flags.optimal_shareable;
-            pCreateInfo->flags.presentable      = ((device.ChipProperties().gfxLevel >= GfxIpLevel::GfxIp9) &&
-                                                   (pCreateInfo->flags.hasModifier == 0))
-                                                    ? AMDGPU_TILING_GET(sharedInfo.info.metadata.tiling_info, SCANOUT)
-                                                    : false;
-            pCreateInfo->flags.flippable        = pCreateInfo->flags.presentable;
-        }
-        else
-        {
-            pCreateInfo->mipLevels  = 1u;
-            pCreateInfo->arraySize  = 1u;
-            pCreateInfo->samples    = 1u;
+
+            if (IsGfx9Hwl(device))
+            {
+                const auto swizzleMode =
+                    static_cast<AddrSwizzleMode>(
+                        pCreateInfo->flags.sharedWithMesa
+                            ? AMDGPU_TILING_GET(sharedInfo.info.metadata.swizzle_info, SWIZZLE_MODE)
+                            : pMetadata->gfx9.swizzleMode);
+
+                pCreateInfo->tiling = AddrMgr2::IsLinearSwizzleMode(swizzleMode)
+                                        ? ImageTiling::Linear
+                                        : ImageTiling::Optimal;
+
+                pCreateInfo->flags.presentable =
+                    ((pCreateInfo->flags.hasModifier == 0) &&
+                     (AMDGPU_TILING_GET(sharedInfo.info.metadata.tiling_info, SCANOUT) != 0));
+            }
+
+            pCreateInfo->flags.flippable = pCreateInfo->flags.presentable;
         }
 
         pCreateInfo->fragments = pCreateInfo->samples;
         // This image must be shareable (as it has already been shared); request view format change as well to be safe.
         pCreateInfo->flags.shareable = 1;
         pCreateInfo->viewFormatCount = AllCompatibleFormats;
+
     }
 
     return result;
@@ -575,47 +570,50 @@ Result Image::CreateExternalSharedImage(
 
     ImageInternalCreateInfo internalCreateInfo = {};
 
-    if (hasMetadata == false)
+    if (IsGfx9Hwl(*pDevice))
     {
-        internalCreateInfo.gfx9.sharedSwizzleMode = ADDR_SW_LINEAR;
-    }
-    else
-    {
-        const uint64 tilingInfo = sharedInfo.info.metadata.tiling_info;
-
-        if (IsMesaMetadata(sharedInfo.info.metadata))
-        {
-            internalCreateInfo.gfx9.sharedSwizzleMode = static_cast<AddrSwizzleMode>
-                (AMDGPU_TILING_GET(sharedInfo.info.metadata.swizzle_info, SWIZZLE_MODE));
-        }
-        else
-        {
-            internalCreateInfo.sharedPipeBankXor[0] = pMetadata->pipeBankXor;
-            for (uint32 plane = 1; plane < MaxNumPlanes; plane++)
-            {
-                internalCreateInfo.sharedPipeBankXor[plane] = pMetadata->additionalPipeBankXor[plane - 1];
-            }
-
-            internalCreateInfo.gfx9.sharedSwizzleMode = static_cast<AddrSwizzleMode>(pMetadata->swizzleMode);
-            PAL_ASSERT(AMDGPU_TILING_GET(tilingInfo, SWIZZLE_MODE) == pMetadata->swizzleMode);
-        }
-
-        // ADDR_SW_LINEAR_GENERAL is a UBM compatible swizzle mode which treat as buffer in copy.
-        // Here we try ADDR_SW_LINEAR first and fall back to typed buffer path if failure the
-        // creation as PAL::image.
-        if (internalCreateInfo.gfx9.sharedSwizzleMode == ADDR_SW_LINEAR_GENERAL)
+        if (hasMetadata == false)
         {
             internalCreateInfo.gfx9.sharedSwizzleMode = ADDR_SW_LINEAR;
         }
+        else
+        {
+            const uint64 tilingInfo = sharedInfo.info.metadata.tiling_info;
 
-        internalCreateInfo.flags.useSharedDccState = 1;
+            if (IsMesaMetadata(sharedInfo.info.metadata))
+            {
+                internalCreateInfo.gfx9.sharedSwizzleMode = static_cast<AddrSwizzleMode>
+                    (AMDGPU_TILING_GET(sharedInfo.info.metadata.swizzle_info, SWIZZLE_MODE));
+            }
+            else
+            {
+                internalCreateInfo.sharedPipeBankXor[0] = pMetadata->pipeBankXor;
+                for (uint32 plane = 1; plane < MaxNumPlanes; plane++)
+                {
+                    internalCreateInfo.sharedPipeBankXor[plane] = pMetadata->additionalPipeBankXor[plane - 1];
+                }
 
-        DccState*const pDccState = &internalCreateInfo.gfx9.sharedDccState;
+                internalCreateInfo.gfx9.sharedSwizzleMode = static_cast<AddrSwizzleMode>(pMetadata->gfx9.swizzleMode);
+                PAL_ASSERT(AMDGPU_TILING_GET(tilingInfo, SWIZZLE_MODE) == pMetadata->gfx9.swizzleMode);
+            }
 
-        pDccState->maxCompressedBlockSize   = AMDGPU_TILING_GET(tilingInfo, DCC_MAX_COMPRESSED_BLOCK_SIZE);
-        pDccState->maxUncompressedBlockSize = AMDGPU_TILING_GET(tilingInfo, DCC_MAX_UNCOMPRESSED_BLOCK_SIZE);
-        pDccState->independentBlk64B        = AMDGPU_TILING_GET(tilingInfo, DCC_INDEPENDENT_64B);
-        pDccState->independentBlk128B       = AMDGPU_TILING_GET(tilingInfo, DCC_INDEPENDENT_128B);
+            // ADDR_SW_LINEAR_GENERAL is a UBM compatible swizzle mode which treat as buffer in copy.
+            // Here we try ADDR_SW_LINEAR first and fall back to typed buffer path if failure the
+            // creation as PAL::image.
+            if (internalCreateInfo.gfx9.sharedSwizzleMode == ADDR_SW_LINEAR_GENERAL)
+            {
+                internalCreateInfo.gfx9.sharedSwizzleMode = ADDR_SW_LINEAR;
+            }
+
+            internalCreateInfo.flags.useSharedDccState = 1;
+
+            DccState*const pDccState = &internalCreateInfo.gfx9.sharedDccState;
+
+            pDccState->maxCompressedBlockSize   = AMDGPU_TILING_GET(tilingInfo, DCC_MAX_COMPRESSED_BLOCK_SIZE);
+            pDccState->maxUncompressedBlockSize = AMDGPU_TILING_GET(tilingInfo, DCC_MAX_UNCOMPRESSED_BLOCK_SIZE);
+            pDccState->independentBlk64B        = AMDGPU_TILING_GET(tilingInfo, DCC_INDEPENDENT_64B);
+            pDccState->independentBlk128B       = AMDGPU_TILING_GET(tilingInfo, DCC_INDEPENDENT_128B);
+        }
     }
 
     internalCreateInfo.flags.privateScreenPresent     = (pPrivateScreen != nullptr);
@@ -636,57 +634,61 @@ Result Image::CreateExternalSharedImage(
 
             internalCreateInfo.sharedMetadata.numPlanes = 1;
 
-            internalCreateInfo.sharedMetadata.dccOffset[0] = pUmdSharedMetadata->dcc_offset;
-            internalCreateInfo.sharedMetadata.cmaskOffset = pUmdSharedMetadata->cmask_offset;
-            internalCreateInfo.sharedMetadata.fmaskOffset = pUmdSharedMetadata->fmask_offset;
-            internalCreateInfo.sharedMetadata.htileOffset = pUmdSharedMetadata->htile_offset;
-
-            internalCreateInfo.sharedMetadata.flags.shaderFetchable =
-                pUmdSharedMetadata->flags.shader_fetchable;
-            internalCreateInfo.sharedMetadata.flags.shaderFetchableFmask =
-                pUmdSharedMetadata->flags.shader_fetchable_fmask;
-            internalCreateInfo.sharedMetadata.flags.hasWaTcCompatZRange =
-                pUmdSharedMetadata->flags.has_wa_tc_compat_z_range;
-            internalCreateInfo.sharedMetadata.flags.hasEqGpuAccess =
-                pUmdSharedMetadata->flags.has_eq_gpu_access;
-            internalCreateInfo.sharedMetadata.flags.hasCmaskEqGpuAccess =
-                pUmdSharedMetadata->flags.has_cmask_eq_gpu_access;
-            internalCreateInfo.sharedMetadata.flags.hasHtileLookupTable =
-                pUmdSharedMetadata->flags.has_htile_lookup_table;
-            internalCreateInfo.sharedMetadata.flags.htileHasDsMetadata =
-                pUmdSharedMetadata->flags.htile_has_ds_metadata;
-
-            internalCreateInfo.sharedMetadata.fastClearMetaDataOffset[0] =
-                pUmdSharedMetadata->fast_clear_value_offset;
-            internalCreateInfo.sharedMetadata.fastClearEliminateMetaDataOffset[0] =
-                pUmdSharedMetadata->fce_state_offset;
-
-            // The offset here will be updated once change of amdgpu_shared_metadata_info is done.
-            internalCreateInfo.sharedMetadata.hisPretestMetaDataOffset = 0;
-
-            if (pUmdSharedMetadata->dcc_offset != 0)
+            if (IsGfx9Hwl(*pDevice))
             {
-                internalCreateInfo.sharedMetadata.dccStateMetaDataOffset[0] =
-                    pUmdSharedMetadata->dcc_state_offset;
-            }
-            else if (pUmdSharedMetadata->flags.has_htile_lookup_table)
-            {
-                internalCreateInfo.sharedMetadata.htileLookupTableOffset =
-                    pUmdSharedMetadata->htile_lookup_table_offset;
+                internalCreateInfo.sharedMetadata.dccOffset[0] = pUmdSharedMetadata->gfx9.dcc_offset;
+                internalCreateInfo.sharedMetadata.cmaskOffset  = pUmdSharedMetadata->gfx9.cmask_offset;
+                internalCreateInfo.sharedMetadata.fmaskOffset  = pUmdSharedMetadata->gfx9.fmask_offset;
+                internalCreateInfo.sharedMetadata.htileOffset  = pUmdSharedMetadata->gfx9.htile_offset;
+
+                // This metadata is not used in gfx10+ so it should never be present.
+                PAL_ASSERT(pUmdSharedMetadata->flags.has_wa_tc_compat_z_range == 0);
+
+                internalCreateInfo.sharedMetadata.flags.shaderFetchable =
+                    pUmdSharedMetadata->flags.shader_fetchable;
+                internalCreateInfo.sharedMetadata.flags.shaderFetchableFmask =
+                    pUmdSharedMetadata->flags.shader_fetchable_fmask;
+                internalCreateInfo.sharedMetadata.flags.hasEqGpuAccess =
+                    pUmdSharedMetadata->flags.has_eq_gpu_access;
+                internalCreateInfo.sharedMetadata.flags.hasCmaskEqGpuAccess =
+                    pUmdSharedMetadata->flags.has_cmask_eq_gpu_access;
+                internalCreateInfo.sharedMetadata.flags.hasHtileLookupTable =
+                    pUmdSharedMetadata->flags.has_htile_lookup_table;
+                internalCreateInfo.sharedMetadata.flags.htileHasDsMetadata =
+                    pUmdSharedMetadata->flags.htile_has_ds_metadata;
+
+                internalCreateInfo.sharedMetadata.fastClearMetaDataOffset[0] =
+                    pUmdSharedMetadata->gfx9.fast_clear_value_offset;
+                internalCreateInfo.sharedMetadata.fastClearEliminateMetaDataOffset[0] =
+                    pUmdSharedMetadata->gfx9.fce_state_offset;
+
+                // The offset here will be updated once change of amdgpu_shared_metadata_info is done.
+                internalCreateInfo.sharedMetadata.hisPretestMetaDataOffset = 0;
+
+                if (pUmdSharedMetadata->gfx9.dcc_offset != 0)
+                {
+                    internalCreateInfo.sharedMetadata.dccStateMetaDataOffset[0] =
+                        pUmdSharedMetadata->gfx9.dcc_state_offset;
+                }
+                else if (pUmdSharedMetadata->flags.has_htile_lookup_table)
+                {
+                    internalCreateInfo.sharedMetadata.htileLookupTableOffset =
+                        pUmdSharedMetadata->gfx9.htile_lookup_table_offset;
+                }
+
+                if (pUmdSharedMetadata->flags.htile_as_fmask_xor)
+                {
+                    internalCreateInfo.gfx9.sharedPipeBankXorFmask =
+                        LowPart(internalCreateInfo.sharedMetadata.htileOffset);
+                    internalCreateInfo.sharedMetadata.htileOffset = 0;
+                }
+
+                internalCreateInfo.sharedMetadata.fmaskSwizzleMode =
+                    static_cast<AddrSwizzleMode>(pUmdSharedMetadata->gfx9.fmask_swizzle_mode);
             }
 
-            if (pUmdSharedMetadata->flags.htile_as_fmask_xor)
-            {
-                PAL_ASSERT(pDevice->ChipProperties().gfxLevel >= GfxIpLevel::GfxIp9);
-                internalCreateInfo.gfx9.sharedPipeBankXorFmask =
-                    LowPart(internalCreateInfo.sharedMetadata.htileOffset);
-                internalCreateInfo.sharedMetadata.htileOffset = 0;
-            }
-
-            internalCreateInfo.sharedMetadata.resourceId       = Uint64CombineParts(pUmdSharedMetadata->resource_id,
-                pUmdSharedMetadata->resource_id_high32);
-            internalCreateInfo.sharedMetadata.fmaskSwizzleMode = static_cast<AddrSwizzleMode>
-                (pUmdSharedMetadata->fmaskSwizzleMode);
+            internalCreateInfo.sharedMetadata.resourceId =
+                Uint64CombineParts(pUmdSharedMetadata->resource_id, pUmdSharedMetadata->resource_id_high32);
 
             createInfo.flags.optimalShareable = 1;
         }

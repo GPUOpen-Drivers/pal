@@ -494,7 +494,7 @@ void BarrierMgr::ExpandColor(
 
         if (dccDecompress)
         {
-            if (earlyPhase && gfx9Device.WaEnableDccCacheFlushAndInvalidate())
+            if (earlyPhase && gfx9Device.Settings().waDccCacheFlushAndInv)
             {
                 uint32*  pCmdSpace = pCmdStream->ReserveCommands();
                 pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CACHE_FLUSH_AND_INV_EVENT, engineType, pCmdSpace);
@@ -552,7 +552,7 @@ void BarrierMgr::ExpandColor(
         }
         else if (fastClearEliminate)
         {
-            if (earlyPhase && gfx9Device.WaEnableDccCacheFlushAndInvalidate() && gfx9Image.HasDccData())
+            if (earlyPhase && gfx9Device.Settings().waDccCacheFlushAndInv && gfx9Image.HasDccData())
             {
                 uint32* pCmdSpace = pCmdStream->ReserveCommands();
                 pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CACHE_FLUSH_AND_INV_EVENT, engineType, pCmdSpace);
@@ -719,12 +719,7 @@ void BarrierMgr::FillCacheOperations(
     pOperations->caches.invalDbMetadata  |= TestAnyFlagSet(syncReqs.rbCaches,  SyncDbMetaInv);
     pOperations->caches.flushDbMetadata  |= TestAnyFlagSet(syncReqs.rbCaches,  SyncDbMetaWb);
     pOperations->caches.invalTccMetadata |= TestAnyFlagSet(syncReqs.glxCaches, SyncGlmInv);
-
-    // We have an additional cache level since gfx10.
-    if (m_gfxIpLevel != GfxIpLevel::GfxIp9)
-    {
-        pOperations->caches.invalGl1     |= TestAnyFlagSet(syncReqs.glxCaches, SyncGl1Inv);
-    }
+    pOperations->caches.invalGl1         |= TestAnyFlagSet(syncReqs.glxCaches, SyncGl1Inv);
 }
 
 // =====================================================================================================================
@@ -921,8 +916,6 @@ void BarrierMgr::IssueSyncs(
             acquireInfo.rangeSize              = rangeSize;
 
             pCmdSpace += m_cmdUtil.BuildAcquireMemGfxSurfSync(acquireInfo, pCmdSpace);
-
-            pCmdStream->SetContextRollDetected<false>();
         }
         else
         {

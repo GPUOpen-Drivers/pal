@@ -124,8 +124,7 @@ void SettingsLoader::OverrideDefaults()
         m_settings.addr2UseVarSwizzleMode = Addr2UseVarSwizzle::Addr2UseVarSwizzleDisable;
     }
 
-    if (IsGfx103CorePlus(*m_pDevice)
-        )
+    if (IsGfx103CorePlus(*m_pDevice))
     {
         m_settings.enableGangSubmit = true;
     }

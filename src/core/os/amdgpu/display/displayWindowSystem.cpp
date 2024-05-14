@@ -36,6 +36,8 @@
 #include <poll.h>
 
 using namespace Util;
+using namespace std::chrono_literals;
+
 namespace Pal
 {
 namespace Amdgpu
@@ -133,11 +135,8 @@ Result DisplayPresentFence::Trigger()
 Result DisplayPresentFence::WaitForCompletion(
     bool doWait)
 {
-    uint32 timeoutMsec = doWait ? -1 : 0;
-
-    Result result = m_imageIdle.Wait(timeoutMsec);
-
-    return result;
+    using namespace std::chrono;
+    return m_imageIdle.Wait(doWait ? milliseconds::max() : 0ms);
 }
 
 // =====================================================================================================================
@@ -436,8 +435,7 @@ Result DisplayWindowSystem::WaitForLastImagePresented()
 {
     // Waiting for flipping. When the semaphore is signaled, it means the current presentable image is being scan-out
     // and the previous presentable images are idle.
-    uint32 timeoutMsec = -1;
-    m_flipSemaphore.Wait(timeoutMsec);
+    m_flipSemaphore.Wait(std::chrono::milliseconds::max());
     return Result::Success;
 }
 

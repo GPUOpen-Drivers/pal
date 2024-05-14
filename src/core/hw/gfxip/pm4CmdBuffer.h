@@ -95,8 +95,11 @@ union Pm4CmdBufferStateFlags
                                                 // submitted on this queue may still be active.  This flag starts
                                                 // set and will be cleared if/when an EOP wait is inserted in this
                                                 // command buffer.
-        uint32 reserved1                 :  1;
-        uint32 reserved                  : 18;
+
+        uint32 csBltDirectWriteMisalignedMdDirty   :  1; // Track if CS direct write to misaligned md may be dirty.
+        uint32 csBltIndirectWriteMisalignedMdDirty :  1; // Track if CS indirect write to misaligned md may be dirty.
+        uint32 gfxBltDirectWriteMisalignedMdDirty  :  1; // Track if GFX direct write to misaligned md may be dirty.
+        uint32 reserved                            : 16;
     };
 
     uint32 u32All;
@@ -200,6 +203,31 @@ public:
     void SetCpMemoryWriteL2CacheStaleState(bool cpMemoryWriteDirty)
         { m_pm4CmdBufState.flags.cpMemoryWriteL2CacheStale = cpMemoryWriteDirty; }
 
+    bool IsBltWriteMisalignedMdDirty() const
+        { return (m_pm4CmdBufState.flags.csBltDirectWriteMisalignedMdDirty   |
+                  m_pm4CmdBufState.flags.csBltIndirectWriteMisalignedMdDirty |
+                  m_pm4CmdBufState.flags.gfxBltDirectWriteMisalignedMdDirty) != 0; }
+
+    // For internal RPM BLT with misaligned metadata write access, we need track the detailed access mode. This helps
+    // determine the optimal misaligned metadata workaround which requires a GL2 flush and invalidation.
+    void SetCsBltDirectWriteMisalignedMdState(bool dirty)
+      { m_pm4CmdBufState.flags.csBltDirectWriteMisalignedMdDirty |= dirty;}
+    void SetCsBltIndirectWriteMisalignedMdState(bool dirty)
+      { m_pm4CmdBufState.flags.csBltIndirectWriteMisalignedMdDirty |= dirty;}
+    void SetGfxBltDirectWriteMisalignedMdState(bool dirty)
+      { m_pm4CmdBufState.flags.gfxBltDirectWriteMisalignedMdDirty |= dirty;}
+
+    // When a GL2 flush and invalidation is issued, can clear the tracking flags to avoid duplicated GL2 flush and
+    // invalidation. Note that can clear the flag safely only if related BLT is done (xxxBltActive = 0).
+    void ClearBltWriteMisalignMdState()
+    {
+        Pm4CmdBufferStateFlags* pFlags = &m_pm4CmdBufState.flags;
+
+        pFlags->csBltDirectWriteMisalignedMdDirty   &= pFlags->csBltActive;
+        pFlags->csBltIndirectWriteMisalignedMdDirty &= pFlags->csBltActive;
+        pFlags->gfxBltDirectWriteMisalignedMdDirty  &= pFlags->gfxBltActive;
+    }
+
     // Execution fence value is updated at every BLT. Set it to the next event because its completion indicates all
     // prior BLTs have completed.
     void UpdateGfxBltExecEopFence()
@@ -292,10 +320,13 @@ protected:
 
     virtual void InheritStateFromCmdBuf(const Pm4CmdBuffer* pCmdBuffer) = 0;
 
-    virtual void OptimizeAcqRelReleaseInfo(
-        BarrierType barrierType,
-        uint32*     pStageMask,
-        uint32*     pAccessMask) const override;
+    virtual bool OptimizeAcqRelReleaseInfo(
+        BarrierType   barrierType,
+        const IImage* pImage,
+        uint32*       pSrcStageMask,
+        uint32*       pSrcAccessMask,
+        uint32*       pDstStageMask,
+        uint32*       pDstAccessMask) const override;
 
     void UpdateUserDataTableCpu(
         UserDataTableState * pTable,

@@ -242,7 +242,8 @@ DD_RESULT RpcClient::Call(const DDRpcClientCallInfo& info)
 
         if (result == DD_RESULT_SUCCESS)
         {
-            result = ddSocketSend(m_hSocket, info.pParamBuffer, info.paramBufferSize);
+            result = ddSocketSendWithTimeout(
+                m_hSocket, info.pParamBuffer, info.paramBufferSize, info.sendTimeoutMillis);
         }
     }
 

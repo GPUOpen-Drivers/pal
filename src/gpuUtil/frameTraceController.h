@@ -53,6 +53,7 @@ public:
     virtual Pal::uint32 GetVersion() const override { return FrameTraceControllerVersion; }
 
     virtual void OnConfigUpdated(DevDriver::StructuredValue* pJsonConfig) override;
+    virtual Pal::Result OnTraceRequested() override { return Pal::Result::Success; }
 
     virtual Pal::Result OnBeginGpuWork(Pal::uint32 gpuIndex, Pal::ICmdBuffer** ppCmdBuffer) override;
     virtual Pal::Result OnEndGpuWork(Pal::uint32 gpuIndex, Pal::ICmdBuffer** ppCmdBuffer) override;

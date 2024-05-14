@@ -74,22 +74,28 @@ public:
 
     /// Retrieves the next buffer to write to.
     ///
-    /// @param [in]  waitTimeMs  Number of milliseconds to wait for the next available buffer.
+    /// @param [in]  waitTime    Number of milliseconds to wait for the next available buffer.
     /// @param [out] ppBuffer    Pointer to the next available writeable buffer.
     ///
     /// @returns @ref Success if a buffer is available within the wait time, @ref Timeout otherwise.
+    Result GetBufferForWriting(std::chrono::milliseconds waitTime, void** ppBuffer);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 863
     Result GetBufferForWriting(uint32 waitTimeMs, void** ppBuffer);
+#endif
 
     /// Releases the currently held writable buffer.
     void ReleaseWriteBuffer();
 
     /// Retrieves the next buffer to read from.
     ///
-    /// @param [in]  waitTimeMs     Number of milliseconds to wait for the next available buffer.
+    /// @param [in]  waitTime       Number of milliseconds to wait for the next available buffer.
     /// @param [out] ppBuffer       Pointer to the next available readable buffer.
     ///
     /// @returns @ref Success if a buffer is available within the wait time, @ref Timeout otherwise.
+    Result GetBufferForReading(std::chrono::milliseconds waitTime, const void** ppBuffer);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 863
     Result GetBufferForReading(uint32 waitTimeMs, const void** ppBuffer);
+#endif
 
     /// Releases the currently held readable buffer.
     void ReleaseReadBuffer();

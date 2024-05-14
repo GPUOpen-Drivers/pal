@@ -423,8 +423,6 @@ constexpr uint32 MaxImageHeight = 16384;
 constexpr uint32 MaxImageDepth = 8192;
 // Maximum image mip levels. This was calculated from MaxImageWidth and MaxImageHeight
 constexpr uint32 MaxImageMipLevels = 15;
-// Maximum image array slices for GFX9 GPUs
-constexpr uint32 Gfx9MaxImageArraySlices = 2048;
 // Maximum image array slices for GFX10 GPUs
 constexpr uint32 Gfx10MaxImageArraySlices = 8192;
 

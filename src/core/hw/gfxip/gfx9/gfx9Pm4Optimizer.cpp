@@ -84,7 +84,6 @@ Pm4Optimizer::Pm4Optimizer(
     :
     m_device(device),
     m_cmdUtil(device.CmdUtil()),
-    m_waTcCompatZRange(device.WaTcCompatZRange()),
     m_splitPackets(device.CoreSettings().cmdBufOptimizePm4Split)
 #if PAL_ENABLE_PRINTS_ASSERTS
     , m_dstContainsSrc(false)
@@ -125,15 +124,6 @@ void Pm4Optimizer::Reset()
         m_cntxRegs.state[regOffset].flags.mustWrite = 1;
     }
 
-    // This workaround on gfx9 adds some writes to DB_Z_INFO which are preceded by a COND_EXEC. Make sure we don't
-    // optimize away writes to this register, which would cause a hang or incorrect skipping of commands.
-    if (m_waTcCompatZRange)
-    {
-        constexpr uint32 dbZInfoIdx = Gfx09::mmDB_Z_INFO - CONTEXT_SPACE_START;
-
-        m_cntxRegs.state[dbZInfoIdx].flags.mustWrite = 1;
-    }
-
     // Reset the SH register state.
     memset(&m_shRegs, 0, sizeof(m_shRegs));
 
@@ -141,11 +131,8 @@ void Pm4Optimizer::Reset()
     memset(&m_setBaseStateGfx, 0, sizeof(m_setBaseStateGfx));
     memset(&m_setBaseStateCompute, 0, sizeof(m_setBaseStateCompute));
 
-    // Always start with no context rolls
-    m_contextRollDetected = false;
-
     // Always start enabled
-    m_isTempDisabled      = false;
+    m_isTempDisabled = false;
 }
 
 // =====================================================================================================================
@@ -157,12 +144,8 @@ bool Pm4Optimizer::MustKeepSetContextReg(
 {
     PAL_ASSERT(m_cmdUtil.IsContextReg(regAddr));
 
-    const bool mustKeep =
-        UpdateRegState<CntxRegUsedRangeSize>(regData, (regAddr - CONTEXT_SPACE_START), m_isTempDisabled, &m_cntxRegs);
-
-    m_contextRollDetected |= mustKeep;
-
-    return mustKeep;
+    return UpdateRegState<CntxRegUsedRangeSize>(
+                regData, (regAddr - CONTEXT_SPACE_START), m_isTempDisabled, &m_cntxRegs);
 }
 
 // =====================================================================================================================
@@ -200,8 +183,6 @@ bool Pm4Optimizer::MustKeepContextRegRmw(
 
         mustKeep = UpdateRegState<CntxRegUsedRangeSize>(newRegVal, regOffset, m_isTempDisabled, &m_cntxRegs);
     }
-
-    m_contextRollDetected |= mustKeep;
 
     return mustKeep;
 }
@@ -267,7 +248,6 @@ uint32* Pm4Optimizer::WriteOptimizedSetSeqShRegs(
 // Returns a pointer to the next unused DWORD in pCmdSpace.
 uint32* Pm4Optimizer::WriteOptimizedSetSeqContextRegs(
     PM4_PFP_SET_CONTEXT_REG setData,
-    bool*                   pContextRollDetected,
     const uint32*           pData,
     uint32*                 pCmdSpace)
 {
@@ -275,14 +255,7 @@ uint32* Pm4Optimizer::WriteOptimizedSetSeqContextRegs(
     m_dstContainsSrc = false;
 #endif
 
-    PAL_ASSERT(pContextRollDetected != nullptr);
-
-    uint32* pNewCmdSpace = OptimizePm4SetReg(setData,
-                                             pData,
-                                             pCmdSpace,
-                                             &m_cntxRegs);
-    (*pContextRollDetected) |= ((pNewCmdSpace > pCmdSpace) != 0);
-    return pNewCmdSpace;
+    return OptimizePm4SetReg(setData, pData, pCmdSpace, &m_cntxRegs);
 }
 
 // =====================================================================================================================

@@ -695,18 +695,17 @@ public:
         IFence*const*       ppFences) const override;
 
     virtual Result WaitForFences(
-        uint32              fenceCount,
-        const IFence*const* ppFences,
-        bool                waitAll,
-        uint64              timeout
-        ) const override;
+        uint32                   fenceCount,
+        const IFence*const*      ppFences,
+        bool                     waitAll,
+        std::chrono::nanoseconds timeout) const override;
 
     virtual Result WaitForSemaphores(
         uint32                       semaphoreCount,
         const IQueueSemaphore*const* ppSemaphores,
         const uint64*                pValues,
         uint32                       flags,
-        uint64                       timeout) const override;
+        std::chrono::nanoseconds     timeout) const override;
 
     virtual Result GetCalibratedTimestamps(
         CalibratedTimestamps* pCalibratedTimestamps) const override
@@ -1592,11 +1591,19 @@ public:
 
     virtual void CmdBarrier(const BarrierInfo& barrierInfo) override;
 
-    virtual void OptimizeAcqRelReleaseInfo(
-        BarrierType barrierType,
-        uint32*     pStageMask,
-        uint32*     pAccessMask) const override
-    { m_pNextLayer->OptimizeAcqRelReleaseInfo(barrierType, pStageMask, pAccessMask); }
+    virtual bool OptimizeAcqRelReleaseInfo(
+        BarrierType   barrierType,
+        const IImage* pImage,
+        uint32*       pSrcStageMask,
+        uint32*       pSrcAccessMask,
+        uint32*       pDstStageMask,
+        uint32*       pDstAccessMask) const override
+    { return m_pNextLayer->OptimizeAcqRelReleaseInfo(barrierType,
+                                                     pImage,
+                                                     pSrcStageMask,
+                                                     pSrcAccessMask,
+                                                     pDstStageMask,
+                                                     pDstAccessMask); }
 
     virtual uint32 CmdRelease(
         const AcquireReleaseInfo& releaseInfo) override;
@@ -2973,7 +2980,7 @@ public:
 
     virtual Util::Span<const IPipeline* const> GetPipelines() const override { return m_pipelines; }
 
-    virtual Util::Span<const IShaderLibrary* const> GetLibraries() const { return m_libraries; }
+    virtual Util::Span<const IShaderLibrary* const> GetLibraries() const override { return m_libraries; }
 
     // Part of the IDestroyable public interface.
     virtual void Destroy() override
@@ -3183,12 +3190,12 @@ public:
         const PresentSwapChainInfo& presentInfo) override;
 
     virtual Result Delay(
-        float delay) override
+        Util::fmilliseconds delay) override
         { return m_pNextLayer->Delay(delay); }
 
     virtual Result DelayAfterVsync(
-        float delayInUs, const IPrivateScreen* pScreen) override
-        { return m_pNextLayer->DelayAfterVsync(delayInUs, NextPrivateScreen(pScreen)); }
+        Util::fmicroseconds delay, const IPrivateScreen* pScreen) override
+        { return m_pNextLayer->DelayAfterVsync(delay, NextPrivateScreen(pScreen)); }
 
     virtual Result RemapVirtualMemoryPages(
         uint32                         rangeCount,
@@ -3270,8 +3277,8 @@ public:
     virtual Result QuerySemaphoreValue(uint64*  pValue) override
         { return m_pNextLayer->QuerySemaphoreValue(pValue); }
 
-    virtual Result WaitSemaphoreValue(uint64  value, uint64 timeoutNs) override
-        { return m_pNextLayer->WaitSemaphoreValue(value, timeoutNs); }
+    virtual Result WaitSemaphoreValue(uint64 value, std::chrono::nanoseconds timeout) override
+        { return m_pNextLayer->WaitSemaphoreValue(value, timeout); }
 
     virtual Result SignalSemaphoreValue(uint64  value) override
         { return m_pNextLayer->SignalSemaphoreValue(value); }

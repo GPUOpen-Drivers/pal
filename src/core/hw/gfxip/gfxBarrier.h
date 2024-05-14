@@ -36,6 +36,7 @@ class  Device;
 class  GfxCmdBuffer;
 class  GfxDevice;
 class  IGpuEvent;
+class  Image;
 class  Platform;
 class  Pm4CmdBuffer;
 struct AcquireReleaseInfo;
@@ -90,8 +91,7 @@ constexpr uint32 PipelineStagesGraphicsOnly = PipelineStageFetchIndices  |
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 835
                                               PipelineStageSampleRate    |
 #endif
-                                              PipelineStageEarlyDsTarget |
-                                              PipelineStageLateDsTarget  |
+                                              PipelineStageDsTarget      |
                                               PipelineStageColorTarget;
 
 constexpr uint32 PipelineStagePfpMask       = PipelineStageTopOfPipe         |
@@ -108,18 +108,22 @@ constexpr uint32 CacheCoherencyGraphicsOnly = CoherColorTarget        |
 
 // There are various BLTs(Copy, Clear, and Resolve) that can involve different caches based on what engine
 // does the BLT. Note that the compute shader support for masked clears requires an implicit read-modify-write.
-constexpr uint32 CacheCoherencyBltSrc = CoherCopySrc | CoherResolveSrc | CoherClear;
-constexpr uint32 CacheCoherencyBltDst = CoherCopyDst | CoherResolveDst | CoherClear;
-constexpr uint32 CacheCoherencyBlt    = CacheCoherencyBltSrc | CacheCoherencyBltDst;
+constexpr uint32 CacheCoherencyBltSrc   = CoherCopySrc | CoherResolveSrc | CoherClear;
+constexpr uint32 CacheCoherencyBltDst   = CoherCopyDst | CoherResolveDst | CoherClear;
+constexpr uint32 CacheCoherencyBlt      = CacheCoherencyBltSrc | CacheCoherencyBltDst;
+
+// Buffer only access flags.
+constexpr uint32 CoherBufferOnlyMask    = CoherIndirectArgs | CoherIndexData | CoherQueueAtomic |
+                                         CoherStreamOut | CoherCp;
 
 // Mask of all GPU memory access through RB cache.
 constexpr uint32 CacheCoherRbAccessMask = CoherColorTarget | CoherDepthStencilTarget;
 
 // Cache coherency masks that are writable.
-constexpr uint32 CacheCoherWriteMask  = CoherCpu         | CoherShaderWrite        | CoherStreamOut |
-                                        CoherColorTarget | CoherClear              | CoherCopyDst   |
-                                        CoherResolveDst  | CoherDepthStencilTarget | CoherCeDump    |
-                                        CoherQueueAtomic | CoherTimestamp          | CoherMemory;
+constexpr uint32 CacheCoherWriteMask    = CoherCpu         | CoherShaderWrite        | CoherStreamOut |
+                                          CoherColorTarget | CoherClear              | CoherCopyDst   |
+                                          CoherResolveDst  | CoherDepthStencilTarget | CoherCeDump    |
+                                          CoherQueueAtomic | CoherTimestamp          | CoherMemory;
 
 // =====================================================================================================================
 // BASE barrier Processing Manager: only contain execution and memory dependencies.
@@ -190,21 +194,16 @@ public:
         const Pm4CmdBuffer* pCmdBuf,
         BarrierType         barrierType,
         uint32*             pSrcStageMask,
-        uint32*             pDstStageMask) const;
-
-    virtual void OptimizeAccessMask(
-        const Pm4CmdBuffer* pCmdBuf,
-        BarrierType         barrierType,
-        uint32*             pSrcAccessMask,
-        uint32*             pDstAccessMask) const;
-
-    void OptimizeStageAndAccessMask(
-        const Pm4CmdBuffer* pCmdBuf,
-        BarrierType         barrierType,
-        uint32*             pSrcStageMask,
-        uint32*             pSrcAccessMask,
         uint32*             pDstStageMask,
-        uint32*             pDstAccessMask) const;
+        bool                isClearToTarget = false) const; // isClearToTarget: optimization hint
+
+    virtual bool OptimizeAccessMask(
+        const Pm4CmdBuffer* pCmdBuf,
+        BarrierType         barrierType,
+        const Pal::Image*   pImage,
+        uint32*             pSrcAccessMask,
+        uint32*             pDstAccessMask,
+        bool                shaderMdAccessIndirectOnly) const;
 
     static void SetBarrierOperationsRbCacheSynced(Developer::BarrierOperations* pOperations)
     {
@@ -216,6 +215,12 @@ public:
         pOperations->caches.invalCbMetadata = 1;
         pOperations->caches.flushDbMetadata = 1;
         pOperations->caches.invalDbMetadata = 1;
+    }
+
+    static bool IsClearToTargetTransition(uint32 srcAccessMask, uint32 dstAccessMask)
+    {
+        return (srcAccessMask == CoherClear) &&
+               ((dstAccessMask == CoherColorTarget) || (dstAccessMask == CoherDepthStencilTarget));
     }
 
 protected:

@@ -91,6 +91,7 @@ enum class GpuBlock : uint32
     GeSe    = 0x2F,
     DfMall  = 0x30, // The DF subblocks have unique instances and event IDs but they all share the DF's perf counters.
     SqWgp   = 0x31, // SQ counters that can be sampled at WGP granularity.
+    Pc      = 0x32,
     Count
 };
 
@@ -193,7 +194,11 @@ struct PerfCounterInfo
             uint8  eventThresholdEn; ///< Threshold enable (0 for disabled,1 for <threshold,2 for >threshold).
             uint8  rdWrMask;         ///< Read/Write mask select (1 for Read, 2 for Write).
         } umc;
-    };
+
+        uint32 rs64Cntl; ///< CP blocks CPG and CPC have events that can be further filtered for processor events
+
+        uint32 u32All; ///< Union value for copying, must be increased in size if any element of the union exceeds
+    } subConfig;
 };
 
 /// Specifies properties for setting up a streaming performance counter trace. Input structure to

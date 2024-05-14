@@ -172,9 +172,8 @@ protected:
         const GfxCmdBuffer* pCmdBuffer,
         const Pal::Image&   dstImage) const override;
 
-    virtual const Pal::GraphicsPipeline* GetGfxPipelineByTargetIndexAndFormat(
+    virtual const Pal::GraphicsPipeline* GetGfxPipelineByFormat(
         RpmGfxPipeline basePipeline,
-        uint32         targetIndex,
         SwizzledFormat format) const override;
 
     virtual const bool IsGfxPipelineForFormatSupported(
@@ -493,6 +492,7 @@ public:
     void LaunchOptimizedVrsCopyShader(
         GfxCmdBuffer*                  pCmdBuffer,
         const Gfx10DepthStencilView*   pDsView,
+        bool                           isClientDsv,
         const Extent3d&                depthExtent,
         const Pal::Image*              pSrcVrsImg,
         const Gfx9Htile*const          pHtile) const;
@@ -500,6 +500,7 @@ public:
     void CopyVrsIntoHtile(
         GfxCmdBuffer*                pCmdBuffer,        // cmd buffer to receive copy commands, must support compute
         const Gfx10DepthStencilView* pDsView,           // depth view that contains image that owns dest hTile buffer
+        bool                         isClientDsv,
         const Extent3d&              depthExtent,       // extent of the depth buffers' mip level
         const Pal::Image*            pSrcVrsImg) const; // source VRS data (can be NULL to imply 1x1)
 

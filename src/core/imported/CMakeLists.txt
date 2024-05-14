@@ -54,18 +54,13 @@ endif()
 add_subdirectory(vam)
 target_link_libraries(pal PRIVATE vam)
 
-#if PAL_BUILD_GFX11
 ### SWD ########################################################################
-# Add the SWD library if necessary. This if() can go away when all builds use SWD
-if (PAL_BUILD_GFX11)
-    set(PAL_SWD_PATH "default" CACHE PATH "Specify the path to the SwWarDetection project.")
+set(PAL_SWD_PATH "default" CACHE PATH "Specify the path to the SwWarDetection project.")
 
-    if (${PAL_SWD_PATH} STREQUAL "default")
-        set(PAL_SWD_PATH ${CMAKE_CURRENT_SOURCE_DIR}/SwWarDetection)
-    endif()
-
-    include(${PAL_SWD_PATH}/SwdInclude.cmake)
-    swd_add_to_target(pal PAL)
+if (${PAL_SWD_PATH} STREQUAL "default")
+    set(PAL_SWD_PATH ${CMAKE_CURRENT_SOURCE_DIR}/SwWarDetection)
 endif()
-#endif
+
+include(${PAL_SWD_PATH}/SwdInclude.cmake)
+swd_add_to_target(pal PAL)
 

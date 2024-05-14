@@ -182,10 +182,13 @@ public:
 
     virtual void CmdBarrier(const BarrierInfo& barrierInfo) override;
 
-    virtual void OptimizeAcqRelReleaseInfo(
-        BarrierType barrierType,
-        uint32*     pStageMask,
-        uint32*     pAccessMask) const override { }
+    virtual bool OptimizeAcqRelReleaseInfo(
+        BarrierType   barrierType,
+        const IImage* pImage,
+        uint32*       pSrcStageMask,
+        uint32*       pSrcAccessMask,
+        uint32*       pDstStageMask,
+        uint32*       pDstAccessMask) const override { return false; }
 
     virtual uint32 CmdRelease(const AcquireReleaseInfo& releaseInfo) override;
 

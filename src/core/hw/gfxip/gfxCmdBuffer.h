@@ -340,10 +340,6 @@ public:
     // CmdDispatch on the ACE CmdStream for Gfx10+ UniversalCmdBuffer only when multi-queue is supported by the engine.
     virtual void CmdDispatchAce(DispatchDims size) { PAL_NEVER_CALLED(); }
 
-    virtual void AddPerPresentCommands(
-        gpusize frameCountGpuAddr,
-        uint32  frameCntReg) = 0;
-
     virtual void CpCopyMemory(gpusize dstAddr, gpusize srcAddr, gpusize numBytes) = 0;
 
     bool IsComputeSupported() const
@@ -357,7 +353,7 @@ public:
 
     bool IsComputeStateSaved() const { return (m_computeStateFlags != 0); }
 
-    virtual void CmdOverwriteRbPlusFormatForBlits(
+    virtual void CmdOverwriteColorExportInfoForBlits(
         SwizzledFormat format,
         uint32         targetIndex) = 0;
 

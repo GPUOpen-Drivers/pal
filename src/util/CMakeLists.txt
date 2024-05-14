@@ -40,6 +40,7 @@ target_sources(palUtil PRIVATE
     arFile.cpp
     assert.cpp
     CMakeLists.txt
+    conditionVariable.cpp
     dbgLogger.cpp
     dbgLogMgr.cpp
     dbgPrint.cpp
@@ -52,6 +53,7 @@ target_sources(palUtil PRIVATE
     memMapFile.cpp
     platformKey.cpp
     platformKey.h
+    semaphore.cpp
     stringUtil.cpp
     sysMemory.cpp
     sysUtil.cpp

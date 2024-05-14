@@ -405,6 +405,10 @@ WaylandLoader::WaylandLoader()
     m_pWlRegistryInterface(nullptr),
     m_pWlBufferInterface(nullptr),
     m_pWlCallbackInterface(nullptr),
+    m_pWlSurfaceInterface(nullptr),
+    m_pZwpLinuxDmabufV1Interface(nullptr),
+    m_pZwpLinuxBufferParamsV1Interface(nullptr),
+    m_pZwpLinuxDmabufFeedbackV1Interface(nullptr),
     m_initialized(false)
 {
     memset(&m_funcs, 0, sizeof(m_funcs));
@@ -426,6 +430,30 @@ wl_interface* WaylandLoader::GetWlBufferInterface() const
 wl_interface* WaylandLoader::GetWlCallbackInterface() const
 {
     return m_pWlCallbackInterface;
+}
+
+// =====================================================================================================================
+wl_interface* WaylandLoader::GetWlSurfaceInterface() const
+{
+    return m_pWlSurfaceInterface;
+}
+
+// =====================================================================================================================
+wl_interface* WaylandLoader::GetZwpLinuxDmabufV1Interface() const
+{
+    return m_pZwpLinuxDmabufV1Interface;
+}
+
+// =====================================================================================================================
+wl_interface* WaylandLoader::GetZwpLinuxBufferParamsV1Interface() const
+{
+    return m_pZwpLinuxBufferParamsV1Interface;
+}
+
+// =====================================================================================================================
+wl_interface* WaylandLoader::GetZwpLinuxDmabufFeedbackV1Interface() const
+{
+    return m_pZwpLinuxDmabufFeedbackV1Interface;
 }
 
 // =====================================================================================================================
@@ -489,6 +517,38 @@ Result WaylandLoader::Init(
         else
         {
             m_library[LibWaylandClient].GetFunction("wl_callback_interface", &m_pWlCallbackInterface);
+        }
+        if (m_library[LibWaylandClient].IsLoaded() == false)
+        {
+            result = Result::ErrorUnavailable;
+        }
+        else
+        {
+            m_library[LibWaylandClient].GetFunction("wl_surface_interface", &m_pWlSurfaceInterface);
+        }
+        if (m_library[LibWaylandClient].IsLoaded() == false)
+        {
+            result = Result::ErrorUnavailable;
+        }
+        else
+        {
+            m_library[LibWaylandClient].GetFunction("zwp_linux_dmabuf_v1_interface", &m_pZwpLinuxDmabufV1Interface);
+        }
+        if (m_library[LibWaylandClient].IsLoaded() == false)
+        {
+            result = Result::ErrorUnavailable;
+        }
+        else
+        {
+            m_library[LibWaylandClient].GetFunction("zwp_linux_buffer_params_v1_interface", &m_pZwpLinuxBufferParamsV1Interface);
+        }
+        if (m_library[LibWaylandClient].IsLoaded() == false)
+        {
+            result = Result::ErrorUnavailable;
+        }
+        else
+        {
+            m_library[LibWaylandClient].GetFunction("zwp_linux_dmabuf_feedback_v1_interface", &m_pZwpLinuxDmabufFeedbackV1Interface);
         }
         if (result == Result::Success)
         {

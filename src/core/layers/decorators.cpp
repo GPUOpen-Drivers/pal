@@ -460,10 +460,10 @@ Result DeviceDecorator::ResetFences(
 
 // =====================================================================================================================
 Result DeviceDecorator::WaitForFences(
-    uint32              fenceCount,
-    const IFence*const* ppFences,
-    bool                waitAll,
-    uint64              timeout
+    uint32                   fenceCount,
+    const IFence*const*      ppFences,
+    bool                     waitAll,
+    std::chrono::nanoseconds timeout
     ) const
 {
     AutoBuffer<const IFence*, 16, PlatformDecorator> fences(fenceCount, GetPlatform());
@@ -489,11 +489,12 @@ Result DeviceDecorator::WaitForFences(
 
 // =====================================================================================================================
 Result DeviceDecorator::WaitForSemaphores(
-        uint32                       semaphoreCount,
-        const IQueueSemaphore*const* ppSemaphores,
-        const uint64*                pValues,
-        uint32                       flags,
-        uint64                       timeout) const
+    uint32                       semaphoreCount,
+    const IQueueSemaphore*const* ppSemaphores,
+    const uint64*                pValues,
+    uint32                       flags,
+    std::chrono::nanoseconds     timeout
+) const
 {
     AutoBuffer<const IQueueSemaphore*, 16, PlatformDecorator> semaphores(semaphoreCount, GetPlatform());
 

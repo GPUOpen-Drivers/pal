@@ -63,7 +63,7 @@ public:
     virtual bool IsQueryAllowed(QueryPoolType queryPoolType) const override
         { return (queryPoolType == QueryPoolType::PipelineStats); }
 
-    virtual void CmdOverwriteRbPlusFormatForBlits(
+    virtual void CmdOverwriteColorExportInfoForBlits(
         SwizzledFormat format,
         uint32         targetIndex) override { PAL_NEVER_CALLED(); }
 

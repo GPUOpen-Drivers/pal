@@ -3383,6 +3383,22 @@ namespace Gfx11
     constexpr unsigned int mmPA_SC_VRS_RATE_SIZE_XY                           = 0xA0FE;
     constexpr unsigned int mmPA_SC_VRS_SURFACE_CNTL                           = 0xA940;
     constexpr unsigned int mmPA_SC_VRS_SURFACE_CNTL_1                         = 0xA960;
+    constexpr unsigned int mmPC_PERFCOUNTER0_HI                               = 0xD18C;
+    constexpr unsigned int mmPC_PERFCOUNTER0_LO                               = 0xD18D;
+    constexpr unsigned int mmPC_PERFCOUNTER0_SELECT                           = 0xD98C;
+    constexpr unsigned int mmPC_PERFCOUNTER0_SELECT1                          = 0xD990;
+    constexpr unsigned int mmPC_PERFCOUNTER1_HI                               = 0xD18E;
+    constexpr unsigned int mmPC_PERFCOUNTER1_LO                               = 0xD18F;
+    constexpr unsigned int mmPC_PERFCOUNTER1_SELECT                           = 0xD98D;
+    constexpr unsigned int mmPC_PERFCOUNTER1_SELECT1                          = 0xD991;
+    constexpr unsigned int mmPC_PERFCOUNTER2_HI                               = 0xD190;
+    constexpr unsigned int mmPC_PERFCOUNTER2_LO                               = 0xD191;
+    constexpr unsigned int mmPC_PERFCOUNTER2_SELECT                           = 0xD98E;
+    constexpr unsigned int mmPC_PERFCOUNTER2_SELECT1                          = 0xD992;
+    constexpr unsigned int mmPC_PERFCOUNTER3_HI                               = 0xD192;
+    constexpr unsigned int mmPC_PERFCOUNTER3_LO                               = 0xD193;
+    constexpr unsigned int mmPC_PERFCOUNTER3_SELECT                           = 0xD98F;
+    constexpr unsigned int mmPC_PERFCOUNTER3_SELECT1                          = 0xD993;
     constexpr unsigned int mmRLC_SPM_ACCUM_CTRLRAM_ADDR                       = 0xDC96;
     constexpr unsigned int mmRLC_SPM_ACCUM_CTRLRAM_ADDR_OFFSET                = 0xDC98;
     constexpr unsigned int mmRLC_SPM_ACCUM_CTRLRAM_DATA                       = 0xDC97;
@@ -5871,6 +5887,18 @@ namespace Phx1
     constexpr unsigned int mmRPB_PERFCOUNTER_RSLT_CNTL                        = 0x0CEC;
     constexpr unsigned int mmRPB_PERF_COUNTER_CNTL                            = 0x0CED;
 } // namespace Phx1
+
+namespace Phx2
+{
+    constexpr unsigned int mmRPB_PERFCOUNTER0_CFG                             = 0x0CE8;
+    constexpr unsigned int mmRPB_PERFCOUNTER1_CFG                             = 0x0CE9;
+    constexpr unsigned int mmRPB_PERFCOUNTER2_CFG                             = 0x0CEA;
+    constexpr unsigned int mmRPB_PERFCOUNTER3_CFG                             = 0x0CEB;
+    constexpr unsigned int mmRPB_PERFCOUNTER_HI                               = 0x0CEE;
+    constexpr unsigned int mmRPB_PERFCOUNTER_LO                               = 0x0CEF;
+    constexpr unsigned int mmRPB_PERFCOUNTER_RSLT_CNTL                        = 0x0CEC;
+    constexpr unsigned int mmRPB_PERF_COUNTER_CNTL                            = 0x0CED;
+} // namespace Phx2
 
 #if CHIP_HDR_RAPHAEL
 namespace Raphael

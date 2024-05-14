@@ -32,8 +32,6 @@
 
 #pragma once
 
-#if PAL_ENABLE_LOGGING
-
 #include "palDbgLogHelper.h"
 #include "palUtil.h"
 #include "palThread.h"
@@ -165,20 +163,12 @@ public:
         LogMessageInternal(severity, source, pClientTag, pFormat, args);
     }
 
-    /// Enable/Disable debug logging
-    /// @param [in] enabled   indicates if debug logging should be enabled or disabled
-    void SetLoggingEnabled(
-        bool enabled)
-    {
-        m_logEnabled = enabled;
-    }
-
     /// Get debug logging state. Clients can use this info to decide whether to
     /// create debug loggers or not.
     /// @returns debug logging state.
     bool GetLoggingEnabled()
     {
-        return m_logEnabled;
+        return !m_dbgLoggersList.IsEmpty();
     }
 
     /// DbgLogMgr may have internal errors that can be queried through this method.
@@ -235,9 +225,8 @@ private:
     template <typename... Args>
     void LogMessageInternal(Args... args);
 
-    bool m_logEnabled;  ///< Indicates whether or not logging is enabled globally. Defaults to true.
-    bool m_error;       ///< Keeps track of internal errors. Clients can query for this
-                        ///< and decide whether to use the DbgLogMgr object or not.
+    bool               m_error;              ///< Keeps track of internal errors.  Clients can query for this
+                                             ///< and decide whether to use the DbgLogMgr object or not.
     ThreadLocalKey     m_reentryGuardKey;    ///< Thread-local key for reentry guard to protect
                                              ///< LogMessage() from re-entry by same thread.
     RWLock             m_dbgLoggersLock;     ///< Serialize access to DbgLoggers list.
@@ -247,4 +236,3 @@ private:
     PAL_DISALLOW_COPY_AND_ASSIGN(DbgLogMgr);
 };
 } // Util
-#endif

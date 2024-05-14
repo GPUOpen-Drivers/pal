@@ -79,6 +79,10 @@ Pal::Result CreateTextWriterComputePipelines(
         pTable = textWriterComputeBinaryTablePhoenix1;
         break;
 
+    case Pal::AsicRevision::Phoenix2:
+        pTable = textWriterComputeBinaryTablePhoenix2;
+        break;
+
     default:
         result = Pal::Result::ErrorUnknown;
         PAL_NOT_IMPLEMENTED();

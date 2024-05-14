@@ -124,17 +124,17 @@ uint32 GfxBarrierMgr::GetPipelineStageMaskFromBarrierInfo(
         // Note that don't convert HwPipePostPrefetch to FetchIndices as it will cause heavier VS stall.
         constexpr uint32 SrcPipeStageTbl[] =
         {
-            Pal::PipelineStageTopOfPipe,         // HwPipeTop              = 0x0
-            Pal::PipelineStageFetchIndirectArgs, // HwPipePostPrefetch     = 0x1
-            Pal::PipelineStageVs |
-            Pal::PipelineStageHs |
-            Pal::PipelineStageDs |
-            Pal::PipelineStageGs,                // HwPipePreRasterization = 0x2
-            Pal::PipelineStagePs,                // HwPipePostPs           = 0x3
-            Pal::PipelineStageLateDsTarget,      // HwPipePreColorTarget   = 0x4
-            Pal::PipelineStageCs,                // HwPipePostCs           = 0x5
-            Pal::PipelineStageBlt,               // HwPipePostBlt          = 0x6
-            Pal::PipelineStageBottomOfPipe,      // HwPipeBottom           = 0x7
+            PipelineStageTopOfPipe,         // HwPipeTop              = 0x0
+            PipelineStageFetchIndirectArgs, // HwPipePostPrefetch     = 0x1
+            PipelineStageVs |
+            PipelineStageHs |
+            PipelineStageDs |
+            PipelineStageGs,                // HwPipePreRasterization = 0x2
+            PipelineStagePs,                // HwPipePostPs           = 0x3
+            PipelineStageLateDsTarget,      // HwPipePreColorTarget   = 0x4
+            PipelineStageCs,                // HwPipePostCs           = 0x5
+            PipelineStageBlt,               // HwPipePostBlt          = 0x6
+            PipelineStageBottomOfPipe,      // HwPipeBottom           = 0x7
         };
 
         *pSrcStageMask |= SrcPipeStageTbl[barrierInfo.pPipePoints[i]];
@@ -146,24 +146,22 @@ uint32 GfxBarrierMgr::GetPipelineStageMaskFromBarrierInfo(
 
         if (pImage != nullptr)
         {
-            *pSrcStageMask |= pImage->IsDepthStencilTarget()
-                              ? (Pal::PipelineStageEarlyDsTarget | Pal::PipelineStageLateDsTarget)
-                              : Pal::PipelineStageColorTarget;
+            *pSrcStageMask |= pImage->IsDepthStencilTarget() ? PipelineStageDsTarget : PipelineStageColorTarget;
         }
     }
 
     constexpr uint32 DstPipeStageTbl[] =
     {
-        Pal::PipelineStageTopOfPipe,     // HwPipeTop              = 0x0
-        Pal::PipelineStageCs |
-        Pal::PipelineStageVs |
-        Pal::PipelineStageBlt,           // HwPipePostPrefetch     = 0x1
-        Pal::PipelineStageEarlyDsTarget, // HwPipePreRasterization = 0x2
-        Pal::PipelineStageLateDsTarget,  // HwPipePostPs           = 0x3
-        Pal::PipelineStageColorTarget,   // HwPipePreColorTarget   = 0x4
-        Pal::PipelineStageBottomOfPipe,  // HwPipePostCs           = 0x5
-        Pal::PipelineStageBottomOfPipe,  // HwPipePostBlt          = 0x6
-        Pal::PipelineStageBottomOfPipe,  // HwPipeBottom           = 0x7
+        PipelineStageTopOfPipe,     // HwPipeTop              = 0x0
+        PipelineStageCs |
+        PipelineStageVs |
+        PipelineStageBlt,           // HwPipePostPrefetch     = 0x1
+        PipelineStageEarlyDsTarget, // HwPipePreRasterization = 0x2
+        PipelineStageLateDsTarget,  // HwPipePostPs           = 0x3
+        PipelineStageColorTarget,   // HwPipePreColorTarget   = 0x4
+        PipelineStageBottomOfPipe,  // HwPipePostCs           = 0x5
+        PipelineStageBottomOfPipe,  // HwPipePostBlt          = 0x6
+        PipelineStageBottomOfPipe,  // HwPipeBottom           = 0x7
     };
 
     const uint32 dstStageMask = DstPipeStageTbl[barrierInfo.waitPoint];
@@ -417,26 +415,6 @@ void GfxBarrierMgr::OptimizeSrcCacheMask(
 }
 
 // =====================================================================================================================
-// Helper function to optimize pipeline stages and cache access masks for BLTs. This is for acquire/release interface.
-// Note: PipelineStageBlt will be converted to a more accurate stage based on the underlying implementation of
-//       outstanding BLTs, but will be left as PipelineStageBlt if the internal outstanding BLTs can't be expressed as
-//       a client-facing PipelineStage (e.g., if there are CP DMA BLTs in flight).
-// This function also mask off all graphics path specific stage and access mask flags for non-universal command buffer.
-void GfxBarrierMgr::OptimizeStageAndAccessMask(
-    const Pm4CmdBuffer* pCmdBuf,
-    BarrierType         barrierType,
-    uint32*             pSrcStageMask,
-    uint32*             pSrcAccessMask,
-    uint32*             pDstStageMask,
-    uint32*             pDstAccessMask
-    ) const
-{
-    OptimizeStageMask(pCmdBuf, barrierType, pSrcStageMask, pDstStageMask);
-
-    OptimizeAccessMask(pCmdBuf, barrierType, pSrcAccessMask, pDstAccessMask);
-}
-
-// =====================================================================================================================
 // Helper function to optimize pipeline access masks for BLTs. This is for acquire/release interface.
 // This function also mask off all graphics path specific stage mask flags for non-universal command buffer as well as
 // remove some invalid pfp stage mask on dstStageMask to avoid unnecessary PFP_SYNC_ME stall.
@@ -444,44 +422,48 @@ void GfxBarrierMgr::OptimizeStageMask(
     const Pm4CmdBuffer* pCmdBuf,
     BarrierType         barrierType,
     uint32*             pSrcStageMask,
-    uint32*             pDstStageMask
+    uint32*             pDstStageMask,
+    bool                isClearToTarget // Optimization hint.
     ) const
 {
+    PAL_ASSERT((pSrcStageMask != nullptr) && (pDstStageMask != nullptr));
+
     const Pm4CmdBufferStateFlags stateFlags = pCmdBuf->GetPm4CmdBufState().flags;
 
     // Update pipeline stages if valid input stage mask is provided.
-    if ((pSrcStageMask != nullptr) && TestAnyFlagSet(*pSrcStageMask, PipelineStageBlt))
+    if (TestAnyFlagSet(*pSrcStageMask, PipelineStageBlt))
     {
-        constexpr uint32 PipelineStagesRb = PipelineStageEarlyDsTarget | PipelineStageLateDsTarget |
-                                            PipelineStageColorTarget;
-        const bool       isNotBuffer      = (barrierType != BarrierType::Buffer);
+        constexpr uint32 PipelineStagesRb = PipelineStageDsTarget | PipelineStageColorTarget;
+        const bool       nonBufferBarrier = (barrierType != BarrierType::Buffer);
+
+        // For Clear to target transition, if the clear was done through graphics draw, can skip the barrier;
+        // so no need OR with CoherColorTarget here in this case.
+        // Buffer RPM calls never go through graphics draw (either compute or CP DMA).
+        const bool checkGfxBltActive = stateFlags.gfxBltActive &&
+                                       nonBufferBarrier        &&
+                                       (isClearToTarget == false);
+        // CP DMA copy is buffer only. Note that there are corner cases that image copy uses CP DMA in
+        // CmdCopyMemoryFromToImageViaPixels() and CmdCopyImageToImageViaPixels() but both cases explicitly wait on
+        // CP DMA copy done post the copy.
+        const bool checkCpBltActive  = stateFlags.cpBltActive && (barrierType != BarrierType::Image);
 
         *pSrcStageMask &= ~PipelineStageBlt;
-
-        *pSrcStageMask |= ((stateFlags.gfxBltActive && isNotBuffer) ? PipelineStagesRb : 0) |
-                          (stateFlags.csBltActive                   ? PipelineStageCs  : 0) |
+        *pSrcStageMask |= (checkGfxBltActive      ? PipelineStagesRb : 0) |
+                          (stateFlags.csBltActive ? PipelineStageCs  : 0) |
                           // Add back PipelineStageBlt because we cannot express it with a more accurate stage.
-                          (stateFlags.cpBltActive                   ? PipelineStageBlt : 0);
+                          (checkCpBltActive       ? PipelineStageBlt : 0);
     }
 
     // Mark off all graphics path specific stages and caches if command buffer doesn't support graphics.
     if (pCmdBuf->GetEngineType() != EngineTypeUniversal)
     {
-        if (pSrcStageMask != nullptr)
-        {
-            *pSrcStageMask &= ~PipelineStagesGraphicsOnly;
-        }
-
-        if (pDstStageMask != nullptr)
-        {
-            *pDstStageMask &= ~PipelineStagesGraphicsOnly;
-        }
+        *pSrcStageMask &= ~PipelineStagesGraphicsOnly;
+        *pDstStageMask &= ~PipelineStagesGraphicsOnly;
     }
 
     // No need acquire at PFP for image barriers. Image may have metadata that's accessed by PFP by
     // it's handled properly internally and no need concern here.
     if ((barrierType == BarrierType::Image) &&
-        (pDstStageMask != nullptr)          &&
         TestAnyFlagSet(*pDstStageMask, PipelineStagePfpMask))
     {
         *pDstStageMask &= ~PipelineStagePfpMask;
@@ -501,20 +483,32 @@ void GfxBarrierMgr::OptimizeStageMask(
 // =====================================================================================================================
 // Helper function to optimize pipeline cache access masks for BLTs. This is for acquire/release interface.
 // This function also mask off all graphics path specific access mask flags for non-universal command buffer.
-void GfxBarrierMgr::OptimizeAccessMask(
+// Return if need flush and invalidate GL2 cache.
+bool GfxBarrierMgr::OptimizeAccessMask(
     const Pm4CmdBuffer* pCmdBuf,
     BarrierType         barrierType,
+    const Pal::Image*   pImage,        // Optimization hint
     uint32*             pSrcAccessMask,
-    uint32*             pDstAccessMask
+    uint32*             pDstAccessMask,
+    bool                shaderMdAccessIndirectOnly
     ) const
 {
-    const Pm4CmdBufferStateFlags stateFlags = pCmdBuf->GetPm4CmdBufState().flags;
+    PAL_ASSERT((pSrcAccessMask != nullptr) && (pDstAccessMask != nullptr));
+
+    const Pm4CmdBufferStateFlags stateFlags       = pCmdBuf->GetPm4CmdBufState().flags;
+    const uint32                 orgSrcAccessMask = *pSrcAccessMask;
+    const bool                   nonBufferBarrier = (barrierType != BarrierType::Buffer);
 
     // Update cache access masks if valid input access mask is provided.
-    if ((pSrcAccessMask != nullptr) && TestAnyFlagSet(*pSrcAccessMask, CacheCoherencyBlt))
+    if (TestAnyFlagSet(*pSrcAccessMask, CacheCoherencyBlt))
     {
-        const bool isBltCopySrcOnly = ((*pSrcAccessMask & CacheCoherencyBlt) == CoherCopySrc);
-        const bool isNotBuffer      = (barrierType != BarrierType::Buffer);
+        const bool isBltCopySrcOnly = ((orgSrcAccessMask & CacheCoherencyBlt) == CoherCopySrc);
+        // Allow clear to target transition to skip checking gfxWriteCachesDirty as graphics clear to target doesn't
+        // requires cache sync (flush/inv RB cache). However if csBltIndirectWriteMisalignedMdDirty is 1, there may
+        // be GL2 sync for misaligned metadata WA, to not make RB cache in a strange state (valid data in RB cache but
+        // GL2 flushed/invalidated), still allow checking if any outstanding gfxWriteCachesDirty flag in this case.
+        const bool optClearToTarget = IsClearToTargetTransition(*pSrcAccessMask, *pDstAccessMask) &&
+                                      (stateFlags.csBltIndirectWriteMisalignedMdDirty == 0);
 
         *pSrcAccessMask &= ~CacheCoherencyBlt;
 
@@ -523,29 +517,70 @@ void GfxBarrierMgr::OptimizeAccessMask(
 
         if (isBltCopySrcOnly)
         {
-            *pSrcAccessMask |= ((stateFlags.gfxWriteCachesDirty && isNotBuffer) ||
+            *pSrcAccessMask |= ((stateFlags.gfxWriteCachesDirty && nonBufferBarrier) ||
                                 stateFlags.csWriteCachesDirty) ? CoherShaderRead : 0;
         }
         else // For Clear, CopyDst, ResolveSrc and ResolveDst. ResolveSrc is bound to CB for fixed-func resolve.
         {
-            *pSrcAccessMask |= ((stateFlags.gfxWriteCachesDirty && isNotBuffer) ? CoherColorTarget : 0) |
-                               (stateFlags.csWriteCachesDirty                   ? CoherShader      : 0);
+            // For Clear to target transition, if the clear was done through graphics draw, can skip the barrier;
+            // so no need OR with CoherColorTarget here in this case.
+            // Buffer RPM calls never go through graphics draw (either compute or CP DMA).
+            const bool checkGfxWriteCacheDirty = stateFlags.gfxWriteCachesDirty &&
+                                                 nonBufferBarrier               &&
+                                                 (optClearToTarget == false);
+
+            *pSrcAccessMask |= (checkGfxWriteCacheDirty       ? CoherColorTarget : 0) |
+                               (stateFlags.csWriteCachesDirty ? CoherShader      : 0);
         }
     }
 
     // Mark off all graphics path specific stages and caches if command buffer doesn't support graphics.
     if (pCmdBuf->GetEngineType() != EngineTypeUniversal)
     {
-        if (pSrcAccessMask != nullptr)
-        {
-            *pSrcAccessMask &= ~CacheCoherencyGraphicsOnly;
-        }
-
-        if (pDstAccessMask != nullptr)
-        {
-            *pDstAccessMask &= ~CacheCoherencyGraphicsOnly;
-        }
+        *pSrcAccessMask &= ~CacheCoherencyGraphicsOnly;
+        *pDstAccessMask &= ~CacheCoherencyGraphicsOnly;
     }
+
+    // Handle misaligned metadata WA for CacheCoherencyBltDst access flags: if orgSrcAccessMask contains any
+    // CacheCoherencyBltDst flag and there is outstanding misaligned metadata write dirty flag, need sync GL2 cache.
+    // Note that we must handle GL2 sync here as clients may call OptimizeAcqRelReleaseInfo() to convert BLT access
+    // flags into explicit access flags and then call barrier interface with converted explicit access flags back
+    // to PAL, where PAL may lose the info to handle the WA.
+    //
+    // Mask off buffer only coherency flags that never applied to image.
+    const uint32 waSrcAccessMask = orgSrcAccessMask  & ~CoherBufferOnlyMask;
+    const uint32 waDstAccessMask = (*pDstAccessMask) & ~CoherBufferOnlyMask;
+    bool         syncGl2         = false;
+
+    if (TestAnyFlagSet(waSrcAccessMask, CacheCoherencyBltDst)    &&
+        nonBufferBarrier                                         &&
+        pCmdBuf->IsBltWriteMisalignedMdDirty()                   &&
+        ((pImage == nullptr) || pImage->HasMisalignedMetadata()))
+    {
+        const bool anySrcDirectWrite       = (stateFlags.csBltDirectWriteMisalignedMdDirty |
+                                              stateFlags.gfxBltDirectWriteMisalignedMdDirty) != 0;
+        const bool srcIndirectWriteOnly    = (anySrcDirectWrite == false) &&
+                                             (stateFlags.csBltIndirectWriteMisalignedMdDirty != 0);
+        const bool srcDirectWriteOnly      = anySrcDirectWrite &&
+                                             (stateFlags.csBltIndirectWriteMisalignedMdDirty == 0);
+        const bool backToBackDirectWrite   = srcDirectWriteOnly                                                &&
+                                             (TestAnyFlagSet(waSrcAccessMask, ~CacheCoherencyBltDst) == false) &&
+                                             ((waDstAccessMask == CoherColorTarget)                            ||
+                                              (waDstAccessMask == CoherDepthStencilTarget));
+        // For CoherShaderWrite from image layout transition blt, it doesn't exactly indicate an indirect write
+        // mode as image layout transition blt may direct write to fix up metadata. optimizeBacktoBackShaderWrite
+        // makes sure when it's safe to optimize it.
+        const bool backToBackIndirectWrite = srcIndirectWriteOnly                                              &&
+                                             (TestAnyFlagSet(waSrcAccessMask, ~CacheCoherencyBltDst) == false) &&
+                                             shaderMdAccessIndirectOnly                                        &&
+                                             TestAnyFlagSet(waDstAccessMask, CoherShaderWrite)                 &&
+                                             (TestAnyFlagSet(waDstAccessMask, ~CoherShader) == false);
+
+        // Need sync GL2 if not back to back direct/indirect write.
+        syncGl2 = (backToBackDirectWrite == false) && (backToBackIndirectWrite == false);
+    }
+
+    return syncGl2;
 }
 
 }

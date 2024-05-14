@@ -138,6 +138,13 @@ public:
         /// Construct iterator from ArFileReader, setting to the beginning.
         Iterator(ArFileReader* pReader);
 
+        /// Get the header for the currently pointed to archive entry.
+        const FileHeader& GetHeader() const
+        {
+            PAL_ASSERT((m_pReader->m_malformed == false) && (m_pHeader != nullptr));
+            return *m_pHeader;
+        }
+
         /// Get the name for the currently pointed to archive entry.
         Span<const char> GetName() const
         {

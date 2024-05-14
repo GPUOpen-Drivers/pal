@@ -60,8 +60,7 @@ namespace Pm4
 RsrcProcMgr::RsrcProcMgr(
     GfxDevice* pDevice)
     :
-    Pal::RsrcProcMgr(pDevice),
-    m_releaseAcquireSupported(m_pDevice->Parent()->ChipProperties().gfx9.supportReleaseAcquireInterface)
+    Pal::RsrcProcMgr(pDevice)
 {
 
 }
@@ -420,11 +419,11 @@ void RsrcProcMgr::CopyColorImageGraphics(
         colorViewInfo.swizzledFormat = dstFormat;
 
         // Only switch to the appropriate graphics pipeline if it differs from the previous region's pipeline.
-        const GraphicsPipeline*const pPipeline = GetGfxPipelineByTargetIndexAndFormat(Copy_32ABGR, 0, dstFormat);
+        const GraphicsPipeline*const pPipeline = GetGfxPipelineByFormat(Copy_32ABGR, dstFormat);
         if (pPreviousPipeline != pPipeline)
         {
             pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, pPipeline, InternalApiPsoHash, });
-            pCmdBuffer->CmdOverwriteRbPlusFormatForBlits(dstFormat, 0);
+            pCmdBuffer->CmdOverwriteColorExportInfoForBlits(dstFormat, 0);
             pPreviousPipeline = pPipeline;
         }
 
@@ -638,6 +637,7 @@ void RsrcProcMgr::CopyColorImageGraphics(
 
     // Restore original command buffer state.
     pCmdBuffer->CmdRestoreGraphicsStateInternal();
+    pCmdBuffer->SetGfxBltDirectWriteMisalignedMdState(dstImage.HasMisalignedMetadata());
 }
 
 // =====================================================================================================================
@@ -962,6 +962,7 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
     }
     // Restore original command buffer state.
     pCmdBuffer->CmdRestoreGraphicsStateInternal();
+    pCmdBuffer->SetGfxBltDirectWriteMisalignedMdState(dstImage.HasMisalignedMetadata());
 }
 
 // =====================================================================================================================
@@ -1448,12 +1449,12 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
                 }
                 else
                 {
-                    pPipeline = GetGfxPipelineByTargetIndexAndFormat(ScaledCopy2d_32ABGR, 0, dstFormat);
+                    pPipeline = GetGfxPipelineByFormat(ScaledCopy2d_32ABGR, dstFormat);
                 }
             }
             else
             {
-                pPipeline = GetGfxPipelineByTargetIndexAndFormat(ScaledCopy3d_32ABGR, 0, dstFormat);
+                pPipeline = GetGfxPipelineByFormat(ScaledCopy3d_32ABGR, dstFormat);
             }
 
             if (colorKeyEnableMask)
@@ -1548,7 +1549,7 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
 
             if (!depthStencilCopy)
             {
-                pCmdBuffer->CmdOverwriteRbPlusFormatForBlits(dstFormat, 0);
+                pCmdBuffer->CmdOverwriteColorExportInfoForBlits(dstFormat, 0);
             }
 
             pPreviousPipeline = pPipeline;
@@ -2025,7 +2026,7 @@ void RsrcProcMgr::CmdClearColorImage(
                                                   clearRange.startSubres.mipLevel + mipIdx,
                                                   0 };
                 ClearMethod clearMethod = dstImage.SubresourceInfo(subres)->clearMethod;
-                if (IsGfx10Plus(*m_pDevice->Parent()) && (clearMethod == ClearMethod::FastUncertain))
+                if (clearMethod == ClearMethod::FastUncertain)
                 {
                     if ((Formats::BitsPerPixel(clearFormat.format) == 128) &&
                         (convertedColor[0] == convertedColor[1]) &&
@@ -2154,51 +2155,25 @@ void RsrcProcMgr::PreComputeColorClearSync(
     ImageLayout        layout
     ) const
 {
-    if (m_releaseAcquireSupported)
-    {
-        ImgBarrier imgBarrier = {};
+    ImgBarrier imgBarrier = {};
 
-        imgBarrier.srcStageMask  = PipelineStageColorTarget;
-        // Fast clear path may have CP to update metadata state/values, wait at BLT/ME stage for safe.
-        imgBarrier.dstStageMask  = PipelineStageBlt;
-        imgBarrier.srcAccessMask = CoherColorTarget;
-        imgBarrier.dstAccessMask = CoherShader;
-        imgBarrier.subresRange   = subres;
-        imgBarrier.pImage        = pImage;
-        imgBarrier.oldLayout     = layout;
-        imgBarrier.newLayout     = layout;
+    imgBarrier.srcStageMask  = PipelineStageColorTarget;
+    // Fast clear path may have CP to update metadata state/values, wait at BLT/ME stage for safe.
+    imgBarrier.dstStageMask  = PipelineStageBlt;
+    imgBarrier.srcAccessMask = CoherColorTarget;
+    imgBarrier.dstAccessMask = CoherShader;
+    imgBarrier.subresRange   = subres;
+    imgBarrier.pImage        = pImage;
+    imgBarrier.oldLayout     = layout;
+    imgBarrier.newLayout     = layout;
 
-        AcquireReleaseInfo acqRelInfo = {};
+    AcquireReleaseInfo acqRelInfo = {};
 
-        acqRelInfo.imageBarrierCount = 1;
-        acqRelInfo.pImageBarriers    = &imgBarrier;
-        acqRelInfo.reason            = Developer::BarrierReasonPreComputeColorClear;
+    acqRelInfo.imageBarrierCount = 1;
+    acqRelInfo.pImageBarriers    = &imgBarrier;
+    acqRelInfo.reason            = Developer::BarrierReasonPreComputeColorClear;
 
-        pCmdBuffer->CmdReleaseThenAcquire(acqRelInfo);
-    }
-    else
-    {
-        BarrierInfo preBarrier           = { };
-        preBarrier.waitPoint             = HwPipePreCs;
-
-        constexpr HwPipePoint Eop        = HwPipeBottom;
-        preBarrier.pipePointWaitCount    = 1;
-        preBarrier.pPipePoints           = &Eop;
-
-        BarrierTransition transition     = { };
-        transition.srcCacheMask          = CoherColorTarget;
-        transition.dstCacheMask          = CoherShader;
-        transition.imageInfo.pImage      = pImage;
-        transition.imageInfo.subresRange = subres;
-        transition.imageInfo.oldLayout   = layout;
-        transition.imageInfo.newLayout   = layout;
-
-        preBarrier.transitionCount       = 1;
-        preBarrier.pTransitions          = &transition;
-        preBarrier.reason                = Developer::BarrierReasonPreComputeColorClear;
-
-        pCmdBuffer->CmdBarrier(preBarrier);
-    }
+    pCmdBuffer->CmdReleaseThenAcquire(acqRelInfo);
 }
 
 // =====================================================================================================================
@@ -2212,53 +2187,28 @@ void RsrcProcMgr::PostComputeColorClearSync(
     bool               csFastClear
     ) const
 {
-    if (m_releaseAcquireSupported)
-    {
-        ImgBarrier imgBarrier = {};
+    ImgBarrier imgBarrier = {};
 
-        // Optimization: For post CS fast Clear to ColorTarget transition, no need flush DST caches and invalidate
-        //               SRC caches. Both cs fast clear and ColorTarget access metadata in direct mode, so no need
-        //               L2 flush/inv even if the metadata is misaligned. See GetCacheSyncOps() for more details.
-        //               Safe to pass 0 here, so no cache operation and PWS can wait at PreColor.
-        imgBarrier.srcStageMask  = PipelineStageCs;
-        imgBarrier.dstStageMask  = PipelineStageColorTarget;
-        imgBarrier.srcAccessMask = csFastClear ? 0 : CoherShader;
-        imgBarrier.dstAccessMask = csFastClear ? 0 : CoherColorTarget;
-        imgBarrier.subresRange   = subres;
-        imgBarrier.pImage        = pImage;
-        imgBarrier.oldLayout     = layout;
-        imgBarrier.newLayout     = layout;
+    // Optimization: For post CS fast Clear to ColorTarget transition, no need flush DST caches and invalidate
+    //               SRC caches. Both cs fast clear and ColorTarget access metadata in direct mode, so no need
+    //               L2 flush/inv even if the metadata is misaligned. See GetCacheSyncOps() for more details.
+    //               Safe to pass 0 here, so no cache operation and PWS can wait at PreColor.
+    imgBarrier.srcStageMask  = PipelineStageCs;
+    imgBarrier.dstStageMask  = PipelineStageColorTarget;
+    imgBarrier.srcAccessMask = csFastClear ? 0 : CoherShader;
+    imgBarrier.dstAccessMask = csFastClear ? 0 : CoherColorTarget;
+    imgBarrier.subresRange   = subres;
+    imgBarrier.pImage        = pImage;
+    imgBarrier.oldLayout     = layout;
+    imgBarrier.newLayout     = layout;
 
-        AcquireReleaseInfo acqRelInfo = {};
+    AcquireReleaseInfo acqRelInfo = {};
 
-        acqRelInfo.imageBarrierCount = 1;
-        acqRelInfo.pImageBarriers    = &imgBarrier;
-        acqRelInfo.reason            = Developer::BarrierReasonPostComputeColorClear;
+    acqRelInfo.imageBarrierCount = 1;
+    acqRelInfo.pImageBarriers    = &imgBarrier;
+    acqRelInfo.reason            = Developer::BarrierReasonPostComputeColorClear;
 
-        pCmdBuffer->CmdReleaseThenAcquire(acqRelInfo);
-    }
-    else
-    {
-        BarrierInfo postBarrier          = { };
-        postBarrier.waitPoint            = HwPipePreColorTarget;
-        constexpr HwPipePoint PostCs     = HwPipePostCs;
-        postBarrier.pipePointWaitCount   = 1;
-        postBarrier.pPipePoints          = &PostCs;
-
-        BarrierTransition transition     = { };
-        transition.srcCacheMask          = CoherShader;
-        transition.dstCacheMask          = CoherColorTarget;
-        transition.imageInfo.pImage      = pImage;
-        transition.imageInfo.subresRange = subres;
-        transition.imageInfo.oldLayout   = layout;
-        transition.imageInfo.newLayout   = layout;
-
-        postBarrier.transitionCount      = 1;
-        postBarrier.pTransitions         = &transition;
-        postBarrier.reason               = Developer::BarrierReasonPostComputeColorClear;
-
-        pCmdBuffer->CmdBarrier(postBarrier);
-    }
+    pCmdBuffer->CmdReleaseThenAcquire(acqRelInfo);
 }
 
 // =====================================================================================================================
@@ -2309,56 +2259,29 @@ void RsrcProcMgr::PostComputeDepthStencilClearSync(
     bool               csFastClear
     ) const
 {
-    const IImage* pImage = gfxImage.Parent();
+    const IImage* pImage     = gfxImage.Parent();
+    ImgBarrier    imgBarrier = {};
 
-    if (m_releaseAcquireSupported)
-    {
-        ImgBarrier imgBarrier = {};
+    // Optimization: For post CS fast Clear to DepthStencilTarget transition, no need flush DST caches and
+    //               invalidate SRC caches. Both cs fast clear and DepthStencilTarget access metadata in direct
+    //               mode, so no need L2 flush/inv even if the metadata is misaligned. See GetCacheSyncOps() for
+    //               more details. Safe to pass 0 here, so no cache operation and PWS can wait at PreDepth.
+    imgBarrier.srcStageMask  = PipelineStageCs;
+    imgBarrier.dstStageMask  = PipelineStageDsTarget;
+    imgBarrier.srcAccessMask = csFastClear ? 0 : CoherShader;
+    imgBarrier.dstAccessMask = csFastClear ? 0 : CoherDepthStencilTarget;
+    imgBarrier.subresRange   = subres;
+    imgBarrier.pImage        = pImage;
+    imgBarrier.oldLayout     = layout;
+    imgBarrier.newLayout     = layout;
 
-        // Optimization: For post CS fast Clear to DepthStencilTarget transition, no need flush DST caches and
-        //               invalidate SRC caches. Both cs fast clear and DepthStencilTarget access metadata in direct
-        //               mode, so no need L2 flush/inv even if the metadata is misaligned. See GetCacheSyncOps() for
-        //               more details. Safe to pass 0 here, so no cache operation and PWS can wait at PreDepth.
-        imgBarrier.srcStageMask  = PipelineStageCs;
-        imgBarrier.dstStageMask  = PipelineStageEarlyDsTarget | PipelineStageLateDsTarget;
-        imgBarrier.srcAccessMask = csFastClear ? 0 : CoherShader;
-        imgBarrier.dstAccessMask = csFastClear ? 0 : CoherDepthStencilTarget;
-        imgBarrier.subresRange   = subres;
-        imgBarrier.pImage        = pImage;
-        imgBarrier.oldLayout     = layout;
-        imgBarrier.newLayout     = layout;
+    AcquireReleaseInfo acqRelInfo = {};
 
-        AcquireReleaseInfo acqRelInfo = {};
+    acqRelInfo.imageBarrierCount = 1;
+    acqRelInfo.pImageBarriers    = &imgBarrier;
+    acqRelInfo.reason            = Developer::BarrierReasonPostComputeDepthStencilClear;
 
-        acqRelInfo.imageBarrierCount = 1;
-        acqRelInfo.pImageBarriers    = &imgBarrier;
-        acqRelInfo.reason            = Developer::BarrierReasonPostComputeDepthStencilClear;
-
-        pCmdBuffer->CmdReleaseThenAcquire(acqRelInfo);
-    }
-    else
-    {
-        BarrierInfo postBarrier          = { };
-        postBarrier.waitPoint            = HwPipePreRasterization;
-
-        constexpr HwPipePoint PostCs     = HwPipePostCs;
-        postBarrier.pipePointWaitCount   = 1;
-        postBarrier.pPipePoints          = &PostCs;
-
-        BarrierTransition transition     = { };
-        transition.srcCacheMask          = CoherShader;
-        transition.dstCacheMask          = CoherDepthStencilTarget;
-        transition.imageInfo.pImage      = pImage;
-        transition.imageInfo.subresRange = subres;
-        transition.imageInfo.oldLayout   = layout;
-        transition.imageInfo.newLayout   = layout;
-
-        postBarrier.transitionCount      = 1;
-        postBarrier.pTransitions         = &transition;
-        postBarrier.reason               = Developer::BarrierReasonPostComputeDepthStencilClear;
-
-        pCmdBuffer->CmdBarrier(postBarrier);
-    }
+    pCmdBuffer->CmdReleaseThenAcquire(acqRelInfo);
 }
 
 // =====================================================================================================================
@@ -2899,7 +2822,7 @@ void RsrcProcMgr::SlowClearGraphics(
 
         PipelineBindParams bindPipelineInfo = { };
         bindPipelineInfo.pipelineBindPoint = PipelineBindPoint::Graphics;
-        bindPipelineInfo.pPipeline = GetGfxPipelineByTargetIndexAndFormat(SlowColorClear0_32ABGR, 0, viewFormat);
+        bindPipelineInfo.pPipeline = GetGfxPipelineByFormat(SlowColorClear_32ABGR, viewFormat);
         bindPipelineInfo.apiPsoHash = InternalApiPsoHash;
 
         if (pColor->disabledChannelMask != 0)
@@ -2927,7 +2850,7 @@ void RsrcProcMgr::SlowClearGraphics(
         pCmdBuffer->CmdBindPipeline(bindPipelineInfo);
         BindCommonGraphicsState(pCmdBuffer, clearRate);
 
-        pCmdBuffer->CmdOverwriteRbPlusFormatForBlits(viewFormat, 0);
+        pCmdBuffer->CmdOverwriteColorExportInfoForBlits(viewFormat, 0);
         pCmdBuffer->CmdBindColorBlendState(m_pBlendDisableState);
         pCmdBuffer->CmdBindDepthStencilState(m_pDepthDisableState);
         pCmdBuffer->CmdBindMsaaState(GetMsaaState(createInfo.samples, createInfo.fragments));
@@ -3010,6 +2933,8 @@ void RsrcProcMgr::SlowClearGraphics(
         // Restore original command buffer state.
         pCmdBuffer->CmdRestoreGraphicsStateInternal(trackBltActiveFlags);
     }
+
+    pCmdBuffer->SetGfxBltDirectWriteMisalignedMdState(dstImage.HasMisalignedMetadata());
 }
 
 // =====================================================================================================================
@@ -3380,7 +3305,7 @@ void RsrcProcMgr::ResolveImageFixedFunc(
 
     const GraphicsPipeline* pPipelinePrevious      = nullptr;
     const GraphicsPipeline* pPipelineByImageFormat =
-        GetGfxPipelineByTargetIndexAndFormat(ResolveFixedFunc_32ABGR, 0, srcCreateInfo.swizzledFormat);
+        GetGfxPipelineByFormat(ResolveFixedFunc_32ABGR, srcCreateInfo.swizzledFormat);
 
     // Put ImageResolveInvertY value in user data 0 used by VS.
     pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 0, 1, &flags);
@@ -3434,7 +3359,7 @@ void RsrcProcMgr::ResolveImageFixedFunc(
         const GraphicsPipeline* pPipeline =
             Formats::IsUndefined(pRegions[idx].swizzledFormat.format)
             ? pPipelineByImageFormat
-            : GetGfxPipelineByTargetIndexAndFormat(ResolveFixedFunc_32ABGR, 0, pRegions[idx].swizzledFormat);
+            : GetGfxPipelineByFormat(ResolveFixedFunc_32ABGR, pRegions[idx].swizzledFormat);
 
         if (pPipelinePrevious != pPipeline)
         {
@@ -3504,6 +3429,7 @@ void RsrcProcMgr::ResolveImageFixedFunc(
 
     // Restore original command buffer state.
     pCmdBuffer->CmdRestoreGraphicsStateInternal();
+    pCmdBuffer->SetGfxBltDirectWriteMisalignedMdState(dstImage.HasMisalignedMetadata());
 }
 
 // =====================================================================================================================
@@ -3732,6 +3658,7 @@ void RsrcProcMgr::ResolveImageDepthStencilGraphics(
 
     // Restore original command buffer state.
     pCmdBuffer->CmdRestoreGraphicsStateInternal();
+    pCmdBuffer->SetGfxBltDirectWriteMisalignedMdState(dstImage.HasMisalignedMetadata());
 
     FixupLateExpandShaderResolveSrc(pCmdBuffer,
                                     srcImage,
@@ -3951,6 +3878,7 @@ void RsrcProcMgr::ResolveImageDepthStencilCopy(
 
       // Restore original command buffer state.
     pCmdBuffer->CmdRestoreGraphicsStateInternal();
+    pCmdBuffer->SetGfxBltDirectWriteMisalignedMdState(dstImage.HasMisalignedMetadata());
 }
 
 // =====================================================================================================================
@@ -4042,7 +3970,7 @@ void RsrcProcMgr::GenericColorBlit(
     swizzledFormat.format  = ChNumFormat::X8Y8Z8W8_Unorm;
     swizzledFormat.swizzle = { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-    pCmdBuffer->CmdOverwriteRbPlusFormatForBlits(swizzledFormat, 0);
+    pCmdBuffer->CmdOverwriteColorExportInfoForBlits(swizzledFormat, 0);
 
     pCmdBuffer->CmdBindColorBlendState(m_pBlendDisableState);
     pCmdBuffer->CmdBindDepthStencilState(m_pDepthDisableState);
@@ -4169,6 +4097,7 @@ void RsrcProcMgr::GenericColorBlit(
 
     // Restore original command buffer state.
     pCmdBuffer->CmdRestoreGraphicsStateInternal();
+    pCmdBuffer->SetGfxBltDirectWriteMisalignedMdState(dstImage.HasMisalignedMetadata());
 }
 
 // =====================================================================================================================
@@ -4317,6 +4246,7 @@ bool RsrcProcMgr::ExpandDepthStencil(
 
     // Restore command buffer state.
     pCmdBuffer->CmdRestoreGraphicsStateInternal();
+    pCmdBuffer->SetGfxBltDirectWriteMisalignedMdState(image.HasMisalignedMetadata());
 
     // Compute path was not used
     return false;
@@ -4468,6 +4398,7 @@ void RsrcProcMgr::ResummarizeDepthStencil(
 
     // Restore command buffer state.
     pCmdBuffer->CmdRestoreGraphicsStateInternal();
+    pCmdBuffer->SetGfxBltDirectWriteMisalignedMdState(image.HasMisalignedMetadata());
 }
 
 // =====================================================================================================================

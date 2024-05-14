@@ -81,7 +81,7 @@ size_t GetSize()
 
 // =====================================================================================================================
 AddrResourceType AddrMgr2::GetAddrResourceType(
-    const Pal::Image*  pImage)
+    ImageType imageType)
 {
     // Lookup table for converting between ImageType enums and AddrResourceType enums.
     constexpr AddrResourceType AddrResType[] =
@@ -91,10 +91,7 @@ AddrResourceType AddrMgr2::GetAddrResourceType(
         ADDR_RSRC_TEX_3D,
     };
 
-    const GfxImage*  pGfxImage = pImage->GetGfxImage();
-    const ImageType  imageType = pGfxImage->GetOverrideImageType();
-
-    return AddrResType[static_cast<uint32>(imageType)];
+    return AddrResType[uint32(imageType)];
 }
 
 // =====================================================================================================================
@@ -498,9 +495,8 @@ void AddrMgr2::InitTilingCaps(
 
         // Disable 4kB swizzle mode so more surfaces get DCC memory.
         // Should only set disable4kBSwizzleMode for testing purposes.
-        const uint32 disable4KBSwizzleMode = settings.addr2Disable4KbSwizzleMode;
-
-        const auto imageType = pImage->GetGfxImage()->GetOverrideImageType();
+        const uint32    disable4KBSwizzleMode = settings.addr2Disable4KbSwizzleMode;
+        const ImageType imageType             = createInfo.imageType;
 
         const bool disable1D = ((imageType == ImageType::Tex1d) &&
                                 TestAnyFlagSet(disable4KBSwizzleMode, Addr2Disable4kBSwizzleColor1D));
@@ -531,18 +527,13 @@ void AddrMgr2::InitTilingCaps(
 #endif
     }
 
-    // GFX10 and newer products have addressing changes that allow YUV+DCC to be a possibility.  The need to
-    // address slices individually makes YUV+DCC an impossibility on GFX9 platforms; without any possibility for
-    // compression, there isn't any benefit to enabling tiling on YUV surfaces either.
-    if (IsGfx10Plus(*m_pDevice)                     &&
-        (createInfo.tiling == ImageTiling::Optimal) &&
+    // GFX10 and newer products have addressing changes that allow YUV+DCC to be a possibility.
+    if ((createInfo.tiling == ImageTiling::Optimal) &&
         Formats::IsYuvPlanar(createInfo.swizzledFormat.format))
     {
-        {
-            // Do allow some of the macro modes so that this surfac will potentially get compression.
-            pBlockSettings->macroThin64KB  = 0;
-            pBlockSettings->macroThick64KB = 0;
-        }
+        // Do allow some of the macro modes so that this surfac will potentially get compression.
+        pBlockSettings->macroThin64KB  = 0;
+        pBlockSettings->macroThick64KB = 0;
     }
 }
 
@@ -579,8 +570,7 @@ ADDR2_SURFACE_FLAGS AddrMgr2::DetermineSurfaceFlags(
     }
     else if (Formats::IsYuv(createInfo.swizzledFormat.format))
     {
-        if ((image.GetImageCreateInfo().usageFlags.colorTarget != 0)
-            )
+        if (image.GetImageCreateInfo().usageFlags.colorTarget != 0)
         {
             // We should always set the color flag for YUV resources.
             flags.color = 1;
@@ -621,7 +611,7 @@ ADDR2_SURFACE_FLAGS AddrMgr2::DetermineSurfaceFlags(
                     image.IsTurboSyncSurface()     |
                     createInfo.flags.pipSwapChain;
 
-    if (IsGfx10Plus(m_gfxLevel) && ((flags.depth == 1) || (createInfo.samples > 1)))
+    if ((flags.depth == 1) || (createInfo.samples > 1))
     {
         // Gfx10+ doesn't support PRT synonyms for depth or MSAA resource; so set prt to 0 to allow suporting
         // non-synonyms case. If prt is set to 1, Gfx10Lib::HwlComputeSurfaceInfoSanityCheck will
@@ -637,7 +627,7 @@ ADDR2_SURFACE_FLAGS AddrMgr2::DetermineSurfaceFlags(
     // using the overall starting location (in texels) of each mip within the whole array slice. However, AddrLib only
     // tells us that texel location if the 'needSwizzleEqs' flag is set. The AddrLib team has confirmed that setting
     // this flag will not affect the resulting swizzle mode for the Image.
-    flags.needEquation = ((GetAddrResourceType(&image) != ADDR_RSRC_TEX_1D) &&
+    flags.needEquation = ((GetAddrResourceType(createInfo.imageType) != ADDR_RSRC_TEX_1D) &&
                           ((createInfo.flags.needSwizzleEqs != 0) ||
                            (createInfo.tiling != ImageTiling::Linear))) ? 1 : 0;
 
@@ -1149,7 +1139,7 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
     surfSettingInput.numSamples      = createInfo.samples;
     surfSettingInput.numFrags        = createInfo.fragments;
     surfSettingInput.flags           = DetermineSurfaceFlags(*pImage, pBaseSubRes->subresId.plane, forFmask);
-    surfSettingInput.resourceType    = GetAddrResourceType(pImage);
+    surfSettingInput.resourceType    = GetAddrResourceType(createInfo.imageType);
     surfSettingInput.resourceLoction = ADDR_RSRC_LOC_UNDEF;
 
     surfSettingInput.memoryBudget    = createInfo.imageMemoryBudget;
@@ -1218,26 +1208,6 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
         surfSettingInput.preferredSwSet.sw_S = 0;
     }
 
-    // Before Vega 20, the sDMA engine couldn't execute 2D 128bpp S micro tiling copies at full rate. This seems to be
-    // because that swizzle mode uses the y[0] bit as its first address bit which tends to make neighboring elements
-    // non-contiguous. The 128-bpp D micro tiling would be preferred because it uses x[0] instead, making even/odd
-    // pairs contiguous. This has a significant impact on linear-to-tiled copy speeds and should help in general.
-    // However, benchmarking shows that S modes can be more efficient if DCC is in use so we shouldn't apply this
-    // optimization to render targets.
-    //
-    // Note that we must make sure the preferred set is not a power of two before we remove this S bit because we would
-    // otherwise unset the last bit, giving addrlib a value of zero. That's a special value which tells addrlib to pick
-    // its own defaults which is definitely not what the above code intended.
-    if ((IsVega10(*m_pDevice) || IsVega12(*m_pDevice)) &&
-        (createInfo.imageType == ImageType::Tex2d)     &&
-        (pImage->IsRenderTarget() == false)            &&
-        (surfSettingInput.bpp == 128)                  &&
-        (IsPowerOfTwo(surfSettingInput.preferredSwSet.value) == false))
-    {
-        surfSettingInput.preferredSwSet.sw_S = 0;
-    }
-
-    //
     // Getting 3% better performance when "R" swizzle modes are removed. Sampler feedback operations have decreased
     // performance for "R" swizzle modes. The hardware team isn't sure why this is the case, but see no harm in
     // disallowing "R" swizzle modes for this use case.
@@ -1251,11 +1221,9 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
     // So, here, we disable the D swizzle mode for the described situation.
     // For BCn textures, they have >= 64bpp, which is what really matters when we are doing the address equation.
     // So, here, instead of checking for BC<n>, we check for 3D resource and >=64bpp.
-    if ((createInfo.imageType == ImageType::Tex3d)         &&
-        (surfSettingInput.bpp >= 64)                       &&
-        pImage->GetDevice()->ChipProperties().gfx9.rbPlus
-        && ((IsRaven(*m_pDevice) == false) && (IsRaven2(*m_pDevice) == false))
-        )
+    if ((createInfo.imageType == ImageType::Tex3d) &&
+        (surfSettingInput.bpp >= 64)               &&
+        (pImage->GetDevice()->ChipProperties().gfx9.rbPlus != 0))
     {
         surfSettingInput.preferredSwSet.sw_D = 0;
     }
@@ -1295,8 +1263,7 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
             pOut->swizzleMode = ADDR_SW_64KB_R_X;
         }
 
-        if (IsGfx10Plus(*m_pDevice) &&
-            Formats::IsMacroPixelPackedRgbOnly(createInfo.swizzledFormat.format))
+        if (Formats::IsMacroPixelPackedRgbOnly(createInfo.swizzledFormat.format))
         {
             pOut->swizzleMode = ADDR_SW_LINEAR;
         }
@@ -1309,12 +1276,6 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
                  (forFmask == false))
         {
             pOut->swizzleMode = imageInfo.internalCreateInfo.gfx9.sharedSwizzleMode;
-        }
-        else if (IsGfx9(*m_pDevice) &&
-                 forFmask &&
-                 (imageInfo.internalCreateInfo.flags.useSharedMetadata != 0))
-        {
-            pOut->swizzleMode = imageInfo.internalCreateInfo.sharedMetadata.fmaskSwizzleMode;
         }
         else if (pImage->GetGfxImage()->IsRestrictedTiledMultiMediaSurface() &&
                  (createInfo.tiling == ImageTiling::Optimal))
@@ -1338,10 +1299,6 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
                     pOut->swizzleMode = ADDR_SW_64KB_D;
                 }
 
-            }
-            else if (IsVega10(*m_pDevice) || IsVega12(*m_pDevice) || IsVega20(*m_pDevice))
-            {
-                pOut->swizzleMode = ADDR_SW_64KB_D;
             }
             // Use linear swizzle mode if it's a render target.
             else
@@ -1367,19 +1324,14 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
         // Fmask surfaces can only use Z-swizzle modes; verify that here.
         PAL_ASSERT((forFmask == false) || IsZSwizzle(pOut->swizzleMode));
 
-        // view3dAs2dArray can only use D-swizzle for gfx9, so fail if the hint was overriden. See full details above.
-        // However, gfx10 can use linear, Z or R swizzle for 3D image as 2D as valid.
+        // view3dAs2dArray can use linear, Z or R swizzle for 3D image as 2D as valid.
         // See address-lib logic for Gfx10Rsrc3dViewAs2dSwModeMask.
         if (createInfo.flags.view3dAs2dArray != 0)
         {
-            if (IsGfx9(*m_pDevice) && (IsDisplayableSwizzle(pOut->swizzleMode) == false))
-            {
-                result = Result::ErrorInvalidFlags;
-            }
-            else if (IsGfx10(*m_pDevice)                               &&
-                     (IsZSwizzle(pOut->swizzleMode) == false)          &&
-                     (IsLinearSwizzleMode(pOut->swizzleMode) == false) &&
-                     (IsRotatedSwizzle(pOut->swizzleMode) == false))
+            if (IsGfx10(*m_pDevice)                               &&
+                (IsZSwizzle(pOut->swizzleMode) == false)          &&
+                (IsLinearSwizzleMode(pOut->swizzleMode) == false) &&
+                (IsRotatedSwizzle(pOut->swizzleMode) == false))
             {
                 result = Result::ErrorInvalidFlags;
             }
@@ -1410,7 +1362,7 @@ Result AddrMgr2::ComputeAlignedPlaneDimensions(
     surfInfoIn.size = sizeof(surfInfoIn);
     surfInfoIn.width        = pBaseSubRes->extentTexels.width;
     surfInfoIn.height       = pBaseSubRes->extentTexels.height;
-    surfInfoIn.resourceType = GetAddrResourceType(pImage);
+    surfInfoIn.resourceType = GetAddrResourceType(createInfo.imageType);
     surfInfoIn.format       = Image::GetAddrFormat(pBaseSubRes->format.format);
     surfInfoIn.bpp          = Formats::BitsPerPixel(pBaseSubRes->format.format);
     surfInfoIn.numSlices    = ((createInfo.imageType != ImageType::Tex3d) ? createInfo.arraySize
@@ -1433,22 +1385,8 @@ Result AddrMgr2::ComputeAlignedPlaneDimensions(
         surfInfoIn.pitchInElement = createInfo.rowPitch / bytesPerElement;
         surfInfoIn.sliceAlign     = createInfo.depthPitch;
     }
-    else if ((IsGfx9(*m_pDevice) == true) &&
-             (createInfo.swizzledFormat.format == ChNumFormat::YV12) &&
-             (pBaseSubRes->subresId.plane == 0))
-    {
-        // For YV12, all UBM clients (UDX/DXX/KMD, etc) and UBM assume pitch of Y plane is exactly twice pitch of U/V
-        // plane. This assumption is also there between MMD and MMD client (UDX/DXX, etc).
-        // Force PAL to follow same assumption, though it is not necessary in theory. Do so to fix DX9 WHQL failure
-        // caused by different pitch requirement of Y plane in KMD(UBM) and DX9P(PAL).
-        // Per Lawrence Liu, limit this change to YV12 format only as well as GFX9 only, in case unexpected regressions.
-        constexpr uint32 Gfx9LinearAlign = 256;
-        surfInfoIn.pitchInElement = Util::Pow2Align(surfInfoIn.width, Gfx9LinearAlign * 2);
-    }
 
-    const PalSettings& settings = m_pDevice->Settings();
-
-    if (settings.waForceLinearHeight16Alignment &&
+    if (m_pDevice->Settings().waForceLinearHeight16Alignment &&
         Formats::IsYuvPlanar(createInfo.swizzledFormat.format) &&
         IsLinearSwizzleMode(swizzleMode) &&
         createInfo.usageFlags.videoDecoder)
@@ -1595,19 +1533,10 @@ Result AddrMgr2::InitSubresourceInfo(
 
     // Compute the exact row pitch in bytes. This math must be done in terms of elements instead of texels
     // because some formats (e.g., R32G32B32) have pitches that are not multiples of their texel size.
-    if (IsLinearSwizzleMode(surfaceSetting.swizzleMode) || IsGfx10Plus(*m_pDevice))
-    {
-        // GFX10+ devices and linear images do not have tightly packed mipmap levels, so the rowPitch
-        // of a subresource is the size in bytes of one row of that subresource.
-        pSubResInfo->rowPitch = (pSubResInfo->actualExtentElements.width * (surfaceInfo.bpp >> 3));
-    }
-    else
-    {
-        // The rowPitch of a tiled Image is the distance between the same X position in consecutive rows of the
-        // subresource. Because the mipmap levels in an array slice are tightly packed, this works out to be the
-        // same overall pitch as the whole mip-slice.
-        pSubResInfo->rowPitch = (surfaceInfo.mipChainPitch * (surfaceInfo.bpp >> 3));
-    }
+    //
+    // GFX10+ devices do not have tightly packed mipmap levels, so the rowPitch of a subresource is the size in bytes
+    // of one row of that subresource.
+    pSubResInfo->rowPitch = (pSubResInfo->actualExtentElements.width * (surfaceInfo.bpp >> 3));
 
     // The depth pitch is a constant for each plane.  This is the number of bytes it takes to get to the next
     // slice of any given mip-level (i.e., each slice has the exact same layout).
@@ -1627,15 +1556,7 @@ Result AddrMgr2::InitSubresourceInfo(
     }
     else
     {
-        // For GFX9 tiled Images, the mip offset to the beginning of the subresource should be the macro-block offset
-        // plus mipTailOffset (for tail mips) which AddrLib computes for us.
-        // On GFX10+, mips are stored in reverse order (i.e., the largest mip is farthest away from the start), so this
-        // assert is meaningless on that platform.
         pSubResInfo->offset = mipInfo.macroBlockOffset + mipInfo.mipTailOffset;
-
-        PAL_ASSERT((pSubResInfo->subresId.mipLevel > 0) ||
-                   (mipInfo.macroBlockOffset == 0)      ||
-                   IsGfx10Plus(m_gfxLevel));
 
         pSubResInfo->blockSize.width  = surfaceInfo.blockWidth;
         pSubResInfo->blockSize.height = surfaceInfo.blockHeight;
@@ -1663,7 +1584,7 @@ Result AddrMgr2::InitSubresourceInfo(
             ADDR2_COMPUTE_SUBRESOURCE_OFFSET_FORSWIZZLEPATTERN_OUTPUT addr2Output = {};
 
             addr2Input.size             = sizeof(ADDR2_COMPUTE_SUBRESOURCE_OFFSET_FORSWIZZLEPATTERN_INPUT);
-            addr2Input.resourceType     = GetAddrResourceType(pImage);
+            addr2Input.resourceType     = GetAddrResourceType(createInfo.imageType);
             addr2Input.pipeBankXor      = pTileInfo->pipeBankXor;
             addr2Input.swizzleMode      = surfaceSetting.swizzleMode;
             addr2Input.slice            = pSubResInfo->subresId.arraySlice;
@@ -1912,16 +1833,11 @@ bool AddrMgr2::IsThin(
     uint32  swizzleMode
     ) const
 {
-    const AddrSwizzleMode  addrSwizzle = static_cast<AddrSwizzleMode>(swizzleMode);
+    const AddrSwizzleMode addrSwizzle = static_cast<AddrSwizzleMode>(swizzleMode);
 
     // Note that this functionality would ideally be returned by the address library in some capacity.
     // "R" modes and "linear" images have always been considered "thin"
-    return IsLinearSwizzleMode(addrSwizzle) ||
-           IsRotatedSwizzle(addrSwizzle)    ||
-           // The rules changed between GFX9 and GFX10
-            (IsGfx10Plus(*m_pDevice)
-                ? IsZSwizzle(addrSwizzle)
-                : IsDisplayableSwizzle(addrSwizzle));
+    return (IsLinearSwizzleMode(addrSwizzle) || IsRotatedSwizzle(addrSwizzle) || IsZSwizzle(addrSwizzle));
 }
 
 } // AddrMgr2

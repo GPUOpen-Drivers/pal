@@ -38,14 +38,12 @@
 
 using namespace Util;
 using namespace Util::Literals;
+using namespace std::chrono_literals;
 
 namespace Pal
 {
 namespace GpuDebug
 {
-
-// Wait for a maximum of 1000 seconds.
-constexpr uint64 Timeout = 1000000000000ull;
 
 // =====================================================================================================================
 Queue::Queue(
@@ -574,9 +572,6 @@ Result Queue::Submit(
     // First start by processing any idle submits.
     ProcessIdleSubmits();
 
-    // Wait for a maximum of 1000 seconds.
-    constexpr uint64 Timeout = 1000000000000ull;
-
     Platform*       pPlatform       = static_cast<Platform*>(m_pDevice->GetPlatform());
     MultiSubmitInfo finalSubmitInfo = submitInfo;
     Result          result          = Result::Success;
@@ -781,7 +776,7 @@ Result Queue::WaitForFence(
     uint32 counter = 0;
     while ((pFence->GetStatus() != Result::Success) && (counter < m_waitIdleSleepMs))
     {
-        SleepMs(1u);
+        Sleep(1ms);
         counter += 1;
     }
 

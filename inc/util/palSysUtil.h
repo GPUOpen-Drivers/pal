@@ -37,6 +37,7 @@
 #include "palStringView.h"
 #include <cerrno>
 #include <cstring>
+#include <chrono>
 
 #if   defined(__unix__)
 #define PAL_HAS_CPUID (__i386__ || __x86_64__)
@@ -433,7 +434,9 @@ extern Result MkDirRecursively(
 /// @param [out] pCharCount the number of characters in the names of all the files
 ///
 /// @returns Result::ErrorInvalidPointer if any of the input pointers are null
-/// @returns Result::ErrorInvalidValue if there are any file I/O errors
+/// @returns Value of Util::ConvertWinError(GetLastError()) if there are any file I/O errors on Windows
+/// @returns Result::ErrorInvalidValue if there for all file I/O errors on Linux
+/// @returns Result::Success if the dir is empty (pFileCount and pCharCount will be 0)
 /// @returns Result::Success otherwise
 extern Result CountFilesInDir(
     Util::StringView<char>  dirPath,
@@ -499,8 +502,13 @@ Result RemoveOldestFilesOfDirUntilSize(
 ///          + Result::ErrorUnknown if the specified directory is failed to open/remove.
 ///          + Result::ErrorInvalidValue if the parent directory does not exist.
 Result RemoveFilesOfDirOlderThan(
+    const char*       pPathName,
+    SecondsSinceEpoch threshold);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 863
+Result RemoveFilesOfDirOlderThan(
     const char* pPathName,
-    uint64      threshold);
+    uint64      thresholdSeconds);
+#endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 814
 // Provide a wrapper using the older name of this function for backwards-compatibility.
 inline Result RemoveFilesOfDir(const char* pPathName, uint64 threshold)
@@ -517,9 +525,15 @@ inline Result RemoveFilesOfDir(const char* pPathName, uint64 threshold)
 ///          following result codes may be returned:
 ///          + Result::ErrorUnknown if the specified directory is failed to open.
 Result GetStatusOfDir(
+    const char*        pPathName,
+    uint64*            pTotalSize,
+    SecondsSinceEpoch* pOldestTime);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 863
+Result GetStatusOfDir(
     const char* pPathName,
     uint64*     pTotalSize,
     uint64*     pOldestTime);
+#endif
 
 /// Almost-Posix-style rename file or directory: replaces already-existing file.
 /// Posix says this operation is atomic; Windows does not specify.
@@ -553,7 +567,10 @@ extern size_t DumpStackTrace(
 /// Puts the calling thread to sleep for a specified number of milliseconds.
 ///
 /// @param [in] duration  Amount of time to sleep for, in milliseconds.
+extern void Sleep(std::chrono::milliseconds duration);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 870
 extern void SleepMs(uint32 duration);
+#endif
 
 /// Create Directory and SubDirectory of Executable's Name at pBaseDir
 /// Like if pBaseDir="amdPal/" then final pLogDir will be created like this: amdpal/app.exe/

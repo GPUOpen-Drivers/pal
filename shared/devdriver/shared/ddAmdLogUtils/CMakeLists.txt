@@ -31,7 +31,7 @@ add_library(AmdLogUtilsClient STATIC)
 
 set_target_properties(AmdLogUtilsClient
     PROPERTIES
-        CXX_STANDARD 11
+        CXX_STANDARD 17
 )
 
 target_sources(AmdLogUtilsClient PRIVATE

@@ -226,8 +226,14 @@ struct SwapChainCreateInfo
 /// Specifies the properties of acquiring next presentable image. Input structure to ISwapChain::AcquireNextImage
 struct AcquireNextImageInfo
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 863
+    std::chrono::nanoseconds timeout; ///< How long the function should block if no image is available.
+                                      ///  If 0ns the function will not block.
+                                      ///  If nanoseconds::max() it will block indefinitely.
+#else
     uint64           timeout;    ///< How long the function should block, in nanoseconds, if no image is available.
                                  ///  If zero the function will not block. If UINT64_MAX it will block indefinitely.
+#endif
     IQueueSemaphore* pSemaphore; ///< If non-null, signal this semaphore when it is safe to render into the image.
     IFence*          pFence;     ///< If non-null, signal this fence when it is safe to render into the image.
 };

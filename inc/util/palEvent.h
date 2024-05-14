@@ -100,7 +100,10 @@ public:
     ///          timed out.  Otherwise, one of the following errors may be returned:
     ///          + ErrorInvalidValue will be returned if the timeout is negative.
     ///          + ErrorUnknown may be returned if an unexpected internal occurs when calling the OS.
-    Result Wait(float timeout) const;
+    Result Wait(fseconds timeout) const;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 863
+    Result Wait(float timeout) const { return Wait(fseconds{ timeout }); }
+#endif
 
 #if   defined(__unix__)
     /// On Linux, a handle to an OS event primitive is a file descriptor, which is just an int.

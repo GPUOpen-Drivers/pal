@@ -76,11 +76,13 @@ public:
     ///
     /// Decrements the semaphore count if the wait succeeds.
     ///
-    /// @param [in] milliseconds Time in milliseconds before the call will timeout and return control to the caller.
-    ///                          Can be set to 0xFFFFFFFF to never timeout.
+    /// @param [in] waitTime Time in milliseconds before the call will timeout and return control to the caller.
     ///
     /// @returns @ref Success if the wait completed successfully, or @ref Timeout if the wait timed out.
-    Result Wait(uint32 milliseconds);
+    Result Wait(std::chrono::milliseconds waitTime);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 863
+    Result Wait(uint32 waitTimeMs);
+#endif
 
     /// Increments the semaphore count value.
     ///

@@ -28,6 +28,9 @@
 #include "util/lnx/lnxTimeout.h"
 #include <errno.h>
 
+using namespace std::chrono;
+using namespace std::chrono_literals;
+
 namespace Util
 {
 
@@ -57,10 +60,8 @@ Result Semaphore::Init(
 // =====================================================================================================================
 // Waits until the semaphore's count is nonzero, then decrease the count by one.
 Result Semaphore::Wait(
-    uint32 milliseconds)  // Milliseconds to sleep before timing-out.
+    milliseconds waitTime)  // Milliseconds to sleep before timing-out.
 {
-    constexpr uint32 Infinite = 0xFFFFFFFF;
-
     int32 ret = 0;
 
     // Retry the wait if EAGAIN happens when waiting.
@@ -68,13 +69,13 @@ Result Semaphore::Wait(
 
     // Calculate the abs time before the loop.
     timespec timeout = { };
-    ComputeTimeoutExpiration(&timeout, milliseconds * 1000 * 1000);
+    ComputeTimeoutExpiration(&timeout, TimeoutCast<nanoseconds>(waitTime).count());
 
     do
     {
-        switch (milliseconds)
+        switch (waitTime.count())
         {
-            case Infinite:
+            case milliseconds::max().count():
                 // Wait on the semaphore indefinitely.
                 ret = sem_wait(&m_osSemaphore);
                 break;
@@ -107,7 +108,7 @@ Result Semaphore::Wait(
     Result result = Result::Timeout;
 
     // It's just a query when milliseconds is 0
-    if ((ret == EAGAIN) && (milliseconds == 0))
+    if ((ret == EAGAIN) && (waitTime == 0ms))
     {
         result = Result::NotReady;
     }

@@ -34,6 +34,7 @@
 #include "palFormatInfo.h"
 #include "palSettingsFileMgrImpl.h"
 #include "palSysMemory.h"
+#include "palInlineFuncs.h"
 
 #include <limits.h>
 
@@ -285,7 +286,8 @@ Result Device::WaitForSemaphores(
     const IQueueSemaphore*const* ppSemaphores,
     const uint64*                pValues,
     uint32                       flags,
-    uint64                       timeout) const
+    std::chrono::nanoseconds     timeout
+    ) const
 {
     return Result::Unsupported;
 }
@@ -322,111 +324,7 @@ void Device::FillGfx9ChipProperties(
     const uint32 familyId  = pChipProps->familyId;
     const uint32 eRevId    = pChipProps->eRevId;
 
-    if (AMDGPU_IS_VEGA10(familyId, eRevId))
-    {
-        // NOTE: KMD only gives us a flag indicating whether the Off-chip LDS buffers are "large" or not. The HWL will
-        // need to determine the actual LDS buffer size based on this flag.
-        pChipInfo->doubleOffchipLdsBuffers = 1;
-        pChipInfo->gbAddrConfig            = 0x2A110002; // GB_ADDR_CONFIG_DEFAULT;
-        pChipInfo->numShaderEngines        =    4; // GPU__GC__NUM_SE;
-        pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
-        pChipInfo->maxNumRbPerSe           =    4; // GPU__GC__NUM_RB_PER_SE;
-        pChipInfo->nativeWavefrontSize     =   64; // GPU__GC__WAVE_SIZE;
-        pChipInfo->minWavefrontSize        =   64;
-        pChipInfo->maxWavefrontSize        =   64;
-        pChipInfo->numPhysicalVgprsPerSimd =  256; // GPU__GC__NUM_GPRS;
-        pChipInfo->maxNumCuPerSh           =   16; // GPU__GC__NUM_CU_PER_SH;
-        pChipInfo->numTccBlocks            =   16; // GPU__TC__NUM_TCCS;
-        pChipInfo->gsVgtTableDepth         =   32; // GPU__VGT__GS_TABLE_DEPTH;
-        pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
-        pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
-    }
-    else if (AMDGPU_IS_VEGA12(familyId, eRevId))
-    {
-        pChipInfo->doubleOffchipLdsBuffers = 1;
-        pChipInfo->gbAddrConfig            = 0x26110001; // GB_ADDR_CONFIG_DEFAULT;
-        pChipInfo->numShaderEngines        =    4; // GPU__GC__NUM_SE;
-        pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
-        pChipInfo->maxNumRbPerSe           =    2; // GPU__GC__NUM_RB_PER_SE;
-        pChipInfo->nativeWavefrontSize     =   64; // GPU__GC__WAVE_SIZE;
-        pChipInfo->minWavefrontSize        =   64;
-        pChipInfo->maxWavefrontSize        =   64;
-        pChipInfo->numPhysicalVgprsPerSimd =  256; // GPU__GC__NUM_GPRS;
-        pChipInfo->maxNumCuPerSh           =    5; // GPU__GC__NUM_CU_PER_SH;
-        pChipInfo->numTccBlocks            =    8; // GPU__TC__NUM_TCCS;
-        pChipInfo->gsVgtTableDepth         =   32; // GPU__VGT__GS_TABLE_DEPTH;
-        pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
-        pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
-    }
-    else if (AMDGPU_IS_VEGA20(familyId, eRevId))
-    {
-        pChipInfo->doubleOffchipLdsBuffers = 1;
-        pChipInfo->gbAddrConfig            = 0x2A110002; // GB_ADDR_CONFIG_DEFAULT;
-        pChipInfo->numShaderEngines        =    4; // GPU__GC__NUM_SE;
-        pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
-        pChipInfo->maxNumRbPerSe           =    4; // GPU__GC__NUM_RB_PER_SE;
-        pChipInfo->nativeWavefrontSize     =   64; // GPU__GC__WAVE_SIZE;
-        pChipInfo->minWavefrontSize        =   64;
-        pChipInfo->maxWavefrontSize        =   64;
-        pChipInfo->numPhysicalVgprsPerSimd =  256; // GPU__GC__NUM_GPRS;
-        pChipInfo->maxNumCuPerSh           =   16; // GPU__GC__NUM_CU_PER_SH;
-        pChipInfo->numTccBlocks            =   16; // GPU__TC__NUM_TCCS;
-        pChipInfo->gsVgtTableDepth         =   32; // GPU__VGT__GS_TABLE_DEPTH;
-        pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
-        pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
-    }
-    else if (AMDGPU_IS_RAVEN(familyId, eRevId))
-    {
-        pChipInfo->doubleOffchipLdsBuffers = 1;
-        pChipInfo->gbAddrConfig            = 0x26010001; // GB_ADDR_CONFIG_DEFAULT;
-        pChipInfo->numShaderEngines        =    1; // GPU__GC__NUM_SE;
-        pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
-        pChipInfo->maxNumRbPerSe           =    2; // GPU__GC__NUM_RB_PER_SE;
-        pChipInfo->nativeWavefrontSize     =   64; // GPU__GC__WAVE_SIZE;
-        pChipInfo->minWavefrontSize        =   64;
-        pChipInfo->maxWavefrontSize        =   64;
-        pChipInfo->numPhysicalVgprsPerSimd =  256; // GPU__GC__NUM_GPRS;
-        pChipInfo->maxNumCuPerSh           =   11; // GPU__GC__NUM_CU_PER_SH;
-        pChipInfo->numTccBlocks            =    4; // GPU__TC__NUM_TCCS;
-        pChipInfo->gsVgtTableDepth         =   32; // GPU__VGT__GS_TABLE_DEPTH;
-        pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
-        pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
-    }
-    else if (AMDGPU_IS_RAVEN2(familyId, eRevId))
-    {
-        pChipInfo->doubleOffchipLdsBuffers = 1;
-        pChipInfo->gbAddrConfig            = 0x26010001; // GB_ADDR_CONFIG_DEFAULT;
-        pChipInfo->numShaderEngines        =    1; // GPU__GC__NUM_SE;
-        pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
-        pChipInfo->maxNumRbPerSe           =    1; // GPU__GC__NUM_RB_PER_SE;
-        pChipInfo->nativeWavefrontSize     =   64; // GPU__GC__WAVE_SIZE;
-        pChipInfo->minWavefrontSize        =   64;
-        pChipInfo->maxWavefrontSize        =   64;
-        pChipInfo->numPhysicalVgprsPerSimd =  256; // GPU__GC__NUM_GPRS;
-        pChipInfo->maxNumCuPerSh           =    3; // GPU__GC__NUM_CU_PER_SH;
-        pChipInfo->numTccBlocks            =    2; // GPU__TC__NUM_TCCS;
-        pChipInfo->gsVgtTableDepth         =   32; // GPU__VGT__GS_TABLE_DEPTH;
-        pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
-        pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
-    }
-    else if (AMDGPU_IS_RENOIR(familyId, eRevId))
-    {
-        pChipInfo->doubleOffchipLdsBuffers = 1;
-        pChipInfo->gbAddrConfig            = 0x26010001; // GB_ADDR_CONFIG_DEFAULT;
-        pChipInfo->numShaderEngines        =    1; // GPU__GC__NUM_SE;
-        pChipInfo->numShaderArrays         =    1; // GPU__GC__NUM_SH_PER_SE;
-        pChipInfo->maxNumRbPerSe           =    2; // GPU__GC__NUM_RB_PER_SE;
-        pChipInfo->nativeWavefrontSize     =   64; // GPU__GC__WAVE_SIZE;
-        pChipInfo->minWavefrontSize        =   64;
-        pChipInfo->maxWavefrontSize        =   64;
-        pChipInfo->numPhysicalVgprsPerSimd =  256; // GPU__GC__NUM_GPRS;
-        pChipInfo->maxNumCuPerSh           =    8; // GPU__GC__NUM_CU_PER_SH;
-        pChipInfo->numTccBlocks            =    4; // GPU__TC__NUM_TCCS;
-        pChipInfo->gsVgtTableDepth         =   32; // GPU__VGT__GS_TABLE_DEPTH;
-        pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
-        pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
-    }
-    else if (AMDGPU_IS_NAVI10(familyId, eRevId))
+    if (AMDGPU_IS_NAVI10(familyId, eRevId))
     {
         pChipInfo->supportSpiPrefPriority  =    1;
         pChipInfo->doubleOffchipLdsBuffers =    1;
@@ -473,9 +371,7 @@ void Device::FillGfx9ChipProperties(
         pChipInfo->nativeWavefrontSize     =   32; // GPU__GC__SQ_WAVE_SIZE;
         pChipInfo->minWavefrontSize        =   32;
         pChipInfo->maxWavefrontSize        =   64;
-        {
-            pChipInfo->numPhysicalVgprsPerSimd = 1024; // GPU__GC__NUM_GPRS;
-        }
+        pChipInfo->numPhysicalVgprsPerSimd = 1024; // GPU__GC__NUM_GPRS;
         pChipInfo->maxNumCuPerSh           =   12; // GPU__GC__NUM_WGP_PER_SA * 2;
         pChipInfo->numTccBlocks            =    8; // GPU__GC__NUM_GL2C;
         pChipInfo->gsVgtTableDepth         =   32; // GPU__VGT__GS_TABLE_DEPTH;
@@ -710,18 +606,16 @@ void Device::FillGfx9ChipProperties(
         }
     }
 
-    if (IsGfx10Plus(pChipProps->gfxLevel))
+    PAL_ASSERT(pChipInfo->numCuPerSh <= 32);      // avoid overflow in activeWgpMask
+    PAL_ASSERT((pChipInfo->numCuPerSh & 1) == 0); // CUs come in WGP pairs
+
+    const uint16  activeWgpMask = (1 << (pChipInfo->numCuPerSh / 2)) - 1;
+    for (uint32 seIndex = 0; seIndex < pChipInfo->numShaderEngines; seIndex++)
     {
-        PAL_ASSERT(pChipInfo->numCuPerSh <= 32);      // avoid overflow in activeWgpMask
-        PAL_ASSERT((pChipInfo->numCuPerSh & 1) == 0); // CUs come in WGP pairs in gfx10
-        const uint16  activeWgpMask = (1 << (pChipInfo->numCuPerSh / 2)) - 1;
-        for (uint32 seIndex = 0; seIndex < pChipInfo->numShaderEngines; seIndex++)
+        for (uint32 shIndex = 0; shIndex < pChipInfo->numShaderArrays; shIndex++)
         {
-            for (uint32 shIndex = 0; shIndex < pChipInfo->numShaderArrays; shIndex++)
-            {
-                pChipInfo->gfx10.activeWgpMask[seIndex][shIndex]   = activeWgpMask;
-                pChipInfo->gfx10.alwaysOnWgpMask[seIndex][shIndex] = activeWgpMask;
-            }
+            pChipInfo->gfx10.activeWgpMask[seIndex][shIndex]   = activeWgpMask;
+            pChipInfo->gfx10.alwaysOnWgpMask[seIndex][shIndex] = activeWgpMask;
         }
     }
 }
@@ -786,7 +680,6 @@ Result Device::EarlyInit(
     switch (m_chipProperties.gfxLevel)
     {
     case GfxIpLevel::GfxIp10_1:
-    case GfxIpLevel::GfxIp9:
     case GfxIpLevel::GfxIp10_3:
     case GfxIpLevel::GfxIp11_0:
         m_pFormatPropertiesTable = Gfx9::GetFormatPropertiesTable(m_chipProperties.gfxLevel,
@@ -1086,15 +979,10 @@ void Device::InitExternalPhysicalHeap()
 }
 
 // =====================================================================================================================
-// This is help methods. Init cache and debug file paths
+// Helper method to initialize cache and debug file paths.
 void Device::InitOutputPaths()
 {
-    const char* pPath;
-
-    // Initialize the root path of cache files and debug files
-    // Cascade:
-    // 1. Find APPDATA to keep backward compatibility.
-    pPath = getenv("APPDATA");
+    const char* pPath = getenv("APPDATA");
 
     if (pPath != nullptr)
     {

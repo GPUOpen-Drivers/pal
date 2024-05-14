@@ -194,9 +194,8 @@ struct HwsInfo
 union HwIpLevelFlags
 {
     struct {
-        uint32 reserved0  : 1;
         uint32 isSpoofed  : 1; // GPU is spoofed and OS props should be ignored.
-        uint32 reserved   : 30;
+        uint32 reserved   : 31;
     };
     uint32 u32All;
 };
@@ -860,7 +859,6 @@ struct GpuChipProperties
                 uint64 supportMsaaCoverageOut              :  1; // HW supports MSAA coverage samples
                 uint64 supportPostDepthCoverage            :  1; // HW supports post depth coverage feature
                 uint64 supportSpiPrefPriority              :  1;
-                uint64 timestampResetOnIdle                :  1; // GFX OFF feature causes the timestamp to reset.
                 uint64 support1xMsaaSampleLocations        :  1; // HW supports 1xMSAA custom quad sample patterns
                 uint64 supportReleaseAcquireInterface      :  1; // Set if HW supports the basic functionalities of
                                                                  // acquire /release-based barrier interface.This
@@ -900,7 +898,7 @@ struct GpuChipProperties
                                                                  // with zRange specified.
                 uint64 supportCooperativeMatrix            :  1; // HW supports cooperative matrix
                 uint64 placeholder6                        :  1;
-                uint64 reserved                            :  8;
+                uint64 reserved                            :  9;
             };
 
             RayTracingIpLevel        rayTracingIp;      //< HW RayTracing IP version
@@ -1128,10 +1126,10 @@ public:
 
     // NOTE: Part of the public IDevice interface.
     virtual Result WaitForFences(
-        uint32              fenceCount,
-        const IFence*const* ppFences,
-        bool                waitAll,
-        uint64              timeout) const override;
+        uint32                   fenceCount,
+        const IFence*const*      ppFences,
+        bool                     waitAll,
+        std::chrono::nanoseconds timeout) const override;
 
     // Queries the size of a GpuMemory object, in bytes.
     virtual size_t GpuMemoryObjectSize() const = 0;
@@ -1753,8 +1751,6 @@ public:
     void DeveloperCb(Developer::CallbackType type, void* pCbData) const
         { m_pPlatform->DeveloperCb(m_deviceIndex, type, pCbData); }
 
-    virtual bool LegacyHwsTrapHandlerPresent() const { return false; }
-
     // Determines the start (inclusive) and end (exclusive) virtual addresses for the specified virtual address range.
     void VirtualAddressRange(VaPartition vaPartition, gpusize* pStartVirtAddr, gpusize* pEndVirtAddr) const;
 
@@ -1782,6 +1778,8 @@ public:
 
     const char* GetDumpDirName() const { return m_cmdBufDumpPath; }
 
+    bool IsMultiVf() const;
+
 #if PAL_ENABLE_PRINTS_ASSERTS
     bool IsCmdBufDumpEnabledViaHotkey() const { return m_cmdBufDumpEnabledViaHotkey; }
 #else
@@ -1795,9 +1793,6 @@ public:
     void ApplyDevOverlay(const IImage& dstImage, ICmdBuffer* pCmdBuffer) const;
 
     bool PhysicalEnginesAvailable() const { return m_flags.physicalEnginesAvailable; }
-
-    // UMD should write to MP1_SMN_FPS_CNT reg when it's not written by KMD
-    bool ShouldWriteFrameCounterRegister() const { return m_flags.smnFpsCntRegWrittenByKmd == 0; }
 
     static bool EngineSupportsCompute(EngineType  engineType);
     static bool EngineSupportsGraphics(EngineType  engineType);
@@ -2074,8 +2069,7 @@ protected:
     struct
     {
         uint32 physicalEnginesAvailable :  1;  // Client enabled 1 or more physical engines during device finalization.
-        uint32 smnFpsCntRegWrittenByKmd :  1;  // KMD writes to MP1_SMN_FPS_CNT reg so UMD should skip it
-        uint32 reserved                 : 30;
+        uint32 reserved                 : 31;
     } m_flags;
 
     bool m_disableSwapChainAcquireBeforeSignaling;
@@ -2109,7 +2103,7 @@ private:
 
     Result CreateDummyCommandStreams();
 
-    uint64 GetTimeoutValueInNs(uint64  appTimeoutInNs) const;
+    std::chrono::nanoseconds GetTimeoutValueInNs(std::chrono::nanoseconds appTimeout) const;
 
     typedef Util::HashMap<IGpuMemory*, uint32, Pal::Platform>  MemoryRefMap;
 
@@ -2175,6 +2169,10 @@ extern const MergedFormatPropertiesTable* GetFormatPropertiesTable(
     GfxIpLevel                 gfxIpLevel,
     const PalPlatformSettings& settings);
 
+extern void InitPerfCtrInfo(
+    const Device& device,
+    GpuChipProperties* pProps);
+
 extern void InitializePerfExperimentProperties(
     const GpuChipProperties&  chipProps,
     PerfExperimentProperties* pProperties);
@@ -2197,14 +2195,6 @@ extern void InitializeGpuEngineProperties(
 }
 
 // ASIC family and chip identification functions
-constexpr bool IsGfx9(GfxIpLevel gfxLevel)
-{
-    return (gfxLevel == GfxIpLevel::GfxIp9);
-}
-inline bool IsGfx9(const Device& device)
-{
-    return IsGfx9(device.ChipProperties().gfxLevel);
-}
 
 constexpr bool IsGfx11(GfxIpLevel gfxLevel)
 {
@@ -2227,6 +2217,16 @@ inline bool IsGfx11Plus(const Device& device)
 {
     return IsGfx11(device.ChipProperties().gfxLevel)
            ;
+}
+
+constexpr bool IsGfx110(GfxIpLevel gfxLevel)
+{
+    return (gfxLevel == GfxIpLevel::GfxIp11_0);
+}
+
+inline bool IsGfx110(const Device& device)
+{
+    return IsGfx110(device.ChipProperties().gfxLevel);
 }
 
 inline bool IsNavi31(const Device& device)
@@ -2266,6 +2266,11 @@ inline bool IsPhoenix1(const Device& device)
     return AMDGPU_IS_PHOENIX1(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
 
+inline bool IsPhoenix2(const Device& device)
+{
+    return AMDGPU_IS_PHOENIX2(device.ChipProperties().familyId, device.ChipProperties().eRevId);
+}
+
 inline bool IsPhoenixFamily(const Device& device)
 {
     return FAMILY_IS_PHX(device.ChipProperties().familyId);
@@ -2273,57 +2278,12 @@ inline bool IsPhoenixFamily(const Device& device)
 
 constexpr bool IsGfx10(GfxIpLevel gfxLevel)
 {
-    return ((gfxLevel == GfxIpLevel::GfxIp10_1)
-            || (gfxLevel == GfxIpLevel::GfxIp10_3)
+    return ((gfxLevel == GfxIpLevel::GfxIp10_1) || (gfxLevel == GfxIpLevel::GfxIp10_3)
            );
 }
 inline bool IsGfx10(const Device& device)
 {
     return IsGfx10(device.ChipProperties().gfxLevel);
-}
-
-constexpr bool IsGfx10Plus(GfxIpLevel gfxLevel)
-{
-    return (IsGfx10(gfxLevel) || IsGfx11(gfxLevel)
-           );
-}
-inline bool IsGfx10Plus(const Device& device)
-{
-    return IsGfx10Plus(device.ChipProperties().gfxLevel);
-}
-
-inline bool IsVega10(const Device& device)
-{
-    return AMDGPU_IS_VEGA10(device.ChipProperties().familyId, device.ChipProperties().eRevId);
-}
-
-inline bool IsVega12(const Device& device)
-{
-    return AMDGPU_IS_VEGA12(device.ChipProperties().familyId, device.ChipProperties().eRevId);
-}
-
-inline bool IsVega20(const Device& device)
-{
-    return AMDGPU_IS_VEGA20(device.ChipProperties().familyId, device.ChipProperties().eRevId);
-}
-
-inline bool IsRavenFamily(const Device& device)
-{
-    return FAMILY_IS_RV(device.ChipProperties().familyId);
-}
-inline bool IsRaven(const Device& device)
-{
-    return AMDGPU_IS_RAVEN(device.ChipProperties().familyId, device.ChipProperties().eRevId);
-}
-
-inline bool IsRaven2(const Device& device)
-{
-    return AMDGPU_IS_RAVEN2(device.ChipProperties().familyId, device.ChipProperties().eRevId);
-}
-
-inline bool IsRenoir(const Device& device)
-{
-    return AMDGPU_IS_RENOIR(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
 
 // Gfx10 / Navi1x
@@ -2384,16 +2344,7 @@ constexpr bool IsGfx103(GfxIpLevel gfxLevel)
 }
 inline bool IsGfx103(const Device& device)
 {
-    return (device.ChipProperties().gfxLevel == GfxIpLevel::GfxIp10_3);
-}
-constexpr bool IsGfx103Derivative(GfxIpLevel gfxLevel)
-{
-    return ((gfxLevel == GfxIpLevel::GfxIp10_3)
-           );
-}
-inline bool IsGfx103Derivative(const Device& device)
-{
-    return (IsGfx103Derivative(device.ChipProperties().gfxLevel));
+    return IsGfx103(device.ChipProperties().gfxLevel);
 }
 inline bool IsGfx103Plus(GfxIpLevel gfxLevel)
 {
@@ -2434,21 +2385,15 @@ inline bool IsGfx10Bard(const Device& device)
     return (false
             );
 }
-inline bool IsGfx104Plus(const Device& device)
-{
-    return (IsGfx11(device)
-    );
-}
-constexpr bool IsGfx104Plus(GfxIpLevel gfxLevel)
-{
-    return (IsGfx11(gfxLevel)
-    );
-}
 
-inline bool IsGfx091xPlus(const Device& device)
+// The gfx9 HWL covers multiple GFXIPs, this gives us a way to distinguish between "gfx9 HW" and "gfx9 HWL".
+constexpr bool IsGfx9Hwl(GfxIpLevel gfxLevel)
 {
-    return (IsVega12(device) || IsVega20(device) || IsRaven2(device) || IsRenoir(device) || IsGfx10(device) ||
-            IsGfx11(device));
+    return (IsGfx10(gfxLevel) || IsGfx11(gfxLevel));
+}
+inline bool IsGfx9Hwl(const Device& device)
+{
+    return IsGfx9Hwl(device.ChipProperties().gfxLevel);
 }
 
 } // Pal

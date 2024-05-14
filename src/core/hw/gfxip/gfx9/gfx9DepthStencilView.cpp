@@ -121,12 +121,6 @@ DepthStencilView::DepthStencilView(
         m_flags.depthMetadataTexFetch   = pDepthSubResInfo->flags.supportMetaDataTexFetch;
         m_flags.stencilMetadataTexFetch = pStencilSubResInfo->flags.supportMetaDataTexFetch;
     }
-
-    if (settings.waitOnMetadataMipTail)
-    {
-        // Plane of the subresource doesn't matter for depth images.
-        m_flags.waitOnMetadataMipTail = m_pImage->IsInMetadataMipTail(m_depthSubresource);
-    }
 }
 
 // =====================================================================================================================
@@ -273,11 +267,14 @@ void DepthStencilView::InitRegistersCommon(
     // Setup PA_SU_POLY_OFFSET_DB_FMT_CNTL.
     if (createInfo.flags.absoluteDepthBias == 0)
     {
+        const bool depthAsZ24 =
+            static_cast<bool>(createInfo.flags.useHwFmtforDepthOffset ? 0 : imageCreateInfo.usageFlags.depthAsZ24);
+
         // NOTE: The client has indicated this Image has promoted 24bit depth to 32bits, we should set the negative num
         //       bit as -24 and use fixed points format
         const bool reducePrecision = createInfo.flags.lowZplanePolyOffsetBits;
 
-        if (imageCreateInfo.usageFlags.depthAsZ24)
+        if (depthAsZ24)
         {
             pRegs->paSuPolyOffsetDbFmtCntl.bits.POLY_OFFSET_NEG_NUM_DB_BITS = uint8(reducePrecision ?  -22 : -24);
         }
@@ -291,7 +288,7 @@ void DepthStencilView::InitRegistersCommon(
         }
 
         pRegs->paSuPolyOffsetDbFmtCntl.bits.POLY_OFFSET_DB_IS_FLOAT_FMT =
-            ((pRegs->dbZInfo.bits.FORMAT == Z_32_FLOAT) && (imageCreateInfo.usageFlags.depthAsZ24 == 0)) ? 1 : 0;
+            ((pRegs->dbZInfo.bits.FORMAT == Z_32_FLOAT) && (depthAsZ24 == false)) ? 1 : 0;
     }
     else
     {

@@ -67,6 +67,8 @@ public:
     uint32 Log2NumSamples() const { return m_log2Samples; }
     uint32 Log2OcclusionQuerySamples() const { return m_log2OcclusionQuerySamples; }
 
+    bool ForceSampleRateShading() const { return m_flags.forceSampleRateShading; }
+
     regPA_SC_CONSERVATIVE_RASTERIZATION_CNTL PaScConsRastCntl() const { return m_regs.paScConsRastCntl; }
     regPA_SC_AA_CONFIG PaScAaConfig() const { return m_paScAaConfig; }
 
@@ -89,6 +91,7 @@ protected:
         {
             uint32 waFixPostZConservativeRasterization :  1;
             uint32 gfx10_3                             :  1;
+            uint32 forceSampleRateShading              :  1;
         };
         uint32  u32All;
     }  m_flags;

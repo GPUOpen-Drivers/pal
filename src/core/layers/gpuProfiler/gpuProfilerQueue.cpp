@@ -73,6 +73,16 @@ Queue::Queue(
 // =====================================================================================================================
 Queue::~Queue()
 {
+    // If this queue has an enabled per-frame session, but is still on frame 0, assume it needs closed
+    // Note: Would ideally use finer granularity tracking to understand if there was work, but do not want the overhead
+    //       in frame mode.
+    if (m_pDevice->LoggingEnabled(GpuProfilerGranularityFrame) &&
+        (m_perFrameLogItem.pGpaSession != nullptr) &&
+        static_cast<Platform*>(m_pDevice->GetPlatform())->FrameId() == 0)
+    {
+        SubmitFrameEndCmdBuf();
+    }
+
     // Ensure all log items are flushed out before we shut down.
     WaitIdle();
     ProcessIdleSubmits();
@@ -907,6 +917,53 @@ Result Queue::WaitQueueSemaphore(
 }
 
 // =====================================================================================================================
+// Create and submit one or more command buffers to end the current frame
+Result Queue::SubmitFrameEndCmdBuf()
+{
+    TargetCmdBuffer* const pEndFrameTgtCmdBuf = AcquireCmdBuf(0, false);
+    CmdBufferBuildInfo    buildInfo = {};
+
+    Result result = pEndFrameTgtCmdBuf->Begin(NextCmdBufferBuildInfo(buildInfo));
+
+    if (result == Result::Success)
+    {
+        pEndFrameTgtCmdBuf->EndSample(this, &m_perFrameLogItem);
+
+        result = pEndFrameTgtCmdBuf->EndGpaSession(&m_perFrameLogItem);
+    }
+
+    if (result == Result::Success)
+    {
+        result = pEndFrameTgtCmdBuf->End();
+    }
+
+    if (result == Result::Success)
+    {
+        ICmdBuffer* pNextCmdBuf = NextCmdBuffer(pEndFrameTgtCmdBuf);
+        PerSubQueueSubmitInfo perSubQueueInfo = {};
+        perSubQueueInfo.cmdBufferCount = 1;
+        perSubQueueInfo.ppCmdBuffers = &pNextCmdBuf;
+        MultiSubmitInfo nextSubmitInfo = {};
+        nextSubmitInfo.perSubQueueInfoCount = 1;
+        nextSubmitInfo.pPerSubQueueInfo = &perSubQueueInfo;
+
+        CmdBufInfo cmdBufInfo = {};
+        RecordDfSpmEndCmdBufInfo(&cmdBufInfo);
+        perSubQueueInfo.pCmdBufInfoList = &cmdBufInfo;
+
+        AddLogItem(m_perFrameLogItem);
+
+        result = InternalSubmit(nextSubmitInfo, true);
+
+        if (result == Result::Success)
+        {
+            result = EndDfSpm();
+        }
+    }
+    return result;
+}
+
+// =====================================================================================================================
 // Log the PresentDirect call and pass it to the next layer.
 Result Queue::PresentDirect(
     const PresentDirectInfo& presentInfo)
@@ -920,47 +977,7 @@ Result Queue::PresentDirect(
         m_pDevice->LoggingEnabled(GpuProfilerGranularityFrame) &&
         (m_perFrameLogItem.pGpaSession != nullptr))
     {
-        // Submit an internal command buffer to end the current frame-long performance experiment.
-        TargetCmdBuffer*const pEndFrameTgtCmdBuf = AcquireCmdBuf(0, false);
-        CmdBufferBuildInfo    buildInfo = {};
-
-        result = pEndFrameTgtCmdBuf->Begin(NextCmdBufferBuildInfo(buildInfo));
-
-        if (result == Result::Success)
-        {
-            pEndFrameTgtCmdBuf->EndSample(this, &m_perFrameLogItem);
-
-            result = pEndFrameTgtCmdBuf->EndGpaSession(&m_perFrameLogItem);
-        }
-
-        if (result == Result::Success)
-        {
-            result = pEndFrameTgtCmdBuf->End();
-        }
-
-        if (result == Result::Success)
-        {
-            ICmdBuffer* pNextCmdBuf = NextCmdBuffer(pEndFrameTgtCmdBuf);
-            PerSubQueueSubmitInfo perSubQueueInfo = {};
-            perSubQueueInfo.cmdBufferCount        = 1;
-            perSubQueueInfo.ppCmdBuffers          = &pNextCmdBuf;
-            MultiSubmitInfo nextSubmitInfo        = {};
-            nextSubmitInfo.perSubQueueInfoCount   = 1;
-            nextSubmitInfo.pPerSubQueueInfo       = &perSubQueueInfo;
-
-            CmdBufInfo cmdBufInfo = {};
-            RecordDfSpmEndCmdBufInfo(&cmdBufInfo);
-            perSubQueueInfo.pCmdBufInfoList = &cmdBufInfo;
-
-            AddLogItem(m_perFrameLogItem);
-
-            result = InternalSubmit(nextSubmitInfo, true);
-
-            if (result == Result::Success)
-            {
-                result = EndDfSpm();
-            }
-        }
+        result = SubmitFrameEndCmdBuf();
     }
 
     static_cast<Platform*>(m_pDevice->GetPlatform())->IncrementFrameId();
@@ -1032,48 +1049,7 @@ Result Queue::PresentSwapChain(
         m_pDevice->LoggingEnabled(GpuProfilerGranularityFrame) &&
         (m_perFrameLogItem.pGpaSession != nullptr))
     {
-        // Submit an internal command buffer to end the current frame-long performance experiment.
-        TargetCmdBuffer*const pEndFrameTgtCmdBuf = AcquireCmdBuf(0, false);
-        CmdBufferBuildInfo    buildInfo = {};
-
-        result = pEndFrameTgtCmdBuf->Begin(NextCmdBufferBuildInfo(buildInfo));
-
-        if (result == Result::Success)
-        {
-            pEndFrameTgtCmdBuf->EndSample(this, &m_perFrameLogItem);
-
-            result = pEndFrameTgtCmdBuf->EndGpaSession(&m_perFrameLogItem);
-        }
-
-        if (result == Result::Success)
-        {
-            result = pEndFrameTgtCmdBuf->End();
-        }
-
-        if (result == Result::Success)
-        {
-            ICmdBuffer* pNextCmdBuf        = NextCmdBuffer(pEndFrameTgtCmdBuf);
-
-            PerSubQueueSubmitInfo perSubQueueInfo = {};
-            perSubQueueInfo.cmdBufferCount        = 1;
-            perSubQueueInfo.ppCmdBuffers          = &pNextCmdBuf;
-            MultiSubmitInfo nextSubmitInfo        = {};
-            nextSubmitInfo.perSubQueueInfoCount   = 1;
-            nextSubmitInfo.pPerSubQueueInfo       = &perSubQueueInfo;
-
-            CmdBufInfo cmdBufInfo = {};
-            RecordDfSpmEndCmdBufInfo(&cmdBufInfo);
-            perSubQueueInfo.pCmdBufInfoList = &cmdBufInfo;
-
-            AddLogItem(m_perFrameLogItem);
-
-            result = InternalSubmit(nextSubmitInfo, true);
-
-            if (result == Result::Success)
-            {
-                result = EndDfSpm();
-            }
-        }
+        result = SubmitFrameEndCmdBuf();
     }
 
     static_cast<Platform*>(m_pDevice->GetPlatform())->IncrementFrameId();
@@ -1090,7 +1066,7 @@ Result Queue::PresentSwapChain(
 // =====================================================================================================================
 // Log the Delay call and pass it to the next layer.
 Result Queue::Delay(
-    float delay)
+    Util::fmilliseconds delay)
 {
     LogQueueCall(QueueCallId::Delay);
 
@@ -1216,6 +1192,7 @@ Result Queue::AcquireGpaSession(
             if (result != Result::Success)
             {
                 PAL_SAFE_DELETE(*ppGpaSession, m_pDevice->GetPlatform());
+                GPUPROFILER_ERROR("Failed to Init GpaSession, Result: %d", result);
             }
         }
         else
@@ -1466,16 +1443,20 @@ Result Queue::BuildGpaSessionSampleConfig()
                     {
                         if (counterInfo.block == GpuBlock::DfMall)
                         {
-                            counterInfo.df.eventQualifier = pCounters[i].optionalData;
+                            counterInfo.subConfig.df.eventQualifier = pCounters[i].optionalData;
                         }
                         else if (counterInfo.block == GpuBlock::Umcch)
                         {
                             // Threshold   [12-bits]
-                            counterInfo.umc.eventThreshold   = pCounters[i].optionalData & 0xFFF;
+                            counterInfo.subConfig.umc.eventThreshold   = pCounters[i].optionalData & 0xFFF;
                             // ThresholdEn [2-bits] 0=disabled, 1=less than, 2=greater than
-                            counterInfo.umc.eventThresholdEn = (pCounters[i].optionalData >> 12) & 0x3;
+                            counterInfo.subConfig.umc.eventThresholdEn = (pCounters[i].optionalData >> 12) & 0x3;
                             // Read/Write Mask [2-bits] 0=Read, 1=Write
-                            counterInfo.umc.rdWrMask         = (pCounters[i].optionalData >> 14) & 0x3;
+                            counterInfo.subConfig.umc.rdWrMask         = (pCounters[i].optionalData >> 14) & 0x3;
+                        }
+                        else if ((counterInfo.block == GpuBlock::Cpc) || (counterInfo.block == GpuBlock::Cpg))
+                        {
+                            counterInfo.subConfig.rs64Cntl = pCounters[i].optionalData;
                         }
                     }
 
@@ -1626,10 +1607,19 @@ Result Queue::FillOutSpmGpaSessionSampleConfig(
             GpuUtil::PerfCounterId counterInfo = {};
             counterInfo.block   = pStreamingCounters[counter].block;
             counterInfo.eventId = pStreamingCounters[counter].eventId;
-            if (counterInfo.block == GpuBlock::DfMall)
+
+            if (pStreamingCounters[counter].hasOptionalData)
             {
-                counterInfo.df.eventQualifier = pStreamingCounters[counter].optionalData;
+                if (counterInfo.block == GpuBlock::DfMall)
+                {
+                    counterInfo.subConfig.df.eventQualifier = pStreamingCounters[counter].optionalData;
+                }
+                else if ((counterInfo.block == GpuBlock::Cpc) || (counterInfo.block == GpuBlock::Cpg))
+                {
+                    counterInfo.subConfig.rs64Cntl = pStreamingCounters[counter].optionalData;
+                }
             }
+
             const uint64 instanceMask = pStreamingCounters[counter].instanceMask;
             for (uint32 j = 0; j < pStreamingCounters[counter].instanceCount; j++)
             {

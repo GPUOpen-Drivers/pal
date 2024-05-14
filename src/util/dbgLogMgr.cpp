@@ -23,7 +23,6 @@
  *
  **********************************************************************************************************************/
 
-#if PAL_ENABLE_LOGGING
 #include "palDbgLogMgr.h"
 #include "palDbgLogger.h"
 #include "palIntrusiveListImpl.h"
@@ -85,7 +84,6 @@ void DbgLog(
 // Constructor that initializes all the data memebers with memory allocation for the pointer types.
 DbgLogMgr::DbgLogMgr()
     :
-    m_logEnabled(true),
     m_reentryGuardKey{},
     m_dbgLoggersLock(),
     m_dbgLoggersList(),
@@ -106,20 +104,8 @@ DbgLogMgr::DbgLogMgr()
 // Destructor that cleans up all of the allocated memory.
 DbgLogMgr::~DbgLogMgr()
 {
-    m_logEnabled = false; // set to false since no point trying to log anything at this time.
     Util::DeleteThreadLocalKey(m_reentryGuardKey);
-
-    // At this time the debug loggers list should be empty if each client has detached and deleted
-    // the loggers it created. If not, assert to notify us of this state.
-    //
-    // No cleanup (unlinking the pointers) of the debug loggers list will be done here due to the following reasons:
-    // 1. DbgLogMgr will not delete the debug loggers in its list since it doesn't own them
-    // 2. Since DbgLogMgr is a global variable, it gets created and destroyed just when the driver is loaded
-    //    and unloaded. During DbgLogMgr's destruction, it's too late to access the logger's heap memory to
-    //    get to the next node of the list. The heap can become inconsistent just before DLL unload when this
-    //    destructor is called.
-    // Due to these reasons, let the OS handle the cleanup during DLL detach and process termination.
-    PAL_ASSERT(m_dbgLoggersList.IsEmpty());
+    m_dbgLoggersList.InvalidateList();
 }
 
 // =====================================================================================================================
@@ -210,17 +196,15 @@ void DbgLogMgr::LogMessageInternal(
     // will not get logged.
     //
     // The guard check must be the first statement in this function
-    if ((Util::GetThreadLocalValue(m_reentryGuardKey) == nullptr) && (m_error == false) &&
+    if ((m_error == false) &&
+        (Util::GetThreadLocalValue(m_reentryGuardKey) == nullptr) &&
         (Util::SetThreadLocalValue(m_reentryGuardKey, &g_reentryGuard) == Result::Success)) // set to non null addr
     {
         {
             RWLockAuto<RWLock::ReadOnly> lock(&m_dbgLoggersLock);
-            if (m_logEnabled)
+            for (auto iter = m_dbgLoggersList.Begin(); iter.IsValid(); iter.Next())
             {
-                for (auto iter = m_dbgLoggersList.Begin(); iter.IsValid(); iter.Next())
-                {
-                    iter.Get()->LogMessage(args...);
-                }
+                iter.Get()->LogMessage(args...);
             }
         }
         Util::SetThreadLocalValue(m_reentryGuardKey, nullptr);
@@ -228,4 +212,3 @@ void DbgLogMgr::LogMessageInternal(
 }
 
 } // Util
-#endif

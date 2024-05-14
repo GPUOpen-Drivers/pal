@@ -61,9 +61,9 @@ public:
     virtual Result PresentSwapChain(
         const PresentSwapChainInfo& presentInfo) override;
     virtual Result Delay(
-        float delay) override;
+        Util::fmilliseconds delay) override;
     virtual Result DelayAfterVsync(
-        float                 delayInUs,
+        Util::fmicroseconds   delay,
         const IPrivateScreen* pScreen) override;
     virtual Result RemapVirtualMemoryPages(
         uint32                         rangeCount,

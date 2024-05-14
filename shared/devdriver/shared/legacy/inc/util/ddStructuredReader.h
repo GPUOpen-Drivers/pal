@@ -39,13 +39,6 @@ namespace DevDriver
         struct OpaqueNode
         {
             void* blob[2] = {};
-
-            OpaqueNode() = default;
-            OpaqueNode(OpaqueNode&&) = default;
-            OpaqueNode(const OpaqueNode&) = default;
-
-            OpaqueNode& operator=(OpaqueNode&&) = default;
-            OpaqueNode& operator=(const OpaqueNode&) = default;
         };
 
         ~StructuredValue() = default;

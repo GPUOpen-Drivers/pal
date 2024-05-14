@@ -29,6 +29,7 @@
 #include "core/layers/gpuProfiler/gpuProfilerQueue.h"
 #include "palSysUtil.h"
 #include <ctype.h>
+#include <limits.h>
 
 using namespace Util;
 
@@ -137,7 +138,7 @@ bool Device::LoggingEnabled(
 Result Device::CommitSettingsAndInit()
 {
     // Update the public settings before we commit them.
-    PalPublicSettings*const pInitialSettings = GetPublicSettings();
+    PalPublicSettings* const pInitialSettings = GetPublicSettings();
 
     // Force off the command allocator wait-on-submit optimization for embedded data. The profiler permits the client
     // to read and write to client embedded data in the replayed command buffers which breaks this optimization.
@@ -193,7 +194,7 @@ Result Device::CommitSettingsAndInit()
         m_sqttCsHash.upper = settings.gpuProfilerSqttConfig.csHashHi;
         m_sqttCsHash.lower = settings.gpuProfilerSqttConfig.csHashLo;
 
-        m_sqttFilteringEnabled = ((m_sqttCompilerHash != 0)         ||
+        m_sqttFilteringEnabled = ((m_sqttCompilerHash != 0) ||
                                   ShaderHashIsNonzero(m_sqttTsHash) ||
                                   ShaderHashIsNonzero(m_sqttVsHash) ||
                                   ShaderHashIsNonzero(m_sqttHsHash) ||
@@ -209,8 +210,8 @@ Result Device::CommitSettingsAndInit()
         m_maxDrawsForThreadTrace = settings.gpuProfilerSqttConfig.maxDraws;
         m_curDrawsForThreadTrace = 0;
 
-        m_startFrame          = settings.gpuProfilerConfig.startFrame;
-        m_endFrame            = m_startFrame + settings.gpuProfilerConfig.frameCount;
+        m_startFrame         = settings.gpuProfilerConfig.startFrame;
+        m_endFrame           = m_startFrame + settings.gpuProfilerConfig.frameCount;
         m_startCommandBuffer = settings.gpuProfilerConfig.startCommandBuffer;
         m_endCommandBuffer   = m_startCommandBuffer + settings.gpuProfilerConfig.commandBufferCount;
 
@@ -235,8 +236,9 @@ Result Device::CommitSettingsAndInit()
         // Create directory for log files.
         if (GetPlatform()->CreateLogDir(settings.gpuProfilerConfig.logDirectory) != Result::Success)
         {
-            PAL_DPWARN("Failed to create folder '%s'", settings.gpuProfilerConfig.logDirectory);
+            GPUPROFILER_WARN("Failed to create folder '%s'", settings.gpuProfilerConfig.logDirectory);
         }
+        static_cast<Platform*>(m_pPlatform)->CreateLogger();
     }
 
     if ((result == Result::Success)                                                    &&
@@ -360,6 +362,19 @@ Result Device::CreateQueue(
     if (result == Result::Success)
     {
         (*ppQueue) = pQueue;
+
+        uint32 seq = UINT_MAX;
+
+        if (createInfo.engineType == EngineTypeUniversal)
+        {
+            seq = static_cast<Platform*>(m_pPlatform)->GetUniversalQueueSequenceNumber();
+        }
+
+        // Start logging immediately on Frame 0 for the first universal queue created
+        if (LoggingEnabled(GpuProfilerGranularityFrame) && (seq == 0))
+        {
+            pQueue->BeginNextFrame(true);
+        }
     }
 
     return result;
@@ -419,6 +434,19 @@ Result Device::CreateMultiQueue(
     if (result == Result::Success)
     {
         (*ppQueue) = pQueue;
+
+        uint32 seq = UINT_MAX;
+
+        if (pCreateInfo[0].engineType == EngineTypeUniversal)
+        {
+            seq = static_cast<Platform*>(m_pPlatform)->GetUniversalQueueSequenceNumber();
+        }
+
+        // Start logging immediately on Frame 0 for the first universal queue created
+        if (LoggingEnabled(GpuProfilerGranularityFrame) && (seq == 0))
+        {
+            pQueue->BeginNextFrame(true);
+        }
     }
 
     return result;
@@ -542,7 +570,7 @@ Result Device::CreateGraphicsPipeline(
         pNextPipeline->SetClientData(pPlacementAddr);
 
         pPipeline = PAL_PLACEMENT_NEW(pPlacementAddr) Pipeline(pNextPipeline, this);
-        result = pPipeline->InitGfx(createInfo);
+        result = pPipeline->InitGfx();
     }
 
     if (result == Result::Success)
@@ -800,7 +828,7 @@ Result Device::ExtractPerfCounterInfo(
                     uint32 eventId;
                     if (StrToUInt(eventIdStr, &eventId) == false)
                     {
-                        PAL_DPERROR("Bad perfcounter config (%d): eventId '%s' is not a valid number.",
+                        GPUPROFILER_ERROR("Bad perfcounter config (%d): eventId '%s' is not a valid number.",
                                     lineNum, eventIdStr);
                         result = Result::ErrorInitializationFailed;
                     }
@@ -818,7 +846,7 @@ Result Device::ExtractPerfCounterInfo(
                             }
                             else
                             {
-                                PAL_DPERROR("Bad perfcounter config (%d): OptData '%s' is not a number (ignored).",
+                                GPUPROFILER_ERROR("Bad perfcounter config (%d): OptData '%s' is not a number (ignored).",
                                             lineNum, optDataStr);
                             }
                         }
@@ -891,7 +919,7 @@ Result Device::ExtractPerfCounterInfo(
                                 }
                                 else
                                 {
-                                    PAL_DPERROR("Bad perfcounter config (%d): Instance MASK '%s' is not valid.",
+                                    GPUPROFILER_ERROR("Bad perfcounter config (%d): Instance MASK '%s' is not valid.",
                                                 lineNum, instanceName);
                                 }
                             }
@@ -908,7 +936,8 @@ Result Device::ExtractPerfCounterInfo(
                                                &pCounterPointer[*pIndexPointer]);
                             if (pCounterPointer[*pIndexPointer].instanceCount == 0)
                             {
-                                PAL_DPERROR("Bad perfcounter config (%d): Block %s not available.", lineNum, blockName);
+                                GPUPROFILER_ERROR("Bad perfcounter config (%d): Block %s not available.",
+                                    lineNum, blockName);
                                 result = Result::ErrorInitializationFailed;
                             }
                             (*pIndexPointer)++;
@@ -932,7 +961,7 @@ Result Device::ExtractPerfCounterInfo(
                             }
                             else
                             {
-                                PAL_DPERROR("Bad perfcounter config (%d): instanceId '%s' is invalid number/keyword.",
+                                GPUPROFILER_ERROR("Bad perfcounter config (%d): instanceId '%s' is invalid number/keyword.",
                                             lineNum, instanceName);
                                 result = Result::ErrorInitializationFailed;
                             }
@@ -942,7 +971,7 @@ Result Device::ExtractPerfCounterInfo(
                 else
                 {
                     // sscanf failed
-                    PAL_DPERROR("Bad perfcounter config (%d): Invalid syntax or missing argument", lineNum);
+                    GPUPROFILER_ERROR("Bad perfcounter config (%d): Invalid syntax or missing argument", lineNum);
                     result = Result::ErrorInitializationFailed;
                 }
             }
@@ -952,7 +981,7 @@ Result Device::ExtractPerfCounterInfo(
             // ReadLine() failed.
             // This probably means we hit the end of the file before finding the expected number of valid config
             // lines.  Probably indicates an invalid configuration file.
-            PAL_DPERROR("Bad perfcounter config (%d): Unexpected end-of-file", lineNum);
+            GPUPROFILER_ERROR("Bad perfcounter config (%d): Unexpected end-of-file", lineNum);
             result = Result::ErrorInitializationFailed;
         }
         lineNum++;
@@ -978,7 +1007,7 @@ Result Device::ExtractPerfCounterInfo(
             {
                 // The block instance ID given in the config file is out of range.
                 // pPerfCounter of instance name ALL will always pass this test.
-                PAL_DPERROR("PerfCounter[%s]: instanceId out of range (got %d, max %d)",
+                GPUPROFILER_ERROR("PerfCounter[%s]: instanceId out of range (got %d, max %d)",
                             pPerfCounters[i].name,
                             pPerfCounters[i].instanceId,
                             blockInstanceCount);
@@ -989,7 +1018,7 @@ Result Device::ExtractPerfCounterInfo(
             if (pPerfCounters[i].eventId > perfExpProps.blocks[blockIdx].maxEventId)
             {
                 // Invalid event ID.
-                PAL_DPERROR("PerfCounter[%s]: eventId out of range (got %d, max %d)",
+                GPUPROFILER_ERROR("PerfCounter[%s]: eventId out of range (got %d, max %d)",
                             pPerfCounters[i].name,
                             pPerfCounters[i].eventId,
                             perfExpProps.blocks[blockIdx].maxEventId);
@@ -1013,7 +1042,7 @@ Result Device::ExtractPerfCounterInfo(
                     if (++count[blockIdx][groupId] > maxCounters)
                     {
                         // Too many counters enabled for this block or instance.
-                        PAL_DPERROR("PerfCounter[%s]: too many counters enabled for this block (count %u > max %u)",
+                        GPUPROFILER_ERROR("PerfCounter[%s]: too many counters enabled for this block (count %u > max %u)",
                                     pPerfCounters[i].name, count[blockIdx][instanceId], maxCounters);
                         result = Result::ErrorInitializationFailed;
                         break;
@@ -1153,14 +1182,14 @@ Result Device::CountPerfCounters(
                 else
                 {
                     // Unrecognized or unavailable block in the config file.
-                    PAL_DPERROR("Bad perfcounter config (%d): Block '%s' not recognized", lineNum, blockName);
+                    GPUPROFILER_ERROR("Bad perfcounter config (%d): Block '%s' not recognized", lineNum, blockName);
                     result = Result::ErrorInitializationFailed;
                 }
             }
             else
             {
                 // Malformed line in the config file.
-                PAL_DPERROR("Bad perfcounter config (%d): Invalid syntax or missing argument", lineNum);
+                GPUPROFILER_ERROR("Bad perfcounter config (%d): Invalid syntax or missing argument", lineNum);
                 result = Result::ErrorInitializationFailed;
             }
         }
@@ -1295,6 +1324,7 @@ GpuBlock StringToGpuBlock(
         "GE_SE",   // GpuBlock::GeSe
         "DF_MALL", // GpuBlock::DfMall
         "SQWGP",   // GpuBlock::SqWgp
+        "PC",      // GpuBlock::Pc
     };
 
     static_assert(ArrayLen(TranslationTbl) == static_cast<uint32>(GpuBlock::Count),

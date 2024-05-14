@@ -76,16 +76,6 @@ DmaCmdBuffer::DmaCmdBuffer(
 }
 
 // =====================================================================================================================
-ImageType DmaCmdBuffer::GetImageType(
-    const IImage&  image)
-{
-    const Image&    palImage  = static_cast<const Image&>(image);
-    const GfxImage* pGfxImage = palImage.GetGfxImage();
-
-    return pGfxImage->GetOverrideImageType();
-}
-
-// =====================================================================================================================
 Result DmaCmdBuffer::Init(
     const CmdBufferInternalCreateInfo& internalInfo)
 {
@@ -604,8 +594,8 @@ void DmaCmdBuffer::WriteCopyImageTiledToTiledCmdChunkCopy(
     src.pSubresInfo = &srcSubResInfo;
     dst.pSubresInfo = &dstSubResInfo;
 
-    const ImageType srcImageType = GetImageType(*src.pImage);
-    const ImageType dstImageType = GetImageType(*dst.pImage);
+    const ImageType srcImageType = src.pImage->GetImageCreateInfo().imageType;
+    const ImageType dstImageType = dst.pImage->GetImageCreateInfo().imageType;
 
     // Calculate the maximum number of pixels we can copy per pass in the below loop
     const uint32 embeddedDataLimitBytes = GetEmbeddedDataLimit() * sizeof(uint32);
@@ -793,7 +783,7 @@ void DmaCmdBuffer::CmdCopyImage(
     PAL_ASSERT(TestAnyFlagSet(flags, CopyEnableScissorTest) == false);
 
     // Both images need to use the same image type, so it dosen't matter where we get it from
-    const ImageType  imageType = GetImageType(srcImage);
+    const ImageType  imageType = srcImage.GetImageCreateInfo().imageType;
     const Image&     srcImg    = static_cast<const Image&>(srcImage);
     const Image&     dstImg    = static_cast<const Image&>(dstImage);
 
@@ -941,7 +931,7 @@ void DmaCmdBuffer::CmdCopyMemoryToImage(
 {
     const GpuMemory& srcMemory = static_cast<const GpuMemory&>(srcGpuMemory);
     const Image&     dstImg    = static_cast<const Image&>(dstImage);
-    const ImageType  imageType = GetImageType(dstImage);
+    const ImageType  imageType = dstImage.GetImageCreateInfo().imageType;
 
     // For each region, determine which specific hardware copy type (memory-to-tiled or memory-to-linear) is necessary.
     for (uint32 rgnIdx = 0; rgnIdx < regionCount ; rgnIdx++)
@@ -1005,7 +995,7 @@ void DmaCmdBuffer::CmdCopyImageToMemory(
     // For each region, determine which specific hardware copy type (tiled-to-memory or linear-to-memory) is necessary.
     const GpuMemory& dstMemory = static_cast<const GpuMemory&>(dstGpuMemory);
     const Image&     srcImg    = static_cast<const Image&>(srcImage);
-    const ImageType  imageType = GetImageType(srcImage);
+    const ImageType  imageType = srcImage.GetImageCreateInfo().imageType;
 
     for (uint32 rgnIdx = 0; rgnIdx < regionCount ; rgnIdx++)
     {
@@ -1507,7 +1497,7 @@ void DmaCmdBuffer::WriteCopyMemImageDwordUnalignedCmd(
     {
         if (zIdx > 0)
         {
-            if (GetImageType(*image.pImage) == ImageType::Tex3d)
+            if (image.pImage->GetImageCreateInfo().imageType == ImageType::Tex3d)
             {
                 passRgn.imageOffset.z++;
             }

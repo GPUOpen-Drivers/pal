@@ -94,17 +94,10 @@ public:
     bool MustKeepContextRegRmw(uint32 regAddr, uint32 regMask, uint32 regData);
     bool MustKeepSetBase(gpusize address, uint32 index, Pm4ShaderType shaderType);
 
-    bool GetContextRollState() const { return m_contextRollDetected; }
-    void ResetContextRollState() { m_contextRollDetected = false; }
-
     // These functions take a fully built packet header and the corresponding register data and will write the
     // optimized version into pCmdSpace.
     uint32* WriteOptimizedSetSeqShRegs(PM4_ME_SET_SH_REG setData, const uint32* pData, uint32* pCmdSpace);
-    uint32* WriteOptimizedSetSeqContextRegs(
-        PM4_PFP_SET_CONTEXT_REG setData,
-        bool*                   pContextRollDetected,
-        const uint32*           pData,
-        uint32*                 pCmdSpace);
+    uint32* WriteOptimizedSetSeqContextRegs(PM4_PFP_SET_CONTEXT_REG setData, const uint32* pData, uint32* pCmdSpace);
 
     template <Pm4ShaderType ShaderType>
     uint32* WriteOptimizedSetShRegPairs(
@@ -169,7 +162,6 @@ private:
     const Device&   m_device;
     const CmdUtil&  m_cmdUtil;
 
-    const bool m_waTcCompatZRange; // If the waTcCompatZRange workaround is enabled or not
     const bool m_splitPackets;
 
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -184,7 +176,6 @@ private:
     SetBaseState  m_setBaseStateGfx[MaxSetBaseIndex + 1];
     SetBaseState  m_setBaseStateCompute;
 
-    bool  m_contextRollDetected;
     bool  m_isTempDisabled;
 };
 

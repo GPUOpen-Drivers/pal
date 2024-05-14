@@ -133,7 +133,7 @@ typedef pthread_key_t ThreadLocalKey;
 #endif
 
 /// Defines the destructor called when the thread exits.
-typedef void (*ThreadLocalDestructor)(void*);
+typedef void (PAL_STDCALL *ThreadLocalDestructor)(void*);
 
 /// Creates a new key for this process to store and retrieve thread-local data.  It is a good idea to use a small
 /// number of keys because some platforms may place low limits on the number of keys per process.

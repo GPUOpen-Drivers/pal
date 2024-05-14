@@ -718,6 +718,13 @@ union CB_COLOR0_DCC_CONTROL {
         unsigned int FRAGMENT_COMPRESS_DISABLE                                    :  1;
         unsigned int                                                              :  7;
     } gfx11;
+    struct {
+        unsigned int                                                              : 25;
+        unsigned int DISABLE_OVERRIDE_INCONSISTENT_KEYS                           :  1;
+        unsigned int ENABLE_MAX_COMP_FRAG_OVERRIDE                                :  1;
+        unsigned int MAX_COMP_FRAGS                                               :  3;
+        unsigned int                                                              :  2;
+    } phx2;
 
     unsigned int u32All;
     signed int   i32All;
@@ -1092,6 +1099,13 @@ union CB_COLOR1_DCC_CONTROL {
         unsigned int FRAGMENT_COMPRESS_DISABLE                                    :  1;
         unsigned int                                                              :  7;
     } gfx11;
+    struct {
+        unsigned int                                                              : 25;
+        unsigned int DISABLE_OVERRIDE_INCONSISTENT_KEYS                           :  1;
+        unsigned int ENABLE_MAX_COMP_FRAG_OVERRIDE                                :  1;
+        unsigned int MAX_COMP_FRAGS                                               :  3;
+        unsigned int                                                              :  2;
+    } phx2;
 
     unsigned int u32All;
     signed int   i32All;
@@ -1466,6 +1480,13 @@ union CB_COLOR2_DCC_CONTROL {
         unsigned int FRAGMENT_COMPRESS_DISABLE                                    :  1;
         unsigned int                                                              :  7;
     } gfx11;
+    struct {
+        unsigned int                                                              : 25;
+        unsigned int DISABLE_OVERRIDE_INCONSISTENT_KEYS                           :  1;
+        unsigned int ENABLE_MAX_COMP_FRAG_OVERRIDE                                :  1;
+        unsigned int MAX_COMP_FRAGS                                               :  3;
+        unsigned int                                                              :  2;
+    } phx2;
 
     unsigned int u32All;
     signed int   i32All;
@@ -1840,6 +1861,13 @@ union CB_COLOR3_DCC_CONTROL {
         unsigned int FRAGMENT_COMPRESS_DISABLE                                    :  1;
         unsigned int                                                              :  7;
     } gfx11;
+    struct {
+        unsigned int                                                              : 25;
+        unsigned int DISABLE_OVERRIDE_INCONSISTENT_KEYS                           :  1;
+        unsigned int ENABLE_MAX_COMP_FRAG_OVERRIDE                                :  1;
+        unsigned int MAX_COMP_FRAGS                                               :  3;
+        unsigned int                                                              :  2;
+    } phx2;
 
     unsigned int u32All;
     signed int   i32All;
@@ -2214,6 +2242,13 @@ union CB_COLOR4_DCC_CONTROL {
         unsigned int FRAGMENT_COMPRESS_DISABLE                                    :  1;
         unsigned int                                                              :  7;
     } gfx11;
+    struct {
+        unsigned int                                                              : 25;
+        unsigned int DISABLE_OVERRIDE_INCONSISTENT_KEYS                           :  1;
+        unsigned int ENABLE_MAX_COMP_FRAG_OVERRIDE                                :  1;
+        unsigned int MAX_COMP_FRAGS                                               :  3;
+        unsigned int                                                              :  2;
+    } phx2;
 
     unsigned int u32All;
     signed int   i32All;
@@ -2588,6 +2623,13 @@ union CB_COLOR5_DCC_CONTROL {
         unsigned int FRAGMENT_COMPRESS_DISABLE                                    :  1;
         unsigned int                                                              :  7;
     } gfx11;
+    struct {
+        unsigned int                                                              : 25;
+        unsigned int DISABLE_OVERRIDE_INCONSISTENT_KEYS                           :  1;
+        unsigned int ENABLE_MAX_COMP_FRAG_OVERRIDE                                :  1;
+        unsigned int MAX_COMP_FRAGS                                               :  3;
+        unsigned int                                                              :  2;
+    } phx2;
 
     unsigned int u32All;
     signed int   i32All;
@@ -2962,6 +3004,13 @@ union CB_COLOR6_DCC_CONTROL {
         unsigned int FRAGMENT_COMPRESS_DISABLE                                    :  1;
         unsigned int                                                              :  7;
     } gfx11;
+    struct {
+        unsigned int                                                              : 25;
+        unsigned int DISABLE_OVERRIDE_INCONSISTENT_KEYS                           :  1;
+        unsigned int ENABLE_MAX_COMP_FRAG_OVERRIDE                                :  1;
+        unsigned int MAX_COMP_FRAGS                                               :  3;
+        unsigned int                                                              :  2;
+    } phx2;
 
     unsigned int u32All;
     signed int   i32All;
@@ -3336,6 +3385,13 @@ union CB_COLOR7_DCC_CONTROL {
         unsigned int FRAGMENT_COMPRESS_DISABLE                                    :  1;
         unsigned int                                                              :  7;
     } gfx11;
+    struct {
+        unsigned int                                                              : 25;
+        unsigned int DISABLE_OVERRIDE_INCONSISTENT_KEYS                           :  1;
+        unsigned int ENABLE_MAX_COMP_FRAG_OVERRIDE                                :  1;
+        unsigned int MAX_COMP_FRAGS                                               :  3;
+        unsigned int                                                              :  2;
+    } phx2;
 
     unsigned int u32All;
     signed int   i32All;
@@ -19385,6 +19441,11 @@ union PA_SC_TILE_STEERING_OVERRIDE {
         unsigned int NUM_PACKER_PER_SC                                            :  2;
         unsigned int                                                              : 10;
     } phx1;
+    struct {
+        unsigned int                                                              : 20;
+        unsigned int NUM_PACKER_PER_SC                                            :  1;
+        unsigned int                                                              : 11;
+    } phx2;
 #if CHIP_HDR_RAPHAEL
     struct {
         unsigned int                                                              : 20;
@@ -21015,6 +21076,198 @@ union PA_UTCL1_CNTL2 {
         unsigned int SPARE5                                                       :  1;
         unsigned int FORCE_FRAG_2M_TO_64K                                         :  1;
         unsigned int RESERVED                                                     :  5;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union PC_PERFCOUNTER0_HI {
+    struct {
+        unsigned int PERFCOUNTER_HI                                               : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union PC_PERFCOUNTER0_LO {
+    struct {
+        unsigned int PERFCOUNTER_LO                                               : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union PC_PERFCOUNTER0_SELECT {
+    struct {
+        unsigned int PERF_SEL                                                     : 10;
+        unsigned int PERF_SEL1                                                    : 10;
+        unsigned int CNTR_MODE                                                    :  4;
+        unsigned int PERF_MODE1                                                   :  4;
+        unsigned int PERF_MODE                                                    :  4;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union PC_PERFCOUNTER0_SELECT1 {
+    struct {
+        unsigned int PERF_SEL2                                                    : 10;
+        unsigned int PERF_SEL3                                                    : 10;
+        unsigned int                                                              :  4;
+        unsigned int PERF_MODE3                                                   :  4;
+        unsigned int PERF_MODE2                                                   :  4;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union PC_PERFCOUNTER1_HI {
+    struct {
+        unsigned int PERFCOUNTER_HI                                               : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union PC_PERFCOUNTER1_LO {
+    struct {
+        unsigned int PERFCOUNTER_LO                                               : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union PC_PERFCOUNTER1_SELECT {
+    struct {
+        unsigned int PERF_SEL                                                     : 10;
+        unsigned int PERF_SEL1                                                    : 10;
+        unsigned int CNTR_MODE                                                    :  4;
+        unsigned int PERF_MODE1                                                   :  4;
+        unsigned int PERF_MODE                                                    :  4;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union PC_PERFCOUNTER1_SELECT1 {
+    struct {
+        unsigned int PERF_SEL2                                                    : 10;
+        unsigned int PERF_SEL3                                                    : 10;
+        unsigned int                                                              :  4;
+        unsigned int PERF_MODE3                                                   :  4;
+        unsigned int PERF_MODE2                                                   :  4;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union PC_PERFCOUNTER2_HI {
+    struct {
+        unsigned int PERFCOUNTER_HI                                               : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union PC_PERFCOUNTER2_LO {
+    struct {
+        unsigned int PERFCOUNTER_LO                                               : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union PC_PERFCOUNTER2_SELECT {
+    struct {
+        unsigned int PERF_SEL                                                     : 10;
+        unsigned int PERF_SEL1                                                    : 10;
+        unsigned int CNTR_MODE                                                    :  4;
+        unsigned int PERF_MODE1                                                   :  4;
+        unsigned int PERF_MODE                                                    :  4;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union PC_PERFCOUNTER2_SELECT1 {
+    struct {
+        unsigned int PERF_SEL2                                                    : 10;
+        unsigned int PERF_SEL3                                                    : 10;
+        unsigned int                                                              :  4;
+        unsigned int PERF_MODE3                                                   :  4;
+        unsigned int PERF_MODE2                                                   :  4;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union PC_PERFCOUNTER3_HI {
+    struct {
+        unsigned int PERFCOUNTER_HI                                               : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union PC_PERFCOUNTER3_LO {
+    struct {
+        unsigned int PERFCOUNTER_LO                                               : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union PC_PERFCOUNTER3_SELECT {
+    struct {
+        unsigned int PERF_SEL                                                     : 10;
+        unsigned int PERF_SEL1                                                    : 10;
+        unsigned int CNTR_MODE                                                    :  4;
+        unsigned int PERF_MODE1                                                   :  4;
+        unsigned int PERF_MODE                                                    :  4;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union PC_PERFCOUNTER3_SELECT1 {
+    struct {
+        unsigned int PERF_SEL2                                                    : 10;
+        unsigned int PERF_SEL3                                                    : 10;
+        unsigned int                                                              :  4;
+        unsigned int PERF_MODE3                                                   :  4;
+        unsigned int PERF_MODE2                                                   :  4;
     } bits, bitfields;
 
     unsigned int u32All;

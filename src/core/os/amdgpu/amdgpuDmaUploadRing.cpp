@@ -60,7 +60,7 @@ Result DmaUploadRing::WaitForPendingUpload(
     queryFence.ip_instance = 0;
     queryFence.ip_type     = pContext->IpType();
 
-    result = static_cast<Device*>(m_pDevice)->QueryFenceStatus(&queryFence, AMDGPU_TIMEOUT_INFINITE);
+    result = static_cast<Device*>(m_pDevice)->QueryFenceStatus(&queryFence, std::chrono::nanoseconds::max());
     return result;
 }
 

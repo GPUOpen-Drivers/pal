@@ -33,6 +33,7 @@
 
 #include "pal.h"
 #include "palDestroyable.h"
+#include <chrono>
 
 namespace Pal
 {
@@ -158,7 +159,7 @@ public:
     /// Wait on timeline Semaphore points, to be clarified, this is a CPU wait.
     ///
     /// @param    [in]  value            Indicate which point to be waited.
-    /// @param    [in]  timeoutNs        the max waiting time, timeout is the timeout period in units of nanoseconds.
+    /// @param    [in]  timeout          the max waiting time, timeout is the timeout period in units of nanoseconds.
     ///
     /// @returns Success if the timeline semaphore point is waited successful.  Otherwise, one of the following errors
     ///          may be returned:
@@ -166,7 +167,12 @@ public:
     ///          + ErrorInvalidObjectType if semaphore is non-timeline type.
     virtual Result WaitSemaphoreValue(
         uint64                   value,
-        uint64                   timeoutNs) = 0;
+        std::chrono::nanoseconds timeout) = 0;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 863
+    virtual Result WaitSemaphoreValue(
+        uint64 value,
+        uint64 timeoutNs);
+#endif
 
     /// Signal on timeline Semaphore points, to be clarified, this is a CPU signal.
     ///

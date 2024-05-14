@@ -682,6 +682,7 @@ typedef enum SpmGpuBlock
     SPM_GPU_BLOCK_GESE    = 0x2F,
     SPM_GPU_BLOCK_DFMALL  = 0x30,
     SPM_GPU_BLOCK_SQWGP   = 0x31,
+    SPM_GPU_BLOCK_PC      = 0x32,
     SPM_GPU_BLOCK_COUNT
 } SpmGpuBlock;
 

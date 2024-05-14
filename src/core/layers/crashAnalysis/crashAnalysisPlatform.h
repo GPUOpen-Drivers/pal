@@ -27,7 +27,6 @@
 
 #include "core/layers/decorators.h"
 #include "crashAnalysisEventProvider.h"
-
 #include <atomic>
 
 namespace Pal
@@ -54,6 +53,8 @@ public:
         IPlatform*                  pNextPlatform,
         bool                        enabled,
         CrashAnalysisEventProvider* pEventProvider);
+
+    virtual ~Platform();
 
     virtual Result Init() override;
     virtual void Destroy() override;
@@ -85,8 +86,6 @@ public:
         void*                   pCbData);
 
 private:
-    virtual ~Platform() { }
-
     CrashAnalysisEventProvider* m_pCrashAnalysisEventProvider;
     std::atomic<uint32>         m_resourceId;
 
