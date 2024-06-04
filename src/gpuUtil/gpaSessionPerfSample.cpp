@@ -152,30 +152,24 @@ Result GpaSession::CounterSample::GetCounterResults(
                 for (uint32 i = 0; i < numGlobalPerfCounters; i++)
                 {
                     const GlobalSampleLayout& sample = m_pGlobalCounterLayout->samples[i];
+                    void* const               pBegin = Util::VoidPtrInc(m_pPerfExpResults,
+                                                                        static_cast<size_t>(sample.beginValueOffset));
+                    void* const               pEnd   = Util::VoidPtrInc(m_pPerfExpResults,
+                                                                        static_cast<size_t>(sample.endValueOffset));
+                    uint64                    end    = 0;
+                    uint64                    begin  = 0;
 
-                    // Accumulate the (end - begin) value of the counter into the appropriate output value.
                     if (sample.dataType == PerfCounterDataType::Uint32)
                     {
-                        const uint32 beginVal =
-                            *static_cast<uint32*>(Util::VoidPtrInc(m_pPerfExpResults,
-                                static_cast<size_t>(sample.beginValueOffset)));
-                        const uint32 endVal =
-                            *static_cast<uint32*>(Util::VoidPtrInc(m_pPerfExpResults,
-                                static_cast<size_t>(sample.endValueOffset)));
-
-                        (static_cast<uint64*>(pData))[i] = endVal - beginVal;
+                        end   = *static_cast<uint32*>(pEnd);
+                        begin = *static_cast<uint32*>(pBegin);
                     }
                     else
                     {
-                        const uint64 beginVal =
-                            *static_cast<uint64*>(Util::VoidPtrInc(m_pPerfExpResults,
-                                static_cast<size_t>(sample.beginValueOffset)));
-                        const uint64 endVal =
-                            *static_cast<uint64*>(Util::VoidPtrInc(m_pPerfExpResults,
-                                static_cast<size_t>(sample.endValueOffset)));
-
-                        (static_cast<uint64*>(pData))[i] = endVal - beginVal;
+                        end   = *static_cast<uint64*>(pEnd);
+                        begin = *static_cast<uint64*>(pBegin);
                     }
+                    (static_cast<uint64*>(pData))[i] = (end - begin);
                 }
             }
             else

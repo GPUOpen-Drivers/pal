@@ -475,9 +475,14 @@ enum class FastDepthStencilClearMode : uint8
 
 enum DeferredBatchBinMode : uint32
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 875
+    DeferredBatchBinCustom = 0,
+    DeferredBatchBinAccurate = 1
+#else
     DeferredBatchBinDisabled = 0,
     DeferredBatchBinCustom = 1,
     DeferredBatchBinAccurate = 2
+#endif
 };
 
 /// PWS enable mode: e.g. disabled, fully enabled or partially enabled.
@@ -1471,45 +1476,33 @@ struct DeviceProperties
         {
             struct
             {
-                uint32 supportTurboSync           :  1;    ///< Whether TurboSync is supported by KMD
-                uint32 enableUmdFpsCap            :  1;    ///< Whether UMD FPS CAP enabled
-                uint32 isCwgSupported             :  1;    ///< KMD supports Creator Who Game (CWG) feature
-                uint32 isGamingDriver             :  1;    ///< KMD works in gaming mode
+                uint32 supportTurboSync           :  1; ///< Whether TurboSync is supported by KMD
+                uint32 enableUmdFpsCap            :  1; ///< Whether UMD FPS CAP enabled
+                uint32 isCwgSupported             :  1; ///< KMD supports Creator Who Game (CWG) feature
+                uint32 isGamingDriver             :  1; ///< KMD works in gaming mode
                 uint32 placeholder0               :  1;
-                uint32 ifhModeEnabled             :  1;    ///< Whether the IFH mode is enabled
-                uint32 requireFrameEnd            :  1;    ///< If the client must tag the last command buffer
-                                                           ///  submission in each frame with a @ref CmdBufInfo with
-                                                           ///  the frameEnd flag set.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 795
-                uint32 supportDirectCapture       :  1;    ///< Whether Direct Capture is supported by KMD
-#else
-                uint32 placeholder795             :  1;
-#endif
-                uint32 supportNativeHdrWindowing  :  1;    ///< Support HDR presentation that does not require FSE.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 795
-                uint32 supportRSync               :  1;    ///< Whether RSync is supported by KMD, RSync is a feature
-                                                           ///  to sync the fullscreen app rendering frame rate with
-                                                           ///  the capture frame rate in the Streaming SDK project.
-#else
-                uint32 placeholder795_1           :  1;
-#endif
-                uint32 flipQueueSupportsDecodeDst :  1;    ///< If set, Decode destination images are supported
-                                                           ///  in the OS flip-queue.
-                uint32 supportFreeMux             :  1;    ///< Whether FreeMux is supported by KMD
-                uint32 isDataCenterBoard          :  1;    ///< Whether the current board in use is a Data Center board.
-                                                           ///  This is meant for supporting a unified VDI/CG driver package.
+                uint32 ifhModeEnabled             :  1; ///< Whether the IFH mode is enabled
+                uint32 requireFrameEnd            :  1; ///< If the client must tag the last command buffer
+                                                        ///  submission in each frame with a @ref CmdBufInfo with
+                                                        ///  the frameEnd flag set.
+                uint32 supportNativeHdrWindowing  :  1; ///< Support HDR presentation that does not require FSE.
+                uint32 flipQueueSupportsDecodeDst :  1; ///< If set, Decode destination images are supported
+                                                        ///  in the OS flip-queue.
+                uint32 supportFreeMux             :  1; ///< Whether FreeMux is supported by KMD
+                uint32 isDataCenterBoard          :  1; ///< Whether the current board in use is a Data Center board.
+                                                        ///  This is meant to support a unified VDI/CG driver package.
 #if defined(__unix__)
-                uint32 hasPrimaryDrmNode          :  1;    ///< Set if the device has a primary DRM node.
-                uint32 hasRenderDrmNode           :  1;    ///< Set if the device has a render DRM node.
+                uint32 hasPrimaryDrmNode          :  1; ///< Set if the device has a primary DRM node.
+                uint32 hasRenderDrmNode           :  1; ///< Set if the device has a render DRM node.
 #else
                 uint32 placeholder1               :  2;
 #endif
-                uint32 forceAlignmentSupported    :  1;    ///< If PalPublicSettings::hardwareBufferAlignmentMode
-                                                           ///  has any effect.
-                uint32 reserved                   : 16;    ///< Reserved for future use.
+                uint32 forceAlignmentSupported    :  1; ///< If PalPublicSettings::hardwareBufferAlignmentMode
+                                                        ///  has any effect.
+                uint32 reserved                   : 18; ///< Reserved for future use.
             };
-            uint32 u32All;                        ///< Flags packed as 32-bit uint.
-        } flags;                                  ///< OS-specific property flags.
+            uint32 u32All;                              ///< Flags packed as 32-bit uint.
+        } flags;                                        ///< OS-specific property flags.
 
         union
         {
@@ -1649,7 +1642,8 @@ union FullScreenFrameMetadataControlFlags
         uint32 placeholder820            :  3; ///< Reserved for future interface versions
 #endif
         uint32 disableFreeMux            :  1; ///< KMD notifies UMD to disable FreeMux.
-        uint32 reserved                  : 17; ///< Reserved for future use.
+        uint32 maxFrameLatency           :  2; ///< KMD can notify UMD to override the frame latency of an app.
+        uint32 reserved                  : 15; ///< Reserved for future use.
 
     };
     uint32 u32All;    ///< Flags packed as 32-bit uint.
@@ -2000,6 +1994,35 @@ struct BufferViewInfo
         };
         uint32 u32All;                   ///< Value of flags bitfield
     } flags;
+};
+
+/// D3D12_VERTEX_BUFFER_VIEW structure. Match vertex offset mode.
+/// @ref ICmdBuffer::CmdSetVertexBuffers function.
+struct VertexBufferView
+{
+    gpusize gpuva;         ///< GPU virtual address to vertex buffer.
+    uint32  sizeInBytes;   ///< The size in bytes of the buffer.
+    uint32  strideInBytes; ///< The size in bytes of each vertex entry.
+};
+
+/// Specifies an array of vertex buffer view descriptors. PAL supports multiple vertex buffer modes which change how
+/// the GPU memory is viewed by a shader. This struct wraps up the choice between these modes.
+///
+/// If offsetMode is true PAL will create "vertex offset mode" SRDs using the @ref VertexBufferView array. This new SRD
+/// has stronger robustness. It avoids that the last vertex is removed when buffer size is not multiple of the stride.
+///
+/// @see ICmdBuffer::CmdSetVertexBuffers
+struct VertexBufferViews
+{
+    uint32 firstBuffer; ///< First vertex buffer slot to change. Must be less than @ref MaxVertexBuffers.
+    uint32 bufferCount; ///< The length of the buffer view array.
+    bool   offsetMode;  ///< If true, pVertexBufferViews must be used, otherwise pBufferViewInfos is used.
+
+    union
+    {
+        const VertexBufferView* pVertexBufferViews; ///< Offset mode vertex buffer views. Valid if offsetMode is true.
+        const BufferViewInfo*   pBufferViewInfos;   ///< Index mode vertex buffer views. Valid if offsetMode is false.
+    };
 };
 
 /// Specifies parameters for an image view descriptor controlling how a shader will view the specified image.
@@ -2868,7 +2891,7 @@ public:
     /// Checks and returns execution state of the device. Currently unsupported for DX clients and
     /// will return Unavailable if called by those clients.
     ///
-    /// @param [out] pPageFaultStatus   Page fault status that can be queried when the Result is ErrorGpuPageFaultDetected
+    /// @param [out] pPageFaultStatus  This struct is filled out when this function returns ErrorGpuPageFaultDetected.
     ///
     /// @returns Success if device is operational and running.  Otherwise, one of the following errors may be
     ///          + ErrorDeviceLost if device is lost, reset or not responding,
@@ -2876,14 +2899,8 @@ public:
     ///          + ErrorOutOfGpuMemory if ran out of GPU memory,
     ///          + ErrorGpuPageFaultDetected if page fault was detected,
     ///          + ErrorUnknown if device is in unknown state.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 796
     virtual Result CheckExecutionState(
         PageFaultStatus* pPageFaultStatus) = 0;
-
-#else
-    virtual Result CheckExecutionState(
-        PageFaultStatus* pPageFaultStatus) const = 0;
-#endif
 
     /// Returns this devices client-visible settings structure initialized with appropriate defaults.  Clients can
     /// modify parameters in this structure as they wish in order to modify PAL's behavior for this device.  After

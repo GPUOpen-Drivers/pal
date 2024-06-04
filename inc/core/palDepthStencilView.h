@@ -63,9 +63,13 @@ struct DepthStencilViewCreateInfo
             uint32 depthOnlyView           :  1; ///< If set, this is a depth-only view of the specified Image.
                                                  ///  It's illegal to use this flag on an Image with no depth plane.
                                                  ///  It's illegal to set both depthOnlyView and stencilOnlyView.
+                                                 ///  It's illegal to use this flag if the stencil test is enabled in
+                                                 ///  the @ref IDepthStencilState, @see DepthStencilStateCreateInfo.
             uint32 stencilOnlyView         :  1; ///< If set, this is a stencil-only view of the specified Image.
                                                  ///  It's illegal to use this flag on an Image with no stencil plane.
                                                  ///  It's illegal to set both depthOnlyView and stencilOnlyView.
+                                                 ///  It's illegal to use this flag if the depth test is enabled in
+                                                 ///  the @ref IDepthStencilState, @see DepthStencilStateCreateInfo.
             uint32 resummarizeHiZ          :  1; ///< Enables resummarizing Hi-Z for DB tiles touched by drawing with
                                                  ///  this view. This has no effect if the source Image does not have
                                                  ///  depth compression or if the @ref readOnlyDepth flag is set.

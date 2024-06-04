@@ -45,7 +45,9 @@ These are general formatting rules that are largely enforced by the .clang-forma
 
 * *Avoid* keeping commented out lines of code where possible if these need to stay provide reasoning.
 
-* Functions ***must have*** a single exit-point. Multiple `returns` within a function is not allowed.
+* Each function should have only one return point. Early return statements are discouraged and should only be used in cases where:
+    * The function's clean-up at the return points is trivial (such as just having local variables which require no clean-up, or RAII objects).
+    * The function is short enough for readers to see the multiple returns and understand the flow of the function without having to scroll up and down repeatedly, or the additional return points are early-outs which make the rest of the function body easier to understand.
 
 ***
 

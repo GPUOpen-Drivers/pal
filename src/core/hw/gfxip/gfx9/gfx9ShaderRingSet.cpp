@@ -366,21 +366,23 @@ UniversalRingSet::UniversalRingSet(
 // Some registers were moved from user space to privileged space, we must access them using _UMD or _REMAP registers.
 // The problem is that only some ASICs moved the registers so we can't use any one name consistently. The good news is
 // that most of the _UMD and _REMAP registers have the same user space address as the old user space registers.
-// If these asserts pass we can just use the Gfx09 version of these registers everywhere in our code.
-static_assert(Gfx09::mmVGT_GSVS_RING_SIZE            == Gfx101::mmVGT_GSVS_RING_SIZE_UMD, "");
-static_assert(NotGfx10::mmVGT_HS_OFFCHIP_PARAM       == Gfx101::mmVGT_HS_OFFCHIP_PARAM_UMD, "");
-static_assert(NotGfx10::mmVGT_TF_MEMORY_BASE         == Gfx101::mmVGT_TF_MEMORY_BASE_UMD, "");
-static_assert(NotGfx10::mmVGT_TF_RING_SIZE           == Gfx101::mmVGT_TF_RING_SIZE_UMD, "");
-static_assert(Gfx09::mmVGT_GSVS_RING_SIZE            == Nv2x::mmVGT_GSVS_RING_SIZE_UMD, "");
-static_assert(NotGfx10::mmVGT_HS_OFFCHIP_PARAM       == Nv2x::mmVGT_HS_OFFCHIP_PARAM_UMD, "");
-static_assert(NotGfx10::mmVGT_TF_MEMORY_BASE         == Nv2x::mmVGT_TF_MEMORY_BASE_UMD, "");
-static_assert(NotGfx10::mmVGT_TF_RING_SIZE           == Nv2x::mmVGT_TF_RING_SIZE_UMD, "");
-static_assert(Gfx101::mmVGT_TF_MEMORY_BASE_HI_UMD    == Nv2x::mmVGT_TF_MEMORY_BASE_HI_UMD, "");
-static_assert(Gfx09::mmVGT_GSVS_RING_SIZE            == Apu103::mmVGT_GSVS_RING_SIZE, "");
-static_assert(NotGfx10::mmVGT_HS_OFFCHIP_PARAM       == Apu103::mmVGT_HS_OFFCHIP_PARAM, "");
-static_assert(NotGfx10::mmVGT_TF_MEMORY_BASE         == Apu103::mmVGT_TF_MEMORY_BASE, "");
-static_assert(NotGfx10::mmVGT_TF_RING_SIZE           == Apu103::mmVGT_TF_RING_SIZE, "");
-static_assert(Gfx101::mmVGT_TF_MEMORY_BASE_HI_UMD    == Apu103::mmVGT_TF_MEMORY_BASE_HI, "");
+// If these asserts pass we can just use the Gfx101 version of these registers everywhere in our code.
+static_assert(Gfx101::mmVGT_GSVS_RING_SIZE_UMD    == Nv2x::mmVGT_GSVS_RING_SIZE_UMD);
+static_assert(Gfx101::mmVGT_HS_OFFCHIP_PARAM_UMD  == Nv2x::mmVGT_HS_OFFCHIP_PARAM_UMD);
+static_assert(Gfx101::mmVGT_TF_MEMORY_BASE_UMD    == Nv2x::mmVGT_TF_MEMORY_BASE_UMD);
+static_assert(Gfx101::mmVGT_TF_RING_SIZE_UMD      == Nv2x::mmVGT_TF_RING_SIZE_UMD);
+static_assert(Gfx101::mmVGT_TF_MEMORY_BASE_HI_UMD == Nv2x::mmVGT_TF_MEMORY_BASE_HI_UMD);
+
+static_assert(Gfx101::mmVGT_GSVS_RING_SIZE_UMD    == Apu103::mmVGT_GSVS_RING_SIZE);
+static_assert(Gfx101::mmVGT_HS_OFFCHIP_PARAM_UMD  == Apu103::mmVGT_HS_OFFCHIP_PARAM);
+static_assert(Gfx101::mmVGT_TF_MEMORY_BASE_UMD    == Apu103::mmVGT_TF_MEMORY_BASE);
+static_assert(Gfx101::mmVGT_TF_RING_SIZE_UMD      == Apu103::mmVGT_TF_RING_SIZE);
+static_assert(Gfx101::mmVGT_TF_MEMORY_BASE_HI_UMD == Apu103::mmVGT_TF_MEMORY_BASE_HI);
+
+static_assert(Gfx101::mmVGT_HS_OFFCHIP_PARAM_UMD  == Gfx11::mmVGT_HS_OFFCHIP_PARAM);
+static_assert(Gfx101::mmVGT_TF_MEMORY_BASE_UMD    == Gfx11::mmVGT_TF_MEMORY_BASE);
+static_assert(Gfx101::mmVGT_TF_RING_SIZE_UMD      == Gfx11::mmVGT_TF_RING_SIZE);
+static_assert(Gfx101::mmVGT_TF_MEMORY_BASE_HI_UMD == Gfx11::mmVGT_TF_MEMORY_BASE_HI);
 
 // =====================================================================================================================
 // Initializes this Universal-Queue shader-ring set object.
@@ -405,7 +407,7 @@ Result UniversalRingSet::Init()
         }
         else
         {
-            m_regs.gfxScratchRingSize.gfx09_10.WAVESIZE = pScratchRingGfx->CalculateWaveSize();
+            m_regs.gfxScratchRingSize.gfx10.WAVESIZE = pScratchRingGfx->CalculateWaveSize();
         }
 
         // Set up the COMPUTE_TMPRING_SIZE for the compute shader scratch ring.
@@ -420,7 +422,7 @@ Result UniversalRingSet::Init()
         }
         else
         {
-            m_regs.computeScratchRingSize.gfx09_10.WAVESIZE = pScratchRingCs->CalculateWaveSize();
+            m_regs.computeScratchRingSize.gfx10.WAVESIZE = pScratchRingCs->CalculateWaveSize();
         }
 
         // The OFFCHIP_GRANULARITY field of VGT_HS_OFFCHIP_PRARM is determined at init-time by the value of the related
@@ -523,7 +525,7 @@ Result UniversalRingSet::Validate(
         }
         else
         {
-            m_regs.gfxScratchRingSize.gfx09_10.WAVESIZE     = pScratchRingGfx->CalculateWaveSize();
+            m_regs.gfxScratchRingSize.gfx10.WAVESIZE     = pScratchRingGfx->CalculateWaveSize();
         }
 
         if (pScratchRingGfx->IsMemoryValid())
@@ -540,7 +542,7 @@ Result UniversalRingSet::Validate(
         }
         else
         {
-            m_regs.computeScratchRingSize.gfx09_10.WAVESIZE = pScratchRingCs->CalculateWaveSize();
+            m_regs.computeScratchRingSize.gfx10.WAVESIZE = pScratchRingCs->CalculateWaveSize();
         }
 
         if (pScratchRingCs->IsMemoryValid())
@@ -569,7 +571,7 @@ Result UniversalRingSet::Validate(
             }
             else
             {
-                m_regs.vgtTfRingSize.gfx09_10.SIZE = pTfBuffer->TfRingSize();
+                m_regs.vgtTfRingSize.gfx10.SIZE = pTfBuffer->TfRingSize();
             }
         }
 
@@ -625,26 +627,24 @@ uint32* UniversalRingSet::WriteCommands(
     pCmdSpace += cmdUtil.BuildNonSampleEventWrite(VS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
     pCmdSpace += cmdUtil.BuildNonSampleEventWrite(VGT_FLUSH, EngineTypeUniversal, pCmdSpace);
 
-    // The use of the "NotGfx10" namespace here is non-intuitive; for GFX10 parts, this is the same offset
-    // as the mmVGT_TF_MEMORY_BASE_UMD register.
-    pCmdSpace = pCmdStream->WriteSetOneConfigReg(NotGfx10::mmVGT_TF_MEMORY_BASE,
+    // The use of the "Gfx101" namespace here is non-intuitive. These registers exist (with and without the UMD
+    // extension) on all GFX10+ parts.
+    pCmdSpace = pCmdStream->WriteSetOneConfigReg(Gfx101::mmVGT_TF_MEMORY_BASE_UMD,
                                                  m_regs.vgtTfMemoryBaseLo.u32All,
                                                  pCmdSpace);
-
-    // Likewise, this isn't just a GFX10.1 register; this register exists (with and without the UMD extension)
-    // on all GFX10+ parts.
     pCmdSpace = pCmdStream->WriteSetOneConfigReg(Gfx101::mmVGT_TF_MEMORY_BASE_HI_UMD,
                                                  m_regs.vgtTfMemoryBaseHi.u32All,
                                                  pCmdSpace);
-
-    pCmdSpace = pCmdStream->WriteSetOneConfigReg(NotGfx10::mmVGT_TF_RING_SIZE, m_regs.vgtTfRingSize.u32All, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetOneConfigReg(NotGfx10::mmVGT_HS_OFFCHIP_PARAM,
+    pCmdSpace = pCmdStream->WriteSetOneConfigReg(Gfx101::mmVGT_TF_RING_SIZE_UMD,
+                                                 m_regs.vgtTfRingSize.u32All,
+                                                 pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneConfigReg(Gfx101::mmVGT_HS_OFFCHIP_PARAM_UMD,
                                                  m_regs.vgtHsOffchipParam.u32All,
                                                  pCmdSpace);
 
     if (m_pDevice->Parent()->ChipProperties().gfxip.supportsHwVs)
     {
-        pCmdSpace = pCmdStream->WriteSetOneConfigReg(Gfx09::mmVGT_GSVS_RING_SIZE,
+        pCmdSpace = pCmdStream->WriteSetOneConfigReg(Gfx101::mmVGT_GSVS_RING_SIZE_UMD,
                                                     m_regs.vgtGsVsRingSize.u32All,
                                                     pCmdSpace);
     }
@@ -659,10 +659,10 @@ uint32* UniversalRingSet::WriteCommands(
 
     constexpr uint32 GfxSrdTableGpuVaLo[] =
     {
-        Gfx10Plus::mmSPI_SHADER_USER_DATA_HS_0 + InternalTblStartReg,
-        Gfx10Plus::mmSPI_SHADER_USER_DATA_GS_0 + InternalTblStartReg,
-        mmSPI_SHADER_USER_DATA_PS_0            + InternalTblStartReg,
-        HasHwVs::mmSPI_SHADER_USER_DATA_VS_0   + InternalTblStartReg,
+        mmSPI_SHADER_USER_DATA_HS_0        + InternalTblStartReg,
+        mmSPI_SHADER_USER_DATA_GS_0        + InternalTblStartReg,
+        mmSPI_SHADER_USER_DATA_PS_0        + InternalTblStartReg,
+        Gfx10::mmSPI_SHADER_USER_DATA_VS_0 + InternalTblStartReg,
     };
 
     size_t gfxSrdRegLocsCount = m_pDevice->Parent()->ChipProperties().gfxip.supportsHwVs ?
@@ -693,7 +693,7 @@ uint32* UniversalRingSet::WriteCommands(
         // regs.
         // Since PWS is enabled by default on GFX11, here we disregard the UsePws setting and add a PWS stall directly.
         // Otherwise we have to allocate a timestamp memory allocation which is never used in default path.
-        pCmdSpace += cmdUtil.BuildWaitEopPws(HwPipePostPrefetch, SyncGlxNone, SyncRbNone, pCmdSpace);
+        pCmdSpace += cmdUtil.BuildWaitEopPws(HwPipePostPrefetch, false, SyncGlxNone, SyncRbNone, pCmdSpace);
 
         pCmdSpace = pCmdStream->WriteSetSeqConfigRegs(Gfx11::mmSPI_ATTRIBUTE_RING_BASE,
                                                       Gfx11::mmSPI_ATTRIBUTE_RING_SIZE,
@@ -792,7 +792,7 @@ Result ComputeRingSet::Init()
         }
         else
         {
-            m_regs.computeScratchRingSize.gfx09_10.WAVESIZE = pScratchRingCs->CalculateWaveSize();
+            m_regs.computeScratchRingSize.gfx10.WAVESIZE = pScratchRingCs->CalculateWaveSize();
         }
     }
 
@@ -825,7 +825,7 @@ Result ComputeRingSet::Validate(
         }
         else
         {
-            m_regs.computeScratchRingSize.gfx09_10.WAVESIZE = pScratchRingCs->CalculateWaveSize();
+            m_regs.computeScratchRingSize.gfx10.WAVESIZE = pScratchRingCs->CalculateWaveSize();
         }
 
         if (pScratchRingCs->IsMemoryValid())

@@ -1888,58 +1888,62 @@ bool Image::IsFastClearColorMetaFetchable(
 
         for (uint32 cmpIdx = 0; ((cmpIdx < 4) && isMetaFetchable); cmpIdx++)
         {
-            //  If forceRegularClearCode is set then we are not using one of the four "magic"
-            //  fast-clear colors so the fast-clear can't be meta-fetchable.
-            if ((IsColorDataZeroOrOne(pColor, cmpIdx) == false) || m_gfxDevice.DisableAc01ClearCodes())
+            // If this RGBA component maps to any of the components on the data format
+            if ((pSwizzle[cmpIdx] >= ChannelSwizzle::X) && (pSwizzle[cmpIdx] <= ChannelSwizzle::W))
             {
-                // This channel isn't zero or one, so the fast-clear can't be meta-fetchable.
-                isMetaFetchable = false;
-            }
-            else if ((pColor[cmpIdx] != 0) &&
-                     (m_pParent->GetDccFormatEncoding() == DccFormatEncoding::SignIndependent))
-            {
-                // cant allow special clear color code because the formats do not support DCC Constant
-                // encoding. This happens when we mix signed and unsigned formats. There is no problem with
-                // clearcolor0000.The issue is only seen when there is a 1 in any of the channels
-                isMetaFetchable = false;
-            }
-            else
-            {
-                uint8 tgtCmpIdx = static_cast<uint8>(pSwizzle[cmpIdx]) - static_cast<uint8>(ChannelSwizzle::X);
-
-                switch (pSwizzle[cmpIdx])
+                //  If forceRegularClearCode is set then we are not using one of the four "magic"
+                //  fast-clear colors so the fast-clear can't be meta-fetchable.
+                if ((IsColorDataZeroOrOne(pColor, cmpIdx) == false) || m_gfxDevice.DisableAc01ClearCodes())
                 {
-                case ChannelSwizzle::W:
-                    // All we need here is a zero-or-one value, which we already verified above.
-                    break;
+                    // This channel isn't zero or one, so the fast-clear can't be meta-fetchable.
+                    isMetaFetchable = false;
+                }
+                else if ((pColor[cmpIdx] != 0) &&
+                    (m_pParent->GetDccFormatEncoding() == DccFormatEncoding::SignIndependent))
+                {
+                    // cant allow special clear color code because the formats do not support DCC Constant
+                    // encoding. This happens when we mix signed and unsigned formats. There is no problem with
+                    // clearcolor0000.The issue is only seen when there is a 1 in any of the channels
+                    isMetaFetchable = false;
+                }
+                else
+                {
+                    uint8 tgtCmpIdx = static_cast<uint8>(pSwizzle[cmpIdx]) - static_cast<uint8>(ChannelSwizzle::X);
 
-                case ChannelSwizzle::X:
-                case ChannelSwizzle::Y:
-                case ChannelSwizzle::Z:
-                    if (rgbSeen == false)
+                    switch (pSwizzle[cmpIdx])
                     {
-                        // Don't go down this path again.
-                        rgbSeen = true;
+                    case ChannelSwizzle::W:
+                        // All we need here is a zero-or-one value, which we already verified above.
+                        break;
 
-                        // This is the first r-g-b value that we've come across, and it's a known zero-or-one value.
-                        // All future RGB values need to match this one, so just record this value for comparison
-                        // purposes.
-                        requiredRgbValue = pColor[tgtCmpIdx];
-                    }
-                    else if (pColor[tgtCmpIdx] != requiredRgbValue)
-                    {
-                        // Fast clear is a no-go.
-                        isMetaFetchable = false;
-                    }
-                    break;
+                    case ChannelSwizzle::X:
+                    case ChannelSwizzle::Y:
+                    case ChannelSwizzle::Z:
+                        if (rgbSeen == false)
+                        {
+                            // Don't go down this path again.
+                            rgbSeen = true;
 
-                default:
-                    // We don't really care about the non-RGBA channels.  It's either going to be zero or one, which
-                    // suits our purposes just fine.  :-)
-                    break;
-                } // end switch on the component select
-            }
-        } // end loop through all the components of this format
+                            // This is the first r-g-b value that we've come across, and it's a known zero-or-one value.
+                            // All future RGB values need to match this one, so just record this value for comparison
+                            // purposes.
+                            requiredRgbValue = pColor[tgtCmpIdx];
+                        }
+                        else if (pColor[tgtCmpIdx] != requiredRgbValue)
+                        {
+                            // Fast clear is a no-go.
+                            isMetaFetchable = false;
+                        }
+                        break;
+
+                    default:
+                        // We don't really care about the non-RGBA channels.  It's either going to be zero or one, which
+                        // suits our purposes just fine.  :-)
+                        break;
+                    } // end switch on the component select
+                }
+            } // end loop through all the components of this format
+        }
     }
 
     return isMetaFetchable;

@@ -54,9 +54,11 @@ DepthStencilView::DepthStencilView(
     m_uniqueId(uniqueId)
 {
     PAL_ASSERT(createInfo.pImage != nullptr);
-    const auto& imageInfo = m_pImage->Parent()->GetImageCreateInfo();
-    const auto& parent    = *pDevice->Parent();
-    const auto& settings  = GetGfx9Settings(parent);
+    const auto& imageInfo  = m_pImage->Parent()->GetImageCreateInfo();
+    const auto& parent     = *pDevice->Parent();
+    const auto& settings   = GetGfx9Settings(parent);
+    const bool  hasDepth   = parent.SupportsDepth(imageInfo.swizzledFormat.format, imageInfo.tiling);
+    const bool  hasStencil = parent.SupportsStencil(imageInfo.swizzledFormat.format, imageInfo.tiling);
 
     m_flags.u32All = 0;
 
@@ -73,18 +75,20 @@ DepthStencilView::DepthStencilView(
     }
 
     m_flags.hiSPretests     = m_pImage->HasHiSPretestsMetaData();
-    m_flags.depth           = (createInfo.flags.stencilOnlyView == 0) &&
-                              parent.SupportsDepth(imageInfo.swizzledFormat.format, imageInfo.tiling);
-    m_flags.stencil         = (createInfo.flags.depthOnlyView == 0) &&
-                              parent.SupportsStencil(imageInfo.swizzledFormat.format, imageInfo.tiling);
+    m_flags.depth           = (createInfo.flags.stencilOnlyView == 0) && hasDepth;
+    m_flags.stencil         = (createInfo.flags.depthOnlyView == 0) && hasStencil;
     m_flags.readOnlyDepth   = createInfo.flags.readOnlyDepth;
     m_flags.readOnlyStencil = createInfo.flags.readOnlyStencil;
     m_flags.viewVaLocked    = createInfo.flags.imageVaLocked;
     m_flags.vrsOnlyDepth    = m_pImage->Parent()->GetImageInfo().internalCreateInfo.flags.vrsOnlyDepth;
 
-    if (m_flags.depth && m_flags.stencil)
+    //  we need to set both depthSubresource and stencilSubresource correctly when creating:
+    //  1. depth-stencil view,
+    //  2. stencil-only view with compatiable depth format,
+    //  3. depth-only view with compatiable stencil format.
+    if (hasDepth && hasStencil)
     {
-        // Depth & Stencil view.
+        // Have both depth and stencil planes.
         m_depthSubresource.plane        = 0;
         m_depthSubresource.mipLevel     = createInfo.mipLevel;
         m_depthSubresource.arraySlice   = 0;
@@ -92,9 +96,9 @@ DepthStencilView::DepthStencilView(
         m_stencilSubresource.mipLevel   = createInfo.mipLevel;
         m_stencilSubresource.arraySlice = 0;
     }
-    else if (m_flags.depth)
+    else if (hasDepth)
     {
-        // Depth-only view.
+        // Only have depth plane.
         m_depthSubresource.plane      = 0;
         m_depthSubresource.mipLevel   = createInfo.mipLevel;
         m_depthSubresource.arraySlice = 0;
@@ -102,9 +106,8 @@ DepthStencilView::DepthStencilView(
     }
     else
     {
-        // Stencil-only view.
-        m_stencilSubresource.plane =
-            parent.SupportsDepth(imageInfo.swizzledFormat.format, imageInfo.tiling) ? 1 : 0;
+        // Only have stencil plane.
+        m_stencilSubresource.plane      = 0;
         m_stencilSubresource.mipLevel   = createInfo.mipLevel;
         m_stencilSubresource.arraySlice = 0;
         m_depthSubresource              = m_stencilSubresource;
@@ -700,8 +703,8 @@ void Gfx10DepthStencilView::InitRegisters(
 
     // From the reg-spec:  Indicates that compressed data must be iterated on flush every pipe interleave bytes in
     //                     order to be readable by TC
-    m_regs.dbZInfo.gfx10Plus.ITERATE_FLUSH       = m_flags.depthMetadataTexFetch;
-    m_regs.dbStencilInfo.gfx10Plus.ITERATE_FLUSH = m_flags.stencilMetadataTexFetch;
+    m_regs.dbZInfo.bits.ITERATE_FLUSH       = m_flags.depthMetadataTexFetch;
+    m_regs.dbStencilInfo.bits.ITERATE_FLUSH = m_flags.stencilMetadataTexFetch;
 
     const auto& depthAddrSettings   = m_pImage->GetAddrSettings(pDepthSubResInfo);
     const auto& stencilAddrSettings = m_pImage->GetAddrSettings(pStencilSubResInfo);
@@ -719,17 +722,17 @@ void Gfx10DepthStencilView::InitRegisters(
     m_regs.dbZInfo.bits.SW_MODE       = m_pImage->GetHwSwizzleMode(pDepthSubResInfo);
     m_regs.dbStencilInfo.bits.SW_MODE = m_pImage->GetHwSwizzleMode(pStencilSubResInfo);
 
-    m_regs.dbZInfo.gfx10Plus.FAULT_BEHAVIOR       = FAULT_ZERO;
-    m_regs.dbStencilInfo.gfx10Plus.FAULT_BEHAVIOR = FAULT_ZERO;
+    m_regs.dbZInfo.bits.FAULT_BEHAVIOR       = FAULT_ZERO;
+    m_regs.dbStencilInfo.bits.FAULT_BEHAVIOR = FAULT_ZERO;
 
-    m_regs.dbZInfo.gfx10Plus.ITERATE_256          = m_pImage->GetIterate256(pDepthSubResInfo);
-    m_regs.dbStencilInfo.gfx10Plus.ITERATE_256    = m_pImage->GetIterate256(pStencilSubResInfo);
+    m_regs.dbZInfo.bits.ITERATE_256          = m_pImage->GetIterate256(pDepthSubResInfo);
+    m_regs.dbStencilInfo.bits.ITERATE_256    = m_pImage->GetIterate256(pStencilSubResInfo);
 
     PAL_ASSERT(CountSetBits(DB_DEPTH_VIEW__SLICE_START_MASK) == DbDepthViewSliceStartMaskNumBits);
     PAL_ASSERT(CountSetBits(DB_DEPTH_VIEW__SLICE_MAX_MASK)   == DbDepthViewSliceMaxMaskNumBits);
 
-    m_regs.dbDepthView.gfx10Plus.SLICE_START_HI = createInfo.baseArraySlice >> DbDepthViewSliceStartMaskNumBits;
-    m_regs.dbDepthView.gfx10Plus.SLICE_MAX_HI   = sliceMax >> DbDepthViewSliceMaxMaskNumBits;
+    m_regs.dbDepthView.bits.SLICE_START_HI = createInfo.baseArraySlice >> DbDepthViewSliceStartMaskNumBits;
+    m_regs.dbDepthView.bits.SLICE_MAX_HI   = sliceMax >> DbDepthViewSliceMaxMaskNumBits;
 
     const uint32 cbDbCachePolicy = settings.cbDbCachePolicy;
 
@@ -750,10 +753,10 @@ void Gfx10DepthStencilView::InitRegisters(
 
     if (palDevice.MemoryProperties().flags.supportsMall != 0)
     {
-        m_regs.dbRmiL2CacheControl.mall.HTILE_NOALLOC  = createInfo.flags.bypassMall;
-        m_regs.dbRmiL2CacheControl.mall.Z_NOALLOC      = createInfo.flags.bypassMall;
-        m_regs.dbRmiL2CacheControl.mall.S_NOALLOC      = createInfo.flags.bypassMall;
-        m_regs.dbRmiL2CacheControl.mall.ZPCPSD_NOALLOC = createInfo.flags.bypassMall; // Zpass / Pstat dump surface
+        m_regs.dbRmiL2CacheControl.most.HTILE_NOALLOC  = createInfo.flags.bypassMall;
+        m_regs.dbRmiL2CacheControl.most.Z_NOALLOC      = createInfo.flags.bypassMall;
+        m_regs.dbRmiL2CacheControl.most.S_NOALLOC      = createInfo.flags.bypassMall;
+        m_regs.dbRmiL2CacheControl.most.ZPCPSD_NOALLOC = createInfo.flags.bypassMall; // Zpass / Pstat dump surface
     }
 
     if (palDevice.ChipProperties().gfxip.supportsVrs)
@@ -798,7 +801,7 @@ uint32* Gfx10DepthStencilView::WriteCommands(
     pCmdSpace = WriteCommandsCommon(depthLayout, stencilLayout, pCmdStream, pCmdSpace, &regs);
 
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_RENDER_CONTROL, regs.dbRenderControl.u32All, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10Plus::mmDB_RMI_L2_CACHE_CONTROL,
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_RMI_L2_CACHE_CONTROL,
                                                   regs.dbRmiL2CacheControl.u32All,
                                                   pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_DEPTH_VIEW, regs.dbDepthView.u32All, pCmdSpace);
@@ -806,9 +809,9 @@ uint32* Gfx10DepthStencilView::WriteCommands(
                                                    mmDB_HTILE_DATA_BASE,
                                                    &regs.dbRenderOverride2,
                                                    pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10Plus::mmDB_DEPTH_SIZE_XY, regs.dbDepthSizeXy.u32All, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx10Plus::mmDB_Z_INFO,
-                                                   Gfx10Plus::mmDB_STENCIL_WRITE_BASE,
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_DEPTH_SIZE_XY, regs.dbDepthSizeXy.u32All, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmDB_Z_INFO,
+                                                   mmDB_STENCIL_WRITE_BASE,
                                                    &regs.dbZInfo,
                                                    pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_HTILE_SURFACE, regs.dbHtileSurface.u32All, pCmdSpace);
@@ -818,17 +821,17 @@ uint32* Gfx10DepthStencilView::WriteCommands(
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmCOHER_DEST_BASE_0, regs.coherDestBase0.u32All, pCmdSpace);
 
     // We need to write all the five hi-registers to support PAL's hi-address bit on gfx10
-    pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10Plus::mmDB_Z_READ_BASE_HI, regs.dbZReadBaseHi.u32All, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10Plus::mmDB_Z_WRITE_BASE_HI,
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_Z_READ_BASE_HI, regs.dbZReadBaseHi.u32All, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_Z_WRITE_BASE_HI,
                                                   regs.dbZWriteBaseHi.u32All,
                                                   pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10Plus::mmDB_STENCIL_READ_BASE_HI,
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_STENCIL_READ_BASE_HI,
                                                   regs.dbStencilReadBaseHi.u32All,
                                                   pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10Plus::mmDB_STENCIL_WRITE_BASE_HI,
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_STENCIL_WRITE_BASE_HI,
                                                   regs.dbStencilWriteBaseHi.u32All,
                                                   pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10Plus::mmDB_HTILE_DATA_BASE_HI,
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_HTILE_DATA_BASE_HI,
                                                   regs.dbHtileDataBaseHi.u32All,
                                                   pCmdSpace);
 

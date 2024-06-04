@@ -420,23 +420,15 @@ struct DirectCaptureInfo
                                              ///  have pre-flip and post-flip access at the same time
             uint32 accessDesktop      :  1;  ///< Requires acces to the desktop
             uint32 shared             :  1;  ///< This resource will be shared between APIs
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 795
             uint32 frameGenRatio      :  4;  ///< Frame generation ratio
             uint32 paceGeneratedFrame :  1;  ///< Requires pacing the generated frames
-#else
-            uint32 placeholder795     :  5;
-#endif
             uint32 reserved           : 23;
         };
         uint32 u32All;
     } usageFlags;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 795
-    OsExternalHandle hPreFlipEvent;          ///< Event handle to notify a new frame available for pre-flip access
-#else
-    OsExternalHandle hNewFrameEvent;         ///< Event handle to notify a new frame available for pre-flip or
-                                             ///  post-flip access
-    OsExternalHandle hFatalErrorEvent;       ///< Event handle to notify a fatal error
-#endif
+
+    OsExternalHandle hNewFrameEvent;   ///< Event to notify of a new frame available for pre-flip or post-flip access
+    OsExternalHandle hFatalErrorEvent; ///< Event to notify of a fatal error
 };
 
 /// Specifies parameters for opening a shared GPU resource from a non-PAL device or non-local process.

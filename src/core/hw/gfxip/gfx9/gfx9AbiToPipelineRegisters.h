@@ -66,25 +66,25 @@ static uint32 VgtShaderStagesEn(
     const auto& hwVs = metadata.pipeline.hardwareStage[uint32(Util::Abi::HardwareStage::Vs)];
 
     VGT_SHADER_STAGES_EN vgtShaderStagesEn = {};
-    vgtShaderStagesEn.bits.ES_EN                    = vgtShaderStagesEnMetadata.esStageEn;
-    vgtShaderStagesEn.bits.GS_EN                    = vgtShaderStagesEnMetadata.flags.gsStageEn;
-    vgtShaderStagesEn.bits.HS_EN                    = vgtShaderStagesEnMetadata.flags.hsStageEn;
-    vgtShaderStagesEn.bits.LS_EN                    = vgtShaderStagesEnMetadata.flags.lsStageEn;
-    vgtShaderStagesEn.bits.VS_EN                    = vgtShaderStagesEnMetadata.vsStageEn;
-    vgtShaderStagesEn.bits.MAX_PRIMGRP_IN_WAVE      = vgtShaderStagesEnMetadata.maxPrimgroupInWave;
-    vgtShaderStagesEn.bits.ORDERED_ID_MODE          = vgtShaderStagesEnMetadata.flags.orderedIdMode;
-    vgtShaderStagesEn.bits.PRIMGEN_EN               = vgtShaderStagesEnMetadata.flags.primgenEn;
-    vgtShaderStagesEn.gfx09_1xPlus.GS_FAST_LAUNCH   = vgtShaderStagesEnMetadata.gsFastLaunch;
-    vgtShaderStagesEn.gfx10Plus.DYNAMIC_HS          = vgtShaderStagesEnMetadata.flags.dynamicHs;
-    vgtShaderStagesEn.gfx10Plus.GS_W32_EN           = (hwGs.hasEntry.wavefrontSize && (hwGs.wavefrontSize == 32));
-    vgtShaderStagesEn.gfx10Plus.HS_W32_EN           = (hwHs.hasEntry.wavefrontSize && (hwHs.wavefrontSize == 32));
-    vgtShaderStagesEn.gfx10Plus.VS_W32_EN           = (hwVs.hasEntry.wavefrontSize && (hwVs.wavefrontSize == 32));
-    vgtShaderStagesEn.gfx10Plus.NGG_WAVE_ID_EN      = vgtShaderStagesEnMetadata.flags.nggWaveIdEn;
-    vgtShaderStagesEn.gfx10Plus.PRIMGEN_PASSTHRU_EN = vgtShaderStagesEnMetadata.flags.primgenPassthruEn;
+    vgtShaderStagesEn.bits.ES_EN               = vgtShaderStagesEnMetadata.esStageEn;
+    vgtShaderStagesEn.bits.GS_EN               = vgtShaderStagesEnMetadata.flags.gsStageEn;
+    vgtShaderStagesEn.bits.HS_EN               = vgtShaderStagesEnMetadata.flags.hsStageEn;
+    vgtShaderStagesEn.bits.LS_EN               = vgtShaderStagesEnMetadata.flags.lsStageEn;
+    vgtShaderStagesEn.bits.VS_EN               = vgtShaderStagesEnMetadata.vsStageEn;
+    vgtShaderStagesEn.bits.MAX_PRIMGRP_IN_WAVE = vgtShaderStagesEnMetadata.maxPrimgroupInWave;
+    vgtShaderStagesEn.bits.ORDERED_ID_MODE     = vgtShaderStagesEnMetadata.flags.orderedIdMode;
+    vgtShaderStagesEn.bits.PRIMGEN_EN          = vgtShaderStagesEnMetadata.flags.primgenEn;
+    vgtShaderStagesEn.bits.GS_FAST_LAUNCH      = vgtShaderStagesEnMetadata.gsFastLaunch;
+    vgtShaderStagesEn.bits.DYNAMIC_HS          = vgtShaderStagesEnMetadata.flags.dynamicHs;
+    vgtShaderStagesEn.bits.GS_W32_EN           = (hwGs.hasEntry.wavefrontSize && (hwGs.wavefrontSize == 32));
+    vgtShaderStagesEn.bits.HS_W32_EN           = (hwHs.hasEntry.wavefrontSize && (hwHs.wavefrontSize == 32));
+    vgtShaderStagesEn.bits.VS_W32_EN           = (hwVs.hasEntry.wavefrontSize && (hwVs.wavefrontSize == 32));
+    vgtShaderStagesEn.bits.NGG_WAVE_ID_EN      = vgtShaderStagesEnMetadata.flags.nggWaveIdEn;
+    vgtShaderStagesEn.bits.PRIMGEN_PASSTHRU_EN = vgtShaderStagesEnMetadata.flags.primgenPassthruEn;
 
     if (IsGfx11(gfxLevel))
     {
-        vgtShaderStagesEn.gfx104Plus.PRIMGEN_PASSTHRU_NO_MSG = vgtShaderStagesEnMetadata.flags.primgenPassthruNoMsg;
+        vgtShaderStagesEn.most.PRIMGEN_PASSTHRU_NO_MSG = vgtShaderStagesEnMetadata.flags.primgenPassthruNoMsg;
     }
 
     return vgtShaderStagesEn.u32All;
@@ -253,11 +253,11 @@ static uint32 SpiShaderPosFormat(
     const uint8* pSpiShaderPosFormat = &metadata.pipeline.graphicsRegister.spiShaderPosFormat[0];
 
     SPI_SHADER_POS_FORMAT spiShaderPosFormat = {};
-    spiShaderPosFormat.bits.POS0_EXPORT_FORMAT      = pSpiShaderPosFormat[0];
-    spiShaderPosFormat.bits.POS1_EXPORT_FORMAT      = pSpiShaderPosFormat[1];
-    spiShaderPosFormat.bits.POS2_EXPORT_FORMAT      = pSpiShaderPosFormat[2];
-    spiShaderPosFormat.bits.POS3_EXPORT_FORMAT      = pSpiShaderPosFormat[3];
-    spiShaderPosFormat.gfx10Plus.POS4_EXPORT_FORMAT = pSpiShaderPosFormat[4];
+    spiShaderPosFormat.bits.POS0_EXPORT_FORMAT = pSpiShaderPosFormat[0];
+    spiShaderPosFormat.bits.POS1_EXPORT_FORMAT = pSpiShaderPosFormat[1];
+    spiShaderPosFormat.bits.POS2_EXPORT_FORMAT = pSpiShaderPosFormat[2];
+    spiShaderPosFormat.bits.POS3_EXPORT_FORMAT = pSpiShaderPosFormat[3];
+    spiShaderPosFormat.bits.POS4_EXPORT_FORMAT = pSpiShaderPosFormat[4];
 
     return spiShaderPosFormat.u32All;
 }
@@ -327,7 +327,7 @@ static uint32 SpiPsInControl(
     spiPsInControl.bits.OFFCHIP_PARAM_EN    = spiPsInControlMetadata.flags.offchipParamEn;
     spiPsInControl.bits.LATE_PC_DEALLOC     = spiPsInControlMetadata.flags.latePcDealloc;
     spiPsInControl.bits.BC_OPTIMIZE_DISABLE = spiPsInControlMetadata.flags.bcOptimizeDisable;
-    spiPsInControl.gfx10Plus.PS_W32_EN      =
+    spiPsInControl.bits.PS_W32_EN           =
             (metadata.pipeline.hardwareStage[uint32(Util::Abi::HardwareStage::Ps)].wavefrontSize == 32);
 
     if (IsGfx103PlusExclusive(gfxLevel))
@@ -348,8 +348,8 @@ static uint32 SpiVsOutConfig(
         metadata.pipeline.graphicsRegister.spiVsOutConfig;
 
     SPI_VS_OUT_CONFIG spiVsOutConfig = {};
-    spiVsOutConfig.bits.VS_EXPORT_COUNT   = spiVsOutConfigMetadata.vsExportCount;
-    spiVsOutConfig.gfx10Plus.NO_PC_EXPORT = spiVsOutConfigMetadata.flags.noPcExport;
+    spiVsOutConfig.bits.VS_EXPORT_COUNT = spiVsOutConfigMetadata.vsExportCount;
+    spiVsOutConfig.bits.NO_PC_EXPORT    = spiVsOutConfigMetadata.flags.noPcExport;
 
     if (IsGfx103PlusExclusive(gfxLevel))
     {
@@ -360,7 +360,7 @@ static uint32 SpiVsOutConfig(
     // mind that the number of VS exports are represented by a -1 field in the HW register!
     if ((spiVsOutConfig.bits.VS_EXPORT_COUNT + 1u) > device.Settings().vsHalfPackThreshold)
     {
-        spiVsOutConfig.gfx09_10.VS_HALF_PACK = 1;
+        spiVsOutConfig.gfx10.VS_HALF_PACK = 1;
     }
 
     return spiVsOutConfig.u32All;
@@ -377,12 +377,12 @@ static uint32 VgtTfParam(
     // If the type isn't specified, then we don't care.
     if (vgtTfParamMetadata.hasEntry.type)
     {
-        vgtTfParam.bits.TYPE                       = vgtTfParamMetadata.type;
-        vgtTfParam.bits.PARTITIONING               = vgtTfParamMetadata.partitioning;
-        vgtTfParam.bits.TOPOLOGY                   = vgtTfParamMetadata.topology;
-        vgtTfParam.bits.DISABLE_DONUTS             = vgtTfParamMetadata.flags.disableDonuts;
-        vgtTfParam.bits.DISTRIBUTION_MODE          = vgtTfParamMetadata.distributionMode;
-        vgtTfParam.gfx10Plus.NUM_DS_WAVES_PER_SIMD = vgtTfParamMetadata.numDsWavesPerSimd;
+        vgtTfParam.bits.TYPE                  = vgtTfParamMetadata.type;
+        vgtTfParam.bits.PARTITIONING          = vgtTfParamMetadata.partitioning;
+        vgtTfParam.bits.TOPOLOGY              = vgtTfParamMetadata.topology;
+        vgtTfParam.bits.DISABLE_DONUTS        = vgtTfParamMetadata.flags.disableDonuts;
+        vgtTfParam.bits.DISTRIBUTION_MODE     = vgtTfParamMetadata.distributionMode;
+        vgtTfParam.bits.NUM_DS_WAVES_PER_SIMD = vgtTfParamMetadata.numDsWavesPerSimd;
     }
 
     return vgtTfParam.u32All;
@@ -416,8 +416,8 @@ static uint32 SpiInterpControl0(
     spiInterpControl0.bits.PNT_SPRITE_OVRD_Y = uint32(spiInterpControlMetadata.pointSpriteOverrideY);
     spiInterpControl0.bits.PNT_SPRITE_OVRD_Z = uint32(spiInterpControlMetadata.pointSpriteOverrideZ);
     spiInterpControl0.bits.PNT_SPRITE_OVRD_W = uint32(spiInterpControlMetadata.pointSpriteOverrideW);
+    spiInterpControl0.bits.FLAT_SHADE_ENA    = (createInfo.rsState.shadeMode == ShadeMode::Flat);
 
-    spiInterpControl0.bits.FLAT_SHADE_ENA = (createInfo.rsState.shadeMode == ShadeMode::Flat);
     if (spiInterpControl0.bits.PNT_SPRITE_ENA != 0) // Point sprite mode is enabled.
     {
         spiInterpControl0.bits.PNT_SPRITE_TOP_1 = (createInfo.rsState.pointCoordOrigin != PointOrigin::UpperLeft);
@@ -435,7 +435,7 @@ static uint32 VgtDrawPayloadCntl(
 
     VGT_DRAW_PAYLOAD_CNTL vgtDrawPayloadCntl = {};
 
-    vgtDrawPayloadCntl.gfx10Plus.EN_PRIM_PAYLOAD = metadata.pipeline.graphicsRegister.flags.vgtDrawPrimPayloadEn;
+    vgtDrawPayloadCntl.bits.EN_PRIM_PAYLOAD = metadata.pipeline.graphicsRegister.flags.vgtDrawPrimPayloadEn;
 
     if (chipProps.gfxip.supportsVrs)
     {
@@ -487,10 +487,10 @@ static uint32 SpiShaderPgmRsrc1Gs(
 
     // NOTE: The Pipeline ABI doesn't specify CU_GROUP_ENABLE for various shader stages, so it should be safe to
     // always use the setting PAL prefers.
-    spiShaderPgmRsrc1Gs.bits.CU_GROUP_ENABLE   = device.Settings().gsCuGroupEnabled;
-    spiShaderPgmRsrc1Gs.gfx10Plus.MEM_ORDERED  = hwGs.flags.memOrdered;
-    spiShaderPgmRsrc1Gs.gfx10Plus.FWD_PROGRESS = hwGs.flags.forwardProgress;
-    spiShaderPgmRsrc1Gs.gfx10Plus.WGP_MODE     = hwGs.flags.wgpMode;
+    spiShaderPgmRsrc1Gs.bits.CU_GROUP_ENABLE = device.Settings().gsCuGroupEnabled;
+    spiShaderPgmRsrc1Gs.bits.MEM_ORDERED     = hwGs.flags.memOrdered;
+    spiShaderPgmRsrc1Gs.bits.FWD_PROGRESS    = hwGs.flags.forwardProgress;
+    spiShaderPgmRsrc1Gs.bits.WGP_MODE        = hwGs.flags.wgpMode;
 
     return spiShaderPgmRsrc1Gs.u32All;
 }
@@ -511,8 +511,8 @@ static uint32 SpiShaderPgmRsrc2Gs(
     spiShaderPgmRsrc2Gs.bits.LDS_SIZE         =
         Util::Pow2Align(hwGs.ldsSize / uint32(sizeof(uint32)), Gfx9LdsDwGranularity) >> Gfx9LdsDwGranularityShift;
 
-    spiShaderPgmRsrc2Gs.gfx10Plus.USER_SGPR_MSB   = (hwGs.userSgprs >= 32);
-    spiShaderPgmRsrc2Gs.gfx10Plus.SHARED_VGPR_CNT = hwGs.sharedVgprCnt;
+    spiShaderPgmRsrc2Gs.bits.USER_SGPR_MSB   = (hwGs.userSgprs >= 32);
+    spiShaderPgmRsrc2Gs.bits.SHARED_VGPR_CNT = hwGs.sharedVgprCnt;
 
     return spiShaderPgmRsrc2Gs.u32All;
 }
@@ -615,7 +615,7 @@ static uint32 SpiShaderPgmRsrc4Gs(
     }
 
     SPI_SHADER_PGM_RSRC4_GS spiShaderPgmRsrc4Gs = {};
-    spiShaderPgmRsrc4Gs.gfx10Plus.SPI_SHADER_LATE_ALLOC_GS = Util::Min(lateAllocWaves, lateAllocLimit);
+    spiShaderPgmRsrc4Gs.bits.SPI_SHADER_LATE_ALLOC_GS = Util::Min(lateAllocWaves, lateAllocLimit);
 
     if (IsGfx10(gfxLevel))
     {
@@ -625,13 +625,12 @@ static uint32 SpiShaderPgmRsrc4Gs(
     }
     else
     {
-        spiShaderPgmRsrc4Gs.gfx11.CU_EN           = 0;
-        spiShaderPgmRsrc4Gs.gfx11.PH_THROTTLE_EN  =
-            Util::TestAnyFlagSet(settings.rsrc4GsThrottleEn, Rsrc4GsThrottlePhEn);
-        spiShaderPgmRsrc4Gs.gfx11.SPI_THROTTLE_EN =
-            Util::TestAnyFlagSet(settings.rsrc4GsThrottleEn, Rsrc4GsThrottleSpiEn);
+        const uint32 throttleEn = settings.rsrc4GsThrottleEn;
 
-        spiShaderPgmRsrc4Gs.gfx104Plus.INST_PREF_SIZE = device.GetShaderPrefetchSize(codeLength);
+        spiShaderPgmRsrc4Gs.gfx11.CU_EN           = 0;
+        spiShaderPgmRsrc4Gs.gfx11.PH_THROTTLE_EN  = Util::TestAnyFlagSet(throttleEn, Rsrc4GsThrottlePhEn);
+        spiShaderPgmRsrc4Gs.gfx11.SPI_THROTTLE_EN = Util::TestAnyFlagSet(throttleEn, Rsrc4GsThrottleSpiEn);
+        spiShaderPgmRsrc4Gs.gfx11.INST_PREF_SIZE  = device.GetShaderPrefetchSize(codeLength);
 
         // PWS+ only support pre-shader waits if the IMAGE_OP bit is set. Theoretically we only set it for
         // shaders that do an image operation. However that would mean that our use of the pre-shader PWS+ wait
@@ -698,11 +697,9 @@ static uint32 VgtGsInstanceCnt(
         metadata.pipeline.graphicsRegister.vgtGsInstanceCnt;
 
     VGT_GS_INSTANCE_CNT vgtGsInstanceCnt = {};
-    vgtGsInstanceCnt.bits.ENABLE = vgtGsInstanceCntMetadata.flags.enable;
-    vgtGsInstanceCnt.bits.CNT    = vgtGsInstanceCntMetadata.count;
-
-    vgtGsInstanceCnt.gfx10Plus.EN_MAX_VERT_OUT_PER_GS_INSTANCE =
-        vgtGsInstanceCntMetadata.flags.enMaxVertOutPerGsInstance;
+    vgtGsInstanceCnt.bits.ENABLE                          = vgtGsInstanceCntMetadata.flags.enable;
+    vgtGsInstanceCnt.bits.CNT                             = vgtGsInstanceCntMetadata.count;
+    vgtGsInstanceCnt.bits.EN_MAX_VERT_OUT_PER_GS_INSTANCE = vgtGsInstanceCntMetadata.flags.enMaxVertOutPerGsInstance;
 
     return vgtGsInstanceCnt.u32All;
 }
@@ -717,20 +714,20 @@ static uint32 VgtGsOutPrimType(
 
     VGT_GS_OUT_PRIM_TYPE vgtGsOutPrimType = {};
 
-    static_assert((uint32(Util::Abi::GsOutPrimType::PointList) == VGT_GS_OUTPRIM_TYPE::POINTLIST)           &&
-                  (uint32(Util::Abi::GsOutPrimType::LineStrip) == VGT_GS_OUTPRIM_TYPE::LINESTRIP)           &&
-                  (uint32(Util::Abi::GsOutPrimType::TriStrip)  == VGT_GS_OUTPRIM_TYPE::TRISTRIP)            &&
-                  (uint32(Util::Abi::GsOutPrimType::RectList)  == VGT_GS_OUTPRIM_TYPE::RECTLIST__GFX10PLUS) &&
-                  (uint32(Util::Abi::GsOutPrimType::Rect2d)    == VGT_GS_OUTPRIM_TYPE::RECT_2D__GFX10PLUS),
+    static_assert((uint32(Util::Abi::GsOutPrimType::PointList) == VGT_GS_OUTPRIM_TYPE::POINTLIST) &&
+                  (uint32(Util::Abi::GsOutPrimType::LineStrip) == VGT_GS_OUTPRIM_TYPE::LINESTRIP) &&
+                  (uint32(Util::Abi::GsOutPrimType::TriStrip)  == VGT_GS_OUTPRIM_TYPE::TRISTRIP)  &&
+                  (uint32(Util::Abi::GsOutPrimType::RectList)  == VGT_GS_OUTPRIM_TYPE::RECTLIST)  &&
+                  (uint32(Util::Abi::GsOutPrimType::Rect2d)    == VGT_GS_OUTPRIM_TYPE::RECT_2D),
                   "Abi::GsOutPrimType does not match HW version!");
     vgtGsOutPrimType.bits.OUTPRIM_TYPE = uint32(vgtGsOutPrimTypeMetadata.outprimType);
 
     if (IsGfx10(gfxLevel))
     {
-        vgtGsOutPrimType.gfx09_10.OUTPRIM_TYPE_1         = uint32(vgtGsOutPrimTypeMetadata.outprimType_1);
-        vgtGsOutPrimType.gfx09_10.OUTPRIM_TYPE_2         = uint32(vgtGsOutPrimTypeMetadata.outprimType_2);
-        vgtGsOutPrimType.gfx09_10.OUTPRIM_TYPE_3         = uint32(vgtGsOutPrimTypeMetadata.outprimType_3);
-        vgtGsOutPrimType.gfx09_10.UNIQUE_TYPE_PER_STREAM = vgtGsOutPrimTypeMetadata.flags.uniqueTypePerStream;
+        vgtGsOutPrimType.gfx10.OUTPRIM_TYPE_1         = uint32(vgtGsOutPrimTypeMetadata.outprimType_1);
+        vgtGsOutPrimType.gfx10.OUTPRIM_TYPE_2         = uint32(vgtGsOutPrimTypeMetadata.outprimType_2);
+        vgtGsOutPrimType.gfx10.OUTPRIM_TYPE_3         = uint32(vgtGsOutPrimTypeMetadata.outprimType_3);
+        vgtGsOutPrimType.gfx10.UNIQUE_TYPE_PER_STREAM = vgtGsOutPrimTypeMetadata.flags.uniqueTypePerStream;
     }
 
     return vgtGsOutPrimType.u32All;
@@ -857,17 +854,17 @@ static uint32 SpiShaderPgmRsrc1Hs(
     const auto& hwHs = metadata.pipeline.hardwareStage[uint32(Util::Abi::HardwareStage::Hs)];
 
     SPI_SHADER_PGM_RSRC1_HS spiShaderPgmRsrc1Hs = {};
-    spiShaderPgmRsrc1Hs.bits.VGPRS             = CalcNumVgprs(hwHs.vgprCount, (hwHs.wavefrontSize == 32));
-    spiShaderPgmRsrc1Hs.bits.SGPRS             = CalcNumSgprs(hwHs.sgprCount);
-    spiShaderPgmRsrc1Hs.bits.FLOAT_MODE        = hwHs.floatMode;
-    spiShaderPgmRsrc1Hs.bits.DX10_CLAMP        = 1;
-    spiShaderPgmRsrc1Hs.bits.DEBUG_MODE        = hwHs.flags.debugMode;
-    spiShaderPgmRsrc1Hs.bits.IEEE_MODE         = hwHs.flags.ieeeMode;
-    spiShaderPgmRsrc1Hs.bits.LS_VGPR_COMP_CNT  = metadata.pipeline.graphicsRegister.lsVgprCompCnt;
-    spiShaderPgmRsrc1Hs.bits.FP16_OVFL         = hwHs.flags.fp16Overflow;
-    spiShaderPgmRsrc1Hs.gfx10Plus.MEM_ORDERED  = hwHs.flags.memOrdered;
-    spiShaderPgmRsrc1Hs.gfx10Plus.FWD_PROGRESS = hwHs.flags.forwardProgress;
-    spiShaderPgmRsrc1Hs.gfx10Plus.WGP_MODE     = hwHs.flags.wgpMode;
+    spiShaderPgmRsrc1Hs.bits.VGPRS            = CalcNumVgprs(hwHs.vgprCount, (hwHs.wavefrontSize == 32));
+    spiShaderPgmRsrc1Hs.bits.SGPRS            = CalcNumSgprs(hwHs.sgprCount);
+    spiShaderPgmRsrc1Hs.bits.FLOAT_MODE       = hwHs.floatMode;
+    spiShaderPgmRsrc1Hs.bits.DX10_CLAMP       = 1;
+    spiShaderPgmRsrc1Hs.bits.DEBUG_MODE       = hwHs.flags.debugMode;
+    spiShaderPgmRsrc1Hs.bits.IEEE_MODE        = hwHs.flags.ieeeMode;
+    spiShaderPgmRsrc1Hs.bits.LS_VGPR_COMP_CNT = metadata.pipeline.graphicsRegister.lsVgprCompCnt;
+    spiShaderPgmRsrc1Hs.bits.FP16_OVFL        = hwHs.flags.fp16Overflow;
+    spiShaderPgmRsrc1Hs.bits.MEM_ORDERED      = hwHs.flags.memOrdered;
+    spiShaderPgmRsrc1Hs.bits.FWD_PROGRESS     = hwHs.flags.forwardProgress;
+    spiShaderPgmRsrc1Hs.bits.WGP_MODE         = hwHs.flags.wgpMode;
 
     return spiShaderPgmRsrc1Hs.u32All;
 }
@@ -876,22 +873,20 @@ static uint32 SpiShaderPgmRsrc1Hs(
 static uint32 SpiShaderPgmRsrc2Hs(
     const Util::PalAbi::CodeObjectMetadata& metadata)
 {
-    const auto& hwHs = metadata.pipeline.hardwareStage[uint32(Util::Abi::HardwareStage::Hs)];
-
-    SPI_SHADER_PGM_RSRC2_HS spiShaderPgmRsrc2Hs = {};
-    spiShaderPgmRsrc2Hs.bits.SCRATCH_EN       = hwHs.flags.scratchEn;
-    spiShaderPgmRsrc2Hs.bits.USER_SGPR        = hwHs.userSgprs;
-    spiShaderPgmRsrc2Hs.bits.TRAP_PRESENT     = hwHs.flags.trapPresent;
-
+    const auto&  hwHs    = metadata.pipeline.hardwareStage[uint32(Util::Abi::HardwareStage::Hs)];
     const uint32 ldsSize =
         Util::Pow2Align(hwHs.ldsSize / uint32(sizeof(uint32)), Gfx9LdsDwGranularity) >> Gfx9LdsDwGranularityShift;
 
-    spiShaderPgmRsrc2Hs.gfx10Plus.EXCP_EN         = hwHs.excpEn;
-    spiShaderPgmRsrc2Hs.gfx10Plus.LDS_SIZE        = ldsSize;
-    spiShaderPgmRsrc2Hs.gfx10Plus.OC_LDS_EN       = hwHs.flags.offchipLdsEn;
-    spiShaderPgmRsrc2Hs.gfx10Plus.TG_SIZE_EN      = metadata.pipeline.graphicsRegister.flags.hsTgSizeEn;
-    spiShaderPgmRsrc2Hs.gfx10Plus.USER_SGPR_MSB   = (hwHs.userSgprs >= 32);
-    spiShaderPgmRsrc2Hs.gfx10Plus.SHARED_VGPR_CNT = hwHs.sharedVgprCnt;
+    SPI_SHADER_PGM_RSRC2_HS spiShaderPgmRsrc2Hs = {};
+    spiShaderPgmRsrc2Hs.bits.SCRATCH_EN      = hwHs.flags.scratchEn;
+    spiShaderPgmRsrc2Hs.bits.USER_SGPR       = hwHs.userSgprs;
+    spiShaderPgmRsrc2Hs.bits.TRAP_PRESENT    = hwHs.flags.trapPresent;
+    spiShaderPgmRsrc2Hs.bits.EXCP_EN         = hwHs.excpEn;
+    spiShaderPgmRsrc2Hs.bits.LDS_SIZE        = ldsSize;
+    spiShaderPgmRsrc2Hs.bits.OC_LDS_EN       = hwHs.flags.offchipLdsEn;
+    spiShaderPgmRsrc2Hs.bits.TG_SIZE_EN      = metadata.pipeline.graphicsRegister.flags.hsTgSizeEn;
+    spiShaderPgmRsrc2Hs.bits.USER_SGPR_MSB   = (hwHs.userSgprs >= 32);
+    spiShaderPgmRsrc2Hs.bits.SHARED_VGPR_CNT = hwHs.sharedVgprCnt;
 
     return spiShaderPgmRsrc2Hs.u32All;
 }
@@ -926,11 +921,11 @@ static uint32 SpiShaderPgmRsrc4Hs(
     size_t                                  codeLength)
 {
     SPI_SHADER_PGM_RSRC4_HS spiShaderPgmRsrc4Hs = {};
-    spiShaderPgmRsrc4Hs.gfx10Plus.CU_EN = device.GetCuEnableMaskHi(0, UINT_MAX);
+    spiShaderPgmRsrc4Hs.bits.CU_EN = device.GetCuEnableMaskHi(0, UINT_MAX);
 
     if (IsGfx11(gfxLevel))
     {
-        spiShaderPgmRsrc4Hs.gfx104Plus.INST_PREF_SIZE = device.GetShaderPrefetchSize(codeLength);
+        spiShaderPgmRsrc4Hs.gfx11.INST_PREF_SIZE = device.GetShaderPrefetchSize(codeLength);
 
         // PWS+ only support pre-shader waits if the IMAGE_OP bit is set. Theoretically we only set it for shaders that
         // do an image operation. However that would mean that our use of the pre-shader PWS+ wait is dependent on us
@@ -989,19 +984,19 @@ static uint32 SpiShaderPgmRsrc1Ps(
     const auto&            hwPs     = metadata.pipeline.hardwareStage[uint32(Util::Abi::HardwareStage::Ps)];
 
     SPI_SHADER_PGM_RSRC1_PS spiShaderPgmRsrc1Ps = {};
-    spiShaderPgmRsrc1Ps.bits.VGPRS             = CalcNumVgprs(hwPs.vgprCount, (hwPs.wavefrontSize == 32));
-    spiShaderPgmRsrc1Ps.bits.SGPRS             = CalcNumSgprs(hwPs.sgprCount);
-    spiShaderPgmRsrc1Ps.bits.FLOAT_MODE        = hwPs.floatMode;
-    spiShaderPgmRsrc1Ps.bits.DX10_CLAMP        = 1;
-    spiShaderPgmRsrc1Ps.bits.DEBUG_MODE        = hwPs.flags.debugMode;
-    spiShaderPgmRsrc1Ps.bits.IEEE_MODE         = hwPs.flags.ieeeMode;
-    spiShaderPgmRsrc1Ps.bits.FP16_OVFL         = hwPs.flags.fp16Overflow;
-    spiShaderPgmRsrc1Ps.gfx10Plus.MEM_ORDERED  = hwPs.flags.memOrdered;
-    spiShaderPgmRsrc1Ps.gfx10Plus.FWD_PROGRESS = hwPs.flags.forwardProgress;
+    spiShaderPgmRsrc1Ps.bits.VGPRS        = CalcNumVgprs(hwPs.vgprCount, (hwPs.wavefrontSize == 32));
+    spiShaderPgmRsrc1Ps.bits.SGPRS        = CalcNumSgprs(hwPs.sgprCount);
+    spiShaderPgmRsrc1Ps.bits.FLOAT_MODE   = hwPs.floatMode;
+    spiShaderPgmRsrc1Ps.bits.DX10_CLAMP   = 1;
+    spiShaderPgmRsrc1Ps.bits.DEBUG_MODE   = hwPs.flags.debugMode;
+    spiShaderPgmRsrc1Ps.bits.IEEE_MODE    = hwPs.flags.ieeeMode;
+    spiShaderPgmRsrc1Ps.bits.FP16_OVFL    = hwPs.flags.fp16Overflow;
+    spiShaderPgmRsrc1Ps.bits.MEM_ORDERED  = hwPs.flags.memOrdered;
+    spiShaderPgmRsrc1Ps.bits.FWD_PROGRESS = hwPs.flags.forwardProgress;
 
     // NOTE: The Pipeline ABI doesn't specify CU_GROUP_DISABLE for various shader stages, so it should be safe to
     // always use the setting PAL prefers.
-    spiShaderPgmRsrc1Ps.bits.CU_GROUP_DISABLE  = (settings.numPsWavesSoftGroupedPerCu > 0 ? 0 : 1);
+    spiShaderPgmRsrc1Ps.bits.CU_GROUP_DISABLE = (settings.numPsWavesSoftGroupedPerCu > 0 ? 0 : 1);
 
     if (IsGfx103PlusExclusive(gfxLevel))
     {
@@ -1017,29 +1012,26 @@ static uint32 SpiShaderPgmRsrc2Ps(
     const Util::PalAbi::CodeObjectMetadata& metadata,
     GfxIpLevel                              gfxLevel)
 {
-    const auto&            hwPs     = metadata.pipeline.hardwareStage[uint32(Util::Abi::HardwareStage::Ps)];
+    const auto&  hwPs     = metadata.pipeline.hardwareStage[uint32(Util::Abi::HardwareStage::Ps)];
+    const uint32 shift    = IsGfx11(gfxLevel) ? Gfx11PsExtraLdsDwGranularityShift : Gfx9PsExtraLdsDwGranularityShift;
+    const uint32 extraLds = (metadata.pipeline.graphicsRegister.psExtraLdsSize / sizeof(uint32)) >> shift;
 
     SPI_SHADER_PGM_RSRC2_PS spiShaderPgmRsrc2Ps = {};
-    spiShaderPgmRsrc2Ps.bits.SCRATCH_EN       = hwPs.flags.scratchEn;
-    spiShaderPgmRsrc2Ps.bits.USER_SGPR        = hwPs.userSgprs;
-    spiShaderPgmRsrc2Ps.bits.TRAP_PRESENT     = hwPs.flags.trapPresent;
-    spiShaderPgmRsrc2Ps.bits.WAVE_CNT_EN      = metadata.pipeline.graphicsRegister.flags.psWaveCntEn;
-
-    const uint32 psExtraLdsDwGranularityShift = IsGfx11(gfxLevel) ? Gfx11PsExtraLdsDwGranularityShift :
-                                                                    Gfx9PsExtraLdsDwGranularityShift;
-
-    spiShaderPgmRsrc2Ps.bits.EXTRA_LDS_SIZE   =
-        (metadata.pipeline.graphicsRegister.psExtraLdsSize / sizeof(uint32)) >> psExtraLdsDwGranularityShift;
-    spiShaderPgmRsrc2Ps.bits.EXCP_EN          = hwPs.excpEn;
+    spiShaderPgmRsrc2Ps.bits.SCRATCH_EN      = hwPs.flags.scratchEn;
+    spiShaderPgmRsrc2Ps.bits.USER_SGPR       = hwPs.userSgprs;
+    spiShaderPgmRsrc2Ps.bits.TRAP_PRESENT    = hwPs.flags.trapPresent;
+    spiShaderPgmRsrc2Ps.bits.WAVE_CNT_EN     = metadata.pipeline.graphicsRegister.flags.psWaveCntEn;
+    spiShaderPgmRsrc2Ps.bits.EXTRA_LDS_SIZE  = extraLds;
+    spiShaderPgmRsrc2Ps.bits.EXCP_EN         = hwPs.excpEn;
+    spiShaderPgmRsrc2Ps.bits.USER_SGPR_MSB   = (hwPs.userSgprs >= 32);
+    spiShaderPgmRsrc2Ps.bits.SHARED_VGPR_CNT = hwPs.sharedVgprCnt;
 
     // These two bits are duplicated in PA_SC_SHADER_CONTROL.
     const Util::PalAbi::PaScShaderControlMetadata& paScShaderControl =
         metadata.pipeline.graphicsRegister.paScShaderControl;
+
     spiShaderPgmRsrc2Ps.bits.LOAD_COLLISION_WAVEID    = paScShaderControl.flags.loadCollisionWaveid;
     spiShaderPgmRsrc2Ps.bits.LOAD_INTRAWAVE_COLLISION = paScShaderControl.flags.loadIntrawaveCollision;
-
-    spiShaderPgmRsrc2Ps.gfx10Plus.USER_SGPR_MSB   = (hwPs.userSgprs >= 32);
-    spiShaderPgmRsrc2Ps.gfx10Plus.SHARED_VGPR_CNT = hwPs.sharedVgprCnt;
 
     return spiShaderPgmRsrc2Ps.u32All;
 }
@@ -1063,11 +1055,11 @@ static uint32 SpiShaderPgmRsrc3Ps(
     {
         if (createInfo.ldsPsGroupSizeOverride != LdsPsGroupSizeOverride::Default)
         {
-            spiShaderPgmRsrc3Ps.gfx104Plus.LDS_GROUP_SIZE = uint32(createInfo.ldsPsGroupSizeOverride) - 1U;
+            spiShaderPgmRsrc3Ps.gfx11.LDS_GROUP_SIZE = uint32(createInfo.ldsPsGroupSizeOverride) - 1U;
         }
         else
         {
-            spiShaderPgmRsrc3Ps.gfx104Plus.LDS_GROUP_SIZE = uint32(settings.ldsPsGroupSize);
+            spiShaderPgmRsrc3Ps.gfx11.LDS_GROUP_SIZE = uint32(settings.ldsPsGroupSize);
         }
     }
 
@@ -1086,7 +1078,7 @@ static uint32 SpiShaderPgmRsrc4Ps(
 
     if (IsGfx11(gfxLevel))
     {
-        spiShaderPgmRsrc4Ps.gfx104Plus.INST_PREF_SIZE = device.GetShaderPrefetchSize(codeLength);
+        spiShaderPgmRsrc4Ps.gfx11.INST_PREF_SIZE = device.GetShaderPrefetchSize(codeLength);
 
         // PWS+ only support pre-shader waits if the IMAGE_OP bit is set. Theoretically we only set it for shaders
         // that do an image operation. However that would mean that our use of the pre-shader PWS+ wait is dependent
@@ -1139,8 +1131,8 @@ static uint32 SpiShaderPgmRsrc1Vs(
 
     if (IsGfx10(gfxLevel))
     {
-        spiShaderPgmRsrc1Vs.gfx10.MEM_ORDERED  = hwVs.flags.memOrdered;
-        spiShaderPgmRsrc1Vs.gfx10.FWD_PROGRESS = hwVs.flags.forwardProgress;
+        spiShaderPgmRsrc1Vs.bits.MEM_ORDERED  = hwVs.flags.memOrdered;
+        spiShaderPgmRsrc1Vs.bits.FWD_PROGRESS = hwVs.flags.forwardProgress;
     }
 
     return spiShaderPgmRsrc1Vs.u32All;
@@ -1168,8 +1160,8 @@ static uint32 SpiShaderPgmRsrc2Vs(
 
     if (IsGfx10(gfxLevel))
     {
-        spiShaderPgmRsrc2Vs.gfx10.USER_SGPR_MSB   = (hwVs.userSgprs >= 32);
-        spiShaderPgmRsrc2Vs.gfx10.SHARED_VGPR_CNT = hwVs.sharedVgprCnt;
+        spiShaderPgmRsrc2Vs.bits.USER_SGPR_MSB   = (hwVs.userSgprs >= 32);
+        spiShaderPgmRsrc2Vs.bits.SHARED_VGPR_CNT = hwVs.sharedVgprCnt;
     }
 
     return spiShaderPgmRsrc2Vs.u32All;
@@ -1233,7 +1225,7 @@ static uint32 SpiShaderPgmChksumVs(
     SPI_SHADER_PGM_CHKSUM_VS spiShaderPgmChksumVs = {};
     if (chipProps.gfx9.supportSpp != 0)
     {
-        spiShaderPgmChksumVs.most.CHECKSUM = hwVs.checksumValue;
+        spiShaderPgmChksumVs.bits.CHECKSUM = hwVs.checksumValue;
     }
 
     return spiShaderPgmChksumVs.u32All;
@@ -1285,7 +1277,7 @@ static void SpiPsInputCntl(
 
         if (IsGfx10(gfxLevel))
         {
-            pSpiPsInputCntl->gfx09_10.CYL_WRAP = spiPsInputCntl.cylWrap;
+            pSpiPsInputCntl->gfx10.CYL_WRAP = spiPsInputCntl.cylWrap;
         }
 
         if (IsGfx103PlusExclusive(gfxLevel))
@@ -1338,22 +1330,20 @@ static uint32 DbShaderControl(
         metadata.pipeline.graphicsRegister.dbShaderControl;
 
     DB_SHADER_CONTROL dbShaderControl = {};
-    dbShaderControl.bits.Z_EXPORT_ENABLE                = dbShaderControlMetadata.flags.zExportEnable;
-    dbShaderControl.bits.STENCIL_TEST_VAL_EXPORT_ENABLE = dbShaderControlMetadata.flags.stencilTestValExportEnable;
-    dbShaderControl.bits.STENCIL_OP_VAL_EXPORT_ENABLE   = dbShaderControlMetadata.flags.stencilOpValExportEnable;
-    dbShaderControl.bits.Z_ORDER                        = dbShaderControlMetadata.zOrder;
-    dbShaderControl.bits.KILL_ENABLE                    = dbShaderControlMetadata.flags.killEnable;
-    dbShaderControl.bits.COVERAGE_TO_MASK_ENABLE        = dbShaderControlMetadata.flags.coverageToMaskEn;
-    dbShaderControl.bits.MASK_EXPORT_ENABLE             = dbShaderControlMetadata.flags.maskExportEnable;
-    dbShaderControl.bits.EXEC_ON_HIER_FAIL              = dbShaderControlMetadata.flags.execOnHierFail;
-    dbShaderControl.bits.EXEC_ON_NOOP                   = dbShaderControlMetadata.flags.execOnNoop;
-    dbShaderControl.bits.ALPHA_TO_MASK_DISABLE          = dbShaderControlMetadata.flags.alphaToMaskDisable;
-    dbShaderControl.bits.DEPTH_BEFORE_SHADER            = dbShaderControlMetadata.flags.depthBeforeShader;
-    dbShaderControl.bits.CONSERVATIVE_Z_EXPORT          = dbShaderControlMetadata.conservativeZExport;
-    dbShaderControl.bits.PRIMITIVE_ORDERED_PIXEL_SHADER = dbShaderControlMetadata.flags.primitiveOrderedPixelShader;
-
-    dbShaderControl.gfx10Plus.PRE_SHADER_DEPTH_COVERAGE_ENABLE =
-            dbShaderControlMetadata.flags.preShaderDepthCoverageEnable;
+    dbShaderControl.bits.Z_EXPORT_ENABLE                  = dbShaderControlMetadata.flags.zExportEnable;
+    dbShaderControl.bits.STENCIL_TEST_VAL_EXPORT_ENABLE   = dbShaderControlMetadata.flags.stencilTestValExportEnable;
+    dbShaderControl.bits.STENCIL_OP_VAL_EXPORT_ENABLE     = dbShaderControlMetadata.flags.stencilOpValExportEnable;
+    dbShaderControl.bits.Z_ORDER                          = dbShaderControlMetadata.zOrder;
+    dbShaderControl.bits.KILL_ENABLE                      = dbShaderControlMetadata.flags.killEnable;
+    dbShaderControl.bits.COVERAGE_TO_MASK_ENABLE          = dbShaderControlMetadata.flags.coverageToMaskEn;
+    dbShaderControl.bits.MASK_EXPORT_ENABLE               = dbShaderControlMetadata.flags.maskExportEnable;
+    dbShaderControl.bits.EXEC_ON_HIER_FAIL                = dbShaderControlMetadata.flags.execOnHierFail;
+    dbShaderControl.bits.EXEC_ON_NOOP                     = dbShaderControlMetadata.flags.execOnNoop;
+    dbShaderControl.bits.ALPHA_TO_MASK_DISABLE            = dbShaderControlMetadata.flags.alphaToMaskDisable;
+    dbShaderControl.bits.DEPTH_BEFORE_SHADER              = dbShaderControlMetadata.flags.depthBeforeShader;
+    dbShaderControl.bits.CONSERVATIVE_Z_EXPORT            = dbShaderControlMetadata.conservativeZExport;
+    dbShaderControl.bits.PRIMITIVE_ORDERED_PIXEL_SHADER   = dbShaderControlMetadata.flags.primitiveOrderedPixelShader;
+    dbShaderControl.bits.PRE_SHADER_DEPTH_COVERAGE_ENABLE = dbShaderControlMetadata.flags.preShaderDepthCoverageEnable;
 
     if (device.Parent()->Settings().tossPointMode == TossPointAfterPs)
     {
@@ -1477,11 +1467,11 @@ static uint32 PaClVsOutCntl(
     paClVsOutCntl.bits.VS_OUT_CCDIST0_VEC_ENA     = paClVsOutCntlMetadata.flags.vsOutCcDist0VecEna;
     paClVsOutCntl.bits.VS_OUT_CCDIST1_VEC_ENA     = paClVsOutCntlMetadata.flags.vsOutCcDist1VecEna;
     paClVsOutCntl.bits.VS_OUT_MISC_SIDE_BUS_ENA   = paClVsOutCntlMetadata.flags.vsOutMiscSideBusEna;
-    paClVsOutCntl.gfx10Plus.USE_VTX_LINE_WIDTH    = paClVsOutCntlMetadata.flags.useVtxLineWidth;
+    paClVsOutCntl.bits.USE_VTX_LINE_WIDTH         = paClVsOutCntlMetadata.flags.useVtxLineWidth;
 
     if (IsGfx10(gfxLevel))
     {
-        paClVsOutCntl.gfx09_10.USE_VTX_GS_CUT_FLAG = paClVsOutCntlMetadata.flags.useVtxGsCutFlag;
+        paClVsOutCntl.gfx10.USE_VTX_GS_CUT_FLAG = paClVsOutCntlMetadata.flags.useVtxGsCutFlag;
     }
 
     if (IsGfx103Plus(gfxLevel))
@@ -1562,15 +1552,15 @@ static uint32 PaScShaderControl(
         metadata.pipeline.graphicsRegister.paScShaderControl;
 
     PA_SC_SHADER_CONTROL paScShaderControl = {};
-    paScShaderControl.core.LOAD_COLLISION_WAVEID       = paScShaderControlMetadata.flags.loadCollisionWaveid;
-    paScShaderControl.core.LOAD_INTRAWAVE_COLLISION    = paScShaderControlMetadata.flags.loadIntrawaveCollision;
-    paScShaderControl.gfx10Plus.WAVE_BREAK_REGION_SIZE = paScShaderControlMetadata.waveBreakRegionSize;
+    paScShaderControl.bits.LOAD_COLLISION_WAVEID    = paScShaderControlMetadata.flags.loadCollisionWaveid;
+    paScShaderControl.bits.LOAD_INTRAWAVE_COLLISION = paScShaderControlMetadata.flags.loadIntrawaveCollision;
+    paScShaderControl.bits.WAVE_BREAK_REGION_SIZE   = paScShaderControlMetadata.waveBreakRegionSize;
 
     if (chipProps.gfx9.supportCustomWaveBreakSize && (settings.forceWaveBreakSize != Gfx10ForceWaveBreakSizeClient))
     {
         // Override whatever wave-break size was specified by the pipeline binary if the panel is forcing a
         // value for the preferred wave-break size.
-        paScShaderControl.gfx10Plus.WAVE_BREAK_REGION_SIZE = uint32(settings.forceWaveBreakSize);
+        paScShaderControl.bits.WAVE_BREAK_REGION_SIZE = uint32(settings.forceWaveBreakSize);
     }
 
     return paScShaderControl.u32All;
@@ -1630,8 +1620,8 @@ static uint32 ComputePgmRsrc1(
 {
     COMPUTE_PGM_RSRC1 computePgmRsrc1 = { };
 
-    const auto& hwCs    = metadata.pipeline.hardwareStage[uint32(Util::Abi::HardwareStage::Cs)];
-    const bool isWave32 = hwCs.hasEntry.wavefrontSize && (hwCs.wavefrontSize == 32);
+    const auto& hwCs     = metadata.pipeline.hardwareStage[uint32(Util::Abi::HardwareStage::Cs)];
+    const bool  isWave32 = hwCs.hasEntry.wavefrontSize && (hwCs.wavefrontSize == 32);
 
     if (hwCs.hasEntry.vgprCount)
     {
@@ -1643,14 +1633,14 @@ static uint32 ComputePgmRsrc1(
         computePgmRsrc1.bits.SGPRS = CalcNumSgprs(hwCs.sgprCount);
     }
 
-    computePgmRsrc1.bits.FLOAT_MODE        = hwCs.floatMode;
-    computePgmRsrc1.bits.FP16_OVFL         = hwCs.flags.fp16Overflow;
-    computePgmRsrc1.bits.IEEE_MODE         = hwCs.flags.ieeeMode;
-    computePgmRsrc1.bits.DEBUG_MODE        = hwCs.flags.debugMode;
-    computePgmRsrc1.bits.DX10_CLAMP        = 1;
-    computePgmRsrc1.gfx10Plus.WGP_MODE     = hwCs.flags.wgpMode;
-    computePgmRsrc1.gfx10Plus.MEM_ORDERED  = hwCs.flags.memOrdered;
-    computePgmRsrc1.gfx10Plus.FWD_PROGRESS = hwCs.flags.forwardProgress;
+    computePgmRsrc1.bits.FLOAT_MODE   = hwCs.floatMode;
+    computePgmRsrc1.bits.FP16_OVFL    = hwCs.flags.fp16Overflow;
+    computePgmRsrc1.bits.IEEE_MODE    = hwCs.flags.ieeeMode;
+    computePgmRsrc1.bits.DEBUG_MODE   = hwCs.flags.debugMode;
+    computePgmRsrc1.bits.DX10_CLAMP   = 1;
+    computePgmRsrc1.bits.WGP_MODE     = hwCs.flags.wgpMode;
+    computePgmRsrc1.bits.MEM_ORDERED  = hwCs.flags.memOrdered;
+    computePgmRsrc1.bits.FWD_PROGRESS = hwCs.flags.forwardProgress;
 
     return computePgmRsrc1.u32All;
 }
@@ -1696,7 +1686,7 @@ static uint32 ComputePgmRsrc3(
 
     if (IsGfx11(gfxLevel))
     {
-        computePgmRsrc3.gfx104Plus.INST_PREF_SIZE = device.GetShaderPrefetchSize(shaderStageInfoCodeLength);
+        computePgmRsrc3.gfx11.INST_PREF_SIZE = device.GetShaderPrefetchSize(shaderStageInfoCodeLength);
 
         // PWS+ only support pre-shader waits if the IMAGE_OP bit is set. Theoretically we only set it for shaders that
         // do an image operation. However that would mean that our use of the pre-shader PWS+ wait is dependent on us

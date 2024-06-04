@@ -107,26 +107,26 @@ protected:
         PAL_NEVER_CALLED();
     }
 
-    template <typename RegistersType, typename CbColorViewType>
+    template <typename RegistersType>
     void InitCommonBufferView(
         const Device&                    device,
         const ColorTargetViewCreateInfo& createInfo,
         RegistersType*                   pRegs,
-        CbColorViewType*                 pCbColorView) const;
+        regCB_COLOR0_VIEW*               pCbColorView) const;
 
     template <typename FmtInfoType>
     regCB_COLOR0_INFO InitCbColorInfo(
         const Device&      device,
         const FmtInfoType* pFmtInfo) const;
 
-    template <typename RegistersType, typename CbColorViewType>
+    template <typename RegistersType>
     void InitCommonImageView(
         const Device&                     device,
         const ColorTargetViewCreateInfo&  createInfo,
         ColorTargetViewInternalCreateInfo internalInfo,
         const Extent3d&                   baseExtent,
         RegistersType*                    pRegs,
-        CbColorViewType*                  pCbColorView) const;
+        regCB_COLOR0_VIEW*                pCbColorView) const;
 
     template <typename RegistersType>
     void UpdateImageVa(RegistersType* pRegs) const;

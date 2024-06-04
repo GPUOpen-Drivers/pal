@@ -284,6 +284,7 @@ namespace DevDriver
                 // On non windows platforms we try to use an AF_UNIX socket for communication
                 result = SocketMsgTransport::TestConnection(hostInfo, timeout);
                 break;
+
             default:
                 // Invalid value passed to the function
                 DD_WARN_REASON("Invalid transport type specified");

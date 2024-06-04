@@ -73,6 +73,14 @@ typedef struct DDToolApi
     ///
     /// @param pInstance Must be \ref DDModulesApi.pInstance.
     void (*Disconnect)(DDToolInstance* pInstance);
+
+    /// Get the AMDLog client ID.
+    /// Note: This can only be called after a successful call to Connect
+    ///
+    /// @param pInstance Must be \ref DDModulesApi.pInstance.
+    /// @return The client ID for the AMDLog connection.
+    DDClientId (*GetAmdlogClientId)(DDToolInstance* pInstance);
+
 } DDToolApi;
 
 typedef struct DDToolApiCreateInfo

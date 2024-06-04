@@ -464,8 +464,9 @@ uint32 FpsMgr::GetScaledCpuTime(uint32 index)
 uint32 FpsMgr::GetScaledGpuTime(uint32 index)
 {
     uint32 gpuIndex = (m_gpuTimeIndex + index) % TimeCount;
-
-    return m_scaledGpuTimeList[gpuIndex];
+    return ((m_pDefaultFpsMgr != nullptr)             ?
+            m_pDefaultFpsMgr->GetScaledGpuTime(index) :
+            m_scaledGpuTimeList[gpuIndex]);
 }
 
 // =====================================================================================================================

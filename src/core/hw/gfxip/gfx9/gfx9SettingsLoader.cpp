@@ -51,6 +51,16 @@ namespace Pal
 namespace Gfx9
 {
 
+// Minimum ucode version that supports the packed register pairs packet. Temporarily set to UINT_MAX to disable packet
+// usage till additional testing and validation is completed.
+constexpr uint32 Gfx11MinPfpVersionPackedRegPairsPacket   = 1448;
+// Minimum ucode version that supports the packed register pairs packet for compute. Currently not supported.
+constexpr uint32 Gfx11MinPfpVersionPackedRegPairsPacketCs = UINT_MAX;
+// Minimum ucode version that supports the EVENT_WRITE_ZPASS packet.
+constexpr uint32 Gfx11MinPfpVersionEventWriteZpassPacket  = 1458;
+// Minimum ucode version that RELEASE_MEM packet supports waiting CP DMA.
+constexpr uint32 Gfx11MinPfpVersionReleaseMemSupportsWaitCpDma = 2150;
+
 // =====================================================================================================================
 SettingsLoader::SettingsLoader(
     Pal::Device* pDevice)
@@ -254,7 +264,7 @@ void SettingsLoader::ValidateSettings(
         m_settings.psCuEnLimitMask = (1 << (gfx9Props.gfx10.minNumWgpPerSa * 2)) - 1;
     }
 
-    uint32 tessFactRingSizeMask = Gfx09_10::VGT_TF_RING_SIZE__SIZE_MASK;
+    uint32 tessFactRingSizeMask = Gfx10::VGT_TF_RING_SIZE__SIZE_MASK;
     uint32 tessFactScalar       = gfx9Props.numShaderEngines;
 
     if (IsGfx11(*m_pDevice))
@@ -315,6 +325,11 @@ void SettingsLoader::ValidateSettings(
             m_settings.waDisableAc01 = pPalSettings->ac01WaNotNeeded ? Ac01WaAllowAc01 : Ac01WaForbidAc01;
         }
 #endif
+
+        if (m_settings.waNoOpaqueOreo && (m_settings.gfx11OreoModeControl == OMODE_O_THEN_B))
+        {
+            m_settings.gfx11OreoModeControl = OMODE_BLEND;
+        }
 
     }
     else
@@ -751,6 +766,9 @@ static void SetupGfx11Workarounds(
 
     // This snuck past the SWD refactor and was just hard-coded on in gfx9Device.cpp. It was moved here instead.
     pSettings->waDccCacheFlushAndInv = true;
+
+    pSettings->waNoOpaqueOreo =
+        workarounds.ppDbDBOreoOpaqueModeHWBug_UdbOreoScoreBoard_udbOsbData_udbOsbdMonitor_ostSampleMaskMismatchOREOScoreboardStoresInvalidEWaveIDAndIncorrectlySetsRespectiveValidBit_A_;
 }
 
 // =====================================================================================================================
@@ -859,19 +877,19 @@ void SettingsLoader::OverrideDefaults(
         m_settings.gfx103PlusDisableAsymmetricWgpForPs = true;
     }
 
-    // Minimum ucode version that supports the packed register pairs packet.
-    constexpr uint32 MinPfpVersionPackedRegPairsPacket   = 1448;
-    // Minimum ucode version that supports the packed register pairs packet for compute. Currently not supported.
-    constexpr uint32 MinPfpVersionPackedRegPairsPacketCs = UINT_MAX;
-    // Minimum ucode version that supports the EVENT_WRITE_ZPASS packet.
-    constexpr uint32 MinPfpVersionEventWriteZpassPacket  = 1458;
-
     const uint32 pfpUcodeVersion = m_pDevice->ChipProperties().pfpUcodeVersion;
 
-    m_settings.gfx11EnableContextRegPairOptimization = pfpUcodeVersion >= MinPfpVersionPackedRegPairsPacket;
-    m_settings.gfx11EnableShRegPairOptimization      = pfpUcodeVersion >= MinPfpVersionPackedRegPairsPacket;
-    m_settings.gfx11EnableShRegPairOptimizationCs    = pfpUcodeVersion >= MinPfpVersionPackedRegPairsPacketCs;
-    m_settings.gfx11EnableZpassPacketOptimization    = pfpUcodeVersion >= MinPfpVersionEventWriteZpassPacket;
+    m_settings.gfx11EnableContextRegPairOptimization = pfpUcodeVersion >= Gfx11MinPfpVersionPackedRegPairsPacket;
+    m_settings.gfx11EnableShRegPairOptimization      = pfpUcodeVersion >= Gfx11MinPfpVersionPackedRegPairsPacket;
+    m_settings.gfx11EnableShRegPairOptimizationCs    = pfpUcodeVersion >= Gfx11MinPfpVersionPackedRegPairsPacketCs;
+    m_settings.gfx11EnableZpassPacketOptimization    = pfpUcodeVersion >= Gfx11MinPfpVersionEventWriteZpassPacket;
+
+    // Only enable for RS64 FW based GFX11 which adds the support.
+    if ((device.ChipProperties().gfxLevel != GfxIpLevel::GfxIp11_0) ||
+        (pfpUcodeVersion < Gfx11MinPfpVersionReleaseMemSupportsWaitCpDma))
+    {
+        m_settings.gfx11EnableReleaseMemWaitCpDma = false;
+    }
 
     // If minimum sizes are 0, then use default size.
     constexpr uint16 MinBatchBinSizeWidth  = 128;
@@ -891,9 +909,11 @@ void SettingsLoader::OverrideDefaults(
     {
         if (device.ChipProperties().gpuType == GpuType::Integrated)
         {
-            //
-            //
-            m_settings.minDccCompressedBlockSize = Gfx9MinDccCompressedBlockSize::BlockSize64B;
+            {
+                //
+                //
+                m_settings.minDccCompressedBlockSize = Gfx9MinDccCompressedBlockSize::BlockSize64B;
+            }
         }
         else
         {

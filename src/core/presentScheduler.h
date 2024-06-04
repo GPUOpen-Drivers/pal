@@ -104,6 +104,9 @@ public:
     // Waits for all internal present work to be idle before returning.
     Result WaitIdle();
 
+    // Waits for the present thread to drain out.
+    Result WaitPresentThreadIdle();
+
     // Must be declared public but meant for internal use only.
     void RunWorkerThread();
 

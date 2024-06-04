@@ -532,6 +532,14 @@
           "Name": "DateTimeEnabled"
         },
         {
+          "Description": "How big to scale each pixel of the debug overlay. Minimum is 1 and maximum is 4.",
+          "Defaults": {
+            "Default": 1
+          },
+          "Type": "uint32",
+          "Name": "PixelScale"
+        },
+        {
           "Description": "Output current frame number in the debug overlay.",
           "Defaults": {
             "Default": false
@@ -1043,6 +1051,14 @@
           },
           "Type": "bool",
           "Name": "CacheFlushOnCounterCollection"
+        },
+        {
+          "Description": "Use 32bit counters for all SPM blocks instead of the default 16bit",
+          "Defaults": {
+            "Default": false
+          },
+          "Type": "bool",
+          "Name": "Use32BitSpmCounters"
         }
       ],
       "Description": "Configuration options for performance counter collection through the PAL GPU Profiler Layer."

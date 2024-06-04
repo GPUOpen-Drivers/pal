@@ -44,9 +44,7 @@
 #include "palIntrusiveListImpl.h"
 #include "palIterator.h"
 #include "palPipeline.h"
-#if defined(__unix__)
 #include "palSettingsFileMgrImpl.h"
-#endif
 #include "palSysUtil.h"
 #include "palTextWriterImpl.h"
 #include "palDepthStencilView.h"
@@ -72,6 +70,8 @@ using namespace std::chrono;
 
 namespace Pal
 {
+
+constexpr char    UserDefaultDebugFilePath[] = "/var/tmp";
 
 // Translation table for obtaining memory ops per clock for a given Pal::LocalMemoryType.
 static constexpr uint32 MemoryOpsPerClockTable[static_cast<uint32>(LocalMemoryType::Count)] =
@@ -265,9 +265,7 @@ Device::Device(
     m_force32BitVaSpace(pPlatform->Force32BitVaSpace()),
     m_disableSwapChainAcquireBeforeSignaling(false),
     m_pSettingsLoader(nullptr),
-#if defined(__unix__)
     m_settingsMgr(SettingsFileName, pPlatform),
-#endif
     m_dmaUploadRingLock(),
     m_pDmaUploadRing(nullptr),
     m_referencedGpuMem(ReferencedMemoryMapElements, pPlatform),
@@ -1500,11 +1498,9 @@ Result Device::CreateInternalCmdAllocators()
     createInfo.allocInfo[EmbeddedDataAlloc].allocHeap           = CmdBufInternalAllocHeap;
     createInfo.allocInfo[EmbeddedDataAlloc].allocSize           = CmdBufInternalAllocSize;
     createInfo.allocInfo[EmbeddedDataAlloc].suballocSize        = CmdBufInternalSuballocSize;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
     createInfo.allocInfo[LargeEmbeddedDataAlloc].allocHeap      = CmdBufInternalAllocHeap;
     createInfo.allocInfo[LargeEmbeddedDataAlloc].allocSize      = 4 * CmdBufInternalAllocSize;
     createInfo.allocInfo[LargeEmbeddedDataAlloc].suballocSize   = 4 * CmdBufInternalSuballocSize;
-#endif
     createInfo.allocInfo[GpuScratchMemAlloc].allocHeap          = GpuHeapInvisible;
     createInfo.allocInfo[GpuScratchMemAlloc].allocSize          = CmdBufInternalAllocSize;
     createInfo.allocInfo[GpuScratchMemAlloc].suballocSize       = CmdBufInternalSuballocSize;
@@ -2258,15 +2254,8 @@ Result Device::GetProperties(
 // ability to query the GPU execution state from OS or KMD. Returns Success for platforms that can't detect the GPU
 // state, which is equivalent to GPU being active.
 // NOTE: Part of the IDevice public interface.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 796
 Result Device::CheckExecutionState(
-    PageFaultStatus* pPageFaultStatus
-    )
-#else
-Result Device::CheckExecutionState(
-    PageFaultStatus* pPageFaultStatus
-    ) const
-#endif
+    PageFaultStatus* pPageFaultStatus)
 {
     return Result::Success;
 }
@@ -4185,11 +4174,7 @@ bool Device::ReadSetting(
     size_t               bufferSz
     ) const
 {
-#if defined(__unix__)
     return m_settingsMgr.GetValue(pSettingName, valueType, pValue, bufferSz);
-#else
-    return false;
-#endif
 }
 
 // =====================================================================================================================
@@ -5017,7 +5002,7 @@ void Device::LogCodeObjectToDisk(
 
         // This Snprintf has been split into pieces to try to handle pipelines with extremely long names.
         // We will truncate the name string if necessary, preserving the path, prefix, and suffix.
-        constexpr int32 MaxLen = 260; // Util::File has an implicit 260 char limit on Windows.
+        constexpr int32 MaxLen = Util::MaxFileNameStrLen;
         char  fileName[MaxLen] = {};
         int32 offset = Snprintf(fileName, MaxLen, "%s/%s_", pLogDir, prefix.Data());
 
@@ -5078,6 +5063,74 @@ bool Device::EnableDisplayDcc(
     }
 
     return enable;
+}
+
+// =====================================================================================================================
+// Helper method to initialize cache and debug file paths.
+void Device::InitOutputPaths()
+{
+    const char* pPath = nullptr;
+    const char* pSubPath = nullptr;
+
+    // Initialize the root path of cache files
+    // Cascade:
+    // 1. Find AMD_SHADER_DISK_CACHE_PATH to keep backward compatibility.
+    // 2. Find LOCALAPPDATA, XDG_CACHE_HOME.
+    // 3. If AMD_SHADER_DISK_CACHE_PATH, LOCALAPPDATA and XDG_CACHE_HOME both not set,
+    //    use "$HOME/.cache".
+    if (pPath == nullptr)
+    {
+        pPath = getenv("AMD_SHADER_DISK_CACHE_PATH");
+    }
+
+    if (pPath == nullptr)
+    {
+        pPath = getenv("LOCALAPPDATA");
+    }
+
+    if (pPath == nullptr)
+    {
+        pPath = getenv("XDG_CACHE_HOME");
+    }
+
+    if (pPath == nullptr)
+    {
+        pPath = getenv("HOME");
+        pSubPath = "/.cache";
+    }
+
+    if (pPath == nullptr)
+    {
+        pPath = UserDefaultDebugFilePath;
+    }
+
+    if (pSubPath != nullptr)
+    {
+        Snprintf(m_cacheFilePath, sizeof(m_cacheFilePath), "%s%s", pPath, pSubPath);
+    }
+    else
+    {
+        Strncpy(m_cacheFilePath, pPath, sizeof(m_cacheFilePath));
+    }
+
+    // Initialize the root path of debug files which is used to put all files
+    // for debug purpose (such as logs, dumps, replace shader)
+    // 1. Find AMD_DEBUG_DIR.
+    // 2. Find TMPDIR.
+    // 3. If AMD_DEBUG_DIR and TMPDIR both not set, use 'UserDefaultDebugFilePath'
+    pPath = getenv("AMD_DEBUG_DIR");
+
+    if (pPath == nullptr)
+    {
+        pPath = getenv("TMPDIR");
+    }
+
+    if (pPath == nullptr)
+    {
+        pPath = UserDefaultDebugFilePath;
+    }
+
+    Strncpy(m_debugFilePath, pPath, sizeof(m_debugFilePath));
 }
 
 // =====================================================================================================================

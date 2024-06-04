@@ -68,7 +68,8 @@ public:
 
     template <typename Allocator>
     PipelineAbiReader(Allocator* const pAllocator, const void* pData);
-    Result Init();
+    Result Init() { return Init(StringView<char>()); }
+    Result Init(StringView<char> kernelName);
 
     ElfReader::Reader& GetElfReader() { return m_elfReader; }
     const ElfReader::Reader& GetElfReader() const { return m_elfReader; }
@@ -93,7 +94,7 @@ public:
     ///
     /// @returns Success if successful, ErrorInvalidValue, ErrorUnknown or ErrorUnsupportedPipelineElfAbiVersion
     ///          if a parser error occurred, ErrorInvalidPipelineElf if there is no metadata.
-    Result GetMetadata(MsgPackReader* pReader, HsaAbi::CodeObjectMetadata* pMetadata) const;
+    Result GetMetadata(MsgPackReader* pReader, HsaAbi::CodeObjectMetadata* pMetadata, StringView<char> kernelName) const;
 
     /// Gets the high-level OS ABI required by this ELF (e.g., ElfOsAbiAmdgpuHsa, ElfOsAbiAmdgpuPal).
     ///

@@ -164,9 +164,7 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
     { InterfaceFunc::CmdBufferCmdDumpCeRam,                         (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdWriteCeRam,                        (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdAllocateEmbeddedData,              (CmdBuild)            },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
     { InterfaceFunc::CmdBufferCmdAllocateLargeEmbeddedData,         (CmdBuild)            },
-#endif
     { InterfaceFunc::CmdBufferCmdExecuteNestedCmdBuffers,           (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdSaveComputeState,                  (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdRestoreComputeState,               (CmdBuild)            },

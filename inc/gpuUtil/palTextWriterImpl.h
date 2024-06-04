@@ -230,7 +230,8 @@ void TextWriter<Allocator>::DrawDebugText(
     Pal::ICmdBuffer*   pCmdBuffer,  // Command buffer for drawing text
     const char*        pText,       // Text to draw
     Pal::uint32        x,           // X drawing offset
-    Pal::uint32        y            // Y drawing offset
+    Pal::uint32        y,           // Y drawing offset
+    Pal::uint32        pixelScale   // How big to scale the pixel.
     ) const
 {
     const Pal::uint32 stringLen = static_cast<Pal::uint32>(strlen(pText));
@@ -240,6 +241,7 @@ void TextWriter<Allocator>::DrawDebugText(
         TextDrawShaderInfo info = {};
         info.startX = x;
         info.startY = y;
+        info.scale  = pixelScale;
 
         // Pack the raw draw colors into the destination format.
         const Pal::SwizzledFormat imgFormat = dstImage.GetImageCreateInfo().swizzledFormat;

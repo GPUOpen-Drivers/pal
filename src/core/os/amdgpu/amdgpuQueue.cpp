@@ -209,6 +209,7 @@ Queue::Queue(
     m_globalRefDirty(true),
     m_appMemRefCount(0),
     m_pendingWait(false),
+    m_needInitialDummySubmit(true),
     m_pCmdUploadRing(nullptr),
     m_sqttWaRequired(false),
     m_perfCtrWaRequired(false),
@@ -322,10 +323,10 @@ Result Queue::Init(
         }
     }
 
+    Device* pDevice = static_cast<Device*>(m_pDevice);
+
     if (result == Result::Success)
     {
-        Device* pDevice = static_cast<Device*>(m_pDevice);
-
         Vector<amdgpu_bo_handle, 1, Platform> dummyResourceList(pDevice->GetPlatform());
 
         m_pDummyCmdStream = m_pDevice->GetDummyCommandStream(GetEngineType());
@@ -384,9 +385,18 @@ Result Queue::Init(
 
     // create sync object to track submission state if it is supported.
     if ((result == Result::Success) &&
-        (static_cast<Device*>(m_pDevice)->GetSemaphoreType() == SemaphoreType::SyncObj))
+        (pDevice->GetSemaphoreType() == SemaphoreType::SyncObj))
     {
-        result =  static_cast<Device*>(m_pDevice)->CreateSyncObject(0, &m_lastSignaledSyncObject);
+        uint32 flags = 0;
+
+        // If this is created as initially signalled, we don't need the initial dummy submission in
+        // SignalSemaphore
+        if (pDevice->IsInitialSignaledSyncobjSemaphoreSupported())
+        {
+            flags = DRM_SYNCOBJ_CREATE_SIGNALED;
+            m_needInitialDummySubmit = false;
+        }
+        result =  pDevice->CreateSyncObject(flags, &m_lastSignaledSyncObject);
     }
 
     return result;
@@ -597,7 +607,8 @@ Result Queue::SignalSemaphore(
     const auto& device  = static_cast<Device&>(*m_pDevice);
     const auto& context = static_cast<SubmissionContext&>(*m_pSubmissionContext);
 
-    if ((m_pendingWait == true) || (context.LastTimestamp() == 0))
+    if ((m_pendingWait == true) ||
+        ((context.LastTimestamp() == 0) && m_needInitialDummySubmit))
     {
         result = DummySubmit(true);
     }

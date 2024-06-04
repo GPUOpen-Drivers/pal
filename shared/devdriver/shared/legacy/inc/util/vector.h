@@ -340,7 +340,7 @@ namespace DevDriver
                 DD_ASSERT(pData != nullptr);
 
                 // If the struct is not a POD, then we need to construct objects
-                if (std::is_trivial_v<T> == false)
+                if (is_type_trivial() == false)
                 {
                     size_t i = 0;
                     // First, we move all existing objects into the vector.
@@ -476,6 +476,10 @@ namespace DevDriver
     private:
         // Disallow copy construct.
         Vector(Vector& rhs) = delete;
+
+        // This indirection fixes the warning comparision of a constant with another constant. This should be
+        // replace with `if constexpr` once AMDLog upgrades to support C++17.
+        constexpr bool is_type_trivial() { return std::is_trivial_v<T>; }
 
         T m_data[defaultCapacity];
         T* m_pData;

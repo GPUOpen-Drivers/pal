@@ -54,9 +54,7 @@ public:
         ICmdAllocator* pCmdAllocator,
         bool           returnGpuMemory) override;
     virtual uint32 GetEmbeddedDataLimit() const override;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
     virtual uint32 GetLargeEmbeddedDataLimit() const override;
-#endif
     virtual void CmdBindPipeline(
         const PipelineBindParams& params) override;
     virtual void CmdBindMsaaState(
@@ -80,9 +78,7 @@ public:
         uint32            argCount,
         const void*const* ppValues) override;
     virtual void CmdSetVertexBuffers(
-        uint32                firstBuffer,
-        uint32                bufferCount,
-        const BufferViewInfo* pBuffers) override;
+        const VertexBufferViews& bufferViews) override;
     virtual void CmdBindIndexData(
         gpusize   gpuAddr,
         uint32    indexCount,
@@ -455,12 +451,10 @@ public:
         uint32   sizeInDwords,
         uint32   alignmentInDwords,
         gpusize* pGpuAddress) override;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
     virtual uint32* CmdAllocateLargeEmbeddedData(
         uint32   sizeInDwords,
         uint32   alignmentInDwords,
         gpusize* pGpuAddress) override;
-#endif
     virtual Result AllocateAndBindGpuMemToEvent(
         IGpuEvent* pGpuEvent) override;
     virtual void CmdExecuteNestedCmdBuffers(

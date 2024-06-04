@@ -1166,6 +1166,12 @@ inline Result DeserializeHardwareStageMetadata(
                 pMetadata->hasEntry.numCbConstUsages = (result == Result::Success);;
                 break;
 
+            case HashLiteralString(HardwareStageMetadataKey::UnusedImmConst):
+                PAL_ASSERT(pMetadata->hasEntry.unusedImmConst == 0);
+                result = pReader->UnpackNext(&pMetadata->unusedImmConst);
+                pMetadata->hasEntry.unusedImmConst = (result == Result::Success);;
+                break;
+
             case HashLiteralString(HardwareStageMetadataKey::WavefrontSize):
                 PAL_ASSERT(pMetadata->hasEntry.wavefrontSize == 0);
                 result = pReader->UnpackNext(&pMetadata->wavefrontSize);
@@ -5513,6 +5519,12 @@ inline Result DeserializePipelineMetadata(
                 pMetadata->hasEntry.resourceHash = (result == Result::Success);;
                 break;
 
+            case HashLiteralString(PipelineMetadataKey::UnifiedRgsNameHash):
+                PAL_ASSERT(pMetadata->hasEntry.unifiedRgsNameHash == 0);
+                result = pReader->UnpackNext(&pMetadata->unifiedRgsNameHash);
+                pMetadata->hasEntry.unifiedRgsNameHash = (result == Result::Success);;
+                break;
+
             case HashLiteralString(PipelineMetadataKey::Shaders):
                 PAL_ASSERT(pMetadata->hasEntry.shader == 0);
                 pReader->Next();
@@ -5670,6 +5682,21 @@ inline Result DeserializePipelineMetadata(
                 }
 
                 pMetadata->hasEntry.psSampleMask = (result == Result::Success);
+                break;
+            }
+
+            case HashLiteralString(PipelineMetadataKey::UsesCps):
+            {
+                PAL_ASSERT(pMetadata->hasEntry.usesCps == 0);
+                bool value = false;
+                result = pReader->UnpackNext(&value);
+
+                if (result == Result::Success)
+                {
+                    pMetadata->flags.usesCps = value;
+                }
+
+                pMetadata->hasEntry.usesCps = (result == Result::Success);
                 break;
             }
 

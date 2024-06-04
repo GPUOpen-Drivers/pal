@@ -139,6 +139,69 @@ static DD_RESULT RegisterFunctions(
         result = ddRpcServerRegisterFunction(hServer, &info);
     }
 
+    // Register "SetDbgLogSeverityLevel"
+    if (result == DD_RESULT_SUCCESS)
+    {
+        DDRpcServerRegisterFunctionInfo info = {};
+        info.serviceId                       = 0x24815012;
+        info.id                              = 0x6;
+        info.pName                           = "SetDbgLogSeverityLevel";
+        info.pDescription                    = "Set driver DbgLog's severity level";
+        info.pFuncUserdata                   = pService;
+        info.pfnFuncCb                       = [](
+            const DDRpcServerCallInfo* pCall) -> DD_RESULT
+        {
+            auto* pService = reinterpret_cast<IDriverUtilsService*>(pCall->pUserdata);
+
+            // Execute the service implementation
+            return pService->SetDbgLogSeverityLevel(pCall->pParameterData, pCall->parameterDataSize);
+        };
+
+        result = ddRpcServerRegisterFunction(hServer, &info);
+    }
+
+    // Register "SetDbgLogOriginationMask"
+    if (result == DD_RESULT_SUCCESS)
+    {
+        DDRpcServerRegisterFunctionInfo info = {};
+        info.serviceId                       = 0x24815012;
+        info.id                              = 0x7;
+        info.pName                           = "SetDbgLogOriginationMask";
+        info.pDescription                    = "Set driver DbgLog's origination mask";
+        info.pFuncUserdata                   = pService;
+        info.pfnFuncCb                       = [](
+            const DDRpcServerCallInfo* pCall) -> DD_RESULT
+        {
+            auto* pService = reinterpret_cast<IDriverUtilsService*>(pCall->pUserdata);
+
+            // Execute the service implementation
+            return pService->SetDbgLogOriginationMask(pCall->pParameterData, pCall->parameterDataSize);
+        };
+
+        result = ddRpcServerRegisterFunction(hServer, &info);
+    }
+
+    // Register "ModifyDbgLogOriginationMask"
+    if (result == DD_RESULT_SUCCESS)
+    {
+        DDRpcServerRegisterFunctionInfo info = {};
+        info.serviceId                       = 0x24815012;
+        info.id                              = 0x8;
+        info.pName                           = "ModifyDbgLogOriginationMask";
+        info.pDescription                    = "Modify driver DbgLog's origination mask";
+        info.pFuncUserdata                   = pService;
+        info.pfnFuncCb                       = [](
+            const DDRpcServerCallInfo* pCall) -> DD_RESULT
+        {
+            auto* pService = reinterpret_cast<IDriverUtilsService*>(pCall->pUserdata);
+
+            // Execute the service implementation
+            return pService->ModifyDbgLogOriginationMask(pCall->pParameterData, pCall->parameterDataSize);
+        };
+
+        result = ddRpcServerRegisterFunction(hServer, &info);
+    }
+
     return result;
 }
 
@@ -171,6 +234,20 @@ DD_RESULT RegisterService(
     }
 
     return result;
+}
+
+void UnRegisterService(DDRpcServer hServer)
+{
+    DDRpcServerRegisterServiceInfo info = {};
+    info.id                             = 0x24815012;
+    info.version.major                  = 1;
+    info.version.minor                  = 3;
+    info.version.patch                  = 0;
+    info.pName                          = "DriverUtils";
+    info.pDescription                   = "A utilities service for modifying the driver.";
+
+    // Unregister the service if registering functions fails
+    ddRpcServerUnregisterService(hServer, info.id);
 }
 
 } // namespace DriverUtils

@@ -82,7 +82,7 @@ void InitializeContextRegistersNv10(
         0x0       ,
         0x0       ,
         0x0       ,
-        0x0       ,
+        0x150055  ,
         0x0       ,
         0x0
     };
@@ -184,7 +184,7 @@ void InitializeContextRegistersNv10(
     };
     constexpr uint32 VgtMultiPrimIbResetIndxNv10[] = {
         0x0       ,
-        0x0       ,
+        0x550055  ,
         0x0       ,
         0x0       ,
         0x0       ,
@@ -730,18 +730,18 @@ void InitializeContextRegistersNv10(
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSPI_PS_INPUT_CNTL_0, mmSPI_SHADER_COL_FORMAT, SpiPsInputCntl0Nv10, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSX_PS_DOWNCONVERT, mmCB_BLEND7_CONTROL, SxPsDownconvertNv10, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_CL_POINT_X_RAD, mmPA_CL_POINT_CULL_RAD, PaClPointXRadNv10, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx10Plus::mmGE_MAX_OUTPUT_PER_SUBGROUP, Gfx10Plus::mmPA_STATE_STEREO_X, GeMaxOutputPerSubgroupNv10, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmGE_MAX_OUTPUT_PER_SUBGROUP, mmPA_STATE_STEREO_X, GeMaxOutputPerSubgroupNv10, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SU_POINT_SIZE, mmPA_SC_LINE_STIPPLE, PaSuPointSizeNv10, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_HOS_MAX_TESS_LEVEL, mmVGT_HOS_MIN_TESS_LEVEL, VgtHosMaxTessLevelNv10, pCmdSpace);
     pCmdStream->CommitCommands(pCmdSpace);
     pCmdSpace = pCmdStream->ReserveCommands();
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(HasHwVs::mmVGT_GS_MODE, Gfx09_10::mmVGT_GS_OUT_PRIM_TYPE, VgtGsModeNv10, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx10::mmVGT_GS_MODE, Gfx10::mmVGT_GS_OUT_PRIM_TYPE, VgtGsModeNv10, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_PRIMITIVEID_EN, mmVGT_PRIMITIVEID_EN, VgtPrimitiveidEnNv10, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_PRIMITIVEID_RESET, mmVGT_PRIMITIVEID_RESET, VgtPrimitiveidResetNv10, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_DRAW_PAYLOAD_CNTL, HasHwVs::mmVGT_STRMOUT_BUFFER_CONFIG, VgtDrawPayloadCntlNv10, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_DRAW_PAYLOAD_CNTL, Gfx10::mmVGT_STRMOUT_BUFFER_CONFIG, VgtDrawPayloadCntlNv10, pCmdSpace);
     pCmdStream->CommitCommands(pCmdSpace);
     pCmdSpace = pCmdStream->ReserveCommands();
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SC_CENTROID_PRIORITY_0, Gfx10Plus::mmCB_COLOR7_ATTRIB3, PaScCentroidPriority0Nv10, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SC_CENTROID_PRIORITY_0, mmCB_COLOR7_ATTRIB3, PaScCentroidPriority0Nv10, pCmdSpace);
     pCmdStream->CommitCommands(pCmdSpace);
 
     for (uint32  regIdx = 0; regIdx < numRegPairs; regIdx++)
@@ -792,7 +792,7 @@ void InitializeContextRegistersGfx103(
         0x0       ,
         0x0       ,
         0x0       ,
-        0x0       ,
+        0x150055  ,
         0x0       ,
         0x0
     };
@@ -894,7 +894,7 @@ void InitializeContextRegistersGfx103(
     };
     constexpr uint32 VgtMultiPrimIbResetIndxGfx103[] = {
         0x0       ,
-        0x0       ,
+        0x550055  ,
         0x0       ,
         0x0       ,
         0x0       ,
@@ -1442,18 +1442,18 @@ void InitializeContextRegistersGfx103(
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSPI_PS_INPUT_CNTL_0, mmSPI_SHADER_COL_FORMAT, SpiPsInputCntl0Gfx103, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx103PlusExclusive::mmSX_PS_DOWNCONVERT_CONTROL, mmCB_BLEND7_CONTROL, SxPsDownconvertControlGfx103, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_CL_POINT_X_RAD, mmPA_CL_POINT_CULL_RAD, PaClPointXRadGfx103, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx10Plus::mmGE_MAX_OUTPUT_PER_SUBGROUP, Gfx103Plus::mmPA_CL_VRS_CNTL, GeMaxOutputPerSubgroupGfx103, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmGE_MAX_OUTPUT_PER_SUBGROUP, Gfx103Plus::mmPA_CL_VRS_CNTL, GeMaxOutputPerSubgroupGfx103, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SU_POINT_SIZE, mmPA_SC_LINE_STIPPLE, PaSuPointSizeGfx103, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_HOS_MAX_TESS_LEVEL, mmVGT_HOS_MIN_TESS_LEVEL, VgtHosMaxTessLevelGfx103, pCmdSpace);
     pCmdStream->CommitCommands(pCmdSpace);
     pCmdSpace = pCmdStream->ReserveCommands();
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(HasHwVs::mmVGT_GS_MODE, Gfx09_10::mmVGT_GS_OUT_PRIM_TYPE, VgtGsModeGfx103, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx10::mmVGT_GS_MODE, Gfx10::mmVGT_GS_OUT_PRIM_TYPE, VgtGsModeGfx103, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_PRIMITIVEID_EN, mmVGT_PRIMITIVEID_EN, VgtPrimitiveidEnGfx103, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_PRIMITIVEID_RESET, mmVGT_PRIMITIVEID_RESET, VgtPrimitiveidResetGfx103, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_DRAW_PAYLOAD_CNTL, HasHwVs::mmVGT_STRMOUT_BUFFER_CONFIG, VgtDrawPayloadCntlGfx103, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_DRAW_PAYLOAD_CNTL, Gfx10::mmVGT_STRMOUT_BUFFER_CONFIG, VgtDrawPayloadCntlGfx103, pCmdSpace);
     pCmdStream->CommitCommands(pCmdSpace);
     pCmdSpace = pCmdStream->ReserveCommands();
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SC_CENTROID_PRIORITY_0, Gfx10Plus::mmCB_COLOR7_ATTRIB3, PaScCentroidPriority0Gfx103, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SC_CENTROID_PRIORITY_0, mmCB_COLOR7_ATTRIB3, PaScCentroidPriority0Gfx103, pCmdSpace);
     pCmdStream->CommitCommands(pCmdSpace);
 
     for (uint32  regIdx = 0; regIdx < numRegPairs; regIdx++)
@@ -1504,7 +1504,7 @@ void InitializeContextRegistersGfx11(
         0x0       ,
         0x0       ,
         0x0       ,
-        0x0       ,
+        0x150055  ,
         0x0       ,
         0x0
     };
@@ -1619,7 +1619,7 @@ void InitializeContextRegistersGfx11(
     };
     constexpr uint32 VgtMultiPrimIbResetIndxGfx11[] = {
         0x0       ,
-        0x0       ,
+        0x550055  ,
         0x0       ,
         0x0       ,
         0x0       ,
@@ -2079,10 +2079,10 @@ void InitializeContextRegistersGfx11(
     pCmdSpace = pCmdStream->ReserveCommands();
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_MULTI_PRIM_IB_RESET_INDX, mmPA_CL_UCP_5_W, VgtMultiPrimIbResetIndxGfx11, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSPI_PS_INPUT_CNTL_0, Gfx11::mmSPI_GFX_SCRATCH_BASE_HI, SpiPsInputCntl0Gfx11, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx10Plus::mmSPI_SHADER_IDX_FORMAT, mmSPI_SHADER_COL_FORMAT, SpiShaderIdxFormatGfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSPI_SHADER_IDX_FORMAT, mmSPI_SHADER_COL_FORMAT, SpiShaderIdxFormatGfx11, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx103PlusExclusive::mmSX_PS_DOWNCONVERT_CONTROL, mmCB_BLEND7_CONTROL, SxPsDownconvertControlGfx11, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_CL_POINT_X_RAD, mmPA_CL_POINT_CULL_RAD, PaClPointXRadGfx11, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx10Plus::mmGE_MAX_OUTPUT_PER_SUBGROUP, Gfx103Plus::mmPA_CL_VRS_CNTL, GeMaxOutputPerSubgroupGfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmGE_MAX_OUTPUT_PER_SUBGROUP, Gfx103Plus::mmPA_CL_VRS_CNTL, GeMaxOutputPerSubgroupGfx11, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SU_POINT_SIZE, mmPA_SC_LINE_STIPPLE, PaSuPointSizeGfx11, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_HOS_MAX_TESS_LEVEL, mmVGT_HOS_MIN_TESS_LEVEL, VgtHosMaxTessLevelGfx11, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SC_MODE_CNTL_0, mmVGT_ENHANCE, PaScModeCntl0Gfx11, pCmdSpace);
@@ -2093,9 +2093,9 @@ void InitializeContextRegistersGfx11(
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_DRAW_PAYLOAD_CNTL, mmVGT_DRAW_PAYLOAD_CNTL, VgtDrawPayloadCntlGfx11, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_ESGS_RING_ITEMSIZE, mmDB_SRESULTS_COMPARE_STATE1, VgtEsgsRingItemsizeGfx11, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_STRMOUT_DRAW_OPAQUE_OFFSET, mmVGT_GS_MAX_VERT_OUT, VgtStrmoutDrawOpaqueOffsetGfx11, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx10Plus::mmGE_NGG_SUBGRP_CNTL, mmVGT_LS_HS_CONFIG, GeNggSubgrpCntlGfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmGE_NGG_SUBGRP_CNTL, mmVGT_LS_HS_CONFIG, GeNggSubgrpCntlGfx11, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_TF_PARAM, mmVGT_GS_INSTANCE_CNT, VgtTfParamGfx11, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SC_CENTROID_PRIORITY_0, Gfx104Plus::mmPA_SC_BINNER_CNTL_2, PaScCentroidPriority0Gfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SC_CENTROID_PRIORITY_0, Gfx11::mmPA_SC_BINNER_CNTL_2, PaScCentroidPriority0Gfx11, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmCB_COLOR0_BASE, mmCB_COLOR0_BASE, CbColor0BaseGfx11, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmCB_COLOR0_VIEW, mmCB_COLOR0_DCC_CONTROL, CbColor0ViewGfx11, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmCB_COLOR0_DCC_BASE, mmCB_COLOR1_BASE, CbColor0DccBaseGfx11, pCmdSpace);
@@ -2112,8 +2112,8 @@ void InitializeContextRegistersGfx11(
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmCB_COLOR6_VIEW, mmCB_COLOR6_DCC_CONTROL, CbColor6ViewGfx11, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmCB_COLOR6_DCC_BASE, mmCB_COLOR7_BASE, CbColor6DccBaseGfx11, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmCB_COLOR7_VIEW, mmCB_COLOR7_DCC_CONTROL, CbColor7ViewGfx11, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmCB_COLOR7_DCC_BASE, Gfx10Plus::mmCB_COLOR7_BASE_EXT, CbColor7DccBaseGfx11, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx10Plus::mmCB_COLOR0_DCC_BASE_EXT, Gfx10Plus::mmCB_COLOR7_ATTRIB3, CbColor0DccBaseExtGfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmCB_COLOR7_DCC_BASE, mmCB_COLOR7_BASE_EXT, CbColor7DccBaseGfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmCB_COLOR0_DCC_BASE_EXT, mmCB_COLOR7_ATTRIB3, CbColor0DccBaseExtGfx11, pCmdSpace);
     pCmdStream->CommitCommands(pCmdSpace);
 
     for (uint32  regIdx = 0; regIdx < numRegPairs; regIdx++)

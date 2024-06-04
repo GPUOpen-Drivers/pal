@@ -204,20 +204,18 @@ Result Queue::InitCmdAllocator()
     createInfo.flags.threadSafe               = 1;
     createInfo.flags.autoMemoryReuse          = 1;
     createInfo.flags.disableBusyChunkTracking = 1;
-    createInfo.allocInfo[CommandDataAlloc].allocHeap            = GpuHeapGartCacheable;
-    createInfo.allocInfo[CommandDataAlloc].suballocSize         = SuballocSize;
-    createInfo.allocInfo[CommandDataAlloc].allocSize            = AllocSize;
-    createInfo.allocInfo[EmbeddedDataAlloc].allocHeap           = GpuHeapGartCacheable;
-    createInfo.allocInfo[EmbeddedDataAlloc].suballocSize        = SuballocSize;
-    createInfo.allocInfo[EmbeddedDataAlloc].allocSize           = AllocSize;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
-    createInfo.allocInfo[LargeEmbeddedDataAlloc].allocHeap      = GpuHeapGartCacheable;
-    createInfo.allocInfo[LargeEmbeddedDataAlloc].suballocSize   = SuballocSize;
-    createInfo.allocInfo[LargeEmbeddedDataAlloc].allocSize      = AllocSize;
-#endif
-    createInfo.allocInfo[GpuScratchMemAlloc].allocHeap          = GpuHeapInvisible;
-    createInfo.allocInfo[GpuScratchMemAlloc].suballocSize       = SuballocSize;
-    createInfo.allocInfo[GpuScratchMemAlloc].allocSize          = AllocSize;
+    createInfo.allocInfo[CommandDataAlloc].allocHeap          = GpuHeapGartCacheable;
+    createInfo.allocInfo[CommandDataAlloc].suballocSize       = SuballocSize;
+    createInfo.allocInfo[CommandDataAlloc].allocSize          = AllocSize;
+    createInfo.allocInfo[EmbeddedDataAlloc].allocHeap         = GpuHeapGartCacheable;
+    createInfo.allocInfo[EmbeddedDataAlloc].suballocSize      = SuballocSize;
+    createInfo.allocInfo[EmbeddedDataAlloc].allocSize         = AllocSize;
+    createInfo.allocInfo[LargeEmbeddedDataAlloc].allocHeap    = GpuHeapGartCacheable;
+    createInfo.allocInfo[LargeEmbeddedDataAlloc].suballocSize = SuballocSize;
+    createInfo.allocInfo[LargeEmbeddedDataAlloc].allocSize    = AllocSize;
+    createInfo.allocInfo[GpuScratchMemAlloc].allocHeap        = GpuHeapInvisible;
+    createInfo.allocInfo[GpuScratchMemAlloc].suballocSize     = SuballocSize;
+    createInfo.allocInfo[GpuScratchMemAlloc].allocSize        = AllocSize;
 
     Result result = Result::Success;
 
@@ -257,11 +255,9 @@ Result Queue::InitNestedCmdAllocator()
     createInfo.allocInfo[EmbeddedDataAlloc].allocHeap         = GpuHeapGartUswc;
     createInfo.allocInfo[EmbeddedDataAlloc].allocSize         = 4_KiB;
     createInfo.allocInfo[EmbeddedDataAlloc].suballocSize      = 4_KiB;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
     createInfo.allocInfo[LargeEmbeddedDataAlloc].allocHeap    = GpuHeapGartCacheable;
     createInfo.allocInfo[LargeEmbeddedDataAlloc].suballocSize = 64_KiB;
     createInfo.allocInfo[LargeEmbeddedDataAlloc].allocSize    = 64_KiB;
-#endif
     createInfo.allocInfo[GpuScratchMemAlloc].allocHeap        = GpuHeapGartUswc;
     createInfo.allocInfo[GpuScratchMemAlloc].allocSize        = 2_MiB;
     createInfo.allocInfo[GpuScratchMemAlloc].suballocSize     = 64_KiB;

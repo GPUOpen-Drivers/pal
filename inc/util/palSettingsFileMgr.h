@@ -108,18 +108,27 @@ public:
     bool GetValueByHash(uint32 hashedName, ValueType type, void* pValue, size_t bufferSz = 0) const;
 
 private:
-    // Describes a single { setting, value } pair as loaded from a settings file.
-    struct SettingValuePair
+
+    /// Returns a pointer to string with the lead spaces trimmed
+    ///
+    /// @param [in] pStr String to edit
+    ///
+    /// @return The modified string
+    char* SkipLeadingSpaces(char* pStr);
+
+    // Describes a single { setting, value, componentName } triplet as loaded from a settings file.
+    struct SettingValueInfo
     {
-        uint32 hashName;      // 32-bit hash of the setting name string.
-        char   strValue[512];  // Value for this setting encoded as a C-stlye string.
+        uint32 hashName;          // 32-bit hash of the setting name string.
+        char   strValue[512];     // Value for this setting encoded as a C-stlye string.
+        char   componentName[32]; // The name of the component
     };
 
     const char*const m_pSettingsFileName;
     File             m_settingsFile;
 
-    // List of setting, value pairs parsed from the config file.
-    List<SettingValuePair, Allocator> m_settingsList;
+    // List of setting, value info parsed from the config file.
+    List<SettingValueInfo, Allocator> m_settingsList;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(SettingsFileMgr);
 };

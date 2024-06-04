@@ -27,6 +27,7 @@
 #define DD_ROUTER_UTILS_API_H
 
 #include "dd_common_api.h"
+#include "dd_allocator_api.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -73,6 +74,17 @@ typedef struct DDRouterUtilsApi
     /// @return DD_RESULT_DD_GENERIC_NOT_READY If router connection isn't ready.
     /// @return Other errors if the query failed.
     DD_RESULT (*GetTimestampAndFrequency)(DDRouterUtilsInstance* pInstance, uint64_t* pTimestamp, uint64_t* pFrequency);
+
+    /// Queries the full path of a process on the target machine.
+    /// @param pInstance Must be \ref DDRouterUtilsApi.pInstance.
+    /// @param processId The identifier of the process to query.
+    /// @param allocator The allocator to use to allocate the buffer.
+    /// @param [out] pProcessPath The process path.
+    /// @return DD_RESULT_SUCCESS Process path was queried successfully.
+    /// @return DD_RESULT_DD_GENERIC_NOT_READY If router connection isn't ready.
+    /// @return Other errors if the query failed.
+    DD_RESULT (*QueryPathByProcessId)(DDRouterUtilsInstance* pInstance, uint32_t processId, DDAllocator allocator, char** pProcessPath);
+
 } DDRouterUtilsApi;
 
 #ifdef __cplusplus

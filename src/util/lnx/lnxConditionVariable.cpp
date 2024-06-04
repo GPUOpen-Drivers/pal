@@ -26,6 +26,7 @@
 #include "palConditionVariable.h"
 #include "palMutex.h"
 #include "palSysMemory.h"
+#include "palTime.h"
 #include "util/lnx/lnxTimeout.h"
 #include <errno.h>
 

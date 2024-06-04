@@ -113,7 +113,7 @@ void Queue::OutputLogItemsToFile(
                 m_curLogCmdBufIdx += (--activeCmdBufs == 0) ? 1 : 0;
             }
         }
-        else if (logItem.type == QueueCall)
+        else if ((logItem.type == QueueCall) || (logItem.type == VirtualQueueCall))
         {
             // If this is the first queue call for a new frame, open a new log file.
             if ((m_logFile.IsOpen() == false) || (m_curLogFrame != logItem.frameId))
@@ -454,9 +454,13 @@ void Queue::OutputRgpFile(
 void Queue::OutputQueueCallToFile(
     const LogItem& logItem)
 {
-    PAL_ASSERT(logItem.type == QueueCall);
+    PAL_ASSERT((logItem.type == QueueCall) || (logItem.type == VirtualQueueCall));
+    // Ensure the use of the queueCall.callId is the same as use of virtualQueueCall.callId
+    static_assert(sizeof(VirtualQueueCallId) == sizeof(QueueCallId));
 
-    m_logFile.Printf("%s,,,,,,,,,,,,,,,,,", QueueCallIdStrings[static_cast<uint32>(logItem.queueCall.callId)]);
+    const char* const *strings = ((logItem.type == QueueCall) ? QueueCallIdStrings : VirtualQueueCallIdStrings);
+
+    m_logFile.Printf("%s,,,,,,,,,,,,,,,,,", strings[static_cast<uint32>(logItem.queueCall.callId)]);
 
     if (m_pDevice->GetPlatform()->PlatformSettings().gpuProfilerConfig.recordPipelineStats)
     {

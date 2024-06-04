@@ -28,9 +28,13 @@
 #include "palSysUtil.h"
 #include "palVector.h"
 #include "palVectorImpl.h"
+
+// stl
 #include <algorithm>
 #include <ctime>
 #include <thread>
+
+// microsoft
 
 using namespace std::chrono;
 
@@ -469,4 +473,7 @@ void Sleep(
 {
     std::this_thread::sleep_for(duration);
 }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 866
+#endif
 } // Util

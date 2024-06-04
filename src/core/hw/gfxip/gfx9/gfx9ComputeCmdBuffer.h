@@ -190,7 +190,12 @@ public:
 
     virtual void CpCopyMemory(gpusize dstAddr, gpusize srcAddr, gpusize numBytes) override;
 
-    virtual uint32* WriteWaitEop(HwPipePoint waitPoint, uint32 hwGlxSync, uint32 hwRbSync, uint32* pCmdSpace) override;
+    virtual uint32* WriteWaitEop(
+        HwPipePoint waitPoint,
+        bool        waitCpDma,
+        uint32      hwGlxSync,
+        uint32      hwRbSync,
+        uint32*     pCmdSpace) override;
     virtual uint32* WriteWaitCsIdle(uint32* pCmdSpace) override;
 
     //Gets ringSizes from cmdBuffer.
@@ -280,7 +285,7 @@ private:
     const Device&   m_device;
     const CmdUtil&  m_cmdUtil;
     const bool      m_issueSqttMarkerEvent;
-    const bool      m_describeDispatch;
+    bool            m_describeDispatch;
     CmdStream       m_cmdStream;
 
     // Tracks the user-data signature of the currently active compute pipeline.

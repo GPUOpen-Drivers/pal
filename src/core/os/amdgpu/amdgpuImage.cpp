@@ -685,12 +685,12 @@ Result Image::CreateExternalSharedImage(
 
                 internalCreateInfo.sharedMetadata.fmaskSwizzleMode =
                     static_cast<AddrSwizzleMode>(pUmdSharedMetadata->gfx9.fmask_swizzle_mode);
+
+                createInfo.flags.optimalShareable = 1;
             }
 
             internalCreateInfo.sharedMetadata.resourceId =
                 Uint64CombineParts(pUmdSharedMetadata->resource_id, pUmdSharedMetadata->resource_id_high32);
-
-            createInfo.flags.optimalShareable = 1;
         }
         else
         {

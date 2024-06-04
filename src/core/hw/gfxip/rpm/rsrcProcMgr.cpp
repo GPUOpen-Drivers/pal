@@ -2259,12 +2259,25 @@ void RsrcProcMgr::ScaledCopyImageCompute(
         ImageScaledCopyRegion copyRegion = copyInfo.pRegions[idx];
 
         // Calculate the absolute value of dstExtent, which will get fed to the shader.
-        const int32 dstExtentW = (copyInfo.flags.coordsInFloat != 0) ?
-            static_cast<int32>(copyRegion.dstExtentFloat.width + 0.5f) : copyRegion.dstExtent.width;
-        const int32 dstExtentH = (copyInfo.flags.coordsInFloat != 0) ?
-            static_cast<int32>(copyRegion.dstExtentFloat.height + 0.5f) : copyRegion.dstExtent.height;
-        const int32 dstExtentD = (copyInfo.flags.coordsInFloat != 0) ?
-            static_cast<int32>(copyRegion.dstExtentFloat.depth + 0.5f) : copyRegion.dstExtent.depth;
+        int32 dstExtentW = 0;
+        int32 dstExtentH = 0;
+        int32 dstExtentD = 0;
+
+        if (copyInfo.flags.coordsInFloat != 0)
+        {
+            dstExtentW = static_cast<int32>((copyRegion.dstExtentFloat.width > 0) ?
+                (copyRegion.dstExtentFloat.width + 0.5f) : (copyRegion.dstExtentFloat.width - 0.5f));
+            dstExtentH = static_cast<int32>((copyRegion.dstExtentFloat.height > 0) ?
+                (copyRegion.dstExtentFloat.height + 0.5f) : (copyRegion.dstExtentFloat.height - 0.5f));
+            dstExtentD = static_cast<int32>((copyRegion.dstExtentFloat.depth > 0) ?
+                (copyRegion.dstExtentFloat.depth + 0.5f) : (copyRegion.dstExtentFloat.depth - 0.5f));
+        }
+        else
+        {
+            dstExtentW = copyRegion.dstExtent.width;
+            dstExtentH = copyRegion.dstExtent.height;
+            dstExtentD = copyRegion.dstExtent.depth;
+        }
 
         uint32 absDstExtentW = Math::Absu(dstExtentW);
         uint32 absDstExtentH = Math::Absu(dstExtentH);

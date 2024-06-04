@@ -43,6 +43,7 @@ class      IPrivateScreen;
 class      IScreen;
 class      ISwapChain;
 enum class CompressionMode : uint32;
+enum class ClientCompressionMode : uint32;
 
 /// When used as the value of the viewFormatCount parameter of image creation it indicates that all compatible formats
 /// can be used for views of the created image.

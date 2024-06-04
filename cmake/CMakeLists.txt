@@ -34,6 +34,7 @@ target_sources(pal PRIVATE
     PalCompilerWarnings.cmake
     PalOptions.cmake
     PalOverrides.cmake
+    PalPrecompiledHeaders.cmake
     PalVersionHelper.cmake
 )
 

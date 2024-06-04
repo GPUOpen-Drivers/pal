@@ -31,6 +31,8 @@
 
 #pragma once
 
+#include <chrono>
+
 namespace Util
 {
 
@@ -47,5 +49,39 @@ public:
 private:
     char m_data[64];
 };
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 873
+/// Seconds stored as a float instead of an integer.
+using fseconds      = std::chrono::duration<float>;
+/// Milliseconds stored as a float instead of an integer.
+using fmilliseconds = std::chrono::duration<float, std::milli>;
+/// Microseconds stored as a float instead of an integer.
+using fmicroseconds = std::chrono::duration<float, std::micro>;
+/// Nanoseconds stored as a float instead of an integer.
+using fnanoseconds  = std::chrono::duration<float, std::nano>;
+
+/// A time_point who's epoch is January 1st 1970 and uses seconds for the duration.
+/// C++20 guarantees us that system_clock's epoch is always January 1st 1970 on all platforms.
+/// system_clock's internal duration is still implementation defined.
+/// On Windows it's hundreds-of-nanoseconds and on Linux it's seconds.
+/// However time_point has it's own duration type.
+/// As long as we go through the time_point to interpret the duration then everything should be in terms of seconds.
+using SecondsSinceEpoch = std::chrono::time_point<std::chrono::system_clock, std::chrono::seconds>;
+
+/// Like std::chrono::duration_cast, but it preserves the special 'infinite' value used in timeouts.
+template<class DestDuration, class Rep, class Period>
+constexpr DestDuration TimeoutCast(
+    const std::chrono::duration<Rep, Period>& d)
+{
+    if (d == (std::chrono::duration<Rep, Period>::max)())
+    {
+        return (DestDuration::max)();
+    }
+    else
+    {
+        return std::chrono::duration_cast<DestDuration, Rep, Period>(d);
+    }
+}
+#endif
 
 } // Util

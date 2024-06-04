@@ -170,10 +170,8 @@ public:
     virtual uint32 GetEmbeddedDataLimit() const override
         { return m_pCmdAllocator->ChunkSize(EmbeddedDataAlloc) / sizeof(uint32); }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
     virtual uint32 GetLargeEmbeddedDataLimit() const override
         { return m_pCmdAllocator->ChunkSize(LargeEmbeddedDataAlloc) / sizeof(uint32); }
-#endif
 
     virtual void CmdNop(
         const void* pPayload,
@@ -254,10 +252,7 @@ public:
         const void*const* ppValues) override
         { PAL_NEVER_CALLED(); }
 
-    virtual void CmdSetVertexBuffers(
-        uint32                firstBuffer,
-        uint32                bufferCount,
-        const BufferViewInfo* pBuffers) override
+    virtual void CmdSetVertexBuffers(const VertexBufferViews& bufferViews) override
         { PAL_NEVER_CALLED(); }
 
     virtual void CmdBindIndexData(
@@ -709,12 +704,10 @@ public:
         uint32   alignmentInDwords,
         gpusize* pGpuAddress) override final;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
     virtual uint32* CmdAllocateLargeEmbeddedData(
         uint32   sizeInDwords,
         uint32   alignmentInDwords,
         gpusize* pGpuAddress) override final;
-#endif
 
     virtual Result AllocateAndBindGpuMemToEvent(
         IGpuEvent* pGpuEvent) override;
@@ -881,13 +874,11 @@ public:
         GpuMemory** ppGpuMem,
         gpusize*    pOffset);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
     uint32* CmdAllocateLargeEmbeddedData(
         uint32      sizeInDwords,
         uint32      alignmentInDwords,
         GpuMemory** ppGpuMem,
         gpusize*    pOffset);
-#endif
 
     virtual void CmdSetPerDrawVrsRate(
         const VrsRateParams&  rateParams) override;
@@ -960,14 +951,10 @@ protected:
         uint32 numDwords)
         { return GetDataChunk(EmbeddedDataAlloc, &m_embeddedData, numDwords); }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
     // Get a chunk for embedded data. A large one, that is.
     CmdStreamChunk* GetLargeEmbeddedDataChunk(
         uint32 numDwords)
-    {
-        return GetDataChunk(LargeEmbeddedDataAlloc, &m_largeEmbeddedData, numDwords);
-    }
-#endif
+        { return GetDataChunk(LargeEmbeddedDataAlloc, &m_largeEmbeddedData, numDwords); }
 
     gpusize AllocateGpuScratchMem(
         uint32      sizeInDwords,
@@ -1042,9 +1029,7 @@ protected:
     };
 
     ChunkData          m_embeddedData;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
     ChunkData          m_largeEmbeddedData;
-#endif
     ChunkData          m_gpuScratchMem;
     uint32             m_gpuScratchMemAllocLimit;
 

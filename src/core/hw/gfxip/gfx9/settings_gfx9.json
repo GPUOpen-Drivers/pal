@@ -113,6 +113,19 @@
       "Name": "DisableBorderColorPaletteBinds"
     },
     {
+      "Description": "If RELEASE_MEM packet supports wait CP DMA when releasing EOP and EOS, gfx11 only.",
+      "Tags": [
+        "General",
+        "Gfx11"
+      ],
+      "Defaults": {
+        "Default": true
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "Name": "Gfx11EnableReleaseMemWaitCpDma"
+    },
+    {
       "ValidValues": {
         "IsEnum": true,
         "Values": [
@@ -3173,6 +3186,20 @@
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
       "Name": "WaDccCacheFlushAndInv"
+    },
+    {
+      "Description": "Workaround that disables the use of OREO's Opaque mode.",
+      "Tags": [
+        "Hardware Workarounds",
+        "Gfx11"
+      ],
+      "Flags": {},
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "Name": "WaNoOpaqueOreo"
     }
   ]
 }

@@ -233,25 +233,20 @@ ScratchRing::ScratchRing(
     m_numMaxWaves = Min<size_t>(m_numMaxWaves, (MaxScratchWavesPerCu * m_numTotalCus));
     PAL_ASSERT(m_numMaxWaves <= 0xFFF); // Max bits allowed in reg field, should never hit this.
 
-    BufferSrd*const   pGenericSrd = &m_pSrdTable[static_cast<size_t>(srdTableIndex)];
+    BufferSrd*const pSrd = &m_pSrdTable[static_cast<size_t>(srdTableIndex)];
 
-    m_pDevice->InitBufferSrd(pGenericSrd, 0, 0);
+    m_pDevice->InitBufferSrd(pSrd, 0, 0);
+
+    pSrd->index_stride   = BUF_INDEX_STRIDE_64B;
+    pSrd->add_tid_enable = 1;
 
     if (IsGfx10(m_gfxLevel))
     {
-        auto*const  pSrd = &pGenericSrd->gfx10;
-
         pSrd->gfx10.swizzle_enable = 1;
-        pSrd->index_stride         = BUF_INDEX_STRIDE_64B;
-        pSrd->add_tid_enable       = 1;
     }
     else
     {
-        auto*const  pSrd = &pGenericSrd->gfx10;
-
         pSrd->gfx11.swizzle_enable = 1;
-        pSrd->index_stride         = BUF_INDEX_STRIDE_64B;
-        pSrd->add_tid_enable       = 1;
     }
 }
 
@@ -383,26 +378,21 @@ GsVsRing::GsVsRing(
     // Set-up static SRD fields for Write:
     for (size_t idx = 0; idx < WriteSrds; ++idx)
     {
-        auto*const  pBufferSrdWr = &pGenericSrdWr[idx];
+        auto*const pSrdWr = &pGenericSrdWr[idx];
 
-        pDevice->InitBufferSrd(pBufferSrdWr, 0, 0);
-        pDevice->SetNumRecords(pBufferSrdWr, NumRecordsWrite);
+        pDevice->InitBufferSrd(pSrdWr, 0, 0);
+        pDevice->SetNumRecords(pSrdWr, NumRecordsWrite);
+
+        pSrdWr->index_stride   = BUF_INDEX_STRIDE_16B;
+        pSrdWr->add_tid_enable = 1;
 
         if (IsGfx10(m_gfxLevel))
         {
-            auto*const  pSrdWr = &pBufferSrdWr->gfx10;
-
             pSrdWr->gfx10.swizzle_enable = 1;
-            pSrdWr->index_stride         = BUF_INDEX_STRIDE_16B;
-            pSrdWr->add_tid_enable       = 1;
         }
         else
         {
-            auto*const  pSrdWr = &pBufferSrdWr->gfx10;
-
             pSrdWr->gfx11.swizzle_enable = 1;
-            pSrdWr->index_stride         = BUF_INDEX_STRIDE_16B;
-            pSrdWr->add_tid_enable       = 1;
         }
     }
 
@@ -431,7 +421,7 @@ void GsVsRing::UpdateSrds() const
         // All four WriteSrds are programmed to the same base address and a stride of zero.
         // These SRDs are patched by the geometry shader with values from a geometry constant buffer for
         // accurate rendering.
-        pSrdWr->gfx10.stride = 0;
+        pSrdWr->stride = 0;
     }
 }
 
@@ -746,9 +736,9 @@ VertexAttributeRing::VertexAttributeRing(
     // Set-up static SRD fields:
     pDevice->InitBufferSrd(pSrd, 0, Stride);
 
-    pSrd->gfx10.index_stride          = BUF_INDEX_STRIDE_32B;
-    pSrd->gfx10.gfx104Plus.format     = BUF_FMT_32_32_32_32_FLOAT__GFX104PLUS;
-    pSrd->gfx10.gfx11.swizzle_enable  = 3;
+    pSrd->index_stride          = BUF_INDEX_STRIDE_32B;
+    pSrd->gfx11.format          = BUF_FMT_32_32_32_32_FLOAT__GFX11;
+    pSrd->gfx11.swizzle_enable  = 3;
 }
 
 // =====================================================================================================================

@@ -36,6 +36,19 @@ namespace Util
 
 // =====================================================================================================================
 template <typename Allocator>
+char* SettingsFileMgr<Allocator>::SkipLeadingSpaces(
+    char* pStr)
+{
+    while ((*pStr != '\0') && isspace(static_cast<uint8>(*pStr)))
+    {
+        pStr++;
+    }
+
+    return pStr;
+}
+
+// =====================================================================================================================
+template <typename Allocator>
 SettingsFileMgr<Allocator>::~SettingsFileMgr()
 {
     // Clean up the settings list
@@ -53,7 +66,7 @@ template <typename Allocator>
 Result SettingsFileMgr<Allocator>::Init(
     const char* pSettingsPath)
 {
-    Result ret = Result::Success;
+    Result ret = Result::ErrorInvalidPointer;
 
     const char* pEnvOverridenPath = getenv("AMD_CONFIG_DIR");
     if (pEnvOverridenPath != nullptr)
@@ -61,28 +74,47 @@ Result SettingsFileMgr<Allocator>::Init(
         pSettingsPath = pEnvOverridenPath;
     }
 
-    // Open the settings file, if it exists
-    char fileAbsPath[512];
-    Snprintf(&fileAbsPath[0], sizeof(fileAbsPath), "%s/%s", pSettingsPath, m_pSettingsFileName);
-
-    if (File::Exists(&fileAbsPath[0]) == false)
+    if (pSettingsPath != nullptr)
     {
-        char fallbackFileAbsPath[512];
-        Snprintf(&fallbackFileAbsPath[0], sizeof(fallbackFileAbsPath), "%s/amdPalSettings.cfg", pSettingsPath);
+        // Open the settings file, if it exists
+        char fileAbsPath[512];
 
-        if(File::Exists(&fallbackFileAbsPath[0]) == false)
+        Snprintf(&fileAbsPath[0],
+                 sizeof(fileAbsPath),
+#if defined(__unix__)
+                 "%s/%s",
+#else
+                 "%s\\%s",
+#endif
+                 pSettingsPath,
+                 m_pSettingsFileName);
+
+        if (File::Exists(&fileAbsPath[0]) == false)
         {
-            ret = Result::ErrorUnavailable;
+            char fallbackFileAbsPath[512];
+            Snprintf(&fallbackFileAbsPath[0],
+                     sizeof(fallbackFileAbsPath),
+#if defined(__unix__)
+                     "%s/amdPalSettings.cfg",
+#else
+                     "%s\\amdPalSettings.cfg",
+#endif
+                     pSettingsPath);
+
+            if (File::Exists(&fallbackFileAbsPath[0]) == false)
+            {
+                ret = Result::ErrorUnavailable;
+            }
+            else
+            {
+                ret = m_settingsFile.Open(&fallbackFileAbsPath[0], FileAccessRead);
+            }
         }
         else
         {
-            ret = m_settingsFile.Open(&fallbackFileAbsPath[0], FileAccessRead);
+            // Open the config file for read-only access
+            ret = m_settingsFile.Open(&fileAbsPath[0], FileAccessRead);
         }
-    }
-    else
-    {
-        // Open the config file for read-only access
-        ret = m_settingsFile.Open(&fileAbsPath[0], FileAccessRead);
     }
 
     if (ret == Result::Success)
@@ -125,9 +157,22 @@ Result SettingsFileMgr<Allocator>::Init(
 
                 // all other lines are key, value pairs. Split at the comma and add them to our map
                 char* pBuffer = NULL;
-                char* pToken = Strtok(currLine, ", ", &pBuffer);
+                char* pToken = Strtok(&currLine[idx], ",", &pBuffer);
                 if ((pToken != nullptr) && (strlen(pToken) > 0))
                 {
+                    // Trim off the scope if it is present
+                    char* pScope = nullptr;
+                    if (strchr(pToken, ':') != NULL)
+                    {
+                        pScope = Strtok(pToken, ":", &pToken);
+
+                        // Handle strings like "Scope: Name"
+                        if (pToken != nullptr)
+                        {
+                            pToken = SkipLeadingSpaces(pToken);
+                        }
+                    }
+
                     uint32 hashedName = 0;
                     // If the first character of the string is a # that indicates that the name
                     // string is an already hashed setting name. In that case just convert to UINT32
@@ -145,18 +190,21 @@ Result SettingsFileMgr<Allocator>::Init(
                     pToken = Strtok(nullptr, ",", &pBuffer);
                     if (pToken != nullptr)
                     {
-                        // ignore leading whitespace
-                        while ((*pToken != '\0') && isspace(static_cast<uint8>(*pToken)))
-                        {
-                            pToken++;
-                        }
+                        pToken = SkipLeadingSpaces(pToken);
 
                         if (strlen(pToken) > 0)
                         {
-                            SettingValuePair pair = { hashedName, {0} };
-                            PAL_ASSERT(strlen(pToken) < sizeof(pair.strValue));
-                            strncpy(&pair.strValue[0], pToken, sizeof(pair.strValue));
-                            m_settingsList.PushBack(pair);
+                            SettingValueInfo info = { .hashName = hashedName, .strValue = {0}, .componentName = {0} };
+                            PAL_ASSERT(strlen(pToken) < sizeof(info.strValue));
+                            strncpy(&info.strValue[0], pToken, sizeof(info.strValue));
+
+                            if (pScope != nullptr)
+                            {
+                                PAL_ASSERT(strlen(pScope) < sizeof(info.componentName));
+                                strncpy(&info.componentName[0], pScope, sizeof(info.componentName));
+                            }
+
+                            m_settingsList.PushBack(info);
                         }
                     }
                 }
@@ -209,7 +257,7 @@ bool SettingsFileMgr<Allocator>::GetValueByHash(
     // Get the value from the list
     auto iterator = m_settingsList.Begin();
     const char* pSettingValue = nullptr;
-    while(iterator.Get() != nullptr)
+    while (iterator.Get() != nullptr)
     {
         if (iterator.Get()->hashName == hashedName)
         {
@@ -219,7 +267,7 @@ bool SettingsFileMgr<Allocator>::GetValueByHash(
         iterator.Next();
     }
 
-    if(pSettingValue != nullptr)
+    if (pSettingValue != nullptr)
     {
         // Indicate we found the value being requested
         foundValue = true;

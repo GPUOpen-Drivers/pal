@@ -336,12 +336,10 @@ static const char* CmdAllocTypeToStr(
     const char* pRet = "Unknown";
     switch (type)
     {
-    case CmdAllocType::CommandDataAlloc:        pRet = "CommandDataAlloc";        break;
-    case CmdAllocType::EmbeddedDataAlloc:       pRet = "EmbeddedDataAlloc";       break;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
-    case CmdAllocType::LargeEmbeddedDataAlloc:  pRet = "LargeEmbeddedDataAlloc";  break;
-#endif
-    case CmdAllocType::GpuScratchMemAlloc:      pRet = "GpuScratchMemAlloc";      break;
+    case CmdAllocType::CommandDataAlloc:       pRet = "CommandDataAlloc";       break;
+    case CmdAllocType::EmbeddedDataAlloc:      pRet = "EmbeddedDataAlloc";      break;
+    case CmdAllocType::LargeEmbeddedDataAlloc: pRet = "LargeEmbeddedDataAlloc"; break;
+    case CmdAllocType::GpuScratchMemAlloc:     pRet = "GpuScratchMemAlloc";     break;
     default:
         PAL_ASSERT_ALWAYS();
         break;

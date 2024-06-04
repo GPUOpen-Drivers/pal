@@ -109,7 +109,7 @@ static const uint8  MinMetaEqCompPos = 0xFF;
 class MetaDataAddrEquation
 {
 public:
-    MetaDataAddrEquation(uint32 maxEquationBits, const char*  pName = nullptr);
+    MetaDataAddrEquation(uint32 maxEquationBits);
     virtual ~MetaDataAddrEquation() {}
 
     // This is the maximum number of bits that any given equation can produce
@@ -123,12 +123,6 @@ public:
         MetaDataAddrEquation*  pDst,
         uint32                 startBitPos   = 0,
         int32                  numBitsToCopy = -1) const;
-    uint32 CpuSolve(
-        uint32  x,
-        uint32  y,
-        uint32  z,
-        uint32  sample,
-        uint32  metaBlock) const;
     bool Exists(
         uint32  compType,
         uint32  data) const;
@@ -170,7 +164,6 @@ public:
         CompPair*  pC2,
         uint32     start = 0,
         uint32     end = 0);
-    void PrintEquation(const Pal::Device*  pDevice) const;
     bool Remove(const CompPair&  compPair);
     bool Remove(const CompPair&  compPair, uint32 bitPos);
     void GenerateMetaEqParamConst(
@@ -239,15 +232,10 @@ private:
 
     void ValidateInput(uint32  bitPos, uint32  compType) const;
 
-#if PAL_ENABLE_PRINTS_ASSERTS
-    static const uint32  MaxEquationNameLength = 32;
-    char    m_equationName[MaxEquationNameLength]; // The name given to this equation, used only for printing
-#endif
-
-    uint32         m_maxBits;                 // The maximum number of bits this equation could have
+    uint32   m_maxBits;                 // The maximum number of bits this equation could have
 
     // Tracks the first CompPair added through "SetBits" for each bit of the equation
-    CompPair            m_firstPair[MaxNumMetaDataAddrBits];
+    CompPair m_firstPair[MaxNumMetaDataAddrBits];
 
     // One of the meta-data address equations.
     //    equation[0][MetaDataAddrCompX] = 0x5 would mean that the "X" component of bit 0 of this equation is
@@ -256,7 +244,7 @@ private:
     // i.e., each uint32 is a bitmask indicating where each set bit position indicates which bits of the component
     //       are important for the final equation bit.  (Got that?).  The "final equation bit" is the first index
     //       into the array, the "component" is the second index into the array.
-    uint32  m_equation[MaxNumMetaDataAddrBits][MetaDataAddrCompNumTypes];
+    uint32   m_equation[MaxNumMetaDataAddrBits][MetaDataAddrCompNumTypes];
 };
 
 } // Gfx9

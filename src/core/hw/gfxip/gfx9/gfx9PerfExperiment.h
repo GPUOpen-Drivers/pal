@@ -157,7 +157,7 @@ struct GlobalSelectState
         regSQ_PERFCOUNTER0_SELECT  perfmon[Gfx9MaxSqgPerfmonModules];
     } sqg[Gfx9MaxShaderEngines];
 
-    struct
+    struct SqWgp
     {
         bool                       perfmonInUse[Gfx11MaxSqPerfmonModules];
         bool                       hasCounters;
@@ -234,11 +234,20 @@ union MuxselEncoding
 
     struct
     {
-        uint16 counter     : 5;
-        uint16 instance    : 5;
-        uint16 shaderArray : 1;
-        uint16 block       : 5;
+        uint16 counter     : 5; // A special ID used by the RLC to identify a specific 32-bit SPM wire select.
+        uint16 instance    : 5; // The instance within the SA
+        uint16 shaderArray : 1; // 0: SA0, 1: SA1
+        uint16 block       : 5; // A special block enum defined by the RLC.
     } gfx11;
+
+    struct
+    {
+        uint16 counter     : 5; // A special ID used by the RLC to identify a specific 32-bit SPM wire select.
+        uint16 instance    : 1; // The instance within the WGP
+        uint16 wgp         : 4; // WGP within the SA
+        uint16 shaderArray : 1; // 0: SA0, 1: SA1
+        uint16 block       : 5; // A special block enum defined by the RLC.
+    } gfx11Wgp;
 
     uint16 u16All; // All the fields above as a single uint16
 };
@@ -317,7 +326,7 @@ public:
 
     Result Init();
 
-    virtual Result AddCounter(const PerfCounterInfo& counterInfo) override;
+    virtual Result AddCounter(const Pal::PerfCounterInfo& counterInfo) override;
     virtual Result AddThreadTrace(const ThreadTraceInfo& traceInfo) override;
     virtual Result AddSpmTrace(const SpmTraceCreateInfo& spmCreateInfo) override;
     virtual Result AddDfSpmTrace(const SpmTraceCreateInfo& dfSpmCreateInfo) override;
@@ -350,8 +359,8 @@ protected:
 
 private:
     Result AllocateGenericStructs(GpuBlock block, uint32 globalInstance);
-    Result AddSpmCounter(const PerfCounterInfo& counterInfo, SpmCounterMapping* pMapping);
-    Result BuildCounterMapping(const PerfCounterInfo& info, CounterMapping* pMapping) const;
+    Result AddSpmCounter(const Pal::PerfCounterInfo& counterInfo, SpmCounterMapping* pMapping);
+    Result BuildCounterMapping(const Pal::PerfCounterInfo& info, CounterMapping* pMapping) const;
     Result BuildInstanceMapping(GpuBlock block, uint32 globalInstance, InstanceMapping* pMapping) const;
     Result AllocateDfSpmBuffers(gpusize dfSpmBufferSize);
     void   FillMuxselRam(SpmDataSegmentType segment, uint32 offsetInLines);
@@ -396,10 +405,10 @@ private:
     bool HasGlobalDfCounters() const;
 
     // Some helpful references.
-    const GpuChipProperties&   m_chipProps;
-    const Gfx9PerfCounterInfo& m_counterInfo;
-    const Gfx9PalSettings&     m_settings;
-    const CmdUtil&             m_cmdUtil;
+    const GpuChipProperties& m_chipProps;
+    const PerfCounterInfo&   m_counterInfo;
+    const Gfx9PalSettings&   m_settings;
+    const CmdUtil&           m_cmdUtil;
 
     // Global counters are added iteratively so just use a vector to hold them.
     Util::Vector<GlobalCounterMapping, 32, Platform> m_globalCounters;
@@ -414,9 +423,7 @@ private:
         gpusize                       bufferSize;   // The size of this trace's output buffer in bytes.
         regGRBM_GFX_INDEX             grbmGfxIndex; // Used to write this trace's registers.
         regSQ_THREAD_TRACE_CTRL       ctrl;
-        regSQ_THREAD_TRACE_MODE       mode;
         regSQ_THREAD_TRACE_MASK       mask;
-        regSQ_THREAD_TRACE_PERF_MASK  perfMask;
         regSQ_THREAD_TRACE_TOKEN_MASK tokenMask;
     } m_sqtt[Gfx9MaxShaderEngines];
 

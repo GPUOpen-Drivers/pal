@@ -654,12 +654,10 @@ Result Device::EarlyInit(
 
     for (uint32 i = 0; i < EngineTypeCount; i++)
     {
-        m_engineProperties.perEngine[i].preferredCmdAllocHeaps[CommandDataAlloc]        = GpuHeapGartUswc;
-        m_engineProperties.perEngine[i].preferredCmdAllocHeaps[EmbeddedDataAlloc]       = GpuHeapGartUswc;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
-        m_engineProperties.perEngine[i].preferredCmdAllocHeaps[LargeEmbeddedDataAlloc]  = GpuHeapGartUswc;
-#endif
-        m_engineProperties.perEngine[i].preferredCmdAllocHeaps[GpuScratchMemAlloc]      = GpuHeapInvisible;
+        m_engineProperties.perEngine[i].preferredCmdAllocHeaps[CommandDataAlloc]       = GpuHeapGartUswc;
+        m_engineProperties.perEngine[i].preferredCmdAllocHeaps[EmbeddedDataAlloc]      = GpuHeapGartUswc;
+        m_engineProperties.perEngine[i].preferredCmdAllocHeaps[LargeEmbeddedDataAlloc] = GpuHeapGartUswc;
+        m_engineProperties.perEngine[i].preferredCmdAllocHeaps[GpuScratchMemAlloc]     = GpuHeapInvisible;
     }
 
     for (uint32 i = 0; i < EngineTypeCount; i++)
@@ -976,19 +974,6 @@ Result Device::InitMemoryProperties()
 void Device::InitExternalPhysicalHeap()
 {
     m_memoryProperties.busAddressableMemSize = 0;
-}
-
-// =====================================================================================================================
-// Helper method to initialize cache and debug file paths.
-void Device::InitOutputPaths()
-{
-    const char* pPath = getenv("APPDATA");
-
-    if (pPath != nullptr)
-    {
-        Strncpy(m_cacheFilePath, pPath, sizeof(m_cacheFilePath));
-        Strncpy(m_debugFilePath, pPath, sizeof(m_debugFilePath));
-    }
 }
 
 // =====================================================================================================================

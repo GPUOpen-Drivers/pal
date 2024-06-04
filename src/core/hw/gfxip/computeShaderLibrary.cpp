@@ -69,56 +69,59 @@ Result ComputeShaderLibrary::PostInit(
     const PalAbi::CodeObjectMetadata& metadata,
     Util::MsgPackReader*              pReader)
 {
-    Result result = pReader->Seek(metadata.pipeline.shaderFunctions);
-
-    if (result == Result::Success)
+    Result result = Result::Success;
+    if (metadata.pipeline.hasEntry.shaderFunctions)
     {
-        result = (pReader->Type() == CWP_ITEM_MAP) ? Result::Success : Result::ErrorInvalidValue;
-        const auto& item = pReader->Get().as;
-
-        for (uint32 i = item.map.size; ((result == Result::Success) && (i > 0)); --i)
+        result = pReader->Seek(metadata.pipeline.shaderFunctions);
+        if (result == Result::Success)
         {
-            ShaderFuncStats stats = {};
+            result = (pReader->Type() == CWP_ITEM_MAP) ? Result::Success : Result::ErrorInvalidValue;
+            const auto& item = pReader->Get().as;
 
-            result = pReader->Next(CWP_ITEM_STR);
-            if (result == Result::Success)
+            for (uint32 i = item.map.size; ((result == Result::Success) && (i > 0)); --i)
             {
-                stats.symbolNameLength = item.str.length;
-                stats.pSymbolName      = static_cast<const char*>(item.str.start);
-            }
+                ShaderFuncStats stats = {};
 
-            if (result == Result::Success)
-            {
-                result = pReader->Next(CWP_ITEM_MAP);
-            }
-
-            if (result == Result::Success)
-            {
-                for (uint32 j = item.map.size; ((result == Result::Success) && (j > 0)); --j)
+                result = pReader->Next(CWP_ITEM_STR);
+                if (result == Result::Success)
                 {
-                    result = pReader->Next(CWP_ITEM_STR);
+                    stats.symbolNameLength = item.str.length;
+                    stats.pSymbolName      = static_cast<const char*>(item.str.start);
+                }
 
-                    if (result == Result::Success)
+                if (result == Result::Success)
+                {
+                    result = pReader->Next(CWP_ITEM_MAP);
+                }
+
+                if (result == Result::Success)
+                {
+                    for (uint32 j = item.map.size; ((result == Result::Success) && (j > 0)); --j)
                     {
-                        switch (HashString(static_cast<const char*>(item.str.start), item.str.length))
-                        {
-                        case HashLiteralString(".stack_frame_size_in_bytes"):
-                        {
-                            result = pReader->UnpackNext(&stats.stackFrameSizeInBytes);
-                            m_maxStackSizeInBytes = Max(m_maxStackSizeInBytes, stats.stackFrameSizeInBytes);
-                            break;
-                        }
-                        case HashLiteralString(".shader_subtype"):
-                        {
-                            Util::Abi::ApiShaderSubType shaderSubType;
-                            Util::PalAbi::Metadata::DeserializeEnum(pReader, &shaderSubType);
-                            stats.shaderSubType = static_cast<Pal::ShaderSubType>(shaderSubType);
-                            break;
-                        }
+                        result = pReader->Next(CWP_ITEM_STR);
 
-                        default:
-                            result = pReader->Skip(1);
-                           break;
+                        if (result == Result::Success)
+                        {
+                            switch (HashString(static_cast<const char*>(item.str.start), item.str.length))
+                            {
+                            case HashLiteralString(".stack_frame_size_in_bytes"):
+                            {
+                                result = pReader->UnpackNext(&stats.stackFrameSizeInBytes);
+                                m_maxStackSizeInBytes = Max(m_maxStackSizeInBytes, stats.stackFrameSizeInBytes);
+                                break;
+                            }
+                            case HashLiteralString(".shader_subtype"):
+                            {
+                                Util::Abi::ApiShaderSubType shaderSubType;
+                                Util::PalAbi::Metadata::DeserializeEnum(pReader, &shaderSubType);
+                                stats.shaderSubType = static_cast<Pal::ShaderSubType>(shaderSubType);
+                                break;
+                            }
+
+                            default:
+                                result = pReader->Skip(1);
+                               break;
+                            }
                         }
                     }
                 }
@@ -152,9 +155,10 @@ Result ComputeShaderLibrary::PerformRelocationsAndUploadToGpuMemory(
 
     if (result == Result::Success)
     {
+        gpusize offset   = pUploader->SectionOffset();
         m_pagingFenceVal = pUploader->PagingFenceVal();
-        m_gpuMemSize     = pUploader->GpuMemSize();
-        m_gpuMem.Update(pUploader->GpuMem(), pUploader->GpuMemOffset());
+        m_gpuMemSize     = pUploader->GpuMemSize() - offset;
+        m_gpuMem.Update(pUploader->GpuMem(), pUploader->GpuMemOffset() + offset);
     }
 
     return result;
@@ -166,35 +170,38 @@ Result ComputeShaderLibrary::InitFunctionListFromMetadata(
     const Util::PalAbi::CodeObjectMetadata& metadata,
     Util::MsgPackReader*                    pReader)
 {
-    Result result = pReader->Seek(metadata.pipeline.shaderFunctions);
-
-    if (result == Result::Success)
+    Result result = Result::Success;
+    if (metadata.pipeline.hasEntry.shaderFunctions)
     {
-        result = (pReader->Type() == CWP_ITEM_MAP) ? Result::Success : Result::ErrorInvalidValue;
-        const auto& item = pReader->Get().as;
-
-        uint32 funcCount = item.map.size;
-
-        for (uint32 i = 0; ((result == Result::Success) && (i < funcCount)); ++i)
+        result = pReader->Seek(metadata.pipeline.shaderFunctions);
+        if (result == Result::Success)
         {
-            result = pReader->Next(CWP_ITEM_STR);
+            result = (pReader->Type() == CWP_ITEM_MAP) ? Result::Success : Result::ErrorInvalidValue;
+            const auto& item = pReader->Get().as;
 
-            if (result == Result::Success)
+            uint32 funcCount = item.map.size;
+
+            for (uint32 i = 0; ((result == Result::Success) && (i < funcCount)); ++i)
             {
+                result = pReader->Next(CWP_ITEM_STR);
+
+                if (result == Result::Success)
+                {
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 827
-                ShaderLibraryFunctionInfo info = { nullptr, 0 };
+                    ShaderLibraryFunctionInfo info = { nullptr, 0 };
 #else
-                StringView<char> symbolName(static_cast<const char*>(item.str.start), item.str.length);
-                ShaderLibraryFunctionInfo info = { symbolName, 0 };
+                    StringView<char> symbolName(static_cast<const char*>(item.str.start), item.str.length);
+                    ShaderLibraryFunctionInfo info = { symbolName, 0 };
 #endif
-                result = m_functionList.PushBack(info);
-            }
+                    result = m_functionList.PushBack(info);
+                }
 
-            if (result == Result::Success)
-            {
-                // Skip metadata for this function (we only need its name here).
-                // E.g., function1 : {...}(skip), function2 : {...}(skip)
-                result = pReader->Skip(1);
+                if (result == Result::Success)
+                {
+                    // Skip metadata for this function (we only need its name here).
+                    // E.g., function1 : {...}(skip), function2 : {...}(skip)
+                    result = pReader->Skip(1);
+                }
             }
         }
     }

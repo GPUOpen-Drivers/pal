@@ -345,15 +345,25 @@ struct PeerGpuMemoryOpenInfo
 /// IDevice::OpenExternalSharedGpuMemory().
 struct ExternalGpuMemoryOpenInfo
 {
-    ExternalResourceOpenInfo resourceInfo;      ///< Information describing the external gpuMemory.
-    TypedBufferCreateInfo    typedBufferInfo;   ///< Information describing the typed buffer information.
+    ExternalResourceOpenInfo resourceInfo;    ///< Information describing the external gpuMemory.
+    TypedBufferCreateInfo    typedBufferInfo; ///< Information describing the typed buffer information.
+    GpuMemMallPolicy         mallPolicy;      ///< Used to control whether or not this allocation will be accessed via
+                                              ///  the MALL (memory access last level). Only valid if "supportsMall" is
+                                              ///  set in DeviceProperties.
+    GpuMemMallRange          mallRange;       ///< These parameters are only meaningful if flags.mallRangeActive is set.
+                                              ///  Any pages outside of this range will use the opposite MALL policy
+                                              ///  from what is specified in "mallPolicy".
     union
     {
         struct
         {
-            uint32 typedBuffer  :  1;  ///< GPU memory will be permanently considered a single typed buffer pseudo-object
-                                       ///  with the properties given in typedBufferInfo.
-            uint32 reserved     : 31;  ///< Reserved for future use.
+            uint32 typedBuffer     :  1;  ///< GPU memory will be permanently considered a single typed buffer pseudo-object
+                                          ///  with the properties given in typedBufferInfo.
+            uint32 gl2Uncached     :  1;  ///< Specifies the GPU Memory is un-cached on GPU L2 cache.
+            uint32 mallRangeActive :  1;  ///< If set, then this allocation will be partially allocated in the MALL.
+                                          ///  If this is set, then the mallPolicy enumeration must be set to either
+                                          ///  "always" or "never".
+            uint32 reserved        : 29;  ///< Reserved for future use.
         };
         uint32 u32All;              ///< Flags packed as 32-bit uint.
     } flags;                        ///< External Gpu memory open info flags.

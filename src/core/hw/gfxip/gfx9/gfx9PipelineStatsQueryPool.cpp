@@ -509,7 +509,7 @@ void PipelineStatsQueryPool::NormalReset(
         // because the caller must use semaphores to make sure all queries are complete.
         //
         // TODO: Investigate if we can optimize this, we might just need a VS/PS/CS_PARTIAL_FLUSH on universal queue.
-        pCmdSpace = pPm4CmdBuf->WriteWaitEop(HwPipePostPrefetch, SyncGlxNone, SyncRbNone, pCmdSpace);
+        pCmdSpace = pPm4CmdBuf->WriteWaitEop(HwPipePostPrefetch, false, SyncGlxNone, SyncRbNone, pCmdSpace);
     }
 
     gpusize gpuAddr          = 0;

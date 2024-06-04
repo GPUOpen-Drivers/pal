@@ -169,7 +169,6 @@ Result ComputePipeline::HwlInit(
         // - Init or Fini kernels.
         if (TestAnyFlagSet(desc.kernel_code_properties,
                            AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_QUEUE_PTR         |
-                           AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_DISPATCH_ID       |
                            AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_FLAT_SCRATCH_INIT |
                            AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_PRIVATE_SEGMENT_SIZE) ||
             (metadata.KernelKind() != HsaAbi::Kind::Normal))
@@ -227,7 +226,7 @@ Result ComputePipeline::HwlInit(
 
     if (result == Result::Success)
     {
-        result = registers.Insert(Gfx10Plus::mmCOMPUTE_PGM_RSRC3, desc.compute_pgm_rsrc3);
+        result = registers.Insert(mmCOMPUTE_PGM_RSRC3, desc.compute_pgm_rsrc3);
     }
 
     if (result == Result::Success)
@@ -458,16 +457,14 @@ Result ComputePipeline::LinkWithLibraries(
         computePgmRsrc2.bits.TG_SIZE_EN |= libObjRegInfo.libRegs.computePgmRsrc2.bits.TG_SIZE_EN;
 
         // FWD_PROGRESS and WGP_MODE should match across all the shader functions and the main shader.
-        PAL_ALERT_MSG((computePgmRsrc1.gfx10Plus.FWD_PROGRESS !=
-                       libObjRegInfo.libRegs.computePgmRsrc1.gfx10Plus.FWD_PROGRESS),
+        PAL_ALERT_MSG((computePgmRsrc1.bits.FWD_PROGRESS != libObjRegInfo.libRegs.computePgmRsrc1.bits.FWD_PROGRESS),
                       "Running non-FWD_PROGRESS work in FWD_PROGRESS pipeline is supported but suboptimal");
-        PAL_ALERT_MSG((computePgmRsrc1.gfx10Plus.WGP_MODE     !=
-                       libObjRegInfo.libRegs.computePgmRsrc1.gfx10Plus.WGP_MODE),
+        PAL_ALERT_MSG((computePgmRsrc1.bits.WGP_MODE != libObjRegInfo.libRegs.computePgmRsrc1.bits.WGP_MODE),
                       "Running non-WGP_MODE work in WGP_MODE pipeline is supported but suboptimal");
 
-        computePgmRsrc1.gfx10Plus.MEM_ORDERED  |= libObjRegInfo.libRegs.computePgmRsrc1.gfx10Plus.MEM_ORDERED;
-        computePgmRsrc1.gfx10Plus.FWD_PROGRESS |= libObjRegInfo.libRegs.computePgmRsrc1.gfx10Plus.FWD_PROGRESS;
-        computePgmRsrc1.gfx10Plus.WGP_MODE     |= libObjRegInfo.libRegs.computePgmRsrc1.gfx10Plus.WGP_MODE;
+        computePgmRsrc1.bits.MEM_ORDERED  |= libObjRegInfo.libRegs.computePgmRsrc1.bits.MEM_ORDERED;
+        computePgmRsrc1.bits.FWD_PROGRESS |= libObjRegInfo.libRegs.computePgmRsrc1.bits.FWD_PROGRESS;
+        computePgmRsrc1.bits.WGP_MODE     |= libObjRegInfo.libRegs.computePgmRsrc1.bits.WGP_MODE;
 
         computePgmRsrc3.bits.SHARED_VGPR_CNT =
             Max(computePgmRsrc3.bits.SHARED_VGPR_CNT, libObjRegInfo.libRegs.computePgmRsrc3.bits.SHARED_VGPR_CNT);

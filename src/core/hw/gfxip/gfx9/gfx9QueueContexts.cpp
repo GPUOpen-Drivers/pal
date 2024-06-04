@@ -67,8 +67,8 @@ static uint32 GetCuMaskPerSe(
     };
 
     regCOMPUTE_STATIC_THREAD_MGMT_SE0 r = { };
-    r.gfx09.SH0_CU_EN = isEnabled(0) ? cuMask : 0;
-    r.gfx09.SH1_CU_EN = isEnabled(1) ? cuMask : 0;
+    r.bits.SA0_CU_EN = isEnabled(0) ? cuMask : 0;
+    r.bits.SA1_CU_EN = isEnabled(1) ? cuMask : 0;
 
     return r.u32All;
 }
@@ -138,14 +138,14 @@ static uint32* WriteCommonPreamble(
         pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PGM_HI, 0, pCmdSpace);
 
         // For now we always program this to zero. It may become a per-dispatch value in the future.
-        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(Gfx10Plus::mmCOMPUTE_DISPATCH_TUNNEL, 0, pCmdSpace);
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_DISPATCH_TUNNEL, 0, pCmdSpace);
 
         // Set every user accumulator contribution to a default "disabled" value (zero).
         if (chipProps.gfx9.supportSpiPrefPriority != 0)
         {
             constexpr uint32 FourZeros[4] = {};
-            pCmdSpace = pCmdStream->WriteSetSeqShRegs(Gfx10Plus::mmCOMPUTE_USER_ACCUM_0,
-                                                      Gfx10Plus::mmCOMPUTE_USER_ACCUM_3,
+            pCmdSpace = pCmdStream->WriteSetSeqShRegs(mmCOMPUTE_USER_ACCUM_0,
+                                                      mmCOMPUTE_USER_ACCUM_3,
                                                       ShaderCompute,
                                                       &FourZeros,
                                                       pCmdSpace);
@@ -157,9 +157,9 @@ static uint32* WriteCommonPreamble(
         // Give the CP_COHER register (used by acquire-mem packet) a chance to think a little bit before actually
         // doing anything.
         regCP_COHER_START_DELAY cpCoherStartDelay = { };
-        cpCoherStartDelay.bits.START_DELAY_COUNT = Gfx09_10::mmCP_COHER_START_DELAY_DEFAULT;
+        cpCoherStartDelay.bits.START_DELAY_COUNT = Gfx10::mmCP_COHER_START_DELAY_DEFAULT;
 
-        pCmdSpace = pCmdStream->WriteSetOneConfigReg(Gfx09_10::mmCP_COHER_START_DELAY,
+        pCmdSpace = pCmdStream->WriteSetOneConfigReg(Gfx10::mmCP_COHER_START_DELAY,
                                                      cpCoherStartDelay.u32All,
                                                      pCmdSpace);
     }
@@ -1008,7 +1008,7 @@ void UniversalQueueContext::WritePerSubmitPreamble(
         {
             // Since PWS is enabled by default on GFX11, here we disregard the UsePws setting and add a PWS stall
             // directly.
-            pCmdSpace += cmdUtil.BuildWaitEopPws(HwPipePostPrefetch, SyncGlxNone, SyncRbNone, pCmdSpace);
+            pCmdSpace += cmdUtil.BuildWaitEopPws(HwPipePostPrefetch, false, SyncGlxNone, SyncRbNone, pCmdSpace);
         }
     }
 
@@ -1016,7 +1016,7 @@ void UniversalQueueContext::WritePerSubmitPreamble(
 
     if (m_pDevice->Settings().useClearStateToInitialize)
     {
-        pCmdSpace += CmdUtil::BuildClearState(cmd__pfp_clear_state__clear_state__HASCLEARSTATE, pCmdSpace);
+        pCmdSpace += CmdUtil::BuildClearState(cmd__pfp_clear_state__clear_state, pCmdSpace);
     }
 
     if (m_supportMcbp && (m_pDevice->Parent()->SupportStateShadowingByCpFw() == false))
@@ -1460,7 +1460,7 @@ Result UniversalQueueContext::RebuildCommandStreams(
             // even though it doesn't matter just because the SetBase PM4 requires it.
             pCmdSpace = m_deCmdStream.WriteSetBase(
                                         bufferVa,
-                                        base_index__pfp_set_base__executeindirect_v2_memory__GFX103COREPLUS,
+                                        base_index__pfp_set_base__executeindirect_v2_memory__GFX103PLUSEXCLUSIVE,
                                         ShaderGraphics,
                                         pCmdSpace);
         }
@@ -1732,7 +1732,7 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
     regPA_SU_SMALL_PRIM_FILTER_CNTL paSuSmallPrimFilterCntl = { };
 
     // Disable the SC compatability setting to support 1xMSAA sample locations.
-    paSuSmallPrimFilterCntl.gfx09_1xPlus.SC_1XMSAA_COMPATIBLE_DISABLE = 1;
+    paSuSmallPrimFilterCntl.bits.SC_1XMSAA_COMPATIBLE_DISABLE = 1;
 
     paSuSmallPrimFilterCntl.bits.SMALL_PRIM_FILTER_ENABLE = 1;
     paSuSmallPrimFilterCntl.bits.POINT_FILTER_DISABLE     = 0;
@@ -1766,7 +1766,7 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
         paScNggModeCntl.bits.MAX_DEALLOCS_IN_WAVE = chipProps.gfx9.parameterCacheLines / 4;
     }
 
-    paScNggModeCntl.gfx10Plus.MAX_FPOVS_IN_WAVE = settings.gfx10MaxFpovsInWave;
+    paScNggModeCntl.bits.MAX_FPOVS_IN_WAVE = settings.gfx10MaxFpovsInWave;
 
     if (IsGfx11(device))
     {
@@ -1800,7 +1800,7 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
         // Set-and-forget DCC register:
         //  This will stop compression to one of the four "magic" clear colors.
         regCB_DCC_CONTROL cbDccControl = { };
-        cbDccControl.most.DISABLE_CONSTANT_ENCODE_AC01 = settings.forceRegularClearCode;
+        cbDccControl.bits.DISABLE_CONSTANT_ENCODE_AC01 = settings.forceRegularClearCode;
 
         // ELIMFC = EliMinate Fast Clear, i.e., Fast Clear Eliminate.
         // So, DISABLE_ELIMFC_SKIP means disable the skipping of the fast-clear elimination.  Got that?
@@ -1809,7 +1809,7 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
         // FCE operation on that image will leave the comp-to-single in place.  Setting this bit to one will mean
         // that the FCE operation on that image will actually "eliminate the fast clear".  We want to leave this
         // at zero because the texture pipe can understand comp-to-single, so there's no need to fce those pixels.
-        cbDccControl.most.DISABLE_ELIMFC_SKIP_OF_SINGLE = 0;
+        cbDccControl.bits.DISABLE_ELIMFC_SKIP_OF_SINGLE = 0;
 
         // This register also contains various "DISABLE_CONSTANT_ENCODE" bits.  Those are the master switches
         // for CB-based rendering.  i.e., setting DISABLE_CONSTANT_ENCODE_REG will disable all compToReg
@@ -1823,14 +1823,14 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
 
         cbDccControl.bits.OVERWRITE_COMBINER_WATERMARK = 6;
 
-        pCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx09_10::mmCB_DCC_CONTROL,
+        pCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx10::mmCB_DCC_CONTROL,
                                                         cbDccControl.u32All,
                                                         pCmdSpace);
     }
 
     if (chipProps.gfxip.supportsHwVs)
     {
-        pCmdSpace = m_deCmdStream.WriteSetOneContextReg(HasHwVs::mmVGT_OUT_DEALLOC_CNTL,
+        pCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx10::mmVGT_OUT_DEALLOC_CNTL,
                                                         vgtOutDeallocCntl.u32All,
                                                         pCmdSpace);
     }
@@ -1844,7 +1844,7 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
                                                      &paScGenericScissor,
                                                      pCmdSpace);
     pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SC_NGG_MODE_CNTL, paScNggModeCntl.u32All, pCmdSpace);
-    pCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx10Plus::mmPA_STATE_STEREO_X, 0, pCmdSpace);
+    pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_STATE_STEREO_X, 0, pCmdSpace);
 
     pCmdStream->CommitCommands(pCmdSpace);
     pCmdSpace = pCmdStream->ReserveCommands();
@@ -1858,9 +1858,9 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
         regGE_INDX_OFFSET   indxOffset;
     } Ge = { };
 
-    pCmdSpace = m_deCmdStream.WriteSetOneConfigReg(Gfx10Plus::mmGE_MAX_VTX_INDX, geMaxVtxIndx.u32All, pCmdSpace);
-    pCmdSpace = m_deCmdStream.WriteSetSeqConfigRegs(Gfx10Plus::mmGE_MIN_VTX_INDX,
-                                                    Gfx10Plus::mmGE_INDX_OFFSET,
+    pCmdSpace = m_deCmdStream.WriteSetOneConfigReg(mmGE_MAX_VTX_INDX, geMaxVtxIndx.u32All, pCmdSpace);
+    pCmdSpace = m_deCmdStream.WriteSetSeqConfigRegs(mmGE_MIN_VTX_INDX,
+                                                    mmGE_INDX_OFFSET,
                                                     &Ge,
                                                     pCmdSpace);
 
@@ -1915,7 +1915,7 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
                                                                    pCmdSpace);
     }
 
-    pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(Gfx10Plus::mmSPI_SHADER_REQ_CTRL_PS,
+    pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(mmSPI_SHADER_REQ_CTRL_PS,
                                                                spiShaderReqCtrl.u32All,
                                                                pCmdSpace);
 
@@ -1923,18 +1923,18 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
     if (chipProps.gfx9.supportSpiPrefPriority != 0)
     {
         constexpr uint32 FourZeros[4] = {};
-        pCmdSpace = m_deCmdStream.WriteSetSeqShRegs(Gfx10Plus::mmSPI_SHADER_USER_ACCUM_ESGS_0,
-                                                    Gfx10Plus::mmSPI_SHADER_USER_ACCUM_ESGS_3,
+        pCmdSpace = m_deCmdStream.WriteSetSeqShRegs(mmSPI_SHADER_USER_ACCUM_ESGS_0,
+                                                    mmSPI_SHADER_USER_ACCUM_ESGS_3,
                                                     ShaderGraphics,
                                                     &FourZeros,
                                                     pCmdSpace);
-        pCmdSpace = m_deCmdStream.WriteSetSeqShRegs(Gfx10Plus::mmSPI_SHADER_USER_ACCUM_LSHS_0,
-                                                    Gfx10Plus::mmSPI_SHADER_USER_ACCUM_LSHS_3,
+        pCmdSpace = m_deCmdStream.WriteSetSeqShRegs(mmSPI_SHADER_USER_ACCUM_LSHS_0,
+                                                    mmSPI_SHADER_USER_ACCUM_LSHS_3,
                                                     ShaderGraphics,
                                                     &FourZeros,
                                                     pCmdSpace);
-        pCmdSpace = m_deCmdStream.WriteSetSeqShRegs(Gfx10Plus::mmSPI_SHADER_USER_ACCUM_PS_0,
-                                                    Gfx10Plus::mmSPI_SHADER_USER_ACCUM_PS_3,
+        pCmdSpace = m_deCmdStream.WriteSetSeqShRegs(mmSPI_SHADER_USER_ACCUM_PS_0,
+                                                    mmSPI_SHADER_USER_ACCUM_PS_3,
                                                     ShaderGraphics,
                                                     &FourZeros,
                                                     pCmdSpace);
@@ -1962,8 +1962,8 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
                                                         pCmdSpace);
     }
 
-    pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(Gfx10Plus::mmSPI_SHADER_PGM_HI_ES, 0, pCmdSpace);
-    pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(Gfx10Plus::mmSPI_SHADER_PGM_HI_LS, 0, pCmdSpace);
+    pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(mmSPI_SHADER_PGM_HI_ES, 0, pCmdSpace);
+    pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(mmSPI_SHADER_PGM_HI_LS, 0, pCmdSpace);
 
     regPA_SU_PRIM_FILTER_CNTL paSuPrimFilterCntl = { };
 

@@ -35,9 +35,9 @@
 #include "palAssert.h"
 #include "palSpan.h"
 #include "palStringView.h"
+#include "palTime.h"
 #include <cerrno>
 #include <cstring>
-#include <chrono>
 
 #if   defined(__unix__)
 #define PAL_HAS_CPUID (__i386__ || __x86_64__)
@@ -273,6 +273,9 @@ inline Result ConvertErrno(
     }
     return result;
 }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 866
+#endif
 
 /// Queries system information.
 ///

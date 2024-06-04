@@ -147,16 +147,12 @@ Result Device::CommitSettingsAndInit()
     // from its command allocator, allocations made resident using AddGpuMemoryReferences or allocations on the
     // per-submit residency list. Unfortunately we must break these rules in order to support a record/replay layer.
     // We won't need to disable this optimization if we rewrite the GPU profiler to instrument the client commands.
-    pInitialSettings->cmdAllocResidency &= ~(
-        CmdAllocResWaitOnSubmitEmbeddedData
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
-        | CmdAllocResWaitOnSubmitLargeEmbeddedData
-#endif
-        );
+    pInitialSettings->cmdAllocResidency &= ~(CmdAllocResWaitOnSubmitEmbeddedData |
+                                             CmdAllocResWaitOnSubmitLargeEmbeddedData);
 
     Result result = DeviceDecorator::CommitSettingsAndInit();
 
-    const auto& settings = GetPlatform()->PlatformSettings();
+    const PalPlatformSettings& settings = GetPlatform()->PlatformSettings();
 
     // Capture properties and settings needed elsewhere in the GpuProfiler layer.
     DeviceProperties info;
@@ -214,6 +210,8 @@ Result Device::CommitSettingsAndInit()
         m_endFrame           = m_startFrame + settings.gpuProfilerConfig.frameCount;
         m_startCommandBuffer = settings.gpuProfilerConfig.startCommandBuffer;
         m_endCommandBuffer   = m_startCommandBuffer + settings.gpuProfilerConfig.commandBufferCount;
+
+        m_32BitSpm = settings.gpuProfilerPerfCounterConfig.use32BitSpmCounters;
 
         for (uint32 i = 0; i < EngineTypeCount; i++)
         {

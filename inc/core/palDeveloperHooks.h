@@ -400,23 +400,27 @@ struct SurfRegDataInfo
 /// Type of draw or dispatch operation for a DrawDispatch callback
 enum class DrawDispatchType : uint32
 {
-    CmdDraw = 0,                  ///< Auto-indexed draw
-    CmdDrawOpaque,                ///< Auto draw
-    CmdDrawIndexed,               ///< Indexed draw
-    CmdDrawIndirectMulti,         ///< (Multi) indirect draw
-    CmdDrawIndexedIndirectMulti,  ///< (Multi) indirect indexed draw
-    CmdDispatchMesh,              ///< Task/Mesh shader dispatch.
-    CmdDispatchMeshIndirectMulti, ///< Indirect Task/Mesh shader dispatch.
-    CmdDispatch,                  ///< Direct compute dispatch
-    CmdDispatchAce,               ///< Direct Compute dispatch through implicit ganged-submit ACE stream.
-    CmdDispatchIndirect,          ///< Indirect compute dispatch
-    CmdDispatchOffset,            ///< Direct compute dispatch (offsetted start)
+    CmdDraw = 0,                       ///< Auto-indexed draw.
+    CmdDrawOpaque,                     ///< Auto draw.
+    CmdDrawIndexed,                    ///< Indexed draw.
+    CmdDrawIndirectMulti,              ///< (Multi) indirect draw.
+    CmdDrawIndexedIndirectMulti,       ///< (Multi) indirect indexed draw.
+    CmdDispatchMesh,                   ///< Task/Mesh shader dispatch.
+    CmdDispatchMeshIndirectMulti,      ///< Indirect Task/Mesh shader dispatch.
+    CmdGenExecuteIndirectDraw,         ///< ExecuteIndirect draw.
+    CmdGenExecuteIndirectDrawIndexed,  ///< ExecuteIndirect indexed draw.
+    CmdGenExecuteIndirectDispatchMesh, ///< ExecuteIndirect Task/Mesh shader dispatch.
+    CmdDispatch,                       ///< Direct compute dispatch.
+    CmdDispatchAce,                    ///< Direct Compute dispatch through implicit ganged-submit ACE stream.
+    CmdDispatchIndirect,               ///< Indirect compute dispatch.
+    CmdDispatchOffset,                 ///< Direct compute dispatch (offsetted start).
+    CmdGenExecuteIndirectDispatch,     ///< ExecuteIndirect dispatch.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 837
-    CmdDispatchDynamic,           ///< Dynamic compute dispatch
+    CmdDispatchDynamic,                ///< Dynamic compute dispatch
 #endif
 
     Count,
-    FirstDispatch = CmdDispatch   ///< All callbacks with an enum value greater or equal than this are dispatches
+    FirstDispatch = CmdDispatch        ///< All callbacks with an enum value greater or equal than this are dispatches
 };
 
 /// Draw-specific information for DrawDispatch callbacks

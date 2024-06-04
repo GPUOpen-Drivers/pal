@@ -367,8 +367,6 @@ private:
 
     void InitExternalPhysicalHeap();
 
-    void InitOutputPaths();
-
     virtual Result QueryRawApplicationProfile(
         const wchar_t*           pFilename,
         const wchar_t*           pPathname,

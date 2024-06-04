@@ -683,11 +683,11 @@ void IndirectCmdGenerator::PopulateInvocationBuffer(
 
         regCOMPUTE_DISPATCH_INITIATOR dispatchInitiator = {};
 
-        dispatchInitiator.bits.COMPUTE_SHADER_EN  = 1;
-        dispatchInitiator.bits.ORDER_MODE         = 1;
-        dispatchInitiator.gfx11.AMP_SHADER_EN     = isTaskEnabled;
-        dispatchInitiator.gfx10Plus.CS_W32_EN     = csWave32;
-        dispatchInitiator.gfx10Plus.TUNNEL_ENABLE = pCmdBuffer->UsesDispatchTunneling();
+        dispatchInitiator.bits.COMPUTE_SHADER_EN = 1;
+        dispatchInitiator.bits.ORDER_MODE        = 1;
+        dispatchInitiator.gfx11.AMP_SHADER_EN    = isTaskEnabled;
+        dispatchInitiator.bits.CS_W32_EN         = csWave32;
+        dispatchInitiator.bits.TUNNEL_ENABLE     = pCmdBuffer->UsesDispatchTunneling();
 
         if (disablePartialPreempt)
         {

@@ -120,10 +120,13 @@ union ReleaseMemCaches
 // Describes the core release_mem functionality common to ACE and GFX engines.
 struct ReleaseMemCore
 {
-    ReleaseMemCaches cacheSync; // Caches can only be synced by EOP release_mems.
-    uint32           dataSel;   // One of the {ME,MEC}_RELEASE_MEM_data_sel_enum values.
-    gpusize          dstAddr;   // The the selected data here, must be aligned to the data byte size.
-    uint64           data;      // data to write, ignored except for *_send_32_bit_low or *_send_64_bit_data.
+    ReleaseMemCaches cacheSync;      // Caches can only be synced by EOP release_mems.
+    uint32           dataSel;        // One of the {ME,MEC}_RELEASE_MEM_data_sel_enum values.
+    gpusize          dstAddr;        // The the selected data here, must be aligned to the data byte size.
+    uint64           data;           // data to write, ignored except for *_send_32_bit_low or *_send_64_bit_data.
+    bool             gfx11WaitCpDma; // If wait CP DMA to be idle, only available on gfx11 with supported PFP version.
+                                     // Clients must query EnableReleaseMemWaitCpDma() to make sure ReleaseMem packet
+                                     // supports waiting CP DMA before setting it true.
 };
 
 // In practice, we also need to know your runtime engine type to implement a generic release_mem. This isn't an
@@ -136,8 +139,9 @@ struct ReleaseMemGeneric : ReleaseMemCore
 // If we know we're building a release_mem for a graphics engine we can expose extra features.
 struct ReleaseMemGfx : ReleaseMemCore
 {
-    VGT_EVENT_TYPE vgtEvent; // Use this event. It must be an EOP TS event or an EOS event.
-    bool           usePws;   // This event should increment the PWS counters.
+    VGT_EVENT_TYPE vgtEvent;  // Use this event. It must be an EOP TS event or an EOS event.
+    bool           usePws;    // This event should increment the PWS counters.
+    bool           waitCpDma; // If wait CP DMA to be idle.
 };
 
 // The "official" "event-write" packet definition (see:  PM4_MEC_EVENT_WRITE) contains "extra" dwords that aren't
@@ -243,29 +247,27 @@ public:
 
     // Returns the number of DWORDs that are required to chain two chunks
     static uint32 ChainSizeInDwords(EngineType engineType);
-    static constexpr uint32 CondIndirectBufferSize        = PM4_PFP_COND_INDIRECT_BUFFER_SIZEDW__CORE;
-    static constexpr uint32 DispatchDirectSize            = PM4_PFP_DISPATCH_DIRECT_SIZEDW__CORE;
-    static constexpr uint32 DispatchIndirectGfxSize       = PM4_ME_DISPATCH_INDIRECT_SIZEDW__CORE;
-    static constexpr uint32 DispatchIndirectMecSize       = PM4_MEC_DISPATCH_INDIRECT_SIZEDW__CORE;
-    static constexpr uint32 DrawIndirectSize              = PM4_PFP_DRAW_INDIRECT_SIZEDW__CORE;
-    static constexpr uint32 SetIndexAttributesSize        = PM4_PFP_INDEX_ATTRIBUTES_INDIRECT_SIZEDW__CORE;
-    static constexpr uint32 LoadShRegIndexSize            = PM4_PFP_LOAD_SH_REG_INDEX_SIZEDW__CORE;
-    static constexpr uint32 BuildUntypedSrdSize           = PM4_PFP_BUILD_UNTYPED_SRD_SIZEDW__CORE;
-    static constexpr uint32 DrawIndexAutoSize             = PM4_PFP_DRAW_INDEX_AUTO_SIZEDW__CORE;
-    static constexpr uint32 DrawIndex2Size                = PM4_PFP_DRAW_INDEX_2_SIZEDW__CORE;
-    static constexpr uint32 DrawIndexOffset2Size          = PM4_PFP_DRAW_INDEX_OFFSET_2_SIZEDW__CORE;
-    static constexpr uint32 DispatchMeshDirectSize        = PM4_ME_DISPATCH_MESH_DIRECT_SIZEDW__GFX11;
-    static constexpr uint32 DispatchMeshIndirectMulti     = PM4_ME_DISPATCH_MESH_INDIRECT_MULTI_SIZEDW__GFX10COREPLUS;
-    static constexpr uint32 DispatchTaskMeshGfxSize       = PM4_ME_DISPATCH_TASKMESH_GFX_SIZEDW__GFX10COREPLUS;
-    static constexpr uint32 DispatchTaskMeshDirectMecSize =
-        PM4_MEC_DISPATCH_TASKMESH_DIRECT_ACE_SIZEDW__GFX10COREPLUS;
-    static constexpr uint32 DispatchTaskMeshIndirectMecSize =
-        PM4_MEC_DISPATCH_TASKMESH_INDIRECT_MULTI_ACE_SIZEDW__GFX10COREPLUS;
-    static constexpr uint32 MinNopSizeInDwords      = 1; // all gfx9 HW supports 1-DW NOP packets
+    static constexpr uint32 CondIndirectBufferSize          = PM4_PFP_COND_INDIRECT_BUFFER_SIZEDW__CORE;
+    static constexpr uint32 DispatchDirectSize              = PM4_PFP_DISPATCH_DIRECT_SIZEDW__CORE;
+    static constexpr uint32 DispatchIndirectGfxSize         = PM4_ME_DISPATCH_INDIRECT_SIZEDW__CORE;
+    static constexpr uint32 DispatchIndirectMecSize         = PM4_MEC_DISPATCH_INDIRECT_SIZEDW__CORE;
+    static constexpr uint32 DrawIndirectSize                = PM4_PFP_DRAW_INDIRECT_SIZEDW__CORE;
+    static constexpr uint32 SetIndexAttributesSize          = PM4_PFP_INDEX_ATTRIBUTES_INDIRECT_SIZEDW__CORE;
+    static constexpr uint32 LoadShRegIndexSize              = PM4_PFP_LOAD_SH_REG_INDEX_SIZEDW__CORE;
+    static constexpr uint32 BuildUntypedSrdSize             = PM4_PFP_BUILD_UNTYPED_SRD_SIZEDW__CORE;
+    static constexpr uint32 DrawIndexAutoSize               = PM4_PFP_DRAW_INDEX_AUTO_SIZEDW__CORE;
+    static constexpr uint32 DrawIndex2Size                  = PM4_PFP_DRAW_INDEX_2_SIZEDW__CORE;
+    static constexpr uint32 DrawIndexOffset2Size            = PM4_PFP_DRAW_INDEX_OFFSET_2_SIZEDW__CORE;
+    static constexpr uint32 DispatchMeshDirectSize          = PM4_ME_DISPATCH_MESH_DIRECT_SIZEDW__GFX11;
+    static constexpr uint32 DispatchMeshIndirectMulti       = PM4_ME_DISPATCH_MESH_INDIRECT_MULTI_SIZEDW__CORE;
+    static constexpr uint32 DispatchTaskMeshGfxSize         = PM4_ME_DISPATCH_TASKMESH_GFX_SIZEDW__CORE;
+    static constexpr uint32 DispatchTaskMeshDirectMecSize   = PM4_MEC_DISPATCH_TASKMESH_DIRECT_ACE_SIZEDW__CORE;
+    static constexpr uint32 DispatchTaskMeshIndirectMecSize = PM4_MEC_DISPATCH_TASKMESH_INDIRECT_MULTI_ACE_SIZEDW__CORE;
+    static constexpr uint32 MinNopSizeInDwords              = 1; // all gfx9 HW supports 1-DW NOP packets
 
     static_assert (PM4_PFP_COND_EXEC_SIZEDW__CORE == PM4_MEC_COND_EXEC_SIZEDW__CORE,
                    "Conditional execution packet size does not match between PFP and compute engines!");
-    static_assert (PM4_PFP_COND_EXEC_SIZEDW__CORE == PM4_CE_COND_EXEC_SIZEDW__HASCE,
+    static_assert (PM4_PFP_COND_EXEC_SIZEDW__CORE == PM4_CE_COND_EXEC_SIZEDW__GFX10,
                    "Conditional execution packet size does not match between PFP and constant engines!");
     static constexpr uint32 CondExecSizeDwords        = PM4_PFP_COND_EXEC_SIZEDW__CORE;
     static constexpr uint32 ContextRegRmwSizeDwords   = PM4_ME_CONTEXT_REG_RMW_SIZEDW__CORE;
@@ -723,6 +725,7 @@ public:
     static size_t BuildWaitOnDeCounterDiff(uint32 counterDiff, void* pBuffer);
     size_t BuildWaitEopPws(
         HwPipePoint  waitPoint,
+        bool         waitCpDma,
         SyncGlxFlags glxSync,
         SyncRbFlags  rbSync,
         void*        pBuffer) const;

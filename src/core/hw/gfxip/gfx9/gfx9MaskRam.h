@@ -548,8 +548,8 @@ public:
     // Destructor has nothing to do.
     virtual ~Gfx9Fmask() {}
 
-    Result Init(const Image& image, gpusize*  pGpuOffset);
-    regSQ_IMG_RSRC_WORD1 Gfx9FmaskFormat(uint32  samples, uint32  fragments, bool isUav) const;
+    Result Init(const Image& image, gpusize* pGpuOffset);
+
     const ADDR2_COMPUTE_FMASK_INFO_OUTPUT&  GetAddrOutput() const { return m_addrOutput; }
     AddrSwizzleMode GetSwizzleMode() const { return m_surfSettings.swizzleMode; }
     uint32 GetPipeBankXor() const { return m_pipeBankXor; }
@@ -559,7 +559,7 @@ public:
 
     static uint32 GetPackedExpandedValue(const Image& image);
 
-    IMG_FMT Gfx10FmaskFormat(uint32  samples, uint32  fragments, bool isUav) const;
+    IMG_FMT Gfx10FmaskFormat(uint32 samples, uint32 fragments, bool isUav) const;
 
 private:
     ADDR2_COMPUTE_FMASK_INFO_OUTPUT          m_addrOutput;

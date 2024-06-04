@@ -349,6 +349,7 @@ void TextWriter::WriteVisualConfirm(
     uint32 y = 0;
 
     const uint32 textLength = combinedNonLocal ? MaxTextLengthComb : MaxTextLength;
+    const uint32 pixelScale = Util::Clamp(settings.debugOverlayConfig.pixelScale, 1u, 4u);
 
     const auto*const pCreateInfo = dstImage.GetCreateInfo();
     switch (pFpsMgr->GetDebugOverlayLocation())
@@ -358,25 +359,28 @@ void TextWriter::WriteVisualConfirm(
         y = 0;
         break;
     case DebugOverlayUpperRight:
-        x = pCreateInfo->extent.width - (GpuUtil::TextWriterFont::LetterWidth * textLength);
+        x = pCreateInfo->extent.width - (GpuUtil::TextWriterFont::LetterWidth * textLength * pixelScale);
         y = 0;
         break;
     case DebugOverlayLowerRight:
-        x = pCreateInfo->extent.width - (GpuUtil::TextWriterFont::LetterWidth * textLength);
-        y = pCreateInfo->extent.height - (GpuUtil::TextWriterFont::LetterHeight * textLines);
+        x = pCreateInfo->extent.width - (GpuUtil::TextWriterFont::LetterWidth * textLength * pixelScale);
+        y = pCreateInfo->extent.height - (GpuUtil::TextWriterFont::LetterHeight * textLines * pixelScale);
         break;
     default:
     case DebugOverlayLowerLeft:
         x = 0;
-        y = pCreateInfo->extent.height - (GpuUtil::TextWriterFont::LetterHeight * textLines);
+        y = pCreateInfo->extent.height - (GpuUtil::TextWriterFont::LetterHeight * textLines * pixelScale);
         break;
     }
+
+    PAL_ASSERT_MSG((x < pCreateInfo->extent.width) && (y < pCreateInfo->extent.height),
+                   "Debug text may be too big! Is PixelScale too large?");
 
     // Draw each line of text.
     for (uint32 i = 0; i < textLines; i++)
     {
-        m_textWriter.DrawDebugText(dstImage, pCmdBuffer, &overlayText[i][0], x, y);
-        y += GpuUtil::TextWriterFont::LetterHeight;
+        m_textWriter.DrawDebugText(dstImage, pCmdBuffer, &overlayText[i][0], x, y, pixelScale);
+        y += (GpuUtil::TextWriterFont::LetterHeight * pixelScale);
     }
 }
 

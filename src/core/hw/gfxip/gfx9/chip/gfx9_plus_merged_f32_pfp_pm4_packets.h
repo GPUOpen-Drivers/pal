@@ -65,34 +65,34 @@ enum PFP_ACQUIRE_MEM_engine_sel_enum
 // ------------------------------ PFP_ACQUIRE_MEM_pws_stage_sel_enum ------------------------------
 enum PFP_ACQUIRE_MEM_pws_stage_sel_enum
 {
-    pws_stage_sel__pfp_acquire_mem__pre_depth__HASPWS      =  0,
-    pws_stage_sel__pfp_acquire_mem__pre_shader__HASPWS     =  1,
-    pws_stage_sel__pfp_acquire_mem__pre_color__HASPWS      =  2,
-    pws_stage_sel__pfp_acquire_mem__pre_pix_shader__HASPWS =  3,
-    pws_stage_sel__pfp_acquire_mem__cp_pfp__HASPWS         =  4,
-    pws_stage_sel__pfp_acquire_mem__cp_me__HASPWS          =  5,
+    pws_stage_sel__pfp_acquire_mem__pre_depth__GFX11      =  0,
+    pws_stage_sel__pfp_acquire_mem__pre_shader__GFX11     =  1,
+    pws_stage_sel__pfp_acquire_mem__pre_color__GFX11      =  2,
+    pws_stage_sel__pfp_acquire_mem__pre_pix_shader__GFX11 =  3,
+    pws_stage_sel__pfp_acquire_mem__cp_pfp__GFX11         =  4,
+    pws_stage_sel__pfp_acquire_mem__cp_me__GFX11          =  5,
 };
 
 // ----------------------------- PFP_ACQUIRE_MEM_pws_counter_sel_enum -----------------------------
 enum PFP_ACQUIRE_MEM_pws_counter_sel_enum
 {
-    pws_counter_sel__pfp_acquire_mem__ts_select__HASPWS =  0,
-    pws_counter_sel__pfp_acquire_mem__ps_select__HASPWS =  1,
-    pws_counter_sel__pfp_acquire_mem__cs_select__HASPWS =  2,
+    pws_counter_sel__pfp_acquire_mem__ts_select__GFX11 =  0,
+    pws_counter_sel__pfp_acquire_mem__ps_select__GFX11 =  1,
+    pws_counter_sel__pfp_acquire_mem__cs_select__GFX11 =  2,
 };
 
 // --------------------------------- PFP_ACQUIRE_MEM_pws_ena2_enum ---------------------------------
 enum PFP_ACQUIRE_MEM_pws_ena2_enum
 {
-    pws_ena2__pfp_acquire_mem__pixel_wait_sync_disable__HASPWS =  0,
-    pws_ena2__pfp_acquire_mem__pixel_wait_sync_enable__HASPWS  =  1,
+    pws_ena2__pfp_acquire_mem__pixel_wait_sync_disable__GFX11 =  0,
+    pws_ena2__pfp_acquire_mem__pixel_wait_sync_enable__GFX11  =  1,
 };
 
 // --------------------------------- PFP_ACQUIRE_MEM_pws_ena_enum ---------------------------------
 enum PFP_ACQUIRE_MEM_pws_ena_enum
 {
-    pws_ena__pfp_acquire_mem__pixel_wait_sync_disable__HASPWS =  0,
-    pws_ena__pfp_acquire_mem__pixel_wait_sync_enable__HASPWS  =  1,
+    pws_ena__pfp_acquire_mem__pixel_wait_sync_disable__GFX11 =  0,
+    pws_ena__pfp_acquire_mem__pixel_wait_sync_enable__GFX11  =  1,
 };
 
 // -------------------------------------- PM4_PFP_ACQUIRE_MEM --------------------------------------
@@ -145,7 +145,7 @@ typedef struct PM4_PFP_ACQUIRE_MEM
             {
                 uint32_t coher_size_hi :  8;
                 uint32_t reserved1     : 24;
-            } gfx09_10;
+            } gfx10;
             struct
             {
                 uint32_t coher_size_hi : 24;
@@ -220,49 +220,48 @@ typedef struct PM4_PFP_ACQUIRE_MEM
             {
                 uint32_t gcr_cntl   : 19;
                 uint32_t reserved1  : 13;
-            } gfx10Plus;
+            };
         } bitfields;
         uint32_t u32All;
     } ordinal8;
 } PM4_PFP_ACQUIRE_MEM;
 
-constexpr unsigned int PM4_PFP_ACQUIRE_MEM_SIZEDW__CORE      = 7;
-constexpr unsigned int PM4_PFP_ACQUIRE_MEM_SIZEDW__GFX10PLUS = 8;
+constexpr unsigned int PM4_PFP_ACQUIRE_MEM_SIZEDW__CORE = 8;
 
 // ------------------------------- PFP_ATOMIC_GDS_atom_cmp_swap_enum -------------------------------
 enum PFP_ATOMIC_GDS_atom_cmp_swap_enum
 {
-    atom_cmp_swap__pfp_atomic_gds__dont_repeat__CORE       =  0,
-    atom_cmp_swap__pfp_atomic_gds__repeat_until_pass__CORE =  1,
+    atom_cmp_swap__pfp_atomic_gds__dont_repeat       =  0,
+    atom_cmp_swap__pfp_atomic_gds__repeat_until_pass =  1,
 };
 
 // ------------------------------- PFP_ATOMIC_GDS_atom_complete_enum -------------------------------
 enum PFP_ATOMIC_GDS_atom_complete_enum
 {
-    atom_complete__pfp_atomic_gds__dont_wait__CORE           =  0,
-    atom_complete__pfp_atomic_gds__wait_for_completion__CORE =  1,
+    atom_complete__pfp_atomic_gds__dont_wait           =  0,
+    atom_complete__pfp_atomic_gds__wait_for_completion =  1,
 };
 
 // --------------------------------- PFP_ATOMIC_GDS_atom_read_enum ---------------------------------
 enum PFP_ATOMIC_GDS_atom_read_enum
 {
-    atom_read__pfp_atomic_gds__dont_read_preop_data__CORE =  0,
-    atom_read__pfp_atomic_gds__read_preop_data__CORE      =  1,
+    atom_read__pfp_atomic_gds__dont_read_preop_data =  0,
+    atom_read__pfp_atomic_gds__read_preop_data      =  1,
 };
 
 // ------------------------------- PFP_ATOMIC_GDS_atom_rd_cntl_enum -------------------------------
 enum PFP_ATOMIC_GDS_atom_rd_cntl_enum
 {
-    atom_rd_cntl__pfp_atomic_gds__32bits_1returnval__CORE =  0,
-    atom_rd_cntl__pfp_atomic_gds__32bits_2returnval__CORE =  1,
-    atom_rd_cntl__pfp_atomic_gds__64bits_1returnval__CORE =  2,
-    atom_rd_cntl__pfp_atomic_gds__64bits_2returnval__CORE =  3,
+    atom_rd_cntl__pfp_atomic_gds__32bits_1returnval =  0,
+    atom_rd_cntl__pfp_atomic_gds__32bits_2returnval =  1,
+    atom_rd_cntl__pfp_atomic_gds__64bits_1returnval =  2,
+    atom_rd_cntl__pfp_atomic_gds__64bits_2returnval =  3,
 };
 
 // -------------------------------- PFP_ATOMIC_GDS_engine_sel_enum --------------------------------
 enum PFP_ATOMIC_GDS_engine_sel_enum
 {
-    engine_sel__pfp_atomic_gds__prefetch_parser__CORE =  1,
+    engine_sel__pfp_atomic_gds__prefetch_parser =  1,
 };
 
 // -------------------------------------- PM4_PFP_ATOMIC_GDS --------------------------------------
@@ -288,7 +287,7 @@ typedef struct PM4_PFP_ATOMIC_GDS
                 PFP_ATOMIC_GDS_atom_rd_cntl_enum  atom_rd_cntl  :  2;
                 uint32_t                          reserved2     :  9;
                 PFP_ATOMIC_GDS_engine_sel_enum    engine_sel    :  2;
-            } core;
+            };
         } bitfields;
         uint32_t u32All;
     } ordinal2;
@@ -303,7 +302,7 @@ typedef struct PM4_PFP_ATOMIC_GDS
                 uint32_t reserved1      :  2;
                 uint32_t dmode          :  1;
                 uint32_t reserved2      : 23;
-            } core;
+            };
         } bitfields;
         uint32_t u32All;
     } ordinal3;
@@ -316,7 +315,7 @@ typedef struct PM4_PFP_ATOMIC_GDS
             {
                 uint32_t atom_base  : 16;
                 uint32_t reserved1  : 16;
-            } core;
+            };
         } bitfields;
         uint32_t u32All;
     } ordinal4;
@@ -329,7 +328,7 @@ typedef struct PM4_PFP_ATOMIC_GDS
             {
                 uint32_t atom_size  : 16;
                 uint32_t reserved1  : 16;
-            } core;
+            };
         } bitfields;
         uint32_t u32All;
     } ordinal5;
@@ -344,7 +343,7 @@ typedef struct PM4_PFP_ATOMIC_GDS
                 uint32_t reserved1    :  8;
                 uint32_t atom_offset1 :  8;
                 uint32_t reserved2    :  8;
-            } core;
+            };
         } bitfields;
         uint32_t u32All;
     } ordinal6;
@@ -385,19 +384,19 @@ constexpr unsigned int PM4_PFP_ATOMIC_GDS_SIZEDW__CORE = 11;
 // ---------------------------------- PFP_ATOMIC_MEM_command_enum ----------------------------------
 enum PFP_ATOMIC_MEM_command_enum
 {
-    command__pfp_atomic_mem__single_pass_atomic                     =  0,
-    command__pfp_atomic_mem__loop_until_compare_satisfied           =  1,
-    command__pfp_atomic_mem__wait_for_write_confirmation__GFX10PLUS =  2,
-    command__pfp_atomic_mem__send_and_continue__GFX10PLUS           =  3,
+    command__pfp_atomic_mem__single_pass_atomic           =  0,
+    command__pfp_atomic_mem__loop_until_compare_satisfied =  1,
+    command__pfp_atomic_mem__wait_for_write_confirmation  =  2,
+    command__pfp_atomic_mem__send_and_continue            =  3,
 };
 
 // ------------------------------- PFP_ATOMIC_MEM_cache_policy_enum -------------------------------
 enum PFP_ATOMIC_MEM_cache_policy_enum
 {
-    cache_policy__pfp_atomic_mem__lru               =  0,
-    cache_policy__pfp_atomic_mem__stream            =  1,
-    cache_policy__pfp_atomic_mem__noa__GFX10PLUS    =  2,
-    cache_policy__pfp_atomic_mem__bypass__GFX10PLUS =  3,
+    cache_policy__pfp_atomic_mem__lru    =  0,
+    cache_policy__pfp_atomic_mem__stream =  1,
+    cache_policy__pfp_atomic_mem__noa    =  2,
+    cache_policy__pfp_atomic_mem__bypass =  3,
 };
 
 // -------------------------------- PFP_ATOMIC_MEM_engine_sel_enum --------------------------------
@@ -488,10 +487,10 @@ constexpr unsigned int PM4_PFP_ATOMIC_MEM_SIZEDW__CORE = 9;
 // ----------------------------------- PFP_CLEAR_STATE_cmd_enum -----------------------------------
 enum PFP_CLEAR_STATE_cmd_enum
 {
-    cmd__pfp_clear_state__clear_state__HASCLEARSTATE      =  0,
-    cmd__pfp_clear_state__push_state__HASCLEARSTATE       =  1,
-    cmd__pfp_clear_state__pop_state__HASCLEARSTATE        =  2,
-    cmd__pfp_clear_state__push_clear_state__HASCLEARSTATE =  3,
+    cmd__pfp_clear_state__clear_state      =  0,
+    cmd__pfp_clear_state__push_state       =  1,
+    cmd__pfp_clear_state__pop_state        =  2,
+    cmd__pfp_clear_state__push_clear_state =  3,
 };
 
 // -------------------------------------- PM4_PFP_CLEAR_STATE --------------------------------------
@@ -511,13 +510,13 @@ typedef struct PM4_PFP_CLEAR_STATE
             {
                 PFP_CLEAR_STATE_cmd_enum cmd        :  4;
                 uint32_t                 reserved1  : 28;
-            } hasClearState;
+            };
         } bitfields;
         uint32_t u32All;
     } ordinal2;
 } PM4_PFP_CLEAR_STATE;
 
-constexpr unsigned int PM4_PFP_CLEAR_STATE_SIZEDW__HASCLEARSTATE = 2;
+constexpr unsigned int PM4_PFP_CLEAR_STATE_SIZEDW__CORE = 2;
 
 // --------------------------------------- PM4_PFP_COND_EXEC ---------------------------------------
 typedef struct PM4_PFP_COND_EXEC
@@ -591,19 +590,19 @@ enum PFP_COND_INDIRECT_BUFFER_function_enum
 // -------------------------- PFP_COND_INDIRECT_BUFFER_cache_policy1_enum --------------------------
 enum PFP_COND_INDIRECT_BUFFER_cache_policy1_enum
 {
-    cache_policy1__pfp_cond_indirect_buffer__lru               =  0,
-    cache_policy1__pfp_cond_indirect_buffer__stream            =  1,
-    cache_policy1__pfp_cond_indirect_buffer__noa__GFX10PLUS    =  2,
-    cache_policy1__pfp_cond_indirect_buffer__bypass__GFX10PLUS =  3,
+    cache_policy1__pfp_cond_indirect_buffer__lru    =  0,
+    cache_policy1__pfp_cond_indirect_buffer__stream =  1,
+    cache_policy1__pfp_cond_indirect_buffer__noa    =  2,
+    cache_policy1__pfp_cond_indirect_buffer__bypass =  3,
 };
 
 // -------------------------- PFP_COND_INDIRECT_BUFFER_cache_policy2_enum --------------------------
 enum PFP_COND_INDIRECT_BUFFER_cache_policy2_enum
 {
-    cache_policy2__pfp_cond_indirect_buffer__lru               =  0,
-    cache_policy2__pfp_cond_indirect_buffer__stream            =  1,
-    cache_policy2__pfp_cond_indirect_buffer__noa__GFX10PLUS    =  2,
-    cache_policy2__pfp_cond_indirect_buffer__bypass__GFX10PLUS =  3,
+    cache_policy2__pfp_cond_indirect_buffer__lru    =  0,
+    cache_policy2__pfp_cond_indirect_buffer__stream =  1,
+    cache_policy2__pfp_cond_indirect_buffer__noa    =  2,
+    cache_policy2__pfp_cond_indirect_buffer__bypass =  3,
 };
 
 // --------------------------------- PM4_PFP_COND_INDIRECT_BUFFER ---------------------------------
@@ -766,15 +765,11 @@ typedef struct PM4_PFP_CONTEXT_CONTROL
                 uint32_t load_gfx_sh_regs       :  1;
                 uint32_t reserved2              :  7;
                 uint32_t load_cs_sh_regs        :  1;
-                uint32_t reserved3              :  6;
+                uint32_t reserved3              :  3;
+                uint32_t load_ce_ram            :  1;
+                uint32_t reserved4              :  2;
                 uint32_t update_load_enables    :  1;
             };
-            struct
-            {
-                uint32_t reserved4   : 28;
-                uint32_t load_ce_ram :  1;
-                uint32_t reserved5   :  3;
-            } core;
         } bitfields;
         uint32_t u32All;
     } ordinal2;
@@ -842,12 +837,11 @@ constexpr unsigned int PM4_PFP_CONTEXT_REG_RMW_SIZEDW__CORE = 4;
 // ---------------------------------- PFP_COPY_DATA_src_sel_enum ----------------------------------
 enum PFP_COPY_DATA_src_sel_enum
 {
-    src_sel__pfp_copy_data__mem_mapped_register       =  0,
-    src_sel__pfp_copy_data__memory__GFX09             =  1,
-    src_sel__pfp_copy_data__tc_l2_obsolete__GFX10PLUS =  1,
-    src_sel__pfp_copy_data__tc_l2                     =  2,
-    src_sel__pfp_copy_data__immediate_data            =  5,
-    src_sel__pfp_copy_data__exec_ind_arg_buf__GFX11   = 12,
+    src_sel__pfp_copy_data__mem_mapped_register     =  0,
+    src_sel__pfp_copy_data__tc_l2_obsolete          =  1,
+    src_sel__pfp_copy_data__tc_l2                   =  2,
+    src_sel__pfp_copy_data__immediate_data          =  5,
+    src_sel__pfp_copy_data__exec_ind_arg_buf__GFX11 = 12,
 };
 
 // ---------------------------------- PFP_COPY_DATA_dst_sel_enum ----------------------------------
@@ -855,18 +849,17 @@ enum PFP_COPY_DATA_dst_sel_enum
 {
     dst_sel__pfp_copy_data__mem_mapped_register         =  0,
     dst_sel__pfp_copy_data__tc_l2                       =  2,
-    dst_sel__pfp_copy_data__memory__GFX09               =  5,
-    dst_sel__pfp_copy_data__tc_l2_obsolete__GFX10PLUS   =  5,
+    dst_sel__pfp_copy_data__tc_l2_obsolete              =  5,
     dst_sel__pfp_copy_data__exec_ind_spill_table__GFX11 =  7,
 };
 
 // ------------------------------ PFP_COPY_DATA_src_cache_policy_enum ------------------------------
 enum PFP_COPY_DATA_src_cache_policy_enum
 {
-    src_cache_policy__pfp_copy_data__lru               =  0,
-    src_cache_policy__pfp_copy_data__stream            =  1,
-    src_cache_policy__pfp_copy_data__noa__GFX10PLUS    =  2,
-    src_cache_policy__pfp_copy_data__bypass__GFX10PLUS =  3,
+    src_cache_policy__pfp_copy_data__lru    =  0,
+    src_cache_policy__pfp_copy_data__stream =  1,
+    src_cache_policy__pfp_copy_data__noa    =  2,
+    src_cache_policy__pfp_copy_data__bypass =  3,
 };
 
 // --------------------------------- PFP_COPY_DATA_count_sel_enum ---------------------------------
@@ -886,10 +879,10 @@ enum PFP_COPY_DATA_wr_confirm_enum
 // ------------------------------ PFP_COPY_DATA_dst_cache_policy_enum ------------------------------
 enum PFP_COPY_DATA_dst_cache_policy_enum
 {
-    dst_cache_policy__pfp_copy_data__lru               =  0,
-    dst_cache_policy__pfp_copy_data__stream            =  1,
-    dst_cache_policy__pfp_copy_data__noa__GFX10PLUS    =  2,
-    dst_cache_policy__pfp_copy_data__bypass__GFX10PLUS =  3,
+    dst_cache_policy__pfp_copy_data__lru    =  0,
+    dst_cache_policy__pfp_copy_data__stream =  1,
+    dst_cache_policy__pfp_copy_data__noa    =  2,
+    dst_cache_policy__pfp_copy_data__bypass =  3,
 };
 
 // --------------------------------- PFP_COPY_DATA_engine_sel_enum ---------------------------------
@@ -1066,7 +1059,7 @@ typedef struct PM4_PFP_DISPATCH_DRAW
                 uint32_t reserved1  : 16;
                 uint32_t prim_type  :  5;
                 uint32_t reserved2  : 11;
-            } hasCe;
+            } gfx10;
         } bitfields;
         uint32_t u32All;
     } ordinal3;
@@ -1087,7 +1080,7 @@ typedef struct PM4_PFP_DISPATCH_DRAW
                 uint32_t use_vrb                             :  1;
                 uint32_t max_index_multiple_minus_1          : 11;
                 uint32_t min_poll_intervals_for_partial_draw : 16;
-            } hasCe;
+            } gfx10;
         } bitfields;
         uint32_t u32All;
     } ordinal5;
@@ -1099,20 +1092,13 @@ typedef struct PM4_PFP_DISPATCH_DRAW
     } ordinal6;
 } PM4_PFP_DISPATCH_DRAW;
 
-constexpr unsigned int PM4_PFP_DISPATCH_DRAW_SIZEDW__HASCE = 6;
+constexpr unsigned int PM4_PFP_DISPATCH_DRAW_SIZEDW__GFX10 = 6;
 
 // ---------------------------- PFP_DISPATCH_DRAW_PREAMBLE_not_eop_enum ----------------------------
 enum PFP_DISPATCH_DRAW_PREAMBLE_not_eop_enum
 {
-    not_eop__pfp_dispatch_draw_preamble__normal_eop__GFX09_GFX10CORE   =  0,
-    not_eop__pfp_dispatch_draw_preamble__suppress_eop__GFX09_GFX10CORE =  1,
-};
-
-// --------------------------- PFP_DISPATCH_DRAW_PREAMBLE_req_path_enum ---------------------------
-enum PFP_DISPATCH_DRAW_PREAMBLE_req_path_enum
-{
-    req_path__pfp_dispatch_draw_preamble__mc_hub__GFX09        =  0,
-    req_path__pfp_dispatch_draw_preamble__tci_interface__GFX09 =  1,
+    not_eop__pfp_dispatch_draw_preamble__normal_eop__GFX10   =  0,
+    not_eop__pfp_dispatch_draw_preamble__suppress_eop__GFX10 =  1,
 };
 
 // -------------------------------- PM4_PFP_DISPATCH_DRAW_PREAMBLE --------------------------------
@@ -1134,7 +1120,7 @@ typedef struct PM4_PFP_DISPATCH_DRAW_PREAMBLE
                 uint32_t krb_free_offset : 10;
                 uint32_t krb_offset      : 10;
                 uint32_t reserved1       :  2;
-            } hasCe;
+            } gfx10;
         } bitfields;
         uint32_t u32All;
     } ordinal2;
@@ -1145,18 +1131,12 @@ typedef struct PM4_PFP_DISPATCH_DRAW_PREAMBLE
         {
             struct
             {
-                uint32_t                                 reserved1  : 10;
-                PFP_DISPATCH_DRAW_PREAMBLE_req_path_enum req_path   :  1;
-                uint32_t                                 reserved2  : 21;
-            } gfx09;
-            struct
-            {
-                uint32_t                                reserved3  :  4;
+                uint32_t                                reserved1  :  4;
                 uint32_t                                buf_type   :  2;
-                uint32_t                                reserved4  :  3;
+                uint32_t                                reserved2  :  3;
                 PFP_DISPATCH_DRAW_PREAMBLE_not_eop_enum not_eop    :  1;
-                uint32_t                                reserved5  : 22;
-            } hasCe;
+                uint32_t                                reserved3  : 22;
+            } gfx10;
         } bitfields;
         uint32_t u32All;
     } ordinal3;
@@ -1180,7 +1160,7 @@ typedef struct PM4_PFP_DISPATCH_DRAW_PREAMBLE
     } ordinal6;
 } PM4_PFP_DISPATCH_DRAW_PREAMBLE;
 
-constexpr unsigned int PM4_PFP_DISPATCH_DRAW_PREAMBLE_SIZEDW__HASCE = 6;
+constexpr unsigned int PM4_PFP_DISPATCH_DRAW_PREAMBLE_SIZEDW__GFX10 = 6;
 
 // ----------------------------------- PM4_PFP_DISPATCH_INDIRECT -----------------------------------
 typedef struct PM4_PFP_DISPATCH_INDIRECT
@@ -1206,6 +1186,185 @@ typedef struct PM4_PFP_DISPATCH_INDIRECT
 
 constexpr unsigned int PM4_PFP_DISPATCH_INDIRECT_SIZEDW__CORE = 3;
 
+// ----------------------------- PM4_PFP_DISPATCH_MESH_INDIRECT_MULTI -----------------------------
+typedef struct PM4_PFP_DISPATCH_MESH_INDIRECT_MULTI
+{
+    union
+    {
+        PM4_PFP_TYPE_3_HEADER header;
+        uint32_t u32All;
+    } ordinal1;
+
+    union
+    {
+        uint32_t data_offset;
+        uint32_t u32All;
+    } ordinal2;
+
+    union
+    {
+        union
+        {
+            struct
+            {
+                uint32_t xyz_dim_loc    : 16;
+                uint32_t draw_index_loc : 16;
+            };
+        } bitfields;
+        uint32_t u32All;
+    } ordinal3;
+
+    union
+    {
+        union
+        {
+            struct
+            {
+                uint32_t reserved1                  : 29;
+                uint32_t thread_trace_marker_enable :  1;
+                uint32_t count_indirect_enable      :  1;
+                uint32_t draw_index_enable          :  1;
+            };
+            struct
+            {
+                uint32_t reserved2  : 28;
+                uint32_t use_vgprs  :  1;
+                uint32_t reserved3  :  3;
+            } gfx10;
+            struct
+            {
+                uint32_t reserved4      : 27;
+                uint32_t mode1_enable   :  1;
+                uint32_t xyz_dim_enable :  1;
+                uint32_t reserved5      :  3;
+            } gfx11;
+        } bitfields;
+        uint32_t u32All;
+    } ordinal4;
+
+    union
+    {
+        uint32_t count;
+        uint32_t u32All;
+    } ordinal5;
+
+    union
+    {
+        union
+        {
+            struct
+            {
+                uint32_t reserved1     :  2;
+                uint32_t count_addr_lo : 30;
+            };
+        } bitfields;
+        uint32_t u32All;
+    } ordinal6;
+
+    union
+    {
+        uint32_t count_addr_hi;
+        uint32_t u32All;
+    } ordinal7;
+
+    union
+    {
+        uint32_t stride;
+        uint32_t u32All;
+    } ordinal8;
+
+    union
+    {
+        uint32_t draw_initiator;
+        uint32_t u32All;
+    } ordinal9;
+} PM4_PFP_DISPATCH_MESH_INDIRECT_MULTI;
+
+constexpr unsigned int PM4_PFP_DISPATCH_MESH_INDIRECT_MULTI_SIZEDW__CORE = 9;
+
+// ------------------------------- PM4_PFP_DISPATCH_TASK_STATE_INIT -------------------------------
+typedef struct PM4_PFP_DISPATCH_TASK_STATE_INIT
+{
+    union
+    {
+        PM4_PFP_TYPE_3_HEADER header;
+        uint32_t u32All;
+    } ordinal1;
+
+    union
+    {
+        union
+        {
+            struct
+            {
+                uint32_t reserved1           :  8;
+                uint32_t control_buf_addr_lo : 24;
+            };
+        } bitfields;
+        uint32_t u32All;
+    } ordinal2;
+
+    union
+    {
+        uint32_t control_buf_addr_hi;
+        uint32_t u32All;
+    } ordinal3;
+} PM4_PFP_DISPATCH_TASK_STATE_INIT;
+
+constexpr unsigned int PM4_PFP_DISPATCH_TASK_STATE_INIT_SIZEDW__CORE = 3;
+
+// --------------------------------- PM4_PFP_DISPATCH_TASKMESH_GFX ---------------------------------
+typedef struct PM4_PFP_DISPATCH_TASKMESH_GFX
+{
+    union
+    {
+        PM4_PFP_TYPE_3_HEADER header;
+        uint32_t u32All;
+    } ordinal1;
+
+    union
+    {
+        union
+        {
+            struct
+            {
+                uint32_t xyz_dim_loc    : 16;
+                uint32_t ring_entry_loc : 16;
+            };
+        } bitfields;
+        uint32_t u32All;
+    } ordinal2;
+
+    union
+    {
+        union
+        {
+            struct
+            {
+                uint32_t reserved1                  : 31;
+                uint32_t thread_trace_marker_enable :  1;
+            };
+            struct
+            {
+                uint32_t reserved2              : 28;
+                uint32_t linear_dispatch_enable :  1;
+                uint32_t mode1_enable           :  1;
+                uint32_t xyz_dim_enable         :  1;
+                uint32_t reserved3              :  1;
+            } gfx11;
+        } bitfields;
+        uint32_t u32All;
+    } ordinal3;
+
+    union
+    {
+        uint32_t draw_initiator;
+        uint32_t u32All;
+    } ordinal4;
+} PM4_PFP_DISPATCH_TASKMESH_GFX;
+
+constexpr unsigned int PM4_PFP_DISPATCH_TASKMESH_GFX_SIZEDW__CORE = 4;
+
 // --------------------------------- PFP_DMA_DATA_engine_sel_enum ---------------------------------
 enum PFP_DMA_DATA_engine_sel_enum
 {
@@ -1215,17 +1374,17 @@ enum PFP_DMA_DATA_engine_sel_enum
 // ------------------------------ PFP_DMA_DATA_src_cache_policy_enum ------------------------------
 enum PFP_DMA_DATA_src_cache_policy_enum
 {
-    src_cache_policy__pfp_dma_data__lru               =  0,
-    src_cache_policy__pfp_dma_data__stream            =  1,
-    src_cache_policy__pfp_dma_data__noa__GFX10PLUS    =  2,
-    src_cache_policy__pfp_dma_data__bypass__GFX10PLUS =  3,
+    src_cache_policy__pfp_dma_data__lru    =  0,
+    src_cache_policy__pfp_dma_data__stream =  1,
+    src_cache_policy__pfp_dma_data__noa    =  2,
+    src_cache_policy__pfp_dma_data__bypass =  3,
 };
 
 // ----------------------------------- PFP_DMA_DATA_dst_sel_enum -----------------------------------
 enum PFP_DMA_DATA_dst_sel_enum
 {
     dst_sel__pfp_dma_data__dst_addr_using_das =  0,
-    dst_sel__pfp_dma_data__gds__CORE          =  1,
+    dst_sel__pfp_dma_data__gds                =  1,
     dst_sel__pfp_dma_data__dst_nowhere        =  2,
     dst_sel__pfp_dma_data__dst_addr_using_l2  =  3,
 };
@@ -1233,17 +1392,17 @@ enum PFP_DMA_DATA_dst_sel_enum
 // ------------------------------ PFP_DMA_DATA_dst_cache_policy_enum ------------------------------
 enum PFP_DMA_DATA_dst_cache_policy_enum
 {
-    dst_cache_policy__pfp_dma_data__lru               =  0,
-    dst_cache_policy__pfp_dma_data__stream            =  1,
-    dst_cache_policy__pfp_dma_data__noa__GFX10PLUS    =  2,
-    dst_cache_policy__pfp_dma_data__bypass__GFX10PLUS =  3,
+    dst_cache_policy__pfp_dma_data__lru    =  0,
+    dst_cache_policy__pfp_dma_data__stream =  1,
+    dst_cache_policy__pfp_dma_data__noa    =  2,
+    dst_cache_policy__pfp_dma_data__bypass =  3,
 };
 
 // ----------------------------------- PFP_DMA_DATA_src_sel_enum -----------------------------------
 enum PFP_DMA_DATA_src_sel_enum
 {
     src_sel__pfp_dma_data__src_addr_using_sas =  0,
-    src_sel__pfp_dma_data__gds__CORE          =  1,
+    src_sel__pfp_dma_data__gds                =  1,
     src_sel__pfp_dma_data__data               =  2,
     src_sel__pfp_dma_data__src_addr_using_l2  =  3,
 };
@@ -1292,7 +1451,9 @@ typedef struct PM4_PFP_DMA_DATA
             struct
             {
                 PFP_DMA_DATA_engine_sel_enum       engine_sel       :  1;
-                uint32_t                           reserved1        : 12;
+                uint32_t                           src_indirect     :  1;
+                uint32_t                           dst_indirect     :  1;
+                uint32_t                           reserved1        : 10;
                 PFP_DMA_DATA_src_cache_policy_enum src_cache_policy :  2;
                 uint32_t                           reserved2        :  5;
                 PFP_DMA_DATA_dst_sel_enum          dst_sel          :  2;
@@ -1302,13 +1463,6 @@ typedef struct PM4_PFP_DMA_DATA
                 PFP_DMA_DATA_src_sel_enum          src_sel          :  2;
                 uint32_t                           cp_sync          :  1;
             };
-            struct
-            {
-                uint32_t reserved5    :  1;
-                uint32_t src_indirect :  1;
-                uint32_t dst_indirect :  1;
-                uint32_t reserved6    : 29;
-            } core;
         } bitfields;
         uint32_t u32All;
     } ordinal2;
@@ -1376,10 +1530,10 @@ enum PFP_DMA_DATA_FILL_MULTI_dst_sel_enum
 // ------------------------- PFP_DMA_DATA_FILL_MULTI_dst_cache_policy_enum -------------------------
 enum PFP_DMA_DATA_FILL_MULTI_dst_cache_policy_enum
 {
-    dst_cache_policy__pfp_dma_data_fill_multi__lru               =  0,
-    dst_cache_policy__pfp_dma_data_fill_multi__stream            =  1,
-    dst_cache_policy__pfp_dma_data_fill_multi__noa__GFX10PLUS    =  2,
-    dst_cache_policy__pfp_dma_data_fill_multi__bypass__GFX10PLUS =  3,
+    dst_cache_policy__pfp_dma_data_fill_multi__lru    =  0,
+    dst_cache_policy__pfp_dma_data_fill_multi__stream =  1,
+    dst_cache_policy__pfp_dma_data_fill_multi__noa    =  2,
+    dst_cache_policy__pfp_dma_data_fill_multi__bypass =  3,
 };
 
 // ----------------------------- PFP_DMA_DATA_FILL_MULTI_src_sel_enum -----------------------------
@@ -1568,7 +1722,7 @@ typedef struct PM4_PFP_DRAW_INDEX_INDIRECT
                 uint32_t reserved3           : 26;
                 uint32_t disable_cpvgtdma_sm :  1;
                 uint32_t reserved4           :  5;
-            } gfx10Core;
+            } gfx10;
         } bitfields;
         uint32_t u32All;
     } ordinal4;
@@ -1629,32 +1783,25 @@ typedef struct PM4_PFP_DRAW_INDEX_INDIRECT_MULTI
         {
             struct
             {
-                uint32_t draw_index_loc        : 16;
-                uint32_t reserved1             : 12;
-                uint32_t start_indx_enable     :  1;
-                uint32_t reserved2             :  1;
-                uint32_t count_indirect_enable :  1;
-                uint32_t draw_index_enable     :  1;
+                uint32_t draw_index_loc             : 16;
+                uint32_t reserved1                  : 11;
+                uint32_t use_vgprs                  :  1;
+                uint32_t start_indx_enable          :  1;
+                uint32_t thread_trace_marker_enable :  1;
+                uint32_t count_indirect_enable      :  1;
+                uint32_t draw_index_enable          :  1;
             };
             struct
             {
-                uint32_t reserved3           : 26;
+                uint32_t reserved2           : 26;
                 uint32_t disable_cpvgtdma_sm :  1;
-                uint32_t reserved4           :  5;
-            } gfx10Core;
+                uint32_t reserved3           :  5;
+            } gfx10;
             struct
             {
-                uint32_t reserved5                  : 27;
-                uint32_t use_vgprs                  :  1;
-                uint32_t reserved6                  :  1;
-                uint32_t thread_trace_marker_enable :  1;
-                uint32_t reserved7                  :  2;
-            } gfx10Plus;
-            struct
-            {
-                uint32_t reserved8        : 25;
+                uint32_t reserved4        : 25;
                 uint32_t task_shader_mode :  1;
-                uint32_t reserved9        :  6;
+                uint32_t reserved5        :  6;
             } gfx11;
         } bitfields;
         uint32_t u32All;
@@ -1737,6 +1884,66 @@ typedef struct PM4_PFP_DRAW_INDEX_MULTI_AUTO
 } PM4_PFP_DRAW_INDEX_MULTI_AUTO;
 
 constexpr unsigned int PM4_PFP_DRAW_INDEX_MULTI_AUTO_SIZEDW__CORE = 4;
+
+// --------------------------------- PM4_PFP_DRAW_INDEX_MULTI_INST ---------------------------------
+typedef struct PM4_PFP_DRAW_INDEX_MULTI_INST
+{
+    union
+    {
+        PM4_PFP_TYPE_3_HEADER header;
+        uint32_t u32All;
+    } ordinal1;
+
+    union
+    {
+        uint32_t instance_count;
+        uint32_t u32All;
+    } ordinal2;
+
+    union
+    {
+        uint32_t obj_id_addr_lo;
+        uint32_t u32All;
+    } ordinal3;
+
+    union
+    {
+        uint32_t obj_id_addr_hi;
+        uint32_t u32All;
+    } ordinal4;
+
+    union
+    {
+        uint32_t max_size;
+        uint32_t u32All;
+    } ordinal5;
+
+    union
+    {
+        uint32_t index_base_lo;
+        uint32_t u32All;
+    } ordinal6;
+
+    union
+    {
+        uint32_t index_base_hi;
+        uint32_t u32All;
+    } ordinal7;
+
+    union
+    {
+        uint32_t index_count;
+        uint32_t u32All;
+    } ordinal8;
+
+    union
+    {
+        uint32_t draw_initiator;
+        uint32_t u32All;
+    } ordinal9;
+} PM4_PFP_DRAW_INDEX_MULTI_INST;
+
+constexpr unsigned int PM4_PFP_DRAW_INDEX_MULTI_INST_SIZEDW__GFX101        = 9;
 
 // ---------------------------------- PM4_PFP_DRAW_INDEX_OFFSET_2 ----------------------------------
 typedef struct PM4_PFP_DRAW_INDEX_OFFSET_2
@@ -1871,19 +2078,14 @@ typedef struct PM4_PFP_DRAW_INDIRECT_MULTI
         {
             struct
             {
-                uint32_t draw_index_loc        : 16;
-                uint32_t reserved1             : 14;
-                uint32_t count_indirect_enable :  1;
-                uint32_t draw_index_enable     :  1;
-            };
-            struct
-            {
-                uint32_t reserved2                  : 27;
+                uint32_t draw_index_loc             : 16;
+                uint32_t reserved1                  : 11;
                 uint32_t use_vgprs                  :  1;
-                uint32_t reserved3                  :  1;
+                uint32_t reserved2                  :  1;
                 uint32_t thread_trace_marker_enable :  1;
-                uint32_t reserved4                  :  2;
-            } gfx10Plus;
+                uint32_t count_indirect_enable      :  1;
+                uint32_t draw_index_enable          :  1;
+            };
         } bitfields;
         uint32_t u32All;
     } ordinal5;
@@ -1931,15 +2133,15 @@ constexpr unsigned int PM4_PFP_DRAW_INDIRECT_MULTI_SIZEDW__CORE = 10;
 // ---------------------------------- PFP_FRAME_CONTROL_tmz_enum ----------------------------------
 enum PFP_FRAME_CONTROL_tmz_enum
 {
-    tmz__pfp_frame_control__tmz_off__GFX09_10 =  0,
-    tmz__pfp_frame_control__tmz_on__GFX09_10  =  1,
+    tmz__pfp_frame_control__tmz_off__GFX10 =  0,
+    tmz__pfp_frame_control__tmz_on__GFX10  =  1,
 };
 
 // -------------------------------- PFP_FRAME_CONTROL_command_enum --------------------------------
 enum PFP_FRAME_CONTROL_command_enum
 {
-    command__pfp_frame_control__kmd_frame_begin__GFX09_10 =  0,
-    command__pfp_frame_control__kmd_frame_end__GFX09_10   =  1,
+    command__pfp_frame_control__kmd_frame_begin__GFX10 =  0,
+    command__pfp_frame_control__kmd_frame_end__GFX10   =  1,
 };
 
 // ------------------------------------- PM4_PFP_FRAME_CONTROL -------------------------------------
@@ -1960,13 +2162,13 @@ typedef struct PM4_PFP_FRAME_CONTROL
                 PFP_FRAME_CONTROL_tmz_enum     tmz        :  1;
                 uint32_t                       reserved1  : 27;
                 PFP_FRAME_CONTROL_command_enum command    :  4;
-            } gfx09_10;
+            } gfx10;
         } bitfields;
         uint32_t u32All;
     } ordinal2;
 } PM4_PFP_FRAME_CONTROL;
 
-constexpr unsigned int PM4_PFP_FRAME_CONTROL_SIZEDW__GFX09_10 = 2;
+constexpr unsigned int PM4_PFP_FRAME_CONTROL_SIZEDW__GFX10 = 2;
 
 // -------------------------------------- PM4_PFP_GEN_PDEPTE --------------------------------------
 typedef struct PM4_PFP_GEN_PDEPTE
@@ -2032,13 +2234,13 @@ typedef struct PM4_PFP_GEN_PDEPTE
     } ordinal10;
 } PM4_PFP_GEN_PDEPTE;
 
-constexpr unsigned int PM4_PFP_GEN_PDEPTE_SIZEDW__GFX09_10 = 10;
+constexpr unsigned int PM4_PFP_GEN_PDEPTE_SIZEDW__GFX10 = 10;
 
 // ---------------------------- PFP_INDEX_ATTRIBUTES_INDIRECT_mode_enum ----------------------------
 enum PFP_INDEX_ATTRIBUTES_INDIRECT_mode_enum
 {
-    mode__pfp_index_attributes_indirect_direct_addr__GFX09_GFX10CORE     =  0,
-    mode__pfp_index_attributes_indirect_indirect_offset__GFX09_GFX10CORE =  1,
+    mode__pfp_index_attributes_indirect_direct_addr__GFX10     =  0,
+    mode__pfp_index_attributes_indirect_indirect_offset__GFX10 =  1,
 };
 
 // ------------------------------- PM4_PFP_INDEX_ATTRIBUTES_INDIRECT -------------------------------
@@ -2061,14 +2263,14 @@ typedef struct PM4_PFP_INDEX_ATTRIBUTES_INDIRECT
             };
             struct
             {
-                uint32_t indirect_mode :  1;
-                uint32_t reserved2     : 31;
-            } gfx11;
+                PFP_INDEX_ATTRIBUTES_INDIRECT_mode_enum indirect_mode :  1;
+                uint32_t                                reserved2     : 31;
+            } gfx10;
             struct
             {
-                PFP_INDEX_ATTRIBUTES_INDIRECT_mode_enum indirect_mode :  1;
-                uint32_t                                reserved3     : 31;
-            } hasCe;
+                uint32_t indirect_mode :  1;
+                uint32_t reserved3     : 31;
+            } gfx11;
         } bitfields;
         uint32_t u32All;
     } ordinal2;
@@ -2148,10 +2350,10 @@ constexpr unsigned int PM4_PFP_INDEX_BUFFER_SIZE_SIZEDW__CORE = 2;
 // ----------------------------- PFP_INDIRECT_BUFFER_cache_policy_enum -----------------------------
 enum PFP_INDIRECT_BUFFER_cache_policy_enum
 {
-    cache_policy__pfp_indirect_buffer__lru               =  0,
-    cache_policy__pfp_indirect_buffer__stream            =  1,
-    cache_policy__pfp_indirect_buffer__noa__GFX10PLUS    =  2,
-    cache_policy__pfp_indirect_buffer__bypass__GFX10PLUS =  3,
+    cache_policy__pfp_indirect_buffer__lru    =  0,
+    cache_policy__pfp_indirect_buffer__stream =  1,
+    cache_policy__pfp_indirect_buffer__noa    =  2,
+    cache_policy__pfp_indirect_buffer__bypass =  3,
 };
 
 // ------------------------------------ PM4_PFP_INDIRECT_BUFFER ------------------------------------
@@ -2452,9 +2654,9 @@ constexpr unsigned int PM4_PFP_LOAD_SH_REG_SIZEDW__CORE = 5;
 // ------------------------------- PFP_LOAD_SH_REG_INDEX_index_enum -------------------------------
 enum PFP_LOAD_SH_REG_INDEX_index_enum
 {
-    index__pfp_load_sh_reg_index__direct_addr                   =  0,
-    index__pfp_load_sh_reg_index__offset                        =  1,
-    index__pfp_load_sh_reg_index__indirect_addr__GFX103COREPLUS =  2,
+    index__pfp_load_sh_reg_index__direct_addr                        =  0,
+    index__pfp_load_sh_reg_index__offset                             =  1,
+    index__pfp_load_sh_reg_index__indirect_addr__GFX103PLUSEXCLUSIVE =  2,
 };
 
 // ---------------------------- PFP_LOAD_SH_REG_INDEX_data_format_enum ----------------------------
@@ -2486,17 +2688,12 @@ typedef struct PM4_PFP_LOAD_SH_REG_INDEX
             {
                 uint32_t                         index      :  1; // PFP_LOAD_SH_REG_INDEX_index_enum
                 uint32_t                         reserved2  : 31;
-            } gfx09;
-            struct
-            {
-                uint32_t                         index      :  1; // PFP_LOAD_SH_REG_INDEX_index_enum
-                uint32_t                         reserved3  : 31;
             } gfx101;
             struct
             {
                 PFP_LOAD_SH_REG_INDEX_index_enum index      :  2;
-                uint32_t                         reserved4  : 30;
-            } gfx103CorePlus;
+                uint32_t                         reserved3  : 30;
+            } gfx103PlusExclusive;
         } bitfields;
         uint32_t u32All;
     } ordinal2;
@@ -2594,6 +2791,80 @@ typedef struct PM4_PFP_LOAD_UCONFIG_REG
 } PM4_PFP_LOAD_UCONFIG_REG;
 
 constexpr unsigned int PM4_PFP_LOAD_UCONFIG_REG_SIZEDW__CORE = 5;
+
+// ----------------------------- PFP_LOAD_UCONFIG_REG_INDEX_index_enum -----------------------------
+enum PFP_LOAD_UCONFIG_REG_INDEX_index_enum
+{
+    index__pfp_load_uconfig_reg_index__direct_addr =  0,
+    index__pfp_load_uconfig_reg_index__offset      =  1,
+};
+
+// -------------------------- PFP_LOAD_UCONFIG_REG_INDEX_data_format_enum --------------------------
+enum PFP_LOAD_UCONFIG_REG_INDEX_data_format_enum
+{
+    data_format__pfp_load_uconfig_reg_index__offset_and_size =  0,
+    data_format__pfp_load_uconfig_reg_index__offset_and_data =  1,
+};
+
+// -------------------------------- PM4_PFP_LOAD_UCONFIG_REG_INDEX --------------------------------
+typedef struct PM4_PFP_LOAD_UCONFIG_REG_INDEX
+{
+    union
+    {
+        PM4_PFP_TYPE_3_HEADER header;
+        uint32_t u32All;
+    } ordinal1;
+
+    union
+    {
+        union
+        {
+            struct
+            {
+                PFP_LOAD_UCONFIG_REG_INDEX_index_enum index       :  1;
+                uint32_t                              reserved1   :  1;
+                uint32_t                              mem_addr_lo : 30;
+            };
+        } bitfields;
+        uint32_t u32All;
+    } ordinal2;
+
+    union
+    {
+        uint32_t mem_addr_hi;
+        uint32_t addr_offset;
+        uint32_t u32All;
+    } ordinal3;
+
+    union
+    {
+        union
+        {
+            struct
+            {
+                uint32_t                                    reg_offset  : 16;
+                uint32_t                                    reserved1   : 15;
+                PFP_LOAD_UCONFIG_REG_INDEX_data_format_enum data_format :  1;
+            };
+        } bitfields;
+        uint32_t u32All;
+    } ordinal4;
+
+    union
+    {
+        union
+        {
+            struct
+            {
+                uint32_t num_dwords : 14;
+                uint32_t reserved1  : 18;
+            };
+        } bitfields;
+        uint32_t u32All;
+    } ordinal5;
+} PM4_PFP_LOAD_UCONFIG_REG_INDEX;
+
+constexpr unsigned int PM4_PFP_LOAD_UCONFIG_REG_INDEX_SIZEDW__CORE = 5;
 
 // ------------------------------------------ PM4_PFP_NOP ------------------------------------------
 typedef struct PM4_PFP_NOP
@@ -2696,12 +2967,12 @@ constexpr unsigned int PM4_PFP_PFP_SYNC_ME_SIZEDW__CORE = 2;
 // -------------------------------- PFP_PREAMBLE_CNTL_command_enum --------------------------------
 enum PFP_PREAMBLE_CNTL_command_enum
 {
-    command__pfp_preamble_cntl__preamble_begin__HASCLEARSTATE                      =  0,
-    command__pfp_preamble_cntl__preamble_end__HASCLEARSTATE                        =  1,
-    command__pfp_preamble_cntl__begin_of_clear_state_initialization__HASCLEARSTATE =  2,
-    command__pfp_preamble_cntl__end_of_clear_state_initialization__HASCLEARSTATE   =  3,
-    command__pfp_preamble_cntl__user_queues_state_save__GFX11                      =  4,
-    command__pfp_preamble_cntl__user_queues_state_restore__GFX11                   =  5,
+    command__pfp_preamble_cntl__preamble_begin                      =  0,
+    command__pfp_preamble_cntl__preamble_end                        =  1,
+    command__pfp_preamble_cntl__begin_of_clear_state_initialization =  2,
+    command__pfp_preamble_cntl__end_of_clear_state_initialization   =  3,
+    command__pfp_preamble_cntl__user_queues_state_save__GFX11       =  4,
+    command__pfp_preamble_cntl__user_queues_state_restore__GFX11    =  5,
 };
 
 // ------------------------------------- PM4_PFP_PREAMBLE_CNTL -------------------------------------
@@ -2721,13 +2992,13 @@ typedef struct PM4_PFP_PREAMBLE_CNTL
             {
                 uint32_t                       reserved1  : 28;
                 PFP_PREAMBLE_CNTL_command_enum command    :  4;
-            } hasClearState;
+            };
         } bitfields;
         uint32_t u32All;
     } ordinal2;
 } PM4_PFP_PREAMBLE_CNTL;
 
-constexpr unsigned int PM4_PFP_PREAMBLE_CNTL_SIZEDW__HASCLEARSTATE = 2;
+constexpr unsigned int PM4_PFP_PREAMBLE_CNTL_SIZEDW__CORE = 2;
 
 // --------------------------------------- PM4_PFP_PRED_EXEC ---------------------------------------
 typedef struct PM4_PFP_PRED_EXEC
@@ -2845,22 +3116,22 @@ typedef struct PM4_PFP_REWIND
             {
                 uint32_t reserved1  : 31;
                 uint32_t valid      :  1;
-            } hasCe;
+            } gfx10;
         } bitfields;
         uint32_t u32All;
     } ordinal2;
 } PM4_PFP_REWIND;
 
-constexpr unsigned int PM4_PFP_REWIND_SIZEDW__HASCE = 2;
+constexpr unsigned int PM4_PFP_REWIND_SIZEDW__GFX10 = 2;
 
 // --------------------------------- PFP_SET_BASE_base_index_enum ---------------------------------
 enum PFP_SET_BASE_base_index_enum
 {
-    base_index__pfp_set_base__display_list_patch_table_base             =  0,
-    base_index__pfp_set_base__patch_table_base                          =  1,
-    base_index__pfp_set_base__load_reg_index_base                       =  4,
-    base_index__pfp_set_base__indirect_data_base                        =  5,
-    base_index__pfp_set_base__executeindirect_v2_memory__GFX103COREPLUS =  6,
+    base_index__pfp_set_base__display_list_patch_table_base                  =  0,
+    base_index__pfp_set_base__patch_table_base                               =  1,
+    base_index__pfp_set_base__load_reg_index_base                            =  4,
+    base_index__pfp_set_base__indirect_data_base                             =  5,
+    base_index__pfp_set_base__executeindirect_v2_memory__GFX103PLUSEXCLUSIVE =  6,
 };
 
 // --------------------------------------- PM4_PFP_SET_BASE ---------------------------------------
@@ -2907,13 +3178,6 @@ typedef struct PM4_PFP_SET_BASE
 
 constexpr unsigned int PM4_PFP_SET_BASE_SIZEDW__CORE = 4;
 
-// -------------------------------- PFP_SET_CONTEXT_REG_index_enum --------------------------------
-enum PFP_SET_CONTEXT_REG_index_enum
-{
-    index__pfp_set_context_reg__default__GFX09          =  0,
-    index__pfp_set_context_reg__vgt_ls_hs_config__GFX09 =  2,
-};
-
 // ------------------------------------ PM4_PFP_SET_CONTEXT_REG ------------------------------------
 typedef struct PM4_PFP_SET_CONTEXT_REG
 {
@@ -2932,50 +3196,12 @@ typedef struct PM4_PFP_SET_CONTEXT_REG
                 uint32_t reg_offset : 16;
                 uint32_t reserved1  : 16;
             };
-            struct
-            {
-                uint32_t                       reserved2  : 28;
-                PFP_SET_CONTEXT_REG_index_enum index      :  4;
-            } gfx09;
         } bitfields;
         uint32_t u32All;
     } ordinal2;
 } PM4_PFP_SET_CONTEXT_REG;
 
 constexpr unsigned int PM4_PFP_SET_CONTEXT_REG_SIZEDW__CORE = 2;
-
-// ----------------------------- PFP_SET_CONTEXT_REG_INDEX_index_enum -----------------------------
-enum PFP_SET_CONTEXT_REG_INDEX_index_enum
-{
-    index__pfp_set_context_reg_index__default__GFX09          =  0,
-    index__pfp_set_context_reg_index__vgt_ls_hs_config__GFX09 =  2,
-};
-
-// --------------------------------- PM4_PFP_SET_CONTEXT_REG_INDEX ---------------------------------
-typedef struct PM4_PFP_SET_CONTEXT_REG_INDEX
-{
-    union
-    {
-        PM4_PFP_TYPE_3_HEADER header;
-        uint32_t u32All;
-    } ordinal1;
-
-    union
-    {
-        union
-        {
-            struct
-            {
-                uint32_t                             reg_offset : 16;
-                uint32_t                             reserved1  : 12;
-                PFP_SET_CONTEXT_REG_INDEX_index_enum index      :  4;
-            } gfx09;
-        } bitfields;
-        uint32_t u32All;
-    } ordinal2;
-} PM4_PFP_SET_CONTEXT_REG_INDEX;
-
-constexpr unsigned int PM4_PFP_SET_CONTEXT_REG_INDEX_SIZEDW__GFX09 = 2;
 
 // ------------------------------ PFP_SET_PREDICATION_pred_bool_enum ------------------------------
 enum PFP_SET_PREDICATION_pred_bool_enum
@@ -3145,16 +3371,6 @@ typedef struct PM4_PFP_SET_SH_REG_OFFSET
 
 constexpr unsigned int PM4_PFP_SET_SH_REG_OFFSET_SIZEDW__CORE = 4;
 
-// -------------------------------- PFP_SET_UCONFIG_REG_index_enum --------------------------------
-enum PFP_SET_UCONFIG_REG_index_enum
-{
-    index__pfp_set_uconfig_reg__default__GFX09         =  0,
-    index__pfp_set_uconfig_reg__prim_type__GFX09       =  1,
-    index__pfp_set_uconfig_reg__index_type__GFX09      =  2,
-    index__pfp_set_uconfig_reg__num_instances__GFX09   =  3,
-    index__pfp_set_uconfig_reg__multi_vgt_param__GFX09 =  4,
-};
-
 // ------------------------------------ PM4_PFP_SET_UCONFIG_REG ------------------------------------
 typedef struct PM4_PFP_SET_UCONFIG_REG
 {
@@ -3173,11 +3389,6 @@ typedef struct PM4_PFP_SET_UCONFIG_REG
                 uint32_t reg_offset : 16;
                 uint32_t reserved1  : 16;
             };
-            struct
-            {
-                uint32_t                       reserved2  : 28;
-                PFP_SET_UCONFIG_REG_index_enum index      :  4;
-            } gfx09;
         } bitfields;
         uint32_t u32All;
     } ordinal2;
@@ -3188,11 +3399,9 @@ constexpr unsigned int PM4_PFP_SET_UCONFIG_REG_SIZEDW__CORE = 2;
 // ----------------------------- PFP_SET_UCONFIG_REG_INDEX_index_enum -----------------------------
 enum PFP_SET_UCONFIG_REG_INDEX_index_enum
 {
-    index__pfp_set_uconfig_reg_index__default                =  0,
-    index__pfp_set_uconfig_reg_index__prim_type__GFX09       =  1,
-    index__pfp_set_uconfig_reg_index__index_type             =  2,
-    index__pfp_set_uconfig_reg_index__num_instances          =  3,
-    index__pfp_set_uconfig_reg_index__multi_vgt_param__GFX09 =  4,
+    index__pfp_set_uconfig_reg_index__default       =  0,
+    index__pfp_set_uconfig_reg_index__index_type    =  2,
+    index__pfp_set_uconfig_reg_index__num_instances =  3,
 };
 
 // --------------------------------- PM4_PFP_SET_UCONFIG_REG_INDEX ---------------------------------
@@ -3234,7 +3443,7 @@ enum PFP_STRMOUT_BUFFER_UPDATE_source_select_enum
     source_select__pfp_strmout_buffer_update__use_buffer_offset               =  0,
     source_select__pfp_strmout_buffer_update__read_strmout_buffer_filled_size =  1,
     source_select__pfp_strmout_buffer_update__from_src_address                =  2,
-    source_select__pfp_strmout_buffer_update__none__GFX09_10                  =  3,
+    source_select__pfp_strmout_buffer_update__none__GFX10                     =  3,
 };
 
 // --------------------------- PFP_STRMOUT_BUFFER_UPDATE_data_type_enum ---------------------------
@@ -3287,7 +3496,7 @@ typedef struct PM4_PFP_STRMOUT_BUFFER_UPDATE
             {
                 uint32_t reserved1      :  2;
                 uint32_t dst_address_lo : 30;
-            } gfx09_10;
+            } gfx10;
         } bitfields;
         uint32_t offset;
         union
@@ -3358,7 +3567,7 @@ typedef struct PM4_PFP_BUILD_UNTYPED_SRD
                 uint32_t index       :  1;
                 uint32_t reserved1   :  3;
                 uint32_t src_addr_lo : 28;
-            } core;
+            };
         } bitfields;
         uint32_t u32All;
     } ordinal2;
@@ -3383,7 +3592,7 @@ typedef struct PM4_PFP_BUILD_UNTYPED_SRD
             {
                 uint32_t reserved1   :  2;
                 uint32_t dst_addr_lo : 30;
-            } core;
+            };
         } bitfields;
         uint32_t u32All;
     } ordinal5;
@@ -3435,7 +3644,7 @@ typedef struct PM4_PFP_EXECUTE_INDIRECT
             {
                 uint32_t reserved1   :  2;
                 uint32_t cmd_base_lo : 30;
-            } core;
+            };
         } bitfields;
         uint32_t u32All;
     } ordinal2;
@@ -3461,19 +3670,19 @@ typedef struct PM4_PFP_EXECUTE_INDIRECT
                 uint32_t reserved2             :  2;
                 uint32_t pre_resume            :  1;
                 uint32_t reserved3             :  1;
-            } core;
+            };
             struct
             {
-                uint32_t                               reserved4    : 28;
-                PFP_EXECUTE_INDIRECT_cache_policy_enum cache_policy :  2;
-                uint32_t                               reserved5    :  2;
-            } gfx11;
-            struct
-            {
-                uint32_t                              reserved6    : 28;
+                uint32_t                              reserved4    : 28;
                 PFP_INDIRECT_BUFFER_cache_policy_enum cache_policy :  2;
-                uint32_t                              reserved7    :  2;
-            } hasCe;
+                uint32_t                              reserved5    :  2;
+            } gfx10;
+            struct
+            {
+                uint32_t                               reserved6    : 28;
+                PFP_EXECUTE_INDIRECT_cache_policy_enum cache_policy :  2;
+                uint32_t                               reserved7    :  2;
+            } gfx11;
         } bitfields;
         uint32_t u32All;
     } ordinal4;
@@ -3492,7 +3701,7 @@ typedef struct PM4_PFP_EXECUTE_INDIRECT
             {
                 uint32_t reserved1     :  2;
                 uint32_t count_addr_lo : 30;
-            } core;
+            };
         } bitfields;
         uint32_t u32All;
     } ordinal6;
@@ -3531,7 +3740,7 @@ typedef struct PM4_PFP_EXECUTE_INDIRECT
             {
                 uint32_t data_addr_hi       : 16;
                 uint32_t spill_table_stride : 16;
-            } core;
+            };
         } bitfields;
         uint32_t u32All;
     } ordinal10;
@@ -3558,7 +3767,7 @@ typedef struct PM4_PFP_EXECUTE_INDIRECT
             {
                 uint32_t spill_table_addr_hi     : 16;
                 uint32_t spill_table_reg_offset0 : 16;
-            } core;
+            };
         } bitfields;
         uint32_t u32All;
     } ordinal12;
@@ -3571,7 +3780,7 @@ typedef struct PM4_PFP_EXECUTE_INDIRECT
             {
                 uint32_t spill_table_reg_offset1 : 16;
                 uint32_t spill_table_reg_offset2 : 16;
-            } core;
+            };
         } bitfields;
         uint32_t u32All;
     } ordinal13;
@@ -3584,7 +3793,7 @@ typedef struct PM4_PFP_EXECUTE_INDIRECT
             {
                 uint32_t spill_table_reg_offset3    : 16;
                 uint32_t spill_table_instance_count : 16;
-            } core;
+            };
         } bitfields;
         uint32_t u32All;
     } ordinal14;
@@ -3597,7 +3806,7 @@ typedef struct PM4_PFP_EXECUTE_INDIRECT
             {
                 uint32_t vb_table_reg_offset : 16;
                 uint32_t vb_table_size       : 16;
-            } core;
+            };
         } bitfields;
         uint32_t u32All;
     } ordinal15;
@@ -3641,10 +3850,10 @@ enum PFP_WAIT_REG_MEM_engine_sel_enum
 // ------------------------------ PFP_WAIT_REG_MEM_cache_policy_enum ------------------------------
 enum PFP_WAIT_REG_MEM_cache_policy_enum
 {
-    cache_policy__pfp_wait_reg_mem__lru__GFX10PLUS    =  0,
-    cache_policy__pfp_wait_reg_mem__stream__GFX10PLUS =  1,
-    cache_policy__pfp_wait_reg_mem__noa__GFX10PLUS    =  2,
-    cache_policy__pfp_wait_reg_mem__bypass__GFX10PLUS =  3,
+    cache_policy__pfp_wait_reg_mem__lru    =  0,
+    cache_policy__pfp_wait_reg_mem__stream =  1,
+    cache_policy__pfp_wait_reg_mem__noa    =  2,
+    cache_policy__pfp_wait_reg_mem__bypass =  3,
 };
 
 // ------------------------------------- PM4_PFP_WAIT_REG_MEM -------------------------------------
@@ -3662,26 +3871,17 @@ typedef struct PM4_PFP_WAIT_REG_MEM
         {
             struct
             {
-                PFP_WAIT_REG_MEM_function_enum   function   :  3;
-                uint32_t                         reserved1  :  1;
-                PFP_WAIT_REG_MEM_mem_space_enum  mem_space  :  2;
-                PFP_WAIT_REG_MEM_operation_enum  operation  :  2;
-                PFP_WAIT_REG_MEM_engine_sel_enum engine_sel :  2;
-                uint32_t                         reserved2  : 22;
+                PFP_WAIT_REG_MEM_function_enum     function      :  3;
+                uint32_t                           reserved1     :  1;
+                PFP_WAIT_REG_MEM_mem_space_enum    mem_space     :  2;
+                PFP_WAIT_REG_MEM_operation_enum    operation     :  2;
+                PFP_WAIT_REG_MEM_engine_sel_enum   engine_sel    :  2;
+                uint32_t                           reserved2     : 12;
+                uint32_t                           mes_intr_pipe :  2;
+                uint32_t                           mes_action    :  1;
+                PFP_WAIT_REG_MEM_cache_policy_enum cache_policy  :  2;
+                uint32_t                           reserved3     :  5;
             };
-            struct
-            {
-                uint32_t reserved3     : 22;
-                uint32_t mes_intr_pipe :  2;
-                uint32_t mes_action    :  1;
-                uint32_t reserved4     :  7;
-            } gfx10CorePlus;
-            struct
-            {
-                uint32_t                           reserved5    : 25;
-                PFP_WAIT_REG_MEM_cache_policy_enum cache_policy :  2;
-                uint32_t                           reserved6    :  5;
-            } gfx10Plus;
         } bitfields;
         uint32_t u32All;
     } ordinal2;
@@ -3793,10 +3993,10 @@ enum PFP_WAIT_REG_MEM64_engine_sel_enum
 // ----------------------------- PFP_WAIT_REG_MEM64_cache_policy_enum -----------------------------
 enum PFP_WAIT_REG_MEM64_cache_policy_enum
 {
-    cache_policy__pfp_wait_reg_mem64__lru__GFX10PLUS    =  0,
-    cache_policy__pfp_wait_reg_mem64__stream__GFX10PLUS =  1,
-    cache_policy__pfp_wait_reg_mem64__noa__GFX10PLUS    =  2,
-    cache_policy__pfp_wait_reg_mem64__bypass__GFX10PLUS =  3,
+    cache_policy__pfp_wait_reg_mem64__lru    =  0,
+    cache_policy__pfp_wait_reg_mem64__stream =  1,
+    cache_policy__pfp_wait_reg_mem64__noa    =  2,
+    cache_policy__pfp_wait_reg_mem64__bypass =  3,
 };
 
 // ------------------------------------ PM4_PFP_WAIT_REG_MEM64 ------------------------------------
@@ -3814,26 +4014,17 @@ typedef struct PM4_PFP_WAIT_REG_MEM64
         {
             struct
             {
-                PFP_WAIT_REG_MEM64_function_enum   function   :  3;
-                uint32_t                           reserved1  :  1;
-                PFP_WAIT_REG_MEM64_mem_space_enum  mem_space  :  2;
-                PFP_WAIT_REG_MEM64_operation_enum  operation  :  2;
-                PFP_WAIT_REG_MEM64_engine_sel_enum engine_sel :  2;
-                uint32_t                           reserved2  : 22;
+                PFP_WAIT_REG_MEM64_function_enum     function      :  3;
+                uint32_t                             reserved1     :  1;
+                PFP_WAIT_REG_MEM64_mem_space_enum    mem_space     :  2;
+                PFP_WAIT_REG_MEM64_operation_enum    operation     :  2;
+                PFP_WAIT_REG_MEM64_engine_sel_enum   engine_sel    :  2;
+                uint32_t                             reserved2     : 12;
+                uint32_t                             mes_intr_pipe :  2;
+                uint32_t                             mes_action    :  1;
+                PFP_WAIT_REG_MEM64_cache_policy_enum cache_policy  :  2;
+                uint32_t                             reserved3     :  5;
             };
-            struct
-            {
-                uint32_t reserved3     : 22;
-                uint32_t mes_intr_pipe :  2;
-                uint32_t mes_action    :  1;
-                uint32_t reserved4     :  7;
-            } gfx10CorePlus;
-            struct
-            {
-                uint32_t                             reserved5    : 25;
-                PFP_WAIT_REG_MEM64_cache_policy_enum cache_policy :  2;
-                uint32_t                             reserved6    :  5;
-            } gfx10Plus;
         } bitfields;
         uint32_t u32All;
     } ordinal2;
@@ -3924,10 +4115,10 @@ constexpr unsigned int PM4_PFP_WAIT_REG_MEM64_SIZEDW__CORE = 9;
 // ---------------------------------- PFP_WRITE_DATA_dst_sel_enum ----------------------------------
 enum PFP_WRITE_DATA_dst_sel_enum
 {
-    dst_sel__pfp_write_data__mem_mapped_register              =  0,
-    dst_sel__pfp_write_data__tc_l2                            =  2,
-    dst_sel__pfp_write_data__memory                           =  5,
-    dst_sel__pfp_write_data__preemption_meta_memory__GFX09_10 =  8,
+    dst_sel__pfp_write_data__mem_mapped_register           =  0,
+    dst_sel__pfp_write_data__tc_l2                         =  2,
+    dst_sel__pfp_write_data__memory                        =  5,
+    dst_sel__pfp_write_data__preemption_meta_memory__GFX10 =  8,
 };
 
 // --------------------------------- PFP_WRITE_DATA_addr_incr_enum ---------------------------------
@@ -3947,10 +4138,10 @@ enum PFP_WRITE_DATA_wr_confirm_enum
 // ------------------------------- PFP_WRITE_DATA_cache_policy_enum -------------------------------
 enum PFP_WRITE_DATA_cache_policy_enum
 {
-    cache_policy__pfp_write_data__lru               =  0,
-    cache_policy__pfp_write_data__stream            =  1,
-    cache_policy__pfp_write_data__noa__GFX10PLUS    =  2,
-    cache_policy__pfp_write_data__bypass__GFX10PLUS =  3,
+    cache_policy__pfp_write_data__lru    =  0,
+    cache_policy__pfp_write_data__stream =  1,
+    cache_policy__pfp_write_data__noa    =  2,
+    cache_policy__pfp_write_data__bypass =  3,
 };
 
 // -------------------------------- PFP_WRITE_DATA_engine_sel_enum --------------------------------
@@ -4019,335 +4210,22 @@ typedef struct PM4_PFP_WRITE_DATA
 
 constexpr unsigned int PM4_PFP_WRITE_DATA_SIZEDW__CORE = 4;
 
-// ----------------------------- PM4_PFP_DISPATCH_MESH_INDIRECT_MULTI -----------------------------
-typedef struct PM4_PFP_DISPATCH_MESH_INDIRECT_MULTI
-{
-    union
-    {
-        PM4_PFP_TYPE_3_HEADER header;
-        uint32_t u32All;
-    } ordinal1;
-
-    union
-    {
-        uint32_t data_offset;
-        uint32_t u32All;
-    } ordinal2;
-
-    union
-    {
-        union
-        {
-            struct
-            {
-                uint32_t xyz_dim_loc    : 16;
-                uint32_t draw_index_loc : 16;
-            } gfx10CorePlus;
-        } bitfields;
-        uint32_t u32All;
-    } ordinal3;
-
-    union
-    {
-        union
-        {
-            struct
-            {
-                uint32_t reserved1  : 28;
-                uint32_t use_vgprs  :  1;
-                uint32_t reserved2  :  3;
-            } gfx10Core;
-            struct
-            {
-                uint32_t reserved3                  : 29;
-                uint32_t thread_trace_marker_enable :  1;
-                uint32_t count_indirect_enable      :  1;
-                uint32_t draw_index_enable          :  1;
-            } gfx10CorePlus;
-            struct
-            {
-                uint32_t reserved4      : 27;
-                uint32_t mode1_enable   :  1;
-                uint32_t xyz_dim_enable :  1;
-                uint32_t reserved5      :  3;
-            } gfx11;
-        } bitfields;
-        uint32_t u32All;
-    } ordinal4;
-
-    union
-    {
-        uint32_t count;
-        uint32_t u32All;
-    } ordinal5;
-
-    union
-    {
-        union
-        {
-            struct
-            {
-                uint32_t reserved1     :  2;
-                uint32_t count_addr_lo : 30;
-            } gfx10CorePlus;
-        } bitfields;
-        uint32_t u32All;
-    } ordinal6;
-
-    union
-    {
-        uint32_t count_addr_hi;
-        uint32_t u32All;
-    } ordinal7;
-
-    union
-    {
-        uint32_t stride;
-        uint32_t u32All;
-    } ordinal8;
-
-    union
-    {
-        uint32_t draw_initiator;
-        uint32_t u32All;
-    } ordinal9;
-} PM4_PFP_DISPATCH_MESH_INDIRECT_MULTI;
-
-constexpr unsigned int PM4_PFP_DISPATCH_MESH_INDIRECT_MULTI_SIZEDW__GFX10COREPLUS = 9;
-
-// ------------------------------- PM4_PFP_DISPATCH_TASK_STATE_INIT -------------------------------
-typedef struct PM4_PFP_DISPATCH_TASK_STATE_INIT
-{
-    union
-    {
-        PM4_PFP_TYPE_3_HEADER header;
-        uint32_t u32All;
-    } ordinal1;
-
-    union
-    {
-        union
-        {
-            struct
-            {
-                uint32_t reserved1           :  8;
-                uint32_t control_buf_addr_lo : 24;
-            } gfx10CorePlus;
-        } bitfields;
-        uint32_t u32All;
-    } ordinal2;
-
-    union
-    {
-        uint32_t control_buf_addr_hi;
-        uint32_t u32All;
-    } ordinal3;
-} PM4_PFP_DISPATCH_TASK_STATE_INIT;
-
-constexpr unsigned int PM4_PFP_DISPATCH_TASK_STATE_INIT_SIZEDW__GFX10COREPLUS = 3;
-
-// --------------------------------- PM4_PFP_DISPATCH_TASKMESH_GFX ---------------------------------
-typedef struct PM4_PFP_DISPATCH_TASKMESH_GFX
-{
-    union
-    {
-        PM4_PFP_TYPE_3_HEADER header;
-        uint32_t u32All;
-    } ordinal1;
-
-    union
-    {
-        union
-        {
-            struct
-            {
-                uint32_t xyz_dim_loc    : 16;
-                uint32_t ring_entry_loc : 16;
-            } gfx10CorePlus;
-        } bitfields;
-        uint32_t u32All;
-    } ordinal2;
-
-    union
-    {
-        union
-        {
-            struct
-            {
-                uint32_t reserved1                  : 31;
-                uint32_t thread_trace_marker_enable :  1;
-            } gfx10CorePlus;
-            struct
-            {
-                uint32_t reserved2              : 28;
-                uint32_t linear_dispatch_enable :  1;
-                uint32_t mode1_enable           :  1;
-                uint32_t xyz_dim_enable         :  1;
-                uint32_t reserved3              :  1;
-            } gfx11;
-        } bitfields;
-        uint32_t u32All;
-    } ordinal3;
-
-    union
-    {
-        uint32_t draw_initiator;
-        uint32_t u32All;
-    } ordinal4;
-} PM4_PFP_DISPATCH_TASKMESH_GFX;
-
-constexpr unsigned int PM4_PFP_DISPATCH_TASKMESH_GFX_SIZEDW__GFX10COREPLUS = 4;
-
-// --------------------------------- PM4_PFP_DRAW_INDEX_MULTI_INST ---------------------------------
-typedef struct PM4_PFP_DRAW_INDEX_MULTI_INST
-{
-    union
-    {
-        PM4_PFP_TYPE_3_HEADER header;
-        uint32_t u32All;
-    } ordinal1;
-
-    union
-    {
-        uint32_t instance_count;
-        uint32_t u32All;
-    } ordinal2;
-
-    union
-    {
-        uint32_t obj_id_addr_lo;
-        uint32_t u32All;
-    } ordinal3;
-
-    union
-    {
-        uint32_t obj_id_addr_hi;
-        uint32_t u32All;
-    } ordinal4;
-
-    union
-    {
-        uint32_t max_size;
-        uint32_t u32All;
-    } ordinal5;
-
-    union
-    {
-        uint32_t index_base_lo;
-        uint32_t u32All;
-    } ordinal6;
-
-    union
-    {
-        uint32_t index_base_hi;
-        uint32_t u32All;
-    } ordinal7;
-
-    union
-    {
-        uint32_t index_count;
-        uint32_t u32All;
-    } ordinal8;
-
-    union
-    {
-        uint32_t draw_initiator;
-        uint32_t u32All;
-    } ordinal9;
-} PM4_PFP_DRAW_INDEX_MULTI_INST;
-
-constexpr unsigned int PM4_PFP_DRAW_INDEX_MULTI_INST_SIZEDW__GFX101        = 9;
-
-// ----------------------------- PFP_LOAD_UCONFIG_REG_INDEX_index_enum -----------------------------
-enum PFP_LOAD_UCONFIG_REG_INDEX_index_enum
-{
-    index__pfp_load_uconfig_reg_index__direct_addr__GFX10PLUS =  0,
-    index__pfp_load_uconfig_reg_index__offset__GFX10PLUS      =  1,
-};
-
-// -------------------------- PFP_LOAD_UCONFIG_REG_INDEX_data_format_enum --------------------------
-enum PFP_LOAD_UCONFIG_REG_INDEX_data_format_enum
-{
-    data_format__pfp_load_uconfig_reg_index__offset_and_size__GFX10PLUS =  0,
-    data_format__pfp_load_uconfig_reg_index__offset_and_data__GFX10PLUS =  1,
-};
-
-// -------------------------------- PM4_PFP_LOAD_UCONFIG_REG_INDEX --------------------------------
-typedef struct PM4_PFP_LOAD_UCONFIG_REG_INDEX
-{
-    union
-    {
-        PM4_PFP_TYPE_3_HEADER header;
-        uint32_t u32All;
-    } ordinal1;
-
-    union
-    {
-        union
-        {
-            struct
-            {
-                PFP_LOAD_UCONFIG_REG_INDEX_index_enum index       :  1;
-                uint32_t                              reserved1   :  1;
-                uint32_t                              mem_addr_lo : 30;
-            } gfx10Plus;
-        } bitfields;
-        uint32_t u32All;
-    } ordinal2;
-
-    union
-    {
-        uint32_t mem_addr_hi;
-        uint32_t addr_offset;
-        uint32_t u32All;
-    } ordinal3;
-
-    union
-    {
-        union
-        {
-            struct
-            {
-                uint32_t                                    reg_offset  : 16;
-                uint32_t                                    reserved1   : 15;
-                PFP_LOAD_UCONFIG_REG_INDEX_data_format_enum data_format :  1;
-            } gfx10Plus;
-        } bitfields;
-        uint32_t u32All;
-    } ordinal4;
-
-    union
-    {
-        union
-        {
-            struct
-            {
-                uint32_t num_dwords : 14;
-                uint32_t reserved1  : 18;
-            } gfx10Plus;
-        } bitfields;
-        uint32_t u32All;
-    } ordinal5;
-} PM4_PFP_LOAD_UCONFIG_REG_INDEX;
-
-constexpr unsigned int PM4_PFP_LOAD_UCONFIG_REG_INDEX_SIZEDW__GFX10PLUS = 5;
-
 // ---------------------------- PFP_EXECUTE_INDIRECT_V2_operation_enum ----------------------------
 enum PFP_EXECUTE_INDIRECT_V2_operation_enum
 {
-    operation__pfp_execute_indirect_v2__draw__GFX103COREPLUS          =  0,
-    operation__pfp_execute_indirect_v2__drawindex__GFX103COREPLUS     =  1,
-    operation__pfp_execute_indirect_v2__dispatch__GFX103COREPLUS      =  2,
-    operation__pfp_execute_indirect_v2__dispatch_mesh__GFX103COREPLUS =  3,
-    operation__pfp_execute_indirect_v2__dispatch_rays__GFX103COREPLUS =  4,
+    operation__pfp_execute_indirect_v2__draw__GFX103PLUSEXCLUSIVE          =  0,
+    operation__pfp_execute_indirect_v2__drawindex__GFX103PLUSEXCLUSIVE     =  1,
+    operation__pfp_execute_indirect_v2__dispatch__GFX103PLUSEXCLUSIVE      =  2,
+    operation__pfp_execute_indirect_v2__dispatch_mesh__GFX103PLUSEXCLUSIVE =  3,
+    operation__pfp_execute_indirect_v2__dispatch_rays__GFX103PLUSEXCLUSIVE =  4,
 };
 
 // -------------------- PFP_EXECUTE_INDIRECT_V2_REG_SCATTER_MODE_function_enum --------------------
 enum PFP_EXECUTE_INDIRECT_V2_REG_SCATTER_MODE_function_enum
 {
-    function__pfp_execute_indirect_v2__reg_scatter_mode_csgspsonly__GFX103COREPLUS =  0,
-    function__pfp_execute_indirect_v2__reg_scatter_mode_psgs__GFX103COREPLUS       =  1,
-    function__pfp_execute_indirect_v2__reg_scatter_mode_psgshs__GFX103COREPLUS     =  2,
+    function__pfp_execute_indirect_v2__reg_scatter_mode_csgspsonly__GFX103PLUSEXCLUSIVE =  0,
+    function__pfp_execute_indirect_v2__reg_scatter_mode_psgs__GFX103PLUSEXCLUSIVE       =  1,
+    function__pfp_execute_indirect_v2__reg_scatter_mode_psgshs__GFX103PLUSEXCLUSIVE     =  2,
 };
 
 // ---------------------------------- PM4_PFP_EXECUTE_INDIRECT_V2 ----------------------------------
@@ -4379,7 +4257,7 @@ typedef struct PM4_PFP_EXECUTE_INDIRECT_V2
                 uint32_t                                               reserved1                    :  4;
                 uint32_t                                               vertex_bounds_check_enable   :  1;
                 uint32_t                                               thread_trace_enable          :  1;
-            } gfx103CorePlus;
+            } gfx103PlusExclusive;
         } bitfields;
         uint32_t u32All;
     } ordinal2;
@@ -4392,7 +4270,7 @@ typedef struct PM4_PFP_EXECUTE_INDIRECT_V2
             {
                 uint32_t reserved1     :  2;
                 uint32_t count_addr_lo : 30;
-            } gfx103CorePlus;
+            } gfx103PlusExclusive;
         } bitfields;
         uint32_t u32All;
     } ordinal3;
@@ -4405,7 +4283,7 @@ typedef struct PM4_PFP_EXECUTE_INDIRECT_V2
             {
                 uint32_t count_addr_hi : 16;
                 uint32_t reserved1     : 16;
-            } gfx103CorePlus;
+            } gfx103PlusExclusive;
         } bitfields;
         uint32_t u32All;
     } ordinal4;
@@ -4430,7 +4308,7 @@ typedef struct PM4_PFP_EXECUTE_INDIRECT_V2
             {
                 uint32_t reserved1    :  2;
                 uint32_t data_addr_lo : 30;
-            } gfx103CorePlus;
+            } gfx103PlusExclusive;
         } bitfields;
         uint32_t u32All;
     } ordinal7;
@@ -4443,7 +4321,7 @@ typedef struct PM4_PFP_EXECUTE_INDIRECT_V2
             {
                 uint32_t data_addr_hi            : 16;
                 uint32_t index_attributes_offset : 16;
-            } gfx103CorePlus;
+            } gfx103PlusExclusive;
         } bitfields;
         uint32_t u32All;
     } ordinal8;
@@ -4457,7 +4335,7 @@ typedef struct PM4_PFP_EXECUTE_INDIRECT_V2
                 uint32_t userdata_gfx_register :  8;
                 uint32_t reserved1             :  8;
                 uint32_t userdata_offset       : 16;
-            } gfx103CorePlus;
+            } gfx103PlusExclusive;
         } bitfields;
         uint32_t u32All;
     } ordinal9;
@@ -4470,7 +4348,7 @@ typedef struct PM4_PFP_EXECUTE_INDIRECT_V2
             {
                 uint32_t reserved1           :  2;
                 uint32_t spill_table_addr_lo : 30;
-            } gfx103CorePlus;
+            } gfx103PlusExclusive;
         } bitfields;
         uint32_t u32All;
     } ordinal10;
@@ -4483,7 +4361,7 @@ typedef struct PM4_PFP_EXECUTE_INDIRECT_V2
             {
                 uint32_t spill_table_addr_hi : 16;
                 uint32_t reserved1           : 16;
-            } gfx103CorePlus;
+            } gfx103PlusExclusive;
         } bitfields;
         uint32_t u32All;
     } ordinal11;
@@ -4496,7 +4374,7 @@ typedef struct PM4_PFP_EXECUTE_INDIRECT_V2
             {
                 uint32_t vb_table_size      : 16;
                 uint32_t spill_table_stride : 16;
-            } gfx103CorePlus;
+            } gfx103PlusExclusive;
         } bitfields;
         uint32_t u32All;
     } ordinal12;
@@ -4511,7 +4389,7 @@ typedef struct PM4_PFP_EXECUTE_INDIRECT_V2
                 uint32_t spill_graphics_reg1 :  8;
                 uint32_t spill_graphics_reg2 :  8;
                 uint32_t reserved1           :  8;
-            } gfx103CorePlus;
+            } gfx103PlusExclusive;
         } bitfieldsA;
         union
         {
@@ -4519,13 +4397,13 @@ typedef struct PM4_PFP_EXECUTE_INDIRECT_V2
             {
                 uint32_t spill_compute_reg0 : 16;
                 uint32_t spill_compute_reg1 : 16;
-            } gfx103CorePlus;
+            } gfx103PlusExclusive;
         } bitfieldsB;
         uint32_t u32All;
     } ordinal13;
 } PM4_PFP_EXECUTE_INDIRECT_V2;
 
-constexpr unsigned int PM4_PFP_EXECUTE_INDIRECT_V2_SIZEDW__GFX103COREPLUS = 13;
+constexpr unsigned int PM4_PFP_EXECUTE_INDIRECT_V2_SIZEDW__GFX103PLUSEXCLUSIVE = 13;
 
 // --------------------------------- PM4_PFP_DISPATCH_MESH_DIRECT ---------------------------------
 typedef struct PM4_PFP_DISPATCH_MESH_DIRECT

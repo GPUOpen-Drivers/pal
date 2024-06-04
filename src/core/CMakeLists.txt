@@ -116,3 +116,7 @@ target_sources(pal PRIVATE
     vamMgr.cpp
     vamMgr.h
 )
+
+if (PAL_PRECOMPILED_HEADERS)
+    target_sources(pal PRIVATE precompiledHeaders.h)
+endif()

@@ -82,11 +82,13 @@ typedef struct
         uint8_t type    : 8;
 
         /// The size of the value pointed to by `pValue`.
-        /// NB: For a string setting, if its type is static char array, this value represents the size
-        /// of the array NOT the length of the string. If the type variable-size char array, this value
-        /// represents the length of the string. In either case the size includes null-terminator.
-        /// NB: If it's a non-string optional setting, this value represents the size of the inner type
-        /// T, not DevDriver::Optional<T>.
+        ///
+        /// NB: For a string setting,
+        /// - if its type is `char [n]`, this value represents the size of the array NOT the length of the string.
+        /// - if its type is `char*`, this value represents the length of the string, including the null-terminator.
+        ///
+        /// NB: If it's a non-string optional setting, this value represents the size of the inner type T, not
+        /// DevDriver::Optional<T>. Optional string setting is not supported currently.
         uint16_t size   : 16;
 
         /// Whether the setting is wrapped inside DevDriver::Optional.

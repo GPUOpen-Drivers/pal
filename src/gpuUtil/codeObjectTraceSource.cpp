@@ -482,10 +482,11 @@ Result CodeObjectTraceSource::RegisterPipeline(
     // Record the compiled hash, if it hasn't been seen before
     if (result == Result::Success)
     {
-        const uint64 hash = pipeInfo.internalPipelineHash.unique ^ pipeInfo.internalPipelineHash.stable;
-        result = m_registeredPipelines.Contains(hash)
-               ? Result::AlreadyExists
-               : m_registeredPipelines.Insert(hash);
+        const uint64 hash = (pipeInfo.internalPipelineHash.unique == pipeInfo.internalPipelineHash.stable) ?
+            pipeInfo.internalPipelineHash.unique :
+            (pipeInfo.internalPipelineHash.unique ^ pipeInfo.internalPipelineHash.stable);
+
+        result = m_registeredPipelines.Contains(hash) ? Result::AlreadyExists : m_registeredPipelines.Insert(hash);
     }
     m_registerPipelineLock.UnlockForWrite();
 

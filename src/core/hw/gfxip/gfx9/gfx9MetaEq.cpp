@@ -42,18 +42,13 @@ namespace Gfx9
 //=============== Implementation for MetaDataAddrEquation: =============================================================
 // =====================================================================================================================
 MetaDataAddrEquation::MetaDataAddrEquation(
-    uint32         maxEquationBits, // maximum number of bits this equation could possibly have
-    const char*    pName)           // a identifier for this equation, only used for debug prints.  Can be NULL
+    uint32         maxEquationBits) // maximum number of bits this equation could possibly have
     :
     m_maxBits(maxEquationBits)
 {
     PAL_ASSERT (maxEquationBits < MaxNumMetaDataAddrBits);
 
     memset(&m_firstPair[0], 0, sizeof(m_firstPair));
-
-#if PAL_ENABLE_PRINTS_ASSERTS
-    Strncpy(m_equationName, ((pName != nullptr) ? pName : ""), MaxEquationNameLength);
-#endif
 
     Reset();
 }
@@ -154,33 +149,6 @@ void MetaDataAddrEquation::Copy(
             pDst->SetMask(bitPosIndex, compType, Get(startBitPos + bitPosIndex, compType));
         }
     }
-}
-
-// =====================================================================================================================
-// Uses the CPU to solve the meta-equation given the specified inputs.  The return value is always in terms of nibbles
-uint32 MetaDataAddrEquation::CpuSolve(
-    uint32  x,         // cartesian coordinates
-    uint32  y,
-    uint32  z,         // which slice of either a 2d array or 3d volume
-    uint32  sample,    // which msaa sample
-    uint32  metaBlock  // which metablock
-    ) const
-{
-    uint32  metaOffset = 0;
-
-    for (uint32  bitPos = 0; bitPos < GetNumValidBits(); bitPos++)
-    {
-        uint32 b =
-             (CountSetBits(Get(bitPos, MetaDataAddrCompX) & x)         & 0x1);
-        b ^= (CountSetBits(Get(bitPos, MetaDataAddrCompY) & y)         & 0x1);
-        b ^= (CountSetBits(Get(bitPos, MetaDataAddrCompZ) & z)         & 0x1);
-        b ^= (CountSetBits(Get(bitPos, MetaDataAddrCompS) & sample)    & 0x1);
-        b ^= (CountSetBits(Get(bitPos, MetaDataAddrCompM) & metaBlock) & 0x1);
-
-        metaOffset |= (b << bitPos);
-    } // end loop through all the bits in the equation
-
-    return metaOffset;
 }
 
 // =====================================================================================================================
@@ -506,50 +474,6 @@ void MetaDataAddrEquation::Mort3d(
         SetBit(i, pC->compType, pC->compPos);
         pC->compPos++;
     }
-}
-
-// =====================================================================================================================
-void MetaDataAddrEquation::PrintEquation(
-    const Pal::Device*  pDevice
-    ) const
-{
-#if PAL_ENABLE_PRINTS_ASSERTS
-    const Gfx9PalSettings&  settings = GetGfx9Settings(*pDevice);
-    if (TestAnyFlagSet(settings.printMetaEquationInfo, Gfx9PrintMetaEquationInfoEquations))
-    {
-        DbgPrintf(DbgPrintCatInfoMsg, DbgPrintStyleNoPrefix, "%s equation", m_equationName);
-
-        for (uint32 bit = 0; bit < GetNumValidBits(); bit++)
-        {
-            constexpr const char CompNames[MetaDataAddrCompNumTypes] = { 'x', 'y', 'z', 's', 'm' };
-
-            // Guessing?  I hope 256 is long enough.  :-)
-            char  printMe[256] = {};
-
-            for (uint32  compType = 0; compType < MetaDataAddrCompNumTypes; compType++)
-            {
-                uint32  data      = m_equation[bit][compType];
-                for (uint32 lowSetBit : BitIter32(data))
-                {
-                    static const uint32  CompNameSize = 16;
-                    char  compName[CompNameSize] = {};
-
-                    Snprintf(compName, CompNameSize, "%c%u ^ ", CompNames[compType], lowSetBit);
-                    strcat (printMe, compName);
-                }
-            }
-
-            // We wind up with one extra '^' character, so find it and remove it so the printout looks nicer
-            char*  pChar = strrchr(printMe, '^');
-            if (pChar)
-            {
-                *pChar = ' ';
-            }
-
-            DbgPrintf(DbgPrintCatInfoMsg, DbgPrintStyleNoPrefix, "\teq[%2d] = %s", bit, printMe);
-        }
-    }
-#endif
 }
 
 // =====================================================================================================================
@@ -1062,7 +986,7 @@ void MetaDataAddrEquation::Rotate(
     }
 
     const int32 size = 1 + end - start;
-    MetaDataAddrEquation  rotCopy(size, "rotCopy");
+    MetaDataAddrEquation  rotCopy(size);
 
     Copy(&rotCopy, start, size);
     for (int32 i = 0; i < size; i++)

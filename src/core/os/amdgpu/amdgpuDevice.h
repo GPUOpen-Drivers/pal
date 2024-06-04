@@ -497,13 +497,8 @@ public:
         return Result::ErrorUnavailable;
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 796
     virtual Result CheckExecutionState(
         PageFaultStatus* pPageFaultStatus) override;
-#else
-    virtual Result CheckExecutionState(
-        PageFaultStatus* pPageFaultStatus) const override;
-#endif
 
     virtual Result QueryRadeonSoftwareVersion(
         char*  pBuffer,
@@ -1047,8 +1042,6 @@ private:
     void InitGfx9ChipProperties();
     void InitGfx9CuMask(
         struct drm_amdgpu_info_device* pDeviceInfo);
-
-    void InitOutputPaths();
 
     const uint32 GetDeviceNodeIndex() { return m_deviceNodeIndex; }
 

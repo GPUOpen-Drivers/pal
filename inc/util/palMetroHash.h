@@ -53,7 +53,8 @@ struct Hash
     };
 };
 
-/// Compacts a 128-bit hash into a 64-bit one by XOR'ing the low and high 64-bits together.
+/// Compacts a 128-bit hash into a 64-bit one by XOR'ing the low and high 64-bits together
+/// and then swapping the two 32-bit words.
 ///
 /// @param [in] pHash 128-bit hash to be compacted.
 ///

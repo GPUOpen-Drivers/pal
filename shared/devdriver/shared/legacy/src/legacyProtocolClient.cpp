@@ -130,9 +130,9 @@ namespace DevDriver
                 {
                     DD_PRINT(
                         LogLevel::Error,
-                        "[DevDriver][LegacyProtocolClient] Failed to connect session (protocol: %u). Result: %u",
+                        "[DevDriver][LegacyProtocolClient] Failed to connect session (protocol: %u). Result: %s",
                         sessionInfo.protocol,
-                        result);
+                        ResultToString(result));
                 }
             }
             else

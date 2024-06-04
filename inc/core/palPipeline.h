@@ -209,12 +209,6 @@ enum class OverrideMode : int32
     Enabled  = 1,  ///< Force to enabled. Equal to set to True.
 };
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 793
-#ifndef PAL_BUILD_SUPPORT_DEPTHCLAMPMODE_ZERO_TO_ONE
-#define PAL_BUILD_SUPPORT_DEPTHCLAMPMODE_ZERO_TO_ONE 1
-#endif
-#endif
-
 /// Enumerates the depth clamping modes a pipeline can use.
 enum class DepthClampMode : uint32
 {
@@ -318,6 +312,8 @@ struct ComputePipelineCreateInfo
     /// This field is not supported on PAL ABI ELFs, it should be set to all zeros.
     Extent3d            threadsPerGroup;
 
+    const char*         pKernelName; ///< When create pipeline with hsa ELF binary of multiple kernels, need to set one
+                                     ///  kernel to create the pipeline. null means only one kernel in ELF binary.
 };
 
 /// Specifies information about the viewport behavior of an assembled graphics pipeline.  Part of the input
@@ -500,8 +496,9 @@ struct PipelineInfo
     {
         struct
         {
-            uint32 hsaAbi   : 1;  ///< This pipeline uses the HSA ABI (i.e. bind arguments not user-data).
-            uint32 reserved : 31; ///< Reserved for future use.
+            uint32 hsaAbi   : 1;  ///< This pipeline uses the HSA ABI (i.e. bind arguments not user-data
+            uint32 usesCps  : 1;  ///< This pipeline uses continuations passing shaders (CPS).
+            uint32 reserved : 30; ///< Reserved for future use.
         };
         uint32 u32All;            ///< All flags combined as a single uint32.
     } flags;                      ///< Pipeline properties.
@@ -805,7 +802,6 @@ public:
     virtual void SetStackSizeInBytes(
         uint32 stackSizeInBytes) = 0;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 797
     /// Retrieve the stack sizes managed by compiler, including the frontend stack and the frontend stack.
     ///
     /// @param [out] pSizes  To be filled with both the frontend stack size and the backend stack size, in bytes.
@@ -813,10 +809,6 @@ public:
     /// @returns SUCCESS
     virtual Result GetStackSizes(
         CompilerStackSizes* pSizes) const = 0;
-#else
-    /// @returns The stack size, in bytes. It returns either the backend size or the frontend size, based on the input.
-    virtual uint32 GetStackSizeInBytes() const = 0;
-#endif
 
     /// Returns the API shader type to hardware stage mapping for the pipeline.
     ///

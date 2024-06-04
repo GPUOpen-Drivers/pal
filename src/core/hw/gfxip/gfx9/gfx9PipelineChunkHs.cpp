@@ -104,7 +104,7 @@ uint32* PipelineChunkHs::WriteShCommands(
 {
     const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
 
-    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(Gfx10Plus::mmSPI_SHADER_PGM_LO_LS,
+    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSPI_SHADER_PGM_LO_LS,
                                                              m_regs.sh.spiShaderPgmLoLs.u32All,
                                                              pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqShRegs(mmSPI_SHADER_PGM_RSRC1_HS,
@@ -115,14 +115,14 @@ uint32* PipelineChunkHs::WriteShCommands(
     if (m_regs.sh.userDataInternalTable != InvalidUserDataInternalTable)
     {
         pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(
-                                    Gfx10Plus::mmSPI_SHADER_USER_DATA_HS_0 + ConstBufTblStartReg,
+                                    mmSPI_SHADER_USER_DATA_HS_0 + ConstBufTblStartReg,
                                     m_regs.sh.userDataInternalTable,
                                     pCmdSpace);
     }
 
     if (chipProps.gfx9.supportSpp != 0)
     {
-        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_HS,
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSPI_SHADER_PGM_CHKSUM_HS,
                                                                  m_regs.sh.spiShaderPgmChksumHs.u32All,
                                                                  pCmdSpace);
     }
@@ -196,14 +196,14 @@ void PipelineChunkHs::AccumulateShRegs(
 
     SetOneShRegValPairPacked(pRegPairs,
                              pNumRegs,
-                             Gfx10Plus::mmSPI_SHADER_PGM_LO_LS,
+                             mmSPI_SHADER_PGM_LO_LS,
                              m_regs.sh.spiShaderPgmLoLs.u32All);
 
     if (m_regs.sh.userDataInternalTable != InvalidUserDataInternalTable)
     {
         SetOneShRegValPairPacked(pRegPairs,
                                  pNumRegs,
-                                 Gfx10Plus::mmSPI_SHADER_USER_DATA_HS_0 + ConstBufTblStartReg,
+                                 mmSPI_SHADER_USER_DATA_HS_0 + ConstBufTblStartReg,
                                  m_regs.sh.userDataInternalTable);
     }
 
@@ -217,7 +217,7 @@ void PipelineChunkHs::AccumulateShRegs(
     {
         SetOneShRegValPairPacked(pRegPairs,
                                  pNumRegs,
-                                 Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_HS,
+                                 mmSPI_SHADER_PGM_CHKSUM_HS,
                                  m_regs.sh.spiShaderPgmChksumHs.u32All);
     }
 

@@ -121,11 +121,12 @@ struct ColorTargetViewInternalCreateInfo
     {
         struct
         {
-            uint32 dccDecompress     : 1;  // Indicates this color target view is for a DCC decompress
-            uint32 fastClearElim     : 1;  // Indicates this color target view is for a fast-clear-eliminate
-            uint32 fmaskDecompress   : 1;  // Indicates this color target view is for a fmask decompress
-            uint32 depthStencilCopy  : 1;  // Indicates this color target view is for a depth/stencil copy
-            uint32 reserved          : 28; // Reserved for future use
+            uint32 dccDecompress            : 1;  // Indicates this color target view is for a DCC decompress
+            uint32 fastClearElim            : 1;  // Indicates this color target view is for a fast-clear-eliminate
+            uint32 fmaskDecompress          : 1;  // Indicates this color target view is for a fmask decompress
+            uint32 depthStencilCopy         : 1;  // Indicates this color target view is for a depth/stencil copy
+            uint32 disableClientCompression : 1;  // True to disable client compression
+            uint32 reserved                 : 27; // Reserved for future use
         };
         uint32 u32All;
     } flags;
@@ -141,12 +142,13 @@ struct DepthStencilViewInternalCreateInfo
     {
         struct
         {
-            uint32 isExpand       : 1;  // true if setting up an expand operation
-            uint32 isDepthClear   : 1;  // true if this is a fast-depth clear
-            uint32 isStencilClear : 1;  // true if this is a fast-stencil clear
-            uint32 isDepthCopy    : 1;  // true if this is a depth copy
-            uint32 isStencilCopy  : 1;  // true if this is a stencil copy
-            uint32 reserved       : 27; // reserved, set to zero
+            uint32 isExpand                 : 1;  // true if setting up an expand operation
+            uint32 isDepthClear             : 1;  // true if this is a fast-depth clear
+            uint32 isStencilClear           : 1;  // true if this is a fast-stencil clear
+            uint32 isDepthCopy              : 1;  // true if this is a depth copy
+            uint32 isStencilCopy            : 1;  // true if this is a stencil copy
+            uint32 disableClientCompression : 1;  // true to disable client compression
+            uint32 reserved                 : 26; // reserved, set to zero
         };
         uint32 u32All;
     } flags;

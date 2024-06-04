@@ -219,4 +219,75 @@ constexpr bool operator!=(L l, R r) noexcept
     return UnderlyingType(l) != UnderlyingType(r);
 }
 
+/// Addition operator for enums.
+///
+/// @returns the addition of the two operands. The resulting type is the underlying type of the enum.
+template<typename L,
+         typename R,
+         std::enable_if_t<OneIsEnumOtherIsEnumOrIntegral<L, R>::value, int> = 0>
+constexpr auto operator+(L l, R r) noexcept -> decltype(ToUnderlyingType(l) + ToUnderlyingType(r))
+{
+    // We need to cast them to the same type to avoid signed/unsigned mismatch.
+    using UnderlyingType = decltype(ToUnderlyingType(l) + ToUnderlyingType(r));
+    return UnderlyingType(l) + UnderlyingType(r);
+}
+
+/// Subtraction operator for enums.
+///
+/// @returns the subtraction of the two operands. The resulting type is the underlying type of the enum.
+template<typename L,
+         typename R,
+         std::enable_if_t<OneIsEnumOtherIsEnumOrIntegral<L, R>::value, int> = 0>
+constexpr auto operator-(L l, R r) noexcept -> decltype(ToUnderlyingType(l) - ToUnderlyingType(r))
+{
+    // We need to cast them to the same type to avoid signed/unsigned mismatch.
+    using UnderlyingType = decltype(ToUnderlyingType(l) - ToUnderlyingType(r));
+    return UnderlyingType(l) - UnderlyingType(r);
+}
+
+/// Pre-increment operator for enums.
+///
+/// @returns enum after the increment.
+template<typename E,
+         std::enable_if_t<std::is_enum<E>::value, int> = 0>
+constexpr E operator++(E& e) noexcept
+{
+    e = E(e + 1);
+    return e;
+}
+
+/// Post-increment operator for enums.
+///
+/// @returns enum before the increment.
+template<typename E,
+    std::enable_if_t<std::is_enum<E>::value, int> = 0>
+constexpr E operator++(E& e, int) noexcept
+{
+    const E ret = e;
+    ++e;
+    return ret;
+}
+
+/// Pre-decrement operator for enums.
+///
+/// @returns enum after the decrement.
+template<typename E,
+    std::enable_if_t<std::is_enum<E>::value, int> = 0>
+constexpr E operator--(E& e) noexcept
+{
+    e = E(e - 1);
+    return e;
+}
+
+/// Post-decrement operator for enums.
+///
+/// @returns enum before the decrement.
+template<typename E,
+    std::enable_if_t<std::is_enum<E>::value, int> = 0>
+constexpr E operator--(E& e, int) noexcept
+{
+    const E ret = e;
+    --e;
+    return ret;
+}
 } // Util

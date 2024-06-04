@@ -613,14 +613,9 @@ public:
         DeviceProperties* pInfo) const override
         { return m_pNextLayer->GetProperties(pInfo); }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 796
     virtual Result CheckExecutionState(
         PageFaultStatus* pPageFaultStatus) override
-#else
-    virtual Result CheckExecutionState(
-        PageFaultStatus* pPageFaultStatus) const override
-#endif
-    { return m_pNextLayer->CheckExecutionState(pPageFaultStatus); }
+        { return m_pNextLayer->CheckExecutionState(pPageFaultStatus); }
 
     virtual PalPublicSettings* GetPublicSettings() override
         { return m_pNextLayer->GetPublicSettings(); }
@@ -1478,10 +1473,8 @@ public:
     virtual uint32 GetEmbeddedDataLimit() const override
         { return m_pNextLayer->GetEmbeddedDataLimit(); }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
     virtual uint32 GetLargeEmbeddedDataLimit() const override
         { return m_pNextLayer->GetLargeEmbeddedDataLimit(); }
-#endif
 
     virtual void CmdBindPipeline(
         const PipelineBindParams& params) override
@@ -1517,10 +1510,8 @@ public:
         { m_pNextLayer->CmdSetKernelArguments(firstArg, argCount, ppValues); }
 
     virtual void CmdSetVertexBuffers(
-        uint32                firstBuffer,
-        uint32                bufferCount,
-        const BufferViewInfo* pBuffers) override
-        { m_pNextLayer->CmdSetVertexBuffers(firstBuffer, bufferCount, pBuffers); }
+        const VertexBufferViews& bufferViews) override
+        { m_pNextLayer->CmdSetVertexBuffers(bufferViews); }
 
     virtual void CmdBindIndexData(
         gpusize   gpuAddr,
@@ -2172,15 +2163,11 @@ public:
         gpusize* pGpuAddress) override
         { return m_pNextLayer->CmdAllocateEmbeddedData(sizeInDwords, alignmentInDwords, pGpuAddress); }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
     virtual uint32* CmdAllocateLargeEmbeddedData(
         uint32   sizeInDwords,
         uint32   alignmentInDwords,
         gpusize* pGpuAddress) override
-    {
-        return m_pNextLayer->CmdAllocateLargeEmbeddedData(sizeInDwords, alignmentInDwords, pGpuAddress);
-    }
-#endif
+        { return m_pNextLayer->CmdAllocateLargeEmbeddedData(sizeInDwords, alignmentInDwords, pGpuAddress); }
 
     virtual Result AllocateAndBindGpuMemToEvent(
         IGpuEvent* pGpuEvent) override
@@ -2959,13 +2946,8 @@ public:
     virtual void SetStackSizeInBytes(uint32 stackSizeInBytes) override
         { m_pNextLayer->SetStackSizeInBytes(stackSizeInBytes); }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 797
     virtual Result GetStackSizes(CompilerStackSizes* pSizes) const override
         { return m_pNextLayer->GetStackSizes(pSizes); }
-#else
-    virtual uint32 GetStackSizeInBytes() const override
-        { return m_pNextLayer->GetStackSizeInBytes(); }
-#endif
 
     virtual Result QueryAllocationInfo(size_t* pNumEntries, GpuMemSubAllocInfo* const pAllocInfoList) const override
         { return m_pNextLayer->QueryAllocationInfo(pNumEntries, pAllocInfoList); }

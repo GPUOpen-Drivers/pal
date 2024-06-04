@@ -459,7 +459,6 @@ public:
     uint32 GetNumPipesLog2() const         { return GetGbAddrConfig().bits.NUM_PIPES; }
     uint32 GetNumShaderEnginesLog2() const { return GetGbAddrConfig().bits.NUM_SHADER_ENGINES; }
     uint32 GetNumRbsPerSeLog2() const      { return GetGbAddrConfig().bits.NUM_RB_PER_SE; }
-    uint32 GetNumBanksLog2() const         { return GetGbAddrConfig().gfx09.NUM_BANKS; }
     uint32 GetNumPkrsLog2() const          { return GetGbAddrConfig().gfx103PlusExclusive.NUM_PKRS; }
 
     uint32 GetPipeInterleaveLog2() const;
@@ -535,6 +534,8 @@ public:
         GfxCmdBuffer*                   pCmdBuf,
         const CmdPostProcessFrameInfo&  postProcessInfo,
         bool*                           pAddedGpuWork) const override;
+
+    bool EnableReleaseMemWaitCpDma() const { return Settings().gfx11EnableReleaseMemWaitCpDma; }
 
 private:
     void Gfx10SetImageSrdDims(sq_img_rsrc_t*  pSrd, uint32 width, uint32  height) const;

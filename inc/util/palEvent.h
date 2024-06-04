@@ -31,6 +31,7 @@
 
 #pragma once
 
+#include "palTime.h"
 #include "palUtil.h"
 
 namespace Util

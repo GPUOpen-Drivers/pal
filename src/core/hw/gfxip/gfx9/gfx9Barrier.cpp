@@ -498,6 +498,7 @@ void BarrierMgr::ExpandColor(
             {
                 uint32*  pCmdSpace = pCmdStream->ReserveCommands();
                 pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CACHE_FLUSH_AND_INV_EVENT, engineType, pCmdSpace);
+                SetBarrierOperationsRbCacheSynced(pOperations);
                 pCmdStream->CommitCommands(pCmdSpace);
 
             }
@@ -528,6 +529,7 @@ void BarrierMgr::ExpandColor(
                 // using the lightweight event for now, but if we see issues this should be changed to the timestamp
                 // version which waits for completion.
                 pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CACHE_FLUSH_AND_INV_EVENT, engineType, pCmdSpace);
+                SetBarrierOperationsRbCacheSynced(pOperations);
             }
             else
             {
@@ -556,6 +558,7 @@ void BarrierMgr::ExpandColor(
             {
                 uint32* pCmdSpace = pCmdStream->ReserveCommands();
                 pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CACHE_FLUSH_AND_INV_EVENT, engineType, pCmdSpace);
+                SetBarrierOperationsRbCacheSynced(pOperations);
                 pCmdStream->CommitCommands(pCmdSpace);
             }
 
@@ -601,7 +604,7 @@ void BarrierMgr::ExpandColor(
             // FmaskColorExpand is expected to run a compute shader but waiting at HwPipePostPrefetch will work for
             // compute or graphics.
             uint32* pCmdSpace = pCmdStream->ReserveCommands();
-            pCmdSpace = pCmdBuf->WriteWaitEop(HwPipePostPrefetch, syncGlxFlags, SyncCbWbInv, pCmdSpace);
+            pCmdSpace = pCmdBuf->WriteWaitEop(HwPipePostPrefetch, false, syncGlxFlags, SyncCbWbInv, pCmdSpace);
             pCmdStream->CommitCommands(pCmdSpace);
         }
 
@@ -805,10 +808,10 @@ void BarrierMgr::IssueSyncs(
         if (isGfxSupported && TestAnyFlagSet(gfx9Device.Settings().waitOnFlush, WaitBeforeBarrierEopWithCbFlush) &&
             TestAnyFlagSet(syncReqs.rbCaches, SyncCbWbInv))
         {
-            pCmdSpace = pCmdBuf->WriteWaitEop(HwPipePreColorTarget, SyncGlxNone, SyncRbNone, pCmdSpace);
+            pCmdSpace = pCmdBuf->WriteWaitEop(HwPipePreColorTarget, false, SyncGlxNone, SyncRbNone, pCmdSpace);
         }
 
-        pCmdSpace = pCmdBuf->WriteWaitEop(waitPoint, syncReqs.glxCaches, syncReqs.rbCaches, pCmdSpace);
+        pCmdSpace = pCmdBuf->WriteWaitEop(waitPoint, false, syncReqs.glxCaches, syncReqs.rbCaches, pCmdSpace);
         syncReqs.glxCaches = SyncGlxNone;
 
         if (isGfxSupported)
@@ -1295,7 +1298,14 @@ void BarrierMgr::Barrier(
 
         if (imageInfo.pImage != nullptr)
         {
-            if (TestAnyFlagSet(imageInfo.oldLayout.usages, LayoutUninitializedTarget))
+            if (TestAnyFlagSet(imageInfo.newLayout.usages, LayoutUninitializedTarget))
+            {
+                // If the LayoutUninitializedTarget usage is set, no other usages should be set.
+                PAL_ASSERT(TestAnyFlagSet(imageInfo.newLayout.usages, ~LayoutUninitializedTarget) == false);
+
+                // We do no decompresses, expands, or any other kind of blt in this case.
+            }
+            else if (TestAnyFlagSet(imageInfo.oldLayout.usages, LayoutUninitializedTarget))
             {
                 // If the LayoutUninitializedTarget usage is set, no other usages should be set.
                 PAL_ASSERT(TestAnyFlagSet(imageInfo.oldLayout.usages, ~LayoutUninitializedTarget) == false);
@@ -1374,13 +1384,6 @@ void BarrierMgr::Barrier(
                         initSyncReqs.glxCaches |= SyncGl2WbInv;
                     }
                 }
-            }
-            else if (TestAnyFlagSet(imageInfo.newLayout.usages, LayoutUninitializedTarget))
-            {
-                // If the LayoutUninitializedTarget usage is set, no other usages should be set.
-                PAL_ASSERT(TestAnyFlagSet(imageInfo.newLayout.usages, ~LayoutUninitializedTarget) == false);
-
-                // We do no decompresses, expands, or any other kind of blt in this case.
             }
         }
     } // For each transition.

@@ -84,6 +84,12 @@ BarrierMgr::BarrierMgr(
 }
 
 // =====================================================================================================================
+bool BarrierMgr::EnableReleaseMemWaitCpDma() const
+{
+    return static_cast<Device*>(m_pGfxDevice)->EnableReleaseMemWaitCpDma();
+}
+
+// =====================================================================================================================
 const RsrcProcMgr& BarrierMgr::RsrcProcMgr() const
 {
     return static_cast<const Gfx9::RsrcProcMgr&>(m_pGfxDevice->RsrcProcMgr());
@@ -425,13 +431,13 @@ static ME_ACQUIRE_MEM_pws_stage_sel_enum GetPwsStageSel(
 {
     static constexpr ME_ACQUIRE_MEM_pws_stage_sel_enum PwsStageSelMapTable[] =
     {
-        pws_stage_sel__me_acquire_mem__cp_pfp__HASPWS,         // Pfp       = 0
-        pws_stage_sel__me_acquire_mem__cp_me__HASPWS,          // Me        = 1
-        pws_stage_sel__me_acquire_mem__pre_shader__HASPWS,     // PreShader = 2
-        pws_stage_sel__me_acquire_mem__pre_depth__HASPWS,      // PreDepth  = 3
-        pws_stage_sel__me_acquire_mem__pre_pix_shader__HASPWS, // PrePs     = 4
-        pws_stage_sel__me_acquire_mem__pre_color__HASPWS,      // PreColor  = 5
-        pws_stage_sel__me_acquire_mem__pre_color__HASPWS,      // Eop       = 6 (Invalid)
+        pws_stage_sel__me_acquire_mem__cp_pfp__GFX11,         // Pfp       = 0
+        pws_stage_sel__me_acquire_mem__cp_me__GFX11,          // Me        = 1
+        pws_stage_sel__me_acquire_mem__pre_shader__GFX11,     // PreShader = 2
+        pws_stage_sel__me_acquire_mem__pre_depth__GFX11,      // PreDepth  = 3
+        pws_stage_sel__me_acquire_mem__pre_pix_shader__GFX11, // PrePs     = 4
+        pws_stage_sel__me_acquire_mem__pre_color__GFX11,      // PreColor  = 5
+        pws_stage_sel__me_acquire_mem__pre_color__GFX11,      // Eop       = 6 (Invalid)
     };
 
     PAL_ASSERT(acquirePoint < AcquirePoint::Count);
@@ -857,8 +863,22 @@ SyncGlxFlags BarrierMgr::GetAcqRelLayoutTransitionBltInfo(
 
     if (releaseRbFlags != SyncRbNone)
     {
-        const VGT_EVENT_TYPE vgtEvent = TestAnyFlagSet(releaseRbFlags, SyncCbWbInv) ? CACHE_FLUSH_AND_INV_EVENT
-                                                                                    : DB_CACHE_FLUSH_AND_INV;
+        VGT_EVENT_TYPE vgtEvent;
+
+        if (TestAnyFlagSet(releaseRbFlags, SyncCbWbInv))
+        {
+            SetBarrierOperationsRbCacheSynced(pBarrierOps);
+            vgtEvent = CACHE_FLUSH_AND_INV_EVENT;
+        }
+        else
+        {
+            pBarrierOps->caches.flushDb = 1;
+            pBarrierOps->caches.invalDb = 1;
+            pBarrierOps->caches.flushDbMetadata = 1;
+            pBarrierOps->caches.invalDbMetadata = 1;
+            vgtEvent = DB_CACHE_FLUSH_AND_INV;
+        }
+
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
         pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(vgtEvent, pCmdBuf->GetEngineType(), pCmdSpace);
         pCmdStream->CommitCommands(pCmdSpace);
@@ -1191,6 +1211,8 @@ AcqRelSyncToken BarrierMgr::IssueReleaseSync(
                      releaseEvents.cs                 ? uint32(AcqRelEventType::CsDone) :
                                                         uint32(AcqRelEventType::Invalid);
 
+    bool releaseMemWaitCpDma = false;
+
     if (pCmdBuf->GetPm4CmdBufState().flags.cpBltActive &&
         TestAnyFlagSet(stageMask, PipelineStageBlt | PipelineStageBottomOfPipe))
     {
@@ -1198,8 +1220,16 @@ AcqRelSyncToken BarrierMgr::IssueReleaseSync(
         // the CmdSetEvent and CmdResetEvent functions expect that the prior blts have reached the post-blt stage by
         // the time the event is written to memory. Given that our CP DMA blts are asynchronous to the pipeline stages
         // the only way to satisfy this requirement is to force the MEC to stall until the CP DMAs are completed.
+        if (EnableReleaseMemWaitCpDma() && (syncToken.type != uint32(AcqRelEventType::Invalid)))
+        {
+            releaseMemWaitCpDma = true;
+        }
+        else
+        {
+            pCmdSpace += m_cmdUtil.BuildWaitDmaData(pCmdSpace);
+        }
+
         pBarrierOps->pipelineStalls.syncCpDma = 1;
-        pCmdSpace += m_cmdUtil.BuildWaitDmaData(pCmdSpace);
         pCmdBuf->SetCpBltState(false);
     }
 
@@ -1212,7 +1242,8 @@ AcqRelSyncToken BarrierMgr::IssueReleaseSync(
         if (Pal::Device::EngineSupportsGraphics(engineType))
         {
             ReleaseMemGfx releaseMem = {};
-            releaseMem.cacheSync = releaseCaches;
+            releaseMem.cacheSync      = releaseCaches;
+            releaseMem.gfx11WaitCpDma = releaseMemWaitCpDma;
 
             switch (AcqRelEventType(syncToken.type))
             {
@@ -1279,11 +1310,12 @@ AcqRelSyncToken BarrierMgr::IssueReleaseSync(
             }
 
             ReleaseMemGeneric releaseMem = {};
-            releaseMem.engineType = engineType;
-            releaseMem.cacheSync  = releaseCaches;
-            releaseMem.dstAddr    = pCmdBuf->AcqRelFenceValGpuVa(AcqRelEventType(syncToken.type));
-            releaseMem.dataSel    = data_sel__me_release_mem__send_32_bit_low;
-            releaseMem.data       = syncToken.fenceVal;
+            releaseMem.engineType     = engineType;
+            releaseMem.cacheSync      = releaseCaches;
+            releaseMem.dstAddr        = pCmdBuf->AcqRelFenceValGpuVa(AcqRelEventType(syncToken.type));
+            releaseMem.dataSel        = data_sel__me_release_mem__send_32_bit_low;
+            releaseMem.data           = syncToken.fenceVal;
+            releaseMem.gfx11WaitCpDma = releaseMemWaitCpDma;
 
             pCmdSpace += m_cmdUtil.BuildReleaseMemGeneric(releaseMem, pCmdSpace);
         }
@@ -1374,9 +1406,9 @@ void BarrierMgr::IssueAcquireSync(
         acquireMem.cacheSync = acquireCaches;
         acquireMem.stageSel  = GetPwsStageSel(acquirePoint);
 
-        static_assert((uint32(AcqRelEventType::Eop)    == uint32(pws_counter_sel__me_acquire_mem__ts_select__HASPWS)) &&
-                      (uint32(AcqRelEventType::PsDone) == uint32(pws_counter_sel__me_acquire_mem__ps_select__HASPWS)) &&
-                      (uint32(AcqRelEventType::CsDone) == uint32(pws_counter_sel__me_acquire_mem__cs_select__HASPWS)),
+        static_assert((uint32(AcqRelEventType::Eop)    == uint32(pws_counter_sel__me_acquire_mem__ts_select__GFX11)) &&
+                      (uint32(AcqRelEventType::PsDone) == uint32(pws_counter_sel__me_acquire_mem__ps_select__GFX11)) &&
+                      (uint32(AcqRelEventType::CsDone) == uint32(pws_counter_sel__me_acquire_mem__cs_select__GFX11)),
                       "Enum orders mismatch! Fix the ordering so the following for-loop runs correctly.");
 
         for (uint32 i = 0; i < uint32(AcqRelEventType::Count); i++)
@@ -1566,11 +1598,24 @@ void BarrierMgr::IssueReleaseThenAcquireSync(
                         (releaseEvents.eop ||
                          ((acquirePoint > AcquirePoint::Me) && (releaseEvents.ps || releaseEvents.cs)));
 
+    bool releaseMemWaitCpDma = false;
+
     if (pCmdBuf->GetPm4CmdBufState().flags.cpBltActive &&
         TestAnyFlagSet(srcStageMask, PipelineStageBlt | PipelineStageBottomOfPipe))
     {
+        if (EnableReleaseMemWaitCpDma() &&
+            (usePws ||
+             ((acquirePoint <= AcquirePoint::Me) && releaseEvents.eop) ||
+             ((acquirePoint == AcquirePoint::Eop) && (releaseEvents.rbCache || (releaseCaches.u8All != 0)))))
+        {
+            releaseMemWaitCpDma = true;
+        }
+        else
+        {
+            pCmdSpace += m_cmdUtil.BuildWaitDmaData(pCmdSpace);
+        }
+
         pBarrierOps->pipelineStalls.syncCpDma = 1;
-        pCmdSpace += m_cmdUtil.BuildWaitDmaData(pCmdSpace);
         pCmdBuf->SetCpBltState(false);
     }
 
@@ -1580,15 +1625,16 @@ void BarrierMgr::IssueReleaseThenAcquireSync(
         PAL_ASSERT(releaseEvents.vs == 0);
 
         ReleaseMemGfx releaseMem = {};
-        releaseMem.usePws    = 1;
-        releaseMem.cacheSync = releaseCaches;
+        releaseMem.usePws         = 1;
+        releaseMem.gfx11WaitCpDma = releaseMemWaitCpDma;
+        releaseMem.cacheSync      = releaseCaches;
 
         ME_ACQUIRE_MEM_pws_counter_sel_enum pwsCounterSel;
         if (releaseEvents.eop)
         {
             releaseMem.dataSel  = data_sel__me_release_mem__none;
             releaseMem.vgtEvent = releaseEvents.rbCache ? CACHE_FLUSH_AND_INV_TS_EVENT : BOTTOM_OF_PIPE_TS;
-            pwsCounterSel       = pws_counter_sel__me_acquire_mem__ts_select__HASPWS;
+            pwsCounterSel       = pws_counter_sel__me_acquire_mem__ts_select__GFX11;
             pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
 
             // Handle cases where a stall is needed as a workaround before EOP with CB Flush event
@@ -1596,7 +1642,7 @@ void BarrierMgr::IssueReleaseThenAcquireSync(
             if (releaseEvents.rbCache &&
                 TestAnyFlagSet(gfx9Device.Settings().waitOnFlush, WaitBeforeBarrierEopWithCbFlush))
             {
-                pCmdSpace = pCmdBuf->WriteWaitEop(HwPipePreColorTarget, SyncGlxNone, SyncRbNone, pCmdSpace);
+                pCmdSpace = pCmdBuf->WriteWaitEop(HwPipePreColorTarget, false, SyncGlxNone, SyncRbNone, pCmdSpace);
             }
         }
         else
@@ -1610,14 +1656,14 @@ void BarrierMgr::IssueReleaseThenAcquireSync(
             if (releaseEvents.ps)
             {
                 releaseMem.vgtEvent = PS_DONE;
-                pwsCounterSel       = pws_counter_sel__me_acquire_mem__ps_select__HASPWS;
+                pwsCounterSel       = pws_counter_sel__me_acquire_mem__ps_select__GFX11;
                 pBarrierOps->pipelineStalls.eosTsPsDone = 1;
             }
             else
             {
                 PAL_ASSERT(releaseEvents.cs);
                 releaseMem.vgtEvent = CS_DONE;
-                pwsCounterSel       = pws_counter_sel__me_acquire_mem__cs_select__HASPWS;
+                pwsCounterSel       = pws_counter_sel__me_acquire_mem__cs_select__GFX11;
                 pBarrierOps->pipelineStalls.eosTsCsDone = 1;
             }
         }
@@ -1628,7 +1674,8 @@ void BarrierMgr::IssueReleaseThenAcquireSync(
         if (releaseEvents.ps && releaseEvents.cs)
         {
             PAL_ASSERT(releaseEvents.eop == 0);
-            releaseMem.vgtEvent = CS_DONE;
+            releaseMem.vgtEvent       = CS_DONE;
+            releaseMem.gfx11WaitCpDma = false; // PS_DONE has waited CpDma, no need wait again.
             pCmdSpace += m_cmdUtil.BuildReleaseMemGfx(releaseMem, pCmdSpace);
             pBarrierOps->pipelineStalls.eosTsCsDone = 1;
         }
@@ -1644,7 +1691,7 @@ void BarrierMgr::IssueReleaseThenAcquireSync(
 
         if (releaseEvents.ps && releaseEvents.cs)
         {
-            acquireMem.counterSel = pws_counter_sel__me_acquire_mem__cs_select__HASPWS;
+            acquireMem.counterSel = pws_counter_sel__me_acquire_mem__cs_select__GFX11;
             pCmdSpace += m_cmdUtil.BuildAcquireMemGfxPws(acquireMem, pCmdSpace);
         }
 
@@ -1658,7 +1705,7 @@ void BarrierMgr::IssueReleaseThenAcquireSync(
         if (releaseEvents.eop)
         {
             const SyncRbFlags rbSync = releaseEvents.rbCache ? SyncRbWbInv : SyncRbNone;
-            pCmdSpace = pCmdBuf->WriteWaitEop(HwPipePostPrefetch, SyncGlxNone, rbSync, pCmdSpace);
+            pCmdSpace = pCmdBuf->WriteWaitEop(HwPipePostPrefetch, releaseMemWaitCpDma, SyncGlxNone, rbSync, pCmdSpace);
 
             pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
             pBarrierOps->pipelineStalls.waitOnTs = 1;
@@ -1719,9 +1766,10 @@ void BarrierMgr::IssueReleaseThenAcquireSync(
             // ReleaseMem packet. This case has been handled in if path since acquirePoint has been changed to Me
             // in optimization codes above the if branch.
             ReleaseMemGfx releaseMem = {};
-            releaseMem.cacheSync = releaseCaches;
-            releaseMem.vgtEvent  = releaseEvents.rbCache ? CACHE_FLUSH_AND_INV_TS_EVENT : BOTTOM_OF_PIPE_TS;
-            releaseMem.dataSel   = data_sel__me_release_mem__none;
+            releaseMem.cacheSync      = releaseCaches;
+            releaseMem.vgtEvent       = releaseEvents.rbCache ? CACHE_FLUSH_AND_INV_TS_EVENT : BOTTOM_OF_PIPE_TS;
+            releaseMem.dataSel        = data_sel__me_release_mem__none;
+            releaseMem.gfx11WaitCpDma = releaseMemWaitCpDma;
 
             pCmdSpace += m_cmdUtil.BuildReleaseMemGfx(releaseMem, pCmdSpace);
             pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
@@ -1972,7 +2020,14 @@ LayoutTransitionInfo BarrierMgr::PrepareBltInfo(
 
     LayoutTransitionInfo layoutTransInfo = {};
 
-    if (TestAnyFlagSet(oldLayout.usages, LayoutUninitializedTarget))
+    if (TestAnyFlagSet(newLayout.usages, LayoutUninitializedTarget))
+    {
+        // If the LayoutUninitializedTarget usage is set, no other usages should be set.
+        PAL_ASSERT(TestAnyFlagSet(newLayout.usages, ~LayoutUninitializedTarget) == false);
+
+        // We do no decompresses, expands, or any other kind of blt in this case.
+    }
+    else if (TestAnyFlagSet(oldLayout.usages, LayoutUninitializedTarget))
     {
         // If the LayoutUninitializedTarget usage is set, no other usages should be set.
         PAL_ASSERT(TestAnyFlagSet(oldLayout.usages, ~LayoutUninitializedTarget) == false);
@@ -1990,13 +2045,6 @@ LayoutTransitionInfo BarrierMgr::PrepareBltInfo(
         {
             layoutTransInfo.blt[0] = HwLayoutTransition::InitMaskRam;
         }
-    }
-    else if (TestAnyFlagSet(newLayout.usages, LayoutUninitializedTarget))
-    {
-        // If the LayoutUninitializedTarget usage is set, no other usages should be set.
-        PAL_ASSERT(TestAnyFlagSet(newLayout.usages, ~LayoutUninitializedTarget) == false);
-
-        // We do no decompresses, expands, or any other kind of blt in this case.
     }
     else if ((TestAnyFlagSet(oldLayout.usages, LayoutUninitializedTarget) == false) &&
              (TestAnyFlagSet(newLayout.usages, LayoutUninitializedTarget) == false))
@@ -2357,7 +2405,11 @@ bool BarrierMgr::IssueBlt(
                 // expect WriteWaitEop to do a PWS EOP wait which should be fast.
                 if (IsGfx11(*m_pDevice))
                 {
-                    pCmdSpace = pCmdBuf->WriteWaitEop(HwPipePostPrefetch, SyncGlvInv|SyncGl1Inv, SyncDbWbInv, pCmdSpace);
+                    pCmdSpace = pCmdBuf->WriteWaitEop(HwPipePostPrefetch,
+                                                      false,
+                                                      SyncGlvInv | SyncGl1Inv,
+                                                      SyncDbWbInv,
+                                                      pCmdSpace);
                     waitEop = true;
                 }
                 else
@@ -2379,7 +2431,11 @@ bool BarrierMgr::IssueBlt(
             }
             else
             {
-                pCmdSpace = pCmdBuf->WriteWaitEop(HwPipePostPrefetch, SyncGlvInv|SyncGl1Inv, SyncRbNone, pCmdSpace);
+                pCmdSpace = pCmdBuf->WriteWaitEop(HwPipePostPrefetch,
+                                                  false,
+                                                  SyncGlvInv | SyncGl1Inv,
+                                                  SyncRbNone,
+                                                  pCmdSpace);
                 waitEop = true;
             }
 
@@ -2474,6 +2530,8 @@ void BarrierMgr::IssueReleaseSyncEvent(
                                            releaseEvents.cs                 ? AcqRelEventType::CsDone :
                                                                               AcqRelEventType::Invalid;
 
+    bool releaseMemWaitCpDma = false;
+
     if (pCmdBuf->GetPm4CmdBufState().flags.cpBltActive &&
         TestAnyFlagSet(stageMask, PipelineStageBlt | PipelineStageBottomOfPipe))
     {
@@ -2481,9 +2539,17 @@ void BarrierMgr::IssueReleaseSyncEvent(
         // the CmdSetEvent and CmdResetEvent functions expect that the prior blts have reached the post-blt stage by
         // the time the event is written to memory. Given that our CP DMA blts are asynchronous to the pipeline stages
         // the only way to satisfy this requirement is to force the MEC to stall until the CP DMAs are completed.
-        pBarrierOps->pipelineStalls.syncCpDma = 1;
-        pCmdSpace += m_cmdUtil.BuildWaitDmaData(pCmdSpace);
+        if (EnableReleaseMemWaitCpDma() && (syncEventType != AcqRelEventType::Invalid))
+        {
+            releaseMemWaitCpDma = true;
+        }
+        else
+        {
+            pCmdSpace += m_cmdUtil.BuildWaitDmaData(pCmdSpace);
+        }
+
         pCmdBuf->SetCpBltState(false);
+        pBarrierOps->pipelineStalls.syncCpDma = 1;
     }
 
     // Issue releases with the requested EOP/EOS
@@ -2502,10 +2568,11 @@ void BarrierMgr::IssueReleaseSyncEvent(
         {
             // Build RELEASE_MEM packet with requested EOP/EOS events at ME engine.
             ReleaseMemGfx releaseMem = {};
-            releaseMem.cacheSync = releaseCaches;
-            releaseMem.dataSel   = data_sel__me_release_mem__send_32_bit_low;
-            releaseMem.data      = GpuEvent::SetValue;
-            releaseMem.dstAddr   = gpuEventStartVa;
+            releaseMem.cacheSync      = releaseCaches;
+            releaseMem.dataSel        = data_sel__me_release_mem__send_32_bit_low;
+            releaseMem.data           = GpuEvent::SetValue;
+            releaseMem.dstAddr        = gpuEventStartVa;
+            releaseMem.gfx11WaitCpDma = releaseMemWaitCpDma;
 
             switch (syncEventType)
             {
@@ -2535,11 +2602,12 @@ void BarrierMgr::IssueReleaseSyncEvent(
         else
         {
             ReleaseMemGeneric releaseMem = {};
-            releaseMem.engineType = engineType;
-            releaseMem.cacheSync  = releaseCaches;
-            releaseMem.dataSel    = data_sel__me_release_mem__send_32_bit_low;
-            releaseMem.data       = GpuEvent::SetValue;
-            releaseMem.dstAddr    = gpuEventStartVa;
+            releaseMem.engineType     = engineType;
+            releaseMem.cacheSync      = releaseCaches;
+            releaseMem.dataSel        = data_sel__me_release_mem__send_32_bit_low;
+            releaseMem.data           = GpuEvent::SetValue;
+            releaseMem.dstAddr        = gpuEventStartVa;
+            releaseMem.gfx11WaitCpDma = releaseMemWaitCpDma;
 
             switch (syncEventType)
             {

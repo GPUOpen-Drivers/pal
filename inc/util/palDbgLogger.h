@@ -209,10 +209,20 @@ public:
         return m_cutoffSeverityLevel;
     }
 
+    void SetCutoffSeverityLevel(SeverityLevel lvl)
+    {
+        m_cutoffSeverityLevel = lvl;
+    }
+
     ///  Returns origination type mask.
     uint32 GetOriginationTypeMask()
     {
         return m_originationTypeMask;
+    }
+
+    void SetOriginationTypeMask(uint32 mask)
+    {
+        m_originationTypeMask = mask;
     }
 
 protected:

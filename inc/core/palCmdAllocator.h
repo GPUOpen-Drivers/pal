@@ -74,9 +74,7 @@ enum CmdAllocType : uint32
 {
     CommandDataAlloc  = 0,  ///< Data allocated is for executable commands.
     EmbeddedDataAlloc,      ///< Data allocated is for embedded data.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
     LargeEmbeddedDataAlloc, ///< Data allocated is for embedded data, allocation is >32kb
-#endif
     GpuScratchMemAlloc,     ///< Data allocated is GPU-only accessible at command buffer execution-time.  Possible
                             ///  uses include CE RAM dumps and GPU events.
     CmdAllocatorTypeCount   ///< Number of allocation types for ICmdAllocator's.

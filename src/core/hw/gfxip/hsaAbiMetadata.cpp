@@ -331,6 +331,50 @@ static Result UnpackNextString(
 }
 
 // =====================================================================================================================
+// Check the current kernel matching the kernelName.
+// Pass reader by value to avoid changing the original reader.
+static Result IsMatchingKernelName(
+    MsgPackReader    reader,
+    StringView<char> kernelName,
+    bool*            pNameMatches)
+{
+    PAL_ASSERT(kernelName.IsEmpty() == false);
+
+    bool found     = false;
+    StringView<char> name;
+
+    Result result = reader.Next(CWP_ITEM_MAP);
+
+    for (uint32 i = reader.Get().as.map.size; ((result == Result::Success) && (found == false) && (i > 0)); --i)
+    {
+        StringView<char> keyName;
+        result = reader.UnpackNext(&keyName);
+
+        if (result == Result::Success)
+        {
+            switch (HashString(keyName))
+            {
+            case HashLiteralString(KernelMetadataKey::Name):
+                found = true;
+                result = reader.UnpackNext(&name);
+                break;
+
+            default:
+                result = reader.Skip(1);
+                break;
+            }
+        }
+    }
+
+    if (result == Result::Success)
+    {
+        *pNameMatches = (name == kernelName);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 CodeObjectMetadata::~CodeObjectMetadata()
 {
     for (uint32 i = 0; i < m_numArgs; ++i)
@@ -494,16 +538,10 @@ Result CodeObjectMetadata::DeserializeKernelArgs(
 // =====================================================================================================================
 // Deserialize the kernels array.
 Result CodeObjectMetadata::DeserializeKernel(
-    MsgPackReader* pReader)
+    MsgPackReader*   pReader)
 {
-    // PAL only supports one kernel per HSA code object.
-    Result result = (pReader->Get().as.array.size == 1) ? Result::Success : Result::ErrorUnavailable;
-
     // Each array element is a map.
-    if (result == Result::Success)
-    {
-        result = pReader->Next(CWP_ITEM_MAP);
-    }
+    Result result = pReader->Next(CWP_ITEM_MAP);
 
     // For sanity's sake, track that we see each metadata key only once.
     union
@@ -595,10 +633,10 @@ Result CodeObjectMetadata::DeserializeKernel(
                 result = UnpackNextString(pReader, &m_allocator, &m_pDeviceEnqueueSymbol);
                 break;
             case HashLiteralString(KernelMetadataKey::KernargSegmentSize):
-                 PAL_ASSERT(hasEntry.kernargSegmentSize == 0);
-                 hasEntry.kernargSegmentSize = 1;
-                 result = pReader->UnpackNext(&m_kernargSegmentSize);
-                 break;
+                PAL_ASSERT(hasEntry.kernargSegmentSize == 0);
+                hasEntry.kernargSegmentSize = 1;
+                result = pReader->UnpackNext(&m_kernargSegmentSize);
+                break;
             case HashLiteralString(KernelMetadataKey::GroupSegmentFixedSize):
                 PAL_ASSERT(hasEntry.groupSegmentFixedSize == 0);
                 hasEntry.groupSegmentFixedSize = 1;
@@ -718,9 +756,10 @@ Result CodeObjectMetadata::SetVersion(
 
 // =====================================================================================================================
 Result CodeObjectMetadata::DeserializeNote(
-    MsgPackReader* pReader,
-    const void*    pRawMetadata,
-    uint32         metadataSize)
+    MsgPackReader*   pReader,
+    const void*      pRawMetadata,
+    uint32           metadataSize,
+    StringView<char> kernelName)
 {
     // Reset the msgpack reader, it was previously used to grab the version.
     Result result = pReader->InitFromBuffer(pRawMetadata, metadataSize);
@@ -747,7 +786,36 @@ Result CodeObjectMetadata::DeserializeNote(
 
                 if (result == Result::Success)
                 {
-                    result = DeserializeKernel(pReader);
+                    if (pReader->Get().as.array.size == 1)
+                    {
+                        // There is only one kernel in the array, skip check kernelName.
+                        result = DeserializeKernel(pReader);
+                    }
+                    else if (kernelName.IsEmpty())
+                    {
+                        // There are multiple kernels in the array, must set kernelName.
+                        result = Result::ErrorInvalidValue;
+                    }
+                    else
+                    {
+                        bool found = false;
+                        for (uint32 k = pReader->Get().as.array.size; ((result == Result::Success) && (k > 0)); --k)
+                        {
+                            bool nameMatches = false;
+                            result = (found == false) ? IsMatchingKernelName(*pReader, kernelName, &nameMatches) :
+                                                        Result::Success;
+
+                            if ((found == false) && (result == Result::Success) && (nameMatches))
+                            {
+                                found = true; // Found the kernel, skip following ones.
+                                result = DeserializeKernel(pReader);
+                            }
+                            else
+                            {
+                                result = pReader->Skip(1);
+                            }
+                        }
+                    }
                 }
                 break;
             default:

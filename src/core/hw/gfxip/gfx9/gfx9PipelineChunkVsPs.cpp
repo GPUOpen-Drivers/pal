@@ -42,10 +42,10 @@ namespace Gfx9
 // Stream-out vertex stride register addresses.
 constexpr uint16 VgtStrmoutVtxStrideAddr[] =
 {
-    HasHwVs::mmVGT_STRMOUT_VTX_STRIDE_0,
-    HasHwVs::mmVGT_STRMOUT_VTX_STRIDE_1,
-    HasHwVs::mmVGT_STRMOUT_VTX_STRIDE_2,
-    HasHwVs::mmVGT_STRMOUT_VTX_STRIDE_3
+    Gfx10::mmVGT_STRMOUT_VTX_STRIDE_0,
+    Gfx10::mmVGT_STRMOUT_VTX_STRIDE_1,
+    Gfx10::mmVGT_STRMOUT_VTX_STRIDE_2,
+    Gfx10::mmVGT_STRMOUT_VTX_STRIDE_3
 };
 
 // =====================================================================================================================
@@ -290,7 +290,7 @@ uint32* PipelineChunkVsPs::WriteDynamicRegs(
                                                   index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
                                                   pCmdSpace);
 
-    pCmdSpace = pCmdStream->WriteSetOneShRegIndex(Gfx10Plus::mmSPI_SHADER_PGM_RSRC4_PS,
+    pCmdSpace = pCmdStream->WriteSetOneShRegIndex(mmSPI_SHADER_PGM_RSRC4_PS,
                                                   dynamic.spiShaderPgmRsrc4Ps.u32All,
                                                   ShaderGraphics,
                                                   index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
@@ -298,7 +298,7 @@ uint32* PipelineChunkVsPs::WriteDynamicRegs(
 
     if (isNgg == false)
     {
-        pCmdSpace = pCmdStream->WriteSetOneShRegIndex(HasHwVs::mmSPI_SHADER_PGM_RSRC3_VS,
+        pCmdSpace = pCmdStream->WriteSetOneShRegIndex(Gfx10::mmSPI_SHADER_PGM_RSRC3_VS,
                                                       dynamic.spiShaderPgmRsrc3Vs.u32All,
                                                       ShaderGraphics,
                                                       index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
@@ -352,8 +352,8 @@ uint32* PipelineChunkVsPs::WriteContextCommands(
     const bool hasVgtStreamOut = m_device.Parent()->ChipProperties().gfxip.supportsHwVs;
     if (hasVgtStreamOut)
     {
-        pCmdSpace = pCmdStream->WriteSetSeqContextRegs(HasHwVs::mmVGT_STRMOUT_CONFIG,
-                                                       HasHwVs::mmVGT_STRMOUT_BUFFER_CONFIG,
+        pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx10::mmVGT_STRMOUT_CONFIG,
+                                                       Gfx10::mmVGT_STRMOUT_BUFFER_CONFIG,
                                                        &m_regs.context.vgtStrmoutConfig,
                                                        pCmdSpace);
     }
@@ -447,8 +447,8 @@ void PipelineChunkVsPs::AccumulateContextRegs(
     {
         SetSeqContextRegValPairPacked(pRegPairs,
                                       pNumRegs,
-                                      HasHwVs::mmVGT_STRMOUT_CONFIG,
-                                      HasHwVs::mmVGT_STRMOUT_BUFFER_CONFIG,
+                                      Gfx10::mmVGT_STRMOUT_CONFIG,
+                                      Gfx10::mmVGT_STRMOUT_BUFFER_CONFIG,
                                       &m_regs.context.vgtStrmoutConfig);
     }
 
@@ -478,24 +478,21 @@ uint32* PipelineChunkVsPs::WriteShCommandsSetPathVs(
     const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
     PAL_ASSERT(chipProps.gfxip.supportsHwVs);
 
-    pCmdSpace = pCmdStream->WriteSetSeqShRegs(HasHwVs::mmSPI_SHADER_PGM_LO_VS,
-                                              HasHwVs::mmSPI_SHADER_PGM_RSRC2_VS,
+    pCmdSpace = pCmdStream->WriteSetSeqShRegs(Gfx10::mmSPI_SHADER_PGM_LO_VS,
+                                              Gfx10::mmSPI_SHADER_PGM_RSRC2_VS,
                                               ShaderGraphics,
                                               &m_regs.sh.spiShaderPgmLoVs,
                                               pCmdSpace);
     if (m_regs.sh.userDataInternalTableVs.u32All != InvalidUserDataInternalTable)
     {
         pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(
-            HasHwVs::mmSPI_SHADER_USER_DATA_VS_0 + ConstBufTblStartReg,
+            Gfx10::mmSPI_SHADER_USER_DATA_VS_0 + ConstBufTblStartReg,
             m_regs.sh.userDataInternalTableVs.u32All,
             pCmdSpace);
     }
 
     if (chipProps.gfx9.supportSpp != 0)
     {
-        static_assert(Gfx10::mmSPI_SHADER_PGM_CHKSUM_VS == Rv2x_Rn::mmSPI_SHADER_PGM_CHKSUM_VS,
-                      "Registers have changed");
-
         pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(Gfx10::mmSPI_SHADER_PGM_CHKSUM_VS,
                                                                  m_regs.sh.spiShaderPgmChksumVs.u32All,
                                                                  pCmdSpace);
@@ -528,7 +525,7 @@ uint32* PipelineChunkVsPs::WriteShCommandsSetPathPs(
 
     if (chipProps.gfx9.supportSpp != 0)
     {
-        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_PS,
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSPI_SHADER_PGM_CHKSUM_PS,
                                                                  m_regs.sh.spiShaderPgmChksumPs.u32All,
                                                                  pCmdSpace);
     }
@@ -563,7 +560,7 @@ void PipelineChunkVsPs::AccumulateShRegsPs(
     {
         SetOneShRegValPairPacked(pRegPairs,
                                  pNumRegs,
-                                 Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_PS,
+                                 mmSPI_SHADER_PGM_CHKSUM_PS,
                                  m_regs.sh.spiShaderPgmChksumPs.u32All);
     }
 }

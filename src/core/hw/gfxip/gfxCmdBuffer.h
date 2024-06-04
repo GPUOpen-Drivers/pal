@@ -407,6 +407,8 @@ protected:
 
     virtual void ResetState() override;
 
+    virtual void DescribeDraw(Developer::DrawDispatchType cmdType, bool includedGangedAce = false);
+    void DescribeExecuteIndirectCmds(GfxCmdBuffer* pCmdBuf, uint32 genType);
     void DescribeDispatch(Developer::DrawDispatchType cmdType, DispatchDims size);
     void DescribeDispatchOffset(DispatchDims offset, DispatchDims launchSize, DispatchDims logicalSize);
     void DescribeDispatchIndirect();

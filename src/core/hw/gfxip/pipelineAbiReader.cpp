@@ -60,7 +60,8 @@ static bool MatchesAnySupportedAbi(
 }
 
 // =====================================================================================================================
-Result PipelineAbiReader::Init()
+Result PipelineAbiReader::Init(
+    StringView<char> kernelName)
 {
     Result result = Result::Success;
 
@@ -99,7 +100,7 @@ Result PipelineAbiReader::Init()
                     continue;
                 }
 
-                const char*const   pName = symbols.GetSymbolName(symbolIndex);
+                const char* const pName = symbols.GetSymbolName(symbolIndex);
                 PipelineSymbolType pipelineSymbolType = PipelineSymbolType::Unknown;
 
                 if (GetOsAbi() == ElfOsAbiAmdgpuHsa)
@@ -108,7 +109,16 @@ Result PipelineAbiReader::Init()
                     // function symbol in each HSA ABI elf that corresonds to the main function.
                     if (symbols.GetSymbolType(symbolIndex) == Elf::SymbolTableEntryType::Func)
                     {
-                        pipelineSymbolType = PipelineSymbolType::CsMainEntry;
+                        // When there is only one kernel, kernelName can be empty
+                        if (kernelName.IsEmpty() || (StringView<char>(pName) == kernelName))
+                        {
+                            pipelineSymbolType = PipelineSymbolType::CsMainEntry;
+                        }
+                        else
+                        {
+                            // skip not expected kernels
+                            continue;
+                        }
                     }
                 }
                 else
@@ -217,7 +227,8 @@ Result PipelineAbiReader::GetMetadata(
 // =====================================================================================================================
 Result PipelineAbiReader::GetMetadata(
     MsgPackReader*              pReader,
-    HsaAbi::CodeObjectMetadata* pMetadata
+    HsaAbi::CodeObjectMetadata* pMetadata,
+    const StringView<char>      kernelName
     ) const
 {
     Result result = Result::Success;
@@ -270,7 +281,7 @@ Result PipelineAbiReader::GetMetadata(
 
         if (result == Result::Success)
         {
-            result = pMetadata->DeserializeNote(pReader, pRawMetadata, metadataSize);
+            result = pMetadata->DeserializeNote(pReader, pRawMetadata, metadataSize, kernelName);
         }
 
         // Quit after the first .note section.

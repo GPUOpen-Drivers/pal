@@ -86,6 +86,11 @@ public:
     /// `pValueRef->type`   [out] The type of the setting when this function succeeds.
     DD_RESULT GetValue(DDSettingsValueRef* pValueRef);
 
+    // Finds the value ref for a setting
+    /// `nameHash`     [in] Hash of the setting to find.
+    /// `pOutValueRef` [out] The value ref of the setting.
+    DD_RESULT FindValueRef(DD_SETTINGS_NAME_HASH nameHash, DDSettingsValueRef* pOutValueRef);
+
     /// Write all values of this settings component to `recvBuffer`.
     DD_RESULT GetAllValues(DynamicBuffer& recvBuffer, size_t* pOutNumValues);
 

@@ -31,10 +31,14 @@
 
 #pragma once
 
+// pal
 #include "palUtil.h"
 
-#include <limits.h>
+// stl
+#include <chrono>
+#include <climits>
 
+// lnx
 #if defined(__unix__)
 #include <semaphore.h>
 

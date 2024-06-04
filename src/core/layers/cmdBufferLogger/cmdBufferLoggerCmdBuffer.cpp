@@ -1737,9 +1737,7 @@ void CmdBuffer::CmdSetKernelArguments(
 
 // =====================================================================================================================
 void CmdBuffer::CmdSetVertexBuffers(
-    uint32                firstBuffer,
-    uint32                bufferCount,
-    const BufferViewInfo* pBuffers)
+    const VertexBufferViews& bufferViews)
 {
     if (m_annotations.logCmdSets)
     {
@@ -1748,26 +1746,40 @@ void CmdBuffer::CmdSetVertexBuffers(
         LinearAllocatorAuto<VirtualLinearAllocator> allocator(Allocator(), false);
         char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
 
-        Snprintf(pString, StringLength, "First Buffer = %u", firstBuffer);
+        Snprintf(pString, StringLength, "First Buffer = %u", bufferViews.firstBuffer);
         GetNextLayer()->CmdCommentString(pString);
 
-        Snprintf(pString, StringLength, "Buffer Count = %u", bufferCount);
+        Snprintf(pString, StringLength, "Buffer Count = %u", bufferViews.bufferCount);
         GetNextLayer()->CmdCommentString(pString);
 
-        for (uint32 i = 0; i < bufferCount; ++i)
+        Snprintf(pString, StringLength, "Offset Mode = %d", bufferViews.offsetMode);
+        GetNextLayer()->CmdCommentString(pString);
+
+        for (uint32 i = 0; i < bufferViews.bufferCount; ++i)
         {
-            Snprintf(pString, StringLength, "VB[%u] = { gpuAddr = %llx, range = %llu, stride = %llu }",
-                     (i + firstBuffer),
-                     pBuffers[i].gpuAddr,
-                     pBuffers[i].range,
-                     pBuffers[i].stride);
+            if (bufferViews.offsetMode)
+            {
+                Snprintf(pString, StringLength, "VB[%u] = { gpuAddr = %llx, range = %llu, stride = %llu }",
+                         (i + bufferViews.firstBuffer),
+                         bufferViews.pVertexBufferViews[i].gpuva,
+                         bufferViews.pVertexBufferViews[i].sizeInBytes,
+                         bufferViews.pVertexBufferViews[i].strideInBytes);
+            }
+            else
+            {
+                Snprintf(pString, StringLength, "VB[%u] = { gpuAddr = %llx, range = %llu, stride = %llu }",
+                         (i + bufferViews.firstBuffer),
+                         bufferViews.pBufferViewInfos[i].gpuAddr,
+                         bufferViews.pBufferViewInfos[i].range,
+                         bufferViews.pBufferViewInfos[i].stride);
+            }
         }
         GetNextLayer()->CmdCommentString(pString);
 
         PAL_SAFE_DELETE_ARRAY(pString, &allocator);
     }
 
-    GetNextLayer()->CmdSetVertexBuffers(firstBuffer, bufferCount, pBuffers);
+    GetNextLayer()->CmdSetVertexBuffers(bufferViews);
 }
 
 // =====================================================================================================================
@@ -3067,16 +3079,18 @@ static void MemoryBarrierTransitionToString(
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
     char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 880
     Snprintf(pString, StringLength, "\t\t%s address = 0x%016llX", "Bound GpuMemory", transition.memory.address);
     pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
     Snprintf(pString, StringLength, "\t\t%s offset  = 0x%016llX", "Bound GpuMemory", transition.memory.offset);
     pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
     Snprintf(pString, StringLength, "\t\t%s Size    = 0x%016llX", "Bound GpuMemory", transition.memory.size);
     pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+#endif
 
     pCmdBuffer->CmdCommentString("\t] // GpuMemSubAllocInfo");
 
-    Snprintf(pString, StringLength, "srcStageMask->dstStageMask = { ");
+    Snprintf(pString, StringLength, "\tsrcStageMask->dstStageMask = { ");
     PipelineStageFlagToString(pString, transition.srcStageMask);
     AppendString(pString, " } -> { ");
     PipelineStageFlagToString(pString, transition.dstStageMask);
@@ -3106,7 +3120,7 @@ static void ImageBarrierTransitionToString(
     Snprintf(&string[0], StringLength, "barrierInfo.pImageBarriers[%u] = {", index);
     pNextCmdBuffer->CmdCommentString(&string[0]);
 
-    Snprintf(string, StringLength, "srcStageMask->dstStageMask = { ");
+    Snprintf(string, StringLength, "\t\tsrcStageMask->dstStageMask = { ");
     PipelineStageFlagToString(string, transition.srcStageMask);
     AppendString(string, " } -> { ");
     PipelineStageFlagToString(string, transition.dstStageMask);
@@ -5446,12 +5460,10 @@ uint32 CmdBuffer::GetEmbeddedDataLimit() const
 }
 
 // =====================================================================================================================
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
 uint32 CmdBuffer::GetLargeEmbeddedDataLimit() const
 {
     return GetNextLayer()->GetLargeEmbeddedDataLimit();
 }
-#endif
 
 // =====================================================================================================================
 uint32* CmdBuffer::CmdAllocateEmbeddedData(
@@ -5463,7 +5475,6 @@ uint32* CmdBuffer::CmdAllocateEmbeddedData(
 }
 
 // =====================================================================================================================
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
 uint32* CmdBuffer::CmdAllocateLargeEmbeddedData(
     uint32   sizeInDwords,
     uint32   alignmentInDwords,
@@ -5471,7 +5482,6 @@ uint32* CmdBuffer::CmdAllocateLargeEmbeddedData(
 {
     return GetNextLayer()->CmdAllocateLargeEmbeddedData(sizeInDwords, alignmentInDwords, pGpuAddress);
 }
-#endif
 
 // =====================================================================================================================
 Result CmdBuffer::AllocateAndBindGpuMemToEvent(

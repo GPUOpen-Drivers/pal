@@ -698,13 +698,19 @@ void CmdBuffer::ReplayCmdSetKernelArguments(
 
 // =====================================================================================================================
 void CmdBuffer::CmdSetVertexBuffers(
-    uint32                firstBuffer,
-    uint32                bufferCount,
-    const BufferViewInfo* pBuffers)
+    const VertexBufferViews& bufferViews)
 {
     InsertToken(CmdBufCallId::CmdSetVertexBuffers);
-    InsertToken(firstBuffer);
-    InsertTokenArray(pBuffers, bufferCount);
+    InsertToken(bufferViews.firstBuffer);
+    InsertToken(bufferViews.offsetMode);
+    if (bufferViews.offsetMode)
+    {
+        InsertTokenArray(bufferViews.pVertexBufferViews, bufferViews.bufferCount);
+    }
+    else
+    {
+        InsertTokenArray(bufferViews.pBufferViewInfos, bufferViews.bufferCount);
+    }
 }
 
 // =====================================================================================================================
@@ -712,11 +718,20 @@ void CmdBuffer::ReplayCmdSetVertexBuffers(
     Queue*           pQueue,
     TargetCmdBuffer* pTgtCmdBuffer)
 {
-    const BufferViewInfo* pBuffers = nullptr;
-    const auto firstBuffer = ReadTokenVal<uint32>();
-    const auto bufferCount = ReadTokenArray(&pBuffers);
+    VertexBufferViews bufferViews = {};
+    bufferViews.firstBuffer = ReadTokenVal<uint32>();
+    bufferViews.offsetMode = ReadTokenVal<bool>();
 
-    pTgtCmdBuffer->CmdSetVertexBuffers(firstBuffer, bufferCount, pBuffers);
+    if (bufferViews.offsetMode)
+    {
+        bufferViews.bufferCount = ReadTokenArray(&bufferViews.pVertexBufferViews);
+    }
+    else
+    {
+        bufferViews.bufferCount = ReadTokenArray(&bufferViews.pBufferViewInfos);
+    }
+
+    pTgtCmdBuffer->CmdSetVertexBuffers(bufferViews);
 }
 
 // =====================================================================================================================
@@ -3395,12 +3410,10 @@ uint32 CmdBuffer::GetEmbeddedDataLimit() const
 }
 
 // =====================================================================================================================
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
 uint32 CmdBuffer::GetLargeEmbeddedDataLimit() const
 {
     return NextLayer()->GetLargeEmbeddedDataLimit();
 }
-#endif
 
 // =====================================================================================================================
 uint32* CmdBuffer::CmdAllocateEmbeddedData(
@@ -3412,7 +3425,6 @@ uint32* CmdBuffer::CmdAllocateEmbeddedData(
 }
 
 // =====================================================================================================================
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
 uint32* CmdBuffer::CmdAllocateLargeEmbeddedData(
     uint32   sizeInDwords,
     uint32   alignmentInDwords,
@@ -3420,7 +3432,6 @@ uint32* CmdBuffer::CmdAllocateLargeEmbeddedData(
 {
     return NextLayer()->CmdAllocateLargeEmbeddedData(sizeInDwords, alignmentInDwords, pGpuAddress);
 }
-#endif
 
 // =====================================================================================================================
 Result CmdBuffer::AllocateAndBindGpuMemToEvent(
@@ -3859,6 +3870,19 @@ void CmdBuffer::ReplayCmdRestoreComputeState(
 void CmdBuffer::CmdCommentString(
     const char* pComment)
 {
+    constexpr const char* EndOfRecreation = "EndOfRecreation";
+    constexpr const char* VirtualPresent  = "VirtualPresent";
+
+    if (strcmp(pComment, EndOfRecreation) == 0)
+    {
+        static_cast<Platform*>(m_pDevice->GetPlatform())->SetEndOfRecreateSeen(true);
+    }
+    else if (strcmp(pComment, VirtualPresent) == 0)
+    {
+        static_cast<Platform*>(m_pDevice->GetPlatform())->SetEndOfRecreateSeen(false);
+        m_flags.containsPresent = true;
+    }
+
     InsertToken(CmdBufCallId::CmdCommentString);
     InsertTokenArray(pComment, static_cast<uint32>(strlen(pComment)) + 1);
 }

@@ -40,6 +40,12 @@ struct DriverUtilFeatures
     bool debugVmid;
 };
 
+struct DriverDbgLogOriginationOp
+{
+    uint32 origination;
+    bool   enable;
+};
+
 namespace DriverUtilsService
 {
 
@@ -215,6 +221,76 @@ DD_RESULT DriverUtilsService::SetOverlayString(
         m_useOverlayBuffer = true;
     }
     else
+    {
+        result = DD_RESULT_COMMON_INVALID_PARAMETER;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+DD_RESULT DriverUtilsService::SetDbgLogSeverityLevel(
+    const void* pParamBuffer,
+    size_t      paramBufferSize)
+{
+    DD_RESULT result = DD_RESULT_SUCCESS;
+
+#if PAL_ENABLE_LOGGING
+    if ((paramBufferSize == sizeof(uint32)) && (pParamBuffer != nullptr))
+    {
+        uint32 severity = *static_cast<const uint32*>(pParamBuffer);
+        m_pPlatform->GetDbgLoggerDevDriver()->SetCutoffSeverityLevel(static_cast<Util::SeverityLevel>(severity));
+    }
+    else
+#endif
+    {
+        result = DD_RESULT_COMMON_INVALID_PARAMETER;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+DD_RESULT DriverUtilsService::SetDbgLogOriginationMask(
+    const void* pParamBuffer,
+    size_t      paramBufferSize)
+{
+    DD_RESULT result = DD_RESULT_SUCCESS;
+
+#if PAL_ENABLE_LOGGING
+    if ((paramBufferSize == sizeof(uint32)) && (pParamBuffer != nullptr))
+    {
+        uint32 mask = *static_cast<const uint32*>(pParamBuffer);
+
+        m_pPlatform->GetDbgLoggerDevDriver()->SetOriginationTypeMask(mask);
+    }
+    else
+#endif
+    {
+        result = DD_RESULT_COMMON_INVALID_PARAMETER;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+DD_RESULT DriverUtilsService::ModifyDbgLogOriginationMask(
+    const void* pParamBuffer,
+    size_t      paramBufferSize)
+{
+    DD_RESULT result = DD_RESULT_SUCCESS;
+
+#if PAL_ENABLE_LOGGING
+    if ((paramBufferSize == sizeof(DriverDbgLogOriginationOp)) && (pParamBuffer != nullptr))
+    {
+        DriverDbgLogOriginationOp op = *static_cast<const DriverDbgLogOriginationOp*>(pParamBuffer);
+        uint32 mask = m_pPlatform->GetDbgLoggerDevDriver()->GetOriginationTypeMask();
+        uint32 newMask = op.enable ? (mask | (1 << op.origination)) : (mask & ~(1 << op.origination));
+
+        m_pPlatform->GetDbgLoggerDevDriver()->SetOriginationTypeMask(newMask);
+    }
+    else
+#endif
     {
         result = DD_RESULT_COMMON_INVALID_PARAMETER;
     }

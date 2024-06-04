@@ -113,9 +113,7 @@ CmdBuffer::CmdBuffer(
     m_executionMarkerAddr(0),
     m_executionMarkerCount(0),
     m_embeddedData(device.GetPlatform()),
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
     m_largeEmbeddedData(device.GetPlatform()),
-#endif
     m_gpuScratchMem(device.GetPlatform()),
     m_gpuScratchMemAllocLimit(0),
     m_lastPagingFence(0),
@@ -148,9 +146,7 @@ CmdBuffer::~CmdBuffer()
 {
     ReturnLinearAllocator();
     ReturnDataChunks(&m_embeddedData, EmbeddedDataAlloc, true);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
     ReturnDataChunks(&m_largeEmbeddedData, LargeEmbeddedDataAlloc, true);
-#endif
     ReturnDataChunks(&m_gpuScratchMem, GpuScratchMemAlloc, true);
 }
 
@@ -321,9 +317,7 @@ Result CmdBuffer::BeginCommandStreams(
     {
         // NOTE: PAL does not currently support retaining command buffer chunks when doing an implicit reset
         ReturnDataChunks(&m_embeddedData, EmbeddedDataAlloc, true);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
         ReturnDataChunks(&m_largeEmbeddedData, LargeEmbeddedDataAlloc, true);
-#endif
         ReturnDataChunks(&m_gpuScratchMem, GpuScratchMemAlloc, true);
     }
 
@@ -364,12 +358,10 @@ Result CmdBuffer::End()
             }
 
             // Update the large embedded data chunks with the correct root chunk reference.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
             for (auto iter = m_largeEmbeddedData.chunkList.Begin(); iter.IsValid(); iter.Next())
             {
                 iter.Get()->UpdateRootInfo(pRootChunk);
             }
-#endif
 
             // Update the GPU scratch-memory chunks with the correct root chunk reference.
             for (auto iter = m_gpuScratchMem.chunkList.Begin(); iter.IsValid(); iter.Next())
@@ -416,9 +408,7 @@ Result CmdBuffer::Reset(
     ReturnLinearAllocator();
 
     ReturnDataChunks(&m_embeddedData, EmbeddedDataAlloc, returnGpuMemory);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
     ReturnDataChunks(&m_largeEmbeddedData, LargeEmbeddedDataAlloc, returnGpuMemory);
-#endif
     ReturnDataChunks(&m_gpuScratchMem, GpuScratchMemAlloc, returnGpuMemory);
 
     m_status = Result::Success;
@@ -472,12 +462,10 @@ CmdStreamChunk* CmdBuffer::GetNextDataChunk(
             // The allocator adds a reference for us automatically. Data chunks cannot be root (head) chunks.
             m_status = m_pCmdAllocator->GetNewChunk(type, false, &pChunk);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
             if (m_status != Result::Success)
             {
                 m_status = m_pCmdAllocator->GetNewChunk(CmdAllocType::LargeEmbeddedDataAlloc, false, &pChunk);
             }
-#endif
 
             // Something bad happen and the CmdBuffer will always be in error status ever after
             PAL_ALERT(m_status != Result::Success);
@@ -615,7 +603,6 @@ uint32* CmdBuffer::CmdAllocateEmbeddedData(
 }
 
 // =====================================================================================================================
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
 uint32* CmdBuffer::CmdAllocateLargeEmbeddedData(
     uint32   sizeInDwords,
     uint32   alignmentInDwords,
@@ -628,14 +615,12 @@ uint32* CmdBuffer::CmdAllocateLargeEmbeddedData(
 
     return pSpace;
 }
-#endif
 
 // =====================================================================================================================
 // Returns the GPU memory object pointer that can accomodate the specified number of dwords of the embedded data.
 // The offset of the embedded data to the allocated memory is also returned.
 // This call is only used by PAL internally and should be called when running in physical mode.
 // A new chunk will be allocated if necessary.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
 uint32* CmdBuffer::CmdAllocateLargeEmbeddedData(
     uint32      sizeInDwords,
     uint32      alignmentInDwords,
@@ -681,7 +666,6 @@ uint32* CmdBuffer::CmdAllocateLargeEmbeddedData(
 
     return pSpace;
 }
-#endif
 
 // =====================================================================================================================
 // Allocates a small piece of local-invisible GPU memory for internal PAL operations, such as CE RAM dumps, etc.  This
@@ -1593,14 +1577,12 @@ uint32 CmdBuffer::GetUsedSize(
             sizeInDwords += iter.Get()->DwordsAllocated();
         }
         break;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
     case LargeEmbeddedDataAlloc:
         for (auto iter = m_largeEmbeddedData.chunkList.Begin(); iter.IsValid(); iter.Next())
         {
             sizeInDwords += iter.Get()->DwordsAllocated();
         }
         break;
-#endif
     case GpuScratchMemAlloc:
         for (auto iter = m_gpuScratchMem.chunkList.Begin(); iter.IsValid(); iter.Next())
         {

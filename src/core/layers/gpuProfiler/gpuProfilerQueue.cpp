@@ -243,22 +243,20 @@ Result Queue::Init(
     if (result == Result::Success)
     {
         CmdAllocatorCreateInfo createInfo = { };
-        createInfo.flags.autoMemoryReuse                            = 1;
-        createInfo.flags.disableBusyChunkTracking                   = 1;
-        createInfo.allocInfo[CommandDataAlloc].allocHeap            = GpuHeapGartUswc;
-        createInfo.allocInfo[CommandDataAlloc].allocSize            = 2_MiB;
-        createInfo.allocInfo[CommandDataAlloc].suballocSize         = 64_KiB;
-        createInfo.allocInfo[EmbeddedDataAlloc].allocHeap           = GpuHeapGartUswc;
-        createInfo.allocInfo[EmbeddedDataAlloc].allocSize           = 2_MiB;
-        createInfo.allocInfo[EmbeddedDataAlloc].suballocSize        = 64_KiB;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
-        createInfo.allocInfo[LargeEmbeddedDataAlloc].allocHeap      = GpuHeapGartUswc;
-        createInfo.allocInfo[LargeEmbeddedDataAlloc].allocSize      = 2_MiB;
-        createInfo.allocInfo[LargeEmbeddedDataAlloc].suballocSize   = 64_KiB;
-#endif
-        createInfo.allocInfo[GpuScratchMemAlloc].allocHeap          = GpuHeapGartUswc;
-        createInfo.allocInfo[GpuScratchMemAlloc].allocSize          = 2_MiB;
-        createInfo.allocInfo[GpuScratchMemAlloc].suballocSize       = 64_KiB;
+        createInfo.flags.autoMemoryReuse                          = 1;
+        createInfo.flags.disableBusyChunkTracking                 = 1;
+        createInfo.allocInfo[CommandDataAlloc].allocHeap          = GpuHeapGartUswc;
+        createInfo.allocInfo[CommandDataAlloc].allocSize          = 2_MiB;
+        createInfo.allocInfo[CommandDataAlloc].suballocSize       = 64_KiB;
+        createInfo.allocInfo[EmbeddedDataAlloc].allocHeap         = GpuHeapGartUswc;
+        createInfo.allocInfo[EmbeddedDataAlloc].allocSize         = 2_MiB;
+        createInfo.allocInfo[EmbeddedDataAlloc].suballocSize      = 64_KiB;
+        createInfo.allocInfo[LargeEmbeddedDataAlloc].allocHeap    = GpuHeapGartUswc;
+        createInfo.allocInfo[LargeEmbeddedDataAlloc].allocSize    = 2_MiB;
+        createInfo.allocInfo[LargeEmbeddedDataAlloc].suballocSize = 64_KiB;
+        createInfo.allocInfo[GpuScratchMemAlloc].allocHeap        = GpuHeapGartUswc;
+        createInfo.allocInfo[GpuScratchMemAlloc].allocSize        = 2_MiB;
+        createInfo.allocInfo[GpuScratchMemAlloc].suballocSize     = 64_KiB;
 
         void* pMemory = PAL_MALLOC(m_pDevice->GetCmdAllocatorSize(createInfo, &result),
                                    m_pDevice->GetPlatform(),
@@ -296,11 +294,9 @@ Result Queue::Init(
         createInfo.allocInfo[EmbeddedDataAlloc].allocHeap         = GpuHeapGartUswc;
         createInfo.allocInfo[EmbeddedDataAlloc].allocSize         = 4_KiB;
         createInfo.allocInfo[EmbeddedDataAlloc].suballocSize      = 4_KiB;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
         createInfo.allocInfo[LargeEmbeddedDataAlloc].allocHeap    = GpuHeapGartUswc;
         createInfo.allocInfo[LargeEmbeddedDataAlloc].allocSize    = 64_KiB;
         createInfo.allocInfo[LargeEmbeddedDataAlloc].suballocSize = 64_KiB;
-#endif
         createInfo.allocInfo[GpuScratchMemAlloc].allocHeap        = GpuHeapGartUswc;
         createInfo.allocInfo[GpuScratchMemAlloc].allocSize        = 4_KiB;
         createInfo.allocInfo[GpuScratchMemAlloc].suballocSize     = 4_KiB;
@@ -496,11 +492,22 @@ Result Queue::Submit(
 {
     PAL_ASSERT(submitInfo.perSubQueueInfoCount > 0);
 
+    auto* const pPlatform = static_cast<Platform*>(m_pDevice->GetPlatform());
+
+    bool platformEndOfRecreation = pPlatform->GetEndOfRecreateSeen();
+    if (m_recreateState != platformEndOfRecreation)
+    {
+        if (platformEndOfRecreation)
+        {
+            LogVirtualQueueCall(VirtualQueueCallId::EndOfRecreation);
+        }
+        m_recreateState = platformEndOfRecreation;
+    }
+
     LogQueueCall(QueueCallId::Submit);
 
-    Result     result        = Result::Success;
-    auto*const pPlatform     = m_pDevice->GetPlatform();
-    bool       beginNewFrame = false;
+    Result result        = Result::Success;
+    bool   beginNewFrame = false;
 
     uint32 cmdBufferCount = 0;
     uint32 numPresentCmdBuf = 0;
@@ -1365,6 +1372,22 @@ void Queue::LogQueueCall(
 }
 
 // =====================================================================================================================
+// Adds a log entry for the specified virtual queue call.
+void Queue::LogVirtualQueueCall(
+    VirtualQueueCallId callId)
+{
+    if (m_pDevice->LoggingEnabled(GpuProfilerGranularityDraw) ||
+        m_pDevice->LoggingEnabled(GpuProfilerGranularityCmdBuf))
+    {
+        LogItem logItem = { };
+        logItem.type = VirtualQueueCall;
+        logItem.frameId = static_cast<Platform*>(m_pDevice->GetPlatform())->FrameId();
+        logItem.virtualQueueCall.callId = callId;
+        AddLogItem(logItem);
+    }
+}
+
+// =====================================================================================================================
 // Build sample config data for the creation of GPA session per gpuProfilerCmdBuffer's request
 Result Queue::BuildGpaSessionSampleConfig()
 {
@@ -1599,6 +1622,8 @@ Result Queue::FillOutSpmGpaSessionSampleConfig(
             m_gpaSessionSampleConfig.perfCounters.pIds = pIds;
         }
 
+        bool spm32Bit = m_pDevice->Is32BitSpm();
+
         uint32 pIdIndex = 0;
 
         // Create PerfCounterIds with same eventId for all instances of the block.
@@ -1607,6 +1632,7 @@ Result Queue::FillOutSpmGpaSessionSampleConfig(
             GpuUtil::PerfCounterId counterInfo = {};
             counterInfo.block   = pStreamingCounters[counter].block;
             counterInfo.eventId = pStreamingCounters[counter].eventId;
+            counterInfo.flags.spm32Bit = spm32Bit;
 
             if (pStreamingCounters[counter].hasOptionalData)
             {

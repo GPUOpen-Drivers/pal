@@ -39,3 +39,5 @@ option(PAL_ENABLE_LOGGING "Enable debug logging?")
 option(PAL_MEMTRACK "Enable PAL memory tracker?")
 
 option(PAL_64BIT_ARCHIVE_FILE_FMT "DXCP requires 64-bit file archives to allow creation of files >4GB. Vulkan requires 32-bit file archives for backwards compatibility. Clients may choose your preference here. 32-bit by default." OFF)
+
+option(PAL_PRECOMPILED_HEADERS  "If set, enables precompiled headers to reduce compilation times" OFF)

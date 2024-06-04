@@ -60,12 +60,7 @@ public:
     const Util::HsaAbi::CodeObjectMetadata& HsaMetadata() const;
     const llvm::amdhsa::kernel_descriptor_t& KernelDescriptor() const;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 797
-    virtual Result GetStackSizes(
-        CompilerStackSizes* pSizes) const override;
-#else
-    virtual uint32 GetStackSizeInBytes() const override;
-#endif
+    virtual Result GetStackSizes(CompilerStackSizes* pSizes) const override;
 
 protected:
     ComputePipeline(Device* pDevice, bool isInternal);

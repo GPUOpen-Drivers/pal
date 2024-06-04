@@ -47,7 +47,7 @@
 #endif
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MAJOR_VERSION 870
+#define PAL_INTERFACE_MAJOR_VERSION 880
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 831
 /// Minor interface version.  Note that the interface version is distinct from the PAL version itself, which is returned
@@ -65,7 +65,7 @@
 /// compatibility. When it is equal to PAL_INTERFACE_MAJOR_VERSION, only the latest interface version is supported.
 ///
 /// @ingroup LibInit
-#define PAL_MINIMUM_INTERFACE_MAJOR_VERSION 792
+#define PAL_MINIMUM_INTERFACE_MAJOR_VERSION 803
 
 /// Minimum supported major interface version for devdriver library. This is the minimum interface version of the
 /// devdriver library that PAL is backwards compatible to.

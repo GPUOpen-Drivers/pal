@@ -192,12 +192,11 @@ void PipelineChunkCs::InitRegisters(
     registers.HasEntry(mmCOMPUTE_NUM_THREAD_Y, &m_regs.computeNumThreadY.u32All);
     registers.HasEntry(mmCOMPUTE_NUM_THREAD_Z, &m_regs.computeNumThreadZ.u32All);
 
-    m_regs.computePgmRsrc3.u32All = registers.At(Gfx10Plus::mmCOMPUTE_PGM_RSRC3);
+    m_regs.computePgmRsrc3.u32All = registers.At(mmCOMPUTE_PGM_RSRC3);
 
     if (IsGfx11(chipProps.gfxLevel))
     {
-        m_regs.computePgmRsrc3.gfx104Plus.INST_PREF_SIZE =
-            m_device.GetShaderPrefetchSize(m_pStageInfo->codeLength);
+        m_regs.computePgmRsrc3.gfx11.INST_PREF_SIZE = m_device.GetShaderPrefetchSize(m_pStageInfo->codeLength);
 
         // PWS+ only support pre-shader waits if the IMAGE_OP bit is set. Theoretically we only set it for shaders that
         // do an image operation. However that would mean that our use of the pre-shader PWS+ wait is dependent on us
@@ -208,7 +207,7 @@ void PipelineChunkCs::InitRegisters(
 
     if (chipProps.gfx9.supportSpp == 1)
     {
-        registers.HasEntry(Gfx10Plus::mmCOMPUTE_SHADER_CHKSUM, &m_regs.computeShaderChksum.u32All);
+        registers.HasEntry(mmCOMPUTE_SHADER_CHKSUM, &m_regs.computeShaderChksum.u32All);
     }
 
     registers.HasEntry(mmCOMPUTE_RESOURCE_LIMITS, &m_regs.dynamic.computeResourceLimits.u32All);
@@ -585,7 +584,7 @@ void PipelineChunkCs::AccumulateShCommandsSetPath(
 
     SetOneShRegValPairPacked(pRegPairs,
                              pNumRegs,
-                             Gfx10Plus::mmCOMPUTE_PGM_RSRC3,
+                             mmCOMPUTE_PGM_RSRC3,
                              m_regs.computePgmRsrc3.u32All);
 
     if (m_regs.userDataInternalTable.u32All != InvalidUserDataInternalTable)
@@ -606,7 +605,7 @@ void PipelineChunkCs::AccumulateShCommandsSetPath(
     {
         SetOneShRegValPairPacked(pRegPairs,
                                  pNumRegs,
-                                 Gfx10Plus::mmCOMPUTE_SHADER_CHKSUM,
+                                 mmCOMPUTE_SHADER_CHKSUM,
                                  m_regs.computeShaderChksum.u32All);
     }
 
@@ -728,7 +727,7 @@ uint32* PipelineChunkCs::WriteShCommandsSetPath(
                                                             m_regs.computePgmRsrc1.u32All,
                                                             pCmdSpace);
 
-    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(Gfx10Plus::mmCOMPUTE_PGM_RSRC3,
+    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PGM_RSRC3,
                                                             m_regs.computePgmRsrc3.u32All,
                                                             pCmdSpace);
 
@@ -748,7 +747,7 @@ uint32* PipelineChunkCs::WriteShCommandsSetPath(
 
     if (chipProps.gfx9.supportSpp != 0)
     {
-        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(Gfx10Plus::mmCOMPUTE_SHADER_CHKSUM,
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_SHADER_CHKSUM,
                                                                 m_regs.computeShaderChksum.u32All,
                                                                 pCmdSpace);
     }

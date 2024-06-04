@@ -581,6 +581,24 @@ void DmaCmdBuffer::AllocateEmbeddedT2tMemory()
 }
 
 // =====================================================================================================================
+// Linear image to tiled image copy
+uint32* DmaCmdBuffer::WriteCopyImageLinearToTiledCmd(
+    const DmaImageCopyInfo& imageCopyInfo,
+    uint32* pCmdSpace)
+{
+    return CopyImageLinearTiledTransform(imageCopyInfo, imageCopyInfo.src, imageCopyInfo.dst, false, pCmdSpace);
+}
+
+// =====================================================================================================================
+// Tiled image to linear image copy
+uint32* DmaCmdBuffer::WriteCopyImageTiledToLinearCmd(
+    const DmaImageCopyInfo& imageCopyInfo,
+    uint32*                 pCmdSpace)
+{
+    return CopyImageLinearTiledTransform(imageCopyInfo, imageCopyInfo.dst, imageCopyInfo.src, true, pCmdSpace);
+}
+
+// =====================================================================================================================
 // Tiled image to tiled image copy, chunk by chunk.
 void DmaCmdBuffer::WriteCopyImageTiledToTiledCmdChunkCopy(
     const DmaImageCopyInfo& imageCopyInfo)
@@ -1753,6 +1771,34 @@ uint32 DmaCmdBuffer::GetUsedSize(
     }
 
     return sizeInBytes;
+}
+
+// =====================================================================================================================
+// On GFX10 parts, we always program the base address to point at slice 0.  This means the "z" coordinate (for images
+// that have slices) needs to specify the starting slice number.
+uint32 DmaCmdBuffer::GetImageZ(
+    const DmaImageInfo&  dmaImageInfo,
+    uint32               offsetZ
+    ) const
+{
+    const ImageType imageType = dmaImageInfo.pImage->GetImageCreateInfo().imageType;
+    uint32          imageZ    = 0;
+
+    if (imageType == ImageType::Tex3d)
+    {
+        // 3D images can't have array slices, so just return the "z" offset.
+        PAL_ASSERT(dmaImageInfo.pSubresInfo->subresId.arraySlice == 0);
+
+        imageZ = offsetZ;
+    }
+    else
+    {
+        // For 2D image array, just ignore offsetZ and adopt the start sliceIndex counted from "0".
+        const Pal::Image& dmaImg = static_cast<const Pal::Image&>(*dmaImageInfo.pImage);
+        imageZ = dmaImg.IsYuvPlanarArray() ? 0 : dmaImageInfo.pSubresInfo->subresId.arraySlice;
+    }
+
+    return imageZ;
 }
 
 } // Pal

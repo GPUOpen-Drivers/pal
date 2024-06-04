@@ -245,7 +245,11 @@ CmdStreamChunk* Pm4CmdBuffer::GetNextGeneratedChunk()
         // reference for us automatically. Embedded data chunks cannot be root chunks.
         if (pChunk == nullptr)
         {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+            m_status = m_pCmdAllocator->GetNewChunk(LargeEmbeddedDataAlloc, false, &pChunk);
+#else
             m_status = m_pCmdAllocator->GetNewChunk(EmbeddedDataAlloc, false, &pChunk);
+#endif
 
             // Something bad happen and the GfxCmdBuffer will always be in error status ever after
             PAL_ALERT(m_status != Result::Success);
@@ -289,8 +293,9 @@ void Pm4CmdBuffer::ResetState()
     // flushed in each command buffer postamble.
     if (IsGraphicsSupported())
     {
-        m_pm4CmdBufState.flags.gfxBltActive        = 1;
-        m_pm4CmdBufState.flags.gfxWriteCachesDirty = 1;
+        m_pm4CmdBufState.flags.gfxBltActive                       = 1;
+        m_pm4CmdBufState.flags.gfxWriteCachesDirty                = 1;
+        m_pm4CmdBufState.flags.gfxBltDirectWriteMisalignedMdDirty = 1;
     }
 
     // It's possible that another of our command buffers still has blts in flight, except for CP blts which must be
@@ -307,8 +312,7 @@ void Pm4CmdBuffer::ResetState()
     {
         {
             // PAL sends CP reads and writes through the GL2 by default, we'll need GL2 flushes.
-            m_pm4CmdBufState.flags.cpWriteCachesDirty                 = 1;
-            m_pm4CmdBufState.flags.gfxBltDirectWriteMisalignedMdDirty = 1;
+            m_pm4CmdBufState.flags.cpWriteCachesDirty = 1;
         }
     }
 

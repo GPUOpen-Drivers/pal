@@ -227,39 +227,26 @@ size_t DmaUploadRing::UploadUsingEmbeddedData(
     size_t          bytes,
     void**          ppEmbeddedData)
 {
-    const size_t embeddedDataLimit      = m_pRing[slotId].pCmdBuf->GetEmbeddedDataLimit() * sizeof(uint32);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
-    const size_t largeEmbeddedDataLimit = m_pRing[slotId].pCmdBuf->GetLargeEmbeddedDataLimit() * sizeof(uint32);
-#endif
+    auto*const   pCmdBuffer             = static_cast<CmdBuffer*>(m_pRing[slotId].pCmdBuf);
+    const size_t embeddedDataLimit      = pCmdBuffer->GetEmbeddedDataLimit() * sizeof(uint32);
+    const size_t largeEmbeddedDataLimit = pCmdBuffer->GetLargeEmbeddedDataLimit() * sizeof(uint32);
 
-    GpuMemory* pGpuMem   = nullptr;
-    gpusize gpuMemOffset = 0;
-    void* pEmbeddedData;
-    size_t allocSize;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 803
-    allocSize = bytes < embeddedDataLimit ? bytes : embeddedDataLimit;
-#else
-    if (bytes <= embeddedDataLimit)
+    GpuMemory* pGpuMem       = nullptr;
+    gpusize    gpuMemOffset  = 0;
+    void*      pEmbeddedData = nullptr;
+    size_t     allocSize     = bytes;
+
+    if (allocSize <= embeddedDataLimit)
     {
-        allocSize = bytes;
-#endif
-        pEmbeddedData = static_cast<CmdBuffer*>(m_pRing[slotId].pCmdBuf)->CmdAllocateEmbeddedData(
-            Util::NumBytesToNumDwords(static_cast<uint32>(allocSize)),
-            1,
-            &pGpuMem,
-            &gpuMemOffset);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+        pEmbeddedData = pCmdBuffer->CmdAllocateEmbeddedData(Util::NumBytesToNumDwords(uint32(allocSize)),
+                                                            1, &pGpuMem, &gpuMemOffset);
     }
     else
     {
-        allocSize = bytes < largeEmbeddedDataLimit ? bytes : largeEmbeddedDataLimit;
-        pEmbeddedData = static_cast<CmdBuffer*>(m_pRing[slotId].pCmdBuf)->CmdAllocateLargeEmbeddedData(
-            Util::NumBytesToNumDwords(static_cast<uint32>(allocSize)),
-            1,
-            &pGpuMem,
-            &gpuMemOffset);
+        allocSize     = Util::Min(allocSize, largeEmbeddedDataLimit);
+        pEmbeddedData = pCmdBuffer->CmdAllocateLargeEmbeddedData(Util::NumBytesToNumDwords(uint32(allocSize)),
+                                                                 1, &pGpuMem, &gpuMemOffset);
     }
-#endif
 
     PAL_ASSERT(pEmbeddedData != nullptr);
     *ppEmbeddedData             = pEmbeddedData;
@@ -268,7 +255,7 @@ size_t DmaUploadRing::UploadUsingEmbeddedData(
     copyRegion.dstOffset        = dstOffset;
     copyRegion.srcOffset        = gpuMemOffset;
 
-    m_pRing[slotId].pCmdBuf->CmdCopyMemory(*pGpuMem, *pDst, 1, &copyRegion);
+    pCmdBuffer->CmdCopyMemory(*pGpuMem, *pDst, 1, &copyRegion);
 
     return allocSize;
 }

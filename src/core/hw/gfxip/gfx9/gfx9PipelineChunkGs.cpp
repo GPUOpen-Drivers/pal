@@ -163,42 +163,42 @@ uint32* PipelineChunkGs::WriteShCommands(
 {
     const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
 
-    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(Gfx10Plus::mmSPI_SHADER_PGM_LO_ES,
+    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSPI_SHADER_PGM_LO_ES,
                                                              m_regs.sh.spiShaderPgmLoEs.u32All,
                                                              pCmdSpace);
 
     pCmdSpace = pCmdStream->WriteSetSeqShRegs(mmSPI_SHADER_PGM_RSRC1_GS,
-                                                mmSPI_SHADER_PGM_RSRC2_GS,
-                                                ShaderGraphics,
-                                                &m_regs.sh.spiShaderPgmRsrc1Gs,
-                                                pCmdSpace);
+                                              mmSPI_SHADER_PGM_RSRC2_GS,
+                                              ShaderGraphics,
+                                              &m_regs.sh.spiShaderPgmRsrc1Gs,
+                                              pCmdSpace);
 
     if (m_regs.sh.userDataInternalTable.u32All != InvalidUserDataInternalTable)
     {
         pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(
-                                    Gfx10Plus::mmSPI_SHADER_USER_DATA_GS_0 + ConstBufTblStartReg,
+                                    mmSPI_SHADER_USER_DATA_GS_0 + ConstBufTblStartReg,
                                     m_regs.sh.userDataInternalTable.u32All,
                                     pCmdSpace);
     }
 
     if (chipProps.gfx9.supportSpp != 0)
     {
-        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_GS,
-                                                                    m_regs.sh.spiShaderPgmChksumGs.u32All,
-                                                                    pCmdSpace);
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(mmSPI_SHADER_PGM_CHKSUM_GS,
+                                                                 m_regs.sh.spiShaderPgmChksumGs.u32All,
+                                                                 pCmdSpace);
     }
 
     if (m_regs.sh.ldsEsGsSizeRegAddrGs != UserDataNotMapped)
     {
         pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(m_regs.sh.ldsEsGsSizeRegAddrGs,
-                                                                    m_regs.sh.userDataLdsEsGsSize.u32All,
-                                                                    pCmdSpace);
+                                                                 m_regs.sh.userDataLdsEsGsSize.u32All,
+                                                                 pCmdSpace);
     }
     if (m_regs.sh.ldsEsGsSizeRegAddrVs != UserDataNotMapped)
     {
         pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(m_regs.sh.ldsEsGsSizeRegAddrVs,
-                                                                    m_regs.sh.userDataLdsEsGsSize.u32All,
-                                                                    pCmdSpace);
+                                                                 m_regs.sh.userDataLdsEsGsSize.u32All,
+                                                                 pCmdSpace);
     }
 
     if (hasMeshShader && (m_fastLaunchMode == GsFastLaunchMode::PrimInLane))
@@ -257,10 +257,10 @@ uint32* PipelineChunkGs::WriteContextCommands(
     uint32*    pCmdSpace
     ) const
 {
-    pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10Plus::mmGE_MAX_OUTPUT_PER_SUBGROUP,
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmGE_MAX_OUTPUT_PER_SUBGROUP,
                                                   m_regs.context.geMaxOutputPerSubgroup.u32All,
                                                   pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10Plus::mmGE_NGG_SUBGRP_CNTL,
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmGE_NGG_SUBGRP_CNTL,
                                                   m_regs.context.geNggSubgrpCntl.u32All,
                                                   pCmdSpace);
 
@@ -284,17 +284,17 @@ uint32* PipelineChunkGs::WriteContextCommands(
     else
     {
         pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_ESGS_RING_ITEMSIZE,
-                                                       HasHwVs::mmVGT_GSVS_RING_ITEMSIZE,
+                                                       Gfx10::mmVGT_GSVS_RING_ITEMSIZE,
                                                        &m_regs.context.vgtEsGsRingItemSize,
                                                        pCmdSpace);
 
-        pCmdSpace = pCmdStream->WriteSetSeqContextRegs(HasHwVs::mmVGT_GS_PER_VS,
-                                                       Gfx09_10::mmVGT_GS_OUT_PRIM_TYPE,
+        pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx10::mmVGT_GS_PER_VS,
+                                                       Gfx10::mmVGT_GS_OUT_PRIM_TYPE,
                                                        &m_regs.context.vgtGsPerVs,
                                                        pCmdSpace);
 
-        pCmdSpace = pCmdStream->WriteSetSeqContextRegs(HasHwVs::mmVGT_GS_VERT_ITEMSIZE,
-                                                       HasHwVs::mmVGT_GS_VERT_ITEMSIZE_3,
+        pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx10::mmVGT_GS_VERT_ITEMSIZE,
+                                                       Gfx10::mmVGT_GS_VERT_ITEMSIZE_3,
                                                        &m_regs.context.vgtGsVertItemSize0,
                                                        pCmdSpace);
     }
@@ -316,7 +316,7 @@ void PipelineChunkGs::AccumulateShRegs(
 
     const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
 
-    SetOneShRegValPairPacked(pRegPairs, pNumRegs, Gfx10Plus::mmSPI_SHADER_PGM_LO_ES, m_regs.sh.spiShaderPgmLoEs.u32All);
+    SetOneShRegValPairPacked(pRegPairs, pNumRegs, mmSPI_SHADER_PGM_LO_ES, m_regs.sh.spiShaderPgmLoEs.u32All);
     SetSeqShRegValPairPacked(pRegPairs,
                              pNumRegs,
                              mmSPI_SHADER_PGM_RSRC1_GS,
@@ -327,7 +327,7 @@ void PipelineChunkGs::AccumulateShRegs(
     {
         SetOneShRegValPairPacked(pRegPairs,
                                  pNumRegs,
-                                 Gfx10Plus::mmSPI_SHADER_USER_DATA_GS_0 + ConstBufTblStartReg,
+                                 mmSPI_SHADER_USER_DATA_GS_0 + ConstBufTblStartReg,
                                  m_regs.sh.userDataInternalTable.u32All);
     }
 
@@ -335,7 +335,7 @@ void PipelineChunkGs::AccumulateShRegs(
     {
         SetOneShRegValPairPacked(pRegPairs,
                                  pNumRegs,
-                                 Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_GS,
+                                 mmSPI_SHADER_PGM_CHKSUM_GS,
                                  m_regs.sh.spiShaderPgmChksumGs.u32All);
     }
 
@@ -385,11 +385,11 @@ void PipelineChunkGs::AccumulateContextRegs(
 #endif
 
     SetOneContextRegValPairPacked(pRegPairs, pNumRegs,
-                                  Gfx10Plus::mmGE_MAX_OUTPUT_PER_SUBGROUP,
+                                  mmGE_MAX_OUTPUT_PER_SUBGROUP,
                                   m_regs.context.geMaxOutputPerSubgroup.u32All);
     SetOneContextRegValPairPacked(pRegPairs,
                                   pNumRegs,
-                                  Gfx10Plus::mmGE_NGG_SUBGRP_CNTL,
+                                  mmGE_NGG_SUBGRP_CNTL,
                                   m_regs.context.geNggSubgrpCntl.u32All);
 
     SetOneContextRegValPairPacked(pRegPairs,

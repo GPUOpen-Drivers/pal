@@ -95,3 +95,4 @@ private:
 
 } // namespace CrashAnalysis
 } // namespace Pal
+

@@ -164,13 +164,11 @@ uint32 CmdBuffer::GetEmbeddedDataLimit() const
 }
 
 // =====================================================================================================================
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
 uint32 CmdBuffer::GetLargeEmbeddedDataLimit() const
 {
     // This function is not logged because it doesn't modify the command buffer.
     return m_pNextLayer->GetLargeEmbeddedDataLimit();
 }
-#endif
 
 // =====================================================================================================================
 void CmdBuffer::CmdBindPipeline(
@@ -432,31 +430,20 @@ void CmdBuffer::CmdSetKernelArguments(
 
 // =====================================================================================================================
 void CmdBuffer::CmdSetVertexBuffers(
-    uint32                firstBuffer,
-    uint32                bufferCount,
-    const BufferViewInfo* pBuffers)
+    const VertexBufferViews& bufferViews)
 {
     BeginFuncInfo funcInfo;
     funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSetVertexBuffers;
     funcInfo.objectId     = m_objectId;
     funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdSetVertexBuffers(firstBuffer, bufferCount, pBuffers);
+    m_pNextLayer->CmdSetVertexBuffers(bufferViews);
     funcInfo.postCallTime = m_pPlatform->GetTime();
 
     LogContext* pLogContext = nullptr;
     if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
     {
         pLogContext->BeginInput();
-        pLogContext->KeyAndValue("firstBuffer", firstBuffer);
-        pLogContext->KeyAndValue("bufferCount", bufferCount);
-        pLogContext->KeyAndBeginList("buffers", false);
-
-        for (uint32 idx = 0; idx < bufferCount; ++idx)
-        {
-            pLogContext->Struct(pBuffers[idx]);
-        }
-
-        pLogContext->EndList();
+        pLogContext->KeyAndStruct("bufferViews", bufferViews);
         pLogContext->EndInput();
 
         m_pPlatform->LogEndFunc(pLogContext);
@@ -3104,7 +3091,6 @@ uint32* CmdBuffer::CmdAllocateEmbeddedData(
 }
 
 // =====================================================================================================================
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
 uint32* CmdBuffer::CmdAllocateLargeEmbeddedData(
     uint32   sizeInDwords,
     uint32   alignmentInDwords,
@@ -3134,7 +3120,6 @@ uint32* CmdBuffer::CmdAllocateLargeEmbeddedData(
 
     return pCpuAddr;
 }
-#endif
 
 // =====================================================================================================================
 Result CmdBuffer::AllocateAndBindGpuMemToEvent(

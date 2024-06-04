@@ -948,10 +948,14 @@ void CmdBuffer::OutputSurfaceCapture()
                 "CmdDrawIndexedIndirectMulti",
                 "CmdDispatchMesh",
                 "CmdDispatchMeshIndirectMulti",
+                "CmdGenExecuteIndirectDraw",
+                "CmdGenExecuteIndirectDrawIndexed",
+                "CmdGenExecuteIndirectDispatchMesh",
                 "CmdDispatch",
                 "CmdDispatchAce",
                 "CmdDispatchIndirect",
                 "CmdDispatchOffset",
+                "CmdGenExecuteIndirectDispatch",
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 837
                 "CmdDispatchDynamic",
 #endif
@@ -1690,13 +1694,19 @@ void CmdBuffer::ReplayCmdSetKernelArguments(
 
 // =====================================================================================================================
 void CmdBuffer::CmdSetVertexBuffers(
-    uint32                firstBuffer,
-    uint32                bufferCount,
-    const BufferViewInfo* pBuffers)
+    const VertexBufferViews& bufferViews)
 {
     InsertToken(CmdBufCallId::CmdSetVertexBuffers);
-    InsertToken(firstBuffer);
-    InsertTokenArray(pBuffers, bufferCount);
+    InsertToken(bufferViews.firstBuffer);
+    InsertToken(bufferViews.offsetMode);
+    if (bufferViews.offsetMode)
+    {
+        InsertTokenArray(bufferViews.pVertexBufferViews, bufferViews.bufferCount);
+    }
+    else
+    {
+        InsertTokenArray(bufferViews.pBufferViewInfos, bufferViews.bufferCount);
+    }
 }
 
 // =====================================================================================================================
@@ -1704,11 +1714,19 @@ void CmdBuffer::ReplayCmdSetVertexBuffers(
     Queue*           pQueue,
     TargetCmdBuffer* pTgtCmdBuffer)
 {
-    const BufferViewInfo* pBuffers = nullptr;
-    const auto firstBuffer = ReadTokenVal<uint32>();
-    const auto bufferCount = ReadTokenArray(&pBuffers);
+    VertexBufferViews bufferViews = {};
+    bufferViews.firstBuffer = ReadTokenVal<uint32>();
+    bufferViews.offsetMode = ReadTokenVal<bool>();
+    if (bufferViews.offsetMode)
+    {
+        bufferViews.bufferCount = ReadTokenArray(&bufferViews.pVertexBufferViews);
+    }
+    else
+    {
+        bufferViews.bufferCount = ReadTokenArray(&bufferViews.pBufferViewInfos);
+    }
 
-    pTgtCmdBuffer->CmdSetVertexBuffers(firstBuffer, bufferCount, pBuffers);
+    pTgtCmdBuffer->CmdSetVertexBuffers(bufferViews);
 }
 
 // =====================================================================================================================
@@ -4473,12 +4491,10 @@ uint32 CmdBuffer::GetEmbeddedDataLimit() const
 }
 
 // =====================================================================================================================
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
 uint32 CmdBuffer::GetLargeEmbeddedDataLimit() const
 {
     return GetNextLayer()->GetLargeEmbeddedDataLimit();
 }
-#endif
 
 // =====================================================================================================================
 uint32* CmdBuffer::CmdAllocateEmbeddedData(
@@ -4490,7 +4506,6 @@ uint32* CmdBuffer::CmdAllocateEmbeddedData(
 }
 
 // =====================================================================================================================
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
 uint32* CmdBuffer::CmdAllocateLargeEmbeddedData(
     uint32   sizeInDwords,
     uint32   alignmentInDwords,
@@ -4498,7 +4513,6 @@ uint32* CmdBuffer::CmdAllocateLargeEmbeddedData(
 {
     return GetNextLayer()->CmdAllocateLargeEmbeddedData(sizeInDwords, alignmentInDwords, pGpuAddress);
 }
-#endif
 
 // =====================================================================================================================
 Result CmdBuffer::AllocateAndBindGpuMemToEvent(

@@ -118,6 +118,45 @@ typedef struct DDDriverUtilsApi
         DDConnectionId         umdConnectionId,
         const char*            pOverlayString,
         uint32_t               strIdx);
+
+    /// @brief Sets the severity level for the debug log.
+    ///
+    /// @param[in] pInstance Must be @ref DDDriverUtilsApi.pInstance.
+    /// @param[in] umdConnectionId The umd connection id.
+    /// @param[in] severityLevel The severity level to set for the debug log.
+    /// @return DD_RESULT_SUCCESS if the operation succeeded.
+    /// @return Other error codes if the operation failed.
+    DD_RESULT (*SetDbgLogSeverityLevel)(
+        DDDriverUtilsInstance* pInstance,
+        DDConnectionId         umdConnectionId,
+        uint32_t               severityLevel);
+
+    /// @brief Sets the origination mask for the debug log.
+    ///
+    /// @param[in] pInstance Must be @ref DDDriverUtilsApi.pInstance.
+    /// @param[in] umdConnectionId The umd connection id.
+    /// @param[in] mask The origination mask to set for the debug log.
+    /// @return DD_RESULT_SUCCESS if the operation succeeded.
+    /// @return Other error codes if the operation failed.
+    DD_RESULT (*SetDbgLogOriginationMask)(
+        DDDriverUtilsInstance* pInstance,
+        DDConnectionId         umdConnectionId,
+        uint32_t               mask);
+
+    /// @brief Modifies the origination mask for the debug log.
+    ///
+    /// @param[in] pInstance Must be @ref DDDriverUtilsApi.pInstance.
+    /// @param[in] umdConnectionId The umd connection id.
+    /// @param[in] origination The origination to modify in the debug log mask.
+    /// @param[in] enable Whether to enable or disable the specified origination in the mask.
+    /// @return DD_RESULT_SUCCESS if the operation succeeded.
+    /// @return Other error codes if the operation failed.
+    DD_RESULT (*ModifyDbgLogOriginationMask)(
+        DDDriverUtilsInstance* pInstance,
+        DDConnectionId         umdConnectionId,
+        uint32_t               origination,
+        bool                   enable);
+
 } DDDriverUtilsApi;
 
 #ifdef __cplusplus

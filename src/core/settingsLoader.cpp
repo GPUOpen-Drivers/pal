@@ -129,7 +129,7 @@ void SettingsLoader::OverrideDefaults()
         m_settings.enableGangSubmit = true;
     }
 
-    if ((m_pDevice->ChipProperties().vcnLevel > VcnIpLevel::VcnIp1)
+    if ((m_pDevice->ChipProperties().vcnLevel != VcnIpLevel::_None)
         )
     {
 

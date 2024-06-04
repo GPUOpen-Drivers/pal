@@ -81,14 +81,9 @@ Result GpuMemoryPatchList::AddWidePatchEntry(
 
 {
     PAL_ASSERT((patchOpLo != GpuMemoryPatchOp::Count) && (patchOpHi != GpuMemoryPatchOp::Count));
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
-    PAL_ASSERT((patchBuffer == CmdAllocType::CommandDataAlloc)
-        || (patchBuffer == CmdAllocType::EmbeddedDataAlloc)
-        || (patchBuffer == CmdAllocType::LargeEmbeddedDataAlloc));
-#else
-    PAL_ASSERT((patchBuffer == CmdAllocType::CommandDataAlloc) || (patchBuffer == CmdAllocType::EmbeddedDataAlloc));
-#endif
+    PAL_ASSERT((patchBuffer == CmdAllocType::CommandDataAlloc)  ||
+               (patchBuffer == CmdAllocType::EmbeddedDataAlloc) ||
+               (patchBuffer == CmdAllocType::LargeEmbeddedDataAlloc));
 
     Result result = Result::Success;
 

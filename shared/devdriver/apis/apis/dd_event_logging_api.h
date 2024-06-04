@@ -117,16 +117,18 @@ typedef struct DDEventLoggingApi
     /// This can be called any time after platform init.
     ///
     /// @param pInstance Must be \ref DDEventLoggingApi.pInstance.
-    /// @param umdConnectionId The identifier of the connection to start tracing for.
+    /// @param connectionId The identifier of the connection to start tracing for.
     /// @param processId The process ID.
-    /// @param providerId The ID of the event provider to enable
+    /// @param providerId The ID of the event provider to enable.
+    /// @param noUmdConnection Flag to indicate that no UMD connection will be used.
     /// @return DD_RESULT_SUCCESS Tracing was successfully started.
     /// @return DD_RESULT_DD_GENERIC_NOT_READY If router connection isn't ready.
     /// @return Other errors if starting tracing failed.
     DD_RESULT (*EnableTracing)(DDEventLoggingInstance* pInstance,
-                               DDConnectionId          umdConnectionId,
+                               DDConnectionId          connectionId,
                                DDProcessId             processId,
-                               uint32_t                providerId);
+                               uint32_t                providerId,
+                               bool                    noUmdConnection);
 
     /// Registers a callback for receiving incoming events. Subsequent calls to this
     /// function will replace the existing callback. Calling with a null structure will

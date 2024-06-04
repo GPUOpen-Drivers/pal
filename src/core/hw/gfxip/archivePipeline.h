@@ -123,18 +123,12 @@ public:
         }
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 797
     // Retrieve the stack sizes managed by compiler, including the frontend stack and the backend stack.
     virtual Result GetStackSizes(CompilerStackSizes* pSizes) const override
     {
         *pSizes = m_cpsStackSizes;
         return Result::Success;
     }
-#else
-    // Get the size of the stack managed by the compiler backend.
-    virtual uint32 GetStackSizeInBytes() const override
-        { return m_pipelines.IsEmpty() ? 0 : LeadPipeline()->GetStackSizeInBytes(); }
-#endif
 
     // Returns the API shader type to hardware stage mapping for the pipeline.
     virtual Util::Abi::ApiHwShaderMapping ApiHwShaderMapping() const override

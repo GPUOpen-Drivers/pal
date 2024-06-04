@@ -163,9 +163,11 @@ void LogContext::Struct(
 
         EndList();
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 880
         KeyAndValue("address",     memoryBarrier.memory.address);
         KeyAndValue("offset",      memoryBarrier.memory.offset);
         KeyAndValue("size",        memoryBarrier.memory.size);
+#endif
         KeyAndPipelineStageFlags("srcStageMask", memoryBarrier.srcStageMask);
         KeyAndPipelineStageFlags("dstStageMask", memoryBarrier.dstStageMask);
         KeyAndCacheCoherencyUsageFlags("srcAccessMask", memoryBarrier.srcAccessMask);
@@ -192,7 +194,9 @@ void LogContext::Struct(
             KeyAndPipelineStageFlags("dstStageMask", imageBarrier.dstStageMask);
             KeyAndCacheCoherencyUsageFlags("srcAccessMask", imageBarrier.srcAccessMask);
             KeyAndCacheCoherencyUsageFlags("dstAccessMask", imageBarrier.dstAccessMask);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 880
             KeyAndStruct("box", imageBarrier.box);
+#endif
             KeyAndStruct("oldLayout", imageBarrier.oldLayout);
             KeyAndStruct("newLayout", imageBarrier.newLayout);
 
@@ -350,6 +354,40 @@ void LogContext::Struct(
     KeyAndValue("range", value.range);
     KeyAndValue("stride", value.stride);
     KeyAndStruct("swizzledFormat", value.swizzledFormat);
+    EndMap();
+}
+
+// =====================================================================================================================
+void LogContext::Struct(
+    const VertexBufferView& value)
+{
+    BeginMap(false);
+    KeyAndValue("gpuva", value.gpuva);
+    KeyAndValue("sizeInBytes", value.sizeInBytes);
+    KeyAndValue("strideInBytes", value.strideInBytes);
+    EndMap();
+}
+
+// =====================================================================================================================
+void LogContext::Struct(
+    const VertexBufferViews& value)
+{
+    BeginMap(false);
+    KeyAndValue("firstBuffer", value.firstBuffer);
+    KeyAndValue("offsetMode", value.offsetMode);
+    KeyAndBeginList("buffers", false);
+    for (uint32 idx = 0; idx < value.bufferCount; ++idx)
+    {
+        if (value.offsetMode)
+        {
+            Struct(value.pVertexBufferViews[idx]);
+        }
+        else
+        {
+            Struct(value.pBufferViewInfos[idx]);
+        }
+    }
+    EndList();
     EndMap();
 }
 
@@ -593,9 +631,7 @@ void LogContext::Struct(
         {
             "CommandData",        // CommandDataAlloc       = 0,
             "EmbeddedData",       // EmbeddedDataAlloc      = 1,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
             "LargeEmbeddedData",  // LargeEmbeddedDataAlloc = 2,
-#endif
             "GpuScratchMemAlloc", // GpuScratchMemAlloc
         };
 
@@ -807,7 +843,6 @@ void LogContext::Struct(
         Value("disableDccRejected");
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 795
     if (value.noFlip)
     {
         Value("noFlip");
@@ -817,7 +852,6 @@ void LogContext::Struct(
     {
         Value("frameGenIndex");
     }
-#endif
 
     EndList();
     KeyAndObject("primaryMemory", value.pPrimaryMemory);
@@ -1076,7 +1110,6 @@ void LogContext::Struct(
         Value("shared");
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 795
     if (value.usageFlags.frameGenRatio)
     {
         Value("frameGenRatio");
@@ -1086,19 +1119,12 @@ void LogContext::Struct(
     {
         Value("paceGeneratedFrame");
     }
-#endif
 
     static_assert(CheckReservedBits<decltype(value.usageFlags)>(32, 23), "Update interfaceLogger!");
     EndList();
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 795
-    KeyAndValue("hPreFlipEvent", value.hPreFlipEvent);
-#else
     KeyAndValue("hNewFrameEvent", value.hNewFrameEvent);
-
     KeyAndValue("hFatalErrorEvent", value.hFatalErrorEvent);
-#endif
-
     EndMap();
 }
 
@@ -1287,7 +1313,7 @@ void LogContext::Struct(
 
     if (value.enable.dualSourceBlendEnable)
     {
-        Value("rasterizerDiscardEnable");
+        Value("dualSourceBlendEnable");
     }
     if (value.enable.vertexBufferCount)
     {
@@ -1321,7 +1347,22 @@ void LogContext::Struct(
     {
         KeyAndStruct("typedBufferInfo", value.typedBufferInfo);
     }
-    static_assert(CheckReservedBits<decltype(value.flags)>(32, 31), "Update interfaceLogger!");
+
+    KeyAndBeginList("flags", true);
+
+    if (value.flags.gl2Uncached)
+    {
+        Value("gl2Uncached");
+    }
+
+    if (value.flags.mallRangeActive)
+    {
+        Value("mallRangeActive");
+    }
+
+    EndList();
+
+    static_assert(CheckReservedBits<decltype(value.flags)>(32, 29), "Update interfaceLogger!");
     EndMap();
 }
 
@@ -2844,12 +2885,10 @@ void LogContext::Struct(
     KeyAndValue("imageIndex", value.imageIndex);
     KeyAndBeginList("flags", true);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 794
     if (value.flags.turboSyncEnabled)
     {
         Value("turboSyncEnabled");
     }
-#endif
 
     if (value.flags.notifyOnly)
     {

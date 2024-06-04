@@ -26,7 +26,7 @@
 devdriver_library(dd_interface INTERFACE)
 
 target_sources(dd_interface
-    INTERFACE
+    PRIVATE
         dd_allocator_api.h
         dd_api_registry_api.h
         dd_clocks_api.h

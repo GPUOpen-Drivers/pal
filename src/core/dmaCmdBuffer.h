@@ -300,9 +300,17 @@ protected:
 
     virtual uint32* WriteCopyTypedBuffer(const DmaTypedBufferCopyInfo& dmaCopyInfo, uint32* pCmdSpace) const = 0;
     virtual uint32* WriteCopyImageLinearToLinearCmd(const DmaImageCopyInfo& imageCopyInfo, uint32* pCmdSpace) = 0;
-    virtual uint32* WriteCopyImageLinearToTiledCmd(const DmaImageCopyInfo& imageCopyInfo, uint32* pCmdSpace) = 0;
-    virtual uint32* WriteCopyImageTiledToLinearCmd(const DmaImageCopyInfo& imageCopyInfo, uint32* pCmdSpace) = 0;
     virtual uint32* WriteCopyImageTiledToTiledCmd(const DmaImageCopyInfo& imageCopyInfo, uint32* pCmdSpace) = 0;
+
+    uint32* WriteCopyImageLinearToTiledCmd(const DmaImageCopyInfo& imageCopyInfo, uint32* pCmdSpace);
+    uint32* WriteCopyImageTiledToLinearCmd(const DmaImageCopyInfo& imageCopyInfo, uint32* pCmdSpace);
+
+    virtual uint32* CopyImageLinearTiledTransform(
+        const DmaImageCopyInfo& copyInfo,
+        const DmaImageInfo&     linearImg,
+        const DmaImageInfo&     tiledImg,
+        bool                    deTile,
+        uint32*                 pCmdSpace) const = 0;
 
     virtual uint32* WriteCopyMemToLinearImageCmd(
         const GpuMemory&             srcGpuMemory,
@@ -357,6 +365,10 @@ protected:
     gpusize      m_predInternalAddr;         // Internal Memory predication will reference this address.
     const uint32 m_copyOverlapHazardSyncs;   // Bitmask that depons on image type (1D, 2D or 3D). The bit is set to 1
                                              // if we need to handle overlapping copy syncing during CmdBarrier.
+
+    uint32 GetImageZ( const DmaImageInfo& dmaImageInfo, uint32 offsetZ) const;
+    uint32 GetImageZ(const DmaImageInfo&  dmaImageInfo) const
+        { return GetImageZ(dmaImageInfo, dmaImageInfo.offset.z); }
 
 private:
     void SetupDmaInfoSurface(

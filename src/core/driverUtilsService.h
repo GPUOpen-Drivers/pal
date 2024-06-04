@@ -46,6 +46,9 @@ public:
     virtual DD_RESULT QueryPalDriverInfo(const DDByteWriter& writer) override;
     virtual DD_RESULT EnableDriverFeatures(const void* pParamBuffer, size_t paramBufferSize) override;
     virtual DD_RESULT SetOverlayString(const void* pParamBuffer, size_t paramBufferSize) override;
+    virtual DD_RESULT SetDbgLogSeverityLevel(const void* pParamBuffer, size_t paramBufferSize) override;
+    virtual DD_RESULT SetDbgLogOriginationMask(const void* pParamBuffer, size_t paramBufferSize) override;
+    virtual DD_RESULT ModifyDbgLogOriginationMask(const void* pParamBuffer, size_t paramBufferSize) override;
 
     bool IsTracingEnabled() const { return m_isTracingEnabled; }
     bool IsCrashAnalysisModeEnabled() const { return m_crashAnalysisModeEnabled; }

@@ -45,6 +45,7 @@ struct TextDrawShaderInfo
 {
     Pal::uint32 startX;             ///< X offset on the image for the beginning of the text.
     Pal::uint32 startY;             ///< Y offset on the image for the beginning of the text.
+    Pal::uint32 scale;              ///< Text scaling factor.
     Pal::uint32 foregroundColor[4]; ///< Color of the letters.
     Pal::uint32 backgroundColor[4]; ///< Color of the letter outlines.
 };
@@ -73,7 +74,17 @@ public:
         Pal::ICmdBuffer*   pCmdBuffer,
         const char*        pText,
         Pal::uint32        x,
-        Pal::uint32        y) const;
+        Pal::uint32        y) const
+        { DrawDebugText(dstImage, pCmdBuffer, pText, x, y, 1); }
+
+    /// Draws the text to the specified image at the XY coordinate using the specific command buffer.
+    void DrawDebugText(
+        const Pal::IImage& dstImage,
+        Pal::ICmdBuffer*   pCmdBuffer,
+        const char*        pText,
+        Pal::uint32        x,
+        Pal::uint32        y,
+        Pal::uint32        pixelScale) const;
 
 private:
     // Creates the GPU memory for the constant font data binary.

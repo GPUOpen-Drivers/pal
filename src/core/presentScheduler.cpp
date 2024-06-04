@@ -295,7 +295,17 @@ Result PresentScheduler::Present(
     // Check if we can immediately process a present on the current thread and queue.
     if (CanInlinePresent(presentInfo, *pQueue))
     {
-        result = ProcessPresent(presentInfo, pQueue, true);
+        if (m_activeJobList.IsEmpty() == false)
+        {
+            // If switching from non-inlined to inlined presents, wait until the present thread has drained
+            // to keep the ordering of presents intact.
+            result = WaitPresentThreadIdle();
+        }
+
+        if (result == Result::Success)
+        {
+            result = ProcessPresent(presentInfo, pQueue, true);
+        }
     }
     else
     {
@@ -388,19 +398,7 @@ Result PresentScheduler::WaitIdle()
     Result result = Result::Success;
 
     // If the worker thread is in use, wait for it to notify us that it's flushed all of its prior work.
-    if (m_workerActive)
-    {
-        PresentSchedulerJob* pJob = nullptr;
-        result = GetIdleJob(&pJob);
-
-        if (result == Result::Success)
-        {
-            pJob->SetType(PresentJobType::Notify);
-            EnqueueJob(pJob);
-
-            result = m_workerThreadNotify.Wait(std::chrono::milliseconds::max());
-        }
-    }
+    result = WaitPresentThreadIdle();
 
     // Then wait for the present queues and signal queue in that order to flush any remaining queue operations.
     for (uint32 deviceIndex = 0; deviceIndex < XdmaMaxDevices; deviceIndex++)
@@ -414,6 +412,29 @@ Result PresentScheduler::WaitIdle()
     if ((result == Result::Success) && (m_pSignalQueue != nullptr))
     {
         result = m_pSignalQueue->WaitIdle();
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Waits for present thread to become idle.
+Result PresentScheduler::WaitPresentThreadIdle()
+{
+    Result result = Result::Success;
+
+    if (m_workerActive)
+    {
+        PresentSchedulerJob* pJob = nullptr;
+        result = GetIdleJob(&pJob);
+
+        if (result == Result::Success)
+        {
+            pJob->SetType(PresentJobType::Notify);
+            EnqueueJob(pJob);
+
+            result = m_workerThreadNotify.Wait(std::chrono::milliseconds::max());
+        }
     }
 
     return result;

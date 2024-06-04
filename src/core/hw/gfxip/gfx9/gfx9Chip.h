@@ -100,15 +100,14 @@ static_assert((VGT_INDEX_16 == 0) && (VGT_INDEX_32 == 1) && (VGT_INDEX_8 == 2),
 
 // Context reg space technically goes to 0xBFFF, but in reality there are no registers we currently write beyond
 // a certain limit. This enum can save some memory space in situations where we shadow register state in the driver.
-constexpr uint32 CntxRegUsedRangeEnd  = Gfx10Plus::mmCB_COLOR7_ATTRIB3;
-
+constexpr uint32 CntxRegUsedRangeEnd  = mmCB_COLOR7_ATTRIB3;
 constexpr uint32 CntxRegUsedRangeSize = (CntxRegUsedRangeEnd - CONTEXT_SPACE_START + 1);
-constexpr uint32 CntxRegCount         = (Gfx09_10::CONTEXT_SPACE_END - CONTEXT_SPACE_START + 1);
+constexpr uint32 CntxRegCount         = (Gfx10::CONTEXT_SPACE_END - CONTEXT_SPACE_START + 1);
 
 // SH reg space technically goes to 0x2FFF, but in reality there are no registers we currently write beyond the
 // COMPUTE_USER_DATA_15 register.  This enum can save some memory space in situations where we shadow register state
 // in the driver.
-constexpr uint32 ShRegUsedRangeEnd  = Gfx10Plus::mmCOMPUTE_DISPATCH_TUNNEL;
+constexpr uint32 ShRegUsedRangeEnd  = mmCOMPUTE_DISPATCH_TUNNEL;
 constexpr uint32 ShRegUsedRangeSize = (ShRegUsedRangeEnd - PERSISTENT_SPACE_START + 1);
 constexpr uint32 ShRegCount         = (PERSISTENT_SPACE_END - PERSISTENT_SPACE_START + 1);
 
@@ -131,8 +130,8 @@ using RegisterVector = Util::SparseVector<
     Platform,
     CONTEXT_SPACE_START,           CntxRegUsedRangeEnd,
     PERSISTENT_SPACE_START,        ShRegUsedRangeEnd,
-    Gfx10Plus::mmGE_STEREO_CNTL,   Gfx10Plus::mmGE_STEREO_CNTL,
-    Gfx10Plus::mmGE_USER_VGPR_EN,  Gfx10Plus::mmGE_USER_VGPR_EN,
+    mmGE_STEREO_CNTL,              mmGE_STEREO_CNTL,
+    mmGE_USER_VGPR_EN,             mmGE_USER_VGPR_EN,
     Gfx11::mmVGT_GS_OUT_PRIM_TYPE, Gfx11::mmVGT_GS_OUT_PRIM_TYPE
     >;
 
@@ -338,64 +337,10 @@ enum BUF_INDEX_STRIDE : uint32
     BUF_INDEX_STRIDE_64B = 3,
 };
 
-// GFX9-specific buffer resource descriptor structure
-struct Gfx9BufferSrd
-{
-    SQ_BUF_RSRC_WORD0 word0;
-    SQ_BUF_RSRC_WORD1 word1;
-    SQ_BUF_RSRC_WORD2 word2;
-    SQ_BUF_RSRC_WORD3 word3;
-};
-
-// Buffer resource descriptor structure
-union BufferSrd
-{
-    Gfx9BufferSrd  gfx9;
-    sq_buf_rsrc_t  gfx10;
-};
-
-// GFX9-specific image resource descriptor structure
-struct Gfx9ImageSrd
-{
-    SQ_IMG_RSRC_WORD0 word0;
-    SQ_IMG_RSRC_WORD1 word1;
-    SQ_IMG_RSRC_WORD2 word2;
-    SQ_IMG_RSRC_WORD3 word3;
-    SQ_IMG_RSRC_WORD4 word4;
-    SQ_IMG_RSRC_WORD5 word5;
-    SQ_IMG_RSRC_WORD6 word6;
-    SQ_IMG_RSRC_WORD7 word7;
-};
-
-// Image resource descriptor structure
-union ImageSrd
-{
-    Gfx9ImageSrd   gfx9;
-    sq_img_rsrc_t  gfx10;
-};
-
-// GFX9-specific image sampler descriptor structure
-struct Gfx9SamplerSrd
-{
-    SQ_IMG_SAMP_WORD0 word0;
-    SQ_IMG_SAMP_WORD1 word1;
-    SQ_IMG_SAMP_WORD2 word2;
-    SQ_IMG_SAMP_WORD3 word3;
-};
-
-// Image sampler descriptor structure
-union SamplerSrd
-{
-    Gfx9SamplerSrd gfx9;
-    sq_img_samp_t  gfx10;
-};
-
-static_assert((sizeof(Gfx9BufferSrd) == sizeof(sq_buf_rsrc_t)),
-              "GFX9 and GFX10 buffer SRD definitions are not the same size!");
-static_assert((sizeof(Gfx9ImageSrd) == sizeof(sq_img_rsrc_t)),
-              "GFX9 and GFX10 image SRD definitions are not the same size!");
-static_assert((sizeof(Gfx9SamplerSrd) == sizeof(sq_img_samp_t)),
-              "GFX9 and GFX10 sampler SRD definitions are not the same size!");
+// Buffer, image, and sampler descriptor structures.
+using BufferSrd  = sq_buf_rsrc_t;
+using ImageSrd   = sq_img_rsrc_t;
+using SamplerSrd = sq_img_samp_t;
 
 // Maximum scissor rect value for the top-left corner.
 constexpr uint32 ScissorMaxTL = 16383;

@@ -173,14 +173,8 @@ public:
         const IShaderLibrary*const* ppLibraryList,
         uint32                      libraryCount) override;
 
-    virtual void SetStackSizeInBytes(
-        uint32 stackSizeInBytes) override;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 797
+    virtual void SetStackSizeInBytes(uint32 stackSizeInBytes) override;
     virtual Result GetStackSizes(CompilerStackSizes* pSizes) const override;
-#else
-    virtual uint32 GetStackSizeInBytes() const override;
-#endif
 
     virtual Util::Abi::ApiHwShaderMapping ApiHwShaderMapping() const override
         { return m_apiHwMapping; }
@@ -297,9 +291,11 @@ public:
         Allocator*const            pAllocator,
         Util::ElfReader::SectionId sectionId,
         gpusize                    gpuVirtAddr,
+        gpusize                    offset,
         const void*                pCpuLocalAddr) :
         m_sectionId(sectionId),
         m_gpuVirtAddr(gpuVirtAddr),
+        m_offset(offset),
         m_pCpuLocalAddr(pCpuLocalAddr),
         m_allocator(pAllocator),
         m_chunks(&m_allocator)
@@ -307,6 +303,7 @@ public:
     SectionInfo(const SectionInfo& other) :
         m_sectionId(other.m_sectionId),
         m_gpuVirtAddr(other.m_gpuVirtAddr),
+        m_offset(other.m_offset),
         m_pCpuLocalAddr(other.m_pCpuLocalAddr),
         m_allocator(&other.m_allocator),
         m_chunks(&m_allocator)
@@ -322,6 +319,7 @@ public:
 
     Util::ElfReader::SectionId GetSectionId() const { return m_sectionId; }
     gpusize GetGpuVirtAddr() const { return m_gpuVirtAddr; }
+    gpusize GetOffset() const { return m_offset; }
     const void* GetCpuLocalAddr() const { return m_pCpuLocalAddr; }
 
     Result AddCpuMappedChunk(const SectionChunk &chunk) { return m_chunks.PushBack(chunk); }
@@ -330,6 +328,10 @@ private:
     Util::ElfReader::SectionId m_sectionId;
     // Address of the section in the GPU virtual memory.
     gpusize m_gpuVirtAddr;
+
+    // Offset of the section in the GPU virtual memory.
+    gpusize m_offset;
+
     // Address of the section on the CPU. Refers to the ELF file.
     const void* m_pCpuLocalAddr;
 
@@ -353,7 +355,11 @@ public:
 
     // The cpu mapped chunks have to be filled afterwards.
     // Returns null if an out of memory error occured.
-    SectionInfo* AddSection(Util::ElfReader::SectionId sectionId, gpusize gpuVirtAddr, const void* pCpuLocalAddr);
+    SectionInfo* AddSection(
+        Util::ElfReader::SectionId sectionId,
+        gpusize                    gpuVirtAddr,
+        gpusize                    offset,
+        const void*                pCpuLocalAddr);
 
     uint32 GetNumSections() const { return m_sections.NumElements(); }
     Util::ElfReader::SectionId GetSectionId(uint32 i) const { return m_sections.At(i).GetSectionId(); }
@@ -429,7 +435,7 @@ public:
     GpuMemory* GpuMem() const { return m_pGpuMemory; }
     gpusize GpuMemSize() const { return m_gpuMemSize; }
     gpusize GpuMemOffset() const { return m_baseOffset; }
-
+    gpusize SectionOffset() const;
     uint64 PagingFenceVal() const { return m_pagingFenceVal; }
 
     gpusize PrefetchAddr() const { return m_prefetchGpuVirtAddr; }

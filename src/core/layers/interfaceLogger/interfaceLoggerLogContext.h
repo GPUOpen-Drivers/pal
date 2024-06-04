@@ -179,9 +179,7 @@ enum class InterfaceFunc : uint32
     CmdBufferCmdDumpCeRam,
     CmdBufferCmdWriteCeRam,
     CmdBufferCmdAllocateEmbeddedData,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
     CmdBufferCmdAllocateLargeEmbeddedData,
-#endif
     CmdBufferCmdExecuteNestedCmdBuffers,
     CmdBufferCmdSaveComputeState,
     CmdBufferCmdRestoreComputeState,
@@ -466,6 +464,8 @@ public:
     void Struct(const BoundColorTarget& value);
     void Struct(Box value);
     void Struct(const BufferViewInfo& value);
+    void Struct(const VertexBufferView& value);
+    void Struct(const VertexBufferViews& value);
     void Struct(ChannelMapping value);
     void Struct(const ClearBoundTargetRegion& value);
     void Struct(const ClearColor& value);

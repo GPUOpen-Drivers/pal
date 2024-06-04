@@ -25,6 +25,7 @@
 
 #include "palSemaphore.h"
 #include "palSysMemory.h"
+#include "palTime.h"
 #include "util/lnx/lnxTimeout.h"
 #include <errno.h>
 

@@ -38,6 +38,7 @@ include(PalBuildParameters)
 include(PalCodegen)
 include(PalOptions)
 include(PalOverrides)
+include(PalPrecompiledHeaders)
 
 # Create PAL targets:
 # - pal : The overall PAL target that a client links to
@@ -66,6 +67,7 @@ pal_compiler_options(palCompilerDeps)
 pal_compile_definitions(palUtil)
 pal_compiler_options(palUtil)
 pal_setup_generated_code()
+pal_setup_precompiled_headers()
 
 nongen_source_groups(${PAL_SOURCE_DIR}
     TARGETS

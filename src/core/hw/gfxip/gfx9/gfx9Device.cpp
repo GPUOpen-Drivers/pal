@@ -846,51 +846,47 @@ static Result ConvertAbiRegistersToMetadata(
                 PAL_SET_ABI_FIELD(pVgtShaderStagesEn, esStageEn,          vgtShaderStagesEn.bits.ES_EN);
                 PAL_SET_ABI_FIELD(pVgtShaderStagesEn, vsStageEn,          vgtShaderStagesEn.bits.VS_EN);
                 PAL_SET_ABI_FIELD(pVgtShaderStagesEn, maxPrimgroupInWave, vgtShaderStagesEn.bits.MAX_PRIMGRP_IN_WAVE);
-                PAL_SET_ABI_FIELD(pVgtShaderStagesEn,
-                                  gsFastLaunch,
-                                  vgtShaderStagesEn.gfx09_1xPlus.GS_FAST_LAUNCH);
+                PAL_SET_ABI_FIELD(pVgtShaderStagesEn, gsFastLaunch,       vgtShaderStagesEn.bits.GS_FAST_LAUNCH);
 
-                PAL_SET_ABI_FLAG(pVgtShaderStagesEn, lsStageEn,     vgtShaderStagesEn.bits.LS_EN);
-                PAL_SET_ABI_FLAG(pVgtShaderStagesEn, hsStageEn,     vgtShaderStagesEn.bits.HS_EN);
-                PAL_SET_ABI_FLAG(pVgtShaderStagesEn, gsStageEn,     vgtShaderStagesEn.bits.GS_EN);
-                PAL_SET_ABI_FLAG(pVgtShaderStagesEn, primgenEn,     vgtShaderStagesEn.bits.PRIMGEN_EN);
-                PAL_SET_ABI_FLAG(pVgtShaderStagesEn, orderedIdMode, vgtShaderStagesEn.bits.ORDERED_ID_MODE);
-                PAL_SET_ABI_FLAG(pVgtShaderStagesEn, dynamicHs,     vgtShaderStagesEn.gfx10Plus.DYNAMIC_HS);
-                PAL_SET_ABI_FLAG(pVgtShaderStagesEn, nggWaveIdEn,   vgtShaderStagesEn.gfx10Plus.NGG_WAVE_ID_EN);
-                PAL_SET_ABI_FLAG(pVgtShaderStagesEn,
-                                 primgenPassthruEn,
-                                 vgtShaderStagesEn.gfx10Plus.PRIMGEN_PASSTHRU_EN);
+                PAL_SET_ABI_FLAG(pVgtShaderStagesEn, lsStageEn,         vgtShaderStagesEn.bits.LS_EN);
+                PAL_SET_ABI_FLAG(pVgtShaderStagesEn, hsStageEn,         vgtShaderStagesEn.bits.HS_EN);
+                PAL_SET_ABI_FLAG(pVgtShaderStagesEn, gsStageEn,         vgtShaderStagesEn.bits.GS_EN);
+                PAL_SET_ABI_FLAG(pVgtShaderStagesEn, primgenEn,         vgtShaderStagesEn.bits.PRIMGEN_EN);
+                PAL_SET_ABI_FLAG(pVgtShaderStagesEn, orderedIdMode,     vgtShaderStagesEn.bits.ORDERED_ID_MODE);
+                PAL_SET_ABI_FLAG(pVgtShaderStagesEn, dynamicHs,         vgtShaderStagesEn.bits.DYNAMIC_HS);
+                PAL_SET_ABI_FLAG(pVgtShaderStagesEn, nggWaveIdEn,       vgtShaderStagesEn.bits.NGG_WAVE_ID_EN);
+                PAL_SET_ABI_FLAG(pVgtShaderStagesEn, primgenPassthruEn, vgtShaderStagesEn.bits.PRIMGEN_PASSTHRU_EN);
 
                 auto* pHsHwStage = &pMetadata->pipeline.hardwareStage[uint32(Abi::HardwareStage::Hs)];
                 if (pHsHwStage->hasEntry.wavefrontSize == 0)
                 {
-                    PAL_SET_ABI_FIELD(pHsHwStage, wavefrontSize, (vgtShaderStagesEn.gfx10Plus.HS_W32_EN) ? 32 : 64);
+                    PAL_SET_ABI_FIELD(pHsHwStage, wavefrontSize, (vgtShaderStagesEn.bits.HS_W32_EN) ? 32 : 64);
                 }
 
                 auto* pGsHwStage = &pMetadata->pipeline.hardwareStage[uint32(Abi::HardwareStage::Gs)];
                 if (pGsHwStage->hasEntry.wavefrontSize == 0)
                 {
-                    PAL_SET_ABI_FIELD(pGsHwStage, wavefrontSize, (vgtShaderStagesEn.gfx10Plus.GS_W32_EN) ? 32 : 64);
+                    PAL_SET_ABI_FIELD(pGsHwStage, wavefrontSize, (vgtShaderStagesEn.bits.GS_W32_EN) ? 32 : 64);
                 }
 
                 auto* pVsHwStage = &pMetadata->pipeline.hardwareStage[uint32(Abi::HardwareStage::Vs)];
                 if (pVsHwStage->hasEntry.wavefrontSize == 0)
                 {
-                    PAL_SET_ABI_FIELD(pVsHwStage, wavefrontSize, (vgtShaderStagesEn.gfx10Plus.VS_W32_EN) ? 32 : 64);
+                    PAL_SET_ABI_FIELD(pVsHwStage, wavefrontSize, (vgtShaderStagesEn.bits.VS_W32_EN) ? 32 : 64);
                 }
 
                 if (IsGfx11(palDevice))
                 {
                     PAL_SET_ABI_FLAG(pVgtShaderStagesEn,
                                      primgenPassthruNoMsg,
-                                     vgtShaderStagesEn.gfx104Plus.PRIMGEN_PASSTHRU_NO_MSG);
+                                     vgtShaderStagesEn.most.PRIMGEN_PASSTHRU_NO_MSG);
                 }
             }
 
             // VGT_GS_MODE
             {
                 VGT_GS_MODE vgtGsMode;
-                if (hasHwVs && registers.HasEntry(HasHwVs::mmVGT_GS_MODE, &vgtGsMode.u32All))
+                if (hasHwVs && registers.HasEntry(Gfx10::mmVGT_GS_MODE, &vgtGsMode.u32All))
                 {
                     PalAbi::VgtGsModeMetadata* pVgtGsMode = &pGfxRegisters->vgtGsMode;
 
@@ -965,7 +961,7 @@ static Result ConvertAbiRegistersToMetadata(
             // SPI_SHADER_IDX_FORMAT
             {
                 SPI_SHADER_IDX_FORMAT spiShaderIdxFormat;
-                if (registers.HasEntry(Gfx10Plus::mmSPI_SHADER_IDX_FORMAT, &spiShaderIdxFormat.u32All))
+                if (registers.HasEntry(mmSPI_SHADER_IDX_FORMAT, &spiShaderIdxFormat.u32All))
                 {
                     PAL_SET_ABI_FIELD(pGfxRegisters, spiShaderIdxFormat, spiShaderIdxFormat.bits.IDX0_EXPORT_FORMAT);
                 }
@@ -992,11 +988,10 @@ static Result ConvertAbiRegistersToMetadata(
                                           spiShaderPosFormat,
                                           3,
                                           spiShaderPosFormat.bits.POS3_EXPORT_FORMAT);
-
                     PAL_SET_ABI_FIELD_IDX(pGfxRegisters,
                                           spiShaderPosFormat,
                                           4,
-                                          spiShaderPosFormat.gfx10Plus.POS4_EXPORT_FORMAT);
+                                          spiShaderPosFormat.bits.POS4_EXPORT_FORMAT);
                 }
             }
 
@@ -1005,10 +1000,10 @@ static Result ConvertAbiRegistersToMetadata(
                 PalAbi::VgtGsOnchipCntlMetadata* pVgtGsOnchipCntl = &pGfxRegisters->vgtGsOnchipCntl;
 
                 VGT_GS_ONCHIP_CNTL vgtGsOnchipCntl;
-                if (registers.HasEntry(Gfx09_10::mmVGT_GS_ONCHIP_CNTL, &vgtGsOnchipCntl.u32All))
+                if (registers.HasEntry(Gfx10::mmVGT_GS_ONCHIP_CNTL, &vgtGsOnchipCntl.u32All))
                 {
-                    PAL_SET_ABI_FIELD(pVgtGsOnchipCntl, esVertsPerSubgroup,   vgtGsOnchipCntl.bits.ES_VERTS_PER_SUBGRP);
-                    PAL_SET_ABI_FIELD(pVgtGsOnchipCntl, gsPrimsPerSubgroup,   vgtGsOnchipCntl.bits.GS_PRIMS_PER_SUBGRP);
+                    PAL_SET_ABI_FIELD(pVgtGsOnchipCntl, esVertsPerSubgroup, vgtGsOnchipCntl.bits.ES_VERTS_PER_SUBGRP);
+                    PAL_SET_ABI_FIELD(pVgtGsOnchipCntl, gsPrimsPerSubgroup, vgtGsOnchipCntl.bits.GS_PRIMS_PER_SUBGRP);
                     PAL_SET_ABI_FIELD(pVgtGsOnchipCntl,
                                       gsInstPrimsPerSubgrp,
                                       vgtGsOnchipCntl.bits.GS_INST_PRIMS_IN_SUBGRP);
@@ -1019,19 +1014,11 @@ static Result ConvertAbiRegistersToMetadata(
             {
                 PalAbi::VgtGsOutPrimTypeMetadata* pVgtGsOutPrimType = &pGfxRegisters->vgtGsOutPrimType;
 
-                bool foundReg = false;
+                const uint32 regAddr = IsGfx11(palDevice) ? Gfx11::mmVGT_GS_OUT_PRIM_TYPE
+                                                          : Gfx10::mmVGT_GS_OUT_PRIM_TYPE;
+
                 VGT_GS_OUT_PRIM_TYPE vgtGsOutPrimType;
-
-                if (IsGfx11(palDevice))
-                {
-                    foundReg = registers.HasEntry(Gfx11::mmVGT_GS_OUT_PRIM_TYPE, &vgtGsOutPrimType.u32All);
-                }
-                else
-                {
-                    foundReg = registers.HasEntry(Gfx09_10::mmVGT_GS_OUT_PRIM_TYPE, &vgtGsOutPrimType.u32All);
-                }
-
-                if (foundReg)
+                if (registers.HasEntry(regAddr, &vgtGsOutPrimType.u32All))
                 {
                     PAL_SET_ABI_FIELD(pVgtGsOutPrimType,
                                       outprimType,
@@ -1041,17 +1028,17 @@ static Result ConvertAbiRegistersToMetadata(
                     {
                         PAL_SET_ABI_FIELD(pVgtGsOutPrimType,
                                           outprimType_1,
-                                          Abi::GsOutPrimType(vgtGsOutPrimType.gfx09_10.OUTPRIM_TYPE_1));
+                                          Abi::GsOutPrimType(vgtGsOutPrimType.gfx10.OUTPRIM_TYPE_1));
                         PAL_SET_ABI_FIELD(pVgtGsOutPrimType,
                                           outprimType_2,
-                                          Abi::GsOutPrimType(vgtGsOutPrimType.gfx09_10.OUTPRIM_TYPE_2));
+                                          Abi::GsOutPrimType(vgtGsOutPrimType.gfx10.OUTPRIM_TYPE_2));
                         PAL_SET_ABI_FIELD(pVgtGsOutPrimType,
                                           outprimType_3,
-                                          Abi::GsOutPrimType(vgtGsOutPrimType.gfx09_10.OUTPRIM_TYPE_3));
+                                          Abi::GsOutPrimType(vgtGsOutPrimType.gfx10.OUTPRIM_TYPE_3));
 
                         PAL_SET_ABI_FLAG(pVgtGsOutPrimType,
                                          uniqueTypePerStream,
-                                         vgtGsOutPrimType.gfx09_10.UNIQUE_TYPE_PER_STREAM);
+                                         vgtGsOutPrimType.gfx10.UNIQUE_TYPE_PER_STREAM);
                     }
                 }
             }
@@ -1082,7 +1069,7 @@ static Result ConvertAbiRegistersToMetadata(
 
                 if (pPsHwStage->hasEntry.wavefrontSize == 0)
                 {
-                    PAL_SET_ABI_FIELD(pPsHwStage, wavefrontSize, (spiPsInControl.gfx10Plus.PS_W32_EN) ? 32 : 64);
+                    PAL_SET_ABI_FIELD(pPsHwStage, wavefrontSize, (spiPsInControl.bits.PS_W32_EN) ? 32 : 64);
                 }
 
                 if (IsGfx103PlusExclusive(palDevice))
@@ -1102,7 +1089,7 @@ static Result ConvertAbiRegistersToMetadata(
                 {
                     PAL_SET_ABI_FIELD(pSpiVsOutConfig, vsExportCount, spiVsOutConfig.bits.VS_EXPORT_COUNT);
 
-                    PAL_SET_ABI_FLAG(pSpiVsOutConfig, noPcExport, spiVsOutConfig.gfx10Plus.NO_PC_EXPORT);
+                    PAL_SET_ABI_FLAG(pSpiVsOutConfig, noPcExport, spiVsOutConfig.bits.NO_PC_EXPORT);
 
                     if (IsGfx103PlusExclusive(palDevice))
                     {
@@ -1124,7 +1111,7 @@ static Result ConvertAbiRegistersToMetadata(
                     PAL_SET_ABI_FIELD(pVgtTfParam, partitioning,      vgtTfParam.bits.PARTITIONING);
                     PAL_SET_ABI_FIELD(pVgtTfParam, topology,          vgtTfParam.bits.TOPOLOGY);
                     PAL_SET_ABI_FIELD(pVgtTfParam, distributionMode,  vgtTfParam.bits.DISTRIBUTION_MODE);
-                    PAL_SET_ABI_FIELD(pVgtTfParam, numDsWavesPerSimd, vgtTfParam.gfx10Plus.NUM_DS_WAVES_PER_SIMD);
+                    PAL_SET_ABI_FIELD(pVgtTfParam, numDsWavesPerSimd, vgtTfParam.bits.NUM_DS_WAVES_PER_SIMD);
 
                     PAL_SET_ABI_FLAG(pVgtTfParam, disableDonuts, vgtTfParam.bits.DISABLE_DONUTS);
                 }
@@ -1172,7 +1159,7 @@ static Result ConvertAbiRegistersToMetadata(
                 VGT_DRAW_PAYLOAD_CNTL vgtDrawPayloadCntl;
                 if (registers.HasEntry(mmVGT_DRAW_PAYLOAD_CNTL, &vgtDrawPayloadCntl.u32All))
                 {
-                    PAL_SET_ABI_FLAG(pGfxRegisters, vgtDrawPrimPayloadEn, vgtDrawPayloadCntl.gfx10Plus.EN_PRIM_PAYLOAD);
+                    PAL_SET_ABI_FLAG(pGfxRegisters, vgtDrawPrimPayloadEn, vgtDrawPayloadCntl.bits.EN_PRIM_PAYLOAD);
                 }
             }
 
@@ -1181,7 +1168,7 @@ static Result ConvertAbiRegistersToMetadata(
                 PalAbi::IaMultiVgtParamMetadata* pIaMultiVgtParam = &pGfxRegisters->iaMultiVgtParam;
 
                 regIA_MULTI_VGT_PARAM iaMultiVgtParam;
-                if (registers.HasEntry(Gfx09::mmIA_MULTI_VGT_PARAM, &iaMultiVgtParam.u32All))
+                if (registers.HasEntry(Gfx10::mmIA_MULTI_VGT_PARAM_PIPED, &iaMultiVgtParam.u32All))
                 {
                     PAL_SET_ABI_FIELD(pIaMultiVgtParam, primgroupSize, iaMultiVgtParam.bits.PRIMGROUP_SIZE);
 
@@ -1255,14 +1242,14 @@ static Result ConvertAbiRegistersToMetadata(
                     PAL_SET_ABI_FLAG(pVgtGsInstanceCnt, enable, vgtGsInstanceCnt.bits.ENABLE);
                     PAL_SET_ABI_FLAG(pVgtGsInstanceCnt,
                                      enMaxVertOutPerGsInstance,
-                                     vgtGsInstanceCnt.gfx10Plus.EN_MAX_VERT_OUT_PER_GS_INSTANCE);
+                                     vgtGsInstanceCnt.bits.EN_MAX_VERT_OUT_PER_GS_INSTANCE);
                 }
             }
 
             // VGT_GS_PER_VS
             {
                 VGT_GS_PER_VS vgtGsPerVs;
-                if (hasHwVs && registers.HasEntry(HasHwVs::mmVGT_GS_PER_VS, &vgtGsPerVs.u32All))
+                if (hasHwVs && registers.HasEntry(Gfx10::mmVGT_GS_PER_VS, &vgtGsPerVs.u32All))
                 {
                     PAL_SET_ABI_FIELD(pGfxRegisters, vgtGsPerVs, vgtGsPerVs.bits.GS_PER_VS);
                 }
@@ -1271,22 +1258,22 @@ static Result ConvertAbiRegistersToMetadata(
             // VGT_GS_VERT_ITEMSIZE .. _3
             {
                 VGT_GS_VERT_ITEMSIZE vgtGsVertItemsize;
-                if (hasHwVs && registers.HasEntry(HasHwVs::mmVGT_GS_VERT_ITEMSIZE, &vgtGsVertItemsize.u32All))
+                if (hasHwVs && registers.HasEntry(Gfx10::mmVGT_GS_VERT_ITEMSIZE, &vgtGsVertItemsize.u32All))
                 {
                     PAL_SET_ABI_FIELD_IDX(pGfxRegisters, vgtGsVertItemsize, 0, vgtGsVertItemsize.bits.ITEMSIZE);
                 }
                 VGT_GS_VERT_ITEMSIZE_1 vgtGsVertItemsize1;
-                if (hasHwVs && registers.HasEntry(HasHwVs::mmVGT_GS_VERT_ITEMSIZE_1, &vgtGsVertItemsize1.u32All))
+                if (hasHwVs && registers.HasEntry(Gfx10::mmVGT_GS_VERT_ITEMSIZE_1, &vgtGsVertItemsize1.u32All))
                 {
                     PAL_SET_ABI_FIELD_IDX(pGfxRegisters, vgtGsVertItemsize, 1, vgtGsVertItemsize1.bits.ITEMSIZE);
                 }
                 VGT_GS_VERT_ITEMSIZE_2 vgtGsVertItemsize2;
-                if (hasHwVs && registers.HasEntry(HasHwVs::mmVGT_GS_VERT_ITEMSIZE_2, &vgtGsVertItemsize2.u32All))
+                if (hasHwVs && registers.HasEntry(Gfx10::mmVGT_GS_VERT_ITEMSIZE_2, &vgtGsVertItemsize2.u32All))
                 {
                     PAL_SET_ABI_FIELD_IDX(pGfxRegisters, vgtGsVertItemsize, 2, vgtGsVertItemsize2.bits.ITEMSIZE);
                 }
                 VGT_GS_VERT_ITEMSIZE_3 vgtGsVertItemsize3;
-                if (hasHwVs && registers.HasEntry(HasHwVs::mmVGT_GS_VERT_ITEMSIZE_3, &vgtGsVertItemsize3.u32All))
+                if (hasHwVs && registers.HasEntry(Gfx10::mmVGT_GS_VERT_ITEMSIZE_3, &vgtGsVertItemsize3.u32All))
                 {
                     PAL_SET_ABI_FIELD_IDX(pGfxRegisters, vgtGsVertItemsize, 3, vgtGsVertItemsize3.bits.ITEMSIZE);
                 }
@@ -1295,7 +1282,7 @@ static Result ConvertAbiRegistersToMetadata(
             // VGT_GSVS_RING_ITEMSIZE
             {
                 VGT_GSVS_RING_ITEMSIZE vgtGsVsRingItemsize;
-                if (hasHwVs && registers.HasEntry(HasHwVs::mmVGT_GSVS_RING_ITEMSIZE, &vgtGsVsRingItemsize.u32All))
+                if (hasHwVs && registers.HasEntry(Gfx10::mmVGT_GSVS_RING_ITEMSIZE, &vgtGsVsRingItemsize.u32All))
                 {
                     PAL_SET_ABI_FIELD(pGfxRegisters, vgtGsvsRingItemsize, vgtGsVsRingItemsize.bits.ITEMSIZE);
                 }
@@ -1304,17 +1291,17 @@ static Result ConvertAbiRegistersToMetadata(
             // VGT_GSVS_RING_OFFSET_1 .. _3
             {
                 VGT_GSVS_RING_OFFSET_1 vgtGsVsRingOffset1;
-                if (hasHwVs && registers.HasEntry(HasHwVs::mmVGT_GSVS_RING_OFFSET_1, &vgtGsVsRingOffset1.u32All))
+                if (hasHwVs && registers.HasEntry(Gfx10::mmVGT_GSVS_RING_OFFSET_1, &vgtGsVsRingOffset1.u32All))
                 {
                     PAL_SET_ABI_FIELD_IDX(pGfxRegisters, vgtGsvsRingOffset, 0, vgtGsVsRingOffset1.bits.OFFSET);
                 }
                 VGT_GSVS_RING_OFFSET_2 vgtGsVsRingOffset2;
-                if (hasHwVs && registers.HasEntry(HasHwVs::mmVGT_GSVS_RING_OFFSET_2, &vgtGsVsRingOffset2.u32All))
+                if (hasHwVs && registers.HasEntry(Gfx10::mmVGT_GSVS_RING_OFFSET_2, &vgtGsVsRingOffset2.u32All))
                 {
                     PAL_SET_ABI_FIELD_IDX(pGfxRegisters, vgtGsvsRingOffset, 1, vgtGsVsRingOffset2.bits.OFFSET);
                 }
                 VGT_GSVS_RING_OFFSET_3 vgtGsVsRingOffset3;
-                if (hasHwVs && registers.HasEntry(HasHwVs::mmVGT_GSVS_RING_OFFSET_3, &vgtGsVsRingOffset3.u32All))
+                if (hasHwVs && registers.HasEntry(Gfx10::mmVGT_GSVS_RING_OFFSET_3, &vgtGsVsRingOffset3.u32All))
                 {
                     PAL_SET_ABI_FIELD_IDX(pGfxRegisters, vgtGsvsRingOffset, 2, vgtGsVsRingOffset3.bits.OFFSET);
                 }
@@ -1341,7 +1328,7 @@ static Result ConvertAbiRegistersToMetadata(
             // GE_MAX_OUTPUT_PER_SUBGROUP
             {
                 GE_MAX_OUTPUT_PER_SUBGROUP geMaxOutputPerSubgroup;
-                if (registers.HasEntry(Gfx10Plus::mmGE_MAX_OUTPUT_PER_SUBGROUP, &geMaxOutputPerSubgroup.u32All))
+                if (registers.HasEntry(mmGE_MAX_OUTPUT_PER_SUBGROUP, &geMaxOutputPerSubgroup.u32All))
                 {
                     PAL_SET_ABI_FIELD(pGfxRegisters,
                                       maxVertsPerSubgroup,
@@ -1354,7 +1341,7 @@ static Result ConvertAbiRegistersToMetadata(
                 PalAbi::GeNggSubgrpCntlMetadata* pGeNggSubgrpCntl = &pGfxRegisters->geNggSubgrpCntl;
 
                 GE_NGG_SUBGRP_CNTL geNggSubgrpCntl;
-                if (registers.HasEntry(Gfx10Plus::mmGE_NGG_SUBGRP_CNTL, &geNggSubgrpCntl.u32All))
+                if (registers.HasEntry(mmGE_NGG_SUBGRP_CNTL, &geNggSubgrpCntl.u32All))
                 {
                     PAL_SET_ABI_FIELD(pGeNggSubgrpCntl, primAmpFactor,      geNggSubgrpCntl.bits.PRIM_AMP_FACTOR);
                     PAL_SET_ABI_FIELD(pGeNggSubgrpCntl, threadsPerSubgroup, geNggSubgrpCntl.bits.THDS_PER_SUBGRP);
@@ -1384,7 +1371,7 @@ static Result ConvertAbiRegistersToMetadata(
                 PalAbi::VgtStrmoutConfigMetadata* pVgtStrmoutConfig = &pGfxRegisters->vgtStrmoutConfig;
 
                 VGT_STRMOUT_CONFIG vgtStrmoutConfig;
-                if (hasHwVs && registers.HasEntry(HasHwVs::mmVGT_STRMOUT_CONFIG, &vgtStrmoutConfig.u32All))
+                if (hasHwVs && registers.HasEntry(Gfx10::mmVGT_STRMOUT_CONFIG, &vgtStrmoutConfig.u32All))
                 {
                     PAL_SET_ABI_FIELD(pVgtStrmoutConfig, rastStream,     vgtStrmoutConfig.bits.RAST_STREAM);
                     PAL_SET_ABI_FIELD(pVgtStrmoutConfig, rastStreamMask, vgtStrmoutConfig.bits.RAST_STREAM_MASK);
@@ -1404,7 +1391,7 @@ static Result ConvertAbiRegistersToMetadata(
                     &pGfxRegisters->vgtStrmoutBufferConfig;
 
                 VGT_STRMOUT_BUFFER_CONFIG vgtStrmoutBufferConfig;
-                if (hasHwVs && registers.HasEntry(HasHwVs::mmVGT_STRMOUT_BUFFER_CONFIG, &vgtStrmoutBufferConfig.u32All))
+                if (hasHwVs && registers.HasEntry(Gfx10::mmVGT_STRMOUT_BUFFER_CONFIG, &vgtStrmoutBufferConfig.u32All))
                 {
                     PAL_SET_ABI_FIELD(pVgtStrmoutBufferConfig,
                                       stream_0BufferEn,
@@ -1424,7 +1411,7 @@ static Result ConvertAbiRegistersToMetadata(
             // VGT_STRMOUT_VTX_STRIDE_0
             {
                 VGT_STRMOUT_VTX_STRIDE_0 vgtStrmoutVtxStride;
-                if (hasHwVs && registers.HasEntry(HasHwVs::mmVGT_STRMOUT_VTX_STRIDE_0, &vgtStrmoutVtxStride.u32All))
+                if (hasHwVs && registers.HasEntry(Gfx10::mmVGT_STRMOUT_VTX_STRIDE_0, &vgtStrmoutVtxStride.u32All))
                 {
                     PAL_SET_ABI_FIELD_IDX(pPipeline, streamoutVertexStrides, 0, vgtStrmoutVtxStride.bits.STRIDE);
                 }
@@ -1433,7 +1420,7 @@ static Result ConvertAbiRegistersToMetadata(
             // VGT_STRMOUT_VTX_STRIDE_1
             {
                 VGT_STRMOUT_VTX_STRIDE_1 vgtStrmoutVtxStride;
-                if (hasHwVs && registers.HasEntry(HasHwVs::mmVGT_STRMOUT_VTX_STRIDE_1, &vgtStrmoutVtxStride.u32All))
+                if (hasHwVs && registers.HasEntry(Gfx10::mmVGT_STRMOUT_VTX_STRIDE_1, &vgtStrmoutVtxStride.u32All))
                 {
                     PAL_SET_ABI_FIELD_IDX(pPipeline, streamoutVertexStrides, 1, vgtStrmoutVtxStride.bits.STRIDE);
                 }
@@ -1442,7 +1429,7 @@ static Result ConvertAbiRegistersToMetadata(
             // VGT_STRMOUT_VTX_STRIDE_2
             {
                 VGT_STRMOUT_VTX_STRIDE_2 vgtStrmoutVtxStride;
-                if (hasHwVs && registers.HasEntry(HasHwVs::mmVGT_STRMOUT_VTX_STRIDE_2, &vgtStrmoutVtxStride.u32All))
+                if (hasHwVs && registers.HasEntry(Gfx10::mmVGT_STRMOUT_VTX_STRIDE_2, &vgtStrmoutVtxStride.u32All))
                 {
                     PAL_SET_ABI_FIELD_IDX(pPipeline, streamoutVertexStrides, 2, vgtStrmoutVtxStride.bits.STRIDE);
                 }
@@ -1451,7 +1438,7 @@ static Result ConvertAbiRegistersToMetadata(
             // VGT_STRMOUT_VTX_STRIDE_3
             {
                 VGT_STRMOUT_VTX_STRIDE_3 vgtStrmoutVtxStride;
-                if (hasHwVs && registers.HasEntry(HasHwVs::mmVGT_STRMOUT_VTX_STRIDE_3, &vgtStrmoutVtxStride.u32All))
+                if (hasHwVs && registers.HasEntry(Gfx10::mmVGT_STRMOUT_VTX_STRIDE_3, &vgtStrmoutVtxStride.u32All))
                 {
                     PAL_SET_ABI_FIELD_IDX(pPipeline, streamoutVertexStrides, 3, vgtStrmoutVtxStride.bits.STRIDE);
                 }
@@ -1486,7 +1473,7 @@ static Result ConvertAbiRegistersToMetadata(
                                  dbShaderControl.bits.PRIMITIVE_ORDERED_PIXEL_SHADER);
                 PAL_SET_ABI_FLAG(pDbShaderControl,
                                  preShaderDepthCoverageEnable,
-                                 dbShaderControl.gfx10Plus.PRE_SHADER_DEPTH_COVERAGE_ENABLE);
+                                 dbShaderControl.bits.PRE_SHADER_DEPTH_COVERAGE_ENABLE);
             }
 
             // SPI_BARYC_CNTL
@@ -1585,11 +1572,11 @@ static Result ConvertAbiRegistersToMetadata(
                     PAL_SET_ABI_FLAG(pPaClVsOutCntl, vsOutCcDist0VecEna,  paClVsOutCntl.bits.VS_OUT_CCDIST0_VEC_ENA);
                     PAL_SET_ABI_FLAG(pPaClVsOutCntl, vsOutCcDist1VecEna,  paClVsOutCntl.bits.VS_OUT_CCDIST1_VEC_ENA);
                     PAL_SET_ABI_FLAG(pPaClVsOutCntl, vsOutMiscSideBusEna, paClVsOutCntl.bits.VS_OUT_MISC_SIDE_BUS_ENA);
-                    PAL_SET_ABI_FLAG(pPaClVsOutCntl, useVtxLineWidth,     paClVsOutCntl.gfx10Plus.USE_VTX_LINE_WIDTH);
+                    PAL_SET_ABI_FLAG(pPaClVsOutCntl, useVtxLineWidth,     paClVsOutCntl.bits.USE_VTX_LINE_WIDTH);
 
                     if (IsGfx10(palDevice))
                     {
-                        PAL_SET_ABI_FLAG(pPaClVsOutCntl, useVtxGsCutFlag, paClVsOutCntl.gfx09_10.USE_VTX_GS_CUT_FLAG);
+                        PAL_SET_ABI_FLAG(pPaClVsOutCntl, useVtxGsCutFlag, paClVsOutCntl.gfx10.USE_VTX_GS_CUT_FLAG);
                     }
 
                     if (IsGfx103Plus(palDevice))
@@ -1628,14 +1615,14 @@ static Result ConvertAbiRegistersToMetadata(
 
                 PAL_SET_ABI_FLAG(pPaScShaderControl,
                                  loadCollisionWaveid,
-                                 paScShaderControl.core.LOAD_COLLISION_WAVEID);
+                                 paScShaderControl.bits.LOAD_COLLISION_WAVEID);
                 PAL_SET_ABI_FLAG(pPaScShaderControl,
                                  loadIntrawaveCollision,
-                                 paScShaderControl.core.LOAD_INTRAWAVE_COLLISION);
+                                 paScShaderControl.bits.LOAD_INTRAWAVE_COLLISION);
 
                 PAL_SET_ABI_FIELD(pPaScShaderControl,
                                   waveBreakRegionSize,
-                                  paScShaderControl.gfx10Plus.WAVE_BREAK_REGION_SIZE);
+                                  paScShaderControl.bits.WAVE_BREAK_REGION_SIZE);
             }
 
             // PA_SC_AA_CONFIG
@@ -1676,7 +1663,7 @@ static Result ConvertAbiRegistersToMetadata(
 
                         if (IsGfx10(palDevice))
                         {
-                            PAL_SET_ABI_FIELD(pSpiPsInputCntl, cylWrap, spiPsInputCntl.gfx09_10.CYL_WRAP);
+                            PAL_SET_ABI_FIELD(pSpiPsInputCntl, cylWrap, spiPsInputCntl.gfx10.CYL_WRAP);
                         }
 
                         if (IsGfx103PlusExclusive(palDevice))
@@ -1726,9 +1713,9 @@ static Result ConvertAbiRegistersToMetadata(
                     PAL_SET_ABI_FLAG(pHwHs, fp16Overflow,    rsrc1.bits.FP16_OVFL);
                     PAL_SET_ABI_FLAG(pHwHs, ieeeMode,        rsrc1.bits.IEEE_MODE);
                     PAL_SET_ABI_FLAG(pHwHs, debugMode,       rsrc1.bits.DEBUG_MODE);
-                    PAL_SET_ABI_FLAG(pHwHs, wgpMode,         rsrc1.gfx10Plus.WGP_MODE);
-                    PAL_SET_ABI_FLAG(pHwHs, memOrdered,      rsrc1.gfx10Plus.MEM_ORDERED);
-                    PAL_SET_ABI_FLAG(pHwHs, forwardProgress, rsrc1.gfx10Plus.FWD_PROGRESS);
+                    PAL_SET_ABI_FLAG(pHwHs, wgpMode,         rsrc1.bits.WGP_MODE);
+                    PAL_SET_ABI_FLAG(pHwHs, memOrdered,      rsrc1.bits.MEM_ORDERED);
+                    PAL_SET_ABI_FLAG(pHwHs, forwardProgress, rsrc1.bits.FWD_PROGRESS);
 
                     PAL_SET_ABI_FIELD(pGfxRegisters, lsVgprCompCnt, rsrc1.bits.LS_VGPR_COMP_CNT);
                 }
@@ -1736,14 +1723,14 @@ static Result ConvertAbiRegistersToMetadata(
                 SPI_SHADER_PGM_RSRC2_HS rsrc2;
                 if (registers.HasEntry(mmSPI_SHADER_PGM_RSRC2_HS, &rsrc2.u32All))
                 {
-                    const uint32 regLdsSize    = rsrc2.gfx10Plus.LDS_SIZE;
-                    const uint32 userSgprCount = (rsrc2.gfx10Plus.USER_SGPR_MSB << 5) | rsrc2.bits.USER_SGPR;
+                    const uint32 regLdsSize    = rsrc2.bits.LDS_SIZE;
+                    const uint32 userSgprCount = (rsrc2.bits.USER_SGPR_MSB << 5) | rsrc2.bits.USER_SGPR;
 
-                    PAL_SET_ABI_FIELD(pHwHs, excpEn,        rsrc2.gfx10Plus.EXCP_EN);
-                    PAL_SET_ABI_FIELD(pHwHs, sharedVgprCnt, rsrc2.gfx10Plus.SHARED_VGPR_CNT);
+                    PAL_SET_ABI_FIELD(pHwHs, excpEn,        rsrc2.bits.EXCP_EN);
+                    PAL_SET_ABI_FIELD(pHwHs, sharedVgprCnt, rsrc2.bits.SHARED_VGPR_CNT);
 
-                    PAL_SET_ABI_FLAG(pHwHs,         offchipLdsEn, rsrc2.gfx10Plus.OC_LDS_EN);
-                    PAL_SET_ABI_FLAG(pGfxRegisters, hsTgSizeEn,   rsrc2.gfx10Plus.TG_SIZE_EN);
+                    PAL_SET_ABI_FLAG(pHwHs,         offchipLdsEn, rsrc2.bits.OC_LDS_EN);
+                    PAL_SET_ABI_FLAG(pGfxRegisters, hsTgSizeEn,   rsrc2.bits.TG_SIZE_EN);
 
                     PAL_SET_ABI_FIELD(pHwHs, userSgprs, userSgprCount);
 
@@ -1776,7 +1763,7 @@ static Result ConvertAbiRegistersToMetadata(
                 }
 
                 SPI_SHADER_PGM_CHKSUM_HS chksum;
-                if (supportSpp && registers.HasEntry(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_HS, &chksum.u32All))
+                if (supportSpp && registers.HasEntry(mmSPI_SHADER_PGM_CHKSUM_HS, &chksum.u32All))
                 {
                     PAL_SET_ABI_FIELD(pHwHs, checksumValue, chksum.bits.CHECKSUM);
                 }
@@ -1807,9 +1794,9 @@ static Result ConvertAbiRegistersToMetadata(
                     PAL_SET_ABI_FLAG(pHwGs, fp16Overflow,    rsrc1.bits.FP16_OVFL);
                     PAL_SET_ABI_FLAG(pHwGs, ieeeMode,        rsrc1.bits.IEEE_MODE);
                     PAL_SET_ABI_FLAG(pHwGs, debugMode,       rsrc1.bits.DEBUG_MODE);
-                    PAL_SET_ABI_FLAG(pHwGs, wgpMode,         rsrc1.gfx10Plus.WGP_MODE);
-                    PAL_SET_ABI_FLAG(pHwGs, memOrdered,      rsrc1.gfx10Plus.MEM_ORDERED);
-                    PAL_SET_ABI_FLAG(pHwGs, forwardProgress, rsrc1.gfx10Plus.FWD_PROGRESS);
+                    PAL_SET_ABI_FLAG(pHwGs, wgpMode,         rsrc1.bits.WGP_MODE);
+                    PAL_SET_ABI_FLAG(pHwGs, memOrdered,      rsrc1.bits.MEM_ORDERED);
+                    PAL_SET_ABI_FLAG(pHwGs, forwardProgress, rsrc1.bits.FWD_PROGRESS);
 
                     PAL_SET_ABI_FIELD(pGfxRegisters, gsVgprCompCnt, rsrc1.bits.GS_VGPR_COMP_CNT);
                 }
@@ -1817,11 +1804,11 @@ static Result ConvertAbiRegistersToMetadata(
                 SPI_SHADER_PGM_RSRC2_GS rsrc2;
                 if (registers.HasEntry(mmSPI_SHADER_PGM_RSRC2_GS, &rsrc2.u32All))
                 {
-                    const uint32 userSgprCount = (rsrc2.gfx10Plus.USER_SGPR_MSB << 5) | rsrc2.bits.USER_SGPR;
+                    const uint32 userSgprCount = (rsrc2.bits.USER_SGPR_MSB << 5) | rsrc2.bits.USER_SGPR;
 
                     PAL_SET_ABI_FIELD(pGfxRegisters, esVgprCompCnt, rsrc2.bits.ES_VGPR_COMP_CNT);
 
-                    PAL_SET_ABI_FIELD(pHwGs, sharedVgprCnt, rsrc2.gfx10Plus.SHARED_VGPR_CNT);
+                    PAL_SET_ABI_FIELD(pHwGs, sharedVgprCnt, rsrc2.bits.SHARED_VGPR_CNT);
                     PAL_SET_ABI_FIELD(pHwGs, userSgprs,     userSgprCount);
                     PAL_SET_ABI_FIELD(pHwGs, excpEn,        rsrc2.bits.EXCP_EN);
 
@@ -1850,7 +1837,7 @@ static Result ConvertAbiRegistersToMetadata(
                 }
 
                 SPI_SHADER_PGM_CHKSUM_GS chksum;
-                if (supportSpp && registers.HasEntry(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_GS, &chksum.u32All))
+                if (supportSpp && registers.HasEntry(mmSPI_SHADER_PGM_CHKSUM_GS, &chksum.u32All))
                 {
                     PAL_SET_ABI_FIELD(pHwGs, checksumValue, chksum.bits.CHECKSUM);
                 }
@@ -1863,7 +1850,7 @@ static Result ConvertAbiRegistersToMetadata(
                 PalAbi::HardwareStageMetadata* pHwVs = &pPipeline->hardwareStage[uint32(Abi::HardwareStage::Vs)];
 
                 SPI_SHADER_PGM_RSRC1_VS rsrc1;
-                if (registers.HasEntry(HasHwVs::mmSPI_SHADER_PGM_RSRC1_VS, &rsrc1.u32All))
+                if (registers.HasEntry(Gfx10::mmSPI_SHADER_PGM_RSRC1_VS, &rsrc1.u32All))
                 {
                     const bool isWave32 = pHwVs->hasEntry.wavefrontSize && (pHwVs->wavefrontSize == 32);
                     const uint32 allocVgprs = (rsrc1.bits.VGPRS + 1) * ((isWave32) ? 8 : 4);
@@ -1883,18 +1870,18 @@ static Result ConvertAbiRegistersToMetadata(
                     PAL_SET_ABI_FLAG(pHwVs, fp16Overflow,    rsrc1.bits.FP16_OVFL);
                     PAL_SET_ABI_FLAG(pHwVs, ieeeMode,        rsrc1.bits.IEEE_MODE);
                     PAL_SET_ABI_FLAG(pHwVs, debugMode,       rsrc1.bits.DEBUG_MODE);
-                    PAL_SET_ABI_FLAG(pHwVs, memOrdered,      rsrc1.gfx10.MEM_ORDERED);
-                    PAL_SET_ABI_FLAG(pHwVs, forwardProgress, rsrc1.gfx10.FWD_PROGRESS);
+                    PAL_SET_ABI_FLAG(pHwVs, memOrdered,      rsrc1.bits.MEM_ORDERED);
+                    PAL_SET_ABI_FLAG(pHwVs, forwardProgress, rsrc1.bits.FWD_PROGRESS);
 
                     PAL_SET_ABI_FIELD(pGfxRegisters, vsVgprCompCnt, rsrc1.bits.VGPR_COMP_CNT);
                 }
 
                 SPI_SHADER_PGM_RSRC2_VS rsrc2;
-                if (registers.HasEntry(HasHwVs::mmSPI_SHADER_PGM_RSRC2_VS, &rsrc2.u32All))
+                if (registers.HasEntry(Gfx10::mmSPI_SHADER_PGM_RSRC2_VS, &rsrc2.u32All))
                 {
-                    const uint32 userSgprCount = (rsrc2.gfx10.USER_SGPR_MSB << 5) | rsrc2.bits.USER_SGPR;
+                    const uint32 userSgprCount = (rsrc2.bits.USER_SGPR_MSB << 5) | rsrc2.bits.USER_SGPR;
 
-                    PAL_SET_ABI_FIELD(pHwVs, sharedVgprCnt, rsrc2.gfx10.SHARED_VGPR_CNT);
+                    PAL_SET_ABI_FIELD(pHwVs, sharedVgprCnt, rsrc2.bits.SHARED_VGPR_CNT);
                     PAL_SET_ABI_FIELD(pHwVs, userSgprs,     userSgprCount);
                     PAL_SET_ABI_FIELD(pHwVs, excpEn,        rsrc2.bits.EXCP_EN);
 
@@ -1911,7 +1898,7 @@ static Result ConvertAbiRegistersToMetadata(
                 }
 
                 SPI_SHADER_PGM_RSRC3_VS rsrc3;
-                if (registers.HasEntry(HasHwVs::mmSPI_SHADER_PGM_RSRC3_VS, &rsrc3.u32All))
+                if (registers.HasEntry(Gfx10::mmSPI_SHADER_PGM_RSRC3_VS, &rsrc3.u32All))
                 {
                     PAL_SET_ABI_FIELD(pHwVs, wavesPerSe, rsrc3.bits.WAVE_LIMIT);
                 }
@@ -1919,7 +1906,7 @@ static Result ConvertAbiRegistersToMetadata(
                 SPI_SHADER_PGM_CHKSUM_VS chksum;
                 if (supportSpp && registers.HasEntry(Gfx10::mmSPI_SHADER_PGM_CHKSUM_VS, &chksum.u32All))
                 {
-                    PAL_SET_ABI_FIELD(pHwVs, checksumValue, chksum.most.CHECKSUM);
+                    PAL_SET_ABI_FIELD(pHwVs, checksumValue, chksum.bits.CHECKSUM);
                 }
             }
 
@@ -1948,8 +1935,8 @@ static Result ConvertAbiRegistersToMetadata(
                     PAL_SET_ABI_FLAG(pHwPs, fp16Overflow,    rsrc1.bits.FP16_OVFL);
                     PAL_SET_ABI_FLAG(pHwPs, ieeeMode,        rsrc1.bits.IEEE_MODE);
                     PAL_SET_ABI_FLAG(pHwPs, debugMode,       rsrc1.bits.DEBUG_MODE);
-                    PAL_SET_ABI_FLAG(pHwPs, memOrdered,      rsrc1.gfx10Plus.MEM_ORDERED);
-                    PAL_SET_ABI_FLAG(pHwPs, forwardProgress, rsrc1.gfx10Plus.FWD_PROGRESS);
+                    PAL_SET_ABI_FLAG(pHwPs, memOrdered,      rsrc1.bits.MEM_ORDERED);
+                    PAL_SET_ABI_FLAG(pHwPs, forwardProgress, rsrc1.bits.FWD_PROGRESS);
 
                     if (IsGfx103PlusExclusive(palDevice))
                     {
@@ -1962,9 +1949,9 @@ static Result ConvertAbiRegistersToMetadata(
                 SPI_SHADER_PGM_RSRC2_PS rsrc2;
                 if (registers.HasEntry(mmSPI_SHADER_PGM_RSRC2_PS, &rsrc2.u32All))
                 {
-                    const uint32 userSgprCount = (rsrc2.gfx10Plus.USER_SGPR_MSB << 5) | rsrc2.bits.USER_SGPR;
+                    const uint32 userSgprCount = (rsrc2.bits.USER_SGPR_MSB << 5) | rsrc2.bits.USER_SGPR;
 
-                    PAL_SET_ABI_FIELD(pHwPs, sharedVgprCnt, rsrc2.gfx10Plus.SHARED_VGPR_CNT);
+                    PAL_SET_ABI_FIELD(pHwPs, sharedVgprCnt, rsrc2.bits.SHARED_VGPR_CNT);
                     PAL_SET_ABI_FIELD(pHwPs, userSgprs,     userSgprCount);
                     PAL_SET_ABI_FIELD(pHwPs, excpEn,        rsrc2.bits.EXCP_EN);
 
@@ -2002,7 +1989,7 @@ static Result ConvertAbiRegistersToMetadata(
                 }
 
                 SPI_SHADER_PGM_CHKSUM_PS chksum;
-                if (supportSpp && registers.HasEntry(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_PS, &chksum.u32All))
+                if (supportSpp && registers.HasEntry(mmSPI_SHADER_PGM_CHKSUM_PS, &chksum.u32All))
                 {
                     PAL_SET_ABI_FIELD(pHwPs, checksumValue, chksum.bits.CHECKSUM);
                 }
@@ -2141,9 +2128,9 @@ static Result ConvertAbiRegistersToMetadata(
                     PAL_SET_ABI_FLAG(pHwCs, fp16Overflow,    rsrc1.bits.FP16_OVFL);
                     PAL_SET_ABI_FLAG(pHwCs, ieeeMode,        rsrc1.bits.IEEE_MODE);
                     PAL_SET_ABI_FLAG(pHwCs, debugMode,       rsrc1.bits.DEBUG_MODE);
-                    PAL_SET_ABI_FLAG(pHwCs, wgpMode,         rsrc1.gfx10Plus.WGP_MODE);
-                    PAL_SET_ABI_FLAG(pHwCs, memOrdered,      rsrc1.gfx10Plus.MEM_ORDERED);
-                    PAL_SET_ABI_FLAG(pHwCs, forwardProgress, rsrc1.gfx10Plus.FWD_PROGRESS);
+                    PAL_SET_ABI_FLAG(pHwCs, wgpMode,         rsrc1.bits.WGP_MODE);
+                    PAL_SET_ABI_FLAG(pHwCs, memOrdered,      rsrc1.bits.MEM_ORDERED);
+                    PAL_SET_ABI_FLAG(pHwCs, forwardProgress, rsrc1.bits.FWD_PROGRESS);
                 }
 
                 COMPUTE_PGM_RSRC2 rsrc2;
@@ -2180,7 +2167,7 @@ static Result ConvertAbiRegistersToMetadata(
                 }
 
                 COMPUTE_PGM_RSRC3 rsrc3;
-                if (registers.HasEntry(Gfx10Plus::mmCOMPUTE_PGM_RSRC3, &rsrc3.u32All))
+                if (registers.HasEntry(mmCOMPUTE_PGM_RSRC3, &rsrc3.u32All))
                 {
                     PAL_SET_ABI_FIELD(pHwCs, sharedVgprCnt, rsrc3.bits.SHARED_VGPR_CNT * 8);
                 }
@@ -2189,7 +2176,7 @@ static Result ConvertAbiRegistersToMetadata(
                 if (supportSpp)
                 {
                     // We appear to write this register into the ELF actually based on the ASIC support for it.
-                    if (registers.HasEntry(Gfx10Plus::mmCOMPUTE_SHADER_CHKSUM, &chksum.u32All))
+                    if (registers.HasEntry(mmCOMPUTE_SHADER_CHKSUM, &chksum.u32All))
                     {
                         PAL_SET_ABI_FIELD(pHwCs, checksumValue, chksum.bits.CHECKSUM);
                     }
@@ -2272,7 +2259,7 @@ Result Device::CreateComputePipeline(
     if (IsElf(createInfo))
     {
         AbiReader abiReader(GetPlatform(), createInfo.pPipelineBinary);
-        result = abiReader.Init();
+        result = abiReader.Init(createInfo.pKernelName);
 
         if (result == Result::Success)
         {
@@ -3296,7 +3283,7 @@ void PAL_STDCALL Device::Gfx10CreateTypedBufferViewSrds(
     const BufferViewInfo* pBufferViewInfo,
     void*                 pOut)
 {
-    static_assert((Gfx10CoreSqBufRsrcTWord3FormatShift == Gfx104PlusSqBufRsrcTWord3FormatShift),
+    static_assert((Gfx10SqBufRsrcTWord3FormatShift == Gfx11SqBufRsrcTWord3FormatShift),
                   "LSB of sq_buf_rsrc_t.format field is different between GFX10 and GFX11.");
 
     PAL_ASSERT((pDevice != nullptr) && (pOut != nullptr) && (pBufferViewInfo != nullptr) && (count > 0));
@@ -3339,18 +3326,19 @@ void PAL_STDCALL Device::Gfx10CreateTypedBufferViewSrds(
 
         // Get the HW format enumeration corresponding to the view-specified format.
         const BUF_FMT hwBufFmt = Formats::Gfx9::HwBufFmt(pFmtInfo, pBufferViewInfo->swizzledFormat.format);
+        const uint32  resLevel = pGfxDevice->BufferSrdResourceLevel();
 
         // If we get an invalid format in the buffer SRD, then the memory operation involving this SRD will be dropped
         PAL_ASSERT(hwBufFmt != BUF_FMT_INVALID);
-        pOutSrd->u32All[3] = ((SqSelX                         << SqBufRsrcTWord3DstSelXShift)                       |
-                              (SqSelY                         << SqBufRsrcTWord3DstSelYShift)                       |
-                              (SqSelZ                         << SqBufRsrcTWord3DstSelZShift)                       |
-                              (SqSelW                         << SqBufRsrcTWord3DstSelWShift)                       |
-                              (hwBufFmt                       << Gfx10CoreSqBufRsrcTWord3FormatShift)               |
-                              (pGfxDevice->BufferSrdResourceLevel() << Gfx10CoreSqBufRsrcTWord3ResourceLevelShift)  |
-                              (OobSelect                      << SqBufRsrcTWord3OobSelectShift)                     |
-                              (llcNoalloc                     << Gfx103PlusExclusiveSqBufRsrcTWord3LlcNoallocShift) |
-                              (SQ_RSRC_BUF                    << SqBufRsrcTWord3TypeShift));
+        pOutSrd->u32All[3] = ((SqSelX      << SqBufRsrcTWord3DstSelXShift)                       |
+                              (SqSelY      << SqBufRsrcTWord3DstSelYShift)                       |
+                              (SqSelZ      << SqBufRsrcTWord3DstSelZShift)                       |
+                              (SqSelW      << SqBufRsrcTWord3DstSelWShift)                       |
+                              (hwBufFmt    << Gfx10SqBufRsrcTWord3FormatShift)                   |
+                              (resLevel    << Gfx10SqBufRsrcTWord3ResourceLevelShift)            |
+                              (OobSelect   << SqBufRsrcTWord3OobSelectShift)                     |
+                              (llcNoalloc  << Gfx103PlusExclusiveSqBufRsrcTWord3LlcNoallocShift) |
+                              (SQ_RSRC_BUF << SqBufRsrcTWord3TypeShift));
 
         pOutSrd++;
         pBufferViewInfo++;
@@ -3398,20 +3386,21 @@ void PAL_STDCALL Device::Gfx10CreateUntypedBufferViewSrds(
 
         if (pBufferViewInfo->gpuAddr != 0)
         {
+            const uint32 resLevel  = pGfxDevice->BufferSrdResourceLevel();
             const uint32 oobSelect = ((pBufferViewInfo->stride == 1) ||
                                       (pBufferViewInfo->stride == 0)) ? SQ_OOB_COMPLETE : SQ_OOB_INDEX_ONLY;
 
             PAL_DEBUG_BUILD_ONLY_ASSERT((llcNoalloc == 0) || (IsGfx103PlusExclusive(*pPalDevice)));
 
-            pOutSrd->u32All[3] = ((SQ_SEL_X                       << SqBufRsrcTWord3DstSelXShift)                       |
-                                  (SQ_SEL_Y                       << SqBufRsrcTWord3DstSelYShift)                       |
-                                  (SQ_SEL_Z                       << SqBufRsrcTWord3DstSelZShift)                       |
-                                  (SQ_SEL_W                       << SqBufRsrcTWord3DstSelWShift)                       |
-                                  (BUF_FMT_32_UINT                << Gfx10CoreSqBufRsrcTWord3FormatShift)               |
-                                  (pGfxDevice->BufferSrdResourceLevel() << Gfx10CoreSqBufRsrcTWord3ResourceLevelShift)  |
-                                  (oobSelect                      << SqBufRsrcTWord3OobSelectShift)                     |
-                                  (llcNoalloc                     << Gfx103PlusExclusiveSqBufRsrcTWord3LlcNoallocShift) |
-                                  (SQ_RSRC_BUF                    << SqBufRsrcTWord3TypeShift));
+            pOutSrd->u32All[3] = ((SQ_SEL_X        << SqBufRsrcTWord3DstSelXShift)                       |
+                                  (SQ_SEL_Y        << SqBufRsrcTWord3DstSelYShift)                       |
+                                  (SQ_SEL_Z        << SqBufRsrcTWord3DstSelZShift)                       |
+                                  (SQ_SEL_W        << SqBufRsrcTWord3DstSelWShift)                       |
+                                  (BUF_FMT_32_UINT << Gfx10SqBufRsrcTWord3FormatShift)                   |
+                                  (resLevel        << Gfx10SqBufRsrcTWord3ResourceLevelShift)            |
+                                  (oobSelect       << SqBufRsrcTWord3OobSelectShift)                     |
+                                  (llcNoalloc      << Gfx103PlusExclusiveSqBufRsrcTWord3LlcNoallocShift) |
+                                  (SQ_RSRC_BUF     << SqBufRsrcTWord3TypeShift));
         }
         else
         {
@@ -3421,29 +3410,6 @@ void PAL_STDCALL Device::Gfx10CreateUntypedBufferViewSrds(
         pOutSrd++;
         pBufferViewInfo++;
     }
-}
-
-// =====================================================================================================================
-// Add this function to avoid register redefintion in gfx9chip.h that was concerned the 4-bit may change
-// from one asic to another moving forward.
-static void PAL_STDCALL SetImageViewSamplePatternIdx(
-    Gfx9ImageSrd*  pSrd,
-    uint32         samplePatternIdx)
-{
-    // If this 4-bit used for samplePatternIdx is somehow different,
-    // we can redefine it based on asic Id.
-    struct Gfx9ImageSrdWord6
-    {
-#if defined(LITTLEENDIAN_CPU)
-        uint32 samplePatternIdx : 4;
-        uint32 reserved : 28;
-#elif defined(BIGENDIAN_CPU)
-        uint32 reserved : 28;
-        uint32 samplePatternIdx : 4;
-#endif
-    };
-
-    reinterpret_cast<Gfx9ImageSrdWord6*>(&(pSrd->word6))->samplePatternIdx = samplePatternIdx;
 }
 
 // =====================================================================================================================
@@ -3653,11 +3619,11 @@ static uint32 Gfx10RetrieveHwFmtFromSrd(
 
     if (IsGfx11(palDevice))
     {
-        hwFmt = pSrd->gfx104Plus.format;
+        hwFmt = pSrd->gfx11.format;
     }
     else
     {
-        hwFmt = pSrd->gfx10Core.format;
+        hwFmt = pSrd->gfx10.format;
     }
 
     return hwFmt;
@@ -3783,7 +3749,7 @@ void PAL_STDCALL Device::Gfx10DecodeImageViewSrd(
         //      For 3D, bit 0 indicates SRV or UAV:
         //      0: SRV (base_array ignored, depth w.r.t. base map)
         //      1: UAV (base_array and depth are first and last layer in view, and w.r.t. mip level specified)
-        const bool is3dUav = (pSrd->gfx10CorePlus.array_pitch & 1) != 0;
+        const bool is3dUav = (pSrd->array_pitch & 1) != 0;
         if (is3dUav)
         {
             const uint32 viewZBegin = baseArray;
@@ -4055,7 +4021,7 @@ static void Gfx10UpdateLinkedResourceViewSrd(
     pLinkedRsrc->linked_resource = 1;
 
     // Sanity check that our sq_img_rsrc_linked_rsrc_t and sq_img_rsrc_t definitions line up.
-    PAL_ASSERT(pSrd->gfx103CorePlus.linked_resource == 1);
+    PAL_ASSERT(pSrd->gfx103PlusExclusive.linked_resource == 1);
 
     // "linked_resource_type" lines up with the "bc_swizzle" field of the sq_img_rsrc_t structure.
     // There are no enums for these values
@@ -4426,12 +4392,12 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
         {
             srd.gfx11.min_lod_lo  = minLod & ((1 << 5) - 1);
             srd.gfx11.min_lod_hi  = minLod >> 5;
-            srd.gfx104Plus.format = Formats::Gfx9::HwImgFmt(pFmtInfo, format);
+            srd.gfx11.format = Formats::Gfx9::HwImgFmt(pFmtInfo, format);
         }
         else
         {
-            srd.gfx10Core.min_lod = minLod;
-            srd.gfx10Core.format  = Formats::Gfx9::HwImgFmt(pFmtInfo, format);
+            srd.gfx10.min_lod = minLod;
+            srd.gfx10.format  = Formats::Gfx9::HwImgFmt(pFmtInfo, format);
         }
 
         // GFX10 does not support native 24-bit surfaces...  Clients promote 24-bit depth surfaces to 32-bit depth on
@@ -4446,11 +4412,11 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             // can be treated differently.
             if (IsGfx11(*pPalDevice))
             {
-                srd.gfx104Plus.format = IMG_FMT_32_FLOAT_CLAMP__GFX104PLUS;
+                srd.gfx11.format = IMG_FMT_32_FLOAT_CLAMP__GFX11;
             }
             else
             {
-                srd.gfx10Core.format = IMG_FMT_32_FLOAT_CLAMP__GFX10CORE;
+                srd.gfx10.format = IMG_FMT_32_FLOAT_CLAMP__GFX10;
             }
         }
 
@@ -4551,11 +4517,11 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
 
         if (IsGfx11(*pPalDevice))
         {
-            srd.gfx104Plus.max_mip = maxMipField;
+            srd.gfx11.max_mip = maxMipField;
         }
         else
         {
-            srd.gfx10Core.max_mip = maxMipField;
+            srd.gfx10.max_mip = maxMipField;
         }
 
         uint32 depth = 0;
@@ -4579,7 +4545,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
                 //
                 // For non-3D images, the "array_pitch" field is only meaningful for quilts, which we do not support.
                 // Since zRange is set valid here, UAV should be used.
-                srd.gfx10CorePlus.array_pitch = 1;
+                srd.array_pitch = 1;
                 baseArraySlice = viewInfo.zRange.offset;
                 // If the client is specifying a valid Z range, the depth of the SRD must include the range's offset
                 // and extent. Furthermore, the Z range is specified in terms of the view's first mip level, not the
@@ -4598,7 +4564,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             else
             {
                 // Since zRange is not enabled, SRV should be used.
-                srd.gfx10CorePlus.array_pitch = 0;
+                srd.array_pitch = 0;
                 // Using the depth of the base mip level for SRV according to the documentation.
                 depth = (pBaseSubResInfo ->extentTexels.depth - 1);
             }
@@ -4650,7 +4616,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
 
             if (IsGfx11(*pPalDevice))
             {
-                srd.gfx104Plus.llc_noalloc = llcNoAlloc;
+                srd.gfx11.llc_noalloc = llcNoAlloc;
             }
             else
             {
@@ -4705,11 +4671,11 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
 
             if (IsGfx11(*pPalDevice))
             {
-                srd.gfx104Plus.big_page = bigPageCompat;
+                srd.gfx11.big_page = bigPageCompat;
             }
             else
             {
-                srd.gfx10Core.big_page  = bigPageCompat;
+                srd.gfx10.big_page = bigPageCompat;
             }
 
             // When overrideBaseResource = true (96bpp images), compute baseAddress using the mip/slice in
@@ -4791,7 +4757,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
 
         if (IsGfx10(*pPalDevice))
         {
-            srd.gfx10Core.resource_level = 1;
+            srd.gfx10.resource_level = 1;
 
             // Fill the unused 4 bits of word6 with sample pattern index
             srd.gfx10._reserved_206_203  = viewInfo.samplePatternIdx;
@@ -4803,7 +4769,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
 
         //   PRT unmapped returns 0.0 or 1.0 if this bit is 0 or 1 respectively
         //   Only used with image ops (sample/load)
-        srd.gfx10CorePlus.prt_default = 0;
+        srd.prt_default = 0;
 
         if (viewInfo.mapAccess != PrtMapAccessType::Raw)
         {
@@ -4873,13 +4839,13 @@ void Device::Gfx10CreateFmaskViewSrdsInternal(
     PAL_ASSERT(image.HasFmaskData());
 
     // For Fmask views, the format is based on the sample and fragment counts.
-    pSrd->gfx10Core.format  = fmask.Gfx10FmaskFormat(createInfo.samples, createInfo.fragments, isUav);
-    pSrd->gfx10Core.min_lod = 0;
-    pSrd->gfx10Core.max_mip = 0;
+    pSrd->gfx10.format  = fmask.Gfx10FmaskFormat(createInfo.samples, createInfo.fragments, isUav);
+    pSrd->gfx10.min_lod = 0;
+    pSrd->gfx10.max_mip = 0;
 
-    pSrd->gfx10Core.resource_level = 1;
+    pSrd->gfx10.resource_level = 1;
 
-    pSrd->gfx10Core.big_page       = bigPageCompat;
+    pSrd->gfx10.big_page       = bigPageCompat;
 
     Gfx10SetImageSrdDims(pSrd, subresInfo.extentTexels.width, subresInfo.extentTexels.height);
     pSrd->perf_mod = 0;
@@ -4952,7 +4918,7 @@ void Device::CreateFmaskViewSrdsInternal(
 
             if (IsGfx10(m_gfxIpLevel))
             {
-                Gfx10CreateFmaskViewSrdsInternal(viewInfo, pInternalInfo, &srd.gfx10);
+                Gfx10CreateFmaskViewSrdsInternal(viewInfo, pInternalInfo, &srd);
             }
             else
             {
@@ -4978,11 +4944,11 @@ void Device::SetSrdBorderColorPtr(
 
     if (IsGfx10(device))
     {
-        pSrd->gfx10Core.border_color_ptr = borderColorPtr;
+        pSrd->gfx10.border_color_ptr = borderColorPtr;
     }
     else
     {
-        pSrd->gfx104Plus.border_color_ptr = borderColorPtr;
+        pSrd->gfx11.border_color_ptr = borderColorPtr;
     }
 }
 
@@ -5016,7 +4982,7 @@ void PAL_STDCALL Device::Gfx10CreateSamplerSrds(
              currentSrdIdx++, srdsBuilt++)
         {
             const SamplerInfo* pInfo = &pSamplerInfo[srdsBuilt];
-            auto*              pSrd  = &tempSamplerSrds[currentSrdIdx].gfx10;
+            auto*              pSrd  = &tempSamplerSrds[currentSrdIdx];
 
             const SQ_TEX_ANISO_RATIO maxAnisoRatio = GetAnisoRatio(*pInfo);
 
@@ -5054,8 +5020,8 @@ void PAL_STDCALL Device::Gfx10CreateSamplerSrds(
                                                       Gfx10SamplerLodBiasIntBits,
                                                       Gfx10SamplerLodBiasFracBits);
 
-            pSrd->gfx10CorePlus.blend_prt      = pInfo->flags.prtBlendZeroMode;
-            pSrd->gfx10Core.mip_point_preclamp = 0;
+            pSrd->blend_prt     = pInfo->flags.prtBlendZeroMode;
+            pSrd->gfx10.mip_point_preclamp = 0;
 
             // Ensure useAnisoThreshold is only set when preciseAniso is disabled
             PAL_ASSERT((pInfo->flags.preciseAniso == 0) ||
@@ -5115,7 +5081,7 @@ void PAL_STDCALL Device::Gfx10CreateSamplerSrds(
             };
 
             PAL_ASSERT(static_cast<uint32>(pInfo->filterMode) < (Util::ArrayLen(HwFilterMode)));
-            pSrd->gfx10CorePlus.filter_mode = HwFilterMode[static_cast<uint32>(pInfo->filterMode)];
+            pSrd->filter_mode = HwFilterMode[static_cast<uint32>(pInfo->filterMode)];
 
             // The BORDER_COLOR_PTR field is only used by the HW for the SQ_TEX_BORDER_COLOR_REGISTER case
             pGfxDevice->SetSrdBorderColorPtr(pSrd, 0);
@@ -5133,7 +5099,7 @@ void PAL_STDCALL Device::Gfx10CreateSamplerSrds(
                 pSrd->border_color_type = SQ_TEX_BORDER_COLOR_OPAQUE_BLACK;
                 break;
             case BorderColorType::PaletteIndex:
-                pSrd->border_color_type     = SQ_TEX_BORDER_COLOR_REGISTER;
+                pSrd->border_color_type = SQ_TEX_BORDER_COLOR_REGISTER;
                 pGfxDevice->SetSrdBorderColorPtr(pSrd, pInfo->borderColorPaletteIndex);
                 break;
             default:
@@ -5189,7 +5155,7 @@ void PAL_STDCALL Device::Gfx10CreateSamplerSrds(
                                                                      ((biasedOffsetY     & 0x7) << 9));
 
                     // Verify that the "linked_resource_slopes" lines up with the "border_color_ptr" field.
-                    PAL_ASSERT(pSrd->gfx10Core.border_color_ptr == pLinkedRsrcSrd->gfx103.linked_resource_slopes);
+                    PAL_ASSERT(pSrd->gfx10.border_color_ptr == pLinkedRsrcSrd->gfx103.linked_resource_slopes);
 
                 }
                 else
@@ -6257,8 +6223,8 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.supportSortAgnosticBarycentrics = 1;
         }
 
-        nullBufferView.gfx10.type = SQ_RSRC_BUF;
-        nullImageView.gfx10.type  = SQ_RSRC_IMG_2D_ARRAY;
+        nullBufferView.type = SQ_RSRC_BUF;
+        nullImageView.type  = SQ_RSRC_IMG_2D_ARRAY;
 
         pInfo->imageProperties.maxImageArraySize  = Gfx10MaxImageArraySlices;
 
@@ -6289,8 +6255,8 @@ void InitializeGpuChipProperties(
         pInfo->srdSizes.bvh        = sizeof(sq_bvh_rsrc_t);
         pInfo->gfx9.supportIntersectRayBarycentrics = 1;
 
-        nullBufferView.gfx10.type = SQ_RSRC_BUF;
-        nullImageView.gfx10.type  = SQ_RSRC_IMG_2D_ARRAY;
+        nullBufferView.type = SQ_RSRC_BUF;
+        nullImageView.type  = SQ_RSRC_IMG_2D_ARRAY;
 
         pInfo->imageProperties.maxImageArraySize       = Gfx10MaxImageArraySlices;
         pInfo->imageProperties.flags.supportDisplayDcc = 1;
@@ -6398,7 +6364,7 @@ void InitializePerfExperimentProperties(
     const GpuChipProperties&  chipProps,
     PerfExperimentProperties* pProperties)  // out
 {
-    const Gfx9PerfCounterInfo& perfCounterInfo = chipProps.gfx9.perfCounterInfo.gfx9Info;
+    const PerfCounterInfo& perfCounterInfo = chipProps.gfx9.perfCounterInfo.gfx9Info;
 
     pProperties->features.u32All       = perfCounterInfo.features.u32All;
     pProperties->maxSqttSeBufferSize   = static_cast<size_t>(SqttMaximumBufferSize);
@@ -6414,7 +6380,7 @@ void InitializePerfExperimentProperties(
 
         if (pBlock->available)
         {
-            pBlock->instanceCount             = blockInfo.numGlobalInstances;
+            pBlock->instanceCount             = blockInfo.numInstances;
             pBlock->maxEventId                = blockInfo.maxEventId;
             pBlock->maxGlobalOnlyCounters     = blockInfo.numGlobalOnlyCounters;
             pBlock->maxSpmCounters            = blockInfo.num16BitSpmCounters;
@@ -6749,13 +6715,13 @@ uint16 Device::GetBaseUserDataReg(
     switch (shaderStage)
     {
     case HwShaderStage::Hs:
-        baseUserDataReg = Gfx10Plus::mmSPI_SHADER_USER_DATA_HS_0;
+        baseUserDataReg = mmSPI_SHADER_USER_DATA_HS_0;
         break;
     case HwShaderStage::Gs:
-        baseUserDataReg = Gfx10Plus::mmSPI_SHADER_USER_DATA_GS_0;
+        baseUserDataReg = mmSPI_SHADER_USER_DATA_GS_0;
         break;
     case HwShaderStage::Vs:
-        baseUserDataReg = HasHwVs::mmSPI_SHADER_USER_DATA_VS_0;
+        baseUserDataReg = Gfx10::mmSPI_SHADER_USER_DATA_VS_0;
         break;
     case HwShaderStage::Ps:
         baseUserDataReg = mmSPI_SHADER_USER_DATA_PS_0;
@@ -6777,7 +6743,7 @@ gpusize Device::GetBaseAddress(
     const BufferSrd* pBufferSrd
     ) const
 {
-    return pBufferSrd->gfx10.base_address;
+    return pBufferSrd->base_address;
 }
 
 // =====================================================================================================================
@@ -6786,7 +6752,7 @@ void Device::SetBaseAddress(
     gpusize    baseAddress
     ) const
 {
-    pBufferSrd->gfx10.base_address = baseAddress;
+    pBufferSrd->base_address = baseAddress;
 }
 
 // =====================================================================================================================
@@ -6796,29 +6762,27 @@ void Device::InitBufferSrd(
     gpusize    stride
     ) const
 {
-    sq_buf_rsrc_t*const pSrd = &pBufferSrd->gfx10;
-
-    pSrd->base_address   = gpuVirtAddr;
-    pSrd->stride         = stride;
-    pSrd->dst_sel_x      = SQ_SEL_X;
-    pSrd->dst_sel_y      = SQ_SEL_Y;
-    pSrd->dst_sel_z      = SQ_SEL_Z;
-    pSrd->dst_sel_w      = SQ_SEL_W;
-    pSrd->type           = SQ_RSRC_BUF;
-    pSrd->add_tid_enable = 0;
-    pSrd->oob_select     = SQ_OOB_NUM_RECORDS_0; // never check out-of-bounds
+    pBufferSrd->base_address   = gpuVirtAddr;
+    pBufferSrd->stride         = stride;
+    pBufferSrd->dst_sel_x      = SQ_SEL_X;
+    pBufferSrd->dst_sel_y      = SQ_SEL_Y;
+    pBufferSrd->dst_sel_z      = SQ_SEL_Z;
+    pBufferSrd->dst_sel_w      = SQ_SEL_W;
+    pBufferSrd->type           = SQ_RSRC_BUF;
+    pBufferSrd->add_tid_enable = 0;
+    pBufferSrd->oob_select     = SQ_OOB_NUM_RECORDS_0; // never check out-of-bounds
 
     if (IsGfx10(m_gfxIpLevel))
     {
-        pSrd->gfx10Core.resource_level = 1;
-        pSrd->gfx10Core.format         = BUF_FMT_32_FLOAT;
-        pSrd->gfx10.cache_swizzle      = 0;
-        pSrd->gfx10.swizzle_enable     = 0;
+        pBufferSrd->gfx10.resource_level = 1;
+        pBufferSrd->gfx10.format         = BUF_FMT_32_FLOAT;
+        pBufferSrd->gfx10.cache_swizzle  = 0;
+        pBufferSrd->gfx10.swizzle_enable = 0;
     }
     else
     {
-        pSrd->gfx104Plus.format    = BUF_FMT_32_FLOAT;
-        pSrd->gfx11.swizzle_enable = 0;
+        pBufferSrd->gfx11.format         = BUF_FMT_32_FLOAT;
+        pBufferSrd->gfx11.swizzle_enable = 0;
     }
 }
 
@@ -6828,7 +6792,7 @@ void Device::SetNumRecords(
     gpusize    numRecords
     ) const
 {
-    pBufferSrd->gfx10.num_records = numRecords;
+    pBufferSrd->num_records = numRecords;
 }
 
 // =====================================================================================================================
@@ -7034,7 +6998,7 @@ PM4_PFP_CONTEXT_CONTROL Device::GetContextControl() const
         // because if preempted the GPU state needs to be properly restored when the Queue resumes.
         // (Config registers are exempted because we don't write config registers in PAL.)
         contextControl.ordinal2.bitfields.load_global_uconfig      = 1;
-        contextControl.ordinal2.bitfields.core.load_ce_ram         = 1;
+        contextControl.ordinal2.bitfields.load_ce_ram              = 1;
         contextControl.ordinal3.bitfields.shadow_per_context_state = 1;
         contextControl.ordinal3.bitfields.shadow_cs_sh_regs        = 1;
         contextControl.ordinal3.bitfields.shadow_gfx_sh_regs       = 1;
@@ -7045,7 +7009,7 @@ PM4_PFP_CONTEXT_CONTROL Device::GetContextControl() const
     if (IsGfx11(*Parent()))
     {
         // No CE RAM on GFX11 devices.
-        contextControl.ordinal2.bitfields.core.load_ce_ram = 0;
+        contextControl.ordinal2.bitfields.load_ce_ram = 0;
 
     }
 
@@ -7512,8 +7476,8 @@ uint32 Device::GetShaderPrefetchSize(
     // Get the maximum number of bits the register has for setting the prefetch.  It's conceivable that a large shader
     // could overflow this.  All the shader stages have the same number of bits; the choice of PS here is arbitrary.
     PAL_ASSERT(IsGfx11(*Parent()));
-    constexpr uint32 MaxPrefetchSize = Gfx104Plus::SPI_SHADER_PGM_RSRC4_PS__INST_PREF_SIZE_MASK >>
-                                       Gfx104Plus::SPI_SHADER_PGM_RSRC4_PS__INST_PREF_SIZE__SHIFT;
+    constexpr uint32 MaxPrefetchSize = Gfx11::SPI_SHADER_PGM_RSRC4_PS__INST_PREF_SIZE_MASK >>
+                                       Gfx11::SPI_SHADER_PGM_RSRC4_PS__INST_PREF_SIZE__SHIFT;
 
     constexpr  uint32 CachelineSizeBytes = 128;
 

@@ -121,13 +121,13 @@ struct DrawTimeHwState
     {
         struct
         {
-            uint32 instanceOffset         :  1; // Set when instanceOffset matches the HW value.
-            uint32 vertexOffset           :  1; // Set when vertexOffset matches the HW value.
-            uint32 drawIndex              :  1; // Set when drawIndex matches the HW value.
-            uint32 numInstances           :  1; // Set when numInstances matches the HW value.
-            uint32 paScModeCntl1          :  1; // Set when paScModeCntl1 matches the HW value.
-            uint32 vgtMultiPrimIbResetEn  :  1; // Set when vgtMultiPrimIbResetEn matches the HW value.
-            uint32 reserved               : 26; // Reserved bits
+            uint32 instanceOffset       :  1; // Set when instanceOffset matches the HW value.
+            uint32 vertexOffset         :  1; // Set when vertexOffset matches the HW value.
+            uint32 drawIndex            :  1; // Set when drawIndex matches the HW value.
+            uint32 numInstances         :  1; // Set when numInstances matches the HW value.
+            uint32 paScModeCntl1        :  1; // Set when paScModeCntl1 matches the HW value.
+            uint32 geMultiPrimIbResetEn :  1; // Set when geMultiPrimIbResetEn matches the HW value.
+            uint32 reserved             : 26; // Reserved bits
         };
         uint32     u32All;                // The flags as a single integer.
     } valid;                              // Draw state valid flags.
@@ -147,15 +147,14 @@ struct DrawTimeHwState
     } dirty;                             // Draw state dirty flags. If any of these are set, the next call to
                                          // ValidateDrawTimeHwState needs to write them.
 
-    uint32                        instanceOffset;            // Current value of the instance offset user data.
-    uint32                        vertexOffset;              // Current value of the vertex offset user data.
-    uint32                        numInstances;              // Current value of the NUM_INSTANCES state.
-    uint32                        drawIndex;                 // Current value of the draw index user data.
-    regPA_SC_MODE_CNTL_1          paScModeCntl1;             // Current value of the PA_SC_MODE_CNTL1 register.
-    regVGT_MULTI_PRIM_IB_RESET_EN vgtMultiPrimIbResetEn;     // Current value of the VGT_MULTI_PRIM_IB_RESET_EN
-                                                             // register.
-    gpusize                       nggIndexBufferPfStartAddr; // Start address of last IndexBuffer prefetch for NGG.
-    gpusize                       nggIndexBufferPfEndAddr;   // End address of last IndexBuffer prefetch for NGG.
+    uint32                       instanceOffset;            // Current value of the instance offset user data.
+    uint32                       vertexOffset;              // Current value of the vertex offset user data.
+    uint32                       numInstances;              // Current value of the NUM_INSTANCES state.
+    uint32                       drawIndex;                 // Current value of the draw index user data.
+    regPA_SC_MODE_CNTL_1         paScModeCntl1;             // Current value of the PA_SC_MODE_CNTL1 register.
+    regGE_MULTI_PRIM_IB_RESET_EN geMultiPrimIbResetEn;      // Current value of the GE_MULTI_PRIM_IB_RESET_EN register.
+    gpusize                      nggIndexBufferPfStartAddr; // Start address of last IndexBuffer prefetch for NGG.
+    gpusize                      nggIndexBufferPfEndAddr;   // End address of last IndexBuffer prefetch for NGG.
 };
 
 // Structure used to store values relating to viewport centering, specifically relevant values of an accumulated
@@ -394,10 +393,7 @@ public:
 
     virtual void CmdReleaseThenAcquire(const AcquireReleaseInfo& barrierInfo) override;
 
-    virtual void CmdSetVertexBuffers(
-        uint32                firstBuffer,
-        uint32                bufferCount,
-        const BufferViewInfo* pBuffers) override;
+    virtual void CmdSetVertexBuffers(const VertexBufferViews& bufferViews) override;
 
     virtual void CmdBindTargets(const BindTargetParams& params) override;
     virtual void CmdBindStreamOutTargets(const BindStreamOutTargetParams& params) override;
@@ -569,11 +565,8 @@ public:
     uint32 ComputeSpillTableInstanceCnt(
         uint32 spillTableDwords,
         uint32 vertexBufTableDwords,
-        uint32 maxCmdCnt
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
-        , bool* pUseLargeEmbeddedData
-#endif
-        ) const;
+        uint32 maxCmdCnt,
+        bool*  pUseLargeEmbeddedData) const;
 
     uint32 BuildExecuteIndirectIb2Packets(
         const IndirectCmdGenerator& gfx9Generator,
@@ -669,7 +662,12 @@ public:
 
     bool ExecuteIndirectV2NeedsGlobalSpill() const { return m_state.flags.needsEiV2GlobalSpill; }
 
-    virtual uint32* WriteWaitEop(HwPipePoint waitPoint, uint32 hwGlxSync, uint32 hwRbSync, uint32* pCmdSpace) override;
+    virtual uint32* WriteWaitEop(
+        HwPipePoint waitPoint,
+        bool        waitCpDma,
+        uint32      hwGlxSync,
+        uint32      hwRbSync,
+        uint32*     pCmdSpace) override;
     virtual uint32* WriteWaitCsIdle(uint32* pCmdSpace) override;
 
     //Gets ringSizes ringSizes from cmdBuffer.
@@ -727,6 +725,8 @@ protected:
 
     // Gets draw index register address.
     uint16 GetDrawIndexRegAddr()  const { return m_drawIndexReg; }
+
+    void DescribeDraw(Developer::DrawDispatchType cmdType, bool includedGangedAce = false);
 
 private:
     template <bool IssueSqttMarkerEvent,
@@ -977,8 +977,6 @@ private:
     bool SetPaScBinnerCntl01(
                              const Extent2d* pBinSize);
 
-    void DescribeDraw(Developer::DrawDispatchType cmdType, bool includedGangedAce = false);
-
     uint32* UpdateNggCullingDataBufferWithCpu(
         uint32* pDeCmdSpace);
 
@@ -1152,7 +1150,12 @@ private:
         uint32      watermark : 31;
         // Tracks whether or not the vertex buffer table was modified somewhere in the command buffer.
         uint32      modified  :  1;
-        BufferSrd*  pSrds;  // Tracks the contents of the vertex buffer table.
+        // Tracks the contents of the vertex buffer table.
+        union
+        {
+            VertexBufferView* pBufferViews;
+            BufferSrd*        pSrds;
+        };
 
         UserDataTableState  state;  // Tracks the state for the indirect user-data table
 
@@ -1243,7 +1246,7 @@ private:
 
     regDB_RENDER_OVERRIDE   m_dbRenderOverride;     // Current value of DB_RENDER_OVERRIDE.
     regDB_RENDER_OVERRIDE   m_prevDbRenderOverride; // Prev value of DB_RENDER_OVERRIDE - only used on primary CmdBuf.
-    regVGT_MULTI_PRIM_IB_RESET_EN m_vgtMultiPrimIbResetEn; // Last written value of VGT_MULTI_PRIM_IB_RESET_EN register.
+    regGE_MULTI_PRIM_IB_RESET_EN m_geMultiPrimIbResetEn; // Last written value of GE_MULTI_PRIM_IB_RESET_EN register.
 
     regPA_SC_AA_CONFIG m_paScAaConfigNew;  // PA_SC_AA_CONFIG state that will be written on the next draw.
     regPA_SC_AA_CONFIG m_paScAaConfigLast; // Last written value of PA_SC_AA_CONFIG
@@ -1255,16 +1258,16 @@ private:
     regPA_SU_SC_MODE_CNTL       m_paSuScModeCntl;      // Current written value of PA_SU_SC_MODE_CNTL
 
     // Mask of PA_SC_BINNER_CNTL_0 fields that do not change
-    static constexpr uint32     PaScBinnerCntl0StaticMask =
-        PA_SC_BINNER_CNTL_0__FPOVS_PER_BATCH_MASK       |
-        PA_SC_BINNER_CNTL_0__OPTIMAL_BIN_SELECTION_MASK |
-        Gfx09_1xPlus::PA_SC_BINNER_CNTL_0__FLUSH_ON_BINNING_TRANSITION_MASK |
-        PA_SC_BINNER_CNTL_0__DISABLE_START_OF_PRIM_MASK |
-        PA_SC_BINNER_CNTL_0__CONTEXT_STATES_PER_BIN_MASK |
+    static constexpr uint32 PaScBinnerCntl0StaticMask =
+        PA_SC_BINNER_CNTL_0__FPOVS_PER_BATCH_MASK             |
+        PA_SC_BINNER_CNTL_0__OPTIMAL_BIN_SELECTION_MASK       |
+        PA_SC_BINNER_CNTL_0__FLUSH_ON_BINNING_TRANSITION_MASK |
+        PA_SC_BINNER_CNTL_0__DISABLE_START_OF_PRIM_MASK       |
+        PA_SC_BINNER_CNTL_0__CONTEXT_STATES_PER_BIN_MASK      |
         PA_SC_BINNER_CNTL_0__PERSISTENT_STATES_PER_BIN_MASK;
 
     // Mask of PA_SC_BINNER_CNTL_1 fields that do not change
-    static constexpr uint32     PaScBinnerCntl1StaticMask =
+    static constexpr uint32 PaScBinnerCntl1StaticMask =
         PA_SC_BINNER_CNTL_1__MAX_PRIM_PER_BATCH_MASK;
 
     bool             m_enabledPbb;       // If PBB is enabled or in an unknown state, then true, else false.

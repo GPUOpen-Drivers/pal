@@ -181,12 +181,12 @@ uint32* WorkaroundState::PreDraw(
                         pView->HasMultipleFragments()    &&
                         pView->HasDcc())
                     {
-                        cbColorDccControl.gfx09_10.OVERWRITE_COMBINER_DISABLE = 1;
+                        cbColorDccControl.gfx10.OVERWRITE_COMBINER_DISABLE = 1;
                     }
 
                     pCmdSpace = pDeCmdStream->WriteContextRegRmw<Pm4OptImmediate>(
                         mmCB_COLOR0_DCC_CONTROL + (cbIdx * CbRegsPerSlot),
-                        Gfx09_10::CB_COLOR0_DCC_CONTROL__OVERWRITE_COMBINER_DISABLE_MASK,
+                        Gfx10::CB_COLOR0_DCC_CONTROL__OVERWRITE_COMBINER_DISABLE_MASK,
                         cbColorDccControl.u32All,
                         pCmdSpace);
                 }

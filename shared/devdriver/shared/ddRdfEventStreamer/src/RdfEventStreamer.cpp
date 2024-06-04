@@ -36,6 +36,8 @@ constexpr char kDevDriverEventChunkId[RDF_IDENTIFIER_SIZE] = "DDEvent";
 
 DD_STATIC_CONST uint8_t kEventClientNumRetries = 10;
 
+DD_STATIC_CONST uint32_t kRdfStreamerProviderId = 0x1111111;
+
 } // anonymous namespace
 
 namespace DevDriver
@@ -414,7 +416,13 @@ void RdfEventStreamer::OnEventData(const void* pData, size_t dataSize)
                             // If there's a receive callback registered, we need to send the large delta event
                             if (m_pfnReceiveEvent != nullptr)
                             {
-                                m_pfnReceiveEvent(m_pReceiveCbUserdata, m_currEvent, &largeDelta, sizeof(largeDelta));
+                                DDEventParserEventInfo tsEvent = {};
+                                tsEvent.eventId                = DDCommonEventId::TimestampLargeDelta;
+                                tsEvent.eventIndex             = 0;
+                                tsEvent.providerId             = kRdfStreamerProviderId;
+                                tsEvent.totalPayloadSize       = sizeof(largeDelta);
+
+                                m_pfnReceiveEvent(m_pReceiveCbUserdata, tsEvent, &largeDelta, sizeof(largeDelta));
                             }
                         }
                     }
@@ -437,7 +445,10 @@ void RdfEventStreamer::OnEventData(const void* pData, size_t dataSize)
                 // If there's a receive callback registered, we can send the event data now that we have both header and payload
                 if (m_pfnReceiveEvent != nullptr)
                 {
-                    m_pfnReceiveEvent(m_pReceiveCbUserdata, m_currEvent, payload.pData, static_cast<size_t>(payload.size));
+                    m_pfnReceiveEvent(m_pReceiveCbUserdata,
+                                      currEventInfo,
+                                      payload.pData,
+                                      static_cast<size_t>(payload.size));
                 }
 
                 break;

@@ -164,6 +164,9 @@ struct QueueCreateInfo
     SubmitOptMode submitOptMode; ///< A hint telling PAL which submit-time bottlenecks should be optimized, if any.
     QueuePriority priority;      ///< A hint telling PAL to create queue with proper priority.
                                  ///  It is only supported if supportQueuePriority is set in DeviceProperties.
+                                 ///  In Linux, if we don't have root privilege, the creation with above-Medium
+                                 ///  priority will fail. Client should take the corresponding action like retry
+                                 ///  with lower priority, if necessary.
     struct
     {
         uint32 placeholder1                    :  1; ///< Reserved field. Set to 0.
@@ -333,6 +336,7 @@ struct MscInfo
                                        ///< if the current MSC is greater than or equal to <targetMsc>
     uint64 remainder;                  ///< Remainder
 };
+
 /// Specifies properties for the presentation of an image to the screen.  Input structure to IQueue::PresentSwapChain().
 struct PresentSwapChainInfo
 {
@@ -342,6 +346,11 @@ struct PresentSwapChainInfo
     uint32      imageIndex;       ///< The index of the source image within the swap chain. Owership of this image
                                   ///  index will be released back to the swap chain if this call succeeds.
     uint32      rectangleCount;   ///< Number of valid rectangles in the pRectangles array.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 872
+    uint32      syncInterval;     ///< Applicable only when syncIntervalOverride is set
+                                  ///  0 - The presentation occurs immediately, there is no synchronization.
+                                  ///  1 through 4 - Synchronize presentation after the nth vertical blank.
+#endif
     const Rect* pRectangles;      ///< Array of rectangles defining the regions which will be updated.
 
     union
@@ -350,23 +359,23 @@ struct PresentSwapChainInfo
         {
             uint32 notifyOnly           :  1;   ///< True if it is a notify-only present
             uint32 isTemporaryMono      :  1;   ///< True if WS Stereo is enabled, but 3D display mode turned off.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 794
             uint32 turboSyncEnabled     :  1;   ///< Whether TurboSync is enabled.
-#else
-            uint32 reserved794          :  1;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 849
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 872
+            uint32 syncIntervalOverride : 1;    ///< Override default syncInterval with the value in syncInterval
+                                                ///  Supported only on Windows wsiPlatforms.
+            uint32 reserved872          : 2;
+#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 849
             uint32 syncInterval         : 3;    ///< 0 - The presentation occurs immediately, there is no synchronization.
                                                 ///< 1 through 4 - Synchronize presentation after the nth vertical blank.
 #else
-            uint32 reserved848          : 3;
+            uint32 reserved848      :  3;
 #endif
-            uint32 reserved             : 26;   ///< Reserved for future use.
+            uint32 reserved         : 26; ///< Reserved for future use.
         };
-        uint32 u32All;                          ///< Flags packed as 32-bit uint.
-    } flags;                                    ///< PresentSwapChainInfo flags.
+        uint32 u32All;                    ///< Flags packed as 32-bit uint.
+    } flags;                              ///< PresentSwapChainInfo flags.
 #if PAL_AMDGPU_BUILD
-    MscInfo mscInfo;                            ///< Media stream counter information
+    MscInfo mscInfo;                      ///< Media stream counter information
 #endif
 };
 

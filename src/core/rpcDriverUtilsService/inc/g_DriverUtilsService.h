@@ -58,10 +58,30 @@ public:
         size_t      paramBufferSize
     ) = 0;
 
+    // Set driver DbgLog's severity level
+    virtual DD_RESULT SetDbgLogSeverityLevel(
+        const void* pParamBuffer,
+        size_t      paramBufferSize
+    ) = 0;
+
+    // Set driver DbgLog's origination mask
+    virtual DD_RESULT SetDbgLogOriginationMask(
+        const void* pParamBuffer,
+        size_t      paramBufferSize
+    ) = 0;
+
+    // Modify driver DbgLog's origination mask
+    virtual DD_RESULT ModifyDbgLogOriginationMask(
+        const void* pParamBuffer,
+        size_t      paramBufferSize
+    ) = 0;
+
 protected:
     IDriverUtilsService() {}
 };
 
 DD_RESULT RegisterService(DDRpcServer hServer, IDriverUtilsService* pService);
+
+void UnRegisterService(DDRpcServer hServer);
 
 } // namespace DriverUtils

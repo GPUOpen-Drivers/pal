@@ -111,6 +111,65 @@ IntervalTreeNode<T, K>* IntervalTree<T, K, Allocator>::FindOverlapping(
 }
 
 //======================================================================================================================
+// Inserts the existing node into the red-black tree.
+template<typename T, typename K, typename Allocator>
+IntervalTreeNode<T, K>* IntervalTree<T, K, Allocator>::InsertExisting(
+    IntervalTreeNode<T, K>* pNode)
+{
+    pNode->pLeftChild   = GetNull();
+    pNode->pRightChild  = GetNull();
+    pNode->pParent      = GetNull();
+    pNode->color        = NodeColor::Red;
+    pNode->highest      = pNode->interval.high;
+
+    // Inserts the new node into the tree as a binary search tree.
+    IntervalTreeNode<T, K>* pX = m_pRoot;
+    IntervalTreeNode<T, K>* pY = GetNull();
+
+    while (pX != GetNull())
+    {
+        if (pX->highest < pNode->highest)
+        {
+            pX->highest = pNode->highest;
+        }
+
+        pY = pX;
+
+        if (pX->interval.low > pNode->interval.low)
+        {
+            pX = pX->pLeftChild;
+        }
+        else
+        {
+            pX = pX->pRightChild;
+        }
+    }
+
+    if (pY == GetNull())
+    {
+        m_pRoot = pNode;
+    }
+    else // Inserts pNode as child of pY.
+    {
+        if (pY->interval.low > pNode->interval.low)
+        {
+            pY->pLeftChild = pNode;
+        }
+        else
+        {
+            pY->pRightChild = pNode;
+        }
+        pNode->pParent = pY;
+    }
+
+    // Fix possible violation of property 3.
+    InsertFixup(pNode);
+    m_count++;
+
+    return pNode;
+}
+
+//======================================================================================================================
 // Inserts the specified interval into the red-black tree.
 template<typename T, typename K, typename Allocator>
 IntervalTreeNode<T, K>* IntervalTree<T, K, Allocator>::Insert(
@@ -123,66 +182,17 @@ IntervalTreeNode<T, K>* IntervalTree<T, K, Allocator>::Insert(
 
     if (pNode != nullptr)
     {
-        pNode->pLeftChild   = GetNull();
-        pNode->pRightChild  = GetNull();
-        pNode->pParent      = GetNull();
-        pNode->color        = NodeColor::Red;
-        pNode->highest      = pInterval->high;
-        pNode->interval     = *pInterval;
-
-        // Inserts the new node into the tree as a binary search tree.
-        IntervalTreeNode<T, K>* pX = m_pRoot;
-        IntervalTreeNode<T, K>* pY = GetNull();
-
-        while (pX != GetNull())
-        {
-            if (pX->highest < pNode->highest)
-            {
-                pX->highest = pNode->highest;
-            }
-
-            pY = pX;
-
-            if (pX->interval.low > pInterval->low)
-            {
-                pX = pX->pLeftChild;
-            }
-            else
-            {
-                pX = pX->pRightChild;
-            }
-        }
-
-        if (pY == GetNull())
-        {
-            m_pRoot = pNode;
-        }
-        else // Inserts pNode as child of pY.
-        {
-            if (pY->interval.low > pInterval->low)
-            {
-                pY->pLeftChild = pNode;
-            }
-            else
-            {
-                pY->pRightChild = pNode;
-            }
-            pNode->pParent = pY;
-        }
-
-        // Fix possible violation of property 3.
-        InsertFixup(pNode);
-
-        m_count++;
+        pNode->interval = *pInterval;
+        InsertExisting(pNode);
     }
 
     return pNode;
 }
 
 //======================================================================================================================
-// Deletes the specified node from the tree.
+// Detaches the specified node from the tree but does not delete it.
 template<typename T, typename K, typename Allocator>
-void IntervalTree<T, K, Allocator>::Delete(
+void IntervalTree<T, K, Allocator>::Detach(
     IntervalTreeNode<T, K>* pNode)
 {
     if (pNode != GetNull())
@@ -238,8 +248,20 @@ void IntervalTree<T, K, Allocator>::Delete(
             DeleteFixup(pTemp);
         }
 
-        PAL_SAFE_DELETE(pNode, m_pAllocator);
         m_count--;
+    }
+}
+
+//======================================================================================================================
+// Deletes the specified node from the tree.
+template<typename T, typename K, typename Allocator>
+void IntervalTree<T, K, Allocator>::Delete(
+    IntervalTreeNode<T, K>* pNode)
+{
+    if (pNode != GetNull())
+    {
+        Detach(pNode);
+        PAL_SAFE_DELETE(pNode, m_pAllocator);
     }
 }
 
@@ -357,6 +379,44 @@ void IntervalTree<T, K, Allocator>::OverwriteInterval(
             }
         }
     }
+}
+
+//======================================================================================================================
+template<typename T, typename K, typename Allocator>
+Result IntervalTree<T, K, Allocator>::InsertOrExtend(
+    const Interval<T, K>* pInterval)
+{
+    Result result = Result::Success;
+    // Expand the input interval to also include adjacent ranges (checking for overflow)
+    Interval<T, K> intervalAdjacent = *pInterval;
+    if (intervalAdjacent.low != (std::numeric_limits<T>::min)())
+    {
+        intervalAdjacent.low -= 1;
+    }
+    if (intervalAdjacent.high != (std::numeric_limits<T>::max)())
+    {
+        intervalAdjacent.high += 1;
+    }
+
+    // Check for one existing value. If none exist or the value does not match, ignore it.
+    // If multiple exist, we aren't doing the optimal thing (merging) but that's OK.
+    IntervalTreeNode<T, K>* pExisting = FindOverlapping(&intervalAdjacent);
+    if ((pExisting != GetNull()) && (pExisting->interval.value == pInterval->value))
+    {
+        Detach(pExisting);
+        pExisting->interval.low = Util::Min(pExisting->interval.low, pInterval->low);
+        pExisting->interval.high = Util::Max(pExisting->interval.high, pInterval->high);
+        InsertExisting(pExisting);
+    }
+    else
+    {
+        if (Insert(pInterval) == nullptr)
+        {
+            result = Result::ErrorOutOfMemory;
+        }
+    }
+
+    return result;
 }
 
 //======================================================================================================================

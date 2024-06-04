@@ -302,6 +302,7 @@ private:
     Util::RWLock       m_globalRefLock;            // Protect m_globalRefMap from muli-thread access.
     uint32             m_appMemRefCount;           // Store count of application's submission memory references.
     bool               m_pendingWait;              // Queue needs a dummy submission between wait and signal.
+    bool               m_needInitialDummySubmit;   // Queue can skip dummy submission needed for first submit in queue
     CmdUploadRing*     m_pCmdUploadRing;           // Uploads gfxip command streams to a large local memory buffer.
     bool               m_sqttWaRequired;           // if a perfCounter in any cmdBuffer is active we need to tell KMD
     bool               m_perfCtrWaRequired;        // if SQ Thread Trace in any cmdBuffer is active we need to tell KMD

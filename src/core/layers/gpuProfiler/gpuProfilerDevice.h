@@ -90,6 +90,7 @@ public:
     const PerfCounter* GlobalPerfCounters() const { return m_pGlobalPerfCounters; }
     const PerfCounter* StreamingPerfCounters() const { return m_pStreamingPerfCounters; }
     const PerfCounter* DfStreamingPerfCounters() const { return m_pDfStreamingPerfCounters; }
+    bool Is32BitSpm() const { return m_32BitSpm;  }
 
     GpuProfilerStallMode GetSqttStallMode() const { return m_stallMode; }
     uint32 GetSeMask() const { return m_seMask; }
@@ -208,6 +209,7 @@ private:
     uint32                 m_imageSrdDwords;
     uint64                 m_timestampFreq;
     bool                   m_logPipeStats;
+    bool                   m_32BitSpm;
 
     bool                   m_sqttFilteringEnabled;
     bool                   m_sqttAddTtvHashes;

@@ -128,6 +128,8 @@ struct HardwareStageMetadata
     CbConstUsageMetadata    cbConstUsage[16];
     /// Size of cbConstUsage array (max 16 entries)
     uint8                   numCbConstUsages;
+    /// Bitmask of unused immediate constants in shader
+    uint32                  unusedImmConst[4];
     /// Wavefront size (only set if different from HW default).
     uint32                  wavefrontSize;
     /// User data register mapping to user data entries. See :ref:`amdgpu-amdpal-code-object-user-data-section` for more
@@ -206,6 +208,7 @@ struct HardwareStageMetadata
             uint64 origThreadgroupDimensions : 1;
             uint64 cbConstUsage              : 1;
             uint64 numCbConstUsages          : 1;
+            uint64 unusedImmConst            : 1;
             uint64 wavefrontSize             : 1;
             uint64 userDataRegMap            : 1;
             uint64 checksumValue             : 1;
@@ -230,7 +233,7 @@ struct HardwareStageMetadata
             uint64 usesAppendConsume         : 1;
             uint64 usesPrimId                : 1;
             uint64 placeholder1              : 1;
-            uint64 reserved                  : 25;
+            uint64 reserved                  : 24;
         };
         uint64 uAll;
     } hasEntry;
@@ -1852,6 +1855,8 @@ struct PipelineMetadata
     uint64                          internalPipelineHash[2];
     /// 64-bit hash of the resource mapping used when compiling this pipeline.
     uint64                          resourceHash;
+    /// For a unified ray generation shader, the 32-bit name hash part of its shader identifier.
+    uint32                          unifiedRgsNameHash;
     /// Per-API shader metadata.
     ShaderMetadata                  shader[static_cast<uint32>(Abi::ApiShaderType::Count)];
     /// Per-hardware stage metadata.
@@ -1910,7 +1915,9 @@ struct PipelineMetadata
             uint8 psDummyExport          : 1;
             /// Set if a PS is using sample mask.
             uint8 psSampleMask           : 1;
-            uint8 reserved               : 4;
+            /// Indicates whether or not the pipeline uses continuations passing shaders (CPS).
+            uint8 usesCps                : 1;
+            uint8 reserved               : 3;
         };
         uint8 uAll;
     } flags;
@@ -1923,6 +1930,7 @@ struct PipelineMetadata
             uint32 type                    : 1;
             uint32 internalPipelineHash    : 1;
             uint32 resourceHash            : 1;
+            uint32 unifiedRgsNameHash      : 1;
             uint32 shader                  : 1;
             uint32 hardwareStage           : 1;
             uint32 shaderFunctions         : 1;
@@ -1943,10 +1951,11 @@ struct PipelineMetadata
             uint32 gsOutputsLines          : 1;
             uint32 psDummyExport           : 1;
             uint32 psSampleMask            : 1;
+            uint32 usesCps                 : 1;
             uint32 streamoutVertexStrides  : 1;
             uint32 graphicsRegister        : 1;
             uint32 computeRegister         : 1;
-            uint32 reserved                : 5;
+            uint32 reserved                : 3;
         };
         uint32 uAll;
     } hasEntry;
@@ -1986,6 +1995,7 @@ namespace PipelineMetadataKey
     static constexpr char Type[]                    = ".type";
     static constexpr char InternalPipelineHash[]    = ".internal_pipeline_hash";
     static constexpr char ResourceHash[]            = ".resource_hash";
+    static constexpr char UnifiedRgsNameHash[]      = ".unified_rgs_name_hash";
     static constexpr char Shaders[]                 = ".shaders";
     static constexpr char HardwareStages[]          = ".hardware_stages";
     static constexpr char ShaderFunctions[]         = ".shader_functions";
@@ -2006,6 +2016,7 @@ namespace PipelineMetadataKey
     static constexpr char GsOutputsLines[]          = ".gs_outputs_lines";
     static constexpr char PsDummyExport[]           = ".ps_dummy_export";
     static constexpr char PsSampleMask[]            = ".ps_sample_mask";
+    static constexpr char UsesCps[]                 = ".uses_cps";
     static constexpr char StreamoutVertexStrides[]  = ".streamout_vertex_strides";
     static constexpr char GraphicsRegisters[]       = ".graphics_registers";
     static constexpr char ComputeRegisters[]        = ".compute_registers";
@@ -2439,6 +2450,7 @@ namespace HardwareStageMetadataKey
     static constexpr char OrigThreadgroupDimensions[] = ".orig_threadgroup_dimensions";
     static constexpr char CbConstUsages[]             = ".cb_const_usages";
     static constexpr char NumCbConstUsages[]          = ".num_cb_const_usages";
+    static constexpr char UnusedImmConst[]            = ".unused_imm_const";
     static constexpr char WavefrontSize[]             = ".wavefront_size";
     static constexpr char UserDataRegMap[]            = ".user_data_reg_map";
     static constexpr char ChecksumValue[]             = ".checksum_value";

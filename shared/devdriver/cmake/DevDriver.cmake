@@ -145,6 +145,7 @@ function(apply_devdriver_compile_definitions name)
     elseif (ANDROID)
         target_compile_definitions(${name} PRIVATE DD_TARGET_PLATFORM_ANDROID)
     endif()
+
 endfunction()
 
 function(devdriver_target name)

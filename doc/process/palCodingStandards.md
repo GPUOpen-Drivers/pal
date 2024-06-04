@@ -712,22 +712,21 @@ uint32* pFlags;
 
 -   Structures ***should*** be initialized completely. The preferred method is to use _aggregate initialization_ which initializes the entire structure in the following order:
     1. If there's a designated initializer for a value, use that.
-    2. If the struct's declaration specifies a default value, use that.
-    3. Otherwise, call the type's default constructor (for primitives this will initialize them to 0)
+    2. Otherwise, call the type's default constructor (for primitives this will initialize them to 0)
 
 ```cpp
 struct SomeStruct
 {
     int x;
-    int y{ 1 };
+    int y;
     SomeStruct* pNext;
 };
 
-// { 0, 1, nullptr }
+// { 0, 0, nullptr }
 SomeStruct someData{};
 
-// { 9, 1, &someData }
-SomeStruct moreData{ .x = 9, .pNext{ &someData } };
+// { 9, 0, &someData }
+SomeStruct moreData{ .x = 9, .y = 0, .pNext{ &someData } };
 ```
 
 -   Some structures may not allow the "{}" form (e.g. if a default constructor is private or deleted) and these ***should*** use `std::memset()` instead.
@@ -1181,6 +1180,8 @@ uint32 SomeClass::AnotherConstFunc(
 -   A member variable ***must not*** be declared mutable unless it
     required by the class design. The use of mutable member variables
     is ***discouraged***.
+
+-   Member variables **should** be initialized in a constructor.
 
 Const Usage
 -----------

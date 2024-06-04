@@ -188,6 +188,7 @@ GraphicsPipeline::GraphicsPipeline(
     m_gfxLevel(pDevice->Parent()->ChipProperties().gfxLevel),
     m_contextRegHash(0),
     m_rbplusRegHash(0),
+    m_rbplusRegHashDual(0),
     m_configRegHash(0),
     m_fastLaunchMode(GsFastLaunchMode::Disabled),
     m_nggSubgroupSize(0),
@@ -345,7 +346,11 @@ void GraphicsPipeline::LateInit(
 void GraphicsPipeline::DetermineBinningOnOff()
 {
     const auto* const pPublicSettings = m_pDevice->Parent()->GetPublicSettings();
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 875
+    bool disableBinning = false;
+#else
     bool disableBinning = (pPublicSettings->binningMode == DeferredBatchBinDisabled);
+#endif
 
     const regDB_SHADER_CONTROL& dbShaderControl = m_chunkVsPs.DbShaderControl();
 
@@ -608,7 +613,7 @@ uint32* GraphicsPipeline::WriteShCommands(
         // If NGG is enabled, there is no hardware-VS, so there is no need to write the late-alloc VS limit.
         if (IsNgg() == false)
         {
-            pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(HasHwVs::mmSPI_SHADER_LATE_ALLOC_VS,
+            pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(Gfx10::mmSPI_SHADER_LATE_ALLOC_VS,
                                                                      m_regs.sh.spiShaderLateAllocVs.u32All,
                                                                      pCmdSpace);
         }
@@ -725,11 +730,11 @@ uint32* GraphicsPipeline::WriteConfigCommands(
     uint32*    pCmdSpace
     ) const
 {
-    pCmdSpace = pCmdStream->WriteSetSeqConfigRegs(Gfx10Plus::mmGE_STEREO_CNTL,
-                                                  Gfx10Plus::mmGE_PC_ALLOC,
+    pCmdSpace = pCmdStream->WriteSetSeqConfigRegs(mmGE_STEREO_CNTL,
+                                                  mmGE_PC_ALLOC,
                                                   &m_regs.uconfig.geStereoCntl,
                                                   pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetOneConfigReg(Gfx10Plus::mmGE_USER_VGPR_EN,
+    pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmGE_USER_VGPR_EN,
                                                  m_regs.uconfig.geUserVgprEn.u32All,
                                                  pCmdSpace);
 
@@ -794,7 +799,7 @@ uint32* GraphicsPipeline::WriteContextCommandsSetPath(
     }
     else
     {
-        pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx10Plus::mmSPI_SHADER_IDX_FORMAT,
+        pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSPI_SHADER_IDX_FORMAT,
                                                        mmSPI_SHADER_COL_FORMAT,
                                                        &m_regs.context.spiShaderIdxFormat,
                                                        pCmdSpace);
@@ -802,25 +807,25 @@ uint32* GraphicsPipeline::WriteContextCommandsSetPath(
 
     if (m_pDevice->Parent()->ChipProperties().gfxip.supportsHwVs)
     {
-        pCmdSpace = pCmdStream->WriteSetOneContextReg(HasHwVs::mmVGT_GS_MODE,
+        pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10::mmVGT_GS_MODE,
                                                       m_regs.context.vgtGsMode.u32All,
                                                       pCmdSpace);
-        pCmdSpace = pCmdStream->WriteSetOneContextReg(HasHwVs::mmVGT_VERTEX_REUSE_BLOCK_CNTL,
+        pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10::mmVGT_VERTEX_REUSE_BLOCK_CNTL,
                                                       m_regs.context.vgtVertexReuseBlockCntl.u32All,
                                                       pCmdSpace);
     }
 
-    pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10Plus::mmPA_STEREO_CNTL,
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmPA_STEREO_CNTL,
                                                   m_regs.context.paStereoCntl.u32All,
                                                   pCmdSpace);
 
-    pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10Plus::mmCB_COVERAGE_OUT_CONTROL,
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmCB_COVERAGE_OUT_CONTROL,
                                                   m_regs.context.cbCoverageOutCntl.u32All,
                                                   pCmdSpace);
 
-    if ((IsGsEnabled() || IsNgg() || IsTessEnabled()) && (IsGfx11(m_gfxLevel) == false))
+    if ((IsGsEnabled() || IsNgg() || IsTessEnabled()) && IsGfx10(m_gfxLevel))
     {
-        pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx09_10::mmVGT_GS_ONCHIP_CNTL,
+        pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx10::mmVGT_GS_ONCHIP_CNTL,
                                                       m_regs.context.vgtGsOnchipCntl.u32All,
                                                       pCmdSpace);
     }
@@ -861,7 +866,7 @@ void GraphicsPipeline::AccumulateContextRegisters(
     {
         SetSeqContextRegValPairPacked(pRegPairs,
                                       pNumRegs,
-                                      Gfx10Plus::mmSPI_SHADER_IDX_FORMAT,
+                                      mmSPI_SHADER_IDX_FORMAT,
                                       mmSPI_SHADER_COL_FORMAT,
                                       &m_regs.context.spiShaderIdxFormat);
     }
@@ -870,29 +875,29 @@ void GraphicsPipeline::AccumulateContextRegisters(
     {
         SetOneContextRegValPairPacked(pRegPairs,
                                       pNumRegs,
-                                      HasHwVs::mmVGT_GS_MODE,
+                                      Gfx10::mmVGT_GS_MODE,
                                       m_regs.context.vgtGsMode.u32All);
         SetOneContextRegValPairPacked(pRegPairs,
                                       pNumRegs,
-                                      HasHwVs::mmVGT_VERTEX_REUSE_BLOCK_CNTL,
+                                      Gfx10::mmVGT_VERTEX_REUSE_BLOCK_CNTL,
                                       m_regs.context.vgtVertexReuseBlockCntl.u32All);
     }
 
     SetOneContextRegValPairPacked(pRegPairs,
                                   pNumRegs,
-                                  Gfx10Plus::mmPA_STEREO_CNTL,
+                                  mmPA_STEREO_CNTL,
                                   m_regs.context.paStereoCntl.u32All);
 
     SetOneContextRegValPairPacked(pRegPairs,
                                   pNumRegs,
-                                  Gfx10Plus::mmCB_COVERAGE_OUT_CONTROL,
+                                  mmCB_COVERAGE_OUT_CONTROL,
                                   m_regs.context.cbCoverageOutCntl.u32All);
 
-    if ((IsGsEnabled() || IsNgg() || IsTessEnabled()) && (IsGfx11(m_gfxLevel) == false))
+    if ((IsGsEnabled() || IsNgg() || IsTessEnabled()) && IsGfx10(m_gfxLevel))
     {
         SetOneContextRegValPairPacked(pRegPairs,
                                       pNumRegs,
-                                      Gfx09_10::mmVGT_GS_ONCHIP_CNTL,
+                                      Gfx10::mmVGT_GS_ONCHIP_CNTL,
                                       m_regs.context.vgtGsOnchipCntl.u32All);
     }
 }
@@ -1002,7 +1007,7 @@ void GraphicsPipeline::SetupCommonRegisters(
         };
 
         m_regs.uconfig.geStereoCntl.u32All           = 0;
-        m_regs.context.paStereoCntl.most.STEREO_MODE = STATE_STEREO_X;
+        m_regs.context.paStereoCntl.bits.STEREO_MODE = STATE_STEREO_X;
     }
 
     // GE_USER_VGPR_EN
@@ -1013,7 +1018,7 @@ void GraphicsPipeline::SetupCommonRegisters(
 
     // GE_PC_ALLOC
     {
-        if ((IsNgg() == false) || (m_regs.context.vgtShaderStagesEn.gfx10Plus.PRIMGEN_PASSTHRU_EN == 1))
+        if ((IsNgg() == false) || (m_regs.context.vgtShaderStagesEn.bits.PRIMGEN_PASSTHRU_EN == 1))
         {
             if (settings.gfx10GePcAllocNumLinesPerSeLegacyNggPassthru > 0)
             {
@@ -1137,14 +1142,6 @@ void GraphicsPipeline::SetupIaMultiVgtParam(
             {
                 PAL_ASSERT(m_regs.other.iaMultiVgtParam[idx].bits.PRIMGROUP_SIZE < 256);
             }
-
-            if ((m_regs.other.iaMultiVgtParam[idx].gfx09.EN_INST_OPT_BASIC == 1) ||
-                (m_regs.other.iaMultiVgtParam[idx].gfx09.EN_INST_OPT_ADV   == 1))
-            {
-                // The maximum supported setting for IA_MULTI_VGT_PARAM.PRIMGROUP_SIZE with the instancing optimization
-                // flowchart enabled is 253.
-                PAL_ASSERT(m_regs.other.iaMultiVgtParam[idx].bits.PRIMGROUP_SIZE < 253);
-            }
         }
     }
 }
@@ -1230,81 +1227,6 @@ void GraphicsPipeline::FixupIaMultiVgtParam(
     if (UsesHwStreamout())
     {
         pIaMultiVgtParam->bits.PARTIAL_VS_WAVE_ON = 1;
-    }
-
-    // Enable WD flowchart optimization.  It is not available if NGG fast-launch is enabled.
-    //
-    // With basic optimization enabled, the work distributor automatically updates register setting for
-    // instanced draws (WD_SWITCH_ON_EOP, SWITCH_ON_EOP and SWITCH_ON_EOI) based on an algorithm. Any draw
-    // that has the following will automatically bypass this algorithm.
-    //
-    //  1. WD_SWITCH_ON_EOP = 1
-    //  2. Is using patches (DI_PT_PATCH)
-    //  3. Enables dispatch draw with NOT_EOP = 1
-    //  4. Is using Opaque draw (i.e., DX10's DrawAuto). PAL currently does not support these.
-
-    //  Hardware WD Load Balancing Algorithm :
-    //
-    //  if (NumPrimitivesPerInstance > 2 * IA_MULTI_VGT_PARAM.PRIMGROUP_SIZE)
-    //  {
-    //      if (NumPrimitivesPerInstance < NumShaderEngine * PRIMGROUP_SIZE)
-    //      {
-    //          IA_MULTI_VGT_PARAM.PRIMGROUP_SIZE = ceil(NumPrimitivesPerInstance / NumShaderEngine);
-    //      }
-    //      else if ((NumPrimitivesPerInstance < 8 * IA_MULTI_VGT_PARAM.PRIMGROUP_SIZE) &&
-    //               (NumPrimitivesPerInstance != 4 * IA_MULTI_VGT_PARAM.PRIMGROUP_SIZE))
-    //      {
-    //          IA_MULTI_VGT_PARAM.PRIMGROUP_SIZE = ceil(NumPrimitivesPerInstance / 8);
-    //      }
-    //
-    //      // Distribute entire call to All shader engines (4xPrimRate)
-    //      IA_MULTI_VGT_PARAM.WD_SWITCH_ON_EOP = 0;
-    //      IA_MULTI_VGT_PARAM.SWITCH_ON_EOP    = 0;
-    //      IA_MULTI_VGT_PARAM.SWITCH_ON_EOI    = 1;
-    //  }
-    //  else
-    //  {
-    //      PRIMGROUP_SIZE = ceil(NumPrimitivesPerInstance / 2);
-    //
-    //      if (PRIMGROUP_SIZE < VGT_CACHE_INVALIDATION.OPT_FLOW_CNTL_1)
-    //      {
-    //          if ((NumPrimitivesPerInstance * NumInstances > VGT_CACHE_INVALIDATION.OPT_FLOW_CNTL_2) &&
-    //              (NumInstances > 1)                                                                 &&
-    //              (IA_MULTI_VGT_PARAM.EN_INST_OPT_ADV))
-    //          {
-    //              // Split into multiple draw calls
-    //              NumInstancesPerSubDraw = floor(2 * IA_MULTI_VGT_PARAM.PRIMGROUP_SIZE /
-    //                                             NumPrimitivesPerInstance);
-    //
-    //              IA_MULTI_VGT_PARAM.WD_SWITCH_ON_EOP = 1;
-    //              IA_MULTI_VGT_PARAM.SWITCH_ON_EOP    = 0;
-    //              IA_MULTI_VGT_PARAM.SWITCH_ON_EOI    = 0;
-    //
-    //              // Unroll NumInstances into NumInstancesPerSubDraw units
-    //          }
-    //          else
-    //          {
-    //              // Distribute entire draw call to 2 SE (2xPrimRate)
-    //              IA_MULTI_VGT_PARAM.WD_SWITCH_ON_EOP = 1;
-    //              IA_MULTI_VGT_PARAM.SWITCH_ON_EOP    = 0;
-    //              IA_MULTI_VGT_PARAM.SWITCH_ON_EOI    = 0;
-    //          }
-    //      }
-    //      else
-    //      {
-    //          IA_MULTI_VGT_PARAM.PRIMGROUP_SIZE = PRIMGROUP_SIZE;
-    //
-    //          // Distribute entire call to All shader engines (4xPrimRate)
-    //          IA_MULTI_VGT_PARAM.WD_SWITCH_ON_EOP = 0;
-    //          IA_MULTI_VGT_PARAM.SWITCH_ON_EOP    = 0;
-    //          IA_MULTI_VGT_PARAM.SWITCH_ON_EOI    = 1;
-    //      }
-    //  }
-    if (m_fastLaunchMode == GsFastLaunchMode::Disabled)
-    {
-        // Advanced optimization enables basic optimization and additional sub-draw call distribution algorithm
-        // which splits batch into smaller instanced draws.
-        pIaMultiVgtParam->gfx09.EN_INST_OPT_ADV = 1;
     }
 
 }
@@ -1417,7 +1339,7 @@ void GraphicsPipeline::SetupNonShaderRegisters(
     }
     else if (IsFmaskDecompress())
     {
-        m_regs.other.cbColorControl.bits.MODE = CB_FMASK_DECOMPRESS__GFX09_10;
+        m_regs.other.cbColorControl.bits.MODE = CB_FMASK_DECOMPRESS__GFX10;
         m_regs.other.cbColorControl.bits.ROP3 = Rop3(LogicOp::Copy);
 
         // NOTE: the CB spec states that for fmask-decompress, these registers should be set to enable writes to all
@@ -1433,7 +1355,7 @@ void GraphicsPipeline::SetupNonShaderRegisters(
         }
         else
         {
-            m_regs.other.cbColorControl.bits.MODE = CB_DCC_DECOMPRESS__GFX09_10;
+            m_regs.other.cbColorControl.bits.MODE = CB_DCC_DECOMPRESS__GFX10;
         }
 
         m_regs.other.cbColorControl.bits.ROP3 = Rop3(LogicOp::Copy);
@@ -1445,7 +1367,7 @@ void GraphicsPipeline::SetupNonShaderRegisters(
     }
     else if (IsResolveFixedFunc())
     {
-        m_regs.other.cbColorControl.bits.MODE = CB_RESOLVE__GFX09_10;
+        m_regs.other.cbColorControl.bits.MODE = CB_RESOLVE__GFX10;
         m_regs.other.cbColorControl.bits.ROP3 = Rop3(LogicOp::Copy);
 
         m_regs.other.cbShaderMask.u32All = 0xF;
@@ -1481,7 +1403,7 @@ void GraphicsPipeline::SetupNonShaderRegisters(
     // Initialize RB+ registers for pipelines which are able to use the feature.
     if (settings.rbPlusEnable &&
         (createInfo.cbState.dualSourceBlendEnable == false) &&
-        (m_regs.other.cbColorControl.bits.MODE != CB_RESOLVE__GFX09_10))
+        (m_regs.other.cbColorControl.bits.MODE != CB_RESOLVE__GFX10))
     {
         PAL_ASSERT(chipProps.gfx9.rbPlus);
 
@@ -1682,12 +1604,12 @@ uint32 GraphicsPipeline::ComputeScratchMemorySize(
 {
     const bool isWave32Tbl[] =
     {
-        (m_regs.context.vgtShaderStagesEn.gfx10Plus.HS_W32_EN != 0),
-        (m_regs.context.vgtShaderStagesEn.gfx10Plus.HS_W32_EN != 0),
-        (m_regs.context.vgtShaderStagesEn.gfx10Plus.GS_W32_EN != 0),
-        (m_regs.context.vgtShaderStagesEn.gfx10Plus.GS_W32_EN != 0),
-        (m_regs.context.vgtShaderStagesEn.gfx10Plus.VS_W32_EN != 0),
-        (m_regs.other.spiPsInControl.gfx10Plus.PS_W32_EN != 0),
+        (m_regs.context.vgtShaderStagesEn.bits.HS_W32_EN != 0),
+        (m_regs.context.vgtShaderStagesEn.bits.HS_W32_EN != 0),
+        (m_regs.context.vgtShaderStagesEn.bits.GS_W32_EN != 0),
+        (m_regs.context.vgtShaderStagesEn.bits.GS_W32_EN != 0),
+        (m_regs.context.vgtShaderStagesEn.bits.VS_W32_EN != 0),
+        (m_regs.other.spiPsInControl.bits.PS_W32_EN != 0),
         false,
     };
     static_assert(ArrayLen(isWave32Tbl) == static_cast<size_t>(Abi::HardwareStage::Count),
@@ -1805,7 +1727,7 @@ uint32 GraphicsPipeline::GetVsUserDataBaseOffset() const
     else
     {
         PAL_ASSERT(m_pDevice->Parent()->ChipProperties().gfxip.supportsHwVs);
-        regBase = HasHwVs::mmSPI_SHADER_USER_DATA_VS_0;
+        regBase = Gfx10::mmSPI_SHADER_USER_DATA_VS_0;
     }
 
     return regBase;
@@ -2381,7 +2303,7 @@ bool GraphicsPipeline::HwStereoRenderingEnabled() const
 // Return if hardware stereo rendering uses multiple viewports.
 bool GraphicsPipeline::HwStereoRenderingUsesMultipleViewports() const
 {
-    return (m_regs.context.paStereoCntl.gfx10Plus.VP_ID_OFFSET != 0);
+    return (m_regs.context.paStereoCntl.bits.VP_ID_OFFSET != 0);
 }
 
 // =====================================================================================================================
@@ -2410,8 +2332,8 @@ void GraphicsPipeline::SetupStereoRegisters()
             const uint32 vpIdOffset    = desc.viewportArrayIdx[1]     - desc.viewportArrayIdx[0];
             const uint32 rtSliceOffset = desc.renderTargetArrayIdx[1] - desc.renderTargetArrayIdx[0];
 
-            m_regs.context.paStereoCntl.gfx10Plus.VP_ID_OFFSET    = vpIdOffset;
-            m_regs.context.paStereoCntl.gfx10Plus.RT_SLICE_OFFSET = rtSliceOffset;
+            m_regs.context.paStereoCntl.bits.VP_ID_OFFSET    = vpIdOffset;
+            m_regs.context.paStereoCntl.bits.RT_SLICE_OFFSET = rtSliceOffset;
 
             if ((vpIdOffset != 0) || (rtSliceOffset != 0))
             {
@@ -2423,7 +2345,7 @@ void GraphicsPipeline::SetupStereoRegisters()
 
             if (m_regs.uconfig.geStereoCntl.bits.VIEWPORT != 0)
             {
-                m_regs.context.vgtDrawPayloadCntl.gfx10Plus.EN_DRAW_VP = 1;
+                m_regs.context.vgtDrawPayloadCntl.bits.EN_DRAW_VP = 1;
             }
 
             if (m_regs.uconfig.geStereoCntl.bits.RT_SLICE != 0)
@@ -2520,7 +2442,7 @@ Result GraphicsPipeline::LinkGraphicsLibraries(
                   pPsLib->m_ringSizes.itemSize[uint32(ShaderRingType::GfxScratch)]);
     if (pExpShaderLibrary->IsColorExportShader())
     {
-        const bool isWave32Tbl = (m_regs.other.spiPsInControl.gfx10Plus.PS_W32_EN != 0);
+        const bool isWave32Tbl = (m_regs.other.spiPsInControl.bits.PS_W32_EN != 0);
 
         ColorExportProperty colorExportProperty = {};
         pExpShaderLibrary->GetColorExportProperty(&colorExportProperty);

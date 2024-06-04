@@ -189,6 +189,23 @@ DD_RESULT SettingsBase::GetValue(DDSettingsValueRef* pValueRef)
     return result;
 }
 
+DD_RESULT SettingsBase::FindValueRef(DD_SETTINGS_NAME_HASH nameHash, DDSettingsValueRef* pOutValueRef)
+{
+    DD_RESULT result = DD_RESULT_SUCCESS;
+
+    DDSettingsValueRef* pSrcValueRef = m_settingsMap.FindValue(nameHash);
+    if (pSrcValueRef != nullptr)
+    {
+        *pOutValueRef = *pSrcValueRef;
+    }
+    else
+    {
+        result = DD_RESULT_SETTINGS_NOT_FOUND;
+    }
+
+    return result;
+}
+
 DD_RESULT SettingsBase::GetAllValues(DynamicBuffer& recvBuffer, size_t* pOutNumValues)
 {
     DD_RESULT result = DD_RESULT_SUCCESS;

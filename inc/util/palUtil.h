@@ -57,7 +57,17 @@ static_assert(
     "C++ standard version " PAL_STRINGIFY(PAL_CPLUSPLUS_1709) " is required to build PAL. "
     "Found " PAL_STRINGIFY(PAL_CPLUSPLUS) ".");
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 878
+/// We already declare NOMINMAX publicly, but that won't stop clients from defining their own min/max macros.
+/// These macros confuse the compiler when using functions named min/max, leading to build errors.
+#if defined(min) || defined(max)
+static_assert(false, "Clients may not define macros named \"min\" or \"max\".");
+#endif
+#endif
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 873
 #include <chrono>
+#endif
 #include <cstddef>
 
 /// stdint is included instead of cstdint to allow Visual Studio Intellisense to work for Linux builds. This can be
@@ -516,6 +526,7 @@ struct StoreFlags
     };
 };
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 873
 /// Seconds stored as a float instead of an integer.
 using fseconds      = std::chrono::duration<float>;
 /// Milliseconds stored as a float instead of an integer.
@@ -547,6 +558,7 @@ constexpr ToDuration TimeoutCast(
         return std::chrono::duration_cast<ToDuration, Rep, Period>(d);
     }
 }
+#endif
 
 /// Inline function to determine if a Result enum is considered an error.
 constexpr bool IsErrorResult(Result result) { return (static_cast<int32>(result) < 0); }

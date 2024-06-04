@@ -205,9 +205,7 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::CmdBufferCmdDumpCeRam,                                     InterfaceObject::CmdBuffer,            "CmdDumpCeRam"                            },
     { InterfaceFunc::CmdBufferCmdWriteCeRam,                                    InterfaceObject::CmdBuffer,            "CmdWriteCeRam"                           },
     { InterfaceFunc::CmdBufferCmdAllocateEmbeddedData,                          InterfaceObject::CmdBuffer,            "CmdAllocateEmbeddedData"                 },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
     { InterfaceFunc::CmdBufferCmdAllocateLargeEmbeddedData,                     InterfaceObject::CmdBuffer,            "CmdAllocateLargeEmbeddedData"            },
-#endif
     { InterfaceFunc::CmdBufferCmdExecuteNestedCmdBuffers,                       InterfaceObject::CmdBuffer,            "CmdExecuteNestedCmdBuffers"              },
     { InterfaceFunc::CmdBufferCmdSaveComputeState,                              InterfaceObject::CmdBuffer,            "CmdSaveComputeState"                     },
     { InterfaceFunc::CmdBufferCmdRestoreComputeState,                           InterfaceObject::CmdBuffer,            "CmdRestoreComputeState"                  },

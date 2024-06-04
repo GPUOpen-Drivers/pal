@@ -74,18 +74,6 @@ function(pal_compile_definitions_gpu TARGET)
             target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_PHOENIX1=$<BOOL:${PAL_BUILD_GFX9}>)
         endif()
 
-        # PAL ASIC BUILD Defines
-        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_NAVI21=$<BOOL:${PAL_BUILD_GFX9}>)
-        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_NAVI22=$<BOOL:${PAL_BUILD_GFX9}>)
-        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_NAVI23=$<BOOL:${PAL_BUILD_GFX9}>)
-        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_NAVI24=$<BOOL:${PAL_BUILD_GFX9}>)
-        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_REMBRANDT=$<BOOL:${PAL_BUILD_GFX9}>)
-        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_RAPHAEL=$<BOOL:${PAL_BUILD_GFX9}>)
-        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_NAVI31=$<BOOL:${PAL_BUILD_GFX9}>)
-        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_NAVI32=$<BOOL:${PAL_BUILD_GFX9}>)
-        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_NAVI33=$<BOOL:${PAL_BUILD_GFX9}>)
-        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_PHOENIX1=$<BOOL:${PAL_BUILD_GFX9}>)
-
         target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_PHOENIX2=$<BOOL:${PAL_BUILD_PHOENIX2}>)
         target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_PHOENIX2=$<BOOL:${CHIP_HDR_PHOENIX2}>)
 
@@ -102,6 +90,16 @@ function(pal_compile_definitions TARGET)
             DEBUG=1
         >
 
+        $<$<BOOL:${WIN32}>:
+            $<$<VERSION_GREATER_EQUAL:${PAL_CLIENT_INTERFACE_MAJOR_VERSION},871>:
+                # Allow usage of deprecated CRT functions
+                _CRT_SECURE_NO_WARNINGS
+                # Exclude rarely used APIs from windows.h such as Cryptography, Shell, etc.
+                WIN32_LEAN_AND_MEAN
+                # Don't let Windows.h define min/max macros.
+                NOMINMAX
+            >
+        >
     )
 
     target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_SUPPORT_DEPTHCLAMPMODE_ZERO_TO_ONE=$<BOOL:${PAL_CLIENT_VULKAN}>)

@@ -379,6 +379,8 @@ private:
 
     void FillCacheOperations(const SyncReqs& syncReqs, Developer::BarrierOperations* pOperations) const;
 
+    bool EnableReleaseMemWaitCpDma() const;
+
     static CmdStream* GetCmdStream(Pm4CmdBuffer* pCmdBuf);
 
     const CmdUtil&   m_cmdUtil;

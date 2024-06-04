@@ -116,7 +116,7 @@ ME_EVENT_WRITE_event_index_enum StreamoutStatsQueryPool::XlateEventIndex(
                (queryType == QueryType::StreamoutStats2) ||
                (queryType == QueryType::StreamoutStats3));
 
-    ME_EVENT_WRITE_event_index_enum eventIndex = event_index__me_event_write__sample_streamoutstats__GFX09_10;
+    ME_EVENT_WRITE_event_index_enum eventIndex = event_index__me_event_write__sample_streamoutstats__GFX10;
 
     constexpr auto StreamoutStats0 = static_cast<ME_EVENT_WRITE_event_index_enum>(8);
     constexpr auto StreamoutStats1 = static_cast<ME_EVENT_WRITE_event_index_enum>(9);
@@ -330,7 +330,7 @@ void StreamoutStatsQueryPool::NormalReset(
         // Before we initialize out the GPU's destination memory, make sure the ASIC has finished any previous reading
         // and writing of streamout stat data. Command buffers that do not support stats queries do not need to issue
         // this wait because the caller must use semaphores to make sure all queries are complete.
-        pCmdSpace = pPm4CmdBuf->WriteWaitEop(HwPipePostPrefetch, SyncGlxNone, SyncRbNone, pCmdSpace);
+        pCmdSpace = pPm4CmdBuf->WriteWaitEop(HwPipePostPrefetch, false, SyncGlxNone, SyncRbNone, pCmdSpace);
     }
 
     gpusize gpuAddr          = 0;

@@ -1006,8 +1006,10 @@ struct MemBarrier
         uint32 u32All;                     ///< Flags packed as a 32-bit uint.
     } flags;                               ///< Flags controlling the memory barrier.
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 880
     GpuMemSubAllocInfo memory;             ///< Specifies a portion of an IGpuMemory object this memory barrier affects.
                                            ///  Zero values of memory structure indicate full range barrier operations.
+#endif
 
     uint32             srcStageMask;       ///< Bitmask of PipelineStageFlag values defining the synchronization
                                            ///  scope that must be confirmed complete as part of a release.  Must be
@@ -1039,6 +1041,7 @@ struct ImgBarrier
                                  ///  includes @ref LayoutUninitializedTarget this range must cover all subresources of
                                  ///  pImage unless the perSubresInit image create flag was specified.
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 880
     Box           box;           ///< Restricts the barrier to a sub-section of each subresource.  The Z offset/extent
                                  ///  must be 0 for 1D/2D images, and the Y offset/extent must be 0 for 1D images.  A
                                  ///  box with zero extents will be ignored, and the barrier will affect the entire
@@ -1047,6 +1050,7 @@ struct ImgBarrier
                                  ///  implementation may not be able to optimize particular cases and may expand the
                                  ///  barrier to cover the entire subresource range.  Specifying a subregion with a box
                                  ///  when newLayout includes @ref LayoutUninitializedTarget is not supported.
+#endif
 
     uint32        srcStageMask;  ///< Bitmask of PipelineStageFlag values defining the synchronization
                                  ///  scope that must be confirmed complete as part of a release.  Must be
@@ -2044,12 +2048,8 @@ struct CmdBufInfo
             uint32 privateFlip        : 1;  ///< Need to flip to a private primary surface for DirectCapture feature
             uint32 vpBltExecuted      : 1;  ///< This command buffer comtains VP Blt work.
             uint32 disableDccRejected : 1;  ///< Reject KMD's DisableDcc request to avoid writing to front buffer.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 795
             uint32 noFlip             : 1;  ///< No flip when DirectCapture access submission completes
             uint32 frameGenIndex      : 4;  ///< Index of the DirectCapture feature generated frames
-#else
-            uint32 reserved795        : 5;  ///< Reserved for future usage.
-#endif
             uint32 reserved           : 13; ///< Reserved for future usage.
         };
         uint32 u32All;                  ///< Flags packed as uint32.
@@ -2352,12 +2352,11 @@ public:
     /// @returns How many DWORDs of embedded data the command buffer can allocate at once.
     virtual uint32 GetEmbeddedDataLimit() const = 0;
 
-    /// Queries how many DWORDs of embedded data the command buffer can allocate in one call to CmdAllocateLargeEmbeddedData.
+    /// Queries how many DWORDs of embedded data the command buffer can allocate in one call to
+    /// CmdAllocateLargeEmbeddedData.
     ///
     /// @returns Number of DWORDs that can be allocated in one call to CmdAllocateLargeEmbeddedData
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
     virtual uint32 GetLargeEmbeddedDataLimit() const = 0;
-#endif
 
     /// Binds a graphics or compute pipeline to the current command buffer state.
     ///
@@ -2520,24 +2519,36 @@ public:
 
     /// Changes one or more of the command buffer's active vertex buffers.
     ///
-    /// @note  PAL constructs SRDs for each bound vertex buffer which are equivalent to the client calling @ref
-    ///        IDevice::CreateUntypedBufferViewSrd on each element of the pBuffers parameter.
+    /// @note  If bufferViews.offsetMode is false, PAL will construct SRDs for each bound vertex buffer which are
+    ///        equivalent to the client calling @ref IDevice::CreateUntypedBufferViewSrd on each element of the
+    ///        pBuffers parameter.
     ///
     /// Note that vertex buffers require use of the following barrier flags:
     /// - PipelineStage:  @ref PipelineStageVs
     /// - CacheCoherency: @ref CoherShaderRead
     ///
-    /// @param [in] firstBuffer  First vertex buffer slot to change.  Must be less than @ref MaxVertexBuffers.
-    /// @param [in] bufferCount  Number of vertex buffer slots to change.  Must be greater than zero.  It is invalid if
-    ///                          (firstBuffer + bufferCount) exceeds @ref MaxVertexBuffers.
-    /// @param [in] pBuffers     Array of @ref BufferViewInfo structures which define the vertex buffers being set.
-    ///                          Must not be nullptr.  The number of entries in this array must be at least bufferCount.
-    ///                          If any of entry has a zero value for their gpuAddr field, the vertex buffer will be
-    ///                          treated as unbound.
+    /// @param [in] bufferViews Vertex buffer view descriptors.This parameter defines which vertex mode is used through
+    ///                         @ref VertexBufferViews::offsetMode. VertexBufferViews::pVertexBufferViews or
+    ///                         VertexBufferViews::pBufferViewInfos must not be nullptr.
     virtual void CmdSetVertexBuffers(
+        const VertexBufferViews& bufferViews) = 0;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 877
+    void CmdSetVertexBuffers(
         uint32                firstBuffer,
         uint32                bufferCount,
-        const BufferViewInfo* pBuffers) = 0;
+        const BufferViewInfo* pBuffers)
+    {
+        const VertexBufferViews bufferViews =
+        {
+            .firstBuffer = firstBuffer,
+            .bufferCount = bufferCount,
+            .offsetMode = false,
+            .pBufferViewInfos = pBuffers
+        };
+        CmdSetVertexBuffers(bufferViews);
+    }
+#endif
 
     /// Binds a range of memory for use as index data (i.e., binds an index buffer).
     ///
@@ -4541,12 +4552,10 @@ public:
     /// @param [out] pGpuAddress        The GPU address of the embedded space.
     ///
     /// @returns The DWORD-aligned CPU address of the embedded space.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
     virtual uint32* CmdAllocateLargeEmbeddedData(
         uint32   sizeInDwords,
         uint32   alignmentInDwords,
         gpusize* pGpuAddress) = 0;
-#endif
 
     /// Get memory from scratch memory and bind to GPU event. For now only GpuEventPool and CmdBuffer's internal
     /// GpuEvent use this path to allocate and bind GPU memory. These usecases assume the bound GPU memory is GPU access

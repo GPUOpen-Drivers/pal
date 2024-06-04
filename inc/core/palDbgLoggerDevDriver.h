@@ -147,8 +147,7 @@ private:
 * 2. Initialize this logger with :          result = pDbgLoggerDevDriver->Init()
 * 3. Attach it with :                       if (result == Result::Success) AttachDbgLogger(pDbgLoggerDevDriver)
 * 4. When done, detach it with :            DetachDbgLogger(pDbgLoggerDevDriver)
-* 5. De-initialize with :                   pDbgLoggerDevDriver->Cleanup();
-* 6. Delete this logger:                    PAL_SAFE_DELETE()
+* 5. Delete this logger:                    PAL_SAFE_DELETE(), the m_logEventProvider will be destroyed in its destructor
 * ***********************************************************************************************************************
 */
 class DbgLoggerDevDriver final : public Util::IDbgLogger
@@ -163,10 +162,7 @@ public:
         IPlatform* pPlatform);
 
     /// Destructor
-    virtual ~DbgLoggerDevDriver()
-    {
-        Cleanup();
-    }
+    virtual ~DbgLoggerDevDriver() {}
 
     /// Create a DevDriver logger that clients can use.
     ///
@@ -194,11 +190,13 @@ public:
         return m_logEventProvider.Init();
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 879
     /// Cleanup any data structures used by the logger.
     void Cleanup()
     {
-        m_logEventProvider.Destroy();
+        // Do nothing for now, the m_logEventProvider will be destroyed in its destructor
     }
+#endif
 
 protected:
     /// Writes the message to the log event provider

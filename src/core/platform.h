@@ -227,6 +227,8 @@ public:
 #if PAL_ENABLE_LOGGING
     virtual void GetDbgLoggerFileSettings(
         Util::DbgLoggerFileSettings* pSettings) override;
+
+    DbgLoggerDevDriver* GetDbgLoggerDevDriver() { return m_pDevDriverLogger; }
 #endif
 
 protected:

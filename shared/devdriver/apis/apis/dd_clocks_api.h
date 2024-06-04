@@ -118,11 +118,15 @@ typedef struct DDClocksApi
     /// @param clockModeId The clock mode to set.
     /// @param gpuId The ID for this GPU, see definition above.
     /// @return DD_RESULT_SUCCESS Request was successful.
+    /// @return DD_RESULT_FS_PERMISSION_DENIED On Linux only libdrm >= 3.49 supports setting clock modes.
+    ///         If libdrm is older, we try to set clock modes through sysfile which requires root permission.
+    ///         This error is returned if the router running on the target machine doesn't have root
+    ///         permission to modify the sysfile.
     /// @return DD_RESULT_DD_GENERIC_UNAVAILABLE If the connection is invalid.
     /// @return Other errors if request failed.
-    DD_RESULT (*SetClockMode)(DDClocksInstance*       pInstance,
-                              DD_DEVICE_CLOCK_MODE    clockModeId,
-                              DDGpuId                 gpuId);
+    DD_RESULT (*SetClockMode)(DDClocksInstance*    pInstance,
+                              DD_DEVICE_CLOCK_MODE clockModeId,
+                              DDGpuId              gpuId);
 
 } DDClocksApi;
 

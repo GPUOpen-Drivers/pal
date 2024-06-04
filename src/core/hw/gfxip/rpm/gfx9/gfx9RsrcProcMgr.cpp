@@ -2611,7 +2611,7 @@ void RsrcProcMgr::DepthStencilClearGraphics(
         // surf-sync support should be faster than a full EOP wait at the CP.
         if (IsGfx11(*m_pDevice->Parent()))
         {
-            pCmdSpace = pPm4CmdBuf->WriteWaitEop(HwPipePreRasterization, SyncGlxNone, SyncDbWbInv, pCmdSpace);
+            pCmdSpace = pPm4CmdBuf->WriteWaitEop(HwPipePreRasterization, false, SyncGlxNone, SyncDbWbInv, pCmdSpace);
         }
         else
         {
@@ -4256,7 +4256,7 @@ void Gfx10RsrcProcMgr::ClearDccComputeSetFirstPixelOfBlock(
 
     srd.compression_en = 0;
 
-    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, ConstCount, ArrayLen32(srd.u32All), srd.u32All);
+    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, ConstCount, ArrayLen32(srd.u32All), &srd.u32All[0]);
 
     // How many blocks are there for this miplevel in X/Y/Z dimension.
     // We'll need one thread for each block, which writes clear value to the first byte.
@@ -4377,7 +4377,7 @@ void Gfx10RsrcProcMgr::InitHtileData(
                 pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute,
                                            0,
                                            NumBytesToNumDwords(sizeof(sq_buf_rsrc_t)),
-                                           reinterpret_cast<uint32*>(&srd.gfx10));
+                                           &srd.u32All[0]);
 
                 // Issue a dispatch with one thread per HTile DWORD.
                 const uint32 hTileDwords  = static_cast<uint32>(hTileBufferView.range / sizeof(uint32));
@@ -4530,7 +4530,7 @@ void Gfx10RsrcProcMgr::WriteHtileData(
                 pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute,
                                            0,
                                            numBufferSrdDwords,
-                                           reinterpret_cast<uint32*>(&htileSurfSrd.gfx10));
+                                           &htileSurfSrd.u32All[0]);
 
                 pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute,
                                            numBufferSrdDwords,
@@ -4559,7 +4559,7 @@ void Gfx10RsrcProcMgr::WriteHtileData(
                     pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute,
                                                numBufferSrdDwords + numConstDwords,
                                                numBufferSrdDwords,
-                                               reinterpret_cast<uint32*>(&metadataSrd.gfx10));
+                                               &metadataSrd.u32All[0]);
                 }
 
                 // Issue a dispatch with one thread per HTile DWORD or a dispatch every 4 Htile DWORD.
@@ -4979,7 +4979,7 @@ uint32 Gfx10RsrcProcMgr::HwlBeginGraphicsCopy(
                 const auto&                      chipProps = m_pDevice->Parent()->ChipProperties().gfx9;
 
                 defaultPaRegVal.u32All  = chipProps.paScTileSteeringOverride;
-                const uint32 maxRbPerSc = (1 << defaultPaRegVal.gfx10Plus.NUM_RB_PER_SC);
+                const uint32 maxRbPerSc = (1 << defaultPaRegVal.bits.NUM_RB_PER_SC);
 
                 // A setting of zero RBs implies that the driver should use the optimal number.  For now, assume the
                 // optimal number is one.  Also don't allow more RBs than actively exist.
@@ -5009,19 +5009,18 @@ uint32 Gfx10RsrcProcMgr::HwlBeginGraphicsCopy(
 
                 // LOG2 of the effective number of scan-converters desired. Must not be programmed to greater than the
                 // number of active SCs present in the chip
-                paScTileSteeringOverride.gfx10Plus.NUM_SC        = Log2(numNeededScs);
+                paScTileSteeringOverride.bits.NUM_SC        = Log2(numNeededScs);
 
                 // LOG2 of the effective NUM_RB_PER_SC desired. Must not be programmed to greater than the number of
                 // active RBs per SC present in the chip.
-                paScTileSteeringOverride.gfx10Plus.NUM_RB_PER_SC = Log2(numNeededRbsPerSc);
+                paScTileSteeringOverride.bits.NUM_RB_PER_SC = Log2(numNeededRbsPerSc);
 
                 // LOG2 of the effective NUM_PACKER_PER_SC desired. This is strictly for test purposes, otherwise
                 // noramlly would be set to match the number of physical packers active in the design configuration.
                 // Must not be programmed to greater than the number of active packers per SA (SC) present in the chip
                 // configuration. Must be 0x1 if NUM_RB_PER_SC = 0x2.
                 paScTileSteeringOverride.gfx101.NUM_PACKER_PER_SC =
-                    Min(paScTileSteeringOverride.gfx10Plus.NUM_RB_PER_SC,
-                        defaultPaRegVal.gfx101.NUM_PACKER_PER_SC);
+                    Min(paScTileSteeringOverride.bits.NUM_RB_PER_SC, defaultPaRegVal.gfx101.NUM_PACKER_PER_SC);
 
                 CommitBeginEndGfxCopy(pCmdStream, paScTileSteeringOverride.u32All);
 
@@ -5458,7 +5457,11 @@ void Gfx10RsrcProcMgr::CopyVrsIntoHtile(
     Pm4CmdBuffer* pPm4CmdBuf = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
     uint32*       pCmdSpace  = pCmdStream->ReserveCommands();
     pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(FLUSH_AND_INV_DB_META, pCmdBuffer->GetEngineType(), pCmdSpace);
-    pCmdSpace  = pPm4CmdBuf->WriteWaitEop(HwPipePostPrefetch, SyncGlkInv|SyncGlvInv|SyncGl1Inv, SyncRbNone, pCmdSpace);
+    pCmdSpace  = pPm4CmdBuf->WriteWaitEop(HwPipePostPrefetch,
+                                          false,
+                                          SyncGlkInv | SyncGlvInv | SyncGl1Inv,
+                                          SyncRbNone,
+                                          pCmdSpace);
     pCmdStream->CommitCommands(pCmdSpace);
 
     {

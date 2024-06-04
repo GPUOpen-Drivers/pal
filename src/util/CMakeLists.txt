@@ -60,3 +60,7 @@ target_sources(palUtil PRIVATE
     time.cpp
     uuid.cpp
 )
+
+if (PAL_PRECOMPILED_HEADERS)
+    target_sources(palUtil PRIVATE precompiledHeaders.h)
+endif()

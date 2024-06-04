@@ -225,11 +225,7 @@ CmdAllocator::CmdAllocator(
                 m_gpuAllocInfo[i].allocCreateInfo.memObjInternalInfo.mtype = MType::Uncached;
             }
         }
-        else if ((i == EmbeddedDataAlloc)
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
-            || (i == LargeEmbeddedDataAlloc)
-#endif
-            || (i == GpuScratchMemAlloc))
+        else if ((i == EmbeddedDataAlloc) || (i == LargeEmbeddedDataAlloc) || (i == GpuScratchMemAlloc))
         {
             m_gpuAllocInfo[i].allocCreateInfo.memObjCreateInfo.vaRange = VaRange::DescriptorTable;
         }
@@ -327,9 +323,7 @@ void CmdAllocator::FreeAllChunks(
     {
         &m_gpuAllocInfo[CommandDataAlloc],
         &m_gpuAllocInfo[EmbeddedDataAlloc],
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
         &m_gpuAllocInfo[LargeEmbeddedDataAlloc],
-#endif
         &m_gpuAllocInfo[GpuScratchMemAlloc],
         &m_sysAllocInfo,
     };
@@ -545,7 +539,8 @@ Result CmdAllocator::Trim(
         m_pChunkLock->Lock();
     }
 
-    for (uint32 type = 0; type < CmdAllocatorTypeCount; ++type)
+    // Iterate in reverse order so that CommandDataAlloc is trimmed last. This is required by GPU busy tracking.
+    for (int32 type = int32(CmdAllocatorTypeCount - 1); type >= 0; --type)
     {
         if (allocTypeMask & (1 << type))
         {

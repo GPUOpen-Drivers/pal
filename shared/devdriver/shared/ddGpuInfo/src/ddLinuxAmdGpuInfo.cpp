@@ -238,15 +238,14 @@ Result QueryGpuInfo(const AllocCb& allocCb, Vector<AmdGpuInfo>* pGpus)
                 outGpuInfo.pci.function = pDevices[i]->businfo.pci->func;
 
                 // Open the amdgpu device file descriptor
-                int32 renderFd  = open(pDevices[i]->nodes[DRM_NODE_RENDER], O_RDWR, 0);
-                int32 primaryFd = open(pDevices[i]->nodes[DRM_NODE_PRIMARY], O_RDWR, 0);
+                int32 renderFd  = open(pDevices[i]->nodes[DRM_NODE_RENDER], O_RDONLY, 0);
 
                 amdgpu_device_handle deviceHandle = NULL;
                 uint32               majorVersion = 0;
                 uint32               minorVersion = 0;
 
                 // Initialize device
-                if ((renderFd < 0) || (primaryFd < 0))
+                if (renderFd < 0)
                 {
                     result = Result::Rejected;
                 }
@@ -366,6 +365,8 @@ Result QueryGpuInfo(const AllocCb& allocCb, Vector<AmdGpuInfo>* pGpus)
                 {
                     pfnDeviceDeinitialize(deviceHandle);
                 }
+
+                close(renderFd);
             }
 
             libdrmLoader.Close();

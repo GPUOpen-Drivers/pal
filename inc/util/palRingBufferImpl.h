@@ -145,7 +145,8 @@ inline Result RingBuffer<Allocator>::GetBufferForWriting(
     void** ppBuffer)
 {
     using namespace std::chrono;
-    return GetBufferForWriting(milliseconds{ std::min(waitTimeMs, uint32(milliseconds::max().count())) }, ppBuffer);
+
+    return GetBufferForWriting(milliseconds{ (std::min)(waitTimeMs, uint32((milliseconds::max)().count())) }, ppBuffer);
 }
 #endif
 
@@ -186,7 +187,8 @@ Result RingBuffer<Allocator>::GetBufferForReading(
     const void** ppBuffer)
 {
     using namespace std::chrono;
-    return GetBufferForReading(milliseconds{ std::min(waitTimeMs, uint32(milliseconds::max().count())) }, ppBuffer);
+
+    return GetBufferForReading(milliseconds{ (std::min)(waitTimeMs, uint32((milliseconds::max)().count())) }, ppBuffer);
 }
 #endif
 

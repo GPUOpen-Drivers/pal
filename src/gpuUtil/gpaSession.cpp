@@ -676,11 +676,9 @@ Result GpaSession::Init()
         createInfo.allocInfo[EmbeddedDataAlloc].allocHeap         = GpuHeapGartUswc;
         createInfo.allocInfo[EmbeddedDataAlloc].allocSize         = CmdAllocSize;
         createInfo.allocInfo[EmbeddedDataAlloc].suballocSize      = CmdSubAllocSize;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
         createInfo.allocInfo[LargeEmbeddedDataAlloc].allocHeap    = GpuHeapGartUswc;
         createInfo.allocInfo[LargeEmbeddedDataAlloc].allocSize    = CmdAllocSize;
         createInfo.allocInfo[LargeEmbeddedDataAlloc].suballocSize = CmdSubAllocSize;
-#endif
         createInfo.allocInfo[GpuScratchMemAlloc].allocHeap        = GpuHeapInvisible;
         createInfo.allocInfo[GpuScratchMemAlloc].allocSize        = CmdAllocSize;
         createInfo.allocInfo[GpuScratchMemAlloc].suballocSize     = CmdSubAllocSize;
@@ -930,8 +928,6 @@ Pal::Result GpaSession::TimedSubmit(
     // Multi-queue submits are not yet supported by GpaSession!
     PAL_ASSERT(submitInfo.perSubQueueInfoCount != 0);
     PAL_ASSERT(submitInfo.pPerSubQueueInfo != nullptr);
-    PAL_ASSERT_MSG((submitInfo.perSubQueueInfoCount <= 1),
-                   "Multi-Queue support has not yet been implemented in GpaSession!", nullptr);
     Pal::Result result = m_flags.enableQueueTiming ? Pal::Result::Success : Pal::Result::ErrorUnavailable;
 
     TimedQueueState* pQueueState = nullptr;
@@ -1154,17 +1150,29 @@ Pal::Result GpaSession::TimedSubmit(
 
             if (result == Pal::Result::Success)
             {
-                Pal::MultiSubmitInfo  patchedSubmitInfo = submitInfo;
-                PerSubQueueSubmitInfo perSubQueueInfo   = {};
-                perSubQueueInfo.cmdBufferCount          = patchedCmdBufferList.NumElements();
-                perSubQueueInfo.ppCmdBuffers            = &patchedCmdBufferList.At(0);
-                if (primarySubQueueInfo.pCmdBufInfoList != nullptr)
+                Util::Vector<PerSubQueueSubmitInfo, 1, GpaAllocator> perSubQueueInfos(m_pPlatform);
+                result = perSubQueueInfos.Reserve(submitInfo.perSubQueueInfoCount);
+                if (result == Pal::Result::Success)
                 {
-                    perSubQueueInfo.pCmdBufInfoList = &patchedCmdBufInfoList.At(0);
-                }
-                patchedSubmitInfo.pPerSubQueueInfo = &perSubQueueInfo;
+                    Pal::MultiSubmitInfo  patchedSubmitInfo = submitInfo;
+                    PerSubQueueSubmitInfo perSubQueueInfo   = {};
+                    perSubQueueInfo.cmdBufferCount          = patchedCmdBufferList.NumElements();
+                    perSubQueueInfo.ppCmdBuffers            = &patchedCmdBufferList.At(0);
+                    if (primarySubQueueInfo.pCmdBufInfoList != nullptr)
+                    {
+                        perSubQueueInfo.pCmdBufInfoList = &patchedCmdBufInfoList.At(0);
+                    }
 
-                result = pQueue->Submit(patchedSubmitInfo);
+                    perSubQueueInfos.EmplaceBack(std::move(perSubQueueInfo));
+                    // Copy the rest of the sub queue infos
+                    for (uint32 i = 1; i < submitInfo.perSubQueueInfoCount; ++i)
+                    {
+                        perSubQueueInfos.PushBack(submitInfo.pPerSubQueueInfo[i]);
+                    }
+                    patchedSubmitInfo.pPerSubQueueInfo = perSubQueueInfos.Data();
+
+                    result = pQueue->Submit(patchedSubmitInfo);
+                }
             }
 
             if (result == Pal::Result::Success)
@@ -2998,7 +3006,10 @@ Result GpaSession::RegisterSinglePipeline(
 
     if (result == Result::Success)
     {
-        const uint64 hash = pipeInfo.internalPipelineHash.unique ^ pipeInfo.internalPipelineHash.stable;
+        const uint64 hash = (pipeInfo.internalPipelineHash.unique == pipeInfo.internalPipelineHash.stable) ?
+            pipeInfo.internalPipelineHash.unique :
+            (pipeInfo.internalPipelineHash.unique ^ pipeInfo.internalPipelineHash.stable);
+
         result = m_registeredPipelines.Contains(hash) ? Result::AlreadyExists : m_registeredPipelines.Insert(hash);
     }
 
@@ -4060,6 +4071,8 @@ Result GpaSession::AcquirePerfExperiment(
                         pCounterInfo->eventId           = pCounters[i].eventId;
                         pCounterInfo->instance          = pCounters[i].instance;
                         pCounterInfo->subConfig.u32All  = pCounters[i].subConfig.u32All;
+                        pCounterInfo->counterType       = pCounters[i].flags.spm32Bit
+                                                            ? PerfCounterType::Spm32 : PerfCounterType::Spm;
                     }
 
                     result = pExperiment->AddSpmTrace(spmCreateInfo);

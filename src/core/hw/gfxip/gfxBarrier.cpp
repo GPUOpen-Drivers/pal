@@ -504,11 +504,8 @@ bool GfxBarrierMgr::OptimizeAccessMask(
     {
         const bool isBltCopySrcOnly = ((orgSrcAccessMask & CacheCoherencyBlt) == CoherCopySrc);
         // Allow clear to target transition to skip checking gfxWriteCachesDirty as graphics clear to target doesn't
-        // requires cache sync (flush/inv RB cache). However if csBltIndirectWriteMisalignedMdDirty is 1, there may
-        // be GL2 sync for misaligned metadata WA, to not make RB cache in a strange state (valid data in RB cache but
-        // GL2 flushed/invalidated), still allow checking if any outstanding gfxWriteCachesDirty flag in this case.
-        const bool optClearToTarget = IsClearToTargetTransition(*pSrcAccessMask, *pDstAccessMask) &&
-                                      (stateFlags.csBltIndirectWriteMisalignedMdDirty == 0);
+        // requires cache sync (flush/inv RB cache).
+        const bool isClearToTarget  = IsClearToTargetTransition(*pSrcAccessMask, *pDstAccessMask);
 
         *pSrcAccessMask &= ~CacheCoherencyBlt;
 
@@ -527,7 +524,7 @@ bool GfxBarrierMgr::OptimizeAccessMask(
             // Buffer RPM calls never go through graphics draw (either compute or CP DMA).
             const bool checkGfxWriteCacheDirty = stateFlags.gfxWriteCachesDirty &&
                                                  nonBufferBarrier               &&
-                                                 (optClearToTarget == false);
+                                                 (isClearToTarget == false);
 
             *pSrcAccessMask |= (checkGfxWriteCacheDirty       ? CoherColorTarget : 0) |
                                (stateFlags.csWriteCachesDirty ? CoherShader      : 0);

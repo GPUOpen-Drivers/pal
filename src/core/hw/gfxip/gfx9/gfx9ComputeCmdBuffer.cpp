@@ -56,8 +56,6 @@ ComputeCmdBuffer::ComputeCmdBuffer(
     m_device(device),
     m_cmdUtil(device.CmdUtil()),
     m_issueSqttMarkerEvent(device.Parent()->IssueSqttMarkerEvents()),
-    m_describeDispatch(device.Parent()->IssueCrashAnalysisMarkerEvents() ||
-                       device.Parent()->IssueCrashAnalysisMarkerEvents()),
     m_cmdStream(device,
                 createInfo.pCmdAllocator,
                 EngineTypeCompute,
@@ -77,6 +75,11 @@ ComputeCmdBuffer::ComputeCmdBuffer(
 {
     // Compute command buffers suppors compute ops and CP DMA.
     m_engineSupport = CmdBufferEngineSupport::Compute | CmdBufferEngineSupport::CpDma;
+
+    const PalPlatformSettings& platformSettings = device.Parent()->GetPlatform()->PlatformSettings();
+    m_describeDispatch                          = (device.Parent()->IssueSqttMarkerEvents() ||
+                                                   device.Parent()->IssueCrashAnalysisMarkerEvents() ||
+                                                   platformSettings.cmdBufferLoggerConfig.embedDrawDispatchInfo);
 
     memset(&m_validUserEntryRegPairsLookupCs[0], 0, sizeof(m_validUserEntryRegPairsLookupCs));
 
@@ -417,24 +420,6 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchOffset(
     pThis->m_cmdStream.CommitCommands(pCmdSpace);
 }
 
-static_assert(((Gfx09::COMPUTE_STATIC_THREAD_MGMT_SE0__SH0_CU_EN_MASK      ==
-                Gfx10Plus::COMPUTE_STATIC_THREAD_MGMT_SE0__SA0_CU_EN_MASK) &&
-               (Gfx09::COMPUTE_STATIC_THREAD_MGMT_SE0__SH1_CU_EN_MASK      ==
-                Gfx10Plus::COMPUTE_STATIC_THREAD_MGMT_SE0__SA1_CU_EN_MASK) &&
-               (Gfx09::COMPUTE_STATIC_THREAD_MGMT_SE1__SH0_CU_EN_MASK      ==
-                Gfx10Plus::COMPUTE_STATIC_THREAD_MGMT_SE1__SA0_CU_EN_MASK) &&
-               (Gfx09::COMPUTE_STATIC_THREAD_MGMT_SE1__SH1_CU_EN_MASK      ==
-                Gfx10Plus::COMPUTE_STATIC_THREAD_MGMT_SE1__SA1_CU_EN_MASK) &&
-               (Gfx09::COMPUTE_STATIC_THREAD_MGMT_SE2__SH0_CU_EN_MASK      ==
-                Gfx10Plus::COMPUTE_STATIC_THREAD_MGMT_SE2__SA0_CU_EN_MASK) &&
-               (Gfx09::COMPUTE_STATIC_THREAD_MGMT_SE2__SH1_CU_EN_MASK      ==
-                Gfx10Plus::COMPUTE_STATIC_THREAD_MGMT_SE2__SA1_CU_EN_MASK) &&
-               (Gfx09::COMPUTE_STATIC_THREAD_MGMT_SE3__SH0_CU_EN_MASK      ==
-                Gfx10Plus::COMPUTE_STATIC_THREAD_MGMT_SE3__SA0_CU_EN_MASK) &&
-               (Gfx09::COMPUTE_STATIC_THREAD_MGMT_SE3__SH1_CU_EN_MASK      ==
-                Gfx10Plus::COMPUTE_STATIC_THREAD_MGMT_SE3__SA1_CU_EN_MASK)),
-               "COMPUTE_STATIC_THREAD_MGMT regs have changed between GFX9 and 10!");
-
 // =====================================================================================================================
 void ComputeCmdBuffer::CmdCopyMemory(
     const IGpuMemory&       srcGpuMemory,
@@ -523,7 +508,7 @@ void ComputeCmdBuffer::CmdWriteTimestamp(
     {
         pCmdSpace += m_cmdUtil.BuildCopyData(EngineTypeCompute,
                                              0,
-                                             dst_sel__mec_copy_data__tc_l2_obsolete__GFX10PLUS,
+                                             dst_sel__mec_copy_data__tc_l2_obsolete,
                                              address,
                                              src_sel__mec_copy_data__gpu_clock_count,
                                              0,
@@ -567,7 +552,7 @@ void ComputeCmdBuffer::CmdWriteImmediate(
     {
         pCmdSpace += m_cmdUtil.BuildCopyData(EngineTypeCompute,
                                              0,
-                                             dst_sel__mec_copy_data__tc_l2_obsolete__GFX10PLUS,
+                                             dst_sel__mec_copy_data__tc_l2_obsolete,
                                              address,
                                              src_sel__mec_copy_data__immediate_data,
                                              data,
@@ -1037,6 +1022,16 @@ uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
         }
 
         pCmdSpace = SetSeqUserSgprRegs(startReg, (startReg + 1), &gpuVa, pCmdSpace);
+        startReg += 2;
+    }
+
+    if (TestAnyFlagSet(desc.kernel_code_properties, AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_DISPATCH_ID))
+    {
+        // This feature may be enabled as a side effect of indirect calls.
+        // However, the compiler team confirmed that the dispatch id itself is not used,
+        // so safe to send 0 for each dispatch.
+        constexpr uint32 DispatchId[2] = {};
+        pCmdSpace = SetSeqUserSgprRegs(startReg, (startReg + 1), &DispatchId, pCmdSpace);
         startReg += 2;
     }
 
@@ -1544,7 +1539,8 @@ void ComputeCmdBuffer::WriteEventCmd(
     uint32                stageMask,   // Bitmask of PipelineStageFlag
     uint32                data)
 {
-    uint32* pCmdSpace = m_cmdStream.ReserveCommands();
+    uint32* pCmdSpace          = m_cmdStream.ReserveCommands();
+    bool   releaseMemWaitCpDma = false;
 
     if (TestAnyFlagSet(stageMask, PipelineStageBlt | PipelineStageBottomOfPipe) && m_pm4CmdBufState.flags.cpBltActive)
     {
@@ -1552,7 +1548,14 @@ void ComputeCmdBuffer::WriteEventCmd(
         // the CmdSetEvent and CmdResetEvent functions expect that the prior blts have completed by the time the event
         // is written to memory. Given that our CP DMA blts are asynchronous to the pipeline stages the only way to
         // satisfy this requirement is to force the MEC to stall until the CP DMAs are completed.
-        pCmdSpace += m_cmdUtil.BuildWaitDmaData(pCmdSpace);
+        if (m_device.EnableReleaseMemWaitCpDma())
+        {
+            releaseMemWaitCpDma = true;
+        }
+        else
+        {
+            pCmdSpace += m_cmdUtil.BuildWaitDmaData(pCmdSpace);
+        }
         SetCpBltState(false);
     }
 
@@ -1568,10 +1571,11 @@ void ComputeCmdBuffer::WriteEventCmd(
         // EOS timestamp and waiting on an EOP timestamp are exactly equivalent on compute queues. There's no reason
         // to implement a CS_DONE path for HwPipePostCs.
         ReleaseMemGeneric releaseInfo = {};
-        releaseInfo.engineType = EngineTypeCompute;
-        releaseInfo.dstAddr    = boundMemObj.GpuVirtAddr();
-        releaseInfo.dataSel    = data_sel__mec_release_mem__send_32_bit_low;
-        releaseInfo.data       = data;
+        releaseInfo.engineType     = EngineTypeCompute;
+        releaseInfo.gfx11WaitCpDma = releaseMemWaitCpDma;
+        releaseInfo.dstAddr        = boundMemObj.GpuVirtAddr();
+        releaseInfo.dataSel        = data_sel__mec_release_mem__send_32_bit_low;
+        releaseInfo.data           = data;
 
         pCmdSpace += m_cmdUtil.BuildReleaseMemGeneric(releaseInfo, pCmdSpace);
     }
@@ -1658,6 +1662,11 @@ void ComputeCmdBuffer::CmdExecuteIndirectCmds(
     PAL_ASSERT(IsOneTimeSubmit() || IsExclusiveSubmit());
 
     const auto& gfx9Generator = static_cast<const IndirectCmdGenerator&>(generator);
+
+    if (m_describeDispatch)
+    {
+        m_device.DescribeDispatch(this, {}, Developer::DrawDispatchType::CmdGenExecuteIndirectDispatch, {}, {}, {});
+    }
 
     if (countGpuAddr == 0uLL)
     {
@@ -1873,7 +1882,7 @@ void ComputeCmdBuffer::CmdInsertTraceMarker(
     uint32              markerData)
 {
     const uint32 userDataAddr =
-        (markerType == PerfTraceMarkerType::A) ? mmSQ_THREAD_TRACE_USERDATA_2 : mmSQ_THREAD_TRACE_USERDATA_3;
+        (markerType == PerfTraceMarkerType::SqttA) ? mmSQ_THREAD_TRACE_USERDATA_2 : mmSQ_THREAD_TRACE_USERDATA_3;
 
     uint32* pCmdSpace = m_cmdStream.ReserveCommands();
     pCmdSpace = m_cmdStream.WriteSetOneConfigReg(userDataAddr, markerData, pCmdSpace);
@@ -1963,6 +1972,7 @@ void ComputeCmdBuffer::CpCopyMemory(
 // =====================================================================================================================
 uint32* ComputeCmdBuffer::WriteWaitEop(
     HwPipePoint waitPoint,
+    bool        waitCpDma,
     uint32      hwGlxSync,
     uint32      hwRbSync,
     uint32*     pCmdSpace)
@@ -1971,15 +1981,23 @@ uint32* ComputeCmdBuffer::WriteWaitEop(
 
     PAL_ASSERT(hwRbSync == SyncRbNone);
 
+    // Issue explicit waitCpDma packet if ReleaseMem doesn't support it.
+    if (waitCpDma && (m_device.Settings().gfx11EnableReleaseMemWaitCpDma == false))
+    {
+        pCmdSpace += m_cmdUtil.BuildWaitDmaData(pCmdSpace);
+        waitCpDma = false;
+    }
+
     // We prefer to do our GCR in the release_mem if we can. This function always does an EOP wait so we don't have
     // to worry about release_mem not supporting GCRs with EOS events. Any remaining sync flags must be handled in a
     // trailing acquire_mem packet.
     ReleaseMemGeneric releaseInfo = {};
-    releaseInfo.engineType = EngineTypeCompute;
-    releaseInfo.cacheSync  = m_cmdUtil.SelectReleaseMemCaches(&glxSync);
-    releaseInfo.dstAddr    = AcqRelFenceValGpuVa(AcqRelEventType::Eop);
-    releaseInfo.dataSel    = data_sel__me_release_mem__send_32_bit_low;
-    releaseInfo.data       = GetNextAcqRelFenceVal(AcqRelEventType::Eop);
+    releaseInfo.engineType      = EngineTypeCompute;
+    releaseInfo.cacheSync       = m_cmdUtil.SelectReleaseMemCaches(&glxSync);
+    releaseInfo.dstAddr         = AcqRelFenceValGpuVa(AcqRelEventType::Eop);
+    releaseInfo.dataSel         = data_sel__me_release_mem__send_32_bit_low;
+    releaseInfo.data            = GetNextAcqRelFenceVal(AcqRelEventType::Eop);
+    releaseInfo.gfx11WaitCpDma  = waitCpDma;
 
     pCmdSpace += m_cmdUtil.BuildReleaseMemGeneric(releaseInfo, pCmdSpace);
     pCmdSpace += m_cmdUtil.BuildWaitRegMem(EngineTypeCompute,

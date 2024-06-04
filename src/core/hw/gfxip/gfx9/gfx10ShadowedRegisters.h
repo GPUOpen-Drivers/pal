@@ -40,7 +40,7 @@ const RegisterRange Gfx10ShShadowRange[] =
 {
     // mmSPI_SHADER_PGM_RSRC4_PS left out as it's written via SET_SH_REG_INDEX. // 0x2C01
     {
-        (Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_PS - PERSISTENT_SPACE_START),    // 0x2C06 - 0x2C06
+        (mmSPI_SHADER_PGM_CHKSUM_PS - PERSISTENT_SPACE_START),                  // 0x2C06 - 0x2C06
         1
     },
     // mmSPI_SHADER_PGM_RSRC3_PS left out as it's written via SET_SH_REG_INDEX. // 0x2C07
@@ -49,12 +49,12 @@ const RegisterRange Gfx10ShShadowRange[] =
         (mmSPI_SHADER_USER_DATA_PS_31 - mmSPI_SHADER_PGM_LO_PS + 1),
     },
     {
-        (Gfx10Plus::mmSPI_SHADER_REQ_CTRL_PS - PERSISTENT_SPACE_START),         // 0x2C30 - 0x2C30
+        (mmSPI_SHADER_REQ_CTRL_PS - PERSISTENT_SPACE_START),                    // 0x2C30 - 0x2C30
         1,
     },
     {
-        (Gfx10Plus::mmSPI_SHADER_USER_ACCUM_PS_0 - PERSISTENT_SPACE_START),     // 0x2C32 - 0x2C35
-        (Gfx10Plus::mmSPI_SHADER_USER_ACCUM_PS_3 - Gfx10Plus::mmSPI_SHADER_USER_ACCUM_PS_0 + 1),
+        (mmSPI_SHADER_USER_ACCUM_PS_0 - PERSISTENT_SPACE_START),                // 0x2C32 - 0x2C35
+        (mmSPI_SHADER_USER_ACCUM_PS_3 - mmSPI_SHADER_USER_ACCUM_PS_0 + 1),
     },
     // mmSPI_SHADER_PGM_RSRC4_VS left out as it's written via SET_SH_REG_INDEX. // 0x2C41
     {
@@ -63,8 +63,8 @@ const RegisterRange Gfx10ShShadowRange[] =
     },
     // mmSPI_SHADER_PGM_RSRC3_VS left out as it's written via SET_SH_REG_INDEX. // 0x2C46
     {
-        (HasHwVs::mmSPI_SHADER_LATE_ALLOC_VS - PERSISTENT_SPACE_START),        // 0x2C47 - 0x2C6B
-        (HasHwVs::mmSPI_SHADER_USER_DATA_VS_31 - HasHwVs::mmSPI_SHADER_LATE_ALLOC_VS + 1),
+        (Gfx10::mmSPI_SHADER_LATE_ALLOC_VS - PERSISTENT_SPACE_START),           // 0x2C47 - 0x2C6B
+        (Gfx10::mmSPI_SHADER_USER_DATA_VS_31 - Gfx10::mmSPI_SHADER_LATE_ALLOC_VS + 1),
     },
     {
         (Gfx10::mmSPI_SHADER_REQ_CTRL_VS - PERSISTENT_SPACE_START),             // 0x2C70 - 0x2C70
@@ -75,40 +75,40 @@ const RegisterRange Gfx10ShShadowRange[] =
         (Gfx10::mmSPI_SHADER_USER_ACCUM_VS_3 - Gfx10::mmSPI_SHADER_USER_ACCUM_VS_0 + 1),
     },
     {
-        (Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_GS - PERSISTENT_SPACE_START),    // 0x2C80 - 0x2C80
+        (mmSPI_SHADER_PGM_CHKSUM_GS - PERSISTENT_SPACE_START),                  // 0x2C80 - 0x2C80
         1,
     },
     // mmSPI_SHADER_PGM_RSRC4_GS left out as it's written via SET_SH_REG_INDEX. // 0x2C81
     // mmSPI_SHADER_PGM_RSRC3_GS left out as it's written via SET_SH_REG_INDEX. // 0x2C87
     {
         (mmSPI_SHADER_PGM_LO_GS - PERSISTENT_SPACE_START),                      // 0x2C88 - 0x2CAB
-        (Gfx10Plus::mmSPI_SHADER_USER_DATA_GS_31 - mmSPI_SHADER_PGM_LO_GS + 1),
+        (mmSPI_SHADER_USER_DATA_GS_31 - mmSPI_SHADER_PGM_LO_GS + 1),
     },
     {
-        (Gfx10Plus::mmSPI_SHADER_USER_ACCUM_ESGS_0 - PERSISTENT_SPACE_START),   // 0x2CB2 - 0x2CB5
-        (Gfx10Plus::mmSPI_SHADER_USER_ACCUM_ESGS_3 - Gfx10Plus::mmSPI_SHADER_USER_ACCUM_ESGS_0 + 1),
+        (mmSPI_SHADER_USER_ACCUM_ESGS_0 - PERSISTENT_SPACE_START),              // 0x2CB2 - 0x2CB5
+        (mmSPI_SHADER_USER_ACCUM_ESGS_3 - mmSPI_SHADER_USER_ACCUM_ESGS_0 + 1),
     },
     {
-        (Gfx10Plus::mmSPI_SHADER_PGM_LO_ES - PERSISTENT_SPACE_START),           // 0x2CC8 - 0x2CC9
-        (Gfx10Plus::mmSPI_SHADER_PGM_HI_ES - Gfx10Plus::mmSPI_SHADER_PGM_LO_ES + 1),
+        (mmSPI_SHADER_PGM_LO_ES - PERSISTENT_SPACE_START),                      // 0x2CC8 - 0x2CC9
+        (mmSPI_SHADER_PGM_HI_ES - mmSPI_SHADER_PGM_LO_ES + 1),
     },
     {
-        (Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_HS - PERSISTENT_SPACE_START),    // 0x2D00 - 0x2D00
+        (mmSPI_SHADER_PGM_CHKSUM_HS - PERSISTENT_SPACE_START),                  // 0x2D00 - 0x2D00
         1,
     },
     // mmSPI_SHADER_PGM_RSRC4_HS left out as it's written via SET_SH_REG_INDEX. // 0x2D01
     // mmSPI_SHADER_PGM_RSRC3_HS left out as it's written via SET_SH_REG_INDEX. // 0x2D07
     {
         (mmSPI_SHADER_PGM_LO_HS - PERSISTENT_SPACE_START),                      // 0x2D08 - 0x2D2B
-        (Gfx10Plus::mmSPI_SHADER_USER_DATA_HS_31 - mmSPI_SHADER_PGM_LO_HS + 1),
+        (mmSPI_SHADER_USER_DATA_HS_31 - mmSPI_SHADER_PGM_LO_HS + 1),
     },
     {
-        (Gfx10Plus::mmSPI_SHADER_USER_ACCUM_LSHS_0 - PERSISTENT_SPACE_START),   // 0x2D32 - 0x2D35
-        (Gfx10Plus::mmSPI_SHADER_USER_ACCUM_LSHS_3 - Gfx10Plus::mmSPI_SHADER_USER_ACCUM_LSHS_0 + 1),
+        (mmSPI_SHADER_USER_ACCUM_LSHS_0 - PERSISTENT_SPACE_START),              // 0x2D32 - 0x2D35
+        (mmSPI_SHADER_USER_ACCUM_LSHS_3 - mmSPI_SHADER_USER_ACCUM_LSHS_0 + 1),
     },
     {
-        (Gfx10Plus::mmSPI_SHADER_PGM_LO_LS - PERSISTENT_SPACE_START),           // 0x2D48 - 0x2D49
-        (Gfx10Plus::mmSPI_SHADER_PGM_HI_LS - Gfx10Plus::mmSPI_SHADER_PGM_LO_LS + 1),
+        (mmSPI_SHADER_PGM_LO_LS - PERSISTENT_SPACE_START),                      // 0x2D48 - 0x2D49
+        (mmSPI_SHADER_PGM_HI_LS - mmSPI_SHADER_PGM_LO_LS + 1),
     },
 };
 
@@ -140,11 +140,11 @@ const RegisterRange Gfx10CsShShadowRange[] =
         1,
     },
     {
-        (Gfx10Plus::mmCOMPUTE_USER_ACCUM_0 - PERSISTENT_SPACE_START),               // 0x2E24 - 0x2E28
-        (Gfx10Plus::mmCOMPUTE_PGM_RSRC3 - Gfx10Plus::mmCOMPUTE_USER_ACCUM_0 + 1),
+        (mmCOMPUTE_USER_ACCUM_0 - PERSISTENT_SPACE_START),                      // 0x2E24 - 0x2E28
+        (mmCOMPUTE_PGM_RSRC3 - mmCOMPUTE_USER_ACCUM_0 + 1),
     },
     {
-        (Gfx10Plus::mmCOMPUTE_SHADER_CHKSUM - PERSISTENT_SPACE_START),              // 0x2E2A
+        (mmCOMPUTE_SHADER_CHKSUM - PERSISTENT_SPACE_START),                     // 0x2E2A
         1
     },
     {
@@ -152,7 +152,7 @@ const RegisterRange Gfx10CsShShadowRange[] =
         (mmCOMPUTE_USER_DATA_15 - mmCOMPUTE_USER_DATA_0 + 1),
     },
     {
-        (Gfx10Plus::mmCOMPUTE_DISPATCH_TUNNEL - PERSISTENT_SPACE_START),            // 0x2E7D
+        (mmCOMPUTE_DISPATCH_TUNNEL - PERSISTENT_SPACE_START),                   // 0x2E7D
         1,
     },
 };

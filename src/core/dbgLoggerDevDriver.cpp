@@ -109,8 +109,7 @@ void LogEventProvider::LogMessage(
     LogStringEventInfo eventInfo = {};
     eventInfo.severity = static_cast<uint32>(severity);
     eventInfo.originationType = static_cast<uint32>(source);
-    const size_t copySize = Util::Min(static_cast<uint32_t>(strlen(pClientTag)), ClientTagSize);
-    Util::Strncpy(eventInfo.pClientTag, pClientTag, copySize);
+    Util::Strncpy(eventInfo.pClientTag, pClientTag, ClientTagSize);
 
     const size_t bufferSize = sizeof(LogStringEventInfo) + dataSize;
     const Result result = m_eventData.Resize(static_cast<uint32>(bufferSize), 0);

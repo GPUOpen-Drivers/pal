@@ -142,7 +142,7 @@ void MsaaState::Init(
     m_regs.paScModeCntl0.bits.VPORT_SCISSOR_ENABLE = 1;
     m_regs.paScModeCntl0.bits.MSAA_ENABLE          = (((NumSamples() > 1) ||
                                                       (msaaState.flags.enable1xMsaaSampleLocations)) ? 1 : 0);
-    m_regs.paScModeCntl0.core.ALTERNATE_RBS_PER_TILE = 1;
+    m_regs.paScModeCntl0.bits.ALTERNATE_RBS_PER_TILE = 1;
 
     // Setup the PA_SC_AA_CONFIG and DB_EQAA registers.
     m_regs.dbEqaa.bits.STATIC_ANCHOR_ASSOCIATIONS = 1;

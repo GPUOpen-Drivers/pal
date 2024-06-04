@@ -30,6 +30,8 @@
 #include "palMutex.h"
 #include "palSysMemory.h"
 
+#include <atomic>
+
 using namespace Util;
 
 namespace Pal
@@ -39,12 +41,10 @@ namespace GpuProfiler
 
 enum CmdAllocResidencyFlags : uint32
 {
-    CmdAllocResWaitOnSubmitCommandData          = (1 << CommandDataAlloc),
-    CmdAllocResWaitOnSubmitEmbeddedData         = (1 << EmbeddedDataAlloc),
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
-    CmdAllocResWaitOnSubmitLargeEmbeddedData    = (1 << LargeEmbeddedDataAlloc),
-#endif
-    CmdAllocResWaitOnSubmitGpuScratchMem        = (1 << GpuScratchMemAlloc),
+    CmdAllocResWaitOnSubmitCommandData       = (1 << CommandDataAlloc),
+    CmdAllocResWaitOnSubmitEmbeddedData      = (1 << EmbeddedDataAlloc),
+    CmdAllocResWaitOnSubmitLargeEmbeddedData = (1 << LargeEmbeddedDataAlloc),
+    CmdAllocResWaitOnSubmitGpuScratchMem     = (1 << GpuScratchMemAlloc),
 };
 
 /// GpuProfiler error logging
@@ -122,6 +122,9 @@ public:
     Mutex* PipelinePerfDataLock() { return &m_pipelinePerfDataLock;  }
     GpuProfilerMode GetProfilerMode() const { return m_profilerMode; }
 
+    void SetEndOfRecreateSeen(bool state) { m_recreationDone = state; }
+    bool GetEndOfRecreateSeen() const { return m_recreationDone; }
+
 private:
     virtual ~Platform() { DbgLoggerFile::DestroyFileLogger<ForwardAllocator>(m_pLogger, &m_allocator); }
 
@@ -133,6 +136,8 @@ private:
     uint16          m_apiMinorVer;            // API minor version, used in RGP dumps.
     Util::Mutex     m_pipelinePerfDataLock;
     DbgLoggerFile*  m_pLogger;
+
+    std::atomic<bool> m_recreationDone;
 
     PAL_DISALLOW_DEFAULT_CTOR(Platform);
     PAL_DISALLOW_COPY_AND_ASSIGN(Platform);

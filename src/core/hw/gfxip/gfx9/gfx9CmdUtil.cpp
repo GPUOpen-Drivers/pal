@@ -41,70 +41,70 @@ namespace Gfx9
 
 static constexpr ME_EVENT_WRITE_event_index_enum VgtEventIndex[]=
 {
-    event_index__me_event_write__other,                                  // 0x0: Reserved_0x00,
-    event_index__me_event_write__sample_streamoutstats__GFX09_10,        // 0x1: SAMPLE_STREAMOUTSTATS1,
-    event_index__me_event_write__sample_streamoutstats__GFX09_10,        // 0x2: SAMPLE_STREAMOUTSTATS2,
-    event_index__me_event_write__sample_streamoutstats__GFX09_10,        // 0x3: SAMPLE_STREAMOUTSTATS3,
-    event_index__me_event_write__other,                                  // 0x4: CACHE_FLUSH_TS,
-    event_index__me_event_write__other,                                  // 0x5: CONTEXT_DONE,
-    event_index__me_event_write__other,                                  // 0x6: CACHE_FLUSH,
-    event_index__me_event_write__cs_vs_ps_partial_flush,                 // 0x7: CS_PARTIAL_FLUSH,
-    event_index__me_event_write__other,                                  // 0x8: VGT_STREAMOUT_SYNC,
-    event_index__me_event_write__other,                                  // 0x9: Reserved_0x09,
-    event_index__me_event_write__other,                                  // 0xa: VGT_STREAMOUT_RESET,
-    event_index__me_event_write__other,                                  // 0xb: END_OF_PIPE_INCR_DE,
-    event_index__me_event_write__other,                                  // 0xc: END_OF_PIPE_IB_END,
-    event_index__me_event_write__other,                                  // 0xd: RST_PIX_CNT,
-    event_index__me_event_write__other,                                  // 0xe: BREAK_BATCH,
-    event_index__me_event_write__cs_vs_ps_partial_flush,                 // 0xf: VS_PARTIAL_FLUSH,
-    event_index__me_event_write__cs_vs_ps_partial_flush,                 // 0x10: PS_PARTIAL_FLUSH,
-    event_index__me_event_write__other,                                  // 0x11: FLUSH_HS_OUTPUT,
-    event_index__me_event_write__other,                                  // 0x12: FLUSH_DFSM,
-    event_index__me_event_write__other,                                  // 0x13: RESET_TO_LOWEST_VGT,
-    event_index__me_event_write__other,                                  // 0x14: CACHE_FLUSH_AND_INV_TS_EVENT,
-    event_index__me_event_write__pixel_pipe_stat_control_or_dump,        // 0x15: ZPASS_DONE,
-    event_index__me_event_write__other,                                  // 0x16: CACHE_FLUSH_AND_INV_EVENT,
-    event_index__me_event_write__other,                                  // 0x17: PERFCOUNTER_START,
-    event_index__me_event_write__other,                                  // 0x18: PERFCOUNTER_STOP,
-    event_index__me_event_write__other,                                  // 0x19: PIPELINESTAT_START,
-    event_index__me_event_write__other,                                  // 0x1a: PIPELINESTAT_STOP,
-    event_index__me_event_write__other,                                  // 0x1b: PERFCOUNTER_SAMPLE,
-    event_index__me_event_write__other,                                  // 0x1c: FLUSH_ES_OUTPUT,
-    event_index__me_event_write__other,                                  // 0x1d: BIN_CONF_OVERRIDE_CHECK,
-    event_index__me_event_write__sample_pipelinestat,                    // 0x1e: SAMPLE_PIPELINESTAT,
-    event_index__me_event_write__other,                                  // 0x1f: SO_VGTSTREAMOUT_FLUSH,
-    event_index__me_event_write__sample_streamoutstats__GFX09_10,        // 0x20: SAMPLE_STREAMOUTSTATS,
-    event_index__me_event_write__other,                                  // 0x21: RESET_VTX_CNT,
-    event_index__me_event_write__other,                                  // 0x22: BLOCK_CONTEXT_DONE,
-    event_index__me_event_write__other,                                  // 0x23: CS_CONTEXT_DONE,
-    event_index__me_event_write__other,                                  // 0x24: VGT_FLUSH,
-    event_index__me_event_write__other,                                  // 0x25: TGID_ROLLOVER,
-    event_index__me_event_write__other,                                  // 0x26: SQ_NON_EVENT,
-    event_index__me_event_write__other,                                  // 0x27: SC_SEND_DB_VPZ,
-    event_index__me_event_write__other,                                  // 0x28: BOTTOM_OF_PIPE_TS,
-    event_index__me_event_write__other,                                  // 0x29: FLUSH_SX_TS,
-    event_index__me_event_write__other,                                  // 0x2a: DB_CACHE_FLUSH_AND_INV,
-    event_index__me_event_write__other,                                  // 0x2b: FLUSH_AND_INV_DB_DATA_TS,
-    event_index__me_event_write__other,                                  // 0x2c: FLUSH_AND_INV_DB_META,
-    event_index__me_event_write__other,                                  // 0x2d: FLUSH_AND_INV_CB_DATA_TS,
-    event_index__me_event_write__other,                                  // 0x2e: FLUSH_AND_INV_CB_META,
-    event_index__me_event_write__other,                                  // 0x2f: CS_DONE,
-    event_index__me_event_write__other,                                  // 0x30: PS_DONE,
-    event_index__me_event_write__other,                                  // 0x31: FLUSH_AND_INV_CB_PIXEL_DATA,
-    event_index__me_event_write__other,                                  // 0x32: SX_CB_RAT_ACK_REQUEST,
-    event_index__me_event_write__other,                                  // 0x33: THREAD_TRACE_START,
-    event_index__me_event_write__other,                                  // 0x34: THREAD_TRACE_STOP,
-    event_index__me_event_write__other,                                  // 0x35: THREAD_TRACE_MARKER,
-    event_index__me_event_write__other,                                  // 0x36: THREAD_TRACE_FLUSH/DRAW,
-    event_index__me_event_write__other,                                  // 0x37: THREAD_TRACE_FINISH,
-    event_index__me_event_write__pixel_pipe_stat_control_or_dump,        // 0x38: PIXEL_PIPE_STAT_CONTROL,
-    event_index__me_event_write__pixel_pipe_stat_control_or_dump,        // 0x39: PIXEL_PIPE_STAT_DUMP,
-    event_index__me_event_write__other,                                  // 0x3a: PIXEL_PIPE_STAT_RESET,
-    event_index__me_event_write__other,                                  // 0x3b: CONTEXT_SUSPEND,
-    event_index__me_event_write__other,                                  // 0x3c: OFFCHIP_HS_DEALLOC,
-    event_index__me_event_write__other,                                  // 0x3d: ENABLE_NGG_PIPELINE,
-    event_index__me_event_write__other,                                  // 0x3e: ENABLE_LEGACY_PIPELINE,
-    event_index__me_event_write__other,                                  // 0x3f: DRAW_DONE,
+    event_index__me_event_write__other,                           // 0x0: Reserved_0x00,
+    event_index__me_event_write__sample_streamoutstats__GFX10,    // 0x1: SAMPLE_STREAMOUTSTATS1,
+    event_index__me_event_write__sample_streamoutstats__GFX10,    // 0x2: SAMPLE_STREAMOUTSTATS2,
+    event_index__me_event_write__sample_streamoutstats__GFX10,    // 0x3: SAMPLE_STREAMOUTSTATS3,
+    event_index__me_event_write__other,                           // 0x4: CACHE_FLUSH_TS,
+    event_index__me_event_write__other,                           // 0x5: CONTEXT_DONE,
+    event_index__me_event_write__other,                           // 0x6: CACHE_FLUSH,
+    event_index__me_event_write__cs_vs_ps_partial_flush,          // 0x7: CS_PARTIAL_FLUSH,
+    event_index__me_event_write__other,                           // 0x8: VGT_STREAMOUT_SYNC,
+    event_index__me_event_write__other,                           // 0x9: Reserved_0x09,
+    event_index__me_event_write__other,                           // 0xa: VGT_STREAMOUT_RESET,
+    event_index__me_event_write__other,                           // 0xb: END_OF_PIPE_INCR_DE,
+    event_index__me_event_write__other,                           // 0xc: END_OF_PIPE_IB_END,
+    event_index__me_event_write__other,                           // 0xd: RST_PIX_CNT,
+    event_index__me_event_write__other,                           // 0xe: BREAK_BATCH,
+    event_index__me_event_write__cs_vs_ps_partial_flush,          // 0xf: VS_PARTIAL_FLUSH,
+    event_index__me_event_write__cs_vs_ps_partial_flush,          // 0x10: PS_PARTIAL_FLUSH,
+    event_index__me_event_write__other,                           // 0x11: FLUSH_HS_OUTPUT,
+    event_index__me_event_write__other,                           // 0x12: FLUSH_DFSM,
+    event_index__me_event_write__other,                           // 0x13: RESET_TO_LOWEST_VGT,
+    event_index__me_event_write__other,                           // 0x14: CACHE_FLUSH_AND_INV_TS_EVENT,
+    event_index__me_event_write__pixel_pipe_stat_control_or_dump, // 0x15: ZPASS_DONE,
+    event_index__me_event_write__other,                           // 0x16: CACHE_FLUSH_AND_INV_EVENT,
+    event_index__me_event_write__other,                           // 0x17: PERFCOUNTER_START,
+    event_index__me_event_write__other,                           // 0x18: PERFCOUNTER_STOP,
+    event_index__me_event_write__other,                           // 0x19: PIPELINESTAT_START,
+    event_index__me_event_write__other,                           // 0x1a: PIPELINESTAT_STOP,
+    event_index__me_event_write__other,                           // 0x1b: PERFCOUNTER_SAMPLE,
+    event_index__me_event_write__other,                           // 0x1c: FLUSH_ES_OUTPUT,
+    event_index__me_event_write__other,                           // 0x1d: BIN_CONF_OVERRIDE_CHECK,
+    event_index__me_event_write__sample_pipelinestat,             // 0x1e: SAMPLE_PIPELINESTAT,
+    event_index__me_event_write__other,                           // 0x1f: SO_VGTSTREAMOUT_FLUSH,
+    event_index__me_event_write__sample_streamoutstats__GFX10,    // 0x20: SAMPLE_STREAMOUTSTATS,
+    event_index__me_event_write__other,                           // 0x21: RESET_VTX_CNT,
+    event_index__me_event_write__other,                           // 0x22: BLOCK_CONTEXT_DONE,
+    event_index__me_event_write__other,                           // 0x23: CS_CONTEXT_DONE,
+    event_index__me_event_write__other,                           // 0x24: VGT_FLUSH,
+    event_index__me_event_write__other,                           // 0x25: TGID_ROLLOVER,
+    event_index__me_event_write__other,                           // 0x26: SQ_NON_EVENT,
+    event_index__me_event_write__other,                           // 0x27: SC_SEND_DB_VPZ,
+    event_index__me_event_write__other,                           // 0x28: BOTTOM_OF_PIPE_TS,
+    event_index__me_event_write__other,                           // 0x29: FLUSH_SX_TS,
+    event_index__me_event_write__other,                           // 0x2a: DB_CACHE_FLUSH_AND_INV,
+    event_index__me_event_write__other,                           // 0x2b: FLUSH_AND_INV_DB_DATA_TS,
+    event_index__me_event_write__other,                           // 0x2c: FLUSH_AND_INV_DB_META,
+    event_index__me_event_write__other,                           // 0x2d: FLUSH_AND_INV_CB_DATA_TS,
+    event_index__me_event_write__other,                           // 0x2e: FLUSH_AND_INV_CB_META,
+    event_index__me_event_write__other,                           // 0x2f: CS_DONE,
+    event_index__me_event_write__other,                           // 0x30: PS_DONE,
+    event_index__me_event_write__other,                           // 0x31: FLUSH_AND_INV_CB_PIXEL_DATA,
+    event_index__me_event_write__other,                           // 0x32: SX_CB_RAT_ACK_REQUEST,
+    event_index__me_event_write__other,                           // 0x33: THREAD_TRACE_START,
+    event_index__me_event_write__other,                           // 0x34: THREAD_TRACE_STOP,
+    event_index__me_event_write__other,                           // 0x35: THREAD_TRACE_MARKER,
+    event_index__me_event_write__other,                           // 0x36: THREAD_TRACE_FLUSH/DRAW,
+    event_index__me_event_write__other,                           // 0x37: THREAD_TRACE_FINISH,
+    event_index__me_event_write__pixel_pipe_stat_control_or_dump, // 0x38: PIXEL_PIPE_STAT_CONTROL,
+    event_index__me_event_write__pixel_pipe_stat_control_or_dump, // 0x39: PIXEL_PIPE_STAT_DUMP,
+    event_index__me_event_write__other,                           // 0x3a: PIXEL_PIPE_STAT_RESET,
+    event_index__me_event_write__other,                           // 0x3b: CONTEXT_SUSPEND,
+    event_index__me_event_write__other,                           // 0x3c: OFFCHIP_HS_DEALLOC,
+    event_index__me_event_write__other,                           // 0x3d: ENABLE_NGG_PIPELINE,
+    event_index__me_event_write__other,                           // 0x3e: ENABLE_LEGACY_PIPELINE,
+    event_index__me_event_write__other,                           // 0x3f: DRAW_DONE,
 };
 
 static constexpr bool VgtEventHasTs[]=
@@ -352,11 +352,11 @@ CmdUtil::CmdUtil(
     {
         if (IsGfx101(parent))
         {
-            m_registerInfo.mmDbDfsmControl          = Gfx10Core::mmDB_DFSM_CONTROL;
+            m_registerInfo.mmDbDfsmControl          = Gfx10::mmDB_DFSM_CONTROL;
         }
         else if (IsGfx103(parent))
         {
-            m_registerInfo.mmDbDfsmControl          = Gfx10Core::mmDB_DFSM_CONTROL;
+            m_registerInfo.mmDbDfsmControl          = Gfx10::mmDB_DFSM_CONTROL;
         }
     }
 }
@@ -456,7 +456,7 @@ uint32 CmdUtil::ChainSizeInDwords(
 bool CmdUtil::IsContextReg(
     uint32 regAddr)
 {
-    const bool isContextReg = ((regAddr >= CONTEXT_SPACE_START) && (regAddr <= Gfx09_10::CONTEXT_SPACE_END));
+    const bool isContextReg = ((regAddr >= CONTEXT_SPACE_START) && (regAddr <= Gfx10::CONTEXT_SPACE_END));
 
     // Assert if we need to extend our internal range of context registers we actually set.
     PAL_DEBUG_BUILD_ONLY_ASSERT((isContextReg == false) || ((regAddr - CONTEXT_SPACE_START) < CntxRegUsedRangeSize));
@@ -571,7 +571,7 @@ static bool UseRangeBasedGcr(
     return ((base != 0) && (size != 0) && (size <= CmdUtil::Gfx10AcquireMemGl1Gl2RangedCheckMaxSurfaceSizeBytes));
 }
 
-static_assert(PM4_MEC_ACQUIRE_MEM_SIZEDW__GFX10PLUS == PM4_ME_ACQUIRE_MEM_SIZEDW__GFX10PLUS,
+static_assert(PM4_MEC_ACQUIRE_MEM_SIZEDW__CORE == PM4_ME_ACQUIRE_MEM_SIZEDW__CORE,
               "GFX10: ACQUIRE_MEM packet size is different between ME compute and ME graphics!");
 
 // =====================================================================================================================
@@ -594,7 +594,7 @@ size_t CmdUtil::BuildAcquireMemInternal(
     // Gfx11 removed support for flushing and invalidating RB caches in an acquire_mem.
     PAL_ASSERT((IsGfx11(m_chipProps.gfxLevel) == false) || ((cbDataWbInv == false) && (dbWbInv == false)));
 
-    constexpr uint32   PacketSize = PM4_ME_ACQUIRE_MEM_SIZEDW__GFX10PLUS;
+    constexpr uint32   PacketSize = PM4_ME_ACQUIRE_MEM_SIZEDW__CORE;
     PM4_ME_ACQUIRE_MEM packet     = {};
 
     packet.ordinal1.header = Type3Header(IT_ACQUIRE_MEM, PacketSize);
@@ -641,7 +641,7 @@ size_t CmdUtil::BuildAcquireMemInternal(
     }
     else
     {
-        packet.ordinal4.bitfieldsA.gfx09_10.coher_size_hi = Get256BAddrHi(coherSize);
+        packet.ordinal4.bitfieldsA.gfx10.coher_size_hi = Get256BAddrHi(coherSize);
     }
 
     packet.ordinal5.coher_base_lo            = Get256BAddrLo(coherBase);
@@ -672,7 +672,7 @@ size_t CmdUtil::BuildAcquireMemInternal(
             cntl.bits.gl2Range = 2;
         }
 
-        packet.ordinal8.bitfields.gfx10Plus.gcr_cntl = cntl.u32All;
+        packet.ordinal8.bitfields.gcr_cntl = cntl.u32All;
     }
 
     memcpy(pBuffer, &packet, PacketSize * sizeof(uint32));
@@ -693,27 +693,27 @@ size_t CmdUtil::BuildAcquireMemGfxPws(
     ME_ACQUIRE_MEM_pws_stage_sel_enum stageSel = info.stageSel;
 
     if (m_device.Settings().waForcePrePixShaderWaitPoint &&
-        (stageSel == pws_stage_sel__me_acquire_mem__pre_color__HASPWS))
+        (stageSel == pws_stage_sel__me_acquire_mem__pre_color__GFX11))
     {
-        stageSel = pws_stage_sel__me_acquire_mem__pre_pix_shader__HASPWS;
+        stageSel = pws_stage_sel__me_acquire_mem__pre_pix_shader__GFX11;
     }
 
     // We need to wait at one of the CP stages if we want it to do a GCR after waiting. Rather than force the caller
     // to get this right we just silently handle it. It can't cause any correctness issues, it's just a perf hit.
     if ((info.cacheSync != 0) &&
-        (stageSel != pws_stage_sel__me_acquire_mem__cp_me__HASPWS) &&
-        (stageSel != pws_stage_sel__me_acquire_mem__cp_pfp__HASPWS))
+        (stageSel != pws_stage_sel__me_acquire_mem__cp_me__GFX11) &&
+        (stageSel != pws_stage_sel__me_acquire_mem__cp_pfp__GFX11))
     {
-        stageSel = pws_stage_sel__me_acquire_mem__cp_me__HASPWS;
+        stageSel = pws_stage_sel__me_acquire_mem__cp_me__GFX11;
     }
 
-    constexpr uint32   PacketSize = PM4_ME_ACQUIRE_MEM_SIZEDW__GFX10PLUS;
+    constexpr uint32   PacketSize = PM4_ME_ACQUIRE_MEM_SIZEDW__CORE;
     PM4_ME_ACQUIRE_MEM packet     = {};
 
     packet.ordinal1.header                           = Type3Header(IT_ACQUIRE_MEM, PacketSize);
     packet.ordinal2.bitfieldsB.gfx11.pws_stage_sel   = stageSel;
     packet.ordinal2.bitfieldsB.gfx11.pws_counter_sel = info.counterSel;
-    packet.ordinal2.bitfieldsB.gfx11.pws_ena2        = pws_ena2__me_acquire_mem__pixel_wait_sync_enable__HASPWS;
+    packet.ordinal2.bitfieldsB.gfx11.pws_ena2        = pws_ena2__me_acquire_mem__pixel_wait_sync_enable__GFX11;
     packet.ordinal2.bitfieldsB.gfx11.pws_count       = info.syncCount;
 
     // The GCR base and size are in units of 128 bytes. Rather than require the caller to align them to 128 bytes we
@@ -730,7 +730,7 @@ size_t CmdUtil::BuildAcquireMemGfxPws(
     packet.ordinal4.bitfieldsB.gfx11.gcr_size_hi = Get128BAddrHi(gcrSize);
     packet.ordinal5.gcr_base_lo                  = Get128BAddrLo(gcrBase);
     packet.ordinal6.bitfieldsB.gfx11.gcr_base_hi = Get128BAddrHi(gcrBase);
-    packet.ordinal7.bitfieldsB.gfx11.pws_ena     = pws_ena__me_acquire_mem__pixel_wait_sync_enable__HASPWS;
+    packet.ordinal7.bitfieldsB.gfx11.pws_ena     = pws_ena__me_acquire_mem__pixel_wait_sync_enable__GFX11;
 
     if (info.cacheSync != 0)
     {
@@ -756,7 +756,7 @@ size_t CmdUtil::BuildAcquireMemGfxPws(
             cntl.bits.gl2Range = 2;
         }
 
-        packet.ordinal8.bitfields.gfx10Plus.gcr_cntl = cntl.u32All;
+        packet.ordinal8.bitfields.gcr_cntl = cntl.u32All;
     }
 
     memcpy(pBuffer, &packet, PacketSize * sizeof(uint32));
@@ -797,10 +797,10 @@ size_t CmdUtil::BuildAtomicMem(
                     static_cast<uint32>(cache_policy__mec_atomic_mem__stream))),
                   "Atomic Mem cache policy enum is different between ME and MEC!");
 
-    static_assert(((static_cast<uint32>(cache_policy__me_atomic_mem__noa__GFX10PLUS)    ==
-                    static_cast<uint32>(cache_policy__mec_atomic_mem__noa__GFX10PLUS))  &&
-                   (static_cast<uint32>(cache_policy__me_atomic_mem__bypass__GFX10PLUS) ==
-                    static_cast<uint32>(cache_policy__mec_atomic_mem__bypass__GFX10PLUS))),
+    static_assert(((static_cast<uint32>(cache_policy__me_atomic_mem__noa)    ==
+                    static_cast<uint32>(cache_policy__mec_atomic_mem__noa))  &&
+                   (static_cast<uint32>(cache_policy__me_atomic_mem__bypass) ==
+                    static_cast<uint32>(cache_policy__mec_atomic_mem__bypass))),
                   "Atomic Mem cache policy enum is different between ME and MEC!");
 
     // The destination address must be aligned to the size of the operands.
@@ -829,14 +829,14 @@ size_t CmdUtil::BuildClearState(
     PFP_CLEAR_STATE_cmd_enum command,
     void*                    pBuffer) // [out] Build the PM4 packet in this buffer.
 {
-    static_assert(PM4_PFP_CLEAR_STATE_SIZEDW__HASCLEARSTATE == PM4_ME_CLEAR_STATE_SIZEDW__HASCLEARSTATE,
+    static_assert(PM4_PFP_CLEAR_STATE_SIZEDW__CORE == PM4_ME_CLEAR_STATE_SIZEDW__CORE,
                   "Clear state packets don't match between PFP and ME!");
 
-    constexpr uint32 PacketSize = PM4_PFP_CLEAR_STATE_SIZEDW__HASCLEARSTATE;
+    constexpr uint32 PacketSize = PM4_PFP_CLEAR_STATE_SIZEDW__CORE;
     PM4_PFP_CLEAR_STATE packet = {};
 
-    packet.ordinal1.header.u32All = (Type3Header(IT_CLEAR_STATE__HASCLEARSTATE, PacketSize)).u32All;
-    packet.ordinal2.bitfields.hasClearState.cmd = command;
+    packet.ordinal1.header.u32All = (Type3Header(IT_CLEAR_STATE, PacketSize)).u32All;
+    packet.ordinal2.bitfields.cmd = command;
 
     static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
     memcpy(pBuffer, &packet, sizeof(packet));
@@ -966,23 +966,23 @@ size_t CmdUtil::BuildCopyData(
     static_assert(PM4_ME_COPY_DATA_SIZEDW__CORE == PM4_MEC_COPY_DATA_SIZEDW__CORE,
                   "CopyData packet size is different between ME and MEC!");
 
-    static_assert(((static_cast<uint32>(src_sel__mec_copy_data__mem_mapped_register)           ==
-                    static_cast<uint32>(src_sel__me_copy_data__mem_mapped_register))           &&
-                   (static_cast<uint32>(src_sel__mec_copy_data__tc_l2)                         ==
-                    static_cast<uint32>(src_sel__me_copy_data__tc_l2))                         &&
-                   (static_cast<uint32>(src_sel__mec_copy_data__gds__CORE)                     ==
-                    static_cast<uint32>(src_sel__me_copy_data__gds__CORE))                     &&
-                   (static_cast<uint32>(src_sel__mec_copy_data__perfcounters)                  ==
-                    static_cast<uint32>(src_sel__me_copy_data__perfcounters))                  &&
-                   (static_cast<uint32>(src_sel__mec_copy_data__immediate_data)                ==
-                    static_cast<uint32>(src_sel__me_copy_data__immediate_data))                &&
-                   (static_cast<uint32>(src_sel__mec_copy_data__atomic_return_data)            ==
-                    static_cast<uint32>(src_sel__me_copy_data__atomic_return_data))            &&
-                   (static_cast<uint32>(src_sel__mec_copy_data__gds_atomic_return_data0__CORE) ==
-                    static_cast<uint32>(src_sel__me_copy_data__gds_atomic_return_data0__CORE)) &&
-                   (static_cast<uint32>(src_sel__mec_copy_data__gds_atomic_return_data1__CORE) ==
-                    static_cast<uint32>(src_sel__me_copy_data__gds_atomic_return_data1__CORE)) &&
-                   (static_cast<uint32>(src_sel__mec_copy_data__gpu_clock_count)               ==
+    static_assert(((static_cast<uint32>(src_sel__mec_copy_data__mem_mapped_register)     ==
+                    static_cast<uint32>(src_sel__me_copy_data__mem_mapped_register))     &&
+                   (static_cast<uint32>(src_sel__mec_copy_data__tc_l2)                   ==
+                    static_cast<uint32>(src_sel__me_copy_data__tc_l2))                   &&
+                   (static_cast<uint32>(src_sel__mec_copy_data__gds)                     ==
+                    static_cast<uint32>(src_sel__me_copy_data__gds))                     &&
+                   (static_cast<uint32>(src_sel__mec_copy_data__perfcounters)            ==
+                    static_cast<uint32>(src_sel__me_copy_data__perfcounters))            &&
+                   (static_cast<uint32>(src_sel__mec_copy_data__immediate_data)          ==
+                    static_cast<uint32>(src_sel__me_copy_data__immediate_data))          &&
+                   (static_cast<uint32>(src_sel__mec_copy_data__atomic_return_data)      ==
+                    static_cast<uint32>(src_sel__me_copy_data__atomic_return_data))      &&
+                   (static_cast<uint32>(src_sel__mec_copy_data__gds_atomic_return_data0) ==
+                    static_cast<uint32>(src_sel__me_copy_data__gds_atomic_return_data0)) &&
+                   (static_cast<uint32>(src_sel__mec_copy_data__gds_atomic_return_data1) ==
+                    static_cast<uint32>(src_sel__me_copy_data__gds_atomic_return_data1)) &&
+                   (static_cast<uint32>(src_sel__mec_copy_data__gpu_clock_count)         ==
                     static_cast<uint32>(src_sel__me_copy_data__gpu_clock_count))),
                   "CopyData srcSel enum is different between ME and MEC!");
 
@@ -990,8 +990,8 @@ size_t CmdUtil::BuildCopyData(
                     static_cast<uint32>(dst_sel__me_copy_data__mem_mapped_register)) &&
                    (static_cast<uint32>(dst_sel__mec_copy_data__tc_l2)               ==
                     static_cast<uint32>(dst_sel__me_copy_data__tc_l2))               &&
-                   (static_cast<uint32>(dst_sel__mec_copy_data__gds__CORE)           ==
-                    static_cast<uint32>(dst_sel__me_copy_data__gds__CORE))           &&
+                   (static_cast<uint32>(dst_sel__mec_copy_data__gds)                 ==
+                    static_cast<uint32>(dst_sel__me_copy_data__gds))                 &&
                    (static_cast<uint32>(dst_sel__mec_copy_data__perfcounters)        ==
                     static_cast<uint32>(dst_sel__me_copy_data__perfcounters))),
                    "CopyData dstSel enum is different between ME and MEC!");
@@ -1076,7 +1076,7 @@ size_t CmdUtil::BuildCopyData(
         packetGfx.ordinal4.src_imm_data = HighPart(srcAddr);
         break;
 
-    case src_sel__me_copy_data__tc_l2_obsolete__GFX10PLUS:
+    case src_sel__me_copy_data__tc_l2_obsolete:
     case src_sel__me_copy_data__tc_l2:
         packetGfx.ordinal3.u32All            = LowPart(srcAddr);
         packetGfx.ordinal4.src_memtc_addr_hi = HighPart(srcAddr);
@@ -1117,7 +1117,7 @@ size_t CmdUtil::BuildCopyData(
         PAL_ASSERT(gfxSupported && (engineSel == engine_sel__me_copy_data__micro_engine));
         // break intentionally left out
 
-    case dst_sel__me_copy_data__tc_l2_obsolete__GFX10PLUS:
+    case dst_sel__me_copy_data__tc_l2_obsolete:
     case dst_sel__me_copy_data__tc_l2:
         packetGfx.ordinal5.u32All      = LowPart(dstAddr);
         packetGfx.ordinal6.dst_addr_hi = HighPart(dstAddr);
@@ -1131,10 +1131,10 @@ size_t CmdUtil::BuildCopyData(
                      (gfxSupported && (packetGfx.ordinal5.bitfieldsB.reserved2 == 0)))));
         break;
 
-    case dst_sel__me_copy_data__gds__CORE:
+    case dst_sel__me_copy_data__gds:
         packetGfx.ordinal5.u32All = LowPart(dstAddr);
-        PAL_ASSERT((isCompute    && (pPacketCompute->ordinal5.bitfieldsD.core.reserved4 == 0)) ||
-                   (gfxSupported && (packetGfx.ordinal5.bitfieldsD.core.reserved4 == 0)));
+        PAL_ASSERT((isCompute    && (pPacketCompute->ordinal5.bitfieldsD.reserved4 == 0)) ||
+                   (gfxSupported && (packetGfx.ordinal5.bitfieldsD.reserved4 == 0)));
         break;
 
     default:
@@ -1158,17 +1158,17 @@ size_t CmdUtil::BuildPerfmonControl(
     uint32     eventUnitMask, // If enabling, this is event specific configuration data.
     void*      pBuffer)       // [out] Build the PM4 packet in this buffer.
 {
-    constexpr uint32       PacketSize = PM4_ME_PERFMON_CONTROL_SIZEDW__GFX103COREPLUS;
+    constexpr uint32       PacketSize = PM4_ME_PERFMON_CONTROL_SIZEDW__GFX103PLUSEXCLUSIVE;
     PM4_ME_PERFMON_CONTROL packetGfx;
 
-    packetGfx.ordinal1.header        = Type3Header(IT_PERFMON_CONTROL__GFX103COREPLUS, PacketSize);
+    packetGfx.ordinal1.header        = Type3Header(IT_PERFMON_CONTROL__GFX103PLUSEXCLUSIVE, PacketSize);
 
-    packetGfx.ordinal2.u32All                                 = 0;
-    packetGfx.ordinal2.bitfields.gfx103CorePlus.pmc_id        = perfMonCtlId;
-    packetGfx.ordinal2.bitfields.gfx103CorePlus.pmc_en        = static_cast<ME_PERFMON_CONTROL_pmc_en_enum>(enable);
-    packetGfx.ordinal2.bitfields.gfx103CorePlus.pmc_unit_mask = eventUnitMask;
-    packetGfx.ordinal3.u32All                                 = 0;
-    packetGfx.ordinal3.bitfields.gfx103CorePlus.pmc_event     = eventSelect;
+    packetGfx.ordinal2.u32All                                      = 0;
+    packetGfx.ordinal2.bitfields.gfx103PlusExclusive.pmc_id        = perfMonCtlId;
+    packetGfx.ordinal2.bitfields.gfx103PlusExclusive.pmc_en        = static_cast<ME_PERFMON_CONTROL_pmc_en_enum>(enable);
+    packetGfx.ordinal2.bitfields.gfx103PlusExclusive.pmc_unit_mask = eventUnitMask;
+    packetGfx.ordinal3.u32All                                      = 0;
+    packetGfx.ordinal3.bitfields.gfx103PlusExclusive.pmc_event     = eventSelect;
 
     memcpy(pBuffer, &packetGfx, PacketSize * sizeof(uint32));
     return PacketSize;
@@ -1191,8 +1191,8 @@ size_t CmdUtil::BuildDispatchDirect(
     dispatchInitiator.bits.COMPUTE_SHADER_EN     = 1;
     dispatchInitiator.bits.FORCE_START_AT_000    = forceStartAt000;
     dispatchInitiator.bits.USE_THREAD_DIMENSIONS = dimInThreads;
-    dispatchInitiator.gfx10Plus.CS_W32_EN        = isWave32;
-    dispatchInitiator.gfx10Plus.TUNNEL_ENABLE    = useTunneling;
+    dispatchInitiator.bits.CS_W32_EN             = isWave32;
+    dispatchInitiator.bits.TUNNEL_ENABLE         = useTunneling;
 
     if (disablePartialPreempt)
     {
@@ -1258,10 +1258,10 @@ size_t CmdUtil::BuildDispatchIndirectGfx(
     PAL_ASSERT(HighPart(byteOffset) == 0);
 
     regCOMPUTE_DISPATCH_INITIATOR  dispatchInitiator;
-    dispatchInitiator.u32All                   = 0;
-    dispatchInitiator.bits.COMPUTE_SHADER_EN   = 1;
-    dispatchInitiator.bits.FORCE_START_AT_000  = 1;
-    dispatchInitiator.gfx10Plus.CS_W32_EN      = isWave32;
+    dispatchInitiator.u32All                  = 0;
+    dispatchInitiator.bits.COMPUTE_SHADER_EN  = 1;
+    dispatchInitiator.bits.FORCE_START_AT_000 = 1;
+    dispatchInitiator.bits.CS_W32_EN          = isWave32;
 
     constexpr uint32 PacketSize = PM4_ME_DISPATCH_INDIRECT_SIZEDW__CORE;
     auto*const       pPacket    = static_cast<PM4_ME_DISPATCH_INDIRECT*>(pBuffer);
@@ -1293,41 +1293,41 @@ size_t CmdUtil::BuildExecuteIndirect(
 
     packet.ordinal1.header.u32All =
         (Type3Header(IT_EXECUTE_INDIRECT__EXECINDIRECT, PacketSize, resetPktFilter, shaderType, predicate)).u32All;
-    packet.ordinal2.bitfields.core.cmd_base_lo           = LowPart(packetInfo.commandBufferAddr) >> 2;
-    packet.ordinal3.cmd_base_hi                          = HighPart(packetInfo.commandBufferAddr);
-    packet.ordinal4.bitfields.core.count_indirect_enable = (packetInfo.countBufferAddr != 0);
-    packet.ordinal4.bitfields.core.ib_size               = packetInfo.commandBufferSizeBytes/sizeof(uint32);
-    packet.ordinal5.max_count                            = packetInfo.maxCount;
-    packet.ordinal6.bitfields.core.count_addr_lo         = LowPart(packetInfo.countBufferAddr) >> 2;
-    packet.ordinal7.count_addr_hi                        = HighPart(packetInfo.countBufferAddr);
-    packet.ordinal8.stride                               = packetInfo.argumentBufferStrideBytes;
-    packet.ordinal9.data_addr_lo                         = LowPart(packetInfo.argumentBufferAddr);
-    packet.ordinal10.bitfields.core.data_addr_hi         = HighPart(packetInfo.argumentBufferAddr);
-    packet.ordinal10.bitfields.core.spill_table_stride   = packetInfo.spillTableStrideBytes;
-    packet.ordinal11.spill_table_addr_lo                 = LowPart(packetInfo.spillTableAddr);
-    packet.ordinal12.bitfields.core.spill_table_addr_hi  = HighPart(packetInfo.spillTableAddr);
+    packet.ordinal2.bitfields.cmd_base_lo           = LowPart(packetInfo.commandBufferAddr) >> 2;
+    packet.ordinal3.cmd_base_hi                     = HighPart(packetInfo.commandBufferAddr);
+    packet.ordinal4.bitfields.count_indirect_enable = (packetInfo.countBufferAddr != 0);
+    packet.ordinal4.bitfields.ib_size               = packetInfo.commandBufferSizeBytes/sizeof(uint32);
+    packet.ordinal5.max_count                       = packetInfo.maxCount;
+    packet.ordinal6.bitfields.count_addr_lo         = LowPart(packetInfo.countBufferAddr) >> 2;
+    packet.ordinal7.count_addr_hi                   = HighPart(packetInfo.countBufferAddr);
+    packet.ordinal8.stride                          = packetInfo.argumentBufferStrideBytes;
+    packet.ordinal9.data_addr_lo                    = LowPart(packetInfo.argumentBufferAddr);
+    packet.ordinal10.bitfields.data_addr_hi         = HighPart(packetInfo.argumentBufferAddr);
+    packet.ordinal10.bitfields.spill_table_stride   = packetInfo.spillTableStrideBytes;
+    packet.ordinal11.spill_table_addr_lo            = LowPart(packetInfo.spillTableAddr);
+    packet.ordinal12.bitfields.spill_table_addr_hi  = HighPart(packetInfo.spillTableAddr);
     if (packetInfo.spillTableAddr != 0)
     {
         if (isGfx)
         {
-            packet.ordinal12.bitfields.core.spill_table_reg_offset0 =
+            packet.ordinal12.bitfields.spill_table_reg_offset0 =
                 ShRegOffset(pGraphicsSignature->stage[0].spillTableRegAddr);
-            packet.ordinal13.bitfields.core.spill_table_reg_offset1 =
+            packet.ordinal13.bitfields.spill_table_reg_offset1 =
                 ShRegOffset(pGraphicsSignature->stage[1].spillTableRegAddr);
-            packet.ordinal13.bitfields.core.spill_table_reg_offset2 =
+            packet.ordinal13.bitfields.spill_table_reg_offset2 =
                 ShRegOffset(pGraphicsSignature->stage[2].spillTableRegAddr);
-            packet.ordinal14.bitfields.core.spill_table_reg_offset3 =
+            packet.ordinal14.bitfields.spill_table_reg_offset3 =
                 ShRegOffset(pGraphicsSignature->stage[3].spillTableRegAddr);
         }
         else
         {
-            packet.ordinal12.bitfields.core.spill_table_reg_offset0 =
+            packet.ordinal12.bitfields.spill_table_reg_offset0 =
                 ShRegOffset(pComputeSignature->stage.spillTableRegAddr);
         }
-        packet.ordinal14.bitfields.core.spill_table_instance_count = packetInfo.spillTableInstanceCnt;
+        packet.ordinal14.bitfields.spill_table_instance_count = packetInfo.spillTableInstanceCnt;
     }
-    packet.ordinal15.bitfields.core.vb_table_reg_offset = ShRegOffset(packetInfo.vbTableRegOffset);
-    packet.ordinal15.bitfields.core.vb_table_size       = packetInfo.vbTableSizeDwords * sizeof(uint32);
+    packet.ordinal15.bitfields.vb_table_reg_offset = ShRegOffset(packetInfo.vbTableRegOffset);
+    packet.ordinal15.bitfields.vb_table_size       = packetInfo.vbTableSizeDwords * sizeof(uint32);
 
     memcpy(pBuffer, &packet, PacketSize * sizeof(uint32));
     return PacketSize;
@@ -1351,7 +1351,7 @@ size_t CmdUtil::BuildExecuteIndirectV2(
 
     PM4_PFP_EXECUTE_INDIRECT_V2 packet = {};
 
-    constexpr uint32 PacketDwSize = PM4_PFP_EXECUTE_INDIRECT_V2_SIZEDW__GFX103COREPLUS;
+    constexpr uint32 PacketDwSize = PM4_PFP_EXECUTE_INDIRECT_V2_SIZEDW__GFX103PLUSEXCLUSIVE;
     constexpr uint32 EightBitMask = 0xff;
     constexpr uint32 TenBitMask   = 0x3ff;
 
@@ -1359,16 +1359,16 @@ size_t CmdUtil::BuildExecuteIndirectV2(
 
     switch (pMetaData->opType)
     {
-    case operation__pfp_execute_indirect_v2__draw__GFX103COREPLUS          :
+    case operation__pfp_execute_indirect_v2__draw__GFX103PLUSEXCLUSIVE:
         opDwSize = (sizeof(EIV2Draw) / sizeof(uint32));
         break;
-    case operation__pfp_execute_indirect_v2__drawindex__GFX103COREPLUS     :
+    case operation__pfp_execute_indirect_v2__drawindex__GFX103PLUSEXCLUSIVE:
         opDwSize = (sizeof(EIV2DrawIndexed) / sizeof(uint32));
         break;
-    case operation__pfp_execute_indirect_v2__dispatch__GFX103COREPLUS      :
+    case operation__pfp_execute_indirect_v2__dispatch__GFX103PLUSEXCLUSIVE:
         opDwSize = (sizeof(EIV2Dispatch) / sizeof(uint32));
         break;
-    case operation__pfp_execute_indirect_v2__dispatch_mesh__GFX103COREPLUS :
+    case operation__pfp_execute_indirect_v2__dispatch_mesh__GFX103PLUSEXCLUSIVE:
         opDwSize = (sizeof(EIV2DispatchMesh) / sizeof(uint32));
         break;
     default:
@@ -1376,33 +1376,33 @@ size_t CmdUtil::BuildExecuteIndirectV2(
         break;
     };
 
-    packet.ordinal2.bitfields.gfx103CorePlus.count_indirect_enable      = (packetInfo.countBufferAddr != 0);
-    packet.ordinal2.bitfields.gfx103CorePlus.user_data_dw_count         = pMetaData->userDataDwCount;
-    packet.ordinal2.bitfields.gfx103CorePlus.command_index_enable       = pMetaData->commandIndexEnable;
-    packet.ordinal2.bitfields.gfx103CorePlus.init_mem_copy_count        = pMetaData->initMemCopyCount;
-    packet.ordinal2.bitfields.gfx103CorePlus.build_srd_count            = pMetaData->buildSrdCount;
-    packet.ordinal2.bitfields.gfx103CorePlus.update_mem_copy_count      = pMetaData->updateMemCopyCount;
-    packet.ordinal2.bitfields.gfx103CorePlus.operation                  = pMetaData->opType;
-    packet.ordinal2.bitfields.gfx103CorePlus.fetch_index_attributes     = pMetaData->fetchIndexAttributes;
-    packet.ordinal2.bitfields.gfx103CorePlus.userdata_scatter_mode      = pMetaData->userDataScatterMode;
-    packet.ordinal2.bitfields.gfx103CorePlus.vertex_bounds_check_enable = pMetaData->vertexBoundsCheckEnable;
-    packet.ordinal2.bitfields.gfx103CorePlus.thread_trace_enable        = pMetaData->threadTraceEnable;
-    packet.ordinal3.bitfields.gfx103CorePlus.count_addr_lo              = LowPart(packetInfo.countBufferAddr) >> 2;
-    packet.ordinal4.bitfields.gfx103CorePlus.count_addr_hi              = HighPart(packetInfo.countBufferAddr);
-    packet.ordinal5.max_count                                           = packetInfo.maxCount;
-    packet.ordinal6.stride                                              = packetInfo.argumentBufferStrideBytes;
-    packet.ordinal7.bitfields.gfx103CorePlus.data_addr_lo               = LowPart(packetInfo.argumentBufferAddr) >> 2;
-    packet.ordinal8.bitfields.gfx103CorePlus.data_addr_hi               = HighPart(packetInfo.argumentBufferAddr);
-    packet.ordinal8.bitfields.gfx103CorePlus.index_attributes_offset    = pMetaData->indexAttributesOffset;
+    packet.ordinal2.bitfields.gfx103PlusExclusive.count_indirect_enable      = (packetInfo.countBufferAddr != 0);
+    packet.ordinal2.bitfields.gfx103PlusExclusive.user_data_dw_count         = pMetaData->userDataDwCount;
+    packet.ordinal2.bitfields.gfx103PlusExclusive.command_index_enable       = pMetaData->commandIndexEnable;
+    packet.ordinal2.bitfields.gfx103PlusExclusive.init_mem_copy_count        = pMetaData->initMemCopyCount;
+    packet.ordinal2.bitfields.gfx103PlusExclusive.build_srd_count            = pMetaData->buildSrdCount;
+    packet.ordinal2.bitfields.gfx103PlusExclusive.update_mem_copy_count      = pMetaData->updateMemCopyCount;
+    packet.ordinal2.bitfields.gfx103PlusExclusive.operation                  = pMetaData->opType;
+    packet.ordinal2.bitfields.gfx103PlusExclusive.fetch_index_attributes     = pMetaData->fetchIndexAttributes;
+    packet.ordinal2.bitfields.gfx103PlusExclusive.userdata_scatter_mode      = pMetaData->userDataScatterMode;
+    packet.ordinal2.bitfields.gfx103PlusExclusive.vertex_bounds_check_enable = pMetaData->vertexBoundsCheckEnable;
+    packet.ordinal2.bitfields.gfx103PlusExclusive.thread_trace_enable        = pMetaData->threadTraceEnable;
+    packet.ordinal3.bitfields.gfx103PlusExclusive.count_addr_lo              = LowPart(packetInfo.countBufferAddr) >> 2;
+    packet.ordinal4.bitfields.gfx103PlusExclusive.count_addr_hi              = HighPart(packetInfo.countBufferAddr);
+    packet.ordinal5.max_count                                                = packetInfo.maxCount;
+    packet.ordinal6.stride                                                   = packetInfo.argumentBufferStrideBytes;
+    packet.ordinal7.bitfields.gfx103PlusExclusive.data_addr_lo            = LowPart(packetInfo.argumentBufferAddr) >> 2;
+    packet.ordinal8.bitfields.gfx103PlusExclusive.data_addr_hi            = HighPart(packetInfo.argumentBufferAddr);
+    packet.ordinal8.bitfields.gfx103PlusExclusive.index_attributes_offset = pMetaData->indexAttributesOffset;
     if (packetInfo.vbTableRegOffset != 0)
     {
-        packet.ordinal9.bitfields.gfx103CorePlus.userdata_gfx_register =
+        packet.ordinal9.bitfields.gfx103PlusExclusive.userdata_gfx_register =
             ShRegOffset(packetInfo.vbTableRegOffset) & EightBitMask;
-        packet.ordinal2.bitfields.gfx103CorePlus.userdata_gfx_register_enable = 1;
+        packet.ordinal2.bitfields.gfx103PlusExclusive.userdata_gfx_register_enable = 1;
     }
-    packet.ordinal9.bitfields.gfx103CorePlus.userdata_offset            = pMetaData->userDataOffset;
-    packet.ordinal10.bitfields.gfx103CorePlus.spill_table_addr_lo       = LowPart(packetInfo.spillTableAddr) >> 2;
-    packet.ordinal11.bitfields.gfx103CorePlus.spill_table_addr_hi       = HighPart(packetInfo.spillTableAddr);
+    packet.ordinal9.bitfields.gfx103PlusExclusive.userdata_offset      = pMetaData->userDataOffset;
+    packet.ordinal10.bitfields.gfx103PlusExclusive.spill_table_addr_lo = LowPart(packetInfo.spillTableAddr) >> 2;
+    packet.ordinal11.bitfields.gfx103PlusExclusive.spill_table_addr_hi = HighPart(packetInfo.spillTableAddr);
 
     uint32 numSpillRegsActive = 0;
     if (packetInfo.spillTableAddr != 0)
@@ -1423,8 +1423,8 @@ size_t CmdUtil::BuildExecuteIndirectV2(
             }
             const uint32 paddedVbTableBytes =
                 (Pow2Align(static_cast<uint32>(packetInfo.vbTableSizeDwords * sizeof(uint32)), 32));
-            packet.ordinal12.bitfields.gfx103CorePlus.vb_table_size      = paddedVbTableBytes;
-            packet.ordinal12.bitfields.gfx103CorePlus.spill_table_stride = (numSpillRegsActive != 0) ?
+            packet.ordinal12.bitfields.gfx103PlusExclusive.vb_table_size      = paddedVbTableBytes;
+            packet.ordinal12.bitfields.gfx103PlusExclusive.spill_table_stride = (numSpillRegsActive != 0) ?
                 packetInfo.spillTableStrideBytes : paddedVbTableBytes;
         }
         else
@@ -1434,13 +1434,13 @@ size_t CmdUtil::BuildExecuteIndirectV2(
             // ComputeRegs' data and then extract it into the PM4 ordinal.
             if (pComputeSignature->stage.spillTableRegAddr)
             {
-                packet.ordinal13.bitfieldsB.gfx103CorePlus.spill_compute_reg0 =
+                packet.ordinal13.bitfieldsB.gfx103PlusExclusive.spill_compute_reg0 =
                     (ShRegOffset(pComputeSignature->stage.spillTableRegAddr) & TenBitMask);
                 numSpillRegsActive++;
             }
-            packet.ordinal12.bitfields.gfx103CorePlus.spill_table_stride = packetInfo.spillTableStrideBytes;
+            packet.ordinal12.bitfields.gfx103PlusExclusive.spill_table_stride = packetInfo.spillTableStrideBytes;
         }
-        packet.ordinal2.bitfields.gfx103CorePlus.num_spill_regs = numSpillRegsActive;
+        packet.ordinal2.bitfields.gfx103PlusExclusive.num_spill_regs = numSpillRegsActive;
     }
 
     uint32* pOut = reinterpret_cast<uint32*>(pBuffer);
@@ -1528,12 +1528,12 @@ size_t CmdUtil::BuildDispatchIndirectMec(
     auto*const                     pPacket           = static_cast<PM4_MEC_DISPATCH_INDIRECT*>(pBuffer);
     regCOMPUTE_DISPATCH_INITIATOR  dispatchInitiator = {};
 
-    dispatchInitiator.u32All                   = 0;
-    dispatchInitiator.bits.COMPUTE_SHADER_EN   = 1;
-    dispatchInitiator.bits.FORCE_START_AT_000  = 1;
-    dispatchInitiator.bits.ORDER_MODE          = 1;
-    dispatchInitiator.gfx10Plus.CS_W32_EN      = isWave32;
-    dispatchInitiator.gfx10Plus.TUNNEL_ENABLE = useTunneling;
+    dispatchInitiator.u32All                  = 0;
+    dispatchInitiator.bits.COMPUTE_SHADER_EN  = 1;
+    dispatchInitiator.bits.FORCE_START_AT_000 = 1;
+    dispatchInitiator.bits.ORDER_MODE         = 1;
+    dispatchInitiator.bits.CS_W32_EN          = isWave32;
+    dispatchInitiator.bits.TUNNEL_ENABLE      = useTunneling;
 
     if (disablePartialPreempt)
     {
@@ -1752,7 +1752,7 @@ size_t CmdUtil::BuildDrawIndexIndirectMulti(
 #if (PAL_BUILD_BRANCH >= 2410)
     if (IssueSqttMarkerEvent)
     {
-        ordinal5.bitfields.gfx10Plus.thread_trace_marker_enable = 1;
+        ordinal5.bitfields.thread_trace_marker_enable = 1;
     }
 #endif
     ordinal5.bitfields.count_indirect_enable = (countGpuAddr != 0);
@@ -1817,9 +1817,9 @@ size_t CmdUtil::BuildDrawIndirectMulti(
     constexpr uint32 PacketSize = PM4_PFP_DRAW_INDIRECT_MULTI_SIZEDW__CORE;
     PM4_PFP_DRAW_INDIRECT_MULTI packet = {};
 
-    packet.ordinal1.header.u32All            = (Type3Header(IT_DRAW_INDIRECT_MULTI, PacketSize,
-                                                              false, ShaderGraphics, predicate)).u32All;
-    packet.ordinal2.data_offset              = LowPart(offset);
+    packet.ordinal1.header.u32All = (Type3Header(IT_DRAW_INDIRECT_MULTI, PacketSize,
+                                                 false, ShaderGraphics, predicate)).u32All;
+    packet.ordinal2.data_offset   = LowPart(offset);
 
     if (baseVtxLoc != UserDataNotMapped)
     {
@@ -1836,7 +1836,7 @@ size_t CmdUtil::BuildDrawIndirectMulti(
 #if (PAL_BUILD_BRANCH >= 2410)
     if (IssueSqttMarkerEvent)
     {
-        ordinal5.bitfields.gfx10Plus.thread_trace_marker_enable = 1;
+        ordinal5.bitfields.thread_trace_marker_enable = 1;
     }
 #endif
     ordinal5.bitfields.count_indirect_enable = (countGpuAddr != 0);
@@ -1891,11 +1891,11 @@ size_t CmdUtil::BuildTaskStateInit(
     // The control buffer address must be 256-byte aligned.
     PAL_ASSERT(IsPow2Aligned(controlBufferAddr, 256));
 
-    static_assert(PM4_MEC_DISPATCH_TASK_STATE_INIT_SIZEDW__GFX10COREPLUS ==
-                  PM4_ME_DISPATCH_TASK_STATE_INIT_SIZEDW__GFX10COREPLUS,
+    static_assert(PM4_MEC_DISPATCH_TASK_STATE_INIT_SIZEDW__CORE ==
+                  PM4_ME_DISPATCH_TASK_STATE_INIT_SIZEDW__CORE,
                   "ME, MEC versions of PM4_ME_DISPATCH_TASK_STATE_INIT are not the same!");
 
-    constexpr uint32 PacketSize = PM4_ME_DISPATCH_TASK_STATE_INIT_SIZEDW__GFX10COREPLUS;
+    constexpr uint32 PacketSize = PM4_ME_DISPATCH_TASK_STATE_INIT_SIZEDW__CORE;
     PM4_ME_DISPATCH_TASK_STATE_INIT packet = {};
 
     packet.ordinal1.header = Type3Header(IT_DISPATCH_TASK_STATE_INIT__GFX101,
@@ -1905,7 +1905,7 @@ size_t CmdUtil::BuildTaskStateInit(
                                            predicate);
 
     packet.ordinal2.u32All              = LowPart(controlBufferAddr);
-    PAL_ASSERT(packet.ordinal2.bitfields.gfx10CorePlus.reserved1 == 0);
+    PAL_ASSERT(packet.ordinal2.bitfields.reserved1 == 0);
 
     packet.ordinal3.control_buf_addr_hi = HighPart(controlBufferAddr);
 
@@ -1929,13 +1929,13 @@ size_t CmdUtil::BuildDispatchTaskMeshGfx(
     void*        pBuffer                 // [out] Build the PM4 packet in this buffer.
     ) const
 {
-    static_assert(PM4_ME_DISPATCH_TASKMESH_GFX_SIZEDW__GFX10COREPLUS ==
-                  PM4_PFP_DISPATCH_TASKMESH_GFX_SIZEDW__GFX10COREPLUS,
+    static_assert(PM4_ME_DISPATCH_TASKMESH_GFX_SIZEDW__CORE ==
+                  PM4_PFP_DISPATCH_TASKMESH_GFX_SIZEDW__CORE,
                   "PFP, ME versions of PM4_ME_DISPATCH_TASKMESH_GFX are not the same!");
 
     PAL_ASSERT(ringEntryLoc != UserDataNotMapped);
 
-    constexpr uint32 PacketSize = PM4_ME_DISPATCH_TASKMESH_GFX_SIZEDW__GFX10COREPLUS;
+    constexpr uint32 PacketSize = PM4_ME_DISPATCH_TASKMESH_GFX_SIZEDW__CORE;
     PM4_ME_DISPATCH_TASKMESH_GFX packet = {};
 
     packet.ordinal1.header = Type3Header(IT_DISPATCH_TASKMESH_GFX__GFX101,
@@ -1944,13 +1944,13 @@ size_t CmdUtil::BuildDispatchTaskMeshGfx(
                                            ShaderGraphics,
                                            predicate);
 
-    packet.ordinal2.bitfields.gfx10CorePlus.xyz_dim_loc    = (tgDimOffset != UserDataNotMapped) ?
-                                                              tgDimOffset - PERSISTENT_SPACE_START : 0;
-    packet.ordinal2.bitfields.gfx10CorePlus.ring_entry_loc = ringEntryLoc - PERSISTENT_SPACE_START;
+    packet.ordinal2.bitfields.xyz_dim_loc    = (tgDimOffset != UserDataNotMapped) ?
+                                                tgDimOffset - PERSISTENT_SPACE_START : 0;
+    packet.ordinal2.bitfields.ring_entry_loc = ringEntryLoc - PERSISTENT_SPACE_START;
 #if (PAL_BUILD_BRANCH >= 2410)
     if (IssueSqttMarkerEvent)
     {
-        packet.ordinal3.bitfields.gfx10CorePlus.thread_trace_marker_enable = 1;
+        packet.ordinal3.bitfields.thread_trace_marker_enable = 1;
     }
 #endif
 
@@ -2033,8 +2033,8 @@ size_t CmdUtil::BuildDispatchMeshIndirectMulti(
     void*        pBuffer                 // [out] Build the PM4 packet in this buffer.
     ) const
 {
-    static_assert(PM4_ME_DISPATCH_MESH_INDIRECT_MULTI_SIZEDW__GFX10COREPLUS ==
-                  PM4_PFP_DISPATCH_MESH_INDIRECT_MULTI_SIZEDW__GFX10COREPLUS,
+    static_assert(PM4_ME_DISPATCH_MESH_INDIRECT_MULTI_SIZEDW__CORE ==
+                  PM4_PFP_DISPATCH_MESH_INDIRECT_MULTI_SIZEDW__CORE,
                   "PFP, ME versions of PM4_ME_DISPATCH_MESH_INDIRECT_MULTI are not the same!");
 
     // Draw argument offset in the buffer has to be 4-byte aligned.
@@ -2043,7 +2043,7 @@ size_t CmdUtil::BuildDispatchMeshIndirectMulti(
     PAL_ASSERT(IsPow2Aligned(countGpuAddr, 4));
 
     PM4_ME_DISPATCH_MESH_INDIRECT_MULTI packet     = {};
-    constexpr uint32                    PacketSize = PM4_ME_DISPATCH_MESH_INDIRECT_MULTI_SIZEDW__GFX10COREPLUS;
+    constexpr uint32                    PacketSize = PM4_ME_DISPATCH_MESH_INDIRECT_MULTI_SIZEDW__CORE;
 
     packet.ordinal1.header = Type3Header(IT_DISPATCH_MESH_INDIRECT_MULTI__GFX101,
                                          PacketSize,
@@ -2051,20 +2051,19 @@ size_t CmdUtil::BuildDispatchMeshIndirectMulti(
                                          ShaderGraphics,
                                          predicate);
 
-    packet.ordinal2.data_offset                         = LowPart(dataOffset);
-    packet.ordinal3.bitfields.gfx10CorePlus.xyz_dim_loc = (xyzOffset != UserDataNotMapped) ?
-                                                          xyzOffset - PERSISTENT_SPACE_START : 0;
+    packet.ordinal2.data_offset           = LowPart(dataOffset);
+    packet.ordinal3.bitfields.xyz_dim_loc = (xyzOffset != UserDataNotMapped) ? xyzOffset - PERSISTENT_SPACE_START : 0;
 #if (PAL_BUILD_BRANCH >= 2410)
     if (IssueSqttMarkerEvent)
     {
-        packet.ordinal4.bitfields.gfx10CorePlus.thread_trace_marker_enable = 1;
+        packet.ordinal4.bitfields.thread_trace_marker_enable = 1;
     }
 #endif
 
     if (drawIndexOffset != UserDataNotMapped)
     {
-        packet.ordinal3.bitfields.gfx10CorePlus.draw_index_loc    = drawIndexOffset - PERSISTENT_SPACE_START;
-        packet.ordinal4.bitfields.gfx10CorePlus.draw_index_enable = 1;
+        packet.ordinal3.bitfields.draw_index_loc    = drawIndexOffset - PERSISTENT_SPACE_START;
+        packet.ordinal4.bitfields.draw_index_enable = 1;
     }
 
     if (IsGfx11(m_chipProps.gfxLevel) && (xyzOffset != UserDataNotMapped))
@@ -2076,9 +2075,9 @@ size_t CmdUtil::BuildDispatchMeshIndirectMulti(
 
     if (countGpuAddr != 0)
     {
-        packet.ordinal4.bitfields.gfx10CorePlus.count_indirect_enable = 1;
-        packet.ordinal6.u32All                                        = LowPart(countGpuAddr);
-        PAL_ASSERT(packet.ordinal6.bitfields.gfx10CorePlus.reserved1 == 0);
+        packet.ordinal4.bitfields.count_indirect_enable = 1;
+        packet.ordinal6.u32All        = LowPart(countGpuAddr);
+        PAL_ASSERT(packet.ordinal6.bitfields.reserved1 == 0);
 
         packet.ordinal7.count_addr_hi = HighPart(countGpuAddr);
     }
@@ -2150,34 +2149,34 @@ size_t CmdUtil::BuildDispatchTaskMeshIndirectMultiAce(
                                                    predicate)).u32All;
 
     packet.ordinal2.u32All = LowPart(dataOffset);
-    PAL_ASSERT(packet.ordinal2.bitfields.gfx10CorePlus.reserved1 == 0);
+    PAL_ASSERT(packet.ordinal2.bitfields.reserved1 == 0);
 
-    packet.ordinal3.data_addr_hi                           = HighPart(dataOffset);
-    packet.ordinal4.bitfields.gfx10CorePlus.ring_entry_loc = ringEntryLoc - PERSISTENT_SPACE_START;
+    packet.ordinal3.data_addr_hi             = HighPart(dataOffset);
+    packet.ordinal4.bitfields.ring_entry_loc = ringEntryLoc - PERSISTENT_SPACE_START;
 #if (PAL_BUILD_BRANCH >= 2410)
     if (IssueSqttMarkerEvent)
     {
-        packet.ordinal5.bitfields.gfx10CorePlus.thread_trace_marker_enable = 1;
+        packet.ordinal5.bitfields.thread_trace_marker_enable = 1;
     }
 #endif
 
     if (dispatchIndexLoc != UserDataNotMapped)
     {
-        packet.ordinal5.bitfields.gfx10CorePlus.dispatch_index_loc = dispatchIndexLoc - PERSISTENT_SPACE_START;
-        packet.ordinal5.bitfields.gfx10CorePlus.draw_index_enable  = 1;
+        packet.ordinal5.bitfields.dispatch_index_loc = dispatchIndexLoc - PERSISTENT_SPACE_START;
+        packet.ordinal5.bitfields.draw_index_enable  = 1;
     }
 
     if (xyzDimLoc != UserDataNotMapped)
     {
-        packet.ordinal5.bitfields.gfx10CorePlus.compute_xyz_dim_enable = 1;
-        packet.ordinal6.bitfields.gfx10CorePlus.compute_xyz_dim_loc    = xyzDimLoc - PERSISTENT_SPACE_START;
+        packet.ordinal5.bitfields.compute_xyz_dim_enable = 1;
+        packet.ordinal6.bitfields.compute_xyz_dim_loc    = xyzDimLoc - PERSISTENT_SPACE_START;
     }
 
     if (countGpuAddr != 0)
     {
-        packet.ordinal5.bitfields.gfx10CorePlus.count_indirect_enable = 1;
-        packet.ordinal8.u32All                                        = LowPart(countGpuAddr);
-        PAL_ASSERT(packet.ordinal6.bitfields.gfx10CorePlus.reserved1 == 0);
+        packet.ordinal5.bitfields.count_indirect_enable = 1;
+        packet.ordinal8.u32All        = LowPart(countGpuAddr);
+        PAL_ASSERT(packet.ordinal6.bitfields.reserved1 == 0);
 
         packet.ordinal9.count_addr_hi = HighPart(countGpuAddr);
     }
@@ -2190,12 +2189,12 @@ size_t CmdUtil::BuildDispatchTaskMeshIndirectMultiAce(
     packet.ordinal10.stride = stride;
 
     auto*const pDispatchInitiator = reinterpret_cast<regCOMPUTE_DISPATCH_INITIATOR*>(&packet.ordinal11.u32All);
-    pDispatchInitiator->bits.COMPUTE_SHADER_EN         = 1;
-    pDispatchInitiator->bits.FORCE_START_AT_000        = 0;
-    pDispatchInitiator->bits.ORDER_MODE                = 1;
-    pDispatchInitiator->gfx10Plus.CS_W32_EN            = isWave32;
-    pDispatchInitiator->gfx11.AMP_SHADER_EN            = 1;
-    pDispatchInitiator->u32All                        |= ComputeDispatchInitiatorDisablePartialPreemptMask;
+    pDispatchInitiator->bits.COMPUTE_SHADER_EN  = 1;
+    pDispatchInitiator->bits.FORCE_START_AT_000 = 0;
+    pDispatchInitiator->bits.ORDER_MODE         = 1;
+    pDispatchInitiator->bits.CS_W32_EN          = isWave32;
+    pDispatchInitiator->gfx11.AMP_SHADER_EN     = 1;
+    pDispatchInitiator->u32All                 |= ComputeDispatchInitiatorDisablePartialPreemptMask;
 
     static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
     memcpy(pBuffer, &packet, sizeof(packet));
@@ -2246,18 +2245,18 @@ size_t CmdUtil::BuildDispatchTaskMeshDirectAce(
                                                    ShaderCompute,
                                                    predicate)).u32All;
 
-    packet.ordinal2.x_dim                                  = size.x;
-    packet.ordinal3.y_dim                                  = size.y;
-    packet.ordinal4.z_dim                                  = size.z;
-    packet.ordinal6.bitfields.gfx10CorePlus.ring_entry_loc = ringEntryLoc - PERSISTENT_SPACE_START;
+    packet.ordinal2.x_dim                    = size.x;
+    packet.ordinal3.y_dim                    = size.y;
+    packet.ordinal4.z_dim                    = size.z;
+    packet.ordinal6.bitfields.ring_entry_loc = ringEntryLoc - PERSISTENT_SPACE_START;
 
     auto*const pDispatchInitiator = reinterpret_cast<regCOMPUTE_DISPATCH_INITIATOR*>(&packet.ordinal5.u32All);
-    pDispatchInitiator->bits.COMPUTE_SHADER_EN         = 1;
-    pDispatchInitiator->bits.FORCE_START_AT_000        = 0;
-    pDispatchInitiator->bits.ORDER_MODE                = 1;
-    pDispatchInitiator->gfx10Plus.CS_W32_EN            = isWave32;
-    pDispatchInitiator->gfx11.AMP_SHADER_EN            = 1;
-    pDispatchInitiator->u32All                        |= ComputeDispatchInitiatorDisablePartialPreemptMask;
+    pDispatchInitiator->bits.COMPUTE_SHADER_EN  = 1;
+    pDispatchInitiator->bits.FORCE_START_AT_000 = 0;
+    pDispatchInitiator->bits.ORDER_MODE         = 1;
+    pDispatchInitiator->bits.CS_W32_EN          = isWave32;
+    pDispatchInitiator->gfx11.AMP_SHADER_EN     = 1;
+    pDispatchInitiator->u32All                 |= ComputeDispatchInitiatorDisablePartialPreemptMask;
 
     static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
     memcpy(pBuffer, &packet, sizeof(packet));
@@ -2281,8 +2280,8 @@ size_t CmdUtil::BuildDmaData(
     static_assert(
         ((static_cast<uint32>(dst_sel__mec_dma_data__dst_addr_using_das)  ==
           static_cast<uint32>(dst_sel__pfp_dma_data__dst_addr_using_das)) &&
-         (static_cast<uint32>(dst_sel__mec_dma_data__gds__CORE)           ==
-          static_cast<uint32>(dst_sel__pfp_dma_data__gds__CORE))          &&
+         (static_cast<uint32>(dst_sel__mec_dma_data__gds)                 ==
+          static_cast<uint32>(dst_sel__pfp_dma_data__gds))                &&
          (static_cast<uint32>(dst_sel__mec_dma_data__dst_nowhere)         ==
           static_cast<uint32>(dst_sel__pfp_dma_data__dst_nowhere))        &&
          (static_cast<uint32>(dst_sel__mec_dma_data__dst_addr_using_l2)   ==
@@ -2292,8 +2291,8 @@ size_t CmdUtil::BuildDmaData(
     static_assert(
         ((static_cast<uint32>(src_sel__mec_dma_data__src_addr_using_sas)  ==
           static_cast<uint32>(src_sel__pfp_dma_data__src_addr_using_sas)) &&
-         (static_cast<uint32>(src_sel__mec_dma_data__gds__CORE)           ==
-          static_cast<uint32>(src_sel__pfp_dma_data__gds__CORE))          &&
+         (static_cast<uint32>(src_sel__mec_dma_data__gds)                 ==
+          static_cast<uint32>(src_sel__pfp_dma_data__gds))                &&
          (static_cast<uint32>(src_sel__mec_dma_data__data)                ==
           static_cast<uint32>(src_sel__pfp_dma_data__data))               &&
          (static_cast<uint32>(src_sel__mec_dma_data__src_addr_using_l2)   ==
@@ -2327,10 +2326,10 @@ size_t CmdUtil::BuildDmaData(
     }
     else if (indirectAddress)
     {
-        packet.ordinal2.bitfields.core.src_indirect     = 1;
-        packet.ordinal2.bitfields.core.dst_indirect     = 1;
-        packet.ordinal3.src_addr_offset                  = dmaDataInfo.srcOffset;
-        packet.ordinal4.src_addr_hi                      = 0; // ignored for data
+        packet.ordinal2.bitfields.src_indirect = 1;
+        packet.ordinal2.bitfields.dst_indirect = 1;
+        packet.ordinal3.src_addr_offset        = dmaDataInfo.srcOffset;
+        packet.ordinal4.src_addr_hi            = 0; // ignored for data
     }
     else
     {
@@ -2338,12 +2337,15 @@ size_t CmdUtil::BuildDmaData(
         packet.ordinal4.src_addr_hi         = HighPart(dmaDataInfo.srcAddr);
     }
 
-    packet.ordinal5.dst_addr_lo         = LowPart(dmaDataInfo.dstAddr);
-    packet.ordinal6.dst_addr_hi         = HighPart(dmaDataInfo.dstAddr);
     if (indirectAddress)
     {
-        packet.ordinal5.dst_addr_lo                      = dmaDataInfo.dstOffset;
-        packet.ordinal6.dst_addr_hi                      = 0; // ignored for data
+        packet.ordinal5.dst_addr_lo = dmaDataInfo.dstOffset;
+        packet.ordinal6.dst_addr_hi = 0; // ignored for data
+    }
+    else
+    {
+        packet.ordinal5.dst_addr_lo = LowPart(dmaDataInfo.dstAddr);
+        packet.ordinal6.dst_addr_hi = HighPart(dmaDataInfo.dstAddr);
     }
 
     packet.ordinal7.u32All               = 0;
@@ -2386,14 +2388,14 @@ size_t CmdUtil::BuildUntypedSrd(
     packet.ordinal1.header.u32All =
         (Type3Header(IT_BUILD_UNTYPED_SRD__GFX101, PacketSize, predicate, shaderType)).u32All;
     // For ExecuteIndirect CP will fetch the Vertex Data from ArgumentBuffer which has index data, set index = 1.
-    packet.ordinal2.bitfields.core.index       = 1;
-    packet.ordinal2.bitfields.core.src_addr_lo = LowPart(pSrdInfo->srcGpuVirtAddress);
-    packet.ordinal3.src_addr_hi                 = HighPart(pSrdInfo->srcGpuVirtAddress);
-    packet.ordinal4.src_offset                  = pSrdInfo->srcGpuVirtAddressOffset;
-    packet.ordinal5.bitfields.core.dst_addr_lo = LowPart(pSrdInfo->dstGpuVirtAddress);
-    packet.ordinal6.dst_addr_hi                 = HighPart(pSrdInfo->dstGpuVirtAddress);
-    packet.ordinal7.dst_offset                  = pSrdInfo->dstGpuVirtAddressOffset;
-    packet.ordinal8.dword3                      = pSrdInfo->srdDword3;
+    packet.ordinal2.bitfields.index       = 1;
+    packet.ordinal2.bitfields.src_addr_lo = LowPart(pSrdInfo->srcGpuVirtAddress);
+    packet.ordinal3.src_addr_hi           = HighPart(pSrdInfo->srcGpuVirtAddress);
+    packet.ordinal4.src_offset            = pSrdInfo->srcGpuVirtAddressOffset;
+    packet.ordinal5.bitfields.dst_addr_lo = LowPart(pSrdInfo->dstGpuVirtAddress);
+    packet.ordinal6.dst_addr_hi           = HighPart(pSrdInfo->dstGpuVirtAddress);
+    packet.ordinal7.dst_offset            = pSrdInfo->dstGpuVirtAddressOffset;
+    packet.ordinal8.dword3                = pSrdInfo->srdDword3;
 
     static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
     memcpy(pBuffer, &packet, sizeof(packet));
@@ -2413,15 +2415,15 @@ size_t CmdUtil::BuildDumpConstRam(
     PAL_ASSERT(IsPow2Aligned(ramByteOffset, 4));
     PAL_ASSERT(dwordSize != 0);
 
-    constexpr uint32 PacketSize = PM4_CE_DUMP_CONST_RAM_SIZEDW__HASCE;
+    constexpr uint32 PacketSize = PM4_CE_DUMP_CONST_RAM_SIZEDW__GFX10;
     PM4_CE_DUMP_CONST_RAM packet = {};
 
     DumpConstRamOrdinal2 ordinal2 = { };
-    ordinal2.bits.hasCe.offset    = ramByteOffset;
+    ordinal2.bits.gfx10.offset    = ramByteOffset;
 
     packet.ordinal1.header.u32All          = (Type3Header(IT_DUMP_CONST_RAM, PacketSize)).u32All;
     packet.ordinal2.u32All                 = ordinal2.u32All;
-    packet.ordinal3.bitfields.hasCe.num_dw = dwordSize;
+    packet.ordinal3.bitfields.gfx10.num_dw = dwordSize;
     packet.ordinal4.addr_lo                = LowPart(dstGpuAddr);
     packet.ordinal5.addr_hi                = HighPart(dstGpuAddr);
 
@@ -2444,15 +2446,15 @@ size_t CmdUtil::BuildDumpConstRamOffset(
     PAL_ASSERT(IsPow2Aligned(ramByteOffset, 4));
     PAL_ASSERT(dwordSize != 0);
 
-    constexpr uint32 PacketSize = PM4_CE_DUMP_CONST_RAM_OFFSET_SIZEDW__HASCE;
+    constexpr uint32 PacketSize = PM4_CE_DUMP_CONST_RAM_OFFSET_SIZEDW__GFX10;
     PM4_CE_DUMP_CONST_RAM_OFFSET packet = {};
 
     DumpConstRamOrdinal2 ordinal2 = { };
-    ordinal2.bits.hasCe.offset    = ramByteOffset;
+    ordinal2.bits.gfx10.offset    = ramByteOffset;
 
     packet.ordinal1.header.u32All          = (Type3Header(IT_DUMP_CONST_RAM_OFFSET, PacketSize)).u32All;
     packet.ordinal2.u32All                 = ordinal2.u32All;
-    packet.ordinal3.bitfields.hasCe.num_dw = dwordSize;
+    packet.ordinal3.bitfields.gfx10.num_dw = dwordSize;
     packet.ordinal4.addr_offset            = dstAddrOffset;
 
     static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
@@ -2506,7 +2508,7 @@ size_t CmdUtil::BuildNonSampleEventWrite(
                 static_cast<uint32>(event_index__mec_event_write__sample_pipelinestat)));
 
     // If this trips, the caller needs to use the BuildSampleEventWrite() routine instead.
-    PAL_ASSERT(VgtEventIndex[vgtEvent] != event_index__me_event_write__sample_streamoutstats__GFX09_10);
+    PAL_ASSERT(VgtEventIndex[vgtEvent] != event_index__me_event_write__sample_streamoutstats__GFX10);
 
     // The CP team says you risk hanging the GPU if you use a TS event with event_write.
     PAL_ASSERT(VgtEventHasTs[vgtEvent] == false);
@@ -2601,7 +2603,7 @@ size_t CmdUtil::BuildSampleEventWrite(
                (vgtEvent == SAMPLE_STREAMOUTSTATS1)  ||
                (vgtEvent == SAMPLE_STREAMOUTSTATS2)  ||
                (vgtEvent == SAMPLE_STREAMOUTSTATS3)  ||
-               (vgtEvent == ZPASS_DONE__GFX09_10)    ||
+               (vgtEvent == ZPASS_DONE__GFX10)       ||
                vsPartialFlushValid);
 
     PAL_ASSERT(vgtEvent != 0x9);
@@ -2612,7 +2614,7 @@ size_t CmdUtil::BuildSampleEventWrite(
 
     PAL_ASSERT((VgtEventIndex[vgtEvent] == event_index__me_event_write__pixel_pipe_stat_control_or_dump) ||
                (VgtEventIndex[vgtEvent] == event_index__me_event_write__sample_pipelinestat)             ||
-               (VgtEventIndex[vgtEvent] == event_index__me_event_write__sample_streamoutstats__GFX09_10) ||
+               (VgtEventIndex[vgtEvent] == event_index__me_event_write__sample_streamoutstats__GFX10)    ||
                vsPartialFlushEventIndexValid);
 
     // Event-write packets destined for the compute queue can only use some events.
@@ -2671,11 +2673,11 @@ size_t CmdUtil::BuildSampleEventWrite(
 size_t CmdUtil::BuildIncrementCeCounter(
     void* pBuffer) // [out] Build the PM4 packet in this buffer.
 {
-    constexpr uint32 PacketSize = PM4_CE_INCREMENT_CE_COUNTER_SIZEDW__HASCE;
+    constexpr uint32 PacketSize = PM4_CE_INCREMENT_CE_COUNTER_SIZEDW__GFX10;
     PM4_CE_INCREMENT_CE_COUNTER packet = {};
 
     packet.ordinal1.header.u32All           = (Type3Header(IT_INCREMENT_CE_COUNTER, PacketSize)).u32All;
-    packet.ordinal2.bitfields.hasCe.cntrsel = cntrsel__ce_increment_ce_counter__increment_ce_counter__HASCE;
+    packet.ordinal2.bitfields.gfx10.cntrsel = cntrsel__ce_increment_ce_counter__increment_ce_counter__GFX10;
 
     static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
     memcpy(pBuffer, &packet, sizeof(packet));
@@ -2711,9 +2713,8 @@ size_t CmdUtil::BuildIndexAttributesIndirect(
     packet.ordinal1.header.u32All = (Type3Header(IT_INDEX_ATTRIBUTES_INDIRECT, PacketSize)).u32All;
     if (hasIndirectAddress)
     {
-        packet.ordinal2.bitfields.hasCe.indirect_mode =
-            mode__pfp_index_attributes_indirect_indirect_offset__GFX09_GFX10CORE;
-        packet.ordinal3.addr_offset                       = LowPart(baseAddr);
+        packet.ordinal2.bitfields.gfx10.indirect_mode = mode__pfp_index_attributes_indirect_indirect_offset__GFX10;
+        packet.ordinal3.addr_offset                   = LowPart(baseAddr);
     }
     else
     {
@@ -2844,14 +2845,14 @@ size_t CmdUtil::BuildLoadConstRam(
     PAL_ASSERT(IsPow2Aligned(ramByteOffset, 32));
     PAL_ASSERT(IsPow2Aligned(dwordSize, 8));
 
-    constexpr uint32 PacketSize = PM4_CE_LOAD_CONST_RAM_SIZEDW__HASCE;
+    constexpr uint32 PacketSize = PM4_CE_LOAD_CONST_RAM_SIZEDW__GFX10;
     PM4_CE_LOAD_CONST_RAM packet = {};
 
     packet.ordinal1.header.u32All              = (Type3Header(IT_LOAD_CONST_RAM, PacketSize)).u32All;
     packet.ordinal2.addr_lo                    = LowPart(srcGpuAddr);
     packet.ordinal3.addr_hi                    = HighPart(srcGpuAddr);
-    packet.ordinal4.bitfields.hasCe.num_dw     = dwordSize;
-    packet.ordinal5.bitfields.hasCe.start_addr = ramByteOffset;
+    packet.ordinal4.bitfields.gfx10.num_dw     = dwordSize;
+    packet.ordinal5.bitfields.gfx10.start_addr = ramByteOffset;
 
     static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
     memcpy(pBuffer, &packet, sizeof(packet));
@@ -2865,7 +2866,7 @@ size_t CmdUtil::BuildNop(
     void*  pBuffer)   // [out] Build the PM4 packet in this buffer.
 {
     static_assert((PM4_PFP_NOP_SIZEDW__CORE  == PM4_MEC_NOP_SIZEDW__CORE) &&
-                   (PM4_PFP_NOP_SIZEDW__CORE == PM4_CE_NOP_SIZEDW__HASCE),
+                   (PM4_PFP_NOP_SIZEDW__CORE == PM4_CE_NOP_SIZEDW__GFX10),
                   "graphics, compute and constant versions of the NOP packet don't match!");
 
     PM4_PFP_NOP* pPacket = static_cast<PM4_PFP_NOP*>(pBuffer);
@@ -2949,31 +2950,31 @@ size_t CmdUtil::BuildPrimeUtcL2(
     void*   pBuffer)
 {
     static_assert(((PM4_PFP_PRIME_UTCL2_SIZEDW__CORE == PM4_MEC_PRIME_UTCL2_SIZEDW__CORE)  &&
-                   (PM4_PFP_PRIME_UTCL2_SIZEDW__CORE == PM4_CE_PRIME_UTCL2_SIZEDW__HASCE)),
+                   (PM4_PFP_PRIME_UTCL2_SIZEDW__CORE == PM4_CE_PRIME_UTCL2_SIZEDW__GFX10)),
                    "PRIME_UTCL2 packet is different between PFP, MEC, and CE!");
 
-    static_assert(((static_cast<uint32>(cache_perm__pfp_prime_utcl2__read)                  ==
-                    static_cast<uint32>(cache_perm__mec_prime_utcl2__read))                 &&
-                   (static_cast<uint32>(cache_perm__pfp_prime_utcl2__read)                  ==
-                    static_cast<uint32>(cache_perm__ce_prime_utcl2__read__HASCE))           &&
-                   (static_cast<uint32>(cache_perm__pfp_prime_utcl2__write)                 ==
-                    static_cast<uint32>(cache_perm__mec_prime_utcl2__write))                &&
-                   (static_cast<uint32>(cache_perm__pfp_prime_utcl2__write)                 ==
-                    static_cast<uint32>(cache_perm__ce_prime_utcl2__write__HASCE))          &&
-                   (static_cast<uint32>(cache_perm__pfp_prime_utcl2__execute)               ==
-                    static_cast<uint32>(cache_perm__mec_prime_utcl2__execute))              &&
-                   (static_cast<uint32>(cache_perm__pfp_prime_utcl2__execute)               ==
-                    static_cast<uint32>(cache_perm__ce_prime_utcl2__execute__HASCE))),
+    static_assert(((static_cast<uint32>(cache_perm__pfp_prime_utcl2__read)         ==
+                    static_cast<uint32>(cache_perm__mec_prime_utcl2__read))        &&
+                   (static_cast<uint32>(cache_perm__pfp_prime_utcl2__read)         ==
+                    static_cast<uint32>(cache_perm__ce_prime_utcl2__read__GFX10))  &&
+                   (static_cast<uint32>(cache_perm__pfp_prime_utcl2__write)        ==
+                    static_cast<uint32>(cache_perm__mec_prime_utcl2__write))       &&
+                   (static_cast<uint32>(cache_perm__pfp_prime_utcl2__write)        ==
+                    static_cast<uint32>(cache_perm__ce_prime_utcl2__write__GFX10)) &&
+                   (static_cast<uint32>(cache_perm__pfp_prime_utcl2__execute)      ==
+                    static_cast<uint32>(cache_perm__mec_prime_utcl2__execute))     &&
+                   (static_cast<uint32>(cache_perm__pfp_prime_utcl2__execute)      ==
+                    static_cast<uint32>(cache_perm__ce_prime_utcl2__execute__GFX10))),
                   "Cache permissions enum is different between PFP, MEC, and CE!");
 
-    static_assert(((static_cast<uint32>(prime_mode__pfp_prime_utcl2__dont_wait_for_xack)                 ==
-                    static_cast<uint32>(prime_mode__mec_prime_utcl2__dont_wait_for_xack))                &&
-                   (static_cast<uint32>(prime_mode__pfp_prime_utcl2__dont_wait_for_xack)                 ==
-                    static_cast<uint32>(prime_mode__ce_prime_utcl2__dont_wait_for_xack__HASCE))          &&
-                   (static_cast<uint32>(prime_mode__pfp_prime_utcl2__wait_for_xack)                      ==
-                    static_cast<uint32>(prime_mode__mec_prime_utcl2__wait_for_xack))                     &&
-                   (static_cast<uint32>(prime_mode__pfp_prime_utcl2__wait_for_xack)                      ==
-                    static_cast<uint32>(prime_mode__ce_prime_utcl2__wait_for_xack__HASCE))),
+    static_assert(((static_cast<uint32>(prime_mode__pfp_prime_utcl2__dont_wait_for_xack)        ==
+                    static_cast<uint32>(prime_mode__mec_prime_utcl2__dont_wait_for_xack))       &&
+                   (static_cast<uint32>(prime_mode__pfp_prime_utcl2__dont_wait_for_xack)        ==
+                    static_cast<uint32>(prime_mode__ce_prime_utcl2__dont_wait_for_xack__GFX10)) &&
+                   (static_cast<uint32>(prime_mode__pfp_prime_utcl2__wait_for_xack)             ==
+                    static_cast<uint32>(prime_mode__mec_prime_utcl2__wait_for_xack))            &&
+                   (static_cast<uint32>(prime_mode__pfp_prime_utcl2__wait_for_xack)             ==
+                    static_cast<uint32>(prime_mode__ce_prime_utcl2__wait_for_xack__GFX10))),
                   "Prime mode enum is different between PFP, MEC, and CE!");
 
     constexpr uint32 PacketSize = PM4_PFP_PRIME_UTCL2_SIZEDW__CORE;
@@ -3332,16 +3333,16 @@ size_t CmdUtil::BuildLoadShRegsIndex(
     void*                                  pBuffer       // [out] Build the PM4 packet in this buffer.
     ) const
 {
-    static_assert(((static_cast<uint32>(index__pfp_load_sh_reg_index__direct_addr)   ==
-                    static_cast<uint32>(index__mec_load_sh_reg_index__direct_addr__GFX103COREPLUS)) &&
-                   (static_cast<uint32>(index__pfp_load_sh_reg_index__indirect_addr__GFX103COREPLUS)   ==
-                    static_cast<uint32>(index__mec_load_sh_reg_index__indirect_addr__GFX103COREPLUS))),
+    static_assert(((static_cast<uint32>(index__pfp_load_sh_reg_index__direct_addr) ==
+                    static_cast<uint32>(index__mec_load_sh_reg_index__direct_addr__GFX103PLUSEXCLUSIVE)) &&
+                   (static_cast<uint32>(index__pfp_load_sh_reg_index__indirect_addr__GFX103PLUSEXCLUSIVE) ==
+                    static_cast<uint32>(index__mec_load_sh_reg_index__indirect_addr__GFX103PLUSEXCLUSIVE))),
                   "LOAD_SH_REG_INDEX index enumerations don't match between PFP and MEC!");
 
-    static_assert(((static_cast<uint32>(data_format__pfp_load_sh_reg_index__offset_and_size)   ==
-                    static_cast<uint32>(data_format__mec_load_sh_reg_index__offset_and_size__GFX103COREPLUS)) &&
-                   (static_cast<uint32>(data_format__pfp_load_sh_reg_index__offset_and_data)   ==
-                    static_cast<uint32>(data_format__mec_load_sh_reg_index__offset_and_data__GFX103COREPLUS))),
+    static_assert(((static_cast<uint32>(data_format__pfp_load_sh_reg_index__offset_and_size) ==
+                    static_cast<uint32>(data_format__mec_load_sh_reg_index__offset_and_size__GFX103PLUSEXCLUSIVE)) &&
+                   (static_cast<uint32>(data_format__pfp_load_sh_reg_index__offset_and_data) ==
+                    static_cast<uint32>(data_format__mec_load_sh_reg_index__offset_and_data__GFX103PLUSEXCLUSIVE))),
                   "LOAD_SH_REG_INDEX data format enumerations don't match between PFP and MEC!");
 
     constexpr uint32 PacketSize = PM4_PFP_LOAD_SH_REG_INDEX_SIZEDW__CORE;
@@ -3352,11 +3353,11 @@ size_t CmdUtil::BuildLoadShRegsIndex(
 
     if (HasEnhancedLoadShRegIndex())
     {
-        packet.ordinal2.bitfields.gfx103CorePlus.index = index;
+        packet.ordinal2.bitfields.gfx103PlusExclusive.index = index;
     }
     else
     {
-        packet.ordinal2.bitfields.gfx09.index = index;
+        packet.ordinal2.bitfields.gfx101.index = index;
     }
 
     if (index == index__pfp_load_sh_reg_index__offset)
@@ -3552,16 +3553,16 @@ static_assert(((static_cast<uint32>(event_index__me_release_mem__end_of_pipe)   
                (static_cast<uint32>(event_index__me_release_mem__shader_done)   ==
                 static_cast<uint32>(event_index__mec_release_mem__shader_done))),
               "RELEASE_MEM event index enumerations don't match between ME and MEC!");
-static_assert(((static_cast<uint32>(data_sel__me_release_mem__none)                           ==
-                static_cast<uint32>(data_sel__mec_release_mem__none))                         &&
-               (static_cast<uint32>(data_sel__me_release_mem__send_32_bit_low)                ==
-                static_cast<uint32>(data_sel__mec_release_mem__send_32_bit_low))              &&
-               (static_cast<uint32>(data_sel__me_release_mem__send_64_bit_data)               ==
-                static_cast<uint32>(data_sel__mec_release_mem__send_64_bit_data))             &&
-               (static_cast<uint32>(data_sel__me_release_mem__send_gpu_clock_counter)         ==
-                static_cast<uint32>(data_sel__mec_release_mem__send_gpu_clock_counter))       &&
-               (static_cast<uint32>(data_sel__me_release_mem__store_gds_data_to_memory__CORE) ==
-                static_cast<uint32>(data_sel__mec_release_mem__store_gds_data_to_memory__CORE))),
+static_assert(((static_cast<uint32>(data_sel__me_release_mem__none)                     ==
+                static_cast<uint32>(data_sel__mec_release_mem__none))                   &&
+               (static_cast<uint32>(data_sel__me_release_mem__send_32_bit_low)          ==
+                static_cast<uint32>(data_sel__mec_release_mem__send_32_bit_low))        &&
+               (static_cast<uint32>(data_sel__me_release_mem__send_64_bit_data)         ==
+                static_cast<uint32>(data_sel__mec_release_mem__send_64_bit_data))       &&
+               (static_cast<uint32>(data_sel__me_release_mem__send_gpu_clock_counter)   ==
+                static_cast<uint32>(data_sel__mec_release_mem__send_gpu_clock_counter)) &&
+               (static_cast<uint32>(data_sel__me_release_mem__store_gds_data_to_memory) ==
+                static_cast<uint32>(data_sel__mec_release_mem__store_gds_data_to_memory))),
               "RELEASE_MEM data sel enumerations don't match between ME and MEC!");
 static_assert(dst_sel__me_release_mem__tc_l2 == dst_sel__me_release_mem__tc_l2,
               "RELEASE_MEM dst sel enums don't match between ME and MEC!");
@@ -3619,7 +3620,7 @@ size_t CmdUtil::BuildReleaseMemInternal(
     if (info.dataSel != data_sel__me_release_mem__none)
     {
         // PAL doesn't support GDS.
-        PAL_ASSERT(info.dataSel != data_sel__me_release_mem__store_gds_data_to_memory__CORE);
+        PAL_ASSERT(info.dataSel != data_sel__me_release_mem__store_gds_data_to_memory);
 
         // dstAddr must be properly aligned. 4 bytes for a 32-bit write or 8 bytes for a 64-bit write.
         PAL_ASSERT((info.dstAddr != 0) &&
@@ -3630,9 +3631,14 @@ size_t CmdUtil::BuildReleaseMemInternal(
         packet.ordinal3.bitfields.int_sel = int_sel__me_release_mem__send_data_and_write_confirm;
     }
 
+    // Clients must query EnableReleaseMemWaitCpDma() to make sure ReleaseMem packet supports waiting CP DMA before
+    // setting info.waitCpDma to true here.
+    PAL_ASSERT((info.gfx11WaitCpDma == false) || m_device.Settings().gfx11EnableReleaseMemWaitCpDma);
+
     if (IsGfx11(m_chipProps.gfxLevel))
     {
         packet.ordinal2.bitfields.gfx11.pws_enable = usePws;
+        packet.ordinal2.bitfields.gfx11.wait_sync  = info.gfx11WaitCpDma;
 
         if (info.cacheSync.u8All != 0)
         {
@@ -3735,16 +3741,16 @@ size_t CmdUtil::BuildSetBaseCe(
     Pm4ShaderType               shaderType,
     void*                       pBuffer)    // [out] Build the PM4 packet in this buffer.
 {
-    constexpr uint32 PacketSize = PM4_CE_SET_BASE_SIZEDW__HASCE;
+    constexpr uint32 PacketSize = PM4_CE_SET_BASE_SIZEDW__GFX10;
     PM4_CE_SET_BASE packet = {};
 
     packet.ordinal1.header.u32All              = (Type3Header(IT_SET_BASE, PacketSize, false, shaderType)).u32All;
-    packet.ordinal2.bitfields.hasCe.base_index = baseIndex;
+    packet.ordinal2.bitfields.gfx10.base_index = baseIndex;
     packet.ordinal3.u32All                     = LowPart(address);
     packet.ordinal4.address_hi                 = HighPart(address);
 
     // Make sure our address was aligned properly
-    PAL_ASSERT(packet.ordinal3.bitfieldsA.hasCe.reserved1 == 0);
+    PAL_ASSERT(packet.ordinal3.bitfieldsA.gfx10.reserved1 == 0);
 
     static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
     memcpy(pBuffer, &packet, sizeof(packet));
@@ -4297,14 +4303,14 @@ size_t CmdUtil::BuildStrmoutBufferUpdate(
                   "STRMOUT_BUFFER_UPDATE packet differs between PFP and ME!");
 
     static_assert(
-        ((static_cast<uint32>(source_select__pfp_strmout_buffer_update__use_buffer_offset)                   ==
-          static_cast<uint32>(source_select__me_strmout_buffer_update__use_buffer_offset))                   &&
-         (static_cast<uint32>(source_select__pfp_strmout_buffer_update__read_strmout_buffer_filled_size)     ==
-          static_cast<uint32>(source_select__me_strmout_buffer_update__read_strmout_buffer_filled_size))     &&
-         (static_cast<uint32>(source_select__pfp_strmout_buffer_update__from_src_address)                    ==
-          static_cast<uint32>(source_select__me_strmout_buffer_update__from_src_address))                    &&
-         (static_cast<uint32>(source_select__pfp_strmout_buffer_update__none__GFX09_10)                      ==
-          static_cast<uint32>(source_select__me_strmout_buffer_update__none__GFX09_10))),
+        ((static_cast<uint32>(source_select__pfp_strmout_buffer_update__use_buffer_offset)               ==
+          static_cast<uint32>(source_select__me_strmout_buffer_update__use_buffer_offset))               &&
+         (static_cast<uint32>(source_select__pfp_strmout_buffer_update__read_strmout_buffer_filled_size) ==
+          static_cast<uint32>(source_select__me_strmout_buffer_update__read_strmout_buffer_filled_size)) &&
+         (static_cast<uint32>(source_select__pfp_strmout_buffer_update__from_src_address)                ==
+          static_cast<uint32>(source_select__me_strmout_buffer_update__from_src_address))                &&
+         (static_cast<uint32>(source_select__pfp_strmout_buffer_update__none__GFX10)                     ==
+          static_cast<uint32>(source_select__me_strmout_buffer_update__none__GFX10))),
          "source_select enum is different between PFP and ME!");
 
     static_assert(
@@ -4350,7 +4356,7 @@ size_t CmdUtil::BuildStrmoutBufferUpdate(
             packet.ordinal4.src_address_hi       = HighPart(srcGpuVirtAddr);
             packet.ordinal2.bitfields.data_type  = DataType;
             break;
-        case source_select__pfp_strmout_buffer_update__none__GFX09_10:
+        case source_select__pfp_strmout_buffer_update__none__GFX10:
             packet.ordinal2.bitfields.update_memory =
                 update_memory__pfp_strmout_buffer_update__update_memory_at_dst_address;
             packet.ordinal3.u32All                  = LowPart(dstGpuVirtAddr);
@@ -4378,11 +4384,11 @@ size_t CmdUtil::BuildStrmoutBufferUpdate(
             packet.ordinal6.src_address_hi       = HighPart(srcGpuVirtAddr);
             packet.ordinal2.bitfields.data_type  = DataType;
             break;
-        case source_select__pfp_strmout_buffer_update__none__GFX09_10:
+        case source_select__pfp_strmout_buffer_update__none__GFX10:
             packet.ordinal2.bitfields.update_memory =
                 update_memory__pfp_strmout_buffer_update__update_memory_at_dst_address;
             packet.ordinal3.u32All                  = LowPart(dstGpuVirtAddr);
-            PAL_ASSERT(packet.ordinal3.bitfields.gfx09_10.reserved1 == 0);
+            PAL_ASSERT(packet.ordinal3.bitfields.gfx10.reserved1 == 0);
             packet.ordinal4.dst_address_hi          = HighPart(dstGpuVirtAddr);
             packet.ordinal2.bitfields.data_type     = DataType;
             break;
@@ -4482,8 +4488,8 @@ size_t CmdUtil::BuildWaitOnCeCounter(
     constexpr uint32 PacketSize = PM4_ME_WAIT_ON_CE_COUNTER_SIZEDW__CORE;
     PM4_ME_WAIT_ON_CE_COUNTER packet = {};
 
-    packet.ordinal1.header                           = Type3Header(IT_WAIT_ON_CE_COUNTER, PacketSize);
-    packet.ordinal2.bitfields.core.cond_surface_sync = invalidateKcache;
+    packet.ordinal1.header                      = Type3Header(IT_WAIT_ON_CE_COUNTER, PacketSize);
+    packet.ordinal2.bitfields.cond_surface_sync = invalidateKcache;
 
     static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
     memcpy(pBuffer, &packet, sizeof(packet));
@@ -4497,7 +4503,7 @@ size_t CmdUtil::BuildWaitOnDeCounterDiff(
     uint32 counterDiff,
     void*  pBuffer)     // [out] Build the PM4 packet in this buffer.
 {
-    constexpr uint32 PacketSize = PM4_CE_WAIT_ON_DE_COUNTER_DIFF_SIZEDW__HASCE;
+    constexpr uint32 PacketSize = PM4_CE_WAIT_ON_DE_COUNTER_DIFF_SIZEDW__GFX10;
     auto*const       pPacket    = static_cast<PM4_CE_WAIT_ON_DE_COUNTER_DIFF*>(pBuffer);
 
     pPacket->ordinal1.header.u32All = (Type3Header(IT_WAIT_ON_DE_COUNTER_DIFF, PacketSize)).u32All;
@@ -4515,18 +4521,29 @@ size_t CmdUtil::BuildWaitOnDeCounterDiff(
 // Returns the size of the PM4 command built, in DWORDs. Only supported on gfx11+.
 size_t CmdUtil::BuildWaitEopPws(
     HwPipePoint  waitPoint,
+    bool         waitCpDma,
     SyncGlxFlags glxSync,
     SyncRbFlags  rbSync,
     void*        pBuffer
     ) const
 {
-    ReleaseMemGfx releaseInfo = {};
-    releaseInfo.vgtEvent  = SelectEopEvent(rbSync);
-    releaseInfo.cacheSync = SelectReleaseMemCaches(&glxSync);
-    releaseInfo.dataSel   = data_sel__me_release_mem__none;
-    releaseInfo.usePws    = true;
+    size_t totalSize = 0;
 
-    size_t totalSize = BuildReleaseMemGfx(releaseInfo, pBuffer);
+    // Issue explicit waitCpDma packet if ReleaseMem doesn't support it.
+    if (waitCpDma && (m_device.Settings().gfx11EnableReleaseMemWaitCpDma == false))
+    {
+        totalSize += BuildWaitDmaData(pBuffer);
+        waitCpDma = false;
+    }
+
+    ReleaseMemGfx releaseInfo = {};
+    releaseInfo.vgtEvent       = SelectEopEvent(rbSync);
+    releaseInfo.cacheSync      = SelectReleaseMemCaches(&glxSync);
+    releaseInfo.dataSel        = data_sel__me_release_mem__none;
+    releaseInfo.usePws         = true;
+    releaseInfo.gfx11WaitCpDma = waitCpDma;
+
+    totalSize += BuildReleaseMemGfx(releaseInfo, VoidPtrInc(pBuffer, totalSize * sizeof(uint32)));
 
     // This will set syncCount = 0 to wait for the most recent PWS release_mem (the one we just wrote).
     AcquireMemGfxPws acquireInfo = {};
@@ -4534,12 +4551,12 @@ size_t CmdUtil::BuildWaitEopPws(
     // Practically speaking, SelectReleaseMemCaches should consume all of our cache flags on gfx11. If the caller
     // asked for an I$ invalidate then it will get passed to the acquire_mem here but that sync should be rare.
     acquireInfo.cacheSync  = glxSync;
-    acquireInfo.counterSel = pws_counter_sel__me_acquire_mem__ts_select__HASPWS;
+    acquireInfo.counterSel = pws_counter_sel__me_acquire_mem__ts_select__GFX11;
 
     switch (waitPoint)
     {
     case HwPipeTop:
-        acquireInfo.stageSel = pws_stage_sel__me_acquire_mem__cp_pfp__HASPWS;
+        acquireInfo.stageSel = pws_stage_sel__me_acquire_mem__cp_pfp__GFX11;
         break;
     case HwPipePostPrefetch:
     case HwPipePostCs:
@@ -4548,12 +4565,12 @@ size_t CmdUtil::BuildWaitEopPws(
         // the same wait stage enum. HwPipePostCs has to go here too because there is no place to wait after compute
         // shaders, we have to upgrade it to a CP wait. HwPipePostBlt needs to wait after draws and dispatches, the
         // most conservative of those are dispatches so it goes here with HwPipePostCs.
-        acquireInfo.stageSel = pws_stage_sel__me_acquire_mem__cp_me__HASPWS;
+        acquireInfo.stageSel = pws_stage_sel__me_acquire_mem__cp_me__GFX11;
         break;
     case HwPipePreRasterization:
         acquireInfo.stageSel = m_device.Parent()->UsePwsLateAcquirePoint(EngineTypeUniversal)
-                               ? pws_stage_sel__me_acquire_mem__pre_depth__HASPWS
-                               : pws_stage_sel__me_acquire_mem__cp_me__HASPWS;
+                               ? pws_stage_sel__me_acquire_mem__pre_depth__GFX11
+                               : pws_stage_sel__me_acquire_mem__cp_me__GFX11;
         break;
     case HwPipePostPs:
     case HwPipePreColorTarget:
@@ -4562,8 +4579,8 @@ size_t CmdUtil::BuildWaitEopPws(
         // difference. They both map to pre_color. The last wait stage we can get is pre_color so that's also the best
         // choice for bottom of pipe waits.
         acquireInfo.stageSel = m_device.Parent()->UsePwsLateAcquirePoint(EngineTypeUniversal)
-                               ? pws_stage_sel__me_acquire_mem__pre_color__HASPWS
-                               : pws_stage_sel__me_acquire_mem__cp_me__HASPWS;
+                               ? pws_stage_sel__me_acquire_mem__pre_color__GFX11
+                               : pws_stage_sel__me_acquire_mem__cp_me__GFX11;
         break;
     default:
         // What is this?
@@ -4748,13 +4765,13 @@ size_t CmdUtil::BuildWriteConstRam(
     uint32      dwordSize,      // Amount of data to write, in DWORDs
     void*       pBuffer)        // [out] Build the PM4 packet in this buffer.
 {
-    const uint32 packetSize = PM4_CE_WRITE_CONST_RAM_SIZEDW__HASCE + dwordSize;
+    const uint32 packetSize = PM4_CE_WRITE_CONST_RAM_SIZEDW__GFX10 + dwordSize;
     PM4_CE_WRITE_CONST_RAM packet = {};
 
     packet.ordinal1.header.u32All          = (Type3Header(IT_WRITE_CONST_RAM, packetSize)).u32All;
-    packet.ordinal2.bitfields.hasCe.offset = ramByteOffset;
+    packet.ordinal2.bitfields.gfx10.offset = ramByteOffset;
 
-    static_assert(PM4_CE_WRITE_CONST_RAM_SIZEDW__HASCE * sizeof(uint32) == sizeof(packet), "");
+    static_assert(PM4_CE_WRITE_CONST_RAM_SIZEDW__GFX10 * sizeof(uint32) == sizeof(packet), "");
     memcpy(pBuffer, &packet, sizeof(packet));
 
     // Copy the data into the buffer after the packet.
@@ -4815,8 +4832,8 @@ size_t CmdUtil::BuildWriteDataInternal(
           static_cast<uint32>(dst_sel__me_write_data__mem_mapped_register)) &&
          (static_cast<uint32>(dst_sel__mec_write_data__tc_l2)               ==
           static_cast<uint32>(dst_sel__me_write_data__tc_l2))               &&
-         (static_cast<uint32>(dst_sel__mec_write_data__gds__CORE)           ==
-          static_cast<uint32>(dst_sel__me_write_data__gds__CORE))           &&
+         (static_cast<uint32>(dst_sel__mec_write_data__gds)                 ==
+          static_cast<uint32>(dst_sel__me_write_data__gds))                 &&
          (static_cast<uint32>(dst_sel__mec_write_data__memory)              ==
           static_cast<uint32>(dst_sel__me_write_data__memory))),
         "DST_SEL enumerations don't match between MEC and ME!");
@@ -4870,11 +4887,11 @@ size_t CmdUtil::BuildWriteDataInternal(
 
     case dst_sel__me_write_data__memory:
     case dst_sel__me_write_data__tc_l2:
-        PAL_ASSERT(packet.ordinal3.bitfieldsC.core.reserved4 == 0);
+        PAL_ASSERT(packet.ordinal3.bitfieldsC.reserved3 == 0);
         break;
 
-    case dst_sel__me_write_data__gds__CORE:
-        PAL_ASSERT(packet.ordinal3.bitfieldsB.core.reserved2 == 0);
+    case dst_sel__me_write_data__gds:
+        PAL_ASSERT(packet.ordinal3.bitfieldsB.reserved2 == 0);
         break;
 
     case dst_sel__me_write_data__memory_sync_across_grbm:
@@ -5063,19 +5080,20 @@ ME_WAIT_REG_MEM_function_enum CmdUtil::WaitRegMemFunc(
 bool CmdUtil::IsIndexedRegister(
     uint32 regAddr)
 {
-    return
-        (regAddr == mmVGT_LS_HS_CONFIG) ||
-        (regAddr == mmSPI_SHADER_PGM_RSRC3_GS) ||
-        (regAddr == mmSPI_SHADER_PGM_RSRC4_GS) ||
-        (regAddr == mmSPI_SHADER_PGM_RSRC3_HS) ||
-        (regAddr == mmSPI_SHADER_PGM_RSRC4_HS) ||
-        (regAddr == mmSPI_SHADER_PGM_RSRC3_PS) ||
-        (regAddr == Gfx10Plus::mmSPI_SHADER_PGM_RSRC4_PS) ||
-        (regAddr == HasHwVs::mmSPI_SHADER_PGM_RSRC3_VS) ||
-        (regAddr == Gfx10::mmSPI_SHADER_PGM_RSRC4_VS) ||
-        (regAddr == mmVGT_PRIMITIVE_TYPE) ||
-        (regAddr == mmVGT_INDEX_TYPE) ||
-        (regAddr == mmVGT_NUM_INSTANCES);
+    // Note that gfx11 didn't reuse the register offsets occupied by Gfx10::mmSPI_SHADER_PGM_RSRC*_VS. Thus if regAddr
+    // matches one of those values we must be running on a gfx10 ASIC so there's no need to actually check.
+    return ((regAddr == mmVGT_LS_HS_CONFIG)               ||
+            (regAddr == mmSPI_SHADER_PGM_RSRC3_GS)        ||
+            (regAddr == mmSPI_SHADER_PGM_RSRC4_GS)        ||
+            (regAddr == mmSPI_SHADER_PGM_RSRC3_HS)        ||
+            (regAddr == mmSPI_SHADER_PGM_RSRC4_HS)        ||
+            (regAddr == mmSPI_SHADER_PGM_RSRC3_PS)        ||
+            (regAddr == mmSPI_SHADER_PGM_RSRC4_PS)        ||
+            (regAddr == Gfx10::mmSPI_SHADER_PGM_RSRC3_VS) ||
+            (regAddr == Gfx10::mmSPI_SHADER_PGM_RSRC4_VS) ||
+            (regAddr == mmVGT_PRIMITIVE_TYPE)             ||
+            (regAddr == mmVGT_INDEX_TYPE)                 ||
+            (regAddr == mmVGT_NUM_INSTANCES));
 }
 
 #if PAL_ENABLE_PRINTS_ASSERTS

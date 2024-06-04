@@ -93,8 +93,6 @@ protected:
         uint32*                         pCmdSpace) const override;
 
     virtual uint32* WriteCopyImageLinearToLinearCmd(const DmaImageCopyInfo& imageCopyInfo, uint32* pCmdSpace) override;
-    virtual uint32* WriteCopyImageLinearToTiledCmd(const DmaImageCopyInfo& imageCopyInfo, uint32* pCmdSpace) override;
-    virtual uint32* WriteCopyImageTiledToLinearCmd(const DmaImageCopyInfo& imageCopyInfo, uint32* pCmdSpace) override;
     virtual uint32* WriteCopyImageTiledToTiledCmd(const DmaImageCopyInfo& imageCopyInfo, uint32* pCmdSpace) override;
 
     virtual uint32* WriteCopyMemToLinearImageCmd(
@@ -168,7 +166,7 @@ private:
         const DmaImageInfo&      linearImg,
         const DmaImageInfo&      tiledImg,
         bool                     deTile,
-        uint32*                  pCmdSpace) const;
+        uint32*                  pCmdSpace) const override;
 
     uint32* CopyImageMemTiledTransform(
         const DmaImageInfo&          image,
@@ -189,11 +187,6 @@ private:
 
     uint32* WriteCondExecCmd(uint32* pCmdSpace, gpusize predMemory, uint32 skipCountInDwords) const;
     uint32* WriteFenceCmd(uint32* pCmdSpace, gpusize memory, uint32 predCopyData) const;
-
-    uint32 GetImageZ(const DmaImageInfo&  dmaImageInfo, uint32  offsetZ) const;
-
-    uint32 GetImageZ(const DmaImageInfo&  dmaImageInfo) const
-        { return GetImageZ(dmaImageInfo, dmaImageInfo.offset.z); }
 
     uint32 GetLinearRowPitch(gpusize rowPitch, uint32 bytesPerPixel) const;
 

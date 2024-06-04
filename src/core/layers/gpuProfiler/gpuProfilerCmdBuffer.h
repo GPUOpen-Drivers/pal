@@ -117,9 +117,7 @@ public:
         uint32            argCount,
         const void*const* ppValues) override;
     virtual void CmdSetVertexBuffers(
-        uint32 firstBuffer,
-        uint32 bufferCount,
-        const BufferViewInfo* pBuffers) override;
+        const VertexBufferViews& bufferViews) override;
     virtual void CmdSetBlendConst(
         const BlendConstParams& params) override;
     virtual void CmdSetInputAssemblyState(
@@ -426,19 +424,15 @@ public:
         uint32            currRingPos,
         uint32            ringSize) override;
     virtual uint32 GetEmbeddedDataLimit() const override;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
     virtual uint32 GetLargeEmbeddedDataLimit() const override;
-#endif
     virtual uint32* CmdAllocateEmbeddedData(
         uint32   sizeInDwords,
         uint32   alignmentInDwords,
         gpusize* pGpuAddress) override;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
     virtual uint32* CmdAllocateLargeEmbeddedData(
         uint32   sizeInDwords,
         uint32   alignmentInDwords,
         gpusize* pGpuAddress) override;
-#endif
     virtual Result AllocateAndBindGpuMemToEvent(
         IGpuEvent* pGpuEvent) override;
     virtual void CmdExecuteNestedCmdBuffers(

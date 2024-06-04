@@ -159,14 +159,16 @@ uint32* CmdStream::WriteRegisters(
     constexpr uint32 ComputePeristentStart = mmCOMPUTE_DISPATCH_INITIATOR;
     const uint32 endAddr = startAddr + count - 1;
 
+    // Note that gfx11 didn't reuse the register offsets occupied by Gfx10::mmSPI_SHADER_PGM_RSRC*_VS. Thus if regAddr
+    // matches one of those values we must be running on a gfx10 ASIC so there's no need to actually check.
     if ((count == 1) &&
-        ((startAddr == mmSPI_SHADER_PGM_RSRC3_GS) ||
-         (startAddr == mmSPI_SHADER_PGM_RSRC4_GS) ||
-         (startAddr == mmSPI_SHADER_PGM_RSRC3_HS) ||
-         (startAddr == mmSPI_SHADER_PGM_RSRC4_HS) ||
-         (startAddr == mmSPI_SHADER_PGM_RSRC3_PS) ||
-         (startAddr == Gfx10Plus::mmSPI_SHADER_PGM_RSRC4_PS) ||
-         (startAddr == HasHwVs::mmSPI_SHADER_PGM_RSRC3_VS) ||
+        ((startAddr == mmSPI_SHADER_PGM_RSRC3_GS)        ||
+         (startAddr == mmSPI_SHADER_PGM_RSRC4_GS)        ||
+         (startAddr == mmSPI_SHADER_PGM_RSRC3_HS)        ||
+         (startAddr == mmSPI_SHADER_PGM_RSRC4_HS)        ||
+         (startAddr == mmSPI_SHADER_PGM_RSRC3_PS)        ||
+         (startAddr == mmSPI_SHADER_PGM_RSRC4_PS)        ||
+         (startAddr == Gfx10::mmSPI_SHADER_PGM_RSRC3_VS) ||
          (startAddr == Gfx10::mmSPI_SHADER_PGM_RSRC4_VS)))
     {
         // Handle indexed SH
@@ -1407,7 +1409,7 @@ uint32* CmdStream::WriteClearState(
 {
     pCmdSpace += m_cmdUtil.BuildClearState(clearMode, pCmdSpace);
 
-    if ((clearMode == cmd__pfp_clear_state__pop_state__HASCLEARSTATE) && (m_pPm4Optimizer != nullptr))
+    if ((clearMode == cmd__pfp_clear_state__pop_state) && (m_pPm4Optimizer != nullptr))
     {
         // We just destroyed all the state, reset the pm4 optimizer
         m_pPm4Optimizer->Reset();

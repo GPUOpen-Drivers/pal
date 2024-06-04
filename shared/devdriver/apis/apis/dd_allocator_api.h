@@ -40,14 +40,21 @@ typedef struct DDAllocator
     /// A opaque pointer to the internal memory allocation implementation.
     DDAllocatorInstance* pInstance;
 
-    /// This function acts similarly to `std::realloc()`.
+    /// @brief This callback provides functionalities similar to both `std::malloc` and `std::realloc`.
+    ///
+    /// 1. If \param pMemory is NULL, this callback ignores \param oldSize, and acts similarly to `std::malloc`.
+    /// 2. If \param pMemory is not NULL, this callback acts similarly to `std::realloc`, except that callers must pass
+    ///    the original memory size (\param oldSize) themselves. If \param oldSize is 0, NULL is returned.
+    ///
+    /// In both cases, callers are responsible for tracking memory sizes themselves.
+    ///
+    /// `std::realloc` functionality is optional. When it's not implemented, the old memory is not freed, and NULL is
+    /// returned.
     ///
     /// @param[in] pInstance Must be \ref DDModulesApi.pInstance.
     /// @param[in] pMemory A pointer to a block of memory returned by a previous call to `Realloc()`. This
     /// parameter can be NULL.
-    /// @param[in] oldSize The size of the memory pointed to by \param pMemory. Unlike `std::realloc()` Callers
-    /// of this function must keep track of memory size themselves. Passing 0 will result in failure and
-    /// NULL pointer returned, except when \param pMemory is NULL.
+    /// @param[in] oldSize The size of the memory pointed to by \param pMemory if it's not NULL.
     /// @param[in] newSize The new size of memory to allocate.
     /// @return A pointer to a block of memory the size of \param newSize.
     void* (*Realloc)(DDAllocatorInstance* pInstance, void* pMemory, size_t oldSize, size_t newSize);

@@ -257,9 +257,7 @@ Result CmdBuffer::End()
 
         m_stats.commandBufferSize     = GetNextLayer()->GetUsedSize(CmdAllocType::CommandDataAlloc);
         m_stats.embeddedDataSize      = GetNextLayer()->GetUsedSize(CmdAllocType::EmbeddedDataAlloc);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
         m_stats.largeEmbeddedDataSize = GetNextLayer()->GetUsedSize(CmdAllocType::LargeEmbeddedDataAlloc);
-#endif
         m_stats.gpuScratchMemSize     = GetNextLayer()->GetUsedSize(CmdAllocType::GpuScratchMemAlloc);
     }
 
@@ -479,12 +477,10 @@ void CmdBuffer::CmdSetKernelArguments(
 
 // =====================================================================================================================
 void CmdBuffer::CmdSetVertexBuffers(
-    uint32                firstBuffer,
-    uint32                bufferCount,
-    const BufferViewInfo* pBuffers)
+    const VertexBufferViews& bufferViews)
 {
     PreCall();
-    CmdBufferFwdDecorator::CmdSetVertexBuffers(firstBuffer, bufferCount, pBuffers);
+    CmdBufferFwdDecorator::CmdSetVertexBuffers(bufferViews);
     PostCall(CmdBufCallId::CmdSetVertexBuffers);
 }
 

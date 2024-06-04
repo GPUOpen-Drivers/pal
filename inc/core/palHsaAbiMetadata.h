@@ -165,9 +165,10 @@ public:
     /// @returns Success if successful, ErrorInvalidValue if the metadata is incorrect, or ErrorUnavailable if the
     ///          metadata is not supported.
     Result DeserializeNote(
-        MsgPackReader* pReader,
-        const void*    pRawMetadata,
-        uint32         metadataSize);
+        MsgPackReader*   pReader,
+        const void*      pRawMetadata,
+        uint32           metadataSize,
+        StringView<char> kernelName);
 
     /// Returns a c-string pointer which names the kernel.
     const char* KernelName() const { return m_pName; }

@@ -28,6 +28,7 @@
 #include "core/hw/gfxip/gfxDevice.h"
 #include "core/hw/gfxip/computePipeline.h"
 #include "core/hw/gfxip/rpm/rsrcProcMgr.h"
+#include "core/hw/gfxip/pm4IndirectCmdGenerator.h"
 #include "palAutoBuffer.h"
 #include "palHsaAbiMetadata.h"
 
@@ -172,6 +173,44 @@ void GfxCmdBuffer::ResetState()
     m_cmdBufPerfExptFlags.u32All = 0;
     m_gfxCmdBufStateFlags.u32All = 0;
 
+}
+
+// =====================================================================================================================
+void GfxCmdBuffer::DescribeDraw(
+    Developer::DrawDispatchType cmdType,
+    bool                        includedGangedAce)
+{
+    RgpMarkerSubQueueFlags subQueueFlags { };
+    subQueueFlags.includeMainSubQueue    = 1;
+    subQueueFlags.includeGangedSubQueues = includedGangedAce;
+
+    m_device.DescribeDraw(this, subQueueFlags, cmdType, 0, 0, 0);
+}
+
+// =====================================================================================================================
+void GfxCmdBuffer::DescribeExecuteIndirectCmds(
+    GfxCmdBuffer* pCmdBuf,
+    uint32        genType)
+{
+    Pm4::GeneratorType type = static_cast<Pm4::GeneratorType>(genType);
+
+    switch (type)
+    {
+    case Pm4::GeneratorType::Draw:
+        pCmdBuf->DescribeDraw(Developer::DrawDispatchType::CmdGenExecuteIndirectDraw);
+        break;
+    case Pm4::GeneratorType::DrawIndexed:
+        pCmdBuf->DescribeDraw(Developer::DrawDispatchType::CmdGenExecuteIndirectDrawIndexed);
+        break;
+    case Pm4::GeneratorType::Dispatch:
+        DescribeDispatch(Developer::DrawDispatchType::CmdGenExecuteIndirectDispatch, {});
+        break;
+    case Pm4::GeneratorType::DispatchMesh:
+        pCmdBuf->DescribeDraw(Developer::DrawDispatchType::CmdGenExecuteIndirectDispatchMesh);
+        break;
+    default:
+        break;
+    }
 }
 
 // =====================================================================================================================

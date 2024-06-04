@@ -108,8 +108,6 @@ constexpr gpusize _4GB = (1ull << 32u);
 constexpr uint32 GpuPageSize = 4096;
 
 constexpr char UserDefaultConfigFileSubPath[] = "/.config";
-constexpr char UserDefaultCacheFileSubPath[]  = "/.cache";
-constexpr char UserDefaultDebugFilePath[]     = "/var/tmp";
 
 // 32 bpp formats are supported on all supported gpu's and amdgpu kms drivers:
 constexpr SwizzledFormat PresentableSwizzledFormat[] =
@@ -969,12 +967,10 @@ Result Device::InitGpuProperties()
 
     for (uint32 i = 0; i < EngineTypeCount; i++)
     {
-        m_engineProperties.perEngine[i].preferredCmdAllocHeaps[CommandDataAlloc]        = GpuHeapGartUswc;
-        m_engineProperties.perEngine[i].preferredCmdAllocHeaps[EmbeddedDataAlloc]       = GpuHeapGartUswc;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
-        m_engineProperties.perEngine[i].preferredCmdAllocHeaps[LargeEmbeddedDataAlloc]  = GpuHeapGartUswc;
-#endif
-        m_engineProperties.perEngine[i].preferredCmdAllocHeaps[GpuScratchMemAlloc]      = GpuHeapInvisible;
+        m_engineProperties.perEngine[i].preferredCmdAllocHeaps[CommandDataAlloc]       = GpuHeapGartUswc;
+        m_engineProperties.perEngine[i].preferredCmdAllocHeaps[EmbeddedDataAlloc]      = GpuHeapGartUswc;
+        m_engineProperties.perEngine[i].preferredCmdAllocHeaps[LargeEmbeddedDataAlloc] = GpuHeapGartUswc;
+        m_engineProperties.perEngine[i].preferredCmdAllocHeaps[GpuScratchMemAlloc]     = GpuHeapInvisible;
     }
 
     for (uint32 i = 0; i < EngineTypeCount; i++)
@@ -1794,58 +1790,6 @@ Result Device::InitQueueInfo()
 }
 
 // =====================================================================================================================
-// Helper method to initialize cache and debug file paths.
-void Device::InitOutputPaths()
-{
-    const char* pPath;
-
-    // Initialize the root path of cache files
-    // Cascade:
-    // 1. Find AMD_SHADER_DISK_CACHE_PATH to keep backward compatibility.
-    // 2. Find XDG_CACHE_HOME.
-    // 3. If AMD_SHADER_DISK_CACHE_PATH and XDG_CACHE_HOME both not set,
-    //    use "$HOME/.cache".
-    pPath = getenv("AMD_SHADER_DISK_CACHE_PATH");
-
-    if (pPath == nullptr)
-    {
-        pPath = getenv("XDG_CACHE_HOME");
-    }
-
-    if (pPath != nullptr)
-    {
-        Strncpy(m_cacheFilePath, pPath, sizeof(m_cacheFilePath));
-    }
-    else
-    {
-        pPath = getenv("HOME");
-        if (pPath != nullptr)
-        {
-            Snprintf(m_cacheFilePath, sizeof(m_cacheFilePath), "%s%s", pPath, UserDefaultCacheFileSubPath);
-        }
-    }
-
-    // Initialize the root path of debug files which is used to put all files
-    // for debug purpose (such as logs, dumps, replace shader)
-    // Cascade:
-    // 1. Find AMD_DEBUG_DIR.
-    // 2. Find TMPDIR.
-    // 3. If AMD_DEBUG_DIR and TMPDIR both not set, use "/var/tmp"
-    pPath = getenv("AMD_DEBUG_DIR");
-    if (pPath == nullptr)
-    {
-        pPath = getenv("TMPDIR");
-    }
-
-    if (pPath == nullptr)
-    {
-        pPath = UserDefaultDebugFilePath;
-    }
-
-    Strncpy(m_debugFilePath, pPath, sizeof(m_debugFilePath));
-}
-
-// =====================================================================================================================
 // Captures a GPU timestamp with the corresponding CPU timestamps, allowing tighter CPU/GPU timeline synchronization.
 Result Device::GetCalibratedTimestamps(
     CalibratedTimestamps* pCalibratedTimestamps
@@ -2195,7 +2139,10 @@ Result Device::CreateImage(
         {
             // PipeBankXor is zero initialized by internalInfo declaration
             // Do not override the swizzle mode value
-            internalInfo.gfx9.sharedSwizzleMode = ADDR_SW_MAX_TYPE;
+            {
+                internalInfo.gfx9.sharedSwizzleMode = ADDR_SW_MAX_TYPE;
+            }
+
         }
     }
 
@@ -2265,17 +2212,12 @@ void Device::GetDisplayDccInfo(
         displayDcc.pipeAligned = 0;
         displayDcc.rbAligned   = 0;
 
+        if (IsGfx103Plus(*this))
         {
-            // Refer to gfx9_compute_surface function of Mesa3d,if gfxLevel greater or equal to GfxIp10_3,
-            // displaydcc parameter should be set to "Independent64=1, Independent128=1, maxCompress=64B"
-            // to meet DCN requirements, therefore here dcc_256_64_64 should be set to 1.
-            if (IsGfx103Plus(*this))
-            {
-                displayDcc.dcc_256_256_unconstrained = 0;
-                displayDcc.dcc_256_128_128           = 0;
-                displayDcc.dcc_128_128_unconstrained = 0;
-                displayDcc.dcc_256_64_64             = 1;
-            }
+            displayDcc.dcc_256_256_unconstrained = 0;
+            displayDcc.dcc_256_128_128           = 1;
+            displayDcc.dcc_128_128_unconstrained = 0;
+            displayDcc.dcc_256_64_64             = 1;
         }
     }
 }
@@ -2943,14 +2885,6 @@ Result Device::CreateCommandSubmissionContext(
     if (m_useSharedGpuContexts == false)
     {
         result = CreateCommandSubmissionContextRaw(pContextHandle, priority, isTmzOnly);
-
-        // High priority context might be constrained,
-        // need to retry with medium priority.
-        if ((result != Result::Success) && (priority > QueuePriority::Medium))
-        {
-            result = CreateCommandSubmissionContextRaw(pContextHandle, QueuePriority::Medium, isTmzOnly);
-        }
-
         m_contextList.PushBack(*pContextHandle);
     }
     else
@@ -3741,7 +3675,8 @@ void Device::UpdateMetaData(
         }
     }
 
-    m_drmProcs.pfnAmdgpuBoSetMetadata(hBuffer, &metadata);
+    int32 drmRet = m_drmProcs.pfnAmdgpuBoSetMetadata(hBuffer, &metadata);
+    PAL_ASSERT(drmRet == 0);
 }
 
 // =====================================================================================================================
@@ -4780,6 +4715,16 @@ Result Device::OpenExternalSharedGpuMemory(
 
         Pal::GpuMemory* pGpuMemory = ConstructGpuMemoryObject(pPlacementAddr);
 
+        createInfo.flags.gl2Uncached     = openInfo.flags.gl2Uncached;
+        createInfo.flags.mallRangeActive = openInfo.flags.mallRangeActive;
+        createInfo.mallRange             = openInfo.mallRange;
+        createInfo.mallPolicy            = openInfo.mallPolicy;
+
+        if (openInfo.flags.gl2Uncached)
+        {
+            internalInfo.mtype = MType::Uncached;
+        }
+
         result = pGpuMemory->Init(createInfo, internalInfo);
         if (IsErrorResult(result))
         {
@@ -5250,7 +5195,6 @@ Result Device::InitClkInfo()
 // Checks and returns execution state of the device.
 // When context reset occurs, any active context can query the reset state.
 // If context is empty, will return -EINVAL: ErrorInvalidValue.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 796
 Result Device::CheckExecutionState(
     PageFaultStatus* pPageFaultStatus)
 {
@@ -5277,7 +5221,8 @@ Result Device::CheckExecutionState(
                 pPageFaultStatus->flags.pageFault = 1;
 
                 // Read the GCVM_L2_PROTECTION_FAULT_STATUS register's 18th bit to check the RW
-                pPageFaultStatus->flags.readFault = (Util::BitfieldIsSet(gpuVmfault.status, GcvmL2ProtectionFaultStatusRwBit) == false);
+                pPageFaultStatus->flags.readFault =
+                    (Util::BitfieldIsSet(gpuVmfault.status, GcvmL2ProtectionFaultStatusRwBit) == false);
                 pPageFaultStatus->faultAddress = gpuVmfault.addr;
 
                 result = Result::ErrorGpuPageFaultDetected;
@@ -5336,24 +5281,6 @@ Result Device::CheckExecutionState(
 
     return result;
 }
-#else
-Result Device::CheckExecutionState(
-    PageFaultStatus* pPageFaultStatus
-    ) const
-{
-    // linux don't have device level interface to query the device state.
-    // just query the gpu timestamp
-    // the kernel will return -NODEV if gpu reset happens.
-    uint64 gpuTimestamp = 0;
-
-    Result result = CheckResult(m_drmProcs.pfnAmdgpuQueryInfo(m_hDevice,
-                                                              AMDGPU_INFO_TIMESTAMP,
-                                                              sizeof(gpuTimestamp),
-                                                              &gpuTimestamp), Result::Success);
-
-    return result;
-}
-#endif
 
 // =====================================================================================================================
 // Helper function to check kernel version.

@@ -112,6 +112,65 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         /wd4701  # potentially uninitialized local variable
         /wd6297  # arithmetic overflow: 32-bit value is shifted, then cast to 64-bit value
     )
+
+    # Separating this block to be activated only if building from KMD-CMake
+    # Adds flags that are normally included in the ATI Make build for addrlib
+    if(KMD_ENABLED)
+        target_compile_options(addrlib PRIVATE
+            /Zp8   # Packs structures on 8-byte boundaries
+            /Gy   # Enables function-level linking
+            /GF   # Eliminate Duplicate Strings
+            /FC   # Full path of source code file in diagnostics
+            "$<$<CONFIG:Debug>:/Oi>"   # Generates intrinsic functions
+        )
+
+        if(CMAKE_SIZEOF_VOID_P EQUAL 4)
+            target_compile_options(addrlib PRIVATE /Gz)     # Uses the __stdcall calling convention
+        endif()
+
+        set_target_properties(addrlib
+            PROPERTIES
+                MSVC_DEBUG_INFORMATION_FORMAT ProgramDatabase                   # Compile with -Zi to produce a PDB file
+                MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>"    # Compile with -MT/-MTd
+        )
+
+        # Adding "global" options to components specifically, rather than abstracting it away
+        # so that developers have visibility into what flags are going into the compilations.
+
+        # Equivalent of VCXXOPTS in ATI Make
+        if(DEFINED VARIABLE_COMPILE_OPTS)
+            target_compile_options(addrlib PRIVATE ${VARIABLE_COMPILE_OPTS})
+        endif()
+
+        # Equivalent of GCXXOPTS in ATI Make
+        # Remove -W3 from global compile opts since -W4 is already set.
+        if(DEFINED GLOBAL_COMPILE_OPTS)
+            target_compile_options(addrlib PRIVATE "$<LIST:REMOVE_ITEM,${GLOBAL_COMPILE_OPTS},-W3>")
+        endif()
+
+        # Equivalent of GCXXDEFS in ATI Make
+        if(DEFINED GLOBAL_COMPILE_DEFS)
+            target_compile_definitions(addrlib PRIVATE ${GLOBAL_COMPILE_DEFS})
+        endif()
+
+        # Set relevant Visual Studio properties for building a kernel mode lib
+        if (CMAKE_SYSTEM_NAME STREQUAL "WindowsKernelModeDriver")
+            set(CURRENT_SPACE "KERNEL")
+            if (CMAKE_GENERATOR MATCHES "Visual Studio")
+                set_property(TARGET addrlib PROPERTY VS_GLOBAL_DriverType "WDF")
+                set_property(TARGET addrlib PROPERTY VS_GLOBAL_TargetVersion "Windows10")
+                set_property(TARGET addrlib PROPERTY VS_PLATFORM_TOOLSET "WindowsKernelModeDriver10.0")
+            endif()
+        else()
+            set(CURRENT_SPACE "USER")
+        endif()
+
+        # If other libraries have a property AMD_USER_KERNEL_SPACE, it much match what addrlib built with
+        # (if not, does not matter)
+        set_property(TARGET addrlib PROPERTY COMPATIBLE_INTERFACE_STRING "AMD_USER_KERNEL_SPACE" APPEND)
+        set_property(TARGET addrlib PROPERTY AMD_USER_KERNEL_SPACE "${CURRENT_SPACE}")
+        set_property(TARGET addrlib PROPERTY INTERFACE_AMD_USER_KERNEL_SPACE "${CURRENT_SPACE}")
+    endif()
 else()
     message(FATAL_ERROR "addrlib: Compiler ${CMAKE_CXX_COMPILER_ID} is not supported!")
 endif()

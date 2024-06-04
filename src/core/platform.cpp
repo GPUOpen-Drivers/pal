@@ -140,6 +140,9 @@ Platform::Platform(
     m_logCb(),
     m_gpuMemoryEventProvider(this),
     m_crashAnalysisEventProvider(this),
+#if PAL_ENABLE_LOGGING
+    m_pDevDriverLogger(nullptr),
+#endif
     m_enabledCallbackTypesMask(Developer::DefaultEnabledCallbackTypes),
     m_subAllocTrackingEnabled(false)
 {
@@ -775,6 +778,10 @@ void Platform::LateInitDevDriver()
 // Destroys the connection to the developer driver message bus if it was previously initialized.
 void Platform::DestroyDevDriver()
 {
+#if PAL_ENABLE_LOGGING
+    DbgLoggerDevDriver::DestroyDevDriverLogger(m_pDevDriverLogger, this);
+#endif
+
     if (m_pDevDriverServer != nullptr)
     {
         DestroyRpcServices();
@@ -1164,10 +1171,12 @@ bool Platform::IsDevDriverProfilingEnabled() const
         isProfilingEnabled = m_pRgpServer->TracesEnabled();
     }
 
+#if PAL_BUILD_RDF
     if (m_pTraceSession != nullptr)
     {
         isProfilingEnabled |= m_pTraceSession->IsTracingEnabled();
     }
+#endif
 
     return isProfilingEnabled;
 }

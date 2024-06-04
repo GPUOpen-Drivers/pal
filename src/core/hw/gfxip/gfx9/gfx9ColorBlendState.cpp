@@ -65,25 +65,25 @@ BlendOp ColorBlendState::HwBlendOp(
     {
         constexpr BlendOp BlendOpTbl[] =
         {
-            BLEND_ZERO,                               // Zero
-            BLEND_ONE,                                // One
-            BLEND_SRC_COLOR,                          // SrcColor
-            BLEND_ONE_MINUS_SRC_COLOR,                // OneMinusSrcColor
-            BLEND_DST_COLOR,                          // DstColor
-            BLEND_ONE_MINUS_DST_COLOR,                // OneMinusDstColor
-            BLEND_SRC_ALPHA,                          // SrcAlpha
-            BLEND_ONE_MINUS_SRC_ALPHA,                // OneMinusSrcAlpha
-            BLEND_DST_ALPHA,                          // DstAlpha
-            BLEND_ONE_MINUS_DST_ALPHA,                // OneMinusDstAlpha
-            BLEND_CONSTANT_COLOR__GFX09_10,           // ConstantColor
-            BLEND_ONE_MINUS_CONSTANT_COLOR__GFX09_10, // OneMinusConstantColor
-            BLEND_CONSTANT_ALPHA__GFX09_10,           // ConstantAlpha
-            BLEND_ONE_MINUS_CONSTANT_ALPHA__GFX09_10, // OneMinusConstantAlpha
-            BLEND_SRC_ALPHA_SATURATE,                 // SrcAlphaSaturate
-            BLEND_SRC1_COLOR__GFX09_10,               // Src1Color
-            BLEND_INV_SRC1_COLOR__GFX09_10,           // OneMinusSrc1Color
-            BLEND_SRC1_ALPHA__GFX09_10,               // Src1Alpha
-            BLEND_INV_SRC1_ALPHA__GFX09_10,           // OneMinusSrc1Alpha
+            BLEND_ZERO,                            // Zero
+            BLEND_ONE,                             // One
+            BLEND_SRC_COLOR,                       // SrcColor
+            BLEND_ONE_MINUS_SRC_COLOR,             // OneMinusSrcColor
+            BLEND_DST_COLOR,                       // DstColor
+            BLEND_ONE_MINUS_DST_COLOR,             // OneMinusDstColor
+            BLEND_SRC_ALPHA,                       // SrcAlpha
+            BLEND_ONE_MINUS_SRC_ALPHA,             // OneMinusSrcAlpha
+            BLEND_DST_ALPHA,                       // DstAlpha
+            BLEND_ONE_MINUS_DST_ALPHA,             // OneMinusDstAlpha
+            BLEND_CONSTANT_COLOR__GFX10,           // ConstantColor
+            BLEND_ONE_MINUS_CONSTANT_COLOR__GFX10, // OneMinusConstantColor
+            BLEND_CONSTANT_ALPHA__GFX10,           // ConstantAlpha
+            BLEND_ONE_MINUS_CONSTANT_ALPHA__GFX10, // OneMinusConstantAlpha
+            BLEND_SRC_ALPHA_SATURATE,              // SrcAlphaSaturate
+            BLEND_SRC1_COLOR__GFX10,               // Src1Color
+            BLEND_INV_SRC1_COLOR__GFX10,           // OneMinusSrc1Color
+            BLEND_SRC1_ALPHA__GFX10,               // Src1Alpha
+            BLEND_INV_SRC1_ALPHA__GFX10,           // OneMinusSrc1Alpha
         };
 
         hwOp = BlendOpTbl[static_cast<size_t>(blendOp)];

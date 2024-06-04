@@ -123,6 +123,18 @@ struct PerfCounterId
     Pal::uint32   eventId;  ///< Counter ID to sample.  Note that the meaning of a particular eventId for a block can
                             ///  change between chips.
 
+    union
+    {
+        struct
+        {
+            Pal::uint32 spm32Bit : 1;  ///< For SPM counters, collect in 32bit instead of 16bit
+            Pal::uint32 reserved : 31; ///< Reserved for future use
+        };
+
+        Pal::uint32 u32All; ///< Union value for copying
+
+    } flags;
+
     // Some blocks have additional per-counter controls. They must be properly programmed when adding counters for
     // the relevant blocks. It's recommended to zero them out when not in use.
     union

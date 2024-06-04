@@ -100,6 +100,7 @@ enum class PerfCounterType : uint32
 {
     Global = 0x0, ///< Represents the traditional summary perf counters.
     Spm    = 0x1, ///< Represents streaming performance counters.
+    Spm32  = 0x2, ///< Represents 32bit streaming performance counters
     Count
 };
 
@@ -132,12 +133,15 @@ enum PerfExperimentShaderFlags
     PerfShaderMaskAll = 0x7f,
 };
 
-/// Selects one of two supported generic performance trace markers, which the client can use to track data of its own
-/// choosing.
+/// Selects one of generic performance trace markers, which the client can use to track data of its own choosing.
 enum class PerfTraceMarkerType : uint32
 {
-    A = 0x0,
-    B = 0x1,
+    SqttA = 0x0,
+    SqttB = 0x1,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 874
+    A = SqttA,
+    B = SqttB,
+#endif
     Count
 };
 

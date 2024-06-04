@@ -176,9 +176,10 @@ Result Pipeline::PerformRelocationsAndUploadToGpuMemory(
 
     if (result == Result::Success)
     {
+        gpusize offset   = pUploader->SectionOffset();
         m_pagingFenceVal = pUploader->PagingFenceVal();
-        m_gpuMemSize     = pUploader->GpuMemSize();
-        m_gpuMem.Update(pUploader->GpuMem(), pUploader->GpuMemOffset());
+        m_gpuMemSize     = pUploader->GpuMemSize() - offset;
+        m_gpuMem.Update(pUploader->GpuMem(), pUploader->GpuMemOffset() + offset);
     }
 
     return result;
@@ -235,6 +236,11 @@ void Pipeline::ExtractPipelineInfo(
             m_info.shader[s].hash = { shaderMetadata.apiShaderHash[0], shaderMetadata.apiShaderHash[1] };
             m_apiHwMapping.apiShaders[shaderTypeIdx] = static_cast<uint8>(shaderMetadata.hardwareMapping);
         }
+    }
+
+    if (metadata.pipeline.hasEntry.usesCps != 0)
+    {
+        m_info.flags.usesCps = metadata.pipeline.flags.usesCps;
     }
 
     m_info.ps.flags.usesSampleMask = metadata.pipeline.flags.psSampleMask;
@@ -421,7 +427,6 @@ void Pipeline::SetStackSizeInBytes(
     PAL_ASSERT_ALWAYS();
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 797
 // =====================================================================================================================
 // Get the frontend and backend stack sizes
 Result Pipeline::GetStackSizes(
@@ -431,15 +436,6 @@ Result Pipeline::GetStackSizes(
     // To be Implemented in needed Pipeline classes
     return Result::Unsupported;
 }
-#else
-// =====================================================================================================================
-// Get the size of the stack
-uint32 Pipeline::GetStackSizeInBytes() const
-{
-    // To be Implemented in needed Pipeline classes
-    return 0;
-}
-#endif
 
 // =====================================================================================================================
 // Helper method which extracts shader statistics from the pipeline ELF binary for a particular hardware stage.
@@ -606,9 +602,10 @@ void* SectionInfo::GetCpuMappedAddr(
 SectionInfo* SectionMemoryMap::AddSection(
     Util::ElfReader::SectionId sectionId,
     gpusize                    gpuVirtAddr,
+    gpusize                    offset,
     const void*                pCpuLocalAddr)
 {
-    SectionInfo info(&m_allocator, sectionId, gpuVirtAddr, pCpuLocalAddr);
+    SectionInfo info(&m_allocator, sectionId, gpuVirtAddr, offset, pCpuLocalAddr);
     Result result = m_sections.PushBack(info);
     SectionInfo* pSection = nullptr;
     if (result == Result::Success)
@@ -880,9 +877,10 @@ Result PipelineUploader::UploadUsingDma(
         {
             const SectionAddressCalculator::SectionOffset& section = sectionIter.Get();
             const void* pSectionData = elfReader.GetSectionData(section.sectionId);
-
+            PAL_ASSERT(section.offset >= elfReader.GetSection(section.sectionId).sh_addr);
+            uint64 offset = section.offset - elfReader.GetSection(section.sectionId).sh_addr;
             SectionInfo*const pInfo =
-                m_memoryMap.AddSection(section.sectionId, (gpuVirtAddr + section.offset), pSectionData);
+                m_memoryMap.AddSection(section.sectionId, (gpuVirtAddr + section.offset), offset, pSectionData);
             if (pInfo == nullptr)
             {
                 result = Result::ErrorOutOfMemory;
@@ -952,9 +950,11 @@ Result PipelineUploader::UploadUsingCpu(
             const void*  pSectionData = elfReader.GetSectionData(section.sectionId);
             const uint64 sectionSize  = elfReader.GetSection(section.sectionId).sh_size;
             void*const   pMappedPtr   = VoidPtrInc(m_pMappedPtr, static_cast<size_t>(section.offset));
+            PAL_ASSERT(section.offset >= elfReader.GetSection(section.sectionId).sh_addr);
+            uint64 offset = section.offset - elfReader.GetSection(section.sectionId).sh_addr;
 
             SectionInfo*const pInfo =
-                m_memoryMap.AddSection(section.sectionId, (gpuVirtAddr + section.offset), pSectionData);
+                m_memoryMap.AddSection(section.sectionId, (gpuVirtAddr + section.offset), offset, pSectionData);
             if (pInfo == nullptr)
             {
                 result = Result::ErrorOutOfMemory;
@@ -1217,6 +1217,21 @@ Result PipelineUploader::GetAbsoluteSymbolAddress(
     }
 
     return result;
+}
+
+// =====================================================================================================================
+gpusize PipelineUploader::SectionOffset() const
+{
+    gpusize offset = 0;
+    // HSA pipeline binary may be unlinked, and it has multiple .text section, we need adjust the offset according to
+    // the section offset in CS entry symbol. For graphics pipeline or PAL ABI based pipeline, it is always 0.
+    const Elf::SymbolTableEntry* pElfSymbol = m_abiReader.GetPipelineSymbol(Abi::PipelineSymbolType::CsMainEntry);
+    if (pElfSymbol != nullptr)
+    {
+        const SectionInfo* pSection = m_memoryMap.FindSection(pElfSymbol->st_shndx);
+        offset = pSection->GetOffset();
+    }
+    return offset;
 }
 
 } // Pal

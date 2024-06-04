@@ -285,7 +285,12 @@ public:
     gpusize TimestampGpuVirtAddr() const { return m_timestampGpuVa; }
 
     // hwGlxSync/hwRbSync: opaque HWL cache sync flags. hwRbSync will be ignored for compute cmd buffer.
-    virtual uint32* WriteWaitEop(HwPipePoint waitPoint, uint32 hwGlxSync, uint32 hwRbSync, uint32* pCmdSpace)
+    virtual uint32* WriteWaitEop(
+        HwPipePoint waitPoint,
+        bool        waitCpDma,
+        uint32      hwGlxSync,
+        uint32      hwRbSync,
+        uint32*     pCmdSpace)
         { PAL_NEVER_CALLED(); return pCmdSpace; }
 
     virtual uint32* WriteWaitCsIdle(uint32* pCmdSpace)

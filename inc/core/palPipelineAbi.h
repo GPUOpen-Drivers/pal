@@ -803,7 +803,7 @@ enum class ZOrder : uint8
  {
 
  constexpr uint32 PipelineMetadataMajorVersion = 3;  ///< Pipeline Metadata Major Version
- constexpr uint32 PipelineMetadataMinorVersion = 2;  ///< Pipeline Metadata Minor Version
+ constexpr uint32 PipelineMetadataMinorVersion = 4;  ///< Pipeline Metadata Minor Version
 
  constexpr uint32 PipelineMetadataBase = 0x10000000; ///< Deprecated - Pipeline Metadata base value to be OR'd with the
                                                      ///  PipelineMetadataEntry value when saving to ELF.

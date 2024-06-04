@@ -118,6 +118,13 @@ public:
     /// Inserts the specified interval into the red-black tree.
     IntervalTreeNode<T, K>* Insert(const Interval<T, K>* pInterval);
 
+    /// Inserts the specified interval into the red-black tree using a detached node.
+    /// Only the interval of the node is used.
+    IntervalTreeNode<T, K>* InsertExisting(IntervalTreeNode<T, K>* pNode);
+
+    /// Removes the specified node from the tree but does not deallocate it.
+    void Detach(IntervalTreeNode<T, K>* pNode);
+
     /// Deletes the specified node from the tree.
     void Delete(IntervalTreeNode<T, K>* pNode);
 
@@ -174,6 +181,9 @@ public:
     /// Overwrites the specified interval range, adjusting the tree as necessary (potentially inserting a new node and
     /// splitting or combining adjacent nodes).
     void OverwriteInterval(const Interval<T, K>* pInterval);
+
+    /// Either extend an existing adjacent/containing range with the same value to this or insert a new interval
+    Result InsertOrExtend(const Interval<T, K>* pInterval);
 
 private:
     // Destroys tree rooted pRoot.

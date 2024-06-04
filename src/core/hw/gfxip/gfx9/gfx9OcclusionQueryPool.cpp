@@ -144,7 +144,7 @@ void OcclusionQueryPool::End(
         const Interval<gpusize, bool> interval = { gpuAddr, gpuAddr + GetGpuResultSizeInBytes(1) - 1 };
 
         PAL_ASSERT(pActiveRanges->Overlap(&interval) == false);
-        pActiveRanges->Insert(&interval);
+        pActiveRanges->InsertOrExtend(&interval);
     }
 }
 
@@ -262,7 +262,7 @@ void OcclusionQueryPool::NormalReset(
 
         if (pPm4CmdBuf->GetPm4CmdBufState().flags.prevCmdBufActive || pActiveRanges->Overlap(&interval))
         {
-            pCmdSpace = pPm4CmdBuf->WriteWaitEop(HwPipePostPrefetch, SyncGlxNone, SyncRbNone, pCmdSpace);
+            pCmdSpace = pPm4CmdBuf->WriteWaitEop(HwPipePostPrefetch, false, SyncGlxNone, SyncRbNone, pCmdSpace);
 
             // The global wait guaranteed all work has completed, including any outstanding End() calls.
             pActiveRanges->Clear();

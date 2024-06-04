@@ -148,13 +148,13 @@ uint32* ColorTargetView::WriteUpdateFastClearColor(
     uint32*      pCmdSpace
     ) const
 {
-    // These registers physically exist on GFX11 (for now...) but don't do anything.
+    // These registers physically exist on GFX11 but don't do anything.
     if (IsGfx11(m_gfxLevel) == false)
     {
         const uint32 slotOffset = (slot * CbRegsPerSlot);
 
-        pCmdSpace = pCmdStream->WriteSetSeqContextRegs((Gfx09_10::mmCB_COLOR0_CLEAR_WORD0 + slotOffset),
-                                                       (Gfx09_10::mmCB_COLOR0_CLEAR_WORD1 + slotOffset),
+        pCmdSpace = pCmdStream->WriteSetSeqContextRegs((Gfx10::mmCB_COLOR0_CLEAR_WORD0 + slotOffset),
+                                                       (Gfx10::mmCB_COLOR0_CLEAR_WORD1 + slotOffset),
                                                        color,
                                                        pCmdSpace);
     }
@@ -163,12 +163,12 @@ uint32* ColorTargetView::WriteUpdateFastClearColor(
 }
 
 // =====================================================================================================================
-template <typename RegistersType, typename CbColorView>
+template <typename RegistersType>
 void ColorTargetView::InitCommonBufferView(
     const Device&                    device,
     const ColorTargetViewCreateInfo& createInfo,
     RegistersType*                   pRegs,
-    CbColorView*                     pCbColorView
+    regCB_COLOR0_VIEW*               pCbColorView
     ) const
 {
     PAL_ASSERT(createInfo.bufferInfo.pGpuMemory != nullptr);
@@ -186,9 +186,9 @@ void ColorTargetView::InitCommonBufferView(
     pRegs->cbColorBaseExt.bits.BASE_256B = Get256BAddrHi(baseAddr);
 
     // The view slice_start is overloaded to specify the base offset.
-    pCbColorView->SLICE_START = baseOffset;
-    pCbColorView->SLICE_MAX   = 0;
-    pCbColorView->MIP_LEVEL   = 0;
+    pCbColorView->bits.SLICE_START = baseOffset;
+    pCbColorView->bits.SLICE_MAX   = 0;
+    pCbColorView->bits.MIP_LEVEL   = 0;
 
     // According to the other UMDs, this is the absolute max mip level. For one mip level, the MAX_MIP is mip #0.
     pRegs->cbColorAttrib2.bits.MAX_MIP = 0;
@@ -210,12 +210,12 @@ regCB_COLOR0_INFO ColorTargetView::InitCbColorInfo(
     regCB_COLOR0_INFO cbColorInfo = { };
     if (IsGfx10(*pParentDevice))
     {
-        cbColorInfo.gfx09_10.ENDIAN  = ENDIAN_NONE;
-        cbColorInfo.gfx09_10.FORMAT  = Formats::Gfx9::HwColorFmt(pFmtInfo, m_swizzledFormat.format);
+        cbColorInfo.gfx10.ENDIAN = ENDIAN_NONE;
+        cbColorInfo.gfx10.FORMAT = Formats::Gfx9::HwColorFmt(pFmtInfo, m_swizzledFormat.format);
     }
     else
     {
-        cbColorInfo.gfx11.FORMAT     = Formats::Gfx9::HwColorFmt(pFmtInfo, m_swizzledFormat.format);
+        cbColorInfo.gfx11.FORMAT = Formats::Gfx9::HwColorFmt(pFmtInfo, m_swizzledFormat.format);
     }
 
     cbColorInfo.bits.NUMBER_TYPE = Formats::Gfx9::ColorSurfNum(pFmtInfo, m_swizzledFormat.format);
@@ -242,14 +242,14 @@ regCB_COLOR0_INFO ColorTargetView::InitCbColorInfo(
 }
 
 // =====================================================================================================================
-template <typename RegistersType, typename CbColorViewType>
+template <typename RegistersType>
 void ColorTargetView::InitCommonImageView(
     const Device&                     device,
     const ColorTargetViewCreateInfo&  createInfo,
     ColorTargetViewInternalCreateInfo internalInfo,
     const Extent3d&                   baseExtent,
     RegistersType*                    pRegs,
-    CbColorViewType*                  pCbColorView
+    regCB_COLOR0_VIEW*                pCbColorView
     ) const
 {
     const Pal::Device&     palDevice       = *(device.Parent());
@@ -260,23 +260,23 @@ void ColorTargetView::InitCommonImageView(
 
     if ((createInfo.flags.zRangeValid == 1) && (imageCreateInfo.imageType == ImageType::Tex3d))
     {
-        pCbColorView->SLICE_START = createInfo.zRange.offset;
-        pCbColorView->SLICE_MAX   = (createInfo.zRange.offset + createInfo.zRange.extent - 1);
-        pCbColorView->MIP_LEVEL   = createInfo.imageInfo.baseSubRes.mipLevel;
+        pCbColorView->bits.SLICE_START = createInfo.zRange.offset;
+        pCbColorView->bits.SLICE_MAX   = (createInfo.zRange.offset + createInfo.zRange.extent - 1);
+        pCbColorView->bits.MIP_LEVEL   = createInfo.imageInfo.baseSubRes.mipLevel;
     }
     else if (m_flags.useSubresBaseAddr != 0)
     {
-        pCbColorView->SLICE_START = 0;
-        pCbColorView->SLICE_MAX   = 0;
-        pCbColorView->MIP_LEVEL   = 0;
+        pCbColorView->bits.SLICE_START = 0;
+        pCbColorView->bits.SLICE_MAX   = 0;
+        pCbColorView->bits.MIP_LEVEL   = 0;
     }
     else
     {
         const uint32 baseArraySlice = createInfo.imageInfo.baseSubRes.arraySlice;
 
-        pCbColorView->SLICE_START = baseArraySlice;
-        pCbColorView->SLICE_MAX   = (baseArraySlice + createInfo.imageInfo.arraySize - 1);
-        pCbColorView->MIP_LEVEL   = createInfo.imageInfo.baseSubRes.mipLevel;
+        pCbColorView->bits.SLICE_START = baseArraySlice;
+        pCbColorView->bits.SLICE_MAX   = (baseArraySlice + createInfo.imageInfo.arraySize - 1);
+        pCbColorView->bits.MIP_LEVEL   = createInfo.imageInfo.baseSubRes.mipLevel;
     }
 
     if (m_flags.hasDcc != 0)
@@ -287,14 +287,14 @@ void ColorTargetView::InitCommonImageView(
         if (IsGfx10(palDevice) && (internalInfo.flags.fastClearElim || pSubResInfo->flags.supportMetaDataTexFetch))
         {
             // Without this, the CB will not expand the compress-to-register (0x20) keys.
-            dccControl.gfx09_1xPlus.DISABLE_CONSTANT_ENCODE_REG = 1;
+            dccControl.bits.DISABLE_CONSTANT_ENCODE_REG = 1;
         }
 
         pRegs->cbColorDccControl.u32All = dccControl.u32All;
 
         if (IsGfx10(palDevice))
         {
-            pRegs->cbColorInfo.gfx09_10.DCC_ENABLE = 1;
+            pRegs->cbColorInfo.gfx10.DCC_ENABLE = 1;
         }
     }
 
@@ -304,8 +304,8 @@ void ColorTargetView::InitCommonImageView(
         const bool fMaskTexFetchAllowed = m_pImage->IsComprFmaskShaderReadable(m_subresource);
 
         // Setup CB_COLOR*_INFO register fields which depend on CMask or fMask state:
-        pRegs->cbColorInfo.gfx09_10.COMPRESSION               = 1;
-        pRegs->cbColorInfo.gfx09_10.FMASK_COMPRESSION_DISABLE = device.Settings().fmaskCompressDisable;
+        pRegs->cbColorInfo.gfx10.COMPRESSION               = 1;
+        pRegs->cbColorInfo.gfx10.FMASK_COMPRESSION_DISABLE = device.Settings().fmaskCompressDisable;
 
         if (fMaskTexFetchAllowed                      &&
             (internalInfo.flags.dccDecompress   == 0) &&
@@ -317,7 +317,7 @@ void ColorTargetView::InitCommonImageView(
             //    2) If this bit is set then the fMask decompress operation will not occur
             //       whether happening explicitly through fmaskdecompress or as a part of
             //       dcc decompress.(not documented)
-            pRegs->cbColorInfo.gfx09_10.FMASK_COMPRESS_1FRAG_ONLY = 1;
+            pRegs->cbColorInfo.gfx10.FMASK_COMPRESS_1FRAG_ONLY = 1;
         }
     }
 
@@ -429,10 +429,10 @@ uint32* ColorTargetView::WriteCommandsCommon(
             if (pRegs->fastClearMetadataGpuVa != 0)
             {
                 // Load the context registers which store the fast-clear color from GPU memory.
-                constexpr uint32 RegisterCount = (Gfx09_10::mmCB_COLOR0_CLEAR_WORD1 -
-                                                  Gfx09_10::mmCB_COLOR0_CLEAR_WORD0 + 1);
+                constexpr uint32 RegisterCount = (Gfx10::mmCB_COLOR0_CLEAR_WORD1 -
+                                                  Gfx10::mmCB_COLOR0_CLEAR_WORD0 + 1);
 
-                pCmdSpace = pCmdStream->WriteLoadSeqContextRegs((Gfx09_10::mmCB_COLOR0_CLEAR_WORD0 + slotOffset),
+                pCmdSpace = pCmdStream->WriteLoadSeqContextRegs((Gfx10::mmCB_COLOR0_CLEAR_WORD0 + slotOffset),
                                                                 RegisterCount,
                                                                 pRegs->fastClearMetadataGpuVa,
                                                                 pCmdSpace);
@@ -451,14 +451,14 @@ uint32* ColorTargetView::WriteCommandsCommon(
             {
                 // Mask of CB_COLOR_INFO bits to clear when compressed rendering is disabled.
                 constexpr uint32 CbColorInfoDecompressedMask =
-                                        (Gfx09_10::CB_COLOR0_INFO__DCC_ENABLE_MASK                |
-                                         Gfx09_10::CB_COLOR0_INFO__COMPRESSION_MASK               |
-                                         Gfx09_10::CB_COLOR0_INFO__FMASK_COMPRESSION_DISABLE_MASK |
-                                         Gfx09_10::CB_COLOR0_INFO__FMASK_COMPRESS_1FRAG_ONLY_MASK);
+                                        (Gfx10::CB_COLOR0_INFO__DCC_ENABLE_MASK                |
+                                         Gfx10::CB_COLOR0_INFO__COMPRESSION_MASK               |
+                                         Gfx10::CB_COLOR0_INFO__FMASK_COMPRESSION_DISABLE_MASK |
+                                         Gfx10::CB_COLOR0_INFO__FMASK_COMPRESS_1FRAG_ONLY_MASK);
 
                 // For decompressed rendering to an Image, we need to override the values for CB_COLOR_CONTROL and for
                 // CB_COLOR_DCC_CONTROL.
-                pRegs->cbColorInfo.u32All      &= ~CbColorInfoDecompressedMask;
+                pRegs->cbColorInfo.u32All &= ~CbColorInfoDecompressedMask;
             }
             else
             {
@@ -620,7 +620,7 @@ void Gfx10ColorTargetView::InitRegisters(
     // them all up-front before we get on to the harder register values.
     if (m_flags.isBufferView)
     {
-        InitCommonBufferView(device, createInfo, &m_regs, &m_regs.cbColorView.gfx10Plus);
+        InitCommonBufferView(device, createInfo, &m_regs, &m_regs.cbColorView);
 
         m_extent.width  = createInfo.bufferInfo.extent;
         m_extent.height = 1;
@@ -634,10 +634,10 @@ void Gfx10ColorTargetView::InitRegisters(
         m_regs.cbColorAttrib3.bits.META_LINEAR    = 1;         // no meta-data, but should be set for linear surfaces
 
         // Specifying a non-zero buffer offset only works with linear-general surfaces
-        m_regs.cbColorInfo.gfx10Plus.LINEAR_GENERAL  = 1;
-        m_regs.cbColorAttrib.most.FORCE_DST_ALPHA_1 = Formats::HasUnusedAlpha(m_swizzledFormat);
-        m_regs.cbColorAttrib.most.NUM_SAMPLES       = 0;
-        m_regs.cbColorAttrib.most.NUM_FRAGMENTS     = 0;
+        m_regs.cbColorInfo.bits.LINEAR_GENERAL       = 1;
+        m_regs.cbColorAttrib.gfx10.FORCE_DST_ALPHA_1 = Formats::HasUnusedAlpha(m_swizzledFormat);
+        m_regs.cbColorAttrib.gfx10.NUM_SAMPLES       = 0;
+        m_regs.cbColorAttrib.gfx10.NUM_FRAGMENTS     = 0;
     }
     else
     {
@@ -672,7 +672,7 @@ void Gfx10ColorTargetView::InitRegisters(
                             internalInfo,
                             baseExtent,
                             &m_regs,
-                            &m_regs.cbColorView.gfx10Plus);
+                            &m_regs.cbColorView);
 
         m_extent.width  = extent.width;
         m_extent.height = extent.height;
@@ -682,10 +682,10 @@ void Gfx10ColorTargetView::InitRegisters(
         // Prior to gfx10.1 it was necessary to set LIMIT_COLOR_FETCH_TO_256B_MAX if in miptail, to workaround
         // possible corruptions when multiple mip levels in same 1k address space.
         // A fix for this was applied to gfx10.1 and newer asics, so the workaround is no longer needed.
-        m_regs.cbColorAttrib.most.NUM_SAMPLES       = Log2(imageCreateInfo.samples);
-        m_regs.cbColorAttrib.most.NUM_FRAGMENTS     = Log2(imageCreateInfo.fragments);
-        m_regs.cbColorAttrib.most.FORCE_DST_ALPHA_1 = Formats::HasUnusedAlpha(m_swizzledFormat);
-        m_regs.cbColorAttrib.gfx10Core.LIMIT_COLOR_FETCH_TO_256B_MAX = 0;
+        m_regs.cbColorAttrib.gfx10.NUM_SAMPLES       = Log2(imageCreateInfo.samples);
+        m_regs.cbColorAttrib.gfx10.NUM_FRAGMENTS     = Log2(imageCreateInfo.fragments);
+        m_regs.cbColorAttrib.gfx10.FORCE_DST_ALPHA_1 = Formats::HasUnusedAlpha(m_swizzledFormat);
+        m_regs.cbColorAttrib.gfx10.LIMIT_COLOR_FETCH_TO_256B_MAX = 0;
 
         m_regs.cbColorAttrib3.bits.MIP0_DEPTH    =
             ((imageType == ImageType::Tex3d) ? imageCreateInfo.extent.depth : imageCreateInfo.arraySize) - 1;
@@ -708,13 +708,13 @@ void Gfx10ColorTargetView::InitRegisters(
         if (hasFmask &&
             (imageCreateInfo.flags.prt ||
              (settings.waDisableFmaskNofetchOpOnFmaskCompressionDisable &&
-              m_regs.cbColorInfo.gfx09_10.FMASK_COMPRESSION_DISABLE)))
+              m_regs.cbColorInfo.gfx10.FMASK_COMPRESSION_DISABLE)))
         {
-            m_regs.cbColorAttrib.gfx10Core.DISABLE_FMASK_NOFETCH_OPT = 1;
+            m_regs.cbColorAttrib.gfx10.DISABLE_FMASK_NOFETCH_OPT = 1;
         }
     }
 
-    m_regs.cbColorAttrib3.gfx10Core.RESOURCE_LEVEL = 1;
+    m_regs.cbColorAttrib3.gfx10.RESOURCE_LEVEL = 1;
 }
 
 // =====================================================================================================================
@@ -749,7 +749,7 @@ uint32* Gfx10ColorTargetView::WriteCommands(
                                                    &regs.cbColorBase,
                                                    pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs((mmCB_COLOR0_ATTRIB + slotOffset),
-                                                   (Gfx09_10::mmCB_COLOR0_FMASK  + slotOffset),
+                                                   (Gfx10::mmCB_COLOR0_FMASK  + slotOffset),
                                                    &regs.cbColorAttrib,
                                                    pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg((mmCB_COLOR0_DCC_BASE + slotOffset),
@@ -759,10 +759,10 @@ uint32* Gfx10ColorTargetView::WriteCommands(
     // Registers above this point are grouped by slot index (e.g., all of slot0 then all of slot1, etc.).  Registers
     // below this point are grouped by register (e.g., all of CB_COLOR*_ATTRIB2, and so on).
 
-    pCmdSpace = pCmdStream->WriteSetOneContextReg((Gfx10Plus::mmCB_COLOR0_BASE_EXT + slot),
+    pCmdSpace = pCmdStream->WriteSetOneContextReg((mmCB_COLOR0_BASE_EXT + slot),
                                                   regs.cbColorBaseExt.u32All,
                                                   pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetOneContextReg((Gfx10Plus::mmCB_COLOR0_DCC_BASE_EXT + slot),
+    pCmdSpace = pCmdStream->WriteSetOneContextReg((mmCB_COLOR0_DCC_BASE_EXT + slot),
                                                   regs.cbColorDccBaseExt.u32All,
                                                   pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg((Gfx10::mmCB_COLOR0_FMASK_BASE_EXT + slot),
@@ -771,10 +771,10 @@ uint32* Gfx10ColorTargetView::WriteCommands(
     pCmdSpace = pCmdStream->WriteSetOneContextReg((Gfx10::mmCB_COLOR0_CMASK_BASE_EXT + slot),
                                                   regs.cbColorCmaskBaseExt.u32All,
                                                   pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetOneContextReg((Gfx10Plus::mmCB_COLOR0_ATTRIB2 + slot),
+    pCmdSpace = pCmdStream->WriteSetOneContextReg((mmCB_COLOR0_ATTRIB2 + slot),
                                                   regs.cbColorAttrib2.u32All,
                                                   pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetOneContextReg((Gfx10Plus::mmCB_COLOR0_ATTRIB3 + slot),
+    pCmdSpace = pCmdStream->WriteSetOneContextReg((mmCB_COLOR0_ATTRIB3 + slot),
                                                   regs.cbColorAttrib3.u32All,
                                                   pCmdSpace);
 
@@ -912,7 +912,7 @@ void Gfx11ColorTargetView::InitRegisters(
     // them all up-front before we get on to the harder register values.
     if (m_flags.isBufferView)
     {
-        InitCommonBufferView(device, createInfo, &m_regs, &m_regs.cbColorView.gfx10Plus);
+        InitCommonBufferView(device, createInfo, &m_regs, &m_regs.cbColorView);
 
         m_extent.width  = createInfo.bufferInfo.extent;
         m_extent.height = 1;
@@ -925,7 +925,7 @@ void Gfx11ColorTargetView::InitRegisters(
         m_regs.cbColorAttrib3.bits.META_LINEAR   = 1;         // no meta-data, but should be set for linear surfaces
 
         // Specifying a non-zero buffer offset only works with linear-general surfaces
-        m_regs.cbColorInfo.gfx10Plus.LINEAR_GENERAL  = 1;
+        m_regs.cbColorInfo.bits.LINEAR_GENERAL       = 1;
         m_regs.cbColorAttrib.gfx11.FORCE_DST_ALPHA_1 = Formats::HasUnusedAlpha(m_swizzledFormat);
         m_regs.cbColorAttrib.gfx11.NUM_FRAGMENTS     = 0;
     }
@@ -962,7 +962,7 @@ void Gfx11ColorTargetView::InitRegisters(
                             internalInfo,
                             baseExtent,
                             &m_regs,
-                            &m_regs.cbColorView.gfx10Plus);
+                            &m_regs.cbColorView);
 
         if (m_flags.hasDcc != 0)
         {
@@ -1035,16 +1035,16 @@ uint32* Gfx11ColorTargetView::WriteCommands(
     // Registers above this point are grouped by slot index (e.g., all of slot0 then all of slot1, etc.).  Registers
     // below this point are grouped by register (e.g., all of CB_COLOR*_ATTRIB2, and so on).
 
-    pCmdSpace = pCmdStream->WriteSetOneContextReg((Gfx10Plus::mmCB_COLOR0_ATTRIB2 + slot),
+    pCmdSpace = pCmdStream->WriteSetOneContextReg((mmCB_COLOR0_ATTRIB2 + slot),
                                                   regs.cbColorAttrib2.u32All,
                                                   pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetOneContextReg((Gfx10Plus::mmCB_COLOR0_ATTRIB3 + slot),
+    pCmdSpace = pCmdStream->WriteSetOneContextReg((mmCB_COLOR0_ATTRIB3 + slot),
                                                   regs.cbColorAttrib3.u32All,
                                                   pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetOneContextReg((Gfx10Plus::mmCB_COLOR0_BASE_EXT + slot),
+    pCmdSpace = pCmdStream->WriteSetOneContextReg((mmCB_COLOR0_BASE_EXT + slot),
                                                   regs.cbColorBaseExt.u32All,
                                                   pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetOneContextReg((Gfx10Plus::mmCB_COLOR0_DCC_BASE_EXT + slot),
+    pCmdSpace = pCmdStream->WriteSetOneContextReg((mmCB_COLOR0_DCC_BASE_EXT + slot),
                                                   regs.cbColorDccBaseExt.u32All,
                                                   pCmdSpace);
 

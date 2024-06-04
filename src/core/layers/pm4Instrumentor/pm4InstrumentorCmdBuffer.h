@@ -68,9 +68,7 @@ public:
         uint32            argCount,
         const void*const* ppValues) override;
     virtual void CmdSetVertexBuffers(
-        uint32                firstBuffer,
-        uint32                bufferCount,
-        const BufferViewInfo* pBuffers) override;
+        const VertexBufferViews& bufferViews) override;
     virtual void CmdBindTargets(
         const BindTargetParams& params) override;
     virtual void CmdBindStreamOutTargets(

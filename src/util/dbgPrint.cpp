@@ -483,7 +483,12 @@ size_t EncodeAsFilename(
             // Illegal character needs encoding.
             pFormat = "%%%2.2X";
         }
-        sizeSoFar += snprintf(pOutput + sizeSoFar, (sizeSoFar < bufSize) ? bufSize - sizeSoFar : 0, pFormat, ch & 0xff);
+
+        // Call snprintf only if available buffer size > 0, and 1 is reserved for '\0'
+        if ((sizeSoFar + 1) < bufSize)
+        {
+            sizeSoFar += snprintf(pOutput + sizeSoFar, bufSize - sizeSoFar, pFormat, ch & 0xff);
+        }
         i++;
     }
     return sizeSoFar;

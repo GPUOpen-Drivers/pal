@@ -61,8 +61,8 @@ const RegisterRange Gfx103ContextShadowRange[] =
         (mmPA_CL_POINT_CULL_RAD - mmPA_CL_POINT_X_RAD + 1),
     },
     {
-        (Gfx10Plus::mmGE_MAX_OUTPUT_PER_SUBGROUP - CONTEXT_SPACE_START),        // 0xA1FF - 0xA212
-        (Gfx103Plus::mmPA_CL_VRS_CNTL - Gfx10Plus::mmGE_MAX_OUTPUT_PER_SUBGROUP + 1),
+        (mmGE_MAX_OUTPUT_PER_SUBGROUP - CONTEXT_SPACE_START),                   // 0xA1FF - 0xA212
+        (Gfx103Plus::mmPA_CL_VRS_CNTL - mmGE_MAX_OUTPUT_PER_SUBGROUP + 1),
     },
     {
         (mmPA_SU_POINT_SIZE - CONTEXT_SPACE_START),                             // 0xA280 - 0xA283
@@ -73,8 +73,8 @@ const RegisterRange Gfx103ContextShadowRange[] =
         (mmVGT_HOS_MIN_TESS_LEVEL - mmVGT_HOS_MAX_TESS_LEVEL + 1),
     },
     {
-        (HasHwVs::mmVGT_GS_MODE - CONTEXT_SPACE_START),                        // 0xA290 - 0xA29B
-        (Gfx09_10::mmVGT_GS_OUT_PRIM_TYPE - HasHwVs::mmVGT_GS_MODE + 1),
+        (Gfx10::mmVGT_GS_MODE - CONTEXT_SPACE_START),                           // 0xA290 - 0xA29B
+        (Gfx10::mmVGT_GS_OUT_PRIM_TYPE - Gfx10::mmVGT_GS_MODE + 1),
     },
     {
         (mmVGT_PRIMITIVEID_EN - CONTEXT_SPACE_START),                           // 0xA2A1
@@ -86,11 +86,11 @@ const RegisterRange Gfx103ContextShadowRange[] =
     },
     {
         (mmVGT_DRAW_PAYLOAD_CNTL - CONTEXT_SPACE_START),                        // 0xA2A6 - 0xA2E6
-        (HasHwVs::mmVGT_STRMOUT_BUFFER_CONFIG - mmVGT_DRAW_PAYLOAD_CNTL + 1),
+        (Gfx10::mmVGT_STRMOUT_BUFFER_CONFIG - mmVGT_DRAW_PAYLOAD_CNTL + 1),
     },
     {
         (mmPA_SC_CENTROID_PRIORITY_0 - CONTEXT_SPACE_START),                    // 0xA2F5 - 0xA3BF
-        (Gfx10Plus::mmCB_COLOR7_ATTRIB3 - mmPA_SC_CENTROID_PRIORITY_0 + 1),
+        (mmCB_COLOR7_ATTRIB3 - mmPA_SC_CENTROID_PRIORITY_0 + 1),
     },
 };
 
@@ -100,11 +100,11 @@ const RegisterRange Gfx103ContextShadowRange[] =
 const RegisterRange Gfx103UserConfigShadowRange[] =
 {
     {
-        (Gfx09_10::mmCP_STRMOUT_CNTL - UCONFIG_SPACE_START),
+        (Gfx10::mmCP_STRMOUT_CNTL - UCONFIG_SPACE_START),
         1,
     },
     {
-        (Gfx09_10::mmCP_COHER_START_DELAY - UCONFIG_SPACE_START),
+        (Gfx10::mmCP_COHER_START_DELAY - UCONFIG_SPACE_START),
         1,
     },
     {
@@ -112,23 +112,23 @@ const RegisterRange Gfx103UserConfigShadowRange[] =
         (mmVGT_PRIMITIVE_TYPE - Gfx101::mmVGT_GSVS_RING_SIZE_UMD + 1),
     },
     {
-        (Gfx10Plus::mmGE_MAX_VTX_INDX - UCONFIG_SPACE_START),
+        (mmGE_MAX_VTX_INDX - UCONFIG_SPACE_START),
         1,
     },
     {
-        (Gfx10Plus::mmGE_MIN_VTX_INDX - UCONFIG_SPACE_START),
-        (Gfx10Plus::mmGE_MULTI_PRIM_IB_RESET_EN - Gfx10Plus::mmGE_MIN_VTX_INDX + 1),
+        (mmGE_MIN_VTX_INDX - UCONFIG_SPACE_START),
+        (mmGE_MULTI_PRIM_IB_RESET_EN - mmGE_MIN_VTX_INDX + 1),
     },
     {
         (mmVGT_NUM_INSTANCES - UCONFIG_SPACE_START),
         (Gfx101::mmVGT_TF_MEMORY_BASE_UMD - mmVGT_NUM_INSTANCES + 1),
     },
     {
-        (Gfx10Plus::mmGE_STEREO_CNTL - UCONFIG_SPACE_START),
-        Gfx101::mmVGT_TF_MEMORY_BASE_HI_UMD - Gfx10Plus::mmGE_STEREO_CNTL + 1,
+        (mmGE_STEREO_CNTL - UCONFIG_SPACE_START),
+        Gfx101::mmVGT_TF_MEMORY_BASE_HI_UMD - mmGE_STEREO_CNTL + 1,
     },
     {
-        (Gfx10Plus::mmGE_CNTL - UCONFIG_SPACE_START),
+        (mmGE_CNTL - UCONFIG_SPACE_START),
         1,
     },
     {
@@ -140,8 +140,8 @@ const RegisterRange Gfx103UserConfigShadowRange[] =
         (mmTA_CS_BC_BASE_ADDR_HI - mmTA_CS_BC_BASE_ADDR + 1),
     },
     {
-        (Gfx10Plus::mmGE_USER_VGPR_EN - UCONFIG_SPACE_START),
-        (Gfx103Plus::mmGE_VRS_RATE - Gfx10Plus::mmGE_USER_VGPR_EN + 1),
+        (mmGE_USER_VGPR_EN - UCONFIG_SPACE_START),
+        (Gfx103Plus::mmGE_VRS_RATE - mmGE_USER_VGPR_EN + 1),
     },
 };
 
@@ -150,8 +150,8 @@ const RegisterRange Gfx103UserConfigShadowRange[] =
 const RegisterRange Gfx103NonShadowedRanges[] =
 {
     {
-        HasHwVs::mmVGT_DMA_PRIMITIVE_TYPE,
-        HasHwVs::mmVGT_DMA_LS_HS_CONFIG - HasHwVs::mmVGT_DMA_PRIMITIVE_TYPE + 1
+        Gfx10::mmVGT_DMA_PRIMITIVE_TYPE,
+        Gfx10::mmVGT_DMA_LS_HS_CONFIG - Gfx10::mmVGT_DMA_PRIMITIVE_TYPE + 1
     },
     // mmVGT_INDEX_TYPE and mmVGT_DMA_INDEX_TYPE are a special case and neither of these should be shadowed.
     {
@@ -160,14 +160,14 @@ const RegisterRange Gfx103NonShadowedRanges[] =
     },
     {
         mmVGT_INDEX_TYPE,
-        HasHwVs::mmVGT_STRMOUT_BUFFER_FILLED_SIZE_3 - mmVGT_INDEX_TYPE + 1
+        Gfx10::mmVGT_STRMOUT_BUFFER_FILLED_SIZE_3 - mmVGT_INDEX_TYPE + 1
     },
     {
         mmVGT_DMA_NUM_INSTANCES,
         1
     },
     {
-        HasHwVs::mmSPI_SHADER_PGM_RSRC3_VS,
+        Gfx10::mmSPI_SHADER_PGM_RSRC3_VS,
         1
     },
     {
@@ -175,7 +175,7 @@ const RegisterRange Gfx103NonShadowedRanges[] =
         1
     },
     {
-        Gfx10Plus::mmSPI_SHADER_PGM_RSRC4_PS,
+        mmSPI_SHADER_PGM_RSRC4_PS,
         1
     },
     {
@@ -216,16 +216,14 @@ const RegisterRange Gfx103NonShadowedRanges[] =
         Gfx101::mmSPI_CONFIG_CNTL_REMAP,
         1
     },
-#if CHIP_HDR_NAVI21
     // SQ thread trace registers are always not shadowed.
     {
-        Gfx10Core::mmSQ_THREAD_TRACE_BUF0_BASE,
-        Gfx103::mmSQ_THREAD_TRACE_STATUS2 - Gfx10Core::mmSQ_THREAD_TRACE_BUF0_BASE + 1
+        Gfx10::mmSQ_THREAD_TRACE_BUF0_BASE,
+        Gfx103::mmSQ_THREAD_TRACE_STATUS2 - Gfx10::mmSQ_THREAD_TRACE_BUF0_BASE + 1
     },
-#endif
     {
         mmSQ_THREAD_TRACE_USERDATA_0,
-        Gfx10Plus::mmSQ_THREAD_TRACE_USERDATA_7 - mmSQ_THREAD_TRACE_USERDATA_0 + 1,
+        mmSQ_THREAD_TRACE_USERDATA_7 - mmSQ_THREAD_TRACE_USERDATA_0 + 1,
     },
     // Perf counter registers are always not shadowed. Most of them are in the perf register space but some legacy
     // registers are still outside of it. The SPM registers are in the perf range as well.
@@ -233,15 +231,13 @@ const RegisterRange Gfx103NonShadowedRanges[] =
         UserConfigRegPerfStart,
         UserConfigRegPerfEnd - UserConfigRegPerfStart + 1
     },
-#if CHIP_HDR_NAVI21
     {
         Gfx103::mmATC_PERFCOUNTER0_CFG,
         Gfx103::mmATC_PERFCOUNTER_HI - Gfx103::mmATC_PERFCOUNTER0_CFG + 1
     },
-#endif
     {
-        Gfx10Core::mmRPB_PERFCOUNTER_LO,
-        Gfx10Core::mmRPB_PERFCOUNTER_RSLT_CNTL - Gfx10Core::mmRPB_PERFCOUNTER_LO + 1
+        Gfx10::mmRPB_PERFCOUNTER_LO,
+        Gfx10::mmRPB_PERFCOUNTER_RSLT_CNTL - Gfx10::mmRPB_PERFCOUNTER_LO + 1
     },
 };
 

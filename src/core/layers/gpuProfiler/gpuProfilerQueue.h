@@ -51,8 +51,23 @@ static constexpr size_t MaxCommentLength = 512;
 enum LogItemType : uint32
 {
     QueueCall,
+    VirtualQueueCall,
     CmdBufferCall,
     Frame
+};
+
+enum class VirtualQueueCallId : uint32
+{
+    VirtualPresent = 0,
+    EndOfRecreation,
+    Count
+};
+
+// Table converting QueueCallId enums to strings.
+constexpr const char* VirtualQueueCallIdStrings[] =
+{
+    "VirtualPresent",
+    "EndOfRecreation"
 };
 
 // Specifies various information describing a single queue or command buffer call to be logged.
@@ -137,6 +152,12 @@ struct LogItem
         {
             QueueCallId callId;               // Identifies exactly which call is logged (e.g., Submit(), Present()).
         } queueCall;
+
+        // Virtual queue call
+        struct
+        {
+            VirtualQueueCallId callId;        // Identifies exactly which call is logged (e.g., Submit(), Present()).
+        } virtualQueueCall;
     };
 
     // Pointer to the corresponding GPA session and sample IDs to track this logItem's perfExperiment and/or timestamp
@@ -265,6 +286,7 @@ private:
         bool                   releaseObjects);
 
     void LogQueueCall(QueueCallId callId);
+    void LogVirtualQueueCall(VirtualQueueCallId callId);
 
     void OutputLogItemsToFile(size_t count, bool hasDrawsDispatches);
     void OpenLogFile(uint32 frameId);
@@ -363,6 +385,7 @@ private:
 
     LogItem                           m_perFrameLogItem;  // Log item used when the profiling granularity is per frame.
     bool                              m_isDfSpmTraceEnabled;
+    bool                              m_recreateState;    // Cached state for this queue noting the global recreate state
 
     PAL_DISALLOW_DEFAULT_CTOR(Queue);
     PAL_DISALLOW_COPY_AND_ASSIGN(Queue);

@@ -287,7 +287,7 @@ Gfx9MetaEqGenerator::Gfx9MetaEqGenerator(
     uint32             firstUploadBit)
     :
     m_pipeDist(pParent->GetGfxDevice()->Parent()->ChipProperties().gfx9.rbPlus ? PipeDist16x16 : PipeDist8x8),
-    m_meta(27, "meta"),
+    m_meta(27),
     m_metaDataWordSizeLog2(metaDataSizeLog2),
     m_pParent(pParent),
     m_firstUploadBit(firstUploadBit),
@@ -484,8 +484,6 @@ void Gfx9MetaEqGenerator::CalcDataOffsetEquation(
         // Put in the y-major order pixel bits
         pDataOffset->Mort2d(pGfxDevice, &cy, &cx, yMajStart);
     }
-
-    pDataOffset->PrintEquation(pGfxDevice->Parent());
 }
 
 // =====================================================================================================================
@@ -502,7 +500,7 @@ void Gfx9MetaEqGenerator::CalcPipeEquation(
     const uint32           pipeInterleaveLog2 = m_pParent->GetGfxDevice()->GetPipeInterleaveLog2();
 
     CompPair  tileMin = { MetaDataAddrCompX, 3};
-    MetaDataAddrEquation  dataOffsetLocal(pDataOffset->GetNumValidBits(), "dataOffsetLocal");
+    MetaDataAddrEquation  dataOffsetLocal(pDataOffset->GetNumValidBits());
 
     // For color, filter out sample bits only
     // otherwise filter out everything under an 8x8 tile
@@ -566,8 +564,8 @@ void Gfx9MetaEqGenerator::CalcPipeEquation(
 
     if (AddrMgr2::IsXorSwizzle(swizzleMode) || AddrMgr2::IsPrtSwizzle(swizzleMode))
     {
-        MetaDataAddrEquation  xorMask(numPipesLog2, "xorMask");
-        MetaDataAddrEquation  xorMask2(numPipesLog2, "xorMask2");
+        MetaDataAddrEquation  xorMask(numPipesLog2);
+        MetaDataAddrEquation  xorMask2(numPipesLog2);
 
         if (IsThick())
         {
@@ -601,8 +599,6 @@ void Gfx9MetaEqGenerator::CalcPipeEquation(
 
         pPipe->XorIn(&xorMask);
     }
-
-    pPipe->PrintEquation(pDevice);
 }
 
 // =====================================================================================================================
@@ -660,8 +656,6 @@ void Gfx9MetaEqGenerator::FinalizeMetaEquation(
 
     m_meta.SetEquationSize(requiredNumEqBits, false);
 
-    m_meta.PrintEquation(m_pParent->GetGfxDevice()->Parent());
-
     // Determine how many sample bits are needed to process this equation.
     m_effectiveSamples = m_meta.GetNumSamples();
 
@@ -709,8 +703,6 @@ void Gfx9MetaEqGenerator::CalcRbEquation(
         pRb->SetBit(index, compType, rbRegion[compType]);
         rbRegion[compType]++;
     }
-
-    pRb->PrintEquation(pDevice);
 }
 
 // =====================================================================================================================
@@ -820,10 +812,6 @@ void Gfx9MetaEqGenerator::MergePipeAndRbEq(
             } // end loop through all the rb bits
         } // end check for a non-empty pipe equation
     } // end loop through all 32 bits in the equation
-
-    pRb->PrintEquation(pDevice);
-    pPipe->PrintEquation(pDevice);
-    m_meta.PrintEquation(pDevice);
 }
 
 // =====================================================================================================================
@@ -881,9 +869,6 @@ uint32 Gfx9MetaEqGenerator::RemoveSmallRbBits(
             } // end loop through the "higher" RB bits
         } // end check for a valid small component of this RB bit
     } // end loop through all the RB bits
-
-    pRb->PrintEquation(pDevice);
-    m_meta.PrintEquation(pDevice);
 
     return rbBitsLeft;
 }
@@ -1537,8 +1522,6 @@ void Gfx9MetaEqGenerator::AddMetaPipeBits(
         }
     }
 
-    pPipe->PrintEquation(m_pParent->GetGfxDevice()->Parent());
-
     AddRbBits(pPipe, offset);
 }
 
@@ -1595,8 +1578,6 @@ void Gfx9MetaEqGenerator::AddRbBits(
             pPipe->Mort2d(m_pParent->GetGfxDevice(), &cy, &cx, end - 1, start);
         }
     }
-
-    pPipe->PrintEquation(m_pParent->GetGfxDevice()->Parent());
 }
 
 // =====================================================================================================================
@@ -2319,7 +2300,7 @@ void Gfx9MetaEqGenerator::CalcMetaEquation()
     const uint32           maxFragsLog2          = m_pParent->GetGfxDevice()->GetMaxFragsLog2();
     const uint32           maxCompFragsLog2      = (numSamplesLog2 < maxFragsLog2) ? numSamplesLog2 : maxFragsLog2;
 
-    MetaDataAddrEquation  pipe(27, "pipe");
+    MetaDataAddrEquation  pipe(27);
 
     constexpr uint32 nibbleOffset = 1;
     PAL_ASSERT(m_meta.GetNumValidBits() >= (blockSizeLog2 + nibbleOffset));
@@ -3916,50 +3897,62 @@ void Gfx9Dcc::SetControlReg(
     const DisplayDccCaps&          dispDcc      = internalInfo.displayDcc;
 
     // Setup DCC control registers with suggested value from spec
-    m_dccControl.gfx09_10.KEY_CLEAR_ENABLE        = 0;
+    m_dccControl.gfx10.KEY_CLEAR_ENABLE           = 0;
     m_dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE = uint32(Gfx9DccMaxBlockSize::BlockSize256B);
     m_dccControl.bits.MIN_COMPRESSED_BLOCK_SIZE   = settings.minDccCompressedBlockSize;
 
     static_assert(DCC_CT_AUTO == 0, "ColorTransform Enum values change!");
     static_assert(DCC_CT_NONE == 1, "ColorTransform Enum values change!");
-    m_dccControl.bits.COLOR_TRANSFORM           = settings.colorTransform;
-    m_dccControl.gfx09_10.LOSSY_RGB_PRECISION   = 0;
-    m_dccControl.gfx09_10.LOSSY_ALPHA_PRECISION = 0;
+    m_dccControl.bits.COLOR_TRANSFORM        = settings.colorTransform;
+    m_dccControl.gfx10.LOSSY_RGB_PRECISION   = 0;
+    m_dccControl.gfx10.LOSSY_ALPHA_PRECISION = 0;
 
     // If this DCC surface is potentially going to be used in texture fetches though, we need some special settings.
+    // - MAX_UNCOMPRESSED_BLOCK_SIZE is always 256B unless dcc_128_128_unconstrained is exclusively set.
+    // - MAX_COMPRESSED_BLOCK_SIZE is decided by DisplayDccCaps, with priority 256B > 128B > 64B.
+    // - INDEPENDENT_128B_BLOCKS is always set to 1, either in gfx10 field or gfx11.
+    // - INDEPENDENT_64B_BLOCKS is set to 1 only if MAX_COMPRESSED_BLOCK_SIZE is 64B, i.e., 256B or 128B is unsupported.
     if (pSubResInfo->flags.supportMetaDataTexFetch)
     {
-        if (dispDcc.dcc_128_128_unconstrained && (dispDcc.dcc_256_128_128 == 0) && (dispDcc.dcc_256_64_64 == 0))
+        if ((dispDcc.dcc_128_128_unconstrained == 1) &&
+            (dispDcc.dcc_256_256_unconstrained == 0) &&
+            (dispDcc.dcc_256_128_128           == 0) &&
+            (dispDcc.dcc_256_64_64             == 0)
+            )
         {
             m_dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE =
                 static_cast<unsigned int>(Gfx9DccMaxBlockSize::BlockSize128B);
         }
-        m_dccControl.bits.INDEPENDENT_64B_BLOCKS    = 1;
-        m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE = static_cast<uint32>(Gfx9DccMaxBlockSize::BlockSize64B);
 
-        // In GFX10 the GEN_TWO TC-compatible DCC compression setting is
-        //   1) max_uncomp_blk_size = 256B, max_comp_blk_size = 128B, independent_blk = 128B.
-        //   2) max_uncomp_blk_size = 128B, max_comp_blk_size = 128B, independent_blk = unconstrained
         if (dispDcc.dcc_256_64_64 == 0)
         {
-            m_dccControl.bits.INDEPENDENT_64B_BLOCKS = 0;
-
-            {
-                m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE = uint32(Gfx9DccMaxBlockSize::BlockSize128B);
-            }
+            m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE = uint32(Gfx9DccMaxBlockSize::BlockSize128B);
+        }
+        else
+        {
+            m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE = uint32(Gfx9DccMaxBlockSize::BlockSize64B);
         }
 
         if (IsGfx10(gfxLevel))
         {
-            m_dccControl.gfx10.INDEPENDENT_128B_BLOCKS  = 1;
+            m_dccControl.gfx10.INDEPENDENT_128B_BLOCKS = 1;
+        }
+        else if (IsGfx11(gfxLevel))
+        {
+            m_dccControl.gfx11.INDEPENDENT_128B_BLOCKS = 1;
+        }
+
+        if ((dispDcc.dcc_256_64_64 == 1) &&
+            (m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE == uint32(Gfx9DccMaxBlockSize::BlockSize64B)))
+        {
+            m_dccControl.bits.INDEPENDENT_64B_BLOCKS = 1;
         }
         else
         {
-            m_dccControl.gfx11.INDEPENDENT_128B_BLOCKS  = 1;
+            m_dccControl.bits.INDEPENDENT_64B_BLOCKS = 0;
         }
 
         PAL_ASSERT(m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE <= m_dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE);
-
     }
     else
     {
@@ -3982,7 +3975,7 @@ void Gfx9Dcc::SetControlReg(
         // anyway.  Because CB_DCC_CONTROL.DISABLE_ELIMFC_SKIP_OF_SINGLE=0, any DCC codes left at comp-to-
         // single will be skipped during the FCE and it will (theoretically) be a super-fast-fast-clear-eliminate.
         // Theoretically.
-        m_dccControl.gfx09_1xPlus.DISABLE_CONSTANT_ENCODE_REG = 1;
+        m_dccControl.bits.DISABLE_CONSTANT_ENCODE_REG = 1;
     }
 
     if (internalInfo.flags.useSharedDccState)
@@ -4901,84 +4894,6 @@ Gfx9Fmask::Gfx9Fmask()
 
 // =====================================================================================================================
 // Determines the Image format used by SRD's which access an image's fMask allocation.
-regSQ_IMG_RSRC_WORD1 Gfx9Fmask::Gfx9FmaskFormat(
-    uint32  samples,
-    uint32  fragments,
-    bool    isUav       // Is the fmask being setup as a UAV
-    ) const
-{
-    IMG_DATA_FORMAT dataFmt = IMG_DATA_FORMAT_8;
-    uint32          numFmt  = IMG_NUM_FORMAT_UINT;
-
-    if (isUav)
-    {
-        switch (m_addrOutput.bpp)
-        {
-        case 8:
-            dataFmt = IMG_DATA_FORMAT_8;
-            break;
-        case 16:
-            dataFmt = IMG_DATA_FORMAT_16;
-            break;
-        case 32:
-            dataFmt = IMG_DATA_FORMAT_32;
-            break;
-        case 64:
-            dataFmt = IMG_DATA_FORMAT_32_32;
-            break;
-        default:
-            PAL_ASSERT_ALWAYS();
-            break;
-        }
-    }
-    else
-    {
-        // Lookup table of FMask Image Data Formats:
-        // The table is indexed by: [log_2(samples) - 1][log_2(fragments)].
-        constexpr IMG_NUM_FORMAT_FMASK FMaskFormatTbl[4][4] =
-        {
-            // Two-sample formats
-            { IMG_NUM_FORMAT_FMASK_8_2_1__CORE,      // One fragment
-              IMG_NUM_FORMAT_FMASK_8_2_2__CORE, },   // Two fragments
-
-            // Four-sample formats
-            { IMG_NUM_FORMAT_FMASK_8_4_1__CORE,      // One fragment
-              IMG_NUM_FORMAT_FMASK_8_4_2__CORE,      // Two fragments
-              IMG_NUM_FORMAT_FMASK_8_4_4__CORE, },   // Four fragments
-
-            // Eight-sample formats
-            { IMG_NUM_FORMAT_FMASK_8_8_1__CORE,      // One fragment
-              IMG_NUM_FORMAT_FMASK_16_8_2,           // Two fragments
-              IMG_NUM_FORMAT_FMASK_32_8_4,           // Four fragments
-              IMG_NUM_FORMAT_FMASK_32_8_8__CORE, },  // Eight fragments
-
-            // Sixteen-sample formats
-            { IMG_NUM_FORMAT_FMASK_16_16_1,          // One fragment
-              IMG_NUM_FORMAT_FMASK_32_16_2,          // Two fragments
-              IMG_NUM_FORMAT_FMASK_64_16_4__CORE,    // Four fragments
-              IMG_NUM_FORMAT_FMASK_64_16_8__CORE, }, // Eight fragments
-        };
-
-        const uint32 log2Samples   = Log2(samples);
-        const uint32 log2Fragments = Log2(fragments);
-
-        PAL_ASSERT((log2Samples  >= 1) && (log2Samples <= 4));
-        PAL_ASSERT(log2Fragments <= 3);
-
-        numFmt = FMaskFormatTbl[log2Samples - 1][log2Fragments];
-
-        dataFmt = IMG_DATA_FORMAT_FMASK__GFX09;
-    }
-
-    regSQ_IMG_RSRC_WORD1 word1 = {};
-    word1.bits.DATA_FORMAT = dataFmt;
-    word1.bits.NUM_FORMAT  = numFmt;
-
-    return word1;
-}
-
-// =====================================================================================================================
-// Determines the Image format used by SRD's which access an image's fMask allocation.
 IMG_FMT Gfx9Fmask::Gfx10FmaskFormat(
     uint32  samples,
     uint32  fragments,
@@ -5001,7 +4916,7 @@ IMG_FMT Gfx9Fmask::Gfx10FmaskFormat(
             imgFmt = IMG_FMT_32_UINT;
             break;
         case 64:
-            imgFmt = IMG_FMT_32_32_UINT__GFX10CORE;
+            imgFmt = IMG_FMT_32_32_UINT__GFX10;
             break;
         default:
             PAL_ASSERT_ALWAYS();
@@ -5015,25 +4930,25 @@ IMG_FMT Gfx9Fmask::Gfx10FmaskFormat(
         constexpr IMG_FMT FMaskFormatTbl[4][4] =
         {
             // Two-sample formats
-            { IMG_FMT_FMASK8_S2_F1__GFX10CORE,         // One fragment
-              IMG_FMT_FMASK8_S2_F2__GFX10CORE, },      // Two fragments
+            { IMG_FMT_FMASK8_S2_F1__GFX10,         // One fragment
+              IMG_FMT_FMASK8_S2_F2__GFX10, },      // Two fragments
 
             // Four-sample formats
-            { IMG_FMT_FMASK8_S4_F1__GFX10CORE,         // One fragment
-              IMG_FMT_FMASK8_S4_F2__GFX10CORE,         // Two fragments
-              IMG_FMT_FMASK8_S4_F4__GFX10CORE, },      // Four fragments
+            { IMG_FMT_FMASK8_S4_F1__GFX10,         // One fragment
+              IMG_FMT_FMASK8_S4_F2__GFX10,         // Two fragments
+              IMG_FMT_FMASK8_S4_F4__GFX10, },      // Four fragments
 
             // Eight-sample formats
-            { IMG_FMT_FMASK8_S8_F1__GFX10CORE,         // One fragment
-              IMG_FMT_FMASK16_S8_F2__GFX10CORE,        // Two fragments
-              IMG_FMT_FMASK32_S8_F4__GFX10CORE,        // Four fragments
-              IMG_FMT_FMASK32_S8_F8__GFX10CORE, },     // Eight fragments
+            { IMG_FMT_FMASK8_S8_F1__GFX10,         // One fragment
+              IMG_FMT_FMASK16_S8_F2__GFX10,        // Two fragments
+              IMG_FMT_FMASK32_S8_F4__GFX10,        // Four fragments
+              IMG_FMT_FMASK32_S8_F8__GFX10, },     // Eight fragments
 
             // Sixteen-sample formats
-            { IMG_FMT_FMASK16_S16_F1__GFX10CORE,       // One fragment
-              IMG_FMT_FMASK32_S16_F2__GFX10CORE,       // Two fragments
-              IMG_FMT_FMASK64_S16_F4__GFX10CORE,       // Four fragments
-              IMG_FMT_FMASK64_S16_F8__GFX10CORE, },    // Eight fragments
+            { IMG_FMT_FMASK16_S16_F1__GFX10,       // One fragment
+              IMG_FMT_FMASK32_S16_F2__GFX10,       // Two fragments
+              IMG_FMT_FMASK64_S16_F4__GFX10,       // Four fragments
+              IMG_FMT_FMASK64_S16_F8__GFX10, },    // Eight fragments
         };
 
         const uint32 log2Samples   = Log2(samples);
