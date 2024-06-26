@@ -53,16 +53,11 @@ Pipeline::Pipeline(
 // =====================================================================================================================
 void Pipeline::Destroy()
 {
-    // Note that we can't time a Destroy call.
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::PipelineDestroy;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    funcInfo.postCallTime = funcInfo.preCallTime;
-
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    // Note that we can't time Destroy calls nor track their callbacks.
+    if (m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::PipelineDestroy))
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         m_pPlatform->LogEndFunc(pLogContext);
     }
 
@@ -88,16 +83,14 @@ Result Pipeline::LinkWithLibraries(
             nextLibraryList[i] = NextShaderLibrary(ppLibraryList[i]);
         }
 
-        BeginFuncInfo funcInfo;
-        funcInfo.funcId       = InterfaceFunc::PipelineLinkWithLibraries;
-        funcInfo.objectId     = m_objectId;
-        funcInfo.preCallTime  = m_pPlatform->GetTime();
-        result = m_pNextLayer->LinkWithLibraries(&nextLibraryList[0], libraryCount);
-        funcInfo.postCallTime = m_pPlatform->GetTime();
+        const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::PipelineLinkWithLibraries);
 
-        LogContext* pLogContext = nullptr;
-        if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+        result = m_pNextLayer->LinkWithLibraries(&nextLibraryList[0], libraryCount);
+
+        if (active)
         {
+            LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
             pLogContext->BeginInput();
             pLogContext->KeyAndBeginList("libraries", false);
             for (uint32 i = 0; i < libraryCount; ++i)
@@ -106,6 +99,10 @@ Result Pipeline::LinkWithLibraries(
             }
             pLogContext->EndList();
             pLogContext->EndInput();
+
+            pLogContext->BeginOutput();
+            pLogContext->KeyAndEnum("result", result);
+            pLogContext->EndOutput();
 
             m_pPlatform->LogEndFunc(pLogContext);
         }

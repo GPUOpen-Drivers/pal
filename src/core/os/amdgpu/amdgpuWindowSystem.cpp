@@ -35,17 +35,32 @@
 
 #include "palSwapChain.h"
 
+using namespace Util;
+
 namespace Pal
 {
 namespace Amdgpu
 {
 
 // More supported platforms could be added in the future.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 881
 #if   PAL_HAVE_WAYLAND_PLATFORM
-constexpr uint32 SupportedPlatformMask =
-    WsiPlatform::Xcb | WsiPlatform::Xlib | WsiPlatform::Wayland | WsiPlatform::DirectDisplay;
+constexpr uint32 SupportedPlatformMask = 1 << uint32(WsiPlatform::Xcb)     |
+                                         1 << uint32(WsiPlatform::Xlib)    |
+                                         1 << uint32(WsiPlatform::Wayland) |
+                                         1 << uint32(WsiPlatform::DirectDisplay);
+#else
+constexpr uint32 SupportedPlatformMask = 1 << uint32(WsiPlatform::Xcb)  |
+                                         1 << uint32(WsiPlatform::Xlib) |
+                                         1 << uint32(WsiPlatform::DirectDisplay);
+#endif
+#else
+#if   PAL_HAVE_WAYLAND_PLATFORM
+constexpr uint32 SupportedPlatformMask = WsiPlatform::Xcb | WsiPlatform::Xlib | WsiPlatform::Wayland |
+                                         WsiPlatform::DirectDisplay;
 #else
 constexpr uint32 SupportedPlatformMask = WsiPlatform::Xcb | WsiPlatform::Xlib | WsiPlatform::DirectDisplay;
+#endif
 #endif
 
 // =====================================================================================================================
@@ -54,7 +69,11 @@ size_t PresentFence::GetSize(
 {
     size_t size = 0;
 
-    if (SupportedPlatformMask & platform)
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 881
+    if (TestAnyFlagSet(SupportedPlatformMask, 1 << uint32(platform)))
+#else
+    if (TestAnyFlagSet(SupportedPlatformMask, platform))
+#endif
     {
         switch (platform)
         {
@@ -95,7 +114,11 @@ Result PresentFence::Create(
     const WsiPlatform platform = windowSystem.PlatformType();
     Result            result   = Result::ErrorUnavailable;
 
-    if (SupportedPlatformMask & platform)
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 881
+    if (TestAnyFlagSet(SupportedPlatformMask, 1 << uint32(platform)))
+#else
+    if (TestAnyFlagSet(SupportedPlatformMask, platform))
+#endif
     {
         switch (platform)
         {
@@ -141,7 +164,11 @@ size_t WindowSystem::GetSize(
 {
     size_t size = 0;
 
-    if (SupportedPlatformMask & platform)
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 881
+    if (TestAnyFlagSet(SupportedPlatformMask, 1 << uint32(platform)))
+#else
+    if (TestAnyFlagSet(SupportedPlatformMask, platform))
+#endif
     {
         switch (platform)
         {
@@ -181,7 +208,11 @@ Result WindowSystem::Create(
 {
     Result result = Result::ErrorUnavailable;
 
-    if (SupportedPlatformMask & createInfo.platform)
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 881
+    if (TestAnyFlagSet(SupportedPlatformMask, 1 << uint32(createInfo.platform)))
+#else
+    if (TestAnyFlagSet(SupportedPlatformMask, createInfo.platform))
+#endif
     {
         switch (createInfo.platform)
         {
@@ -233,7 +264,11 @@ Result WindowSystem::GetWindowProperties(
 {
     Result result = Result::ErrorUnavailable;
 
-    if (SupportedPlatformMask & platform)
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 881
+    if (TestAnyFlagSet(SupportedPlatformMask, 1 << uint32(platform)))
+#else
+    if (TestAnyFlagSet(SupportedPlatformMask, platform))
+#endif
     {
         switch (platform)
         {
@@ -275,7 +310,11 @@ Result WindowSystem::DeterminePresentationSupported(
 {
     Result result = Result::ErrorUnavailable;
 
-    if (SupportedPlatformMask & platform)
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 881
+    if (TestAnyFlagSet(SupportedPlatformMask, 1 << uint32(platform)))
+#else
+    if (TestAnyFlagSet(SupportedPlatformMask, platform))
+#endif
     {
         switch (platform)
         {
@@ -318,7 +357,12 @@ Result WindowSystem::AcquireScreenAccess(
     int32*          pDrmMasterFd)
 {
     Result result = Result::ErrorUnavailable;
-    if (SupportedPlatformMask & wsiPlatform)
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 881
+    if (TestAnyFlagSet(SupportedPlatformMask, 1 << uint32(wsiPlatform)))
+#else
+    if (TestAnyFlagSet(SupportedPlatformMask, wsiPlatform))
+#endif
     {
         switch (wsiPlatform)
         {
@@ -355,7 +399,11 @@ Result WindowSystem::GetOutputFromConnector(
 {
     Result result = Result::ErrorUnavailable;
 
-    if (SupportedPlatformMask & wsiPlatform)
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 881
+    if (TestAnyFlagSet(SupportedPlatformMask, 1 << uint32(wsiPlatform)))
+#else
+    if (TestAnyFlagSet(SupportedPlatformMask, wsiPlatform))
+#endif
     {
         switch (wsiPlatform)
         {

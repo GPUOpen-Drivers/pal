@@ -52,41 +52,37 @@ Result CreateRpmGraphicsPipelines(
 
     const PipelineBinary* pTable = nullptr;
 
-    switch (properties.revision)
+    switch (uint32(properties.gfxTriple))
     {
-    case AsicRevision::Navi10:
-    case AsicRevision::Navi12:
+    case Pal::IpTriple({ 10, 1, 0 }):
+    case Pal::IpTriple({ 10, 1, 1 }):
         pTable = rpmGfxBinaryTableNavi10;
         break;
 
-    case AsicRevision::Navi14:
+    case Pal::IpTriple({ 10, 1, 2 }):
         pTable = rpmGfxBinaryTableNavi14;
         break;
 
-    case AsicRevision::Navi21:
-    case AsicRevision::Navi22:
-    case AsicRevision::Navi23:
-    case AsicRevision::Navi24:
-    case AsicRevision::Rembrandt:
+    case Pal::IpTriple({ 10, 3, 0 }):
+    case Pal::IpTriple({ 10, 3, 1 }):
+    case Pal::IpTriple({ 10, 3, 2 }):
+    case Pal::IpTriple({ 10, 3, 4 }):
+    case Pal::IpTriple({ 10, 3, 5 }):
         pTable = rpmGfxBinaryTableNavi21;
         break;
 
-    case AsicRevision::Raphael:
+    case Pal::IpTriple({ 10, 3, 6 }):
         pTable = rpmGfxBinaryTableRaphael;
         break;
 
-    case AsicRevision::Navi31:
-    case AsicRevision::Navi32:
-    case AsicRevision::Navi33:
+    case Pal::IpTriple({ 11, 0, 0 }):
+    case Pal::IpTriple({ 11, 0, 1 }):
+    case Pal::IpTriple({ 11, 0, 2 }):
         pTable = rpmGfxBinaryTableNavi31;
         break;
 
-    case AsicRevision::Phoenix1:
+    case Pal::IpTriple({ 11, 0, 3 }):
         pTable = rpmGfxBinaryTablePhoenix1;
-        break;
-
-    case AsicRevision::Phoenix2:
-        pTable = rpmGfxBinaryTablePhoenix2;
         break;
 
     default:
@@ -1761,6 +1757,254 @@ Result CreateRpmGraphicsPipelines(
     }
 
     if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+        ))
+    {
+        pipeInfo = { };
+        pipeInfo.pPipelineBinary       = pTable[Gfx11ResolveGraphics_32ABGR].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[Gfx11ResolveGraphics_32ABGR].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
+        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X32Y32Z32W32_Uint;
+        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
+            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
+
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            NullInternalInfo,
+            &pPipelineMem[Gfx11ResolveGraphics_32ABGR],
+            AllocInternal);
+    }
+
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+        ))
+    {
+        pipeInfo = { };
+        pipeInfo.pPipelineBinary       = pTable[Gfx11ResolveGraphics_32GR].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[Gfx11ResolveGraphics_32GR].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.cbState.target[0].channelWriteMask       = 0x3;
+        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X32Y32_Uint;
+        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
+            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
+
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            NullInternalInfo,
+            &pPipelineMem[Gfx11ResolveGraphics_32GR],
+            AllocInternal);
+    }
+
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+        ))
+    {
+        pipeInfo = { };
+        pipeInfo.pPipelineBinary       = pTable[Gfx11ResolveGraphics_32R].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[Gfx11ResolveGraphics_32R].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.cbState.target[0].channelWriteMask       = 0x1;
+        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X32_Uint;
+        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
+            { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
+
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            NullInternalInfo,
+            &pPipelineMem[Gfx11ResolveGraphics_32R],
+            AllocInternal);
+    }
+
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+        ))
+    {
+        pipeInfo = { };
+        pipeInfo.pPipelineBinary       = pTable[Gfx11ResolveGraphics_FP16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[Gfx11ResolveGraphics_FP16].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
+        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X8Y8Z8W8_Unorm;
+        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
+            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
+
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            NullInternalInfo,
+            &pPipelineMem[Gfx11ResolveGraphics_FP16],
+            AllocInternal);
+    }
+
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+        ))
+    {
+        pipeInfo = { };
+        pipeInfo.pPipelineBinary       = pTable[Gfx11ResolveGraphics_SINT16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[Gfx11ResolveGraphics_SINT16].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
+        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Sint;
+        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
+            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
+
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            NullInternalInfo,
+            &pPipelineMem[Gfx11ResolveGraphics_SINT16],
+            AllocInternal);
+    }
+
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+        ))
+    {
+        pipeInfo = { };
+        pipeInfo.pPipelineBinary       = pTable[Gfx11ResolveGraphics_SNORM16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[Gfx11ResolveGraphics_SNORM16].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
+        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Snorm;
+        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
+            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
+
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            NullInternalInfo,
+            &pPipelineMem[Gfx11ResolveGraphics_SNORM16],
+            AllocInternal);
+    }
+
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+        ))
+    {
+        pipeInfo = { };
+        pipeInfo.pPipelineBinary       = pTable[Gfx11ResolveGraphics_UINT16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[Gfx11ResolveGraphics_UINT16].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
+        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Uint;
+        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
+            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
+
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            NullInternalInfo,
+            &pPipelineMem[Gfx11ResolveGraphics_UINT16],
+            AllocInternal);
+    }
+
+    if (result == Result::Success && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+        ))
+    {
+        pipeInfo = { };
+        pipeInfo.pPipelineBinary       = pTable[Gfx11ResolveGraphics_UNORM16].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[Gfx11ResolveGraphics_UNORM16].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
+        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Unorm;
+        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
+            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
+
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            NullInternalInfo,
+            &pPipelineMem[Gfx11ResolveGraphics_UNORM16],
+            AllocInternal);
+    }
+
+    if (result == Result::Success && (false
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
@@ -2088,254 +2332,6 @@ Result CreateRpmGraphicsPipelines(
             pipeInfo,
             NullInternalInfo,
             &pPipelineMem[ScaledCopyStencil],
-            AllocInternal);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-        ))
-    {
-        pipeInfo = { };
-        pipeInfo.pPipelineBinary       = pTable[Gfx11ResolveGraphics_32ABGR].pBuffer;
-        pipeInfo.pipelineBinarySize    = pTable[Gfx11ResolveGraphics_32ABGR].size;
-
-        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
-
-        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
-
-        pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
-        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X32Y32Z32W32_Uint;
-        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
-            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
-
-        pipeInfo.viewportInfo.depthClipNearEnable = false;
-        pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp         = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
-
-        result = pDevice->CreateGraphicsPipelineInternal(
-            pipeInfo,
-            NullInternalInfo,
-            &pPipelineMem[Gfx11ResolveGraphics_32ABGR],
-            AllocInternal);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-        ))
-    {
-        pipeInfo = { };
-        pipeInfo.pPipelineBinary       = pTable[Gfx11ResolveGraphics_32GR].pBuffer;
-        pipeInfo.pipelineBinarySize    = pTable[Gfx11ResolveGraphics_32GR].size;
-
-        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
-
-        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
-
-        pipeInfo.cbState.target[0].channelWriteMask       = 0x3;
-        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X32Y32_Uint;
-        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
-            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
-
-        pipeInfo.viewportInfo.depthClipNearEnable = false;
-        pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp         = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
-
-        result = pDevice->CreateGraphicsPipelineInternal(
-            pipeInfo,
-            NullInternalInfo,
-            &pPipelineMem[Gfx11ResolveGraphics_32GR],
-            AllocInternal);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-        ))
-    {
-        pipeInfo = { };
-        pipeInfo.pPipelineBinary       = pTable[Gfx11ResolveGraphics_32R].pBuffer;
-        pipeInfo.pipelineBinarySize    = pTable[Gfx11ResolveGraphics_32R].size;
-
-        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
-
-        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
-
-        pipeInfo.cbState.target[0].channelWriteMask       = 0x1;
-        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X32_Uint;
-        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
-            { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
-
-        pipeInfo.viewportInfo.depthClipNearEnable = false;
-        pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp         = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
-
-        result = pDevice->CreateGraphicsPipelineInternal(
-            pipeInfo,
-            NullInternalInfo,
-            &pPipelineMem[Gfx11ResolveGraphics_32R],
-            AllocInternal);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-        ))
-    {
-        pipeInfo = { };
-        pipeInfo.pPipelineBinary       = pTable[Gfx11ResolveGraphics_FP16].pBuffer;
-        pipeInfo.pipelineBinarySize    = pTable[Gfx11ResolveGraphics_FP16].size;
-
-        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
-
-        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
-
-        pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
-        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X8Y8Z8W8_Unorm;
-        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
-            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
-
-        pipeInfo.viewportInfo.depthClipNearEnable = false;
-        pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp         = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
-
-        result = pDevice->CreateGraphicsPipelineInternal(
-            pipeInfo,
-            NullInternalInfo,
-            &pPipelineMem[Gfx11ResolveGraphics_FP16],
-            AllocInternal);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-        ))
-    {
-        pipeInfo = { };
-        pipeInfo.pPipelineBinary       = pTable[Gfx11ResolveGraphics_SINT16].pBuffer;
-        pipeInfo.pipelineBinarySize    = pTable[Gfx11ResolveGraphics_SINT16].size;
-
-        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
-
-        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
-
-        pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
-        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Sint;
-        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
-            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
-
-        pipeInfo.viewportInfo.depthClipNearEnable = false;
-        pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp         = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
-
-        result = pDevice->CreateGraphicsPipelineInternal(
-            pipeInfo,
-            NullInternalInfo,
-            &pPipelineMem[Gfx11ResolveGraphics_SINT16],
-            AllocInternal);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-        ))
-    {
-        pipeInfo = { };
-        pipeInfo.pPipelineBinary       = pTable[Gfx11ResolveGraphics_SNORM16].pBuffer;
-        pipeInfo.pipelineBinarySize    = pTable[Gfx11ResolveGraphics_SNORM16].size;
-
-        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
-
-        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
-
-        pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
-        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Snorm;
-        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
-            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
-
-        pipeInfo.viewportInfo.depthClipNearEnable = false;
-        pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp         = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
-
-        result = pDevice->CreateGraphicsPipelineInternal(
-            pipeInfo,
-            NullInternalInfo,
-            &pPipelineMem[Gfx11ResolveGraphics_SNORM16],
-            AllocInternal);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-        ))
-    {
-        pipeInfo = { };
-        pipeInfo.pPipelineBinary       = pTable[Gfx11ResolveGraphics_UINT16].pBuffer;
-        pipeInfo.pipelineBinarySize    = pTable[Gfx11ResolveGraphics_UINT16].size;
-
-        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
-
-        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
-
-        pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
-        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Uint;
-        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
-            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
-
-        pipeInfo.viewportInfo.depthClipNearEnable = false;
-        pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp         = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
-
-        result = pDevice->CreateGraphicsPipelineInternal(
-            pipeInfo,
-            NullInternalInfo,
-            &pPipelineMem[Gfx11ResolveGraphics_UINT16],
-            AllocInternal);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-        ))
-    {
-        pipeInfo = { };
-        pipeInfo.pPipelineBinary       = pTable[Gfx11ResolveGraphics_UNORM16].pBuffer;
-        pipeInfo.pipelineBinarySize    = pTable[Gfx11ResolveGraphics_UNORM16].size;
-
-        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
-
-        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
-
-        pipeInfo.cbState.target[0].channelWriteMask       = 0xF;
-        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X16Y16Z16W16_Unorm;
-        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
-            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
-
-        pipeInfo.viewportInfo.depthClipNearEnable = false;
-        pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp         = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
-
-        result = pDevice->CreateGraphicsPipelineInternal(
-            pipeInfo,
-            NullInternalInfo,
-            &pPipelineMem[Gfx11ResolveGraphics_UNORM16],
             AllocInternal);
     }
 

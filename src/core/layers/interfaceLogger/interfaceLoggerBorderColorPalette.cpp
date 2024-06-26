@@ -53,16 +53,13 @@ Result BorderColorPalette::Update(
     uint32       entryCount,
     const float* pEntries)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::BorderColorPaletteUpdate;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = BorderColorPaletteDecorator::Update(firstEntry, entryCount, pEntries);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::BorderColorPaletteUpdate);
+    const Result result = BorderColorPaletteDecorator::Update(firstEntry, entryCount, pEntries);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndValue("firstEntry", firstEntry);
         pLogContext->KeyAndBeginList("entries", false);
@@ -90,16 +87,13 @@ Result BorderColorPalette::BindGpuMemory(
     IGpuMemory* pGpuMemory,
     gpusize     offset)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::BorderColorPaletteBindGpuMemory;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = BorderColorPaletteDecorator::BindGpuMemory(pGpuMemory, offset);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::BorderColorPaletteBindGpuMemory);
+    const Result result = BorderColorPaletteDecorator::BindGpuMemory(pGpuMemory, offset);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("gpuMemory", pGpuMemory);
         pLogContext->KeyAndValue("offset", offset);
@@ -118,16 +112,11 @@ Result BorderColorPalette::BindGpuMemory(
 // =====================================================================================================================
 void BorderColorPalette::Destroy()
 {
-    // Note that we can't time a Destroy call.
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::BorderColorPaletteDestroy;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    funcInfo.postCallTime = funcInfo.preCallTime;
-
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    // Note that we can't time Destroy calls nor track their callbacks.
+    if (m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::BorderColorPaletteDestroy))
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         m_pPlatform->LogEndFunc(pLogContext);
     }
 

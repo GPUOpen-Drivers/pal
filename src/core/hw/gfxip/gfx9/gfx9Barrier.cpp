@@ -749,6 +749,11 @@ void BarrierMgr::IssueSyncs(
 
     FillCacheOperations(syncReqs, pOperations);
 
+#if PAL_DEVELOPER_BUILD
+    pOperations->acquirePoint = (syncReqs.pfpSyncMe && isGfxSupported) ? Developer::AcquirePoint::Pfp
+                                                                       : Developer::AcquirePoint::Me;
+#endif
+
     if (syncReqs.syncCpDma)
     {
         // Stalls the CP ME until the CP's DMA engine has finished all async DMA_DATA commands. This needs to

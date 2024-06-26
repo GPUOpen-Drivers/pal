@@ -198,7 +198,7 @@ constexpr Util::uint8 TimeGraph_Cs_91ECA425[] =
 };
 
 // Time Graph compute shader binary
-constexpr Util::uint8 TimeGraph_Cs_1D32F7A1[] =
+constexpr Util::uint8 TimeGraph_Cs_E189D9C6[] =
 {
     0x7f, 0x45, 0x4c, 0x46, 0x02, 0x01, 0x01, 0x41, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0xe0,
     0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -690,7 +690,7 @@ constexpr PipelineBinary timeGraphComputeBinaryTableNavi10[] =
 // Table of compute pipeline binaries for Navi21
 constexpr PipelineBinary timeGraphComputeBinaryTableNavi21[] =
 {
-    {TimeGraph_Cs_1D32F7A1,  sizeof(TimeGraph_Cs_1D32F7A1)},
+    {TimeGraph_Cs_E189D9C6,  sizeof(TimeGraph_Cs_E189D9C6)},
 };
 
 // Table of compute pipeline binaries for Navi31
@@ -701,12 +701,6 @@ constexpr PipelineBinary timeGraphComputeBinaryTableNavi31[] =
 
 // Table of compute pipeline binaries for Phoenix1
 constexpr PipelineBinary timeGraphComputeBinaryTablePhoenix1[] =
-{
-    {TimeGraph_Cs_BF609FF5,  sizeof(TimeGraph_Cs_BF609FF5)},
-};
-
-// Table of compute pipeline binaries for Phoenix2
-constexpr PipelineBinary timeGraphComputeBinaryTablePhoenix2[] =
 {
     {TimeGraph_Cs_BF609FF5,  sizeof(TimeGraph_Cs_BF609FF5)},
 };

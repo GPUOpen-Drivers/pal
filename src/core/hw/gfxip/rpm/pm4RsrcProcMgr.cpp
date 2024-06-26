@@ -2542,9 +2542,10 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
         //  + Raw buffer UAV SRD pointing to current chunk's INDIRECT_BUFFER packet that chains to the next chunk (4 DW)
         //  + Command ID offset for the current command-stream-chunk (1 DW)
         //  + Low half of the GPU virtual address of the spill table's embedded data segment (1 DW)
+        //  + Low half of the GPU virtual address of the spill table's embedded data segment for task shader (1 DW)
 
         // The generation pipelines expect the descriptor table's GPU address to be written to user-data #2-3.
-        pTableMem = pCmdBuffer->CmdAllocateEmbeddedData(((3 * SrdDwords) + 2), 1, &tableGpuAddr);
+        pTableMem = pCmdBuffer->CmdAllocateEmbeddedData(((3 * SrdDwords) + 3), 1, &tableGpuAddr);
         PAL_ASSERT(pTableMem != nullptr);
 
         pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 2, 2, reinterpret_cast<uint32*>(&tableGpuAddr));
@@ -2607,6 +2608,7 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
             // This assert validates that the following dispatch contains equivalent commands for both the DE and ACE
             // engines for this DispatchMesh pipeline.
             PAL_ASSERT(taskChunk.commandsInChunk == mainChunk.commandsInChunk);
+            pTableMem[2] = LowPart(taskChunk.embeddedDataAddr);
 
             pTableMem = pCmdBuffer->CmdAllocateEmbeddedData((3 * SrdDwords), 1, &tableGpuAddr);
             PAL_ASSERT(pTableMem != nullptr);

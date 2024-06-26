@@ -4827,75 +4827,78 @@ void TargetCmdBuffer::BeginSample(
     bool     pipeStats,
     bool     perfExp)
 {
-    const GpuUtil::GpaSampleConfig& config = pQueue->GetGpaSessionSampleConfig();
-
-    pLogItem->pGpaSession   = m_pGpaSession;            // Save the session for later end it.
-    pLogItem->gpaSampleId   = GpuUtil::InvalidSampleId; // Initialize sample id.
-    pLogItem->gpaSampleIdTs = GpuUtil::InvalidSampleId; // Initialize sample id.
-    pLogItem->gpaSampleIdQuery = GpuUtil::InvalidSampleId; // Initialize sample id.
-
-    // If requested, surround this universal/compute queue operation a pipeline stats query.
-    if (pipeStats)
+    if (pQueue->IsProfilingEnabled())
     {
-        if ((m_queueType == QueueTypeUniversal) || (m_queueType == QueueTypeCompute))
-        {
-            GpuUtil::GpaSampleConfig queryConfig = {};
-            queryConfig.type                     = GpuUtil::GpaSampleType::Query;
+        const GpuUtil::GpaSampleConfig& config = pQueue->GetGpaSessionSampleConfig();
 
-            Result result = m_pGpaSession->BeginSample(this, queryConfig, &pLogItem->gpaSampleIdQuery);
+        pLogItem->pGpaSession      = m_pGpaSession;            // Save the session for later end it.
+        pLogItem->gpaSampleId      = GpuUtil::InvalidSampleId; // Initialize sample id.
+        pLogItem->gpaSampleIdTs    = GpuUtil::InvalidSampleId; // Initialize sample id.
+        pLogItem->gpaSampleIdQuery = GpuUtil::InvalidSampleId; // Initialize sample id.
+
+        // If requested, surround this universal/compute queue operation a pipeline stats query.
+        if (pipeStats)
+        {
+            if ((m_queueType == QueueTypeUniversal) || (m_queueType == QueueTypeCompute))
+            {
+                GpuUtil::GpaSampleConfig queryConfig = {};
+                queryConfig.type                     = GpuUtil::GpaSampleType::Query;
+
+                Result result = m_pGpaSession->BeginSample(this, queryConfig, &pLogItem->gpaSampleIdQuery);
+                SetLastResult(result);
+                if (result != Result::Success)
+                {
+                    GPUPROFILER_ERROR("Failed to begin PipeStats sample, error: %d", result);
+                }
+            }
+            else
+            {
+                // Pipeline stats queries are not currently supported on anything but the Universal/compute engine.
+                pLogItem->errors.pipeStatsUnsupported = 1;
+            }
+        }
+
+        if (perfExp)
+        {
+            if ((m_queueType == QueueTypeUniversal) || (m_queueType == QueueTypeCompute))
+            {
+                Result result = m_pGpaSession->BeginSample(this, config, &pLogItem->gpaSampleId);
+                SetLastResult(result);
+                if (result != Result::Success)
+                {
+                    GPUPROFILER_ERROR("Failed to begin PerfExperiment sample, error: %d", result);
+                }
+
+                if (result == Result::ErrorOutOfMemory)
+                {
+                    pLogItem->errors.perfExpOutOfMemory = 1;
+                }
+                else if (result == Result::ErrorOutOfGpuMemory)
+                {
+                    pLogItem->errors.perfExpOutOfGpuMemory = 1;
+                }
+
+            }
+            else
+            {
+                // Perf experiments are not currently supported on anything but the Universal/compute engine.
+                pLogItem->errors.perfExpUnsupported = 1;
+            }
+        }
+
+        if (m_supportTimestamps)
+        {
+            GpuUtil::GpaSampleConfig tsConfig = {};
+            tsConfig.type                     = GpuUtil::GpaSampleType::Timing;
+            tsConfig.timing.preSample         = config.timing.preSample;
+            tsConfig.timing.postSample        = config.timing.postSample;
+
+            Result result = m_pGpaSession->BeginSample(this, tsConfig, &pLogItem->gpaSampleIdTs);
             SetLastResult(result);
             if (result != Result::Success)
             {
-                GPUPROFILER_ERROR("Failed to begin PipeStats sample, error: %d", result);
+                GPUPROFILER_ERROR("Failed to begin timestamps sample, error: %d", result);
             }
-        }
-        else
-        {
-            // Pipeline stats queries are not currently supported on anything but the Universal/compute engine.
-            pLogItem->errors.pipeStatsUnsupported = 1;
-        }
-    }
-
-    if (perfExp)
-    {
-        if ((m_queueType == QueueTypeUniversal) || (m_queueType == QueueTypeCompute))
-        {
-            Result result = m_pGpaSession->BeginSample(this, config, &pLogItem->gpaSampleId);
-            SetLastResult(result);
-            if (result != Result::Success)
-            {
-                GPUPROFILER_ERROR("Failed to begin PerfExperiment sample, error: %d", result);
-            }
-
-            if (result == Result::ErrorOutOfMemory)
-            {
-                pLogItem->errors.perfExpOutOfMemory = 1;
-            }
-            else if (result == Result::ErrorOutOfGpuMemory)
-            {
-                pLogItem->errors.perfExpOutOfGpuMemory = 1;
-            }
-
-        }
-        else
-        {
-            // Perf experiments are not currently supported on anything but the Universal/compute engine.
-            pLogItem->errors.perfExpUnsupported = 1;
-        }
-    }
-
-    if (m_supportTimestamps)
-    {
-        GpuUtil::GpaSampleConfig tsConfig = {};
-        tsConfig.type                     = GpuUtil::GpaSampleType::Timing;
-        tsConfig.timing.preSample         = config.timing.preSample;
-        tsConfig.timing.postSample        = config.timing.postSample;
-
-        Result result = m_pGpaSession->BeginSample(this, tsConfig, &pLogItem->gpaSampleIdTs);
-        SetLastResult(result);
-        if (result != Result::Success)
-        {
-            GPUPROFILER_ERROR("Failed to begin timestamps sample, error: %d", result);
         }
     }
 }
@@ -4906,22 +4909,25 @@ void TargetCmdBuffer::EndSample(
     Queue*         pQueue,
     const LogItem* pLogItem)
 {
-    // End the timestamp sample.
-    if (pQueue->HasValidGpaSample(pLogItem, GpuUtil::GpaSampleType::Timing))
+    if (pQueue->IsProfilingEnabled())
     {
-        pLogItem->pGpaSession->EndSample(this, pLogItem->gpaSampleIdTs);
-    }
+        // End the timestamp sample.
+        if (pQueue->HasValidGpaSample(pLogItem, GpuUtil::GpaSampleType::Timing))
+        {
+            pLogItem->pGpaSession->EndSample(this, pLogItem->gpaSampleIdTs);
+        }
 
-    // End the counter/trace sample.
-    if (pQueue->HasValidGpaSample(pLogItem, GpuUtil::GpaSampleType::Cumulative))
-    {
-        pLogItem->pGpaSession->EndSample(this, pLogItem->gpaSampleId);
-    }
+        // End the counter/trace sample.
+        if (pQueue->HasValidGpaSample(pLogItem, GpuUtil::GpaSampleType::Cumulative))
+        {
+            pLogItem->pGpaSession->EndSample(this, pLogItem->gpaSampleId);
+        }
 
-    // End the query sample.
-    if (pQueue->HasValidGpaSample(pLogItem, GpuUtil::GpaSampleType::Query))
-    {
-        pLogItem->pGpaSession->EndSample(this, pLogItem->gpaSampleIdQuery);
+        // End the query sample.
+        if (pQueue->HasValidGpaSample(pLogItem, GpuUtil::GpaSampleType::Query))
+        {
+            pLogItem->pGpaSession->EndSample(this, pLogItem->gpaSampleIdQuery);
+        }
     }
 }
 
@@ -4932,16 +4938,19 @@ Result TargetCmdBuffer::BeginGpaSession(
 {
     Result result = Result::Success;
 
-    // Get an unused GPA session
-    result = pQueue->AcquireGpaSession(&m_pGpaSession);
-    if (result == Result::Success)
+    if (pQueue->IsProfilingEnabled())
     {
-        GpuUtil::GpaSessionBeginInfo info = {};
-        result = m_pGpaSession->Begin(info);
-
-        if (result != Result::Success)
+        // Get an unused GPA session
+        result = pQueue->AcquireGpaSession(&m_pGpaSession);
+        if (result == Result::Success)
         {
-            GPUPROFILER_ERROR("Failed to begin GPA session, error: %d", result);
+            GpuUtil::GpaSessionBeginInfo info = {};
+            result = m_pGpaSession->Begin(info);
+
+            if (result != Result::Success)
+            {
+                GPUPROFILER_ERROR("Failed to begin GPA session, error: %d", result);
+            }
         }
     }
 
@@ -4953,7 +4962,14 @@ Result TargetCmdBuffer::BeginGpaSession(
 Result TargetCmdBuffer::EndGpaSession(
     LogItem* pLogItem)
 {
-    return pLogItem->pGpaSession->End(this);
+    Result result = Result::Success;
+
+    if (pLogItem->pGpaSession != nullptr)
+    {
+        result = pLogItem->pGpaSession->End(this);
+    }
+
+    return result;
 }
 
 // ====================================================================================================================

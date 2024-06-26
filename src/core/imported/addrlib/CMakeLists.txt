@@ -131,6 +131,10 @@ if(ADDR_LNX_KERNEL_BUILD)
     target_compile_definitions(addrlib PRIVATE ADDR_LNX_KERNEL_BUILD)
 endif()
 
+if(NOT ADDR_KERNEL_BUILD)
+    target_compile_definitions(addrlib PRIVATE ADDR_ALLOW_TLS ADDR_ALLOW_STDIO)
+endif()
+
 addr_get_cpu_endianness(CPU_ENDIANNESS)
 target_compile_definitions(addrlib PRIVATE ${CPU_ENDIANNESS})
 

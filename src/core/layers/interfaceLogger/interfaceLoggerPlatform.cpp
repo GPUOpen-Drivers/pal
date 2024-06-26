@@ -40,12 +40,18 @@ namespace Pal
 namespace InterfaceLogger
 {
 
-static constexpr uint32 GenCalls = LogFlagGeneralCalls;
-static constexpr uint32 CrtDstry = LogFlagCreateDestroy;
-static constexpr uint32 BindMem  = LogFlagBindGpuMemory;
-static constexpr uint32 QueueOps = LogFlagQueueOps;
-static constexpr uint32 CmdBuild = LogFlagCmdBuilding;
-static constexpr uint32 CrtSrds  = LogFlagCreateSrds;
+static constexpr uint32 GenCalls     = LogFlagGeneralCalls;
+static constexpr uint32 CrtDstry     = LogFlagCreateDestroy;
+static constexpr uint32 BindMem      = LogFlagBindGpuMemory;
+static constexpr uint32 QueueOps     = LogFlagQueueOps;
+static constexpr uint32 CmdBuild     = LogFlagCmdBuilding;
+static constexpr uint32 CrtSrds      = LogFlagCreateSrds;
+static constexpr uint32 Callbacks    = LogFlagCallbacks;
+static constexpr uint32 BarrierLog   = LogFlagBarrierLog;   // Barrier log cmd build calls in frame range control
+static constexpr uint32 BarrierLogCr = LogFlagBarrierLogCr; // Internal only flag. Barrier log image and cmd buffer
+                                                            // create calls that are not in frame range control.
+                                                            // Unconditionally logged in both elevated and non-elevated
+                                                            // modes when LogFlagBarrierLog is enabled.
 
 struct FuncLoggingTableEntry
 {
@@ -55,266 +61,386 @@ struct FuncLoggingTableEntry
 
 static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
 {
-    { InterfaceFunc::BorderColorPaletteUpdate,                      (GenCalls)            },
-    { InterfaceFunc::BorderColorPaletteBindGpuMemory,               (BindMem)             },
-    { InterfaceFunc::BorderColorPaletteDestroy,                     (CrtDstry | BindMem)  },
-    { InterfaceFunc::CmdAllocatorReset,                             (GenCalls | CmdBuild) },
-    { InterfaceFunc::CmdAllocatorTrim,                              (GenCalls | CmdBuild) },
-    { InterfaceFunc::CmdAllocatorDestroy,                           (CrtDstry | CmdBuild) },
-    { InterfaceFunc::CmdBufferBegin,                                (CmdBuild)            },
-    { InterfaceFunc::CmdBufferEnd,                                  (CmdBuild)            },
-    { InterfaceFunc::CmdBufferReset,                                (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdBindPipeline,                      (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdPrimeGpuCaches,                    (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdBindMsaaState,                     (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdSaveGraphicsState,                 (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdRestoreGraphicsState,              (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdBindColorBlendState,               (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdBindDepthStencilState,             (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdSetDepthBounds,                    (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdSetUserData,                       (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdDuplicateUserData,                 (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdSetKernelArguments,                (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdSetVertexBuffers,                  (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdBindIndexData,                     (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdBindTargets,                       (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdBindStreamOutTargets,              (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdSetPerDrawVrsRate,                 (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdSetVrsCenterState,                 (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdBindSampleRateImage,               (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdResolvePrtPlusImage,               (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdSetBlendConst,                     (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdSetInputAssemblyState,             (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdSetTriangleRasterState,            (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdSetPointLineRasterState,           (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdSetLineStippleState,               (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdSetDepthBiasState,                 (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdSetStencilRefMasks,                (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdSetUserClipPlanes,                 (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdSetMsaaQuadSamplePattern,          (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdSetViewports,                      (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdSetScissorRects,                   (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdSetGlobalScissor,                  (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdBarrier,                           (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdRelease,                           (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdAcquire,                           (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdReleaseEvent,                      (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdAcquireEvent,                      (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdReleaseThenAcquire,                (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdDraw,                              (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdDrawOpaque,                        (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdDrawIndexed,                       (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdDrawIndirectMulti,                 (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdDrawIndexedIndirectMulti,          (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdDispatch,                          (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdDispatchIndirect,                  (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdDispatchOffset,                    (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdDispatchMesh,                      (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdDispatchMeshIndirectMulti,         (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdCopyMemory,                        (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdCopyMemoryByGpuVa,                 (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdCopyImage,                         (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdCopyMemoryToImage,                 (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdCopyImageToMemory,                 (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdCopyMemoryToTiledImage,            (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdCopyTiledImageToMemory,            (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdCopyTypedBuffer,                   (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdScaledCopyTypedBufferToImage,      (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdCopyRegisterToMemory,              (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdScaledCopyImage,                   (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdGenerateMipmaps,                   (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdColorSpaceConversionCopy,          (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdCloneImageData,                    (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdUpdateMemory,                      (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdUpdateBusAddressableMemoryMarker,  (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdFillMemory,                        (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdClearColorBuffer,                  (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdClearBoundColorTargets,            (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdClearColorImage,                   (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdClearBoundDepthStencilTargets,     (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdClearDepthStencil,                 (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdClearBufferView,                   (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdClearImageView,                    (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdResolveImage,                      (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdSetEvent,                          (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdResetEvent,                        (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdPredicateEvent,                    (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdMemoryAtomic,                      (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdBeginQuery,                        (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdEndQuery,                          (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdResolveQuery,                      (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdResetQueryPool,                    (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdWriteTimestamp,                    (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdWriteImmediate,                    (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdLoadBufferFilledSizes,             (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdSaveBufferFilledSizes,             (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdSetBufferFilledSize,               (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdBindBorderColorPalette,            (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdSetPredication,                    (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdSuspendPredication,                (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdIf,                                (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdElse,                              (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdEndIf,                             (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdWhile,                             (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdEndWhile,                          (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdWaitRegisterValue,                 (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdWaitMemoryValue,                   (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdWaitBusAddressableMemoryMarker,    (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdLoadCeRam,                         (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdDumpCeRam,                         (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdWriteCeRam,                        (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdAllocateEmbeddedData,              (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdAllocateLargeEmbeddedData,         (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdExecuteNestedCmdBuffers,           (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdSaveComputeState,                  (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdRestoreComputeState,               (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdExecuteIndirectCmds,               (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdSetMarker,                         (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdPresent,                           (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdCommentString,                     (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdNop,                               (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdXdmaWaitFlipPending,               (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdStartGpuProfilerLogging,           (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdStopGpuProfilerLogging,            (CmdBuild)            },
+    { InterfaceFunc::BorderColorPaletteUpdate,                      (GenCalls)                         },
+    { InterfaceFunc::BorderColorPaletteBindGpuMemory,               (BindMem)                          },
+    { InterfaceFunc::BorderColorPaletteDestroy,                     (CrtDstry | BindMem)               },
+    { InterfaceFunc::CmdAllocatorReset,                             (GenCalls | CmdBuild)              },
+    { InterfaceFunc::CmdAllocatorTrim,                              (GenCalls | CmdBuild)              },
+    { InterfaceFunc::CmdAllocatorDestroy,                           (CrtDstry | CmdBuild)              },
+    { InterfaceFunc::CmdBufferBegin,                                (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferEnd,                                  (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferReset,                                (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdBindPipeline,                      (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdPrimeGpuCaches,                    (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdBindMsaaState,                     (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdSaveGraphicsState,                 (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdRestoreGraphicsState,              (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdBindColorBlendState,               (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdBindDepthStencilState,             (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdSetDepthBounds,                    (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdSetUserData,                       (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdDuplicateUserData,                 (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdSetKernelArguments,                (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdSetVertexBuffers,                  (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdBindIndexData,                     (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdBindTargets,                       (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdBindStreamOutTargets,              (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdSetPerDrawVrsRate,                 (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdSetVrsCenterState,                 (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdBindSampleRateImage,               (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdResolvePrtPlusImage,               (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdSetBlendConst,                     (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdSetInputAssemblyState,             (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdSetTriangleRasterState,            (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdSetPointLineRasterState,           (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdSetLineStippleState,               (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdSetDepthBiasState,                 (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdSetStencilRefMasks,                (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdSetUserClipPlanes,                 (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdSetMsaaQuadSamplePattern,          (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdSetViewports,                      (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdSetScissorRects,                   (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdSetGlobalScissor,                  (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdBarrier,                           (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdRelease,                           (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdAcquire,                           (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdReleaseEvent,                      (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdAcquireEvent,                      (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdReleaseThenAcquire,                (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdDraw,                              (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdDrawOpaque,                        (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdDrawIndexed,                       (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdDrawIndirectMulti,                 (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdDrawIndexedIndirectMulti,          (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdDispatch,                          (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdDispatchIndirect,                  (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdDispatchOffset,                    (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdDispatchMesh,                      (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdDispatchMeshIndirectMulti,         (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdCopyMemory,                        (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdCopyMemoryByGpuVa,                 (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdCopyImage,                         (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdCopyMemoryToImage,                 (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdCopyImageToMemory,                 (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdCopyMemoryToTiledImage,            (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdCopyTiledImageToMemory,            (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdCopyTypedBuffer,                   (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdScaledCopyTypedBufferToImage,      (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdCopyRegisterToMemory,              (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdScaledCopyImage,                   (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdGenerateMipmaps,                   (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdColorSpaceConversionCopy,          (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdCloneImageData,                    (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdUpdateMemory,                      (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdUpdateBusAddressableMemoryMarker,  (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdFillMemory,                        (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdClearColorBuffer,                  (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdClearBoundColorTargets,            (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdClearColorImage,                   (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdClearBoundDepthStencilTargets,     (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdClearDepthStencil,                 (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdClearBufferView,                   (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdClearImageView,                    (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdResolveImage,                      (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdSetEvent,                          (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdResetEvent,                        (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdPredicateEvent,                    (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdMemoryAtomic,                      (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdBeginQuery,                        (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdEndQuery,                          (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdResolveQuery,                      (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdResetQueryPool,                    (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdWriteTimestamp,                    (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdWriteImmediate,                    (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdLoadBufferFilledSizes,             (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdSaveBufferFilledSizes,             (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdSetBufferFilledSize,               (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdBindBorderColorPalette,            (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdSetPredication,                    (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdSuspendPredication,                (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdIf,                                (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdElse,                              (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdEndIf,                             (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdWhile,                             (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdEndWhile,                          (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdWaitRegisterValue,                 (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdWaitMemoryValue,                   (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdWaitBusAddressableMemoryMarker,    (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdLoadCeRam,                         (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdDumpCeRam,                         (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdWriteCeRam,                        (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdAllocateEmbeddedData,              (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdAllocateLargeEmbeddedData,         (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdExecuteNestedCmdBuffers,           (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdSaveComputeState,                  (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdRestoreComputeState,               (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdExecuteIndirectCmds,               (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdSetMarker,                         (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdPresent,                           (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::CmdBufferCmdCommentString,                     (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdNop,                               (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdXdmaWaitFlipPending,               (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdStartGpuProfilerLogging,           (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdStopGpuProfilerLogging,            (CmdBuild)                         },
     { InterfaceFunc::CmdBufferDestroy,                              (CrtDstry | CmdBuild) },
-    { InterfaceFunc::CmdBufferCmdSetViewInstanceMask,               (CmdBuild)            },
-    { InterfaceFunc::CmdUpdateHiSPretests,                          (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdSetClipRects,                      (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdPostProcessFrame,                  (CmdBuild)            },
-    { InterfaceFunc::ColorBlendStateDestroy,                        (CrtDstry)            },
-    { InterfaceFunc::DepthStencilStateDestroy,                      (CrtDstry)            },
-    { InterfaceFunc::DeviceCommitSettingsAndInit,                   (GenCalls)            },
-    { InterfaceFunc::DeviceFinalize,                                (GenCalls)            },
-    { InterfaceFunc::DeviceCleanup,                                 (GenCalls)            },
-    { InterfaceFunc::DeviceSetMaxQueuedFrames,                      (GenCalls | QueueOps) },
-    { InterfaceFunc::DeviceAddGpuMemoryReferences,                  (GenCalls)            },
-    { InterfaceFunc::DeviceRemoveGpuMemoryReferences,               (GenCalls)            },
-    { InterfaceFunc::DeviceSetClockMode,                            (GenCalls)            },
-    { InterfaceFunc::DeviceSetMgpuMode,                             (GenCalls)            },
-    { InterfaceFunc::DeviceOfferAllocations,                        (GenCalls)            },
-    { InterfaceFunc::DeviceReclaimAllocations,                      (GenCalls)            },
-    { InterfaceFunc::DeviceResetFences,                             (GenCalls)            },
-    { InterfaceFunc::DeviceWaitForFences,                           (GenCalls)            },
-    { InterfaceFunc::DeviceBindTrapHandler,                         (GenCalls)            },
-    { InterfaceFunc::DeviceBindTrapBuffer,                          (GenCalls)            },
-    { InterfaceFunc::DeviceCreateQueue,                             (CrtDstry | QueueOps) },
-    { InterfaceFunc::DeviceCreateMultiQueue,                        (CrtDstry | QueueOps) },
-    { InterfaceFunc::DeviceCreateGpuMemory,                         (CrtDstry)            },
-    { InterfaceFunc::DeviceCreatePinnedGpuMemory,                   (CrtDstry)            },
-    { InterfaceFunc::DeviceCreateSvmGpuMemory,                      (CrtDstry)            },
-    { InterfaceFunc::DeviceOpenSharedGpuMemory,                     (CrtDstry)            },
-    { InterfaceFunc::DeviceOpenExternalSharedGpuMemory,             (CrtDstry)            },
-    { InterfaceFunc::DeviceOpenPeerGpuMemory,                       (CrtDstry)            },
-    { InterfaceFunc::DeviceCreateImage,                             (CrtDstry)            },
-    { InterfaceFunc::DeviceCreatePresentableImage,                  (CrtDstry)            },
-    { InterfaceFunc::DeviceOpenPeerImage,                           (CrtDstry)            },
-    { InterfaceFunc::DeviceOpenExternalSharedImage,                 (CrtDstry)            },
-    { InterfaceFunc::DeviceCreateColorTargetView,                   (CrtDstry)            },
-    { InterfaceFunc::DeviceCreateDepthStencilView,                  (CrtDstry)            },
-    { InterfaceFunc::DeviceCreateTypedBufferViewSrds,               (CrtSrds)             },
-    { InterfaceFunc::DeviceCreateUntypedBufferViewSrds,             (CrtSrds)             },
-    { InterfaceFunc::DeviceCreateImageViewSrds,                     (CrtSrds)             },
-    { InterfaceFunc::DeviceCreateFmaskViewSrds,                     (CrtSrds)             },
-    { InterfaceFunc::DeviceCreateSamplerSrds,                       (CrtSrds)             },
-    { InterfaceFunc::DeviceCreateBvhSrds,                           (CrtSrds)             },
-    { InterfaceFunc::DeviceSetSamplePatternPalette,                 (GenCalls)            },
-    { InterfaceFunc::DeviceCreateBorderColorPalette,                (CrtDstry)            },
-    { InterfaceFunc::DeviceCreateComputePipeline,                   (CrtDstry)            },
-    { InterfaceFunc::DeviceCreateGraphicsPipeline,                  (CrtDstry)            },
-    { InterfaceFunc::DeviceCreateShaderLibrary,                     (CrtDstry)            },
-    { InterfaceFunc::DeviceCreateMsaaState,                         (CrtDstry)            },
-    { InterfaceFunc::DeviceCreateColorBlendState,                   (CrtDstry)            },
-    { InterfaceFunc::DeviceCreateDepthStencilState,                 (CrtDstry)            },
-    { InterfaceFunc::DeviceCreateQueueSemaphore,                    (CrtDstry | QueueOps) },
-    { InterfaceFunc::DeviceOpenSharedQueueSemaphore,                (CrtDstry | QueueOps) },
-    { InterfaceFunc::DeviceOpenExternalSharedQueueSemaphore,        (CrtDstry | QueueOps) },
-    { InterfaceFunc::DeviceCreateFence,                             (CrtDstry)            },
-    { InterfaceFunc::DeviceOpenFence,                               (CrtDstry)            },
-    { InterfaceFunc::DeviceCreateGpuEvent,                          (CrtDstry)            },
-    { InterfaceFunc::DeviceCreateQueryPool,                         (CrtDstry)            },
-    { InterfaceFunc::DeviceCreateCmdAllocator,                      (CrtDstry)            },
-    { InterfaceFunc::DeviceCreateCmdBuffer,                         (CrtDstry)            },
-    { InterfaceFunc::DeviceCreateIndirectCmdGenerator,              (CrtDstry)            },
-    { InterfaceFunc::DeviceGetPrivateScreens,                       (CrtDstry)            },
-    { InterfaceFunc::DeviceAddEmulatedPrivateScreen,                (CrtDstry)            },
-    { InterfaceFunc::DeviceRemoveEmulatedPrivateScreen,             (CrtDstry)            },
-    { InterfaceFunc::DeviceCreatePrivateScreenImage,                (CrtDstry)            },
-    { InterfaceFunc::DeviceCreateSwapChain,                         (CrtDstry)            },
-    { InterfaceFunc::DeviceSetPowerProfile,                         (GenCalls)            },
-    { InterfaceFunc::DeviceFlglQueryState,                          (GenCalls)            },
-    { InterfaceFunc::DeviceFlglSetSyncConfiguration,                (GenCalls)            },
-    { InterfaceFunc::DeviceFlglGetSyncConfiguration,                (GenCalls)            },
-    { InterfaceFunc::DeviceFlglSetFrameLock,                        (GenCalls)            },
-    { InterfaceFunc::DeviceFlglSetGenLock,                          (GenCalls)            },
-    { InterfaceFunc::DeviceFlglResetFrameCounter,                   (GenCalls)            },
-    { InterfaceFunc::DeviceFlglGetFrameCounter,                     (GenCalls)            },
-    { InterfaceFunc::DeviceFlglGetFrameCounterResetStatus,          (GenCalls)            },
-    { InterfaceFunc::DeviceCreateVirtualDisplay,                    (CrtDstry)            },
-    { InterfaceFunc::DeviceDestroyVirtualDisplay,                   (CrtDstry)            },
-    { InterfaceFunc::DeviceGetVirtualDisplayProperties,             (GenCalls)            },
-    { InterfaceFunc::FenceDestroy,                                  (CrtDstry)            },
-    { InterfaceFunc::GpuEventSet,                                   (GenCalls)            },
-    { InterfaceFunc::GpuEventReset,                                 (GenCalls)            },
-    { InterfaceFunc::GpuEventBindGpuMemory,                         (BindMem)             },
-    { InterfaceFunc::GpuEventDestroy,                               (CrtDstry | BindMem)  },
-    { InterfaceFunc::GpuMemorySetPriority,                          (GenCalls)            },
-    { InterfaceFunc::GpuMemoryMap,                                  (GenCalls)            },
-    { InterfaceFunc::GpuMemoryUnmap,                                (GenCalls)            },
-    { InterfaceFunc::GpuMemorySetSdiRemoteBusAddress,               (GenCalls)            },
-    { InterfaceFunc::GpuMemoryDestroy,                              (CrtDstry | BindMem)  },
-    { InterfaceFunc::ImageBindGpuMemory,                            (BindMem)             },
-    { InterfaceFunc::ImageDestroy,                                  (CrtDstry | BindMem)  },
-    { InterfaceFunc::IndirectCmdGeneratorBindGpuMemory,             (BindMem)             },
-    { InterfaceFunc::IndirectCmdGeneratorDestroy,                   (CrtDstry | BindMem)  },
-    { InterfaceFunc::MsaaStateDestroy,                              (CrtDstry)            },
-    { InterfaceFunc::PipelineLinkWithLibraries,                     (GenCalls)            },
-    { InterfaceFunc::PipelineDestroy,                               (CrtDstry)            },
-    { InterfaceFunc::PlatformEnumerateDevices,                      (GenCalls)            },
-    { InterfaceFunc::PlatformGetScreens,                            (GenCalls)            },
-    { InterfaceFunc::PlatformTurboSyncControl,                      (GenCalls)            },
-    { InterfaceFunc::PlatformDestroy,                               (CrtDstry)            },
-    { InterfaceFunc::PrivateScreenEnable,                           (GenCalls)            },
-    { InterfaceFunc::PrivateScreenDisable,                          (GenCalls)            },
-    { InterfaceFunc::PrivateScreenBlank,                            (GenCalls)            },
-    { InterfaceFunc::PrivateScreenPresent,                          (GenCalls)            },
-    { InterfaceFunc::PrivateScreenSetGammaRamp,                     (GenCalls)            },
-    { InterfaceFunc::PrivateScreenSetPowerMode,                     (GenCalls)            },
-    { InterfaceFunc::PrivateScreenSetDisplayMode,                   (GenCalls)            },
-    { InterfaceFunc::PrivateScreenSetColorMatrix,                   (GenCalls)            },
-    { InterfaceFunc::PrivateScreenSetEventAfterVsync,               (GenCalls)            },
-    { InterfaceFunc::PrivateScreenEnableAudio,                      (GenCalls)            },
-    { InterfaceFunc::QueryPoolBindGpuMemory,                        (BindMem)             },
-    { InterfaceFunc::QueryPoolDestroy,                              (CrtDstry | BindMem)  },
-    { InterfaceFunc::QueryPoolReset,                                (GenCalls)            },
-    { InterfaceFunc::QueueSubmit,                                   (QueueOps)            },
-    { InterfaceFunc::QueueWaitIdle,                                 (QueueOps)            },
-    { InterfaceFunc::QueueSignalQueueSemaphore,                     (QueueOps)            },
-    { InterfaceFunc::QueueWaitQueueSemaphore,                       (QueueOps)            },
-    { InterfaceFunc::QueuePresentDirect,                            (QueueOps)            },
-    { InterfaceFunc::QueuePresentSwapChain,                         (QueueOps)            },
-    { InterfaceFunc::QueueDelay,                                    (QueueOps)            },
-    { InterfaceFunc::QueueDelayAfterVsync,                          (QueueOps)            },
-    { InterfaceFunc::QueueRemapVirtualMemoryPages,                  (QueueOps)            },
-    { InterfaceFunc::QueueCopyVirtualMemoryPageMappings,            (QueueOps)            },
-    { InterfaceFunc::QueueAssociateFenceWithLastSubmit,             (QueueOps)            },
-    { InterfaceFunc::QueueSetExecutionPriority,                     (QueueOps)            },
-    { InterfaceFunc::QueueDestroy,                                  (CrtDstry | QueueOps) },
-    { InterfaceFunc::QueueSemaphoreDestroy,                         (CrtDstry | QueueOps) },
-    { InterfaceFunc::ScreenIsImplicitFullscreenOwnershipSafe,       (GenCalls)            },
-    { InterfaceFunc::ScreenQueryCurrentDisplayMode,                 (GenCalls)            },
-    { InterfaceFunc::ScreenTakeFullscreenOwnership,                 (GenCalls)            },
-    { InterfaceFunc::ScreenReleaseFullscreenOwnership,              (GenCalls)            },
-    { InterfaceFunc::ScreenSetGammaRamp,                            (GenCalls)            },
-    { InterfaceFunc::ScreenWaitForVerticalBlank,                    (GenCalls)            },
-    { InterfaceFunc::ScreenDestroy,                                 (CrtDstry)            },
-    { InterfaceFunc::ShaderLibraryDestroy,                          (CrtDstry)            },
-    { InterfaceFunc::SwapChainAcquireNextImage,                     (GenCalls | QueueOps) },
-    { InterfaceFunc::SwapChainWaitIdle,                             (GenCalls)            },
-    { InterfaceFunc::SwapChainDestroy,                              (CrtDstry)            },
+    { InterfaceFunc::CmdBufferCmdSetViewInstanceMask,               (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdUpdateHiSPretests,                 (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdSetClipRects,                      (CmdBuild)                         },
+    { InterfaceFunc::CmdBufferCmdPostProcessFrame,                  (CmdBuild | BarrierLog)            },
+    { InterfaceFunc::ColorBlendStateDestroy,                        (CrtDstry)                         },
+    { InterfaceFunc::DepthStencilStateDestroy,                      (CrtDstry)                         },
+    { InterfaceFunc::DeviceCommitSettingsAndInit,                   (GenCalls)                         },
+    { InterfaceFunc::DeviceFinalize,                                (GenCalls)                         },
+    { InterfaceFunc::DeviceCleanup,                                 (GenCalls)                         },
+    { InterfaceFunc::DeviceSetMaxQueuedFrames,                      (GenCalls | QueueOps)              },
+    { InterfaceFunc::DeviceAddGpuMemoryReferences,                  (GenCalls)                         },
+    { InterfaceFunc::DeviceRemoveGpuMemoryReferences,               (GenCalls)                         },
+    { InterfaceFunc::DeviceSetClockMode,                            (GenCalls)                         },
+    { InterfaceFunc::DeviceSetMgpuMode,                             (GenCalls)                         },
+    { InterfaceFunc::DeviceOfferAllocations,                        (GenCalls)                         },
+    { InterfaceFunc::DeviceReclaimAllocations,                      (GenCalls)                         },
+    { InterfaceFunc::DeviceResetFences,                             (GenCalls)                         },
+    { InterfaceFunc::DeviceWaitForFences,                           (GenCalls)                         },
+    { InterfaceFunc::DeviceBindTrapHandler,                         (GenCalls)                         },
+    { InterfaceFunc::DeviceBindTrapBuffer,                          (GenCalls)                         },
+    { InterfaceFunc::DeviceCreateQueue,                             (CrtDstry | QueueOps)              },
+    { InterfaceFunc::DeviceCreateMultiQueue,                        (CrtDstry | QueueOps)              },
+    { InterfaceFunc::DeviceCreateGpuMemory,                         (CrtDstry)                         },
+    { InterfaceFunc::DeviceCreatePinnedGpuMemory,                   (CrtDstry)                         },
+    { InterfaceFunc::DeviceCreateSvmGpuMemory,                      (CrtDstry)                         },
+    { InterfaceFunc::DeviceOpenSharedGpuMemory,                     (CrtDstry)                         },
+    { InterfaceFunc::DeviceOpenExternalSharedGpuMemory,             (CrtDstry)                         },
+    { InterfaceFunc::DeviceOpenPeerGpuMemory,                       (CrtDstry)                         },
+    { InterfaceFunc::DeviceCreateImage,                             (CrtDstry | BarrierLogCr)          },
+    { InterfaceFunc::DeviceCreatePresentableImage,                  (CrtDstry | BarrierLogCr)          },
+    { InterfaceFunc::DeviceOpenPeerImage,                           (CrtDstry | BarrierLogCr)          },
+    { InterfaceFunc::DeviceOpenExternalSharedImage,                 (CrtDstry | BarrierLogCr)          },
+    { InterfaceFunc::DeviceCreateColorTargetView,                   (CrtDstry)                         },
+    { InterfaceFunc::DeviceCreateDepthStencilView,                  (CrtDstry)                         },
+    { InterfaceFunc::DeviceCreateTypedBufferViewSrds,               (CrtSrds)                          },
+    { InterfaceFunc::DeviceCreateUntypedBufferViewSrds,             (CrtSrds)                          },
+    { InterfaceFunc::DeviceCreateImageViewSrds,                     (CrtSrds)                          },
+    { InterfaceFunc::DeviceCreateFmaskViewSrds,                     (CrtSrds)                          },
+    { InterfaceFunc::DeviceCreateSamplerSrds,                       (CrtSrds)                          },
+    { InterfaceFunc::DeviceCreateBvhSrds,                           (CrtSrds)                          },
+    { InterfaceFunc::DeviceSetSamplePatternPalette,                 (GenCalls)                         },
+    { InterfaceFunc::DeviceCreateBorderColorPalette,                (CrtDstry)                         },
+    { InterfaceFunc::DeviceCreateComputePipeline,                   (CrtDstry)                         },
+    { InterfaceFunc::DeviceCreateGraphicsPipeline,                  (CrtDstry)                         },
+    { InterfaceFunc::DeviceCreateShaderLibrary,                     (CrtDstry)                         },
+    { InterfaceFunc::DeviceCreateMsaaState,                         (CrtDstry)                         },
+    { InterfaceFunc::DeviceCreateColorBlendState,                   (CrtDstry)                         },
+    { InterfaceFunc::DeviceCreateDepthStencilState,                 (CrtDstry)                         },
+    { InterfaceFunc::DeviceCreateQueueSemaphore,                    (CrtDstry | QueueOps)              },
+    { InterfaceFunc::DeviceOpenSharedQueueSemaphore,                (CrtDstry | QueueOps)              },
+    { InterfaceFunc::DeviceOpenExternalSharedQueueSemaphore,        (CrtDstry | QueueOps)              },
+    { InterfaceFunc::DeviceCreateFence,                             (CrtDstry)                         },
+    { InterfaceFunc::DeviceOpenFence,                               (CrtDstry)                         },
+    { InterfaceFunc::DeviceCreateGpuEvent,                          (CrtDstry)                         },
+    { InterfaceFunc::DeviceCreateQueryPool,                         (CrtDstry)                         },
+    { InterfaceFunc::DeviceCreateCmdAllocator,                      (CrtDstry)                         },
+    { InterfaceFunc::DeviceCreateCmdBuffer,                         (CrtDstry | BarrierLogCr)          },
+    { InterfaceFunc::DeviceCreateIndirectCmdGenerator,              (CrtDstry)                         },
+    { InterfaceFunc::DeviceGetPrivateScreens,                       (CrtDstry)                         },
+    { InterfaceFunc::DeviceAddEmulatedPrivateScreen,                (CrtDstry)                         },
+    { InterfaceFunc::DeviceRemoveEmulatedPrivateScreen,             (CrtDstry)                         },
+    { InterfaceFunc::DeviceCreatePrivateScreenImage,                (CrtDstry)                         },
+    { InterfaceFunc::DeviceCreateSwapChain,                         (CrtDstry)                         },
+    { InterfaceFunc::DeviceSetPowerProfile,                         (GenCalls)                         },
+    { InterfaceFunc::DeviceFlglQueryState,                          (GenCalls)                         },
+    { InterfaceFunc::DeviceFlglSetSyncConfiguration,                (GenCalls)                         },
+    { InterfaceFunc::DeviceFlglGetSyncConfiguration,                (GenCalls)                         },
+    { InterfaceFunc::DeviceFlglSetFrameLock,                        (GenCalls)                         },
+    { InterfaceFunc::DeviceFlglSetGenLock,                          (GenCalls)                         },
+    { InterfaceFunc::DeviceFlglResetFrameCounter,                   (GenCalls)                         },
+    { InterfaceFunc::DeviceFlglGetFrameCounter,                     (GenCalls)                         },
+    { InterfaceFunc::DeviceFlglGetFrameCounterResetStatus,          (GenCalls)                         },
+    { InterfaceFunc::DeviceCreateVirtualDisplay,                    (CrtDstry)                         },
+    { InterfaceFunc::DeviceDestroyVirtualDisplay,                   (CrtDstry)                         },
+    { InterfaceFunc::DeviceGetVirtualDisplayProperties,             (GenCalls)                         },
+    { InterfaceFunc::FenceDestroy,                                  (CrtDstry)                         },
+    { InterfaceFunc::GpuEventSet,                                   (GenCalls)                         },
+    { InterfaceFunc::GpuEventReset,                                 (GenCalls)                         },
+    { InterfaceFunc::GpuEventBindGpuMemory,                         (BindMem)                          },
+    { InterfaceFunc::GpuEventDestroy,                               (CrtDstry | BindMem)               },
+    { InterfaceFunc::GpuMemorySetPriority,                          (GenCalls)                         },
+    { InterfaceFunc::GpuMemoryMap,                                  (GenCalls)                         },
+    { InterfaceFunc::GpuMemoryUnmap,                                (GenCalls)                         },
+    { InterfaceFunc::GpuMemorySetSdiRemoteBusAddress,               (GenCalls)                         },
+    { InterfaceFunc::GpuMemoryDestroy,                              (CrtDstry | BindMem)               },
+    { InterfaceFunc::ImageBindGpuMemory,                            (BindMem)                          },
+    { InterfaceFunc::ImageDestroy,                                  (CrtDstry | BindMem)               },
+    { InterfaceFunc::IndirectCmdGeneratorBindGpuMemory,             (BindMem)                          },
+    { InterfaceFunc::IndirectCmdGeneratorDestroy,                   (CrtDstry | BindMem)               },
+    { InterfaceFunc::MsaaStateDestroy,                              (CrtDstry)                         },
+    { InterfaceFunc::PipelineLinkWithLibraries,                     (GenCalls)                         },
+    { InterfaceFunc::PipelineDestroy,                               (CrtDstry)                         },
+    { InterfaceFunc::PlatformEnumerateDevices,                      (GenCalls)                         },
+    { InterfaceFunc::PlatformGetScreens,                            (GenCalls)                         },
+    { InterfaceFunc::PlatformTurboSyncControl,                      (GenCalls)                         },
+    { InterfaceFunc::PlatformDestroy,                               (CrtDstry)                         },
+    { InterfaceFunc::PrivateScreenEnable,                           (GenCalls)                         },
+    { InterfaceFunc::PrivateScreenDisable,                          (GenCalls)                         },
+    { InterfaceFunc::PrivateScreenBlank,                            (GenCalls)                         },
+    { InterfaceFunc::PrivateScreenPresent,                          (GenCalls)                         },
+    { InterfaceFunc::PrivateScreenSetGammaRamp,                     (GenCalls)                         },
+    { InterfaceFunc::PrivateScreenSetPowerMode,                     (GenCalls)                         },
+    { InterfaceFunc::PrivateScreenSetDisplayMode,                   (GenCalls)                         },
+    { InterfaceFunc::PrivateScreenSetColorMatrix,                   (GenCalls)                         },
+    { InterfaceFunc::PrivateScreenSetEventAfterVsync,               (GenCalls)                         },
+    { InterfaceFunc::PrivateScreenEnableAudio,                      (GenCalls)                         },
+    { InterfaceFunc::QueryPoolBindGpuMemory,                        (BindMem)                          },
+    { InterfaceFunc::QueryPoolDestroy,                              (CrtDstry | BindMem)               },
+    { InterfaceFunc::QueryPoolReset,                                (GenCalls)                         },
+    { InterfaceFunc::QueueSubmit,                                   (QueueOps)                         },
+    { InterfaceFunc::QueueWaitIdle,                                 (QueueOps)                         },
+    { InterfaceFunc::QueueSignalQueueSemaphore,                     (QueueOps)                         },
+    { InterfaceFunc::QueueWaitQueueSemaphore,                       (QueueOps)                         },
+    { InterfaceFunc::QueuePresentDirect,                            (QueueOps)                         },
+    { InterfaceFunc::QueuePresentSwapChain,                         (QueueOps)                         },
+    { InterfaceFunc::QueueDelay,                                    (QueueOps)                         },
+    { InterfaceFunc::QueueDelayAfterVsync,                          (QueueOps)                         },
+    { InterfaceFunc::QueueRemapVirtualMemoryPages,                  (QueueOps)                         },
+    { InterfaceFunc::QueueCopyVirtualMemoryPageMappings,            (QueueOps)                         },
+    { InterfaceFunc::QueueAssociateFenceWithLastSubmit,             (QueueOps)                         },
+    { InterfaceFunc::QueueSetExecutionPriority,                     (QueueOps)                         },
+    { InterfaceFunc::QueueDestroy,                                  (CrtDstry | QueueOps)              },
+    { InterfaceFunc::QueueSemaphoreDestroy,                         (CrtDstry | QueueOps)              },
+    { InterfaceFunc::ScreenIsImplicitFullscreenOwnershipSafe,       (GenCalls)                         },
+    { InterfaceFunc::ScreenQueryCurrentDisplayMode,                 (GenCalls)                         },
+    { InterfaceFunc::ScreenTakeFullscreenOwnership,                 (GenCalls)                         },
+    { InterfaceFunc::ScreenReleaseFullscreenOwnership,              (GenCalls)                         },
+    { InterfaceFunc::ScreenSetGammaRamp,                            (GenCalls)                         },
+    { InterfaceFunc::ScreenWaitForVerticalBlank,                    (GenCalls)                         },
+    { InterfaceFunc::ScreenDestroy,                                 (CrtDstry)                         },
+    { InterfaceFunc::ShaderLibraryDestroy,                          (CrtDstry)                         },
+    { InterfaceFunc::SwapChainAcquireNextImage,                     (GenCalls | QueueOps)              },
+    { InterfaceFunc::SwapChainWaitIdle,                             (GenCalls)                         },
+    { InterfaceFunc::SwapChainDestroy,                              (CrtDstry)                         },
 };
 
-static_assert(ArrayLen(FuncLoggingTable) == static_cast<size_t>(InterfaceFunc::Count),
+static_assert(ArrayLen(FuncLoggingTable) == size_t(InterfaceFunc::Count),
               "The FuncLoggingTable must be updated.");
+
+struct CallbackLoggingTableEntry
+{
+    Developer::CallbackType callbackType; // The callback function this entry represents.
+    uint32                  logFlagMask;  // The mask of all LogFlag bits that apply to this function.
+};
+
+// Callbacks are only logged if they're triggered by an interface call which has logging enabled. In effect, the
+// logFlagMask in FuncLoggingTable filters out callbacks before we even check the CallbackLoggingTable.
+//
+// Note the cases where logFlagMask = 0. These callbacks will never be logged no matter the preset values. Currently
+// many callbacks are not useful for interface debugging so we filter them out here. If you have an interface logger
+// use-case which would benefit from additonal callbacks feel free to add some log flags.
+static constexpr CallbackLoggingTableEntry CallbackLoggingTable[] =
+{
+    { Developer::CallbackType::AllocGpuMemory,         (0)                      },
+    { Developer::CallbackType::FreeGpuMemory,          (0)                      },
+    { Developer::CallbackType::PresentConcluded,       (0)                      },
+    { Developer::CallbackType::ImageBarrier,           (Callbacks | BarrierLog) },
+    { Developer::CallbackType::CreateImage,            (0)                      },
+    { Developer::CallbackType::BarrierBegin,           (Callbacks)              },
+    { Developer::CallbackType::BarrierEnd,             (Callbacks | BarrierLog) },
+    { Developer::CallbackType::DrawDispatch,           (0)                      },
+    { Developer::CallbackType::BindPipeline,           (0)                      },
+    { Developer::CallbackType::SurfRegData,            (0)                      },
+    { Developer::CallbackType::DrawDispatchValidation, (0)                      },
+    { Developer::CallbackType::BindPipelineValidation, (0)                      },
+    { Developer::CallbackType::OptimizedRegisters,     (0)                      },
+    { Developer::CallbackType::BindGpuMemory,          (0)                      },
+    { Developer::CallbackType::SubAllocGpuMemory,      (0)                      },
+    { Developer::CallbackType::SubFreeGpuMemory,       (0)                      },
+    { Developer::CallbackType::RpmBlt,                 (Callbacks | BarrierLog) },
+};
+
+static_assert(ArrayLen(CallbackLoggingTable) == size_t(Developer::CallbackType::Count),
+              "The CallbackLoggingTable must be updated.");
+
+// =====================================================================================================================
+ThreadData::ThreadData(
+    Platform* pPlatform,
+    uint32    threadId)
+    :
+    m_pContext(nullptr),
+    m_threadId(threadId),
+    m_objectId(0),
+    m_activeFunc(InterfaceFunc::Count),
+    m_preCallTime(0),
+    m_callbacks(pPlatform)
+{
+}
+
+// =====================================================================================================================
+ThreadData::~ThreadData()
+{
+    Platform*const pPlatform = m_callbacks.GetAllocator();
+
+    PAL_SAFE_DELETE(m_pContext, pPlatform);
+}
+
+// =====================================================================================================================
+void ThreadData::SetContext(
+    LogContext* pContext)
+{
+    // The Platform creates log contexts some time after it constructs ThreadData objects so it needs a setter to
+    // give us our context. It must never call this function more than once, this assert makes sure of that.
+    PAL_ASSERT(m_pContext == nullptr);
+
+    m_pContext = pContext;
+}
+
+// =====================================================================================================================
+void ThreadData::StartCall(
+    uint32        objectId,
+    InterfaceFunc func,
+    uint64        preCallTime)
+{
+    m_objectId    = objectId;
+    m_activeFunc  = func;
+    m_preCallTime = preCallTime;
+}
+
+// =====================================================================================================================
+void ThreadData::EndCall()
+{
+    // Set this to "Count" to indicate that this thread has finished calling its interface function.
+    m_activeFunc = InterfaceFunc::Count;
+}
+
+// =====================================================================================================================
+void ThreadData::PushBackCallbackArgs(
+    Developer::CallbackType callbackType,
+    const void*             pCallbackData,
+    size_t                  dataSize)
+{
+    // Note that the OptimizedRegisters callback requires a deep copy of a few arrays which a simple memcpy can't do.
+    // Currently we don't want to log this callback but if that ever changes we need a ThreadData refactor to handle
+    // the deep copy. If someone adds OptimizedRegisters logging to InterfaceLoggerCb this will catch it.
+    PAL_ASSERT(callbackType != Developer::CallbackType::OptimizedRegisters);
+
+    DevCallbackArgs args = { .callbackType = callbackType };
+
+    if (dataSize > 0)
+    {
+        // If this fails someone needs to update the union in DevCallbackArgs.
+        PAL_ASSERT(dataSize <= sizeof(args.data));
+        memcpy(&args.data, pCallbackData, dataSize);
+    }
+
+    // This can fail but there's nothing we can do if it does. This function is called by InterfaceLoggerCb which can't
+    // return a Result. Even if it could we wouldn't want PAL to fail the interface call just because we couldn't log
+    // this callback. Perhaps it's best to do nothing here and try to let logging continue normally.
+    const Result result = m_callbacks.PushBack(args);
+    PAL_ASSERT(result == Result::Success);
+}
+
+// =====================================================================================================================
+void ThreadData::ClearCallbackArgs()
+{
+    m_callbacks.Clear();
+}
 
 // =====================================================================================================================
 Platform::Platform(
@@ -329,12 +455,19 @@ Platform::Platform(
     m_nextThreadId(0),
     m_objectId(0),
     m_activePreset(0),
-    m_threadDataVec(this)
+    m_threadDataVec(this),
+    m_frameCount(0)
 {
 #if PAL_ENABLE_PRINTS_ASSERTS
-    for (uint32 idx = 0; idx < static_cast<uint32>(InterfaceFunc::Count); ++idx)
+    // Make sure we didn't mess up the order of FuncLoggingTable or CallbackLoggingTable. We can't use a static_assert
+    // because you can't use variables (like "idx") in static_asserts even in constexpr or consteval functions.
+    for (uint32 idx = 0; idx < uint32(InterfaceFunc::Count); ++idx)
     {
-        PAL_ASSERT(static_cast<uint32>(FuncLoggingTable[idx].function) == idx);
+        PAL_ASSERT(uint32(FuncLoggingTable[idx].function) == idx);
+    }
+    for (uint32 idx = 0; idx < uint32(Developer::CallbackType::Count); ++idx)
+    {
+        PAL_ASSERT(uint32(CallbackLoggingTable[idx].callbackType) == idx);
     }
 #endif
 
@@ -368,15 +501,10 @@ Platform::~Platform()
         PAL_ASSERT(result == Result::Success);
     }
 
-    for (uint32 idx = 0; idx < m_threadDataVec.NumElements(); ++idx)
+    for (ThreadData*const pThreadData : m_threadDataVec)
     {
-        auto* pThreadData = m_threadDataVec.At(idx);
-
-        PAL_SAFE_DELETE(pThreadData->pContext, this);
-        PAL_SAFE_DELETE(pThreadData, this);
+        PAL_DELETE(pThreadData, this);
     }
-
-    m_threadDataVec.Clear();
 
     PAL_SAFE_DELETE(m_pMainLog, this);
 
@@ -489,6 +617,14 @@ Result Platform::CommitLoggingSettings()
         m_loggingPresets[0] = settings.interfaceLoggerConfig.basePreset;
         m_loggingPresets[1] = settings.interfaceLoggerConfig.elevatedPreset;
 
+        // When barrier log mode is enabled, OR internal flag LogFlagBarrierLogCr to log image and cmd buffer create
+        // calls unconditionally in both base and elevated modes.
+        if (TestAnyFlagSet(m_loggingPresets[0] | m_loggingPresets[1], LogFlagBarrierLog))
+        {
+            m_loggingPresets[0] |= LogFlagBarrierLogCr;
+            m_loggingPresets[1] |= LogFlagBarrierLogCr;
+        }
+
         // Try to create the root log directory.
         result = CreateLogDir(settings.interfaceLoggerConfig.logDirectory);
 
@@ -507,19 +643,20 @@ Result Platform::CommitLoggingSettings()
         {
             m_flags.multithreaded = 1;
 
-            for (uint32 idx = 0; idx < m_threadDataVec.NumElements(); ++idx)
+            for (ThreadData*const pThreadData : m_threadDataVec)
             {
-                auto*const pThreadData = m_threadDataVec.At(idx);
-                PAL_ASSERT(pThreadData->pContext == nullptr);
+                LogContext*const pContext = CreateThreadLogContext(pThreadData->ThreadId());
 
-                pThreadData->pContext = CreateThreadLogContext(pThreadData->threadId);
-
-                if (pThreadData->pContext == nullptr)
+                if (pContext == nullptr)
                 {
                     // We failed to allocate a context, return an error and fall back to single-threaded logging.
                     result = Result::ErrorOutOfMemory;
                     m_flags.multithreaded = 0;
                     break;
+                }
+                else
+                {
+                    pThreadData->SetContext(pContext);
                 }
             }
         }
@@ -535,10 +672,13 @@ Result Platform::CommitLoggingSettings()
 }
 
 // =====================================================================================================================
-void Platform::NotifyPresent()
+void Platform::UpdatePresentState()
 {
-    // Switch to elevated logging (preset index 1) if the user is currently holding Shift-F11.
-    const uint32 nextPreset = IsKeyPressed(KeyCode::Shift_F11);
+    Util::AtomicIncrement(&m_frameCount);
+
+    // Switch to elevated logging (preset index 1) if the user is currently holding Shift-F11 or
+    // inside targeted frame range (if there is range control) now.
+    const uint32 nextPreset = IsKeyPressed(KeyCode::Shift_F11) || IsFrameRangeActive();
     const uint32 prevPreset = AtomicExchange(&m_activePreset, nextPreset);
 
     // If we've changed presets, we need to take the platform lock and write a notice to the main log file.
@@ -566,6 +706,10 @@ void Platform::NotifyPresent()
             m_pMainLog->KeyAndValue("time", time);
             m_pMainLog->EndMap();
         }
+
+        // Flush this directly to the main log file. That way we'll see this data even if the app crashes
+        // or exits without destroying our platform.
+        m_pMainLog->Flush();
     }
 }
 
@@ -594,17 +738,16 @@ uint64 Platform::GetTime() const
 }
 
 // =====================================================================================================================
-bool Platform::LogBeginFunc(
-    const BeginFuncInfo& info,
-    LogContext**         ppContext)
+bool Platform::ActivateLogging(
+    uint32        objectId,
+    InterfaceFunc func)
 {
     // Log this function if the current preset contains one of the bits from its entry in the logging table.
-    const uint32 funcIdx = static_cast<uint32>(info.funcId);
-    bool         canLog  = (m_loggingPresets[m_activePreset] & FuncLoggingTable[funcIdx].logFlagMask) != 0;
+    bool canLog = (m_loggingPresets[m_activePreset] & FuncLoggingTable[uint32(func)].logFlagMask) != 0;
 
     if (canLog)
     {
-        ThreadData* pThreadData = static_cast<ThreadData*>(GetThreadLocalValue(m_threadKey));
+        auto* pThreadData = static_cast<ThreadData*>(GetThreadLocalValue(m_threadKey));
 
         if (pThreadData == nullptr)
         {
@@ -621,19 +764,10 @@ bool Platform::LogBeginFunc(
         }
         else
         {
-            if (m_flags.multithreaded == 1)
-            {
-                *ppContext = pThreadData->pContext;
-            }
-            else
-            {
-                *ppContext = m_pMainLog;
-
-                // In single-threaded mode, we hold the platform mutex while logging each function.
-                m_platformMutex.Lock();
-            }
-
-            (*ppContext)->BeginFunc(info, pThreadData->threadId);
+            // Store this state in our thread local data so we can:
+            // 1. Detect if we're actively logging a function when we get a developer callback.
+            // 2. Automatically log this data in LogEndFunc.
+            pThreadData->StartCall(objectId, func, GetTime());
         }
     }
 
@@ -641,9 +775,83 @@ bool Platform::LogBeginFunc(
 }
 
 // =====================================================================================================================
+// Return true if there is frame range control and current frame is in the range; return false otherwise.
+bool Platform::IsFrameRangeActive() const
+{
+    const auto&  config     = PlatformSettings().interfaceLoggerConfig;
+    const uint32 frameStart = config.startFrame;
+    const uint32 frameEnd   = frameStart + config.frameCount - 1;
+    const uint32 curFrame   = FrameCount();
+
+    return (config.frameCount != 0) && ((curFrame >= frameStart) && (curFrame <= frameEnd));
+}
+
+// =====================================================================================================================
+LogContext* Platform::LogBeginFunc()
+{
+    // Call GetTime first so that it's as close as possible to when the caller called the next layer.
+    const uint64 postCallTime = GetTime();
+    LogContext*  pContext     = nullptr;
+    auto*const   pThreadData  = static_cast<ThreadData*>(GetThreadLocalValue(m_threadKey));
+
+    if (pThreadData == nullptr)
+    {
+        // It should be impossible to get here if the caller respected the return value of ActivateLogging!
+        PAL_ASSERT_ALWAYS();
+    }
+    else
+    {
+        // In multithreaded mode each ThreadData allocates its own independent log context. Otherwise we need to use
+        // the single shared m_pMainLog which is owned by the platform. Note that pThreadData->Context() cannot return
+        // m_pMainLog because that pointer communicates pointer ownership. We'd risk a double-free if we set the
+        // ThreadData pointer to m_pMainLog.
+        if (m_flags.multithreaded == 1)
+        {
+            pContext = pThreadData->Context();
+        }
+        else
+        {
+            pContext = m_pMainLog;
+
+            // In single-threaded mode, we hold the platform mutex while logging each function.
+            m_platformMutex.Lock();
+        }
+
+        pContext->BeginFunc(pThreadData->ObjectId(),
+                            pThreadData->ActiveFunc(),
+                            pThreadData->ThreadId(),
+                            pThreadData->PreCallTime(),
+                            postCallTime);
+
+        // This must be last in this function.
+        pThreadData->EndCall();
+    }
+
+    return pContext;
+}
+
+// =====================================================================================================================
 void Platform::LogEndFunc(
     LogContext* pContext)
 {
+    auto*const pThreadData = static_cast<ThreadData*>(GetThreadLocalValue(m_threadKey));
+
+    // Only add the "callbacks" key if a callback was actually called.
+    if (pThreadData->HasCallbacks())
+    {
+        pContext->KeyAndBeginList("callbacks", false);
+
+        for (const DevCallbackArgs& args : pThreadData->Callbacks())
+        {
+            pContext->Struct(args);
+        }
+
+        pContext->EndList();
+
+        // Always clear the vector so that we don't log these again on the next function call.
+        pThreadData->ClearCallbackArgs();
+    }
+
     pContext->EndFunc();
 
     if (m_flags.multithreaded == 0)
@@ -666,12 +874,9 @@ Result Platform::EnumerateDevices(
         // which will destroy any state set by the lower layers in EnumerateDevices().
         TearDownGpus();
 
-        BeginFuncInfo funcInfo;
-        funcInfo.funcId       = InterfaceFunc::PlatformEnumerateDevices;
-        funcInfo.objectId     = m_objectId;
-        funcInfo.preCallTime  = GetTime();
-        result                = m_pNextLayer->EnumerateDevices(pDeviceCount, pDevices);
-        funcInfo.postCallTime = GetTime();
+        const bool active = ActivateLogging(m_objectId, InterfaceFunc::PlatformEnumerateDevices);
+
+        result = m_pNextLayer->EnumerateDevices(pDeviceCount, pDevices);
 
         if (result == Result::Success)
         {
@@ -692,9 +897,10 @@ Result Platform::EnumerateDevices(
             }
         }
 
-        LogContext* pLogContext = nullptr;
-        if (LogBeginFunc(funcInfo, &pLogContext))
+        if (active)
         {
+            LogContext*const pLogContext = LogBeginFunc();
+
             pLogContext->BeginOutput();
             pLogContext->KeyAndEnum("result", result);
             pLogContext->KeyAndBeginList("devices", false);
@@ -759,12 +965,9 @@ Result Platform::GetScreens(
             pNextStorage[i] = NextObjectAddr<Screen>(pStorage[i]);
         }
 
-        BeginFuncInfo funcInfo;
-        funcInfo.funcId       = InterfaceFunc::PlatformGetScreens;
-        funcInfo.objectId     = m_objectId;
-        funcInfo.preCallTime  = GetTime();
-        result                = m_pNextLayer->GetScreens(pScreenCount, pNextStorage, pNextScreens);
-        funcInfo.postCallTime = GetTime();
+        const bool active = ActivateLogging(m_objectId, InterfaceFunc::PlatformGetScreens);
+
+        result = m_pNextLayer->GetScreens(pScreenCount, pNextStorage, pNextScreens);
 
         if (result == Result::Success)
         {
@@ -781,9 +984,10 @@ Result Platform::GetScreens(
             }
         }
 
-        LogContext* pLogContext = nullptr;
-        if (LogBeginFunc(funcInfo, &pLogContext))
+        if (active)
         {
+            LogContext*const pLogContext = LogBeginFunc();
+
             pLogContext->BeginOutput();
             pLogContext->KeyAndEnum("result", result);
             pLogContext->KeyAndBeginList("screens", false);
@@ -812,16 +1016,11 @@ void Platform::Destroy()
 {
     if (m_layerEnabled)
     {
-        // Note that we can't time a Destroy call.
-        BeginFuncInfo funcInfo;
-        funcInfo.funcId       = InterfaceFunc::PlatformDestroy;
-        funcInfo.objectId     = m_objectId;
-        funcInfo.preCallTime  = GetTime();
-        funcInfo.postCallTime = funcInfo.preCallTime;
-
-        LogContext* pLogContext = nullptr;
-        if (LogBeginFunc(funcInfo, &pLogContext))
+        // Note that we can't time Destroy calls nor track their callbacks.
+        if (ActivateLogging(m_objectId, InterfaceFunc::PlatformDestroy))
         {
+            LogContext*const pLogContext = LogBeginFunc();
+
             LogEndFunc(pLogContext);
         }
     }
@@ -837,7 +1036,9 @@ void PAL_STDCALL Platform::InterfaceLoggerCb(
     void*                   pCbData)
 {
     PAL_ASSERT(pPrivateData != nullptr);
-    Platform* pPlatform = static_cast<Platform*>(pPrivateData);
+    Platform*const pThis = static_cast<Platform*>(pPrivateData);
+
+    size_t dataSize = 0;
 
     switch (type)
     {
@@ -845,74 +1046,100 @@ void PAL_STDCALL Platform::InterfaceLoggerCb(
     case Developer::CallbackType::FreeGpuMemory:
     case Developer::CallbackType::SubAllocGpuMemory:
     case Developer::CallbackType::SubFreeGpuMemory:
-        PAL_ASSERT(pCbData != nullptr);
         TranslateGpuMemoryData(pCbData);
+        dataSize = sizeof(Developer::GpuMemoryData);
         break;
     case Developer::CallbackType::PresentConcluded:
+        dataSize = sizeof(Developer::PresentationModeData);
+        break;
     case Developer::CallbackType::CreateImage:
+        dataSize = sizeof(Developer::ImageDataAddrMgrSurfInfo);
+        break;
     case Developer::CallbackType::SurfRegData:
+        dataSize = sizeof(Developer::SurfRegDataInfo);
         break;
     case Developer::CallbackType::BarrierBegin:
     case Developer::CallbackType::BarrierEnd:
     case Developer::CallbackType::ImageBarrier:
-        PAL_ASSERT(pCbData != nullptr);
         TranslateBarrierEventData(pCbData);
+        dataSize = sizeof(Developer::BarrierData);
         break;
     case Developer::CallbackType::DrawDispatch:
-        PAL_ASSERT(pCbData != nullptr);
         TranslateDrawDispatchData(pCbData);
+        dataSize = sizeof(Developer::DrawDispatchData);
         break;
     case Developer::CallbackType::BindPipeline:
-        PAL_ASSERT(pCbData != nullptr);
         TranslateBindPipelineData(pCbData);
+        dataSize = sizeof(Developer::BindPipelineData);
         break;
-#if PAL_DEVELOPER_BUILD
     case Developer::CallbackType::DrawDispatchValidation:
-        PAL_ASSERT(pCbData != nullptr);
         TranslateDrawDispatchValidationData(pCbData);
+        dataSize = sizeof(Developer::DrawDispatchValidationData);
         break;
     case Developer::CallbackType::BindPipelineValidation:
-        PAL_ASSERT(pCbData != nullptr);
         TranslateBindPipelineValidationData(pCbData);
+        dataSize = sizeof(Developer::BindPipelineValidationData);
         break;
     case Developer::CallbackType::OptimizedRegisters:
-        PAL_ASSERT(pCbData != nullptr);
         TranslateOptimizedRegistersData(pCbData);
+        dataSize = sizeof(Developer::OptimizedRegistersData);
         break;
-#endif
     case Developer::CallbackType::BindGpuMemory:
-        PAL_ASSERT(pCbData != nullptr);
         TranslateBindGpuMemoryData(pCbData);
+        dataSize = sizeof(Developer::BindGpuMemoryData);
+        break;
+    case Developer::CallbackType::RpmBlt:
+        TranslateReportRpmBltTypeData(pCbData);
+        dataSize = sizeof(Developer::RpmBltData);
         break;
     default:
         PAL_ASSERT_ALWAYS();
         break;
     }
 
-    pPlatform->DeveloperCb(deviceIndex, type, pCbData);
+    // Log this callback if the current preset contains one of the bits from its entry in the logging table.
+    if (TestAnyFlagSet(pThis->m_loggingPresets[pThis->m_activePreset], CallbackLoggingTable[uint32(type)].logFlagMask))
+    {
+        auto*const pThreadData = static_cast<ThreadData*>(GetThreadLocalValue(pThis->m_threadKey));
+
+        // This if-statement filters out two kinds of callbacks:
+        // 1. Callbacks on PAL-internal threads. These are rare but they do happen! We chose to ignore them.
+        // 2. Callbacks during interface calls that aren't decorated or that have logging disabled. We want to ignore
+        //    these too because we need a full ActivateLogging/LogBeginFunc/LogEndFunc sequence to log callbacks.
+        //    Note that this means the interface function presets implicitly filter callbacks.
+        if ((pThreadData != nullptr) && pThreadData->LoggingActive())
+        {
+            pThreadData->PushBackCallbackArgs(type, pCbData, dataSize);
+        }
+    }
+
+    pThis->DeveloperCb(deviceIndex, type, pCbData);
 }
 
 // =====================================================================================================================
 // Creates a new ThreadData for the current thread. The platform mutex must be locked when this is called.
-Platform::ThreadData* Platform::CreateThreadData()
+ThreadData* Platform::CreateThreadData()
 {
-    ThreadData* pThreadData = PAL_NEW(ThreadData, this, AllocInternal);
+    ThreadData* pThreadData = PAL_NEW(ThreadData, this, AllocInternal)(this, m_nextThreadId++);
 
     if (pThreadData != nullptr)
     {
-        pThreadData->threadId = m_nextThreadId++;
-        pThreadData->pContext = nullptr;
-
         Result result = Result::Success;
 
-        // Create a log context for this thread if multithreaded logging is enabled.
+        // Create a log context for this thread if multithreaded logging is enabled. Note that we should never call
+        // pThreadData->SetContext(m_pMainLog) because SetContext transfers pointer ownership. The ThreadData will
+        // free its log context when it's deleted.
         if (m_flags.multithreaded == 1)
         {
-            pThreadData->pContext = CreateThreadLogContext(pThreadData->threadId);
+            LogContext*const pContext = CreateThreadLogContext(pThreadData->ThreadId());
 
-            if (pThreadData->pContext == nullptr)
+            if (pContext == nullptr)
             {
                 result = Result::ErrorOutOfMemory;
+            }
+            else
+            {
+                pThreadData->SetContext(pContext);
             }
         }
 
@@ -937,7 +1164,7 @@ Platform::ThreadData* Platform::CreateThreadData()
 
         if (result != Result::Success)
         {
-            PAL_SAFE_DELETE(pThreadData->pContext, this);
+            // Note that ThreadData will automatically free the LogContext we created for it.
             PAL_SAFE_DELETE(pThreadData, this);
         }
     }
@@ -970,6 +1197,10 @@ LogContext* Platform::CreateThreadLogContext(
             m_pMainLog->KeyAndValue("_type", "LogFile");
             m_pMainLog->KeyAndValue("name", logFileName);
             m_pMainLog->EndMap();
+
+            // Flush this directly to the main log file. That way we'll see this data even if the app crashes
+            // or exits without destroying our platform.
+            m_pMainLog->Flush();
         }
         else
         {
@@ -989,16 +1220,14 @@ Result Platform::TurboSyncControl(
 
     if (m_layerEnabled)
     {
-        BeginFuncInfo funcInfo;
-        funcInfo.funcId       = InterfaceFunc::PlatformTurboSyncControl;
-        funcInfo.objectId     = m_objectId;
-        funcInfo.preCallTime  = GetTime();
-        result                = PlatformDecorator::TurboSyncControl(turboSyncControlInput);
-        funcInfo.postCallTime = GetTime();
+        const bool active = ActivateLogging(m_objectId, InterfaceFunc::PlatformTurboSyncControl);
 
-        LogContext* pLogContext = nullptr;
-        if (LogBeginFunc(funcInfo, &pLogContext))
+        result = PlatformDecorator::TurboSyncControl(turboSyncControlInput);
+
+        if (active)
         {
+            LogContext*const pLogContext = LogBeginFunc();
+
             pLogContext->BeginInput();
             pLogContext->KeyAndStruct("turboSyncControlInput", turboSyncControlInput);
             pLogContext->EndInput();
@@ -1016,6 +1245,13 @@ Result Platform::TurboSyncControl(
     }
 
     return result;
+}
+
+// =====================================================================================================================
+bool Platform::IsBarrierLogActive() const
+{
+    // Determine if this is for barrier log only mode.
+    return TestAllFlagsSet(LogFlagBarrierLogCr | LogFlagBarrierLog, m_loggingPresets[m_activePreset]);
 }
 
 } // InterfaceLogger

@@ -52,16 +52,13 @@ Result IndirectCmdGenerator::BindGpuMemory(
     IGpuMemory* pGpuMemory,
     gpusize     offset)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::IndirectCmdGeneratorBindGpuMemory;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = IndirectCmdGeneratorDecorator::BindGpuMemory(pGpuMemory, offset);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::IndirectCmdGeneratorBindGpuMemory);
+    const Result result = IndirectCmdGeneratorDecorator::BindGpuMemory(pGpuMemory, offset);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("gpuMemory", pGpuMemory);
         pLogContext->KeyAndValue("offset", offset);
@@ -80,16 +77,11 @@ Result IndirectCmdGenerator::BindGpuMemory(
 // =====================================================================================================================
 void IndirectCmdGenerator::Destroy()
 {
-    // Note that we can't time a Destroy call.
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::IndirectCmdGeneratorDestroy;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    funcInfo.postCallTime = funcInfo.preCallTime;
-
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    // Note that we can't time Destroy calls nor track their callbacks.
+    if (m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::IndirectCmdGeneratorDestroy))
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         m_pPlatform->LogEndFunc(pLogContext);
     }
 

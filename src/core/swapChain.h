@@ -60,6 +60,10 @@ public:
 
     virtual Result SetHdrMetaData(const ScreenColorConfig& colorConfig) override { return Result::Unsupported; }
 
+    virtual Result GetMaximumFrameLatency(uint32* pFrameLatency) override { return Result::Unsupported; }
+
+    virtual Result SetMaximumFrameLatency(const uint32 frameLatency) override { return Result::Unsupported; }
+
     virtual Result Resize(uint32 width, uint32 height) override { return Result::Unsupported; }
 
     // These begin and end a swap chain present. The present scheduler must call PresentComplete once it has scheduled

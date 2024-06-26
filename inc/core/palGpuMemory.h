@@ -79,6 +79,7 @@ enum class VirtualGpuMemAccessMode : uint32
     Undefined = 0x0, ///< Used in situations where no special accessMode needed.
     NoAccess  = 0x1, ///< All accesses of unmapped pages will trigger a GPU page fault.
     ReadZero  = 0x2, ///< Reads of unmapped pages return zero, and writes are discarded.
+    Count
 };
 
 /// Controls the behavior of this allocation with respect to the MALL.

@@ -130,8 +130,9 @@ Lib::~Lib()
 Lib* Lib::GetLib(
     ADDR_HANDLE hLib)   ///< [in] handle of ADDR_HANDLE
 {
+    Addr::Lib* pAddrLib = Addr::Lib::GetLib(hLib);
 
-    return static_cast<Lib*>(hLib);
+    return static_cast<Lib*>(pAddrLib);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

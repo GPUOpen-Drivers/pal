@@ -1034,7 +1034,7 @@ Result WaylandWindowSystem::GetWindowProperties(
                                                static_cast<uint32>(CompositeAlphaMode::Opaque);
 
     WindowSystemCreateInfo createInfo = {};
-    createInfo.platform = Wayland;
+    createInfo.platform = WsiPlatform::Wayland;
     createInfo.hDisplay = hDisplay;
     createInfo.hWindow  = hWindow;
     createInfo.format   = UndefinedSwizzledFormat; // Meaningless on Wayland.

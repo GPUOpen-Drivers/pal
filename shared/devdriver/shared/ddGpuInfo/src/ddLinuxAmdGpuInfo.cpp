@@ -237,6 +237,10 @@ Result QueryGpuInfo(const AllocCb& allocCb, Vector<AmdGpuInfo>* pGpus)
                 outGpuInfo.pci.device   = pDevices[i]->businfo.pci->dev;
                 outGpuInfo.pci.function = pDevices[i]->businfo.pci->func;
 
+                drmPciDeviceInfoPtr pci_info = pDevices[i]->deviceinfo.pci;
+                outGpuInfo.asic.ids.vendorId = pci_info->vendor_id;
+                outGpuInfo.asic.ids.subsystemId = pci_info->subvendor_id + (pci_info->subdevice_id << 16);
+
                 // Open the amdgpu device file descriptor
                 int32 renderFd  = open(pDevices[i]->nodes[DRM_NODE_RENDER], O_RDONLY, 0);
 
@@ -282,6 +286,10 @@ Result QueryGpuInfo(const AllocCb& allocCb, Vector<AmdGpuInfo>* pGpus)
                     outGpuInfo.asic.ids.eRevId     = gpuInfo.chip_external_rev;
                     outGpuInfo.asic.ids.revisionId = gpuInfo.pci_rev_id;
                     outGpuInfo.asic.ids.family     = gpuInfo.family_id;
+
+                    // Luids aren't applicable on Linux
+                    memset(outGpuInfo.asic.ids.luid, 0, sizeof(outGpuInfo.asic.ids.luid));
+
                     // amdgpu reports this in KHz, we store it as Hz
                     outGpuInfo.engineClocks.max = gpuInfo.max_engine_clk * 1000;
 

@@ -45,32 +45,6 @@ namespace Pal
 namespace Gfx9
 {
 
-// User-data signature for an unbound graphics pipeline.
-const GraphicsPipelineSignature NullGfxSignature =
-{
-    { 0, },                     // User-data mapping for each shader stage
-    UserDataNotMapped,          // Vertex buffer table register address
-    UserDataNotMapped,          // Stream-out table register address
-    UserDataNotMapped,          // Stream-out control buffer register address
-    UserDataNotMapped,          // UAV export table mapping
-    UserDataNotMapped,          // NGG culling data constant buffer
-    UserDataNotMapped,          // Vertex offset register address
-    UserDataNotMapped,          // Draw ID register address
-    UserDataNotMapped,          // Mesh dispatch dimensions register (1st of 3)
-    UserDataNotMapped,          // Ring index for the mesh shader.
-    UserDataNotMapped,          // Mesh pipeline stats buffer register address
-    UserDataNotMapped,          // SampleInfo register address
-    UserDataNotMapped,          // DualSourceBlendInfo register address
-    UserDataNotMapped,          // Color export shader entry
-    NoUserDataSpilling,         // Spill threshold
-    0,                          // User-data entry limit
-    UserDataNotMapped,          // Needs primsNeededCntAddr register address
-    { UserDataNotMapped, },     // Compacted view ID register addresses
-    { UserDataNotMapped, },     // CompositeData register address
-    { 0, },                     // User-data mapping hashes per-stage
-};
-static_assert(UserDataNotMapped == 0, "Unexpected value for indicating unmapped user-data entries!");
-
 static uint32 SxBlendOptEpsilon(SX_DOWNCONVERT_FORMAT sxDownConvertFormat);
 static uint32 SxBlendOptControl(uint32 writeMask);
 
@@ -205,7 +179,7 @@ GraphicsPipeline::GraphicsPipeline(
     m_regs{},
     m_prefetch{},
     m_prefetchRangeCount(0),
-    m_signature{NullGfxSignature},
+    m_signature{pDevice->GetNullGfxSignature()},
     m_ringSizes{}
 {
     m_flags.contextPairsPacketSupported = pDevice->Settings().gfx11EnableContextRegPairOptimization;
@@ -1863,7 +1837,7 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
             }
             else if (value == static_cast<uint32>(Abi::UserDataMapping::CompositeData))
             {
-                m_signature.compositeDataAddr[stageId] = offset;
+                m_signature.compositeData.addr[stageId] = offset;
             }
             else if (value == static_cast<uint32>(Abi::UserDataMapping::PerShaderPerfData))
             {
@@ -2597,11 +2571,9 @@ void GraphicsPipeline::SetupSignatureFromLib(
     m_signature.viewIdRegAddr[HwShaderStage::Ps] = pPsLib->m_signature.viewIdRegAddr[0];
     PackArray(m_signature.viewIdRegAddr, UserDataNotMapped);
 
-    memcpy(m_signature.compositeDataAddr,
-           pPreRasterLib->m_signature.compositeDataAddr,
-           sizeof(pPreRasterLib->m_signature.compositeDataAddr));
-    PAL_ASSERT(m_signature.compositeDataAddr[HwShaderStage::Ps] == UserDataNotMapped);
-    m_signature.compositeDataAddr[HwShaderStage::Ps] = pPsLib->m_signature.compositeDataAddr[HwShaderStage::Ps];
+    m_signature.compositeData.packed = pPreRasterLib->m_signature.compositeData.packed;
+    PAL_ASSERT(m_signature.compositeData.addr[HwShaderStage::Ps] == UserDataNotMapped);
+    m_signature.compositeData.addr[HwShaderStage::Ps] = pPsLib->m_signature.compositeData.addr[HwShaderStage::Ps];
 }
 
 // ==================================================================================================================== =
@@ -2725,5 +2697,52 @@ void GraphicsPipeline::SetupCommonRegistersFromLibs(
         }
     }
 }
+
+// ==================================================================================================================== =
+// Precompute the number of vertex of output primitive
+void GraphicsPipeline::CalculateOutputNumVertices()
+{
+    bool hasGS = IsGsEnabled();
+    bool hasTes = IsTessEnabled();
+    bool hasMs = HasMeshShader();
+    if (hasGS || hasMs)
+    {
+        switch (m_regs.uconfig.vgtGsOutPrimType.bits.OUTPRIM_TYPE)
+        {
+        case POINTLIST:
+            m_outputNumVertices = 1;
+            break;
+        case LINESTRIP:
+            m_outputNumVertices = 2;
+            break;
+        case TRISTRIP:
+            m_outputNumVertices = 3;
+            break;
+        default:
+            PAL_ASSERT_ALWAYS();
+            break;
+        }
+    }
+    else if (hasTes)
+    {
+        switch (m_regs.other.vgtTfParam.bits.TOPOLOGY)
+        {
+        case OUTPUT_POINT:
+            m_outputNumVertices = 1;
+            break;
+        case OUTPUT_LINE:
+            m_outputNumVertices = 2;
+            break;
+        case OUTPUT_TRIANGLE_CW:
+        case OUTPUT_TRIANGLE_CCW:
+            m_outputNumVertices = 3;
+            break;
+        default:
+            PAL_ASSERT_ALWAYS();
+            break;
+        }
+    }
+}
+
 } // Gfx9
 } // Pal

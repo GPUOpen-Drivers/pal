@@ -55,7 +55,7 @@ ComputeShaderLibrary::ComputeShaderLibrary(
     :
     Pal::ComputeShaderLibrary(pDevice->Parent()),
     m_pDevice(pDevice),
-    m_signature(NullCsSignature),
+    m_signature(pDevice->GetNullCsSignature()),
     m_chunkCs(*pDevice, &m_stageInfoCs, nullptr),
     m_stageInfoCs{ }
 {
@@ -143,10 +143,10 @@ Result ComputeShaderLibrary::HwlInit(
         m_pDevice->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceCreateEvent(data);
 
         GpuMemoryResourceBindEventData bindData = {};
-        bindData.pObj = this;
-        bindData.pGpuMemory = m_gpuMem.Memory();
-        bindData.requiredGpuMemSize = m_gpuMemSize;
-        bindData.offset = m_gpuMem.Offset();
+        bindData.pObj               = this;
+        bindData.pGpuMemory         = m_gpuMem.Memory();
+        bindData.requiredGpuMemSize = m_gpuMemSize - m_gpuMemOffset;
+        bindData.offset             = m_gpuMem.Offset() + m_gpuMemOffset;
         m_pDevice->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
 
         Developer::BindGpuMemoryData callbackData = {};

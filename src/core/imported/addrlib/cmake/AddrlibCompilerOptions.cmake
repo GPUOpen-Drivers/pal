@@ -156,6 +156,7 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         # Set relevant Visual Studio properties for building a kernel mode lib
         if (CMAKE_SYSTEM_NAME STREQUAL "WindowsKernelModeDriver")
             set(CURRENT_SPACE "KERNEL")
+            set(ADDR_KERNEL_BUILD ON)
             if (CMAKE_GENERATOR MATCHES "Visual Studio")
                 set_property(TARGET addrlib PROPERTY VS_GLOBAL_DriverType "WDF")
                 set_property(TARGET addrlib PROPERTY VS_GLOBAL_TargetVersion "Windows10")

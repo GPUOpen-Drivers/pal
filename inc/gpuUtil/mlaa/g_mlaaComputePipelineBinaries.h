@@ -1179,7 +1179,7 @@ constexpr Util::uint8 MlaaFindSepEdge_Cs_91ECA425[] =
 };
 
 // Mlaa Calc Sep Edge Length compute shader binary
-constexpr Util::uint8 MlaaCalcSepEdgeLength_Cs_1D32F7A1[] =
+constexpr Util::uint8 MlaaCalcSepEdgeLength_Cs_E189D9C6[] =
 {
     0x7f, 0x45, 0x4c, 0x46, 0x02, 0x01, 0x01, 0x41, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0xe0,
     0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -1362,7 +1362,7 @@ constexpr Util::uint8 MlaaCalcSepEdgeLength_Cs_1D32F7A1[] =
 };
 
 // Mlaa Calc Sep Edge Length Fast compute shader binary
-constexpr Util::uint8 MlaaCalcSepEdgeLengthFast_Cs_1D32F7A1[] =
+constexpr Util::uint8 MlaaCalcSepEdgeLengthFast_Cs_E189D9C6[] =
 {
     0x7f, 0x45, 0x4c, 0x46, 0x02, 0x01, 0x01, 0x41, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0xe0,
     0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -1564,7 +1564,7 @@ constexpr Util::uint8 MlaaCalcSepEdgeLengthFast_Cs_1D32F7A1[] =
 };
 
 // Mlaa Calc Sep Edge Length Initial compute shader binary
-constexpr Util::uint8 MlaaCalcSepEdgeLengthInitial_Cs_1D32F7A1[] =
+constexpr Util::uint8 MlaaCalcSepEdgeLengthInitial_Cs_E189D9C6[] =
 {
     0x7f, 0x45, 0x4c, 0x46, 0x02, 0x01, 0x01, 0x41, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0xe0,
     0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -1714,7 +1714,7 @@ constexpr Util::uint8 MlaaCalcSepEdgeLengthInitial_Cs_1D32F7A1[] =
 };
 
 // Mlaa Final Blend compute shader binary
-constexpr Util::uint8 MlaaFinalBlend_Cs_1D32F7A1[] =
+constexpr Util::uint8 MlaaFinalBlend_Cs_E189D9C6[] =
 {
     0x7f, 0x45, 0x4c, 0x46, 0x02, 0x01, 0x01, 0x41, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0xe0,
     0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -1953,7 +1953,7 @@ constexpr Util::uint8 MlaaFinalBlend_Cs_1D32F7A1[] =
 };
 
 // Mlaa Final Blend Fast compute shader binary
-constexpr Util::uint8 MlaaFinalBlendFast_Cs_1D32F7A1[] =
+constexpr Util::uint8 MlaaFinalBlendFast_Cs_E189D9C6[] =
 {
     0x7f, 0x45, 0x4c, 0x46, 0x02, 0x01, 0x01, 0x41, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0xe0,
     0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -2198,7 +2198,7 @@ constexpr Util::uint8 MlaaFinalBlendFast_Cs_1D32F7A1[] =
 };
 
 // Mlaa Find Sep Edge compute shader binary
-constexpr Util::uint8 MlaaFindSepEdge_Cs_1D32F7A1[] =
+constexpr Util::uint8 MlaaFindSepEdge_Cs_E189D9C6[] =
 {
     0x7f, 0x45, 0x4c, 0x46, 0x02, 0x01, 0x01, 0x41, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0xe0,
     0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -5379,12 +5379,12 @@ constexpr PipelineBinary mlaaComputeBinaryTableNavi10[] =
 // Table of compute pipeline binaries for Navi21
 constexpr PipelineBinary mlaaComputeBinaryTableNavi21[] =
 {
-    {MlaaCalcSepEdgeLength_Cs_1D32F7A1,         sizeof(MlaaCalcSepEdgeLength_Cs_1D32F7A1)},
-    {MlaaCalcSepEdgeLengthFast_Cs_1D32F7A1,     sizeof(MlaaCalcSepEdgeLengthFast_Cs_1D32F7A1)},
-    {MlaaCalcSepEdgeLengthInitial_Cs_1D32F7A1,  sizeof(MlaaCalcSepEdgeLengthInitial_Cs_1D32F7A1)},
-    {MlaaFinalBlend_Cs_1D32F7A1,                sizeof(MlaaFinalBlend_Cs_1D32F7A1)},
-    {MlaaFinalBlendFast_Cs_1D32F7A1,            sizeof(MlaaFinalBlendFast_Cs_1D32F7A1)},
-    {MlaaFindSepEdge_Cs_1D32F7A1,               sizeof(MlaaFindSepEdge_Cs_1D32F7A1)},
+    {MlaaCalcSepEdgeLength_Cs_E189D9C6,         sizeof(MlaaCalcSepEdgeLength_Cs_E189D9C6)},
+    {MlaaCalcSepEdgeLengthFast_Cs_E189D9C6,     sizeof(MlaaCalcSepEdgeLengthFast_Cs_E189D9C6)},
+    {MlaaCalcSepEdgeLengthInitial_Cs_E189D9C6,  sizeof(MlaaCalcSepEdgeLengthInitial_Cs_E189D9C6)},
+    {MlaaFinalBlend_Cs_E189D9C6,                sizeof(MlaaFinalBlend_Cs_E189D9C6)},
+    {MlaaFinalBlendFast_Cs_E189D9C6,            sizeof(MlaaFinalBlendFast_Cs_E189D9C6)},
+    {MlaaFindSepEdge_Cs_E189D9C6,               sizeof(MlaaFindSepEdge_Cs_E189D9C6)},
 };
 
 // Table of compute pipeline binaries for Navi31
@@ -5411,17 +5411,6 @@ constexpr PipelineBinary mlaaComputeBinaryTableNavi33[] =
 
 // Table of compute pipeline binaries for Phoenix1
 constexpr PipelineBinary mlaaComputeBinaryTablePhoenix1[] =
-{
-    {MlaaCalcSepEdgeLength_Cs_BF609FF5,         sizeof(MlaaCalcSepEdgeLength_Cs_BF609FF5)},
-    {MlaaCalcSepEdgeLengthFast_Cs_BF609FF5,     sizeof(MlaaCalcSepEdgeLengthFast_Cs_BF609FF5)},
-    {MlaaCalcSepEdgeLengthInitial_Cs_BF609FF5,  sizeof(MlaaCalcSepEdgeLengthInitial_Cs_BF609FF5)},
-    {MlaaFinalBlend_Cs_BF609FF5,                sizeof(MlaaFinalBlend_Cs_BF609FF5)},
-    {MlaaFinalBlendFast_Cs_BF609FF5,            sizeof(MlaaFinalBlendFast_Cs_BF609FF5)},
-    {MlaaFindSepEdge_Cs_BF609FF5,               sizeof(MlaaFindSepEdge_Cs_BF609FF5)},
-};
-
-// Table of compute pipeline binaries for Phoenix2
-constexpr PipelineBinary mlaaComputeBinaryTablePhoenix2[] =
 {
     {MlaaCalcSepEdgeLength_Cs_BF609FF5,         sizeof(MlaaCalcSepEdgeLength_Cs_BF609FF5)},
     {MlaaCalcSepEdgeLengthFast_Cs_BF609FF5,     sizeof(MlaaCalcSepEdgeLengthFast_Cs_BF609FF5)},

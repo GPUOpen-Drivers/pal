@@ -499,7 +499,11 @@ void LogContext::Enum(
         "Uint",  // 0x0,
         "Sint",  // 0x1,
         "Float", // 0x2,
+        "Yuv",   // 0x3,
     };
+
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(ClearColorType::Count),
+                  "The ClearColorType string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
     PAL_ASSERT(idx < ArrayLen(StringTable));
@@ -574,7 +578,9 @@ void LogContext::Enum(
     {
         "Viewport",  // 0x0,
         "None",      // 0x1,
+#if PAL_BUILD_SUPPORT_DEPTHCLAMPMODE_ZERO_TO_ONE
         "ZeroToOne", // 0x2
+#endif
     };
 
     const uint32 idx = static_cast<uint32>(value);
@@ -641,6 +647,9 @@ void LogContext::Enum(
         "Wireframe", // 0x1,
         "Solid",     // 0x2,
     };
+
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(FillMode::Count),
+                  "The FillMode string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
     PAL_ASSERT(idx < ArrayLen(StringTable));
@@ -775,6 +784,9 @@ void LogContext::Enum(
         "HwPipePostBlt",          // 0x6,
         "HwPipeBottom",           // 0x7,
     };
+
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(HwPipePointCount),
+                  "The HwPipePoint string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
     PAL_ASSERT(idx < ArrayLen(StringTable));
@@ -942,6 +954,9 @@ void LogContext::Enum(
         "SetUserData",    // 0x6
     };
 
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(IndirectParamType::Count),
+                  "The IndirectParamType string table needs to be updated.");
+
     const uint32 idx = static_cast<uint32>(value);
     PAL_ASSERT(idx < ArrayLen(StringTable));
 
@@ -987,8 +1002,11 @@ void LogContext::Enum(
         "Default",
         "OptForTexFetchPerf",
         "Disabled",
-        "Count",
+        "FmaskOnly",
     };
+
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(MetadataMode::Count),
+                  "The MetadataMode string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
     PAL_ASSERT(idx < ArrayLen(StringTable));
@@ -1007,6 +1025,9 @@ void LogContext::Enum(
         "MgpuModeDvo",  // 0x2,
         "MgpuModeXdma", // 0x3,
     };
+
+    static_assert(ArrayLen(StringTable) == MgpuModeCount,
+                  "The MgpuMode string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
     PAL_ASSERT(idx < ArrayLen(StringTable));
@@ -1123,6 +1144,9 @@ void LogContext::Enum(
         "LowerLeft", // 0x1,
     };
 
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(PointOrigin::Count),
+                  "The PointOrigin string table needs to be updated.");
+
     const uint32 idx = static_cast<uint32>(value);
     PAL_ASSERT(idx < ArrayLen(StringTable));
 
@@ -1141,6 +1165,9 @@ void LogContext::Enum(
         "Idle",      // 0x3,
     };
 
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(PowerProfile::Count),
+                  "The PowerProfile string table needs to be updated.");
+
     const uint32 idx = static_cast<uint32>(value);
     PAL_ASSERT(idx < ArrayLen(StringTable));
 
@@ -1156,8 +1183,12 @@ void LogContext::Enum(
         "",          // 0x0,
         "Zpass",     // 0x1,
         "PrimCount", // 0x2,
-        "Boolean",   // 0x3,
+        "Boolean64", // 0x3,
+        "Boolean32", // 0x4,
     };
+
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(PredicateType::Count),
+                  "The PredicateType string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
     PAL_ASSERT(idx < ArrayLen(StringTable));
@@ -1199,6 +1230,9 @@ void LogContext::Enum(
         "Patch",    // 0x5,
     };
 
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(PrimitiveType::Count),
+                  "The PrimitiveType string table needs to be updated.");
+
     const uint32 idx = static_cast<uint32>(value);
     PAL_ASSERT(idx < ArrayLen(StringTable));
 
@@ -1230,6 +1264,9 @@ void LogContext::Enum(
         "TwoDRectList",     // 0x10,
     };
 
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(PrimitiveTopology::Count),
+                  "The PrimitiveTopology string table needs to be updated.");
+
     const uint32 idx = static_cast<uint32>(value);
     PAL_ASSERT(idx < ArrayLen(StringTable));
 
@@ -1246,6 +1283,9 @@ void LogContext::Enum(
         "ColorDepth888",    // 0x1,
         "ColorDepth101010", // 0x2,
     };
+
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(PrivateDisplayColorDepth::Count),
+                  "The PrivateDisplayColorDepth string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
     PAL_ASSERT(idx < ArrayLen(StringTable));
@@ -1264,6 +1304,9 @@ void LogContext::Enum(
         "YcbCr444", // 0x2,
     };
 
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(PrivateDisplayPixelEncoding::Count),
+                  "The PrivateDisplayPixelEncoding string table needs to be updated.");
+
     const uint32 idx = static_cast<uint32>(value);
     PAL_ASSERT(idx < ArrayLen(StringTable));
 
@@ -1281,6 +1324,9 @@ void LogContext::Enum(
         "PowerOff", // 0x2,
     };
 
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(PrivateDisplayPowerState::Count),
+                  "The PrivateDisplayPowerState string table needs to be updated.");
+
     const uint32 idx = static_cast<uint32>(value);
     PAL_ASSERT(idx < ArrayLen(StringTable));
 
@@ -1297,6 +1343,9 @@ void LogContext::Enum(
         "Temporary", // 0x1,
         "Emulated",  // 0x2,
     };
+
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(PrivateScreenType::Count),
+                  "The PrivateScreenType string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
     PAL_ASSERT(idx < ArrayLen(StringTable));
@@ -1355,6 +1404,9 @@ void LogContext::Enum(
         "StreamoutStats3",  // 0x6,
     };
 
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(QueryType::Count),
+                  "The QueryType string table needs to be updated.");
+
     const uint32 idx = static_cast<uint32>(value);
     PAL_ASSERT(idx < ArrayLen(StringTable));
 
@@ -1367,10 +1419,15 @@ void LogContext::Enum(
 {
     const char*const StringTable[] =
     {
-        "Low",    // 0x0,
-        "Medium", // 0x1,
-        "High",   // 0x2,
+        "Normal",    // 0x0,
+        "Idle",      // 0x1,
+        "Medium",    // 0x2,
+        "High",      // 0x3,
+        "Realtime",  // 0x4,
     };
+
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(QueuePriority::Count),
+                  "The QueuePriority string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
     PAL_ASSERT(idx < ArrayLen(StringTable));
@@ -1539,6 +1596,14 @@ void LogContext::Enum(
             "ErrorUnsupportedPipelineElfAbiVersion",  // -(0x00000058),
             "ErrorInvalidPipelineElf",                // -(0x00000059),
             "ErrorIncompleteResults",                 // -(0x00000060),
+            "ErrorIncompatibleDisplayMode"            // -(0x00000061),
+            "ErrorIncompatibleWindowSize"             // -(0x00000062),
+            "ErrorSemaphoreNeverSignaled"             // -(0x00000063),
+            "ErrorInvalidImageMetadataMode"           // -(0x00000064),
+            "ErrorInvalidExternalHandle"              // -(0x00000065),
+            "ErrorPermissionDenied"                   // -(0x00000066),
+            "ErrorDiskFull"                           // -(0x00000067),
+            "ErrorStaticVmidOpFailed"                 // -(0x00000068),
         };
 
         const uint32 idx = static_cast<uint32>(-(1 + static_cast<int32>(value)));
@@ -1563,6 +1628,8 @@ void LogContext::Enum(
             "OutOfSpec",                   // 0x00000009,
             "NotFound",                    // 0x0000000A,
             "Eof",                         // 0x0000000B,
+            "Reserved",                    // 0x0000000C,
+            "Aborted",                     // 0x0000000D,
         };
 
         const uint32 idx = static_cast<uint32>(value);
@@ -1581,6 +1648,9 @@ void LogContext::Enum(
         "Gouraud", // 0x0,
         "Flat",    // 0x1,
     };
+
+    static_assert(ArrayLen(StringTable) == uint32(ShadeMode::Count),
+                  "The ShadeMode string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
     PAL_ASSERT(idx < ArrayLen(StringTable));
@@ -1654,6 +1724,9 @@ void LogContext::Enum(
         "SurfaceTransformInherit",       // 0x00000100,
     };
 
+    static_assert(BitfieldGenMask(ArrayLen(StringTable)) == SurfaceTransformAllFlags,
+                  "The SurfaceTransform string table needs to be updated.");
+
     const uint32 idx = Log2(static_cast<uint32>(value));
     PAL_ASSERT(idx < ArrayLen(StringTable));
 
@@ -1716,6 +1789,9 @@ void LogContext::Enum(
         "Min",   // 0x1,
         "Max",   // 0x2,
     };
+
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(TexFilterMode::Count),
+                  "The TexFilterMode string table needs to be updated.");
 
     const uint32 idx = static_cast<uint32>(value);
     PAL_ASSERT(idx < ArrayLen(StringTable));
@@ -1862,6 +1938,9 @@ void LogContext::Enum(
         "2x2",     // 0x7,
     };
 
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(VrsShadingRate::Count),
+                  "The VrsShadingRate string table needs to be updated.");
+
     const uint32 idx = static_cast<uint32>(value);
     PAL_ASSERT(idx < ArrayLen(StringTable));
 
@@ -1881,6 +1960,9 @@ void LogContext::Enum(
         "Sum",         // 4
     };
 
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(VrsCombiner::Count),
+                  "The VrsCombiner string table needs to be updated.");
+
     const uint32 idx = static_cast<uint32>(value);
     PAL_ASSERT(idx < ArrayLen(StringTable));
 
@@ -1898,6 +1980,9 @@ void LogContext::Enum(
         "ReadZero",  // 0x2,
     };
 
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(VirtualGpuMemAccessMode::Count),
+                  "The VirtualGpuMemAccessMode string table needs to be updated.");
+
     const uint32 idx = static_cast<uint32>(value);
     PAL_ASSERT(idx < ArrayLen(StringTable));
 
@@ -1908,19 +1993,42 @@ void LogContext::Enum(
 void LogContext::Enum(
     WsiPlatform value)
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 881
+    const char*const StringTable[] =
+    {
+        "Win32",         // 0x0,
+        "Xcb",           // 0x1,
+        "Xlib",          // 0x2,
+        "Wayland",       // 0x3,
+        "Mir",           // 0x4,
+        "DirectDisplay", // 0x5,
+        "Android",       // 0x6,
+        "Dxgi",          // 0x7,
+    };
+
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(WsiPlatform::Count),
+                  "The WsiPlatform string table needs to be updated.");
+
+    const uint32 idx = static_cast<uint32>(value);
+#else
     // Note that these are flag enums but you can only specify one at a time in the interface.
     PAL_ASSERT(IsPowerOfTwo(value));
 
     const char*const StringTable[] =
     {
-        "Win32",   // 0x00000001,
-        "Xcb",     // 0x00000002,
-        "Xlib",    // 0x00000004,
-        "Wayland", // 0x00000008,
-        "Mir",     // 0x00000010,
+        "Win32",         // 0x00000001,
+        "Xcb",           // 0x00000002,
+        "Xlib",          // 0x00000004,
+        "Wayland",       // 0x00000008,
+        "Mir",           // 0x00000010,
+        "DirectDisplay", // 0x00000020,
+        "Android",       // 0x00000040,
+        "Dxgi",          // 0x00000080,
     };
 
     const uint32 idx = Log2(static_cast<uint32>(value));
+#endif
+
     PAL_ASSERT(idx < ArrayLen(StringTable));
 
     Value(StringTable[idx]);
@@ -2023,6 +2131,105 @@ void LogContext::Enum(
 
     const uint32 idx = static_cast<uint32>(value);
     PAL_ASSERT(idx < static_cast<uint32>(TurboSyncControlMode::Count));
+
+    Value(StringTable[idx]);
+}
+
+// =====================================================================================================================
+void LogContext::Enum(
+    Developer::CallbackType value)
+{
+    const char*const StringTable[] =
+    {
+        "AllocGpuMemory",         // 0x0,
+        "FreeGpuMemory",          // 0x1,
+        "PresentConcluded",       // 0x2,
+        "ImageBarrier",           // 0x3,
+        "CreateImage",            // 0x4,
+        "BarrierBegin",           // 0x5,
+        "BarrierEnd",             // 0x6,
+        "DrawDispatch",           // 0x7,
+        "BindPipeline",           // 0x8,
+        "SurfRegData",            // 0x9,
+        "DrawDispatchValidation", // 0xa,
+        "BindPipelineValidation", // 0xb,
+        "OptimizedRegisters",     // 0xc,
+        "BindGpuMemory",          // 0xe,
+        "SubAllocGpuMemory",      // 0xf,
+        "SubFreeGpuMemory",       // 0x10,
+        "RpmBlt",                 // 0x11,
+    };
+
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(Developer::CallbackType::Count),
+        "The Developer::CallbackType string table needs to be updated.");
+
+    const uint32 idx = static_cast<uint32>(value);
+    PAL_ASSERT(idx < static_cast<uint32>(Developer::CallbackType::Count));
+
+    Value(StringTable[idx]);
+}
+
+// =====================================================================================================================
+void LogContext::Enum(
+    Developer::BarrierType value)
+{
+    const char*const StringTable[] =
+    {
+        "Full",     // 0x0,
+        "Release",  // 0x1,
+        "Acquire",  // 0x2,
+    };
+
+    static_assert(ArrayLen(StringTable) == uint32(Developer::BarrierType::Count),
+        "The Developer::BarrierType string table needs to be updated.");
+
+    const uint32 idx = static_cast<uint32>(value);
+    PAL_ASSERT(idx < static_cast<uint32>(Developer::BarrierType::Count));
+
+    Value(StringTable[idx]);
+}
+
+// =====================================================================================================================
+void LogContext::Enum(
+    Developer::RpmBltType value)
+{
+    const char* const StringTable[] =
+    {
+        "CpDmaCopy",    // 0x0,
+        "CpDmaUpdate",  // 0x1,
+        "Draw",         // 0x2,
+        "Dispatch",     // 0x3,
+    };
+
+    static_assert(Util::ArrayLen(StringTable) == uint32(Developer::RpmBltType::Count),
+        "The Developer::RpmBltType type table needs to be updated");
+
+    const uint32 idx = static_cast<uint32>(value);
+    PAL_ASSERT(idx < ArrayLen(StringTable));
+
+    Value(StringTable[idx]);
+}
+
+// =====================================================================================================================
+void LogContext::Enum(
+    Developer::AcquirePoint value)
+{
+    const char* const StringTable[] =
+    {
+        "Pfp",       // 0x0,
+        "Me",        // 0x1,
+        "PreShader", // 0x2,
+        "PreDepth",  // 0x3,
+        "PrePs",     // 0x4,
+        "PreColor",  // 0x5,
+        "Eop",       // 0x6,
+    };
+
+    static_assert(Util::ArrayLen(StringTable) == uint32(Developer::AcquirePoint::Count),
+        "The Developer::AcquirePoint type table needs to be updated");
+
+    const uint32 idx = static_cast<uint32>(value);
+    PAL_ASSERT(idx < ArrayLen(StringTable));
 
     Value(StringTable[idx]);
 }

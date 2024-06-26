@@ -43,6 +43,7 @@ ComputeShaderLibrary::ComputeShaderLibrary(
     ShaderLibrary(pDevice),
     m_gpuMem(),
     m_gpuMemSize(0),
+    m_gpuMemOffset(0),
     m_maxStackSizeInBytes(0),
     m_uploadFenceToken(0),
     m_pagingFenceVal(0),
@@ -155,10 +156,10 @@ Result ComputeShaderLibrary::PerformRelocationsAndUploadToGpuMemory(
 
     if (result == Result::Success)
     {
-        gpusize offset   = pUploader->SectionOffset();
+        m_gpuMemOffset   = pUploader->SectionOffset();
         m_pagingFenceVal = pUploader->PagingFenceVal();
-        m_gpuMemSize     = pUploader->GpuMemSize() - offset;
-        m_gpuMem.Update(pUploader->GpuMem(), pUploader->GpuMemOffset() + offset);
+        m_gpuMemSize     = pUploader->GpuMemSize();
+        m_gpuMem.Update(pUploader->GpuMem(), pUploader->GpuMemOffset());
     }
 
     return result;
@@ -251,8 +252,8 @@ Result ComputeShaderLibrary::QueryAllocationInfo(
         if (pGpuMemList != nullptr)
         {
             pGpuMemList[0].address     = m_gpuMem.Memory()->Desc().gpuVirtAddr;
-            pGpuMemList[0].offset      = m_gpuMem.Offset();
-            pGpuMemList[0].size        = m_gpuMemSize;
+            pGpuMemList[0].offset      = m_gpuMem.Offset() + m_gpuMemOffset;
+            pGpuMemList[0].size        = m_gpuMemSize - m_gpuMemOffset;
         }
 
         result = Result::Success;

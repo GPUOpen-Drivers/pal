@@ -340,7 +340,6 @@ void GpuMemoryEventProvider::LogDebugNameEvent(
         DebugNameData data = {};
         data.handle        = reinterpret_cast<ResourceHandle>(eventData.pObj);
         data.pDebugName    = eventData.pDebugName;
-        data.nameSize      = static_cast<uint32>(strlen(eventData.pDebugName));
 
         LogEvent(eventId, &data, sizeof(data));
     }

@@ -53,6 +53,7 @@ enum class IndirectParamType : uint32
     BindVertexData, ///< Binds a range of GPU memory for use as a vertex buffer.  This parameter is not allowed if
                     ///  Dispatch parameter is also present.
     SetUserData,    ///< Sets one or more user-data entries.
+    Count
 };
 
 /// Specifies the layout in GPU memory used to represent a 'BindIndexData' indirect command parameter.

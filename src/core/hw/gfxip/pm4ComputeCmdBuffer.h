@@ -81,7 +81,8 @@ protected:
         const GfxDevice&           device,
         const CmdBufferCreateInfo& createInfo,
         const GfxBarrierMgr*       pBarrierMgr,
-        Pm4::CmdStream*            pCmdStream);
+        Pm4::CmdStream*            pCmdStream,
+        bool                       useUpdateUserData);
 
     virtual ~ComputeCmdBuffer() {}
 

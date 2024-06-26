@@ -49,16 +49,11 @@ ShaderLibrary::ShaderLibrary(
 // =====================================================================================================================
 void ShaderLibrary::Destroy()
 {
-    // Note that we can't time a Destroy call.
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::ShaderLibraryDestroy;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    funcInfo.postCallTime = funcInfo.preCallTime;
-
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    // Note that we can't time Destroy calls nor track their callbacks.
+    if (m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::ShaderLibraryDestroy))
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         m_pPlatform->LogEndFunc(pLogContext);
     }
 

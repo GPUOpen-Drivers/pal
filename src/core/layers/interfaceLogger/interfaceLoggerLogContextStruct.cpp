@@ -27,6 +27,7 @@
 
 #include "palAssert.h"
 #include "core/layers/interfaceLogger/interfaceLoggerLogContext.h"
+#include "core/layers/interfaceLogger/interfaceLoggerPlatform.h"
 
 #include <algorithm>
 
@@ -50,6 +51,41 @@ void LogContext::Struct(
 #endif
     KeyAndObject("semaphore", value.pSemaphore);
     KeyAndObject("fence", value.pFence);
+    EndMap();
+}
+
+// =====================================================================================================================
+void LogContext::Struct(
+    const BarrierTransition& value)
+{
+    BeginMap(false);
+    KeyAndCacheCoherencyUsageFlags("srcCacheMask", value.srcCacheMask);
+    KeyAndCacheCoherencyUsageFlags("dstCacheMask", value.dstCacheMask);
+    KeyAndObject("pImage", value.imageInfo.pImage);
+
+    if (value.imageInfo.pImage != nullptr)
+    {
+        KeyAndStruct("subresRange", value.imageInfo.subresRange);
+
+        // Suppress unnecessary info for barrier log only mode to reduce json file size.
+        if ((m_pPlatform->IsBarrierLogActive() == false) ||
+            (value.imageInfo.pImage->GetMemoryLayout().metadataSize > 0))
+        {
+            KeyAndStruct("oldLayout", value.imageInfo.oldLayout);
+            KeyAndStruct("newLayout", value.imageInfo.newLayout);
+
+            Key("pQuadSamplePattern");
+            if (value.imageInfo.pQuadSamplePattern != nullptr)
+            {
+                Struct(*value.imageInfo.pQuadSamplePattern);
+            }
+            else
+            {
+                NullValue();
+            }
+        }
+    }
+
     EndMap();
 }
 
@@ -92,31 +128,7 @@ void LogContext::Struct(
 
     for (uint32 idx = 0; idx < value.transitionCount; ++idx)
     {
-        const auto& transition = value.pTransitions[idx];
-
-        BeginMap(false);
-        KeyAndCacheCoherencyUsageFlags("srcCacheMask", transition.srcCacheMask);
-        KeyAndCacheCoherencyUsageFlags("dstCacheMask", transition.dstCacheMask);
-        KeyAndObject("pImage", transition.imageInfo.pImage);
-
-        if (transition.imageInfo.pImage != nullptr)
-        {
-            KeyAndStruct("subresRange", transition.imageInfo.subresRange);
-            KeyAndStruct("oldLayout", transition.imageInfo.oldLayout);
-            KeyAndStruct("newLayout", transition.imageInfo.newLayout);
-
-            Key("pQuadSamplePattern");
-            if (transition.imageInfo.pQuadSamplePattern != nullptr)
-            {
-                Struct(*transition.imageInfo.pQuadSamplePattern);
-            }
-            else
-            {
-                NullValue();
-            }
-        }
-
-        EndMap();
+        Struct(value.pTransitions[idx]);
     }
     EndList();
 
@@ -194,20 +206,26 @@ void LogContext::Struct(
             KeyAndPipelineStageFlags("dstStageMask", imageBarrier.dstStageMask);
             KeyAndCacheCoherencyUsageFlags("srcAccessMask", imageBarrier.srcAccessMask);
             KeyAndCacheCoherencyUsageFlags("dstAccessMask", imageBarrier.dstAccessMask);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 880
-            KeyAndStruct("box", imageBarrier.box);
-#endif
-            KeyAndStruct("oldLayout", imageBarrier.oldLayout);
-            KeyAndStruct("newLayout", imageBarrier.newLayout);
 
-            Key("pQuadSamplePattern");
-            if (imageBarrier.pQuadSamplePattern != nullptr)
+            // Suppress unnecessary info for barrier log only mode to reduce json file size.
+            if ((m_pPlatform->IsBarrierLogActive() == false) ||
+                (imageBarrier.pImage->GetMemoryLayout().metadataSize > 0))
             {
-                Struct(*imageBarrier.pQuadSamplePattern);
-            }
-            else
-            {
-                NullValue();
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 880
+                KeyAndStruct("box", imageBarrier.box);
+#endif
+                KeyAndStruct("oldLayout", imageBarrier.oldLayout);
+                KeyAndStruct("newLayout", imageBarrier.newLayout);
+
+                Key("pQuadSamplePattern");
+                if (imageBarrier.pQuadSamplePattern != nullptr)
+                {
+                    Struct(*imageBarrier.pQuadSamplePattern);
+                }
+                else
+                {
+                    NullValue();
+                }
             }
         }
 
@@ -853,6 +871,11 @@ void LogContext::Struct(
         Value("frameGenIndex");
     }
 
+    if (value.noRenderPresent)
+    {
+        Value("noRenderPresent");
+    }
+
     EndList();
     KeyAndObject("primaryMemory", value.pPrimaryMemory);
 
@@ -1034,6 +1057,33 @@ void LogContext::Struct(
 
 // =====================================================================================================================
 void LogContext::Struct(
+    const DevCallbackArgs& value)
+{
+    BeginMap(false);
+    KeyAndEnum("type", value.callbackType);
+
+    switch (value.callbackType)
+    {
+    case Developer::CallbackType::BarrierBegin:
+    case Developer::CallbackType::ImageBarrier:
+    case Developer::CallbackType::BarrierEnd:
+        Key("data");
+        Struct(value.data.barrier, (value.callbackType == Developer::CallbackType::BarrierBegin));
+        break;
+    case Developer::CallbackType::RpmBlt:
+        KeyAndStruct("data", value.data.rpmBlt);
+        break;
+    default:
+        // TODO: Callback type not supported yet.
+        KeyAndValue("data", "TODO");
+        break;
+    }
+
+    EndMap();
+}
+
+// =====================================================================================================================
+void LogContext::Struct(
     const DeviceFinalizeInfo& value)
 {
     BeginMap(false);
@@ -1132,7 +1182,7 @@ void LogContext::Struct(
 void LogContext::Struct(
     DispatchDims value)
 {
-    BeginMap(false);
+    BeginMap(true);
     KeyAndValue("x", value.x);
     KeyAndValue("y", value.y);
     KeyAndValue("z", value.z);
@@ -3785,6 +3835,234 @@ void LogContext::Struct(
     KeyAndValue("y", value.y);
     KeyAndValue("z", value.z);
     KeyAndValue("w", value.w);
+    EndMap();
+}
+
+// =====================================================================================================================
+void LogContext::Struct(
+    const ImageMemoryLayout& value)
+{
+    BeginMap(false);
+
+    // Suppress unnecessary info for barrier log only mode to reduce json file size.
+    if (m_pPlatform->IsBarrierLogActive() == false)
+    {
+        KeyAndValue("dataSize", value.dataSize);
+        KeyAndValue("dataAlignment", value.dataAlignment);
+
+        KeyAndValue("metadataOffset", value.metadataOffset);
+        KeyAndValue("metadataSize", value.metadataSize);
+        KeyAndValue("metadataAlignment", value.metadataAlignment);
+
+        KeyAndValue("metadataHeaderOffset", value.metadataHeaderOffset);
+        KeyAndValue("metadataHeaderSize", value.metadataHeaderSize);
+        KeyAndValue("metadataHeaderAlignment", value.metadataHeaderAlignment);
+
+        KeyAndBeginList("swizzleEqIndices", true);
+        Value(value.swizzleEqIndices[0]);
+        Value(value.swizzleEqIndices[1]);
+        EndList();
+        KeyAndValue("swizzleEqTransitionMip", value.swizzleEqTransitionMip);
+        KeyAndValue("swizzleEqTransitionPlane", value.swizzleEqTransitionPlane);
+
+        KeyAndValue("prtTileWidth", value.prtTileWidth);
+        KeyAndValue("prtTileHeight", value.prtTileHeight);
+        KeyAndValue("prtTileDepth", value.prtTileDepth);
+        KeyAndValue("prtMinPackedLod", value.prtMinPackedLod);
+        KeyAndValue("prtMipTailTileCount", value.prtMipTailTileCount);
+        KeyAndValue("stereoLineOffset", value.stereoLineOffset);
+    }
+    else
+    {
+        KeyAndValue("metadataSize", value.metadataSize);
+    }
+
+    EndMap();
+}
+
+// =====================================================================================================================
+void LogContext::Struct(
+    const Developer::BarrierData& value,
+    bool                          isBarrierBegin)
+{
+    BeginMap(false);
+
+    KeyAndObject("pCmdBuffer", value.pCmdBuffer);
+    Key("transition");
+    if (value.hasTransition)
+    {
+        Struct(value.transition);
+    }
+    else
+    {
+        NullValue();
+    }
+    KeyAndValue("hasTransition", value.hasTransition);
+
+    KeyAndBeginMap("operations", false);
+    KeyAndBeginList("pipelineStalls", false);
+    const auto stalls = value.operations.pipelineStalls;
+    if (stalls.eopTsBottomOfPipe)
+    {
+        Value("eopTsBottomOfPipe");
+    }
+    if (stalls.vsPartialFlush)
+    {
+        Value("vsPartialFlush");
+    }
+    if (stalls.psPartialFlush)
+    {
+        Value("psPartialFlush");
+    }
+    if (stalls.csPartialFlush)
+    {
+        Value("csPartialFlush");
+    }
+    if (stalls.pfpSyncMe)
+    {
+        Value("pfpSyncMe");
+    }
+    if (stalls.syncCpDma)
+    {
+        Value("syncCpDma");
+    }
+    if (stalls.eosTsPsDone)
+    {
+        Value("eosTsPsDone");
+    }
+    if (stalls.eosTsCsDone)
+    {
+        Value("eosTsCsDone");
+    }
+    if (stalls.waitOnTs)
+    {
+        Value("waitOnTs");
+    }
+    EndList();
+
+    KeyAndBeginList("caches", false);
+    const auto caches = value.operations.caches;
+    if (caches.invalTcp)
+    {
+        Value("invalTcp");
+    }
+    if (caches.invalSqI$)
+    {
+        Value("invalSqI$");
+    }
+    if (caches.invalSqK$)
+    {
+        Value("invalSqK$");
+    }
+    if (caches.flushTcc)
+    {
+        Value("flushTcc");
+    }
+    if (caches.invalTcc)
+    {
+        Value("invalTcc");
+    }
+    if (caches.flushCb)
+    {
+        Value("flushCb");
+    }
+    if (caches.invalCb)
+    {
+        Value("invalCb");
+    }
+    if (caches.flushDb)
+    {
+        Value("flushDb");
+    }
+    if (caches.invalDb)
+    {
+        Value("invalDb");
+    }
+    if (caches.invalCbMetadata)
+    {
+        Value("invalCbMetadata");
+    }
+    if (caches.flushCbMetadata)
+    {
+        Value("flushCbMetadata");
+    }
+    if (caches.invalDbMetadata)
+    {
+        Value("invalDbMetadata");
+    }
+    if (caches.flushDbMetadata)
+    {
+        Value("flushDbMetadata");
+    }
+    if (caches.invalTccMetadata)
+    {
+        Value("invalTccMetadata");
+    }
+    if (caches.invalGl1)
+    {
+        Value("invalGl1");
+    }
+    EndList();
+
+    KeyAndBeginList("layoutTransitions", false);
+    const auto layouts = value.operations.layoutTransitions;
+    if (layouts.depthStencilExpand)
+    {
+        Value("depthStencilExpand");
+    }
+    if (layouts.htileHiZRangeExpand)
+    {
+        Value("htileHiZRangeExpand");
+    }
+    if (layouts.depthStencilResummarize)
+    {
+        Value("depthStencilResummarize");
+    }
+    if (layouts.dccDecompress)
+    {
+        Value("dccDecompress");
+    }
+    if (layouts.fmaskDecompress)
+    {
+        Value("fmaskDecompress");
+    }
+    if (layouts.fastClearEliminate)
+    {
+        Value("fastClearEliminate");
+    }
+    if (layouts.fmaskColorExpand)
+    {
+        Value("fmaskColorExpand");
+    }
+    if (layouts.initMaskRam)
+    {
+        Value("initMaskRam");
+    }
+    if (layouts.updateDccStateMetadata)
+    {
+        Value("updateDccStateMetadata");
+    }
+    EndList();
+
+    KeyAndEnum("acquirePoint", value.operations.acquirePoint);
+    EndMap(); // KeyAndBeginMap("operations", false);
+
+    if (isBarrierBegin)
+    {
+        KeyAndEnum("reason", static_cast<Developer::BarrierReason>(value.reason));
+        KeyAndEnum("type", value.type);
+    }
+
+    EndMap();
+}
+
+// =====================================================================================================================
+void LogContext::Struct(
+    const Developer::RpmBltData& value)
+{
+    BeginMap(false);
+    KeyAndObject("pCmdBuffer", value.pCmdBuffer);
+    KeyAndEnum("bltType", value.bltType);
     EndMap();
 }
 

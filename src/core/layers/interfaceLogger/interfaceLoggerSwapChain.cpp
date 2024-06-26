@@ -57,16 +57,13 @@ Result SwapChain::AcquireNextImage(
 {
     PAL_ASSERT(pImageIndex != nullptr);
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::SwapChainAcquireNextImage;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = SwapChainDecorator::AcquireNextImage(acquireInfo, pImageIndex);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::SwapChainAcquireNextImage);
+    const Result result = SwapChainDecorator::AcquireNextImage(acquireInfo, pImageIndex);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("acquireInfo", acquireInfo);
         pLogContext->EndInput();
@@ -85,16 +82,13 @@ Result SwapChain::AcquireNextImage(
 // =====================================================================================================================
 Result SwapChain::WaitIdle()
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::SwapChainWaitIdle;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = SwapChainDecorator::WaitIdle();
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::SwapChainWaitIdle);
+    const Result result = SwapChainDecorator::WaitIdle();
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginOutput();
         pLogContext->KeyAndEnum("result", result);
         pLogContext->EndOutput();
@@ -108,16 +102,11 @@ Result SwapChain::WaitIdle()
 // =====================================================================================================================
 void SwapChain::Destroy()
 {
-    // Note that we can't time a Destroy call.
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::SwapChainDestroy;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    funcInfo.postCallTime = funcInfo.preCallTime;
-
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    // Note that we can't time Destroy calls nor track their callbacks.
+    if (m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::SwapChainDestroy))
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         m_pPlatform->LogEndFunc(pLogContext);
     }
 

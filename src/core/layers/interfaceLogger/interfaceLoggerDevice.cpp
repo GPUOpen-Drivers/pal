@@ -78,20 +78,15 @@ Device::Device(
 // =====================================================================================================================
 Result Device::CommitSettingsAndInit()
 {
-    auto*const pPlatform = static_cast<Platform*>(m_pPlatform);
-
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceCommitSettingsAndInit;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    Result result         = DeviceDecorator::CommitSettingsAndInit();
-    funcInfo.postCallTime = pPlatform->GetTime();
+    auto*const   pPlatform = static_cast<Platform*>(m_pPlatform);
+    const bool   active    = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceCommitSettingsAndInit);
+    const Result result    = DeviceDecorator::CommitSettingsAndInit();
 
     if (result == Result::Success)
     {
         // We must initialize logging here, now that we finally have our settings.
         // But don't fail init.
-        Result layerResult = pPlatform->CommitLoggingSettings();
+        const Result layerResult = pPlatform->CommitLoggingSettings();
         PAL_ALERT_MSG(layerResult != Result::Success, "Failed to initialize interface logger");
         if ((layerResult == Result::ErrorPermissionDenied) ||
             (layerResult == Result::NotFound))
@@ -101,9 +96,10 @@ Result Device::CommitSettingsAndInit()
         }
     }
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginOutput();
         pLogContext->KeyAndEnum("result", result);
         pLogContext->EndOutput();
@@ -118,18 +114,14 @@ Result Device::CommitSettingsAndInit()
 Result Device::Finalize(
     const DeviceFinalizeInfo& finalizeInfo)
 {
-    auto*const pPlatform = static_cast<Platform*>(m_pPlatform);
+    auto*const   pPlatform = static_cast<Platform*>(m_pPlatform);
+    const bool   active    = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceFinalize);
+    const Result result    = DeviceDecorator::Finalize(finalizeInfo);
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceFinalize;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = DeviceDecorator::Finalize(finalizeInfo);
-    funcInfo.postCallTime = pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("finalizeInfo", finalizeInfo);
         pLogContext->EndInput();
@@ -147,18 +139,14 @@ Result Device::Finalize(
 // =====================================================================================================================
 Result Device::Cleanup()
 {
-    auto*const pPlatform = static_cast<Platform*>(m_pPlatform);
+    auto*const   pPlatform = static_cast<Platform*>(m_pPlatform);
+    const bool   active    = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceCleanup);
+    const Result result    = DeviceDecorator::Cleanup();
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceCleanup;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = DeviceDecorator::Cleanup();
-    funcInfo.postCallTime = pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginOutput();
         pLogContext->KeyAndEnum("result", result);
         pLogContext->EndOutput();
@@ -173,18 +161,14 @@ Result Device::Cleanup()
 Result Device::SetMaxQueuedFrames(
     uint32 maxFrames)
 {
-    auto*const pPlatform = static_cast<Platform*>(m_pPlatform);
+    auto*const   pPlatform = static_cast<Platform*>(m_pPlatform);
+    const bool   active    = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceSetMaxQueuedFrames);
+    const Result result    = DeviceDecorator::SetMaxQueuedFrames(maxFrames);
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceSetMaxQueuedFrames;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = DeviceDecorator::SetMaxQueuedFrames(maxFrames);
-    funcInfo.postCallTime = pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndValue("maxFrames", maxFrames);
         pLogContext->EndInput();
@@ -207,18 +191,15 @@ Result Device::AddGpuMemoryReferences(
     uint32              flags
     )
 {
-    auto*const pPlatform = static_cast<Platform*>(m_pPlatform);
+    auto*const   pPlatform = static_cast<Platform*>(m_pPlatform);
+    const bool   active    = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceAddGpuMemoryReferences);
+    const Result result    = DeviceDecorator::AddGpuMemoryReferences(gpuMemRefCount, pGpuMemoryRefs, pQueue, flags
+                                );
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceAddGpuMemoryReferences;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = DeviceDecorator::AddGpuMemoryReferences(gpuMemRefCount, pGpuMemoryRefs, pQueue, flags);
-    funcInfo.postCallTime = pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndGpuMemoryRefFlags("flags", flags);
         pLogContext->KeyAndBeginList("gpuMemoryRefs", false);
@@ -249,18 +230,15 @@ Result Device::RemoveGpuMemoryReferences(
     IQueue*           pQueue
     )
 {
-    auto*const pPlatform = static_cast<Platform*>(m_pPlatform);
+    auto*const   pPlatform = static_cast<Platform*>(m_pPlatform);
+    const bool   active    = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceRemoveGpuMemoryReferences);
+    const Result result    = DeviceDecorator::RemoveGpuMemoryReferences(gpuMemoryCount, ppGpuMemory, pQueue
+                                );
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceRemoveGpuMemoryReferences;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = DeviceDecorator::RemoveGpuMemoryReferences(gpuMemoryCount, ppGpuMemory, pQueue);
-    funcInfo.postCallTime = pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndBeginList("gpuMemoryList", false);
 
@@ -288,18 +266,14 @@ Result Device::SetClockMode(
     const SetClockModeInput& setClockModeInput,
     SetClockModeOutput*      pSetClockModeOutput)
 {
-    auto*const pPlatform = static_cast<Platform*>(m_pPlatform);
+    auto*const   pPlatform = static_cast<Platform*>(m_pPlatform);
+    const bool   active    = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceSetClockMode);
+    const Result result    = m_pNextLayer->SetClockMode(setClockModeInput, pSetClockModeOutput);
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceSetClockMode;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    Result result         = m_pNextLayer->SetClockMode(setClockModeInput, pSetClockModeOutput);
-    funcInfo.postCallTime = pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("setClockModeInput", setClockModeInput);
         pLogContext->EndInput();
@@ -328,18 +302,14 @@ Result Device::SetMgpuMode(
     const SetMgpuModeInput& setMgpuModeInput
     ) const
 {
-    auto*const pPlatform = static_cast<Platform*>(m_pPlatform);
+    auto*const   pPlatform = static_cast<Platform*>(m_pPlatform);
+    const bool   active    = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceSetMgpuMode);
+    const Result result    = DeviceDecorator::SetMgpuMode(setMgpuModeInput);
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceSetMgpuMode;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = DeviceDecorator::SetMgpuMode(setMgpuModeInput);
-    funcInfo.postCallTime = pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("setMgpuModeInput", setMgpuModeInput);
         pLogContext->EndInput();
@@ -360,18 +330,14 @@ Result Device::ResetFences(
     IFence*const* ppFences
     ) const
 {
-    auto*const pPlatform = static_cast<Platform*>(m_pPlatform);
+    auto*const   pPlatform = static_cast<Platform*>(m_pPlatform);
+    const bool   active    = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceResetFences);
+    const Result result    = DeviceDecorator::ResetFences(fenceCount, ppFences);
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceResetFences;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = DeviceDecorator::ResetFences(fenceCount, ppFences);
-    funcInfo.postCallTime = pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndBeginList("fences", false);
 
@@ -401,18 +367,14 @@ Result Device::WaitForFences(
     std::chrono::nanoseconds timeout
     ) const
 {
-    auto*const pPlatform = static_cast<Platform*>(m_pPlatform);
+    auto*const   pPlatform = static_cast<Platform*>(m_pPlatform);
+    const bool   active    = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceWaitForFences);
+    const Result result    = DeviceDecorator::WaitForFences(fenceCount, ppFences, waitAll, timeout);
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceWaitForFences;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = DeviceDecorator::WaitForFences(fenceCount, ppFences, waitAll, timeout);
-    funcInfo.postCallTime = pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndBeginList("fences", false);
 
@@ -443,17 +405,14 @@ void Device::BindTrapHandler(
     gpusize           offset)
 {
     auto*const pPlatform = static_cast<Platform*>(m_pPlatform);
+    const bool active    = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceBindTrapHandler);
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceBindTrapHandler;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
     DeviceDecorator::BindTrapHandler(pipelineType, pGpuMemory, offset);
-    funcInfo.postCallTime = pPlatform->GetTime();
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndEnum("pipelineType", pipelineType);
         pLogContext->KeyAndObject("gpuMemory", pGpuMemory);
@@ -471,17 +430,14 @@ void Device::BindTrapBuffer(
     gpusize           offset)
 {
     auto*const pPlatform = static_cast<Platform*>(m_pPlatform);
+    const bool active    = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceBindTrapBuffer);
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceBindTrapBuffer;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
     DeviceDecorator::BindTrapBuffer(pipelineType, pGpuMemory, offset);
-    funcInfo.postCallTime = pPlatform->GetTime();
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndEnum("pipelineType", pipelineType);
         pLogContext->KeyAndObject("gpuMemory", pGpuMemory);
@@ -510,12 +466,10 @@ Result Device::CreateQueue(
     auto*const pPlatform  = static_cast<Platform*>(m_pPlatform);
     IQueue*    pNextQueue = nullptr;
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceCreateQueue;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = m_pNextLayer->CreateQueue(createInfo, NextObjectAddr<Queue>(pPlacementAddr), &pNextQueue);
-    funcInfo.postCallTime = pPlatform->GetTime();
+    const bool   active = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceCreateQueue);
+    const Result result = m_pNextLayer->CreateQueue(createInfo,
+                                                    NextObjectAddr<Queue>(pPlacementAddr),
+                                                    &pNextQueue);
 
     if (result == Result::Success)
     {
@@ -527,9 +481,10 @@ Result Device::CreateQueue(
         (*ppQueue) = PAL_PLACEMENT_NEW(pPlacementAddr) Queue(pNextQueue, this, objectId);
     }
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("createInfo", createInfo);
         pLogContext->EndInput();
@@ -565,15 +520,11 @@ Result Device::CreateMultiQueue(
     auto*const pPlatform  = static_cast<Platform*>(m_pPlatform);
     IQueue*    pNextQueue = nullptr;
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceCreateMultiQueue;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = m_pNextLayer->CreateMultiQueue(queueCount,
-                                                           pCreateInfo,
-                                                           NextObjectAddr<Queue>(pPlacementAddr),
-                                                           &pNextQueue);
-    funcInfo.postCallTime = pPlatform->GetTime();
+    const bool   active = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceCreateMultiQueue);
+    const Result result = m_pNextLayer->CreateMultiQueue(queueCount,
+                                                         pCreateInfo,
+                                                         NextObjectAddr<Queue>(pPlacementAddr),
+                                                         &pNextQueue);
 
     if (result == Result::Success)
     {
@@ -585,9 +536,10 @@ Result Device::CreateMultiQueue(
         (*ppQueue) = PAL_PLACEMENT_NEW(pPlacementAddr) Queue(pNextQueue, this, objectId);
     }
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndBeginList("createInfo", false);
 
@@ -634,14 +586,10 @@ Result Device::CreateGpuMemory(
     GpuMemoryCreateInfo nextCreateInfo = createInfo;
     nextCreateInfo.pImage = NextImage(nextCreateInfo.pImage);
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceCreateGpuMemory;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = m_pNextLayer->CreateGpuMemory(nextCreateInfo,
-                                                          NextObjectAddr<GpuMemory>(pPlacementAddr),
-                                                          &pNextGpuMemory);
-    funcInfo.postCallTime = pPlatform->GetTime();
+    const bool   active = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceCreateGpuMemory);
+    const Result result = m_pNextLayer->CreateGpuMemory(nextCreateInfo,
+                                                        NextObjectAddr<GpuMemory>(pPlacementAddr),
+                                                        &pNextGpuMemory);
 
     if (result == Result::Success)
     {
@@ -653,9 +601,10 @@ Result Device::CreateGpuMemory(
         (*ppGpuMemory) = PAL_PLACEMENT_NEW(pPlacementAddr) GpuMemory(pNextGpuMemory, this, objectId);
     }
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("createInfo", createInfo);
         pLogContext->EndInput();
@@ -696,14 +645,10 @@ Result Device::CreatePinnedGpuMemory(
     auto*const  pPlatform   = static_cast<Platform*>(m_pPlatform);
     IGpuMemory* pNextMemObj = nullptr;
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceCreatePinnedGpuMemory;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = m_pNextLayer->CreatePinnedGpuMemory(createInfo,
-                                                                NextObjectAddr<GpuMemory>(pPlacementAddr),
-                                                                &pNextMemObj);
-    funcInfo.postCallTime = pPlatform->GetTime();
+    const bool   active = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceCreatePinnedGpuMemory);
+    const Result result = m_pNextLayer->CreatePinnedGpuMemory(createInfo,
+                                                              NextObjectAddr<GpuMemory>(pPlacementAddr),
+                                                              &pNextMemObj);
 
     if (result == Result::Success)
     {
@@ -715,9 +660,10 @@ Result Device::CreatePinnedGpuMemory(
         (*ppGpuMemory) = PAL_PLACEMENT_NEW(pPlacementAddr) GpuMemory(pNextMemObj, this, objectId);
     }
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("createInfo", createInfo);
         pLogContext->EndInput();
@@ -763,14 +709,10 @@ Result Device::CreateSvmGpuMemory(
     SvmGpuMemoryCreateInfo nextCreateInfo = createInfo;
     nextCreateInfo.pReservedGpuVaOwner = NextGpuMemory(createInfo.pReservedGpuVaOwner);
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceCreateSvmGpuMemory;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = m_pNextLayer->CreateSvmGpuMemory(nextCreateInfo,
-                                                             NextObjectAddr<GpuMemory>(pPlacementAddr),
-                                                             &pNextMemObj);
-    funcInfo.postCallTime = pPlatform->GetTime();
+    const bool   active = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceCreateSvmGpuMemory);
+    const Result result = m_pNextLayer->CreateSvmGpuMemory(nextCreateInfo,
+                                                           NextObjectAddr<GpuMemory>(pPlacementAddr),
+                                                           &pNextMemObj);
 
     if (result == Result::Success)
     {
@@ -782,9 +724,10 @@ Result Device::CreateSvmGpuMemory(
         (*ppGpuMemory) = PAL_PLACEMENT_NEW(pPlacementAddr) GpuMemory(pNextMemObj, this, objectId);
     }
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("createInfo", createInfo);
         pLogContext->EndInput();
@@ -831,14 +774,10 @@ Result Device::OpenSharedGpuMemory(
     GpuMemoryOpenInfo nextOpenInfo = openInfo;
     nextOpenInfo.pSharedMem = NextGpuMemory(openInfo.pSharedMem);
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceOpenSharedGpuMemory;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = m_pNextLayer->OpenSharedGpuMemory(nextOpenInfo,
-                                                              NextObjectAddr<GpuMemory>(pPlacementAddr),
-                                                              &pNextMemObj);
-    funcInfo.postCallTime = pPlatform->GetTime();
+    const bool   active = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceOpenSharedGpuMemory);
+    const Result result = m_pNextLayer->OpenSharedGpuMemory(nextOpenInfo,
+                                                            NextObjectAddr<GpuMemory>(pPlacementAddr),
+                                                            &pNextMemObj);
 
     if (result == Result::Success)
     {
@@ -850,9 +789,10 @@ Result Device::OpenSharedGpuMemory(
         (*ppGpuMemory) = PAL_PLACEMENT_NEW(pPlacementAddr) GpuMemory(pNextMemObj, this, objectId);
     }
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("openInfo", openInfo);
         pLogContext->EndInput();
@@ -893,15 +833,11 @@ Result Device::OpenExternalSharedGpuMemory(
     auto*const  pPlatform   = static_cast<Platform*>(m_pPlatform);
     IGpuMemory* pNextMemObj = nullptr;
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceOpenExternalSharedGpuMemory;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = m_pNextLayer->OpenExternalSharedGpuMemory(openInfo,
-                                                                      NextObjectAddr<GpuMemory>(pPlacementAddr),
-                                                                      pMemCreateInfo,
-                                                                      &pNextMemObj);
-    funcInfo.postCallTime = pPlatform->GetTime();
+    const bool   active = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceOpenExternalSharedGpuMemory);
+    const Result result = m_pNextLayer->OpenExternalSharedGpuMemory(openInfo,
+                                                                    NextObjectAddr<GpuMemory>(pPlacementAddr),
+                                                                    pMemCreateInfo,
+                                                                    &pNextMemObj);
 
     if (result == Result::Success)
     {
@@ -913,9 +849,10 @@ Result Device::OpenExternalSharedGpuMemory(
         (*ppGpuMemory) = PAL_PLACEMENT_NEW(pPlacementAddr) GpuMemory(pNextMemObj, this, objectId);
     }
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("openInfo", openInfo);
         pLogContext->EndInput();
@@ -963,14 +900,10 @@ Result Device::OpenPeerGpuMemory(
     PeerGpuMemoryOpenInfo nextOpenInfo = openInfo;
     nextOpenInfo.pOriginalMem = NextGpuMemory(openInfo.pOriginalMem);
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceOpenPeerGpuMemory;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = m_pNextLayer->OpenPeerGpuMemory(nextOpenInfo,
-                                                            NextObjectAddr<GpuMemory>(pPlacementAddr),
-                                                            &pNextMemObj);
-    funcInfo.postCallTime = pPlatform->GetTime();
+    const bool   active = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceOpenPeerGpuMemory);
+    const Result result = m_pNextLayer->OpenPeerGpuMemory(nextOpenInfo,
+                                                          NextObjectAddr<GpuMemory>(pPlacementAddr),
+                                                          &pNextMemObj);
 
     if (result == Result::Success)
     {
@@ -982,9 +915,10 @@ Result Device::OpenPeerGpuMemory(
         (*ppGpuMemory) = PAL_PLACEMENT_NEW(pPlacementAddr) GpuMemory(pNextMemObj, this, objectId);
     }
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("openInfo", openInfo);
         pLogContext->EndInput();
@@ -1025,14 +959,10 @@ Result Device::CreateImage(
     auto*const pPlatform  = static_cast<Platform*>(m_pPlatform);
     IImage*    pNextImage = nullptr;
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceCreateImage;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = m_pNextLayer->CreateImage(createInfo,
-                                                      NextObjectAddr<Image>(pPlacementAddr),
-                                                      &pNextImage);
-    funcInfo.postCallTime = pPlatform->GetTime();
+    const bool   active = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceCreateImage);
+    const Result result = m_pNextLayer->CreateImage(createInfo,
+                                                    NextObjectAddr<Image>(pPlacementAddr),
+                                                    &pNextImage);
 
     if (result == Result::Success)
     {
@@ -1044,9 +974,10 @@ Result Device::CreateImage(
         (*ppImage) = PAL_PLACEMENT_NEW(pPlacementAddr) Image(pNextImage, this, objectId);
     }
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("createInfo", createInfo);
         pLogContext->EndInput();
@@ -1055,6 +986,11 @@ Result Device::CreateImage(
         pLogContext->KeyAndEnum("result", result);
         pLogContext->KeyAndObject("createdObj", *ppImage);
         pLogContext->EndOutput();
+
+        if (result == Result::Success)
+        {
+            pLogContext->KeyAndStruct("ImageMemoryLayout", (*ppImage)->GetMemoryLayout());
+        }
 
         pPlatform->LogEndFunc(pLogContext);
     }
@@ -1096,16 +1032,12 @@ Result Device::CreatePresentableImage(
     nextCreateInfo.pScreen    = NextScreen(createInfo.pScreen);
     nextCreateInfo.pSwapChain = NextSwapChain(createInfo.pSwapChain);
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceCreatePresentableImage;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = m_pNextLayer->CreatePresentableImage(nextCreateInfo,
-                                                                 NextObjectAddr<Image>(pImagePlacementAddr),
-                                                                 NextObjectAddr<GpuMemory>(pGpuMemoryPlacementAddr),
-                                                                 &pNextImage,
-                                                                 &pNextGpuMemory);
-    funcInfo.postCallTime = pPlatform->GetTime();
+    const bool   active = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceCreatePresentableImage);
+    const Result result = m_pNextLayer->CreatePresentableImage(nextCreateInfo,
+                                                               NextObjectAddr<Image>(pImagePlacementAddr),
+                                                               NextObjectAddr<GpuMemory>(pGpuMemoryPlacementAddr),
+                                                               &pNextImage,
+                                                               &pNextGpuMemory);
 
     if ((result == Result::Success) || (result == Result::TooManyFlippableAllocations))
     {
@@ -1120,9 +1052,10 @@ Result Device::CreatePresentableImage(
         (*ppGpuMemory) = PAL_PLACEMENT_NEW(pGpuMemoryPlacementAddr) GpuMemory(pNextGpuMemory, this, gpuMemoryId);
     }
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("createInfo", createInfo);
         pLogContext->EndInput();
@@ -1139,6 +1072,11 @@ Result Device::CreatePresentableImage(
         }
 
         pLogContext->EndOutput();
+
+        if (result == Result::Success)
+        {
+            pLogContext->KeyAndStruct("ImageMemoryLayout", (*ppImage)->GetMemoryLayout());
+        }
 
         pPlatform->LogEndFunc(pLogContext);
     }
@@ -1178,16 +1116,12 @@ Result Device::OpenPeerImage(
     PeerImageOpenInfo nextOpenInfo = openInfo;
     nextOpenInfo.pOriginalImage = NextImage(openInfo.pOriginalImage);
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceOpenPeerImage;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = m_pNextLayer->OpenPeerImage(nextOpenInfo,
-                                                        NextObjectAddr<Image>(pImagePlacementAddr),
-                                                        NextObjectAddr<GpuMemory>(pGpuMemoryPlacementAddr),
-                                                        &pNextImage,
-                                                        &pNextGpuMemory);
-    funcInfo.postCallTime = pPlatform->GetTime();
+    const bool   active = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceOpenPeerImage);
+    const Result result = m_pNextLayer->OpenPeerImage(nextOpenInfo,
+                                                      NextObjectAddr<Image>(pImagePlacementAddr),
+                                                      NextObjectAddr<GpuMemory>(pGpuMemoryPlacementAddr),
+                                                      &pNextImage,
+                                                      &pNextGpuMemory);
 
     if (result == Result::Success)
     {
@@ -1203,9 +1137,10 @@ Result Device::OpenPeerImage(
         (*ppGpuMemory) = PAL_PLACEMENT_NEW(pGpuMemoryPlacementAddr) GpuMemory(pNextGpuMemory, this, gpuMemoryId);
     }
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("openInfo", openInfo);
         pLogContext->EndInput();
@@ -1215,13 +1150,14 @@ Result Device::OpenPeerImage(
         pLogContext->KeyAndObject("createdImageObj", *ppImage);
         pLogContext->KeyAndObject("createdGpuMemoryObj", *ppGpuMemory);
 
+        pLogContext->EndOutput();
+
         if (result == Result::Success)
         {
             PAL_ASSERT(*ppGpuMemory != nullptr);
             pLogContext->KeyAndStruct("GpuMemoryDesc", (*ppGpuMemory)->Desc());
+            pLogContext->KeyAndStruct("ImageMemoryLayout", (*ppImage)->GetMemoryLayout());
         }
-
-        pLogContext->EndOutput();
 
         pPlatform->LogEndFunc(pLogContext);
     }
@@ -1258,17 +1194,13 @@ Result Device::OpenExternalSharedImage(
     IImage*     pNextImage     = nullptr;
     IGpuMemory* pNextGpuMemory = nullptr;
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceOpenExternalSharedImage;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = m_pNextLayer->OpenExternalSharedImage(openInfo,
-                                                                  NextObjectAddr<Image>(pImagePlacementAddr),
-                                                                  NextObjectAddr<GpuMemory>(pGpuMemoryPlacementAddr),
-                                                                  pMemCreateInfo,
-                                                                  &pNextImage,
-                                                                  &pNextGpuMemory);
-    funcInfo.postCallTime = pPlatform->GetTime();
+    const bool   active = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceOpenExternalSharedImage);
+    const Result result = m_pNextLayer->OpenExternalSharedImage(openInfo,
+                                                                NextObjectAddr<Image>(pImagePlacementAddr),
+                                                                NextObjectAddr<GpuMemory>(pGpuMemoryPlacementAddr),
+                                                                pMemCreateInfo,
+                                                                &pNextImage,
+                                                                &pNextGpuMemory);
 
     if (result == Result::Success)
     {
@@ -1284,9 +1216,10 @@ Result Device::OpenExternalSharedImage(
         (*ppGpuMemory) = PAL_PLACEMENT_NEW(pGpuMemoryPlacementAddr) GpuMemory(pNextGpuMemory, this, gpuMemoryId);
     }
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("openInfo", openInfo);
         pLogContext->EndInput();
@@ -1312,6 +1245,11 @@ Result Device::OpenExternalSharedImage(
         }
 
         pLogContext->EndOutput();
+
+        if (result == Result::Success)
+        {
+            pLogContext->KeyAndStruct("ImageMemoryLayout", (*ppImage)->GetMemoryLayout());
+        }
 
         pPlatform->LogEndFunc(pLogContext);
     }
@@ -1348,14 +1286,10 @@ Result Device::CreateColorTargetView(
         nextCreateInfo.imageInfo.pImage      = NextImage(createInfo.imageInfo.pImage);
     }
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceCreateColorTargetView;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = m_pNextLayer->CreateColorTargetView(nextCreateInfo,
-                                                                NextObjectAddr<ColorTargetView>(pPlacementAddr),
-                                                                &pNextView);
-    funcInfo.postCallTime = pPlatform->GetTime();
+    const bool   active = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceCreateColorTargetView);
+    const Result result = m_pNextLayer->CreateColorTargetView(nextCreateInfo,
+                                                              NextObjectAddr<ColorTargetView>(pPlacementAddr),
+                                                              &pNextView);
 
     if (result == Result::Success)
     {
@@ -1364,12 +1298,14 @@ Result Device::CreateColorTargetView(
 
         const uint32 objectId = pPlatform->NewObjectId(InterfaceObject::ColorTargetView);
 
-        (*ppColorTargetView) = PAL_PLACEMENT_NEW(pPlacementAddr) ColorTargetView(pNextView, createInfo, this, objectId);
+        (*ppColorTargetView) =
+            PAL_PLACEMENT_NEW(pPlacementAddr) ColorTargetView(pNextView, createInfo, this, objectId);
     }
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("createInfo", createInfo);
         pLogContext->EndInput();
@@ -1406,14 +1342,10 @@ Result Device::CreateDepthStencilView(
     DepthStencilViewCreateInfo nextCreateInfo = createInfo;
     nextCreateInfo.pImage                     = NextImage(createInfo.pImage);
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceCreateDepthStencilView;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = m_pNextLayer->CreateDepthStencilView(nextCreateInfo,
-                                                                 NextObjectAddr<DepthStencilView>(pPlacementAddr),
-                                                                 &pNextView);
-    funcInfo.postCallTime = pPlatform->GetTime();
+    const bool   active = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceCreateDepthStencilView);
+    const Result result = m_pNextLayer->CreateDepthStencilView(nextCreateInfo,
+                                                               NextObjectAddr<DepthStencilView>(pPlacementAddr),
+                                                               &pNextView);
 
     if (result == Result::Success)
     {
@@ -1422,12 +1354,14 @@ Result Device::CreateDepthStencilView(
 
         const uint32 objectId = pPlatform->NewObjectId(InterfaceObject::DepthStencilView);
 
-        (*ppDepthStencilView) = PAL_PLACEMENT_NEW(pPlacementAddr) DepthStencilView(pNextView, nextCreateInfo, this, objectId);
+        (*ppDepthStencilView) =
+            PAL_PLACEMENT_NEW(pPlacementAddr) DepthStencilView(pNextView, nextCreateInfo, this, objectId);
     }
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("createInfo", createInfo);
         pLogContext->EndInput();
@@ -1447,18 +1381,14 @@ Result Device::CreateDepthStencilView(
 Result Device::SetSamplePatternPalette(
     const SamplePatternPalette& palette)
 {
-    auto*const pPlatform = static_cast<Platform*>(m_pPlatform);
+    auto*const   pPlatform = static_cast<Platform*>(m_pPlatform);
+    const bool   active    = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceSetSamplePatternPalette);
+    const Result result    = DeviceDecorator::SetSamplePatternPalette(palette);
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceSetSamplePatternPalette;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = DeviceDecorator::SetSamplePatternPalette(palette);
-    funcInfo.postCallTime = pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("palette", palette);
         pLogContext->EndInput();
@@ -1492,14 +1422,10 @@ Result Device::CreateBorderColorPalette(
     auto*const           pPlatform    = static_cast<Platform*>(m_pPlatform);
     IBorderColorPalette* pNextPalette = nullptr;
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceCreateBorderColorPalette;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = m_pNextLayer->CreateBorderColorPalette(createInfo,
-                                                                   NextObjectAddr<BorderColorPalette>(pPlacementAddr),
-                                                                   &pNextPalette);
-    funcInfo.postCallTime = pPlatform->GetTime();
+    const bool   active = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceCreateBorderColorPalette);
+    const Result result = m_pNextLayer->CreateBorderColorPalette(createInfo,
+                                                                 NextObjectAddr<BorderColorPalette>(pPlacementAddr),
+                                                                 &pNextPalette);
 
     if (result == Result::Success)
     {
@@ -1511,9 +1437,10 @@ Result Device::CreateBorderColorPalette(
         (*ppPalette) = PAL_PLACEMENT_NEW(pPlacementAddr) BorderColorPalette(pNextPalette, this, objectId);
     }
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("createInfo", createInfo);
         pLogContext->EndInput();
@@ -1547,14 +1474,10 @@ Result Device::CreateComputePipeline(
     auto*const pPlatform     = static_cast<Platform*>(m_pPlatform);
     IPipeline* pNextPipeline = nullptr;
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceCreateComputePipeline;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = m_pNextLayer->CreateComputePipeline(createInfo,
-                                                                NextObjectAddr<Pipeline>(pPlacementAddr),
-                                                                &pNextPipeline);
-    funcInfo.postCallTime = pPlatform->GetTime();
+    const bool   active = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceCreateComputePipeline);
+    const Result result = m_pNextLayer->CreateComputePipeline(createInfo,
+                                                              NextObjectAddr<Pipeline>(pPlacementAddr),
+                                                              &pNextPipeline);
 
     if (result == Result::Success)
     {
@@ -1566,9 +1489,10 @@ Result Device::CreateComputePipeline(
         (*ppPipeline) = PAL_PLACEMENT_NEW(pPlacementAddr) Pipeline(pNextPipeline, this, objectId);
     }
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("createInfo", createInfo);
         pLogContext->EndInput();
@@ -1616,15 +1540,11 @@ Result Device::CreateGraphicsPipeline(
 {
     auto*const pPlatform     = static_cast<Platform*>(m_pPlatform);
     IPipeline* pNextPipeline = nullptr;
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceCreateGraphicsPipeline;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    Result result = CallNextCreateGraphicsPipeline(createInfo,
-                                                   NextObjectAddr<Pipeline>(pPlacementAddr),
-                                                   &pNextPipeline);
 
-    funcInfo.postCallTime = pPlatform->GetTime();
+    const bool   active = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceCreateGraphicsPipeline);
+    const Result result = CallNextCreateGraphicsPipeline(createInfo,
+                                                         NextObjectAddr<Pipeline>(pPlacementAddr),
+                                                         &pNextPipeline);
 
     if (result == Result::Success)
     {
@@ -1636,9 +1556,10 @@ Result Device::CreateGraphicsPipeline(
         (*ppPipeline) = PAL_PLACEMENT_NEW(pPlacementAddr) Pipeline(pNextPipeline, this, objectId);
     }
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("createInfo", createInfo);
         pLogContext->EndInput();
@@ -1687,14 +1608,10 @@ Result Device::CreateShaderLibrary(
     auto*const      pPlatform = static_cast<Platform*>(m_pPlatform);
     IShaderLibrary* pLibrary  = nullptr;
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceCreateShaderLibrary;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    Result result = m_pNextLayer->CreateShaderLibrary(createInfo,
-                                                      NextObjectAddr<ShaderLibrary>(pPlacementAddr),
-                                                      &pLibrary);
-    funcInfo.postCallTime = pPlatform->GetTime();
+    const bool   active = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceCreateShaderLibrary);
+    const Result result = m_pNextLayer->CreateShaderLibrary(createInfo,
+                                                            NextObjectAddr<ShaderLibrary>(pPlacementAddr),
+                                                            &pLibrary);
 
     if (result == Result::Success)
     {
@@ -1706,9 +1623,10 @@ Result Device::CreateShaderLibrary(
         (*ppLibrary) = PAL_PLACEMENT_NEW(pPlacementAddr) ShaderLibrary(pLibrary, this, objectId);
     }
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("createInfo", createInfo);
         pLogContext->EndInput();
@@ -1736,8 +1654,7 @@ Result Device::CreateShaderLibrary(
 }
 
 // =====================================================================================================================
-size_t Device::GetMsaaStateSize(
-    ) const
+size_t Device::GetMsaaStateSize() const
 {
     return m_pNextLayer->GetMsaaStateSize() + sizeof(MsaaState);
 }
@@ -1752,14 +1669,10 @@ Result Device::CreateMsaaState(
     auto*const  pPlatform  = static_cast<Platform*>(m_pPlatform);
     IMsaaState* pNextState = nullptr;
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceCreateMsaaState;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = m_pNextLayer->CreateMsaaState(createInfo,
-                                                          NextObjectAddr<MsaaState>(pPlacementAddr),
-                                                          &pNextState);
-    funcInfo.postCallTime = pPlatform->GetTime();
+    const bool   active = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceCreateMsaaState);
+    const Result result = m_pNextLayer->CreateMsaaState(createInfo,
+                                                        NextObjectAddr<MsaaState>(pPlacementAddr),
+                                                        &pNextState);
 
     if (result == Result::Success)
     {
@@ -1771,9 +1684,10 @@ Result Device::CreateMsaaState(
         (*ppMsaaState) = PAL_PLACEMENT_NEW(pPlacementAddr) MsaaState(pNextState, this, objectId);
     }
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("createInfo", createInfo);
         pLogContext->EndInput();
@@ -1790,8 +1704,7 @@ Result Device::CreateMsaaState(
 }
 
 // =====================================================================================================================
-size_t Device::GetColorBlendStateSize(
-    ) const
+size_t Device::GetColorBlendStateSize() const
 {
     return m_pNextLayer->GetColorBlendStateSize() + sizeof(ColorBlendState);
 }
@@ -1806,14 +1719,10 @@ Result Device::CreateColorBlendState(
     auto*const        pPlatform  = static_cast<Platform*>(m_pPlatform);
     IColorBlendState* pNextState = nullptr;
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceCreateColorBlendState;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = m_pNextLayer->CreateColorBlendState(createInfo,
-                                                                NextObjectAddr<ColorBlendState>(pPlacementAddr),
-                                                                &pNextState);
-    funcInfo.postCallTime = pPlatform->GetTime();
+    const bool   active = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceCreateColorBlendState);
+    const Result result = m_pNextLayer->CreateColorBlendState(createInfo,
+                                                              NextObjectAddr<ColorBlendState>(pPlacementAddr),
+                                                              &pNextState);
 
     if (result == Result::Success)
     {
@@ -1825,9 +1734,10 @@ Result Device::CreateColorBlendState(
         (*ppColorBlendState) = PAL_PLACEMENT_NEW(pPlacementAddr) ColorBlendState(pNextState, this, objectId);
     }
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("createInfo", createInfo);
         pLogContext->EndInput();
@@ -1844,8 +1754,7 @@ Result Device::CreateColorBlendState(
 }
 
 // =====================================================================================================================
-size_t Device::GetDepthStencilStateSize(
-    ) const
+size_t Device::GetDepthStencilStateSize() const
 {
     return m_pNextLayer->GetDepthStencilStateSize() + sizeof(DepthStencilState);
 }
@@ -1860,14 +1769,10 @@ Result Device::CreateDepthStencilState(
     auto*const          pPlatform  = static_cast<Platform*>(m_pPlatform);
     IDepthStencilState* pNextState = nullptr;
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceCreateDepthStencilState;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = m_pNextLayer->CreateDepthStencilState(createInfo,
-                                                                  NextObjectAddr<DepthStencilState>(pPlacementAddr),
-                                                                  &pNextState);
-    funcInfo.postCallTime = pPlatform->GetTime();
+    const bool   active = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceCreateDepthStencilState);
+    const Result result = m_pNextLayer->CreateDepthStencilState(createInfo,
+                                                                NextObjectAddr<DepthStencilState>(pPlacementAddr),
+                                                                &pNextState);
 
     if (result == Result::Success)
     {
@@ -1879,9 +1784,10 @@ Result Device::CreateDepthStencilState(
         (*ppDepthStencilState) = PAL_PLACEMENT_NEW(pPlacementAddr) DepthStencilState(pNextState, this, objectId);
     }
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("createInfo", createInfo);
         pLogContext->EndInput();
@@ -1915,14 +1821,10 @@ Result Device::CreateQueueSemaphore(
     auto*const       pPlatform      = static_cast<Platform*>(m_pPlatform);
     IQueueSemaphore* pNextSemaphore = nullptr;
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceCreateQueueSemaphore;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = m_pNextLayer->CreateQueueSemaphore(createInfo,
-                                                               NextObjectAddr<QueueSemaphore>(pPlacementAddr),
-                                                               &pNextSemaphore);
-    funcInfo.postCallTime = pPlatform->GetTime();
+    const bool   active = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceCreateQueueSemaphore);
+    const Result result = m_pNextLayer->CreateQueueSemaphore(createInfo,
+                                                             NextObjectAddr<QueueSemaphore>(pPlacementAddr),
+                                                             &pNextSemaphore);
 
     if (result == Result::Success)
     {
@@ -1934,9 +1836,10 @@ Result Device::CreateQueueSemaphore(
         (*ppQueueSemaphore) = PAL_PLACEMENT_NEW(pPlacementAddr) QueueSemaphore(pNextSemaphore, this, objectId);
     }
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("createInfo", createInfo);
         pLogContext->EndInput();
@@ -1976,14 +1879,10 @@ Result Device::OpenSharedQueueSemaphore(
     QueueSemaphoreOpenInfo nextOpenInfo = openInfo;
     nextOpenInfo.pSharedQueueSemaphore  = NextQueueSemaphore(openInfo.pSharedQueueSemaphore);
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceOpenSharedQueueSemaphore;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = m_pNextLayer->OpenSharedQueueSemaphore(nextOpenInfo,
-                                                                   NextObjectAddr<QueueSemaphore>(pPlacementAddr),
-                                                                   &pNextSemaphore);
-    funcInfo.postCallTime = pPlatform->GetTime();
+    const bool   active = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceOpenSharedQueueSemaphore);
+    const Result result = m_pNextLayer->OpenSharedQueueSemaphore(nextOpenInfo,
+                                                                 NextObjectAddr<QueueSemaphore>(pPlacementAddr),
+                                                                 &pNextSemaphore);
 
     if (result == Result::Success)
     {
@@ -1995,9 +1894,10 @@ Result Device::OpenSharedQueueSemaphore(
         (*ppQueueSemaphore) = PAL_PLACEMENT_NEW(pPlacementAddr) QueueSemaphore(pNextSemaphore, this, objectId);
     }
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("openInfo", openInfo);
         pLogContext->EndInput();
@@ -2032,14 +1932,10 @@ Result Device::OpenExternalSharedQueueSemaphore(
     auto*const       pPlatform      = static_cast<Platform*>(m_pPlatform);
     IQueueSemaphore* pNextSemaphore = nullptr;
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceOpenExternalSharedQueueSemaphore;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
+    const bool   active = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceOpenExternalSharedQueueSemaphore);
     const Result result = m_pNextLayer->OpenExternalSharedQueueSemaphore(openInfo,
                                                                          NextObjectAddr<QueueSemaphore>(pPlacementAddr),
                                                                          &pNextSemaphore);
-    funcInfo.postCallTime = pPlatform->GetTime();
 
     if (result == Result::Success)
     {
@@ -2051,9 +1947,10 @@ Result Device::OpenExternalSharedQueueSemaphore(
         (*ppQueueSemaphore) = PAL_PLACEMENT_NEW(pPlacementAddr) QueueSemaphore(pNextSemaphore, this, objectId);
     }
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("openInfo", openInfo);
         pLogContext->EndInput();
@@ -2087,15 +1984,10 @@ Result Device::CreateFence(
     auto*const pPlatform  = static_cast<Platform*>(m_pPlatform);
     IFence*    pNextFence = nullptr;
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceCreateFence;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-
-    const Result result   = m_pNextLayer->CreateFence(createInfo,
-                                                      NextObjectAddr<Fence>(pPlacementAddr),
-                                                      &pNextFence);
-    funcInfo.postCallTime = pPlatform->GetTime();
+    const bool   active = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceCreateFence);
+    const Result result = m_pNextLayer->CreateFence(createInfo,
+                                                    NextObjectAddr<Fence>(pPlacementAddr),
+                                                    &pNextFence);
 
     if (result == Result::Success)
     {
@@ -2107,9 +1999,10 @@ Result Device::CreateFence(
         (*ppFence) = PAL_PLACEMENT_NEW(pPlacementAddr) Fence(pNextFence, this, objectId);
     }
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("createInfo", createInfo);
         pLogContext->EndInput();
@@ -2135,15 +2028,10 @@ Result Device::OpenFence(
     auto*const pPlatform  = static_cast<Platform*>(m_pPlatform);
     IFence*    pNextFence = nullptr;
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceOpenFence;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-
-    const Result result   = m_pNextLayer->OpenFence(openInfo,
-                                                    NextObjectAddr<Fence>(pPlacementAddr),
-                                                    &pNextFence);
-    funcInfo.postCallTime = pPlatform->GetTime();
+    const bool   active = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceOpenFence);
+    const Result result = m_pNextLayer->OpenFence(openInfo,
+                                                  NextObjectAddr<Fence>(pPlacementAddr),
+                                                  &pNextFence);
 
     if (result == Result::Success)
     {
@@ -2155,9 +2043,10 @@ Result Device::OpenFence(
         (*ppFence) = PAL_PLACEMENT_NEW(pPlacementAddr) Fence(pNextFence, this, objectId);
     }
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("openInfo", openInfo);
         pLogContext->EndInput();
@@ -2191,14 +2080,10 @@ Result Device::CreateGpuEvent(
     auto*const pPlatform     = static_cast<Platform*>(m_pPlatform);
     IGpuEvent* pNextGpuEvent = nullptr;
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceCreateGpuEvent;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = m_pNextLayer->CreateGpuEvent(createInfo,
-                                                         NextObjectAddr<GpuEvent>(pPlacementAddr),
-                                                         &pNextGpuEvent);
-    funcInfo.postCallTime = pPlatform->GetTime();
+    const bool   active = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceCreateGpuEvent);
+    const Result result = m_pNextLayer->CreateGpuEvent(createInfo,
+                                                       NextObjectAddr<GpuEvent>(pPlacementAddr),
+                                                       &pNextGpuEvent);
 
     if (result == Result::Success)
     {
@@ -2210,9 +2095,10 @@ Result Device::CreateGpuEvent(
         (*ppGpuEvent) = PAL_PLACEMENT_NEW(pPlacementAddr) GpuEvent(pNextGpuEvent, this, objectId);
     }
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("createInfo", createInfo);
         pLogContext->EndInput();
@@ -2246,14 +2132,10 @@ Result Device::CreateQueryPool(
     auto*const  pPlatform      = static_cast<Platform*>(m_pPlatform);
     IQueryPool* pNextQueryPool = nullptr;
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceCreateQueryPool;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = m_pNextLayer->CreateQueryPool(createInfo,
-                                                          NextObjectAddr<QueryPool>(pPlacementAddr),
-                                                          &pNextQueryPool);
-    funcInfo.postCallTime = pPlatform->GetTime();
+    const bool   active = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceCreateQueryPool);
+    const Result result = m_pNextLayer->CreateQueryPool(createInfo,
+                                                        NextObjectAddr<QueryPool>(pPlacementAddr),
+                                                        &pNextQueryPool);
 
     if (result == Result::Success)
     {
@@ -2265,9 +2147,10 @@ Result Device::CreateQueryPool(
         (*ppQueryPool) = PAL_PLACEMENT_NEW(pPlacementAddr) QueryPool(pNextQueryPool, this, objectId);
     }
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("createInfo", createInfo);
         pLogContext->EndInput();
@@ -2301,14 +2184,10 @@ Result Device::CreateCmdAllocator(
     auto*const     pPlatform         = static_cast<Platform*>(m_pPlatform);
     ICmdAllocator* pNextCmdAllocator = nullptr;
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceCreateCmdAllocator;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = m_pNextLayer->CreateCmdAllocator(createInfo,
-                                                             NextObjectAddr<CmdAllocator>(pPlacementAddr),
-                                                             &pNextCmdAllocator);
-    funcInfo.postCallTime = pPlatform->GetTime();
+    const bool   active = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceCreateCmdAllocator);
+    const Result result = m_pNextLayer->CreateCmdAllocator(createInfo,
+                                                           NextObjectAddr<CmdAllocator>(pPlacementAddr),
+                                                           &pNextCmdAllocator);
 
     if (result == Result::Success)
     {
@@ -2320,9 +2199,10 @@ Result Device::CreateCmdAllocator(
         (*ppCmdAllocator) = PAL_PLACEMENT_NEW(pPlacementAddr) CmdAllocator(pNextCmdAllocator, this, objectId);
     }
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("createInfo", createInfo);
         pLogContext->EndInput();
@@ -2362,14 +2242,10 @@ Result Device::CreateCmdBuffer(
     CmdBufferCreateInfo nextCreateInfo = createInfo;
     nextCreateInfo.pCmdAllocator       = NextCmdAllocator(createInfo.pCmdAllocator);
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceCreateCmdBuffer;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = m_pNextLayer->CreateCmdBuffer(nextCreateInfo,
-                                                          NextObjectAddr<CmdBuffer>(pPlacementAddr),
-                                                          &pNextCmdBuffer);
-    funcInfo.postCallTime = pPlatform->GetTime();
+    const bool   active = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceCreateCmdBuffer);
+    const Result result = m_pNextLayer->CreateCmdBuffer(nextCreateInfo,
+                                                        NextObjectAddr<CmdBuffer>(pPlacementAddr),
+                                                        &pNextCmdBuffer);
 
     if (result == Result::Success)
     {
@@ -2381,9 +2257,10 @@ Result Device::CreateCmdBuffer(
         (*ppCmdBuffer) = PAL_PLACEMENT_NEW(pPlacementAddr) CmdBuffer(pNextCmdBuffer, this, objectId);
     }
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("createInfo", createInfo);
         pLogContext->EndInput();
@@ -2417,15 +2294,10 @@ Result Device::CreateIndirectCmdGenerator(
     auto*const             pPlatform      = static_cast<Platform*>(m_pPlatform);
     IIndirectCmdGenerator* pNextGenerator = nullptr;
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceCreateIndirectCmdGenerator;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   =
-        m_pNextLayer->CreateIndirectCmdGenerator(createInfo,
-                                                 NextObjectAddr<IndirectCmdGenerator>(pPlacementAddr),
-                                                 &pNextGenerator);
-    funcInfo.postCallTime = pPlatform->GetTime();
+    const bool   active = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceCreateIndirectCmdGenerator);
+    const Result result = m_pNextLayer->CreateIndirectCmdGenerator(createInfo,
+                                                                   NextObjectAddr<IndirectCmdGenerator>(pPlacementAddr),
+                                                                   &pNextGenerator);
 
     if (result == Result::Success)
     {
@@ -2437,9 +2309,10 @@ Result Device::CreateIndirectCmdGenerator(
         (*ppGenerator) = PAL_PLACEMENT_NEW(pPlacementAddr) IndirectCmdGenerator(pNextGenerator, this, objectId);
     }
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("createInfo", createInfo);
         pLogContext->EndInput();
@@ -2460,18 +2333,14 @@ Result Device::GetPrivateScreens(
     uint32*          pNumScreens,
     IPrivateScreen** ppScreens)
 {
-    auto*const pPlatform = static_cast<Platform*>(m_pPlatform);
+    auto*const   pPlatform = static_cast<Platform*>(m_pPlatform);
+    const bool   active    = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceGetPrivateScreens);
+    const Result result    = DeviceDecorator::GetPrivateScreens(pNumScreens, ppScreens);
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceGetPrivateScreens;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = DeviceDecorator::GetPrivateScreens(pNumScreens, ppScreens);
-    funcInfo.postCallTime = pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginOutput();
         pLogContext->KeyAndEnum("result", result);
         pLogContext->KeyAndBeginList("screens", false);
@@ -2505,18 +2374,14 @@ Result Device::AddEmulatedPrivateScreen(
 {
     PAL_ASSERT(pTargetId != nullptr);
 
-    auto*const pPlatform = static_cast<Platform*>(m_pPlatform);
+    auto*const   pPlatform = static_cast<Platform*>(m_pPlatform);
+    const bool   active    = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceAddEmulatedPrivateScreen);
+    const Result result    = DeviceDecorator::AddEmulatedPrivateScreen(createInfo, pTargetId);
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceAddEmulatedPrivateScreen;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = DeviceDecorator::AddEmulatedPrivateScreen(createInfo, pTargetId);
-    funcInfo.postCallTime = pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("createInfo", createInfo);
         pLogContext->EndInput();
@@ -2536,18 +2401,14 @@ Result Device::AddEmulatedPrivateScreen(
 Result Device::RemoveEmulatedPrivateScreen(
     uint32 targetId)
 {
-    auto*const pPlatform = static_cast<Platform*>(m_pPlatform);
+    auto*const   pPlatform = static_cast<Platform*>(m_pPlatform);
+    const bool   active    = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceRemoveEmulatedPrivateScreen);
+    const Result result    = DeviceDecorator::RemoveEmulatedPrivateScreen(targetId);
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceRemoveEmulatedPrivateScreen;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = DeviceDecorator::RemoveEmulatedPrivateScreen(targetId);
-    funcInfo.postCallTime = pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndValue("targetId", targetId);
         pLogContext->EndInput();
@@ -2594,16 +2455,12 @@ Result Device::CreatePrivateScreenImage(
     PrivateScreenImageCreateInfo nextCreateInfo = createInfo;
     nextCreateInfo.pScreen = NextPrivateScreen(createInfo.pScreen);
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceCreatePrivateScreenImage;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    Result result = m_pNextLayer->CreatePrivateScreenImage(nextCreateInfo,
-                                                           NextObjectAddr<Image>(pImagePlacementAddr),
-                                                           NextObjectAddr<GpuMemory>(pGpuMemoryPlacementAddr),
-                                                           &pNextImage,
-                                                           &pNextGpuMemory);
-    funcInfo.postCallTime = pPlatform->GetTime();
+    const bool   active = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceCreatePrivateScreenImage);
+    const Result result = m_pNextLayer->CreatePrivateScreenImage(nextCreateInfo,
+                                                                 NextObjectAddr<Image>(pImagePlacementAddr),
+                                                                 NextObjectAddr<GpuMemory>(pGpuMemoryPlacementAddr),
+                                                                 &pNextImage,
+                                                                 &pNextGpuMemory);
 
     if (result == Result::Success)
     {
@@ -2617,9 +2474,10 @@ Result Device::CreatePrivateScreenImage(
         (*ppGpuMemory) = PAL_PLACEMENT_NEW(pGpuMemoryPlacementAddr) GpuMemory(pNextGpuMemory, this, gpuMemoryId);
     }
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("createInfo", createInfo);
         pLogContext->EndInput();
@@ -2654,14 +2512,10 @@ Result Device::CreateSwapChain(
     auto*const  pPlatform      = static_cast<Platform*>(m_pPlatform);
     ISwapChain* pNextSwapChain = nullptr;
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceCreateSwapChain;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = m_pNextLayer->CreateSwapChain(createInfo,
-                                                          NextObjectAddr<SwapChain>(pPlacementAddr),
-                                                          &pNextSwapChain);
-    funcInfo.postCallTime = pPlatform->GetTime();
+    const bool   active = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceCreateSwapChain);
+    const Result result = m_pNextLayer->CreateSwapChain(createInfo,
+                                                        NextObjectAddr<SwapChain>(pPlacementAddr),
+                                                        &pNextSwapChain);
 
     if (result == Result::Success)
     {
@@ -2673,9 +2527,10 @@ Result Device::CreateSwapChain(
         (*ppSwapChain) = PAL_PLACEMENT_NEW(pPlacementAddr) SwapChain(pNextSwapChain, this, objectId);
     }
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("createInfo", createInfo);
         pLogContext->EndInput();
@@ -2696,18 +2551,14 @@ Result Device::SetPowerProfile(
     PowerProfile        profile,
     CustomPowerProfile* pInfo)
 {
-    auto*const pPlatform = static_cast<Platform*>(m_pPlatform);
+    auto*const   pPlatform = static_cast<Platform*>(m_pPlatform);
+    const bool   active    = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceSetPowerProfile);
+    const Result result    = DeviceDecorator::SetPowerProfile(profile, pInfo);
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceSetPowerProfile;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    const Result result   = DeviceDecorator::SetPowerProfile(profile, pInfo);
-    funcInfo.postCallTime = pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndEnum("profile", profile);
 
@@ -2765,18 +2616,14 @@ Result Device::SetPowerProfile(
 Result Device::FlglQueryState(
     FlglState* pState)
 {
-    auto*const  pPlatform = static_cast<Platform*>(m_pPlatform);
+    auto*const   pPlatform = static_cast<Platform*>(m_pPlatform);
+    const bool   active    = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceFlglQueryState);
+    const Result result    = m_pNextLayer->FlglQueryState(pState);
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceFlglQueryState;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    Result result         = m_pNextLayer->FlglQueryState(pState);
-    funcInfo.postCallTime = pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginOutput();
         pLogContext->KeyAndEnum("result", result);
 
@@ -2792,6 +2639,7 @@ Result Device::FlglQueryState(
 
         pPlatform->LogEndFunc(pLogContext);
     }
+
     return result;
 }
 
@@ -2800,17 +2648,13 @@ Result Device::FlglSetSyncConfiguration(
     const GlSyncConfig& glSyncConfig)
 {
     auto* const  pPlatform = static_cast<Platform*>(m_pPlatform);
+    const bool   active    = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceFlglSetSyncConfiguration);
+    const Result result    = m_pNextLayer->FlglSetSyncConfiguration(glSyncConfig);
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId = InterfaceFunc::DeviceFlglSetSyncConfiguration;
-    funcInfo.objectId = m_objectId;
-    funcInfo.preCallTime = pPlatform->GetTime();
-    Result result = m_pNextLayer->FlglSetSyncConfiguration(glSyncConfig);
-    funcInfo.postCallTime = pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("glSyncConfig", glSyncConfig);
         pLogContext->EndInput();
@@ -2821,6 +2665,7 @@ Result Device::FlglSetSyncConfiguration(
 
         pPlatform->LogEndFunc(pLogContext);
     }
+
     return result;
 }
 
@@ -2830,17 +2675,13 @@ Result Device::FlglGetSyncConfiguration(
     ) const
 {
     auto* const  pPlatform = static_cast<Platform*>(m_pPlatform);
+    const bool   active    = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceFlglGetSyncConfiguration);
+    const Result result    = m_pNextLayer->FlglGetSyncConfiguration(pGlSyncConfig);
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId = InterfaceFunc::DeviceFlglGetSyncConfiguration;
-    funcInfo.objectId = m_objectId;
-    funcInfo.preCallTime = pPlatform->GetTime();
-    Result result = m_pNextLayer->FlglGetSyncConfiguration(pGlSyncConfig);
-    funcInfo.postCallTime = pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginOutput();
         pLogContext->KeyAndEnum("result", result);
 
@@ -2856,6 +2697,7 @@ Result Device::FlglGetSyncConfiguration(
 
         pPlatform->LogEndFunc(pLogContext);
     }
+
     return result;
 }
 
@@ -2863,17 +2705,14 @@ Result Device::FlglGetSyncConfiguration(
 Result Device::FlglSetFrameLock(
     bool enable)
 {
-    auto*const  pPlatform = static_cast<Platform*>(m_pPlatform);
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceFlglSetFrameLock;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    Result result         = m_pNextLayer->FlglSetFrameLock(enable);
-    funcInfo.postCallTime = pPlatform->GetTime();
+    auto*const   pPlatform = static_cast<Platform*>(m_pPlatform);
+    const bool   active    = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceFlglSetFrameLock);
+    const Result result    = m_pNextLayer->FlglSetFrameLock(enable);
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndValue("enable", enable);
         pLogContext->EndInput();
@@ -2884,6 +2723,7 @@ Result Device::FlglSetFrameLock(
 
         pPlatform->LogEndFunc(pLogContext);
     }
+
     return result;
 }
 
@@ -2892,16 +2732,13 @@ Result Device::FlglSetGenLock(
     bool enable)
 {
     auto* const  pPlatform = static_cast<Platform*>(m_pPlatform);
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId = InterfaceFunc::DeviceFlglSetGenLock;
-    funcInfo.objectId = m_objectId;
-    funcInfo.preCallTime = pPlatform->GetTime();
-    Result result = m_pNextLayer->FlglSetGenLock(enable);
-    funcInfo.postCallTime = pPlatform->GetTime();
+    const bool   active    = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceFlglSetGenLock);
+    const Result result    = m_pNextLayer->FlglSetGenLock(enable);
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndValue("enable", enable);
         pLogContext->EndInput();
@@ -2912,30 +2749,28 @@ Result Device::FlglSetGenLock(
 
         pPlatform->LogEndFunc(pLogContext);
     }
+
     return result;
 }
 
 // =====================================================================================================================
 Result Device::FlglResetFrameCounter() const
 {
-    auto*const  pPlatform = static_cast<Platform*>(m_pPlatform);
+    auto*const   pPlatform = static_cast<Platform*>(m_pPlatform);
+    const bool   active    = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceFlglResetFrameCounter);
+    const Result result    = m_pNextLayer->FlglResetFrameCounter();
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceFlglResetFrameCounter;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    Result result         = m_pNextLayer->FlglResetFrameCounter();
-    funcInfo.postCallTime = pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginOutput();
         pLogContext->KeyAndEnum("result", result);
         pLogContext->EndOutput();
 
         pPlatform->LogEndFunc(pLogContext);
     }
+
     return result;
 }
 
@@ -2945,18 +2780,14 @@ Result Device::FlglGetFrameCounter(
     bool*   pReset
     ) const
 {
-    auto*const  pPlatform = static_cast<Platform*>(m_pPlatform);
+    auto*const   pPlatform = static_cast<Platform*>(m_pPlatform);
+    const bool   active    = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceFlglGetFrameCounter);
+    const Result result    = m_pNextLayer->FlglGetFrameCounter(pValue, pReset);
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceFlglGetFrameCounter;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    Result result         = m_pNextLayer->FlglGetFrameCounter(pValue, pReset);
-    funcInfo.postCallTime = pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginOutput();
         pLogContext->KeyAndEnum("result", result);
 
@@ -2981,6 +2812,7 @@ Result Device::FlglGetFrameCounter(
 
         pPlatform->LogEndFunc(pLogContext);
     }
+
     return result;
 }
 
@@ -2989,18 +2821,15 @@ Result Device::FlglGetFrameCounterResetStatus(
     bool* pReset
     ) const
 {
-    auto*const  pPlatform = static_cast<Platform*>(m_pPlatform);
+    auto*const pPlatform = static_cast<Platform*>(m_pPlatform);
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceFlglGetFrameCounterResetStatus;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    Result result         = m_pNextLayer->FlglGetFrameCounterResetStatus(pReset);
-    funcInfo.postCallTime = pPlatform->GetTime();
+    const bool   active = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceFlglGetFrameCounterResetStatus);
+    const Result result = m_pNextLayer->FlglGetFrameCounterResetStatus(pReset);
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginOutput();
         pLogContext->KeyAndEnum("result", result);
 
@@ -3016,6 +2845,7 @@ Result Device::FlglGetFrameCounterResetStatus(
 
         pPlatform->LogEndFunc(pLogContext);
     }
+
     return result;
 }
 
@@ -3051,16 +2881,14 @@ void PAL_STDCALL Device::CreateTypedBufferViewSrds(
     const auto* pThis     = static_cast<const Device*>(pDevice);
     auto*const  pPlatform = static_cast<Platform*>(pThis->m_pPlatform);
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceCreateTypedBufferViewSrds;
-    funcInfo.objectId     = pThis->m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    DeviceDecorator::DecoratorCreateTypedBufViewSrds(pDevice, count, pBufferViewInfo, pOut);
-    funcInfo.postCallTime = pPlatform->GetTime();
+    const bool active = pPlatform->ActivateLogging(pThis->m_objectId, InterfaceFunc::DeviceCreateTypedBufferViewSrds);
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    DeviceDecorator::DecoratorCreateTypedBufViewSrds(pDevice, count, pBufferViewInfo, pOut);
+
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndBeginList("bufferViewInfo", false);
 
@@ -3086,16 +2914,14 @@ void PAL_STDCALL Device::CreateUntypedBufferViewSrds(
     const auto* pThis     = static_cast<const Device*>(pDevice);
     auto*const  pPlatform = static_cast<Platform*>(pThis->m_pPlatform);
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceCreateUntypedBufferViewSrds;
-    funcInfo.objectId     = pThis->m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
-    DeviceDecorator::DecoratorCreateUntypedBufViewSrds(pDevice, count, pBufferViewInfo, pOut);
-    funcInfo.postCallTime = pPlatform->GetTime();
+    const bool active = pPlatform->ActivateLogging(pThis->m_objectId, InterfaceFunc::DeviceCreateUntypedBufferViewSrds);
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    DeviceDecorator::DecoratorCreateUntypedBufViewSrds(pDevice, count, pBufferViewInfo, pOut);
+
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndBeginList("bufferViewInfo", false);
 
@@ -3120,17 +2946,14 @@ void PAL_STDCALL Device::CreateImageViewSrds(
 {
     const auto* pThis     = static_cast<const Device*>(pDevice);
     auto*const  pPlatform = static_cast<Platform*>(pThis->m_pPlatform);
+    const bool  active    = pPlatform->ActivateLogging(pThis->m_objectId, InterfaceFunc::DeviceCreateImageViewSrds);
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceCreateImageViewSrds;
-    funcInfo.objectId     = pThis->m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
     DeviceDecorator::DecoratorCreateImageViewSrds(pDevice, count, pImgViewInfo, pOut);
-    funcInfo.postCallTime = pPlatform->GetTime();
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndBeginList("imageViewInfo", false);
 
@@ -3155,17 +2978,14 @@ void PAL_STDCALL Device::CreateFmaskViewSrds(
 {
     const auto* pThis     = static_cast<const Device*>(pDevice);
     auto*const  pPlatform = static_cast<Platform*>(pThis->m_pPlatform);
+    const bool  active    = pPlatform->ActivateLogging(pThis->m_objectId, InterfaceFunc::DeviceCreateFmaskViewSrds);
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceCreateFmaskViewSrds;
-    funcInfo.objectId     = pThis->m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
     DeviceDecorator::DecoratorCreateFmaskViewSrds(pDevice, count, pFmaskViewInfo, pOut);
-    funcInfo.postCallTime = pPlatform->GetTime();
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndBeginList("fmaskViewInfo", false);
 
@@ -3190,17 +3010,14 @@ void PAL_STDCALL Device::CreateSamplerSrds(
 {
     const auto* pThis     = static_cast<const Device*>(pDevice);
     auto*const  pPlatform = static_cast<Platform*>(pThis->m_pPlatform);
+    const bool  active    = pPlatform->ActivateLogging(pThis->m_objectId, InterfaceFunc::DeviceCreateSamplerSrds);
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::DeviceCreateSamplerSrds;
-    funcInfo.objectId     = pThis->m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
     DeviceDecorator::DecoratorCreateSamplerSrds(pDevice, count, pSamplerInfo, pOut);
-    funcInfo.postCallTime = pPlatform->GetTime();
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndBeginList("samplerInfo", false);
 
@@ -3225,17 +3042,14 @@ void PAL_STDCALL Device::CreateBvhSrds(
 {
     const auto* pThis     = static_cast<const Device*>(pDevice);
     auto*const  pPlatform = static_cast<Platform*>(pThis->m_pPlatform);
+    const bool  active    = pPlatform->ActivateLogging(pThis->m_objectId, InterfaceFunc::DeviceCreateBvhSrds);
 
-    BeginFuncInfo funcInfo = {};
-    funcInfo.funcId       = InterfaceFunc::DeviceCreateBvhSrds;
-    funcInfo.objectId     = pThis->m_objectId;
-    funcInfo.preCallTime  = pPlatform->GetTime();
     DeviceDecorator::DecoratorCreateBvhSrds(pDevice, count, pBvhInfo, pOut);
-    funcInfo.postCallTime = pPlatform->GetTime();
 
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndBeginList("bvhInfo", false);
 
@@ -3256,19 +3070,14 @@ Result Device::CreateVirtualDisplay(
     const VirtualDisplayInfo& virtualDisplayInfo,
     uint32*                   pScreenTargetId)
 {
-    auto*const  pPlatform = static_cast<Platform*>(m_pPlatform);
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId      = InterfaceFunc::DeviceCreateVirtualDisplay;
-    funcInfo.objectId    = m_objectId;
-    funcInfo.preCallTime = pPlatform->GetTime();
+    auto*const   pPlatform = static_cast<Platform*>(m_pPlatform);
+    const bool   active    = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceCreateVirtualDisplay);
+    const Result result    = m_pNextLayer->CreateVirtualDisplay(virtualDisplayInfo, pScreenTargetId);
 
-    Result result = m_pNextLayer->CreateVirtualDisplay(virtualDisplayInfo, pScreenTargetId);
-
-    funcInfo.postCallTime = pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("virtualDisplayInfo", virtualDisplayInfo);
         pLogContext->EndOutput();
@@ -3280,6 +3089,7 @@ Result Device::CreateVirtualDisplay(
 
         pPlatform->LogEndFunc(pLogContext);
     }
+
     return result;
 }
 
@@ -3287,25 +3097,21 @@ Result Device::CreateVirtualDisplay(
 Result Device::DestroyVirtualDisplay(
     uint32 screenTargetId)
 {
-    auto*const  pPlatform = static_cast<Platform*>(m_pPlatform);
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId      = InterfaceFunc::DeviceDestroyVirtualDisplay;
-    funcInfo.objectId    = m_objectId;
-    funcInfo.preCallTime = pPlatform->GetTime();
+    auto*const   pPlatform = static_cast<Platform*>(m_pPlatform);
+    const bool   active    = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceDestroyVirtualDisplay);
+    const Result result    = m_pNextLayer->DestroyVirtualDisplay(screenTargetId);
 
-    Result result = m_pNextLayer->DestroyVirtualDisplay(screenTargetId);
-
-    funcInfo.postCallTime = pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndValue("screenTargetId", screenTargetId);
         pLogContext->EndOutput();
 
         pPlatform->LogEndFunc(pLogContext);
     }
+
     return result;
 }
 
@@ -3314,19 +3120,14 @@ Result Device::GetVirtualDisplayProperties(
     uint32                    screenTargetId,
     VirtualDisplayProperties* pProperties)
 {
-    auto*const  pPlatform = static_cast<Platform*>(m_pPlatform);
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId      = InterfaceFunc::DeviceGetVirtualDisplayProperties;
-    funcInfo.objectId    = m_objectId;
-    funcInfo.preCallTime = pPlatform->GetTime();
+    auto*const   pPlatform = static_cast<Platform*>(m_pPlatform);
+    const bool   active    = pPlatform->ActivateLogging(m_objectId, InterfaceFunc::DeviceGetVirtualDisplayProperties);
+    const Result result    = m_pNextLayer->GetVirtualDisplayProperties(screenTargetId, pProperties);
 
-    Result result = m_pNextLayer->GetVirtualDisplayProperties(screenTargetId, pProperties);
-
-    funcInfo.postCallTime = pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndValue("screenTargetId", screenTargetId);
         pLogContext->EndOutput();
@@ -3338,6 +3139,7 @@ Result Device::GetVirtualDisplayProperties(
 
         pPlatform->LogEndFunc(pLogContext);
     }
+
     return result;
 }
 

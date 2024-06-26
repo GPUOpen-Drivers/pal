@@ -118,6 +118,7 @@ enum QueryResultFlags : uint32
                                         ///  data is enabled it will be ANDed with the present availability data.
     QueryResultPreferShaderPath = 0x20, ///< Prefer a shader resolve path over a command processor path.
     QueryResultOnlyPrimNeeded   = 0x40, ///< Select only primitives storage needed in Streamout query results
+    QueryResultAll              = 0x7F  ///< Clients should NOT use it, for internal static_assert purpose only.
 };
 
 /**

@@ -164,6 +164,7 @@ enum class QueuePriority : uint32
     Medium   =  2,  ///< Medium priority (higher than Normal).
     High     =  3,  ///< High priority (higher than Normal).
     Realtime =  4,  ///< Real time priority (higher than Normal).
+    Count
 };
 
 /// Defines flags for describing which queue priority levels are supported.

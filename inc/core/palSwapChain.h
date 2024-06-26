@@ -70,6 +70,21 @@ enum SwapChainModeSupport : uint32
 };
 
 /// Wsi Platform type which determines the window system the swapChain supposed to work upon
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 881
+enum class WsiPlatform : uint32
+{
+    Win32 = 0,      ///< Win32 platform which is the only supported platform for windows OS.
+    Xcb,            ///< Xcb platform, which supposed to be run upon DRI3 infrastructure
+    Xlib,           ///< Xlib platform, which supposed to be run upon DRI2 infrastructure
+    Wayland,        ///< Wayland platform, which is running upon wayland protocol.
+    Mir,            ///< Mir platform, which is running upon Mir protocol developed by Canonical
+    DirectDisplay,  ///< DirectDisplay platform, which can render and present directly to
+                    ///  display without using an intermediate window system.
+    Android,        ///< Android platform which is supported platform for Android OS.
+    Dxgi,           ///< DXGI platform for Win32/Windows.
+    Count
+};
+#else
 enum WsiPlatform : uint32
 {
     Win32                       = 0x00000001,  ///< Win32 platform which is the only supported platform for windows OS.
@@ -82,20 +97,22 @@ enum WsiPlatform : uint32
     Android                     = 0x00000040,  ///< Android platform which is supported platform for Android OS.
     Dxgi                        = 0x00000080,  ///< DXGI platform for Win32/Windows.
 };
+#endif
 
 /// Describe the surface transform capability or status.
 enum SurfaceTransformFlags : uint32
 {
-    SurfaceTransformNone            = 0x00000001,   ///< None rotation.
-    SurfaceTransformRot90           = 0x00000002,   ///< 90-degree rotation.
-    SurfaceTransformRot180          = 0x00000004,   ///< 180-degree rotation.
-    SurfaceTransformRot270          = 0x00000008,   ///< 270-degree rotation.
-    SurfaceTransformHMirror         = 0x00000010,   ///< Horizontal mirror.
-    SurfaceTransformHMirrorRot90    = 0x00000020,   ///< Horizontal mirror and rotate 90 degree.
-    SurfaceTransformHMirrorRot180   = 0x00000040,   ///< Horizontal mirror and rotate 180 degree.
-    SurfaceTransformHMirrorRot270   = 0x00000080,   ///< Horizontal mirror and rotate 270 degree.
-    SurfaceTransformInherit         = 0x00000100,   ///< Client is responsible for setting the transform using native
-                                                    ///  window system commands.
+    SurfaceTransformNone          = 0x00000001, ///< None rotation.
+    SurfaceTransformRot90         = 0x00000002, ///< 90-degree rotation.
+    SurfaceTransformRot180        = 0x00000004, ///< 180-degree rotation.
+    SurfaceTransformRot270        = 0x00000008, ///< 270-degree rotation.
+    SurfaceTransformHMirror       = 0x00000010, ///< Horizontal mirror.
+    SurfaceTransformHMirrorRot90  = 0x00000020, ///< Horizontal mirror and rotate 90 degree.
+    SurfaceTransformHMirrorRot180 = 0x00000040, ///< Horizontal mirror and rotate 180 degree.
+    SurfaceTransformHMirrorRot270 = 0x00000080, ///< Horizontal mirror and rotate 270 degree.
+    SurfaceTransformInherit       = 0x00000100, ///< Client is responsible for setting the transform using native
+                                                ///  window system commands.
+    SurfaceTransformAllFlags      = 0x000001FF, ///< Clients should NOT use it, for internal static_assert purpose only.
 };
 
 /// Indicates the alpha compositing mode to use when the surface is composited on certain window systems
@@ -293,6 +310,28 @@ public:
     ///          + ErrorUnknown when something unexpected went wrong
     ///          + Unsupported Swapchain does not support setting metadata through this interface
     virtual Result SetHdrMetaData(const ScreenColorConfig& colorConfig) = 0;
+
+    /// Gets the current maximum frame latency of this swapchain. Not all swapchain platforms support this interface.
+    ///
+    /// @param [out]    pFrameLatency   The current frame latency of the swapchain.
+    ///
+    /// @returns Success, if the current frame latency is obtained and written to pFrameLatency.
+    ///          +Unsupported, if swapchain does not support this interface.
+    ///          +ErrorInvalidPointer, if pFrameLatency is null.
+    ///          +ErrorUnknown, if an unexpected situation occurs.
+    virtual Result GetMaximumFrameLatency(uint32* pFrameLatency) = 0;
+
+    /// Set the maximum number of frames the swapchain is allowed to queue. Similar to IDevice::SetMaxQueuedFrames()
+    /// but controlled per swapchain. Not all swapchains support this functionality. Frame latency cannot be more
+    /// than the total number of images in the swapchain. A value of 0 will reset it to the platform default.
+    ///
+    /// @param [in]     frameLatency    The requested frame latency.
+    ///
+    /// @returns Success, if the frame latency was changed succesfully.
+    ///          +  Unsupported, if swapchain does not support this functionality
+    ///          +  Timeout, if frame latency was changed but any synchronization timed out.
+    ///          +  ErrorUnknown, if something unexpected goes wrong.
+    virtual Result SetMaximumFrameLatency(uint32 frameLatency) = 0;
 
     /// Adjust Swapchain to new width/height.
     /// Not all SwapChain objects will necessarily support this operation.

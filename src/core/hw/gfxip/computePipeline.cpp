@@ -124,8 +124,8 @@ Result ComputePipeline::Init(
         GpuMemoryResourceBindEventData bindData { };
         bindData.pObj               = this;
         bindData.pGpuMemory         = m_gpuMem.Memory();
-        bindData.requiredGpuMemSize = m_gpuMemSize;
-        bindData.offset             = m_gpuMem.Offset();
+        bindData.requiredGpuMemSize = m_gpuMemSize - m_gpuMemOffset;
+        bindData.offset             = m_gpuMem.Offset() + m_gpuMemOffset;
         pEventProvider->LogGpuMemoryResourceBindEvent(bindData);
 
         Developer::BindGpuMemoryData callbackData = {};

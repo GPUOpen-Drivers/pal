@@ -181,6 +181,43 @@ void Pm4CmdBuffer::ReactivateQueries()
 }
 
 // =====================================================================================================================
+// Copies entryCount DWORDs from pEntryValues to pState->entries starting at firstEntry.
+// The corresponding bit(s) in pState->touched are set to 1.
+// Does redundant filtering: an entry's dirty bit is set only if the entry was untouched or had a different value.
+void Pm4CmdBuffer::UpdateUserData(
+    UserDataEntries* pState,
+    uint32           firstEntry,
+    uint32           entryCount,
+    const uint32*    pEntryValues)
+{
+    for (uint32 i = 0; i < entryCount; ++i)
+    {
+        const uint32 newValue       = pEntryValues[i];
+        const uint32 userDataIndex  = firstEntry + i;
+        const uint32 wordIndex      = userDataIndex / UserDataEntriesPerMask;
+        const uint32 bitIndexInWord = userDataIndex % UserDataEntriesPerMask;
+        const size_t flag           = size_t(1) << bitIndexInWord;
+        const size_t touched        = pState->touched[wordIndex];
+        const bool   bDiff          = (pState->entries[userDataIndex] != newValue);
+
+        pState->entries[userDataIndex] = newValue;
+        pState->dirty[wordIndex] |= (size_t(bDiff) << bitIndexInWord) | (~touched & flag);
+        pState->touched[wordIndex] = touched | flag;
+    }
+}
+
+// =====================================================================================================================
+void PAL_STDCALL Pm4CmdBuffer::CmdUpdateUserDataCs(
+    ICmdBuffer*   pCmdBuffer,
+    uint32        firstEntry,
+    uint32        entryCount,
+    const uint32* pEntryValues)
+{
+    auto* pThis = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
+    UpdateUserData(&pThis->m_computeState.csUserDataEntries, firstEntry, entryCount, pEntryValues);
+}
+
+// =====================================================================================================================
 // Helper function for updating user data entries and tracking flags common to different pipeline types. Specializes
 // updating a single user data entry as well as WideBitfieldSetBit* functions to set two UserDataFlags bitmasks.
 void Pm4CmdBuffer::SetUserData(
@@ -211,7 +248,7 @@ void Pm4CmdBuffer::SetUserData(
         {
             const uint32 maxNumBits = UserDataEntriesPerMask - startingBit;
             const uint32 curNumBits = (maxNumBits < numBits) ? maxNumBits : numBits;
-            const size_t bitMask    = (curNumBits == UserDataEntriesPerMask) ? -1 : ((static_cast<size_t>(1) << curNumBits) - 1);
+            const size_t bitMask    = static_cast<size_t>(-1) >> (UserDataEntriesPerMask - curNumBits);
 
             pEntries->touched[index] |= (bitMask << startingBit);
             pEntries->dirty[index]   |= (bitMask << startingBit);
@@ -223,6 +260,29 @@ void Pm4CmdBuffer::SetUserData(
 
         memcpy(&pEntries->entries[firstEntry], pEntryValues, entryCount * sizeof(uint32));
     }
+}
+
+// =====================================================================================================================
+// CmdSetUserData callback which updates the tracked user-data entries for the compute state.
+void PAL_STDCALL Pm4CmdBuffer::CmdSetUserDataCs(
+    ICmdBuffer*   pCmdBuffer,
+    uint32        firstEntry,
+    uint32        entryCount,
+    const uint32* pEntryValues)
+{
+    PAL_ASSERT((pCmdBuffer != nullptr) && (entryCount != 0) && (pEntryValues != nullptr));
+
+    auto* const pThis    = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
+    auto* const pEntries = &pThis->m_computeState.csUserDataEntries;
+
+    // It's illegal to bind user-data when in HSA ABI mode.
+    PAL_ASSERT(pThis->m_computeState.hsaAbiMode == false);
+
+    // NOTE: Compute operations are expected to be far rarer than graphics ones, so at the moment it is not expected
+    // that filtering-out redundant compute user-data updates is worthwhile.
+    // For HWL's that definitely don't mind potentially more holes in the dirty mask, the newer UpdateUserData
+    // functions can be used if redundant filtering is desired.
+    SetUserData(firstEntry, entryCount, pEntries, pEntryValues);
 }
 
 // =====================================================================================================================
@@ -528,27 +588,6 @@ void Pm4CmdBuffer::SetComputeState(
 }
 
 // =====================================================================================================================
-// CmdSetUserData callback which updates the tracked user-data entries for the compute state.
-void PAL_STDCALL Pm4CmdBuffer::CmdSetUserDataCs(
-    ICmdBuffer*   pCmdBuffer,
-    uint32        firstEntry,
-    uint32        entryCount,
-    const uint32* pEntryValues)
-{
-    PAL_ASSERT((pCmdBuffer != nullptr) && (entryCount != 0) && (pEntryValues != nullptr));
-
-    auto* const pThis    = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
-    auto* const pEntries = &pThis->m_computeState.csUserDataEntries;
-
-    // It's illegal to bind user-data when in HSA ABI mode.
-    PAL_ASSERT(pThis->m_computeState.hsaAbiMode == false);
-
-    // NOTE: Compute operations are expected to be far rarer than graphics ones, so at the moment it is not expected
-    // that filtering-out redundant compute user-data updates is worthwhile.
-    SetUserData(firstEntry, entryCount, pEntries, pEntryValues);
-}
-
-// =====================================================================================================================
 // Copies the requested portion of the currently bound compute state to m_computeRestoreState. All active queries will
 // be disabled.
 void Pm4CmdBuffer::CmdSaveComputeState(uint32 stateFlags)
@@ -641,6 +680,11 @@ void Pm4CmdBuffer::CmdRestoreComputeStateInternal(
         SetCsBltWriteCacheState(true);
 
         UpdateCsBltExecFence();
+
+#if PAL_DEVELOPER_BUILD
+        Developer::RpmBltData cbData = { .pCmdBuffer = this, .bltType = Developer::RpmBltType::Dispatch };
+        m_device.Parent()->DeveloperCb(Developer::CallbackType::RpmBlt, &cbData);
+#endif
     }
 }
 

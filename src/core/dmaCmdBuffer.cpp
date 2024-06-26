@@ -1148,7 +1148,8 @@ void DmaCmdBuffer::CmdFillMemory(
     gpusize           fillSize,
     uint32            data)
 {
-    gpusize dstAddr = dstGpuMemory.Desc().gpuVirtAddr + dstOffset;
+    const GpuMemory& dstMemory = static_cast<const GpuMemory&>(dstGpuMemory);
+    gpusize          dstAddr   = dstGpuMemory.Desc().gpuVirtAddr + dstOffset;
 
     // Both the destination address and the fillSize need to be dword aligned, so verify that here.
     PAL_ASSERT(IsPow2Aligned(dstAddr,  sizeof(uint32)));
@@ -1163,7 +1164,11 @@ void DmaCmdBuffer::CmdFillMemory(
     {
         pCmdSpace = m_cmdStream.ReserveCommands();
 
-        pCmdSpace = WriteFillMemoryCmd(dstAddr, bytesRemaining, data, pCmdSpace, &bytesJustCopied);
+        pCmdSpace = WriteFillMemoryCmd(dstAddr,
+                                       bytesRemaining,
+                                       data,
+                                       pCmdSpace,
+                                       &bytesJustCopied);
 
         m_cmdStream.CommitCommands(pCmdSpace);
 

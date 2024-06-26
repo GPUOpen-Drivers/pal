@@ -54,32 +54,27 @@ static void PAL_STDCALL Pm4InstrumentorCb(
     case Developer::CallbackType::FreeGpuMemory:
     case Developer::CallbackType::SubAllocGpuMemory:
     case Developer::CallbackType::SubFreeGpuMemory:
-        PAL_ASSERT(pCbData != nullptr);
         TranslateGpuMemoryData(pCbData);
         break;
     case Developer::CallbackType::SurfRegData:
         break;
     case Developer::CallbackType::PresentConcluded:
-        pThis->NotifyPresentOcurred();
+        pThis->NotifyPresentOccurred();
         break;
     case Developer::CallbackType::CreateImage:
         break;
     case Developer::CallbackType::BarrierBegin:
     case Developer::CallbackType::BarrierEnd:
     case Developer::CallbackType::ImageBarrier:
-        PAL_ASSERT(pCbData != nullptr);
         TranslateBarrierEventData(pCbData);
         break;
     case Developer::CallbackType::DrawDispatch:
-        PAL_ASSERT(pCbData != nullptr);
         TranslateDrawDispatchData(pCbData);
         break;
     case Developer::CallbackType::BindPipeline:
-        PAL_ASSERT(pCbData != nullptr);
         TranslateBindPipelineData(pCbData);
         break;
     case Developer::CallbackType::DrawDispatchValidation:
-        PAL_ASSERT(pCbData != nullptr);
         if (TranslateDrawDispatchValidationData(pCbData))
         {
             const auto& data    = *static_cast<Developer::DrawDispatchValidationData*>(pCbData);
@@ -89,7 +84,6 @@ static void PAL_STDCALL Pm4InstrumentorCb(
         }
         break;
     case Developer::CallbackType::BindPipelineValidation:
-        PAL_ASSERT(pCbData != nullptr);
         if (TranslateBindPipelineValidationData(pCbData))
         {
             const auto& data    = *static_cast<Developer::BindPipelineValidationData*>(pCbData);
@@ -99,7 +93,6 @@ static void PAL_STDCALL Pm4InstrumentorCb(
         }
         break;
     case Developer::CallbackType::OptimizedRegisters:
-        PAL_ASSERT(pCbData != nullptr);
         if (TranslateOptimizedRegistersData(pCbData))
         {
             const auto& data    = *static_cast<Developer::OptimizedRegistersData*>(pCbData);
@@ -109,8 +102,10 @@ static void PAL_STDCALL Pm4InstrumentorCb(
         }
         break;
     case Developer::CallbackType::BindGpuMemory:
-        PAL_ASSERT(pCbData != nullptr);
         TranslateBindGpuMemoryData(pCbData);
+        break;
+    case Developer::CallbackType::RpmBlt:
+        TranslateReportRpmBltTypeData(pCbData);
         break;
     default:
         PAL_ASSERT_ALWAYS();

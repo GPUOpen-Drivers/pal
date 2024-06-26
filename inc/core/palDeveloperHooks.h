@@ -69,6 +69,9 @@ enum class CallbackType : uint32
     BindGpuMemory,          ///< This callback is to inform of a new binding to GPU memory.
     SubAllocGpuMemory,      ///< This callback is to inform of suballocation from base GPU memory allocation.
     SubFreeGpuMemory,       ///< This callback is to inform that GPU memory suballocation has been freed.
+#if PAL_DEVELOPER_BUILD
+    RpmBlt,                 ///< This callback is to describe the internal RPM blt calls.
+#endif
     Count,                  ///< The number of info types.
 };
 
@@ -144,9 +147,25 @@ struct GpuMemoryData
 
     GpuMemoryAllocationMethod allocMethod;  ///< Allocation method
     const IGpuMemory*         pGpuMemory;   ///< Handle to the Pal::IGpuMemory object of this GPU memory allocation
-    gpusize offset;                         ///< Offset, in bytes, of a suballocation within a base allocation.  For
+    gpusize                   offset;       ///< Offset, in bytes, of a suballocation within a base allocation.  For
                                             ///  base allocations, offset is always zero.
 };
+
+#if PAL_DEVELOPER_BUILD
+/// PWS acquire point for barrier logger
+enum class AcquirePoint : uint8
+{
+    Pfp = 0,
+    Me,
+    PreShader,
+    PreDepth,
+    PrePs,
+    PreColor,
+    Eop, // Invalid, for internal optimization purpose.
+
+    Count
+};
+#endif
 
 /// Information pertaining to the cache flush/invalidations and stalls performed during barrier execution.
 struct BarrierOperations
@@ -223,6 +242,10 @@ struct BarrierOperations
         uint16 u16All; ///< Unsigned integer containing all the values.
 
     } caches; ///< Information about cache operations performed for the barrier.
+
+#if PAL_DEVELOPER_BUILD
+    AcquirePoint acquirePoint;
+#endif
 };
 
 /// Enumeration for PAL barrier reasons
@@ -261,6 +284,8 @@ enum BarrierReason : uint32
     BarrierReasonResolveImage,                              ///< Barrier issued before and after resolve image shader
     BarrierReasonPerPixelCopy,                              ///< Barrier issued between CS copy and per-pixel copy steps
     BarrierReasonGenerateMipmaps,                           ///< Barrier issued between generating mip levels
+
+    /// Newly defined barrier reasons should be before this one.
     BarrierReasonInternalLastDefined,                       ///< Only used for asserts.
     BarrierReasonUnknown = 0xFFFFFFFF,                      ///< Unknown barrier reason
 
@@ -272,9 +297,11 @@ enum BarrierReason : uint32
 /// Style of barrier
 enum class BarrierType : uint32
 {
-    Full,    ///< A traditional blocking barrier.
-    Release, ///< A pipelined barrier that flushes caches and starts transitions.
-    Acquire, ///< A barrier that waits on previous 'Release' barriers.
+    Full = 0, ///< A traditional blocking barrier.
+    Release,  ///< A pipelined barrier that flushes caches and starts transitions.
+    Acquire,  ///< A barrier that waits on previous 'Release' barriers.
+
+    Count
 };
 
 /// Information for barrier executions.
@@ -284,8 +311,8 @@ struct BarrierData
     BarrierTransition transition;    ///< The particular transition that is currently executing.
     bool              hasTransition; ///< Whether or not the transition structure is populated.
     BarrierOperations operations;    ///< Detailed cache and pipeline operations performed during this barrier execution
-    uint32            reason;        ///< Reason that the barrier was invoked. Only filled at BarrierStart.
-    BarrierType       type;          ///< What style of barrier this is. Only filled at BarrierStart.
+    uint32            reason;        ///< Reason that the barrier was invoked. Only filled at BarrierBegin.
+    BarrierType       type;          ///< What style of barrier this is. Only filled at BarrierBegin.
 };
 
 /// Enumeration describing the different types of tile mode dimensions
@@ -507,6 +534,24 @@ struct OptimizedRegistersData
     const uint32* pCtxRegKeptSets;
     uint32        ctxRegCount;      ///< Number of context registers
     uint16        ctxRegBase;       ///< Base address of context registers
+};
+
+/// Internal RPM blt type
+enum class RpmBltType : uint32
+{
+    CpDmaCopy = 0,
+    CpDmaUpdate,
+    Draw,
+    Dispatch,
+
+    Count
+};
+
+/// Describes the RPM blt call
+struct RpmBltData
+{
+    ICmdBuffer* pCmdBuffer;    ///< The command buffer that is executing the blt.
+    RpmBltType  bltType;       ///< Type of RPM blt, @ref RpmBltType.
 };
 #endif
 

@@ -92,6 +92,7 @@ protected:
 
     BoundGpuMemory  m_gpuMem;
     gpusize         m_gpuMemSize;
+    gpusize         m_gpuMemOffset;
     uint32          m_maxStackSizeInBytes;
 
     UploadFenceToken  m_uploadFenceToken;

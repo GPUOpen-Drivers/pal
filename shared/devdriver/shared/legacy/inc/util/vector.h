@@ -273,7 +273,7 @@ namespace DevDriver
         void Swap(Vector& rhs)
         {
             // If we can, we swap allocations directly
-            if ((m_pData != m_data) & (rhs.m_pData != rhs.m_data))
+            if ((m_pData != m_data) && (rhs.m_pData != rhs.m_data))
             {
                 m_pData = Platform::Exchange(rhs.m_pData, m_pData);
             }
@@ -360,7 +360,7 @@ namespace DevDriver
                     // Need to use reinterpret_cast here because gcc can't seem to evaluate
                     // `is_trivial_v` at compile-time, thus generating a no-class-memaccess warning.
                     // `if constexpr` fixes the issue, but AMDLOG's toolchain doesn't support c++17.
-                    memcpy(reinterpret_cast<void*>(&pData[0]), &m_pData[0], sizeof(T) * m_size);
+                    std::memcpy(reinterpret_cast<void*>(pData), m_pData, m_size * sizeof(T));
                 }
 
                 if (m_pData != m_data)
@@ -497,12 +497,12 @@ namespace DevDriver
         // Comparison operators
         bool operator==(const Iterator& rhs) const
         {
-            return ((m_pContainer == rhs.m_pContainer) & (m_index == rhs.m_index));
+            return ((m_pContainer == rhs.m_pContainer) && (m_index == rhs.m_index));
         }
 
         bool operator!=(const Iterator& rhs) const
         {
-            return ((m_pContainer != rhs.m_pContainer) | (m_index != rhs.m_index));
+            return ((m_pContainer != rhs.m_pContainer) || (m_index != rhs.m_index));
         }
 
         // Prefix operator to increment the iterator

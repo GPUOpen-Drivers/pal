@@ -55,16 +55,14 @@ Result Screen::IsImplicitFullscreenOwnershipSafe(
     Extent2d        imageExtent
     ) const
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::ScreenIsImplicitFullscreenOwnershipSafe;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = ScreenDecorator::IsImplicitFullscreenOwnershipSafe(hDisplay, hWindow, imageExtent);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId,
+                                InterfaceFunc::ScreenIsImplicitFullscreenOwnershipSafe);
+    const Result result = ScreenDecorator::IsImplicitFullscreenOwnershipSafe(hDisplay, hWindow, imageExtent);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndValue("hDisplay", hDisplay);
         pLogContext->KeyAndValue("hWindow", *reinterpret_cast<uint64*>(&hWindow));
@@ -86,16 +84,13 @@ Result Screen::QueryCurrentDisplayMode(
     Extent2d* pDisplayModeSize
     )const
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::ScreenQueryCurrentDisplayMode;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = ScreenDecorator::QueryCurrentDisplayMode(pDisplayModeSize);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::ScreenQueryCurrentDisplayMode);
+    const Result result = ScreenDecorator::QueryCurrentDisplayMode(pDisplayModeSize);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginOutput();
         pLogContext->KeyAndEnum("result", result);
         pLogContext->KeyAndStruct("displayModeSize", *pDisplayModeSize);
@@ -111,16 +106,13 @@ Result Screen::QueryCurrentDisplayMode(
 Result Screen::TakeFullscreenOwnership(
     const IImage& image)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::ScreenTakeFullscreenOwnership;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = ScreenDecorator::TakeFullscreenOwnership(image);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::ScreenTakeFullscreenOwnership);
+    const Result result = ScreenDecorator::TakeFullscreenOwnership(image);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("image", &image);
         pLogContext->EndInput();
@@ -138,16 +130,13 @@ Result Screen::TakeFullscreenOwnership(
 // =====================================================================================================================
 Result Screen::ReleaseFullscreenOwnership()
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::ScreenReleaseFullscreenOwnership;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = ScreenDecorator::ReleaseFullscreenOwnership();
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::ScreenReleaseFullscreenOwnership);
+    const Result result = ScreenDecorator::ReleaseFullscreenOwnership();
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginOutput();
         pLogContext->KeyAndEnum("result", result);
         pLogContext->EndOutput();
@@ -162,16 +151,13 @@ Result Screen::ReleaseFullscreenOwnership()
 Result Screen::SetGammaRamp(
     const GammaRamp& gammaRamp)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::ScreenSetGammaRamp;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = ScreenDecorator::SetGammaRamp(gammaRamp);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::ScreenSetGammaRamp);
+    const Result result = ScreenDecorator::SetGammaRamp(gammaRamp);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("gammaRamp", gammaRamp);
         pLogContext->EndInput();
@@ -189,16 +175,13 @@ Result Screen::SetGammaRamp(
 // =====================================================================================================================
 Result Screen::WaitForVerticalBlank() const
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::ScreenWaitForVerticalBlank;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = ScreenDecorator::WaitForVerticalBlank();
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::ScreenWaitForVerticalBlank);
+    const Result result = ScreenDecorator::WaitForVerticalBlank();
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginOutput();
         pLogContext->KeyAndEnum("result", result);
         pLogContext->EndOutput();
@@ -212,16 +195,11 @@ Result Screen::WaitForVerticalBlank() const
 // =====================================================================================================================
 void Screen::Destroy()
 {
-    // Note that we can't time a Destroy call.
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::ScreenDestroy;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    funcInfo.postCallTime = funcInfo.preCallTime;
-
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    // Note that we can't time Destroy calls nor track their callbacks.
+    if (m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::ScreenDestroy))
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         m_pPlatform->LogEndFunc(pLogContext);
     }
 

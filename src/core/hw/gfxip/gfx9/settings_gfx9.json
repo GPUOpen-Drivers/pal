@@ -728,32 +728,6 @@
       "ValidValues": {
         "Values": [
           {
-            "Description": "Do not limit number of waves in flight in each compute unit.",
-            "Value": 0
-          },
-          {
-            "LogicOp": "LessThanOrEqual",
-            "Description": "Limits the number of waves in flight in each compute unit.",
-            "Value": 40
-          }
-        ]
-      },
-      "Description": "Controls the WAVES_PER_SH field in the COMPUTE_RESOURCE_LIMITS register; note that it is specified per-CU rather than per-SH for convenience.",
-      "Tags": [
-        "Compute Pipelines",
-        "Gfx9"
-      ],
-      "Defaults": {
-        "Default": 0
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "uint32",
-      "Name": "CsMaxWavesPerCu"
-    },
-    {
-      "ValidValues": {
-        "Values": [
-          {
             "Description": "Disables locking.",
             "Value": 0
           },

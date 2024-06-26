@@ -50,16 +50,13 @@ GpuEvent::GpuEvent(
 // =====================================================================================================================
 Result GpuEvent::Set()
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::GpuEventSet;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = GpuEventDecorator::Set();
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::GpuEventSet);
+    const Result result = GpuEventDecorator::Set();
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginOutput();
         pLogContext->KeyAndEnum("result", result);
         pLogContext->EndOutput();
@@ -73,16 +70,13 @@ Result GpuEvent::Set()
 // =====================================================================================================================
 Result GpuEvent::Reset()
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::GpuEventReset;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = GpuEventDecorator::Reset();
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::GpuEventReset);
+    const Result result = GpuEventDecorator::Reset();
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginOutput();
         pLogContext->KeyAndEnum("result", result);
         pLogContext->EndOutput();
@@ -98,16 +92,13 @@ Result GpuEvent::BindGpuMemory(
     IGpuMemory* pGpuMemory,
     gpusize     offset)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::GpuEventBindGpuMemory;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = GpuEventDecorator::BindGpuMemory(pGpuMemory, offset);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::GpuEventBindGpuMemory);
+    const Result result = GpuEventDecorator::BindGpuMemory(pGpuMemory, offset);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("gpuMemory", pGpuMemory);
         pLogContext->KeyAndValue("offset", offset);
@@ -126,16 +117,11 @@ Result GpuEvent::BindGpuMemory(
 // =====================================================================================================================
 void GpuEvent::Destroy()
 {
-    // Note that we can't time a Destroy call.
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::GpuEventDestroy;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    funcInfo.postCallTime = funcInfo.preCallTime;
-
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    // Note that we can't time Destroy calls nor track their callbacks.
+    if (m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::GpuEventDestroy))
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         m_pPlatform->LogEndFunc(pLogContext);
     }
 

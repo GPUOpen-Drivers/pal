@@ -330,8 +330,7 @@ static void Gfx11UpdateRpbBlockInfo(
         }};
     }
     else
-    if (false
-        || IsPhoenix2(device)
+    if (IsPhoenix2(device)
        )
     {
         pInfo->regAddr = { Phx2::mmRPB_PERFCOUNTER_RSLT_CNTL, {

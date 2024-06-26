@@ -2582,22 +2582,18 @@ void PAL_STDCALL PlatformDecorator::DefaultDeveloperCb(
     switch (type)
     {
     case Developer::CallbackType::ImageBarrier:
-        PAL_ASSERT(pCbData != nullptr);
         TranslateBarrierEventData(pCbData);
         break;
     case Developer::CallbackType::DrawDispatch:
-        PAL_ASSERT(pCbData != nullptr);
         TranslateDrawDispatchData(pCbData);
         break;
     case Developer::CallbackType::BindPipeline:
-        PAL_ASSERT(pCbData != nullptr);
         TranslateBindPipelineData(pCbData);
         break;
     case Developer::CallbackType::AllocGpuMemory:
     case Developer::CallbackType::FreeGpuMemory:
     case Developer::CallbackType::SubAllocGpuMemory:
     case Developer::CallbackType::SubFreeGpuMemory:
-        PAL_ASSERT(pCbData != nullptr);
         TranslateGpuMemoryData(pCbData);
         break;
     case Developer::CallbackType::PresentConcluded:
@@ -2606,9 +2602,22 @@ void PAL_STDCALL PlatformDecorator::DefaultDeveloperCb(
     case Developer::CallbackType::BarrierEnd:
         break;
     case Developer::CallbackType::BindGpuMemory:
-        PAL_ASSERT(pCbData != nullptr);
         TranslateBindGpuMemoryData(pCbData);
         break;
+#if PAL_DEVELOPER_BUILD
+    case Developer::CallbackType::DrawDispatchValidation:
+        TranslateDrawDispatchValidationData(pCbData);
+        break;
+    case Developer::CallbackType::BindPipelineValidation:
+        TranslateBindPipelineValidationData(pCbData);
+        break;
+    case Developer::CallbackType::OptimizedRegisters:
+        TranslateOptimizedRegistersData(pCbData);
+        break;
+    case Developer::CallbackType::RpmBlt:
+        TranslateReportRpmBltTypeData(pCbData);
+        break;
+#endif
     default:
         // If we are here, there is a callback we haven't implemented above!
         PAL_ASSERT_ALWAYS();

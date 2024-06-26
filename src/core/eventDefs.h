@@ -152,7 +152,6 @@ struct GpuMemoryResourceDestroyData
 struct DebugNameData
 {
     ResourceHandle handle;
-    uint32         nameSize;
     const char*    pDebugName;
 };
 

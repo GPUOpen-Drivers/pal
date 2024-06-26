@@ -28,6 +28,7 @@
 #include "core/device.h"
 #include "g_gfx9Settings.h"
 #include "core/hw/gfxip/gfx9/gfx9Barrier.h"
+#include "core/hw/gfxip/gfx9/gfx9Chip.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"
 #include "core/hw/gfxip/gfx9/gfx9MetaEq.h"
 #include "core/hw/gfxip/gfx9/gfx9SettingsLoader.h"
@@ -537,6 +538,9 @@ public:
 
     bool EnableReleaseMemWaitCpDma() const { return Settings().gfx11EnableReleaseMemWaitCpDma; }
 
+    const GraphicsPipelineSignature& GetNullGfxSignature() const { return m_nullGfxSignature; }
+    const ComputeShaderSignature& GetNullCsSignature() const { return m_nullCsSignature; }
+
 private:
     void Gfx10SetImageSrdDims(sq_img_rsrc_t*  pSrd, uint32 width, uint32  height) const;
 
@@ -589,6 +593,9 @@ private:
 
     bool   m_useFixedLateAllocVsLimit;
     uint32 m_lateAllocVsLimit;
+
+    GraphicsPipelineSignature   m_nullGfxSignature;
+    ComputeShaderSignature      m_nullCsSignature;
 
     PAL_DISALLOW_DEFAULT_CTOR(Device);
     PAL_DISALLOW_COPY_AND_ASSIGN(Device);

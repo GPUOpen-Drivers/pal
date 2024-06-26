@@ -495,6 +495,11 @@ void RsrcProcMgr::CmdUpdateMemory(
 
     pPm4CmdBuf->SetCpBltState(true);
     pPm4CmdBuf->SetCpBltWriteCacheState(true);
+
+#if PAL_DEVELOPER_BUILD
+    Developer::RpmBltData cbData = { .pCmdBuffer = pPm4CmdBuf, .bltType = Developer::RpmBltType::CpDmaUpdate };
+    m_pDevice->Parent()->DeveloperCb(Developer::CallbackType::RpmBlt, &cbData);
+#endif
 }
 
 // =====================================================================================================================

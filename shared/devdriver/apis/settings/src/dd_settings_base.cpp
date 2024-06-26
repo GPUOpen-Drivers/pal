@@ -26,6 +26,7 @@
 #include <dd_settings_base.h>
 #include <dd_settings_rpc_types.h>
 #include <dd_optional.h>
+#include <dd_integer.h>
 
 #include <cstring>
 #include <limits>
@@ -91,13 +92,6 @@ template<typename T>
 const void* OptionalInnerValueAddrHelper(const DevDriver::Optional<T>* pOptional)
 {
     return pOptional->HasValue() ? &(pOptional->Value()) : nullptr;
-}
-
-template<typename R, typename T>
-R SafeUIntCast(T u)
-{
-    DD_ASSERT(u <= std::numeric_limits<R>::max());
-    return static_cast<R>(u);
 }
 
 } // anonymous namespace
@@ -226,7 +220,7 @@ DD_RESULT SettingsBase::GetAllValues(DynamicBuffer& recvBuffer, size_t* pOutNumV
             if (pStrValue[0] != '\0')
             {
                 pSrcValueBuf          = pStrValue;
-                valueHeader.valueSize = SafeUIntCast<uint16_t, size_t>(strnlen(pStrValue, entry.value.size) + 1);
+                valueHeader.valueSize = SafeCastToU16(strnlen(pStrValue, entry.value.size) + 1);
 
                 DD_ASSERT(entry.value.size >= valueHeader.valueSize);
             }

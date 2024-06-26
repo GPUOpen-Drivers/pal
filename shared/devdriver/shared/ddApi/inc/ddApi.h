@@ -251,6 +251,12 @@ typedef enum
     /// correctly.
     DD_RESULT_COMMON_SUCCESS_WITH_ERRORS                                        = DD_R_CODE(DD_RESULT_COMMON, 11),
 
+    /// Not enough permission to performance some operations.
+    DD_RESULT_COMMON_ACCESS_DENIED                                              = DD_R_CODE(DD_RESULT_COMMON, 12),
+
+    /// Something is either too long/large or too short/small.
+    DD_RESULT_COMMON_OUT_OF_RANGE                                               = DD_R_CODE(DD_RESULT_COMMON, 13),
+
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Errors related to common parsing of data
 

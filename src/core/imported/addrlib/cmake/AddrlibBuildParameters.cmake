@@ -53,7 +53,12 @@ if (CMAKE_SYSTEM_NAME MATCHES "Linux")
     set(addrlib_is_linux ON)
 endif()
 
-addrlib_bp(ADDR_LNX_KERNEL_BUILD ${addrlib_is_linux} MSG "Linux kernel build?" DEPENDS_ON ${addrlib_is_linux})
+addrlib_bp(ADDR_LNX_KERNEL_BUILD OFF MSG "Linux kernel build?" DEPENDS_ON ${addrlib_is_linux})
+if (ADDR_LNX_KERNEL_BUILD)
+    set(ADDR_KERNEL_BUILD ON)
+elseif (NOT DEFINED ADDR_KERNEL_BUILD)
+    set(ADDR_KERNEL_BUILD OFF)
+endif()
 
 # Build with "always" assertions by default
 addrlib_bp(ADDR_SILENCE_ASSERT_ALWAYS OFF)

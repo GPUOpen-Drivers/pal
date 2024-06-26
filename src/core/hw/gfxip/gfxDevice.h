@@ -850,7 +850,7 @@ private:
 
 namespace Gfx9
 {
-extern size_t GetDeviceSize(GfxIpLevel  gfxLevel);
+extern size_t GetDeviceSize();
 extern Result CreateDevice(
     Device*                   pDevice,
     void*                     pPlacementAddr,

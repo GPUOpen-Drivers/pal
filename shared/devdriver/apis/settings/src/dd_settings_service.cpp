@@ -26,24 +26,13 @@
 #include <dd_settings_service.h>
 #include <dd_dynamic_buffer.h>
 #include <dd_settings_iterator.h>
+#include <dd_integer.h>
 
 #include <ddCommon.h>
 
 #include <cstdlib>
 #include <limits>
 #include <utility>
-
-namespace
-{
-
-template<typename R, typename T>
-R SafeIntegerCast(T n)
-{
-    DD_ASSERT(n <= std::numeric_limits<R>::max());
-    return static_cast<R>(n);
-}
-
-} // anonymous namespace
 
 namespace DevDriver
 {
@@ -192,7 +181,7 @@ DD_RESULT SettingsRpcService::QueryAllCurrentValues(const DDByteWriter& writer)
 
     DDSettingsAllComponentsHeader allCompsHeader {};
     allCompsHeader.version = 1;
-    allCompsHeader.numComponents = SafeIntegerCast<uint16_t, size_t>(m_settingsComponents.Size());
+    allCompsHeader.numComponents = SafeCastToU16(m_settingsComponents.Size());
 
     writer.pfnWriteBytes(writer.pUserdata, &allCompsHeader, sizeof(allCompsHeader));
 
@@ -216,10 +205,10 @@ DD_RESULT SettingsRpcService::QueryAllCurrentValues(const DDByteWriter& writer)
 
             header.blobHash = entry.value->GetSettingsBlobHash();
 
-            header.numValues = SafeIntegerCast<uint16_t, size_t>(numValues);
+            header.numValues = SafeCastToU16(numValues);
 
             size_t compSize = valuesBuf.Size() + sizeof(header);
-            header.size = SafeIntegerCast<uint16_t, size_t>(compSize);
+            header.size = SafeCastToU16(compSize);
 
             result = writer.pfnWriteBytes(writer.pUserdata, &header, sizeof(header));
 
@@ -258,7 +247,7 @@ DD_RESULT SettingsRpcService::GetUnsupportedExperiments(const DDByteWriter& writ
 
     DDSettingsAllComponentsHeader allCompsHeader{};
     allCompsHeader.version       = 1;
-    allCompsHeader.numComponents = SafeIntegerCast<uint16_t, size_t>(m_settingsComponents.Size());
+    allCompsHeader.numComponents = SafeCastToU16(m_settingsComponents.Size());
 
     writer.pfnWriteBytes(writer.pUserdata, &allCompsHeader, sizeof(allCompsHeader));
 
@@ -283,10 +272,10 @@ DD_RESULT SettingsRpcService::GetUnsupportedExperiments(const DDByteWriter& writ
 
             header.blobHash = entry.value->GetSettingsBlobHash();
 
-            header.numValues = SafeIntegerCast<uint16_t, size_t>(numValues);
+            header.numValues = SafeCastToU16(numValues);
 
             size_t compSize = valuesBuf.Size() + sizeof(header);
-            header.size     = SafeIntegerCast<uint16_t, size_t>(compSize);
+            header.size     = SafeCastToU16(compSize);
 
             result = writer.pfnWriteBytes(writer.pUserdata, &header, sizeof(header));
             if (result == DD_RESULT_SUCCESS)

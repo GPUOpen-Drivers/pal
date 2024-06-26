@@ -51,16 +51,13 @@ Result GpuMemory::SetPriority(
     GpuMemPriority       priority,
     GpuMemPriorityOffset priorityOffset)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::GpuMemorySetPriority;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = GpuMemoryDecorator::SetPriority(priority, priorityOffset);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::GpuMemorySetPriority);
+    const Result result = GpuMemoryDecorator::SetPriority(priority, priorityOffset);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndEnum("priority", priority);
         pLogContext->KeyAndEnum("priorityOffset", priorityOffset);
@@ -80,16 +77,13 @@ Result GpuMemory::SetPriority(
 Result GpuMemory::Map(
     void** ppData)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::GpuMemoryMap;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = GpuMemoryDecorator::Map(ppData);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::GpuMemoryMap);
+    const Result result = GpuMemoryDecorator::Map(ppData);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginOutput();
         pLogContext->KeyAndEnum("result", result);
         pLogContext->EndOutput();
@@ -103,16 +97,13 @@ Result GpuMemory::Map(
 // =====================================================================================================================
 Result GpuMemory::Unmap()
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::GpuMemoryUnmap;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = GpuMemoryDecorator::Unmap();
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::GpuMemoryUnmap);
+    const Result result = GpuMemoryDecorator::Unmap();
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginOutput();
         pLogContext->KeyAndEnum("result", result);
         pLogContext->EndOutput();
@@ -128,16 +119,13 @@ Result GpuMemory::SetSdiRemoteBusAddress(
     gpusize surfaceBusAddr,
     gpusize markerBusAddr)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::GpuMemorySetSdiRemoteBusAddress;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = GpuMemoryDecorator::SetSdiRemoteBusAddress(surfaceBusAddr, markerBusAddr);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::GpuMemorySetSdiRemoteBusAddress);
+    const Result result = GpuMemoryDecorator::SetSdiRemoteBusAddress(surfaceBusAddr, markerBusAddr);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndValue("surfaceBusAddr", surfaceBusAddr);
         pLogContext->KeyAndValue("markerBusAddr", markerBusAddr);
@@ -156,16 +144,11 @@ Result GpuMemory::SetSdiRemoteBusAddress(
 // =====================================================================================================================
 void GpuMemory::Destroy()
 {
-    // Note that we can't time a Destroy call.
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::GpuMemoryDestroy;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    funcInfo.postCallTime = funcInfo.preCallTime;
-
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    // Note that we can't time Destroy calls nor track their callbacks.
+    if (m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::GpuMemoryDestroy))
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         m_pPlatform->LogEndFunc(pLogContext);
     }
 

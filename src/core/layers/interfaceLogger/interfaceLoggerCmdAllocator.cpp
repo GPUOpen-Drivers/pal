@@ -50,16 +50,13 @@ CmdAllocator::CmdAllocator(
 Result CmdAllocator::Reset(
     bool freeMemory)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdAllocatorReset;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = CmdAllocatorDecorator::Reset(freeMemory);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdAllocatorReset);
+    const Result result = CmdAllocatorDecorator::Reset(freeMemory);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndValue("freeMemory", freeMemory);
         pLogContext->EndInput();
@@ -79,16 +76,13 @@ Result CmdAllocator::Trim(
     uint32 allocTypeMask,
     uint32 dynamicThreshold)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdAllocatorTrim;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = CmdAllocatorDecorator::Trim(allocTypeMask, dynamicThreshold);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdAllocatorTrim);
+    const Result result = CmdAllocatorDecorator::Trim(allocTypeMask, dynamicThreshold);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndValue("allocTypeMask", allocTypeMask);
         pLogContext->KeyAndValue("dynamicThreshold", dynamicThreshold);
@@ -107,16 +101,11 @@ Result CmdAllocator::Trim(
 // =====================================================================================================================
 void CmdAllocator::Destroy()
 {
-    // Note that we can't time a Destroy call.
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdAllocatorDestroy;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    funcInfo.postCallTime = funcInfo.preCallTime;
-
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    // Note that we can't time Destroy calls nor track their callbacks.
+    if (m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdAllocatorDestroy))
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         m_pPlatform->LogEndFunc(pLogContext);
     }
 

@@ -661,7 +661,12 @@ static const void DumpClearColor(
         "Uint",
         "Sint",
         "Float",
+        "Yuv"
     };
+
+    static_assert(ArrayLen(ClearColorTypesStrings) == static_cast<uint32>(ClearColorType::Count),
+                  "The ClearColorType string table needs to be updated.");
+
     char fallback[SafeFallbackStringLength];
 
     Snprintf(pString, StringLength, "%s = {", pTitle);
@@ -1799,6 +1804,9 @@ void CmdBuffer::CmdSetPerDrawVrsRate(
             "_2x1",
             "_2x2",
         };
+        static_assert(ArrayLen(ShadingRateNames) == static_cast<uint32>(VrsShadingRate::Count),
+                  "The ShadingRate string table needs to be updated.");
+
         char shadingRateFb[SafeFallbackStringLength];
 
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetPerDrawVrsRate));
@@ -1821,6 +1829,9 @@ void CmdBuffer::CmdSetPerDrawVrsRate(
                 "Image",
                 "PsIterSamples",
             };
+            static_assert(ArrayLen(CombinerStageNames) == static_cast<uint32>(VrsCombinerStage::Max),
+                  "The VrsCombinerStage string table needs to be updated.");
+
             char combinerStageFb[SafeFallbackStringLength];
 
             static constexpr char const*  CombinerNames[] =
@@ -1831,6 +1842,9 @@ void CmdBuffer::CmdSetPerDrawVrsRate(
                 "Max",
                 "Sum",
             };
+            static_assert(ArrayLen(CombinerNames) == static_cast<uint32>(VrsCombiner::Count),
+                  "The VrsCombiner string table needs to be updated.");
+
             char combinerFb[SafeFallbackStringLength];
 
             Snprintf(&pString[0],
@@ -1885,6 +1899,10 @@ void CmdBuffer::CmdSetVrsCenterState(
                 "_2x1",
                 "_2x2",
             };
+
+            static_assert(ArrayLen(Names) == static_cast<uint32>(VrsCenterRates::Max),
+                  "The VrsCenterRates string table needs to be updated.");
+
             char fallback[SafeFallbackStringLength];
 
             Snprintf(&pString[0],
@@ -2153,41 +2171,24 @@ void CmdBuffer::CmdSetGlobalScissor(
 static const char* HwPipePointToString(
     HwPipePoint pipePoint)
 {
-    const char* pString = "";
-
-    switch (pipePoint)
+    const char*const StringTable[] =
     {
-    case HwPipeTop:
-        pString = "HwPipeTop";
-        break;
+        "HwPipeTop",              // 0x0,
+        "HwPipePostPrefetch",     // 0x1,
+        "HwPipePreRasterization", // 0x2,
+        "HwPipePostPs",           // 0x3,
+        "HwPipePreColorTarget",   // 0x4,
+        "HwPipePostCs",           // 0x5,
+        "HwPipePostBlt",          // 0x6,
+        "HwPipeBottom",           // 0x7,
+    };
 
-    // HwPipePostPrefetch == HwPipePreCs == HwPipePreBlt
-    case HwPipePostPrefetch:
-        pString = "HwPipePostPrefetch";
-        break;
-    case HwPipePreRasterization:
-        pString = "HwPipePreRasterization";
-        break;
-    case HwPipePostPs:
-        pString = "HwPipePostPs";
-        break;
-    case HwPipePreColorTarget:
-        pString = "HwPipePreColorTarget";
-        break;
-    case HwPipeBottom:
-        pString = "HwPipeBottom";
-        break;
-    case HwPipePostCs:
-        pString = "HwPipePostCs";
-        break;
-    case HwPipePostBlt:
-        pString = "HwPipePostBlt";
-        break;
-    }
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(HwPipePointCount),
+                  "The HwPipePoint string table needs to be updated.");
 
     static_assert(((HwPipePostPrefetch == HwPipePreCs) && (HwPipePostPrefetch == HwPipePreBlt)), "");
 
-    return pString;
+    return StringTable[pipePoint];
 }
 
 // =====================================================================================================================
@@ -2219,6 +2220,9 @@ static void PipelineStageFlagToString(
         "Blt",          // PipelineStageBlt
         "Bottom",       // PipelineStageBottomOfPipe
     };
+
+    static_assert(BitfieldGenMask(ArrayLen(PipeStageNames)) == PipelineStageAllStages,
+                  "The PipelineStage string table needs to be updated.");
 
     bool   firstOneDumped = false;
     size_t offset         = strlen(pString);
@@ -2267,6 +2271,9 @@ static void CacheCoherencyUsageToString(
         "SampleRate",   // CoherSampleRate
         "Present",      // CoherPresent
     };
+
+    static_assert(BitfieldGenMask(ArrayLen(CacheCoherUsageNames)) == CoherAllUsages,
+                  "The coher cache flag string table needs to be updated.");
 
     bool   firstOneDumped = false;
     size_t offset         = strlen(pString);

@@ -53,6 +53,7 @@ Pipeline::Pipeline(
     m_shaderMetaData{},
     m_gpuMem(),
     m_gpuMemSize(0),
+    m_gpuMemOffset(0),
     m_pPipelineBinary(nullptr),
     m_pipelineBinaryLen(0),
     m_perfDataInfo{},
@@ -176,10 +177,11 @@ Result Pipeline::PerformRelocationsAndUploadToGpuMemory(
 
     if (result == Result::Success)
     {
-        gpusize offset   = pUploader->SectionOffset();
         m_pagingFenceVal = pUploader->PagingFenceVal();
-        m_gpuMemSize     = pUploader->GpuMemSize() - offset;
-        m_gpuMem.Update(pUploader->GpuMem(), pUploader->GpuMemOffset() + offset);
+        m_gpuMemOffset   = pUploader->SectionOffset();
+        m_gpuMemSize     = pUploader->GpuMemSize();
+        PAL_ASSERT(m_gpuMemOffset < m_gpuMemSize);
+        m_gpuMem.Update(pUploader->GpuMem(), pUploader->GpuMemOffset());
     }
 
     return result;
@@ -264,8 +266,8 @@ Result Pipeline::QueryAllocationInfo(
             if (pGpuMemList != nullptr)
             {
                 pGpuMemList[0].address = m_gpuMem.Memory()->Desc().gpuVirtAddr;
-                pGpuMemList[0].offset = m_gpuMem.Offset();
-                pGpuMemList[0].size = m_gpuMemSize;
+                pGpuMemList[0].offset  = m_gpuMem.Offset() + m_gpuMemOffset;
+                pGpuMemList[0].size    = m_gpuMemSize - m_gpuMemOffset;
             }
         }
 

@@ -54,7 +54,8 @@ ComputeCmdBuffer::ComputeCmdBuffer(
     const GfxDevice&           device,
     const CmdBufferCreateInfo& createInfo,
     const GfxBarrierMgr*       pBarrierMgr,
-    Pm4::CmdStream*            pCmdStream)
+    Pm4::CmdStream*            pCmdStream,
+    bool                       useUpdateUserData)
     :
     Pm4CmdBuffer(device, createInfo, pBarrierMgr),
     m_spillTable{},
@@ -63,7 +64,8 @@ ComputeCmdBuffer::ComputeCmdBuffer(
 {
     PAL_ASSERT(createInfo.queueType == QueueTypeCompute);
 
-    SwitchCmdSetUserDataFunc(PipelineBindPoint::Compute,  &Pm4CmdBuffer::CmdSetUserDataCs);
+    SwitchCmdSetUserDataFunc(PipelineBindPoint::Compute, useUpdateUserData ? &Pm4CmdBuffer::CmdUpdateUserDataCs
+                                                                           : &Pm4CmdBuffer::CmdSetUserDataCs);
     SwitchCmdSetUserDataFunc(PipelineBindPoint::Graphics, &DummyCmdSetUserDataGfx);
 }
 

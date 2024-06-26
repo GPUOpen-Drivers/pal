@@ -478,8 +478,13 @@ struct ComputeShaderSignature
 // As a ComputePipeline contains only a compute shader, make these two equivalent.
 typedef ComputeShaderSignature ComputePipelineSignature;
 
-// User-data signature for an unbound compute pipeline.
-extern const ComputePipelineSignature NullCsSignature;
+// User-data register address for every possible HW stage in a graphics pipeline.
+union PerStageUserData
+{
+    uint16 addr[NumHwShaderStagesGfx];
+    uint64 packed;
+};
+static_assert(NumHwShaderStagesGfx <= 4);
 
 // This represents the mapping from virtualized user-data entries to physical SPI user-data registers for an entire
 // graphics pipeline.
@@ -543,7 +548,7 @@ struct GraphicsPipelineSignature
     uint16  viewIdRegAddr[NumHwShaderStagesGfx];
 
     // Address of each shader stage's user-SGPR for sampleInfo, dualsourceblend, topology.
-    uint16  compositeDataAddr[NumHwShaderStagesGfx];
+    PerStageUserData compositeData;
 
     // Hash of each stages user-data mapping, used to speed up pipeline binds.
     uint64  userDataHash[NumHwShaderStagesGfx];
@@ -561,9 +566,6 @@ static uint64 ComputeUserDataHash(
         reinterpret_cast<uint8* const>(&hash));
     return hash;
 }
-
-// User-data signature for an unbound graphics pipeline.
-extern const GraphicsPipelineSignature NullGfxSignature;
 
 // Special value indicating that a pipeline or shader does not need its user-data entries to be spilled.
 constexpr uint16 NoUserDataSpilling = static_cast<uint16>(0xFFFF);

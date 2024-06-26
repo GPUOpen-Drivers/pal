@@ -59,16 +59,13 @@ Queue::Queue(
 Result Queue::Submit(
     const MultiSubmitInfo& submitInfo)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::QueueSubmit;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = QueueDecorator::Submit(submitInfo);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::QueueSubmit);
+    const Result result = QueueDecorator::Submit(submitInfo);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndBeginMap("submitInfo", false);
 
@@ -129,16 +126,13 @@ Result Queue::Submit(
 // =====================================================================================================================
 Result Queue::WaitIdle()
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::QueueWaitIdle;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = QueueDecorator::WaitIdle();
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::QueueWaitIdle);
+    const Result result = QueueDecorator::WaitIdle();
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginOutput();
         pLogContext->KeyAndEnum("result", result);
         pLogContext->EndOutput();
@@ -154,16 +148,13 @@ Result Queue::SignalQueueSemaphore(
     IQueueSemaphore* pQueueSemaphore,
     uint64           value)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::QueueSignalQueueSemaphore;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = QueueDecorator::SignalQueueSemaphore(pQueueSemaphore, value);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::QueueSignalQueueSemaphore);
+    const Result result = QueueDecorator::SignalQueueSemaphore(pQueueSemaphore, value);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("queueSemaphore", pQueueSemaphore);
         pLogContext->KeyAndValue("value", value);
@@ -184,16 +175,13 @@ Result Queue::WaitQueueSemaphore(
     IQueueSemaphore* pQueueSemaphore,
     uint64           value)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::QueueWaitQueueSemaphore;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = QueueDecorator::WaitQueueSemaphore(pQueueSemaphore, value);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::QueueWaitQueueSemaphore);
+    const Result result = QueueDecorator::WaitQueueSemaphore(pQueueSemaphore, value);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("queueSemaphore", pQueueSemaphore);
         pLogContext->KeyAndValue("value", value);
@@ -213,16 +201,13 @@ Result Queue::WaitQueueSemaphore(
 Result Queue::PresentDirect(
     const PresentDirectInfo& presentInfo)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::QueuePresentDirect;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = QueueDecorator::PresentDirect(presentInfo);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::QueuePresentDirect);
+    const Result result = QueueDecorator::PresentDirect(presentInfo);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("presentInfo", presentInfo);
         pLogContext->EndInput();
@@ -234,7 +219,7 @@ Result Queue::PresentDirect(
         m_pPlatform->LogEndFunc(pLogContext);
     }
 
-    m_pPlatform->NotifyPresent();
+    m_pPlatform->UpdatePresentState();
 
     return result;
 }
@@ -244,16 +229,13 @@ Result Queue::PresentSwapChain(
     const PresentSwapChainInfo& presentInfo)
 {
     // Note: We must always call down to the next layer because we must release ownership of the image index.
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::QueuePresentSwapChain;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = QueueDecorator::PresentSwapChain(presentInfo);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::QueuePresentSwapChain);
+    const Result result = QueueDecorator::PresentSwapChain(presentInfo);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("presentInfo", presentInfo);
         pLogContext->EndInput();
@@ -265,7 +247,7 @@ Result Queue::PresentSwapChain(
         m_pPlatform->LogEndFunc(pLogContext);
     }
 
-    m_pPlatform->NotifyPresent();
+    m_pPlatform->UpdatePresentState();
 
     return result;
 }
@@ -274,16 +256,13 @@ Result Queue::PresentSwapChain(
 Result Queue::Delay(
     Util::fmilliseconds delay)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::QueueDelay;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = QueueDecorator::Delay(delay);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::QueueDelay);
+    const Result result = QueueDecorator::Delay(delay);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndValue("delay", delay.count());
         pLogContext->EndInput();
@@ -303,18 +282,15 @@ Result Queue::DelayAfterVsync(
     Util::fmicroseconds   delay,
     const IPrivateScreen* pScreen)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::QueueDelayAfterVsync;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = QueueDecorator::DelayAfterVsync(delay, pScreen);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::QueueDelayAfterVsync);
+    const Result result = QueueDecorator::DelayAfterVsync(delay, pScreen);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
-        pLogContext->KeyAndValue("delayInUs", delay.count());
+        pLogContext->KeyAndValue("delay", delay.count());
         pLogContext->KeyAndObject("screen", pScreen);
         pLogContext->EndInput();
 
@@ -335,16 +311,13 @@ Result Queue::RemapVirtualMemoryPages(
     bool                           doNotWait,
     IFence*                        pFence)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::QueueRemapVirtualMemoryPages;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = QueueDecorator::RemapVirtualMemoryPages(rangeCount, pRanges, doNotWait, pFence);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::QueueRemapVirtualMemoryPages);
+    const Result result = QueueDecorator::RemapVirtualMemoryPages(rangeCount, pRanges, doNotWait, pFence);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndBeginList("ranges", false);
 
@@ -374,16 +347,13 @@ Result Queue::CopyVirtualMemoryPageMappings(
     const VirtualMemoryCopyPageMappingsRange* pRanges,
     bool                                      doNotWait)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::QueueCopyVirtualMemoryPageMappings;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = QueueDecorator::CopyVirtualMemoryPageMappings(rangeCount, pRanges, doNotWait);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::QueueCopyVirtualMemoryPageMappings);
+    const Result result = QueueDecorator::CopyVirtualMemoryPageMappings(rangeCount, pRanges, doNotWait);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndBeginList("ranges", false);
 
@@ -410,16 +380,13 @@ Result Queue::CopyVirtualMemoryPageMappings(
 Result Queue::AssociateFenceWithLastSubmit(
     IFence* pFence)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::QueueAssociateFenceWithLastSubmit;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = QueueDecorator::AssociateFenceWithLastSubmit(pFence);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::QueueAssociateFenceWithLastSubmit);
+    const Result result = QueueDecorator::AssociateFenceWithLastSubmit(pFence);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("fence", pFence);
         pLogContext->EndInput();
@@ -438,16 +405,14 @@ Result Queue::AssociateFenceWithLastSubmit(
 void Queue::SetExecutionPriority(
     QueuePriority priority)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::QueueSetExecutionPriority;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    QueueDecorator::SetExecutionPriority(priority);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::QueueSetExecutionPriority);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    QueueDecorator::SetExecutionPriority(priority);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndEnum("priority", priority);
         pLogContext->EndInput();
@@ -459,16 +424,11 @@ void Queue::SetExecutionPriority(
 // =====================================================================================================================
 void Queue::Destroy()
 {
-    // Note that we can't time a Destroy call.
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::QueueDestroy;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    funcInfo.postCallTime = funcInfo.preCallTime;
-
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    // Note that we can't time Destroy calls nor track their callbacks.
+    if (m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::QueueDestroy))
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         m_pPlatform->LogEndFunc(pLogContext);
     }
 

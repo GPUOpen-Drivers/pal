@@ -55,7 +55,12 @@ enum CmdAllocResidencyFlags : uint32
 /// GpuProfiler warning logging
 #define GPUPROFILER_WARN(pFormat,...) \
     DbgLog(SeverityLevel::Warning, OriginationType::GpuProfiler, "GPUProfiler", pFormat " (%s:%d:%s)",  ##__VA_ARGS__, \
-           __FILE__, __LINE__, __func__);              \
+           __FILE__, __LINE__, __func__);
+
+/// GpuProfiler info logging
+#define GPUPROFILER_INFO(pFormat,...) \
+    DbgLog(SeverityLevel::Info, OriginationType::GpuProfiler, "GPUProfiler", pFormat " (%s:%d:%s)",  ##__VA_ARGS__, \
+           __FILE__, __LINE__, __func__);
 
 // =====================================================================================================================
 class Platform final : public PlatformDecorator

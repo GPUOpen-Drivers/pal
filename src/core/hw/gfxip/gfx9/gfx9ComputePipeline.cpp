@@ -42,23 +42,6 @@ namespace Pal
 namespace Gfx9
 {
 
-// User-data signature for an unbound compute pipeline.
-const ComputePipelineSignature NullCsSignature =
-{
-    { 0, },                     // User-data mapping for each shader stage
-    UserDataNotMapped,          // Register address for numWorkGroups
-    UserDataNotMapped,          // Register address for Task Shader threadgroup dimension values.
-    UserDataNotMapped,          // Register address for the ring index for the task shader.
-    UserDataNotMapped,          // Register address for the dispatch index of a multi-draw indirect task shader dispatch
-    UserDataNotMapped,          // Task+Mesh pipeline stats buffer register address
-    NoUserDataSpilling,         // Spill threshold
-    0,                          // User-data entry limit
-    UserDataNotMapped,          // Register address for performance data buffer
-    0,                          // User-data hash
-    0,                          // Flags
-};
-static_assert(UserDataNotMapped == 0, "Unexpected value for indicating unmapped user-data entries!");
-
 // =====================================================================================================================
 ComputePipeline::ComputePipeline(
     Device* pDevice,
@@ -66,7 +49,7 @@ ComputePipeline::ComputePipeline(
     :
     Pal::ComputePipeline(pDevice->Parent(), isInternal),
     m_pDevice(pDevice),
-    m_signature{NullCsSignature},
+    m_signature{pDevice->GetNullCsSignature()},
     m_ringSizeComputeScratch{},
     m_chunkCs(*pDevice,
               &m_stageInfo,

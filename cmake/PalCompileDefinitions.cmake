@@ -74,8 +74,8 @@ function(pal_compile_definitions_gpu TARGET)
             target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_PHOENIX1=$<BOOL:${PAL_BUILD_GFX9}>)
         endif()
 
-        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_PHOENIX2=$<BOOL:${PAL_BUILD_PHOENIX2}>)
-        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_PHOENIX2=$<BOOL:${CHIP_HDR_PHOENIX2}>)
+        # We'll remove this soon...
+        target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_PHOENIX2=$<BOOL:${PAL_BUILD_GFX9}>)
 
     endif()
 endfunction()

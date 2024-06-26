@@ -377,6 +377,8 @@ private:
     void SetupStereoRegisters();
     void BuildRegistersHash();
 
+    virtual void CalculateOutputNumVertices() override;
+
     void SetupIaMultiVgtParam(
         const Util::PalAbi::CodeObjectMetadata& metadata);
     void FixupIaMultiVgtParam(

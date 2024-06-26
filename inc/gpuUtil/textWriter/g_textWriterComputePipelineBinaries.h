@@ -181,7 +181,7 @@ constexpr Util::uint8 TextWriter_Cs_91ECA425[] =
 };
 
 // Text Writer compute shader binary
-constexpr Util::uint8 TextWriter_Cs_1D32F7A1[] =
+constexpr Util::uint8 TextWriter_Cs_E189D9C6[] =
 {
     0x7f, 0x45, 0x4c, 0x46, 0x02, 0x01, 0x01, 0x41, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0xe0,
     0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -616,7 +616,7 @@ constexpr PipelineBinary textWriterComputeBinaryTableNavi10[] =
 // Table of compute pipeline binaries for Navi21
 constexpr PipelineBinary textWriterComputeBinaryTableNavi21[] =
 {
-    {TextWriter_Cs_1D32F7A1,  sizeof(TextWriter_Cs_1D32F7A1)},
+    {TextWriter_Cs_E189D9C6,  sizeof(TextWriter_Cs_E189D9C6)},
 };
 
 // Table of compute pipeline binaries for Navi31
@@ -627,12 +627,6 @@ constexpr PipelineBinary textWriterComputeBinaryTableNavi31[] =
 
 // Table of compute pipeline binaries for Phoenix1
 constexpr PipelineBinary textWriterComputeBinaryTablePhoenix1[] =
-{
-    {TextWriter_Cs_BF609FF5,  sizeof(TextWriter_Cs_BF609FF5)},
-};
-
-// Table of compute pipeline binaries for Phoenix2
-constexpr PipelineBinary textWriterComputeBinaryTablePhoenix2[] =
 {
     {TextWriter_Cs_BF609FF5,  sizeof(TextWriter_Cs_BF609FF5)},
 };

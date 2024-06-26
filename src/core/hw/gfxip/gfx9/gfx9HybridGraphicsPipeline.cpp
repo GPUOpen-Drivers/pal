@@ -42,7 +42,7 @@ HybridGraphicsPipeline::HybridGraphicsPipeline(
     GraphicsPipeline(pDevice, false),
     m_task(*pDevice, &m_taskStageInfo, &m_perfDataInfo[static_cast<uint32>(Abi::HardwareStage::Cs)]),
     m_taskStageInfo(),
-    m_taskSignature{NullCsSignature},
+    m_taskSignature{pDevice->GetNullCsSignature()},
     m_shPairsPacketSupportedCs(pDevice->Settings().gfx11EnableShRegPairOptimizationCs)
 {
 }

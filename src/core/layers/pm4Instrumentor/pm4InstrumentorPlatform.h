@@ -61,7 +61,7 @@ public:
         void*    pStorage[MaxScreens],
         IScreen* pScreens[MaxScreens]) override;
 
-    void NotifyPresentOcurred() { Util::AtomicIncrement(&m_frameCount); }
+    void NotifyPresentOccurred() { Util::AtomicIncrement(&m_frameCount); }
 
     uint32 FrameCount() const { return m_frameCount; }
 

@@ -87,8 +87,7 @@ constexpr uint32 Gfx9UcodeVersionSetShRegOffset256B  = 42;
 constexpr uint32 Gfx10UcodeVersionSetShRegOffset256B = 27;
 
 // =====================================================================================================================
-size_t GetDeviceSize(
-    GfxIpLevel  gfxLevel)
+size_t GetDeviceSize()
 {
     return (sizeof(Device) + sizeof(Gfx10RsrcProcMgr));
 }
@@ -151,7 +150,9 @@ Device::Device(
     m_gfxIpLevel(pDevice->ChipProperties().gfxLevel),
     m_varBlockSize(0),
     m_useFixedLateAllocVsLimit(false),
-    m_lateAllocVsLimit(LateAllocVsInvalid)
+    m_lateAllocVsLimit(LateAllocVsInvalid),
+    m_nullGfxSignature{},
+    m_nullCsSignature{}
 {
     memset(const_cast<uint32*>(&m_msaaHistogram[0]),               0, sizeof(m_msaaHistogram));
     memset(const_cast<BoundGpuMemory*>(&m_vertexAttributesMem[0]), 0, sizeof(m_vertexAttributesMem));
@@ -171,6 +172,18 @@ Device::Device(
         // for Gfx10.2 and Gfx10.3
         m_varBlockSize = 16384u << GetGbAddrConfig().bits.NUM_PIPES;
     }
+
+    static_assert(UserDataNotMapped == 0, "Unexpected value for indicating unmapped user-data entries!");
+    const UserDataEntryMap emptyUserData = { };
+    const uint64 emptyUserDataHash = ComputeUserDataHash(&emptyUserData);
+    for (uint32 i = 0; i < NumHwShaderStagesGfx; i++)
+    {
+        m_nullGfxSignature.userDataHash[i] = emptyUserDataHash;
+    }
+    m_nullGfxSignature.spillThreshold = NoUserDataSpilling;
+
+    m_nullCsSignature.userDataHash   = emptyUserDataHash;
+    m_nullCsSignature.spillThreshold = NoUserDataSpilling;
 }
 
 // =====================================================================================================================
@@ -5277,16 +5290,18 @@ void PAL_STDCALL Device::CreateBvhSrds(
 }
 
 // =====================================================================================================================
-// Determines the GFXIP level of a GPU supported by the GFX9 hardware layer. The return value will be GfxIpLevel::None
+// Determines the GFXIP level of a GPU supported by the GFX9 hardware layer. The return value will be 0.0.0
 // if the GPU is unsupported by this HWL.
 // PAL relies on a specific set of functionality from the CP microcode, so the GPU is only supported if the microcode
 // version is new enough (this varies by hardware family).
-GfxIpLevel DetermineIpLevel(
+// Only the major and minor ip versions are reported here. The stepping value will be updated later along with
+// the other gpu-specific properties
+IpTriple DetermineIpLevel(
     uint32 familyId, // Hardware Family ID.
     uint32 eRevId,   // Software Revision ID.
     uint32 microcodeVersion)
 {
-    GfxIpLevel level = GfxIpLevel::None;
+    IpTriple level = {};
 
     switch (familyId)
     {
@@ -5304,12 +5319,12 @@ GfxIpLevel DetermineIpLevel(
             || AMDGPU_IS_NAVI14(familyId, eRevId)
             )
         {
-            level = GfxIpLevel::GfxIp10_1;
+            level = { .major = 10, .minor = 1, .stepping = 0 };
         }
         else if (AMDGPU_IS_NAVI21(familyId, eRevId) || AMDGPU_IS_NAVI22(familyId, eRevId) ||
                  AMDGPU_IS_NAVI23(familyId, eRevId) || AMDGPU_IS_NAVI24(familyId, eRevId))
         {
-            level = GfxIpLevel::GfxIp10_3;
+            level = { .major = 10, .minor = 3, .stepping = 0 };
         }
         else
         {
@@ -5320,7 +5335,7 @@ GfxIpLevel DetermineIpLevel(
     case FAMILY_RMB:
         if (AMDGPU_IS_REMBRANDT(familyId, eRevId))
         {
-            level = GfxIpLevel::GfxIp10_3;
+            level = { .major = 10, .minor = 3, .stepping = 0 };
         }
         else
         {
@@ -5331,7 +5346,7 @@ GfxIpLevel DetermineIpLevel(
     case FAMILY_RPL:
         if (AMDGPU_IS_RAPHAEL(familyId, eRevId))
         {
-            level = GfxIpLevel::GfxIp10_3;
+            level = { .major = 10, .minor = 3, .stepping = 0 };
         }
         else
         {
@@ -5342,7 +5357,7 @@ GfxIpLevel DetermineIpLevel(
     case FAMILY_MDN:
         if (AMDGPU_IS_MENDOCINO(familyId, eRevId))
         {
-            level = GfxIpLevel::GfxIp10_3;
+            level = { .major = 10, .minor = 3, .stepping = 0 };
         }
         else
         {
@@ -5354,7 +5369,7 @@ GfxIpLevel DetermineIpLevel(
         if (AMDGPU_IS_NAVI31(familyId, eRevId) || AMDGPU_IS_NAVI32(familyId, eRevId) ||
             AMDGPU_IS_NAVI33(familyId, eRevId))
         {
-            level = GfxIpLevel::GfxIp11_0;
+            level = { .major = 11, .minor = 0, .stepping = 0 };
         }
         else
         {
@@ -5363,14 +5378,9 @@ GfxIpLevel DetermineIpLevel(
         break;
 
     case FAMILY_PHX:
-        if (AMDGPU_IS_PHOENIX1(familyId, eRevId))
+        if (AMDGPU_IS_PHOENIX1(familyId, eRevId) || AMDGPU_IS_PHOENIX2(familyId, eRevId))
         {
-            level = GfxIpLevel::GfxIp11_0;
-        }
-        else
-        if (AMDGPU_IS_PHOENIX2(familyId, eRevId))
-        {
-            level = GfxIpLevel::GfxIp11_0;
+            level = { .major = 11, .minor = 0, .stepping = 0 };
         }
         else
         {
@@ -5733,6 +5743,7 @@ void InitializeGpuChipProperties(
             pInfo->gpuType               = GpuType::Discrete;
             pInfo->revision              = AsicRevision::Navi10;
             pInfo->gfxStepping           = Abi::GfxIpSteppingNavi10;
+            pInfo->gfxTriple.stepping    = Abi::GfxIpSteppingNavi10;
             pInfo->gfx9.numShaderEngines = 2;
             pInfo->gfx9.maxNumCuPerSh    = 10;
             pInfo->gfx9.maxNumRbPerSe    = 8;
@@ -5743,6 +5754,7 @@ void InitializeGpuChipProperties(
             pInfo->gpuType               = GpuType::Discrete;
             pInfo->revision              = AsicRevision::Navi12;
             pInfo->gfxStepping           = Abi::GfxIpSteppingNavi12;
+            pInfo->gfxTriple.stepping    = Abi::GfxIpSteppingNavi12;
             pInfo->gfx9.numShaderEngines = 2;
             pInfo->gfx9.maxNumCuPerSh    = 10;
             pInfo->gfx9.maxNumRbPerSe    = 8;
@@ -5756,6 +5768,7 @@ void InitializeGpuChipProperties(
             pInfo->gpuType                   = GpuType::Discrete;
             pInfo->revision                  = AsicRevision::Navi14;
             pInfo->gfxStepping               = Abi::GfxIpSteppingNavi14;
+            pInfo->gfxTriple.stepping        = Abi::GfxIpSteppingNavi14;
 
             pInfo->gfx9.numShaderEngines     = 1;
             pInfo->gfx9.maxNumCuPerSh        = 12;
@@ -5775,6 +5788,7 @@ void InitializeGpuChipProperties(
             pInfo->gpuType                       = GpuType::Discrete;
             pInfo->revision                      = AsicRevision::Navi21;
             pInfo->gfxStepping                   = Abi::GfxIpSteppingNavi21;
+            pInfo->gfxTriple.stepping            = Abi::GfxIpSteppingNavi21;
             pInfo->gfx9.numShaderEngines         = 4;
             pInfo->gfx9.rbPlus                   = 1;
             pInfo->gfx9.numSdpInterfaces         = 16;
@@ -5793,6 +5807,7 @@ void InitializeGpuChipProperties(
             pInfo->gpuType                       = GpuType::Discrete;
             pInfo->revision                      = AsicRevision::Navi22;
             pInfo->gfxStepping                   = Abi::GfxIpSteppingNavi22;
+            pInfo->gfxTriple.stepping            = Abi::GfxIpSteppingNavi22;
             pInfo->gfx9.numShaderEngines         = 2;
             pInfo->gfx9.rbPlus                   = 1;
             pInfo->gfx9.numSdpInterfaces         = 16;
@@ -5813,6 +5828,7 @@ void InitializeGpuChipProperties(
             pInfo->gpuType                       = GpuType::Discrete;
             pInfo->revision                      = AsicRevision::Navi23;
             pInfo->gfxStepping                   = Abi::GfxIpSteppingNavi23;
+            pInfo->gfxTriple.stepping            = Abi::GfxIpSteppingNavi23;
             pInfo->gfx9.numShaderEngines         = 2;
             pInfo->gfx9.rbPlus                   = 1;
             pInfo->gfx9.numSdpInterfaces         = 8;
@@ -5833,6 +5849,7 @@ void InitializeGpuChipProperties(
             pInfo->gpuType                       = GpuType::Discrete;
             pInfo->revision                      = AsicRevision::Navi24;
             pInfo->gfxStepping                   = Abi::GfxIpSteppingNavi24;
+            pInfo->gfxTriple.stepping            = Abi::GfxIpSteppingNavi24;
             pInfo->gfx9.numShaderEngines         = 1;
             pInfo->gfx9.rbPlus                   = 1;
             pInfo->gfx9.numSdpInterfaces         = 8;
@@ -5896,6 +5913,7 @@ void InitializeGpuChipProperties(
             pInfo->gpuType                             = GpuType::Integrated;
             pInfo->revision                            = AsicRevision::Rembrandt;
             pInfo->gfxStepping                         = Abi::GfxIpSteppingRembrandt;
+            pInfo->gfxTriple.stepping                  = Abi::GfxIpSteppingRembrandt;
             pInfo->gfx9.numShaderEngines               = 1; // GC__NUM_SE
             pInfo->gfx9.rbPlus                         = 1; // GC__RB_PLUS_ADDRESSING == 1
             pInfo->gfx9.numSdpInterfaces               = 4; // GC__NUM_SDP
@@ -5974,6 +5992,7 @@ void InitializeGpuChipProperties(
         {
             pInfo->revision              = AsicRevision::Navi31;
             pInfo->gfxStepping           = Abi::GfxIpSteppingNavi31;
+            pInfo->gfxTriple.stepping    = Abi::GfxIpSteppingNavi31;
             pInfo->gfx9.numShaderEngines = 6;
             pInfo->gfx9.numSdpInterfaces = 24;
             pInfo->gfx9.maxNumCuPerSh    = 8;
@@ -5990,6 +6009,7 @@ void InitializeGpuChipProperties(
         {
             pInfo->revision              = AsicRevision::Navi32;
             pInfo->gfxStepping           = Abi::GfxIpSteppingNavi32;
+            pInfo->gfxTriple.stepping    = Abi::GfxIpSteppingNavi32;
             pInfo->gfx9.numShaderEngines = 3;
             pInfo->gfx9.numSdpInterfaces = 16;
             pInfo->gfx9.maxNumCuPerSh    = 10;
@@ -6005,6 +6025,7 @@ void InitializeGpuChipProperties(
         {
             pInfo->revision              = AsicRevision::Navi33;
             pInfo->gfxStepping           = Abi::GfxIpSteppingNavi33;
+            pInfo->gfxTriple.stepping    = Abi::GfxIpSteppingNavi33;
             pInfo->gfx9.numShaderEngines = 2;
             pInfo->gfx9.numSdpInterfaces = 8;
             pInfo->gfx9.maxNumCuPerSh    = 8;
@@ -6031,6 +6052,7 @@ void InitializeGpuChipProperties(
             pInfo->gpuType                             = GpuType::Integrated;
             pInfo->revision                            = AsicRevision::Raphael;
             pInfo->gfxStepping                         = Abi::GfxIpSteppingRaphael;
+            pInfo->gfxTriple.stepping                  = Abi::GfxIpSteppingRaphael;
             pInfo->gfx9.numShaderEngines               = 1; // GC__NUM_SE
             pInfo->gfx9.rbPlus                         = 1; // GC__RB_PLUS_ADDRESSING == 1
             pInfo->gfx9.numSdpInterfaces               = 2; // GC__NUM_SDP
@@ -6072,6 +6094,7 @@ void InitializeGpuChipProperties(
             pInfo->gpuType                             = GpuType::Integrated;
             pInfo->revision                            = AsicRevision::Raphael;
             pInfo->gfxStepping                         = Abi::GfxIpSteppingRaphael;
+            pInfo->gfxTriple.stepping                  = Abi::GfxIpSteppingRaphael;
             pInfo->gfx9.numShaderEngines               = 1; // GC__NUM_SE
             pInfo->gfx9.rbPlus                         = 1; // GC__RB_PLUS_ADDRESSING == 1
             pInfo->gfx9.numSdpInterfaces               = 2; // GC__NUM_SDP
@@ -6113,6 +6136,7 @@ void InitializeGpuChipProperties(
             pInfo->gpuType                             = GpuType::Integrated;
             pInfo->revision                            = AsicRevision::Phoenix1;
             pInfo->gfxStepping                         = Abi::GfxIpSteppingPhoenix;
+            pInfo->gfxTriple.stepping                  = Abi::GfxIpSteppingPhoenix;
             pInfo->gfx9.numShaderEngines               = 1; // GC__NUM_SE
             pInfo->gfx9.rbPlus                         = 1; // GC__RB_PLUS_ADDRESSING == 1
             pInfo->gfx9.numSdpInterfaces               = 4; // GC__NUM_SDP
@@ -6139,12 +6163,12 @@ void InitializeGpuChipProperties(
                 PfpUcodeVersionDispatchSupportedExecuteIndirectPhx1,
                 UINT_MAX);
         }
-        else
-        if (AMDGPU_IS_PHOENIX2(pInfo->familyId, pInfo->eRevId))
+        else if (AMDGPU_IS_PHOENIX2(pInfo->familyId, pInfo->eRevId))
         {
             pInfo->gpuType                             = GpuType::Integrated;
             pInfo->revision                            = AsicRevision::Phoenix2;
             pInfo->gfxStepping                         = Abi::GfxIpSteppingPhoenix;
+            pInfo->gfxTriple.stepping                  = Abi::GfxIpSteppingPhoenix;
             pInfo->gfx9.numShaderEngines               = 1; // GC__NUM_SE
             pInfo->gfx9.rbPlus                         = 1; // GC__RB_PLUS_ADDRESSING == 1
             pInfo->gfx9.numSdpInterfaces               = 4; // GC__NUM_SDP
@@ -6168,7 +6192,7 @@ void InitializeGpuChipProperties(
                 UINT_MAX,
                 UINT_MAX,
                 PfpUcodeVersionVbTableSupportedExecuteIndirectPhx2,
-                UINT_MAX,
+                PfpUcodeVersionDispatchSupportedExecuteIndirectPhx2,
                 UINT_MAX);
         }
         else
@@ -6238,6 +6262,7 @@ void InitializeGpuChipProperties(
         pInfo->gfx9.supportCustomWaveBreakSize    = 1;
         pInfo->gfx9.support1xMsaaSampleLocations  = 1;
         pInfo->gfx9.supportSpiPrefPriority        = 1;
+        pInfo->gfx9.supportCooperativeMatrix      = 1;
 
         if (IsGfx103Plus(pInfo->gfxLevel))
         {

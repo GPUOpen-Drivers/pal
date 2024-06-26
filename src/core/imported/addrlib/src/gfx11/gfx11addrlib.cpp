@@ -722,6 +722,7 @@ ChipFamily Gfx11Lib::HwlConvertChipFamily(
             }
 #endif
             break;
+
 #if ADDR_PHOENIX_BUILD
         case FAMILY_PHX:
             m_settings.isPhoenix = 1;
@@ -983,7 +984,9 @@ UINT_32 Gfx11Lib::GetMetaBlkSize(
                 if ((pipeRotateLog2 > 0)  &&
                     (elemLog2 == 4)       &&
                     (numSamplesLog2 == 3) &&
-                    (IsZOrderSwizzle(swizzleMode) || (GetEffectiveNumPipes() > 3)))
+                    (IsZOrderSwizzle(swizzleMode) ||
+                     IsRtOptSwizzle(swizzleMode)  ||
+                     (GetEffectiveNumPipes() > 3)))
                 {
                     overlapLog2++;
                 }

@@ -311,12 +311,6 @@ protected:
 
     void SetComputeState(const ComputeState& newComputeState, uint32 stateFlags);
 
-    static void PAL_STDCALL CmdSetUserDataCs(
-        ICmdBuffer*   pCmdBuffer,
-        uint32        firstEntry,
-        uint32        entryCount,
-        const uint32* pEntryValues);
-
     void LeakPerPipelineStateChanges(
         const Pal::PipelineState& leakedPipelineState,
         const UserDataEntries&    leakedUserDataEntries,
@@ -391,11 +385,29 @@ protected:
         pTable->dirty        = 0;
     }
 
+    static void UpdateUserData(
+        UserDataEntries* pState,
+        uint32           firstEntry,
+        uint32           entryCount,
+        const uint32*    pEntryValues);
+
+    static void PAL_STDCALL CmdUpdateUserDataCs(
+        ICmdBuffer*   pCmdBuffer,
+        uint32        firstEntry,
+        uint32        entryCount,
+        const uint32* pEntryValues);
+
     static void SetUserData(
         uint32           firstEntry,
         uint32           entryCount,
         UserDataEntries* pEntries,
         const uint32*    pEntryValues);
+
+    static void PAL_STDCALL CmdSetUserDataCs(
+        ICmdBuffer*   pCmdBuffer,
+        uint32        firstEntry,
+        uint32        entryCount,
+        const uint32* pEntryValues);
 
     CmdStreamChunk* GetNextGeneratedChunk();
     CmdStreamChunk* GetNextLargeGeneratedChunk();

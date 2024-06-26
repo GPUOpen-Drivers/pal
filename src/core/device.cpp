@@ -204,7 +204,7 @@ bool Device::DetermineGpuIpLevels(
     const Platform*   pPlatform,
     HwIpLevels*       pIpLevels)
 {
-    pIpLevels->gfx = GfxIpLevel::None;
+    pIpLevels->gfx = {};
     pIpLevels->vcn = VcnIpLevel::None;
     pIpLevels->flags.u32All = 0;
 
@@ -228,10 +228,10 @@ bool Device::DetermineGpuIpLevels(
         break;
     }
 
-    PAL_ALERT_MSG(pIpLevels->gfx == GfxIpLevel::None, "Unknown Gfx familyId:0x%x eRevId:0x%x", familyId, eRevId);
+    PAL_ALERT_MSG(pIpLevels->gfx.major == 0, "Unknown Gfx familyId:0x%x eRevId:0x%x", familyId, eRevId);
 
     // A GPU is considered supported by PAL if at least one of its hardware IP blocks is recognized.
-    return ((pIpLevels->gfx != GfxIpLevel::None) ||
+    return ((pIpLevels->gfx.major != 0) ||
             (pIpLevels->vcn != VcnIpLevel::None));
 }
 
@@ -672,11 +672,10 @@ void Device::InitPerformanceRatings()
     uint32 numWavesPerSimd     = 0;
 
 #if PAL_BUILD_GFX
-    switch (m_chipProperties.gfxLevel)
+    switch (m_chipProperties.gfxTriple.major)
     {
-        case GfxIpLevel::GfxIp10_1:
-        case GfxIpLevel::GfxIp10_3:
-        case GfxIpLevel::GfxIp11_0:
+        case 10:
+        case 11:
             simdWidthMultiplier = 32;
             numShaderEngines    = m_chipProperties.gfx9.numShaderEngines;
             numShaderArrays     = m_chipProperties.gfx9.numShaderArrays;
@@ -684,7 +683,7 @@ void Device::InitPerformanceRatings()
             numSimdPerCu        = m_chipProperties.gfx9.numSimdPerCu;
             numWavesPerSimd     = m_chipProperties.gfx9.numWavesPerSimd;
             break;
-        case GfxIpLevel::None:
+        case 0:
             // No Graphics IP block found or recognized!
         default:
             break;
@@ -809,12 +808,11 @@ void Device::GetHwIpDeviceSizes(
     PAL_ASSERT((pHwDeviceSizes != nullptr) && (pAddrMgrSize != nullptr));
 
     // Note that Addrlib always ties its version number to the gfxip level.
-    switch (ipLevels.gfx)
+    switch (ipLevels.gfx.major)
     {
-    case GfxIpLevel::GfxIp10_1:
-    case GfxIpLevel::GfxIp10_3:
-    case GfxIpLevel::GfxIp11_0:
-        pHwDeviceSizes->gfx = Gfx9::GetDeviceSize(ipLevels.gfx);
+    case 10:
+    case 11:
+        pHwDeviceSizes->gfx = Gfx9::GetDeviceSize();
         *pAddrMgrSize       = AddrMgr2::GetSize();
         break;
     default:
@@ -1862,6 +1860,7 @@ Result Device::GetProperties(
         pInfo->eRevId                           = m_chipProperties.eRevId;
         pInfo->revision                         = m_chipProperties.revision;
         pInfo->gfxStepping                      = m_chipProperties.gfxStepping;
+        pInfo->gfxTriple                        = m_chipProperties.gfxTriple;
         pInfo->gpuType                          = m_chipProperties.gpuType;
         pInfo->gfxLevel                         = m_chipProperties.gfxLevel;
         pInfo->gpuPerformanceCapacity           = m_chipProperties.gpuPerformanceCapacity;

@@ -69,6 +69,7 @@ public:
     bool IsPerpEndCapsEnabled() const { return m_flags.perpLineEndCapsEnable; }
     LogicOp GetLogicOp() const { return m_logicOp; }
     bool PrimIdUsed() const { return m_flags.primIdUsed; }
+    uint32 GetOutputNumVertices() const { return m_outputNumVertices; }
 
     BinningOverride GetBinningOverride() const { return m_binningOverride; }
 
@@ -108,6 +109,7 @@ protected:
 
     uint32 GetLateAllocVsLimit() const { return m_lateAllocVsLimit; }
 
+    uint32  m_outputNumVertices; // The count of vertex of output primitive type.
 private:
     void InitFlags(
         const GraphicsPipelineCreateInfo&         createInfo,
@@ -123,6 +125,8 @@ private:
     Result InitFromLibraries(
         const GraphicsPipelineCreateInfo& createInfo,
         const GraphicsPipelineInternalCreateInfo& internalInfo);
+
+    virtual void CalculateOutputNumVertices() {}
 
     union
     {

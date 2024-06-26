@@ -800,8 +800,10 @@ void IndirectCmdGenerator::PopulateUserDataMappingBuffer(
     void*           pSrd        // [out] The embedded-data buffer's SRD will be written to this location.
     ) const
 {
-    const UserDataEntryMap* pStage     = nullptr;
-    uint32                  stageCount = 0;
+    const UserDataEntryMap* pStage         = nullptr;
+    uint32                  stageCount     = 0;
+
+    const bool hasTaskShader = pPipeline->IsTaskShaderEnabled();
 
     if (Type() == Pm4::GeneratorType::Dispatch)
     {
@@ -815,7 +817,7 @@ void IndirectCmdGenerator::PopulateUserDataMappingBuffer(
         const auto& signature = static_cast<const GraphicsPipeline*>(pPipeline)->Signature();
 
         pStage     = &signature.stage[0];
-        stageCount = NumHwShaderStagesGfx;
+        stageCount = NumHwShaderStagesGfx + (hasTaskShader ? 1 : 0);
     }
 
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -841,7 +843,17 @@ void IndirectCmdGenerator::PopulateUserDataMappingBuffer(
     // we have to assume it means it maps to virtual user-data index zero.
     for (uint32 stage = 0; stage < stageCount; ++stage)
     {
-        const UserDataEntryMap*const pAssertStage = pStage + stage;
+        const UserDataEntryMap* pAssertStage = pStage;
+
+        if (hasTaskShader && (stage == (stageCount - 1)))
+        {
+            const auto& taskSignature = static_cast<const HybridGraphicsPipeline*>(pPipeline)->GetTaskSignature();
+            pAssertStage = &taskSignature.stage;
+        }
+        else
+        {
+            pAssertStage = pStage + stage;
+        }
 
         for (uint32 i = 1; i < pAssertStage->userSgprCount; ++i)
         {
@@ -866,6 +878,13 @@ void IndirectCmdGenerator::PopulateUserDataMappingBuffer(
 
     for (uint32 stage = 0; stage < stageCount; ++stage)
     {
+        // If pipeline has task shader, place the task shader entryMap to the last stage.
+        if (hasTaskShader && (stage == (stageCount - 1)))
+        {
+            const auto& taskSignature = static_cast<const HybridGraphicsPipeline*>(pPipeline)->GetTaskSignature();
+            pStage                    = &taskSignature.stage;
+        }
+
         uint32 entryMap[MaxUserDataEntries] = { };
         for (uint32 i = 0; i < pStage->userSgprCount; ++i)
         {

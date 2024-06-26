@@ -100,7 +100,7 @@ Pal::Result CreateMsaaImageCopyComputePipelines(
 
     const PipelineBinary* pTable = nullptr;
 
-    switch (properties.revision)
+    switch (Pal::uint32(properties.gfxTriple))
     {
 $SelectElfTable
     default:

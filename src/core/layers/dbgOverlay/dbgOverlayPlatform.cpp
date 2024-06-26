@@ -235,43 +235,41 @@ void PAL_STDCALL Platform::DbgOverlayCb(
     {
     case Developer::CallbackType::AllocGpuMemory:
     {
-        PAL_ASSERT(pCbData != nullptr);
-        const Developer::GpuMemoryData& data      = *static_cast<const Developer::GpuMemoryData*>(pCbData);
-        AllocType                       allocType = DetermineAllocType(data);
+        TranslateGpuMemoryData(pCbData);
+
+        const auto& data      = *static_cast<const Developer::GpuMemoryData*>(pCbData);
+        AllocType   allocType = DetermineAllocType(data);
 
         if (allocType != AllocTypeCount)
         {
             pPlatform->GetDevice(deviceIndex)->AddAllocatedVidMem(allocType, data.heap, data.size);
         }
-
-        TranslateGpuMemoryData(pCbData);
         break;
     }
     case Developer::CallbackType::FreeGpuMemory:
     {
-        PAL_ASSERT(pCbData != nullptr);
-        const Developer::GpuMemoryData& data      = *static_cast<const Developer::GpuMemoryData*>(pCbData);
-        AllocType                       allocType = DetermineAllocType(data);
+        TranslateGpuMemoryData(pCbData);
+
+        const auto& data      = *static_cast<const Developer::GpuMemoryData*>(pCbData);
+        AllocType   allocType = DetermineAllocType(data);
 
         if (allocType != AllocTypeCount)
         {
             pPlatform->GetDevice(deviceIndex)->SubFreedVidMem(allocType, data.heap, data.size);
         }
 
-        TranslateGpuMemoryData(pCbData);
         break;
     }
     case Developer::CallbackType::SubAllocGpuMemory:
     case Developer::CallbackType::SubFreeGpuMemory:
-    {
         TranslateGpuMemoryData(pCbData);
         break;
-    }
     case Developer::CallbackType::PresentConcluded:
     {
         PAL_ASSERT(pCbData != nullptr);
-        const Developer::PresentationModeData& data = *static_cast<const Developer::PresentationModeData*>(pCbData);
-        FpsMgr* pFpsMgr = pPlatform->GetFpsMgr(data.presentKey);
+
+        const auto& data    = *static_cast<const Developer::PresentationModeData*>(pCbData);
+        FpsMgr*     pFpsMgr = pPlatform->GetFpsMgr(data.presentKey);
 
         if (pFpsMgr != nullptr)
         {
@@ -286,32 +284,32 @@ void PAL_STDCALL Platform::DbgOverlayCb(
     case Developer::CallbackType::ImageBarrier:
     case Developer::CallbackType::BarrierBegin:
     case Developer::CallbackType::BarrierEnd:
-        PAL_ASSERT(pCbData != nullptr);
         TranslateBarrierEventData(pCbData);
         break;
     case Developer::CallbackType::CreateImage:
     case Developer::CallbackType::SurfRegData:
         break;
     case Developer::CallbackType::DrawDispatch:
-        PAL_ASSERT(pCbData != nullptr);
         TranslateDrawDispatchData(pCbData);
         break;
     case Developer::CallbackType::BindPipeline:
-        PAL_ASSERT(pCbData != nullptr);
         TranslateBindPipelineData(pCbData);
         break;
 #if PAL_DEVELOPER_BUILD
     case Developer::CallbackType::DrawDispatchValidation:
-        PAL_ASSERT(pCbData != nullptr);
         TranslateDrawDispatchValidationData(pCbData);
         break;
+    case Developer::CallbackType::BindPipelineValidation:
+        TranslateBindPipelineValidationData(pCbData);
+        break;
     case Developer::CallbackType::OptimizedRegisters:
-        PAL_ASSERT(pCbData != nullptr);
         TranslateOptimizedRegistersData(pCbData);
+        break;
+    case Developer::CallbackType::RpmBlt:
+        TranslateReportRpmBltTypeData(pCbData);
         break;
 #endif
     case Developer::CallbackType::BindGpuMemory:
-        PAL_ASSERT(pCbData != nullptr);
         TranslateBindGpuMemoryData(pCbData);
         break;
     default:

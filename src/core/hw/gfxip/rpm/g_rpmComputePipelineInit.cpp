@@ -68,41 +68,37 @@ Result CreateRpmComputePipelines(
 
     const PipelineBinary* pTable = nullptr;
 
-    switch (properties.revision)
+    switch (uint32(properties.gfxTriple))
     {
-    case AsicRevision::Navi10:
-    case AsicRevision::Navi12:
-    case AsicRevision::Navi14:
+    case Pal::IpTriple({ 10, 1, 0 }):
+    case Pal::IpTriple({ 10, 1, 1 }):
+    case Pal::IpTriple({ 10, 1, 2 }):
         pTable = rpmComputeBinaryTableNavi10;
         break;
 
-    case AsicRevision::Navi21:
-    case AsicRevision::Navi22:
-    case AsicRevision::Navi23:
-    case AsicRevision::Navi24:
-    case AsicRevision::Rembrandt:
+    case Pal::IpTriple({ 10, 3, 0 }):
+    case Pal::IpTriple({ 10, 3, 1 }):
+    case Pal::IpTriple({ 10, 3, 2 }):
+    case Pal::IpTriple({ 10, 3, 4 }):
+    case Pal::IpTriple({ 10, 3, 5 }):
         pTable = rpmComputeBinaryTableNavi21;
         break;
 
-    case AsicRevision::Raphael:
+    case Pal::IpTriple({ 10, 3, 6 }):
         pTable = rpmComputeBinaryTableRaphael;
         break;
 
-    case AsicRevision::Navi31:
-    case AsicRevision::Navi32:
+    case Pal::IpTriple({ 11, 0, 0 }):
+    case Pal::IpTriple({ 11, 0, 1 }):
         pTable = rpmComputeBinaryTableNavi31;
         break;
 
-    case AsicRevision::Navi33:
+    case Pal::IpTriple({ 11, 0, 2 }):
         pTable = rpmComputeBinaryTableNavi33;
         break;
 
-    case AsicRevision::Phoenix1:
+    case Pal::IpTriple({ 11, 0, 3 }):
         pTable = rpmComputeBinaryTablePhoenix1;
-        break;
-
-    case AsicRevision::Phoenix2:
-        pTable = rpmComputeBinaryTablePhoenix2;
         break;
 
     default:
@@ -888,8 +884,6 @@ Result CreateRpmComputePipelines(
     }
 
     if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
         ))
     {

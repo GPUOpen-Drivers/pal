@@ -73,16 +73,13 @@ CmdBuffer::CmdBuffer(
 Result CmdBuffer::Begin(
     const CmdBufferBuildInfo& info)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferBegin;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = m_pNextLayer->Begin(NextCmdBufferBuildInfo(info));
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferBegin);
+    const Result result = m_pNextLayer->Begin(NextCmdBufferBuildInfo(info));
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("info", info);
         pLogContext->EndInput();
@@ -90,6 +87,8 @@ Result CmdBuffer::Begin(
         pLogContext->BeginOutput();
         pLogContext->KeyAndEnum("result", result);
         pLogContext->EndOutput();
+
+        pLogContext->KeyAndValue("frame", m_pPlatform->FrameCount());
 
         m_pPlatform->LogEndFunc(pLogContext);
     }
@@ -106,16 +105,13 @@ Result CmdBuffer::Begin(
 // =====================================================================================================================
 Result CmdBuffer::End()
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferEnd;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = m_pNextLayer->End();
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferEnd);
+    const Result result = m_pNextLayer->End();
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginOutput();
         pLogContext->KeyAndEnum("result", result);
         pLogContext->EndOutput();
@@ -131,16 +127,13 @@ Result CmdBuffer::Reset(
     ICmdAllocator* pCmdAllocator,
     bool           returnGpuMemory)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferReset;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = m_pNextLayer->Reset(NextCmdAllocator(pCmdAllocator), returnGpuMemory);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferReset);
+    const Result result = m_pNextLayer->Reset(NextCmdAllocator(pCmdAllocator), returnGpuMemory);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("pCmdAllocator", pCmdAllocator);
         pLogContext->KeyAndValue("returnGpuMemory", returnGpuMemory);
@@ -174,16 +167,14 @@ uint32 CmdBuffer::GetLargeEmbeddedDataLimit() const
 void CmdBuffer::CmdBindPipeline(
     const PipelineBindParams& params)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdBindPipeline;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdBindPipeline(NextPipelineBindParams(params));
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdBindPipeline);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdBindPipeline(NextPipelineBindParams(params));
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("params", params);
         pLogContext->EndInput();
@@ -199,16 +190,14 @@ void CmdBuffer::CmdBindPipeline(
 void CmdBuffer::CmdBindMsaaState(
     const IMsaaState* pMsaaState)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdBindMsaaState;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdBindMsaaState(NextMsaaState(pMsaaState));
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdBindMsaaState);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdBindMsaaState(NextMsaaState(pMsaaState));
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("msaaState", pMsaaState);
         pLogContext->EndInput();
@@ -220,16 +209,14 @@ void CmdBuffer::CmdBindMsaaState(
 // =====================================================================================================================
 void CmdBuffer::CmdSaveGraphicsState()
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSaveGraphicsState;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdSaveGraphicsState();
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdSaveGraphicsState);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdSaveGraphicsState();
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->EndInput();
 
@@ -240,16 +227,14 @@ void CmdBuffer::CmdSaveGraphicsState()
 // =====================================================================================================================
 void CmdBuffer::CmdRestoreGraphicsState()
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdRestoreGraphicsState;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdRestoreGraphicsState();
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdRestoreGraphicsState);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdRestoreGraphicsState();
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->EndInput();
 
@@ -262,16 +247,14 @@ void CmdBuffer::CmdPrimeGpuCaches(
     uint32                    rangeCount,
     const PrimeGpuCacheRange* pRanges)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdPrimeGpuCaches;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdPrimeGpuCaches(rangeCount, pRanges);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdPrimeGpuCaches);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdPrimeGpuCaches(rangeCount, pRanges);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndBeginList("primeGpuCacheRange", false);
 
@@ -292,16 +275,14 @@ void CmdBuffer::CmdPrimeGpuCaches(
 void CmdBuffer::CmdBindColorBlendState(
     const IColorBlendState* pColorBlendState)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdBindColorBlendState;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdBindColorBlendState(NextColorBlendState(pColorBlendState));
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdBindColorBlendState);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdBindColorBlendState(NextColorBlendState(pColorBlendState));
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("colorBlendState", pColorBlendState);
         pLogContext->EndInput();
@@ -314,16 +295,14 @@ void CmdBuffer::CmdBindColorBlendState(
 void CmdBuffer::CmdBindDepthStencilState(
     const IDepthStencilState* pDepthStencilState)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdBindDepthStencilState;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdBindDepthStencilState(NextDepthStencilState(pDepthStencilState));
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdBindDepthStencilState);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdBindDepthStencilState(NextDepthStencilState(pDepthStencilState));
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("depthStencilState", pDepthStencilState);
         pLogContext->EndInput();
@@ -336,16 +315,14 @@ void CmdBuffer::CmdBindDepthStencilState(
 void CmdBuffer::CmdSetDepthBounds(
     const DepthBoundsParams& params)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSetDepthBounds;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdSetDepthBounds(params);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdSetDepthBounds);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdSetDepthBounds(params);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("params", params);
         pLogContext->EndInput();
@@ -359,16 +336,14 @@ void CmdBuffer::CmdDuplicateUserData(
     PipelineBindPoint source,
     PipelineBindPoint dest)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdDuplicateUserData;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdDuplicateUserData(source, dest);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdDuplicateUserData);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdDuplicateUserData(source, dest);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndEnum("source", source);
         pLogContext->KeyAndEnum("dest",   dest);
@@ -382,16 +357,14 @@ void CmdBuffer::CmdSetKernelArguments(
     uint32            argCount,
     const void*const* ppValues)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSetKernelArguments;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdSetKernelArguments(firstArg, argCount, ppValues);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdSetKernelArguments);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdSetKernelArguments(firstArg, argCount, ppValues);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndValue("firstArg", firstArg);
         pLogContext->KeyAndValue("argCount", argCount);
@@ -432,16 +405,14 @@ void CmdBuffer::CmdSetKernelArguments(
 void CmdBuffer::CmdSetVertexBuffers(
     const VertexBufferViews& bufferViews)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSetVertexBuffers;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdSetVertexBuffers(bufferViews);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdSetVertexBuffers);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdSetVertexBuffers(bufferViews);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("bufferViews", bufferViews);
         pLogContext->EndInput();
@@ -456,16 +427,14 @@ void CmdBuffer::CmdBindIndexData(
     uint32    indexCount,
     IndexType indexType)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdBindIndexData;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdBindIndexData(gpuAddr, indexCount, indexType);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdBindIndexData);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdBindIndexData(gpuAddr, indexCount, indexType);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndValue("gpuAddr", gpuAddr);
         pLogContext->KeyAndValue("indexCount", indexCount);
@@ -489,16 +458,14 @@ void CmdBuffer::CmdBindTargets(
 
     nextParams.depthTarget.pDepthStencilView = NextDepthStencilView(params.depthTarget.pDepthStencilView);
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdBindTargets;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdBindTargets(nextParams);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdBindTargets);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdBindTargets(nextParams);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("params", params);
         pLogContext->EndInput();
@@ -511,16 +478,14 @@ void CmdBuffer::CmdBindTargets(
 void CmdBuffer::CmdBindStreamOutTargets(
     const BindStreamOutTargetParams& params)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdBindStreamOutTargets;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdBindStreamOutTargets(params);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdBindStreamOutTargets);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdBindStreamOutTargets(params);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("params", params);
         pLogContext->EndInput();
@@ -533,16 +498,14 @@ void CmdBuffer::CmdBindStreamOutTargets(
 void CmdBuffer::CmdSetPerDrawVrsRate(
     const VrsRateParams&  rateParams)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSetPerDrawVrsRate;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdSetPerDrawVrsRate(rateParams);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdSetPerDrawVrsRate);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdSetPerDrawVrsRate(rateParams);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("rateParams", rateParams);
         pLogContext->EndInput();
@@ -555,16 +518,14 @@ void CmdBuffer::CmdSetPerDrawVrsRate(
 void CmdBuffer::CmdSetVrsCenterState(
     const VrsCenterState&  centerState)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSetVrsCenterState;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdSetVrsCenterState(centerState);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdSetVrsCenterState);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdSetVrsCenterState(centerState);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("centerState", centerState);
         pLogContext->EndInput();
@@ -577,16 +538,14 @@ void CmdBuffer::CmdSetVrsCenterState(
 void CmdBuffer::CmdBindSampleRateImage(
     const IImage*  pImage)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdBindSampleRateImage;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdBindSampleRateImage(NextImage(pImage));
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdBindSampleRateImage);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdBindSampleRateImage(NextImage(pImage));
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("image", pImage);
         pLogContext->EndInput();
@@ -605,10 +564,8 @@ void CmdBuffer::CmdResolvePrtPlusImage(
     uint32                           regionCount,
     const PrtPlusImageResolveRegion* pRegions)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdResolvePrtPlusImage;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdResolvePrtPlusImage);
+
     m_pNextLayer->CmdResolvePrtPlusImage(*NextImage(&srcImage),
                                          srcImageLayout,
                                          *NextImage(&dstImage),
@@ -616,11 +573,11 @@ void CmdBuffer::CmdResolvePrtPlusImage(
                                          resolveType,
                                          regionCount,
                                          pRegions);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("srcImage", &srcImage);
         pLogContext->KeyAndStruct("srcImageLayout", srcImageLayout);
@@ -645,16 +602,14 @@ void CmdBuffer::CmdResolvePrtPlusImage(
 void CmdBuffer::CmdSetBlendConst(
     const BlendConstParams& params)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSetBlendConst;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdSetBlendConst(params);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdSetBlendConst);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdSetBlendConst(params);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("params", params);
         pLogContext->EndInput();
@@ -667,16 +622,14 @@ void CmdBuffer::CmdSetBlendConst(
 void CmdBuffer::CmdSetInputAssemblyState(
     const InputAssemblyStateParams& params)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSetInputAssemblyState;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdSetInputAssemblyState(params);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdSetInputAssemblyState);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdSetInputAssemblyState(params);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("params", params);
         pLogContext->EndInput();
@@ -689,16 +642,14 @@ void CmdBuffer::CmdSetInputAssemblyState(
 void CmdBuffer::CmdSetTriangleRasterState(
     const TriangleRasterStateParams& params)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSetTriangleRasterState;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdSetTriangleRasterState(params);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdSetTriangleRasterState);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdSetTriangleRasterState(params);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("params", params);
         pLogContext->EndInput();
@@ -711,16 +662,14 @@ void CmdBuffer::CmdSetTriangleRasterState(
 void CmdBuffer::CmdSetPointLineRasterState(
     const PointLineRasterStateParams& params)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSetPointLineRasterState;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdSetPointLineRasterState(params);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdSetPointLineRasterState);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdSetPointLineRasterState(params);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("params", params);
         pLogContext->EndInput();
@@ -733,16 +682,14 @@ void CmdBuffer::CmdSetPointLineRasterState(
 void CmdBuffer::CmdSetLineStippleState(
     const LineStippleStateParams& params)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId = InterfaceFunc::CmdBufferCmdSetLineStippleState;
-    funcInfo.objectId = m_objectId;
-    funcInfo.preCallTime = m_pPlatform->GetTime();
-    m_pNextLayer->CmdSetLineStippleState(params);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdSetLineStippleState);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdSetLineStippleState(params);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("params", params);
         pLogContext->EndInput();
@@ -755,16 +702,14 @@ void CmdBuffer::CmdSetLineStippleState(
 void CmdBuffer::CmdSetDepthBiasState(
     const DepthBiasParams& params)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSetDepthBiasState;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdSetDepthBiasState(params);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdSetDepthBiasState);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdSetDepthBiasState(params);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("params", params);
         pLogContext->EndInput();
@@ -777,16 +722,14 @@ void CmdBuffer::CmdSetDepthBiasState(
 void CmdBuffer::CmdSetStencilRefMasks(
     const StencilRefMaskParams& params)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSetStencilRefMasks;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdSetStencilRefMasks(params);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdSetStencilRefMasks);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdSetStencilRefMasks(params);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("params", params);
         pLogContext->EndInput();
@@ -801,16 +744,14 @@ void CmdBuffer::CmdSetUserClipPlanes(
     uint32               planeCount,
     const UserClipPlane* pPlanes)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSetUserClipPlanes;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdSetUserClipPlanes(firstPlane, planeCount, pPlanes);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdSetUserClipPlanes);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdSetUserClipPlanes(firstPlane, planeCount, pPlanes);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndValue("firstPlane", firstPlane);
         pLogContext->KeyAndBeginList("planes", false);
@@ -833,16 +774,14 @@ void CmdBuffer::CmdSetClipRects(
     uint32      rectCount,
     const Rect* pRectList)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSetClipRects;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdSetClipRects(clipRule, rectCount, pRectList);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdSetClipRects);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdSetClipRects(clipRule, rectCount, pRectList);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndValue("clipRule", clipRule);
         pLogContext->KeyAndValue("rectCount", rectCount);
@@ -865,16 +804,14 @@ void CmdBuffer::CmdSetMsaaQuadSamplePattern(
     uint32                       numSamplesPerPixel,
     const MsaaQuadSamplePattern& quadSamplePattern)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSetMsaaQuadSamplePattern;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdSetMsaaQuadSamplePattern(numSamplesPerPixel, quadSamplePattern);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdSetMsaaQuadSamplePattern);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdSetMsaaQuadSamplePattern(numSamplesPerPixel, quadSamplePattern);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndValue("numSamplesPerPixel", numSamplesPerPixel);
         pLogContext->KeyAndStruct("quadSamplePattern", quadSamplePattern);
@@ -888,16 +825,14 @@ void CmdBuffer::CmdSetMsaaQuadSamplePattern(
 void CmdBuffer::CmdSetViewports(
     const ViewportParams& params)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSetViewports;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdSetViewports(params);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdSetViewports);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdSetViewports(params);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("params", params);
         pLogContext->EndInput();
@@ -910,16 +845,14 @@ void CmdBuffer::CmdSetViewports(
 void CmdBuffer::CmdSetScissorRects(
     const ScissorRectParams& params)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSetScissorRects;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdSetScissorRects(params);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdSetScissorRects);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdSetScissorRects(params);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("params", params);
         pLogContext->EndInput();
@@ -932,16 +865,14 @@ void CmdBuffer::CmdSetScissorRects(
 void CmdBuffer::CmdSetGlobalScissor(
     const GlobalScissorParams& params)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSetGlobalScissor;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdSetGlobalScissor(params);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdSetGlobalScissor);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdSetGlobalScissor(params);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("params", params);
         pLogContext->EndInput();
@@ -988,16 +919,14 @@ void CmdBuffer::CmdBarrier(
         }
         nextBarrierInfo.pTransitions = &transitions[0];
 
-        BeginFuncInfo funcInfo;
-        funcInfo.funcId       = InterfaceFunc::CmdBufferCmdBarrier;
-        funcInfo.objectId     = m_objectId;
-        funcInfo.preCallTime  = m_pPlatform->GetTime();
-        m_pNextLayer->CmdBarrier(nextBarrierInfo);
-        funcInfo.postCallTime = m_pPlatform->GetTime();
+        const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdBarrier);
 
-        LogContext* pLogContext = nullptr;
-        if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+        m_pNextLayer->CmdBarrier(nextBarrierInfo);
+
+        if (active)
         {
+            LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
             pLogContext->BeginInput();
             pLogContext->KeyAndStruct("barrierInfo", barrierInfo);
             pLogContext->EndInput();
@@ -1031,16 +960,14 @@ uint32 CmdBuffer::CmdRelease(
         }
         nextReleaseInfo.pImageBarriers = &imageBarriers[0];
 
-        BeginFuncInfo funcInfo;
-        funcInfo.funcId       = InterfaceFunc::CmdBufferCmdRelease;
-        funcInfo.objectId     = m_objectId;
-        funcInfo.preCallTime  = m_pPlatform->GetTime();
-        syncToken = m_pNextLayer->CmdRelease(nextReleaseInfo);
-        funcInfo.postCallTime = m_pPlatform->GetTime();
+        const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdRelease);
 
-        LogContext* pLogContext = nullptr;
-        if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+        syncToken = m_pNextLayer->CmdRelease(nextReleaseInfo);
+
+        if (active)
         {
+            LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
             pLogContext->BeginInput();
             pLogContext->KeyAndStruct("releaseInfo", releaseInfo);
             pLogContext->KeyAndValue("syncToken", syncToken);
@@ -1077,16 +1004,14 @@ void CmdBuffer::CmdAcquire(
         }
         nextAcquireInfo.pImageBarriers = &imageBarriers[0];
 
-        BeginFuncInfo funcInfo;
-        funcInfo.funcId       = InterfaceFunc::CmdBufferCmdAcquire;
-        funcInfo.objectId     = m_objectId;
-        funcInfo.preCallTime  = m_pPlatform->GetTime();
-        m_pNextLayer->CmdAcquire(nextAcquireInfo, syncTokenCount, pSyncTokens);
-        funcInfo.postCallTime = m_pPlatform->GetTime();
+        const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdAcquire);
 
-        LogContext* pLogContext = nullptr;
-        if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+        m_pNextLayer->CmdAcquire(nextAcquireInfo, syncTokenCount, pSyncTokens);
+
+        if (active)
         {
+            LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
             pLogContext->BeginInput();
             pLogContext->KeyAndStruct("acquireInfo", acquireInfo);
             pLogContext->KeyAndBeginList("SyncTokens", false);
@@ -1127,16 +1052,14 @@ void CmdBuffer::CmdReleaseEvent(
         }
         nextReleaseInfo.pImageBarriers = &imageBarriers[0];
 
-        BeginFuncInfo funcInfo;
-        funcInfo.funcId       = InterfaceFunc::CmdBufferCmdReleaseEvent;
-        funcInfo.objectId     = m_objectId;
-        funcInfo.preCallTime  = m_pPlatform->GetTime();
-        m_pNextLayer->CmdReleaseEvent(nextReleaseInfo, NextGpuEvent(pGpuEvent));
-        funcInfo.postCallTime = m_pPlatform->GetTime();
+        const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdReleaseEvent);
 
-        LogContext* pLogContext = nullptr;
-        if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+        m_pNextLayer->CmdReleaseEvent(nextReleaseInfo, NextGpuEvent(pGpuEvent));
+
+        if (active)
         {
+            LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
             pLogContext->BeginInput();
             pLogContext->KeyAndStruct("releaseInfo", releaseInfo);
             pLogContext->KeyAndObject("gpuEvent", pGpuEvent);
@@ -1178,16 +1101,14 @@ void CmdBuffer::CmdAcquireEvent(
             nextGpuEvents[i] = NextGpuEvent(ppGpuEvents[i]);
         }
 
-        BeginFuncInfo funcInfo;
-        funcInfo.funcId       = InterfaceFunc::CmdBufferCmdAcquireEvent;
-        funcInfo.objectId     = m_objectId;
-        funcInfo.preCallTime  = m_pPlatform->GetTime();
-        m_pNextLayer->CmdAcquireEvent(nextAcquireInfo, gpuEventCount, &nextGpuEvents[0]);
-        funcInfo.postCallTime = m_pPlatform->GetTime();
+        const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdAcquireEvent);
 
-        LogContext* pLogContext = nullptr;
-        if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+        m_pNextLayer->CmdAcquireEvent(nextAcquireInfo, gpuEventCount, &nextGpuEvents[0]);
+
+        if (active)
         {
+            LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
             pLogContext->BeginInput();
             pLogContext->KeyAndStruct("acquireInfo", acquireInfo);
             pLogContext->KeyAndBeginList("gpuEvents", false);
@@ -1227,16 +1148,14 @@ void CmdBuffer::CmdReleaseThenAcquire(
         }
         nextBarrierInfo.pImageBarriers = &imageBarriers[0];
 
-        BeginFuncInfo funcInfo;
-        funcInfo.funcId       = InterfaceFunc::CmdBufferCmdReleaseThenAcquire;
-        funcInfo.objectId     = m_objectId;
-        funcInfo.preCallTime  = m_pPlatform->GetTime();
-        m_pNextLayer->CmdReleaseThenAcquire(nextBarrierInfo);
-        funcInfo.postCallTime = m_pPlatform->GetTime();
+        const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdReleaseThenAcquire);
 
-        LogContext* pLogContext = nullptr;
-        if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+        m_pNextLayer->CmdReleaseThenAcquire(nextBarrierInfo);
+
+        if (active)
         {
+            LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
             pLogContext->BeginInput();
             pLogContext->KeyAndStruct("barrierInfo", barrierInfo);
             pLogContext->EndInput();
@@ -1253,28 +1172,30 @@ void CmdBuffer::CmdCopyMemory(
     uint32                  regionCount,
     const MemoryCopyRegion* pRegions)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdCopyMemory;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdCopyMemory);
+
     m_pNextLayer->CmdCopyMemory(*NextGpuMemory(&srcGpuMemory), *NextGpuMemory(&dstGpuMemory), regionCount, pRegions);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
-        pLogContext->BeginInput();
-        pLogContext->KeyAndObject("srcGpuMemory", &srcGpuMemory);
-        pLogContext->KeyAndObject("dstGpuMemory", &dstGpuMemory);
-        pLogContext->KeyAndBeginList("regions", false);
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
 
-        for (uint32 idx = 0; idx < regionCount; ++idx)
+        // Suppress unnecessary info for barrier log only mode to reduce json file size.
+        if (m_pPlatform->IsBarrierLogActive() == false)
         {
-            pLogContext->Struct(pRegions[idx]);
-        }
+            pLogContext->BeginInput();
+            pLogContext->KeyAndObject("srcGpuMemory", &srcGpuMemory);
+            pLogContext->KeyAndObject("dstGpuMemory", &dstGpuMemory);
+            pLogContext->KeyAndBeginList("regions", false);
 
-        pLogContext->EndList();
-        pLogContext->EndInput();
+            for (uint32 idx = 0; idx < regionCount; ++idx)
+            {
+                pLogContext->Struct(pRegions[idx]);
+            }
+
+            pLogContext->EndList();
+            pLogContext->EndInput();
+        }
 
         m_pPlatform->LogEndFunc(pLogContext);
     }
@@ -1287,16 +1208,14 @@ void CmdBuffer::CmdCopyMemoryByGpuVa(
     uint32                  regionCount,
     const MemoryCopyRegion* pRegions)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdCopyMemoryByGpuVa;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdCopyMemoryByGpuVa(srcGpuVirtAddr, dstGpuVirtAddr, regionCount, pRegions);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdCopyMemoryByGpuVa);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdCopyMemoryByGpuVa(srcGpuVirtAddr, dstGpuVirtAddr, regionCount, pRegions);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndValue("srcGpuVirtAddr", srcGpuVirtAddr);
         pLogContext->KeyAndValue("dstGpuVirtAddr", dstGpuVirtAddr);
@@ -1325,10 +1244,8 @@ void CmdBuffer::CmdCopyImage(
     const Rect*            pScissorRect,
     uint32                 flags)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdCopyImage;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdCopyImage);
+
     m_pNextLayer->CmdCopyImage(*NextImage(&srcImage),
                                srcImageLayout,
                                *NextImage(&dstImage),
@@ -1337,11 +1254,11 @@ void CmdBuffer::CmdCopyImage(
                                pRegions,
                                pScissorRect,
                                flags);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("srcImage", &srcImage);
         pLogContext->KeyAndStruct("srcImageLayout", srcImageLayout);
@@ -1376,32 +1293,34 @@ void CmdBuffer::CmdCopyMemoryToImage(
     uint32                       regionCount,
     const MemoryImageCopyRegion* pRegions)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdCopyMemoryToImage;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdCopyMemoryToImage);
+
     m_pNextLayer->CmdCopyMemoryToImage(*NextGpuMemory(&srcGpuMemory),
                                        *NextImage(&dstImage),
                                        dstImageLayout,
                                        regionCount,
                                        pRegions);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("srcGpuMemory", &srcGpuMemory);
         pLogContext->KeyAndObject("dstImage", &dstImage);
-        pLogContext->KeyAndStruct("dstImageLayout", dstImageLayout);
-        pLogContext->KeyAndBeginList("regions", false);
-
-        for (uint32 idx = 0; idx < regionCount; ++idx)
+        // Suppress unnecessary info for barrier log only mode to reduce json file size.
+        if (m_pPlatform->IsBarrierLogActive() == false)
         {
-            pLogContext->Struct(pRegions[idx]);
-        }
+            pLogContext->KeyAndStruct("dstImageLayout", dstImageLayout);
+            pLogContext->KeyAndBeginList("regions", false);
 
-        pLogContext->EndList();
+            for (uint32 idx = 0; idx < regionCount; ++idx)
+            {
+                pLogContext->Struct(pRegions[idx]);
+            }
+
+            pLogContext->EndList();
+        }
         pLogContext->EndInput();
 
         m_pPlatform->LogEndFunc(pLogContext);
@@ -1416,20 +1335,18 @@ void CmdBuffer::CmdCopyImageToMemory(
     uint32                       regionCount,
     const MemoryImageCopyRegion* pRegions)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdCopyImageToMemory;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdCopyImageToMemory);
+
     m_pNextLayer->CmdCopyImageToMemory(*NextImage(&srcImage),
                                        srcImageLayout,
                                        *NextGpuMemory(&dstGpuMemory),
                                        regionCount,
                                        pRegions);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("srcImage", &srcImage);
         pLogContext->KeyAndStruct("srcImageLayout", srcImageLayout);
@@ -1456,20 +1373,18 @@ void CmdBuffer::CmdCopyMemoryToTiledImage(
     uint32                            regionCount,
     const MemoryTiledImageCopyRegion* pRegions)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdCopyMemoryToTiledImage;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdCopyMemoryToTiledImage);
+
     m_pNextLayer->CmdCopyMemoryToTiledImage(*NextGpuMemory(&srcGpuMemory),
                                             *NextImage(&dstImage),
                                             dstImageLayout,
                                             regionCount,
                                             pRegions);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("srcGpuMemory", &srcGpuMemory);
         pLogContext->KeyAndObject("dstImage", &dstImage);
@@ -1496,20 +1411,18 @@ void CmdBuffer::CmdCopyTiledImageToMemory(
     uint32                            regionCount,
     const MemoryTiledImageCopyRegion* pRegions)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdCopyTiledImageToMemory;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdCopyTiledImageToMemory);
+
     m_pNextLayer->CmdCopyTiledImageToMemory(*NextImage(&srcImage),
                                             srcImageLayout,
                                             *NextGpuMemory(&dstGpuMemory),
                                             regionCount,
                                             pRegions);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("srcImage", &srcImage);
         pLogContext->KeyAndStruct("srcImageLayout", srcImageLayout);
@@ -1535,19 +1448,17 @@ void CmdBuffer::CmdCopyTypedBuffer(
     uint32                       regionCount,
     const TypedBufferCopyRegion* pRegions)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdCopyTypedBuffer;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdCopyTypedBuffer);
+
     m_pNextLayer->CmdCopyTypedBuffer(*NextGpuMemory(&srcGpuMemory),
                                      *NextGpuMemory(&dstGpuMemory),
                                      regionCount,
                                      pRegions);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("srcGpuMemory", &srcGpuMemory);
         pLogContext->KeyAndObject("dstGpuMemory", &dstGpuMemory);
@@ -1573,20 +1484,18 @@ void CmdBuffer::CmdScaledCopyTypedBufferToImage(
     uint32                                  regionCount,
     const TypedBufferImageScaledCopyRegion* pRegions)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdScaledCopyTypedBufferToImage;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdScaledCopyTypedBufferToImage);
+
     m_pNextLayer->CmdScaledCopyTypedBufferToImage(*NextGpuMemory(&srcGpuMemory),
                                                   *NextImage(&dstImage),
                                                   dstImageLayout,
                                                   regionCount,
                                                   pRegions);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("srcGpuMemory", &srcGpuMemory);
         pLogContext->KeyAndObject("dstImage", &dstImage);
@@ -1611,16 +1520,14 @@ void CmdBuffer::CmdCopyRegisterToMemory(
     const IGpuMemory& dstGpuMemory,
     gpusize           dstOffset)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdCopyRegisterToMemory;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdCopyRegisterToMemory(srcRegisterOffset, *NextGpuMemory(&dstGpuMemory), dstOffset);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdCopyRegisterToMemory);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdCopyRegisterToMemory(srcRegisterOffset, *NextGpuMemory(&dstGpuMemory), dstOffset);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndValue("srcRegisterOffset", srcRegisterOffset);
         pLogContext->KeyAndObject("dstGpuMemory", &dstGpuMemory);
@@ -1639,16 +1546,14 @@ void CmdBuffer::CmdScaledCopyImage(
     nextCopyInfo.pSrcImage = NextImage(copyInfo.pSrcImage);
     nextCopyInfo.pDstImage = NextImage(copyInfo.pDstImage);
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdScaledCopyImage;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdScaledCopyImage(nextCopyInfo);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdScaledCopyImage);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdScaledCopyImage(nextCopyInfo);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("copyInfo", copyInfo);
         pLogContext->EndInput();
@@ -1664,16 +1569,14 @@ void CmdBuffer::CmdGenerateMipmaps(
     GenMipmapsInfo nextGenInfo = genInfo;
     nextGenInfo.pImage         = NextImage(genInfo.pImage);
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdGenerateMipmaps;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdGenerateMipmaps(nextGenInfo);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdGenerateMipmaps);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdGenerateMipmaps(nextGenInfo);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("genInfo", genInfo);
         pLogContext->EndInput();
@@ -1693,10 +1596,8 @@ void CmdBuffer::CmdColorSpaceConversionCopy(
     TexFilter                         filter,
     const ColorSpaceConversionTable&  cscTable)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdColorSpaceConversionCopy;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdColorSpaceConversionCopy);
+
     m_pNextLayer->CmdColorSpaceConversionCopy(*NextImage(&srcImage),
                                               srcImageLayout,
                                               *NextImage(&dstImage),
@@ -1705,11 +1606,11 @@ void CmdBuffer::CmdColorSpaceConversionCopy(
                                               pRegions,
                                               filter,
                                               cscTable);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("srcImage", &srcImage);
         pLogContext->KeyAndStruct("srcImageLayout", srcImageLayout);
@@ -1736,16 +1637,14 @@ void CmdBuffer::CmdCloneImageData(
     const IImage& srcImage,
     const IImage& dstImage)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdCloneImageData;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdCloneImageData(*NextImage(&srcImage), *NextImage(&dstImage));
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdCloneImageData);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdCloneImageData(*NextImage(&srcImage), *NextImage(&dstImage));
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("srcImage", &srcImage);
         pLogContext->KeyAndObject("dstImage", &dstImage);
@@ -1762,16 +1661,14 @@ void CmdBuffer::CmdUpdateMemory(
     gpusize           dataSize,
     const uint32*     pData)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdUpdateMemory;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdUpdateMemory(*NextGpuMemory(&dstGpuMemory), dstOffset, dataSize, pData);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdUpdateMemory);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdUpdateMemory(*NextGpuMemory(&dstGpuMemory), dstOffset, dataSize, pData);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("dstGpuMemory", &dstGpuMemory);
         pLogContext->KeyAndValue("dstOffset", dstOffset);
@@ -1795,16 +1692,14 @@ void CmdBuffer::CmdUpdateBusAddressableMemoryMarker(
     gpusize           offset,
     uint32            value)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdUpdateBusAddressableMemoryMarker;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdUpdateBusAddressableMemoryMarker(*NextGpuMemory(&dstGpuMemory), offset, value);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdUpdateBusAddressableMemoryMarker);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdUpdateBusAddressableMemoryMarker(*NextGpuMemory(&dstGpuMemory), offset, value);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("dstGpuMemory", &dstGpuMemory);
         pLogContext->KeyAndValue("offset", offset);
@@ -1822,16 +1717,14 @@ void CmdBuffer::CmdFillMemory(
     gpusize           fillSize,
     uint32            data)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdFillMemory;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdFillMemory(*NextGpuMemory(&dstGpuMemory), dstOffset, fillSize, data);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdFillMemory);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdFillMemory(*NextGpuMemory(&dstGpuMemory), dstOffset, fillSize, data);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("dstGpuMemory", &dstGpuMemory);
         pLogContext->KeyAndValue("dstOffset", dstOffset);
@@ -1853,10 +1746,8 @@ void CmdBuffer::CmdClearColorBuffer(
     uint32            rangeCount,
     const Range*      pRanges)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdClearColorBuffer;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdClearColorBuffer);
+
     m_pNextLayer->CmdClearColorBuffer(*NextGpuMemory(&gpuMemory),
                                       color,
                                       bufferFormat,
@@ -1864,11 +1755,11 @@ void CmdBuffer::CmdClearColorBuffer(
                                       bufferExtent,
                                       rangeCount,
                                       pRanges);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("gpuMemory", &gpuMemory);
         pLogContext->KeyAndStruct("color", color);
@@ -1896,16 +1787,14 @@ void CmdBuffer::CmdClearBoundColorTargets(
     uint32                        regionCount,
     const ClearBoundTargetRegion* pClearRegions)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdClearBoundColorTargets;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdClearBoundColorTargets(colorTargetCount, pBoundColorTargets, regionCount, pClearRegions);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdClearBoundColorTargets);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdClearBoundColorTargets(colorTargetCount, pBoundColorTargets, regionCount, pClearRegions);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndBeginList("boundColorTargets", false);
 
@@ -1941,10 +1830,8 @@ void CmdBuffer::CmdClearColorImage(
     const Box*            pBoxes,
     uint32                flags)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdClearColorImage;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdClearColorImage);
+
     m_pNextLayer->CmdClearColorImage(*NextImage(&image),
                                      imageLayout,
                                      color,
@@ -1954,11 +1841,11 @@ void CmdBuffer::CmdClearColorImage(
                                      boxCount,
                                      pBoxes,
                                      flags);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("image", &image);
         pLogContext->KeyAndStruct("imageLayout", imageLayout);
@@ -1998,10 +1885,8 @@ void CmdBuffer::CmdClearBoundDepthStencilTargets(
     uint32                        regionCount,
     const ClearBoundTargetRegion* pClearRegions)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdClearBoundDepthStencilTargets;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId,
+                            InterfaceFunc::CmdBufferCmdClearBoundDepthStencilTargets);
 
     m_pNextLayer->CmdClearBoundDepthStencilTargets(depth,
                                                    stencil,
@@ -2012,11 +1897,10 @@ void CmdBuffer::CmdClearBoundDepthStencilTargets(
                                                    regionCount,
                                                    pClearRegions);
 
-    funcInfo.postCallTime = m_pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndValue("depth", depth);
         pLogContext->KeyAndValue("stencil", stencil);
@@ -2052,10 +1936,8 @@ void CmdBuffer::CmdClearDepthStencil(
     const Rect*        pRects,
     uint32             flags)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdClearDepthStencil;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdClearDepthStencil);
+
     m_pNextLayer->CmdClearDepthStencil(*NextImage(&image),
                                        depthLayout,
                                        stencilLayout,
@@ -2067,11 +1949,11 @@ void CmdBuffer::CmdClearDepthStencil(
                                        rectCount,
                                        pRects,
                                        flags);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("image", &image);
         pLogContext->KeyAndStruct("depthLayout", depthLayout);
@@ -2110,16 +1992,14 @@ void CmdBuffer::CmdClearBufferView(
     uint32            rangeCount,
     const Range*      pRanges)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdClearBufferView;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdClearBufferView(*NextGpuMemory(&gpuMemory), color, pBufferViewSrd, rangeCount, pRanges);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdClearBufferView);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdClearBufferView(*NextGpuMemory(&gpuMemory), color, pBufferViewSrd, rangeCount, pRanges);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("gpuMemory", &gpuMemory);
         pLogContext->KeyAndStruct("color", color);
@@ -2146,16 +2026,14 @@ void CmdBuffer::CmdClearImageView(
     uint32            rectCount,
     const Rect*       pRects)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdClearImageView;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdClearImageView(*NextImage(&image), imageLayout, color, pImageViewSrd, rectCount, pRects);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdClearImageView);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdClearImageView(*NextImage(&image), imageLayout, color, pImageViewSrd, rectCount, pRects);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("image", &image);
         pLogContext->KeyAndStruct("imageLayout", imageLayout);
@@ -2185,10 +2063,8 @@ void CmdBuffer::CmdResolveImage(
     const ImageResolveRegion* pRegions,
     uint32                    flags)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdResolveImage;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdResolveImage);
+
     m_pNextLayer->CmdResolveImage(*NextImage(&srcImage),
                                   srcImageLayout,
                                   *NextImage(&dstImage),
@@ -2197,11 +2073,11 @@ void CmdBuffer::CmdResolveImage(
                                   regionCount,
                                   pRegions,
                                   flags);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("srcImage", &srcImage);
         pLogContext->KeyAndStruct("srcImageLayout", srcImageLayout);
@@ -2228,16 +2104,14 @@ void CmdBuffer::CmdSetEvent(
     const IGpuEvent& gpuEvent,
     uint32           stageMask)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSetEvent;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdSetEvent(*NextGpuEvent(&gpuEvent), stageMask);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdSetEvent);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdSetEvent(*NextGpuEvent(&gpuEvent), stageMask);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("gpuEvent", &gpuEvent);
         pLogContext->KeyAndPipelineStageFlags("stageMask", stageMask);
@@ -2252,16 +2126,14 @@ void CmdBuffer::CmdResetEvent(
     const IGpuEvent& gpuEvent,
     uint32           stageMask)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdResetEvent;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdResetEvent(*NextGpuEvent(&gpuEvent), stageMask);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdResetEvent);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdResetEvent(*NextGpuEvent(&gpuEvent), stageMask);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("gpuEvent", &gpuEvent);
         pLogContext->KeyAndPipelineStageFlags("stageMask", stageMask);
@@ -2275,16 +2147,14 @@ void CmdBuffer::CmdResetEvent(
 void CmdBuffer::CmdPredicateEvent(
     const IGpuEvent& gpuEvent)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdPredicateEvent;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdPredicateEvent(*NextGpuEvent(&gpuEvent));
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdPredicateEvent);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdPredicateEvent(*NextGpuEvent(&gpuEvent));
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("gpuEvent", &gpuEvent);
         pLogContext->EndInput();
@@ -2300,16 +2170,14 @@ void CmdBuffer::CmdMemoryAtomic(
     uint64            srcData,
     AtomicOp          atomicOp)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdMemoryAtomic;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdMemoryAtomic(*NextGpuMemory(&dstGpuMemory), dstOffset, srcData, atomicOp);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdMemoryAtomic);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdMemoryAtomic(*NextGpuMemory(&dstGpuMemory), dstOffset, srcData, atomicOp);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("dstGpuMemory", &dstGpuMemory);
         pLogContext->KeyAndValue("dstOffset", dstOffset);
@@ -2328,16 +2196,14 @@ void CmdBuffer::CmdBeginQuery(
     uint32            slot,
     QueryControlFlags flags)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdBeginQuery;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdBeginQuery(*NextQueryPool(&queryPool), queryType, slot, flags);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdBeginQuery);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdBeginQuery(*NextQueryPool(&queryPool), queryType, slot, flags);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("queryPool", &queryPool);
         pLogContext->KeyAndEnum("queryType", queryType);
@@ -2355,16 +2221,14 @@ void CmdBuffer::CmdEndQuery(
     QueryType         queryType,
     uint32            slot)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdEndQuery;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdEndQuery(*NextQueryPool(&queryPool), queryType, slot);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdEndQuery);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdEndQuery(*NextQueryPool(&queryPool), queryType, slot);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("queryPool", &queryPool);
         pLogContext->KeyAndEnum("queryType", queryType);
@@ -2386,10 +2250,8 @@ void CmdBuffer::CmdResolveQuery(
     gpusize           dstOffset,
     gpusize           dstStride)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdResolveQuery;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdResolveQuery);
+
     m_pNextLayer->CmdResolveQuery(*NextQueryPool(&queryPool),
                                   flags,
                                   queryType,
@@ -2398,11 +2260,11 @@ void CmdBuffer::CmdResolveQuery(
                                   *NextGpuMemory(&dstGpuMemory),
                                   dstOffset,
                                   dstStride);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("queryPool", &queryPool);
         pLogContext->KeyAndQueryResultFlags("flags", flags);
@@ -2424,16 +2286,14 @@ void CmdBuffer::CmdResetQueryPool(
     uint32            startQuery,
     uint32            queryCount)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdResetQueryPool;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdResetQueryPool(*NextQueryPool(&queryPool), startQuery, queryCount);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdResetQueryPool);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdResetQueryPool(*NextQueryPool(&queryPool), startQuery, queryCount);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("queryPool", &queryPool);
         pLogContext->KeyAndValue("startQuery", startQuery);
@@ -2450,16 +2310,14 @@ void CmdBuffer::CmdWriteTimestamp(
     const IGpuMemory& dstGpuMemory,
     gpusize           dstOffset)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdWriteTimestamp;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdWriteTimestamp(stageMask, *NextGpuMemory(&dstGpuMemory), dstOffset);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdWriteTimestamp);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdWriteTimestamp(stageMask, *NextGpuMemory(&dstGpuMemory), dstOffset);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndPipelineStageFlags("stageMask", stageMask);
         pLogContext->KeyAndObject("dstGpuMemory", &dstGpuMemory);
@@ -2477,22 +2335,24 @@ void CmdBuffer::CmdWriteImmediate(
     ImmediateDataWidth dataSize,
     const gpusize address)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId = InterfaceFunc::CmdBufferCmdWriteImmediate;
-    funcInfo.objectId = m_objectId;
-    funcInfo.preCallTime = m_pPlatform->GetTime();
-    m_pNextLayer->CmdWriteImmediate(stageMask, data, dataSize, address);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdWriteImmediate);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdWriteImmediate(stageMask, data, dataSize, address);
+
+    if (active)
     {
-        pLogContext->BeginInput();
-        pLogContext->KeyAndPipelineStageFlags("stageMask", stageMask);
-        pLogContext->KeyAndValue("data", data);
-        pLogContext->KeyAndEnum("dataSize", dataSize);
-        pLogContext->KeyAndValue("address", address);
-        pLogContext->EndInput();
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
+        // Suppress unnecessary info for barrier log only mode to reduce json file size.
+        if (m_pPlatform->IsBarrierLogActive() == false)
+        {
+            pLogContext->BeginInput();
+            pLogContext->KeyAndPipelineStageFlags("stageMask", stageMask);
+            pLogContext->KeyAndValue("data", data);
+            pLogContext->KeyAndEnum("dataSize", dataSize);
+            pLogContext->KeyAndValue("address", address);
+            pLogContext->EndInput();
+        }
 
         m_pPlatform->LogEndFunc(pLogContext);
     }
@@ -2502,16 +2362,14 @@ void CmdBuffer::CmdWriteImmediate(
 void CmdBuffer::CmdLoadBufferFilledSizes(
     const gpusize (&gpuVirtAddr)[MaxStreamOutTargets])
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdLoadBufferFilledSizes;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdLoadBufferFilledSizes(gpuVirtAddr);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdLoadBufferFilledSizes);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdLoadBufferFilledSizes(gpuVirtAddr);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndBeginList("gpuVirtAddr", false);
 
@@ -2531,16 +2389,14 @@ void CmdBuffer::CmdLoadBufferFilledSizes(
 void CmdBuffer::CmdSaveBufferFilledSizes(
     const gpusize (&gpuVirtAddr)[MaxStreamOutTargets])
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSaveBufferFilledSizes;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdSaveBufferFilledSizes(gpuVirtAddr);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdSaveBufferFilledSizes);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdSaveBufferFilledSizes(gpuVirtAddr);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndBeginList("gpuVirtAddr", false);
 
@@ -2561,16 +2417,14 @@ void CmdBuffer::CmdSetBufferFilledSize(
     uint32  bufferId,
     uint32  offset)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSetBufferFilledSize;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdSetBufferFilledSize(bufferId, offset);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdSetBufferFilledSize);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdSetBufferFilledSize(bufferId, offset);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndValue("bufferId", bufferId);
         pLogContext->KeyAndValue("offset", offset);
@@ -2585,16 +2439,14 @@ void CmdBuffer::CmdBindBorderColorPalette(
     PipelineBindPoint          pipelineBindPoint,
     const IBorderColorPalette* pPalette)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdBindBorderColorPalette;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdBindBorderColorPalette(pipelineBindPoint, NextBorderColorPalette(pPalette));
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdBindBorderColorPalette);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdBindBorderColorPalette(pipelineBindPoint, NextBorderColorPalette(pPalette));
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndEnum("pipelineBindPoint", pipelineBindPoint);
         pLogContext->KeyAndObject("palette", pPalette);
@@ -2615,10 +2467,8 @@ void CmdBuffer::CmdSetPredication(
     bool                waitResults,
     bool                accumulateData)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSetPredication;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdSetPredication);
+
     m_pNextLayer->CmdSetPredication(NextQueryPool(pQueryPool),
                                     slot,
                                     pGpuMemory,
@@ -2627,11 +2477,11 @@ void CmdBuffer::CmdSetPredication(
                                     predPolarity,
                                     waitResults,
                                     accumulateData);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("queryPool", pQueryPool);
         pLogContext->KeyAndValue("slot", slot);
@@ -2651,16 +2501,14 @@ void CmdBuffer::CmdSetPredication(
 void CmdBuffer::CmdSuspendPredication(
     bool suspend)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSuspendPredication;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdSuspendPredication(suspend);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdSuspendPredication);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdSuspendPredication(suspend);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndValue("suspend", suspend);
         pLogContext->EndInput();
@@ -2677,16 +2525,14 @@ void CmdBuffer::CmdIf(
     uint64            mask,
     CompareFunc       compareFunc)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdIf;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdIf(*NextGpuMemory(&gpuMemory), offset, data, mask, compareFunc);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdIf);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdIf(*NextGpuMemory(&gpuMemory), offset, data, mask, compareFunc);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("gpuMemory", &gpuMemory);
         pLogContext->KeyAndValue("offset", offset);
@@ -2702,16 +2548,14 @@ void CmdBuffer::CmdIf(
 // =====================================================================================================================
 void CmdBuffer::CmdElse()
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdElse;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdElse();
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdElse);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdElse();
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         m_pPlatform->LogEndFunc(pLogContext);
     }
 }
@@ -2719,16 +2563,14 @@ void CmdBuffer::CmdElse()
 // =====================================================================================================================
 void CmdBuffer::CmdEndIf()
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdEndIf;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdEndIf();
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdEndIf);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdEndIf();
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         m_pPlatform->LogEndFunc(pLogContext);
     }
 }
@@ -2741,16 +2583,14 @@ void CmdBuffer::CmdWhile(
     uint64            mask,
     CompareFunc       compareFunc)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdWhile;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdWhile(*NextGpuMemory(&gpuMemory), offset, data, mask, compareFunc);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdWhile);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdWhile(*NextGpuMemory(&gpuMemory), offset, data, mask, compareFunc);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("gpuMemory", &gpuMemory);
         pLogContext->KeyAndValue("offset", offset);
@@ -2766,16 +2606,14 @@ void CmdBuffer::CmdWhile(
 // =====================================================================================================================
 void CmdBuffer::CmdEndWhile()
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdEndWhile;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdEndWhile();
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdEndWhile);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdEndWhile();
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         m_pPlatform->LogEndFunc(pLogContext);
     }
 }
@@ -2787,16 +2625,14 @@ void CmdBuffer::CmdWaitRegisterValue(
     uint32      mask,
     CompareFunc compareFunc)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdWaitRegisterValue;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdWaitRegisterValue(registerOffset, data, mask, compareFunc);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdWaitRegisterValue);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdWaitRegisterValue(registerOffset, data, mask, compareFunc);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndValue("registerOffset", registerOffset);
         pLogContext->KeyAndValue("data", data);
@@ -2815,16 +2651,14 @@ void CmdBuffer::CmdWaitMemoryValue(
     uint32      mask,
     CompareFunc compareFunc)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdWaitMemoryValue;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdWaitMemoryValue(gpuVirtAddr, data, mask, compareFunc);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdWaitMemoryValue);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdWaitMemoryValue(gpuVirtAddr, data, mask, compareFunc);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndValue("gpuVirtAddr", gpuVirtAddr);
         pLogContext->KeyAndValue("data", data);
@@ -2843,16 +2677,15 @@ void CmdBuffer::CmdWaitBusAddressableMemoryMarker(
     uint32            mask,
     CompareFunc       compareFunc)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId = InterfaceFunc::CmdBufferCmdWaitBusAddressableMemoryMarker;
-    funcInfo.objectId = m_objectId;
-    funcInfo.preCallTime = m_pPlatform->GetTime();
-    m_pNextLayer->CmdWaitBusAddressableMemoryMarker(*NextGpuMemory(&gpuMemory), data, mask, compareFunc);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId,
+                            InterfaceFunc::CmdBufferCmdWaitBusAddressableMemoryMarker);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdWaitBusAddressableMemoryMarker(*NextGpuMemory(&gpuMemory), data, mask, compareFunc);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("gpuMemory", &gpuMemory);
         pLogContext->KeyAndValue("data", data);
@@ -2871,22 +2704,19 @@ void CmdBuffer::CmdUpdateHiSPretests(
     uint32             firstMip,
     uint32             numMips)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId = InterfaceFunc::CmdUpdateHiSPretests;
-    funcInfo.objectId = m_objectId;
-    funcInfo.preCallTime = m_pPlatform->GetTime();
-    m_pNextLayer->CmdUpdateHiSPretests(NextImage(pImage), pretests, firstMip, numMips);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdUpdateHiSPretests);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdUpdateHiSPretests(NextImage(pImage), pretests, firstMip, numMips);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("image", pImage);
         pLogContext->KeyAndStruct("pretests", pretests);
         pLogContext->KeyAndValue("firstMip", firstMip);
         pLogContext->KeyAndValue("numMips", numMips);
-
         pLogContext->EndInput();
 
         m_pPlatform->LogEndFunc(pLogContext);
@@ -2973,16 +2803,14 @@ void CmdBuffer::CmdLoadCeRam(
     uint32            ramOffset,
     uint32            dwordSize)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdLoadCeRam;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdLoadCeRam(*NextGpuMemory(&srcGpuMemory), memOffset, ramOffset, dwordSize);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdLoadCeRam);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdLoadCeRam(*NextGpuMemory(&srcGpuMemory), memOffset, ramOffset, dwordSize);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("srcGpuMemory", &srcGpuMemory);
         pLogContext->KeyAndValue("memOffset", memOffset);
@@ -3003,16 +2831,14 @@ void CmdBuffer::CmdDumpCeRam(
     uint32            currRingPos,
     uint32            ringSize)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdDumpCeRam;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdDumpCeRam(*NextGpuMemory(&dstGpuMemory), memOffset, ramOffset, dwordSize, currRingPos, ringSize);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdDumpCeRam);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdDumpCeRam(*NextGpuMemory(&dstGpuMemory), memOffset, ramOffset, dwordSize, currRingPos, ringSize);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("dstGpuMemory", &dstGpuMemory);
         pLogContext->KeyAndValue("memOffset", memOffset);
@@ -3032,16 +2858,14 @@ void CmdBuffer::CmdWriteCeRam(
     uint32      ramOffset,
     uint32      dwordSize)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdWriteCeRam;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdWriteCeRam(pSrcData, ramOffset, dwordSize);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdWriteCeRam);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdWriteCeRam(pSrcData, ramOffset, dwordSize);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndValue("ramOffset", ramOffset);
         pLogContext->KeyAndBeginList("srcData", false);
@@ -3065,16 +2889,13 @@ uint32* CmdBuffer::CmdAllocateEmbeddedData(
     uint32   alignmentInDwords,
     gpusize* pGpuAddress)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdAllocateEmbeddedData;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    const bool   active   = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdAllocateEmbeddedData);
     uint32*const pCpuAddr = m_pNextLayer->CmdAllocateEmbeddedData(sizeInDwords, alignmentInDwords, pGpuAddress);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndValue("sizeInDwords", sizeInDwords);
         pLogContext->KeyAndValue("alignmentInDwords", alignmentInDwords);
@@ -3096,16 +2917,13 @@ uint32* CmdBuffer::CmdAllocateLargeEmbeddedData(
     uint32   alignmentInDwords,
     gpusize* pGpuAddress)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId = InterfaceFunc::CmdBufferCmdAllocateLargeEmbeddedData;
-    funcInfo.objectId = m_objectId;
-    funcInfo.preCallTime = m_pPlatform->GetTime();
-    uint32* const pCpuAddr = m_pNextLayer->CmdAllocateLargeEmbeddedData(sizeInDwords, alignmentInDwords, pGpuAddress);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdAllocateLargeEmbeddedData);
+    uint32*const pCpuAddr = m_pNextLayer->CmdAllocateLargeEmbeddedData(sizeInDwords, alignmentInDwords, pGpuAddress);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndValue("sizeInDwords", sizeInDwords);
         pLogContext->KeyAndValue("alignmentInDwords", alignmentInDwords);
@@ -3148,16 +2966,15 @@ void CmdBuffer::CmdExecuteNestedCmdBuffers(
             nextCmdBuffers[i] = NextCmdBuffer(ppCmdBuffers[i]);
         }
 
-        BeginFuncInfo funcInfo;
-        funcInfo.funcId       = InterfaceFunc::CmdBufferCmdExecuteNestedCmdBuffers;
-        funcInfo.objectId     = m_objectId;
-        funcInfo.preCallTime  = m_pPlatform->GetTime();
-        m_pNextLayer->CmdExecuteNestedCmdBuffers(cmdBufferCount, &nextCmdBuffers[0]);
-        funcInfo.postCallTime = m_pPlatform->GetTime();
+        const bool active = m_pPlatform->ActivateLogging(m_objectId,
+                                InterfaceFunc::CmdBufferCmdExecuteNestedCmdBuffers);
 
-        LogContext* pLogContext = nullptr;
-        if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+        m_pNextLayer->CmdExecuteNestedCmdBuffers(cmdBufferCount, &nextCmdBuffers[0]);
+
+        if (active)
         {
+            LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
             pLogContext->BeginInput();
             pLogContext->KeyAndBeginList("cmdBuffers", false);
 
@@ -3178,16 +2995,14 @@ void CmdBuffer::CmdExecuteNestedCmdBuffers(
 void CmdBuffer::CmdSaveComputeState(
     uint32 stateFlags)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSaveComputeState;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdSaveComputeState(stateFlags);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdSaveComputeState);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdSaveComputeState(stateFlags);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndComputeStateFlags("stateFlags", stateFlags);
         pLogContext->EndInput();
@@ -3200,16 +3015,14 @@ void CmdBuffer::CmdSaveComputeState(
 void CmdBuffer::CmdRestoreComputeState(
     uint32 stateFlags)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdRestoreComputeState;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdRestoreComputeState(stateFlags);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdRestoreComputeState);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdRestoreComputeState(stateFlags);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndComputeStateFlags("stateFlags", stateFlags);
         pLogContext->EndInput();
@@ -3225,19 +3038,17 @@ void CmdBuffer::CmdExecuteIndirectCmds(
     uint32                       maximumCount,
     gpusize                      countGpuAddr)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdExecuteIndirectCmds;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdExecuteIndirectCmds);
+
     m_pNextLayer->CmdExecuteIndirectCmds(*NextIndirectCmdGenerator(&generator),
                                          gpuVirtAddr,
                                          maximumCount,
                                          countGpuAddr);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("generator", &generator);
         pLogContext->KeyAndValue("gpuVirtAddr", gpuVirtAddr);
@@ -3257,17 +3068,15 @@ void CmdBuffer::CmdPostProcessFrame(
     CmdPostProcessFrameInfo nextPostProcessInfo = postProcessInfo;
     bool addedGpuWork = false;
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdPostProcessFrame;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdPostProcessFrame);
+
     m_pNextLayer->CmdPostProcessFrame(*NextCmdPostProcessFrameInfo(postProcessInfo, &nextPostProcessInfo),
                                       &addedGpuWork);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("postProcessInfo", postProcessInfo);
         pLogContext->EndInput();
@@ -3289,16 +3098,14 @@ void CmdBuffer::CmdPostProcessFrame(
 void CmdBuffer::CmdCommentString(
     const char* pComment)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdCommentString;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdCommentString(pComment);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdCommentString);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdCommentString(pComment);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndValue("comment", pComment);
         pLogContext->EndInput();
@@ -3311,16 +3118,14 @@ void CmdBuffer::CmdNop(
     const void* pPayload,
     uint32      payloadSize)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdNop;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdNop(pPayload, payloadSize);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdNop);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdNop(pPayload, payloadSize);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         // Convert the payload to one long string of hexadecimal values.
         const uint32 blockLen  = 3 + sizeof(uint32) * 2; // "0x" + 2 chars per byte + a null or space.
         const uint32 numBlocks = RoundUpQuotient<uint32>(payloadSize, sizeof(uint32));
@@ -3340,16 +3145,14 @@ void CmdBuffer::CmdNop(
 // =====================================================================================================================
 void CmdBuffer::CmdStartGpuProfilerLogging()
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdStartGpuProfilerLogging;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdStartGpuProfilerLogging();
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdStartGpuProfilerLogging);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdStartGpuProfilerLogging();
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         m_pPlatform->LogEndFunc(pLogContext);
     }
 }
@@ -3357,16 +3160,14 @@ void CmdBuffer::CmdStartGpuProfilerLogging()
 // =====================================================================================================================
 void CmdBuffer::CmdStopGpuProfilerLogging()
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdStopGpuProfilerLogging;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdStopGpuProfilerLogging();
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdStopGpuProfilerLogging);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdStopGpuProfilerLogging();
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         m_pPlatform->LogEndFunc(pLogContext);
     }
 }
@@ -3374,16 +3175,14 @@ void CmdBuffer::CmdStopGpuProfilerLogging()
 // =====================================================================================================================
 void CmdBuffer::CmdXdmaWaitFlipPending()
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdXdmaWaitFlipPending;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdXdmaWaitFlipPending();
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdXdmaWaitFlipPending);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdXdmaWaitFlipPending();
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         m_pPlatform->LogEndFunc(pLogContext);
     }
 }
@@ -3391,16 +3190,11 @@ void CmdBuffer::CmdXdmaWaitFlipPending()
 // =====================================================================================================================
 void CmdBuffer::Destroy()
 {
-    // Note that we can't time a Destroy call.
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferDestroy;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    funcInfo.postCallTime = funcInfo.preCallTime;
-
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    // Note that we can't time Destroy calls nor track their callbacks.
+    if (m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferDestroy))
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         m_pPlatform->LogEndFunc(pLogContext);
     }
 
@@ -3416,18 +3210,17 @@ void PAL_STDCALL CmdBuffer::CmdSetUserDataCs(
     uint32        entryCount,
     const uint32* pEntryValues)
 {
-    auto*const pThis = static_cast<CmdBuffer*>(pCmdBuffer);
+    auto*const     pThis     = static_cast<CmdBuffer*>(pCmdBuffer);
+    Platform*const pPlatform = pThis->m_pPlatform;
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSetUserData;
-    funcInfo.objectId     = pThis->m_objectId;
-    funcInfo.preCallTime  = pThis->m_pPlatform->GetTime();
+    const bool active = pPlatform->ActivateLogging(pThis->m_objectId, InterfaceFunc::CmdBufferCmdSetUserData);
+
     pThis->m_pNextLayer->CmdSetUserData(PipelineBindPoint::Compute, firstEntry, entryCount, pEntryValues);
-    funcInfo.postCallTime = pThis->m_pPlatform->GetTime();
 
-    LogContext* pLogContext = nullptr;
-    if (pThis->m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndValue("firstEntry", firstEntry);
         pLogContext->KeyAndBeginList("values", false);
@@ -3440,7 +3233,7 @@ void PAL_STDCALL CmdBuffer::CmdSetUserDataCs(
         pLogContext->EndList();
         pLogContext->EndInput();
 
-        pThis->m_pPlatform->LogEndFunc(pLogContext);
+        pPlatform->LogEndFunc(pLogContext);
     }
 }
 
@@ -3451,18 +3244,17 @@ void PAL_STDCALL CmdBuffer::CmdSetUserDataGfx(
     uint32        entryCount,
     const uint32* pEntryValues)
 {
-    auto*const pThis = static_cast<CmdBuffer*>(pCmdBuffer);
+    auto*const     pThis     = static_cast<CmdBuffer*>(pCmdBuffer);
+    Platform*const pPlatform = pThis->m_pPlatform;
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSetUserData;
-    funcInfo.objectId     = pThis->m_objectId;
-    funcInfo.preCallTime  = pThis->m_pPlatform->GetTime();
+    const bool active = pPlatform->ActivateLogging(pThis->m_objectId, InterfaceFunc::CmdBufferCmdSetUserData);
+
     pThis->m_pNextLayer->CmdSetUserData(PipelineBindPoint::Graphics, firstEntry, entryCount, pEntryValues);
-    funcInfo.postCallTime = pThis->m_pPlatform->GetTime();
 
-    LogContext* pLogContext = nullptr;
-    if (pThis->m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndValue("firstEntry", firstEntry);
         pLogContext->KeyAndBeginList("values", false);
@@ -3475,7 +3267,7 @@ void PAL_STDCALL CmdBuffer::CmdSetUserDataGfx(
         pLogContext->EndList();
         pLogContext->EndInput();
 
-        pThis->m_pPlatform->LogEndFunc(pLogContext);
+        pPlatform->LogEndFunc(pLogContext);
     }
 }
 
@@ -3489,19 +3281,17 @@ void PAL_STDCALL CmdBuffer::CmdDraw(
     uint32      drawId)
 
 {
-    auto*const pThis = static_cast<CmdBuffer*>(pCmdBuffer);
+    auto*const     pThis     = static_cast<CmdBuffer*>(pCmdBuffer);
+    Platform*const pPlatform = pThis->m_pPlatform;
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdDraw;
-    funcInfo.objectId     = pThis->m_objectId;
-    funcInfo.preCallTime  = pThis->m_pPlatform->GetTime();
+    const bool active = pPlatform->ActivateLogging(pThis->m_objectId, InterfaceFunc::CmdBufferCmdDraw);
 
     pThis->m_pNextLayer->CmdDraw(firstVertex, vertexCount, firstInstance, instanceCount, drawId);
-    funcInfo.postCallTime = pThis->m_pPlatform->GetTime();
 
-    LogContext* pLogContext = nullptr;
-    if (pThis->m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndValue("firstVertex", firstVertex);
         pLogContext->KeyAndValue("vertexCount", vertexCount);
@@ -3510,7 +3300,7 @@ void PAL_STDCALL CmdBuffer::CmdDraw(
         pLogContext->KeyAndValue("drawId", drawId);
         pLogContext->EndInput();
 
-        pThis->m_pPlatform->LogEndFunc(pLogContext);
+        pPlatform->LogEndFunc(pLogContext);
     }
 }
 
@@ -3523,25 +3313,24 @@ void PAL_STDCALL CmdBuffer::CmdDrawOpaque(
     uint32      firstInstance,
     uint32      instanceCount)
 {
-    auto*const pThis = static_cast<CmdBuffer*>(pCmdBuffer);
+    auto*const     pThis     = static_cast<CmdBuffer*>(pCmdBuffer);
+    Platform*const pPlatform = pThis->m_pPlatform;
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdDrawOpaque;
-    funcInfo.objectId     = pThis->m_objectId;
-    funcInfo.preCallTime  = pThis->m_pPlatform->GetTime();
+    const bool active = pPlatform->ActivateLogging(pThis->m_objectId, InterfaceFunc::CmdBufferCmdDrawOpaque);
+
     pThis->m_pNextLayer->CmdDrawOpaque(streamOutFilledSizeVa, streamOutOffset, stride, firstInstance, instanceCount);
-    funcInfo.postCallTime = pThis->m_pPlatform->GetTime();
 
-    LogContext* pLogContext = nullptr;
-    if (pThis->m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndValue("streamOutFilledSizeVa", streamOutFilledSizeVa);
         pLogContext->KeyAndValue("streamOutOffset",       streamOutOffset);
         pLogContext->KeyAndValue("stride",                stride);
         pLogContext->EndInput();
 
-        pThis->m_pPlatform->LogEndFunc(pLogContext);
+        pPlatform->LogEndFunc(pLogContext);
     }
 }
 
@@ -3555,18 +3344,17 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndexed(
     uint32      instanceCount,
     uint32      drawId)
 {
-    auto*const pThis = static_cast<CmdBuffer*>(pCmdBuffer);
+    auto*const     pThis     = static_cast<CmdBuffer*>(pCmdBuffer);
+    Platform*const pPlatform = pThis->m_pPlatform;
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdDrawIndexed;
-    funcInfo.objectId     = pThis->m_objectId;
-    funcInfo.preCallTime  = pThis->m_pPlatform->GetTime();
+    const bool active = pPlatform->ActivateLogging(pThis->m_objectId, InterfaceFunc::CmdBufferCmdDrawIndexed);
+
     pThis->m_pNextLayer->CmdDrawIndexed(firstIndex, indexCount, vertexOffset, firstInstance, instanceCount, drawId);
-    funcInfo.postCallTime = pThis->m_pPlatform->GetTime();
 
-    LogContext* pLogContext = nullptr;
-    if (pThis->m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndValue("firstIndex", firstIndex);
         pLogContext->KeyAndValue("indexCount", indexCount);
@@ -3576,7 +3364,7 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndexed(
         pLogContext->KeyAndValue("drawId", drawId);
         pLogContext->EndInput();
 
-        pThis->m_pPlatform->LogEndFunc(pLogContext);
+        pPlatform->LogEndFunc(pLogContext);
     }
 }
 
@@ -3587,27 +3375,24 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndirectMulti(
     uint32               maximumCount,
     gpusize              countGpuAddr)
 {
-    auto*const pThis = static_cast<CmdBuffer*>(pCmdBuffer);
+    auto*const     pThis     = static_cast<CmdBuffer*>(pCmdBuffer);
+    Platform*const pPlatform = pThis->m_pPlatform;
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdDrawIndirectMulti;
-    funcInfo.objectId     = pThis->m_objectId;
-    funcInfo.preCallTime  = pThis->m_pPlatform->GetTime();
-    pThis->m_pNextLayer->CmdDrawIndirectMulti(gpuVirtAddrAndStride,
-                                              maximumCount,
-                                              countGpuAddr);
-    funcInfo.postCallTime = pThis->m_pPlatform->GetTime();
+    const bool active = pPlatform->ActivateLogging(pThis->m_objectId, InterfaceFunc::CmdBufferCmdDrawIndirectMulti);
 
-    LogContext* pLogContext = nullptr;
-    if (pThis->m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    pThis->m_pNextLayer->CmdDrawIndirectMulti(gpuVirtAddrAndStride, maximumCount, countGpuAddr);
+
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("gpuVirtAddrAndStride", gpuVirtAddrAndStride);
         pLogContext->KeyAndValue("maximumCount", maximumCount);
         pLogContext->KeyAndValue("countGpuAddr", countGpuAddr);
         pLogContext->EndInput();
 
-        pThis->m_pPlatform->LogEndFunc(pLogContext);
+        pPlatform->LogEndFunc(pLogContext);
     }
 }
 
@@ -3618,27 +3403,24 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndexedIndirectMulti(
     uint32               maximumCount,
     gpusize              countGpuAddr)
 {
-    auto*const pThis = static_cast<CmdBuffer*>(pCmdBuffer);
+    auto*const     pThis     = static_cast<CmdBuffer*>(pCmdBuffer);
+    Platform*const pPlatform = pThis->m_pPlatform;
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdDrawIndexedIndirectMulti;
-    funcInfo.objectId     = pThis->m_objectId;
-    funcInfo.preCallTime  = pThis->m_pPlatform->GetTime();
-    pThis->m_pNextLayer->CmdDrawIndexedIndirectMulti(gpuVirtAddrAndStride,
-                                                     maximumCount,
-                                                     countGpuAddr);
-    funcInfo.postCallTime = pThis->m_pPlatform->GetTime();
+    const bool active = pPlatform->ActivateLogging(pThis->m_objectId, InterfaceFunc::CmdBufferCmdDrawIndexedIndirectMulti);
 
-    LogContext* pLogContext = nullptr;
-    if (pThis->m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    pThis->m_pNextLayer->CmdDrawIndexedIndirectMulti(gpuVirtAddrAndStride, maximumCount, countGpuAddr);
+
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("gpuVirtAddrAndStride", gpuVirtAddrAndStride);
         pLogContext->KeyAndValue("maximumCount", maximumCount);
         pLogContext->KeyAndValue("countGpuAddr", countGpuAddr);
         pLogContext->EndInput();
 
-        pThis->m_pPlatform->LogEndFunc(pLogContext);
+        pPlatform->LogEndFunc(pLogContext);
     }
 }
 
@@ -3647,23 +3429,22 @@ void PAL_STDCALL CmdBuffer::CmdDispatch(
     ICmdBuffer*  pCmdBuffer,
     DispatchDims size)
 {
-    auto*const pThis = static_cast<CmdBuffer*>(pCmdBuffer);
+    auto*const     pThis     = static_cast<CmdBuffer*>(pCmdBuffer);
+    Platform*const pPlatform = pThis->m_pPlatform;
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdDispatch;
-    funcInfo.objectId     = pThis->m_objectId;
-    funcInfo.preCallTime  = pThis->m_pPlatform->GetTime();
+    const bool active = pPlatform->ActivateLogging(pThis->m_objectId, InterfaceFunc::CmdBufferCmdDispatch);
+
     pThis->m_pNextLayer->CmdDispatch(size);
-    funcInfo.postCallTime = pThis->m_pPlatform->GetTime();
 
-    LogContext* pLogContext = nullptr;
-    if (pThis->m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("size", size);
         pLogContext->EndInput();
 
-        pThis->m_pPlatform->LogEndFunc(pLogContext);
+        pPlatform->LogEndFunc(pLogContext);
     }
 }
 
@@ -3672,24 +3453,23 @@ void PAL_STDCALL CmdBuffer::CmdDispatchIndirect(
     ICmdBuffer* pCmdBuffer,
     gpusize     gpuVirtAddr)
 {
-    auto*const pThis = static_cast<CmdBuffer*>(pCmdBuffer);
+    auto*const     pThis     = static_cast<CmdBuffer*>(pCmdBuffer);
+    Platform*const pPlatform = pThis->m_pPlatform;
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdDispatchIndirect;
-    funcInfo.objectId     = pThis->m_objectId;
-    funcInfo.preCallTime  = pThis->m_pPlatform->GetTime();
+    const bool active = pPlatform->ActivateLogging(pThis->m_objectId, InterfaceFunc::CmdBufferCmdDispatchIndirect);
+
     pThis->m_pNextLayer->CmdDispatchIndirect(gpuVirtAddr);
-    funcInfo.postCallTime = pThis->m_pPlatform->GetTime();
 
-    LogContext* pLogContext = nullptr;
-    if (pThis->m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
 
         pLogContext->KeyAndValue("gpuVirtAddr", gpuVirtAddr);
         pLogContext->EndInput();
 
-        pThis->m_pPlatform->LogEndFunc(pLogContext);
+        pPlatform->LogEndFunc(pLogContext);
     }
 }
 
@@ -3700,25 +3480,24 @@ void PAL_STDCALL CmdBuffer::CmdDispatchOffset(
     DispatchDims launchSize,
     DispatchDims logicalSize)
 {
-    auto*const pThis = static_cast<CmdBuffer*>(pCmdBuffer);
+    auto*const     pThis     = static_cast<CmdBuffer*>(pCmdBuffer);
+    Platform*const pPlatform = pThis->m_pPlatform;
 
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdDispatchOffset;
-    funcInfo.objectId     = pThis->m_objectId;
-    funcInfo.preCallTime  = pThis->m_pPlatform->GetTime();
+    const bool active = pPlatform->ActivateLogging(pThis->m_objectId, InterfaceFunc::CmdBufferCmdDispatchOffset);
+
     pThis->m_pNextLayer->CmdDispatchOffset(offset, launchSize, logicalSize);
-    funcInfo.postCallTime = pThis->m_pPlatform->GetTime();
 
-    LogContext* pLogContext = nullptr;
-    if (pThis->m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("offset",      offset);
         pLogContext->KeyAndStruct("launchSize",  launchSize);
         pLogContext->KeyAndStruct("logicalSize", logicalSize);
         pLogContext->EndInput();
 
-        pThis->m_pPlatform->LogEndFunc(pLogContext);
+        pPlatform->LogEndFunc(pLogContext);
     }
 }
 
@@ -3727,24 +3506,22 @@ void CmdBuffer::CmdDispatchMesh(
     ICmdBuffer*  pCmdBuffer,
     DispatchDims size)
 {
-    auto*const pThis = static_cast<CmdBuffer*>(pCmdBuffer);
+    auto*const     pThis     = static_cast<CmdBuffer*>(pCmdBuffer);
+    Platform*const pPlatform = pThis->m_pPlatform;
 
-    BeginFuncInfo funcInfo = {};
-    funcInfo.funcId        = InterfaceFunc::CmdBufferCmdDispatchMesh;
-    funcInfo.objectId      = pThis->m_objectId;
-    funcInfo.preCallTime   = pThis->m_pPlatform->GetTime();
+    const bool active = pPlatform->ActivateLogging(pThis->m_objectId, InterfaceFunc::CmdBufferCmdDispatchMesh);
 
     pThis->m_pNextLayer->CmdDispatchMesh(size);
-    funcInfo.postCallTime = pThis->m_pPlatform->GetTime();
 
-    LogContext* pLogContext = nullptr;
-    if (pThis->m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("size", size);
         pLogContext->EndInput();
 
-        pThis->m_pPlatform->LogEndFunc(pLogContext);
+        pPlatform->LogEndFunc(pLogContext);
     }
 }
 
@@ -3755,27 +3532,25 @@ void CmdBuffer::CmdDispatchMeshIndirectMulti(
     uint32               maximumCount,
     gpusize              countGpuAddr)
 {
-    auto*const pThis = static_cast<CmdBuffer*>(pCmdBuffer);
+    auto*const     pThis     = static_cast<CmdBuffer*>(pCmdBuffer);
+    Platform*const pPlatform = pThis->m_pPlatform;
 
-    BeginFuncInfo funcInfo = {};
-    funcInfo.funcId        = InterfaceFunc::CmdBufferCmdDispatchMeshIndirectMulti;
-    funcInfo.objectId      = pThis->m_objectId;
-    funcInfo.preCallTime   = pThis->m_pPlatform->GetTime();
-    pThis->m_pNextLayer->CmdDispatchMeshIndirectMulti(gpuVirtAddrAndStride,
-                                                      maximumCount,
-                                                      countGpuAddr);
-    funcInfo.postCallTime = pThis->m_pPlatform->GetTime();
+    const bool active = pPlatform->ActivateLogging(pThis->m_objectId,
+                            InterfaceFunc::CmdBufferCmdDispatchMeshIndirectMulti);
 
-    LogContext* pLogContext = nullptr;
-    if (pThis->m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    pThis->m_pNextLayer->CmdDispatchMeshIndirectMulti(gpuVirtAddrAndStride, maximumCount, countGpuAddr);
+
+    if (active)
     {
+        LogContext*const pLogContext = pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("gpuVirtAddrAndStride", gpuVirtAddrAndStride);
         pLogContext->KeyAndValue("maximumCount", maximumCount);
         pLogContext->KeyAndValue("countGpuAddr", countGpuAddr);
         pLogContext->EndInput();
 
-        pThis->m_pPlatform->LogEndFunc(pLogContext);
+        pPlatform->LogEndFunc(pLogContext);
     }
 }
 
@@ -3783,16 +3558,14 @@ void CmdBuffer::CmdDispatchMeshIndirectMulti(
 void CmdBuffer::CmdSetViewInstanceMask(
     uint32 mask)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSetViewInstanceMask;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdSetViewInstanceMask(mask);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdSetViewInstanceMask);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    m_pNextLayer->CmdSetViewInstanceMask(mask);
+
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndValue("mask", mask);
         pLogContext->EndInput();

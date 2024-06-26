@@ -50,25 +50,63 @@ typedef timespec RawTimerVal;
 
 enum InterfaceLogFlags : uint32
 {
-    LogFlagGeneralCalls = 0x00000001,
+    LogFlagGeneralCalls  = 0x00000001,
     LogFlagCreateDestroy = 0x00000002,
     LogFlagBindGpuMemory = 0x00000004,
-    LogFlagQueueOps = 0x00000008,
-    LogFlagCmdBuilding = 0x00000010,
-    LogFlagCreateSrds = 0x00000020,
+    LogFlagQueueOps      = 0x00000008,
+    LogFlagCmdBuilding   = 0x00000010,
+    LogFlagCreateSrds    = 0x00000020,
+    LogFlagCallbacks     = 0x00000040,
+    LogFlagBarrierLog    = 0x00000080,
+    LogFlagBarrierLogCr  = 0x80000000 // Internal only flag
+};
 
+// =====================================================================================================================
+// Some data we will track for each thread.
+class ThreadData
+{
+    typedef Util::Vector<DevCallbackArgs, 16, Platform> CallbackVector;
+
+public:
+    ThreadData(Platform* pPlatform, uint32 threadId);
+    ~ThreadData();
+
+    void SetContext(LogContext* pContext);
+    void StartCall(uint32 objectId, InterfaceFunc func, uint64 preCallTime);
+    void EndCall();
+
+    void PushBackCallbackArgs(
+        Developer::CallbackType callbackType,
+        const void*             pCallbackData,
+        size_t                  dataSize);
+    void ClearCallbackArgs();
+
+    // StartCall and EndCall use InterfaceFunc::Count as a sentinel value which means "logging disabled".
+    bool LoggingActive() const { return m_activeFunc != InterfaceFunc::Count; }
+    bool HasCallbacks()  const { return m_callbacks.IsEmpty() == false; }
+
+    LogContext*           Context()     const { return m_pContext; }
+    uint32                ThreadId()    const { return m_threadId; }
+    uint32                ObjectId()    const { return m_objectId; }
+    InterfaceFunc         ActiveFunc()  const { return m_activeFunc; }
+    uint64                PreCallTime() const { return m_preCallTime; }
+    const CallbackVector& Callbacks()   const { return m_callbacks; }
+
+private:
+    LogContext*    m_pContext;    // Non-null only if we're in mutithreaded logging mode.
+    const uint32   m_threadId;    // A monotonic ID assigned by the Platform, not a real OS thread ID.
+
+    // This state describes the interface function call that this thread is currently executing. These values will
+    // change each time this thread calls StartCall and EndCall (see the Platform's ActivateLogging function).
+    uint32         m_objectId;    // The PAL interface object being called.
+    InterfaceFunc  m_activeFunc;  // The function this thread is actively logging or InterfaceFunc::Count.
+    uint64         m_preCallTime; // The tick immediately before calling down to the next layer.
+    CallbackVector m_callbacks;   // Developer callbacks that occured during this interface function call.
 };
 
 // =====================================================================================================================
 class Platform final : public PlatformDecorator
 {
-    // Some basic data we will track for each thread.
-    struct ThreadData
-    {
-        uint32      threadId;
-        LogContext* pContext;
-    };
-
     // All ThreadData instances will be stored in a vector so we can delete them later.
     typedef Util::Vector<ThreadData*, 16, Platform> ThreadDataVector;
 
@@ -94,17 +132,23 @@ public:
 
     // Must be called by other InterfaceLogger classes whenever a new frame is presented. Cannot be called between
     // LogBeginFunc and LogEndFunc as this may deadlock single-threaded logging.
-    void NotifyPresent();
+    void UpdatePresentState();
 
     // Returns the current clock time in ticks relative to the starting time.
     uint64 GetTime() const;
 
-    // LogBeginFunc must be called to begin logging an interface function call. It will determine if this function
-    // should be logged at the current time. If so, an appropriate LogContext will be found and its BeginFunc function
-    // will be called before the context is returned using ppContext. This function will return true if this call should
-    // be logged and a valid context was returned. LogEndFunc must be called to finish logging the call.
-    bool LogBeginFunc(const BeginFuncInfo& info, LogContext** ppContext);
-    void LogEndFunc(LogContext* pContext);
+    // Interface function calls must be logged using this process:
+    // 1. Call ActivateLogging, it will return true if this call should be logged.
+    // 2. Call the next layer's version of this interface function. (Except for Destroy functions!)
+    // 3. If ActivateLogging returned true:
+    //     a. Call LogBeginFunc. It is guaranteed to return a non-null LogContext pointer.
+    //     b. Log this function's inputs and outputs, if any.
+    //     c. Call LogEndFunc.
+    // If this process is not followed things may break. The log file might be invalid, a thread might deadlock, or
+    // the process might simply crash.
+    bool        ActivateLogging(uint32 objectId, InterfaceFunc func);
+    LogContext* LogBeginFunc();
+    void        LogEndFunc(LogContext* pContext);
 
     // Returns a new object ID for an object of the given type. Note that AtomicIncrement returns the result of the
     // increment so we must subtract one to get the ID for the current object.
@@ -131,12 +175,18 @@ public:
         Developer::CallbackType type,
         void*                   pCbData);
 
+    uint32 FrameCount() const { return m_frameCount; }
+
+    bool IsBarrierLogActive() const;
+
 protected:
     virtual Result Init() override;
 
 private:
     ThreadData* CreateThreadData();
     LogContext* CreateThreadLogContext(uint32 threadId);
+
+    bool IsFrameRangeActive() const;
 
     union
     {
@@ -162,6 +212,7 @@ private:
     uint32                   m_loggingPresets[2]; // Masks of logging levels that the user can select for logging.
     Util::ThreadLocalKey     m_threadKey;         // Used to look up thread specific data (e.g., thread logs).
     ThreadDataVector         m_threadDataVec;     // A list of all thread-local data so they can be deleted on exit.
+    uint32                   m_frameCount;        // Number of frames presented.
 
     // Tracks the next ID to be issued for all objects.
     volatile uint32          m_nextObjectIds[static_cast<uint32>(InterfaceObject::Count)];

@@ -52,7 +52,8 @@ ComputeCmdBuffer::ComputeCmdBuffer(
     const Device&              device,
     const CmdBufferCreateInfo& createInfo)
     :
-    Pm4::ComputeCmdBuffer(device, createInfo, device.BarrierMgr(), &m_cmdStream),
+    Pm4::ComputeCmdBuffer(device, createInfo, device.BarrierMgr(), &m_cmdStream,
+                          device.Settings().gfx11EnableShRegPairOptimizationCs),
     m_device(device),
     m_cmdUtil(device.CmdUtil()),
     m_issueSqttMarkerEvent(device.Parent()->IssueSqttMarkerEvents()),
@@ -62,7 +63,7 @@ ComputeCmdBuffer::ComputeCmdBuffer(
                 SubEngineType::Primary,
                 CmdStreamUsage::Workload,
                 IsNested()),
-    m_pSignatureCs(&NullCsSignature),
+    m_pSignatureCs(&device.GetNullCsSignature()),
     m_baseUserDataRegCs(Device::GetBaseUserDataReg(HwShaderStage::Cs)),
     m_supportsShPairsPacketCs(device.Settings().gfx11EnableShRegPairOptimizationCs),
     m_validUserEntryRegPairsCs{},
@@ -110,7 +111,7 @@ void ComputeCmdBuffer::ResetState()
     // Assume PAL ABI compute pipelines by default.
     SetDispatchFunctions(false);
 
-    m_pSignatureCs = &NullCsSignature;
+    m_pSignatureCs = &m_device.GetNullCsSignature();
 
     // All user data entries are invalid upon a state reset.
 
@@ -932,7 +933,7 @@ uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
                                                         &aqlPacketGpu));
 
         // Zero everything out then fill in certain fields the shader is likely to read.
-        memset(pAqlPacket, 0, sizeof(sizeof(hsa_kernel_dispatch_packet_t)));
+        memset(pAqlPacket, 0, sizeof(hsa_kernel_dispatch_packet_t));
 
         pAqlPacket->workgroup_size_x     = static_cast<uint16>(threads.x);
         pAqlPacket->workgroup_size_y     = static_cast<uint16>(threads.y);
@@ -1967,6 +1968,11 @@ void ComputeCmdBuffer::CpCopyMemory(
 
     SetCpBltState(true);
     SetCpBltWriteCacheState(true);
+
+#if PAL_DEVELOPER_BUILD
+    Developer::RpmBltData cbData = { .pCmdBuffer = this, .bltType = Developer::RpmBltType::CpDmaCopy };
+    m_device.Parent()->DeveloperCb(Developer::CallbackType::RpmBlt, &cbData);
+#endif
 }
 
 // =====================================================================================================================

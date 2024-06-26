@@ -1022,6 +1022,42 @@
           },
           "Type": "enum",
           "Description": "What clock mode PAL should enable when profiling."
+        },
+        {
+          "Name": "EngineTypeMask",
+          "Flags": {
+            "IsBitmask": true,
+            "IsHex": true
+          },
+          "Defaults": {
+            "Default": "0xFFFFFFFF"
+          },
+          "Type": "uint32",
+          "Description": "Mask indicating which engines are enabled for profiling. 0 - Universal, 1 - ACE, 2 - DMA. Universal should always be enabled for frame granularity (2)."
+        },
+        {
+          "Name": "EngineIdMask",
+          "Flags": {
+            "IsBitmask": true,
+            "IsHex": true
+          },
+          "Defaults": {
+            "Default": "0xFFFFFFFF"
+          },
+          "Type": "uint32",
+          "Description": "Mask indicating which engine instances are enabled for profiling where multiple are available (compute and dma). Applies to all enabled types for now."
+        },
+        {
+          "Name": "QueueIdMask",
+          "Flags": {
+            "IsBitmask": true,
+            "IsHex": true
+          },
+          "Defaults": {
+            "Default": "0xFFFFFFFF"
+          },
+          "Type": "uint32",
+          "Description": "Mask indicating which queue ids are requested to profile. 0xFFFFFFFF means to profile all queue ids. This must be set as 0xFFFFFFFF for per-frame granularity."
         }
       ],
       "Description": "Configuration options for the PAL GPU Profiler layer."
@@ -1490,18 +1526,6 @@
           },
           "Type": "bool",
           "Description": "Determine if issuing marker event is allowed when SQTT is enabled."
-        },
-        {
-          "Name": "QueueIdMask",
-          "Flags": {
-            "IsBitmask": true,
-            "IsHex": true
-          },
-          "Defaults": {
-            "Default": "0xFFFFFFFF"
-          },
-          "Type": "uint32",
-          "Description": "Mask indicating which queue ids are requested to dump thread trace. 0xFFFFFFFF means to trace all queue ids. This must be set as 0xFFFFFFFF for per-frame granularity."
         }
       ],
       "Description": "Configuration options for capturing a SQ Thread Trace through the PAL GPU Profiler layer."
@@ -1819,6 +1843,22 @@
           "Name": "Multithreaded"
         },
         {
+          "Description": "Enter the elevated preset when this frame begins even if Shift-F11 is not held.",
+          "Defaults": {
+            "Default": 0
+          },
+          "Type": "uint32",
+          "Name": "StartFrame"
+        },
+        {
+          "Description": "How many frames to use the elevated preset even if Shift-F11 is not held. 0 disables this feature.",
+          "Defaults": {
+            "Default": 0
+          },
+          "Type": "uint32",
+          "Name": "FrameCount"
+        },
+        {
           "ValidValues": {
             "Values": [
               {
@@ -1844,6 +1884,14 @@
               {
                 "Description": "LogFlagCreateSrds: Functions which create SRDs.",
                 "Value": 32
+              },
+              {
+                "Description": "LogFlagCallbacks: Developer callbacks which occur during logged interface calls.",
+                "Value": 64
+              },
+              {
+                "Description": "LogFlagBarrierLog: Functions which are necessary to generate barrier log file via script. DON'T OR with other log flags.",
+                "Value": 128
               }
             ],
             "SkipGen": true,
@@ -1887,6 +1935,14 @@
               {
                 "Description": "LogFlagCreateSrds: Functions which create SRDs.",
                 "Value": 32
+              },
+              {
+                "Description": "LogFlagCallbacks: Developer callbacks which occur during logged interface calls.",
+                "Value": 64
+              },
+              {
+                "Description": "LogFlagBarrierLog: Functions which are necessary to generate barrier log file script. DON'T OR with other log flags.",
+                "Value": 128
               }
             ],
             "SkipGen": true,
@@ -1899,10 +1955,10 @@
             "IsBitmask": true
           },
           "Defaults": {
-            "Default": 31
+            "Default": 95
           },
           "Type": "uint32",
-          "Description": "Bitmask of which interface function calls will be logged when the user holds Shift-F11"
+          "Description": "Bitmask of which interface function calls will be logged when the user holds Shift-F11 or specifies StartFrame/FrameCount for desired frame range."
         }
       ],
       "Description": "Configuration options for the PAL Interface Logger layer."

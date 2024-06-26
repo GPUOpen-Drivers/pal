@@ -105,8 +105,9 @@ enum class PrimitiveTopology : uint32
     TriangleFan      = 0xD,
     LineLoop         = 0xE,
     Polygon          = 0xF,
-    TwoDRectList     = 0x10  ///< Each rect is the bounding box of an arbitrary 2D triangle.
+    TwoDRectList     = 0x10, ///< Each rect is the bounding box of an arbitrary 2D triangle.
                              ///  Support is optional, see support2DRectList in DeviceProperties.
+    Count
 };
 
 /// Specifies how triangle primitives should be rasterized.
@@ -118,7 +119,8 @@ enum class FillMode : uint32
 {
     Points    = 0x0,
     Wireframe = 0x1,
-    Solid     = 0x2
+    Solid     = 0x2,
+    Count
 };
 
 /// Specifies the triangle face direction that should result in culled primitives.
@@ -230,8 +232,6 @@ enum HwPipePoint : uint32
                                                     ///  sync request. And PAL uses it as entry-point to add partial
                                                     ///  flushes to prevent write-after-read hazard from corner cases.
                                                     ///  Only valid as a wait point (acquire point).
-    HwPipeBottom           = 0x7,                   ///< All prior GPU work (graphics, compute, or BLT) has completed.
-
     HwPipePreIndexBuffer   = HwPipeTop,             ///< As late as possible before index buffer fetches (CP PFP).
     HwPipePostIndexBuffer  = HwPipePreRasterization,///< All prior index buffer fetches have completed.
 
@@ -241,7 +241,10 @@ enum HwPipePoint : uint32
 
     // The following points apply to BLT-specific work:
     HwPipePreBlt           = HwPipePostPrefetch,    ///< As late as possible before BLT operations are launched.
-    HwPipePostBlt          = 0x6                    ///< All prior requested BLTs have completed.
+    HwPipePostBlt          = 0x6,                   ///< All prior requested BLTs have completed.
+
+    HwPipeBottom           = 0x7,                   ///< All prior GPU work (graphics, compute, or BLT) has completed.
+    HwPipePointCount
 };
 
 /// Bitmask values that can be OR'ed together to specify a synchronization scope.  See srcStageMask and dstStageMask in
@@ -390,6 +393,7 @@ enum ClearColorImageFlags : uint32
                                        ///  the details of how the clear will be performed.
     ColorClearForceSlow  = 0x00000002, ///< Force these to use slow clears.
     ColorClearSkipIfSlow = 0x00000004, ///< Only issue the clear if it is a fast clear.
+    ColorClearAllFlags   = 0x00000007  ///< Clients should NOT use it, for internal static_assert purpose only.
 };
 
 /// Bitmask values for the flags parameter of ICmdBuffer::CmdClearDepthStencil().
@@ -400,6 +404,7 @@ enum ClearDepthStencilFlags : uint32
                                     ///  ready for rendering as a depth/stencil target (as is required by API convention
                                     ///  in DX12).  Allows reduced sync costs in some situations since PAL knows the
                                     ///  details of how the clear will be performed.
+    DsClearAllFlags = 0x00000001    ///< Clients should NOT use it, for internal static_assert purpose only.
 };
 
 /// Bitmask values for the flags parameter of ICmdBuffer::CmdResolveImage().
@@ -412,6 +417,7 @@ enum ResolveImageFlags : uint32
     ImageResolveDstAsNorm   = 0x00000004,   ///< If set, a srgb destination image will be treated as non-srgb format.
                                             ///  The flag cannot be set when @ref ImageResolveDstAsSrgb is set.
     ImageResolveSrcAsNorm   = 0x00000008,   ///< If set, a srgb source image will be treated as non-srgb format.
+    ImageResolveAllFlags    = 0x0000000F    ///< Clients should NOT use it, for internal static_assert purpose only.
 };
 
 /// Specifies properties for creation of an ICmdBuffer object.  Input structure to IDevice::CreateCmdBuffer().
@@ -1310,6 +1316,7 @@ enum CopyControlFlags : uint32
     CopyRawSwizzle        = 0x2, ///< If possible, raw copies will swizzle from the source channel format into the
                                  ///  destination channel format (e.g., RGBA to BGRA).
     CopyEnableScissorTest = 0x4, ///< If set, do scissor test using the specified scissor rectangle.
+    CopyControlAllFlags   = 0x7  ///< Clients should NOT use it, for internal static_assert purpose only.
 };
 
 /// Specifies parameters for a resolve of one region in an MSAA source image to a region of the same size in a single
@@ -1475,6 +1482,7 @@ enum class VrsShadingRate : uint32
     _1x2      = 0x5,
     _2x1      = 0x6,
     _2x2      = 0x7,
+    Count
 };
 
 /// Indices into the centerOffset array member of the VrsCenterState structure.
@@ -1495,6 +1503,7 @@ enum class VrsCombiner : uint32
     Min         = 2, ///< min(A.xy, B.xy)
     Max         = 3, ///< max(A.xy, B.xy)
     Sum         = 4, ///< min(maxRate, A.xy + B.xy)
+    Count
 };
 
 /// Structure for defining paramters to the CmdSetPerDrawVrsRate function.
@@ -1959,6 +1968,7 @@ enum class PredicateType : uint32
     PrimCount = 2, ///< Enable streamout predicate
     Boolean64 = 3, ///< CP PFP treats memory as a 64bit integer which is either false (0) or true, DX12 style.
     Boolean32 = 4, ///< CP PFP treats memory as a 32bit integer which is either false (0) or true, Vulkan style.
+    Count
 };
 
 /// Bitfield structure used to specify masks for functions that operate on depth and/or stencil planes of an image.
@@ -2050,7 +2060,8 @@ struct CmdBufInfo
             uint32 disableDccRejected : 1;  ///< Reject KMD's DisableDcc request to avoid writing to front buffer.
             uint32 noFlip             : 1;  ///< No flip when DirectCapture access submission completes
             uint32 frameGenIndex      : 4;  ///< Index of the DirectCapture feature generated frames
-            uint32 reserved           : 13; ///< Reserved for future usage.
+            uint32 noRenderPresent    : 1;  ///< Last command buffer before present which is no render present or not
+            uint32 reserved           : 12; ///< Reserved for future usage.
         };
         uint32 u32All;                  ///< Flags packed as uint32.
     };

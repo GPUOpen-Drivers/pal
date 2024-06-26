@@ -52,16 +52,13 @@ Result QueryPool::BindGpuMemory(
     IGpuMemory* pGpuMemory,
     gpusize     offset)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::QueryPoolBindGpuMemory;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = QueryPoolDecorator::BindGpuMemory(pGpuMemory, offset);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::QueryPoolBindGpuMemory);
+    const Result result = QueryPoolDecorator::BindGpuMemory(pGpuMemory, offset);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndObject("gpuMemory", pGpuMemory);
         pLogContext->KeyAndValue("offset", offset);
@@ -80,16 +77,11 @@ Result QueryPool::BindGpuMemory(
 // =====================================================================================================================
 void QueryPool::Destroy()
 {
-    // Note that we can't time a Destroy call.
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::QueryPoolDestroy;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    funcInfo.postCallTime = funcInfo.preCallTime;
-
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    // Note that we can't time Destroy calls nor track their callbacks.
+    if (m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::QueryPoolDestroy))
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         m_pPlatform->LogEndFunc(pLogContext);
     }
 
@@ -102,16 +94,13 @@ Result QueryPool::Reset(
     uint32  queryCount,
     void*   pMappedCpuAddr)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::QueryPoolReset;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = QueryPoolDecorator::Reset(startQuery, queryCount, pMappedCpuAddr);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::QueryPoolReset);
+    const Result result = QueryPoolDecorator::Reset(startQuery, queryCount, pMappedCpuAddr);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndValue("startQuery", startQuery);
         pLogContext->KeyAndValue("queryCount", queryCount);

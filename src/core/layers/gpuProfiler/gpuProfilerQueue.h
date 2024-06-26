@@ -257,6 +257,8 @@ public:
 
     Result BeginNextFrame(bool samplingEnabled);
 
+    bool IsProfilingEnabled() const { return m_profileEnabled; }
+
 private:
     virtual ~Queue();
 
@@ -386,6 +388,7 @@ private:
     LogItem                           m_perFrameLogItem;  // Log item used when the profiling granularity is per frame.
     bool                              m_isDfSpmTraceEnabled;
     bool                              m_recreateState;    // Cached state for this queue noting the global recreate state
+    bool                              m_profileEnabled;   // Did the config permit this queue to be profiled
 
     PAL_DISALLOW_DEFAULT_CTOR(Queue);
     PAL_DISALLOW_COPY_AND_ASSIGN(Queue);

@@ -52,35 +52,31 @@ Pal::Result CreateTextWriterComputePipelines(
 
     const PipelineBinary* pTable = nullptr;
 
-    switch (properties.revision)
+    switch (Pal::uint32(properties.gfxTriple))
     {
-    case Pal::AsicRevision::Navi10:
-    case Pal::AsicRevision::Navi12:
-    case Pal::AsicRevision::Navi14:
+    case Pal::IpTriple({ 10, 1, 0 }):
+    case Pal::IpTriple({ 10, 1, 1 }):
+    case Pal::IpTriple({ 10, 1, 2 }):
         pTable = textWriterComputeBinaryTableNavi10;
         break;
 
-    case Pal::AsicRevision::Navi21:
-    case Pal::AsicRevision::Navi22:
-    case Pal::AsicRevision::Navi23:
-    case Pal::AsicRevision::Navi24:
-    case Pal::AsicRevision::Rembrandt:
-    case Pal::AsicRevision::Raphael:
+    case Pal::IpTriple({ 10, 3, 0 }):
+    case Pal::IpTriple({ 10, 3, 1 }):
+    case Pal::IpTriple({ 10, 3, 2 }):
+    case Pal::IpTriple({ 10, 3, 4 }):
+    case Pal::IpTriple({ 10, 3, 5 }):
+    case Pal::IpTriple({ 10, 3, 6 }):
         pTable = textWriterComputeBinaryTableNavi21;
         break;
 
-    case Pal::AsicRevision::Navi31:
-    case Pal::AsicRevision::Navi32:
-    case Pal::AsicRevision::Navi33:
+    case Pal::IpTriple({ 11, 0, 0 }):
+    case Pal::IpTriple({ 11, 0, 1 }):
+    case Pal::IpTriple({ 11, 0, 2 }):
         pTable = textWriterComputeBinaryTableNavi31;
         break;
 
-    case Pal::AsicRevision::Phoenix1:
+    case Pal::IpTriple({ 11, 0, 3 }):
         pTable = textWriterComputeBinaryTablePhoenix1;
-        break;
-
-    case Pal::AsicRevision::Phoenix2:
-        pTable = textWriterComputeBinaryTablePhoenix2;
         break;
 
     default:

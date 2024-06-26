@@ -326,7 +326,29 @@ Result Queue::Init(
     // Build GpaSession config info based on profiling objectives.
     if (result == Result::Success)
     {
-        result = BuildGpaSessionSampleConfig();
+        PAL_ASSERT_MSG(m_gpaSessionSampleConfig.type == GpuUtil::GpaSampleType::None,
+                       "Config.type not in create state");
+
+        const auto&  settings     = m_pDevice->GetPlatform()->PlatformSettings();
+        const uint32 queueIdMask  = settings.gpuProfilerConfig.queueIdMask;
+        const uint32 engineMask   = settings.gpuProfilerConfig.engineTypeMask;
+        const uint32 engineIdMask = settings.gpuProfilerConfig.engineIdMask;
+
+        // This should use the same queueInfo as used in creating the masterQueueId that initializes m_queueId in
+        // Pal::GpuProfiler::Device::Create[Multi]Queue, also used in producing the output file names in
+        // gpuProfilerQueueFileLogger.cpp
+        m_profileEnabled = (BitfieldIsSet(engineMask, m_pQueueInfos[0].engineType) &&
+                            BitfieldIsSet(engineIdMask, m_pQueueInfos[0].engineIndex) &&
+                            BitfieldIsSet(queueIdMask, m_queueId));
+
+        if (m_profileEnabled)
+        {
+            result = BuildGpaSessionSampleConfig();
+        }
+        else
+        {
+            GPUPROFILER_WARN("Skipping logging for queue %d", m_queueId);
+        }
     }
 
     // Note that global perf counters are disabled if this value is zero.
@@ -1326,31 +1348,34 @@ void Queue::ProcessIdleSubmits()
 void Queue::AddLogItem(
     const LogItem& logItem)
 {
-    m_logItems.PushBack(logItem);
-    m_nextSubmitInfo.logItemCount++;
-
-    if ((logItem.type == CmdBufferCall) &&
-        (m_nextSubmitInfo.hasDrawOrDispatch == false))
+    if (m_profileEnabled)
     {
-        switch (logItem.cmdBufCall.callId)
+        m_logItems.PushBack(logItem);
+        m_nextSubmitInfo.logItemCount++;
+
+        if ((logItem.type == CmdBufferCall) &&
+            (m_nextSubmitInfo.hasDrawOrDispatch == false))
         {
-        case CmdBufCallId::CmdDraw:
-        case CmdBufCallId::CmdDrawOpaque:
-        case CmdBufCallId::CmdDrawIndexed:
-        case CmdBufCallId::CmdDrawIndirectMulti:
-        case CmdBufCallId::CmdDrawIndexedIndirectMulti:
-        case CmdBufCallId::CmdDispatch:
-        case CmdBufCallId::CmdDispatchIndirect:
-        case CmdBufCallId::CmdDispatchOffset:
-        case CmdBufCallId::CmdDispatchMesh:
-        case CmdBufCallId::CmdDispatchMeshIndirectMulti:
-        case CmdBufCallId::CmdExecuteIndirectCmds:
-        {
-            m_nextSubmitInfo.hasDrawOrDispatch = true;
-            break;
-        }
-        default:
-            break;
+            switch (logItem.cmdBufCall.callId)
+            {
+            case CmdBufCallId::CmdDraw:
+            case CmdBufCallId::CmdDrawOpaque:
+            case CmdBufCallId::CmdDrawIndexed:
+            case CmdBufCallId::CmdDrawIndirectMulti:
+            case CmdBufCallId::CmdDrawIndexedIndirectMulti:
+            case CmdBufCallId::CmdDispatch:
+            case CmdBufCallId::CmdDispatchIndirect:
+            case CmdBufCallId::CmdDispatchOffset:
+            case CmdBufCallId::CmdDispatchMesh:
+            case CmdBufCallId::CmdDispatchMeshIndirectMulti:
+            case CmdBufCallId::CmdExecuteIndirectCmds:
+            {
+                m_nextSubmitInfo.hasDrawOrDispatch = true;
+                break;
+            }
+            default:
+                break;
+            }
         }
     }
 }
@@ -1401,8 +1426,6 @@ Result Queue::BuildGpaSessionSampleConfig()
 
     const uint32 numDfSpmCountersRequested               = m_pDevice->NumDfStreamingPerfCounters();
     const GpuProfiler::PerfCounter* pDfStreamingCounters = m_pDevice->DfStreamingPerfCounters();
-
-    m_gpaSessionSampleConfig.type = GpuUtil::GpaSampleType::None;
 
     if (numCounters > 0)
     {
@@ -1516,11 +1539,9 @@ Result Queue::BuildGpaSessionSampleConfig()
             // Thread trace specific config.
             if (m_pDevice->IsThreadTraceEnabled())
             {
-                const auto&  sqttSettings = settings.gpuProfilerSqttConfig;
-                const uint32 queueIdMask  = sqttSettings.queueIdMask;
+                const auto& sqttSettings = settings.gpuProfilerSqttConfig;
 
-                m_gpaSessionSampleConfig.sqtt.flags.enable                     = (queueIdMask == UINT32_MAX) ||
-                                                                                 BitfieldIsSet(queueIdMask, m_queueId);
+                m_gpaSessionSampleConfig.sqtt.flags.enable                     = true;
                 m_gpaSessionSampleConfig.sqtt.seMask                           = m_pDevice->GetSeMask();
                 m_gpaSessionSampleConfig.sqtt.gpuMemoryLimit                   = sqttSettings.bufferSize;
                 m_gpaSessionSampleConfig.sqtt.flags.stallMode                  = m_pDevice->GetSqttStallMode();

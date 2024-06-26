@@ -992,15 +992,14 @@ void Gfx11ColorTargetView::InitRegisters(
         m_regs.cbColorAttrib3.bits.RESOURCE_TYPE = static_cast<uint32>(imageType); // no HW enums
         m_regs.cbColorAttrib3.bits.META_LINEAR   = m_pImage->IsSubResourceLinear(createInfo.imageInfo.baseSubRes);
 
-        m_regs.cbColorAttrib3.bits.DCC_PIPE_ALIGNED   = ((pDcc != nullptr) ? pDcc->PipeAligned() : 0);
+        m_regs.cbColorAttrib3.bits.DCC_PIPE_ALIGNED = ((pDcc != nullptr) ? pDcc->PipeAligned() : 0);
 
         // Set any hardware limit on the number of fragments supported by DCC compression.
-        if (false
-        || (IsPhoenix2(palDevice) && settings.waDccMaxCompFrags)
-            )
+        if (settings.waDccMaxCompFrags && (IsPhoenix2(palDevice)
+            ))
         {
-            m_regs.cbColorDccControl.phx2.MAX_COMP_FRAGS = (imageCreateInfo.samples >= 4);
-            m_regs.cbColorDccControl.phx2.ENABLE_MAX_COMP_FRAG_OVERRIDE = 1;
+            m_regs.cbColorDccControl.most.MAX_COMP_FRAGS = (imageCreateInfo.samples >= 4);
+            m_regs.cbColorDccControl.most.ENABLE_MAX_COMP_FRAG_OVERRIDE = 1;
         }
     }
 }

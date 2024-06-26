@@ -53,7 +53,8 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     Pm4::CmdStream*            pDeCmdStream,
     Pm4::CmdStream*            pCeCmdStream,
     Pm4::CmdStream*            pAceCmdStream,
-    bool                       blendOptEnable)
+    bool                       blendOptEnable,
+    bool                       useUpdateUserData)
     :
     Pm4CmdBuffer(device, createInfo, pBarrierMgr),
     m_graphicsState{},
@@ -69,8 +70,16 @@ UniversalCmdBuffer::UniversalCmdBuffer(
 {
     PAL_ASSERT(createInfo.queueType == QueueTypeUniversal);
 
-    SwitchCmdSetUserDataFunc(PipelineBindPoint::Compute,  &Pm4CmdBuffer::CmdSetUserDataCs);
-    SwitchCmdSetUserDataFunc(PipelineBindPoint::Graphics, &CmdSetUserDataGfx<true>);
+    if (useUpdateUserData)
+    {
+        SwitchCmdSetUserDataFunc(PipelineBindPoint::Compute, &Pm4CmdBuffer::CmdUpdateUserDataCs);
+        SwitchCmdSetUserDataFunc(PipelineBindPoint::Graphics, &CmdUpdateUserDataGfx);
+    }
+    else
+    {
+        SwitchCmdSetUserDataFunc(PipelineBindPoint::Compute, &Pm4CmdBuffer::CmdSetUserDataCs);
+        SwitchCmdSetUserDataFunc(PipelineBindPoint::Graphics, &CmdSetUserDataGfxFiltered);
+    }
 
     constexpr TessDistributionFactors DefaultTessDistributionFactors = { 12, 30, 24, 24, 6 };
     m_tessDistributionFactors = DefaultTessDistributionFactors;
@@ -309,9 +318,21 @@ void UniversalCmdBuffer::CmdBindPipelineWithOverrides(
 }
 
 // =====================================================================================================================
+void PAL_STDCALL UniversalCmdBuffer::CmdUpdateUserDataGfx(
+    ICmdBuffer*   pCmdBuffer,
+    uint32        firstEntry,
+    uint32        entryCount,
+    const uint32* pEntryValues)
+{
+    auto* const pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
+    UpdateUserData(&pThis->m_graphicsState.gfxUserDataEntries, firstEntry, entryCount, pEntryValues);
+}
+
+// =====================================================================================================================
 // CmdSetUserData callback which updates the tracked user-data entries for the graphics state.
-template <bool filterRedundantUserData>
-void PAL_STDCALL UniversalCmdBuffer::CmdSetUserDataGfx(
+// Does redundant filtering, except for middle entries in entryCount >= 3 partially redundant ranges.
+// For HWL's that definitely don't mind potentially more holes in the dirty mask, the newer UpdateUserData can be used.
+void PAL_STDCALL UniversalCmdBuffer::CmdSetUserDataGfxFiltered(
     ICmdBuffer*   pCmdBuffer,
     uint32        firstEntry,
     uint32        entryCount,
@@ -327,28 +348,13 @@ void PAL_STDCALL UniversalCmdBuffer::CmdSetUserDataGfx(
     userDataArgs.entryCount   = entryCount;
     userDataArgs.pEntryValues = pEntryValues;
 
-    if ((filterRedundantUserData == false) ||
-        GfxCmdBuffer::FilterSetUserData(&userDataArgs,
+    if (GfxCmdBuffer::FilterSetUserData(&userDataArgs,
                                         pSelf->m_graphicsState.gfxUserDataEntries.entries,
                                         pSelf->m_graphicsState.gfxUserDataEntries.touched))
     {
         SetUserData(userDataArgs.firstEntry, userDataArgs.entryCount, pEntries, userDataArgs.pEntryValues);
-    } // if (filtering is disabled OR user data not redundant)
+    }
 }
-
-// Instantiate templates for the linker.
-template
-void PAL_STDCALL UniversalCmdBuffer::CmdSetUserDataGfx<false>(
-    ICmdBuffer*   pCmdBuffer,
-    uint32        firstEntry,
-    uint32        entryCount,
-    const uint32* pEntryValues);
-template
-void PAL_STDCALL UniversalCmdBuffer::CmdSetUserDataGfx<true>(
-    ICmdBuffer*   pCmdBuffer,
-    uint32        firstEntry,
-    uint32        entryCount,
-    const uint32* pEntryValues);
 
 // =====================================================================================================================
 bool UniversalCmdBuffer::IsAnyGfxUserDataDirty() const
@@ -573,6 +579,11 @@ void UniversalCmdBuffer::CmdRestoreGraphicsStateInternal(
         UpdateGfxBltExecEopFence();
         // Set a impossible waited fence until IssueReleaseSync assigns a meaningful value when sync RB cache.
         UpdateGfxBltWbEopFence(UINT32_MAX);
+
+#if PAL_DEVELOPER_BUILD
+        Developer::RpmBltData cbData = { .pCmdBuffer = this, .bltType = Developer::RpmBltType::Draw };
+        m_device.Parent()->DeveloperCb(Developer::CallbackType::RpmBlt, &cbData);
+#endif
     }
 }
 

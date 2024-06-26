@@ -219,9 +219,9 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::CmdBufferCmdStopGpuProfilerLogging,                        InterfaceObject::CmdBuffer,            "CmdStopGpuProfilerLogging"               },
     { InterfaceFunc::CmdBufferDestroy,                                          InterfaceObject::CmdBuffer,            "Destroy"                                 },
     { InterfaceFunc::CmdBufferCmdSetViewInstanceMask,                           InterfaceObject::CmdBuffer,            "CmdSetViewInstanceMask"                  },
-    { InterfaceFunc::CmdUpdateHiSPretests,                                      InterfaceObject::CmdBuffer,            "CmdUpdateHiSPretests"                    },
+    { InterfaceFunc::CmdBufferCmdUpdateHiSPretests,                             InterfaceObject::CmdBuffer,            "CmdUpdateHiSPretests"                    },
     { InterfaceFunc::CmdBufferCmdSetClipRects,                                  InterfaceObject::CmdBuffer,            "CmdSetClipRects"                         },
-    { InterfaceFunc::CmdBufferCmdPostProcessFrame,                              InterfaceObject::CmdBuffer,            "CmdBufferCmdPostProcessFrame"            },
+    { InterfaceFunc::CmdBufferCmdPostProcessFrame,                              InterfaceObject::CmdBuffer,            "CmdPostProcessFrame"                     },
     { InterfaceFunc::ColorBlendStateDestroy,                                    InterfaceObject::ColorBlendState,      "Destroy"                                 },
     { InterfaceFunc::DepthStencilStateDestroy,                                  InterfaceObject::DepthStencilState,    "Destroy"                                 },
     { InterfaceFunc::DeviceCommitSettingsAndInit,                               InterfaceObject::Device,               "CommitSettingsAndInit"                   },
@@ -421,6 +421,21 @@ Result LogStream::WriteFile()
 }
 
 // =====================================================================================================================
+// Flush our buffered text to our log file if it's already been opened.
+//
+// Note that this function returns void instead of Result on purpose. We're going to call it in logging routines which
+// cannot return Result codes. Even if they could return results we would never want logging failures to fail normal
+// PAL interface calls. This is a rare case where asserting is preferred over failing.
+void LogStream::WriteIfOpen()
+{
+    if (m_file.IsOpen())
+    {
+        const Result result = WriteFile();
+        PAL_ASSERT(result == Result::Success);
+    }
+}
+
+// =====================================================================================================================
 void LogStream::WriteString(
     const char* pString,
     uint32      length)
@@ -463,6 +478,7 @@ LogContext::LogContext(
     Platform* pPlatform)
     :
     JsonWriter(&m_stream),
+    m_pPlatform(pPlatform),
     m_stream(pPlatform)
 {
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -485,19 +501,26 @@ LogContext::~LogContext()
 
 // =====================================================================================================================
 void LogContext::BeginFunc(
-    const BeginFuncInfo& info,
-    uint32               threadId)
+    uint32        objectId,     // The PAL interface object being called.
+    InterfaceFunc func,         // Which function will be logged.
+    uint32        threadId,     // The thread that called this function (a monotonic value, not an OS thread ID).
+    uint64        preCallTime,  // The tick immediately before calling down to the next layer.
+    uint64        postCallTime) // The tick immediately after calling down to the next layer.
 {
-    auto const& funcData = FuncFormattingTable[static_cast<uint32>(info.funcId)];
+    const FuncFormattingEntry& funcData = FuncFormattingTable[uint32(func)];
 
     BeginMap(false);
     KeyAndValue("_type", "InterfaceFunc");
     Key("this");
-    Object(funcData.objectType, info.objectId);
+    Object(funcData.objectType, objectId);
     KeyAndValue("name", funcData.pFuncName);
-    KeyAndValue("thread", threadId);
-    KeyAndValue("preCallTime", info.preCallTime);
-    KeyAndValue("postCallTime", info.postCallTime);
+    // Suppress unnecessary info for barrier log only mode to reduce json file size.
+    if (m_pPlatform->IsBarrierLogActive() == false)
+    {
+        KeyAndValue("thread", threadId);
+        KeyAndValue("preCallTime", preCallTime);
+        KeyAndValue("postCallTime", postCallTime);
+    }
 }
 
 // =====================================================================================================================
@@ -505,12 +528,10 @@ void LogContext::EndFunc()
 {
     EndMap();
 
-    // Flush our buffered JSON text to our log file if it's already been opened.
-    if (m_stream.IsFileOpen())
-    {
-        const Result result = m_stream.WriteFile();
-        PAL_ASSERT(result == Result::Success);
-    }
+    // We want to periodically flush our log text to its file. That way we'll see something even if the app crashes
+    // or exits without destroying our platform. Flushing after every function seems reasonable but we could also do
+    // this every time we start a new frame if this ends up having a high CPU overhead.
+    Flush();
 }
 
 // =====================================================================================================================
@@ -860,20 +881,30 @@ void LogContext::CacheCoherencyUsageFlags(
         "CoherPresent",            // 0x00080000,
     };
 
+    static_assert(BitfieldGenMask(ArrayLen(StringTable)) == CoherAllUsages,
+                  "The coher cache flag string table needs to be updated.");
+
     BeginList(false);
 
-    constexpr uint32 NumFlags = static_cast<uint32>(ArrayLen(StringTable));
-    for (uint32 idx = 0; idx < NumFlags; ++idx)
+    if (flags == CoherAllUsages)
     {
-        if ((flags & (1 << idx)) != 0)
-        {
-            Value(StringTable[idx]);
-        }
+        Value("CoherAllUsages");
     }
+    else
+    {
+        constexpr uint32 NumFlags = static_cast<uint32>(ArrayLen(StringTable));
+        for (uint32 idx = 0; idx < NumFlags; ++idx)
+        {
+            if ((flags & (1 << idx)) != 0)
+            {
+                Value(StringTable[idx]);
+            }
+        }
 
-    // This will trigger if there are flags missing in our table.
-    constexpr uint32 UnusedBitMask = ~((1u << NumFlags) - 1u);
-    PAL_ASSERT(TestAnyFlagSet(flags, UnusedBitMask) == false);
+        // This will trigger if there are flags missing in our table.
+        constexpr uint32 UnusedBitMask = ~((1u << NumFlags) - 1u);
+        PAL_ASSERT(TestAnyFlagSet(flags, UnusedBitMask) == false);
+    }
 
     EndList();
 }
@@ -919,20 +950,30 @@ void LogContext::PipelineStageFlags(
 #endif
     };
 
+    static_assert(BitfieldGenMask(ArrayLen(StringTable)) == PipelineStageAllStages,
+                  "The PipelineStage string table needs to be updated.");
+
     BeginList(false);
 
-    constexpr uint32 NumFlags = static_cast<uint32>(ArrayLen(StringTable));
-    for (uint32 idx = 0; idx < NumFlags; ++idx)
+    if (flags == PipelineStageAllStages)
     {
-        if ((flags & (1 << idx)) != 0)
-        {
-            Value(StringTable[idx]);
-        }
+        Value("PipelineStageAllStages");
     }
+    else
+    {
+        constexpr uint32 NumFlags = static_cast<uint32>(ArrayLen(StringTable));
+        for (uint32 idx = 0; idx < NumFlags; ++idx)
+        {
+            if ((flags & (1 << idx)) != 0)
+            {
+                Value(StringTable[idx]);
+            }
+        }
 
-    // This will trigger if there are flags missing in our table.
-    constexpr uint32 UnusedBitMask = ~((1u << NumFlags) - 1u);
-    PAL_ASSERT(TestAnyFlagSet(flags, UnusedBitMask) == false);
+        // This will trigger if there are flags missing in our table.
+        constexpr uint32 UnusedBitMask = ~((1u << NumFlags) - 1u);
+        PAL_ASSERT(TestAnyFlagSet(flags, UnusedBitMask) == false);
+    }
 
     EndList();
 }
@@ -946,6 +987,9 @@ void LogContext::ComputeStateFlags(
         "ComputeStatePipelineAndUserData", // 0x1,
         "ComputeStateBorderColorPalette",  // 0x2,
     };
+
+    static_assert(BitfieldGenMask(ArrayLen(StringTable)) == ComputeStateAll,
+                  "The ComputeState string table needs to be updated.");
 
     BeginList(false);
 
@@ -976,6 +1020,9 @@ void LogContext::CopyControlFlags(
         "CopyEnableScissorTest", // 0x4,
     };
 
+    static_assert(BitfieldGenMask(ArrayLen(StringTable)) == CopyControlAllFlags,
+                  "The CopyControl string table needs to be updated.");
+
     BeginList(false);
 
     constexpr uint32 NumFlags = static_cast<uint32>(ArrayLen(StringTable));
@@ -1003,6 +1050,9 @@ void LogContext::GpuMemoryRefFlags(
         "GpuMemoryRefCantTrim",    // 0x1,
         "GpuMemoryRefMustSucceed", // 0x2,
     };
+
+    static_assert(BitfieldGenMask(ArrayLen(StringTable)) == GpuMemoryRefAllFlags,
+                  "The GpuMemoryRef string table needs to be updated.");
 
     BeginList(false);
 
@@ -1033,23 +1083,33 @@ void LogContext::ImageLayoutEngineFlags(
         "LayoutDmaEngine",            // 0x04,
         "LayoutVideoEncodeEngine",    // 0x08,
         "LayoutVideoDecodeEngine",    // 0x10,
-        "LayoutVideoJpegDecodeEngine",// 0x20
+        "LayoutVideoJpegDecodeEngine",// 0x20,
     };
+
+    static_assert(BitfieldGenMask(ArrayLen(StringTable)) == LayoutAllEngines,
+                  "The Layout engine string table needs to be updated.");
 
     BeginList(false);
 
-    constexpr uint32 NumFlags = static_cast<uint32>(ArrayLen(StringTable));
-    for (uint32 idx = 0; idx < NumFlags; ++idx)
+    if (flags == LayoutAllEngines)
     {
-        if ((flags & (1 << idx)) != 0)
-        {
-            Value(StringTable[idx]);
-        }
+        Value("LayoutAllEngines");
     }
+    else
+    {
+        constexpr uint32 NumFlags = static_cast<uint32>(ArrayLen(StringTable));
+        for (uint32 idx = 0; idx < NumFlags; ++idx)
+        {
+            if ((flags & (1 << idx)) != 0)
+            {
+                Value(StringTable[idx]);
+            }
+        }
 
-    // This will trigger if there are flags missing in our table.
-    constexpr uint32 UnusedBitMask = ~((1u << NumFlags) - 1u);
-    PAL_ASSERT(TestAnyFlagSet(flags, UnusedBitMask) == false);
+        // This will trigger if there are flags missing in our table.
+        constexpr uint32 UnusedBitMask = ~((1u << NumFlags) - 1u);
+        PAL_ASSERT(TestAnyFlagSet(flags, UnusedBitMask) == false);
+    }
 
     EndList();
 }
@@ -1076,20 +1136,30 @@ void LogContext::ImageLayoutUsageFlags(
         "LayoutSampleRate",           // 0x00002000,
     };
 
+    static_assert(BitfieldGenMask(ArrayLen(StringTable)) == LayoutAllUsages,
+                  "The Layout usage string table needs to be updated.");
+
     BeginList(false);
 
-    constexpr uint32 NumFlags = static_cast<uint32>(ArrayLen(StringTable));
-    for (uint32 idx = 0; idx < NumFlags; ++idx)
+    if (flags == LayoutAllUsages)
     {
-        if ((flags & (1 << idx)) != 0)
-        {
-            Value(StringTable[idx]);
-        }
+        Value("LayoutAllUsages");
     }
+    else
+    {
+        constexpr uint32 NumFlags = static_cast<uint32>(ArrayLen(StringTable));
+        for (uint32 idx = 0; idx < NumFlags; ++idx)
+        {
+            if ((flags & (1 << idx)) != 0)
+            {
+                Value(StringTable[idx]);
+            }
+        }
 
-    // This will trigger if there are flags missing in our table.
-    constexpr uint32 UnusedBitMask = ~((1u << NumFlags) - 1u);
-    PAL_ASSERT(TestAnyFlagSet(flags, UnusedBitMask) == false);
+        // This will trigger if there are flags missing in our table.
+        constexpr uint32 UnusedBitMask = ~((1u << NumFlags) - 1u);
+        PAL_ASSERT(TestAnyFlagSet(flags, UnusedBitMask) == false);
+    }
 
     EndList();
 }
@@ -1111,7 +1181,13 @@ void LogContext::QueryPipelineStatsFlags(
         "QueryPipelineStatsHsInvocations", // 0x100,
         "QueryPipelineStatsDsInvocations", // 0x200,
         "QueryPipelineStatsCsInvocations", // 0x400,
+        "QueryPipelineStatsTsInvocations", // 0x800,
+        "QueryPipelineStatsMsInvocations", // 0x1000,
+        "QueryPipelineStatsMsPrimitives",  // 0x2000,
     };
+
+    static_assert(BitfieldGenMask(ArrayLen(StringTable)) == QueryPipelineStatsAll,
+                  "The QueryPipelineStats string table needs to be updated.");
 
     BeginList(false);
 
@@ -1145,27 +1221,39 @@ void LogContext::QueryResultFlags(
 {
     const char*const StringTable[] =
     {
-        "QueryResult64Bit",        // 0x1,
-        "QueryResultWait",         // 0x2,
-        "QueryResultAvailability", // 0x4,
-        "QueryResultPartial",      // 0x8,
-        "QueryResultAccumulate",   // 0x10,
+        "QueryResult64Bit",            // 0x1,
+        "QueryResultWait",             // 0x2,
+        "QueryResultAvailability",     // 0x4,
+        "QueryResultPartial",          // 0x8,
+        "QueryResultAccumulate",       // 0x10,
+        "QueryResultPreferShaderPath", // 0x20,
+        "QueryResultOnlyPrimNeeded",   // 0x40,
     };
+
+    static_assert(BitfieldGenMask(ArrayLen(StringTable)) == QueryResultAll,
+                  "The QueryResult string table needs to be updated.");
 
     BeginList(false);
 
-    constexpr uint32 NumFlags = static_cast<uint32>(ArrayLen(StringTable));
-    for (uint32 idx = 0; idx < NumFlags; ++idx)
+    if (flags == 0)
     {
-        if ((flags & (1 << idx)) != 0)
-        {
-            Value(StringTable[idx]);
-        }
+        Value("QueryResultDefault");
     }
+    else
+    {
+        constexpr uint32 NumFlags = static_cast<uint32>(ArrayLen(StringTable));
+        for (uint32 idx = 0; idx < NumFlags; ++idx)
+        {
+            if ((flags & (1 << idx)) != 0)
+            {
+                Value(StringTable[idx]);
+            }
+        }
 
-    // This will trigger if there are flags missing in our table.
-    constexpr uint32 UnusedBitMask = ~((1u << NumFlags) - 1u);
-    PAL_ASSERT(TestAnyFlagSet(flags, UnusedBitMask) == false);
+        // This will trigger if there are flags missing in our table.
+        constexpr uint32 UnusedBitMask = ~((1u << NumFlags) - 1u);
+        PAL_ASSERT(TestAnyFlagSet(flags, UnusedBitMask) == false);
+    }
 
     EndList();
 }
@@ -1180,6 +1268,9 @@ void LogContext::ClearColorImageFlags(
         "ColorClearForceSlow",  // 0x2,
         "ColorClearSkipIfSlow", // 0x4,
     };
+
+    static_assert(BitfieldGenMask(ArrayLen(StringTable)) == ColorClearAllFlags,
+                  "The ColorClear string table needs to be updated.");
 
     BeginList(false);
 
@@ -1207,6 +1298,9 @@ void LogContext::ClearDepthStencilFlags(
     {
         "DsClearAutoSync", // 0x1,
     };
+
+    static_assert(BitfieldGenMask(ArrayLen(StringTable)) == DsClearAllFlags,
+                  "The DsClear string table needs to be updated.");
 
     BeginList(false);
 
@@ -1237,6 +1331,9 @@ void LogContext::ResolveImageFlags(
         "ImageResolveDstAsNorm", // 0x4,
         "ImageResolveSrcAsNorm", // 0x8,
     };
+
+    static_assert(BitfieldGenMask(ArrayLen(StringTable)) == ImageResolveAllFlags,
+                  "The ResolveImage string table needs to be updated.");
 
     BeginList(false);
 

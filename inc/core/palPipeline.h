@@ -95,7 +95,8 @@ enum class PrimitiveType : uint32
     Triangle = 0x2,
     Rect     = 0x3,
     Quad     = 0x4,
-    Patch    = 0x5
+    Patch    = 0x5,
+    Count
 };
 
 /// Specifies the target range of Z values after viewport transform.
@@ -109,14 +110,16 @@ enum class DepthRange : uint32
 enum class PointOrigin : uint32
 {
     UpperLeft = 0x0,
-    LowerLeft = 0x1
+    LowerLeft = 0x1,
+    Count
 };
 
 /// Specifies primitive's shade mode.
 enum class ShadeMode : uint32
 {
     Gouraud = 0x0,      ///< Gouraud shading mode, pixel shader input is interpolation of vertex
-    Flat    = 0x1       ///< Flat shading mode, pixel shader input from provoking vertex
+    Flat    = 0x1,      ///< Flat shading mode, pixel shader input from provoking vertex
+    Count
 };
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 869

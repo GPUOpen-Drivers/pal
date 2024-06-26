@@ -648,7 +648,8 @@ Result Device::EarlyInit(
     m_chipProperties.gfxEngineId = m_gpuInfo.gfxEngineId;
     m_chipProperties.gpuIndex    = 0;
 
-    m_chipProperties.gfxLevel         = ipLevels.gfx;
+    m_chipProperties.gfxLevel         = IpTripleToGfxLevel(ipLevels.gfx);
+    m_chipProperties.gfxTriple        = ipLevels.gfx;
     m_chipProperties.vcnLevel         = ipLevels.vcn;
     m_chipProperties.hwIpFlags.u32All = ipLevels.flags.u32All;
 
@@ -675,11 +676,10 @@ Result Device::EarlyInit(
         }
     }
 
-    switch (m_chipProperties.gfxLevel)
+    switch (m_chipProperties.gfxTriple.major)
     {
-    case GfxIpLevel::GfxIp10_1:
-    case GfxIpLevel::GfxIp10_3:
-    case GfxIpLevel::GfxIp11_0:
+    case 10:
+    case 11:
         m_pFormatPropertiesTable = Gfx9::GetFormatPropertiesTable(m_chipProperties.gfxLevel,
                                                                   GetPlatform()->PlatformSettings());
 
@@ -687,7 +687,7 @@ Result Device::EarlyInit(
         Gfx9::InitializeGpuEngineProperties(m_chipProperties, &m_engineProperties);
         break;
 
-    case GfxIpLevel::None:
+    case 0:
         // No Graphics IP block found or recognized!
     default:
         break;

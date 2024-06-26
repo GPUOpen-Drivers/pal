@@ -700,7 +700,8 @@ Result Device::Finalize(
 Result Device::EarlyInit(
     const HwIpLevels& ipLevels)
 {
-    m_chipProperties.gfxLevel         = ipLevels.gfx;
+    m_chipProperties.gfxTriple        = ipLevels.gfx;
+    m_chipProperties.gfxLevel         = IpTripleToGfxLevel(ipLevels.gfx);
     m_chipProperties.vcnLevel         = ipLevels.vcn;
     m_chipProperties.hwIpFlags.u32All = ipLevels.flags.u32All;
 
@@ -989,18 +990,17 @@ Result Device::InitGpuProperties()
     }
 
     // ToDo: Retrieve ceram size of gfx engine from kmd, but the functionality is not supported yet.
-    switch (m_chipProperties.gfxLevel)
+    switch (m_chipProperties.gfxTriple.major)
     {
-    case GfxIpLevel::GfxIp10_1:
-    case GfxIpLevel::GfxIp10_3:
-    case GfxIpLevel::GfxIp11_0:
+    case 10:
+    case 11:
         m_chipProperties.gfxEngineId = CIASICIDGFXENGINE_ARCTICISLAND;
         m_pFormatPropertiesTable     = Gfx9::GetFormatPropertiesTable(m_chipProperties.gfxLevel,
                                                                       GetPlatform()->PlatformSettings());
         InitGfx9ChipProperties();
         Gfx9::InitializeGpuEngineProperties(m_chipProperties, &m_engineProperties);
         break;
-    case GfxIpLevel::None:
+    case 0:
         // No Graphics IP block found or recognized!
     default:
         break;
@@ -1025,15 +1025,14 @@ Result Device::InitGpuProperties()
 
     if (result == Result::Success)
     {
-        switch (m_chipProperties.gfxLevel)
+        switch (m_chipProperties.gfxTriple.major)
         {
-        case GfxIpLevel::GfxIp10_1:
-        case GfxIpLevel::GfxIp10_3:
-        case GfxIpLevel::GfxIp11_0:
+        case 10:
+        case 11:
             Gfx9::InitPerfCtrInfo(*this, &m_chipProperties);
             Gfx9::InitializePerfExperimentProperties(m_chipProperties, &m_perfExperimentProperties);
             break;
-        case GfxIpLevel::None:
+        case 0:
             // No Graphics IP block found or recognized!
         default:
             break;
@@ -2376,7 +2375,7 @@ uint32 Device::GetSupportedSwapChainModes(
     uint32 swapchainModes = 0;
     if (mode == PresentMode::Windowed)
     {
-        if (wsiPlatform != DirectDisplay)
+        if (wsiPlatform != WsiPlatform::DirectDisplay)
         {
             swapchainModes = SupportImmediateSwapChain | SupportFifoSwapChain | SupportMailboxSwapChain;
         }

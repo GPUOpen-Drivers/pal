@@ -51,16 +51,13 @@ PrivateScreen::PrivateScreen(
 Result PrivateScreen::Enable(
     const PrivateScreenEnableInfo& info)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::PrivateScreenEnable;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = PrivateScreenDecorator::Enable(info);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::PrivateScreenEnable);
+    const Result result = PrivateScreenDecorator::Enable(info);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("info", info);
         pLogContext->EndInput();
@@ -78,16 +75,13 @@ Result PrivateScreen::Enable(
 // =====================================================================================================================
 Result PrivateScreen::Disable()
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::PrivateScreenDisable;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = PrivateScreenDecorator::Disable();
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::PrivateScreenDisable);
+    const Result result = PrivateScreenDecorator::Disable();
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginOutput();
         pLogContext->KeyAndEnum("result", result);
         pLogContext->EndOutput();
@@ -101,16 +95,13 @@ Result PrivateScreen::Disable()
 // =====================================================================================================================
 Result PrivateScreen::Blank()
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::PrivateScreenBlank;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = PrivateScreenDecorator::Blank();
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::PrivateScreenBlank);
+    const Result result = PrivateScreenDecorator::Blank();
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginOutput();
         pLogContext->KeyAndEnum("result", result);
         pLogContext->EndOutput();
@@ -125,16 +116,13 @@ Result PrivateScreen::Blank()
 Result PrivateScreen::Present(
     const PrivateScreenPresentInfo& presentInfo)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::PrivateScreenPresent;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = PrivateScreenDecorator::Present(presentInfo);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::PrivateScreenPresent);
+    const Result result = PrivateScreenDecorator::Present(presentInfo);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("presentInfo", presentInfo);
         pLogContext->EndInput();
@@ -153,16 +141,13 @@ Result PrivateScreen::Present(
 Result PrivateScreen::SetGammaRamp(
     const GammaRamp* pGammaRamp)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::PrivateScreenSetGammaRamp;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = PrivateScreenDecorator::SetGammaRamp(pGammaRamp);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::PrivateScreenSetGammaRamp);
+    const Result result = PrivateScreenDecorator::SetGammaRamp(pGammaRamp);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
 
         if (pGammaRamp != nullptr)
@@ -190,16 +175,13 @@ Result PrivateScreen::SetGammaRamp(
 Result PrivateScreen::SetPowerMode(
     PrivateDisplayPowerState powerMode)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::PrivateScreenSetPowerMode;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = PrivateScreenDecorator::SetPowerMode(powerMode);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::PrivateScreenSetPowerMode);
+    const Result result = PrivateScreenDecorator::SetPowerMode(powerMode);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndEnum("powerMode", powerMode);
         pLogContext->EndInput();
@@ -218,16 +200,13 @@ Result PrivateScreen::SetPowerMode(
 Result PrivateScreen::SetDisplayMode(
     const PrivateDisplayMode& displayMode)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::PrivateScreenSetDisplayMode;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = PrivateScreenDecorator::SetDisplayMode(displayMode);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::PrivateScreenSetDisplayMode);
+    const Result result = PrivateScreenDecorator::SetDisplayMode(displayMode);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("displayMode", displayMode);
         pLogContext->EndInput();
@@ -246,16 +225,13 @@ Result PrivateScreen::SetDisplayMode(
 Result PrivateScreen::SetColorMatrix(
     const ColorTransform& matrix)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::PrivateScreenSetColorMatrix;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = PrivateScreenDecorator::SetColorMatrix(matrix);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::PrivateScreenSetColorMatrix);
+    const Result result = PrivateScreenDecorator::SetColorMatrix(matrix);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("matrix", matrix);
         pLogContext->EndInput();
@@ -276,16 +252,13 @@ Result PrivateScreen::SetEventAfterVsync(
     uint32           delayInUs,
     bool             repeated)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::PrivateScreenSetEventAfterVsync;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = PrivateScreenDecorator::SetEventAfterVsync(hEvent, delayInUs, repeated);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::PrivateScreenSetEventAfterVsync);
+    const Result result = PrivateScreenDecorator::SetEventAfterVsync(hEvent, delayInUs, repeated);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndValue("delayInUs", delayInUs);
         pLogContext->KeyAndValue("repeated", repeated);
@@ -305,16 +278,13 @@ Result PrivateScreen::SetEventAfterVsync(
 Result PrivateScreen::EnableAudio(
     bool enable)
 {
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::PrivateScreenEnableAudio;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = PrivateScreenDecorator::EnableAudio(enable);
-    funcInfo.postCallTime = m_pPlatform->GetTime();
+    const bool   active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::PrivateScreenEnableAudio);
+    const Result result = PrivateScreenDecorator::EnableAudio(enable);
 
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    if (active)
     {
+        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
+
         pLogContext->BeginInput();
         pLogContext->KeyAndValue("enable", enable);
         pLogContext->EndInput();

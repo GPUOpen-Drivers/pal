@@ -112,7 +112,11 @@ struct SwapChainCreateInfo;
 struct SwapChainProperties;
 struct SvmGpuMemoryCreateInfo;
 struct GraphicPipelineViewInstancingInfo;
-enum   WsiPlatform : uint32;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 881
+enum class WsiPlatform : uint32;
+#else
+enum WsiPlatform : uint32;
+#endif
 enum class PipelineBindPoint : uint32;
 enum class VaRange : uint32;
 
@@ -886,6 +890,21 @@ enum class RayTracingIpLevel : uint32
     RtIp2_0 = 0x3,     ///< Added more Hardware RayTracing features, such as BoxSort, PointerFlag, etc
 };
 
+/// Which ip version a component has reported
+struct IpTriple
+{
+    uint32 major    : 8;     /// Major revision value
+    uint32 minor    : 8;     /// Minor revision value
+    uint32 stepping : 16;    /// Stepping value
+
+    constexpr operator uint32() const
+    {
+        return ((stepping      ) |
+                (minor    << 16) |
+                (major    << 24));
+    }
+};
+
 /// Reports various properties of a particular IDevice to the client.  @see IDevice::GetProperties.
 struct DeviceProperties
 {
@@ -906,6 +925,7 @@ struct DeviceProperties
     SpuIpLevel spuLevel;                     ///< IP level of this GPU's SPU block
     PspIpLevel pspLevel;                     ///< IP level of this GPU's PSP block
     uint32     gfxStepping;                  ///< Stepping level of this GPU's GFX block
+    IpTriple   gfxTriple;                    ///< Full GFX IP level (major.minor.step) of this GPU
     char       gpuName[MaxDeviceName];       ///< Null terminated string identifying the GPU.
     uint32     gpuIndex;                     ///< Device's index in a linked adapter chain.
     uint32     maxGpuMemoryRefsResident;     ///< Maximum number of GPU memory references that can be resident
@@ -1910,6 +1930,7 @@ enum class TexFilterMode : uint32
     Blend = 0x0, ///< Use the filter method specified by the TexFilter enumeration
     Min   = 0x1, ///< Use the minimum value returned by the sampler, no blending op occurs
     Max   = 0x2, ///< Use the maximum value returned by the sampler, no blending op occurs
+    Count
 };
 
 /// Specifies how texture coordinates outside of texture boundaries are interpreted.
@@ -2307,6 +2328,7 @@ enum class PowerProfile : uint32
     VrCustom  = 1,      ///< Power profile used by custom VR scenario.
     VrDefault = 2,      ///< Power profile used by default VR scenario.
     Idle      = 3,      ///< Power profile used for forced DPM0, in case HMD is taken off but the game is still running.
+    Count
 };
 
 /// Fine-grain power switch info.
@@ -2348,6 +2370,7 @@ enum GpuMemoryRefFlags : uint32
 {
     GpuMemoryRefCantTrim    = 0x1, ///< The caller can't or won't free this allocation on OS request.
     GpuMemoryRefMustSucceed = 0x2, ///< Hint to the OS that we can't process a failure here, this may result in a TDR.
+    GpuMemoryRefAllFlags    = 0x3  ///< Clients should NOT use it, for internal static_assert purpose only.
 };
 
 /// Specifies input arguments for IDevice::GetPrimaryInfo(). Client must specify a display ID and properties of the
@@ -2493,7 +2516,8 @@ enum MgpuMode : uint32
     MgpuModeOff  = 0,  ///< MGPU compositing mode off, the client does not do SW compositing at all, e.g. AFR disabled.
     MgpuModeSw   = 1,  ///< MGPU SW compositing mode, the client handle the SW compositing.
     MgpuModeDvo  = 2,  ///< MGPU DVO HW compositing mode
-    MgpuModeXdma = 3   ///< MGPU XDMA HW compositing mode
+    MgpuModeXdma = 3,  ///< MGPU XDMA HW compositing mode
+    MgpuModeCount
 };
 
 /// Specifies input arguments for IDevice::SetMgpuMode(). A client set a particular MGPU compositing mode and whether

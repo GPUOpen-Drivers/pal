@@ -66,6 +66,16 @@ enum class AcquirePoint : uint8
     Count
 };
 
+#if PAL_DEVELOPER_BUILD
+static_assert(EnumSameVal(Developer::AcquirePoint::Pfp,      AcquirePoint::Pfp)      &&
+              EnumSameVal(Developer::AcquirePoint::Me,       AcquirePoint::Me)       &&
+              EnumSameVal(Developer::AcquirePoint::PreDepth, AcquirePoint::PreDepth) &&
+              EnumSameVal(Developer::AcquirePoint::PrePs,    AcquirePoint::PrePs)    &&
+              EnumSameVal(Developer::AcquirePoint::PreColor, AcquirePoint::PreColor) &&
+              EnumSameVal(Developer::AcquirePoint::Eop,      AcquirePoint::Eop),
+              "Definition values mismatch!");
+#endif
+
 // Cache coherency masks that may read data through L0 (V$ and K$)/L1 caches.
 static constexpr uint32 CacheCoherShaderReadMask = CoherShaderRead | CoherSampleRate | CacheCoherencyBltSrc;
 
@@ -1374,6 +1384,10 @@ void BarrierMgr::IssueAcquireSync(
         acquirePoint = AcquirePoint::Me;
     }
 
+#if PAL_DEVELOPER_BUILD
+    pBarrierOps->acquirePoint = static_cast<Developer::AcquirePoint>(acquirePoint);
+#endif
+
     uint32* pCmdSpace = pCmdStream->ReserveCommands();
 
     uint32  syncTokenToWait[uint32(AcqRelEventType::Count)] = {};
@@ -1573,6 +1587,10 @@ void BarrierMgr::IssueReleaseThenAcquireSync(
             acquirePoint = AcquirePoint::Me;
         }
     }
+
+#if PAL_DEVELOPER_BUILD
+    pBarrierOps->acquirePoint = static_cast<Developer::AcquirePoint>(acquirePoint);
+#endif
 
     const Pm4CmdBufferStateFlags cmdBufStateFlags = pCmdBuf->GetPm4CmdBufState().flags;
 
@@ -2447,6 +2465,10 @@ bool BarrierMgr::IssueBlt(
             {
                 pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
                 pBarrierOps->pipelineStalls.waitOnTs          = 1;
+#if PAL_DEVELOPER_BUILD
+                pBarrierOps->acquirePoint                     = Developer::AcquirePoint::Me;
+#endif
+
                 *pPreInitHtileSynced                          = true;
             }
         }

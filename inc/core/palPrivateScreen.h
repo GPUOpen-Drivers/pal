@@ -65,6 +65,7 @@ enum class PrivateScreenType : uint32
     Permanent = 0,  ///< Registered to base driver as permanent, automatically hidden at boot time.
     Temporary = 1,  ///< Hidden temporarily, turning into a public screen when it is unhidden or OS reboots.
     Emulated  = 2,  ///< Emulated without actually screen hardware connected, for testing purpose.
+    Count
 };
 
 /// Capability flags of private screen
@@ -179,6 +180,7 @@ enum class PrivateDisplayColorDepth : uint32
     ColorDepth666       = 0,    ///< Per channel of color depth is 6 bits.
     ColorDepth888       = 1,    ///< Per channel of color depth is 8 bits.
     ColorDepth101010    = 2,    ///< Per channel of color depth is 10 bits.
+    Count
 };
 
 /// Specifies the color pixel encoding for sending information to the display.
@@ -187,6 +189,7 @@ enum class PrivateDisplayPixelEncoding : uint32
     Rgb         = 0,    ///< Color format.
     YcbCr422    = 1,    ///< Color format.
     YcbCr444    = 2,    ///< Color format.
+    Count
 };
 
 /// Specifies the private display information.
@@ -223,6 +226,7 @@ enum class PrivateDisplayPowerState : uint32
 {
     PowerOn  = 1,   ///< Indicates power on to private display.
     PowerOff = 2,   ///< Indicates power off to private display.
+    Count
 };
 
 /// Specifies the color transform matrix which is effectively 4x3 matrix multiply with the output color.

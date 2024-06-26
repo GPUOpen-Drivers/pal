@@ -201,6 +201,12 @@ public:
     virtual void CmdSetLineStippleState(
         const LineStippleStateParams& params) override;
 
+    virtual void CmdSetPerDrawVrsRate(const VrsRateParams&  rateParams) override;
+
+    virtual void CmdSetVrsCenterState(const VrsCenterState&  centerState) override;
+
+    virtual void CmdBindSampleRateImage(const IImage*  pImage) override;
+
     // This function allows us to dump the contents of this command buffer to a file at submission time.
     virtual void DumpCmdStreamsToFile(Util::File* pFile, CmdBufDumpFormat mode) const override;
     virtual void EndCmdBufferDump(const Pal::CmdStream** ppCmdStreams, uint32 cmdStreamsNum) override;
@@ -265,7 +271,8 @@ protected:
         Pm4::CmdStream*            pDeCmdStream,
         Pm4::CmdStream*            pCeCmdStream,
         Pm4::CmdStream*            pAceCmdStream,
-        bool                       blendOptEnable);
+        bool                       blendOptEnable,
+        bool                       useUpdateUserData);
 
     virtual ~UniversalCmdBuffer() {}
 
@@ -276,8 +283,13 @@ protected:
     void LeakNestedCmdBufferState(
         const UniversalCmdBuffer& cmdBuffer);
 
-    template <bool filterRedundantUserData>
-    static void PAL_STDCALL CmdSetUserDataGfx(
+    static void PAL_STDCALL CmdSetUserDataGfxFiltered(
+        ICmdBuffer*   pCmdBuffer,
+        uint32        firstEntry,
+        uint32        entryCount,
+        const uint32* pEntryValues);
+
+    static void PAL_STDCALL CmdUpdateUserDataGfx(
         ICmdBuffer*   pCmdBuffer,
         uint32        firstEntry,
         uint32        entryCount,
@@ -297,12 +309,6 @@ protected:
 
     virtual uint32* WriteNops(uint32* pCmdSpace, uint32 numDwords) const override
         { return pCmdSpace + m_pDeCmdStream->BuildNop(numDwords, pCmdSpace); }
-
-    virtual void CmdSetPerDrawVrsRate(const VrsRateParams&  rateParams) override;
-
-    virtual void CmdSetVrsCenterState(const VrsCenterState&  centerState) override;
-
-    virtual void CmdBindSampleRateImage(const IImage*  pImage) override;
 
     // Late-initialized ACE command buffer stream.
     // Ace command stream is used for ganged submit of compute workloads (task shader workloads)

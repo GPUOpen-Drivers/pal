@@ -33,7 +33,11 @@ namespace Pal
 
 enum class PresentMode   : uint32;
 enum class SwapChainMode : uint32;
-enum       WsiPlatform   : uint32;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 881
+enum class WsiPlatform : uint32;
+#else
+enum       WsiPlatform : uint32;
+#endif
 
 struct ScreenInfo;
 struct PresentableImageCreateInfo;

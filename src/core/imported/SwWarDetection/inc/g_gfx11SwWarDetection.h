@@ -70,7 +70,7 @@ extern bool DetectGfx11SoftwareWorkaroundsByGfxIp(
     Gfx11SwWarDetection* pWorkarounds);
 
 // Number of workarounds that are represented in Gfx11SwWarDetection.
-constexpr uint32_t Gfx11NumWorkarounds = 53;
+constexpr uint32_t Gfx11NumWorkarounds = 54;
 
 // Number of DWORDs that make up the Gfx11SwWarDetection structure.
 constexpr uint32_t Gfx11StructDwords = 2;
@@ -81,7 +81,7 @@ constexpr uint32_t Gfx11StructDwords = 2;
 constexpr uint32_t Gfx11InactiveMask[] =
 {
     0x00000000,
-    0xffe00000,
+    0xffc00000,
 };
 
 // Bitfield structure containing all workarounds active for the Gfx11 family.
@@ -199,7 +199,9 @@ union Gfx11SwWarDetection
 
         uint32_t                                                                                                                                                                      : 1;
 
-        uint32_t reserved                                                                                                                                                             : 11;
+        uint32_t shaderSqSqgNV3xHWBugCausesHangOnCWSRWhenTGCreatedOnSA1_A_                                                                                                            : 1;
+
+        uint32_t reserved                                                                                                                                                             : 10;
     };
 
     uint32_t u32All[Gfx11StructDwords];
@@ -239,6 +241,7 @@ void DetectNavi31A0Workarounds(
     pWorkarounds->shaderSpTranscendentalOpFollowedByALUDoesntEnforceDependency_A_                                                                                                      = 1;
     pWorkarounds->shaderSpfailedToDetectPartialForwardingStall_A_                                                                                                                      = 1;
     pWorkarounds->shaderSpsubvectorExecutionSubv1SharedVgprGotWrongData_A_                                                                                                             = 1;
+    pWorkarounds->shaderSqSqgNV3xHWBugCausesHangOnCWSRWhenTGCreatedOnSA1_A_                                                                                                            = 1;
     pWorkarounds->shaderSqSqgPCSentToSQThrCmdBusMayBeDropped_A_                                                                                                                        = 1;
     pWorkarounds->shaderSqSqgSCLAUSEFollowedByVALU_SDELAYALUCoIssuePairCanExceedClauseLength_A_                                                                                        = 1;
     pWorkarounds->shaderSqSqgSQGTTWPTRIssues_A_                                                                                                                                        = 1;
@@ -282,6 +285,7 @@ void DetectNavi32A0Workarounds(
     pWorkarounds->shaderSpTranscendentalOpFollowedByALUDoesntEnforceDependency_A_                                                                                                      = 1;
     pWorkarounds->shaderSpfailedToDetectPartialForwardingStall_A_                                                                                                                      = 1;
     pWorkarounds->shaderSpsubvectorExecutionSubv1SharedVgprGotWrongData_A_                                                                                                             = 1;
+    pWorkarounds->shaderSqSqgNV3xHWBugCausesHangOnCWSRWhenTGCreatedOnSA1_A_                                                                                                            = 1;
     pWorkarounds->shaderSqSqgSCLAUSEFollowedByVALU_SDELAYALUCoIssuePairCanExceedClauseLength_A_                                                                                        = 1;
     pWorkarounds->shaderSqSqgSQGTTWPTRIssues_A_                                                                                                                                        = 1;
     pWorkarounds->shaderSqSqgSQPERFSNAPSHOT_ClockCyclesCountingModeDoesNotConsiderVMIDMASK_A_                                                                                          = 1;
@@ -325,6 +329,7 @@ void DetectNavi32GLXLWorkarounds(
     pWorkarounds->shaderSpTranscendentalOpFollowedByALUDoesntEnforceDependency_A_                                                                                                      = 1;
     pWorkarounds->shaderSpfailedToDetectPartialForwardingStall_A_                                                                                                                      = 1;
     pWorkarounds->shaderSpsubvectorExecutionSubv1SharedVgprGotWrongData_A_                                                                                                             = 1;
+    pWorkarounds->shaderSqSqgNV3xHWBugCausesHangOnCWSRWhenTGCreatedOnSA1_A_                                                                                                            = 1;
     pWorkarounds->shaderSqSqgSCLAUSEFollowedByVALU_SDELAYALUCoIssuePairCanExceedClauseLength_A_                                                                                        = 1;
     pWorkarounds->shaderSqSqgSQGTTWPTRIssues_A_                                                                                                                                        = 1;
     pWorkarounds->shaderSqSqgSQPERFSNAPSHOT_ClockCyclesCountingModeDoesNotConsiderVMIDMASK_A_                                                                                          = 1;
@@ -365,6 +370,7 @@ void DetectNavi33A0Workarounds(
     pWorkarounds->shaderSpTranscendentalOpFollowedByALUDoesntEnforceDependency_A_                                                                                                      = 1;
     pWorkarounds->shaderSpfailedToDetectPartialForwardingStall_A_                                                                                                                      = 1;
     pWorkarounds->shaderSpsubvectorExecutionSubv1SharedVgprGotWrongData_A_                                                                                                             = 1;
+    pWorkarounds->shaderSqSqgNV3xHWBugCausesHangOnCWSRWhenTGCreatedOnSA1_A_                                                                                                            = 1;
     pWorkarounds->shaderSqSqgPCSentToSQThrCmdBusMayBeDropped_A_                                                                                                                        = 1;
     pWorkarounds->shaderSqSqgSCLAUSEFollowedByVALU_SDELAYALUCoIssuePairCanExceedClauseLength_A_                                                                                        = 1;
     pWorkarounds->shaderSqSqgSQGTTWPTRIssues_A_                                                                                                                                        = 1;
@@ -408,6 +414,7 @@ void DetectPhoenix1A0Workarounds(
     pWorkarounds->shaderSpTranscendentalOpFollowedByALUDoesntEnforceDependency_A_                                                                                                      = 1;
     pWorkarounds->shaderSpfailedToDetectPartialForwardingStall_A_                                                                                                                      = 1;
     pWorkarounds->shaderSpsubvectorExecutionSubv1SharedVgprGotWrongData_A_                                                                                                             = 1;
+    pWorkarounds->shaderSqSqgNV3xHWBugCausesHangOnCWSRWhenTGCreatedOnSA1_A_                                                                                                            = 1;
     pWorkarounds->shaderSqSqgSCLAUSEFollowedByVALU_SDELAYALUCoIssuePairCanExceedClauseLength_A_                                                                                        = 1;
     pWorkarounds->shaderSqSqgSQGTTWPTRIssues_A_                                                                                                                                        = 1;
     pWorkarounds->shaderSqSqgSQPERFSNAPSHOT_ClockCyclesCountingModeDoesNotConsiderVMIDMASK_B_                                                                                          = 1;
@@ -448,6 +455,7 @@ void DetectPhoenix2A0Workarounds(
     pWorkarounds->shaderSpTranscendentalOpFollowedByALUDoesntEnforceDependency_A_                                                                                                      = 1;
     pWorkarounds->shaderSpfailedToDetectPartialForwardingStall_A_                                                                                                                      = 1;
     pWorkarounds->shaderSpsubvectorExecutionSubv1SharedVgprGotWrongData_A_                                                                                                             = 1;
+    pWorkarounds->shaderSqSqgNV3xHWBugCausesHangOnCWSRWhenTGCreatedOnSA1_A_                                                                                                            = 1;
     pWorkarounds->shaderSqSqgSCLAUSEFollowedByVALU_SDELAYALUCoIssuePairCanExceedClauseLength_A_                                                                                        = 1;
     pWorkarounds->shaderSqSqgSQGTTWPTRIssues_A_                                                                                                                                        = 1;
     pWorkarounds->shaderSqSqgWave64VALUReadSGPRMaskToSALUDepdency_A_                                                                                                                   = 1;

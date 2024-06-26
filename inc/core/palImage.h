@@ -141,6 +141,7 @@ enum class ClearColorType : uint32
     Yuv   = 3, ///< The color is stored as an unsigned integer in YUVA order in u32Color. It will be swizzled and
                ///  compacted before it is written to memory. The client must clamp the clear color within the
                ///  valid range, e.g. [0, 255] for 8-bit.
+    Count
 };
 
 /// Contains everything necessary to store and interpret a clear color.

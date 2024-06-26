@@ -327,7 +327,8 @@ UniversalCmdBuffer::UniversalCmdBuffer(
                                  &m_deCmdStream,
                                  &m_ceCmdStream,
                                  nullptr,
-                                 device.Settings().blendOptimizationEnable),
+                                 device.Settings().blendOptimizationEnable,
+                                 device.Settings().gfx11EnableShRegPairOptimization),
     m_device(device),
     m_cmdUtil(device.CmdUtil()),
     m_deCmdStream(device,
@@ -342,8 +343,8 @@ UniversalCmdBuffer::UniversalCmdBuffer(
                   SubEngineType::ConstantEngine,
                   CmdStreamUsage::Workload,
                   IsNested()),
-    m_pSignatureCs(&NullCsSignature),
-    m_pSignatureGfx(&NullGfxSignature),
+    m_pSignatureCs(&(device.GetNullCsSignature())),
+    m_pSignatureGfx(&(device.GetNullGfxSignature())),
     m_rbplusRegHash(0),
     m_pipelineCtxRegHash(0),
     m_pipelineCfgRegHash(0),
@@ -983,8 +984,8 @@ void UniversalCmdBuffer::ResetState()
     m_drawIndexReg        = UserDataNotMapped;
     m_nggState.numSamples = 1;
 
-    m_pSignatureCs         = &NullCsSignature;
-    m_pSignatureGfx        = &NullGfxSignature;
+    m_pSignatureCs         = &m_device.GetNullCsSignature();
+    m_pSignatureGfx        = &m_device.GetNullGfxSignature();
     m_rbplusRegHash        = 0;
     m_pipelineCtxRegHash   = 0;
     m_pipelineCfgRegHash   = 0;
@@ -1450,7 +1451,7 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
     PAL_ASSERT(pCurrPipeline != nullptr);
 
     const auto& cmdUtil             = m_device.CmdUtil();
-    const bool  wasPrevPipelineNull = (pPrevSignature == &NullGfxSignature);
+    const bool  wasPrevPipelineNull = (pPrevSignature == &m_device.GetNullGfxSignature());
     const bool  wasPrevPipelineNgg  = m_pipelineState.flags.isNgg
                                       ;
     const bool  isNgg               = pCurrPipeline->IsNgg();
@@ -5745,32 +5746,48 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
                                                      pDeCmdSpace);
     }
 
-    bool isDirty = m_graphicsState.dirtyFlags.quadSamplePatternState ||
-                   m_graphicsState.dirtyFlags.inputAssemblyState ||
-                   m_graphicsState.dirtyFlags.colorBlendState;
-    if (HasPipelineChanged || isDirty)
+    if (m_pSignatureGfx->compositeData.packed != 0)
     {
-        Abi::ApiCompositeDataValue registerVal = {};
-        registerVal.primInfo = GfxDevice::VertsPerPrimitive(m_graphicsState.inputAssemblyState.topology);
-        registerVal.numSamples = m_graphicsState.numSamplesPerPixel;
+        bool isDirty = m_graphicsState.dirtyFlags.quadSamplePatternState ||
+                       m_graphicsState.dirtyFlags.inputAssemblyState ||
+                       m_graphicsState.dirtyFlags.colorBlendState;
+        if (HasPipelineChanged || isDirty)
+        {
+            Abi::ApiCompositeDataValue registerVal = {};
+            const auto* const pGraPipeline =
+                static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
+            if (pGraPipeline->GetOutputNumVertices() != 0)
+            {
+                PAL_ASSERT(pGraPipeline->IsGsEnabled() || pGraPipeline->IsTessEnabled() ||
+                    pGraPipeline->HasMeshShader());
+                registerVal.primInfo = pGraPipeline->GetOutputNumVertices();
+            }
+            else
+            {
+                // only VS
+                registerVal.primInfo = GfxDevice::VertsPerPrimitive(m_graphicsState.inputAssemblyState.topology);
+            }
+
+            registerVal.numSamples = m_graphicsState.numSamplesPerPixel;
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 842
-        const DynamicGraphicsState& dynamicState = m_graphicsState.dynamicGraphicsInfo.dynamicState;
+            const DynamicGraphicsState& dynamicState = m_graphicsState.dynamicGraphicsInfo.dynamicState;
 #else
-        const DynamicGraphicsState& dynamicState = m_graphicsState.dynamicState;
+            const DynamicGraphicsState& dynamicState = m_graphicsState.dynamicState;
 #endif
-        registerVal.dynamicSourceBlend = dynamicState.enable.dualSourceBlendEnable &&
-                                         dynamicState.dualSourceBlendEnable;
+            registerVal.dynamicSourceBlend = dynamicState.enable.dualSourceBlendEnable &&
+                dynamicState.dualSourceBlendEnable;
 
-        for (uint32 s = 0; s < NumHwShaderStagesGfx; ++s)
-        {
-            const uint16 userSgpr = m_pSignatureGfx->compositeDataAddr[s];
-            if (userSgpr != UserDataNotMapped)
+            for (uint32 s = 0; s < NumHwShaderStagesGfx; ++s)
             {
-                pDeCmdSpace = SetUserSgprReg<ShaderGraphics>(userSgpr,
-                                                             registerVal.u32All,
-                                                             false,
-                                                             pDeCmdSpace);
+                const uint16 userSgpr = m_pSignatureGfx->compositeData.addr[s];
+                if (userSgpr != UserDataNotMapped)
+                {
+                    pDeCmdSpace = SetUserSgprReg<ShaderGraphics>(userSgpr,
+                        registerVal.u32All,
+                        false,
+                        pDeCmdSpace);
+                }
             }
         }
     }
@@ -8425,7 +8442,7 @@ void UniversalCmdBuffer::ValidateDispatchHsaAbi(
                                                         &aqlPacketGpu));
 
         // Zero everything out then fill in certain fields the shader is likely to read.
-        memset(pAqlPacket, 0, sizeof(sizeof(hsa_kernel_dispatch_packet_t)));
+        memset(pAqlPacket, 0, sizeof(hsa_kernel_dispatch_packet_t));
 
         pAqlPacket->workgroup_size_x     = static_cast<uint16>(threads.x);
         pAqlPacket->workgroup_size_y     = static_cast<uint16>(threads.y);
@@ -10845,6 +10862,8 @@ void UniversalCmdBuffer::GetChunkForCmdGeneration(
         bool usesVertexBufTable        = false;
         uint32 spillThreshold          = NoUserDataSpilling;
 
+        const bool generateTaskChunk = ((i == 1) && (pipeline.IsTaskShaderEnabled() == true));
+
         if (generator.Type() == Pm4::GeneratorType::Dispatch)
         {
             const auto& signature = static_cast<const ComputePipeline&>(pipeline).Signature();
@@ -10856,13 +10875,24 @@ void UniversalCmdBuffer::GetChunkForCmdGeneration(
         }
         else
         {
-            const auto& signature = static_cast<const GraphicsPipeline&>(pipeline).Signature();
-            usesVertexBufTable    = (signature.vertexBufTableRegAddr != 0);
-            spillThreshold        = signature.spillThreshold;
+            if (generateTaskChunk)
+            {
+                const auto& signature = static_cast<const HybridGraphicsPipeline&>(pipeline).GetTaskSignature();
+                spillThreshold = signature.spillThreshold;
 
-            // NOTE: RPM uses a compute shader to generate indirect commands, which doesn't interfere with the graphics
-            // state, so we don't need to look at the pushed state.
-            pUserDataEntries = &m_graphicsState.gfxUserDataEntries.entries[0];
+                pUserDataEntries = &m_computeRestoreState.csUserDataEntries.entries[0];
+            }
+            else
+            {
+
+                const auto& signature = static_cast<const GraphicsPipeline&>(pipeline).Signature();
+                usesVertexBufTable = (signature.vertexBufTableRegAddr != 0);
+                spillThreshold = signature.spillThreshold;
+
+                // NOTE: RPM uses a compute shader to generate indirect commands, which doesn't interfere with the graphics
+                // state, so we don't need to look at the pushed state.
+                pUserDataEntries = &m_graphicsState.gfxUserDataEntries.entries[0];
+            }
         }
 
         // Total amount of embedded data space needed for each generated command, including indirect user-data tables
@@ -11567,6 +11597,11 @@ void UniversalCmdBuffer::CpCopyMemory(
 
     SetCpBltState(true);
     SetCpBltWriteCacheState(true);
+
+#if PAL_DEVELOPER_BUILD
+    Developer::RpmBltData cbData = { .pCmdBuffer = this, .bltType = Developer::RpmBltType::CpDmaCopy };
+    m_device.Parent()->DeveloperCb(Developer::CallbackType::RpmBlt, &cbData);
+#endif
 }
 
 // =====================================================================================================================

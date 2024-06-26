@@ -207,7 +207,7 @@ union HwIpLevelFlags
 // Bundles the IP levels for all kinds of HW IP.
 struct HwIpLevels
 {
-    GfxIpLevel     gfx;
+    IpTriple       gfx;
     VcnIpLevel     vcn;
     PspIpLevel     psp;
     HwIpLevelFlags flags;
@@ -500,6 +500,79 @@ constexpr uint32 Gfx9MaxShaderEngines = 6;  // GFX11 parts have six SE's
 constexpr uint32 Gfx11Rs64MinPfpUcodeVersion = 300;
 #endif
 
+// =====================================================================================================================
+// Helper function to convert GfxIpLevel + stepping into a IpTriple
+constexpr IpTriple CreateGfxTriple(
+    GfxIpLevel gfxIpLevel,
+    uint16     stepping)
+{
+    IpTriple retVal = {};
+
+    switch (gfxIpLevel)
+    {
+#if PAL_BUILD_GFX
+    case GfxIpLevel::GfxIp10_1:
+        retVal = { .major = 10, .minor = 1, .stepping = stepping };
+        break;
+    case GfxIpLevel::GfxIp10_3:
+        retVal = { .major = 10, .minor = 3, .stepping = stepping };
+        break;
+    case GfxIpLevel::GfxIp11_0:
+        retVal = { .major = 11, .minor = 0, .stepping = stepping };
+        break;
+#endif
+    default:
+        PAL_ASSERT_ALWAYS();
+        break;
+    }
+
+    return retVal;
+}
+
+// =====================================================================================================================
+// Helper function to convert IpTriple into GfxIpLevel
+constexpr GfxIpLevel IpTripleToGfxLevel(
+    IpTriple ipTriple)
+{
+    GfxIpLevel retVal = GfxIpLevel::None;
+
+    switch (ipTriple.major)
+    {
+#if PAL_BUILD_GFX
+    case 10:
+        switch (ipTriple.minor)
+        {
+        case 1:
+            retVal = GfxIpLevel::GfxIp10_1;
+            break;
+        case 3:
+            retVal = GfxIpLevel::GfxIp10_3;
+            break;
+        default:
+            PAL_ASSERT_ALWAYS();
+            break;
+        }
+        break;
+    case 11:
+        switch (ipTriple.minor)
+        {
+        case 0:
+            retVal = GfxIpLevel::GfxIp11_0;
+            break;
+        default:
+            PAL_ASSERT_ALWAYS();
+            break;
+        }
+        break;
+#endif
+    default:
+        PAL_ASSERT_ALWAYS();
+        break;
+    }
+
+    return retVal;
+}
+
 // Everything PAL & its clients would ever need to know about the actual GPU hardware.
 struct GpuChipProperties
 {
@@ -521,6 +594,7 @@ struct GpuChipProperties
     PspIpLevel     pspLevel;
     HwIpLevelFlags hwIpFlags;
     uint32         gfxStepping; // Stepping level of this GPU's GFX block.
+    IpTriple       gfxTriple;
 
     uint16   gpuPerformanceCapacity; // GpuCapacity is the percentage (in fixed point [1, 65535]) of the
                                      // GPU's performance that can be used. 0 is invalid (not SRIOV).
@@ -2044,7 +2118,7 @@ private:
 namespace Gfx9
 {
 // Determines the GFXIP level of an GFXIP 9+ GPU.
-extern GfxIpLevel DetermineIpLevel(
+extern IpTriple DetermineIpLevel(
     uint32 familyId,    // Hardware Family ID.
     uint32 eRevId,      // Software Revision ID.
     uint32 microcodeVersion);

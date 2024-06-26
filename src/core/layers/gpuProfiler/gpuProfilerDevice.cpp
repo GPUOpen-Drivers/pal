@@ -237,6 +237,11 @@ Result Device::CommitSettingsAndInit()
             GPUPROFILER_WARN("Failed to create folder '%s'", settings.gpuProfilerConfig.logDirectory);
         }
         static_cast<Platform*>(m_pPlatform)->CreateLogger();
+
+        GPUPROFILER_INFO("Setting GpuProfilerMode:%d",                      settings.gpuProfilerMode);
+        GPUPROFILER_INFO("Setting GpuProfilerConfig.Granularity:%d",        settings.gpuProfilerConfig.granularity);
+        GPUPROFILER_INFO("Setting GpuProfilerSqttConfig.QueueIdMask:%08x",  settings.gpuProfilerConfig.queueIdMask);
+        GPUPROFILER_INFO("Setting GpuProfilerSqttConfig.SEMask:%08x",       settings.gpuProfilerSqttConfig.seMask);
     }
 
     if ((result == Result::Success)                                                    &&

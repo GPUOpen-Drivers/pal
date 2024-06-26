@@ -132,14 +132,17 @@ struct AmdGpuInfo
 
         struct Ids
         {
-            uint32 gfxEngineId; // Coarse-grain GFX engine ID (R800, SI, etc.)
-            uint32 family;      // Hardware family ID. Driver-defined identifier for a particular family of devices.
-            uint32 eRevId;      // Hardware revision ID. Driver-defined identifier for a particular device and
-                                // sub-revision in the hardware family designated by the familyId.
-                                // See AMDGPU_TAHITI_RANGE, AMDGPU_FIJI_RANGE, etc. as defined in amdgpu_asic.h.
-            uint32 revisionId;  // PCI revision ID. 8-bit value as reported in the device structure in the PCI config
-                                // space.  Identifies a revision of a specific PCI device ID.
-            uint32 deviceId;    // PCI device ID. 16-bit value device ID as reported in the PCI config space.
+            uint32 gfxEngineId;   // Coarse-grain GFX engine ID (R800, SI, etc.)
+            uint32 family;        // Hardware family ID. Driver-defined identifier for a particular family of devices.
+            uint32 eRevId;        // Hardware revision ID. Driver-defined identifier for a particular device and
+                                  // sub-revision in the hardware family designated by the familyId.
+                                  // See AMDGPU_TAHITI_RANGE, AMDGPU_FIJI_RANGE, etc. as defined in amdgpu_asic.h.
+            uint32 revisionId;    // PCI revision ID. 8-bit value as reported in the device structure in the PCI config
+                                  // space.  Identifies a revision of a specific PCI device ID.
+            uint32 deviceId;      // PCI device ID. 16-bit value device ID as reported in the PCI config space.
+            uint32 subsystemId;   // The PCI ID or ACPI ID of the adapter's hardware subsystem.
+            uint32 vendorId;      // The PCI ID or ACPI ID of the adapter's hardware vendor.
+            uint8  luid[8];       // The locally unique identifier for the adapter.
         };
         Ids ids;
     };

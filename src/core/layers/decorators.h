@@ -174,6 +174,7 @@ void* NextObjectAddr(
 static bool TranslateBarrierEventData(
     void* pCbData)
 {
+    PAL_ASSERT(pCbData != nullptr);
     auto*const pData = static_cast<Developer::BarrierData*>(pCbData);
 
     pData->transition.imageInfo.pImage  = PreviousObject(pData->transition.imageInfo.pImage);
@@ -184,11 +185,29 @@ static bool TranslateBarrierEventData(
     return hasValidData;
 }
 
+#if PAL_DEVELOPER_BUILD
+// =====================================================================================================================
+// Returns true if the PreviousObject was non-null, and thus the pData->pCmdBuffer data is valid for this layer.
+static bool TranslateReportRpmBltTypeData(
+    void* pCbData)
+{
+    PAL_ASSERT(pCbData != nullptr);
+    auto*const pData = static_cast<Developer::RpmBltData*>(pCbData);
+
+    ICmdBuffer* pPrevCmdBuffer = PreviousObject(pData->pCmdBuffer);
+    const bool  hasValidData   = (pPrevCmdBuffer != nullptr);
+    pData->pCmdBuffer          = (hasValidData) ? pPrevCmdBuffer : pData->pCmdBuffer;
+
+    return hasValidData;
+}
+#endif
+
 // =====================================================================================================================
 // Returns true if the PreviousObject was non-null, and thus the pData->pCmdBuffer data is valid for this layer.
 static bool TranslateDrawDispatchData(
     void* pCbData)
 {
+    PAL_ASSERT(pCbData != nullptr);
     auto*const pData = static_cast<Developer::DrawDispatchData*>(pCbData);
 
     ICmdBuffer* pPrevCmdBuffer         = PreviousObject(pData->pCmdBuffer);
@@ -203,6 +222,7 @@ static bool TranslateDrawDispatchData(
 static bool TranslateBindPipelineData(
     void* pCbData)
 {
+    PAL_ASSERT(pCbData != nullptr);
     auto*const pData = static_cast<Developer::BindPipelineData*>(pCbData);
 
     ICmdBuffer* pPrevCmdBuffer = PreviousObject(pData->pCmdBuffer);
@@ -218,6 +238,7 @@ static bool TranslateBindPipelineData(
 static bool TranslateDrawDispatchValidationData(
     void* pCbData)
 {
+    PAL_ASSERT(pCbData != nullptr);
     auto*const pData = static_cast<Developer::DrawDispatchValidationData*>(pCbData);
 
     ICmdBuffer* pPrevCmdBuffer = PreviousObject(pData->pCmdBuffer);
@@ -232,6 +253,7 @@ static bool TranslateDrawDispatchValidationData(
 static bool TranslateBindPipelineValidationData(
     void* pCbData)
 {
+    PAL_ASSERT(pCbData != nullptr);
     auto*const pData = static_cast<Developer::BindPipelineValidationData*>(pCbData);
 
     ICmdBuffer* pPrevCmdBuffer = PreviousObject(pData->pCmdBuffer);
@@ -246,6 +268,7 @@ static bool TranslateBindPipelineValidationData(
 static bool TranslateOptimizedRegistersData(
     void* pCbData)
 {
+    PAL_ASSERT(pCbData != nullptr);
     auto*const pData = static_cast<Developer::OptimizedRegistersData*>(pCbData);
 
     ICmdBuffer* pPrevCmdBuffer = PreviousObject(pData->pCmdBuffer);
@@ -261,6 +284,7 @@ static bool TranslateOptimizedRegistersData(
 static bool TranslateGpuMemoryData(
     void* pCbData)
 {
+    PAL_ASSERT(pCbData != nullptr);
     auto*const pData = static_cast<Developer::GpuMemoryData*>(pCbData);
 
     const IGpuMemory* pPrevGpuMemory = PreviousObject(pData->pGpuMemory);
@@ -275,6 +299,7 @@ static bool TranslateGpuMemoryData(
 static bool TranslateBindGpuMemoryData(
     void* pCbData)
 {
+    PAL_ASSERT(pCbData != nullptr);
     auto*const pData = static_cast<Developer::BindGpuMemoryData*>(pCbData);
 
     const IGpuMemory* pPrevGpuMemory = PreviousObject(pData->pGpuMemory);
@@ -3399,6 +3424,12 @@ public:
 
     virtual Result SetHdrMetaData(const ScreenColorConfig& colorConfig) override
         { return m_pNextLayer->SetHdrMetaData(colorConfig); }
+
+    virtual Result GetMaximumFrameLatency(uint32* pFrameLatency) override
+    { return m_pNextLayer->GetMaximumFrameLatency(pFrameLatency); }
+
+    virtual Result SetMaximumFrameLatency(uint32 frameLatency) override
+    { return m_pNextLayer->SetMaximumFrameLatency(frameLatency); }
 
     virtual Result Resize(uint32 width, uint32 height) override
         { return m_pNextLayer->Resize(width, height); }

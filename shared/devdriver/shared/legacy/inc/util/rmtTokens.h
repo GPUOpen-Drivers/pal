@@ -313,7 +313,7 @@ struct RMT_MSG_USERDATA_EMBEDDED_STRING : RMT_TOKEN_DATA
 struct RMT_MSG_USERDATA_DEBUG_NAME : RMT_TOKEN_DATA
 {
     static uint32 constexpr BUFFER_SIZE = RMT_MSG_USERDATA_TOKEN_BYTES_SIZE
-                                        + RMT_MAX_USERDATA_STRING_SIZE
+                                        + RMT_MAX_USERDATA_STRING_SIZE + 1 // +1 for nul-terminator
                                         + RMT_ENCODED_RESOURCE_ID_SIZE;
     uint8 bytes[BUFFER_SIZE];
 
@@ -325,7 +325,11 @@ struct RMT_MSG_USERDATA_DEBUG_NAME : RMT_TOKEN_DATA
                       "Encoded resource id size is incorrect!");
 
         // Calculate the string storage size
-        uint32 stringSize = static_cast<uint32>(strlen(pDebugName));
+        uint32 stringSize = 0;
+        if (pDebugName != nullptr)
+        {
+            stringSize = static_cast<uint32>(strlen(pDebugName));
+        }
 
         // Truncate long strings so that they fit
         DD_WARN(stringSize <= RMT_MAX_USERDATA_STRING_SIZE);
@@ -347,8 +351,11 @@ struct RMT_MSG_USERDATA_DEBUG_NAME : RMT_TOKEN_DATA
         // PAYLOAD_SIZE[31:12] The size of the payload that immediately follows this token, expressed in bytes.
         SetBits(payloadSize, 31, 12);
 
-        // Copy the debug name into the payload first
-        memcpy(&bytes[RMT_MSG_USERDATA_TOKEN_BYTES_SIZE], pDebugName, stringSize);
+        if (pDebugName)
+        {
+            // Copy the debug name into the payload first
+            memcpy(&bytes[RMT_MSG_USERDATA_TOKEN_BYTES_SIZE], pDebugName, stringSize);
+        }
 
         // Append a NULL byte to the end of the string to maintain compatibility
         bytes[RMT_MSG_USERDATA_TOKEN_BYTES_SIZE + stringSize] = '\0';

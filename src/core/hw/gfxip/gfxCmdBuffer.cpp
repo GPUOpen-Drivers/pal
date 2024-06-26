@@ -1012,9 +1012,12 @@ uint32 GfxCmdBuffer::GetUsedSize(
 
 // =====================================================================================================================
 // Compares the client-specified user data update parameters against the current user data values, and filters any
-// redundant updates at the beginning of ending of the range.  Filtering redundant values in the middle of the range
-// would involve significant updates to the rest of PAL, and we typically expect a good hit rate for redundant updates
-// at the beginning or end.  The most common updates are setting 2-dword addresses (best hit rate on high bits) and
+// redundant updates at the beginning or ending of the range.
+//
+// Redundant values in the middle of a partially redundant range are not filtered;
+// HWL's that definitely don't mind potentially more holes in the dirty mask can use the newer UpdateUserData functions.
+//
+// The most common redundant filtered updates are setting 2-dword addresses (best hit rate on high bits) and
 // 4-dword buffer SRDs (best hit rate on last dword).
 //
 // Returns true if there are still entries that should be processed after filtering.  False means that the entire set

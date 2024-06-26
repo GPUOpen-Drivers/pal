@@ -585,6 +585,13 @@ union CB_COLOR0_DCC_CONTROL {
         unsigned int                                                              : 12;
     } bits, bitfields;
     struct {
+        unsigned int                                                              : 25;
+        unsigned int DISABLE_OVERRIDE_INCONSISTENT_KEYS                           :  1;
+        unsigned int ENABLE_MAX_COMP_FRAG_OVERRIDE                                :  1;
+        unsigned int MAX_COMP_FRAGS                                               :  3;
+        unsigned int                                                              :  2;
+    } most;
+    struct {
         unsigned int OVERWRITE_COMBINER_DISABLE                                   :  1;
         unsigned int KEY_CLEAR_ENABLE                                             :  1;
         unsigned int                                                              :  8;
@@ -615,13 +622,6 @@ union CB_COLOR0_DCC_CONTROL {
         unsigned int FRAGMENT_COMPRESS_DISABLE                                    :  1;
         unsigned int                                                              :  7;
     } gfx11;
-    struct {
-        unsigned int                                                              : 25;
-        unsigned int DISABLE_OVERRIDE_INCONSISTENT_KEYS                           :  1;
-        unsigned int ENABLE_MAX_COMP_FRAG_OVERRIDE                                :  1;
-        unsigned int MAX_COMP_FRAGS                                               :  3;
-        unsigned int                                                              :  2;
-    } phx2;
 
     unsigned int u32All;
     signed int   i32All;
@@ -921,6 +921,13 @@ union CB_COLOR1_DCC_CONTROL {
         unsigned int                                                              : 12;
     } bits, bitfields;
     struct {
+        unsigned int                                                              : 25;
+        unsigned int DISABLE_OVERRIDE_INCONSISTENT_KEYS                           :  1;
+        unsigned int ENABLE_MAX_COMP_FRAG_OVERRIDE                                :  1;
+        unsigned int MAX_COMP_FRAGS                                               :  3;
+        unsigned int                                                              :  2;
+    } most;
+    struct {
         unsigned int OVERWRITE_COMBINER_DISABLE                                   :  1;
         unsigned int KEY_CLEAR_ENABLE                                             :  1;
         unsigned int                                                              :  8;
@@ -951,13 +958,6 @@ union CB_COLOR1_DCC_CONTROL {
         unsigned int FRAGMENT_COMPRESS_DISABLE                                    :  1;
         unsigned int                                                              :  7;
     } gfx11;
-    struct {
-        unsigned int                                                              : 25;
-        unsigned int DISABLE_OVERRIDE_INCONSISTENT_KEYS                           :  1;
-        unsigned int ENABLE_MAX_COMP_FRAG_OVERRIDE                                :  1;
-        unsigned int MAX_COMP_FRAGS                                               :  3;
-        unsigned int                                                              :  2;
-    } phx2;
 
     unsigned int u32All;
     signed int   i32All;
@@ -1257,6 +1257,13 @@ union CB_COLOR2_DCC_CONTROL {
         unsigned int                                                              : 12;
     } bits, bitfields;
     struct {
+        unsigned int                                                              : 25;
+        unsigned int DISABLE_OVERRIDE_INCONSISTENT_KEYS                           :  1;
+        unsigned int ENABLE_MAX_COMP_FRAG_OVERRIDE                                :  1;
+        unsigned int MAX_COMP_FRAGS                                               :  3;
+        unsigned int                                                              :  2;
+    } most;
+    struct {
         unsigned int OVERWRITE_COMBINER_DISABLE                                   :  1;
         unsigned int KEY_CLEAR_ENABLE                                             :  1;
         unsigned int                                                              :  8;
@@ -1287,13 +1294,6 @@ union CB_COLOR2_DCC_CONTROL {
         unsigned int FRAGMENT_COMPRESS_DISABLE                                    :  1;
         unsigned int                                                              :  7;
     } gfx11;
-    struct {
-        unsigned int                                                              : 25;
-        unsigned int DISABLE_OVERRIDE_INCONSISTENT_KEYS                           :  1;
-        unsigned int ENABLE_MAX_COMP_FRAG_OVERRIDE                                :  1;
-        unsigned int MAX_COMP_FRAGS                                               :  3;
-        unsigned int                                                              :  2;
-    } phx2;
 
     unsigned int u32All;
     signed int   i32All;
@@ -1593,6 +1593,13 @@ union CB_COLOR3_DCC_CONTROL {
         unsigned int                                                              : 12;
     } bits, bitfields;
     struct {
+        unsigned int                                                              : 25;
+        unsigned int DISABLE_OVERRIDE_INCONSISTENT_KEYS                           :  1;
+        unsigned int ENABLE_MAX_COMP_FRAG_OVERRIDE                                :  1;
+        unsigned int MAX_COMP_FRAGS                                               :  3;
+        unsigned int                                                              :  2;
+    } most;
+    struct {
         unsigned int OVERWRITE_COMBINER_DISABLE                                   :  1;
         unsigned int KEY_CLEAR_ENABLE                                             :  1;
         unsigned int                                                              :  8;
@@ -1623,13 +1630,6 @@ union CB_COLOR3_DCC_CONTROL {
         unsigned int FRAGMENT_COMPRESS_DISABLE                                    :  1;
         unsigned int                                                              :  7;
     } gfx11;
-    struct {
-        unsigned int                                                              : 25;
-        unsigned int DISABLE_OVERRIDE_INCONSISTENT_KEYS                           :  1;
-        unsigned int ENABLE_MAX_COMP_FRAG_OVERRIDE                                :  1;
-        unsigned int MAX_COMP_FRAGS                                               :  3;
-        unsigned int                                                              :  2;
-    } phx2;
 
     unsigned int u32All;
     signed int   i32All;
@@ -1929,6 +1929,13 @@ union CB_COLOR4_DCC_CONTROL {
         unsigned int                                                              : 12;
     } bits, bitfields;
     struct {
+        unsigned int                                                              : 25;
+        unsigned int DISABLE_OVERRIDE_INCONSISTENT_KEYS                           :  1;
+        unsigned int ENABLE_MAX_COMP_FRAG_OVERRIDE                                :  1;
+        unsigned int MAX_COMP_FRAGS                                               :  3;
+        unsigned int                                                              :  2;
+    } most;
+    struct {
         unsigned int OVERWRITE_COMBINER_DISABLE                                   :  1;
         unsigned int KEY_CLEAR_ENABLE                                             :  1;
         unsigned int                                                              :  8;
@@ -1959,13 +1966,6 @@ union CB_COLOR4_DCC_CONTROL {
         unsigned int FRAGMENT_COMPRESS_DISABLE                                    :  1;
         unsigned int                                                              :  7;
     } gfx11;
-    struct {
-        unsigned int                                                              : 25;
-        unsigned int DISABLE_OVERRIDE_INCONSISTENT_KEYS                           :  1;
-        unsigned int ENABLE_MAX_COMP_FRAG_OVERRIDE                                :  1;
-        unsigned int MAX_COMP_FRAGS                                               :  3;
-        unsigned int                                                              :  2;
-    } phx2;
 
     unsigned int u32All;
     signed int   i32All;
@@ -2265,6 +2265,13 @@ union CB_COLOR5_DCC_CONTROL {
         unsigned int                                                              : 12;
     } bits, bitfields;
     struct {
+        unsigned int                                                              : 25;
+        unsigned int DISABLE_OVERRIDE_INCONSISTENT_KEYS                           :  1;
+        unsigned int ENABLE_MAX_COMP_FRAG_OVERRIDE                                :  1;
+        unsigned int MAX_COMP_FRAGS                                               :  3;
+        unsigned int                                                              :  2;
+    } most;
+    struct {
         unsigned int OVERWRITE_COMBINER_DISABLE                                   :  1;
         unsigned int KEY_CLEAR_ENABLE                                             :  1;
         unsigned int                                                              :  8;
@@ -2295,13 +2302,6 @@ union CB_COLOR5_DCC_CONTROL {
         unsigned int FRAGMENT_COMPRESS_DISABLE                                    :  1;
         unsigned int                                                              :  7;
     } gfx11;
-    struct {
-        unsigned int                                                              : 25;
-        unsigned int DISABLE_OVERRIDE_INCONSISTENT_KEYS                           :  1;
-        unsigned int ENABLE_MAX_COMP_FRAG_OVERRIDE                                :  1;
-        unsigned int MAX_COMP_FRAGS                                               :  3;
-        unsigned int                                                              :  2;
-    } phx2;
 
     unsigned int u32All;
     signed int   i32All;
@@ -2601,6 +2601,13 @@ union CB_COLOR6_DCC_CONTROL {
         unsigned int                                                              : 12;
     } bits, bitfields;
     struct {
+        unsigned int                                                              : 25;
+        unsigned int DISABLE_OVERRIDE_INCONSISTENT_KEYS                           :  1;
+        unsigned int ENABLE_MAX_COMP_FRAG_OVERRIDE                                :  1;
+        unsigned int MAX_COMP_FRAGS                                               :  3;
+        unsigned int                                                              :  2;
+    } most;
+    struct {
         unsigned int OVERWRITE_COMBINER_DISABLE                                   :  1;
         unsigned int KEY_CLEAR_ENABLE                                             :  1;
         unsigned int                                                              :  8;
@@ -2631,13 +2638,6 @@ union CB_COLOR6_DCC_CONTROL {
         unsigned int FRAGMENT_COMPRESS_DISABLE                                    :  1;
         unsigned int                                                              :  7;
     } gfx11;
-    struct {
-        unsigned int                                                              : 25;
-        unsigned int DISABLE_OVERRIDE_INCONSISTENT_KEYS                           :  1;
-        unsigned int ENABLE_MAX_COMP_FRAG_OVERRIDE                                :  1;
-        unsigned int MAX_COMP_FRAGS                                               :  3;
-        unsigned int                                                              :  2;
-    } phx2;
 
     unsigned int u32All;
     signed int   i32All;
@@ -2937,6 +2937,13 @@ union CB_COLOR7_DCC_CONTROL {
         unsigned int                                                              : 12;
     } bits, bitfields;
     struct {
+        unsigned int                                                              : 25;
+        unsigned int DISABLE_OVERRIDE_INCONSISTENT_KEYS                           :  1;
+        unsigned int ENABLE_MAX_COMP_FRAG_OVERRIDE                                :  1;
+        unsigned int MAX_COMP_FRAGS                                               :  3;
+        unsigned int                                                              :  2;
+    } most;
+    struct {
         unsigned int OVERWRITE_COMBINER_DISABLE                                   :  1;
         unsigned int KEY_CLEAR_ENABLE                                             :  1;
         unsigned int                                                              :  8;
@@ -2967,13 +2974,6 @@ union CB_COLOR7_DCC_CONTROL {
         unsigned int FRAGMENT_COMPRESS_DISABLE                                    :  1;
         unsigned int                                                              :  7;
     } gfx11;
-    struct {
-        unsigned int                                                              : 25;
-        unsigned int DISABLE_OVERRIDE_INCONSISTENT_KEYS                           :  1;
-        unsigned int ENABLE_MAX_COMP_FRAG_OVERRIDE                                :  1;
-        unsigned int MAX_COMP_FRAGS                                               :  3;
-        unsigned int                                                              :  2;
-    } phx2;
 
     unsigned int u32All;
     signed int   i32All;

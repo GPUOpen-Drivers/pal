@@ -227,7 +227,6 @@ void PAL_STDCALL Platform::GpuProfilerCb(
     case Developer::CallbackType::FreeGpuMemory:
     case Developer::CallbackType::SubAllocGpuMemory:
     case Developer::CallbackType::SubFreeGpuMemory:
-        PAL_ASSERT(pCbData != nullptr);
         TranslateGpuMemoryData(pCbData);
         break;
     case Developer::CallbackType::PresentConcluded:
@@ -237,11 +236,7 @@ void PAL_STDCALL Platform::GpuProfilerCb(
     case Developer::CallbackType::BarrierBegin:
     case Developer::CallbackType::BarrierEnd:
     case Developer::CallbackType::ImageBarrier:
-    {
-        PAL_ASSERT(pCbData != nullptr);
-        const bool hasValidData = TranslateBarrierEventData(pCbData);
-
-        if (hasValidData)
+        if (TranslateBarrierEventData(pCbData))
         {
             Developer::BarrierData* pData      = static_cast<Developer::BarrierData*>(pCbData);
             CmdBufferDecorator*     pCmdBuffer = static_cast<CmdBufferDecorator*>(pData->pCmdBuffer);
@@ -252,31 +247,27 @@ void PAL_STDCALL Platform::GpuProfilerCb(
             }
         }
         break;
-    }
     case Developer::CallbackType::DrawDispatch:
-        PAL_ASSERT(pCbData != nullptr);
         TranslateDrawDispatchData(pCbData);
         break;
     case Developer::CallbackType::BindPipeline:
-        PAL_ASSERT(pCbData != nullptr);
         TranslateBindPipelineData(pCbData);
         break;
 #if PAL_DEVELOPER_BUILD
     case Developer::CallbackType::DrawDispatchValidation:
-        PAL_ASSERT(pCbData != nullptr);
         TranslateDrawDispatchValidationData(pCbData);
         break;
     case Developer::CallbackType::BindPipelineValidation:
-        PAL_ASSERT(pCbData != nullptr);
         TranslateBindPipelineValidationData(pCbData);
         break;
     case Developer::CallbackType::OptimizedRegisters:
-        PAL_ASSERT(pCbData != nullptr);
         TranslateOptimizedRegistersData(pCbData);
+        break;
+    case Developer::CallbackType::RpmBlt:
+        TranslateReportRpmBltTypeData(pCbData);
         break;
 #endif
     case Developer::CallbackType::BindGpuMemory:
-        PAL_ASSERT(pCbData != nullptr);
         TranslateBindGpuMemoryData(pCbData);
         break;
     default:

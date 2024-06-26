@@ -167,7 +167,6 @@ void PAL_STDCALL Platform::CmdBufferLoggerCb(
     case Developer::CallbackType::FreeGpuMemory:
     case Developer::CallbackType::SubAllocGpuMemory:
     case Developer::CallbackType::SubFreeGpuMemory:
-        PAL_ASSERT(pCbData != nullptr);
         TranslateGpuMemoryData(pCbData);
         break;
     case Developer::CallbackType::PresentConcluded:
@@ -175,16 +174,10 @@ void PAL_STDCALL Platform::CmdBufferLoggerCb(
     case Developer::CallbackType::SurfRegData:
         break;
     case Developer::CallbackType::BarrierBegin:
-        PAL_ASSERT(pCbData != nullptr);
         TranslateBarrierEventData(pCbData);
         break;
     case Developer::CallbackType::BarrierEnd:
-    {
-        PAL_ASSERT(pCbData != nullptr);
-
-        const bool hasValidData = TranslateBarrierEventData(pCbData);
-
-        if (hasValidData)
+        if (TranslateBarrierEventData(pCbData))
         {
             Developer::BarrierData* pData      = static_cast<Developer::BarrierData*>(pCbData);
             CmdBuffer*              pCmdBuffer = static_cast<CmdBuffer*>(pData->pCmdBuffer);
@@ -192,14 +185,8 @@ void PAL_STDCALL Platform::CmdBufferLoggerCb(
             pCmdBuffer->DescribeBarrier(pData, "BarrierEnd:");
         }
         break;
-    }
     case Developer::CallbackType::ImageBarrier:
-    {
-        PAL_ASSERT(pCbData != nullptr);
-
-        const bool hasValidData = TranslateBarrierEventData(pCbData);
-
-        if (hasValidData)
+        if (TranslateBarrierEventData(pCbData))
         {
             Developer::BarrierData* pData      = static_cast<Developer::BarrierData*>(pCbData);
             CmdBuffer*              pCmdBuffer = static_cast<CmdBuffer*>(pData->pCmdBuffer);
@@ -207,13 +194,8 @@ void PAL_STDCALL Platform::CmdBufferLoggerCb(
             pCmdBuffer->DescribeBarrier(pData, "ImageBarrier:");
         }
         break;
-    }
     case Developer::CallbackType::DrawDispatch:
-    {
-        PAL_ASSERT(pCbData != nullptr);
-        const bool hasValidData = TranslateDrawDispatchData(pCbData);
-
-        if (hasValidData)
+        if (TranslateDrawDispatchData(pCbData))
         {
             Developer::DrawDispatchData* pData = static_cast<Developer::DrawDispatchData*>(pCbData);
             CmdBuffer* pCmdBuffer = static_cast<CmdBuffer*>(pData->pCmdBuffer);
@@ -221,13 +203,8 @@ void PAL_STDCALL Platform::CmdBufferLoggerCb(
             pCmdBuffer->AddDrawDispatchInfo(pData->cmdType);
         }
         break;
-    }
     case Developer::CallbackType::BindPipeline:
-    {
-        PAL_ASSERT(pCbData != nullptr);
-        const bool hasValidData = TranslateBindPipelineData(pCbData);
-
-        if (hasValidData)
+        if (TranslateBindPipelineData(pCbData))
         {
             Developer::BindPipelineData* pData      = static_cast<Developer::BindPipelineData*>(pCbData);
             CmdBuffer*                   pCmdBuffer = static_cast<CmdBuffer*>(pData->pCmdBuffer);
@@ -235,24 +212,20 @@ void PAL_STDCALL Platform::CmdBufferLoggerCb(
             pCmdBuffer->UpdateDrawDispatchInfo(pData->pPipeline, pData->bindPoint, pData->apiPsoHash);
         }
         break;
-    }
-#if PAL_DEVELOPER_BUILD
     case Developer::CallbackType::DrawDispatchValidation:
-        PAL_ASSERT(pCbData != nullptr);
         TranslateDrawDispatchValidationData(pCbData);
         break;
     case Developer::CallbackType::BindPipelineValidation:
-        PAL_ASSERT(pCbData != nullptr);
         TranslateBindPipelineValidationData(pCbData);
         break;
     case Developer::CallbackType::OptimizedRegisters:
-        PAL_ASSERT(pCbData != nullptr);
         TranslateOptimizedRegistersData(pCbData);
         break;
-#endif
     case Developer::CallbackType::BindGpuMemory:
-        PAL_ASSERT(pCbData != nullptr);
         TranslateBindGpuMemoryData(pCbData);
+        break;
+    case Developer::CallbackType::RpmBlt:
+        TranslateReportRpmBltTypeData(pCbData);
         break;
     default:
         PAL_ASSERT_ALWAYS();

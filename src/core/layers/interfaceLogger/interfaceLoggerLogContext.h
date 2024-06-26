@@ -28,6 +28,7 @@
 #if PAL_DEVELOPER_BUILD
 
 #include "core/layers/decorators.h"
+#include "palDeveloperHooks.h"
 #include "palFile.h"
 #include "palJsonWriter.h"
 
@@ -193,7 +194,7 @@ enum class InterfaceFunc : uint32
     CmdBufferCmdStopGpuProfilerLogging,
     CmdBufferDestroy,
     CmdBufferCmdSetViewInstanceMask,
-    CmdUpdateHiSPretests,
+    CmdBufferCmdUpdateHiSPretests,
     CmdBufferCmdSetClipRects,
     CmdBufferCmdPostProcessFrame,
     ColorBlendStateDestroy,
@@ -329,13 +330,26 @@ enum class InterfaceFunc : uint32
     Count
 };
 
-// Must be provided to each LogContext::BeginFunc call.
-struct BeginFuncInfo
+// Stores all arguments to a single developer callback.
+struct DevCallbackArgs
 {
-    InterfaceFunc funcId;       // Which function will be logged.
-    uint32        objectId;     // The PAL interface object being called.
-    uint64        preCallTime;  // The tick immediately before calling down to the next layer.
-    uint64        postCallTime; // The tick immediately after calling down to the next layer.
+    Developer::CallbackType callbackType;
+
+    union
+    {
+        Developer::GpuMemoryData              gpuMemory;
+        Developer::PresentationModeData       present;
+        Developer::ImageDataAddrMgrSurfInfo   image;
+        Developer::DrawDispatchData           drawDispatch;
+        Developer::BindPipelineData           pipeline;
+        Developer::BindPipelineValidationData pipelineValidation;
+        Developer::DrawDispatchValidationData drawDispatchValidation;
+        Developer::OptimizedRegistersData     optimizedReg;
+        Developer::SurfRegDataInfo            surfReg;
+        Developer::BindGpuMemoryData          bindGpuMem;
+        Developer::BarrierData                barrier;
+        Developer::RpmBltData                 rpmBlt;
+    } data;
 };
 
 // =====================================================================================================================
@@ -349,9 +363,7 @@ public:
 
     Result OpenFile(const char* pFilePath);
     Result WriteFile();
-
-    // Returns true if the log file has already been opened.
-    bool IsFileOpen() const { return m_file.IsOpen(); }
+    void WriteIfOpen();
 
     virtual void WriteString(const char* pString, uint32 length) override;
     virtual void WriteCharacter(char character) override;
@@ -417,8 +429,11 @@ public:
     // Must be called once to associate a context with a log file. Logging can occur before the log is opened.
     Result OpenFile(const char* pFilePath) { return m_stream.OpenFile(pFilePath); }
 
+    // Try to flush our JSON text to our log file.
+    void Flush() { m_stream.WriteIfOpen(); }
+
     // These functions begin and end a specially formatted map which represents a PAL interface function.
-    void BeginFunc(const BeginFuncInfo& info, uint32 threadId);
+    void BeginFunc(uint32 objectId, InterfaceFunc func, uint32 threadId, uint64 preCallTime, uint64 postCallTime);
     void EndFunc();
 
     // Most PAL functions need to log inputs and outputs. They should be placed into maps using these functions.
@@ -455,6 +470,7 @@ public:
     // These functions create a list or map that represents a PAL interface structure.
     void Struct(const AcquireNextImageInfo& value);
     void Struct(const BarrierInfo& value);
+    void Struct(const BarrierTransition& value);
     void Struct(const PrimeGpuCacheRange& value);
     void Struct(const AcquireReleaseInfo& value);
     void Struct(const BindStreamOutTargetParams& value);
@@ -486,6 +502,9 @@ public:
     void Struct(const DepthStencilSelectFlags& value);
     void Struct(const DepthStencilStateCreateInfo& value);
     void Struct(const DepthStencilViewCreateInfo& value);
+    void Struct(const DevCallbackArgs& value);
+    void Struct(const Developer::BarrierData& value, bool isBarrierBegin);
+    void Struct(const Developer::RpmBltData& value);
     void Struct(const DeviceFinalizeInfo& value);
     void Struct(const DirectCaptureInfo& value);
 
@@ -522,6 +541,7 @@ public:
     void Struct(ImageCreateFlags value);
     void Struct(const ImageCreateInfo& value);
     void Struct(ImageLayout value);
+    void Struct(const ImageMemoryLayout& value);
     void Struct(const ImageResolveRegion& value);
     void Struct(const ImageScaledCopyRegion& value);
     void Struct(ImageUsageFlags value);
@@ -611,7 +631,6 @@ public:
 
     // These functions create a string value for a PAL interface enumeration.
     void Enum(AtomicOp value);
-    void Enum(Developer::BarrierReason value);
     void Enum(DispatchInterleaveSize value);
     void Enum(BinningOverride value);
     void Enum(Blend value);
@@ -624,6 +643,11 @@ public:
     void Enum(CullMode value);
     void Enum(DepthRange value);
     void Enum(DepthClampMode value);
+    void Enum(Developer::AcquirePoint value);
+    void Enum(Developer::BarrierReason value);
+    void Enum(Developer::BarrierType value);
+    void Enum(Developer::CallbackType value);
+    void Enum(Developer::RpmBltType value);
     void Enum(DeviceClockMode value);
     void Enum(EngineType value);
     void Enum(FaceOrientation value);
@@ -739,7 +763,8 @@ public:
 private:
     void Object(InterfaceObject objectType, uint32 objectId);
 
-    LogStream m_stream;
+    Platform*const m_pPlatform;
+    LogStream      m_stream;
 
     PAL_DISALLOW_DEFAULT_CTOR(LogContext);
     PAL_DISALLOW_COPY_AND_ASSIGN(LogContext);

@@ -683,7 +683,7 @@ static void SetupGfx11Workarounds(
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     constexpr uint32 HandledWaMask[] = { 0x1E793001, 0x00084B00 }; // Workarounds handled by PAL.
-    constexpr uint32 OutsideWaMask[] = { 0xE0068DFE, 0x000714FC }; // Workarounds handled by other components.
+    constexpr uint32 OutsideWaMask[] = { 0xE0068DFE, 0x002714FC }; // Workarounds handled by other components.
     constexpr uint32 MissingWaMask[] = { 0x00004000, 0x0000A001 }; // Workarounds that should be handled by PAL that
                                                                    // are not yet implemented or are unlikey to be
                                                                    // implemented.
@@ -700,7 +700,7 @@ static void SetupGfx11Workarounds(
                   "Workaround Masks do not match!");
 #endif
 
-    static_assert(Gfx11NumWorkarounds == 53, "Workaround count mismatch between PAL and SWD");
+    static_assert(Gfx11NumWorkarounds == 54, "Workaround count mismatch between PAL and SWD");
 
     if (workarounds.ppPbbPBBBreakBatchDifferenceWithPrimLimit_FpovLimit_DeallocLimit_A_)
     {
@@ -862,8 +862,7 @@ void SettingsLoader::OverrideDefaults(
             // APU tuning with 2MB L2 Cache shows ATM Ring Buffer size 768 KiB yields best performance
             m_settings.gfx11VertexAttributesRingBufferSizePerSe = 768_KiB;
 
-            if (false
-                || IsPhoenix2(device)
+            if (IsPhoenix2(device)
                )
             {
                 // For APU's with smaller L2 Cache, limit ATM Ring Buffer size to 512 KiB

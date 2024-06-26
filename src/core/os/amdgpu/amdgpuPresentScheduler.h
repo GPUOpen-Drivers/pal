@@ -32,7 +32,12 @@ namespace Pal
 
 class IDevice;
 class IQueue;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 881
+enum class WsiPlatform : uint32;
+#else
 enum WsiPlatform : uint32;
+#endif
 
 namespace Amdgpu
 {

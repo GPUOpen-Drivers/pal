@@ -243,6 +243,7 @@ protected:
 
     BoundGpuMemory  m_gpuMem;
     gpusize         m_gpuMemSize;
+    gpusize         m_gpuMemOffset;
 
     void*   m_pPipelineBinary;      // Buffer containing the pipeline binary data (Pipeline ELF ABI).
     size_t  m_pipelineBinaryLen;    // Size of the pipeline binary data, in bytes.

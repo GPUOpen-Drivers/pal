@@ -48,7 +48,8 @@ GraphicsPipeline::GraphicsPipeline(
     m_numColorTargets(0),
     m_gfxShaderLibraries{},
     m_numGfxShaderLibraries(0),
-    m_logicOp(LogicOp::Copy)
+    m_logicOp(LogicOp::Copy),
+    m_outputNumVertices(0)
 {
     m_flags.u32All = 0;
 
@@ -122,8 +123,8 @@ Result GraphicsPipeline::Init(
         GpuMemoryResourceBindEventData bindData { };
         bindData.pObj               = this;
         bindData.pGpuMemory         = m_gpuMem.Memory();
-        bindData.requiredGpuMemSize = m_gpuMemSize;
-        bindData.offset             = m_gpuMem.Offset();
+        bindData.requiredGpuMemSize = m_gpuMemSize - m_gpuMemOffset;
+        bindData.offset             = m_gpuMem.Offset() + m_gpuMemOffset;
         pEventProvider->LogGpuMemoryResourceBindEvent(bindData);
 
         Developer::BindGpuMemoryData callbackData = {};
@@ -283,6 +284,7 @@ Result GraphicsPipeline::InitFromLibraries(
         m_info.resourceMappingHash         = resourceHash64.qwords[0];
 
         result = LinkGraphicsLibraries(createInfo);
+        CalculateOutputNumVertices();
     }
 
     return result;

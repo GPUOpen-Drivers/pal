@@ -56,32 +56,6 @@ static_assert(Util::ArrayLen(TraceMemoryTypeTable) == static_cast<uint32>(Pal::L
     "The number of LocalMemoryTypes have changed. Please update TraceMemoryTypeTable.");
 
 // =====================================================================================================================
-// Populate TraceGfxIpLevel from Pal::GfxIpLevel. Note: All stepping values are set to zero here. They will be correctly
-// reassigned later from DeviceProperties::gfxStepping.
-void PopulateTraceGfxIpLevel(
-    const GfxIpLevel& gfxIpLevel,
-    TraceGfxIpLevel*  pTraceGfxIpLevel)
-{
-    switch (gfxIpLevel)
-    {
-#if PAL_BUILD_GFX
-    case GfxIpLevel::GfxIp10_1:
-        *pTraceGfxIpLevel = { 10, 1, 0 };
-        break;
-    case GfxIpLevel::GfxIp10_3:
-        *pTraceGfxIpLevel = { 10, 3, 0 };
-        break;
-    case GfxIpLevel::GfxIp11_0:
-        *pTraceGfxIpLevel = { 11, 0, 0 };
-        break;
-#endif
-    default:
-        PAL_ASSERT_ALWAYS();
-        break;
-    }
-}
-
-// =====================================================================================================================
 AsicInfoTraceSource::AsicInfoTraceSource(
     Platform* pPlatform)
     :
@@ -178,8 +152,9 @@ void AsicInfoTraceSource::FillTraceChunkAsicInfo(
     pAsicInfo->hardwareContexts           = properties.gfxipProperties.hardwareContexts;
     pAsicInfo->gpuType                    = static_cast<TraceGpuType>(properties.gpuType);
 
-    PopulateTraceGfxIpLevel(properties.gfxLevel, &(pAsicInfo->gfxIpLevel));
-    pAsicInfo->gfxIpLevel.stepping        = properties.gfxStepping;
+    pAsicInfo->gfxIpLevel.major           = properties.gfxTriple.major;
+    pAsicInfo->gfxIpLevel.minor           = properties.gfxTriple.minor;
+    pAsicInfo->gfxIpLevel.stepping        = properties.gfxTriple.stepping;
 
     pAsicInfo->gpuIndex                   = properties.gpuIndex;
     pAsicInfo->ceRamSize                  = properties.gfxipProperties.ceRamSize;

@@ -212,6 +212,25 @@ void TextWriter::WriteVisualConfirm(
     const uint32 presentModeIdx = uint32(debugOverlayInfo.presentMode);
     PAL_ASSERT(presentModeIdx < uint32(PresentMode::Count));
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 881
+    const char* const WsiPlatformStrings[] =
+    {
+        "Win32",         // 0x0,
+        "Xcb",           // 0x1,
+        "Xlib",          // 0x2,
+        "Wayland",       // 0x3,
+        "Mir",           // 0x4,
+        "DirectDisplay", // 0x5,
+        "Android",       // 0x6,
+        "Dxgi",          // 0x7,
+    };
+
+    static_assert(ArrayLen(WsiPlatformStrings) == static_cast<uint32>(WsiPlatform::Count),
+                  "The WsiPlatform string table needs to be updated.");
+
+    const uint32 wsiPlatformIdx = uint32(debugOverlayInfo.wsiPlatform);
+    PAL_ASSERT(wsiPlatformIdx < uint32(WsiPlatform::Count));
+#else
     const char* const WsiPlatformStrings[] =
     {
         "Win32",         // 0x00000001,
@@ -226,8 +245,13 @@ void TextWriter::WriteVisualConfirm(
 
     const uint32 wsiPlatformIdx = Log2(debugOverlayInfo.wsiPlatform);
     PAL_ASSERT(wsiPlatformIdx < 0xFF);
+#endif
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 881
+    if (debugOverlayInfo.wsiPlatform != WsiPlatform::Win32)
+#else
     if (debugOverlayInfo.wsiPlatform != 0)
+#endif
     {
         // We know our WSI platform and may know our present mode (if not, we'll print Unknown).
         Util::Snprintf(&overlayText[textLines++][0], BufSize, "CPU Frame Rate:    %7.2f FPS (%s | %s)",

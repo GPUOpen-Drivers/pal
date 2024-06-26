@@ -116,10 +116,10 @@ if (PAL_BUILD_GFX9)
               )
     endif()
 
+    # We'll remove this soon...
     pal_bp( PAL_BUILD_PHOENIX2 ON MODE "AUTHOR_WARNING"
             ASIC_CONFIG
                 PAL_BUILD_GFX11
-                CHIP_HDR_PHOENIX2
           )
 #endif
 
