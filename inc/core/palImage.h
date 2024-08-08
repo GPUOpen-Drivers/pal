@@ -602,6 +602,57 @@ struct SubresLayout
 ///         is always plane 0. If the format is @ref ChNumFormat::YV12 it has three planes where plane 1 is the
 ///         red-difference chrominance plane and plane 2 is the blue-difference chrominance plane. Otherwise, plane 1
 ///         interleaves blue-difference and red-difference chrominance values.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 886
+struct SubresId
+{
+    uint8  plane;      ///< Selects a data plane.
+    uint8  mipLevel;   ///< Selects a mip level.
+    uint16 arraySlice; ///< Selects an array slice.
+
+    bool operator==(const SubresId& rhs) const
+    {
+        return (plane      == rhs.plane)    &&
+               (mipLevel   == rhs.mipLevel) &&
+               (arraySlice == rhs.arraySlice);
+    }
+};
+
+/// Defines a range of subresources.
+struct SubresRange
+{
+    SubresId startSubres;  ///< First subresource in the range.
+    uint8    numPlanes;    ///< Number of planes in the range.
+    uint8    numMips;      ///< Number of mip levels in the range.
+    uint16   numSlices;    ///< Number of slices in the range.
+
+    bool operator==(const SubresRange& rhs) const
+    {
+        return (startSubres == rhs.startSubres) &&
+               (numPlanes   == rhs.numPlanes)   &&
+               (numMips     == rhs.numMips)     &&
+               (numSlices   == rhs.numSlices);
+    }
+};
+
+/// Determines if two subresource ranges are overlapped.
+///
+/// @returns True if two subresource ranges are overlapped, false otherwise.
+constexpr bool OverlappedSubresRanges(
+    const SubresRange& a,
+    const SubresRange& b)
+{
+    const SubresId aStart = a.startSubres;
+    const SubresId bStart = b.startSubres;
+
+    return (aStart.plane      < (bStart.plane      + b.numPlanes)) &&
+           (bStart.plane      < (aStart.plane      + a.numPlanes)) &&
+           (aStart.mipLevel   < (bStart.mipLevel   + b.numMips))   &&
+           (bStart.mipLevel   < (aStart.mipLevel   + a.numMips))   &&
+           (aStart.arraySlice < (bStart.arraySlice + b.numSlices)) &&
+           (bStart.arraySlice < (aStart.arraySlice + a.numSlices));
+}
+
+#else
 struct SubresId
 {
     uint32 plane;      ///< Selects a data plane.
@@ -617,6 +668,8 @@ struct SubresRange
     uint32   numMips;      ///< Number of mip levels in the range.
     uint32   numSlices;    ///< Number of slices in the range.
 };
+
+#endif
 
 /**
  ***********************************************************************************************************************

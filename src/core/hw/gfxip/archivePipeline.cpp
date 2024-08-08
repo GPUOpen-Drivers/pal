@@ -136,6 +136,12 @@ Result ArchivePipeline::Init(
         if (m_pipelines.IsEmpty() == false)
         {
             m_info = m_pipelines.Back()->GetInfo();
+            // Propagate usesCps and cpsGlobal from constituent pipelines.
+            for (IPipeline* pPipeline : m_pipelines)
+            {
+                m_info.flags.usesCps   |= pPipeline->GetInfo().flags.usesCps;
+                m_info.flags.cpsGlobal |= pPipeline->GetInfo().flags.cpsGlobal;
+            }
         }
         if (m_loadedElfs.IsEmpty() == false)
         {

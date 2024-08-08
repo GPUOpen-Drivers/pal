@@ -468,9 +468,10 @@ struct GpuQueueProperties
         {
             struct
             {
-                uint32 supportsSwapChainPresents :  1;
-                uint32 reserved744               :  1;
-                uint32 reserved                  : 30;
+                uint32 supportsSwapChainPresents  :  1;
+                uint32 reserved744                :  1;
+                uint32 supportSplitReleaseAcquire :  1;
+                uint32 reserved                   : 29;
             };
             uint32 u32All;
         } flags;
@@ -578,10 +579,10 @@ struct GpuChipProperties
 {
     uint32  gfxEngineId;    // Coarse-grain GFX engine ID (R800, SI, etc.).
     uint32  familyId;       // Hardware family ID.  Driver-defined identifier for a particular family of devices.
-                            // E.g., FAMILY_SI, FAMILY_VI, etc. as defined in amdgpu_asic.h
+                            // E.g., FAMILY_NV3, etc. as defined in amdgpu_asic.h
     uint32  eRevId;         // Hardware revision ID.  Driver-defined identifier for a particular device and
                             // sub-revision in the hardware family designated by the familyId.
-                            // See AMDGPU_TAHITI_RANGE, AMDGPU_FIJI_RANGE, etc. as defined in amdgpu_asic.h.
+                            // See AMDGPU_NAVI31_RANGE, etc. as defined in amdgpu_asic.h.
     uint32  revisionId;     // PCI revision ID.  8-bit value as reported in the device structure in the PCI config
                             // space.  Identifies a revision of a specific PCI device ID.
     uint32  deviceId;       // PCI device ID.  16-bit value device ID as reported in the PCI config space.
@@ -605,7 +606,8 @@ struct GpuChipProperties
 
     uint32 cpUcodeVersion;      // Command Processor feature version.
                                 // Assume all blocks in the CP share the same feature version.
-    uint32 pfpUcodeVersion;     // Command Processor, compute engine firmware version.
+    uint32 pfpUcodeVersion;     // PrefetchProcessor Command Processor firmware version.
+    uint32 mecUcodeVersion;     // ME Compute Command Processor firmware version.
 
     struct
     {
@@ -712,9 +714,8 @@ struct GpuChipProperties
             uint32 supportFloat64SharedAtomicMinMax :  1; // Indicates support for float64 shared atomics min and max op
             uint32 support1dDispatchInterleave      :  1; // Indicates support for 1D Dispatch Interleave
             uint32 placeholder1                     :  1;
-            uint32 gfx6DataValid                    :  1;
             uint32 gfx9DataValid                    :  1;
-            uint32 reserved                         : 12;
+            uint32 reserved                         : 13;
         };
     } gfxip;
 #endif
@@ -829,12 +830,16 @@ struct GpuChipProperties
                                                                  // provides CmdReleaseThenAcquire() as a convenient
                                                                  // way to replace the legacy barrier interface's
                                                                  // CmdBarrier() to handle single point barriers.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 883
                 uint64 supportSplitReleaseAcquire          :  1; // Set if HW supports additional split barrier feature
                                                                  // on top of basic acquire/release interface support.
                                                                  // This provides CmdAcquire() and CmdRelease() to
                                                                  // implement split barriers.
-                                                                   // Note: supportReleaseAcquireInterface is a
-                                                                  // prerequisite to supportSplitReleaseAcquire.
+                                                                 // Note: supportReleaseAcquireInterface is a
+                                                                 // prerequisite to supportSplitReleaseAcquire.
+#else
+                uint64 placeholder1                        :  1; // Placeholder. Do not use.
+#endif
                 uint64 eccProtectedGprs                    :  1; // Are VGPR's ECC-protected?
                 uint64 overrideDefaultSpiConfigCntl        :  1; // KMD provides default value for SPI_CONFIG_CNTL.
                 uint64 supportOutOfOrderPrimitives         :  1; // HW supports higher throughput for out of order
@@ -1583,6 +1588,7 @@ public:
     const GpuChipProperties&   ChipProperties()   const { return m_chipProperties;   }
     const HwsInfo& GetHwsInfo() const { return m_hwsInfo; }
     const PerfExperimentProperties& PerfProperties() const { return m_perfExperimentProperties; }
+    const Extent3d& MaxImageDimension() const { return m_chipProperties.imageProperties.maxImageDimension; }
 
     InternalMemMgr* MemMgr() { return &m_memMgr; }
 

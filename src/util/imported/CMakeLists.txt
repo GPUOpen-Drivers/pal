@@ -89,5 +89,4 @@ target_link_libraries(pal
     PUBLIC
         devdriver
         dd_settings
-        ddSettingsRpcService
 )

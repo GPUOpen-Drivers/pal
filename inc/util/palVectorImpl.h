@@ -70,8 +70,8 @@ Result Vector<T, defaultCapacity, Allocator>::Reserve(
             }
             else
             {
-                // Move objects from data buffer to heap alloation.
-                // Destory corpses of objects in data buffer after moving.
+                // Move objects from data buffer to heap allocation.
+                // Destroy corpses of objects in data buffer after moving.
                 for (uint32 idx = 0; idx < m_numElements; ++idx)
                 {
                     PAL_PLACEMENT_NEW(pNewData + idx) T(Move(m_pData[idx]));
@@ -107,7 +107,7 @@ Result Vector<T, defaultCapacity, Allocator>::Resize(
 
     if (m_numElements > newSize)
     {
-        if (std::is_trivial<T>::value)
+        if constexpr (std::is_trivial<T>::value)
         {
             // Trivial value, so we don't need to destroy any objects.  Just shrink m_numElements.
             m_numElements = newSize;
@@ -235,7 +235,7 @@ void Vector<T, defaultCapacity, Allocator>::PopBack(
     }
 
     // Explicitly destroy the removed value if it's non-trivial.
-    if (!std::is_trivial<T>::value)
+    if constexpr (!std::is_trivial<T>::value)
     {
         m_pData[m_numElements].~T();
     }
@@ -246,7 +246,7 @@ template<typename T, uint32 defaultCapacity, typename Allocator>
 void Vector<T, defaultCapacity, Allocator>::Clear()
 {
     // Explicitly destroy all non-trivial types.
-    if (!std::is_trivial<T>::value)
+    if constexpr (!std::is_trivial<T>::value)
     {
         for (uint32 idx = 0; idx < m_numElements; ++idx)
         {
@@ -264,7 +264,7 @@ void Vector<T, defaultCapacity, Allocator>::Erase(
 {
     PAL_ASSERT(it.IsValid());
 
-    // call the iterator version of the method
+    // Call the iterator version of the method
     Erase(&it.Get());
 }
 
@@ -276,7 +276,7 @@ void Vector<T, defaultCapacity, Allocator>::Erase(
     PAL_ASSERT(m_pData <= it);
     PAL_ASSERT(it < (m_pData + m_numElements));
 
-    // call the index version of the method
+    // Call the index version of the method
     Erase(it - m_pData);
 }
 
@@ -287,8 +287,67 @@ void Vector<T, defaultCapacity, Allocator>::Erase(
 {
     PAL_ASSERT(index < m_numElements);
 
+    if constexpr (std::is_trivial<T>::value)
+    {
+        if (index != (m_numElements - 1))
+        {
+            // Optimize trivial types by copying local buffer.
+            std::memmove(m_pData + index, m_pData + index + 1, (m_numElements - 1 - index) * sizeof(T));
+        }
+    }
+    else
+    {
+        m_pData[index].~T();
+
+        for (uint32 k = index; k < (m_numElements - 1); ++k)
+        {
+            PAL_PLACEMENT_NEW(m_pData + k) T(Move(m_pData[k + 1]));
+            m_pData[k + 1].~T();
+        }
+    }
+
+    m_numElements--;
+}
+
+// =====================================================================================================================
+template<typename T, uint32 defaultCapacity, typename Allocator>
+void Vector<T, defaultCapacity, Allocator>::EraseAndSwapLast(
+    Iter it)
+{
+    PAL_ASSERT(m_pData <= it);
+    PAL_ASSERT(it < (m_pData + m_numElements));
+
+    // Call the iterator version of the method
+    EraseAndSwapLast(&it.Get());
+}
+
+// =====================================================================================================================
+template<typename T, uint32 defaultCapacity, typename Allocator>
+void Vector<T, defaultCapacity, Allocator>::EraseAndSwapLast(
+    iterator it)
+{
+    PAL_ASSERT(m_pData <= it);
+    PAL_ASSERT(it < (m_pData + m_numElements));
+
+    // Call the index version of the method
+    EraseAndSwapLast(it - m_pData);
+}
+
+// =====================================================================================================================
+template<typename T, uint32 defaultCapacity, typename Allocator>
+void Vector<T, defaultCapacity, Allocator>::EraseAndSwapLast(
+    uint32 index)
+{
+    PAL_ASSERT(index < m_numElements);
+
     m_pData[index].~T();
-    std::memmove(m_pData + index, m_pData + index + 1, m_numElements - index);
+
+    if (index != (m_numElements - 1))
+    {
+        PAL_PLACEMENT_NEW(m_pData + index) T(Move(m_pData[m_numElements - 1]));
+        m_pData[m_numElements - 1].~T();
+    }
+
     m_numElements--;
 }
 

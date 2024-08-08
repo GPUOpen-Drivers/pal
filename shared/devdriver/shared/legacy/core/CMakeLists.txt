@@ -41,7 +41,7 @@ endif()
 target_link_libraries(ddCore PRIVATE ${CMAKE_DL_LIBS})
 
 # Portable printf
-target_link_libraries(ddCore PRIVATE tiny_printf)
+target_link_libraries(ddCore PRIVATE stb_sprintf)
 
 # Common Hashing Utility
 # This is used in headers and needs needs to be public

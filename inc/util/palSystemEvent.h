@@ -63,7 +63,6 @@ enum class SystemEventClientId : uint8
     Llpc,
     Vulkan,
     Dxcp,
-    Mantle,
     Dx9p,
     Dxxp,
     Ocl,

@@ -177,7 +177,9 @@ public:
     virtual DevDriver::DevDriverServer* GetDevDriverServer() override { return m_pDevDriverServer; }
     virtual DevDriver::EventProtocol::EventServer* GetEventServer() override { return m_pEventServer; }
 
-    virtual SettingsRpcService::SettingsService* GetSettingsService() override { return m_pSettingsService; }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 890
+    virtual SettingsRpcService::SettingsService* GetSettingsService() override { return nullptr; }
+#endif
     virtual DevDriver::SettingsRpcService* GetSettingsRpcService() override { return m_pSettingsRpcService; }
     DriverUtilsService::DriverUtilsService* GetDriverUtilsService() { return m_pDriverUtilsService; };
 
@@ -336,8 +338,6 @@ private:
     DevDriver::RGPProtocol::RGPServer* m_pRgpServer;
 
     // Settings RPC Service for DevDriver tool connection
-    SettingsRpcService::SettingsService* m_pSettingsService;
-    // Intended to replace `m_pSettingsService` once all settings components have been updated.
     DevDriver::SettingsRpcService* m_pSettingsRpcService;
 
     // Service for misc driver utils

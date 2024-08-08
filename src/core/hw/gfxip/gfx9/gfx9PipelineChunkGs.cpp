@@ -73,7 +73,7 @@ void PipelineChunkGs::LateInit(
     const PalAbi::CodeObjectMetadata& metadata,
     const GraphicsPipelineLoadInfo&   loadInfo,
     const GraphicsPipelineCreateInfo& createInfo,
-    PipelineUploader*                 pUploader)
+    CodeObjectUploader*               pUploader)
 {
     const GpuChipProperties& chipProps    = m_device.Parent()->ChipProperties();
 

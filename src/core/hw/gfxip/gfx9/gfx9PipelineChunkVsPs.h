@@ -129,7 +129,7 @@ public:
         const Util::PalAbi::CodeObjectMetadata& metadata,
         const GraphicsPipelineLoadInfo&         loadInfo,
         const GraphicsPipelineCreateInfo&       createInfo,
-        PipelineUploader*                       pUploader);
+        CodeObjectUploader*                     pUploader);
 
     uint32* WriteShCommands(
         CmdStream* pCmdStream,

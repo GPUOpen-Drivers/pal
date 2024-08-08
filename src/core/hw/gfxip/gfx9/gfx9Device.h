@@ -517,7 +517,7 @@ public:
 
     virtual uint32 GetVarBlockSize() const override { return m_varBlockSize; }
 
-    uint32 GetShaderPrefetchSize(size_t shaderSizeBytes) const;
+    uint32 GetShaderPrefetchSize(gpusize shaderSizeBytes) const;
 
     uint32 BufferSrdResourceLevel() const;
 

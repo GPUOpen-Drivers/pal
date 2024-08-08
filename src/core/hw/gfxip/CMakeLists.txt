@@ -38,6 +38,8 @@ target_sources(pal PRIVATE
     CMakeLists.txt
     cmdUploadRing.cpp
     cmdUploadRing.h
+    codeObjectUploader.cpp
+    codeObjectUploader.h
     colorBlendState.h
     computePipeline.cpp
     computePipeline.h

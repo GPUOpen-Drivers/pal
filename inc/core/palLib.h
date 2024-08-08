@@ -47,7 +47,7 @@
 #endif
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MAJOR_VERSION 881
+#define PAL_INTERFACE_MAJOR_VERSION 890
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 831
 /// Minor interface version.  Note that the interface version is distinct from the PAL version itself, which is returned
@@ -100,48 +100,54 @@ class      IPlatform;
 /// This is a list of GPUs that the NULL OS layer can compile shaders to in offline mode.
 enum class NullGpuId : uint32
 {
-    Default   = 0x00, // PAL gives the client an arbitrary supported null device.
-    Polaris10 = 0x00,
-    Polaris11 = 0x01,
-    Polaris12 = 0x02,
-
-    Vega10 = 0x04,
-    Raven  = 0x05,
-    Vega12 = 0x06,
-    Vega20 = 0x07,
-    Raven2 = 0x08,
-    Renoir = 0x09,
-
-    Navi10           = 0x0A,
-    Navi12           = 0x0B,
-    Navi14           = 0x0D,
-    Navi21           = 0x0F,
-    Navi22           = 0x10,
-    Navi23           = 0x11,
-    Navi24           = 0x12,
-    Rembrandt        = 0x14,
-    Navi31           = 0x1A,
-    Navi32           = 0x1B,
-    Navi33           = 0x1C,
-    Raphael          = 0x1E,
-    Phoenix1         = 0x1F,
-    Phoenix2         = 0x22,
-
-    Max = 0x27,
-    All = 0x28,
+    Default = 0,   ///< PAL gives the client an arbitrary supported null device.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 888
+    Polaris10,     ///< 8.0.3
+    Polaris11,     ///< 8.0.3
+    Polaris12,     ///< 8.0.3
+    Vega10,        ///< 9.0.0
+    Raven,         ///< 9.0.2
+    Vega12,        ///< 9.0.4
+    Vega20,        ///< 9.0.6
+    Raven2,        ///< 9.0.9
+    Renoir,        ///< 9.0.9
+#endif
+    Navi10,        ///< 10.1.0
+    Navi12,        ///< 10.1.1
+    Navi14,        ///< 10.1.2
+    Navi21,        ///< 10.3.0
+    Navi22,        ///< 10.3.1
+    Navi23,        ///< 10.3.2
+    Navi24,        ///< 10.3.4
+    Rembrandt,     ///< 10.3.5
+    Raphael,       ///< 10.3.6
+    Navi31,        ///< 11.0.0
+    Navi32,        ///< 11.0.1
+    Navi33,        ///< 11.0.2
+    Phoenix1,      ///< 11.0.3
+    Phoenix2,      ///< 11.0.3
+#if  (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 888)
+#endif
+    Max,           ///< The maximum count of null devices.
+    All,           ///< If you want to enumerate all null devices.
 };
 
 /// Specifies which graphics IP level (GFXIP) this device has.
 enum class GfxIpLevel : uint32
 {
-    _None     = 0x0,   ///< @internal The device does not have an GFXIP block, or its level cannot be determined
+    _None = 0,     ///< @internal The device does not have an GFXIP block, or its level cannot be determined
 
     // Unfortunately for Linux clients, X.h includes a "#define None 0" macro.  Clients have their choice of either
     // undefing None before including this header or using _None when dealing with PAL.
 #ifndef None
-    None      = _None, ///< The device does not have an GFXIP block, or its level cannot be determined
+    None  = _None, ///< The device does not have an GFXIP block, or its level cannot be determined
 #endif
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 888
+    GfxIp10_1,     ///< GFXIP 10.1 (Navi1x)
+    GfxIp10_3,     ///< GFXIP 10.3 (Navi2x, Rembrandt, Raphael, Mendocino)
+    GfxIp11_0,     ///< GFXIP 11.0 (Navi3x, Phoenix)
+#else // PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 888
     GfxIp6    = 0x1,
     GfxIp7    = 0x2,
     GfxIp8    = 0x3,
@@ -150,63 +156,58 @@ enum class GfxIpLevel : uint32
     GfxIp10_1 = 0x7,
     GfxIp10_3 = 0x9,
     GfxIp11_0 = 0xC,
+#endif
 };
 
 /// Specifies the hardware revision.  Enumerations are in family order (Southern Islands, Sea Islands, Kaveri,
 /// Carrizo, Volcanic Islands, etc.)
 enum class AsicRevision : uint32
 {
-    Unknown     = 0x00,
-
-    Tahiti      = 0x01,
-    Pitcairn    = 0x02,
-    Capeverde   = 0x03,
-    Oland       = 0x04,
-    Hainan      = 0x05,
-
-    Bonaire     = 0x06,
-    Hawaii      = 0x07,
-    HawaiiPro   = 0x08,
-
-    Kalindi     = 0x0A,
-    Godavari    = 0x0B,
-    Spectre     = 0x0C,
-    Spooky      = 0x0D,
-
-    Carrizo     = 0x0E,
-    Bristol     = 0x0F,
-    Stoney      = 0x10,
-
-    Iceland     = 0x11,
-    Tonga       = 0x12,
-    TongaPro    = Tonga,
-    Fiji        = 0x13,
-
-    Polaris10   = 0x14,
-    Polaris11   = 0x15,
-    Polaris12   = 0x16,
-
-    Vega10      = 0x18,
-    Vega12      = 0x19,
-    Vega20      = 0x1A,
-    Raven       = 0x1B,
-    Raven2      = 0x1C,
-    Renoir      = 0x1D,
-
-    Navi10           = 0x1F,
-    Navi12           = 0x21,
-    Navi14           = 0x23,
-    Navi21           = 0x24,
-    Navi22           = 0x25,
-    Navi23           = 0x26,
-    Navi24           = 0x27,
-    Navi31           = 0x2C,
-    Navi32           = 0x2D,
-    Navi33           = 0x2E,
-    Rembrandt        = 0x2F,
-    Raphael          = 0x34,
-    Phoenix1         = 0x35,
-    Phoenix2         = 0x38,
+    Unknown = 0,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 888
+    Tahiti,
+    Pitcairn,
+    Capeverde,
+    Oland,
+    Hainan,
+    Bonaire,
+    Hawaii,
+    HawaiiPro,
+    Kalindi,
+    Godavari,
+    Spectre,
+    Spooky,
+    Carrizo,
+    Bristol,
+    Stoney,
+    Iceland,
+    Tonga,
+    TongaPro = Tonga,
+    Fiji,
+    Polaris10,
+    Polaris11,
+    Polaris12,
+    Vega10,
+    Vega12,
+    Vega20,
+    Raven,
+    Raven2,
+    Renoir,
+#endif
+    Navi10,        ///< 10.1.0
+    Navi12,        ///< 10.1.1
+    Navi14,        ///< 10.1.2
+    Navi21,        ///< 10.3.0
+    Navi22,        ///< 10.3.1
+    Navi23,        ///< 10.3.2
+    Navi24,        ///< 10.3.4
+    Rembrandt,     ///< 10.3.5
+    Raphael,       ///< 10.3.6
+    Navi31,        ///< 11.0.0
+    Navi32,        ///< 11.0.1
+    Navi33,        ///< 11.0.2
+    Phoenix1,      ///< 11.0.3
+    Phoenix2,      ///< 11.0.3
 };
 
 /// Maps a null GPU ID to its associated text name.
@@ -237,7 +238,6 @@ enum class ClientApi : uint32
     Dx9     = 1,
     Dx12    = 3,
     Vulkan  = 4,
-    Mantle  = 5,
     OpenCl  = 7,
     Hip     = 8,
     Amf     = 9,

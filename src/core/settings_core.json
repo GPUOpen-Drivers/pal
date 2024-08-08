@@ -24,9 +24,6 @@
     "Bringup",
     "Emulation",
     "RIS",
-    "Gfx6",
-    "Gfx7",
-    "Gfx8",
     "Gfx9",
     "Gfx10",
     "Gfx11"
@@ -1925,7 +1922,6 @@
       },
       "Description": "Bitmask of cases where DCC (delta color compression) surfaces will be used.",
       "Tags": [
-        "Gfx8",
         "Gfx9",
         "Gfx10",
         "Gfx11"
@@ -2012,6 +2008,54 @@
       "Scope": "PrivatePalKey",
       "Type": "uint32",
       "Name": "TessFactorBufferSizePerSe"
+    },
+    {
+      "Name": "MemMgrPoolMaxSuballocSize",
+      "Tags": [
+        "General"
+      ],
+      "Defaults": {
+        "Default": 2097152
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "uint64",
+      "Description": "An allocation must be <= to this size for the MemMgr to attempt to suballocate it from one of its pools."
+    },
+    {
+      "Name": "MemMgrPoolDefaultSize",
+      "Tags": [
+        "General"
+      ],
+      "Defaults": {
+        "Default": 65536
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "uint64",
+      "Description": "When MemMgr allocates a new pool, it grows to twice the size of the old pool. This is the size of the initial pool."
+    },
+    {
+      "Name": "MemMgrPoolMaxGrowSize",
+      "Tags": [
+        "General"
+      ],
+      "Defaults": {
+        "Default": 134217728
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "uint64",
+      "Description": "When MemMgr allocates a new pool, it grows to twice the size of the old pool. This is the maximum size an individual pool can be."
+    },
+    {
+      "Name": "EnablePerfCounterWindowPacket",
+      "Tags": [
+        "Debug"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "Description": "Enable insertion of IT_PERF_COUNTER_WINDOW packet to bound use of non-global GRBM_GFX_INDEX programming"
     }
   ]
 }

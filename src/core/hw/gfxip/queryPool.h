@@ -62,14 +62,7 @@ public:
         const void*      pMappedGpuAddr,
         size_t*          pDataSize,
         void*            pData,
-        size_t           stride
-        ) override;
-
-    virtual Result Reset(
-        uint32  startQuery,
-        uint32  queryCount,
-        void*   pMappedCpuAddr) override
-        { PAL_NEVER_CALLED(); return Result::Unsupported; }
+        size_t           stride) override;
 
     virtual void Begin(
         GfxCmdBuffer*     pCmdBuffer,
@@ -86,7 +79,7 @@ public:
         QueryType     queryType,
         uint32        slot) const = 0;
 
-    void Reset(
+    void DoGpuReset(
         GfxCmdBuffer* pCmdBuffer,
         CmdStream*    pCmdStream,
         uint32        startQuery,
@@ -114,9 +107,6 @@ public:
 
     bool HasTimestamps() const { return (m_timestampSizePerSlotInBytes != 0); }
 
-    virtual bool HasForcedQueryResult() const { return false; }
-    virtual uint32 GetForcedQueryResult() const { return 0; }
-
     // Checks if this query pool requires any samples to be taken on the ganged-ACE queue of a Universal
     // command buffer.  This should not be called on Compute command buffers!
     virtual bool RequiresSamplingFromGangedAce() const { return false; }
@@ -137,15 +127,14 @@ protected:
               gpusize                    querySizeInBytes,
               gpusize                    tsSizeInBytes);
 
-    // Reset query via PM4 commands on a PM4-supported command buffer.
-    virtual void NormalReset(
-        GfxCmdBuffer* pCmdBuffer,
-        CmdStream*    pCmdStream,
-        uint32        startQuery,
-        uint32        queryCount) const = 0;
+    Result CpuReset(
+        uint32      startQuery,
+        uint32      queryCount,
+        void*       pMappedCpuAddr,
+        gpusize     resetDataSizeInBytes,
+        const void* pResetData);
 
-    // Reset query using DMA, when NormalReset() can't be used or the command buffer does not support PM4.
-    virtual void DmaEngineReset(
+    virtual void GpuReset(
         GfxCmdBuffer* pCmdBuffer,
         CmdStream*    pCmdStream,
         uint32        startQuery,
@@ -159,13 +148,6 @@ protected:
         size_t           stride,
         const void*      pGpuData,
         void*            pData) = 0;
-
-    Result DoReset(
-        uint32      startQuery,
-        uint32      queryCount,
-        void*       pMappedCpuAddr,
-        gpusize     resetDataSizeInBytes,
-        const void* pResetData);
 
     const QueryPoolCreateInfo m_createInfo;
     BoundGpuMemory            m_gpuMemory;

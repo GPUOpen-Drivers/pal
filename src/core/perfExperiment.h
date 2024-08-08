@@ -122,7 +122,8 @@ union PerfExperimentFlags
         uint32 spmTraceEnabled   : 1;
         uint32 sqtTraceEnabled   : 1;
         uint32 dfSpmTraceEnabled : 1;
-        uint32 reserved          : 28;
+        uint32 dfCtrsEnabled     : 1;
+        uint32 reserved          : 27;
     };
     uint32 u32All;
 };

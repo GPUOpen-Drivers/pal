@@ -937,12 +937,20 @@ void CmdBuffer::CmdBarrier(
 }
 
 // =====================================================================================================================
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
 uint32 CmdBuffer::CmdRelease(
+#else
+ReleaseToken CmdBuffer::CmdRelease(
+#endif
     const AcquireReleaseInfo& releaseInfo)
 {
     AutoBuffer<ImgBarrier, 32, Platform> imageBarriers(releaseInfo.imageBarrierCount, m_pPlatform);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
     uint32 syncToken = 0;
+#else
+    ReleaseToken syncToken = {};
+#endif
 
     if (imageBarriers.Capacity() < releaseInfo.imageBarrierCount)
     {
@@ -970,8 +978,15 @@ uint32 CmdBuffer::CmdRelease(
 
             pLogContext->BeginInput();
             pLogContext->KeyAndStruct("releaseInfo", releaseInfo);
-            pLogContext->KeyAndValue("syncToken", syncToken);
             pLogContext->EndInput();
+
+            pLogContext->BeginOutput();
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
+            pLogContext->KeyAndValue("syncToken", syncToken);
+#else
+            pLogContext->KeyAndValue("syncToken", syncToken.u32All);
+#endif
+            pLogContext->EndOutput();
 
             m_pPlatform->LogEndFunc(pLogContext);
         }
@@ -984,7 +999,11 @@ uint32 CmdBuffer::CmdRelease(
 void CmdBuffer::CmdAcquire(
     const AcquireReleaseInfo& acquireInfo,
     uint32                    syncTokenCount,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
     const uint32*             pSyncTokens)
+#else
+    const ReleaseToken*       pSyncTokens)
+#endif
 {
     AutoBuffer<ImgBarrier, 32, Platform> imageBarriers(acquireInfo.imageBarrierCount, m_pPlatform);
 
@@ -1014,11 +1033,15 @@ void CmdBuffer::CmdAcquire(
 
             pLogContext->BeginInput();
             pLogContext->KeyAndStruct("acquireInfo", acquireInfo);
-            pLogContext->KeyAndBeginList("SyncTokens", false);
+            pLogContext->KeyAndBeginList("SyncTokens", true);
 
             for (uint32 idx = 0; idx < syncTokenCount; ++idx)
             {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
                 pLogContext->Value(pSyncTokens[idx]);
+#else
+                pLogContext->Value(pSyncTokens[idx].u32All);
+#endif
             }
 
             pLogContext->EndList();
@@ -3163,21 +3186,6 @@ void CmdBuffer::CmdStopGpuProfilerLogging()
     const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdStopGpuProfilerLogging);
 
     m_pNextLayer->CmdStopGpuProfilerLogging();
-
-    if (active)
-    {
-        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
-
-        m_pPlatform->LogEndFunc(pLogContext);
-    }
-}
-
-// =====================================================================================================================
-void CmdBuffer::CmdXdmaWaitFlipPending()
-{
-    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdXdmaWaitFlipPending);
-
-    m_pNextLayer->CmdXdmaWaitFlipPending();
 
     if (active)
     {

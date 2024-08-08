@@ -36,7 +36,7 @@ extern "C" {
 #define DD_LOGGER_API_NAME "DD_LOGGER_API"
 
 #define DD_LOGGER_API_VERSION_MAJOR 0
-#define DD_LOGGER_API_VERSION_MINOR 1
+#define DD_LOGGER_API_VERSION_MINOR 2
 #define DD_LOGGER_API_VERSION_PATCH 0
 
 typedef enum
@@ -48,17 +48,53 @@ typedef enum
     DD_LOG_LVL_COUNT,
 } DD_LOG_LVL;
 
+typedef struct DDLoggerInstance DDLoggerInstance;
+typedef void (*DDLoggerLogCallback)(DD_LOG_LVL logLevel, void* pUserData, const char* pMessage, uint32_t messageSize);
+
+/// Enumeration of logger types.
+typedef enum
+{
+    /// Log messages to a file.
+    DD_LOGGER_TYPE_FILE = 0,
+    /// Log messages to a user-defined callback function.
+    DD_LOGGER_TYPE_CALLBACK,
+} DD_LOGGER_TYPE;
+
+/// Structure defining creation parameters for a logger.
+/// The logger will be created based on the type specified in \ref type.
+/// Either file-based logging or callback-based logging can be created.
 typedef struct
 {
-    /// A path to a file on local disk. The path string should be encoded in UTF-8. A new file will be
-    /// created if it doesn't already exist. If the file is already present, its content will be overwritten.
-    const char* pFilePath;
+    /// Type of logger to create.
+    DD_LOGGER_TYPE type;
 
-    /// Size, in bytes, of \ref pFilePath, NOT including the null-terminator.
-    uint32_t filePathSize;
+    /// If `true`, no formatting is applied to log messages.
+    bool rawLogging;
+
+    union
+    {
+        struct
+        {
+            /// A path to a file on local disk. The path string should be encoded in UTF-8. A new file will be
+            /// created if it doesn't already exist. If the file is already present, its content will be overwritten.
+            const char* pFilePath;
+
+            /// Size, in bytes, of \ref file.pFilePath, NOT including the null-terminator.
+            uint32_t filePathSize;
+        } file;
+
+        struct
+        {
+            /// Callback function to be executed when a log message is generated.
+            /// Note that log messages will be filtered according to verbosity level before
+            /// being passed to the callback.
+            DDLoggerLogCallback logCallback;
+
+            /// Opaque pointer to data that will be passed to the callback function. Can be NULL.
+            void* pUserData;
+        } callback;
+    };
 } DDLoggerCreateInfo;
-
-typedef struct DDLoggerInstance DDLoggerInstance;
 
 typedef struct
 {
@@ -66,31 +102,42 @@ typedef struct
     DDLoggerInstance* pInstance;
 
     /// Set the current log level. Logs with levels smaller than the current log level will be ignored.
-    /// The default log level is DD_LOG_LVL_ERROR.
-    /// @param level Log level.
+    /// The default log level is \ref DD_LOG_LVL_ERROR.
+    /// @param level Verbosity level for logger
     void (*SetLogLevel)(DDLoggerInstance* pInstance, DD_LOG_LVL level);
 
-    /// Log an ASCII string to file. The formatted string will be truncated if its length exceeds the maximum.
-    /// This function always append a newline at the end of the logged string. It also prefix the logged
-    /// string with the log level passed. For example:
-    /// [ERROR] example log string.
+    /// Writes log messages as-is without any modifications.
+    ///
+    /// By default, log messages are prepended with `[LOG_LEVEL]` and postfixed with a newline.
+    /// This function disables that behavior, causing messages to be written to the logger directly.
+    /// @note If you are implementing a custom callback and want fine-grain control over how logs
+    ///       are formatted, this should be enabled. For file-based logging, this should not be set.
+    void (*SetLogRaw)(DDLoggerInstance* pInstance, bool setLogRaw);
+
+    /// Logs a UTF-8 string. The formatted string will be truncated if its length exceeds the maximum.
+    ///
+    /// @note Unless `SetLogRaw` is enabled, this function append a newline at the end of the logged
+    ///       string, in addition to prefixing the message log level. For example:
+    ///
+    ///       [ERROR] Example log string.
     ///
     /// @param[in] pInstance Must be \ref DDLoggerApi.pInstance.
-    /// @param[in] level Log level.
-    /// @param[in] pFormat printf style format string.
+    /// @param[in] level     Log level of the message.
+    /// @param[in] pFormat   `printf` style format string.
     void (*Log)(DDLoggerInstance* pInstance, DD_LOG_LVL level, const char* pFormat, ...);
 } DDLoggerApi;
 
-/// Create an instance of \ref DDLoggerApi.
+/// Creates an instance of \ref DDLoggerApi.
+/// The logger may write messages to a file or call a user-defined callback function,
+/// depending on the parameters specified in \ref DDLoggerCreateInfo.
 ///
-/// @param[in] pCreateInfo See \ref DDLoggerCreateInfo.
-/// @param[in/out] ppOutLoggerApi Will be set to an instance of \ref DDLoggerApi. If the function succeeds,
-/// a valid logger is created, which writes log messages to the file specified by
-/// \ref DDLoggerCreateInfo.pFilePath. Upon failure, `*pOutLoggerApi` is set to a dummy logger that simply
-/// discards log messages. This parameter cannot be NULL.
+/// @note If the logger creation fails, a dummy logger is created that simply discards log messages.
 ///
-/// @return DD_RESULT_SUCCESS An valid logger is created.
-/// @return DD_RESULT_COMMON_INVALID_PARAMETER The call failed, a dummy logger is created.
+/// @param[in]     pCreateInfo    See \ref DDLoggerCreateInfo.
+/// @param[in/out] ppOutLoggerApi Will be set to an instance of \ref DDLoggerApi.
+///
+/// @return \ref DD_RESULT_SUCCESS An valid logger is created.
+/// @return \ref DD_RESULT_COMMON_INVALID_PARAMETER The call failed, a dummy logger is created.
 DD_RESULT DDLoggerCreate(DDLoggerCreateInfo* pCreateInfo, DDLoggerApi* pOutLoggerApi);
 
 /// Destroy an instance of \ref DDLoggerApi.

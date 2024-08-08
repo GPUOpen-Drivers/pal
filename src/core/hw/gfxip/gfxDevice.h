@@ -434,19 +434,10 @@ public:
 
     Result InitHwlSettings(PalSettings* pSettings);
 
-    virtual Result InitSettings() const
-    {
-        return (m_pSettingsLoader != nullptr) ? m_pSettingsLoader->Init() : Result::ErrorOutOfMemory;
-    }
-
-    virtual Util::MetroHash::Hash GetSettingsHash() const
-    {
-        static const Util::MetroHash::Hash zeroHash = { };
-
-        return (m_pSettingsLoader != nullptr) ? m_pSettingsLoader->GetSettingsHash() : zeroHash;
-    }
-
     const PalSettings& CoreSettings() const;
+
+    virtual Result InitSettings() const = 0;
+    virtual Util::MetroHash::Hash GetSettingsHash() const = 0;
     virtual void HwlValidateSettings(PalSettings* pSettings) = 0;
     virtual void HwlOverrideDefaultSettings(PalSettings* pSettings) = 0;
     virtual void HwlRereadSettings() = 0;
@@ -793,12 +784,8 @@ protected:
 
     static bool IsValidTypedBufferView(const BufferViewInfo& info);
 
-    Device*const       m_pParent;
-    Pal::RsrcProcMgr*  m_pRsrcProcMgr;
-    ISettingsLoader*   m_pSettingsLoader;
-
-    // The new DevDriver based settings. As more gfx settings are converted, this variable will be renamed to replace
-    // m_pSettingsLoader.
+    Device*const             m_pParent;
+    Pal::RsrcProcMgr*        m_pRsrcProcMgr;
     DevDriver::SettingsBase* m_pDdSettingsLoader;
 
     PAL_ALIGN(32) uint32 m_fastClearImageRefs[MaxNumFastClearImageRefs];

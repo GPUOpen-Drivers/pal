@@ -5700,6 +5700,21 @@ inline Result DeserializePipelineMetadata(
                 break;
             }
 
+            case HashLiteralString(PipelineMetadataKey::CpsGlobal):
+            {
+                PAL_ASSERT(pMetadata->hasEntry.cpsGlobal == 0);
+                bool value = false;
+                result = pReader->UnpackNext(&value);
+
+                if (result == Result::Success)
+                {
+                    pMetadata->flags.cpsGlobal = value;
+                }
+
+                pMetadata->hasEntry.cpsGlobal = (result == Result::Success);
+                break;
+            }
+
             case HashLiteralString(PipelineMetadataKey::StreamoutVertexStrides):
                 PAL_ASSERT(pMetadata->hasEntry.streamoutVertexStrides == 0);
                 result = pReader->UnpackNext(&pMetadata->streamoutVertexStrides);

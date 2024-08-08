@@ -302,7 +302,9 @@ void DmaCmdBuffer::PatchPredicateCmd(
         auto* const  pPacket = reinterpret_cast<SDMA_PKT_COND_EXE*>(pPredicateCmd);
         const uint32 skipDws = (pCurCmdSpace - pPredicateCmd) - NumBytesToNumDwords(sizeof(SDMA_PKT_COND_EXE));
 
-        pPacket->EXEC_COUNT_UNION.exec_count = skipDws;
+        decltype(pPacket->EXEC_COUNT_UNION) pktDw = {};
+        pktDw.exec_count = skipDws;
+        pPacket->EXEC_COUNT_UNION.DW_4_DATA = pktDw.DW_4_DATA;
     }
 }
 
@@ -740,6 +742,8 @@ uint32* DmaCmdBuffer::WriteCopyImageTiledToTiledCmd(
     packet.DW_6_UNION.src_element_size  = Log2(src.bytesPerPixel);
     packet.DW_6_UNION.src_swizzle_mode  = pAddrMgr->GetHwSwizzleMode(srcSwizzle);
     packet.DW_6_UNION.src_dimension     = GetHwDimension(src);
+    packet.DW_6_UNION.src_mip_max       = GetMaxMip(src);
+    packet.DW_6_UNION.src_mip_id        = src.pSubresInfo->subresId.mipLevel;
 
     // Setup the start, offset, and dimenions of the destination surface.
     packet.DST_ADDR_LO_UNION.dst_addr_31_0  = LowPart(dst.baseAddr);
@@ -762,6 +766,8 @@ uint32* DmaCmdBuffer::WriteCopyImageTiledToTiledCmd(
     packet.DW_12_UNION.dst_element_size = Log2(dst.bytesPerPixel);
     packet.DW_12_UNION.dst_swizzle_mode = pAddrMgr->GetHwSwizzleMode(dstSwizzle);
     packet.DW_12_UNION.dst_dimension    = GetHwDimension(dst);
+    packet.DW_12_UNION.dst_mip_max      = GetMaxMip(dst);
+    packet.DW_12_UNION.dst_mip_id       = dst.pSubresInfo->subresId.mipLevel;
 
     // Setup the size of the copy region.
     packet.DW_13_UNION.DW_13_DATA = 0;
@@ -828,59 +834,49 @@ bool DmaCmdBuffer::UseT2tScanlineCopy(
     // Assume, that by some miracle, all of the requirements for using the built-in T2T copy are actually met.
     bool useScanlineCopy = false;
 
-    if ((srcCreateInfo.mipLevels >  1) || (dstCreateInfo.mipLevels > 1))
+    // The alignment requirements for the offsets / rectangle sizes are format and image type dependent.
+    // In some 3D transfer cases, the hardware will need to split the transfers into muliple planar copies
+    // in which case the 3D alignment table can not be used. Variable name was updated to reflect this.
+    static constexpr Extent3d  CopyAlignmentsFor2dAndPlanarCopy3d[] =
     {
-        // The built in tiled-to-tiled image copy packet not only doesn't support mip level selection, it doesn't
-        // even support specifying the number of mip levels the image has.  So if either the source or the destination
-        // image has more than one mip level, we can't use it.
-        useScanlineCopy = true;
-    }
-    else
+        { 16, 16, 1 }, // 1bpp
+        { 16,  8, 1 }, // 2bpp
+        {  8,  8, 1 }, // 4bpp
+        {  8,  4, 1 }, // 8bpp
+        {  4,  4, 1 }, // 16bpp
+    };
+
+    static constexpr Extent3d  CopyAlignmentsFor3d[] =
     {
-        // The alignment requirements for the offsets / rectangle sizes are format and image type dependent.
-        // In some 3D transfer cases, the hardware will need to split the transfers into muliple planar copies
-        // in which case the 3D alignment table can not be used. Variable name was updated to reflect this.
-        static constexpr Extent3d  CopyAlignmentsFor2dAndPlanarCopy3d[] =
-        {
-            { 16, 16, 1 }, // 1bpp
-            { 16,  8, 1 }, // 2bpp
-            {  8,  8, 1 }, // 4bpp
-            {  8,  4, 1 }, // 8bpp
-            {  4,  4, 1 }, // 16bpp
-        };
+        {  8, 4, 8 }, // 1bpp
+        {  4, 4, 8 }, // 2bpp
+        {  4, 4, 4 }, // 4bpp
+        {  4, 2, 4 }, // 8bpp
+        {  2, 2, 4 }, // 16bpp
+    };
 
-        static constexpr Extent3d  CopyAlignmentsFor3d[] =
-        {
-            {  8, 4, 8 }, // 1bpp
-            {  4, 4, 8 }, // 2bpp
-            {  4, 4, 4 }, // 4bpp
-            {  4, 2, 4 }, // 8bpp
-            {  2, 2, 4 }, // 16bpp
-        };
+    // 1D images have to be linear, what are we doing here?
+    PAL_ASSERT(srcCreateInfo.imageType != ImageType::Tex1d);
 
-        // 1D images have to be linear, what are we doing here?
-        PAL_ASSERT(srcCreateInfo.imageType != ImageType::Tex1d);
+    // This is a violation of the PAL API...
+    PAL_ASSERT(srcCreateInfo.imageType == dstCreateInfo.imageType);
 
-        // This is a violation of the PAL API...
-        PAL_ASSERT(srcCreateInfo.imageType == dstCreateInfo.imageType);
+    // SDMA engine can't do format conversions.
+    PAL_ASSERT(src.bytesPerPixel == dst.bytesPerPixel);
 
-        // SDMA engine can't do format conversions.
-        PAL_ASSERT(src.bytesPerPixel == dst.bytesPerPixel);
+    // 3D StandardSwizzle and 3D DisplayableSwizzle are aligned using the 3D alignment table
+    // Otherwise the alignment table for 2D and PlanarCopy 3D is used
+    const uint32    log2Bpp        = Util::Log2(src.bytesPerPixel);
+    const Extent3d& copyAlignments = ((srcCreateInfo.imageType == ImageType::Tex3d)	&&
+                                        ((AddrMgr2::IsDisplayableSwizzle(srcSwizzle)) ||
+                                        (AddrMgr2::IsStandardSwzzle(srcSwizzle)))
+                                        ? CopyAlignmentsFor3d[log2Bpp]
+                                        : CopyAlignmentsFor2dAndPlanarCopy3d[log2Bpp]);
 
-        // 3D StandardSwizzle and 3D DisplayableSwizzle are aligned using the 3D alignment table
-        // Otherwise the alignment table for 2D and PlanarCopy 3D is used
-        const uint32    log2Bpp        = Util::Log2(src.bytesPerPixel);
-        const Extent3d& copyAlignments = ((srcCreateInfo.imageType == ImageType::Tex3d)	&&
-                                          ((AddrMgr2::IsDisplayableSwizzle(srcSwizzle)) ||
-                                           (AddrMgr2::IsStandardSwzzle(srcSwizzle)))
-                                           ? CopyAlignmentsFor3d[log2Bpp]
-                                           : CopyAlignmentsFor2dAndPlanarCopy3d[log2Bpp]);
-
-        // Have to use scanline copies unless the copy region and the src / dst offsets are properly aligned.
-        useScanlineCopy = ((IsAlignedForT2t(imageCopyInfo.copyExtent, copyAlignments) == false) ||
-                           (IsAlignedForT2t(src.offset,               copyAlignments) == false) ||
-                           (IsAlignedForT2t(dst.offset,               copyAlignments) == false));
-    }
+    // Have to use scanline copies unless the copy region and the src / dst offsets are properly aligned.
+    useScanlineCopy = ((IsAlignedForT2t(imageCopyInfo.copyExtent, copyAlignments) == false) ||
+                       (IsAlignedForT2t(src.offset,               copyAlignments) == false) ||
+                       (IsAlignedForT2t(dst.offset,               copyAlignments) == false));
 
     // Still using the built-in packet?  One final thing to check.
     if (useScanlineCopy == false)
@@ -1402,12 +1398,12 @@ uint32* DmaCmdBuffer::UpdateImageMetaData(
     const Pal::Image*           pPalImage  = static_cast<const Pal::Image*>(image.pImage);
     const Image*                pGfxImage  = static_cast<const Image*>(pPalImage->GetGfxImage());
     const Pal::Device*          pPalDevice = pPalImage->GetDevice();
-    const SubresId&             subResId   = image.pSubresInfo->subresId;
+    SubresId                    subresId   = image.pSubresInfo->subresId;
     const ColorCompressionState comprState =
         ImageLayoutToColorCompressionState(pGfxImage->LayoutToColorCompressionState(), image.imageLayout);
 
     // Does this image have DCC tracking metadata at all?
-    if (pGfxImage->HasDccStateMetaData(subResId.plane) &&
+    if (pGfxImage->HasDccStateMetaData(subresId.plane) &&
         (comprState != ColorDecompressed)              &&
         // Can the SDMA engine access it?
         (GetGfx9Settings(*pPalDevice).waSdmaPreventCompressedSurfUse == false)
@@ -1418,7 +1414,7 @@ uint32* DmaCmdBuffer::UpdateImageMetaData(
         MipDccStateMetaData metaData = { };
         metaData.isCompressed = 1;
 
-        pCmdSpace = BuildUpdateMemoryPacket(pGfxImage->GetDccStateMetaDataAddr(subResId),
+        pCmdSpace = BuildUpdateMemoryPacket(pGfxImage->GetDccStateMetaDataAddr(subresId),
                                             Util::NumBytesToNumDwords(sizeof(metaData)),
                                             reinterpret_cast<const uint32*>(&metaData),
                                             pCmdSpace);
@@ -1715,8 +1711,8 @@ AddrSwizzleMode DmaCmdBuffer::GetSwizzleMode(
 // =====================================================================================================================
 // Returns the pipe/bank xor value for the specified image / subresource.
 uint32 DmaCmdBuffer::GetPipeBankXor(
-    const Pal::Image&   image,
-    const SubresId&     subresource)
+    const Pal::Image& image,
+    SubresId          subresource)
 {
     const auto*  pTileInfo = AddrMgr2::GetTileInfo(&image, subresource);
 
@@ -1728,8 +1724,8 @@ uint32 DmaCmdBuffer::GetPipeBankXor(
 // bits included.  Since in some situations the HW calculates the mip-level and array slice offsets itself, those may
 // not be reflected in ther returned address.
 gpusize DmaCmdBuffer::GetSubresourceBaseAddr(
-    const Pal::Image&  image,
-    const SubresId&    subresource
+    const Pal::Image& image,
+    SubresId          subresource
     ) const
 {
     gpusize      baseAddr   = 0;
@@ -1739,7 +1735,7 @@ gpusize DmaCmdBuffer::GetSubresourceBaseAddr(
     {
         // GFX10 doesn't support mip-levels with linear surfaces.  They do, however, support slices.  We need to get
         // the starting offset of slice 0 of a given mip level.
-        const SubresId  baseSubres = { subresource.plane, subresource.mipLevel,  arraySlice };
+        const SubresId baseSubres = Subres(subresource.plane, subresource.mipLevel, arraySlice);
 
         // Verify that we don't have to take into account the pipe/bank xor value here.
         PAL_ASSERT(GetPipeBankXor(image, subresource) == 0);

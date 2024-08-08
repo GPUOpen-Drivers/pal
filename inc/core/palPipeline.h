@@ -499,9 +499,13 @@ struct PipelineInfo
     {
         struct
         {
-            uint32 hsaAbi   : 1;  ///< This pipeline uses the HSA ABI (i.e. bind arguments not user-data
-            uint32 usesCps  : 1;  ///< This pipeline uses continuations passing shaders (CPS).
-            uint32 reserved : 30; ///< Reserved for future use.
+            uint32 hsaAbi    : 1;  ///< This pipeline uses the HSA ABI (i.e. bind arguments not user-data)
+            uint32 usesCps   : 1;  ///< This pipeline uses continuations passing shaders (CPS). In an archive pipeline,
+                                   ///  this bit is set iff it is set in any constituent pipeline.
+            uint32 cpsGlobal : 1;  ///< If using continuations passing shaders (CPS), stack is in global rather than
+                                   ///  scratch. In an archive pipeline, this bit is set iff it is set in any
+                                   ///  constituent pipeline.
+            uint32 reserved  : 29; ///< Reserved for future use.
         };
         uint32 u32All;            ///< All flags combined as a single uint32.
     } flags;                      ///< Pipeline properties.
@@ -514,7 +518,8 @@ struct PipelineInfo
             {
                 uint32 perSampleShading : 1;    ///< Shader instructions want per-sample execution.
                 uint32 usesSampleMask   : 1;    ///< Shader is using sample mask.
-                uint32 reserved         : 30;   ///< Reserved for future use.
+                uint32 enablePops       : 1;    ///< Primitive order pixel shader is enabled.
+                uint32 reserved         : 29;   ///< Reserved for future use.
             };
             uint32 u32All;                      ///< All flags combined as a single uint32.
         } flags;

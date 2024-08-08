@@ -40,11 +40,11 @@ namespace Pal
 
 // =====================================================================================================================
 // Helper function which computes the total number of planes for an Image.
-static size_t PlaneCount(
+static uint32 PlaneCount(
     const Device&          device,
     const ImageCreateInfo& createInfo)
 {
-    size_t planes = 1;
+    uint32 planes = 1;
 
     if (device.SupportsDepth(createInfo.swizzledFormat.format, ImageTiling::Optimal) &&
         device.SupportsStencil(createInfo.swizzledFormat.format, ImageTiling::Optimal))
@@ -62,7 +62,7 @@ static size_t PlaneCount(
 
 // =====================================================================================================================
 // Helper function which computes the total number of subresources for an Image.
-static size_t TotalSubresourceCount(
+static uint32 TotalSubresourceCount(
     const Device&          device,
     const ImageCreateInfo& createInfo)
 {
@@ -876,7 +876,7 @@ void Image::DestroyInternal()
 // =====================================================================================================================
 // Calculates the subresource id according to array slice, mip level and plane.
 uint32 Image::CalcSubresourceId(
-    const SubresId& subresource
+    SubresId subresource
     ) const
 {
     PAL_ASSERT(IsSubresourceValid(subresource));
@@ -916,10 +916,7 @@ Result Image::GetFullSubresourceRange(
 
     if (pRange != nullptr)
     {
-        pRange->startSubres = {};
-        pRange->numMips     = m_createInfo.mipLevels;
-        pRange->numSlices   = m_createInfo.arraySize;
-        pRange->numPlanes   = static_cast<uint32>(m_imageInfo.numPlanes);
+        *pRange = SubresourceRange(SubresId{}, m_imageInfo.numPlanes, m_createInfo.mipLevels, m_createInfo.arraySize);
     }
     else
     {
@@ -973,7 +970,7 @@ void Image::GetGpuMemoryRequirements(
 
 // =====================================================================================================================
 gpusize Image::GetSubresourceBaseAddrSwizzled(
-    const SubresId& subresource
+    SubresId subresource
     ) const
 {
     const gpusize baseAddr = GetSubresourceBaseAddr(subresource);
@@ -1209,11 +1206,7 @@ AddrFormat Image::GetAddrFormat(
             break;
         case ChNumFormat::Y216:
         case ChNumFormat::Y210:
-#if ADDRLIB_VERSION >= 0x80009
             ret = ADDR_FMT_BG_RG_16_16_16_16;
-#else
-            ret = ADDR_FMT_INVALID;
-#endif
             break;
         case ChNumFormat::X32_Uint:
         case ChNumFormat::X32_Sint:

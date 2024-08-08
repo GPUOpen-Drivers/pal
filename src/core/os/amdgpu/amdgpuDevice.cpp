@@ -622,19 +622,19 @@ Result Device::OsLateInit()
 
     // Start to support per-vm bo from drm 3.20, but bugs were not fixed
     // until drm 3.25 on pro dkms stack or kernel 4.16 on upstream stack.
-    if (IsDrmVersionOrGreater(3,25) || IsKernelVersionEqualOrGreater(4,16))
+    if (IsDrmVersionOrGreater(3, 25) || IsKernelVersionEqualOrGreater(4, 16))
     {
         m_featureState.supportVmAlwaysValid = 1;
     }
 
-    if (IsDrmVersionOrGreater(3,25))
+    if (IsDrmVersionOrGreater(3, 25))
     {
         m_featureState.supportQuerySensorInfo = 1;
     }
 
     // The fix did not bump the kernel version, thus it is only safe to enable it start from the next version: 3.27
     // The fix also has been pulled into 4.18.rc1 upstream kernel already.
-    if (IsDrmVersionOrGreater(3,27) || IsKernelVersionEqualOrGreater(4,18))
+    if (IsDrmVersionOrGreater(3, 27) || IsKernelVersionEqualOrGreater(4, 18))
     {
         m_featureState.requirePrtReserveVaWa = 0;
     }
@@ -654,13 +654,18 @@ Result Device::OsLateInit()
     // amdgpu_cs_submit_raw2, which is supposed to be 0 and never initialized.
     // Unless DRM version is under 3.27, that uint value will be re-enabled. In this case, amdgpu_bo_list_create_raw
     // will be used to convert the amdgpu_bo_handles to a uint handle.
-    if (IsDrmVersionOrGreater(3,27))
+    if (IsDrmVersionOrGreater(3, 27))
     {
         m_featureState.useBoListCreate = 0;
     }
     else
     {
         m_featureState.useBoListCreate = 1;
+    }
+
+    if (IsDrmVersionOrGreater(3, 47))
+    {
+        m_featureState.supportDiscardableBo = 1;
     }
 
     // Context IOCTL stable pstate interface was introduced from drm 3.45,
@@ -1759,6 +1764,9 @@ Result Device::InitQueueInfo()
                 m_queueProperties.perQueue[idx].flags.supportsSwapChainPresents = 1;
             }
         }
+
+        m_queueProperties.perQueue[QueueTypeUniversal].flags.supportSplitReleaseAcquire = 1;
+        m_queueProperties.perQueue[QueueTypeCompute].flags.supportSplitReleaseAcquire   = 1;
 
         // This code is added here because it is entirely reliant on kernel level support for implicit/explicit
         // gang submit. As a result, this GFXIP-specific logic is being handled in InitQueueInfo.

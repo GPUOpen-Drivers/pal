@@ -74,7 +74,6 @@ GfxDevice::GfxDevice(
     :
     m_pParent(pDevice),
     m_pRsrcProcMgr(pRsrcProcMgr),
-    m_pSettingsLoader(nullptr),
     m_pDdSettingsLoader(nullptr),
     m_queueContextUpdateCounter(0),
     m_pipelineLoader(pDevice)
@@ -86,11 +85,6 @@ GfxDevice::GfxDevice(
 GfxDevice::~GfxDevice()
 {
     // Note that GfxDevice does not own the m_pRsrcProcMgr instance so it is not deleted here.
-
-    if (m_pSettingsLoader != nullptr)
-    {
-        PAL_SAFE_DELETE(m_pSettingsLoader, m_pParent->GetPlatform());
-    }
 
     if (m_pDdSettingsLoader != nullptr)
     {
@@ -132,7 +126,7 @@ Result GfxDevice::InitHwlSettings(
     Result ret = Result::Success;
 
     // Make sure we only initialize settings once
-    if (m_pSettingsLoader == nullptr)
+    if (m_pDdSettingsLoader == nullptr)
     {
         switch (m_pParent->ChipProperties().gfxLevel)
         {
@@ -146,7 +140,7 @@ Result GfxDevice::InitHwlSettings(
             break;
         }
 
-        if ((m_pSettingsLoader == nullptr) && (m_pDdSettingsLoader == nullptr))
+        if (m_pDdSettingsLoader == nullptr)
         {
             ret = Result::ErrorOutOfMemory;
         }

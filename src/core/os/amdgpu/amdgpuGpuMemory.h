@@ -85,7 +85,7 @@ public:
 
     void GetHeapsInfo(uint32* pHeapCount, GpuHeap** ppHeaps) const;
 
-    bool IsVmAlwaysValid() const { return m_amdgpuFlags.isVmAlwaysValid; }
+    bool IsVmAlwaysValid()     const { return m_amdgpuFlags.isVmAlwaysValid;     }
 
     Result QuerySdiBusAddress();
 

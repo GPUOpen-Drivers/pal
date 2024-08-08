@@ -157,7 +157,7 @@ Result SettingsFileMgr<Allocator>::Init(
 
                 // all other lines are key, value pairs. Split at the comma and add them to our map
                 char* pBuffer = NULL;
-                char* pToken = Strtok(&currLine[idx], ",", &pBuffer);
+                char* pToken = Strtok(&currLine[idx], ", ", &pBuffer);
                 if ((pToken != nullptr) && (strlen(pToken) > 0))
                 {
                     // Trim off the scope if it is present

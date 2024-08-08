@@ -181,7 +181,8 @@ uint32 FloatToUFixed(
 {
     uint32 fixedPtNum;
     uint32 clampVal;
-    float  floatVal;
+    // Double-presicion is needed to avoid precision loss when calculating the scaled value.
+    double doubleVal;
 
     // Since we're handling both.
     PAL_ASSERT(intBits <= 32);
@@ -195,7 +196,7 @@ uint32 FloatToUFixed(
         PAL_ASSERT(fracBits == 0);
 
         // Make sure the unsigned integer is not negative.
-        floatVal = Max(f, FloatZero);
+        doubleVal = static_cast<double>(Max(f, FloatZero));
         clampVal = 0xFFFFFFFF;
     }
     else
@@ -222,22 +223,22 @@ uint32 FloatToUFixed(
         }
 
         // Clamp to min/max.
-        floatVal = Clamp(f, FloatZero, maxVal);
+        doubleVal = static_cast<double>(Clamp(f, FloatZero, maxVal));
 
         // Convert to integer scale.
-        floatVal = floatVal * scale;
+        doubleVal = doubleVal * scale;
     }
 
     // Round before conversion if enabled.
     if (enableRounding)
     {
-        if (floatVal > 0)
+        if (doubleVal > 0)
         {
-            floatVal += 0.5f;
+            doubleVal += 0.5;
         }
         else
         {
-            floatVal -= 0.5f;
+            doubleVal -= 0.5;
         }
     }
 
@@ -246,14 +247,14 @@ uint32 FloatToUFixed(
     {
         fixedPtNum = 0;
     }
-    else if (floatVal >= clampVal)
+    else if (doubleVal >= clampVal)
     {
         fixedPtNum = clampVal;
     }
     else
     {
         // Convert to fixed point.
-        fixedPtNum = static_cast<uint32>(floatVal);
+        fixedPtNum = static_cast<uint32>(doubleVal);
     }
 
     return fixedPtNum;
@@ -271,7 +272,8 @@ uint32 FloatToSFixed(
     uint32 scale;
     uint32 clampPos;
     int32  clampNeg;
-    float  floatVal;
+    // Double-presicion is needed to avoid precision loss when calculating the scaled value.
+    double doubleVal;
 
     // Cannot handle more than 32 bits.
     PAL_ASSERT(intBits <= 32);
@@ -282,7 +284,7 @@ uint32 FloatToSFixed(
         // Full 32 bit signed integer. numFracBits must be zero.
         PAL_ASSERT(fracBits == 0);
 
-        floatVal = f;
+        doubleVal = static_cast<double>(f);
         clampPos = 0x7FFFFFFF;
         clampNeg = 0x80000000;
     }
@@ -324,22 +326,22 @@ uint32 FloatToSFixed(
         }
 
         // Clamp to min/max.
-        floatVal = Clamp(f, minVal, maxVal);
+        doubleVal = static_cast<double>(Clamp(f, minVal, maxVal));
 
         // Convert to integer scale.
-        floatVal = floatVal * scale;
+        doubleVal = doubleVal * scale;
     }
 
     // Round before conversion if enabled.
     if (enableRounding)
     {
-        if (floatVal > 0)
+        if (doubleVal > 0)
         {
-            floatVal += 0.5f;
+            doubleVal += 0.5;
         }
         else
         {
-            floatVal -= 0.5f;
+            doubleVal -= 0.5;
         }
     }
 
@@ -348,18 +350,18 @@ uint32 FloatToSFixed(
     {
         fixedPtNum = 0;
     }
-    else if (floatVal >= clampPos)
+    else if (doubleVal >= clampPos)
     {
         fixedPtNum = clampPos;
     }
-    else if (floatVal <= clampNeg)
+    else if (doubleVal <= clampNeg)
     {
         fixedPtNum = clampNeg;
     }
     else
     {
         // Convert to fixed point.
-        fixedPtNum = static_cast<int32>(floatVal);
+        fixedPtNum = static_cast<int32>(doubleVal);
     }
 
     return fixedPtNum;

@@ -316,7 +316,7 @@ protected:
         const AbiReader&                        abiReader,
         const Util::PalAbi::CodeObjectMetadata& metadata,
         const GraphicsPipelineLoadInfo&         loadInfo,
-        PipelineUploader*                       pUploader);
+        CodeObjectUploader*                     pUploader);
 
     Device*const m_pDevice;
 

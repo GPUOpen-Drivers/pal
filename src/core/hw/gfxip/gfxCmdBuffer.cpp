@@ -312,7 +312,11 @@ void GfxCmdBuffer::ReturnGeneratedCommandChunks(
         // Return all chunks containing GPU-generated commands to the allocator.
         if ((m_generatedChunkList.IsEmpty() == false) && (m_flags.autoMemoryReuse == true))
         {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 803
+            m_pCmdAllocator->ReuseChunks(LargeEmbeddedDataAlloc, false, m_generatedChunkList.Begin());
+#else
             m_pCmdAllocator->ReuseChunks(EmbeddedDataAlloc, false, m_generatedChunkList.Begin());
+#endif
         }
     }
     else
@@ -627,7 +631,12 @@ void GfxCmdBuffer::CmdPresentBlt(
     region.srcExtent.depth  = 1;
     region.dstExtent        = region.srcExtent;
     region.dstOffset        = dstOffset;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 887
     region.numSlices        = 1;
+#else
+    region.srcSlices        = 1;
+    region.dstSlices        = 1;
+#endif
 
     const ImageLayout srcLayout =
     {

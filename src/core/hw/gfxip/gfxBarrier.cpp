@@ -580,4 +580,13 @@ bool GfxBarrierMgr::OptimizeAccessMask(
     return syncGl2;
 }
 
+// =====================================================================================================================
+bool GfxBarrierMgr::NeedWaitCpDma(
+    const Pm4CmdBuffer* pCmdBuf,
+    uint32              srcStageMask)
+{
+    return TestAnyFlagSet(srcStageMask, PipelineStageBlt | PipelineStageBottomOfPipe) &&
+           (pCmdBuf->GetPm4CmdBufState().flags.cpBltActive != 0);
+}
+
 }

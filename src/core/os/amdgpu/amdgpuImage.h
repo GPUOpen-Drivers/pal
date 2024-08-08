@@ -104,9 +104,9 @@ public:
         return m_pSubResInfoList + subresId;
     }
 
-    void* GetSubresourceTileInfo(uint32 subResId)
+    void* GetSubresourceTileInfo(uint32 subresId)
     {
-        return Util::VoidPtrInc(m_pTileInfoList, (subResId * m_tileInfoBytes));
+        return Util::VoidPtrInc(m_pTileInfoList, (subresId * m_tileInfoBytes));
     }
 
     virtual void SetOptimalSharingLevel(MetadataSharingLevel level) override {}

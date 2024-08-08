@@ -497,6 +497,14 @@ public:
         m_sessionState = sessionState;
     }
 
+    /// Returns the current active controller
+    ///
+    /// @returns Pointer to the current active controller driving the TraceSession
+    ITraceController* GetActiveController() const
+    {
+        return m_pActiveController;
+    }
+
     /// Reports an error encountered during an active trace by inserting a "TraceError" chunk to the trace stream
     ///
     /// If, during a trace or the construction of an RDF chunk, an error is encountered and a chunk that was

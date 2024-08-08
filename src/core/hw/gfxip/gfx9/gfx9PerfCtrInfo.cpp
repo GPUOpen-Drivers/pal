@@ -86,13 +86,14 @@ enum Gfx10SpmSeBlockSelect : uint32
 };
 
 // There's a terrifyingly large number of UMCCH registers. This macro makes UpdateUmcchBlockInfo much more sane.
-#define SET_UMCCH_INSTANCE_REGS(Ns, Idx) \
-    pInfo->umcchRegAddr[Idx].perfMonCtlClk = Ns::mmUMCCH##Idx##_PerfMonCtlClk; \
-    pInfo->umcchRegAddr[Idx].perModule[0] = { Ns::mmUMCCH##Idx##_PerfMonCtl1, Ns::mmUMCCH##Idx##_PerfMonCtr1_Lo, Ns::mmUMCCH##Idx##_PerfMonCtr1_Hi }; \
-    pInfo->umcchRegAddr[Idx].perModule[1] = { Ns::mmUMCCH##Idx##_PerfMonCtl2, Ns::mmUMCCH##Idx##_PerfMonCtr2_Lo, Ns::mmUMCCH##Idx##_PerfMonCtr2_Hi }; \
-    pInfo->umcchRegAddr[Idx].perModule[2] = { Ns::mmUMCCH##Idx##_PerfMonCtl3, Ns::mmUMCCH##Idx##_PerfMonCtr3_Lo, Ns::mmUMCCH##Idx##_PerfMonCtr3_Hi }; \
-    pInfo->umcchRegAddr[Idx].perModule[3] = { Ns::mmUMCCH##Idx##_PerfMonCtl4, Ns::mmUMCCH##Idx##_PerfMonCtr4_Lo, Ns::mmUMCCH##Idx##_PerfMonCtr4_Hi }; \
-    pInfo->umcchRegAddr[Idx].perModule[4] = { Ns::mmUMCCH##Idx##_PerfMonCtl5, Ns::mmUMCCH##Idx##_PerfMonCtr5_Lo, Ns::mmUMCCH##Idx##_PerfMonCtr5_Hi };
+#define SET_UMCCH_INSTANCE_REGS(Ns, Idx) SET_UMCCH_INSTANCE_REGS_WITH_CH(Ns, Idx, Idx)
+#define SET_UMCCH_INSTANCE_REGS_WITH_CH(Ns, Idx, Ch) \
+    pInfo->umcchRegAddr[Idx].perfMonCtlClk = Ns::mmUMCCH##Ch##_PerfMonCtlClk; \
+    pInfo->umcchRegAddr[Idx].perModule[0] = { Ns::mmUMCCH##Ch##_PerfMonCtl1, Ns::mmUMCCH##Ch##_PerfMonCtr1_Lo, Ns::mmUMCCH##Ch##_PerfMonCtr1_Hi }; \
+    pInfo->umcchRegAddr[Idx].perModule[1] = { Ns::mmUMCCH##Ch##_PerfMonCtl2, Ns::mmUMCCH##Ch##_PerfMonCtr2_Lo, Ns::mmUMCCH##Ch##_PerfMonCtr2_Hi }; \
+    pInfo->umcchRegAddr[Idx].perModule[2] = { Ns::mmUMCCH##Ch##_PerfMonCtl3, Ns::mmUMCCH##Ch##_PerfMonCtr3_Lo, Ns::mmUMCCH##Ch##_PerfMonCtr3_Hi }; \
+    pInfo->umcchRegAddr[Idx].perModule[3] = { Ns::mmUMCCH##Ch##_PerfMonCtl4, Ns::mmUMCCH##Ch##_PerfMonCtr4_Lo, Ns::mmUMCCH##Ch##_PerfMonCtr4_Hi }; \
+    pInfo->umcchRegAddr[Idx].perModule[4] = { Ns::mmUMCCH##Ch##_PerfMonCtl5, Ns::mmUMCCH##Ch##_PerfMonCtr5_Lo, Ns::mmUMCCH##Ch##_PerfMonCtr5_Hi };
 
 // There are a large number of mmGE_PERFCOUNT registers. These two macros allow confirming equivalence without an
 // overwhelmingly large block of code

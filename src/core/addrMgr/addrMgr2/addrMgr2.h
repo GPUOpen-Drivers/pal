@@ -178,19 +178,19 @@ struct TileInfo
 // Returns a pointer to the tiling info for the subresource with the given index.
 inline const TileInfo* GetTileInfo(
     const Image* pImage,
-    uint32       subResIdx)
+    uint32       subresIdx)
 {
     PAL_ASSERT(pImage != nullptr);
-    return static_cast<const TileInfo*>(pImage->SubresourceTileInfo(subResIdx));
+    return static_cast<const TileInfo*>(pImage->SubresourceTileInfo(subresIdx));
 }
 
 // =====================================================================================================================
 // Returns a pointer to the tiling info for the given subresource.
 inline const TileInfo* GetTileInfo(
-    const Image*    pImage,
-    const SubresId& subRes)
+    const Image* pImage,
+    SubresId     subresId)
 {
-    return GetTileInfo(pImage, pImage->CalcSubresourceId(subRes));
+    return GetTileInfo(pImage, pImage->CalcSubresourceId(subresId));
 }
 
 // =====================================================================================================================

@@ -7,7 +7,7 @@ PAL client drivers will have no HW-specific code; their responsibility is to tra
 PAL client drivers should have little OS-specific code. PAL and its companion utility collection provide OS abstractions for almost everything a client might need, but there are some cases where this is unavoidable:
 
 * Handling dynamic library infrastructure. I.e., the client has to implement DllMain() on Windows, etc.
-* OS-specific APIs or extensions. DX may have Windows-specific functionality in the core API, and Vulkan/Mantle may export certain OS-specific features as extensions (like for presenting contents to the screen).
+* OS-specific APIs or extensions. DX may have Windows-specific functionality in the core API, and Vulkan may export certain OS-specific features as extensions (like for presenting contents to the screen).
 * Single OS clients (e.g., DX) may choose to make OS-specific calls directly simply out of convenience with no down side.
 
 PAL is a source deliverable. Clients will periodically promote PAL's source into their own tree and build a static pal.lib as part of their build process.

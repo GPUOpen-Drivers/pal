@@ -396,6 +396,11 @@ void IndirectCmdGenerator::InitParamBuffer(
         {
             switch (param.type)
             {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 889
+            case IndirectParamType::Padding:
+                m_pParamData[p].type = IndirectOpType::Skip;
+                break;
+#endif
             case IndirectParamType::Dispatch:
                 m_pParamData[p].type = IndirectOpType::Dispatch;
                 break;

@@ -458,7 +458,7 @@ void RsrcProcMgr::CopyImageCs(
 
         // When we treat 3D images as 2D arrays each z-slice must be treated as an array slice.
         const uint32  numSlices    = (imageType == ImageType::Tex3d) ? copyRegion.extent.depth : copyRegion.numSlices;
-        SubresRange   viewRange    = { copyRegion.dstSubres, 1, 1, numSlices };
+        SubresRange   viewRange    = SubresourceRange(copyRegion.dstSubres, 1, 1, numSlices);
         ImageViewInfo imageView[2] = {};
 
         const ImageTexOptLevel optLevel = device.TexOptLevel();
@@ -1325,7 +1325,7 @@ void RsrcProcMgr::CopyBetweenMemoryAndImageCs(
             device.CreateTypedBufferViewSrds(1, &bufferView, pUserData);
             pUserData += SrdDwordAlignment();
 
-            const SubresRange viewRange = { copyRegion.imageSubres, 1, 1, copyRegion.numSlices };
+            const SubresRange viewRange = SubresourceRange(copyRegion.imageSubres, 1, 1, copyRegion.numSlices);
             ImageViewInfo     imageView = {};
 
             RpmUtil::BuildImageViewInfo(&imageView,
@@ -1769,7 +1769,11 @@ void RsrcProcMgr::CmdScaledCopyImage(
                 fixupRegions[i].extent.width  = Math::Absu(copyInfo.pRegions[i].dstExtent.width);
                 fixupRegions[i].extent.height = Math::Absu(copyInfo.pRegions[i].dstExtent.height);
                 fixupRegions[i].extent.depth  = Math::Absu(copyInfo.pRegions[i].dstExtent.depth);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 887
                 fixupRegions[i].numSlices     = copyInfo.pRegions[i].numSlices;
+#else
+                fixupRegions[i].numSlices     = copyInfo.pRegions[i].dstSlices;
+#endif
             }
             FixupMetadataForComputeDst(pCmdBuffer, dstImage, copyInfo.dstImageLayout,
                                        copyInfo.regionCount, &fixupRegions[0], true);
@@ -2056,7 +2060,12 @@ void RsrcProcMgr::GenerateMipmapsSlow(
     ImageScaledCopyRegion region = {};
     region.srcSubres.arraySlice = genInfo.range.startSubres.arraySlice;
     region.dstSubres.arraySlice = genInfo.range.startSubres.arraySlice;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 887
     region.numSlices            = genInfo.range.numSlices;
+#else
+    region.dstSlices            = genInfo.range.numSlices;
+    region.srcSlices            = genInfo.range.numSlices;
+#endif
     region.swizzledFormat       = genInfo.swizzledFormat;
 
     ScaledCopyInfo copyInfo = {};
@@ -2555,9 +2564,18 @@ void RsrcProcMgr::ScaledCopyImageCompute(
                 PAL_ASSERT(Formats::IsUndefined(srcFormat.format) == false);
             }
 #endif
+            else if (copyInfo.flags.srcAsSrgb)
+            {
+                srcFormat.format = Formats::ConvertToSrgb(srcFormat.format);
+                PAL_ASSERT(Formats::IsUndefined(srcFormat.format) == false);
+            }
 
             ImageViewInfo imageView[2] = {};
-            SubresRange   viewRange    = { copyRegion.dstSubres, 1, 1, copyRegion.numSlices };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 887
+            SubresRange   viewRange    = SubresourceRange(copyRegion.dstSubres, 1, 1, copyRegion.numSlices);
+#else
+            SubresRange   viewRange    = SubresourceRange(copyRegion.dstSubres, 1, 1, copyRegion.dstSlices);
+#endif
 
             PAL_ASSERT(TestAnyFlagSet(copyInfo.dstImageLayout.usages, LayoutCopyDst) == true);
             RpmUtil::BuildImageViewInfo(&imageView[0],
@@ -2587,7 +2605,11 @@ void RsrcProcMgr::ScaledCopyImageCompute(
                     FmaskViewInfo fmaskView  = {};
                     fmaskView.pImage         = pSrcImage;
                     fmaskView.baseArraySlice = copyRegion.srcSubres.arraySlice;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 887
                     fmaskView.arraySize      = copyRegion.numSlices;
+#else
+                    fmaskView.arraySize      = copyRegion.srcSlices;
+#endif
 
                     m_pDevice->Parent()->CreateFmaskViewSrds(1, &fmaskView, pUserData);
                     pUserData += SrdDwordAlignment();
@@ -2615,7 +2637,11 @@ void RsrcProcMgr::ScaledCopyImageCompute(
             // Copy the copy parameters into the embedded user-data space
             memcpy(pUserData, &copyData[0], sizeof(copyData));
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 887
             const uint32 zGroups = is3d ? absDstExtentD : copyRegion.numSlices;
+#else
+            const uint32 zGroups = is3d ? absDstExtentD : copyRegion.dstSlices;
+#endif
 
             // Execute the dispatch. All of our scaledCopyImage shaders split the copy window into 8x8x1-texel tiles.
             // All of them simply define their threadgroup as an 8x8x1 grid and assign one texel to each thread.
@@ -2748,7 +2774,7 @@ void RsrcProcMgr::ConvertYuvToRgb(
             continue;   // Skip empty regions.
         }
 
-        const SubresRange dstRange = { region.rgbSubres, 1, 1, region.sliceCount };
+        const SubresRange dstRange = SubresourceRange(region.rgbSubres, 1, 1, region.sliceCount);
         RpmUtil::BuildImageViewInfo(&viewInfo[0],
                                     dstImage,
                                     dstRange,
@@ -2759,10 +2785,12 @@ void RsrcProcMgr::ConvertYuvToRgb(
 
         for (uint32 view = 1; view < viewCount; ++view)
         {
-            const auto&       cscViewInfo         = cscInfo.viewInfoYuvToRgb[view - 1];
-            SwizzledFormat    imageViewInfoFormat = cscViewInfo.swizzledFormat;
-            const SubresRange srcRange            =
-                { { cscViewInfo.plane, 0, region.yuvStartSlice }, 1, 1, region.sliceCount };
+            const auto&    cscViewInfo         = cscInfo.viewInfoYuvToRgb[view - 1];
+            SwizzledFormat imageViewInfoFormat = cscViewInfo.swizzledFormat;
+
+            const SubresRange srcRange =
+                SubresourceRange(Subres(cscViewInfo.plane, 0, region.yuvStartSlice), 1, 1, region.sliceCount);
+
             // Fall back if we can't use MM formats for YUV planes
             RpmUtil::SwapIncompatibleMMFormat(srcImage.GetDevice(), &imageViewInfoFormat);
             RpmUtil::BuildImageViewInfo(&viewInfo[view],
@@ -2900,7 +2928,7 @@ void RsrcProcMgr::ConvertRgbToYuv(
             srcFormat.format = Formats::ConvertToUnorm(srcFormat.format);
         }
 
-        const SubresRange srcRange = { region.rgbSubres, 1, 1, region.sliceCount };
+        const SubresRange srcRange = SubresourceRange(region.rgbSubres, 1, 1, region.sliceCount);
         RpmUtil::BuildImageViewInfo(&viewInfo[0],
                                     srcImage,
                                     srcRange,
@@ -2960,10 +2988,11 @@ void RsrcProcMgr::ConvertRgbToYuv(
         // Perform one conversion pass per plane of the YUV destination.
         for (uint32 pass = 0; pass < passCount; ++pass)
         {
-            const auto&       cscViewInfo         = cscInfo.viewInfoRgbToYuv[pass];
-            SwizzledFormat    imageViewInfoFormat = cscViewInfo.swizzledFormat;
-            const SubresRange dstRange            =
-                { { cscViewInfo.plane, 0, region.yuvStartSlice }, 1, 1, region.sliceCount };
+            const auto&    cscViewInfo         = cscInfo.viewInfoRgbToYuv[pass];
+            SwizzledFormat imageViewInfoFormat = cscViewInfo.swizzledFormat;
+
+            const SubresRange dstRange =
+                SubresourceRange(Subres(cscViewInfo.plane, 0, region.yuvStartSlice), 1, 1, region.sliceCount);
             // Fall back if we can't use MM formats for YUV planes
             RpmUtil::SwapIncompatibleMMFormat(dstImage.GetDevice(), &imageViewInfoFormat);
             RpmUtil::BuildImageViewInfo(&viewInfo[1],
@@ -4392,8 +4421,8 @@ void RsrcProcMgr::ResolveImageCompute(
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
 
         // Set both subresources to the first slice of the required mip level
-        const SubresId srcSubres = { pRegions[idx].srcPlane, 0, pRegions[idx].srcSlice };
-        const SubresId dstSubres = { pRegions[idx].dstPlane, pRegions[idx].dstMipLevel, pRegions[idx].dstSlice };
+        const SubresId srcSubres = Subres(pRegions[idx].srcPlane, 0, pRegions[idx].srcSlice);
+        const SubresId dstSubres = Subres(pRegions[idx].dstPlane, pRegions[idx].dstMipLevel, pRegions[idx].dstSlice);
 
         SwizzledFormat srcFormat = srcImage.SubresourceInfo(srcSubres)->format;
         SwizzledFormat dstFormat = dstImage.SubresourceInfo(dstSubres)->format;
@@ -4484,7 +4513,7 @@ void RsrcProcMgr::ResolveImageCompute(
                                                                    0);
 
         ImageViewInfo imageView[2] = {};
-        SubresRange   viewRange = { dstSubres, 1, 1, pRegions[idx].numSlices };
+        SubresRange   viewRange = SubresourceRange(dstSubres, 1, 1, pRegions[idx].numSlices);
 
         PAL_ASSERT(TestAnyFlagSet(dstImageLayout.usages, LayoutResolveDst) == true);
 
@@ -5016,8 +5045,9 @@ void RsrcProcMgr::BindCommonGraphicsState(
     };
 
     GlobalScissorParams scissorParams = { };
-    scissorParams.scissorRegion.extent.width  = Pm4::MaxScissorExtent;
-    scissorParams.scissorRegion.extent.height = Pm4::MaxScissorExtent;
+    const Extent3d& maxImageDims = m_pDevice->Parent()->MaxImageDimension();
+    scissorParams.scissorRegion.extent.width  = maxImageDims.width;
+    scissorParams.scissorRegion.extent.height = maxImageDims.height;
 
     pCmdBuffer->CmdSetInputAssemblyState(inputAssemblyState);
     pCmdBuffer->CmdSetDepthBiasState(depthBias);

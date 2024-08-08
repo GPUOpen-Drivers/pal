@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2024 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -23,45 +23,27 @@
  *
  **********************************************************************************************************************/
 
-#pragma once
+#include <dd_result.h>
+#include <Windows.h>
 
-#include <stdint.h>
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-typedef uint32_t DD_SETTINGS_NAME_HASH;
-
-typedef enum DD_SETTINGS_TYPE
+namespace DevDriver
 {
-    DD_SETTINGS_TYPE_BOOL = 0,
-    DD_SETTINGS_TYPE_INT8,
-    DD_SETTINGS_TYPE_UINT8,
-    DD_SETTINGS_TYPE_INT16,
-    DD_SETTINGS_TYPE_UINT16,
-    DD_SETTINGS_TYPE_INT32,
-    DD_SETTINGS_TYPE_UINT32,
-    DD_SETTINGS_TYPE_INT64,
-    DD_SETTINGS_TYPE_UINT64,
-    DD_SETTINGS_TYPE_FLOAT,
-    DD_SETTINGS_TYPE_STRING,
-} DD_SETTINGS_TYPE;
 
-typedef struct DDSettingsValueRef
+DD_RESULT ResultFromWin32Error(uint32_t err)
 {
-    /// The hash value of the setting name.
-    DD_SETTINGS_NAME_HASH hash;
-    /// The type of the setting.
-    DD_SETTINGS_TYPE type;
-    /// The size of the value pointed to by `pValue`. NOTE, for string
-    /// settings, only fixed-size char array is supported. `size` represents
-    /// the length of the array, and NOT the length of the string.
-    uint32_t size;
-    /// A pointer to the setting value.
-    void* pVal;
-} DDSettingsValueRef;
+    switch (err)
+    {
+        case ERROR_SUCCESS: return DD_RESULT_SUCCESS;
+        case ERROR_ACCESS_DENIED: return DD_RESULT_COMMON_ACCESS_DENIED;
+        case ERROR_FILE_NOT_FOUND: return DD_RESULT_FS_NOT_FOUND;
+        case ERROR_INVALID_HANDLE: return DD_RESULT_COMMON_INVALID_PARAMETER;
+        case ERROR_NOT_ENOUGH_MEMORY: // fallthrough
+        case ERROR_OUTOFMEMORY: return DD_RESULT_COMMON_OUT_OF_HEAP_MEMORY;
+        case ERROR_NO_DATA: // fallthrough
+        case ERROR_PIPE_NOT_CONNECTED: // fallthrough
+        case ERROR_BROKEN_PIPE: return DD_RESULT_NET_NOT_CONNECTED;
+        default: return DD_RESULT_COMMON_UNKNOWN;
+    }
+}
 
-#ifdef __cplusplus
-} // extern "C"
-#endif
+} // namespace DevDriver

@@ -425,7 +425,7 @@ public:
     // Destructor has nothing to do.
     virtual ~Gfx9Dcc() {}
 
-    Result Init(const SubresId& subResId, gpusize*  pSize, bool  hasEqGpuAccess);
+    Result Init(SubresId subresId, gpusize*  pSize, bool  hasEqGpuAccess);
     static bool UseDccForImage(const Image& image, bool metaDataTexFetchSupported);
 
     static bool SupportFastColorClearWithoutFormatCheck(
@@ -479,8 +479,8 @@ private:
 
     const bool m_displayDcc;
 
-    Result ComputeDccInfo(const SubresId&  subResId);
-    void   SetControlReg(const SubresId&  subResId);
+    Result ComputeDccInfo(SubresId subresId);
+    void   SetControlReg(SubresId subresId);
 
     static void GetBlackOrWhiteClearCode(
         const Pal::Image*  pImage,

@@ -87,8 +87,7 @@ struct UniversalCmdBufferState
             uint32 reserved0               :  2;
             uint32 cbColorInfoDirtyRtv     :  8; // Per-MRT dirty mask for CB_COLORx_INFO as a result of RTV
             uint32 needsEiV2GlobalSpill    :  1; // Indicates that this CmdBuffer contains an ExecuteIndirectV2 PM4
-                                                 // which will have mutliple instances of SpilledUserData Tables that
-                                                 // will use the Global SpillTable Buffer.
+                                                 // which will use the Global SpillTable Buffer.
             uint32 reserved1               :  7;
         };
         uint32 u32All;
@@ -303,7 +302,8 @@ union CachedSettings
         uint64 waitAfterCbFlush                          :  1;
         uint64 waitAfterDbFlush                          :  1;
         uint64 rbHarvesting                              :  1;
-        uint64 reserved                                  : 60;
+        uint64 waNoOpaqueOreo                            :  1;
+        uint64 reserved                                  : 59;
     };
     uint64 u64All[2];
 };
@@ -376,12 +376,20 @@ public:
 
     virtual void CmdBarrier(const BarrierInfo& barrierInfo) override;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
     virtual uint32 CmdRelease(
+#else
+    virtual ReleaseToken CmdRelease(
+#endif
         const AcquireReleaseInfo& releaseInfo) override;
     virtual void CmdAcquire(
         const AcquireReleaseInfo& acquireInfo,
         uint32                    syncTokenCount,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
         const uint32*             pSyncTokens) override;
+#else
+        const ReleaseToken*       pSyncTokens) override;
+#endif
 
     virtual void CmdReleaseEvent(
         const AcquireReleaseInfo& releaseInfo,
@@ -683,8 +691,6 @@ protected:
 
     virtual void WriteEventCmd(const BoundGpuMemory& boundMemObj, uint32 stageMask, uint32 data) override;
 
-    virtual void CmdXdmaWaitFlipPending() override;
-
     virtual void InheritStateFromCmdBuf(const Pm4CmdBuffer* pCmdBuffer) override;
 
     template <bool Pm4OptImmediate, bool IsNgg, bool Indirect>
@@ -847,6 +853,8 @@ private:
     uint32* ValidateCbColorInfoAndBlendState(
         uint32* pDeCmdSpace);
     uint32* ValidateDbRenderOverride(
+        uint32* pDeCmdSpace);
+    uint32* ValidateDbRenderControl(
         uint32* pDeCmdSpace);
 
     uint32* WriteTessDistributionFactors(
@@ -1246,6 +1254,8 @@ private:
 
     regDB_RENDER_OVERRIDE   m_dbRenderOverride;     // Current value of DB_RENDER_OVERRIDE.
     regDB_RENDER_OVERRIDE   m_prevDbRenderOverride; // Prev value of DB_RENDER_OVERRIDE - only used on primary CmdBuf.
+    regDB_RENDER_CONTROL    m_dbRenderControl;      // Current value of DB_RENDER_CONTROL.
+    regDB_RENDER_CONTROL    m_prevDbRenderControl;  // Prev value of DB_RENDER_CONTROL - only used on primary CmdBuf.
     regGE_MULTI_PRIM_IB_RESET_EN m_geMultiPrimIbResetEn; // Last written value of GE_MULTI_PRIM_IB_RESET_EN register.
 
     regPA_SC_AA_CONFIG m_paScAaConfigNew;  // PA_SC_AA_CONFIG state that will be written on the next draw.

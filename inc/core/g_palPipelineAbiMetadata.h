@@ -1917,7 +1917,9 @@ struct PipelineMetadata
             uint8 psSampleMask           : 1;
             /// Indicates whether or not the pipeline uses continuations passing shaders (CPS).
             uint8 usesCps                : 1;
-            uint8 reserved               : 3;
+            /// If using continuations passing shaders (CPS), stack is in global rather than scratch memory.
+            uint8 cpsGlobal              : 1;
+            uint8 reserved               : 2;
         };
         uint8 uAll;
     } flags;
@@ -1952,10 +1954,11 @@ struct PipelineMetadata
             uint32 psDummyExport           : 1;
             uint32 psSampleMask            : 1;
             uint32 usesCps                 : 1;
+            uint32 cpsGlobal               : 1;
             uint32 streamoutVertexStrides  : 1;
             uint32 graphicsRegister        : 1;
             uint32 computeRegister         : 1;
-            uint32 reserved                : 3;
+            uint32 reserved                : 2;
         };
         uint32 uAll;
     } hasEntry;
@@ -2017,6 +2020,7 @@ namespace PipelineMetadataKey
     static constexpr char PsDummyExport[]           = ".ps_dummy_export";
     static constexpr char PsSampleMask[]            = ".ps_sample_mask";
     static constexpr char UsesCps[]                 = ".uses_cps";
+    static constexpr char CpsGlobal[]               = ".cps_global";
     static constexpr char StreamoutVertexStrides[]  = ".streamout_vertex_strides";
     static constexpr char GraphicsRegisters[]       = ".graphics_registers";
     static constexpr char ComputeRegisters[]        = ".compute_registers";

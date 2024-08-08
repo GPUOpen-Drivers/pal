@@ -37,10 +37,8 @@
 #include <signal.h>
 /// OS-independent macro to force a break into the debugger.
 #define PAL_DEBUG_BREAK() [[unlikely]] raise(SIGTRAP);
-/// Macro to direct static code analysis to assume the specified expression will always be true.
-/// Purpose is to suppress warnings from MSVC's /analysis setting.
-/// Only pertains to static code analysis. Does not impact compile optimization. Not the same as C++23's [[assume]].
-#define PAL_ANALYSIS_ASSUME(_expr) ((void)(_expr))
+/// This macro is only useful on MSVC builds. It has no meaning for Linux build.
+#define PAL_ANALYSIS_ASSUME(_expr) ((void)0)
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 825
 #if PAL_HAS_BUILTIN(__builtin_expect) || (defined(__GNUC__) && !defined(__clang__))

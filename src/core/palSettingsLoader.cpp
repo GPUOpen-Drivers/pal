@@ -206,3 +206,4 @@ DevDriver::Result ISettingsLoader::SetValue(
     return ret;
 }
 } // Pal
+

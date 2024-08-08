@@ -656,6 +656,10 @@ Result PerfExperiment::AddCounter(
                 // There are no more global counters in this instance.
                 result = Result::ErrorInvalidValue;
             }
+            else
+            {
+                m_perfExperimentFlags.dfCtrsEnabled = 1;
+            }
         }
         else if (m_select.pGeneric[block] != nullptr)
         {
@@ -1365,7 +1369,7 @@ Result PerfExperiment::AddDfSpmTrace(
         // The sample interval must be at least 1.
         result = Result::ErrorInvalidValue;
     }
-    else if (m_perfExperimentFlags.perfCtrsEnabled && HasGlobalDfCounters())
+    else if (m_perfExperimentFlags.dfCtrsEnabled)
     {
         // DF SPM cannot be enabled if there are alreay DF cumulative counters.
         result = Result::ErrorInitializationFailed;
@@ -2056,6 +2060,8 @@ void PerfExperiment::IssueBegin(
     {
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
 
+        pCmdSpace = pCmdStream->WritePerfCounterWindow(true, pCmdSpace);
+
         // Given that we're about to change a large number of config registers we really should wait for prior work
         // (including prior perf experiments) to be idle before doing anything.
         //
@@ -2222,6 +2228,8 @@ void PerfExperiment::IssueBegin(
                                                 pCmdStream, pCmdSpace);
         }
 
+        pCmdSpace = pCmdStream->WritePerfCounterWindow(false, pCmdSpace);
+
         pCmdStream->CommitCommands(pCmdSpace);
     }
 }
@@ -2244,6 +2252,8 @@ void PerfExperiment::IssueEnd(
     else
     {
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
+
+        pCmdSpace = pCmdStream->WritePerfCounterWindow(true, pCmdSpace);
 
         // This isn't in the docs, but we've been told by hardware engineers that we need to do a wait-idle here when
         // sampling from global counters. We might be able to remove this when global counters are disabled.
@@ -2313,6 +2323,8 @@ void PerfExperiment::IssueEnd(
                                                          pCmdSpace);
         }
 
+        pCmdSpace = pCmdStream->WritePerfCounterWindow(false , pCmdSpace);
+
         pCmdStream->CommitCommands(pCmdSpace);
     }
 }
@@ -2336,6 +2348,8 @@ void PerfExperiment::BeginInternalOps(
              (m_createInfo.optionValues.sampleInternalOperations == false))
     {
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
+
+        pCmdSpace = pCmdStream->WritePerfCounterWindow(true, pCmdSpace);
 
         // Issue the necessary commands to stop counter collection (SPM and global counters) without resetting
         // any counter programming.
@@ -2386,6 +2400,8 @@ void PerfExperiment::BeginInternalOps(
         // them at the end to be safe.
         pCmdSpace = WriteEnableCfgRegisters(false, false, pCmdStream, pCmdSpace);
 
+        pCmdSpace = pCmdStream->WritePerfCounterWindow(false, pCmdSpace);
+
         pCmdStream->CommitCommands(pCmdSpace);
     }
 }
@@ -2410,6 +2426,8 @@ void PerfExperiment::EndInternalOps(
     {
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
 
+        pCmdSpace = pCmdStream->WritePerfCounterWindow(true, pCmdSpace);
+
         // NOTE: We probably should add a wait-idle here. If we don't wait the global counters will start counting
         // while the internal draw/dispatch is still active and it will be counted. There is no wait here currently
         // because the old perf experiment code didn't wait.
@@ -2427,6 +2445,7 @@ void PerfExperiment::EndInternalOps(
         pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmCP_PERFMON_CNTL, cpPerfmonCntl.u32All, pCmdSpace);
         pCmdSpace = WriteUpdateWindowedCounters(true, pCmdStream, pCmdSpace);
         pCmdSpace = WriteEnableCfgRegisters(true, false, pCmdStream, pCmdSpace);
+        pCmdSpace = pCmdStream->WritePerfCounterWindow(false, pCmdSpace);
 
         pCmdStream->CommitCommands(pCmdSpace);
     }
@@ -2440,7 +2459,6 @@ void PerfExperiment::UpdateSqttTokenMask(
     const ThreadTraceTokenConfig& sqttTokenConfig
     ) const
 {
-    CmdStream*const pCmdStream = static_cast<CmdStream*>(pPalCmdStream);
 
     if (m_isFinalized == false)
     {
@@ -2449,15 +2467,16 @@ void PerfExperiment::UpdateSqttTokenMask(
     }
     else if (m_perfExperimentFlags.sqtTraceEnabled)
     {
-        uint32* pCmdSpace = pCmdStream->ReserveCommands();
+        CmdStream* const pCmdStream = static_cast<CmdStream*>(pPalCmdStream);
+        uint32*          pCmdSpace  = pCmdStream->ReserveCommands();
+
+        pCmdSpace = pCmdStream->WritePerfCounterWindow(true, pCmdSpace);
 
         for (uint32 idx = 0; idx < ArrayLen(m_sqtt); ++idx)
         {
             if (m_sqtt[idx].inUse)
             {
-                pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmGRBM_GFX_INDEX,
-                                                             m_sqtt[idx].grbmGfxIndex.u32All,
-                                                             pCmdSpace);
+                pCmdSpace = WriteGrbmGfxIndexInstance(m_sqtt[idx].grbmGfxIndex, pCmdStream, pCmdSpace);
 
                 regSQ_THREAD_TRACE_TOKEN_MASK tokenMask = GetGfx10SqttTokenMask(*m_pDevice, sqttTokenConfig);
 
@@ -2474,6 +2493,8 @@ void PerfExperiment::UpdateSqttTokenMask(
 
         // Switch back to global broadcasting before returning to the rest of PAL.
         pCmdSpace = WriteGrbmGfxIndexBroadcastGlobal(pCmdStream, pCmdSpace);
+
+        pCmdSpace = pCmdStream->WritePerfCounterWindow(false , pCmdSpace);
 
         pCmdStream->CommitCommands(pCmdSpace);
     }
@@ -3001,9 +3022,7 @@ uint32* PerfExperiment::WriteStartThreadTraces(
             pCmdStream->CommitCommands(pCmdSpace);
             pCmdSpace = pCmdStream->ReserveCommands();
 
-            pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmGRBM_GFX_INDEX,
-                                                         m_sqtt[idx].grbmGfxIndex.u32All,
-                                                         pCmdSpace);
+            pCmdSpace = WriteGrbmGfxIndexInstance(m_sqtt[idx].grbmGfxIndex, pCmdStream, pCmdSpace);
 
             const gpusize shiftedAddr = (m_gpuMemory.GpuVirtAddr() + m_sqtt[idx].bufferOffset) >> SqttBufferAlignShift;
             const gpusize shiftedSize = m_sqtt[idx].bufferSize >> SqttBufferAlignShift;
@@ -3134,9 +3153,7 @@ uint32* PerfExperiment::WriteStopThreadTraces(
             pCmdStream->CommitCommands(pCmdSpace);
             pCmdSpace = pCmdStream->ReserveCommands();
 
-            pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmGRBM_GFX_INDEX,
-                                                         m_sqtt[idx].grbmGfxIndex.u32All,
-                                                         pCmdSpace);
+            pCmdSpace = WriteGrbmGfxIndexInstance(m_sqtt[idx].grbmGfxIndex, pCmdStream, pCmdSpace);
 
             if (IsGfx11(*m_pDevice))
             {
@@ -3351,7 +3368,8 @@ uint32* PerfExperiment::WriteSelectRegisters(
             };
             reg.bits.SA_BROADCAST_WRITES       = 1;
             reg.bits.INSTANCE_BROADCAST_WRITES = 1;
-            pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmGRBM_GFX_INDEX, reg.u32All, pCmdSpace);
+
+            pCmdSpace = WriteGrbmGfxIndexInstance(reg, pCmdStream, pCmdSpace);
 
             uint32 realSe = reg.bits.SE_INDEX;
 
@@ -3495,9 +3513,8 @@ uint32* PerfExperiment::WriteSelectRegisters(
                 if (select.hasCounters)
                 {
                     // Write GRBM_GFX_INDEX to target this specific block instance and enable its active modules.
-                    pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmGRBM_GFX_INDEX,
-                                                                 select.grbmGfxIndex.u32All,
-                                                                 pCmdSpace);
+
+                    pCmdSpace = WriteGrbmGfxIndexInstance(select.grbmGfxIndex, pCmdStream, pCmdSpace);
 
                     for (uint32 idx = 0; idx < select.numModules; ++idx)
                     {
@@ -3809,10 +3826,7 @@ uint32* PerfExperiment::WriteStopAndSampleGlobalCounters(
         }
         else if (mapping.general.block == GpuBlock::Sq)
         {
-            pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmGRBM_GFX_INDEX,
-                                                         m_select.sqg[instance].grbmGfxIndex.u32All,
-                                                         pCmdSpace);
-
+            pCmdSpace = WriteGrbmGfxIndexInstance(m_select.sqg[instance].grbmGfxIndex, pCmdStream, pCmdSpace);
             pCmdSpace = WriteCopy64BitCounter(m_counterInfo.block[block].regAddr.perfcounter[mapping.counterId].lo,
                                               m_counterInfo.block[block].regAddr.perfcounter[mapping.counterId].hi,
                                               destBaseAddr + mapping.offset,
@@ -3828,9 +3842,7 @@ uint32* PerfExperiment::WriteStopAndSampleGlobalCounters(
             // Since gfx11, we can specify gloabl perf counters for sq,sqc,sp blocks.
             // Prior to gfx11, those counters are considered as part of SQG block.
             PAL_ASSERT(IsGfx11(*m_pDevice));
-            pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmGRBM_GFX_INDEX,
-                                                         m_select.sqWgp[instance].grbmGfxIndex.u32All,
-                                                         pCmdSpace);
+            pCmdSpace = WriteGrbmGfxIndexInstance(m_select.sqWgp[instance].grbmGfxIndex, pCmdStream, pCmdSpace);
 
             PAL_ASSERT(m_counterInfo.block[block].regAddr.perfcounter[mapping.counterId].lo != 0);
 
@@ -3876,9 +3888,9 @@ uint32* PerfExperiment::WriteStopAndSampleGlobalCounters(
         else if (m_select.pGeneric[block] != nullptr)
         {
             // Set GRBM_GFX_INDEX so that we're talking to the specific block instance which own the given counter.
-            pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmGRBM_GFX_INDEX,
-                                                         m_select.pGeneric[block][instance].grbmGfxIndex.u32All,
-                                                         pCmdSpace);
+            pCmdSpace = WriteGrbmGfxIndexInstance(m_select.pGeneric[block][instance].grbmGfxIndex,
+                                                  pCmdStream,
+                                                  pCmdSpace);
 
             if (m_counterInfo.block[block].isCfgStyle)
             {
@@ -3975,6 +3987,8 @@ uint32* PerfExperiment::WriteStopAndSampleGlobalCounters(
     return pCmdSpace;
 }
 
+// =====================================================================================================================
+// Writes two 32bit register copies to adjacent dword addresses starting at destAddr
 uint32* PerfExperiment::WriteCopy64BitCounter(
     uint32     regAddrLo,
     uint32     regAddrHi,
@@ -3990,6 +4004,17 @@ uint32* PerfExperiment::WriteCopy64BitCounter(
     pCmdSpace = pCmdStream->WriteCopyPerfCtrRegToMemory(regAddrHi, destAddr + sizeof(uint32), pCmdSpace);
 
     return pCmdSpace;
+}
+
+// =====================================================================================================================
+// Writes GRBM_GFX_INDEX in the given command space such that we direct reads or writes to a specific instance
+uint32* PerfExperiment::WriteGrbmGfxIndexInstance(
+    regGRBM_GFX_INDEX grbmGfxIndex,
+    CmdStream*        pCmdStream,
+    uint32*           pCmdSpace
+    ) const
+{
+    return pCmdStream->WriteSetOneConfigReg(mmGRBM_GFX_INDEX, grbmGfxIndex.u32All, pCmdSpace);
 }
 
 // =====================================================================================================================
@@ -4173,16 +4198,6 @@ bool PerfExperiment::HasGenericCounters(
             break;
         }
     }
-
-    return hasCounters;
-}
-
-// =====================================================================================================================
-bool PerfExperiment::HasGlobalDfCounters() const
-{
-    bool hasCounters = false;
-
-    hasCounters = m_select.df.hasCounters;
 
     return hasCounters;
 }

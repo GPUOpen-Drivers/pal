@@ -882,10 +882,12 @@ Result PipelineAbiProcessor<Allocator>::LoadFromBuffer(
 {
     Result result = m_elfProcessor.LoadFromBuffer(pBuffer, bufferSize);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 884
     if (result == Result::Success)
     {
-         result = m_genericSymbolsMap.Init();
+        result = m_genericSymbolsMap.Init();
     }
+#endif
 
     if (result == Result::Success)
     {

@@ -35,6 +35,8 @@ using namespace Pal;
 namespace GpuUtil
 {
 
+using namespace TraceChunk;
+
 // Translation table for obtaining TraceMemoryType given a Pal::LocalMemoryType.
 static constexpr TraceMemoryType TraceMemoryTypeTable[] =
 {
@@ -71,9 +73,10 @@ AsicInfoTraceSource::~AsicInfoTraceSource()
 // =====================================================================================================================
 // Queries the engine and memory clocks from DeviceProperties
 Result AsicInfoTraceSource::SampleGpuClocks(
-    GpuClocksSample* pGpuClocksSample,
-    Device*          pDevice,
-    DeviceProperties deviceProps) const
+    GpuClocksSample*        pGpuClocksSample,
+    Device*                 pDevice,
+    const DeviceProperties& deviceProps
+    ) const
 {
     Result result = Result::ErrorInvalidPointer;
 
@@ -115,7 +118,7 @@ void AsicInfoTraceSource::FillTraceChunkAsicInfo(
     const Pal::DeviceProperties&         properties,
     const Pal::PerfExperimentProperties& perfExpProps,
     const GpuClocksSample&               gpuClocks,
-    TraceChunkAsicInfo*                  pAsicInfo)
+    AsicInfo*                            pAsicInfo)
 {
     pAsicInfo->pciId                      = m_pPlatform->GetPciId(properties.gpuIndex).u32All;
     pAsicInfo->shaderCoreClockFrequency   = gpuClocks.gpuEngineClockSpeed * 1000000;
@@ -169,7 +172,7 @@ void AsicInfoTraceSource::FillTraceChunkAsicInfo(
     pAsicInfo->l1CacheSize                = properties.gfxipProperties.shaderCore.tcpSizeInBytes;
     pAsicInfo->ldsSize                    = properties.gfxipProperties.shaderCore.ldsSizePerCu;
 
-    memcpy(pAsicInfo->gpuName, &properties.gpuName, TRACE_GPU_NAME_MAX_SIZE);
+    memcpy(pAsicInfo->gpuName, &properties.gpuName, TraceGpuNameMaxSize);
 
     pAsicInfo->aluPerClock                = properties.gfxipProperties.performance.aluPerClock;
     pAsicInfo->texturePerClock            = properties.gfxipProperties.performance.texPerClock;
@@ -201,6 +204,17 @@ void AsicInfoTraceSource::FillTraceChunkAsicInfo(
                         properties.gfxipProperties.shaderCore.activeCuMask[se][sa], 0xffff0000) == false);
         }
     }
+
+    static_assert(sizeof(pAsicInfo->pixelPackerMask) ==
+                  sizeof(properties.gfxipProperties.shaderCore.activePixelPackerMask),
+                  "Size of pixel packer mask in trace chunk does not match size in device properties");
+    memcpy(pAsicInfo->pixelPackerMask, properties.gfxipProperties.shaderCore.activePixelPackerMask,
+           sizeof(properties.gfxipProperties.shaderCore.activePixelPackerMask));
+
+    pAsicInfo->gl1CacheSize    = properties.gfxipProperties.shaderCore.gl1cSizePerSa;
+    pAsicInfo->instCacheSize   = properties.gfxipProperties.shaderCore.instCacheSizePerCu;
+    pAsicInfo->scalarCacheSize = properties.gfxipProperties.shaderCore.scalarCacheSizePerCu;
+    pAsicInfo->mallCacheSize   = properties.gfxipProperties.mallSizeInBytes;
 }
 
 // =====================================================================================================================
@@ -213,8 +227,8 @@ void AsicInfoTraceSource::OnTraceFinished()
     {
         Device* pDevice = m_pPlatform->GetDevice(i);
 
-        Pal::DeviceProperties         deviceProps         = { };
-        Pal::PerfExperimentProperties perfExperimentProps = { };
+        DeviceProperties         deviceProps         = { };
+        PerfExperimentProperties perfExperimentProps = { };
 
         // Load device properties
         result = pDevice->GetProperties(&deviceProps);
@@ -232,7 +246,7 @@ void AsicInfoTraceSource::OnTraceFinished()
             SampleGpuClocks(&gpuClocksSample, pDevice, deviceProps);
 
             // Populate the TraceAsicChunk with the Asic details
-            TraceChunkAsicInfo traceChunkAsicInfo = { };
+            AsicInfo traceChunkAsicInfo = { };
             FillTraceChunkAsicInfo(deviceProps, perfExperimentProps, gpuClocksSample, &traceChunkAsicInfo);
 
             // Prepare the chunk header and write the chunk data (ie. device info) into TraceSession.
@@ -243,7 +257,7 @@ void AsicInfoTraceSource::OnTraceFinished()
             info.headerSize        = 0;
             info.version           = AsicInfoChunkVersion;
             info.pData             = &traceChunkAsicInfo;
-            info.dataSize          = sizeof(TraceChunkAsicInfo);
+            info.dataSize          = sizeof(AsicInfo);
             info.enableCompression = false;
 
             result = m_pPlatform->GetTraceSession()->WriteDataChunk(this, info);

@@ -194,8 +194,8 @@ Result ComputePipeline::HwlInit(
         }
     }
 
-    PipelineUploader uploader(m_pDevice->Parent(), abiReader);
-    RegisterVector   registers(m_pDevice->GetPlatform());
+    CodeObjectUploader uploader(m_pDevice->Parent(), abiReader);
+    RegisterVector     registers(m_pDevice->GetPlatform());
 
     if (result == Result::Success)
     {
@@ -282,7 +282,7 @@ Result ComputePipeline::HwlInit(
 {
     m_disablePartialPreempt = createInfo.disablePartialDispatchPreemption;
 
-    PipelineUploader uploader(m_pDevice->Parent(), abiReader);
+    CodeObjectUploader uploader(m_pDevice->Parent(), abiReader);
 
     // Next, handle relocations and upload the pipeline code & data to GPU memory.
     const PalPublicSettings& settings = *m_pDevice->Parent()->GetPublicSettings();
@@ -392,6 +392,7 @@ Result ComputePipeline::LinkWithLibraries(
         // of the shaderLibrary is 0.
         m_uploadFenceToken = Max(m_uploadFenceToken, pLibObj->GetUploadFenceToken());
         m_pagingFenceVal   = Max(m_pagingFenceVal,   pLibObj->GetPagingFenceVal());
+        m_signature.spillThreshold = Min(pLibObj->Signature().spillThreshold, m_signature.spillThreshold);
 
         if (pLibObj->GetShaderLibFunctionInfos().NumElements() == 0)
         {

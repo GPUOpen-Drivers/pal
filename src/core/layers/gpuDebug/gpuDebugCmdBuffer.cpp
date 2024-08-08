@@ -564,7 +564,7 @@ Result CmdBuffer::CaptureImageSurface(
     const ImageLayoutUsageFlags    srcLayoutUsages,
     const ImageLayoutEngineFlags   srcLayoutEngine,
     const CacheCoherencyUsageFlags srcCoher,
-    const SubresId&                baseSubres,     // Specifies the plane, mip level, and base array slice.
+    SubresId                       baseSubres,     // Specifies the plane, mip level, and base array slice.
     const uint32                   arraySize,
     bool                           isDraw,
     IImage**                       ppDstImage)
@@ -2054,7 +2054,11 @@ void CmdBuffer::ReplayCmdBarrier(
 }
 
 // =====================================================================================================================
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
 uint32 CmdBuffer::CmdRelease(
+#else
+ReleaseToken CmdBuffer::CmdRelease(
+#endif
     const AcquireReleaseInfo& releaseInfo)
 {
     HandleBarrierBlt(true, true);
@@ -2075,7 +2079,11 @@ uint32 CmdBuffer::CmdRelease(
 
     // If this layer is enabled, the return value from the layer is a release index generated and managed by this layer.
     // The layer maintains an array of release tokens, and uses release index to retrieve token value from the array.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
     return releaseIdx;
+#else
+    return { .u32All = releaseIdx };
+#endif
 }
 
 // =====================================================================================================================
@@ -2096,7 +2104,11 @@ void CmdBuffer::ReplayCmdRelease(
     const uint32 releaseIdx         = ReadTokenVal<uint32>();
     PAL_ASSERT(releaseIdx == m_releaseTokenList.NumElements());
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
     const uint32 releaseToken = pTgtCmdBuffer->CmdRelease(releaseInfo);
+#else
+    const ReleaseToken releaseToken = pTgtCmdBuffer->CmdRelease(releaseInfo);
+#endif
     m_releaseTokenList.PushBack(releaseToken);
 }
 
@@ -2104,7 +2116,11 @@ void CmdBuffer::ReplayCmdRelease(
 void CmdBuffer::CmdAcquire(
     const AcquireReleaseInfo& acquireInfo,
     uint32                    syncTokenCount,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
     const uint32*             pSyncTokens)
+#else
+    const ReleaseToken*       pSyncTokens)
+#endif
 {
     HandleBarrierBlt(true, true);
 
@@ -2143,7 +2159,11 @@ void CmdBuffer::ReplayCmdAcquire(
     const uint32  syncTokenCount    = ReadTokenArray(&pReleaseIndices);
 
     auto*const pPlatform = static_cast<Platform*>(m_pDevice->GetPlatform());
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
     AutoBuffer<uint32, 1, Platform> releaseTokens(syncTokenCount, pPlatform);
+#else
+    AutoBuffer<ReleaseToken, 1, Platform> releaseTokens(syncTokenCount, pPlatform);
+#endif
 
     for (uint32 i = 0; i < syncTokenCount; i++)
     {
@@ -5079,20 +5099,6 @@ void CmdBuffer::ReplayCmdStopGpuProfilerLogging(
 }
 
 // =====================================================================================================================
-void CmdBuffer::CmdXdmaWaitFlipPending()
-{
-    InsertToken(CmdBufCallId::CmdXdmaWaitFlipPending);
-}
-
-// =====================================================================================================================
-void CmdBuffer::ReplayCmdXdmaWaitFlipPending(
-    Queue*           pQueue,
-    TargetCmdBuffer* pTgtCmdBuffer)
-{
-    pTgtCmdBuffer->CmdXdmaWaitFlipPending();
-}
-
-// =====================================================================================================================
 // Replays the commands that were recorded on this command buffer into a separate, target command buffer while adding
 // additional commands for GPU profiling purposes.
 Result CmdBuffer::Replay(
@@ -5214,7 +5220,6 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdSetUserClipPlanes,
         &CmdBuffer::ReplayCmdCommentString,
         &CmdBuffer::ReplayCmdNop,
-        &CmdBuffer::ReplayCmdXdmaWaitFlipPending,
         &CmdBuffer::ReplayCmdCopyMemoryToTiledImage,
         &CmdBuffer::ReplayCmdCopyTiledImageToMemory,
         &CmdBuffer::ReplayCmdStartGpuProfilerLogging,

@@ -46,12 +46,13 @@ pal_bp(PAL_BUILD_GPUUTIL ON)
 pal_bp(PAL_DEVELOPER_BUILD OFF)
 #endif
 
-# Build PAL with Operating System support
-pal_bp(PAL_BUILD_OSS    ON)
+if (PAL_CLIENT_INTERFACE_MAJOR_VERSION LESS 888)
+    # Build PAL with Operating System support
+    pal_bp(PAL_BUILD_OSS    ON)
 #if PAL_BUILD_OSS2_4
-pal_bp(PAL_BUILD_OSS2_4 ON DEPENDS_ON PAL_BUILD_OSS)
+    pal_bp(PAL_BUILD_OSS2_4 ON DEPENDS_ON PAL_BUILD_OSS)
 #endif
-pal_bp(PAL_BUILD_OSS4   ON DEPENDS_ON PAL_BUILD_OSS)
+endif()
 
 # Clients must define this variable so pal know what API it's facilitating
 pal_bp(PAL_CLIENT "-1" MODE "FATAL_ERROR")
@@ -115,12 +116,12 @@ if (PAL_BUILD_GFX9)
                     PAL_BUILD_GFX11
               )
     endif()
-
-    # We'll remove this soon...
-    pal_bp( PAL_BUILD_PHOENIX2 ON MODE "AUTHOR_WARNING"
-            ASIC_CONFIG
-                PAL_BUILD_GFX11
-          )
+    if (PAL_CLIENT_INTERFACE_MAJOR_VERSION LESS 888)
+        pal_bp( PAL_BUILD_PHOENIX2 ON MODE "AUTHOR_WARNING"
+                ASIC_CONFIG
+                    PAL_BUILD_GFX11
+              )
+    endif()
 #endif
 
 endif() # PAL_BUILD_GFX9

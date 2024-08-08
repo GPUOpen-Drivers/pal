@@ -60,6 +60,7 @@ Pm4CmdBuffer::Pm4CmdBuffer(
     const GfxBarrierMgr*       pBarrierMgr)
     :
     GfxCmdBuffer(device, createInfo),
+    m_device(device),
     m_acqRelFenceValGpuVa(0),
     m_timestampGpuVa(0),
     m_fceRefCountVec(device.GetPlatform()),
@@ -67,18 +68,17 @@ Pm4CmdBuffer::Pm4CmdBuffer(
     m_computeState{},
     m_computeRestoreState{},
     m_pBarrierMgr(pBarrierMgr),
-    m_device(device)
+    m_numActiveQueries{},
+    m_acqRelFenceVals{},
+    m_retiredAcqRelFenceVals{}
 {
     for (uint32 i = 0; i < static_cast<uint32>(QueryPoolType::Count); i++)
     {
         // Marks the specific query as "active," as in it is available to be used.
         // When we need to push state, the queries are no longer active (we deactivate them), but we want to reactivate
         // all of them after we pop state.
-        m_queriesActive[i]    = true;
-        m_numActiveQueries[i] = 0;
+        m_queriesActive[i] = true;
     }
-
-    memset(m_acqRelFenceVals, 0, sizeof(m_acqRelFenceVals));
 }
 
 // =====================================================================================================================
@@ -377,6 +377,7 @@ void Pm4CmdBuffer::ResetState()
     }
 
     memset(m_acqRelFenceVals, 0, sizeof(m_acqRelFenceVals));
+    memset(m_retiredAcqRelFenceVals, 0, sizeof(m_retiredAcqRelFenceVals));
 
     UpdateGfxBltExecEopFence();
     // Set a impossible waited fence until IssueReleaseSync assigns a meaningful value when sync RB cache.
@@ -452,7 +453,7 @@ Result Pm4CmdBuffer::BeginCommandStreams(
         // AllocateGpuScratchMem() always returns a valid GPU address, even if we fail to obtain memory from the
         // allocator.  In that scenario, the allocator returns a dummy chunk so we can always have a valid object
         // to access, and sets m_status to a failure code.
-        m_acqRelFenceValGpuVa = AllocateGpuScratchMem(static_cast<uint32>(AcqRelEventType::Count), sizeof(uint32));
+        m_acqRelFenceValGpuVa = AllocateGpuScratchMem(ReleaseTokenCount, sizeof(uint32));
         result = m_status;
     }
 
@@ -982,7 +983,11 @@ void Pm4CmdBuffer::CmdBarrier(
 }
 
 // =====================================================================================================================
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
 uint32 Pm4CmdBuffer::CmdRelease(
+#else
+ReleaseToken Pm4CmdBuffer::CmdRelease(
+#endif
     const AcquireReleaseInfo& releaseInfo)
 {
     PAL_ASSERT(m_pBarrierMgr != nullptr);
@@ -1001,7 +1006,7 @@ uint32 Pm4CmdBuffer::CmdRelease(
     Result result = GfxBarrierMgr::SplitImgBarriers(m_device.GetPlatform(), &splitReleaseInfo, &splitMemAllocated);
 
     Developer::BarrierOperations barrierOps = {};
-    uint32 syncToken = 0;
+    ReleaseToken                 syncToken  = {};
 
     if (result == Result::Success)
     {
@@ -1026,14 +1031,22 @@ uint32 Pm4CmdBuffer::CmdRelease(
 
     m_pm4CmdBufState.flags.packetPredicate = packetPredicate;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
+    return syncToken.u32All;
+#else
     return syncToken;
+#endif
 }
 
 // =====================================================================================================================
 void Pm4CmdBuffer::CmdAcquire(
     const AcquireReleaseInfo& acquireInfo,
     uint32                    syncTokenCount,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
     const uint32*             pSyncTokens)
+#else
+    const ReleaseToken*       pSyncTokens)
+#endif
 {
     PAL_ASSERT(m_pBarrierMgr != nullptr);
 
@@ -1054,7 +1067,12 @@ void Pm4CmdBuffer::CmdAcquire(
 
     if (result == Result::Success)
     {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
+        m_pBarrierMgr->Acquire(this, splitAcquireInfo, syncTokenCount,
+                               reinterpret_cast<const ReleaseToken*>(pSyncTokens), &barrierOps);
+#else
         m_pBarrierMgr->Acquire(this, splitAcquireInfo, syncTokenCount, pSyncTokens, &barrierOps);
+#endif
     }
     else if (result == Result::ErrorOutOfMemory)
     {

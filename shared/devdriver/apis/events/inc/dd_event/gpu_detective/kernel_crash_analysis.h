@@ -48,6 +48,7 @@ enum class EventId : uint8_t
     ShaderWaves      = DDCommonEventId::FirstEventIdForIndividualProvider + 1,
     SeInfo           = DDCommonEventId::FirstEventIdForIndividualProvider + 2,
     MmrRegisters     = DDCommonEventId::FirstEventIdForIndividualProvider + 3,
+    WaveRegisters    = DDCommonEventId::FirstEventIdForIndividualProvider + 4,
 };
 
 /// Data generated from kernel driver when a VM Page Fault happens.
@@ -204,19 +205,6 @@ struct WaveInfo
         };
         uint32_t        shaderId;
     };
-
-    uint32_t    sqWaveStatus;
-    uint32_t    sqWavePcHi;
-    uint32_t    sqWavePcLo;
-    uint32_t    sqWaveTrapsts;
-    uint32_t    sqWaveIbSts;
-    uint32_t    sqWaveIbSts2;
-    uint32_t    sqWaveActive;
-    uint32_t    sqWaveExecHi;
-    uint32_t    sqWaveExecLo;
-    uint32_t    sqWaveHwId1;
-    uint32_t    sqWaveHwId2;
-    uint32_t    sqWaveValidAndIdle;
 };
 
 // NOTE: HangType must match the Hangtype enum in kmdEventDefs.h
@@ -347,6 +335,64 @@ struct SeInfo
         memcpy(pBuffer, this, copySize);
         return copySize;
    }
+};
+
+// offset and data of a single shader wave register
+struct WaveRegisterInfo
+{
+    uint32_t offset;
+    uint32_t data;
+};
+
+// Note: Must exactly match KmdWaveRegistersEventData in KmdEventDefs.h
+struct WaveRegistersData
+{
+    uint32_t version;
+
+    uint32_t shaderId;
+
+    // number of WaveRegisterInfo structures which follow
+    uint32_t numRegisters;
+
+    // array of WaveRegisterInfo
+    // actual array length is `numRegisters`
+    WaveRegisterInfo registerInfos[1];
+
+    static size_t CalculateStructureSize(uint32_t numRegisterInfoForCalculation)
+    {
+        // std::max wrapped in parenthesis to ensure use of std::max instead of
+        // Windows header 'max' macro
+        numRegisterInfoForCalculation = (std::max)(1U, numRegisterInfoForCalculation);
+        return sizeof(WaveRegistersData) +
+               sizeof(WaveRegisterInfo) * (numRegisterInfoForCalculation - 1);
+    }
+
+    static size_t CalculateBufferSize(uint32_t numRegisterInfoForCalculation)
+    {
+        return sizeof(WaveRegistersData) +
+               sizeof(WaveRegisterInfo) * (numRegisterInfoForCalculation - 1);
+    }
+
+    static uint32_t GetNumWaveRegistersFromBuffer(const uint8_t *pBuffer)
+    {
+        pBuffer += offsetof(WaveRegistersData, numRegisters);
+        return *reinterpret_cast<const uint32_t*>(pBuffer);
+    }
+
+    size_t FromBuffer(const uint8_t* pBuffer)
+    {
+        uint32_t numRegistersInBuffer = GetNumWaveRegistersFromBuffer(pBuffer);
+        size_t   copySize             = CalculateBufferSize(numRegistersInBuffer);
+        memcpy(this, pBuffer, copySize);
+        return copySize;
+    }
+
+    size_t ToBuffer(uint8_t* pBuffer)
+    {
+        size_t copySize = CalculateBufferSize(numRegisters);
+        memcpy(pBuffer, this, copySize);
+        return copySize;
+    }
 };
 
 #pragma pack(pop)

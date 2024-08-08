@@ -211,8 +211,6 @@ protected:
 
     virtual void WriteEventCmd(const BoundGpuMemory& boundMemObj, uint32 stageMask, uint32 data) override;
 
-    virtual void InheritStateFromCmdBuf(const Pm4CmdBuffer* pCmdBuffer) override;
-
 private:
     template <bool HsaAbi, bool IssueSqttMarkerEvent, bool DescribeCallback>
     void SetDispatchFunctions();
@@ -310,7 +308,6 @@ private:
     //     - app disables/resets predication
     //     - driver forces them to 0 when a new command buffer begins
     // Note m_gfxCmdBuff.packetPredicate is also temporarily overridden by the driver during some operations
-    //
     gpusize  m_predGpuAddr;
     bool     m_inheritedPredication; // True if the predicate packet is inherited from the root-level command buffer.
 

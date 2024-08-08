@@ -29,9 +29,11 @@
 #undef DD_ASSERT
 #endif
 
+    #include <signal.h>
+    #define DD_ALWAYS_ASSERT(condition) do { if (!(condition)) raise(SIGTRAP); } while(0)
+
 #ifdef DD_OPT_ASSERTS_ENABLE
-        #include <signal.h>
-        #define DD_ASSERT(condition) do { if (!(condition)) raise(SIGTRAP); } while(0)
+    #define DD_ASSERT(condition) DD_ALWAYS_ASSERT(condition)
 #else
     #define DD_ASSERT(condition) (void)(condition)
 #endif

@@ -39,8 +39,6 @@ using namespace Util::Literals;
 namespace Pal
 {
 
-static constexpr gpusize DefaultPoolAllocationSize    = 4_MiB;
-static constexpr gpusize DefaultPoolAllocationMinSize = 64_KiB;
 static constexpr gpusize PoolMinSuballocationSize     = 16;
 static constexpr gpusize DefaultPoolAlignment         = 64_KiB;
 
@@ -217,7 +215,7 @@ Result InternalMemMgr::AllocateGpuMem(
     // If the requested allocation is small enough, try to find an appropriate pool and sub-allocate from it.
     if ((result                    == Result::Success)             &&
         (pOffset                   != nullptr)                     &&
-        (localCreateInfo.size      <= DefaultPoolAllocationSize / 2) &&
+        (localCreateInfo.size      <= m_pDevice->Settings().memMgrPoolMaxSuballocSize) &&
         (localCreateInfo.alignment <= DefaultPoolAlignment))
     {
         // Calculate GPU memory flags based on the creation information
@@ -300,7 +298,7 @@ GpuMemoryPool* InternalMemMgr::GetOpenPoolAndClaimMemory(
     const GpuMemoryFlags requestedMemFlags = ConvertGpuMemoryFlags(createInfo, internalInfo);
 
     Result result = Result::ErrorOutOfGpuMemory;
-    gpusize currentPoolSize = DefaultPoolAllocationMinSize / 2;
+    gpusize currentPoolSize = m_pDevice->Settings().memMgrPoolDefaultSize / 2;
 
     BestFitPoolList* pBestFitPoolList = PAL_NEW(BestFitPoolList,
                                                 m_pDevice->GetPlatform(),
@@ -481,9 +479,12 @@ GpuMemoryPool* InternalMemMgr::GetOpenPoolAndClaimMemory(
             // Enlarge next pool allocation as double current max pool size
             gpusize nextPoolAllocationSize = currentPoolSize * 2;
 
+            const gpusize poolSizeCap = m_pDevice->Settings().memMgrPoolMaxGrowSize;
+
             // Check if need to enlarge the pool size base on creation allocate size and alignment
             nextPoolAllocationSize = Util::Max(Util::Pow2Pad(localCreateInfoSize * 2), nextPoolAllocationSize);
             nextPoolAllocationSize = Util::Max(Util::Pow2Pad(localCreateInfoAlignment * 2), nextPoolAllocationSize);
+            nextPoolAllocationSize = Util::Min(poolSizeCap, nextPoolAllocationSize);
 
             localCreateInfo.size                   = nextPoolAllocationSize;
             localCreateInfo.alignment              = DefaultPoolAlignment;

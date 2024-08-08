@@ -269,7 +269,7 @@ template <typename Allocator>
 void MlaaUtil<Allocator>::BuildImageViewInfo(
     Pal::ImageViewInfo*   pInfo,
     const Pal::IImage*    pImage,
-    const Pal::SubresId&  subresId,
+    Pal::SubresId         subresId,
     bool                  isShaderWriteable)
 {
     const Pal::ImageType imageType = pImage->GetImageCreateInfo().imageType;
@@ -357,7 +357,7 @@ template <typename Allocator>
 void MlaaUtil<Allocator>::FindSepEdge(
     Pal::ICmdBuffer*     pCmdBuffer,
     const Pal::IImage&   srcImage,
-    const Pal::SubresId& srcSubres)
+    Pal::SubresId        srcSubres)
 {
     // The shader expects the following layout for the embedded user-data constant.
     // IterationDepth, source X dimension, source Y dimension, unused
@@ -511,9 +511,9 @@ template <typename Allocator>
 void MlaaUtil<Allocator>::FinalBlend(
     Pal::ICmdBuffer*     pCmdBuffer,
     const Pal::IImage&   srcImage,
-    const Pal::SubresId& srcSubres,
+    Pal::SubresId        srcSubres,
     const Pal::IImage&   dstImage,
-    const Pal::SubresId& dstSubres,
+    Pal::SubresId        dstSubres,
     Pal::uint32          maxIterationDepth)
 {
     // The shader expects the following layout for the embedded user-data constant.
@@ -565,9 +565,9 @@ template <typename Allocator>
 void MlaaUtil<Allocator>::FinalBlendFast(
     Pal::ICmdBuffer*     pCmdBuffer,
     const Pal::IImage&   srcImage,
-    const Pal::SubresId& srcSubres,
+    Pal::SubresId        srcSubres,
     const Pal::IImage&   dstImage,
-    const Pal::SubresId& dstSubres)
+    Pal::SubresId        dstSubres)
 {
     // The shader expects the following layout for the embedded user-data constant.
     // IterationDepth, source X dimension, source Y dimension, unused
@@ -612,9 +612,9 @@ template <typename Allocator>
 void MlaaUtil<Allocator>::ResolveImage(
     Pal::ICmdBuffer*      pCmdBuffer,
     const Pal::IImage&    srcImage,
-    const Pal::SubresId&  srcSubres,
+    Pal::SubresId         srcSubres,
     const Pal::IImage&    dstImage,
-    const Pal::SubresId&  dstSubres)
+    Pal::SubresId         dstSubres)
 {
     const Pal::uint32 width  = srcImage.GetImageCreateInfo().extent.width;
     const Pal::uint32 height = srcImage.GetImageCreateInfo().extent.height;

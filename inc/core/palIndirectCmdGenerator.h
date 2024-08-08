@@ -53,6 +53,10 @@ enum class IndirectParamType : uint32
     BindVertexData, ///< Binds a range of GPU memory for use as a vertex buffer.  This parameter is not allowed if
                     ///  Dispatch parameter is also present.
     SetUserData,    ///< Sets one or more user-data entries.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 889
+    Padding,        ///< Sets a padding operation that is not functional but used to specify a range of GPU memory that
+                    ///  should be ignored.
+#endif
     Count
 };
 

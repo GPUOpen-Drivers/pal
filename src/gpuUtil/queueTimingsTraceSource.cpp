@@ -321,6 +321,13 @@ void QueueTimingsTraceSource::OnTraceBegin(
             ReportInternalError("Error encountered when beginning a GpaSession", result);
         }
 
+        // Sample the timing clocks when starting a trace
+        result = m_pGpaSession->SampleTimingClocks();
+        if (result != Result::Success)
+        {
+            ReportInternalError("Error encountered when sampling timing clocks", result);
+            m_traceIsHealthy = false;
+        }
     }
 }
 

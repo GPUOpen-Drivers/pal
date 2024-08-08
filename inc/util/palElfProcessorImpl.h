@@ -1276,10 +1276,15 @@ Result ElfProcessor<Allocator>::LoadFromBuffer(
     const void*  pBuffer,
     size_t       bufferSize)
 {
+    Result result = Result::Success;
+
     const void* pBufferStart = pBuffer;
     PAL_ASSERT(bufferSize >= FileHeaderSize);
 
-    Result result = m_sections.Init();
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 884
+    result = m_sections.Init();
+#endif
+
     if (result == Result::Success)
     {
         // Read in the ELF FileHeader

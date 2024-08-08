@@ -72,8 +72,8 @@ public:
         { return m_fastClearMetaDataOffset[GetFastClearIndex(plane)] != 0; }
     bool HasFastClearMetaData(const SubresRange& range) const;
 
-    gpusize FastClearMetaDataAddr(const SubresId&  subResId) const;
-    gpusize FastClearMetaDataOffset(const SubresId&  subResId) const;
+    gpusize FastClearMetaDataAddr(SubresId subresId) const;
+    gpusize FastClearMetaDataOffset(SubresId subresId) const;
     gpusize FastClearMetaDataSize(uint32 plane, uint32 numMips) const;
 
     uint32 TranslateClearCodeOneToNativeFmt(uint32 cmpIdx) const;

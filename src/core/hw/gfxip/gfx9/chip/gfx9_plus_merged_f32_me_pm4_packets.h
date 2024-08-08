@@ -545,6 +545,13 @@ enum ME_COND_WRITE_write_space_enum
     write_space__me_cond_write__scratch  =  2,
 };
 
+// --------------------------------- ME_COND_WRITE_wr_confirm_enum ---------------------------------
+enum ME_COND_WRITE_wr_confirm_enum
+{
+    wr_confirm__me_cond_write__do_not_wait_for_write_confirmation__GFX10 =  0,
+    wr_confirm__me_cond_write__wait_for_write_confirmation__GFX10        =  1,
+};
+
 // --------------------------------------- PM4_ME_COND_WRITE ---------------------------------------
 typedef struct PM4_ME_COND_WRITE
 {
@@ -567,6 +574,12 @@ typedef struct PM4_ME_COND_WRITE
                 ME_COND_WRITE_write_space_enum write_space :  2;
                 uint32_t                       reserved3   : 22;
             };
+            struct
+            {
+                uint32_t                      reserved4  : 20;
+                ME_COND_WRITE_wr_confirm_enum wr_confirm :  1;
+                uint32_t                      reserved5  : 11;
+            } gfx10;
         } bitfields;
         uint32_t u32All;
     } ordinal2;
@@ -1223,7 +1236,9 @@ typedef struct PM4_ME_DMA_DATA
             struct
             {
                 ME_DMA_DATA_engine_sel_enum       engine_sel       :  1;
-                uint32_t                          reserved1        : 12;
+                uint32_t                          src_indirect     :  1;
+                uint32_t                          dst_indirect     :  1;
+                uint32_t                          reserved1        : 10;
                 ME_DMA_DATA_src_cache_policy_enum src_cache_policy :  2;
                 uint32_t                          reserved2        :  5;
                 ME_DMA_DATA_dst_sel_enum          dst_sel          :  2;
@@ -1233,13 +1248,6 @@ typedef struct PM4_ME_DMA_DATA
                 ME_DMA_DATA_src_sel_enum          src_sel          :  2;
                 uint32_t                          cp_sync          :  1;
             };
-            struct
-            {
-                uint32_t reserved5    :  1;
-                uint32_t src_indirect :  1;
-                uint32_t dst_indirect :  1;
-                uint32_t reserved6    : 29;
-            } gfx11;
         } bitfields;
         uint32_t u32All;
     } ordinal2;
@@ -1916,6 +1924,49 @@ typedef struct PM4_ME_INCREMENT_DE_COUNTER
 } PM4_ME_INCREMENT_DE_COUNTER;
 
 constexpr unsigned int PM4_ME_INCREMENT_DE_COUNTER_SIZEDW__CORE = 2;
+
+// ---------------------------- ME_INVALIDATE_TLBS_invalidate_sel_enum ----------------------------
+enum ME_INVALIDATE_TLBS_invalidate_sel_enum
+{
+    invalidate_sel__me_invalidate_tlbs__invalidate__GFX10 =  0,
+};
+
+// ------------------------- ME_INVALIDATE_TLBS_mmhub_invalidate_sel_enum -------------------------
+enum ME_INVALIDATE_TLBS_mmhub_invalidate_sel_enum
+{
+    mmhub_invalidate_sel__me_invalidate_tlbs__do_not_invalidate_mmhub__GFX10 =  0,
+    mmhub_invalidate_sel__me_invalidate_tlbs__use_mmhub_flush_type__GFX10    =  1,
+    mmhub_invalidate_sel__me_invalidate_tlbs__use_gfx_flush_type__GFX10      =  2,
+};
+
+// ------------------------------------ PM4_ME_INVALIDATE_TLBS ------------------------------------
+typedef struct PM4_ME_INVALIDATE_TLBS
+{
+    union
+    {
+        PM4_ME_TYPE_3_HEADER header;
+        uint32_t u32All;
+    } ordinal1;
+
+    union
+    {
+        union
+        {
+            struct
+            {
+                ME_INVALIDATE_TLBS_invalidate_sel_enum       invalidate_sel       :  3;
+                ME_INVALIDATE_TLBS_mmhub_invalidate_sel_enum mmhub_invalidate_sel :  2;
+                uint32_t                                     reserved1            : 20;
+                uint32_t                                     mmhub_flush_type     :  3;
+                uint32_t                                     reserved2            :  1;
+                uint32_t                                     gfx_flush_type       :  3;
+            } gfx10;
+        } bitfields;
+        uint32_t u32All;
+    } ordinal2;
+} PM4_ME_INVALIDATE_TLBS;
+
+constexpr unsigned int PM4_ME_INVALIDATE_TLBS_SIZEDW__GFX10 = 2;
 
 // ------------------------------------ PM4_ME_LOAD_CONFIG_REG ------------------------------------
 typedef struct PM4_ME_LOAD_CONFIG_REG

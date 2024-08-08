@@ -182,7 +182,22 @@ SyncGlxFlags BarrierMgr::GetCacheSyncOps(
     // Note that use orgSrcAccessMask instead of srcAccessMask to check if can skip shader source cache invalidation
     // since it can skip more cases safely. srcAccessMask from OptimizeAccessMask() may convert CoherCopySrc to CoherCp
     // and can't skip here but it's safe to skip here.
-    const bool canSkipCacheInv = (barrierType != BarrierType::Global) &&
+    //
+    // GL0/GL1 cache is tied to image format. When an image is accessed through GL0/GL1 with different formats, GL0/GL1
+    // layout will be inconsistent and cache invalidation is required in-between. CmdCloneImageData() may adjust image
+    // format due to raw copy and hits the issue.
+    //  - For clone CopySrc <-> ShaderRead, need inv GL0/GL1.
+    //  - For clone CopySrc -> ShaderWrite, no need cache inv as V$ and GL1 partial cache line writes to GL2 via byte
+    //    enables/mask. Similarly transition to clone CopyDst doesn't read and inv GL0/GL1.
+    //  - For ShaderWrite -> clone CopySrc, will always inv GL0/GL1 regardless of clone CopySrc or common CopySrc.
+    //  - For clone CopyDst -> ShadeRead, always inv GL0/GL1 regardless of clone CopyDst or common CopyDst.
+    const bool noSkipCacheInv = (pImage != nullptr) && pImage->IsCloneable()                 &&
+                                ((TestAnyFlagSet(orgSrcAccessMask, CoherCopySrc)             &&
+                                  TestAnyFlagSet(dstAccessMask, CacheCoherShaderReadMask))   ||
+                                 (TestAnyFlagSet(orgSrcAccessMask, CacheCoherShaderReadMask) &&
+                                  TestAnyFlagSet(dstAccessMask, CoherCopySrc)));
+    const bool canSkipCacheInv = (barrierType != BarrierType::Global)                             &&
+                                 (noSkipCacheInv == false)                                        &&
                                  (TestAnyFlagSet(orgSrcAccessMask, CacheCoherWriteMask) == false) &&
                                  TestAnyFlagSet(orgSrcAccessMask, CacheCoherShaderReadMask);
 
@@ -469,7 +484,7 @@ static BarrierTransition AcqRelBuildTransition(
     case ExpandDepthStencil:
         pBarrierOps->layoutTransitions.depthStencilExpand = 1;
         break;
-    case HwlExpandHtileHiZRange:
+    case ExpandHtileHiZRange:
         pBarrierOps->layoutTransitions.htileHiZRangeExpand = 1;
         break;
     case ResummarizeDepthStencil:
@@ -579,7 +594,7 @@ static void GetBltStageAccessInfo(
         }
         break;
 
-    case HwLayoutTransition::HwlExpandHtileHiZRange:
+    case HwLayoutTransition::ExpandHtileHiZRange:
     case HwLayoutTransition::MsaaColorDecompress:
         *pStageMask  = PipelineStageCs;
         *pAccessMask = CoherShader;
@@ -1052,7 +1067,7 @@ void BarrierMgr::AcqRelDepthStencilTransition(
 
     const auto& image = static_cast<const Pal::Image&>(*imgBarrier.pImage);
 
-    if (layoutTransInfo.blt[0] == HwLayoutTransition::HwlExpandHtileHiZRange)
+    if (layoutTransInfo.blt[0] == HwLayoutTransition::ExpandHtileHiZRange)
     {
         const auto& gfx9Image = static_cast<const Image&>(*image.GetGfxImage());
 
@@ -1180,10 +1195,11 @@ void BarrierMgr::AcqRelColorTransition(
 
 // =====================================================================================================================
 // Issue appropriate cache sync hardware commands to satisfy the cache release requirements.
-AcqRelSyncToken BarrierMgr::IssueReleaseSync(
+ReleaseToken BarrierMgr::IssueReleaseSync(
     Pm4CmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
     uint32                        stageMask,  // Bitmask of PipelineStageFlag.
+    bool                          releaseBufferCopyOnly,
     SyncGlxFlags                  acquireCaches,
     bool                          syncRbCache,
     Developer::BarrierOperations* pBarrierOps
@@ -1192,168 +1208,181 @@ AcqRelSyncToken BarrierMgr::IssueReleaseSync(
     // Validate input.
     PAL_ASSERT(pBarrierOps != nullptr);
 
-    const EngineType   engineType       = pCmdBuf->GetEngineType();
-    uint32*            pCmdSpace        = pCmdStream->ReserveCommands();
-    const SyncGlxFlags orgAcquireCaches = acquireCaches;
+    const ReleaseEvents releaseEvents = GetReleaseEvents(pCmdBuf, stageMask, syncRbCache, true);
+    const bool          waitCpDma     = NeedWaitCpDma(pCmdBuf, stageMask);
+    ReleaseToken        syncToken     = {};
 
-    ConvertSyncGlxFlagsToBarrierOps(acquireCaches, pBarrierOps);
-
-    const ReleaseEvents    releaseEvents = GetReleaseEvents(pCmdBuf, stageMask, syncRbCache, true);
-    const ReleaseMemCaches releaseCaches = m_cmdUtil.SelectReleaseMemCaches(&acquireCaches);
-
-    // Make sure all SyncGlxFlags have been converted to ReleaseMemCaches.
-    PAL_ASSERT(acquireCaches == SyncGlxNone);
-
-    // Pick EOP event if a cache sync is requested because EOS events do not support cache syncs.
-    const bool bumpToEop = (releaseCaches.u8All != 0) && (releaseEvents.u8All != 0);
-
-    // Note that release event flags for split barrier should meet below conditions,
-    //    1). No VsDone as it should be converted to PsDone or Eop.
-    //    2). PsDone and CsDone should have been already converted to Eop.
-    //    3). rbCache sync must have Eop event set.
-    PAL_ASSERT(releaseEvents.vs == 0);
-    PAL_ASSERT((releaseEvents.ps & releaseEvents.cs)== 0);
-    PAL_ASSERT((releaseEvents.rbCache == 0) || releaseEvents.eop);
-
-    AcqRelSyncToken syncToken = {};
-    syncToken.type = (releaseEvents.eop || bumpToEop) ? uint32(AcqRelEventType::Eop)    :
-                     releaseEvents.ps                 ? uint32(AcqRelEventType::PsDone) :
-                     releaseEvents.cs                 ? uint32(AcqRelEventType::CsDone) :
-                                                        uint32(AcqRelEventType::Invalid);
-
-    bool releaseMemWaitCpDma = false;
-
-    if (pCmdBuf->GetPm4CmdBufState().flags.cpBltActive &&
-        TestAnyFlagSet(stageMask, PipelineStageBlt | PipelineStageBottomOfPipe))
+    // For release buffer copy case, defer the wait and cache op to acquire if there is only CpDma wait.
+    // Cache op must happen after stall complete (wait CpDma idle) otherwise cache may be dirty again due to running
+    // CpDma blt. Since CpDma wait is deferred, cache op must be deferred to acquire time as well.
+    if (releaseBufferCopyOnly && waitCpDma && (releaseEvents.u8All == 0))
     {
-        // We must guarantee that all prior CP DMA accelerated blts have completed before we write this event because
-        // the CmdSetEvent and CmdResetEvent functions expect that the prior blts have reached the post-blt stage by
-        // the time the event is written to memory. Given that our CP DMA blts are asynchronous to the pipeline stages
-        // the only way to satisfy this requirement is to force the MEC to stall until the CP DMAs are completed.
-        if (EnableReleaseMemWaitCpDma() && (syncToken.type != uint32(AcqRelEventType::Invalid)))
-        {
-            releaseMemWaitCpDma = true;
-        }
-        else
-        {
-            pCmdSpace += m_cmdUtil.BuildWaitDmaData(pCmdSpace);
-        }
-
-        pBarrierOps->pipelineStalls.syncCpDma = 1;
-        pCmdBuf->SetCpBltState(false);
+        syncToken.type       = ReleaseTokenCpDma;
+        syncToken.fenceValue = pCmdBuf->GetNextAcqRelFenceVal(ReleaseTokenCpDma);
     }
-
-    // Issue RELEASE_MEM packet.
-    if (syncToken.type != uint32(AcqRelEventType::Invalid))
+    else
     {
-        // Request sync fence value after VGT event type is finalized.
-        syncToken.fenceVal = pCmdBuf->GetNextAcqRelFenceVal(AcqRelEventType(syncToken.type));
+        const EngineType   engineType       = pCmdBuf->GetEngineType();
+        uint32*            pCmdSpace        = pCmdStream->ReserveCommands();
+        const SyncGlxFlags orgAcquireCaches = acquireCaches;
 
-        if (Pal::Device::EngineSupportsGraphics(engineType))
+        ConvertSyncGlxFlagsToBarrierOps(acquireCaches, pBarrierOps);
+
+        const ReleaseMemCaches releaseCaches = m_cmdUtil.SelectReleaseMemCaches(&acquireCaches);
+
+        // Make sure all SyncGlxFlags have been converted to ReleaseMemCaches.
+        PAL_ASSERT(acquireCaches == SyncGlxNone);
+
+        // Pick EOP event if a cache sync is requested because EOS events do not support cache syncs.
+        const bool bumpToEop = (releaseCaches.u8All != 0) && (releaseEvents.u8All != 0);
+
+        // Note that release event flags for split barrier should meet below conditions,
+        //    1). No VsDone as it should be converted to PsDone or Eop.
+        //    2). PsDone and CsDone should have been already converted to Eop.
+        //    3). rbCache sync must have Eop event set.
+        PAL_ASSERT(releaseEvents.vs == 0);
+        PAL_ASSERT((releaseEvents.ps & releaseEvents.cs)== 0);
+        PAL_ASSERT((releaseEvents.rbCache == 0) || releaseEvents.eop);
+
+        const ReleaseTokenType eventType = (releaseEvents.eop || bumpToEop) ? ReleaseTokenEop    :
+                                           releaseEvents.ps                 ? ReleaseTokenPsDone :
+                                           releaseEvents.cs                 ? ReleaseTokenCsDone :
+                                                                              ReleaseTokenInvalid;
+
+        bool releaseMemWaitCpDma = false;
+
+        if (waitCpDma)
         {
-            ReleaseMemGfx releaseMem = {};
-            releaseMem.cacheSync      = releaseCaches;
-            releaseMem.gfx11WaitCpDma = releaseMemWaitCpDma;
-
-            switch (AcqRelEventType(syncToken.type))
+            // We must guarantee that all prior CP DMA accelerated blts have completed before we write this event because
+            // the CmdSetEvent and CmdResetEvent functions expect that the prior blts have reached the post-blt stage by
+            // the time the event is written to memory. Given that our CP DMA blts are asynchronous to the pipeline stages
+            // the only way to satisfy this requirement is to force the MEC to stall until the CP DMAs are completed.
+            if (EnableReleaseMemWaitCpDma() && (eventType != ReleaseTokenInvalid))
             {
-            case AcqRelEventType::Eop:
-                releaseMem.vgtEvent = releaseEvents.rbCache ? CACHE_FLUSH_AND_INV_TS_EVENT : BOTTOM_OF_PIPE_TS;
-                pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
-                if (releaseEvents.rbCache)
-                {
-                   SetBarrierOperationsRbCacheSynced(pBarrierOps);
-                }
-                break;
-            case AcqRelEventType::PsDone:
-                releaseMem.vgtEvent = PS_DONE;
-                pBarrierOps->pipelineStalls.eosTsPsDone = 1;
-                break;
-            case AcqRelEventType::CsDone:
-                releaseMem.vgtEvent = CS_DONE;
-                pBarrierOps->pipelineStalls.eosTsCsDone = 1;
-                break;
-            default:
-                PAL_ASSERT_ALWAYS();
-                break;
-            }
-
-            if (m_pDevice->UsePws(engineType))
-            {
-                releaseMem.usePws = 1;
-
-                if (syncToken.type == uint32(AcqRelEventType::Eop))
-                {
-                    releaseMem.dataSel = data_sel__me_release_mem__none;
-                }
-                else
-                {
-                    // Note: PWS+ doesn't need timestamp write, we pass in a dummy write just to meet RELEASE_MEM
-                    //       packet programming requirement for DATA_SEL field, where 0=none (Discard data) is not
-                    //       a valid option when EVENT_INDEX=shader_done (PS_DONE/CS_DONE).
-                    releaseMem.dataSel = data_sel__me_release_mem__send_32_bit_low;
-                    releaseMem.dstAddr = pCmdBuf->TimestampGpuVirtAddr();
-                }
+                releaseMemWaitCpDma = true;
             }
             else
             {
-                releaseMem.dataSel = data_sel__me_release_mem__send_32_bit_low;
-                releaseMem.dstAddr = pCmdBuf->AcqRelFenceValGpuVa(AcqRelEventType(syncToken.type));
-                releaseMem.data    = syncToken.fenceVal;
+                pCmdSpace += m_cmdUtil.BuildWaitDmaData(pCmdSpace);
             }
 
-            pCmdSpace += m_cmdUtil.BuildReleaseMemGfx(releaseMem, pCmdSpace);
+            pBarrierOps->pipelineStalls.syncCpDma = 1;
+            pCmdBuf->SetCpBltState(false);
         }
-        else
+
+        // Issue RELEASE_MEM packet.
+        if (eventType != ReleaseTokenInvalid)
         {
-            switch (AcqRelEventType(syncToken.type))
+            // Request sync fence value after VGT event type is finalized.
+            syncToken.type       = eventType;
+            syncToken.fenceValue = pCmdBuf->GetNextAcqRelFenceVal(eventType);
+
+            if (Pal::Device::EngineSupportsGraphics(engineType))
             {
-            case AcqRelEventType::Eop:
-                pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
-                break;
-            case AcqRelEventType::CsDone:
-                pBarrierOps->pipelineStalls.eosTsCsDone = 1;
-                break;
-            default:
-                PAL_ASSERT_ALWAYS();
-                break;
+                ReleaseMemGfx releaseMem = {};
+                releaseMem.cacheSync      = releaseCaches;
+                releaseMem.gfx11WaitCpDma = releaseMemWaitCpDma;
+
+                switch (eventType)
+                {
+                case ReleaseTokenEop:
+                    releaseMem.vgtEvent = releaseEvents.rbCache ? CACHE_FLUSH_AND_INV_TS_EVENT : BOTTOM_OF_PIPE_TS;
+                    pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
+                    if (releaseEvents.rbCache)
+                    {
+                       SetBarrierOperationsRbCacheSynced(pBarrierOps);
+                    }
+                    break;
+                case ReleaseTokenPsDone:
+                    releaseMem.vgtEvent = PS_DONE;
+                    pBarrierOps->pipelineStalls.eosTsPsDone = 1;
+                    break;
+                case ReleaseTokenCsDone:
+                    releaseMem.vgtEvent = CS_DONE;
+                    pBarrierOps->pipelineStalls.eosTsCsDone = 1;
+                    break;
+                default:
+                    PAL_ASSERT_ALWAYS();
+                    break;
+                }
+
+                if (m_pDevice->UsePws(engineType))
+                {
+                    releaseMem.usePws = 1;
+
+                    if (eventType == ReleaseTokenEop)
+                    {
+                        releaseMem.dataSel = data_sel__me_release_mem__none;
+                    }
+                    else
+                    {
+                        // Note: PWS+ doesn't need timestamp write, we pass in a dummy write just to meet RELEASE_MEM
+                        //       packet programming requirement for DATA_SEL field, where 0=none (Discard data) is not
+                        //       a valid option when EVENT_INDEX=shader_done (PS_DONE/CS_DONE).
+                        releaseMem.dataSel = data_sel__me_release_mem__send_32_bit_low;
+                        releaseMem.dstAddr = pCmdBuf->TimestampGpuVirtAddr();
+                    }
+                }
+                else
+                {
+                    releaseMem.dataSel = data_sel__me_release_mem__send_32_bit_low;
+                    releaseMem.dstAddr = pCmdBuf->AcqRelFenceValGpuVa(eventType);
+                    releaseMem.data    = syncToken.fenceValue;
+                }
+
+                pCmdSpace += m_cmdUtil.BuildReleaseMemGfx(releaseMem, pCmdSpace);
             }
+            else
+            {
+                switch (eventType)
+                {
+                case ReleaseTokenEop:
+                    pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
+                    break;
+                case ReleaseTokenCsDone:
+                    pBarrierOps->pipelineStalls.eosTsCsDone = 1;
+                    break;
+                default:
+                    PAL_ASSERT_ALWAYS();
+                    break;
+                }
 
-            ReleaseMemGeneric releaseMem = {};
-            releaseMem.engineType     = engineType;
-            releaseMem.cacheSync      = releaseCaches;
-            releaseMem.dstAddr        = pCmdBuf->AcqRelFenceValGpuVa(AcqRelEventType(syncToken.type));
-            releaseMem.dataSel        = data_sel__me_release_mem__send_32_bit_low;
-            releaseMem.data           = syncToken.fenceVal;
-            releaseMem.gfx11WaitCpDma = releaseMemWaitCpDma;
+                ReleaseMemGeneric releaseMem = {};
+                releaseMem.engineType     = engineType;
+                releaseMem.cacheSync      = releaseCaches;
+                releaseMem.dstAddr        = pCmdBuf->AcqRelFenceValGpuVa(eventType);
+                releaseMem.dataSel        = data_sel__me_release_mem__send_32_bit_low;
+                releaseMem.data           = syncToken.fenceValue;
+                releaseMem.gfx11WaitCpDma = releaseMemWaitCpDma;
 
-            pCmdSpace += m_cmdUtil.BuildReleaseMemGeneric(releaseMem, pCmdSpace);
+                pCmdSpace += m_cmdUtil.BuildReleaseMemGeneric(releaseMem, pCmdSpace);
+            }
         }
-    }
-    else if (releaseCaches.u8All != 0)
-    {
-        // This is an optimization path to use AcquireMem for cache syncs only (issueSyncEvent = false) case as
-        // ReleaseMem requires an EOP or EOS event.
-        AcquireMemGeneric acquireMem = {};
-        acquireMem.engineType = engineType;
-        acquireMem.cacheSync  = orgAcquireCaches;
+        else if (releaseCaches.u8All != 0)
+        {
+            // This is an optimization path to use AcquireMem for cache syncs only (issueSyncEvent = false) case as
+            // ReleaseMem requires an EOP or EOS event.
+            AcquireMemGeneric acquireMem = {};
+            acquireMem.engineType = engineType;
+            acquireMem.cacheSync  = orgAcquireCaches;
 
-        pCmdSpace += m_cmdUtil.BuildAcquireMemGeneric(acquireMem, pCmdSpace);
-    }
+            pCmdSpace += m_cmdUtil.BuildAcquireMemGeneric(acquireMem, pCmdSpace);
+        }
 
-    if (releaseEvents.rbCache)
-    {
-        pCmdBuf->UpdateGfxBltWbEopFence(syncToken.fenceVal);
-    }
+        if (releaseEvents.rbCache)
+        {
+            pCmdBuf->UpdateGfxBltWbEopFence(syncToken.fenceValue);
+        }
 
-    pCmdStream->CommitCommands(pCmdSpace);
+        pCmdStream->CommitCommands(pCmdSpace);
+    }
 
     return syncToken;
 }
 
 // =====================================================================================================================
 // Issue appropriate cache sync hardware commands to satisfy the cache acquire requirements.
-// Note: The list of sync tokens cannot be cleared by this function and make it const.If multiple IssueAcquireSync are
+// Note: The list of sync tokens cannot be cleared by this function and make it const. If multiple IssueAcquireSync are
 //       called in the for loop, typically we'd think only the first call needs to effectively wait on the token(s).
 //       After the first call the tokens have been waited and can be cleared.That's under wrong assumption that all the
 //       IssueAcquireSync calls wait at same pipeline point, like PFP / ME. But in reality these syncs can end up wait
@@ -1365,7 +1394,7 @@ void BarrierMgr::IssueAcquireSync(
     uint32                        stageMask,  // Bitmask of PipelineStageFlag.
     SyncGlxFlags                  acquireCaches,
     uint32                        syncTokenCount,
-    const AcqRelSyncToken*        pSyncTokens,
+    const ReleaseToken*           pSyncTokens,
     Developer::BarrierOperations* pBarrierOps
     ) const
 {
@@ -1375,6 +1404,23 @@ void BarrierMgr::IssueAcquireSync(
     const bool       isGfxSupported = Pal::Device::EngineSupportsGraphics(engineType);
     bool             needPfpSyncMe  = isGfxSupported && TestAnyFlagSet(stageMask, PipelineStagePfpMask);
     AcquirePoint     acquirePoint   = GetAcquirePoint(stageMask, engineType);
+    bool             waitCpDma      = false;
+
+    for (uint32 i = 0; i < syncTokenCount; i++)
+    {
+        if (pSyncTokens[i].type == ReleaseTokenCpDma)
+        {
+            // Append deferred cache op for special CpDma wait case; OR into acquireCaches.
+            // This is only for release buffer copy case so compute required cache operations from releasing buffer copy.
+            bool syncRbCache = false;
+            acquireCaches |= GetCacheSyncOps(pCmdBuf, BarrierType::Buffer, nullptr, CoherCopy, 0, false, &syncRbCache);
+
+            // Wait CpDma only if it's still active.
+            waitCpDma = (pCmdBuf->GetPm4CmdBufState().flags.cpBltActive != 0) &&
+                        (pSyncTokens[i].fenceValue > pCmdBuf->GetRetiredAcqRelFenceVal(ReleaseTokenCpDma));
+            break;
+        }
+    }
 
     ConvertSyncGlxFlagsToBarrierOps(acquireCaches, pBarrierOps);
 
@@ -1390,7 +1436,7 @@ void BarrierMgr::IssueAcquireSync(
 
     uint32* pCmdSpace = pCmdStream->ReserveCommands();
 
-    uint32  syncTokenToWait[uint32(AcqRelEventType::Count)] = {};
+    uint32  syncTokenToWait[ReleaseTokenCount] = {};
     bool    hasValidSyncToken = false;
 
     // Merge synchronization timestamp entries in the list.
@@ -1400,16 +1446,24 @@ void BarrierMgr::IssueAcquireSync(
     {
         for (uint32 i = 0; i < syncTokenCount; i++)
         {
-            const AcqRelSyncToken curSyncToken = pSyncTokens[i];
+            const ReleaseToken token = pSyncTokens[i];
 
-            if ((curSyncToken.fenceVal != 0) && (curSyncToken.type != uint32(AcqRelEventType::Invalid)))
+            if ((token.type < ReleaseTokenCpDma) &&
+                (token.fenceValue > pCmdBuf->GetRetiredAcqRelFenceVal(ReleaseTokenType(token.type))))
             {
-                PAL_ASSERT(curSyncToken.type < uint32(AcqRelEventType::Count));
-
-                syncTokenToWait[curSyncToken.type] = Max(curSyncToken.fenceVal, syncTokenToWait[curSyncToken.type]);
+                syncTokenToWait[token.type] = Max(token.fenceValue, syncTokenToWait[token.type]);
                 hasValidSyncToken = true;
             }
         }
+    }
+
+    // Issue CpDma wait packet.
+    if (waitCpDma)
+    {
+        pCmdSpace += m_cmdUtil.BuildWaitDmaData(pCmdSpace);
+
+        pBarrierOps->pipelineStalls.syncCpDma = 1;
+        pCmdBuf->SetCpBltState(false);
     }
 
     // If no sync token is specified to be waited for completion, there is no need for a PWS-version of ACQUIRE_MEM.
@@ -1420,16 +1474,16 @@ void BarrierMgr::IssueAcquireSync(
         acquireMem.cacheSync = acquireCaches;
         acquireMem.stageSel  = GetPwsStageSel(acquirePoint);
 
-        static_assert((uint32(AcqRelEventType::Eop)    == uint32(pws_counter_sel__me_acquire_mem__ts_select__GFX11)) &&
-                      (uint32(AcqRelEventType::PsDone) == uint32(pws_counter_sel__me_acquire_mem__ps_select__GFX11)) &&
-                      (uint32(AcqRelEventType::CsDone) == uint32(pws_counter_sel__me_acquire_mem__cs_select__GFX11)),
+        static_assert((ReleaseTokenEop    == uint32(pws_counter_sel__me_acquire_mem__ts_select__GFX11)) &&
+                      (ReleaseTokenPsDone == uint32(pws_counter_sel__me_acquire_mem__ps_select__GFX11)) &&
+                      (ReleaseTokenCsDone == uint32(pws_counter_sel__me_acquire_mem__cs_select__GFX11)),
                       "Enum orders mismatch! Fix the ordering so the following for-loop runs correctly.");
 
-        for (uint32 i = 0; i < uint32(AcqRelEventType::Count); i++)
+        for (uint32 i = 0; i < ReleaseTokenCpDma; i++)
         {
             if (syncTokenToWait[i] != 0)
             {
-                const uint32 curSyncToken = pCmdBuf->GetCurAcqRelFenceVal(AcqRelEventType(i));
+                const uint32 curSyncToken = pCmdBuf->GetCurAcqRelFenceVal(ReleaseTokenType(i));
                 const uint32 numEventsAgo = curSyncToken - syncTokenToWait[i];
 
                 PAL_ASSERT(syncTokenToWait[i] <= curSyncToken);
@@ -1447,7 +1501,7 @@ void BarrierMgr::IssueAcquireSync(
     }
     else
     {
-        for (uint32 i = 0; i < uint32(AcqRelEventType::Count); i++)
+        for (uint32 i = 0; i < ReleaseTokenCpDma; i++)
         {
             if (syncTokenToWait[i] != 0)
             {
@@ -1455,7 +1509,7 @@ void BarrierMgr::IssueAcquireSync(
                                                        mem_space__me_wait_reg_mem__memory_space,
                                                        function__me_wait_reg_mem__greater_than_or_equal_reference_value,
                                                        engine_sel__me_wait_reg_mem__micro_engine,
-                                                       pCmdBuf->AcqRelFenceValGpuVa(AcqRelEventType(i)),
+                                                       pCmdBuf->AcqRelFenceValGpuVa(ReleaseTokenType(i)),
                                                        syncTokenToWait[i],
                                                        UINT32_MAX,
                                                        pCmdSpace);
@@ -1485,41 +1539,49 @@ void BarrierMgr::IssueAcquireSync(
         pBarrierOps->pipelineStalls.pfpSyncMe = 1;
     }
 
-    const Pm4CmdBufferState& cmdBufState       = pCmdBuf->GetPm4CmdBufState();
-    const uint32             waitedEopFenceVal = syncTokenToWait[uint32(AcqRelEventType::Eop)];
-
-    // If we have waited on a valid EOP fence value, update some CmdBufState (e.g. xxxBltActive) flags.
-    if ((waitedEopFenceVal != 0) && (acquirePoint <= AcquirePoint::Me))
+    if (acquirePoint <= AcquirePoint::Me)
     {
-        pCmdBuf->SetPrevCmdBufInactive();
-
-        if (waitedEopFenceVal >= cmdBufState.fences.gfxBltExecEopFenceVal)
+        // Update retired acquire release fence values
+        for (uint32 i = 0; i < ReleaseTokenCpDma; i++)
         {
-            // An EOP release sync that is issued after the latest GFX BLT must have completed, so mark GFX BLT idle.
-            pCmdBuf->SetGfxBltState(false);
+            pCmdBuf->UpdateRetiredAcqRelFenceVal(ReleaseTokenType(i), syncTokenToWait[i]);
         }
 
-        if (waitedEopFenceVal >= cmdBufState.fences.gfxBltWbEopFenceVal)
+        const Pm4CmdBufferState& cmdBufState       = pCmdBuf->GetPm4CmdBufState();
+        const uint32             waitedEopFenceVal = syncTokenToWait[ReleaseTokenEop];
+
+        // If we have waited on a valid EOP fence value, update some CmdBufState (e.g. xxxBltActive) flags.
+        if (waitedEopFenceVal != 0)
         {
-            // An EOP release sync that issued GFX BLT cache flush must have completed, so mark GFX BLT cache clean.
-            pCmdBuf->SetGfxBltWriteCacheState(false);
+            pCmdBuf->SetPrevCmdBufInactive();
+
+            if (waitedEopFenceVal >= cmdBufState.fences.gfxBltExecEopFenceVal)
+            {
+                // An EOP release sync that is issued after the latest GFX BLT must have completed, so mark GFX BLT idle.
+                pCmdBuf->SetGfxBltState(false);
+            }
+
+            if (waitedEopFenceVal >= cmdBufState.fences.gfxBltWbEopFenceVal)
+            {
+                // An EOP release sync that issued GFX BLT cache flush must have completed, so mark GFX BLT cache clean.
+                pCmdBuf->SetGfxBltWriteCacheState(false);
+            }
+
+            if (waitedEopFenceVal >= cmdBufState.fences.csBltExecEopFenceVal)
+            {
+                // An EOP release sync that is issued after the latest CS BLT must have completed, so mark CS BLT idle.
+                pCmdBuf->SetCsBltState(false);
+            }
         }
 
-        if (waitedEopFenceVal >= cmdBufState.fences.csBltExecEopFenceVal)
+        const uint32 waitedCsDoneFenceVal = syncTokenToWait[ReleaseTokenCsDone];
+
+        if ((waitedCsDoneFenceVal != 0) &&
+            (waitedCsDoneFenceVal >= cmdBufState.fences.csBltExecCsDoneFenceVal))
         {
-            // An EOP release sync that is issued after the latest CS BLT must have completed, so mark CS BLT idle.
+            // An CS_DONE release sync that is issued after the latest CS BLT must have completed, so mark CS BLT idle.
             pCmdBuf->SetCsBltState(false);
         }
-    }
-
-    const uint32 waitedCsDoneFenceVal = syncTokenToWait[uint32(AcqRelEventType::CsDone)];
-
-    if ((waitedCsDoneFenceVal != 0) &&
-        (acquirePoint <= AcquirePoint::Me) &&
-        (waitedCsDoneFenceVal >= cmdBufState.fences.csBltExecCsDoneFenceVal))
-    {
-        // An CS_DONE release sync that is issued after the latest CS BLT must have completed, so mark CS BLT idle.
-        pCmdBuf->SetCsBltState(false);
     }
 
     if (TestAllFlagsSet(acquireCaches, SyncGl2WbInv))
@@ -1618,8 +1680,7 @@ void BarrierMgr::IssueReleaseThenAcquireSync(
 
     bool releaseMemWaitCpDma = false;
 
-    if (pCmdBuf->GetPm4CmdBufState().flags.cpBltActive &&
-        TestAnyFlagSet(srcStageMask, PipelineStageBlt | PipelineStageBottomOfPipe))
+    if (NeedWaitCpDma(pCmdBuf, srcStageMask))
     {
         if (EnableReleaseMemWaitCpDma() &&
             (usePws ||
@@ -1801,6 +1862,7 @@ void BarrierMgr::IssueReleaseThenAcquireSync(
         {
             pCmdBuf->SetPrevCmdBufInactive();
             pCmdBuf->SetGfxBltState(false);
+            pCmdBuf->UpdateRetiredAcqRelFenceVal(ReleaseTokenEop, pCmdBuf->GetCurAcqRelFenceVal(ReleaseTokenEop));
 
             if (releaseEvents.rbCache)
             {
@@ -1808,9 +1870,15 @@ void BarrierMgr::IssueReleaseThenAcquireSync(
             }
         }
 
+        if (releaseEvents.eop || releaseEvents.ps)
+        {
+            pCmdBuf->UpdateRetiredAcqRelFenceVal(ReleaseTokenPsDone, pCmdBuf->GetCurAcqRelFenceVal(ReleaseTokenPsDone));
+        }
+
         if (releaseEvents.eop || releaseEvents.cs)
         {
             pCmdBuf->SetCsBltState(false);
+            pCmdBuf->UpdateRetiredAcqRelFenceVal(ReleaseTokenCsDone, pCmdBuf->GetCurAcqRelFenceVal(ReleaseTokenCsDone));
         }
     }
 
@@ -2000,7 +2068,7 @@ LayoutTransitionInfo BarrierMgr::PrepareDepthStencilBlt(
         if (RsrcProcMgr().WillResummarizeWithCompute(pCmdBuf, image))
         {
             // CS blit to open-up the HiZ range.
-            transitionInfo.blt[0] = HwLayoutTransition::HwlExpandHtileHiZRange;
+            transitionInfo.blt[0] = HwLayoutTransition::ExpandHtileHiZRange;
         }
         else
         {
@@ -2085,15 +2153,18 @@ LayoutTransitionInfo BarrierMgr::PrepareBltInfo(
 // Release perform any necessary layout transition, availability operation, and enqueue command(s) to set a given
 // IGpuEvent object once the prior operations' intersection with the given synchronization scope is confirmed complete.
 // The availability operation will flush the requested local caches.
-uint32 BarrierMgr::Release(
+ReleaseToken BarrierMgr::Release(
     GfxCmdBuffer*                 pGfxCmdBuf,
     const AcquireReleaseInfo&     releaseInfo,
     Developer::BarrierOperations* pBarrierOps
     ) const
 {
-    auto*const pCmdBuf            = static_cast<Pm4CmdBuffer*>(pGfxCmdBuf);
-    uint32     srcGlobalStageMask = releaseInfo.srcGlobalStageMask;
-    uint32     unusedStageMask    = 0;
+    auto*const pCmdBuf               = static_cast<Pm4CmdBuffer*>(pGfxCmdBuf);
+    uint32     srcGlobalStageMask    = releaseInfo.srcGlobalStageMask;
+    bool       releaseBufferCopyOnly = (releaseInfo.srcGlobalStageMask == 0)  &&
+                                       (releaseInfo.srcGlobalAccessMask == 0) &&
+                                       (releaseInfo.imageBarrierCount == 0);
+    uint32     unusedStageMask       = 0;
 
     // Optimize global stage masks.
     OptimizeStageMask(pCmdBuf, BarrierType::Global, &srcGlobalStageMask, &unusedStageMask);
@@ -2105,11 +2176,15 @@ uint32 BarrierMgr::Release(
     uint32 srcStageMask = 0;
     for (uint32 i = 0; i < releaseInfo.memoryBarrierCount; i++)
     {
-        const MemBarrier& barrier = releaseInfo.pMemoryBarriers[i];
+        const MemBarrier& barrier           = releaseInfo.pMemoryBarriers[i];
+        const bool        releaseBufferCopy = (barrier.srcStageMask == PipelineStageBlt) &&
+                                              (barrier.srcAccessMask != 0)               &&
+                                              TestAllFlagsSet(CoherCopy, barrier.srcAccessMask);
 
-        syncGlxFlags |= GetBufferCacheSyncOps(pCmdBuf, barrier.srcAccessMask, 0, &syncRbCache);
+        syncGlxFlags          |= GetBufferCacheSyncOps(pCmdBuf, barrier.srcAccessMask, 0, &syncRbCache);
         // globallyAvailable is processed in Acquire().
-        srcStageMask |= barrier.srcStageMask;
+        srcStageMask          |= barrier.srcStageMask;
+        releaseBufferCopyOnly &= releaseBufferCopy;
     }
 
     // Optimize buffer stage masks before OR together.
@@ -2118,7 +2193,7 @@ uint32 BarrierMgr::Release(
 
     // A container to cache the calculated BLT transitions and some cache info for reuse.
     AcqRelAutoBuffer transitionList(releaseInfo.imageBarrierCount, m_pDevice->GetPlatform());
-    AcqRelSyncToken  syncToken = {};
+    ReleaseToken     syncToken = {};
 
     if (transitionList.Capacity() >= releaseInfo.imageBarrierCount)
     {
@@ -2155,14 +2230,15 @@ uint32 BarrierMgr::Release(
             srcGlobalStageMask = transInfo.bltStageMask;
         }
 
-        syncToken = IssueReleaseSync(pCmdBuf, pCmdStream, srcGlobalStageMask, syncGlxFlags, syncRbCache, pBarrierOps);
+        syncToken = IssueReleaseSync(pCmdBuf, pCmdStream, srcGlobalStageMask, releaseBufferCopyOnly, syncGlxFlags,
+                                     syncRbCache, pBarrierOps);
     }
     else
     {
         pCmdBuf->NotifyAllocFailure();
     }
 
-    return syncToken.u32All;
+    return syncToken;
 }
 
 // =====================================================================================================================
@@ -2173,7 +2249,7 @@ void BarrierMgr::Acquire(
     GfxCmdBuffer*                 pGfxCmdBuf,
     const AcquireReleaseInfo&     acquireInfo,
     uint32                        syncTokenCount,
-    const uint32*                 pSyncTokens,
+    const ReleaseToken*           pSyncTokens,
     Developer::BarrierOperations* pBarrierOps
     ) const
 {
@@ -2235,7 +2311,7 @@ void BarrierMgr::Acquire(
                          acquireDstStageMask,
                          syncGlxFlags,
                          syncTokenCount,
-                         reinterpret_cast<const AcqRelSyncToken*>(pSyncTokens),
+                         pSyncTokens,
                          pBarrierOps);
 
         if (hasBlt)
@@ -2506,7 +2582,7 @@ bool BarrierMgr::IssueBlt(
 
 // =====================================================================================================================
 // Issue appropriate cache sync hardware commands to satisfy the cache release requirements.
-void BarrierMgr::IssueReleaseSyncEvent(
+void BarrierMgr::IssueReleaseEventSync(
     Pm4CmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
     uint32                        stageMask,  // Bitmask of PipelineStageFlag.
@@ -2547,21 +2623,20 @@ void BarrierMgr::IssueReleaseSyncEvent(
 
     // Pick EOP event if a cache sync is requested because EOS events do not support cache syncs.
     const bool             bumpToEop     = (releaseCaches.u8All != 0) && (releaseEvents.u8All != 0);
-    const AcqRelEventType  syncEventType = (releaseEvents.eop || bumpToEop) ? AcqRelEventType::Eop    :
-                                           releaseEvents.ps                 ? AcqRelEventType::PsDone :
-                                           releaseEvents.cs                 ? AcqRelEventType::CsDone :
-                                                                              AcqRelEventType::Invalid;
+    const ReleaseTokenType syncEventType = (releaseEvents.eop || bumpToEop) ? ReleaseTokenEop    :
+                                           releaseEvents.ps                 ? ReleaseTokenPsDone :
+                                           releaseEvents.cs                 ? ReleaseTokenCsDone :
+                                                                              ReleaseTokenInvalid;
 
     bool releaseMemWaitCpDma = false;
 
-    if (pCmdBuf->GetPm4CmdBufState().flags.cpBltActive &&
-        TestAnyFlagSet(stageMask, PipelineStageBlt | PipelineStageBottomOfPipe))
+    if (NeedWaitCpDma(pCmdBuf, stageMask))
     {
         // We must guarantee that all prior CP DMA accelerated blts have completed before we write this event because
         // the CmdSetEvent and CmdResetEvent functions expect that the prior blts have reached the post-blt stage by
         // the time the event is written to memory. Given that our CP DMA blts are asynchronous to the pipeline stages
         // the only way to satisfy this requirement is to force the MEC to stall until the CP DMAs are completed.
-        if (EnableReleaseMemWaitCpDma() && (syncEventType != AcqRelEventType::Invalid))
+        if (EnableReleaseMemWaitCpDma() && (syncEventType != ReleaseTokenInvalid))
         {
             releaseMemWaitCpDma = true;
         }
@@ -2575,7 +2650,7 @@ void BarrierMgr::IssueReleaseSyncEvent(
     }
 
     // Issue releases with the requested EOP/EOS
-    if (syncEventType != AcqRelEventType::Invalid)
+    if (syncEventType != ReleaseTokenInvalid)
     {
         // Build a WRITE_DATA command to first RESET event slots that will be set by event later on.
         WriteDataInfo writeData = {};
@@ -2598,7 +2673,7 @@ void BarrierMgr::IssueReleaseSyncEvent(
 
             switch (syncEventType)
             {
-            case AcqRelEventType::Eop:
+            case ReleaseTokenEop:
                 releaseMem.vgtEvent = releaseEvents.rbCache ? CACHE_FLUSH_AND_INV_TS_EVENT : BOTTOM_OF_PIPE_TS;
                 pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
                 if (releaseEvents.rbCache)
@@ -2606,11 +2681,11 @@ void BarrierMgr::IssueReleaseSyncEvent(
                     SetBarrierOperationsRbCacheSynced(pBarrierOps);
                 }
                 break;
-            case AcqRelEventType::PsDone:
+            case ReleaseTokenPsDone:
                 releaseMem.vgtEvent = PS_DONE;
                 pBarrierOps->pipelineStalls.eosTsPsDone = 1;
                 break;
-            case AcqRelEventType::CsDone:
+            case ReleaseTokenCsDone:
                 releaseMem.vgtEvent = CS_DONE;
                 pBarrierOps->pipelineStalls.eosTsCsDone = 1;
                 break;
@@ -2633,10 +2708,10 @@ void BarrierMgr::IssueReleaseSyncEvent(
 
             switch (syncEventType)
             {
-            case AcqRelEventType::Eop:
+            case ReleaseTokenEop:
                 pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
                 break;
-            case AcqRelEventType::CsDone:
+            case ReleaseTokenCsDone:
                 pBarrierOps->pipelineStalls.eosTsCsDone = 1;
                 break;
             default:
@@ -2647,7 +2722,7 @@ void BarrierMgr::IssueReleaseSyncEvent(
             pCmdSpace += m_cmdUtil.BuildReleaseMemGeneric(releaseMem, pCmdSpace);
         }
     }
-    else // (syncEventType == AcqRelEventType::Invalid)
+    else // (syncEventType == ReleaseTokenInvalid)
     {
         WriteDataInfo writeData = {};
         writeData.engineType    = engineType;
@@ -2674,7 +2749,7 @@ void BarrierMgr::IssueReleaseSyncEvent(
 
 // =====================================================================================================================
 // Issue appropriate cache sync hardware commands to satisfy the cache acquire requirements.
-void BarrierMgr::IssueAcquireSyncEvent(
+void BarrierMgr::IssueAcquireEventSync(
     Pm4CmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
     uint32                        stageMask,  // Bitmask of PipelineStageFlag.
@@ -2794,8 +2869,8 @@ void BarrierMgr::ReleaseEvent(
         const bool       hasBlt       = (transInfo.bltCount > 0);
         const IGpuEvent* pActiveEvent = hasBlt ? pCmdBuf->GetInternalEvent() : pClientEvent;
 
-        // Perform an all-in-one release prior to the potential BLTs: IssueReleaseSyncEvent() on pActiveEvent.
-        IssueReleaseSyncEvent(pCmdBuf,
+        // Perform an all-in-one release prior to the potential BLTs: IssueReleaseEventSync() on pActiveEvent.
+        IssueReleaseEventSync(pCmdBuf,
                               pCmdStream,
                               srcGlobalStageMask,
                               (hasBlt ? SyncGlxNone : syncGlxFlags), // Defer syncGlxFlags to Acquire time in case flags
@@ -2808,7 +2883,7 @@ void BarrierMgr::ReleaseEvent(
         if (hasBlt)
         {
             // Issue all-in-one acquire prior to the potential BLTs.
-            IssueAcquireSyncEvent(pCmdBuf,
+            IssueAcquireEventSync(pCmdBuf,
                                   pCmdStream,
                                   transInfo.bltStageMask,
                                   syncGlxFlags,
@@ -2824,7 +2899,7 @@ void BarrierMgr::ReleaseEvent(
             pActiveEvent = pClientEvent;
 
             // Release from BLTs.
-            IssueReleaseSyncEvent(pCmdBuf,
+            IssueReleaseEventSync(pCmdBuf,
                                   pCmdStream,
                                   transInfo.bltStageMask,
                                   syncGlxFlags,
@@ -2907,7 +2982,7 @@ void BarrierMgr::AcquireEvent(
         if (transInfo.bltCount > 0)
         {
             // Issue all-in-one acquire prior to the potential BLTs.
-            IssueAcquireSyncEvent(pCmdBuf,
+            IssueAcquireEventSync(pCmdBuf,
                                   pCmdStream,
                                   transInfo.bltStageMask,
                                   syncGlxFlags,
@@ -2923,7 +2998,7 @@ void BarrierMgr::AcquireEvent(
             pEvent = pCmdBuf->GetInternalEvent();
 
             // Release from BLTs.
-            IssueReleaseSyncEvent(pCmdBuf,
+            IssueReleaseEventSync(pCmdBuf,
                                   pCmdStream,
                                   transInfo.bltStageMask,
                                   SyncGlxNone, // Defer syncGlxFlags to Acquire time in case flags
@@ -2936,7 +3011,7 @@ void BarrierMgr::AcquireEvent(
             activeEventCount = 1;
         }
 
-        IssueAcquireSyncEvent(pCmdBuf,
+        IssueAcquireEventSync(pCmdBuf,
                               pCmdStream,
                               dstGlobalStageMask,
                               syncGlxFlags,

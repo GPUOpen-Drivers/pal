@@ -23,6 +23,8 @@
  *
  **********************************************************************************************************************/
 
+#pragma once
+
 #include <dd_common_api.h>
 
 namespace DevDriver
@@ -35,6 +37,9 @@ namespace DevDriver
 /// return values to indicate success, and thus leave error codes negative. Negative `err`
 /// will be negated before being converted to `DD_RESULT`.
 DD_RESULT ResultFromErrno(int err);
+
+/// Convert a Windows error code to DD_RESULT. `err` usually is the return value of Win32 API `GetLastError()`.
+DD_RESULT ResultFromWin32Error(uint32_t err);
 
 /// Convert a `DD_RESULT` to a null-terminated string.
 const char* StringResult(DD_RESULT r);

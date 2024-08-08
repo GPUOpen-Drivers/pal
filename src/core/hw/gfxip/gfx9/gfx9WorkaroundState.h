@@ -85,6 +85,10 @@ public:
         uint32              instanceCount,
         uint32              numActiveQueries) const;
 
+    regDB_RENDER_CONTROL SetOreoMode(
+        regDB_RENDER_CONTROL    dbRenderControl,
+        const GraphicsPipeline* pPipeline) const;
+
 private:
     const Device&                  m_device;
     const CmdUtil&                 m_cmdUtil;

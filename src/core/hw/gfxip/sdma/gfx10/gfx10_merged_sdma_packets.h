@@ -26,6 +26,12 @@
 #pragma once
 
 //
+namespace Pal
+{
+namespace Gfx9
+{
+inline namespace Chip
+{
 constexpr unsigned int HEADER_AGENT_DISPATCH                    = 4;
 constexpr unsigned int HEADER_BARRIER                           = 5;
 constexpr unsigned int SDMA_OP_AQL_BARRIER_OR                   = 0;
@@ -3513,3 +3519,6 @@ typedef struct SDMA_PKT_WRITE_UNTILED_TAG
 
 } SDMA_PKT_WRITE_UNTILED;
 
+} // inline namespace Chip
+} // namespace Gfx9
+} // namespace Pal

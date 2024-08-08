@@ -87,8 +87,8 @@ static void AppendString(
 
 // =====================================================================================================================
 static void SubresIdToString(
-    const SubresId& subresId,
-    char            string[StringLength])
+    SubresId subresId,
+    char     string[StringLength])
 {
     const size_t currentLength = strlen(string);
     Snprintf(&string[0] + currentLength, StringLength - currentLength,
@@ -3338,7 +3338,11 @@ static void CmdAcquireReleaseToString(
 }
 
 // =====================================================================================================================
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
 uint32 CmdBuffer::CmdRelease(
+#else
+ReleaseToken CmdBuffer::CmdRelease(
+#endif
     const AcquireReleaseInfo& releaseInfo)
 {
     if (m_annotations.logCmdBarrier)
@@ -3365,7 +3369,12 @@ uint32 CmdBuffer::CmdRelease(
         nextReleaseInfo.pImageBarriers = pImageBarriers;
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
     const uint32 syncToken = GetNextLayer()->CmdRelease(nextReleaseInfo);
+#else
+    const ReleaseToken syncToken = GetNextLayer()->CmdRelease(nextReleaseInfo);
+#endif
+
     char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
 
     GetNextLayer()->CmdCommentString("Release SyncToken:");
@@ -3382,13 +3391,21 @@ uint32 CmdBuffer::CmdRelease(
 void CmdBuffer::CmdAcquire(
     const AcquireReleaseInfo& acquireInfo,
     uint32                    syncTokenCount,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
     const uint32*             pSyncTokens)
+#else
+    const ReleaseToken*       pSyncTokens)
+#endif
 {
     if (m_annotations.logCmdBarrier)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdAcquire));
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
         CmdAcquireToString(this, acquireInfo, syncTokenCount, pSyncTokens);
+#else
+        CmdAcquireToString(this, acquireInfo, syncTokenCount, reinterpret_cast<const uint32*>(pSyncTokens));
+#endif
     }
 
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(&m_allocator, false);
@@ -4280,8 +4297,16 @@ static void DumpImageScaledCopyRegion(
         SignedExtent3dToString(region.dstExtent, pString);
         pNextCmdBuffer->CmdCommentString(pString);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 887
         Snprintf(pString, StringLength, "\t numSlices  = %u",   region.numSlices);
         pNextCmdBuffer->CmdCommentString(pString);
+#else
+        Snprintf(pString, StringLength, "\t srcSlices  = %u", region.srcSlices);
+        pNextCmdBuffer->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "\t dstSlices  = %u", region.dstSlices);
+        pNextCmdBuffer->CmdCommentString(pString);
+#endif
 
         Snprintf(pString, StringLength, "\t swizzledFormat = { format = %s, swizzle = ",
                  FormatToString(region.swizzledFormat.format));
@@ -5891,19 +5916,6 @@ void CmdBuffer::CmdSetClipRects(
     }
 
     GetNextLayer()->CmdSetClipRects(clipRule, rectCount, pRectList);
-}
-
-// =====================================================================================================================
-void CmdBuffer::CmdXdmaWaitFlipPending()
-{
-    if (m_annotations.logCmdSets)
-    {
-        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdXdmaWaitFlipPending));
-
-        // TODO: Add comment string.
-    }
-
-    GetNextLayer()->CmdXdmaWaitFlipPending();
 }
 
 // =====================================================================================================================

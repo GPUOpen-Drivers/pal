@@ -277,6 +277,11 @@ Result TraceSession::RequestTrace()
 }
 
 // =====================================================================================================================
+// Attempts to update the current trace configuration. This will be used by Tools for two use cases:
+// 1. During Tools init, only the trace sources will be updated, with no controller specified. This is done so that the
+//    required shaders are compiled correctly for trace capture.
+// 2. Before beginning a trace, configure both the trace sources and a single trace controller for subsequent trace
+//    collection.
 Result TraceSession::UpdateTraceConfig(
     const void* pData,
     size_t      dataSize)
@@ -324,102 +329,100 @@ Result TraceSession::UpdateTraceConfig(
             }
         }
 
-        // Update configs of TraceControllers and TraceSources
+        // Update configs of TraceController and TraceSources
         if (result == Result::Success)
         {
             const StructuredValue root = m_pReader->GetRoot();
 
-            // Update configs of registered TraceControllers
-            const StructuredValue traceControllers    = root["controllers"];
-            const size_t          numTraceControllers = traceControllers.GetArrayLength();
+            StructuredValue traceController = root["controller"];
 
-            if (traceControllers.IsNull() == false)
+            // This check is needed to make driver version newer than 24.20 back compatible with older versions of RRA
+            // tools(< 1.7.0.1070). In older RRA, controllers is a list in the json config. We just grab the first
+            // controller since only one existed.
+            if (traceController.IsNull() == true)
             {
-                for (uint32 idx = 0; idx < numTraceControllers; ++idx)
+                traceController = root["controllers"][0];
+            }
+
+            if (traceController.IsNull() == false)
+            {
+                // Grab the config for the controller
+                const char*     pName                 = traceController["name"].GetStringPtr();
+                StructuredValue traceControllerConfig = traceController["config"];
+
+                if (pName != nullptr)
                 {
-                    // Grab the config for each controller
-                    const StructuredValue traceController       = traceControllers[idx];
-                    const char*           pName                 = traceController["name"].GetStringPtr();
-                    StructuredValue       traceControllerConfig = traceController["config"];
+                    Util::RWLockAuto<Util::RWLock::ReadOnly> traceControllerLock(&m_registerTraceControllerLock);
 
-                    if ((pName != nullptr) && (traceControllerConfig.IsNull() == false))
+                    // Verify if the specified controller has been registered.
+                    ITraceController** ppController = m_registeredTraceControllers.FindKey(pName);
+
+                    if (ppController != nullptr)
                     {
-                        Util::RWLockAuto<Util::RWLock::ReadOnly> traceControllerLock(&m_registerTraceControllerLock);
+                        m_pActiveController = *ppController;
 
-                        ITraceController** ppController = m_registeredTraceControllers.FindKey(pName);
-                        if (ppController != nullptr)
+                        if (traceControllerConfig.IsNull() == false)
                         {
-                            if (numTraceControllers > 1)
-                            {
-                                // If there're multiple trace controllers now, we need to specify active controller
-                                // in the config and set it here. Eventually, we should have only one controller per
-                                // TraceSession in the config. If the active controller is not specified at the time of
-                                // config update, we will default to the FrameTraceController during AcceptTrace().
-                                bool isActiveController = false;
-                                const bool success = traceControllerConfig["enabled"].GetBool(&isActiveController);
-
-                                if (success && isActiveController)
-                                {
-                                    m_pActiveController = *ppController;
-                                }
-                            }
-                            else
-                            {
-                                m_pActiveController = *ppController;
-                            }
-
                             (*ppController)->OnConfigUpdated(&traceControllerConfig);
                         }
+                    }
+                    else
+                    {
+                        // The requested controller was not properly registered.
+                        result = Result::NotFound;
                     }
                 }
             }
 
-            // Configs of TraceSources will be updated later during registration. This is because clients might register
-            // sources during DevDriver's LateDeviceInit and require that configs be updated at that time. In the future,
-            // we might want to move LateDeviceInit from client's responsibility to PAL's.
-            const StructuredValue traceSources    = root["sources"];
-            const size_t          numTraceSources = traceSources.GetArrayLength();
-
-            if (traceSources.IsNull() == false)
+            if (result == Result::Success)
             {
-                Util::RWLockAuto<Util::RWLock::ReadWrite> traceSourceLock(&m_registerTraceSourceLock);
+                // Configs of TraceSources will be updated later during registration. This is because clients might
+                // register sources during DevDriver's LateDeviceInit and require that configs be updated at that time.
+                // In the future, we might want to move LateDeviceInit from client's responsibility to PAL's.
+                const StructuredValue traceSources = root["sources"];
+                const size_t          numTraceSources = traceSources.GetArrayLength();
 
-                for (uint32 idx = 0; idx < numTraceSources; ++idx)
+                if (traceSources.IsNull() == false)
                 {
-                    // Grab the config for each source
-                    const StructuredValue traceSource       = traceSources[idx];
-                    const char*           pName             = traceSource["name"].GetStringPtr();
-                    StructuredValue       traceSourceConfig = traceSource["config"];
+                    Util::RWLockAuto<Util::RWLock::ReadWrite> traceSourceLock(&m_registerTraceSourceLock);
 
-                    if ((pName != nullptr) && (traceSourceConfig.IsNull() == false))
+                    for (uint32 idx = 0; idx < numTraceSources; ++idx)
                     {
-                        // Update source configs if available
-                        ITraceSource** ppSource = m_registeredTraceSources.FindKey(pName);
-                        if (ppSource != nullptr)
-                        {
-                            if (*ppSource != nullptr)
-                            {
-                                (*ppSource)->OnConfigUpdated(&traceSourceConfig);
-                            }
-                        }
+                        // Grab the config for each source
+                        const StructuredValue traceSource       = traceSources[idx];
+                        const char*           pName             = traceSource["name"].GetStringPtr();
+                        StructuredValue       traceSourceConfig = traceSource["config"];
 
-                        // Store configs of TraceSources
-                        bool              existed    = false;
-                        StructuredValue** ppMapEntry = nullptr;
-                        result = m_traceSourcesConfigs.FindAllocate(pName, &existed, &ppMapEntry);
-
-                        if (result == Result::Success)
+                        if ((pName != nullptr) && (traceSourceConfig.IsNull() == false))
                         {
-                            // Don't want to re-allocate memory if the entry already exists
-                            if (existed == false)
+                            // Update source configs if available
+                            ITraceSource** ppSource = m_registeredTraceSources.FindKey(pName);
+                            if (ppSource != nullptr)
                             {
-                                // Ensure deallocations when TraceSession is destroyed
-                                (*ppMapEntry) = PAL_NEW(StructuredValue, m_pPlatform, Util::AllocInternalTemp);
+                                if (*ppSource != nullptr)
+                                {
+                                    (*ppSource)->OnConfigUpdated(&traceSourceConfig);
+                                }
                             }
 
-                            if ((*ppMapEntry) != nullptr)
+                            // Store configs of TraceSources
+                            bool              existed    = false;
+                            StructuredValue** ppMapEntry = nullptr;
+                            result = m_traceSourcesConfigs.FindAllocate(pName, &existed, &ppMapEntry);
+
+                            if (result == Result::Success)
                             {
-                                (**ppMapEntry) = traceSourceConfig;
+                                // Don't want to re-allocate memory if the entry already exists
+                                if (existed == false)
+                                {
+                                    // Ensure deallocations when TraceSession is destroyed
+                                    (*ppMapEntry) = PAL_NEW(StructuredValue, m_pPlatform, Util::AllocInternalTemp);
+                                }
+
+                                if ((*ppMapEntry) != nullptr)
+                                {
+                                    (**ppMapEntry) = traceSourceConfig;
+                                }
                             }
                         }
                     }

@@ -83,7 +83,7 @@ public:
     void LateInit(
         const AbiReader&                        abiReader,
         const Util::PalAbi::CodeObjectMetadata& metadata,
-        PipelineUploader*                       pUploader);
+        CodeObjectUploader*                     pUploader);
 
     uint32* WriteShCommands(
         CmdStream* pCmdStream,

@@ -424,8 +424,13 @@ public:
     /// @param [in] pBuffer Pointer to the buffer to save to.
     void SaveToBuffer(void* pBuffer);
 
-    /// Initialize the ABI processor before generating an ELF.  If LoadFromBuffer is not going to be called, then
+    /// Initialize the ABI processor before generating an ELF.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 884
+    /// If LoadFromBuffer is not going to be called, then
     /// this must be called instead before any operations can be done on this ELF.
+#else
+    /// This must be called before any operations can be done on this ELF.
+#endif
     ///
     /// @returns Success if successful, or ErrorOutOfMemory upon allocation failure.
     Result Init();

@@ -65,8 +65,8 @@ PipelineChunkCs::PipelineChunkCs(
 // =====================================================================================================================
 // Perform LateInit after InitRegisters.
 void PipelineChunkCs::DoLateInit(
-    DispatchDims*     pThreadsPerTg,
-    PipelineUploader* pUploader)
+    DispatchDims*       pThreadsPerTg,
+    CodeObjectUploader* pUploader)
 {
     GpuSymbol symbol = { };
     if (pUploader != nullptr)
@@ -104,7 +104,7 @@ void PipelineChunkCs::LateInit(
     uint32                                  wavefrontSize,
     DispatchDims*                           pThreadsPerTg,
     DispatchInterleaveSize                  interleaveSize,
-    PipelineUploader*                       pUploader)
+    CodeObjectUploader*                     pUploader)
 {
     InitRegisters(metadata, interleaveSize, wavefrontSize);
     DoLateInit(pThreadsPerTg, pUploader);
@@ -117,7 +117,7 @@ void PipelineChunkCs::LateInit(
     uint32                  wavefrontSize,
     DispatchDims*           pThreadsPerTg,
     DispatchInterleaveSize  interleaveSize,
-    PipelineUploader*       pUploader)
+    CodeObjectUploader*     pUploader)
 {
     InitRegisters(registers, interleaveSize, wavefrontSize);
     DoLateInit(pThreadsPerTg, pUploader);
@@ -159,7 +159,14 @@ void PipelineChunkCs::InitRegisters(
     DispatchInterleaveSize            interleaveSize,
     uint32                            wavefrontSize)
 {
-    m_regs.computePgmRsrc1.u32All         = AbiRegisters::ComputePgmRsrc1(metadata);
+    const Gfx9PalSettings& settings = m_device.Settings();
+
+    m_regs.computePgmRsrc1.u32All = AbiRegisters::ComputePgmRsrc1(metadata);
+    if (settings.waCwsrThreadgroupTrap != 0)
+    {
+        m_regs.computePgmRsrc1.bits.PRIV = 1;
+    }
+
     m_regs.dynamic.computePgmRsrc2.u32All = AbiRegisters::ComputePgmRsrc2(metadata);
 
     // These are optional for shader libraries.
@@ -182,9 +189,15 @@ void PipelineChunkCs::InitRegisters(
     DispatchInterleaveSize interleaveSize,
     uint32                 wavefrontSize)
 {
+    const Gfx9PalSettings&   settings  = m_device.Settings();
     const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
 
-    m_regs.computePgmRsrc1.u32All         = registers.At(mmCOMPUTE_PGM_RSRC1);
+    m_regs.computePgmRsrc1.u32All = registers.At(mmCOMPUTE_PGM_RSRC1);
+    if (settings.waCwsrThreadgroupTrap != 0)
+    {
+        m_regs.computePgmRsrc1.bits.PRIV = 1;
+    }
+
     m_regs.dynamic.computePgmRsrc2.u32All = registers.At(mmCOMPUTE_PGM_RSRC2);
 
     // These are optional for shader libraries.
@@ -227,8 +240,6 @@ void PipelineChunkCs::InitRegisters(
     {
         m_regs.dynamic.computeResourceLimits.bits.FORCE_SIMD_DIST = 1;
     }
-
-    const auto& settings = m_device.Settings();
 
     // LOCK_THRESHOLD: Sets per-SH low threshold for locking.  Set in units of 4, 0 disables locking.
     // LOCK_THRESHOLD's maximum value: (6 bits), in units of 4, so it is max of 252.

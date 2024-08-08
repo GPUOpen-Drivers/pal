@@ -236,16 +236,16 @@ public:
                                                   uint8              stencilWriteMask,
                                                   const SubresRange& range) const override;
 
-    virtual bool IsFormatReplaceable(const SubresId& subresId,
-                                     ImageLayout     layout,
-                                     bool            isDst,
-                                     uint8           disabledChannelMask = 0) const override;
+    virtual bool IsFormatReplaceable(SubresId    subresId,
+                                     ImageLayout layout,
+                                     bool        isDst,
+                                     uint8       disabledChannelMask = 0) const override;
 
-    virtual bool IsSubResourceLinear(const SubresId& subresource) const override;
+    virtual bool IsSubResourceLinear(SubresId subresId) const override;
 
     virtual bool IsIterate256Meaningful(const SubResourceInfo* subResInfo) const override;
 
-    virtual bool ShaderWriteIncompatibleWithLayout(const SubresId& subresId, ImageLayout layout) const override;
+    virtual bool ShaderWriteIncompatibleWithLayout(SubresId subresId, ImageLayout layout) const override;
 
     // Returns true if this Image has associated HTile data.
     virtual bool HasHtileData() const override { return (m_pHtile == nullptr) ? false : true; }
@@ -294,14 +294,14 @@ public:
         Pm4Predicate         predicate,
         uint32*              pCmdSpace) const;
 
-    gpusize GetFastClearEliminateMetaDataAddr(const SubresId&  subResId) const;
-    gpusize GetFastClearEliminateMetaDataOffset(const SubresId&  subResId) const;
+    gpusize GetFastClearEliminateMetaDataAddr(SubresId subresId) const;
+    gpusize GetFastClearEliminateMetaDataOffset(SubresId subresId) const;
     gpusize GetFastClearEliminateMetaDataSize(uint32 numMips) const;
 
-    gpusize GetDcc256BAddr(const SubresId& subResId) const
-        { return GetMaskRamBaseAddr(GetDcc(subResId.plane), subResId.plane) >> 8; }
-    gpusize GetDcc256BAddrSwizzled(const SubresId& subResId) const
-        { return GetDcc256BAddr(subResId) | GetDcc(subResId.plane)->GetPipeBankXor(subResId.plane); }
+    gpusize GetDcc256BAddr(SubresId subresId) const
+        { return GetMaskRamBaseAddr(GetDcc(subresId.plane), subresId.plane) >> 8; }
+    gpusize GetDcc256BAddrSwizzled(SubresId subresId) const
+        { return GetDcc256BAddr(subresId) | GetDcc(subresId.plane)->GetPipeBankXor(subresId.plane); }
 
     gpusize GetCmask256BAddr() const
         { return GetMaskRamBaseAddr(GetCmask(), 0) >> 8; }
@@ -313,7 +313,7 @@ public:
     gpusize GetFmask256BAddrSwizzled() const
         { return GetFmask256BAddr() | GetFmask()->GetPipeBankXor(); }
 
-    virtual gpusize GetSubresourceAddr(SubresId  subResId) const override;
+    virtual gpusize GetSubresourceAddr(SubresId  subresId) const override;
 
     gpusize GetHtile256BAddr() const
         { return GetMaskRamBaseAddr(GetHtile(), 0) >> 8; }
@@ -328,9 +328,9 @@ public:
         { return m_fastClearEliminateMetaDataOffset[plane] != 0; }
     bool HasFastClearEliminateMetaData(const SubresRange& range) const;
 
-    gpusize GetDccStateMetaDataAddr(const SubresId&  subResId) const;
-    gpusize GetDccStateMetaDataOffset(const SubresId&  subResId) const;
-    gpusize GetDccStateMetaDataSize(const SubresId&  subResId, uint32 numMips) const;
+    gpusize GetDccStateMetaDataAddr(SubresId subresId) const;
+    gpusize GetDccStateMetaDataOffset(SubresId subresId) const;
+    gpusize GetDccStateMetaDataSize(SubresId subresId, uint32 numMips) const;
 
     // Returns true if this Image has associated mask-ram data.
     bool HasColorMetaData() const { return HasFmaskData() || HasDccData(); }
@@ -341,7 +341,7 @@ public:
 
     bool HasDccLookupTable() const { return (HasDccData() && (m_dccLookupTableOffset != 0u)); }
 
-    bool SupportsCompToReg(ImageLayout layout, const SubresId& subResId) const;
+    bool SupportsCompToReg(ImageLayout layout, SubresId subresId) const;
 
     // Returns a pointer to the Gfx9Dcc object associated with a particular sub-Resource.
     const  Gfx9Dcc*     GetDcc(uint32 plane) const { return m_pDcc[plane]; }
@@ -365,14 +365,14 @@ public:
     gpusize GetMaskRamBaseAddr(const MaskRam* pMaskRam, uint32 arraySlice) const;
 
     const ColorLayoutToState& LayoutToColorCompressionState() const { return m_layoutToState.color; }
-    const DepthStencilLayoutToState& LayoutToDepthCompressionState(const SubresId& subresId) const;
+    const DepthStencilLayoutToState& LayoutToDepthCompressionState(SubresId subresId) const;
 
     bool ColorImageSupportsAllFastClears() const;
 
     virtual uint32 GetSwTileMode(const SubResourceInfo*  pSubResInfo) const override
         { return GetAddrSettings(pSubResInfo).swizzleMode; }
 
-    virtual uint32 GetTileSwizzle(const SubresId& subresId) const override;
+    virtual uint32 GetTileSwizzle(SubresId subresId) const override;
     virtual uint32 GetHwSwizzleMode(const SubResourceInfo* pSubResInfo) const override;
 
     virtual void InitMetadataFill(
@@ -405,7 +405,7 @@ public:
 
     bool SupportsComputeDecompress(const SubresRange& range) const;
 
-    bool IsComprFmaskShaderReadable(const SubresId& subresource) const;
+    bool IsComprFmaskShaderReadable(SubresId subresource) const;
 
     virtual gpusize GetPlaneBaseAddr(uint32 plane, uint32 arraySlice = 0) const override;
 
@@ -420,7 +420,7 @@ public:
 
     void BuildDccLookupTableBufferView(BufferViewInfo* pViewInfo) const;
 
-    bool IsInMetadataMipTail(const SubresId&  subResId) const;
+    bool IsInMetadataMipTail(SubresId subresId) const;
     bool CanMipSupportMetaData(uint32 mip) const override;
 
     uint32 GetIterate256(const SubResourceInfo*  pSubResInfo) const;
@@ -541,10 +541,10 @@ private:
     void InitPipeMisalignedMetadataFirstMip();
     uint32 GetPipeMisalignedMetadataFirstMip(const SubResourceInfo& baseSubRes) const;
 
-    bool SupportsMetaDataTextureFetch(AddrSwizzleMode tileMode, ChNumFormat format, const SubresId& subResource) const;
+    bool SupportsMetaDataTextureFetch(AddrSwizzleMode tileMode, ChNumFormat format, SubresId subResource) const;
     bool ColorImageSupportsMetaDataTextureFetch() const;
     bool DepthMetaDataTexFetchIsZValid(ChNumFormat format) const;
-    bool DepthImageSupportsMetaDataTextureFetch(ChNumFormat format, const SubresId& subResource) const;
+    bool DepthImageSupportsMetaDataTextureFetch(ChNumFormat format, SubresId subResource) const;
     bool DoesImageSupportCopyCompression() const;
 
     PAL_DISALLOW_DEFAULT_CTOR(Image);

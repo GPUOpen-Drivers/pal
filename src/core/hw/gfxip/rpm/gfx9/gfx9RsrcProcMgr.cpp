@@ -796,8 +796,8 @@ uint32 RsrcProcMgr::GetClearDepth(
     const Pal::Image*  pPalImage   = dstImage.Parent();
     const auto&        createInfo  = pPalImage->GetImageCreateInfo();
     const bool         is3dImage   = (createInfo.imageType == ImageType::Tex3d);
-    const SubresId     subResId    = { plane, mipLevel, 0 };
-    const auto*        pSubResInfo = pPalImage->SubresourceInfo(subResId);
+    const SubresId     subresId    = Subres(plane, mipLevel, 0);
+    const auto*        pSubResInfo = pPalImage->SubresourceInfo(subresId);
 
     return (is3dImage ? pSubResInfo->extentTexels.depth : numSlices);
 }
@@ -1071,9 +1071,9 @@ bool RsrcProcMgr::ExpandDepthStencil(
         const DispatchDims threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
 
         bool earlyExit = false;
-        for (uint32  mipIdx = 0; ((earlyExit == false) && (mipIdx < range.numMips)); mipIdx++)
+        for (uint32 mipIdx = 0; ((earlyExit == false) && (mipIdx < range.numMips)); mipIdx++)
         {
-            const SubresId  mipBaseSubResId =  { range.startSubres.plane, range.startSubres.mipLevel + mipIdx, 0 };
+            const SubresId  mipBaseSubResId = Subres(range.startSubres.plane, range.startSubres.mipLevel + mipIdx, 0);
             const auto*     pBaseSubResInfo = image.SubresourceInfo(mipBaseSubResId);
 
             // a mip level may not have metadata thus supportMetaDataTexFetch is 0 and expand is not necessary at all
@@ -1099,12 +1099,10 @@ bool RsrcProcMgr::ExpandDepthStencil(
             // Embed the constant buffer in user-data right after the SRD table.
             pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 1, ArrayLen32(constData), constData);
 
+            SubresRange viewRange = SingleSubresRange(mipBaseSubResId);
             for (uint32 sliceIdx = 0; sliceIdx < range.numSlices; sliceIdx++)
             {
-                const SubresId     subResId =  { mipBaseSubResId.plane,
-                                                 mipBaseSubResId.mipLevel,
-                                                 range.startSubres.arraySlice + sliceIdx };
-                const SubresRange  viewRange = { subResId, 1, 1, 1 };
+                viewRange.startSubres.arraySlice = uint16(range.startSubres.arraySlice + sliceIdx);
 
                 // Create an embedded user-data table and bind it to user data 0. We will need two views.
                 uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
@@ -1533,6 +1531,19 @@ void RsrcProcMgr::HwlFixupCopyDstImageMetaData(
                 ClearFmask(pCmdBuffer, gfx9DstImage, range, Gfx9Fmask::GetPackedExpandedValue(gfx9DstImage));
                 pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
             }
+        }
+    }
+    else if (dstImage.IsDepthStencilTarget() && gfx9DstImage.HasHtileData())
+    {
+        // Depth compute copies can get here (see CmdCopyMemoryToImage).  So long as all of the
+        // subresources being copied are meta-fetchable, the SRD will have kept hTile in sync
+        // with the image data.  If not, then we have a problem.
+        for (uint32 idx = 0; idx < regionCount; ++idx)
+        {
+            const ImageFixupRegion* pRegion     = &pRegions[idx];
+            const SubResourceInfo*  pSubResInfo = dstImage.SubresourceInfo(pRegion->subres);
+
+            PAL_ASSERT(pSubResInfo->flags.supportMetaDataTexFetch != 0);
         }
     }
 }
@@ -2092,8 +2103,8 @@ void RsrcProcMgr::HwlResolveImageGraphics(
     // Each region needs to be resolved individually.
     for (uint32 idx = 0; idx < regionCount; ++idx)
     {
-        const SubresId dstSubres = { pRegions[idx].dstPlane, pRegions[idx].dstMipLevel, pRegions[idx].dstSlice };
-        const SubresId srcSubres = { pRegions[idx].srcPlane, 0, pRegions[idx].srcSlice };
+        const SubresId dstSubres = Subres(pRegions[idx].dstPlane, pRegions[idx].dstMipLevel, pRegions[idx].dstSlice);
+        const SubresId srcSubres = Subres(pRegions[idx].srcPlane, 0, pRegions[idx].srcSlice);
 
         SwizzledFormat dstFormat = dstImage.SubresourceInfo(dstSubres)->format;
         SwizzledFormat srcFormat = srcImage.SubresourceInfo(srcSubres)->format;
@@ -2193,14 +2204,14 @@ void RsrcProcMgr::HwlResolveImageGraphics(
 
         const SubresId dstStartSubres =
         {
-            pRegions[idx].dstPlane,
-            pRegions[idx].dstMipLevel,
-            pRegions[idx].dstSlice
+            uint8(pRegions[idx].dstPlane),
+            uint8(pRegions[idx].dstMipLevel),
+            uint16(pRegions[idx].dstSlice)
         };
 
         for (uint32 slice = 0; slice < pRegions[idx].numSlices; ++slice)
         {
-            const SubresId srcSubresSlice = { pRegions[idx].srcPlane, 0, pRegions[idx].srcSlice + slice };
+            const SubresId srcSubresSlice = Subres(pRegions[idx].srcPlane, 0, pRegions[idx].srcSlice + slice);
 
             // Create an embedded user-data table and bind it to user data 1. We only need one image view.
             uint32* pUserData = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
@@ -2211,7 +2222,7 @@ void RsrcProcMgr::HwlResolveImageGraphics(
 
             // Populate the table with an image view of the source image.
             ImageViewInfo     imageView = { };
-            const SubresRange viewRange = { srcSubresSlice, 1, 1, 1 };
+            const SubresRange viewRange = SingleSubresRange(srcSubresSlice);
             RpmUtil::BuildImageViewInfo(&imageView,
                                         srcImage,
                                         viewRange,
@@ -2298,12 +2309,8 @@ bool RsrcProcMgr::HwlCanDoFixedFuncResolve(
     for (uint32 region = 0; region < regionCount; ++region)
     {
         const ImageResolveRegion& imageRegion = pRegions[region];
-        const SubresId srcSubResId = { imageRegion.srcPlane,
-                                       imageRegion.dstMipLevel,
-                                       imageRegion.srcSlice };
-        const SubresId dstSubResId = { imageRegion.dstPlane,
-                                       imageRegion.dstMipLevel,
-                                       imageRegion.dstSlice };
+        const SubresId srcSubResId = Subres(imageRegion.srcPlane, imageRegion.dstMipLevel, imageRegion.srcSlice);
+        const SubresId dstSubResId = Subres(imageRegion.dstPlane, imageRegion.dstMipLevel, imageRegion.dstSlice);
 
         const auto* pSrcSubResInfo  = srcImage.SubresourceInfo(srcSubResId);
         const auto* pSrcTileToken   = reinterpret_cast<const AddrMgr2::TileToken*>(&pSrcSubResInfo->tileToken);
@@ -2359,8 +2366,8 @@ void RsrcProcMgr::HwlFixupResolveDstImage(
         {
             // DepthStencilCompressed needs fixup after resolve.
             // DepthStencilDecomprWithHiZ needs fixup the values of HiZ.
-            const SubresId subResId = { pRegions->dstPlane, pRegions->dstMipLevel, pRegions->dstSlice };
-            const DepthStencilLayoutToState& layoutToState = gfx9Image.LayoutToDepthCompressionState(subResId);
+            const SubresId subresId = Subres(pRegions->dstPlane, pRegions->dstMipLevel, pRegions->dstSlice);
+            const DepthStencilLayoutToState& layoutToState = gfx9Image.LayoutToDepthCompressionState(subresId);
 
             if (ImageLayoutToDepthCompressionState(layoutToState, dstImageLayout) == DepthStencilDecomprNoHiZ)
             {
@@ -2704,7 +2711,7 @@ void RsrcProcMgr::DepthStencilClearGraphics(
          depthViewInfo.mipLevel <= lastMip;
          ++depthViewInfo.mipLevel)
     {
-        const SubresId         subres     = { range.startSubres.plane, depthViewInfo.mipLevel, 0 };
+        const SubresId         subres     = Subres(range.startSubres.plane, depthViewInfo.mipLevel, 0);
         const SubResourceInfo& subResInfo = *dstImage.Parent()->SubresourceInfo(subres);
 
         // All slices of the same mipmap level can re-use the same viewport and scissor state.
@@ -2893,7 +2900,7 @@ void RsrcProcMgr::DccDecompressOnCompute(
 
     for (uint32 mipLevel = range.startSubres.mipLevel; ((earlyExit == false) && (mipLevel <= lastMip)); mipLevel++)
     {
-        const SubresId              mipBaseSubResId = { range.startSubres.plane, mipLevel, 0 };
+        const SubresId              mipBaseSubResId = Subres(range.startSubres.plane, mipLevel, 0);
         const SubResourceInfo*const pBaseSubResInfo = image.Parent()->SubresourceInfo(mipBaseSubResId);
 
         // After a certain point, mips may not have 'useful' DCC, thus supportMetaDataTexFetch is 0 and expand is not
@@ -2920,12 +2927,10 @@ void RsrcProcMgr::DccDecompressOnCompute(
         // Embed the constant buffer in user-data right after the SRD table.
         pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 1, ArrayLen32(constData), constData);
 
+        SubresRange viewRange = SingleSubresRange(mipBaseSubResId);
         for (uint32 sliceIdx = 0; sliceIdx < range.numSlices; sliceIdx++)
         {
-            const SubresId     subResId =  { mipBaseSubResId.plane,
-                                             mipBaseSubResId.mipLevel,
-                                             range.startSubres.arraySlice + sliceIdx };
-            const SubresRange  viewRange = { subResId, 1, 1, 1 };
+            viewRange.startSubres.arraySlice = uint16(range.startSubres.arraySlice + sliceIdx);
 
             // Create an embedded user-data table and bind it to user data 0. We will need two views.
             uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
@@ -3421,10 +3426,10 @@ void RsrcProcMgr::PfpCopyMetadataHeader(
 // copy image<->memory functions.
 Extent3d RsrcProcMgr::GetCopyViaSrdCopyDims(
     const Pal::Image&  image,
-    const SubresId&    subResId,
+    SubresId           subresId,
     bool               includePadding)
 {
-    const SubresId  baseMipSubResId  = { subResId.plane, 0, subResId.arraySlice };
+    const SubresId  baseMipSubResId  = { subresId.plane, 0, subresId.arraySlice };
     const auto*     pBaseSubResInfo  = image.SubresourceInfo(baseMipSubResId);
     Extent3d        programmedExtent = (includePadding
                                         ? pBaseSubResInfo->actualExtentElements
@@ -3444,9 +3449,9 @@ Extent3d RsrcProcMgr::GetCopyViaSrdCopyDims(
 
     // Ok, the HW is programmed in terms of the dimensions specified in "actualExtentElements" found in the
     // pBaseSubResInfo structure.  The HW will do a simple ">> 1" for each subsequent mip level.
-    hwCopyDims.width  = Max(1u, programmedExtent.width  >> subResId.mipLevel);
-    hwCopyDims.height = Max(1u, programmedExtent.height >> subResId.mipLevel);
-    hwCopyDims.depth  = Max(1u, programmedExtent.depth  >> subResId.mipLevel);
+    hwCopyDims.width  = Max(1u, programmedExtent.width  >> subresId.mipLevel);
+    hwCopyDims.height = Max(1u, programmedExtent.height >> subresId.mipLevel);
+    hwCopyDims.depth  = Max(1u, programmedExtent.depth  >> subresId.mipLevel);
 
     return hwCopyDims;
 }
@@ -4218,8 +4223,8 @@ void Gfx10RsrcProcMgr::ClearDccComputeSetFirstPixelOfBlock(
         PAL_ASSERT_ALWAYS();
     }
 
-    const SubresId  subResId       = { 0, absMipLevel, startSlice };
-    const Extent3d& extentTexels   = pPalImage->SubresourceInfo(subResId)->extentTexels;
+    const SubresId  subresId       = Subres(0, absMipLevel, startSlice);
+    const Extent3d& extentTexels   = pPalImage->SubresourceInfo(subresId)->extentTexels;
     const uint32    mipLevelWidth  = extentTexels.width;
     const uint32    mipLevelHeight = extentTexels.height;
     const uint32    mipLevelDepth  = numSlices;
@@ -4242,9 +4247,10 @@ void Gfx10RsrcProcMgr::ClearDccComputeSetFirstPixelOfBlock(
 
     pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 0, ConstCount, constData);
 
-    const Pal::Device& device    = *pPalImage->GetDevice();
-    const SubresRange  viewRange = { subResId, 1, 1, (createInfo.imageType == ImageType::Tex3d) ? 1 : numSlices };
-    ImageViewInfo      imageView = {};
+    const Pal::Device& device   = *pPalImage->GetDevice();
+    const SubresRange viewRange =
+        SubresourceRange(subresId, 1, 1, (createInfo.imageType == ImageType::Tex3d) ? 1 : numSlices);
+    ImageViewInfo     imageView = {};
     RpmUtil::BuildImageViewInfo(&imageView,
                                 *dstImage.Parent(),
                                 viewRange,
@@ -4695,12 +4701,8 @@ bool Gfx10RsrcProcMgr::HwlCanDoDepthStencilCopyResolve(
         for (uint32 region = 0; canDoDepthStencilCopyResolve && (region < regionCount); ++region)
         {
             const ImageResolveRegion& imageRegion = pRegions[region];
-            const SubresId srcSubResId = { imageRegion.srcPlane,
-                                           0,
-                                           imageRegion.srcSlice };
-            const SubresId dstSubResId = { imageRegion.dstPlane,
-                                           imageRegion.dstMipLevel,
-                                           imageRegion.dstSlice };
+            const SubresId srcSubResId = Subres(imageRegion.srcPlane, 0, imageRegion.srcSlice);
+            const SubresId dstSubResId = Subres(imageRegion.dstPlane, imageRegion.dstMipLevel, imageRegion.dstSlice);
 
             PAL_ASSERT(imageRegion.srcPlane == imageRegion.dstPlane);
 
@@ -4910,9 +4912,6 @@ void Gfx10RsrcProcMgr::HwlFixupCopyDstImageMetaData(
     //   4) If the dst image is not meta-fetchable at all and with fullColorMsaaCopyDstOnly=1, then it will not be
     //      expanded on the transition to"LayoutCopyDst", at which point there's need to fix up DCC.
     const auto&  gfx9DstImage = static_cast<const Gfx9::Image&>(*dstImage.GetGfxImage());
-
-    // Copy to depth should go through gfx path and not to here.
-    PAL_ASSERT(gfx9DstImage.Parent()->IsDepthStencilTarget() == false);
 
     if (gfx9DstImage.HasDccData() && (dstImage.GetImageCreateInfo().flags.fullCopyDstOnly != 0))
     {
@@ -5592,12 +5591,12 @@ void Gfx10RsrcProcMgr::InitDisplayDcc(
     const GpuMemory*       pGpuMemory  = image.GetBoundGpuMemory().Memory();
     const ImageCreateInfo& createInfo  = image.GetImageCreateInfo();
     const Image*           pGfx9Image  = static_cast<const Image*>(image.GetGfxImage());
-    const uint32           clearValue  = ReplicateByteAcrossDword(Gfx9Dcc::DecompressedValue);
+    constexpr uint32       ClearValue  = ReplicateByteAcrossDword(Gfx9Dcc::DecompressedValue);
     const Gfx9Dcc*         pDispDcc    = pGfx9Image->GetDisplayDcc(0);
 
     const auto&            dispDccAddrOutput = pDispDcc->GetAddrOutput();
 
-    SubresRange range = { {}, 1, createInfo.mipLevels, createInfo.arraySize };
+    const SubresRange range = SubresourceRange(BaseSubres(0), 1, createInfo.mipLevels, createInfo.arraySize);
 
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
 
@@ -5644,7 +5643,7 @@ void Gfx10RsrcProcMgr::InitDisplayDcc(
                           *pGpuMemory,
                           clearOffset,
                           totalSize,
-                          clearValue);
+                          ClearValue);
         }
         else
         {
@@ -5661,7 +5660,7 @@ void Gfx10RsrcProcMgr::InitDisplayDcc(
                               *pGpuMemory,
                               clearOffset,
                               displayDccMipInfo.sliceSize,
-                              clearValue);
+                              ClearValue);
             }
         }
     }
@@ -5720,14 +5719,14 @@ void Gfx10RsrcProcMgr::CmdResolvePrtPlusImage(
         const uint32 constData[] =
         {
             // start cb0[0]
-            static_cast<uint32>(resolveRegion.srcOffset.x),
-            static_cast<uint32>(resolveRegion.srcOffset.y),
-            static_cast<uint32>(resolveRegion.srcOffset.z),
+            uint32(resolveRegion.srcOffset.x),
+            uint32(resolveRegion.srcOffset.y),
+            uint32(resolveRegion.srcOffset.z),
             0u,
             // start cb0[1]
-            static_cast<uint32>(resolveRegion.dstOffset.x),
-            static_cast<uint32>(resolveRegion.dstOffset.y),
-            static_cast<uint32>(resolveRegion.dstOffset.z),
+            uint32(resolveRegion.dstOffset.x),
+            uint32(resolveRegion.dstOffset.y),
+            uint32(resolveRegion.dstOffset.z),
             0u,
             // start cb0[2]
             resolveRegion.extent.width,
@@ -5745,10 +5744,10 @@ void Gfx10RsrcProcMgr::CmdResolvePrtPlusImage(
                                                                     PipelineBindPoint::Compute,
                                                                     0);
 
-        const SubresId     srcSubResId = { 0, resolveRegion.srcMipLevel, resolveRegion.srcSlice };
-        const SubresRange  srcRange    = { srcSubResId, 1, 1, resolveRegion.numSlices };
-        const SubresId     dstSubResId = { 0, resolveRegion.dstMipLevel, resolveRegion.dstSlice };
-        const SubresRange  dstRange    = { dstSubResId, 1, 1, resolveRegion.numSlices };
+        const SubresId    srcSubResId = Subres(0, resolveRegion.srcMipLevel, resolveRegion.srcSlice);
+        const SubresRange srcRange    = SubresourceRange(srcSubResId, 1, 1, resolveRegion.numSlices);
+        const SubresId    dstSubResId = Subres(0, resolveRegion.dstMipLevel, resolveRegion.dstSlice);
+        const SubresRange dstRange    = SubresourceRange(dstSubResId, 1, 1, resolveRegion.numSlices);
 
         // For the sampling status shader, the format doesn't matter that much as it's just doing a "0" or "1"
         // comparison, but the residency map shader is decoding the bits, so we need the raw unfiltered data.

@@ -263,6 +263,7 @@ Result GraphicsPipeline::InitFromLibraries(
 
         // m_info
         m_info.ps.flags.usesSampleMask |= pPartialPipeline->m_info.ps.flags.usesSampleMask;
+        m_info.ps.flags.enablePops |= pPartialPipeline->m_info.ps.flags.enablePops;
 
         // Uploading fence
         m_uploadFenceToken = Max(m_uploadFenceToken, pPartialPipeline->GetUploadFenceToken());

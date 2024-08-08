@@ -93,14 +93,14 @@ public:
         uint32                                  wavefrontSize,
         DispatchDims*                           pThreadsPerTg,
         DispatchInterleaveSize                  interleaveSize,
-        PipelineUploader*                       pUploader);
+        CodeObjectUploader*                     pUploader);
 
     void LateInit(
         const RegisterVector&                   registers,
         uint32                                  wavefrontSize,
         DispatchDims*                           pThreadsPerTg,
         DispatchInterleaveSize                  interleaveSize,
-        PipelineUploader*                       pUploader);
+        CodeObjectUploader*                     pUploader);
 
     uint32* UpdateDynamicRegInfo(
         CmdStream*                      pCmdStream,
@@ -158,7 +158,7 @@ private:
         DispatchInterleaveSize                  interleaveSize,
         uint32                                  wavefrontSize);
 
-    void DoLateInit(DispatchDims* pThreadsPerTg, PipelineUploader* pUploader);
+    void DoLateInit(DispatchDims* pThreadsPerTg, CodeObjectUploader* pUploader);
 
     void SetupSignatureFromMetadata(
         ComputeShaderSignature*                 pSignature,

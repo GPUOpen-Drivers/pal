@@ -160,7 +160,12 @@ void JsonWriter::Key(
 
     TransitionToToken(TokenKey, false);
     m_pStream->WriteCharacter('"');
-    m_pStream->WriteString(pKey, static_cast<uint32>(strlen(pKey)));
+
+    if (pKey != nullptr)
+    {
+        m_pStream->WriteString(pKey, static_cast<uint32>(strlen(pKey)));
+    }
+
     m_pStream->WriteCharacter('"');
     m_pStream->WriteCharacter(':');
 }
@@ -172,7 +177,12 @@ void JsonWriter::Value(
     MaybeNextListEntry();
     TransitionToToken(TokenValue, false);
     m_pStream->WriteCharacter('"');
-    m_pStream->WriteString(pValue, static_cast<uint32>(strlen(pValue)));
+
+    if (pValue != nullptr)
+    {
+        m_pStream->WriteString(pValue, static_cast<uint32>(strlen(pValue)));
+    }
+
     m_pStream->WriteCharacter('"');
 }
 

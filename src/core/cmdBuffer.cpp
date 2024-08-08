@@ -829,7 +829,11 @@ void CmdBuffer::CmdBarrier(
 }
 
 // =====================================================================================================================
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
 uint32 CmdBuffer::CmdRelease(
+#else
+ReleaseToken CmdBuffer::CmdRelease(
+#endif
     const AcquireReleaseInfo& releaseInfo)
 {
     // Validate input data.
@@ -852,14 +856,18 @@ uint32 CmdBuffer::CmdRelease(
     VerifyBarrierTransitions(releaseInfo);
 #endif
 
-    return 0;
+    return {};
 }
 
 // =====================================================================================================================
 void CmdBuffer::CmdAcquire(
     const AcquireReleaseInfo& acquireInfo,
     uint32                    syncTokenCount,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
     const uint32*             pSyncTokens)
+#else
+    const ReleaseToken*       pSyncTokens)
+#endif
 {
     // Validate input data.
     PAL_ASSERT(acquireInfo.srcGlobalStageMask == 0);
@@ -877,7 +885,7 @@ void CmdBuffer::CmdAcquire(
         PAL_ASSERT(acquireInfo.pImageBarriers[i].srcAccessMask == 0);
     }
 
-    PAL_ASSERT((syncTokenCount > 0) && (pSyncTokens != nullptr));
+    PAL_ASSERT((syncTokenCount == 0) || (pSyncTokens != nullptr));
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     VerifyBarrierTransitions(acquireInfo);

@@ -70,7 +70,7 @@ public:
         uint32                                regAddr,
         uint32                                regData,
         uint32*                               pCmdSpace,
-        PFP_SET_UCONFIG_REG_INDEX_index_enum  index = index__pfp_set_uconfig_reg_index__default);
+        PFP_SET_UCONFIG_REG_INDEX_index_enum  index = index__pfp_set_uconfig_reg_index__default) const;
 
     template <bool pm4OptImmediate>
     uint32* WriteSetOneContextReg(uint32 regAddr, uint32 regData, uint32* pCmdSpace);
@@ -188,6 +188,8 @@ public:
 
     void TempSetPm4OptimizerMode(bool isEnabled);
 
+    uint32* WritePerfCounterWindow(bool enableWindow, uint32* pCmdSpace);
+
 protected:
     virtual size_t BuildCondIndirectBuffer(
         CompareFunc compareFunc,
@@ -221,6 +223,7 @@ private:
     Pm4Optimizer*  m_pPm4Optimizer;       // This will only be created if optimization is enabled for this stream.
     uint32*        m_pChunkPreamble;      // If non-null, the current chunk preamble was allocated here.
     const bool     m_supportsHoleyOptimization;
+    bool           m_perfCounterWindowEnabled;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(CmdStream);
     PAL_DISALLOW_DEFAULT_CTOR(CmdStream);

@@ -1259,9 +1259,9 @@ Result Queue::DelayAfterVsync(
             else
             {
                 // NOTE: Currently there shouldn't be a use case that queue is blocked as external semaphore is used to
-                // synchronize submissions in DX and timer queue delays in Mantle, thus application is responsible for
-                // correct pairing. Even in case the queue is stalled (in future), we don't want to queue a delay-after-
-                // vsync but simply returns an error code to the application.
+                // synchronize submissions in DX, thus application is responsible for correct pairing. Even in case
+                // the queue is stalled (in future), we don't want to queue a delay-after-vsync but simply returns
+                // an error code to the application.
                 PAL_ALERT_ALWAYS();
             }
         }

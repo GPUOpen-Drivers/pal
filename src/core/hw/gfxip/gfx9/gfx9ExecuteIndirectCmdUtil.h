@@ -35,14 +35,14 @@ namespace Gfx9
 {
 
 // At any time it's either 3 Gfx (PS, GS, HS) stages or 1 Compute stage (CS).
-static constexpr uint32 EIV2MaxStages = 3;
+constexpr uint32 EIV2MaxStages = 3;
 
 // Possible VBTable SRD update slots per ExecuteIndirect_V2 PM.
-static constexpr uint32 EIV2SrdSlots = 32;
+constexpr uint32 EIV2SrdSlots = 32;
 
 // Number of MemCopies the CP can support with 1 ExecuteIndirect_V2 PM4.
-static constexpr uint32 EIV2InitMemCopySlots   = 8;
-static constexpr uint32 EIV2UpdateMemCopySlots = 8;
+constexpr uint32 EIV2InitMemCopySlots   = 8;
+constexpr uint32 EIV2UpdateMemCopySlots = 8;
 
 // Gfx Regs require 8-bits while Cs (Compute) Regs require 16-bits.
 constexpr uint32 BitsGraphics = 8;
@@ -54,7 +54,7 @@ constexpr uint32 BitsCompute  = 16;
 constexpr uint32 EiV2NumInputsWritePacked = 3;
 
 // Number of possible entries/MemCopies at one time is limited to 256 that is the API max userdata spilled.
-static constexpr uint32 EiV2LutLength = 256;
+constexpr uint32 EiV2LutLength = 256;
 
 // Struct for RegPacked format.
 union ExecuteIndirectV2Packed
@@ -63,6 +63,9 @@ union ExecuteIndirectV2Packed
     uint16 computeRegs[2];
     uint32 u32All;
 };
+
+// All EIV2 operations are 3 DWORDs.
+constexpr uint32 EiV2OpDwSize = 3;
 
 // Struct for Draw components.
 struct EIV2Draw
@@ -149,7 +152,7 @@ struct ExecuteIndirectV2MetaData
     uint32 indexAttributesOffset;
     uint32 userDataOffset;
     uint32 xyzDimLoc;
-    PFP_EXECUTE_INDIRECT_V2_REG_SCATTER_MODE_function_enum userDataScatterMode;
+    PFP_EXECUTE_INDIRECT_V2_userdata_scatter_mode_enum userDataScatterMode;
     bool   threadTraceEnable;
     uint32 stageUsageCount;
     uint32 userData[NumUserDataRegisters * EIV2MaxStages];
@@ -215,12 +218,24 @@ public:
     }
 
     // Helper to check for next MemCopy to be done. Also, clears that MemCopy from the Look-up table.
-    bool NextUpdate(const uint32 vbSpillTableWatermark, uint32* nextIdx, DynamicMemCopyEntry* entry);
+    bool NextUpdate(const uint32 vbSpillTableWatermark, uint32* pNextIdx, DynamicMemCopyEntry* pEntry);
 
     // CP performs a MemCpy as part of the ExecuteIndirectV2 Packet function for the SpilledUserData. This computes
     // what to copy. The vbSpillTableWatermark here refers to the last entry to be updated in the VBTable+UserDataSpill
     // buffer. InitMemCpy and UpdateMemCpy structs are both required for the CP to do its job.
     void ComputeMemCopyStructures(const uint32 vbSpillTableWatermark, uint32* pInitCount, uint32* pUpdateCount);
+
+    // Helper for InitMemCopy
+    void ProcessInitMemCopy(const uint32 vbSpillTableWatermark, uint32* pInitCount, uint32 currentIdx, uint32 nextIdx);
+
+    //Helper for UpdateMemCopy
+    void ProcessUpdateMemCopy(
+        const uint32         vbSpillTableWatermark,
+        uint32*              pUpdateCount,
+        uint32*              pCurrentIdx,
+        uint32*              pNextIdx,
+        DynamicMemCopyEntry* pEntry,
+        bool*                pValidUpdate);
 
     ExecuteIndirectV2MetaData* GetMetaData() { return &m_metaData; }
 

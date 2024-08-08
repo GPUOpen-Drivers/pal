@@ -572,16 +572,26 @@ def prepare_enums(settings_root: dict):
                                          'The valid formats are: 1. an integer 2. a string starting with "0x"/"0X" '
                                          '3. a string of math expression 4. a string containing previously defined enum values.')
 
-        # Check whether an enum needs to be defined uint64 as its unerlying type.
-        MAX_UINT32 = 0xFFFF_FFFF
-        if "Is64Bit" not in enum:
-            if len(values) > 32:
-                found_64bit_value = False
-                for value in values:
-                   if value["Value"] > MAX_UINT32:
-                       found_64bit_value = True
-                if found_64bit_value:
-                    raise ValueError(f'Enum {enum["Name"]} contains value that is greater than MAX_UINT32, please add `"Is64Bit": true` to this enum definition.')
+        enum_base = "uint32_t"
+
+        if "Is64Bit" in enum:
+            enum_base = "uint64_t"
+            print('[SettingsCodeGen][WARNING] "Is64Bit" field is deprecated, please use "EnumSize". For example: `"EnumSize": 64`.')
+        else:
+            enum_size = enum.get("EnumSize", 32)
+            if enum_size == 8:
+                enum_base = "uint8_t"
+            elif enum_size == 16:
+                enum_base = "uint16_t"
+            elif enum_size == 32:
+                enum_base = "uint32_t"
+            elif enum_size == 64:
+                enum_base = "uint64_t"
+            else:
+                raise ValueError(f'Enum {enum["Name"]} contains invalid "EnumSize" value ({enum_size}). '
+                                  'Only valid values are: 8, 16, 32, 64.')
+
+        enum["EnumBase"] = enum_base
 
 def prepare_settings_meta(
     settings_root: dict, magic_buf: bytes, codegen_header: str, settings_header: str

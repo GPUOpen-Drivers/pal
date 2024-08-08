@@ -27,8 +27,12 @@
 #include <dd_integer.h>
 #include <dd_memory.h>
 
+#include <stb_sprintf.h>
+
+#include <atomic>
 #include <errno.h>
 #include <sys/mman.h>
+#include <fcntl.h>
 #include <unistd.h>
 
 namespace DevDriver
@@ -42,9 +46,8 @@ int32_t CreateMirroredBuffer(uint32_t requestedBufferSize, MirroredBuffer* pOutB
     }
 
     const uint32_t pageSize = getpagesize();
-    DD_ASSERT((pageSize & (pageSize - 1)) == 0); // pageSize must be power of 2.
 
-    const uint32_t alignedBufferSize = (requestedBufferSize + (pageSize - 1)) & (~(pageSize - 1));
+    const uint32_t alignedBufferSize = AlignU32(requestedBufferSize, pageSize);
     const uint32_t actualBufferSize = NextSmallestPow2(alignedBufferSize);
 
     if ((actualBufferSize == 0) || (actualBufferSize > MirroredBufferMaxSize))
@@ -55,16 +58,37 @@ int32_t CreateMirroredBuffer(uint32_t requestedBufferSize, MirroredBuffer* pOutB
     int err = 0;
 
     const uint32_t virtualMemorySize = actualBufferSize * 2;
-    DD_ASSERT(virtualMemorySize > actualBufferSize); // check overflow
+    DD_ALWAYS_ASSERT(virtualMemorySize > actualBufferSize); // check overflow
 
-    int physicalMemoryFd = memfd_create("physical_buffer", 0);
+    const size_t ShmNameBufSizeMax = 64;
+    char shmNameBuf[ShmNameBufSizeMax] {};
+
+    // Generate a unique name across threads and processes.
+    static std::atomic_uint32_t s_uniqueCounter = 0;
+    pid_t pid = getpid();
+    uint32_t counter = s_uniqueCounter.fetch_add(1, std::memory_order_seq_cst);
+    int printSize = stbsp_sprintf(shmNameBuf, "/%u_%u_mirrored_buffer_2cafe0f9_916c", pid, counter);
+    DD_ASSERT(printSize > 0);
+
+    // Use `O_EXCL` to disallow opening of an existing shared memory object.
+    // We can't use `memfd_create()` because it's available in Linux kernel >= 3.17, and this code needs to be
+    // run on older Linux kernel.
+    int physicalMemoryFd = shm_open(shmNameBuf, O_RDWR | O_CREAT | O_EXCL, 0);
     if (physicalMemoryFd == -1)
     {
         err = errno;
     }
     else
     {
-        if (ftruncate(physicalMemoryFd, actualBufferSize) == -1)
+        err = shm_unlink(shmNameBuf);
+        if (err == 0)
+        {
+            if (ftruncate(physicalMemoryFd, actualBufferSize) == -1)
+            {
+                err = errno;
+            }
+        }
+        else
         {
             err = errno;
         }
@@ -117,13 +141,13 @@ int32_t CreateMirroredBuffer(uint32_t requestedBufferSize, MirroredBuffer* pOutB
 
     if (err == 0)
     {
-        // Map the second half to the physical memory.
+        // Map the second half to the same physical memory.
         pSecondaryBuffer = mmap(
             reinterpret_cast<uint8_t*>(pPrimaryBuffer) + actualBufferSize, // starting address of the second buffer
             actualBufferSize,       // size
             PROT_READ | PROT_WRITE, // protection
             MAP_FIXED | MAP_SHARED, // Place the mapping at exactly the beginning of the second buffer.
-            physicalMemoryFd,       // mapped to the physical memory
+            physicalMemoryFd,       // mapped to the same physical memory
             0                       // offset
         );
 

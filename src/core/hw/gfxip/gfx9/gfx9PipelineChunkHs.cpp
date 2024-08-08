@@ -58,7 +58,7 @@ PipelineChunkHs::PipelineChunkHs(
 void PipelineChunkHs::LateInit(
     const AbiReader&                  abiReader,
     const PalAbi::CodeObjectMetadata& metadata,
-    PipelineUploader*                 pUploader)
+    CodeObjectUploader*               pUploader)
 {
     const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
 

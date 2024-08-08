@@ -140,7 +140,7 @@ protected:
 
     virtual uint32* WriteNops(uint32* pCmdSpace, uint32 numDwords) const override;
 
-    virtual gpusize GetSubresourceBaseAddr(const Pal::Image& image, const SubresId& subresource) const override;
+    virtual gpusize GetSubresourceBaseAddr(const Pal::Image& image, SubresId subresource) const override;
 
     virtual uint32 GetLinearRowPitchAlignment(uint32 bytesPerPixel) const override;
 
@@ -178,7 +178,7 @@ private:
     static uint32           GetHwDimension(const DmaImageInfo&  dmaImageInfo);
     static uint32           GetMaxMip(const DmaImageInfo&  dmaImageInfo);
     static AddrSwizzleMode  GetSwizzleMode(const DmaImageInfo&  dmaImageInfo);
-    static uint32           GetPipeBankXor(const Pal::Image&  image, const SubresId& subresource);
+    static uint32           GetPipeBankXor(const Pal::Image&  image, SubresId subresource);
 
     template <typename PacketName>
     static void SetupMetaData(const DmaImageInfo&  image, PacketName*  pPacket, bool  imageIsDst);

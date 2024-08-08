@@ -47,38 +47,34 @@ namespace Developer
 struct BarrierOperations;
 }
 
-// Acquire/release synchronization event types for supported pipeline event.
-enum class AcqRelEventType : uint32
+// Acquire/release synchronization token types.
+enum ReleaseTokenType : uint32
 {
-    Eop    = 0x0,
-    PsDone = 0x1,
-    CsDone = 0x2,
-    Count,
+    ReleaseTokenEop    = 0x0,
+    ReleaseTokenPsDone = 0x1,
+    ReleaseTokenCsDone = 0x2,
+    ReleaseTokenCpDma  = 0x3, // This is actually not a pipeline event but as an optimization to defer wait to
+                              // acquire time.
+    // Note that when adding new release type, please make sure update value of @ref NumReleaseTokenTypes and
+    // increase bit for @ref ReleaseToken::type if not enough bits to hold new type.
 
-    Invalid = Count
+    ReleaseTokenCount,
+
+    ReleaseTokenInvalid = ReleaseTokenCount
 };
 
-// Bit mask value of AcqRelEventType
-enum AcqRelEventTypeMask : uint32
+static_assert((NumReleaseTokenTypes >= ReleaseTokenCount), "Please update value of NumReleaseTokenTypes!");
+
+// Bit mask value of ReleaseTokenType
+enum ReleaseTokenTypeMask : uint32
 {
-    AcqRelEventMaskEop      = 1u << uint32(AcqRelEventType::Eop),
-    AcqRelEventMaskPsDone   = 1u << uint32(AcqRelEventType::PsDone),
-    AcqRelEventMaskCsDone   = 1u << uint32(AcqRelEventType::CsDone),
+    ReleaseTokenMaskEop      = 1u << ReleaseTokenEop,
+    ReleaseTokenMaskPsDone   = 1u << ReleaseTokenPsDone,
+    ReleaseTokenMaskCsDone   = 1u << ReleaseTokenCsDone,
+    ReleaseTokenMaskCpDma    = 1u << ReleaseTokenCpDma,
 
-    AcqRelEventMaskPsCsDone = AcqRelEventMaskPsDone | AcqRelEventMaskCsDone,
-    AcqRelEventMaskAll      = (1u << uint32(AcqRelEventType::Count)) - 1
-};
-
-// Acquire/release synchronization token structure.
-union AcqRelSyncToken
-{
-    struct
-    {
-        uint32 fenceVal : 30;
-        uint32 type     :  2; // AcqRelEventType
-    };
-
-    uint32 u32All;
+    ReleaseTokenMaskPsCsDone = ReleaseTokenMaskPsDone | ReleaseTokenMaskCsDone,
+    ReleaseTokenMaskAll      = (1u << ReleaseTokenCount) - 1
 };
 
 constexpr uint32 PipelineStagesGraphicsOnly = PipelineStageFetchIndices  |
@@ -138,16 +134,16 @@ public:
         const BarrierInfo&            barrierInfo,
         Developer::BarrierOperations* pBarrierOps) const { PAL_NEVER_CALLED(); }
 
-    virtual uint32 Release(
+    virtual ReleaseToken Release(
         GfxCmdBuffer*                 pGfxCmdBuf,
         const AcquireReleaseInfo&     releaseInfo,
-        Developer::BarrierOperations* pBarrierOps) const { PAL_NEVER_CALLED(); return 0; }
+        Developer::BarrierOperations* pBarrierOps) const { PAL_NEVER_CALLED(); return {}; }
 
     virtual void Acquire(
         GfxCmdBuffer*                 pGfxCmdBuf,
         const AcquireReleaseInfo&     acquireInfo,
         uint32                        syncTokenCount,
-        const uint32*                 pSyncTokens,
+        const ReleaseToken*           pSyncTokens,
         Developer::BarrierOperations* pBarrierOps) const { PAL_NEVER_CALLED(); }
 
     virtual void ReleaseEvent(
@@ -222,6 +218,8 @@ public:
         return (srcAccessMask == CoherClear) &&
                ((dstAccessMask == CoherColorTarget) || (dstAccessMask == CoherDepthStencilTarget));
     }
+
+    static bool NeedWaitCpDma(const Pm4CmdBuffer* pCmdBuf, uint32 srcStageMask);
 
 protected:
     static uint32 GetPipelineStageMaskFromBarrierInfo(const BarrierInfo& barrierInfo, uint32* pSrcStageMask);

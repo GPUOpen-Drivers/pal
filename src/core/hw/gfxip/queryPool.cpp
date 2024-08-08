@@ -70,7 +70,7 @@ QueryPool::~QueryPool()
 // =====================================================================================================================
 // Specifies requirements for GPU memory a client must bind to this object before using it: size, alignment, and heaps.
 // NOTE: Part of the public IGpuMemoryBindable interface.
-// Note that DX12 and Mantle/Vulkan have different pool/heap memory heap preference, PAL provides all supported heaps
+// Note that DX12 and Vulkan have different pool/heap memory heap preference, PAL provides all supported heaps
 // in default order, client drivers need to re-qualify by adjusting order or removing heap they don't like
 void QueryPool::GetGpuMemoryRequirements(
     GpuMemoryRequirements* pGpuMemReqs
@@ -246,7 +246,7 @@ Result QueryPool::BindGpuMemory(
 
 // =====================================================================================================================
 // Resets the query pool, performing either an optimized or normal reset depending on the command buffer type.
-void QueryPool::Reset(
+void QueryPool::DoGpuReset(
     GfxCmdBuffer* pCmdBuffer,
     CmdStream*    pCmdStream,
     uint32        startQuery,
@@ -255,20 +255,13 @@ void QueryPool::Reset(
 {
     if (ValidateSlot(startQuery + queryCount - 1) == Result::Success)
     {
-        if (pCmdBuffer->GetEngineType() != EngineTypeDma)
-        {
-            NormalReset(pCmdBuffer, pCmdStream, startQuery, queryCount);
-        }
-        else
-        {
-            DmaEngineReset(pCmdBuffer, pCmdStream, startQuery, queryCount);
-        }
+        GpuReset(pCmdBuffer, pCmdStream, startQuery, queryCount);
     }
 }
 
 // =====================================================================================================================
 // Reset this query pool with CPU.
-Result QueryPool::DoReset(
+Result QueryPool::CpuReset(
     uint32      startQuery,
     uint32      queryCount,
     void*       pMappedCpuAddr,

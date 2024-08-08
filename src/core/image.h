@@ -269,8 +269,8 @@ enum class DccFormatEncoding : uint32
 struct ImageInfo
 {
     ImageInternalCreateInfo internalCreateInfo;    // Internal create info
-    size_t                  numPlanes;             // Number of planes in the image
-    size_t                  numSubresources;       // Total number of subresources in the image
+    uint32                  numPlanes;             // Number of planes in the image
+    uint32                  numSubresources;       // Total number of subresources in the image
     ResolveMethod           resolveMethod;         // Resolve method RPM will use for this Image
     DccFormatEncoding       dccFormatEncoding;     // Indicates how possible view formats will be encoded
 };
@@ -320,14 +320,14 @@ public:
 
     const ImageInfo& GetImageInfo() const { return m_imageInfo; }
 
-    const SubResourceInfo* SubresourceInfo(const SubresId& subres) const
+    const SubResourceInfo* SubresourceInfo(SubresId subres) const
         { return SubresourceInfo(CalcSubresourceId(subres)); }
 
     const SubResourceInfo* SubresourceInfo(uint32 subresId) const
         { return (m_pSubResInfoList + subresId); }
 
-    const void* SubresourceTileInfo(uint32 subResId) const
-        { return Util::VoidPtrInc(m_pTileInfoList, (subResId * m_tileInfoBytes)); }
+    const void* SubresourceTileInfo(uint32 subresId) const
+        { return Util::VoidPtrInc(m_pTileInfoList, (subresId * m_tileInfoBytes)); }
 
     virtual const void* GetResourceId() const override { return this; }
 
@@ -337,13 +337,13 @@ public:
     bool HasMetadata() const { return m_gpuMemLayout.metadataSize > 0;}
 
     // Gets base address of a subresource
-    gpusize GetSubresourceBaseAddr(const SubresId& subresource) const
+    gpusize GetSubresourceBaseAddr(SubresId subresource) const
         { return GetSubresourceBaseAddr(CalcSubresourceId(subresource)); }
 
     gpusize GetSubresourceBaseAddr(uint32 subresId) const
         { return (m_vidMem.GpuVirtAddr() + m_pSubResInfoList[subresId].offset); }
 
-    gpusize GetSubresourceBaseAddrSwizzled(const SubresId& subresource) const;
+    gpusize GetSubresourceBaseAddrSwizzled(SubresId subresource) const;
 
     // Determine which subresource plane is tied to the specified image aspect.
     uint32 GetPlaneFromAspect(ImageAspect aspect) const;
@@ -362,7 +362,7 @@ public:
                 (range.startSubres.mipLevel == 0));
     }
 
-    bool IsSubresourceValid(const SubresId& subresource) const
+    bool IsSubresourceValid(SubresId subresource) const
     {
         return ((subresource.plane      < m_imageInfo.numPlanes)  &&
                 (subresource.mipLevel   < m_createInfo.mipLevels) &&
@@ -503,7 +503,7 @@ public:
     const ImageInternalCreateInfo& GetInternalCreateInfo() const { return m_imageInfo.internalCreateInfo; }
 
     // Returns true if the specified sub-resource is linear, false if it's tiled
-    bool IsSubResourceLinear(const SubresId& subresource) const
+    bool IsSubResourceLinear(SubresId subresource) const
         { return (m_pGfxImage == nullptr) ? false : m_pGfxImage->IsSubResourceLinear(subresource); }
 
     // Returns true if has any misaligned metadata.
@@ -521,7 +521,7 @@ public:
     const BoundGpuMemory& GetBoundGpuMemory() const { return m_vidMem; }
 
     // Calculates the subresource ID based on provided subresource.
-    uint32 CalcSubresourceId(const SubresId& subresource) const;
+    uint32 CalcSubresourceId(SubresId subresource) const;
 
     // Gets base address of the image
     gpusize GetGpuVirtualAddr() const { return m_vidMem.GpuVirtAddr(); }
@@ -608,5 +608,53 @@ private:
 extern void ConvertPrivateScreenImageCreateInfo(
     const PrivateScreenImageCreateInfo& privateImageCreateInfo,
     ImageCreateInfo*                    pImageInfo);
+
+// Helper function to create a SubresId object without the caller needing to worry about any narrowing conversions.
+constexpr inline SubresId Subres(
+    uint32 plane,
+    uint32 mipLevel,
+    uint32 arraySlice)
+{
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 886
+    return SubresId{ .plane = uint8(plane), .mipLevel = uint8(mipLevel), .arraySlice = uint16(arraySlice), };
+#else
+    return SubresId{ .plane = plane, .mipLevel = mipLevel, .arraySlice = arraySlice, };
+#endif
+}
+
+// Helper function to create a SubresId object representing the base subresource ID for a plane.
+constexpr inline SubresId BaseSubres(uint32 plane) { return Subres(plane, 0u, 0u); }
+
+// Helper function to create a SubresRange object without the caller needing to worry about any narrowing conversions.
+constexpr inline SubresRange SubresourceRange(
+    SubresId startSubres,
+    uint32   numPlanes,
+    uint32   numMips,
+    uint32   numSlices)
+{
+    return SubresRange{
+        .startSubres = startSubres,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 886
+        .numPlanes = uint8(numPlanes),
+        .numMips   = uint8(numMips),
+        .numSlices = uint16(numSlices),
+#else
+        .numPlanes = numPlanes,
+        .numMips   = numMips,
+        .numSlices = numSlices,
+#endif
+    };
+}
+
+// Helper function to create a SubresRange spanning just the starting subresource.
+constexpr inline SubresRange SingleSubresRange(SubresId subres) { return SubresourceRange(subres, 1u, 1u, 1u); }
+
+// Helper function to create a SubresId object for the Luminance plane (Y plane) of a planar multimedia resource.
+// Note that multimedia resources are never mipmapped.
+constexpr inline SubresId LumaSubres(uint32 arraySlice) { return Subres(0u, 0u, arraySlice); }
+
+// Helper function to create a SubresId object for the Chrominance plane (CbCr plane) of a planar multimedia resource.
+// Note that multimedia resources are never mipmapped.
+constexpr inline SubresId ChromaSubres(uint32 arraySlice) { return Subres(1u, 0u, arraySlice); }
 
 } // Pal

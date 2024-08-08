@@ -57,7 +57,7 @@ Result HybridGraphicsPipeline::HwlInit(
     GraphicsPipelineLoadInfo loadInfo = {};
     GraphicsPipeline::EarlyInit(metadata, &loadInfo);
 
-    PipelineUploader uploader(m_pDevice->Parent(), abiReader);
+    CodeObjectUploader uploader(m_pDevice->Parent(), abiReader);
 
     Result result = PerformRelocationsAndUploadToGpuMemory(
             metadata,

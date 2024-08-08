@@ -61,6 +61,7 @@ constexpr const char AmdGpuArchName[]           = "AMDGPU";  ///< Architecture n
 enum class AmdGpuMachineType : uint8
 {
     GfxNone = 0x00,  ///< EF_AMDGPU_MACH_NONE
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 888
     Gfx600  = 0x20,  ///< EF_AMDGPU_MACH_AMDGCN_GFX600
     Gfx601  = 0x21,  ///< EF_AMDGPU_MACH_AMDGCN_GFX601
     Gfx602  = 0x3a,  ///< EF_AMDGPU_MACH_AMDGCN_GFX602
@@ -82,6 +83,7 @@ enum class AmdGpuMachineType : uint8
     Gfx906  = 0x2f,  ///< EF_AMDGPU_MACH_AMDGCN_GFX906
     Gfx909  = 0x31,  ///< EF_AMDGPU_MACH_AMDGCN_GFX909
     Gfx90C  = 0x32,  ///< EF_AMDGPU_MACH_AMDGCN_GFX90C
+#endif
     Gfx1010 = 0x33,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1010
     Gfx1011 = 0x34,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1011
     Gfx1012 = 0x35,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1012
@@ -107,10 +109,10 @@ enum class AmdGpuFeatureV4Type : uint8
 };
 
 /// Enumerates the stepping values for each GPU supported by PAL (and by PAL's ABI).  There are many duplicates
-/// in this list, because some values are re-used across different GFXIP major/minor versions (e.g., Gfx6.0.0
-/// and Gfx9.0.0 are different GPUs that happen to share a common stepping number).
+/// in this list, because values are commonly re-used across different GFXIP major/minor versions.
 enum GfxIpStepping : uint16
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 888
     // GFXIP 6.0.x steppings:
     GfxIpSteppingTahiti    = 0,
     GfxIpSteppingPitcairn  = 1,
@@ -144,6 +146,7 @@ enum GfxIpStepping : uint16
     GfxIpSteppingVega20 = 6,
     GfxIpSteppingRaven2 = 9,
     GfxIpSteppingRenoir = 12,
+#endif
 
     // GFXIP 10.1.x steppings:
     GfxIpSteppingNavi10        = 0,
@@ -156,7 +159,7 @@ enum GfxIpStepping : uint16
     GfxIpSteppingNavi23        = 2,
     GfxIpSteppingNavi24        = 4,
     GfxIpSteppingRembrandt     = 5,
-    GfxIpSteppingRaphael       = 6,
+    GfxIpSteppingRaphael       = 6, // Also Mendocino
 
     // GFXIP 11.0.x steppings:
     GfxIpSteppingNavi31        = 0,
@@ -516,7 +519,7 @@ enum class UserDataMapping : uint32
     CompositeData           = 0x10000023, ///< The composite structure that includes sample info, DynamicDualSrcBlendInfo
                                           ///   and topology. It can be valid for various shader stages.
 
-    NotMapped             = 0xFFFFFFFF,  ///< Register is not mapped to any user-data entry.
+    NotMapped              = 0xFFFFFFFF,  ///< Register is not mapped to any user-data entry.
 
     /// @internal The following enum values are deprecated and only remain in the header file to avoid build errors.
 
@@ -803,7 +806,7 @@ enum class ZOrder : uint8
  {
 
  constexpr uint32 PipelineMetadataMajorVersion = 3;  ///< Pipeline Metadata Major Version
- constexpr uint32 PipelineMetadataMinorVersion = 4;  ///< Pipeline Metadata Minor Version
+ constexpr uint32 PipelineMetadataMinorVersion = 5;  ///< Pipeline Metadata Minor Version
 
  constexpr uint32 PipelineMetadataBase = 0x10000000; ///< Deprecated - Pipeline Metadata base value to be OR'd with the
                                                      ///  PipelineMetadataEntry value when saving to ELF.

@@ -652,7 +652,6 @@ UniversalQueueContext::UniversalQueueContext(
     m_shadowGpuMem(),
     m_shadowGpuMemSizeInBytes(0),
     m_shadowedRegCount(0),
-    m_needsEiV2GlobalSpillBuffer(false),
     m_executeIndirectMemGfx(),
     m_supportsAceGang(pDevice->Parent()->EngineProperties().perEngine[EngineTypeCompute].numAvailable != 0),
     m_deCmdStream(*pDevice,
@@ -1182,28 +1181,25 @@ Result UniversalQueueContext::PreProcessSubmit(
                               cmdBufferCount,
                               ppCmdBuffers);
 
+        bool rebuildCmdStreamForEiV2SetBase = false;
+
         // Check if any of the CmdBuffers uses ExecuteIndirectV2.
         for (uint32 ndxCmd = 0; ndxCmd < cmdBufferCount; ++ndxCmd)
         {
             const UniversalCmdBuffer* pCmdBuf = static_cast<const UniversalCmdBuffer*>(ppCmdBuffers[ndxCmd]);
-            if (pCmdBuf->ExecuteIndirectV2NeedsGlobalSpill())
+
+            // If required make the allocation of ExecuteIndirectV2 buffer here. This will only be done once per
+            // queue context.
+            if (pCmdBuf->ExecuteIndirectV2NeedsGlobalSpill() && (m_executeIndirectMemGfx.IsBound() == false))
             {
-                m_needsEiV2GlobalSpillBuffer = true;
+                result = AllocateExecuteIndirectBufferGfx();
+                rebuildCmdStreamForEiV2SetBase = true;
                 break;
             }
         }
 
-        // If required make the allocation of ExecuteIndirectV2 buffer here. This will only be done once per queue
-        // context.
-        const bool mustAllocateExecuteIndirectV2Mem =
-            m_needsEiV2GlobalSpillBuffer && (m_executeIndirectMemGfx.IsBound() == false);
-        if (mustAllocateExecuteIndirectV2Mem)
-        {
-            result = AllocateExecuteIndirectBufferGfx();
-        }
-
         if ((result == Result::Success) &&
-            (hasUpdated || (m_cmdsUseTmzRing != isTmz) || mustAllocateExecuteIndirectV2Mem))
+            (hasUpdated || (m_cmdsUseTmzRing != isTmz) || rebuildCmdStreamForEiV2SetBase))
         {
             result = RebuildCommandStreams(isTmz, lastTimeStamp);
         }
@@ -1460,7 +1456,7 @@ Result UniversalQueueContext::RebuildCommandStreams(
             // even though it doesn't matter just because the SetBase PM4 requires it.
             pCmdSpace = m_deCmdStream.WriteSetBase(
                                         bufferVa,
-                                        base_index__pfp_set_base__executeindirect_v2_memory__GFX103PLUSEXCLUSIVE,
+                                        base_index__pfp_set_base__execute_indirect_v2__GFX11,
                                         ShaderGraphics,
                                         pCmdSpace);
         }

@@ -71,7 +71,7 @@ Result ComputeShaderLibrary::HwlInit(
     const PalAbi::CodeObjectMetadata& metadata,
     Util::MsgPackReader*              pMetadataReader)
 {
-    PipelineUploader uploader(m_pDevice->Parent(), abiReader);
+    CodeObjectUploader uploader(m_pDevice->Parent(), abiReader);
 
     // Handle relocations and upload the library code & data to GPU memory.
     Result result = PerformRelocationsAndUploadToGpuMemory(

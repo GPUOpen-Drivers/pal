@@ -39,40 +39,13 @@ struct ThreadIdentifier
     HANDLE id;
 };
 
-Thread::Thread()
-    : m_pThreadId {nullptr}
-    , m_pThreadFn {nullptr}
-    , m_pUserdata {nullptr}
-{}
-
-Thread::Thread(Thread&& other) noexcept
-    : m_pThreadId {other.m_pThreadId}
-    , m_pThreadFn {other.m_pThreadFn}
-    , m_pUserdata {other.m_pUserdata}
-{
-    other.m_pThreadId = nullptr;
-    other.m_pThreadFn    = nullptr;
-    other.m_pUserdata    = nullptr;
-}
-
-void Thread::operator=(Thread&& other) noexcept
-{
-    m_pThreadId = other.m_pThreadId;
-    m_pThreadFn = other.m_pThreadFn;
-    m_pUserdata = other.m_pUserdata;
-
-    other.m_pThreadId = nullptr;
-    other.m_pThreadFn = nullptr;
-    other.m_pUserdata = nullptr;
-}
-
 Thread::~Thread()
 {
     // Thread should be joined before being destroyed.
     DD_ASSERT(m_pThreadId == nullptr);
     if (m_pThreadId != nullptr)
     {
-        free(m_pThreadId);
+        std::free(m_pThreadId);
     }
 }
 
@@ -81,6 +54,12 @@ DD_RESULT Thread::Start(ThreadFunction pThreadFn, void* pUserdata)
     if (pThreadFn == nullptr)
     {
         return DD_RESULT_COMMON_INVALID_PARAMETER;
+    }
+
+    if (m_pThreadId != nullptr)
+    {
+        // Previously started thread is still running.
+        return DD_RESULT_COMMON_ALREADY_EXISTS;
     }
 
     m_pThreadId = (ThreadIdentifier*)std::malloc(sizeof(*m_pThreadId));
@@ -111,6 +90,12 @@ DD_RESULT Thread::Start(ThreadFunction pThreadFn, void* pUserdata)
         m_pThreadId->id = reinterpret_cast<HANDLE>(threadHandle);
     }
 
+    if (result != DD_RESULT_SUCCESS)
+    {
+        std::free(m_pThreadId);
+        m_pThreadId = nullptr;
+    }
+
     return result;
 }
 
@@ -137,6 +122,16 @@ DD_RESULT Thread::Join()
 
 DD_RESULT Thread::SetDebugName(const char* pName)
 {
+    if (pName == nullptr)
+    {
+        return DD_RESULT_COMMON_INVALID_PARAMETER;
+    }
+
+    if (m_pThreadId == nullptr)
+    {
+        return DD_RESULT_COMMON_DOES_NOT_EXIST;
+    }
+
     DD_RESULT result = DD_RESULT_SUCCESS;
 
     const uint32_t UTF16_BUFFER_SIZE = 128;
@@ -149,7 +144,7 @@ DD_RESULT Thread::SetDebugName(const char* pName)
     if (result == DD_RESULT_SUCCESS)
     {
         HRESULT hr = SetThreadDescription(m_pThreadId->id, utf16Buffer);
-        if (hr != S_OK)
+        if (FAILED(hr))
         {
             result = DD_RESULT_COMMON_UNKNOWN;
         }

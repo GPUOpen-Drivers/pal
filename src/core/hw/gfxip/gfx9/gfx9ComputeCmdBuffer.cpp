@@ -1222,7 +1222,7 @@ void ComputeCmdBuffer::CmdResetQueryPool(
     uint32            startQuery,
     uint32            queryCount)
 {
-    static_cast<const QueryPool&>(queryPool).Reset(this, &m_cmdStream, startQuery, queryCount);
+    static_cast<const QueryPool&>(queryPool).DoGpuReset(this, &m_cmdStream, startQuery, queryCount);
 }
 
 // =====================================================================================================================
@@ -1432,7 +1432,7 @@ Result ComputeCmdBuffer::AddPreamble()
     // Initialize acquire/release fence value GPU chunk.
     if (AcqRelFenceValBaseGpuVa() != 0)
     {
-        const uint32 data[static_cast<uint32>(AcqRelEventType::Count)] = {};
+        const uint32 data[ReleaseTokenCount] = {};
 
         WriteDataInfo writeDataInfo = { };
         writeDataInfo.engineType = m_engineType;
@@ -1543,7 +1543,7 @@ void ComputeCmdBuffer::WriteEventCmd(
     uint32* pCmdSpace          = m_cmdStream.ReserveCommands();
     bool   releaseMemWaitCpDma = false;
 
-    if (TestAnyFlagSet(stageMask, PipelineStageBlt | PipelineStageBottomOfPipe) && m_pm4CmdBufState.flags.cpBltActive)
+    if (GfxBarrierMgr::NeedWaitCpDma(this, stageMask))
     {
         // We must guarantee that all prior CP DMA accelerated blts have completed before we write this event because
         // the CmdSetEvent and CmdResetEvent functions expect that the prior blts have completed by the time the event
@@ -1662,6 +1662,11 @@ void ComputeCmdBuffer::CmdExecuteIndirectCmds(
     // there is a potential race condition on the memory used to receive the generated commands.
     PAL_ASSERT(IsOneTimeSubmit() || IsExclusiveSubmit());
 
+    if (m_predGpuAddr != 0)
+    {
+        m_cmdStream.If(CompareFunc::Equal, m_predGpuAddr, 1, UINT_MAX);
+    }
+
     const auto& gfx9Generator = static_cast<const IndirectCmdGenerator&>(generator);
 
     if (m_describeDispatch)
@@ -1739,6 +1744,10 @@ void ComputeCmdBuffer::CmdExecuteIndirectCmds(
         m_cmdStream.ExecuteGeneratedCommands(ppChunkList[0], 0, numGenChunks);
     }
 
+    if (m_predGpuAddr != 0)
+    {
+        m_cmdStream.EndIf();
+    }
 }
 
 // =====================================================================================================================
@@ -1933,14 +1942,6 @@ void ComputeCmdBuffer::CmdUpdateSqttTokenMask(
 }
 
 // =====================================================================================================================
-// Bind the last state set on the specified command buffer
-void ComputeCmdBuffer::InheritStateFromCmdBuf(
-    const Pm4CmdBuffer* pCmdBuffer)
-{
-    SetComputeState(pCmdBuffer->GetComputeState(), ComputeStateAll);
-}
-
-// =====================================================================================================================
 // Copy memory using the CP's DMA engine
 void ComputeCmdBuffer::CpCopyMemory(
     gpusize dstAddr,
@@ -2000,9 +2001,9 @@ uint32* ComputeCmdBuffer::WriteWaitEop(
     ReleaseMemGeneric releaseInfo = {};
     releaseInfo.engineType      = EngineTypeCompute;
     releaseInfo.cacheSync       = m_cmdUtil.SelectReleaseMemCaches(&glxSync);
-    releaseInfo.dstAddr         = AcqRelFenceValGpuVa(AcqRelEventType::Eop);
+    releaseInfo.dstAddr         = AcqRelFenceValGpuVa(ReleaseTokenEop);
     releaseInfo.dataSel         = data_sel__me_release_mem__send_32_bit_low;
-    releaseInfo.data            = GetNextAcqRelFenceVal(AcqRelEventType::Eop);
+    releaseInfo.data            = GetNextAcqRelFenceVal(ReleaseTokenEop);
     releaseInfo.gfx11WaitCpDma  = waitCpDma;
 
     pCmdSpace += m_cmdUtil.BuildReleaseMemGeneric(releaseInfo, pCmdSpace);
@@ -2026,8 +2027,16 @@ uint32* ComputeCmdBuffer::WriteWaitEop(
         pCmdSpace += m_cmdUtil.BuildAcquireMemGeneric(acquireInfo, pCmdSpace);
     }
 
+    if (waitCpDma)
+    {
+        SetCpBltState(false);
+    }
+
     SetCsBltState(false);
     SetPrevCmdBufInactive();
+
+    UpdateRetiredAcqRelFenceVal(ReleaseTokenEop, GetCurAcqRelFenceVal(ReleaseTokenEop));
+    UpdateRetiredAcqRelFenceVal(ReleaseTokenCsDone, GetCurAcqRelFenceVal(ReleaseTokenCsDone));
 
     if (TestAllFlagsSet(glxSync, SyncGl2WbInv))
     {
@@ -2044,6 +2053,8 @@ uint32* ComputeCmdBuffer::WriteWaitCsIdle(
     pCmdSpace += m_cmdUtil.BuildWaitCsIdle(GetEngineType(), TimestampGpuVirtAddr(), pCmdSpace);
 
     SetCsBltState(false);
+
+    UpdateRetiredAcqRelFenceVal(ReleaseTokenCsDone, GetCurAcqRelFenceVal(ReleaseTokenCsDone));
 
     return pCmdSpace;
 }

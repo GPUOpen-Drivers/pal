@@ -404,9 +404,8 @@ void Image::SetupPlaneOffsets()
         m_pParent->DetermineFormatForPlane(&planeFormat, planeIdx);
 
         // Address library output is on a per-plane basis, so the mip / slice info in the sub-res is a don't care.
-        const SubresId  baseSubResId    = { planeIdx, 0, 0 };
-        const auto*     pBaseSubResInfo = m_pParent->SubresourceInfo(baseSubResId);
-        const auto*     pAddrOutput     = GetAddrOutput(pBaseSubResInfo);
+        const auto* pBaseSubResInfo = m_pParent->SubresourceInfo(BaseSubres(planeIdx));
+        const auto* pAddrOutput     = GetAddrOutput(pBaseSubResInfo);
 
         // For depth/stencil surfaces, the HW assumes that each plane is stored contiguously, so store the
         // plane-offset to correspond to the size of the entire plane.
@@ -953,25 +952,28 @@ Result Image::Finalize(
             {
                 Developer::ImageDataAddrMgrSurfInfo data = {};
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 888
                 data.tiling.gfx9.swizzle = m_addrSurfSetting[0].swizzleMode;
+#endif
 
-                data.flags.properties.color = m_createInfo.usageFlags.colorTarget;
-                data.flags.properties.depth = m_createInfo.usageFlags.depthStencil;
-                data.flags.properties.stencil = (m_createInfo.usageFlags.noStencilShaderRead == 0);
-                data.flags.properties.texture = m_createInfo.usageFlags.shaderRead;
-                data.flags.properties.volume = (m_createInfo.imageType == ImageType::Tex3d);
-                data.flags.properties.cube = m_createInfo.flags.cubemap;
-                data.flags.properties.fmask = HasFmaskData();
-                data.flags.properties.display = m_createInfo.flags.flippable;
-                data.flags.properties.prt = m_createInfo.flags.prt;
-                data.flags.properties.tcCompatible = pSubResInfo->flags.supportMetaDataTexFetch;
+                data.flags.properties.color         = m_createInfo.usageFlags.colorTarget;
+                data.flags.properties.depth         = m_createInfo.usageFlags.depthStencil;
+                data.flags.properties.stencil       = (m_createInfo.usageFlags.noStencilShaderRead == 0);
+                data.flags.properties.texture       = m_createInfo.usageFlags.shaderRead;
+                data.flags.properties.volume        = (m_createInfo.imageType == ImageType::Tex3d);
+                data.flags.properties.cube          = m_createInfo.flags.cubemap;
+                data.flags.properties.fmask         = HasFmaskData();
+                data.flags.properties.display       = m_createInfo.flags.flippable;
+                data.flags.properties.prt           = m_createInfo.flags.prt;
+                data.flags.properties.tcCompatible  = pSubResInfo->flags.supportMetaDataTexFetch;
                 data.flags.properties.dccCompatible = HasDccData();
 
-                data.size = m_pParent->GetGpuMemSize();
-                data.bpp = pSubResInfo->bitsPerTexel;
-                data.width = m_createInfo.extent.width;
-                data.height = m_createInfo.extent.height;
-                data.depth = m_createInfo.extent.depth;
+                data.swizzle = m_addrSurfSetting[0].swizzleMode;
+                data.size    = m_pParent->GetGpuMemSize();
+                data.bpp     = pSubResInfo->bitsPerTexel;
+                data.width   = m_createInfo.extent.width;
+                data.height  = m_createInfo.extent.height;
+                data.depth   = m_createInfo.extent.depth;
 
                 m_device.DeveloperCb(Developer::CallbackType::CreateImage, &data);
             }
@@ -1000,7 +1002,7 @@ Result Image::CreateDccObject(
 
     for (uint32  planeIdx = 0; ((result == Result::Success) && (planeIdx < m_pImageInfo->numPlanes)); planeIdx++)
     {
-        const SubresId          planeBaseSubResId    = { planeIdx, 0, 0 };
+        const SubresId          planeBaseSubResId    = BaseSubres(planeIdx);
         const SubResourceInfo*  pPlaneBaseSubResInfo = Parent()->SubresourceInfo(planeBaseSubResId);
 
         // There is nothing mip-level specific about DCC on Gfx9+, so we just have one DCC objct that represents the
@@ -1568,9 +1570,7 @@ Result Image::ComputePipeBankXor(
         {
             // Peer images must have the same pipe/bank xor value as the original image.  The pipe/bank xor
             // value is constant across all mips / slices associated with a given plane.
-            const SubresId  subResId = { plane, 0, 0 };
-
-            *pPipeBankXor = AddrMgr2::GetTileInfo(Parent()->OriginalImage(), subResId)->pipeBankXor;
+            *pPipeBankXor = AddrMgr2::GetTileInfo(Parent()->OriginalImage(), BaseSubres(plane))->pipeBankXor;
         }
         else if (m_createInfo.flags.fixedTileSwizzle != 0)
         {
@@ -1688,7 +1688,7 @@ Result Image::ComputePipeBankXor(
 // Returns the layout-to-state mask for a depth/stencil Image.  This should only ever be called on a depth/stencil
 // Image.
 const DepthStencilLayoutToState& Image::LayoutToDepthCompressionState(
-    const SubresId& subresId
+    SubresId subresId
     ) const
 {
     return m_layoutToState.depthStencil[subresId.plane];
@@ -1711,8 +1711,8 @@ const Image& GetGfx9Image(
 // =====================================================================================================================
 // Helper function to determine if the layout supports comp-to-reg
 bool Image::SupportsCompToReg(
-    ImageLayout     layout,
-    const SubresId& subResId
+    ImageLayout layout,
+    SubresId    subresId
     ) const
 {
     // Comp-to-reg fast clears are only ever supported in the compressed layout.
@@ -1734,7 +1734,7 @@ bool Image::SupportsCompToReg(
 
     // Comp-to-reg is only supported if the image setup the FCE metadata and the specified
     // layout can support compToReg.
-    return (GetFastClearEliminateMetaDataAddr(subResId) != 0) &&
+    return (GetFastClearEliminateMetaDataAddr(subresId) != 0) &&
            (TestAnyFlagSet(layout.engines, ~compToRegLayout.engines) == false) &&
            (TestAnyFlagSet(layout.usages, ~compToRegLayout.usages) == false);
 }
@@ -1798,14 +1798,14 @@ bool Image::IsFastColorClearSupported(
 
             SetNonTcCompatClearFlag(isClearColorTcCompatible == false);
 
-            const SubresId& subResource = range.startSubres;
-            const bool      allSlices   = (subResource.arraySlice == 0) && (range.numSlices == m_createInfo.arraySize);
+            const SubresId subresId  = range.startSubres;
+            const bool     allSlices = (subresId.arraySlice == 0) && (range.numSlices == m_createInfo.arraySize);
 
             // Figure out if we can do a a non-TC compatible DCC fast clear.  This kind of fast clear works on any
             // clear color, but requires a fast clear eliminate blt.
             const bool nonTcCompatibleFastClearPossible =
                 // If the layout supports comp-to-reg then we can do a non-TC compatible DCC fast clear.
-                SupportsCompToReg(colorLayout, subResource) &&
+                SupportsCompToReg(colorLayout, subresId) &&
                 // Allow non-TC compatible clears only if there are no skipped fast clear eliminates.
                 noSkippedFastClearElim &&
                 // We can only non-TC compat fast clear all arrays at once.
@@ -1819,7 +1819,7 @@ bool Image::IsFastColorClearSupported(
                 // to care about evaluating a TC-compatible fast clear
                 (nonTcCompatibleFastClearPossible == false)                                  &&
                 // The image must support TC-compatible reads from DCC-compressed surfaces
-                (Parent()->SubresourceInfo(subResource)->flags.supportMetaDataTexFetch != 0) &&
+                (Parent()->SubresourceInfo(subresId)->flags.supportMetaDataTexFetch != 0) &&
                 // The clear value must be TC-compatible
                 isClearColorTcCompatible;
 
@@ -1977,12 +1977,12 @@ bool Image::IsFastDepthStencilClearSupported(
 {
     PAL_ASSERT(range.numPlanes == 1);
 
-    const SubresId& subResource = range.startSubres;
-    const bool      isDepthPlane   = Parent()->IsDepthPlane(subResource.plane);
-    const bool      isStencilPlane = Parent()->IsStencilPlane(subResource.plane);
+    const SubresId subresId       = range.startSubres;
+    const bool     isDepthPlane   = Parent()->IsDepthPlane(subresId.plane);
+    const bool     isStencilPlane = Parent()->IsStencilPlane(subresId.plane);
 
     // We can only fast clear all arrays at once.
-    bool isFastClearSupported = (subResource.arraySlice == 0) && (range.numSlices == m_createInfo.arraySize);
+    bool isFastClearSupported = (subresId.arraySlice == 0) && (range.numSlices == m_createInfo.arraySize);
 
     // We cannot fast clear if it's doing masked stencil clear.
     if (isStencilPlane && (stencilWriteMask != 0xFF))
@@ -1992,7 +1992,7 @@ bool Image::IsFastDepthStencilClearSupported(
 
     if (isFastClearSupported)
     {
-        const SubResourceInfo*const pSubResInfo = m_pParent->SubresourceInfo(subResource);
+        const SubResourceInfo*const pSubResInfo = m_pParent->SubresourceInfo(subresId);
 
         // Subresources that do not enable a fast clear method at all can not be fast cleared
         const ClearMethod clearMethod = pSubResInfo->clearMethod;
@@ -2010,7 +2010,7 @@ bool Image::IsFastDepthStencilClearSupported(
         {
             // Map from layout to supported compression state
             const DepthStencilCompressionState state =
-                ImageLayoutToDepthCompressionState(LayoutToDepthCompressionState(subResource), layout);
+                ImageLayoutToDepthCompressionState(LayoutToDepthCompressionState(subresId), layout);
 
             // Layouts that do not support depth-stencil compression can not be fast cleared
             if (state != DepthStencilCompressed)
@@ -2056,10 +2056,10 @@ bool Image::IsFastDepthStencilClearSupported(
 // =====================================================================================================================
 // Determines if this image supports being cleared or copied with format replacement.
 bool Image::IsFormatReplaceable(
-    const SubresId& subresId,
-    ImageLayout     layout,
-    bool            isDst,
-    uint8           disabledChannelMask
+    SubresId    subresId,
+    ImageLayout layout,
+    bool        isDst,
+    uint8       disabledChannelMask
     ) const
 {
     bool  isFormatReplaceable = false;
@@ -2103,8 +2103,8 @@ bool Image::IsFormatReplaceable(
 // Answers the question: "If I do shader writes in this layout, will it break my metadata?". For example, this
 // would return true if we promised that CopyDst would be compressed but tried to use a compute copy path.
 bool Image::ShaderWriteIncompatibleWithLayout(
-    const SubresId& subresId,
-    ImageLayout     layout
+    SubresId    subresId,
+    ImageLayout layout
     ) const
 {
     bool writeIncompatible = false;
@@ -2131,7 +2131,7 @@ bool Image::ShaderWriteIncompatibleWithLayout(
 
 // =====================================================================================================================
 bool Image::IsSubResourceLinear(
-    const SubresId& subresource
+    SubresId subresource
     ) const
 {
     const AddrSwizzleMode swizzleMode = m_addrSurfSetting[subresource.plane].swizzleMode;
@@ -2178,7 +2178,7 @@ const ADDR2_COMPUTE_SURFACE_INFO_OUTPUT* Image::GetAddrOutput(
 
 // =====================================================================================================================
 uint32 Image::GetTileSwizzle(
-    const SubresId& subresId
+    SubresId subresId
     ) const
 {
     return AddrMgr2::GetTileInfo(m_pParent, subresId)->pipeBankXor;
@@ -2195,10 +2195,10 @@ uint32 Image::GetHwSwizzleMode(
 
 // =====================================================================================================================
 gpusize Image::GetSubresourceAddr(
-    SubresId  subResId
+    SubresId  subresId
     ) const
 {
-    return GetPlaneBaseAddr(subResId.plane);
+    return GetPlaneBaseAddr(subresId.plane);
 }
 
 // =====================================================================================================================
@@ -2231,15 +2231,15 @@ bool Image::HasFastClearEliminateMetaData(
 // Determines the GPU virtual address of the DCC state meta-data. Returns the GPU address of the meta-data, zero if this
 // image doesn't have the DCC state meta-data.
 gpusize Image::GetDccStateMetaDataAddr(
-    const SubresId&  subResId
+    SubresId subresId
     ) const
 {
-    PAL_ASSERT(subResId.mipLevel < m_createInfo.mipLevels);
+    PAL_ASSERT(subresId.mipLevel < m_createInfo.mipLevels);
 
     // All the metadata for slices of a single mipmap level are contiguous region in memory.
     // So we can use one WRITE_DATA packet to update multiple array slices' metadata.
-    const uint32   metaDataIndex  = m_createInfo.arraySize * subResId.mipLevel + subResId.arraySlice;
-    const gpusize  metaDataOffset = m_dccStateMetaDataOffset[subResId.plane];
+    const uint32   metaDataIndex  = m_createInfo.arraySize * subresId.mipLevel + subresId.arraySlice;
+    const gpusize  metaDataOffset = m_dccStateMetaDataOffset[subresId.plane];
 
     return (metaDataOffset == 0)
             ? 0
@@ -2251,15 +2251,15 @@ gpusize Image::GetDccStateMetaDataAddr(
 // Determines the offset of the DCC state meta-data. Returns the offset of the meta-data, zero if this
 // image doesn't have the DCC state meta-data.
 gpusize Image::GetDccStateMetaDataOffset(
-    const SubresId&  subResId
+    SubresId subresId
     ) const
 {
-    PAL_ASSERT(subResId.mipLevel < m_createInfo.mipLevels);
+    PAL_ASSERT(subresId.mipLevel < m_createInfo.mipLevels);
 
     // All the metadata for slices of a single mipmap level are contiguous region in memory.
     // So we can use one WRITE_DATA packet to update multiple array slices' metadata.
-    const uint32   metaDataIndex  = m_createInfo.arraySize * subResId.mipLevel + subResId.arraySlice;
-    const gpusize  metaDataOffset = m_dccStateMetaDataOffset[subResId.plane];
+    const uint32   metaDataIndex  = m_createInfo.arraySize * subresId.mipLevel + subresId.arraySlice;
+    const gpusize  metaDataOffset = m_dccStateMetaDataOffset[subresId.plane];
 
     return (metaDataOffset == 0)
             ? 0
@@ -2269,11 +2269,11 @@ gpusize Image::GetDccStateMetaDataOffset(
 // =====================================================================================================================
 // Returns the GPU memory size of the dcc state metadata for the specified num mips.
 gpusize Image::GetDccStateMetaDataSize(
-    const SubresId&  subResId,
-    uint32           numMips
+    SubresId subresId,
+    uint32   numMips
     ) const
 {
-    PAL_ASSERT(HasDccStateMetaData(subResId.plane));
+    PAL_ASSERT(HasDccStateMetaData(subresId.plane));
 
     return (sizeof(MipDccStateMetaData) * numMips);
 }
@@ -2513,17 +2513,17 @@ uint32* Image::UpdateFastClearEliminateMetaData(
 // conditional-execute packet around the fast-clear-eliminate packets. Returns the GPU address of the
 // fast-clear-eliminiate packet, zero if this image does not have the FCE meta-data.
 gpusize Image::GetFastClearEliminateMetaDataAddr(
-    const SubresId&  subResId
+    SubresId subresId
     ) const
 {
-    const uint32  planeIdx = subResId.plane;
+    const uint32  planeIdx = subresId.plane;
 
-    PAL_ASSERT(subResId.mipLevel < m_createInfo.mipLevels);
+    PAL_ASSERT(subresId.mipLevel < m_createInfo.mipLevels);
 
     return (m_fastClearEliminateMetaDataOffset[planeIdx] == 0)
             ? 0
             : m_pParent->GetBoundGpuMemory().GpuVirtAddr() + m_fastClearEliminateMetaDataOffset[planeIdx] +
-              (subResId.mipLevel * sizeof(MipFceStateMetaData));
+              (subresId.mipLevel * sizeof(MipFceStateMetaData));
 }
 
 // =====================================================================================================================
@@ -2531,16 +2531,16 @@ gpusize Image::GetFastClearEliminateMetaDataAddr(
 // conditional-execute packet around the fast-clear-eliminate packets. Returns the offset of the
 // fast-clear-eliminiate packet, zero if this image does not have the FCE meta-data.
 gpusize Image::GetFastClearEliminateMetaDataOffset(
-    const SubresId&  subResId
+    SubresId subresId
     ) const
 {
-    const uint32  planeIdx = subResId.plane;
+    const uint32  planeIdx = subresId.plane;
 
-    PAL_ASSERT(subResId.mipLevel < m_createInfo.mipLevels);
+    PAL_ASSERT(subresId.mipLevel < m_createInfo.mipLevels);
 
     return (m_fastClearEliminateMetaDataOffset[planeIdx] == 0)
             ? 0
-            : m_fastClearEliminateMetaDataOffset[planeIdx] + (subResId.mipLevel * sizeof(MipFceStateMetaData));
+            : m_fastClearEliminateMetaDataOffset[planeIdx] + (subresId.mipLevel * sizeof(MipFceStateMetaData));
 }
 
 // =====================================================================================================================
@@ -2738,7 +2738,7 @@ bool Image::HasFmaskData() const
 // =====================================================================================================================
 // Determines if a resource's fmask is TC compatible/shader readable, allowing read access without an fmask expand.
 bool Image::IsComprFmaskShaderReadable(
-    const SubresId& subresource
+    SubresId subresource
     ) const
 {
     const auto* pSettings                   = m_device.GetPublicSettings();
@@ -2780,9 +2780,9 @@ bool Image::IsComprFmaskShaderReadable(
 // =====================================================================================================================
 // Determines if this swizzle supports direct texture fetches of its meta data or not
 bool Image::SupportsMetaDataTextureFetch(
-    AddrSwizzleMode  swizzleMode,
-    ChNumFormat      format,
-    const SubresId&  subResource
+    AddrSwizzleMode swizzleMode,
+    ChNumFormat     format,
+    SubresId        subresId
     ) const
 {
     bool texFetchSupported = false;
@@ -2807,14 +2807,14 @@ bool Image::SupportsMetaDataTextureFetch(
              m_pParent->IsShaderWritable() ||
              (m_pParent->IsResolveSrc() && (m_pParent->PreferCbResolve() == false))) &&
             // Meta-data isn't fetchable if the meta-data itself isn't addressable
-            CanMipSupportMetaData(subResource.mipLevel) &&
+            CanMipSupportMetaData(subresId.mipLevel) &&
             // Linear swizzle modes don't have meta-data to be fetched
             (AddrMgr2::IsLinearSwizzleMode(swizzleMode) == false))
         {
             if (m_pParent->IsDepthStencilTarget())
             {
                 // Check if DB resource can use shader compatible compression
-                texFetchSupported = DepthImageSupportsMetaDataTextureFetch(format, subResource);
+                texFetchSupported = DepthImageSupportsMetaDataTextureFetch(format, subresId);
             }
             else
             {
@@ -2880,11 +2880,11 @@ bool Image::DepthMetaDataTexFetchIsZValid(
 // =====================================================================================================================
 // Determines if this depth surface supports direct texture fetches of its htile data
 bool Image::DepthImageSupportsMetaDataTextureFetch(
-    ChNumFormat     format,
-    const SubresId& subResource
+    ChNumFormat format,
+    SubresId    subresId
     ) const
 {
-    const bool   isStencilPlane = m_pParent->IsStencilPlane(subResource.plane);
+    const bool   isStencilPlane = m_pParent->IsStencilPlane(subresId.plane);
     bool         isFmtLegal     = true;
 
     if (m_pParent->HasStencilPlane() &&
@@ -2896,7 +2896,7 @@ bool Image::DepthImageSupportsMetaDataTextureFetch(
 
     if (isFmtLegal)
     {
-        if (m_pParent->IsDepthPlane(subResource.plane))
+        if (m_pParent->IsDepthPlane(subresId.plane))
         {
             isFmtLegal = DepthMetaDataTexFetchIsZValid(format);
         }
@@ -2905,7 +2905,7 @@ bool Image::DepthImageSupportsMetaDataTextureFetch(
             if (m_pParent->HasDepthPlane())
             {
                 // Verify that the z-plane of this image is compatible with the texture pipe and compression.
-                const SubresId zSubres = { 0, subResource.mipLevel, subResource.arraySlice };
+                const SubresId zSubres = { 0, subresId.mipLevel, subresId.arraySlice };
 
                 isFmtLegal = DepthMetaDataTexFetchIsZValid(Parent()->SubresourceInfo(zSubres)->format.format);
             }
@@ -3106,8 +3106,7 @@ gpusize Image::GetPlaneBaseAddr(
     ) const
 {
     // On GFX9, the registers are programmed to select the proper mip level and slice
-    const SubresId subresId = { plane, 0, arraySlice };
-    return GetMipAddr(subresId);
+    return GetMipAddr(Subres(plane, 0, arraySlice));
 }
 
 // =====================================================================================================================
@@ -3135,20 +3134,20 @@ gpusize Image::GetMipAddr(
 // =====================================================================================================================
 // Returns true if specified mip level is in the MetaData tail region.
 bool Image::IsInMetadataMipTail(
-    const SubresId&  subResId
+    SubresId subresId
     ) const
 {
     bool inMipTail = false;
     if (m_createInfo.mipLevels > 1)
     {
-        const Gfx9Dcc*  pDcc = GetDcc(subResId.plane);
+        const Gfx9Dcc*  pDcc = GetDcc(subresId.plane);
         if (pDcc != nullptr)
         {
-            inMipTail = (pDcc->GetAddrMipInfo(subResId.mipLevel).inMiptail != 0);
+            inMipTail = (pDcc->GetAddrMipInfo(subresId.mipLevel).inMiptail != 0);
         }
         else if (m_pHtile != nullptr)
         {
-            inMipTail = (m_pHtile->GetAddrMipInfo(subResId.mipLevel).inMiptail != 0);
+            inMipTail = (m_pHtile->GetAddrMipInfo(subresId.mipLevel).inMiptail != 0);
         }
     }
     return inMipTail;
@@ -3492,7 +3491,7 @@ gpusize Image::ComputeNonBlockCompressedView(
 // addressing scheme than the TC does.
 void Image::InitPipeMisalignedMetadataFirstMip()
 {
-    for (uint32 planeId = 0; planeId < m_pImageInfo->numPlanes; ++planeId)
+    for (uint8 planeId = 0; planeId < m_pImageInfo->numPlanes; ++planeId)
     {
         const SubResourceInfo& subRes = *m_pParent->SubresourceInfo({ planeId, 0, 0 });
         m_firstMipMetadataPipeMisaligned[planeId] = GetPipeMisalignedMetadataFirstMip(subRes);
@@ -3555,7 +3554,7 @@ uint32 Image::GetPipeMisalignedMetadataFirstMip(
     // Add case of mips in the metadata mip-tail for GFX11
     if (IsGfx11(chipProps.gfxLevel))
     {
-        for (uint32 mip = 0; mip < m_createInfo.mipLevels; ++mip)
+        for (uint8 mip = 0; mip < m_createInfo.mipLevels; ++mip)
         {
             if (IsInMetadataMipTail({ baseSubRes.subresId.plane, mip, 0 }))
             {

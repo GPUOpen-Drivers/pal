@@ -28,7 +28,6 @@
 #include "devDriverServer.h"
 #include "protocolServer.h"
 #include "protocols/ddInfoService.h"
-#include "protocols/ddSettingsService.h"
 #include "protocols/driverControlServer.h"
 #include "protocols/rgpServer.h"
 #include "protocols/ddEventServer.h"
@@ -43,7 +42,6 @@ namespace DevDriver
         : m_pMsgChannel(nullptr)
         , m_allocCb(allocCb)
         , m_createInfo(createInfo)
-        , m_pSettingsService(nullptr)
     {
     }
 
@@ -117,12 +115,6 @@ namespace DevDriver
 
     void DevDriverServer::Destroy()
     {
-        if (m_pSettingsService != nullptr)
-        {
-            DD_DELETE(m_pSettingsService, m_allocCb);
-            m_pSettingsService = nullptr;
-        }
-
         if (m_pMsgChannel != nullptr)
         {
             DestroyProtocols();
@@ -161,11 +153,6 @@ namespace DevDriver
         return GetServer<Protocol::Event>();
     }
 
-    SettingsURIService::SettingsService* DevDriverServer::GetSettingsService()
-    {
-        return m_pSettingsService;
-    }
-
     InfoURIService::InfoService* DevDriverServer::GetInfoService()
     {
         return &m_pMsgChannel->GetInfoService();
@@ -174,19 +161,6 @@ namespace DevDriver
     Result DevDriverServer::InitializeProtocols()
     {
         Result result = Result::Success;
-
-        // Note: The settings service is always initialized regardless of the provided create info flags
-        m_pSettingsService = DD_NEW(SettingsURIService::SettingsService, m_allocCb)(m_allocCb);
-        if (m_pSettingsService != nullptr)
-        {
-            result = m_pMsgChannel->RegisterService(m_pSettingsService);
-        }
-        else
-        {
-            // Something bad happened, we're probably out of memory
-            result = Result::InsufficientMemory;
-            DD_ASSERT_ALWAYS();
-        }
 
         if ((result == Result::Success) && m_createInfo.servers.driverControl)
         {

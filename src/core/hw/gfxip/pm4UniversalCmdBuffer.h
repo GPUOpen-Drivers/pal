@@ -78,8 +78,6 @@ union GraphicsStateFlags
 
 static_assert(sizeof(GraphicsStateFlags) == sizeof(uint32), "Bad bitfield size.");
 
-constexpr uint32 MaxScissorExtent = 16384;
-
 // The Max rectangle number that is allowed for clip rects.
 constexpr uint32 MaxClipRects = 4;
 

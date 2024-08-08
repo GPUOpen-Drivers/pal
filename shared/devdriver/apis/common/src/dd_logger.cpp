@@ -40,15 +40,35 @@ constexpr size_t STACK_LOG_BUF_SIZE = 512;
 
 struct Logger
 {
-    int fileHandle;
+    union
+    {
+        struct
+        {
+            int handle;
+        } file;
 
-    DD_LOG_LVL level;
+        struct
+        {
+            DDLoggerLogCallback logCallback;
+            void*               pUserData;
+        } callback;
+    };
+
+    DD_LOG_LVL     level;
+    DD_LOGGER_TYPE type;
+    bool           rawLoggingEnabled;
 };
 
 void SetLogLevel(DDLoggerInstance* pInstance, DD_LOG_LVL level)
 {
     Logger* pLogger = reinterpret_cast<Logger*>(pInstance);
     pLogger->level = level;
+}
+
+void SetLogRaw(DDLoggerInstance* pInstance, bool setLogRaw)
+{
+    Logger* pLogger = reinterpret_cast<Logger*>(pInstance);
+    pLogger->rawLoggingEnabled = setLogRaw;
 }
 
 void Log(DDLoggerInstance* pInstance, DD_LOG_LVL level, const char* pFormat, ...)
@@ -66,22 +86,41 @@ void Log(DDLoggerInstance* pInstance, DD_LOG_LVL level, const char* pFormat, ...
         va_list va;
         va_start(va, pFormat);
 
-        writtenSize = stbsp_sprintf(tempBuf, "[%s]", LogLevelStr[level]);
-        DD_ASSERT(writtenSize > 0);
-        logSize += writtenSize;
+        // Prepend the verbosity level (if enabled)
+        if (pLogger->rawLoggingEnabled == false)
+        {
+            writtenSize = stbsp_sprintf(tempBuf, "[%s] ", LogLevelStr[level]);
+            DD_ASSERT(writtenSize > 0);
+            logSize += writtenSize;
+        }
 
         // Reserve one byte for newline character.
         writtenSize = stbsp_vsnprintf(tempBuf + writtenSize, STACK_LOG_BUF_SIZE - writtenSize - 1, pFormat, va);
         logSize += writtenSize;
 
-        tempBuf[logSize] = '\n';
-        tempBuf[logSize + 1] = '\0';
+        // Post-fix a newline character (if enabled)
+        if (pLogger->rawLoggingEnabled == false)
+        {
+            tempBuf[logSize]   = '\n';
+            tempBuf[++logSize] = '\0';
+        }
+        else
+        {
+            tempBuf[logSize] = '\0';
+        }
 
         va_end(va);
 
-        ssize_t bytesWritten = write(pLogger->fileHandle, tempBuf, logSize);
-        DD_ASSERT(bytesWritten = logSize);
-        (void)bytesWritten;
+        if (pLogger->type == DD_LOGGER_TYPE_FILE)
+        {
+            ssize_t bytesWritten = write(pLogger->file.handle, tempBuf, logSize);
+            DD_ASSERT(bytesWritten == logSize);
+            (void)bytesWritten;
+        }
+        else if (pLogger->type == DD_LOGGER_TYPE_CALLBACK)
+        {
+            pLogger->callback.logCallback(level, pLogger->callback.pUserData, tempBuf, logSize);
+        }
     }
 }
 
@@ -89,32 +128,33 @@ void SetLogNullLevel(DDLoggerInstance*, DD_LOG_LVL)
 {
 }
 
+void SetLogRawNull(DDLoggerInstance*, bool)
+{
+}
+
 void LogNull(DDLoggerInstance*, DD_LOG_LVL, const char*, ...)
 {
 }
 
-} // anonymous namespace
-
-DD_RESULT DDLoggerCreate(DDLoggerCreateInfo* pCreateInfo, DDLoggerApi* pOutLoggerApi)
+DD_RESULT DDLoggerCreateFileLogger(DDLoggerCreateInfo* pCreateInfo, DDLoggerApi* pOutLoggerApi)
 {
     DD_RESULT result = DD_RESULT_SUCCESS;
 
-    Logger* pLogger = nullptr;
-    *pOutLoggerApi = {};
-
-    if (pCreateInfo->pFilePath != nullptr && pCreateInfo->filePathSize > 0)
+    if ((pCreateInfo->file.pFilePath != nullptr) && (pCreateInfo->file.filePathSize > 0))
     {
-        pLogger = new Logger;
-        pLogger->level = DD_LOG_LVL_ERROR;
+        Logger* pLogger            = new Logger;
+        pLogger->type              = DD_LOGGER_TYPE_FILE;
+        pLogger->level             = DD_LOG_LVL_ERROR;
+        pLogger->rawLoggingEnabled = pCreateInfo->rawLogging;
 
-        // `pCreateInfo->pFilePath` isn't guaranteed to be null-terminated, so allocate a new path buffer and
-        // append '\0'.
-        char* pFilePathBuf = new char[pCreateInfo->filePathSize + 1];
-        std::memcpy(pFilePathBuf, pCreateInfo->pFilePath, pCreateInfo->filePathSize);
-        pFilePathBuf[pCreateInfo->filePathSize] = '\0';
+        // `pCreateInfo->pFilePath` isn't guaranteed to be null-terminated,
+        // so allocate a new path buffer and append '\0'.
+        char* pFilePathBuf = new char[pCreateInfo->file.filePathSize + 1];
+        std::memcpy(pFilePathBuf, pCreateInfo->file.pFilePath, pCreateInfo->file.filePathSize);
+        pFilePathBuf[pCreateInfo->file.filePathSize] = '\0';
 
-        pLogger->fileHandle = open(pFilePathBuf, O_WRONLY | O_CREAT | O_TRUNC, S_IWUSR | S_IROTH);
-        if (pLogger->fileHandle == -1)
+        pLogger->file.handle = open(pFilePathBuf, O_WRONLY | O_CREAT | O_TRUNC, S_IWUSR | S_IROTH);
+        if (pLogger->file.handle == -1)
         {
             result = DD_RESULT_COMMON_INVALID_PARAMETER;
         }
@@ -125,6 +165,7 @@ DD_RESULT DDLoggerCreate(DDLoggerCreateInfo* pCreateInfo, DDLoggerApi* pOutLogge
         {
             pOutLoggerApi->pInstance   = reinterpret_cast<DDLoggerInstance*>(pLogger);
             pOutLoggerApi->SetLogLevel = SetLogLevel;
+            pOutLoggerApi->SetLogRaw   = SetLogRaw;
             pOutLoggerApi->Log         = Log;
         }
         else
@@ -138,7 +179,69 @@ DD_RESULT DDLoggerCreate(DDLoggerCreateInfo* pCreateInfo, DDLoggerApi* pOutLogge
     if (pOutLoggerApi->pInstance == nullptr)
     {
         pOutLoggerApi->SetLogLevel = SetLogNullLevel;
+        pOutLoggerApi->SetLogRaw   = SetLogRawNull;
         pOutLoggerApi->Log         = LogNull;
+    }
+
+    return result;
+}
+
+DD_RESULT DDLoggerCreateCallbackLogger(DDLoggerCreateInfo* pCreateInfo, DDLoggerApi* pOutLoggerApi)
+{
+    DD_RESULT result = DD_RESULT_SUCCESS;
+
+    if (pCreateInfo->callback.logCallback != nullptr)
+    {
+        Logger* pLogger               = new Logger;
+        pLogger->type                 = DD_LOGGER_TYPE_CALLBACK;
+        pLogger->level                = DD_LOG_LVL_ERROR;
+        pLogger->rawLoggingEnabled    = pCreateInfo->rawLogging;
+        pLogger->callback.logCallback = pCreateInfo->callback.logCallback;
+        pLogger->callback.pUserData   = pCreateInfo->callback.pUserData;
+
+        pOutLoggerApi->pInstance      = reinterpret_cast<DDLoggerInstance*>(pLogger);
+        pOutLoggerApi->SetLogLevel    = SetLogLevel;
+        pOutLoggerApi->SetLogRaw      = SetLogRaw;
+        pOutLoggerApi->Log            = Log;
+    }
+    else
+    {
+        pOutLoggerApi->pInstance      = nullptr;
+        pOutLoggerApi->SetLogLevel    = SetLogNullLevel;
+        pOutLoggerApi->SetLogRaw      = SetLogRawNull;
+        pOutLoggerApi->Log            = LogNull;
+
+        result = DD_RESULT_COMMON_INVALID_PARAMETER;
+    }
+
+    return result;
+}
+
+} // anonymous namespace
+
+DD_RESULT DDLoggerCreate(DDLoggerCreateInfo* pCreateInfo, DDLoggerApi* pOutLoggerApi)
+{
+    if ((pCreateInfo == nullptr) || (pOutLoggerApi == nullptr))
+    {
+        return DD_RESULT_COMMON_INVALID_PARAMETER;
+    }
+
+    DD_RESULT result = DD_RESULT_SUCCESS;
+
+    (*pOutLoggerApi) = {};
+
+    switch (pCreateInfo->type)
+    {
+    case DD_LOGGER_TYPE_FILE:
+        result = DDLoggerCreateFileLogger(pCreateInfo, pOutLoggerApi);
+        break;
+    case DD_LOGGER_TYPE_CALLBACK:
+        result = DDLoggerCreateCallbackLogger(pCreateInfo, pOutLoggerApi);
+        break;
+    default:
+        result = DD_RESULT_COMMON_INVALID_PARAMETER;
+        DD_ASSERT(false);
+        break;
     }
 
     return result;
@@ -152,15 +255,19 @@ void DDLoggerDestroy(DDLoggerApi* pLoggerApi)
         {
             Logger* pLogger = reinterpret_cast<Logger*>(pLoggerApi->pInstance);
 
-            int err = close(pLogger->fileHandle);
-            DD_ASSERT(err == 0);
-            (void)err;
+            if (pLogger->type == DD_LOGGER_TYPE_FILE)
+            {
+                int err = close(pLogger->file.handle);
+                DD_ASSERT(err == 0);
+                (void)err;
+            }
 
             delete pLogger;
         }
 
-        pLoggerApi->pInstance = nullptr;
+        pLoggerApi->pInstance   = nullptr;
         pLoggerApi->SetLogLevel = nullptr;
-        pLoggerApi->Log = nullptr;
+        pLoggerApi->SetLogRaw   = nullptr;
+        pLoggerApi->Log         = nullptr;
     }
 }

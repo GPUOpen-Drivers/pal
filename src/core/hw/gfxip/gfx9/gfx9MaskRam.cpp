@@ -143,10 +143,8 @@ uint32 Gfx9MaskRam::GetPipeBankXor(
     PAL_ASSERT (IsColor() || IsDepth());
 
     // The pipeBankXor setting for an image is expected to be a constant across all mips / slices of one plane.
-    const auto*    pParent      = m_image.Parent();
-    const SubresId baseSubResId = { plane, 0, 0 };
-
-    const uint32   pipeBankXor  = AddrMgr2::GetTileInfo(pParent, baseSubResId)->pipeBankXor;
+    const auto*  pParent     = m_image.Parent();
+    const uint32 pipeBankXor = AddrMgr2::GetTileInfo(pParent, BaseSubres(plane))->pipeBankXor;
 
     return AdjustPipeBankXorForSwizzle(pipeBankXor);
 }
@@ -3184,11 +3182,11 @@ Result Gfx9Htile::Init(
     // Htile control registers vary per mip-level.  Compute those here.
     for (uint32  mipLevel = 0; mipLevel < imageCreateInfo.mipLevels; mipLevel++)
     {
-        const SubresId              subResId          = { 0, mipLevel, 0 };
-        const SubResourceInfo*const pSubResInfo       = pParent->SubresourceInfo(subResId);
-        const uint32                imageSizeInPixels = (pSubResInfo->actualExtentTexels.width *
-                                                         pSubResInfo->actualExtentTexels.height);
-        const uint32                pixelsPerRb       = imageSizeInPixels / activeRbCount;
+        const SubResourceInfo*const pSubResInfo = pParent->SubresourceInfo(Subres(0, mipLevel, 0));
+
+        const uint32 imageSizeInPixels =
+            (pSubResInfo->actualExtentTexels.width * pSubResInfo->actualExtentTexels.height);
+        const uint32 pixelsPerRb       = imageSizeInPixels / activeRbCount;
 
         if (pixelsPerRb <= (256 * 1024)) // <= 256K pixels
         {
@@ -3800,11 +3798,11 @@ void Gfx9Dcc::GetXyzInc(
 
 // =====================================================================================================================
 Result Gfx9Dcc::Init(
-    const SubresId&  subResId,
-    gpusize*         pGpuOffset,
-    bool             hasEqGpuAccess)
+    SubresId subresId,
+    gpusize* pGpuOffset,
+    bool     hasEqGpuAccess)
 {
-    Result result = ComputeDccInfo(subResId);
+    Result result = ComputeDccInfo(subresId);
 
     if (result == Result::Success)
     {
@@ -3819,7 +3817,7 @@ Result Gfx9Dcc::Init(
         // Compute our aligned GPU memory offset and update the caller-provided running total.
         UpdateGpuMemOffset(pGpuOffset);
 
-        SetControlReg(subResId);
+        SetControlReg(subresId);
 
         if (hasEqGpuAccess)
         {
@@ -3835,13 +3833,13 @@ Result Gfx9Dcc::Init(
 // =====================================================================================================================
 // Calls into AddrLib to compute DCC info for a subresource
 Result Gfx9Dcc::ComputeDccInfo(
-    const SubresId&  subResId)
+    SubresId subresId)
 {
     const Pal::Image*const      pParent            = m_image.Parent();
     const Pal::Device*const     pDevice            = pParent->GetDevice();
     const Pal::ImageCreateInfo& imageCreateInfo    = pParent->GetImageCreateInfo();
     const auto*const            pAddrMgr           = static_cast<const AddrMgr2::AddrMgr2*>(pDevice->GetAddrMgr());
-    const SubResourceInfo*      pSubResInfo        = pParent->SubresourceInfo(subResId);
+    const SubResourceInfo*      pSubResInfo        = pParent->SubresourceInfo(subresId);
     const auto&                 surfSettings       = m_image.GetAddrSettings(pSubResInfo);
     const auto*                 pParentSurfAddrOut = m_image.GetAddrOutput(pSubResInfo);
 
@@ -3850,7 +3848,7 @@ Result Gfx9Dcc::ComputeDccInfo(
 
     dccInfoInput.size             = sizeof(dccInfoInput);
     dccInfoInput.dccKeyFlags      = GetMetaFlags();
-    dccInfoInput.colorFlags       = pAddrMgr->DetermineSurfaceFlags(*pParent, subResId.plane, false);
+    dccInfoInput.colorFlags       = pAddrMgr->DetermineSurfaceFlags(*pParent, subresId.plane, false);
     dccInfoInput.resourceType     = m_image.GetAddrSettings(pSubResInfo).resourceType;
     dccInfoInput.swizzleMode      = surfSettings.swizzleMode;
     dccInfoInput.bpp              = BitsPerPixel(pSubResInfo->format.format);
@@ -3885,10 +3883,10 @@ Result Gfx9Dcc::ComputeDccInfo(
 // =====================================================================================================================
 // Calculates the value for the CB_DCC_CONTROL register
 void Gfx9Dcc::SetControlReg(
-    const SubresId&  subResId)
+    SubresId subresId)
 {
     const Pal::Image*              pParent      = m_image.Parent();
-    const SubResourceInfo*         pSubResInfo  = pParent->SubresourceInfo(subResId);
+    const SubResourceInfo*         pSubResInfo  = pParent->SubresourceInfo(subresId);
     const Pal::Device*             pDevice      = m_pGfxDevice->Parent();
     const GfxIpLevel               gfxLevel     = pDevice->ChipProperties().gfxLevel;
     const ImageCreateInfo&         createInfo   = pParent->GetImageCreateInfo();

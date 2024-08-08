@@ -77,6 +77,7 @@ MemTracker<Allocator>::~MemTracker()
         // Dump out a list of unfreed blocks.
         MemoryReport();
 
+        FreeLeakedMemory();
     }
 }
 

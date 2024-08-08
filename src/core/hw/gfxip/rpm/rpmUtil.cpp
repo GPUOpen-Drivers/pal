@@ -99,7 +99,7 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
             {   0,
                 { ChNumFormat::X16_Uint,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
-                0.5f, 0.5f,
+                0.25f, 0.5f,
                 { 0, 1, 2, },
             },
         },
@@ -124,7 +124,7 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
             {   0,
                 { ChNumFormat::X16_Uint,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
-                0.5f, 0.5f,
+                0.25f, 0.5f,
                 { 0, 2, 1, },
             },
         },
@@ -149,7 +149,7 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
             {   0,
                 { ChNumFormat::X16_Uint,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
-                0.5f, 0.5f,
+                0.25f, 0.5f,
                 { 0, 1, 2, },
             },
         },
@@ -174,7 +174,7 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
             {   0,
                 { ChNumFormat::X16_Uint,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
-                0.5f, 0.5f,
+                0.25f, 0.5f,
                 { 0, 2, 1, },
             },
         },
@@ -456,7 +456,7 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
                 { ChNumFormat::X8Y8_MM_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.25f, 0.5f,                // Mpeg-2 chroma subsampling location
-                { 2, 1, USHRT_MAX, },
+                { 1, 2, USHRT_MAX, },
             },
         },
     },
@@ -787,7 +787,7 @@ SwizzledFormat GetRawFormat(
         break;
     default:
         // Unknown bit depth.
-        PAL_ASSERT_ALWAYS();
+        PAL_ASSERT_ALWAYS_MSG("Unknown bit depth %d for format %d", Formats::BitsPerPixel(format), format);
         break;
     }
 

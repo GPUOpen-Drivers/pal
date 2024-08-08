@@ -43,7 +43,7 @@ namespace {{namespace}}
 {% for enum in Enums -%}
 {% if not enum.SkipGen -%}
 {{ prep_cond_begin(enum.BuildTypes, enum.OrBuildTypes) -}}
-enum {{enum.Name}} : {% if enum.Is64Bit %} uint64_t {% else %} uint32_t {% endif %}
+enum {{enum.Name}} : {{enum.EnumBase}}
 {
 {% for value in enum.Values -%}
 {{ prep_cond_begin(value.BuildTypes, value.OrBuildTypes) -}}

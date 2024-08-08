@@ -41,8 +41,9 @@ extern "C"
 #endif
 
 #define ADDRLIB_VERSION_MAJOR 9
-#define ADDRLIB_VERSION_MINOR 4
-#define ADDRLIB_VERSION ((ADDRLIB_VERSION_MAJOR << 16) | ADDRLIB_VERSION_MINOR)
+#define ADDRLIB_VERSION_MINOR 10
+#define ADDRLIB_MAKE_VERSION(major, minor) ((major << 16) | minor)
+#define ADDRLIB_VERSION                    ADDRLIB_MAKE_VERSION(ADDRLIB_VERSION_MAJOR, ADDRLIB_VERSION_MINOR)
 
 /// Virtually all interface functions need ADDR_HANDLE as first parameter
 typedef VOID*   ADDR_HANDLE;
@@ -675,13 +676,13 @@ typedef union _ADDR2_SURFACE_FLAGS
         UINT_32 stencil           :  1; ///< Thie resource is a stencil buffer, can be used with DSV
         UINT_32 fmask             :  1; ///< This is an fmask surface
         UINT_32 overlay           :  1; ///< This is an overlay surface
-        UINT_32 display           :  1; ///< This resource is displable, can be used with DRV
+        UINT_32 display           :  1; ///< This resource is displayable, can be used with DRV
         UINT_32 prt               :  1; ///< This is a partially resident texture
         UINT_32 qbStereo          :  1; ///< This is a quad buffer stereo surface
         UINT_32 interleaved       :  1; ///< Special flag for interleaved YUV surface padding
         UINT_32 texture           :  1; ///< This resource can be used with SRV
         UINT_32 unordered         :  1; ///< This resource can be used with UAV
-        UINT_32 rotated           :  1; ///< This resource is rotated and displable
+        UINT_32 rotated           :  1; ///< This resource is rotated and displayable
         UINT_32 needEquation      :  1; ///< This resource needs equation to be generated if possible
         UINT_32 opt4space         :  1; ///< This resource should be optimized for space
         UINT_32 minimizeAlign     :  1; ///< This resource should use minimum alignment
@@ -690,7 +691,8 @@ typedef union _ADDR2_SURFACE_FLAGS
         UINT_32 metaPipeUnaligned :  1; ///< This resource has pipe unaligned metadata
         UINT_32 view3dAs2dArray   :  1; ///< This resource is a 3D resource viewed as 2D array
         UINT_32 allowExtEquation  :  1; ///< If unset, only legacy DX eqs are allowed (2 XORs)
-        UINT_32 reserved          : 12; ///< Reserved bits
+        UINT_32 requireMetadata   :  1; ///< This resource must support metadata
+        UINT_32 reserved          : 11; ///< Reserved bits
     };
 
     UINT_32 value;

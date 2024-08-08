@@ -48,10 +48,12 @@ class EventServer;
 class SettingsRpcService;
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 890
 namespace SettingsRpcService
 {
 class SettingsService;
 }
+#endif
 
 #if PAL_BUILD_RDF
 // GpuUtil forward declarations.
@@ -162,6 +164,7 @@ enum class ApplicationProfileClient : uint32
     ProBoost,
     RisWindowed,
     FreeMux,
+    FsrOvr,
     Count
 };
 
@@ -400,8 +403,10 @@ public:
     ///          enabled, nullptr will be returned.
     virtual DevDriver::DevDriverServer* GetDevDriverServer() = 0;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 890
     /// Will be replaced by GetSettingsRpcService().
     virtual SettingsRpcService::SettingsService* GetSettingsService() = 0;
+#endif
 
     /// Client drivers can register their DevDriver based settings components via SettingsRpcService.
     ///

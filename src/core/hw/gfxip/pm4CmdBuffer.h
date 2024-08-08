@@ -149,12 +149,20 @@ public:
 
     virtual void CmdBarrier(const BarrierInfo& barrierInfo) override;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
     virtual uint32 CmdRelease(const AcquireReleaseInfo& releaseInfo) override;
+#else
+    virtual ReleaseToken CmdRelease(const AcquireReleaseInfo& releaseInfo) override;
+#endif
 
     virtual void CmdAcquire(
         const AcquireReleaseInfo& acquireInfo,
         uint32                    syncTokenCount,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
         const uint32*             pSyncTokens) override;
+#else
+        const ReleaseToken*       pSyncTokens) override;
+#endif
 
     virtual void CmdReleaseEvent(
         const AcquireReleaseInfo& releaseInfo,
@@ -177,10 +185,27 @@ public:
         gpusize           dstOffset,
         gpusize           dstStride) override;
 
-    uint32 GetNextAcqRelFenceVal(AcqRelEventType type)
+    uint32 GetCurAcqRelFenceVal(ReleaseTokenType type) const { return m_acqRelFenceVals[type]; }
+
+    uint32 GetNextAcqRelFenceVal(ReleaseTokenType type)
     {
-        m_acqRelFenceVals[static_cast<uint32>(type)]++;
-        return m_acqRelFenceVals[static_cast<uint32>(type)];
+        m_acqRelFenceVals[type]++;
+
+        // Make sure no overflow in fence value.
+        const ReleaseToken maxFenceToken = { .u32All = UINT32_MAX };
+        PAL_ASSERT(m_acqRelFenceVals[type] <= maxFenceToken.fenceValue);
+
+        return m_acqRelFenceVals[type];
+    }
+
+    uint32 GetRetiredAcqRelFenceVal(ReleaseTokenType tokenType) const { return m_retiredAcqRelFenceVals[tokenType]; }
+
+    void UpdateRetiredAcqRelFenceVal(ReleaseTokenType tokenType, uint32 fenceVal)
+    {
+        if (fenceVal > m_retiredAcqRelFenceVals[tokenType])
+        {
+            m_retiredAcqRelFenceVals[tokenType] = fenceVal;
+        }
     }
 
     const ComputeState& GetComputeState() const { return m_computeState; }
@@ -193,7 +218,14 @@ public:
 
     void SetGfxBltState(bool gfxBltActive) { m_pm4CmdBufState.flags.gfxBltActive = gfxBltActive; }
     void SetCsBltState(bool csBltActive) { m_pm4CmdBufState.flags.csBltActive = csBltActive; }
-    void SetCpBltState(bool cpBltActive) { m_pm4CmdBufState.flags.cpBltActive = cpBltActive; }
+    void SetCpBltState(bool cpBltActive)
+    {
+        m_pm4CmdBufState.flags.cpBltActive = cpBltActive;
+        if (cpBltActive == false)
+        {
+            UpdateRetiredAcqRelFenceVal(ReleaseTokenCpDma, GetCurAcqRelFenceVal(ReleaseTokenCpDma));
+        }
+    }
     void SetGfxBltWriteCacheState(bool gfxWriteCacheDirty)
         { m_pm4CmdBufState.flags.gfxWriteCachesDirty = gfxWriteCacheDirty; }
     void SetCsBltWriteCacheState(bool csWriteCacheDirty)
@@ -232,12 +264,12 @@ public:
     // prior BLTs have completed.
     void UpdateGfxBltExecEopFence()
     {
-        m_pm4CmdBufState.fences.gfxBltExecEopFenceVal = GetCurAcqRelFenceVal(AcqRelEventType::Eop) + 1;
+        m_pm4CmdBufState.fences.gfxBltExecEopFenceVal = GetCurAcqRelFenceVal(ReleaseTokenEop) + 1;
     }
     void UpdateCsBltExecFence()
     {
-        m_pm4CmdBufState.fences.csBltExecEopFenceVal    = GetCurAcqRelFenceVal(AcqRelEventType::Eop) + 1;
-        m_pm4CmdBufState.fences.csBltExecCsDoneFenceVal = GetCurAcqRelFenceVal(AcqRelEventType::CsDone) + 1;
+        m_pm4CmdBufState.fences.csBltExecEopFenceVal    = GetCurAcqRelFenceVal(ReleaseTokenEop) + 1;
+        m_pm4CmdBufState.fences.csBltExecCsDoneFenceVal = GetCurAcqRelFenceVal(ReleaseTokenCsDone) + 1;
     }
     // Cache write-back fence value is updated at every release event. Completion of current event indicates the cache
     // synchronization has completed too, so set it to current event fence value.
@@ -262,14 +294,12 @@ public:
         const void*const* ppValues) override;
 
     // Helper functions
-    uint32 GetCurAcqRelFenceVal(AcqRelEventType type) const { return m_acqRelFenceVals[static_cast<uint32>(type)]; }
-
     void AddFceSkippedImageCounter(Pm4Image* pPm4Image);
 
     void SetPrevCmdBufInactive() { m_pm4CmdBufState.flags.prevCmdBufActive = 0; }
 
     gpusize AcqRelFenceValBaseGpuVa() const { return m_acqRelFenceValGpuVa; }
-    gpusize AcqRelFenceValGpuVa(AcqRelEventType type) const
+    gpusize AcqRelFenceValGpuVa(ReleaseTokenType type) const
         { return (m_acqRelFenceValGpuVa + sizeof(uint32) * static_cast<uint32>(type)); }
 
     // Obtains a fresh command stream chunk from the current command allocator, for use as the target of GPU-generated
@@ -317,7 +347,8 @@ protected:
         Pal::PipelineState*       pDestPipelineState,
         UserDataEntries*          pDestUserDataEntries);
 
-    virtual void InheritStateFromCmdBuf(const Pm4CmdBuffer* pCmdBuffer) = 0;
+    virtual void InheritStateFromCmdBuf(const Pm4CmdBuffer* pCmdBuffer)
+        { SetComputeState(pCmdBuffer->GetComputeState(), ComputeStateAll); }
 
     virtual bool OptimizeAcqRelReleaseInfo(
         BarrierType   barrierType,
@@ -430,14 +461,15 @@ private:
     gpusize m_timestampGpuVa;      // GPU virtual address of memory used for cache flush & inv timestamp events.
 
     // Number of active queries in this command buffer.
-    uint32 m_numActiveQueries[static_cast<size_t>(QueryPoolType::Count)];
+    uint32 m_numActiveQueries[size_t(QueryPoolType::Count)];
 
     // False if DeactivateQuery() has been called on a particular query type, true otherwise.
     // Specifically used for when Push/Pop state has been called. We only want to have a query active on code
     // executed by a client.
-    bool m_queriesActive[static_cast<size_t>(QueryPoolType::Count)];
+    bool m_queriesActive[size_t(QueryPoolType::Count)];
 
-    uint32 m_acqRelFenceVals[static_cast<uint32>(AcqRelEventType::Count)];
+    uint32 m_acqRelFenceVals[ReleaseTokenCount];        // Outstanding released acquire release fence values per type.
+    uint32 m_retiredAcqRelFenceVals[ReleaseTokenCount]; // The latest retired fence values acquired at ME/PFP.
 
     PAL_DISALLOW_COPY_AND_ASSIGN(Pm4CmdBuffer);
     PAL_DISALLOW_DEFAULT_CTOR(Pm4CmdBuffer);

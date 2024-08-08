@@ -952,6 +952,9 @@ void LogContext::Enum(
         "BindIndexData",  // 0x4
         "BindVertexData", // 0x5
         "SetUserData",    // 0x6
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 889
+        "Padding",        // 0x7
+#endif
     };
 
     static_assert(ArrayLen(StringTable) == static_cast<uint32>(IndirectParamType::Count),
@@ -1061,49 +1064,36 @@ void LogContext::Enum(
 {
     const char* const StringTable[] =
     {
-        "Default",
-        "Polaris11",
-        "Polaris12",
-        nullptr,
-
-        "Vega10",
-        "Raven",
-        "Vega12",
-        "Vega20",
-        "Raven2",
-        "Renoir",
-
-        "Navi10",
-        "Navi12",
-        nullptr,
-        "Navi14",
-        nullptr,
-        "Navi21",
-        "Navi22",
-        "Navi23",
-        "Navi24",
-        nullptr,
-        "Rembrandt",
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr,
-        "Navi31",
-        "Navi32",
-        "Navi33",
-        nullptr,
-        "Raphael",
-        "Phoenix1",
-        nullptr,
-        nullptr,
-        "Phoenix2",
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr,
-        "Max",
-        "All",
+        "Default",       // PAL gives the client an arbitrary supported null device.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 888
+        "Polaris10",     // 8.0.3
+        "Polaris11",     // 8.0.3
+        "Polaris12",     // 8.0.3
+        "Vega10",        // 9.0.0
+        "Raven",         // 9.0.2
+        "Vega12",        // 9.0.4
+        "Vega20",        // 9.0.6
+        "Raven2",        // 9.0.9
+        "Renoir",        // 9.0.9
+#endif
+        "Navi10",        // 10.1.0
+        "Navi12",        // 10.1.1
+        "Navi14",        // 10.1.2
+        "Navi21",        // 10.3.0
+        "Navi22",        // 10.3.1
+        "Navi23",        // 10.3.2
+        "Navi24",        // 10.3.4
+        "Rembrandt",     // 10.3.5
+        "Raphael",       // 10.3.6
+        "Navi31",        // 11.0.0
+        "Navi32",        // 11.0.1
+        "Navi33",        // 11.0.2
+        "Phoenix1",      // 11.0.3
+        "Phoenix2",      // 11.0.3
+#if  (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 888)
+#endif
+        "Max",           // The maximum count of null devices.
+        "All",           // If you want to enumerate all null devices.
     };
 
     static_assert(ArrayLen(StringTable) == static_cast<uint32>(NullGpuId::All) + 1,

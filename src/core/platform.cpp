@@ -115,7 +115,6 @@ Platform::Platform(
     m_clientApiMajorVer(createInfo.apiMajorVer),
     m_clientApiMinorVer(createInfo.apiMinorVer),
     m_pDevDriverServer(nullptr),
-    m_pSettingsService(nullptr),
     m_pSettingsRpcService(nullptr),
     m_pDriverUtilsService(nullptr),
     m_pEventServer(nullptr),
@@ -852,13 +851,23 @@ Result Platform::RegisterTraceControllers()
 void Platform::UpdateFrameTraceController(
     IQueue* pQueue)
 {
-    m_pFrameTraceController->UpdateFrame(pQueue);
+#if (PAL_BUILD_BRANCH >= 2420)
+    if (m_pTraceSession->GetActiveController() == m_pFrameTraceController)
+#endif
+    {
+        m_pFrameTraceController->UpdateFrame(pQueue);
+    }
 }
 #else
 void Platform::UpdateFrameTraceController(
     CmdBuffer* pCmdBuffer)
 {
-    m_pFrameTraceController->UpdateFrame(pCmdBuffer);
+#if (PAL_BUILD_BRANCH >= 2420)
+    if (m_pTraceSession->GetActiveController() == m_pFrameTraceController)
+#endif
+    {
+        m_pFrameTraceController->UpdateFrame(pCmdBuffer);
+    }
 }
 #endif
 // =====================================================================================================================
@@ -1284,9 +1293,6 @@ const char* Platform::GetClientApiStr() const
         break;
     case ClientApi::Vulkan:
         pStr = "AMD Vulkan Driver";
-        break;
-    case ClientApi::Mantle:
-        pStr = "AMD Mantle Driver";
         break;
     case ClientApi::OpenCl:
         pStr = "AMD OpenCL Driver";

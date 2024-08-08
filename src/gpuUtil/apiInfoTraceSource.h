@@ -53,7 +53,6 @@ enum class ApiType : Pal::uint32
     Vulkan     = 4,
     OpenGl     = 5,
     OpenCl     = 6,
-    Mantle     = 7,
     Hip        = 8,
 };
 

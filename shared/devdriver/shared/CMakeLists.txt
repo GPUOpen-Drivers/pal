@@ -33,10 +33,6 @@ if (DD_BUILD_RDF)
     add_subdirectory(ddRdf)
 endif()
 
-if (DD_BP_ENABLE_DD_SETTINGS)
-    add_subdirectory_if_exist(ddSettings)
-endif()
-
 if (DD_BP_ENABLE_DD_TEST_UTIL)
     add_subdirectory(ddTestUtil)
 endif()

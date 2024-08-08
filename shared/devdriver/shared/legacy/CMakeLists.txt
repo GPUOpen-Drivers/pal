@@ -238,7 +238,6 @@ target_sources(devdriver
 
 ### Services ###
     target_sources(devdriver PRIVATE
-        src/protocols/ddSettingsService.cpp
         src/protocols/ddPipelineUriService.cpp
         src/protocols/ddInfoService.cpp
     )

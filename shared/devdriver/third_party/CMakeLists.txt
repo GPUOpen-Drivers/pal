@@ -217,17 +217,6 @@ if (DEVDRIVER_IS_TOP_LEVEL)
     endif()
 endif()
 
-### Cross platform printf with bonus features ###
-# WA: Check that these targets haven't already been added (Only until we have a global CMake context)
-if (NOT TARGET tiny_printf)
-
-    dd_third_party_add_lib(
-        TARGETS   tiny_printf
-        DIRECTORY tiny_printf
-    )
-
-endif()
-
 ### Structured serialization/deserialization functionality ###
 # WA: Check that these targets haven't already been added (Only until we have a global CMake context)
 if (NOT TARGET flatbuffers)

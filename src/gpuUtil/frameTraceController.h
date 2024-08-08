@@ -39,7 +39,7 @@ namespace GpuUtil
 {
 
 const Pal::uint32 FrameTraceControllerVersion = 2;
-const char       FrameTraceControllerName[]   = "framecontroller";
+const char        FrameTraceControllerName[]  = "frame";
 
 // =====================================================================================================================
 // Responsible for driving the TraceSession from begin to end based on presentation logic triggers

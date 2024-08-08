@@ -646,6 +646,13 @@ enum MEC_COND_WRITE_write_space_enum
     write_space__mec_cond_write__scratch  =  2,
 };
 
+// -------------------------------- MEC_COND_WRITE_wr_confirm_enum --------------------------------
+enum MEC_COND_WRITE_wr_confirm_enum
+{
+    wr_confirm__mec_cond_write__do_not_wait_for_write_confirmation =  0,
+    wr_confirm__mec_cond_write__wait_for_write_confirmation        =  1,
+};
+
 // -------------------------------------- PM4_MEC_COND_WRITE --------------------------------------
 typedef struct PM4_MEC_COND_WRITE
 {
@@ -666,7 +673,9 @@ typedef struct PM4_MEC_COND_WRITE
                 MEC_COND_WRITE_poll_space_enum  poll_space  :  1;
                 uint32_t                        reserved2   :  3;
                 MEC_COND_WRITE_write_space_enum write_space :  2;
-                uint32_t                        reserved3   : 22;
+                uint32_t                        reserved3   : 10;
+                MEC_COND_WRITE_wr_confirm_enum  wr_confirm  :  1;
+                uint32_t                        reserved4   : 11;
             };
         } bitfields;
         uint32_t u32All;
@@ -731,19 +740,17 @@ enum MEC_COPY_DATA_src_sel_enum
     src_sel__mec_copy_data__gds_atomic_return_data1 =  8,
     src_sel__mec_copy_data__gpu_clock_count         =  9,
     src_sel__mec_copy_data__system_clock_count      = 10,
-    src_sel__mec_copy_data__exec_ind_arg_buf__GFX11 = 12,
 };
 
 // ---------------------------------- MEC_COPY_DATA_dst_sel_enum ----------------------------------
 enum MEC_COPY_DATA_dst_sel_enum
 {
-    dst_sel__mec_copy_data__mem_mapped_register         =  0,
-    dst_sel__mec_copy_data__tc_l2                       =  2,
-    dst_sel__mec_copy_data__gds                         =  3,
-    dst_sel__mec_copy_data__perfcounters                =  4,
-    dst_sel__mec_copy_data__tc_l2_obsolete              =  5,
-    dst_sel__mec_copy_data__mem_mapped_reg_dc           =  6,
-    dst_sel__mec_copy_data__exec_ind_spill_table__GFX11 =  7,
+    dst_sel__mec_copy_data__mem_mapped_register =  0,
+    dst_sel__mec_copy_data__tc_l2               =  2,
+    dst_sel__mec_copy_data__gds                 =  3,
+    dst_sel__mec_copy_data__perfcounters        =  4,
+    dst_sel__mec_copy_data__tc_l2_obsolete      =  5,
+    dst_sel__mec_copy_data__mem_mapped_reg_dc   =  6,
 };
 
 // ------------------------------ MEC_COPY_DATA_src_cache_policy_enum ------------------------------
@@ -1820,14 +1827,6 @@ typedef struct PM4_MEC_NOP
 
 constexpr unsigned int PM4_MEC_NOP_SIZEDW__CORE = 1;
 
-// -------------------------------- MEC_PRIME_UTCL2_cache_perm_enum --------------------------------
-enum MEC_PRIME_UTCL2_cache_perm_enum
-{
-    cache_perm__mec_prime_utcl2__read    =  0,
-    cache_perm__mec_prime_utcl2__write   =  1,
-    cache_perm__mec_prime_utcl2__execute =  2,
-};
-
 // -------------------------------- MEC_PRIME_UTCL2_prime_mode_enum --------------------------------
 enum MEC_PRIME_UTCL2_prime_mode_enum
 {
@@ -1850,7 +1849,7 @@ typedef struct PM4_MEC_PRIME_UTCL2
         {
             struct
             {
-                MEC_PRIME_UTCL2_cache_perm_enum cache_perm :  3;
+                uint32_t                        cache_perm :  3;
                 MEC_PRIME_UTCL2_prime_mode_enum prime_mode :  1;
                 uint32_t                        reserved1  : 28;
             };
@@ -1942,13 +1941,13 @@ enum MEC_RELEASE_MEM_int_sel_enum
 // --------------------------------- MEC_RELEASE_MEM_data_sel_enum ---------------------------------
 enum MEC_RELEASE_MEM_data_sel_enum
 {
-    data_sel__mec_release_mem__none                              =  0,
-    data_sel__mec_release_mem__send_32_bit_low                   =  1,
-    data_sel__mec_release_mem__send_64_bit_data                  =  2,
-    data_sel__mec_release_mem__send_gpu_clock_counter            =  3,
-    data_sel__mec_release_mem__send_system_clock_counter         =  4,
-    data_sel__mec_release_mem__store_gds_data_to_memory          =  5,
-    data_sel__mec_release_mem__send_emulated_sclk_counter__GFX11 =  6,
+    data_sel__mec_release_mem__none                                     =  0,
+    data_sel__mec_release_mem__send_32_bit_low                          =  1,
+    data_sel__mec_release_mem__send_64_bit_data                         =  2,
+    data_sel__mec_release_mem__send_gpu_clock_counter                   =  3,
+    data_sel__mec_release_mem__send_system_clock_counter                =  4,
+    data_sel__mec_release_mem__store_gds_data_to_memory                 =  5,
+    data_sel__mec_release_mem__atomic_add32bit_low__GFX103PLUSEXCLUSIVE =  7,
 };
 
 // -------------------------------------- PM4_MEC_RELEASE_MEM --------------------------------------
@@ -1983,13 +1982,15 @@ typedef struct PM4_MEC_RELEASE_MEM
             } gfx10;
             struct
             {
-                uint32_t reserved7     : 12;
+                uint32_t reserved7     :  7;
+                uint32_t wait_sync     :  1;
+                uint32_t reserved8     :  4;
                 uint32_t gcr_cntl      : 13;
-                uint32_t reserved8     :  3;
+                uint32_t reserved9     :  3;
                 uint32_t pq_exe_status :  1;
-                uint32_t reserved9     :  1;
+                uint32_t reserved10    :  1;
                 uint32_t glk_inv       :  1;
-                uint32_t pws_enable    :  1;
+                uint32_t reserved11    :  1;
             } gfx11;
         } bitfields;
         uint32_t u32All;
@@ -2273,13 +2274,13 @@ typedef struct PM4_MEC_WAIT_ON_CE_COUNTER
                 uint32_t cond_acquire_mem :  1;
                 uint32_t force_sync       :  1;
                 uint32_t reserved1        : 30;
-            };
+            } gfx10;
         } bitfields;
         uint32_t u32All;
     } ordinal2;
 } PM4_MEC_WAIT_ON_CE_COUNTER;
 
-constexpr unsigned int PM4_MEC_WAIT_ON_CE_COUNTER_SIZEDW__CORE = 2;
+constexpr unsigned int PM4_MEC_WAIT_ON_CE_COUNTER_SIZEDW__GFX10 = 2;
 
 // -------------------------------- MEC_WAIT_REG_MEM_function_enum --------------------------------
 enum MEC_WAIT_REG_MEM_function_enum
@@ -2786,6 +2787,138 @@ typedef struct PM4_MEC_PERFMON_CONTROL
 } PM4_MEC_PERFMON_CONTROL;
 
 constexpr unsigned int PM4_MEC_PERFMON_CONTROL_SIZEDW__GFX103PLUSEXCLUSIVE = 3;
+
+// -------------------------------- MEC_PERF_COUNTER_WINDOW_op_enum --------------------------------
+enum MEC_PERF_COUNTER_WINDOW_op_enum
+{
+    op__mec_perf_counter_window__stop_window__GFX11  =  0,
+    op__mec_perf_counter_window__start_window__GFX11 =  7,
+};
+
+// ---------------------------------- PM4_MEC_PERF_COUNTER_WINDOW ----------------------------------
+typedef struct PM4_MEC_PERF_COUNTER_WINDOW
+{
+    union
+    {
+        PM4_MEC_TYPE_3_HEADER header;
+        uint32_t u32All;
+    } ordinal1;
+
+    union
+    {
+        union
+        {
+            struct
+            {
+                uint32_t                        op         :  2; // MEC_PERF_COUNTER_WINDOW_op_enum
+                uint32_t                        reserved1  : 30;
+            } gfx11;
+        } bitfields;
+        uint32_t u32All;
+    } ordinal2;
+} PM4_MEC_PERF_COUNTER_WINDOW;
+
+constexpr unsigned int PM4_MEC_PERF_COUNTER_WINDOW_SIZEDW__GFX11 = 2;
+
+// -------------------------------- PM4_MEC_SET_SH_REG_PAIRS_PACKED --------------------------------
+typedef struct PM4_MEC_SET_SH_REG_PAIRS_PACKED
+{
+    union
+    {
+        PM4_MEC_TYPE_3_HEADER header;
+        uint32_t u32All;
+    } ordinal1;
+
+    union
+    {
+        union
+        {
+            struct
+            {
+                uint32_t reg_writes_count : 16;
+                uint32_t reserved1        : 16;
+            } gfx11;
+        } bitfields;
+        uint32_t u32All;
+    } ordinal2;
+
+    union
+    {
+        union
+        {
+            struct
+            {
+                uint32_t reg_offset0 : 16;
+                uint32_t reg_offset1 : 16;
+            } gfx11;
+        } bitfields;
+        uint32_t u32All;
+    } ordinal3;
+
+    union
+    {
+        uint32_t reg_data0;
+        uint32_t u32All;
+    } ordinal4;
+
+    union
+    {
+        uint32_t reg_data1;
+        uint32_t u32All;
+    } ordinal5;
+} PM4_MEC_SET_SH_REG_PAIRS_PACKED;
+
+constexpr unsigned int PM4_MEC_SET_SH_REG_PAIRS_PACKED_SIZEDW__GFX11 = 5;
+
+// ------------------------------- PM4_MEC_SET_SH_REG_PAIRS_PACKED_N -------------------------------
+typedef struct PM4_MEC_SET_SH_REG_PAIRS_PACKED_N
+{
+    union
+    {
+        PM4_MEC_TYPE_3_HEADER header;
+        uint32_t u32All;
+    } ordinal1;
+
+    union
+    {
+        union
+        {
+            struct
+            {
+                uint32_t reg_writes_count : 16;
+                uint32_t reserved1        : 16;
+            } gfx11;
+        } bitfields;
+        uint32_t u32All;
+    } ordinal2;
+
+    union
+    {
+        union
+        {
+            struct
+            {
+                uint32_t reg_offset0 : 16;
+                uint32_t reg_offset1 : 16;
+            } gfx11;
+        } bitfields;
+        uint32_t u32All;
+    } ordinal3;
+
+    union
+    {
+        uint32_t reg_data0;
+        uint32_t u32All;
+    } ordinal4;
+
+    union
+    {
+        uint32_t reg_data1;
+        uint32_t u32All;
+    } ordinal5;
+} PM4_MEC_SET_SH_REG_PAIRS_PACKED_N;
+
+constexpr unsigned int PM4_MEC_SET_SH_REG_PAIRS_PACKED_N_SIZEDW__GFX11 = 5;
 
 // --------------------------------- MEC_TIMESTAMP_clock_sel_enum ---------------------------------
 enum MEC_TIMESTAMP_clock_sel_enum

@@ -86,18 +86,18 @@ bool Pm4Image::HasFastClearMetaData(
 // =====================================================================================================================
 // Returns the GPU virtual address of the fast-clear metadata for the specified mip level.
 gpusize Pm4Image::FastClearMetaDataAddr(
-    const SubresId&  subResId
+    SubresId subresId
     ) const
 {
     gpusize  metaDataAddr = 0;
 
-    if (HasFastClearMetaData(subResId.plane))
+    if (HasFastClearMetaData(subresId.plane))
     {
-        const uint32 planeIndex = GetFastClearIndex(subResId.plane);
+        const uint32 planeIndex = GetFastClearIndex(subresId.plane);
 
         metaDataAddr = Parent()->GetBoundGpuMemory().GpuVirtAddr() +
                        m_fastClearMetaDataOffset[planeIndex]       +
-                       (m_fastClearMetaDataSizePerMip[planeIndex] * subResId.mipLevel);
+                       (m_fastClearMetaDataSizePerMip[planeIndex] * subresId.mipLevel);
     }
 
     return metaDataAddr;
@@ -106,18 +106,18 @@ gpusize Pm4Image::FastClearMetaDataAddr(
 // =====================================================================================================================
 // Returns the offset relative to the bound GPU memory of the fast-clear metadata for the specified mip level.
 gpusize Pm4Image::FastClearMetaDataOffset(
-    const SubresId&  subResId
+    SubresId subresId
     ) const
 {
     gpusize  metaDataOffset = 0;
 
-    if (HasFastClearMetaData(subResId.plane))
+    if (HasFastClearMetaData(subresId.plane))
     {
-        const uint32 planeIndex = GetFastClearIndex(subResId.plane);
+        const uint32 planeIndex = GetFastClearIndex(subresId.plane);
 
         metaDataOffset = Parent()->GetBoundGpuMemory().Offset() +
                          m_fastClearMetaDataOffset[planeIndex] +
-                         (m_fastClearMetaDataSizePerMip[planeIndex] * subResId.mipLevel);
+                         (m_fastClearMetaDataSizePerMip[planeIndex] * subresId.mipLevel);
     }
 
     return metaDataOffset;
@@ -164,12 +164,11 @@ void Pm4Image::UpdateClearMethod(
     uint32           mipLevel,
     ClearMethod      method)
 {
-    SubresId subRes = { plane, mipLevel, 0, };
-
-    for (subRes.arraySlice = 0; subRes.arraySlice < m_createInfo.arraySize; ++subRes.arraySlice)
+    SubresId subRes = Subres(plane, mipLevel, 0);
+    for (; subRes.arraySlice < m_createInfo.arraySize; ++subRes.arraySlice)
     {
-        const uint32 subResId = Parent()->CalcSubresourceId(subRes);
-        pSubResInfoList[subResId].clearMethod = method;
+        const uint32 subresId = Parent()->CalcSubresourceId(subRes);
+        pSubResInfoList[subresId].clearMethod = method;
     }
 }
 

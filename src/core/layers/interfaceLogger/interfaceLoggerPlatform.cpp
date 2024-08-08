@@ -179,7 +179,6 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
     { InterfaceFunc::CmdBufferCmdPresent,                           (CmdBuild | BarrierLog)            },
     { InterfaceFunc::CmdBufferCmdCommentString,                     (CmdBuild)                         },
     { InterfaceFunc::CmdBufferCmdNop,                               (CmdBuild)                         },
-    { InterfaceFunc::CmdBufferCmdXdmaWaitFlipPending,               (CmdBuild)                         },
     { InterfaceFunc::CmdBufferCmdStartGpuProfilerLogging,           (CmdBuild)                         },
     { InterfaceFunc::CmdBufferCmdStopGpuProfilerLogging,            (CmdBuild)                         },
     { InterfaceFunc::CmdBufferDestroy,                              (CrtDstry | CmdBuild) },
@@ -322,6 +321,26 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
 static_assert(ArrayLen(FuncLoggingTable) == size_t(InterfaceFunc::Count),
               "The FuncLoggingTable must be updated.");
 
+// =====================================================================================================================
+// Validates func logging table is setup correctly.
+template <size_t N>
+constexpr bool ValidateFuncLoggingTable(const FuncLoggingTableEntry (&table)[N])
+{
+    bool valid = true;
+    for (uint32 i = 0; i < N; i++)
+    {
+        if (i != uint32(table[i].function))
+        {
+            valid = false;
+            break;
+        }
+    }
+
+    return valid;
+}
+
+static_assert(ValidateFuncLoggingTable(FuncLoggingTable), "Wrong funcId mapping in FuncLoggingTable!");
+
 struct CallbackLoggingTableEntry
 {
     Developer::CallbackType callbackType; // The callback function this entry represents.
@@ -357,6 +376,27 @@ static constexpr CallbackLoggingTableEntry CallbackLoggingTable[] =
 
 static_assert(ArrayLen(CallbackLoggingTable) == size_t(Developer::CallbackType::Count),
               "The CallbackLoggingTable must be updated.");
+
+// =====================================================================================================================
+// Validates callback logging table is setup correctly.
+template <size_t N>
+constexpr bool ValidateCallbackLoggingTable(const CallbackLoggingTableEntry (&table)[N])
+{
+    bool valid = true;
+    for (uint32 i = 0; i < N; i++)
+    {
+        if (i != uint32(table[i].callbackType))
+        {
+            valid = false;
+            break;
+        }
+    }
+
+    return valid;
+}
+
+static_assert(ValidateCallbackLoggingTable(CallbackLoggingTable),
+              "Wrong callbackType mapping in CallbackLoggingTable!");
 
 // =====================================================================================================================
 ThreadData::ThreadData(
@@ -458,19 +498,6 @@ Platform::Platform(
     m_threadDataVec(this),
     m_frameCount(0)
 {
-#if PAL_ENABLE_PRINTS_ASSERTS
-    // Make sure we didn't mess up the order of FuncLoggingTable or CallbackLoggingTable. We can't use a static_assert
-    // because you can't use variables (like "idx") in static_asserts even in constexpr or consteval functions.
-    for (uint32 idx = 0; idx < uint32(InterfaceFunc::Count); ++idx)
-    {
-        PAL_ASSERT(uint32(FuncLoggingTable[idx].function) == idx);
-    }
-    for (uint32 idx = 0; idx < uint32(Developer::CallbackType::Count); ++idx)
-    {
-        PAL_ASSERT(uint32(CallbackLoggingTable[idx].callbackType) == idx);
-    }
-#endif
-
     m_flags.u32All = 0;
 
     memset(&m_startTime, 0, sizeof(m_startTime));

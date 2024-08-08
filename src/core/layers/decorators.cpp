@@ -2210,13 +2210,21 @@ void CmdBufferFwdDecorator::CmdBarrier(
 }
 
 // =====================================================================================================================
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
 uint32 CmdBufferFwdDecorator::CmdRelease(
+#else
+ReleaseToken CmdBufferFwdDecorator::CmdRelease(
+#endif
     const AcquireReleaseInfo& releaseInfo)
 {
     PlatformDecorator*const pPlatform = m_pDevice->GetPlatform();
     AutoBuffer<ImgBarrier, 32, PlatformDecorator> imageBarriers(releaseInfo.imageBarrierCount, pPlatform);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
     uint32 syncToken = 0;
+#else
+    ReleaseToken syncToken = {};
+#endif
 
     if (imageBarriers.Capacity() < releaseInfo.imageBarrierCount)
     {
@@ -2244,7 +2252,11 @@ uint32 CmdBufferFwdDecorator::CmdRelease(
 void CmdBufferFwdDecorator::CmdAcquire(
     const AcquireReleaseInfo& acquireInfo,
     uint32                    syncTokenCount,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
     const uint32*             pSyncTokens)
+#else
+    const ReleaseToken*       pSyncTokens)
+#endif
 {
     PlatformDecorator*const pPlatform = m_pDevice->GetPlatform();
     AutoBuffer<ImgBarrier, 32, PlatformDecorator> imageBarriers(acquireInfo.imageBarrierCount, pPlatform);
@@ -2695,9 +2707,6 @@ const char* PlatformDecorator::GetClientApiStr() const
         break;
     case ClientApi::Vulkan:
         pStr = "Vulkan";
-        break;
-    case ClientApi::Mantle:
-        pStr = "Mantle";
         break;
     case ClientApi::OpenCl:
         pStr = "OpenCL";

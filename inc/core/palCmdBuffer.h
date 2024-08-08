@@ -1142,6 +1142,33 @@ enum class BarrierType : uint32
     Image
 };
 
+/// Number of all HW opaque release token types.
+constexpr uint32 NumReleaseTokenTypes = 4;
+
+/// Synchronization token structure for CmdRelease() and CmdAcquire().
+///
+/// Clients should pass the ReleaseToken returned by CmdRelease() to CmdAcquire() directly without changing the value.
+/// If a resource with given subresource range has multiple ReleaseToken, all related ReleaseToken should be passed to
+/// CmdAcquire().
+///
+/// Passing ReleaseToken { .fenceValue = N; .type = T } into CmdAcquire() will wait for all prior releases with
+/// .fenceValue <= N for .type == T. Resource with a large number of subresources may introduce lots of ReleaseToken
+/// potentially (e.g. released per subresource). No need to track all ReleaseToken for each resource since clients
+/// can optimize this based on the fact that release type and fenceValue are exposed for each ReleaseToken: define a
+/// ReleaseToken array with size @ref NumReleaseTokenTypes, only track ReleaseToken with the largest fenceValue per
+/// each release type; and then passing the tracked array ReleaseToken values to CmdAcquire() is enough.
+union ReleaseToken
+{
+    struct
+    {
+        uint32 fenceValue : 24; ///< Release fence value per token type.
+        uint32 type       : 8;  ///< Release token type (HW opaque). Note that please increase the number of bits if
+                                ///  it can't hold all types, see @ref NumReleaseTokenTypes for details.
+    };
+
+    uint32 u32All;
+};
+
 /// Specifies parameters for a copy from one range of a source GPU memory allocation to a range of the same size in a
 /// destination GPU memory allocation.  Used as an input to ICmdBuffer::CmdCopyMemory().
 struct MemoryCopyRegion
@@ -1231,6 +1258,9 @@ struct TypedBufferImageScaledCopyRegion
 struct ImageScaledCopyRegion
 {
     SubresId           srcSubres;      ///< Selects the source subresource.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 887
+    uint32             srcSlices;      ///< Number of source image slices to read across.
+#endif
     union
     {
         Offset3d       srcOffset;      ///< Offset to the start of the chosen region in the source subresource.
@@ -1244,6 +1274,9 @@ struct ImageScaledCopyRegion
     };
 
     SubresId           dstSubres;      ///< Selects the destination subresource.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 887
+    uint32             dstSlices;      ///< Number of destination image slices to write.
+#endif
     union
     {
         Offset3d       dstOffset;      ///< Offset to the start of the chosen region in the destination subresource.
@@ -1256,7 +1289,9 @@ struct ImageScaledCopyRegion
         Extent3dFloat  dstExtentFloat; ///< Alternative representation in floating point.
     };
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 887
     uint32             numSlices;      ///< Number of slices the copy will span.
+#endif
     SwizzledFormat     swizzledFormat; ///< If not Undefined, reinterpret both subresources using this format and swizzle.
                                        ///  The specified format needs to have been included in the "pViewFormats" list
                                        ///  specified at image-creation time, otherwise the result might be incorrect.
@@ -2180,10 +2215,13 @@ union ScaledCopyFlags
         uint32 coordsInFloat  : 1;  ///< If set, copy regions are represented in floating point type.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 817
         uint32 srcAsNorm      : 1;  ///< If set, an srgb source image will be treated as non-srgb format.
+                                    ///  Cannot be set if @ref srcAsSrgb is set.
 #else
         uint32 reserved817    : 1;  ///< reserved.
 #endif
-        uint32 reserved       : 24; ///< reserved for future usage.
+        uint32 srcAsSrgb      : 1;  ///< If set, a non-srgb source image will be treated as srgb format.
+                                    ///  Cannot be set if @ref srcAsNorm is set.
+        uint32 reserved       : 23; ///< reserved for future usage.
     };
     uint32 u32All;                  ///< Flags packed as uint32.
 };
@@ -2832,7 +2870,11 @@ public:
     /// @param [in]  releaseInfo  Describes the synchronization scope, availability operations, and required layout
     ///                           transitions.
     /// @returns Synchronization token for the release operation.  Pass this token to CmdAcquire to confirm completion.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
     virtual uint32 CmdRelease(
+#else
+    virtual ReleaseToken CmdRelease(
+#endif
         const AcquireReleaseInfo& releaseInfo) = 0;
 
     /// Performs the acquire portion of an acquire/release-based barrier.  This acquire a set of resources for a new
@@ -2849,14 +2891,18 @@ public:
     ///
     /// @param [in] acquireInfo    Describes the synchronization scope, visibility operations, and the required layout
     ///                            layout transitions.
-    /// @param [in] syncTokenCount Number of entries in pSyncTokens.
+    /// @param [in] syncTokenCount Number of entries in pSyncTokens, can be zero if no valid release token.
     /// @param [in] pSyncTokens    Array of synchronization tokens, as returned from CmdRelease, to confirm completion.
     ///                            The token value(s) must have been returned by a CmdRelease call in the same command
-    ///                            buffer, which means pSyncTokens can't be null.
+    ///                            buffer. pSyncTokens can be null if syncTokenCount is 0.
     virtual void CmdAcquire(
         const AcquireReleaseInfo& acquireInfo,
         uint32                    syncTokenCount,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
         const uint32*             pSyncTokens) = 0;
+#else
+        const ReleaseToken*       pSyncTokens) = 0;
+#endif
 
     /// Performs the release portion of an acquire/release event-based barrier.  This releases a set of resources from
     /// their current usage, while CmdAcquireEvent() is expected to be called to acquire access to the resources for
@@ -4769,15 +4815,10 @@ public:
         const char*  pMarkerName,
         uint32       markerNameSize) = 0;
 
-    /// Insert a command to stall until there is no XDMA flip pending. This stall can be used to prevent a slave GPU
-    /// from overwriting a displayable image while it is still being read by XDMA for an earlier frame. This can be
-    /// used by the client to prevent corruption in the corner case where the same slave GPU renders back-to-back
-    /// frames.
-    ///
-    /// This should only be used by clients that manage their own XDMA HW compositing (i.e., DX12).
-    ///
-    /// @note This function is only supported on universal command buffers.
-    virtual void CmdXdmaWaitFlipPending() = 0;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 888
+    /// XDMA was retired starting in gfx10 so this function has no use anymore.
+    inline void CmdXdmaWaitFlipPending() {}
+#endif
 
     /// Starts thread-trace/counter-collection - used by GPS Shim's OpenShimInterface via DXCP
     /// Only valid for the GPU Profiler layer (which is enabled separately by the GPS Shim during usage of these

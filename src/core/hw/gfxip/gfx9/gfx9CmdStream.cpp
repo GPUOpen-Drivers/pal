@@ -299,8 +299,18 @@ uint32* CmdStream::WriteSetOneConfigReg(
     uint32                               regAddr,
     uint32                               regData,
     uint32*                              pCmdSpace,
-    PFP_SET_UCONFIG_REG_INDEX_index_enum index)
+    PFP_SET_UCONFIG_REG_INDEX_index_enum index
+    ) const
 {
+    // If we write GRBM_GFX_INDEX to non-broadcast mode, the firmware needs to be configured with PERF_COUNTER_WINDOW
+    // enabled to prevent hardware signals invoking behavior that may break while GRBM is not broadcasting
+    PAL_ASSERT_MSG(((regAddr != mmGRBM_GFX_INDEX) ||
+                    (m_perfCounterWindowEnabled == TRUE) ||
+                    ((reinterpret_cast<GRBM_GFX_INDEX*>(&regData)->bitfields.INSTANCE_BROADCAST_WRITES == 1) &&
+                     (reinterpret_cast<GRBM_GFX_INDEX*>(&regData)->bitfields.SA_BROADCAST_WRITES == 1) &&
+                     (reinterpret_cast<GRBM_GFX_INDEX*>(&regData)->bitfields.SE_BROADCAST_WRITES == 1))),
+        "PERF_COUNTER_WINDOW not set for non-broadcast GRBM read/writes");
+
     const size_t totalDwords = m_cmdUtil.BuildSetOneConfigReg<isPerfCtr>(regAddr, pCmdSpace, index);
     pCmdSpace[CmdUtil::ConfigRegSizeDwords] = regData;
 
@@ -312,13 +322,13 @@ uint32* CmdStream::WriteSetOneConfigReg<true>(
     uint32                               regAddr,
     uint32                               regData,
     uint32*                              pCmdSpace,
-    PFP_SET_UCONFIG_REG_INDEX_index_enum index);
+    PFP_SET_UCONFIG_REG_INDEX_index_enum index) const;
 template
 uint32* CmdStream::WriteSetOneConfigReg<false>(
     uint32                               regAddr,
     uint32                               regData,
     uint32*                              pCmdSpace,
-    PFP_SET_UCONFIG_REG_INDEX_index_enum index);
+    PFP_SET_UCONFIG_REG_INDEX_index_enum index) const;
 
 // =====================================================================================================================
 // Builds a PM4 packet to set the given set of sequential config registers.  Returns a pointer to the next unused DWORD
@@ -1454,6 +1464,22 @@ void CmdStream::TempSetPm4OptimizerMode(
     {
         m_pPm4Optimizer->TempSetPm4OptimizerMode(isEnabled);
     }
+}
+
+// =====================================================================================================================
+// Writes PERF_COUNTER_WINDOW pm4 packet and tracks state to protect from accidentally missing a window configuration
+uint32* CmdStream::WritePerfCounterWindow(
+    bool    enableWindow,
+    uint32* pCmdSpace)
+{
+    m_perfCounterWindowEnabled = enableWindow;
+
+    if (IsGfx11(*m_pDevice))
+    {
+        pCmdSpace += m_cmdUtil.BuildPerfCounterWindow(GetEngineType(), enableWindow, pCmdSpace);
+    }
+
+    return pCmdSpace;
 }
 
 } // Gfx9

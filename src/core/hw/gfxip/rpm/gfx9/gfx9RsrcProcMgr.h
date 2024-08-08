@@ -304,7 +304,7 @@ private:
 
     static Extent3d GetCopyViaSrdCopyDims(
         const Pal::Image&  image,
-        const SubresId&    subResId,
+        SubresId           subresId,
         bool               includePadding);
 
     static bool UsePixelCopy(

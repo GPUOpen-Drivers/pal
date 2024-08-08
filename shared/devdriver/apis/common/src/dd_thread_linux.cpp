@@ -38,41 +38,13 @@ struct ThreadIdentifier
     pthread_t id;
 };
 
-Thread::Thread()
-    : m_pThreadId {nullptr}
-    , m_pThreadFn {nullptr}
-    , m_pUserdata {nullptr}
-{
-}
-
-Thread::Thread(Thread&& other) noexcept
-    : m_pThreadId {other.m_pThreadId}
-    , m_pThreadFn {other.m_pThreadFn}
-    , m_pUserdata {other.m_pUserdata}
-{
-    other.m_pThreadId = 0;
-    other.m_pThreadFn = nullptr;
-    other.m_pUserdata = nullptr;
-}
-
-void Thread::operator=(Thread&& other) noexcept
-{
-    m_pThreadId = other.m_pThreadId;
-    m_pThreadFn = other.m_pThreadFn;
-    m_pUserdata = other.m_pUserdata;
-
-    other.m_pThreadId = 0;
-    other.m_pThreadFn = nullptr;
-    other.m_pUserdata = nullptr;
-}
-
 Thread::~Thread()
 {
     // Thread should be joined before being destroyed.
     DD_ASSERT(m_pThreadId == nullptr);
     if (m_pThreadId != nullptr)
     {
-        free(m_pThreadId);
+        std::free(m_pThreadId);
     }
 }
 
@@ -81,6 +53,12 @@ DD_RESULT Thread::Start(ThreadFunction pThreadFn, void* pUserdata)
     if (pThreadFn == nullptr)
     {
         return DD_RESULT_COMMON_INVALID_PARAMETER;
+    }
+
+    if (m_pThreadId != nullptr)
+    {
+        // Previously started thread is still running.
+        return DD_RESULT_COMMON_ALREADY_EXISTS;
     }
 
     m_pThreadId = (ThreadIdentifier*)std::malloc(sizeof(*m_pThreadId));
@@ -96,6 +74,12 @@ DD_RESULT Thread::Start(ThreadFunction pThreadFn, void* pUserdata)
 
     int err = pthread_create(&m_pThreadId->id, nullptr, ThreadFnShim, this);
     result = ResultFromErrno(err);
+
+    if (result != DD_RESULT_SUCCESS)
+    {
+        std::free(m_pThreadId);
+        m_pThreadId = nullptr;
+    }
 
     return result;
 }
@@ -121,9 +105,14 @@ DD_RESULT Thread::Join()
 
 DD_RESULT Thread::SetDebugName(const char* pName)
 {
-    if ((m_pThreadId == nullptr) || (pName == nullptr))
+    if (pName == nullptr)
     {
         return DD_RESULT_COMMON_INVALID_PARAMETER;
+    }
+
+    if (m_pThreadId == nullptr)
+    {
+        return DD_RESULT_COMMON_DOES_NOT_EXIST;
     }
 
     const size_t NameBufferSize = 16;

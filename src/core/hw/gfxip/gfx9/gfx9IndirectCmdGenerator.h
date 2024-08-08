@@ -104,6 +104,7 @@ enum class IndirectOpType : uint32
 {
     Skip = 0,           // Skip this indirect operation and generate no packets for it. This is used for things like
                         // index buffer bindings, which are skipped and handled as part of the DrawIndex2 operation.
+                        // This is also used for padding.
     Dispatch,           // Issue a direct dispatch call.
     DrawIndexAuto,      // Issue a non-indexed draw call.
     DrawIndexOffset2,   // Issue an indexed draw call. This variation is used in cases where the indirect command

@@ -190,7 +190,8 @@ public:
 
     /// Returns the element at the end of the vector and destroys it.
     ///
-    /// @param [out] pData The element at the end of the vector
+    /// @param [out] pData The element at the end of the vector.
+    ///              It is expected that pData is uninitialized as it will be overwritten and not destructed.
     void PopBack(T* pData);
 
     /// Destroys all elements stored in the vector. All dynamically allocated memory will be saved for reuse.
@@ -332,6 +333,18 @@ public:
 
     /// Erases the element at the specified index.
     void Erase(uint32 index);
+
+    /// Erase the element at the specified iterator, and swap last element to that position.
+    /// If the element to erase is the last element, erase directly and no swap operation.
+    void EraseAndSwapLast(Iter it);
+
+    /// Erase the element at the specified iterator, and swap last element to that position.
+    /// If the element to erase is the last element, erase directly and no swap operation.
+    void EraseAndSwapLast(iterator it);
+
+    /// Erases the element at the specified index, and swap last element to that position.
+    /// If the element to erase is the last element, erase directly and no swap operation.
+    void EraseAndSwapLast(uint32 index);
 
 private:
     // This is a POD-type that exactly fits one T value.

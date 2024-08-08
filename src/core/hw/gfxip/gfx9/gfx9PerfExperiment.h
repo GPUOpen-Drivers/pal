@@ -394,6 +394,7 @@ private:
                                   CmdStream* pCmdStream,
                                   uint32*    pCmdSpace) const;
 
+    uint32* WriteGrbmGfxIndexInstance(regGRBM_GFX_INDEX grbmGfxIndex, CmdStream* pCmdStream, uint32* pCmdSpace) const;
     uint32* WriteGrbmGfxIndexBroadcastGlobal(CmdStream* pCmdStream, uint32* pCmdSpace) const;
     uint32* WriteGrbmGfxIndexBroadcastSe(uint32 seIndex, CmdStream* pCmdStream, uint32* pCmdSpace) const;
     uint32* WriteUpdateSpiConfigCntl(bool enableSqgEvents, CmdStream* pCmdStream, uint32* pCmdSpace) const;
@@ -402,7 +403,6 @@ private:
 
     // Helper functions to check if we've enabled any counters for a generic block.
     bool HasGenericCounters(GpuBlock block) const;
-    bool HasGlobalDfCounters() const;
 
     // Some helpful references.
     const GpuChipProperties& m_chipProps;

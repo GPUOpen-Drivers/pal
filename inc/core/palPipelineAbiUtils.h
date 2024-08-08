@@ -55,6 +55,7 @@ inline void MachineTypeToGfxIpVersion(
 {
     switch (machineType)
     {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 888
     case AmdGpuMachineType::Gfx600:
         *pGfxIpMajorVer = 6;
         *pGfxIpMinorVer = 0;
@@ -160,6 +161,7 @@ inline void MachineTypeToGfxIpVersion(
         *pGfxIpMinorVer = 0;
         *pGfxIpStepping = 12;
         break;
+#endif
     case AmdGpuMachineType::Gfx1010:
         *pGfxIpMajorVer = 10;
         *pGfxIpMinorVer = 1;
@@ -249,6 +251,7 @@ inline void GfxIpVersionToMachineType(
 {
     switch (gfxIpMajorVer)
     {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 888
     case 6:
         switch (gfxIpStepping)
         {
@@ -318,6 +321,7 @@ inline void GfxIpVersionToMachineType(
             break;
         }
         break;
+#endif
     case 10:
         switch (gfxIpMinorVer)
         {

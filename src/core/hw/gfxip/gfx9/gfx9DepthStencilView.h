@@ -63,6 +63,7 @@ public:
         ImageLayout            stencilLayout,
         CmdStream*             pCmdStream,
         bool                   isNested,
+        regDB_RENDER_CONTROL*  pDbRenderControl,
         regDB_RENDER_OVERRIDE* pDbRenderOverride,
         uint32*                pCmdSpace) const = 0;
 
@@ -72,6 +73,7 @@ public:
     bool IsVaLocked() const { return m_flags.viewVaLocked; }
     bool ReadOnlyDepth() const { return m_flags.readOnlyDepth; }
     bool ReadOnlyStencil() const { return m_flags.readOnlyStencil; }
+    bool VrsImageIncompatible() const { return m_flags.vrsImageIncompatible; }
 
     static uint32* WriteUpdateFastClearDepthStencilValue(
         uint32     metaDataClearFlags,
@@ -94,6 +96,16 @@ public:
                                                   DB_RENDER_OVERRIDE__FORCE_Z_VALID_MASK           |
                                                   DB_RENDER_OVERRIDE__DISABLE_TILE_RATE_TILES_MASK |
                                                   DB_RENDER_OVERRIDE__NOOP_CULL_DISABLE_MASK;
+
+    static const uint32 DbRenderControlRmwMask = DB_RENDER_CONTROL__DEPTH_COMPRESS_DISABLE_MASK   |
+                                                 DB_RENDER_CONTROL__STENCIL_COMPRESS_DISABLE_MASK |
+                                                 DB_RENDER_CONTROL__RESUMMARIZE_ENABLE_MASK       |
+                                                 DB_RENDER_CONTROL__DEPTH_CLEAR_ENABLE_MASK       |
+                                                 DB_RENDER_CONTROL__STENCIL_CLEAR_ENABLE_MASK     |
+                                                 DB_RENDER_CONTROL__DEPTH_COPY_MASK               |
+                                                 DB_RENDER_CONTROL__STENCIL_COPY_MASK             |
+                                                 DB_RENDER_CONTROL__COPY_SAMPLE_MASK              |
+                                                 DB_RENDER_CONTROL__COPY_CENTROID_MASK;
 
 protected:
     virtual ~DepthStencilView()
@@ -141,7 +153,8 @@ protected:
                                                  // compression state.
             uint32 dbRenderControlLocked   :  1; // Set if DB_RENDER_CONTROL cannot change due to bind-time
                                                  // compression state.
-            uint32 reserved                : 20;
+            uint32 vrsImageIncompatible    :  1; // Set if the view cannot be used with a VRS image (forced passthrough)
+            uint32 reserved                : 19;
         };
 
         uint32 u32All;
@@ -223,12 +236,17 @@ public:
         ImageLayout            stencilLayout,
         CmdStream*             pCmdStream,
         bool                   isNested,
+        regDB_RENDER_CONTROL*  pDbRenderControl,
         regDB_RENDER_OVERRIDE* pDbRenderOverride,
         uint32*                pCmdSpace) const override;
 
     uint32 BaseArraySlice() const { return m_baseArraySlice; }
     uint32 ArraySize() const { return m_arraySize; }
 
+    static const uint32 Gfx11DbRenderControlRmwMask = DbRenderControlRmwMask                                    |
+                                                      Gfx11::DB_RENDER_CONTROL__FORCE_OREO_MODE_MASK            |
+                                                      Gfx11::DB_RENDER_CONTROL__FORCE_EXPORT_ORDER_MASK         |
+                                                      Gfx11::DB_RENDER_CONTROL__MAX_ALLOWED_TILES_IN_WAVE_MASK;
 protected:
     virtual ~Gfx10DepthStencilView()
     {

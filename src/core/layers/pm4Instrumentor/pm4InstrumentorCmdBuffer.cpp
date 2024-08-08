@@ -621,11 +621,19 @@ void CmdBuffer::CmdBarrier(
 }
 
 // =====================================================================================================================
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
 uint32 CmdBuffer::CmdRelease(
+#else
+ReleaseToken CmdBuffer::CmdRelease(
+#endif
     const AcquireReleaseInfo& releaseInfo)
 {
     PreCall();
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
     const uint32 releaseTag = CmdBufferFwdDecorator::CmdRelease(releaseInfo);
+#else
+    const ReleaseToken releaseTag = CmdBufferFwdDecorator::CmdRelease(releaseInfo);
+#endif
     PostCall(CmdBufCallId::CmdRelease);
     return releaseTag;
 }
@@ -634,7 +642,11 @@ uint32 CmdBuffer::CmdRelease(
 void CmdBuffer::CmdAcquire(
     const AcquireReleaseInfo& acquireInfo,
     uint32                    syncTokenCount,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
     const uint32*             pSyncTokens)
+#else
+    const ReleaseToken*       pSyncTokens)
+#endif
 {
     PreCall();
     CmdBufferFwdDecorator::CmdAcquire(acquireInfo, syncTokenCount, pSyncTokens);
@@ -1497,14 +1509,6 @@ void CmdBuffer::CmdSetClipRects(
     PreCall();
     CmdBufferFwdDecorator::CmdSetClipRects(clipRule, rectCount, pRectList);
     PostCall(CmdBufCallId::CmdSetClipRects);
-}
-
-// =====================================================================================================================
-void CmdBuffer::CmdXdmaWaitFlipPending()
-{
-    PreCall();
-    CmdBufferFwdDecorator::CmdXdmaWaitFlipPending();
-    PostCall(CmdBufCallId::CmdXdmaWaitFlipPending);
 }
 
 // =====================================================================================================================

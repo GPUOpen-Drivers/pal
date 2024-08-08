@@ -101,12 +101,20 @@ public:
         const GlobalScissorParams& params) override;
 
     virtual void CmdBarrier(const BarrierInfo& barrierInfo) override;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
     virtual uint32 CmdRelease(
+#else
+    virtual ReleaseToken CmdRelease(
+#endif
         const AcquireReleaseInfo& releaseInfo) override;
     virtual void CmdAcquire(
         const AcquireReleaseInfo& acquireInfo,
         uint32                    syncTokenCount,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
         const uint32*             pSyncTokens) override;
+#else
+        const ReleaseToken*       pSyncTokens) override;
+#endif
 
     virtual void CmdReleaseEvent(
         const AcquireReleaseInfo& releaseInfo,
@@ -447,8 +455,6 @@ public:
         uint16      clipRule,
         uint32      rectCount,
         const Rect* pRectList) override;
-
-    virtual void CmdXdmaWaitFlipPending() override;
 
     virtual void CmdStartGpuProfilerLogging() override;
     virtual void CmdStopGpuProfilerLogging() override;

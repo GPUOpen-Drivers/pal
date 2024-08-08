@@ -1258,6 +1258,11 @@ Result Device::CommitSettingsAndInit()
     if (Settings().cmdBufDumpMode != CmdBufDumpModeDisabled)
     {
         result = CreateLogDir(Settings().cmdBufDumpDirectory, m_cmdBufDumpPath, sizeof(m_cmdBufDumpPath));
+
+        if (result != Result::Success)
+        {
+            PAL_ASSERT_ALWAYS_MSG("Cannot dump to given cmd buffer dump directory / path!");
+        }
     }
 
     if (result == Result::Success)
@@ -1854,22 +1859,24 @@ Result Device::GetProperties(
         memset(pInfo, 0, sizeof(DeviceProperties));
 
         // NOTE: We must identify with the ATI vendor ID rather than AMD, as apps can be hardcoded to detect ATI ID.
-        pInfo->vendorId                         = ATI_VENDOR_ID;
-        pInfo->deviceId                         = m_chipProperties.deviceId;
-        pInfo->revisionId                       = m_chipProperties.revisionId;
-        pInfo->eRevId                           = m_chipProperties.eRevId;
-        pInfo->revision                         = m_chipProperties.revision;
-        pInfo->gfxStepping                      = m_chipProperties.gfxStepping;
-        pInfo->gfxTriple                        = m_chipProperties.gfxTriple;
-        pInfo->gpuType                          = m_chipProperties.gpuType;
-        pInfo->gfxLevel                         = m_chipProperties.gfxLevel;
-        pInfo->gpuPerformanceCapacity           = m_chipProperties.gpuPerformanceCapacity;
-        pInfo->ossLevel                         = OssIpLevel::None;
-        pInfo->uvdLevel                         = UvdIpLevel::None;
-        pInfo->vceLevel                         = VceIpLevel::None;
-        pInfo->vcnLevel                         = m_chipProperties.vcnLevel;
-        pInfo->spuLevel                         = SpuIpLevel::None;
-        pInfo->pspLevel                         = m_chipProperties.pspLevel;
+        pInfo->vendorId               = ATI_VENDOR_ID;
+        pInfo->deviceId               = m_chipProperties.deviceId;
+        pInfo->revisionId             = m_chipProperties.revisionId;
+        pInfo->eRevId                 = m_chipProperties.eRevId;
+        pInfo->revision               = m_chipProperties.revision;
+        pInfo->gfxStepping            = m_chipProperties.gfxStepping;
+        pInfo->gfxTriple              = m_chipProperties.gfxTriple;
+        pInfo->gpuType                = m_chipProperties.gpuType;
+        pInfo->gfxLevel               = m_chipProperties.gfxLevel;
+        pInfo->gpuPerformanceCapacity = m_chipProperties.gpuPerformanceCapacity;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 888
+        pInfo->ossLevel               = OssIpLevel::None;
+        pInfo->uvdLevel               = UvdIpLevel::None;
+        pInfo->vceLevel               = VceIpLevel::None;
+        pInfo->spuLevel               = SpuIpLevel::None;
+#endif
+        pInfo->vcnLevel               = m_chipProperties.vcnLevel;
+        pInfo->pspLevel               = m_chipProperties.pspLevel;
 
         Strncpy(&pInfo->gpuName[0], &m_gpuName[0], sizeof(pInfo->gpuName));
 
@@ -1952,8 +1959,9 @@ Result Device::GetProperties(
             const auto& queueInfo  = m_queueProperties.perQueue[i];
             auto*       pQueueInfo = &pInfo->queueProperties[i];
 
-            pQueueInfo->flags.supportsSwapChainPresents = queueInfo.flags.supportsSwapChainPresents;
-            pQueueInfo->supportedDirectPresentModes     = queueInfo.supportedDirectPresentModes;
+            pQueueInfo->flags.supportsSwapChainPresents  = queueInfo.flags.supportsSwapChainPresents;
+            pQueueInfo->flags.supportSplitReleaseAcquire = queueInfo.flags.supportSplitReleaseAcquire;
+            pQueueInfo->supportedDirectPresentModes      = queueInfo.supportedDirectPresentModes;
         }
 
         pInfo->gpuMemoryProperties.flags.virtualRemappingSupport = m_memoryProperties.flags.virtualRemappingSupport;
@@ -2048,8 +2056,7 @@ Result Device::GetProperties(
 #endif
 
         // Only one may be valid.
-        PAL_ASSERT(CountSetBits((m_chipProperties.gfxip.gfx6DataValid << 0) |
-                                (m_chipProperties.gfxip.gfx9DataValid << 1)) == 1);
+        PAL_ASSERT(CountSetBits(m_chipProperties.gfxip.gfx9DataValid << 1) == 1);
 
         if (m_chipProperties.gfxip.gfx9DataValid)
         {
@@ -2082,7 +2089,9 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.supportImplicitPrimitiveShader   = gfx9Props.supportImplicitPrimitiveShader;
             pInfo->gfxipProperties.flags.supportSpp                       = gfx9Props.supportSpp;
             pInfo->gfxipProperties.flags.supportReleaseAcquireInterface   = gfx9Props.supportReleaseAcquireInterface;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 883
             pInfo->gfxipProperties.flags.supportSplitReleaseAcquire       = gfx9Props.supportSplitReleaseAcquire;
+#endif
             pInfo->gfxipProperties.flags.supportCooperativeMatrix         = gfx9Props.supportCooperativeMatrix;
 
             pInfo->gfxipProperties.shaderCore.numShaderEngines     = gfx9Props.numActiveShaderEngines;
@@ -3791,8 +3800,7 @@ static Result ValidateCompatibleImageViewFormats(
     if (Formats::IsYuvPlanar(imageFmt))
     {
         // YUV planar images only allow image view formats which match that of the base subresource of the view plane.
-        const SubresId baseSubRes = { plane, 0, 0, };
-        imageFmt = image.SubresourceInfo(baseSubRes)->format.format;
+        imageFmt = image.SubresourceInfo(BaseSubres(plane))->format.format;
     }
 
     const uint32 imageBpp = Formats::BitsPerPixel(imageFmt);
@@ -4124,26 +4132,6 @@ const PalSettings& Device::Settings() const
 PalPublicSettings* Device::GetPublicSettings()
 {
     return &m_publicSettings;
-}
-
-// =====================================================================================================================
-// The settings hash is used during pipeline loading to verify that the pipeline data is compatible between when it was
-// stored and when it was loaded.
-Util::MetroHash::Hash Device::GetSettingsHash() const
-{
-    PAL_ASSERT(m_pSettingsLoader != nullptr);
-
-    // We just combine the core and Hwl hashes by XOR'ing each DWORD
-    auto returnHash = m_pSettingsLoader->GetSettingsHash();
-    if (m_pGfxDevice != nullptr)
-    {
-        auto hwlHash = m_pGfxDevice->GetSettingsHash();
-        for (uint8 i=0; i<4; i++)
-        {
-            returnHash.dwords[i] ^= hwlHash.dwords[i];
-        }
-    }
-    return returnHash;
 }
 
 // =====================================================================================================================

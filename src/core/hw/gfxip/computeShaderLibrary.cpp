@@ -138,7 +138,7 @@ Result ComputeShaderLibrary::PostInit(
 Result ComputeShaderLibrary::PerformRelocationsAndUploadToGpuMemory(
     const PalAbi::CodeObjectMetadata& metadata,
     const GpuHeap&                    clientPreferredHeap,
-    PipelineUploader*                 pUploader)
+    CodeObjectUploader*               pUploader)
 {
     PAL_ASSERT(pUploader != nullptr);
 
@@ -213,7 +213,7 @@ Result ComputeShaderLibrary::InitFunctionListFromMetadata(
 // =====================================================================================================================
 // Computes the GPU virtual address of each of the indirect functions specified by the client.
 void ComputeShaderLibrary::GetFunctionGpuVirtAddrs(
-    const PipelineUploader&         uploader,
+    const CodeObjectUploader&       uploader,
     ShaderLibraryFunctionInfo*      pFuncInfoList,
     uint32                          funcCount)
 {

@@ -207,25 +207,20 @@ void LogContext::Struct(
             KeyAndCacheCoherencyUsageFlags("srcAccessMask", imageBarrier.srcAccessMask);
             KeyAndCacheCoherencyUsageFlags("dstAccessMask", imageBarrier.dstAccessMask);
 
-            // Suppress unnecessary info for barrier log only mode to reduce json file size.
-            if ((m_pPlatform->IsBarrierLogActive() == false) ||
-                (imageBarrier.pImage->GetMemoryLayout().metadataSize > 0))
-            {
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 880
                 KeyAndStruct("box", imageBarrier.box);
 #endif
-                KeyAndStruct("oldLayout", imageBarrier.oldLayout);
-                KeyAndStruct("newLayout", imageBarrier.newLayout);
+            KeyAndStruct("oldLayout", imageBarrier.oldLayout);
+            KeyAndStruct("newLayout", imageBarrier.newLayout);
 
-                Key("pQuadSamplePattern");
-                if (imageBarrier.pQuadSamplePattern != nullptr)
-                {
-                    Struct(*imageBarrier.pQuadSamplePattern);
-                }
-                else
-                {
-                    NullValue();
-                }
+            Key("pQuadSamplePattern");
+            if (imageBarrier.pQuadSamplePattern != nullptr)
+            {
+                Struct(*imageBarrier.pQuadSamplePattern);
+            }
+            else
+            {
+                NullValue();
             }
         }
 
@@ -1422,10 +1417,19 @@ void LogContext::Struct(
 {
     BeginMap(false);
     KeyAndStruct("resourceInfo", value.resourceInfo);
+    KeyAndStruct("extent", value.extent);
     KeyAndStruct("swizzledFormat", value.swizzledFormat);
     KeyAndStruct("flags", value.flags);
     KeyAndStruct("usageFlags", value.usage);
     KeyAndObject("screen", value.pScreen);
+    KeyAndValue("gpuMemOffset", value.gpuMemOffset);
+#if defined(__unix__)
+    KeyAndValue("dccOffset", value.dccOffset);
+    KeyAndValue("displayDccOffset", value.displayDccOffset);
+    KeyAndValue("modifier", value.modifier);
+    KeyAndValue("modifierPlaneCount", value.modifierPlaneCount);
+#endif
+
     EndMap();
 }
 
@@ -1812,9 +1816,14 @@ void LogContext::Struct(
     {
         Value("initializeToZero");
     }
+
+    if (value.discardable)
+    {
+        Value("discardable");
+    }
 #endif
 
-    static_assert(CheckReservedBits<GpuMemoryCreateFlags>(64, 30), "Need to update interfaceLogger!");
+    static_assert(CheckReservedBits<GpuMemoryCreateFlags>(64, 29), "Need to update interfaceLogger!");
 
     EndList();
 }
@@ -2361,10 +2370,17 @@ void LogContext::Struct(
     KeyAndStruct("srcSubres", value.srcSubres);
     KeyAndStruct("srcOffset", value.srcOffset);
     KeyAndStruct("srcExtent", value.srcExtent);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 887
+    KeyAndValue("srcSlices", value.srcSlices);
+#endif
     KeyAndStruct("dstSubres", value.dstSubres);
     KeyAndStruct("dstOffset", value.dstOffset);
     KeyAndStruct("dstExtent", value.dstExtent);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 887
+    KeyAndValue("dstSlices", value.dstSlices);
+#else
     KeyAndValue("numSlices", value.numSlices);
+#endif
     EndMap();
 }
 
@@ -3418,6 +3434,11 @@ void LogContext::Struct(
         Value("srcAsNorm");
     }
 #endif
+
+    if (value.srcAsSrgb)
+    {
+        Value("srcAsSrgb");
+    }
 
     EndList();
 }

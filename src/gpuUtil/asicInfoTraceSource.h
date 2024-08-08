@@ -36,27 +36,35 @@ class Platform;
 class Device;
 }
 
-const uint32_t TRACE_GPU_NAME_MAX_SIZE = 256;
-const uint32_t TRACE_MAX_NUM_SE        = 32;
-const uint32_t TRACE_SA_PER_SE         = 2;
+namespace GpuUtil
+{
 
-// Struct for storing information about gpu clock speeds.
+namespace TraceChunk
+{
+
+using Pal::int32;
+using Pal::int64;
+using Pal::uint16;
+using Pal::uint32;
+using Pal::uint64;
+
+/// Struct for storing information about GPU clock speeds.
 struct GpuClocksSample
 {
-    Pal::uint32 gpuEngineClockSpeed; // Current speed of the gpu engine clock in MHz
-    Pal::uint32 gpuMemoryClockSpeed; // Current speed of the gpu memory clock in MHz
+    uint32 gpuEngineClockSpeed; // Current speed of the GPU engine clock in MHz
+    uint32 gpuMemoryClockSpeed; // Current speed of the GPU memory clock in MHz
 };
 
-// Specifies the graphics IP level
+/// Specifies the graphics IP level
 struct TraceGfxIpLevel
 {
-    Pal::uint16 major;
-    Pal::uint16 minor;
-    Pal::uint16 stepping;
+    uint16 major;
+    uint16 minor;
+    uint16 stepping;
 };
 
-// GPU types
-enum class TraceGpuType : Pal::uint32
+/// GPU types
+enum class TraceGpuType : uint32
 {
     Unknown,
     Integrated,
@@ -65,7 +73,7 @@ enum class TraceGpuType : Pal::uint32
 };
 
 // Memory types, similar to Pal::LocalMemoryType
-enum class TraceMemoryType : Pal::uint32
+enum class TraceMemoryType : uint32
 {
     Unknown,
     Ddr,
@@ -84,60 +92,71 @@ enum class TraceMemoryType : Pal::uint32
     Lpddr5
 };
 
-/// Asic Info struct, based off of SqttFileChunkAsicInfo. This is to be mapped to the RDF-based TraceChunkInfo
-/// in TraceSession.
-typedef struct TraceChunkAsicInfo
+constexpr uint32 TraceGpuNameMaxSize = 256;
+constexpr uint32 TraceMaxNumSe       = 32;
+constexpr uint32 TraceSaPerSe        = 2;
+constexpr uint32 BitsPerShaderEngine = 4;
+
+const     char   AsicInfoChunkId[TextIdentifierSize] = "AsicInfo";
+constexpr uint32 AsicInfoChunkVersion                = 3;
+
+/// Asic Info struct, based off of SqttFileChunkAsicInfo.
+struct AsicInfo
 {
-    uint32_t        pciId;                                     // The ID of the GPU queried
-    uint64_t        shaderCoreClockFrequency;                  // Gpu core clock frequency in Hz
-    uint64_t        memoryClockFrequency;                      // Memory clock frequency in Hz
-    uint64_t        gpuTimestampFrequency;                     // Frequency of the gpu timestamp clock in Hz
-    uint64_t        maxShaderCoreClock;                        // Maximum shader core clock frequency in Hz
-    uint64_t        maxMemoryClock;                            // Maximum memory clock frequency in Hz
-    int32_t         deviceId;
-    int32_t         deviceRevisionId;
-    int32_t         vgprsPerSimd;                              // Number of VGPRs per SIMD
-    int32_t         sgprsPerSimd;                              // Number of SGPRs per SIMD
-    int32_t         shaderEngines;                             // Number of shader engines
-    int32_t         computeUnitPerShaderEngine;                // Number of compute units per shader engine
-    int32_t         simdPerComputeUnit;                        // Number of SIMDs per compute unit
-    int32_t         wavefrontsPerSimd;                         // Number of wavefronts per SIMD
-    int32_t         minimumVgprAlloc;                          // Minimum number of VGPRs per wavefront
-    int32_t         vgprAllocGranularity;                      // Allocation granularity of VGPRs
-    int32_t         minimumSgprAlloc;                          // Minimum number of SGPRs per wavefront
-    int32_t         sgprAllocGranularity;                      // Allocation granularity of SGPRs
-    int32_t         hardwareContexts;                          // Number of hardware contexts
+    uint32          pciId;                                     // The ID of the GPU queried
+    uint64          shaderCoreClockFrequency;                  // Gpu core clock frequency in Hz
+    uint64          memoryClockFrequency;                      // Memory clock frequency in Hz
+    uint64          gpuTimestampFrequency;                     // Frequency of the gpu timestamp clock in Hz
+    uint64          maxShaderCoreClock;                        // Maximum shader core clock frequency in Hz
+    uint64          maxMemoryClock;                            // Maximum memory clock frequency in Hz
+    int32           deviceId;                                  // PCIE device ID
+    int32           deviceRevisionId;                          // PCIE revision ID
+    int32           vgprsPerSimd;                              // Number of VGPRs per SIMD
+    int32           sgprsPerSimd;                              // Number of SGPRs per SIMD
+    int32           shaderEngines;                             // Number of shader engines
+    int32           computeUnitPerShaderEngine;                // Number of compute units per shader engine
+    int32           simdPerComputeUnit;                        // Number of SIMDs per compute unit
+    int32           wavefrontsPerSimd;                         // Number of wavefronts per SIMD
+    int32           minimumVgprAlloc;                          // Minimum number of VGPRs per wavefront
+    int32           vgprAllocGranularity;                      // Allocation granularity of VGPRs
+    int32           minimumSgprAlloc;                          // Minimum number of SGPRs per wavefront
+    int32           sgprAllocGranularity;                      // Allocation granularity of SGPRs
+    int32           hardwareContexts;                          // Number of hardware contexts
     TraceGpuType    gpuType;
     TraceGfxIpLevel gfxIpLevel;
-    int32_t         gpuIndex;
-    int32_t         ceRamSize;                                 // Max size in bytes of CE RAM space available
-    int32_t         ceRamSizeGraphics;                         // Max CE RAM size available to graphics engine in bytes
-    int32_t         ceRamSizeCompute;                          // Max CE RAM size available to Compute engine in bytes
-    int32_t         maxNumberOfDedicatedCus;                   // Number of CUs dedicated to real time audio queue
-    int64_t         vramSize;                                  // Total number of bytes to VRAM
-    int32_t         vramBusWidth;                              // Width of the bus to VRAM
-    int32_t         l2CacheSize;                               // Total number of bytes in L2 Cache
-    int32_t         l1CacheSize;                               // Total number of L1 cache bytes per CU
-    int32_t         ldsSize;                                   // Total number of LDS bytes per CU
-    char            gpuName[TRACE_GPU_NAME_MAX_SIZE];          // Name of the GPU, padded to 256 bytes
+    int32           gpuIndex;
+    int32           ceRamSize;                                 // Max size in bytes of CE RAM space available
+    int32           ceRamSizeGraphics;                         // Max CE RAM size available to graphics engine in bytes
+    int32           ceRamSizeCompute;                          // Max CE RAM size available to Compute engine in bytes
+    int32           maxNumberOfDedicatedCus;                   // Number of CUs dedicated to real time audio queue
+    int64           vramSize;                                  // Total number of bytes to VRAM
+    int32           vramBusWidth;                              // Width of the bus to VRAM
+    int32           l2CacheSize;                               // Total number of bytes in L2 Cache
+                                                               // (TCC on GCN hardware, GL2C on RDNA hardware)
+    int32           l1CacheSize;                               // Total number of L1 cache bytes per CU (TCP)
+                                                               // (this is L0 on RDNA hardware)
+    int32           ldsSize;                                   // Total number of LDS bytes per CU
+    char            gpuName[TraceGpuNameMaxSize];              // Name of the GPU, padded to 256 bytes
     float           aluPerClock;                               // Number of ALUs per clock
     float           texturePerClock;                           // Number of texture per clock
     float           primsPerClock;                             // Number of primitives per clock
     float           pixelsPerClock;                            // Number of pixels per clock
-    uint32_t        memoryOpsPerClock;                         // Number of memory operations per memory clock cycle
+    uint32          memoryOpsPerClock;                         // Number of memory operations per memory clock cycle
     TraceMemoryType memoryChipType;                            // Type of memory chip used by the ASIC
-    uint32_t        ldsGranularity;                            // LDS allocation granularity expressed in bytes
-    uint16_t        cuMask[TRACE_MAX_NUM_SE][TRACE_SA_PER_SE]; // Mask of present, non-harvested CUs (physical layout)
-} TraceChunkAsicInfo;
+    uint32          ldsGranularity;                            // LDS allocation granularity expressed in bytes
+    uint16          cuMask[TraceMaxNumSe][TraceSaPerSe];       // Mask of present, non-harvested CUs (physical layout)
+    uint32          pixelPackerMask[BitsPerShaderEngine];      // Mask of present, non-harvested pixel packers --
+                                                               // 4 bits per shader engine (max of 32 shader engines)
+    uint32          gl1CacheSize;                              // Total number of GL1 cache bytes per shader array
+    uint32          instCacheSize;                             // Total number of Instruction cache bytes per CU
+    uint32          scalarCacheSize;                           // Total number of Scalar cache (K$) bytes per CU
+    uint32          mallCacheSize;                             // Total number of MALL cache (Infinity cache) bytes
+};
 
-namespace GpuUtil
-{
+} // namespace TraceChunk
 
-constexpr char AsicInfoTraceSourceName[]         = "asicinfo";
-constexpr Pal::uint32 AsicInfoTraceSourceVersion = 2;
-
-const char AsicInfoChunkId[TextIdentifierSize]   = "AsicInfo";
-constexpr Pal::uint32 AsicInfoChunkVersion       = 2;
+constexpr char        AsicInfoTraceSourceName[]  = "asicinfo";
+constexpr Pal::uint32 AsicInfoTraceSourceVersion = 3;
 
 // =====================================================================================================================
 // A trace source that sends ASIC information to the trace session. This is one of the "default" trace sources that are
@@ -162,19 +181,19 @@ public:
     virtual Pal::uint32 GetVersion() const override { return AsicInfoTraceSourceVersion; }
 
 private:
-    // Helper function to fill in the TraceChunkAsicInfo struct based on the DeviceProperties and
+    // Helper function to fill in the TraceChunk::AsicInfo struct based on the DeviceProperties and
     // PerfExperimentProperties provided.
     void FillTraceChunkAsicInfo(const Pal::DeviceProperties&         properties,
                                 const Pal::PerfExperimentProperties& perfExpProps,
-                                const GpuClocksSample&               gpuClocks,
-                                TraceChunkAsicInfo*                  pAsicInfo);
+                                const TraceChunk::GpuClocksSample&   gpuClocks,
+                                TraceChunk::AsicInfo*                pAsicInfo);
 
     // Queries the engine and memory clocks from DeviceProperties
-    Pal::Result SampleGpuClocks(GpuClocksSample*      pGpuClocksSample,
-                                Pal::Device*          pDevice,
-                                Pal::DeviceProperties deviceProps) const;
+    Pal::Result SampleGpuClocks(TraceChunk::GpuClocksSample* pGpuClocksSample,
+                                Pal::Device*                 pDevice,
+                                const Pal::DeviceProperties& deviceProps) const;
 
-    Pal::Platform* const m_pPlatform; // Platform associated with this TraceSource
+    Pal::Platform* const m_pPlatform;
 };
 
-}
+} // namespace GpuUtil

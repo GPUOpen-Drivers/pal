@@ -256,7 +256,7 @@ Result GraphicsPipeline::HwlInit(
     EarlyInit(metadata, &loadInfo);
 
     // Next, handle relocations and upload the pipeline code & data to GPU memory.
-    PipelineUploader uploader(m_pDevice->Parent(), abiReader);
+    CodeObjectUploader uploader(m_pDevice->Parent(), abiReader);
     Result result = PerformRelocationsAndUploadToGpuMemory(
         metadata,
         IsInternal() ? GpuHeapLocal : m_pDevice->Parent()->GetPublicSettings()->pipelinePreferredHeap,
@@ -278,7 +278,7 @@ void GraphicsPipeline::LateInit(
     const AbiReader&                  abiReader,
     const PalAbi::CodeObjectMetadata& metadata,
     const GraphicsPipelineLoadInfo&   loadInfo,
-    PipelineUploader*                 pUploader)
+    CodeObjectUploader*               pUploader)
 {
     const Gfx9PalSettings&   settings        = m_pDevice->Settings();
     const PalPublicSettings* pPublicSettings = m_pDevice->Parent()->GetPublicSettings();
@@ -365,6 +365,9 @@ const ShaderStageInfo* GraphicsPipeline::GetShaderStageInfo(
 
     switch (shaderType)
     {
+    case ShaderType::Mesh:
+        pInfo = (HasMeshShader() ? &m_chunkGs.StageInfo() : nullptr);
+        break;
     case ShaderType::Vertex:
         pInfo = (IsTessEnabled() ? &m_chunkHs.StageInfo()
                                  : ((IsGsEnabled() || IsNgg()) ? &m_chunkGs.StageInfo()
@@ -941,6 +944,7 @@ void GraphicsPipeline::SetupCommonRegisters(
     m_regs.other.vgtLsHsConfig.u32All        = AbiRegisters::VgtLsHsConfig(metadata);
     m_regs.other.paScModeCntl1.u32All        = AbiRegisters::PaScModeCntl1(metadata, createInfo, *m_pDevice);
     m_info.ps.flags.perSampleShading         = m_regs.other.paScModeCntl1.bits.PS_ITER_SAMPLE;
+    m_info.ps.flags.enablePops               = DbShaderControl().bits.PRIMITIVE_ORDERED_PIXEL_SHADER;
 
     // DB_RENDER_OVERRIDE
     {

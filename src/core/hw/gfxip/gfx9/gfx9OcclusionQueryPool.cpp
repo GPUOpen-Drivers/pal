@@ -138,63 +138,13 @@ void OcclusionQueryPool::End(
         pCmdStream->CommitCommands(pCmdSpace);
 
         // Now that the occlusion query has ended, track the relevant memory range so that we can wait for all writes to
-        // complete before reseting this range in NormalReset().
+        // complete before reseting this range in GpuReset().
         auto* pActiveRanges = static_cast<UniversalCmdBuffer*>(pCmdBuffer)->ActiveOcclusionQueryWriteRanges();
 
         const Interval<gpusize, bool> interval = { gpuAddr, gpuAddr + GetGpuResultSizeInBytes(1) - 1 };
 
         PAL_ASSERT(pActiveRanges->Overlap(&interval) == false);
         pActiveRanges->InsertOrExtend(&interval);
-    }
-}
-
-// =====================================================================================================================
-// Reset query using DMA, when NormalReset() can't be used or the command buffer does not support PM4.
-void OcclusionQueryPool::DmaEngineReset(
-    GfxCmdBuffer*   pCmdBuffer,
-    Pal::CmdStream* pCmdStream,
-    uint32          startQuery,
-    uint32          queryCount
-    ) const
-{
-    gpusize     offset       = GetQueryOffset(startQuery);
-
-    // This function must only be called by the DMA queue. It is missing a barrier call that is necessary to issue a
-    // CS_PARTIAL_FLUSH on the universal and compute queues.
-    PAL_ASSERT(pCmdBuffer->GetEngineType() == EngineTypeDma);
-    PAL_ASSERT(m_gpuMemory.IsBound());
-
-    if (m_canUseDmaFill)
-    {
-        // Some quick testing shows that this is just as fast as a DMA copy on Hawaii. Until a client actually uses this
-        // path and gives us a reason to go and do a detailed performance run we will just assume this is the best path
-        // in general.
-        pCmdBuffer->CmdFillMemory(*reinterpret_cast<const IGpuMemory*>(m_gpuMemory.Memory()),
-                                  offset,
-                                  GetGpuResultSizeInBytes(queryCount),
-                                  0);
-    }
-    else
-    {
-        const BoundGpuMemory& srcBuffer = m_device.OcclusionResetMem();
-        const IGpuMemory&     srcMem    = static_cast<const IGpuMemory&>(*srcBuffer.Memory());
-
-        MemoryCopyRegion region = {};
-        region.srcOffset  = srcBuffer.Offset();
-        region.dstOffset  = offset;
-
-        // Issue a series of DMAs until we run out of query slots to reset. Note that numToReset will be updated before
-        // the loop subtracts it.
-        uint32 numToReset = 0;
-        for (uint32 remaining = queryCount; remaining > 0; remaining -= numToReset)
-        {
-            numToReset      = Min(remaining, Pal::Device::OcclusionQueryDmaBufferSlots);
-            region.copySize = GetGpuResultSizeInBytes(numToReset);
-
-            pCmdBuffer->CmdCopyMemory(srcMem, *static_cast<const IGpuMemory*>(m_gpuMemory.Memory()), 1, &region);
-
-            region.dstOffset += region.copySize;
-        }
     }
 }
 
@@ -209,11 +159,11 @@ Result OcclusionQueryPool::Reset(
 
     if (result == Result::Success)
     {
-        result = DoReset(startQuery,
-                         queryCount,
-                         pMappedCpuAddr,
-                         m_gpuResultSizePerSlotInBytes,
-                         m_device.OcclusionSlotResetValue());
+        result = CpuReset(startQuery,
+                          queryCount,
+                          pMappedCpuAddr,
+                          m_gpuResultSizePerSlotInBytes,
+                          m_device.OcclusionSlotResetValue());
     }
 
     return result;
@@ -222,7 +172,7 @@ Result OcclusionQueryPool::Reset(
 // =====================================================================================================================
 // Reset query via PM4 commands on a PM4-supported command buffer.
 // NOTE: It is safe to call this with a command buffer that does not support occlusion queries.
-void OcclusionQueryPool::NormalReset(
+void OcclusionQueryPool::GpuReset(
     GfxCmdBuffer*   pCmdBuffer,
     Pal::CmdStream* pCmdStream,
     uint32          startQuery,

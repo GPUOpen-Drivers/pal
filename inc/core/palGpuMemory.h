@@ -192,10 +192,12 @@ union GpuMemoryCreateFlags
         uint64 initializeToZero             :  1; ///< If set, PAL will request that the host OS zero-initializes
                                                   ///  the allocation upon creation, currently, only GpuHeapLocal and
                                                   ///  GpuHeapInvisible are supported.
+        uint64 discardable                  :  1; ///< If set, this gpu memory object can be discarded under memory
+                                                  ///  pressure without keeping the content.
 #else
-        uint64 placeholder2                 :  1;
+        uint64 placeholder2                 :  2;
 #endif
-        uint64 reserved                     : 30; ///< Reserved for future use.
+        uint64 reserved                     : 29; ///< Reserved for future use.
     };
     uint64     u64All;                            ///< Flags packed as 64-bit uint.
 };

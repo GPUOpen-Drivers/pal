@@ -70,7 +70,7 @@ enum HwLayoutTransition : uint8
 
     // Depth/Stencil
     ExpandDepthStencil           = 0x1,
-    HwlExpandHtileHiZRange       = 0x2,
+    ExpandHtileHiZRange          = 0x2,
     ResummarizeDepthStencil      = 0x3,
 
     // Color
@@ -130,7 +130,7 @@ public:
         const BarrierInfo&            barrierInfo,
         Developer::BarrierOperations* pBarrierOps) const override;
 
-    virtual uint32 Release(
+    virtual ReleaseToken Release(
         GfxCmdBuffer*                 pGfxCmdBuf,
         const AcquireReleaseInfo&     releaseInfo,
         Developer::BarrierOperations* pBarrierOps) const override;
@@ -139,7 +139,7 @@ public:
         GfxCmdBuffer*                 pGfxCmdBuf,
         const AcquireReleaseInfo&     acquireInfo,
         uint32                        syncTokenCount,
-        const uint32*                 pSyncTokens,
+        const ReleaseToken*           pSyncTokens,
         Developer::BarrierOperations* pBarrierOps) const override;
 
     virtual void ReleaseEvent(
@@ -323,10 +323,11 @@ private:
         CmdStream*         pCmdStream,
         const ImgBarrier&  imgBarrier) const;
 
-    AcqRelSyncToken IssueReleaseSync(
+    ReleaseToken IssueReleaseSync(
         Pm4CmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         uint32                        stageMask,
+        bool                          releaseBufferCopyOnly,
         SyncGlxFlags                  acquireCaches,
         bool                          syncRbCache,
         Developer::BarrierOperations* pBarrierOps) const;
@@ -337,7 +338,7 @@ private:
         uint32                        stageMask,
         SyncGlxFlags                  acquireCaches,
         uint32                        syncTokenCount,
-        const AcqRelSyncToken*        pSyncTokens,
+        const ReleaseToken*           pSyncTokens,
         Developer::BarrierOperations* pBarrierOps) const;
 
     void IssueReleaseThenAcquireSync(
@@ -349,7 +350,7 @@ private:
         bool                          syncRbCache,
         Developer::BarrierOperations* pBarrierOps) const;
 
-    void IssueReleaseSyncEvent(
+    void IssueReleaseEventSync(
         Pm4CmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         uint32                        stageMask,
@@ -358,7 +359,7 @@ private:
         const IGpuEvent*              pGpuEvent,
         Developer::BarrierOperations* pBarrierOps) const;
 
-    void IssueAcquireSyncEvent(
+    void IssueAcquireEventSync(
         Pm4CmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         uint32                        stageMask,

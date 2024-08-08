@@ -24,21 +24,24 @@
  #######################################################################################################################
 
 target_sources(pal PRIVATE
-    appProfileIterator.cpp
     CMakeLists.txt
+    apiInfoTraceSource.cpp
+    appProfileIterator.cpp
+    asicInfoTraceSource.cpp
+    clockCalibTraceSource.cpp
+    codeObjectTraceSource.cpp
+    frameTraceController.cpp
+    renderOpTraceController.cpp
     gpaSession.cpp
     gpaSessionPerfSample.cpp
     gpaSessionPerfSample.h
-    gpuUtil.cpp
-    traceSession.cpp
-    asicInfoTraceSource.cpp
-    apiInfoTraceSource.cpp
-    clockCalibTraceSource.cpp
-    codeObjectTraceSource.cpp
     gpuPerfExperimentTraceSource.cpp
-    traceConfigTraceSource.cpp
-    uberTraceService.cpp
-    frameTraceController.cpp
+    gpuUtil.cpp
     queueTimingsTraceSource.cpp
+    stringTableTraceSource.cpp
+    traceConfigTraceSource.cpp
+    traceSession.cpp
+    uberTraceService.cpp
+    userMarkerHistoryTraceSource.cpp
 )
 

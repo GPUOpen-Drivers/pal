@@ -62,9 +62,6 @@ void ApiInfoTraceSource::FillTraceChunkApiInfo(
     case ClientApi::Vulkan:
         pApiInfo->apiType = TraceChunk::ApiType::Vulkan;
         break;
-    case ClientApi::Mantle:
-        pApiInfo->apiType = TraceChunk::ApiType::Mantle;
-        break;
     case ClientApi::OpenCl:
         pApiInfo->apiType = TraceChunk::ApiType::OpenCl;
         break;

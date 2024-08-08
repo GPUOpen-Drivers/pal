@@ -627,7 +627,8 @@ Result GpuMemory::Init(
     m_flags.gpuReadOnly          = internalInfo.flags.gpuReadOnly;
     m_flags.kmdShareUmdSysMem    = createInfo.flags.kmdShareUmdSysMem;
 #if PAL_AMDGPU_BUILD
-    m_flags.initializeToZero     =  createInfo.flags.initializeToZero;
+    m_flags.initializeToZero     = createInfo.flags.initializeToZero;
+    m_flags.isDiscardable        = createInfo.flags.discardable;
 #endif
 
     if (IsClient() == false)

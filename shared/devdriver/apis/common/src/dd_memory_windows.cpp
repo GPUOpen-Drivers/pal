@@ -45,9 +45,8 @@ int32_t CreateMirroredBuffer(uint32_t requestedBufferSize, MirroredBuffer* pOutB
     SYSTEM_INFO sysInfo {};
     GetSystemInfo(&sysInfo);
     const uint32_t pageSize = sysInfo.dwPageSize;
-    DD_ASSERT((pageSize & (pageSize - 1)) == 0); // pageSize must be power of 2.
 
-    const uint32_t pageSizeAlignedBufferSize = (requestedBufferSize + (pageSize - 1)) & (~(pageSize - 1));
+    const uint32_t pageSizeAlignedBufferSize = AlignU32(requestedBufferSize, pageSize);
     const uint32_t actualBufferSize = NextSmallestPow2(pageSizeAlignedBufferSize);
 
     if ((actualBufferSize == 0) || (actualBufferSize > MirroredBufferMaxSize))
@@ -58,7 +57,7 @@ int32_t CreateMirroredBuffer(uint32_t requestedBufferSize, MirroredBuffer* pOutB
     int32_t err = 0;
 
     const uint32_t virtualMemorySize = actualBufferSize * 2;
-    DD_ASSERT(virtualMemorySize > actualBufferSize); // check overflow
+    DD_ALWAYS_ASSERT(virtualMemorySize > actualBufferSize); // check overflow
 
     void* pPlaceholder1 = nullptr;
     void* pPlaceholder2 = nullptr;

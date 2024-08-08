@@ -295,13 +295,17 @@ void DmaCmdBuffer::CmdBarrier(
 // or decompress images before further, dependent work can continue in this command buffer.
 //
 // There's no real benefit to splitting up barriers on the DMA engine. Ergo, this is a thin wrapper over full barriers.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
 uint32 DmaCmdBuffer::CmdRelease(
+#else
+ReleaseToken DmaCmdBuffer::CmdRelease(
+#endif
     const AcquireReleaseInfo& releaseInfo)
 {
     PAL_NOT_TESTED();
     CmdReleaseThenAcquire(releaseInfo);
 
-    return 0;
+    return {};
 }
 
 // =====================================================================================================================
@@ -312,7 +316,11 @@ uint32 DmaCmdBuffer::CmdRelease(
 void DmaCmdBuffer::CmdAcquire(
     const AcquireReleaseInfo& acquireInfo,
     uint32                    syncTokenCount,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
     const uint32*             pSyncTokens)
+#else
+    const ReleaseToken*       pSyncTokens)
+#endif
 {
     PAL_NOT_TESTED();
 
@@ -1266,7 +1274,7 @@ void DmaCmdBuffer::SetupDmaInfoExtent(
 // =====================================================================================================================
 void DmaCmdBuffer::SetupDmaInfoSurface(
     const IImage&     image,
-    const SubresId&   subresource,
+    SubresId          subresId,
     const Offset3d&   offset,
     const ImageLayout imageLayout,
     DmaImageInfo*     pImageInfo,  // [out] A completed DmaImageInfo struct.
@@ -1274,7 +1282,7 @@ void DmaCmdBuffer::SetupDmaInfoSurface(
     ) const
 {
     const auto& srcImg      = static_cast<const Image&>(image);
-    const auto* pSubresInfo = srcImg.SubresourceInfo(subresource);
+    const auto* pSubresInfo = srcImg.SubresourceInfo(subresId);
 
     // The DMA engine expects power-of-two BPPs, otherwise we must scale our texel dimensions and BPP to make it work.
     // Note that we must use a texelScale of one for block compressed textures because the caller must pass in offsets
@@ -1286,7 +1294,7 @@ void DmaCmdBuffer::SetupDmaInfoSurface(
     if (nonPow2Bpp)
     {
         // Fix-up the BPP by copying each channel as its own pixel; this only works for linear subresources.
-        PAL_ASSERT(srcImg.IsSubResourceLinear(subresource));
+        PAL_ASSERT(srcImg.IsSubResourceLinear(subresId));
 
         switch(bytesPerPixel)
         {
@@ -1304,7 +1312,7 @@ void DmaCmdBuffer::SetupDmaInfoSurface(
     // Fill out the image information struct, taking care to scale the offset by the texelScale.
     pImageInfo->pImage        = &image;
     pImageInfo->pSubresInfo   = pSubresInfo;
-    pImageInfo->baseAddr      = GetSubresourceBaseAddr(srcImg, subresource);
+    pImageInfo->baseAddr      = GetSubresourceBaseAddr(srcImg, subresId);
     pImageInfo->offset.x      = offset.x * texelScale;
     pImageInfo->offset.y      = offset.y;
     pImageInfo->offset.z      = offset.z;

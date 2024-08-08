@@ -23,7 +23,10 @@
  *
  **********************************************************************************************************************/
 
+#pragma once
+
 #include <dd_common_api.h>
+#include <dd_assert.h>
 #include <cstdint>
 
 namespace DevDriver
@@ -42,9 +45,32 @@ private:
     void*          m_pUserdata; // passed to `m_pThreadFn`
 
 public:
-    Thread();
-    Thread(Thread&& other) noexcept;
-    void operator=(Thread&& other) noexcept;
+    Thread()
+        : m_pThreadId {nullptr}
+        , m_pThreadFn {nullptr}
+        , m_pUserdata {nullptr}
+    {}
+
+    Thread(Thread&& other) noexcept
+        : m_pThreadId {other.m_pThreadId}
+        , m_pThreadFn {other.m_pThreadFn}
+        , m_pUserdata {other.m_pUserdata}
+    {
+        other.m_pThreadId = nullptr;
+        other.m_pThreadFn = nullptr;
+        other.m_pUserdata = nullptr;
+    }
+
+    void operator=(Thread&& other) noexcept
+    {
+        m_pThreadId = other.m_pThreadId;
+        m_pThreadFn = other.m_pThreadFn;
+        m_pUserdata = other.m_pUserdata;
+
+        other.m_pThreadId = nullptr;
+        other.m_pThreadFn = nullptr;
+        other.m_pUserdata = nullptr;
+    }
 
     ~Thread();
 
@@ -65,8 +91,8 @@ public:
 
     /// Set debug name of the thread.
     ///
-    /// @param[in] pName Pointer to a null-terminated string. \param pName is truncated to be maximumly 16 bytes
-    /// including null-terminator.
+    /// @param[in] pName Pointer to a null-terminated string. On Linux \param pName is truncated to be maximumly 16
+    /// bytes including null-terminator.
     DD_RESULT SetDebugName(const char* pName);
 
 private:

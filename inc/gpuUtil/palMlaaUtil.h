@@ -71,9 +71,9 @@ public:
     void ResolveImage(
         Pal::ICmdBuffer*      pCmdBuffer,
         const Pal::IImage&    srcImage,
-        const Pal::SubresId&  srcSubres,
+        Pal::SubresId         srcSubres,
         const Pal::IImage&    dstImage,
-        const Pal::SubresId&  dstSubres);
+        Pal::SubresId         dstSubres);
 
 private:
 
@@ -106,7 +106,7 @@ private:
     void BuildImageViewInfo(
         Pal::ImageViewInfo*   pInfo,
         const Pal::IImage*    pImage,
-        const Pal::SubresId&  subresId,
+        Pal::SubresId         subresId,
         bool                  isShaderWriteable);
 
     // Creates the GPU memory object and binds it to the provided image
@@ -118,7 +118,7 @@ private:
     void FindSepEdge(
         Pal::ICmdBuffer*     pCmdBuffer,
         const Pal::IImage&   srcImage,
-        const Pal::SubresId& srcSubres);
+        Pal::SubresId        srcSubres);
 
     // 2nd stage of MLAA resolve: Calculate the separating edge length (recursive doubling path)
     void CalcSepEdgeLength(
@@ -133,18 +133,18 @@ private:
     void FinalBlend(
         Pal::ICmdBuffer*     pCmdBuffer,
         const Pal::IImage&   srcImage,
-        const Pal::SubresId& srcSubres,
+        Pal::SubresId        srcSubres,
         const Pal::IImage&   dstImage,
-        const Pal::SubresId& dstSubres,
+        Pal::SubresId        dstSubres,
         Pal::uint32          maxIterationDepth);
 
     // Final stage of MLAA resolve: Blend the pixels along the separating edge (fast path)
     void FinalBlendFast(
         Pal::ICmdBuffer*     pCmdBuffer,
         const Pal::IImage&   srcImage,
-        const Pal::SubresId& srcSubres,
+        Pal::SubresId        srcSubres,
         const Pal::IImage&   dstImage,
-        const Pal::SubresId& dstSubres);
+        Pal::SubresId        dstSubres);
 
     // Device associated with this MlaaUtil.
     Pal::IDevice*const           m_pDevice;

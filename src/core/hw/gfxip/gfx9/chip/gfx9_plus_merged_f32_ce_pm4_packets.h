@@ -800,14 +800,6 @@ typedef struct PM4_CE_NOP
 
 constexpr unsigned int PM4_CE_NOP_SIZEDW__GFX10 = 1;
 
-// -------------------------------- CE_PRIME_UTCL2_cache_perm_enum --------------------------------
-enum CE_PRIME_UTCL2_cache_perm_enum
-{
-    cache_perm__ce_prime_utcl2__read__GFX10    =  0,
-    cache_perm__ce_prime_utcl2__write__GFX10   =  1,
-    cache_perm__ce_prime_utcl2__execute__GFX10 =  2,
-};
-
 // -------------------------------- CE_PRIME_UTCL2_prime_mode_enum --------------------------------
 enum CE_PRIME_UTCL2_prime_mode_enum
 {
@@ -819,6 +811,14 @@ enum CE_PRIME_UTCL2_prime_mode_enum
 enum CE_PRIME_UTCL2_engine_sel_enum
 {
     engine_sel__ce_prime_utcl2__constant_engine__GFX10 =  2,
+};
+
+// -------------------------------- CE_PRIME_UTCL2_cache_perm_enum --------------------------------
+enum CE_PRIME_UTCL2_cache_perm_enum
+{
+    cache_perm__ce_prime_utcl2__read__GFX103    =  0,
+    cache_perm__ce_prime_utcl2__write__GFX103   =  1,
+    cache_perm__ce_prime_utcl2__execute__GFX103 =  2,
 };
 
 // -------------------------------------- PM4_CE_PRIME_UTCL2 --------------------------------------
@@ -836,11 +836,21 @@ typedef struct PM4_CE_PRIME_UTCL2
         {
             struct
             {
-                CE_PRIME_UTCL2_cache_perm_enum cache_perm :  3;
+                uint32_t                       reserved1  :  3;
                 CE_PRIME_UTCL2_prime_mode_enum prime_mode :  1;
-                uint32_t                       reserved1  : 26;
+                uint32_t                       reserved2  : 26;
                 CE_PRIME_UTCL2_engine_sel_enum engine_sel :  2;
             } gfx10;
+            struct
+            {
+                uint32_t cache_perm :  3;
+                uint32_t reserved3  : 29;
+            } gfx101;
+            struct
+            {
+                CE_PRIME_UTCL2_cache_perm_enum cache_perm :  3;
+                uint32_t                       reserved4  : 29;
+            } gfx103;
         } bitfields;
         uint32_t u32All;
     } ordinal2;

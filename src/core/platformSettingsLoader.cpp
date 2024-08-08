@@ -69,9 +69,9 @@ static struct DebugPrintSettingsTable
 
 static struct
 {
-    SettingNameHash  hash;
-    const char*      pRegString;
-    AssertCategory   category;
+    DD_SETTINGS_NAME_HASH hash;
+    const char*           pRegString;
+    AssertCategory        category;
 } AssertSettingsTbl[] =
 {
     3333004859, "SoftAssert", AssertCategory::AssertCatAlert,

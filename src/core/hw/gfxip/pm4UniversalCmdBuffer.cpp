@@ -262,20 +262,6 @@ void UniversalCmdBuffer::ResetState()
     // so NULL color targets will be bound when BuildNullColorTargets() is called for the first time.
     m_graphicsState.boundColorTargetMask = NoNullColorTargetMask;
 
-    if (IsNested() == false)
-    {
-        // Fully open scissor by default
-        m_graphicsState.targetExtent.width  = MaxScissorExtent;
-        m_graphicsState.targetExtent.height = MaxScissorExtent;
-    }
-    else
-    {
-        // For nested case, default to an invalid value to trigger validation if BindTarget called.
-        static_assert(static_cast<uint16>(USHRT_MAX) > static_cast<uint16>(MaxScissorExtent), "Check Scissor logic");
-        m_graphicsState.targetExtent.width  = USHRT_MAX;
-        m_graphicsState.targetExtent.height = USHRT_MAX;
-    }
-
     m_graphicsState.clipRectsState.clipRule = DefaultClipRectsRule;
 
     // No guard band by default
@@ -283,6 +269,7 @@ void UniversalCmdBuffer::ResetState()
     m_graphicsState.viewportState.horzDiscardRatio = 1.0f;
     m_graphicsState.viewportState.vertClipRatio    = 1.0f;
     m_graphicsState.viewportState.vertDiscardRatio = 1.0f;
+
 }
 
 // =====================================================================================================================

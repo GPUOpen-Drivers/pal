@@ -221,6 +221,9 @@ constexpr uint32 MinExpandedPackedFixLengthPfpVersion = 1463;
 constexpr uint32 MaxNumPackedFixLengthRegsExpanded    = 14;
 // Minimum number of registers that may be written with a fixed length packed register pair packet.
 constexpr uint32 MinNumPackedFixLengthRegs            = 2;
+// Minimum FW version required to use PERF_COUNTER_WINDOW packet
+constexpr uint32 MinPerfCounterWindowPfpVersion       = 2240;
+constexpr uint32 MinPerfCounterWindowMecVersion       = 2290;
 
 // GCR_CNTL bit fields for ACQUIRE_MEM and RELEASE_MEM are slightly different.
 union Gfx10AcquireMemGcrCntl
@@ -737,7 +740,7 @@ size_t CmdUtil::BuildAcquireMemGfxPws(
         // Note that glmWb is unimplemented in HW so we don't bother setting it. Everything else we want zeroed.
         //
         // We always prefer parallel cache ops but must force sequential (L0->L1->L2) mode when we're writing back a
-        // non-write-through L0 before an L2 writeback. The only writeable L0 that a PWS acquire can flush is the K$.
+        // non-write-through L0 before an L2 writeback. The only writable L0 that a PWS acquire can flush is the K$.
         Gfx10AcquireMemGcrCntl cntl = {};
         cntl.bits.gliInv = TestAnyFlagSet(info.cacheSync, SyncGliInv);
         cntl.bits.glmInv = TestAnyFlagSet(info.cacheSync, SyncGlmInv);
@@ -1291,20 +1294,25 @@ size_t CmdUtil::BuildExecuteIndirect(
 
     const Pm4ShaderType shaderType = isGfx ? ShaderGraphics : ShaderCompute;
 
+    PAL_ASSERT(IsPow2Aligned(packetInfo.commandBufferAddr, 4));
+    PAL_ASSERT(IsPow2Aligned(packetInfo.countBufferAddr, 4));
+    PAL_ASSERT(IsPow2Aligned(packetInfo.argumentBufferAddr, 4));
+    PAL_ASSERT(IsPow2Aligned(packetInfo.spillTableAddr, 4));
+
     packet.ordinal1.header.u32All =
         (Type3Header(IT_EXECUTE_INDIRECT__EXECINDIRECT, PacketSize, resetPktFilter, shaderType, predicate)).u32All;
-    packet.ordinal2.bitfields.cmd_base_lo           = LowPart(packetInfo.commandBufferAddr) >> 2;
+    packet.ordinal2.u32All                          = LowPart(packetInfo.commandBufferAddr);
     packet.ordinal3.cmd_base_hi                     = HighPart(packetInfo.commandBufferAddr);
     packet.ordinal4.bitfields.count_indirect_enable = (packetInfo.countBufferAddr != 0);
     packet.ordinal4.bitfields.ib_size               = packetInfo.commandBufferSizeBytes/sizeof(uint32);
     packet.ordinal5.max_count                       = packetInfo.maxCount;
-    packet.ordinal6.bitfields.count_addr_lo         = LowPart(packetInfo.countBufferAddr) >> 2;
+    packet.ordinal6.u32All                          = LowPart(packetInfo.countBufferAddr);
     packet.ordinal7.count_addr_hi                   = HighPart(packetInfo.countBufferAddr);
     packet.ordinal8.stride                          = packetInfo.argumentBufferStrideBytes;
-    packet.ordinal9.data_addr_lo                    = LowPart(packetInfo.argumentBufferAddr);
+    packet.ordinal9.u32All                          = LowPart(packetInfo.argumentBufferAddr);
     packet.ordinal10.bitfields.data_addr_hi         = HighPart(packetInfo.argumentBufferAddr);
     packet.ordinal10.bitfields.spill_table_stride   = packetInfo.spillTableStrideBytes;
-    packet.ordinal11.spill_table_addr_lo            = LowPart(packetInfo.spillTableAddr);
+    packet.ordinal11.u32All                         = LowPart(packetInfo.spillTableAddr);
     packet.ordinal12.bitfields.spill_table_addr_hi  = HighPart(packetInfo.spillTableAddr);
     if (packetInfo.spillTableAddr != 0)
     {
@@ -1351,58 +1359,41 @@ size_t CmdUtil::BuildExecuteIndirectV2(
 
     PM4_PFP_EXECUTE_INDIRECT_V2 packet = {};
 
-    constexpr uint32 PacketDwSize = PM4_PFP_EXECUTE_INDIRECT_V2_SIZEDW__GFX103PLUSEXCLUSIVE;
+    constexpr uint32 PacketDwSize = PM4_PFP_EXECUTE_INDIRECT_V2_SIZEDW__GFX11;
     constexpr uint32 EightBitMask = 0xff;
     constexpr uint32 TenBitMask   = 0x3ff;
 
-    uint32 opDwSize = 0;
+    PAL_ASSERT(IsPow2Aligned(packetInfo.countBufferAddr, 4));
+    PAL_ASSERT(IsPow2Aligned(packetInfo.argumentBufferAddr, 4));
+    PAL_ASSERT(IsPow2Aligned(packetInfo.spillTableAddr, 4));
 
-    switch (pMetaData->opType)
-    {
-    case operation__pfp_execute_indirect_v2__draw__GFX103PLUSEXCLUSIVE:
-        opDwSize = (sizeof(EIV2Draw) / sizeof(uint32));
-        break;
-    case operation__pfp_execute_indirect_v2__drawindex__GFX103PLUSEXCLUSIVE:
-        opDwSize = (sizeof(EIV2DrawIndexed) / sizeof(uint32));
-        break;
-    case operation__pfp_execute_indirect_v2__dispatch__GFX103PLUSEXCLUSIVE:
-        opDwSize = (sizeof(EIV2Dispatch) / sizeof(uint32));
-        break;
-    case operation__pfp_execute_indirect_v2__dispatch_mesh__GFX103PLUSEXCLUSIVE:
-        opDwSize = (sizeof(EIV2DispatchMesh) / sizeof(uint32));
-        break;
-    default:
-        PAL_NOT_IMPLEMENTED();
-        break;
-    };
-
-    packet.ordinal2.bitfields.gfx103PlusExclusive.count_indirect_enable      = (packetInfo.countBufferAddr != 0);
-    packet.ordinal2.bitfields.gfx103PlusExclusive.user_data_dw_count         = pMetaData->userDataDwCount;
-    packet.ordinal2.bitfields.gfx103PlusExclusive.command_index_enable       = pMetaData->commandIndexEnable;
-    packet.ordinal2.bitfields.gfx103PlusExclusive.init_mem_copy_count        = pMetaData->initMemCopyCount;
-    packet.ordinal2.bitfields.gfx103PlusExclusive.build_srd_count            = pMetaData->buildSrdCount;
-    packet.ordinal2.bitfields.gfx103PlusExclusive.update_mem_copy_count      = pMetaData->updateMemCopyCount;
-    packet.ordinal2.bitfields.gfx103PlusExclusive.operation                  = pMetaData->opType;
-    packet.ordinal2.bitfields.gfx103PlusExclusive.fetch_index_attributes     = pMetaData->fetchIndexAttributes;
-    packet.ordinal2.bitfields.gfx103PlusExclusive.userdata_scatter_mode      = pMetaData->userDataScatterMode;
-    packet.ordinal2.bitfields.gfx103PlusExclusive.vertex_bounds_check_enable = pMetaData->vertexBoundsCheckEnable;
-    packet.ordinal2.bitfields.gfx103PlusExclusive.thread_trace_enable        = pMetaData->threadTraceEnable;
-    packet.ordinal3.bitfields.gfx103PlusExclusive.count_addr_lo              = LowPart(packetInfo.countBufferAddr) >> 2;
-    packet.ordinal4.bitfields.gfx103PlusExclusive.count_addr_hi              = HighPart(packetInfo.countBufferAddr);
+    packet.ordinal2.bitfields.gfx11.count_indirect_enable      = (packetInfo.countBufferAddr != 0);
+    packet.ordinal2.bitfields.gfx11.userdata_dw_count          = pMetaData->userDataDwCount;
+    packet.ordinal2.bitfields.gfx11.command_index_enable       = pMetaData->commandIndexEnable;
+    packet.ordinal2.bitfields.gfx11.init_mem_copy_count        = pMetaData->initMemCopyCount;
+    packet.ordinal2.bitfields.gfx11.build_srd_count            = pMetaData->buildSrdCount;
+    packet.ordinal2.bitfields.gfx11.update_mem_copy_count      = pMetaData->updateMemCopyCount;
+    packet.ordinal2.bitfields.gfx11.operation                  = pMetaData->opType;
+    packet.ordinal2.bitfields.gfx11.fetch_index_attributes     = pMetaData->fetchIndexAttributes;
+    packet.ordinal2.bitfields.gfx11.userdata_scatter_mode      = pMetaData->userDataScatterMode;
+    packet.ordinal2.bitfields.gfx11.vertex_bounds_check_enable = pMetaData->vertexBoundsCheckEnable;
+    packet.ordinal2.bitfields.gfx11.thread_trace_enable        = pMetaData->threadTraceEnable;
+    packet.ordinal3.u32All                                     = LowPart(packetInfo.countBufferAddr);
+    packet.ordinal4.bitfields.gfx11.count_addr_hi              = HighPart(packetInfo.countBufferAddr);
     packet.ordinal5.max_count                                                = packetInfo.maxCount;
     packet.ordinal6.stride                                                   = packetInfo.argumentBufferStrideBytes;
-    packet.ordinal7.bitfields.gfx103PlusExclusive.data_addr_lo            = LowPart(packetInfo.argumentBufferAddr) >> 2;
-    packet.ordinal8.bitfields.gfx103PlusExclusive.data_addr_hi            = HighPart(packetInfo.argumentBufferAddr);
-    packet.ordinal8.bitfields.gfx103PlusExclusive.index_attributes_offset = pMetaData->indexAttributesOffset;
+    packet.ordinal7.u32All                                     = LowPart(packetInfo.argumentBufferAddr);
+    packet.ordinal8.bitfields.gfx11.data_addr_hi               = HighPart(packetInfo.argumentBufferAddr);
+    packet.ordinal8.bitfields.gfx11.index_attributes_offset    = pMetaData->indexAttributesOffset;
     if (packetInfo.vbTableRegOffset != 0)
     {
-        packet.ordinal9.bitfields.gfx103PlusExclusive.userdata_gfx_register =
+        packet.ordinal9.bitfields.gfx11.userdata_gfx_register =
             ShRegOffset(packetInfo.vbTableRegOffset) & EightBitMask;
-        packet.ordinal2.bitfields.gfx103PlusExclusive.userdata_gfx_register_enable = 1;
+        packet.ordinal2.bitfields.gfx11.userdata_gfx_register_enable = 1;
     }
-    packet.ordinal9.bitfields.gfx103PlusExclusive.userdata_offset      = pMetaData->userDataOffset;
-    packet.ordinal10.bitfields.gfx103PlusExclusive.spill_table_addr_lo = LowPart(packetInfo.spillTableAddr) >> 2;
-    packet.ordinal11.bitfields.gfx103PlusExclusive.spill_table_addr_hi = HighPart(packetInfo.spillTableAddr);
+    packet.ordinal9.bitfields.gfx11.userdata_offset      = pMetaData->userDataOffset;
+    packet.ordinal10.u32All                              = LowPart(packetInfo.spillTableAddr);
+    packet.ordinal11.bitfields.gfx11.spill_table_addr_hi = HighPart(packetInfo.spillTableAddr);
 
     uint32 numSpillRegsActive = 0;
     if (packetInfo.spillTableAddr != 0)
@@ -1423,8 +1414,8 @@ size_t CmdUtil::BuildExecuteIndirectV2(
             }
             const uint32 paddedVbTableBytes =
                 (Pow2Align(static_cast<uint32>(packetInfo.vbTableSizeDwords * sizeof(uint32)), 32));
-            packet.ordinal12.bitfields.gfx103PlusExclusive.vb_table_size      = paddedVbTableBytes;
-            packet.ordinal12.bitfields.gfx103PlusExclusive.spill_table_stride = (numSpillRegsActive != 0) ?
+            packet.ordinal12.bitfields.gfx11.vb_table_size      = paddedVbTableBytes;
+            packet.ordinal12.bitfields.gfx11.spill_table_stride = (numSpillRegsActive != 0) ?
                 packetInfo.spillTableStrideBytes : paddedVbTableBytes;
         }
         else
@@ -1434,13 +1425,13 @@ size_t CmdUtil::BuildExecuteIndirectV2(
             // ComputeRegs' data and then extract it into the PM4 ordinal.
             if (pComputeSignature->stage.spillTableRegAddr)
             {
-                packet.ordinal13.bitfieldsB.gfx103PlusExclusive.spill_compute_reg0 =
+                packet.ordinal13.bitfieldsB.gfx11.spill_compute_reg0 =
                     (ShRegOffset(pComputeSignature->stage.spillTableRegAddr) & TenBitMask);
                 numSpillRegsActive++;
             }
-            packet.ordinal12.bitfields.gfx103PlusExclusive.spill_table_stride = packetInfo.spillTableStrideBytes;
+            packet.ordinal12.bitfields.gfx11.spill_table_stride = packetInfo.spillTableStrideBytes;
         }
-        packet.ordinal2.bitfields.gfx103PlusExclusive.num_spill_regs = numSpillRegsActive;
+        packet.ordinal2.bitfields.gfx11.num_spill_regs = numSpillRegsActive;
     }
 
     uint32* pOut = reinterpret_cast<uint32*>(pBuffer);
@@ -1497,9 +1488,9 @@ size_t CmdUtil::BuildExecuteIndirectV2(
                                                                       pInputs[2]);
     }
 
-    // Copy Op MetaData at an offset the base PM4.
-    memcpy(&pOut[offset], pPacketOp, opDwSize * sizeof(uint32));
-    offset += opDwSize;
+    // Copy Op MetaData at an offset to the base PM4.
+    memcpy(&pOut[offset], pPacketOp, EiV2OpDwSize * sizeof(uint32));
+    offset += EiV2OpDwSize;
 
     // Update header when we have final Packet+Op Dword size as offset.
     packet.ordinal1.header.u32All =
@@ -1521,8 +1512,7 @@ size_t CmdUtil::BuildDispatchIndirectMec(
     void*         pBuffer                // [out] Build the PM4 packet in this buffer.
     ) const
 {
-    // Address must be 32-bit aligned
-    PAL_ASSERT ((address & 0x3) == 0);
+    PAL_ASSERT(IsPow2Aligned(address, 4));
 
     constexpr uint32               PacketSize        = PM4_MEC_DISPATCH_INDIRECT_SIZEDW__CORE;
     auto*const                     pPacket           = static_cast<PM4_MEC_DISPATCH_INDIRECT*>(pBuffer);
@@ -1729,6 +1719,7 @@ size_t CmdUtil::BuildDrawIndexIndirectMulti(
 {
     // Draw argument offset in the buffer has to be 4-byte aligned.
     PAL_ASSERT(IsPow2Aligned(offset, 4));
+    PAL_ASSERT(IsPow2Aligned(countGpuAddr, 4));
 
     constexpr size_t DrawIndexIndirectMultiPacketSize = PM4_PFP_DRAW_INDEX_INDIRECT_MULTI_SIZEDW__CORE;
     size_t packetSize = DrawIndexIndirectMultiPacketSize;
@@ -1813,6 +1804,7 @@ size_t CmdUtil::BuildDrawIndirectMulti(
 {
     // Draw argument offset in the buffer has to be 4-byte aligned.
     PAL_ASSERT(IsPow2Aligned(offset, 4));
+    PAL_ASSERT(IsPow2Aligned(countGpuAddr, 4));
 
     constexpr uint32 PacketSize = PM4_PFP_DRAW_INDIRECT_MULTI_SIZEDW__CORE;
     PM4_PFP_DRAW_INDIRECT_MULTI packet = {};
@@ -2328,7 +2320,7 @@ size_t CmdUtil::BuildDmaData(
     {
         packet.ordinal2.bitfields.src_indirect = 1;
         packet.ordinal2.bitfields.dst_indirect = 1;
-        packet.ordinal3.src_addr_offset        = dmaDataInfo.srcOffset;
+        packet.ordinal3.src_addr_lo_or_data    = dmaDataInfo.srcOffset;
         packet.ordinal4.src_addr_hi            = 0; // ignored for data
     }
     else
@@ -2388,7 +2380,7 @@ size_t CmdUtil::BuildUntypedSrd(
     packet.ordinal1.header.u32All =
         (Type3Header(IT_BUILD_UNTYPED_SRD__GFX101, PacketSize, predicate, shaderType)).u32All;
     // For ExecuteIndirect CP will fetch the Vertex Data from ArgumentBuffer which has index data, set index = 1.
-    packet.ordinal2.bitfields.index       = 1;
+    packet.ordinal2.bitfields.index       = index__pfp_build_untyped_srd__addrs_known;
     packet.ordinal2.bitfields.src_addr_lo = LowPart(pSrdInfo->srcGpuVirtAddress);
     packet.ordinal3.src_addr_hi           = HighPart(pSrdInfo->srcGpuVirtAddress);
     packet.ordinal4.src_offset            = pSrdInfo->srcGpuVirtAddressOffset;
@@ -2635,6 +2627,8 @@ size_t CmdUtil::BuildSampleEventWrite(
     {
         packetSize = PM4_ME_EVENT_WRITE_ZPASS_SIZEDW__GFX11;
 
+        PAL_ASSERT(IsPow2Aligned(gpuAddr, 8));
+
         PM4_ME_EVENT_WRITE_ZPASS packet = {};
         packet.ordinal1.header = Type3Header(IT_EVENT_WRITE_ZPASS__GFX11, packetSize);
         packet.ordinal2.u32All = LowPart(gpuAddr);
@@ -2645,6 +2639,8 @@ size_t CmdUtil::BuildSampleEventWrite(
     else
     {
         packetSize = PM4_ME_EVENT_WRITE_SIZEDW__CORE;
+
+        PAL_ASSERT(IsPow2Aligned(gpuAddr, 8));
 
         PM4_ME_EVENT_WRITE packet = {};
         packet.ordinal1.header                = Type3Header(IT_EVENT_WRITE, packetSize);
@@ -2713,8 +2709,8 @@ size_t CmdUtil::BuildIndexAttributesIndirect(
     packet.ordinal1.header.u32All = (Type3Header(IT_INDEX_ATTRIBUTES_INDIRECT, PacketSize)).u32All;
     if (hasIndirectAddress)
     {
-        packet.ordinal2.bitfields.gfx10.indirect_mode = mode__pfp_index_attributes_indirect_indirect_offset__GFX10;
-        packet.ordinal3.addr_offset                   = LowPart(baseAddr);
+        packet.ordinal2.bitfields.indirect_mode = 1;
+        packet.ordinal3.addr_offset             = LowPart(baseAddr);
     }
     else
     {
@@ -2809,7 +2805,7 @@ size_t CmdUtil::BuildIndirectBuffer(
     packet.ordinal2.u32All        = LowPart(ibAddr);
     packet.ordinal3.ib_base_hi    = HighPart(ibAddr);
 
-    // Make sure our address is properly ali`gned
+    // Make sure our address is properly aligned
     PAL_ASSERT(packet.ordinal2.bitfields.reserved1 == 0);
 
     packet.ordinal4.bitfields.ib_size = ibSize;
@@ -2943,7 +2939,7 @@ size_t CmdUtil::BuildOcclusionQuery(
 // command assembled, in DWORDs.
 size_t CmdUtil::BuildPrimeUtcL2(
     gpusize gpuAddr,
-    uint32  cachePerm,      // XXX_PRIME_UTCL2_cache_perm_enum
+    uint32  cachePerm,      // Bitmask of operators, Bits: 0 - Read, 1 - Write, 2 - Execute
     uint32  primeMode,      // XXX_PRIME_UTCL2_prime_mode_enum
     uint32  engineSel,      // XXX_PRIME_UTCL2_engine_sel_enum
     size_t  requestedPages, // Number of 4KB pages to prefetch.
@@ -2952,20 +2948,6 @@ size_t CmdUtil::BuildPrimeUtcL2(
     static_assert(((PM4_PFP_PRIME_UTCL2_SIZEDW__CORE == PM4_MEC_PRIME_UTCL2_SIZEDW__CORE)  &&
                    (PM4_PFP_PRIME_UTCL2_SIZEDW__CORE == PM4_CE_PRIME_UTCL2_SIZEDW__GFX10)),
                    "PRIME_UTCL2 packet is different between PFP, MEC, and CE!");
-
-    static_assert(((static_cast<uint32>(cache_perm__pfp_prime_utcl2__read)         ==
-                    static_cast<uint32>(cache_perm__mec_prime_utcl2__read))        &&
-                   (static_cast<uint32>(cache_perm__pfp_prime_utcl2__read)         ==
-                    static_cast<uint32>(cache_perm__ce_prime_utcl2__read__GFX10))  &&
-                   (static_cast<uint32>(cache_perm__pfp_prime_utcl2__write)        ==
-                    static_cast<uint32>(cache_perm__mec_prime_utcl2__write))       &&
-                   (static_cast<uint32>(cache_perm__pfp_prime_utcl2__write)        ==
-                    static_cast<uint32>(cache_perm__ce_prime_utcl2__write__GFX10)) &&
-                   (static_cast<uint32>(cache_perm__pfp_prime_utcl2__execute)      ==
-                    static_cast<uint32>(cache_perm__mec_prime_utcl2__execute))     &&
-                   (static_cast<uint32>(cache_perm__pfp_prime_utcl2__execute)      ==
-                    static_cast<uint32>(cache_perm__ce_prime_utcl2__execute__GFX10))),
-                  "Cache permissions enum is different between PFP, MEC, and CE!");
 
     static_assert(((static_cast<uint32>(prime_mode__pfp_prime_utcl2__dont_wait_for_xack)        ==
                     static_cast<uint32>(prime_mode__mec_prime_utcl2__dont_wait_for_xack))       &&
@@ -2981,7 +2963,7 @@ size_t CmdUtil::BuildPrimeUtcL2(
     PM4_PFP_PRIME_UTCL2 packet = {};
 
     packet.ordinal1.header.u32All              = (Type3Header(IT_PRIME_UTCL2, PacketSize)).u32All;
-    packet.ordinal2.bitfields.cache_perm       = static_cast<PFP_PRIME_UTCL2_cache_perm_enum>(cachePerm);
+    packet.ordinal2.bitfields.cache_perm       = cachePerm;
     packet.ordinal2.bitfields.prime_mode       = static_cast<PFP_PRIME_UTCL2_prime_mode_enum>(primeMode);
     packet.ordinal2.bitfields.engine_sel       = static_cast<PFP_PRIME_UTCL2_engine_sel_enum>(engineSel);
     PAL_ASSERT(packet.ordinal2.bitfields.reserved1 == 0);
@@ -3074,9 +3056,9 @@ size_t CmdUtil::BuildLoadConfigRegs(
     const uint32 packetSize = PM4_PFP_LOAD_CONFIG_REG_SIZEDW__CORE + (2 * (rangeCount - 1));
     PM4_PFP_LOAD_CONFIG_REG packet = {};
 
-    packet.ordinal1.header.u32All          = (Type3Header(IT_LOAD_CONFIG_REG, packetSize)).u32All;
-    packet.ordinal2.bitfields.base_addr_lo = (LowPart(gpuVirtAddr) >> 2);
-    packet.ordinal3.base_addr_hi           = HighPart(gpuVirtAddr);
+    packet.ordinal1.header.u32All  = (Type3Header(IT_LOAD_CONFIG_REG, packetSize)).u32All;
+    packet.ordinal2.u32All         = LowPart(gpuVirtAddr);
+    packet.ordinal3.base_addr_hi   = HighPart(gpuVirtAddr);
 
     static_assert(PM4_PFP_LOAD_CONFIG_REG_SIZEDW__CORE * sizeof(uint32) == sizeof(packet), "");
     memcpy(pBuffer, &packet, offsetof(PM4_PFP_LOAD_CONFIG_REG, ordinal4));
@@ -3106,7 +3088,7 @@ size_t CmdUtil::BuildLoadContextRegs(
     PM4_PFP_LOAD_CONTEXT_REG packet = {};
 
     packet.ordinal1.header.u32All          = (Type3Header(IT_LOAD_CONTEXT_REG, PacketSize)).u32All;
-    packet.ordinal2.bitfields.base_addr_lo = (LowPart(gpuVirtAddr) >> 2);
+    packet.ordinal2.u32All                 = LowPart(gpuVirtAddr);
     packet.ordinal3.base_addr_hi           = HighPart(gpuVirtAddr);
     packet.ordinal4.bitfields.reg_offset   = (startRegAddr - CONTEXT_SPACE_START);
     packet.ordinal5.bitfields.num_dwords   = count;
@@ -3134,9 +3116,9 @@ size_t CmdUtil::BuildLoadContextRegs(
     const uint32 packetSize = PM4_PFP_LOAD_CONTEXT_REG_SIZEDW__CORE + (2 * (rangeCount - 1));
     PM4_PFP_LOAD_CONTEXT_REG packet = {};
 
-    packet.ordinal1.header.u32All          = (Type3Header(IT_LOAD_CONTEXT_REG, packetSize)).u32All;
-    packet.ordinal2.bitfields.base_addr_lo = (LowPart(gpuVirtAddr) >> 2);
-    packet.ordinal3.base_addr_hi           = HighPart(gpuVirtAddr);
+    packet.ordinal1.header.u32All = (Type3Header(IT_LOAD_CONTEXT_REG, packetSize)).u32All;
+    packet.ordinal2.u32All        = LowPart(gpuVirtAddr);
+    packet.ordinal3.base_addr_hi  = HighPart(gpuVirtAddr);
 
     static_assert(PM4_PFP_LOAD_CONTEXT_REG_SIZEDW__CORE * sizeof(uint32) == sizeof(packet), "");
     memcpy(pBuffer, &packet, offsetof(PM4_PFP_LOAD_CONTEXT_REG, ordinal4));
@@ -3177,9 +3159,9 @@ size_t CmdUtil::BuildLoadContextRegsIndex(
         // Only the low 16 bits of addrOffset are honored for the high portion of the GPU virtual address!
         PAL_ASSERT((HighPart(gpuVirtAddrOrAddrOffset) & 0xFFFF0000) == 0);
 
-        packet.ordinal2.bitfields.index       = index__pfp_load_context_reg_index__direct_addr;
-        packet.ordinal2.bitfields.mem_addr_lo = (LowPart(gpuVirtAddrOrAddrOffset) >> 2);
-        packet.ordinal3.mem_addr_hi           = HighPart(gpuVirtAddrOrAddrOffset);
+        packet.ordinal2.bitfields.index = index__pfp_load_context_reg_index__direct_addr;
+        packet.ordinal2.u32All          = LowPart(gpuVirtAddrOrAddrOffset);
+        packet.ordinal3.mem_addr_hi     = HighPart(gpuVirtAddrOrAddrOffset);
     }
     else
     {
@@ -3226,6 +3208,8 @@ size_t CmdUtil::BuildLoadContextRegsIndex(
     void*   pBuffer       // [out] Build the PM4 packet in this buffer.
     ) const
 {
+    PAL_ASSERT(IsPow2Aligned(gpuVirtAddr, 4));
+
     constexpr uint32 PacketSize = PM4_PFP_LOAD_CONTEXT_REG_INDEX_SIZEDW__CORE;
     auto*const       pPacket    = static_cast<PM4_PFP_LOAD_CONTEXT_REG_INDEX*>(pBuffer);
     PM4_PFP_LOAD_CONTEXT_REG_INDEX packet = { 0 };
@@ -3271,11 +3255,11 @@ size_t CmdUtil::BuildLoadShRegs(
     constexpr uint32 PacketSize = PM4_PFP_LOAD_SH_REG_SIZEDW__CORE;
     PM4_PFP_LOAD_SH_REG packet = {};
 
-    packet.ordinal1.header.u32All             = (Type3Header(IT_LOAD_SH_REG, PacketSize, false, shaderType)).u32All;
-    packet.ordinal2.bitfields.base_address_lo = (LowPart(gpuVirtAddr) >> 2);
-    packet.ordinal3.base_address_hi           = HighPart(gpuVirtAddr);
-    packet.ordinal4.bitfields.reg_offset      = (startRegAddr - PERSISTENT_SPACE_START);
-    packet.ordinal5.bitfields.num_dword       = count;
+    packet.ordinal1.header.u32All        = (Type3Header(IT_LOAD_SH_REG, PacketSize, false, shaderType)).u32All;
+    packet.ordinal2.u32All               = LowPart(gpuVirtAddr);
+    packet.ordinal3.base_address_hi      = HighPart(gpuVirtAddr);
+    packet.ordinal4.bitfields.reg_offset = (startRegAddr - PERSISTENT_SPACE_START);
+    packet.ordinal5.bitfields.num_dword  = count;
 
     static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
     memcpy(pBuffer, &packet, sizeof(packet));
@@ -3301,9 +3285,9 @@ size_t CmdUtil::BuildLoadShRegs(
     const uint32 packetSize = PM4_PFP_LOAD_SH_REG_SIZEDW__CORE + (2 * (rangeCount - 1));
     PM4_PFP_LOAD_SH_REG packet = {};
 
-    packet.ordinal1.header.u32All             = (Type3Header(IT_LOAD_SH_REG, packetSize, false, shaderType)).u32All;
-    packet.ordinal2.bitfields.base_address_lo = (LowPart(gpuVirtAddr) >> 2);
-    packet.ordinal3.base_address_hi           = HighPart(gpuVirtAddr);
+    packet.ordinal1.header.u32All    = (Type3Header(IT_LOAD_SH_REG, packetSize, false, shaderType)).u32All;
+    packet.ordinal2.u32All           = LowPart(gpuVirtAddr);
+    packet.ordinal3.base_address_hi  = HighPart(gpuVirtAddr);
 
     static_assert(PM4_PFP_LOAD_SH_REG_SIZEDW__CORE * sizeof(uint32) == sizeof(packet), "");
     memcpy(pBuffer, &packet, offsetof(PM4_PFP_LOAD_SH_REG, ordinal4));
@@ -3369,8 +3353,8 @@ size_t CmdUtil::BuildLoadShRegsIndex(
     }
     else
     {
-        packet.ordinal2.bitfields.mem_addr_lo = LowPart(gpuVirtAddr) >> 2;
-        packet.ordinal3.mem_addr_hi           = HighPart(gpuVirtAddr);
+        packet.ordinal2.u32All      = LowPart(gpuVirtAddr);
+        packet.ordinal3.mem_addr_hi = HighPart(gpuVirtAddr);
 
         // Only the low 16 bits are honored for the high portion of the GPU virtual address!
         PAL_ASSERT((HighPart(gpuVirtAddr) & 0xFFFF0000) == 0);
@@ -3411,9 +3395,9 @@ size_t CmdUtil::BuildLoadUserConfigRegs(
     const uint32 packetSize = PM4_PFP_LOAD_UCONFIG_REG_SIZEDW__CORE + (2 * (rangeCount - 1));
     PM4_PFP_LOAD_UCONFIG_REG packet = {};
 
-    packet.ordinal1.header.u32All             = (Type3Header(IT_LOAD_UCONFIG_REG, packetSize)).u32All;
-    packet.ordinal2.bitfields.base_address_lo = (LowPart(gpuVirtAddr) >> 2);
-    packet.ordinal3.base_address_hi           = HighPart(gpuVirtAddr);
+    packet.ordinal1.header.u32All   = (Type3Header(IT_LOAD_UCONFIG_REG, packetSize)).u32All;
+    packet.ordinal2.u32All          = LowPart(gpuVirtAddr);
+    packet.ordinal3.base_address_hi = HighPart(gpuVirtAddr);
 
     static_assert(PM4_PFP_LOAD_UCONFIG_REG_SIZEDW__CORE * sizeof(uint32) == sizeof(packet), "");
     memcpy(pBuffer, &packet, offsetof(PM4_PFP_LOAD_UCONFIG_REG, ordinal4));
@@ -5041,13 +5025,64 @@ size_t CmdUtil::BuildPrimeGpuCaches(
         const size_t  numPages  = 1 + static_cast<size_t>((lastPage - firstPage) / PrimeUtcL2MemAlignment);
 
         packetSize = BuildPrimeUtcL2(firstPage,
-                                     cache_perm__pfp_prime_utcl2__execute,
+                                     4, // Execute bit only
                                      prime_mode__pfp_prime_utcl2__dont_wait_for_xack,
                                      engine_sel__pfp_prime_utcl2__prefetch_parser,
                                      numPages,
                                      pBuffer);
     }
 
+    return packetSize;
+}
+
+// =====================================================================================================================
+// Builds a PERF_COUNTER_WINDOW packet. Returns the size of the PM4 command assembled, in DWORDs.
+size_t CmdUtil::BuildPerfCounterWindow(
+    EngineType  engineType,
+    bool        enableWindow,
+    void*       pBuffer
+    ) const
+{
+    uint32                          packetSize = 0;
+    bool                            supported  = false;
+    PFP_PERF_COUNTER_WINDOW_op_enum operation  = enableWindow ? op__pfp_perf_counter_window__start_window__GFX11 :
+                                                                op__pfp_perf_counter_window__stop_window__GFX11;
+    static_assert((uint32(op__pfp_perf_counter_window__start_window__GFX11) ==
+                   uint32(op__mec_perf_counter_window__start_window__GFX11)) &&
+                  (uint32(op__pfp_perf_counter_window__stop_window__GFX11) ==
+                   uint32(op__mec_perf_counter_window__stop_window__GFX11)) &&
+                  (PM4_PFP_PERF_COUNTER_WINDOW_SIZEDW__GFX11 == PM4_MEC_PERF_COUNTER_WINDOW_SIZEDW__GFX11));
+
+    if (m_device.CoreSettings().enablePerfCounterWindowPacket)
+    {
+        if (engineType == EngineTypeCompute)
+        {
+            if (m_chipProps.mecUcodeVersion >= MinPerfCounterWindowMecVersion)
+            {
+                supported = true;
+            }
+        }
+        else if (m_chipProps.pfpUcodeVersion >= MinPerfCounterWindowPfpVersion)
+        {
+            supported = true;
+        }
+    }
+
+    if (supported)
+    {
+        packetSize = PM4_PFP_PERF_COUNTER_WINDOW_SIZEDW__GFX11;
+
+        PM4_PFP_PERF_COUNTER_WINDOW packet = {};
+
+        packet.ordinal1.header.u32All      = (Type3Header(IT_PERF_COUNTER_WINDOW__GFX11, packetSize).u32All);
+        packet.ordinal2.bitfields.gfx11.op = operation;
+
+        memcpy(pBuffer, &packet, sizeof(packet));
+    }
+    else
+    {
+        packetSize = uint32(BuildNop(PM4_MEC_PERF_COUNTER_WINDOW_SIZEDW__GFX11, pBuffer));
+    }
     return packetSize;
 }
 

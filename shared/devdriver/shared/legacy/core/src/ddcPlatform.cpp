@@ -30,7 +30,7 @@
     #include <stdio.h>
 #endif
 
-#include <tiny_printf/tiny_printf.h>
+#include <stb_sprintf.h>
 
 #include <util/vector.h>
 
@@ -99,7 +99,8 @@ namespace DevDriver
 
         int32 Vsnprintf(char* pDst, size_t dstSize, const char* format, va_list args)
         {
-            int32 ret = tiny_vsnprintf(pDst, dstSize, format, args);
+            DD_ASSERT(dstSize < INT32_MAX);
+            int32 ret = stbsp_vsnprintf(pDst, int(dstSize), format, args);
 
             // If the return value looks like a valid length, add one to account for a NULL byte.
             if (ret >= 0)

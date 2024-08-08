@@ -78,7 +78,7 @@ struct DmaImageCopyInfo
     DmaImageInfo dst;        // Everything about where it's going.
 };
 
-// DmaTypedBufferRegion defines information needed for writing copy commands in OSSIP DMA for typed buffers
+// DmaTypedBufferRegion defines information needed for writing copy commands in SDMA for typed buffers
 struct DmaTypedBufferRegion
 {
     gpusize   baseAddr;           // base address of region.
@@ -99,7 +99,7 @@ struct DmaTypedBufferCopyInfo
 };
 
 // =====================================================================================================================
-// Abstract class for executing basic hardware-specific functionality common to OSSIP DMA command buffers.
+// Abstract class for executing basic hardware-specific functionality common to SDMA command buffers.
 class DmaCmdBuffer : public CmdBuffer
 {
 public:
@@ -111,13 +111,21 @@ public:
 
     virtual void CmdBarrier(const BarrierInfo& barrier) override;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
     virtual uint32 CmdRelease(
+#else
+    virtual ReleaseToken CmdRelease(
+#endif
         const AcquireReleaseInfo& releaseInfo) override;
 
     virtual void CmdAcquire(
         const AcquireReleaseInfo& acquireInfo,
         uint32                    syncTokenCount,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
         const uint32*             pSyncTokens) override;
+#else
+        const ReleaseToken*       pSyncTokens) override;
+#endif
 
     virtual void CmdReleaseEvent(
         const AcquireReleaseInfo& releaseInfo,
@@ -349,7 +357,7 @@ protected:
 
     virtual Result BeginCommandStreams(CmdStreamBeginFlags cmdStreamFlags, bool doReset) override;
 
-    virtual gpusize GetSubresourceBaseAddr(const Image& image, const SubresId& subresource) const = 0;
+    virtual gpusize GetSubresourceBaseAddr(const Image& image, SubresId subresId) const = 0;
 
     virtual uint32 GetLinearRowPitchAlignment(uint32 bytesPerPixel) const = 0;
 
@@ -373,7 +381,7 @@ protected:
 private:
     void SetupDmaInfoSurface(
         const IImage&     image,
-        const SubresId&   subresource,
+        SubresId          subresId,
         const Offset3d&   offset,
         const ImageLayout imageLayout,
         DmaImageInfo*     pImageInfo,

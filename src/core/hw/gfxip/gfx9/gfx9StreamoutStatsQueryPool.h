@@ -71,13 +71,7 @@ public:
 protected:
     virtual ~StreamoutStatsQueryPool() {}
 
-    virtual void NormalReset(
-        GfxCmdBuffer*   pCmdBuffer,
-        Pal::CmdStream* pCmdStream,
-        uint32          startQuery,
-        uint32          queryCount) const override;
-
-    virtual void DmaEngineReset(
+    virtual void GpuReset(
         GfxCmdBuffer*   pCmdBuffer,
         Pal::CmdStream* pCmdStream,
         uint32          startQuery,

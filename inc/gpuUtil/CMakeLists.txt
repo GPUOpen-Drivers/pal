@@ -40,14 +40,17 @@ target_sources(pal PRIVATE
     palGpuUtil.h
     palMlaaUtil.h
     palMlaaUtilImpl.h
+    palMsaaImageCopyUtil.h
+    palMsaaImageCopyUtilImpl.h
+    palQueueTimingsTraceSource.h
+    palStringTableTraceSource.h
+    palRenderOpTraceController.h
     palTextWriter.h
     palTextWriterFont.h
     palTextWriterImpl.h
     palTimeGraph.h
     palTimeGraphImpl.h
     palTraceSession.h
-    palMsaaImageCopyUtil.h
-    palMsaaImageCopyUtilImpl.h
-    palQueueTimingsTraceSource.h
+    palUserMarkerHistoryTraceSource.h
 )
 

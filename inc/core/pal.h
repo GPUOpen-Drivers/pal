@@ -626,7 +626,7 @@ enum class TriState : uint8
  * OS abstractions for almost everything a client might need, but there are some cases where this is unavoidable:
  *
  * + Handling dynamic library infrastructure.  I.e., the client has to implement DllMain() on Windows, etc.
- * + OS-specific APIs or extensions.  DX may have Windows-specific functionality in the core API, and Vulkan/Mantle may
+ * + OS-specific APIs or extensions.  DX may have Windows-specific functionality in the core API, and Vulkan may
  *   export certain OS-specific features as extensions (like for presenting contents to the screen).
  * + Single OS clients (e.g., DX) may choose to make OS-specific calls directly simply out of convenience with no down
  *   side.
@@ -666,7 +666,7 @@ enum class TriState : uint8
  *
  * ### Introduction
  * PAL's core interface is defined in the @ref Pal namespace, and defines an object-oriented model for interacting with
- * the GPU and OS.  The interface closely resembles the Mantle, Vulkan, and DX12 APIs.  Some common features of these
+ * the GPU and OS.  The interface closely resembles the Vulkan and DX12 APIs.  Some common features of these
  * APIs that are central to the PAL interface:
  *
  * - All shader stages, and some additional "shader adjacent" state, are glommed together into a monolithic pipeline

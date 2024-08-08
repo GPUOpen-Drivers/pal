@@ -89,7 +89,7 @@ bool GfxImage::IsNv12OrP010FormatSurface() const
 }
 
 // =====================================================================================================================
-uint32 GfxImage::GetStencilPlane() const
+uint8 GfxImage::GetStencilPlane() const
 {
     return ((m_pImageInfo->numPlanes == 1) ? 0 : 1);
 }
@@ -124,10 +124,10 @@ void GfxImage::PadYuvPlanarViewActualExtent(
 
 // =====================================================================================================================
 bool GfxImage::IsSwizzleThin(
-    const SubresId& subResId
+    SubresId subresId
     ) const
 {
-    const SubResourceInfo* pSubResInfo = Parent()->SubresourceInfo(subResId);
+    const SubResourceInfo* pSubResInfo = Parent()->SubresourceInfo(subresId);
     const uint32           swizzleMode = GetSwTileMode(pSubResInfo);
 
     // If the image is 1D or 2D, then it's automatically thin... 3D images require help from the addrmgr as then the

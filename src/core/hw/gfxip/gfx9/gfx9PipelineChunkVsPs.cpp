@@ -104,7 +104,7 @@ void PipelineChunkVsPs::LateInit(
     const PalAbi::CodeObjectMetadata&   metadata,
     const GraphicsPipelineLoadInfo&     loadInfo,
     const GraphicsPipelineCreateInfo&   createInfo,
-    PipelineUploader*                   pUploader)
+    CodeObjectUploader*                 pUploader)
 {
     const Gfx9PalSettings&   settings  = m_device.Settings();
     const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
@@ -125,9 +125,14 @@ void PipelineChunkVsPs::LateInit(
         m_regs.sh.userDataInternalTablePs.bits.DATA = LowPart(symbol.gpuVirtAddr);
     }
 
+    // PsColorExportEntry will always exist, while PsColorExportDualSourceEntry is always created.
+    // So it needs to initialize the m_colorExportAddr[Default] and m_colorExportAddr[DualSourceBlendEnable]
+    // with the same default value, then update m_colorExportAddr[DualSourceBlendEnable] if
+    // PsColorExportDualSourceEntry created.
     if (pUploader->GetPipelineGpuSymbol(Abi::PipelineSymbolType::PsColorExportEntry, &symbol) == Result::Success)
     {
         m_colorExportAddr[static_cast<uint32>(ColorExportShaderType::Default)] = LowPart(symbol.gpuVirtAddr);
+        m_colorExportAddr[static_cast<uint32>(ColorExportShaderType::DualSourceBlendEnable)] = LowPart(symbol.gpuVirtAddr);
     }
 
     if (pUploader->GetPipelineGpuSymbol(Abi::PipelineSymbolType::PsColorExportDualSourceEntry, &symbol) ==

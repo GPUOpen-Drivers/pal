@@ -545,14 +545,22 @@ void CmdBuffer::CmdBarrier(
 }
 
 // =====================================================================================================================
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
 uint32 CmdBuffer::CmdRelease(
+#else
+ReleaseToken CmdBuffer::CmdRelease(
+#endif
     const AcquireReleaseInfo& releaseInfo)
 {
     const char       markerName[]   = "Release";
     constexpr uint32 MarkerNameSize = static_cast<uint32>(sizeof(markerName) - 1);
 
     InsertBeginMarker(MarkerSource::Pal, &markerName[0], MarkerNameSize);
-    uint32 syncToken = CmdBufferFwdDecorator::CmdRelease(releaseInfo);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
+    const uint32 syncToken = CmdBufferFwdDecorator::CmdRelease(releaseInfo);
+#else
+    const ReleaseToken syncToken = CmdBufferFwdDecorator::CmdRelease(releaseInfo);
+#endif
     InsertEndMarker(MarkerSource::Pal);
 
     return syncToken;
@@ -562,7 +570,11 @@ uint32 CmdBuffer::CmdRelease(
 void CmdBuffer::CmdAcquire(
     const AcquireReleaseInfo& acquireInfo,
     uint32                    syncTokenCount,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
     const uint32*             pSyncTokens)
+#else
+    const ReleaseToken*       pSyncTokens)
+#endif
 {
     const char       markerName[]   = "Acquire";
     constexpr uint32 MarkerNameSize = static_cast<uint32>(sizeof(markerName) - 1);

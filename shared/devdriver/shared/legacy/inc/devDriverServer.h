@@ -93,8 +93,6 @@ namespace DevDriver
         AllocCb          m_allocCb;
         ServerCreateInfo m_createInfo;
 
-        SettingsURIService::SettingsService* m_pSettingsService;
-
         template <Protocol protocol, class ...Args>
         inline Result RegisterProtocol(Args... args);
 

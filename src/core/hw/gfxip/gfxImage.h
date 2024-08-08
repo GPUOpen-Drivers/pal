@@ -127,12 +127,12 @@ public:
     virtual bool HasDisplayDccData() const { return false; }
 
     virtual bool IsFormatReplaceable(
-        const SubresId& subresId,
-        ImageLayout     layout,
-        bool            isDst,
-        uint8           disabledChannelMask = 0) const = 0;
+        SubresId    subresId,
+        ImageLayout layout,
+        bool        isDst,
+        uint8       disabledChannelMask = 0) const = 0;
 
-    virtual bool IsSubResourceLinear(const SubresId& subresource) const = 0;
+    virtual bool IsSubResourceLinear(SubresId subresource) const = 0;
 
     virtual bool IsIterate256Meaningful(const SubResourceInfo* subResInfo) const { return false; }
 
@@ -144,7 +144,7 @@ public:
 
     // Answers the question: "If I do shader writes in this layout, will it break my metadata?". For example, this
     // would return true if we promised that CopyDst would be compressed but tried to use a compute copy path.
-    virtual bool ShaderWriteIncompatibleWithLayout(const SubresId& subresId, ImageLayout layout) const = 0;
+    virtual bool ShaderWriteIncompatibleWithLayout(SubresId subresId, ImageLayout layout) const = 0;
 
     virtual void GetSharedMetadataInfo(SharedMetadataInfo* pMetadataInfo) const = 0;
     virtual void GetDisplayDccState(DccState* pState) const { PAL_NEVER_CALLED(); }
@@ -154,21 +154,21 @@ public:
     virtual void SetMallCursorCacheSize(uint32 cursorSize) { }
     virtual gpusize GetMallCursorCacheOffset() { return 0; }
 
-    virtual gpusize GetSubresourceAddr(SubresId  subResId) const = 0;
-    gpusize GetSubresource256BAddr(SubresId  subResId) const
-        { return GetSubresourceAddr(subResId) >> 8; }
+    virtual gpusize GetSubresourceAddr(SubresId  subresId) const = 0;
+    gpusize GetSubresource256BAddr(SubresId  subresId) const
+        { return GetSubresourceAddr(subresId) >> 8; }
     virtual gpusize GetPlaneBaseAddr(uint32 plane, uint32 arraySlice = 0) const { PAL_NEVER_CALLED(); return 0; }
 
     // Returns an integer that represents the tiling mode associated with the specified subresource.
     virtual uint32 GetSwTileMode(const SubResourceInfo* pSubResInfo) const = 0;
 
-    virtual uint32 GetTileSwizzle(const SubresId& subResId) const = 0;
+    virtual uint32 GetTileSwizzle(SubresId subresId) const = 0;
     virtual uint32 GetHwSwizzleMode(const SubResourceInfo* pSubResInfo) const = 0;
 
     // Returns true if this subresource is effectively swizzled as a 2D image.
-    virtual bool   IsSwizzleThin(const SubresId& subResId) const;
+    virtual bool   IsSwizzleThin(SubresId subresId) const;
 
-    uint32 GetStencilPlane() const;
+    uint8 GetStencilPlane() const;
 
     virtual void PadYuvPlanarViewActualExtent(SubresId subresource, Extent3d* pActualExtent) const;
 

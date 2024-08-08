@@ -35,8 +35,6 @@
 #include "core/hw/amdgpu_asic.h"
 #include "core/devDriverUtil.h"
 #include "devDriverServer.h"
-#include "protocols/ddSettingsService.h"
-#include "settingsService.h"
 
 namespace Pal
 {
@@ -326,11 +324,6 @@ void SettingsLoader::ValidateSettings(
         }
 #endif
 
-        if (m_settings.waNoOpaqueOreo && (m_settings.gfx11OreoModeControl == OMODE_O_THEN_B))
-        {
-            m_settings.gfx11OreoModeControl = OMODE_BLEND;
-        }
-
     }
     else
     {
@@ -384,6 +377,9 @@ void SettingsLoader::ValidateSettings(
 
     pExpSettings->expSynchronizationOptimizationOreoModeControl = (m_settings.gfx11OreoModeControl == Gfx11OreoModeBlend);
     pExpSettings->expDepthStencilTextureCompression             = !m_settings.htileEnable;
+
+    // Copy public setting 'waitOnFlush' to final private setting used in rest of pal
+    m_settings.waitOnFlush |= pPalSettings->waitOnFlush;
 }
 
 // =====================================================================================================================
@@ -682,8 +678,8 @@ static void SetupGfx11Workarounds(
     PAL_ASSERT(waFound);
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-    constexpr uint32 HandledWaMask[] = { 0x1E793001, 0x00084B00 }; // Workarounds handled by PAL.
-    constexpr uint32 OutsideWaMask[] = { 0xE0068DFE, 0x002714FC }; // Workarounds handled by other components.
+    constexpr uint32 HandledWaMask[] = { 0x1E793001, 0x00284B00 }; // Workarounds handled by PAL.
+    constexpr uint32 OutsideWaMask[] = { 0xE0068DFE, 0x000714FC }; // Workarounds handled by other components.
     constexpr uint32 MissingWaMask[] = { 0x00004000, 0x0000A001 }; // Workarounds that should be handled by PAL that
                                                                    // are not yet implemented or are unlikey to be
                                                                    // implemented.
@@ -721,6 +717,7 @@ static void SetupGfx11Workarounds(
     pSettings->waReplaceEventsWithTsEvents = workarounds.ppDbPWSIssueForDepthWrite_TextureRead_A_;
     pSettings->waAddPostambleEvent         = workarounds.geometryGeGEWdTe11ClockCanStayHighAfterShaderMessageThdgrp_A_;
     pSettings->waLineStippleReset          = workarounds.geometryPaPALineStippleResetError_A_;
+    pSettings->waCwsrThreadgroupTrap       = workarounds.shaderSqSqgNV3xHWBugCausesHangOnCWSRWhenTGCreatedOnSA1_A_;
 
     // These two settings are different ways of solving the same problem.  We've experimentally
     // determined that "intrinsic rate enable" has better performance.
@@ -859,14 +856,15 @@ void SettingsLoader::OverrideDefaults(
         // Apply this to all Gfx11 APUs
         if (device.ChipProperties().gpuType == GpuType::Integrated)
         {
-            // APU tuning with 2MB L2 Cache shows ATM Ring Buffer size 768 KiB yields best performance
-            m_settings.gfx11VertexAttributesRingBufferSizePerSe = 768_KiB;
-
-            if (IsPhoenix2(device)
-               )
+            if (device.ChipProperties().gfxip.tccSizeInBytes < 2_MiB)
             {
                 // For APU's with smaller L2 Cache, limit ATM Ring Buffer size to 512 KiB
                 m_settings.gfx11VertexAttributesRingBufferSizePerSe = 512_KiB;
+            }
+            else
+            {
+                // APU tuning with 2MB L2 Cache shows ATM Ring Buffer size 768 KiB yields best performance
+                m_settings.gfx11VertexAttributesRingBufferSizePerSe = 768_KiB;
             }
         }
     }
@@ -919,6 +917,8 @@ void SettingsLoader::OverrideDefaults(
             m_settings.minDccCompressedBlockSize = Gfx9MinDccCompressedBlockSize::BlockSize32B;
         }
     }
+
+    pPublicSettings->waitOnFlush = m_settings.waitOnFlush;
 }
 
 // =====================================================================================================================

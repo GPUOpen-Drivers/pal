@@ -355,7 +355,7 @@ private:
     void SlowClearGraphicsOneMip(
         Pm4CmdBuffer*              pCmdBuffer,
         const Image&               dstImage,
-        const SubresId&            mipSubres,
+        SubresId                   mipSubres,
         uint32                     boxCount,
         const Box*                 pBoxes,
         ColorTargetViewCreateInfo* pColorViewInfo,

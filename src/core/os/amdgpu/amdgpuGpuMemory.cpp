@@ -194,6 +194,7 @@ Result GpuMemory::AllocateOrPinMemory(
                 {
                     allocRequest.flags = AMDGPU_GEM_CREATE_NO_EVICT;
                 }
+
                 // Note: From PAL's perspective, heap[0] has its priority according to GpuMemPriority. But from amdgpu's
                 // perspective, there is not four heaps. GpuMemory can resident in "GTT" domain, "VRAM" domain or both
                 // "GTT" and "VRAM" domains, based on expected physical location when GPU read or write them.
@@ -202,7 +203,6 @@ Result GpuMemory::AllocateOrPinMemory(
                 // Any GpuMemory prefers both "GTT" and "VRAM" may stay in "GTT" forever after being moved. Moving around
                 // normally happens when VRAM usage is high, however, it can also happen when OS turns on some power saving
                 // settings and powered off the GPU.
-
                 if (m_heapCount > 0)
                 {
                     const GpuHeap preferredHeap = m_heaps[0];
@@ -300,6 +300,12 @@ Result GpuMemory::AllocateOrPinMemory(
                     // VM always valid guarantees VM addresses are always valid within local VM context.
                     allocRequest.flags |= AMDGPU_GEM_CREATE_VM_ALWAYS_VALID;
                     m_amdgpuFlags.isVmAlwaysValid = true;
+                }
+
+                if ((pDevice->IsDiscardableBoSupported()) &&
+                    (IsDiscardable()))
+                {
+                    allocRequest.flags |= AMDGPU_GEM_CREATE_DISCARDABLE;
                 }
 
                 // Use explicit sync for multi process memory and assume external synchronization

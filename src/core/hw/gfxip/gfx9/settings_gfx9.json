@@ -1833,13 +1833,13 @@
       "Name": "Gfx11ForceExportOrderControl"
     },
     {
-      "Description": "Maximum shader prefetch size in bytes.  Set arbitrarily large to use driver default.  Set to zero to disable",
+      "Description": "Maximum shader prefetch size in bytes. Set to zero to disable.",
       "Tags": [
         "Shader Options",
         "Gfx9"
       ],
       "Defaults": {
-        "Default": 4294967295
+        "Default": 8064
       },
       "Flags": {},
       "Scope": "PrivatePalGfx9Key",
@@ -2299,6 +2299,21 @@
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
       "Name": "WaLineStippleReset"
+    },
+    {
+      "Description": "If the workaround is enabled, then COMPUTE_PGM_RSRC1.PRIV will always be set to 1.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "Name": "WaCwsrThreadgroupTrap"
     },
     {
       "Description": "If the workaround is enabled, then AUTO_FLUSH_MODE settings will be inverted.",

@@ -172,8 +172,8 @@ void AddrMgr::ComputePackedMipInfo(
          pGpuMemLayout->prtMinPackedLod < createInfo.mipLevels;
          pGpuMemLayout->prtMinPackedLod++)
     {
-        const SubresId              subResId    = { 0, pGpuMemLayout->prtMinPackedLod, 0 };
-        const SubResourceInfo*const pSubResInfo = image.SubresourceInfo(subResId);
+        const SubresId subresId = Subres(0, pGpuMemLayout->prtMinPackedLod, 0);
+        const SubResourceInfo*const pSubResInfo = image.SubresourceInfo(subresId);
 
         if (m_pDevice->ChipProperties().imageProperties.prtFeatures & PrtFeatureUnalignedMipSize)
         {

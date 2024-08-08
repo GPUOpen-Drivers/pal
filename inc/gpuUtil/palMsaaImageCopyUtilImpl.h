@@ -115,7 +115,7 @@ template <typename Allocator>
 void MsaaImageCopyUtil<Allocator>::BuildImageViewInfo(
     Pal::ImageViewInfo*   pInfo,
     const Pal::IImage*    pImage,
-    const Pal::SubresId&  subresId,
+    Pal::SubresId         subresId,
     Pal::SwizzledFormat   swizzledFormat,
     bool                  isShaderWriteable
     ) const

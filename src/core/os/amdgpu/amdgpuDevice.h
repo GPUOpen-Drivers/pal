@@ -231,7 +231,7 @@ public:
 
     bool SupportsGangSubmit() const
     {
-        bool supportsGangSubmit = ((IsDrmVersionOrGreater(3,49) || IsKernelVersionEqualOrGreater(6,1)) &&
+        bool supportsGangSubmit = ((IsDrmVersionOrGreater(3, 49) || IsKernelVersionEqualOrGreater(6, 1)) &&
                                     Settings().enableGangSubmit);
         return supportsGangSubmit;
     }
@@ -522,9 +522,11 @@ public:
                 (m_publicSettings.enableVmAlwaysValid != VmAlwaysValidForceDisable));
     }
 
-    bool IsRaw2SubmitSupported() const { return (m_featureState.supportRaw2Submit != 0); }
+    bool IsRaw2SubmitSupported()    const { return (m_featureState.supportRaw2Submit != 0);    }
 
-    bool UseBoListCreate() const { return (m_featureState.useBoListCreate != 0); }
+    bool UseBoListCreate()          const { return (m_featureState.useBoListCreate != 0);      }
+
+    bool IsDiscardableBoSupported() const { return (m_featureState.supportDiscardableBo != 0); }
 
     // Access KMD interfaces
     Result AllocBuffer(
@@ -1154,7 +1156,9 @@ private:
             uint32 supportRaw2Submit                   : 1;     // Support amdgpu_cs_submit_raw2.
             uint32 useBoListCreate                     : 1;     // Indicate whether legacy path is needed for raw IBs submission.
             uint32 supportPowerDpmIoctl                : 1;     // Support setting/getting Power DPM status by IOCTL
-            uint32 reserved                            : 24;
+            uint32 supportDiscardableBo                : 1;     // Support creating bo that can be discarded under memory
+                                                                // pressure without keeping the content.
+            uint32 reserved                            : 23;
         };
         uint32 flags;
     } m_featureState;

@@ -188,12 +188,20 @@ public:
         uint32*       pDstStageMask,
         uint32*       pDstAccessMask) const override { return false; }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
     virtual uint32 CmdRelease(const AcquireReleaseInfo& releaseInfo) override;
+#else
+    virtual ReleaseToken CmdRelease(const AcquireReleaseInfo& releaseInfo) override;
+#endif
 
     virtual void CmdAcquire(
         const AcquireReleaseInfo& acquireInfo,
         uint32                    syncTokenCount,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
         const uint32*             pSyncTokens) override;
+#else
+        const ReleaseToken*       pSyncTokens) override;
+#endif
 
     virtual void CmdReleaseEvent(
         const AcquireReleaseInfo& releaseInfo,
@@ -768,8 +776,6 @@ public:
 
     virtual void CmdCommentString(
         const char* pComment) override { PAL_NEVER_CALLED(); }
-
-    virtual void CmdXdmaWaitFlipPending() override { PAL_NEVER_CALLED(); }
 
     virtual void CmdUpdateHiSPretests(
        const IImage*      pImage,

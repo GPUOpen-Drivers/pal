@@ -23,6 +23,8 @@
  *
  **********************************************************************************************************************/
 
+#pragma once
+
 #include <dd_common_api.h>
 #include <dd_memory.h>
 #include <dd_mutex.h>
@@ -58,7 +60,8 @@ public:
 
     RingBuffer()
         : m_pBuf {nullptr}
-        , m_bufSize {0}
+        , m_bufSize {0},
+          m_bufSizeMask {0}
         , m_write {0}
         , m_read {0}
         , m_wholeBufferMutex {}

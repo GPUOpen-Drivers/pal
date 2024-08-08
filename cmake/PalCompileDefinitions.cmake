@@ -73,9 +73,9 @@ function(pal_compile_definitions_gpu TARGET)
             target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_PHOENIX=$<BOOL:${PAL_BUILD_GFX9}>)
             target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_PHOENIX1=$<BOOL:${PAL_BUILD_GFX9}>)
         endif()
-
-        # We'll remove this soon...
-        target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_PHOENIX2=$<BOOL:${PAL_BUILD_GFX9}>)
+        if (PAL_CLIENT_INTERFACE_MAJOR_VERSION LESS 888)
+            target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_PHOENIX2=$<BOOL:${PAL_BUILD_GFX9}>)
+        endif()
 
     endif()
 endfunction()
@@ -167,7 +167,7 @@ function(pal_compile_definitions TARGET)
 
     target_compile_definitions(${TARGET} PRIVATE PAL_BUILD_CORE=$<BOOL:${PAL_BUILD_CORE}>)
 
-    if(PAL_AMDGPU_BUILD)
+    if (PAL_AMDGPU_BUILD)
         message(STATUS "PAL build with amdgpu back-end enabled")
 
         target_compile_definitions(${TARGET} PUBLIC PAL_AMDGPU_BUILD=1)
@@ -177,14 +177,12 @@ function(pal_compile_definitions TARGET)
         target_compile_definitions(${TARGET} PRIVATE PAL_HAVE_WAYLAND_PLATFORM=$<BOOL:${PAL_BUILD_WAYLAND}>)
     endif()
 
-    if (PAL_BUILD_OSS)
-        target_compile_definitions(${TARGET} PRIVATE PAL_BUILD_OSS=1)
-
+    if (PAL_CLIENT_INTERFACE_MAJOR_VERSION LESS 888)
+        if (PAL_BUILD_OSS)
 #if PAL_BUILD_OSS2_4
-        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_OSS2_4=$<BOOL:${PAL_BUILD_OSS2_4}>)
+            target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_OSS2_4=$<BOOL:${PAL_BUILD_OSS2_4}>)
 #endif
-
-        target_compile_definitions(${TARGET} PRIVATE PAL_BUILD_OSS4=$<BOOL:${PAL_BUILD_OSS4}>)
+        endif()
     endif()
 
 #if PAL_BUILD_RPM_GFX_SHADERS

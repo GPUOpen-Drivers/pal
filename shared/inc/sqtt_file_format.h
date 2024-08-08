@@ -202,11 +202,13 @@ typedef enum SqttGpuType
 typedef enum SqttGfxIpLevel
 {
     SQTT_GFXIP_LEVEL_NONE       = 0x0,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 888
     SQTT_GFXIP_LEVEL_GFXIP_6    = 0x1,
     SQTT_GFXIP_LEVEL_GFXIP_7    = 0x2,
     SQTT_GFXIP_LEVEL_GFXIP_8    = 0x3,
     SQTT_GFXIP_LEVEL_GFXIP_8_1  = 0x4,
     SQTT_GFXIP_LEVEL_GFXIP_9    = 0x5,
+#endif
     SQTT_GFXIP_LEVEL_GFXIP_10_1 = 0x7,
     SQTT_GFXIP_LEVEL_GFXIP_10_3 = 0x9,
     SQTT_GFXIP_LEVEL_GFXIP_11_0 = 0xC,
@@ -387,7 +389,11 @@ typedef struct SqttFileChunkApiInfo
  */
 typedef enum SqttVersion
 {
-    SQTT_VERSION_NONE         = 0x0,                        /*!< Not supported. */
+    SQTT_VERSION_NONE = 0x0, /*!< Not supported. */
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 888
+    SQTT_VERSION_3_0  = 0x7, /*!< TT 3.0 Navi1, Navi2 (GfxIp10-10.3). */
+    SQTT_VERSION_3_2  = 0xB, /*!< TT 3.2 Navi3, Phoenix (GfxIp11). */
+#else // PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 888
     SQTT_VERSION_1_0          = 0x1,                        /*!< TT 1.0 Evergreen ("8xx"). */
     SQTT_VERSION_1_1          = 0x2,                        /*!< TT 1.1 Northern Islands ("9xx"). */
     SQTT_VERSION_2_0          = 0x3,                        /*!< TT 2.0 Southern Islands ("GfxIp6"). */
@@ -400,6 +406,7 @@ typedef enum SqttVersion
     SQTT_VERSION_RESERVED_0x9 = 0x9,                        /*!< Reserved. */
     SQTT_VERSION_RESERVED_0xA = 0xA,                        /*!< Reserved. */
     SQTT_VERSION_3_2          = 0xB,                        /*!< TT 3.2 */
+#endif
 } SqttVersion;
 
 /** A structure encapsulating the description of the data contained in the matching SQTT_FILE_CHUNK_SQTT_DATA chunk.

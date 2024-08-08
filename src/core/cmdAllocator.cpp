@@ -1104,16 +1104,8 @@ void CmdAllocator::LogCommit(
         m_pChunkLock->Lock();
     }
 
-    constexpr uint32 HistogramIndex[] =
-    {
-        0,        // EngineTypeUniversal
-        2,        // EngineTypeCompute
-        3,        // EngineTypeDma,
-        UINT_MAX, // EngineTypeTimer
-    };
-
-    // Put the DE and CE first followed by the other queues.
-    const uint32 histIdx = HistogramIndex[engineType] + ((isConstantEngine) ?  1 : 0);
+    // Put CE chunks after all the canonical engine types.
+    const uint32 histIdx = isConstantEngine ?  EngineTypeCount : engineType;
     const uint32 binIdx  = Pow2Align(numDwords, HistogramStep) / HistogramStep;
 
     m_pHistograms[histIdx][binIdx]++;

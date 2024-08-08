@@ -57,7 +57,7 @@ public:
         GpuMemSubAllocInfo* const  pAllocInfoList) const override;
 
     static void GetFunctionGpuVirtAddrs(
-        const PipelineUploader&    uploader,
+        const CodeObjectUploader&  uploader,
         ShaderLibraryFunctionInfo* pFuncInfoList,
         uint32                     funcCount);
 
@@ -84,7 +84,7 @@ protected:
     Result PerformRelocationsAndUploadToGpuMemory(
         const Util::PalAbi::CodeObjectMetadata& metadata,
         const GpuHeap&                          clientPreferredHeap,
-        PipelineUploader*                       pUploader);
+        CodeObjectUploader*                     pUploader);
 
     Result InitFunctionListFromMetadata(
         const Util::PalAbi::CodeObjectMetadata& metadata,

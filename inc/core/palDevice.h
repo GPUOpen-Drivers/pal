@@ -158,6 +158,7 @@ enum class GpuType : uint32
     Count
 };
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 888
 /// Specifies which operating-system-support IP level (OSSIP) this device has.
 enum class OssIpLevel : uint32
 {
@@ -215,6 +216,7 @@ enum class UvdIpLevel : uint32
     UvdIp7   = 0x7,
     UvdIp7_2 = 0x8,
 };
+#endif
 
 /// Specifies which VCN IP level this device has.
 enum class VcnIpLevel : uint32
@@ -226,10 +228,13 @@ enum class VcnIpLevel : uint32
 #ifndef None
     None     = _None, ///< The device does not have an VCNIP block, or its level cannot be determined
 #endif
-
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 888
+#else // PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 888
     VcnIp1   = 0x1,
+#endif
 };
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 888
 /// Specifies which SPU IP level this device has.
 enum class SpuIpLevel : uint32
 {
@@ -239,6 +244,7 @@ enum class SpuIpLevel : uint32
 #endif
     SpuIp    = 0x1,
 };
+#endif
 
 /// Specifies which PSP IP level this device has.
 enum class PspIpLevel : uint32
@@ -384,12 +390,17 @@ enum class DccInitialClearKind {
 /// Enum defining the different scopes (i.e. registry locations) where settings values are stored
 enum InternalSettingScope : uint32
 {
-    PrivateDriverKey = 0x0,
-    PublicPalKey = 0x1,
-    PrivatePalKey = 0x2,
-    PrivatePalGfx6Key = 0x3,
-    PrivatePalGfx9Key = 0x4,
-    PublicCatalystKey = 0x5,
+    PrivateDriverKey   = 0x0,
+    PublicPalKey       = 0x1,
+    PrivatePalKey      = 0x2,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 888
+    PublicCatalystKey  = 0x3,
+    PrivatePalGfx9Key  = 0x4,
+#else // PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 888
+    PrivatePalGfx6Key  = 0x3,
+    PrivatePalGfx9Key  = 0x4,
+    PublicCatalystKey  = 0x5,
+#endif
 };
 
 /// Enum defining override states for feature settings.
@@ -615,7 +626,6 @@ struct PalPublicSettings
     /// that currently needs Escape call.
     bool disableEscapeCall;
 
-    /// In Win7 requests an extended TDR timeout (6 seconds).
     bool longRunningSubmissions;
 
     /// Disables MCBP on demand. This is a temporary setting until ATOMIC_MEM packet issue with MCBP is resolved.
@@ -757,6 +767,15 @@ struct PalPublicSettings
     /// Toggles whether or not image copies will prefer using the graphics pipeline. This setting does not force all
     /// copies to use graphics or compute, it changes what method will be selected in cases where either could be used.
     bool preferGraphicsImageCopy;
+
+    /// Bitmask to control adding Waits around Flush events
+    /// This is public setting to allow AppDetect to override of 'WaitOnFlush' setting.
+    /// Setting 'waitOnFlush' for actual workarounds is strongly discouraged because:
+    ///  1) It has a negative performance impact.
+    ///  2) Waits effect the timing and pipeline execution which can hide underlying hw/fw/sw bugs.
+    /// Issues resolved by added waits should be root caused.
+    uint32 waitOnFlush;
+
 };
 
 /// Defines the modes that the GPU Profiling layer can use when its buffer fills.
@@ -880,14 +899,16 @@ enum MsaaFlags : uint16
 /// Supported RTIP version enumeration
 enum class RayTracingIpLevel : uint32
 {
-    _None = 0,
+    _None   = 0x0,   ///< The device does not have an RayTracing Ip Level
 #ifndef None
-    None = _None,      ///< The device does not have an RayTracing Ip Level
+    None    = _None, ///< The device does not have an RayTracing Ip Level
 #endif
-
-    RtIp1_0 = 0x1,     ///< First Implementation of HW RT
-    RtIp1_1 = 0x2,     ///< Added computation of triangle barycentrics into HW
-    RtIp2_0 = 0x3,     ///< Added more Hardware RayTracing features, such as BoxSort, PointerFlag, etc
+    RtIp1_0 = 0x1,   ///< First Implementation of HW RT
+    RtIp1_1 = 0x2,   ///< Added computation of triangle barycentrics into HW
+    RtIp2_0 = 0x3,   ///< Added more Hardware RayTracing features, such as BoxSort, PointerFlag, etc
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 888
+#else // PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 888
+#endif
 };
 
 /// Which ip version a component has reported
@@ -918,11 +939,15 @@ struct DeviceProperties
     uint16     gpuPerformanceCapacity;       ///< Portion of GPU assigned in virtualized system (SRIOV)
                                              ///< 0-65535, 0 invalid (not virtualized), 1 min, 65535 max
     GfxIpLevel gfxLevel;                     ///< IP level of this GPU's GFX block
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 888
     OssIpLevel ossLevel;                     ///< IP level of this GPU's OSS block
     VceIpLevel vceLevel;                     ///< IP level of this GPU's VCE block
     UvdIpLevel uvdLevel;                     ///< IP level of this GPU's UVD block
+#endif
     VcnIpLevel vcnLevel;                     ///< IP level of this GPU's VCN block
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 888
     SpuIpLevel spuLevel;                     ///< IP level of this GPU's SPU block
+#endif
     PspIpLevel pspLevel;                     ///< IP level of this GPU's PSP block
     uint32     gfxStepping;                  ///< Stepping level of this GPU's GFX block
     IpTriple   gfxTriple;                    ///< Full GFX IP level (major.minor.step) of this GPU
@@ -1084,11 +1109,15 @@ struct DeviceProperties
                 /// This queue supports IQueue::PresentSwapChain() calls.  Note that a queue may support swap chain
                 /// presents even if the supportedDirectPresentModes flags below indicate no support for direct
                 /// presents; instead swap chain PresentMode support is queried via GetSwapChainInfo.
-                uint32 supportsSwapChainPresents :  1;
-                uint32 reserved744               :  1;
+                uint32 supportsSwapChainPresents  :  1;
+                uint32 reserved744                :  1;
+                /// Set if the queue supports additional split barrier feature on top of basic acquire/release
+                /// interface support. This provides CmdAcquire() and CmdRelease() to implement split barriers.
+                ///  Note: supportReleaseAcquireInterface is a prerequisite to supportSplitReleaseAcquire.
+                uint32 supportSplitReleaseAcquire :  1;
 
                 /// Reserved for future use.
-                uint32 reserved                  : 30;
+                uint32 reserved                   : 29;
             };
             uint32 u32All;                    ///< Flags packed as 32-bit uint.
         } flags;                              ///< Queue property flags.
@@ -1324,7 +1353,7 @@ struct DeviceProperties
                                                                 ///  in the pixel shader pipeline.
                 uint64 supportsPerShaderStageWaveSize     :  1; ///< If set, the "waveSize" setting in the
                                                                 ///  @ref PipelineShaderInfo structure is meaningful.
-                uint64 placeholder2                       :  1; ///< Reserved for future hardware.
+                uint64 placeholder2                       :  1; ///< Placeholder for backward compatibility, no use it.
                 uint64 supportSpp                         :  1; ///< Hardware supports Shader Profiling for Power.
                 uint64 timestampResetOnIdle               :  1; ///< GFX timestamp resets after idle between
                                                                 ///  submissions. The client cannot assume that
@@ -1336,12 +1365,16 @@ struct DeviceProperties
                                                                 ///  provides CmdReleaseThenAcquire() as a convenient
                                                                 ///  way to replace the legacy barrier interface's
                                                                 ///  CmdBarrier() to handle single point barriers.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 883
                 uint64 supportSplitReleaseAcquire         :  1; ///< Set if HW supports additional split barrier feature
                                                                 ///  on top of basic acquire/release interface support.
                                                                 ///  This provides CmdAcquire() and CmdRelease() to
                                                                 ///  implement split barriers.
                                                                 ///  Note: supportReleaseAcquireInterface is a
                                                                 ///  prerequisite to supportSplitReleaseAcquire.
+#else
+                uint64 placeholder3                       :  1; ///< Placeholder for backward compatibility, no use it.
+#endif
                 uint64 supportGl2Uncached                 :  1; ///< Indicates support for the allocation of GPU L2
                                                                 ///  un-cached memory. @see gl2UncachedCpuCoherency
                 uint64 supportOutOfOrderPrimitives        :  1; ///< HW supports higher throughput for out of order

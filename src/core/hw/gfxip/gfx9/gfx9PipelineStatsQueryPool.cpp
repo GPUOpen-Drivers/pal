@@ -80,7 +80,6 @@ struct PipelineStatsLayoutData
     uint32                  counterOffset; // The offset in QWORDs to this stat inside of a Gfx9ipelineStatsData.
 };
 
-// All other clients use this layout.
 constexpr PipelineStatsLayoutData PipelineStatsLayout[] =
 {
     { QueryPipelineStatsIaVertices,    offsetof(Gfx9PipelineStatsData, iaVertices)    / sizeof(uint64) },
@@ -455,42 +454,16 @@ Result PipelineStatsQueryPool::Reset(
 
     if (result == Result::Success)
     {
-        result = DoReset(startQuery, queryCount, pMappedCpuAddr, 4, &PipelineStatsResetMemValue32);
+        result = CpuReset(startQuery, queryCount, pMappedCpuAddr, 4, &PipelineStatsResetMemValue32);
     }
 
     return result;
 }
 
 // =====================================================================================================================
-// Reset query using DMA, when NormalReset() can't be used or the command buffer does not support PM4.
-void PipelineStatsQueryPool::DmaEngineReset(
-    GfxCmdBuffer*   pCmdBuffer,
-    Pal::CmdStream* pCmdStream,
-    uint32          startQuery,
-    uint32          queryCount
-    ) const
-{
-    const gpusize offset   = GetQueryOffset(startQuery);
-    const gpusize dataSize = GetGpuResultSizeInBytes(queryCount);
-
-    // This function must only be called by the DMA queue. It is missing a barrier call that is necessary to issue a
-    // CS_PARTIAL_FLUSH on the universal and compute queues.
-    PAL_ASSERT(pCmdBuffer->GetEngineType() == EngineTypeDma);
-    PAL_ASSERT(m_gpuMemory.IsBound());
-
-    pCmdBuffer->CmdFillMemory(*m_gpuMemory.Memory(), offset, dataSize, PipelineStatsResetMemValue32);
-
-    // Reset the memory for querypool timestamps.
-    pCmdBuffer->CmdFillMemory(*m_gpuMemory.Memory(),
-                              GetTimestampOffset(startQuery),
-                              m_timestampSizePerSlotInBytes * queryCount,
-                              0);
-}
-
-// =====================================================================================================================
 // Reset query via PM4 commands on a PM4-supported command buffer.
 // NOTE: It is safe to call this with a command buffer that does not support pipeline stats.
-void PipelineStatsQueryPool::NormalReset(
+void PipelineStatsQueryPool::GpuReset(
     GfxCmdBuffer*   pCmdBuffer,
     Pal::CmdStream* pCmdStream,
     uint32          startQuery,

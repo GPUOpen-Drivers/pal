@@ -149,12 +149,20 @@ public:
         // return the original pipe and cache info, and drop the call from propagating to next layer.
         return false;
     }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
     virtual uint32 CmdRelease(
+#else
+    virtual ReleaseToken CmdRelease(
+#endif
         const AcquireReleaseInfo& releaseInfo) override;
     virtual void CmdAcquire(
         const AcquireReleaseInfo& acquireInfo,
         uint32                    syncTokenCount,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
         const uint32*             pSyncTokens) override;
+#else
+        const ReleaseToken*       pSyncTokens) override;
+#endif
 
     virtual void CmdReleaseEvent(
         const AcquireReleaseInfo& releaseInfo,
@@ -497,8 +505,6 @@ public:
         uint32      rectCount,
         const Rect* pRectList) override;
 
-    virtual void CmdXdmaWaitFlipPending() override;
-
     virtual void CmdSetViewInstanceMask(uint32 mask) override;
 
     virtual void CmdUpdateHiSPretests(
@@ -829,7 +835,6 @@ private:
     void ReplayCmdPostProcessFrame(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetUserClipPlanes(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetClipRects(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
-    void ReplayCmdXdmaWaitFlipPending(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdUpdateHiSPretests(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdStartGpuProfilerLogging(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdStopGpuProfilerLogging(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
@@ -851,7 +856,7 @@ private:
                                const ImageLayoutUsageFlags    srcLayoutUsages,
                                const ImageLayoutEngineFlags   srcLayoutEngine,
                                const CacheCoherencyUsageFlags srcCoher,
-                               const SubresId&                baseSubres,
+                               SubresId                       baseSubres,
                                const uint32                   arraySize,
                                bool                           isDraw,
                                IImage**                       ppDstImage);
@@ -921,8 +926,12 @@ private:
     TargetCmdBuffer*   m_pLastTgtCmdBuffer;
 
     // List of release tokens that are used to handle acquire/release interface through this layer's replay mechanism.
-    uint32                             m_numReleaseTokens;
-    Util::Vector<uint32, 16, Platform> m_releaseTokenList;
+    uint32                                   m_numReleaseTokens;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
+    Util::Vector<uint32, 16, Platform>       m_releaseTokenList;
+#else
+    Util::Vector<ReleaseToken, 16, Platform> m_releaseTokenList;
+#endif
 
     PAL_DISALLOW_DEFAULT_CTOR(CmdBuffer);
     PAL_DISALLOW_COPY_AND_ASSIGN(CmdBuffer);

@@ -398,10 +398,12 @@ public:
         return m_pNextLayer->GetDevDriverServer();
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 890
     virtual SettingsRpcService::SettingsService* GetSettingsService() override
     {
         return m_pNextLayer->GetSettingsService();
     }
+#endif
 
     virtual DevDriver::SettingsRpcService* GetSettingsRpcService() override
     {
@@ -1621,12 +1623,20 @@ public:
                                                      pDstStageMask,
                                                      pDstAccessMask); }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
     virtual uint32 CmdRelease(
+#else
+    virtual ReleaseToken CmdRelease(
+#endif
         const AcquireReleaseInfo& releaseInfo) override;
     virtual void CmdAcquire(
         const AcquireReleaseInfo& acquireInfo,
         uint32                    syncTokenCount,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
         const uint32*             pSyncTokens) override;
+#else
+        const ReleaseToken*       pSyncTokens) override;
+#endif
 
     virtual void CmdReleaseEvent(
         const AcquireReleaseInfo& releaseInfo,
@@ -2259,9 +2269,6 @@ public:
         uint32      rectCount,
         const Rect* pRectList) override
         { m_pNextLayer->CmdSetClipRects(clipRule, rectCount, pRectList); }
-
-    virtual void CmdXdmaWaitFlipPending() override
-        { m_pNextLayer->CmdXdmaWaitFlipPending(); }
 
     virtual void CmdStartGpuProfilerLogging() override
         { m_pNextLayer->CmdStartGpuProfilerLogging(); }

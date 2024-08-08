@@ -3555,7 +3555,7 @@ static TEX_BC_SWIZZLE GetBcSwizzle(
 // =====================================================================================================================
 static void GetSliceAddressOffsets(
     const Image& image,
-    SubresId     subResId,
+    SubresId     subresId,
     uint32       arraySlice,
     uint32*      pSliceXor,
     gpusize*     pSliceOffset)
@@ -3565,10 +3565,10 @@ static void GetSliceAddressOffsets(
     const auto*const                       pParent         = image.Parent();
     const ImageCreateInfo&                 imageCreateInfo = pParent->GetImageCreateInfo();
     Pal::Device*                           pDevice         = pParent->GetDevice();
-    const SubResourceInfo*const            pSubResInfo     = pParent->SubresourceInfo(subResId);
+    const SubResourceInfo*const            pSubResInfo     = pParent->SubresourceInfo(subresId);
     const auto*const                       pAddrOutput     = image.GetAddrOutput(pSubResInfo);
     const auto&                            surfSetting     = image.GetAddrSettings(pSubResInfo);
-    const AddrMgr2::TileInfo*              pTileInfo       = AddrMgr2::GetTileInfo(pParent, subResId);
+    const AddrMgr2::TileInfo*              pTileInfo       = AddrMgr2::GetTileInfo(pParent, subresId);
 
     inSliceXor.size            = sizeof(ADDR2_COMPUTE_SLICE_PIPEBANKXOR_INPUT);
     inSliceXor.swizzleMode     = surfSetting.swizzleMode;
@@ -4022,7 +4022,7 @@ Result Device::HwlValidateSamplerInfo(
 static void Gfx10UpdateLinkedResourceViewSrd(
     const Pal::Image* pParentImage, // Can be NULL for read access type
     const Image&      mapImage,
-    const SubresId&   subResId,
+    SubresId          subresId,
     PrtMapAccessType  accessType,
     sq_img_rsrc_t*    pSrd)
 {
@@ -4072,7 +4072,7 @@ static void Gfx10UpdateLinkedResourceViewSrd(
         const auto* pPalDevice          = pParentImage->GetDevice();
         const auto* pAddrMgr            = static_cast<const AddrMgr2::AddrMgr2*>(pPalDevice->GetAddrMgr());
         const auto& parentCreateInfo    = pParentImage->GetImageCreateInfo();
-        const auto* pMapSubResInfo      = mapImage.Parent()->SubresourceInfo(subResId);
+        const auto* pMapSubResInfo      = mapImage.Parent()->SubresourceInfo(subresId);
         const auto& parentExtent        = parentCreateInfo.extent;
         const auto& mapExtent           = mapCreateInfo.extent;
         const auto& mapSurfSetting      = mapImage.GetAddrSettings(pMapSubResInfo);
@@ -4104,7 +4104,7 @@ static void Gfx10UpdateLinkedResourceViewSrd(
         pLinkedRsrc->depth_scale  = Log2(parentExtent.depth  / mapExtent.depth);
 
         // Most importantly, the base address points to the map image, not the parent image.
-        pLinkedRsrc->base_address = mapImage.GetSubresource256BAddr(subResId);
+        pLinkedRsrc->base_address = mapImage.GetSubresource256BAddr(subresId);
 
         // As the linked resource image's memory is the one that is actually being accesed, the swizzle
         // mode needs to reflect that image, not the parent.
@@ -4227,9 +4227,8 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             // there is no suitable width or height, the actualExtentElements is chosen.  The application is in
             // charge of making sure the math works out properly if they do this (allowed by Vulkan), otherwise we
             // assume it's an internal view and the copy shaders will prevent accessing out-of-bounds pixels.
-            SubresId               mipSubResId    = { viewInfo.subresRange.startSubres.plane,
-                                                      firstMipLevel,
-                                                      baseArraySlice };
+            const SubresId         mipSubResId    =
+                Subres(viewInfo.subresRange.startSubres.plane, firstMipLevel, baseArraySlice);
             const SubResourceInfo* pMipSubResInfo = pParent->SubresourceInfo(mipSubResId);
 
             extent.width  = Clamp((pMipSubResInfo->extentElements.width  << firstMipLevel),
@@ -5305,13 +5304,6 @@ IpTriple DetermineIpLevel(
 
     switch (familyId)
     {
-    // GFX 9 Discrete GPU's (Arctic Islands):
-    case FAMILY_AI:
-    case FAMILY_RV:
-        // We no longer support any gfx9 GPUs.
-        PAL_ALERT_ALWAYS_MSG("gfx9 GPUs no longer supported.");
-        break;
-
     // GFX10 GPU's (Navi family)
     case FAMILY_NV:
         if (AMDGPU_IS_NAVI10(familyId, eRevId)
@@ -5389,7 +5381,6 @@ IpTriple DetermineIpLevel(
         break;
 
     default:
-        PAL_ASSERT_ALWAYS();
         break;
     }
 
@@ -5705,7 +5696,9 @@ void InitializeGpuChipProperties(
     pInfo->gfx9.supportTrapezoidTessDistribution = 1;
 
     pInfo->gfx9.supportReleaseAcquireInterface = 1;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 883
     pInfo->gfx9.supportSplitReleaseAcquire     = 1;
+#endif
 
     pInfo->gfx9.support3dUavZRange = 1;
 
@@ -5748,6 +5741,7 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.maxNumCuPerSh    = 10;
             pInfo->gfx9.maxNumRbPerSe    = 8;
             pInfo->gfx9.numSdpInterfaces = 16;
+            pInfo->gfxip.tccSizeInBytes  = 4_MiB;
         }
         else if (AMDGPU_IS_NAVI12(pInfo->familyId, pInfo->eRevId))
         {
@@ -5762,6 +5756,7 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.supportFp16Dot2  = 1;
             pInfo->gfx9.supportInt8Dot   = 1;
             pInfo->gfx9.supportInt4Dot   = 1;
+            pInfo->gfxip.tccSizeInBytes  = 4_MiB;
         }
         else if (AMDGPU_IS_NAVI14(pInfo->familyId, pInfo->eRevId))
         {
@@ -5782,6 +5777,7 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.gfx10.numWgpBelowSpi = 3; // GPU__GC__NUM_WGP1_PER_SA
             pInfo->gfx9.supportInt8Dot       = 1;
             pInfo->gfx9.supportInt4Dot       = 1;
+            pInfo->gfxip.tccSizeInBytes      = 2_MiB;
         }
         else if (AMDGPU_IS_NAVI21(pInfo->familyId, pInfo->eRevId))
         {
@@ -5801,6 +5797,7 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.supportInt8Dot           = 1;
             pInfo->gfx9.supportInt4Dot           = 1;
             pInfo->gfxip.mallSizeInBytes         = 128_MiB;
+            pInfo->gfxip.tccSizeInBytes          = 4_MiB;
         }
         else if (AMDGPU_IS_NAVI22(pInfo->familyId, pInfo->eRevId))
         {
@@ -5822,6 +5819,7 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.supportInt8Dot           = 1;
             pInfo->gfx9.supportInt4Dot           = 1;
             pInfo->gfxip.mallSizeInBytes         = 96_MiB;
+            pInfo->gfxip.tccSizeInBytes          = 3_MiB;
         }
         else if (AMDGPU_IS_NAVI23(pInfo->familyId, pInfo->eRevId))
         {
@@ -5843,6 +5841,7 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.supportInt8Dot           = 1;
             pInfo->gfx9.supportInt4Dot           = 1;
             pInfo->gfxip.mallSizeInBytes         = 32_MiB;
+            pInfo->gfxip.tccSizeInBytes          = 2_MiB;
         }
         else if (AMDGPU_IS_NAVI24(pInfo->familyId, pInfo->eRevId))
         {
@@ -5865,6 +5864,7 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.supportInt8Dot           = 1;
             pInfo->gfx9.supportInt4Dot           = 1;
             pInfo->gfxip.mallSizeInBytes         = 16_MiB;
+            pInfo->gfxip.tccSizeInBytes          = 1_MiB;
         }
         else
         {
@@ -5928,6 +5928,7 @@ void InitializeGpuChipProperties(
             pInfo->gfxip.supportCaptureReplay          = 0;
             pInfo->gfx9.supportInt8Dot                 = 1;
             pInfo->gfx9.supportInt4Dot                 = 1;
+            pInfo->gfxip.tccSizeInBytes                = 2_MiB;
 
             constexpr uint32 PfpUcodeVersionVbTableSupportedExecuteIndirectRembrandt = 96;
 
@@ -6001,6 +6002,7 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.gfx10.numGl2a    = 4;  // GC__NUM_GL2A
             pInfo->gfx9.gfx10.numGl2c    = 24; // GC__NUM_GL2C
             pInfo->gfxip.mallSizeInBytes = 96_MiB;
+            pInfo->gfxip.tccSizeInBytes  = 6_MiB;
 
             pInfo->gfx9.gfx10.numWgpAboveSpi = 4; // GPU__GC__NUM_WGP0_PER_SA
             pInfo->gfx9.gfx10.numWgpBelowSpi = 0; // GPU__GC__NUM_WGP1_PER_SA
@@ -6017,6 +6019,7 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.gfx10.numGl2a    = 2;  // GC__NUM_GL2A
             pInfo->gfx9.gfx10.numGl2c    = 16; // GC__NUM_GL2C
             pInfo->gfxip.mallSizeInBytes = 64_MiB;
+            pInfo->gfxip.tccSizeInBytes  = 4_MiB;
 
             pInfo->gfx9.gfx10.numWgpAboveSpi = 5; // GPU__GC__NUM_WGP0_PER_SA
             pInfo->gfx9.gfx10.numWgpBelowSpi = 0; // GPU__GC__NUM_WGP1_PER_SA
@@ -6033,6 +6036,7 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.gfx10.numGl2a    = 2; // GC__NUM_GL2A
             pInfo->gfx9.gfx10.numGl2c    = 8; // GC__NUM_GL2C
             pInfo->gfxip.mallSizeInBytes = 32_MiB;
+            pInfo->gfxip.tccSizeInBytes  = 2_MiB;
 
             pInfo->gfx9.gfx10.numWgpAboveSpi = 4; // GPU__GC__NUM_WGP0_PER_SA
             pInfo->gfx9.gfx10.numWgpBelowSpi = 0; // GPU__GC__NUM_WGP1_PER_SA
@@ -6054,6 +6058,7 @@ void InitializeGpuChipProperties(
             pInfo->gfxStepping                         = Abi::GfxIpSteppingRaphael;
             pInfo->gfxTriple.stepping                  = Abi::GfxIpSteppingRaphael;
             pInfo->gfx9.numShaderEngines               = 1; // GC__NUM_SE
+            pInfo->gfx9.numShaderArrays                = 1; // GC__NUM_SA_PER_SE
             pInfo->gfx9.rbPlus                         = 1; // GC__RB_PLUS_ADDRESSING == 1
             pInfo->gfx9.numSdpInterfaces               = 2; // GC__NUM_SDP
             pInfo->gfx9.maxNumCuPerSh                  = 2;
@@ -6096,6 +6101,7 @@ void InitializeGpuChipProperties(
             pInfo->gfxStepping                         = Abi::GfxIpSteppingRaphael;
             pInfo->gfxTriple.stepping                  = Abi::GfxIpSteppingRaphael;
             pInfo->gfx9.numShaderEngines               = 1; // GC__NUM_SE
+            pInfo->gfx9.numShaderArrays                = 1; // GC__NUM_SA_PER_SE
             pInfo->gfx9.rbPlus                         = 1; // GC__RB_PLUS_ADDRESSING == 1
             pInfo->gfx9.numSdpInterfaces               = 2; // GC__NUM_SDP
             pInfo->gfx9.maxNumCuPerSh                  = 2;
@@ -6151,6 +6157,7 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.supportFp16Dot2                = 1;
             pInfo->gfx9.supportInt8Dot                 = 1;
             pInfo->gfx9.supportInt4Dot                 = 1;
+            pInfo->gfxip.tccSizeInBytes                = 2_MiB;
 
             constexpr uint32 PfpUcodeVersionVbTableSupportedExecuteIndirectPhx1  = 44;
             constexpr uint32 PfpUcodeVersionDispatchSupportedExecuteIndirectPhx1 = 44;
@@ -6183,6 +6190,7 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.supportFp16Dot2                = 1;
             pInfo->gfx9.supportInt8Dot                 = 1;
             pInfo->gfx9.supportInt4Dot                 = 1;
+            pInfo->gfxip.tccSizeInBytes                = 1_MiB;
 
             constexpr uint32 PfpUcodeVersionVbTableSupportedExecuteIndirectPhx2  = 9;
             constexpr uint32 PfpUcodeVersionDispatchSupportedExecuteIndirectPhx2 = 9;
@@ -7023,7 +7031,7 @@ PM4_PFP_CONTEXT_CONTROL Device::GetContextControl() const
         // because if preempted the GPU state needs to be properly restored when the Queue resumes.
         // (Config registers are exempted because we don't write config registers in PAL.)
         contextControl.ordinal2.bitfields.load_global_uconfig      = 1;
-        contextControl.ordinal2.bitfields.load_ce_ram              = 1;
+        contextControl.ordinal2.bitfields.gfx10.load_ce_ram        = 1;
         contextControl.ordinal3.bitfields.shadow_per_context_state = 1;
         contextControl.ordinal3.bitfields.shadow_cs_sh_regs        = 1;
         contextControl.ordinal3.bitfields.shadow_gfx_sh_regs       = 1;
@@ -7034,7 +7042,7 @@ PM4_PFP_CONTEXT_CONTROL Device::GetContextControl() const
     if (IsGfx11(*Parent()))
     {
         // No CE RAM on GFX11 devices.
-        contextControl.ordinal2.bitfields.load_ce_ram = 0;
+        contextControl.ordinal2.bitfields.gfx10.load_ce_ram = 0;
 
     }
 
@@ -7495,26 +7503,34 @@ void Device::UpdateDisplayDcc(
 // =====================================================================================================================
 // Calculate the value for the various INST_PREF_SIZE fields.  Default behavior is to prefetch the entire shader.
 uint32 Device::GetShaderPrefetchSize(
-    size_t  shaderSizeBytes
+    gpusize  shaderSizeBytes
     ) const
 {
-    // Get the maximum number of bits the register has for setting the prefetch.  It's conceivable that a large shader
-    // could overflow this.  All the shader stages have the same number of bits; the choice of PS here is arbitrary.
     PAL_ASSERT(IsGfx11(*Parent()));
-    constexpr uint32 MaxPrefetchSize = Gfx11::SPI_SHADER_PGM_RSRC4_PS__INST_PREF_SIZE_MASK >>
-                                       Gfx11::SPI_SHADER_PGM_RSRC4_PS__INST_PREF_SIZE__SHIFT;
 
-    constexpr  uint32 CachelineSizeBytes = 128;
+    // Compute maximum prefetch size (in register units) based on available bits in register.
+    // All the shader stages should have the same number of bits.
+    constexpr gpusize MaxPrefetchSize = Gfx11::SPI_SHADER_PGM_RSRC4_PS__INST_PREF_SIZE_MASK >>
+                                        Gfx11::SPI_SHADER_PGM_RSRC4_PS__INST_PREF_SIZE__SHIFT;
+    static_assert(MaxPrefetchSize == (Gfx11::SPI_SHADER_PGM_RSRC4_GS__INST_PREF_SIZE_MASK >>
+                                      Gfx11::SPI_SHADER_PGM_RSRC4_GS__INST_PREF_SIZE__SHIFT));
+    static_assert(MaxPrefetchSize == (Gfx11::SPI_SHADER_PGM_RSRC4_HS__INST_PREF_SIZE_MASK >>
+                                      Gfx11::SPI_SHADER_PGM_RSRC4_HS__INST_PREF_SIZE__SHIFT));
+    static_assert(MaxPrefetchSize == (Gfx11::COMPUTE_PGM_RSRC3__INST_PREF_SIZE_MASK >>
+                                      Gfx11::COMPUTE_PGM_RSRC3__INST_PREF_SIZE__SHIFT));
+
+    constexpr gpusize CachelineSizeBytes = 128;
 
     // Don't prefetch more bytes than the panel setting allows
-    const uint32 prefetchSizeBytes       = Min(static_cast<uint32>(shaderSizeBytes),
-                                               Settings().shaderPrefetchSizeBytes);
+    const gpusize prefetchSizeBytes = Min(shaderSizeBytes,
+                                          static_cast<gpusize>(Settings().shaderPrefetchSizeBytes));
 
-    // Align to the nearest multiple of a cachline
-    const uint32 prefetchSizeAligned     = Pow2Align(prefetchSizeBytes, CachelineSizeBytes);
+    // Align to the nearest multiple of a cacheline
+    const gpusize prefetchSizeAligned = Pow2Align(prefetchSizeBytes, CachelineSizeBytes);
 
-    // And return in terms of regsiter units.  Don't allow a value larger than what the register supports.
-    return Min(MaxPrefetchSize, (prefetchSizeAligned / CachelineSizeBytes));
+    // Return in terms of register units (cachelines).  Don't allow a value larger than the register supports.
+    const gpusize cacheLines = Min(MaxPrefetchSize, (prefetchSizeAligned / CachelineSizeBytes));
+    return static_cast<uint32>(cacheLines);
 }
 
 } // Gfx9

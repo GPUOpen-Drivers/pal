@@ -234,9 +234,9 @@ struct BarrierOperations
             uint16 flushCbMetadata  : 1; ///< Flush CB meta-data cache.
             uint16 invalDbMetadata  : 1; ///< Invalidate DB meta-data cache.
             uint16 flushDbMetadata  : 1; ///< Flush DB meta-data cache.
-            uint16 invalTccMetadata : 1; ///< Invalidate TCC meta-data cache.
+            uint16 invalTccMetadata : 1; ///< Invalidate L2 meta-data cache (also called the GLM).
             uint16 invalGl1         : 1; ///< Invalidate the global L1 cache
-            uint16 reserved         : 1; ///< Reserved for future use.
+            uint16 placeholder      : 1; ///< Reserved for future use.
         };
 
         uint16 u16All; ///< Unsigned integer containing all the values.
@@ -315,6 +315,7 @@ struct BarrierData
     BarrierType       type;          ///< What style of barrier this is. Only filled at BarrierBegin.
 };
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 888
 /// Enumeration describing the different types of tile mode dimensions
 enum class Gfx6ImageTileModeDimension : uint32
 {
@@ -351,6 +352,7 @@ enum class Gfx6ImageTileType : uint32
     Rotated,            ///< Rotated displayable tiling.
     Thick,              ///< Thick micro-tiling.
 };
+#endif
 
 /// Meta-data-related properties
 struct ImageMetaDataInfo
@@ -390,6 +392,7 @@ struct ImageMetaDataInfo
 /// Information for allocation of a PAL Image - AddrLib surface info.
 struct ImageDataAddrMgrSurfInfo
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 888
     union
     {
         struct
@@ -402,13 +405,15 @@ struct ImageDataAddrMgrSurfInfo
             uint32 swizzle;         ///< Swizzle mode.
         } gfx9;
     } tiling;
+#endif
 
     ImageMetaDataInfo flags;    ///< Metadata info.
-    uint64 size;                ///< Surface size, in bytes.
-    uint32 bpp;                 ///< Bits per pixel.
-    uint32 width;               ///< Width.
-    uint32 height;              ///< Height.
-    uint32 depth;               ///< Depth.
+    uint32            swizzle;  ///< HW-specific swizzle mode.
+    uint64            size;     ///< Surface size, in bytes.
+    uint32            bpp;      ///< Bits per pixel.
+    uint32            width;    ///< Width.
+    uint32            height;   ///< Height.
+    uint32            depth;    ///< Depth.
 };
 
 /// Type of surface for which the register data is being provided
@@ -564,6 +569,29 @@ struct BindGpuMemoryData
     gpusize             offset;             ///< Offset within pGpuMemory where the resource is being bound.
     bool                isSystemMemory;     ///< If true then system memory is being bound to the object. In this case,
                                             ///  pGpuMemory and offset should be set to zero.
+};
+
+/// Describes an user marker operation
+enum class UserMarkerOpType : uint8
+{
+    Invalid = 0,        ///< Invalid user marker operation
+    Push,               ///< Push user marker operation
+    Pop,                ///< Pop user marker operation
+    Set                 ///< Set user marker operation
+};
+
+/// Describes an user marker operation, used in UserMarkerHistoryTraceSource
+struct UserMarkerOpInfo
+{
+    union
+    {
+        struct
+        {
+            uint32 opType   : 2;    ///< UserMarkerOpType
+            uint32 strIndex : 30;   ///< Index of the user marker in the in corresponding string table
+        };
+        uint32 u32All;
+    };
 };
 
 } // Developer

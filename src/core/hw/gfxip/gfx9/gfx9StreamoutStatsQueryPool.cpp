@@ -274,46 +274,16 @@ Result StreamoutStatsQueryPool::Reset(
 
     if (result == Result::Success)
     {
-        result = DoReset(startQuery,
-                         queryCount,
-                         pMappedCpuAddr,
-                         4,
-                         &StreamoutStatsResetMemValue32);
+        result = CpuReset(startQuery, queryCount, pMappedCpuAddr, 4, &StreamoutStatsResetMemValue32);
     }
 
     return result;
 }
 
 // =====================================================================================================================
-// Reset query using DMA, when NormalReset() can't be used or the command buffer does not support PM4.
-void StreamoutStatsQueryPool::DmaEngineReset(
-    GfxCmdBuffer*   pCmdBuffer,
-    Pal::CmdStream* pCmdStream,
-    uint32          startQuery,
-    uint32          queryCount
-    ) const
-{
-    const gpusize offset   = GetQueryOffset(startQuery);
-    const gpusize dataSize = GetGpuResultSizeInBytes(queryCount);
-
-    // This function must only be called by the DMA queue. It is missing a barrier call that is necessary to issue a
-    // CS_PARTIAL_FLUSH on the universal and compute queues.
-    PAL_ASSERT(pCmdBuffer->GetEngineType() == EngineTypeDma);
-    PAL_ASSERT(m_gpuMemory.IsBound());
-
-    pCmdBuffer->CmdFillMemory(*m_gpuMemory.Memory(), offset, dataSize, StreamoutStatsResetMemValue32);
-
-    // Reset the memory for querypool timestamps.
-    pCmdBuffer->CmdFillMemory(*m_gpuMemory.Memory(),
-                              GetTimestampOffset(startQuery),
-                              m_timestampSizePerSlotInBytes * queryCount,
-                              0);
-}
-
-// =====================================================================================================================
 // Reset query via PM4 commands on a PM4-supported command buffer.
 // NOTE: It is safe to call this with a command buffer that does not support streamout queries.
-void StreamoutStatsQueryPool::NormalReset(
+void StreamoutStatsQueryPool::GpuReset(
     GfxCmdBuffer*   pCmdBuffer,
     Pal::CmdStream* pCmdStream,
     uint32          startQuery,

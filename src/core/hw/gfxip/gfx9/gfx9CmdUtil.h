@@ -778,6 +778,11 @@ public:
         EngineType                engineType,
         void*                     pBuffer) const;
 
+    size_t BuildPerfCounterWindow(
+        EngineType engineType,
+        bool       enableWindow,
+        void*      pBuffer) const;
+
     static bool IsIndexedRegister(uint32 regAddr);
 
     // Returns the register information for registers which have differing addresses between hardware families.

@@ -824,13 +824,10 @@ void Gfx10ColorTargetView::UpdateImageSrd(
     ImageViewInfo viewInfo = {};
     viewInfo.pImage          = GetImage()->Parent();
     viewInfo.viewType        = ImageViewType::Tex2d;
-    viewInfo.possibleLayouts =
-    {
-        Pal::LayoutShaderWrite | Pal::LayoutColorTarget,
-        Pal::LayoutUniversalEngine
-    };
-    viewInfo.swizzledFormat       = m_swizzledFormat;
-    viewInfo.subresRange          = { m_subresource, 1, 1, m_arraySize };
+    viewInfo.possibleLayouts = { .usages  = Pal::LayoutShaderWrite | Pal::LayoutColorTarget,
+                                 .engines = Pal::LayoutUniversalEngine };
+    viewInfo.swizzledFormat  = m_swizzledFormat;
+    viewInfo.subresRange     = { m_subresource, 1, 1, uint16(m_arraySize) };
 
     device.Parent()->CreateImageViewSrds(1, &viewInfo, pOut);
 }
@@ -1093,13 +1090,10 @@ void Gfx11ColorTargetView::UpdateImageSrd(
     ImageViewInfo viewInfo = {};
     viewInfo.pImage          = GetImage()->Parent();
     viewInfo.viewType        = ImageViewType::Tex2d;
-    viewInfo.possibleLayouts =
-    {
-        Pal::LayoutShaderWrite | Pal::LayoutColorTarget,
-        Pal::LayoutUniversalEngine
-    };
-    viewInfo.swizzledFormat       = m_swizzledFormat;
-    viewInfo.subresRange          = { m_subresource, 1, 1, m_arraySize };
+    viewInfo.possibleLayouts = { .usages  = Pal::LayoutShaderWrite | Pal::LayoutColorTarget,
+                                 .engines = Pal::LayoutUniversalEngine };
+    viewInfo.swizzledFormat  = m_swizzledFormat;
+    viewInfo.subresRange     = { m_subresource, 1, 1, uint16(m_arraySize) };
 
     device.Parent()->CreateImageViewSrds(1, &viewInfo, pOut);
 }

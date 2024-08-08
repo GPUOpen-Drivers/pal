@@ -172,10 +172,12 @@ union GpuMemoryFlags
         uint32 initializeToZero         :  1; // If set, PAL will request that the host OS zero-initializes
                                               // the allocation upon creation, currently, only GpuHeapLocal and
                                               // GpuHeapInvisible are supported.
+        uint32 isDiscardable            :  1; // Gpu memory object can be discarded under memory pressure without
+                                              // keeping the content.
 #else
-        uint32 placeholder2             :  1; // Placeholder.
+        uint32 placeholder2             :  2; // Placeholder.
 #endif
-        uint32 reserved                 : 14;
+        uint32 reserved                 : 13;
     };
     uint64  u64All;
 };
@@ -298,6 +300,10 @@ public:
     bool IsPrivPrimary()         const { return (m_flags.privPrimary              != 0); }
     bool IsKmdShareUmdSysMem()   const { return (m_flags.kmdShareUmdSysMem        != 0); }
     bool IsLockableOnDemand()    const { return (m_flags.deferCpuVaReservation    != 0); }
+#if PAL_AMDGPU_BUILD
+    bool IsDiscardable()         const { return (m_flags.isDiscardable            != 0); }
+#endif
+
     void SetAccessedPhysically() { m_flags.accessedPhysically = 1; }
     void SetSurfaceBusAddr(gpusize surfaceBusAddr) { m_desc.surfaceBusAddr = surfaceBusAddr; }
     void SetMarkerBusAddr(gpusize markerBusAddr)   { m_desc.markerBusAddr  = markerBusAddr;  }

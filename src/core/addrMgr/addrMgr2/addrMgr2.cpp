@@ -311,7 +311,7 @@ Result AddrMgr2::InitSubresourcesForImage(
         // loop through again to compute the final offsets for each subresource.
         //
         // This loops through all the slices of a mip level first before incrementing the mip-level part of
-        // the subResId.
+        // the subresId.
         SubResIterator subResIt(*pImage);
         do
         {
@@ -355,10 +355,11 @@ void AddrMgr2::ComputeTilesInMipTail(
     // 3D image may need one more tiles for mip tail considering depth.
     if (createInfo.imageType == ImageType::Tex3d)
     {
-        const SubresId              subResId    = { 0, pGpuMemLayout->prtMinPackedLod, 0 };
-        const SubResourceInfo*const pSubResInfo = image.SubresourceInfo(subResId);
-        pGpuMemLayout->prtMipTailTileCount      =
-            static_cast<uint32>(RoundUpQuotient(pSubResInfo->extentElements.depth, pGpuMemLayout->prtTileDepth));
+        const SubresId subresId = Subres(plane, pGpuMemLayout->prtMinPackedLod, 0);
+        const SubResourceInfo*const pSubResInfo = image.SubresourceInfo(subresId);
+
+        pGpuMemLayout->prtMipTailTileCount =
+            uint32(RoundUpQuotient(pSubResInfo->extentElements.depth, pGpuMemLayout->prtTileDepth));
     }
     else
     {
@@ -695,7 +696,6 @@ bool AddrMgr2::IsValidToOverride(
     return TestAnyFlagSet(validSwModeSet.value, (1u << primarySwMode));
 }
 
-#if ADDRLIB_VERSION_MAJOR >= 7
 // =====================================================================================================================
 // Chooses a "preferred" swizzle mode from a list of "HW-valid" modes returned from Address Library (for GFX11)
 ADDR_E_RETURNCODE AddrMgr2::Gfx11ChooseSwizzleMode(
@@ -1077,7 +1077,6 @@ ADDR_E_RETURNCODE AddrMgr2::Gfx11ChooseSwizzleMode(
 
     return addrRet;
 }
-#endif
 
 // =====================================================================================================================
 //  Determines a swizzle mode on GFX9/10 by calling Addr2GetPreferredSurfaceSetting
@@ -1090,7 +1089,6 @@ ADDR_E_RETURNCODE AddrMgr2::GetPreferredSurfaceSetting(
 {
     ADDR_E_RETURNCODE addrRet = {};
 
-#if ADDRLIB_VERSION_MAJOR >= 7
     if (IsGfx11(*m_pDevice) && newSwizzleModeDetermination)
     {
         addrRet = Addr2GetPossibleSwizzleModes(AddrLibHandle(), pIn, pOut);
@@ -1101,7 +1099,6 @@ ADDR_E_RETURNCODE AddrMgr2::GetPreferredSurfaceSetting(
         }
     }
     else
-#endif
     {
         addrRet = Addr2GetPreferredSurfaceSetting(AddrLibHandle(), pIn, pOut);
     }
@@ -1565,8 +1562,7 @@ Result AddrMgr2::InitSubresourceInfo(
         // Initialize the pipe-bank xor of right eye surface for DXGI stereo.
         if ((pImage->GetImageCreateInfo().flags.dxgiStereo == 1) && (pSubResInfo->subresId.arraySlice == 1))
         {
-            const SubresId baseSubRes    = {};
-            const uint32 basePipeBankXor = GetTileSwizzle(pImage, baseSubRes);
+            const uint32 basePipeBankXor = GetTileSwizzle(pImage, BaseSubres(0));
 
             pTileInfo->pipeBankXor = GetStereoRightEyePipeBankXor(*pImage,
                                                                   pSubResInfo,
