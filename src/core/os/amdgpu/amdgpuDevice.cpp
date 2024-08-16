@@ -5708,7 +5708,8 @@ Result Device::QueryScreenModesForConnector(
 
                 pScreenModeList[j].extent.width   = pMode->hdisplay;
                 pScreenModeList[j].extent.height  = pMode->vdisplay;
-                pScreenModeList[j].refreshRate    = pMode->vrefresh;
+                pScreenModeList[j].refreshRate.numerator   = pMode->clock * 1000;
+                pScreenModeList[j].refreshRate.denominator = pMode->htotal * pMode->vtotal;
                 pScreenModeList[j].flags.u32All   = 0;
             }
 
