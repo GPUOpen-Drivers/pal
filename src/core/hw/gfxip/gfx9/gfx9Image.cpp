@@ -1470,8 +1470,8 @@ void Image::InitLayoutStateMasks()
 }
 
 // =====================================================================================================================
-// Gets the offset for the specified mask-ram, relative to the image's bound GPU memory base address
-gpusize Image::GetMaskRamBaseOffset(
+// Gets the raw base address for the specified mask-ram.
+gpusize Image::GetMaskRamBaseAddr(
     const MaskRam* pMaskRam,
     uint32         arraySlice
     ) const
@@ -1488,25 +1488,9 @@ gpusize Image::GetMaskRamBaseOffset(
     // Verify that the mask ram isn't thought to be in the same place as the image itself.  That would be "bad".
     // Exception:  if the image is being created to be "mask ram only", then the offset could very well
     //             be zero as there is no image data.
-    if (m_pImageInfo->internalCreateInfo.flags.vrsOnlyDepth == 0)
-    {
-        PAL_ASSERT(maskRamMemOffset != 0);
-    }
+    PAL_ASSERT((maskRamMemOffset != 0) || (m_pImageInfo->internalCreateInfo.flags.vrsOnlyDepth != 0));
 
-    return maskRamMemOffset + m_pParent->GetBoundGpuMemory().Offset();
-}
-
-// =====================================================================================================================
-// Gets the raw base address for the specified mask-ram.
-gpusize Image::GetMaskRamBaseAddr(
-    const MaskRam* pMaskRam,
-    uint32         arraySlice
-    ) const
-{
-    const gpusize memAddr  = m_pParent->GetBoundGpuMemory().Memory()->Desc().gpuVirtAddr;
-    const gpusize baseAddr = memAddr + GetMaskRamBaseOffset(pMaskRam, arraySlice);
-
-    return baseAddr;
+    return m_pParent->GetBoundGpuMemory().GpuVirtAddr() + maskRamMemOffset;
 }
 
 // =====================================================================================================================
@@ -3300,6 +3284,13 @@ void Image::GetSharedMetadataInfo(
         pMetadataInfo->dccStateMetaDataOffset[dccPlane]           = m_dccStateMetaDataOffset[dccPlane];
         pMetadataInfo->fastClearEliminateMetaDataOffset[dccPlane] = m_fastClearEliminateMetaDataOffset[dccPlane];
         pMetadataInfo->fastClearMetaDataOffset[dccPlane]          = m_fastClearMetaDataOffset[dccPlane];
+        pMetadataInfo->dccSize[dccPlane]                          = m_pDcc[dccPlane]->TotalSize();
+        pMetadataInfo->dccAlignment[dccPlane]                     = m_pDcc[dccPlane]->Alignment();
+        if (m_pImageInfo->internalCreateInfo.displayDcc.enabled != 0)
+        {
+            pMetadataInfo->displayDccSize[dccPlane]               = m_pDispDcc[dccPlane]->TotalSize();
+            pMetadataInfo->displayDccAlignment[dccPlane]          = m_pDispDcc[dccPlane]->Alignment();
+        }
 
         PAL_ASSERT(m_pDcc[dccPlane]->HasMetaEqGenerator());
         pMetadataInfo->flags.hasEqGpuAccess = m_pDcc[dccPlane]->GetMetaEqGenerator()->HasEqGpuAccess();

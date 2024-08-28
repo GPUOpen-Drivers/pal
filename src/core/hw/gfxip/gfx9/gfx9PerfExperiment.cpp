@@ -2063,14 +2063,9 @@ void PerfExperiment::IssueBegin(
         pCmdSpace = pCmdStream->WritePerfCounterWindow(true, pCmdSpace);
 
         // Given that we're about to change a large number of config registers we really should wait for prior work
-        // (including prior perf experiments) to be idle before doing anything.
-        //
-        // This isn't in the docs, but we've been told by hardware engineers that we need to do a wait-idle here when
-        // sampling from global counters. We might be able to remove this when global counters are disabled.
-        const bool cacheFlush = ((m_createInfo.optionFlags.cacheFlushOnCounterCollection != 0) &&
-                                 m_createInfo.optionValues.cacheFlushOnCounterCollection);
-
-        pCmdSpace = WriteWaitIdle(cacheFlush, pCmdBuffer, pCmdStream, pCmdSpace);
+        // (including prior perf experiments) to be idle before doing anything. This also ensures the work before
+        // the experiment is not profiled in this experiment
+        pCmdSpace = WriteWaitIdle(m_flushCache, pCmdBuffer, pCmdStream, pCmdSpace);
 
         regCP_PERFMON_CNTL cpPerfmonCntl = {};
         // Disable and reset all types of perf counters. We will enable the counters when everything is ready.
@@ -2257,10 +2252,7 @@ void PerfExperiment::IssueEnd(
 
         // This isn't in the docs, but we've been told by hardware engineers that we need to do a wait-idle here when
         // sampling from global counters. We might be able to remove this when global counters are disabled.
-        const bool cacheFlush = ((m_createInfo.optionFlags.cacheFlushOnCounterCollection != 0) &&
-                                 m_createInfo.optionValues.cacheFlushOnCounterCollection);
-
-        pCmdSpace = WriteWaitIdle(cacheFlush, pCmdBuffer, pCmdStream, pCmdSpace);
+        pCmdSpace = WriteWaitIdle(m_flushCache, pCmdBuffer, pCmdStream, pCmdSpace);
 
         // This is the CP_PERFMON_CNTL state that should be currently active.
         if (m_perfExperimentFlags.perfCtrsEnabled)
@@ -2724,6 +2716,11 @@ regGRBM_GFX_INDEX PerfExperiment::BuildGrbmGfxIndex(
 
         instance = instanceIndex.u32All;
     }
+
+#if PAL_BUILD_GFX115
+    // Gfx11.5 has one less bit in its INSTANCE_INDEX, that's why there's a ".most" and a ".gfx115".
+    PAL_ASSERT(instance < (1u << 7));
+#endif
 
     grbmGfxIndex.most.INSTANCE_INDEX = instance;
 

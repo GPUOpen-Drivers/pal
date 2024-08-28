@@ -97,6 +97,10 @@ enum class AmdGpuMachineType : uint8
     Gfx1101 = 0x46,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1101
     Gfx1102 = 0x47,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1102
     Gfx1103 = 0x44,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1103
+#if PAL_BUILD_STRIX
+    Gfx1150    = 0x43,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1150
+    Gfx115FFFF = 0xF7,
+#endif
 };
 
 /// AmdGpuFeatureV4Type for the feature selection mask bits in e_flags.
@@ -167,6 +171,12 @@ enum GfxIpStepping : uint16
     GfxIpSteppingNavi33        = 2,
     GfxIpSteppingPhoenix       = 3,
 
+#if PAL_BUILD_STRIX
+    // GFXIP 11.5.x steppings:
+    GfxIpSteppingStrix         = 0,
+    GfxIpSteppingStrix_A0      = 0xFFFF,
+#endif
+
 };
 
 /// Name of the section where our pipeline binaries store the disassembly for all shader stages.
@@ -199,7 +209,8 @@ constexpr const char* PipelineAbiSymbolNameStrings[] =
     "_amdgpu_vs_shdr_intrl_tbl",
     "_amdgpu_ps_shdr_intrl_tbl",
     "_amdgpu_cs_shdr_intrl_tbl",
-    "_amdgpu_ps_dual_source_shdr_intrl_tbl",
+    "_amdgpu_ps_export_shader_shdr_intrl_tbl",
+    "_amdgpu_ps_export_shader_dual_source_shdr_intrl_tbl",
     "_amdgpu_ls_disasm",
     "_amdgpu_hs_disasm",
     "_amdgpu_es_disasm",
@@ -207,7 +218,8 @@ constexpr const char* PipelineAbiSymbolNameStrings[] =
     "_amdgpu_vs_disasm",
     "_amdgpu_ps_disasm",
     "_amdgpu_cs_disasm",
-    "_amdgpu_ps_dual_source_disasm",
+    "_amdgpu_ps_export_shader_disasm",
+    "_amdgpu_ps_export_shader_dual_source_disasm",
     "_amdgpu_ls_shdr_intrl_data",
     "_amdgpu_hs_shdr_intrl_data",
     "_amdgpu_es_shdr_intrl_data",
@@ -321,7 +333,8 @@ enum class PipelineSymbolType : uint32
     VsShdrIntrlTblPtr, ///< VS shader internal table pointer.  Optional.  Described in Per-Shader Internal Table.
     PsShdrIntrlTblPtr, ///< PS shader internal table pointer.  Optional.  Described in Per-Shader Internal Table.
     CsShdrIntrlTblPtr, ///< CS shader internal table pointer.  Optional.  Described in Per-Shader Internal Table.
-    PsDualSourceShdrIntrlTblPtr, ///< PS dual source shader internal table pointer.  Optional.  Described in Per-Shader Internal Table.
+    PsExportShaderShdrIntrlTblPtr, ///< PS export shader internal table pointer.  Optional.  Described in Per-Shader Internal Table.
+    PsExportShaderDualSourceShdrIntrlTblPtr, ///< PS export shader with dual source on internal table pointer.  Optional.  Described in Per-Shader Internal Table.
     LsDisassembly,     ///< Hardware LS disassembly.  Optional.  Associated with the .AMDGPU.disasm section.
     HsDisassembly,     ///< Hardware HS disassembly.  Optional.  Associated with the .AMDGPU.disasm section.
     EsDisassembly,     ///< Hardware ES disassembly.  Optional.  Associated with the .AMDGPU.disasm section.
@@ -329,7 +342,8 @@ enum class PipelineSymbolType : uint32
     VsDisassembly,     ///< Hardware VS disassembly.  Optional.  Associated with the .AMDGPU.disasm section.
     PsDisassembly,     ///< Hardware PS disassembly.  Optional.  Associated with the .AMDGPU.disasm section.
     CsDisassembly,     ///< Hardware CS disassembly.  Optional.  Associated with the .AMDGPU.disasm section.
-    PsDualSourceDisassembly, ///< Hardware PS dual source disassembly.  Optional.  Associated with the .AMDGPU.disasm section.
+    PsExportShaderDisassembly, ///< Hardware PS export shader disassembly.  Optional.  Associated with the .AMDGPU.disasm section.
+    PsExportShaderDualSourceDisassembly, ///< Hardware PS export shader with dual source on disassembly.  Optional.  Associated with the .AMDGPU.disasm section.
     LsShdrIntrlData,   ///< LS shader internal data pointer.  Optional.
     HsShdrIntrlData,   ///< HS shader internal data pointer.  Optional.
     EsShdrIntrlData,   ///< ES shader internal data pointer.  Optional.

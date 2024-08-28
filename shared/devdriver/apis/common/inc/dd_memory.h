@@ -50,15 +50,14 @@ struct MirroredBuffer
 /// aligned at page-size boundary, and adjusted to be power of 2. So the actual size can be bigger than the requested
 /// size.
 /// @param[out] pOutBuffer Pointer to a \ref MirroredBuffer object to be initialized if allocation succeeds.
-/// @return An integer representing the error code of the platform on which the allocation takes place. For example,
-/// this call returns EVAL (on Posix) or ERROR_INVALID_PARAMETER (on Windows) when 1) \param requestedBufferSize is 0,
-/// or 2) \param pOutBuffer is nullptr. This call returns ERANGE (on Posix) or ERROR_FILE_TOO_LARGE (on Windows), when
-/// the actual allocated size is bigger than \ref MirroredBufferMaxSize.
-int32_t CreateMirroredBuffer(uint32_t requestedBufferSize, MirroredBuffer* pOutBuffer);
+/// @return DD_RESULT_COMMON_INVALID_PARAMETER if 1) \param requestedBufferSize is 0, or 2) \param pOutBuffer is nullptr.
+/// @return DD_RESULT_COMMON_OUT_OF_RANGE if the actual to-be-allocated size is bigger than \ref MirroredBufferMaxSize.
+/// @return other errors
+DD_RESULT MirroredBufferCreate(uint32_t requestedBufferSize, MirroredBuffer* pOutBuffer);
 
 /// Destroy a \ref MirroredBuffer object.
 ///
 /// @param[in/out] pBuffer Pointer to a \ref MirroredBuffer object to be destroyed. The object will be zero'd out.
-void DestroyMirroredBuffer(MirroredBuffer* pBuffer);
+void MirroredBufferDestroy(MirroredBuffer* pBuffer);
 
 } // namespace DevDriver

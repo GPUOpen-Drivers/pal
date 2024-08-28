@@ -70,6 +70,11 @@ static SqttGfxIpLevel GfxipToSqttGfxIpLevel(
     case Pal::GfxIpLevel::GfxIp11_0:
         sqttLevel = SQTT_GFXIP_LEVEL_GFXIP_11_0;
         break;
+#if PAL_BUILD_GFX115
+    case Pal::GfxIpLevel::GfxIp11_5:
+        sqttLevel = SQTT_GFXIP_LEVEL_GFXIP_11_5;
+        break;
+#endif
     default:
         PAL_ASSERT_ALWAYS_MSG("Unknown GfxIpLevel value: %u!", static_cast<uint32>(gfxIpLevel));
         break;
@@ -97,6 +102,11 @@ SqttVersion GfxipToSqttVersion(
     case Pal::GfxIpLevel::GfxIp11_0:
         version = SQTT_VERSION_3_2;
         break;
+#if PAL_BUILD_GFX115
+    case Pal::GfxIpLevel::GfxIp11_5:
+        version = SQTT_VERSION_3_2;
+        break;
+#endif
     default:
         PAL_ASSERT_ALWAYS_MSG("Unknown GfxIpLevel value: %u!", static_cast<uint32>(gfxIpLevel));
         break;
@@ -1636,7 +1646,9 @@ Result GpaSession::End(
         {
             m_curPsoCorrelationRecords.PushBack(*iter.Get());
         }
+
         m_registerPipelineLock.UnlockForWrite();
+
     }
 
     return result;
@@ -1875,7 +1887,7 @@ Result GpaSession::BeginSample(
     else
     {
         // Prevent a memory leak.
-        if (sampleExists == false)
+        if ((sampleExists == false) && (pSampleItem != nullptr))
         {
             FreeSampleItem(pSampleItem);
         }
@@ -2590,7 +2602,7 @@ Pal::Result GpaSession::FindTimedQueue(
 {
     Pal::Result result = Pal::Result::ErrorInvalidPointer;
 
-    if ((ppQueueState != nullptr) & (pQueueIndex != nullptr))
+    if ((ppQueueState != nullptr) && (pQueueIndex != nullptr))
     {
         const Util::RWLockAuto<Util::RWLock::ReadOnly> lock(&m_timedQueuesArrayLock);
         for (Pal::uint32 queueIndex = 0; queueIndex < m_timedQueuesArray.NumElements(); ++queueIndex)
@@ -4746,6 +4758,7 @@ Result GpaSession::DumpRgpData(
                 curFileOffset += sizeof(SqttPsoCorrelationRecord);
             }
         }
+
     }
 
     // Only write queue timing and calibration chunks if queue timing was enabled during the session.

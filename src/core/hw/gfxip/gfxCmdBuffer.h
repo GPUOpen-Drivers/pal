@@ -340,7 +340,7 @@ public:
     // CmdDispatch on the ACE CmdStream for Gfx10+ UniversalCmdBuffer only when multi-queue is supported by the engine.
     virtual void CmdDispatchAce(DispatchDims size) { PAL_NEVER_CALLED(); }
 
-    virtual void CpCopyMemory(gpusize dstAddr, gpusize srcAddr, gpusize numBytes) = 0;
+    virtual void CopyMemoryCp(gpusize dstAddr, gpusize srcAddr, gpusize numBytes) = 0;
 
     bool IsComputeSupported() const
         { return Util::TestAnyFlagSet(m_engineSupport, CmdBufferEngineSupport::Compute); }

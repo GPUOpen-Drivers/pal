@@ -369,14 +369,15 @@ protected:
     virtual void DescribeGpuMemory(Developer::GpuMemoryAllocationMethod allocMethod) const;
 
     Device*const   m_pDevice;
+    GpuMemoryFlags m_flags;
     VaPartition    m_vaPartition;
     uint32         m_heapCount;
     GpuHeap        m_heaps[GpuHeapCount];
+    MType          m_mtype;
 
     // Priority of the memory allocation: serves as a hint to the operating system of how important it is to keep
     // this memory object in its preferred heap(s).
-    GpuMemPriority m_priority;
-
+    GpuMemPriority       m_priority;
     GpuMemPriorityOffset m_priorityOffset;
 
     // NOTE: The following members are unioned because no single memory object requires more than one of them.
@@ -399,7 +400,7 @@ protected:
     // The pointer to an Image object the memory object is bound to. It is only necessary in special cases where an
     // internal memory object is permanently linked to an Image such as presentable images or shared resources on
     // Windows.
-    Image*  m_pImage;
+    Image* m_pImage;
 
     // The UMDKMDIF_SCHEDULERIDENTIFIER will be recorded if the GpuMemory is for user queue. And it will be passed
     // to KMD via command buffer.
@@ -409,11 +410,7 @@ protected:
     uint32 m_numReservedCu;
 
     // If the typedBuffer flag is set, this GPU memory will be permanently considered a typed buffer.
-    TypedBufferCreateInfo   m_typedBufferInfo;
-
-    GpuMemoryFlags          m_flags;
-
-    MType                   m_mtype;
+    TypedBufferCreateInfo m_typedBufferInfo;
 
     // SDI External Physical Memory PTE index for surface and marker
     gpusize m_remoteSdiSurfaceIndex;

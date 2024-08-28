@@ -3916,12 +3916,23 @@ void Gfx9Dcc::SetControlReg(
             (dispDcc.dcc_256_256_unconstrained == 0) &&
             (dispDcc.dcc_256_128_128           == 0) &&
             (dispDcc.dcc_256_64_64             == 0)
+#if PAL_BUILD_GFX115
+            &&
+            (settings.dcc256bCompressedTex     == false)
+#endif
             )
         {
             m_dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE =
                 static_cast<unsigned int>(Gfx9DccMaxBlockSize::BlockSize128B);
         }
 
+#if PAL_BUILD_GFX115
+        if (IsGfx115(gfxLevel) && settings.dcc256bCompressedTex && (dispDcc.dcc_256_256_unconstrained == 1))
+        {
+            m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE = uint32(Gfx9DccMaxBlockSize::BlockSize256B);
+        }
+        else
+#endif
         if (dispDcc.dcc_256_64_64 == 0)
         {
             m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE = uint32(Gfx9DccMaxBlockSize::BlockSize128B);

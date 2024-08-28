@@ -131,6 +131,7 @@ ADDR_E_RETURNCODE Lib::Create(
     const ADDR_CREATE_INPUT* pCreateIn,     ///< [in] pointer to ADDR_CREATE_INPUT
     ADDR_CREATE_OUTPUT*      pCreateOut)    ///< [out] pointer to ADDR_CREATE_OUTPUT
 {
+
     Lib* pLib = NULL;
     ADDR_E_RETURNCODE returnCode = ADDR_OK;
 
@@ -172,6 +173,9 @@ ADDR_E_RETURNCODE Lib::Create(
 #if ADDR_GFX11_BUILD
 #if ADDR_NAVI31_BUILD || ADDR_NAVI32_BUILD || ADDR_NAVI33_BUILD
                     case FAMILY_NV3:
+#endif
+#if ADDR_STRIX1_BUILD
+                    case FAMILY_STX:
 #endif
 #if ADDR_PHOENIX_BUILD
                     case FAMILY_PHX:

@@ -70,7 +70,8 @@ enum class ValueKind : uint32
     HiddenRemainderY,       ///< Dispatch workgroup size of the partial work group of the Y dimension, if it exists.
     HiddenRemainderZ,       ///< Dispatch workgroup size of the partial work group of the Z dimension, if it exists.
     HiddenGridDims,         ///< Dispatch grid dimensionality, value between 1 and 3
-    HiddenHeapV1            ///< Global address pointer to an initialized memory buffer for device side malloc/free
+    HiddenHeapV1,           ///< Global address pointer to an initialized memory buffer for device side malloc/free
+    HiddenDynamicLdsSize    ///< Size of the dynamically allocated LDS memory is passed in the kernarg.
 };
 
 /// An enum of the legal ".address_space" strings.
@@ -207,7 +208,7 @@ public:
     uint32 GroupSegmentFixedSize() const { return m_groupSegmentFixedSize; }
 
     /// Returns the amount of fixed private address space memory (scratch) required by a work-item in bytes.
-    uint32 PrivateSegmentFixedSize() const { return m_privateSegmentFixedSize; }
+    uint32 PrivateSegmentFixedSize() const;
 
     uint32 UniformWorkgroupSize() const { return m_uniformWorkgroupSize; }
 

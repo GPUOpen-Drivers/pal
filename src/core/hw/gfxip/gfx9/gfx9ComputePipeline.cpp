@@ -133,11 +133,6 @@ Result ComputePipeline::HwlInit(
     computePgmRsrc2.bitfields.LDS_SIZE =
         RoundUpQuotient(NumBytesToNumDwords(desc.group_segment_fixed_size), Gfx9LdsDwGranularity);
 
-    if (metadata.UsesDynamicStack())
-    {
-        PAL_ASSERT_ALWAYS_MSG("Dynamic stack is unsupported!");
-        result = Result::Unsupported;
-    }
     if (metadata.UniformWorkgroupSize() != 1)
     {
         PAL_ASSERT_ALWAYS_MSG("non-uniform workgroups are unsupported!");

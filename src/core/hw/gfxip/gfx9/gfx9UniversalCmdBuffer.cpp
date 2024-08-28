@@ -131,9 +131,6 @@ constexpr uint32 VgtLsHsConfigDirtyBit    = uint32(1 << 31);
 constexpr uint32 Gfx11PipelineDbShaderControlMask = ~(Gfx11::DB_SHADER_CONTROL__OVERRIDE_INTRINSIC_RATE_ENABLE_MASK |
                                                       Gfx11::DB_SHADER_CONTROL__OVERRIDE_INTRINSIC_RATE_MASK);
 
-// The DB_RENDER_CONTROL fields owned by the graphics pipeline.
-constexpr uint32 Gfx11PipelineDbRenderControlMask = Gfx11::DB_RENDER_CONTROL__OREO_MODE_MASK;
-
 // Enumerates the semaphore values used for synchronizing the ACE and GFX workloads of a ganged submit.
 enum class CmdStreamSyncEvent : uint32
 {
@@ -460,9 +457,8 @@ UniversalCmdBuffer::UniversalCmdBuffer(
 
     if (IsGfx11(m_gfxIpLevel))
     {
-        m_cachedSettings.primGrpSize     = settings.gfx11GeCntlPrimGrpSize;
-        m_cachedSettings.geCntlGcrMode   = settings.gfx11GeCntlGcrMode;
-        m_cachedSettings.waNoOpaqueOreo  = settings.waNoOpaqueOreo;
+        m_cachedSettings.primGrpSize   = settings.gfx11GeCntlPrimGrpSize;
+        m_cachedSettings.geCntlGcrMode = settings.gfx11GeCntlGcrMode;
     }
 
     m_cachedSettings.optimizeDepthOnlyFmt    = pPublicSettings->optDepthOnlyExportRate;
@@ -586,9 +582,6 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_cbRmiGl2CacheControl.u32All = 0;
     m_dbRenderOverride.u32All     = 0;
     m_prevDbRenderOverride.u32All = 0;
-    m_dbRenderControl.u32All      = 0;
-    // Zero is a valid value for DB_RENDER_CONTROL
-    m_prevDbRenderControl.u32All  = ~0u;
     m_paScAaConfigNew.u32All      = 0;
     m_paScAaConfigLast.u32All     = 0;
     m_paSuLineStippleCntl.u32All  = 0;
@@ -864,8 +857,6 @@ void UniversalCmdBuffer::ResetState()
     m_cbRmiGl2CacheControl.bits.COLOR_RD_POLICY =
         (cbDbCachePolicy & Gfx10CbDbCachePolicyLruColor) ? CACHE_LRU_RD : CACHE_NOA;
 
-    m_dbRenderControl.u32All = 0;
-
     if (IsGfx11(m_gfxIpLevel))
     {
         m_cbRmiGl2CacheControl.gfx11.DCC_WR_POLICY =
@@ -873,7 +864,6 @@ void UniversalCmdBuffer::ResetState()
         m_cbRmiGl2CacheControl.gfx11.COLOR_WR_POLICY =
             (cbDbCachePolicy & Gfx10CbDbCachePolicyLruColor) ? CACHE_LRU_WR : CACHE_STREAM;
 
-        Gfx10DepthStencilView::SetGfx11StaticDbRenderControlFields(m_device, 1, &m_dbRenderControl);
     }
     else
     {
@@ -893,7 +883,6 @@ void UniversalCmdBuffer::ResetState()
             (cbDbCachePolicy & Gfx10CbDbCachePolicyLruColor) ? CACHE_LRU_WR : CACHE_STREAM;
     }
 
-    m_prevDbRenderControl.u32All    = ~m_dbRenderControl.u32All;
     m_spiVsOutConfig.u32All         = 0;
     m_spiPsInControl.u32All         = 0;
     m_geCntl.u32All                 = 0;
@@ -2394,7 +2383,6 @@ void UniversalCmdBuffer::CmdBindTargets(
                                                    params.depthTarget.stencilLayout,
                                                    &m_deCmdStream,
                                                    IsNested(),
-                                                   &m_dbRenderControl,
                                                    &m_dbRenderOverride,
                                                    pDeCmdSpace);
 
@@ -4669,6 +4657,8 @@ uint32* UniversalCmdBuffer::WriteNullDepthTarget(
         regDB_STENCIL_INFO  dbStencilInfo;
     } regs2 = { };
 
+    regDB_RENDER_CONTROL dbRenderControl = { };
+
     if (IsGfx11(m_gfxIpLevel) && m_cachedSettings.useLegacyDbZInfo)
     {
         // When the PA_SC_VRS_SURFACE_CNTL_1.DISABLE_SSAA_DETAIL_TO_EXPOSED_RATE_CLAMPING setting is
@@ -4709,11 +4699,9 @@ uint32* UniversalCmdBuffer::WriteNullDepthTarget(
         }
     }
 
-    m_dbRenderControl.u32All = 0;
-
     if (IsGfx11(m_gfxIpLevel))
     {
-        Gfx10DepthStencilView::SetGfx11StaticDbRenderControlFields(m_device, 1, &m_dbRenderControl);
+        Gfx10DepthStencilView::SetGfx11StaticDbRenderControlFields(m_device, 1, &dbRenderControl);
     }
 
     regPA_SU_POLY_OFFSET_DB_FMT_CNTL paSuPolyOffsetDbFmtCntl = { };
@@ -4725,8 +4713,8 @@ uint32* UniversalCmdBuffer::WriteNullDepthTarget(
     pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SU_POLY_OFFSET_DB_FMT_CNTL,
                                                     paSuPolyOffsetDbFmtCntl.u32All,
                                                     pCmdSpace);
-
-    return m_deCmdStream.WriteSetSeqContextRegs(mmDB_RENDER_OVERRIDE2, mmDB_HTILE_DATA_BASE, &regs1, pCmdSpace);
+    pCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmDB_RENDER_OVERRIDE2, mmDB_HTILE_DATA_BASE, &regs1, pCmdSpace);
+    return m_deCmdStream.WriteSetOneContextReg(mmDB_RENDER_CONTROL, dbRenderControl.u32All, pCmdSpace);
 }
 
 // =====================================================================================================================
@@ -6954,43 +6942,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
                                                            log2ExposedSamples << DB_Z_INFO__NUM_SAMPLES__SHIFT,
                                                            pDeCmdSpace);
         }
-
-        if (PipelineDirty || (StateDirty && m_graphicsState.dirtyFlags.depthStencilView))
-        {
-            m_dbRenderControl = m_workaroundState.SetOreoMode(m_dbRenderControl, pPipeline);
-        }
     } // end check for gfx11
-
-    if ((PipelineDirty                              ||
-       (StateDirty && dirtyFlags.depthStencilView)) &&
-       (m_prevDbRenderControl.u32All != m_dbRenderControl.u32All))
-    {
-        if (m_graphicsState.leakFlags.depthStencilView ||
-            (IsNested() == false))
-        {
-
-            pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmDB_RENDER_CONTROL,
-                                                              m_dbRenderControl.u32All,
-                                                              pDeCmdSpace);
-
-        }
-        else
-        {
-            //  OREO_MODE depends on both the DSV and Pipeline. Check what state we've inherited if any
-            uint32 dbRenderControlRmwMask = IsGfx11(m_gfxIpLevel) ? Gfx11PipelineDbRenderControlMask : 0;
-
-            if (dbRenderControlRmwMask != 0)
-            {
-                pDeCmdSpace = m_deCmdStream.WriteContextRegRmw(mmDB_RENDER_CONTROL,
-                                                               dbRenderControlRmwMask,
-                                                               m_dbRenderControl.u32All,
-                                                               pDeCmdSpace);
-            }
-        }
-
-        m_prevDbRenderControl.u32All = m_dbRenderControl.u32All;
-
-    }
 
     // Writing the viewport and scissor-rect state is deferred until draw-time because they depend on both the
     // viewport/scissor-rect state and the active pipeline.
@@ -7903,31 +7855,6 @@ uint32* UniversalCmdBuffer::ValidateDbRenderOverride(
 }
 
 // =====================================================================================================================
-// Validate DB_RENDER_CONTROL register. Depends on DSV (and Pipeline on Gfx11).
-uint32* UniversalCmdBuffer::ValidateDbRenderControl(
-    uint32* pDeCmdSpace)
-{
-    const GraphicsPipeline* pPipeline =
-        static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
-
-    if (IsGfx11(m_gfxIpLevel) && (pPipeline != nullptr))
-    {
-        m_dbRenderControl = m_workaroundState.SetOreoMode(m_dbRenderControl, pPipeline);
-    }
-
-    // Write if binding a DSV or Pipeline has changed the value
-    if (m_prevDbRenderControl.u32All != m_dbRenderControl.u32All)
-    {
-        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmDB_RENDER_CONTROL,
-                                                          m_dbRenderControl.u32All,
-                                                          pDeCmdSpace);
-        m_prevDbRenderControl.u32All = m_dbRenderControl.u32All;
-    }
-
-    return pDeCmdSpace;
-}
-
-// =====================================================================================================================
 // Fillout the Scissor Rects Register.
 uint32 UniversalCmdBuffer::BuildScissorRectImage(
     bool               multipleViewports,
@@ -8530,9 +8457,161 @@ void UniversalCmdBuffer::ValidateDispatchHsaAbi(
         startingCmdLen = GetUsedSize(CommandDataAlloc);
     }
 #endif
+    const auto* const pPipeline = static_cast<const ComputePipeline*>(pComputeState->pipelineState.pPipeline);
+
+    // PAL thinks in terms of threadgroups but the HSA ABI thinks in terms of global threads, we need to convert.
+    const DispatchDims threads = pPipeline->ThreadsPerGroupXyz();
+
+    offset *= threads;
+    const DispatchDims logicalSizeInWorkItems = logicalSize * threads;
+
+    // Now we write the required SGPRs. These depend on per-dispatch state so we don't have dirty bit tracking.
+    const HsaAbi::CodeObjectMetadata& metadata = pPipeline->HsaMetadata();
+    const llvm::amdhsa::kernel_descriptor_t& desc = pPipeline->KernelDescriptor();
+    const GpuChipProperties& deviceProps = m_device.Parent()->ChipProperties();
+
+    gpusize kernargsGpuVa = 0;
+    uint32 ldsSize = metadata.GroupSegmentFixedSize();
+    if (TestAnyFlagSet(desc.kernel_code_properties, AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_KERNARG_SEGMENT_PTR))
+    {
+        // Copy the kernel argument buffer into GPU memory.
+        const uint32 allocSize      = NumBytesToNumDwords(metadata.KernargSegmentSize());
+        const uint32 allocAlign     = NumBytesToNumDwords(metadata.KernargSegmentAlign());
+        uint8* const  pParams       = reinterpret_cast<uint8*>(
+            CmdAllocateEmbeddedData(allocSize, allocAlign, &kernargsGpuVa));
+        const uint16 threadsX       = static_cast<uint16>(threads.x);
+        const uint16 threadsY       = static_cast<uint16>(threads.y);
+        const uint16 threadsZ       = static_cast<uint16>(threads.z);
+        uint16 remainderSize        = 0; // no incomplete workgroups supported at this time.
+        const uint32 dimensionality = (logicalSize.x > 1) + (logicalSize.y > 1) + (logicalSize.z > 1);
+        uint64 ldsPointer           = 0;
+
+        memcpy(pParams, m_computeState.pKernelArguments, metadata.KernargSegmentSize());
+
+        // The global offsets are always zero, except in CmdDispatchOffset where they are dispatch-time values.
+        // This could be moved out into CmdDispatchOffset if the overhead is too much but we'd have to return
+        // out some extra state to make that work.
+
+        // Phase 1: Fill out driver-controlled arguments which don't depend on other arguments.
+        bool hasPhase2Args = false;
+
+        for (uint32 idx = 0; idx < metadata.NumArguments(); ++idx)
+        {
+            const HsaAbi::KernelArgument& arg = metadata.Arguments()[idx];
+            switch (arg.valueKind)
+            {
+            case HsaAbi::ValueKind::HiddenGlobalOffsetX:
+                memcpy(pParams + arg.offset, &offset.x, Min<size_t>(sizeof(offset.x), arg.size));
+                break;
+            case HsaAbi::ValueKind::HiddenGlobalOffsetY:
+                memcpy(pParams + arg.offset, &offset.y, Min<size_t>(sizeof(offset.y), arg.size));
+                break;
+            case HsaAbi::ValueKind::HiddenGlobalOffsetZ:
+                memcpy(pParams + arg.offset, &offset.z, Min<size_t>(sizeof(offset.z), arg.size));
+                break;
+            case HsaAbi::ValueKind::HiddenBlockCountX:
+                memcpy(pParams + arg.offset, &logicalSize.x, Min<size_t>(sizeof(logicalSize.x), arg.size));
+                break;
+            case HsaAbi::ValueKind::HiddenBlockCountY:
+                memcpy(pParams + arg.offset, &logicalSize.y, Min<size_t>(sizeof(logicalSize.y), arg.size));
+                break;
+            case HsaAbi::ValueKind::HiddenBlockCountZ:
+                memcpy(pParams + arg.offset, &logicalSize.z, Min<size_t>(sizeof(logicalSize.z), arg.size));
+                break;
+            case HsaAbi::ValueKind::HiddenGroupSizeX:
+                memcpy(pParams + arg.offset, &threadsX, Min<size_t>(sizeof(threadsX), arg.size));
+                break;
+            case HsaAbi::ValueKind::HiddenGroupSizeY:
+                memcpy(pParams + arg.offset, &threadsY, Min<size_t>(sizeof(threadsY), arg.size));
+                break;
+            case HsaAbi::ValueKind::HiddenGroupSizeZ:
+                memcpy(pParams + arg.offset, &threadsZ, Min<size_t>(sizeof(threadsZ), arg.size));
+                break;
+            case HsaAbi::ValueKind::HiddenRemainderX:
+                memcpy(pParams + arg.offset, &remainderSize, Min<size_t>(sizeof(remainderSize), arg.size));
+                break;
+            case HsaAbi::ValueKind::HiddenRemainderY:
+                memcpy(pParams + arg.offset, &remainderSize, Min<size_t>(sizeof(remainderSize), arg.size));
+                break;
+            case HsaAbi::ValueKind::HiddenRemainderZ:
+                memcpy(pParams + arg.offset, &remainderSize, Min<size_t>(sizeof(remainderSize), arg.size));
+                break;
+            case HsaAbi::ValueKind::HiddenGridDims:
+                memcpy(pParams + arg.offset, &dimensionality, Min<size_t>(sizeof(dimensionality), arg.size));
+                break;
+            case HsaAbi::ValueKind::HiddenDynamicLdsSize:
+                // We need to visit all DynamicSharedPointer args before we can fill out the dynamic LDS size.
+                hasPhase2Args = true;
+                break;
+            case HsaAbi::ValueKind::DynamicSharedPointer:
+                // We only support dyamic LDS pointers.
+                PAL_ASSERT(arg.addressSpace == HsaAbi::AddressSpace::Local);
+
+                // PAL must place the dynamic LDS allocations after the static LDS allocations. We need some extra
+                // padding between allocations if the current ldsSize isn't already aligned to pointeeAlign.
+                ldsSize = Pow2Align(ldsSize, arg.pointeeAlign);
+
+                // Pad the pointer out to 64 bits just in case arg.size is 8 bytes.
+                ldsPointer = ldsSize;
+                memcpy(pParams + arg.offset, &ldsPointer, Min<size_t>(sizeof(ldsPointer), arg.size));
+
+                // The caller must set each dynamic LDS pointer to the length of its dynamic allocation.
+                // We must add these to our ldsSize so we know where the next dynamic pointer goes in LDS space.
+                ldsSize += *reinterpret_cast<const uint32*>(m_computeState.pKernelArguments + arg.offset);
+                break;
+            case HsaAbi::ValueKind::ByValue:
+            case HsaAbi::ValueKind::GlobalBuffer:
+            case HsaAbi::ValueKind::Image:
+                break; // these are handled by kernargs
+            case HsaAbi::ValueKind::HiddenNone:
+                break; // avoid the assert in this case
+            default:
+                PAL_ASSERT_ALWAYS();
+
+            }
+        }
+
+        PAL_ASSERT_MSG(ldsSize <= deviceProps.gfxip.ldsSizePerThreadGroup,
+            "LDS size exceeds the maximum size per thread group.");
+
+        if (hasPhase2Args)
+        {
+            // Phase 2: Fill out any arguments which depend on the values we computed in phase 1.
+            const uint32 dynamicLdsSize = ldsSize - metadata.GroupSegmentFixedSize();
+
+            for (uint32 idx = 0; idx < metadata.NumArguments(); ++idx)
+            {
+                const HsaAbi::KernelArgument& arg = metadata.Arguments()[idx];
+                switch (arg.valueKind)
+                {
+                case HsaAbi::ValueKind::HiddenDynamicLdsSize:
+                    memcpy(pParams + arg.offset, &dynamicLdsSize, Min<size_t>(sizeof(dynamicLdsSize), arg.size));
+                    break;
+                default:
+                    // We should assume all unspecified args require no phase 2 handling.
+                    break;
+                }
+            }
+        }
+    }
 
     uint32*          pCmdSpace = pCmdStream->ReserveCommands();
-    const auto*const pPipeline = static_cast<const ComputePipeline*>(pComputeState->pipelineState.pPipeline);
+
+   // If ldsBytesPerTg was specified then that's what LDS_SIZE was programmed to, otherwise we used the fixed size.
+    const uint32 boundLdsSize =
+        (m_computeState.dynamicCsInfo.ldsBytesPerTg > 0) ? m_computeState.dynamicCsInfo.ldsBytesPerTg
+                                                         : metadata.GroupSegmentFixedSize();
+
+    // If our computed total LDS size is larger than the previously bound size we must rewrite it.
+    bool mustUpdateLdsSize = false;
+    if (boundLdsSize < ldsSize)
+    {
+        mustUpdateLdsSize = true;
+
+        // We rebound this state. Update its value so that we don't needlessly rewrite it on the
+        // next dispatch call.
+        m_computeState.dynamicCsInfo.ldsBytesPerTg = ldsSize;
+    }
 
     if (pComputeState->pipelineState.dirtyFlags.pipeline)
     {
@@ -8546,6 +8625,11 @@ void UniversalCmdBuffer::ValidateDispatchHsaAbi(
 
         m_pSignatureCs = &pPipeline->Signature();
     }
+    else if (mustUpdateLdsSize)
+    {
+        // If we skipped pPipeline->WriteCommands we still need to rewrite the LDS_SIZE.
+        pCmdSpace = pPipeline->WriteUpdatedLdsSize(pCmdStream, pCmdSpace, ldsSize);
+    }
 
 #if PAL_DEVELOPER_BUILD
     if (m_cachedSettings.enablePm4Instrumentation != 0)
@@ -8558,17 +8642,6 @@ void UniversalCmdBuffer::ValidateDispatchHsaAbi(
         pCmdSpace       = pCmdStream->ReserveCommands();
     }
 #endif
-
-    // PAL thinks in terms of threadgroups but the HSA ABI thinks in terms of global threads, we need to convert.
-    const DispatchDims threads = pPipeline->ThreadsPerGroupXyz();
-
-    offset *= threads;
-    const DispatchDims logicalSizeInWorkItems = logicalSize * threads;
-
-    // Now we write the required SGPRs. These depend on per-dispatch state so we don't have dirty bit tracking.
-    const HsaAbi::CodeObjectMetadata&        metadata    = pPipeline->HsaMetadata();
-    const llvm::amdhsa::kernel_descriptor_t& desc        = pPipeline->KernelDescriptor();
-    const GpuChipProperties&                 deviceProps = m_device.Parent()->ChipProperties();
 
     uint32 startReg = mmCOMPUTE_USER_DATA_0;
 
@@ -8613,9 +8686,7 @@ void UniversalCmdBuffer::ValidateDispatchHsaAbi(
         pAqlPacket->grid_size_y          = logicalSizeInWorkItems.y;
         pAqlPacket->grid_size_z          = logicalSizeInWorkItems.z;
         pAqlPacket->private_segment_size = metadata.PrivateSegmentFixedSize();
-        pAqlPacket->group_segment_size   = ((m_computeState.dynamicCsInfo.ldsBytesPerTg > 0)
-                                                ? m_computeState.dynamicCsInfo.ldsBytesPerTg
-                                                : metadata.GroupSegmentFixedSize());
+        pAqlPacket->group_segment_size   = ldsSize;
 
         pCmdSpace = SetSeqUserSgprRegs<ShaderCompute>(startReg, startReg + 1, &aqlPacketGpu, onAce, pCmdSpace);
         startReg += 2;
@@ -8623,79 +8694,7 @@ void UniversalCmdBuffer::ValidateDispatchHsaAbi(
 
     if (TestAnyFlagSet(desc.kernel_code_properties, AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_KERNARG_SEGMENT_PTR))
     {
-        // Copy the kernel argument buffer into GPU memory.
-        gpusize      gpuVa          = 0;
-        const uint32 allocSize      = NumBytesToNumDwords(metadata.KernargSegmentSize());
-        const uint32 allocAlign     = NumBytesToNumDwords(metadata.KernargSegmentAlign());
-        uint8*const  pParams        = reinterpret_cast<uint8*>(CmdAllocateEmbeddedData(allocSize, allocAlign, &gpuVa));
-        const uint16 threadsX       = static_cast<uint16>(threads.x);
-        const uint16 threadsY       = static_cast<uint16>(threads.y);
-        const uint16 threadsZ       = static_cast<uint16>(threads.z);
-        uint16 remainderSize        = 0; // no incomplete workgroups supported at this time.
-        const uint32 dimensionality = (logicalSize.x > 1) + (logicalSize.y > 1) + (logicalSize.z > 1);
-
-        memcpy(pParams, m_computeState.pKernelArguments, metadata.KernargSegmentSize());
-
-        // The global offsets are always zero, except in CmdDispatchOffset where they are dispatch-time values.
-        // This could be moved out into CmdDispatchOffset if the overhead is too much but we'd have to return
-        // out some extra state to make that work.
-        for (uint32 idx = 0; idx < metadata.NumArguments(); ++idx)
-        {
-            const HsaAbi::KernelArgument& arg = metadata.Arguments()[idx];
-            switch (arg.valueKind)
-            {
-                case HsaAbi::ValueKind::HiddenGlobalOffsetX:
-                    memcpy(pParams + arg.offset, &offset.x, Min<size_t>(sizeof(offset.x), arg.size));
-                    break;
-                case HsaAbi::ValueKind::HiddenGlobalOffsetY:
-                    memcpy(pParams + arg.offset, &offset.y, Min<size_t>(sizeof(offset.y), arg.size));
-                    break;
-                case HsaAbi::ValueKind::HiddenGlobalOffsetZ:
-                    memcpy(pParams + arg.offset, &offset.z, Min<size_t>(sizeof(offset.z), arg.size));
-                    break;
-                case HsaAbi::ValueKind::HiddenBlockCountX:
-                    memcpy(pParams + arg.offset, &logicalSize.x, Min<size_t>(sizeof(logicalSize.x), arg.size));
-                    break;
-                case HsaAbi::ValueKind::HiddenBlockCountY:
-                    memcpy(pParams + arg.offset, &logicalSize.y, Min<size_t>(sizeof(logicalSize.y), arg.size));
-                    break;
-                case HsaAbi::ValueKind::HiddenBlockCountZ:
-                    memcpy(pParams + arg.offset, &logicalSize.z, Min<size_t>(sizeof(logicalSize.z), arg.size));
-                    break;
-                case HsaAbi::ValueKind::HiddenGroupSizeX:
-                    memcpy(pParams + arg.offset, &threadsX, Min<size_t>(sizeof(threadsX), arg.size));
-                    break;
-                case HsaAbi::ValueKind::HiddenGroupSizeY:
-                    memcpy(pParams + arg.offset, &threadsY, Min<size_t>(sizeof(threadsY), arg.size));
-                    break;
-                case HsaAbi::ValueKind::HiddenGroupSizeZ:
-                    memcpy(pParams + arg.offset, &threadsZ, Min<size_t>(sizeof(threadsZ), arg.size));
-                    break;
-                case HsaAbi::ValueKind::HiddenRemainderX:
-                    memcpy(pParams + arg.offset, &remainderSize, Min<size_t>(sizeof(remainderSize), arg.size));
-                    break;
-                case HsaAbi::ValueKind::HiddenRemainderY:
-                    memcpy(pParams + arg.offset, &remainderSize, Min<size_t>(sizeof(remainderSize), arg.size));
-                    break;
-                case HsaAbi::ValueKind::HiddenRemainderZ:
-                    memcpy(pParams + arg.offset, &remainderSize, Min<size_t>(sizeof(remainderSize), arg.size));
-                    break;
-                case HsaAbi::ValueKind::HiddenGridDims:
-                    memcpy(pParams + arg.offset, &dimensionality, Min<size_t>(sizeof(dimensionality), arg.size));
-                    break;
-                case HsaAbi::ValueKind::ByValue:
-                case HsaAbi::ValueKind::GlobalBuffer:
-                    break; // these are handled by kernargs
-                case HsaAbi::ValueKind::HiddenNone:
-                    break; // avoid the assert in this case
-                default:
-                    PAL_ASSERT_ALWAYS();
-
-            }
-
-        }
-
-        pCmdSpace = SetSeqUserSgprRegs<ShaderCompute>(startReg, startReg + 1, &gpuVa, onAce, pCmdSpace);
+        pCmdSpace = SetSeqUserSgprRegs<ShaderCompute>(startReg, startReg + 1, &kernargsGpuVa, onAce, pCmdSpace);
         startReg += 2;
     }
 
@@ -10872,6 +10871,7 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
 {
     const auto& gfx9Generator      = static_cast<const IndirectCmdGenerator&>(generator);
     const auto* const pGfxPipeline = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
+    const auto* const pCsPipeline  = static_cast<const ComputePipeline*>(m_computeState.pipelineState.pPipeline);
     const auto& properties         = gfx9Generator.Properties();
 
     const uint32 gfxSpillDwords  =
@@ -10884,6 +10884,9 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
     const bool isTaskShaderEnabled = (pGfxPipeline != nullptr) && (pGfxPipeline->IsTaskShaderEnabled());
     PAL_ASSERT((isTaskShaderEnabled == false) || (gfx9Generator.Type() == Pm4::GeneratorType::DispatchMesh));
 
+    const bool isNumWorkGroupsEnabled = (pCsPipeline != nullptr) &&
+                                        (pCsPipeline->Signature().numWorkGroupsRegAddr != UserDataNotMapped);
+
     if (m_cachedSettings.describeDrawDispatch)
     {
         DescribeExecuteIndirectCmds(this, static_cast<uint32>(gfx9Generator.Type()));
@@ -10891,7 +10894,8 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
 
     if (gfx9Generator.UsingExecuteIndirectPacket()       &&
         (userDataSpillTableUsedButNotSupported == false) &&
-        (isTaskShaderEnabled == false))
+        (isTaskShaderEnabled == false)                   &&
+        (isNumWorkGroupsEnabled == false))
     {
         // The case where countGpuAddr is zero is handled by packet.ordinal4.bitfields.count_indirect_enable in
         // Pal::Gfx9::CmdUtil::BuildExecuteIndirect()
@@ -11235,13 +11239,6 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
         }
     }
 
-    // If we've updated state by binding a new DSV or pipeline, we invalidate the register
-    if ((cmdBuffer.m_graphicsState.leakFlags.depthStencilView == 1) ||
-        (cmdBuffer.m_graphicsState.pipelineState.dirtyFlags.pipeline == 1))
-    {
-        m_prevDbRenderControl.u32All = ~m_dbRenderControl.u32All;
-    }
-
     // This state is also always updated by the nested command buffer and should leak back.
     m_paScAaConfigNew.u32All  = cmdBuffer.m_paScAaConfigNew.u32All;
     m_paScAaConfigLast.u32All = cmdBuffer.m_paScAaConfigLast.u32All;
@@ -11459,7 +11456,6 @@ void UniversalCmdBuffer::ValidateExecuteNestedCmdBuffer()
             pDeCmdSpace = ValidateCbColorInfoAndBlendState<false, true, false>(pDeCmdSpace);
         }
         pDeCmdSpace = ValidateDbRenderOverride(pDeCmdSpace);
-        pDeCmdSpace = ValidateDbRenderControl(pDeCmdSpace);
     }
     else
     {
@@ -11470,10 +11466,6 @@ void UniversalCmdBuffer::ValidateExecuteNestedCmdBuffer()
         if (m_pipelineDynRegsDirty || dirtyFlags.depthStencilView)
         {
             pDeCmdSpace = ValidateDbRenderOverride(pDeCmdSpace);
-        }
-        if (dirtyFlags.depthStencilView)
-        {
-            pDeCmdSpace = ValidateDbRenderControl(pDeCmdSpace);
         }
     }
 
@@ -11757,13 +11749,11 @@ void UniversalCmdBuffer::SwitchDrawFunctions(
 
 // =====================================================================================================================
 // Copy memory using the CP's DMA engine
-void UniversalCmdBuffer::CpCopyMemory(
+void UniversalCmdBuffer::CopyMemoryCp(
     gpusize dstAddr,
     gpusize srcAddr,
     gpusize numBytes)
 {
-    PAL_ASSERT(numBytes < (1ull << 32));
-
     DmaDataInfo dmaDataInfo = {};
     dmaDataInfo.dstSel      = dst_sel__pfp_dma_data__dst_addr_using_l2;
     dmaDataInfo.srcSel      = src_sel__pfp_dma_data__src_addr_using_l2;
@@ -11772,11 +11762,20 @@ void UniversalCmdBuffer::CpCopyMemory(
     dmaDataInfo.predicate   = static_cast<Pm4Predicate>(GetPm4CmdBufState().flags.packetPredicate);
     dmaDataInfo.dstAddr     = dstAddr;
     dmaDataInfo.srcAddr     = srcAddr;
-    dmaDataInfo.numBytes    = static_cast<uint32>(numBytes);
 
-    uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
-    pCmdSpace += CmdUtil::BuildDmaData<false>(dmaDataInfo, pCmdSpace);
-    m_deCmdStream.CommitCommands(pCmdSpace);
+    while (numBytes > 0)
+    {
+        // The numBytes arg is a gpusize so we must upcast, clamp against MaxDmaDataByteCount, then safely downcast.
+        dmaDataInfo.numBytes = uint32(Min(numBytes, gpusize(CmdUtil::MaxDmaDataByteCount)));
+
+        uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
+        pCmdSpace += CmdUtil::BuildDmaData<false>(dmaDataInfo, pCmdSpace);
+        m_deCmdStream.CommitCommands(pCmdSpace);
+
+        dmaDataInfo.dstAddr += dmaDataInfo.numBytes;
+        dmaDataInfo.srcAddr += dmaDataInfo.numBytes;
+        numBytes            -= dmaDataInfo.numBytes;
+    }
 
     SetCpBltState(true);
     SetCpBltWriteCacheState(true);
@@ -11820,9 +11819,7 @@ CmdStream* UniversalCmdBuffer::GetAceCmdStream()
 
             CmdStreamBeginFlags cmdStreamFlags = {};
             cmdStreamFlags.prefetchCommands    = m_buildFlags.prefetchCommands;
-            cmdStreamFlags.optimizeCommands    =
-                (((coreSettings.cmdBufOptimizePm4 == Pm4OptDefaultEnable) && m_buildFlags.optimizeGpuSmallBatch) ||
-                (coreSettings.cmdBufOptimizePm4 == Pm4OptForceEnable));
+            cmdStreamFlags.optimizeCommands    = m_buildFlags.optimizeGpuSmallBatch;
 
             result = m_pAceCmdStream->Begin(cmdStreamFlags, m_pMemAllocator);
         }

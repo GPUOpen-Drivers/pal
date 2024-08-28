@@ -155,9 +155,6 @@ private:
     EntryVector             m_entries;
     const bool              m_haveWriteAccess;
 
-    // Write components: MAY NOT BE INITIALIZED IF WE DON'T HAVE WRITE ACCESS
-    bool                    m_refreshedSinceLastWrite;
-
     // Internal memory buffer: MAY NOT BE INITIALIZED IF WE AREN'T USING A MEMORY BUFFER
     bool                    m_useBufferedMemory;
     VirtualLinearAllocator  m_bufferMemory;

@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2021-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2024 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -23,34 +23,9 @@
  #
  #######################################################################################################################
 
-set(CMAKE_FOLDER "${CMAKE_FOLDER}/shared")
-
-add_subdirectory(ddApi)
-add_subdirectory(ddCommon)
-add_subdirectory(ddYaml)
-
-if (DD_BUILD_RDF)
-    add_subdirectory(ddRdf)
-endif()
-
-if (DD_BP_ENABLE_DD_TEST_UTIL)
-    add_subdirectory(ddTestUtil)
-endif()
-
-if (DD_BP_ENABLE_DD_MODULE_APIS)
-    add_subdirectory(ddModule)
-    add_subdirectory(ddModuleExtensions)
-    add_subdirectory(ddModuleLoader)
-    add_subdirectory(ddModuleUtil)
-    add_subdirectory(protocols/info/g_client)
-    add_subdirectory(ddGpuDetectiveEventStreamer)
-    add_subdirectory(ddRdfEventStreamer)
-    add_subdirectory(ddRmtEventTracer)
-    add_subdirectory(ddAmdLogUtils)
-endif()
-
-add_subdirectory(legacy)
-
-if (DD_BP_ENABLE_TOOL_LIBRARIES)
-    add_subdirectory(ddGpuInfo)
-endif()
+target_sources(addrlib PRIVATE
+    CMakeLists.txt
+    Addrlib.cmake
+    AddrlibBuildParameters.cmake
+    AddrlibCompilerOptions.cmake
+)

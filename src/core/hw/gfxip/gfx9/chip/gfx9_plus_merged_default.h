@@ -3681,6 +3681,35 @@ namespace Gfx110
     constexpr unsigned int mmVGT_DMA_DATA_FIFO_DEPTH_DEFAULT                  = 0x0200;
 } // namespace Gfx110
 
+#if   CHIP_HDR_STRIX1
+namespace Gfx115
+{
+    constexpr unsigned int mmCB_KEY_OVERRIDE_0_DEFAULT                        = 0xFFFF0000;
+    constexpr unsigned int mmCB_KEY_OVERRIDE_1_DEFAULT                        = 0xFFFFFFFF;
+    constexpr unsigned int mmCB_KEY_OVERRIDE_2_DEFAULT                        = 0xF888FFF0;
+    constexpr unsigned int mmCB_KEY_OVERRIDE_3_DEFAULT                        = 0xFFFFFFFF;
+    constexpr unsigned int mmCB_KEY_OVERRIDE_4_DEFAULT                        = 0xFC00FF80;
+    constexpr unsigned int mmCB_KEY_OVERRIDE_5_DEFAULT                        = 0xC0C0E0E0;
+    constexpr unsigned int mmCB_KEY_OVERRIDE_6_DEFAULT                        = 0xF000F888;
+    constexpr unsigned int mmCB_KEY_OVERRIDE_7_DEFAULT                        = 0x8888;
+    constexpr unsigned int mmCB_RMI_GL2_CACHE_CONTROL_DEFAULT                 = 0x8CC0000D;
+    constexpr unsigned int mmDB_CGTT_CLK_CTRL_1_DEFAULT                       = 0x0000;
+    constexpr unsigned int mmDB_RMI_L2_CACHE_CONTROL_DEFAULT                  = 0xD0D00CD;
+    constexpr unsigned int mmGE_STEREO_CNTL_DEFAULT                           = 0x014D;
+    constexpr unsigned int mmPA_CL_VS_OUT_CNTL_DEFAULT                        = 0x49CDCDCD;
+    constexpr unsigned int mmPA_SC_BINNER_CNTL_2_DEFAULT                      = 0x4DCDCDCD;
+    constexpr unsigned int mmPA_SC_BINNER_DYNAMIC_BATCH_LIMIT_DEFAULT         = 0x0000;
+    constexpr unsigned int mmPA_SC_BINNER_OUTPUT_TIMEOUT_CNTL_DEFAULT         = 0xCDCD;
+    constexpr unsigned int mmPA_SC_BINNER_OUTPUT_TIMEOUT_COUNTER_DEFAULT      = 0x0000;
+    constexpr unsigned int mmPA_SC_ENHANCE_4_DEFAULT                          = 0x0000;
+    constexpr unsigned int mmPA_SC_LIGHT_SHAFT_EVENT_CONFIG_0_DEFAULT         = 0x5D4070;
+    constexpr unsigned int mmPA_SC_LIGHT_SHAFT_EVENT_CONFIG_1_DEFAULT         = 0x80027D04;
+    constexpr unsigned int mmPA_SC_VRS_SURFACE_CNTL_1_DEFAULT                 = 0x55480100;
+    constexpr unsigned int mmPA_STEREO_CNTL_DEFAULT                           = 0x4D0DCC;
+    constexpr unsigned int mmSQ_CONFIG_DEFAULT                                = 0x380000;
+} // namespace Gfx115
+#endif
+
 namespace Mall
 {
     constexpr unsigned int mmDB_RMI_L2_CACHE_CONTROL_DEFAULT                  = 0xD0D00CD;
@@ -9806,6 +9835,22 @@ namespace Rembrandt
     constexpr unsigned int mmWD_CNTL_STATUS_DEFAULT                           = 0x0000;
     constexpr unsigned int mmWD_ENHANCE_DEFAULT                               = 0x0000;
 } // namespace Rembrandt
+
+#if CHIP_HDR_STRIX1
+namespace Stx1
+{
+    constexpr unsigned int mmGB_ADDR_CONFIG_DEFAULT                           = 0x0242;
+    constexpr unsigned int mmGB_ADDR_CONFIG_READ_DEFAULT                      = 0x0242;
+    constexpr unsigned int mmPA_SC_ENHANCE_3_DEFAULT                          = 0x0000;
+    constexpr unsigned int mmPA_SC_VRS_SURFACE_CNTL_DEFAULT                   = 0x42000000;
+    constexpr unsigned int mmRLC_SPM_ACCUM_MODE_DEFAULT                       = 0x0004;
+    constexpr unsigned int mmSPI_FEATURE_CTRL_DEFAULT                         = 0x13E0;
+    constexpr unsigned int mmSPI_PS_MAX_WAVE_ID_DEFAULT                       = 0x20000FF;
+    constexpr unsigned int mmSPI_SX_EXPORT_BUFFER_SIZES_DEFAULT               = 0x10000130;
+    constexpr unsigned int mmVGT_DMA_DATA_FIFO_DEPTH_DEFAULT                  = 0x0100;
+    constexpr unsigned int mmVGT_GS_MAX_WAVE_ID_DEFAULT                       = 0x01FF;
+} // namespace Stx1
+#endif
 
 } // inline namespace Chip
 } // namespace Gfx9

@@ -54,6 +54,14 @@ public:
         const DynamicComputeShaderInfo& csInfo,
         bool                            prefetch) const;
 
+    uint32* WriteUpdatedLdsSize(
+        CmdStream* pCmdStream,
+        uint32*    pCmdSpace,
+        uint32     ldsBytesPerTg) const
+    {
+        return m_chunkCs.WriteShCommandsLdsSize(pCmdStream, pCmdSpace, ldsBytesPerTg);
+    }
+
     virtual Result GetShaderStats(
         ShaderType   shaderType,
         ShaderStats* pShaderStats,

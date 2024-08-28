@@ -3038,6 +3038,21 @@
       "Description": "Reduce RS64 CP overhead by writing a simplified EVENT_WRITE packet, EVENT_WRITE_ZPASS. GFX11 specific and overridden to true unless this setting is explicitly set to false."
     },
     {
+      "Description": "Sets Dcc max compressed block size to 256b. If false, 128b will be used. 256b is not supported by all parts.",
+      "Tags": [
+        "General"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "Name": "Dcc256bCompressedTex",
+      "OrBuildTypes": [
+        "PAL_BUILD_GFX115"
+      ]
+    },
+    {
       "Description": "Perfcounter workaround which samples all counters in the running state if SQ counters are on.",
       "Tags": [
         "Hardware Workarounds"

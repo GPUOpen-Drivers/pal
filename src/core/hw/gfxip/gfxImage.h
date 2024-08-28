@@ -94,6 +94,10 @@ struct SharedMetadataInfo
     AddrSwizzleMode     fmaskSwizzleMode;
     gpusize             hiZOffset;
     gpusize             hiSOffset;
+    gpusize             dccSize[MaxNumPlanes];
+    gpusize             dccAlignment[MaxNumPlanes];
+    gpusize             displayDccSize[MaxNumPlanes];
+    gpusize             displayDccAlignment[MaxNumPlanes];
 };
 
 // Display Dcc state for a plane

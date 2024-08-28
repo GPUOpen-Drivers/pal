@@ -38,6 +38,9 @@
 #define FAMILY_RMB     0x92 // 146 / Rembrandt
 #define FAMILY_PHX     0x94 // 148 / Phoenix
 #define FAMILY_RPL     0x95 // 149 / Raphael
+#if PAL_BUILD_GFX115
+#define FAMILY_STX     0x96 // 150 / Strix
+#endif
 #define FAMILY_MDN     0x97 // 151 / Mendocino
 
 // AMDGPU_FAMILY_IS(familyId, familyName)
@@ -52,6 +55,11 @@
 // Gfx11.0
 #define FAMILY_IS_NV3(f)     FAMILY_IS(f, NV3)
 #define FAMILY_IS_PHX(f)     FAMILY_IS(f, PHX)
+
+#if PAL_BUILD_GFX115
+// Gfx11.5
+#define FAMILY_IS_STX(f)     FAMILY_IS(f, STX)
+#endif
 
 #define AMDGPU_UNKNOWN          0xFF
 
@@ -75,6 +83,13 @@
 #define AMDGPU_NAVI32_RANGE        0x20, 0xff // 32 <= x < 255
 #define AMDGPU_PHOENIX1_RANGE      0x01, 0x80 // 1 <= x < 128
 #define AMDGPU_PHOENIX2_RANGE      0x80, 0xC0 // 128 <= x < 192
+
+#if PAL_BUILD_STRIX1
+// Gfx11.5
+#define AMDGPU_STRIX1_RANGE          0x01, 0x40 // 1  <= x < 64 (tentative)
+#define AMDGPU_STRIX1_A0_RANGE       0x01, 0x0F // 1  <= x < 15
+#define AMDGPU_STRIX1_B0_RANGE       0x10, 0x40 // 16 <= x < 64
+#endif
 
 #define AMDGPU_EXPAND_FIX(x) x
 #define AMDGPU_RANGE_HELPER(val, min, max) ((val >= min) && (val < max))
@@ -104,6 +119,13 @@
 #define ASICREV_IS_PHOENIX1(r)         ASICREV_IS(r, PHOENIX1)
 #define ASICREV_IS_PHOENIX2(r)         ASICREV_IS(r, PHOENIX2)
 
+#if PAL_BUILD_STRIX1
+// Gfx11.5
+#define ASICREV_IS_STRIX1(r)           ASICREV_IS(r, STRIX1)
+#define ASICREV_IS_STRIX1_A0(r)        ASICREV_IS(r, STRIX1_A0)
+#define ASICREV_IS_STRIX1_B0(r)        ASICREV_IS(r, STRIX1_B0)
+#endif
+
 // AMDGPU_IS(familyId, eRevisionId, familyName, revisionName)
 #define AMDGPU_IS(f, r, fn, rn)    (FAMILY_IS(f, fn) && ASICREV_IS(r, rn))
 
@@ -128,6 +150,13 @@
 #define AMDGPU_IS_PHOENIX1(f, r)      AMDGPU_IS(f, r, PHX, PHOENIX1)
 #define AMDGPU_IS_PHOENIX2(f, r)      AMDGPU_IS(f, r, PHX, PHOENIX2)
 
+#if PAL_BUILD_STRIX1
+// Gfx11.5
+#define AMDGPU_IS_STRIX1(f,r)         AMDGPU_IS(f, r, STX, STRIX1)
+#define AMDGPU_IS_STRIX1_A0(f,r)      AMDGPU_IS(f, r, STX, STRIX1_A0)
+#define AMDGPU_IS_STRIX1_B0(f,r)      AMDGPU_IS(f, r, STX, STRIX1_B0)
+#endif
+
 // Device IDs
 // Gfx10.1
 #define DEVICE_ID_NV_NAVI10_P_7310      0x7310
@@ -147,6 +176,11 @@
 #define DEVICE_ID_NV3_NAVI33_P_73F0     0x73F0
 #define DEVICE_ID_PHX1_15BF             0x15BF // Phoenix1
 #define DEVICE_ID_PHX2_15C8             0x15C8 // Phoenix2
+
+#if PAL_BUILD_STRIX1
+// Gf11.5
+#define DEVICE_ID_STX1_150E             0x150E // Strix1
+#endif
 
 // DEVICE_IS(deviceId, deviceName)
 #define DEVICE_IS(d, dn) (d == DEVICE_ID_##dn)
@@ -176,6 +210,11 @@
 #define NAVI32_P_A0               0x20
 #define PHOENIX1_A0               0x01
 #define PHOENIX2_A0               0x80
+
+#if PAL_BUILD_STRIX1
+// Gfx11.5
+#define STRIX1_P_A0               0x01
+#endif
 
 // SPIN_IS(revisionId, revisionName)
 #define SPIN_IS(r, rn) (r == rn)
@@ -244,6 +283,11 @@
 #define PRID_NV3_NAVI33_F7          0xF7
 
 #define PRID_PHX_00                 0x00   // Phoenix
+
+#if PAL_BUILD_STRIX1
+// Gfx11.5
+#define PRID_STX_STRIX1_00          0x00
+#endif
 
 // VARIANT_IS(prid, variantName)
 #define VARIANT_IS(v, vn) (v == PRID_##vn)

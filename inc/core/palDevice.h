@@ -626,6 +626,12 @@ struct PalPublicSettings
     /// that currently needs Escape call.
     bool disableEscapeCall;
 
+    /// A hint to the Windows OS that this application has submissions that are expected to run for a long time. This
+    /// tells the OS that checking elapsed execution time is not a good way to judge if the GPU is hung.
+    ///
+    /// If this flag is set, Windows shouldn't TDR long submissions on uncontested hardware queues. Submissions on
+    /// contested queues must preempt within the time limit to avoid a TDR. Setting this may also extend the TDR timer
+    /// on compute queues.
     bool longRunningSubmissions;
 
     /// Disables MCBP on demand. This is a temporary setting until ATOMIC_MEM packet issue with MCBP is resolved.
@@ -1420,19 +1426,29 @@ struct DeviceProperties
 
         struct
         {
-            uint32 bufferView;  ///< Size in bytes (and required alignment) of a buffer view SRD.
-                                ///  @see IDevice::CreateTypedBufferViewSrds() and CreateUntypedBufferViewSrds().
-            uint32 imageView;   ///< Size in bytes (and required alignment) of an image view SRD.
-                                ///  @see IDevice::CreateImageViewSrds().
-            uint32 fmaskView;   ///< Size in bytes (and required alignment) of an fmask view SRD.
-                                ///  @see IDevice::CreateFmaskViewSrds().  This value can be zero to denote
-                                ///  a lack of fMask support.
-            uint32 sampler;     ///< Size in bytes (and required alignment) of a sampler SRD.
-                                ///  @see IDevice::CreateSamplerSrds().
-            uint32 bvh;         ///< Size in bytes (and required alignment) of a BVH SRD
-                                ///  Will be zero if HW doesn't support ray-tracing capabilities.
-                                ///  @see IDevice::CreateBvhSrds().
-        } srdSizes;             ///< Sizes for various types of _shader resource descriptor_ (SRD).
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 892
+            union
+            {
+                uint32 bufferView;
+#endif
+                uint32 typedBufferView; ///< Size in bytes (and required alignment) of a typed buffer view SRD.
+                                        ///  @see IDevice::CreateTypedBufferViewSrds().
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 892
+            };
+#endif
+            uint32 untypedBufferView;  ///< Size in bytes (and required alignment) of a untyped buffer view SRD.
+                                       ///  @see IDevice::CreateUntypedBufferViewSrds().
+            uint32 imageView;          ///< Size in bytes (and required alignment) of an image view SRD.
+                                       ///  @see IDevice::CreateImageViewSrds().
+            uint32 fmaskView;          ///< Size in bytes (and required alignment) of an fmask view SRD.
+                                       ///  @see IDevice::CreateFmaskViewSrds().  This value can be zero to denote
+                                       ///  a lack of fMask support.
+            uint32 sampler;            ///< Size in bytes (and required alignment) of a sampler SRD.
+                                       ///  @see IDevice::CreateSamplerSrds().
+            uint32 bvh;                ///< Size in bytes (and required alignment) of a BVH SRD
+                                       ///  Will be zero if HW doesn't support ray-tracing capabilities.
+                                       ///  @see IDevice::CreateBvhSrds().
+        } srdSizes;                    ///< Sizes for various types of _shader resource descriptor_ (SRD).
 
         struct
         {
@@ -4097,8 +4113,8 @@ public:
 
     /// Creates one or more typed buffer view _shader resource descriptors (SRDs)_ in memory provided by the client.
     ///
-    /// The client is responsible for providing _count_ times the amount of memory reported by srdSizes.bufferView in
-    /// DeviceProperties, and must also ensure the provided memory is aligned to the size of one SRD.
+    /// The client is responsible for providing _count_ times the amount of memory reported by srdSizes.typedBufferView
+    /// in DeviceProperties, and must also ensure the provided memory is aligned to the size of one SRD.
     ///
     /// The SRD can be created in either system memory or pre-mapped GPU memory.  If updating GPU memory, the client
     /// must ensure there are no GPU accesses of this memory in flight before calling this method.
@@ -4131,8 +4147,8 @@ public:
     /// Creates one or more untyped buffer view _shader resource descriptors (SRDs)_ in memory provided by the client.
     /// These SRDs can be accessed in a shader as either _raw_ or _structured_ views.
     ///
-    /// The client is responsible for providing _count_ times the amount of memory reported by srdSizes.bufferView in
-    /// DeviceProperties, and must also ensure the provided memory is aligned to the size of one SRD.
+    /// The client is responsible for providing _count_ times the amount of memory reported by srdSizes.untypedBufferView
+    /// in DeviceProperties, and must also ensure the provided memory is aligned to the size of one SRD.
     ///
     /// The SRD can be created in either system memory or pre-mapped GPU memory.  If updating GPU memory, the client
     /// must ensure there are no GPU accesses of this memory in flight before calling this method.

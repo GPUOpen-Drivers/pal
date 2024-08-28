@@ -6391,11 +6391,61 @@ union DB_CGTT_CLK_CTRL_0 {
         unsigned int                                                              :  9;
         unsigned int RESERVED                                                     : 23;
     } gfx110;
+#if   CHIP_HDR_STRIX1
+    struct {
+        unsigned int                                                              :  9;
+        unsigned int SOFT_OVERRIDE9                                               :  1;
+        unsigned int SOFT_OVERRIDE10                                              :  1;
+        unsigned int SOFT_OVERRIDE11                                              :  1;
+        unsigned int SOFT_OVERRIDE12                                              :  1;
+        unsigned int SOFT_OVERRIDE13                                              :  1;
+        unsigned int SOFT_OVERRIDE14                                              :  1;
+        unsigned int SOFT_OVERRIDE15                                              :  1;
+        unsigned int SOFT_OVERRIDE16                                              :  1;
+        unsigned int SOFT_OVERRIDE17                                              :  1;
+        unsigned int SOFT_OVERRIDE18                                              :  1;
+        unsigned int SOFT_OVERRIDE19                                              :  1;
+        unsigned int SOFT_OVERRIDE20                                              :  1;
+        unsigned int SOFT_OVERRIDE21                                              :  1;
+        unsigned int SOFT_OVERRIDE22                                              :  1;
+        unsigned int SOFT_OVERRIDE23                                              :  1;
+        unsigned int SOFT_OVERRIDE24                                              :  1;
+        unsigned int RESERVED                                                     :  7;
+    } gfx115;
+#endif
 
     unsigned int u32All;
     signed int   i32All;
     float        f32All;
 };
+
+#if   CHIP_HDR_STRIX1
+union DB_CGTT_CLK_CTRL_1 {
+    struct {
+        unsigned int OFF_HYSTERESIS_OVERRIDE0                                     :  1;
+        unsigned int OFF_HYSTERESIS_OVERRIDE1                                     :  1;
+        unsigned int OFF_HYSTERESIS_OVERRIDE2                                     :  1;
+        unsigned int OFF_HYSTERESIS_OVERRIDE3                                     :  1;
+        unsigned int OFF_HYSTERESIS_OVERRIDE4                                     :  1;
+        unsigned int OFF_HYSTERESIS_OVERRIDE5                                     :  1;
+        unsigned int OFF_HYSTERESIS_OVERRIDE6                                     :  1;
+        unsigned int OFF_HYSTERESIS_OVERRIDE7                                     :  1;
+        unsigned int OFF_HYSTERESIS_OVERRIDE8                                     :  1;
+        unsigned int OFF_HYSTERESIS_OVERRIDE9                                     :  1;
+        unsigned int OFF_HYSTERESIS_OVERRIDE10                                    :  1;
+        unsigned int OFF_HYSTERESIS_OVERRIDE11                                    :  1;
+        unsigned int OFF_HYSTERESIS_OVERRIDE12                                    :  1;
+        unsigned int OFF_HYSTERESIS_OVERRIDE13                                    :  1;
+        unsigned int OFF_HYSTERESIS_OVERRIDE14                                    :  1;
+        unsigned int OFF_HYSTERESIS_OVERRIDE15                                    :  1;
+        unsigned int RESERVED                                                     : 16;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+#endif
 
 union DB_COUNT_CONTROL {
     struct {
@@ -12660,6 +12710,12 @@ union GRBM_GFX_INDEX {
         unsigned int INSTANCE_INDEX                                               :  8;
         unsigned int                                                              : 24;
     } most;
+#if   CHIP_HDR_STRIX1
+    struct {
+        unsigned int INSTANCE_INDEX                                               :  7;
+        unsigned int                                                              : 25;
+    } gfx115;
+#endif
 
     unsigned int u32All;
     signed int   i32All;
@@ -13604,6 +13660,13 @@ union PA_CL_ENHANCE {
         unsigned int CLAMP_NEGATIVE_BB_TO_ZERO                                    :  1;
         unsigned int                                                              :  8;
     } gfx11;
+#if   CHIP_HDR_STRIX1
+    struct {
+        unsigned int                                                              : 24;
+        unsigned int DISABLE_MEB_OPT                                              :  1;
+        unsigned int                                                              :  7;
+    } gfx115;
+#endif
 
     unsigned int u32All;
     signed int   i32All;
@@ -15821,6 +15884,18 @@ union PA_SC_BINNER_CNTL_2 {
         unsigned int LIGHT_SHAFT_DRAW_CALL_LIMIT                                  :  3;
         unsigned int                                                              : 25;
     } gfx110;
+#if   CHIP_HDR_STRIX1
+    struct {
+        unsigned int                                                              :  4;
+        unsigned int RESERVED_LIGHT_SHAFT_DRAW_CALL_LIMIT                         :  3;
+        unsigned int                                                              : 15;
+        unsigned int SBB_ENABLE                                                   :  1;
+        unsigned int ENABLE_PING_PONG_BIN_ORDER                                   :  1;
+        unsigned int PING_PONG_BIN_ORDER_FLIP                                     :  2;
+        unsigned int LIGHT_SHAFT_DRAW_CALL_LIMIT                                  :  5;
+        unsigned int                                                              :  1;
+    } gfx115;
+#endif
 
     unsigned int u32All;
     signed int   i32All;
@@ -15843,6 +15918,19 @@ union PA_SC_BINNER_CNTL_OVERRIDE {
     signed int   i32All;
     float        f32All;
 };
+
+#if   CHIP_HDR_STRIX1
+union PA_SC_BINNER_DYNAMIC_BATCH_LIMIT {
+    struct {
+        unsigned int LIMIT                                                        : 12;
+        unsigned int                                                              : 20;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+#endif
 
 union PA_SC_BINNER_EVENT_CNTL_0 {
     struct {
@@ -15963,6 +16051,31 @@ union PA_SC_BINNER_EVENT_CNTL_3 {
     signed int   i32All;
     float        f32All;
 };
+
+#if   CHIP_HDR_STRIX1
+union PA_SC_BINNER_OUTPUT_TIMEOUT_CNTL {
+    struct {
+        unsigned int THRESHOLD                                                    : 16;
+        unsigned int                                                              : 16;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+#endif
+
+#if   CHIP_HDR_STRIX1
+union PA_SC_BINNER_OUTPUT_TIMEOUT_COUNTER {
+    struct {
+        unsigned int THRESHOLD                                                    : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+#endif
 
 union PA_SC_BINNER_PERF_CNTL_0 {
     struct {
@@ -16451,6 +16564,13 @@ union PA_SC_ENHANCE_3 {
         unsigned int PKR_S2_FORCE_EOV_STALL                                       :  1;
         unsigned int                                                              :  4;
     } gfx110;
+#if   CHIP_HDR_STRIX1
+    struct {
+        unsigned int                                                              : 27;
+        unsigned int APPLY_AA_MASK_AT_EXPOSED_RATE_FOR_VRS_COURSE_QUADS_WITH_CR   :  1;
+        unsigned int                                                              :  4;
+    } gfx115;
+#endif
     struct {
         unsigned int                                                              :  6;
         unsigned int RSVD                                                         : 26;
@@ -16472,6 +16592,23 @@ union PA_SC_ENHANCE_3 {
     signed int   i32All;
     float        f32All;
 };
+
+#if   CHIP_HDR_STRIX1
+union PA_SC_ENHANCE_4 {
+    struct {
+        unsigned int FORCE_ZWRITE_ZPP                                             :  1;
+        unsigned int USE_SHADER_MASK_FOR_ZPP_BATCH_BREAK                          :  1;
+        unsigned int USE_CONSERVATIVE_COLOR_MASK_ZPP_BREAK                        :  1;
+        unsigned int DISABLE_SBB_WITH_LSO                                         :  1;
+        unsigned int ENABLE_SBB_WITH_ZPP                                          :  1;
+        unsigned int RSVD                                                         : 27;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+#endif
 
 union PA_SC_ENHANCE_INTERNAL {
     struct {
@@ -16624,6 +16761,30 @@ union PA_SC_IF_FIFO_SIZE {
     signed int   i32All;
     float        f32All;
 };
+
+#if   CHIP_HDR_STRIX1
+union PA_SC_LIGHT_SHAFT_EVENT_CONFIG_0 {
+    struct {
+        unsigned int MODE                                                         : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+#endif
+
+#if   CHIP_HDR_STRIX1
+union PA_SC_LIGHT_SHAFT_EVENT_CONFIG_1 {
+    struct {
+        unsigned int MODE                                                         : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+#endif
 
 union PA_SC_LINE_CNTL {
     struct {
@@ -29267,6 +29428,22 @@ union SQ_CLK_CTRL {
         unsigned int SQ_LDS_DIRECT_FGCG_OVERRIDE                                  :  1;
         unsigned int                                                              : 15;
     } gfx11;
+#if   CHIP_HDR_STRIX1
+    struct {
+        unsigned int                                                              : 17;
+        unsigned int IS_WAVECLK_IB_WCLK_OVERRIDE                                  :  1;
+        unsigned int ISC_SET_FGCG_OVERRIDE                                        :  1;
+        unsigned int ISC_CTRL_FGCG_OVERRIDE                                       :  1;
+        unsigned int ISC_WAVE_CTRL_FGCG_OVERRIDE                                  :  1;
+        unsigned int IB_IBUF_FGCG_OVERRIDE                                        :  1;
+        unsigned int IB_WINFO_FGCG_OVERRIDE                                       :  1;
+        unsigned int IB_MISC_FGCG_OVERRIDE                                        :  1;
+        unsigned int EX_SALU_FGCG_OVERRIDE                                        :  1;
+        unsigned int EX_VALU_FGCG_OVERRIDE                                        :  1;
+        unsigned int EX_BRMSG_FGCG_OVERRIDE                                       :  1;
+        unsigned int                                                              :  5;
+    } gfx115;
+#endif
 
     unsigned int u32All;
     signed int   i32All;
@@ -29339,6 +29516,13 @@ union SQ_CONFIG {
         unsigned int DISABLE_END_CLAUSE_TX                                        :  1;
         unsigned int                                                              :  4;
     } gfx11;
+#if   CHIP_HDR_STRIX1
+    struct {
+        unsigned int                                                              : 30;
+        unsigned int DISABLE_SP_SINGLE_ISSUE_WAVE64_TRANS                         :  1;
+        unsigned int                                                              :  1;
+    } gfx115;
+#endif
 
     unsigned int u32All;
     signed int   i32All;
@@ -31520,6 +31704,21 @@ union TA_CNTL {
         unsigned int FX_XNACK_CREDIT                                              :  7;
         unsigned int                                                              : 25;
     } gfx101;
+#if   CHIP_HDR_STRIX1
+    struct {
+        unsigned int                                                              :  2;
+        unsigned int TA_INPUT_RDATA_PER_BANK_FGCG_OVERRIDE                        :  1;
+        unsigned int TA_INPUT_CFIFO_VEC64_OPT_OVERRIDE                            :  1;
+        unsigned int                                                              : 28;
+    } gfx115;
+#endif
+#if CHIP_HDR_STRIX1
+    struct {
+        unsigned int                                                              :  1;
+        unsigned int TA_DISABLE_2X_SAMPLER_SUPPORT                                :  1;
+        unsigned int                                                              : 30;
+    } stx1;
+#endif
 
     unsigned int u32All;
     signed int   i32All;
@@ -31539,6 +31738,14 @@ union TA_CNTL2 {
         unsigned int POINT_SAMPLE_ACCEL_DIS                                       :  1;
         unsigned int                                                              : 15;
     } most;
+#if   CHIP_HDR_STRIX1
+    struct {
+        unsigned int                                                              : 20;
+        unsigned int PRTPLUS_ACCUM_MODE                                           :  2;
+        unsigned int TA_CNTL2_RESERVED_22                                         :  1;
+        unsigned int                                                              :  9;
+    } gfx115;
+#endif
 
     unsigned int u32All;
     signed int   i32All;

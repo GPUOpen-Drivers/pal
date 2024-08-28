@@ -7806,6 +7806,89 @@ namespace Gfx110
     constexpr unsigned int TA_CNTL2__POINT_SAMPLE_ACCEL_DIS__SHIFT            = 0x00000010;
 } // namespace Gfx110
 
+#if   CHIP_HDR_STRIX1
+namespace Gfx115
+{
+    constexpr unsigned int CB_RMI_GL2_CACHE_CONTROL__COLOR_L3_BYPASS__SHIFT   = 0x0000001b;
+    constexpr unsigned int CB_RMI_GL2_CACHE_CONTROL__DCC_L3_BYPASS__SHIFT     = 0x0000001a;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_0__RESERVED__SHIFT                = 0x00000019;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_0__SOFT_OVERRIDE9__SHIFT          = 0x00000009;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_0__SOFT_OVERRIDE10__SHIFT         = 0x0000000a;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_0__SOFT_OVERRIDE11__SHIFT         = 0x0000000b;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_0__SOFT_OVERRIDE12__SHIFT         = 0x0000000c;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_0__SOFT_OVERRIDE13__SHIFT         = 0x0000000d;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_0__SOFT_OVERRIDE14__SHIFT         = 0x0000000e;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_0__SOFT_OVERRIDE15__SHIFT         = 0x0000000f;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_0__SOFT_OVERRIDE16__SHIFT         = 0x00000010;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_0__SOFT_OVERRIDE17__SHIFT         = 0x00000011;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_0__SOFT_OVERRIDE18__SHIFT         = 0x00000012;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_0__SOFT_OVERRIDE19__SHIFT         = 0x00000013;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_0__SOFT_OVERRIDE20__SHIFT         = 0x00000014;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_0__SOFT_OVERRIDE21__SHIFT         = 0x00000015;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_0__SOFT_OVERRIDE22__SHIFT         = 0x00000016;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_0__SOFT_OVERRIDE23__SHIFT         = 0x00000017;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_0__SOFT_OVERRIDE24__SHIFT         = 0x00000018;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_1__OFF_HYSTERESIS_OVERRIDE0__SHIFT = 0x00000000;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_1__OFF_HYSTERESIS_OVERRIDE1__SHIFT = 0x00000001;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_1__OFF_HYSTERESIS_OVERRIDE2__SHIFT = 0x00000002;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_1__OFF_HYSTERESIS_OVERRIDE3__SHIFT = 0x00000003;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_1__OFF_HYSTERESIS_OVERRIDE4__SHIFT = 0x00000004;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_1__OFF_HYSTERESIS_OVERRIDE5__SHIFT = 0x00000005;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_1__OFF_HYSTERESIS_OVERRIDE6__SHIFT = 0x00000006;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_1__OFF_HYSTERESIS_OVERRIDE7__SHIFT = 0x00000007;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_1__OFF_HYSTERESIS_OVERRIDE8__SHIFT = 0x00000008;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_1__OFF_HYSTERESIS_OVERRIDE9__SHIFT = 0x00000009;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_1__OFF_HYSTERESIS_OVERRIDE10__SHIFT = 0x0000000a;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_1__OFF_HYSTERESIS_OVERRIDE11__SHIFT = 0x0000000b;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_1__OFF_HYSTERESIS_OVERRIDE12__SHIFT = 0x0000000c;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_1__OFF_HYSTERESIS_OVERRIDE13__SHIFT = 0x0000000d;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_1__OFF_HYSTERESIS_OVERRIDE14__SHIFT = 0x0000000e;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_1__OFF_HYSTERESIS_OVERRIDE15__SHIFT = 0x0000000f;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_1__RESERVED__SHIFT                = 0x00000010;
+    constexpr unsigned int DB_RMI_L2_CACHE_CONTROL__HTILE_NOALLOC__SHIFT      = 0x0000001c;
+    constexpr unsigned int DB_RMI_L2_CACHE_CONTROL__S_NOALLOC__SHIFT          = 0x0000001b;
+    constexpr unsigned int DB_RMI_L2_CACHE_CONTROL__ZPCPSD_NOALLOC__SHIFT     = 0x0000001d;
+    constexpr unsigned int DB_RMI_L2_CACHE_CONTROL__Z_NOALLOC__SHIFT          = 0x0000001a;
+    constexpr unsigned int IA_UTCL1_CNTL__LLC_NOALLOC_OVERRIDE__SHIFT         = 0x0000001e;
+    constexpr unsigned int PA_CL_ENHANCE__DISABLE_MEB_OPT__SHIFT              = 0x00000018;
+    constexpr unsigned int PA_SC_BINNER_CNTL_2__ENABLE_PING_PONG_BIN_ORDER__SHIFT = 0x00000017;
+    constexpr unsigned int PA_SC_BINNER_CNTL_2__LIGHT_SHAFT_DRAW_CALL_LIMIT__SHIFT = 0x0000001a;
+    constexpr unsigned int PA_SC_BINNER_CNTL_2__PING_PONG_BIN_ORDER_FLIP__SHIFT = 0x00000018;
+    constexpr unsigned int PA_SC_BINNER_CNTL_2__RESERVED_LIGHT_SHAFT_DRAW_CALL_LIMIT__SHIFT = 0x00000004;
+    constexpr unsigned int PA_SC_BINNER_CNTL_2__SBB_ENABLE__SHIFT             = 0x00000016;
+    constexpr unsigned int PA_SC_BINNER_DYNAMIC_BATCH_LIMIT__LIMIT__SHIFT     = 0x00000000;
+    constexpr unsigned int PA_SC_BINNER_OUTPUT_TIMEOUT_CNTL__THRESHOLD__SHIFT = 0x00000000;
+    constexpr unsigned int PA_SC_BINNER_OUTPUT_TIMEOUT_COUNTER__THRESHOLD__SHIFT = 0x00000000;
+    constexpr unsigned int PA_SC_ENHANCE_3__APPLY_AA_MASK_AT_EXPOSED_RATE_FOR_VRS_COURSE_QUADS_WITH_CR__SHIFT = 0x0000001b;
+    constexpr unsigned int PA_SC_ENHANCE_4__DISABLE_SBB_WITH_LSO__SHIFT       = 0x00000003;
+    constexpr unsigned int PA_SC_ENHANCE_4__ENABLE_SBB_WITH_ZPP__SHIFT        = 0x00000004;
+    constexpr unsigned int PA_SC_ENHANCE_4__FORCE_ZWRITE_ZPP__SHIFT           = 0x00000000;
+    constexpr unsigned int PA_SC_ENHANCE_4__RSVD__SHIFT                       = 0x00000005;
+    constexpr unsigned int PA_SC_ENHANCE_4__USE_CONSERVATIVE_COLOR_MASK_ZPP_BREAK__SHIFT = 0x00000002;
+    constexpr unsigned int PA_SC_ENHANCE_4__USE_SHADER_MASK_FOR_ZPP_BATCH_BREAK__SHIFT = 0x00000001;
+    constexpr unsigned int PA_SC_LIGHT_SHAFT_EVENT_CONFIG_0__MODE__SHIFT      = 0x00000000;
+    constexpr unsigned int PA_SC_LIGHT_SHAFT_EVENT_CONFIG_1__MODE__SHIFT      = 0x00000000;
+    constexpr unsigned int RLC_SPM_MC_CNTL__RLC_SPM_LLC_NOALLOC_OVER__SHIFT   = 0x00000013;
+    constexpr unsigned int RLC_SPM_MC_CNTL__RLC_SPM_LLC_NOALLOC__SHIFT        = 0x00000012;
+    constexpr unsigned int SQ_CLK_CTRL__EX_BRMSG_FGCG_OVERRIDE__SHIFT         = 0x0000001a;
+    constexpr unsigned int SQ_CLK_CTRL__EX_SALU_FGCG_OVERRIDE__SHIFT          = 0x00000018;
+    constexpr unsigned int SQ_CLK_CTRL__EX_VALU_FGCG_OVERRIDE__SHIFT          = 0x00000019;
+    constexpr unsigned int SQ_CLK_CTRL__IB_IBUF_FGCG_OVERRIDE__SHIFT          = 0x00000015;
+    constexpr unsigned int SQ_CLK_CTRL__IB_MISC_FGCG_OVERRIDE__SHIFT          = 0x00000017;
+    constexpr unsigned int SQ_CLK_CTRL__IB_WINFO_FGCG_OVERRIDE__SHIFT         = 0x00000016;
+    constexpr unsigned int SQ_CLK_CTRL__ISC_CTRL_FGCG_OVERRIDE__SHIFT         = 0x00000013;
+    constexpr unsigned int SQ_CLK_CTRL__ISC_SET_FGCG_OVERRIDE__SHIFT          = 0x00000012;
+    constexpr unsigned int SQ_CLK_CTRL__ISC_WAVE_CTRL_FGCG_OVERRIDE__SHIFT    = 0x00000014;
+    constexpr unsigned int SQ_CLK_CTRL__IS_WAVECLK_IB_WCLK_OVERRIDE__SHIFT    = 0x00000011;
+    constexpr unsigned int SQ_CONFIG__DISABLE_SP_SINGLE_ISSUE_WAVE64_TRANS__SHIFT = 0x0000001e;
+    constexpr unsigned int TA_CNTL2__PRTPLUS_ACCUM_MODE__SHIFT                = 0x00000014;
+    constexpr unsigned int TA_CNTL2__TA_CNTL2_RESERVED_22__SHIFT              = 0x00000016;
+    constexpr unsigned int TA_CNTL__TA_INPUT_CFIFO_VEC64_OPT_OVERRIDE__SHIFT  = 0x00000003;
+    constexpr unsigned int TA_CNTL__TA_INPUT_RDATA_PER_BANK_FGCG_OVERRIDE__SHIFT = 0x00000002;
+    constexpr unsigned int WD_UTCL1_CNTL__LLC_NOALLOC_OVERRIDE__SHIFT         = 0x0000001e;
+} // namespace Gfx115
+#endif
+
 namespace Mall
 {
     constexpr unsigned int CB_RMI_GL2_CACHE_CONTROL__COLOR_L3_BYPASS__SHIFT   = 0x0000001b;
@@ -9418,6 +9501,14 @@ namespace Rembrandt
     constexpr unsigned int WD_CNTL_STATUS__WD_TE11_BUSY__SHIFT                = 0x00000017;
     constexpr unsigned int WD_CNTL_STATUS__WLC_BUSY__SHIFT                    = 0x0000001d;
 } // namespace Rembrandt
+
+#if CHIP_HDR_STRIX1
+namespace Stx1
+{
+    constexpr unsigned int TA_CNTL2__POINT_SAMPLE_ACCEL_DIS__SHIFT            = 0x00000010;
+    constexpr unsigned int TA_CNTL__TA_DISABLE_2X_SAMPLER_SUPPORT__SHIFT      = 0x00000001;
+} // namespace Stx1
+#endif
 
 } // inline namespace Chip
 } // namespace Gfx9

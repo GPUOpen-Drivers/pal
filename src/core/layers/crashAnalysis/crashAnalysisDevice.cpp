@@ -100,32 +100,35 @@ Result Device::GetMemoryChunk(
         MemoryChunk* pChunk = PAL_NEW(MemoryChunk, m_pPlatform, AllocInternal)(this);
         gpusize      offset = 0;
 
-        // Attempt to find a free allocation in one of the Buddy Allocators
-        for (int i = 0; ((result != Result::Success) && i < m_memoryRafts.size()); i++)
+        if (pChunk != nullptr)
         {
-            // Attempt to claim (take a lock) on a new allocation from the Buddy Allocator
-            result = m_memoryRafts[i].pBuddyAllocator->ClaimGpuMemory(SubAllocSize, Alignment);
-
-            if (result == Result::Success)
+            // Attempt to find a free allocation in one of the Buddy Allocators
+            for (int i = 0; ((result != Result::Success) && i < m_memoryRafts.size()); i++)
             {
-                // If the claim was successful, attempt to allocate the memory
-                result = m_memoryRafts[i].pBuddyAllocator->Allocate(SubAllocSize, Alignment, &offset);
+                // Attempt to claim (take a lock) on a new allocation from the Buddy Allocator
+                result = m_memoryRafts[i].pBuddyAllocator->ClaimGpuMemory(SubAllocSize, Alignment);
 
-                // Since the memory was already claimed, Allocate() should never fail.
-                PAL_ASSERT(result == Result::Success);
-            }
+                if (result == Result::Success)
+                {
+                    // If the claim was successful, attempt to allocate the memory
+                    result = m_memoryRafts[i].pBuddyAllocator->Allocate(SubAllocSize, Alignment, &offset);
 
-            if (result == Result::Success)
-            {
-                pChunk->raftIndex   = i;
-                pChunk->gpuVirtAddr = offset + m_memoryRafts[i].pGpuMemory->Desc().gpuVirtAddr;
-                pChunk->pCpuAddr    = static_cast<MarkerState*>(
-                    VoidPtrInc(m_memoryRafts[i].pSystemMemory, offset));
+                    // Since the memory was already claimed, Allocate() should never fail.
+                    PAL_ASSERT(result == Result::Success);
+                }
+
+                if (result == Result::Success)
+                {
+                    pChunk->raftIndex   = i;
+                    pChunk->gpuVirtAddr = offset + m_memoryRafts[i].pGpuMemory->Desc().gpuVirtAddr;
+                    pChunk->pCpuAddr    = static_cast<MarkerState*>(
+                        VoidPtrInc(m_memoryRafts[i].pSystemMemory, offset));
+                }
             }
         }
 
         // If no free allocations are available, create a new raft and allocate from that
-        if (result != Result::Success)
+        if ((result != Result::Success) && (pChunk != nullptr))
         {
             result = CreateMemoryRaft();
 
@@ -157,6 +160,10 @@ Result Device::GetMemoryChunk(
         if (result == Result::Success)
         {
             (*ppMemChunk) = pChunk;
+        }
+        else if (pChunk != nullptr)
+        {
+            PAL_DELETE(pChunk, m_pPlatform);
         }
     }
 

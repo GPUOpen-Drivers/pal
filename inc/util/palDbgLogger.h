@@ -211,6 +211,10 @@ public:
 
     void SetCutoffSeverityLevel(SeverityLevel lvl)
     {
+        if (lvl < m_cutoffSeverityLevel)
+        {
+            g_dbgLogMgr.ExpandSeverityLevel(lvl);
+        }
         m_cutoffSeverityLevel = lvl;
     }
 
@@ -222,6 +226,10 @@ public:
 
     void SetOriginationTypeMask(uint32 mask)
     {
+        if ((m_originationTypeMask & mask) != mask)
+        {
+            g_dbgLogMgr.ExpandOriginationTypeMask(mask);
+        }
         m_originationTypeMask = mask;
     }
 

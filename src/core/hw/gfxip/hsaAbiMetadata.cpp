@@ -171,6 +171,9 @@ static Result UnpackNextValueKind(
         case HashLiteralString("hidden_heap_v1"):
             *pEnum = ValueKind::HiddenHeapV1;
             break;
+        case HashLiteralString("hidden_dynamic_lds_size"):
+            *pEnum = ValueKind::HiddenDynamicLdsSize;
+            break;
         default:
             // This probably means we have a bug in this code rather than a bad metadata section.
             PAL_ASSERT_ALWAYS();
@@ -827,6 +830,23 @@ Result CodeObjectMetadata::DeserializeNote(
     }
 
     return result;
+}
+
+// =====================================================================================================================
+uint32 CodeObjectMetadata::PrivateSegmentFixedSize() const
+{
+    // Dynamic Stack can happen if recursive calls, calls to indirect functions, or the HSAIL alloca instruction
+    // are present in the kernel.
+    // Dynamic stack size is hard to calcuate by both runtime and application. The reason it exists could be recursive
+    // function call, indirect function call, etc. They are unknown at compile time, and almost impossible to be known
+    // at kernel launch time as well.The actual usage depends on the execution path of the kernel. For example, how deep
+    // can a recursive function call be ? What can a virtual function call be ? One callee might use 16 bytes stack but
+    // the other could use 16 MB. The only thing we can do is to set a limit, and the kernel will crash when the limit
+    // is not sufficient.
+    // Here just use 16KB as default as OpenCL runtime.
+
+    constexpr uint32 DefaultStackSize = 16 * 1024; // 16 KB as OpenCL runtime default
+    return UsesDynamicStack() ? Max(DefaultStackSize, m_privateSegmentFixedSize) : m_privateSegmentFixedSize;
 }
 
 } // HsaAbi

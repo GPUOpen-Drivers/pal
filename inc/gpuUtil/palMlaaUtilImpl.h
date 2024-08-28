@@ -86,10 +86,11 @@ Pal::Result MlaaUtil<Allocator>::Init()
 
     if (result == Pal::Result::Success)
     {
-        Pal::uint32 maxSrdSize = Util::Max(Util::Max(m_deviceProps.gfxipProperties.srdSizes.bufferView,
-                                           m_deviceProps.gfxipProperties.srdSizes.imageView),
-                                 Util::Max(m_deviceProps.gfxipProperties.srdSizes.fmaskView,
-                                           m_deviceProps.gfxipProperties.srdSizes.sampler));
+        Pal::uint32 maxSrdSize = Util::Max(m_deviceProps.gfxipProperties.srdSizes.typedBufferView,
+                                           m_deviceProps.gfxipProperties.srdSizes.untypedBufferView,
+                                           m_deviceProps.gfxipProperties.srdSizes.imageView,
+                                           m_deviceProps.gfxipProperties.srdSizes.fmaskView,
+                                           m_deviceProps.gfxipProperties.srdSizes.sampler);
 
         m_maxSrdSizeInDwords = Util::NumBytesToNumDwords(maxSrdSize);
     }

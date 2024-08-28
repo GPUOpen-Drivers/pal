@@ -154,26 +154,35 @@ void SettingsLoader::ValidateSettings()
 {
     m_pDevice->GetGfxDevice()->HwlValidateSettings(&m_settings);
 
+    Platform* const            pPlatform         = m_pDevice->GetPlatform();
+    PalPlatformSettings* const pPlatformSettings = pPlatform->PlatformSettingsPtr();
+
     // If developer driver profiling is enabled, we should always request the debug-vmid/static-vmid and disable mid
     // command buffer preemption support.
     //
     // CrashAnalysis feature requires disablement of command buffer preemption, as well as DebugVmid.
-    if (m_pDevice->GetPlatform()->IsDevDriverProfilingEnabled() ||
-        m_pDevice->GetPlatform()->IsCrashAnalysisModeEnabled())
+    //
+    // KMD requires debug-vmid/static-vmid for SPM VCOP with which it programs hardware with a fixed VMID for all
+    // writes by SPM
+    if (pPlatform->IsDevDriverProfilingEnabled() ||
+        pPlatform->IsCrashAnalysisModeEnabled() ||
+        (IsGfx11Plus(*m_pDevice) &&
+         (pPlatformSettings->gpuProfilerMode > GpuProfilerMode::GpuProfilerCounterAndTimingOnly) &&
+         TestAnyFlagSet(pPlatformSettings->gpuProfilerConfig.traceModeMask, GpuProfilerTraceSpm)))
     {
         m_settings.requestDebugVmid     = true;
         m_settings.cmdBufPreemptionMode = CmdBufPreemptModeDisable;
     }
 
     // When tracing is enabled, we need to request debug/static VMID. This can be enabled via the DriverUtilsService.
-    if (m_pDevice->GetPlatform()->IsTracingEnabled() ||
-        m_pDevice->GetPlatform()->IsStaticVmidRequested())
+    if (pPlatform->IsTracingEnabled() ||
+        pPlatform->IsStaticVmidRequested())
     {
         m_settings.requestDebugVmid = true;
     }
 
     // Emulated devices may not be visible to the host OS, so use CPU paths to send data to the window system.
-    if (m_pDevice->GetPlatform()->IsEmulationEnabled())
+    if (pPlatform->IsEmulationEnabled())
     {
         m_settings.forcePresentViaCpuBlt = true;
     }
@@ -184,7 +193,6 @@ void SettingsLoader::ValidateSettings()
     // platform dependent. So we need to query the root path from device and then concatenate two strings (of the root
     // path and relative path of specific file) to the final usable absolute path
     const char* pRootPath = m_pDevice->GetDebugFilePath();
-    auto* pPlatformSettings = m_pDevice->GetPlatform()->PlatformSettingsPtr();
     if (pRootPath != nullptr)
     {
         char subDir[DD_SETTINGS_MAX_PATH_SIZE];

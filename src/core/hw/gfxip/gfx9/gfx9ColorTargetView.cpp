@@ -993,6 +993,9 @@ void Gfx11ColorTargetView::InitRegisters(
 
         // Set any hardware limit on the number of fragments supported by DCC compression.
         if (settings.waDccMaxCompFrags && (IsPhoenix2(palDevice)
+#if PAL_BUILD_STRIX
+                                           || IsStrixFamily(palDevice)
+#endif
             ))
         {
             m_regs.cbColorDccControl.most.MAX_COMP_FRAGS = (imageCreateInfo.samples >= 4);

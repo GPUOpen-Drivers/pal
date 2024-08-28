@@ -375,17 +375,19 @@ static void DmaMainDevice(
 static void DmaTrancheFormats(
     void *pData,
     struct zwp_linux_dmabuf_feedback_v1 *pDmaBufFeedback,
-    struct wl_array *indices)
+    struct wl_array *pIndices)
 {
     WaylandWindowSystem* pWaylandWindowSystem = static_cast<WaylandWindowSystem*>(pData);
     WlFormatTable& globalFormatTable = pWaylandWindowSystem->GetGlobalFormatTable();
 
     if ((globalFormatTable.pData != MAP_FAILED) && (globalFormatTable.pData != nullptr))
     {
-        uint16* pFormatTableIdxs = reinterpret_cast<uint16*>(indices->data);
-        for (uint32 idx = 0; idx < indices->size; ++idx)
+        // The c++ compiler does not allow the macro wl_array_for_each to force void* into uint16*, so
+        // modify the macro definition here.
+        const Span<uint16> tableIndices { static_cast<uint16*>(pIndices->data), (pIndices->size / sizeof(uint16)) };
+        for (uint16 index : tableIndices)
         {
-            pWaylandWindowSystem->AddFormat(globalFormatTable.pData[pFormatTableIdxs[idx]]);
+            pWaylandWindowSystem->AddFormat(globalFormatTable.pData[index]);
         }
 
         munmap(globalFormatTable.pData, globalFormatTable.size);

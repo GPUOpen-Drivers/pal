@@ -47,7 +47,7 @@
 #endif
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MAJOR_VERSION 890
+#define PAL_INTERFACE_MAJOR_VERSION 892
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 831
 /// Minor interface version.  Note that the interface version is distinct from the PAL version itself, which is returned
@@ -126,6 +126,9 @@ enum class NullGpuId : uint32
     Navi33,        ///< 11.0.2
     Phoenix1,      ///< 11.0.3
     Phoenix2,      ///< 11.0.3
+#if PAL_BUILD_STRIX1
+    Strix1,        ///< 11.5.0
+#endif
 #if  (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 888)
 #endif
     Max,           ///< The maximum count of null devices.
@@ -147,6 +150,9 @@ enum class GfxIpLevel : uint32
     GfxIp10_1,     ///< GFXIP 10.1 (Navi1x)
     GfxIp10_3,     ///< GFXIP 10.3 (Navi2x, Rembrandt, Raphael, Mendocino)
     GfxIp11_0,     ///< GFXIP 11.0 (Navi3x, Phoenix)
+#if PAL_BUILD_GFX115
+    GfxIp11_5,     ///< GFXIP 11.5 (Strix)
+#endif
 #else // PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 888
     GfxIp6    = 0x1,
     GfxIp7    = 0x2,
@@ -156,58 +162,64 @@ enum class GfxIpLevel : uint32
     GfxIp10_1 = 0x7,
     GfxIp10_3 = 0x9,
     GfxIp11_0 = 0xC,
+#if PAL_BUILD_GFX115
+    GfxIp11_5 = 0xF,
+#endif
 #endif
 };
 
-/// Specifies the hardware revision.  Enumerations are in family order (Southern Islands, Sea Islands, Kaveri,
-/// Carrizo, Volcanic Islands, etc.)
+/// Specifies the hardware revision. Some AMD tools hard-code these values so we cannot change them. New ASICs should
+/// be added at the end of the list and be given the next highest value.
 enum class AsicRevision : uint32
 {
-    Unknown = 0,
+    Unknown          = 0x00,
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 888
-    Tahiti,
-    Pitcairn,
-    Capeverde,
-    Oland,
-    Hainan,
-    Bonaire,
-    Hawaii,
-    HawaiiPro,
-    Kalindi,
-    Godavari,
-    Spectre,
-    Spooky,
-    Carrizo,
-    Bristol,
-    Stoney,
-    Iceland,
-    Tonga,
-    TongaPro = Tonga,
-    Fiji,
-    Polaris10,
-    Polaris11,
-    Polaris12,
-    Vega10,
-    Vega12,
-    Vega20,
-    Raven,
-    Raven2,
-    Renoir,
+    Tahiti           = 0x01,
+    Pitcairn         = 0x02,
+    Capeverde        = 0x03,
+    Oland            = 0x04,
+    Hainan           = 0x05,
+    Bonaire          = 0x06,
+    Hawaii           = 0x07,
+    HawaiiPro        = 0x08,
+    Kalindi          = 0x0A,
+    Godavari         = 0x0B,
+    Spectre          = 0x0C,
+    Spooky           = 0x0D,
+    Carrizo          = 0x0E,
+    Bristol          = 0x0F,
+    Stoney           = 0x10,
+    Iceland          = 0x11,
+    Tonga            = 0x12,
+    TongaPro         = Tonga,
+    Fiji             = 0x13,
+    Polaris10        = 0x14,
+    Polaris11        = 0x15,
+    Polaris12        = 0x16,
+    Vega10           = 0x18,
+    Vega12           = 0x19,
+    Vega20           = 0x1A,
+    Raven            = 0x1B,
+    Raven2           = 0x1C,
+    Renoir           = 0x1D,
 #endif
-    Navi10,        ///< 10.1.0
-    Navi12,        ///< 10.1.1
-    Navi14,        ///< 10.1.2
-    Navi21,        ///< 10.3.0
-    Navi22,        ///< 10.3.1
-    Navi23,        ///< 10.3.2
-    Navi24,        ///< 10.3.4
-    Rembrandt,     ///< 10.3.5
-    Raphael,       ///< 10.3.6
-    Navi31,        ///< 11.0.0
-    Navi32,        ///< 11.0.1
-    Navi33,        ///< 11.0.2
-    Phoenix1,      ///< 11.0.3
-    Phoenix2,      ///< 11.0.3
+    Navi10           = 0x1F, ///< 10.1.0
+    Navi12           = 0x21, ///< 10.1.1
+    Navi14           = 0x23, ///< 10.1.2
+    Navi21           = 0x24, ///< 10.3.0
+    Navi22           = 0x25, ///< 10.3.1
+    Navi23           = 0x26, ///< 10.3.2
+    Navi24           = 0x27, ///< 10.3.4
+    Navi31           = 0x2C, ///< 11.0.0
+    Navi32           = 0x2D, ///< 11.0.1
+    Navi33           = 0x2E, ///< 11.0.2
+    Rembrandt        = 0x2F, ///< 10.3.5
+#if PAL_BUILD_STRIX1
+    Strix1           = 0x33, ///< 11.5.0
+#endif
+    Raphael          = 0x34, ///< 10.3.6
+    Phoenix1         = 0x35, ///< 11.0.3
+    Phoenix2         = 0x38, ///< 11.0.3
 };
 
 /// Maps a null GPU ID to its associated text name.

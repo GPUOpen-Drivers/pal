@@ -40,6 +40,9 @@
 #endif
 #if ADDR_GFX11_BUILD
 #define FAMILY_NV3     0x91
+#if ADDR_STRIX1_BUILD
+#define FAMILY_STX     0x96
+#endif
 #if ADDR_PHOENIX_BUILD
 #define FAMILY_PHX     0x94
 #endif
@@ -117,6 +120,9 @@
 #if ADDR_NAVI33_BUILD
 #define AMDGPU_NAVI33_RANGE     0x10, 0x20
 #endif
+#if ADDR_STRIX1_BUILD
+#define AMDGPU_STRIX1_RANGE     0x01, 0x40
+#endif
 #if ADDR_PHOENIX_BUILD
 #if ADDR_PHOENIX1_BUILD
 #define AMDGPU_PHOENIX1_RANGE      0x01, 0x80
@@ -176,6 +182,9 @@
 #endif
 #if ADDR_NAVI33_BUILD
 #define ASICREV_IS_NAVI33_P(r)         ASICREV_IS(r, NAVI33)
+#endif
+#if ADDR_STRIX1_BUILD
+#define ASICREV_IS_STRIX1(r)           ASICREV_IS(r, STRIX1)
 #endif
 #if ADDR_PHOENIX_BUILD
 #if ADDR_PHOENIX1_BUILD

@@ -53,7 +53,7 @@ enum class ApiType : Pal::uint32
     Vulkan     = 4,
     OpenGl     = 5,
     OpenCl     = 6,
-    Hip        = 8,
+    Hip        = 8
 };
 
 /// API Info struct, based off of SqttFileChunkApiInfo.

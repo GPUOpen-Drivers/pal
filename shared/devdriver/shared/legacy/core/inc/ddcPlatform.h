@@ -132,10 +132,6 @@ typedef void (*ThreadFunction)(void* pThreadParameter);
     #error "DD_DEBUG_BREAK not defined by platform!"
 #endif
 
-#if !defined(DD_ASSUME)
-    #error "DD_ASSUME not defined by platform!"
-#endif
-
 // This only exists for 32bit Windows to specificy callbacks as __stdcall.
 #if !defined(DD_APIENTRY)
     #define DD_APIENTRY
@@ -179,7 +175,7 @@ namespace DevDriver
     #define DD_WARN_REASON(reason)   DD_UNUSED(0)
 
     #ifndef DD_ASSERT
-        #define DD_ASSERT(statement)     DD_UNUSED(0) // WA: Do not optimize code using DD_ASSERT(), by calling DD_ASSUME().
+        #define DD_ASSERT(statement)     DD_UNUSED(0)
     #endif
 
     #define DD_ASSERT_REASON(reason) DD_UNUSED(0)

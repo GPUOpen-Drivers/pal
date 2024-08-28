@@ -26,6 +26,7 @@
 #include <dd_assert.h>
 #include <dd_integer.h>
 #include <dd_memory.h>
+#include <dd_result.h>
 #include <Windows.h>
 
 #if !defined(DD_TARGET_PLATFORM_WINDOWS)
@@ -35,11 +36,11 @@
 namespace DevDriver
 {
 
-int32_t CreateMirroredBuffer(uint32_t requestedBufferSize, MirroredBuffer* pOutBuffer)
+DD_RESULT MirroredBufferCreate(uint32_t requestedBufferSize, MirroredBuffer* pOutBuffer)
 {
     if ((requestedBufferSize == 0) || (pOutBuffer == nullptr))
     {
-        return ERROR_INVALID_PARAMETER;
+        return DD_RESULT_COMMON_INVALID_PARAMETER;
     }
 
     SYSTEM_INFO sysInfo {};
@@ -51,7 +52,7 @@ int32_t CreateMirroredBuffer(uint32_t requestedBufferSize, MirroredBuffer* pOutB
 
     if ((actualBufferSize == 0) || (actualBufferSize > MirroredBufferMaxSize))
     {
-        return ERROR_FILE_TOO_LARGE;
+        return DD_RESULT_COMMON_OUT_OF_RANGE;
     }
 
     int32_t err = 0;
@@ -193,10 +194,10 @@ int32_t CreateMirroredBuffer(uint32_t requestedBufferSize, MirroredBuffer* pOutB
         CloseHandle(hPhysicalMemory);
     }
 
-    return err;
+    return ResultFromWin32Error(err);
 }
 
-void DestroyMirroredBuffer(MirroredBuffer* pBuffer)
+void MirroredBufferDestroy(MirroredBuffer* pBuffer)
 {
     void* pSecondaryBuffer = (uint8_t*)pBuffer->pBuffer + pBuffer->bufferSize;
 

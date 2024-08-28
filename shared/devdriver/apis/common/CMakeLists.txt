@@ -47,6 +47,7 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
     target_sources(dd_common
         PRIVATE
             src/dd_memory_windows.cpp
+            src/dd_result_windows.cpp
             src/dd_thread_windows.cpp
     )
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")

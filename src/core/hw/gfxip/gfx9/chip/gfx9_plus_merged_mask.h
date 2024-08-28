@@ -7858,6 +7858,90 @@ namespace Gfx110
     constexpr unsigned int TA_CNTL2__POINT_SAMPLE_ACCEL_DIS_MASK              = 0x00010000;
 } // namespace Gfx110
 
+#if   CHIP_HDR_STRIX1
+namespace Gfx115
+{
+    constexpr unsigned int CB_RMI_GL2_CACHE_CONTROL__COLOR_L3_BYPASS_MASK     = 0x08000000;
+    constexpr unsigned int CB_RMI_GL2_CACHE_CONTROL__DCC_L3_BYPASS_MASK       = 0x04000000;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_0__RESERVED_MASK                  = 0xfe000000;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_0__SOFT_OVERRIDE9_MASK            = 0x00000200;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_0__SOFT_OVERRIDE10_MASK           = 0x00000400;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_0__SOFT_OVERRIDE11_MASK           = 0x00000800;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_0__SOFT_OVERRIDE12_MASK           = 0x00001000;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_0__SOFT_OVERRIDE13_MASK           = 0x00002000;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_0__SOFT_OVERRIDE14_MASK           = 0x00004000;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_0__SOFT_OVERRIDE15_MASK           = 0x00008000;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_0__SOFT_OVERRIDE16_MASK           = 0x00010000;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_0__SOFT_OVERRIDE17_MASK           = 0x00020000;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_0__SOFT_OVERRIDE18_MASK           = 0x00040000;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_0__SOFT_OVERRIDE19_MASK           = 0x00080000;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_0__SOFT_OVERRIDE20_MASK           = 0x00100000;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_0__SOFT_OVERRIDE21_MASK           = 0x00200000;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_0__SOFT_OVERRIDE22_MASK           = 0x00400000;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_0__SOFT_OVERRIDE23_MASK           = 0x00800000;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_0__SOFT_OVERRIDE24_MASK           = 0x01000000;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_1__OFF_HYSTERESIS_OVERRIDE0_MASK  = 0x00000001;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_1__OFF_HYSTERESIS_OVERRIDE1_MASK  = 0x00000002;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_1__OFF_HYSTERESIS_OVERRIDE2_MASK  = 0x00000004;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_1__OFF_HYSTERESIS_OVERRIDE3_MASK  = 0x00000008;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_1__OFF_HYSTERESIS_OVERRIDE4_MASK  = 0x00000010;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_1__OFF_HYSTERESIS_OVERRIDE5_MASK  = 0x00000020;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_1__OFF_HYSTERESIS_OVERRIDE6_MASK  = 0x00000040;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_1__OFF_HYSTERESIS_OVERRIDE7_MASK  = 0x00000080;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_1__OFF_HYSTERESIS_OVERRIDE8_MASK  = 0x00000100;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_1__OFF_HYSTERESIS_OVERRIDE9_MASK  = 0x00000200;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_1__OFF_HYSTERESIS_OVERRIDE10_MASK = 0x00000400;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_1__OFF_HYSTERESIS_OVERRIDE11_MASK = 0x00000800;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_1__OFF_HYSTERESIS_OVERRIDE12_MASK = 0x00001000;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_1__OFF_HYSTERESIS_OVERRIDE13_MASK = 0x00002000;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_1__OFF_HYSTERESIS_OVERRIDE14_MASK = 0x00004000;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_1__OFF_HYSTERESIS_OVERRIDE15_MASK = 0x00008000;
+    constexpr unsigned int DB_CGTT_CLK_CTRL_1__RESERVED_MASK                  = 0xffff0000;
+    constexpr unsigned int DB_RMI_L2_CACHE_CONTROL__HTILE_NOALLOC_MASK        = 0x10000000;
+    constexpr unsigned int DB_RMI_L2_CACHE_CONTROL__S_NOALLOC_MASK            = 0x08000000;
+    constexpr unsigned int DB_RMI_L2_CACHE_CONTROL__ZPCPSD_NOALLOC_MASK       = 0x20000000;
+    constexpr unsigned int DB_RMI_L2_CACHE_CONTROL__Z_NOALLOC_MASK            = 0x04000000;
+    constexpr unsigned int GRBM_GFX_INDEX__INSTANCE_INDEX_MASK                = 0x0000007f;
+    constexpr unsigned int IA_UTCL1_CNTL__LLC_NOALLOC_OVERRIDE_MASK           = 0x40000000;
+    constexpr unsigned int PA_CL_ENHANCE__DISABLE_MEB_OPT_MASK                = 0x01000000;
+    constexpr unsigned int PA_SC_BINNER_CNTL_2__ENABLE_PING_PONG_BIN_ORDER_MASK = 0x00800000;
+    constexpr unsigned int PA_SC_BINNER_CNTL_2__LIGHT_SHAFT_DRAW_CALL_LIMIT_MASK = 0x7c000000;
+    constexpr unsigned int PA_SC_BINNER_CNTL_2__PING_PONG_BIN_ORDER_FLIP_MASK = 0x03000000;
+    constexpr unsigned int PA_SC_BINNER_CNTL_2__RESERVED_LIGHT_SHAFT_DRAW_CALL_LIMIT_MASK = 0x00000070;
+    constexpr unsigned int PA_SC_BINNER_CNTL_2__SBB_ENABLE_MASK               = 0x00400000;
+    constexpr unsigned int PA_SC_BINNER_DYNAMIC_BATCH_LIMIT__LIMIT_MASK       = 0x00000fff;
+    constexpr unsigned int PA_SC_BINNER_OUTPUT_TIMEOUT_CNTL__THRESHOLD_MASK   = 0x0000ffff;
+    constexpr unsigned int PA_SC_BINNER_OUTPUT_TIMEOUT_COUNTER__THRESHOLD_MASK = 0xffffffff;
+    constexpr unsigned int PA_SC_ENHANCE_3__APPLY_AA_MASK_AT_EXPOSED_RATE_FOR_VRS_COURSE_QUADS_WITH_CR_MASK = 0x08000000;
+    constexpr unsigned int PA_SC_ENHANCE_4__DISABLE_SBB_WITH_LSO_MASK         = 0x00000008;
+    constexpr unsigned int PA_SC_ENHANCE_4__ENABLE_SBB_WITH_ZPP_MASK          = 0x00000010;
+    constexpr unsigned int PA_SC_ENHANCE_4__FORCE_ZWRITE_ZPP_MASK             = 0x00000001;
+    constexpr unsigned int PA_SC_ENHANCE_4__RSVD_MASK                         = 0xffffffe0;
+    constexpr unsigned int PA_SC_ENHANCE_4__USE_CONSERVATIVE_COLOR_MASK_ZPP_BREAK_MASK = 0x00000004;
+    constexpr unsigned int PA_SC_ENHANCE_4__USE_SHADER_MASK_FOR_ZPP_BATCH_BREAK_MASK = 0x00000002;
+    constexpr unsigned int PA_SC_LIGHT_SHAFT_EVENT_CONFIG_0__MODE_MASK        = 0xffffffff;
+    constexpr unsigned int PA_SC_LIGHT_SHAFT_EVENT_CONFIG_1__MODE_MASK        = 0xffffffff;
+    constexpr unsigned int RLC_SPM_MC_CNTL__RLC_SPM_LLC_NOALLOC_MASK          = 0x00040000;
+    constexpr unsigned int RLC_SPM_MC_CNTL__RLC_SPM_LLC_NOALLOC_OVER_MASK     = 0x00080000;
+    constexpr unsigned int SQ_CLK_CTRL__EX_BRMSG_FGCG_OVERRIDE_MASK           = 0x04000000;
+    constexpr unsigned int SQ_CLK_CTRL__EX_SALU_FGCG_OVERRIDE_MASK            = 0x01000000;
+    constexpr unsigned int SQ_CLK_CTRL__EX_VALU_FGCG_OVERRIDE_MASK            = 0x02000000;
+    constexpr unsigned int SQ_CLK_CTRL__IB_IBUF_FGCG_OVERRIDE_MASK            = 0x00200000;
+    constexpr unsigned int SQ_CLK_CTRL__IB_MISC_FGCG_OVERRIDE_MASK            = 0x00800000;
+    constexpr unsigned int SQ_CLK_CTRL__IB_WINFO_FGCG_OVERRIDE_MASK           = 0x00400000;
+    constexpr unsigned int SQ_CLK_CTRL__ISC_CTRL_FGCG_OVERRIDE_MASK           = 0x00080000;
+    constexpr unsigned int SQ_CLK_CTRL__ISC_SET_FGCG_OVERRIDE_MASK            = 0x00040000;
+    constexpr unsigned int SQ_CLK_CTRL__ISC_WAVE_CTRL_FGCG_OVERRIDE_MASK      = 0x00100000;
+    constexpr unsigned int SQ_CLK_CTRL__IS_WAVECLK_IB_WCLK_OVERRIDE_MASK      = 0x00020000;
+    constexpr unsigned int SQ_CONFIG__DISABLE_SP_SINGLE_ISSUE_WAVE64_TRANS_MASK = 0x40000000;
+    constexpr unsigned int TA_CNTL2__PRTPLUS_ACCUM_MODE_MASK                  = 0x00300000;
+    constexpr unsigned int TA_CNTL2__TA_CNTL2_RESERVED_22_MASK                = 0x00400000;
+    constexpr unsigned int TA_CNTL__TA_INPUT_CFIFO_VEC64_OPT_OVERRIDE_MASK    = 0x00000008;
+    constexpr unsigned int TA_CNTL__TA_INPUT_RDATA_PER_BANK_FGCG_OVERRIDE_MASK = 0x00000004;
+    constexpr unsigned int WD_UTCL1_CNTL__LLC_NOALLOC_OVERRIDE_MASK           = 0x40000000;
+} // namespace Gfx115
+#endif
+
 namespace Mall
 {
     constexpr unsigned int CB_RMI_GL2_CACHE_CONTROL__COLOR_L3_BYPASS_MASK     = 0x08000000;
@@ -9486,6 +9570,17 @@ namespace Rembrandt
     constexpr unsigned int WD_CNTL_STATUS__WD_TE11_BUSY_MASK                  = 0x00800000;
     constexpr unsigned int WD_CNTL_STATUS__WLC_BUSY_MASK                      = 0x20000000;
 } // namespace Rembrandt
+
+#if CHIP_HDR_STRIX1
+namespace Stx1
+{
+    constexpr unsigned int PA_SC_TILE_STEERING_OVERRIDE__NUM_PACKER_PER_SC_MASK = 0x00300000;
+    constexpr unsigned int RLC_SPM_GLOBAL_DELAY_IND_DATA__DATA_MASK           = 0x0000003f;
+    constexpr unsigned int RLC_SPM_SE_DELAY_IND_DATA__DATA_MASK               = 0x0000003f;
+    constexpr unsigned int TA_CNTL2__POINT_SAMPLE_ACCEL_DIS_MASK              = 0x00010000;
+    constexpr unsigned int TA_CNTL__TA_DISABLE_2X_SAMPLER_SUPPORT_MASK        = 0x00000002;
+} // namespace Stx1
+#endif
 
 } // inline namespace Chip
 } // namespace Gfx9

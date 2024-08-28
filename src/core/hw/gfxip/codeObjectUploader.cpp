@@ -126,7 +126,6 @@ CodeObjectUploader::CodeObjectUploader(
     m_memoryMap(pDevice->GetPlatform()),
     m_pMappedPtr(nullptr),
     m_pagingFenceVal(0),
-    m_pipelineHeapType(GpuHeap::GpuHeapCount),
     m_slotId(0),
     m_heapInvisUploadOffset(0),
     m_prefetchGpuVirtAddr(0),
@@ -301,7 +300,7 @@ Result CodeObjectUploader::Begin(
     void* pMappedPtr = nullptr;
     if (result == Result::Success)
     {
-        if (ShouldUploadUsingDma())
+        if (m_pDevice->ShouldUploadUsingDma(m_pipelineHeapType))
         {
             result = UploadUsingDma(addressCalculator, &pMappedPtr);
         }
@@ -606,7 +605,7 @@ Result CodeObjectUploader::End(
 
     if (m_pGpuMemory != nullptr)
     {
-        if (ShouldUploadUsingDma())
+        if (m_pDevice->ShouldUploadUsingDma(m_pipelineHeapType))
         {
             const size_t dataRegisterAndPadding = static_cast<size_t>(m_gpuMemSize - m_heapInvisUploadOffset);
             if (dataRegisterAndPadding > 0)

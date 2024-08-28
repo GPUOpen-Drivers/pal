@@ -2219,12 +2219,27 @@ void Device::GetDisplayDccInfo(
         displayDcc.pipeAligned = 0;
         displayDcc.rbAligned   = 0;
 
-        if (IsGfx103Plus(*this))
+#if PAL_BUILD_GFX115
+#endif
+        if (IsGfx9Hwl(*this))
         {
-            displayDcc.dcc_256_256_unconstrained = 0;
-            displayDcc.dcc_256_128_128           = 1;
-            displayDcc.dcc_128_128_unconstrained = 0;
-            displayDcc.dcc_256_64_64             = 1;
+#if PAL_BUILD_GFX115
+            if (IsGfx115(*this))
+            {
+                displayDcc.dcc_256_256_unconstrained = 1;
+                displayDcc.dcc_256_128_128           = 1;
+                displayDcc.dcc_128_128_unconstrained = 0;
+                displayDcc.dcc_256_64_64             = 1;
+            }
+            else
+#endif
+            if (IsGfx103Plus(*this))
+            {
+                displayDcc.dcc_256_256_unconstrained = 0;
+                displayDcc.dcc_256_128_128           = 1;
+                displayDcc.dcc_128_128_unconstrained = 0;
+                displayDcc.dcc_256_64_64             = 1;
+            }
         }
     }
 }

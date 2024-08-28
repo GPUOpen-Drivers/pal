@@ -165,7 +165,7 @@ Result Device::CommitSettingsAndInit()
     {
         const uint32 maxSeMask = (1 << info.gfxipProperties.shaderCore.numShaderEngines) - 1;
         m_fragmentSize         = info.gpuMemoryProperties.fragmentSize;
-        m_bufferSrdDwords      = info.gfxipProperties.srdSizes.bufferView / sizeof(uint32);
+        m_bufferSrdDwords      = info.gfxipProperties.srdSizes.typedBufferView / sizeof(uint32);
         m_imageSrdDwords       = info.gfxipProperties.srdSizes.imageView / sizeof(uint32);
         m_timestampFreq        = info.timestampFrequency;
         m_logPipeStats         = settings.gpuProfilerConfig.recordPipelineStats;

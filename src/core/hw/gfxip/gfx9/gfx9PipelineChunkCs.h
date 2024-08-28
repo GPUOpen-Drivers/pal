@@ -132,6 +132,11 @@ public:
         CmdStream* pCmdStream,
         uint32*    pCmdSpace) const;
 
+    uint32* WriteShCommandsLdsSize(
+        CmdStream* pCmdStream,
+        uint32*    pCmdSpace,
+        uint32     ldsBytesPerTg) const;
+
     gpusize CsProgramGpuVa() const
         { return GetOriginalAddress(m_regs.computePgmLo.bits.DATA, 0); }
 

@@ -181,7 +181,8 @@ void RsrcProcMgr::Cleanup()
 Result RsrcProcMgr::EarlyInit()
 {
     const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
-    m_srdAlignment = Max(chipProps.srdSizes.bufferView,
+    m_srdAlignment = Max(chipProps.srdSizes.typedBufferView,
+                         chipProps.srdSizes.untypedBufferView,
                          chipProps.srdSizes.fmaskView,
                          chipProps.srdSizes.imageView,
                          chipProps.srdSizes.sampler);
@@ -3060,23 +3061,6 @@ void RsrcProcMgr::ConvertRgbToYuv(
 }
 
 // =====================================================================================================================
-// Builds commands to fill every DWORD of the memory object with 'data' between dstOffset and (dstOffset + fillSize).
-// The offset and fill size must be DWORD aligned.
-void RsrcProcMgr::CmdFillMemory(
-    GfxCmdBuffer*    pCmdBuffer,
-    bool             saveRestoreComputeState,
-    bool             trackBltActiveFlags,
-    const GpuMemory& dstGpuMemory,
-    gpusize          dstOffset,
-    gpusize          fillSize,
-    uint32           data
-    ) const
-{
-    const gpusize dstGpuVirtAddr = (dstGpuMemory.Desc().gpuVirtAddr + dstOffset);
-    CmdFillMemory(pCmdBuffer, saveRestoreComputeState, trackBltActiveFlags, dstGpuVirtAddr, fillSize, data);
-}
-
-// =====================================================================================================================
 // Builds commands to fill every DWORD of memory with 'data' between dstGpuVirtAddr and (dstOffset + fillSize).
 // The offset and fill size must be DWORD aligned.
 void RsrcProcMgr::CmdFillMemory(
@@ -3088,72 +3072,126 @@ void RsrcProcMgr::CmdFillMemory(
     uint32        data
     ) const
 {
-    PAL_ASSERT(IsPow2Aligned(dstGpuVirtAddr, sizeof(uint32)));
-    PAL_ASSERT(IsPow2Aligned(fillSize, sizeof(uint32)));
-
-    constexpr gpusize FillSizeLimit = 256_MiB;
-
-    const Device*const pDevice               = m_pDevice->Parent();
-    const PalPublicSettings* pPublicSettings = pDevice->GetPublicSettings();
-
     if (saveRestoreComputeState)
     {
         // Save the command buffer's state.
         pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
     }
 
-    for (gpusize fillOffset = 0; fillOffset < fillSize; fillOffset += FillSizeLimit)
+    // FillMem32Bit has two paths: a "4x" path that does four 32-bit writes per thread and a "1x" path that does one
+    // 32-bit write per thread. The "4x" path will maximize GPU bandwidth so we should prefer it for most fills, but
+    // those four 32-bit writes require a 16-byte-aligned fill size. We can work around this by splitting the total
+    // fill size into a 16-byte aligned size and an unaligned remainder. We will kick off the aligned fill first and
+    // then end with a tiny unaligned fill using the slower shader.
+    //
+    // However, if the fill size is small enough then the entire dispatch can be scheduled simultaneously no matter
+    // which fill path we use. In this case the fill execution time is effectively a constant independent of fill size;
+    // instead it only depends on the time it takes for one wave to launch and terminate. If we split a small unaligned
+    // fill into two dispatches it would double its execution time. Thus we should use a single "1x" dispatch for small
+    // unaligned fills and only split the fill into two dispatches above some threshold. Performance testing has shown
+    // that this threshold scales roughly with CU count. For some reason, gfx11's threshold must be doubled.
+    const Device& device     = *m_pDevice->Parent();
+    const uint32  bytesPerCu = IsGfx11(device) ? 4_KiB : 2_KiB;
+    const uint32  threshold  = bytesPerCu * device.ChipProperties().gfx9.numActiveCus;
+
+    if (fillSize > threshold)
     {
-        const uint32 numDwords = static_cast<uint32>(Min(FillSizeLimit, (fillSize - fillOffset)) / sizeof(uint32));
+        constexpr gpusize AlignedMask = (4ull * sizeof(uint32)) - 1ull;
+        const gpusize     alignedSize = fillSize & ~AlignedMask;
 
-        // ((FillSizeLimit % 4) == 0) as the value stands now, ensuring fillSize is 4xOptimized too. If we change it
-        // to something that doesn't satisfy this condition we would need to check ((fillSize - fillOffset) % 4) too.
-        const bool is4xOptimized = ((numDwords % 4) == 0);
+        FillMem32Bit(pCmdBuffer, dstGpuVirtAddr, alignedSize, data);
 
-        // There is a specialized pipeline which is more efficient when the fill size is a multiple of 4 DWORDs.
-        const ComputePipeline*const pPipeline = is4xOptimized
-            ? GetPipeline(RpmComputePipeline::FillMem4xDword)
-            : GetPipeline(RpmComputePipeline::FillMemDword);
-
-        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-
-        uint32 srd[4] = { };
-        PAL_ASSERT(pDevice->ChipProperties().srdSizes.bufferView == sizeof(srd));
-
-        BufferViewInfo dstBufferView = {};
-        dstBufferView.gpuAddr = dstGpuVirtAddr + fillOffset;
-        dstBufferView.range   = numDwords * sizeof(uint32);
-        dstBufferView.stride  = (is4xOptimized) ? (sizeof(uint32) * 4) : sizeof(uint32);
-        if (is4xOptimized)
-        {
-            dstBufferView.swizzledFormat.format  = ChNumFormat::X32Y32Z32W32_Uint;
-            dstBufferView.swizzledFormat.swizzle =
-            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
-        }
-        else
-        {
-            dstBufferView.swizzledFormat.format  = ChNumFormat::X32_Uint;
-            dstBufferView.swizzledFormat.swizzle =
-            { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
-        }
-        dstBufferView.flags.bypassMallRead  = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
-                                                             RpmViewsBypassMallOnRead);
-        dstBufferView.flags.bypassMallWrite = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
-                                                             RpmViewsBypassMallOnWrite);
-        pDevice->CreateTypedBufferViewSrds(1, &dstBufferView, &srd[0]);
-
-        pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 0, 4, &srd[0]);
-        pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 4, 1, &data);
-
-        // Issue a dispatch with one thread per DWORD.
-        const uint32 minThreads   = (is4xOptimized) ? (numDwords / 4) : numDwords;
-        const uint32 threadGroups = RpmUtil::MinThreadGroups(minThreads, pPipeline->ThreadsPerGroup());
-        pCmdBuffer->CmdDispatch({threadGroups, 1, 1});
+        dstGpuVirtAddr += alignedSize;
+        fillSize       -= alignedSize;
     }
+
+    if (fillSize > 0)
+    {
+        FillMem32Bit(pCmdBuffer, dstGpuVirtAddr, fillSize, data);
+    }
+
     if (saveRestoreComputeState)
     {
         // Restore the command buffer's state.
         pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData, trackBltActiveFlags);
+    }
+}
+
+// =====================================================================================================================
+// Builds commands to write a repeating 32-bit pattern to a range of 4-byte aligned GPU memory. Both dstGpuVirtAddr and
+// fillSize must be 4-byte aligned. If fillSize is also 16-byte aligned then a faster shader will be used which can
+// more than double performance by fully utilizing GPU cache bandwidth.
+//
+// This function does not save or restore the Command Buffer's state, that responsibility lies with the caller!
+void RsrcProcMgr::FillMem32Bit(
+    GfxCmdBuffer*   pCmdBuffer,
+    gpusize         dstGpuVirtAddr,
+    gpusize         fillSize,
+    uint32          data
+    ) const
+{
+    // The caller must align these values.
+    PAL_ASSERT(IsPow2Aligned(dstGpuVirtAddr, sizeof(uint32)));
+    PAL_ASSERT(IsPow2Aligned(fillSize,       sizeof(uint32)));
+
+    const Device&            device   = *m_pDevice->Parent();
+    const PalPublicSettings& settings = *device.GetPublicSettings();
+
+    BufferViewInfo dstBufferView = {};
+    dstBufferView.flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall, RpmViewsBypassMallOnRead);
+    dstBufferView.flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall, RpmViewsBypassMallOnWrite);
+
+    // If the size is 16-byte aligned we can run the "4x" shader which writes four 32-bit values per thread.
+    RpmComputePipeline pipelineEnum  = RpmComputePipeline::FillMemDword;
+    const bool         is4xOptimized = ((fillSize % (sizeof(uint32) * 4)) == 0);
+
+    if (is4xOptimized)
+    {
+        {
+            pipelineEnum = RpmComputePipeline::FillMem4xDword;
+        }
+
+        dstBufferView.stride                 = sizeof(uint32) * 4;
+        dstBufferView.swizzledFormat.format  = ChNumFormat::X32Y32Z32W32_Uint;
+        dstBufferView.swizzledFormat.swizzle =
+            { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
+    }
+    else
+    {
+        dstBufferView.stride                 = sizeof(uint32);
+        dstBufferView.swizzledFormat.format  = ChNumFormat::X32_Uint;
+        dstBufferView.swizzledFormat.swizzle =
+            { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
+    }
+
+    const ComputePipeline*const pPipeline = GetPipeline(pipelineEnum);
+    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
+
+    // We split big fills up into multiple dispatches based on this limit. The hope is that this will improve
+    // preemption QoS without hurting performance.
+    constexpr gpusize FillSizeLimit = 256_MiB;
+
+    for (gpusize fillOffset = 0; fillOffset < fillSize; fillOffset += FillSizeLimit)
+    {
+        const uint32 numDwords = uint32(Min(FillSizeLimit, (fillSize - fillOffset)) / sizeof(uint32));
+
+        dstBufferView.gpuAddr = dstGpuVirtAddr + fillOffset;
+        dstBufferView.range   = numDwords * sizeof(uint32);
+
+        // Both shaders have this user-data layout:
+        // [0]: The fill pattern.
+        // [1-4]: The buffer view, all AMD HW has 4-DW buffer views.
+        PAL_ASSERT(device.ChipProperties().srdSizes.typedBufferView <= 4 * sizeof(uint32));
+
+        constexpr uint32 NumUserData = 5;
+        uint32 userData[NumUserData] = { data };
+        device.CreateTypedBufferViewSrds(1, &dstBufferView, &userData[1]);
+        pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 0, NumUserData, userData);
+
+        // Issue a dispatch with the correct number of DWORDs per thread.
+        const uint32 minThreads   = is4xOptimized ? (numDwords / 4) : numDwords;
+        const uint32 threadGroups = RpmUtil::MinThreadGroups(minThreads, pPipeline->ThreadsPerGroup());
+        pCmdBuffer->CmdDispatch({threadGroups, 1, 1});
     }
 }
 

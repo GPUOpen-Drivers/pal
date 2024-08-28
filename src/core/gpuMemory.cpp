@@ -520,26 +520,27 @@ GpuMemory::GpuMemory(
     Device* pDevice)
     :
     m_pDevice(pDevice),
+    m_flags{},
     m_vaPartition(VaPartition::Default),
     m_heapCount(0),
+    m_heaps{},
+    m_mtype(MType::Default),
     m_priority(GpuMemPriority::Unused),
     m_priorityOffset(GpuMemPriorityOffset::Offset0),
     m_pImage(nullptr),
-    m_mtype(MType::Default),
+    m_schedulerId(0),
+    m_numReservedCu(0),
+    m_typedBufferInfo{},
     m_remoteSdiSurfaceIndex(0),
     m_remoteSdiMarkerIndex(0),
-    m_markerVirtualAddr(0)
-    ,m_mallPolicy(GpuMemMallPolicy::Default)
+    m_markerVirtualAddr(0),
+    m_mallPolicy(GpuMemMallPolicy::Default),
+    m_mallRange{}
 {
     memset(&m_desc, 0, sizeof(m_desc));
-    memset(&m_heaps[0], 0, sizeof(m_heaps));
-    memset(&m_typedBufferInfo, 0, sizeof(m_typedBufferInfo));
 
-    memset(&m_mallRange, 0, sizeof(m_mallRange));
-
-    m_flags.u64All   = 0;
-    m_pPinnedMemory  = nullptr;
-    m_pOriginalMem   = nullptr;
+    // Only set one of the pointers in this union.
+    m_pPinnedMemory = nullptr;
 }
 
 // =====================================================================================================================

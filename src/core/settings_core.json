@@ -619,9 +619,7 @@
         "General"
       ],
       "Defaults": {
-        "Default": false,
-        "Windows": false,
-        "Linux": true
+        "Default": false
       },
       "Scope": "PrivatePalKey",
       "Type": "bool",

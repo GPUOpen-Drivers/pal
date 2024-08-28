@@ -124,6 +124,16 @@ if (PAL_BUILD_GFX9)
     endif()
 #endif
 
+#if PAL_BUILD_STRIX1
+    pal_bp( PAL_BUILD_STRIX1 OFF MODE "AUTHOR_WARNING"
+            ASIC_CONFIG
+                PAL_BUILD_GFX11
+                PAL_BUILD_GFX115
+                PAL_BUILD_STRIX
+                CHIP_HDR_STRIX1
+          )
+#endif
+
 endif() # PAL_BUILD_GFX9
 
 #if PAL_BUILD_RDF

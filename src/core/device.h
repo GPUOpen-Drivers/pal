@@ -521,6 +521,11 @@ constexpr IpTriple CreateGfxTriple(
     case GfxIpLevel::GfxIp11_0:
         retVal = { .major = 11, .minor = 0, .stepping = stepping };
         break;
+#if PAL_BUILD_GFX115
+    case GfxIpLevel::GfxIp11_5:
+        retVal = { .major = 11, .minor = 5, .stepping = stepping };
+        break;
+#endif
 #endif
     default:
         PAL_ASSERT_ALWAYS();
@@ -560,6 +565,11 @@ constexpr GfxIpLevel IpTripleToGfxLevel(
         case 0:
             retVal = GfxIpLevel::GfxIp11_0;
             break;
+#if PAL_BUILD_GFX115
+        case 5:
+            retVal = GfxIpLevel::GfxIp11_5;
+            break;
+#endif
         default:
             PAL_ASSERT_ALWAYS();
             break;
@@ -896,7 +906,8 @@ struct GpuChipProperties
 
     struct
     {
-        uint32 bufferView;
+        uint32 typedBufferView;
+        uint32 untypedBufferView;
         uint32 imageView;
         uint32 fmaskView;
         uint32 sampler;
@@ -932,6 +943,18 @@ struct GpuChipProperties
         uint32 u32All;
     } p2pSupport;
 
+#if PAL_BUILD_GFX115
+    union
+    {
+        struct
+        {
+            uint32 useBranchHeaders     :  1;
+            uint32 reserved             : 31;
+        } gfx11;
+
+        uint32 u32All;
+    } npiFlags;
+#endif
 };
 
 // Helper function that calculates memory ops per clock for a given memory type.
@@ -1810,9 +1833,13 @@ public:
         Pal::Queue* pWaiter,
         UploadFenceToken fenceValue);
 
+    bool ShouldUploadUsingDma(GpuHeap pipelineHeapType) const;
+
     virtual bool IsHwEmulationEnabled() const { return false; }
 
-    bool HasLargeLocalHeap() const;
+    bool HasLargeBar() const;
+
+    virtual bool KernelSupportCpuHostAperture() const { return false;}
 
     bool IssueSqttMarkerEvents() const;
     bool IssueCrashAnalysisMarkerEvents() const;
@@ -2164,6 +2191,9 @@ extern void InitializeGpuEngineProperties(
 constexpr bool IsGfx11(GfxIpLevel gfxLevel)
 {
     return (gfxLevel == GfxIpLevel::GfxIp11_0)
+#if PAL_BUILD_GFX115
+            || (gfxLevel == GfxIpLevel::GfxIp11_5)
+#endif
         ;
 }
 
@@ -2250,6 +2280,33 @@ inline bool IsGfx10(const Device& device)
 {
     return IsGfx10(device.ChipProperties().gfxLevel);
 }
+
+#if PAL_BUILD_GFX115
+constexpr bool IsGfx115(GfxIpLevel gfxLevel)
+{
+    return (gfxLevel == GfxIpLevel::GfxIp11_5);
+}
+
+inline bool IsGfx115(const Device& device)
+{
+    return IsGfx115(device.ChipProperties().gfxLevel);
+}
+
+#if PAL_BUILD_STRIX
+inline bool IsStrixFamily(const Device& device)
+{
+    return FAMILY_IS_STX(device.ChipProperties().familyId);
+}
+#endif
+
+#if PAL_BUILD_STRIX1
+inline bool IsStrix1(const Device& device)
+{
+    return AMDGPU_IS_STRIX1(device.ChipProperties().familyId, device.ChipProperties().eRevId);
+}
+#endif
+
+#endif
 
 // Gfx10 / Navi1x
 inline bool IsNavi10(const Device& device)

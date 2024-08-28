@@ -432,8 +432,11 @@ inline Result DeserializeEnum(
         case HashLiteralString("_amdgpu_cs_shdr_intrl_tbl"):
             *pValue = Abi::PipelineSymbolType::CsShdrIntrlTblPtr;
             break;
-        case HashLiteralString("_amdgpu_ps_dual_source_shdr_intrl_tbl"):
-            *pValue = Abi::PipelineSymbolType::PsDualSourceShdrIntrlTblPtr;
+        case HashLiteralString("_amdgpu_ps_export_shader_shdr_intrl_tbl"):
+            *pValue = Abi::PipelineSymbolType::PsExportShaderShdrIntrlTblPtr;
+            break;
+        case HashLiteralString("_amdgpu_ps_export_shader_dual_source_shdr_intrl_tbl"):
+            *pValue = Abi::PipelineSymbolType::PsExportShaderDualSourceShdrIntrlTblPtr;
             break;
         case HashLiteralString("_amdgpu_ls_disasm"):
             *pValue = Abi::PipelineSymbolType::LsDisassembly;
@@ -456,8 +459,11 @@ inline Result DeserializeEnum(
         case HashLiteralString("_amdgpu_cs_disasm"):
             *pValue = Abi::PipelineSymbolType::CsDisassembly;
             break;
-        case HashLiteralString("_amdgpu_ps_dual_source_disasm"):
-            *pValue = Abi::PipelineSymbolType::PsDualSourceDisassembly;
+        case HashLiteralString("_amdgpu_ps_export_shader_disasm"):
+            *pValue = Abi::PipelineSymbolType::PsExportShaderDisassembly;
+            break;
+        case HashLiteralString("_amdgpu_ps_export_shader_dual_source_disasm"):
+            *pValue = Abi::PipelineSymbolType::PsExportShaderDualSourceDisassembly;
             break;
         case HashLiteralString("_amdgpu_ls_shdr_intrl_data"):
             *pValue = Abi::PipelineSymbolType::LsShdrIntrlData;
@@ -550,8 +556,11 @@ inline Result SerializeEnum(
     case Abi::PipelineSymbolType::CsShdrIntrlTblPtr:
         pWriter->Pack("_amdgpu_cs_shdr_intrl_tbl");
         break;
-    case Abi::PipelineSymbolType::PsDualSourceShdrIntrlTblPtr:
-        pWriter->Pack("_amdgpu_ps_dual_source_shdr_intrl_tbl");
+    case Abi::PipelineSymbolType::PsExportShaderShdrIntrlTblPtr:
+        pWriter->Pack("_amdgpu_ps_export_shader_shdr_intrl_tbl");
+        break;
+    case Abi::PipelineSymbolType::PsExportShaderDualSourceShdrIntrlTblPtr:
+        pWriter->Pack("_amdgpu_ps_export_shader_dual_source_shdr_intrl_tbl");
         break;
     case Abi::PipelineSymbolType::LsDisassembly:
         pWriter->Pack("_amdgpu_ls_disasm");
@@ -574,8 +583,11 @@ inline Result SerializeEnum(
     case Abi::PipelineSymbolType::CsDisassembly:
         pWriter->Pack("_amdgpu_cs_disasm");
         break;
-    case Abi::PipelineSymbolType::PsDualSourceDisassembly:
-        pWriter->Pack("_amdgpu_ps_dual_source_disasm");
+    case Abi::PipelineSymbolType::PsExportShaderDisassembly:
+        pWriter->Pack("_amdgpu_ps_export_shader_disasm");
+        break;
+    case Abi::PipelineSymbolType::PsExportShaderDualSourceDisassembly:
+        pWriter->Pack("_amdgpu_ps_export_shader_dual_source_disasm");
         break;
     case Abi::PipelineSymbolType::LsShdrIntrlData:
         pWriter->Pack("_amdgpu_ls_shdr_intrl_data");

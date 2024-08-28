@@ -678,8 +678,7 @@ void GfxCmdBuffer::CmdFillMemory(
     m_device.RsrcProcMgr().CmdFillMemory(this,
                                          (IsComputeStateSaved() == false),
                                          true,
-                                         static_cast<const GpuMemory&>(dstGpuMemory),
-                                         dstOffset,
+                                         dstGpuMemory.Desc().gpuVirtAddr + dstOffset,
                                          fillSize,
                                          data);
 }

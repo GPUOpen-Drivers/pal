@@ -133,6 +133,9 @@ Result GfxDevice::InitHwlSettings(
         case GfxIpLevel::GfxIp10_1:
         case GfxIpLevel::GfxIp10_3:
         case GfxIpLevel::GfxIp11_0:
+#if PAL_BUILD_GFX115
+        case GfxIpLevel::GfxIp11_5:
+#endif
             m_pDdSettingsLoader = Gfx9::CreateSettingsLoader(m_pParent);
             break;
         case GfxIpLevel::None:

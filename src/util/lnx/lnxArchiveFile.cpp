@@ -464,7 +464,6 @@ ArchiveFile::ArchiveFile(
     m_entries           (Allocator()),
     // Write Access
     m_haveWriteAccess   (haveWriteAccess),
-    m_refreshedSinceLastWrite(false),
     // Read memory buffering
     m_useBufferedMemory (false),
     m_bufferMemory      (memoryBufferMax),
@@ -743,8 +742,7 @@ Result ArchiveFile::RefreshFile(
 
     const bool needCheckSize = ((forceRefresh == true) ||
                                 (m_fileSize == 0) ||
-                                (m_haveWriteAccess == false) ||
-                                (m_refreshedSinceLastWrite == false));
+                                (m_haveWriteAccess == false));
     if (needCheckSize == false)
     {
         result = Result::Success;
@@ -789,7 +787,6 @@ Result ArchiveFile::RefreshFile(
 
                 if (result == Result::Success)
                 {
-                    m_refreshedSinceLastWrite = true;
                     m_fileSize = static_cast<uint64>(statBuf.st_size);
                 }
             }
@@ -963,8 +960,6 @@ Result ArchiveFile::WriteInternal(
     PAL_ASSERT(pData != nullptr);
 
     Result result = Result::ErrorUnknown;
-
-    m_refreshedSinceLastWrite = false;
 
     result = WriteDirect(m_hFile, fileOffset, pData, writeSize);
 

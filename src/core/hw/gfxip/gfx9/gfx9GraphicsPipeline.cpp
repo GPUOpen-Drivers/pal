@@ -1957,7 +1957,7 @@ bool GraphicsPipeline::CanRbPlusOptimizeDepthOnly() const
     return ((NumColorTargets() == 0) &&
             (m_regs.other.cbColorControl.bits.MODE == CB_DISABLE) &&
             (DbShaderControl().bits.ALPHA_TO_MASK_DISABLE == 1) &&
-            (PsUsesUavs() == false) && (PsWritesUavs() == false));
+            (PsWritesUavs() == false));
 }
 
 // =====================================================================================================================

@@ -58,8 +58,6 @@ Pal::Result CreateMsaaImageCopyComputePipeline(
         pipeInfo.pipelineBinarySize   = pipeline.size;
         pipeInfo.flags.clientInternal = 1;
 
-        PAL_ASSERT(pipeline.size != 0);
-
         void* pMemory = PAL_MALLOC(pDevice->GetComputePipelineSize(pipeInfo, nullptr),
                                    pAllocator,
                                    Util::SystemAllocType::AllocInternal);

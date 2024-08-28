@@ -128,8 +128,15 @@ void DriverControlServer::SessionEstablished(const SharedPointer<ISession>& pSes
 {
     // Allocate session data for the newly established session
     DriverControlSession* pSessionData = DD_NEW(DriverControlSession, m_pMsgChannel->GetAllocCb())(pSession);
-    Platform::AtomicIncrement(&m_numSessions);
-    pSession->SetUserData(pSessionData);
+    if (pSessionData != nullptr)
+    {
+        Platform::AtomicIncrement(&m_numSessions);
+        pSession->SetUserData(pSessionData);
+    }
+    else
+    {
+        DD_ASSERT_ALWAYS();
+    }
 }
 
 void DriverControlServer::UpdateSession(const SharedPointer<ISession>& pSession)

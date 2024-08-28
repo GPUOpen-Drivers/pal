@@ -81,8 +81,11 @@ Result Device::Finalize(
 
         // Determine the maximum SRD size.
         const auto& srdSizes = m_gpuProps.gfxipProperties.srdSizes;
-        m_maxSrdSize         = Max(Max(srdSizes.bufferView, srdSizes.fmaskView),
-                                   Max(srdSizes.imageView,  srdSizes.sampler));
+        m_maxSrdSize         = Max(srdSizes.typedBufferView,
+                                   srdSizes.untypedBufferView,
+                                   srdSizes.fmaskView,
+                                   srdSizes.imageView,
+                                   srdSizes.sampler);
     }
 
     if (result == Result::Success)

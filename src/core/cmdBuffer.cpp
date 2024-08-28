@@ -211,6 +211,15 @@ Result CmdBuffer::Begin(
             // Assemble our building flags for this command building session.
             m_buildFlags = info.flags;
 
+            if (settings.cmdBufOptimizePm4 == Pm4OptForceEnable)
+            {
+                m_buildFlags.optimizeGpuSmallBatch = 1;
+            }
+            else if (settings.cmdBufOptimizePm4 == Pm4OptForceDisable)
+            {
+                m_buildFlags.optimizeGpuSmallBatch = 0;
+            }
+
             if (settings.cmdBufForceOneTimeSubmit == CmdBufForceOneTimeSubmit::CmdBufForceOneTimeSubmitOn)
             {
                 m_buildFlags.optimizeOneTimeSubmit = 1;
@@ -260,10 +269,8 @@ Result CmdBuffer::Begin(
             if (result == Result::Success)
             {
                 CmdStreamBeginFlags cmdStreamflags = {};
-                cmdStreamflags.prefetchCommands = m_buildFlags.prefetchCommands;
-                cmdStreamflags.optimizeCommands =
-                    (((settings.cmdBufOptimizePm4 == Pm4OptDefaultEnable) && m_buildFlags.optimizeGpuSmallBatch) ||
-                     (settings.cmdBufOptimizePm4 == Pm4OptForceEnable));
+                cmdStreamflags.prefetchCommands    = m_buildFlags.prefetchCommands;
+                cmdStreamflags.optimizeCommands    = m_buildFlags.optimizeGpuSmallBatch;
 
                 // If the app explicitly called "reset" on this command buffer, there's no need to do another reset
                 // on the command streams.

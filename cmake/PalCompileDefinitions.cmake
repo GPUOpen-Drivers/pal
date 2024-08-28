@@ -49,6 +49,9 @@ function(pal_compile_definitions_gpu TARGET)
 #if PAL_BUILD_GFX11
         target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_GFX11=$<BOOL:${PAL_BUILD_GFX11}>)
 #endif
+#if PAL_BUILD_GFX115
+        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_GFX115=$<BOOL:${PAL_BUILD_GFX115}>)
+#endif
 
         # PAL no longer references these defines and our clients must remove their references when upgrading.
         if (PAL_CLIENT_INTERFACE_MAJOR_VERSION LESS 845)
@@ -76,6 +79,16 @@ function(pal_compile_definitions_gpu TARGET)
         if (PAL_CLIENT_INTERFACE_MAJOR_VERSION LESS 888)
             target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_PHOENIX2=$<BOOL:${PAL_BUILD_GFX9}>)
         endif()
+
+#if PAL_BUILD_STRIX
+        # Define for ASIC Family and is not associated with a CHIP_HDR
+        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_STRIX=$<BOOL:${PAL_BUILD_STRIX}>)
+#endif
+
+#if PAL_BUILD_STRIX1
+        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_STRIX1=$<BOOL:${PAL_BUILD_STRIX1}>)
+        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_STRIX1=$<BOOL:${CHIP_HDR_STRIX1}>)
+#endif
 
     endif()
 endfunction()

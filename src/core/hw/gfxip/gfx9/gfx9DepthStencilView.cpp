@@ -627,8 +627,6 @@ void Gfx10DepthStencilView::SetGfx11StaticDbRenderControlFields(
     // The user mode driver should generally set the OREO_MODE field to OPAQUE_THEN_BLEND for best performance.
     // Setting to BLEND is a fail-safe that should work for all cases
 
-    // If a pipeline is bound where the PS uses LATE_Z z-order, OREO_MODE is overwritten to OMODE_BLEND
-    // See WorkaroundState::ValidateDbRenderControl
     pDbRenderControl->gfx11.OREO_MODE          = settings.gfx11OreoModeControl;
 
     // The FORCE_OREO_MODE is intended only for workarounds and should otherwise be set to 0
@@ -654,6 +652,9 @@ void Gfx10DepthStencilView::SetGfx11StaticDbRenderControlFields(
         }
     }
     else if (IsPhoenixFamily(palDevice)
+#if PAL_BUILD_STRIX
+             || IsStrixFamily(palDevice)
+#endif
         )
     {
         switch (numFragments)
@@ -803,7 +804,6 @@ uint32* Gfx10DepthStencilView::WriteCommands(
     ImageLayout            stencilLayout, // Allowed usages/queues for the stencil plane. Implies compression state.
     CmdStream*             pCmdStream,
     bool                   isNested,
-    regDB_RENDER_CONTROL*  pDbRenderControl,
     regDB_RENDER_OVERRIDE* pDbRenderOverride,
     uint32*                pCmdSpace
     ) const
@@ -811,6 +811,7 @@ uint32* Gfx10DepthStencilView::WriteCommands(
     Gfx10DepthStencilViewRegs regs = m_regs;
     pCmdSpace = WriteCommandsCommon(depthLayout, stencilLayout, pCmdStream, pCmdSpace, &regs);
 
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_RENDER_CONTROL, regs.dbRenderControl.u32All, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_RMI_L2_CACHE_CONTROL,
                                                   regs.dbRmiL2CacheControl.u32All,
                                                   pCmdSpace);
@@ -847,8 +848,6 @@ uint32* Gfx10DepthStencilView::WriteCommands(
 
     // Update just the portion owned by DSV.
     BitfieldUpdateSubfield(&(pDbRenderOverride->u32All), regs.dbRenderOverride.u32All, DbRenderOverrideRmwMask);
-
-    pDbRenderControl->u32All = regs.dbRenderControl.u32All;
 
     if (isNested)
     {

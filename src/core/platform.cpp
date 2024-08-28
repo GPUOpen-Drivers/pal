@@ -1255,6 +1255,13 @@ bool Platform::ShowDevDriverOverlay() const
         showOverlay = m_pDevDriverServer->ShouldShowOverlay();
     }
 
+#if PAL_BUILD_RDF
+    if (m_pTraceSession != nullptr)
+    {
+        showOverlay &= (m_pTraceSession->GetTraceSessionState() != GpuUtil::TraceSessionState::Running);
+    }
+#endif
+
     return showOverlay;
 }
 

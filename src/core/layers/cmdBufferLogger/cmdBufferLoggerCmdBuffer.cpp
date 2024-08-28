@@ -990,7 +990,7 @@ static void DumpBufferViewSrd(
     pCmdBuffer->CmdCommentString(pString);
 
     DataToString(pCmdBuffer,
-        (props.gfxipProperties.srdSizes.bufferView / sizeof(uint32)),
+        (props.gfxipProperties.srdSizes.typedBufferView / sizeof(uint32)),
         static_cast<const uint32*>(pBufferViewSrd),
         "\t");
 

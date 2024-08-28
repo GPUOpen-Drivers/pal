@@ -305,9 +305,9 @@ uint32 Pm4Image::TranslateClearCodeOneToNativeFmt(
             // which is maxComponentValue for each channel
             maxColorValue = maxComponentValue;
         }
-        else
+        else if (pBitCounts[cmpIdx] > 0)
         {
-            maxColorValue = Math::Float32ToNumBits(1.0f, ComponentBitCounts(format)[cmpIdx]);
+            maxColorValue = Math::Float32ToNumBits(1.0f, pBitCounts[cmpIdx]);
         }
         break;
 

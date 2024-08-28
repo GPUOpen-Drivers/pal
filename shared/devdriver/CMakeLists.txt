@@ -58,9 +58,6 @@ dd_bp(DD_BP_ENABLE_DD_SETTINGS ${DEVDRIVER_IS_TOP_LEVEL})
 # Configure whether to build tests.
 dd_bp(DD_BP_BUILD_TESTS ${DEVDRIVER_IS_TOP_LEVEL})
 
-# Configure whether documentation is built
-dd_bp(DD_BP_BUILD_DOCS OFF)
-
 # Configure whether to enable MSVC Code Analysis. Code Analysis causes significantly longer build time.
 dd_bp(DD_MSVC_CODE_ANALYZE OFF)
 
@@ -89,6 +86,3 @@ if (DD_OPT_ENABLE_RUST)
     add_subdirectory(rust)
 endif()
 
-if (DD_BP_BUILD_DOCS)
-    add_subdirectory(doc)
-endif()

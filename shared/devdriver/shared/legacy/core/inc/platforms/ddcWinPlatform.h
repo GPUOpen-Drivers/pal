@@ -55,46 +55,6 @@ static_assert(false, "This header is for user mode windows, and it does not work
 
 #define DD_DEBUG_BREAK() __debugbreak()
 
-// The DD_ASSUME() macro passes to a C++ compiler a boolean expression,
-// which is assumed to be an *absolute truth*, without any checking.
-//
-// Note that, C++ optimizer will use input expression to generate faster code,
-// because calling DD_ASSUME() on expressions which are not *always* true
-// is undefined behavior.
-//
-// This macro can be used to inform the compiler about preconditions
-// that your code assumes, but cannot validate.
-//
-//
-// A generator represents a potentially stateless object,
-// which computes a series of values lazily (on demand).
-// Dereferencing an iterator of a generator triggers a computation,
-// which will produce the next value - that means after reading it once, it's gone.
-// Because generator can be stateless,
-// its iterator has to model an input iterator (it cannot model a forward iterator).
-//
-// This means precondition of get_val() cannot be checked,
-// otherwise generated value will be lost!
-//
-//     float get_val (generator<float>::iterator it)
-//     {
-//         DD_ASSUME(valid(it)); // Do not call DD_ASSERT(valid(it)) here!
-//         return *it;
-//     }
-//
-// In this case calling DD_ASSUME() is correct and desirable.
-// The code is written in such a way, that if the precondition is not met,
-// we have a crash, so it makes sense to generate code assuming callers
-// are not violating get_val()'s contract.
-//
-// For scenarios where one *can* validate this assumption,
-// it is recommended to use DD_ASSERT(), because DD_ASSERT() will
-// do that validation in a Debug build and behave like DD_ASSUME() in Release build.
-//
-// [MSVC] __assume()
-//  ~ https://github.com/MicrosoftDocs/cpp-docs/blob/master/docs/intrinsics/assume.md
-#define DD_ASSUME(expression) __assume((expression))
-
 namespace DevDriver
 {
     namespace Platform

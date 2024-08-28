@@ -186,12 +186,12 @@ public:
     bool IsTimingInProgress() const;
 
     // ==== Base Class Overrides =================================================================================== //
-    virtual void OnConfigUpdated(DevDriver::StructuredValue* pJsonConfig) override;
+    virtual void OnConfigUpdated(DevDriver::StructuredValue* pJsonConfig) override { };
 
     virtual Pal::uint64 QueryGpuWorkMask() const override { return 0; }
 
     virtual void OnTraceAccepted() override;
-    virtual void OnTraceBegin(Pal::uint32 gpuIndex, Pal::ICmdBuffer* pCmdBuf) override;
+    virtual void OnTraceBegin(Pal::uint32 gpuIndex, Pal::ICmdBuffer* pCmdBuf) override { };
     virtual void OnTraceEnd(Pal::uint32 gpuIndex, Pal::ICmdBuffer* pCmdBuf) override;
     virtual void OnTraceFinished() override;
 

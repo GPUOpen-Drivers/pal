@@ -60,7 +60,7 @@ public:
         uint32                 queueCount,
         const QueueCreateInfo* pCreateInfo);
 
-    uint32 BufferSrdDwords() const { return m_deviceProperties.gfxipProperties.srdSizes.bufferView; }
+    uint32 BufferSrdDwords() const { return m_deviceProperties.gfxipProperties.srdSizes.typedBufferView; }
     uint32 ImageSrdDwords() const { return m_deviceProperties.gfxipProperties.srdSizes.imageView; }
 
     // Public IDevice interface methods:

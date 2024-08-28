@@ -1032,6 +1032,9 @@ typedef enum CBPerfSel {
     CB_PERF_SEL_EXPORT_KILLED_BY_NULL_SAMPLE_MASK__GFX11 = 0x00000138,
     CB_PERF_SEL_EXPORT_KILLED_BY_NULL_TARGET_SHADER_MASK__GFX11 = 0x00000139,
     CB_PERF_SEL_READ_REQ_PIPE1_STALL__GFX110           = 0x00000081,
+#if CHIP_HDR_STRIX1
+    CB_PERF_SEL_READ_REQ_PIPE1_STALL__STX1             = 0x00000081,
+#endif
 } CBPerfSel;
 
 constexpr unsigned int MaxCBPerfSelGfx10               = CB_PERF_SEL_CC_CACHE_SECTOR_HIT__GFX10;
@@ -1587,6 +1590,11 @@ typedef enum CPC_LATENCY_STATS_SEL {
     CPC_LATENCY_STATS_SEL_INVAL_MAX__PHX2              = 0x00000006,
     CPC_LATENCY_STATS_SEL_INVAL_MIN__PHX2              = 0x00000007,
     CPC_LATENCY_STATS_SEL_INVAL_LAST__PHX2             = 0x00000008,
+#if CHIP_HDR_STRIX1
+    CPC_LATENCY_STATS_SEL_INVAL_MAX__STX1              = 0x00000006,
+    CPC_LATENCY_STATS_SEL_INVAL_MIN__STX1              = 0x00000007,
+    CPC_LATENCY_STATS_SEL_INVAL_LAST__STX1             = 0x00000008,
+#endif
 } CPC_LATENCY_STATS_SEL;
 
 typedef enum CPC_PERFCOUNT_SEL {
@@ -1678,6 +1686,10 @@ typedef enum CPF_PERFCOUNTWINDOW_SEL {
     CPF_PERFWINDOW_SEL_RWPP__GFX10                     = 0x00000004,
     CPF_PERFWINDOW_SEL_RDMA__GFX110                    = 0x00000003,
     CPF_PERFWINDOW_SEL_RWPP__GFX110                    = 0x00000004,
+#if CHIP_HDR_STRIX1
+    CPF_PERFWINDOW_SEL_RDMA__STX1                      = 0x00000003,
+    CPF_PERFWINDOW_SEL_RWPP__STX1                      = 0x00000004,
+#endif
 } CPF_PERFCOUNTWINDOW_SEL;
 
 typedef enum CPF_PERFCOUNT_SEL {
@@ -1823,6 +1835,36 @@ typedef enum CPG_PERFCOUNTWINDOW_SEL {
     CPG_PERFWINDOW_SEL_CPC_IC__GFX110                  = 0x0000001c,
     CPG_PERFWINDOW_SEL_RESERVED2__GFX110               = 0x0000001d,
     CPG_PERFWINDOW_SEL_CPG_IC__GFX110                  = 0x0000001e,
+#if CHIP_HDR_STRIX1
+    CPG_PERFWINDOW_SEL_MES__STX1                       = 0x00000003,
+    CPG_PERFWINDOW_SEL_MEC1__STX1                      = 0x00000004,
+    CPG_PERFWINDOW_SEL_MEC2__STX1                      = 0x00000005,
+    CPG_PERFWINDOW_SEL_DFY__STX1                       = 0x00000006,
+    CPG_PERFWINDOW_SEL_DMA__STX1                       = 0x00000007,
+    CPG_PERFWINDOW_SEL_SHADOW__STX1                    = 0x00000008,
+    CPG_PERFWINDOW_SEL_RB__STX1                        = 0x00000009,
+    CPG_PERFWINDOW_SEL_CEDMA__STX1                     = 0x0000000a,
+    CPG_PERFWINDOW_SEL_PRT_HDR_RPTR__STX1              = 0x0000000b,
+    CPG_PERFWINDOW_SEL_PRT_SMP_RPTR__STX1              = 0x0000000c,
+    CPG_PERFWINDOW_SEL_PQ1__STX1                       = 0x0000000d,
+    CPG_PERFWINDOW_SEL_PQ2__STX1                       = 0x0000000e,
+    CPG_PERFWINDOW_SEL_PQ3__STX1                       = 0x0000000f,
+    CPG_PERFWINDOW_SEL_MEMWR__STX1                     = 0x00000010,
+    CPG_PERFWINDOW_SEL_MEMRD__STX1                     = 0x00000011,
+    CPG_PERFWINDOW_SEL_VGT0__STX1                      = 0x00000012,
+    CPG_PERFWINDOW_SEL_VGT1__STX1                      = 0x00000013,
+    CPG_PERFWINDOW_SEL_APPEND__STX1                    = 0x00000014,
+    CPG_PERFWINDOW_SEL_QURD__STX1                      = 0x00000015,
+    CPG_PERFWINDOW_SEL_DDID__STX1                      = 0x00000016,
+    CPG_PERFWINDOW_SEL_SR__STX1                        = 0x00000017,
+    CPG_PERFWINDOW_SEL_QU_EOP__STX1                    = 0x00000018,
+    CPG_PERFWINDOW_SEL_QU_STRM__STX1                   = 0x00000019,
+    CPG_PERFWINDOW_SEL_QU_PIPE__STX1                   = 0x0000001a,
+    CPG_PERFWINDOW_SEL_RESERVED1__STX1                 = 0x0000001b,
+    CPG_PERFWINDOW_SEL_CPC_IC__STX1                    = 0x0000001c,
+    CPG_PERFWINDOW_SEL_RESERVED2__STX1                 = 0x0000001d,
+    CPG_PERFWINDOW_SEL_CPG_IC__STX1                    = 0x0000001e,
+#endif
 } CPG_PERFCOUNTWINDOW_SEL;
 
 typedef enum CPG_PERFCOUNT_SEL {
@@ -2491,6 +2533,102 @@ constexpr unsigned int MaxGCRPerfSelNv23               = GCR_PERF_SEL_PIO_TCP_TL
 constexpr unsigned int MaxGCRPerfSelNv22               = GCR_PERF_SEL_PIO_TCP_TLB_SHOOTDOWN_REQ__NV22;
 constexpr unsigned int MaxGCRPerfSelNv3x               = GCR_PERF_SEL_PIO_GL1_TLB_SHOOTDOWN_REQ__NV3X;
 constexpr unsigned int MaxGCRPerfSelApu11              = GCR_PERF_SEL_PIO_GL1_TLB_SHOOTDOWN_REQ__APU11;
+
+typedef enum GCVML2_PERF_SEL {
+    GCVML2_PERF_SEL_EVENT_0                            = 0x00000000,
+    GCVML2_PERF_SEL_EVENT_1                            = 0x00000001,
+    GCVML2_PERF_SEL_EVENT_2                            = 0x00000002,
+    GCVML2_PERF_SEL_EVENT_3                            = 0x00000003,
+    GCVML2_PERF_SEL_EVENT_4                            = 0x00000004,
+    GCVML2_PERF_SEL_EVENT_5                            = 0x00000005,
+    GCVML2_PERF_SEL_EVENT_6                            = 0x00000006,
+    GCVML2_PERF_SEL_EVENT_7                            = 0x00000007,
+    GCVML2_PERF_SEL_EVENT_8                            = 0x00000008,
+    GCVML2_PERF_SEL_EVENT_9                            = 0x00000009,
+    GCVML2_PERF_SEL_EVENT_10                           = 0x0000000a,
+    GCVML2_PERF_SEL_EVENT_11                           = 0x0000000b,
+    GCVML2_PERF_SEL_EVENT_12                           = 0x0000000c,
+    GCVML2_PERF_SEL_EVENT_13                           = 0x0000000d,
+    GCVML2_PERF_SEL_EVENT_14                           = 0x0000000e,
+    GCVML2_PERF_SEL_EVENT_15                           = 0x0000000f,
+    GCVML2_PERF_SEL_EVENT_16                           = 0x00000010,
+    GCVML2_PERF_SEL_EVENT_17                           = 0x00000011,
+    GCVML2_PERF_SEL_EVENT_18                           = 0x00000012,
+    GCVML2_PERF_SEL_EVENT_19                           = 0x00000013,
+    GCVML2_PERF_SEL_EVENT_20                           = 0x00000014,
+    GCVML2_PERF_SEL_EVENT_21                           = 0x00000015,
+    GCVML2_PERF_SEL_EVENT_22                           = 0x00000016,
+    GCVML2_PERF_SEL_EVENT_23                           = 0x00000017,
+    GCVML2_PERF_SEL_EVENT_24                           = 0x00000018,
+    GCVML2_PERF_SEL_EVENT_25                           = 0x00000019,
+    GCVML2_PERF_SEL_EVENT_26                           = 0x0000001a,
+    GCVML2_PERF_SEL_EVENT_27                           = 0x0000001b,
+    GCVML2_PERF_SEL_EVENT_28                           = 0x0000001c,
+    GCVML2_PERF_SEL_EVENT_29                           = 0x0000001d,
+    GCVML2_PERF_SEL_EVENT_30                           = 0x0000001e,
+    GCVML2_PERF_SEL_EVENT_31                           = 0x0000001f,
+    GCVML2_PERF_SEL_EVENT_32                           = 0x00000020,
+    GCVML2_PERF_SEL_EVENT_33                           = 0x00000021,
+    GCVML2_PERF_SEL_EVENT_34                           = 0x00000022,
+    GCVML2_PERF_SEL_EVENT_35                           = 0x00000023,
+    GCVML2_PERF_SEL_EVENT_36                           = 0x00000024,
+    GCVML2_PERF_SEL_EVENT_37                           = 0x00000025,
+    GCVML2_PERF_SEL_EVENT_38                           = 0x00000026,
+    GCVML2_PERF_SEL_EVENT_39                           = 0x00000027,
+    GCVML2_PERF_SEL_EVENT_40                           = 0x00000028,
+    GCVML2_PERF_SEL_EVENT_41                           = 0x00000029,
+    GCVML2_PERF_SEL_EVENT_42                           = 0x0000002a,
+    GCVML2_PERF_SEL_EVENT_43                           = 0x0000002b,
+    GCVML2_PERF_SEL_EVENT_44                           = 0x0000002c,
+    GCVML2_PERF_SEL_EVENT_45                           = 0x0000002d,
+    GCVML2_PERF_SEL_EVENT_46                           = 0x0000002e,
+    GCVML2_PERF_SEL_EVENT_47                           = 0x0000002f,
+    GCVML2_PERF_SEL_EVENT_48                           = 0x00000030,
+    GCVML2_PERF_SEL_EVENT_49                           = 0x00000031,
+    GCVML2_PERF_SEL_EVENT_50                           = 0x00000032,
+    GCVML2_PERF_SEL_EVENT_51                           = 0x00000033,
+    GCVML2_PERF_SEL_EVENT_52                           = 0x00000034,
+    GCVML2_PERF_SEL_EVENT_53                           = 0x00000035,
+    GCVML2_PERF_SEL_EVENT_54                           = 0x00000036,
+    GCVML2_PERF_SEL_EVENT_55                           = 0x00000037,
+    GCVML2_PERF_SEL_EVENT_56                           = 0x00000038,
+    GCVML2_PERF_SEL_EVENT_57                           = 0x00000039,
+    GCVML2_PERF_SEL_EVENT_58                           = 0x0000003a,
+    GCVML2_PERF_SEL_EVENT_59                           = 0x0000003b,
+    GCVML2_PERF_SEL_EVENT_60                           = 0x0000003c,
+    GCVML2_PERF_SEL_EVENT_61                           = 0x0000003d,
+    GCVML2_PERF_SEL_EVENT_62                           = 0x0000003e,
+    GCVML2_PERF_SEL_EVENT_63                           = 0x0000003f,
+    GCVML2_PERF_SEL_EVENT_64                           = 0x00000040,
+    GCVML2_PERF_SEL_EVENT_65                           = 0x00000041,
+    GCVML2_PERF_SEL_EVENT_66                           = 0x00000042,
+    GCVML2_PERF_SEL_EVENT_67                           = 0x00000043,
+    GCVML2_PERF_SEL_EVENT_68                           = 0x00000044,
+    GCVML2_PERF_SEL_EVENT_69                           = 0x00000045,
+    GCVML2_PERF_SEL_EVENT_70                           = 0x00000046,
+    GCVML2_PERF_SEL_EVENT_71                           = 0x00000047,
+    GCVML2_PERF_SEL_EVENT_72                           = 0x00000048,
+    GCVML2_PERF_SEL_EVENT_73                           = 0x00000049,
+    GCVML2_PERF_SEL_EVENT_74                           = 0x0000004a,
+    GCVML2_PERF_SEL_EVENT_75                           = 0x0000004b,
+    GCVML2_PERF_SEL_EVENT_76                           = 0x0000004c,
+    GCVML2_PERF_SEL_EVENT_77                           = 0x0000004d,
+    GCVML2_PERF_SEL_EVENT_78                           = 0x0000004e,
+    GCVML2_PERF_SEL_EVENT_79                           = 0x0000004f,
+    GCVML2_PERF_SEL_EVENT_80                           = 0x00000050,
+    GCVML2_PERF_SEL_EVENT_81                           = 0x00000051,
+    GCVML2_PERF_SEL_EVENT_82                           = 0x00000052,
+    GCVML2_PERF_SEL_EVENT_83                           = 0x00000053,
+    GCVML2_PERF_SEL_EVENT_84                           = 0x00000054,
+    GCVML2_PERF_SEL_EVENT_85                           = 0x00000055,
+    GCVML2_PERF_SEL_EVENT_86                           = 0x00000056,
+    GCVML2_PERF_SEL_EVENT_87                           = 0x00000057,
+    GCVML2_PERF_SEL_EVENT_88                           = 0x00000058,
+    GCVML2_PERF_SEL_EVENT_89                           = 0x00000059,
+    GCVML2_PERF_SEL_EVENT_90                           = 0x0000005a,
+} GCVML2_PERF_SEL;
+
+constexpr unsigned int MaxGcvml2PerfSel                = GCVML2_PERF_SEL_EVENT_90;
 
 typedef enum GDS_PERFCOUNT_SELECT {
     GDS_PERF_SEL_DS_ADDR_CONFL__GFX101                 = 0x00000000,
@@ -4562,11 +4700,133 @@ typedef enum GL2C_PERF_SEL {
     GL2C_PERF_SEL_HIT_PASS_MISS_IN_CLIENT17__GFX110    = 0x00000100,
     GL2C_PERF_SEL_HIT_PASS_MISS_IN_CLIENT18__GFX110    = 0x00000101,
     GL2C_PERF_SEL_HIT_PASS_MISS_IN_CLIENT19__GFX110    = 0x00000102,
+#if CHIP_HDR_STRIX1
+    GL2C_PERF_SEL_EA_RDRET_NACK__STX1                  = 0x0000008e,
+    GL2C_PERF_SEL_EA_WRRET_NACK__STX1                  = 0x0000008f,
+    GL2C_PERF_SEL_GL2A_LEVEL__STX1                     = 0x00000090,
+    GL2C_PERF_SEL_PROBE_FILTER_DISABLE_TRANSITION__STX1 = 0x00000091,
+    GL2C_PERF_SEL_PROBE_FILTER_DISABLED__STX1          = 0x00000092,
+    GL2C_PERF_SEL_ALL_TC_OP_WB_OR_INV_START__STX1      = 0x00000093,
+    GL2C_PERF_SEL_ALL_TC_OP_WB_OR_INV_VOL_START__STX1  = 0x00000094,
+    GL2C_PERF_SEL_GCR_INV__STX1                        = 0x00000095,
+    GL2C_PERF_SEL_GCR_WB__STX1                         = 0x00000096,
+    GL2C_PERF_SEL_GCR_DISCARD__STX1                    = 0x00000097,
+    GL2C_PERF_SEL_GCR_RANGE__STX1                      = 0x00000098,
+    GL2C_PERF_SEL_GCR_ALL__STX1                        = 0x00000099,
+    GL2C_PERF_SEL_GCR_VOL__STX1                        = 0x0000009a,
+    GL2C_PERF_SEL_GCR_UNSHARED__STX1                   = 0x0000009b,
+    GL2C_PERF_SEL_GCR_MDC_INV__STX1                    = 0x0000009c,
+    GL2C_PERF_SEL_GCR_GL2_INV_ALL__STX1                = 0x0000009d,
+    GL2C_PERF_SEL_GCR_GL2_WB_ALL__STX1                 = 0x0000009e,
+    GL2C_PERF_SEL_GCR_MDC_INV_ALL__STX1                = 0x0000009f,
+    GL2C_PERF_SEL_GCR_GL2_INV_RANGE__STX1              = 0x000000a0,
+    GL2C_PERF_SEL_GCR_GL2_WB_RANGE__STX1               = 0x000000a1,
+    GL2C_PERF_SEL_GCR_GL2_WB_INV_RANGE__STX1           = 0x000000a2,
+    GL2C_PERF_SEL_GCR_MDC_INV_RANGE__STX1              = 0x000000a3,
+    GL2C_PERF_SEL_ALL_GCR_INV_EVICT__STX1              = 0x000000a4,
+    GL2C_PERF_SEL_ALL_GCR_INV_VOL_EVICT__STX1          = 0x000000a5,
+    GL2C_PERF_SEL_ALL_GCR_WB_OR_INV_CYCLE__STX1        = 0x000000a6,
+    GL2C_PERF_SEL_ALL_GCR_WB_OR_INV_VOL_CYCLE__STX1    = 0x000000a7,
+    GL2C_PERF_SEL_ALL_GCR_WB_WRITEBACK__STX1           = 0x000000a8,
+    GL2C_PERF_SEL_GCR_INVL2_VOL_CYCLE__STX1            = 0x000000a9,
+    GL2C_PERF_SEL_GCR_INVL2_VOL_EVICT__STX1            = 0x000000aa,
+    GL2C_PERF_SEL_GCR_INVL2_VOL_START__STX1            = 0x000000ab,
+    GL2C_PERF_SEL_GCR_WBL2_VOL_CYCLE__STX1             = 0x000000ac,
+    GL2C_PERF_SEL_GCR_WBL2_VOL_START__STX1             = 0x000000ad,
+    GL2C_PERF_SEL_GCR_WBINVL2_CYCLE__STX1              = 0x000000ae,
+    GL2C_PERF_SEL_GCR_WBINVL2_EVICT__STX1              = 0x000000af,
+    GL2C_PERF_SEL_GCR_WBINVL2_START__STX1              = 0x000000b0,
+    GL2C_PERF_SEL_MDC_INV_METADATA__STX1               = 0x000000b1,
+    GL2C_PERF_SEL_MDC_REQ__STX1                        = 0x000000b2,
+    GL2C_PERF_SEL_MDC_LEVEL__STX1                      = 0x000000b3,
+    GL2C_PERF_SEL_MDC_TAG_HIT__STX1                    = 0x000000b4,
+    GL2C_PERF_SEL_MDC_SECTOR_HIT__STX1                 = 0x000000b5,
+    GL2C_PERF_SEL_MDC_SECTOR_MISS__STX1                = 0x000000b6,
+    GL2C_PERF_SEL_MDC_TAG_STALL__STX1                  = 0x000000b7,
+    GL2C_PERF_SEL_MDC_TAG_REPLACEMENT_LINE_IN_USE_STALL__STX1 = 0x000000b8,
+    GL2C_PERF_SEL_MDC_TAG_DESECTORIZATION_FIFO_FULL_STALL__STX1 = 0x000000b9,
+    GL2C_PERF_SEL_MDC_TAG_WAITING_FOR_INVALIDATE_COMPLETION_STALL__STX1 = 0x000000ba,
+    GL2C_PERF_SEL_CM_CHANNEL0_REQ__STX1                = 0x000000bb,
+    GL2C_PERF_SEL_CM_CHANNEL1_REQ__STX1                = 0x000000bc,
+    GL2C_PERF_SEL_CM_CHANNEL2_REQ__STX1                = 0x000000bd,
+    GL2C_PERF_SEL_CM_CHANNEL3_REQ__STX1                = 0x000000be,
+    GL2C_PERF_SEL_CM_CHANNEL4_REQ__STX1                = 0x000000bf,
+    GL2C_PERF_SEL_CM_CHANNEL5_REQ__STX1                = 0x000000c0,
+    GL2C_PERF_SEL_CM_CHANNEL6_REQ__STX1                = 0x000000c1,
+    GL2C_PERF_SEL_CM_CHANNEL7_REQ__STX1                = 0x000000c2,
+    GL2C_PERF_SEL_CM_CHANNEL8_REQ__STX1                = 0x000000c3,
+    GL2C_PERF_SEL_CM_CHANNEL9_REQ__STX1                = 0x000000c4,
+    GL2C_PERF_SEL_CM_CHANNEL10_REQ__STX1               = 0x000000c5,
+    GL2C_PERF_SEL_CM_CHANNEL11_REQ__STX1               = 0x000000c6,
+    GL2C_PERF_SEL_CM_CHANNEL12_REQ__STX1               = 0x000000c7,
+    GL2C_PERF_SEL_CM_CHANNEL13_REQ__STX1               = 0x000000c8,
+    GL2C_PERF_SEL_CM_CHANNEL14_REQ__STX1               = 0x000000c9,
+    GL2C_PERF_SEL_CM_CHANNEL15_REQ__STX1               = 0x000000ca,
+    GL2C_PERF_SEL_CM_CHANNEL16_REQ__STX1               = 0x000000cb,
+    GL2C_PERF_SEL_CM_CHANNEL17_REQ__STX1               = 0x000000cc,
+    GL2C_PERF_SEL_CM_CHANNEL18_REQ__STX1               = 0x000000cd,
+    GL2C_PERF_SEL_CM_CHANNEL19_REQ__STX1               = 0x000000ce,
+    GL2C_PERF_SEL_CM_CHANNEL20_REQ__STX1               = 0x000000cf,
+    GL2C_PERF_SEL_CM_CHANNEL21_REQ__STX1               = 0x000000d0,
+    GL2C_PERF_SEL_CM_CHANNEL22_REQ__STX1               = 0x000000d1,
+    GL2C_PERF_SEL_CM_CHANNEL23_REQ__STX1               = 0x000000d2,
+    GL2C_PERF_SEL_CM_CHANNEL24_REQ__STX1               = 0x000000d3,
+    GL2C_PERF_SEL_CM_CHANNEL25_REQ__STX1               = 0x000000d4,
+    GL2C_PERF_SEL_CM_CHANNEL26_REQ__STX1               = 0x000000d5,
+    GL2C_PERF_SEL_CM_CHANNEL27_REQ__STX1               = 0x000000d6,
+    GL2C_PERF_SEL_CM_CHANNEL28_REQ__STX1               = 0x000000d7,
+    GL2C_PERF_SEL_CM_CHANNEL29_REQ__STX1               = 0x000000d8,
+    GL2C_PERF_SEL_CM_CHANNEL30_REQ__STX1               = 0x000000d9,
+    GL2C_PERF_SEL_CM_CHANNEL31_REQ__STX1               = 0x000000da,
+    GL2C_PERF_SEL_CM_COMP_ATOMIC_COLOR_REQ__STX1       = 0x000000db,
+    GL2C_PERF_SEL_CM_COMP_ATOMIC_DEPTH16_REQ__STX1     = 0x000000dc,
+    GL2C_PERF_SEL_CM_COMP_ATOMIC_DEPTH32_REQ__STX1     = 0x000000dd,
+    GL2C_PERF_SEL_CM_COMP_ATOMIC_STENCIL_REQ__STX1     = 0x000000de,
+    GL2C_PERF_SEL_CM_COMP_WRITE_COLOR_REQ__STX1        = 0x000000df,
+    GL2C_PERF_SEL_CM_COMP_WRITE_DEPTH16_REQ__STX1      = 0x000000e0,
+    GL2C_PERF_SEL_CM_COMP_WRITE_DEPTH32_REQ__STX1      = 0x000000e1,
+    GL2C_PERF_SEL_CM_COMP_WRITE_STENCIL_REQ__STX1      = 0x000000e2,
+    GL2C_PERF_SEL_CM_COMP_READ_REQ__STX1               = 0x000000e3,
+    GL2C_PERF_SEL_CM_READ_BACK_REQ__STX1               = 0x000000e4,
+    GL2C_PERF_SEL_CM_METADATA_WR_REQ__STX1             = 0x000000e5,
+    GL2C_PERF_SEL_CM_WR_ACK_REQ__STX1                  = 0x000000e6,
+    GL2C_PERF_SEL_CM_NO_ACK_REQ__STX1                  = 0x000000e7,
+    GL2C_PERF_SEL_CM_NOOP_REQ__STX1                    = 0x000000e8,
+    GL2C_PERF_SEL_CM_COMP_COLOR_EN_REQ__STX1           = 0x000000e9,
+    GL2C_PERF_SEL_CM_COMP_COLOR_DIS_REQ__STX1          = 0x000000ea,
+    GL2C_PERF_SEL_CM_COMP_STENCIL_REQ__STX1            = 0x000000eb,
+    GL2C_PERF_SEL_CM_COMP_DEPTH16_REQ__STX1            = 0x000000ec,
+    GL2C_PERF_SEL_CM_COMP_DEPTH32_REQ__STX1            = 0x000000ed,
+    GL2C_PERF_SEL_CM_COMP_RB_SKIP_REQ__STX1            = 0x000000ee,
+    GL2C_PERF_SEL_CM_COLOR_32B_WR_REQ__STX1            = 0x000000ef,
+    GL2C_PERF_SEL_CM_COLOR_64B_WR_REQ__STX1            = 0x000000f0,
+    GL2C_PERF_SEL_CM_FULL_WRITE_REQ__STX1              = 0x000000f1,
+    GL2C_PERF_SEL_CM_RVF_FULL__STX1                    = 0x000000f2,
+    GL2C_PERF_SEL_CM_SDR_FULL__STX1                    = 0x000000f3,
+    GL2C_PERF_SEL_CM_MERGE_BUF_FULL__STX1              = 0x000000f4,
+    GL2C_PERF_SEL_CM_DCC_STALL__STX1                   = 0x000000f5,
+    GL2C_PERF_SEL_CM_DCC_IN_XFC__STX1                  = 0x000000f6,
+    GL2C_PERF_SEL_CM_DCC_OUT_XFC__STX1                 = 0x000000f7,
+    GL2C_PERF_SEL_CM_DCC_OUT_1x1__STX1                 = 0x000000f8,
+    GL2C_PERF_SEL_CM_DCC_OUT_1x2__STX1                 = 0x000000f9,
+    GL2C_PERF_SEL_CM_DCC_OUT_2x1__STX1                 = 0x000000fa,
+    GL2C_PERF_SEL_CM_DCC_OUT_2x2__STX1                 = 0x000000fb,
+    GL2C_PERF_SEL_CM_DCC_OUT_UNCOMP__STX1              = 0x000000fc,
+    GL2C_PERF_SEL_CM_DCC_OUT_CONST2SINGLE__STX1        = 0x000000fd,
+    GL2C_PERF_SEL_CM_DCC_OUT_CONST2CLEAR__STX1         = 0x000000fe,
+    GL2C_PERF_SEL_HIT_PASS_MISS_IN_CLIENT16__STX1      = 0x000000ff,
+    GL2C_PERF_SEL_HIT_PASS_MISS_IN_CLIENT17__STX1      = 0x00000100,
+    GL2C_PERF_SEL_HIT_PASS_MISS_IN_CLIENT18__STX1      = 0x00000101,
+    GL2C_PERF_SEL_HIT_PASS_MISS_IN_CLIENT19__STX1      = 0x00000102,
+#endif
 } GL2C_PERF_SEL;
 
 constexpr unsigned int MaxGl2cPerfSelGfx101            = GL2C_PERF_SEL_CM_DCC_STALL__GFX101;
 constexpr unsigned int MaxGl2cPerfSelGfx103            = GL2C_PERF_SEL_CM_DCC_OUT_CONST__GFX103;
 constexpr unsigned int MaxGl2cPerfSelGfx110            = GL2C_PERF_SEL_HIT_PASS_MISS_IN_CLIENT19__GFX110;
+#if CHIP_HDR_STRIX1
+constexpr unsigned int MaxGl2cPerfSelStx1              = GL2C_PERF_SEL_HIT_PASS_MISS_IN_CLIENT19__STX1;
+#endif
 
 typedef enum GL2_CACHE_POLICIES {
     GL2_CACHE_POLICY_LRU                               = 0x00000000,
@@ -6477,6 +6737,9 @@ typedef enum PerfCounter_Vals {
 constexpr unsigned int MaxPerfcounterValsGfx101        = DB_PERF_SEL_FG_LOB_FWDR_TIMEOUT_hits__GFX101;
 constexpr unsigned int MaxPerfcounterValsGfx103        = DB_PERF_SEL_postz_ps_invoked_pixel_cnt__GFX103;
 constexpr unsigned int MaxPerfcounterValsGfx110        = DB_PERF_SEL_OREO_Events_stalls__GFX11;
+#if CHIP_HDR_STRIX1
+constexpr unsigned int MaxPerfcounterValsStx1          = DB_PERF_SEL_OREO_Events_stalls__GFX11;
+#endif
 
 typedef enum PERFMON_CNTOFF_AND_OR {
     PERFMON_CNTOFF_OR__GFX101                          = 0x00000000,
@@ -6489,6 +6752,10 @@ typedef enum PERFMON_CNTOFF_AND_OR {
     PERFMON_CNTOFF_AND__RAPHAEL                        = 0x00000001,
     PERFMON_CNTOFF_OR__REMBRANDT                       = 0x00000000,
     PERFMON_CNTOFF_AND__REMBRANDT                      = 0x00000001,
+#if CHIP_HDR_STRIX1
+    PERFMON_CNTOFF_OR__STX1                            = 0x00000000,
+    PERFMON_CNTOFF_AND__STX1                           = 0x00000001,
+#endif
 } PERFMON_CNTOFF_AND_OR;
 
 typedef enum PERFMON_CNTOFF_INT_EN {
@@ -6502,6 +6769,10 @@ typedef enum PERFMON_CNTOFF_INT_EN {
     PERFMON_CNTOFF_INT_ENABLE__RAPHAEL                 = 0x00000001,
     PERFMON_CNTOFF_INT_DISABLE__REMBRANDT              = 0x00000000,
     PERFMON_CNTOFF_INT_ENABLE__REMBRANDT               = 0x00000001,
+#if CHIP_HDR_STRIX1
+    PERFMON_CNTOFF_INT_DISABLE__STX1                   = 0x00000000,
+    PERFMON_CNTOFF_INT_ENABLE__STX1                    = 0x00000001,
+#endif
 } PERFMON_CNTOFF_INT_EN;
 
 typedef enum PERFMON_CNTOFF_INT_TYPE {
@@ -6515,6 +6786,10 @@ typedef enum PERFMON_CNTOFF_INT_TYPE {
     PERFMON_CNTOFF_INT_TYPE_PULSE__RAPHAEL             = 0x00000001,
     PERFMON_CNTOFF_INT_TYPE_LEVEL__REMBRANDT           = 0x00000000,
     PERFMON_CNTOFF_INT_TYPE_PULSE__REMBRANDT           = 0x00000001,
+#if CHIP_HDR_STRIX1
+    PERFMON_CNTOFF_INT_TYPE_LEVEL__STX1                = 0x00000000,
+    PERFMON_CNTOFF_INT_TYPE_PULSE__STX1                = 0x00000001,
+#endif
 } PERFMON_CNTOFF_INT_TYPE;
 
 typedef enum PERFMON_COUNTER_MODE {
@@ -6566,6 +6841,12 @@ typedef enum PERFMON_STATE {
     PERFMON_STATE_START__REMBRANDT                     = 0x00000001,
     PERFMON_STATE_FREEZE__REMBRANDT                    = 0x00000002,
     PERFMON_STATE_HW__REMBRANDT                        = 0x00000003,
+#if CHIP_HDR_STRIX1
+    PERFMON_STATE_RESET__STX1                          = 0x00000000,
+    PERFMON_STATE_START__STX1                          = 0x00000001,
+    PERFMON_STATE_FREEZE__STX1                         = 0x00000002,
+    PERFMON_STATE_HW__STX1                             = 0x00000003,
+#endif
 } PERFMON_STATE;
 
 typedef enum PH_PERFCNT_SEL {
@@ -9399,12 +9680,18 @@ typedef enum SC_PERFCNT_SEL {
     SC_PBB_BATCH_BREAK_DUE_TO_TIMEOUT_COUNTER__GFX110  = 0x000001ec,
     SC_VRC_REPROBE_XFR__NV33                           = 0x00000299,
     SC_VRC_REPROBE_FULL__NV33                          = 0x0000029a,
+#if CHIP_HDR_STRIX1
+    SC_PBB_BATCH_BREAK_DUE_TO_TIMEOUT_COUNTER__STX1    = 0x000001ec,
+#endif
 } SC_PERFCNT_SEL;
 
 constexpr unsigned int MaxScPerfcntSelGfx101           = SC_PK_PM_MAX_REZ_CNT_FORCE_EOV_WAVE_BRK_1H;
 constexpr unsigned int MaxScPerfcntSelGfx103           = SC_BM_MULTI_ACCUM_4_BE_STALLED__GFX103PLUSEXCLUSIVE;
 constexpr unsigned int MaxScPerfcntSelNv32             = SC_SPI_WAVE_STALLED_BY_SPI__GFX11;
 constexpr unsigned int MaxScPerfcntSelNv31             = SC_SPI_WAVE_STALLED_BY_SPI__GFX11;
+#if CHIP_HDR_STRIX1
+constexpr unsigned int MaxScPerfcntSelStx1             = SC_VRC_REPROBE_FULL__APU11;
+#endif
 constexpr unsigned int MaxScPerfcntSelPhx2             = SC_VRC_REPROBE_FULL__APU11;
 constexpr unsigned int MaxScPerfcntSelPhx1             = SC_VRC_REPROBE_FULL__APU11;
 constexpr unsigned int MaxScPerfcntSelNv33             = SC_VRC_REPROBE_FULL__NV33;
@@ -11362,6 +11649,10 @@ typedef enum SQ_PERF_SEL {
     SQ_PERF_SEL_NONE2__GFX11                           = 0x000001ff,
     SQ_PERF_SEL_IFETCH_LEVEL__GFX110                   = 0x0000005d,
     SP_PERF_SEL_DUMMY_LAST__GFX110                     = 0x000001ed,
+#if CHIP_HDR_STRIX1
+    SQ_PERF_SEL_IFETCH_LEVEL__STX1                     = 0x0000005d,
+    SP_PERF_SEL_DUMMY_LAST__STX1                       = 0x000001ed,
+#endif
 } SQ_PERF_SEL;
 
 constexpr unsigned int MaxSqPerfSelGfx10               = SP_PERF_SEL_DUMMY_LAST__GFX10;
@@ -13023,11 +13314,39 @@ typedef enum TCP_PERFCOUNT_SELECT {
     TCP_PERF_SEL_BURST_BIN_READHIT_5to8__GFX110        = 0x0000004b,
     TCP_PERF_SEL_BURST_BIN_READHIT_9to16__GFX110       = 0x0000004c,
     TCP_PERF_SEL_BURST_BIN_READHIT_gt16__GFX110        = 0x0000004d,
+#if CHIP_HDR_STRIX1
+    TCP_PERF_SEL_OFIFO_INCOMPLETE_STALL__STX1          = 0x00000037,
+    TCP_PERF_SEL_OFIFO_AGE_ORDER_STALL__STX1           = 0x00000038,
+    TCP_PERF_SEL_TD_DATA_CYCLE_STALL__STX1             = 0x00000039,
+    TCP_PERF_SEL_COMP_TEX_LOAD_STALL__STX1             = 0x0000003a,
+    TCP_PERF_SEL_READ_DATACONFLICT_STALL__STX1         = 0x0000003b,
+    TCP_PERF_SEL_WRITE_DATACONFLICT_STALL__STX1        = 0x0000003c,
+    TCP_PERF_SEL_TD_TCP_STALL__STX1                    = 0x0000003d,
+    TCP_PERF_SEL_TA_REQ_BUFFERNOP__STX1                = 0x0000003e,
+    TCP_PERF_SEL_WRITECOMBINE_ENDCLAUSE__STX1          = 0x0000003f,
+    TCP_PERF_SEL_TAGFAKE_EOW__STX1                     = 0x00000040,
+    TCP_PERF_SEL_REQ_TAG_MATCH_AND_NOT_VALID__STX1     = 0x00000041,
+    TCP_PERF_SEL_BURST_BIN_WRITECOMBINE_0__STX1        = 0x00000042,
+    TCP_PERF_SEL_BURST_BIN_WRITECOMBINE_1to2__STX1     = 0x00000043,
+    TCP_PERF_SEL_BURST_BIN_WRITECOMBINE_3to4__STX1     = 0x00000044,
+    TCP_PERF_SEL_BURST_BIN_WRITECOMBINE_5to8__STX1     = 0x00000045,
+    TCP_PERF_SEL_BURST_BIN_WRITECOMBINE_9to16__STX1    = 0x00000046,
+    TCP_PERF_SEL_BURST_BIN_WRITECOMBINE_gt16__STX1     = 0x00000047,
+    TCP_PERF_SEL_BURST_BIN_READHIT_0__STX1             = 0x00000048,
+    TCP_PERF_SEL_BURST_BIN_READHIT_1__STX1             = 0x00000049,
+    TCP_PERF_SEL_BURST_BIN_READHIT_2to4__STX1          = 0x0000004a,
+    TCP_PERF_SEL_BURST_BIN_READHIT_5to8__STX1          = 0x0000004b,
+    TCP_PERF_SEL_BURST_BIN_READHIT_9to16__STX1         = 0x0000004c,
+    TCP_PERF_SEL_BURST_BIN_READHIT_gt16__STX1          = 0x0000004d,
+#endif
 } TCP_PERFCOUNT_SELECT;
 
 constexpr unsigned int MaxTcpPerfcountSelectGfx101     = TCP_PERF_SEL_BACK_COMPAT_SWITCH__GFX101;
 constexpr unsigned int MaxTcpPerfcountSelectGfx103     = TCP_PERF_SEL_BACK_COMPAT_SWITCH__GFX103;
 constexpr unsigned int MaxTcpPerfcountSelectGfx110     = TCP_PERF_SEL_BURST_BIN_READHIT_gt16__GFX110;
+#if CHIP_HDR_STRIX1
+constexpr unsigned int MaxTcpPerfcountSelectStx1       = TCP_PERF_SEL_BURST_BIN_READHIT_gt16__STX1;
+#endif
 
 typedef enum TCP_WATCH_MODES {
     TCP_WATCH_MODE_READ                                = 0x00000000,
@@ -13490,11 +13809,31 @@ typedef enum TD_PERFCOUNT_SEL {
     TD_PERF_SEL_ray_tracing_bvh4_box_sort_largest_first__GFX110 = 0x000000c2,
     TD_PERF_SEL_ray_tracing_bvh4_box_sort_closest_midpoint__GFX110 = 0x000000c3,
     TD_PERF_SEL_store_preempts_a_load__GFX110          = 0x000000c4,
+#if CHIP_HDR_STRIX1
+    TD_PERF_SEL_sampler_accum_sclk_en__STX1            = 0x0000000c,
+    TD_PERF_SEL_mixmode_instr__STX1                    = 0x00000054,
+    TD_PERF_SEL_mixmode_resource__STX1                 = 0x00000055,
+    TD_PERF_SEL_nofilter_total_num_comps_to_lds__STX1  = 0x000000b9,
+    TD_PERF_SEL_nofilter_byte_cycling_4cycles__STX1    = 0x000000ba,
+    TD_PERF_SEL_nofilter_byte_cycling_8cycles__STX1    = 0x000000bb,
+    TD_PERF_SEL_nofilter_byte_cycling_16cycles__STX1   = 0x000000bc,
+    TD_PERF_SEL_nofilter_dword_cycling_2cycles__STX1   = 0x000000bd,
+    TD_PERF_SEL_nofilter_dword_cycling_4cycles__STX1   = 0x000000be,
+    TD_PERF_SEL_input_bp_due_to_done_scoreboard_full__STX1 = 0x000000bf,
+    TD_PERF_SEL_ray_tracing_bvh4_instr_invld_thread_cnt__STX1 = 0x000000c0,
+    TD_PERF_SEL_ray_tracing_bvh4_box_sort_closest_child__STX1 = 0x000000c1,
+    TD_PERF_SEL_ray_tracing_bvh4_box_sort_largest_first__STX1 = 0x000000c2,
+    TD_PERF_SEL_ray_tracing_bvh4_box_sort_closest_midpoint__STX1 = 0x000000c3,
+    TD_PERF_SEL_store_preempts_a_load__STX1            = 0x000000c4,
+#endif
 } TD_PERFCOUNT_SEL;
 
 constexpr unsigned int MaxTdPerfcountSelGfx101         = TD_PERF_SEL_nofilter_popcount_dmask_lt_num_comp_of_fmt__GFX101;
 constexpr unsigned int MaxTdPerfcountSelGfx103         = TD_PERF_SEL_input_bp_due_to_done_scoreboard_full__GFX103;
 constexpr unsigned int MaxTdPerfcountSelGfx110         = TD_PERF_SEL_store_preempts_a_load__GFX110;
+#if CHIP_HDR_STRIX1
+constexpr unsigned int MaxTdPerfcountSelStx1           = TD_PERF_SEL_store_preempts_a_load__STX1;
+#endif
 
 typedef enum TEX_BC_SWIZZLE {
     TEX_BC_Swizzle_XYZW                                = 0x00000000,
@@ -14734,6 +15073,33 @@ namespace Rembrandt
     constexpr unsigned int SD_PCI_CFG_REVISION_ID                             = 0x00000000;
 } // namespace Rembrandt
 
+#if CHIP_HDR_STRIX1
+namespace Stx1
+{
+    constexpr unsigned int AL_REVISION_ID                                     = 0x00000012;
+    constexpr unsigned int EMMC_CFG_REVISION_ID                               = 0x00000000;
+    constexpr unsigned int EMMC_HC_REG_REVISION_ID                            = 0x00000000;
+    constexpr unsigned int ENHIOMEMAPERTURE_REVISION_ID                       = 0x00000000;
+    constexpr unsigned int ILA_REG_REVISION_ID                                = 0x00000000;
+    constexpr unsigned int IP_AL2AHB_DEVICE_CFG_REVISION_ID                   = 0x00000000;
+    constexpr unsigned int IP_AL2AHB_HARD_ADDR_HCLK_REVISION_ID               = 0x00000000;
+    constexpr unsigned int IP_AL2AHB_HARD_ADDR_REVISION_ID                    = 0x00000000;
+    constexpr unsigned int IP_AL2AHB_P2P_CFG_REVISION_ID                      = 0x00000000;
+    constexpr unsigned int IP_ESPI_REG_REVISION_ID                            = 0x00000000;
+    constexpr unsigned int IP_SDP_REG_REVISION_ID                             = 0x00000000;
+    constexpr unsigned int IP_USB_PD_REVISION_ID                              = 0x00000000;
+    constexpr unsigned int MMREG_REVISION_ID                                  = 0x00000000;
+    constexpr unsigned int NUM_REQUESTORS                                     = 0x00000005;
+    constexpr unsigned int REQID_ECHI2                                        = 0x00000004;
+    constexpr unsigned int REQID_EHCI                                         = 0x00000001;
+    constexpr unsigned int REQID_OCHI2                                        = 0x00000003;
+    constexpr unsigned int REQID_OHCI                                         = 0x00000000;
+    constexpr unsigned int REQID_SATA0                                        = 0x00000002;
+    constexpr unsigned int SDB_REG_REVISION_ID                                = 0x00000000;
+    constexpr unsigned int SD_PCI_CFG_REVISION_ID                             = 0x00000000;
+} // namespace Stx1
+#endif
+
 enum PerfCtrId
 {
     CBPerfSelId                              = 0,
@@ -14746,43 +15112,44 @@ enum PerfCtrId
     DfCsPerfSelId                            = 7,
     DfMallPerfSelId                          = 8,
     GCRPerfSelId                             = 9,
-    GdsPerfcountSelectId                     = 10,
-    Ge1PerfcountSelectId                     = 11,
-    Ge2DistPerfcountSelectId                 = 12,
-    Ge2SePerfcountSelectId                   = 13,
-    GePerfcountSelectId                      = 14,
-    Gl1aPerfSelId                            = 15,
-    Gl1cPerfSelId                            = 16,
-    Gl2aPerfSelId                            = 18,
-    Gl2cPerfSelId                            = 19,
-    GrbmPerfSelId                            = 20,
-    GrbmSe0PerfSelId                         = 21,
-    GrbmSe1PerfSelId                         = 22,
-    GrbmSe2PerfSelId                         = 23,
-    GrbmSe3PerfSelId                         = 24,
-    GrbmSe4PerfSelId                         = 25,
-    GrbmSe5PerfSelId                         = 26,
-    GrbmSe6PerfSelId                         = 27,
-    GrbmSe7PerfSelId                         = 28,
-    PcPerfcntSelId                           = 29,
-    PerfcounterValsId                        = 30,
-    PhPerfcntSelId                           = 31,
-    RMIPerfSelId                             = 32,
-    RlcPerfcounterSelId                      = 33,
-    ScPerfcntSelId                           = 34,
-    SdmaPerfSelId                            = 35,
-    SdmaPerfmonSelId                         = 36,
-    SpiPerfcntSelId                          = 37,
-    SqPerfSelId                              = 38,
-    SqgPerfSelId                             = 39,
-    SuPerfcntSelId                           = 40,
-    SxPerfcounterValsId                      = 41,
-    TaPerfcountSelId                         = 42,
-    TcpPerfcountSelectId                     = 43,
-    TdPerfcountSelId                         = 44,
-    UTCL1PerfSelId                           = 45,
-    UmcPerfcountSelectId                     = 46,
-    MaxPerfCtrId                             = 47,
+    Gcvml2PerfSelId                          = 10,
+    GdsPerfcountSelectId                     = 11,
+    Ge1PerfcountSelectId                     = 12,
+    Ge2DistPerfcountSelectId                 = 13,
+    Ge2SePerfcountSelectId                   = 14,
+    GePerfcountSelectId                      = 15,
+    Gl1aPerfSelId                            = 16,
+    Gl1cPerfSelId                            = 17,
+    Gl2aPerfSelId                            = 19,
+    Gl2cPerfSelId                            = 20,
+    GrbmPerfSelId                            = 21,
+    GrbmSe0PerfSelId                         = 22,
+    GrbmSe1PerfSelId                         = 23,
+    GrbmSe2PerfSelId                         = 24,
+    GrbmSe3PerfSelId                         = 25,
+    GrbmSe4PerfSelId                         = 26,
+    GrbmSe5PerfSelId                         = 27,
+    GrbmSe6PerfSelId                         = 28,
+    GrbmSe7PerfSelId                         = 29,
+    PcPerfcntSelId                           = 30,
+    PerfcounterValsId                        = 31,
+    PhPerfcntSelId                           = 32,
+    RMIPerfSelId                             = 33,
+    RlcPerfcounterSelId                      = 34,
+    ScPerfcntSelId                           = 35,
+    SdmaPerfSelId                            = 36,
+    SdmaPerfmonSelId                         = 37,
+    SpiPerfcntSelId                          = 38,
+    SqPerfSelId                              = 39,
+    SqgPerfSelId                             = 40,
+    SuPerfcntSelId                           = 41,
+    SxPerfcounterValsId                      = 42,
+    TaPerfcountSelId                         = 43,
+    TcpPerfcountSelectId                     = 44,
+    TdPerfcountSelId                         = 45,
+    UTCL1PerfSelId                           = 46,
+    UmcPerfcountSelectId                     = 47,
+    MaxPerfCtrId                             = 48,
 };
 
 constexpr unsigned int Nv10MaxPerfEventIds[MaxPerfCtrId] =
@@ -14797,6 +15164,7 @@ constexpr unsigned int Nv10MaxPerfEventIds[MaxPerfCtrId] =
     0,
     0,
     GCR_PERF_SEL_UTCL2_FILTERED_RET,
+    0,
     GDS_PERF_SEL_GWS_BYPASS__GFX101,
     0,
     0,
@@ -14848,6 +15216,7 @@ constexpr unsigned int Nv21MaxPerfEventIds[MaxPerfCtrId] =
     0,
     DF_MALL_PERF_SEL_MALL_SDP_LAT_HIST_GT1000__NV2X,
     GCR_PERF_SEL_PIO_TCP_TLB_SHOOTDOWN_REQ__NV21,
+    0,
     GDS_PERF_SEL_GWS_BYPASS__GFX103,
     ge1_rbiu_dr_fifo_starved_p1,
     ge_tf_ret_data_stalling_hs_done__GFX103,
@@ -14899,6 +15268,7 @@ constexpr unsigned int Nv22MaxPerfEventIds[MaxPerfCtrId] =
     0,
     DF_MALL_PERF_SEL_MALL_SDP_LAT_HIST_GT1000__NV2X,
     GCR_PERF_SEL_PIO_TCP_TLB_SHOOTDOWN_REQ__NV22,
+    0,
     GDS_PERF_SEL_GWS_BYPASS__GFX103,
     ge1_rbiu_dr_fifo_starved_p1,
     ge_tf_ret_data_stalling_hs_done__GFX103,
@@ -14950,6 +15320,7 @@ constexpr unsigned int Nv23MaxPerfEventIds[MaxPerfCtrId] =
     0,
     DF_MALL_PERF_SEL_MALL_SDP_LAT_HIST_GT1000__NV2X,
     GCR_PERF_SEL_PIO_TCP_TLB_SHOOTDOWN_REQ__NV23,
+    0,
     GDS_PERF_SEL_GWS_BYPASS__GFX103,
     ge1_rbiu_dr_fifo_starved_p1,
     ge_tf_ret_data_stalling_hs_done__GFX103,
@@ -15001,6 +15372,7 @@ constexpr unsigned int Nv24MaxPerfEventIds[MaxPerfCtrId] =
     0,
     DF_MALL_PERF_SEL_MALL_SDP_LAT_HIST_GT1000__NV2X,
     GCR_PERF_SEL_PIO_TCP_TLB_SHOOTDOWN_REQ__NV24,
+    0,
     GDS_PERF_SEL_GWS_BYPASS__GFX103,
     ge1_rbiu_dr_fifo_starved_p1,
     ge_tf_ret_data_stalling_hs_done__GFX103,
@@ -15052,6 +15424,7 @@ constexpr unsigned int RembrandtMaxPerfEventIds[MaxPerfCtrId] =
     0,
     0,
     GCR_PERF_SEL_PIO_TCP_TLB_SHOOTDOWN_REQ__APU103,
+    0,
     GDS_PERF_SEL_GWS_BYPASS__GFX103,
     ge1_rbiu_dr_fifo_starved_p1,
     ge_tf_ret_data_stalling_hs_done__GFX103,
@@ -15103,6 +15476,7 @@ constexpr unsigned int Nv31MaxPerfEventIds[MaxPerfCtrId] =
     DF_CS_PERF_SEL_CS_FTI_LAT_HIST_GT1000,
     DF_MALL_PERF_SEL_MALL_SDP_LAT_HIST_GT1000__GFX11,
     GCR_PERF_SEL_PIO_GL1_TLB_SHOOTDOWN_REQ__NV3X,
+    GCVML2_PERF_SEL_EVENT_90,
     GDS_PERF_SEL_SE7_GS_WAVE_ID_VALID__GFX11,
     ge1_rbiu_dr_fifo_starved_p1,
     ge_agm_gcr_combine__GFX11,
@@ -15154,6 +15528,7 @@ constexpr unsigned int Nv32MaxPerfEventIds[MaxPerfCtrId] =
     DF_CS_PERF_SEL_CS_FTI_LAT_HIST_GT1000,
     DF_MALL_PERF_SEL_MALL_SDP_LAT_HIST_GT1000__GFX11,
     GCR_PERF_SEL_PIO_GL1_TLB_SHOOTDOWN_REQ__NV3X,
+    GCVML2_PERF_SEL_EVENT_90,
     GDS_PERF_SEL_SE7_GS_WAVE_ID_VALID__GFX11,
     ge1_rbiu_dr_fifo_starved_p1,
     ge_agm_gcr_combine__GFX11,
@@ -15205,6 +15580,7 @@ constexpr unsigned int Nv33MaxPerfEventIds[MaxPerfCtrId] =
     DF_CS_PERF_SEL_CS_FTI_LAT_HIST_GT1000,
     DF_MALL_PERF_SEL_MALL_SDP_LAT_HIST_GT1000__GFX11,
     GCR_PERF_SEL_PIO_GL1_TLB_SHOOTDOWN_REQ__NV3X,
+    GCVML2_PERF_SEL_EVENT_90,
     GDS_PERF_SEL_SE7_GS_WAVE_ID_VALID__GFX11,
     ge1_rbiu_dr_fifo_starved_p1,
     ge_agm_gcr_combine__GFX11,
@@ -15256,6 +15632,7 @@ constexpr unsigned int RaphaelMaxPerfEventIds[MaxPerfCtrId] =
     0,
     0,
     GCR_PERF_SEL_PIO_TCP_TLB_SHOOTDOWN_REQ__APU103,
+    0,
     GDS_PERF_SEL_GWS_BYPASS__GFX103,
     ge1_rbiu_dr_fifo_starved_p1,
     ge_tf_ret_data_stalling_hs_done__GFX103,
@@ -15307,6 +15684,7 @@ constexpr unsigned int Phx1MaxPerfEventIds[MaxPerfCtrId] =
     DF_CS_PERF_SEL_CS_FTI_LAT_HIST_GT1000,
     DF_MALL_PERF_SEL_MALL_SDP_LAT_HIST_GT1000__GFX11,
     GCR_PERF_SEL_PIO_GL1_TLB_SHOOTDOWN_REQ__APU11,
+    GCVML2_PERF_SEL_EVENT_90,
     GDS_PERF_SEL_SE7_GS_WAVE_ID_VALID__GFX11,
     ge1_rbiu_dr_fifo_starved_p1,
     ge_agm_gcr_combine__GFX11,
@@ -15358,6 +15736,7 @@ constexpr unsigned int Phx2MaxPerfEventIds[MaxPerfCtrId] =
     DF_CS_PERF_SEL_CS_FTI_LAT_HIST_GT1000,
     DF_MALL_PERF_SEL_MALL_SDP_LAT_HIST_GT1000__GFX11,
     GCR_PERF_SEL_PIO_GL1_TLB_SHOOTDOWN_REQ__APU11,
+    GCVML2_PERF_SEL_EVENT_90,
     GDS_PERF_SEL_SE7_GS_WAVE_ID_VALID__GFX11,
     ge1_rbiu_dr_fifo_starved_p1,
     ge_agm_gcr_combine__GFX11,
@@ -15396,6 +15775,60 @@ constexpr unsigned int Phx2MaxPerfEventIds[MaxPerfCtrId] =
     UTCL1_PERF_SEL_ALOG_STALL_PMM_CREDITS__GFX11,
     UMC_PERF_SEL_ClockCount__GFX11,
 };
+
+#if CHIP_HDR_STRIX1
+constexpr unsigned int Stx1MaxPerfEventIds[MaxPerfCtrId] =
+{
+    CB_PERF_SEL_EXPORT_KILLED_BY_NULL_TARGET_SHADER_MASK__GFX11,
+    CHA_PERF_SEL_CYCLE__APU11,
+    CHC_PERF_SEL_REQ_CLIENT23__GFX11,
+    0,
+    CPC_PERF_SEL_MEC_THREAD3__GFX11,
+    CPF_PERF_SEL_CP_SDMA_MNGR_SDMABUSY__GFX11,
+    CPG_PERF_SEL_PFP_VGTDMA_DB_ROQ_DATA_STALL1__GFX11,
+    DF_CS_PERF_SEL_CS_FTI_LAT_HIST_GT1000,
+    DF_MALL_PERF_SEL_MALL_SDP_LAT_HIST_GT1000__GFX11,
+    GCR_PERF_SEL_PIO_GL1_TLB_SHOOTDOWN_REQ__APU11,
+    GCVML2_PERF_SEL_EVENT_90,
+    GDS_PERF_SEL_SE7_GS_WAVE_ID_VALID__GFX11,
+    ge1_rbiu_dr_fifo_starved_p1,
+    ge_agm_gcr_combine__GFX11,
+    ge_ngg_busy_base__GFX11,
+    0,
+    GL1A_PERF_SEL_CYCLE__GFX103PLUSEXCLUSIVE,
+    GL1C_PERF_SEL_UTCL0_UTCL1_XNACK_NO_RETRY_FAULT__GFX11,
+    0,
+    GL2A_PERF_SEL_RTN_CREDIT_STALL_CLIENT15__GFX11,
+    GL2C_PERF_SEL_HIT_PASS_MISS_IN_CLIENT19__STX1,
+    GRBM_PERF_SEL_PC_BUSY__GFX11,
+    GRBM_SE0_PERF_SEL_PC_BUSY__GFX11,
+    GRBM_SE1_PERF_SEL_PC_BUSY__GFX11,
+    GRBM_SE2_PERF_SEL_PC_BUSY__GFX11,
+    GRBM_SE3_PERF_SEL_PC_BUSY__GFX11,
+    GRBM_SE4_PERF_SEL_PC_BUSY,
+    GRBM_SE5_PERF_SEL_PC_BUSY,
+    GRBM_SE6_PERF_SEL_PC_BUSY,
+    GRBM_SE7_PERF_SEL_PC_BUSY,
+    PC_PERF_GL1H_REQ_ROUTE_ID1__APU11,
+    DB_PERF_SEL_OREO_Events_stalls__GFX11,
+    PH_PERF_SC7_FIFO_STATUS_3__GFX11,
+    RMI_PERF_SEL_CONSUMER_PROBEGEN_DB_RTS_RTR__GFX11,
+    RLC_PERF_SEL_SERDES_COMMAND_WRITE,
+    SC_VRC_REPROBE_FULL__APU11,
+    SDMA_PERF_SEL_QUEUE7_SELECT__GFX11,
+    SDMA_PERFMON_SEL_MMHUB_TAG_DELAY_COUNTER,
+    SPI_PERF_BUSY__GFX11,
+    SQ_PERF_SEL_NONE2__GFX11,
+    SQG_PERF_SEL_DUMMY_LAST,
+    PERF_PA_BUSY__GFX11,
+    SX_PERF_SEL_DB3_4X2_DISCARD__GFX11,
+    TA_PERF_SEL_tcreq_clk_valid_cycles__GFX103PLUSEXCLUSIVE,
+    TCP_PERF_SEL_BURST_BIN_READHIT_gt16__STX1,
+    TD_PERF_SEL_store_preempts_a_load__STX1,
+    UTCL1_PERF_SEL_ALOG_STALL_PMM_CREDITS__GFX11,
+    UMC_PERF_SEL_ClockCount__GFX11,
+};
+#endif
 
 } // inline namespace Chip
 } // namespace Gfx9

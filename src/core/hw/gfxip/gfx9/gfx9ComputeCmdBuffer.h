@@ -188,7 +188,7 @@ public:
 
     virtual void CmdUpdateSqttTokenMask(const ThreadTraceTokenConfig& sqttTokenConfig) override;
 
-    virtual void CpCopyMemory(gpusize dstAddr, gpusize srcAddr, gpusize numBytes) override;
+    virtual void CopyMemoryCp(gpusize dstAddr, gpusize srcAddr, gpusize numBytes) override;
 
     virtual uint32* WriteWaitEop(
         HwPipePoint waitPoint,

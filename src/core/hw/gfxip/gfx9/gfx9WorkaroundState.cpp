@@ -247,22 +247,6 @@ bool WorkaroundState::DisableInstancePacking(
     return disableInstancePacking;
 }
 
-// =====================================================================================================================
-// Override OREO_MODE to OMODE_BLEND if pipeline uses LATE_Z z-order
-regDB_RENDER_CONTROL WorkaroundState::SetOreoMode(
-    regDB_RENDER_CONTROL         dbRenderControl,
-    const GraphicsPipeline*      pPipeline) const
-{
-    regDB_RENDER_CONTROL newDbRenderControl = dbRenderControl;
-
-    if (m_cachedSettings.waNoOpaqueOreo && (pPipeline->DbShaderControl().bits.Z_ORDER == LATE_Z))
-    {
-       newDbRenderControl.gfx11.OREO_MODE = OMODE_BLEND;
-    }
-
-    return newDbRenderControl;
-}
-
 template
 bool WorkaroundState::DisableInstancePacking<true>(
     PrimitiveTopology   topology,

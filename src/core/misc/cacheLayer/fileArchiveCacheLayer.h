@@ -28,6 +28,7 @@
 
 #include "palArchiveFileFmt.h"
 #include "palArchiveFile.h"
+#include "palConditionVariable.h"
 #include "palLinearAllocator.h"
 #include "palHashProvider.h"
 #include "palHashMap.h"
@@ -44,11 +45,12 @@ public:
     FileArchiveCacheLayer(
         const AllocCallbacks& callbacks,
         IArchiveFile*         pArchiveFile,
-        IHashContext*         pBaseContext,
-        void*                 pTemContextMem);
+        IHashContext*         pBaseContext);
     virtual ~FileArchiveCacheLayer();
 
     virtual Result Init() override;
+
+    virtual Result WaitForEntry(const Hash128* pHashId) override;
 
 protected:
 
@@ -66,6 +68,9 @@ protected:
     virtual Result LoadInternal(
         const QueryResult* pQuery,
         void*              pBuffer) override;
+
+    virtual Result Reserve(
+        const Hash128* pHashId) override;
 
 private:
     PAL_DISALLOW_DEFAULT_CTOR(FileArchiveCacheLayer);
@@ -93,7 +98,7 @@ private:
                              2048>;
 
     // Hashing Utility functions
-    void ConvertToEntryKey(const Hash128* pHashId, EntryKey* pKey);
+    Result ConvertToEntryKey(const Hash128* pHashId, EntryKey* pKey);
 
     // Header refresh
     Result AddHeaderToTable(const ArchiveEntryHeader& header);
@@ -105,11 +110,12 @@ private:
     // Invariants that must be passed in by ctor
     IArchiveFile* const  m_pArchivefile;
     IHashContext* const  m_pBaseContext;
-    void* const          m_pTempContextMem;
 
     Mutex                m_archiveFileMutex;
-    Mutex                m_hashContextMutex;
     RWLock               m_entryMapLock;
+
+    Mutex                m_conditionMutex;    // Mutex that will be used with the condition variable
+    ConditionVariable    m_conditionVariable; // used for waiting on Entry::ready
 
     // Data Members
     EntryMap m_entries;

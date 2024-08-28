@@ -882,8 +882,16 @@ namespace DevDriver
 
         if (result == Result::Success)
         {
-            // `pReader` must own this allocation
-            result = pReader->Init(Platform::Move(msgpackBuffer));
+            if (pReader != nullptr)
+            {
+                // `pReader` must own this allocation
+                result = pReader->Init(Platform::Move(msgpackBuffer));
+            }
+            else
+            {
+                DD_ASSERT_ALWAYS();
+                result = Result::MemoryOverLimit;
+            }
         }
 
         if (result == Result::Success)
@@ -925,7 +933,15 @@ namespace DevDriver
 
         if (result == Result::Success)
         {
-            result = pReader->Init(pBuffer, bufferSize);
+            if (pReader != nullptr)
+            {
+                result = pReader->Init(pBuffer, bufferSize);
+            }
+            else
+            {
+                DD_ASSERT_ALWAYS();
+                result = Result::MemoryOverLimit;
+            }
         }
 
         if (result == Result::Success)

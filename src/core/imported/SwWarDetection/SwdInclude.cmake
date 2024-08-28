@@ -44,6 +44,20 @@ function(swd_add_to_target TARGET PREFIX)
     endif()
 #endif
 
+#if SWD_BUILD_STRIX
+    swd_bp(${PREFIX}_SWD_BUILD_STRIX OFF)
+    if(${PREFIX}_SWD_BUILD_STRIX)
+        target_compile_definitions(${TARGET} PRIVATE SWD_BUILD_STRIX=1)
+    endif()
+#endif
+
+#if SWD_BUILD_STRIX && SWD_BUILD_STRIX1
+    swd_bp(${PREFIX}_SWD_BUILD_STRIX1 OFF DEPENDS_ON "${PREFIX}_SWD_BUILD_STRIX")
+    if(${PREFIX}_SWD_BUILD_STRIX1)
+        target_compile_definitions(${TARGET} PRIVATE SWD_BUILD_STRIX1=1)
+    endif()
+#endif
+
     target_sources(${TARGET} PRIVATE ${SWD_SOURCE_DIR}/inc/g_gfx10SwWarDetection.h)
     set_source_files_properties(${SWD_SOURCE_DIR}/inc/g_gfx10SwWarDetection.h TARGET_DIRECTORY ${TARGET} PROPERTIES GENERATED ON)
     target_sources(${TARGET} PRIVATE ${SWD_SOURCE_DIR}/inc/g_gfx11SwWarDetection.h)

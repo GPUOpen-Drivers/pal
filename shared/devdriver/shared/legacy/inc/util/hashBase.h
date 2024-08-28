@@ -249,21 +249,31 @@ namespace DevDriver
 
                 DD_ASSERT(pLastEntry != nullptr);
 
-                // If this item isn't the last entry, then we move the last entry into it.
-                if (pFoundEntry != pLastEntry)
+                if (pLastEntry != nullptr)
                 {
-                    *pFoundEntry = Platform::Move(*pLastEntry);
-                }
+                    // If this item isn't the last entry, then we move the last entry into it.
+                    if (pFoundEntry != pLastEntry)
+                    {
+                        *pFoundEntry = Platform::Move(*pLastEntry);
+                    }
 
-                // If it wasn't a POD type we need to explicitly invoke the destructor on the last entry
-                if (!Platform::IsPod<Entry>::Value)
-                {
-                    pLastEntry->~Entry();
+                    // If it wasn't a POD type we need to explicitly invoke the destructor on the last entry
+                    if (!Platform::IsPod<Entry>::Value)
+                    {
+                        pLastEntry->~Entry();
+                    }
                 }
 
                 DD_ASSERT(this->m_numEntries > 0);
                 this->m_numEntries--;
-                pLastBucket->footer.numEntries--;
+                if (pLastBucket != nullptr)
+                {
+                    pLastBucket->footer.numEntries--;
+                }
+                else
+                {
+                    DD_ASSERT_ALWAYS();
+                }
             }
             return (pFoundEntry != nullptr) ? Result::Success : Result::Error;
         }

@@ -2471,7 +2471,8 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
     //  + Task Shader Enabled flag (1 DW)
 
     constexpr uint32 SrdDwords = 4;
-    PAL_ASSERT(chipProps.srdSizes.bufferView == (sizeof(uint32) * SrdDwords));
+    PAL_ASSERT((chipProps.srdSizes.typedBufferView   == sizeof(uint32) * SrdDwords) &&
+               (chipProps.srdSizes.untypedBufferView == sizeof(uint32) * SrdDwords));
 
     const bool taskShaderEnabled = ((generator.Type() == Pm4::GeneratorType::DispatchMesh) &&
                                     (static_cast<const GraphicsPipeline*>(pPipeline)->HasTaskShader()));
@@ -2744,15 +2745,13 @@ void RsrcProcMgr::CmdCopyMemory(
     const MemoryCopyRegion* pRegions
     ) const
 {
-    // Force the compute shader copy path if any regions couldn't be executed by the CPDMA copy path:
-    //
-    //     - Size exceeds the maximum supported by CPDMA.
-    //     - Source or destination are virtual resources (CP would halt).
-    bool useCsCopy = srcGpuMemory.IsVirtual() || dstGpuMemory.IsVirtual();
+    // Force the compute shader copy path if any region's size exceeds the client's size limit.
+    const uint32 cpDmaLimit = m_pDevice->Parent()->GetPublicSettings()->cpDmaCmdCopyMemoryMaxBytes;
+    bool         useCsCopy  = false;
 
-    for (uint32 i = 0; !useCsCopy && (i < regionCount); i++)
+    for (uint32 i = 0; i < regionCount; i++)
     {
-        if (pRegions[i].copySize > m_pDevice->Parent()->GetPublicSettings()->cpDmaCmdCopyMemoryMaxBytes)
+        if (pRegions[i].copySize > cpDmaLimit)
         {
             // We will copy this region later on.
             useCsCopy = true;
@@ -2771,7 +2770,7 @@ void RsrcProcMgr::CmdCopyMemory(
             const gpusize dstAddr = dstGpuMemory.Desc().gpuVirtAddr + pRegions[i].dstOffset;
             const gpusize srcAddr = srcGpuMemory.Desc().gpuVirtAddr + pRegions[i].srcOffset;
 
-            pCmdBuffer->CpCopyMemory(dstAddr, srcAddr, pRegions[i].copySize);
+            pCmdBuffer->CopyMemoryCp(dstAddr, srcAddr, pRegions[i].copySize);
         }
     }
 }

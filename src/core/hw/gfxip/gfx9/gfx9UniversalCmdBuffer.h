@@ -302,8 +302,7 @@ union CachedSettings
         uint64 waitAfterCbFlush                          :  1;
         uint64 waitAfterDbFlush                          :  1;
         uint64 rbHarvesting                              :  1;
-        uint64 waNoOpaqueOreo                            :  1;
-        uint64 reserved                                  : 59;
+        uint64 reserved                                  : 60;
     };
     uint64 u64All[2];
 };
@@ -650,7 +649,7 @@ public:
 
     uint32* ValidatePaScAaConfig(uint32* pDeCmdSpace);
 
-    virtual void CpCopyMemory(gpusize dstAddr, gpusize srcAddr, gpusize numBytes) override;
+    virtual void CopyMemoryCp(gpusize dstAddr, gpusize srcAddr, gpusize numBytes) override;
 
     virtual void CmdSetPerDrawVrsRate(const VrsRateParams&  rateParams) override;
     virtual void CmdSetVrsCenterState(const VrsCenterState&  centerState) override;
@@ -853,8 +852,6 @@ private:
     uint32* ValidateCbColorInfoAndBlendState(
         uint32* pDeCmdSpace);
     uint32* ValidateDbRenderOverride(
-        uint32* pDeCmdSpace);
-    uint32* ValidateDbRenderControl(
         uint32* pDeCmdSpace);
 
     uint32* WriteTessDistributionFactors(
@@ -1254,8 +1251,6 @@ private:
 
     regDB_RENDER_OVERRIDE   m_dbRenderOverride;     // Current value of DB_RENDER_OVERRIDE.
     regDB_RENDER_OVERRIDE   m_prevDbRenderOverride; // Prev value of DB_RENDER_OVERRIDE - only used on primary CmdBuf.
-    regDB_RENDER_CONTROL    m_dbRenderControl;      // Current value of DB_RENDER_CONTROL.
-    regDB_RENDER_CONTROL    m_prevDbRenderControl;  // Prev value of DB_RENDER_CONTROL - only used on primary CmdBuf.
     regGE_MULTI_PRIM_IB_RESET_EN m_geMultiPrimIbResetEn; // Last written value of GE_MULTI_PRIM_IB_RESET_EN register.
 
     regPA_SC_AA_CONFIG m_paScAaConfigNew;  // PA_SC_AA_CONFIG state that will be written on the next draw.

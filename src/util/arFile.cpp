@@ -99,18 +99,19 @@ void ArFileWriter::Write(
     char*  pBuffer,
     size_t bufferSize)
 {
+    PAL_ASSERT(pBuffer != nullptr);
     char* pBufferEnd = pBuffer + bufferSize;
     uint32 numMembers = GetNumMembers();
     char* pWrite = pBuffer + sizeof(GlobalHeader);
 
     // Write the global header.
-    char* pExtendedNamesStart = nullptr;
-    char* pExtendedNamesWrite = nullptr;
+    char* pExtendedNamesStart = pWrite;
+    char* pExtendedNamesWrite = pWrite;
     if (pWrite <= pBufferEnd)
     {
         memcpy(pBuffer, Magic, sizeof(GlobalHeader));
 
-        if ((m_extendedNamesLen != 0) && (pBufferEnd - pWrite >= sizeof(FileHeader) + m_extendedNamesLen))
+        if ((m_extendedNamesLen != 0) && ((pBufferEnd - pWrite) >= (sizeof(FileHeader) + m_extendedNamesLen)))
         {
             // Write header for extended names and leave space for the extended names.
             WriteFileHeader(Span<const char>("//", 2),
@@ -129,7 +130,7 @@ void ArFileWriter::Write(
         Span<const char> name = GetMemberName(idx);
         size_t memberLen = GetMember(idx, nullptr, 0);
 
-        if (pBufferEnd - pWrite < sizeof(FileHeader) + memberLen)
+        if ((pBufferEnd - pWrite) < (sizeof(FileHeader) + memberLen))
         {
             break;
         }
@@ -139,7 +140,7 @@ void ArFileWriter::Write(
         if (m_format == Format::Svr4Long)
         {
             uint32 nameOffset = uint32(pExtendedNamesWrite - pExtendedNamesStart);
-            if (pExtendedNamesWrite + name.NumElements() + 2 <= pBufferEnd)
+            if ((pExtendedNamesWrite + name.NumElements() + 2) <= pBufferEnd)
             {
                 memcpy(pExtendedNamesWrite, name.Data(), name.NumElements());
                 pExtendedNamesWrite += name.NumElements();
@@ -157,15 +158,14 @@ void ArFileWriter::Write(
 
         // Write the member data.
         pWrite += GetMember(idx, pWrite, pBufferEnd - pWrite);
-        if (memberLen % 2 != 0)
+        if ((memberLen % 2) != 0)
         {
             // Add padding \n to regain even offset.
             *pWrite++ = '\n';
         }
     }
     const char* pExtendedNamesEnd = pExtendedNamesStart + m_extendedNamesLen;
-    PAL_ASSERT((pExtendedNamesWrite == nullptr) ||
-               (pExtendedNamesWrite == pExtendedNamesEnd) ||
+    PAL_ASSERT((pExtendedNamesWrite == pExtendedNamesEnd) ||
                (pExtendedNamesWrite == pExtendedNamesEnd - 1));
     PAL_ASSERT(pWrite == pBufferEnd);
 }

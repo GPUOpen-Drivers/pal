@@ -69,7 +69,7 @@ struct SpmCounterDataHeader
 };
 
 constexpr char        SqttDataTextId[TextIdentifierSize] = "SqttData";
-constexpr Pal::uint32 SqttDataChunkVersion               = 3;
+constexpr Pal::uint32 SqttDataChunkVersion               = 4;
 
 /// SQTT Data RDF chunk
 struct SqttDataHeader
@@ -81,6 +81,8 @@ struct SqttDataHeader
     Pal::uint32 instrumentationVersionApi;
     Pal::uint32 wgpIndex;
     Pal::uint64 traceBufferSize;
+    Pal::uint32 instructionTimingEnabled : 1;
+    Pal::uint32 reserved                 : 31;
 };
 
 } // namespace TraceChunk

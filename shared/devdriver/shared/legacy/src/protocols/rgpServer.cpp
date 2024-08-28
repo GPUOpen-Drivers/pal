@@ -108,13 +108,18 @@ namespace DevDriver
 
             // Allocate session data for the newly established session
             RGPSession* pSessionData = DD_NEW(RGPSession, m_pMsgChannel->GetAllocCb())(m_pMsgChannel->GetAllocCb());
-            // WA: Force MSVC's static analyzer to ignore unhandled OOM.
-            DD_ASSUME(pSessionData != nullptr);
 
-            pSessionData->state = SessionState::ReceivePayload;
-            memset(&pSessionData->payload, 0, sizeof(RGPPayload));
+            if (pSessionData != nullptr)
+            {
+                pSessionData->state = SessionState::ReceivePayload;
+                memset(&pSessionData->payload, 0, sizeof(RGPPayload));
 
-            pSession->SetUserData(pSessionData);
+                pSession->SetUserData(pSessionData);
+            }
+            else
+            {
+                DD_ASSERT_ALWAYS();
+            }
         }
 
         void RGPServer::UpdateSession(const SharedPointer<ISession>& pSession)

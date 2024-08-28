@@ -298,6 +298,11 @@ static const MaxEventIds& GetEventLimits(
     case Pal::AsicRevision::Phoenix2:
         pOut = &Phx2MaxPerfEventIds;
         break;
+#if PAL_BUILD_STRIX1
+    case Pal::AsicRevision::Strix1:
+        pOut = &Stx1MaxPerfEventIds;
+        break;
+#endif
     default:
         PAL_ASSERT_ALWAYS(); // What chip is this?
         pOut = &UnknownMaxEventIds;
@@ -342,6 +347,18 @@ static void Gfx11UpdateRpbBlockInfo(
         }};
     }
     else
+#if PAL_BUILD_GFX115
+    if (IsGfx115(device))
+    {
+        pInfo->regAddr = { Gfx115::mmRPB_PERFCOUNTER_RSLT_CNTL, {
+            { Gfx115::mmRPB_PERFCOUNTER0_CFG, 0, Gfx115::mmRPB_PERFCOUNTER_LO, Gfx115::mmRPB_PERFCOUNTER_HI },
+            { Gfx115::mmRPB_PERFCOUNTER1_CFG, 0, Gfx115::mmRPB_PERFCOUNTER_LO, Gfx115::mmRPB_PERFCOUNTER_HI },
+            { Gfx115::mmRPB_PERFCOUNTER2_CFG, 0, Gfx115::mmRPB_PERFCOUNTER_LO, Gfx115::mmRPB_PERFCOUNTER_HI },
+            { Gfx115::mmRPB_PERFCOUNTER3_CFG, 0, Gfx115::mmRPB_PERFCOUNTER_LO, Gfx115::mmRPB_PERFCOUNTER_HI },
+        }};
+    }
+    else
+#endif
     {
         PAL_NOT_IMPLEMENTED();
     }
@@ -1704,7 +1721,7 @@ static void Gfx11InitBasicBlockInfo(
     pMcVmL2->numGenericLegacyModules   = 8; // GCMC_VM_L2_PERFCOUNTER0-7
     pMcVmL2->numSpmWires               = 4;
     pMcVmL2->spmBlockSelect            = Gfx10SpmGlobalBlockSelectGpuvmVml2;
-    pMcVmL2->maxEventId                = 20; // Number of l2 cache invalidations
+    pMcVmL2->maxEventId                = maxIds[Gcvml2PerfSelId];
     pMcVmL2->isCfgStyle                = true;
 
     pMcVmL2->regAddr = { mmGCMC_VM_L2_PERFCOUNTER_RSLT_CNTL, {

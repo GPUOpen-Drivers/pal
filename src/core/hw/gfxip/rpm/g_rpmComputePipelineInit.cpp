@@ -35,39 +35,11 @@ namespace Pal
 {
 
 // =====================================================================================================================
-// Helper function to create compute pipelines.
-Result CreateRpmComputePipeline(
-    RpmComputePipeline    pipelineType,
-    GfxDevice*            pDevice,
-    const PipelineBinary* pTable,
-    ComputePipeline**     pPipelineMem)
+// Helper function that returns a compute pipeline table for a given gfxIP
+static const PipelineBinary*const GetRpmComputePipelineTable(
+    const GpuChipProperties& properties)
 {
-    const uint32 index = static_cast<uint32>(pipelineType);
-
-    ComputePipelineCreateInfo pipeInfo = { };
-    pipeInfo.pPipelineBinary           = pTable[index].pBuffer;
-    pipeInfo.pipelineBinarySize        = pTable[index].size;
-
-    PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
-
-    return pDevice->CreateComputePipelineInternal(
-        pipeInfo,
-        &pPipelineMem[index],
-        AllocInternal);
-}
-
-// =====================================================================================================================
-// Creates all compute pipeline objects required by RsrcProcMgr.
-Result CreateRpmComputePipelines(
-    GfxDevice*        pDevice,
-    ComputePipeline** pPipelineMem)
-{
-    Result result = Result::Success;
-
-    const GpuChipProperties& properties = pDevice->Parent()->ChipProperties();
-
     const PipelineBinary* pTable = nullptr;
-
     switch (uint32(properties.gfxTriple))
     {
     case Pal::IpTriple({ 10, 1, 0 }):
@@ -101,888 +73,1619 @@ Result CreateRpmComputePipelines(
         pTable = rpmComputeBinaryTablePhoenix1;
         break;
 
-    default:
-        result = Result::ErrorUnknown;
-        PAL_NOT_IMPLEMENTED();
+#if PAL_BUILD_STRIX1
+    case Pal::IpTriple({ 11, 5, 0 }):
+    case Pal::IpTriple({ 11, 5, 65535 }):
+        pTable = rpmComputeBinaryTableStrix1;
         break;
+#endif
+
+    }
+#if PAL_BUILD_STRIX1
+    if ((properties.revision == Pal::AsicRevision::Strix1) &&
+        (getenv("GFX115_NPI_FEATURES") != nullptr) &&
+        (Util::Strcasecmp(getenv("GFX115_NPI_FEATURES"), "none") == 0))
+    {
+        pTable = rpmComputeBinaryTableStrix1_NONE;
+    }
+#endif
+#if PAL_BUILD_STRIX1
+    if ((properties.revision == Pal::AsicRevision::Strix1) &&
+        (getenv("GFX115_NPI_FEATURES") != nullptr) &&
+        (Util::Strcasecmp(getenv("GFX115_NPI_FEATURES"), "all") == 0))
+    {
+        pTable = rpmComputeBinaryTableStrix1_ALL;
+    }
+#endif
+#if PAL_BUILD_STRIX1
+    if ((properties.revision == Pal::AsicRevision::Strix1) &&
+        (getenv("GFX115_NPI_FEATURES") != nullptr) &&
+        (Util::Strcasecmp(getenv("GFX115_NPI_FEATURES"), "onlyVGPRWriteKill") == 0))
+    {
+        pTable = rpmComputeBinaryTableStrix1_ONLYVDST;
+    }
+#endif
+#if PAL_BUILD_STRIX1
+    if ((properties.revision == Pal::AsicRevision::Strix1) &&
+        (getenv("GFX115_NPI_FEATURES") != nullptr) &&
+        (Util::Strcasecmp(getenv("GFX115_NPI_FEATURES"), "noScalarFmacOps") == 0))
+    {
+        pTable = rpmComputeBinaryTableStrix1_ALL;
+    }
+#endif
+#if PAL_BUILD_STRIX1
+    if ((properties.revision == Pal::AsicRevision::Strix1) &&
+        (getenv("GFX115_NPI_FEATURES") != nullptr) &&
+        (Util::Strcasecmp(getenv("GFX115_NPI_FEATURES"), "onlyScalarFloatOps") == 0))
+    {
+        pTable = rpmComputeBinaryTableStrix1;
+    }
+#endif
+
+    return pTable;
+}
+
+// =====================================================================================================================
+// Creates all compute pipeline objects required by RsrcProcMgr.
+Result CreateRpmComputePipelines(
+    GfxDevice*        pDevice,
+    ComputePipeline** pPipelineMem)
+{
+    Result result = Result::Success;
+
+    const GpuChipProperties& properties = pDevice->Parent()->ChipProperties();
+    const PipelineBinary*const pTable   = GetRpmComputePipelineTable(properties);
+
+    if (pTable == nullptr)
+    {
+        PAL_NOT_IMPLEMENTED();
+        return Result::ErrorUnknown;
     }
 
     if (result == Result::Success)
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::ClearBuffer, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::ClearBuffer);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
     if (result == Result::Success)
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::ClearImage96Bpp, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::ClearImage96Bpp);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
     if (result == Result::Success)
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::ClearImage, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::ClearImage);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success && (false
+    if ((result == Result::Success) && (false
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
         ))
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::ClearImageMsaaPlanar, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::ClearImageMsaaPlanar);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
     if (result == Result::Success)
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::ClearImageMsaaSampleMajor, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::ClearImageMsaaSampleMajor);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
     if (result == Result::Success)
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::CopyBufferByte, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::CopyBufferByte);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
     if (result == Result::Success)
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::CopyBufferDqword, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::CopyBufferDqword);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
     if (result == Result::Success)
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::CopyBufferDword, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::CopyBufferDword);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
     if (result == Result::Success)
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::CopyImage2d, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::CopyImage2d);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
     if (result == Result::Success)
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::CopyImage2dMorton2x, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::CopyImage2dMorton2x);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
     if (result == Result::Success)
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::CopyImage2dMorton4x, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::CopyImage2dMorton4x);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
     if (result == Result::Success)
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::CopyImage2dMorton8x, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::CopyImage2dMorton8x);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
     if (result == Result::Success)
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::CopyImage2dms2x, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::CopyImage2dms2x);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
     if (result == Result::Success)
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::CopyImage2dms4x, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::CopyImage2dms4x);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
     if (result == Result::Success)
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::CopyImage2dms8x, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::CopyImage2dms8x);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
     if (result == Result::Success)
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::CopyImage2dShaderMipLevel, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::CopyImage2dShaderMipLevel);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
     if (result == Result::Success)
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::CopyImageGammaCorrect2d, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::CopyImageGammaCorrect2d);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
     if (result == Result::Success)
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::CopyImgToMem1d, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::CopyImgToMem1d);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
     if (result == Result::Success)
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::CopyImgToMem2d, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::CopyImgToMem2d);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
     if (result == Result::Success)
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::CopyImgToMem2dms2x, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::CopyImgToMem2dms2x);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
     if (result == Result::Success)
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::CopyImgToMem2dms4x, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::CopyImgToMem2dms4x);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
     if (result == Result::Success)
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::CopyImgToMem2dms8x, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::CopyImgToMem2dms8x);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
     if (result == Result::Success)
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::CopyImgToMem3d, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::CopyImgToMem3d);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
     if (result == Result::Success)
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::CopyMemToImg1d, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::CopyMemToImg1d);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
     if (result == Result::Success)
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::CopyMemToImg2d, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::CopyMemToImg2d);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
     if (result == Result::Success)
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::CopyMemToImg2dms2x, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::CopyMemToImg2dms2x);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
     if (result == Result::Success)
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::CopyMemToImg2dms4x, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::CopyMemToImg2dms4x);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
     if (result == Result::Success)
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::CopyMemToImg2dms8x, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::CopyMemToImg2dms8x);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
     if (result == Result::Success)
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::CopyMemToImg3d, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::CopyMemToImg3d);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
     if (result == Result::Success)
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::CopyTypedBuffer1d, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::CopyTypedBuffer1d);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
     if (result == Result::Success)
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::CopyTypedBuffer2d, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::CopyTypedBuffer2d);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
     if (result == Result::Success)
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::CopyTypedBuffer3d, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-        ))
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::ExpandMaskRam, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-        ))
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::ExpandMaskRamMs2x, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-        ))
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::ExpandMaskRamMs4x, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-        ))
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::ExpandMaskRamMs8x, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-        ))
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::FastDepthClear, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-        ))
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::FastDepthExpClear, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-        ))
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::FastDepthStExpClear, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success)
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::FillMem4xDword, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success)
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::FillMemDword, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success)
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::GenerateMipmaps, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success)
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::GenerateMipmapsLowp, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-        ))
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::HtileCopyAndFixUp, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-        ))
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::HtileSR4xUpdate, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-        ))
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::HtileSRUpdate, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaFmaskCopyImage, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaFmaskCopyImageOptimized, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaFmaskCopyImgToMem, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaFmaskExpand2x, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaFmaskExpand4x, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaFmaskExpand8x, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaFmaskResolve1xEqaa, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaFmaskResolve2x, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaFmaskResolve2xEqaa, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaFmaskResolve2xEqaaMax, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaFmaskResolve2xEqaaMin, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaFmaskResolve2xMax, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaFmaskResolve2xMin, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaFmaskResolve4x, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaFmaskResolve4xEqaa, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaFmaskResolve4xEqaaMax, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaFmaskResolve4xEqaaMin, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaFmaskResolve4xMax, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaFmaskResolve4xMin, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaFmaskResolve8x, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaFmaskResolve8xEqaa, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaFmaskResolve8xEqaaMax, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaFmaskResolve8xEqaaMin, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaFmaskResolve8xMax, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaFmaskResolve8xMin, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaFmaskScaledCopy, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success)
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaResolve2x, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success)
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaResolve2xMax, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success)
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaResolve2xMin, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success)
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaResolve4x, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success)
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaResolve4xMax, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success)
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaResolve4xMin, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success)
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaResolve8x, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success)
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaResolve8xMax, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success)
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaResolve8xMin, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success)
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaResolveStencil2xMax, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success)
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaResolveStencil2xMin, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success)
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaResolveStencil4xMax, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success)
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaResolveStencil4xMin, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success)
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaResolveStencil8xMax, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success)
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaResolveStencil8xMin, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success)
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::MsaaScaledCopyImage2d, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success)
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::ResolveOcclusionQuery, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success)
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::ResolvePipelineStatsQuery, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success)
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::ResolveStreamoutStatsQuery, pDevice, pTable, pPipelineMem);
-    }
+        constexpr uint32 Index = uint32(RpmComputePipeline::CopyTypedBuffer3d);
 
-    if (result == Result::Success)
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::RgbToYuvPacked, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success)
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::RgbToYuvPlanar, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success)
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::ScaledCopyImage2d, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success)
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::ScaledCopyImage2dMorton2x, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success)
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::ScaledCopyImage2dMorton4x, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success)
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::ScaledCopyImage2dMorton8x, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success)
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::ScaledCopyImage3d, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success)
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::ScaledCopyTypedBufferToImg2D, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success)
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::YuvIntToRgb, pDevice, pTable, pPipelineMem);
-    }
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
 
-    if (result == Result::Success)
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::YuvToRgb, pDevice, pTable, pPipelineMem);
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success && (false
+    if ((result == Result::Success) && (false
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#if PAL_BUILD_STRIX1
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
+#endif
         ))
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::Gfx9FillDirtyTileMapBuffer, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::ExpandMaskRam);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success && (false
+    if ((result == Result::Success) && (false
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#if PAL_BUILD_STRIX1
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
+#endif
         ))
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::Gfx10BuildDccLookupTable, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::ExpandMaskRamMs2x);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success && (false
+    if ((result == Result::Success) && (false
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#if PAL_BUILD_STRIX1
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
+#endif
         ))
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::Gfx10ClearDccComputeSetFirstPixel, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::ExpandMaskRamMs4x);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success && (false
+    if ((result == Result::Success) && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#if PAL_BUILD_STRIX1
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
+#endif
+        ))
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::ExpandMaskRamMs8x);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if ((result == Result::Success) && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#if PAL_BUILD_STRIX1
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
+#endif
+        ))
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::FastDepthClear);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if ((result == Result::Success) && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#if PAL_BUILD_STRIX1
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
+#endif
+        ))
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::FastDepthExpClear);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if ((result == Result::Success) && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#if PAL_BUILD_STRIX1
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
+#endif
+        ))
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::FastDepthStExpClear);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if ((result == Result::Success) && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#if PAL_BUILD_STRIX1
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
+#endif
+        ))
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::FillMem4xDword);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        pipeInfo.interleaveSize = DispatchInterleaveSize::Disable;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::FillMemDword);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        pipeInfo.interleaveSize = DispatchInterleaveSize::Disable;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::GenerateMipmaps);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::GenerateMipmapsLowp);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if ((result == Result::Success) && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#if PAL_BUILD_STRIX1
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
+#endif
+        ))
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::HtileCopyAndFixUp);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if ((result == Result::Success) && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#if PAL_BUILD_STRIX1
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
+#endif
+        ))
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::HtileSR4xUpdate);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if ((result == Result::Success) && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#if PAL_BUILD_STRIX1
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
+#endif
+        ))
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::HtileSRUpdate);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if ((result == Result::Success) && (false
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
         ))
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::Gfx10ClearDccComputeSetFirstPixelMsaa, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskCopyImage);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success && (false
+    if ((result == Result::Success) && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        ))
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskCopyImageOptimized);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if ((result == Result::Success) && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        ))
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskCopyImgToMem);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if ((result == Result::Success) && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        ))
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskExpand2x);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if ((result == Result::Success) && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        ))
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskExpand4x);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if ((result == Result::Success) && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        ))
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskExpand8x);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if ((result == Result::Success) && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        ))
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskResolve1xEqaa);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if ((result == Result::Success) && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        ))
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskResolve2x);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if ((result == Result::Success) && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        ))
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskResolve2xEqaa);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if ((result == Result::Success) && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        ))
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskResolve2xEqaaMax);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if ((result == Result::Success) && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        ))
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskResolve2xEqaaMin);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if ((result == Result::Success) && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        ))
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskResolve2xMax);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if ((result == Result::Success) && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        ))
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskResolve2xMin);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if ((result == Result::Success) && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        ))
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskResolve4x);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if ((result == Result::Success) && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        ))
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskResolve4xEqaa);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if ((result == Result::Success) && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        ))
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskResolve4xEqaaMax);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if ((result == Result::Success) && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        ))
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskResolve4xEqaaMin);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if ((result == Result::Success) && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        ))
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskResolve4xMax);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if ((result == Result::Success) && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        ))
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskResolve4xMin);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if ((result == Result::Success) && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        ))
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskResolve8x);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if ((result == Result::Success) && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        ))
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskResolve8xEqaa);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if ((result == Result::Success) && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        ))
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskResolve8xEqaaMax);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if ((result == Result::Success) && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        ))
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskResolve8xEqaaMin);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if ((result == Result::Success) && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        ))
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskResolve8xMax);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if ((result == Result::Success) && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        ))
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskResolve8xMin);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if ((result == Result::Success) && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        ))
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaFmaskScaledCopy);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaResolve2x);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaResolve2xMax);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaResolve2xMin);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaResolve4x);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaResolve4xMax);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaResolve4xMin);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaResolve8x);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaResolve8xMax);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaResolve8xMin);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaResolveStencil2xMax);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaResolveStencil2xMin);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaResolveStencil4xMax);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaResolveStencil4xMin);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaResolveStencil8xMax);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaResolveStencil8xMin);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::MsaaScaledCopyImage2d);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::ResolveOcclusionQuery);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::ResolvePipelineStatsQuery);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::ResolveStreamoutStatsQuery);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::RgbToYuvPacked);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::RgbToYuvPlanar);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::ScaledCopyImage2d);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::ScaledCopyImage2dMorton2x);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::ScaledCopyImage2dMorton4x);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::ScaledCopyImage2dMorton8x);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::ScaledCopyImage3d);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::ScaledCopyTypedBufferToImg2D);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::YuvIntToRgb);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::YuvToRgb);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if ((result == Result::Success) && (false
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#if PAL_BUILD_STRIX1
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
+#endif
         ))
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::Gfx10GenerateCmdDispatch, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::Gfx9FillDirtyTileMapBuffer);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success && (false
+    if ((result == Result::Success) && (false
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#if PAL_BUILD_STRIX1
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
+#endif
         ))
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::Gfx10GenerateCmdDispatchTaskMesh, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::Gfx10BuildDccLookupTable);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success && (false
+    if ((result == Result::Success) && (false
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#if PAL_BUILD_STRIX1
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
+#endif
         ))
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::Gfx10GenerateCmdDraw, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::Gfx10ClearDccComputeSetFirstPixel);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success && (false
+    if ((result == Result::Success) && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        ))
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::Gfx10ClearDccComputeSetFirstPixelMsaa);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if ((result == Result::Success) && (false
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#if PAL_BUILD_STRIX1
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
+#endif
         ))
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::Gfx10GetDccDirtyTileMultipleCoverage, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::Gfx10GenerateCmdDispatch);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-        ))
-    {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::Gfx10GfxDccToDisplayDcc, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success && (false
+    if ((result == Result::Success) && (false
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#if PAL_BUILD_STRIX1
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
+#endif
         ))
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::Gfx10LookupTableGetDccDirtyTile, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::Gfx10GenerateCmdDispatchTaskMesh);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success && (false
+    if ((result == Result::Success) && (false
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#if PAL_BUILD_STRIX1
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
+#endif
         ))
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::Gfx10LookupTableGetDccDirtyTileMultipleCoverage, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::Gfx10GenerateCmdDraw);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success && (false
+    if ((result == Result::Success) && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#if PAL_BUILD_STRIX1
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
+#endif
         ))
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::Gfx10PrtPlusResolveResidencyMapDecode, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::Gfx10GetDccDirtyTileMultipleCoverage);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success && (false
+    if ((result == Result::Success) && (false
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#if PAL_BUILD_STRIX1
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
+#endif
         ))
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::Gfx10PrtPlusResolveResidencyMapEncode, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::Gfx10GfxDccToDisplayDcc);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success && (false
+    if ((result == Result::Success) && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#if PAL_BUILD_STRIX1
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
+#endif
         ))
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::Gfx10PrtPlusResolveSamplingStatusMap, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::Gfx10LookupTableGetDccDirtyTile);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success && (false
+    if ((result == Result::Success) && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#if PAL_BUILD_STRIX1
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
+#endif
+        ))
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::Gfx10LookupTableGetDccDirtyTileMultipleCoverage);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if ((result == Result::Success) && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#if PAL_BUILD_STRIX1
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
+#endif
+        ))
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::Gfx10PrtPlusResolveResidencyMapDecode);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if ((result == Result::Success) && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#if PAL_BUILD_STRIX1
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
+#endif
+        ))
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::Gfx10PrtPlusResolveResidencyMapEncode);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if ((result == Result::Success) && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#if PAL_BUILD_STRIX1
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
+#endif
+        ))
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::Gfx10PrtPlusResolveSamplingStatusMap);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if ((result == Result::Success) && (false
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
         ))
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::Gfx10VrsHtile, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::Gfx10VrsHtile);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
-    if (result == Result::Success && (false
+    if ((result == Result::Success) && (false
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#if PAL_BUILD_STRIX1
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
+#endif
         ))
     {
-        result = CreateRpmComputePipeline(
-            RpmComputePipeline::Gfx11GenerateCmdDispatchTaskMesh, pDevice, pTable, pPipelineMem);
+        constexpr uint32 Index = uint32(RpmComputePipeline::Gfx11GenerateCmdDispatchTaskMesh);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }
 
     return result;

@@ -41,6 +41,8 @@ include(AddrlibCompilerOptions)
 include(AddrlibBuildParameters)
 include(Addrlib)
 
+add_subdirectory(cmake)
+
 target_include_directories(addrlib PUBLIC  inc
                                    PRIVATE src
                                            src/core)
@@ -102,6 +104,11 @@ if(ADDR_GFX11_BUILD)
         target_compile_definitions(addrlib PRIVATE ADDR_NAVI33_BUILD)
     endif()
     #endif
+    #if ADDR_STRIX1_BUILD
+    if(ADDR_STRIX1_BUILD)
+        target_compile_definitions(addrlib PRIVATE ADDR_STRIX1_BUILD)
+    endif()
+    #endif
     #if ADDR_PHOENIX_BUILD
     if(ADDR_PHOENIX_BUILD)
         target_compile_definitions(addrlib PRIVATE ADDR_PHOENIX_BUILD)
@@ -150,3 +157,4 @@ if (MSVC_IDE)
                  FILES ${addrlib_sources}
     )
 endif()
+

@@ -79,11 +79,59 @@ Pal::Result CreateTextWriterComputePipelines(
         pTable = textWriterComputeBinaryTablePhoenix1;
         break;
 
+#if PAL_BUILD_STRIX1
+    case Pal::IpTriple({ 11, 5, 0 }):
+    case Pal::IpTriple({ 11, 5, 65535 }):
+        pTable = textWriterComputeBinaryTableStrix1;
+        break;
+#endif
+
     default:
         result = Pal::Result::ErrorUnknown;
         PAL_NOT_IMPLEMENTED();
         break;
     }
+
+#if PAL_BUILD_STRIX1
+    if ((properties.revision == Pal::AsicRevision::Strix1) &&
+        (getenv("GFX115_NPI_FEATURES") != nullptr) &&
+        (Util::Strcasecmp(getenv("GFX115_NPI_FEATURES"), "none") == 0))
+    {
+        pTable = textWriterComputeBinaryTableStrix1;
+    }
+#endif
+#if PAL_BUILD_STRIX1
+    if ((properties.revision == Pal::AsicRevision::Strix1) &&
+        (getenv("GFX115_NPI_FEATURES") != nullptr) &&
+        (Util::Strcasecmp(getenv("GFX115_NPI_FEATURES"), "all") == 0))
+    {
+        pTable = textWriterComputeBinaryTableStrix1_ALL;
+    }
+#endif
+#if PAL_BUILD_STRIX1
+    if ((properties.revision == Pal::AsicRevision::Strix1) &&
+        (getenv("GFX115_NPI_FEATURES") != nullptr) &&
+        (Util::Strcasecmp(getenv("GFX115_NPI_FEATURES"), "onlyVGPRWriteKill") == 0))
+    {
+        pTable = textWriterComputeBinaryTableStrix1_ALL;
+    }
+#endif
+#if PAL_BUILD_STRIX1
+    if ((properties.revision == Pal::AsicRevision::Strix1) &&
+        (getenv("GFX115_NPI_FEATURES") != nullptr) &&
+        (Util::Strcasecmp(getenv("GFX115_NPI_FEATURES"), "noScalarFmacOps") == 0))
+    {
+        pTable = textWriterComputeBinaryTableStrix1_ALL;
+    }
+#endif
+#if PAL_BUILD_STRIX1
+    if ((properties.revision == Pal::AsicRevision::Strix1) &&
+        (getenv("GFX115_NPI_FEATURES") != nullptr) &&
+        (Util::Strcasecmp(getenv("GFX115_NPI_FEATURES"), "onlyScalarFloatOps") == 0))
+    {
+        pTable = textWriterComputeBinaryTableStrix1;
+    }
+#endif
 
     if (result == Pal::Result::Success)
     {
@@ -91,8 +139,6 @@ Pal::Result CreateTextWriterComputePipelines(
         pipeInfo.pPipelineBinary      = pTable[static_cast<size_t>(TextWriterComputePipeline::TextWriter)].pBuffer;
         pipeInfo.pipelineBinarySize   = pTable[static_cast<size_t>(TextWriterComputePipeline::TextWriter)].size;
         pipeInfo.flags.clientInternal = 1;
-
-        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
 
         void* pMemory = PAL_MALLOC(pDevice->GetComputePipelineSize(pipeInfo, nullptr),
                                    pAllocator,

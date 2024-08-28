@@ -175,6 +175,7 @@ protected:
     BoundGpuMemory                 m_gpuMemory;
     bool                           m_isFinalized;
     PerfExperimentFlags            m_perfExperimentFlags;
+    bool                           m_flushCache;
 
     // Information describing the size and layout of our bound GPU memory.
     gpusize                        m_globalBeginOffset; // Offset to the "begin" global counters.

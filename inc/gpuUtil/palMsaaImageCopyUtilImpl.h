@@ -77,7 +77,8 @@ Pal::Result MsaaImageCopyUtil<Allocator>::Init()
 
     if (result == Pal::Result::Success)
     {
-        const Pal::uint32 maxSrdSize = Util::Max(deviceProps.gfxipProperties.srdSizes.bufferView,
+        const Pal::uint32 maxSrdSize = Util::Max(deviceProps.gfxipProperties.srdSizes.typedBufferView,
+                                                 deviceProps.gfxipProperties.srdSizes.untypedBufferView,
                                                  deviceProps.gfxipProperties.srdSizes.imageView,
                                                  deviceProps.gfxipProperties.srdSizes.fmaskView,
                                                  deviceProps.gfxipProperties.srdSizes.sampler);

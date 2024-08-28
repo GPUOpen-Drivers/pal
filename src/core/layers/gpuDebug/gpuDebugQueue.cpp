@@ -402,15 +402,20 @@ TargetCmdBuffer* Queue::AcquireCmdBuf(
         }
     }
 
-    PAL_ASSERT(pCmdBuffer != nullptr);
+    if (pCmdBuffer != nullptr)
+    {
+        // Set per-acquire state.
+        pCmdBuffer->SetCmdBufInfo(pCmdBufInfo);
+        pCmdBuffer->SetSubQueueIdx(subQueueIdx);
 
-    // Set per-acquire state.
-    pCmdBuffer->SetCmdBufInfo(pCmdBufInfo);
-    pCmdBuffer->SetSubQueueIdx(subQueueIdx);
-
-    // We always submit command buffers in the order they are acquired, so we can go ahead and add this to the next
-    // submit queue immediately.
-    pNextSubmit->PushBack(pCmdBuffer);
+        // We always submit command buffers in the order they are acquired, so we can go ahead and add this to the next
+        // submit queue immediately.
+        pNextSubmit->PushBack(pCmdBuffer);
+    }
+    else
+    {
+        PAL_ASSERT_ALWAYS();
+    }
 
     return pCmdBuffer;
 }

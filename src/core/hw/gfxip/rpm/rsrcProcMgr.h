@@ -212,14 +212,6 @@ public:
         const ColorSpaceConversionTable&  cscTable) const;
 
     void CmdFillMemory(
-        GfxCmdBuffer*    pCmdBuffer,
-        bool             saveRestoreComputeState,
-        bool             trackBltActiveFlags,
-        const GpuMemory& dstGpuMemory,
-        gpusize          dstOffset,
-        gpusize          fillSize,
-        uint32           data) const;
-    void CmdFillMemory(
         GfxCmdBuffer* pCmdBuffer,
         bool          saveRestoreComputeState,
         bool          trackBltActiveFlags,
@@ -378,6 +370,12 @@ protected:
         uint32          elementSize,
         gpusize         rowPitch,
         gpusize         depthPitch);
+
+    void FillMem32Bit(
+        GfxCmdBuffer* pCmdBuffer,
+        gpusize       dstGpuVirtAddr,
+        gpusize       fillSize,
+        uint32        data) const;
 
     void SlowClearCompute(
         GfxCmdBuffer*         pCmdBuffer,

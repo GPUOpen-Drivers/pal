@@ -487,7 +487,8 @@ void GpuPerfExperimentTraceSource::WriteSqttDataChunks()
                         .instrumentationVersionSpec = InstrumentationSpecVersion,
                         .instrumentationVersionApi  = InstrumentationApiVersion,
                         .wgpIndex                   = traceInfo.computeUnit,
-                        .traceBufferSize            = traceInfo.bufferSize
+                        .traceBufferSize            = traceInfo.bufferSize,
+                        .instructionTimingEnabled   = m_sqttTraceConfig.enableInstructionTokens
                     };
 
                     TraceChunkInfo info = { };

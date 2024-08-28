@@ -729,6 +729,13 @@ ChipFamily Gfx11Lib::HwlConvertChipFamily(
 #endif
             break;
 
+#if ADDR_STRIX1_BUILD
+        case FAMILY_STX:
+            {
+                m_settings.isStrix = 1;
+            }
+            break;
+#endif
 #if ADDR_PHOENIX_BUILD
         case FAMILY_PHX:
             m_settings.isPhoenix = 1;
@@ -1724,6 +1731,9 @@ UINT_32 Gfx11Lib::GetValidDisplaySwizzleModes(
         if (false
 #if ADDR_PHOENIX_BUILD
             || (m_settings.isPhoenix)
+#endif
+#if ADDR_STRIX1_BUILD
+            || (m_settings.isStrix)
 #endif
            )
         {

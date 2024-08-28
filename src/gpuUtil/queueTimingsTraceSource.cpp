@@ -253,12 +253,6 @@ Result QueueTimingsTraceSource::TimedQueuePresent(
 }
 
 // =====================================================================================================================
-void QueueTimingsTraceSource::OnConfigUpdated(
-    DevDriver::StructuredValue* pJsonConfig)
-{
-}
-
-// =====================================================================================================================
 Result QueueTimingsTraceSource::Init(
     IDevice* pDevice)
 {
@@ -296,21 +290,7 @@ void QueueTimingsTraceSource::OnTraceAccepted()
     if (m_traceIsHealthy)
     {
         m_timingInProgress = true;
-    }
-    else
-    {
-        // This is called each time a user starts a new trace, so log an error message if we cannot proceed
-        ReportInternalError("Error starting trace", Result::ErrorUnavailable);
-    }
-}
 
-// =====================================================================================================================
-void QueueTimingsTraceSource::OnTraceBegin(
-    uint32      gpuIndex,
-    ICmdBuffer* pCmdBuf)
-{
-    if (m_traceIsHealthy)
-    {
         GpaSessionBeginInfo beginInfo = { };
         beginInfo.flags.enableQueueTiming = 1;
 
@@ -322,12 +302,20 @@ void QueueTimingsTraceSource::OnTraceBegin(
         }
 
         // Sample the timing clocks when starting a trace
-        result = m_pGpaSession->SampleTimingClocks();
-        if (result != Result::Success)
+        if (result == Result::Success)
         {
-            ReportInternalError("Error encountered when sampling timing clocks", result);
-            m_traceIsHealthy = false;
+            result = m_pGpaSession->SampleTimingClocks();
+
+            if (result != Result::Success)
+            {
+                ReportInternalError("Error encountered when sampling timing clocks", result);
+            }
         }
+    }
+    else
+    {
+        // This is called each time a user starts a new trace, so log an error message if we cannot proceed
+        ReportInternalError("Error starting trace", Result::ErrorUnavailable);
     }
 }
 

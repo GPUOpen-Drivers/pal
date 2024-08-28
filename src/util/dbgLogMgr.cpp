@@ -179,6 +179,33 @@ Result DbgLogMgr::DetachDbgLogger(
 }
 
 // =====================================================================================================================
+// Expand SeverityLevel so that DbgLogMgr don't filter the message out prematurely
+void DbgLogMgr::ExpandSeverityLevel(
+    SeverityLevel lvl)
+{
+    RWLockAuto<RWLock::ReadWrite> lock(&m_dbgLoggersLock);
+
+    if (lvl < m_dbgLogBaseSettings.severityLevel)
+    {
+        m_dbgLogBaseSettings.severityLevel = lvl;
+    }
+}
+
+// =====================================================================================================================
+// Expand orignation mask so that DbgLogMgr don't filter the message out prematurely
+void DbgLogMgr::ExpandOriginationTypeMask(
+    uint32 mask)
+{
+    RWLockAuto<RWLock::ReadWrite> lock(&m_dbgLoggersLock);
+
+    // if m_dbgBaseSettings.origTypeMask isn't a super set of mask, then update it.
+    if ((m_dbgLogBaseSettings.origTypeMask & mask) != mask)
+    {
+        m_dbgLogBaseSettings.origTypeMask |= mask;
+    }
+}
+
+// =====================================================================================================================
 // A variadic template function to call each logger's LogMessage(). The actual logging will be done by
 // each of these loggers.
 template <typename... Args>

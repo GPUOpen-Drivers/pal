@@ -3086,6 +3086,27 @@ namespace Gfx110
     constexpr unsigned int mmMP1_SMN_FPS_CNT                                  = 0x162C4;
 } // namespace Gfx110
 
+#if   CHIP_HDR_STRIX1
+namespace Gfx115
+{
+    constexpr unsigned int mmDB_CGTT_CLK_CTRL_1                               = 0xF0A5;
+    constexpr unsigned int mmPA_SC_BINNER_DYNAMIC_BATCH_LIMIT                 = 0xA963;
+    constexpr unsigned int mmPA_SC_BINNER_OUTPUT_TIMEOUT_CNTL                 = 0xA316;
+    constexpr unsigned int mmPA_SC_BINNER_OUTPUT_TIMEOUT_COUNTER              = 0xA964;
+    constexpr unsigned int mmPA_SC_ENHANCE_4                                  = 0xA945;
+    constexpr unsigned int mmPA_SC_LIGHT_SHAFT_EVENT_CONFIG_0                 = 0xA961;
+    constexpr unsigned int mmPA_SC_LIGHT_SHAFT_EVENT_CONFIG_1                 = 0xA962;
+    constexpr unsigned int mmRPB_PERFCOUNTER0_CFG                             = 0x0CE9;
+    constexpr unsigned int mmRPB_PERFCOUNTER1_CFG                             = 0x0CEA;
+    constexpr unsigned int mmRPB_PERFCOUNTER2_CFG                             = 0x0CEB;
+    constexpr unsigned int mmRPB_PERFCOUNTER3_CFG                             = 0x0CEC;
+    constexpr unsigned int mmRPB_PERFCOUNTER_HI                               = 0x0CEF;
+    constexpr unsigned int mmRPB_PERFCOUNTER_LO                               = 0x0CF0;
+    constexpr unsigned int mmRPB_PERFCOUNTER_RSLT_CNTL                        = 0x0CED;
+    constexpr unsigned int mmRPB_PERF_COUNTER_CNTL                            = 0x0CEE;
+} // namespace Gfx115
+#endif
+
 namespace Nv21
 {
     constexpr unsigned int mmRLC_SPM_GFXCLOCK_HIGHCOUNT                       = 0xDCA4;

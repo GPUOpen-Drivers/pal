@@ -885,6 +885,155 @@ uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
 
     const auto*const pPipeline = static_cast<const ComputePipeline*>(m_computeState.pipelineState.pPipeline);
 
+    // PAL thinks in terms of threadgroups but the HSA ABI thinks in terms of global threads, we need to convert.
+    const DispatchDims threads = pPipeline->ThreadsPerGroupXyz();
+
+    offset *= threads;
+    const DispatchDims logicalSizeInWorkItems = logicalSize * threads;
+
+    // Now we write the required SGPRs. These depend on per-dispatch state so we don't have dirty bit tracking.
+    const HsaAbi::CodeObjectMetadata& metadata = pPipeline->HsaMetadata();
+    const llvm::amdhsa::kernel_descriptor_t& desc = pPipeline->KernelDescriptor();
+    const GpuChipProperties& deviceProps = m_device.Parent()->ChipProperties();
+
+    gpusize kernargsGpuVa = 0;
+    uint32 ldsSize = metadata.GroupSegmentFixedSize();
+    if (TestAnyFlagSet(desc.kernel_code_properties, AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_KERNARG_SEGMENT_PTR))
+    {
+        // Copy the kernel argument buffer into GPU memory.
+        const uint32 allocSize      = NumBytesToNumDwords(metadata.KernargSegmentSize());
+        const uint32 allocAlign     = NumBytesToNumDwords(metadata.KernargSegmentAlign());
+        uint8* const  pParams       = reinterpret_cast<uint8*>(
+            CmdAllocateEmbeddedData(allocSize, allocAlign, &kernargsGpuVa));
+        const uint16 threadsX       = static_cast<uint16>(threads.x);
+        const uint16 threadsY       = static_cast<uint16>(threads.y);
+        const uint16 threadsZ       = static_cast<uint16>(threads.z);
+        uint16 remainderSize        = 0; // no incomplete workgroups supported at this time.
+        const uint32 dimensionality = (logicalSize.x > 1) + (logicalSize.y > 1) + (logicalSize.z > 1);
+        uint64 ldsPointer           = 0;
+
+        memcpy(pParams, m_computeState.pKernelArguments, metadata.KernargSegmentSize());
+
+        // The global offsets are always zero, except in CmdDispatchOffset where they are dispatch-time values.
+        // This could be moved out into CmdDispatchOffset if the overhead is too much but we'd have to return
+        // out some extra state to make that work.
+
+        // Phase 1: Fill out driver-controlled arguments which don't depend on other arguments.
+        bool hasPhase2Args = false;
+
+        for (uint32 idx = 0; idx < metadata.NumArguments(); ++idx)
+        {
+            const HsaAbi::KernelArgument& arg = metadata.Arguments()[idx];
+            switch (arg.valueKind)
+            {
+            case HsaAbi::ValueKind::HiddenGlobalOffsetX:
+                memcpy(pParams + arg.offset, &offset.x, Min<size_t>(sizeof(offset.x), arg.size));
+                break;
+            case HsaAbi::ValueKind::HiddenGlobalOffsetY:
+                memcpy(pParams + arg.offset, &offset.y, Min<size_t>(sizeof(offset.y), arg.size));
+                break;
+            case HsaAbi::ValueKind::HiddenGlobalOffsetZ:
+                memcpy(pParams + arg.offset, &offset.z, Min<size_t>(sizeof(offset.z), arg.size));
+                break;
+            case HsaAbi::ValueKind::HiddenBlockCountX:
+                memcpy(pParams + arg.offset, &logicalSize.x, Min<size_t>(sizeof(logicalSize.x), arg.size));
+                break;
+            case HsaAbi::ValueKind::HiddenBlockCountY:
+                memcpy(pParams + arg.offset, &logicalSize.y, Min<size_t>(sizeof(logicalSize.y), arg.size));
+                break;
+            case HsaAbi::ValueKind::HiddenBlockCountZ:
+                memcpy(pParams + arg.offset, &logicalSize.z, Min<size_t>(sizeof(logicalSize.z), arg.size));
+                break;
+            case HsaAbi::ValueKind::HiddenGroupSizeX:
+                memcpy(pParams + arg.offset, &threadsX, Min<size_t>(sizeof(threadsX), arg.size));
+                break;
+            case HsaAbi::ValueKind::HiddenGroupSizeY:
+                memcpy(pParams + arg.offset, &threadsY, Min<size_t>(sizeof(threadsY), arg.size));
+                break;
+            case HsaAbi::ValueKind::HiddenGroupSizeZ:
+                memcpy(pParams + arg.offset, &threadsZ, Min<size_t>(sizeof(threadsZ), arg.size));
+                break;
+            case HsaAbi::ValueKind::HiddenRemainderX:
+                memcpy(pParams + arg.offset, &remainderSize, Min<size_t>(sizeof(remainderSize), arg.size));
+                break;
+            case HsaAbi::ValueKind::HiddenRemainderY:
+                memcpy(pParams + arg.offset, &remainderSize, Min<size_t>(sizeof(remainderSize), arg.size));
+                break;
+            case HsaAbi::ValueKind::HiddenRemainderZ:
+                memcpy(pParams + arg.offset, &remainderSize, Min<size_t>(sizeof(remainderSize), arg.size));
+                break;
+            case HsaAbi::ValueKind::HiddenGridDims:
+                memcpy(pParams + arg.offset, &dimensionality, Min<size_t>(sizeof(dimensionality), arg.size));
+                break;
+            case HsaAbi::ValueKind::HiddenDynamicLdsSize:
+                // We need to visit all DynamicSharedPointer args before we can fill out the dynamic LDS size.
+                hasPhase2Args = true;
+                break;
+            case HsaAbi::ValueKind::DynamicSharedPointer:
+                // We only support dyamic LDS pointers.
+                PAL_ASSERT(arg.addressSpace == HsaAbi::AddressSpace::Local);
+
+                // PAL must place the dynamic LDS allocations after the static LDS allocations. We need some extra
+                // padding between allocations if the current ldsSize isn't already aligned to pointeeAlign.
+                ldsSize = Pow2Align(ldsSize, arg.pointeeAlign);
+
+                // Pad the pointer out to 64 bits just in case arg.size is 8 bytes.
+                ldsPointer = ldsSize;
+                memcpy(pParams + arg.offset, &ldsPointer, Min<size_t>(sizeof(ldsPointer), arg.size));
+
+                // The caller must set each dynamic LDS pointer to the length of its dynamic allocation.
+                // We must add these to our ldsSize so we know where the next dynamic pointer goes in LDS space.
+                ldsSize += *reinterpret_cast<const uint32*>(m_computeState.pKernelArguments + arg.offset);
+                break;
+            case HsaAbi::ValueKind::ByValue:
+            case HsaAbi::ValueKind::GlobalBuffer:
+            case HsaAbi::ValueKind::Image:
+                break; // these are handled by kernargs
+            default:
+                PAL_ASSERT_ALWAYS();
+            }
+        }
+
+        PAL_ASSERT_MSG(ldsSize <= deviceProps.gfxip.ldsSizePerThreadGroup,
+            "LDS size exceeds the maximum size per thread group.");
+
+        if (hasPhase2Args)
+        {
+            // Phase 2: Fill out any arguments which depend on the values we computed in phase 1.
+            const uint32 dynamicLdsSize = ldsSize - metadata.GroupSegmentFixedSize();
+
+            for (uint32 idx = 0; idx < metadata.NumArguments(); ++idx)
+            {
+                const HsaAbi::KernelArgument& arg = metadata.Arguments()[idx];
+                switch (arg.valueKind)
+                {
+                case HsaAbi::ValueKind::HiddenDynamicLdsSize:
+                    memcpy(pParams + arg.offset, &dynamicLdsSize, Min<size_t>(sizeof(dynamicLdsSize), arg.size));
+                    break;
+                default:
+                    // We should assume all unspecified args require no phase 2 handling.
+                    break;
+                }
+            }
+        }
+    }
+
+    // If ldsBytesPerTg was specified then that's what LDS_SIZE was programmed to, otherwise we used the fixed size.
+    const uint32 boundLdsSize =
+        (m_computeState.dynamicCsInfo.ldsBytesPerTg > 0) ? m_computeState.dynamicCsInfo.ldsBytesPerTg
+                                                         : metadata.GroupSegmentFixedSize();
+
+    // If our computed total LDS size is larger than the previously bound size we must rewrite it.
+    bool mustUpdateLdsSize = false;
+    if (boundLdsSize < ldsSize)
+    {
+        mustUpdateLdsSize = true;
+
+        // We rebound this state. Update its value so that we don't needlessly rewrite it on the
+        // next dispatch call.
+        m_computeState.dynamicCsInfo.ldsBytesPerTg = ldsSize;
+    }
+
     if (m_computeState.pipelineState.dirtyFlags.pipeline)
     {
         pCmdSpace = pPipeline->WriteCommands(&m_cmdStream,
@@ -893,6 +1042,11 @@ uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
                                              m_buildFlags.prefetchShaders);
 
         m_pSignatureCs = &pPipeline->Signature();
+    }
+    else if (mustUpdateLdsSize)
+    {
+        // If we skipped pPipeline->WriteCommands we still need to rewrite the LDS_SIZE.
+        pCmdSpace = pPipeline->WriteUpdatedLdsSize(&m_cmdStream, pCmdSpace, ldsSize);
     }
 
 #if PAL_DEVELOPER_BUILD
@@ -903,16 +1057,6 @@ uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
         pStartingCmdSpace = pCmdSpace;
     }
 #endif
-
-    // PAL thinks in terms of threadgroups but the HSA ABI thinks in terms of global threads, we need to convert.
-    const DispatchDims threads = pPipeline->ThreadsPerGroupXyz();
-
-    offset *= threads;
-    const DispatchDims logicalSizeInWorkItems = logicalSize * threads;
-
-    // Now we write the required SGPRs. These depend on per-dispatch state so we don't have dirty bit tracking.
-    const HsaAbi::CodeObjectMetadata&        metadata = pPipeline->HsaMetadata();
-    const llvm::amdhsa::kernel_descriptor_t& desc     = pPipeline->KernelDescriptor();
 
     uint32 startReg = mmCOMPUTE_USER_DATA_0;
 
@@ -942,9 +1086,7 @@ uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
         pAqlPacket->grid_size_y          = logicalSizeInWorkItems.y;
         pAqlPacket->grid_size_z          = logicalSizeInWorkItems.z;
         pAqlPacket->private_segment_size = metadata.PrivateSegmentFixedSize();
-        pAqlPacket->group_segment_size   = ((m_computeState.dynamicCsInfo.ldsBytesPerTg > 0)
-                                                ? m_computeState.dynamicCsInfo.ldsBytesPerTg
-                                                : metadata.GroupSegmentFixedSize());
+        pAqlPacket->group_segment_size   = ldsSize;
 
         pCmdSpace = SetSeqUserSgprRegs(startReg, (startReg + 1), &aqlPacketGpu, pCmdSpace);
         startReg += 2;
@@ -952,77 +1094,7 @@ uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
 
     if (TestAnyFlagSet(desc.kernel_code_properties, AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_KERNARG_SEGMENT_PTR))
     {
-        // Copy the kernel argument buffer into GPU memory.
-        gpusize      gpuVa          = 0;
-        const uint32 allocSize      = NumBytesToNumDwords(metadata.KernargSegmentSize());
-        const uint32 allocAlign     = NumBytesToNumDwords(metadata.KernargSegmentAlign());
-        uint8*const  pParams        = reinterpret_cast<uint8*>(CmdAllocateEmbeddedData(allocSize, allocAlign, &gpuVa));
-        const uint16 threadsX       = static_cast<uint16>(threads.x);
-        const uint16 threadsY       = static_cast<uint16>(threads.y);
-        const uint16 threadsZ       = static_cast<uint16>(threads.z);
-        uint16 remainderSize        = 0; // no incomplete workgroups supported at this time.
-        const uint32 dimensionality = (logicalSize.x > 1) + (logicalSize.y > 1) + (logicalSize.z > 1);
-
-        memcpy(pParams, m_computeState.pKernelArguments, metadata.KernargSegmentSize());
-
-        // The global offsets are always zero, except in CmdDispatchOffset where they are dispatch-time values.
-        // This could be moved out into CmdDispatchOffset if the overhead is too much but we'd have to return
-        // out some extra state to make that work.
-        for (uint32 idx = 0; idx < metadata.NumArguments(); ++idx)
-        {
-            const HsaAbi::KernelArgument& arg = metadata.Arguments()[idx];
-            switch (arg.valueKind)
-            {
-                case HsaAbi::ValueKind::HiddenGlobalOffsetX:
-                    memcpy(pParams + arg.offset, &offset.x, Min<size_t>(sizeof(offset.x), arg.size));
-                    break;
-                case HsaAbi::ValueKind::HiddenGlobalOffsetY:
-                    memcpy(pParams + arg.offset, &offset.y, Min<size_t>(sizeof(offset.y), arg.size));
-                    break;
-                case HsaAbi::ValueKind::HiddenGlobalOffsetZ:
-                    memcpy(pParams + arg.offset, &offset.z, Min<size_t>(sizeof(offset.z), arg.size));
-                    break;
-                case HsaAbi::ValueKind::HiddenBlockCountX:
-                    memcpy(pParams + arg.offset, &logicalSize.x, Min<size_t>(sizeof(logicalSize.x), arg.size));
-                    break;
-                case HsaAbi::ValueKind::HiddenBlockCountY:
-                    memcpy(pParams + arg.offset, &logicalSize.y, Min<size_t>(sizeof(logicalSize.y), arg.size));
-                    break;
-                case HsaAbi::ValueKind::HiddenBlockCountZ:
-                    memcpy(pParams + arg.offset, &logicalSize.z, Min<size_t>(sizeof(logicalSize.z), arg.size));
-                    break;
-                case HsaAbi::ValueKind::HiddenGroupSizeX:
-                    memcpy(pParams + arg.offset, &threadsX, Min<size_t>(sizeof(threadsX), arg.size));
-                    break;
-                case HsaAbi::ValueKind::HiddenGroupSizeY:
-                    memcpy(pParams + arg.offset, &threadsY, Min<size_t>(sizeof(threadsY), arg.size));
-                    break;
-                case HsaAbi::ValueKind::HiddenGroupSizeZ:
-                    memcpy(pParams + arg.offset, &threadsZ, Min<size_t>(sizeof(threadsZ), arg.size));
-                    break;
-                case HsaAbi::ValueKind::HiddenRemainderX:
-                    memcpy(pParams + arg.offset, &remainderSize, Min<size_t>(sizeof(remainderSize), arg.size));
-                    break;
-                case HsaAbi::ValueKind::HiddenRemainderY:
-                    memcpy(pParams + arg.offset, &remainderSize, Min<size_t>(sizeof(remainderSize), arg.size));
-                    break;
-                case HsaAbi::ValueKind::HiddenRemainderZ:
-                    memcpy(pParams + arg.offset, &remainderSize, Min<size_t>(sizeof(remainderSize), arg.size));
-                    break;
-                case HsaAbi::ValueKind::HiddenGridDims:
-                    memcpy(pParams + arg.offset, &dimensionality, Min<size_t>(sizeof(dimensionality), arg.size));
-                    break;
-                case HsaAbi::ValueKind::ByValue:
-                case HsaAbi::ValueKind::GlobalBuffer:
-                    break; // these are handled by kernargs
-                default:
-                    PAL_ASSERT_ALWAYS();
-
-            }
-
-        }
-
-        pCmdSpace = SetSeqUserSgprRegs(startReg, (startReg + 1), &gpuVa, pCmdSpace);
+        pCmdSpace = SetSeqUserSgprRegs(startReg, (startReg + 1), &kernargsGpuVa, pCmdSpace);
         startReg += 2;
     }
 
@@ -1943,29 +2015,35 @@ void ComputeCmdBuffer::CmdUpdateSqttTokenMask(
 
 // =====================================================================================================================
 // Copy memory using the CP's DMA engine
-void ComputeCmdBuffer::CpCopyMemory(
+void ComputeCmdBuffer::CopyMemoryCp(
     gpusize dstAddr,
     gpusize srcAddr,
     gpusize numBytes)
 {
-    PAL_ASSERT(numBytes < (1ull << 32));
-
     DmaDataInfo dmaDataInfo = {};
     dmaDataInfo.dstSel      = dst_sel__pfp_dma_data__dst_addr_using_l2;
     dmaDataInfo.srcSel      = src_sel__pfp_dma_data__src_addr_using_l2;
     dmaDataInfo.sync        = false;
-    dmaDataInfo.usePfp      = false;
     dmaDataInfo.dstAddr     = dstAddr;
     dmaDataInfo.srcAddr     = srcAddr;
-    dmaDataInfo.numBytes    = static_cast<uint32>(numBytes);
 
-    uint32* pCmdSpace = m_cmdStream.ReserveCommands();
-    if (m_pm4CmdBufState.flags.packetPredicate != 0)
+    while (numBytes > 0)
     {
-        pCmdSpace += m_cmdUtil.BuildCondExec(m_predGpuAddr, CmdUtil::DmaDataSizeDwords, pCmdSpace);
+        // The numBytes arg is a gpusize so we must upcast, clamp against MaxDmaDataByteCount, then safely downcast.
+        dmaDataInfo.numBytes = uint32(Min(numBytes, gpusize(CmdUtil::MaxDmaDataByteCount)));
+
+        uint32* pCmdSpace = m_cmdStream.ReserveCommands();
+        if (m_pm4CmdBufState.flags.packetPredicate != 0)
+        {
+            pCmdSpace += m_cmdUtil.BuildCondExec(m_predGpuAddr, CmdUtil::DmaDataSizeDwords, pCmdSpace);
+        }
+        pCmdSpace += m_cmdUtil.BuildDmaData<false>(dmaDataInfo, pCmdSpace);
+        m_cmdStream.CommitCommands(pCmdSpace);
+
+        dmaDataInfo.dstAddr += dmaDataInfo.numBytes;
+        dmaDataInfo.srcAddr += dmaDataInfo.numBytes;
+        numBytes            -= dmaDataInfo.numBytes;
     }
-    pCmdSpace += m_cmdUtil.BuildDmaData<false>(dmaDataInfo, pCmdSpace);
-    m_cmdStream.CommitCommands(pCmdSpace);
 
     SetCpBltState(true);
     SetCpBltWriteCacheState(true);

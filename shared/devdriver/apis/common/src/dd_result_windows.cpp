@@ -36,12 +36,14 @@ DD_RESULT ResultFromWin32Error(uint32_t err)
         case ERROR_SUCCESS: return DD_RESULT_SUCCESS;
         case ERROR_ACCESS_DENIED: return DD_RESULT_COMMON_ACCESS_DENIED;
         case ERROR_FILE_NOT_FOUND: return DD_RESULT_FS_NOT_FOUND;
+        case ERROR_INVALID_PARAMETER: // fallthrough
         case ERROR_INVALID_HANDLE: return DD_RESULT_COMMON_INVALID_PARAMETER;
         case ERROR_NOT_ENOUGH_MEMORY: // fallthrough
         case ERROR_OUTOFMEMORY: return DD_RESULT_COMMON_OUT_OF_HEAP_MEMORY;
         case ERROR_NO_DATA: // fallthrough
         case ERROR_PIPE_NOT_CONNECTED: // fallthrough
         case ERROR_BROKEN_PIPE: return DD_RESULT_NET_NOT_CONNECTED;
+        case ERROR_FILE_TOO_LARGE: return DD_RESULT_COMMON_OUT_OF_RANGE;
         default: return DD_RESULT_COMMON_UNKNOWN;
     }
 }

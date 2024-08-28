@@ -567,11 +567,10 @@ public:
     /// Makes the GPU memory available for CPU access and gives the client a pointer to reference it.
     ///
     /// The allocation should be unmapped by the client once CPU access is complete, although it _is_ legal to keep an
-    /// allocation mapped while the GPU references the allocation from a command buffer.  The allocation must be
-    /// unmapped before it is destroyed.
+    /// allocation mapped while the GPU references the allocation from a command buffer.
     ///
-    /// It is illegal to map the allocation multiple times concurrently.  Mapping is not available for pinned or virtual
-    /// memory objects.  This call is not thread safe for calls referencing this memory object.
+    /// It is legal to map the allocation multiple times concurrently.  Mapping is not available for pinned or virtual
+    /// memory objects.  This call is thread safe for calls referencing this memory object.
     ///
     /// @see Unmap.
     ///
@@ -589,7 +588,7 @@ public:
 
     /// Removes CPU access from a previously mapped GPU memory object.
     ///
-    /// This call is not thread safe for calls referencing the same memory object.
+    /// This call is thread safe for calls referencing the same memory object.
     ///
     /// @see Map
     ///

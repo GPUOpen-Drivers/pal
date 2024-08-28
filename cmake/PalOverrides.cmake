@@ -61,5 +61,12 @@ if(PAL_BUILD_GFX9)
     set(PAL_SWD_BUILD_PHX1   ON)
     set(PAL_SWD_BUILD_PHX2   ON)
 
+#if PAL_BUILD_STRIX1
+    set(PAL_SWD_BUILD_STRIX1       ${PAL_BUILD_STRIX1})
+    pal_set_or(ADDR_STRIX_BUILD    ${PAL_BUILD_STRIX1})
+    pal_set_or(ADDR_STRIX1_BUILD   ${PAL_BUILD_STRIX1})
+    pal_set_or(PAL_SWD_BUILD_STRIX ${PAL_BUILD_STRIX1})
+#endif
+
 endif() # PAL_BUILD_GFX9
 

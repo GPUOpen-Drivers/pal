@@ -26,6 +26,7 @@
 #include <dd_assert.h>
 #include <dd_integer.h>
 #include <dd_memory.h>
+#include <dd_result.h>
 
 #include <stb_sprintf.h>
 
@@ -38,11 +39,11 @@
 namespace DevDriver
 {
 
-int32_t CreateMirroredBuffer(uint32_t requestedBufferSize, MirroredBuffer* pOutBuffer)
+DD_RESULT MirroredBufferCreate(uint32_t requestedBufferSize, MirroredBuffer* pOutBuffer)
 {
     if ((requestedBufferSize == 0) || (pOutBuffer == nullptr))
     {
-        return EINVAL;
+        return DD_RESULT_COMMON_INVALID_PARAMETER;
     }
 
     const uint32_t pageSize = getpagesize();
@@ -52,7 +53,7 @@ int32_t CreateMirroredBuffer(uint32_t requestedBufferSize, MirroredBuffer* pOutB
 
     if ((actualBufferSize == 0) || (actualBufferSize > MirroredBufferMaxSize))
     {
-        return ERANGE;
+        return DD_RESULT_COMMON_OUT_OF_RANGE;
     }
 
     int err = 0;
@@ -189,10 +190,10 @@ int32_t CreateMirroredBuffer(uint32_t requestedBufferSize, MirroredBuffer* pOutB
         physicalMemoryFd = -1;
     }
 
-    return err;
+    return ResultFromErrno(err);
 }
 
-void DestroyMirroredBuffer(MirroredBuffer* pBuffer)
+void MirroredBufferDestroy(MirroredBuffer* pBuffer)
 {
     void* pSecondaryBuffer = (uint8_t*)pBuffer->pBuffer + pBuffer->bufferSize;
 

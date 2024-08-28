@@ -353,7 +353,26 @@ Result Image::CreatePresentableMemoryObject(
         ? presentableImageCreateInfo.flags.tmzProtected
         : static_cast<SwapChain*>(presentableImageCreateInfo.pSwapChain)->CreateInfo().flags.tmzProtected;
 
-    createInfo.size               = memReqs.size;
+    // When importing an external Bo, Mesa3D driver will check whether the Bo size is larger than the expected size,
+    // although it will still read Dcc/DisplayDcc data according to offset.
+    // When the imported Bo size is smaller than the expected size, the surface(Mesa) creating will fail directly.
+    // The expected size in Mesa3D is calculated as(unlike Pal's way):
+    // Pow2Align((Pow2Align(surf_size, displayDccAlignment) + displayDccSize, dccAlignment) + dccSize
+    // Add this workaround to fullfill Mesa3D's requirement.
+    SharedMetadataInfo sharedMetadataInfo = {};
+    pImage->GetGfxImage()->GetSharedMetadataInfo(&sharedMetadataInfo);
+    PAL_ASSERT(sharedMetadataInfo.numPlanes <= 1);
+    gpusize sharedSizeByMesa = memReqs.size;
+    if (sharedMetadataInfo.displayDccSize[0] != 0)
+    {
+        sharedSizeByMesa = Pow2Align((Pow2Align(sharedMetadataInfo.dccOffset[0],
+                                      sharedMetadataInfo.displayDccAlignment[0])
+                                      + sharedMetadataInfo.displayDccSize[0]),
+                                      sharedMetadataInfo.dccAlignment[0])
+                           + sharedMetadataInfo.dccSize[0];
+    }
+
+    createInfo.size               = Max(memReqs.size, sharedSizeByMesa);
     createInfo.alignment          = memReqs.alignment;
     createInfo.vaRange            = VaRange::Default;
     createInfo.priority           = GpuMemPriority::VeryHigh;

@@ -198,20 +198,17 @@ public:
                                    m_dbgLogBaseSettings.origTypeMask);
     }
 
+    /// Expand severity level
+    void ExpandSeverityLevel(SeverityLevel lvl);
+
+    /// Expand origination type mask
+    void ExpandOriginationTypeMask(uint32 mask);
+
     /// Return debug log manager's base settings.
     const DbgLogBaseSettings& GetDbgLogBaseSettings()
     {
+        RWLockAuto<RWLock::ReadOnly> lock(&m_dbgLoggersLock);
         return m_dbgLogBaseSettings;
-    }
-
-    /// Set debug log manager's base settings to the incoming values.
-    ///
-    /// @param [in] dbgLogBaseSettings     Base settings that will replace current values.
-    void SetDbgLogBaseSettings(
-        const DbgLogBaseSettings& dbgLogBaseSettings)
-    {
-        m_dbgLogBaseSettings.severityLevel = dbgLogBaseSettings.severityLevel;
-        m_dbgLogBaseSettings.origTypeMask  = dbgLogBaseSettings.origTypeMask;
     }
 
 private:

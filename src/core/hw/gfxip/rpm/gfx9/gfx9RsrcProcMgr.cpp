@@ -3937,13 +3937,11 @@ void RsrcProcMgr::CmdCopyImageToMemory(
                     pCmdSpace = pPm4CmdBuf->WriteWaitCsIdle(pCmdSpace);
 
                     // Two things can happen next. We will either be copying the leftover pixels with CPDMA or with
-                    // more CS invocations. CPDMA is preferred, but we will fallback on CS if the copy is too large
-                    // (unlikely in this case), or if one of the resources has virtual memory (e.g. sparse).
-                    // We check the latter here and assume the former won't happen.
-                    const auto pImageMem  = srcImage.GetBoundGpuMemory().Memory();
-                    const bool needCsCopy = pImageMem->IsVirtual() || dstGpuMemory.IsVirtual();
-
-                    if (needCsCopy)
+                    // more CS invocations. CPDMA is preferred, but we will fallback on CS if the copy is too large.
+                    // That's very unlikely since we're copying pixels individually; the largest possible copy size
+                    // is just 16 bytes! Basically, it should only happen if the client sets this setting to zero to
+                    // disable CPDMA.
+                    if (m_pDevice->Parent()->GetPublicSettings()->cpDmaCmdCopyMemoryMaxBytes < 16)
                     {
                         // Even though we have waited for the CS to finish, we may still run into a write after write
                         // hazard. We need to flush and invalidate the L2 cache as well.
@@ -4024,7 +4022,6 @@ void Gfx10RsrcProcMgr::ClearDccCompute(
     const Pal::Image*    pPalImage     = dstImage.Parent();
     const Pal::Device*   pDevice       = pPalImage->GetDevice();
     const auto&          createInfo    = pPalImage->GetImageCreateInfo();
-    const auto*          pBoundMemory  = pPalImage->GetBoundGpuMemory().Memory();
     const uint32         startSlice    = ((createInfo.imageType == ImageType::Tex3d)
                                           ? 0
                                           : clearRange.startSubres.arraySlice);
@@ -4061,13 +4058,13 @@ void Gfx10RsrcProcMgr::ClearDccCompute(
                 // can be way more than the number of PAL API slices.
                 const uint32  numSlicesToClear = Max(1u, numSlices / dccAddrOutput.metaBlkDepth);
 
-                // GetMaskRamBaseOffset doesn't compute the base address of a mip level (only a slice offset), so
+                // GetMaskRamBaseAddr doesn't compute the base address of a mip level (only a slice offset), so
                 // we have to do the math here ourselves. However, DCC memory is contiguous and traversed upon by
                 // slice size, so we only need the first slice offset and the total size of all slices calculated by
                 // num slices * ram slice size (if the ram slice size is identical to the mip's slice size - see below).
-                const gpusize maskRamBaseOffset = dstImage.GetMaskRamBaseOffset(pDcc, 0);
+                const gpusize maskRamBaseAddr = dstImage.GetMaskRamBaseAddr(pDcc, 0);
                 gpusize sliceOffset = startSlice * dccAddrOutput.dccRamSliceSize;
-                gpusize clearOffset = maskRamBaseOffset + sliceOffset + dccMipInfo.offset;
+                gpusize clearAddr   = maskRamBaseAddr + sliceOffset + dccMipInfo.offset;
 
                 // On gfx10+, metadata for all mips in each slice are packed together.
                 // For an image with 3 mips and 3 slices, this is packing order from smallest offset to largest:
@@ -4085,8 +4082,7 @@ void Gfx10RsrcProcMgr::ClearDccCompute(
                     CmdFillMemory(pCmdBuffer,
                                   false,         // don't save / restore the compute state
                                   trackBltActiveFlags,
-                                  *pBoundMemory,
-                                  clearOffset,
+                                  clearAddr,
                                   totalSize,
                                   clearColor);
                 }
@@ -4097,13 +4093,12 @@ void Gfx10RsrcProcMgr::ClearDccCompute(
                         // Get the mem offset for each slice
                         const uint32 absSlice = startSlice + sliceIdx;
                         sliceOffset = absSlice * dccAddrOutput.dccRamSliceSize;
-                        clearOffset = maskRamBaseOffset + sliceOffset + dccMipInfo.offset;
+                        clearAddr   = maskRamBaseAddr + sliceOffset + dccMipInfo.offset;
 
                         CmdFillMemory(pCmdBuffer,
                                       false,         // don't save / restore the compute state
                                       trackBltActiveFlags,
-                                      *pBoundMemory,
-                                      clearOffset,
+                                      clearAddr,
                                       dccMipInfo.sliceSize,
                                       clearColor);
                     }
@@ -4828,32 +4823,26 @@ void Gfx10RsrcProcMgr::InitCmask(
 {
     PAL_ASSERT(range.numPlanes == 1);
 
-    const auto&            boundMem        = image.Parent()->GetBoundGpuMemory();
-    const GpuMemory*       pGpuMemory      = boundMem.Memory();
-    const ImageCreateInfo& createInfo      = image.Parent()->GetImageCreateInfo();
-    const Gfx9Cmask*       pCmask          = image.GetCmask();
-    const auto&            cMaskAddrOut    = pCmask->GetAddrOutput();
-    const uint32           expandedInitVal = ReplicateByteAcrossDword(initValue);
-    const uint32           startSlice      = ((createInfo.imageType == ImageType::Tex3d)
-                                              ? 0
-                                              : range.startSubres.arraySlice);
-
-    // This is the byte offset from the start of the memory bound to this image
-    const gpusize          cMaskOffset  = boundMem.Offset() + pCmask->MemoryOffset();
+    const Pal::Image*const                 pParentImg   = image.Parent();
+    const ImageCreateInfo&                 createInfo   = pParentImg->GetImageCreateInfo();
+    const Gfx9Cmask*const                  pCmask       = image.GetCmask();
+    const ADDR2_COMPUTE_CMASK_INFO_OUTPUT& cMaskAddrOut = pCmask->GetAddrOutput();
 
     // MSAA images can't have mipmaps
-    PAL_ASSERT (createInfo.mipLevels == 1);
+    PAL_ASSERT(createInfo.mipLevels == 1);
 
-    const uint32  numSlices = GetClearDepth(image, range.startSubres.plane, range.numSlices, 0);
-    const gpusize offset    = cMaskOffset + startSlice * cMaskAddrOut.sliceSize;
+    const uint32 startSlice = (createInfo.imageType == ImageType::Tex3d) ? 0 : range.startSubres.arraySlice;
+    const uint32 numSlices  = GetClearDepth(image, range.startSubres.plane, range.numSlices, 0);
+
+    const gpusize cMaskBaseAddr = pParentImg->GetBoundGpuMemory().GpuVirtAddr() + pCmask->MemoryOffset();
+    const gpusize sliceAddr     = cMaskBaseAddr + startSlice * cMaskAddrOut.sliceSize;
 
     CmdFillMemory(pCmdBuffer,
                   true,
                   trackBltActiveFlags,
-                  *pGpuMemory,
-                  offset,
+                  sliceAddr,
                   numSlices * cMaskAddrOut.sliceSize,
-                  expandedInitVal);
+                  ReplicateByteAcrossDword(initValue));
 
     Pm4CmdBuffer* pPm4CmdBuffer = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
     pPm4CmdBuffer->SetCsBltDirectWriteMisalignedMdState(image.HasMisalignedMetadata());
@@ -5620,13 +5609,13 @@ void Gfx10RsrcProcMgr::InitDisplayDcc(
         // can be way more than the number of PAL API slices.
         const uint32  numSlicesToClear = Max(1u, numSlices / dispDccAddrOutput.metaBlkDepth);
 
-        // GetMaskRamBaseOffset doesn't compute the base address of a mip level (only a slice offset), so we have to do
+        // GetMaskRamBaseAddr doesn't compute the base address of a mip level (only a slice offset), so we have to do
         // the math here ourselves. However, DCC memory is contiguous and traversed upon by  slice size, so we only need
         // the first slice offset and the total size of all slices calculated by num slices * ram slice size (if the ram
         // is identical to the mip's slice size).
-        const gpusize maskRamBaseOffset = pGfx9Image->GetMaskRamBaseOffset(pDispDcc, 0);
+        const gpusize maskRamBaseAddr = pGfx9Image->GetMaskRamBaseAddr(pDispDcc, 0);
         gpusize sliceOffset = range.startSubres.arraySlice * dispDccAddrOutput.dccRamSliceSize;
-        gpusize clearOffset = maskRamBaseOffset + sliceOffset + displayDccMipInfo.offset;
+        gpusize clearAddr   = maskRamBaseAddr + sliceOffset + displayDccMipInfo.offset;
 
         // Although DCC memory is contiguous per subresource, the offset of each slice is traversed by an interval of
         // dccRamSliceSize, though written to with mip slice size. We can therfore dispatch a clear  once only if the
@@ -5640,8 +5629,7 @@ void Gfx10RsrcProcMgr::InitDisplayDcc(
             CmdFillMemory(pCmdBuffer,
                           false,         // don't save / restore the compute state
                           true,
-                          *pGpuMemory,
-                          clearOffset,
+                          clearAddr,
                           totalSize,
                           ClearValue);
         }
@@ -5652,13 +5640,12 @@ void Gfx10RsrcProcMgr::InitDisplayDcc(
                 // Get the mem offset for each slice
                 const uint32 absSlice = range.startSubres.arraySlice + sliceIdx;
                 sliceOffset = absSlice * dispDccAddrOutput.dccRamSliceSize;
-                clearOffset = maskRamBaseOffset + sliceOffset + displayDccMipInfo.offset;
+                clearAddr   = maskRamBaseAddr + sliceOffset + displayDccMipInfo.offset;
 
                 CmdFillMemory(pCmdBuffer,
                               false,         // don't save / restore the compute state
                               true,
-                              *pGpuMemory,
-                              clearOffset,
+                              clearAddr,
                               displayDccMipInfo.sliceSize,
                               ClearValue);
             }

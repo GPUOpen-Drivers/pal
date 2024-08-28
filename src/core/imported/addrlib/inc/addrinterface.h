@@ -41,7 +41,7 @@ extern "C"
 #endif
 
 #define ADDRLIB_VERSION_MAJOR 9
-#define ADDRLIB_VERSION_MINOR 10
+#define ADDRLIB_VERSION_MINOR 11
 #define ADDRLIB_MAKE_VERSION(major, minor) ((major << 16) | minor)
 #define ADDRLIB_VERSION                    ADDRLIB_MAKE_VERSION(ADDRLIB_VERSION_MAJOR, ADDRLIB_VERSION_MINOR)
 

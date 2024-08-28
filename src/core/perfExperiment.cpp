@@ -45,7 +45,9 @@ PerfExperiment::PerfExperiment(
     m_globalBeginOffset(0),
     m_globalEndOffset(0),
     m_spmRingOffset(0),
-    m_totalMemSize(0)
+    m_totalMemSize(0),
+    m_flushCache((m_createInfo.optionFlags.cacheFlushOnCounterCollection != 0) &&
+                      m_createInfo.optionValues.cacheFlushOnCounterCollection)
 {
 }
 

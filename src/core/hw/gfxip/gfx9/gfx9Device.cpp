@@ -114,6 +114,9 @@ Result CreateDevice(
         case GfxIpLevel::GfxIp10_1:
         case GfxIpLevel::GfxIp10_3:
         case GfxIpLevel::GfxIp11_0:
+#if PAL_BUILD_GFX115
+        case GfxIpLevel::GfxIp11_5:
+#endif
             pPfnTable->pfnCreateTypedBufViewSrds   = &Device::Gfx10CreateTypedBufferViewSrds;
             pPfnTable->pfnCreateUntypedBufViewSrds = &Device::Gfx10CreateUntypedBufferViewSrds;
             pPfnTable->pfnCreateImageViewSrds      = &Device::Gfx10CreateImageViewSrds;
@@ -2248,6 +2251,8 @@ size_t Device::GetComputePipelineSize(
     Result*                          pResult
     ) const
 {
+    PAL_ASSERT((createInfo.pPipelineBinary != nullptr) && (createInfo.pipelineBinarySize != 0));
+
     if (pResult != nullptr)
     {
         (*pResult) = Result::Success;
@@ -2404,6 +2409,8 @@ size_t Device::GetGraphicsPipelineSize(
     Result*                           pResult
     ) const
 {
+    PAL_ASSERT((createInfo.pPipelineBinary != nullptr) && (createInfo.pipelineBinarySize != 0));
+
     const size_t pipelineSize = Max(sizeof(GraphicsPipeline), sizeof(HybridGraphicsPipeline));
 
     if (pResult != nullptr)
@@ -5380,6 +5387,21 @@ IpTriple DetermineIpLevel(
         }
         break;
 
+#if PAL_BUILD_STRIX
+    case FAMILY_STX:
+#if PAL_BUILD_STRIX1
+        if (AMDGPU_IS_STRIX1(familyId, eRevId))
+        {
+            level = { .major = 11, .minor = 5, .stepping = 0 };
+        }
+        else
+#endif
+        {
+            PAL_NOT_IMPLEMENTED_MSG("FAMILY_STX Revision %d unsupported", eRevId);
+        }
+        break;
+#endif
+
     default:
         break;
     }
@@ -5404,6 +5426,9 @@ const MergedFormatPropertiesTable* GetFormatPropertiesTable(
         pTable = &Gfx10_3MergedFormatPropertiesTable;
         break;
     case GfxIpLevel::GfxIp11_0:
+#if PAL_BUILD_GFX115
+    case GfxIpLevel::GfxIp11_5:
+#endif
         pTable = &Gfx11MergedFormatPropertiesTable;
         break;
 
@@ -6050,6 +6075,66 @@ void InitializeGpuChipProperties(
         pInfo->gfx9.numTccBlocks = pInfo->gfx9.gfx10.numGl2c;
         break;
 
+#if PAL_BUILD_STRIX
+    case FAMILY_STX:
+        pInfo->gfx9.rbPlus       = 1; // GC__RB_PLUS_ADDRESSING == 1
+        pInfo->gfx9.supportSpp   = 1;
+
+        // GFX11-specific image properties go here
+        pInfo->imageProperties.flags.supportsCornerSampling = 1;
+
+        //  Gfx11.x products don't support EQAA
+        pInfo->imageProperties.msaaSupport   = static_cast<MsaaFlags>(MsaaS1F1 | MsaaS2F2 | MsaaS4F4 | MsaaS8F8);
+
+#if PAL_BUILD_STRIX1
+        if (AMDGPU_IS_STRIX1(pInfo->familyId, pInfo->eRevId))
+        {
+            pInfo->gpuType                             = GpuType::Integrated;
+            pInfo->revision                            = AsicRevision::Strix1;
+            pInfo->gfx9.numShaderEngines               = 1; // GC__NUM_SE
+            pInfo->gfx9.numSdpInterfaces               = 4; // GC__NUM_SDP
+            pInfo->gfx9.maxNumCuPerSh                  = 8; // (GC__NUM_WGP0_PER_SA(4) + GC__NUM_WGP1_PER_SA(0)) * 2
+            pInfo->gfx9.maxNumRbPerSe                  = 4; // GC__NUM_RB_PER_SA(2) * GC__NUM_SA(2)
+            pInfo->gfx9.numPackerPerSc                 = 4; // GC__NUM_PACKER_PER_SC 4
+            pInfo->gfx9.gfx10.numGl2a                  = 4; // GC__NUM_GL2A
+            pInfo->gfx9.gfx10.numGl2c                  = 4; // GC__NUM_GL2C
+            pInfo->gfx9.supportFp16Dot2                = 1;
+            pInfo->gfx9.supportInt8Dot                 = 1;
+            pInfo->gfx9.supportInt4Dot                 = 1;
+            pInfo->gfxip.tccSizeInBytes                = 2_MiB;
+
+            if (AMDGPU_IS_STRIX1_A0(pInfo->familyId, pInfo->eRevId))
+            {
+                pInfo->gfxStepping                     = Abi::GfxIpSteppingStrix_A0;
+                pInfo->gfxTriple.stepping              = Abi::GfxIpSteppingStrix_A0;
+            }
+            else
+            {
+                pInfo->gfxStepping                     = Abi::GfxIpSteppingStrix;
+                pInfo->gfxTriple.stepping              = Abi::GfxIpSteppingStrix;
+            }
+
+            constexpr uint32 PfpUcodeVersionVbTableSupportedExecuteIndirectStrix1 = 31;
+
+            GetExecuteIndirectSupport(
+                pInfo,
+                UINT_MAX,
+                UINT_MAX,
+                PfpUcodeVersionVbTableSupportedExecuteIndirectStrix1,
+                UINT_MAX,
+                UINT_MAX);
+        }
+        else
+#endif
+        {
+            PAL_ASSERT_ALWAYS_MSG("Unknown STX Revision %d", pInfo->eRevId);
+        }
+
+        // The GL2C is the TCC.
+        pInfo->gfx9.numTccBlocks = pInfo->gfx9.gfx10.numGl2c;
+        break;
+#endif
+
     case FAMILY_RPL:
         if (AMDGPU_IS_RAPHAEL(pInfo->familyId, pInfo->eRevId))
         {
@@ -6226,10 +6311,11 @@ void InitializeGpuChipProperties(
 
     pInfo->gfx9.numActiveShaderEngines = pInfo->gfx9.numShaderEngines;
 
-    pInfo->srdSizes.bufferView = sizeof(BufferSrd);
-    pInfo->srdSizes.imageView  = sizeof(ImageSrd);
-    pInfo->srdSizes.fmaskView  = sizeof(ImageSrd);
-    pInfo->srdSizes.sampler    = sizeof(SamplerSrd);
+    pInfo->srdSizes.typedBufferView   = sizeof(BufferSrd);
+    pInfo->srdSizes.untypedBufferView = sizeof(BufferSrd);
+    pInfo->srdSizes.imageView         = sizeof(ImageSrd);
+    pInfo->srdSizes.fmaskView         = sizeof(ImageSrd);
+    pInfo->srdSizes.sampler           = sizeof(SamplerSrd);
 
     pInfo->nullSrds.pNullBufferView = &nullBufferView;
     pInfo->nullSrds.pNullImageView  = &nullImageView;

@@ -32,6 +32,8 @@
 #include "palVectorImpl.h"
 #include "core/platform.h"
 
+using namespace std::chrono_literals;
+
 namespace Util
 {
 
@@ -40,15 +42,12 @@ namespace Util
 FileArchiveCacheLayer::FileArchiveCacheLayer(
     const AllocCallbacks& callbacks,
     IArchiveFile*         pArchiveFile,
-    IHashContext*         pBaseContext,
-    void*                 pTempContextMem)
+    IHashContext*         pBaseContext)
     :
     CacheLayerBase     { callbacks },
     m_pArchivefile     { pArchiveFile },
     m_pBaseContext     { pBaseContext },
-    m_pTempContextMem  { pTempContextMem },
     m_archiveFileMutex {},
-    m_hashContextMutex {},
     m_entryMapLock     {},
     m_entries          { uint32(GetHashMapNumBuckets(pArchiveFile)), Allocator() }
 {
@@ -111,14 +110,51 @@ Result FileArchiveCacheLayer::Init()
 }
 
 // =====================================================================================================================
+// Wait for the specified entry ready
+Result FileArchiveCacheLayer::WaitForEntry(
+    const Hash128* pHashId)
+{
+    Result result = Result::ErrorInvalidPointer;
+
+    if (pHashId != nullptr)
+    {
+        EntryKey key;
+        result = ConvertToEntryKey(pHashId, &key);
+
+        if (result == Result::Success)
+        {
+            m_conditionMutex.Lock();
+            for (;;)
+            {
+                {
+                    RWLockAuto<RWLock::ReadOnly> lock{ &m_entryMapLock };
+                    Entry* pEntry = m_entries.FindKey(key);
+                    if (pEntry == nullptr)
+                    {
+                        result = Result::NotFound;
+                        break;
+                    }
+                    else if (pEntry->storeSize > 0)
+                    {
+                        result = Result::Success;
+                        break;
+                    }
+                }
+                m_conditionVariable.Wait(&m_conditionMutex, 500ms);
+            }
+            m_conditionMutex.Unlock();
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 // Check if a requested id is present
 Result FileArchiveCacheLayer::QueryInternal(
     const Hash128* pHashId,
     QueryResult*   pQuery)
 {
-    PAL_ASSERT(pHashId != nullptr);
-    PAL_ASSERT(pQuery != nullptr);
-
     Result result = Result::ErrorUnknown;
 
     if ((pHashId == nullptr) ||
@@ -129,49 +165,58 @@ Result FileArchiveCacheLayer::QueryInternal(
     else
     {
         EntryKey     key;
-        const Entry* pEntry;
+        result = ConvertToEntryKey(pHashId, &key);
 
-        ConvertToEntryKey(pHashId, &key);
-
+        if (result == Result::Success)
         {
-            RWLockAuto<RWLock::ReadOnly> entryMapLock { &m_entryMapLock };
-
-            pEntry = m_entries.FindKey(key);
-        }
-
-        if (pEntry == nullptr)
-        {
-            MutexAuto                     archiveFileLock { &m_archiveFileMutex };
-            RWLockAuto<RWLock::ReadWrite> entryMapLock { &m_entryMapLock };
-
-            const size_t oldEntryCount = m_entries.GetNumEntries();
-            Result       refreshResult = RefreshHeaders();
-
-            PAL_ALERT(IsErrorResult(refreshResult));
-
-            // If the refresh picked up any new header, search again
-            if (oldEntryCount != m_entries.GetNumEntries())
+            const Entry* pEntry = nullptr;
             {
+                RWLockAuto<RWLock::ReadOnly> entryMapLock { &m_entryMapLock };
+
                 pEntry = m_entries.FindKey(key);
             }
-        }
 
-        if (pEntry != nullptr)
-        {
-            const size_t storeSize = pEntry->storeSize;
+            if (pEntry == nullptr)
+            {
+                RWLockAuto<RWLock::ReadWrite> entryMapLock { &m_entryMapLock };
+                MutexAuto                     archiveFileLock { &m_archiveFileMutex };
 
-            pQuery->pLayer          = this;
-            pQuery->hashId          = *pHashId;
-            pQuery->dataSize        = pEntry->dataSize;
-            pQuery->storeSize       = storeSize;
-            pQuery->promotionSize   = storeSize;
-            pQuery->context.entryId = pEntry->ordinalId;
+                const size_t oldEntryCount = m_entries.GetNumEntries();
+                Result       refreshResult = RefreshHeaders();
 
-            result = Result::Success;
-        }
-        else
-        {
-            result = Result::NotFound;
+                PAL_ALERT(IsErrorResult(refreshResult));
+
+                // If the refresh picked up any new header, search again
+                if (oldEntryCount != m_entries.GetNumEntries())
+                {
+                    pEntry = m_entries.FindKey(key);
+                }
+            }
+
+            if (pEntry != nullptr)
+            {
+                const size_t storeSize = pEntry->storeSize;
+
+                pQuery->pLayer          = this;
+                pQuery->hashId          = *pHashId;
+                pQuery->dataSize        = pEntry->dataSize;
+                pQuery->storeSize       = storeSize;
+                pQuery->promotionSize   = storeSize;
+                pQuery->context.entryId = pEntry->ordinalId;
+
+                if (pEntry->storeSize == 0)
+                {
+                    result = Result::NotReady;
+                }
+                else
+                {
+                    result = Result::Success;
+                }
+            }
+            else
+            {
+                result = Result::NotFound;
+            }
         }
     }
 
@@ -192,12 +237,8 @@ Result FileArchiveCacheLayer::StoreInternal(
     {
         result = Result::NotFound;
 
-        PAL_ASSERT(pHashId != nullptr);
-        PAL_ASSERT(pData != nullptr);
         PAL_ASSERT(dataSize > 0);
         PAL_ASSERT(storeSize > 0);
-
-        EntryKey key;
 
         if ((pHashId == nullptr) ||
             (pData == nullptr))
@@ -206,67 +247,73 @@ Result FileArchiveCacheLayer::StoreInternal(
         }
         else
         {
-            ConvertToEntryKey(pHashId, &key);
+            EntryKey key;
+            result = ConvertToEntryKey(pHashId, &key);
 
+            if (result == Result::Success)
             {
-                RWLockAuto<RWLock::ReadOnly> entryMapLock { &m_entryMapLock };
+                ArchiveEntryHeader header         = {};
+                const size_t       writeDataSize  = storeSize;
+                void* const        pMem           = PAL_MALLOC(writeDataSize, Allocator(), AllocInternalTemp);
 
-                if (m_entries.FindKey(key) != nullptr)
+                PAL_ALERT(pMem == nullptr);
+
+                if (pMem != nullptr)
                 {
-                    result = Result::AlreadyExists;
+                    result = Result::Success;
                 }
-            }
-        }
+                else
+                {
+                    result = Result::ErrorOutOfMemory;
+                }
 
-        if (result == Result::NotFound)
-        {
-            ArchiveEntryHeader header         = {};
-            const size_t       writeDataSize  = storeSize;
-            void* const        pMem           = PAL_MALLOC(writeDataSize, Allocator(), AllocInternalTemp);
+                // Write the scratch buffer to the file
+                if (result == Result::Success)
+                {
+                    void* const pDataMem = pMem;
 
-            PAL_ALERT(pMem == nullptr);
+    #if PAL_64BIT_ARCHIVE_FILE_FMT
+                    header.dataSize      = writeDataSize;
+                    header.metaValue     = dataSize;
+    #else
+                    header.dataSize      = uint32(writeDataSize);
+                    header.metaValue     = uint32(dataSize);
+    #endif
 
-            if (pMem != nullptr)
-            {
-                result = Result::Success;
-            }
-            else
-            {
-                result = Result::ErrorOutOfMemory;
-            }
+                    memcpy(pDataMem, pData, storeSize);
+                    memcpy(header.entryKey, key.value, sizeof(header.entryKey));
 
-            // Write the scratch buffer to the file
-            if (result == Result::Success)
-            {
-                MutexAuto archiveFileLock { &m_archiveFileMutex };
+                    RWLockAuto<RWLock::ReadWrite> entryMapLock { &m_entryMapLock };
+                    Entry* pEntry = m_entries.FindKey(key);
+                    if ((pEntry != nullptr) && (pEntry->storeSize > 0))
+                    {
+                        result = Result::AlreadyExists;
+                    }
+                    else
+                    {
+                        MutexAuto archiveFileLock { &m_archiveFileMutex };
+                        result = m_pArchivefile->Write(&header, pMem);
+                    }
 
-                void* const pDataMem = pMem;
+                    // Only insert this entry into our lookup table if everything succeeded
+                    if (result == Result::Success)
+                    {
+                        if (pEntry == nullptr)
+                        {
+                            result = AddHeaderToTable(header);
+                        }
+                        else
+                        {
+                            *pEntry = { header.ordinalId, header.metaValue, header.dataSize };
+                        }
+                        m_conditionVariable.WakeAll();
+                    }
+                }
 
-#if PAL_64BIT_ARCHIVE_FILE_FMT
-                header.dataSize      = writeDataSize;
-                header.metaValue     = dataSize;
-#else
-                header.dataSize      = uint32(writeDataSize);
-                header.metaValue     = uint32(dataSize);
-#endif
-
-                memcpy(pDataMem, pData, storeSize);
-                memcpy(header.entryKey, key.value, sizeof(header.entryKey));
-
-                result = m_pArchivefile->Write(&header, pMem);
-            }
-
-            // Only insert this entry into our lookup table if everything succeeded
-            if (result == Result::Success)
-            {
-                RWLockAuto<RWLock::ReadWrite> entryMapLock { &m_entryMapLock };
-
-                result = AddHeaderToTable(header);
-            }
-
-            if (pMem != nullptr)
-            {
-                PAL_FREE(pMem, Allocator());
+                if (pMem != nullptr)
+                {
+                    PAL_FREE(pMem, Allocator());
+                }
             }
         }
 
@@ -281,10 +328,6 @@ Result FileArchiveCacheLayer::LoadInternal(
     const QueryResult* pQuery,
     void*              pBuffer)
 {
-    PAL_ASSERT(pQuery != nullptr);
-    PAL_ASSERT(pQuery->pLayer != nullptr);
-    PAL_ASSERT(pBuffer != nullptr);
-
     Result result = Result::Success;
 
     if ((pQuery == nullptr) || (pBuffer == nullptr))
@@ -303,14 +346,17 @@ Result FileArchiveCacheLayer::LoadInternal(
         RWLockAuto<RWLock::ReadOnly> entryMapLock { &m_entryMapLock };
 
         EntryKey key;
-        ConvertToEntryKey(&pQuery->hashId, &key);
+        result = ConvertToEntryKey(&pQuery->hashId, &key);
 
-        const Entry* pEntry = m_entries.FindKey(key);
+        if (result == Result::Success)
+        {
+            const Entry* pEntry = m_entries.FindKey(key);
 
-        // Should be safe to have these in order, if alerts are enabled then the first will be hit,
-        // if they are disabled then neither will be.
-        PAL_ALERT(pEntry == nullptr);
-        PAL_ALERT(pEntry->ordinalId != pQuery->context.entryId);
+            // Should be safe to have these in order, if alerts are enabled then the first will be hit,
+            // if they are disabled then neither will be.
+            PAL_ALERT(pEntry == nullptr);
+            PAL_ALERT(pEntry->ordinalId != pQuery->context.entryId);
+        }
     }
 #endif
 
@@ -376,6 +422,37 @@ Result FileArchiveCacheLayer::LoadInternal(
 }
 
 // =====================================================================================================================
+// Reserve an empty Entry
+Result FileArchiveCacheLayer::Reserve(
+    const Hash128* pHashId)
+{
+    Result result = Result::ErrorInvalidPointer;
+
+    if (pHashId != nullptr)
+    {
+        EntryKey key;
+        result = ConvertToEntryKey(pHashId, &key);
+
+        if (result == Result::Success)
+        {
+            RWLockAuto<RWLock::ReadWrite> lock { &m_entryMapLock };
+
+            Entry* pEntry = m_entries.FindKey(key);
+            if (pEntry != nullptr)
+            {
+                result = Result::AlreadyExists;
+            }
+            else
+            {
+                result = m_entries.Insert(key, {});
+            }
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 // Get the size needed to construct the base context for the layer depending on if an existing platform key is passed
 static size_t GetBaseContextSizeFromCreateInfo(
     const ArchiveFileCacheCreateInfo* pCreateInfo)
@@ -404,7 +481,7 @@ static size_t GetBaseContextSizeFromCreateInfo(
 size_t GetArchiveFileCacheLayerSize(
     const ArchiveFileCacheCreateInfo* pCreateInfo)
 {
-    return sizeof(FileArchiveCacheLayer) + (GetBaseContextSizeFromCreateInfo(pCreateInfo) * 2);
+    return sizeof(FileArchiveCacheLayer) + (GetBaseContextSizeFromCreateInfo(pCreateInfo));
 }
 
 // =====================================================================================================================
@@ -414,14 +491,9 @@ Result CreateArchiveFileCacheLayer(
     void*                             pPlacementAddr,
     ICacheLayer**                     ppCacheLayer)
 {
-    PAL_ASSERT(pCreateInfo != nullptr);
-    PAL_ASSERT(pPlacementAddr != nullptr);
-    PAL_ASSERT(ppCacheLayer != nullptr);
-
     Result                 result          = Result::Success;
     FileArchiveCacheLayer* pLayer          = nullptr;
     IHashContext*          pBaseContext    = nullptr;
-    void*                  pTempContextMem = nullptr;
     const size_t           hashContextSize = GetBaseContextSizeFromCreateInfo(pCreateInfo);
 
     if ((pCreateInfo == nullptr) || (pPlacementAddr == nullptr) || (ppCacheLayer == nullptr))
@@ -432,7 +504,6 @@ Result CreateArchiveFileCacheLayer(
     if (result == Result::Success)
     {
         void* pBaseContextMem = VoidPtrInc(pPlacementAddr, sizeof(FileArchiveCacheLayer));
-        pTempContextMem       = VoidPtrInc(pBaseContextMem, hashContextSize);
 
         if (pCreateInfo->pPlatformKey != nullptr)
         {
@@ -456,8 +527,7 @@ Result CreateArchiveFileCacheLayer(
         pLayer = PAL_PLACEMENT_NEW(pPlacementAddr) FileArchiveCacheLayer(
             (pCreateInfo->baseInfo.pCallbacks == nullptr) ? callbacks : *pCreateInfo->baseInfo.pCallbacks,
             pCreateInfo->pFile,
-            pBaseContext,
-            pTempContextMem);
+            pBaseContext);
 
         result = pLayer->Init();
 
@@ -532,7 +602,7 @@ Result FileArchiveCacheLayer::RefreshHeaders()
 
 // =====================================================================================================================
 // Convert a 128-bit hash to a SHA1 entry id
-void FileArchiveCacheLayer::ConvertToEntryKey(
+Result FileArchiveCacheLayer::ConvertToEntryKey(
     const Hash128* pHashId,
     EntryKey*      pKey)
 {
@@ -541,19 +611,42 @@ void FileArchiveCacheLayer::ConvertToEntryKey(
 
     memset(pKey, 0, sizeof(EntryKey));
 
-    MutexAuto hashContextLock { &m_hashContextMutex };
+    Result result = Result::Success;
+
+    // Generally the duplicate object size is < 1K, and if so then put it on the stack.
+    // But allow larger sizes if necessary.
+    const size_t objectSize = m_pBaseContext->GetDuplicateObjectSize();
+    AutoBuffer<uint8, 1024, ForwardAllocator> contextMem { objectSize, Allocator() };
+    if (contextMem.Capacity() < objectSize)
+    {
+        result = Result::ErrorOutOfMemory;
+    }
 
     IHashContext* pContext = nullptr;
-    Result result          = m_pBaseContext->Duplicate(m_pTempContextMem, &pContext);
+
+    if (result == Result::Success)
+    {
+        result = m_pBaseContext->Duplicate(contextMem.Data(), &pContext);
+    }
+
+    if (result == Result::Success)
+    {
+        result = pContext->AddData(pHashId, sizeof(Hash128));
+    }
+
+    if (result == Result::Success)
+    {
+        result = pContext->Finish(pKey->value);
+    }
+
+    if (pContext)
+    {
+        pContext->Destroy();
+    }
+
     PAL_ALERT(IsErrorResult(result));
 
-    result = pContext->AddData(pHashId, sizeof(Hash128));
-    PAL_ALERT(IsErrorResult(result));
-
-    result = pContext->Finish(pKey->value);
-    PAL_ALERT(IsErrorResult(result));
-
-    pContext->Destroy();
+    return result;
 }
 
 } //namespace Util

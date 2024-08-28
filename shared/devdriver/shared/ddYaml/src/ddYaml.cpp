@@ -87,14 +87,16 @@ yaml_node_t* YamlDocumentFindNodeByKey(
             pPair++)
         {
             yaml_node_t* pKeyNode = yaml_document_get_node(pDoc, pPair->key);
-            DD_ASSERT(pKeyNode != nullptr);
-            DD_ASSERT(pKeyNode->type == YAML_SCALAR_NODE);
-            if (strcmp((const char*)pKeyNode->data.scalar.value, pKey) == 0)
+            if (pKeyNode != nullptr)
             {
-                yaml_node_t* pValNode = yaml_document_get_node(pDoc, pPair->value);
-                DD_ASSERT(pValNode != nullptr);
-                pResult = pValNode;
-                break;
+                DD_ASSERT(pKeyNode->type == YAML_SCALAR_NODE);
+                if (strcmp((const char*)pKeyNode->data.scalar.value, pKey) == 0)
+                {
+                    yaml_node_t* pValNode = yaml_document_get_node(pDoc, pPair->value);
+                    DD_ASSERT(pValNode != nullptr);
+                    pResult = pValNode;
+                    break;
+                }
             }
         }
     }

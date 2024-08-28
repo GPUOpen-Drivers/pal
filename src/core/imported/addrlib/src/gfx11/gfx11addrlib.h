@@ -51,7 +51,11 @@ struct Gfx11ChipSettings
 {
     struct
     {
+#if ADDR_STRIX1_BUILD
+        UINT_32 isStrix             :  1;
+#else
         UINT_32 futureGpu1          :  1;
+#endif
 #if ADDR_PHOENIX_BUILD
         UINT_32 isPhoenix           :  1;
 #else

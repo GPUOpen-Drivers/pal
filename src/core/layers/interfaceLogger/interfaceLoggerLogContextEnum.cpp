@@ -1090,6 +1090,9 @@ void LogContext::Enum(
         "Navi33",        // 11.0.2
         "Phoenix1",      // 11.0.3
         "Phoenix2",      // 11.0.3
+#if PAL_BUILD_STRIX1
+        "Strix1",        // 11.5.0
+#endif
 #if  (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 888)
 #endif
         "Max",           // The maximum count of null devices.
@@ -2147,7 +2150,7 @@ void LogContext::Enum(
         "BindGpuMemory",          // 0xe,
         "SubAllocGpuMemory",      // 0xf,
         "SubFreeGpuMemory",       // 0x10,
-        "RpmBlt",                 // 0x11,
+        "RpmBlt",                 // 0x12,
     };
 
     static_assert(ArrayLen(StringTable) == static_cast<uint32>(Developer::CallbackType::Count),

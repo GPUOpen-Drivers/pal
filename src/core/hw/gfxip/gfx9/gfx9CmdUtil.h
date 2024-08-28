@@ -290,6 +290,10 @@ public:
     // The INDIRECT_BUFFER and COND_INDIRECT_BUFFER packet have a hard-coded IB size of 20 bits.
     static constexpr uint32 MaxIndirectBufferSizeDwords = (1 << 20) - 1;
 
+    // DMA_DATA's byte_count is only 26 bits so the max count is (1 << 26) - 1. However, I really just don't
+    // like splitting the copies on an alignment of one byte. It just feels... wrong, and might hurt performance too!
+    static constexpr uint32 MaxDmaDataByteCount = 1u << 25;
+
     // The COPY_DATA src_reg_offset and dst_reg_offset fields have a bit-width of 18 bits.
     static constexpr uint32 MaxCopyDataRegOffset = (1 << 18) - 1;
 

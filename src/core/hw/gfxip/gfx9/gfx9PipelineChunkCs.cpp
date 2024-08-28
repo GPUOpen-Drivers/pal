@@ -767,6 +767,31 @@ uint32* PipelineChunkCs::WriteShCommandsSetPath(
 }
 
 // =====================================================================================================================
+uint32* PipelineChunkCs::WriteShCommandsLdsSize(
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace,
+    uint32     ldsBytesPerTg
+    ) const
+{
+    // If ldsBytesPerTg is zero, which means there is no dynamic LDS, keep LDS_SIZE register as static LDS size.
+    if (ldsBytesPerTg > 0)
+    {
+        regCOMPUTE_PGM_RSRC2 computePgmRsrc2 = m_regs.dynamic.computePgmRsrc2;
+
+        // Round to nearest multiple of the LDS granularity, then convert to the register value.
+        // NOTE: Granularity for the LDS_SIZE field is 128, range is 0->128 which allocates 0 to 16K DWORDs.
+        computePgmRsrc2.bits.LDS_SIZE =
+            Pow2Align((ldsBytesPerTg / sizeof(uint32)), Gfx9LdsDwGranularity) >> Gfx9LdsDwGranularityShift;
+
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PGM_RSRC2,
+                                                                computePgmRsrc2.u32All,
+                                                                pCmdSpace);
+    }
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
 void PipelineChunkCs::UpdateComputePgmRsrsAfterLibraryLink(
     regCOMPUTE_PGM_RSRC1 rsrc1,
     regCOMPUTE_PGM_RSRC2 rsrc2,

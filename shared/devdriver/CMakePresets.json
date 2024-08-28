@@ -26,15 +26,6 @@
       "displayName": "Common developer-focused preset using Visual Studio 16 2019 for 32-bit builds",
       "binaryDir": "${sourceDir}/_vs32",
       "architecture": "Win32"
-    },
-    {
-      "name": "dev-docs",
-      "inherits": "dev-vs",
-      "displayName": "Common developer-focused present using Visual Studio 16 2019, along with building documentation",
-      "binaryDir": "${sourceDir}/_vs",
-      "cacheVariables": {
-        "DD_BP_BUILD_DOCS": "ON"
-      }
     }
   ]
 }

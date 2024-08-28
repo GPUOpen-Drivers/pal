@@ -78,10 +78,11 @@ Pal::Result TimeGraph<Allocator>::Init()
 
     if (result == Pal::Result::Success)
     {
-        m_maxSrdSize = Util::Max(Util::Max(m_deviceProps.gfxipProperties.srdSizes.bufferView,
-                                           m_deviceProps.gfxipProperties.srdSizes.imageView),
-                                 Util::Max(m_deviceProps.gfxipProperties.srdSizes.fmaskView,
-                                           m_deviceProps.gfxipProperties.srdSizes.sampler));
+        m_maxSrdSize = Util::Max(m_deviceProps.gfxipProperties.srdSizes.typedBufferView,
+                                 m_deviceProps.gfxipProperties.srdSizes.untypedBufferView,
+                                 m_deviceProps.gfxipProperties.srdSizes.imageView,
+                                 m_deviceProps.gfxipProperties.srdSizes.fmaskView,
+                                 m_deviceProps.gfxipProperties.srdSizes.sampler);
 
         result = m_pDevice->GetGpuMemoryHeapProperties(m_memHeapProps);
     }

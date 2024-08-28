@@ -143,11 +143,15 @@ DD_RESULT EventClient::BulkUpdateProviders(
         result = m_legacyClient.QueryProviders(&pProvidersDescription);
     }
 
+    // This should never be null if the function succeeded but we need to null check the value just in case
+    if ((result == Result::Success) && (pProvidersDescription == nullptr))
+    {
+        DD_ASSERT_ALWAYS();
+        result = Result::Error;
+    }
+
     if (result == Result::Success)
     {
-        // This should never be null if the function succeeded
-        DD_ASSERT(pProvidersDescription != nullptr);
-
         Vector<EventProtocol::EventProviderUpdateRequest> providerUpdates(Platform::GenericAllocCb);
         Vector<uint8> providerEventData(Platform::GenericAllocCb);
         Vector<size_t> updateEventDataOffsets(Platform::GenericAllocCb);

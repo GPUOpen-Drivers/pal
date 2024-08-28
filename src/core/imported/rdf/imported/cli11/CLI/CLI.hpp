@@ -1,28 +1,3 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) 2024 Advanced Micro Devices, Inc. All Rights Reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
-
 #pragma once
 
 // CLI11: Version 1.9.1
@@ -60,6 +35,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
 // Standard combined includes:
 
 #include <algorithm>
@@ -85,17 +61,23 @@
 #include <utility>
 #include <vector>
 
+
 // Verbatim copy from Version.hpp:
+
 
 #define CLI11_VERSION_MAJOR 1
 #define CLI11_VERSION_MINOR 9
 #define CLI11_VERSION_PATCH 1
 #define CLI11_VERSION "1.9.1"
 
+
+
+
 // Verbatim copy from Macros.hpp:
 
+
 // The following version macro is very similar to the one in PyBind11
-#if !(0&& __cplusplus== 199711L) && !defined(__INTEL_COMPILER)
+#if !(defined(_MSC_VER) && __cplusplus == 199711L) && !defined(__INTEL_COMPILER)
 #if __cplusplus >= 201402L
 #define CLI11_CPP14
 #if __cplusplus >= 201703L
@@ -105,14 +87,14 @@
 #endif
 #endif
 #endif
-#elif 0&& __cplusplus== 199711L
+#elif defined(_MSC_VER) && __cplusplus == 199711L
 // MSVC sets _MSVC_LANG rather than __cplusplus (supposedly until the standard is fully implemented)
 // Unless you use the /Zc:__cplusplus flag on Visual Studio 2017 15.7 Preview 3 or newer
-#if 0 >= 201402L
+#if _MSVC_LANG >= 201402L
 #define CLI11_CPP14
-#if 0 > 201402L&& 0 >= 1910
+#if _MSVC_LANG > 201402L && _MSC_VER >= 1910
 #define CLI11_CPP17
-#if __MSVC_LANG> 201703L&& 0 >= 1910
+#if __MSVC_LANG > 201703L && _MSC_VER >= 1910
 #define CLI11_CPP20
 #endif
 #endif
@@ -121,11 +103,17 @@
 
 #if defined(CLI11_CPP14)
 #define CLI11_DEPRECATED(reason) [[deprecated(reason)]]
+#elif defined(_MSC_VER)
+#define CLI11_DEPRECATED(reason) __declspec(deprecated(reason))
 #else
 #define CLI11_DEPRECATED(reason) __attribute__((deprecated(reason)))
 #endif
 
+
+
+
 // Verbatim copy from Validators.hpp:
+
 
 // C standard library
 // Only needed for existence checking
@@ -159,9 +147,15 @@
 #include <sys/types.h>
 #endif
 
+
+
 // From Version.hpp:
 
+
+
 // From Macros.hpp:
+
+
 
 // From StringTools.hpp:
 
@@ -2357,10 +2351,17 @@ inline path_type check_path(const char *file) noexcept {
 #else
 /// get the type of the path from a file name
 inline path_type check_path(const char *file) noexcept {
+#if defined(_MSC_VER)
+    struct __stat64 buffer;
+    if(_stat64(file, &buffer) == 0) {
+        return ((buffer.st_mode & S_IFDIR) != 0) ? path_type::directory : path_type::file;
+    }
+#else
     struct stat buffer;
     if(stat(file, &buffer) == 0) {
         return ((buffer.st_mode & S_IFDIR) != 0) ? path_type::directory : path_type::file;
     }
+#endif
     return path_type::nonexistent;
 }
 #endif
@@ -4758,7 +4759,11 @@ class App {
 
     /// Allow '/' for options for Windows like options. Defaults to true on Windows, false otherwise. INHERITABLE
     bool allow_windows_style_options_{
+#ifdef _WIN32
+        true
+#else
         false
+#endif
     };
     /// specify that positional arguments come at the end of the argument sequence not inheritable
     bool positionals_at_end_{false};
@@ -6558,10 +6563,19 @@ class App {
                 char *buffer = nullptr;
                 std::string ename_string;
 
+#ifdef _MSC_VER
+                // Windows version
+                std::size_t sz = 0;
+                if(_dupenv_s(&buffer, &sz, opt->envname_.c_str()) == 0 && buffer != nullptr) {
+                    ename_string = std::string(buffer);
+                    free(buffer);
+                }
+#else
                 // This also works on Windows, but gives a warning
                 buffer = std::getenv(opt->envname_.c_str());
                 if(buffer != nullptr)
                     ename_string = std::string(buffer);
+#endif
 
                 if(!ename_string.empty()) {
                     opt->add_result(ename_string);

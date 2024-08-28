@@ -2564,30 +2564,6 @@ void LogContext::Struct(
     static_assert(CheckReservedBits<decltype(value.stateFlags)>(32, 29), "Update interfaceLogger!");
 
     EndList();
-    KeyAndBeginList("colorTargets", false);
-
-    for (uint32 idx = 0; idx < value.colorTargetCount; ++idx)
-    {
-        BeginMap(false);
-        KeyAndStruct("swizzledFormat", value.colorTargetSwizzledFormats[idx]);
-        KeyAndValue("sampleCount", value.sampleCount[idx]);
-        EndMap();
-    }
-
-    EndList();
-    KeyAndBeginList("stateFlags", true);
-
-    if (value.stateFlags.targetViewState)
-    {
-        Value("targetViewState");
-    }
-
-    if (value.stateFlags.occlusionQuery)
-    {
-        Value("occlusionQuery");
-    }
-
-    EndList();
     EndMap();
 }
 

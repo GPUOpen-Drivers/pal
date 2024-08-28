@@ -494,12 +494,13 @@ union InheritedStateFlags
 /// Specifies parameters inherited from primary command buffer into nested command buffer.
 struct InheritedStateParams
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 891
     uint32                      colorTargetCount;                            ///< Number of color targets bound in the
                                                                              ///  root-level command buffer.
     SwizzledFormat              colorTargetSwizzledFormats[MaxColorTargets]; ///< Format and swizzle for each color
                                                                              ///  target.
     uint32                      sampleCount[MaxColorTargets];                ///< Sample count for each color target.
-
+#endif
     InheritedStateFlags         stateFlags;                                  ///< States that are inherited from the
                                                                              ///  calling root-level command buffer.
 };

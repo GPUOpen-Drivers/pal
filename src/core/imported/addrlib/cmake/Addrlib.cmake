@@ -84,3 +84,4 @@ function(addrlib_bp AMD_VAR AMD_DFLT)
     # To assist in potential debugging show what the value was set to.
     message(STATUS "${AMD_VAR} overridden to ${${AMD_VAR}}")
 endfunction()
+

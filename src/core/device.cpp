@@ -221,6 +221,9 @@ bool Device::DetermineGpuIpLevels(
     case FAMILY_MDN:
     case FAMILY_NV3:
     case FAMILY_PHX:
+#if PAL_BUILD_GFX115
+    case FAMILY_STX:
+#endif
         pIpLevels->gfx = Gfx9::DetermineIpLevel(familyId, eRevId, cpMicrocodeVersion);
         break;
 
@@ -541,8 +544,8 @@ Result Device::SetupPublicSettingDefaults()
     m_publicSettings.miscellaneousDebugString[0]              = '\0';
     m_publicSettings.renderedByString[0]                      = '\0';
     m_publicSettings.zeroUnboundDescDebugSrd                  = false;
-    m_publicSettings.pipelinePreferredHeap                    = HasLargeLocalHeap() ? GpuHeap::GpuHeapLocal
-                                                                                    : GpuHeap::GpuHeapInvisible;
+    m_publicSettings.pipelinePreferredHeap                    = HasLargeBar() ? GpuHeap::GpuHeapLocal
+                                                                              : GpuHeap::GpuHeapInvisible;
     m_publicSettings.depthClampBasedOnZExport                 = true;
     m_publicSettings.forceWaitPointPreColorToPostPrefetch     = false;
     m_publicSettings.enableExecuteIndirectPacket              = false;
@@ -609,6 +612,9 @@ Result Device::HwlEarlyInit()
         case GfxIpLevel::GfxIp10_1:
         case GfxIpLevel::GfxIp10_3:
         case GfxIpLevel::GfxIp11_0:
+#if PAL_BUILD_GFX115
+        case GfxIpLevel::GfxIp11_5:
+#endif
             result = Gfx9::CreateDevice(this, pGfxPlacementAddr, &pfnTable, &m_pGfxDevice);
             break;
         default:
@@ -631,6 +637,9 @@ Result Device::HwlEarlyInit()
         case GfxIpLevel::GfxIp10_1:
         case GfxIpLevel::GfxIp10_3:
         case GfxIpLevel::GfxIp11_0:
+#if PAL_BUILD_GFX115
+        case GfxIpLevel::GfxIp11_5:
+#endif
             result = AddrMgr2::Create(this, pAddrMgrPlacementAddr, &m_pAddrMgr);
             break;
         default:
@@ -1311,10 +1320,11 @@ void Device::InitPageFaultDebugSrd()
     const uint32 numDebugSrds = m_publicSettings.unboundDescriptorDebugSrdCount;
     if (numDebugSrds > 0)
     {
-        const size_t maxSrdSize = Max(Max(Max(m_chipProperties.srdSizes.bufferView,
-                                              m_chipProperties.srdSizes.fmaskView),
-                                              m_chipProperties.srdSizes.imageView),
-                                              m_chipProperties.srdSizes.sampler);
+        const size_t maxSrdSize = Max(m_chipProperties.srdSizes.typedBufferView,
+                                      m_chipProperties.srdSizes.untypedBufferView,
+                                      m_chipProperties.srdSizes.fmaskView,
+                                      m_chipProperties.srdSizes.imageView,
+                                      m_chipProperties.srdSizes.sampler);
 
         GpuMemoryCreateInfo createInfo = {};
         createInfo.vaRange   = VaRange::DescriptorTable;
@@ -1592,7 +1602,7 @@ Result Device::Finalize(
             if ((result == Result::Success)                                    &&
                 (m_engineProperties.perEngine[EngineTypeDma].numAvailable > 0) &&
                 (m_pPlatform->InternalResidencyOptsDisabled() == false)        &&
-                (HeapLogicalSize(GpuHeapInvisible) > 0))
+                ((HeapLogicalSize(GpuHeapInvisible) > 0) || KernelSupportCpuHostAperture()))
             {
                 result = CreateDmaUploadRing();
             }
@@ -2240,11 +2250,12 @@ Result Device::GetProperties(
         pInfo->gfxipProperties.flags.support1dDispatchInterleave = m_chipProperties.gfxip.support1dDispatchInterleave;
 #endif
 
-        pInfo->gfxipProperties.srdSizes.bufferView = m_chipProperties.srdSizes.bufferView;
-        pInfo->gfxipProperties.srdSizes.imageView  = m_chipProperties.srdSizes.imageView;
-        pInfo->gfxipProperties.srdSizes.fmaskView  = m_chipProperties.srdSizes.fmaskView;
-        pInfo->gfxipProperties.srdSizes.sampler    = m_chipProperties.srdSizes.sampler;
-        pInfo->gfxipProperties.srdSizes.bvh        = m_chipProperties.srdSizes.bvh;
+        pInfo->gfxipProperties.srdSizes.typedBufferView   = m_chipProperties.srdSizes.typedBufferView;
+        pInfo->gfxipProperties.srdSizes.untypedBufferView = m_chipProperties.srdSizes.untypedBufferView;
+        pInfo->gfxipProperties.srdSizes.imageView         = m_chipProperties.srdSizes.imageView;
+        pInfo->gfxipProperties.srdSizes.fmaskView         = m_chipProperties.srdSizes.fmaskView;
+        pInfo->gfxipProperties.srdSizes.sampler           = m_chipProperties.srdSizes.sampler;
+        pInfo->gfxipProperties.srdSizes.bvh               = m_chipProperties.srdSizes.bvh;
 
         pInfo->gfxipProperties.nullSrds.pNullBufferView = m_chipProperties.nullSrds.pNullBufferView;
         pInfo->gfxipProperties.nullSrds.pNullImageView  = m_chipProperties.nullSrds.pNullImageView;
@@ -2351,10 +2362,10 @@ size_t Device::UploadUsingEmbeddedData(
 }
 
 // =====================================================================================================================
-/// Determine when a large local heap is available.  A large local heap is any size above 256MB.
-bool Device::HasLargeLocalHeap() const
+/// Determine when large BAR is available. Check for any size above 256MiB. Typically all VRAM is CPU accessible though.
+bool Device::HasLargeBar() const
 {
-    return HeapLogicalSize(GpuHeapLocal) > 256_MiB;
+    return m_memoryProperties.barSize > 256_MiB;
 }
 
 // =====================================================================================================================
@@ -2381,6 +2392,21 @@ Result Device::WaitForPendingUpload(
 
     PAL_ASSERT(m_pDmaUploadRing != nullptr);
     return m_pDmaUploadRing->WaitForPendingUpload(pWaiter, fenceValue);
+}
+
+// =====================================================================================================================
+bool Device::ShouldUploadUsingDma(
+    GpuHeap pipelineHeapType
+    ) const
+{
+    // There is no invisible heap when CPU host aperture is enabled. For small bar configurations, there is a risk of
+    // shaders migrating to system memory if we use local CPU uploads (mapped local memory is limited to 256MiB).
+    bool useDma = (m_pDmaUploadRing != nullptr) &&
+                  ((pipelineHeapType == GpuHeap::GpuHeapInvisible) ||
+                   ((pipelineHeapType == GpuHeap::GpuHeapLocal) &&
+                    (HasLargeBar() == false) &&
+                    KernelSupportCpuHostAperture()));
+    return useDma;
 }
 
 // =====================================================================================================================
@@ -5037,6 +5063,7 @@ bool Device::EnableDisplayDcc(
 {
     bool enable = false;
 
+    if (IsGfx9Hwl(*this))
     {
         PAL_ASSERT(dccCaps.dcc_256_128_128 ||
                    dccCaps.dcc_128_128_unconstrained ||

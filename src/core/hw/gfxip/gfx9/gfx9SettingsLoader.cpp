@@ -324,6 +324,20 @@ void SettingsLoader::ValidateSettings(
         }
 #endif
 
+        if (m_settings.waNoOpaqueOreo && (m_settings.gfx11OreoModeControl == OMODE_O_THEN_B))
+        {
+            m_settings.gfx11OreoModeControl = OMODE_BLEND;
+        }
+
+#if PAL_BUILD_GFX115
+        if (IsGfx115(*m_pDevice))
+        {
+            // The "ONE_PRIM_PER_BATCH" mode will be removed in GFX11.5 and later
+            // This means that "BINNING_DISABLED__GFX11" is the only valid value that disables binning.
+            m_settings.disableBinningMode = BINNING_DISABLED__GFX11;
+        }
+#endif
+
     }
     else
     {
@@ -346,20 +360,18 @@ void SettingsLoader::ValidateSettings(
     }
 
     // For sufficiently small GPUs, we want to disable late-alloc and allow NGG waves access to the whole chip.
-    if ((chipProps.gfx9.gfx10.minNumWgpPerSa <= 2) || (chipProps.gfx9.numActiveCus < 4))
+    // On gfx10, non-NGG draws may in flight at the same time as NGG draws, and the deadlock may encountered if
+    // NGG draws consume all CUs and meanwhile some non-NGG draws cannot drain.
+    // On gfx11, we could only have NGG draws. Furthermore, ATM makes it pretty much impossible for PC space
+    // to late-alloc, and the late-alloc really only then applies to prim/pos buffer space, which should be more
+    // than enough for nearly every workload that can execute on a tiny chip.
+    if (IsGfx11(chipProps.gfxLevel) &&
+        ((chipProps.gfx9.gfx10.minNumWgpPerSa <= 2) || (chipProps.gfx9.numActiveCus < 4)))
     {
         constexpr uint32 MaskEnableAll  = UINT_MAX;
         m_settings.gsCuEnLimitMask      = MaskEnableAll;
         m_settings.allowNggOnAllCusWgps = true;
         pPalSettings->nggLateAllocGs    = 0;
-
-        // Gfx11 has attributes through memory, so parameter cache space is not a concern and we can continue to
-        // enable LateAlloc for the parameter cache.
-        if (IsGfx10(chipProps.gfxLevel))
-        {
-            m_settings.gfx10GePcAllocNumLinesPerSeLegacyNggPassthru = 0;
-            m_settings.gfx10GePcAllocNumLinesPerSeNggCulling        = 0;
-        }
     }
 
     // nggLateAllocGs can NOT be greater than 127.
@@ -868,6 +880,14 @@ void SettingsLoader::OverrideDefaults(
             }
         }
     }
+
+#if PAL_BUILD_GFX115
+    //Enable the DCC256BCompressedTex Feature for GFX11.5
+    if (IsGfx115(device))
+    {
+        m_settings.dcc256bCompressedTex = true;
+    }
+#endif
 
     if (IsGfx103Plus(device))
     {

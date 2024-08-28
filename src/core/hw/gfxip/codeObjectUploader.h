@@ -250,8 +250,6 @@ private:
 
     GpuHeap SelectUploadHeap(GpuHeap heap);
 
-    bool ShouldUploadUsingDma() const { return (m_pipelineHeapType == GpuHeap::GpuHeapInvisible); }
-
     Result UploadUsingCpu(const SectionAddressCalculator& addressCalc, void** ppMappedPtr);
     Result UploadUsingDma(const SectionAddressCalculator& addressCalc, void** ppMappedPtr);
 

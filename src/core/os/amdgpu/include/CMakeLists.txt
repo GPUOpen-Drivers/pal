@@ -33,8 +33,8 @@ add_subdirectory(wsa)
 
 set(PAL_XCB_REQUIRED ON)
 
-# Needed for dri3Loader.h. Does not exist for standalone compiler tool build on Mac.
-if (NOT APPLE AND PAL_XCB_REQUIRED)
+# Needed for dri3Loader.h
+if (PAL_XCB_REQUIRED)
     if(NOT DEFINED DK_X11)
         if(DEFINED GLOBAL_ROOT_DK_DIR)
             if(TARGET_ARCHITECTURE_BITS EQUAL 64)

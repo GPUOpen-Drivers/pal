@@ -59,8 +59,6 @@ Pal::Result CreateMsaaImageCopyComputePipeline(
         pipeInfo.pipelineBinarySize   = pipeline.size;
         pipeInfo.flags.clientInternal = 1;
 
-        PAL_ASSERT(pipeline.size != 0);
-
         void* pMemory = PAL_MALLOC(pDevice->GetComputePipelineSize(pipeInfo, nullptr),
                                    pAllocator,
                                    Util::SystemAllocType::AllocInternal);
@@ -128,11 +126,59 @@ Pal::Result CreateMsaaImageCopyComputePipelines(
         pTable = msaaImageCopyComputeBinaryTablePhoenix1;
         break;
 
+#if PAL_BUILD_STRIX1
+    case Pal::IpTriple({ 11, 5, 0 }):
+    case Pal::IpTriple({ 11, 5, 65535 }):
+        pTable = msaaImageCopyComputeBinaryTableStrix1;
+        break;
+#endif
+
     default:
         result = Pal::Result::ErrorUnknown;
         PAL_NOT_IMPLEMENTED();
         break;
     }
+
+#if PAL_BUILD_STRIX1
+    if ((properties.revision == Pal::AsicRevision::Strix1) &&
+        (getenv("GFX115_NPI_FEATURES") != nullptr) &&
+        (Util::Strcasecmp(getenv("GFX115_NPI_FEATURES"), "none") == 0))
+    {
+        pTable = msaaImageCopyComputeBinaryTableStrix1;
+    }
+#endif
+#if PAL_BUILD_STRIX1
+    if ((properties.revision == Pal::AsicRevision::Strix1) &&
+        (getenv("GFX115_NPI_FEATURES") != nullptr) &&
+        (Util::Strcasecmp(getenv("GFX115_NPI_FEATURES"), "all") == 0))
+    {
+        pTable = msaaImageCopyComputeBinaryTableStrix1_ALL;
+    }
+#endif
+#if PAL_BUILD_STRIX1
+    if ((properties.revision == Pal::AsicRevision::Strix1) &&
+        (getenv("GFX115_NPI_FEATURES") != nullptr) &&
+        (Util::Strcasecmp(getenv("GFX115_NPI_FEATURES"), "onlyVGPRWriteKill") == 0))
+    {
+        pTable = msaaImageCopyComputeBinaryTableStrix1_ALL;
+    }
+#endif
+#if PAL_BUILD_STRIX1
+    if ((properties.revision == Pal::AsicRevision::Strix1) &&
+        (getenv("GFX115_NPI_FEATURES") != nullptr) &&
+        (Util::Strcasecmp(getenv("GFX115_NPI_FEATURES"), "noScalarFmacOps") == 0))
+    {
+        pTable = msaaImageCopyComputeBinaryTableStrix1_ALL;
+    }
+#endif
+#if PAL_BUILD_STRIX1
+    if ((properties.revision == Pal::AsicRevision::Strix1) &&
+        (getenv("GFX115_NPI_FEATURES") != nullptr) &&
+        (Util::Strcasecmp(getenv("GFX115_NPI_FEATURES"), "onlyScalarFloatOps") == 0))
+    {
+        pTable = msaaImageCopyComputeBinaryTableStrix1;
+    }
+#endif
 
     for (uint32 i = 0; ((result == Pal::Result::Success) && (i < static_cast<uint32>(MsaaImageCopyComputePipeline::Count))); i++)
     {

@@ -12,6 +12,7 @@
 #define TWOBLUECUBES_SINGLE_INCLUDE_CATCH_HPP_INCLUDED
 // start catch.hpp
 
+
 #define CATCH_VERSION_MAJOR 2
 #define CATCH_VERSION_MINOR 13
 #define CATCH_VERSION_PATCH 4
@@ -65,10 +66,18 @@
 #if !defined(CATCH_CONFIG_IMPL_ONLY)
 // start catch_platform.h
 
-#if   defined(linux) || defined(__linux) || defined(__linux__)
+#ifdef __APPLE__
+# include <TargetConditionals.h>
+# if TARGET_OS_OSX == 1
+#  define CATCH_PLATFORM_MAC
+# elif TARGET_OS_IPHONE == 1
+#  define CATCH_PLATFORM_IPHONE
+# endif
+
+#elif defined(linux) || defined(__linux) || defined(__linux__)
 #  define CATCH_PLATFORM_LINUX
 
-#elif defined(WIN32) || defined(__WIN32__) || defined(__MINGW32__)
+#elif defined(WIN32) || defined(__WIN32__) || defined(_WIN32) || defined(_MSC_VER) || defined(__MINGW32__)
 #  define CATCH_PLATFORM_WINDOWS
 #endif
 
@@ -113,11 +122,11 @@ namespace Catch {
 
 #ifdef __cplusplus
 
-#if (__cplusplus>= 201402L) || (0&& 0 >= 201402L)
+#  if (__cplusplus >= 201402L) || (defined(_MSVC_LANG) && _MSVC_LANG >= 201402L)
 #    define CATCH_CPP14_OR_GREATER
 #  endif
 
-#if (__cplusplus>= 201703L) || (0&& 0 >= 201703L)
+#  if (__cplusplus >= 201703L) || (defined(_MSVC_LANG) && _MSVC_LANG >= 201703L)
 #    define CATCH_CPP17_OR_GREATER
 #  endif
 
@@ -169,7 +178,7 @@ namespace Catch {
 #    define CATCH_INTERNAL_SUPPRESS_UNUSED_TEMPLATE_WARNINGS \
          _Pragma( "clang diagnostic ignored \"-Wunused-template\"" )
 
-#endif
+#endif // __clang__
 
 ////////////////////////////////////////////////////////////////////////////////
 // Assume that non-Windows platforms support posix signals by default
@@ -190,6 +199,10 @@ namespace Catch {
 
 ////////////////////////////////////////////////////////////////////////////////
 // Android somehow still does not support std::to_string
+#if defined(__ANDROID__)
+#    define CATCH_INTERNAL_CONFIG_NO_CPP11_TO_STRING
+#    define CATCH_INTERNAL_CONFIG_ANDROID_LOGWRITE
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 // Not all Windows environments support SEH properly
@@ -218,15 +231,38 @@ namespace Catch {
 #    define CATCH_INTERNAL_CONFIG_NO_CPP11_TO_STRING
 
 # endif
-#endif
+#endif // __CYGWIN__
 
 ////////////////////////////////////////////////////////////////////////////////
 // Visual C++
+#if defined(_MSC_VER)
 
-#if defined(_REENTRANT)
+#  define CATCH_INTERNAL_START_WARNINGS_SUPPRESSION __pragma( warning(push) )
+#  define CATCH_INTERNAL_STOP_WARNINGS_SUPPRESSION  __pragma( warning(pop) )
+
+// Universal Windows platform does not support SEH
+// Or console colours (or console at all...)
+#  if defined(WINAPI_FAMILY) && (WINAPI_FAMILY == WINAPI_FAMILY_APP)
+#    define CATCH_CONFIG_COLOUR_NONE
+#  else
+#    define CATCH_INTERNAL_CONFIG_WINDOWS_SEH
+#  endif
+
+// MSVC traditional preprocessor needs some workaround for __VA_ARGS__
+// _MSVC_TRADITIONAL == 0 means new conformant preprocessor
+// _MSVC_TRADITIONAL == 1 means old traditional non-conformant preprocessor
+#  if !defined(__clang__) // Handle Clang masquerading for msvc
+#    if !defined(_MSVC_TRADITIONAL) || (defined(_MSVC_TRADITIONAL) && _MSVC_TRADITIONAL)
+#      define CATCH_INTERNAL_CONFIG_TRADITIONAL_MSVC_PREPROCESSOR
+#    endif // MSVC_TRADITIONAL
+#  endif // __clang__
+
+#endif // _MSC_VER
+
+#if defined(_REENTRANT) || defined(_MSC_VER)
 // Enable async processing, as -pthread is specified or no additional linking is required
 # define CATCH_INTERNAL_CONFIG_USE_ASYNC
-#endif
+#endif // _MSC_VER
 
 ////////////////////////////////////////////////////////////////////////////////
 // Check if we are compiled with -fno-exceptions or equivalent
@@ -238,7 +274,7 @@ namespace Catch {
 // DJGPP
 #ifdef __DJGPP__
 #  define CATCH_INTERNAL_CONFIG_NO_WCHAR
-#endif
+#endif // __DJGPP__
 
 ////////////////////////////////////////////////////////////////////////////////
 // Embarcadero C++Build
@@ -307,7 +343,7 @@ namespace Catch {
   #      define CATCH_INTERNAL_CONFIG_CPP17_VARIANT
   #    endif // defined(__clang__) && (__clang_major__ < 8)
   #  endif // __has_include(<variant>) && defined(CATCH_CPP17_OR_GREATER)
-#endif
+#endif // defined(__has_include)
 
 #if defined(CATCH_INTERNAL_CONFIG_COUNTER) && !defined(CATCH_CONFIG_NO_COUNTER) && !defined(CATCH_CONFIG_COUNTER)
 #   define CATCH_CONFIG_COUNTER
@@ -399,7 +435,9 @@ namespace Catch {
 #   define CATCH_INTERNAL_IGNORE_BUT_WARN(...)
 #endif
 
-#if   defined(__clang__) && (__clang_major__ < 5)
+#if defined(__APPLE__) && defined(__apple_build_version__) && (__clang_major__ < 10)
+#   undef CATCH_INTERNAL_SUPPRESS_UNUSED_TEMPLATE_WARNINGS
+#elif defined(__clang__) && (__clang_major__ < 5)
 #   undef CATCH_INTERNAL_SUPPRESS_UNUSED_TEMPLATE_WARNINGS
 #endif
 
@@ -646,6 +684,7 @@ constexpr auto operator "" _catch_sr( char const* rawChars, std::size_t size ) n
 // end catch_stringref.h
 // start catch_preprocessor.hpp
 
+
 #define CATCH_RECURSION_LEVEL0(...) __VA_ARGS__
 #define CATCH_RECURSION_LEVEL1(...) CATCH_RECURSION_LEVEL0(CATCH_RECURSION_LEVEL0(CATCH_RECURSION_LEVEL0(__VA_ARGS__)))
 #define CATCH_RECURSION_LEVEL2(...) CATCH_RECURSION_LEVEL1(CATCH_RECURSION_LEVEL1(CATCH_RECURSION_LEVEL1(__VA_ARGS__)))
@@ -872,6 +911,7 @@ constexpr auto operator "" _catch_sr( char const* rawChars, std::size_t size ) n
 
 // end catch_preprocessor.hpp
 // start catch_meta.hpp
+
 
 #include <type_traits>
 
@@ -1498,6 +1538,11 @@ inline id performOptionalSelector( id obj, SEL sel ) {
 // end catch_objc_arc.hpp
 #endif
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable:4180) // We attempt to stream a function (address) by const&, which MSVC complains about but is harmless
+#endif
+
 namespace Catch {
     namespace Detail {
 
@@ -1681,7 +1726,7 @@ namespace Catch {
     struct StringMaker<std::byte> {
         static std::string convert(std::byte value);
     };
-#endif
+#endif // defined(CATCH_CONFIG_CPP17_BYTE)
     template<>
     struct StringMaker<int> {
         static std::string convert(int value);
@@ -1811,7 +1856,7 @@ namespace Catch {
         }
 
     } // namespace Detail
-#endif
+#endif // __OBJC__
 
 } // namespace Catch
 
@@ -1844,7 +1889,7 @@ namespace Catch {
         }
     };
 }
-#endif
+#endif // CATCH_CONFIG_ENABLE_PAIR_STRINGMAKER
 
 #if defined(CATCH_CONFIG_ENABLE_OPTIONAL_STRINGMAKER) && defined(CATCH_CONFIG_CPP17_OPTIONAL)
 #include <optional>
@@ -1862,7 +1907,7 @@ namespace Catch {
         }
     };
 }
-#endif
+#endif // CATCH_CONFIG_ENABLE_OPTIONAL_STRINGMAKER
 
 // Separate std::tuple specialization
 #if defined(CATCH_CONFIG_ENABLE_TUPLE_STRINGMAKER)
@@ -1903,7 +1948,7 @@ namespace Catch {
         }
     };
 }
-#endif
+#endif // CATCH_CONFIG_ENABLE_TUPLE_STRINGMAKER
 
 #if defined(CATCH_CONFIG_ENABLE_VARIANT_STRINGMAKER) && defined(CATCH_CONFIG_CPP17_VARIANT)
 #include <variant>
@@ -1931,7 +1976,7 @@ namespace Catch {
         }
     };
 }
-#endif
+#endif // CATCH_CONFIG_ENABLE_VARIANT_STRINGMAKER
 
 namespace Catch {
     // Import begin/ end from std here
@@ -2097,18 +2142,27 @@ struct ratio_string<std::milli> {
         static std::string convert(std::chrono::time_point<std::chrono::system_clock, Duration> const& time_point) {
             auto converted = std::chrono::system_clock::to_time_t(time_point);
 
+#ifdef _MSC_VER
+            std::tm timeInfo = {};
+            gmtime_s(&timeInfo, &converted);
+#else
             std::tm* timeInfo = std::gmtime(&converted);
+#endif
 
             auto const timeStampSize = sizeof("2017-01-16T17:06:45Z");
             char timeStamp[timeStampSize];
             const char * const fmt = "%Y-%m-%dT%H:%M:%SZ";
 
+#ifdef _MSC_VER
+            std::strftime(timeStamp, timeStampSize, fmt, &timeInfo);
+#else
             std::strftime(timeStamp, timeStampSize, fmt, timeInfo);
+#endif
             return std::string(timeStamp);
         }
     };
 }
-#endif
+#endif // CATCH_CONFIG_ENABLE_CHRONO_STRINGMAKER
 
 #define INTERNAL_CATCH_REGISTER_ENUM( enumName, ... ) \
 namespace Catch { \
@@ -2122,8 +2176,21 @@ namespace Catch { \
 
 #define CATCH_REGISTER_ENUM( enumName, ... ) INTERNAL_CATCH_REGISTER_ENUM( enumName, __VA_ARGS__ )
 
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
+
 // end catch_tostring.h
 #include <iosfwd>
+
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable:4389) // '==' : signed/unsigned mismatch
+#pragma warning(disable:4018) // more "signed/unsigned mismatch"
+#pragma warning(disable:4312) // Converting int to T* using reinterpret_cast (issue on x64 platform)
+#pragma warning(disable:4180) // qualifier applied to function type has no meaning
+#pragma warning(disable:4800) // Forcing result to true or false
+#endif
 
 namespace Catch {
 
@@ -2352,6 +2419,10 @@ namespace Catch {
 
 } // end namespace Catch
 
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
+
 // end catch_decomposer.h
 // start catch_interfaces_capture.h
 
@@ -2377,7 +2448,7 @@ namespace Catch {
     struct BenchmarkInfo;
     template <typename Duration = std::chrono::duration<double, std::nano>>
     struct BenchmarkStats;
-#endif
+#endif // CATCH_CONFIG_ENABLE_BENCHMARKING
 
     struct IResultCapture {
 
@@ -2395,7 +2466,7 @@ namespace Catch {
         virtual void benchmarkStarting( BenchmarkInfo const& info ) = 0;
         virtual void benchmarkEnded( BenchmarkStats<> const& stats ) = 0;
         virtual void benchmarkFailed( std::string const& error ) = 0;
-#endif
+#endif // CATCH_CONFIG_ENABLE_BENCHMARKING
 
         virtual void pushScopedMessage( MessageInfo const& message ) = 0;
         virtual void popScopedMessage( MessageInfo const& message ) = 0;
@@ -2737,7 +2808,7 @@ namespace Catch {
         INTERNAL_CATCH_REACT( catchAssertionHandler ) \
     } while( false )
 
-#endif
+#endif // CATCH_CONFIG_DISABLE
 
 // end catch_capture.hpp
 // start catch_section.h
@@ -3759,6 +3830,7 @@ namespace Catch {
 // start catch_generators.hpp
 
 // start catch_interfaces_generatortracker.h
+
 
 #include <memory>
 
@@ -4945,7 +5017,7 @@ namespace Catch {
 
     using namespace Matchers;
 
-#endif
+#endif // CATCH_CONFIG_DISABLE_MATCHERS
 
 } // namespace Catch
 
@@ -5343,6 +5415,7 @@ namespace Catch {
 
  // Statistics estimates
 
+
 namespace Catch {
     namespace Benchmark {
         template <typename Duration>
@@ -5382,7 +5455,7 @@ namespace Catch {
 } // namespace Catch
 
 // end catch_outlier_classification.hpp
-#endif
+#endif // CATCH_CONFIG_ENABLE_BENCHMARKING
 
 #include <string>
 #include <iosfwd>
@@ -5561,7 +5634,7 @@ namespace Catch {
             };
         }
     };
-#endif
+#endif // CATCH_CONFIG_ENABLE_BENCHMARKING
 
     struct IStreamingReporter {
         virtual ~IStreamingReporter() = default;
@@ -5587,7 +5660,7 @@ namespace Catch {
         virtual void benchmarkStarting( BenchmarkInfo const& ) {}
         virtual void benchmarkEnded( BenchmarkStats<> const& ) {}
         virtual void benchmarkFailed( std::string const& ) {}
-#endif
+#endif // CATCH_CONFIG_ENABLE_BENCHMARKING
 
         virtual void assertionStarting( AssertionInfo const& assertionInfo ) = 0;
 
@@ -5959,6 +6032,7 @@ namespace Catch {
 // end catch_console_colour.h
 // start catch_reporter_registrars.hpp
 
+
 namespace Catch {
 
     template<typename T>
@@ -6021,7 +6095,7 @@ namespace Catch {
 #define CATCH_REGISTER_REPORTER(name, reporterType)
 #define CATCH_REGISTER_LISTENER(listenerType)
 
-#endif
+#endif // CATCH_CONFIG_DISABLE
 
 // end catch_reporter_registrars.hpp
 // Allow users to base their work off existing reporters
@@ -6054,6 +6128,13 @@ namespace Catch {
 // end catch_reporter_compact.h
 // start catch_reporter_console.h
 
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable:4061) // Not all labels are EXPLICITLY handled in switch
+                              // Note that 4062 (not all labels are handled
+                              // and default is missing) is enabled
+#endif
+
 namespace Catch {
     // Fwd decls
     struct SummaryColumn;
@@ -6082,7 +6163,7 @@ namespace Catch {
         void benchmarkStarting(BenchmarkInfo const& info) override;
         void benchmarkEnded(BenchmarkStats<> const& stats) override;
         void benchmarkFailed(std::string const& error) override;
-#endif
+#endif // CATCH_CONFIG_ENABLE_BENCHMARKING
 
         void testCaseEnded(TestCaseStats const& _testCaseStats) override;
         void testGroupEnded(TestGroupStats const& _testGroupStats) override;
@@ -6116,6 +6197,10 @@ namespace Catch {
     };
 
 } // end namespace Catch
+
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 
 // end catch_reporter_console.h
 // start catch_reporter_junit.h
@@ -6316,7 +6401,7 @@ namespace Catch {
         void benchmarkStarting(BenchmarkInfo const&) override;
         void benchmarkEnded(BenchmarkStats<> const&) override;
         void benchmarkFailed(std::string const&) override;
-#endif
+#endif // CATCH_CONFIG_ENABLE_BENCHMARKING
 
     private:
         Timer m_testCaseTimer;
@@ -6346,9 +6431,11 @@ namespace Catch {
 
 // User-facing chronometer
 
+
 // start catch_clock.hpp
 
 // Clocks
+
 
 #include <chrono>
 #include <ratio>
@@ -6381,6 +6468,11 @@ namespace Catch {
 
  // Hinting the optimizer
 
+
+#if defined(_MSC_VER)
+#   include <atomic> // atomic_thread_fence
+#endif
+
 namespace Catch {
     namespace Benchmark {
 #if defined(__GNUC__) || defined(__clang__)
@@ -6395,6 +6487,23 @@ namespace Catch {
         namespace Detail {
             inline void optimizer_barrier() { keep_memory(); }
         } // namespace Detail
+#elif defined(_MSC_VER)
+
+#pragma optimize("", off)
+        template <typename T>
+        inline void keep_memory(T* p) {
+            // thanks @milleniumbug
+            *reinterpret_cast<char volatile*>(p) = *reinterpret_cast<char const volatile*>(p);
+        }
+        // TODO equivalent keep_memory()
+#pragma optimize("", on)
+
+        namespace Detail {
+            inline void optimizer_barrier() {
+                std::atomic_thread_fence(std::memory_order_seq_cst);
+            }
+        } // namespace Detail
+
 #endif
 
         template <typename T>
@@ -6418,6 +6527,7 @@ namespace Catch {
 // start catch_complete_invoke.hpp
 
 // Invoke with a special case for void
+
 
 #include <type_traits>
 #include <utility>
@@ -6528,6 +6638,7 @@ namespace Catch {
 
 // Environment information
 
+
 namespace Catch {
     namespace Benchmark {
         template <typename Duration>
@@ -6554,9 +6665,11 @@ namespace Catch {
 
  // Execution plan
 
+
 // start catch_benchmark_function.hpp
 
  // Dumb std::function implementation for consistent call overhead
+
 
 #include <cassert>
 #include <type_traits>
@@ -6650,6 +6763,7 @@ namespace Catch {
 
 // repeat algorithm
 
+
 #include <type_traits>
 #include <utility>
 
@@ -6678,13 +6792,16 @@ namespace Catch {
 
 // Run a function for a minimum amount of time
 
+
 // start catch_measure.hpp
 
 // Measure
 
+
 // start catch_timing.hpp
 
 // Timing
+
 
 #include <tuple>
 #include <type_traits>
@@ -6808,9 +6925,11 @@ namespace Catch {
 
  // Environment measurement
 
+
 // start catch_stats.hpp
 
 // Statistical analysis tools
+
 
 #include <algorithm>
 #include <functional>
@@ -7052,9 +7171,11 @@ namespace Catch {
 
  // Run and analyse one benchmark
 
+
 // start catch_sample_analysis.hpp
 
 // Benchmark results
+
 
 #include <algorithm>
 #include <vector>
@@ -7249,6 +7370,7 @@ namespace Catch {
 
 // Constructor and destructor helpers
 
+
 #include <type_traits>
 
 namespace Catch {
@@ -7317,7 +7439,7 @@ namespace Catch {
 // end catch_benchmarking_all.hpp
 #endif
 
-#endif
+#endif // ! CATCH_CONFIG_IMPL_ONLY
 
 #ifdef CATCH_IMPL
 // start catch_impl.hpp
@@ -7707,7 +7829,7 @@ namespace Catch {
 
                 auto mean_estimate = Estimate(mean);
                 auto stddev_estimate = Estimate(stddev);
-#endif
+#endif // CATCH_USE_ASYNC
 
                 double outlier_variance = Detail::outlier_variance(mean_estimate, stddev_estimate, n);
 
@@ -7717,7 +7839,7 @@ namespace Catch {
     } // namespace Benchmark
 } // namespace Catch
 
-#endif
+#endif // CATCH_CONFIG_ENABLE_BENCHMARKING
 // end catch_stats.cpp
 // start catch_approx.cpp
 
@@ -7838,6 +7960,8 @@ namespace Catch {
 
         #define CATCH_TRAP() raise(SIGTRAP)
     #endif
+#elif defined(_MSC_VER)
+    #define CATCH_TRAP() __debugbreak()
 #elif defined(__MINGW32__)
     extern "C" __declspec(dllimport) void __stdcall DebugBreak();
     #define CATCH_TRAP() DebugBreak()
@@ -7857,6 +7981,7 @@ namespace Catch {
 // start catch_fatal_condition.h
 
 // start catch_windows_h_proxy.h
+
 
 #if defined(CATCH_PLATFORM_WINDOWS)
 
@@ -7882,7 +8007,7 @@ namespace Catch {
 #  undef WIN32_LEAN_AND_MEAN
 #endif
 
-#endif
+#endif // defined(CATCH_PLATFORM_WINDOWS)
 
 // end catch_windows_h_proxy.h
 #if defined( CATCH_CONFIG_WINDOWS_SEH )
@@ -8001,7 +8126,7 @@ namespace Catch {
         void benchmarkStarting( BenchmarkInfo const& info ) override;
         void benchmarkEnded( BenchmarkStats<> const& stats ) override;
         void benchmarkFailed( std::string const& error ) override;
-#endif
+#endif // CATCH_CONFIG_ENABLE_BENCHMARKING
 
         void pushScopedMessage( MessageInfo const& message ) override;
         void popScopedMessage( MessageInfo const& message ) override;
@@ -8318,6 +8443,7 @@ namespace Catch {
 
 // Clara v1.1.5
 
+
 #ifndef CATCH_CLARA_CONFIG_CONSOLE_WIDTH
 #define CATCH_CLARA_CONFIG_CONSOLE_WIDTH 80
 #endif
@@ -8345,6 +8471,7 @@ namespace Catch {
 // file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 //
 // This project is hosted at https://github.com/philsquared/textflowcpp
+
 
 #include <cassert>
 #include <ostream>
@@ -8681,7 +8808,7 @@ inline auto Column::operator + (Column const& other) -> Columns {
 #include <set>
 #include <algorithm>
 
-#if !defined(CATCH_PLATFORM_WINDOWS) && ( defined(WIN32) || defined(__WIN32__) )
+#if !defined(CATCH_PLATFORM_WINDOWS) && ( defined(WIN32) || defined(__WIN32__) || defined(_WIN32) || defined(_MSC_VER) )
 #define CATCH_PLATFORM_WINDOWS
 #endif
 
@@ -8986,7 +9113,7 @@ namespace detail {
             target = std::move(temp);
         return result;
     }
-#endif
+#endif // CLARA_CONFIG_OPTIONAL_TYPE
 
     struct NonCopyable {
         NonCopyable() = default;
@@ -10109,7 +10236,7 @@ namespace Catch {
 
 } // end namespace Catch
 
-#endif
+#endif // Windows/ ANSI/ None
 
 namespace Catch {
 
@@ -10246,7 +10373,7 @@ namespace Catch {
         }
     }
 
-#endif
+#endif // Platform
 // end catch_debug_console.cpp
 // start catch_debugger.cpp
 
@@ -10339,6 +10466,13 @@ namespace Catch {
             return false;
         }
     } // namespace Catch
+#elif defined(_MSC_VER)
+    extern "C" __declspec(dllimport) int __stdcall IsDebuggerPresent();
+    namespace Catch {
+        bool isDebuggerActive() {
+            return IsDebuggerPresent() != 0;
+        }
+    }
 #elif defined(__MINGW32__)
     extern "C" __declspec(dllimport) int __stdcall IsDebuggerPresent();
     namespace Catch {
@@ -10350,7 +10484,7 @@ namespace Catch {
     namespace Catch {
        bool isDebuggerActive() { return false; }
     }
-#endif
+#endif // Platform
 // end catch_debugger.cpp
 // start catch_decomposer.cpp
 
@@ -10615,7 +10749,7 @@ namespace {
     }
 }
 
-#endif
+#endif // signals/SEH handling
 
 #if defined( CATCH_CONFIG_WINDOWS_SEH )
 
@@ -10754,7 +10888,7 @@ namespace Catch {
     void FatalConditionHandler::reset() {}
 }
 
-#endif
+#endif // signals/SEH handling
 
 #if defined(__GNUC__)
 #    pragma GCC diagnostic pop
@@ -10843,7 +10977,7 @@ namespace Catch {
         void benchmarkStarting( BenchmarkInfo const& benchmarkInfo ) override;
         void benchmarkEnded( BenchmarkStats<> const& benchmarkStats ) override;
         void benchmarkFailed(std::string const&) override;
-#endif
+#endif // CATCH_CONFIG_ENABLE_BENCHMARKING
 
         void testRunStarting( TestRunInfo const& testRunInfo ) override;
         void testGroupStarting( GroupInfo const& groupInfo ) override;
@@ -11327,7 +11461,7 @@ namespace {
         return ::nextafter(x, y);
     }
 
-#endif
+#endif // ^^^ CATCH_CONFIG_GLOBAL_NEXTAFTER ^^^
 
 template <typename FP>
 FP step(FP start, FP direction, uint64_t steps) {
@@ -11816,6 +11950,9 @@ namespace Catch {
 
     private:
         std::FILE* m_file = nullptr;
+    #if defined(_MSC_VER)
+        char m_buffer[L_tmpnam] = { 0 };
+    #endif
     };
 
     class OutputRedirect {
@@ -11841,7 +11978,7 @@ namespace Catch {
 
 } // end namespace Catch
 
-#endif
+#endif // TWOBLUECUBES_CATCH_OUTPUT_REDIRECT_H
 // end catch_output_redirect.h
 #include <cstdio>
 #include <cstring>
@@ -11850,7 +11987,14 @@ namespace Catch {
 #include <stdexcept>
 
 #if defined(CATCH_CONFIG_NEW_CAPTURE)
+    #if defined(_MSC_VER)
+    #include <io.h>      //_dup and _dup2
+    #define dup _dup
+    #define dup2 _dup2
+    #define fileno _fileno
+    #else
     #include <unistd.h>  // dup and dup2
+    #endif
 #endif
 
 namespace Catch {
@@ -11888,6 +12032,20 @@ namespace Catch {
 
 #if defined(CATCH_CONFIG_NEW_CAPTURE)
 
+#if defined(_MSC_VER)
+    TempFile::TempFile() {
+        if (tmpnam_s(m_buffer)) {
+            CATCH_RUNTIME_ERROR("Could not get a temp filename");
+        }
+        if (fopen_s(&m_file, m_buffer, "w+")) {
+            char buffer[100];
+            if (strerror_s(buffer, errno)) {
+                CATCH_RUNTIME_ERROR("Could not translate errno to a string");
+            }
+            CATCH_RUNTIME_ERROR("Could not open the temp file: '" << m_buffer << "' because: " << buffer);
+        }
+    }
+#else
     TempFile::TempFile() {
         m_file = std::tmpfile();
         if (!m_file) {
@@ -11895,11 +12053,16 @@ namespace Catch {
         }
     }
 
+#endif
+
     TempFile::~TempFile() {
          // TBD: What to do about errors here?
          std::fclose(m_file);
          // We manually create the file on Windows only, on Linux
          // it will be autodeleted
+#if defined(_MSC_VER)
+         std::remove(m_buffer);
+#endif
     }
 
     FILE* TempFile::getFile() {
@@ -11941,11 +12104,16 @@ namespace Catch {
         m_stderrDest += m_stderrFile.getContents();
     }
 
-#endif
+#endif // CATCH_CONFIG_NEW_CAPTURE
 
 } // namespace Catch
 
 #if defined(CATCH_CONFIG_NEW_CAPTURE)
+    #if defined(_MSC_VER)
+    #undef dup
+    #undef dup2
+    #undef fileno
+    #endif
 #endif
 // end catch_output_redirect.cpp
 // start catch_polyfills.cpp
@@ -11979,12 +12147,20 @@ namespace Catch {
 
 namespace {
 
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable:4146) // we negate uint32 during the rotate
+#endif
         // Safe rotr implementation thanks to John Regehr
         uint32_t rotate_right(uint32_t val, uint32_t count) {
             const uint32_t mask = 31;
             count &= mask;
             return (val >> count) | (val << (-count & mask));
         }
+
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 
 }
 
@@ -12646,7 +12822,7 @@ namespace Catch {
     void RunContext::benchmarkFailed(std::string const & error) {
         m_reporter->benchmarkFailed(error);
     }
-#endif
+#endif // CATCH_CONFIG_ENABLE_BENCHMARKING
 
     void RunContext::pushScopedMessage(MessageInfo const & message) {
         m_messages.push_back(message);
@@ -12980,6 +13156,9 @@ namespace Catch {
         void libIdentify();
 
         int applyCommandLine( int argc, char const * const * argv );
+    #if defined(CATCH_CONFIG_WCHAR) && defined(_WIN32) && defined(UNICODE)
+        int applyCommandLine( int argc, wchar_t const * const * argv );
+    #endif
 
         void useConfigData( ConfigData const& configData );
 
@@ -13232,6 +13411,30 @@ namespace Catch {
         m_config.reset();
         return 0;
     }
+
+#if defined(CATCH_CONFIG_WCHAR) && defined(_WIN32) && defined(UNICODE)
+    int Session::applyCommandLine( int argc, wchar_t const * const * argv ) {
+
+        char **utf8Argv = new char *[ argc ];
+
+        for ( int i = 0; i < argc; ++i ) {
+            int bufSize = WideCharToMultiByte( CP_UTF8, 0, argv[i], -1, nullptr, 0, nullptr, nullptr );
+
+            utf8Argv[ i ] = new char[ bufSize ];
+
+            WideCharToMultiByte( CP_UTF8, 0, argv[i], -1, utf8Argv[i], bufSize, nullptr, nullptr );
+        }
+
+        int returnCode = applyCommandLine( argc, utf8Argv );
+
+        for ( int i = 0; i < argc; ++i )
+            delete [] utf8Argv[ i ];
+
+        delete [] utf8Argv;
+
+        return returnCode;
+    }
+#endif
 
     void Session::useConfigData( ConfigData const& configData ) {
         m_configData = configData;
@@ -14889,7 +15092,7 @@ std::string StringMaker<wchar_t *>::convert(wchar_t * str) {
 std::string StringMaker<std::byte>::convert(std::byte value) {
     return ::Catch::Detail::stringify(std::to_integer<unsigned long long>(value));
 }
-#endif
+#endif // defined(CATCH_CONFIG_CPP17_BYTE)
 
 std::string StringMaker<int>::convert(int value) {
     return ::Catch::Detail::stringify(static_cast<long long>(value));
@@ -15048,13 +15251,19 @@ namespace Catch {
 #ifndef CATCH_CONFIG_UNCAUGHT_EXCEPTIONS_HPP
 #define CATCH_CONFIG_UNCAUGHT_EXCEPTIONS_HPP
 
+#if defined(_MSC_VER)
+#  if _MSC_VER >= 1900 // Visual Studio 2015 or newer
+#    define CATCH_INTERNAL_CONFIG_CPP17_UNCAUGHT_EXCEPTIONS
+#  endif
+#endif
+
 #include <exception>
 
 #if defined(__cpp_lib_uncaught_exceptions) \
     && !defined(CATCH_INTERNAL_CONFIG_CPP17_UNCAUGHT_EXCEPTIONS)
 
 #  define CATCH_INTERNAL_CONFIG_CPP17_UNCAUGHT_EXCEPTIONS
-#endif
+#endif // __cpp_lib_uncaught_exceptions
 
 #if defined(CATCH_INTERNAL_CONFIG_CPP17_UNCAUGHT_EXCEPTIONS) \
     && !defined(CATCH_CONFIG_NO_CPP17_UNCAUGHT_EXCEPTIONS) \
@@ -15063,7 +15272,7 @@ namespace Catch {
 #  define CATCH_CONFIG_CPP17_UNCAUGHT_EXCEPTIONS
 #endif
 
-#endif
+#endif // CATCH_CONFIG_UNCAUGHT_EXCEPTIONS_HPP
 // end catch_config_uncaught_exceptions.hpp
 #include <exception>
 
@@ -15505,7 +15714,11 @@ namespace Catch {
 
         // Save previous errno, to prevent sprintf from overwriting it
         ErrnoGuard guard;
+#ifdef _MSC_VER
+        sprintf_s(buffer, "%.3f", duration);
+#else
         std::sprintf(buffer, "%.3f", duration);
+#endif
         return std::string(buffer);
     }
 
@@ -15834,6 +16047,12 @@ private:
 
 #include <cfloat>
 #include <cstdio>
+
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable:4061) // Not all labels are EXPLICITLY handled in switch
+ // Note that 4062 (not all labels are handled and default is missing) is enabled
+#endif
 
 #if defined(__clang__)
 #  pragma clang diagnostic push
@@ -16284,7 +16503,7 @@ void ConsoleReporter::benchmarkFailed(std::string const& error) {
         << "Benchmark failed (" << error << ')'
         << ColumnBreak() << RowBreak();
 }
-#endif
+#endif // CATCH_CONFIG_ENABLE_BENCHMARKING
 
 void ConsoleReporter::testCaseEnded(TestCaseStats const& _testCaseStats) {
     m_tablePrinter->close();
@@ -16500,6 +16719,10 @@ CATCH_REGISTER_REPORTER("console", ConsoleReporter)
 
 } // end namespace Catch
 
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
+
 #if defined(__clang__)
 #  pragma clang diagnostic pop
 #endif
@@ -16521,13 +16744,22 @@ namespace Catch {
             std::time(&rawtime);
             auto const timeStampSize = sizeof("2017-01-16T17:06:45Z");
 
+#ifdef _MSC_VER
+            std::tm timeInfo = {};
+            gmtime_s(&timeInfo, &rawtime);
+#else
             std::tm* timeInfo;
             timeInfo = std::gmtime(&rawtime);
+#endif
 
             char timeStamp[timeStampSize];
             const char * const fmt = "%Y-%m-%dT%H:%M:%SZ";
 
+#ifdef _MSC_VER
+            std::strftime(timeStamp, timeStampSize, fmt, &timeInfo);
+#else
             std::strftime(timeStamp, timeStampSize, fmt, timeInfo);
+#endif
             return std::string(timeStamp);
         }
 
@@ -16832,7 +17064,7 @@ namespace Catch {
 		}
 		m_reporter->benchmarkFailed(error);
 	}
-#endif
+#endif // CATCH_CONFIG_ENABLE_BENCHMARKING
 
     void ListeningReporter::testRunStarting( TestRunInfo const& testRunInfo ) {
         for ( auto const& listener : m_listeners ) {
@@ -16919,6 +17151,13 @@ namespace Catch {
 } // end namespace Catch
 // end catch_reporter_listening.cpp
 // start catch_reporter_xml.cpp
+
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable:4061) // Not all labels are EXPLICITLY handled in switch
+                              // Note that 4062 (not all labels are handled
+                              // and default is missing) is enabled
+#endif
 
 namespace Catch {
     XmlReporter::XmlReporter( ReporterConfig const& _config )
@@ -17171,12 +17410,15 @@ namespace Catch {
             writeAttribute("message", error);
         m_xml.endElement();
     }
-#endif
+#endif // CATCH_CONFIG_ENABLE_BENCHMARKING
 
     CATCH_REGISTER_REPORTER( "xml", XmlReporter )
 
 } // end namespace Catch
 
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 // end catch_reporter_xml.cpp
 
 namespace Catch {
@@ -17224,7 +17466,7 @@ int main (int argc, char * const argv[]) {
     return result;
 }
 
-#endif
+#endif // __OBJC__
 
 // end catch_default_main.hpp
 #endif
@@ -17248,7 +17490,7 @@ int main (int argc, char * const argv[]) {
 #define CATCH_REQUIRE_THROWS_WITH( expr, matcher ) INTERNAL_CATCH_THROWS_STR_MATCHES( "CATCH_REQUIRE_THROWS_WITH", Catch::ResultDisposition::Normal, matcher, expr )
 #if !defined(CATCH_CONFIG_DISABLE_MATCHERS)
 #define CATCH_REQUIRE_THROWS_MATCHES( expr, exceptionType, matcher ) INTERNAL_CATCH_THROWS_MATCHES( "CATCH_REQUIRE_THROWS_MATCHES", exceptionType, Catch::ResultDisposition::Normal, matcher, expr )
-#endif
+#endif// CATCH_CONFIG_DISABLE_MATCHERS
 #define CATCH_REQUIRE_NOTHROW( ... ) INTERNAL_CATCH_NO_THROW( "CATCH_REQUIRE_NOTHROW", Catch::ResultDisposition::Normal, __VA_ARGS__ )
 
 #define CATCH_CHECK( ... ) INTERNAL_CATCH_TEST( "CATCH_CHECK", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
@@ -17262,14 +17504,14 @@ int main (int argc, char * const argv[]) {
 #define CATCH_CHECK_THROWS_WITH( expr, matcher ) INTERNAL_CATCH_THROWS_STR_MATCHES( "CATCH_CHECK_THROWS_WITH", Catch::ResultDisposition::ContinueOnFailure, matcher, expr )
 #if !defined(CATCH_CONFIG_DISABLE_MATCHERS)
 #define CATCH_CHECK_THROWS_MATCHES( expr, exceptionType, matcher ) INTERNAL_CATCH_THROWS_MATCHES( "CATCH_CHECK_THROWS_MATCHES", exceptionType, Catch::ResultDisposition::ContinueOnFailure, matcher, expr )
-#endif
+#endif // CATCH_CONFIG_DISABLE_MATCHERS
 #define CATCH_CHECK_NOTHROW( ... ) INTERNAL_CATCH_NO_THROW( "CATCH_CHECK_NOTHROW", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
 
 #if !defined(CATCH_CONFIG_DISABLE_MATCHERS)
 #define CATCH_CHECK_THAT( arg, matcher ) INTERNAL_CHECK_THAT( "CATCH_CHECK_THAT", matcher, Catch::ResultDisposition::ContinueOnFailure, arg )
 
 #define CATCH_REQUIRE_THAT( arg, matcher ) INTERNAL_CHECK_THAT( "CATCH_REQUIRE_THAT", matcher, Catch::ResultDisposition::Normal, arg )
-#endif
+#endif // CATCH_CONFIG_DISABLE_MATCHERS
 
 #define CATCH_INFO( msg ) INTERNAL_CATCH_INFO( "CATCH_INFO", msg )
 #define CATCH_UNSCOPED_INFO( msg ) INTERNAL_CATCH_UNSCOPED_INFO( "CATCH_UNSCOPED_INFO", msg )
@@ -17331,7 +17573,7 @@ int main (int argc, char * const argv[]) {
     INTERNAL_CATCH_BENCHMARK(INTERNAL_CATCH_UNIQUE_NAME(____C_A_T_C_H____B_E_N_C_H____), INTERNAL_CATCH_GET_1_ARG(__VA_ARGS__,,), INTERNAL_CATCH_GET_2_ARG(__VA_ARGS__,,))
 #define CATCH_BENCHMARK_ADVANCED(name) \
     INTERNAL_CATCH_BENCHMARK_ADVANCED(INTERNAL_CATCH_UNIQUE_NAME(____C_A_T_C_H____B_E_N_C_H____), name)
-#endif
+#endif // CATCH_CONFIG_ENABLE_BENCHMARKING
 
 // If CATCH_CONFIG_PREFIX_ALL is not defined then the CATCH_ prefix is not required
 #else
@@ -17344,7 +17586,7 @@ int main (int argc, char * const argv[]) {
 #define REQUIRE_THROWS_WITH( expr, matcher ) INTERNAL_CATCH_THROWS_STR_MATCHES( "REQUIRE_THROWS_WITH", Catch::ResultDisposition::Normal, matcher, expr )
 #if !defined(CATCH_CONFIG_DISABLE_MATCHERS)
 #define REQUIRE_THROWS_MATCHES( expr, exceptionType, matcher ) INTERNAL_CATCH_THROWS_MATCHES( "REQUIRE_THROWS_MATCHES", exceptionType, Catch::ResultDisposition::Normal, matcher, expr )
-#endif
+#endif // CATCH_CONFIG_DISABLE_MATCHERS
 #define REQUIRE_NOTHROW( ... ) INTERNAL_CATCH_NO_THROW( "REQUIRE_NOTHROW", Catch::ResultDisposition::Normal, __VA_ARGS__ )
 
 #define CHECK( ... ) INTERNAL_CATCH_TEST( "CHECK", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
@@ -17358,14 +17600,14 @@ int main (int argc, char * const argv[]) {
 #define CHECK_THROWS_WITH( expr, matcher ) INTERNAL_CATCH_THROWS_STR_MATCHES( "CHECK_THROWS_WITH", Catch::ResultDisposition::ContinueOnFailure, matcher, expr )
 #if !defined(CATCH_CONFIG_DISABLE_MATCHERS)
 #define CHECK_THROWS_MATCHES( expr, exceptionType, matcher ) INTERNAL_CATCH_THROWS_MATCHES( "CHECK_THROWS_MATCHES", exceptionType, Catch::ResultDisposition::ContinueOnFailure, matcher, expr )
-#endif
+#endif // CATCH_CONFIG_DISABLE_MATCHERS
 #define CHECK_NOTHROW( ... ) INTERNAL_CATCH_NO_THROW( "CHECK_NOTHROW", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
 
 #if !defined(CATCH_CONFIG_DISABLE_MATCHERS)
 #define CHECK_THAT( arg, matcher ) INTERNAL_CHECK_THAT( "CHECK_THAT", matcher, Catch::ResultDisposition::ContinueOnFailure, arg )
 
 #define REQUIRE_THAT( arg, matcher ) INTERNAL_CHECK_THAT( "REQUIRE_THAT", matcher, Catch::ResultDisposition::Normal, arg )
-#endif
+#endif // CATCH_CONFIG_DISABLE_MATCHERS
 
 #define INFO( msg ) INTERNAL_CATCH_INFO( "INFO", msg )
 #define UNSCOPED_INFO( msg ) INTERNAL_CATCH_UNSCOPED_INFO( "UNSCOPED_INFO", msg )
@@ -17435,7 +17677,7 @@ int main (int argc, char * const argv[]) {
     INTERNAL_CATCH_BENCHMARK(INTERNAL_CATCH_UNIQUE_NAME(____C_A_T_C_H____B_E_N_C_H____), INTERNAL_CATCH_GET_1_ARG(__VA_ARGS__,,), INTERNAL_CATCH_GET_2_ARG(__VA_ARGS__,,))
 #define BENCHMARK_ADVANCED(name) \
     INTERNAL_CATCH_BENCHMARK_ADVANCED(INTERNAL_CATCH_UNIQUE_NAME(____C_A_T_C_H____B_E_N_C_H____), name)
-#endif
+#endif // CATCH_CONFIG_ENABLE_BENCHMARKING
 
 using Catch::Detail::Approx;
 
@@ -17453,7 +17695,7 @@ using Catch::Detail::Approx;
 #define CATCH_REQUIRE_THROWS_WITH( expr, matcher )     (void)(0)
 #if !defined(CATCH_CONFIG_DISABLE_MATCHERS)
 #define CATCH_REQUIRE_THROWS_MATCHES( expr, exceptionType, matcher ) (void)(0)
-#endif
+#endif// CATCH_CONFIG_DISABLE_MATCHERS
 #define CATCH_REQUIRE_NOTHROW( ... ) (void)(0)
 
 #define CATCH_CHECK( ... )         (void)(0)
@@ -17467,14 +17709,14 @@ using Catch::Detail::Approx;
 #define CATCH_CHECK_THROWS_WITH( expr, matcher )     (void)(0)
 #if !defined(CATCH_CONFIG_DISABLE_MATCHERS)
 #define CATCH_CHECK_THROWS_MATCHES( expr, exceptionType, matcher ) (void)(0)
-#endif
+#endif // CATCH_CONFIG_DISABLE_MATCHERS
 #define CATCH_CHECK_NOTHROW( ... ) (void)(0)
 
 #if !defined(CATCH_CONFIG_DISABLE_MATCHERS)
 #define CATCH_CHECK_THAT( arg, matcher )   (void)(0)
 
 #define CATCH_REQUIRE_THAT( arg, matcher ) (void)(0)
-#endif
+#endif // CATCH_CONFIG_DISABLE_MATCHERS
 
 #define CATCH_INFO( msg )          (void)(0)
 #define CATCH_UNSCOPED_INFO( msg ) (void)(0)
@@ -17537,7 +17779,7 @@ using Catch::Detail::Approx;
 #define REQUIRE_THROWS_WITH( expr, matcher ) (void)(0)
 #if !defined(CATCH_CONFIG_DISABLE_MATCHERS)
 #define REQUIRE_THROWS_MATCHES( expr, exceptionType, matcher ) (void)(0)
-#endif
+#endif // CATCH_CONFIG_DISABLE_MATCHERS
 #define REQUIRE_NOTHROW( ... ) (void)(0)
 
 #define CHECK( ... ) (void)(0)
@@ -17551,14 +17793,14 @@ using Catch::Detail::Approx;
 #define CHECK_THROWS_WITH( expr, matcher ) (void)(0)
 #if !defined(CATCH_CONFIG_DISABLE_MATCHERS)
 #define CHECK_THROWS_MATCHES( expr, exceptionType, matcher ) (void)(0)
-#endif
+#endif // CATCH_CONFIG_DISABLE_MATCHERS
 #define CHECK_NOTHROW( ... ) (void)(0)
 
 #if !defined(CATCH_CONFIG_DISABLE_MATCHERS)
 #define CHECK_THAT( arg, matcher ) (void)(0)
 
 #define REQUIRE_THAT( arg, matcher ) (void)(0)
-#endif
+#endif // CATCH_CONFIG_DISABLE_MATCHERS
 
 #define INFO( msg ) (void)(0)
 #define UNSCOPED_INFO( msg ) (void)(0)
@@ -17618,9 +17860,10 @@ using Catch::Detail::Approx;
 
 #endif
 
-#endif
+#endif // ! CATCH_CONFIG_IMPL_ONLY
 
 // start catch_reenable_warnings.h
+
 
 #ifdef __clang__
 #    ifdef __ICC // icpc defines the __clang__ macro
@@ -17634,4 +17877,4 @@ using Catch::Detail::Approx;
 
 // end catch_reenable_warnings.h
 // end catch.hpp
-#endif
+#endif // TWOBLUECUBES_SINGLE_INCLUDE_CATCH_HPP_INCLUDED

@@ -60,7 +60,8 @@ namespace Pal
 // Static asserts to check that the client's AddrLib and VAM libraries are compatible with PAL.  If one of these
 // asserts trips, then PAL will likely need an update in order to support a breaking change in one of these library's
 // interfaces.
-static_assert(ADDRLIB_VERSION_MAJOR == 9, "Unexpected AddrLib major version.");
+
+static_assert((ADDRLIB_VERSION_MAJOR == 9) || (ADDRLIB_VERSION_MAJOR == 10), "Unexpected AddrLib major version.");
 static_assert(VAM_VERSION_MAJOR == 1, "Unexpected VAM major version.");
 
 // Static asserts to ensure clients have defined PAL_CLIENT_INTERFACE_MAJOR_VERSION and that it falls in the supported
@@ -100,6 +101,9 @@ constexpr GpuInfo GpuInfoLookupTable[] =
     { AsicRevision::Navi33,   NullGpuId::Navi33,   GfxIpLevel::GfxIp11_0, FAMILY_NV3, NAVI33_P_A0, PRID_NV3_NAVI33_00, GfxEngineGfx9, DEVICE_ID_NV3_NAVI33_P_73F0, "NAVI33:gfx1102" },
     { AsicRevision::Phoenix1, NullGpuId::Phoenix1, GfxIpLevel::GfxIp11_0, FAMILY_PHX, PHOENIX1_A0, PRID_PHX_00,        GfxEngineGfx9, DEVICE_ID_PHX1_15BF,         "PHOENIX1:gfx1103" },
     { AsicRevision::Phoenix2, NullGpuId::Phoenix2, GfxIpLevel::GfxIp11_0, FAMILY_PHX, PHOENIX2_A0, PRID_PHX_00,        GfxEngineGfx9, DEVICE_ID_PHX2_15C8,         "PHOENIX2:gfx1103" },
+#if PAL_BUILD_STRIX1
+    { AsicRevision::Strix1,    NullGpuId::Strix1,    GfxIpLevel::GfxIp11_5, FAMILY_STX, STRIX1_P_A0,     PRID_STX_STRIX1_00,     GfxEngineGfx9, DEVICE_ID_STX1_150E, "STRIX1:gfx1150" },
+#endif
 };
 
 // =====================================================================================================================

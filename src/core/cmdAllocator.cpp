@@ -126,7 +126,7 @@ CmdAllocator::CmdAllocator(
         // desired then we should rework the chunk management logic and internal memory logic so that command chunks
         // are not mapped while they are referenced on the GPU.  This does not apply when large BAR support is
         // available.
-        if (m_pDevice->HasLargeLocalHeap() == false)
+        if (m_pDevice->HasLargeBar() == false)
         {
             PAL_ALERT(createInfo.allocInfo[i].allocHeap == GpuHeapLocal);
         }

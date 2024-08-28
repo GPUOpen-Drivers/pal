@@ -38,10 +38,6 @@
 #include "core/os/amdgpu/amdgpuHeaders.h"
 #endif
 
-#if PAL_HAVE_GIT_METADATA
-#include "g_palGit.h"
-#endif
-
 #include <ctime>
 
 using namespace Util;
@@ -131,31 +127,17 @@ void TextWriter::WriteVisualConfirm(
         Util::Snprintf(&overlayText[textLines++][0], BufSize, "Rendered by %s", pClientApiStr);
     }
 
-#if PAL_HAVE_GIT_METADATA
-    // Write string to mark the variable as used so it isn't optimized away so it can be grepped.
-    // Since the string starts with a null terminator this effectively does little-to-no CPU work at runtime.
-    Util::Snprintf(&overlayText[textLines][0], BufSize, PalGit::Summary);
-
-    // Construct the first part of the string with the hash and dirty status.
-    constexpr const char HashText[]{ "PAL Git Hash: " PAL_STRINGIFY(PAL_GIT_DESCRIBE_SHORT) " " };
-    static_assert(std::size(HashText) < BufSize);
-
-    // Construct the back half of the string with the branch.
-    // Branch name gets truncated based on how much space is left over from the first part of the string.
-    char branchText[BufSize];
-    Util::Snprintf(&branchText[0], BufSize - std::size(HashText) - 2, "(%s)", PalGit::Branch);
-
-    // Combine the strings together.
-    Util::Snprintf(&overlayText[textLines++][0], BufSize, "%s%s", HashText, branchText);
-#endif
-
     Platform* pPlatform = static_cast<Platform*>(m_pDevice->GetPlatform());
     if (pPlatform->HasRayTracingBeenUsed())
     {
         Util::Snprintf(&overlayText[textLines++][0], BufSize, "Powered by Ray Tracing");
     }
 
-    Util::Snprintf(&overlayText[textLines++][0], BufSize, "GPU: %s", gpuProps.gpuName);
+    // Print GPU name and ({major}.{minor}.{stepping}).
+    Util::Snprintf(&overlayText[textLines++][0], BufSize, "GPU: %s (%u.%u.%u)", gpuProps.gpuName,
+                                                                                gpuProps.gfxTriple.major,
+                                                                                gpuProps.gfxTriple.minor,
+                                                                                gpuProps.gfxTriple.stepping);
 
     // Optionally include command processor subversion info
     if (settings.debugOverlayConfig.cpVersionEnabled)

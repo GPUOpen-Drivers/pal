@@ -62,6 +62,7 @@ namespace Pal
 struct SqttFileChunkCpuInfo;
 struct SqttFileChunkAsicInfo;
 struct SqttCodeObjectDatabaseRecord;
+
 struct GpuMemoryInfo;
 
 namespace GpuUtil
@@ -342,7 +343,7 @@ struct RegisterPipelineInfo
 /// Struct for supplying API-dependent information about libraries.
 struct RegisterLibraryInfo
 {
-    Pal::uint64 apiHash; ///< Client-provided api hash.
+    Pal::uint64 apiHash;      ///< Client-provided api hash.
 };
 
 /// Struct for supplying Elf binary.
