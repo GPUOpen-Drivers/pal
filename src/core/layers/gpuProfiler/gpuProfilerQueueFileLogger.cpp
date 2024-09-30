@@ -824,7 +824,7 @@ void Queue::OutputTraceDataToFile(
                 result = logItem.pGpaSession->GetResults(logItem.gpaSampleId, &dataSize, pResult);
             }
 
-            // Below crack open the .rgp blob in the GpuProfiler to extract the raw SQTT data. We assume
+            // Below crack open the .rgp blob in the gpa results to extract the raw SQTT data. We assume
             // SQTT data comes before SPM data.
             if (result == Result::Success)
             {
@@ -846,6 +846,7 @@ void Queue::OutputTraceDataToFile(
                     while ((offset < dataSize) &&
                            (pDesc->header.chunkIdentifier.chunkType == SQTT_FILE_CHUNK_TYPE_SQTT_DESC))
                     {
+                        // Skip Desc
                         offset += pDesc->header.sizeInBytes;
                         const auto* pData = static_cast<const SqttFileChunkSqttData*>(VoidPtrInc(pResult, offset));
                         PAL_ASSERT(pData->header.chunkIdentifier.chunkType == SQTT_FILE_CHUNK_TYPE_SQTT_DATA);
@@ -854,9 +855,12 @@ void Queue::OutputTraceDataToFile(
                         const uint32 shaderEngine = pDesc->shaderEngineIndex;
                         const uint32 computeUnit = pDesc->v1.computeUnitIndex;
 
-                        OpenSqttFile(shaderEngine, computeUnit, m_curLogTraceIdx, &logFile, logItem);
-                        logFile.Write(VoidPtrInc(pResult, pData->offset), pData->size);
-                        logFile.Close();
+                        if (pData->size)
+                        {
+                            OpenSqttFile(shaderEngine, computeUnit, m_curLogTraceIdx, &logFile, logItem);
+                            logFile.Write(VoidPtrInc(pResult, pData->offset), pData->size);
+                            logFile.Close();
+                        }
 
                         offset += pData->header.sizeInBytes;
                         pDesc = static_cast<const SqttFileChunkSqttDesc*>(VoidPtrInc(pResult, offset));

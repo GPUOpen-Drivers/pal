@@ -600,9 +600,7 @@ private:
         GfxCmdBuffer*             pCmdBuffer,
         const ImageResolveRegion* pRegions,
         uint32                    regionCount,
-        const BarrierTransition&  transition,
-        HwPipePoint               pipePoint,
-        HwPipePoint               waitPoint) const;
+        const ImgBarrier&         imgBarrier) const;
 
     virtual void FixupMetadataForComputeDst(
         GfxCmdBuffer*           pCmdBuffer,

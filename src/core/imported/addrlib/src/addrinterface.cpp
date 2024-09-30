@@ -126,6 +126,32 @@ UINT_32 ADDR_API AddrGetVersion(ADDR_HANDLE hLib)
 
 /**
 ****************************************************************************************************
+*   AddrGetInterfaceVersion
+*
+*   @brief
+*       Get AddrLib interface version number. Client may use this to know what AddrN functions to
+*       use.
+****************************************************************************************************
+*/
+UINT_32 ADDR_API AddrGetInterfaceVersion(ADDR_HANDLE hLib)
+{
+    UINT_32 version = 0;
+
+    Addr::Lib* pLib = Lib::GetLib(hLib);
+
+    ADDR_ASSERT(pLib != NULL);
+
+    if (pLib)
+    {
+        version = pLib->GetInterfaceVersion();
+    }
+
+    ADDR_RESET_DEBUG_PRINTERS();
+    return version;
+}
+
+/**
+****************************************************************************************************
 *   ElemFlt32ToDepthPixel
 *
 *   @brief

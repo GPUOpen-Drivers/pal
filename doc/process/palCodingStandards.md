@@ -166,8 +166,6 @@ General
      * In VS Code you could also enable trailing whitespace trimming by pressing Ctrl + Shift + P and then searching for Trim Trailing Whitespace.
      * For Visual Studio check out Trailing Whitespace Visualizer extension  (found on the Visual Studio marketplace).
 
--   AI generated code **must** not be added to the PAL code base.
-
 General Language Restrictions
 -----------------------------
 

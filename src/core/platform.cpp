@@ -777,12 +777,11 @@ void Platform::LateInitDevDriver()
 // Destroys the connection to the developer driver message bus if it was previously initialized.
 void Platform::DestroyDevDriver()
 {
-#if PAL_ENABLE_LOGGING
-    DbgLoggerDevDriver::DestroyDevDriverLogger(m_pDevDriverLogger, this);
-#endif
-
     if (m_pDevDriverServer != nullptr)
     {
+#if PAL_ENABLE_LOGGING
+        DbgLoggerDevDriver::DestroyDevDriverLogger(m_pDevDriverLogger, this);
+#endif
         DestroyRpcServices();
 
         m_gpuMemoryEventProvider.Destroy();

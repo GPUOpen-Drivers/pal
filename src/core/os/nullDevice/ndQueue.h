@@ -69,7 +69,7 @@ public:
 
     virtual EngineType GetEngineType() const override { return EngineType::EngineTypeCount; }
 
-    virtual void Destroy() override {}
+    virtual void OsDestroy() override {}
 
     virtual Result LateInit() override { return Result::Success; }
 

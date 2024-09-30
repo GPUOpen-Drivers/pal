@@ -2270,6 +2270,8 @@ static void CacheCoherencyUsageToString(
         "Memory",       // CoherMemory
         "SampleRate",   // CoherSampleRate
         "Present",      // CoherPresent
+        "Reserved",     // Reserved for future use
+        "Cp"            // CoherCp
     };
 
     static_assert(BitfieldGenMask(ArrayLen(CacheCoherUsageNames)) == CoherAllUsages,
@@ -4073,10 +4075,22 @@ void CmdBuffer::CmdFillMemory(
 {
     if (m_annotations.logCmdBlts)
     {
+        LinearAllocatorAuto<VirtualLinearAllocator> allocator(Allocator(), false);
+        char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
+
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdFillMemory));
         DumpGpuMemoryInfo(this, &dstGpuMemory, "dstGpuMemory", "");
 
-        // TODO: Add comment string.
+        Snprintf(pString, StringLength, "dstOffset = 0x%016llX", dstOffset);
+        GetNextLayer()->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "fillSize  = 0x%016llX", fillSize);
+        GetNextLayer()->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "data      = %u", data);
+        GetNextLayer()->CmdCommentString(pString);
+
+        PAL_SAFE_DELETE_ARRAY(pString, &allocator);
     }
 
     GetNextLayer()->CmdFillMemory(*NextGpuMemory(&dstGpuMemory), dstOffset, fillSize, data);
@@ -4338,32 +4352,35 @@ static void DumpImageResolveRegion(
         Snprintf(pString, StringLength, "Region %u = [", i);
         pNextCmdBuffer->CmdCommentString(pString);
 
-        Snprintf(pString, StringLength, "\t srcPlane   = 0x%x", region.srcPlane);
+        Snprintf(pString, StringLength, "\t srcPlane    = 0x%x", region.srcPlane);
         pNextCmdBuffer->CmdCommentString(pString);
 
-        Snprintf(pString, StringLength, "\t srcSlice   = 0x%x", region.srcSlice);
+        Snprintf(pString, StringLength, "\t srcSlice    = 0x%x", region.srcSlice);
         pNextCmdBuffer->CmdCommentString(pString);
 
-        Snprintf(pString, StringLength, "\t srcOffset  = ");
+        Snprintf(pString, StringLength, "\t srcOffset   = ");
         Offset3dToString(region.srcOffset, pString);
         pNextCmdBuffer->CmdCommentString(pString);
         pNextCmdBuffer->CmdCommentString(pString);
 
-        Snprintf(pString, StringLength, "\t dstPlane   = 0x%x", region.dstPlane);
+        Snprintf(pString, StringLength, "\t dstPlane    = 0x%x", region.dstPlane);
         pNextCmdBuffer->CmdCommentString(pString);
 
-        Snprintf(pString, StringLength, "\t dstSlice   = 0x%x", region.dstSlice);
+        Snprintf(pString, StringLength, "\t dstMipLevel = 0x%x", region.dstMipLevel);
         pNextCmdBuffer->CmdCommentString(pString);
 
-        Snprintf(pString, StringLength, "\t dstOffset  = ");
+        Snprintf(pString, StringLength, "\t dstSlice    = 0x%x", region.dstSlice);
+        pNextCmdBuffer->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "\t dstOffset   = ");
         Offset3dToString(region.dstOffset, pString);
         pNextCmdBuffer->CmdCommentString(pString);
 
-        Snprintf(pString, StringLength, "\t extent     = ");
+        Snprintf(pString, StringLength, "\t extent      = ");
         Extent3dToString(region.extent, pString);
         pNextCmdBuffer->CmdCommentString(pString);
 
-        Snprintf(pString, StringLength, "\t numSlices  = %u", region.numSlices);
+        Snprintf(pString, StringLength, "\t numSlices   = %u", region.numSlices);
         pNextCmdBuffer->CmdCommentString(pString);
 
         Snprintf(pString, StringLength, "\t swizzledFormat = { format = %s, swizzle = ",

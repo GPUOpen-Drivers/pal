@@ -373,6 +373,8 @@ void IndirectCmdGenerator::InitParamBuffer(
     uint32 argBufOffset = 0;
     uint32 cmdBufOffset = 0;
 
+    m_properties.userDataArgBufOffsetBase = UINT32_MAX;
+
     // We need to remember the argument buffer offset for BindIndexData because DrawIndexed is the parameter which
     // needs to process it (because DRAW_INDEX_2 packets issue a draw and bind an IB address simultaneously). If we
     // don't encounter a BindIndexData parameter for this generator, we'll fall back to using the suboptimal
@@ -427,6 +429,8 @@ void IndirectCmdGenerator::InitParamBuffer(
                 // command generator.
                 m_properties.userDataWatermark = Max((param.userData.firstEntry + param.userData.entryCount),
                                                      m_properties.userDataWatermark);
+                // Marks where SetUserData Ops begin.
+                m_properties.userDataArgBufOffsetBase = Min(m_properties.userDataArgBufOffsetBase, argBufOffset);
                 // Also, we need to track the mask of which user-data entries this command-generator touches.
                 WideBitfieldSetRange(m_touchedUserData, param.userData.firstEntry, param.userData.entryCount);
 
@@ -455,6 +459,12 @@ void IndirectCmdGenerator::InitParamBuffer(
 
         cmdBufOffset += m_pParamData[p].cmdBufSize;
         argBufOffset += param.sizeInBytes;
+    }
+
+    // We reset userDataArgBufOffsetBase if it's value did not change.
+    if (m_properties.userDataArgBufOffsetBase == UINT32_MAX)
+    {
+        m_properties.userDataArgBufOffsetBase = 0;
     }
 
     m_properties.cmdBufStride = m_cmdSizeNeedPipeline ? 0 : cmdBufOffset;

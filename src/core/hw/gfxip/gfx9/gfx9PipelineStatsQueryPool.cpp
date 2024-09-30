@@ -387,10 +387,9 @@ void PipelineStatsQueryPool::End(
         }
 
         ReleaseMemGeneric releaseInfo = {};
-        releaseInfo.engineType = engineType;
-        releaseInfo.dstAddr    = timeStampAddr;
-        releaseInfo.dataSel    = data_sel__me_release_mem__send_32_bit_low;
-        releaseInfo.data       = QueryTimestampEnd;
+        releaseInfo.dstAddr = timeStampAddr;
+        releaseInfo.dataSel = data_sel__me_release_mem__send_32_bit_low;
+        releaseInfo.data    = QueryTimestampEnd;
 
         pCmdSpace += cmdUtil.BuildReleaseMemGeneric(releaseInfo, pCmdSpace);
         pCmdStream->CommitCommands(pCmdSpace);
@@ -482,7 +481,9 @@ void PipelineStatsQueryPool::GpuReset(
         // because the caller must use semaphores to make sure all queries are complete.
         //
         // TODO: Investigate if we can optimize this, we might just need a VS/PS/CS_PARTIAL_FLUSH on universal queue.
-        pCmdSpace = pPm4CmdBuf->WriteWaitEop(HwPipePostPrefetch, false, SyncGlxNone, SyncRbNone, pCmdSpace);
+        constexpr WriteWaitEopInfo WaitEopInfo = { .waitPoint = HwPipePostPrefetch };
+
+        pCmdSpace = pPm4CmdBuf->WriteWaitEop(WaitEopInfo, pCmdSpace);
     }
 
     gpusize gpuAddr          = 0;

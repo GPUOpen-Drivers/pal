@@ -165,6 +165,16 @@ Result PipelineAbiReader::GetMetadata(
 
     memset(pMetadata, 0, sizeof(PalAbi::CodeObjectMetadata));
 
+    //  Mark initial userEntries as not mapped
+    for (uint32 stage = 0; stage < static_cast<uint32>(Abi::HardwareStage::Count); ++stage)
+    {
+        auto& stageMetadata = pMetadata->pipeline.hardwareStage[stage];
+
+        memset(stageMetadata.userDataRegMap,
+               uint32(Abi::UserDataMapping::NotMapped),
+               sizeof(stageMetadata.userDataRegMap));
+    }
+
     for (ElfReader::SectionId sectionIndex = 0; sectionIndex < m_elfReader.GetNumSections(); sectionIndex++)
     {
         // Only the .note section has the right format

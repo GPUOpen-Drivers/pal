@@ -82,7 +82,7 @@ static const PipelineBinary*const GetRpmComputePipelineTable(
 
     }
 #if PAL_BUILD_STRIX1
-    if ((properties.revision == Pal::AsicRevision::Strix1) &&
+    if ((Pal::uint32(properties.gfxTriple) == Pal::IpTriple({ 11, 5, 0 })) &&
         (getenv("GFX115_NPI_FEATURES") != nullptr) &&
         (Util::Strcasecmp(getenv("GFX115_NPI_FEATURES"), "none") == 0))
     {
@@ -90,7 +90,7 @@ static const PipelineBinary*const GetRpmComputePipelineTable(
     }
 #endif
 #if PAL_BUILD_STRIX1
-    if ((properties.revision == Pal::AsicRevision::Strix1) &&
+    if ((Pal::uint32(properties.gfxTriple) == Pal::IpTriple({ 11, 5, 0 })) &&
         (getenv("GFX115_NPI_FEATURES") != nullptr) &&
         (Util::Strcasecmp(getenv("GFX115_NPI_FEATURES"), "all") == 0))
     {
@@ -98,7 +98,7 @@ static const PipelineBinary*const GetRpmComputePipelineTable(
     }
 #endif
 #if PAL_BUILD_STRIX1
-    if ((properties.revision == Pal::AsicRevision::Strix1) &&
+    if ((Pal::uint32(properties.gfxTriple) == Pal::IpTriple({ 11, 5, 0 })) &&
         (getenv("GFX115_NPI_FEATURES") != nullptr) &&
         (Util::Strcasecmp(getenv("GFX115_NPI_FEATURES"), "onlyVGPRWriteKill") == 0))
     {
@@ -106,7 +106,7 @@ static const PipelineBinary*const GetRpmComputePipelineTable(
     }
 #endif
 #if PAL_BUILD_STRIX1
-    if ((properties.revision == Pal::AsicRevision::Strix1) &&
+    if ((Pal::uint32(properties.gfxTriple) == Pal::IpTriple({ 11, 5, 0 })) &&
         (getenv("GFX115_NPI_FEATURES") != nullptr) &&
         (Util::Strcasecmp(getenv("GFX115_NPI_FEATURES"), "noScalarFmacOps") == 0))
     {
@@ -114,7 +114,7 @@ static const PipelineBinary*const GetRpmComputePipelineTable(
     }
 #endif
 #if PAL_BUILD_STRIX1
-    if ((properties.revision == Pal::AsicRevision::Strix1) &&
+    if ((Pal::uint32(properties.gfxTriple) == Pal::IpTriple({ 11, 5, 0 })) &&
         (getenv("GFX115_NPI_FEATURES") != nullptr) &&
         (Util::Strcasecmp(getenv("GFX115_NPI_FEATURES"), "onlyScalarFloatOps") == 0))
     {

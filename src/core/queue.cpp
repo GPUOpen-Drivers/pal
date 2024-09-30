@@ -338,6 +338,8 @@ void Queue::Destroy()
     // NOTE: If there are still outstanding batched commands for this Queue, something has gone very wrong!
     PAL_ASSERT(m_batchedCmds.NumElements() == 0);
 
+    // This is where we might do any final submits before queues are destroyed.
+
     // There are some CmdStreams which are created with UntrackedCmdAllocator, then the CmdStreamChunks in those
     // CmdStreams will have race condition when CmdStreams are destructed. Only CPU side reference count is used to
     // track chunks. Multi-queues share the same UntrackedCmdAllocator will have chance to overwrite command chunk
@@ -345,6 +347,8 @@ void Queue::Destroy()
     // and can cause ASIC hang. This issue could be easily re-produced under SRIOV platform because virtual GPU is
     // slow and have chance to be preempted. Solution is call WaitIdle before doing anything else.
     WaitIdle();
+
+    OsDestroy();
 
     if (m_pDummyCmdBuffer != nullptr)
     {
@@ -990,6 +994,11 @@ Result Queue::SignalQueueSemaphoreInternal(
     uint64           value,
     bool             postBatching)
 {
+    if (pQueueSemaphore == nullptr)
+    {
+        return Result::ErrorInvalidPointer;
+    }
+
     QueueSemaphore*const pSemaphore = static_cast<QueueSemaphore*>(pQueueSemaphore);
 
     Result result = Result::Success;
@@ -1036,6 +1045,11 @@ Result Queue::WaitQueueSemaphoreInternal(
     uint64           value,
     bool             postBatching)
 {
+    if (pQueueSemaphore == nullptr)
+    {
+        return Result::ErrorInvalidPointer;
+    }
+
     QueueSemaphore*const pSemaphore = static_cast<QueueSemaphore*>(pQueueSemaphore);
 
     Result result = Result::Success;

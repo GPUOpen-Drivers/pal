@@ -203,6 +203,10 @@ public:
     static Lib* GetLib(
         ADDR_HANDLE hLib);
 
+    virtual UINT_32 GetInterfaceVersion() const override
+    {
+        return 2;
+    }
     //
     // Interface stubs
     //

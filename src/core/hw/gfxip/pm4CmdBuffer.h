@@ -119,6 +119,23 @@ struct Pm4CmdBufferState
     } fences;
 };
 
+enum ExecuteIndirectV2GlobalSpill
+{
+    NoExecuteIndirectV2               = 0,
+    ContainsExecuteIndirectV2         = 1,
+    ContainsExecuteIndirectV2WithTask = 2
+};
+
+// Required argument for WriteWaitEop() call.
+struct WriteWaitEopInfo
+{
+    uint32      hwGlxSync;  // Opaque HWL glx cache sync flags.
+    uint32      hwRbSync;   // Opaque HWL RB cache sync flags; ignored on compute cmd buffer.
+    HwPipePoint waitPoint;  // GPU pipeline point to acquire, ignored on compute cmd buffer.
+    bool        waitCpDma;  // If wait CpDma to be idle.
+    bool        disablePws; // If disable PWS RELEASE_MEM/ACQUIRE_MEM packet.
+};
+
 // =====================================================================================================================
 // Abstract class for executing basic hardware-specific functionality common to GFXIP universal and compute command
 // buffers in PM4.
@@ -316,17 +333,18 @@ public:
 
     // hwGlxSync/hwRbSync: opaque HWL cache sync flags. hwRbSync will be ignored for compute cmd buffer.
     virtual uint32* WriteWaitEop(
-        HwPipePoint waitPoint,
-        bool        waitCpDma,
-        uint32      hwGlxSync,
-        uint32      hwRbSync,
-        uint32*     pCmdSpace)
+        const WriteWaitEopInfo& info,
+        uint32*                 pCmdSpace)
         { PAL_NEVER_CALLED(); return pCmdSpace; }
 
     virtual uint32* WriteWaitCsIdle(uint32* pCmdSpace)
         { PAL_NEVER_CALLED(); return pCmdSpace; }
 
     const GfxDevice& GetGfxDevice() const { return m_device; }
+
+    void SetExecuteIndirectV2GlobalSpill(bool hasTask);
+
+    ExecuteIndirectV2GlobalSpill ExecuteIndirectV2NeedsGlobalSpill() const { return m_executeIndirectV2GlobalSpill; }
 
 protected:
     Pm4CmdBuffer(
@@ -470,6 +488,10 @@ private:
 
     uint32 m_acqRelFenceVals[ReleaseTokenCount];        // Outstanding released acquire release fence values per type.
     uint32 m_retiredAcqRelFenceVals[ReleaseTokenCount]; // The latest retired fence values acquired at ME/PFP.
+
+    // Indicates that this CmdBuffer contains an ExecuteIndirectV2 PM4 which will have mutliple instances of
+    // SpilledUserData Tables that will use the Global SpillTable Buffer.
+    ExecuteIndirectV2GlobalSpill m_executeIndirectV2GlobalSpill;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(Pm4CmdBuffer);
     PAL_DISALLOW_DEFAULT_CTOR(Pm4CmdBuffer);

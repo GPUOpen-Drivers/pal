@@ -252,6 +252,9 @@ public:
 
     static Lib* GetLib(ADDR_HANDLE hLib);
 
+    /// Returns which version of addrlib functions should be used.
+    virtual UINT_32 GetInterfaceVersion() const = 0;
+
     /// Returns AddrLib version (from compiled binary instead include file)
     UINT_32 GetVersion()
     {

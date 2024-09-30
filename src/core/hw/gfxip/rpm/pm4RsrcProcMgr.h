@@ -215,7 +215,7 @@ protected:
         ImageLayout        layout,
         bool               csFastClear) const;
 
-    virtual void PreComputeDepthStencilClearSync(
+    void PreComputeDepthStencilClearSync(
         ICmdBuffer*        pCmdBuffer,
         const GfxImage&    gfxImage,
         const SubresRange& subres,

@@ -212,7 +212,9 @@ void OcclusionQueryPool::GpuReset(
 
         if (pPm4CmdBuf->GetPm4CmdBufState().flags.prevCmdBufActive || pActiveRanges->Overlap(&interval))
         {
-            pCmdSpace = pPm4CmdBuf->WriteWaitEop(HwPipePostPrefetch, false, SyncGlxNone, SyncRbNone, pCmdSpace);
+            constexpr WriteWaitEopInfo WaitEopInfo = { .waitPoint = HwPipePostPrefetch };
+
+            pCmdSpace = pPm4CmdBuf->WriteWaitEop(WaitEopInfo, pCmdSpace);
 
             // The global wait guaranteed all work has completed, including any outstanding End() calls.
             pActiveRanges->Clear();

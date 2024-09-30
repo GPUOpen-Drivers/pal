@@ -1647,50 +1647,6 @@ void RsrcProcMgr::UpdateBoundFastClearDepthStencil(
 }
 
 // =====================================================================================================================
-// Inserts barrier needed before issuing a compute clear when the target image is currently bound as a depth/stencil
-// target.  Only necessary when the client specifies the DsClearAutoSync flag for a depth/stencil clear.
-void RsrcProcMgr::PreComputeDepthStencilClearSync(
-    ICmdBuffer*        pCmdBuffer,
-    const GfxImage&    gfxImage,
-    const SubresRange& subres,
-    ImageLayout        layout
-    ) const
-{
-    if (IsGfx11(*m_pDevice->Parent()))
-    {
-        // The most efficient way to wait for DB-idle and flush and invalidate the DB caches on pre-gfx11 HW
-        // is an acquire_mem. Gfx11 can't touch the DB caches using an acquire_mem but that's OK because we
-        // expect WriteWaitEopGfx to do a PWS EOP wait which should be fast. Call CmdReleaseThenAcquire()
-        // so PWS can wait a later point.
-        PAL_ASSERT(subres.numPlanes == 1);
-
-        ImgBarrier imgBarrier = {};
-
-        imgBarrier.srcStageMask  = PipelineStageDsTarget;
-        // Fast clear path may have CP to update metadata state/values, wait at BLT/ME stage for safe.
-        imgBarrier.dstStageMask  = PipelineStageBlt;
-        imgBarrier.srcAccessMask = CoherDepthStencilTarget;
-        imgBarrier.dstAccessMask = CoherShader;
-        imgBarrier.subresRange   = subres;
-        imgBarrier.pImage        = gfxImage.Parent();
-        imgBarrier.oldLayout     = layout;
-        imgBarrier.newLayout     = layout;
-
-        AcquireReleaseInfo acqRelInfo = {};
-
-        acqRelInfo.imageBarrierCount = 1;
-        acqRelInfo.pImageBarriers    = &imgBarrier;
-        acqRelInfo.reason            = Developer::BarrierReasonPreComputeDepthStencilClear;
-
-        pCmdBuffer->CmdReleaseThenAcquire(acqRelInfo);
-    }
-    else
-    {
-        Pal::Pm4::RsrcProcMgr::PreComputeDepthStencilClearSync(pCmdBuffer, gfxImage, subres, layout);
-    }
-}
-
-// =====================================================================================================================
 // Performs a fast-clear on a Depth/Stencil Image by updating the Image's HTile buffer.
 void RsrcProcMgr::HwlDepthStencilClear(
     GfxCmdBuffer*      pCmdBuffer,
@@ -2385,44 +2341,48 @@ void RsrcProcMgr::HwlFixupResolveDstImage(
     // For Gfx10, we only need do fixup after fixed function resolve.
     if (canDoFixupForDstImage && (computeResolve == false))
     {
-        BarrierInfo      barrierInfo = {};
-        Pal::SubresRange range       = {};
-        AutoBuffer<BarrierTransition, 32, Platform> transition(regionCount, m_pDevice->GetPlatform());
+        AutoBuffer<ImgBarrier, 32, Platform> imgBarriers(regionCount, m_pDevice->GetPlatform());
 
-        for (uint32 i = 0; i < regionCount; i++)
+        if (imgBarriers.Capacity() >= regionCount)
         {
-            range.startSubres.plane      = pRegions[i].dstPlane;
-            range.startSubres.arraySlice = pRegions[i].dstSlice;
-            range.startSubres.mipLevel   = pRegions[i].dstMipLevel;
-            range.numPlanes              = 1;
-            range.numMips                = 1;
-            range.numSlices              = pRegions[i].numSlices;
+            memset(&imgBarriers[0], 0, sizeof(ImgBarrier) * regionCount);
 
-            transition[i].imageInfo.pImage             = dstImage.Parent();
-            transition[i].imageInfo.oldLayout.usages   = Pal::LayoutUninitializedTarget;
-            transition[i].imageInfo.oldLayout.engines  = dstImageLayout.engines;
-
-            transition[i].imageInfo.newLayout.usages   = dstImageLayout.usages;
-            transition[i].imageInfo.newLayout.engines  = dstImageLayout.engines;
-            transition[i].imageInfo.subresRange        = range;
-
-            if (dstImage.Parent()->GetImageCreateInfo().flags.sampleLocsAlwaysKnown != 0)
+            for (uint32 i = 0; i < regionCount; i++)
             {
-                PAL_ASSERT(pRegions[i].pQuadSamplePattern != nullptr);
+                const SubresId subresId = Subres(pRegions[i].dstPlane, pRegions[i].dstMipLevel, pRegions[i].dstSlice);
+
+                imgBarriers[i].pImage        = dstImage.Parent();
+                imgBarriers[i].subresRange   = SubresourceRange(subresId, 1, 1, pRegions[i].numSlices);
+                imgBarriers[i].srcStageMask  = PipelineStageTopOfPipe;
+                imgBarriers[i].dstStageMask  = PipelineStageBottomOfPipe;
+                imgBarriers[i].srcAccessMask = CoherResolveDst;
+                imgBarriers[i].dstAccessMask = CoherResolveDst;
+                imgBarriers[i].oldLayout     = { .usages  = LayoutUninitializedTarget,
+                                                 .engines = dstImageLayout.engines };
+                imgBarriers[i].newLayout     = dstImageLayout;
+
+                if (dstImage.Parent()->GetImageCreateInfo().flags.sampleLocsAlwaysKnown != 0)
+                {
+                    PAL_ASSERT(pRegions[i].pQuadSamplePattern != nullptr);
+                }
+                else
+                {
+                    PAL_ASSERT(pRegions[i].pQuadSamplePattern == nullptr);
+                }
+                imgBarriers[i].pQuadSamplePattern = pRegions[i].pQuadSamplePattern;
             }
-            else
-            {
-                PAL_ASSERT(pRegions[i].pQuadSamplePattern == nullptr);
-            }
-            transition[i].imageInfo.pQuadSamplePattern = pRegions[i].pQuadSamplePattern;
-            transition[i].srcCacheMask                 = Pal::CoherResolveDst;
-            transition[i].dstCacheMask                 = Pal::CoherResolveDst;
+
+            AcquireReleaseInfo acqRelInfo = {};
+            acqRelInfo.imageBarrierCount  = regionCount;
+            acqRelInfo.pImageBarriers     = &imgBarriers[0];
+            acqRelInfo.reason             = Developer::BarrierReasonUnknown;
+
+            pCmdBuffer->CmdReleaseThenAcquire(acqRelInfo);
         }
-
-        barrierInfo.pTransitions    = transition.Data();
-        barrierInfo.transitionCount = regionCount;
-
-        pCmdBuffer->CmdBarrier(barrierInfo);
+        else
+        {
+            pCmdBuffer->NotifyAllocFailure();
+        }
     }
 }
 
@@ -2623,7 +2583,9 @@ void RsrcProcMgr::DepthStencilClearGraphics(
         // surf-sync support should be faster than a full EOP wait at the CP.
         if (IsGfx11(*m_pDevice->Parent()))
         {
-            pCmdSpace = pPm4CmdBuf->WriteWaitEop(HwPipePreRasterization, false, SyncGlxNone, SyncDbWbInv, pCmdSpace);
+            constexpr WriteWaitEopInfo WaitEopInfo = { .hwRbSync = SyncDbWbInv, .waitPoint = HwPipePreRasterization };
+
+            pCmdSpace = pPm4CmdBuf->WriteWaitEop(WaitEopInfo, pCmdSpace);
         }
         else
         {
@@ -5450,11 +5412,11 @@ void Gfx10RsrcProcMgr::CopyVrsIntoHtile(
     Pm4CmdBuffer* pPm4CmdBuf = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
     uint32*       pCmdSpace  = pCmdStream->ReserveCommands();
     pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(FLUSH_AND_INV_DB_META, pCmdBuffer->GetEngineType(), pCmdSpace);
-    pCmdSpace  = pPm4CmdBuf->WriteWaitEop(HwPipePostPrefetch,
-                                          false,
-                                          SyncGlkInv | SyncGlvInv | SyncGl1Inv,
-                                          SyncRbNone,
-                                          pCmdSpace);
+
+    constexpr WriteWaitEopInfo WaitEopInfo = { .hwGlxSync = SyncGlkInv | SyncGlvInv | SyncGl1Inv,
+                                               .waitPoint = HwPipePostPrefetch };
+
+    pCmdSpace  = pPm4CmdBuf->WriteWaitEop(WaitEopInfo, pCmdSpace);
     pCmdStream->CommitCommands(pCmdSpace);
 
     {

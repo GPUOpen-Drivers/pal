@@ -62,6 +62,9 @@ struct GeneratorProperties
     // Index of the last user-data entry modified by this command Generator, plus one. Zero indicateas that the
     // generator does not modify user-data entries.
     uint32  userDataWatermark;
+    // Offset (in bytes) of the argument buffer from which SetUserData ops start
+    // modifying UserData.
+    uint32  userDataArgBufOffsetBase;
     // Size (in DWORDs) of the vertex buffer table. The command Generator will only generate commands to update
     // the vertex buffer table when this is nonzero.
     uint32  vertexBufTableSize;

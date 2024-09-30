@@ -33,6 +33,17 @@ namespace Gfx9
 {
 
 // =====================================================================================================================
+ExecuteIndirectV2Meta::ExecuteIndirectV2Meta()
+    :
+    m_metaData{},
+    m_excludeStart(0),
+    m_excludeEnd(0),
+    m_computeMemCopiesLut{ 0 },
+    m_computeMemCopiesLutFlags{ 0 }
+{
+}
+
+// =====================================================================================================================
 uint32 ExecuteIndirectV2Meta::ExecuteIndirectV2WritePacked(
     uint32*       pOut,
     const uint32  bitsPerComponent,
@@ -44,15 +55,17 @@ uint32 ExecuteIndirectV2Meta::ExecuteIndirectV2WritePacked(
     const uint32* ppInputs[] = {pIn1, pIn2, pIn3};
 
     // bitsPerComponent can be either 8 for Graphics or 16 for Compute.
-    PAL_ASSERT(bitsPerComponent > 0);
-    constexpr uint32 bitsPerDword   = sizeof(uint32) * 8;
-    const uint32 componentsPerDword = bitsPerDword/bitsPerComponent;
+    PAL_ASSERT_MSG(((bitsPerComponent > 0) && IsPowerOfTwo(bitsPerComponent)),
+                   "bitsPerComponent incorrect/unsupported.");
+    constexpr uint32 BitsPerDword   = sizeof(uint32) * 8;
+    const uint32 componentsPerDword = BitsPerDword / bitsPerComponent;
 
     uint32 outCount = 0;
 
-    for (uint32 i = 0; i < componentCount; i += componentsPerDword)
+    // This loop increments by componentsPerDword (2 or 4).
+    for (uint32 componentIdx = 0; componentIdx < componentCount; componentIdx += componentsPerDword)
     {
-        const uint32 remainingComponents = componentCount - i;
+        const uint32 remainingComponents = componentCount - componentIdx;
 
         for (const uint32* pIn : ppInputs)
         {
@@ -62,21 +75,21 @@ uint32 ExecuteIndirectV2Meta::ExecuteIndirectV2WritePacked(
             }
 
             ExecuteIndirectV2Packed packedDword {};
-            packedDword.u32All = 0;
+            static_assert(sizeof(ExecuteIndirectV2Packed) == sizeof(uint32),
+                          "ExecuteIndirectV2Packed is not DWORD sized.");
 
-            const uint32 numComponents = Min(componentsPerDword, remainingComponents);
-            if (bitsPerComponent == BitsGraphics)
+            const uint32 numPackedComponents = Min(componentsPerDword, remainingComponents);
+
+            for (uint32 packedIdx = 0; packedIdx < numPackedComponents; packedIdx++)
             {
-                for (uint32 k = 0; k < numComponents; k++)
+                uint32 originalComponent = pIn[componentIdx + packedIdx];
+                if (bitsPerComponent == 8)
                 {
-                    packedDword.graphicsRegs[k] = static_cast<uint8>(pIn[i + k]);
+                    packedDword.u8bitComponents[packedIdx] = static_cast<uint8>(originalComponent);
                 }
-            }
-            else if (bitsPerComponent == BitsCompute)
-            {
-                for (uint32 k = 0; k < numComponents; k++)
+                else if (bitsPerComponent == 16)
                 {
-                    packedDword.computeRegs[k] = static_cast<uint16>(pIn[i + k]);
+                    packedDword.u16bitComponents[packedIdx] = static_cast<uint16>(originalComponent);
                 }
             }
             pOut[outCount++] = packedDword.u32All;
@@ -99,7 +112,7 @@ bool ExecuteIndirectV2Meta::NextUpdate(
     }
     else
     {
-        // Final MemCpy has been done set nextIdx to the end of VB+SpillTable slot.
+        // Final MemCpy has been done set nextIdx to the end of VB+SpillTable slot i.e. last entry to be updated.
         *pNextIdx = vbSpillTableWatermark;
     }
     return nextMemCpyValid;
@@ -162,16 +175,16 @@ void ExecuteIndirectV2Meta::ProcessInitMemCopy(
     if (currentStart >= m_excludeEnd) [[likely]]
     {
         // Copy in one chunk
-        m_metaData.copyInitSrcOffsets[*pInitCount] = currentStart * sizeof(uint32);
-        m_metaData.copyInitDstOffsets[*pInitCount] = currentStart * sizeof(uint32);
-        m_metaData.copyInitSizes[(*pInitCount)++]  = currentEnd - currentStart;
+        m_metaData.initMemCopy.srcOffsets[*pInitCount] = currentStart * sizeof(uint32);
+        m_metaData.initMemCopy.dstOffsets[*pInitCount] = currentStart * sizeof(uint32);
+        m_metaData.initMemCopy.sizes[(*pInitCount)++]  = currentEnd - currentStart;
     }
     // currentEnd is going beyond unspilled but start had unspilled entries. Highly unlikely case.
     else if (currentEnd >= m_excludeEnd)
     {
-        m_metaData.copyInitSrcOffsets[*pInitCount] = m_excludeEnd * sizeof(uint32);
-        m_metaData.copyInitDstOffsets[*pInitCount] = m_excludeEnd * sizeof(uint32);
-        m_metaData.copyInitSizes[(*pInitCount)++]  = currentEnd - m_excludeEnd;
+        m_metaData.initMemCopy.srcOffsets[*pInitCount] = m_excludeEnd * sizeof(uint32);
+        m_metaData.initMemCopy.dstOffsets[*pInitCount] = m_excludeEnd * sizeof(uint32);
+        m_metaData.initMemCopy.sizes[(*pInitCount)++]  = currentEnd - m_excludeEnd;
     }
 }
 
@@ -184,26 +197,17 @@ void ExecuteIndirectV2Meta::ProcessUpdateMemCopy(
     DynamicMemCopyEntry* pEntry,
     bool*                pValidUpdate)
 {
-    m_metaData.copyUpdateSrcOffsets[*pUpdateCount] = pEntry->argBufferOffset * sizeof(uint32);
-    m_metaData.copyUpdateDstOffsets[*pUpdateCount] = *pNextIdx * sizeof(uint32);
-
-    // Predict what the next srcIndex value might be, clipping if nesssary
-    uint32 nextCpyChunkSize = ((*pCurrentIdx + pEntry->size) < vbSpillTableWatermark) ?
-                              pEntry->size : (vbSpillTableWatermark - *pCurrentIdx);
-
-    uint32 nextArgBufferOffset = pEntry->argBufferOffset + nextCpyChunkSize;
-    *pCurrentIdx += nextCpyChunkSize;
-
-    uint32 currentCpyChunkSize = nextCpyChunkSize;
-
-    // Check if any next valid entries are remaining to be updated from the Look-up Table and get nextIdx.
-    *pValidUpdate = NextUpdate(vbSpillTableWatermark, pNextIdx, pEntry);
-
-    // If the prediction for next entry was correct continue adding next spilled entries to this struct.
-    while (*pValidUpdate && (*pCurrentIdx == *pNextIdx))
+    m_metaData.updateMemCopy.srcOffsets[*pUpdateCount] = pEntry->argBufferOffset * sizeof(uint32);
+    m_metaData.updateMemCopy.dstOffsets[*pUpdateCount] = *pNextIdx * sizeof(uint32);
+    uint32 currentCpyChunkSize = 0;
+    uint32 nextArgBufferOffset = pEntry->argBufferOffset;
+    do
     {
-        nextCpyChunkSize     = ((*pCurrentIdx + pEntry->size) < vbSpillTableWatermark) ?
-                               pEntry->size : (vbSpillTableWatermark - *pCurrentIdx);
+        // Predict what the next srcIndex value might be, clipping if necessary and if the prediction for next entry
+        // was correct continue adding next spilled entries to this struct.
+        uint32 nextCpyChunkSize = ((*pCurrentIdx + pEntry->size) < vbSpillTableWatermark) ?
+                                   pEntry->size : (vbSpillTableWatermark - *pCurrentIdx);
+
         *pCurrentIdx        += nextCpyChunkSize;
         currentCpyChunkSize += nextCpyChunkSize;
 
@@ -212,9 +216,13 @@ void ExecuteIndirectV2Meta::ProcessUpdateMemCopy(
             break;
         }
         nextArgBufferOffset += nextCpyChunkSize;
+
+        // Check if any next valid entries are remaining to be updated from the Look-up Table and get nextIdx.
         *pValidUpdate = NextUpdate(vbSpillTableWatermark, pNextIdx, pEntry);
-    }
-    m_metaData.copyUpdateSizes[(*pUpdateCount)++] = currentCpyChunkSize;
+
+    } while (*pValidUpdate && (*pCurrentIdx == *pNextIdx));
+
+    m_metaData.updateMemCopy.sizes[(*pUpdateCount)++] = currentCpyChunkSize;
 }
 
 } // Gfx9

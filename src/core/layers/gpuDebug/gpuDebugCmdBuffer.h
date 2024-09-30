@@ -549,7 +549,7 @@ public:
 private:
     virtual ~CmdBuffer();
 
-    void CmdBarrierInternal(const BarrierInfo& barrierInfo);
+    void CmdReleaseThenAcquireInternal(const AcquireReleaseInfo& barrierInfo);
 
     void HandleDrawDispatch(
         Developer::DrawDispatchType drawDispatchType,

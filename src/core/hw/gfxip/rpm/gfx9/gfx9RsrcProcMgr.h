@@ -278,12 +278,6 @@ protected:
         Pal::CmdStream*  pCmdStream,
         uint32           paScTileSteeringOverride) const;
 
-    virtual void PreComputeDepthStencilClearSync(
-        ICmdBuffer*        pCmdBuffer,
-        const GfxImage&    gfxImage,
-        const SubresRange& subres,
-        ImageLayout        layout) const override;
-
     Device*const   m_pDevice;
     const CmdUtil& m_cmdUtil;
 

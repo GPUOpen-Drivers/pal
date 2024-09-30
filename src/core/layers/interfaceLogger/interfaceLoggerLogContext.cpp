@@ -357,6 +357,26 @@ static_assert(ArrayLen(FuncFormattingTable) == static_cast<size_t>(InterfaceFunc
               "The FuncFormattingTable must be updated.");
 
 // =====================================================================================================================
+// Validates func logging table is setup correctly.
+template <size_t N>
+static constexpr bool ValidateFuncFormattingTable(const FuncFormattingEntry (&table)[N])
+{
+    bool valid = true;
+    for (uint32 i = 0; i < N; i++)
+    {
+        if (i != uint32(table[i].function))
+        {
+            valid = false;
+            break;
+        }
+    }
+
+    return valid;
+}
+
+static_assert(ValidateFuncFormattingTable(FuncFormattingTable), "Wrong funcId mapping in FuncFormattingTable!");
+
+// =====================================================================================================================
 LogStream::LogStream(
     Platform* pPlatform)
     :
@@ -480,13 +500,6 @@ LogContext::LogContext(
     m_pPlatform(pPlatform),
     m_stream(pPlatform)
 {
-#if PAL_ENABLE_PRINTS_ASSERTS
-    for (uint32 idx = 0; idx < static_cast<uint32>(InterfaceFunc::Count); ++idx)
-    {
-        PAL_ASSERT(static_cast<uint32>(FuncFormattingTable[idx].function) == idx);
-    }
-#endif
-
     // All top-level entries in the log will be contained in a list. If we don't do this, we can only write one entry!
     BeginList(false);
 }
@@ -878,6 +891,8 @@ void LogContext::CacheCoherencyUsageFlags(
         "CoherMemory",             // 0x00020000,
         "CoherSampleRate",         // 0x00040000,
         "CoherPresent",            // 0x00080000,
+        "CoherReserved",           // 0x00100000,
+        "CoherCp"                  // 0x00200000,
     };
 
     static_assert(BitfieldGenMask(ArrayLen(StringTable)) == CoherAllUsages,

@@ -2304,6 +2304,35 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuCsCtxCreate3(
 }
 
 // =====================================================================================================================
+int32 DrmLoaderFuncsProxy::pfnAmdgpuCsCtxOverridePriority(
+    amdgpu_device_handle   hDevice,
+    amdgpu_context_handle  hContext,
+    int32                  masterFd,
+    uint32                 priority
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    int32 ret = m_pFuncs->pfnAmdgpuCsCtxOverridePriority(hDevice,
+                                                         hContext,
+                                                         masterFd,
+                                                         priority);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("AmdgpuCsCtxOverridePriority,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "AmdgpuCsCtxOverridePriority(%p, %p, %x, %x)\n",
+        hDevice,
+        hContext,
+        masterFd,
+        priority);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
 drmVersionPtr DrmLoaderFuncsProxy::pfnDrmGetVersion(
     int  fd
     ) const

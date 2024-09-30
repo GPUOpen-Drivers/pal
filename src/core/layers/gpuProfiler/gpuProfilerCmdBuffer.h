@@ -59,6 +59,26 @@ enum class LogType : uint32
     Count
 };
 
+// Flags conditioning the BeginSample behavior
+union SampleFlags
+{
+    struct
+    {
+        uint8 pipeStatsActive      : 1;
+        uint8 sqThreadTraceActive  : 1;
+        uint8 globalCountersActive : 1;
+        uint8 spmCountersActive    : 1;
+        uint8 dfSpmCountersActive  : 1;
+    } flags;
+    uint8 u8All;
+};
+
+// Structure against which to check for flags indicating a PerfExperiment type
+constexpr SampleFlags ExperimentFlags = { .flags = {.sqThreadTraceActive  = 1,
+                                                    .globalCountersActive = 1,
+                                                    .spmCountersActive    = 1,
+                                                    .dfSpmCountersActive  = 1} };
+
 // =====================================================================================================================
 // GpuProfiler implementation of the ICmdBuffer interface.  Instead of passing commands on to the next layer, the
 // various command buffer calls are tokenized and stored for later replay.  The Replay() interface will replay the
@@ -857,15 +877,7 @@ private:
         uint32 reserved        : 29;
     } m_flags;
 
-    union
-    {
-        struct
-        {
-            uint8 sqThreadTraceActive : 1;
-            uint8 reserved            : 7;
-        };
-        uint8 u8All;
-    } m_sampleFlags;
+    SampleFlags m_sampleFlags;
 
     // Track the currently bound pipelines during recording.
     const IPipeline* m_pBoundPipelines[static_cast<uint32>(PipelineBindPoint::Count)];
@@ -923,7 +935,7 @@ public:
     const char* GetCommentString(LogType logType);
     virtual void UpdateCommentString(Developer::BarrierData* pData) override;
 
-    void BeginSample(Queue* pQueue, LogItem* pLogItem, bool pipeStats, bool perfExp);
+    void BeginSample(Queue* pQueue, LogItem* pLogItem, SampleFlags flags);
     void EndSample(Queue* pQueue, const LogItem* pLogItem);
 
     Result BeginGpaSession(Queue* pQueue);

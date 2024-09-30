@@ -233,6 +233,8 @@ void CmdBuffer::ReplayBegin(
 
     pTgtCmdBuffer->Begin(NextCmdBufferBuildInfo(info));
 
+    m_sampleFlags.u8All = 0;
+
     if (m_pDevice->LoggingEnabled(GpuProfilerGranularityDraw) ||
         m_pDevice->LoggingEnabled(GpuProfilerGranularityCmdBuf))
     {
@@ -247,21 +249,19 @@ void CmdBuffer::ReplayBegin(
 
         if (m_flags.nested == false)
         {
-            bool enablePerfExp   = false;
-            bool enablePipeStats = false;
-
             if (m_pDevice->LoggingEnabled(GpuProfilerGranularityCmdBuf))
             {
-                enablePerfExp    = (m_pDevice->NumGlobalPerfCounters() > 0)      ||
-                                   (m_pDevice->NumStreamingPerfCounters() > 0)   ||
-                                   (m_pDevice->NumDfStreamingPerfCounters() > 0) ||
-                                   (pQueue->IsSqttEnabled());
-                enablePerfExp   &= pTgtCmdBuffer->IsFromMasterSubQue();
-                enablePipeStats  = m_flags.logPipeStats && pTgtCmdBuffer->IsFromMasterSubQue();
+                if (pTgtCmdBuffer->IsFromMasterSubQue())
+                {
+                    m_sampleFlags.flags.sqThreadTraceActive  = pQueue->IsSqttEnabled();
+                    m_sampleFlags.flags.globalCountersActive = (m_pDevice->NumGlobalPerfCounters() > 0);
+                    m_sampleFlags.flags.spmCountersActive    = (m_pDevice->NumStreamingPerfCounters() > 0);
+                    m_sampleFlags.flags.dfSpmCountersActive  = (m_pDevice->NumDfStreamingPerfCounters() > 0);
+                    m_sampleFlags.flags.pipeStatsActive      = m_flags.logPipeStats;
+                }
             }
 
-            m_sampleFlags.sqThreadTraceActive = (enablePerfExp && pQueue->IsSqttEnabled());
-            pTgtCmdBuffer->BeginSample(pQueue, &m_cmdBufLogItem, enablePipeStats, enablePerfExp);
+            pTgtCmdBuffer->BeginSample(pQueue, &m_cmdBufLogItem, m_sampleFlags);
         }
         else
         {
@@ -274,8 +274,7 @@ void CmdBuffer::ReplayBegin(
     }
     else
     {
-        m_sampleFlags.sqThreadTraceActive =
-            m_pDevice->LoggingEnabled(GpuProfilerGranularity::GpuProfilerGranularityFrame);
+        m_sampleFlags.flags.sqThreadTraceActive = m_pDevice->LoggingEnabled(GpuProfilerGranularityFrame);
     }
 }
 
@@ -302,8 +301,6 @@ void CmdBuffer::ReplayEnd(
     Queue*           pQueue,
     TargetCmdBuffer* pTgtCmdBuffer)
 {
-    m_sampleFlags.sqThreadTraceActive = false;
-
     if (m_pDevice->LoggingEnabled(GpuProfilerGranularityDraw) ||
         m_pDevice->LoggingEnabled(GpuProfilerGranularityCmdBuf))
     {
@@ -322,6 +319,8 @@ void CmdBuffer::ReplayEnd(
     }
 
     PAL_ASSERT(m_numReleaseTokens == m_releaseTokenList.NumElements());
+
+    m_sampleFlags.u8All = 0;
 
     pTgtCmdBuffer->End();
 }
@@ -1085,11 +1084,11 @@ void CmdBuffer::ReplayCmdBarrier(
 
 // =====================================================================================================================
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
-    uint32 CmdBuffer::CmdRelease(
+    uint32 CmdBuffer::CmdRelease
 #else
-    ReleaseToken CmdBuffer::CmdRelease(
+    ReleaseToken CmdBuffer::CmdRelease
 #endif
-    const AcquireReleaseInfo& releaseInfo)
+    (const AcquireReleaseInfo& releaseInfo)
 {
     InsertToken(CmdBufCallId::CmdRelease);
     InsertToken(releaseInfo.srcGlobalStageMask);
@@ -1195,10 +1194,11 @@ void CmdBuffer::CmdAcquire(
     const AcquireReleaseInfo& acquireInfo,
     uint32                    syncTokenCount,
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
-    const uint32*             pSyncTokens)
+    const uint32*             pSyncTokens
 #else
-    const ReleaseToken*       pSyncTokens)
+    const ReleaseToken*       pSyncTokens
 #endif
+    )
 {
     InsertToken(CmdBufCallId::CmdAcquire);
     InsertToken(acquireInfo.srcGlobalStageMask);
@@ -4229,6 +4229,8 @@ void CmdBuffer::LogPreTimedCall(
 {
     if (m_pDevice->LoggingEnabled(GpuProfilerGranularityDraw) || m_forceDrawGranularityLogging)
     {
+        m_sampleFlags.u8All = 0;
+
         pLogItem->type                   = CmdBufferCall;
         pLogItem->frameId                = m_curLogFrame;
         pLogItem->cmdBufCall.callId      = callId;
@@ -4289,14 +4291,15 @@ void CmdBuffer::LogPreTimedCall(
 
         if (m_disableDataGathering == false)
         {
-            bool enablePerfExp   = (m_pDevice->NumGlobalPerfCounters() > 0)    ||
-                                   (m_pDevice->NumStreamingPerfCounters() > 0) ||
-                                   enableSqThreadTrace;
-            enablePerfExp       &= pTgtCmdBuffer->IsFromMasterSubQue();
-            bool enablePipeStats = m_flags.logPipeStats && pTgtCmdBuffer->IsFromMasterSubQue();
+            if (pTgtCmdBuffer->IsFromMasterSubQue())
+            {
+                m_sampleFlags.flags.globalCountersActive = (m_pDevice->NumGlobalPerfCounters() > 0);
+                m_sampleFlags.flags.spmCountersActive    = (m_pDevice->NumStreamingPerfCounters() > 0);
+                m_sampleFlags.flags.sqThreadTraceActive  = enableSqThreadTrace;
+                m_sampleFlags.flags.pipeStatsActive      = m_flags.logPipeStats;
+            }
 
-            m_sampleFlags.sqThreadTraceActive = (enablePerfExp && enableSqThreadTrace);
-            pTgtCmdBuffer->BeginSample(pQueue, pLogItem, enablePipeStats, enablePerfExp);
+            pTgtCmdBuffer->BeginSample(pQueue, pLogItem, m_sampleFlags);
         }
     }
 }
@@ -4823,14 +4826,14 @@ void TargetCmdBuffer::SetLastResult(
 // =====================================================================================================================
 // Issue commands on a target command buffer needed to begin a section of work to be profiled.
 void TargetCmdBuffer::BeginSample(
-    Queue*   pQueue,
-    LogItem* pLogItem,
-    bool     pipeStats,
-    bool     perfExp)
+    Queue*      pQueue,
+    LogItem*    pLogItem,
+    SampleFlags flags)
 {
     if (pQueue->IsProfilingEnabled())
     {
-        const GpuUtil::GpaSampleConfig& config = pQueue->GetGpaSessionSampleConfig();
+        // NOTE: GpaSampleConfig has pointers in it that remain under ownership of the queue
+        GpuUtil::GpaSampleConfig config = pQueue->GetGpaSessionSampleConfig();
 
         pLogItem->pGpaSession      = m_pGpaSession;            // Save the session for later end it.
         pLogItem->gpaSampleId      = GpuUtil::InvalidSampleId; // Initialize sample id.
@@ -4838,7 +4841,7 @@ void TargetCmdBuffer::BeginSample(
         pLogItem->gpaSampleIdQuery = GpuUtil::InvalidSampleId; // Initialize sample id.
 
         // If requested, surround this universal/compute queue operation a pipeline stats query.
-        if (pipeStats)
+        if (flags.flags.pipeStatsActive)
         {
             if ((m_queueType == QueueTypeUniversal) || (m_queueType == QueueTypeCompute))
             {
@@ -4859,8 +4862,11 @@ void TargetCmdBuffer::BeginSample(
             }
         }
 
-        if (perfExp)
+        if (TestAnyFlagSet(ExperimentFlags.u8All, flags.u8All))
         {
+            // Adjust the config if the source command buffer wishes to modify the queue's config
+            config.sqtt.flags.enable &= flags.flags.sqThreadTraceActive;
+
             if ((m_queueType == QueueTypeUniversal) || (m_queueType == QueueTypeCompute))
             {
                 Result result = m_pGpaSession->BeginSample(this, config, &pLogItem->gpaSampleId);

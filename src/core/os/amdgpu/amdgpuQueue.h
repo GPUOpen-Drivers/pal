@@ -141,6 +141,11 @@ public:
 
     virtual Result Init(const QueueCreateInfo* pCreateInfo, void* pContextPlacementAddr) override;
 
+    virtual void OsDestroy() override
+    {
+        // Nothing to do for this OS
+    }
+
     bool IsPendingWait() const { return m_pendingWait; }
 
     Result WaitSemaphore(

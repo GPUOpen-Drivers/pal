@@ -31,6 +31,7 @@
 
 #pragma once
 
+#include "palInlineFuncs.h"
 #include "palUtil.h"
 #include "palElf.h"
 #include <cstring>
@@ -272,6 +273,22 @@ enum class HardwareStage : uint32
     Cs,     ///< Hardware CS stage
     Count
 };
+
+/// HardwareStage enum to string conversion table.
+constexpr const char* HardwareStageStrings[] =
+{
+    "LS",
+    "HS",
+    "ES",
+    "GS",
+    "VS",
+    "PS",
+    "CS",
+    "INVALID",
+};
+
+static_assert(Util::ArrayLen32(HardwareStageStrings) == static_cast<uint32>(HardwareStage::Count) + 1,
+              "HardwareStageStrings is not the same size as HardwareStage enum!");
 
 /// Helper enum which is used along with the @ref GetMetadataHashForApiShader function to easily find
 /// a metadata hash dword for a particular API shader type.

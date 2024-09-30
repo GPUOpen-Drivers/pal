@@ -208,10 +208,9 @@ void StreamoutStatsQueryPool::End(
                                                    pCmdSpace);
 
         ReleaseMemGeneric releaseInfo = {};
-        releaseInfo.engineType = pCmdBuffer->GetEngineType();
-        releaseInfo.dstAddr    = timeStampAddr;
-        releaseInfo.dataSel    = data_sel__me_release_mem__send_32_bit_low;
-        releaseInfo.data       = QueryTimestampEnd;
+        releaseInfo.dstAddr = timeStampAddr;
+        releaseInfo.dataSel = data_sel__me_release_mem__send_32_bit_low;
+        releaseInfo.data    = QueryTimestampEnd;
 
         pCmdSpace += cmdUtil.BuildReleaseMemGeneric(releaseInfo, pCmdSpace);
         pCmdStream->CommitCommands(pCmdSpace);
@@ -300,7 +299,9 @@ void StreamoutStatsQueryPool::GpuReset(
         // Before we initialize out the GPU's destination memory, make sure the ASIC has finished any previous reading
         // and writing of streamout stat data. Command buffers that do not support stats queries do not need to issue
         // this wait because the caller must use semaphores to make sure all queries are complete.
-        pCmdSpace = pPm4CmdBuf->WriteWaitEop(HwPipePostPrefetch, false, SyncGlxNone, SyncRbNone, pCmdSpace);
+        constexpr WriteWaitEopInfo WaitEopInfo = { .waitPoint = HwPipePostPrefetch };
+
+        pCmdSpace = pPm4CmdBuf->WriteWaitEop(WaitEopInfo, pCmdSpace);
     }
 
     gpusize gpuAddr          = 0;

@@ -294,7 +294,10 @@ public:
         { return Result::ErrorUnavailable; }
 
     // NOTE: Part of the public IDestroyable interface.
-    virtual void Destroy() override;
+    virtual void Destroy() override final;
+
+    // Os queue destroy function called after no more submits will happen.
+    virtual void OsDestroy() = 0;
 
     // This must be called right after initialization to allow the queue to perform any initialization work which
     // requires a fully initialized queue.

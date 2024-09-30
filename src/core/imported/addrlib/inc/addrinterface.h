@@ -40,8 +40,8 @@ extern "C"
 {
 #endif
 
-#define ADDRLIB_VERSION_MAJOR 9
-#define ADDRLIB_VERSION_MINOR 11
+#define ADDRLIB_VERSION_MAJOR 10
+#define ADDRLIB_VERSION_MINOR 1
 #define ADDRLIB_MAKE_VERSION(major, minor) ((major << 16) | minor)
 #define ADDRLIB_VERSION                    ADDRLIB_MAKE_VERSION(ADDRLIB_VERSION_MAJOR, ADDRLIB_VERSION_MINOR)
 
@@ -401,6 +401,16 @@ typedef struct _ADDR_QBSTEREOINFO
 ****************************************************************************************************
 */
 UINT_32 ADDR_API AddrGetVersion(ADDR_HANDLE hLib);
+
+/**
+****************************************************************************************************
+*   AddrGetInterfaceVersion
+*
+*   @brief
+*       Get AddrLib interface version number (eg. Addr2 = 2)
+****************************************************************************************************
+*/
+UINT_32 ADDR_API AddrGetInterfaceVersion(ADDR_HANDLE hLib);
 
 /**
 ****************************************************************************************************

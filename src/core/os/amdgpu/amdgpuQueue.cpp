@@ -1651,10 +1651,16 @@ Result Queue::OsWaitIdle()
         queryFence.ip_instance = 0;
         queryFence.ip_type     = context.IpType();
 
-        // Theoratically we should have different timeout value for different engine, but for simplity we just use
+        std::chrono::seconds timeout = std::chrono::seconds{m_pDevice->Settings().gfxTimeout};
+        if (m_pDevice->Settings().gfxTimeout == 0)
+        {
+            // This setting having a value of zero means 'infinite'.
+            timeout = std::chrono::seconds::max();
+        }
+
+        // Theoretically we should have different timeout value for different engine, but for simplity we just use
         // gfxTimeout for all type of engines right now.
-        result = static_cast<Device*>(m_pDevice)->QueryFenceStatus(&queryFence,
-                                                                   std::chrono::seconds{ m_pDevice->Settings().gfxTimeout });
+        result = static_cast<Device*>(m_pDevice)->QueryFenceStatus(&queryFence, timeout);
     }
 
     return result;

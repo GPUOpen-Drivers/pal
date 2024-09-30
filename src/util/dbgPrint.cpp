@@ -494,4 +494,46 @@ size_t EncodeAsFilename(
     return sizeSoFar;
 }
 
+// =====================================================================================================================
+// Generate a log filename.
+void GenLogFilename(
+    char*             pFilenameBuffer, // [inout] Buffer to hold the filename
+    size_t            maxSize,         // Max size of the pFilenameBuffer
+    size_t            nextPos,         // The next write position
+    const char* const pExt,            // [in] The filename extension
+    bool              logDuplicate)    // Log duplicate objects
+{
+    PAL_ASSERT(nextPos < maxSize);
+
+    Snprintf(&pFilenameBuffer[nextPos], maxSize - nextPos, pExt);
+
+    if (File::Exists(&pFilenameBuffer[0]) && logDuplicate)
+    {
+        // The filename already exists, so perform a binary search to find an unused filename formed
+        // by the original filename with a monotonically-increasing numeric suffix.
+
+        // The index into the string where the pExt begins.
+        const size_t suffixLen  = maxSize - nextPos;
+        char* const  pSuffixPos = &pFilenameBuffer[nextPos];
+
+        uint32 suffixMin = 1;
+        uint32 suffixMax = 2;
+
+        do
+        {
+            uint32 suffixMid = (suffixMin + suffixMax) / 2;
+            Snprintf(pSuffixPos, suffixLen, "-[%d]%s", suffixMid, pExt);
+
+            if (File::Exists(&pFilenameBuffer[0]))
+            {
+                suffixMin = suffixMid;
+                suffixMax *= 2;
+            }
+            else
+            {
+                suffixMax = suffixMid;
+            }
+        } while (suffixMin < (suffixMax - 1));
+    }
+}
 } // Util

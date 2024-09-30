@@ -56,22 +56,6 @@ constexpr const char* ApiShaderTypeStrings[] =
 static_assert(ArrayLen(ApiShaderTypeStrings) == static_cast<uint32>(ApiShaderType::Count),
               "ApiShaderTypeStrings is not the same size as Abi::ApiShaderType enum!");
 
-// HardwareStage to string conversion table.
-constexpr const char* HardwareStageStrings[] =
-{
-    "LS",
-    "HS",
-    "ES",
-    "GS",
-    "VS",
-    "PS",
-    "CS",
-    "INVALID",
-};
-
-static_assert(ArrayLen(HardwareStageStrings) == static_cast<uint32>(HardwareStage::Count) + 1,
-              "HardwareStageStrings is not the same size as HardwareStage enum!");
-
 // =====================================================================================================================
 Pipeline::Pipeline(
     IPipeline*    pNextPipeline,
@@ -97,42 +81,13 @@ bool Pipeline::OpenUniqueDumpFile(
 
     PAL_ASSERT(ShaderHashIsNonzero(dumpInfo.hash));
 
-    Util::Snprintf(&fileName[0], sizeof(fileName), "%s/0x%016llX%016llX_%s.spd",
-                   static_cast<const Platform*>(m_pDevice->GetPlatform())->LogDirPath(),
-                   dumpInfo.hash.upper,
-                   dumpInfo.hash.lower,
-                   ApiShaderTypeStrings[static_cast<uint32>(dumpInfo.type)]);
+    const size_t nextPos = Util::Snprintf(&fileName[0], sizeof(fileName), "%s/0x%016llX%016llX_%s",
+                                          static_cast<const Platform*>(m_pDevice->GetPlatform())->LogDirPath(),
+                                          dumpInfo.hash.upper,
+                                          dumpInfo.hash.lower,
+                                          ApiShaderTypeStrings[static_cast<uint32>(dumpInfo.type)]);
 
-    const bool isDuplicate = Util::File::Exists(&fileName[0]);
-    if (isDuplicate)
-    {
-        // The assembled filename already exists, so perform a binary search to find an unused filename formed
-        // by the original filename with a monotonically-increasing numeric suffix.
-
-        // The index into the string where ".txt" begins.
-        const size_t endOfName  = (strlen(fileName) - 4);
-        const size_t suffixLen  = (sizeof(fileName) - endOfName);
-        char*const   pSuffixPos = &fileName[endOfName];
-
-        uint32 suffixMin = 1;
-        uint32 suffixMax = 2;
-
-        do
-        {
-            uint32 suffixMid = (suffixMin + suffixMax) / 2;
-            Util::Snprintf(pSuffixPos, suffixLen, "-[%d].txt", suffixMid);
-
-            if (File::Exists(&fileName[0]))
-            {
-                suffixMin  = suffixMid;
-                suffixMax *= 2;
-            }
-            else
-            {
-                suffixMax = suffixMid;
-            }
-        } while (suffixMin < (suffixMax - 1));
-    }
+    Util::GenLogFilename(fileName, sizeof(fileName), nextPos, ".spd", true);
 
     // We've computed a unique file name, so open the text file for write access.
     const Result result = dumpInfo.pFile->Open(&fileName[0], Util::FileAccessBinary | Util::FileAccessWrite);
@@ -170,7 +125,7 @@ size_t Pipeline::DumpShaderPerfData(
 
     header.chunkType = ShaderPerfData::ChunkType::Shader;
     Util::Strncpy(&header.hwShaderType[0],
-                  HardwareStageStrings[static_cast<uint32>(dumpInfo.hwStage)],
+                  Util::Abi::HardwareStageStrings[static_cast<uint32>(dumpInfo.hwStage)],
                   sizeof(header.hwShaderType));
     header.payloadSize  = perfDataSize;
 

@@ -145,6 +145,12 @@ void SettingsLoader::OverrideDefaults()
             m_settings.ifh = IfhModeKmd;
         }
     }
+
+    if (m_pDevice->GetPlatform()->IsEmulationEnabled())
+    {
+        // Software emulator platforms are so slow that we disable timeouts entirely by default.
+        m_settings.gfxTimeout = 0;
+    }
 }
 
 // =====================================================================================================================
@@ -185,6 +191,12 @@ void SettingsLoader::ValidateSettings()
     if (pPlatform->IsEmulationEnabled())
     {
         m_settings.forcePresentViaCpuBlt = true;
+    }
+
+    if (m_pDevice->IsHwEmulationEnabled())
+    {
+        // Hardware emulator platforms are much slower than real hardware, so scale timeouts accordingly.
+        m_settings.gfxTimeout *= m_settings.gfxEmuTimeoutMultiplier;
     }
 
     // Overrides all paths for debug files to expected values.

@@ -1526,6 +1526,14 @@
           },
           "Type": "bool",
           "Description": "Determine if issuing marker event is allowed when SQTT is enabled."
+        },
+        {
+          "Name": "EnableExecPopulationTokens",
+          "Defaults": {
+            "Default": false
+          },
+          "Type": "bool",
+          "Description": "Enable exec mask change tokens"
         }
       ],
       "Description": "Configuration options for capturing a SQ Thread Trace through the PAL GPU Profiler layer."

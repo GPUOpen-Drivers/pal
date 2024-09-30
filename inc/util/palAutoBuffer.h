@@ -31,6 +31,7 @@
 
 #pragma once
 
+#include "palSpan.h"
 #include "palSysMemory.h"
 
 namespace Util
@@ -79,9 +80,6 @@ public:
     {
         if (requiredCapacity > defaultCapacity)
         {
-            PAL_DPWARN("AutoBuffer needs to malloc. Consider increasing the default size. Default: %u, Required: %u",
-                       static_cast<uint32>(defaultCapacity), static_cast<uint32>(requiredCapacity));
-
             // Create dynamically allocated array, by allocating memory and construcing its objects.
             Item*const pBuffer = PAL_NEW_ARRAY(Item, requiredCapacity, pAllocator, AllocInternalTemp);
 
@@ -148,6 +146,14 @@ public:
         PAL_ASSERT(n < m_capacity);
         return m_pBuffer[n];
     }
+
+    ///@{
+    /// Implicitly gets the current contents of the buffer as a Span.
+    ///
+    /// @returns The contents of the buffer as a Span; same as Span<T>(Data(), Capacity()).
+    operator Span<Item>() { return Span<Item>(Data(), Capacity()); }
+    operator Span<const Item>() const { return Span<const Item>(Data(), Capacity()); }
+    ///@}
 
     /// Returns pointer to the underlying buffer serving as data storage.
     /// The returned pointer defines always valid range [Data(), Data() + Capacity()).

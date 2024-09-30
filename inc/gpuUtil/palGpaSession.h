@@ -57,7 +57,11 @@ namespace Pal
     struct GlobalCounterLayout;
     struct MultiSubmitInfo;
     struct ThreadTraceLayout;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 900
+    enum   PipelineStageFlag : uint32;
+#else
     enum   HwPipePoint : uint32;
+#endif
 }
 struct SqttFileChunkCpuInfo;
 struct SqttFileChunkAsicInfo;
@@ -274,7 +278,12 @@ struct GpaSampleConfig
                 Pal::uint32 placeholder1               :  1;
                 Pal::uint32 excludeNonDetailShaderData :  1;  ///< Only emit shader tokens from the SIMD that have been
                                                               ///  selected for detail instruction tracing
-                Pal::uint32 reserved                   : 26;  ///< Reserved for future use.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 899
+                Pal::uint32 enableExecPopTokens        :  1;  ///< Output exec tokens
+#else
+                Pal::uint32 placeholder2               :  1;
+#endif
+                Pal::uint32 reserved                   : 25;  ///< Reserved for future use.
             };
             Pal::uint32 u32All;                             ///< Bit flags packed as uint32.
         } flags;                                            ///< Bit flags controlling SQTT samples.
@@ -295,8 +304,15 @@ struct GpaSampleConfig
 
     struct
     {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 900
+        Pal::PipelineStageFlag preSample;  ///< The pipeline stage in the GPU pipeline where the begin timestamp should
+                                           ///  take place.
+        Pal::PipelineStageFlag postSample; ///< The pipeline stage in the GPU pipeline where the end timestamp should
+                                           ///  take place.
+#else
         Pal::HwPipePoint preSample;   ///< The point in the GPU pipeline where the begin timestamp should take place.
         Pal::HwPipePoint postSample;  ///< The point in the GPU pipeline where the end timestamp should take place.
+#endif
     } timing;  ///< Timestamp configuration. (only valid for timing samples)
 };
 

@@ -1210,8 +1210,11 @@ void UniversalCmdBuffer::CmdBindPipeline(
                     (oldUsesUavExport == false))
                 {
                     // Invalidate color caches so upcoming uav exports don't overlap previous normal exports
-                    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-                    pDeCmdSpace = WriteWaitEop(HwPipePostPrefetch, false, SyncGlxNone, SyncCbWbInv, pDeCmdSpace);
+                    uint32*                    pDeCmdSpace = m_deCmdStream.ReserveCommands();
+                    constexpr WriteWaitEopInfo WaitEopInfo = { .hwRbSync  = SyncCbWbInv,
+                                                               .waitPoint = HwPipePostPrefetch };
+
+                    pDeCmdSpace = WriteWaitEop(WaitEopInfo, pDeCmdSpace);
                     m_deCmdStream.CommitCommands(pDeCmdSpace);
                 }
             }
@@ -2367,7 +2370,9 @@ void UniversalCmdBuffer::CmdBindTargets(
         // Add a stall if needed after Flush events issued in HandleBoundTargetsChanged.
         if (m_cachedSettings.waitAfterCbFlush)
         {
-            pDeCmdSpace = WriteWaitEop(HwPipePreColorTarget, false, SyncGlxNone, SyncRbNone, pDeCmdSpace);
+            constexpr WriteWaitEopInfo WaitEopInfo = { .waitPoint = HwPipePreColorTarget };
+
+            pDeCmdSpace = WriteWaitEop(WaitEopInfo, pDeCmdSpace);
         }
     }
 
@@ -2406,7 +2411,9 @@ void UniversalCmdBuffer::CmdBindTargets(
         // Add a stall if needed after Flush events issued in HandleBoundTargetChanged.
         if (m_cachedSettings.waitAfterDbFlush)
         {
-            pDeCmdSpace = WriteWaitEop(HwPipePreRasterization, false, SyncGlxNone, SyncRbNone, pDeCmdSpace);
+            constexpr WriteWaitEopInfo WaitEopInfo = { .waitPoint = HwPipePreRasterization };
+
+            pDeCmdSpace = WriteWaitEop(WaitEopInfo, pDeCmdSpace);
         }
     }
 
@@ -5019,6 +5026,8 @@ Result UniversalCmdBuffer::AddPostamble()
                                                pDeCmdSpace);
     }
 
+    const WriteWaitEopInfo WaitEopInfo = { .waitPoint = HwPipePostPrefetch };
+
     if ((m_ceCmdStream.GetNumChunks() > 0) &&
         (m_ceCmdStream.GetFirstChunk()->BusyTrackerGpuAddr() != 0))
     {
@@ -5036,7 +5045,7 @@ Result UniversalCmdBuffer::AddPostamble()
         // by draws or dispatches. If we don't wait for idle then the driver might reset and write over that memory
         // before the shaders are done executing.
         didWaitForIdle = true;
-        pDeCmdSpace = WriteWaitEop(HwPipePostPrefetch, false, SyncGlxNone, SyncRbNone, pDeCmdSpace);
+        pDeCmdSpace = WriteWaitEop(WaitEopInfo, pDeCmdSpace);
 
         // The following ATOMIC_MEM packet increments the done-count for the CE command stream, so that we can probe
         // when the command buffer has completed execution on the GPU.
@@ -5059,7 +5068,7 @@ Result UniversalCmdBuffer::AddPostamble()
         // If we didn't have a CE tracker we still need this wait-for-idle. See the comment above for the reason.
         if (didWaitForIdle == false)
         {
-            pDeCmdSpace = WriteWaitEop(HwPipePostPrefetch, false, SyncGlxNone, SyncRbNone, pDeCmdSpace);
+            pDeCmdSpace = WriteWaitEop(WaitEopInfo, pDeCmdSpace);
         }
 
         pDeCmdSpace += CmdUtil::BuildAtomicMem(AtomicOp::AddInt32,
@@ -10023,31 +10032,9 @@ uint32 UniversalCmdBuffer::PopulateExecuteIndirectV2Params(
                 }
             }
         }
-        PAL_ASSERT(numActiveHwShaderStgs <= EIV2MaxStages);
+        PAL_ASSERT(numActiveHwShaderStgs <= EiV2MaxStages);
 
-        uint32 argBufOffsetBaseDw = 0;
-        uint32 argSizeDw          = 0;
-        bool foundUserData        = false;
-
-        // The UserData entries to be modified are laid out linearly in the ArgumentBuffer at an Offset. Typically,
-        // this is 2 to 4 contiguous Reg values. We find the smallest Offset here and set it as the "Base" so we can
-        // combine all the SetUserData Ops into 1 Op.
-        for (uint32 cmdIndex = 0; cmdIndex < cmdCount; cmdIndex++)
-        {
-            if (pParamData[cmdIndex].type == IndirectOpType::SetUserData)
-            {
-                const uint32 baseInDw = pParamData[cmdIndex].argBufOffset >> 2;
-                if (foundUserData == false)
-                {
-                    argBufOffsetBaseDw = baseInDw;
-                    foundUserData = true;
-                }
-                else
-                {
-                    argBufOffsetBaseDw = Min(argBufOffsetBaseDw, baseInDw);
-                }
-            }
-        }
+        uint32 argSizeDw = 0;
 
         if (userDataSpills)
         {
@@ -10055,7 +10042,8 @@ uint32 UniversalCmdBuffer::PopulateExecuteIndirectV2Params(
             // Since Look-up for modification is only required for Spilled UserData Entries and not the VertexBuffer
             // Table we will exclude the part of the Buffer which contains the VBtable and UserDataEntries not spilled
             // i.e. up to the SpillThreshold.
-            pMeta->InitLut(pPacketInfo->vbTableSizeDwords, pPacketInfo->vbTableSizeDwords + spillThreshold);
+            pMeta->InitLut();
+            pMeta->SetMemCpyRange(pPacketInfo->vbTableSizeDwords, pPacketInfo->vbTableSizeDwords + spillThreshold);
         }
 
         for (uint32 cmdIndex = 0; cmdIndex < cmdCount; cmdIndex++)
@@ -10066,7 +10054,8 @@ uint32 UniversalCmdBuffer::PopulateExecuteIndirectV2Params(
             }
 
             // Offset for the first UserData entry/entries to Set. If the first SetUserData is lowest then offset is 0.
-            const uint32 argBufOffsetDw = (pParamData[cmdIndex].argBufOffset >> 2) - argBufOffsetBaseDw;
+            const uint32 argBufOffsetDw = (pParamData[cmdIndex].argBufOffset >> 2) -
+                                          (properties.userDataArgBufOffsetBase >> 2);
             const uint32 firstEntry     = pParamData[cmdIndex].data[0];
             const uint32 entryCount     = pParamData[cmdIndex].data[1];
 
@@ -10139,10 +10128,10 @@ uint32 UniversalCmdBuffer::PopulateExecuteIndirectV2Params(
                                             &updateCount);
         }
 
-        pMetaData->initMemCopyCount   = initCount;
-        pMetaData->updateMemCopyCount = updateCount;
-        pMetaData->userDataOffset     = argBufOffsetBaseDw * sizeof(uint32);
-        pMetaData->userDataDwCount    = argSizeDw;
+        pMetaData->initMemCopy.count   = initCount;
+        pMetaData->updateMemCopy.count = updateCount;
+        pMetaData->userDataOffset      = properties.userDataArgBufOffsetBase;
+        pMetaData->userDataDwCount     = argSizeDw;
     }
 
     if (stageUsageMask != 0)
@@ -10168,8 +10157,8 @@ uint32 UniversalCmdBuffer::PopulateExecuteIndirectV2Params(
             pPacketOp->dispatch.dataOffset                                = pParamData[cmdIndex].argBufOffset;
             if (m_pSignatureCs->dispatchIndexRegAddr != UserDataNotMapped)
             {
-                pMetaData->commandIndexEnable               = true;
-                pPacketOp->dispatch.locData.commandIndexLoc = m_pSignatureCs->dispatchIndexRegAddr;
+                pMetaData->commandIndexEnable            = true;
+                pPacketOp->dispatch.locData.commandIndex = m_pSignatureCs->dispatchIndexRegAddr;
             }
             pPacketOp->dispatch.dispatchInitiator.bits.COMPUTE_SHADER_EN  = 1;
             pPacketOp->dispatch.dispatchInitiator.bits.FORCE_START_AT_000 = 1;
@@ -10185,13 +10174,13 @@ uint32 UniversalCmdBuffer::PopulateExecuteIndirectV2Params(
 
             pPacketOp->draw = {};
 
-            pPacketOp->draw.dataOffset             = pParamData[cmdIndex].argBufOffset;
-            pPacketOp->draw.locData.startVertexLoc = vtxOffsetReg  & EightBitMask;
-            pPacketOp->draw.locData.startInstLoc   = instOffsetReg & EightBitMask;
+            pPacketOp->draw.dataOffset          = pParamData[cmdIndex].argBufOffset;
+            pPacketOp->draw.locData.startVertex = vtxOffsetReg  & EightBitMask;
+            pPacketOp->draw.locData.startInst   = instOffsetReg & EightBitMask;
             if (m_pSignatureGfx->drawIndexRegAddr != UserDataNotMapped)
             {
-                pMetaData->commandIndexEnable           = true;
-                pPacketOp->draw.locData.commandIndexLoc = m_pSignatureGfx->drawIndexRegAddr & EightBitMask;
+                pMetaData->commandIndexEnable        = true;
+                pPacketOp->draw.locData.commandIndex = m_pSignatureGfx->drawIndexRegAddr & EightBitMask;
             }
             pPacketOp->draw.drawInitiator.bits.SOURCE_SELECT = DI_SRC_SEL_AUTO_INDEX;
             pPacketOp->draw.drawInitiator.bits.MAJOR_MODE    = DI_MAJOR_MODE_0;
@@ -10214,13 +10203,13 @@ uint32 UniversalCmdBuffer::PopulateExecuteIndirectV2Params(
 
             pPacketOp->drawIndexed = {};
 
-            pPacketOp->drawIndexed.dataOffset            = pParamData[cmdIndex].argBufOffset;
-            pPacketOp->drawIndexed.locData.baseVertexLoc = vtxOffsetReg  & EightBitMask;
-            pPacketOp->drawIndexed.locData.startInstLoc  = instOffsetReg & EightBitMask;
+            pPacketOp->drawIndexed.dataOffset         = pParamData[cmdIndex].argBufOffset;
+            pPacketOp->drawIndexed.locData.baseVertex = vtxOffsetReg  & EightBitMask;
+            pPacketOp->drawIndexed.locData.startInst  = instOffsetReg & EightBitMask;
             if (m_pSignatureGfx->drawIndexRegAddr != UserDataNotMapped)
             {
-                pMetaData->commandIndexEnable                  = true;
-                pPacketOp->drawIndexed.locData.commandIndexLoc = m_pSignatureGfx->drawIndexRegAddr & EightBitMask;
+                pMetaData->commandIndexEnable               = true;
+                pPacketOp->drawIndexed.locData.commandIndex = m_pSignatureGfx->drawIndexRegAddr & EightBitMask;
             }
             pPacketOp->drawIndexed.drawInitiator.bits.SOURCE_SELECT = DI_SRC_SEL_DMA;
             pPacketOp->drawIndexed.drawInitiator.bits.MAJOR_MODE    = DI_MAJOR_MODE_0;
@@ -10229,9 +10218,9 @@ uint32 UniversalCmdBuffer::PopulateExecuteIndirectV2Params(
 
         case IndirectOpType::VertexBufTableSrd:
         {
-            const uint32 idx = pMetaData->buildSrdCount++;
-            pMetaData->buildSrdSrcOffsets[idx] = pParamData[cmdIndex].argBufOffset;
-            pMetaData->buildSrdDstOffsets[idx] = static_cast<uint16>(pParamData[cmdIndex].data[0] * sizeof(uint32));
+            const uint32 idx = pMetaData->buildSrd.count++;
+            pMetaData->buildSrd.srcOffsets[idx] = pParamData[cmdIndex].argBufOffset;
+            pMetaData->buildSrd.dstOffsets[idx] = static_cast<uint16>(pParamData[cmdIndex].data[0] * sizeof(uint32));
             break;
         }
         case IndirectOpType::DispatchMesh:
@@ -10243,13 +10232,13 @@ uint32 UniversalCmdBuffer::PopulateExecuteIndirectV2Params(
 
             pPacketOp->dispatchMesh = {};
 
-            pPacketOp->dispatchMesh.dataOffset        = pParamData[cmdIndex].argBufOffset;
-            pPacketOp->dispatchMesh.locData.xyzDimLoc = meshDispatchDimsReg & EightBitMask;
+            pPacketOp->dispatchMesh.dataOffset     = pParamData[cmdIndex].argBufOffset;
+            pPacketOp->dispatchMesh.locData.xyzDim = meshDispatchDimsReg & EightBitMask;
             if (drawIndexReg != UserDataNotMapped)
             {
                 m_deCmdStream.NotifyIndirectShRegWrite(drawIndexReg);
-                pMetaData->commandIndexEnable                   = true;
-                pPacketOp->dispatchMesh.locData.commandIndexLoc = drawIndexReg & EightBitMask;
+                pMetaData->commandIndexEnable                = true;
+                pPacketOp->dispatchMesh.locData.commandIndex = drawIndexReg & EightBitMask;
             }
             pPacketOp->dispatchMesh.drawInitiator.bits.SOURCE_SELECT = DI_SRC_SEL_AUTO_INDEX;
             pPacketOp->dispatchMesh.drawInitiator.bits.MAJOR_MODE    = DI_MAJOR_MODE_0;
@@ -10274,15 +10263,15 @@ uint32 UniversalCmdBuffer::PopulateExecuteIndirectV2Params(
 
     // This is just the fixed precalculated DwordSize that is added by these operations as an offset to the base
     // ExecuteIndirectV2 PM4. For reference look at the corresponding ExecuteIndirectV2WritePacked().
-    sizeInDwords += ((pMetaData->initMemCopyCount   + 1) >> 1) * 3;
-    sizeInDwords += ((pMetaData->updateMemCopyCount + 1) >> 1) * 3;
-    sizeInDwords += ((pMetaData->buildSrdCount      + 1) >> 1) * 2;
+    sizeInDwords += ((pMetaData->initMemCopy.count   + 1) >> 1) * 3;
+    sizeInDwords += ((pMetaData->updateMemCopy.count + 1) >> 1) * 3;
+    sizeInDwords += ((pMetaData->buildSrd.count      + 1) >> 1) * 2;
     sizeInDwords += (pMetaData->userDataDwCount     + padLimit) >> shiftBits;
 
     // The GlobalSpillTable for EI V2 is used when there will be updateMemCopy Ops (UserData SpillTable changes
     // between consecutive Draw/Dispatch Ops) or there is a buildSrd Op (VBTable). However, it is always required by FW
     // so we allocate it whenever there is an EI V2 PM4 in the CmdBuffer.
-    m_state.flags.needsEiV2GlobalSpill = true;
+    SetExecuteIndirectV2GlobalSpill(false);
 
     if (m_cachedSettings.issueSqttMarkerEvent)
     {
@@ -10774,6 +10763,11 @@ void UniversalCmdBuffer::ExecuteIndirectShader(
                 // Just like a normal direct/indirect draw/dispatch, we need to perform state validation before
                 // executing the generated command chunks.
                 ValidateTaskMeshDispatch(0uLL, {});
+
+                if (m_predGpuAddr != 0)
+                {
+                    m_pAceCmdStream->If(CompareFunc::Equal, m_predGpuAddr, 1, UINT_MAX);
+                }
             }
 
             if (bindPoint == PipelineBindPoint::Graphics)
@@ -10819,6 +10813,7 @@ void UniversalCmdBuffer::ExecuteIndirectShader(
                 pDeCmdSpace = BuildWriteViewId(viewInstancingDesc.viewId[i], pDeCmdSpace);
                 m_deCmdStream.CommitCommands(pDeCmdSpace);
             }
+
             m_deCmdStream.ExecuteGeneratedCommands(ppChunkList[0],
                                                    numChunksExecuted,
                                                    numGenChunks);
@@ -10828,6 +10823,10 @@ void UniversalCmdBuffer::ExecuteIndirectShader(
                 m_pAceCmdStream->ExecuteGeneratedCommands(ppChunkList[1],
                                                           numChunksExecuted,
                                                           numGenChunks);
+                if (m_predGpuAddr != 0)
+                {
+                    m_pAceCmdStream->EndIf();
+                }
             }
 
             uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
@@ -12306,18 +12305,17 @@ bool UniversalCmdBuffer::IsPreemptable() const
 
 // =====================================================================================================================
 uint32* UniversalCmdBuffer::WriteWaitEop(
-    HwPipePoint waitPoint,
-    bool        waitCpDma,
-    uint32      hwGlxSync,
-    uint32      hwRbSync,
-    uint32*     pCmdSpace)
+    const WriteWaitEopInfo& info,
+    uint32*                 pCmdSpace)
 {
-    SyncGlxFlags glxSync = SyncGlxFlags(hwGlxSync);
-    SyncRbFlags  rbSync  = SyncRbFlags(hwRbSync);
+    SyncGlxFlags      glxSync   = SyncGlxFlags(info.hwGlxSync);
+    const SyncRbFlags rbSync    = SyncRbFlags(info.hwRbSync);
+    HwPipePoint       waitPoint = info.waitPoint;
+    bool              waitCpDma = info.waitCpDma;
 
     bool waitAtPfpOrMe = true;
 
-    if (m_device.Parent()->UsePws(EngineTypeUniversal))
+    if ((info.disablePws == false) && m_device.Parent()->UsePws(EngineTypeUniversal))
     {
         // We should always prefer a PWS sync over a wait for EOP timestamp because it avoids all TS memory accesses.
         // It can also push the wait point further down the graphics pipeline in some cases.

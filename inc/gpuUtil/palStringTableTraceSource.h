@@ -86,7 +86,7 @@ public:
     virtual const char* GetName()    const override { return StringTableTraceSourceName; }
     virtual Pal::uint32 GetVersion() const override { return StringTableTraceSourceVersion; }
 
-private:
+protected:
     struct StringTableEntry
     {
         Pal::uint32  tableId;       // unique id that identifies this table

@@ -1532,22 +1532,19 @@ Result GpaSession::End(
     if (result == Result::Success)
     {
         // Issue a barrier to make sure any performance data that could be cached in L2 is flush to main memory.
-        BarrierTransition barrierTransition;
-        constexpr HwPipePoint HwPipeBottomConst = HwPipeBottom;
+        {
+            MemBarrier memBarrier = {};
+            memBarrier.srcStageMask  = PipelineStageBottomOfPipe;
+            memBarrier.dstStageMask  = PipelineStageTopOfPipe;
+            memBarrier.srcAccessMask = CoherCp;
+            memBarrier.dstAccessMask = CoherMemory;
 
-        barrierTransition.srcCacheMask = CoherCp;
-        barrierTransition.dstCacheMask = CoherMemory;
-        barrierTransition.imageInfo.pImage = nullptr;
-
-        BarrierInfo barrierInfo = {};
-        barrierInfo.waitPoint          = HwPipeTop;
-        barrierInfo.pipePointWaitCount = 1;
-        barrierInfo.pPipePoints        = &HwPipeBottomConst;
-        barrierInfo.transitionCount    = 1;
-        barrierInfo.pTransitions       = &barrierTransition;
-        barrierInfo.reason             = Developer::BarrierReasonFlushL2CachedData;
-
-        pCmdBuf->CmdBarrier(barrierInfo);
+            AcquireReleaseInfo acqRelInfo = {};
+            acqRelInfo.memoryBarrierCount = 1;
+            acqRelInfo.pMemoryBarriers    = &memBarrier;
+            acqRelInfo.reason             = Developer::BarrierReasonFlushL2CachedData;
+            pCmdBuf->CmdReleaseThenAcquire(acqRelInfo);
+        }
 
         // Copy all SQTT results to CPU accessible memory on non-APU platforms
         if (m_deviceProps.gpuType == GpuType::Discrete)
@@ -1566,17 +1563,17 @@ Result GpaSession::End(
                         needsPostTraceIdle = false;
 
                         // Issue a barrier to make sure work being measured is complete before copy
-                        barrierTransition.srcCacheMask     = CoherMemory;
-                        barrierTransition.dstCacheMask     = CoherCopy;
-                        barrierTransition.imageInfo.pImage = nullptr;
+                        MemBarrier memBarrier = {};
+                        memBarrier.srcStageMask  = PipelineStageTopOfPipe;
+                        memBarrier.dstStageMask  = PipelineStageBlt;
+                        memBarrier.srcAccessMask = CoherMemory;
+                        memBarrier.dstAccessMask = CoherCopy;
 
-                        barrierInfo.waitPoint          = HwPipePreBlt;
-                        barrierInfo.pipePointWaitCount = 0;
-                        barrierInfo.transitionCount    = 1;
-                        barrierInfo.pTransitions       = &barrierTransition;
-                        barrierInfo.reason             = Developer::BarrierReasonPostSqttTrace;
-
-                        pCmdBuf->CmdBarrier(barrierInfo);
+                        AcquireReleaseInfo acqRelInfo = {};
+                        acqRelInfo.memoryBarrierCount = 1;
+                        acqRelInfo.pMemoryBarriers    = &memBarrier;
+                        acqRelInfo.reason             = Developer::BarrierReasonPostSqttTrace;
+                        pCmdBuf->CmdReleaseThenAcquire(acqRelInfo);
                     }
 
                     // Add cmd to copy from gpu local invisible memory to Gart heap memory for CPU access.
@@ -1589,18 +1586,19 @@ Result GpaSession::End(
         pCmdBuf->CmdSetEvent(*m_pGpuEvent, HwPipeBottom);
 
         // Issue a barrier to make sure GPU event data is flushed to memory.
-        barrierTransition.srcCacheMask = CoherCp;
-        barrierTransition.dstCacheMask = CoherMemory;
-        barrierTransition.imageInfo.pImage = nullptr;
+        {
+            MemBarrier memBarrier = {};
+            memBarrier.srcStageMask  = PipelineStageBottomOfPipe;
+            memBarrier.dstStageMask  = PipelineStageTopOfPipe;
+            memBarrier.srcAccessMask = CoherCp;
+            memBarrier.dstAccessMask = CoherMemory;
 
-        barrierInfo.waitPoint          = HwPipeTop;
-        barrierInfo.pipePointWaitCount = 1;
-        barrierInfo.pPipePoints        = &HwPipeBottomConst;
-        barrierInfo.transitionCount    = 1;
-        barrierInfo.pTransitions       = &barrierTransition;
-        barrierInfo.reason             = Developer::BarrierReasonFlushL2CachedData;
-
-        pCmdBuf->CmdBarrier(barrierInfo);
+            AcquireReleaseInfo acqRelInfo = {};
+            acqRelInfo.memoryBarrierCount = 1;
+            acqRelInfo.pMemoryBarriers    = &memBarrier;
+            acqRelInfo.reason             = Developer::BarrierReasonFlushL2CachedData;
+            pCmdBuf->CmdReleaseThenAcquire(acqRelInfo);
+        }
 
         m_sessionState = GpaSessionState::Complete;
 
@@ -2531,24 +2529,21 @@ void GpaSession::CopyResults(
     if (result == Result::Success)
     {
         // Issue a barrier to make sure work being measured is complete before copy
-        BarrierTransition barrierTransition;
+        {
+            pCmdBuf->CmdAcquireEvent({}, 1, &m_pSrcSession->m_pGpuEvent);
 
-        barrierTransition.srcCacheMask = CoherCopy | CoherMemory; // Counter | SQTT
-        barrierTransition.dstCacheMask = CoherCopy;
-        barrierTransition.imageInfo.pImage = nullptr;
+            MemBarrier memBarrier = {};
+            memBarrier.srcStageMask  = PipelineStagePostPrefetch;
+            memBarrier.dstStageMask  = PipelineStageBlt;
+            memBarrier.srcAccessMask = CoherCopy | CoherMemory; // Counter | SQTT
+            memBarrier.dstAccessMask = CoherCopy;
 
-        BarrierInfo barrierInfo = {};
-        const IGpuEvent* pGpuEventsConst = m_pSrcSession->m_pGpuEvent;
-
-        barrierInfo.waitPoint         = HwPipePreBlt;
-        barrierInfo.gpuEventWaitCount = 1;
-        barrierInfo.ppGpuEvents       = &pGpuEventsConst;
-        barrierInfo.transitionCount   = 1;
-        barrierInfo.pTransitions      = &barrierTransition;
-
-        barrierInfo.reason            = Developer::BarrierReasonPrePerfDataCopy;
-
-        pCmdBuf->CmdBarrier(barrierInfo);
+            AcquireReleaseInfo acqRelInfo = {};
+            acqRelInfo.memoryBarrierCount = 1;
+            acqRelInfo.pMemoryBarriers    = &memBarrier;
+            acqRelInfo.reason             = Developer::BarrierReasonPrePerfDataCopy;
+            pCmdBuf->CmdReleaseThenAcquire(acqRelInfo);
+        }
 
         // copy each perfExperiment result from source session to this copy session
         for (uint32 i = 0; i < m_sampleCount; i++)
@@ -2570,22 +2565,19 @@ void GpaSession::CopyResults(
         pCmdBuf->CmdSetEvent(*m_pGpuEvent, HwPipeBottom);
 
         // Issue a barrier to make sure GPU event data is flushed to memory.
-        constexpr HwPipePoint HwPipeBottomConst = HwPipeBottom;
+        {
+            MemBarrier memBarrier = {};
+            memBarrier.srcStageMask  = PipelineStageBottomOfPipe;
+            memBarrier.dstStageMask  = PipelineStageTopOfPipe;
+            memBarrier.srcAccessMask = CoherCp;
+            memBarrier.dstAccessMask = CoherMemory;
 
-        barrierTransition.srcCacheMask = CoherCp;
-        barrierTransition.dstCacheMask = CoherMemory;
-        barrierTransition.imageInfo.pImage = nullptr;
-
-        barrierInfo = {};
-        barrierInfo.waitPoint          = HwPipeTop;
-        barrierInfo.pipePointWaitCount = 1;
-        barrierInfo.pPipePoints        = &HwPipeBottomConst;
-        barrierInfo.transitionCount    = 1;
-        barrierInfo.pTransitions       = &barrierTransition;
-
-        barrierInfo.reason             = Developer::BarrierReasonFlushL2CachedData;
-
-        pCmdBuf->CmdBarrier(barrierInfo);
+            AcquireReleaseInfo acqRelInfo = {};
+            acqRelInfo.memoryBarrierCount = 1;
+            acqRelInfo.pMemoryBarriers    = &memBarrier;
+            acqRelInfo.reason             = Developer::BarrierReasonFlushL2CachedData;
+            pCmdBuf->CmdReleaseThenAcquire(acqRelInfo);
+        }
 
         m_sessionState = GpaSessionState::Complete;
     }
@@ -4007,6 +3999,10 @@ Result GpaSession::AcquirePerfExperiment(
                     (sampleConfig.sqtt.flags.excludeNonDetailShaderData != 0);
                 sqttInfo.optionValues.threadTraceStallBehavior  = sampleConfig.sqtt.flags.stallMode;
                 sqttInfo.optionValues.threadTraceShaderTypeMask = PerfShaderMaskAll;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 899
+                sqttInfo.optionFlags.threadTraceEnableExecPop   = 1;
+                sqttInfo.optionValues.threadTraceEnableExecPop  = sampleConfig.sqtt.flags.enableExecPopTokens;
+#endif
 
                 for (uint32 i = 0; (i < m_perfExperimentProps.shaderEngineCount) && (result == Result::Success); i++)
                 {

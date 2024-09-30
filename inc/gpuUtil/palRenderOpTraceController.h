@@ -38,19 +38,31 @@ class Device;
 namespace GpuUtil
 {
 
-constexpr Pal::uint32 RenderOpTraceControllerVersion = 2;
+/// Supported render operations used to advance the trace
+enum RenderOp : Pal::uint8
+{
+    RenderOpDraw     = (1u << 0),
+    RenderOpDispatch = (1u << 1)
+};
+
+/// Structure used to batch submit render operations on queue submission
+/// This struct should have a `*Count` field for each @ref RenderOp enumeration above
+struct RenderOpCounts
+{
+    Pal::uint32 drawCount;
+    Pal::uint32 dispatchCount;
+};
+
+constexpr Pal::uint32 RenderOpTraceControllerVersion = 3;
 constexpr char        RenderOpTraceControllerName[]  = "renderop";
 
 // =====================================================================================================================
 class RenderOpTraceController : public ITraceController
 {
 public:
-    enum RenderOp : Pal::uint8
-    {
-        RenderOpDraw     = (1u << 0),
-        RenderOpDispatch = (1u << 1)
-    };
-
+#if PAL_CLIENT_MAJOR_INTERFACE_VERSION < 896
+    using RenderOp = GpuUtil::RenderOp;
+#endif
     RenderOpTraceController(Pal::IPlatform* pPlatform, Pal::IDevice* pDevice);
     virtual ~RenderOpTraceController();
 
@@ -63,9 +75,18 @@ public:
     virtual Pal::Result OnBeginGpuWork(Pal::uint32 gpuIndex, Pal::ICmdBuffer** ppCmdBuffer) override;
     virtual Pal::Result OnEndGpuWork(Pal::uint32 gpuIndex, Pal::ICmdBuffer** ppCmdBuffer) override;
 
+#if PAL_CLIENT_MAJOR_INTERFACE_VERSION < 896
     void RecordRenderOp(Pal::IQueue* pQueue, RenderOp renderOp);
+#endif
 
     void FinishTrace();
+
+    /// This function must be called by client drivers implementing the RenderOp controller.
+    /// On every queue submission, this function is called with the cumulative counts of render operations
+    /// recorded into that queue's command buffers.
+    /// Based on the controller's internal mask, set by the user during trace configuration,
+    /// the trace controller may advance its state.
+    void RecordRenderOps(Pal::IQueue* pQueue, const RenderOpCounts& renderOpCounts);
 
 private:
     Pal::Result SubmitGpuWork(Pal::ICmdBuffer* pCmdBuf, Pal::IFence* pFence) const;

@@ -91,14 +91,10 @@ public:
     bool DisablePartialPreempt() const { return m_disablePartialPreempt; }
 
     // Returns the scratch memory size in dwords
-    static uint32 CalcScratchMemSize(
-        GfxIpLevel                              gfxIpLevel,
-        const Util::PalAbi::CodeObjectMetadata& metadata);
+    static uint32 CalcScratchMemSize(const Util::PalAbi::CodeObjectMetadata& metadata);
 
     // Returns the scratch memory size in dwords
-    static uint32 CalcScratchMemSize(
-        GfxIpLevel                              gfxIpLevel,
-        const Util::HsaAbi::CodeObjectMetadata& metadata);
+    static uint32 CalcScratchMemSize(const Util::HsaAbi::CodeObjectMetadata& metadata);
 
 protected:
     virtual Result HwlInit(

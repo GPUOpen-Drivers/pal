@@ -62,8 +62,13 @@ public:
         const CmdPostProcessFrameInfo& postProcessInfo,
         bool*                          pAddedGpuWork) override;
 
+    QueueType GetQueueType() const { return m_queueType; }
+
 private:
-    void DrawOverlay(const IImage* pSrcImage, const CmdPostProcessDebugOverlayInfo& debugOverlayInfo);
+    void DrawOverlay(
+        const IImage*                         pSrcImage,
+        const CmdPostProcessDebugOverlayInfo& debugOverlayInfo,
+        ImageLayout                           srcImageLayout);
 
     Device*const    m_pDevice;
     const QueueType m_queueType;

@@ -499,9 +499,8 @@ void ComputeCmdBuffer::CmdWriteTimestamp(
     if (TestAnyFlagSet(stageMask, PipelineStageCs | PipelineStageBlt | PipelineStageBottomOfPipe))
     {
         ReleaseMemGeneric releaseInfo = {};
-        releaseInfo.engineType = EngineTypeCompute;
-        releaseInfo.dstAddr    = address;
-        releaseInfo.dataSel    = data_sel__mec_release_mem__send_gpu_clock_counter;
+        releaseInfo.dstAddr = address;
+        releaseInfo.dataSel = data_sel__mec_release_mem__send_gpu_clock_counter;
 
         pCmdSpace += m_cmdUtil.BuildReleaseMemGeneric(releaseInfo, pCmdSpace);
     }
@@ -541,11 +540,10 @@ void ComputeCmdBuffer::CmdWriteImmediate(
     if (TestAnyFlagSet(stageMask, PipelineStageCs | PipelineStageBlt | PipelineStageBottomOfPipe))
     {
         ReleaseMemGeneric releaseInfo = {};
-        releaseInfo.engineType = EngineTypeCompute;
-        releaseInfo.dstAddr    = address;
-        releaseInfo.data       = data;
-        releaseInfo.dataSel    = is32Bit ? data_sel__mec_release_mem__send_32_bit_low
-                                         : data_sel__mec_release_mem__send_64_bit_data;
+        releaseInfo.dstAddr = address;
+        releaseInfo.data    = data;
+        releaseInfo.dataSel = is32Bit ? data_sel__mec_release_mem__send_32_bit_low
+                                      : data_sel__mec_release_mem__send_64_bit_data;
 
         pCmdSpace += m_cmdUtil.BuildReleaseMemGeneric(releaseInfo, pCmdSpace);
     }
@@ -1644,7 +1642,6 @@ void ComputeCmdBuffer::WriteEventCmd(
         // EOS timestamp and waiting on an EOP timestamp are exactly equivalent on compute queues. There's no reason
         // to implement a CS_DONE path for HwPipePostCs.
         ReleaseMemGeneric releaseInfo = {};
-        releaseInfo.engineType     = EngineTypeCompute;
         releaseInfo.gfx11WaitCpDma = releaseMemWaitCpDma;
         releaseInfo.dstAddr        = boundMemObj.GpuVirtAddr();
         releaseInfo.dataSel        = data_sel__mec_release_mem__send_32_bit_low;
@@ -2056,15 +2053,13 @@ void ComputeCmdBuffer::CopyMemoryCp(
 
 // =====================================================================================================================
 uint32* ComputeCmdBuffer::WriteWaitEop(
-    HwPipePoint waitPoint,
-    bool        waitCpDma,
-    uint32      hwGlxSync,
-    uint32      hwRbSync,
-    uint32*     pCmdSpace)
+    const WriteWaitEopInfo& info,
+    uint32*                 pCmdSpace)
 {
-    SyncGlxFlags glxSync = SyncGlxFlags(hwGlxSync);
+    SyncGlxFlags glxSync   = SyncGlxFlags(info.hwGlxSync);
+    bool         waitCpDma = info.waitCpDma;
 
-    PAL_ASSERT(hwRbSync == SyncRbNone);
+    PAL_ASSERT(info.hwRbSync == SyncRbNone);
 
     // Issue explicit waitCpDma packet if ReleaseMem doesn't support it.
     if (waitCpDma && (m_device.Settings().gfx11EnableReleaseMemWaitCpDma == false))
@@ -2077,12 +2072,11 @@ uint32* ComputeCmdBuffer::WriteWaitEop(
     // to worry about release_mem not supporting GCRs with EOS events. Any remaining sync flags must be handled in a
     // trailing acquire_mem packet.
     ReleaseMemGeneric releaseInfo = {};
-    releaseInfo.engineType      = EngineTypeCompute;
-    releaseInfo.cacheSync       = m_cmdUtil.SelectReleaseMemCaches(&glxSync);
-    releaseInfo.dstAddr         = AcqRelFenceValGpuVa(ReleaseTokenEop);
-    releaseInfo.dataSel         = data_sel__me_release_mem__send_32_bit_low;
-    releaseInfo.data            = GetNextAcqRelFenceVal(ReleaseTokenEop);
-    releaseInfo.gfx11WaitCpDma  = waitCpDma;
+    releaseInfo.cacheSync      = m_cmdUtil.SelectReleaseMemCaches(&glxSync);
+    releaseInfo.dstAddr        = AcqRelFenceValGpuVa(ReleaseTokenEop);
+    releaseInfo.dataSel        = data_sel__me_release_mem__send_32_bit_low;
+    releaseInfo.data           = GetNextAcqRelFenceVal(ReleaseTokenEop);
+    releaseInfo.gfx11WaitCpDma = waitCpDma;
 
     pCmdSpace += m_cmdUtil.BuildReleaseMemGeneric(releaseInfo, pCmdSpace);
     pCmdSpace += m_cmdUtil.BuildWaitRegMem(EngineTypeCompute,

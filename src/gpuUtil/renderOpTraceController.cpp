@@ -228,11 +228,6 @@ Result RenderOpTraceController::SubmitGpuWork(
         result = m_pQueue->Submit(submitInfo);
     }
 
-    if ((pFence != nullptr) && (result == Result::Success))
-    {
-        result = m_pQueue->AssociateFenceWithLastSubmit(pFence);
-    }
-
     return result;
 }
 
@@ -417,23 +412,41 @@ Result RenderOpTraceController::CreateCommandBuffer(
     return result;
 }
 
+#if PAL_CLIENT_MAJOR_INTERFACE_VERSION < 896
 // =====================================================================================================================
 void RenderOpTraceController::RecordRenderOp(
     Pal::IQueue* pQueue,
     RenderOp     renderOp)
 {
+    RenderOpCounts opCounts =
+    {
+        .drawCount     = (renderOp == RenderOpDraw)     ? 1u : 0u,
+        .dispatchCount = (renderOp == RenderOpDispatch) ? 1u : 0u,
+    };
+    RecordRenderOps(pQueue, opCounts);
+}
+#endif
+
+// =====================================================================================================================
+void RenderOpTraceController::RecordRenderOps(
+    Pal::IQueue*          pQueue,
+    const RenderOpCounts& renderOpCounts)
+{
     Util::MutexAuto lock(&m_renderOpLock);
 
-    // Only process if we're receiving the correct render op
-    if (renderOp & m_renderOpMask)
+    if (RenderOpDraw & m_renderOpMask)
     {
-        m_pQueue = pQueue;
-
-        Util::AtomicIncrement64(&m_renderOpCount);
-        OnRenderOpUpdated();
-
-        m_pQueue = nullptr;
+        m_renderOpCount += renderOpCounts.drawCount;
     }
+
+    if (RenderOpDispatch & m_renderOpMask)
+    {
+        m_renderOpCount += renderOpCounts.dispatchCount;
+    }
+
+    m_pQueue = pQueue;
+    OnRenderOpUpdated();
+    m_pQueue = nullptr;
 }
 
 // =====================================================================================================================

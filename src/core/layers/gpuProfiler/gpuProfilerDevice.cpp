@@ -95,6 +95,7 @@ Result Device::Cleanup()
 {
     PAL_SAFE_DELETE_ARRAY(m_pGlobalPerfCounters, GetPlatform());
     PAL_SAFE_DELETE_ARRAY(m_pStreamingPerfCounters, GetPlatform());
+    PAL_SAFE_DELETE_ARRAY(m_pDfStreamingPerfCounters, GetPlatform());
 
     // Try to leave profiling mode if we're still in it.
     Result result = ProfilingClockMode(false);
@@ -268,6 +269,11 @@ Result Device::CommitSettingsAndInit()
         result = ProfilingClockMode(true);
     }
 
+    if (result != Result::Success)
+    {
+        GPUPROFILER_WARN("Failed settings setup. Result:%08d", result);
+    }
+
     return result;
 }
 
@@ -305,6 +311,8 @@ Result Device::ProfilingClockMode(
             clockModeInput.clockMode = enable ? ModeMap[profilerMode] : DeviceClockMode::Default;
 
             result = SetClockMode(clockModeInput, nullptr);
+
+            GPUPROFILER_INFO("Setting ClockMode:%d", clockModeInput.clockMode);
 
             // If the user sets the NeverChangeClockMode setting we'll get ErrorUnavailable. We shouldn't treat this as
             // an actual error so that profiling can continue. It would be better to check the setting directly but it's
@@ -771,12 +779,12 @@ Result Device::ExtractPerfCounterInfo(
     uint32                          numDfPerfCounter,
     PerfCounter*                    pDfPerfCounters)
 {
-    Result result = Result::Success;
-    uint32 counterIdx   = 0;
-    uint32 dfCounterIdx = 0;
+    Result       result          = Result::Success;
+    uint32       counterIdx      = 0;
+    uint32       dfCounterIdx    = 0;
     uint32*      pIndexPointer   = nullptr;
     PerfCounter* pCounterPointer = nullptr;
-    uint32 lineNum = 1;
+    uint32       lineNum         = 1;
     while (((counterIdx + dfCounterIdx) < (numPerfCounter + numDfPerfCounter)) && (result == Result::Success))
     {
         constexpr size_t BufSize = 512;
@@ -1063,37 +1071,55 @@ Result Device::ExtractPerfCounterInfo(
 // captured.
 Result Device::InitGlobalPerfCounterState()
 {
-    File configFile;
-    Result result = configFile.Open(
-        GetPlatform()->PlatformSettings().gpuProfilerPerfCounterConfig.globalPerfCounterConfigFile,
-        FileAccessRead);
+    File        configFile;
+    const char* pFileName = GetPlatform()->PlatformSettings().gpuProfilerPerfCounterConfig.globalPerfCounterConfigFile;
+    Result      result    = configFile.Open(pFileName, FileAccessRead);
 
-    // Get performance experiment properties from the device in order to validate the requested counters.
     PerfExperimentProperties perfExpProps;
     if (result == Result::Success)
     {
+        // Get performance experiment properties from the device in order to validate the requested counters.
         result = m_pNextLayer->GetPerfExperimentProperties(&perfExpProps);
+    }
+    else
+    {
+        GPUPROFILER_ERROR("Unable to open global counter file %s. Result:%08x", pFileName, result);
     }
 
     if (result == Result::Success)
     {
         result = CountPerfCounters(&configFile, perfExpProps, &m_numGlobalPerfCounters, nullptr);
 
-        if ((result == Result::Success) && (m_numGlobalPerfCounters > 0))
+        if (m_numGlobalPerfCounters == 0)
+        {
+            GPUPROFILER_ERROR("No valid counters found in %s", pFileName);
+            result = Result::ErrorInitializationFailed;
+        }
+
+        if (result == Result::Success)
         {
             m_pGlobalPerfCounters =
                 PAL_NEW_ARRAY(GpuProfiler::PerfCounter, m_numGlobalPerfCounters, GetPlatform(), AllocInternal);
+
+            if (m_pGlobalPerfCounters != nullptr)
+            {
+                result = ExtractPerfCounterInfo(perfExpProps,
+                                                &configFile,
+                                                false,
+                                                m_numGlobalPerfCounters,
+                                                m_pGlobalPerfCounters,
+                                                0,
+                                                nullptr);
+            }
+            else
+            {
+                result = Result::ErrorOutOfMemory;
+            }
         }
 
-        if (m_pGlobalPerfCounters != nullptr)
+        if (result != Result::Success)
         {
-            result = ExtractPerfCounterInfo(perfExpProps,
-                                            &configFile,
-                                            false,
-                                            m_numGlobalPerfCounters,
-                                            m_pGlobalPerfCounters,
-                                            0,
-                                            nullptr);
+            GPUPROFILER_ERROR("Failed to set up global counters. Result:%08x", result);
         }
     }
 
@@ -1207,42 +1233,58 @@ Result Device::CountPerfCounters(
 // Configures streaming performance counters based on device support and number requested in config file.
 Result Device::InitSpmTraceCounterState()
 {
-    Result result = Result::Success;
-
     File         configFile;
+    Result       result          = Result::Success;
     uint32       numCounters     = 0;
     uint32       numDfCounters   = 0;
     PerfCounter* pDfPerfCounters = nullptr;
     PerfCounter* pPerfCounters   = nullptr;
+    const char*  pFileName       = GetPlatform()->PlatformSettings().gpuProfilerSpmConfig.spmPerfCounterConfigFile;
 
-    result = configFile.Open(GetPlatform()->PlatformSettings().gpuProfilerSpmConfig.spmPerfCounterConfigFile,
-                             FileAccessRead);
+    result = configFile.Open(pFileName, FileAccessRead);
 
     PerfExperimentProperties perfExpProps;
     if (result == Result::Success)
     {
         result = m_pNextLayer->GetPerfExperimentProperties(&perfExpProps);
     }
+    else
+    {
+        GPUPROFILER_ERROR("Unable to open SPM counter file %s. Result:%08x", pFileName, result);
+    }
 
     if (result == Result::Success)
     {
         result = CountPerfCounters(&configFile, perfExpProps, &numCounters, &numDfCounters);
 
-        if ((result == Result::Success) && (numCounters > 0))
+        if ((numCounters == 0) && (numDfCounters == 0))
         {
-            pPerfCounters =
-                PAL_NEW_ARRAY(GpuProfiler::PerfCounter, numCounters, GetPlatform(), AllocInternal);
+            GPUPROFILER_ERROR("No valid counters found in %s", pFileName);
+            result = Result::ErrorInitializationFailed;
         }
 
-        if ((result == Result::Success) && (numDfCounters > 0))
+        if (result == Result::Success)
         {
-            pDfPerfCounters =
-                PAL_NEW_ARRAY(GpuProfiler::PerfCounter, numDfCounters, GetPlatform(), AllocInternal);
+            if (numCounters > 0)
+            {
+                pPerfCounters = PAL_NEW_ARRAY(GpuProfiler::PerfCounter, numCounters, GetPlatform(), AllocInternal);
+                if (pPerfCounters == nullptr)
+                {
+                    result = Result::ErrorOutOfMemory;
+                }
+            }
+
+            if (numDfCounters > 0)
+            {
+                pDfPerfCounters = PAL_NEW_ARRAY(GpuProfiler::PerfCounter, numDfCounters, GetPlatform(), AllocInternal);
+                if (pPerfCounters == nullptr)
+                {
+                    result = Result::ErrorOutOfMemory;
+                }
+            }
         }
 
-        if ((result == Result::Success)                        &&
-            (((numCounters > 0) && (pPerfCounters != nullptr)) ||
-             ((numDfCounters > 0) && (pDfPerfCounters != nullptr))))
+        if (result == Result::Success)
         {
             result = ExtractPerfCounterInfo(perfExpProps,
                                             &configFile,
@@ -1261,9 +1303,9 @@ Result Device::InitSpmTraceCounterState()
 
     // Draw granularity is not supported with DF SPM becaue the enable/disable
     // flag is submitted per command buffer.
-    if ((m_numDfStreamingPerfCounters > 0) &&
-        LoggingEnabled(GpuProfilerGranularityDraw))
+    if ((m_numDfStreamingPerfCounters > 0) && LoggingEnabled(GpuProfilerGranularityDraw))
     {
+        GPUPROFILER_ERROR("DF SPM not supported at draw granularity");
         result = Result::ErrorInitializationFailed;
     }
 

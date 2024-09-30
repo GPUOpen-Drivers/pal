@@ -604,7 +604,13 @@ void BarrierMgr::ExpandColor(
             // FmaskColorExpand is expected to run a compute shader but waiting at HwPipePostPrefetch will work for
             // compute or graphics.
             uint32* pCmdSpace = pCmdStream->ReserveCommands();
-            pCmdSpace = pCmdBuf->WriteWaitEop(HwPipePostPrefetch, false, syncGlxFlags, SyncCbWbInv, pCmdSpace);
+
+            WriteWaitEopInfo waitEopInfo = {};
+            waitEopInfo.hwGlxSync  = syncGlxFlags;
+            waitEopInfo.hwRbSync   = SyncCbWbInv;
+            waitEopInfo.waitPoint  = HwPipePostPrefetch;
+
+            pCmdSpace = pCmdBuf->WriteWaitEop(waitEopInfo, pCmdSpace);
             pCmdStream->CommitCommands(pCmdSpace);
         }
 
@@ -813,10 +819,17 @@ void BarrierMgr::IssueSyncs(
         if (isGfxSupported && TestAnyFlagSet(gfx9Device.Settings().waitOnFlush, WaitBeforeBarrierEopWithCbFlush) &&
             TestAnyFlagSet(syncReqs.rbCaches, SyncCbWbInv))
         {
-            pCmdSpace = pCmdBuf->WriteWaitEop(HwPipePreColorTarget, false, SyncGlxNone, SyncRbNone, pCmdSpace);
+            constexpr WriteWaitEopInfo WaitEopInfo = { .waitPoint = HwPipePreColorTarget };
+
+            pCmdSpace = pCmdBuf->WriteWaitEop(WaitEopInfo, pCmdSpace);
         }
 
-        pCmdSpace = pCmdBuf->WriteWaitEop(waitPoint, false, syncReqs.glxCaches, syncReqs.rbCaches, pCmdSpace);
+        WriteWaitEopInfo waitEopInfo = {};
+        waitEopInfo.hwGlxSync  = syncReqs.glxCaches;
+        waitEopInfo.hwRbSync   = syncReqs.rbCaches;
+        waitEopInfo.waitPoint  = waitPoint;
+
+        pCmdSpace = pCmdBuf->WriteWaitEop(waitEopInfo, pCmdSpace);
         syncReqs.glxCaches = SyncGlxNone;
 
         if (isGfxSupported)

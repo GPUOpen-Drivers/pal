@@ -24,6 +24,7 @@
  **********************************************************************************************************************/
 
 #include "core/layers/decorators.h"
+#include "core/layers/dbgOverlay/dbgOverlayCmdBuffer.h"
 #include "core/layers/dbgOverlay/dbgOverlayDevice.h"
 #include "core/layers/dbgOverlay/dbgOverlayFpsMgr.h"
 #include "core/layers/dbgOverlay/dbgOverlayImage.h"
@@ -209,7 +210,7 @@ void TimeGraph::DrawVisualConfirm(
             dataValues[i] = 100;
         }
 
-        // Draw refernce marker parallel to the x-axis at Y = 100
+        // Draw reference marker parallel to the x-axis at Y = 100
         m_timegraph.DrawGraphLine(dstImage, pCmdBuffer, &dataValues[0], x, y, gridLineColor, timeCount);
 
         for (uint32 i = 0; i < timeCount; i++)
@@ -217,27 +218,17 @@ void TimeGraph::DrawVisualConfirm(
             dataValues[i] = 200;
         }
 
-        // Draw refernce marker parallel to the x-axis at Y = 200
+        // Draw reference marker parallel to the x-axis at Y = 200
         m_timegraph.DrawGraphLine(dstImage, pCmdBuffer, &dataValues[0], x, y, gridLineColor, timeCount);
 
         // Issue a barrier to ensure the line drawn via CS is complete.
-        BarrierInfo gridBarrier = {};
-        gridBarrier.waitPoint   = HwPipePreCs;
-
-        const HwPipePoint gridPostCs   = HwPipePostCs;
-        gridBarrier.pipePointWaitCount = 1;
-        gridBarrier.pPipePoints        = &gridPostCs;
-
-        BarrierTransition gridTransition = {};
-        gridTransition.srcCacheMask      = CoherShader;
-        gridTransition.dstCacheMask      = CoherShader;
-
-        gridBarrier.transitionCount = 1;
-        gridBarrier.pTransitions    = &gridTransition;
-
-        gridBarrier.reason          = Developer::BarrierReasonTimeGraphGrid;
-
-        pCmdBuffer->CmdBarrier(gridBarrier);
+        AcquireReleaseInfo acqRelInfo = {};
+        acqRelInfo.srcGlobalStageMask  = PipelineStageCs;
+        acqRelInfo.dstGlobalStageMask  = PipelineStageCs;
+        acqRelInfo.srcGlobalAccessMask = CoherShader;
+        acqRelInfo.dstGlobalAccessMask = CoherShader;
+        acqRelInfo.reason              = Developer::BarrierReasonTimeGraphGrid;
+        pCmdBuffer->CmdReleaseThenAcquire(acqRelInfo);
 
         // Storing GpuTime Values from newest to oldest
         for (uint32 i = timeCount; i > 0; i--)
@@ -249,23 +240,8 @@ void TimeGraph::DrawVisualConfirm(
         m_timegraph.DrawGraphLine(dstImage, pCmdBuffer, &dataValues[0], x, y, gpuLineColor, timeCount);
 
         // Issue a barrier to ensure the line drawn via CS is complete.
-        BarrierInfo gpuBarrier = {};
-        gpuBarrier.waitPoint   = HwPipePreCs;
-
-        const HwPipePoint gpuPostCs   = HwPipePostCs;
-        gpuBarrier.pipePointWaitCount = 1;
-        gpuBarrier.pPipePoints        = &gpuPostCs;
-
-        BarrierTransition gpuTransition = {};
-        gpuTransition.srcCacheMask      = CoherShader;
-        gpuTransition.dstCacheMask      = CoherShader;
-
-        gpuBarrier.transitionCount = 1;
-        gpuBarrier.pTransitions    = &gpuTransition;
-
-        gpuBarrier.reason          = Developer::BarrierReasonTimeGraphGpuLine;
-
-        pCmdBuffer->CmdBarrier(gpuBarrier);
+        acqRelInfo.reason = Developer::BarrierReasonTimeGraphGpuLine;
+        pCmdBuffer->CmdReleaseThenAcquire(acqRelInfo);
 
         // Storing CpuTime Values from newest to oldest
         for (uint32 i = timeCount; i > 0; i--)

@@ -1286,6 +1286,13 @@ Result PerfExperiment::AddThreadTrace(
             m_sqtt[realInstance].ctrl.gfx11.SQ_STALL_EN       = (stallMode != GpuProfilerStallNever);
             m_sqtt[realInstance].ctrl.gfx11.REG_AT_HWM        = (stallMode == GpuProfilerStallAlways) ? 2 :
                                                                 (stallMode != GpuProfilerStallAlways) ? 1 : 0;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 899
+            if (traceInfo.optionFlags.threadTraceEnableExecPop)
+            {
+                m_sqtt[realInstance].tokenMask.gfx11.TTRACE_EXEC = traceInfo.optionValues.threadTraceEnableExecPop;
+            }
+#endif
         }
 
         static_assert((uint32(PerfShaderMaskPs) == uint32(SQ_TT_WTYPE_INCLUDE_PS_BIT) &&
@@ -4150,8 +4157,12 @@ uint32* PerfExperiment::WriteWaitIdle(
     {
         // We need to use a pipelined event to flush and invalidate all of the RB caches. This may require the
         // CP to spin-loop on a timestamp in memory so it may be much slower than the non-flushing path.
-        const SyncRbFlags rbSync = pPm4CmdBuf->IsGraphicsSupported() ? SyncRbWbInv : SyncRbNone;
-        pCmdSpace = pPm4CmdBuf->WriteWaitEop(HwPipeTop, false, SyncGlxWbInvAll, rbSync, pCmdSpace);
+        WriteWaitEopInfo waitEopInfo = {};
+        waitEopInfo.hwGlxSync  = SyncGlxWbInvAll;
+        waitEopInfo.hwRbSync   = pPm4CmdBuf->IsGraphicsSupported() ? SyncRbWbInv : SyncRbNone;
+        waitEopInfo.waitPoint  = HwPipeTop;
+
+        pCmdSpace = pPm4CmdBuf->WriteWaitEop(waitEopInfo, pCmdSpace);
     }
     else
     {

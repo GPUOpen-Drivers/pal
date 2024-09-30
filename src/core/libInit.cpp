@@ -102,7 +102,7 @@ constexpr GpuInfo GpuInfoLookupTable[] =
     { AsicRevision::Phoenix1, NullGpuId::Phoenix1, GfxIpLevel::GfxIp11_0, FAMILY_PHX, PHOENIX1_A0, PRID_PHX_00,        GfxEngineGfx9, DEVICE_ID_PHX1_15BF,         "PHOENIX1:gfx1103" },
     { AsicRevision::Phoenix2, NullGpuId::Phoenix2, GfxIpLevel::GfxIp11_0, FAMILY_PHX, PHOENIX2_A0, PRID_PHX_00,        GfxEngineGfx9, DEVICE_ID_PHX2_15C8,         "PHOENIX2:gfx1103" },
 #if PAL_BUILD_STRIX1
-    { AsicRevision::Strix1,    NullGpuId::Strix1,    GfxIpLevel::GfxIp11_5, FAMILY_STX, STRIX1_P_A0,     PRID_STX_STRIX1_00,     GfxEngineGfx9, DEVICE_ID_STX1_150E, "STRIX1:gfx1150" },
+    { AsicRevision::Strix1,    NullGpuId::Strix1,    GfxIpLevel::GfxIp11_5, FAMILY_STX, STRIX1_P_B0,     PRID_STX_STRIX1_00,     GfxEngineGfx9, DEVICE_ID_STX1_150E, "STRIX1:gfx1150" },
 #endif
 };
 

@@ -35,23 +35,13 @@ namespace Gfx9
 {
 
 // At any time it's either 3 Gfx (PS, GS, HS) stages or 1 Compute stage (CS).
-constexpr uint32 EIV2MaxStages = 3;
+constexpr uint32 EiV2MaxStages = 3;
 
 // Possible VBTable SRD update slots per ExecuteIndirect_V2 PM.
-constexpr uint32 EIV2SrdSlots = 32;
+constexpr uint32 EiV2SrdSlots = 32;
 
 // Number of MemCopies the CP can support with 1 ExecuteIndirect_V2 PM4.
-constexpr uint32 EIV2InitMemCopySlots   = 8;
-constexpr uint32 EIV2UpdateMemCopySlots = 8;
-
-// Gfx Regs require 8-bits while Cs (Compute) Regs require 16-bits.
-constexpr uint32 BitsGraphics = 8;
-constexpr uint32 BitsCompute  = 16;
-
-// To be used in ExecuteIndirectV2Packed::pInputs for writing UserData Entries in Packed format. This was chosen based
-// on what it is used for and the most number of input was 3 for all cases for eg. for Gfx UserData it represents
-// the at most 3 active supported HwShaderStgs at 1 point. Compute will require only 1 input for CS.
-constexpr uint32 EiV2NumInputsWritePacked = 3;
+constexpr uint32 EiV2MemCopySlots = 8;
 
 // Number of possible entries/MemCopies at one time is limited to 256 that is the API max userdata spilled.
 constexpr uint32 EiV2LutLength = 256;
@@ -59,75 +49,80 @@ constexpr uint32 EiV2LutLength = 256;
 // Struct for RegPacked format.
 union ExecuteIndirectV2Packed
 {
-    uint8  graphicsRegs[4];
-    uint16 computeRegs[2];
+    uint8  u8bitComponents[EiV2MaxStages]; // Only used for GraphicsUserData reg with 3 stages.
+    uint16 u16bitComponents[2];
     uint32 u32All;
 };
 
-// All EIV2 operations are 3 DWORDs.
-constexpr uint32 EiV2OpDwSize = 3;
-
 // Struct for Draw components.
-struct EIV2Draw
+struct EiV2Draw
 {
     uint32 dataOffset;
     struct
     {
-        uint32 startVertexLoc  : 8;
-        uint32 startInstLoc    : 8;
-        uint32 commandIndexLoc : 8;
-        uint32 reserved        : 8;
+        uint32 startVertex  : 8;
+        uint32 startInst    : 8;
+        uint32 commandIndex : 8;
+        uint32 reserved     : 8;
     } locData;
     regVGT_DRAW_INITIATOR drawInitiator;
 };
 
 // Struct for DrawIndexed components.
-struct EIV2DrawIndexed
+struct EiV2DrawIndexed
 {
     uint32 dataOffset;
     struct
     {
-        uint32 baseVertexLoc   : 8;
-        uint32 startInstLoc    : 8;
-        uint32 commandIndexLoc : 8;
-        uint32 reserved        : 8;
+        uint32 baseVertex   : 8;
+        uint32 startInst    : 8;
+        uint32 commandIndex : 8;
+        uint32 reserved     : 8;
     } locData;
     regVGT_DRAW_INITIATOR drawInitiator;
 };
 
 // Struct for Dispatch components.
-struct EIV2Dispatch
+struct EiV2Dispatch
 {
     uint32 dataOffset;
     struct
     {
-        uint32 reserved        : 16;
-        uint32 commandIndexLoc : 16;
+        uint32 reserved     : 16;
+        uint32 commandIndex : 16;
     } locData;
     regCOMPUTE_DISPATCH_INITIATOR dispatchInitiator;
 };
 
 // Struct for DispatchMesh components.
-struct EIV2DispatchMesh
+struct EiV2DispatchMesh
 {
     uint32 dataOffset;
     struct
     {
-        uint32 xyzDimLoc       : 8;
-        uint32 reserved1       : 8;
-        uint32 commandIndexLoc : 8;
-        uint32 reserved2       : 8;
+        uint32 xyzDim       : 8;
+        uint32 reserved1    : 8;
+        uint32 commandIndex : 8;
+        uint32 reserved2    : 8;
     } locData;
     regVGT_DRAW_INITIATOR drawInitiator;
 };
 
+// All EIV2 operations are 3 DWORDs.
+constexpr uint32 EiV2OpDwSize = 3;
+static_assert((((sizeof(EiV2Draw)         / sizeof(uint32)) == EiV2OpDwSize) &&
+               ((sizeof(EiV2DrawIndexed)  / sizeof(uint32)) == EiV2OpDwSize) &&
+               ((sizeof(EiV2Dispatch)     / sizeof(uint32)) == EiV2OpDwSize) &&
+               ((sizeof(EiV2DispatchMesh) / sizeof(uint32)) == EiV2OpDwSize)),
+               "EiOpDwSize does not match some of the Ei Ops struct's size");
+
 // Only one of these operations is valid at a time and ExecuteIndirectV2 will be programmed just for that.
 union ExecuteIndirectV2Op
 {
-    EIV2Draw         draw;
-    EIV2DrawIndexed  drawIndexed;
-    EIV2Dispatch     dispatch;
-    EIV2DispatchMesh dispatchMesh;
+    EiV2Draw         draw;
+    EiV2DrawIndexed  drawIndexed;
+    EiV2Dispatch     dispatch;
+    EiV2DispatchMesh dispatchMesh;
 };
 
 // MemCopy struct for offset of where to copy and size.
@@ -137,33 +132,41 @@ struct DynamicMemCopyEntry
     uint16  size;
 };
 
+struct BuildSrd
+{
+    uint32 count;
+    uint32 srcOffsets[EiV2SrdSlots];
+    uint32 dstOffsets[EiV2SrdSlots];
+};
+
+struct CpMemCopy
+{
+    uint32 count;
+    uint32 srcOffsets[EiV2MemCopySlots];
+    uint32 dstOffsets[EiV2MemCopySlots];
+    uint32 sizes[EiV2MemCopySlots];
+};
+
 // Helper struct to help the ExecuteIndirectV2 PM4 perform tasks relevant for performing an Operation. They end up
 // being part of the PM4 either directly or at an offset as MetaData.
 struct ExecuteIndirectV2MetaData
 {
-    PFP_EXECUTE_INDIRECT_V2_operation_enum opType;
-    uint32 initMemCopyCount;
-    uint32 updateMemCopyCount;
-    uint32 buildSrdCount;
-    uint32 userDataDwCount;
-    bool   commandIndexEnable;
-    bool   fetchIndexAttributes;
-    bool   vertexBoundsCheckEnable;
-    uint32 indexAttributesOffset;
-    uint32 userDataOffset;
-    uint32 xyzDimLoc;
-    PFP_EXECUTE_INDIRECT_V2_userdata_scatter_mode_enum userDataScatterMode;
-    bool   threadTraceEnable;
-    uint32 stageUsageCount;
-    uint32 userData[NumUserDataRegisters * EIV2MaxStages];
-    uint32 buildSrdSrcOffsets[EIV2SrdSlots];
-    uint32 buildSrdDstOffsets[EIV2SrdSlots];
-    uint32 copyInitSrcOffsets[EIV2InitMemCopySlots];
-    uint32 copyInitDstOffsets[EIV2InitMemCopySlots];
-    uint32 copyInitSizes[EIV2InitMemCopySlots];
-    uint32 copyUpdateSrcOffsets[EIV2UpdateMemCopySlots];
-    uint32 copyUpdateDstOffsets[EIV2UpdateMemCopySlots];
-    uint32 copyUpdateSizes[EIV2UpdateMemCopySlots];
+    // opType here represents PFP_EXECUTE_INDIRECT_V2_operation_enum/MEC_EXECUTE_INDIRECT_V2_operation_enum
+    uint32    opType;
+    uint32    userDataDwCount;
+    bool      commandIndexEnable;
+    bool      fetchIndexAttributes;
+    bool      vertexBoundsCheckEnable;
+    uint32    indexAttributesOffset;
+    uint32    userDataOffset;
+    uint32    xyzDimLoc;
+    uint32    userDataScatterMode;
+    bool      threadTraceEnable;
+    uint32    stageUsageCount;
+    uint32    userData[NumUserDataRegisters * EiV2MaxStages];
+    BuildSrd  buildSrd;
+    CpMemCopy initMemCopy;
+    CpMemCopy updateMemCopy;
 };
 
 // This class maintains the MetaData struct and other helper data variables and functions required for building the
@@ -172,20 +175,27 @@ class ExecuteIndirectV2Meta
 {
 public:
 
-    ExecuteIndirectV2Meta()
-        :
-        m_metaData{},
-        m_excludeStart(0),
-        m_excludeEnd(0),
-        m_computeMemCopiesLut{ 0 },
-        m_computeMemCopiesLutFlags{ 0 }
-    {
-    };
-
+    ExecuteIndirectV2Meta();
     ~ExecuteIndirectV2Meta() { };
 
     // This helper function for writing UserData Entries into Registers, VBTable SRD and the MemCopy structs which help
-    // the CP copy SpilledUserData in 'RegPacked' format.
+    // the CP copy SpilledUserData in 'RegPacked' format. This is what the pOut array looks looks like for relevant
+    // values of bitsPerComponent and countInDwords: here { } represents a uint32 packed value
+    // With updateMemCopyCount == 2 and bitsPerComponent == 16
+    // pOut = [ {pIn1[1] | pIn1[0]},
+    //          {pIn2[1] | pIn2[0]},
+    //          {pIn3[1] | pIn3[0]} ]
+    // With updateMemCopyCount == 3 and bitsPerComponent == 16
+    // pOut = [ {pIn1[1] | pIn1[0]},
+    //          {pIn2[1] | pIn2[0]},
+    //          {pIn3[1] | pIn3[0]},
+    //          {0       | pIn1[2]},
+    //          {0       | pIn2[2]},
+    //          {0       | pIn3[2]} ]
+    // With updateMemCopyCount == 4 and bitsPerComponent == 8
+    // pOut = [ {pIn1[3] | pIn1[2] | pIn1[1] | pIn1[0]},
+    //          {pIn2[3] | pIn2[2] | pIn2[1] | pIn2[0]},
+    //          {pIn3[3] | pIn3[2] | pIn3[1] | pIn3[0]}  ]
     static uint32 ExecuteIndirectV2WritePacked(uint32* pOut,
                                                const uint32  bitsPerComponent,
                                                const uint32  countInDwords,
@@ -195,9 +205,13 @@ public:
 
     // Initialize the Look-up Table for all possible MemCpy's for the spilled UserData entries. Slots between exStart
     // and exEnd are (typically) not suposed to be touched.
-    inline void InitLut(uint32 exStart, uint32 exEnd)
+    inline void InitLut()
     {
         memset(m_computeMemCopiesLutFlags, 0, sizeof(m_computeMemCopiesLutFlags));
+    }
+
+    inline void SetMemCpyRange(uint32 exStart, uint32 exEnd)
+    {
         m_excludeStart = exStart;
         m_excludeEnd   = exEnd;
     }

@@ -504,10 +504,9 @@ Result ComputeQueueContext::RebuildCommandStreams(
         // When the pipeline has emptied, write the timestamp back to zero so that the next submission can execute.
         // We also use this pipelined event to flush and invalidate the shader L1 and L2 caches as described above.
         ReleaseMemGeneric releaseInfo = {};
-        releaseInfo.engineType = EngineTypeCompute;
-        releaseInfo.dstAddr    = m_exclusiveExecTs.GpuVirtAddr();
-        releaseInfo.dataSel    = data_sel__mec_release_mem__send_32_bit_low;
-        releaseInfo.data       = 0;
+        releaseInfo.dstAddr = m_exclusiveExecTs.GpuVirtAddr();
+        releaseInfo.dataSel = data_sel__mec_release_mem__send_32_bit_low;
+        releaseInfo.data    = 0;
 
         releaseInfo.cacheSync.gl2Inv = 1;
         releaseInfo.cacheSync.gl2Wb  = 1;
@@ -1190,7 +1189,8 @@ Result UniversalQueueContext::PreProcessSubmit(
 
             // If required make the allocation of ExecuteIndirectV2 buffer here. This will only be done once per
             // queue context.
-            if (pCmdBuf->ExecuteIndirectV2NeedsGlobalSpill() && (m_executeIndirectMemGfx.IsBound() == false))
+            if ((pCmdBuf->ExecuteIndirectV2NeedsGlobalSpill() == ContainsExecuteIndirectV2) &&
+                (m_executeIndirectMemGfx.IsBound() == false))
             {
                 result = AllocateExecuteIndirectBufferGfx();
                 rebuildCmdStreamForEiV2SetBase = true;

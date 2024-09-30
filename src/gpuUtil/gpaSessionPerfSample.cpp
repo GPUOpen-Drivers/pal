@@ -782,7 +782,7 @@ void GpaSession::TraceSample::CountNumSpmSamples()
             m_numSpmSamples = int32(maxNumSamples);
             m_pOldestSample = VoidPtrInc(pFirstSample, wrPtrInBytes);
 
-            DbgLog(SeverityLevel::Warning, OriginationType::GpuProfiler, "GPUProfiler",
+            DbgLog(SeverityLevel::Warning, OriginationType::GpuProfiler, "GpaSession",
                    "SPM Buffer Wrapped. Larger buffer size recommended to avoid sample loss.");
         }
         else

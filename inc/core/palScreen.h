@@ -208,7 +208,11 @@ struct ScreenMode
 
     Extent2d       extent;       ///< Width and height of the resolution.
     SwizzledFormat format;       ///< Pixel format and channel swizzle of the display mode.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 894
     uint32         refreshRate;  ///< Refresh rate in Hz.
+#else
+    Rational       refreshRate;  ///< Refresh rate in Hz.
+#endif
 };
 
 /// 3-component floating point vector describing the red, green, and blue channels of a color.

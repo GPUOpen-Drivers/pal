@@ -1370,18 +1370,20 @@ size_t CmdUtil::BuildExecuteIndirectV2(
     packet.ordinal2.bitfields.gfx11.count_indirect_enable      = (packetInfo.countBufferAddr != 0);
     packet.ordinal2.bitfields.gfx11.userdata_dw_count          = pMetaData->userDataDwCount;
     packet.ordinal2.bitfields.gfx11.command_index_enable       = pMetaData->commandIndexEnable;
-    packet.ordinal2.bitfields.gfx11.init_mem_copy_count        = pMetaData->initMemCopyCount;
-    packet.ordinal2.bitfields.gfx11.build_srd_count            = pMetaData->buildSrdCount;
-    packet.ordinal2.bitfields.gfx11.update_mem_copy_count      = pMetaData->updateMemCopyCount;
-    packet.ordinal2.bitfields.gfx11.operation                  = pMetaData->opType;
+    packet.ordinal2.bitfields.gfx11.init_mem_copy_count        = pMetaData->initMemCopy.count;
+    packet.ordinal2.bitfields.gfx11.build_srd_count            = pMetaData->buildSrd.count;
+    packet.ordinal2.bitfields.gfx11.update_mem_copy_count      = pMetaData->updateMemCopy.count;
+    packet.ordinal2.bitfields.gfx11.operation                  =
+        static_cast<PFP_EXECUTE_INDIRECT_V2_operation_enum>(pMetaData->opType);
     packet.ordinal2.bitfields.gfx11.fetch_index_attributes     = pMetaData->fetchIndexAttributes;
-    packet.ordinal2.bitfields.gfx11.userdata_scatter_mode      = pMetaData->userDataScatterMode;
+    packet.ordinal2.bitfields.gfx11.userdata_scatter_mode      =
+        static_cast<PFP_EXECUTE_INDIRECT_V2_userdata_scatter_mode_enum>(pMetaData->userDataScatterMode);
     packet.ordinal2.bitfields.gfx11.vertex_bounds_check_enable = pMetaData->vertexBoundsCheckEnable;
     packet.ordinal2.bitfields.gfx11.thread_trace_enable        = pMetaData->threadTraceEnable;
     packet.ordinal3.u32All                                     = LowPart(packetInfo.countBufferAddr);
     packet.ordinal4.bitfields.gfx11.count_addr_hi              = HighPart(packetInfo.countBufferAddr);
-    packet.ordinal5.max_count                                                = packetInfo.maxCount;
-    packet.ordinal6.stride                                                   = packetInfo.argumentBufferStrideBytes;
+    packet.ordinal5.max_count                                  = packetInfo.maxCount;
+    packet.ordinal6.stride                                     = packetInfo.argumentBufferStrideBytes;
     packet.ordinal7.u32All                                     = LowPart(packetInfo.argumentBufferAddr);
     packet.ordinal8.bitfields.gfx11.data_addr_hi               = HighPart(packetInfo.argumentBufferAddr);
     packet.ordinal8.bitfields.gfx11.index_attributes_offset    = pMetaData->indexAttributesOffset;
@@ -1441,41 +1443,46 @@ size_t CmdUtil::BuildExecuteIndirectV2(
     // Init and Update MemCopy are the CP MemCopy structs that decide slots on how to copy Spilled UserData Entries
     // from the ArgBuffer into the reserved queue specific VB+Spill Buffer.
     // 16 BitsPerComponent for RegPacked writing in initMemCpyCount, updateMemCpyCount and buildSrdCount structs.
-    if (pMetaData->initMemCopyCount != 0)
+    if (pMetaData->initMemCopy.count != 0)
     {
         offset += ExecuteIndirectV2Meta::ExecuteIndirectV2WritePacked(&pOut[offset],
                                                                       16,
-                                                                      pMetaData->initMemCopyCount,
-                                                                      pMetaData->copyInitSrcOffsets,
-                                                                      pMetaData->copyInitDstOffsets,
-                                                                      pMetaData->copyInitSizes);
+                                                                      pMetaData->initMemCopy.count,
+                                                                      pMetaData->initMemCopy.srcOffsets,
+                                                                      pMetaData->initMemCopy.dstOffsets,
+                                                                      pMetaData->initMemCopy.sizes);
     }
 
-    if (pMetaData->updateMemCopyCount != 0)
+    if (pMetaData->updateMemCopy.count != 0)
     {
         offset += ExecuteIndirectV2Meta::ExecuteIndirectV2WritePacked(&pOut[offset],
                                                                      16,
-                                                                     pMetaData->updateMemCopyCount,
-                                                                     pMetaData->copyUpdateSrcOffsets,
-                                                                     pMetaData->copyUpdateDstOffsets,
-                                                                     pMetaData->copyUpdateSizes);
+                                                                     pMetaData->updateMemCopy.count,
+                                                                     pMetaData->updateMemCopy.srcOffsets,
+                                                                     pMetaData->updateMemCopy.dstOffsets,
+                                                                     pMetaData->updateMemCopy.sizes);
     }
 
     // SRD build, typically the VBTable.
-    if (pMetaData->buildSrdCount != 0)
+    if (pMetaData->buildSrd.count != 0)
     {
         offset += ExecuteIndirectV2Meta::ExecuteIndirectV2WritePacked(&pOut[offset],
                                                                       16,
-                                                                      pMetaData->buildSrdCount,
-                                                                      pMetaData->buildSrdSrcOffsets,
-                                                                      pMetaData->buildSrdDstOffsets);
+                                                                      pMetaData->buildSrd.count,
+                                                                      pMetaData->buildSrd.srcOffsets,
+                                                                      pMetaData->buildSrd.dstOffsets);
     }
 
     // UserDataEntries to be updated in Registers.
     if (pMetaData->userDataDwCount != 0)
     {
-        uint32* pInputs[EiV2NumInputsWritePacked] = {};
+        uint32* pInputs[EiV2MaxStages] = {};
+        static_assert((EiV2MaxStages == 3),"EiV2MaxStages != 3");
         const uint32 count = pMetaData->stageUsageCount;
+        // For Graphics, pInputs[i]'s will store the address of modified UserData Entry array for each stage which have
+        // up to 32 entries per active stage. eg. pInputs[0] for GS userData[0-31], pInputs[1] for PS userData[32-63].
+        // Since userData[] marks every modified entry, it needs to stride by NumUserDataRegisters (32) here.
+        // For Compute, only pInputs[0] will contain the address to the modified CS userDataEntry array.
         for (uint32 i = 0; i < count; i++)
         {
             pInputs[i] = &pMetaData->userData[i * NumUserDataRegisters];
@@ -3559,10 +3566,10 @@ static_assert(PM4_MEC_RELEASE_MEM_SIZEDW__CORE == PM4_ME_RELEASE_MEM_SIZEDW__COR
 
 // =====================================================================================================================
 size_t CmdUtil::BuildReleaseMemInternal(
-    const ReleaseMemCore& info,
-    VGT_EVENT_TYPE        vgtEvent,
-    bool                  usePws,
-    void*                 pBuffer
+    const ReleaseMemGeneric& info,
+    VGT_EVENT_TYPE           vgtEvent,
+    bool                     usePws,
+    void*                    pBuffer
     ) const
 {
     if ((vgtEvent == CACHE_FLUSH_TS) && m_device.Settings().waReplaceEventsWithTsEvents)
@@ -4420,10 +4427,9 @@ size_t CmdUtil::BuildWaitCsIdle(
 
         // Issue an EOP timestamp event.
         ReleaseMemGeneric releaseInfo = {};
-        releaseInfo.engineType = engineType;
-        releaseInfo.dstAddr    = timestampGpuAddr;
-        releaseInfo.dataSel    = data_sel__me_release_mem__send_32_bit_low;
-        releaseInfo.data       = CompletedTimestamp;
+        releaseInfo.dstAddr = timestampGpuAddr;
+        releaseInfo.dataSel = data_sel__me_release_mem__send_32_bit_low;
+        releaseInfo.data    = CompletedTimestamp;
 
         totalSize += BuildReleaseMemGeneric(releaseInfo, static_cast<uint32*>(pBuffer) + totalSize);
 

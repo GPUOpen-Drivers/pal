@@ -86,9 +86,7 @@ struct UniversalCmdBufferState
             uint32 drawTimeAlphaToCoverage :  1; // Tracks alphaToCoverageState to be updated per draw.
             uint32 reserved0               :  2;
             uint32 cbColorInfoDirtyRtv     :  8; // Per-MRT dirty mask for CB_COLORx_INFO as a result of RTV
-            uint32 needsEiV2GlobalSpill    :  1; // Indicates that this CmdBuffer contains an ExecuteIndirectV2 PM4
-                                                 // which will use the Global SpillTable Buffer.
-            uint32 reserved1               :  7;
+            uint32 reserved1               :  8;
         };
         uint32 u32All;
     } flags;
@@ -667,14 +665,9 @@ public:
     // checks if the entire command buffer can be preempted or not
     virtual bool IsPreemptable() const override;
 
-    bool ExecuteIndirectV2NeedsGlobalSpill() const { return m_state.flags.needsEiV2GlobalSpill; }
-
     virtual uint32* WriteWaitEop(
-        HwPipePoint waitPoint,
-        bool        waitCpDma,
-        uint32      hwGlxSync,
-        uint32      hwRbSync,
-        uint32*     pCmdSpace) override;
+        const WriteWaitEopInfo& info,
+        uint32*                 pCmdSpace) override;
     virtual uint32* WriteWaitCsIdle(uint32* pCmdSpace) override;
 
     //Gets ringSizes ringSizes from cmdBuffer.

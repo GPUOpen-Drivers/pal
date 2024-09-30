@@ -3482,9 +3482,9 @@ gpusize Image::ComputeNonBlockCompressedView(
 // addressing scheme than the TC does.
 void Image::InitPipeMisalignedMetadataFirstMip()
 {
-    for (uint8 planeId = 0; planeId < m_pImageInfo->numPlanes; ++planeId)
+    for (uint32 planeId = 0; planeId < m_pImageInfo->numPlanes; ++planeId)
     {
-        const SubResourceInfo& subRes = *m_pParent->SubresourceInfo({ planeId, 0, 0 });
+        const SubResourceInfo& subRes = *m_pParent->SubresourceInfo(BaseSubres(planeId));
         m_firstMipMetadataPipeMisaligned[planeId] = GetPipeMisalignedMetadataFirstMip(subRes);
 
         m_hasMisalignedMetadata |= (m_firstMipMetadataPipeMisaligned[planeId] != UINT32_MAX);
@@ -3545,9 +3545,9 @@ uint32 Image::GetPipeMisalignedMetadataFirstMip(
     // Add case of mips in the metadata mip-tail for GFX11
     if (IsGfx11(chipProps.gfxLevel))
     {
-        for (uint8 mip = 0; mip < m_createInfo.mipLevels; ++mip)
+        for (uint32 mip = 0; mip < m_createInfo.mipLevels; ++mip)
         {
-            if (IsInMetadataMipTail({ baseSubRes.subresId.plane, mip, 0 }))
+            if (IsInMetadataMipTail(Subres(baseSubRes.subresId.plane, mip, 0)))
             {
                 firstMip = mip;
                 break;

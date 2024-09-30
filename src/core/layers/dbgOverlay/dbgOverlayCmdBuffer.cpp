@@ -78,30 +78,20 @@ void CmdBuffer::CmdColorSpaceConversionCopy(
         // Only an image supports visual confirm.
         if (Device::DetermineDbgOverlaySupport(m_queueType))
         {
-            // Issue a barrier to ensure the text written via CS is complete and flushed out of L2.
-            BarrierInfo barrier = {};
-            barrier.waitPoint = HwPipePreCs;
-
-            const HwPipePoint postCs = HwPipePostCs;
-            barrier.pipePointWaitCount = 1;
-            barrier.pPipePoints = &postCs;
-
-            BarrierTransition transition = {};
-            transition.srcCacheMask = CoherShader;
-            transition.dstCacheMask = CoherShader;
-
-            barrier.transitionCount = 1;
-            barrier.pTransitions = &transition;
-
             CmdPostProcessDebugOverlayInfo debugOverlayInfo = {};
             debugOverlayInfo.presentMode = PresentMode::Unknown;
             m_pDevice->GetTextWriter().WriteVisualConfirm(static_cast<const Image&>(srcImage),
-                                                        this,
-                                                        debugOverlayInfo);
+                                                          this,
+                                                          debugOverlayInfo);
 
-            barrier.reason = Developer::BarrierReasonDebugOverlayText;
-
-            CmdBarrier(barrier);
+            // Issue a barrier to ensure the text written via CS is complete and dst cache is flushed out.
+            AcquireReleaseInfo acqRelInfo = {};
+            acqRelInfo.srcGlobalStageMask  = PipelineStageCs;
+            acqRelInfo.dstGlobalStageMask  = PipelineStageCs;
+            acqRelInfo.srcGlobalAccessMask = CoherShader;
+            acqRelInfo.dstGlobalAccessMask = CoherShader;
+            acqRelInfo.reason              = Developer::BarrierReasonDebugOverlayText;
+            CmdReleaseThenAcquire(acqRelInfo);
         }
 
         auto*const pFpsMgr = static_cast<Platform*>(m_pDevice->GetPlatform())->GetFpsMgr();
@@ -127,31 +117,26 @@ void CmdBuffer::CmdColorSpaceConversionCopy(
 // =====================================================================================================================
 void CmdBuffer::DrawOverlay(
     const IImage*                         pSrcImage,
-    const CmdPostProcessDebugOverlayInfo& debugOverlayInfo)
+    const CmdPostProcessDebugOverlayInfo& debugOverlayInfo,
+    ImageLayout                           srcImageLayout)
 {
     const auto&  settings = m_pDevice->GetPlatform()->PlatformSettings();
     const uint32 engines  = (m_queueType == QueueTypeUniversal) ? LayoutUniversalEngine : LayoutComputeEngine;
 
-    // Issue a barrier to ensure the text written via CS is complete and flushed out of L2.
-    BarrierInfo barrier = {};
-    barrier.waitPoint   = HwPipePreCs;
+    // Issue a barrier to ensure the text written via CS is complete and dst cache is flushed out.
+    ImgBarrier imgBarrier    = {};
+    imgBarrier.pImage        = pSrcImage;
+    imgBarrier.srcStageMask  = PipelineStageCs;
+    imgBarrier.dstStageMask  = PipelineStageCs;
+    imgBarrier.srcAccessMask = CoherShader;
+    imgBarrier.oldLayout     = srcImageLayout;
+    imgBarrier.newLayout     = { .engines = engines };
 
-    const HwPipePoint postCs   = HwPipePostCs;
-    barrier.pipePointWaitCount = 1;
-    barrier.pPipePoints        = &postCs;
+    pSrcImage->GetFullSubresourceRange(&imgBarrier.subresRange);
 
-    BarrierTransition transition = {};
-    transition.srcCacheMask      = CoherShader;
-
-    transition.imageInfo.pImage            = pSrcImage;
-    transition.imageInfo.oldLayout.engines = engines;
-    transition.imageInfo.oldLayout.usages  = LayoutShaderRead | LayoutShaderWrite;
-    transition.imageInfo.newLayout.engines = engines;
-
-    pSrcImage->GetFullSubresourceRange(&transition.imageInfo.subresRange);
-
-    barrier.transitionCount = 1;
-    barrier.pTransitions    = &transition;
+    AcquireReleaseInfo acqRelInfo = {};
+    acqRelInfo.imageBarrierCount  = 1;
+    acqRelInfo.pImageBarriers     = &imgBarrier;
 
     if (settings.debugOverlayConfig.visualConfirmEnabled == true)
     {
@@ -166,38 +151,35 @@ void CmdBuffer::DrawOverlay(
         // Draw the debug overlay using this command buffer. Note that the DX runtime controls whether the
         // present will be windowed or fullscreen. We have no reliable way to detect the chosen present mode.
         m_pDevice->GetTextWriter().WriteVisualConfirm(static_cast<const Image&>(*pSrcImage),
-                                                    this,
-                                                    expectedDebugOverlayInfo);
+                                                      this,
+                                                      expectedDebugOverlayInfo);
 
         if (settings.debugOverlayConfig.timeGraphEnabled == true)
         {
-            transition.dstCacheMask               = CoherShader;
-            transition.imageInfo.newLayout.usages = LayoutShaderRead | LayoutShaderWrite;
+            imgBarrier.dstAccessMask    = CoherShader;
+            imgBarrier.newLayout.usages = LayoutShaderRead | LayoutShaderWrite;
         }
         else
         {
-            transition.dstCacheMask               = CoherPresent;
-            transition.imageInfo.newLayout.usages = LayoutPresentWindowed | LayoutPresentFullscreen;
+            imgBarrier.dstAccessMask    = CoherPresent;
+            imgBarrier.newLayout.usages = LayoutPresentWindowed | LayoutPresentFullscreen;
         }
 
-        barrier.reason = Developer::BarrierReasonDebugOverlayText;
-
-        CmdBarrier(barrier);
+        acqRelInfo.reason = Developer::BarrierReasonDebugOverlayText;
+        CmdReleaseThenAcquire(acqRelInfo);
     }
 
     if (settings.debugOverlayConfig.timeGraphEnabled == true)
     {
         // Draw the time graph using this command buffer.
         m_pDevice->GetTimeGraph().DrawVisualConfirm(static_cast<const Image&>(*pSrcImage),
-                                                this,
-                                                debugOverlayInfo.presentKey);
+                                                    this,
+                                                    debugOverlayInfo.presentKey);
 
-        transition.dstCacheMask               = CoherPresent;
-        transition.imageInfo.newLayout.usages = LayoutPresentWindowed | LayoutPresentFullscreen;
-
-        barrier.reason = Developer::BarrierReasonDebugOverlayGraph;
-
-        CmdBarrier(barrier);
+        imgBarrier.dstAccessMask    = CoherPresent;
+        imgBarrier.newLayout.usages = LayoutPresentWindowed | LayoutPresentFullscreen;
+        acqRelInfo.reason           = Developer::BarrierReasonDebugOverlayGraph;
+        CmdReleaseThenAcquire(acqRelInfo);
     }
 }
 
@@ -211,7 +193,15 @@ void CmdBuffer::CmdPostProcessFrame(
         (m_pDevice->GetSettings()->disableDebugOverlayVisualConfirm == false) &&
         Device::DetermineDbgOverlaySupport(m_queueType))
     {
-        DrawOverlay(postProcessInfo.pSrcImage, postProcessInfo.debugOverlay);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 836
+        DrawOverlay(postProcessInfo.pSrcImage, postProcessInfo.debugOverlay, postProcessInfo.srcImageLayout);
+#else
+        // layout is unknown, make an assumption here.
+        const uint32 engines  = (m_queueType == QueueTypeUniversal) ? LayoutUniversalEngine : LayoutComputeEngine;
+        const ImageLayout srcImageLayout = { .usages = LayoutShaderRead | LayoutShaderWrite, .engines = engines };
+
+        DrawOverlay(postProcessInfo.pSrcImage, postProcessInfo.debugOverlay, srcImageLayout);
+#endif
 
         if (pAddedGpuWork != nullptr)
         {

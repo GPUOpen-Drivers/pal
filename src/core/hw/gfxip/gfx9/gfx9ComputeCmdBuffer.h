@@ -191,11 +191,8 @@ public:
     virtual void CopyMemoryCp(gpusize dstAddr, gpusize srcAddr, gpusize numBytes) override;
 
     virtual uint32* WriteWaitEop(
-        HwPipePoint waitPoint,
-        bool        waitCpDma,
-        uint32      hwGlxSync,
-        uint32      hwRbSync,
-        uint32*     pCmdSpace) override;
+        const WriteWaitEopInfo& info,
+        uint32*                 pCmdSpace) override;
     virtual uint32* WriteWaitCsIdle(uint32* pCmdSpace) override;
 
     //Gets ringSizes from cmdBuffer.

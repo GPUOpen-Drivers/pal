@@ -264,6 +264,20 @@ extern size_t EncodeAsFilename(
     bool                    allowSpace,
     bool                    allowDirSeparator);
 
+/// Generate a log filename.
+///
+/// @param [inout] pFilenameBuffer   Buffer to hold the filename.
+/// @param         maxSize           Max size of the pFilenameBuffer.
+/// @param         nextPost          The next write position.
+/// @param [in]    pExt              The filename extension.
+/// @param         logDuplicate      Log duplicate objects.
+extern void GenLogFilename(
+    char*             pFilenameBuffer,
+    size_t            maxSize,
+    size_t            nextPos,
+    const char* const pExt,
+    bool              logDuplicate);
+
 } // Util
 
 /// PAL_ENABLE_LOGGING enables the new logging code. At this time, both, the current and new logging

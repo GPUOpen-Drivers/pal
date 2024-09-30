@@ -185,6 +185,18 @@ bool DmaCmdBuffer::HandleImageTransition(
 
     bool didTransition = false;
 
+#if PAL_ENABLE_PRINTS_ASSERTS || PAL_ENABLE_LOGGING
+    // With the exception of a transition uninitialized state, at least one queue type must be valid for every layout.
+    if (oldLayout.usages != 0)
+    {
+        PAL_ASSERT((oldLayout.usages == LayoutUninitializedTarget) || (oldLayout.engines != 0));
+    }
+    if (newLayout.usages != 0)
+    {
+        PAL_ASSERT((newLayout.usages == LayoutUninitializedTarget) || (newLayout.engines != 0));
+    }
+#endif
+
     // At least one usage must be specified for the old and new layouts.
     PAL_ASSERT((oldLayout.usages != 0) && (newLayout.usages != 0));
 
@@ -203,7 +215,7 @@ bool DmaCmdBuffer::HandleImageTransition(
         // If the image is uninitialized, no other usages should be set.
         PAL_ASSERT(TestAnyFlagSet(oldLayout.usages, ~LayoutUninitializedTarget) == false);
 
-#if PAL_ENABLE_PRINTS_ASSERTS
+#if PAL_ENABLE_PRINTS_ASSERTS || PAL_ENABLE_LOGGING
         const auto& engineProps = m_pDevice->EngineProperties().perEngine[EngineTypeDma];
         const bool  isFullPlane = pPalImage->IsRangeFullPlane(subresRange);
 
@@ -684,11 +696,12 @@ void DmaCmdBuffer::WriteCopyImageTiledToTiledCmdChunkCopy(
     // Tiled to tiled copies have been determined to not work for this case, so a dual-stage copy is required.
     // Because we have a limit on the amount of embedded data, we're going to do the copy chunk by chunk.
     // First by trying to go scanline by scanline, then groups of scanlines, then groups of [slices|depth].
-    Pal::HwPipePoint  pipePoints   = HwPipePoint::HwPipeBottom;
-    Pal::BarrierInfo  barrierInfo  = {};
-    barrierInfo.pipePointWaitCount = 1;
-    barrierInfo.pPipePoints        = &pipePoints;
-    barrierInfo.reason             = Developer::BarrierReasonDmaImgScanlineCopySync;
+    constexpr AcquireReleaseInfo AcqRelInfo =
+    {
+        .srcGlobalStageMask = PipelineStageBottomOfPipe,
+        .dstGlobalStageMask = PipelineStageTopOfPipe,
+        .reason             = Developer::BarrierReasonDmaImgScanlineCopySync
+    };
 
     uint32*  pCmdSpace = nullptr;
     uint32*  pPredCmd  = nullptr;
@@ -777,7 +790,7 @@ void DmaCmdBuffer::WriteCopyImageTiledToTiledCmdChunkCopy(
                 m_cmdStream.CommitCommands(pCmdSpace);
 
                 // Potentially have to wait for the copy to finish before we transfer out of that memory
-                CmdBarrier(barrierInfo);
+                CmdReleaseThenAcquire(AcqRelInfo);
 
                 pCmdSpace  = m_cmdStream.ReserveCommands();
                 pPredCmd  = pCmdSpace;
@@ -789,7 +802,7 @@ void DmaCmdBuffer::WriteCopyImageTiledToTiledCmdChunkCopy(
                 m_cmdStream.CommitCommands(pCmdSpace);
 
                 // Wait for this copy to finish before we re-use the temp-linear buffer above.
-                CmdBarrier(barrierInfo);
+                CmdReleaseThenAcquire(AcqRelInfo);
             }
         }
     }
@@ -1513,12 +1526,12 @@ void DmaCmdBuffer::WriteCopyMemImageDwordUnalignedCmd(
     passRgn.gpuMemoryDepthPitch = gpuMemoryDepthPitch;
     passRgn.gpuMemoryOffset     = m_t2tEmbeddedMemOffset;
 
-    Pal::HwPipePoint pipePoints = HwPipePoint::HwPipeBottom;
-    Pal::BarrierInfo barrierInfo = {};
-
-    barrierInfo.waitPoint          = HwPipeTop;
-    barrierInfo.pipePointWaitCount = 1;
-    barrierInfo.pPipePoints        = &pipePoints;
+    constexpr AcquireReleaseInfo AcqRelInfo =
+    {
+        .srcGlobalStageMask = PipelineStageBottomOfPipe,
+        .dstGlobalStageMask = PipelineStageTopOfPipe,
+        .reason             = Developer::BarrierReasonUnknown
+    };
 
     MemoryImageCopyRegion sliceRgn;
     uint32* pCmdSpace;
@@ -1568,7 +1581,7 @@ void DmaCmdBuffer::WriteCopyMemImageDwordUnalignedCmd(
             PatchPredicateCmd(pPredCmd, pCmdSpace);
             m_cmdStream.CommitCommands(pCmdSpace);
 
-            CmdBarrier(barrierInfo);
+            CmdReleaseThenAcquire(AcqRelInfo);
         }
 
         for (uint32 yIdx = 0; yIdx < alignedRgn.imageExtent.height; yIdx++)
@@ -1622,7 +1635,7 @@ void DmaCmdBuffer::WriteCopyMemImageDwordUnalignedCmd(
                         PatchPredicateCmd(pPredCmd, pCmdSpace);
                         m_cmdStream.CommitCommands(pCmdSpace);
 
-                        CmdBarrier(barrierInfo);
+                        CmdReleaseThenAcquire(AcqRelInfo);
                     }
 
                     // Calculate start/end X-extents of the piece of the copy rectangle that intersects this
@@ -1674,7 +1687,7 @@ void DmaCmdBuffer::WriteCopyMemImageDwordUnalignedCmd(
                         // Copy from embedded back to the image
                         if (wholeSliceInEmbedded == false)
                         {
-                            CmdBarrier(barrierInfo);
+                            CmdReleaseThenAcquire(AcqRelInfo);
 
                             pCmdSpace = m_cmdStream.ReserveCommands();
                             pPredCmd  = pCmdSpace;
@@ -1714,7 +1727,7 @@ void DmaCmdBuffer::WriteCopyMemImageDwordUnalignedCmd(
                                          embeddedToMemRgn);
                     }
 
-                    CmdBarrier(barrierInfo);
+                    CmdReleaseThenAcquire(AcqRelInfo);
                 }
             } // X
         } // Y
@@ -1722,7 +1735,7 @@ void DmaCmdBuffer::WriteCopyMemImageDwordUnalignedCmd(
         // Copy from embedded back to the image
         if (memToImg && wholeSliceInEmbedded)
         {
-            CmdBarrier(barrierInfo);
+            CmdReleaseThenAcquire(AcqRelInfo);
 
             sliceRgn                    = passRgn;
             sliceRgn.imageOffset.x      = alignedRgn.imageOffset.x;
@@ -1754,7 +1767,7 @@ void DmaCmdBuffer::WriteCopyMemImageDwordUnalignedCmd(
             PatchPredicateCmd(pPredCmd, pCmdSpace);
             m_cmdStream.CommitCommands(pCmdSpace);
 
-            CmdBarrier(barrierInfo);
+            CmdReleaseThenAcquire(AcqRelInfo);
         }
     } // Z
 }

@@ -214,6 +214,7 @@
 #if PAL_BUILD_STRIX1
 // Gfx11.5
 #define STRIX1_P_A0               0x01
+#define STRIX1_P_B0               0x10
 #endif
 
 // SPIN_IS(revisionId, revisionName)

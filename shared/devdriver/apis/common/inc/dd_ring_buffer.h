@@ -68,7 +68,7 @@ public:
     {}
 
     /// Set the backing buffer memory.
-    void SetBuffer(const MirroredBuffer& buffer);
+    void SetBuffer(const MirroredBuffer* pBuffer);
 
     /// Acquire a range of empty memory block to write data to.
     ///
@@ -80,13 +80,22 @@ public:
     /// buffer.
     Work AcquireForWrite(uint32_t size);
 
-    /// Acquire a range of memory to read data from.
+    /// Acquire a range of memory to read data from. The range is at maximum \param maxSize . The range can be
+    /// smaller than \param maxSize if there is not enough written data.
+    ///
+    /// NB. This call MUST be paired with a call to \ref RingBuffer::Release, no matter the return value.
+    ///
+    /// @param[in] the maximum size of memory of written data to acquire.
+    /// @return An object of \ref Work, representing the starting offset and the size of the acquired memory block.
+    Work AcquireForRead(uint32_t maxSize);
+
+    /// Acquire all memory of write data to read from.
     ///
     /// NB. This call MUST be paired with a call to \ref RingBuffer::Release, no matter the return value.
     ///
     /// @return An object of \ref Work, representing the starting offset and the size of the acquired memory block.
     /// Note, the return value \ref Work::size is 0 if the ring buffer doesn't contain any written data.
-    Work AcquireForRead();
+    Work AcquireForReadAll();
 
     /// Release the lock on the ring buffer.
     void Release();

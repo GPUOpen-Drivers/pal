@@ -1119,7 +1119,9 @@ struct DeviceProperties
                 uint32 reserved744                :  1;
                 /// Set if the queue supports additional split barrier feature on top of basic acquire/release
                 /// interface support. This provides CmdAcquire() and CmdRelease() to implement split barriers.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 893
                 ///  Note: supportReleaseAcquireInterface is a prerequisite to supportSplitReleaseAcquire.
+#endif
                 uint32 supportSplitReleaseAcquire :  1;
 
                 /// Reserved for future use.
@@ -1366,11 +1368,15 @@ struct DeviceProperties
                                                                 ///  timestamps will increase monotonically across
                                                                 ///  command buffer submissions.
                 uint64 support1xMsaaSampleLocations       :  1; ///< HW supports 1xMSAA custom quad sample patterns
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 893
                 uint64 supportReleaseAcquireInterface     :  1; ///< Set if HW supports the basic functionalities of
                                                                 ///  acquire/release-based barrier interface. This
                                                                 ///  provides CmdReleaseThenAcquire() as a convenient
                                                                 ///  way to replace the legacy barrier interface's
                                                                 ///  CmdBarrier() to handle single point barriers.
+#else
+                uint64 placeholder4                       :  1; ///< Placeholder for backward compatibility, no use it.
+#endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 883
                 uint64 supportSplitReleaseAcquire         :  1; ///< Set if HW supports additional split barrier feature
                                                                 ///  on top of basic acquire/release interface support.
@@ -1408,6 +1414,8 @@ struct DeviceProperties
                 uint64 supportTextureGatherBiasLod        :  1; ///< HW supports SQ_IMAGE_GATHER4_L_O
                 uint64 supportInt8Dot                     :  1; ///< Hardware supports a dot product 8bit.
                 uint64 supportInt4Dot                     :  1; ///< Hardware supports a dot product 4bit.
+                uint64 supportMixedSignIntDot             :  1; ///< Hardware supports a integer dot product with mixed
+                                                                ///  sign inputs.
                 uint64 support2DRectList                  :  1; ///< HW supports PrimitiveTopology::TwoDRectList.
                 uint64 supportHsaAbi                      :  1; ///< PAL supports HSA ABI compute pipelines.
                 uint64 supportImageViewMinLod             :  1; ///< Indicates image srd supports min_lod.
@@ -1416,12 +1424,13 @@ struct DeviceProperties
                                                                 ///  with zRange specified.
                 uint64 supportCooperativeMatrix           :  1; ///< HW supports cooperative matrix
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 808
-                uint64 support1dDispatchInterleave        :  1; // Indicates support for 1D Dispatch Interleave.
+                uint64 support1dDispatchInterleave        :  1; ///< Indicates support for 1D Dispatch Interleave.
                 uint64 placeholder12                      :  1;
 #endif
-                uint64 reserved                           :  2; ///< Reserved for future use.
+                uint64 supportBFloat16                    :  1; ///< HW supports bf16 instructions.
+                uint64 reserved                           :  64; ///< Reserved for future use.
             };
-            uint64 u64All;           ///< Flags packed as 32-bit uint.
+            uint64 u64All[2];           ///< Flags packed as 32-bit uint.
         } flags;                     ///< Device IP property flags.
 
         struct

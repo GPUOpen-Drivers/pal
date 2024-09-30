@@ -459,12 +459,13 @@ Result Queue::BeginNextFrame(
 
             if (result == Result::Success)
             {
-                const bool perfExp = (m_pDevice->NumGlobalPerfCounters() > 0)      ||
-                                     (m_pDevice->NumStreamingPerfCounters() > 0)   ||
-                                     (m_pDevice->NumDfStreamingPerfCounters() > 0) ||
-                                     (IsSqttEnabled());
+                SampleFlags flags = {};
+                flags.flags.globalCountersActive = (m_pDevice->NumGlobalPerfCounters() > 0);
+                flags.flags.sqThreadTraceActive  = IsSqttEnabled();
+                flags.flags.spmCountersActive    = (m_pDevice->NumStreamingPerfCounters() > 0);
+                flags.flags.dfSpmCountersActive  = (m_pDevice->NumDfStreamingPerfCounters() > 0);
 
-                pStartFrameTgtCmdBuf->BeginSample(this, &m_perFrameLogItem, false, perfExp);
+                pStartFrameTgtCmdBuf->BeginSample(this, &m_perFrameLogItem, flags);
 
                 result = pStartFrameTgtCmdBuf->End();
             }
@@ -1549,7 +1550,10 @@ Result Queue::BuildGpaSessionSampleConfig()
                 m_gpaSessionSampleConfig.sqtt.flags.excludeNonDetailShaderData =
                 sqttSettings.excludeNonDetailShaderData;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 824
-                m_gpaSessionSampleConfig.sqtt.tokenMask                      = sqttSettings.tokenMask;
+                m_gpaSessionSampleConfig.sqtt.tokenMask                        = sqttSettings.tokenMask;
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 899
+                m_gpaSessionSampleConfig.sqtt.flags.enableExecPopTokens = sqttSettings.enableExecPopulationTokens;
 #endif
             }
         }
@@ -1559,8 +1563,13 @@ Result Queue::BuildGpaSessionSampleConfig()
         }
 
         // Always set timestamp pipe-point in the config info.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 900
+        m_gpaSessionSampleConfig.timing.preSample  = PipelineStageBottomOfPipe;
+        m_gpaSessionSampleConfig.timing.postSample = PipelineStageBottomOfPipe;
+#else
         m_gpaSessionSampleConfig.timing.preSample  = HwPipeBottom;
         m_gpaSessionSampleConfig.timing.postSample = HwPipeBottom;
+#endif
     }
 
     return result;

@@ -26,6 +26,7 @@
 // pal
 #include "palFile.h"
 #include "palSysUtil.h"
+#include "palAutoBuffer.h"
 #include "palVector.h"
 #include "palVectorImpl.h"
 
@@ -271,10 +272,10 @@ Result RemoveOldestFilesOfDirUntilSize(
     uint64      desiredSize)
 {
     size_t fileCount = 0;
-    size_t bytesReq  = 0;
+    size_t charCount = 0;
 
     // Get the number of files in the dir.
-    Result result = CountFilesInDir(pPathName, &fileCount, &bytesReq);
+    Result result = CountFilesInDir(pPathName, &fileCount, &charCount);
 
     // If we've already failed, then get out of here.
     // The directory could've been empty, in which case don't do anything and return.
@@ -286,14 +287,15 @@ Result RemoveOldestFilesOfDirUntilSize(
     const size_t pathLen = std::strlen(pPathName) + 1; // Add one to append a '/'
     const size_t fullPathSize = pathLen + 1 + Util::MaxFileNameStrLen;
 
-    // Allocate mem for storing file names
+    // Storage for file names
     Util::GenericAllocator allocator;
-    StringView<char>* pFileNames = static_cast<StringView<char>*>(
-        PAL_CALLOC(fileCount * sizeof(StringView<char>), &allocator, AllocInternalTemp));
-    char* pFileNameBuffer = static_cast<char*>(PAL_CALLOC(bytesReq, &allocator, AllocInternalTemp));
-    char* pFullFilePath = static_cast<char*>(PAL_CALLOC(fullPathSize * sizeof(char), &allocator, AllocInternalTemp));
+    Util::AutoBuffer<StringView<char>, 1, Util::GenericAllocator> fileNames(fileCount, &allocator);
+    Util::AutoBuffer<char, 4, Util::GenericAllocator> fileNameBuffer(charCount, &allocator);
+    Util::AutoBuffer<char, 4, Util::GenericAllocator> fullFilePath(fullPathSize, &allocator);
 
-    if ((pFileNames == nullptr) || (pFileNameBuffer == nullptr) || (pFullFilePath == nullptr))
+    if ((fileNames.Capacity() < fileCount) ||
+        (fileNameBuffer.Capacity() < charCount) ||
+        (fullFilePath.Capacity() < fullPathSize))
     {
         result = Result::ErrorOutOfMemory;
     }
@@ -301,7 +303,7 @@ Result RemoveOldestFilesOfDirUntilSize(
     // Get the file names in the dir
     if (result == Result::Success)
     {
-        result = GetFileNamesInDir(pPathName, Span(pFileNames, fileCount), Span(pFileNameBuffer, bytesReq));
+        result = GetFileNamesInDir(pPathName, fileNames, fileNameBuffer);
     }
 
     // Store the stats of every file in a Vector
@@ -316,16 +318,16 @@ Result RemoveOldestFilesOfDirUntilSize(
     if (result == Result::Success)
     {
         // Write the path portion of the full file path.
-        Strncpy(pFullFilePath, pPathName, fullPathSize);
-        Strncpy(pFullFilePath + pathLen - 1, "/", fullPathSize - pathLen + 1);
+        Strncpy(fullFilePath.Data(), pPathName, fullPathSize);
+        Strncpy(fullFilePath.Data() + pathLen - 1, "/", fullPathSize - pathLen + 1);
 
         for (uint32 i = 0; (i < fileCount) && (result == Result::Success); i++)
         {
             // Write the filename portion of the full file path
-            Strncpy(pFullFilePath + pathLen, pFileNames[i].Data(), fullPathSize - pathLen);
+            Strncpy(fullFilePath.Data() + pathLen, fileNames[i].Data(), fullPathSize - pathLen);
 
             File::Stat stat;
-            result = File::GetStat(pFullFilePath, &stat);
+            result = File::GetStat(fullFilePath.Data(), &stat);
             if ((result == Result::Success) && stat.flags.isRegular)
             {
                 result = files.PushBack({ i, stat });
@@ -367,15 +369,11 @@ Result RemoveOldestFilesOfDirUntilSize(
         Value* pValue = &files.Back();
         currentSize -= pValue->stat.size;
 
-        Strncpy(pFullFilePath + pathLen, pFileNames[pValue->namePos].Data(), fullPathSize - pathLen);
+        Strncpy(fullFilePath.Data() + pathLen, fileNames[pValue->namePos].Data(), fullPathSize - pathLen);
 
-        result = File::Remove(pFullFilePath);
+        result = File::Remove(fullFilePath.Data());
         files.Erase(pValue);
     }
-
-    PAL_SAFE_FREE(pFileNames, &allocator);
-    PAL_SAFE_FREE(pFileNameBuffer, &allocator);
-    PAL_SAFE_FREE(pFullFilePath, &allocator);
 
     return result;
 }

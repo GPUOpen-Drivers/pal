@@ -463,6 +463,13 @@ struct ExternalImageOpenInfo
     uint64                   modifier;           ///< Drm format modifier, if flags.hasModifier is set.
     uint32                   modifierPlaneCount; ///< Number of memory planes of drm format modifier.
 #endif
+    /// The following members must be set to zero unless the client is opening a @ref ImageTiling::Linear image with
+    /// specified row and depth pitches. In that case, they must be integer multiples of the alignments given by
+    /// @ref IDevice::GetLinearImageAlignments, called with an appropriate maxElementSize.
+    gpusize                  rowPitch;        ///< Offset in bytes between the same X position on two consecutive lines
+                                              ///  of the subresource.
+    gpusize                  depthPitch;      ///< Offset in bytes between the same X,Y position of two consecutive
+                                              ///  slices.
 };
 
 /// Reports the overall GPU memory layout of the entire image.  Output structure for IImage::GetMemoryLayout(). Unused

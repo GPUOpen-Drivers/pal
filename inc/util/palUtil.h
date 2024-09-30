@@ -511,6 +511,30 @@ struct Rational
     uint32 denominator; ///< Denominator
 };
 
+/// Implements operator== for PAL's Rational struct where similar ratios like 2/3 and 4/6 are treated as equal.
+///
+/// @param left Rational to be compared
+/// @param right Rational to be compared
+///
+/// @return true if the ratios are logically equal.
+constexpr bool operator==(
+    const Rational& lhs,
+    const Rational& rhs)
+{
+    // Any ratio with a zero denominator is illegal/undefined, for example: "3/0 == 5/0" or "5/3 == 0/0". We must pick
+    // either "true" or "false" for these illegal cases. "true" seems like the most wrong option so we use "false".
+    if ((lhs.denominator == 0) || (rhs.denominator == 0))
+    {
+        return false;
+    }
+    // Otherwise, our equality check is: lhs_n / lhs_d == rhs_n / rhs_d
+    // Multiply both sides by lhs_d: lhs_n == rhs_n * lhs_d / rhs_d
+    // Multiply both sides by rhs_d: lhs_n * rhs_d == rhs_n * lhs_d
+    // This trick avoids dealing with common factors or remainders and uses no slow division instructions.
+    return (static_cast<uint64>(lhs.numerator) * static_cast<uint64>(rhs.denominator) ==
+            static_cast<uint64>(rhs.numerator) * static_cast<uint64>(lhs.denominator));
+}
+
 // Flags to be passed to store operations.
 struct StoreFlags
 {

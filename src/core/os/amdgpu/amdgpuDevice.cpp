@@ -53,6 +53,7 @@
 #include <climits>
 #include <inttypes.h>
 #include <math.h>
+#include <numeric>
 #include <string.h>
 #include <stdlib.h>
 #include <sys/utsname.h>
@@ -5723,7 +5724,13 @@ Result Device::QueryScreenModesForConnector(
 
                 pScreenModeList[j].extent.width   = pMode->hdisplay;
                 pScreenModeList[j].extent.height  = pMode->vdisplay;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 894
                 pScreenModeList[j].refreshRate    = pMode->vrefresh;
+#else
+                const uint32 gcd = std::gcd(pMode->clock * 1000, pMode->htotal * pMode->vtotal);
+                pScreenModeList[j].refreshRate.numerator   = pMode->clock * 1000 / gcd;
+                pScreenModeList[j].refreshRate.denominator = pMode->htotal * pMode->vtotal / gcd;
+#endif
                 pScreenModeList[j].flags.u32All   = 0;
             }
 

@@ -1563,7 +1563,7 @@ void GraphicsPipeline::UpdateRingSizes(
     m_ringSizes.itemSize[static_cast<size_t>(ShaderRingType::GfxScratch)] = ComputeScratchMemorySize(metadata);
 
     m_ringSizes.itemSize[static_cast<size_t>(ShaderRingType::ComputeScratch)] =
-        Gfx9::ComputePipeline::CalcScratchMemSize(m_gfxLevel, metadata);
+       ComputePipeline::CalcScratchMemSize(metadata);
 
     if (metadata.pipeline.hasEntry.meshScratchMemorySize != 0)
     {

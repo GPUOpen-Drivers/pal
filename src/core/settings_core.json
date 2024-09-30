@@ -643,11 +643,23 @@
         "Debug"
       ],
       "Defaults": {
-        "Default": 10
+        "Default": 3
       },
       "Scope": "PrivatePalKey",
       "Type": "uint32",
-      "Description": "Graphic engine timeout in seconds for Linux"
+      "Description": "Graphic engine timeout in seconds. A value of 0 means no timeout."
+    },
+    {
+      "Name": "GfxEmuTimeoutMultiplier",
+      "Tags": [
+        "Debug"
+      ],
+      "Defaults": {
+        "Default": 100
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "uint32",
+      "Description": "Multiplier for timeouts when hardware emulation is enabled."
     },
     {
       "Description": "(DEBUG ONLY) Skip the GFX DCC to Display DCC retile shader.",

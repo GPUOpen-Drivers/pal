@@ -626,20 +626,14 @@ void MlaaUtil<Allocator>::ResolveImage(
     // 1st stage: Find the separating edges
     FindSepEdge(pCmdBuffer, srcImage, srcSubres);
 
-    Pal::BarrierInfo barrier = {};
-    barrier.waitPoint = Pal::HwPipePoint::HwPipePreCs;
+    Pal::AcquireReleaseInfo acqRelInfo = {};
+    acqRelInfo.srcGlobalStageMask  = Pal::PipelineStageCs;
+    acqRelInfo.dstGlobalStageMask  = Pal::PipelineStageCs;
+    acqRelInfo.srcGlobalAccessMask = Pal::CoherShader;
+    acqRelInfo.dstGlobalAccessMask = Pal::CoherShader;
+    acqRelInfo.reason              = Pal::Developer::BarrierReasonMlaaResolveEdgeSync;
 
-    const Pal::HwPipePoint postCs = Pal::HwPipePoint::HwPipePostCs;
-    barrier.pipePointWaitCount = 1;
-    barrier.pPipePoints        = &postCs;
-
-    Pal::BarrierTransition transition = {};
-    transition.srcCacheMask = Pal::CacheCoherencyUsageFlags::CoherShader;
-    transition.dstCacheMask = Pal::CacheCoherencyUsageFlags::CoherShader;
-
-    barrier.transitionCount = 1;
-    barrier.pTransitions    = &transition;
-    barrier.reason          = Pal::Developer::BarrierReasonMlaaResolveEdgeSync;
+    pCmdBuffer->CmdReleaseThenAcquire(acqRelInfo);
 
     Pal::uint32 iterationDepth = 0;
 
@@ -647,7 +641,7 @@ void MlaaUtil<Allocator>::ResolveImage(
     if (m_fastPath)
     {
         // Issue a barrier to ensure the previous stage is complete
-        pCmdBuffer->CmdBarrier(barrier);
+        pCmdBuffer->CmdReleaseThenAcquire(acqRelInfo);
 
         CalcSepEdgeLengthFast(pCmdBuffer);
     }
@@ -657,7 +651,7 @@ void MlaaUtil<Allocator>::ResolveImage(
         for (Pal::uint32 size = 128; size > 0; size >>= 1)
         {
             // Issue a barrier to ensure the previous stage is complete
-            pCmdBuffer->CmdBarrier(barrier);
+            pCmdBuffer->CmdReleaseThenAcquire(acqRelInfo);
 
             CalcSepEdgeLength(pCmdBuffer, iterationDepth);
 
@@ -666,7 +660,7 @@ void MlaaUtil<Allocator>::ResolveImage(
     }
 
     // Issue a barrier to ensure the previous stage is complete
-    pCmdBuffer->CmdBarrier(barrier);
+    pCmdBuffer->CmdReleaseThenAcquire(acqRelInfo);
 
     // Final blend stage
     if (m_fastPath)

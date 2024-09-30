@@ -422,38 +422,57 @@ Result Image::GetExternalSharedImageCreateInfo(
     pCreateInfo->flags      = openInfo.flags;
     pCreateInfo->usageFlags = openInfo.usage;
 
-    const bool hasMetadata = sharedInfo.info.metadata.size_metadata > 0;
+    bool changeFormat = false;
 
+    const bool hasMetadata = sharedInfo.info.metadata.size_metadata > 0;
     // Most information will come directly from the base subresource's surface description.
     const auto* pMetadata = reinterpret_cast<const amdgpu_bo_umd_metadata*>(
         &sharedInfo.info.metadata.umd_metadata[PRO_UMD_METADATA_OFFSET_DWORD]);
 
-    bool changeFormat = false;
-    SwizzledFormat formatInMetadata = UndefinedSwizzledFormat;
+    // Set swizzledFormat from either metadata or openInfo.
     if (hasMetadata)
     {
         bool depthStencilUsage = false;
-        formatInMetadata = AmdgpuFormatToPalFormat(pMetadata->format, &changeFormat, &depthStencilUsage);
-        pCreateInfo->usageFlags.depthStencil = depthStencilUsage;
-    }
-    if (Formats::IsUndefined(openInfo.swizzledFormat.format))
-    {
-        if (hasMetadata)
+        if (IsMesaMetadata(sharedInfo.info.metadata))
         {
-            pCreateInfo->swizzledFormat = formatInMetadata;
+            pCreateInfo->flags.sharedWithMesa = 1;
+            // For Mesa's metadata, fetch the swizzleFormat from openInfo and take it as a formatChange.
+            if (Formats::IsUndefined(openInfo.swizzledFormat.format))
+            {
+                // For Mesa metadata, the format in openInfo has to be valid.
+                result = Result::ErrorInvalidFormat;
+            }
+            else
+            {
+                pCreateInfo->swizzledFormat = openInfo.swizzledFormat;
+                changeFormat = true;
+                depthStencilUsage = Pal::Formats::IsDepthStencilOnly(openInfo.swizzledFormat.format);
+            }
         }
         else
         {
-            result = Result::ErrorFormatIncompatibleWithImageFormat;
+            SwizzledFormat formatInMetadata =
+                AmdgpuFormatToPalFormat(pMetadata->format, &changeFormat, &depthStencilUsage);
+
+            if (Formats::IsUndefined(openInfo.swizzledFormat.format))
+            {
+                pCreateInfo->swizzledFormat = formatInMetadata;
+            }
+            else
+            {
+                pCreateInfo->swizzledFormat = openInfo.swizzledFormat;
+                if (formatInMetadata.format != openInfo.swizzledFormat.format)
+                {
+                    changeFormat = true;
+                }
+            }
         }
+        pCreateInfo->usageFlags.depthStencil = depthStencilUsage;
     }
-    else
+
+    if (Formats::IsUndefined(pCreateInfo->swizzledFormat.format))
     {
-        pCreateInfo->swizzledFormat = openInfo.swizzledFormat;
-        if (hasMetadata && (formatInMetadata.format != openInfo.swizzledFormat.format))
-        {
-            changeFormat = true;
-        }
+        result = Result::ErrorInvalidFormat;
     }
 
     if ((result == Result::Success) && changeFormat)
@@ -461,10 +480,6 @@ Result Image::GetExternalSharedImageCreateInfo(
         pCreateInfo->viewFormatCount = AllCompatibleFormats;
     }
 
-    if ((result == Result::Success) && IsMesaMetadata(sharedInfo.info.metadata))
-    {
-        pCreateInfo->flags.sharedWithMesa = 1;
-    }
     // If the width and height passed by pMetadata is not the same as expected, the buffer may still be valid:
     // E.g. Planar YUV images are allocated as a single block of memory and passed in by one handle. We can not
     //      figure out the width and height settled in Metadata points to which plane or maybe it just means the
@@ -556,6 +571,12 @@ Result Image::GetExternalSharedImageCreateInfo(
             }
 
             pCreateInfo->flags.flippable = pCreateInfo->flags.presentable;
+        }
+
+        if (pCreateInfo->tiling == ImageTiling::Linear)
+        {
+            pCreateInfo->rowPitch   = openInfo.rowPitch;
+            pCreateInfo->depthPitch = openInfo.depthPitch;
         }
 
         pCreateInfo->fragments = pCreateInfo->samples;

@@ -881,14 +881,6 @@ void SettingsLoader::OverrideDefaults(
         }
     }
 
-#if PAL_BUILD_GFX115
-    //Enable the DCC256BCompressedTex Feature for GFX11.5
-    if (IsGfx115(device))
-    {
-        m_settings.dcc256bCompressedTex = true;
-    }
-#endif
-
     if (IsGfx103Plus(device))
     {
         m_settings.gfx103PlusDisableAsymmetricWgpForPs = true;

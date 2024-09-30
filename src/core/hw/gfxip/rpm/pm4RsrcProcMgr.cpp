@@ -269,21 +269,27 @@ void RsrcProcMgr::CmdCopyImage(
                 ((Formats::IsBlockCompressed(dstInfo.swizzledFormat.format) ||
                   Formats::IsMacroPixelPackedRgbOnly(dstInfo.swizzledFormat.format)) && (dstInfo.mipLevels > 1)))
             {
-                // Insert a generic barrier to prevent write-after-write hazard between CS copy and per-pixel copy
-                BarrierInfo barrier = {};
-                barrier.waitPoint = HwPipePreCs;
-                barrier.reason = Developer::BarrierReasonPerPixelCopy;
+                // Insert a generic barrier between CS copy and per-pixel copy
+                ImgBarrier imgBarriers[2] = {};
+                imgBarriers[0].pImage = &srcImage;
+                imgBarriers[0].srcStageMask  = PipelineStageCs;
+                imgBarriers[0].dstStageMask  = PipelineStageBlt;
+                imgBarriers[0].srcAccessMask = CoherShaderRead;
+                imgBarriers[0].dstAccessMask = CoherCopySrc;
+                srcImage.GetFullSubresourceRange(&imgBarriers[0].subresRange);
 
-                constexpr HwPipePoint PostCs = HwPipePostCs;
-                barrier.pipePointWaitCount = 1;
-                barrier.pPipePoints = &PostCs;
+                imgBarriers[1].pImage = &dstImage;
+                imgBarriers[1].srcStageMask  = PipelineStageCs;
+                imgBarriers[1].dstStageMask  = PipelineStageBlt;
+                imgBarriers[1].srcAccessMask = CoherShader;
+                imgBarriers[1].dstAccessMask = CoherCopyDst;
+                dstImage.GetFullSubresourceRange(&imgBarriers[1].subresRange);
 
-                BarrierTransition transition = {};
-                transition.srcCacheMask = CoherShader;
-                transition.dstCacheMask = CoherShader;
-                barrier.pTransitions = &transition;
-
-                pCmdBuffer->CmdBarrier(barrier);
+                AcquireReleaseInfo acqRelInfo = {};
+                acqRelInfo.imageBarrierCount = 2;
+                acqRelInfo.pImageBarriers    = &imgBarriers[0];
+                acqRelInfo.reason            = Developer::BarrierReasonPerPixelCopy;
+                pCmdBuffer->CmdReleaseThenAcquire(acqRelInfo);
 
                 for (uint32 regionIdx = 0; regionIdx < finalRegionCount; regionIdx++)
                 {
@@ -2259,29 +2265,22 @@ void RsrcProcMgr::PreComputeDepthStencilClearSync(
 {
     PAL_ASSERT(subres.numPlanes == 1);
 
-    BarrierInfo preBarrier                 = { };
-    preBarrier.waitPoint                   = HwPipePreCs;
+    ImgBarrier imgBarrier    = {};
+    imgBarrier.pImage        = gfxImage.Parent();
+    imgBarrier.subresRange   = subres;
+    imgBarrier.srcStageMask  = PipelineStageDsTarget;
+    imgBarrier.dstStageMask  = PipelineStageCs;
+    imgBarrier.srcAccessMask = CoherDepthStencilTarget;
+    imgBarrier.dstAccessMask = CoherShader;
+    imgBarrier.oldLayout     = layout;
+    imgBarrier.newLayout     = layout;
 
-    const IImage* pImage                   = gfxImage.Parent();
+    AcquireReleaseInfo acqRelInfo = {};
+    acqRelInfo.pImageBarriers    = &imgBarrier;
+    acqRelInfo.imageBarrierCount = 1;
+    acqRelInfo.reason            = Developer::BarrierReasonPreComputeDepthStencilClear;
 
-    // The most efficient way to wait for DB-idle and flush and invalidate the DB caches is an acquire_mem.
-    // Acquire release doesn't support ranged stall and cache F/I via acquire_mem.
-    preBarrier.rangeCheckedTargetWaitCount = 1;
-    preBarrier.ppTargets                   = &pImage;
-
-    BarrierTransition transition           = { };
-    transition.srcCacheMask                = CoherDepthStencilTarget;
-    transition.dstCacheMask                = CoherShader;
-    transition.imageInfo.pImage            = pImage;
-    transition.imageInfo.subresRange       = subres;
-    transition.imageInfo.oldLayout         = layout;
-    transition.imageInfo.newLayout         = layout;
-
-    preBarrier.transitionCount             = 1;
-    preBarrier.pTransitions                = &transition;
-    preBarrier.reason                      = Developer::BarrierReasonPreComputeDepthStencilClear;
-
-    pCmdBuffer->CmdBarrier(preBarrier);
+    pCmdBuffer->CmdReleaseThenAcquire(acqRelInfo);
 }
 
 // =====================================================================================================================
@@ -4521,23 +4520,23 @@ void RsrcProcMgr::FixupMetadataForComputeDst(
 
         if (needBarrier)
         {
-            AutoBuffer<BarrierTransition, 32, Platform> transitions(regionCount, m_pDevice->GetPlatform());
+            AutoBuffer<ImgBarrier, 32, Platform> imgBarriers(regionCount, m_pDevice->GetPlatform());
 
-            if (transitions.Capacity() >= regionCount)
+            if (imgBarriers.Capacity() >= regionCount)
             {
                 const uint32 shaderWriteLayout =
                     (enableCompressedDepthWriteTempWa ? (LayoutShaderWrite | LayoutUncompressed) : LayoutShaderWrite);
 
+                memset(&imgBarriers[0], 0, sizeof(ImgBarrier) * regionCount);
+
                 for (uint32 i = 0; i < regionCount; i++)
                 {
-                    transitions[i].imageInfo.pImage                  = &dstImage;
-                    transitions[i].imageInfo.subresRange.startSubres = pRegions[i].subres;
-                    transitions[i].imageInfo.subresRange.numPlanes   = 1;
-                    transitions[i].imageInfo.subresRange.numMips     = 1;
-                    transitions[i].imageInfo.subresRange.numSlices   = pRegions[i].numSlices;
-                    transitions[i].imageInfo.oldLayout               = dstImageLayout;
-                    transitions[i].imageInfo.newLayout               = dstImageLayout;
-                    transitions[i].imageInfo.pQuadSamplePattern      = nullptr;
+                    imgBarriers[i].pImage       = &dstImage;
+                    imgBarriers[i].subresRange  = SubresourceRange(pRegions[i].subres, 1, 1, pRegions[i].numSlices);
+                    imgBarriers[i].srcStageMask = beforeCopy ? PipelineStageBottomOfPipe : PipelineStageCs;
+                    imgBarriers[i].dstStageMask = PipelineStageBlt;
+                    imgBarriers[i].oldLayout    = dstImageLayout;
+                    imgBarriers[i].newLayout    = dstImageLayout;
 
                     // The first barrier must prepare the image for shader writes, perhaps by decompressing metadata.
                     // The second barrier is required to undo those changes, perhaps by resummarizing the metadata.
@@ -4555,32 +4554,28 @@ void RsrcProcMgr::FixupMetadataForComputeDst(
 
                         if (fullSubresCopy)
                         {
-                            transitions[i].imageInfo.oldLayout.usages = LayoutUninitializedTarget;
+                            imgBarriers[i].oldLayout.usages = LayoutUninitializedTarget;
                         }
 
-                        transitions[i].imageInfo.newLayout.usages |= shaderWriteLayout;
-                        transitions[i].srcCacheMask                = CoherCopyDst;
-                        transitions[i].dstCacheMask                = CoherShader;
+                        imgBarriers[i].newLayout.usages |= shaderWriteLayout;
+                        imgBarriers[i].srcAccessMask     = CoherCopyDst;
+                        imgBarriers[i].dstAccessMask     = CoherShader;
                     }
                     else // After copy
                     {
-                        transitions[i].imageInfo.oldLayout.usages |= shaderWriteLayout;
-                        transitions[i].srcCacheMask                = CoherShader;
-                        transitions[i].dstCacheMask                = CoherCopyDst;
+                        imgBarriers[i].oldLayout.usages |= shaderWriteLayout;
+                        imgBarriers[i].srcAccessMask     = CoherShader;
+                        imgBarriers[i].dstAccessMask     = CoherCopyDst;
                     }
                 }
 
                 // Operations like resummarizes might read the blit's output so we can't optimize the wait point.
-                BarrierInfo barrierInfo = {};
-                barrierInfo.pTransitions    = &transitions[0];
-                barrierInfo.transitionCount = regionCount;
-                barrierInfo.waitPoint       = HwPipePreBlt;
+                AcquireReleaseInfo acqRelInfo = {};
+                acqRelInfo.pImageBarriers    = &imgBarriers[0];
+                acqRelInfo.imageBarrierCount = regionCount;
+                acqRelInfo.reason            = Developer::BarrierReasonUnknown;
 
-                const HwPipePoint releasePipePoint = beforeCopy ? HwPipeBottom : HwPipePostCs;
-                barrierInfo.pipePointWaitCount = 1;
-                barrierInfo.pPipePoints        = &releasePipePoint;
-
-                pCmdBuffer->CmdBarrier(barrierInfo);
+                pCmdBuffer->CmdReleaseThenAcquire(acqRelInfo);
             }
             else
             {
@@ -4627,20 +4622,19 @@ void RsrcProcMgr::FixupComputeResolveDst(
         // respect to the DB and through a different data path than the DB, we
         // need to ensure our CS won't overlap with subsequent stencil rendering
         // and that our HTILE updates are immediately visible to the DB.
+        ImgBarrier imgBarrier = {};
+        imgBarrier.pImage        = &dstImage;
+        imgBarrier.srcStageMask  = PipelineStageCs;
+        imgBarrier.dstStageMask  = PipelineStageCs;
+        imgBarrier.srcAccessMask = CoherShader;
+        imgBarrier.dstAccessMask = CoherShader | CoherDepthStencilTarget;
+        dstImage.GetFullSubresourceRange(&imgBarrier.subresRange);
 
-        BarrierInfo hiZExpandBarrier = {};
-        hiZExpandBarrier.waitPoint = HwPipePreCs;
-
-        constexpr HwPipePoint PostCs = HwPipePostCs;
-        hiZExpandBarrier.pipePointWaitCount = 1;
-        hiZExpandBarrier.pPipePoints = &PostCs;
-
-        BarrierTransition transition = {};
-        transition.srcCacheMask = CoherShader;
-        transition.dstCacheMask = CoherShader | CoherDepthStencilTarget;
-        hiZExpandBarrier.pTransitions = &transition;
-
-        pCmdBuffer->CmdBarrier(hiZExpandBarrier);
+        AcquireReleaseInfo acqRelInfo = {};
+        acqRelInfo.imageBarrierCount = 1;
+        acqRelInfo.pImageBarriers    = &imgBarrier;
+        acqRelInfo.reason            = Developer::BarrierReasonUnknown;
+        pCmdBuffer->CmdReleaseThenAcquire(acqRelInfo);
     }
 }
 

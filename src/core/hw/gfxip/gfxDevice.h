@@ -748,6 +748,8 @@ public:
         const ImageCreateInfo&  createInfo,
         const SwizzledFormat&   clearFormat) const;
 
+    virtual void DisableImageViewSrdEdgeClamp(uint32 count, void* pImageSrds) const {   }
+
     virtual bool DisableAc01ClearCodes() const { return true; };
 
     virtual void UpdateDisplayDcc(

@@ -118,7 +118,7 @@ union ReleaseMemCaches
 };
 
 // Describes the core release_mem functionality common to ACE and GFX engines.
-struct ReleaseMemCore
+struct ReleaseMemGeneric
 {
     ReleaseMemCaches cacheSync;      // Caches can only be synced by EOP release_mems.
     uint32           dataSel;        // One of the {ME,MEC}_RELEASE_MEM_data_sel_enum values.
@@ -129,15 +129,8 @@ struct ReleaseMemCore
                                      // supports waiting CP DMA before setting it true.
 };
 
-// In practice, we also need to know your runtime engine type to implement a generic release_mem. This isn't an
-// abstract requirement of release_mem so it's not in ReleaseMemCore.
-struct ReleaseMemGeneric : ReleaseMemCore
-{
-    EngineType engineType;
-};
-
 // If we know we're building a release_mem for a graphics engine we can expose extra features.
-struct ReleaseMemGfx : ReleaseMemCore
+struct ReleaseMemGfx : ReleaseMemGeneric
 {
     VGT_EVENT_TYPE vgtEvent;  // Use this event. It must be an EOP TS event or an EOS event.
     bool           usePws;    // This event should increment the PWS counters.
@@ -799,10 +792,10 @@ private:
         SurfSyncFlags         surfSyncFlags,
         void*                 pBuffer) const;
     size_t BuildReleaseMemInternal(
-        const ReleaseMemCore& info,
-        VGT_EVENT_TYPE        vgtEvent,
-        bool                  usePws,
-        void*                 pBuffer) const;
+        const ReleaseMemGeneric& info,
+        VGT_EVENT_TYPE           vgtEvent,
+        bool                     usePws,
+        void*                    pBuffer) const;
 
     static size_t BuildWriteDataInternal(
         const WriteDataInfo& info,

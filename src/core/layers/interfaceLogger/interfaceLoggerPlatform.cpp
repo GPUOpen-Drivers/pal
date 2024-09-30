@@ -324,7 +324,7 @@ static_assert(ArrayLen(FuncLoggingTable) == size_t(InterfaceFunc::Count),
 // =====================================================================================================================
 // Validates func logging table is setup correctly.
 template <size_t N>
-constexpr bool ValidateFuncLoggingTable(const FuncLoggingTableEntry (&table)[N])
+static constexpr bool ValidateFuncLoggingTable(const FuncLoggingTableEntry (&table)[N])
 {
     bool valid = true;
     for (uint32 i = 0; i < N; i++)

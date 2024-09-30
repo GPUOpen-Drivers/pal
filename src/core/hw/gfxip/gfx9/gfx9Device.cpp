@@ -5720,11 +5720,6 @@ void InitializeGpuChipProperties(
     pInfo->gfx9.supportDonutTessDistribution     = 1;
     pInfo->gfx9.supportTrapezoidTessDistribution = 1;
 
-    pInfo->gfx9.supportReleaseAcquireInterface = 1;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 883
-    pInfo->gfx9.supportSplitReleaseAcquire     = 1;
-#endif
-
     pInfo->gfx9.support3dUavZRange = 1;
 
     // RS64 FW identifier for Gfx11 is PFP uCode Version being greater than 300.
@@ -6389,6 +6384,8 @@ void InitializeGpuChipProperties(
         pInfo->gfx9.supportPointerFlags             = 1;
         pInfo->gfx9.supportMsFullRangeRtai          = 1;
         pInfo->gfx9.supportCooperativeMatrix        = 1;
+        pInfo->gfx9.supportBFloat16                 = 1;
+        pInfo->gfx9.supportMixedSignIntDot          = 1;
 
         pInfo->gfx9.rayTracingIp = RayTracingIpLevel::RtIp2_0;
     }
@@ -7532,39 +7529,33 @@ void Device::UpdateDisplayDcc(
 #endif
         {
             // The surface must be fully expanded if another component may access it via PFPA,
-            // or KMD nofify UMD to expand DCC.
+            // or KMD notify UMD to expand DCC.
             // Presentable surface has dcc and displayDcc, but turbo sync surface hasn't dcc,
             // before present, need decompress dcc when turbo sync enables.
             if (postProcessInfo.fullScreenFrameMetadataControlFlags.primaryHandle ||
                 postProcessInfo.fullScreenFrameMetadataControlFlags.expandDcc     ||
                 postProcessInfo.fullScreenFrameMetadataControlFlags.timerNodeSubmission)
             {
-                BarrierInfo barrier = {};
+                ImgBarrier imgBarrier    = {};
+                imgBarrier.pImage        = &image;
+                imgBarrier.subresRange   = SubresourceRange({}, 1, 1, 1);
+                imgBarrier.srcStageMask  = PipelineStageTopOfPipe;
+                imgBarrier.dstStageMask  = PipelineStageCs;
+                imgBarrier.srcAccessMask = CoherShader;
+                imgBarrier.dstAccessMask = CoherShader;
+                imgBarrier.oldLayout     = { .usages  = LayoutPresentWindowed | LayoutPresentFullscreen,
+                                             .engines = (pCmdBuf->GetEngineType() == EngineTypeUniversal) ?
+                                                        LayoutUniversalEngine : LayoutComputeEngine };
+                imgBarrier.newLayout     = { .usages  = LayoutShaderRead | LayoutUncompressed,
+                                             .engines = imgBarrier.oldLayout.engines };
 
-                BarrierTransition transition = {};
-                transition.srcCacheMask                    = CoherShader;
-                transition.dstCacheMask                    = CoherShader;
+                AcquireReleaseInfo acqRelInfo = {};
+                acqRelInfo.imageBarrierCount  = 1;
+                acqRelInfo.pImageBarriers     = &imgBarrier;
+                acqRelInfo.reason             = Developer::BarrierReasonUnknown;
 
-                transition.imageInfo.pImage                = &image;
-                transition.imageInfo.oldLayout.usages      = LayoutPresentWindowed | LayoutPresentFullscreen;
-                transition.imageInfo.oldLayout.engines     = (pCmdBuf->GetEngineType() == EngineTypeUniversal) ?
-                                                             LayoutUniversalEngine : LayoutComputeEngine;
-                transition.imageInfo.newLayout.usages      = LayoutShaderRead | LayoutUncompressed;
-                transition.imageInfo.newLayout.engines     = transition.imageInfo.oldLayout.engines;
-                transition.imageInfo.subresRange.numPlanes = 1;
-                transition.imageInfo.subresRange.numMips   = 1;
-                transition.imageInfo.subresRange.numSlices = 1;
+                pCmdBuf->CmdReleaseThenAcquire(acqRelInfo);
 
-                barrier.pTransitions = &transition;
-                barrier.transitionCount = 1;
-
-                barrier.waitPoint = HwPipePreCs;
-
-                HwPipePoint pipePoints = HwPipeTop;
-                barrier.pPipePoints = &pipePoints;
-                barrier.pipePointWaitCount = 1;
-
-                pCmdBuf->CmdBarrier(barrier);
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 836
                 // if Dcc is decompressed, needn't do retile, put displayDCC memory
                 // itself back into a "fully decompressed" state.

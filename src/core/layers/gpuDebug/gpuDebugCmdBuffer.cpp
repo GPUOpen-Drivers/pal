@@ -34,6 +34,7 @@
 #include "core/layers/gpuDebug/gpuDebugImage.h"
 #include "core/layers/gpuDebug/gpuDebugPipeline.h"
 #include "core/layers/gpuDebug/gpuDebugQueue.h"
+#include "core/image.h"
 #include "g_platformSettings.h"
 #include "palAutoBuffer.h"
 #include "palFile.h"
@@ -320,38 +321,23 @@ void CmdBuffer::AddSingleStepBarrier(
         CmdCommentString(&desc[0]);
     }
 
-    BarrierInfo barrier = {};
-    barrier.waitPoint   = HwPipePoint::HwPipeTop;
-
-    constexpr HwPipePoint PipePoints[] =
-    {
-        HwPipePoint::HwPipeBottom,
-        HwPipePoint::HwPipePostCs
-    };
-    barrier.pPipePoints        = &PipePoints[0];
-    barrier.pipePointWaitCount = static_cast<uint32>(ArrayLen(PipePoints));
-    CmdBarrierInternal(barrier);
+    AcquireReleaseInfo acqRelInfo = {};
+    acqRelInfo.srcGlobalStageMask  = PipelineStageBottomOfPipe;
+    acqRelInfo.dstGlobalStageMask  = PipelineStageTopOfPipe;
+    acqRelInfo.reason              = Developer::BarrierReasonUnknown;
+    CmdReleaseThenAcquireInternal(acqRelInfo);
 }
 
 // =====================================================================================================================
 void CmdBuffer::AddCacheFlushInv()
 {
-    BarrierInfo barrierInfo = {};
-
-    barrierInfo.waitPoint = HwPipePoint::HwPipeTop;
-
-    const HwPipePoint pipePoint    = HwPipePoint::HwPipeBottom;
-    barrierInfo.pipePointWaitCount = 1;
-    barrierInfo.pPipePoints        = &pipePoint;
-
-    BarrierTransition transition = {};
-    transition.srcCacheMask = CoherAllUsages;
-    transition.dstCacheMask = CoherAllUsages;
-
-    barrierInfo.transitionCount = 1;
-    barrierInfo.pTransitions    = &transition;
-
-    CmdBarrierInternal(barrierInfo);
+    AcquireReleaseInfo acqRelInfo = {};
+    acqRelInfo.srcGlobalStageMask  = PipelineStageBottomOfPipe;
+    acqRelInfo.dstGlobalStageMask  = PipelineStageTopOfPipe;
+    acqRelInfo.srcGlobalAccessMask = CoherAllUsages;
+    acqRelInfo.dstGlobalAccessMask = CoherAllUsages;
+    acqRelInfo.reason              = Developer::BarrierReasonUnknown;
+    CmdReleaseThenAcquireInternal(acqRelInfo);
 }
 
 // =====================================================================================================================
@@ -664,55 +650,40 @@ Result CmdBuffer::CaptureImageSurface(
     // Copy
     if (result == Result::Success)
     {
+        const uint32 srcImgTargetStageFlag = (pSrcImage->GetImageCreateInfo().usageFlags.depthStencil != 0)
+                                             ? PipelineStageDsTarget : PipelineStageColorTarget;
+
         // Send Barrier to prepare for upcoming copy
         // Transition 0 : Src from the given Target to Copy Src
         // Transition 1 : Dst from Uninitialized to Copy Dst
-        BarrierInfo preCopyBarrier = {};
-
-        BarrierTransition preCopyTransitions[2]                 = {};
-        preCopyTransitions[0].srcCacheMask                      = srcCoher;
-        preCopyTransitions[0].dstCacheMask                      = CoherCopySrc;
-        preCopyTransitions[0].imageInfo.pImage                  = pSrcImage;
-        preCopyTransitions[0].imageInfo.subresRange.startSubres = baseSubres;
-        preCopyTransitions[0].imageInfo.subresRange.numPlanes   = 1;
-        preCopyTransitions[0].imageInfo.subresRange.numMips     = 1;
-        preCopyTransitions[0].imageInfo.subresRange.numSlices   = arraySize;
-        preCopyTransitions[0].imageInfo.oldLayout.usages        = srcLayoutUsages;
-        preCopyTransitions[0].imageInfo.oldLayout.engines       = srcLayoutEngine;
-        preCopyTransitions[0].imageInfo.newLayout.usages        = LayoutCopySrc;
-        preCopyTransitions[0].imageInfo.newLayout.engines       = LayoutUniversalEngine;
-
-        preCopyTransitions[1].srcCacheMask                      = 0;
-        preCopyTransitions[1].dstCacheMask                      = CoherCopyDst;
-        preCopyTransitions[1].imageInfo.pImage                  = pDstImage;
-        preCopyTransitions[1].imageInfo.subresRange.startSubres = baseSubres;
-        preCopyTransitions[1].imageInfo.subresRange.startSubres.plane = 0;
-        preCopyTransitions[1].imageInfo.subresRange.numPlanes   = 1;
-        preCopyTransitions[1].imageInfo.subresRange.numMips     = 1;
-        preCopyTransitions[1].imageInfo.subresRange.numSlices   = arraySize;
-        preCopyTransitions[1].imageInfo.oldLayout.usages        = LayoutUninitializedTarget;
-        preCopyTransitions[1].imageInfo.oldLayout.engines       = LayoutUniversalEngine;
-        preCopyTransitions[1].imageInfo.newLayout.usages        = LayoutCopyDst | LayoutUncompressed;
-        preCopyTransitions[1].imageInfo.newLayout.engines       = LayoutUniversalEngine;
-
-        preCopyBarrier.waitPoint            = HwPipePreBlt;
-
-        const HwPipePoint blitWaitForPipePoint = HwPipePostBlt;
-        if (isDraw)
         {
-            preCopyBarrier.rangeCheckedTargetWaitCount = 1;
-            preCopyBarrier.ppTargets = &pSrcImage;
-        }
-        else
-        {
-            preCopyBarrier.pipePointWaitCount = 1;
-            preCopyBarrier.pPipePoints = &blitWaitForPipePoint;
-        }
+            ImgBarrier preCopyBarriers[2]    = {};
+            preCopyBarriers[0].pImage        = pSrcImage;
+            preCopyBarriers[0].subresRange   = SubresourceRange(baseSubres, 1, 1, arraySize);
+            preCopyBarriers[0].srcStageMask  = isDraw ? srcImgTargetStageFlag : PipelineStageBlt;
+            preCopyBarriers[0].dstStageMask  = PipelineStageBlt;
+            preCopyBarriers[0].srcAccessMask = srcCoher;
+            preCopyBarriers[0].dstAccessMask = CoherCopySrc;
+            preCopyBarriers[0].oldLayout     = { .usages = srcLayoutUsages, .engines = srcLayoutEngine };
+            preCopyBarriers[0].newLayout     = { .usages = LayoutCopySrc, .engines = LayoutUniversalEngine };
 
-        preCopyBarrier.transitionCount  = 2;
-        preCopyBarrier.pTransitions     = &preCopyTransitions[0];
+            preCopyBarriers[1].pImage        = pDstImage;
+            preCopyBarriers[1].subresRange   = preCopyBarriers[0].subresRange;
+            preCopyBarriers[1].subresRange.startSubres.plane = 0;
+            preCopyBarriers[1].srcStageMask  = PipelineStageTopOfPipe;
+            preCopyBarriers[1].dstStageMask  = PipelineStageBlt;
+            preCopyBarriers[1].srcAccessMask = 0;
+            preCopyBarriers[1].dstAccessMask = CoherCopyDst;
+            preCopyBarriers[1].oldLayout     = { .usages  = LayoutUninitializedTarget, .engines = LayoutUniversalEngine };
+            preCopyBarriers[1].newLayout     = { .usages  = LayoutCopyDst | LayoutUncompressed,
+                                                 .engines = LayoutUniversalEngine };
 
-        CmdBarrier(preCopyBarrier);
+            AcquireReleaseInfo preCopyAcqRelInfo = {};
+            preCopyAcqRelInfo.imageBarrierCount  = 2;
+            preCopyAcqRelInfo.pImageBarriers     = &preCopyBarriers[2];
+            preCopyAcqRelInfo.reason             = Developer::BarrierReasonUnknown;
+            CmdReleaseThenAcquire(preCopyAcqRelInfo);
+        }
 
         // Send Copy Cmd
         ImageLayout srcLayout = { 0 };
@@ -746,32 +717,24 @@ Result CmdBuffer::CaptureImageSurface(
                      0);
 
         // Send Barrier for post copy transitions
-        // Transition Src from Copy Src to Color/Depth Target
-        BarrierInfo postCopyBarrier = {};
+        // Transition Src from Copy Src to CopyDst/Color/Depth Target
+        {
+            ImgBarrier postCopyBarrier    = {};
+            postCopyBarrier.pImage        = pSrcImage;
+            postCopyBarrier.subresRange   = SubresourceRange(baseSubres, 1, 1, arraySize);
+            postCopyBarrier.srcStageMask  = PipelineStageBlt;
+            postCopyBarrier.dstStageMask  = isDraw ? srcImgTargetStageFlag : PipelineStageBlt;
+            postCopyBarrier.srcAccessMask = CoherCopySrc;
+            postCopyBarrier.dstAccessMask = srcCoher;
+            postCopyBarrier.oldLayout     = { .usages = LayoutCopySrc, .engines = LayoutUniversalEngine };
+            postCopyBarrier.newLayout     = { .usages = srcLayoutUsages, .engines = srcLayoutEngine };
 
-        BarrierTransition postCopyTransition                 = {};
-        postCopyTransition.srcCacheMask                      = CoherCopySrc;
-        postCopyTransition.dstCacheMask                      = srcCoher;
-        postCopyTransition.imageInfo.pImage                  = pSrcImage;
-        postCopyTransition.imageInfo.subresRange.startSubres = baseSubres;
-        postCopyTransition.imageInfo.subresRange.numPlanes   = 1;
-        postCopyTransition.imageInfo.subresRange.numMips     = 1;
-        postCopyTransition.imageInfo.subresRange.numSlices   = arraySize;
-        postCopyTransition.imageInfo.oldLayout.usages        = LayoutCopySrc;
-        postCopyTransition.imageInfo.oldLayout.engines       = LayoutUniversalEngine;
-        postCopyTransition.imageInfo.newLayout.usages        = srcLayoutUsages;
-        postCopyTransition.imageInfo.newLayout.engines       = srcLayoutEngine;
-
-        postCopyBarrier.waitPoint           = isDraw ? HwPipePreRasterization : HwPipePreBlt;
-
-        const HwPipePoint postCopyPipePoint = HwPipePostBlt;
-        postCopyBarrier.pipePointWaitCount  = 1;
-        postCopyBarrier.pPipePoints         = &postCopyPipePoint;
-
-        postCopyBarrier.transitionCount  = 1;
-        postCopyBarrier.pTransitions     = &postCopyTransition;
-
-        CmdBarrier(postCopyBarrier);
+            AcquireReleaseInfo postCopyAcqRelInfo = {};
+            postCopyAcqRelInfo.imageBarrierCount  = 1;
+            postCopyAcqRelInfo.pImageBarriers     = &postCopyBarrier;
+            postCopyAcqRelInfo.reason             = Developer::BarrierReasonUnknown;
+            CmdReleaseThenAcquire(postCopyAcqRelInfo);
+        }
     }
 
     *ppDstImage = pDstImage;
@@ -825,28 +788,18 @@ void CmdBuffer::OverrideDepthFormat(
 // Issues barrier calls to sync all of surface capture's output images
 void CmdBuffer::SyncSurfaceCapture()
 {
-    BarrierInfo barrierInfo      = {};
-    BarrierTransition transition = {};
+    ImgBarrier imgBarrier = {};
+    imgBarrier.srcStageMask  = PipelineStageBottomOfPipe;
+    imgBarrier.dstStageMask  = PipelineStageTopOfPipe;
+    imgBarrier.srcAccessMask = CoherCopyDst;
+    imgBarrier.dstAccessMask = CoherCpu;
+    imgBarrier.oldLayout     = { .usages = LayoutCopyDst | LayoutUncompressed, .engines = LayoutUniversalEngine };
+    imgBarrier.newLayout     = { .usages = LayoutUncompressed, .engines = LayoutUniversalEngine };
 
-    transition.srcCacheMask                                 = CoherCopyDst;
-    transition.dstCacheMask                                 = CoherCpu;
-    transition.imageInfo.subresRange.startSubres.plane      = 0;
-    transition.imageInfo.subresRange.startSubres.mipLevel   = 0;
-    transition.imageInfo.subresRange.startSubres.arraySlice = 0;
-    transition.imageInfo.subresRange.numPlanes              = 1;
-    transition.imageInfo.oldLayout.usages                   = LayoutCopyDst | LayoutUncompressed;
-    transition.imageInfo.oldLayout.engines                  = LayoutUniversalEngine;
-    transition.imageInfo.newLayout.usages                   = LayoutUncompressed;
-    transition.imageInfo.newLayout.engines                  = LayoutUniversalEngine;
-
-    barrierInfo.transitionCount  = 1;
-    barrierInfo.pTransitions     = &transition;
-
-    barrierInfo.waitPoint           = HwPipeTop;
-
-    const HwPipePoint pipePoint     = HwPipeBottom;
-    barrierInfo.pipePointWaitCount  = 1;
-    barrierInfo.pPipePoints         = &pipePoint;
+    Pal::AcquireReleaseInfo acqRelInfo = {};
+    acqRelInfo.imageBarrierCount = 1;
+    acqRelInfo.pImageBarriers    = &imgBarrier;
+    acqRelInfo.reason            = Developer::BarrierReasonUnknown;
 
     if (m_surfaceCapture.pActions != nullptr)
     {
@@ -859,12 +812,11 @@ void CmdBuffer::SyncSurfaceCapture()
                 Image* pImage = pAction->pColorTargetDsts[mrt];
                 if (pImage != nullptr)
                 {
-                    ImageCreateInfo imageInfo                   = pImage->GetImageCreateInfo();
+                    const ImageCreateInfo& imageInfo = pImage->GetImageCreateInfo();
 
-                    transition.imageInfo.pImage                 = pImage;
-                    transition.imageInfo.subresRange.numMips    = imageInfo.mipLevels;
-                    transition.imageInfo.subresRange.numSlices  = imageInfo.arraySize;
-                    CmdBarrier(barrierInfo);
+                    imgBarrier.pImage      = pImage;
+                    imgBarrier.subresRange = SubresourceRange({}, 1, imageInfo.mipLevels, imageInfo.arraySize);
+                    CmdReleaseThenAcquire(acqRelInfo);
                 }
             }
 
@@ -873,23 +825,21 @@ void CmdBuffer::SyncSurfaceCapture()
                 Image* pImage = pAction->pDepthTargetDsts[plane];
                 if (pImage != nullptr)
                 {
-                    ImageCreateInfo imageInfo                   = pImage->GetImageCreateInfo();
+                    const ImageCreateInfo& imageInfo = pImage->GetImageCreateInfo();
 
-                    transition.imageInfo.pImage                 = pImage;
-                    transition.imageInfo.subresRange.numMips    = imageInfo.mipLevels;
-                    transition.imageInfo.subresRange.numSlices  = imageInfo.arraySize;
-                    CmdBarrier(barrierInfo);
+                    imgBarrier.pImage      = pImage;
+                    imgBarrier.subresRange = SubresourceRange({}, 1, imageInfo.mipLevels, imageInfo.arraySize);
+                    CmdReleaseThenAcquire(acqRelInfo);
                 }
              }
 
             if (pAction->pBlitImg != nullptr)
             {
-                ImageCreateInfo imageInfo                   = pAction->pBlitImg->GetImageCreateInfo();
+                const ImageCreateInfo& imageInfo = pAction->pBlitImg->GetImageCreateInfo();
 
-                transition.imageInfo.pImage                 = pAction->pBlitImg;
-                transition.imageInfo.subresRange.numMips    = imageInfo.mipLevels;
-                transition.imageInfo.subresRange.numSlices  = imageInfo.arraySize;
-                CmdBarrier(barrierInfo);
+                imgBarrier.pImage      = pAction->pBlitImg;
+                imgBarrier.subresRange = SubresourceRange({}, 1, imageInfo.mipLevels, imageInfo.arraySize);
+                CmdReleaseThenAcquire(acqRelInfo);
             }
         }
     }
@@ -2019,15 +1969,17 @@ void CmdBuffer::ReplayCmdSetGlobalScissor(
 }
 
 // =====================================================================================================================
-void CmdBuffer::CmdBarrierInternal(
-    const BarrierInfo& barrierInfo)
+void CmdBuffer::CmdReleaseThenAcquireInternal(
+    const AcquireReleaseInfo& barrierInfo)
 {
-    InsertToken(CmdBufCallId::CmdBarrier);
-    InsertToken(barrierInfo);
-    InsertTokenArray(barrierInfo.pPipePoints,  barrierInfo.pipePointWaitCount);
-    InsertTokenArray(barrierInfo.ppGpuEvents,  barrierInfo.gpuEventWaitCount);
-    InsertTokenArray(barrierInfo.ppTargets,    barrierInfo.rangeCheckedTargetWaitCount);
-    InsertTokenArray(barrierInfo.pTransitions, barrierInfo.transitionCount);
+    InsertToken(CmdBufCallId::CmdReleaseThenAcquire);
+    InsertToken(barrierInfo.srcGlobalStageMask);
+    InsertToken(barrierInfo.dstGlobalStageMask);
+    InsertToken(barrierInfo.srcGlobalAccessMask);
+    InsertToken(barrierInfo.dstGlobalAccessMask);
+    InsertTokenArray(barrierInfo.pMemoryBarriers, barrierInfo.memoryBarrierCount);
+    InsertTokenArray(barrierInfo.pImageBarriers, barrierInfo.imageBarrierCount);
+    InsertToken(barrierInfo.reason);
 }
 
 // =====================================================================================================================
@@ -2035,7 +1987,14 @@ void CmdBuffer::CmdBarrier(
     const BarrierInfo& barrierInfo)
 {
     HandleBarrierBlt(true, true);
-    CmdBarrierInternal(barrierInfo);
+
+    InsertToken(CmdBufCallId::CmdBarrier);
+    InsertToken(barrierInfo);
+    InsertTokenArray(barrierInfo.pPipePoints,  barrierInfo.pipePointWaitCount);
+    InsertTokenArray(barrierInfo.ppGpuEvents,  barrierInfo.gpuEventWaitCount);
+    InsertTokenArray(barrierInfo.ppTargets,    barrierInfo.rangeCheckedTargetWaitCount);
+    InsertTokenArray(barrierInfo.pTransitions, barrierInfo.transitionCount);
+
     HandleBarrierBlt(true, false);
 }
 
@@ -2259,16 +2218,7 @@ void CmdBuffer::CmdReleaseThenAcquire(
     const AcquireReleaseInfo& barrierInfo)
 {
     HandleBarrierBlt(true, true);
-
-    InsertToken(CmdBufCallId::CmdReleaseThenAcquire);
-    InsertToken(barrierInfo.srcGlobalStageMask);
-    InsertToken(barrierInfo.dstGlobalStageMask);
-    InsertToken(barrierInfo.srcGlobalAccessMask);
-    InsertToken(barrierInfo.dstGlobalAccessMask);
-    InsertTokenArray(barrierInfo.pMemoryBarriers, barrierInfo.memoryBarrierCount);
-    InsertTokenArray(barrierInfo.pImageBarriers, barrierInfo.imageBarrierCount);
-    InsertToken(barrierInfo.reason);
-
+    CmdReleaseThenAcquireInternal(barrierInfo);
     HandleBarrierBlt(true, false);
 }
 

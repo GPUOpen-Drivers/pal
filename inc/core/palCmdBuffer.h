@@ -374,13 +374,12 @@ enum CacheCoherencyUsageFlags : uint32
     CoherMemory             = 0x00020000,     ///< Data read or written directly from/to memory
     CoherSampleRate         = 0x00040000,     ///< CmdBindSampleRateImage() source.
     CoherPresent            = 0x00080000,     ///< Source of present.
-    CoherCp                 = CoherTimestamp, ///< HW Command Processor (CP) encompassing the front - end command
-                                              ///  processing of any queue, including SDMA.
+    CoherCp                 = 0x00200000,     ///< HW Command Processor (CP) encompassing the front - end command
+    CoherAllUsages          = 0x003FFFFF,     ///<  processing of any queue, including SDMA.
+
     CoherShader             = CoherShaderRead | CoherShaderWrite,
     CoherCopy               = CoherCopySrc    | CoherCopyDst,
     CoherResolve            = CoherResolveSrc | CoherResolveDst,
-
-    CoherAllUsages          = 0x000FFFFF,
 };
 
 /// Bitmask values for the flags parameter of ICmdBuffer::CmdClearColorImage().
@@ -1077,13 +1076,15 @@ struct ImgBarrier
                                  ///  engines up to this point.  These masks imply the previous compression state. No
                                  ///  usage flags should ever be set in oldLayout.usages that correspond to usages
                                  ///  that are not supported by the engine that is performing the transition.  The
-                                 ///  engine type performing the transition must be set in oldLayout.engines.
+                                 ///  engine type performing the transition must be set in oldLayout.engines. Can set
+                                 ///  both oldLayout and newLayout to zero value for no layout transition case.
     ImageLayout   newLayout;     ///< Specifies the upcoming image layout based on bitmasks of allowed operations and
                                  ///  engines after this point.  These masks imply the upcoming compression state.
                                  ///  point.  A difference between oldLayoutUsageMask and newLayoutUsageMask may result
                                  ///  in a decompression.  PAL's implementation will ensure the results of any layout
                                  ///  operations are consistent with the requested availability and visibility
-                                 ///  operations.
+                                 ///  operations. Can set both oldLayout and newLayout to zero value for no layout
+                                 ///  transition case.
 
     /// Specifies a custom sample pattern over a 2x2 pixel quad.  The position for each sample is specified on a grid
     /// where the pixel center is <0,0>, the top left corner of the pixel is <-8,-8>, and <7,7> is the maximum valid
@@ -2865,9 +2866,6 @@ public:
     /// CmdAcquire() call is expected to wait on one or a list of such synchronization tokens and perform any necessary
     /// visibility operations and/or layout transitions that could not be predicted at release-time.
     ///
-    /// @note Not all hardware can support the acquire/release mechanism with good performance.  This call is only
-    ///       valid if supportReleaseAcquireInterface is set in the GFXIP properties section of @ref DeviceProperties.
-    ///
     /// @param [in]  releaseInfo  Describes the synchronization scope, availability operations, and required layout
     ///                           transitions.
     /// @returns Synchronization token for the release operation.  Pass this token to CmdAcquire to confirm completion.
@@ -2880,9 +2878,6 @@ public:
 
     /// Performs the acquire portion of an acquire/release-based barrier.  This acquire a set of resources for a new
     /// set of usages, assuming CmdRelease() was called to release access for the resource's past usage.
-    ///
-    /// @note Not all hardware can support the acquire/release mechanism with good performance.  This call is only
-    ///       valid if supportReleaseAcquireInterface is set in the GFXIP properties section of @ref DeviceProperties.
     ///
     /// Conceptually, this method will:
     ///   - Ensure all specified resources are visible in memory.  The visibility operation will invalidate all
@@ -2919,9 +2914,6 @@ public:
     /// CmdAcquireEvent() call is expected to wait on this event and perform any necessary visibility operations and/or
     /// layout transitions that could not be predicted at release-time.
     ///
-    /// @note Not all hardware can support the acquire/release mechanism with good performance.  This call is only
-    ///       valid if supportReleaseAcquireInterface is set in the GFXIP properties section of @ref DeviceProperties.
-    ///
     /// @param [in] releaseInfo Describes the synchronization scope, availability operations, and required layout
     ///                         transitions.
     /// @param [in] pGpuEvent   Event to be signaled once the release has completed.  Must be a valid (non-null) GPU
@@ -2941,9 +2933,6 @@ public:
     ///     relevant caches above the last-level-cache.
     ///   - Perform any requested layout transitions.
     ///
-    /// @note Not all hardware can support the acquire/release mechanism with good performance.  This call is only
-    ///       valid if supportReleaseAcquireInterface is set in the GFXIP properties section of @ref DeviceProperties.
-    ///
     /// @param [in] acquireInfo    Describes the synchronization scope, visibility operations, and the required layout
     ///                            layout transitions.
     /// @param [in] gpuEventCount  Number of entries in pGpuEvents.
@@ -2962,9 +2951,6 @@ public:
     /// application cannot detect separate release and acquire points for a transition.
     ///
     /// Effectively equivalent to @ref ICmdBuffer::CmdBarrier.
-    ///
-    /// @note Not all hardware can support the acquire/release mechanism with good performance.  This call is only
-    ///       valid if supportReleaseAcquireInterface is set in the GFXIP properties section of @ref DeviceProperties.
     ///
     /// @param [in] barrierInfo  Describes the synchronization scopes, availability/visibility operations, and the
     ///                          required layout transitions.
@@ -3370,6 +3356,11 @@ public:
     /// The source and destination images must to be of the same type (1D, 2D or 3D), or optionally 2D and 3D with the
     /// number of slices matching the depth.  MSAA source and destination images must have the same number of samples.
     ///
+    /// Each region must satisfy these restrictions.
+    /// - srcOffset >= 0 and dstOffset >= 0
+    /// - srcOffset + extent <= srcSubres's extent
+    /// - dstOffset + extent <= dstSubres's extent
+    ///
     /// Images copied via this function must have x/y/z offsets and width/height/depth extents aligned to the minimum
     /// tiled copy alignment specified in @ref DeviceProperties for the engine this function is executed on.  Note that
     /// the DMA engine supports tiled copies regardless of the alignment; the reported minimum tiled copy alignments
@@ -3416,6 +3407,8 @@ public:
     /// The source memory offset has to be aligned to the smaller of the copied texel size or 4 bytes.  A destination
     /// subresource cannot be present more than once per CmdCopyMemoryToImage() call.
     ///
+    /// Each region's imageOffset must be >= 0 and imageOffset + imageExtent must be <= imageSubres's extent.
+    ///
     /// This function requires use of the following barrier flags:
     /// - PipelineStage:  @ref PipelineStageBlt
     /// - CacheCoherency: @ref CoherCopySrc for the source and @ref CoherCopyDst for the destination.
@@ -3444,6 +3437,8 @@ public:
     ///
     /// The destination memory offset has to be aligned to the smaller of the copied texel size or 4 bytes.  A
     /// destination region cannot be present more than once per CmdCopyImageToMemory() call.
+    ///
+    /// Each region's imageOffset must be >= 0 and imageOffset + imageExtent must be <= imageSubres's extent.
     ///
     /// This function requires use of the following barrier flags:
     /// - PipelineStage:  @ref PipelineStageBlt
@@ -3478,6 +3473,8 @@ public:
     /// The source memory offset has to be aligned to the smaller of the copied texel size or 4 bytes.  A destination
     /// subresource cannot be present more than once per CmdCopyMemoryToTiledImage() call.
     ///
+    /// Each region's imageOffset must be >= 0 and imageOffset + imageExtent must be <= imageSubres's extent.
+    ///
     /// This function requires use of the following barrier flags:
     /// - PipelineStage:  @ref PipelineStageBlt
     /// - CacheCoherency: @ref CoherCopySrc for the source and @ref CoherCopyDst for the destination.
@@ -3510,6 +3507,8 @@ public:
     ///
     /// The destination memory offset has to be aligned to the smaller of the copied texel size or 4 bytes.  A
     /// destination region cannot be present more than once per CmdCopyTiledImageToMemory() call.
+    ///
+    /// Each region's imageOffset must be >= 0 and imageOffset + imageExtent must be <= imageSubres's extent.
     ///
     /// This function requires use of the following barrier flags:
     /// - PipelineStage:  @ref PipelineStageBlt
@@ -4033,6 +4032,7 @@ public:
         const IGpuEvent& gpuEvent,
         uint32           stageMask) = 0;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 900
     /// Puts the specified GPU event into the _set_ state when all previous GPU work reaches the specified point in the
     /// pipeline.
     ///
@@ -4062,6 +4062,7 @@ public:
         const IGpuEvent& gpuEvent,
         HwPipePoint      resetPoint)
         { CmdResetEvent(gpuEvent, HwPipePointToStage[resetPoint]); }
+#endif
 
     /// Predicate the subsequent jobs in the command buffer if the event is set.
     ///
@@ -4202,6 +4203,7 @@ public:
         ImmediateDataWidth dataSize,
         gpusize            address) = 0;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 900
     /// Writes a HwPipePostPrefetch or HwPipeBottom timestamp to the specified memory location.
     ///
     /// The timestamp data is a 64-bit value that increments once per clock.  timestampFrequency in DeviceProperties
@@ -4249,6 +4251,7 @@ public:
         ImmediateDataWidth dataSize,
         gpusize            address)
         { CmdWriteImmediate(HwPipePointToStage[pipePoint], data, dataSize, address); }
+#endif
 
     /// Loads the current stream-out buffer-filled-sizes stored on the GPU from memory, typically from a target of a
     /// prior CmdSaveBufferFilledSizes() call.
@@ -4911,6 +4914,7 @@ private:
     /// For non-top-layer objects, this will point to the layer above the current object.
     void* m_pClientData;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 900
     /// @internal Some back-compat glue for some of the HwPipePoint interfaces in this file.
     static constexpr uint32 HwPipePointToStage[] =
     {
@@ -4928,6 +4932,7 @@ private:
             PipelineStageBlt,          // HwPipePostBlt          = 0x6
             PipelineStageBottomOfPipe, // HwPipeBottom           = 0x7
     };
+#endif
 };
 
 } // Pal

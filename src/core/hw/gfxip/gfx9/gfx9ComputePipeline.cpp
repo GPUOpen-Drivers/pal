@@ -245,7 +245,7 @@ Result ComputePipeline::HwlInit(
         // Update the pipeline signature with user-mapping data contained in the ELF:
         m_chunkCs.SetupSignatureFromElf(&m_signature, metadata, registers);
 
-        const uint32 scratchMemorySize = CalcScratchMemSize(m_pDevice->Parent()->ChipProperties().gfxLevel, metadata);
+        const uint32 scratchMemorySize = CalcScratchMemSize(metadata);
 
         if (scratchMemorySize != 0)
         {
@@ -290,7 +290,7 @@ Result ComputePipeline::HwlInit(
         // Update the pipeline signature with user-mapping data contained in the ELF:
         m_chunkCs.SetupSignatureFromElf(&m_signature, metadata);
 
-        const uint32 scratchMemorySize = CalcScratchMemSize(m_pDevice->Parent()->ChipProperties().gfxLevel, metadata);
+        const uint32 scratchMemorySize = CalcScratchMemSize(metadata);
 
         if (scratchMemorySize != 0)
         {
@@ -522,7 +522,6 @@ void ComputePipeline::SetStackSizeInBytes(
 
 // =====================================================================================================================
 uint32 ComputePipeline::CalcScratchMemSize(
-    GfxIpLevel                        gfxIpLevel,
     const PalAbi::CodeObjectMetadata& metadata)
 {
     uint32 scratchMemorySize = 0;
@@ -546,7 +545,6 @@ uint32 ComputePipeline::CalcScratchMemSize(
 }
 // =====================================================================================================================
 uint32 ComputePipeline::CalcScratchMemSize(
-    GfxIpLevel                        gfxIpLevel,
     const HsaAbi::CodeObjectMetadata& metadata)
 {
     uint32 scratchMemorySize = metadata.PrivateSegmentFixedSize();

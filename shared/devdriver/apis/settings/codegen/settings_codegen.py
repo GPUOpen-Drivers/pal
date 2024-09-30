@@ -724,8 +724,12 @@ def prepare_settings_list(settings: dict, top_level_enum_list: list):
                             if "EnumReference" in setting:
                                 raise ValueError(f'Non-bitmask setting {setting["Name"]} references an enum. But its "Type" is not "enum".')
                             else:
-                                # This could be a math expressions, so evaluate it:
-                                defaults[platform] = eval(value)
+                                try:
+                                    # This could be a math expressions, so evaluate it:
+                                    defaults[platform] = eval(value)
+                                except SyntaxError:
+                                    # Syntax error. Assume that this string is useful to the driver instead.
+                                    defaults[platform] = value
                         else:
                             if is_bitmask or setting_type == "enum":
                                 # Convert default values from string of enum value names to integers.

@@ -2072,7 +2072,8 @@ Result Device::GetProperties(
         {
             const auto& gfx9Props = m_chipProperties.gfx9;
 
-            pInfo->gfxipProperties.flags.u64All                             = 0;
+            pInfo->gfxipProperties.flags.u64All[0]                          = 0;
+            pInfo->gfxipProperties.flags.u64All[1]                          = 0;
             pInfo->gfxipProperties.flags.support8bitIndices                 = 0;
             pInfo->gfxipProperties.flags.supportFp16Fetch                   = gfx9Props.supportFp16Fetch;
             pInfo->gfxipProperties.flags.supportFp16Dot2                    = gfx9Props.supportFp16Dot2;
@@ -2098,9 +2099,11 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.supportPrimitiveOrderedPs        = gfx9Props.supportPrimitiveOrderedPs;
             pInfo->gfxipProperties.flags.supportImplicitPrimitiveShader   = gfx9Props.supportImplicitPrimitiveShader;
             pInfo->gfxipProperties.flags.supportSpp                       = gfx9Props.supportSpp;
-            pInfo->gfxipProperties.flags.supportReleaseAcquireInterface   = gfx9Props.supportReleaseAcquireInterface;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 893
+            pInfo->gfxipProperties.flags.supportReleaseAcquireInterface   = 1;
+#endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 883
-            pInfo->gfxipProperties.flags.supportSplitReleaseAcquire       = gfx9Props.supportSplitReleaseAcquire;
+            pInfo->gfxipProperties.flags.supportSplitReleaseAcquire       = 1;
 #endif
             pInfo->gfxipProperties.flags.supportCooperativeMatrix         = gfx9Props.supportCooperativeMatrix;
 
@@ -2147,6 +2150,7 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.supportRayTraversalStack        = gfx9Props.supportRayTraversalStack;
             pInfo->gfxipProperties.flags.supportPointerFlags             = gfx9Props.supportPointerFlags;
             pInfo->gfxipProperties.flags.supportSortAgnosticBarycentrics = gfx9Props.supportSortAgnosticBarycentrics;
+            pInfo->gfxipProperties.flags.supportBFloat16                 = gfx9Props.supportBFloat16;
             pInfo->gfxipProperties.flags.supportVrsWithDsExports         = gfx9Props.gfx10.supportVrsWithDsExports;
 
             pInfo->gfxipProperties.supportedVrsRates = gfx9Props.gfx10.supportedVrsRates;
@@ -2179,10 +2183,11 @@ Result Device::GetProperties(
                 }
             }
 
-            pInfo->gfxipProperties.flags.supportInt8Dot     = gfx9Props.supportInt8Dot;
-            pInfo->gfxipProperties.flags.supportInt4Dot     = gfx9Props.supportInt4Dot;
-            pInfo->gfxipProperties.flags.support2DRectList  = gfx9Props.support2DRectList;
-            pInfo->gfxipProperties.flags.support3dUavZRange = gfx9Props.support3dUavZRange;
+            pInfo->gfxipProperties.flags.supportInt8Dot         = gfx9Props.supportInt8Dot;
+            pInfo->gfxipProperties.flags.supportInt4Dot         = gfx9Props.supportInt4Dot;
+            pInfo->gfxipProperties.flags.supportMixedSignIntDot = gfx9Props.supportMixedSignIntDot;
+            pInfo->gfxipProperties.flags.support2DRectList      = gfx9Props.support2DRectList;
+            pInfo->gfxipProperties.flags.support3dUavZRange     = gfx9Props.support3dUavZRange;
         }
         else
         {
@@ -4622,7 +4627,7 @@ bool Device::UsingHdrColorspaceFormat(
 // Applies the developer overlay to the destination image by writing commands into the provided command buffer
 void Device::ApplyDevOverlay(
     const IImage& dstImage,
-    ICmdBuffer*   pCmdBuffer
+    CmdBuffer*    pCmdBuffer
     ) const
 {
     PAL_ASSERT(m_pPlatform->IsDeveloperModeEnabled());
@@ -4872,24 +4877,14 @@ void Device::ApplyDevOverlay(
         letterHeight += GpuUtil::TextWriterFont::LetterHeight;
     }
 
-    // Issue a barrier to ensure the text written via CS is complete and flushed out of L2.
-    BarrierInfo barrier = {};
-    barrier.waitPoint   = HwPipePreCs;
-
-    const HwPipePoint postCs   = HwPipePostCs;
-    barrier.pipePointWaitCount = 1;
-    barrier.pPipePoints        = &postCs;
-
-    BarrierTransition transition = {};
-    transition.srcCacheMask      = CoherShader;
-    transition.dstCacheMask      = CoherShader;
-
-    barrier.transitionCount = 1;
-    barrier.pTransitions    = &transition;
-
-    barrier.reason          = Developer::BarrierReasonDevDriverOverlay;
-
-    pCmdBuffer->CmdBarrier(barrier);
+    // Issue a barrier to ensure the text written via CS is complete and dst cache is flushed out.
+    AcquireReleaseInfo acqRelInfo = {};
+    acqRelInfo.srcGlobalStageMask  = PipelineStageCs;
+    acqRelInfo.dstGlobalStageMask  = PipelineStageCs;
+    acqRelInfo.srcGlobalAccessMask = CoherShader;
+    acqRelInfo.dstGlobalAccessMask = CoherShader;
+    acqRelInfo.reason              = Developer::BarrierReasonDevDriverOverlay;
+    pCmdBuffer->CmdReleaseThenAcquire(acqRelInfo);
 }
 
 // =====================================================================================================================

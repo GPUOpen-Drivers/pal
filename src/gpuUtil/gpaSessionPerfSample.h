@@ -50,7 +50,11 @@ namespace Pal
     class  IPerfExperiment;
     struct GlobalCounterLayout;
     struct ThreadTraceLayout;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 900
+    enum   PipelineStageFlag : uint32;
+#else
     enum   HwPipePoint : uint32;
+#endif
 }
 
 namespace GpuUtil
@@ -282,8 +286,13 @@ public:
         GpaAllocator*         pAllocator)
         :
         PerfSample(pDevice, pPerfExperiment, pAllocator),
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 900
+        m_preSample(Pal::PipelineStageTopOfPipe),
+        m_postSample(Pal::PipelineStageTopOfPipe),
+#else
         m_preSample(Pal::HwPipePoint::HwPipeTop),
         m_postSample(Pal::HwPipePoint::HwPipeTop),
+#endif
         m_pBeginTs(nullptr),
         m_pEndTs(nullptr),
         m_pBeginTsGpuMem(nullptr),
@@ -294,7 +303,11 @@ public:
 
     virtual ~TimingSample() {}
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 900
+    void Init(Pal::PipelineStageFlag preSample, Pal::PipelineStageFlag postSample)
+#else
     void Init(Pal::HwPipePoint preSample, Pal::HwPipePoint postSample)
+#endif
     {
         m_preSample  = preSample;
         m_postSample = postSample;
@@ -307,21 +320,30 @@ public:
     Pal::gpusize     GetBeginTsGpuMemOffset() { return m_beginTsGpuMemOffset; }
     Pal::IGpuMemory* GetEndTsGpuMem()         { return m_pEndTsGpuMem; }
     Pal::gpusize     GetEndTsGpuMemOffset()   { return m_endTsGpuMemOffset; }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 900
+    Pal::PipelineStageFlag GetPostSamplePoint() { return m_postSample; }
+#else
     Pal::HwPipePoint GetPostSamplePoint()     { return m_postSample; }
+#endif
 
 private:
-    Pal::HwPipePoint   m_preSample;
-    Pal::HwPipePoint   m_postSample;
-    const Pal::uint64* m_pBeginTs;            // CPU address of the pre-call timestamp.
-    const Pal::uint64* m_pEndTs;              // CPU address of the post-call timestamp.
-    Pal::IGpuMemory*   m_pBeginTsGpuMem;      // GPU object holding the pre-call timestamp.
-    Pal::IGpuMemory*   m_pEndTsGpuMem;        // GPU object holding the post-call timestamp.
-    Pal::gpusize       m_beginTsGpuMemOffset; // Offset into the GPU object where the pre-call timestamp is.
-    Pal::gpusize       m_endTsGpuMemOffset;   // Offset into the GPU object where the post-call timestamp is.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 900
+    Pal::PipelineStageFlag m_preSample;
+    Pal::PipelineStageFlag m_postSample;
+#else
+    Pal::HwPipePoint       m_preSample;
+    Pal::HwPipePoint       m_postSample;
+#endif
+    const Pal::uint64*     m_pBeginTs;            // CPU address of the pre-call timestamp.
+    const Pal::uint64*     m_pEndTs;              // CPU address of the post-call timestamp.
+    Pal::IGpuMemory*       m_pBeginTsGpuMem;      // GPU object holding the pre-call timestamp.
+    Pal::IGpuMemory*       m_pEndTsGpuMem;        // GPU object holding the post-call timestamp.
+    Pal::gpusize           m_beginTsGpuMemOffset; // Offset into the GPU object where the pre-call timestamp is.
+    Pal::gpusize           m_endTsGpuMemOffset;   // Offset into the GPU object where the post-call timestamp is.
 };
 
 // =====================================================================================================================
-// Handles PerfSample config specifc to pipeline stats query samples. Query samples don't use the perf experiment.
+// Handles PerfSample config specific to pipeline stats query samples. Query samples don't use the perf experiment.
 class GpaSession::QuerySample : public GpaSession::PerfSample
 {
 public:

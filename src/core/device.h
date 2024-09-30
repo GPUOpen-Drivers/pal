@@ -835,21 +835,6 @@ struct GpuChipProperties
                 uint64 supportPostDepthCoverage            :  1; // HW supports post depth coverage feature
                 uint64 supportSpiPrefPriority              :  1;
                 uint64 support1xMsaaSampleLocations        :  1; // HW supports 1xMSAA custom quad sample patterns
-                uint64 supportReleaseAcquireInterface      :  1; // Set if HW supports the basic functionalities of
-                                                                 // acquire /release-based barrier interface.This
-                                                                 // provides CmdReleaseThenAcquire() as a convenient
-                                                                 // way to replace the legacy barrier interface's
-                                                                 // CmdBarrier() to handle single point barriers.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 883
-                uint64 supportSplitReleaseAcquire          :  1; // Set if HW supports additional split barrier feature
-                                                                 // on top of basic acquire/release interface support.
-                                                                 // This provides CmdAcquire() and CmdRelease() to
-                                                                 // implement split barriers.
-                                                                 // Note: supportReleaseAcquireInterface is a
-                                                                 // prerequisite to supportSplitReleaseAcquire.
-#else
-                uint64 placeholder1                        :  1; // Placeholder. Do not use.
-#endif
                 uint64 eccProtectedGprs                    :  1; // Are VGPR's ECC-protected?
                 uint64 overrideDefaultSpiConfigCntl        :  1; // KMD provides default value for SPI_CONFIG_CNTL.
                 uint64 supportOutOfOrderPrimitives         :  1; // HW supports higher throughput for out of order
@@ -869,6 +854,8 @@ struct GpuChipProperties
                 uint64 supportTextureGatherBiasLod         :  1; // HW supports SQ_IMAGE_GATHER4_L_O
                 uint64 supportInt8Dot                      :  1; // HW supports a dot product 8bit.
                 uint64 supportInt4Dot                      :  1; // HW supports a dot product 4bit.
+                uint64 supportMixedSignIntDot              :  1; // HW supports a integer dot product with mixed sign
+                                                                 // inputs.
                 uint64 support2DRectList                   :  1; // HW supports PrimitiveTopology::TwoDRectList.
                 uint64 supportImageViewMinLod              :  1; // Indicates image srd supports min_lod.
                 uint64 stateShadowingByCpFw                :  1; // Indicates that state shadowing is done is CP FW.
@@ -877,6 +864,8 @@ struct GpuChipProperties
                                                                  // with zRange specified.
                 uint64 supportCooperativeMatrix            :  1; // HW supports cooperative matrix
                 uint64 placeholder6                        :  1;
+
+                uint32 supportBFloat16                     :  1; // Indicates support for bfloat16
                 uint64 reserved                            :  9;
             };
 
@@ -1778,7 +1767,7 @@ public:
 
     ImageTexOptLevel TexOptLevel() const { return m_texOptLevel; }
 
-    void ApplyDevOverlay(const IImage& dstImage, ICmdBuffer* pCmdBuffer) const;
+    void ApplyDevOverlay(const IImage& dstImage, CmdBuffer* pCmdBuffer) const;
 
     bool PhysicalEnginesAvailable() const { return m_flags.physicalEnginesAvailable; }
 

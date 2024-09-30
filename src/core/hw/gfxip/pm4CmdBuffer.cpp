@@ -70,7 +70,8 @@ Pm4CmdBuffer::Pm4CmdBuffer(
     m_pBarrierMgr(pBarrierMgr),
     m_numActiveQueries{},
     m_acqRelFenceVals{},
-    m_retiredAcqRelFenceVals{}
+    m_retiredAcqRelFenceVals{},
+    m_executeIndirectV2GlobalSpill(NoExecuteIndirectV2)
 {
     for (uint32 i = 0; i < static_cast<uint32>(QueryPoolType::Count); i++)
     {
@@ -933,6 +934,28 @@ void Pm4CmdBuffer::AddFceSkippedImageCounter(
     }
 
     pPm4Image->IncrementFceRefCount();
+}
+
+// =====================================================================================================================
+// Function which is called when  this CmdBuffer submission contains an ExecuteIndirect V2 PM4 that requires a
+// GlobalSpillBuffer allocation made by the driver. If it's Task+Mesh EI an allocation needs to be made for the Compute
+// and the Universal Queue.
+void Pm4CmdBuffer::SetExecuteIndirectV2GlobalSpill(
+    bool hasTask)
+{
+    // If the first EI has task and subsequent EI calls don't. We still need to allocate the GlobalSpill on ACE.
+    // So this value should not be overwritten.
+    if (m_executeIndirectV2GlobalSpill != ContainsExecuteIndirectV2WithTask)
+    {
+        if (hasTask)
+        {
+            m_executeIndirectV2GlobalSpill = ContainsExecuteIndirectV2WithTask;
+        }
+        else
+        {
+            m_executeIndirectV2GlobalSpill = ContainsExecuteIndirectV2;
+        }
+    }
 }
 
 // =====================================================================================================================

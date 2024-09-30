@@ -92,7 +92,7 @@ public:
     ///
     /// Binding memory to objects other than images automatically initializes the object memory as necessary. Image
     /// objects used as color or depth-stencil targets have to be explicitly initialized in command buffers using a
-    /// ICmdBuffer::CmdBarrier() command to transition them out of the LayoutUninitializedTarget usage.
+    /// ICmdBuffer::CmdReleaseThenAcquire() command to transition them out of the LayoutUninitializedTarget usage.
     ///
     /// Binding memory to an object automatically unbinds any previously bound memory. There is no need to bind null to
     /// an object to explicitly unbind a previously bound allocation before binding a new allocation.

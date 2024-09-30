@@ -36,20 +36,11 @@ namespace GpuUtil
 {
 namespace TextWriterFont
 {
-
 // =====================================================================================================================
-// Creates all compute pipeline objects required by TextWriter.
-template <typename Allocator>
-Pal::Result CreateTextWriterComputePipelines(
-    Pal::IDevice*    pDevice,
-    Allocator*       pAllocator,
-    Pal::IPipeline** pPipelineMem)
+// Helper function that returns a compute pipeline table for a given gfxIP
+static const PipelineBinary*const GetTextWriterComputePipelineTable(
+    const Pal::DeviceProperties& properties)
 {
-    Pal::Result result = Pal::Result::Success;
-
-    Pal::DeviceProperties properties = {};
-    pDevice->GetProperties(&properties);
-
     const PipelineBinary* pTable = nullptr;
 
     switch (Pal::uint32(properties.gfxTriple))
@@ -86,14 +77,9 @@ Pal::Result CreateTextWriterComputePipelines(
         break;
 #endif
 
-    default:
-        result = Pal::Result::ErrorUnknown;
-        PAL_NOT_IMPLEMENTED();
-        break;
     }
-
 #if PAL_BUILD_STRIX1
-    if ((properties.revision == Pal::AsicRevision::Strix1) &&
+    if ((Pal::uint32(properties.gfxTriple) == Pal::IpTriple({ 11, 5, 0 })) &&
         (getenv("GFX115_NPI_FEATURES") != nullptr) &&
         (Util::Strcasecmp(getenv("GFX115_NPI_FEATURES"), "none") == 0))
     {
@@ -101,7 +87,7 @@ Pal::Result CreateTextWriterComputePipelines(
     }
 #endif
 #if PAL_BUILD_STRIX1
-    if ((properties.revision == Pal::AsicRevision::Strix1) &&
+    if ((Pal::uint32(properties.gfxTriple) == Pal::IpTriple({ 11, 5, 0 })) &&
         (getenv("GFX115_NPI_FEATURES") != nullptr) &&
         (Util::Strcasecmp(getenv("GFX115_NPI_FEATURES"), "all") == 0))
     {
@@ -109,7 +95,7 @@ Pal::Result CreateTextWriterComputePipelines(
     }
 #endif
 #if PAL_BUILD_STRIX1
-    if ((properties.revision == Pal::AsicRevision::Strix1) &&
+    if ((Pal::uint32(properties.gfxTriple) == Pal::IpTriple({ 11, 5, 0 })) &&
         (getenv("GFX115_NPI_FEATURES") != nullptr) &&
         (Util::Strcasecmp(getenv("GFX115_NPI_FEATURES"), "onlyVGPRWriteKill") == 0))
     {
@@ -117,7 +103,7 @@ Pal::Result CreateTextWriterComputePipelines(
     }
 #endif
 #if PAL_BUILD_STRIX1
-    if ((properties.revision == Pal::AsicRevision::Strix1) &&
+    if ((Pal::uint32(properties.gfxTriple) == Pal::IpTriple({ 11, 5, 0 })) &&
         (getenv("GFX115_NPI_FEATURES") != nullptr) &&
         (Util::Strcasecmp(getenv("GFX115_NPI_FEATURES"), "noScalarFmacOps") == 0))
     {
@@ -125,13 +111,35 @@ Pal::Result CreateTextWriterComputePipelines(
     }
 #endif
 #if PAL_BUILD_STRIX1
-    if ((properties.revision == Pal::AsicRevision::Strix1) &&
+    if ((Pal::uint32(properties.gfxTriple) == Pal::IpTriple({ 11, 5, 0 })) &&
         (getenv("GFX115_NPI_FEATURES") != nullptr) &&
         (Util::Strcasecmp(getenv("GFX115_NPI_FEATURES"), "onlyScalarFloatOps") == 0))
     {
         pTable = textWriterComputeBinaryTableStrix1;
     }
 #endif
+
+    return pTable;
+}
+// =====================================================================================================================
+// Creates all compute pipeline objects required by TextWriter.
+template <typename Allocator>
+Pal::Result CreateTextWriterComputePipelines(
+    Pal::IDevice*    pDevice,
+    Allocator*       pAllocator,
+    Pal::IPipeline** pPipelineMem)
+{
+    Pal::Result result = Pal::Result::Success;
+
+    Pal::DeviceProperties properties = {};
+    pDevice->GetProperties(&properties);
+
+    const PipelineBinary* pTable = GetTextWriterComputePipelineTable(properties);
+    if (pTable == nullptr)
+    {
+        PAL_NOT_IMPLEMENTED();
+        result = Pal::Result::ErrorUnknown;
+    }
 
     if (result == Pal::Result::Success)
     {
