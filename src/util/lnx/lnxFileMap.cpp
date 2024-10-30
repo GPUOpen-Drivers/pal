@@ -58,7 +58,7 @@ FileMapping::~FileMapping()
 Result FileMapping::Create(
     const char* pFileName,    // Name of the file to create a mapping for.
     bool        allowWrite,   // whether or not to request executeable access
-    size_t      maximumSize,  // maximum size allowed for future mapping
+    size_t      mapSize,      // Initial Mapping Size.
     const char* pName)        // [In][Opt] System level name for mapping object
 {
     Result result = Result::ErrorUnknown;
@@ -77,7 +77,33 @@ Result FileMapping::Create(
 
     if (m_fileHandle != -1)
     {
-        if (ftruncate(m_fileHandle, maximumSize) == 0)
+        if ((m_writeable == false) || (ftruncate(m_fileHandle, mapSize) == 0))
+        {
+            result = Result::Success;
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Creates a new file memory mapping object from an existing file handle. This class assumes ownership of the handle.
+Result FileMapping::CreateFromHandle(
+    int         fileHandle,   // Existing Handle to map.
+    bool        allowWrite,   // whether or not to request executeable access
+    size_t      mapSize,      // Initial Mapping Size.
+    const char* pName)        // [In][Opt] System level name for mapping object
+{
+    Result result = Result::ErrorUnknown;
+
+    m_writeable = allowWrite;
+    m_pFileName = nullptr;
+    m_pSystemName = pName;
+    m_fileHandle = fileHandle;
+
+    if (m_fileHandle != -1)
+    {
+        if ((m_writeable == false) || (ftruncate(m_fileHandle, mapSize) == 0))
         {
             result = Result::Success;
         }
@@ -91,15 +117,14 @@ Result FileMapping::Create(
 Result FileMapping::ReloadMap(
     size_t newSize)  // new size that the mapping should be reopened with.
 {
-    int res = ftruncate(m_fileHandle, newSize);
-    if (res == 0)
+    Result result = Result::ErrorUnknown;
+
+    if ((m_writeable == false) || (ftruncate(m_fileHandle, newSize) == 0))
     {
-        return Result::Success;
+        result = Result::Success;
     }
-    else
-    {
-        return Result::ErrorUnknown;
-    }
+
+    return result;
 }
 
 // =====================================================================================================================
@@ -124,7 +149,7 @@ bool FileMapping::Flush()
 FileView::FileView()
     :
     m_pMappedMem(nullptr),
-    m_offestIntoView(0),
+    m_offsetIntoView(0),
     m_requestedSize(0)
 {
 }
@@ -142,16 +167,17 @@ void* FileView::Map(
     PAL_ASSERT(mappedFile.GetHandle() > 0);
     // offset should be aligned to page
     const int pageSize = sysconf(_SC_PAGE_SIZE);
-    m_offestIntoView = offset - offset / pageSize * pageSize;
-    m_requestedSize = (size + m_offestIntoView - 1);
+    m_offsetIntoView = offset - offset / pageSize * pageSize;
+    m_requestedSize = (size + m_offsetIntoView - 1);
 
-    m_pMappedMem = mmap(nullptr, m_requestedSize, PROT_READ|PROT_WRITE, MAP_SHARED,
+    const int prot = writeAccess ? (PROT_READ|PROT_WRITE) : PROT_READ;
+    m_pMappedMem = mmap(nullptr, m_requestedSize, prot, MAP_SHARED,
                         mappedFile.GetHandle(), offset / pageSize * pageSize );
     if (m_pMappedMem == MAP_FAILED)
     {
         m_pMappedMem = nullptr;
         m_requestedSize = 0;
-        m_offestIntoView = 0;
+        m_offsetIntoView = 0;
     }
     void* pMem = Ptr();
 
@@ -169,7 +195,7 @@ void FileView::UnMap(
     }
 
     m_pMappedMem = nullptr;
-    m_offestIntoView = 0;
+    m_offsetIntoView = 0;
     m_requestedSize = 0;
 }
 

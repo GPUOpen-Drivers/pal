@@ -151,7 +151,7 @@ Pal::Result CreateMlaaComputePipelines(
         (getenv("GFX115_NPI_FEATURES") != nullptr) &&
         (Util::Strcasecmp(getenv("GFX115_NPI_FEATURES"), "all") == 0))
     {
-        pTable = mlaaComputeBinaryTableStrix1_ALL;
+        pTable = mlaaComputeBinaryTableStrix1;
     }
 #endif
 #if PAL_BUILD_STRIX1
@@ -159,7 +159,7 @@ Pal::Result CreateMlaaComputePipelines(
         (getenv("GFX115_NPI_FEATURES") != nullptr) &&
         (Util::Strcasecmp(getenv("GFX115_NPI_FEATURES"), "onlyVGPRWriteKill") == 0))
     {
-        pTable = mlaaComputeBinaryTableStrix1_ALL;
+        pTable = mlaaComputeBinaryTableStrix1;
     }
 #endif
 #if PAL_BUILD_STRIX1
@@ -167,7 +167,7 @@ Pal::Result CreateMlaaComputePipelines(
         (getenv("GFX115_NPI_FEATURES") != nullptr) &&
         (Util::Strcasecmp(getenv("GFX115_NPI_FEATURES"), "noScalarFmacOps") == 0))
     {
-        pTable = mlaaComputeBinaryTableStrix1_ALL;
+        pTable = mlaaComputeBinaryTableStrix1;
     }
 #endif
 #if PAL_BUILD_STRIX1

@@ -155,7 +155,7 @@ protected:
         Pm4CmdBuffer*         pCmdBuffer,
         const Image&          dstImage,
         ImageLayout           dstImageLayout,
-        const ClearColor*     pColor,
+        const ClearColor&     color,
         const SwizzledFormat& clearFormat,
         const SubresRange&    clearRange,
         bool                  trackBltActiveFlags,
@@ -227,6 +227,11 @@ protected:
         const SubresRange& subres,
         ImageLayout        layout,
         bool               csFastClear) const;
+
+    static bool BoxesCoverWholeExtent(
+        const Extent3d& extent,
+        uint32          boxCount,
+        const Box*      pBoxes);
 
 private:
     virtual void CopyImageGraphics(

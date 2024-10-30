@@ -166,21 +166,36 @@ struct GangSubmitEngineSupportFlags
     };
 };
 
+struct UserModeSubmissionFlags
+{
+    union
+    {
+        struct
+        {
+            uint32 useSecondaryDoorbell : 1;  // Indicates if user mode submission requires a secondary
+                                              // (aka aggregate) doorbell
+            uint32 reserved             : 31;
+        };
+        uint32 u32All;
+    };
+};
+
 struct HwsInfo
 {
     union
     {
         struct
         {
-            uint32 gfxHwsEnabled     : 1;                // flag graphic engine enablement using OS HWS (MES)
-            uint32 computeHwsEnabled : 1;                // flag compute engine enablement using OS HWS (MES)
-            uint32 dmaHwsEnabled     : 1;                // flag dma engine enablement using OS HWS (MES)
-            uint32 vcnHwsEnabled     : 1;                // flag vcn engine enablement using OS HWS (MM HWS)
+            uint32 gfxHwsEnabled     : 1;  // flag graphic engine enablement using OS HWS (MES)
+            uint32 computeHwsEnabled : 1;  // flag compute engine enablement using OS HWS (MES)
+            uint32 dmaHwsEnabled     : 1;  // flag dma engine enablement using OS HWS (MES)
+            uint32 vcnHwsEnabled     : 1;  // flag vcn engine enablement using OS HWS (MM HWS)
             uint32 reserved1         : 1;
             uint32 reserved          : 27;
         };
         uint32 osHwsEnableFlags;
     };
+
     HwsContextInfo               gfx;                    // Graphics HWS context info
     HwsContextInfo               compute;                // Compute HWS context info
     HwsContextInfo               sdma;                   // SDMA HWS context info
@@ -190,8 +205,13 @@ struct HwsInfo
     uint64                       videoEngineOrdinalMask; // Indicates which video engines (by ordinal) support UMS HWS
     // Indicates whether this engine instance can be used for gang submission workloads via a multi-queue.
     GangSubmitEngineSupportFlags gangSubmitEngineFlags;
+    UserModeSubmissionFlags      userModeSubmissionFlags;
     // Indicates the number of available pipes for each engine type.
     HwsPipesPerEngine            numOfPipesPerEngine;
+    // Indicate which nodes support native fences (each bit represents a node ordinal)
+    uint64                       nativeFenceNodeOrdinalMask;
+    // Indicate which nodes support user mode submission (each bit represents a node ordinal)
+    uint64                       userModeSubmissionNodeOrdinalMask;
 };
 
 // Additional flags that are kept with the IP levels
@@ -860,12 +880,10 @@ struct GpuChipProperties
                 uint64 supportImageViewMinLod              :  1; // Indicates image srd supports min_lod.
                 uint64 stateShadowingByCpFw                :  1; // Indicates that state shadowing is done is CP FW.
                 uint64 stateShadowingByCpFwUserAlloc       :  1; // FW state shadowing memory is allocated by PAL.
-                uint64 support3dUavZRange                  :  1; // HW supports read-write ImageViewSrds of 3D images
-                                                                 // with zRange specified.
                 uint64 supportCooperativeMatrix            :  1; // HW supports cooperative matrix
                 uint64 placeholder6                        :  1;
-
                 uint32 supportBFloat16                     :  1; // Indicates support for bfloat16
+                uint32 supportFloat8                       :  1; // HW supports float 8-bit.
                 uint64 reserved                            :  9;
             };
 
@@ -1370,6 +1388,8 @@ public:
         const QueueSemaphoreCreateInfo& createInfo,
         void*                           pPlacementAddr,
         IQueueSemaphore**               ppQueueSemaphore) override;
+
+    virtual bool IsNativeFenceSupported() const = 0;
 
     // NOTE: Part of the public IDevice interface.
     virtual size_t GetSharedQueueSemaphoreSize(

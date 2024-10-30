@@ -26,7 +26,7 @@
 find_package(Wayland)
 target_include_directories(pal PRIVATE ${WAYLAND_CLIENT_INCLUDE_DIR})
 
-add_subdirectory(mesa)
+add_subdirectory(protocol)
 
 target_sources(pal PRIVATE
     CMakeLists.txt

@@ -37,8 +37,7 @@ ShaderLibrary::ShaderLibrary(
     m_pDevice(pDevice),
     m_info{},
     m_flags{},
-    m_pCodeObjectBinary(nullptr),
-    m_codeObjectBinaryLen(0)
+    m_codeObject{}
 {
 }
 
@@ -52,17 +51,17 @@ Result ShaderLibrary::InitializeCodeObject(
 
     if ((createInfo.pCodeObject != nullptr) && (createInfo.codeObjectSize != 0))
     {
-        m_flags               = createInfo.flags;
-        m_codeObjectBinaryLen = createInfo.codeObjectSize;
-        m_pCodeObjectBinary   = PAL_MALLOC(m_codeObjectBinaryLen, m_pDevice->GetPlatform(), AllocInternal);
+        m_flags      = createInfo.flags;
+        m_codeObject = Span<void>(PAL_MALLOC(createInfo.codeObjectSize, m_pDevice->GetPlatform(), AllocInternal),
+            createInfo.codeObjectSize);
 
-        if (m_pCodeObjectBinary == nullptr)
+        if (m_codeObject.Data() == nullptr)
         {
             result = Result::ErrorOutOfMemory;
         }
         else
         {
-            memcpy(m_pCodeObjectBinary, createInfo.pCodeObject, m_codeObjectBinaryLen);
+            memcpy(m_codeObject.Data(), createInfo.pCodeObject, m_codeObject.SizeInBytes());
         }
     }
     else
@@ -81,7 +80,7 @@ Result ShaderLibrary::InitFromCodeObjectBinary(
     const PalAbi::CodeObjectMetadata& metadata,
     MsgPackReader*                    pMetadataReader)
 {
-    PAL_ASSERT((m_pCodeObjectBinary != nullptr) && (m_codeObjectBinaryLen != 0));
+    PAL_ASSERT((m_codeObject.Data() != nullptr) && (m_codeObject.SizeInBytes() != 0));
 
     ExtractLibraryInfo(metadata);
     DumpLibraryElf(createInfo.flags.isGraphics? "LibraryGraphics": "LibraryCs", metadata.pipeline.name);
@@ -118,16 +117,16 @@ Result ShaderLibrary::GetCodeObject(
 
     if (pSize != nullptr)
     {
-        if ((m_pCodeObjectBinary != nullptr) && (m_codeObjectBinaryLen != 0))
+        if ((m_codeObject.Data() != nullptr) && (m_codeObject.SizeInBytes() != 0))
         {
             if (pBuffer == nullptr)
             {
-                (*pSize) = static_cast<uint32>(m_codeObjectBinaryLen);
+                (*pSize) = static_cast<uint32>(m_codeObject.SizeInBytes());
                 result = Result::Success;
             }
-            else if ((*pSize) >= static_cast<uint32>(m_codeObjectBinaryLen))
+            else if ((*pSize) >= static_cast<uint32>(m_codeObject.SizeInBytes()))
             {
-                memcpy(pBuffer, m_pCodeObjectBinary, m_codeObjectBinaryLen);
+                memcpy(pBuffer, m_codeObject.Data(), m_codeObject.SizeInBytes());
                 result = Result::Success;
             }
             else
@@ -155,8 +154,8 @@ void ShaderLibrary::DumpLibraryElf(
         name,
         m_info.internalLibraryHash,
         false,
-        m_pCodeObjectBinary,
-        m_codeObjectBinaryLen);
+        m_codeObject.Data(),
+        m_codeObject.SizeInBytes());
 }
 
 // =====================================================================================================================
@@ -201,7 +200,7 @@ Result ShaderLibrary::GetShaderFunctionInfos(
 {
     Result result = Result::Success;
     // We can re-parse the saved pipeline ELF binary to extract shader statistics.
-    const Elf::SymbolTableEntry* pSymbol = abiReader.GetGenericSymbol(shaderExportName);
+    const Elf::SymbolTableEntry* pSymbol = abiReader.GetSymbolHeader(shaderExportName);
     if (pSymbol != nullptr)
     {
         pShaderStats->isaSizeInBytes = static_cast<size_t>(pSymbol->st_size);

@@ -1421,11 +1421,6 @@ void GraphicsPipeline::SetupNonShaderRegisters(
         m_regs.other.cbTargetMask.u32All   |= mask;
     }
 
-    if (m_signature.uavExportTableAddr != UserDataNotMapped)
-    {
-        m_flags.uavExportRequiresFlush = (createInfo.cbState.uavExportSingleDraw == false);
-    }
-
     m_flags.alphaToCoverageEnable = (createInfo.cbState.alphaToCoverageEnable == true);
 
     // Override some register settings based on toss points.  These toss points cannot be processed in the hardware
@@ -1855,14 +1850,12 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
 
                 m_perfDataInfo[PalToAbiHwShaderStage[stageId]].regOffset = offset;
             }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 904
             else if (value == static_cast<uint32>(Abi::UserDataMapping::UavExportTable))
             {
-                // There can be only one uav export table per pipeline
-                PAL_ASSERT((m_signature.uavExportTableAddr == offset) ||
-                           (m_signature.uavExportTableAddr == UserDataNotMapped));
-
-                m_signature.uavExportTableAddr = offset;
+                PAL_ASSERT_ALWAYS_MSG("PAL no longer supports UAV Export");
             }
+#endif
             else if (value == static_cast<uint32>(Abi::UserDataMapping::NggCullingData))
             {
                 // There can be only one NGG culling data buffer per pipeline, and it must be used by the
@@ -2549,7 +2542,6 @@ void GraphicsPipeline::SetupSignatureFromLib(
     m_signature.nggCullingDataAddr      = pPreRasterLib->m_signature.nggCullingDataAddr;
     m_signature.primsNeededCntAddr      = pPreRasterLib->m_signature.primsNeededCntAddr;
     m_signature.streamoutCntlBufRegAddr = pPreRasterLib->m_signature.streamoutCntlBufRegAddr;
-    m_signature.uavExportTableAddr      = pPsLib->m_signature.uavExportTableAddr;
     m_signature.sampleInfoRegAddr       = pPsLib->m_signature.sampleInfoRegAddr;
     m_signature.colorExportAddr         = pPsLib->m_signature.colorExportAddr;
     m_signature.dualSourceBlendInfoRegAddr = pPsLib->m_signature.dualSourceBlendInfoRegAddr;

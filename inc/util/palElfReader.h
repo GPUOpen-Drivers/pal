@@ -78,6 +78,9 @@ public:
         PAL_ASSERT_MSG(GetHeader().ei_data == Util::Elf::ElfLittleEndian,
             "Elf reader can only read little endian elfs");
     }
+
+    explicit Reader(Span<const char> data) : Reader(data.Data()) { };
+
     const void* GetData() const { return m_pData; }
 
     // File information

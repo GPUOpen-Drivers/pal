@@ -67,6 +67,8 @@ Pm4CmdBuffer::Pm4CmdBuffer(
     m_pm4CmdBufState{},
     m_computeState{},
     m_computeRestoreState{},
+    m_predGpuAddr(0),
+    m_inheritedPredGpuAddr(0),
     m_pBarrierMgr(pBarrierMgr),
     m_numActiveQueries{},
     m_acqRelFenceVals{},
@@ -110,6 +112,17 @@ Result Pm4CmdBuffer::Begin(
         if (info.pInheritedState != nullptr)
         {
             m_pm4CmdBufState.flags.packetPredicate = info.pInheritedState->stateFlags.predication;
+
+            if (info.pInheritedState->stateFlags.predication)
+            {
+                // Allocate the SET_PREDICATION emulation/COND_EXEC memory to be populated by the root-level cmdbuffer
+                uint32* pPredCpuAddr = CmdAllocateEmbeddedData(1, 1, &m_predGpuAddr);
+                // Save nested cmdbuff pred address in case of future allocations which may rewrite m_predGpuAddr
+                m_inheritedPredGpuAddr = m_predGpuAddr;
+
+                // Initialize the COND_EXEC command memory to non-zero, i.e. always execute
+                *pPredCpuAddr = 1;
+            }
         }
 
         // If this is a nested command buffer execution, this value should be set to 1
@@ -376,6 +389,10 @@ void Pm4CmdBuffer::ResetState()
             m_pm4CmdBufState.flags.cpWriteCachesDirty = 1;
         }
     }
+
+    // Command buffers start without a valid predicate GPU address.
+    m_predGpuAddr          = 0;
+    m_inheritedPredGpuAddr = 0;
 
     memset(m_acqRelFenceVals, 0, sizeof(m_acqRelFenceVals));
     memset(m_retiredAcqRelFenceVals, 0, sizeof(m_retiredAcqRelFenceVals));

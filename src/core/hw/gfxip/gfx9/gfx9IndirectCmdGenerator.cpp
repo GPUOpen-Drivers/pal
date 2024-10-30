@@ -113,6 +113,7 @@ IndirectCmdGenerator::IndirectCmdGenerator(
     :
     Pm4::IndirectCmdGenerator(device, createInfo),
     m_bindsIndexBuffer(false),
+    m_hasIncrementConstant(false),
     m_usingExecuteIndirectPacket(false),
     m_pParamData(reinterpret_cast<IndirectParamData*>(this + 1)),
     m_pCreationParam(reinterpret_cast<IndirectParam*>(m_pParamData+PaddedParamCount(createInfo.paramCount))),
@@ -293,7 +294,9 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
     case IndirectOpType::Dispatch:
         size = DispatchCmdBufSize;
         break;
+    case IndirectOpType::SetIncConst:
     case IndirectOpType::SetUserData:
+        // Max cmd buf size calculation of SetIncConst is the same as that of SetUserData
         if (m_usingExecuteIndirectPacket)
         {
             // The absolute worst case scenario is that every SGPR is sparsely mapped into the virtual user-data range
@@ -305,7 +308,7 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
         }
         else
         {
-            // SETUSERDATA operations generate the following PM4 packets in the worst case:
+            // SETUSERDATA / SETINCCONST operations generate the following PM4 packets in the worst case:
             //  + SET_SH_REG (N registers; one packet per shader stage)
             size = ((CmdUtil::ShRegSizeDwords + param.userData.entryCount) * shaderStageCount);
         }
@@ -350,6 +353,12 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
         }
     }
 
+    // Additional cmd buf size introduced by constant increment. This is packet path only.
+    if (m_usingExecuteIndirectPacket && ContainsIncrementingConstant())
+    {
+        size += (CmdUtil::AtomicMemSizeDwords + CmdUtil::PfpSyncMeSizeDwords);
+    }
+
     if (m_device.Parent()->IssueSqttMarkerEvents())
     {
         size += CmdUtil::WriteNonSampleEventDwords;
@@ -365,8 +374,7 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
 void IndirectCmdGenerator::InitParamBuffer(
     const IndirectCmdGeneratorCreateInfo& createInfo)
 {
-    constexpr uint32 BufferSrdDwords = ((sizeof(BufferSrd) / sizeof(uint32)));
-    const bool       isGfx11         = IsGfx11(Properties().gfxLevel);
+    const bool isGfx11 = IsGfx11(Properties().gfxLevel);
 
     memset(m_pParamData, 0, (sizeof(IndirectParamData) * PaddedParamCount(ParameterCount())));
 
@@ -422,7 +430,12 @@ void IndirectCmdGenerator::InitParamBuffer(
                                                : IndirectOpType::DrawIndexAuto;
                 break;
             case IndirectParamType::SetUserData:
-                m_pParamData[p].type    = IndirectOpType::SetUserData;
+                m_pParamData[p].type = param.userData.isIncConst ? IndirectOpType::SetIncConst
+                                                                 : IndirectOpType::SetUserData;
+                if (m_pParamData[p].type == IndirectOpType::SetIncConst)
+                {
+                    m_hasIncrementConstant = true;
+                }
                 m_pParamData[p].data[0] = param.userData.firstEntry;
                 m_pParamData[p].data[1] = param.userData.entryCount;
                 // The user-data watermark tracks the highest index (plus one) of user-data entries modified by this
@@ -441,10 +454,10 @@ void IndirectCmdGenerator::InitParamBuffer(
                 break;
             case IndirectParamType::BindVertexData:
                 m_pParamData[p].type    = IndirectOpType::VertexBufTableSrd;
-                m_pParamData[p].data[0] = (param.vertexData.bufferId * BufferSrdDwords);
+                m_pParamData[p].data[0] = (param.vertexData.bufferId * DwordsPerBufferSrd);
                 // Update the vertex buffer table size to indicate to the command-generation shader that the vertex
                 // buffer is being updated by this generator.
-                m_properties.vertexBufTableSize = (BufferSrdDwords * MaxVertexBuffers);
+                m_properties.vertexBufTableSize = (DwordsPerBufferSrd * MaxVertexBuffers);
                 break;
             default:
                 PAL_NOT_IMPLEMENTED();

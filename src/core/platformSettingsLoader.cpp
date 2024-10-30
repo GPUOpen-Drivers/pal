@@ -92,7 +92,7 @@ void PlatformSettingsLoader::ReadAssertAndPrintSettings(
 
         // read debug print output mode from registry or config file
         ret = pDevice->ReadSetting(DbgPrintSettingsTbl[dpTblIdx].pRegString,
-                                   ValueType::Uint,
+                                   ValueType::Uint32,
                                    &outputMode,
                                    InternalSettingScope::PrivatePalKey);
 

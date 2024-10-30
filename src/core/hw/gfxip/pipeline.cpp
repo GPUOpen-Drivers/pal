@@ -30,6 +30,7 @@
 #include "core/platform.h"
 #include "core/hw/gfxip/gfxDevice.h"
 #include "core/hw/gfxip/pipeline.h"
+#include "core/hw/gfxip/codeObjectUploader.h"
 #include "core/hw/gfxip/graphicsShaderLibrary.h"
 #include "palFile.h"
 #include "palEventDefs.h"
@@ -39,9 +40,6 @@ using namespace Util;
 
 namespace Pal
 {
-
-// GPU memory alignment for shader programs.
-constexpr gpusize GpuMemByteAlign = 256;
 
 // =====================================================================================================================
 Pipeline::Pipeline(
@@ -54,8 +52,7 @@ Pipeline::Pipeline(
     m_gpuMem(),
     m_gpuMemSize(0),
     m_gpuMemOffset(0),
-    m_pPipelineBinary(nullptr),
-    m_pipelineBinaryLen(0),
+    m_pipelineBinary(),
     m_perfDataInfo{},
     m_apiHwMapping{},
     m_uploadFenceToken(0),
@@ -87,7 +84,8 @@ Pipeline::~Pipeline()
     data.pObj = this;
     m_pDevice->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceDestroyEvent(data);
 
-    PAL_SAFE_FREE(m_pPipelineBinary, m_pDevice->GetPlatform());
+    PAL_FREE(m_pipelineBinary.Data(), m_pDevice->GetPlatform());
+    m_pipelineBinary = {};
 }
 
 // =====================================================================================================================
@@ -119,7 +117,7 @@ Result Pipeline::PerformRelocationsAndUploadToGpuMemory(
         GpuMemoryCreateInfo createInfo = { };
         createInfo.heapCount           = 1;
         createInfo.heaps[0]            = GpuHeap::GpuHeapLocal;
-        createInfo.alignment           = GpuMemByteAlign;
+        createInfo.alignment           = GpuSectionMemByteAlign;
         createInfo.vaRange             = VaRange::DescriptorTable;
         createInfo.priority            = GpuMemPriority::High;
         createInfo.size                = m_perfDataGpuMemSize;
@@ -142,7 +140,7 @@ Result Pipeline::PerformRelocationsAndUploadToGpuMemory(
             m_perfDataMem.Update(pGpuMem, perfDataOffset);
 
             void* pPerfDataMapped = nullptr;
-            result                  = pGpuMem->Map(&pPerfDataMapped);
+            result                = pGpuMem->Map(&pPerfDataMapped);
 
             if (result == Result::Success)
             {
@@ -271,7 +269,7 @@ Result Pipeline::QueryAllocationInfo(
             {
                 pGpuMemList[0].address = m_gpuMem.Memory()->Desc().gpuVirtAddr;
                 pGpuMemList[0].offset  = m_gpuMem.Offset() + m_gpuMemOffset;
-                pGpuMemList[0].size    = m_gpuMemSize - m_gpuMemOffset;
+                pGpuMemList[0].size    = m_gpuMemSize      - m_gpuMemOffset;
             }
         }
 
@@ -292,16 +290,16 @@ Result Pipeline::GetCodeObject(
 
     if (pSize != nullptr)
     {
-        if ((m_pPipelineBinary != nullptr) && (m_pipelineBinaryLen != 0))
+        if ((m_pipelineBinary.Data() != nullptr) && (m_pipelineBinary.SizeInBytes() != 0))
         {
             if (pBuffer == nullptr)
             {
-                (*pSize) = static_cast<uint32>(m_pipelineBinaryLen);
+                (*pSize) = static_cast<uint32>(m_pipelineBinary.SizeInBytes());
                 result = Result::Success;
             }
-            else if ((*pSize) >= static_cast<uint32>(m_pipelineBinaryLen))
+            else if ((*pSize) >= static_cast<uint32>(m_pipelineBinary.SizeInBytes()))
             {
-                memcpy(pBuffer, m_pPipelineBinary, m_pipelineBinaryLen);
+                memcpy(pBuffer, m_pipelineBinary.Data(), m_pipelineBinary.SizeInBytes());
                 result = Result::Success;
             }
             else
@@ -317,6 +315,7 @@ Result Pipeline::GetCodeObject(
 
     return result;
 }
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 816
 // =====================================================================================================================
 // Gets the code object pointer according to shader type.
@@ -327,10 +326,10 @@ const void* Pipeline::GetCodeObjectWithShaderType(
 {
     const void* pBinary = nullptr;
 
-    pBinary = m_pPipelineBinary;
+    pBinary = m_pipelineBinary.Data();
     if (pSize != nullptr)
     {
-        *pSize = m_pipelineBinaryLen;
+        *pSize = m_pipelineBinary.SizeInBytes();
     }
 
     return pBinary;
@@ -351,20 +350,23 @@ Result Pipeline::GetShaderCode(
     // To extract the shader code, we can re-parse the saved ELF binary and lookup the shader's program
     // instructions by examining the symbol table entry for that shader's entrypoint.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 816
-    AbiReader abiReader(m_pDevice->GetPlatform(), GetCodeObjectWithShaderType(shaderType, nullptr));
+    size_t      size    = 0;
+    const void* pBinary = GetCodeObjectWithShaderType(shaderType, &size);
 #else
-    AbiReader abiReader(m_pDevice->GetPlatform(), m_pPipelineBinary);
+    size_t      size    = m_pipelineBinary.SizeInBytes();
+    const void* pBinary = m_pipelineBinary.Data();
 #endif
+
+    AbiReader abiReader(m_pDevice->GetPlatform(), {pBinary, size});
     Result result = abiReader.Init();
+
     if (result == Result::Success)
     {
-        const Elf::SymbolTableEntry* pSymbol = abiReader.GetPipelineSymbol(
-                Abi::GetSymbolForStage(Abi::PipelineSymbolType::ShaderMainEntry, pInfo->stageId));
-        if (pSymbol != nullptr)
-        {
-            result = abiReader.GetElfReader().CopySymbol(*pSymbol, pSize, pBuffer);
-        }
-        else
+        const Abi::PipelineSymbolType symbolType =
+            Abi::GetSymbolForStage(Abi::PipelineSymbolType::ShaderMainEntry, pInfo->stageId);
+        result = abiReader.CopySymbol(symbolType, pSize, pBuffer);
+
+        if (result == Result::NotFound)
         {
             result = Result::ErrorUnavailable;
         }
@@ -457,13 +459,15 @@ Result Pipeline::GetShaderStatsForStage(
 
     // We can re-parse the saved pipeline ELF binary to extract shader statistics.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 816
-    const void* pPipelineBinary = GetCodeObjectWithShaderType(shaderType, nullptr);
+    size_t      size            = 0;
+    const void* pPipelineBinary = GetCodeObjectWithShaderType(shaderType, &size);
 #else
-    const void* pPipelineBinary = m_pPipelineBinary;
+    size_t      size            = m_pipelineBinary.SizeInBytes();
+    const void* pPipelineBinary = m_pipelineBinary.Data();
 #endif
 
     PAL_ASSERT(pPipelineBinary != nullptr);
-    AbiReader abiReader(m_pDevice->GetPlatform(), pPipelineBinary);
+    AbiReader abiReader(m_pDevice->GetPlatform(), Span<const void>{pPipelineBinary, size});
     Result result = abiReader.Init();
 
     PalAbi::CodeObjectMetadata metadata;
@@ -547,8 +551,8 @@ void Pipeline::DumpPipelineElf(
         name,
         m_info.internalPipelineHash,
         IsInternal(),
-        m_pPipelineBinary,
-        m_pipelineBinaryLen);
+        m_pipelineBinary.Data(),
+        m_pipelineBinary.SizeInBytes());
 }
 
 // =====================================================================================================================

@@ -69,8 +69,6 @@ ComputeCmdBuffer::ComputeCmdBuffer(
     m_validUserEntryRegPairsCs{},
     m_numValidUserEntriesCs(0),
     m_minValidUserEntryLookupValueCs(1),
-    m_predGpuAddr(0),
-    m_inheritedPredication(false),
     m_globalInternalTableAddr(0),
     m_ringSizeComputeScratch(0)
 {
@@ -132,32 +130,8 @@ void ComputeCmdBuffer::ResetState()
         PAL_ASSERT(m_numValidUserEntriesCs == 0);
     }
 
-    // Command buffers start without a valid predicate GPU address.
-    m_predGpuAddr             = 0;
-    m_inheritedPredication    = false;
     m_globalInternalTableAddr = 0;
     m_ringSizeComputeScratch  = 0;
-}
-
-// =====================================================================================================================
-Result ComputeCmdBuffer::Begin(
-    const CmdBufferBuildInfo& info)
-{
-    const Result result = Pm4::ComputeCmdBuffer::Begin(info);
-
-    if ((result == Result::Success) &&
-        (info.pInheritedState != nullptr) && info.pInheritedState->stateFlags.predication)
-    {
-        m_inheritedPredication = true;
-
-        // Allocate the SET_PREDICATION emulation/COND_EXEC memory to be populated by the root-level command buffer.
-        uint32 *pPredCpuAddr = CmdAllocateEmbeddedData(1, 1, &m_predGpuAddr);
-
-        // Initialize the COND_EXEC command memory to non-zero, i.e. always execute
-        *pPredCpuAddr = 1;
-    }
-
-    return result;
 }
 
 // =====================================================================================================================
@@ -987,6 +961,12 @@ uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
             case HsaAbi::ValueKind::GlobalBuffer:
             case HsaAbi::ValueKind::Image:
                 break; // these are handled by kernargs
+            case HsaAbi::ValueKind::HiddenQueuePtr:
+            case HsaAbi::ValueKind::HiddenDefaultQueue:
+            case HsaAbi::ValueKind::HiddenCompletionAction:
+                // Not supported by PAL, kernels request but never actually use them,
+                // as compiler can't optimized out them for some cases
+                break;
             default:
                 PAL_ASSERT_ALWAYS();
             }
@@ -1087,6 +1067,18 @@ uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
         pAqlPacket->group_segment_size   = ldsSize;
 
         pCmdSpace = SetSeqUserSgprRegs(startReg, (startReg + 1), &aqlPacketGpu, pCmdSpace);
+        startReg += 2;
+    }
+
+    // When kernels request queue ptr, for COV4 (Code Object Version 4) and earlier, ENABLE_SGPR_QUEUE_PTR is set,
+    // which means that the queue ptr is passed in two SGPRs, for COV5 and later, ENABLE_SGPR_QUEUE_PTR is deprecated
+    // and HiddenQueuePtr is set, which means that the queue ptr is passed in hidden kernel arguments.
+    // When there are indirect function call, such as virtual functions, HSA ABI compiler makes the optimization pass
+    // unable to infer if queue ptr will be used or not. As a result, the pass has to assume the queue ptr
+    // might be used, so HSA ELFs request queue ptrs but never actually use them. SGPR Space is reserved to adhere to
+    // initialization order for COV4 when ENABLE_SGPR_QUEUE_PTR is set, but is unset as we can't support queue ptr.
+    if (TestAnyFlagSet(desc.kernel_code_properties, AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_QUEUE_PTR))
+    {
         startReg += 2;
     }
 
@@ -1367,7 +1359,7 @@ void ComputeCmdBuffer::CmdCopyRegisterToMemory(
     dmaData.srcAddrSpace = sas__pfp_dma_data__register;
     dmaData.sync         = true;
     dmaData.usePfp       = false;
-    pCmdSpace += m_cmdUtil.BuildDmaData<false>(dmaData, pCmdSpace);
+    pCmdSpace += m_cmdUtil.BuildDmaData<false, false>(dmaData, pCmdSpace);
 
     m_cmdStream.CommitCommands(pCmdSpace);
 }
@@ -1690,8 +1682,8 @@ void ComputeCmdBuffer::CmdSetPredication(
     if (pGpuMemory != nullptr)
     {
         gpusize gpuVirtAddr  = pGpuMemory->Desc().gpuVirtAddr + offset;
-        uint32 *pPredCpuAddr = CmdAllocateEmbeddedData(1, 1, &m_predGpuAddr);
-        uint32 *pCmdSpace    = m_cmdStream.ReserveCommands();
+        uint32* pPredCpuAddr = CmdAllocateEmbeddedData(1, 1, &m_predGpuAddr);
+        uint32* pCmdSpace    = m_cmdStream.ReserveCommands();
 
         // Execute if 64-bit value in memory are all 0 when predPolarity is false,
         // or Execute if one or more bits of 64-bit value in memory are not 0 when predPolarity is true.
@@ -1917,16 +1909,14 @@ void ComputeCmdBuffer::CmdExecuteNestedCmdBuffers(
         auto*const pCallee = static_cast<Gfx9::ComputeCmdBuffer*>(ppCmdBuffers[buf]);
         PAL_ASSERT(pCallee != nullptr);
 
-        if (pCallee->m_inheritedPredication && (m_predGpuAddr != 0))
+        if ((pCallee->m_inheritedPredGpuAddr != 0uLL) && (m_predGpuAddr != 0uLL))
         {
-            PAL_ASSERT(pCallee->m_predGpuAddr != 0);
-
-            uint32 *pCmdSpace = m_cmdStream.ReserveCommands();
+            uint32* pCmdSpace = m_cmdStream.ReserveCommands();
 
             pCmdSpace += m_cmdUtil.BuildCopyData(EngineTypeCompute,
                                                  0,
                                                  dst_sel__mec_copy_data__tc_l2,
-                                                 pCallee->m_predGpuAddr,
+                                                 pCallee->m_inheritedPredGpuAddr,
                                                  src_sel__mec_copy_data__tc_l2,
                                                  m_predGpuAddr,
                                                  count_sel__mec_copy_data__32_bits_of_data,
@@ -2034,7 +2024,7 @@ void ComputeCmdBuffer::CopyMemoryCp(
         {
             pCmdSpace += m_cmdUtil.BuildCondExec(m_predGpuAddr, CmdUtil::DmaDataSizeDwords, pCmdSpace);
         }
-        pCmdSpace += m_cmdUtil.BuildDmaData<false>(dmaDataInfo, pCmdSpace);
+        pCmdSpace += m_cmdUtil.BuildDmaData<false, false>(dmaDataInfo, pCmdSpace);
         m_cmdStream.CommitCommands(pCmdSpace);
 
         dmaDataInfo.dstAddr += dmaDataInfo.numBytes;
@@ -2053,19 +2043,21 @@ void ComputeCmdBuffer::CopyMemoryCp(
 
 // =====================================================================================================================
 uint32* ComputeCmdBuffer::WriteWaitEop(
-    const WriteWaitEopInfo& info,
-    uint32*                 pCmdSpace)
+    WriteWaitEopInfo info,
+    uint32*          pCmdSpace)
 {
-    SyncGlxFlags glxSync   = SyncGlxFlags(info.hwGlxSync);
-    bool         waitCpDma = info.waitCpDma;
+    SyncGlxFlags       glxSync   = SyncGlxFlags(info.hwGlxSync);
+    const AcquirePoint acqPoint  = AcquirePoint(info.hwAcqPoint);
+    const bool         waitCpDma = info.waitCpDma;
 
     PAL_ASSERT(info.hwRbSync == SyncRbNone);
 
     // Issue explicit waitCpDma packet if ReleaseMem doesn't support it.
+    bool releaseMemWaitCpDma = waitCpDma;
     if (waitCpDma && (m_device.Settings().gfx11EnableReleaseMemWaitCpDma == false))
     {
         pCmdSpace += m_cmdUtil.BuildWaitDmaData(pCmdSpace);
-        waitCpDma = false;
+        releaseMemWaitCpDma = false;
     }
 
     // We prefer to do our GCR in the release_mem if we can. This function always does an EOP wait so we don't have
@@ -2076,43 +2068,49 @@ uint32* ComputeCmdBuffer::WriteWaitEop(
     releaseInfo.dstAddr        = AcqRelFenceValGpuVa(ReleaseTokenEop);
     releaseInfo.dataSel        = data_sel__me_release_mem__send_32_bit_low;
     releaseInfo.data           = GetNextAcqRelFenceVal(ReleaseTokenEop);
-    releaseInfo.gfx11WaitCpDma = waitCpDma;
+    releaseInfo.gfx11WaitCpDma = releaseMemWaitCpDma;
 
     pCmdSpace += m_cmdUtil.BuildReleaseMemGeneric(releaseInfo, pCmdSpace);
-    pCmdSpace += m_cmdUtil.BuildWaitRegMem(EngineTypeCompute,
-                                           mem_space__me_wait_reg_mem__memory_space,
-                                           function__me_wait_reg_mem__equal_to_the_reference_value,
-                                           engine_sel__me_wait_reg_mem__micro_engine,
-                                           releaseInfo.dstAddr,
-                                           releaseInfo.data,
-                                           UINT32_MAX,
-                                           pCmdSpace);
 
-    // If we still have some caches to sync we require a final acquire_mem. It doesn't do any waiting, it just
-    // immediately does some full-range cache flush and invalidates. The previous WRM packet is the real wait.
-    if (glxSync != SyncGlxNone)
+    // We define an "EOP" wait to mean a release without a WaitRegMem.
+    // If glxSync still has some flags left over we still need a WaitRegMem to issue the GCR.
+    if ((acqPoint != AcquirePointEop) || (glxSync != SyncGlxNone))
     {
-        AcquireMemGeneric acquireInfo = {};
-        acquireInfo.engineType = EngineTypeCompute;
-        acquireInfo.cacheSync  = glxSync;
+        pCmdSpace += m_cmdUtil.BuildWaitRegMem(EngineTypeCompute,
+                                               mem_space__me_wait_reg_mem__memory_space,
+                                               function__me_wait_reg_mem__equal_to_the_reference_value,
+                                               engine_sel__me_wait_reg_mem__micro_engine,
+                                               releaseInfo.dstAddr,
+                                               releaseInfo.data,
+                                               UINT32_MAX,
+                                               pCmdSpace);
 
-        pCmdSpace += m_cmdUtil.BuildAcquireMemGeneric(acquireInfo, pCmdSpace);
+        // If we still have some caches to sync we require a final acquire_mem. It doesn't do any waiting, it just
+        // immediately does some full-range cache flush and invalidates. The previous WRM packet is the real wait.
+        if (glxSync != SyncGlxNone)
+        {
+            AcquireMemGeneric acquireInfo = {};
+            acquireInfo.engineType = EngineTypeCompute;
+            acquireInfo.cacheSync  = glxSync;
+
+            pCmdSpace += m_cmdUtil.BuildAcquireMemGeneric(acquireInfo, pCmdSpace);
+        }
+
+        SetCsBltState(false);
+        SetPrevCmdBufInactive();
+
+        UpdateRetiredAcqRelFenceVal(ReleaseTokenEop, GetCurAcqRelFenceVal(ReleaseTokenEop));
+        UpdateRetiredAcqRelFenceVal(ReleaseTokenCsDone, GetCurAcqRelFenceVal(ReleaseTokenCsDone));
+
+        if (TestAllFlagsSet(glxSync, SyncGl2WbInv))
+        {
+            ClearBltWriteMisalignMdState();
+        }
     }
 
     if (waitCpDma)
     {
         SetCpBltState(false);
-    }
-
-    SetCsBltState(false);
-    SetPrevCmdBufInactive();
-
-    UpdateRetiredAcqRelFenceVal(ReleaseTokenEop, GetCurAcqRelFenceVal(ReleaseTokenEop));
-    UpdateRetiredAcqRelFenceVal(ReleaseTokenCsDone, GetCurAcqRelFenceVal(ReleaseTokenCsDone));
-
-    if (TestAllFlagsSet(glxSync, SyncGl2WbInv))
-    {
-        ClearBltWriteMisalignMdState();
     }
 
     return pCmdSpace;

@@ -177,7 +177,11 @@ static bool TranslateBarrierEventData(
     PAL_ASSERT(pCbData != nullptr);
     auto*const pData = static_cast<Developer::BarrierData*>(pCbData);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 902
+    pData->transition.pImage            = PreviousObject(pData->transition.pImage);
+#else
     pData->transition.imageInfo.pImage  = PreviousObject(pData->transition.imageInfo.pImage);
+#endif
     ICmdBuffer* pPrevCmdBuffer          = PreviousObject(pData->pCmdBuffer);
     const bool  hasValidData            = (pPrevCmdBuffer != nullptr);
     pData->pCmdBuffer                   = (hasValidData) ? pPrevCmdBuffer : pData->pCmdBuffer;

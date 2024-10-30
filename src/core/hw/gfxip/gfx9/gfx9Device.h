@@ -226,6 +226,13 @@ public:
 
     virtual size_t GetQueueContextSize(const QueueCreateInfo& createInfo) const override;
 
+    size_t GetGfxQueueRingBufferSize() const override;
+
+    Result CreateGfxQueueRingBuffer(
+        void*                         pPlacementAddr,
+        GfxQueueRingBuffer**          ppGfxQueueRb,
+        GfxQueueRingBufferCreateInfo* pGfxQueueRingBufferCreateInfo) override;
+
     virtual Result CreateQueueContext(
         const QueueCreateInfo& createInfo,
         Engine*                pEngine,

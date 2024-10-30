@@ -290,8 +290,8 @@ public:
         m_preSample(Pal::PipelineStageTopOfPipe),
         m_postSample(Pal::PipelineStageTopOfPipe),
 #else
-        m_preSample(Pal::HwPipePoint::HwPipeTop),
-        m_postSample(Pal::HwPipePoint::HwPipeTop),
+        m_preSample(Pal::HwPipeTop),
+        m_postSample(Pal::HwPipeTop),
 #endif
         m_pBeginTs(nullptr),
         m_pEndTs(nullptr),

@@ -33,8 +33,6 @@ target_link_libraries(palUtil PRIVATE ${CMAKE_DL_LIBS})
 
 target_sources(palUtil PRIVATE
     CMakeLists.txt
-    lnxArchiveFile.cpp
-    lnxArchiveFile.h
     lnxConditionVariable.cpp
     lnxEvent.cpp
     lnxFileMap.cpp

@@ -48,6 +48,8 @@ constexpr uint16 VgtStrmoutVtxStrideAddr[] =
     Gfx10::mmVGT_STRMOUT_VTX_STRIDE_3
 };
 
+constexpr gpusize NullColorExportAddr[static_cast<uint32>(ColorExportShaderType::Count)]{};
+
 // =====================================================================================================================
 PipelineChunkVsPs::PipelineChunkVsPs(
     const Device&       device,
@@ -110,7 +112,7 @@ void PipelineChunkVsPs::LateInit(
     const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
 
     GpuSymbol symbol = { };
-    if (pUploader->GetPipelineGpuSymbol(Abi::PipelineSymbolType::PsMainEntry, &symbol) == Result::Success)
+    if (pUploader->GetGpuSymbol(Abi::PipelineSymbolType::PsMainEntry, &symbol) == Result::Success)
     {
         m_stageInfoPs.codeLength   = static_cast<size_t>(symbol.size);
         PAL_ASSERT(symbol.gpuVirtAddr == Pow2Align(symbol.gpuVirtAddr, 256));
@@ -120,7 +122,7 @@ void PipelineChunkVsPs::LateInit(
         PAL_ASSERT(m_regs.sh.spiShaderPgmHiPs.u32All == 0);
     }
 
-    if (pUploader->GetPipelineGpuSymbol(Abi::PipelineSymbolType::PsShdrIntrlTblPtr, &symbol) == Result::Success)
+    if (pUploader->GetGpuSymbol(Abi::PipelineSymbolType::PsShdrIntrlTblPtr, &symbol) == Result::Success)
     {
         m_regs.sh.userDataInternalTablePs.bits.DATA = LowPart(symbol.gpuVirtAddr);
     }
@@ -129,20 +131,21 @@ void PipelineChunkVsPs::LateInit(
     // So it needs to initialize the m_colorExportAddr[Default] and m_colorExportAddr[DualSourceBlendEnable]
     // with the same default value, then update m_colorExportAddr[DualSourceBlendEnable] if
     // PsColorExportDualSourceEntry created.
-    if (pUploader->GetPipelineGpuSymbol(Abi::PipelineSymbolType::PsColorExportEntry, &symbol) == Result::Success)
+    if (pUploader->GetGpuSymbol(Abi::PipelineSymbolType::PsColorExportEntry, &symbol) == Result::Success)
     {
         m_colorExportAddr[static_cast<uint32>(ColorExportShaderType::Default)] = LowPart(symbol.gpuVirtAddr);
-        m_colorExportAddr[static_cast<uint32>(ColorExportShaderType::DualSourceBlendEnable)] = LowPart(symbol.gpuVirtAddr);
+        m_colorExportAddr[static_cast<uint32>(ColorExportShaderType::DualSourceBlendEnable)] =
+            LowPart(symbol.gpuVirtAddr);
     }
 
-    if (pUploader->GetPipelineGpuSymbol(Abi::PipelineSymbolType::PsColorExportDualSourceEntry, &symbol) ==
+    if (pUploader->GetGpuSymbol(Abi::PipelineSymbolType::PsColorExportDualSourceEntry, &symbol) ==
         Result::Success)
     {
         m_colorExportAddr[static_cast<uint32>(ColorExportShaderType::DualSourceBlendEnable)] =
             LowPart(symbol.gpuVirtAddr);
     }
 
-    const Elf::SymbolTableEntry* pElfSymbol = abiReader.GetPipelineSymbol(Abi::PipelineSymbolType::PsDisassembly);
+    const Elf::SymbolTableEntry* pElfSymbol = abiReader.GetSymbolHeader(Abi::PipelineSymbolType::PsDisassembly);
     if (pElfSymbol != nullptr)
     {
         m_stageInfoPs.disassemblyLength = static_cast<size_t>(pElfSymbol->st_size);
@@ -159,7 +162,7 @@ void PipelineChunkVsPs::LateInit(
 
     if (loadInfo.enableNgg == false)
     {
-        if (pUploader->GetPipelineGpuSymbol(Abi::PipelineSymbolType::VsMainEntry, &symbol) == Result::Success)
+        if (pUploader->GetGpuSymbol(Abi::PipelineSymbolType::VsMainEntry, &symbol) == Result::Success)
         {
             m_stageInfoVs.codeLength   = static_cast<size_t>(symbol.size);
             PAL_ASSERT(symbol.gpuVirtAddr == Pow2Align(symbol.gpuVirtAddr, 256));
@@ -169,12 +172,12 @@ void PipelineChunkVsPs::LateInit(
             PAL_ASSERT(m_regs.sh.spiShaderPgmHiVs.u32All == 0);
         }
 
-        if (pUploader->GetPipelineGpuSymbol(Abi::PipelineSymbolType::VsShdrIntrlTblPtr, &symbol) == Result::Success)
+        if (pUploader->GetGpuSymbol(Abi::PipelineSymbolType::VsShdrIntrlTblPtr, &symbol) == Result::Success)
         {
             m_regs.sh.userDataInternalTableVs.bits.DATA = LowPart(symbol.gpuVirtAddr);
         }
 
-        pElfSymbol = abiReader.GetPipelineSymbol(Abi::PipelineSymbolType::VsDisassembly);
+        pElfSymbol = abiReader.GetSymbolHeader(Abi::PipelineSymbolType::VsDisassembly);
         if (pElfSymbol != nullptr)
         {
             m_stageInfoVs.disassemblyLength = static_cast<size_t>(pElfSymbol->st_size);
@@ -629,7 +632,8 @@ void PipelineChunkVsPs::Clone(
         chunkExp.m_regs.context.dbShaderControl.bits.ALPHA_TO_MASK_DISABLE;
     memcpy(m_colorExportAddr, chunkExp.m_colorExportAddr, sizeof(m_colorExportAddr));
 
-    if (m_colorExportAddr != 0)
+    static_assert(sizeof(m_colorExportAddr) == sizeof(NullColorExportAddr));
+    if (memcmp(m_colorExportAddr, NullColorExportAddr, sizeof(m_colorExportAddr)) != 0)
     {
         PAL_ASSERT(pExpLibrary->IsColorExportShader());
         ColorExportProperty colorExportProperty = {};

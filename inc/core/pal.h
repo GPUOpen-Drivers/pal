@@ -77,6 +77,10 @@ inline bool operator!=(const Pal::OsWindowHandle& lhs, const Pal::OsWindowHandle
 #error "Unsupported OS platform detected!"
 #endif
 
+#if PAL_CLIENT_EXAMPLE
+typedef void*  AddrHandle;      ///< Corresponds to an ADDR_HANDLE.
+#endif
+
 constexpr uint32 InvalidVidPnSourceId     = ~0u; ///< In cases where PAL cannot abstract a Windows VidPnSourceId, this
                                                  ///  represents an invalid value. (Note: zero is a valid value.)
 
@@ -782,9 +786,9 @@ enum class TriState : uint8
  * mapping is complicated, and is described fully in @ref ResourceBinding.
  *
  * A final complication worth noting is that PAL provides no implicit surface synchronization.  The client is
- * respondible for explicitly inserting barriers to resolve data hazards, flush/invalidate caches, and ensure images
- * are in the proper compression state.  For more detail, see ICmdBuffer::CmdBarrier, BarrierInfo, and
- * BarrierTransition.
+ * responsible for explicitly inserting barriers to resolve data hazards, flush/invalidate caches, and ensure images
+ * are in the proper compression state.  For more detail, see ICmdBuffer::CmdReleaseThenAcquire, CmdRelease, CmdAcquire,
+ * CmdReleaseEvent, CmdAcquireEvent and AcquireReleaseInfo.
  *
  ***********************************************************************************************************************
  */

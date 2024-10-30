@@ -545,6 +545,7 @@ public:
     void Struct(const ImageScaledCopyRegion& value);
     void Struct(ImageUsageFlags value);
     void Struct(const ImageViewInfo& value);
+    void Struct(const ImgBarrier& value);
     void Struct(const IndirectCmdGeneratorCreateInfo& value);
     void Struct(const InheritedStateParams& value);
     void Struct(const InputAssemblyStateParams& value);

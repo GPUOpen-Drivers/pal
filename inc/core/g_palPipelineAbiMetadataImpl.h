@@ -1165,7 +1165,6 @@ inline Result DeserializeHardwareStageMetadata(
                 break;
 
             case HashLiteralString(HardwareStageMetadataKey::CbConstUsages):
-                PAL_ASSERT(pMetadata->hasEntry.cbConstUsage == 0);
                 pReader->Next();
                 result = DeserializeCbConstUsageMetadata(
                         pReader, &pMetadata->cbConstUsage[0]);
@@ -4980,7 +4979,6 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::PaClClipCntl):
-                PAL_ASSERT(pMetadata->hasEntry.paClClipCntl == 0);
                 pReader->Next();
                 result = DeserializePaClClipCntlMetadata(
                         pReader, &pMetadata->paClClipCntl);
@@ -4988,7 +4986,6 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::PaClVteCntl):
-                PAL_ASSERT(pMetadata->hasEntry.paClVteCntl == 0);
                 pReader->Next();
                 result = DeserializePaClVteCntlMetadata(
                         pReader, &pMetadata->paClVteCntl);
@@ -4996,7 +4993,6 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::PaSuVtxCntl):
-                PAL_ASSERT(pMetadata->hasEntry.paSuVtxCntl == 0);
                 pReader->Next();
                 result = DeserializePaSuVtxCntlMetadata(
                         pReader, &pMetadata->paSuVtxCntl);
@@ -5019,7 +5015,6 @@ inline Result DeserializeGraphicsRegisterMetadata(
             }
 
             case HashLiteralString(GraphicsRegisterMetadataKey::VgtShaderStagesEn):
-                PAL_ASSERT(pMetadata->hasEntry.vgtShaderStagesEn == 0);
                 pReader->Next();
                 result = DeserializeVgtShaderStagesEnMetadata(
                         pReader, &pMetadata->vgtShaderStagesEn);
@@ -5042,7 +5037,6 @@ inline Result DeserializeGraphicsRegisterMetadata(
             }
 
             case HashLiteralString(GraphicsRegisterMetadataKey::VgtGsMode):
-                PAL_ASSERT(pMetadata->hasEntry.vgtGsMode == 0);
                 pReader->Next();
                 result = DeserializeVgtGsModeMetadata(
                         pReader, &pMetadata->vgtGsMode);
@@ -5050,7 +5044,6 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::VgtTfParam):
-                PAL_ASSERT(pMetadata->hasEntry.vgtTfParam == 0);
                 pReader->Next();
                 result = DeserializeVgtTfParamMetadata(
                         pReader, &pMetadata->vgtTfParam);
@@ -5058,7 +5051,6 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::VgtLsHsConfig):
-                PAL_ASSERT(pMetadata->hasEntry.vgtLsHsConfig == 0);
                 pReader->Next();
                 result = DeserializeVgtLsHsConfigMetadata(
                         pReader, &pMetadata->vgtLsHsConfig);
@@ -5066,7 +5058,6 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::IaMultiVgtParam):
-                PAL_ASSERT(pMetadata->hasEntry.iaMultiVgtParam == 0);
                 pReader->Next();
                 result = DeserializeIaMultiVgtParamMetadata(
                         pReader, &pMetadata->iaMultiVgtParam);
@@ -5074,7 +5065,6 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::SpiInterpControl):
-                PAL_ASSERT(pMetadata->hasEntry.spiInterpControl == 0);
                 pReader->Next();
                 result = DeserializeSpiInterpControlMetadata(
                         pReader, &pMetadata->spiInterpControl);
@@ -5082,7 +5072,6 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::SpiPsInputCntl):
-                PAL_ASSERT(pMetadata->hasEntry.spiPsInputCntl == 0);
                 pReader->Next();
                 result = DeserializeSpiPsInputCntlMetadata(
                         pReader, &pMetadata->spiPsInputCntl[0]);
@@ -5102,7 +5091,6 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::SpiShaderGsMeshletDim):
-                PAL_ASSERT(pMetadata->hasEntry.spiShaderGsMeshletDim == 0);
                 pReader->Next();
                 result = DeserializeSpiShaderGsMeshletDimMetadata(
                         pReader, &pMetadata->spiShaderGsMeshletDim);
@@ -5110,7 +5098,6 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::SpiShaderGsMeshletExpAlloc):
-                PAL_ASSERT(pMetadata->hasEntry.spiShaderGsMeshletExpAlloc == 0);
                 pReader->Next();
                 result = DeserializeSpiShaderGsMeshletExpAllocMetadata(
                         pReader, &pMetadata->spiShaderGsMeshletExpAlloc);
@@ -5139,7 +5126,6 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::VgtGsInstanceCnt):
-                PAL_ASSERT(pMetadata->hasEntry.vgtGsInstanceCnt == 0);
                 pReader->Next();
                 result = DeserializeVgtGsInstanceCntMetadata(
                         pReader, &pMetadata->vgtGsInstanceCnt);
@@ -5168,7 +5154,6 @@ inline Result DeserializeGraphicsRegisterMetadata(
             }
 
             case HashLiteralString(GraphicsRegisterMetadataKey::VgtGsOutPrimType):
-                PAL_ASSERT(pMetadata->hasEntry.vgtGsOutPrimType == 0);
                 pReader->Next();
                 result = DeserializeVgtGsOutPrimTypeMetadata(
                         pReader, &pMetadata->vgtGsOutPrimType);
@@ -5224,7 +5209,6 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::GeNggSubgrpCntl):
-                PAL_ASSERT(pMetadata->hasEntry.geNggSubgrpCntl == 0);
                 pReader->Next();
                 result = DeserializeGeNggSubgrpCntlMetadata(
                         pReader, &pMetadata->geNggSubgrpCntl);
@@ -5232,7 +5216,6 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::VgtGsOnchipCntl):
-                PAL_ASSERT(pMetadata->hasEntry.vgtGsOnchipCntl == 0);
                 pReader->Next();
                 result = DeserializeVgtGsOnchipCntlMetadata(
                         pReader, &pMetadata->vgtGsOnchipCntl);
@@ -5240,7 +5223,6 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::PaClVsOutCntl):
-                PAL_ASSERT(pMetadata->hasEntry.paClVsOutCntl == 0);
                 pReader->Next();
                 result = DeserializePaClVsOutCntlMetadata(
                         pReader, &pMetadata->paClVsOutCntl);
@@ -5254,7 +5236,6 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::SpiVsOutConfig):
-                PAL_ASSERT(pMetadata->hasEntry.spiVsOutConfig == 0);
                 pReader->Next();
                 result = DeserializeSpiVsOutConfigMetadata(
                         pReader, &pMetadata->spiVsOutConfig);
@@ -5292,7 +5273,6 @@ inline Result DeserializeGraphicsRegisterMetadata(
             }
 
             case HashLiteralString(GraphicsRegisterMetadataKey::VgtStrmoutConfig):
-                PAL_ASSERT(pMetadata->hasEntry.vgtStrmoutConfig == 0);
                 pReader->Next();
                 result = DeserializeVgtStrmoutConfigMetadata(
                         pReader, &pMetadata->vgtStrmoutConfig);
@@ -5300,7 +5280,6 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::VgtStrmoutBufferConfig):
-                PAL_ASSERT(pMetadata->hasEntry.vgtStrmoutBufferConfig == 0);
                 pReader->Next();
                 result = DeserializeVgtStrmoutBufferConfigMetadata(
                         pReader, &pMetadata->vgtStrmoutBufferConfig);
@@ -5308,7 +5287,6 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::CbShaderMask):
-                PAL_ASSERT(pMetadata->hasEntry.cbShaderMask == 0);
                 pReader->Next();
                 result = DeserializeCbShaderMaskMetadata(
                         pReader, &pMetadata->cbShaderMask);
@@ -5316,7 +5294,6 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::DbShaderControl):
-                PAL_ASSERT(pMetadata->hasEntry.dbShaderControl == 0);
                 pReader->Next();
                 result = DeserializeDbShaderControlMetadata(
                         pReader, &pMetadata->dbShaderControl);
@@ -5324,7 +5301,6 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::SpiPsInControl):
-                PAL_ASSERT(pMetadata->hasEntry.spiPsInControl == 0);
                 pReader->Next();
                 result = DeserializeSpiPsInControlMetadata(
                         pReader, &pMetadata->spiPsInControl);
@@ -5338,7 +5314,6 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::PaScShaderControl):
-                PAL_ASSERT(pMetadata->hasEntry.paScShaderControl == 0);
                 pReader->Next();
                 result = DeserializePaScShaderControlMetadata(
                         pReader, &pMetadata->paScShaderControl);
@@ -5346,7 +5321,6 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::SpiBarycCntl):
-                PAL_ASSERT(pMetadata->hasEntry.spiBarycCntl == 0);
                 pReader->Next();
                 result = DeserializeSpiBarycCntlMetadata(
                         pReader, &pMetadata->spiBarycCntl);
@@ -5354,7 +5328,6 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::SpiPsInputEna):
-                PAL_ASSERT(pMetadata->hasEntry.spiPsInputEna == 0);
                 pReader->Next();
                 result = DeserializeSpiPsInputEnaMetadata(
                         pReader, &pMetadata->spiPsInputEna);
@@ -5362,7 +5335,6 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::SpiPsInputAddr):
-                PAL_ASSERT(pMetadata->hasEntry.spiPsInputAddr == 0);
                 pReader->Next();
                 result = DeserializeSpiPsInputAddrMetadata(
                         pReader, &pMetadata->spiPsInputAddr);
@@ -5370,7 +5342,6 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::SpiShaderColFormat):
-                PAL_ASSERT(pMetadata->hasEntry.spiShaderColFormat == 0);
                 pReader->Next();
                 result = DeserializeSpiShaderColFormatMetadata(
                         pReader, &pMetadata->spiShaderColFormat);
@@ -5538,7 +5509,6 @@ inline Result DeserializePipelineMetadata(
                 break;
 
             case HashLiteralString(PipelineMetadataKey::Shaders):
-                PAL_ASSERT(pMetadata->hasEntry.shader == 0);
                 pReader->Next();
                 result = DeserializeShaderMetadata(
                         pReader, &pMetadata->shader);
@@ -5546,7 +5516,6 @@ inline Result DeserializePipelineMetadata(
                 break;
 
             case HashLiteralString(PipelineMetadataKey::HardwareStages):
-                PAL_ASSERT(pMetadata->hasEntry.hardwareStage == 0);
                 pReader->Next();
                 result = DeserializeHardwareStageMetadata(
                         pReader, &pMetadata->hardwareStage);
@@ -5619,7 +5588,6 @@ inline Result DeserializePipelineMetadata(
                 break;
 
             case HashLiteralString(PipelineMetadataKey::PsInputSemantic):
-                PAL_ASSERT(pMetadata->hasEntry.psInputSemantic == 0);
                 pReader->Next();
                 result = DeserializePsInputSemanticMetadata(
                         pReader, &pMetadata->psInputSemantic[0]);
@@ -5627,7 +5595,6 @@ inline Result DeserializePipelineMetadata(
                 break;
 
             case HashLiteralString(PipelineMetadataKey::PrerasterOutputSemantic):
-                PAL_ASSERT(pMetadata->hasEntry.prerasterOutputSemantic == 0);
                 pReader->Next();
                 result = DeserializePrerasterOutputSemanticMetadata(
                         pReader, &pMetadata->prerasterOutputSemantic[0]);
@@ -5734,7 +5701,6 @@ inline Result DeserializePipelineMetadata(
                 break;
 
             case HashLiteralString(PipelineMetadataKey::GraphicsRegisters):
-                PAL_ASSERT(pMetadata->hasEntry.graphicsRegister == 0);
                 pReader->Next();
                 result = DeserializeGraphicsRegisterMetadata(
                         pReader, &pMetadata->graphicsRegister);
@@ -5742,7 +5708,6 @@ inline Result DeserializePipelineMetadata(
                 break;
 
             case HashLiteralString(PipelineMetadataKey::ComputeRegisters):
-                PAL_ASSERT(pMetadata->hasEntry.computeRegister == 0);
                 pReader->Next();
                 result = DeserializeComputeRegisterMetadata(
                         pReader, &pMetadata->computeRegister);
@@ -5782,7 +5747,6 @@ inline Result DeserializeCodeObjectMetadata(
                 break;
 
             case HashLiteralString(CodeObjectMetadataKey::Pipelines):
-                PAL_ASSERT(pMetadata->hasEntry.pipeline == 0);
                 pReader->Next();
                 result = DeserializePipelineMetadata(
                         pReader, &pMetadata->pipeline);

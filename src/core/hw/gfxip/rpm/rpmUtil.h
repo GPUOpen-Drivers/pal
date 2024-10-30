@@ -122,6 +122,16 @@ extern void ConvertClearColorToNativeFormat(
     SwizzledFormat clearFormat,
     uint32*        pColor);
 
+extern void ConvertAndPackClearColor(
+    const ClearColor& color,
+    SwizzledFormat    imgFormat,
+    SwizzledFormat    clearFormat,
+    SwizzledFormat    rawFormat,
+    uint32            plane,
+    bool              convertToNativeFmt,
+    bool              clearWithRawFmt,
+    uint32*           pPackedColor);
+
 extern uint32 GetNormalizedData(uint32 inputData, uint32 maxComponentValue);
 
 extern void WriteVsZOut(GfxCmdBuffer* pCmdBuffer, float depthValue);

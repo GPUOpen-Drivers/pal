@@ -95,6 +95,63 @@ AddrResourceType AddrMgr2::GetAddrResourceType(
 }
 
 // =====================================================================================================================
+AddrSwizzleMode AddrMgr2::GetAddrSwizzleMode(
+    SwizzleMode swMode)
+{
+    // Lookup table for converting between SwizzleMode enums and AddrSwizzleMode enums.
+    constexpr AddrSwizzleMode AddrSwizzles[] =
+    {
+        ADDR_SW_LINEAR,    // SwizzleModeLinear
+        ADDR_SW_256B_S,    // SwizzleMode256BS
+        ADDR_SW_256B_D,    // SwizzleMode256BD
+        ADDR_SW_256B_R,    // SwizzleMode256BR
+        ADDR_SW_4KB_Z,     // SwizzleMode4KbZ
+        ADDR_SW_4KB_S,     // SwizzleMode4KbS
+        ADDR_SW_4KB_D,     // SwizzleMode4KbD
+        ADDR_SW_4KB_R,     // SwizzleMode4KbR
+        ADDR_SW_64KB_Z,    // SwizzleMode64KbZ
+        ADDR_SW_64KB_S,    // SwizzleMode64KbS
+        ADDR_SW_64KB_D,    // SwizzleMode64KbD
+        ADDR_SW_64KB_R,    // SwizzleMode64KbR
+        ADDR_SW_64KB_Z_T,  // SwizzleMode64KbZT
+        ADDR_SW_64KB_S_T,  // SwizzleMode64KbST
+        ADDR_SW_64KB_D_T,  // SwizzleMode64KbDT
+        ADDR_SW_64KB_R_T,  // SwizzleMode64KbRT
+        ADDR_SW_4KB_Z_X,   // SwizzleMode4KbZX
+        ADDR_SW_4KB_S_X,   // SwizzleMode4KbSX
+        ADDR_SW_4KB_D_X,   // SwizzleMode4KbDX
+        ADDR_SW_4KB_R_X,   // SwizzleMode4KbRX
+        ADDR_SW_64KB_Z_X,  // SwizzleMode64KbZX
+        ADDR_SW_64KB_S_X,  // SwizzleMode64KbSX
+        ADDR_SW_64KB_D_X,  // SwizzleMode64KbDX
+        ADDR_SW_64KB_R_X,  // SwizzleMode64KbRX
+#if ADDR_GFX11_BUILD
+        ADDR_SW_256KB_Z_X, // SwizzleMode256KbVarZX
+        ADDR_SW_256KB_S_X, // SwizzleMode256KbVarSX
+        ADDR_SW_256KB_D_X, // SwizzleMode256KbVarDX
+        ADDR_SW_256KB_R_X, // SwizzleMode256KbVarRX
+#else
+        ADDR_SW_VAR_Z_X,   // SwizzleMode256KbVarZX
+        ADDR_SW_MAX_TYPE,  // SwizzleMode256KbVarSX
+        ADDR_SW_MAX_TYPE,  // SwizzleMode256KbVarDX
+        ADDR_SW_VAR_R_X,   // SwizzleMode256KbVarRX
+#endif
+        ADDR_SW_MAX_TYPE,  // SwizzleMode256B2D
+        ADDR_SW_MAX_TYPE,  // SwizzleMode4Kb2D
+        ADDR_SW_MAX_TYPE,  // SwizzleMode4Kb3D
+        ADDR_SW_MAX_TYPE,  // SwizzleMode64Kb2D
+        ADDR_SW_MAX_TYPE,  // SwizzleMode64Kb3D
+        ADDR_SW_MAX_TYPE,  // SwizzleMode256Kb2D
+        ADDR_SW_MAX_TYPE,  // SwizzleMode256Kb3D
+    };
+
+    static_assert(ArrayLen(AddrSwizzles) == SwizzleModeCount);
+    PAL_ASSERT(swMode < SwizzleModeCount);
+
+    return AddrSwizzles[uint32(swMode)];
+}
+
+// =====================================================================================================================
 // Returns the number of slices an 3D image was *created* by the *address library* with.
 uint32 AddrMgr2::GetNumAddrLib3dSlices(
     const Pal::Image*                               pImage,
@@ -1268,6 +1325,16 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
         {
             pOut->swizzleMode = ADDR_SW_64KB_S;
         }
+#if PAL_CLIENT_EXAMPLE
+        else if (createInfo.flags.useFixedSwizzleMode)
+        {
+            pOut->swizzleMode = GetAddrSwizzleMode(createInfo.fixedSwizzleMode);
+            if (pOut->swizzleMode == ADDR_SW_MAX_TYPE)
+            {
+                result = Result::ErrorInvalidFlags;
+            }
+        }
+#endif
         else if (imageInfo.internalCreateInfo.flags.useSharedTilingOverrides &&
                  (imageInfo.internalCreateInfo.gfx9.sharedSwizzleMode != ADDR_SW_MAX_TYPE) &&
                  (forFmask == false))

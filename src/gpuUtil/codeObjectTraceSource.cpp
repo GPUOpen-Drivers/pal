@@ -51,8 +51,10 @@ CodeObjectTraceSource::CodeObjectTraceSource(
     m_codeObjectRecords(pPlatform),
     m_loadEventRecords(pPlatform),
     m_psoCorrelationRecords(pPlatform),
+    m_coCorrelationRecords(pPlatform),
     m_registeredPipelines(512, m_pPlatform),
-    m_registeredApiHashes(512, m_pPlatform)
+    m_registeredApiHashes(512, m_pPlatform),
+    m_registeredCoHashes(512, m_pPlatform)
 {
 }
 
@@ -66,8 +68,10 @@ CodeObjectTraceSource::~CodeObjectTraceSource()
     m_codeObjectRecords.Clear();
     m_loadEventRecords.Clear();
     m_psoCorrelationRecords.Clear();
+    m_coCorrelationRecords.Clear();
     m_registeredPipelines.Reset();
     m_registeredApiHashes.Reset();
+    m_registeredCoHashes.Reset();
 }
 
 // =====================================================================================================================
@@ -90,6 +94,11 @@ void CodeObjectTraceSource::OnTraceFinished()
     if (result == Result::Success)
     {
         result = WritePsoCorrelationChunk();
+    }
+
+    if (result == Result::Success)
+    {
+        result = WriteCoCorrelationChunk();
     }
 
     m_registerPipelineLock.UnlockForRead();
@@ -228,6 +237,14 @@ Result CodeObjectTraceSource::WritePsoCorrelationChunk()
     }
 
     return result;
+}
+
+// =====================================================================================================================
+// Writes out a "COCorrelation" chunk. This chunk contains all Code Object Correlation records captured during a trace.
+Result CodeObjectTraceSource::WriteCoCorrelationChunk()
+{
+    // RGP does not yet implement this.
+    return Result::Success;
 }
 
 // =====================================================================================================================
@@ -439,23 +456,70 @@ Result CodeObjectTraceSource::UnregisterLibrary(
 
 // =====================================================================================================================
 Result CodeObjectTraceSource::RegisterPipeline(
-    IPipeline*           pPipeline,
-    RegisterPipelineInfo pipelineInfo)
+    const IPipeline*            pPipeline,
+    const RegisterPipelineInfo& clientInfo)
 {
     PAL_ASSERT(pPipeline != nullptr);
+
+    // Handle an archive pipeline.
+    Result result = Result::Success;
+    bool allExist = true;
+    for (const IPipeline* pSinglePipeline : pPipeline->GetPipelines())
+    {
+        result = RegisterSinglePipeline(pSinglePipeline, clientInfo);
+        if (result == Result::Success)
+        {
+            allExist = false;
+        }
+        else if (result != Result::AlreadyExists)
+        {
+            break;
+        }
+        result = Result::Success;
+    }
+    if (result == Result::Success)
+    {
+        for (const IShaderLibrary* pLibrary : pPipeline->GetLibraries())
+        {
+            result = RegisterLibrary(pLibrary, { clientInfo.apiPsoHash });
+            if (result == Result::Success)
+            {
+                allExist = false;
+            }
+            else if (result != Result::AlreadyExists)
+            {
+                break;
+            }
+            result = Result::Success;
+        }
+    }
+    if ((result == Result::Success) && allExist)
+    {
+        result = Result::AlreadyExists;
+    }
+    return result;
+}
+
+// =====================================================================================================================
+// Registers a single (non-archive) pipeline with the CodeObject Trace Source.
+// Returns AlreadyExists on duplicate PAL pipeline.
+Result CodeObjectTraceSource::RegisterSinglePipeline(
+    const IPipeline*            pPipeline,
+    const RegisterPipelineInfo& clientInfo)
+{
+    const PipelineInfo& pipeInfo = pPipeline->GetInfo();
 
     // Even if the pipeline was already previously encountered, we still want to record every time it gets loaded.
     Result result = AddCodeObjectLoadEvent(pPipeline, CodeObjectLoadEventType::LoadToGpuMemory);
 
-    const PipelineInfo& pipeInfo = pPipeline->GetInfo();
-
     m_registerPipelineLock.LockForWrite();
-    if ((result == Result::Success) && (pipelineInfo.apiPsoHash != 0))
+
+    if ((result == Result::Success) && (clientInfo.apiPsoHash != 0))
     {
         MetroHash::Hash tempHash = { };
 
         MetroHash128 hasher;
-        hasher.Update(pipelineInfo.apiPsoHash);
+        hasher.Update(clientInfo.apiPsoHash);
         hasher.Update(pipeInfo.internalPipelineHash);
         hasher.Finalize(tempHash.bytes);
 
@@ -466,7 +530,7 @@ Result CodeObjectTraceSource::RegisterPipeline(
             // Record a mapping of API PSO hash -> internal pipeline hash so they can be correlated.
             TraceChunk::PsoCorrelation record = {
                 .pciId                = m_pPlatform->GetPciId(DefaultDeviceIndex).u32All,
-                .apiPsoHash           = pipelineInfo.apiPsoHash,
+                .apiPsoHash           = clientInfo.apiPsoHash,
                 .internalPipelineHash = pipeInfo.internalPipelineHash,
                 .apiLevelObjectName   = { '\0' } // unused
             };
@@ -488,6 +552,7 @@ Result CodeObjectTraceSource::RegisterPipeline(
 
         result = m_registeredPipelines.Contains(hash) ? Result::AlreadyExists : m_registeredPipelines.Insert(hash);
     }
+
     m_registerPipelineLock.UnlockForWrite();
 
     // Store a copy of the code object & associated metadata
@@ -545,12 +610,42 @@ Result CodeObjectTraceSource::RegisterPipeline(
 
 // =====================================================================================================================
 Result CodeObjectTraceSource::UnregisterPipeline(
-    IPipeline* pPipeline)
+    const IPipeline* pPipeline)
+{
+    // Handle an archive pipeline.
+    Result result = Result::Success;
+    for (const IPipeline* pSinglePipeline : pPipeline->GetPipelines())
+    {
+        result = UnregisterSinglePipeline(pSinglePipeline);
+        if (result != Result::Success)
+        {
+            break;
+        }
+    }
+    if (result == Result::Success)
+    {
+        for (const IShaderLibrary* pLibrary : pPipeline->GetLibraries())
+        {
+            result = UnregisterLibrary(pLibrary);
+            if (result != Result::Success)
+            {
+                break;
+            }
+        }
+    }
+    return result;
+}
+
+// =====================================================================================================================
+// Unregisters a single (non-archive) pipeline from the CodeObject Trace Source.
+Result CodeObjectTraceSource::UnregisterSinglePipeline(
+    const IPipeline* pPipeline)
 {
     return AddCodeObjectLoadEvent(pPipeline, CodeObjectLoadEventType::UnloadFromGpuMemory);
 }
 
 // =====================================================================================================================
+// Warning: This path is currently unused and untested, and may have logic errors!  To be fixed up for use by multi-ELF.
 Result CodeObjectTraceSource::RegisterElfBinary(
     const ElfBinaryInfo& elfBinaryInfo)
 {

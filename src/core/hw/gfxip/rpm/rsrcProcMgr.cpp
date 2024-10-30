@@ -2079,8 +2079,8 @@ void RsrcProcMgr::GenerateMipmapsSlow(
 
     // We need an internal barrier between each mip-level's scaled copy because the destination of the prior copy is
     // the source of the next copy. Note that we can't use CoherCopy here because we optimize it away in the barrier
-    // code but that optimization requires that we pop all state before calling CmdBarrier. That's very slow so instead
-    // we use implementation dependent cache masks.
+    // code but that optimization requires that we pop all state before calling CmdReleaseThenAcquire. That's very slow
+    // so instead we use implementation dependent cache masks.
     ImgBarrier imgBarrier = {};
     imgBarrier.pImage        = pImage;
     // We will specify the base subresource later on.
@@ -3055,12 +3055,12 @@ void RsrcProcMgr::ConvertRgbToYuv(
 // Builds commands to fill every DWORD of memory with 'data' between dstGpuVirtAddr and (dstOffset + fillSize).
 // The offset and fill size must be DWORD aligned.
 void RsrcProcMgr::CmdFillMemory(
-    GfxCmdBuffer* pCmdBuffer,
-    bool          saveRestoreComputeState,
-    bool          trackBltActiveFlags,
-    gpusize       dstGpuVirtAddr,
-    gpusize       fillSize,
-    uint32        data
+    GfxCmdBuffer*   pCmdBuffer,
+    bool            saveRestoreComputeState,
+    bool            trackBltActiveFlags,
+    gpusize         dstGpuVirtAddr,
+    gpusize         fillSize,
+    uint32          data
     ) const
 {
     if (saveRestoreComputeState)
@@ -3422,7 +3422,7 @@ void RsrcProcMgr::CmdClearColorImage(
             SlowClearCompute(pCmdBuffer,
                              dstImage,
                              dstImageLayout,
-                             &color,
+                             color,
                              clearFormat,
                              pRanges[rangeIdx],
                              (clearAutoSync == false),
@@ -3547,7 +3547,7 @@ void RsrcProcMgr::CmdClearDepthStencil(
                 SlowClearCompute(pCmdBuffer,
                                  dstImage,
                                  isDepth ? depthLayout : stencilLayout,
-                                 &clearColor,
+                                 clearColor,
                                  subresFormat,
                                  range,
                                  (needComputeClearSync == false),
@@ -3614,7 +3614,7 @@ void RsrcProcMgr::SlowClearCompute(
     GfxCmdBuffer*         pCmdBuffer,
     const Image&          dstImage,
     ImageLayout           dstImageLayout,
-    const ClearColor*     pColor,
+    const ClearColor&     color,
     const SwizzledFormat& clearFormat,
     const SubresRange&    clearRange,
     bool                  trackBltActiveFlags,
@@ -3636,7 +3636,7 @@ void RsrcProcMgr::SlowClearCompute(
     // This function just fills out this struct for a generic slow clear and calls ClearImageCs.
     ClearImageCsInfo info = {};
     info.clearFragments = createInfo.fragments;
-    info.hasDisableMask = (pColor->disabledChannelMask != 0);
+    info.hasDisableMask = (color.disabledChannelMask != 0);
 
     // First we figure out our format related state.
     uint32         texelScale = 1;
@@ -3649,7 +3649,7 @@ void RsrcProcMgr::SlowClearCompute(
         viewFormat.swizzle = {ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One};
 
         // The extent and offset need to be adjusted to half size.
-        info.texelShift    = (pColor->type == ClearColorType::Yuv) ? 1 : 0;
+        info.texelShift    = (color.type == ClearColorType::Yuv) ? 1 : 0;
     }
 
     // ClearImage handles general single-sampled images so it's a good default. We're using the same trick our copy
@@ -3741,69 +3741,47 @@ void RsrcProcMgr::SlowClearCompute(
 
     // First, pack the clear color into the raw format and write it to user data 1-4. We also build the write-disabled
     // bitmasks while we're dealing with clear color bit representations.
-    if (pColor->type == ClearColorType::Yuv)
-    {
-        // If clear color type is Yuv, the image format should used to determine the clear color swizzling and packing
-        // for planar YUV formats since the baseFormat is subresource's format which is not a YUV format.
-        // NOTE: if clear color type is Uint, the client is responsible for:
-        //       1. packing and swizzling clear color for packed YUV formats (e.g. packing in YUYV order for YUY2)
-        //       2. passing correct clear color for this plane for planar YUV formats (e.g. two uint32s for U and V if
-        //          current plane is CbCr).
-        const SwizzledFormat imgFormat = createInfo.swizzledFormat;
-        Formats::ConvertYuvColor(imgFormat, clearRange.startSubres.plane, pColor->u32Color, info.packedColor);
+    RpmUtil::ConvertAndPackClearColor(color,
+                                      createInfo.swizzledFormat,
+                                      baseFormat,
+                                      viewFormat,
+                                      clearRange.startSubres.plane,
+                                      false,
+                                      true,
+                                      info.packedColor);
 
-        // Not implemented for Yuv clears.
-        PAL_ASSERT(info.hasDisableMask == false);
-    }
-    else
+    if ((color.type != ClearColorType::Yuv) && info.hasDisableMask)
     {
-        uint32 convertedColor[4] = {};
-        if (pColor->type == ClearColorType::Float)
+        if (dstImage.IsStencilPlane(clearRange.startSubres.plane))
         {
-            Formats::ConvertColor(baseFormat, pColor->f32Color, convertedColor);
+            // If this is a stencil clear then, by convention, the disabledChannelMask is actually a mask of
+            // disabled stencil bits. That gives us the exact bit pattern we need for our clear shader.
+            info.disableMask[0] = color.disabledChannelMask;
         }
         else
         {
-            memcpy(convertedColor, pColor->u32Color, sizeof(convertedColor));
+            // Expand the disabledChannelMask bitflags out into 32-bit-per-channel masks.
+            const uint32 channelMasks[4] =
+            {
+                TestAnyFlagSet(color.disabledChannelMask, 0x1u) ? UINT32_MAX : 0,
+                TestAnyFlagSet(color.disabledChannelMask, 0x2u) ? UINT32_MAX : 0,
+                TestAnyFlagSet(color.disabledChannelMask, 0x4u) ? UINT32_MAX : 0,
+                TestAnyFlagSet(color.disabledChannelMask, 0x8u) ? UINT32_MAX : 0
+            };
+
+            // These functions don't care if we use them on colors or masks. We can reuse them to convert our
+            // unswizzled, unpacked disable masks into a properly swizzled and bitpacked mask.
+            uint32 swizzledMask[4] = {};
+            Formats::SwizzleColor(baseFormat, channelMasks, swizzledMask);
+            Formats::PackRawClearColor(baseFormat, swizzledMask, info.disableMask);
         }
 
-        uint32 swizzledColor[4] = {};
-        Formats::SwizzleColor(baseFormat, convertedColor, swizzledColor);
-        Formats::PackRawClearColor(baseFormat, swizzledColor, info.packedColor);
-
-        if (info.hasDisableMask)
+        // Abstractly speaking we want the clear to do this read-modify-write:
+        //     Texel = (Texel & DisableMask) | (ClearColor & ~DisableMask)
+        // We can save the clear shader a little bit of work if we pre-apply (ClearColor & ~DisableMask).
+        for (uint32 idx = 0; idx < 4; ++idx)
         {
-            if (dstImage.IsStencilPlane(clearRange.startSubres.plane))
-            {
-                // If this is a stencil clear then, by convention, the disabledChannelMask is actually a mask of
-                // disabled stencil bits. That gives us the exact bit pattern we need for our clear shader.
-                info.disableMask[0] = pColor->disabledChannelMask;
-            }
-            else
-            {
-                // Expand the disabledChannelMask bitflags out into 32-bit-per-channel masks.
-                const uint32 channelMasks[4] =
-                {
-                    TestAnyFlagSet(pColor->disabledChannelMask, 0x1u) ? UINT32_MAX : 0,
-                    TestAnyFlagSet(pColor->disabledChannelMask, 0x2u) ? UINT32_MAX : 0,
-                    TestAnyFlagSet(pColor->disabledChannelMask, 0x4u) ? UINT32_MAX : 0,
-                    TestAnyFlagSet(pColor->disabledChannelMask, 0x8u) ? UINT32_MAX : 0
-                };
-
-                // These functions don't care if we use them on colors or masks. We can reuse them to convert our
-                // unswizzled, unpacked disable masks into a properly swizzled and bitpacked mask.
-                uint32 swizzledMask[4] = {};
-                Formats::SwizzleColor(baseFormat, channelMasks, swizzledMask);
-                Formats::PackRawClearColor(baseFormat, swizzledMask, info.disableMask);
-            }
-
-            // Abstractly speaking we want the clear to do this read-modify-write:
-            //     Texel = (Texel & DisableMask) | (ClearColor & ~DisableMask)
-            // We can save the clear shader a little bit of work if we pre-apply (ClearColor & ~DisableMask).
-            for (uint32 idx = 0; idx < 4; ++idx)
-            {
-                info.packedColor[idx] &= ~info.disableMask[idx];
-            }
+            info.packedColor[idx] &= ~info.disableMask[idx];
         }
     }
 
@@ -4292,7 +4270,7 @@ void RsrcProcMgr::CmdClearImageView(
             boxes[i].extent.depth  = srdInfo.zRange.extent;
         }
 
-        SlowClearCompute(pCmdBuffer, dstImage, dstImageLayout, &color, srdInfo.swizzledFormat, srdInfo.subresRange,
+        SlowClearCompute(pCmdBuffer, dstImage, dstImageLayout, color, srdInfo.swizzledFormat, srdInfo.subresRange,
                          true, rectCount, boxes.Data());
     }
     else

@@ -57,6 +57,7 @@ class      Device;
 class      Engine;
 class      GfxImage;
 class      GfxCmdBuffer;
+class      GfxQueueRingBuffer;
 class      GraphicsPipeline;
 class      IBorderColorPalette;
 class      IColorBlendState;
@@ -89,6 +90,7 @@ struct     DepthStencilStateCreateInfo;
 struct     DepthStencilViewCreateInfo;
 struct     FmaskViewInfo;
 struct     GpuChipProperties;
+struct     GfxQueueRingBufferCreateInfo;
 struct     GraphicsPipelineCreateInfo;
 struct     ImageCreateInfo;
 struct     ImageInfo;
@@ -465,6 +467,13 @@ public:
 
     virtual Result CreateDummyCommandStream(EngineType engineType, Pal::CmdStream** ppCmdStream) const = 0;
 
+    virtual size_t GetGfxQueueRingBufferSize() const = 0;
+
+    virtual Result CreateGfxQueueRingBuffer(
+        void*                         pPlacementAddr,
+        GfxQueueRingBuffer**          ppGfxQueueRb,
+        GfxQueueRingBufferCreateInfo* pGfxQueueRingBufferCreateInfo) = 0;
+
     // Determines the amount of storage needed for a QueueContext object for the given Queue type and ID. For Queue
     // types not supported by GFXIP hardware blocks, this should return zero.
     virtual size_t GetQueueContextSize(const QueueCreateInfo& createInfo) const = 0;
@@ -736,11 +745,6 @@ public:
 
     static uint32 VertsPerPrimitive(PrimitiveTopology topology);
 
-    void DescribeBarrier(
-        GfxCmdBuffer*                 pCmdBuf,
-        const BarrierTransition*      pTransition,
-        Developer::BarrierOperations* pOperations) const;
-
     void DescribeBarrierStart(GfxCmdBuffer* pCmdBuf, uint32 reason, Developer::BarrierType type) const;
     void DescribeBarrierEnd(GfxCmdBuffer* pCmdBuf, Developer::BarrierOperations* pOperations) const;
 
@@ -813,7 +817,7 @@ protected:
     // Keep a watermark for sample-pos palette updates to the queue context. When a QueueContext pre-processes a submit, it
     // will check its watermark against the one owned by the device and update accordingly.
     // Access to this object must be serialized using m_queueContextUpdateLock.
-    volatile uint32   m_queueContextUpdateCounter;
+    uint32          m_queueContextUpdateCounter;
 
     PipelineLoader  m_pipelineLoader;
 

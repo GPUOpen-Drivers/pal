@@ -574,101 +574,104 @@ void ColorBlendState::InitBlendMasks(
 {
     for (uint32 rtIdx = 0; rtIdx < MaxColorTargets; rtIdx++)
     {
-        Blend srcBlends[2];
-        srcBlends[0] = createInfo.targets[rtIdx].srcBlendColor;
-        srcBlends[1] = createInfo.targets[rtIdx].srcBlendAlpha;
-
-        Blend dstBlends[2];
-        dstBlends[0] = createInfo.targets[rtIdx].dstBlendColor;
-        dstBlends[1] = createInfo.targets[rtIdx].dstBlendAlpha;
-
-        BlendFunc blendOps[2];
-        blendOps[0] = createInfo.targets[rtIdx].blendFuncColor;
-        blendOps[1] = createInfo.targets[rtIdx].blendFuncAlpha;
-
-        bool isCommutative[2] = { false, false };
-
-        for (uint32 k = 0; k < 2; k++)
+        if (createInfo.targets[rtIdx].blendEnable)
         {
-            if ((dstBlends[k] != Blend::Zero)             ||
-                (srcBlends[k] == Blend::DstAlpha)         ||
-                (srcBlends[k] == Blend::OneMinusDstAlpha) ||
-                (srcBlends[k] == Blend::DstColor)         ||
-                (srcBlends[k] == Blend::OneMinusDstColor))
+            Blend srcBlends[2];
+            srcBlends[0] = createInfo.targets[rtIdx].srcBlendColor;
+            srcBlends[1] = createInfo.targets[rtIdx].srcBlendAlpha;
+
+            Blend dstBlends[2];
+            dstBlends[0] = createInfo.targets[rtIdx].dstBlendColor;
+            dstBlends[1] = createInfo.targets[rtIdx].dstBlendAlpha;
+
+            BlendFunc blendOps[2];
+            blendOps[0] = createInfo.targets[rtIdx].blendFuncColor;
+            blendOps[1] = createInfo.targets[rtIdx].blendFuncAlpha;
+
+            bool isCommutative[2] = { false, false };
+
+            for (uint32 k = 0; k < 2; k++)
             {
-                m_flags.blendReadsDst |= (1 << rtIdx);
+                if ((dstBlends[k] != Blend::Zero)             ||
+                    (srcBlends[k] == Blend::DstAlpha)         ||
+                    (srcBlends[k] == Blend::OneMinusDstAlpha) ||
+                    (srcBlends[k] == Blend::DstColor)         ||
+                    (srcBlends[k] == Blend::OneMinusDstColor))
+                {
+                    m_flags.blendReadsDst |= (1 << rtIdx);
+                }
+
+                // Min and max blend ops are always commutative as they ignore the blend multiplier and operate
+                // directly on the PS output and the current value in the render target.
+                if ((blendOps[k] == BlendFunc::Min) || (blendOps[k] == BlendFunc::Max))
+                {
+                    isCommutative[k] = true;
+                }
+
+                // Check for commutative additive/subtractive blending.
+                // Dst = Dst + S1 + S2 + ...  or
+                // Dst = Dst - S1 - S2 - ...
+                if ((dstBlends[k] == Blend::One) &&
+                    ((srcBlends[k] == Blend::Zero) ||
+                     (srcBlends[k] == Blend::One)  ||
+                     (srcBlends[k] == Blend::SrcColor) ||
+                     (srcBlends[k] == Blend::OneMinusSrcColor) ||
+                     (srcBlends[k] == Blend::SrcAlpha) ||
+                     (srcBlends[k] == Blend::OneMinusSrcAlpha) ||
+                     (srcBlends[k] == Blend::ConstantColor) ||
+                     (srcBlends[k] == Blend::OneMinusConstantColor) ||
+                     (srcBlends[k] == Blend::Src1Color) ||
+                     (srcBlends[k] == Blend::OneMinusSrc1Color) ||
+                     (srcBlends[k] == Blend::Src1Alpha) ||
+                     (srcBlends[k] == Blend::OneMinusSrc1Alpha)) &&
+                    ((blendOps[k] == BlendFunc::Add) ||
+                     (blendOps[k] == BlendFunc::ReverseSubtract)))
+                {
+                    isCommutative[k] = true;
+                }
+
+                const Blend colorOrAlphaSrcBlend = (k == 0) ? Blend::SrcColor : Blend::SrcAlpha;
+                const Blend colorOrAlphaDstBlend = (k == 0) ? Blend::DstColor : Blend::DstAlpha;
+
+                // Check for commutative multiplicitive blending. Dst = Dst * S1 * S2 * ...  The last two cases are
+                // unusual because they use destination data as the source multiplier.  In those cases we must be sure
+                // that the dst data is being multiplied by the source as that is the only multiplicative commutative
+                // case when using a srcBlend.
+                if ((srcBlends[k] == Blend::Zero) &&
+                    ((blendOps[k] == BlendFunc::Add) ||
+                     (blendOps[k] == BlendFunc::ReverseSubtract)) &&
+                    ((dstBlends[k] == Blend::Zero) ||
+                     (dstBlends[k] == Blend::One) ||
+                     (dstBlends[k] == Blend::SrcColor) ||
+                     (dstBlends[k] == Blend::OneMinusSrcColor) ||
+                     (dstBlends[k] == Blend::SrcAlpha) ||
+                     (dstBlends[k] == Blend::OneMinusSrcAlpha) ||
+                     (dstBlends[k] == Blend::ConstantColor) ||
+                     (dstBlends[k] == Blend::OneMinusConstantColor)))
+                {
+                    isCommutative[k] = true;
+                }
+                else if ((dstBlends[k] == Blend::Zero) &&
+                         ((blendOps[k] == BlendFunc::Add) ||
+                          (blendOps[k] == BlendFunc::Subtract)) &&
+                         ((srcBlends[k] == Blend::Zero) ||
+                          (srcBlends[k] == colorOrAlphaDstBlend)))
+                {
+                    isCommutative[k] = true;
+                }
+                else if ((blendOps[k] == BlendFunc::Add)        &&
+                         (dstBlends[k] == colorOrAlphaSrcBlend) &&
+                         (srcBlends[k] == colorOrAlphaDstBlend))
+                {
+                    // This is the Dst = (Dst * Src) + (Src * Dst) case.
+                    isCommutative[k] = true;
+                }
             }
 
-            // Min and max blend ops are always commutative as they ignore the blend multiplier and operate directly on
-            // the PS output and the current value in the render target.
-            if ((blendOps[k] == BlendFunc::Min) || (blendOps[k] == BlendFunc::Max))
+            if (isCommutative[0] && isCommutative[1])
             {
-                isCommutative[k] = true;
+                m_flags.blendCommutative |= (1 << rtIdx);
             }
-
-            // Check for commutative additive/subtractive blending.
-            // Dst = Dst + S1 + S2 + ...  or
-            // Dst = Dst - S1 - S2 - ...
-            if ((dstBlends[k] == Blend::One) &&
-                ((srcBlends[k] == Blend::Zero) ||
-                 (srcBlends[k] == Blend::One)  ||
-                 (srcBlends[k] == Blend::SrcColor) ||
-                 (srcBlends[k] == Blend::OneMinusSrcColor) ||
-                 (srcBlends[k] == Blend::SrcAlpha) ||
-                 (srcBlends[k] == Blend::OneMinusSrcAlpha) ||
-                 (srcBlends[k] == Blend::ConstantColor) ||
-                 (srcBlends[k] == Blend::OneMinusConstantColor) ||
-                 (srcBlends[k] == Blend::Src1Color) ||
-                 (srcBlends[k] == Blend::OneMinusSrc1Color) ||
-                 (srcBlends[k] == Blend::Src1Alpha) ||
-                 (srcBlends[k] == Blend::OneMinusSrc1Alpha)) &&
-                ((blendOps[k] == BlendFunc::Add) ||
-                 (blendOps[k] == BlendFunc::ReverseSubtract)))
-            {
-                isCommutative[k] = true;
-            }
-
-            const Blend colorOrAlphaSrcBlend = (k == 0) ? Blend::SrcColor : Blend::SrcAlpha;
-            const Blend colorOrAlphaDstBlend = (k == 0) ? Blend::DstColor : Blend::DstAlpha;
-
-            // Check for commutative multiplicitive blending. Dst = Dst * S1 * S2 * ...  The last two cases are unusual
-            // because they use destination data as the source multiplier.  In those cases we must be sure that the dst
-            // data is being multiplied by the source as that is the only multiplicative commutative case when using a
-            // srcBlend.
-            if ((srcBlends[k] == Blend::Zero) &&
-                ((blendOps[k] == BlendFunc::Add) ||
-                 (blendOps[k] == BlendFunc::ReverseSubtract)) &&
-                ((dstBlends[k] == Blend::Zero) ||
-                 (dstBlends[k] == Blend::One) ||
-                 (dstBlends[k] == Blend::SrcColor) ||
-                 (dstBlends[k] == Blend::OneMinusSrcColor) ||
-                 (dstBlends[k] == Blend::SrcAlpha) ||
-                 (dstBlends[k] == Blend::OneMinusSrcAlpha) ||
-                 (dstBlends[k] == Blend::ConstantColor) ||
-                 (dstBlends[k] == Blend::OneMinusConstantColor)))
-            {
-                isCommutative[k] = true;
-            }
-            else if ((dstBlends[k] == Blend::Zero) &&
-                     ((blendOps[k] == BlendFunc::Add) ||
-                      (blendOps[k] == BlendFunc::Subtract)) &&
-                     ((srcBlends[k] == Blend::Zero) ||
-                      (srcBlends[k] == colorOrAlphaDstBlend)))
-            {
-                isCommutative[k] = true;
-            }
-            else if ((blendOps[k] == BlendFunc::Add)        &&
-                     (dstBlends[k] == colorOrAlphaSrcBlend) &&
-                     (srcBlends[k] == colorOrAlphaDstBlend))
-            {
-                // This is the Dst = (Dst * Src) + (Src * Dst) case.
-                isCommutative[k] = true;
-            }
-        }
-
-        if (createInfo.targets[rtIdx].blendEnable && isCommutative[0] && isCommutative[1])
-        {
-            m_flags.blendCommutative |= (1 << rtIdx);
         }
     }
 }

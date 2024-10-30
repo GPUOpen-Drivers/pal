@@ -183,4 +183,8 @@ private:
     PAL_DISALLOW_COPY_AND_ASSIGN(GraphicsPipeline);
 };
 
+// Returns true if the pipeline to be created is a single ELF, false if an archive of multiple ELFs.
+inline bool IsElf(const GraphicsPipelineCreateInfo& createInfo)
+    { return Util::Elf::IsElf({createInfo.pPipelineBinary, createInfo.pipelineBinarySize}); }
+
 } // Pal

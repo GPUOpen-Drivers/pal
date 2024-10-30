@@ -42,7 +42,6 @@ class ComputeCmdBuffer : public Pm4CmdBuffer
 public:
     virtual Result Init(const CmdBufferInternalCreateInfo& internalInfo) override;
 
-    virtual Result Begin(const CmdBufferBuildInfo& info) override;
     virtual Result End() override;
     virtual Result Reset(ICmdAllocator* pCmdAllocator, bool returnGpuMemory) override;
 

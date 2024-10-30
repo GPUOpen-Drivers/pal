@@ -1049,7 +1049,7 @@ Pal::Result GpaSession::TimedSubmit(
                 {
                     // The gpu memory pointer should never be null.
                     PAL_ASSERT(pPreTimestampMemoryInfo->pGpuMemory != nullptr);
-                    pPreCmdBuffer->CmdWriteTimestamp(Pal::HwPipePostPrefetch,
+                    pPreCmdBuffer->CmdWriteTimestamp(PipelineStagePostPrefetch,
                                                      *pPreTimestampMemoryInfo->pGpuMemory,
                                                      preTimestampOffset);
 
@@ -1068,7 +1068,7 @@ Pal::Result GpaSession::TimedSubmit(
                     // The gpu memory pointer should never be null.
                     PAL_ASSERT(pPostTimestampMemoryInfo->pGpuMemory != nullptr);
 
-                    pPostCmdBuffer->CmdWriteTimestamp(Pal::HwPipeBottom,
+                    pPostCmdBuffer->CmdWriteTimestamp(PipelineStageBottomOfPipe,
                                                       *pPostTimestampMemoryInfo->pGpuMemory,
                                                       postTimestampOffset);
 
@@ -1329,7 +1329,9 @@ Pal::Result GpaSession::TimedQueuePresent(
         // The gpu memory pointer should never be null.
         PAL_ASSERT(timestampMemoryInfo.pGpuMemory != nullptr);
 
-        pCmdBuffer->CmdWriteTimestamp(Pal::HwPipePostPrefetch, *timestampMemoryInfo.pGpuMemory, timestampMemoryOffset);
+        pCmdBuffer->CmdWriteTimestamp(PipelineStagePostPrefetch,
+                                      *timestampMemoryInfo.pGpuMemory,
+                                      timestampMemoryOffset);
 
         result = pCmdBuffer->End();
     }
@@ -1583,7 +1585,7 @@ Result GpaSession::End(
         }
 
         // Mark completion after heap copy cmd finishes
-        pCmdBuf->CmdSetEvent(*m_pGpuEvent, HwPipeBottom);
+        pCmdBuf->CmdSetEvent(*m_pGpuEvent, PipelineStageBottomOfPipe);
 
         // Issue a barrier to make sure GPU event data is flushed to memory.
         {
@@ -2562,7 +2564,7 @@ void GpaSession::CopyResults(
         }
 
         // Mark completion after heap copy cmd finishes
-        pCmdBuf->CmdSetEvent(*m_pGpuEvent, HwPipeBottom);
+        pCmdBuf->CmdSetEvent(*m_pGpuEvent, PipelineStageBottomOfPipe);
 
         // Issue a barrier to make sure GPU event data is flushed to memory.
         {

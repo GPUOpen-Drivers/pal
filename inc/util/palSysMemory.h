@@ -420,9 +420,9 @@ private:
 };
 
 /**
-***********************************************************************************************************************
+************************************************************************************************************************
 * @brief A wrapper for Trackable (using MemTracker) memory allocator that wraps ForwardAllocator.
-***********************************************************************************************************************
+************************************************************************************************************************
 */
 #if PAL_MEMTRACK
 class ForwardAllocatorTracked
@@ -463,15 +463,19 @@ using ForwardAllocatorTracked = ForwardAllocator;
 #endif
 
 /**
-***********************************************************************************************************************
-* @brief Non-templated wrapper class around a templated Allocator. More indirect than encapsulating a typed Allocator
-* directly, but is useful for simplifying the implementation details of certain utilities.
-***********************************************************************************************************************
+************************************************************************************************************************
+* @brief A wrapper representing an allocator const-pointer.  Can be implicitly constructed from any Allocator pointer.
+*
+* IndirectAllocator is a type-erasure replacement for `Allocator*const pAllocator`, to abstract around Allocator types.
+* This allows classes to not need fully template on `typename Allocator`, at the cost of more pointer-indirection.
+*
+* Const-correctness should be treated as `Allocator*const pAllocator` - the pointed-to Allocator may be mutable.
+************************************************************************************************************************
 */
 class IndirectAllocator
 {
 public:
-    /// Constructor.
+    /// Implicit conversion from any Allocator pointer.
     template <typename Allocator>
     IndirectAllocator(Allocator*const pAllocator)
         :
@@ -488,15 +492,18 @@ public:
     /// @param [in] allocInfo Contains information about the requested allocation.
     ///
     /// @returns Pointer to the allocated memory, nullptr if the allocation failed.
-    void* Alloc(const AllocInfo& allocInfo) { return m_pfnAlloc(m_pAllocator, allocInfo); }
+    void* Alloc(const AllocInfo& allocInfo) const { return m_pfnAlloc(m_pAllocator, allocInfo); }
 
     /// Frees memory.
     ///
     /// @param [in] freeInfo Contains information about the requested free.
-    void  Free(const FreeInfo& freeInfo) { return m_pfnFree(m_pAllocator, freeInfo); }
+    void  Free(const FreeInfo& freeInfo) const { return m_pfnFree(m_pAllocator, freeInfo); }
+
+    /// Returns true if the allocator == nullptr.  Used in place of `pAllocator == nullptr`.
+    constexpr bool operator==(std::nullptr_t) const { return m_pAllocator == nullptr; }
 
 private:
-    /// @internal Allocation dispatch function. This is what the non-templated @ref m_pfnAlloc callback pointer references.
+    /// @internal Allocation dispatch function. This is what the non-template @ref m_pfnAlloc callback references.
     template <typename Allocator>
     static void* DispatchAlloc(void*const pAllocator, const AllocInfo& allocInfo)
     {
@@ -504,7 +511,7 @@ private:
         return pTypedAllocator->Alloc(allocInfo);
     }
 
-    /// @internal Free dispatch function. This is what the non-templated @ref m_pfnFree callback pointer references.
+    /// @internal Free dispatch function. This is what the non-template @ref m_pfnFree callback references.
     template <typename Allocator>
     static void  DispatchFree(void*const pAllocator, const FreeInfo& freeInfo)
     {
@@ -543,9 +550,9 @@ public:
 };
 
 /**
-***********************************************************************************************************************
+************************************************************************************************************************
 * @brief A wrapper for Trackable (using MemTracker) memory allocator that wraps GenericAllocator.
-***********************************************************************************************************************
+************************************************************************************************************************
 */
 #if PAL_MEMTRACK
 class GenericAllocatorTracked

@@ -482,7 +482,7 @@ void RsrcProcMgr::CmdUpdateMemory(
 
         // Write the DMA_DATA packet to the command stream.
         uint32* pCmdSpace = pStream->ReserveCommands();
-        pCmdSpace += m_cmdUtil.BuildDmaData<false>(dmaDataInfo, pCmdSpace);
+        pCmdSpace += m_cmdUtil.BuildDmaData<false, false>(dmaDataInfo, pCmdSpace);
         pStream->CommitCommands(pCmdSpace);
 
         // Update all variable addresses and sizes except for srcAddr and numBytes which will be reset above.
@@ -1952,7 +1952,7 @@ void RsrcProcMgr::HwlDepthStencilClear(
             SlowClearCompute(pCmdBuffer,
                              *pParent,
                              isDepth ? depthLayout : stencilLayout,
-                             &clearColor,
+                             clearColor,
                              format,
                              pRanges[idx],
                              (needPreComputeSync == false),
@@ -2583,7 +2583,7 @@ void RsrcProcMgr::DepthStencilClearGraphics(
         // surf-sync support should be faster than a full EOP wait at the CP.
         if (IsGfx11(*m_pDevice->Parent()))
         {
-            constexpr WriteWaitEopInfo WaitEopInfo = { .hwRbSync = SyncDbWbInv, .waitPoint = HwPipePreRasterization };
+            constexpr WriteWaitEopInfo WaitEopInfo = { .hwRbSync = SyncDbWbInv, .hwAcqPoint = AcquirePointPreDepth };
 
             pCmdSpace = pPm4CmdBuf->WriteWaitEop(WaitEopInfo, pCmdSpace);
         }
@@ -2796,7 +2796,7 @@ bool RsrcProcMgr::ClearDcc(
             SlowClearGraphics(pPm4CmdBuf,
                               *pParent,
                               dstImageLayout,
-                              &clearColor,
+                              clearColor,
                               pParent->GetImageCreateInfo().swizzledFormat,
                               clearRange,
                               trackBltActiveFlags,
@@ -3377,7 +3377,7 @@ void RsrcProcMgr::PfpCopyMetadataHeader(
         pCmdSpace += CmdUtil::BuildPfpSyncMe(pCmdSpace);
     }
 
-    pCmdSpace += CmdUtil::BuildDmaData<false>(dmaDataInfo, pCmdSpace);
+    pCmdSpace += CmdUtil::BuildDmaData<false, false>(dmaDataInfo, pCmdSpace);
     pCmdStream->CommitCommands(pCmdSpace);
 
     pPm4CmdBuf->SetCpBltWriteCacheState(true);
@@ -4306,7 +4306,7 @@ void Gfx10RsrcProcMgr::InitHtileData(
     // Put the new HTile data in user data 4 and the old HTile data mask in user data 5.
     const uint32 hTileUserData[2] = { hTileValue & hTileMask, ~hTileMask };
     pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute,
-                               NumBytesToNumDwords(sizeof(sq_buf_rsrc_t)),
+                               DwordsPerBufferSrd,
                                NumBytesToNumDwords(sizeof(hTileUserData)),
                                hTileUserData);
 
@@ -4342,10 +4342,7 @@ void Gfx10RsrcProcMgr::InitHtileData(
                 BufferSrd srd = { };
                 m_pDevice->Parent()->CreateTypedBufferViewSrds(1, &hTileBufferView, &srd);
 
-                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute,
-                                           0,
-                                           NumBytesToNumDwords(sizeof(sq_buf_rsrc_t)),
-                                           &srd.u32All[0]);
+                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 0, DwordsPerBufferSrd, &srd.u32All[0]);
 
                 // Issue a dispatch with one thread per HTile DWORD.
                 const uint32 hTileDwords  = static_cast<uint32>(hTileBufferView.range / sizeof(uint32));
@@ -4388,10 +4385,9 @@ void Gfx10RsrcProcMgr::WriteHtileData(
     // Save the command buffer's state.
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
 
-    const bool expClearEnable        = m_pDevice->Settings().dbPerTileExpClearEnable;
-    const bool tileStencilDisabled   = pHtile->TileStencilDisabled();
-    const uint32 numBufferSrdDwords  = NumBytesToNumDwords(sizeof(sq_buf_rsrc_t));
-    bool  wroteLastMipLevel          = false;
+    const bool expClearEnable      = m_pDevice->Settings().dbPerTileExpClearEnable;
+    const bool tileStencilDisabled = pHtile->TileStencilDisabled();
+    bool       wroteLastMipLevel   = false;
 
     const Pal::ComputePipeline* pPipeline = nullptr;
 
@@ -4420,7 +4416,7 @@ void Gfx10RsrcProcMgr::WriteHtileData(
                 hTileBufferView.swizzledFormat.swizzle =
                     { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
                 hTileBufferView.flags.bypassMallRead  = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
-                                                                      RpmViewsBypassMallOnRead);
+                                                                       RpmViewsBypassMallOnRead);
                 hTileBufferView.flags.bypassMallWrite = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
                                                                        RpmViewsBypassMallOnWrite);
                 BufferSrd htileSurfSrd                 = { };
@@ -4497,11 +4493,11 @@ void Gfx10RsrcProcMgr::WriteHtileData(
 
                 pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute,
                                            0,
-                                           numBufferSrdDwords,
+                                           DwordsPerBufferSrd,
                                            &htileSurfSrd.u32All[0]);
 
                 pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute,
-                                           numBufferSrdDwords,
+                                           DwordsPerBufferSrd,
                                            numConstDwords,
                                            hTileUserData);
 
@@ -4525,8 +4521,8 @@ void Gfx10RsrcProcMgr::WriteHtileData(
                     m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &metadataView, &metadataSrd);
 
                     pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute,
-                                               numBufferSrdDwords + numConstDwords,
-                                               numBufferSrdDwords,
+                                               DwordsPerBufferSrd + numConstDwords,
+                                               DwordsPerBufferSrd,
                                                &metadataSrd.u32All[0]);
                 }
 
@@ -5413,8 +5409,8 @@ void Gfx10RsrcProcMgr::CopyVrsIntoHtile(
     uint32*       pCmdSpace  = pCmdStream->ReserveCommands();
     pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(FLUSH_AND_INV_DB_META, pCmdBuffer->GetEngineType(), pCmdSpace);
 
-    constexpr WriteWaitEopInfo WaitEopInfo = { .hwGlxSync = SyncGlkInv | SyncGlvInv | SyncGl1Inv,
-                                               .waitPoint = HwPipePostPrefetch };
+    constexpr WriteWaitEopInfo WaitEopInfo = { .hwGlxSync  = SyncGlkInv | SyncGlvInv | SyncGl1Inv,
+                                               .hwAcqPoint = AcquirePointMe };
 
     pCmdSpace  = pPm4CmdBuf->WriteWaitEop(WaitEopInfo, pCmdSpace);
     pCmdStream->CommitCommands(pCmdSpace);
@@ -5506,18 +5502,17 @@ void Gfx10RsrcProcMgr::HwlGfxDccToDisplayDcc(
         image.GetDevice()->CreateUntypedBufferViewSrds(BufferViewCount, &bufferView[0], &bufferSrds[0]);
 
         // Create an embedded user-data table and bind it to user data 0.
-        static const uint32 bufferSrdDwords       = NumBytesToNumDwords(sizeof(BufferSrd));
-        static const uint32 inlineConstDataDwords = NumBytesToNumDwords(sizeof(inlineConstData));
+        constexpr uint32 InlineConstDataDwords = NumBytesToNumDwords(sizeof(inlineConstData));
 
         uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(
             pCmdBuffer,
-            bufferSrdDwords * BufferViewCount + inlineConstDataDwords,
-            bufferSrdDwords,
+            DwordsPerBufferSrd * BufferViewCount + InlineConstDataDwords,
+            DwordsPerBufferSrd,
             PipelineBindPoint::Compute,
             0);
 
         memcpy(pSrdTable, &bufferSrds[0], sizeof(bufferSrds));
-        pSrdTable += bufferSrdDwords * BufferViewCount;
+        pSrdTable += DwordsPerBufferSrd * BufferViewCount;
         memcpy(pSrdTable, &inlineConstData[0], sizeof(inlineConstData));
 
         const DispatchDims threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
@@ -5831,18 +5826,17 @@ void Gfx10RsrcProcMgr::BuildDccLookupTable(
         0
     };
 
-    static const uint32 sizeBufferSrdDwords   = NumBytesToNumDwords(sizeof(BufferSrd));
-    static const uint32 sizeEqConstDataDwords = NumBytesToNumDwords(sizeof(eqConstData));
+    constexpr uint32 SizeEqConstDataDwords = NumBytesToNumDwords(sizeof(eqConstData));
 
     uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(
                             pCmdBuffer,
-                            sizeBufferSrdDwords * BufferViewCount + sizeEqConstDataDwords,
-                            sizeBufferSrdDwords,
+                            DwordsPerBufferSrd * BufferViewCount + SizeEqConstDataDwords,
+                            DwordsPerBufferSrd,
                             PipelineBindPoint::Compute,
                             0);
 
     memcpy(pSrdTable, &bufferSrds[0], sizeof(BufferSrd) * BufferViewCount);
-    pSrdTable += sizeBufferSrdDwords * BufferViewCount;
+    pSrdTable += DwordsPerBufferSrd * BufferViewCount;
     memcpy(pSrdTable, &eqConstData[0], sizeof(eqConstData));
 
     pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz({worksX, worksY, worksZ}, threadsPerGroup));

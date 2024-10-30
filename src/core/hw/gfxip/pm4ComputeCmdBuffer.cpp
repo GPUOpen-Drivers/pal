@@ -87,18 +87,6 @@ Result ComputeCmdBuffer::Init(
 }
 
 // =====================================================================================================================
-// Resets the command buffer's previous contents and state, then puts it into a building state allowing new commands
-// to be recorded.
-// Also starts command buffer dumping, if it is enabled.
-Result ComputeCmdBuffer::Begin(
-    const CmdBufferBuildInfo& info)
-{
-    const Result result = Pm4CmdBuffer::Begin(info);
-
-    return result;
-}
-
-// =====================================================================================================================
 // Puts the command stream into a state that is ready for command building.
 Result ComputeCmdBuffer::BeginCommandStreams(
     CmdStreamBeginFlags cmdStreamFlags,

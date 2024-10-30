@@ -469,6 +469,10 @@ Result Image::GetExternalSharedImageCreateInfo(
         }
         pCreateInfo->usageFlags.depthStencil = depthStencilUsage;
     }
+    else
+    {
+        pCreateInfo->swizzledFormat = openInfo.swizzledFormat;
+    }
 
     if (Formats::IsUndefined(pCreateInfo->swizzledFormat.format))
     {

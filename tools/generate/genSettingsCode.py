@@ -155,31 +155,31 @@ def getTypeSpacing(type):
     numSpaces = maxTypeLen - len(type)
     return " " * numSpaces
 
-registryTypes = { "uint32":"Uint",
+registryTypes = { "uint32":"Uint32",
                   "bool":"Boolean",
-                  "int32":"Int",
+                  "int32":"Int32",
                   "gpusize":"Uint64",
                   "float":"Float",
                   "string":"Str",
                   "uint64":"Uint64",
                   "size_t":"Uint64",
-                  "enum": "Uint",
-                  "uint16":"Uint",
-                  "int16":"Int"}
+                  "enum": "Uint32",
+                  "uint16":"Uint16",
+                  "int16":"Int16"}
 def getRegistryType(type):
     return "Util::ValueType::"+registryTypes[type]
 
-JsonTypeToDDSettingType = { "uint32":"Uint",
+JsonTypeToDDSettingType = { "uint32":"Uint32",
                             "bool":"Boolean",
-                            "int32":"Int",
+                            "int32":"Int32",
                             "gpusize":"Uint64",
                             "float":"Float",
                             "string":"String",
                             "uint64":"Uint64",
                             "size_t":"Uint64",
-                            "enum": "Uint",
-                            "uint16":"Uint",
-                            "int16":"Int"}
+                            "enum": "Uint32",
+                            "uint16":"Uint16",
+                            "int16":"Int16"}
 def getDevDriverType(type):
     return "SettingType::"+JsonTypeToDDSettingType[type]
 

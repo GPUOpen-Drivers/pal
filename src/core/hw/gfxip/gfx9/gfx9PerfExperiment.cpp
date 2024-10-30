@@ -79,6 +79,20 @@ constexpr uint32 DfSpmBufferAlignment = 0x10000;
 // The bound GPU memory must be aligned to the maximum of all alignment requirements.
 constexpr gpusize GpuMemoryAlignment = Max<gpusize>(SqttBufferAlignment, SpmRingBaseAlignment);
 
+// Layout for SQWGP instance programming
+union PerWgpInstanceLayout
+{
+    struct
+    {
+        uint32 blockIndex : 2; // The index of the block within the WGP.
+        uint32 wgpIndex   : 3; // The WGP index within the SPI side of this shader array.
+        uint32 isBelowSpi : 1; // 0 - The side with lower WGP numbers, 1 - the side with higher WGP numbers.
+        uint32 reserved   : 26;
+    } bits;
+
+    uint32 u32All;
+};
+
 // =====================================================================================================================
 static void SetSqttTokenExclude(
     const Pal::Device&             device,
@@ -512,25 +526,6 @@ Result PerfExperiment::AddCounter(
                     // Our SQ PERF_SEL fields are 9 bits. Verify that our event ID can fit.
                     PAL_ASSERT(info.eventId <= ((1 << 9) - 1));
 
-                    bool skip = false;
-                    for (uint32 instance = 0; instance < ArrayLen(m_select.sqWgp); instance++)
-                    {
-                        // SQWGP select programming is broadcast per SE, so prevent two instances within the same se
-                        // from using different programming
-                        if (m_select.sqWgp[instance].perfmonInUse[idx] &&
-                            (m_select.sqWgp[instance].grbmGfxIndex.bits.SE_INDEX ==
-                                m_select.sqWgp[info.instance].grbmGfxIndex.bits.SE_INDEX) &&
-                            (m_select.sqWgp[instance].perfmon[idx].bits.PERF_SEL != info.eventId))
-                        {
-                            skip = true;
-                        }
-                    }
-
-                    if (skip)
-                    {
-                        continue;
-                    }
-
                     m_select.sqWgp[info.instance].perfmonInUse[idx] = true;
 
                     PAL_ASSERT(((idx & 0x3) == 0) || (info.eventId <= SP_PERF_SEL_VALU_PENDING_QUEUE_STALL__GFX11));
@@ -886,25 +881,6 @@ Result PerfExperiment::AddSpmCounter(
                 {
                     // Our SQ PERF_SEL fields are 9 bits. Verify that our event ID can fit.
                     PAL_ASSERT(info.eventId <= ((1 << 9) - 1));
-
-                    bool skip = false;
-                    for (uint32 instance = 0; instance < ArrayLen(m_select.sqWgp); instance++)
-                    {
-                        // SQWGP select programming is broadcast per SE, so prevent two instances within the same se
-                        // from using different programming
-                        if (m_select.sqWgp[instance].perfmonInUse[idx] &&
-                            (m_select.sqWgp[instance].grbmGfxIndex.bits.SE_INDEX ==
-                                m_select.sqWgp[info.instance].grbmGfxIndex.bits.SE_INDEX) &&
-                            (m_select.sqWgp[instance].perfmon[idx].bits.PERF_SEL != info.eventId))
-                        {
-                            skip = true;
-                        }
-                    }
-
-                    if (skip)
-                    {
-                        continue;
-                    }
 
                     // Note that "LEVEL" counters require us to use the no-clamp & no-reset SPM mode.
                     const bool isLevel = IsSqWgpLevelEvent(info.eventId);
@@ -2670,18 +2646,7 @@ regGRBM_GFX_INDEX PerfExperiment::BuildGrbmGfxIndex(
     if ((block == GpuBlock::Ta) || (block == GpuBlock::Td) || (block == GpuBlock::Tcp))
     {
         // The shader array hardware defines this instance index format.
-        union
-        {
-            struct
-            {
-                uint32 blockIndex :  2; // The index of the block within the WGP.
-                uint32 wgpIndex   :  3; // The WGP index within the SPI side of this shader array.
-                uint32 isBelowSpi :  1; // 0 - The side with lower WGP numbers, 1 - the side with higher WGP numbers.
-                uint32 reserved   : 26;
-            } bits;
-
-            uint32 u32All;
-        } instanceIndex = {};
+        PerWgpInstanceLayout instanceIndex = {};
 
         // These blocks are per-CU.
         constexpr uint32 NumCuPerWgp    = 2;
@@ -2698,18 +2663,7 @@ regGRBM_GFX_INDEX PerfExperiment::BuildGrbmGfxIndex(
     else if (IsGfx11(m_chipProps.gfxLevel) && (block == GpuBlock::SqWgp))
     {
         // The shader array hardware defines this instance index format.
-        union
-        {
-            struct
-            {
-                uint32 blockIndex : 2; // The index of the block within the WGP.
-                uint32 wgpIndex   : 3; // The WGP index within the SPI side of this shader array.
-                uint32 isBelowSpi : 1; // 0 - The side with lower WGP numbers, 1 - the side with higher WGP numbers.
-                uint32 reserved   : 26;
-            } bits;
-
-            uint32 u32All;
-        } instanceIndex = {};
+        PerWgpInstanceLayout instanceIndex = {};
 
         // Based on code from Pal::Gfx9::InitializeGpuChipProperties below:
         // pInfo->gfx9.gfx10.numWgpAboveSpi = 4; // GPU__GC__NUM_WGP0_PER_SA
@@ -3354,8 +3308,6 @@ uint32* PerfExperiment::WriteSelectRegisters(
         }
     }
 
-    uint32 sqWgpSelects[Gfx9MaxShaderEngines][Gfx11MaxSqPerfmonModules] = {};
-
     for (uint32 instance = 0; instance < ArrayLen(m_select.sqWgp); ++instance)
     {
         const GlobalSelectState::SqWgp& instSelect = m_select.sqWgp[instance];
@@ -3366,52 +3318,48 @@ uint32* PerfExperiment::WriteSelectRegisters(
             PAL_ASSERT(IsGfx11(*m_pDevice));
             const PerfCounterRegAddr& regAddr = m_counterInfo.block[uint32(GpuBlock::SqWgp)].regAddr;
 
-            regGRBM_GFX_INDEX reg =
+            constexpr uint32 SimdPerWgp = 4;
+
+            // While the counters themselves are present at the WGP level, the logic that feeds them is duplicated
+            // per SIMD, requiring us to direct the programming repeatedly across all SIMD so they all count
+            for (uint32 simd = 0; simd < SimdPerWgp; simd++)
             {
-                .u32All = instSelect.grbmGfxIndex.u32All
-            };
-            reg.bits.SA_BROADCAST_WRITES       = 1;
-            reg.bits.INSTANCE_BROADCAST_WRITES = 1;
+                regGRBM_GFX_INDEX    reg           = { .u32All = instSelect.grbmGfxIndex.u32All };
+                PerWgpInstanceLayout instanceIndex = { .u32All = reg.most.INSTANCE_INDEX };
 
-            pCmdSpace = WriteGrbmGfxIndexInstance(reg, pCmdStream, pCmdSpace);
+                // Update the blockIndex necessary for programming all SIMD to the same select
+                instanceIndex.bits.blockIndex = simd;
 
-            uint32 realSe = reg.bits.SE_INDEX;
+                // Propagate the instance back to the local register value
+                reg.most.INSTANCE_INDEX = instanceIndex.u32All;
 
-            for (uint32 idx = 0; idx < ArrayLen(instSelect.perfmon); ++idx)
-            {
-                if (instSelect.perfmonInUse[idx])
+                pCmdSpace = WriteGrbmGfxIndexInstance(reg, pCmdStream, pCmdSpace);
+
+                for (uint32 idx = 0; idx < ArrayLen(instSelect.perfmon); ++idx)
                 {
-                    PAL_ASSERT(regAddr.perfcounter[idx].selectOrCfg != 0);
-
-                    pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regAddr.perfcounter[idx].selectOrCfg,
-                                                                  instSelect.perfmon[idx].u32All,
-                                                                  pCmdSpace);
-
-                    // Check for cross SE alignment on the same counter instance to warn against different values per SE
-                    if ((sqWgpSelects[realSe][idx] != 0) &&
-                        (instSelect.perfmon[idx].u32All != sqWgpSelects[realSe][idx]))
+                    if (instSelect.perfmonInUse[idx])
                     {
-                        DbgLog(SeverityLevel::Error, OriginationType::GpuProfiler, "GPUProfiler",
-                            "Cross SE variance detected for SQWGP performance counter %d. Only last select is effective"
-                            ". Existing: %x New: %x (%s:%d:%s)", idx, sqWgpSelects[realSe][idx],
-                            instSelect.perfmon[idx].u32All, __FILE__, __LINE__, __func__);
-                    }
-                    sqWgpSelects[realSe][idx] = instSelect.perfmon[idx].u32All;
+                        PAL_ASSERT(regAddr.perfcounter[idx].selectOrCfg != 0);
 
-                    // Some SQ-per-WGP perfmons actually have zero counters! What a unique programming model.
-                    if (regAddr.perfcounter[idx].lo != 0)
-                    {
-                        // Zero out this counter value before we start using it. Experiments show this fixes some
-                        // issues with the SQ latency counters getting stuck at "0xFFFFFFFF", likely due to saturation.
-                        // Note that SQ's legacy counters are 32-bit.
-                        pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regAddr.perfcounter[idx].lo, 0, pCmdSpace);
+                        pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regAddr.perfcounter[idx].selectOrCfg,
+                                                                      instSelect.perfmon[idx].u32All,
+                                                                      pCmdSpace);
+
+                        // Some SQ-per-WGP perfmons actually have zero counters! What a unique programming model.
+                        if (regAddr.perfcounter[idx].lo != 0)
+                        {
+                            // Zero out this counter value before we start using it. Experiments show this fixes some
+                            // issues with the SQ latency counters getting stuck at "0xFFFFFFFF", likely due to saturation.
+                            // Note that SQ's legacy counters are 32-bit.
+                            pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regAddr.perfcounter[idx].lo, 0, pCmdSpace);
+                        }
                     }
                 }
-            }
 
-            // Get fresh command space just in case we're close to running out.
-            pCmdStream->CommitCommands(pCmdSpace);
-            pCmdSpace = pCmdStream->ReserveCommands();
+                // Get fresh command space just in case we're close to running out.
+                pCmdStream->CommitCommands(pCmdSpace);
+                pCmdSpace = pCmdStream->ReserveCommands();
+            }
         }
     }
 
@@ -4160,7 +4108,7 @@ uint32* PerfExperiment::WriteWaitIdle(
         WriteWaitEopInfo waitEopInfo = {};
         waitEopInfo.hwGlxSync  = SyncGlxWbInvAll;
         waitEopInfo.hwRbSync   = pPm4CmdBuf->IsGraphicsSupported() ? SyncRbWbInv : SyncRbNone;
-        waitEopInfo.waitPoint  = HwPipeTop;
+        waitEopInfo.hwAcqPoint = AcquirePointPfp;
 
         pCmdSpace = pPm4CmdBuf->WriteWaitEop(waitEopInfo, pCmdSpace);
     }

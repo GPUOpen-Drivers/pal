@@ -259,6 +259,8 @@ public:
 
     bool IsProfilingEnabled() const { return m_profileEnabled; }
 
+    bool EndSampleEnabled() const { return m_endSampleEnabled; }
+
 private:
     virtual ~Queue();
 
@@ -389,6 +391,7 @@ private:
     bool                              m_isDfSpmTraceEnabled;
     bool                              m_recreateState;    // Cached state for this queue noting the global recreate state
     bool                              m_profileEnabled;   // Did the config permit this queue to be profiled
+    bool                              m_endSampleEnabled; // Do settings indicate perfcounters should be ended
 
     PAL_DISALLOW_DEFAULT_CTOR(Queue);
     PAL_DISALLOW_COPY_AND_ASSIGN(Queue);

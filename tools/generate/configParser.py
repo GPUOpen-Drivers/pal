@@ -93,10 +93,10 @@ SettingParseStrings = {
 # Registry type lookup table, finds the RegistryType based on SettingType
 RegistryTypeTable = {
     "BOOL_STR":   "Util::ValueType::Boolean",
-    "UINT_STR":   "Util::ValueType::Uint",
-    "INT_STR":    "Util::ValueType::Int",
+    "UINT_STR":   "Util::ValueType::Uint32",
+    "INT_STR":    "Util::ValueType::Int32",
     "FLOAT_STR":  "Util::ValueType::Float",
-    "HEX_STR":    "Util::ValueType::Uint",
+    "HEX_STR":    "Util::ValueType::Uint32",
     "HEX64_STR":  "Util::ValueType::Uint64",
     "STRING":     "Util::ValueType::Str",
     "STRING_DIR": "Util::ValueType::Str"

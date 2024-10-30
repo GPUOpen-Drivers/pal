@@ -830,39 +830,39 @@
             "Description": "Leave the interleave size determination to the client."
           },
           {
-            "Name": "OverrideCsDispatchInterleaveSizeDisabled",
+            "Name": "CsDispatchInterleaveSizeDisabled",
             "Value": 1,
             "Description": "Disable interleaving (switch after each threadgroup)."
           },
           {
-            "Name": "OverrideCsDispatchInterleaveSize128",
+            "Name": "CsDispatchInterleaveSize128",
             "Value": 2,
             "Description": "Switch at 128 threads."
           },
           {
-            "Name": "OverrideCsDispatchInterleaveSize256",
+            "Name": "CsDispatchInterleaveSize256",
             "Value": 3,
             "Description": "Switch at 256 threads."
           },
           {
-            "Name": "OverrideCsDispatchInterleaveSize512",
+            "Name": "CsDispatchInterleaveSize512",
             "Value": 4,
             "Description": "Switch at 512 threads."
           },
           {
-            "Name": "OverrideCsDispatchInterleaveSize64",
+            "Name": "CsDispatchInterleaveSize64",
             "Value": 5,
             "Description": "Switch at 64 threads."
           }
         ],
-        "Name": "OverrideCsDispatchInterleaveSize"
+        "Name": "CsDispatchInterleaveSize"
       },
       "Defaults": {
         "Default": "CsDispatchInterleaveSizeHonorClient"
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "enum",
-      "Name": "OverrideCsDispatchInterleaveSize"
+      "Name": "Gfx9CsDispatchInterleaveSize"
     },
     {
       "Description": "If true, HTile will be enabled for depth/stencil images.",

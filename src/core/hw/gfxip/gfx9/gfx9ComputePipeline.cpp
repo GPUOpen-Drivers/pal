@@ -141,12 +141,11 @@ Result ComputePipeline::HwlInit(
     if (result == Result::Success)
     {
         // These features aren't yet implemented in PAL's HSA ABI path.
-        // - The queue pointer, dispatch ID, flat scratch, or private segment SGPRs.
+        // - Flat scratch, or private segment SGPRs.
         // - Any kind of scratch memory or register spilling.
         // - Dynamic threadgroup sizes.
         // - Init or Fini kernels.
         if (TestAnyFlagSet(desc.kernel_code_properties,
-                           AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_QUEUE_PTR         |
                            AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_FLAT_SCRATCH_INIT |
                            AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_PRIVATE_SEGMENT_SIZE) ||
             (metadata.KernelKind() != HsaAbi::Kind::Normal))
@@ -169,21 +168,33 @@ Result ComputePipeline::HwlInit(
             // We only have partial support for the Hidden arguments. We support:
             // - HiddenNone: Which we just need to allocate and ignore.
             // - HiddenGlobalOffsetX/Y/Z: Which are the global thread starting offsets (i.e. CmdDispatchOffset).
+            // - HiddenQueuePtr: queue pointer. We can't support it, while kernels request it when there are virtual
+            // functions but never use it. Here permit it but don't actually support it.
             // We permit HiddenMultigridSyncArg but don't actually support it. Normal kernels declare it but never use
             // it. We don't have any required metadata that lets us distinguish between cases that don't use it and
-            // cases that do use it. We just have to tell users to not use it or they'll get a GPU page fault. The
-            // remaining hidden arguments are not supported and rejected right here.
+            // cases that do use it. We just have to tell users to not use it or they'll get a GPU page fault.
+            // - HiddenDefaultQueue and HiddenCompletionAction are for OpenCL feature enqueue kernel (device enqueue),
+            // which can't be supported in PAL. While HIP/OpenCL compiler assumes all hidden arguments are required
+            // by default, and optimize out ones these can be proved are unused. When there are indirect function
+            // call such as virtual functions, HIP kernels request these two hidden arguments, but never actually use
+            // them, So we permit but don't actually support them.
+            // The remaining hidden arguments are not supported and rejected right here.
             for (uint32 idx = 0; idx < metadata.NumArguments(); ++idx)
             {
                 const HsaAbi::KernelArgument& arg = metadata.Arguments()[idx];
 
-                if ((arg.valueKind == HsaAbi::ValueKind::HiddenPrintfBuffer)   ||
-                    (arg.valueKind == HsaAbi::ValueKind::HiddenHostcallBuffer) ||
-                    (arg.valueKind == HsaAbi::ValueKind::HiddenDefaultQueue)   ||
-                    (arg.valueKind == HsaAbi::ValueKind::HiddenCompletionAction))
+                if ((arg.valueKind == HsaAbi::ValueKind::HiddenPrintfBuffer) ||
+                    (arg.valueKind == HsaAbi::ValueKind::HiddenHostcallBuffer))
                 {
                     result = Result::Unsupported;
                     break;
+                }
+
+                if ((arg.valueKind == HsaAbi::ValueKind::HiddenQueuePtr) ||
+                    (arg.valueKind == HsaAbi::ValueKind::HiddenDefaultQueue) ||
+                    (arg.valueKind == HsaAbi::ValueKind::HiddenCompletionAction))
+                {
+                    PAL_ASSERT_ALWAYS_MSG("Unsupported hidden argument %d", arg.valueKind);
                 }
             }
         }

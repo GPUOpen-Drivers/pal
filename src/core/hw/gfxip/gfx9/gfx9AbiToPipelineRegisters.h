@@ -1508,7 +1508,7 @@ static uint32 PaClVsOutCntl(
         paClVsOutCntl.bitfields.CLIP_DIST_ENA_5 &= (createInfo.rsState.clipDistMask & 0x20) != 0;
         paClVsOutCntl.bitfields.CLIP_DIST_ENA_6 &= (createInfo.rsState.clipDistMask & 0x40) != 0;
         paClVsOutCntl.bitfields.CLIP_DIST_ENA_7 &= (createInfo.rsState.clipDistMask & 0x80) != 0;
-}
+    }
 
     // Unlike our hardware, DX12 and Vulkan do not have separate vertex and primitive combiners.
     // A mesh shader is the only shader that can export a primitive rate so if there is
@@ -1796,46 +1796,46 @@ static COMPUTE_DISPATCH_INTERLEAVE ComputeDispatchInterleave(
     {
         DispatchInterleaveSize interleaveSizeLcl = interleaveSize;
 
-        if (settings.overrideCsDispatchInterleaveSize != CsDispatchInterleaveSizeHonorClient)
+        if (settings.gfx9CsDispatchInterleaveSize != CsDispatchInterleaveSizeHonorClient)
         {
 #if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 823)
-            static_assert((uint32(OverrideCsDispatchInterleaveSize::OverrideCsDispatchInterleaveSizeDisabled) ==
+            static_assert((uint32(CsDispatchInterleaveSize::CsDispatchInterleaveSizeDisabled) ==
                            uint32(DispatchInterleaveSize::Disable)) &&
-                          (uint32(OverrideCsDispatchInterleaveSize::OverrideCsDispatchInterleaveSize128)      ==
+                          (uint32(CsDispatchInterleaveSize::CsDispatchInterleaveSize128)      ==
                            uint32(DispatchInterleaveSize::_128)) &&
-                          (uint32(OverrideCsDispatchInterleaveSize::OverrideCsDispatchInterleaveSize256)      ==
+                          (uint32(CsDispatchInterleaveSize::CsDispatchInterleaveSize256)      ==
                            uint32(DispatchInterleaveSize::_256)) &&
-                          (uint32(OverrideCsDispatchInterleaveSize::OverrideCsDispatchInterleaveSize512)      ==
+                          (uint32(CsDispatchInterleaveSize::CsDispatchInterleaveSize512)      ==
                            uint32(DispatchInterleaveSize::_512)),
-                          "Mismatch in some enums of OverrideCsDispatchInterleaveSize and DispatchInterleaveSize!");
+                          "Mismatch in some enums of CsDispatchInterleaveSize and DispatchInterleaveSize!");
 #endif
 
-            switch (settings.overrideCsDispatchInterleaveSize)
+            switch (settings.gfx9CsDispatchInterleaveSize)
             {
 #if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 823)
-            case OverrideCsDispatchInterleaveSize::OverrideCsDispatchInterleaveSizeDisabled:
+            case CsDispatchInterleaveSize::CsDispatchInterleaveSizeDisabled:
                 interleaveSizeLcl = DispatchInterleaveSize::Disable;
                 break;
-            case OverrideCsDispatchInterleaveSize::OverrideCsDispatchInterleaveSize64:
+            case CsDispatchInterleaveSize::CsDispatchInterleaveSize64:
                 interleaveSizeLcl = DispatchInterleaveSize::_1D_64_Threads;
                 break;
-            case OverrideCsDispatchInterleaveSize::OverrideCsDispatchInterleaveSize128:
+            case CsDispatchInterleaveSize::CsDispatchInterleaveSize128:
                 interleaveSizeLcl = DispatchInterleaveSize::_1D_128_Threads;
                 break;
-            case OverrideCsDispatchInterleaveSize::OverrideCsDispatchInterleaveSize256:
+            case CsDispatchInterleaveSize::CsDispatchInterleaveSize256:
                 interleaveSizeLcl = DispatchInterleaveSize::_1D_256_Threads;
                 break;
-            case OverrideCsDispatchInterleaveSize::OverrideCsDispatchInterleaveSize512:
+            case CsDispatchInterleaveSize::CsDispatchInterleaveSize512:
                 interleaveSizeLcl = DispatchInterleaveSize::_1D_512_Threads;
                 break;
 #else
-            case OverrideCsDispatchInterleaveSize::OverrideCsDispatchInterleaveSizeDisabled:
-            case OverrideCsDispatchInterleaveSize::OverrideCsDispatchInterleaveSize128:
-            case OverrideCsDispatchInterleaveSize::OverrideCsDispatchInterleaveSize256:
-            case OverrideCsDispatchInterleaveSize::OverrideCsDispatchInterleaveSize512:
-                interleaveSizeLcl = static_cast<DispatchInterleaveSize>(settings.overrideCsDispatchInterleaveSize);
+            case CsDispatchInterleaveSize::CsDispatchInterleaveSizeDisabled:
+            case CsDispatchInterleaveSize::CsDispatchInterleaveSize128:
+            case CsDispatchInterleaveSize::CsDispatchInterleaveSize256:
+            case CsDispatchInterleaveSize::CsDispatchInterleaveSize512:
+                interleaveSizeLcl = static_cast<DispatchInterleaveSize>(settings.gfx9CsDispatchInterleaveSize);
                 break;
-            case OverrideCsDispatchInterleaveSize::OverrideCsDispatchInterleaveSize64:
+            case CsDispatchInterleaveSize::CsDispatchInterleaveSize64:
                 interleaveSizeLcl = DispatchInterleaveSize::Default;
                 break;
 #endif

@@ -86,7 +86,7 @@ Result GfxCmdBuffer::Begin(
     {
         if (info.pInheritedState != nullptr)
         {
-            m_gfxCmdBufStateFlags.clientPredicate  = info.pInheritedState->stateFlags.predication;
+            m_gfxCmdBufStateFlags.clientPredicate = info.pInheritedState->stateFlags.predication;
         }
     }
 
@@ -810,11 +810,15 @@ void GfxCmdBuffer::CmdClearDepthStencil(
     uint32 splitRangeCount;
     bool splitMemAllocated          = false;
     const SubresRange* pSplitRanges = nullptr;
-    Result result = m_device.Parent()->SplitSubresRanges(rangeCount,
-                                                         pRanges,
-                                                         &splitRangeCount,
-                                                         &pSplitRanges,
-                                                         &splitMemAllocated);
+    Result result = Result::Success;
+
+    {
+        result = m_device.Parent()->SplitSubresRanges(rangeCount,
+                                                      pRanges,
+                                                      &splitRangeCount,
+                                                      &pSplitRanges,
+                                                      &splitMemAllocated);
+    }
 
     if (result == Result::ErrorOutOfMemory)
     {

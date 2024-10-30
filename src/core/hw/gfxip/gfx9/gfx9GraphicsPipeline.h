@@ -239,8 +239,6 @@ public:
     bool HwStereoRenderingUsesMultipleViewports() const;
     bool UsesMultipleViewports() const { return UsesViewportArrayIndex() || HwStereoRenderingUsesMultipleViewports(); }
     bool UsesViewInstancing() const { return (m_signature.viewIdRegAddr[0] != UserDataNotMapped); }
-    bool UsesUavExport() const { return (m_signature.uavExportTableAddr != UserDataNotMapped); }
-    bool NeedsUavExportFlush() const { return m_flags.uavExportRequiresFlush; }
     bool IsLineStippleTexEnabled() const { return m_chunkVsPs.SpiPsInputEna().bits.LINE_STIPPLE_TEX_ENA != 0; }
     bool AlphaToCoverageEanble() const { return m_flags.alphaToCoverageEnable; }
     uint32* WriteShCommands(
@@ -416,13 +414,12 @@ private:
     {
         struct
         {
-            uint8 uavExportRequiresFlush      : 1; // If false, must flush after each draw when UAV export is enabled
             uint8 binningAllowed              : 1;
             uint8 alphaToCoverageEnable       : 1;
             uint8 contextPairsPacketSupported : 1;
             uint8 shPairsPacketSupported      : 1;
             uint8 writeVgtGsOutPrimType       : 1;
-            uint8 reserved                    : 2;
+            uint8 reserved                    : 3;
         };
         uint8 u8All;
     } m_flags;

@@ -151,6 +151,42 @@ void LogContext::Struct(
 
 // =====================================================================================================================
 void LogContext::Struct(
+    const ImgBarrier& value)
+{
+    BeginMap(false);
+
+    KeyAndObject("pImage", value.pImage);
+
+    if (value.pImage != nullptr)
+    {
+        KeyAndStruct("subresRange", value.subresRange);
+        KeyAndPipelineStageFlags("srcStageMask", value.srcStageMask);
+        KeyAndPipelineStageFlags("dstStageMask", value.dstStageMask);
+        KeyAndCacheCoherencyUsageFlags("srcAccessMask", value.srcAccessMask);
+        KeyAndCacheCoherencyUsageFlags("dstAccessMask", value.dstAccessMask);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 880
+        KeyAndStruct("box", value.box);
+#endif
+        KeyAndStruct("oldLayout", value.oldLayout);
+        KeyAndStruct("newLayout", value.newLayout);
+
+        Key("pQuadSamplePattern");
+        if (value.pQuadSamplePattern != nullptr)
+        {
+            Struct(*value.pQuadSamplePattern);
+        }
+        else
+        {
+            NullValue();
+        }
+    }
+
+    EndMap();
+}
+
+// =====================================================================================================================
+void LogContext::Struct(
     const AcquireReleaseInfo& value)
 {
     BeginMap(false);
@@ -195,36 +231,7 @@ void LogContext::Struct(
     {
         const auto& imageBarrier = value.pImageBarriers[idx];
 
-        BeginMap(false);
-
-        KeyAndObject("pImage", imageBarrier.pImage);
-
-        if (imageBarrier.pImage != nullptr)
-        {
-            KeyAndStruct("subresRange", imageBarrier.subresRange);
-            KeyAndPipelineStageFlags("srcStageMask", imageBarrier.srcStageMask);
-            KeyAndPipelineStageFlags("dstStageMask", imageBarrier.dstStageMask);
-            KeyAndCacheCoherencyUsageFlags("srcAccessMask", imageBarrier.srcAccessMask);
-            KeyAndCacheCoherencyUsageFlags("dstAccessMask", imageBarrier.dstAccessMask);
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 880
-                KeyAndStruct("box", imageBarrier.box);
-#endif
-            KeyAndStruct("oldLayout", imageBarrier.oldLayout);
-            KeyAndStruct("newLayout", imageBarrier.newLayout);
-
-            Key("pQuadSamplePattern");
-            if (imageBarrier.pQuadSamplePattern != nullptr)
-            {
-                Struct(*imageBarrier.pQuadSamplePattern);
-            }
-            else
-            {
-                NullValue();
-            }
-        }
-
-        EndMap();
+        Struct(imageBarrier);
     }
     EndList();
 

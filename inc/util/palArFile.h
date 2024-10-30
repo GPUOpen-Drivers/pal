@@ -30,9 +30,13 @@
 #include "palInlineFuncs.h"
 #include "palSpan.h"
 #include "palUtil.h"
+#include <cstring>
 
 namespace Util
 {
+
+/// Magic character sequence which identifies a Unix ar file format.
+static constexpr char ArFileMagic[] = { '!', '<', 'a', 'r', 'c', 'h', '>', '\n' };  // "!<arch>\n" not a C-string
 
 /// Definitions for Unix ar file format.
 struct ArFileFormat
@@ -53,6 +57,20 @@ struct ArFileFormat
         char endChars[2];
     };
 };
+
+static_assert(sizeof(ArFileFormat::GlobalHeader) == sizeof(ArFileMagic),  "Incorrect ArFileMagic size.");
+
+// =====================================================================================================================
+///@{
+/// @returns true if the given binary blob identifies as a Unix ar file.
+///
+/// @param [in] pData/binary  The binary blob to check.
+inline bool IsArFile(const void* pData)
+    { return (pData != nullptr) && (memcmp(pData, ArFileMagic, sizeof(ArFileMagic)) == 0); }
+
+inline bool IsArFile(Span<const void> binary)
+    { return (binary.SizeInBytes() >= sizeof(ArFileMagic)) && IsArFile(binary.Data()); }
+///@}
 
 // =====================================================================================================================
 /// Class for writing a Unix ar (archive) file.

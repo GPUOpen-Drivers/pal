@@ -89,6 +89,13 @@ struct Dim3d
     UINT_32 d;
 };
 
+struct ADDR2_UCOORD
+{
+    UINT_32  x;
+    UINT_32  y;
+    UINT_32  z;
+};
+
 enum AddrSwSet
 {
     AddrSwSetZ = 1 << ADDR_SW_Z,
@@ -223,6 +230,16 @@ public:
     ADDR_E_RETURNCODE ComputeSurfaceCoordFromAddr(
         const ADDR2_COMPUTE_SURFACE_COORDFROMADDR_INPUT* pIn,
         ADDR2_COMPUTE_SURFACE_COORDFROMADDR_OUTPUT*      pOut) const;
+
+    ADDR_E_RETURNCODE CopyMemToSurface(
+        const ADDR2_COPY_MEMSURFACE_INPUT*  pIn,
+        const ADDR2_COPY_MEMSURFACE_REGION* pRegions,
+        UINT_32                            regionCount) const;
+
+    ADDR_E_RETURNCODE CopySurfaceToMem(
+        const ADDR2_COPY_MEMSURFACE_INPUT*  pIn,
+        const ADDR2_COPY_MEMSURFACE_REGION* pRegions,
+        UINT_32                             regionCount) const;
 
     // For HTile
     ADDR_E_RETURNCODE ComputeHtileInfo(
@@ -475,7 +492,7 @@ protected:
         sample = (sample == 0) ? 1 : sample;
         frag   = (frag   == 0) ? sample : frag;
 
-        UINT_32 fmaskBpp = QLog2(frag);
+        UINT_32 fmaskBpp = Log2(frag);
 
         if (sample > frag)
         {
@@ -727,6 +744,24 @@ protected:
         return ADDR_NOTIMPLEMENTED;
     }
 
+    virtual ADDR_E_RETURNCODE HwlCopyMemToSurface(
+        const ADDR2_COPY_MEMSURFACE_INPUT*  pIn,
+        const ADDR2_COPY_MEMSURFACE_REGION* pRegions,
+        UINT_32                             regionCount) const
+    {
+        ADDR_NOT_IMPLEMENTED();
+        return ADDR_NOTSUPPORTED;
+    }
+
+    virtual ADDR_E_RETURNCODE HwlCopySurfaceToMem(
+        const ADDR2_COPY_MEMSURFACE_INPUT*  pIn,
+        const ADDR2_COPY_MEMSURFACE_REGION* pRegions,
+        UINT_32                             regionCount) const
+    {
+        ADDR_NOT_IMPLEMENTED();
+        return ADDR_NOTSUPPORTED;
+    }
+
     ADDR_E_RETURNCODE ComputeBlock256Equation(
         AddrResourceType rsrcType,
         AddrSwizzleMode swMode,
@@ -755,6 +790,12 @@ protected:
     ADDR_E_RETURNCODE ComputeSurfaceInfoTiled(
         const ADDR2_COMPUTE_SURFACE_INFO_INPUT* pIn,
         ADDR2_COMPUTE_SURFACE_INFO_OUTPUT*      pOut) const;
+
+    ADDR_E_RETURNCODE CopyLinearSurface(
+        const ADDR2_COPY_MEMSURFACE_INPUT*  pIn,
+        const ADDR2_COPY_MEMSURFACE_REGION* pRegions,
+        UINT_32                             regionCount,
+        bool                                surfaceIsDst) const;
 
     ADDR_E_RETURNCODE ComputeSurfaceAddrFromCoordLinear(
         const ADDR2_COMPUTE_SURFACE_ADDRFROMCOORD_INPUT* pIn,
@@ -894,13 +935,13 @@ protected:
             {
                 case ADDR_RSRC_TEX_3D:
                     // Fall through to share 2D case
-                    actualMipLevels = Max(actualMipLevels, Log2NonPow2(pIn->numSlices) + 1);
+                    actualMipLevels = Max(actualMipLevels, Log2(pIn->numSlices) + 1);
                 case ADDR_RSRC_TEX_2D:
                     // Fall through to share 1D case
-                    actualMipLevels = Max(actualMipLevels, Log2NonPow2(pIn->height) + 1);
+                    actualMipLevels = Max(actualMipLevels, Log2(pIn->height) + 1);
                 case ADDR_RSRC_TEX_1D:
                     // Base 1D case
-                    actualMipLevels = Max(actualMipLevels, Log2NonPow2(pIn->width) + 1);
+                    actualMipLevels = Max(actualMipLevels, Log2(pIn->width) + 1);
                     break;
                 default:
                     ADDR_ASSERT_ALWAYS();

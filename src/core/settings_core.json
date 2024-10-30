@@ -285,6 +285,64 @@
       "Description": "Idles after each call to Submit for the GPU's specified by the bitmask. GPU's are specified by the position in the bitfield and map to the LDA chain array.  Example: 0x2 would cause the GPU corresponding to the 2nd LDA chain in the array (array position 1) to idle after each submit."
     },
     {
+      "Name": "UMSRingBufferBytes",
+      "Tags": [
+        "General",
+        "Debug"
+      ],
+      "Flags": {
+        "IsHex": true
+      },
+      "Defaults": {
+        "Default": 16384
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "uint32",
+      "Description": "The default size in bytes of the ring buffer for user mode submission."
+    },
+    {
+      "Name": "UMSControlRingBufferBytes",
+      "Tags": [
+        "General",
+        "Debug"
+      ],
+      "Flags": {
+        "IsHex": true
+      },
+      "Defaults": {
+        "Default": 4096
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "uint32",
+      "Description": "The default size in bytes of the ring control buffer for user mode submission."
+    },
+    {
+      "Name": "EnableUserModeSubmission",
+      "Tags": [
+        "General",
+        "Debug"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "Description": "This settings determines whether PAL supports user mode submission or not."
+    },
+    {
+      "Name": "EnableNativeFence",
+      "Tags": [
+        "General",
+        "Debug"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "Description": "This settings determines whether PAL supports native fence or not."
+    },
+    {
       "ValidValues": {
         "IsEnum": true,
         "Values": [
@@ -413,7 +471,7 @@
         "General"
       ],
       "Defaults": {
-        "Default": true
+        "Default": false
       },
       "Scope": "PrivatePalKey",
       "Type": "bool",
@@ -2054,18 +2112,6 @@
       "Scope": "PrivatePalKey",
       "Type": "uint64",
       "Description": "When MemMgr allocates a new pool, it grows to twice the size of the old pool. This is the maximum size an individual pool can be."
-    },
-    {
-      "Name": "EnablePerfCounterWindowPacket",
-      "Tags": [
-        "Debug"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Scope": "PrivatePalKey",
-      "Type": "bool",
-      "Description": "Enable insertion of IT_PERF_COUNTER_WINDOW packet to bound use of non-global GRBM_GFX_INDEX programming"
     }
   ]
 }

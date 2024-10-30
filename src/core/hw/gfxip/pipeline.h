@@ -44,6 +44,7 @@ namespace Pal
 
 class CmdBuffer;
 class CmdStream;
+class CodeObjectUploader;
 class GraphicsShaderLibrary;
 
 // Represents information about shader operations stored obtained as shader metadata flags during processing of shader
@@ -122,6 +123,8 @@ static Util::Abi::ApiShaderType PalShaderTypeToAbiShaderType(ShaderType stage)
     return PalToAbiShaderType[static_cast<uint32>(stage)];
 }
 
+constexpr uint32 MaxGfxShaderLibraryCount = 3;
+
 // =====================================================================================================================
 // Monolithic object containing all shaders and a large amount of "shader adjacent" state.  Separate concrete
 // implementations will support compute or graphics pipelines.
@@ -147,6 +150,7 @@ public:
     virtual Result GetCodeObject(
         uint32*  pSize,
         void*    pBuffer) const override;
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 816
     virtual const void* GetCodeObjectWithShaderType(
         ShaderType shaderType,
@@ -182,7 +186,7 @@ public:
 
     bool IsInternal() const { return m_flags.isInternal != 0; }
 
-    const void* GetPipelineBinary() const { return m_pPipelineBinary; }
+    Util::Span<const void> GetPipelineBinary() const { return m_pipelineBinary; }
 
     static bool DispatchInterleaveSizeIsValid(
         DispatchInterleaveSize   interleave,
@@ -234,8 +238,9 @@ protected:
     gpusize         m_gpuMemSize;
     gpusize         m_gpuMemOffset;
 
-    void*   m_pPipelineBinary;      // Buffer containing the pipeline binary data (Pipeline ELF ABI).
-    size_t  m_pipelineBinaryLen;    // Size of the pipeline binary data, in bytes.
+    // Span containing the pipeline binary data in bytes.
+    // Binary blob is described by the PAL pipeline ABI, or the HSA pipeline ABI, etc. in ELF/ar file format
+    Util::Span<void> m_pipelineBinary;
 
     PerfDataInfo m_perfDataInfo[static_cast<size_t>(Util::Abi::HardwareStage::Count)];
     Util::Abi::ApiHwShaderMapping m_apiHwMapping;

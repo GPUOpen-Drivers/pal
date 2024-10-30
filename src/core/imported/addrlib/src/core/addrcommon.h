@@ -34,6 +34,7 @@
 #define __ADDR_COMMON_H__
 
 #include "addrinterface.h"
+#include <stdint.h>
 
 // ADDR_LNX_KERNEL_BUILD is for internal build
 // Moved from addrinterface.h so __KERNEL__ is not needed any more
@@ -336,6 +337,38 @@ static inline UINT_32 BitScanForward(
 
 /**
 ****************************************************************************************************
+*   BitScanReverse
+*
+*   @brief
+*       Returns the reverse-position of the most-significant '1' bit. Must not be 0.
+****************************************************************************************************
+*/
+static inline UINT_32 BitScanReverse(
+    UINT_32 mask) ///< [in] Bitmask to scan
+{
+    ADDR_ASSERT(mask > 0);
+    unsigned long out = 0;
+#if (defined(_WIN64) && defined(_M_X64)) || (0&& defined(_M_IX64))
+    out = ::_lzcnt_u32(mask);
+#elif ( defined(_WIN64))
+    ::_BitScanReverse(&out, mask);
+    out ^= 31;
+#elif defined(__GNUC__)
+    out = __builtin_clz(mask);
+#else
+    out = 32;
+    while (mask != 0)
+    {
+        mask >>= 1;
+        out++;
+    }
+    out = sizeof(mask) * 8 - out;
+#endif
+    return out;
+}
+
+/**
+****************************************************************************************************
 *   IsPow2
 *
 *   @brief
@@ -525,42 +558,16 @@ static inline UINT_32 NextPow2(
 
 /**
 ****************************************************************************************************
-*   Log2NonPow2
-*
-*   @brief
-*       Compute log of base 2 no matter the target is power of 2 or not
-****************************************************************************************************
-*/
-static inline UINT_32 Log2NonPow2(
-    UINT_32 x)      ///< [in] the value should calculate log based 2
-{
-    UINT_32 y;
-
-    y = 0;
-    while (x > 1)
-    {
-        x >>= 1;
-        y++;
-    }
-
-    return y;
-}
-
-/**
-****************************************************************************************************
 *   Log2
 *
 *   @brief
-*       Compute log of base 2
+*       Compute log of base 2 no matter the target is power of 2 or not. Returns 0 if 0.
 ****************************************************************************************************
 */
 static inline UINT_32 Log2(
     UINT_32 x)      ///< [in] the value should calculate log based 2
 {
-    // Assert that x is a power of two.
-    ADDR_ASSERT(IsPow2(x));
-
-    return Log2NonPow2(x);
+    return (x != 0) ? (31 ^ BitScanReverse(x)) : 0;
 }
 
 /**
@@ -1012,6 +1019,50 @@ static inline UINT_32 ShiftRight(
     UINT_32 b)  ///< [in] number of bits to shift
 {
     return Max(a >> b, 1u);
+}
+
+/**
+****************************************************************************************************
+*   VoidPtrInc
+*
+*   @brief
+*       Adds a value to the given pointer directly.
+****************************************************************************************************
+*/
+static inline void* VoidPtrInc(
+    void*  pIn,
+    size_t offset)
+{
+    return (void*)(((char*)(pIn)) + offset);
+}
+
+static inline const void* VoidPtrInc(
+    const void* pIn,
+    size_t      offset)
+{
+    return (const void*)(((const char*)(pIn)) + offset);
+}
+
+/**
+****************************************************************************************************
+*   VoidPtrXor
+*
+*   @brief
+*       Xors a value to the given pointer directly.
+****************************************************************************************************
+*/
+static inline void* VoidPtrXor(
+    void*  pIn,
+    size_t offset)
+{
+    return (void*)(((uintptr_t)(pIn)) ^ offset);
+}
+
+static inline const void* VoidPtrXor(
+    const void* pIn,
+    size_t      offset)
+{
+    return (const void*)(((uintptr_t)(pIn)) ^ offset);
 }
 
 } // Addr

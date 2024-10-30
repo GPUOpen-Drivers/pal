@@ -100,6 +100,8 @@ target_sources(pal PRIVATE
     gfx9Pm4Optimizer.h
     gfx9QueueContexts.cpp
     gfx9QueueContexts.h
+    gfx9QueueRingBuffer.cpp
+    gfx9QueueRingBuffer.h
     gfx9SettingsLoader.cpp
     gfx9SettingsLoader.h
     gfx9ShaderRing.cpp

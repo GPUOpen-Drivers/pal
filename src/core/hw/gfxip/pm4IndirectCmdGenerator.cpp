@@ -59,9 +59,11 @@ Result IndirectCmdGenerator::ValidateCreateInfo(
     {
         for (uint32 param = 0; param < (createInfo.paramCount - 1); ++param)
         {
-            minimumSize += createInfo.pParams[param].sizeInBytes;
+            const IndirectParam& indirectParam = createInfo.pParams[param];
 
-            switch (createInfo.pParams[param].type)
+            minimumSize += indirectParam.sizeInBytes;
+
+            switch (indirectParam.type)
             {
             case IndirectParamType::Draw:
             case IndirectParamType::DrawIndexed:
@@ -81,6 +83,13 @@ Result IndirectCmdGenerator::ValidateCreateInfo(
                 if (drawType == IndirectParamType::Dispatch)
                 {
                     // BindVertexData is only allowed for commands which issue a draw!
+                    result = Result::ErrorInvalidValue;
+                }
+                break;
+            case IndirectParamType::SetUserData:
+                if ((indirectParam.userData.isIncConst == true) && (indirectParam.userData.entryCount != 1))
+                {
+                    // SetUserData for Incrementing Constant can only be a 32-bit uint
                     result = Result::ErrorInvalidValue;
                 }
                 break;

@@ -136,7 +136,7 @@ using RegisterVector = Util::SparseVector<
     >;
 
 // Number of SGPRs available to each wavefront.  Note that while only 104 SGPRs are available for use by a particular
-// wave, each SIMD has 800 physical SGPRs so it can acommodate multiple wave even if the waves use the max available
+// wave, each SIMD has 800 physical SGPRs so it can accommodate multiple wave even if the waves use the max available
 // logical SGPRs.
 // NOTE: Theoretically, we have 106 available SGPRs plus 2 for the VCC regs. However, the SPI_SHADER_PGM_RSRC1_*.SGPRS
 // field is programmed in blocks of 8, making the this number ((106 + 2) & ~0x7), which is 104.
@@ -160,6 +160,18 @@ constexpr uint32 Gfx10NumSgprsPerWave = 128;
 
 // The hardware can only support a limited number of scratch waves per CU.
 constexpr uint32 MaxScratchWavesPerCu = 32;
+
+// Spill table stride is one slot of the global spill buffer per one draw, which is used to store VB srd table and
+// spilled user data registers (CP copies into from argument buffer). To avoid cache coherency issue,
+//
+// e.g. the first draw is launched and loads the spill buffer slot into K$ and GL1 with cache line size but CP doesn't
+// update VB srd or user data register into the second spill buffer slot yet; if each slot is not cache line size
+// aligned, there may be cache coherency issue since second draw will hit the cache to read stale data and not load
+// refresh data from mall/memory.
+//
+// require alignment to be max value of K$ cache line size (64B) and GL1 cache line size (128B).
+constexpr uint32 EiSpillTblStrideAlignmentBytes  = 128;
+constexpr uint32 EiSpillTblStrideAlignmentDwords = Util::NumBytesToNumDwords(EiSpillTblStrideAlignmentBytes);
 
 // Enumerates the possible hardware stages which a shader can run as.  GFX9 combines several shader stages:
 // 1) LS + HS have been combined into a HS stage.  Note that the registers that control this stage are still
@@ -250,10 +262,6 @@ constexpr uint32 MaxPsInputSemantics = 32;
 // Number of VS export semantic registers.
 constexpr uint32 MaxVsExportSemantics = 32;
 
-// Cacheline size.
-constexpr uint32 CacheLineBytes  = 128;
-constexpr uint32 CacheLineDwords = (CacheLineBytes / sizeof(uint32));
-
 // Number of Registers per CB slot.
 constexpr uint32 CbRegsPerSlot = (mmCB_COLOR1_BASE - mmCB_COLOR0_BASE);
 
@@ -341,6 +349,9 @@ enum BUF_INDEX_STRIDE : uint32
 using BufferSrd  = sq_buf_rsrc_t;
 using ImageSrd   = sq_img_rsrc_t;
 using SamplerSrd = sq_img_samp_t;
+
+// Size of buffer descriptor structure.
+constexpr uint32 DwordsPerBufferSrd = Util::NumBytesToNumDwords(sizeof(BufferSrd));
 
 // Maximum scissor rect value for the top-left corner.
 constexpr uint32 ScissorMaxTL = 16383;
@@ -502,9 +513,6 @@ struct GraphicsPipelineSignature
     // Register address for the GPU virtual address of the stream-output control buffer used by this pipeline. Zero
     // indicates that stream-output is not used by this pipeline.
     uint16  streamoutCntlBufRegAddr;
-    // Register address for the GPU virtual address of the uav-export SRD table used by this pipeline. Zero indicates
-    // that UAV export is not used by this pipeline.
-    uint16  uavExportTableAddr;
     // Register address for the GPU virtual address of the NGG culling data constant buffer used by this pipeline.
     // Zero indicates that the NGG culling constant buffer is not used by the pipeline.
     uint16  nggCullingDataAddr;
@@ -661,6 +669,19 @@ constexpr SyncRbFlags operator~(SyncRbFlags val) { return SyncRbFlags(~uint8(val
 
 constexpr SyncRbFlags& operator|=(SyncRbFlags& lhs, SyncRbFlags rhs) { lhs = lhs | rhs;  return lhs; }
 constexpr SyncRbFlags& operator&=(SyncRbFlags& lhs, SyncRbFlags rhs) { lhs = lhs & rhs;  return lhs; }
+
+// Define ordered HW acquire points.
+enum AcquirePoint : uint8
+{
+    AcquirePointPfp,
+    AcquirePointMe,
+    AcquirePointPreShader,
+    AcquirePointPreDepth,
+    AcquirePointPrePs,
+    AcquirePointPreColor,
+    AcquirePointEop,
+    AcquirePointCount
+};
 
 } // Gfx9
 } // Pal

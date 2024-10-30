@@ -1346,7 +1346,7 @@ void CmdStream::EndCurrentChunk(
         dmaInfo.usePfp       = (GetEngineType() == EngineTypeUniversal);
         dmaInfo.disWc        = true;
 
-        m_cmdUtil.BuildDmaData<false>(dmaInfo, m_pChunkPreamble);
+        m_cmdUtil.BuildDmaData<false, false>(dmaInfo, m_pChunkPreamble);
         m_pChunkPreamble = nullptr;
     }
 }

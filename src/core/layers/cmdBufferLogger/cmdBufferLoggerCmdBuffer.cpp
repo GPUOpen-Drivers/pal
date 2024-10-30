@@ -2654,13 +2654,19 @@ void CmdBuffer::DescribeBarrier(
 
         if (pData->hasTransition)
         {
-            const auto& imageInfo = pData->transition.imageInfo.pImage->GetImageCreateInfo();
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 902
+            const ImageCreateInfo& imageInfo   = pData->transition.pImage->GetImageCreateInfo();
+            const SubresRange&     subresRange = pData->transition.subresRange;
+#else
+            const ImageCreateInfo& imageInfo   = pData->transition.imageInfo.pImage->GetImageCreateInfo();
+            const SubresRange&     subresRange = pData->transition.imageInfo.subresRange;
+#endif
 
             Snprintf(&pString[0], StringLength,
                      "ImageInfo: %ux%u %s - plane: 0x%x",
                      imageInfo.extent.width, imageInfo.extent.height,
                      FormatToString(imageInfo.swizzledFormat.format),
-                     pData->transition.imageInfo.subresRange.startSubres.plane);
+                     subresRange.startSubres.plane);
 
             GetNextLayer()->CmdCommentString(pString);
         }

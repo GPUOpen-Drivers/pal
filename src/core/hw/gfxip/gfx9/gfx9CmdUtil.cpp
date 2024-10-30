@@ -1311,7 +1311,10 @@ size_t CmdUtil::BuildExecuteIndirect(
     packet.ordinal8.stride                          = packetInfo.argumentBufferStrideBytes;
     packet.ordinal9.u32All                          = LowPart(packetInfo.argumentBufferAddr);
     packet.ordinal10.bitfields.data_addr_hi         = HighPart(packetInfo.argumentBufferAddr);
+
+    PAL_ASSERT(IsPow2Aligned(packetInfo.spillTableStrideBytes, EiSpillTblStrideAlignmentBytes));
     packet.ordinal10.bitfields.spill_table_stride   = packetInfo.spillTableStrideBytes;
+
     packet.ordinal11.u32All                         = LowPart(packetInfo.spillTableAddr);
     packet.ordinal12.bitfields.spill_table_addr_hi  = HighPart(packetInfo.spillTableAddr);
     if (packetInfo.spillTableAddr != 0)
@@ -1414,11 +1417,8 @@ size_t CmdUtil::BuildExecuteIndirectV2(
                     packet.ordinal13.u32All |= (dataReg << (8 * (numSpillRegsActive++)));
                 }
             }
-            const uint32 paddedVbTableBytes =
-                (Pow2Align(static_cast<uint32>(packetInfo.vbTableSizeDwords * sizeof(uint32)), 32));
-            packet.ordinal12.bitfields.gfx11.vb_table_size      = paddedVbTableBytes;
-            packet.ordinal12.bitfields.gfx11.spill_table_stride = (numSpillRegsActive != 0) ?
-                packetInfo.spillTableStrideBytes : paddedVbTableBytes;
+
+            packet.ordinal12.bitfields.gfx11.vb_table_size = packetInfo.vbTableSizeDwords * sizeof(uint32);
         }
         else
         {
@@ -1431,9 +1431,12 @@ size_t CmdUtil::BuildExecuteIndirectV2(
                     (ShRegOffset(pComputeSignature->stage.spillTableRegAddr) & TenBitMask);
                 numSpillRegsActive++;
             }
-            packet.ordinal12.bitfields.gfx11.spill_table_stride = packetInfo.spillTableStrideBytes;
         }
+
         packet.ordinal2.bitfields.gfx11.num_spill_regs = numSpillRegsActive;
+
+        PAL_ASSERT(IsPow2Aligned(packetInfo.spillTableStrideBytes, EiSpillTblStrideAlignmentBytes));
+        packet.ordinal12.bitfields.gfx11.spill_table_stride = packetInfo.spillTableStrideBytes;
     }
 
     uint32* pOut = reinterpret_cast<uint32*>(pBuffer);
@@ -2265,7 +2268,7 @@ size_t CmdUtil::BuildDispatchTaskMeshDirectAce(
 // =====================================================================================================================
 // Constructs a DMA_DATA packet for any engine (PFP, ME, MEC).  Copies data from the source (can be immediate 32-bit
 // data or a memory location) to a destination (either memory or a register).
-template<bool indirectAddress>
+template<bool srcIndirectAddress, bool dstIndirectAddress>
 size_t CmdUtil::BuildDmaData(
     DmaDataInfo&  dmaDataInfo,
     void*         pBuffer) // [out] Build the PM4 packet in this buffer.
@@ -2323,10 +2326,9 @@ size_t CmdUtil::BuildDmaData(
         packet.ordinal3.src_addr_lo_or_data = dmaDataInfo.srcData;
         packet.ordinal4.src_addr_hi         = 0; // ignored for data
     }
-    else if (indirectAddress)
+    else if (srcIndirectAddress)
     {
         packet.ordinal2.bitfields.src_indirect = 1;
-        packet.ordinal2.bitfields.dst_indirect = 1;
         packet.ordinal3.src_addr_lo_or_data    = dmaDataInfo.srcOffset;
         packet.ordinal4.src_addr_hi            = 0; // ignored for data
     }
@@ -2336,10 +2338,11 @@ size_t CmdUtil::BuildDmaData(
         packet.ordinal4.src_addr_hi         = HighPart(dmaDataInfo.srcAddr);
     }
 
-    if (indirectAddress)
+    if (dstIndirectAddress)
     {
-        packet.ordinal5.dst_addr_lo = dmaDataInfo.dstOffset;
-        packet.ordinal6.dst_addr_hi = 0; // ignored for data
+        packet.ordinal2.bitfields.dst_indirect = 1;
+        packet.ordinal5.dst_addr_lo            = dmaDataInfo.dstOffset;
+        packet.ordinal6.dst_addr_hi            = 0; // ignored for data
     }
     else
     {
@@ -2360,12 +2363,22 @@ size_t CmdUtil::BuildDmaData(
 }
 
 template
-size_t CmdUtil::BuildDmaData<true>(
+size_t CmdUtil::BuildDmaData<true, true>(
     DmaDataInfo& dmaDataInfo,
     void*        pBuffer);
 
 template
-size_t CmdUtil::BuildDmaData<false>(
+size_t CmdUtil::BuildDmaData<false, false>(
+    DmaDataInfo& dmaDataInfo,
+    void*        pBuffer);
+
+template
+size_t CmdUtil::BuildDmaData<true, false>(
+    DmaDataInfo& dmaDataInfo,
+    void*        pBuffer);
+
+template
+size_t CmdUtil::BuildDmaData<false, true>(
     DmaDataInfo& dmaDataInfo,
     void*        pBuffer);
 
@@ -3565,6 +3578,41 @@ static_assert(PM4_MEC_RELEASE_MEM_SIZEDW__CORE == PM4_ME_RELEASE_MEM_SIZEDW__COR
               "RELEASE_MEM is different sizes between ME and MEC!");
 
 // =====================================================================================================================
+// This doesn't write the data and should only be used immediately following a release_mem that does.
+size_t CmdUtil::BuildNativeFenceRaiseInterrupt(
+    void*   pBuffer,
+    gpusize monitoredValueGpuVa,
+    uint64  signaledVal,
+    uint32  intCtxId
+    ) const
+{
+    constexpr uint32   PacketSize = PM4_ME_RELEASE_MEM_SIZEDW__CORE;
+    PM4_ME_RELEASE_MEM packet = {};
+
+    packet.ordinal1.header                = Type3Header(IT_RELEASE_MEM, PacketSize);
+    packet.ordinal2.bitfields.event_type  = BOTTOM_OF_PIPE_TS;
+    packet.ordinal2.bitfields.event_index = event_index__me_release_mem__end_of_pipe;
+    packet.ordinal3.bitfields.data_sel    =
+        static_cast<ME_RELEASE_MEM_data_sel_enum>(data_sel__mec_release_mem__send_64_bit_data);
+    packet.ordinal3.bitfields.dst_sel     = dst_sel__me_release_mem__tc_l2;
+    packet.ordinal3.bitfields.int_sel     =
+        int_sel__me_release_mem__conditionally_send_int_ctxid_based_on_64_bit_compare;
+    packet.ordinal4.u32All                = LowPart(monitoredValueGpuVa);
+    packet.ordinal5.address_hi            = HighPart(monitoredValueGpuVa);
+    packet.ordinal6.data_lo               = LowPart(signaledVal);
+    packet.ordinal7.data_hi               = HighPart(signaledVal);
+    packet.ordinal8.bitfields.int_ctxid   = intCtxId;
+
+    // dstAddr must be properly aligned. 8 bytes for a 64-bit write.
+    PAL_ASSERT((monitoredValueGpuVa != 0) && (IsPow2Aligned(monitoredValueGpuVa, 8)));
+
+    // Write the release_mem packet and return the packet size in DWORDs.
+    memcpy(pBuffer, &packet, PacketSize * sizeof(uint32));
+
+    return PacketSize;
+}
+
+// =====================================================================================================================
 size_t CmdUtil::BuildReleaseMemInternal(
     const ReleaseMemGeneric& info,
     VGT_EVENT_TYPE           vgtEvent,
@@ -3718,6 +3766,10 @@ size_t CmdUtil::BuildSetBase(
 
     // Make sure our address was aligned properly
     PAL_ASSERT(packet.ordinal3.bitfields.reserved1 == 0);
+
+    // For EI global spill buffer, requires base address to be aligned with EiSpillTblStrideAlignmentBytes.
+    PAL_ASSERT((baseIndex != base_index__pfp_set_base__execute_indirect_v2__GFX11) ||
+               IsPow2Aligned(address, EiSpillTblStrideAlignmentBytes));
 
     static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
     memcpy(pBuffer, &packet, sizeof(packet));
@@ -4465,7 +4517,7 @@ size_t CmdUtil::BuildWaitDmaData(
     dmaDataInfo.sync     = true;
     dmaDataInfo.usePfp   = false;
 
-    return BuildDmaData<false>(dmaDataInfo, pBuffer);
+    return BuildDmaData<false, false>(dmaDataInfo, pBuffer);
 }
 
 // =====================================================================================================================
@@ -4510,7 +4562,7 @@ size_t CmdUtil::BuildWaitOnDeCounterDiff(
 //
 // Returns the size of the PM4 command built, in DWORDs. Only supported on gfx11+.
 size_t CmdUtil::BuildWaitEopPws(
-    HwPipePoint  waitPoint,
+    AcquirePoint waitPoint,
     bool         waitCpDma,
     SyncGlxFlags glxSync,
     SyncRbFlags  rbSync,
@@ -4518,6 +4570,14 @@ size_t CmdUtil::BuildWaitEopPws(
     ) const
 {
     size_t totalSize = 0;
+
+    // Clamp waitPoint if PWS late acquire point is disabled.
+    if ((waitPoint > AcquirePointMe)   &&
+        (waitPoint != AcquirePointEop) &&
+        (m_device.Parent()->UsePwsLateAcquirePoint(EngineTypeUniversal) == false))
+    {
+        waitPoint = AcquirePointMe;
+    }
 
     // Issue explicit waitCpDma packet if ReleaseMem doesn't support it.
     if (waitCpDma && (m_device.Settings().gfx11EnableReleaseMemWaitCpDma == false))
@@ -4535,50 +4595,44 @@ size_t CmdUtil::BuildWaitEopPws(
 
     totalSize += BuildReleaseMemGfx(releaseInfo, VoidPtrInc(pBuffer, totalSize * sizeof(uint32)));
 
-    // This will set syncCount = 0 to wait for the most recent PWS release_mem (the one we just wrote).
-    AcquireMemGfxPws acquireInfo = {};
-
-    // Practically speaking, SelectReleaseMemCaches should consume all of our cache flags on gfx11. If the caller
-    // asked for an I$ invalidate then it will get passed to the acquire_mem here but that sync should be rare.
-    acquireInfo.cacheSync  = glxSync;
-    acquireInfo.counterSel = pws_counter_sel__me_acquire_mem__ts_select__GFX11;
-
-    switch (waitPoint)
+    // We define an "EOP" wait to mean a release without an acquire.
+    // If glxSync still has some flags left over we still need an acquire to issue the GCR.
+    if ((waitPoint != AcquirePointEop) || (glxSync != SyncGlxNone))
     {
-    case HwPipeTop:
-        acquireInfo.stageSel = pws_stage_sel__me_acquire_mem__cp_pfp__GFX11;
-        break;
-    case HwPipePostPrefetch:
-    case HwPipePostCs:
-    case HwPipePostBlt:
-        // HwPipePostPrefetch, HwPipePreCs, HwPipePreBlt, even though implies more specific destination states, share
-        // the same wait stage enum. HwPipePostCs has to go here too because there is no place to wait after compute
-        // shaders, we have to upgrade it to a CP wait. HwPipePostBlt needs to wait after draws and dispatches, the
-        // most conservative of those are dispatches so it goes here with HwPipePostCs.
-        acquireInfo.stageSel = pws_stage_sel__me_acquire_mem__cp_me__GFX11;
-        break;
-    case HwPipePreRasterization:
-        acquireInfo.stageSel = m_device.Parent()->UsePwsLateAcquirePoint(EngineTypeUniversal)
-                               ? pws_stage_sel__me_acquire_mem__pre_depth__GFX11
-                               : pws_stage_sel__me_acquire_mem__cp_me__GFX11;
-        break;
-    case HwPipePostPs:
-    case HwPipePreColorTarget:
-    case HwPipeBottom:
-        // HwPipePostPs and HwPipePreColorTarget are essentially the same pipe point with only a minor semantic
-        // difference. They both map to pre_color. The last wait stage we can get is pre_color so that's also the best
-        // choice for bottom of pipe waits.
-        acquireInfo.stageSel = m_device.Parent()->UsePwsLateAcquirePoint(EngineTypeUniversal)
-                               ? pws_stage_sel__me_acquire_mem__pre_color__GFX11
-                               : pws_stage_sel__me_acquire_mem__cp_me__GFX11;
-        break;
-    default:
-        // What is this?
-        PAL_ASSERT_ALWAYS();
-        break;
-    }
+        // This will set syncCount = 0 to wait for the most recent PWS release_mem (the one we just wrote).
+        AcquireMemGfxPws acquireInfo = {};
 
-    totalSize += BuildAcquireMemGfxPws(acquireInfo, VoidPtrInc(pBuffer, totalSize * sizeof(uint32)));
+        // Practically speaking, SelectReleaseMemCaches should consume all of our cache flags on gfx11. If the caller
+        // asked for an I$ invalidate then it will get passed to the acquire_mem here but that sync should be rare.
+        acquireInfo.cacheSync  = glxSync;
+        acquireInfo.counterSel = pws_counter_sel__me_acquire_mem__ts_select__GFX11;
+
+        switch (waitPoint)
+        {
+        case AcquirePointPfp:
+            acquireInfo.stageSel = pws_stage_sel__me_acquire_mem__cp_pfp__GFX11;
+            break;
+        case AcquirePointMe:
+            acquireInfo.stageSel = pws_stage_sel__me_acquire_mem__cp_me__GFX11;
+            break;
+        case AcquirePointPreDepth:
+            acquireInfo.stageSel = pws_stage_sel__me_acquire_mem__pre_depth__GFX11;
+            break;
+        case AcquirePointPrePs:
+            acquireInfo.stageSel = pws_stage_sel__me_acquire_mem__pre_shader__GFX11;
+            break;
+        case AcquirePointPreColor:
+        case AcquirePointEop:
+            acquireInfo.stageSel = pws_stage_sel__me_acquire_mem__pre_color__GFX11;
+            break;
+        default:
+            // What is this?
+            PAL_ASSERT_ALWAYS();
+            break;
+        }
+
+        totalSize += BuildAcquireMemGfxPws(acquireInfo, VoidPtrInc(pBuffer, totalSize * sizeof(uint32)));
+    }
 
     return totalSize;
 }
@@ -5019,7 +5073,7 @@ size_t CmdUtil::BuildPrimeGpuCaches(
         dmaDataInfo.usePfp       = (engineType == EngineTypeUniversal);
         dmaDataInfo.disWc        = true;
 
-        packetSize = BuildDmaData<false>(dmaDataInfo, pBuffer);
+        packetSize = BuildDmaData<false, false>(dmaDataInfo, pBuffer);
     }
     else
     {
@@ -5059,19 +5113,16 @@ size_t CmdUtil::BuildPerfCounterWindow(
                    uint32(op__mec_perf_counter_window__stop_window__GFX11)) &&
                   (PM4_PFP_PERF_COUNTER_WINDOW_SIZEDW__GFX11 == PM4_MEC_PERF_COUNTER_WINDOW_SIZEDW__GFX11));
 
-    if (m_device.CoreSettings().enablePerfCounterWindowPacket)
+    if (engineType == EngineTypeCompute)
     {
-        if (engineType == EngineTypeCompute)
-        {
-            if (m_chipProps.mecUcodeVersion >= MinPerfCounterWindowMecVersion)
-            {
-                supported = true;
-            }
-        }
-        else if (m_chipProps.pfpUcodeVersion >= MinPerfCounterWindowPfpVersion)
+        if (m_chipProps.mecUcodeVersion >= MinPerfCounterWindowMecVersion)
         {
             supported = true;
         }
+    }
+    else if (m_chipProps.pfpUcodeVersion >= MinPerfCounterWindowPfpVersion)
+    {
+        supported = true;
     }
 
     if (supported)
@@ -5286,6 +5337,23 @@ void CmdUtil::CheckShadowedUserConfigRegs(
     }
 }
 #endif
+
+// =====================================================================================================================
+// Builds a HDP_FLUSH packet for the compute engine. Returns the size of the PM4 command assembled, in DWORDs.
+size_t CmdUtil::BuildHdpFlush(
+    void* pBuffer
+    ) const
+{
+    uint32 packetSize = PM4_MEC_HDP_FLUSH_SIZEDW__CORE;
+
+    PM4_MEC_HDP_FLUSH packet = { };
+
+    packet.ordinal1.u32All = (Type3Header(IT_HDP_FLUSH, packetSize)).u32All;
+
+    memcpy(pBuffer, &packet, sizeof(packet));
+
+    return packetSize;
+}
 
 } // Gfx9
 } // Pal

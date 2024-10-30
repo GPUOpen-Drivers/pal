@@ -116,6 +116,9 @@ public:
     virtual Pal::uint32 GetVersion() const override { return GpuPerfExpTraceSourceVersion; }
 
 private:
+    bool TestSeMask(
+        Pal::uint32 seMask,
+        Pal::uint32 seIndex);
     // Writes the SqttData chunks to the trace session.
     void WriteSqttDataChunks();
 

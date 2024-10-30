@@ -1058,6 +1058,15 @@
           },
           "Type": "uint32",
           "Description": "Mask indicating which queue ids are requested to profile. 0xFFFFFFFF means to profile all queue ids. This must be set as 0xFFFFFFFF for per-frame granularity."
+        },
+        {
+          "Name": "SkipEndSample",
+          "Flags": {},
+          "Defaults": {
+            "Default": false
+          },
+          "Type": "bool",
+          "Description": "NOPs the EndSample calls for GPUProfiler to leave the counters running and skip readout. All other GPUProfiler activity occurs but data output will be incorrect."
         }
       ],
       "Description": "Configuration options for the PAL GPU Profiler layer."

@@ -2480,5 +2480,24 @@ bool IsMmFormat(
              (format <= ChNumFormat::X16Y16_MM12_Uint)));
 }
 
+// =====================================================================================================================
+// Determines whether the format is an MM12 format
+bool IsMm12Format(
+    ChNumFormat format)
+{
+    switch (format)
+    {
+    case ChNumFormat::X16_MM12_Unorm:
+    case ChNumFormat::X16_MM12_Uint:
+    case ChNumFormat::X16Y16_MM12_Unorm:
+    case ChNumFormat::X16Y16_MM12_Uint:
+    case ChNumFormat::P012:
+    case ChNumFormat::P212:
+    case ChNumFormat::P412:
+        return true;
+    }
+    return false;
+}
+
 } // Formats
 } // Pal

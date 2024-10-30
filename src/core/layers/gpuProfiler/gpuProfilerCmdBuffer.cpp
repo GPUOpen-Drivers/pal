@@ -4682,20 +4682,26 @@ static const char* FormatToString(
 
 // =====================================================================================================================
 // Updates the current comment string for the executing barrier. This function is called from the layer callback and
-// expects to only be called while a CmdBarrier call is executing in the lower layers.
+// expects to only be called while a barrier call is executing in the lower layers.
 void TargetCmdBuffer::UpdateCommentString(
     Developer::BarrierData* pData)
 {
     char newBarrierComment[MaxCommentLength] = {};
     if (pData->hasTransition)
     {
-        const ImageCreateInfo& imageInfo = pData->transition.imageInfo.pImage->GetImageCreateInfo();
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 902
+        const ImageCreateInfo& imageInfo   = pData->transition.pImage->GetImageCreateInfo();
+        const SubresRange&     subresRange = pData->transition.subresRange;
+#else
+        const ImageCreateInfo& imageInfo   = pData->transition.imageInfo.pImage->GetImageCreateInfo();
+        const SubresRange&     subresRange = pData->transition.imageInfo.subresRange;
+#endif
 
         Snprintf(&newBarrierComment[0], MaxCommentLength,
                  "Barrier: %ux%u %s - plane: 0x%x:",
                  imageInfo.extent.width, imageInfo.extent.height,
                  FormatToString(imageInfo.swizzledFormat.format),
-                 pData->transition.imageInfo.subresRange.startSubres.plane);
+                 subresRange.startSubres.plane);
 
         AppendCommentString(&newBarrierComment[0], LogType::Barrier);
     }
@@ -4916,7 +4922,7 @@ void TargetCmdBuffer::EndSample(
     Queue*         pQueue,
     const LogItem* pLogItem)
 {
-    if (pQueue->IsProfilingEnabled())
+    if (pQueue->IsProfilingEnabled() && pQueue->EndSampleEnabled())
     {
         // End the timestamp sample.
         if (pQueue->HasValidGpaSample(pLogItem, GpuUtil::GpaSampleType::Timing))

@@ -24,36 +24,12 @@
  #######################################################################################################################
 
 from __future__ import print_function
-from datetime import date
-
 import re
-import os,sys
 
-FileHeaderCopyright = '/*\n\
- ***********************************************************************************************************************\n\
- *\n\
- *  Copyright (c) 2018 Advanced Micro Devices, Inc. All Rights Reserved.\n\
- *\n\
- *  Permission is hereby granted, free of charge, to any person obtaining a copy\n\
- *  of this software and associated documentation files (the "Software"), to deal\n\
- *  in the Software without restriction, including without limitation the rights\n\
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n\
- *  copies of the Software, and to permit persons to whom the Software is\n\
- *  furnished to do so, subject to the following conditions:\n\
- *\n\
- *  The above copyright notice and this permission notice shall be included in all\n\
- *  copies or substantial portions of the Software.\n\
- *\n\
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n\
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n\
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n\
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n\
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n\
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n\
- *  SOFTWARE.\n\
- *\n\
- **********************************************************************************************************************/\n\
-'
+import os,site; site.addsitedir(os.path.join(os.path.dirname(__file__), "../"))
+from pal_genutils import copyright
+
+FileHeaderCopyright = copyright.ConvertToCppComment(copyright.GenCopyrightForYear(2018))
 
 class Param:
     def __init__(self, full_str):
@@ -125,8 +101,8 @@ class EntryPoint:
     self,
     line,
     ):
-        funcConst = re.compile('^.+(const [\w_]+ ?\*?) +([\w_]+) +\((.*)\)' )
-        func = re.compile('^.+ ([\w_]+ ?\*?) +([\w_]+ ?) +\((.*)\)' )
+        funcConst = re.compile(r'^.+(const [\w_]+ ?\*?) +([\w_]+) +\((.*)\)' )
+        func = re.compile(r'^.+ ([\w_]+ ?\*?) +([\w_]+ ?) +\((.*)\)' )
         if funcConst.search(line):
             [function] = funcConst.findall(line)
         else:
@@ -191,7 +167,7 @@ class EntryPoint:
 class Variable:
     def __init__(self, line):
         line.rstrip()
-        variable = re.compile('^.+ ([\w_]+ ?\*?) +([\w_]+ ?)')
+        variable = re.compile(r'^.+ ([\w_]+ ?\*?) +([\w_]+ ?)')
         self.library = line.split(' ')[0].strip(' ')
         [values] = variable.findall(line)
         self.varName = values[1].strip(' ')

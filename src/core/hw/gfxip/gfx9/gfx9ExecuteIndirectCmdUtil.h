@@ -239,6 +239,11 @@ public:
     // buffer. InitMemCpy and UpdateMemCpy structs are both required for the CP to do its job.
     void ComputeMemCopyStructures(const uint32 vbSpillTableWatermark, uint32* pInitCount, uint32* pUpdateCount);
 
+    // If in dynamicSpillMode, CP will allocate and use global spilled table intead of local spilled table. In this
+    // case, if there are VB SRDs that are updated from CPU side, need issue InitMemCopy to copy it from local spilled
+    // table to global spilled table. vbSlotMask is the VB slots that need the copy.
+    void ComputeVbSrdInitMemCopy(uint32 vbSlotMask);
+
     // Helper for InitMemCopy
     void ProcessInitMemCopy(const uint32 vbSpillTableWatermark, uint32* pInitCount, uint32 currentIdx, uint32 nextIdx);
 

@@ -120,6 +120,23 @@ bool BarrierMgr::NeedGlobalFlushAndInvL2(
 }
 
 // =====================================================================================================================
+static ImgBarrier ConvertBarrierTransitionToImgBarrier(
+    const BarrierTransition& transition)
+{
+    ImgBarrier imgBarrier = {};
+
+    imgBarrier.pImage             = transition.imageInfo.pImage;
+    imgBarrier.subresRange        = transition.imageInfo.subresRange;
+    imgBarrier.srcAccessMask      = transition.srcCacheMask;
+    imgBarrier.dstAccessMask      = transition.dstCacheMask;
+    imgBarrier.oldLayout          = transition.imageInfo.oldLayout;
+    imgBarrier.newLayout          = transition.imageInfo.newLayout;
+    imgBarrier.pQuadSamplePattern = transition.imageInfo.pQuadSamplePattern;
+
+    return imgBarrier;
+}
+
+// =====================================================================================================================
 // Issue BLT operations (i.e., decompress, resummarize) necessary to convert a depth/stencil image from one ImageLayout
 // to another.
 //
@@ -198,7 +215,13 @@ void BarrierMgr::TransitionDepthStencil(
             PAL_ALERT(earlyPhase == false);
 
             pOperations->layoutTransitions.depthStencilExpand = 1;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 902
+            const ImgBarrier imgBarrier = ConvertBarrierTransitionToImgBarrier(transition);
+            DescribeBarrier(pCmdBuf, &imgBarrier, pOperations);
+#else
             DescribeBarrier(pCmdBuf, &transition, pOperations);
+#endif
 
             FlushAndInvL2IfNeeded(pCmdBuf, pCmdStream, barrier, transitionId, pOperations);
 
@@ -220,7 +243,12 @@ void BarrierMgr::TransitionDepthStencil(
                 if (RsrcProcMgr().WillResummarizeWithCompute(pCmdBuf, image))
                 {
                     pOperations->layoutTransitions.htileHiZRangeExpand = 1;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 902
+                    const ImgBarrier imgBarrier = ConvertBarrierTransitionToImgBarrier(transition);
+                    DescribeBarrier(pCmdBuf, &imgBarrier, pOperations);
+#else
                     DescribeBarrier(pCmdBuf, &transition, pOperations);
+#endif
 
                     // CS blit to resummarize htile.
                     RsrcProcMgr().HwlResummarizeHtileCompute(pCmdBuf, gfx9Image, subresRange);
@@ -238,7 +266,12 @@ void BarrierMgr::TransitionDepthStencil(
                 else
                 {
                     pOperations->layoutTransitions.depthStencilResummarize = 1;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 902
+                    const ImgBarrier imgBarrier = ConvertBarrierTransitionToImgBarrier(transition);
+                    DescribeBarrier(pCmdBuf, &imgBarrier, pOperations);
+#else
                     DescribeBarrier(pCmdBuf, &transition, pOperations);
+#endif
 
                     FlushAndInvL2IfNeeded(pCmdBuf, pCmdStream, barrier, transitionId, pOperations);
 
@@ -504,7 +537,12 @@ void BarrierMgr::ExpandColor(
             }
 
             pOperations->layoutTransitions.dccDecompress = 1;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 902
+            const ImgBarrier imgBarrier = ConvertBarrierTransitionToImgBarrier(transition);
+            DescribeBarrier(pCmdBuf, &imgBarrier, pOperations);
+#else
             DescribeBarrier(pCmdBuf, &transition, pOperations);
+#endif
 
             RsrcProcMgr().DccDecompress(pCmdBuf,
                                         pCmdStream,
@@ -544,7 +582,12 @@ void BarrierMgr::ExpandColor(
 
             pCmdStream->CommitCommands(pCmdSpace);
             pOperations->layoutTransitions.fmaskDecompress = 1;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 902
+            const ImgBarrier imgBarrier = ConvertBarrierTransitionToImgBarrier(transition);
+            DescribeBarrier(pCmdBuf, &imgBarrier, pOperations);
+#else
             DescribeBarrier(pCmdBuf, &transition, pOperations);
+#endif
 
             RsrcProcMgr().FmaskDecompress(pCmdBuf,
                                           pCmdStream,
@@ -563,7 +606,12 @@ void BarrierMgr::ExpandColor(
             }
 
             pOperations->layoutTransitions.fastClearEliminate = 1;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 902
+            const ImgBarrier imgBarrier = ConvertBarrierTransitionToImgBarrier(transition);
+            DescribeBarrier(pCmdBuf, &imgBarrier, pOperations);
+#else
             DescribeBarrier(pCmdBuf, &transition, pOperations);
+#endif
 
             RsrcProcMgr().FastClearEliminate(pCmdBuf,
                                              pCmdStream,
@@ -608,14 +656,19 @@ void BarrierMgr::ExpandColor(
             WriteWaitEopInfo waitEopInfo = {};
             waitEopInfo.hwGlxSync  = syncGlxFlags;
             waitEopInfo.hwRbSync   = SyncCbWbInv;
-            waitEopInfo.waitPoint  = HwPipePostPrefetch;
+            waitEopInfo.hwAcqPoint = AcquirePointMe;
 
             pCmdSpace = pCmdBuf->WriteWaitEop(waitEopInfo, pCmdSpace);
             pCmdStream->CommitCommands(pCmdSpace);
         }
 
         pOperations->layoutTransitions.fmaskColorExpand = 1;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 902
+        const ImgBarrier imgBarrier = ConvertBarrierTransitionToImgBarrier(transition);
+        DescribeBarrier(pCmdBuf, &imgBarrier, pOperations);
+#else
         DescribeBarrier(pCmdBuf, &transition, pOperations);
+#endif
 
         RsrcProcMgr().FmaskColorExpand(pCmdBuf, gfx9Image, subresRange);
     }
@@ -698,7 +751,12 @@ void BarrierMgr::ExpandColor(
                 PAL_ASSERT(dccDecompress == false);
 
                 pOperations->layoutTransitions.updateDccStateMetadata = 1;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 902
+                const ImgBarrier imgBarrier = ConvertBarrierTransitionToImgBarrier(transition);
+                DescribeBarrier(pCmdBuf, &imgBarrier, pOperations);
+#else
                 DescribeBarrier(pCmdBuf, &transition, pOperations);
+#endif
 
                 gfx9Image.UpdateDccStateMetaData(pCmdStream, subresRange, true, engineType, PredDisable);
             }
@@ -756,8 +814,13 @@ void BarrierMgr::IssueSyncs(
     FillCacheOperations(syncReqs, pOperations);
 
 #if PAL_DEVELOPER_BUILD
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 901
+    pOperations->acquirePoint = (syncReqs.pfpSyncMe && isGfxSupported) ? Developer::AcquirePointPfp
+                                                                       : Developer::AcquirePointMe;
+#else
     pOperations->acquirePoint = (syncReqs.pfpSyncMe && isGfxSupported) ? Developer::AcquirePoint::Pfp
                                                                        : Developer::AcquirePoint::Me;
+#endif
 #endif
 
     if (syncReqs.syncCpDma)
@@ -819,15 +882,20 @@ void BarrierMgr::IssueSyncs(
         if (isGfxSupported && TestAnyFlagSet(gfx9Device.Settings().waitOnFlush, WaitBeforeBarrierEopWithCbFlush) &&
             TestAnyFlagSet(syncReqs.rbCaches, SyncCbWbInv))
         {
-            constexpr WriteWaitEopInfo WaitEopInfo = { .waitPoint = HwPipePreColorTarget };
+            constexpr WriteWaitEopInfo WaitEopInfo = { .hwAcqPoint = AcquirePointPreColor };
 
             pCmdSpace = pCmdBuf->WriteWaitEop(WaitEopInfo, pCmdSpace);
         }
 
+        // See above code lines, where we force waitPoint to HwPipePostPrefetch for non-top/bottom cases.
+        PAL_ASSERT((waitPoint == HwPipeTop) || (waitPoint == HwPipePostPrefetch) || (waitPoint == HwPipeBottom));
+
         WriteWaitEopInfo waitEopInfo = {};
         waitEopInfo.hwGlxSync  = syncReqs.glxCaches;
         waitEopInfo.hwRbSync   = syncReqs.rbCaches;
-        waitEopInfo.waitPoint  = waitPoint;
+        waitEopInfo.hwAcqPoint = (waitPoint == HwPipeTop)    ? AcquirePointPfp :
+                                 (waitPoint == HwPipeBottom) ? AcquirePointEop :
+                                                               AcquirePointMe;
 
         pCmdSpace = pCmdBuf->WriteWaitEop(waitEopInfo, pCmdSpace);
         syncReqs.glxCaches = SyncGlxNone;
@@ -1005,6 +1073,50 @@ void BarrierMgr::IssueSyncs(
 }
 
 // =====================================================================================================================
+// Helper function to convert certain pipeline points to more accurate ones. This is for legacy barrier interface.
+// Note: HwPipePostBlt will be converted to a more accurate stage based on the underlying implementation of
+//       outstanding BLTs, but will be left as HwPipePostBlt if the internal outstanding BLTs can't be expressed as
+//       a client-facing HwPipePoint (e.g., if there are CP DMA BLTs in flight).
+static void OptimizePipePoint(
+    const Pm4CmdBuffer* pCmdBuf,
+    HwPipePoint*        pPipePoint)
+{
+    if (pPipePoint != nullptr)
+    {
+        if (*pPipePoint == HwPipePostBlt)
+        {
+            // Check xxxBltActive states in order
+            const Pm4CmdBufferStateFlags cmdBufStateFlags = pCmdBuf->GetPm4CmdBufState().flags;
+            if (cmdBufStateFlags.gfxBltActive)
+            {
+                *pPipePoint = HwPipeBottom;
+            }
+            else if (cmdBufStateFlags.csBltActive)
+            {
+                *pPipePoint = HwPipePostCs;
+            }
+            else if (cmdBufStateFlags.cpBltActive)
+            {
+                // Leave it as HwPipePostBlt because CP DMA BLTs cannot be expressed as more specific HwPipePoint.
+            }
+            else
+            {
+                // If there are no BLTs in flight at this point, we will set the pipe point to HwPipeTop. This will
+                // optimize any redundant stalls when called from the barrier implementation. Otherwise, this function
+                // remaps the pipe point based on the gfx block that performed the BLT operation.
+                *pPipePoint = HwPipeTop;
+            }
+        }
+        else if (*pPipePoint == HwPipePreColorTarget)
+        {
+            // HwPipePreColorTarget is only valid as wait point. But for the sake of robustness, if it's used as pipe
+            // point to wait on, it's equivalent to HwPipePostPs.
+            *pPipePoint = HwPipePostPs;
+        }
+    }
+}
+
+// =====================================================================================================================
 // Inserts a barrier in the current command stream that can stall GPU execution, flush/invalidate caches, or decompress
 // images before further, dependent work can continue in this command buffer.
 //
@@ -1106,7 +1218,7 @@ void BarrierMgr::Barrier(
     {
         HwPipePoint pipePoint = barrier.pPipePoints[i];
 
-        GfxBarrierMgr::OptimizePipePoint(pCmdBuf, &pipePoint);
+        OptimizePipePoint(pCmdBuf, &pipePoint);
 
         if (origCmdBufStateFlags.cpBltActive)
         {
@@ -1365,7 +1477,12 @@ void BarrierMgr::Barrier(
                         pBarrierOps->layoutTransitions.updateDccStateMetadata = 1;
                     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 902
+                    const ImgBarrier imgBarrier = ConvertBarrierTransitionToImgBarrier(barrier.pTransitions[i]);
+                    DescribeBarrier(pCmdBuf, &imgBarrier, pBarrierOps);
+#else
                     DescribeBarrier(pCmdBuf, &barrier.pTransitions[i], pBarrierOps);
+#endif
 
                     bool usedCompute = RsrcProcMgr().InitMaskRam(pCmdBuf,
                                                                  pCmdStream,

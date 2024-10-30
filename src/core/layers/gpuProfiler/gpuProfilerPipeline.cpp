@@ -277,9 +277,9 @@ Result Pipeline::InitCompute(
         pPipeline = pipelines[0];
     }
 
+    uint32 size = 0;
     if (pPipeline != nullptr)
     {
-        uint32 size      = 0;
         result = pPipeline->GetCodeObject(&size, nullptr);
         if (result == Result::Success)
         {
@@ -294,7 +294,7 @@ Result Pipeline::InitCompute(
 
     if ((result == Result::Success) && (pElfBuffer != nullptr))
     {
-        PipelineAbiReader abiReader(m_pDevice->GetPlatform(), pElfBuffer);
+        PipelineAbiReader abiReader(m_pDevice->GetPlatform(), {pElfBuffer, size});
         result = abiReader.Init();
 
         MsgPackReader              metadataReader;

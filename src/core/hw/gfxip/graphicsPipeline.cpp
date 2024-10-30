@@ -82,16 +82,18 @@ Result GraphicsPipeline::Init(
 #endif
     else if ((createInfo.pPipelineBinary != nullptr) && (createInfo.pipelineBinarySize != 0))
     {
-        m_pipelineBinaryLen = createInfo.pipelineBinarySize;
-        m_pPipelineBinary   = PAL_MALLOC(m_pipelineBinaryLen, m_pDevice->GetPlatform(), AllocInternal);
+        void*  pipelineBinary     = PAL_MALLOC(createInfo.pipelineBinarySize, m_pDevice->GetPlatform(), AllocInternal);
+        size_t pipelineBinarySize = (pipelineBinary != nullptr) ? createInfo.pipelineBinarySize : 0;
 
-        if (m_pPipelineBinary == nullptr)
+        m_pipelineBinary = { pipelineBinary, pipelineBinarySize };
+
+        if (m_pipelineBinary.Data() == nullptr)
         {
             result = Result::ErrorOutOfMemory;
         }
         else
         {
-            memcpy(m_pPipelineBinary, createInfo.pPipelineBinary, m_pipelineBinaryLen);
+            memcpy(m_pipelineBinary.Data(), createInfo.pPipelineBinary, createInfo.pipelineBinarySize);
 
             result = InitFromPipelineBinary(createInfo, internalInfo, *pAbiReader, *pMetadata, pMetadataReader);
         }
@@ -123,7 +125,7 @@ Result GraphicsPipeline::Init(
         GpuMemoryResourceBindEventData bindData { };
         bindData.pObj               = this;
         bindData.pGpuMemory         = m_gpuMem.Memory();
-        bindData.requiredGpuMemSize = m_gpuMemSize - m_gpuMemOffset;
+        bindData.requiredGpuMemSize = m_gpuMemSize      - m_gpuMemOffset;
         bindData.offset             = m_gpuMem.Offset() + m_gpuMemOffset;
         pEventProvider->LogGpuMemoryResourceBindEvent(bindData);
 
@@ -383,12 +385,12 @@ const void* GraphicsPipeline::GetCodeObjectWithShaderType(
     ) const
 {
     const void* pBinary = nullptr;
-    if (m_pPipelineBinary != nullptr)
+    if (m_pipelineBinary.IsEmpty() == false)
     {
-        pBinary = m_pPipelineBinary;
+        pBinary = m_pipelineBinary.Data();
         if (pSize != nullptr)
         {
-            *pSize = m_pipelineBinaryLen;
+            *pSize = m_pipelineBinary.SizeInBytes();
         }
     }
     else
@@ -397,7 +399,12 @@ const void* GraphicsPipeline::GetCodeObjectWithShaderType(
         {
             if (Util::TestAnyFlagSet(m_gfxShaderLibraries[i]->GetApiShaderMask(), 1 << static_cast<uint32>(shaderType)))
             {
-                pBinary = m_gfxShaderLibraries[i]->GetCodeObject(pSize);
+                Span<const void> binary = m_gfxShaderLibraries[i]->GetCodeObject();
+                pBinary = binary.Data();
+                if (pSize != nullptr)
+                {
+                    *pSize  = binary.SizeInBytes();
+                }
                 break;
             }
         }

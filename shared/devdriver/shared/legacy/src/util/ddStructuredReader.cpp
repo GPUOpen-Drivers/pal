@@ -1008,7 +1008,7 @@ namespace DevDriver
     {
         const mpack_node_t node = UnpackNode(m_opaque);
 
-        switch(mpack_node_type(node))
+        switch (mpack_node_type(node))
         {
             case mpack_type_bool:    return Type::Bool;
 
@@ -1273,28 +1273,36 @@ namespace DevDriver
 
     bool StructuredValue::GetValueByKey(const char* pKey, StructuredValue* pValue) const
     {
-        const mpack_node_t node = UnpackNode(m_opaque);
-        const mpack_node_t new_node = mpack_node_map_cstr_optional(node, pKey);
+        bool success = false;
 
         if (pValue != nullptr)
         {
-            *pValue = StructuredValue(PackNode(new_node));
+            const mpack_node_t node     = UnpackNode(m_opaque);
+            const mpack_node_t new_node = mpack_node_map_cstr_optional(node, pKey);
+
+            (*pValue) = StructuredValue(PackNode(new_node));
+
+            success = (ResetInternalErrorState() && (pValue->GetType() != Type::Null));
         }
 
-        return ResetInternalErrorState();
+        return success;
     }
 
     bool StructuredValue::GetValueByIndex(size_t index, StructuredValue* pValue) const
     {
-        const mpack_node_t node = UnpackNode(m_opaque);
-        const mpack_node_t new_node = mpack_node_array_at(node, index);
+        bool success  = false;
 
         if (pValue != nullptr)
         {
-            *pValue = StructuredValue(PackNode(new_node));
+            const mpack_node_t node     = UnpackNode(m_opaque);
+            const mpack_node_t new_node = mpack_node_array_at(node, index);
+
+            (*pValue) = StructuredValue(PackNode(new_node));
+
+            success = (ResetInternalErrorState() && (pValue->GetType() != Type::Null));
         }
 
-        return ResetInternalErrorState();
+        return success;
     }
 
     bool StructuredValue::IsMap() const

@@ -63,7 +63,7 @@ DD_RESULT {{ClassName}}::SetupDefaultsAndPopulateMap()
     if (result == DevDriver::Result::Success)
     {
 {{ subs|setup_default(setting.VariableName) }}
-        valueRef.type = {{ subs.Type|setting_type_cpp }};
+        valueRef.type = {{subs.DdType}};
         {% set var_name = "m_settings." + setting.VariableName + "." + subs.VariableName %}
         valueRef.pValue = &{{var_name}};
         valueRef.size = {{ get_var_size(subs.IsOptional, var_name) }}
@@ -77,7 +77,7 @@ DD_RESULT {{ClassName}}::SetupDefaultsAndPopulateMap()
     if (result == DevDriver::Result::Success)
     {
 {{ setting|setup_default('') }}
-        valueRef.type = {{ setting.Type|setting_type_cpp }};
+        valueRef.type = {{setting.DdType}};
         {% set var_name = "m_settings." + setting.VariableName %}
         valueRef.pValue = &{{var_name}};
         valueRef.size = {{ get_var_size(setting.IsOptional, var_name) }}
@@ -107,7 +107,7 @@ void {{ClassName}}::ReadSettings()
         decltype({{var_name}})::ValueType valueRead{};
         if (ReadSetting(
             {%+ if subs.Scope == "PublicCatalystKey" %}"{{setting.Name}}.{{subs.Name}}"{% else %}p{{setting.Name}}_{{subs.VariableName}}HashStr{% endif %},
-            {{ subs.Type|setting_type_cpp2 }},
+            {{subs.PalType}},
             &valueRead{% if IsPalSettings %}, InternalSettingScope::{{setting.Scope|default('PrivatePalKey')}}{% endif %}{% if subs.StringLength %}, {{subs.StringLength}}{% endif %}))
         {
             {{var_name}} = valueRead;
@@ -116,7 +116,7 @@ void {{ClassName}}::ReadSettings()
 {% else %}
     ReadSetting(
         {%+ if subs.Scope == "PublicCatalystKey" %}"{{setting.Name}}.{{subs.Name}}"{% else %}p{{setting.Name}}_{{subs.VariableName}}HashStr{% endif %},
-        {{ subs.Type|setting_type_cpp2 }},
+        {{subs.PalType}},
         &{{var_name}}{% if IsPalSettings %}, InternalSettingScope::{{setting.Scope|default('PrivatePalKey')}}{% endif %}{% if subs.StringLength %}, {{subs.StringLength}}{% endif %});
 {% endif %}
 {{ prep_cond_end(subs.BuildTypes, subs.OrBuildTypes) -}}
@@ -129,7 +129,7 @@ void {{ClassName}}::ReadSettings()
         decltype({{var_name}})::ValueType valueRead{};
         if (ReadSetting(
             {%+ if setting.Scope == "PublicCatalystKey" %}"{{setting.Name}}"{% else %}p{{setting.Name}}HashStr{% endif %},
-            {{ setting.Type|setting_type_cpp2 }},
+            {{setting.PalType}},
             &valueRead{% if IsPalSettings %}, InternalSettingScope::{{setting.Scope|default('PrivatePalKey')}}{% endif %}{% if setting.StringLength %}, {{setting.StringLength}}{% endif %}))
         {
             {{var_name}} = valueRead;
@@ -138,7 +138,7 @@ void {{ClassName}}::ReadSettings()
 {% else %}
     ReadSetting(
         {%+ if setting.Scope == "PublicCatalystKey" %}"{{setting.Name}}"{% else %}p{{setting.Name}}HashStr{% endif %},
-        {{ setting.Type|setting_type_cpp2 }},
+        {{setting.PalType}},
         &{{var_name}}{% if IsPalSettings %}, InternalSettingScope::{{setting.Scope|default('PrivatePalKey')}}{% endif %}{% if setting.StringLength %}, {{setting.StringLength}}{% endif %});
 {% endif %}
 {{ prep_cond_end(setting.BuildTypes, setting.OrBuildTypes) -}}

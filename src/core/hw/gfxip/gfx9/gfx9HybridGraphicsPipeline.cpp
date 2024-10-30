@@ -87,7 +87,7 @@ Result HybridGraphicsPipeline::HwlInit(
                         createInfo.taskInterleaveSize,
                         &uploader);
 
-        const auto* pElfSymbol = abiReader.GetPipelineSymbol(Abi::PipelineSymbolType::CsDisassembly);
+        const auto* pElfSymbol = abiReader.GetSymbolHeader(Abi::PipelineSymbolType::CsDisassembly);
 
         if (pElfSymbol != nullptr)
         {

@@ -31,6 +31,7 @@
 #include "palPipelineAbi.h"
 #include "palShaderLibrary.h"
 #include "palVector.h"
+#include "palSpan.h"
 
 namespace Pal
 {
@@ -98,14 +99,7 @@ public:
         Util::MsgPackReader* pMetadataReader,
         ShaderLibStats* pShaderStats) const;
 
-    const void* GetCodeObject(size_t* pSize) const
-    {
-        if (pSize != nullptr)
-        {
-            *pSize = m_codeObjectBinaryLen;
-        }
-        return m_pCodeObjectBinary;
-    }
+    Util::Span<const void> GetCodeObject() const { return m_codeObject; }
 
     bool IsInternal() const { return m_flags.clientInternal != 0; }
     bool IsGraphics() const { return m_flags.isGraphics != 0; }
@@ -116,7 +110,8 @@ protected:
     // internal Destructor.
     virtual ~ShaderLibrary()
     {
-        PAL_SAFE_FREE(m_pCodeObjectBinary, m_pDevice->GetPlatform());
+        PAL_FREE(m_codeObject.Data(), m_pDevice->GetPlatform());
+        m_codeObject = {};
     }
 
     virtual Result HwlInit(
@@ -135,8 +130,7 @@ protected:
     Device*const       m_pDevice;
     LibraryInfo        m_info;                 // Public info structure available to the client.
     LibraryCreateFlags m_flags;                // Creation flags.
-    void*              m_pCodeObjectBinary;    // Buffer containing the code object binary data (Pipeline ELF ABI).
-    size_t             m_codeObjectBinaryLen;  // Size of code object binary data, in bytes.
+    Util::Span<void>   m_codeObject;           // Buffer containing the code object binary data (Pipeline ELF ABI).
 
 private:
     void DumpLibraryElf(

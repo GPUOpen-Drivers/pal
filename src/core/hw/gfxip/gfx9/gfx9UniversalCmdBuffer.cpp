@@ -354,7 +354,6 @@ UniversalCmdBuffer::UniversalCmdBuffer(
 #endif
     m_pfnValidateUserDataGfx(nullptr),
     m_pfnValidateUserDataGfxPipelineSwitch(nullptr),
-    m_predGpuAddr(0),
     m_workaroundState(&device, createInfo.flags.nested, m_state, m_cachedSettings),
     m_vertexOffsetReg(UserDataNotMapped),
     m_drawIndexReg(UserDataNotMapped),
@@ -612,7 +611,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
 
     // Assume PAL ABI compute pipelines by default.
     SetDispatchFunctions(false);
-    SwitchDrawFunctions(false, false, false, false);
+    SwitchDrawFunctions(false, false, false);
 }
 
 // =====================================================================================================================
@@ -632,7 +631,6 @@ Result UniversalCmdBuffer::Init(
     m_spillTable.stateCs.sizeInDwords  = chipProps.gfxip.maxUserDataEntries;
     m_spillTable.stateGfx.sizeInDwords = chipProps.gfxip.maxUserDataEntries;
     m_streamOut.state.sizeInDwords = (sizeof(m_streamOut.srd) / sizeof(uint32));
-    m_uavExportTable.state.sizeInDwords = (sizeof(m_uavExportTable.srd) / sizeof(uint32));
 
     if (settings.nggSupported)
     {
@@ -641,7 +639,7 @@ Result UniversalCmdBuffer::Init(
     }
 
     m_vbTable.pSrds              = static_cast<BufferSrd*>(VoidPtrAlign((this + 1), alignof(BufferSrd)));
-    m_vbTable.state.sizeInDwords = ((sizeof(BufferSrd) / sizeof(uint32)) * MaxVertexBuffers);
+    m_vbTable.state.sizeInDwords = DwordsPerBufferSrd * MaxVertexBuffers;
 
     Result result = Pal::Pm4::UniversalCmdBuffer::Init(internalInfo);
 
@@ -824,7 +822,7 @@ void UniversalCmdBuffer::ResetState()
     // Assume PAL ABI compute pipelines by default.
     SetDispatchFunctions(false);
     SetUserDataValidationFunctions(false, false, false);
-    SwitchDrawFunctions(false, false, false, false);
+    SwitchDrawFunctions(false, false, false);
 
     m_vgtDmaIndexType.u32All = 0;
     m_vgtDmaIndexType.bits.SWAP_MODE  = VGT_DMA_SWAP_NONE;
@@ -982,7 +980,6 @@ void UniversalCmdBuffer::ResetState()
 
     ResetUserDataTable(&m_streamOut.state);
     ResetUserDataTable(&m_nggTable.state);
-    ResetUserDataTable(&m_uavExportTable.state);
 
     // Reset the command buffer's per-draw state objects.
     memset(&m_drawTimeHwState, 0, sizeof(m_drawTimeHwState));
@@ -1023,7 +1020,6 @@ void UniversalCmdBuffer::ResetState()
     m_deferredPipelineStatsQueries.Clear();
     m_validVrsCopies.Clear();
 
-    m_predGpuAddr = 0;
     m_gangedCmdStreamSemAddr = 0;
     m_semCountAceWaitDe  = 0;
     m_semCountDeWaitAce  = 0;
@@ -1073,8 +1069,6 @@ void UniversalCmdBuffer::CmdBindPipeline(
 {
     if (params.pipelineBindPoint == PipelineBindPoint::Graphics)
     {
-        constexpr uint32 DwordsPerSrd = (sizeof(BufferSrd) / sizeof(uint32));
-
         auto*const pNewPipeline = static_cast<const GraphicsPipeline*>(params.pPipeline);
         auto*const pOldPipeline = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
 
@@ -1093,10 +1087,6 @@ void UniversalCmdBuffer::CmdBindPipeline(
 
             const bool newUsesViewInstancing         = (pNewPipeline != nullptr) && pNewPipeline->UsesViewInstancing();
             const bool oldUsesViewInstancing         = (pOldPipeline != nullptr) && pOldPipeline->UsesViewInstancing();
-            const bool newUsesUavExport              = (pNewPipeline != nullptr) && pNewPipeline->UsesUavExport();
-            const bool oldUsesUavExport              = (pOldPipeline != nullptr) && pOldPipeline->UsesUavExport();
-            const bool newNeedsUavExportFlush        = (pNewPipeline != nullptr) && pNewPipeline->NeedsUavExportFlush();
-            const bool oldNeedsUavExportFlush        = (pOldPipeline != nullptr) && pOldPipeline->NeedsUavExportFlush();
             const GsFastLaunchMode oldFastLaunchMode = static_cast<GsFastLaunchMode>(m_state.flags.fastLaunchMode);
             const GsFastLaunchMode newFastLaunchMode = (pNewPipeline != nullptr) ? pNewPipeline->FastLaunchMode()
                                                                                  : GsFastLaunchMode::Disabled;
@@ -1175,19 +1165,18 @@ void UniversalCmdBuffer::CmdBindPipeline(
                                           (newFastLaunchMode != oldFastLaunchMode);
 
             if (disableFiltering ||
-                (oldNeedsUavExportFlush != newNeedsUavExportFlush) ||
                 (oldUsesViewInstancing  != newUsesViewInstancing)  ||
                 (meshEnabled && changeMsFunction)                  ||
                 (oldHasTaskShader != taskEnabled))
             {
-                SwitchDrawFunctions(newNeedsUavExportFlush,
-                                    newUsesViewInstancing,
+
+                SwitchDrawFunctions(newUsesViewInstancing,
                                     (newFastLaunchMode == GsFastLaunchMode::PrimInLane),
                                     taskEnabled);
             }
 
             const uint32 vbTableDwords =
-                ((pNewPipeline == nullptr) ? 0 : pNewPipeline->VertexBufferCount() * DwordsPerSrd);
+                ((pNewPipeline == nullptr) ? 0 : pNewPipeline->VertexBufferCount() * DwordsPerBufferSrd);
             PAL_DEBUG_BUILD_ONLY_ASSERT(vbTableDwords <= m_vbTable.state.sizeInDwords);
 
             if (disableFiltering ||
@@ -1199,25 +1188,6 @@ void UniversalCmdBuffer::CmdBindPipeline(
             }
 
             m_vbTable.watermark = vbTableDwords;
-
-            if (newUsesUavExport)
-            {
-                const uint32 maxTargets = static_cast<const GraphicsPipeline*>(params.pPipeline)->NumColorTargets();
-                m_uavExportTable.maxColorTargets = maxTargets;
-                m_uavExportTable.tableSizeDwords = NumBytesToNumDwords(maxTargets * sizeof(ImageSrd));
-
-                if (disableFiltering ||
-                    (oldUsesUavExport == false))
-                {
-                    // Invalidate color caches so upcoming uav exports don't overlap previous normal exports
-                    uint32*                    pDeCmdSpace = m_deCmdStream.ReserveCommands();
-                    constexpr WriteWaitEopInfo WaitEopInfo = { .hwRbSync  = SyncCbWbInv,
-                                                               .waitPoint = HwPipePostPrefetch };
-
-                    pDeCmdSpace = WriteWaitEop(WaitEopInfo, pDeCmdSpace);
-                    m_deCmdStream.CommitCommands(pDeCmdSpace);
-                }
-            }
 
             // Pipeline owns COVERAGE_TO_SHADER_SELECT
             m_paScAaConfigNew.bits.COVERAGE_TO_SHADER_SELECT =
@@ -1374,7 +1344,7 @@ void UniversalCmdBuffer::CmdBindPipeline(
 
                 if (dynamicState.enable.vertexBufferCount)
                 {
-                    const uint32 vbTableDwords = dynamicState.vertexBufferCount * DwordsPerSrd;
+                    const uint32 vbTableDwords = dynamicState.vertexBufferCount * DwordsPerBufferSrd;
                     PAL_ASSERT(vbTableDwords <= m_vbTable.state.sizeInDwords);
 
                     if (vbTableDwords > m_vbTable.watermark)
@@ -2252,10 +2222,9 @@ void UniversalCmdBuffer::CmdSetVertexBuffers(
     }
 
     constexpr uint32 DwordsPerBufferView = Util::NumBytesToNumDwords(sizeof(VertexBufferView));
-    constexpr uint32 DwordsPerSrd = Util::NumBytesToNumDwords(sizeof(BufferSrd));
-    static_assert(DwordsPerSrd == DwordsPerBufferView);
+    static_assert(DwordsPerBufferSrd == DwordsPerBufferView);
 
-    if ((DwordsPerSrd * bufferViews.firstBuffer) < m_vbTable.watermark)
+    if ((DwordsPerBufferSrd * bufferViews.firstBuffer) < m_vbTable.watermark)
     {
         // Only mark the contents as dirty if the updated VB table entries fall within the current high watermark.
         // This will help avoid redundant validation for data which the current pipeline doesn't care about.
@@ -2370,7 +2339,7 @@ void UniversalCmdBuffer::CmdBindTargets(
         // Add a stall if needed after Flush events issued in HandleBoundTargetsChanged.
         if (m_cachedSettings.waitAfterCbFlush)
         {
-            constexpr WriteWaitEopInfo WaitEopInfo = { .waitPoint = HwPipePreColorTarget };
+            constexpr WriteWaitEopInfo WaitEopInfo = { .hwAcqPoint = AcquirePointPreColor };
 
             pDeCmdSpace = WriteWaitEop(WaitEopInfo, pDeCmdSpace);
         }
@@ -2411,7 +2380,7 @@ void UniversalCmdBuffer::CmdBindTargets(
         // Add a stall if needed after Flush events issued in HandleBoundTargetChanged.
         if (m_cachedSettings.waitAfterDbFlush)
         {
-            constexpr WriteWaitEopInfo WaitEopInfo = { .waitPoint = HwPipePreRasterization };
+            constexpr WriteWaitEopInfo WaitEopInfo = { .hwAcqPoint = AcquirePointPreDepth };
 
             pDeCmdSpace = WriteWaitEop(WaitEopInfo, pDeCmdSpace);
         }
@@ -2882,7 +2851,6 @@ void UniversalCmdBuffer::DescribeDraw(
 // Issues a non-indexed draw command. We must discard the draw if vertexCount or instanceCount are zero. To avoid
 // branching, we will rely on the HW to discard the draw for us.
 template <bool IssueSqttMarkerEvent,
-          bool HasUavExport,
           bool ViewInstancingEnable,
           bool DescribeDrawDispatch>
 void PAL_STDCALL UniversalCmdBuffer::CmdDraw(
@@ -2955,10 +2923,6 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDraw(
                                                         pThis->PacketPredicate(),
                                                         pDeCmdSpace);
     }
-    if (HasUavExport)
-    {
-        pDeCmdSpace += cmdUtil.BuildNonSampleEventWrite(PS_PARTIAL_FLUSH, EngineTypeUniversal, pDeCmdSpace);
-    }
 
     pDeCmdSpace = pThis->IncrementDeCounter(pDeCmdSpace);
 
@@ -2975,7 +2939,6 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDraw(
 // =====================================================================================================================
 // Issues a draw opaque command.
 template <bool IssueSqttMarkerEvent,
-          bool HasUavExport,
           bool ViewInstancingEnable,
           bool DescribeDrawDispatch>
 void PAL_STDCALL UniversalCmdBuffer::CmdDrawOpaque(
@@ -3066,10 +3029,6 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawOpaque(
                                                                  pThis->PacketPredicate(),
                                                                  pDeCmdSpace);
     }
-    if (HasUavExport)
-    {
-        pDeCmdSpace += pThis->m_cmdUtil.BuildNonSampleEventWrite(PS_PARTIAL_FLUSH, EngineTypeUniversal, pDeCmdSpace);
-    }
 
     pDeCmdSpace = pThis->IncrementDeCounter(pDeCmdSpace);
 
@@ -3087,7 +3046,6 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawOpaque(
 // Issues an indexed draw command. We must discard the draw if indexCount or instanceCount are zero. To avoid branching,
 // we will rely on the HW to discard the draw for us.
 template <bool IssueSqttMarkerEvent,
-          bool HasUavExport,
           bool ViewInstancingEnable,
           bool DescribeDrawDispatch>
 void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
@@ -3218,10 +3176,6 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
                                                                  EngineTypeUniversal,
                                                                  pThis->PacketPredicate(),
                                                                  pDeCmdSpace);
-    }
-    if (HasUavExport)
-    {
-        pDeCmdSpace += pThis->m_cmdUtil.BuildNonSampleEventWrite(PS_PARTIAL_FLUSH, EngineTypeUniversal, pDeCmdSpace);
     }
 
     pDeCmdSpace  = pThis->IncrementDeCounter(pDeCmdSpace);
@@ -3705,7 +3659,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchOffset(
 // the VertInLane GsFastLaunchMode which emulates threadgroups by setting the number of verts/prims in a subgroup
 // to 1 and uses the primitive amplification factor to "grow" the subgroup to the threadgroup sizes
 // required by the shader.
-template <bool IssueSqttMarkerEvent, bool HasUavExport, bool ViewInstancingEnable, bool DescribeDrawDispatch>
+template <bool IssueSqttMarkerEvent, bool ViewInstancingEnable, bool DescribeDrawDispatch>
 void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMeshAmpFastLaunch(
     ICmdBuffer*  pCmdBuffer,
     DispatchDims size)
@@ -3792,10 +3746,6 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMeshAmpFastLaunch(
                                                                  pThis->PacketPredicate(),
                                                                  pDeCmdSpace);
     }
-    if (HasUavExport)
-    {
-        pDeCmdSpace += pThis->m_cmdUtil.BuildNonSampleEventWrite(PS_PARTIAL_FLUSH, EngineTypeUniversal, pDeCmdSpace);
-    }
 
     pDeCmdSpace = pThis->IncrementDeCounter(pDeCmdSpace);
 
@@ -3813,7 +3763,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMeshAmpFastLaunch(
 // Generates commands required for execution of a Mesh-only pipeline. This version focuses on the use of
 // the PrimInLane GsFastLaunchMode which uses the X, Y, and Z dimensions programmed into registers to appropriately
 // size the subgroup explicitly.
-template <bool IssueSqttMarkerEvent, bool HasUavExport, bool ViewInstancingEnable, bool DescribeDrawDispatch>
+template <bool IssueSqttMarkerEvent, bool ViewInstancingEnable, bool DescribeDrawDispatch>
 void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMeshNative(
     ICmdBuffer*  pCmdBuffer,
     DispatchDims size)
@@ -3892,10 +3842,6 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMeshNative(
                                                                  EngineTypeUniversal,
                                                                  pThis->PacketPredicate(),
                                                                  pDeCmdSpace);
-    }
-    if (HasUavExport)
-    {
-        pDeCmdSpace += pThis->m_cmdUtil.BuildNonSampleEventWrite(PS_PARTIAL_FLUSH, EngineTypeUniversal, pDeCmdSpace);
     }
 
     pDeCmdSpace = pThis->IncrementDeCounter(pDeCmdSpace);
@@ -4016,7 +3962,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMeshIndirectMulti(
 
 // =====================================================================================================================
 // Generates commands required for execution of pipelines with both Task and Mesh shaders.
-template <bool IssueSqttMarkerEvent, bool HasUavExport, bool ViewInstancingEnable, bool DescribeDrawDispatch>
+template <bool IssueSqttMarkerEvent, bool ViewInstancingEnable, bool DescribeDrawDispatch>
 void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMeshTask(
     ICmdBuffer*  pCmdBuffer,
     DispatchDims size)
@@ -4260,7 +4206,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMeshIndirectMultiTask(
         {
             if (TestAnyFlagSet(mask, 1))
             {
-                pAceCmdSpace  = pThis->BuildWriteViewId(viewInstancingDesc.viewId[i], pAceCmdSpace);
+                pAceCmdSpace = pThis->BuildWriteViewId(viewInstancingDesc.viewId[i], pAceCmdSpace);
 
                 if ((pThis->PacketPredicate() == PredEnable) && (pThis->m_predGpuAddr != 0))
                 {
@@ -5026,7 +4972,7 @@ Result UniversalCmdBuffer::AddPostamble()
                                                pDeCmdSpace);
     }
 
-    const WriteWaitEopInfo WaitEopInfo = { .waitPoint = HwPipePostPrefetch };
+    const WriteWaitEopInfo WaitEopInfo = { .hwAcqPoint = AcquirePointMe };
 
     if ((m_ceCmdStream.GetNumChunks() > 0) &&
         (m_ceCmdStream.GetFirstChunk()->BusyTrackerGpuAddr() != 0))
@@ -5468,28 +5414,6 @@ bool UniversalCmdBuffer::FixupUserSgprsOnPipelineSwitchCs(
 }
 
 // =====================================================================================================================
-// Helper function to create SRDs corresponding to the current render targets
-void UniversalCmdBuffer::UpdateUavExportTable()
-{
-    for (uint32 idx = 0; idx < m_uavExportTable.maxColorTargets; ++idx)
-    {
-        const auto* pTargetView = m_graphicsState.bindTargets.colorTargets[idx].pColorTargetView;
-
-        if (pTargetView != nullptr)
-        {
-            const auto* pGfxTargetView = static_cast<const ColorTargetView*>(pTargetView);
-
-            pGfxTargetView->GetImageSrd(m_device, &m_uavExportTable.srd[idx]);
-        }
-        else
-        {
-            m_uavExportTable.srd[idx] = {};
-        }
-    }
-    m_uavExportTable.state.dirty = 1;
-}
-
-// =====================================================================================================================
 // Helper function to validate and write packed user data entries to SGPRs. It is the caller's responsibility to ensure
 // that all user data entries are either packed into a PackedRegisterPair array or written into the command stream
 // before this function is called.
@@ -5834,39 +5758,6 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
                         pDeCmdSpace);
                 }
             }
-        }
-    }
-
-    // Update uav export srds if enabled
-    const uint16 uavExportEntry = m_pSignatureGfx->uavExportTableAddr;
-    if (uavExportEntry != UserDataNotMapped)
-    {
-        const auto dirtyFlags = m_graphicsState.dirtyFlags;
-        if (HasPipelineChanged || (dirtyFlags.colorTargetView))
-        {
-            UpdateUavExportTable();
-        }
-
-        if (m_uavExportTable.state.dirty != 0)
-        {
-            UpdateUserDataTableCpu(&m_uavExportTable.state,
-                                   m_uavExportTable.tableSizeDwords,
-                                   0,
-                                   reinterpret_cast<const uint32*>(&m_uavExportTable.srd));
-        }
-
-        // Update the virtual address if the table has been relocated or we have a different sgpr mapping
-        if ((HasPipelineChanged && (pPrevSignature->uavExportTableAddr != uavExportEntry)) ||
-            (m_uavExportTable.state.dirty != 0))
-        {
-            // UAV export table is PS-only.
-            PAL_ASSERT(InRange<uint16>(uavExportEntry, mmSPI_SHADER_USER_DATA_PS_0, mmSPI_SHADER_USER_DATA_PS_31));
-            const uint32 gpuVirtAddrLo = LowPart(m_uavExportTable.state.gpuVirtAddr);
-
-            pDeCmdSpace = SetUserSgprReg<ShaderGraphics>(uavExportEntry,
-                                                         gpuVirtAddrLo,
-                                                         false,
-                                                         pDeCmdSpace);
         }
     }
 
@@ -8574,6 +8465,12 @@ void UniversalCmdBuffer::ValidateDispatchHsaAbi(
                 break; // these are handled by kernargs
             case HsaAbi::ValueKind::HiddenNone:
                 break; // avoid the assert in this case
+            case HsaAbi::ValueKind::HiddenQueuePtr:
+            case HsaAbi::ValueKind::HiddenDefaultQueue:
+            case HsaAbi::ValueKind::HiddenCompletionAction:
+                // Not supported by PAL, kernels request but never actually use them,
+                // as compiler can't optimized out them for some cases
+                break;
             default:
                 PAL_ASSERT_ALWAYS();
 
@@ -8698,6 +8595,18 @@ void UniversalCmdBuffer::ValidateDispatchHsaAbi(
         pAqlPacket->group_segment_size   = ldsSize;
 
         pCmdSpace = SetSeqUserSgprRegs<ShaderCompute>(startReg, startReg + 1, &aqlPacketGpu, onAce, pCmdSpace);
+        startReg += 2;
+    }
+
+    // When kernels request queue ptr, for COV4 (Code Object Version 4) and earlier, ENABLE_SGPR_QUEUE_PTR is set,
+    // which means that the queue ptr is passed in two SGPRs, for COV5 and later, ENABLE_SGPR_QUEUE_PTR is deprecated
+    // and HiddenQueuePtr is set, which means that the queue ptr is passed in hidden kernel arguments.
+    // When there are indirect function call, such as virtual functions, HSA ABI compiler makes the optimization pass
+    // unable to infer if queue ptr will be used or not. As a result, the pass has to assume the queue ptr
+    // might be used, so HSA ELFs request queue ptrs but never actually use them. SGPR Space is reserved to adhere to
+    // initialization order for COV4 when ENABLE_SGPR_QUEUE_PTR is set, but is unset as we can't support queue ptr.
+    if (TestAnyFlagSet(desc.kernel_code_properties, AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_QUEUE_PTR))
+    {
         startReg += 2;
     }
 
@@ -9497,7 +9406,7 @@ void UniversalCmdBuffer::CmdSetPredication(
         pPredicate[0] = 0;
         pPredicate[1] = 0;
         pDeCmdSpace += m_cmdUtil.BuildCopyData(EngineTypeUniversal,
-                                               engine_sel__me_copy_data__micro_engine,
+                                               engine_sel__pfp_copy_data__prefetch_parser,
                                                dst_sel__me_copy_data__tc_l2_obsolete,
                                                predicateVirtAddr,
                                                src_sel__me_copy_data__tc_l2_obsolete,
@@ -9566,15 +9475,14 @@ void UniversalCmdBuffer::CmdCopyRegisterToMemory(
     dmaData.srcAddrSpace = sas__pfp_dma_data__register;
     dmaData.sync         = true;
     dmaData.usePfp       = false;
-    pCmdSpace += CmdUtil::BuildDmaData<false>(dmaData, pCmdSpace);
+    pCmdSpace += CmdUtil::BuildDmaData<false, false>(dmaData, pCmdSpace);
 
     m_deCmdStream.CommitCommands(pCmdSpace);
 }
 
 // =====================================================================================================================
 uint32 UniversalCmdBuffer::ComputeSpillTableInstanceCnt(
-    uint32 spillTableDwords,
-    uint32 vertexBufTableDwords,
+    uint32 spillTableStrideDwords,
     uint32 maxCmdCnt,
     bool*  pUseLargeEmbeddedData
     ) const
@@ -9588,19 +9496,18 @@ uint32 UniversalCmdBuffer::ComputeSpillTableInstanceCnt(
     // 4x as many instances. The more instances of SpillTable we can maintain at once the better it is for performance
     // as the CP will stall the next DMA_DATA/s and do a sync and flush of K$ when number of instances per iteration is
     // met. SpillTableInstCnt needs to be a Power of 2 per CP requirements.
-
-    const uint32 tableSizeDwords         = spillTableDwords + vertexBufTableDwords;
     const uint32 embeddedDataLimitDwords = GetEmbeddedDataLimit();
-    uint32 spillCnt                      = Min((embeddedDataLimitDwords / tableSizeDwords), maxCmdCnt);
-    uint32 spillTableInstCnt             = Util::Pow2Pad(spillCnt);
+    uint32 spillCnt                      = Min(embeddedDataLimitDwords / spillTableStrideDwords, maxCmdCnt);
+    uint32 spillTableInstCnt             = Pow2Pad(spillCnt);
 
     *pUseLargeEmbeddedData = false;
     if (spillTableInstCnt < maxCmdCnt)
     {
         *pUseLargeEmbeddedData = true;
         const uint32 largeEmbeddedDataLimitDwords = GetLargeEmbeddedDataLimit();
-        spillCnt                                  = Min((largeEmbeddedDataLimitDwords / tableSizeDwords), maxCmdCnt);
-        spillTableInstCnt                         = Util::Pow2Pad(spillCnt);
+        spillCnt                                  = Min(largeEmbeddedDataLimitDwords / spillTableStrideDwords,
+                                                        maxCmdCnt);
+        spillTableInstCnt                         = Pow2Pad(spillCnt);
     }
 
     return (spillTableInstCnt > spillCnt) ? spillTableInstCnt >> 1 : spillTableInstCnt;
@@ -9629,9 +9536,10 @@ uint32 UniversalCmdBuffer::BuildExecuteIndirectIb2Packets(
 
     const Pm4ShaderType shaderType = isGfx ? ShaderGraphics : ShaderCompute;
 
-    // We handle all SetUserData ops here. The other kinds of indirect ops will be handled at the end.
+    // We handle all SetUserData & SetIncConst ops here. The other kinds of indirect ops will be handled at the end.
     if (WideBitfieldIsAnyBitSet(gfx9Generator.TouchedUserDataEntries()))
     {
+        // Handle SetUserData
         for (uint32 cmdIndex = 0; cmdIndex < cmdCount; )
         {
             // If apps bind multiple user-data elements we expect them to be defined linearly such that their virtual
@@ -9690,7 +9598,7 @@ uint32 UniversalCmdBuffer::BuildExecuteIndirectIb2Packets(
                 const uint32 lastEntry = firstEntry + entryCount - 1;
 
                 // Graphics has muliple Shader Stages while Compute has only one.
-                uint32 numHwShaderStgs = isGfx ? NumHwShaderStagesGfx : 1;
+                const uint32 numHwShaderStgs = isGfx ? NumHwShaderStagesGfx : 1;
                 for (uint32 stgId = 0; stgId < numHwShaderStgs; stgId++)
                 {
                     const UserDataEntryMap& stage = isGfx ? m_pSignatureGfx->stage[stgId] : m_pSignatureCs->stage;
@@ -9784,8 +9692,86 @@ uint32 UniversalCmdBuffer::BuildExecuteIndirectIb2Packets(
                         copyInfo.sync         = true;
                         copyInfo.predicate    = PredDisable;
 
-                        pDeCmdIb2Space += m_cmdUtil.BuildDmaData<true>(copyInfo, pDeCmdIb2Space);
+                        pDeCmdIb2Space += m_cmdUtil.BuildDmaData<true, true>(copyInfo, pDeCmdIb2Space);
                     }
+                }
+            }
+        }
+
+        // Handle SetIncConst
+        if (gfx9Generator.ContainsIncrementingConstant())
+        {
+            for (uint32 cmdIndex = 0; cmdIndex < cmdCount; ++cmdIndex)
+            {
+                if (pParamData[cmdIndex].type == IndirectOpType::SetIncConst)
+                {
+                    const uint32 argOffset     = pParamData[cmdIndex].argBufOffset;
+                    const uint32 incConstEntry = pParamData[cmdIndex].data[0];
+                    const uint32 entryCount    = pParamData[cmdIndex].data[1]; // It will always be 1
+
+                    const uint32 numHwShaderStgs = isGfx ? NumHwShaderStagesGfx : 1;
+
+                    for (uint32 stgId = 0; stgId < numHwShaderStgs; stgId++)
+                    {
+                        const UserDataEntryMap& stage = isGfx ? m_pSignatureGfx->stage[stgId] : m_pSignatureCs->stage;
+
+                        for (uint32 sgprIndx = 0; sgprIndx < stage.userSgprCount; sgprIndx++)
+                        {
+                            const uint32 entry = stage.mappedEntry[sgprIndx];
+
+                            if (entry == incConstEntry)
+                            {
+                                const uint32 loadSgpr  = stage.firstUserSgprRegAddr + sgprIndx;
+                                const uint32 loadCount = entryCount;
+
+                                sizeDwords += CmdUtil::LoadShRegIndexSize;
+
+                                if (pDeCmdIb2Space != nullptr)
+                                {
+                                    // Load from direct addr rather than offset
+                                    pDeCmdIb2Space += m_cmdUtil.BuildLoadShRegsIndex(
+                                        index__pfp_load_sh_reg_index__direct_addr,
+                                        data_format__pfp_load_sh_reg_index__offset_and_size,
+                                        pPacketInfo->incConstBufferAddr,
+                                        loadSgpr,
+                                        loadCount,
+                                        shaderType,
+                                        pDeCmdIb2Space);
+                                }
+
+                                // It can only be at most one per shader stage.
+                                break;
+                            }
+                        }
+                    }
+
+                    // Issue a DMA_DATA to update the spill table if required.
+                    if (spillThreshold <= incConstEntry)
+                    {
+                        sizeDwords += CmdUtil::DmaDataSizeDwords;
+
+                        if (pDeCmdIb2Space != nullptr)
+                        {
+                            DmaDataInfo copyInfo = {};
+                            copyInfo.srcAddr      = pPacketInfo->incConstBufferAddr;
+                            copyInfo.srcAddrSpace = sas__pfp_dma_data__memory;
+                            copyInfo.srcSel       = src_sel__pfp_dma_data__src_addr_using_l2;
+                            copyInfo.dstOffset    = (vertexBufTableDwords + incConstEntry) * sizeof(uint32);
+                            copyInfo.dstAddrSpace = das__pfp_dma_data__memory;
+                            copyInfo.dstSel       = dst_sel__pfp_dma_data__dst_addr_using_l2;
+                            copyInfo.numBytes     = entryCount * sizeof(uint32);
+                            copyInfo.rawWait      = 0;
+                            copyInfo.usePfp       = true;
+                            copyInfo.sync         = true;
+                            copyInfo.predicate    = PredDisable;
+
+                            // Copy from direct addr to indirect addr
+                            pDeCmdIb2Space += m_cmdUtil.BuildDmaData<false, true>(copyInfo, pDeCmdIb2Space);
+                        }
+                    }
+
+                    // There can only be one IndirectOpType::SetIncConst in an IndirectCmdGenerator.
+                    break;
                 }
             }
         }
@@ -9943,12 +9929,31 @@ uint32 UniversalCmdBuffer::BuildExecuteIndirectIb2Packets(
 
         case IndirectOpType::Skip:
         case IndirectOpType::SetUserData:
+        case IndirectOpType::SetIncConst:
             // Nothing to do here.
             break;
         default:
             // What's this?
             PAL_ASSERT_ALWAYS();
             break;
+        }
+    }
+
+    if (gfx9Generator.ContainsIncrementingConstant())
+    {
+        // Constant increments by 1 after draw / dispatch launch
+        sizeDwords += (CmdUtil::AtomicMemSizeDwords + CmdUtil::PfpSyncMeSizeDwords);
+
+        if (pDeCmdIb2Space != nullptr)
+        {
+            pDeCmdIb2Space += m_cmdUtil.BuildAtomicMem(AtomicOp::AddInt32,
+                                                       pPacketInfo->incConstBufferAddr,
+                                                       1,
+                                                       pDeCmdIb2Space);
+
+            // As the ATOMIC_MEM Add is being done on ME, a PFP Sync ME here guarantees that the next PFP LOAD_SH_REG
+            // (for IncConstEntry update) won't happen before the Add completes.
+            pDeCmdIb2Space += m_cmdUtil.BuildPfpSyncMe(pDeCmdIb2Space);
         }
     }
 
@@ -10143,6 +10148,8 @@ uint32 UniversalCmdBuffer::PopulateExecuteIndirectV2Params(
     const uint16 vtxOffsetReg  = GetVertexOffsetRegAddr();
     const uint16 instOffsetReg = GetInstanceOffsetRegAddr();
 
+    uint32 vbSlotMask = BitfieldGenMask(m_vbTable.watermark / DwordsPerBufferSrd);
+
     // Now loop over the indirect ops. Only one OpType between these Dispatches/Draws is valid over one loop.
     for (uint32 cmdIndex = 0; cmdIndex < cmdCount; cmdIndex++)
     {
@@ -10221,6 +10228,9 @@ uint32 UniversalCmdBuffer::PopulateExecuteIndirectV2Params(
             const uint32 idx = pMetaData->buildSrd.count++;
             pMetaData->buildSrd.srcOffsets[idx] = pParamData[cmdIndex].argBufOffset;
             pMetaData->buildSrd.dstOffsets[idx] = static_cast<uint16>(pParamData[cmdIndex].data[0] * sizeof(uint32));
+
+            // Remove VB slots that will be copied by Build SRD Op/s from being considered in VB MemCpy.
+            vbSlotMask &= ~(1u << pParamData[cmdIndex].data[0]);
             break;
         }
         case IndirectOpType::DispatchMesh:
@@ -10248,12 +10258,22 @@ uint32 UniversalCmdBuffer::PopulateExecuteIndirectV2Params(
         case IndirectOpType::SetUserData:
             // Nothing to do here.
             break;
-
+        case IndirectOpType::SetIncConst:
+            PAL_NOT_IMPLEMENTED();
+            break;
         default:
             // What's this?
             PAL_ASSERT_ALWAYS();
             break;
         }
+    }
+
+    // If the global SpillTable needs to be used instead of just the local SpillTable, setup initMemCopy for VB SRDs
+    // setup from CPU side. In CP FW code, global SpillTable use (called dynamicSpillMode) is enabled and required when
+    // (UpdateMemCopyCount | BuildSrdCount != 0), so we use the same check here.
+    if ((vbSlotMask != 0) && ((pMetaData->buildSrd.count | pMetaData->updateMemCopy.count) > 0))
+    {
+        pMeta->ComputeVbSrdInitMemCopy(vbSlotMask);
     }
 
     // GFX supports only PS_USER_DATA and GS_USER_DATA and register adresses are stored using 8 bits.
@@ -10312,7 +10332,10 @@ gpusize UniversalCmdBuffer::ConstructExecuteIndirectPacket(
         // Required VBTable AllocSize in DWORDs
         const uint32 vertexBufTableDwords = properties.vertexBufTableSize;
 
-        pPacketInfo->spillTableStrideBytes = (spillDwords + vertexBufTableDwords) * sizeof(uint32);
+        pPacketInfo->spillTableStrideBytes = Pow2Align(uint32((spillDwords + vertexBufTableDwords) * sizeof(uint32)),
+                                                       EiSpillTblStrideAlignmentBytes);
+
+        const uint32 spillTableStrideDwords = NumBytesToNumDwords(pPacketInfo->spillTableStrideBytes);
 
         // Set VertexBuffer parameters.
         if (vertexBufTableDwords > 0)
@@ -10324,7 +10347,7 @@ gpusize UniversalCmdBuffer::ConstructExecuteIndirectPacket(
         // UserData that spills over the assigned SGPRs is also modified by this generator and we will need to create
         // and handle SpillTable/s + VertexBuffer/s. We manage the VertexBuffer/SRD as part of the SpillTable Buffer.
         // Memory layout is [VertexBuffer + SpillTable].
-        if (pPacketInfo->spillTableStrideBytes > 0)
+        if (spillTableStrideDwords > 0)
         {
             // Number of instances means max number of (1 UserDataSpillTable + VertexBuffer per Command) Spill+VBTables
             // we can fit. If the number of Tables required exceeds the number we can fit in this buffer the CP will
@@ -10333,26 +10356,26 @@ gpusize UniversalCmdBuffer::ConstructExecuteIndirectPacket(
             // ExecuteIndirectV2 needs to maintain a single instance of UserData for the copy over to the queue
             // specific reserved memory buffer with the CP InitMemCpy operation. CP UpdateMemCpy operation will then
             // update UserData slots based on data from the Argument Buffer.
-            pPacketInfo->spillTableInstanceCnt = useExecuteIndirectV2 ? 1 : ComputeSpillTableInstanceCnt(spillDwords,
-                                                                                          vertexBufTableDwords,
-                                                                                          pPacketInfo->maxCount,
-                                                                                          &useLargeEmbeddedData);
+            pPacketInfo->spillTableInstanceCnt =
+                useExecuteIndirectV2 ? 1 : ComputeSpillTableInstanceCnt(spillTableStrideDwords,
+                                                                        pPacketInfo->maxCount,
+                                                                        &useLargeEmbeddedData);
 
             // Allocate and populate Spill+VBTable Buffer with UserData. Each instance of the SpillTable and
             // VertexBuffer needs to be initialized with UserDataEntries of current context.
             if (useLargeEmbeddedData)
             {
                 pUserDataSpace = CmdAllocateLargeEmbeddedData(
-                    ((vertexBufTableDwords + spillDwords) * (pPacketInfo->spillTableInstanceCnt)),
-                    CacheLineDwords,
-                    &(pPacketInfo->spillTableAddr));
+                    spillTableStrideDwords * pPacketInfo->spillTableInstanceCnt,
+                    EiSpillTblStrideAlignmentDwords,
+                    &pPacketInfo->spillTableAddr);
             }
             else
             {
                 pUserDataSpace = CmdAllocateEmbeddedData(
-                    ((vertexBufTableDwords + spillDwords) * (pPacketInfo->spillTableInstanceCnt)),
-                    CacheLineDwords,
-                    &(pPacketInfo->spillTableAddr));
+                    spillTableStrideDwords * pPacketInfo->spillTableInstanceCnt,
+                    EiSpillTblStrideAlignmentDwords,
+                    &pPacketInfo->spillTableAddr);
             }
 
             PAL_ASSERT(pUserDataSpace != nullptr);
@@ -10360,15 +10383,15 @@ gpusize UniversalCmdBuffer::ConstructExecuteIndirectPacket(
             {
                 if (vertexBufTableDwords != 0)
                 {
-                    memcpy(pUserDataSpace, m_vbTable.pSrds, (sizeof(uint32) * vertexBufTableDwords));
-                    pUserDataSpace += vertexBufTableDwords;
+                    memcpy(pUserDataSpace, m_vbTable.pSrds, sizeof(uint32) * vertexBufTableDwords);
                 }
                 if (spillDwords != 0)
                 {
-                    memcpy(pUserDataSpace, m_graphicsState.gfxUserDataEntries.entries,
-                           (sizeof(uint32) * spillDwords));
-                    pUserDataSpace += spillDwords;
+                    memcpy(&pUserDataSpace[vertexBufTableDwords],
+                           m_graphicsState.gfxUserDataEntries.entries,
+                           sizeof(uint32) * spillDwords);
                 }
+                pUserDataSpace += spillTableStrideDwords;
             }
         }
     }
@@ -10379,40 +10402,50 @@ gpusize UniversalCmdBuffer::ConstructExecuteIndirectPacket(
         const uint32 spillDwords = (m_pSignatureCs->spillThreshold <= properties.userDataWatermark) ?
                                     properties.maxUserDataEntries : 0;
 
-        pPacketInfo->spillTableStrideBytes = (spillDwords) * sizeof(uint32);
+        pPacketInfo->spillTableStrideBytes = Pow2Align(uint32(spillDwords * sizeof(uint32)),
+                                                       EiSpillTblStrideAlignmentBytes);
+
+        const uint32 spillTableStrideDwords = NumBytesToNumDwords(pPacketInfo->spillTableStrideBytes);
 
         // UserData that spills over the assigned SGPRs.
-        if (pPacketInfo->spillTableStrideBytes > 0)
+        if (spillTableStrideDwords > 0)
         {
-            pPacketInfo->spillTableInstanceCnt = useExecuteIndirectV2 ? 1 : ComputeSpillTableInstanceCnt(spillDwords,
-                                                                                          0,
-                                                                                          pPacketInfo->maxCount,
-                                                                                          &useLargeEmbeddedData);
+            pPacketInfo->spillTableInstanceCnt =
+                useExecuteIndirectV2 ? 1 : ComputeSpillTableInstanceCnt(spillTableStrideDwords,
+                                                                        pPacketInfo->maxCount,
+                                                                        &useLargeEmbeddedData);
 
             // Allocate and populate SpillTable Buffer with UserData. Each instance of the SpillTable needs to be
             // initialized with UserDataEntries of current context.
             if (useLargeEmbeddedData)
             {
                 pUserDataSpace = CmdAllocateLargeEmbeddedData(
-                    (spillDwords * (pPacketInfo->spillTableInstanceCnt)),
-                    CacheLineDwords,
-                    &(pPacketInfo->spillTableAddr));
+                    spillTableStrideDwords * pPacketInfo->spillTableInstanceCnt,
+                    EiSpillTblStrideAlignmentDwords,
+                    &pPacketInfo->spillTableAddr);
             }
             else
             {
                 pUserDataSpace = CmdAllocateEmbeddedData(
-                    (spillDwords * (pPacketInfo->spillTableInstanceCnt)),
-                    CacheLineDwords,
-                    &(pPacketInfo->spillTableAddr));
+                    spillTableStrideDwords * pPacketInfo->spillTableInstanceCnt,
+                    EiSpillTblStrideAlignmentDwords,
+                    &pPacketInfo->spillTableAddr);
             }
 
             PAL_ASSERT(pUserDataSpace != nullptr);
             for (uint32 i = 0; i < pPacketInfo->spillTableInstanceCnt; i++)
             {
-                memcpy(pUserDataSpace, m_computeState.csUserDataEntries.entries, (sizeof(uint32) * spillDwords));
-                pUserDataSpace += spillDwords;
+                memcpy(pUserDataSpace, m_computeState.csUserDataEntries.entries, sizeof(uint32) * spillDwords);
+                pUserDataSpace += spillTableStrideDwords;
             }
         }
+    }
+
+    if (gfx9Generator.ContainsIncrementingConstant())
+    {
+        // Create and initialize Incrementing Constant buffer to zero
+        uint32* pIncConstDataSpace = CmdAllocateEmbeddedData(1u, 1u, &(pPacketInfo->incConstBufferAddr));
+        *pIncConstDataSpace = 0;
     }
 
     uint32* pIb2Space = nullptr;
@@ -11490,6 +11523,23 @@ void UniversalCmdBuffer::CmdExecuteNestedCmdBuffers(
         auto*const pCallee = static_cast<Gfx9::UniversalCmdBuffer*>(ppCmdBuffers[buf]);
         PAL_ASSERT(pCallee != nullptr);
 
+        if ((pCallee->m_inheritedPredGpuAddr != 0) && (m_predGpuAddr != 0))
+        {
+            uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
+
+            pCmdSpace += m_cmdUtil.BuildCopyData(EngineTypeUniversal,
+                                                 engine_sel__pfp_copy_data__prefetch_parser,
+                                                 dst_sel__me_copy_data__tc_l2,
+                                                 pCallee->m_inheritedPredGpuAddr,
+                                                 src_sel__me_copy_data__tc_l2,
+                                                 m_predGpuAddr,
+                                                 count_sel__me_copy_data__32_bits_of_data,
+                                                 wr_confirm__me_copy_data__wait_for_confirmation,
+                                                 pCmdSpace);
+
+            m_deCmdStream.CommitCommands(pCmdSpace);
+        }
+
         CallNestedCmdBuffer(pCallee);
 
         // Callee command buffers are also able to leak any changes they made to bound user-data entries and any other
@@ -11628,19 +11678,19 @@ uint32* UniversalCmdBuffer::BuildWriteViewId(
 
 // =====================================================================================================================
 // Switch draw functions - the actual assignment
-template <bool ViewInstancing, bool HasUavExport, bool IssueSqtt, bool DescribeDrawDispatch>
+template <bool ViewInstancing, bool IssueSqtt, bool DescribeDrawDispatch>
 void UniversalCmdBuffer::SwitchDrawFunctionsInternal(
     bool nativeMsEnable,
     bool hasTaskShader)
 {
     m_funcTable.pfnCmdDraw
-        = CmdDraw<IssueSqtt, HasUavExport, ViewInstancing, DescribeDrawDispatch>;
+        = CmdDraw<IssueSqtt, ViewInstancing, DescribeDrawDispatch>;
     m_funcTable.pfnCmdDrawOpaque
-        = CmdDrawOpaque<IssueSqtt, HasUavExport, ViewInstancing, DescribeDrawDispatch>;
+        = CmdDrawOpaque<IssueSqtt, ViewInstancing, DescribeDrawDispatch>;
     m_funcTable.pfnCmdDrawIndirectMulti
         = CmdDrawIndirectMulti<IssueSqtt, ViewInstancing, DescribeDrawDispatch>;
     m_funcTable.pfnCmdDrawIndexed
-        = CmdDrawIndexed<IssueSqtt, HasUavExport, ViewInstancing, DescribeDrawDispatch>;
+        = CmdDrawIndexed<IssueSqtt, ViewInstancing, DescribeDrawDispatch>;
     m_funcTable.pfnCmdDrawIndexedIndirectMulti
         = CmdDrawIndexedIndirectMulti<IssueSqtt, ViewInstancing, DescribeDrawDispatch>;
 
@@ -11648,7 +11698,7 @@ void UniversalCmdBuffer::SwitchDrawFunctionsInternal(
     {
         // Task + Gfx pipeline.
         m_funcTable.pfnCmdDispatchMesh =
-            CmdDispatchMeshTask<IssueSqtt, HasUavExport, ViewInstancing, DescribeDrawDispatch>;
+            CmdDispatchMeshTask<IssueSqtt, ViewInstancing, DescribeDrawDispatch>;
         m_funcTable.pfnCmdDispatchMeshIndirectMulti =
             CmdDispatchMeshIndirectMultiTask<IssueSqtt, ViewInstancing, DescribeDrawDispatch>;
     }
@@ -11658,12 +11708,12 @@ void UniversalCmdBuffer::SwitchDrawFunctionsInternal(
         if (nativeMsEnable)
         {
             m_funcTable.pfnCmdDispatchMesh =
-                CmdDispatchMeshNative<IssueSqtt, HasUavExport, ViewInstancing, DescribeDrawDispatch>;
+                CmdDispatchMeshNative<IssueSqtt, ViewInstancing, DescribeDrawDispatch>;
         }
         else
         {
             m_funcTable.pfnCmdDispatchMesh =
-                CmdDispatchMeshAmpFastLaunch<IssueSqtt, HasUavExport, ViewInstancing, DescribeDrawDispatch>;
+                CmdDispatchMeshAmpFastLaunch<IssueSqtt, ViewInstancing, DescribeDrawDispatch>;
         }
 
         m_funcTable.pfnCmdDispatchMeshIndirectMulti =
@@ -11673,43 +11723,20 @@ void UniversalCmdBuffer::SwitchDrawFunctionsInternal(
 
 // =====================================================================================================================
 // Switch draw functions - overloaded internal implementation for switching function params to template params
-template <bool ViewInstancing, bool IssueSqtt, bool DescribeDrawDispatch>
-void UniversalCmdBuffer::SwitchDrawFunctionsInternal(
-    bool hasUavExport,
-    bool nativeMsEnable,
-    bool hasTaskShader)
-{
-    if (hasUavExport)
-    {
-        SwitchDrawFunctionsInternal<ViewInstancing, true, IssueSqtt, DescribeDrawDispatch>(nativeMsEnable,
-                                                                                           hasTaskShader);
-    }
-    else
-    {
-        SwitchDrawFunctionsInternal<ViewInstancing, false, IssueSqtt, DescribeDrawDispatch>(nativeMsEnable,
-                                                                                            hasTaskShader);
-    }
-}
-
-// =====================================================================================================================
-// Switch draw functions - overloaded internal implementation for switching function params to template params
 template <bool IssueSqtt, bool DescribeDrawDispatch>
 void UniversalCmdBuffer::SwitchDrawFunctionsInternal(
-    bool hasUavExport,
     bool viewInstancingEnable,
     bool nativeMsEnable,
     bool hasTaskShader)
 {
     if (viewInstancingEnable)
     {
-        SwitchDrawFunctionsInternal<true, IssueSqtt, DescribeDrawDispatch>(hasUavExport,
-                                                                           nativeMsEnable,
+        SwitchDrawFunctionsInternal<true, IssueSqtt, DescribeDrawDispatch>(nativeMsEnable,
                                                                            hasTaskShader);
     }
     else
     {
-        SwitchDrawFunctionsInternal<false, IssueSqtt, DescribeDrawDispatch>(hasUavExport,
-                                                                            nativeMsEnable,
+        SwitchDrawFunctionsInternal<false, IssueSqtt, DescribeDrawDispatch>(nativeMsEnable,
                                                                             hasTaskShader);
     }
 }
@@ -11717,7 +11744,6 @@ void UniversalCmdBuffer::SwitchDrawFunctionsInternal(
 // =====================================================================================================================
 // Switch draw functions.
 void UniversalCmdBuffer::SwitchDrawFunctions(
-    bool hasUavExport,
     bool viewInstancingEnable,
     bool nativeMsEnable,
     bool hasTaskShader)
@@ -11725,22 +11751,19 @@ void UniversalCmdBuffer::SwitchDrawFunctions(
     if (m_cachedSettings.issueSqttMarkerEvent)
     {
         PAL_ASSERT(m_cachedSettings.describeDrawDispatch == 1);
-        SwitchDrawFunctionsInternal<true, true>(hasUavExport,
-                                                viewInstancingEnable,
+        SwitchDrawFunctionsInternal<true, true>(viewInstancingEnable,
                                                 nativeMsEnable,
                                                 hasTaskShader);
     }
     else if (m_cachedSettings.describeDrawDispatch)
     {
-        SwitchDrawFunctionsInternal<false, true>(hasUavExport,
-                                                 viewInstancingEnable,
+        SwitchDrawFunctionsInternal<false, true>(viewInstancingEnable,
                                                  nativeMsEnable,
                                                  hasTaskShader);
     }
     else
     {
-        SwitchDrawFunctionsInternal<false, false>(hasUavExport,
-                                                  viewInstancingEnable,
+        SwitchDrawFunctionsInternal<false, false>(viewInstancingEnable,
                                                   nativeMsEnable,
                                                   hasTaskShader);
     }
@@ -11768,7 +11791,7 @@ void UniversalCmdBuffer::CopyMemoryCp(
         dmaDataInfo.numBytes = uint32(Min(numBytes, gpusize(CmdUtil::MaxDmaDataByteCount)));
 
         uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
-        pCmdSpace += CmdUtil::BuildDmaData<false>(dmaDataInfo, pCmdSpace);
+        pCmdSpace += CmdUtil::BuildDmaData<false, false>(dmaDataInfo, pCmdSpace);
         m_deCmdStream.CommitCommands(pCmdSpace);
 
         dmaDataInfo.dstAddr += dmaDataInfo.numBytes;
@@ -11871,7 +11894,8 @@ gpusize UniversalCmdBuffer::GangedCmdStreamSemAddr()
 {
     if (m_gangedCmdStreamSemAddr == 0)
     {
-        uint32* pData = CmdAllocateEmbeddedData(2, CacheLineDwords, &m_gangedCmdStreamSemAddr);
+        // Dword alignment is enough since the address is only used in WriteData/ReleaseMem/WaitRegMem packets.
+        uint32* pData = CmdAllocateEmbeddedData(2, 1, &m_gangedCmdStreamSemAddr);
         PAL_ASSERT(m_gangedCmdStreamSemAddr != 0);
 
         // We need to memset this to handle a possible race condition with stale data.
@@ -12305,31 +12329,32 @@ bool UniversalCmdBuffer::IsPreemptable() const
 
 // =====================================================================================================================
 uint32* UniversalCmdBuffer::WriteWaitEop(
-    const WriteWaitEopInfo& info,
-    uint32*                 pCmdSpace)
+    WriteWaitEopInfo info,
+    uint32*          pCmdSpace)
 {
-    SyncGlxFlags      glxSync   = SyncGlxFlags(info.hwGlxSync);
-    const SyncRbFlags rbSync    = SyncRbFlags(info.hwRbSync);
-    HwPipePoint       waitPoint = info.waitPoint;
-    bool              waitCpDma = info.waitCpDma;
+    SyncGlxFlags       glxSync   = SyncGlxFlags(info.hwGlxSync);
+    const SyncRbFlags  rbSync    = SyncRbFlags(info.hwRbSync);
+    const AcquirePoint acqPoint  = AcquirePoint(info.hwAcqPoint);
+    const bool         waitCpDma = info.waitCpDma;
 
-    bool waitAtPfpOrMe = true;
+    bool waitAtPfpOrMe = false;
 
     if ((info.disablePws == false) && m_device.Parent()->UsePws(EngineTypeUniversal))
     {
         // We should always prefer a PWS sync over a wait for EOP timestamp because it avoids all TS memory accesses.
         // It can also push the wait point further down the graphics pipeline in some cases.
-        pCmdSpace += m_cmdUtil.BuildWaitEopPws(waitPoint, waitCpDma, glxSync, rbSync, pCmdSpace);
+        pCmdSpace += m_cmdUtil.BuildWaitEopPws(acqPoint, waitCpDma, glxSync, rbSync, pCmdSpace);
 
-        waitAtPfpOrMe = (waitPoint == HwPipeTop) || (waitPoint == HwPipePostPrefetch);
+        waitAtPfpOrMe = (acqPoint <= AcquirePointMe);
     }
     else
     {
         // Issue explicit waitCpDma packet if ReleaseMem doesn't support it.
+        bool releaseMemWaitCpDma = waitCpDma;
         if (waitCpDma && (m_device.Settings().gfx11EnableReleaseMemWaitCpDma == false))
         {
             pCmdSpace += m_cmdUtil.BuildWaitDmaData(pCmdSpace);
-            waitCpDma = false;
+            releaseMemWaitCpDma = false;
         }
 
         // We prefer to do our GCR in the release_mem if we can. This function always does an EOP wait so we don't have
@@ -12341,32 +12366,45 @@ uint32* UniversalCmdBuffer::WriteWaitEop(
         releaseInfo.dstAddr        = AcqRelFenceValGpuVa(ReleaseTokenEop);
         releaseInfo.dataSel        = data_sel__me_release_mem__send_32_bit_low;
         releaseInfo.data           = GetNextAcqRelFenceVal(ReleaseTokenEop);
-        releaseInfo.gfx11WaitCpDma = waitCpDma;
+        releaseInfo.gfx11WaitCpDma = releaseMemWaitCpDma;
 
         pCmdSpace += m_cmdUtil.BuildReleaseMemGfx(releaseInfo, pCmdSpace);
-        pCmdSpace += m_cmdUtil.BuildWaitRegMem(EngineTypeUniversal,
-                                               mem_space__me_wait_reg_mem__memory_space,
-                                               function__me_wait_reg_mem__equal_to_the_reference_value,
-                                               engine_sel__me_wait_reg_mem__micro_engine,
-                                               releaseInfo.dstAddr,
-                                               releaseInfo.data,
-                                               UINT32_MAX,
-                                               pCmdSpace);
 
-        // If we still have some caches to sync we require a final acquire_mem. It doesn't do any waiting, it just
-        // immediately does some full-range cache flush and invalidates. The previous WRM packet is the real wait.
-        if (glxSync != SyncGlxNone)
+        // We define an "EOP" wait to mean a release without a WaitRegMem.
+        // If glxSync still has some flags left over we still need a WaitRegMem to issue the GCR.
+        if ((acqPoint != AcquirePointEop) || (glxSync != SyncGlxNone))
         {
-            AcquireMemGfxSurfSync acquireInfo = {};
-            acquireInfo.cacheSync = glxSync;
+            waitAtPfpOrMe = true;
 
-            pCmdSpace += m_cmdUtil.BuildAcquireMemGfxSurfSync(acquireInfo, pCmdSpace);
-        }
+            pCmdSpace += m_cmdUtil.BuildWaitRegMem(EngineTypeUniversal,
+                                                   mem_space__me_wait_reg_mem__memory_space,
+                                                   function__me_wait_reg_mem__equal_to_the_reference_value,
+                                                   engine_sel__me_wait_reg_mem__micro_engine,
+                                                   releaseInfo.dstAddr,
+                                                   releaseInfo.data,
+                                                   UINT32_MAX,
+                                                   pCmdSpace);
 
-        if (waitPoint == HwPipeTop)
-        {
-            pCmdSpace += m_cmdUtil.BuildPfpSyncMe(pCmdSpace);
+            // If we still have some caches to sync we require a final acquire_mem. It doesn't do any waiting, it just
+            // immediately does some full-range cache flush and invalidates. The previous WRM packet is the real wait.
+            if (glxSync != SyncGlxNone)
+            {
+                AcquireMemGfxSurfSync acquireInfo = {};
+                acquireInfo.cacheSync = glxSync;
+
+                pCmdSpace += m_cmdUtil.BuildAcquireMemGfxSurfSync(acquireInfo, pCmdSpace);
+            }
+
+            if (acqPoint == AcquirePointPfp)
+            {
+                pCmdSpace += m_cmdUtil.BuildPfpSyncMe(pCmdSpace);
+            }
         }
+    }
+
+    if (waitCpDma)
+    {
+        SetCpBltState(false);
     }
 
     if (waitAtPfpOrMe)
@@ -12387,16 +12425,11 @@ uint32* UniversalCmdBuffer::WriteWaitEop(
         // The previous EOP event and wait mean that anything prior to this point, including previous command
         // buffers on this queue, have completed.
         SetPrevCmdBufInactive();
-    }
 
-    if (waitCpDma)
-    {
-        SetCpBltState(false);
-    }
-
-    if (TestAllFlagsSet(glxSync, SyncGl2WbInv))
-    {
-        ClearBltWriteMisalignMdState();
+        if (TestAllFlagsSet(glxSync, SyncGl2WbInv))
+        {
+            ClearBltWriteMisalignMdState();
+        }
     }
 
     return pCmdSpace;

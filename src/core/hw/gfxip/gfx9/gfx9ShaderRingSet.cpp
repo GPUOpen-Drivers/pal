@@ -693,7 +693,7 @@ uint32* UniversalRingSet::WriteCommands(
         // regs.
         // Since PWS is enabled by default on GFX11, here we disregard the UsePws setting and add a PWS stall directly.
         // Otherwise we have to allocate a timestamp memory allocation which is never used in default path.
-        pCmdSpace += cmdUtil.BuildWaitEopPws(HwPipePostPrefetch, false, SyncGlxNone, SyncRbNone, pCmdSpace);
+        pCmdSpace += cmdUtil.BuildWaitEopPws(AcquirePointMe, false, SyncGlxNone, SyncRbNone, pCmdSpace);
 
         pCmdSpace = pCmdStream->WriteSetSeqConfigRegs(Gfx11::mmSPI_ATTRIBUTE_RING_BASE,
                                                       Gfx11::mmSPI_ATTRIBUTE_RING_SIZE,

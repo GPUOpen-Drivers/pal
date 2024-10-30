@@ -185,23 +185,14 @@ Result ComputeShaderLibrary::GetShaderFunctionCode(
 {
     // To extract the shader code, we can re-parse the saved ELF binary and lookup the shader's program
     // instructions by examining the symbol table entry for that shader's entrypoint.
-    AbiReader abiReader(m_pDevice->GetPlatform(), m_pCodeObjectBinary);
+    AbiReader abiReader(m_pDevice->GetPlatform(), m_codeObject);
     Result result = abiReader.Init();
     if (result == Result::Success)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 852
-        const Elf::SymbolTableEntry* pSymbol = abiReader.GetGenericSymbol(shaderExportName);
-#else
-        const Elf::SymbolTableEntry* pSymbol = abiReader.GetGenericSymbol(pShaderExportName);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 852
+        Util::StringView<char> shaderExportName = pShaderExportName;
 #endif
-        if (pSymbol != nullptr)
-        {
-            result = abiReader.GetElfReader().CopySymbol(*pSymbol, pSize, pBuffer);
-        }
-        else
-        {
-            result = Result::ErrorUnavailable;
-        }
+        result = abiReader.CopySymbol(shaderExportName, pSize, pBuffer);
     }
 
     return result;
@@ -219,7 +210,7 @@ Result ComputeShaderLibrary::GetShaderFunctionStats(
     PAL_ASSERT(pShaderStats != nullptr);
     memset(pShaderStats, 0, sizeof(ShaderLibStats));
 
-    AbiReader abiReader(m_pDevice->GetPlatform(), m_pCodeObjectBinary);
+    AbiReader abiReader(m_pDevice->GetPlatform(), m_codeObject);
     result = abiReader.Init();
     if (result == Result::Success)
     {

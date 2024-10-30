@@ -565,7 +565,7 @@ Result Device::OsEarlyInit()
 
     if (result == Result::Success)
     {
-        result = InitClkInfo();
+        result = InitSysfsInfo();
     }
 
     return result;
@@ -5194,8 +5194,8 @@ Result Device::ParseClkInfo(
 
 // =====================================================================================================================
 // Initialize all needed sysfs file path exported by KMD.
-// Parse shader and memory clock.
-Result Device::InitClkInfo()
+// Parse shader and memory clocks, plus check sysfs for emulation enablement.
+Result Device::InitSysfsInfo()
 {
     // init sysfs file path
     snprintf(m_forcePerformanceLevelPath,
@@ -5210,6 +5210,24 @@ Result Device::InitClkInfo()
              sizeof(m_mClkPath),
              "/sys/class/drm/card%u/device/pp_dpm_mclk",
              GetDeviceNodeIndex());
+
+    char emuModeParamStr[16] = {};
+    File emuFile;
+
+    Result tmpResult = emuFile.Open("/sys/module/amdgpu/parameters/emu_mode", FileAccessRead);
+    if (tmpResult == Result::Success)
+    {
+        tmpResult = emuFile.ReadLine(emuModeParamStr, sizeof(emuModeParamStr), nullptr);
+    }
+
+    if (tmpResult == Result::Success)
+    {
+        // If this special file contains a nonzero value (eg. '1'), emulation is enabled.
+        // This corresponds to the kernel cmdline parameter 'amdgpu.emu_mode=1'.
+        // If any error occurs, assume it's not enabled and continue on.
+        m_featureState.hardwareEmulationEnabled = (atoi(emuModeParamStr) != 0);
+    }
+    emuFile.Close();
 
     return Result::Success;
 }

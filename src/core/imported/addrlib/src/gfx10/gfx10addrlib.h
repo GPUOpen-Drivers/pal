@@ -315,6 +315,10 @@ protected:
         const ADDR2_GET_PREFERRED_SURF_SETTING_INPUT* pIn,
         ADDR2_GET_PREFERRED_SURF_SETTING_OUTPUT*      pOut) const;
 
+    virtual ADDR_E_RETURNCODE HwlGetPossibleSwizzleModes(
+        const ADDR2_GET_PREFERRED_SURF_SETTING_INPUT* pIn,
+        ADDR2_GET_PREFERRED_SURF_SETTING_OUTPUT*      pOut) const;
+
     virtual ADDR_E_RETURNCODE HwlComputeSurfaceInfoSanityCheck(
         const ADDR2_COMPUTE_SURFACE_INFO_INPUT* pIn) const;
 

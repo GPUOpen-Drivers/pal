@@ -3171,7 +3171,7 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlGetPreferredSurfaceSetting(
                             }
 
                             // Select the biggest allowed block type
-                            minSizeBlk = Log2NonPow2(allowedBlockSet.value) + 1;
+                            minSizeBlk = Log2(allowedBlockSet.value) + 1;
 
                             if (minSizeBlk == static_cast<UINT_32>(AddrBlockMaxTiledType))
                             {
@@ -3311,7 +3311,7 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlGetPreferredSurfaceSetting(
                     // Determine swizzle mode now. Always select the "largest" swizzle mode for a given block type +
                     // swizzle type combination. E.g, for AddrBlockThin64KB + ADDR_SW_S, select SW_64KB_S_X(25) if it's
                     // available, or otherwise select SW_64KB_S_T(17) if it's available, or otherwise select SW_64KB_S(9).
-                    pOut->swizzleMode = static_cast<AddrSwizzleMode>(Log2NonPow2(allowedSwModeSet.value));
+                    pOut->swizzleMode = static_cast<AddrSwizzleMode>(Log2(allowedSwModeSet.value));
                 }
             }
             else
@@ -3327,6 +3327,246 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlGetPreferredSurfaceSetting(
             ADDR_ASSERT_ALWAYS();
             returnCode = ADDR_INVALIDPARAMS;
         }
+    }
+
+    return returnCode;
+}
+
+/**
+************************************************************************************************************************
+*   Gfx10Lib::HwlGetPossibleSwizzleModes
+*
+*   @brief
+*       Returns a list of swizzle modes that are valid from the hardware's perspective for the client to choose from
+*
+*   @return
+*       ADDR_E_RETURNCODE
+************************************************************************************************************************
+*/
+ADDR_E_RETURNCODE Gfx10Lib::HwlGetPossibleSwizzleModes(
+    const ADDR2_GET_PREFERRED_SURF_SETTING_INPUT* pIn,  ///< [in] input structure
+    ADDR2_GET_PREFERRED_SURF_SETTING_OUTPUT*      pOut  ///< [out] output structure
+    ) const
+{
+    ADDR_E_RETURNCODE returnCode = ADDR_OK;
+    UINT_32 bpp    = pIn->bpp;
+    UINT_32 width  = Max(pIn->width, 1u);
+    UINT_32 height = Max(pIn->height, 1u);
+
+    // Set format to INVALID will skip this conversion
+    if (pIn->format != ADDR_FMT_INVALID)
+    {
+        ElemMode elemMode = ADDR_UNCOMPRESSED;
+        UINT_32 expandX, expandY;
+
+        // Get compression/expansion factors and element mode which indicates compression/expansion
+        bpp = GetElemLib()->GetBitsPerPixel(pIn->format,
+            &elemMode,
+            &expandX,
+            &expandY);
+
+        UINT_32 basePitch = 0;
+        GetElemLib()->AdjustSurfaceInfo(elemMode,
+            expandX,
+            expandY,
+            &bpp,
+            &basePitch,
+            &width,
+            &height);
+    }
+
+    const UINT_32 numSlices    = Max(pIn->numSlices, 1u);
+    const UINT_32 numMipLevels = Max(pIn->numMipLevels, 1u);
+    const UINT_32 numSamples   = Max(pIn->numSamples, 1u);
+    const BOOL_32 msaa         = numSamples > 1;
+
+    // Pre sanity check on non swizzle mode parameters
+    ADDR2_COMPUTE_SURFACE_INFO_INPUT localIn = {};
+    localIn.flags = pIn->flags;
+    localIn.resourceType = pIn->resourceType;
+    localIn.format = pIn->format;
+    localIn.bpp = bpp;
+    localIn.width = width;
+    localIn.height = height;
+    localIn.numSlices = numSlices;
+    localIn.numMipLevels = numMipLevels;
+    localIn.numSamples = numSamples;
+    localIn.numFrags = numSamples;
+
+    if (ValidateNonSwModeParams(&localIn))
+    {
+        // Forbid swizzle mode(s) by client setting
+        ADDR2_SWMODE_SET allowedSwModeSet = {};
+        allowedSwModeSet.value |= pIn->forbiddenBlock.linear ? 0 : Gfx10LinearSwModeMask;
+        allowedSwModeSet.value |= pIn->forbiddenBlock.micro  ? 0 : Gfx10Blk256BSwModeMask;
+        allowedSwModeSet.value |=
+            pIn->forbiddenBlock.macroThin4KB ? 0 :
+            ((pIn->resourceType == ADDR_RSRC_TEX_3D) ? 0 : Gfx10Blk4KBSwModeMask);
+        allowedSwModeSet.value |=
+            pIn->forbiddenBlock.macroThick4KB ? 0 :
+            ((pIn->resourceType == ADDR_RSRC_TEX_3D) ? Gfx10Rsrc3dThick4KBSwModeMask : 0);
+        allowedSwModeSet.value |=
+            pIn->forbiddenBlock.macroThin64KB ? 0 :
+            ((pIn->resourceType == ADDR_RSRC_TEX_3D) ? Gfx10Rsrc3dThin64KBSwModeMask : Gfx10Blk64KBSwModeMask);
+        allowedSwModeSet.value |=
+            pIn->forbiddenBlock.macroThick64KB ? 0 :
+            ((pIn->resourceType == ADDR_RSRC_TEX_3D) ? Gfx10Rsrc3dThick64KBSwModeMask : 0);
+        allowedSwModeSet.value |=
+            pIn->forbiddenBlock.var ? 0 : (m_blockVarSizeLog2 ? Gfx10BlkVarSwModeMask : 0);
+
+        if (pIn->preferredSwSet.value != 0)
+        {
+            allowedSwModeSet.value &= pIn->preferredSwSet.sw_Z ? ~0 : ~Gfx10ZSwModeMask;
+            allowedSwModeSet.value &= pIn->preferredSwSet.sw_S ? ~0 : ~Gfx10StandardSwModeMask;
+            allowedSwModeSet.value &= pIn->preferredSwSet.sw_D ? ~0 : ~Gfx10DisplaySwModeMask;
+            allowedSwModeSet.value &= pIn->preferredSwSet.sw_R ? ~0 : ~Gfx10RenderSwModeMask;
+        }
+
+        if (pIn->noXor)
+        {
+            allowedSwModeSet.value &= ~Gfx10XorSwModeMask;
+        }
+
+        if (pIn->maxAlign > 0)
+        {
+            if (pIn->maxAlign < (1u << m_blockVarSizeLog2))
+            {
+                allowedSwModeSet.value &= ~Gfx10BlkVarSwModeMask;
+            }
+
+            if (pIn->maxAlign < Size64K)
+            {
+                allowedSwModeSet.value &= ~Gfx10Blk64KBSwModeMask;
+            }
+
+            if (pIn->maxAlign < Size4K)
+            {
+                allowedSwModeSet.value &= ~Gfx10Blk4KBSwModeMask;
+            }
+
+            if (pIn->maxAlign < Size256)
+            {
+                allowedSwModeSet.value &= ~Gfx10Blk256BSwModeMask;
+            }
+        }
+
+        // Filter out invalid swizzle mode(s) by image attributes and HW restrictions
+        switch (pIn->resourceType)
+        {
+            case ADDR_RSRC_TEX_1D:
+                allowedSwModeSet.value &= Gfx10Rsrc1dSwModeMask;
+                break;
+
+            case ADDR_RSRC_TEX_2D:
+                allowedSwModeSet.value &= pIn->flags.prt ? Gfx10Rsrc2dPrtSwModeMask : Gfx10Rsrc2dSwModeMask;
+
+                break;
+
+            case ADDR_RSRC_TEX_3D:
+                allowedSwModeSet.value &= pIn->flags.prt ? Gfx10Rsrc3dPrtSwModeMask : Gfx10Rsrc3dSwModeMask;
+
+                if (pIn->flags.view3dAs2dArray)
+                {
+                    // SW_LINEAR can be used for 3D thin images, including BCn image format.
+                    allowedSwModeSet.value &= Gfx10Rsrc3dViewAs2dSwModeMask;
+                }
+                break;
+
+            default:
+                ADDR_ASSERT_ALWAYS();
+                allowedSwModeSet.value = 0;
+                break;
+        }
+
+        if (ElemLib::IsBlockCompressed(pIn->format)  ||
+            ElemLib::IsMacroPixelPacked(pIn->format) ||
+            (bpp > 64)                               ||
+            (msaa && ((bpp > 32) || pIn->flags.color || pIn->flags.unordered)))
+        {
+            allowedSwModeSet.value &= ~Gfx10ZSwModeMask;
+        }
+
+        if (pIn->format == ADDR_FMT_32_32_32)
+        {
+            allowedSwModeSet.value &= Gfx10LinearSwModeMask;
+        }
+
+        if (msaa)
+        {
+            allowedSwModeSet.value &= Gfx10MsaaSwModeMask;
+        }
+
+        if (pIn->flags.depth || pIn->flags.stencil || pIn->flags.fmask)
+        {
+            allowedSwModeSet.value &= Gfx10ZSwModeMask;
+        }
+
+        if (pIn->flags.display)
+        {
+            allowedSwModeSet.value &= GetValidDisplaySwizzleModes(bpp);
+        }
+
+        if (pIn->flags.needEquation)
+        {
+            UINT_32 components = pIn->flags.allowExtEquation ?  ADDR_MAX_EQUATION_COMP :
+                                                                ADDR_MAX_LEGACY_EQUATION_COMP;
+            FilterInvalidEqSwizzleMode(allowedSwModeSet, pIn->resourceType, Log2(bpp >> 3), components);
+        }
+
+        if (pIn->flags.requireMetadata)
+        {
+            // Linear images can never be compressed
+            allowedSwModeSet.value &= ~Gfx10LinearSwModeMask;
+            if (pIn->flags.color)
+            {
+                // 256B formats must not be pipe-aligned (can't use in CB)
+                allowedSwModeSet.value &= ~(Gfx10Blk256BSwModeMask);
+                // D/S formats must not be pipe-aligned
+                allowedSwModeSet.value &= ~(Gfx10DisplaySwModeMask | Gfx10StandardSwModeMask);
+            }
+        }
+
+        if (allowedSwModeSet.value != 0)
+        {
+#if DEBUG
+            // Post sanity check, at least AddrLib should accept the output generated by its own
+            UINT_32 validateSwModeSet = allowedSwModeSet.value;
+
+            for (UINT_32 i = 0; validateSwModeSet != 0; i++)
+            {
+                if (validateSwModeSet & 1)
+                {
+                    localIn.swizzleMode = static_cast<AddrSwizzleMode>(i);
+                    ADDR_ASSERT(ValidateSwModeParams(&localIn));
+                }
+
+                validateSwModeSet >>= 1;
+            }
+#endif
+
+            pOut->resourceType = pIn->resourceType;
+            pOut->clientPreferredSwSet = pIn->preferredSwSet;
+
+            if (pOut->clientPreferredSwSet.value == 0)
+            {
+                pOut->clientPreferredSwSet.value = AddrSwSetAll;
+            }
+
+            pOut->validSwModeSet = allowedSwModeSet;
+            pOut->canXor = (allowedSwModeSet.value & Gfx10XorSwModeMask) ? TRUE : FALSE;
+        }
+        else
+        {
+            // Invalid combination...
+            ADDR_ASSERT_ALWAYS();
+            returnCode = ADDR_INVALIDPARAMS;
+        }
+    }
+    else
+    {
+        // Invalid combination...
+        ADDR_ASSERT_ALWAYS();
+        returnCode = ADDR_INVALIDPARAMS;
     }
 
     return returnCode;

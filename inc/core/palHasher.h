@@ -156,7 +156,9 @@ public:
         Hash(info.cbState.alphaToCoverageEnable);
         Hash(info.cbState.dualSourceBlendEnable);
         Hash(info.cbState.logicOp);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 904
         Hash(info.cbState.uavExportSingleDraw);
+#endif
         Hash(info.viewportInfo);
         for (uint32_t i = 0; i < Pal::MaxColorTargets; ++i)
         {

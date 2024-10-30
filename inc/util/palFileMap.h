@@ -63,16 +63,38 @@ public:
     /// Creates a new file mapping for the specified file.
     ///
     /// @param  pFileName      Name of the file to create a mapping for.
-    /// @param  allowWrite     Flag that indicates whhether or not to request executeable access.
-    /// @param  maximumSize    Maximum size allowed for the lifetime of the file mapping.
+    /// @param  allowWrite     Flag that indicates whhether or not to request write access.
+    /// @param  mapSize        Initial Mapping Size.
     /// @param  pName          System level name for mapping object, used to share the mapping across processes
     ///
     /// @returns Success if the file mapping was successfully created.
     Result Create(
             const char* pFileName,
             bool        allowWrite,
-            size_t      maximumSize,
-            const char* pName);
+            size_t      mapSize,
+            const char* pName = nullptr);
+
+    /// Creates a new file mapping from an existing file handle. This class assumes ownership of the handle.
+    ///
+    /// @param  fileHandle     Existing Handle to map.
+    /// @param  allowWrite     Flag that indicates whether or not to request write access.
+    /// @param  mapSize        Initial Mapping Size.
+    /// @param  pName          System level name for mapping object, used to share the mapping across processes
+    ///
+    /// @returns Success if the file mapping was successfully created.
+#if defined(__unix__)
+    Result CreateFromHandle(
+            int         fileHandle,
+            bool        allowWrite,
+            size_t      mapSize,
+            const char* pName = nullptr);
+#else
+    Result CreateFromHandle(
+            void*       pFileHandle,
+            bool        allowWrite,
+            size_t      mapSize,
+            const char* pName = nullptr);
+#endif
 
     /// Closes the current file memory mapping handle
     void Close();
@@ -178,7 +200,7 @@ public:
     /// Gets a pointer to the mapped memory, please see note above for memory access warnings
     ///
     /// @returns  CPU pointer to the file view mapped memory.
-    void* Ptr() const { return VoidPtrInc(m_pMappedMem, m_offestIntoView); }
+    void* Ptr() const { return VoidPtrInc(m_pMappedMem, m_offsetIntoView); }
 
     /// Determines if the FileView is valid.
     ///
@@ -187,7 +209,7 @@ public:
 
 private:
     void*              m_pMappedMem;     ///< pointer to the start of the mapped virtual memory page
-    size_t             m_offestIntoView; ///< offset within the memory view of the requested pointer
+    size_t             m_offsetIntoView; ///< offset within the memory view of the requested pointer
     size_t             m_requestedSize;  ///< size of mapped memory requested by the user
 
     PAL_DISALLOW_COPY_AND_ASSIGN(FileView);

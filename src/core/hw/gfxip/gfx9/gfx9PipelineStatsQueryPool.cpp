@@ -481,7 +481,7 @@ void PipelineStatsQueryPool::GpuReset(
         // because the caller must use semaphores to make sure all queries are complete.
         //
         // TODO: Investigate if we can optimize this, we might just need a VS/PS/CS_PARTIAL_FLUSH on universal queue.
-        constexpr WriteWaitEopInfo WaitEopInfo = { .waitPoint = HwPipePostPrefetch };
+        constexpr WriteWaitEopInfo WaitEopInfo = { .hwAcqPoint = AcquirePointMe };
 
         pCmdSpace = pPm4CmdBuf->WriteWaitEop(WaitEopInfo, pCmdSpace);
     }
@@ -516,8 +516,8 @@ void PipelineStatsQueryPool::GpuReset(
     tsDmaData.sync        = 1;
     tsDmaData.usePfp      = false;
 
-    pCmdSpace += CmdUtil::BuildDmaData<false>(dmaData, pCmdSpace);
-    pCmdSpace += CmdUtil::BuildDmaData<false>(tsDmaData, pCmdSpace);
+    pCmdSpace += CmdUtil::BuildDmaData<false, false>(dmaData, pCmdSpace);
+    pCmdSpace += CmdUtil::BuildDmaData<false, false>(tsDmaData, pCmdSpace);
 
     pCmdStream->CommitCommands(pCmdSpace);
 }
@@ -752,7 +752,7 @@ uint32* PipelineStatsQueryPool::CopyMeshPipeStatsToQuerySlots(
         copyInfo.usePfp       = false;
         copyInfo.sync         = true;
 
-        pCmdSpace += CmdUtil::BuildDmaData<false>(copyInfo, pCmdSpace);
+        pCmdSpace += CmdUtil::BuildDmaData<false, false>(copyInfo, pCmdSpace);
     }
     else
     {

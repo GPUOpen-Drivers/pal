@@ -341,6 +341,8 @@ Result Queue::Init(
                             BitfieldIsSet(engineIdMask, m_pQueueInfos[0].engineIndex) &&
                             BitfieldIsSet(queueIdMask, m_queueId));
 
+        m_endSampleEnabled = settings.gpuProfilerConfig.skipEndSample == false;
+
         if (m_profileEnabled)
         {
             result = BuildGpaSessionSampleConfig();

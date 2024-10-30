@@ -52,28 +52,24 @@ union ReleaseEvents
     uint8_t u8All;
 };
 
-// Define ordered HW acquire points.
-enum class AcquirePoint : uint8
-{
-
-    Pfp       = 0,
-    Me        = 1,
-    PreShader = 2,
-    PreDepth  = 3,
-    PrePs     = 4,
-    PreColor  = 5,
-    Eop       = 6, // Invalid, for internal optimization purpose.
-    Count
-};
-
 #if PAL_DEVELOPER_BUILD
-static_assert(EnumSameVal(Developer::AcquirePoint::Pfp,      AcquirePoint::Pfp)      &&
-              EnumSameVal(Developer::AcquirePoint::Me,       AcquirePoint::Me)       &&
-              EnumSameVal(Developer::AcquirePoint::PreDepth, AcquirePoint::PreDepth) &&
-              EnumSameVal(Developer::AcquirePoint::PrePs,    AcquirePoint::PrePs)    &&
-              EnumSameVal(Developer::AcquirePoint::PreColor, AcquirePoint::PreColor) &&
-              EnumSameVal(Developer::AcquirePoint::Eop,      AcquirePoint::Eop),
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 901
+static_assert((Developer::AcquirePointPfp      == AcquirePointPfp)      &&
+              (Developer::AcquirePointMe       == AcquirePointMe)       &&
+              (Developer::AcquirePointPreDepth == AcquirePointPreDepth) &&
+              (Developer::AcquirePointPrePs    == AcquirePointPrePs)    &&
+              (Developer::AcquirePointPreColor == AcquirePointPreColor) &&
+              (Developer::AcquirePointEop      == AcquirePointEop),
               "Definition values mismatch!");
+#else
+static_assert(EnumSameVal(Developer::AcquirePoint::Pfp,      AcquirePointPfp)      &&
+              EnumSameVal(Developer::AcquirePoint::Me,       AcquirePointMe)       &&
+              EnumSameVal(Developer::AcquirePoint::PreDepth, AcquirePointPreDepth) &&
+              EnumSameVal(Developer::AcquirePoint::PrePs,    AcquirePointPrePs)    &&
+              EnumSameVal(Developer::AcquirePoint::PreColor, AcquirePointPreColor) &&
+              EnumSameVal(Developer::AcquirePoint::Eop,      AcquirePointEop),
+              "Definition values mismatch!");
+#endif
 #endif
 
 // Cache coherency masks that may read data through L0 (V$ and K$)/L1 caches.
@@ -301,7 +297,7 @@ static ReleaseEvents GetReleaseEvents(
     uint32           srcStageMask,
     CacheSyncOps     cacheOps,
     bool             splitBarrier,
-    AcquirePoint     acquirePoint  = AcquirePoint::Pfp) // Assume worst stall if info not available in split barrier
+    AcquirePoint     acquirePoint  = AcquirePointPfp) // Assume worst stall if info not available in split barrier
 {
     // Detect cases where no global execution barrier is required because the acquire point is later than the
     // pipeline stages being released.
@@ -329,7 +325,7 @@ static ReleaseEvents GetReleaseEvents(
 
     ReleaseEvents release = {};
 
-    if (TestAnyFlagSet(srcStageMask, StallReqStageMask[uint32(acquirePoint)]))
+    if (TestAnyFlagSet(srcStageMask, StallReqStageMask[acquirePoint]))
     {
         if (TestAnyFlagSet(srcStageMask, EopWaitStageMask))
         {
@@ -354,7 +350,7 @@ static ReleaseEvents GetReleaseEvents(
     if (pCmdBuf->GetDevice().UsePws(pCmdBuf->GetEngineType()) &&
         (release.ps && release.cs)                            &&
         (release.vs || (cacheOps.glxFlags != SyncGlxNone))    &&
-        (acquirePoint >= AcquirePoint::PreDepth))
+        (acquirePoint >= AcquirePointPreDepth))
     {
         release.eop = 1;
     }
@@ -371,7 +367,7 @@ static ReleaseEvents GetReleaseEvents(
     else
     {
         // If acquire at bottom of pipe and no cache sync, can skip the release/acquire.
-        if ((acquirePoint == AcquirePoint::Eop) && (release.rbCache == 0) && (cacheOps.glxFlags == SyncGlxNone))
+        if ((acquirePoint == AcquirePointEop) && (release.rbCache == 0) && (cacheOps.glxFlags == SyncGlxNone))
         {
             release.eop = 0;
             release.ps  = 0;
@@ -431,20 +427,20 @@ AcquirePoint BarrierMgr::GetAcquirePoint(
     //  - Both ACQUIRE_MEM and RELEASE_MEM packets have 8 DWs, but EVENT_WRITE has only 4 DWs.
     //  - The PWS packet pair may stress event FIFOs if the number is large, e.g. 2000+ per frame in TimeSpy.
     //  - PreShader is very close ME and the overhead between PreShader and ME should be small.
-    AcquirePoint acqPoint = (dstStageMask & AcqPfpStages)                       ? AcquirePoint::Pfp       :
-                            (dstStageMask & (AcqMeStages | AcqPreShaderStages)) ? AcquirePoint::Me        :
-                            (dstStageMask & AcqPreDepthStages)                  ? AcquirePoint::PreDepth  :
-                            (dstStageMask & AcqPrePsStages)                     ? AcquirePoint::PrePs     :
-                            (dstStageMask & AcqPreColorStages)                  ? AcquirePoint::PreColor  :
-                                                                                  AcquirePoint::Eop;
+    AcquirePoint acqPoint = (dstStageMask & AcqPfpStages)                       ? AcquirePointPfp       :
+                            (dstStageMask & (AcqMeStages | AcqPreShaderStages)) ? AcquirePointMe        :
+                            (dstStageMask & AcqPreDepthStages)                  ? AcquirePointPreDepth  :
+                            (dstStageMask & AcqPrePsStages)                     ? AcquirePointPrePs     :
+                            (dstStageMask & AcqPreColorStages)                  ? AcquirePointPreColor  :
+                                                                                  AcquirePointEop;
 
     // Disable PWS late acquire point if PWS is not disabled or late acquire point is disallowed.
-    if (((acqPoint > AcquirePoint::Me) &&
-         (acqPoint != AcquirePoint::Eop) &&
+    if (((acqPoint > AcquirePointMe)   &&
+         (acqPoint != AcquirePointEop) &&
          (m_pDevice->UsePwsLateAcquirePoint(engineType) == false)) ||
-        ((acqPoint == AcquirePoint::Pfp) && (engineType == EngineTypeCompute))) // No Pfp on compute engine.
+        ((acqPoint == AcquirePointPfp) && (engineType != EngineTypeUniversal))) // No Pfp on non-universal engine.
     {
-        acqPoint = AcquirePoint::Me;
+        acqPoint = AcquirePointMe;
     }
 
     return acqPoint;
@@ -465,14 +461,18 @@ static ME_ACQUIRE_MEM_pws_stage_sel_enum GetPwsStageSel(
         pws_stage_sel__me_acquire_mem__pre_color__GFX11,      // Eop       = 6 (Invalid)
     };
 
-    PAL_ASSERT(acquirePoint < AcquirePoint::Count);
+    PAL_ASSERT(acquirePoint < AcquirePointCount);
 
-    return PwsStageSelMapTable[uint32(acquirePoint)];
+    return PwsStageSelMapTable[acquirePoint];
 }
 
 // =====================================================================================================================
 // Fill in a given BarrierOperations struct with info about a layout transition
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 902
+static void AcqRelBuildTransition(
+#else
 static BarrierTransition AcqRelBuildTransition(
+#endif
     const ImgBarrier*             pBarrier,
     LayoutTransitionInfo          transitionInfo,
     Developer::BarrierOperations* pBarrierOps)
@@ -527,6 +527,7 @@ static BarrierTransition AcqRelBuildTransition(
         pBarrierOps->layoutTransitions.fmaskColorExpand = 1;
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 902
     BarrierTransition out = {};
     out.srcCacheMask                 = pBarrier->srcAccessMask;
     out.dstCacheMask                 = pBarrier->dstAccessMask;
@@ -537,6 +538,7 @@ static BarrierTransition AcqRelBuildTransition(
     out.imageInfo.pQuadSamplePattern = pBarrier->pQuadSamplePattern;
 
     return out;
+#endif
 }
 
 // =====================================================================================================================
@@ -1172,8 +1174,13 @@ void BarrierMgr::AcqRelColorTransition(
             IssueReleaseThenAcquireSync(pCmdBuf, pCmdStream, srcStageMask, dstStageMask, cacheOps, pBarrierOps);
 
             // Tell RGP about this transition
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 902
+            AcqRelBuildTransition(&imgBarrier, MsaaBltInfo, pBarrierOps);
+            DescribeBarrier(pCmdBuf, &imgBarrier, pBarrierOps);
+#else
             BarrierTransition rgpTransition = AcqRelBuildTransition(&imgBarrier, MsaaBltInfo, pBarrierOps);
             DescribeBarrier(pCmdBuf, &rgpTransition, pBarrierOps);
+#endif
 
             RsrcProcMgr().FmaskColorExpand(pCmdBuf, gfx9Image, imgBarrier.subresRange);
         }
@@ -1414,9 +1421,9 @@ void BarrierMgr::IssueAcquireSync(
     ConvertSyncGlxFlagsToBarrierOps(cacheOps.glxFlags, pBarrierOps);
 
     // Must acquire at PFP/ME if cache syncs are required.
-    if ((syncGlxFlags != SyncGlxNone) && (acquirePoint > AcquirePoint::Me))
+    if ((syncGlxFlags != SyncGlxNone) && (acquirePoint > AcquirePointMe))
     {
-        acquirePoint = AcquirePoint::Me;
+        acquirePoint = AcquirePointMe;
     }
 
 #if PAL_DEVELOPER_BUILD
@@ -1431,7 +1438,7 @@ void BarrierMgr::IssueAcquireSync(
     // Merge synchronization timestamp entries in the list.
     // Can safely skip Acquire if acquire point is EOP and no cache sync. If there is cache sync, acquire point has
     // been forced to ME by above codes.
-    if (acquirePoint != AcquirePoint::Eop)
+    if (acquirePoint != AcquirePointEop)
     {
         for (uint32 i = 0; i < syncTokenCount; i++)
         {
@@ -1485,7 +1492,7 @@ void BarrierMgr::IssueAcquireSync(
         }
 
         pBarrierOps->pipelineStalls.waitOnTs   = 1;
-        pBarrierOps->pipelineStalls.pfpSyncMe |= (acquirePoint == AcquirePoint::Pfp);
+        pBarrierOps->pipelineStalls.pfpSyncMe |= (acquirePoint == AcquirePointPfp);
         needPfpSyncMe = false;
     }
     else
@@ -1528,7 +1535,7 @@ void BarrierMgr::IssueAcquireSync(
         pBarrierOps->pipelineStalls.pfpSyncMe = 1;
     }
 
-    if (acquirePoint <= AcquirePoint::Me)
+    if (acquirePoint <= AcquirePointMe)
     {
         // Update retired acquire release fence values
         for (uint32 i = 0; i < ReleaseTokenCpDma; i++)
@@ -1603,7 +1610,7 @@ void BarrierMgr::IssueReleaseThenAcquireSync(
     ConvertSyncGlxFlagsToBarrierOps(syncGlxFlags, pBarrierOps);
 
     // Preprocess release events, acquire caches and point for optimization or HW limitation before issue real packet.
-    if (acquirePoint > AcquirePoint::Me)
+    if (acquirePoint > AcquirePointMe)
     {
         // Optimization: convert acquireCaches to releaseCaches and do GCR op at release Eop instead of acquire
         //               at ME stage so acquire can wait at a later point.
@@ -1618,9 +1625,9 @@ void BarrierMgr::IssueReleaseThenAcquireSync(
             // If RELEASE_MEM can't handle all GCR bits in ACQUIRE_MEM, convert back and let ACQUIRE_MEM handle it.
             if (syncGlxFlags != SyncGlxNone)
             {
-                // Only non-PWS path with acquirePoint= AcquirePoint::Eop can hit here since in PWS path, RELEASE_MEM
+                // Only non-PWS path with acquirePoint= AcquirePointEop can hit here since in PWS path, RELEASE_MEM
                 // GCR support all bits in ACQUIRE_MEM GCR except I$ inv.
-                PAL_ASSERT(acquirePoint == AcquirePoint::Eop);
+                PAL_ASSERT(acquirePoint == AcquirePointEop);
                 syncGlxFlags = orgSyncGlxFlags;
                 releaseCaches.u8All = 0;
             }
@@ -1634,7 +1641,7 @@ void BarrierMgr::IssueReleaseThenAcquireSync(
         // handle cache operation correctly.
         if ((syncGlxFlags != SyncGlxNone) || releaseEvents.vs || (releaseEvents.u8All == 0))
         {
-            acquirePoint = AcquirePoint::Me;
+            acquirePoint = AcquirePointMe;
         }
     }
 
@@ -1647,7 +1654,7 @@ void BarrierMgr::IssueReleaseThenAcquireSync(
     // Optimization: If this is an Eop release acquiring at PFP/ME stage and cmdBufStateFlags.gfxWriteCachesDirty
     //               is active, let's force releaseEvents.rbCache = 1 so cmdBufStateFlags.gfxWriteCachesDirty can
     //               be optimized to 0 at end of this function.
-    if (releaseEvents.eop && (acquirePoint <= AcquirePoint::Me))
+    if (releaseEvents.eop && (acquirePoint <= AcquirePointMe))
     {
         releaseEvents.rbCache |= cmdBufStateFlags.gfxWriteCachesDirty;
     }
@@ -1661,10 +1668,10 @@ void BarrierMgr::IssueReleaseThenAcquireSync(
     // Go PWS+ wait if PWS+ is supported, acquire point isn't Eop and
     //     (1) If release a Eop event (PWS+ path performs better than legacy path)
     //     (2) Or if use a later PWS-only acquire point and need release either PsDone or CsDone.
-    const bool usePws = m_pDevice->UsePws(engineType)       &&
-                        (acquirePoint != AcquirePoint::Eop) &&
+    const bool usePws = m_pDevice->UsePws(engineType)     &&
+                        (acquirePoint != AcquirePointEop) &&
                         (releaseEvents.eop ||
-                         ((acquirePoint > AcquirePoint::Me) && (releaseEvents.ps || releaseEvents.cs)));
+                         ((acquirePoint > AcquirePointMe) && (releaseEvents.ps || releaseEvents.cs)));
 
     bool releaseMemWaitCpDma = false;
 
@@ -1672,8 +1679,8 @@ void BarrierMgr::IssueReleaseThenAcquireSync(
     {
         if (EnableReleaseMemWaitCpDma() &&
             (usePws ||
-             ((acquirePoint <= AcquirePoint::Me) && releaseEvents.eop) ||
-             ((acquirePoint == AcquirePoint::Eop) && (releaseEvents.rbCache || (releaseCaches.u8All != 0)))))
+             ((acquirePoint <= AcquirePointMe) && releaseEvents.eop) ||
+             ((acquirePoint == AcquirePointEop) && (releaseEvents.rbCache || (releaseCaches.u8All != 0)))))
         {
             releaseMemWaitCpDma = true;
         }
@@ -1709,7 +1716,7 @@ void BarrierMgr::IssueReleaseThenAcquireSync(
             if (releaseEvents.rbCache &&
                 TestAnyFlagSet(gfx9Device.Settings().waitOnFlush, WaitBeforeBarrierEopWithCbFlush))
             {
-                constexpr WriteWaitEopInfo WaitEopInfo = { .waitPoint = HwPipePreColorTarget };
+                constexpr WriteWaitEopInfo WaitEopInfo = { .hwAcqPoint = AcquirePointPreColor };
 
                 pCmdSpace = pCmdBuf->WriteWaitEop(WaitEopInfo, pCmdSpace);
             }
@@ -1765,15 +1772,15 @@ void BarrierMgr::IssueReleaseThenAcquireSync(
         }
 
         pBarrierOps->pipelineStalls.waitOnTs   = 1;
-        pBarrierOps->pipelineStalls.pfpSyncMe |= (acquirePoint == AcquirePoint::Pfp);
+        pBarrierOps->pipelineStalls.pfpSyncMe |= (acquirePoint == AcquirePointPfp);
     }
-    else if (acquirePoint <= AcquirePoint::Me) // Non-PWS path
+    else if (acquirePoint <= AcquirePointMe) // Non-PWS path
     {
         if (releaseEvents.eop)
         {
             WriteWaitEopInfo waitEopInfo = {};
             waitEopInfo.hwRbSync   = releaseEvents.rbCache ? SyncRbWbInv : SyncRbNone;
-            waitEopInfo.waitPoint  = HwPipePostPrefetch;
+            waitEopInfo.hwAcqPoint = AcquirePointMe;
             waitEopInfo.waitCpDma  = releaseMemWaitCpDma;
             waitEopInfo.disablePws = true;
 
@@ -1814,7 +1821,7 @@ void BarrierMgr::IssueReleaseThenAcquireSync(
         }
 
         // BuildWaitRegMem waits in the ME, if the waitPoint needs to stall at the PFP request a PFP/ME sync.
-        if (acquirePoint == AcquirePoint::Pfp)
+        if (acquirePoint == AcquirePointPfp)
         {
             // Stalls the CP PFP until the ME has processed all previous commands.  Useful in cases where the ME
             // is waiting on some condition, but the PFP needs to stall execution until the condition is satisfied.
@@ -1824,9 +1831,9 @@ void BarrierMgr::IssueReleaseThenAcquireSync(
             pBarrierOps->pipelineStalls.pfpSyncMe = 1;
         }
     }
-    else // acquirePoint == AcquirePoint::Eop
+    else // acquirePoint == AcquirePointEop
     {
-        PAL_ASSERT(acquirePoint == AcquirePoint::Eop);
+        PAL_ASSERT(acquirePoint == AcquirePointEop);
         PAL_ASSERT(syncGlxFlags == SyncGlxNone); // syncGlxFlags should be all converted to releaseCaches.
 
         if (releaseEvents.rbCache || (releaseCaches.u8All != 0))
@@ -1849,7 +1856,7 @@ void BarrierMgr::IssueReleaseThenAcquireSync(
     }
 
     // If we have stalled at Eop or Cs, update some CmdBufState (e.g. xxxBltActive) flags.
-    if (acquirePoint <= AcquirePoint::Me)
+    if (acquirePoint <= AcquirePointMe)
     {
         if (releaseEvents.eop)
         {
@@ -2480,7 +2487,11 @@ bool BarrierMgr::IssueBlt(
     PAL_ASSERT(pPreInitHtileSynced != nullptr);
 
     // Tell RGP about this transition
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 902
+    AcqRelBuildTransition(pImgBarrier, layoutTransInfo, pBarrierOps);
+#else
     const BarrierTransition rgpTransition = AcqRelBuildTransition(pImgBarrier, layoutTransInfo, pBarrierOps);
+#endif
     const auto&             image         = static_cast<const Pal::Image&>(*pImgBarrier->pImage);
     bool                    csInitMaskRam = false;
 
@@ -2517,9 +2528,9 @@ bool BarrierMgr::IssueBlt(
                 // expect WriteWaitEop to do a PWS EOP wait which should be fast.
                 if (IsGfx11(*m_pDevice))
                 {
-                    constexpr WriteWaitEopInfo WaitEopInfo = { .hwGlxSync = SyncGlvInv | SyncGl1Inv,
-                                                               .hwRbSync  = SyncDbWbInv,
-                                                               .waitPoint = HwPipePostPrefetch };
+                    constexpr WriteWaitEopInfo WaitEopInfo = { .hwGlxSync  = SyncGlvInv | SyncGl1Inv,
+                                                               .hwRbSync   = SyncDbWbInv,
+                                                               .hwAcqPoint = AcquirePointMe };
 
                     pCmdSpace = pCmdBuf->WriteWaitEop(WaitEopInfo, pCmdSpace);
                     waitEop = true;
@@ -2543,8 +2554,8 @@ bool BarrierMgr::IssueBlt(
             }
             else
             {
-                constexpr WriteWaitEopInfo WaitEopInfo = { .hwGlxSync = SyncGlvInv | SyncGl1Inv,
-                                                           .waitPoint = HwPipePostPrefetch };
+                constexpr WriteWaitEopInfo WaitEopInfo = { .hwGlxSync  = SyncGlvInv | SyncGl1Inv,
+                                                           .hwAcqPoint = AcquirePointMe };
 
                 pCmdSpace = pCmdBuf->WriteWaitEop(WaitEopInfo, pCmdSpace);
                 waitEop = true;
@@ -2559,7 +2570,11 @@ bool BarrierMgr::IssueBlt(
                 pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
                 pBarrierOps->pipelineStalls.waitOnTs          = 1;
 #if PAL_DEVELOPER_BUILD
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 901
+                pBarrierOps->acquirePoint                     = Developer::AcquirePointMe;
+#else
                 pBarrierOps->acquirePoint                     = Developer::AcquirePoint::Me;
+#endif
 #endif
 
                 *pPreInitHtileSynced                          = true;
@@ -2567,7 +2582,11 @@ bool BarrierMgr::IssueBlt(
         }
 
         // RGP expects DescribeBarrier() call occurs before layout transition BLT.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 902
+        DescribeBarrier(pCmdBuf, pImgBarrier, pBarrierOps);
+#else
         DescribeBarrier(pCmdBuf, &rgpTransition, pBarrierOps);
+#endif
 
         // Transition out of LayoutUninitializedTarget needs to initialize metadata memories.
         csInitMaskRam = AcqRelInitMaskRam(pCmdBuf, pCmdStream, *pImgBarrier);
@@ -2580,7 +2599,11 @@ bool BarrierMgr::IssueBlt(
     else
     {
         // RGP expects DescribeBarrier() call occurs before layout transition BLT.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 902
+        DescribeBarrier(pCmdBuf, pImgBarrier, pBarrierOps);
+#else
         DescribeBarrier(pCmdBuf, &rgpTransition, pBarrierOps);
+#endif
 
         // Image does normal BLT.
         if (image.IsDepthStencilTarget())

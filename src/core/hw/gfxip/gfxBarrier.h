@@ -166,7 +166,11 @@ public:
 
     void DescribeBarrier(
         GfxCmdBuffer*                 pGfxCmdBuf,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 902
+        const ImgBarrier*             pTransition,
+#else
         const BarrierTransition*      pTransition,
+#endif
         Developer::BarrierOperations* pOperations) const;
 
     void DescribeBarrierStart(GfxCmdBuffer* pGfxCmdBuf, uint32 reason, Developer::BarrierType type) const;
@@ -181,8 +185,6 @@ public:
         Platform*           pPlatform,
         AcquireReleaseInfo* pBarrier,
         bool*               pMemAllocated);
-
-    static void OptimizePipePoint(const Pm4CmdBuffer* pCmdBuf, HwPipePoint* pPipePoint);
 
     static void OptimizeSrcCacheMask(const Pm4CmdBuffer* pCmdBuf, uint32* pCacheMask);
 

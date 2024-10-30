@@ -43,7 +43,8 @@ ComputePipeline::ComputePipeline(
     m_pKernelDescriptor(nullptr),
     m_threadsPerTg{},
     m_maxFunctionCallDepth(0),
-    m_stackSizeInBytes(0)
+    m_stackSizeInBytes(0),
+    m_cpsStackSizeInBytes{}
 {
     memset(&m_stageInfo, 0, sizeof(m_stageInfo));
     m_stageInfo.stageId = Abi::HardwareStage::Cs;
@@ -69,15 +70,18 @@ Result ComputePipeline::Init(
 
     if ((createInfo.pPipelineBinary != nullptr) && (createInfo.pipelineBinarySize != 0))
     {
-        m_pipelineBinaryLen = createInfo.pipelineBinarySize;
-        m_pPipelineBinary   = PAL_MALLOC(m_pipelineBinaryLen, m_pDevice->GetPlatform(), AllocInternal);
-        if (m_pPipelineBinary == nullptr)
+        void*  pipelineBinary     = PAL_MALLOC(createInfo.pipelineBinarySize, m_pDevice->GetPlatform(), AllocInternal);
+        size_t pipelineBinarySize = (pipelineBinary != nullptr) ? createInfo.pipelineBinarySize : 0;
+
+        m_pipelineBinary = { pipelineBinary, pipelineBinarySize };
+
+        if (m_pipelineBinary.IsEmpty())
         {
             result = Result::ErrorOutOfMemory;
         }
         else
         {
-            memcpy(m_pPipelineBinary, createInfo.pPipelineBinary, m_pipelineBinaryLen);
+            memcpy(m_pipelineBinary.Data(), createInfo.pPipelineBinary, createInfo.pipelineBinarySize);
         }
     }
     else
@@ -87,7 +91,7 @@ Result ComputePipeline::Init(
 
     if (result == Result::Success)
     {
-        PAL_ASSERT((m_pPipelineBinary != nullptr) && (m_pipelineBinaryLen != 0));
+        PAL_ASSERT((m_pipelineBinary.IsEmpty() == false) && (m_pipelineBinary.SizeInBytes() != 0));
 
         const uint8 abi = abiReader.GetOsAbi();
 
@@ -124,7 +128,7 @@ Result ComputePipeline::Init(
         GpuMemoryResourceBindEventData bindData { };
         bindData.pObj               = this;
         bindData.pGpuMemory         = m_gpuMem.Memory();
-        bindData.requiredGpuMemSize = m_gpuMemSize - m_gpuMemOffset;
+        bindData.requiredGpuMemSize = m_gpuMemSize      - m_gpuMemOffset;
         bindData.offset             = m_gpuMem.Offset() + m_gpuMemOffset;
         pEventProvider->LogGpuMemoryResourceBindEvent(bindData);
 
@@ -154,8 +158,7 @@ Result ComputePipeline::InitFromPalAbiBinary(
 
     DumpPipelineElf("PipelineCs", metadata.pipeline.name);
 
-    const Elf::SymbolTableEntry* pSymbol =
-        abiReader.GetPipelineSymbol(Abi::PipelineSymbolType::CsDisassembly);
+    const Elf::SymbolTableEntry* pSymbol = abiReader.GetSymbolHeader(Abi::PipelineSymbolType::CsDisassembly);
 
     if (pSymbol != nullptr)
     {
@@ -211,16 +214,8 @@ Result ComputePipeline::InitFromHsaAbiBinary(
         // The metadata gives the name of our kernel's launch descriptor object. Look it up in the ELF binary and
         // cache a pointer to it for future reference. Note that we don't make a new copy, it's just a pointer.
         // It's a required symbol so it should never be nullptr.
-        const Elf::SymbolTableEntry* pSymbol = abiReader.GetGenericSymbol(m_pHsaMeta->KernelDescriptorSymbol());
-        PAL_ASSERT(pSymbol != nullptr);
-
-        const void* pData = nullptr;
-        result = abiReader.GetElfReader().GetSymbol(*pSymbol, &pData);
-
-        if (result == Result::Success)
-        {
-            m_pKernelDescriptor = static_cast<const llvm::amdhsa::kernel_descriptor_t*>(pData);
-        }
+        Span<const void> symbol = abiReader.GetSymbol(m_pHsaMeta->KernelDescriptorSymbol());
+        m_pKernelDescriptor     = static_cast<const llvm::amdhsa::kernel_descriptor_t*>(symbol.Data());
     }
 
     if (result == Result::Success)
@@ -228,7 +223,7 @@ Result ComputePipeline::InitFromHsaAbiBinary(
         // Hash the entire ELF to get a "good enough" pipeline and shader hash. There's no difference between
         // the stable hash and the unique hash so they get set to the same compacted 64-bit value.
         MetroHash128 hasher;
-        hasher.Update(static_cast<const uint8*>(m_pPipelineBinary), m_pipelineBinaryLen);
+        hasher.Update(static_cast<const uint8*>(m_pipelineBinary.Data()), m_pipelineBinary.SizeInBytes());
 
         MetroHash::Hash hashedBin = {};
         hasher.Finalize(hashedBin.bytes);

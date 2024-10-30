@@ -4061,6 +4061,13 @@ bool Gfx9Dcc::UseDccForImage(
         useDcc = false;
         mustDisableDcc = true;
     }
+    else if (IsMm12Format(createInfo.swizzledFormat.format) && (IsGfx11(*pDevice) == false))
+    {
+        // Sometimes we have to treat MM12 formats as raw non-MM formats. On asics older than Navi3x this can cause
+        // artifacts related to DCC.
+        useDcc = false;
+        mustDisableDcc = true;
+    }
     else if (Is256BSwizzle(swizzleMode))
     {
         // If using 256B swizzle, don't use DCC as perf hit is too great.

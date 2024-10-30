@@ -838,5 +838,11 @@ extern float GammaToLinear(float gammaCorrectedVal);
 /// @returns bool is it an MM format
 extern bool IsMmFormat(ChNumFormat format);
 
+/// Checks to see if a given format is a MM12 format
+///
+///
+/// @returns bool is it an MM12 format
+extern bool IsMm12Format(ChNumFormat format);
+
 } // Formats
 } // Pal

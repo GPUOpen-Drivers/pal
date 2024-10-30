@@ -58,7 +58,7 @@ constexpr Pal::uint32 CodeObjectChunkVersion                = 2;
 struct CodeObjectHeader
 {
     Pal::uint32     pciId;          /// The ID of the GPU the trace was run on
-    Pal::ShaderHash codeObjectHash; /// Hash of the code object binary
+    Pal::ShaderHash codeObjectHash; /// Hash of the Code Object binary
 };
 
 /// "COLoadEvent" RDF chunk identifier & version
@@ -77,13 +77,13 @@ enum class CodeObjectLoadEventType : Pal::uint32
     UnloadFromGpuMemory = 1  /// Code Object was unloaded from GPU memory
 };
 
-/// Describes a GPU load/unload of a Code Object. Payload for "COLoadEvent" RDF chunk.
+/// Describes one or more GPU load/unload(s) of a Code Object. Payload for "COLoadEvent" RDF chunk.
 struct CodeObjectLoadEvent
 {
     Pal::uint32             pciId;          /// The ID of the GPU the trace was run on
     CodeObjectLoadEventType eventType;      /// Type of loader event
-    Pal::uint64             baseAddress;    /// Base address where the code object was loaded
-    Pal::ShaderHash         codeObjectHash; /// Hash of the (un)loaded code object binary
+    Pal::uint64             baseAddress;    /// Base address where the Code Object was loaded
+    Pal::ShaderHash         codeObjectHash; /// Hash of the (un)loaded Code Object binary
     Pal::uint64             timestamp;      /// CPU timestamp of this event being triggered
 };
 
@@ -96,13 +96,31 @@ struct PsoCorrelationHeader
     Pal::uint32 count;  /// Number of PSO correlations in this chunk
 };
 
-/// Payload for the "PsoCorrelation" RDF chunk
+/// Payload for the "PsoCorrelation" RDF chunks
 struct PsoCorrelation
 {
     Pal::uint32       pciId;                  /// The ID of the GPU the trace was run on
     Pal::uint64       apiPsoHash;             /// Hash of the API-level Pipeline State Object
     Pal::PipelineHash internalPipelineHash;   /// Hash of all inputs to the pipeline compiler
     char              apiLevelObjectName[64]; /// Debug object name (null-terminated)
+};
+
+/// "COCorrelation" RDF chunk identifier & version
+constexpr char     CodeObjectCorrelationChunkId[TextIdentifierSize] = "COCorrelation";
+constexpr uint32_t CodeObjectCorrelationChunkVersion                = 4;
+
+struct CodeObjectCorrelationHeader
+{
+    Pal::uint32 count; /// Number of Code Object Correlations in this chunk
+};
+
+/// Payload for the "CodeObjectCorrelation" RDF chunks
+struct CodeObjectCorrelation
+{
+    Pal::PipelineHash internalPipelineHash;  /// Hash of all inputs to the pipeline compiler
+    Pal::ShaderHash   codeObjectHash;        /// Hash of the Code Object binary in the CO Database
+    Pal::uint32       containsMetadata : 1;  /// 1 if the code object contains metadata, 0 otherwise
+    Pal::uint32       reserved         : 31; /// Bitflags reserved for future use
 };
 
 } // namespace TraceChunk
@@ -119,8 +137,8 @@ public:
     ~CodeObjectTraceSource();
 
     // ==== TraceSource Native Functions ========================================================================== //
-    Pal::Result RegisterPipeline(Pal::IPipeline* pPipeline, RegisterPipelineInfo pipelineInfo);
-    Pal::Result UnregisterPipeline(Pal::IPipeline* pPipeline);
+    Pal::Result RegisterPipeline(const Pal::IPipeline* pPipeline, const RegisterPipelineInfo& clientInfo);
+    Pal::Result UnregisterPipeline(const Pal::IPipeline* pPipeline);
 
     Pal::Result RegisterLibrary(const Pal::IShaderLibrary* pLibrary, const RegisterLibraryInfo& clientInfo);
     Pal::Result UnregisterLibrary(const Pal::IShaderLibrary* pLibrary);
@@ -142,6 +160,9 @@ public:
     virtual Pal::uint32 GetVersion() const override { return CodeObjectTraceSourceVersion; }
 
 private:
+    Pal::Result RegisterSinglePipeline(const Pal::IPipeline* pPipeline, const RegisterPipelineInfo& clientInfo);
+    Pal::Result UnregisterSinglePipeline(const Pal::IPipeline* pPipeline);
+
     Pal::Result AddCodeObjectLoadEvent(
         const Pal::IShaderLibrary*          pLibrary,
         TraceChunk::CodeObjectLoadEventType eventType);
@@ -155,6 +176,7 @@ private:
     Pal::Result WriteCodeObjectChunks();
     Pal::Result WriteLoaderEventsChunk();
     Pal::Result WritePsoCorrelationChunk();
+    Pal::Result WriteCoCorrelationChunk();
 
     struct CodeObjectDatabaseRecord
     {
@@ -164,12 +186,16 @@ private:
 
     Pal::IPlatform* const m_pPlatform;
 
-    Util::RWLock                                                      m_registerPipelineLock;
-    Util::Vector<CodeObjectDatabaseRecord*,       8, Pal::IPlatform>  m_codeObjectRecords;
-    Util::Vector<TraceChunk::CodeObjectLoadEvent, 8, Pal::IPlatform>  m_loadEventRecords;
-    Util::Vector<TraceChunk::PsoCorrelation,      8, Pal::IPlatform>  m_psoCorrelationRecords;
-    Util::HashSet<Pal::uint64, Pal::IPlatform, Util::JenkinsHashFunc> m_registeredPipelines;
-    Util::HashSet<Pal::uint64, Pal::IPlatform, Util::JenkinsHashFunc> m_registeredApiHashes;
+    Util::RWLock                                                        m_registerPipelineLock;
+    Util::Vector<CodeObjectDatabaseRecord*,         1, Pal::IPlatform>  m_codeObjectRecords;
+    Util::Vector<TraceChunk::CodeObjectLoadEvent,   1, Pal::IPlatform>  m_loadEventRecords;
+    Util::Vector<TraceChunk::PsoCorrelation,        1, Pal::IPlatform>  m_psoCorrelationRecords;
+    Util::Vector<TraceChunk::CodeObjectCorrelation, 1, Pal::IPlatform>  m_coCorrelationRecords;
+
+    // API hashes -> internal pipeline hash (-> child code object hashes)
+    Util::HashSet<Pal::uint64, Pal::IPlatform, Util::JenkinsHashFunc>   m_registeredApiHashes;
+    Util::HashSet<Pal::uint64, Pal::IPlatform, Util::JenkinsHashFunc>   m_registeredPipelines;
+    Util::HashSet<Pal::uint64, Pal::IPlatform, Util::JenkinsHashFunc>   m_registeredCoHashes;
 };
 
 } // namespace GpuUtil

@@ -86,7 +86,7 @@ Result GraphicsShaderLibrary::HwlInit(
                         DispatchInterleaveSize::Default,
                         nullptr);
 
-        const  Elf::SymbolTableEntry* pElfSymbol = abiReader.GetPipelineSymbol(Abi::PipelineSymbolType::CsDisassembly);
+        const  Elf::SymbolTableEntry* pElfSymbol = abiReader.GetSymbolHeader(Abi::PipelineSymbolType::CsDisassembly);
         if (pElfSymbol != nullptr)
         {
             m_taskStageInfo.disassemblyLength = static_cast<size_t>(pElfSymbol->st_size);
@@ -112,7 +112,7 @@ Result GraphicsShaderLibrary::GetShaderFunctionStats(
 
     PAL_ASSERT(pShaderStats != nullptr);
     memset(pShaderStats, 0, sizeof(ShaderLibStats));
-    AbiReader abiReader(m_pDevice->GetPlatform(), m_pCodeObjectBinary);
+    AbiReader abiReader(m_pDevice->GetPlatform(), m_codeObject);
     result = abiReader.Init();
     if (result == Result::Success)
     {

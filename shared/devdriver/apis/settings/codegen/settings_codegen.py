@@ -121,9 +121,11 @@ def setup_default(setting: dict, group_name: str) -> str:
                     # Convert `\` to `\\` in the generated C++ string literal.
                     default_str = default_value.replace("\\", "\\\\")
                 elif setting_type == "float":
-                    raise ValueError(f'In the setting {setting_name}, "Type" field is {setting_type} but the actual type of "Defaults" are string.')
+                    raise ValueError(f'In the setting {setting_name}, "Type" field is {setting_type} '
+                                      'but the actual type of "Defaults" are string.')
                 elif setting_type == "bool":
-                    raise ValueError(f'In the setting {setting_name}, "Type" field is {setting_type} but the actual type of "Defaults" are string.')
+                    raise ValueError(f'In the setting {setting_name}, "Type" field is {setting_type} '
+                                      'but the actual type of "Defaults" are string.')
                 else:
                     default_str = default_value
             else:
@@ -189,50 +191,6 @@ def setup_default(setting: dict, group_name: str) -> str:
         result += assign_line(setting, None, group_name)
 
     return result
-
-# A jinja filter that converts "Type" specified in JSON to DD_SETTINGS_TYPE.
-def setting_type_cpp(setting_type: str) -> str:
-    if setting_type == "bool":
-        return "DD_SETTINGS_TYPE_BOOL"
-    elif setting_type == "int8":
-        return "DD_SETTINGS_TYPE_INT8"
-    elif setting_type == "uint8":
-        return "DD_SETTINGS_TYPE_UINT8"
-    elif setting_type == "int16":
-        return "DD_SETTINGS_TYPE_INT16"
-    elif setting_type == "uint16":
-        return "DD_SETTINGS_TYPE_UINT16"
-    elif setting_type == "int32":
-        return "DD_SETTINGS_TYPE_INT32"
-    elif setting_type == "uint32" or setting_type == "enum":
-        return "DD_SETTINGS_TYPE_UINT32"
-    elif setting_type == "int64":
-        return "DD_SETTINGS_TYPE_INT64"
-    elif setting_type == "uint64":
-        return "DD_SETTINGS_TYPE_UINT64"
-    elif setting_type == "float":
-        return "DD_SETTINGS_TYPE_FLOAT"
-    elif setting_type == "string":
-        return "DD_SETTINGS_TYPE_STRING"
-    else:
-        return f'"Invalid value ({setting_type}) for the field `Type`."'
-
-# A jinja filter that converts "Type" specified in JSON to Util::ValueType from
-def setting_type_cpp2(setting_type: str) -> str:
-    if setting_type == "bool":
-        return "Util::ValueType::Boolean"
-    elif setting_type in ["int8", "int16", "int32"]:
-        return "Util::ValueType::Int"
-    elif setting_type in ["uint8", "uint16", "uint32", "enum"]:
-        return "Util::ValueType::Uint"
-    elif setting_type == "uint64":
-        return "Util::ValueType::Uint64"
-    elif setting_type == "float":
-        return "Util::ValueType::Float"
-    elif setting_type == "string":
-        return "Util::ValueType::Str"
-    else:
-        return f'"Invalid value ({setting_type}) for "Type" field."'
 
 def setting_format_string(setting_type: str) -> str:
     if setting_type == "bool":
@@ -375,7 +333,6 @@ def gen_settings_blob(
 
     settings_str = settings_stream.getvalue()
     settings_bytes = bytearray(settings_str.encode(encoding="utf-8"))
-    settings_bytes_len = len(settings_bytes)
 
     if magic_buf:
         # Rotate the magic buffer so it starts at `magic_buf_start_index`.
@@ -386,6 +343,7 @@ def gen_settings_blob(
         if magic_start_index != 0:
             magic_bytes.extend(magic_buf[0:magic_start_index])
 
+        settings_bytes_len = len(settings_bytes)
         if settings_bytes_len > magic_buf_len:
             # Extend `magic_bytes` if `settings_bytes` is longer.
             magic_bytes_copy = copy.deepcopy(magic_bytes)
@@ -467,6 +425,34 @@ def prepare_enums(settings_root: dict):
     duplicate enums are found.
     """
 
+    SETTING_STR_DD_TYPE_MAP = {
+        "bool":   "DD_SETTINGS_TYPE_BOOL",
+        "int8":   "DD_SETTINGS_TYPE_INT8",
+        "uint8":  "DD_SETTINGS_TYPE_UINT8",
+        "int16":  "DD_SETTINGS_TYPE_INT16",
+        "uint16": "DD_SETTINGS_TYPE_UINT16",
+        "int32":  "DD_SETTINGS_TYPE_INT32",
+        "uint32": "DD_SETTINGS_TYPE_UINT32",
+        "int64":  "DD_SETTINGS_TYPE_INT64",
+        "uint64": "DD_SETTINGS_TYPE_UINT64",
+        "float":  "DD_SETTINGS_TYPE_FLOAT",
+        "string": "DD_SETTINGS_TYPE_STRING"
+    }
+
+    SETTING_STR_PAL_TYPE_MAP = {
+        "bool":   "Util::ValueType::Boolean",
+        "int8":   "Util::ValueType::Int8",
+        "uint8":  "Util::ValueType::Uint8",
+        "int16":  "Util::ValueType::Int16",
+        "uint16": "Util::ValueType::Uint16",
+        "int32":  "Util::ValueType::Int32",
+        "uint32": "Util::ValueType::Uint32",
+        "int64":  "Util::ValueType::Int64",
+        "uint64": "Util::ValueType::Uint64",
+        "float":  "Util::ValueType::Float",
+        "string": "Util::ValueType::Str"
+    }
+
     def validate_enum_reference(setting: dict, enums_list):
         valid_values = setting.get("ValidValues", None)
         setting_type = setting["Type"]
@@ -518,8 +504,33 @@ def prepare_enums(settings_root: dict):
                 # No "Values" means this is a reference to an enum defined in top-level "Enums" list.
                 if name not in enum_names_unique:
                     raise ValueError(
-                        f'The enum name "{name}" in the setting "{setting_name}" does not reference any item in the top-level "Enums" list.'
+                        f'The enum name "{name}" in the setting "{setting_name}" does not reference any item '
+                         'in the top-level "Enums" list.'
                     )
+
+    def add_cpp_type(setting, enum_list):
+        """Add a "DdType" field whose value is one of DD_SETTINGS_TYPE enum variants."""
+        setting_type = setting["Type"]
+        if setting_type == "enum":
+            enum_name = setting["EnumReference"]
+            enum_size = next(enum.get("EnumSize", 32) for enum in enum_list if enum["Name"] == enum_name)
+            if enum_size == 8:
+                setting["DdType"] = "DD_SETTINGS_TYPE_UINT8"
+                setting["PalType"] = "Util::ValueType::Uint8"
+            elif enum_size == 16:
+                setting["DdType"] = "DD_SETTINGS_TYPE_UINT16"
+                setting["PalType"] = "Util::ValueType::Uint16"
+            elif enum_size == 32:
+                setting["DdType"] = "DD_SETTINGS_TYPE_UINT32"
+                setting["PalType"] = "Util::ValueType::Uint32"
+            elif enum_size == 64:
+                setting["DdType"] = "DD_SETTINGS_TYPE_UINT64"
+                setting["PalType"] = "Util::ValueType::Uint64"
+            else:
+                raise ValueError(f'The enum "{enum_name}" has invalid size: {enum_size}.')
+        else:
+            setting["DdType"] = SETTING_STR_DD_TYPE_MAP[setting_type]
+            setting["PalType"] = SETTING_STR_PAL_TYPE_MAP[setting_type]
 
     top_level_enums = settings_root.get("Enums", [])
     top_level_enum_names = [enum["Name"] for enum in top_level_enums]
@@ -538,17 +549,6 @@ def prepare_enums(settings_root: dict):
                 extract_enum(subs, top_level_enums, enum_names_unique)
         else:
             extract_enum(setting, top_level_enums, enum_names_unique)
-
-    for setting in settings_root["Settings"]:
-        # If the setting is an enum, validate it.
-        if "Structure" in setting:
-            for subsetting in setting["Structure"]:
-                validate_enum_reference(subsetting, top_level_enums)
-        else:
-            validate_enum_reference(setting, top_level_enums)
-
-    if "Enums" not in settings_root:
-        settings_root["Enums"] = top_level_enums
 
     for enum in top_level_enums:
         values = enum["Values"]
@@ -576,7 +576,8 @@ def prepare_enums(settings_root: dict):
 
         if "Is64Bit" in enum:
             enum_base = "uint64_t"
-            print('[SettingsCodeGen][WARNING] "Is64Bit" field is deprecated, please use "EnumSize". For example: `"EnumSize": 64`.')
+            print('[SettingsCodeGen][WARNING] "Is64Bit" field is deprecated, please use "EnumSize". '
+                  'For example: `"EnumSize": 64`.', file=sys.stderr)
         else:
             enum_size = enum.get("EnumSize", 32)
             if enum_size == 8:
@@ -589,9 +590,28 @@ def prepare_enums(settings_root: dict):
                 enum_base = "uint64_t"
             else:
                 raise ValueError(f'Enum {enum["Name"]} contains invalid "EnumSize" value ({enum_size}). '
-                                  'Only valid values are: 8, 16, 32, 64.')
+                                  'Valid values are: 8, 16, 32, 64.')
 
         enum["EnumBase"] = enum_base
+
+    for setting in settings_root["Settings"]:
+        # If the setting is an enum, validate it.
+        if "Structure" in setting:
+            for subsetting in setting["Structure"]:
+                validate_enum_reference(subsetting, top_level_enums)
+        else:
+            validate_enum_reference(setting, top_level_enums)
+
+    for setting in settings_root["Settings"]:
+        # If the setting is an enum, validate it.
+        if "Structure" in setting:
+            for subsetting in setting["Structure"]:
+                add_cpp_type(subsetting, top_level_enums)
+        else:
+            add_cpp_type(setting, top_level_enums)
+
+    if "Enums" not in settings_root:
+        settings_root["Enums"] = top_level_enums
 
 def prepare_settings_meta(
     settings_root: dict, magic_buf: bytes, codegen_header: str, settings_header: str
@@ -708,9 +728,12 @@ def prepare_settings_list(settings: dict, top_level_enum_list: list):
 
         defaults = setting.get("Defaults", None)
         if defaults:
-            assert "Default" in defaults, f'Setting {setting["Name"]}\'s "Defaults" field is missing the platform-agnostic "Default" field.'
-            assert "WinDefault" not in defaults, f'"WinDefault" field found in the setting {setting["Name"]}. It is deprecated, please use "Windows" instead.'
-            assert "LnxDefault" not in defaults, f'"LnxDefault" field found in the setting {setting["Name"]}. It is deprecated, please use "Linux" instead.'
+            assert "Default" in defaults, f'Setting {setting["Name"]}\'s "Defaults" field is missing the '\
+                                           'platform-agnostic "Default" field.'
+            assert "WinDefault" not in defaults, f'"WinDefault" field found in the setting {setting["Name"]}. '\
+                                                  'It is deprecated, please use "Windows" instead.'
+            assert "LnxDefault" not in defaults, f'"LnxDefault" field found in the setting {setting["Name"]}. '\
+                                                  'It is deprecated, please use "Linux" instead.'
 
             setting_type = setting["Type"]
             for platform, value in defaults.items():
@@ -722,20 +745,24 @@ def prepare_settings_list(settings: dict, top_level_enum_list: list):
                             defaults[platform] = int(value, base=16)
                         elif not is_bitmask and setting_type != "enum":
                             if "EnumReference" in setting:
-                                raise ValueError(f'Non-bitmask setting {setting["Name"]} references an enum. But its "Type" is not "enum".')
+                                raise ValueError(f'Non-bitmask setting {setting["Name"]} references an enum. '
+                                                  'But its "Type" is not "enum".')
                             else:
                                 try:
                                     # This could be a math expressions, so evaluate it:
                                     defaults[platform] = eval(value)
                                 except SyntaxError:
                                     # Syntax error. Assume that this string is useful to the driver instead.
+                                    # For example, this string could be the name of a constant variable defined in a driver
+                                    # header file (the header file is #included in the generated settings cpp file).
                                     defaults[platform] = value
                         else:
                             if is_bitmask or setting_type == "enum":
                                 # Convert default values from string of enum value names to integers.
                                 defaults[platform] = convert_enum_value(setting, top_level_enum_list, value)
                             else:
-                                raise ValueError(f'Setting {setting["Name"]} is of type {setting_type}. Its default values can only be integers or strings starting with "0x".')
+                                raise ValueError(f'Setting {setting["Name"]} is of type {setting_type}. Its default '
+                                                  'values can only be integers or strings starting with "0x".')
 
     for setting in settings:
         structure = setting.get("Structure", None)
@@ -904,8 +931,6 @@ def main():
     )
     jinja_env.filters["buildtypes_to_c_macro"] = buildtypes_to_c_macro
     jinja_env.filters["setup_default"] = setup_default
-    jinja_env.filters["setting_type_cpp"] = setting_type_cpp
-    jinja_env.filters["setting_type_cpp2"] = setting_type_cpp2
     jinja_env.filters["setting_format_string"] = setting_format_string
 
     header_template = jinja_env.get_template("settings.h.jinja2")

@@ -372,7 +372,7 @@ protected:
     bool         m_predMemEnabled;           // Memory predication is enabled.
     gpusize      m_predInternalAddr;         // Internal Memory predication will reference this address.
     const uint32 m_copyOverlapHazardSyncs;   // Bitmask that depons on image type (1D, 2D or 3D). The bit is set to 1
-                                             // if we need to handle overlapping copy syncing during CmdBarrier.
+                                             // if we need to handle overlapping copy syncing during barrier call.
 
     uint32 GetImageZ( const DmaImageInfo& dmaImageInfo, uint32 offsetZ) const;
     uint32 GetImageZ(const DmaImageInfo&  dmaImageInfo) const

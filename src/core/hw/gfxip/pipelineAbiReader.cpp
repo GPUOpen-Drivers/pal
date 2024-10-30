@@ -30,6 +30,9 @@
 #include "palMsgPackImpl.h"
 #include "palPipelineAbiReader.h"
 #include "palPipelineAbiUtils.h"
+#include "palPipelineArFile.h"
+#include "palVectorImpl.h"
+#include "palElf.h"
 
 #include <climits>
 #include <cstdint>
@@ -38,6 +41,7 @@
 
 namespace Util::Abi
 {
+
 // =====================================================================================================================
 static bool MatchesAnySupportedAbi(
     uint8 osAbi,
@@ -63,44 +67,146 @@ static bool MatchesAnySupportedAbi(
 Result PipelineAbiReader::Init(
     StringView<char> kernelName)
 {
+    Result result = m_genericSymbolsMap.Init();
+    memset(&m_pipelineSymbols[0], 0, sizeof(m_pipelineSymbols));
+
+    if (result == Result::Success)
+    {
+        result = InitCodeObject();
+    }
+
+    if (result == Result::Success)
+    {
+        result = InitSymbolCache(kernelName);
+    }
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+    InitDebugValidate();
+#endif
+
+    return result;
+}
+
+// =====================================================================================================================
+Result PipelineAbiReader::InitCodeObject()
+{
     Result result = Result::Success;
 
-    if ((MatchesAnySupportedAbi(GetOsAbi(), GetAbiVersion()) == false) ||
-        (m_elfReader.GetTargetMachine() != Elf::MachineType::AmdGpu))
+    // Handle single ELF vs archive-of-ELF case
+    if (Elf::IsElf(m_binary))
+    {
+        result = m_elfReaders.PushBack({0, ElfReader::Reader(m_binary.Data())});
+    }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < PAL_FIXME_MULTI_ELF_VER  // ** TODO multi-ELF
+    else if (m_binary.SizeInBytes() == size_t(-1))
+    {
+        // PipelineArFileReader requires an actual size!  (See back-compat PipelineAbiReader(const void*) constructor)
+        result = Result::ErrorInvalidPipelineElf;
+    }
+#endif
+    else if (Util::IsArFile(m_binary))
+    {
+        PipelineArFileReader reader(m_binary);
+        for (auto member = reader.Begin(); (result == Result::Success) && (member.IsEnd() == false); member.Next())
+        {
+            const bool isElf = (member.IsMalformed() == false) && Elf::IsElf(member.GetData());
+            result =   isElf ? m_elfReaders.PushBack({member.GetElfHash(), ElfReader::Reader(member.GetData())}) :
+                               Result::ErrorInvalidPipelineElf;
+        }
+    }
+    else
     {
         result = Result::ErrorInvalidPipelineElf;
     }
 
+    // Validate ELF header OS and "ABI" versions.  These do not necessarily correspond with metadata version!
     if (result == Result::Success)
     {
-        memset(&m_pipelineSymbols, 0, sizeof(m_pipelineSymbols));
-        result = m_genericSymbolsMap.Init();
+        for (const auto& [elfHash, elfReader] : m_elfReaders)
+        {
+            const uint32 osAbi      = elfReader.GetHeader().ei_osabi;
+            const uint32 abiVersion = elfReader.GetHeader().ei_abiversion;
+
+            if ((MatchesAnySupportedAbi(osAbi, abiVersion) == false) ||
+                (elfReader.GetTargetMachine() != Elf::MachineType::AmdGpu))
+            {
+                result = Result::ErrorInvalidPipelineElf;
+                break;
+            }
+        }
     }
 
-    if (result == Result::Success)
+    return result;
+}
+
+// =====================================================================================================================
+void PipelineAbiReader::InitDebugValidate() const
+{
+    // Extra slow path, debug-only asserts for sanity checking that the file format is correct.
+    bool hasNote   = false;
+    bool hasSymbol = false;
+    bool hasText   = false;
+
+    for (const auto& [elfHash, elfReader] : m_elfReaders)
     {
-        // Cache symbols so we don't have to search them when looking up
-        for (ElfReader::SectionId sectionIndex = 0; sectionIndex < m_elfReader.GetNumSections(); sectionIndex++)
+        for (ElfReader::SectionId sectionIndex = 0; sectionIndex < elfReader.GetNumSections(); sectionIndex++)
         {
-            if (m_elfReader.GetSectionType(sectionIndex) != ElfReader::SectionHeaderType::SymTab)
+            const char* pSectionName = elfReader.GetSectionName(sectionIndex);
+            ElfReader::SectionHeaderType sectionType = elfReader.GetSectionType(sectionIndex);
+
+            if (StringEqualFunc<const char*>()(pSectionName, ".text"))
+            {
+                hasText = true;
+            }
+            else if (StringEqualFunc<const char*>()(pSectionName, ".note") ||
+                     (sectionType == ElfReader::SectionHeaderType::Note))
+            {
+                hasNote = true;
+            }
+            else if ((sectionType == ElfReader::SectionHeaderType::SymTab) &&
+                     (elfReader.GetSection(sectionIndex).sh_link != 0))
+            {
+                hasSymbol = true;
+            }
+        }
+    }
+
+    PAL_ASSERT_MSG(hasNote,   "Missing .note section");
+    PAL_ASSERT_MSG(hasSymbol, "Missing .symtab section");
+    PAL_ASSERT_MSG(hasText,   "Missing .text section");
+}
+
+// =====================================================================================================================
+Result PipelineAbiReader::InitSymbolCache(
+    StringView<char> kernelName)
+{
+    Result result = Result::Success;  // Assume m_genericSymbolsMap.Init() was already Success during early this->Init()
+
+    // Cache symbols so we don't have to search them when looking up
+    uint32 elfIdx = 0;
+    for (const auto& [elfHash, elfReader] : m_elfReaders)
+    {
+        for (ElfReader::SectionId sectionIndex = 0; sectionIndex < elfReader.GetNumSections(); sectionIndex++)
+        {
+            if (elfReader.GetSectionType(sectionIndex) != ElfReader::SectionHeaderType::SymTab)
             {
                 continue;
             }
 
-            ElfReader::Symbols symbols(m_elfReader, sectionIndex);
+            ElfReader::Symbols symbols(elfReader, sectionIndex);
             for (uint32 symbolIndex = 0; symbolIndex < symbols.GetNumSymbols(); symbolIndex++)
             {
                 // We are not interested in symbol table entries of type SymbolTableEntryType::Section, since we use
-                // m_genericSymbolsMap to look up function addresses. Moreover, they have no name in the symbol table
-                // itself, so we cannot insert them in m_genericSymbolsMap (HashString asserts that its argument is not
-                // the empty string).
+                // m_genericSymbolsMap to look up function addresses. Moreover, they have no name in the symbol
+                // table itself, so we cannot insert them in m_genericSymbolsMap (HashString asserts that its
+                // argument is not the empty string).
                 if ((symbols.GetSymbol(symbolIndex).st_shndx == 0) ||
                     (symbols.GetSymbolType(symbolIndex) == Elf::SymbolTableEntryType::Section))
                 {
                     continue;
                 }
 
-                const char* const pName = symbols.GetSymbolName(symbolIndex);
+                const char*const   pName              = symbols.GetSymbolName(symbolIndex);
                 PipelineSymbolType pipelineSymbolType = PipelineSymbolType::Unknown;
 
                 if (GetOsAbi() == ElfOsAbiAmdgpuHsa)
@@ -131,11 +237,13 @@ Result PipelineAbiReader::Init(
                     // This will trigger if we try to map more than one symbol to the same spot in this table.
                     PAL_ASSERT(m_pipelineSymbols[static_cast<uint32>(pipelineSymbolType)].m_index == 0);
 
-                    m_pipelineSymbols[static_cast<uint32>(pipelineSymbolType)] = {sectionIndex, symbolIndex};
+                    m_pipelineSymbols[static_cast<uint32>(pipelineSymbolType)] =
+                        {sectionIndex, symbolIndex, elfIdx};
                 }
                 else
                 {
-                    result = m_genericSymbolsMap.Insert(HashString(pName, strlen(pName)), {sectionIndex, symbolIndex});
+                    result = m_genericSymbolsMap.Insert(
+                        HashString(pName, strlen(pName)), {sectionIndex, symbolIndex, elfIdx});
 
                     if (result != Result::Success)
                     {
@@ -149,6 +257,8 @@ Result PipelineAbiReader::Init(
                 break;
             }
         }
+
+        ++elfIdx;
     }
 
     return result;
@@ -175,58 +285,66 @@ Result PipelineAbiReader::GetMetadata(
                sizeof(stageMetadata.userDataRegMap));
     }
 
-    for (ElfReader::SectionId sectionIndex = 0; sectionIndex < m_elfReader.GetNumSections(); sectionIndex++)
+    for (const auto& [elfHash, elfReader] : m_elfReaders)
     {
-        // Only the .note section has the right format
-        if ((m_elfReader.GetSectionType(sectionIndex) != Elf::SectionHeaderType::Note) ||
-            !StringEqualFunc<const char*>()(m_elfReader.GetSectionName(sectionIndex), ".note"))
+        for (ElfReader::SectionId sectionIndex = 0; sectionIndex < elfReader.GetNumSections(); sectionIndex++)
         {
-            continue;
-        }
-
-        uint32 metadataMajorVer = 0;
-        uint32 metadataMinorVer = 1;
-
-        const void* pRawMetadata = nullptr;
-        uint32      metadataSize = 0;
-
-        ElfReader::Notes notes(m_elfReader, sectionIndex);
-        ElfReader::NoteIterator notesEnd = notes.End();
-        for (ElfReader::NoteIterator note = notes.Begin(); note.IsValid(); note.Next())
-        {
-            const void* pDesc    = note.GetDescriptor();
-            uint32      descSize = note.GetHeader().n_descsz;
-
-            switch (note.GetHeader().n_type)
+            // Only the .note section has the right format.  Only one metadata .note section per ELF is valid.
+            if ((elfReader.GetSectionType(sectionIndex) != Elf::SectionHeaderType::Note) ||
+                !StringEqualFunc<const char*>()(elfReader.GetSectionName(sectionIndex), ".note"))
             {
-            case MetadataNoteType:
+                continue;
+            }
+
+            uint32 metadataMajorVer = 0;
+            uint32 metadataMinorVer = 1;
+
+            const void* pRawMetadata = nullptr;
+            uint32      metadataSize = 0;
+
+            ElfReader::Notes notes(elfReader, sectionIndex);
+            ElfReader::NoteIterator notesEnd = notes.End();
+            for (ElfReader::NoteIterator note = notes.Begin(); note.IsValid() && (pRawMetadata == nullptr); note.Next())
             {
-                pRawMetadata = pDesc;
-                metadataSize = descSize;
+                const void* pDesc    = note.GetDescriptor();
+                uint32      descSize = note.GetHeader().n_descsz;
 
-                result = PalAbi::GetPalMetadataVersion(pReader, pDesc, descSize, &metadataMajorVer, &metadataMinorVer);
+                switch (note.GetHeader().n_type)
+                {
+                case MetadataNoteType:
+                {
+                    pRawMetadata = pDesc;
+                    metadataSize = descSize;
 
+                    result =
+                        PalAbi::GetPalMetadataVersion(pReader, pDesc, descSize, &metadataMajorVer, &metadataMinorVer);
+
+                    break;
+                }
+                default:
+                    // Unknown note type.
+                    break;
+                }
+            }
+
+            if ((result != Result::Success) || (pRawMetadata == nullptr))
+            {
                 break;
             }
-            default:
-                // Unknown note type.
-                break;
-            }
+
+            // Note: this may be called multiple times for multi-ELF code objects
+            result = PalAbi::DeserializeCodeObjectMetadata(
+                pReader, pMetadata, pRawMetadata, metadataSize, metadataMajorVer, metadataMinorVer);
+            foundMetadata = true;
         }
 
         if (result != Result::Success)
         {
             break;
         }
-        result = PalAbi::DeserializeCodeObjectMetadata(pReader, pMetadata, pRawMetadata, metadataSize,
-            metadataMajorVer, metadataMinorVer);
-        foundMetadata = true;
-
-        // Quit after the first .note section
-        break;
     }
 
-    if (result == Result::Success && !foundMetadata)
+    if ((result == Result::Success) && (foundMetadata == false))
     {
         result = Result::ErrorInvalidPipelineElf;
     }
@@ -244,11 +362,14 @@ Result PipelineAbiReader::GetMetadata(
     Result result = Result::Success;
     bool   foundMetadata = false;
 
-    for (ElfReader::SectionId sectionIndex = 0; sectionIndex < m_elfReader.GetNumSections(); sectionIndex++)
+    const ElfReader::Reader& elfReader = m_elfReaders[0].reader;
+
+    // We currently expect HSA code objects to only ever be a single ELF, never archives-of-elves.
+    for (ElfReader::SectionId sectionIndex = 0; sectionIndex < elfReader.GetNumSections(); sectionIndex++)
     {
         // Only the .note section has the right format
-        if ((m_elfReader.GetSectionType(sectionIndex) != Elf::SectionHeaderType::Note) ||
-            !StringEqualFunc<const char*>()(m_elfReader.GetSectionName(sectionIndex), ".note"))
+        if ((elfReader.GetSectionType(sectionIndex) != Elf::SectionHeaderType::Note) ||
+            !StringEqualFunc<const char*>()(elfReader.GetSectionName(sectionIndex), ".note"))
         {
             continue;
         }
@@ -259,7 +380,7 @@ Result PipelineAbiReader::GetMetadata(
         const void* pRawMetadata = nullptr;
         uint32      metadataSize = 0;
 
-        ElfReader::Notes notes(m_elfReader, sectionIndex);
+        ElfReader::Notes notes(elfReader, sectionIndex);
 
         for (ElfReader::NoteIterator note = notes.Begin(); note.IsValid(); note.Next())
         {
@@ -319,36 +440,87 @@ void PipelineAbiReader::GetGfxIpVersion(
 }
 
 // =====================================================================================================================
-const Elf::SymbolTableEntry* PipelineAbiReader::GetPipelineSymbol(
+const SymbolEntry* PipelineAbiReader::FindSymbol(
     PipelineSymbolType pipelineSymbolType
     ) const
 {
-    const SymbolEntry index = m_pipelineSymbols[static_cast<uint32>(pipelineSymbolType)];
-    const bool pipelineSymbolEntryExists = index.m_section != 0;
-    const Elf::SymbolTableEntry* pSymbol = nullptr;
-    if (pipelineSymbolEntryExists)
+    const SymbolEntry* pSymbolEntry = nullptr;
+
+    if (pipelineSymbolType < PipelineSymbolType::Count)
     {
-        ElfReader::Symbols symbolSection(m_elfReader, index.m_section);
-        pSymbol = &symbolSection.GetSymbol(index.m_index);
+        const SymbolEntry& entry = m_pipelineSymbols[static_cast<uint32>(pipelineSymbolType)];
+        if (entry.m_section != 0)
+        {
+            pSymbolEntry = &entry;
+        }
     }
 
-    return pSymbol;
+    return pSymbolEntry;
 }
 
 // =====================================================================================================================
-const Elf::SymbolTableEntry* PipelineAbiReader::GetGenericSymbol(
-    const StringView<char> name
+const SymbolEntry* PipelineAbiReader::FindSymbol(
+    StringView<char> name
     ) const
 {
     const SymbolEntry*const pSymbolEntry = m_genericSymbolsMap.FindKey(HashString(name));
+    return ((pSymbolEntry != nullptr) && (pSymbolEntry->m_section != 0)) ? pSymbolEntry : nullptr;
+}
 
-    const Elf::SymbolTableEntry* pSymbol = nullptr;
-    if (pSymbolEntry != nullptr)
+// =====================================================================================================================
+Span<const void> PipelineAbiReader::GetSymbol(
+    const SymbolEntry* pSymbolEntry
+    ) const
+{
+    const void* pData = nullptr;
+    size_t      size  = 0;
+
+    const Elf::SymbolTableEntry*const pElfSymbol = GetSymbolHeader(pSymbolEntry);
+
+    if (pElfSymbol != nullptr)
     {
-        ElfReader::Symbols symbolSection(m_elfReader, pSymbolEntry->m_section);
-        pSymbol = &symbolSection.GetSymbol(pSymbolEntry->m_index);
+        const ElfReader::Reader& elfReader = GetElfReader(pSymbolEntry->m_elfIndex);
+        const Result result = elfReader.GetSymbol(*pElfSymbol, &pData);
+        size = (result == Result::Success) ? pElfSymbol->st_size : 0;
+        PAL_ASSERT_MSG(result == Result::Success,  "How did we get here if pSymbolEntry != nullptr?!");
     }
 
-    return pSymbol;
+    return Span<const void>(pData, size);
 }
+
+// =====================================================================================================================
+Result PipelineAbiReader::CopySymbol(
+    const SymbolEntry* pSymbolEntry,
+    size_t*            pSize,
+    void*              pBuffer
+    ) const
+{
+    Result result = (pSymbolEntry != nullptr) ? Result::Success : Result::NotFound;
+
+    if (result == Result::Success)
+    {
+        const auto& elfReader = m_elfReaders[pSymbolEntry->m_elfIndex].reader;
+        result = elfReader.CopySymbol(*GetSymbolHeader(pSymbolEntry), pSize, pBuffer);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+const Elf::SymbolTableEntry* PipelineAbiReader::GetSymbolHeader(
+    const SymbolEntry* pSymbolEntry
+    ) const
+{
+    const Elf::SymbolTableEntry* pElfSymbolHeader = nullptr;
+
+    if (pSymbolEntry != nullptr)
+    {
+        const ElfReader::Reader& elfReader = GetElfReader(pSymbolEntry->m_elfIndex);
+        ElfReader::Symbols symbolSection(elfReader, pSymbolEntry->m_section);
+        pElfSymbolHeader = &symbolSection.GetSymbol(pSymbolEntry->m_index);
+    }
+
+    return pElfSymbolHeader;
+}
+
 } // Util::Abi

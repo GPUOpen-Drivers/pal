@@ -463,6 +463,18 @@ Result CreateArchiveFileCacheLayer(
     void*                             pPlacementAddr,
     ICacheLayer**                     ppCacheLayer);
 
+/// Get file archive cache entry count and file size
+///
+/// @param [in]         pCacheLayer  file archive to be examined
+/// @param [out]        pCurCount    return current entry count
+/// @param [out]        pCurSize     return current file size
+///
+/// @return Success if read is successful.
+Result GetArchiveFileCacheLayerCurSize(
+    ICacheLayer*    pCacheLayer,
+    uint64*         pCurCount,
+    uint64*         pCurSize);
+
 /**
 ***********************************************************************************************************************
 * @brief Information needed to create a pipeline content tracker
@@ -540,5 +552,88 @@ Result CreateCompressingCacheLayer(
     const CompressingCacheLayerCreateInfo*  pCreateInfo,
     void*                                   pPlacementAddr,
     ICacheLayer**                           ppCacheLayer);
+
+/**
+***********************************************************************************************************************
+* @brief Information needed to create an archive-splitting multi-ELF cache layer
+***********************************************************************************************************************
+*/
+struct MultiElfCacheLayerCreateInfo
+{
+    CacheLayerBaseCreateInfo baseInfo;          // Base cache layer creation info
+    ICacheLayer*             pNextDataLayer;    // Next layer which could service/claim a query
+};
+
+/// Get the memory size for a multi-ELF cache layer
+///
+/// @return Minimum size of memory buffer needed to pass to CreateMultiElfCacheLayer()
+size_t GetMultiElfCacheLayerSize();
+
+/// Create a multi-ELF cache layer
+///
+/// @param [in]     pCreateInfo         Information about cache being created
+/// @param [in]     pPlacementAddr      Pointer to the location where the interface should be constructed. There
+///                                     must be as much size available here as reported by calling
+///                                     GetMultiElfCacheLayerSize().
+/// @param [out]    ppCacheLayer        Cache layer interface. On failure this value will be set to nullptr.
+///
+/// @returns Success if the cache layer was created. Otherwise, one of the following errors may be returned:
+///         + ErrorUnknown if there is an internal error.
+Result CreateMultiElfCacheLayer(
+    const MultiElfCacheLayerCreateInfo* pCreateInfo,
+    void*                               pPlacementAddr,
+    ICacheLayer**                       ppCacheLayer);
+
+/**
+***********************************************************************************************************************
+* @brief Detailed optional statistics for a multi-ELF cache layer's inputs and outputs. For perf testing and debug.
+***********************************************************************************************************************
+*/
+struct MultiElfCacheLayerStatistics
+{
+    // Layer invocation and payload
+    uint32 queries;             // queries/stores/loads seen by this layer
+    uint32 stores;
+    uint32 loads;
+    uint32 archiveQueries;      // queries/stores/loads handled by this layer
+    uint32 archiveStores;
+    uint32 archiveStoreSkips;
+    uint32 archiveLoads;
+    uint32 archiveMaxLength;    // max size of archive in ELF count
+
+    // Hit/miss/error
+    uint32 elfStores;           // total ELF store attempts
+    uint32 elfStoresExists;     // exists in lower layers
+    uint32 elfStoresUnique;     // new to lower layers
+    uint32 elfLoads;            // total ELF load attempts
+    uint32 elfErrors;           // error count
+
+    // Memory
+    size_t overhead;            // cache memory used for bookkeeping
+    size_t elfStoreSize;        // cumulative bytes of attempted ELF stores
+    size_t elfStoreSavings;     // cumulative bytes saved by ELF already being in cache
+    size_t elfLoadSize;         // cumulative bytes of attempted ELF loads
+    size_t elfLoadSavings;      // cumulative bytes saved by ELF already being in cache
+};
+
+/// Get detailed statistics for multi-ELF cache layer
+///
+/// @param [in]     pCacheLayer     Multi-Elf cache layer to get statistics for
+/// @param [out]    pStats          Output struct to populate with statistics
+///
+/// @return Success if querying statistics was successful.
+Result GetMultiElfCacheLayerStatistics(
+    ICacheLayer*                    pCacheLayer,
+    MultiElfCacheLayerStatistics*   pStats);
+
+/// Inform a multi-ELF cache layer what the next data layer is.
+///
+/// @param [in]     pCacheLayer     Multi-Elf cache layer
+/// @param [out]    pOtherLayer     Other layer, which will be handling the multi-ELF layer's adjusted payloads
+///
+/// @return Success if querying statistics was successful.
+Result SetMultiElfCacheLayerNextDataLayer(
+    ICacheLayer* pCacheLayer,
+    ICacheLayer* pOtherLayer);
 
 } // namespace Util

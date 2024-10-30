@@ -174,6 +174,9 @@ static Result UnpackNextValueKind(
         case HashLiteralString("hidden_dynamic_lds_size"):
             *pEnum = ValueKind::HiddenDynamicLdsSize;
             break;
+        case HashLiteralString("hidden_queue_ptr"):
+            *pEnum = ValueKind::HiddenQueuePtr;
+            break;
         default:
             // This probably means we have a bug in this code rather than a bad metadata section.
             PAL_ASSERT_ALWAYS();

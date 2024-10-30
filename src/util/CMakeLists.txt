@@ -38,6 +38,10 @@ endif()
 
 target_sources(palUtil PRIVATE
     arFile.cpp
+    archiveFile.h
+    archiveFile.cpp
+    archiveFileHelper.h
+    archiveFileHelper.cpp
     assert.cpp
     CMakeLists.txt
     conditionVariable.cpp

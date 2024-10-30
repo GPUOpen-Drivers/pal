@@ -47,7 +47,7 @@ struct DeferFreeListItem
    uint64          timestamp;
 };
 
-// UniversalQueue has 3 comamnd streams that will be reset when ringSet got resized.
+// ComputeQueue has 3 comamnd streams that will be reset when ringSet got resized.
 static const uint32 ComputeQueueCmdStreamNum = 3;
 using ComputeQueueDeferFreeList = DeferFreeListItem<ComputeQueueCmdStreamNum>;
 

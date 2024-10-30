@@ -448,6 +448,16 @@ void GpuPerfExperimentTraceSource::OnSpmConfigUpdated(
 }
 
 // =====================================================================================================================
+// Test an SE mask to see if the specified SE is enabled.
+// Valid for seMask and seDetailedMask masks.
+bool GpuPerfExperimentTraceSource::TestSeMask(
+    uint32 seMask,
+    uint32 seIndex)
+{
+    return (seMask == 0) || Util::TestAnyFlagSet(seMask, 1 << seIndex);
+}
+
+// =====================================================================================================================
 // Writes the SQTT Data chunks to the trace session
 void GpuPerfExperimentTraceSource::WriteSqttDataChunks()
 {
@@ -488,7 +498,9 @@ void GpuPerfExperimentTraceSource::WriteSqttDataChunks()
                         .instrumentationVersionApi  = InstrumentationApiVersion,
                         .wgpIndex                   = traceInfo.computeUnit,
                         .traceBufferSize            = traceInfo.bufferSize,
-                        .instructionTimingEnabled   = m_sqttTraceConfig.enableInstructionTokens
+                        .instructionTimingEnabled   = m_sqttTraceConfig.enableInstructionTokens &&
+                                                      TestSeMask(m_sqttTraceConfig.seMask,
+                                                                 traceInfo.shaderEngine)
                     };
 
                     TraceChunkInfo info = { };

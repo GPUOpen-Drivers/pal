@@ -29,8 +29,6 @@
 
 using namespace Util;
 
-// Magic character sequence at the start of a Unix ar file.
-static constexpr const char Magic[] =  "!<arch>\n";
 // Magic character sequence at the end of each file header in the archive.
 static constexpr const char EndChars[] = "`\n";
 
@@ -109,7 +107,7 @@ void ArFileWriter::Write(
     char* pExtendedNamesWrite = pWrite;
     if (pWrite <= pBufferEnd)
     {
-        memcpy(pBuffer, Magic, sizeof(GlobalHeader));
+        memcpy(pBuffer, ArFileMagic, sizeof(GlobalHeader));
 
         if ((m_extendedNamesLen != 0) && ((pBufferEnd - pWrite) >= (sizeof(FileHeader) + m_extendedNamesLen)))
         {
@@ -213,7 +211,7 @@ ArFileReader::Iterator::Iterator(
 {
     // Check global header is well-formed.
     if ((m_pReader->m_blob.NumElements() >= sizeof(GlobalHeader)) &&
-        (memcmp(m_pReader->m_blob.Data(), Magic, sizeof(GlobalHeader)) == 0))
+        (memcmp(m_pReader->m_blob.Data(), ArFileMagic, sizeof(GlobalHeader)) == 0))
     {
         // Set m_pHeader to the first element if any.
         m_pHeader = reinterpret_cast<const FileHeader*>(m_pReader->m_blob.Data() + sizeof(GlobalHeader));

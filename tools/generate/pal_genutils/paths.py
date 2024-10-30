@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2023-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2024 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -23,12 +23,24 @@
  #
  #######################################################################################################################
 
-import datetime
 import os
+from functools import lru_cache
 
-CPFH = open(os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..", "pal-copyright-template.txt"), 'r')
-fCopyright = CPFH.readline().strip()
-CPFH.close()
+def find_upwards(needles):
+    drive, curdir = os.path.splitdrive(os.path.dirname(__file__))
+    while True:
+        for needle in needles:
+            fullpath = os.path.join(drive, curdir, needle)
+            if os.path.isfile(fullpath):
+                return os.path.join(drive, curdir)
+        if curdir == os.path.sep:
+            return None
+        curdir = os.path.dirname(curdir)
 
-# Simple copyright string
-Copyright=fCopyright.format(yearRange=datetime.date.today().year)
+@lru_cache()
+def get_pal_root():
+    return find_upwards(["inc/core/pal.h"])
+
+def from_pal_root(*path):
+    return os.path.join(get_pal_root(), *path)
+

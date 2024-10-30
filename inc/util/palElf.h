@@ -32,6 +32,7 @@
 
 #pragma once
 #include "palUtil.h"
+#include "palSpan.h"
 
 // $OpenBSD: elf.5,v 1.12 2003/10/27 20:23:58 jmc Exp $
 // Copyright (c) 1999 Jeroen Ruigrok van der Werven
@@ -563,6 +564,14 @@ constexpr SectionHeaderInfo SectionHeaderInfoTable[] =
         0
     },
 };
+
+///@{
+/// @returns true if the given binary blob identifies as an ELF file.
+/// @param [in] pData/binary  The binary blob to check.
+inline bool IsElf(const void*      pData)  { return static_cast<const FileHeader*>(pData)->ei_magic == ElfMagic; }
+inline bool IsElf(Span<const void> binary)
+    { return (binary.SizeInBytes() >= sizeof(Util::Elf::FileHeader)) && IsElf(binary.Data()); }
+///@}
 
 } // Elf
 } // Util

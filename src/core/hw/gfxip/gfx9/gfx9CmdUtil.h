@@ -150,7 +150,7 @@ struct PM4_ME_NON_SAMPLE_EVENT_WRITE
 //
 // Note that the "sync" flag should be set in almost all cases. The two exceptions are:
 //   1. The caller will manually synchronize the CP DMA engine using another DMA.
-//   2. The caller is operating under "CoherCopy/HwPipePostBlt" semantics and a CmdBarrier call will be issued. This
+//   2. The caller is operating under "CoherCopy/PipelineStageBlt" semantics and a barrier call will be issued. This
 //      case is commonly referred to as a "CP Blt".
 //
 // In case #2, the caller must update the Pm4CmdBufferState by calling the relevant SetGfxCmdBuf* functions.
@@ -206,6 +206,7 @@ struct ExecuteIndirectPacketInfo
     gpusize      argumentBufferAddr;
     gpusize      countBufferAddr;
     gpusize      spillTableAddr;
+    gpusize      incConstBufferAddr;
     uint32       spillTableInstanceCnt;
     uint32       maxCount;
     uint32       commandBufferSizeBytes;
@@ -276,6 +277,8 @@ public:
     static constexpr uint32 WaitRegMem64SizeDwords    = PM4_ME_WAIT_REG_MEM64_SIZEDW__CORE;
     static constexpr uint32 WriteDataSizeDwords       = PM4_ME_WRITE_DATA_SIZEDW__CORE;
     static constexpr uint32 WriteNonSampleEventDwords = (sizeof(PM4_ME_NON_SAMPLE_EVENT_WRITE) / sizeof(uint32));
+    static constexpr uint32 AtomicMemSizeDwords       = PM4_ME_ATOMIC_MEM_SIZEDW__CORE;
+    static constexpr uint32 PfpSyncMeSizeDwords       = PM4_PFP_PFP_SYNC_ME_SIZEDW__CORE;
 
     // This can't be a precomputed constant, we have to look at some device state.
     uint32 DrawIndexIndirectSize() const;
@@ -501,7 +504,7 @@ public:
         bool         isWave32,
         void*        pBuffer);
 
-    template<bool indirectAddress>
+    template<bool srcIndirectAddress, bool dstIndirectAddress>
     static size_t BuildDmaData(
         DmaDataInfo&  dmaDataInfo,
         void*         pBuffer);
@@ -626,6 +629,13 @@ public:
         uint32  engineSel,
         size_t  requestedPages,
         void*   pBuffer);
+
+    size_t BuildNativeFenceRaiseInterrupt(
+        void* pBuffer,
+        gpusize monitoredValueGpuVa,
+        uint64  signaledVal,
+        uint32  intCtxId) const;
+
     size_t BuildReleaseMemGeneric(const ReleaseMemGeneric& info, void* pBuffer) const;
     size_t BuildReleaseMemGfx(const ReleaseMemGfx& info, void* pBuffer) const;
     size_t BuildRewind(
@@ -721,7 +731,7 @@ public:
     static size_t BuildWaitOnCeCounter(bool invalidateKcache, void* pBuffer);
     static size_t BuildWaitOnDeCounterDiff(uint32 counterDiff, void* pBuffer);
     size_t BuildWaitEopPws(
-        HwPipePoint  waitPoint,
+        AcquirePoint waitPoint,
         bool         waitCpDma,
         SyncGlxFlags glxSync,
         SyncRbFlags  rbSync,
@@ -765,6 +775,10 @@ public:
         size_t               periodsToWrite,
         const uint32*        pPeriodData,
         void*                pBuffer);
+    static size_t BuildWriteDataInternal(
+        const WriteDataInfo& info,
+        size_t               dwordsToWrite,
+        void*                pBuffer);
 
     static size_t BuildCommentString(const char* pComment, Pm4ShaderType type, void* pBuffer);
 
@@ -785,6 +799,8 @@ public:
     // Returns the register information for registers which have differing addresses between hardware families.
     const RegisterInfo& GetRegInfo() const { return m_registerInfo; }
 
+    size_t BuildHdpFlush(void* pBuffer) const;
+
 private:
     size_t BuildAcquireMemInternal(
         const AcquireMemCore& info,
@@ -796,11 +812,6 @@ private:
         VGT_EVENT_TYPE           vgtEvent,
         bool                     usePws,
         void*                    pBuffer) const;
-
-    static size_t BuildWriteDataInternal(
-        const WriteDataInfo& info,
-        size_t               dwordsToWrite,
-        void*                pBuffer);
 
     template <Pm4ShaderType ShaderType>
     uint32* FillPackedRegPairsHeaderAndCount(

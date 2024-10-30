@@ -160,11 +160,4 @@ private:
     CompilerStackSizes                         m_cpsStackSizes;
 };
 
-// Returns true if the pipeline to be created is a single ELF, false if an archive of multiple ELFs.
-inline bool IsElf(const ComputePipelineCreateInfo& createInfo)
-{
-    return (createInfo.pipelineBinarySize >= sizeof(Util::Elf::FileHeader)) &&
-           (static_cast<const Util::Elf::FileHeader*>(createInfo.pPipelineBinary)->ei_magic == Util::Elf::ElfMagic);
-}
-
 } // Pal

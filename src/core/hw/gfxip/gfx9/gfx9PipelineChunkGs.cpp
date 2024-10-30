@@ -78,7 +78,7 @@ void PipelineChunkGs::LateInit(
     const GpuChipProperties& chipProps    = m_device.Parent()->ChipProperties();
 
     GpuSymbol symbol = { };
-    if (pUploader->GetPipelineGpuSymbol(Abi::PipelineSymbolType::GsMainEntry, &symbol) == Result::Success)
+    if (pUploader->GetGpuSymbol(Abi::PipelineSymbolType::GsMainEntry, &symbol) == Result::Success)
     {
         m_stageInfo.codeLength     = static_cast<size_t>(symbol.size);
         PAL_ASSERT(IsPow2Aligned(symbol.gpuVirtAddr, 256));
@@ -86,12 +86,12 @@ void PipelineChunkGs::LateInit(
         m_regs.sh.spiShaderPgmLoEs.bits.MEM_BASE = Get256BAddrLo(symbol.gpuVirtAddr);
     }
 
-    if (pUploader->GetPipelineGpuSymbol(Abi::PipelineSymbolType::GsShdrIntrlTblPtr, &symbol) == Result::Success)
+    if (pUploader->GetGpuSymbol(Abi::PipelineSymbolType::GsShdrIntrlTblPtr, &symbol) == Result::Success)
     {
         m_regs.sh.userDataInternalTable.u32All = LowPart(symbol.gpuVirtAddr);
     }
 
-    const Elf::SymbolTableEntry* pElfSymbol = abiReader.GetPipelineSymbol(Abi::PipelineSymbolType::GsDisassembly);
+    const Elf::SymbolTableEntry* pElfSymbol = abiReader.GetSymbolHeader(Abi::PipelineSymbolType::GsDisassembly);
     if (pElfSymbol != nullptr)
     {
         m_stageInfo.disassemblyLength = static_cast<size_t>(pElfSymbol->st_size);

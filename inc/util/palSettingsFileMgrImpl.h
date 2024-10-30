@@ -178,7 +178,7 @@ Result SettingsFileMgr<Allocator>::Init(
                     // string is an already hashed setting name. In that case just convert to UINT32
                     if (pToken[0] == '#')
                     {
-                        StringToValueType(&pToken[1], ValueType::Uint,
+                        StringToValueType(&pToken[1], ValueType::Uint32,
                                           sizeof(uint32), &hashedName);
                     }
                     else
@@ -231,7 +231,7 @@ bool SettingsFileMgr<Allocator>::GetValue(
     uint32 hashedName = 0;
     if (pValueName[0] == '#')
     {
-        StringToValueType(&pValueName[1], ValueType::Uint, sizeof(uint32), &hashedName);
+        StringToValueType(&pValueName[1], ValueType::Uint32, sizeof(uint32), &hashedName);
     }
     else
     {

@@ -528,6 +528,8 @@ public:
 
     bool IsDiscardableBoSupported() const { return (m_featureState.supportDiscardableBo != 0); }
 
+    virtual bool IsHwEmulationEnabled() const override { return m_featureState.hardwareEmulationEnabled != 0; }
+
     // Access KMD interfaces
     Result AllocBuffer(
         struct amdgpu_bo_alloc_request* pAllocRequest,
@@ -653,6 +655,8 @@ public:
         const uint64*                pValues,
         uint32                       flags,
         std::chrono::nanoseconds     timeout) const override;
+
+    bool IsNativeFenceSupported() const override { return false; }
 
     Result QueryFenceStatus(
         struct amdgpu_cs_fence*  pFence,
@@ -1115,7 +1119,7 @@ private:
     char    m_mClkPath[MaxClockSysFsEntryNameLen];
 
     static Result ParseClkInfo(const char* pFilePath, ClkInfo* pClkInfo, uint32* pCurIndex);
-    Result        InitClkInfo();
+    Result        InitSysfsInfo();
 
     typedef Util::HashMap<IGpuMemory*, uint32, Pal::Platform> MemoryRefMap;
     MemoryRefMap m_globalRefMap;
@@ -1158,7 +1162,8 @@ private:
             uint32 supportPowerDpmIoctl                : 1;     // Support setting/getting Power DPM status by IOCTL
             uint32 supportDiscardableBo                : 1;     // Support creating bo that can be discarded under memory
                                                                 // pressure without keeping the content.
-            uint32 reserved                            : 23;
+            uint32 hardwareEmulationEnabled            : 1;     // Hardware emulation is enabled.
+            uint32 reserved                            : 22;
         };
         uint32 flags;
     } m_featureState;

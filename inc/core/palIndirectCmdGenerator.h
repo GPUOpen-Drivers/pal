@@ -106,7 +106,8 @@ struct IndirectParam
         struct
         {
             uint32  firstEntry;     ///< First user-data entry to set.
-            uint32  entryCount;     ///< Number of user-data entries to set.
+            uint32  entryCount;     ///< Number of user-data entries to set. It must be one if isIncConst is true.
+            bool    isIncConst;     ///< Specify whether this user data is for incrementing constant
         } userData;                 ///< Additional information about a 'SetUserData' indirect command parameter.
 
         struct

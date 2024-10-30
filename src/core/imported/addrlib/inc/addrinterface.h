@@ -898,6 +898,90 @@ ADDR_E_RETURNCODE ADDR_API Addr2ComputeSurfaceAddrFromCoord(
 
 /**
 ****************************************************************************************************
+*   ADDR2_COPY_MEMSURFACE_REGION
+*
+*   @brief
+*       Input structure for Addr2CopyMemToSurface and Addr2CopySurfaceToMem
+****************************************************************************************************
+*/
+typedef struct _ADDR2_COPY_MEMSURFACE_REGION
+{
+    UINT_32             size;            ///< Size of this structure in bytes
+
+    UINT_32             x;               ///< Starting X coordinate, in elements
+    UINT_32             y;               ///< Starting Y coordinate, in elements
+    UINT_32             slice;           ///< Starting slice index or Z coordinate, in elements
+    UINT_32             mipId;           ///< The mip ID in mip chain
+    ADDR_EXTENT3D       copyDims;        ///< Size of the region to copy, in elements
+
+    void*               pMem;            ///< Pointer to memory to copy
+    UINT_64             memRowPitch;     ///< Pitch between rows in bytes
+    UINT_64             memSlicePitch;   ///< Pitch between array/depth slices in bytes
+} ADDR2_COPY_MEMSURFACE_REGION;
+
+/**
+****************************************************************************************************
+*   ADDR2_COPY_MEMSURFACE_INPUT
+*
+*   @brief
+*       Input structure for Addr2CopyMemToSurface and Addr2CopySurfaceToMem
+****************************************************************************************************
+*/
+typedef struct _ADDR2_COPY_MEMSURFACE_INPUT
+{
+    UINT_32             size;            ///< Size of this structure in bytes
+
+    AddrSwizzleMode     swizzleMode;     ///< Swizzle mode
+    AddrFormat          format;          ///< Format
+    ADDR2_SURFACE_FLAGS flags;           ///< Surface flags
+    AddrResourceType    resourceType;    ///< Surface type
+    UINT_32             bpp;             ///< Bits per pixel
+    ADDR_EXTENT3D       unAlignedDims;   ///< Surface original dimensions (of mip0), in pixels
+    UINT_32             numMipLevels;    ///< Total mipmap levels
+    UINT_32             numSamples;      ///< Number of samples
+    UINT_32             pitchInElement;  ///< Pitch in elements (blocks for compressed formats)
+    UINT_32             pbXor;           ///< Xor value
+
+    void*               pMappedSurface;  ///< Pointer to the image surface, mapped to CPU memory
+    BOOL_32             singleSubres;    ///< Pointer is to the base of the subresource, not to the
+                                         ///  base of the surface image data. Requires:
+                                         ///   - copyDims.depth == 1
+                                         ///   - all copy regions target the same mip
+                                         ///   - all copy regions target the same slice/depth
+} ADDR2_COPY_MEMSURFACE_INPUT;
+
+/**
+****************************************************************************************************
+*   Addr2CopyMemToSurface
+*
+*   @brief
+*       Copy an image region from memory to an uncompressed CPU-mapped surface
+****************************************************************************************************
+*/
+ADDR_E_RETURNCODE ADDR_API Addr2CopyMemToSurface(
+    ADDR_HANDLE                         hLib,
+    const ADDR2_COPY_MEMSURFACE_INPUT*  pIn,
+    const ADDR2_COPY_MEMSURFACE_REGION* pRegions,
+    UINT_32                             regionCount
+);
+
+/**
+****************************************************************************************************
+*   Addr2CopySurfaceToMem
+*
+*   @brief
+*       Copy an image region from an uncompressed CPU-mapped surface to memory
+****************************************************************************************************
+*/
+ADDR_E_RETURNCODE ADDR_API Addr2CopySurfaceToMem(
+    ADDR_HANDLE                         hLib,
+    const ADDR2_COPY_MEMSURFACE_INPUT*  pIn,
+    const ADDR2_COPY_MEMSURFACE_REGION* pRegions,
+    UINT_32                             regionCount
+);
+
+/**
+****************************************************************************************************
 *   ADDR2_COMPUTE_SURFACE_COORDFROMADDR_INPUT
 *
 *   @brief

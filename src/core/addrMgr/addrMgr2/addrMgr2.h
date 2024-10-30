@@ -424,6 +424,7 @@ public:
     static bool IsValidToOverride(AddrSwizzleMode primarySwMode, ADDR2_SWMODE_SET validSwModeSet);
 
     static AddrResourceType GetAddrResourceType(ImageType imageType);
+    static AddrSwizzleMode  GetAddrSwizzleMode(SwizzleMode swMode);
 
     virtual uint32 GetBlockSize(AddrSwizzleMode swizzleMode) const override;
 

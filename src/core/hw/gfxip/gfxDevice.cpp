@@ -904,32 +904,6 @@ const MsaaQuadSamplePattern GfxDevice::DefaultSamplePattern[] = {
 };
 
 // =====================================================================================================================
-// Describes the image barrier to the above layers but only if we're a developer build. Clears the BarrierOperations
-// passed in after calling back in case of layout transitions. This function is expected to be called only on layout
-// transitions.
-void GfxDevice::DescribeBarrier(
-    GfxCmdBuffer*                 pCmdBuf,
-    const BarrierTransition*      pTransition,
-    Developer::BarrierOperations* pOperations
-    ) const
-{
-    constexpr BarrierTransition NullTransition = {};
-    Developer::BarrierData data                = {};
-
-    data.pCmdBuffer    = pCmdBuf;
-    data.transition    = (pTransition != nullptr) ? (*pTransition) : NullTransition;
-    data.hasTransition = (pTransition != nullptr);
-
-    PAL_ASSERT(pOperations != nullptr);
-    // The callback is expected to be made only on layout transitions.
-    memcpy(&data.operations, pOperations, sizeof(Developer::BarrierOperations));
-
-    // Callback to the above layers if there is a transition and clear the BarrierOperations.
-    m_pParent->DeveloperCb(Developer::CallbackType::ImageBarrier, &data);
-    memset(pOperations, 0, sizeof(Developer::BarrierOperations));
-}
-
-// =====================================================================================================================
 // Call back to above layers before starting the barrier execution.
 void GfxDevice::DescribeBarrierStart(
     GfxCmdBuffer*          pCmdBuf,

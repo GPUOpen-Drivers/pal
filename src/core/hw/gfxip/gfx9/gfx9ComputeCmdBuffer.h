@@ -52,7 +52,6 @@ public:
         CmdStream*         pCmdStream);
 
     virtual Result Init(const CmdBufferInternalCreateInfo& internalInfo) override;
-    virtual Result Begin(const CmdBufferBuildInfo& info) override;
 
     virtual void CmdBindPipeline(const PipelineBindParams& params) override;
 
@@ -190,9 +189,7 @@ public:
 
     virtual void CopyMemoryCp(gpusize dstAddr, gpusize srcAddr, gpusize numBytes) override;
 
-    virtual uint32* WriteWaitEop(
-        const WriteWaitEopInfo& info,
-        uint32*                 pCmdSpace) override;
+    virtual uint32* WriteWaitEop(WriteWaitEopInfo info, uint32* pCmdSpace) override;
     virtual uint32* WriteWaitCsIdle(uint32* pCmdSpace) override;
 
     //Gets ringSizes from cmdBuffer.
@@ -299,14 +296,6 @@ private:
     // Total number of valid packed register pair entries mapped in m_validUserEntryRegPairsCs. This also functions as
     // the index to the valid packed register pair lookup.
     uint32             m_numValidUserEntriesCs;
-
-    // SET_PREDICATION is not supported on compute queue so what we work out here is an emulation using cond exec
-    // Note m_gfxCmdBuff.clientPredicate and m_gfxCmdBuff.packetPredicate bits are 0 when:
-    //     - app disables/resets predication
-    //     - driver forces them to 0 when a new command buffer begins
-    // Note m_gfxCmdBuff.packetPredicate is also temporarily overridden by the driver during some operations
-    gpusize  m_predGpuAddr;
-    bool     m_inheritedPredication; // True if the predicate packet is inherited from the root-level command buffer.
 
     gpusize m_globalInternalTableAddr; // If non-zero, the low 32-bits of the global internal table were written here.
 

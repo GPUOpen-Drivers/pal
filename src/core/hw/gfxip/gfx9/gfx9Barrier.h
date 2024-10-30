@@ -41,8 +41,6 @@ class Device;
 class Image;
 class RsrcProcMgr;
 
-enum class AcquirePoint : uint8;
-
 struct SyncReqs
 {
     // These flags describe which caches must be flushed and/or invalidated.

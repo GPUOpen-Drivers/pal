@@ -39,6 +39,7 @@
 #include <cwchar>
 #include <iterator>
 #include <type_traits>
+#include <limits>
 
 namespace Util
 {
@@ -46,12 +47,21 @@ namespace Util
 /// Describes a value type, primarily used for loading settings values.
 enum class ValueType : uint32
 {
-    Boolean,  ///< Boolean type.
-    Int,      ///< Signed integer type.
-    Uint,     ///< Unsigned integer type.
-    Uint64,   ///< 64-bit unsigned integer type.
-    Float,    ///< Floating point type.
-    Str,      ///< String type.
+    Boolean,       ///< Boolean type.
+    Int8,          ///< 8-bit integer type.
+    Uint8,         ///< 8-bit unsigned integer type.
+    Int16,         ///< 16-bit integer type.
+    Uint16,        ///< 16-bit unsigned integer type.
+    Int32,         ///< 32-bit integer type.
+    Uint32,        ///< 32-bit unsigned integer type.
+    Int64,         ///< 64-bit integer type.
+    Uint64,        ///< 64-bit unsigned integer type.
+    Float,         ///< Floating point type.
+    Str,           ///< String type.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 905
+    Int = Int32,   ///< Signed integer type.
+    Uint = Uint32, ///< Unsigned integer type.
+#endif
 };
 
 /// Determines the length of an array at compile-time.
@@ -952,11 +962,26 @@ inline void StringToValueType(
     case ValueType::Boolean:
         *(static_cast<bool*>(pValue)) = ((atoi(pStrValue)) ? true : false);
         break;
-    case ValueType::Int:
-        *(static_cast<int32*>(pValue)) = static_cast<int32>(strtol(pStrValue, nullptr, 0));
+    case ValueType::Int8:
+        *(static_cast<int8*>(pValue)) = static_cast<int8>(strtoll(pStrValue, nullptr, 0));
         break;
-    case ValueType::Uint:
-        *(static_cast<uint32*>(pValue)) = static_cast<uint32>(strtoul(pStrValue, nullptr, 0));
+    case ValueType::Uint8:
+        *(static_cast<uint8*>(pValue)) = static_cast<uint8>(strtoull(pStrValue, nullptr, 0));
+        break;
+    case ValueType::Int16:
+        *(static_cast<int16*>(pValue)) = static_cast<int16>(strtoll(pStrValue, nullptr, 0));
+        break;
+    case ValueType::Uint16:
+        *(static_cast<uint16*>(pValue)) = static_cast<uint16>(strtoull(pStrValue, nullptr, 0));
+        break;
+    case ValueType::Int32:
+        *(static_cast<int32*>(pValue)) = static_cast<int32>(strtoll(pStrValue, nullptr, 0));
+        break;
+    case ValueType::Uint32:
+        *(static_cast<uint32*>(pValue)) = static_cast<uint32>(strtoull(pStrValue, nullptr, 0));
+        break;
+    case ValueType::Int64:
+        *(static_cast<int64*>(pValue)) = static_cast<int64>(strtoll(pStrValue, nullptr, 0));
         break;
     case ValueType::Uint64:
         *(static_cast<uint64*>(pValue)) = static_cast<uint64>(strtoull(pStrValue, nullptr, 0));
@@ -973,92 +998,145 @@ inline void StringToValueType(
 /// Converts a raw string value to the correct data type, returning 'true' if parsed correctly.
 /// When not parsed correctly, the value will be unchanged.
 ///
-/// @note: A numeric value that does not fit in the destination type returns true and will be represented by the
-///        closest value (eg, UINT_MAX). A string that is truncated returns false.
+/// @note: A string that is truncated returns false.
+/// @note: If the destination type is integer, the string is parsed as either int64 or uint64, and the parsed value is
+/// clamped to fit the range of the destination type.
 [[nodiscard]] inline bool StringToValueTypeChecked(
     const char* pStrValue,  ///< [in] Setting value in string form.
     ValueType   type,       ///< Data type of the value being converted.
     size_t      valueSize,  ///< Size of pValue buffer.
     void*       pValue)     ///< [out] Converted setting value buffer.
 {
+    auto CheckTrailingCharacters = [](char* pChar, const char* pEnd) -> bool {
+        while ((pChar < pEnd) && isspace(*pChar))
+        {
+            // ignore trailing whitespace. strtoX handles leading whitespace
+            pChar++;
+        }
+        return (pChar == pEnd);
+    };
+
     const size_t len = strlen(pStrValue);
     const char* pTerminator = pStrValue + len;
-    char* endptr = nullptr;
+    char* pEndptr = nullptr;
     bool valid = false;
 
     switch (type)
     {
     case ValueType::Boolean:
         {
-            bool value = (strtol(pStrValue, &endptr, 10) != 0);
-            while ((endptr < pTerminator) && isspace(*endptr))
+            bool value = (strtol(pStrValue, &pEndptr, 0) != 0);
+            valid = CheckTrailingCharacters(pEndptr, pTerminator);
+            if (valid)
             {
-                // ignore trailing whitespace. strtoX handles leading whitespace
-                endptr++;
-            }
-            if (endptr == pTerminator)
-            {
-                valid = true;
                 *(static_cast<bool*>(pValue)) = value;
             }
         }
         break;
-    case ValueType::Int:
+    case ValueType::Int8:
         {
-            int32 value = static_cast<int32>(strtol(pStrValue, &endptr, 0));
-            while ((endptr < pTerminator) && isspace(*endptr))
+            const int64 parsedValue = strtoll(pStrValue, &pEndptr, 0);
+            const int64 value = Clamp(parsedValue,
+                                      int64((std::numeric_limits<int8>::min)()),
+                                      int64((std::numeric_limits<int8>::max)()));
+            valid = CheckTrailingCharacters(pEndptr, pTerminator);
+            if (valid)
             {
-                // ignore trailing whitespace. strtoX handles leading whitespace
-                endptr++;
-            }
-            if (endptr == pTerminator)
-            {
-                valid = true;
-                *(static_cast<int32*>(pValue)) = value;
+                *(static_cast<int8*>(pValue)) = static_cast<int8>(value);
             }
         }
         break;
-    case ValueType::Uint:
+    case ValueType::Uint8:
         {
-            uint32 value = static_cast<uint32>(strtoul(pStrValue, &endptr, 0));
-            while ((endptr < pTerminator) && isspace(*endptr))
+            const uint64 parsedValue = strtoull(pStrValue, &pEndptr, 0);
+            const uint64 value = Clamp(parsedValue,
+                                       uint64((std::numeric_limits<uint8>::min)()),
+                                       uint64((std::numeric_limits<uint8>::max)()));
+            valid = CheckTrailingCharacters(pEndptr, pTerminator);
+            if (valid)
             {
-                // ignore trailing whitespace. strtoX handles leading whitespace
-                endptr++;
+                *(static_cast<uint8*>(pValue)) = static_cast<uint8>(value);
             }
-            if (endptr == pTerminator)
+        }
+        break;
+    case ValueType::Int16:
+        {
+            const int64 parsedValue = strtoll(pStrValue, &pEndptr, 0);
+            const int64 value = Clamp(parsedValue,
+                                      int64((std::numeric_limits<int16>::min)()),
+                                      int64((std::numeric_limits<int16>::max)()));
+            valid = CheckTrailingCharacters(pEndptr, pTerminator);
+            if (valid)
             {
-                valid = true;
-                *(static_cast<uint32*>(pValue)) = value;
+                *(static_cast<int16*>(pValue)) = static_cast<int16>(value);
+            }
+        }
+        break;
+    case ValueType::Uint16:
+        {
+            const uint64 parsedValue = strtoull(pStrValue, &pEndptr, 0);
+            const uint64 value = Clamp(parsedValue,
+                                       uint64((std::numeric_limits<uint16>::min)()),
+                                       uint64((std::numeric_limits<uint16>::max)()));
+            valid = CheckTrailingCharacters(pEndptr, pTerminator);
+            if (valid)
+            {
+                *(static_cast<uint16*>(pValue)) = static_cast<uint16>(value);
+            }
+        }
+        break;
+    case ValueType::Int32:
+        {
+            const int64 parsedValue = strtoll(pStrValue, &pEndptr, 0);
+            const int64 value = Clamp(parsedValue,
+                                      int64((std::numeric_limits<int32>::min)()),
+                                      int64((std::numeric_limits<int32>::max)()));
+            valid = CheckTrailingCharacters(pEndptr, pTerminator);
+            if (valid)
+            {
+                *(static_cast<int32*>(pValue)) = static_cast<int32>(value);
+            }
+        }
+        break;
+    case ValueType::Uint32:
+        {
+            const uint64 parsedValue = strtoull(pStrValue, &pEndptr, 0);
+            const uint64 value = Clamp(parsedValue,
+                                       uint64((std::numeric_limits<uint32>::min)()),
+                                       uint64((std::numeric_limits<uint32>::max)()));
+            valid = CheckTrailingCharacters(pEndptr, pTerminator);
+            if (valid)
+            {
+                *(static_cast<uint32*>(pValue)) = static_cast<uint32>(value);
+            }
+        }
+        break;
+    case ValueType::Int64:
+        {
+            const int64 value = strtoll(pStrValue, &pEndptr, 0);
+            valid = CheckTrailingCharacters(pEndptr, pTerminator);
+            if (valid)
+            {
+                *(static_cast<int64*>(pValue)) = value;
             }
         }
         break;
     case ValueType::Uint64:
         {
-            uint64 value = static_cast<uint64>(strtoull(pStrValue, &endptr, 0));
-            while ((endptr < pTerminator) && isspace(*endptr))
+            const uint64 value = strtoull(pStrValue, &pEndptr, 0);
+            valid = CheckTrailingCharacters(pEndptr, pTerminator);
+            if (valid)
             {
-                // ignore trailing whitespace. strtoX handles leading whitespace
-                endptr++;
-            }
-            if (endptr == pTerminator)
-            {
-                valid = true;
                 *(static_cast<uint64*>(pValue)) = value;
             }
         }
         break;
     case ValueType::Float:
         {
-            float value = static_cast<float>(strtof(pStrValue, &endptr));
-            while ((endptr < pTerminator) && isspace(*endptr))
+            float value = static_cast<float>(strtof(pStrValue, &pEndptr));
+            valid = CheckTrailingCharacters(pEndptr, pTerminator);
+            if (valid)
             {
-                // ignore trailing whitespace. strtoX handles leading whitespace
-                endptr++;
-            }
-            if (endptr == pTerminator)
-            {
-                valid = true;
                 *(static_cast<float*>(pValue)) = value;
             }
         }

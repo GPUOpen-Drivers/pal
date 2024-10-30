@@ -32,6 +32,8 @@ target_sources(pal PRIVATE
     fileArchiveCacheLayer.h
     memoryCacheLayer.cpp
     memoryCacheLayer.h
+    multiElfCacheLayer.cpp
+    multiElfCacheLayer.h
     trackingCacheLayer.cpp
     trackingCacheLayer.h
 )

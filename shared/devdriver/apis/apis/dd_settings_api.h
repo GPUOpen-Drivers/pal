@@ -114,12 +114,15 @@ typedef struct
 
 typedef struct DDSettingsInstance DDSettingsInstance;
 
-typedef struct
+typedef struct DDSettingsApi
 {
     /// A opaque pointer to an internal settings implementation.
     DDSettingsInstance* pInstance;
 
     /// Retrieve settings blobs of all components from a driver.
+    ///
+    /// Note, the blob is prefixed with the path of the driver from which the blob is extracted. The first two bytes
+    /// represents the length of the path, followed by the null-terminated path string.
     ///
     /// @param[in] pInstance Must be \ref DDSettingsApi.pInstance.
     /// @param apiType Which driver to load settings blobs from.

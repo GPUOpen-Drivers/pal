@@ -221,9 +221,9 @@ void ComputeShaderLibrary::GetFunctionGpuVirtAddrs(
     {
         GpuSymbol symbol = { };
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 827
-        if (uploader.GetGenericGpuSymbol(pFuncInfoList[i].pSymbolName, &symbol) == Result::Success)
+        if (uploader.GetGpuSymbol(pFuncInfoList[i].pSymbolName, &symbol) == Result::Success)
 #else
-        if (uploader.GetGenericGpuSymbol(pFuncInfoList[i].symbolName, &symbol) == Result::Success)
+        if (uploader.GetGpuSymbol(pFuncInfoList[i].symbolName, &symbol) == Result::Success)
 #endif
         {
             pFuncInfoList[i].gpuVirtAddr = symbol.gpuVirtAddr;

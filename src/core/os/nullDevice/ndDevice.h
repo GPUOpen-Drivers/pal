@@ -112,6 +112,8 @@ public:
         uint32                       flags,
         std::chrono::nanoseconds     timeout) const override;
 
+    bool IsNativeFenceSupported() const override { return false; }
+
     virtual Result CreateSwapChain(
         const SwapChainCreateInfo& createInfo,
         void*                      pPlacementAddr,

@@ -212,7 +212,7 @@ void OcclusionQueryPool::GpuReset(
 
         if (pPm4CmdBuf->GetPm4CmdBufState().flags.prevCmdBufActive || pActiveRanges->Overlap(&interval))
         {
-            constexpr WriteWaitEopInfo WaitEopInfo = { .waitPoint = HwPipePostPrefetch };
+            constexpr WriteWaitEopInfo WaitEopInfo = { .hwAcqPoint = AcquirePointMe };
 
             pCmdSpace = pPm4CmdBuf->WriteWaitEop(WaitEopInfo, pCmdSpace);
 
@@ -250,7 +250,7 @@ void OcclusionQueryPool::GpuReset(
                 // Only now do we know how many bytes we need to DMA.
                 dmaData.numBytes = static_cast<uint32>(GetGpuResultSizeInBytes(slotCount));
 
-                const size_t numDwords = cmdUtil.BuildDmaData<false>(dmaData, pCmdSpace);
+                const size_t numDwords = cmdUtil.BuildDmaData<false, false>(dmaData, pCmdSpace);
 
                 PAL_ASSERT(numDwords <= maxPacketSize);
 
@@ -332,7 +332,7 @@ void OcclusionQueryPool::GpuReset(
             dmaData.sync         = 1;
             dmaData.usePfp       = false;
 
-            pCmdSpace += cmdUtil.BuildDmaData<false>(dmaData, pCmdSpace);
+            pCmdSpace += cmdUtil.BuildDmaData<false, false>(dmaData, pCmdSpace);
         }
     }
 

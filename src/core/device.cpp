@@ -1895,6 +1895,9 @@ Result Device::GetProperties(
         pInfo->maxGpuMemoryRefsResident    = m_engineProperties.maxUserMemRefsPerSubmission;
         pInfo->timestampFrequency          = m_chipProperties.gpuCounterFrequency;
         pInfo->maxSemaphoreCount           = m_maxSemaphoreCount;
+#if PAL_CLIENT_EXAMPLE
+        pInfo->hAddrlib                    = AddrLibHandle();
+#endif
 
         for (uint32 i = 0; i < EngineTypeCount; ++i)
         {
@@ -2152,6 +2155,7 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.supportSortAgnosticBarycentrics = gfx9Props.supportSortAgnosticBarycentrics;
             pInfo->gfxipProperties.flags.supportBFloat16                 = gfx9Props.supportBFloat16;
             pInfo->gfxipProperties.flags.supportVrsWithDsExports         = gfx9Props.gfx10.supportVrsWithDsExports;
+            pInfo->gfxipProperties.flags.supportFloat8                   = gfx9Props.supportFloat8;
 
             pInfo->gfxipProperties.supportedVrsRates = gfx9Props.gfx10.supportedVrsRates;
             pInfo->gfxipProperties.rayTracingIp      = gfx9Props.rayTracingIp;
@@ -2187,13 +2191,15 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.supportInt4Dot         = gfx9Props.supportInt4Dot;
             pInfo->gfxipProperties.flags.supportMixedSignIntDot = gfx9Props.supportMixedSignIntDot;
             pInfo->gfxipProperties.flags.support2DRectList      = gfx9Props.support2DRectList;
-            pInfo->gfxipProperties.flags.support3dUavZRange     = gfx9Props.support3dUavZRange;
         }
         else
         {
             // What is this?
             PAL_NOT_IMPLEMENTED();
         }
+
+        // This is supported by all GFXIP variants PAL supports.
+        pInfo->gfxipProperties.flags.support3dUavZRange = 1;
 
         pInfo->gfxipProperties.maxThreadGroupSize             = m_chipProperties.gfxip.maxThreadGroupSize;
         pInfo->gfxipProperties.maxAsyncComputeThreadGroupSize = m_chipProperties.gfxip.maxAsyncComputeThreadGroupSize;

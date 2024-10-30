@@ -51,7 +51,6 @@ public:
     {
         const int ret = pthread_mutex_lock(&m_osMutex);
         DD_ASSERT(ret == 0);
-        (void)ret;
     }
 
     /// Enters the critical section if it is not contended.  Does not wait for the critical section to become available
@@ -70,7 +69,6 @@ public:
     {
         const int ret = pthread_mutex_unlock(&m_osMutex);
         DD_ASSERT(ret == 0);
-        (void)ret;
     }
 
 private:

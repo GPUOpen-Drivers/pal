@@ -29,7 +29,6 @@
 #include "palPlatformKey.h"
 #include "palHashMapImpl.h"
 #include "palAutoBuffer.h"
-#include "palVectorImpl.h"
 #include "core/platform.h"
 
 using namespace std::chrono_literals;
@@ -47,7 +46,6 @@ FileArchiveCacheLayer::FileArchiveCacheLayer(
     CacheLayerBase     { callbacks },
     m_pArchivefile     { pArchiveFile },
     m_pBaseContext     { pBaseContext },
-    m_archiveFileMutex {},
     m_entryMapLock     {},
     m_entries          { uint32(GetHashMapNumBuckets(pArchiveFile)), Allocator() }
 {
@@ -99,6 +97,11 @@ Result FileArchiveCacheLayer::Init()
         result = m_entries.Init();
     }
 
+    if (result == Result::Success)
+    {
+        result = LoadHeaders();
+    }
+
     // Collapse all results other than success
     if (result != Result::Success)
     {
@@ -128,13 +131,13 @@ Result FileArchiveCacheLayer::WaitForEntry(
             {
                 {
                     RWLockAuto<RWLock::ReadOnly> lock{ &m_entryMapLock };
-                    Entry* pEntry = m_entries.FindKey(key);
-                    if (pEntry == nullptr)
+                    ArchiveEntryHeader* pHeader = m_entries.FindKey(key);
+                    if (pHeader == nullptr)
                     {
                         result = Result::NotFound;
                         break;
                     }
-                    else if (pEntry->storeSize > 0)
+                    else if (pHeader->dataSize > 0)
                     {
                         result = Result::Success;
                         break;
@@ -169,42 +172,21 @@ Result FileArchiveCacheLayer::QueryInternal(
 
         if (result == Result::Success)
         {
-            const Entry* pEntry = nullptr;
+            RWLockAuto<RWLock::ReadOnly> entryMapLock { &m_entryMapLock };
+            const ArchiveEntryHeader* pHeader = m_entries.FindKey(key);
+
+            if (pHeader != nullptr)
             {
-                RWLockAuto<RWLock::ReadOnly> entryMapLock { &m_entryMapLock };
-
-                pEntry = m_entries.FindKey(key);
-            }
-
-            if (pEntry == nullptr)
-            {
-                RWLockAuto<RWLock::ReadWrite> entryMapLock { &m_entryMapLock };
-                MutexAuto                     archiveFileLock { &m_archiveFileMutex };
-
-                const size_t oldEntryCount = m_entries.GetNumEntries();
-                Result       refreshResult = RefreshHeaders();
-
-                PAL_ALERT(IsErrorResult(refreshResult));
-
-                // If the refresh picked up any new header, search again
-                if (oldEntryCount != m_entries.GetNumEntries())
-                {
-                    pEntry = m_entries.FindKey(key);
-                }
-            }
-
-            if (pEntry != nullptr)
-            {
-                const size_t storeSize = pEntry->storeSize;
+                const size_t storeSize = pHeader->dataSize;
 
                 pQuery->pLayer          = this;
                 pQuery->hashId          = *pHashId;
-                pQuery->dataSize        = pEntry->dataSize;
+                pQuery->dataSize        = pHeader->metaValue;
                 pQuery->storeSize       = storeSize;
                 pQuery->promotionSize   = storeSize;
-                pQuery->context.entryId = pEntry->ordinalId;
+                pQuery->context.entryId = pHeader->ordinalId;
 
-                if (pEntry->storeSize == 0)
+                if (storeSize == 0)
                 {
                     result = Result::NotReady;
                 }
@@ -245,6 +227,10 @@ Result FileArchiveCacheLayer::StoreInternal(
         {
             result = Result::ErrorInvalidPointer;
         }
+        else if (m_pArchivefile->AllowWriteAccess() == false)
+        {
+            result = Result::Unsupported;
+        }
         else
         {
             EntryKey key;
@@ -272,39 +258,38 @@ Result FileArchiveCacheLayer::StoreInternal(
                 {
                     void* const pDataMem = pMem;
 
-    #if PAL_64BIT_ARCHIVE_FILE_FMT
+#if PAL_64BIT_ARCHIVE_FILE_FMT
                     header.dataSize      = writeDataSize;
                     header.metaValue     = dataSize;
-    #else
+#else
                     header.dataSize      = uint32(writeDataSize);
                     header.metaValue     = uint32(dataSize);
-    #endif
+#endif
 
                     memcpy(pDataMem, pData, storeSize);
                     memcpy(header.entryKey, key.value, sizeof(header.entryKey));
 
                     RWLockAuto<RWLock::ReadWrite> entryMapLock { &m_entryMapLock };
-                    Entry* pEntry = m_entries.FindKey(key);
-                    if ((pEntry != nullptr) && (pEntry->storeSize > 0))
+                    ArchiveEntryHeader* pHeader = m_entries.FindKey(key);
+                    if ((pHeader != nullptr) && (pHeader->dataSize > 0))
                     {
                         result = Result::AlreadyExists;
                     }
                     else
                     {
-                        MutexAuto archiveFileLock { &m_archiveFileMutex };
                         result = m_pArchivefile->Write(&header, pMem);
                     }
 
                     // Only insert this entry into our lookup table if everything succeeded
                     if (result == Result::Success)
                     {
-                        if (pEntry == nullptr)
+                        if (pHeader == nullptr)
                         {
                             result = AddHeaderToTable(header);
                         }
                         else
                         {
-                            *pEntry = { header.ordinalId, header.metaValue, header.dataSize };
+                            *pHeader = header;
                         }
                         m_conditionVariable.WakeAll();
                     }
@@ -340,34 +325,24 @@ Result FileArchiveCacheLayer::LoadInternal(
         result = Result::ErrorInvalidValue;
     }
 
-#if DEBUG
+    EntryKey key;
+    result = ConvertToEntryKey(&pQuery->hashId, &key);
+
+    // Copy into a local header so we can release the lock.
+    ArchiveEntryHeader header;
     if (result == Result::Success)
     {
         RWLockAuto<RWLock::ReadOnly> entryMapLock { &m_entryMapLock };
+        const ArchiveEntryHeader* pHeader = m_entries.FindKey(key);
 
-        EntryKey key;
-        result = ConvertToEntryKey(&pQuery->hashId, &key);
-
-        if (result == Result::Success)
+        if (pHeader == nullptr)
         {
-            const Entry* pEntry = m_entries.FindKey(key);
-
-            // Should be safe to have these in order, if alerts are enabled then the first will be hit,
-            // if they are disabled then neither will be.
-            PAL_ALERT(pEntry == nullptr);
-            PAL_ALERT(pEntry->ordinalId != pQuery->context.entryId);
+            result = Result::ErrorUnknown;
         }
-    }
-#endif
-
-    ArchiveEntryHeader header;
-
-    if (result == Result::Success)
-    {
-        MutexAuto archiveFileLock { &m_archiveFileMutex };
-
-        size_t entryId = size_t(pQuery->context.entryId);
-        result         = m_pArchivefile->GetEntryByIndex(entryId, &header);
+        else
+        {
+            header = *pHeader;
+        }
     }
 
     if (result == Result::Success)
@@ -392,8 +367,6 @@ Result FileArchiveCacheLayer::LoadInternal(
 
         if (result == Result::Success)
         {
-            MutexAuto archiveFileLock { &m_archiveFileMutex };
-
             result = m_pArchivefile->Read(&header, pReadMem);
 
             // In the case that AsyncIO is not ready, signal Result::NotFound
@@ -422,7 +395,7 @@ Result FileArchiveCacheLayer::LoadInternal(
 }
 
 // =====================================================================================================================
-// Reserve an empty Entry
+// Reserve an empty Header
 Result FileArchiveCacheLayer::Reserve(
     const Hash128* pHashId)
 {
@@ -430,22 +403,29 @@ Result FileArchiveCacheLayer::Reserve(
 
     if (pHashId != nullptr)
     {
-        EntryKey key;
-        result = ConvertToEntryKey(pHashId, &key);
-
-        if (result == Result::Success)
+        if (m_pArchivefile->AllowWriteAccess())
         {
-            RWLockAuto<RWLock::ReadWrite> lock { &m_entryMapLock };
+            EntryKey key;
+            result = ConvertToEntryKey(pHashId, &key);
 
-            Entry* pEntry = m_entries.FindKey(key);
-            if (pEntry != nullptr)
+            if (result == Result::Success)
             {
-                result = Result::AlreadyExists;
+                RWLockAuto<RWLock::ReadWrite> lock { &m_entryMapLock };
+
+                ArchiveEntryHeader* pHeader = m_entries.FindKey(key);
+                if (pHeader != nullptr)
+                {
+                    result = Result::AlreadyExists;
+                }
+                else
+                {
+                    result = m_entries.Insert(key, {});
+                }
             }
-            else
-            {
-                result = m_entries.Insert(key, {});
-            }
+        }
+        else
+        {
+            result = Result::NotFound;
         }
     }
 
@@ -552,6 +532,18 @@ Result CreateArchiveFileCacheLayer(
 }
 
 // =====================================================================================================================
+Result GetArchiveFileCacheLayerCurSize(
+    ICacheLayer*    pCacheLayer,
+    uint64*         pCurCount,    // [out] number of entries in cache
+    uint64*         pCurSize)     // [out] size of backing archive file
+{
+    auto pFileArchiveCache = static_cast<FileArchiveCacheLayer*>(pCacheLayer);
+
+    // Note that the current file size does not include un-flushed data or pending writes.
+    return pFileArchiveCache->GetFileCacheSize(pCurCount, pCurSize);
+}
+
+// =====================================================================================================================
 // Attempt to add an entry header to our table
 Result FileArchiveCacheLayer::AddHeaderToTable(
     const ArchiveEntryHeader& header)
@@ -562,40 +554,50 @@ Result FileArchiveCacheLayer::AddHeaderToTable(
 
     // Note in this case the "dataSize" in the file is how much is stored.
     // The *actual* data size, we store as metadata.
-    return m_entries.Insert(key, { header.ordinalId, header.metaValue, header.dataSize });
+    return m_entries.Insert(key, header);
 }
 
 // =====================================================================================================================
 // Reload entry headers from the archive file
-Result FileArchiveCacheLayer::RefreshHeaders()
+Result FileArchiveCacheLayer::LoadHeaders()
 {
+    RWLockAuto<RWLock::ReadWrite> entryMapLock { &m_entryMapLock };
+
     Result       result        = Result::Success;
-    const size_t newEntryCount = m_pArchivefile->GetEntryCount();
+    const size_t curFileCount  = m_pArchivefile->GetEntryCount();
     size_t       curEntryCount = m_entries.GetNumEntries();
+    const size_t numNewEntries = curFileCount - curEntryCount;
 
-    while (curEntryCount < newEntryCount)
+    if (numNewEntries > 0)
     {
-        ArchiveEntryHeader header;
-        result = m_pArchivefile->GetEntryByIndex(curEntryCount, &header);
+        AutoBuffer<ArchiveEntryHeader, 8, ForwardAllocator> headerTable { numNewEntries, Allocator() };
 
-        if (result != Result::Success)
+        size_t entriesFilled = 0;
+        result = m_pArchivefile->FillEntryHeaderTable(headerTable.Data(),
+                                                      curEntryCount,
+                                                      headerTable.Capacity(),
+                                                      &entriesFilled);
+
+        if (result == Result::Success)
         {
-            PAL_ALERT(IsErrorResult(result));
-            break;
+            for (size_t i = 0; i < entriesFilled; i++)
+            {
+                PAL_ALERT(headerTable[i].ordinalId != curEntryCount);
+
+                result = AddHeaderToTable(headerTable[i]);
+
+                if (IsErrorResult(result))
+                {
+                    PAL_ALERT_ALWAYS();
+                    break;
+                }
+
+                curEntryCount++;
+            }
         }
-
-        PAL_ALERT(header.ordinalId != curEntryCount);
-
-        result = AddHeaderToTable(header);
-
-        if (IsErrorResult(result))
-        {
-            PAL_ALERT_ALWAYS();
-            break;
-        }
-
-        curEntryCount += 1;
     }
+
+    PAL_ASSERT(curEntryCount == curFileCount);
 
     return result;
 }

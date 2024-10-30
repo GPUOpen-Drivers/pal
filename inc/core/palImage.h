@@ -44,6 +44,7 @@ class      IScreen;
 class      ISwapChain;
 enum class CompressionMode : uint32;
 enum class ClientCompressionMode : uint32;
+enum SwizzleMode : uint32;
 
 /// When used as the value of the viewFormatCount parameter of image creation it indicates that all compatible formats
 /// can be used for views of the created image.
@@ -177,7 +178,7 @@ union ImageCreateFlags
                                              ///  resource)
         uint32 needSwizzleEqs          :  1; ///< Image requires valid swizzle equations.
         uint32 perSubresInit           :  1; ///< The image may have its subresources initialized independently using
-                                             ///  CmdBarrier calls out of the uninitialized layout.
+                                             ///  barrier calls out of the uninitialized layout.
         uint32 separateDepthPlaneInit  :  1; ///< If set, the caller may transition the stencil and depth planes from
                                              ///  "Uninitialized" state at any time.  Otherwise, both planes must be
                                              ///  transitioned in the same barrier call.  Only meaningful if
@@ -216,7 +217,13 @@ union ImageCreateFlags
 #else
         uint32 reserved813             :  1; ///< Reserved for future use.
 #endif
-        uint32 reserved                :  5; ///< Reserved for future use.
+#if PAL_CLIENT_EXAMPLE
+        uint32 useFixedSwizzleMode     :  1; ///< If set, require the fixed swizzle mode provided.
+                                             ///  Fails creation on incompatible swizzles.
+#else
+        uint32 reservedSwMode          :  1; ///< Reserved for future use.
+#endif
+        uint32 reserved                :  4; ///< Reserved for future use.
     };
     uint32 u32All;                           ///< Flags packed as 32-bit uint.
 };
@@ -295,6 +302,9 @@ struct ImageCreateInfo
     TilingOptMode      tilingOptMode;     ///< Hints to pal to select the appropriate tiling mode.
     uint32             tileSwizzle;       ///< If fixedTileSwizzle is set, use this value for the image's base tile
                                           ///  swizzle.
+#if PAL_CLIENT_EXAMPLE
+    SwizzleMode        fixedSwizzleMode;  ///< For directed image tests, force a particular swizzle mode.
+#endif
     MetadataMode       metadataMode;      ///< Metadata behavior mode for this image.
     MetadataTcCompatMode metadataTcCompatMode; ///< TC compat mode for this image.
     uint32             maxBaseAlign;      ///< Maximum address alignment for this image or zero for an unbounded

@@ -105,7 +105,7 @@ Pal::Result CreateTimeGraphComputePipelines(
         (getenv("GFX115_NPI_FEATURES") != nullptr) &&
         (Util::Strcasecmp(getenv("GFX115_NPI_FEATURES"), "all") == 0))
     {
-        pTable = timeGraphComputeBinaryTableStrix1_ALL;
+        pTable = timeGraphComputeBinaryTableStrix1;
     }
 #endif
 #if PAL_BUILD_STRIX1
@@ -113,7 +113,7 @@ Pal::Result CreateTimeGraphComputePipelines(
         (getenv("GFX115_NPI_FEATURES") != nullptr) &&
         (Util::Strcasecmp(getenv("GFX115_NPI_FEATURES"), "onlyVGPRWriteKill") == 0))
     {
-        pTable = timeGraphComputeBinaryTableStrix1_ALL;
+        pTable = timeGraphComputeBinaryTableStrix1;
     }
 #endif
 #if PAL_BUILD_STRIX1
@@ -121,7 +121,7 @@ Pal::Result CreateTimeGraphComputePipelines(
         (getenv("GFX115_NPI_FEATURES") != nullptr) &&
         (Util::Strcasecmp(getenv("GFX115_NPI_FEATURES"), "noScalarFmacOps") == 0))
     {
-        pTable = timeGraphComputeBinaryTableStrix1_ALL;
+        pTable = timeGraphComputeBinaryTableStrix1;
     }
 #endif
 #if PAL_BUILD_STRIX1

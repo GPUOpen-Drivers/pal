@@ -212,12 +212,13 @@ public:
         const ColorSpaceConversionTable&  cscTable) const;
 
     void CmdFillMemory(
-        GfxCmdBuffer* pCmdBuffer,
-        bool          saveRestoreComputeState,
-        bool          trackBltActiveFlags,
-        gpusize       dstGpuVirtAddr,
-        gpusize       fillSize,
-        uint32        data) const;
+        GfxCmdBuffer*   pCmdBuffer,
+        bool            saveRestoreComputeState,
+        bool            trackBltActiveFlags,
+        gpusize         dstGpuVirtAddr,
+        gpusize         fillSize,
+        uint32          data
+        ) const;
 
     void CmdClearBoundDepthStencilTargets(
         GfxCmdBuffer*                 pCmdBuffer,
@@ -372,16 +373,16 @@ protected:
         gpusize         depthPitch);
 
     void FillMem32Bit(
-        GfxCmdBuffer* pCmdBuffer,
-        gpusize       dstGpuVirtAddr,
-        gpusize       fillSize,
-        uint32        data) const;
+        GfxCmdBuffer*   pCmdBuffer,
+        gpusize         dstGpuVirtAddr,
+        gpusize         fillSize,
+        uint32          data) const;
 
     void SlowClearCompute(
         GfxCmdBuffer*         pCmdBuffer,
         const Image&          dstImage,
         ImageLayout           dstImageLayout,
-        const ClearColor*     pColor,
+        const ClearColor&     color,
         const SwizzledFormat& clearFormat,
         const SubresRange&    clearRange,
         bool                  trackBltActiveFlags,

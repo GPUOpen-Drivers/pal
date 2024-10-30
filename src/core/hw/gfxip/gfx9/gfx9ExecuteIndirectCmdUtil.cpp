@@ -156,6 +156,51 @@ void ExecuteIndirectV2Meta::ComputeMemCopyStructures(
 }
 
 // =====================================================================================================================
+void ExecuteIndirectV2Meta::ComputeVbSrdInitMemCopy(
+   uint32 vbSlotMask)
+{
+    PAL_ASSERT(vbSlotMask != 0);
+
+    uint32 startIdx = 0;
+    bool ret = BitMaskScanForward(&startIdx, vbSlotMask);
+    PAL_ASSERT(ret);
+
+    CpMemCopy* pCopy   = &m_metaData.initMemCopy;
+    bool       newCopy = true;
+
+    for (uint32 idx = startIdx; vbSlotMask != 0; idx++)
+    {
+        if (TestAnyFlagSet(vbSlotMask, 1u << idx))
+        {
+            if (newCopy)
+            {
+                pCopy->srcOffsets[pCopy->count] = startIdx * DwordsPerBufferSrd * sizeof(uint32); // in bytes
+                pCopy->dstOffsets[pCopy->count] = startIdx * DwordsPerBufferSrd * sizeof(uint32); // in bytes
+                pCopy->sizes[pCopy->count]      = DwordsPerBufferSrd; // in dwords
+                newCopy = false;
+            }
+            else
+            {
+                pCopy->sizes[pCopy->count] += DwordsPerBufferSrd; // in dwords
+            }
+
+            vbSlotMask &= ~(1u << idx);
+        }
+        else
+        {
+            pCopy->count++;
+            PAL_ASSERT(pCopy->count <= EiV2MemCopySlots);
+            newCopy = true;
+        }
+    }
+
+    // Enclose the last issued copy
+    PAL_ASSERT(newCopy == false);
+    pCopy->count++;
+    PAL_ASSERT(pCopy->count <= EiV2MemCopySlots);
+}
+
+// =====================================================================================================================
 void ExecuteIndirectV2Meta::ProcessInitMemCopy(
     const uint32 vbSpillTableWatermark,
     uint32*      pInitCount,

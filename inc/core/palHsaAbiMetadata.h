@@ -71,7 +71,9 @@ enum class ValueKind : uint32
     HiddenRemainderZ,       ///< Dispatch workgroup size of the partial work group of the Z dimension, if it exists.
     HiddenGridDims,         ///< Dispatch grid dimensionality, value between 1 and 3
     HiddenHeapV1,           ///< Global address pointer to an initialized memory buffer for device side malloc/free
-    HiddenDynamicLdsSize    ///< Size of the dynamically allocated LDS memory is passed in the kernarg.
+    HiddenDynamicLdsSize,   ///< Size of the dynamically allocated LDS memory is passed in the kernarg.
+    HiddenQueuePtr          ///< A global memory address space pointer to the ROCm runtime struct amd_queue_t structure
+                            ///< for the HSA queue of the associated dispatch AQL packet
 };
 
 /// An enum of the legal ".address_space" strings.

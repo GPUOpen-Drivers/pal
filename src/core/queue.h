@@ -222,7 +222,9 @@ public:
         { return SubmitInternal(submitInfo, false); }
 
     // A special version of Submit with PAL-internal arguments.
-    Result SubmitInternal(const MultiSubmitInfo& submitInfo, bool postBatching);
+    Result SubmitInternal(
+        const MultiSubmitInfo& submitInfo,
+        bool postBatching);
 
     // Config related submit flags.
     virtual void SubmitConfig(const MultiSubmitInfo& submitInfo, InternalSubmitInfo* pInternalSubmitInfos);

@@ -395,9 +395,11 @@ struct ColorTargetState
     bool    alphaToCoverageEnable;           ///< Enable alpha to coverage.
     bool    dualSourceBlendEnable;           ///< Blend state bound at draw time will use a dual source blend mode.
     LogicOp logicOp;                         ///< Logic operation to perform.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 904
     bool    uavExportSingleDraw;             ///< When UAV export is enabled, acts as a hint that only a single draw
                                              ///  is done on a color target with this or subsequent pipelines before
                                              ///  a barrier. Improves performance by allowing pipelines to overlap.
+#endif
 
     ColorTargetInfo target[MaxColorTargets]; ///< Per-MRT color target info.
 };

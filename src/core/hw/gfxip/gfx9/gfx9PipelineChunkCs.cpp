@@ -71,7 +71,7 @@ void PipelineChunkCs::DoLateInit(
     GpuSymbol symbol = { };
     if (pUploader != nullptr)
     {
-        if (pUploader->GetPipelineGpuSymbol(Abi::PipelineSymbolType::CsMainEntry, &symbol) == Result::Success)
+        if (pUploader->GetGpuSymbol(Abi::PipelineSymbolType::CsMainEntry, &symbol) == Result::Success)
         {
             m_pStageInfo->codeLength = static_cast<size_t>(symbol.size);
             PAL_ASSERT(IsPow2Aligned(symbol.gpuVirtAddr, 256u));
@@ -79,7 +79,7 @@ void PipelineChunkCs::DoLateInit(
             m_regs.computePgmLo.bits.DATA = Get256BAddrLo(symbol.gpuVirtAddr);
         }
 
-        if (pUploader->GetPipelineGpuSymbol(Abi::PipelineSymbolType::CsShdrIntrlTblPtr, &symbol) == Result::Success)
+        if (pUploader->GetGpuSymbol(Abi::PipelineSymbolType::CsShdrIntrlTblPtr, &symbol) == Result::Success)
         {
             m_regs.userDataInternalTable.bits.DATA = LowPart(symbol.gpuVirtAddr);
         }
@@ -128,8 +128,8 @@ void PipelineChunkCs::InitGpuAddrFromMesh(
     const AbiReader&       abiReader,
     const PipelineChunkGs& chunkGs)
 {
-    const Elf::SymbolTableEntry* pCsMainEntry = abiReader.GetPipelineSymbol(Abi::PipelineSymbolType::CsMainEntry);
-    const Elf::SymbolTableEntry* pGsMainEntry = abiReader.GetPipelineSymbol(Abi::PipelineSymbolType::GsMainEntry);
+    const Elf::SymbolTableEntry* pCsMainEntry = abiReader.GetSymbolHeader(Abi::PipelineSymbolType::CsMainEntry);
+    const Elf::SymbolTableEntry* pGsMainEntry = abiReader.GetSymbolHeader(Abi::PipelineSymbolType::GsMainEntry);
     if ((pCsMainEntry != nullptr) && (pGsMainEntry != nullptr))
     {
         m_pStageInfo->codeLength = static_cast<size_t>(pCsMainEntry->st_size);
@@ -141,9 +141,9 @@ void PipelineChunkCs::InitGpuAddrFromMesh(
     }
 
     const Elf::SymbolTableEntry* pCsInternalTable =
-        abiReader.GetPipelineSymbol(Abi::PipelineSymbolType::CsShdrIntrlTblPtr);
+        abiReader.GetSymbolHeader(Abi::PipelineSymbolType::CsShdrIntrlTblPtr);
     const Elf::SymbolTableEntry* pGsInternalTable =
-        abiReader.GetPipelineSymbol(Abi::PipelineSymbolType::GsShdrIntrlTblPtr);
+        abiReader.GetSymbolHeader(Abi::PipelineSymbolType::GsShdrIntrlTblPtr);
     if ((pCsInternalTable != nullptr) && (pGsInternalTable != nullptr))
     {
         uint32 gsTableLoVa = chunkGs.UserDataInternalTableLoVa();

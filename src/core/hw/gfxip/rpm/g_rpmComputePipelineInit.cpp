@@ -94,7 +94,7 @@ static const PipelineBinary*const GetRpmComputePipelineTable(
         (getenv("GFX115_NPI_FEATURES") != nullptr) &&
         (Util::Strcasecmp(getenv("GFX115_NPI_FEATURES"), "all") == 0))
     {
-        pTable = rpmComputeBinaryTableStrix1_ALL;
+        pTable = rpmComputeBinaryTableStrix1;
     }
 #endif
 #if PAL_BUILD_STRIX1
@@ -102,7 +102,7 @@ static const PipelineBinary*const GetRpmComputePipelineTable(
         (getenv("GFX115_NPI_FEATURES") != nullptr) &&
         (Util::Strcasecmp(getenv("GFX115_NPI_FEATURES"), "onlyVGPRWriteKill") == 0))
     {
-        pTable = rpmComputeBinaryTableStrix1_ONLYVDST;
+        pTable = rpmComputeBinaryTableStrix1_NONE;
     }
 #endif
 #if PAL_BUILD_STRIX1
@@ -110,7 +110,7 @@ static const PipelineBinary*const GetRpmComputePipelineTable(
         (getenv("GFX115_NPI_FEATURES") != nullptr) &&
         (Util::Strcasecmp(getenv("GFX115_NPI_FEATURES"), "noScalarFmacOps") == 0))
     {
-        pTable = rpmComputeBinaryTableStrix1_ALL;
+        pTable = rpmComputeBinaryTableStrix1;
     }
 #endif
 #if PAL_BUILD_STRIX1

@@ -800,7 +800,7 @@ Result UniversalQueueContext::AllocateExecuteIndirectBufferGfx()
 
     GpuMemoryCreateInfo createInfo = {};
     createInfo.vaRange    = VaRange::DescriptorTable;
-    createInfo.alignment  = 0;
+    createInfo.alignment  = EiSpillTblStrideAlignmentBytes;
     createInfo.size       = AllocSizeInBytes;
     createInfo.priority   = GpuMemPriority::Normal;
     createInfo.heapAccess = GpuHeapAccess::GpuHeapAccessCpuNoAccess;
@@ -1006,7 +1006,7 @@ void UniversalQueueContext::WritePerSubmitPreamble(
         {
             // Since PWS is enabled by default on GFX11, here we disregard the UsePws setting and add a PWS stall
             // directly.
-            pCmdSpace += cmdUtil.BuildWaitEopPws(HwPipePostPrefetch, false, SyncGlxNone, SyncRbNone, pCmdSpace);
+            pCmdSpace += cmdUtil.BuildWaitEopPws(AcquirePointMe, false, SyncGlxNone, SyncRbNone, pCmdSpace);
         }
     }
 

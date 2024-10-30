@@ -2194,7 +2194,7 @@ void LogContext::Enum(
         "Dispatch",     // 0x3,
     };
 
-    static_assert(Util::ArrayLen(StringTable) == uint32(Developer::RpmBltType::Count),
+    static_assert(ArrayLen(StringTable) == uint32(Developer::RpmBltType::Count),
         "The Developer::RpmBltType type table needs to be updated");
 
     const uint32 idx = static_cast<uint32>(value);
@@ -2218,8 +2218,13 @@ void LogContext::Enum(
         "Eop",       // 0x6,
     };
 
-    static_assert(Util::ArrayLen(StringTable) == uint32(Developer::AcquirePoint::Count),
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 901
+    static_assert(ArrayLen(StringTable) == Developer::AcquirePointCount,
         "The Developer::AcquirePoint type table needs to be updated");
+#else
+    static_assert(ArrayLen(StringTable) == uint32(Developer::AcquirePoint::Count),
+        "The Developer::AcquirePoint type table needs to be updated");
+#endif
 
     const uint32 idx = static_cast<uint32>(value);
     PAL_ASSERT(idx < ArrayLen(StringTable));
@@ -2239,7 +2244,7 @@ void LogContext::Enum(
         "Disabled",         // 0x3,
     };
 
-    static_assert(Util::ArrayLen(StringTable) == static_cast<uint32>(BoxSortHeuristic::Count),
+    static_assert(ArrayLen(StringTable) == static_cast<uint32>(BoxSortHeuristic::Count),
         "The BoxSortHeuristic type table needs to be updated");
 
     const uint32 idx = static_cast<uint32>(value);

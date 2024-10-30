@@ -33,12 +33,14 @@ target_sources(dd_common
         inc/dd_integer.h
         inc/dd_memory.h
         inc/dd_mutex.h
+        inc/dd_new.h
         inc/dd_optional.h
         inc/dd_result.h
         inc/dd_ring_buffer.h
         inc/dd_thread.h
         src/dd_dynamic_buffer.cpp
         src/dd_logger.cpp
+        src/dd_new.cpp
         src/dd_result.cpp
         src/dd_ring_buffer.cpp
 )

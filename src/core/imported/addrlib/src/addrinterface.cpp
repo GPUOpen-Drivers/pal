@@ -419,6 +419,72 @@ ADDR_E_RETURNCODE ADDR_API Addr2ComputeSurfaceAddrFromCoord(
 
 /**
 ****************************************************************************************************
+*   Addr2CopyMemToSurface
+*
+*   @brief
+*       Copy an image region from memory to an uncompressed CPU-mapped surface
+*
+*   @return
+*       ADDR_OK if successful, otherwise an error code of ADDR_E_RETURNCODE
+****************************************************************************************************
+*/
+ADDR_E_RETURNCODE ADDR_API Addr2CopyMemToSurface(
+    ADDR_HANDLE                         hLib,        ///< address lib handle
+    const ADDR2_COPY_MEMSURFACE_INPUT*  pIn,         ///< [in] description of image and mapping
+    const ADDR2_COPY_MEMSURFACE_REGION* pRegions,    ///< [in] list of copy regions
+    UINT_32                             regionCount) ///< [in] count of copy regions in list
+{
+    V2::Lib* pLib = V2::Lib::GetLib(hLib);
+
+    ADDR_E_RETURNCODE returnCode = ADDR_OK;
+
+    if (pLib != NULL)
+    {
+        returnCode = pLib->CopyMemToSurface(pIn, pRegions, regionCount);
+    }
+    else
+    {
+        returnCode = ADDR_ERROR;
+    }
+
+    return returnCode;
+}
+
+/**
+****************************************************************************************************
+*   Addr2CopySurfaceToMem
+*
+*   @brief
+*       Copy an image region from an uncompressed CPU-mapped surface to memory
+*
+*   @return
+*       ADDR_OK if successful, otherwise an error code of ADDR_E_RETURNCODE
+****************************************************************************************************
+*/
+ADDR_E_RETURNCODE ADDR_API Addr2CopySurfaceToMem(
+    ADDR_HANDLE                         hLib,        ///< address lib handle
+    const ADDR2_COPY_MEMSURFACE_INPUT*  pIn,         ///< [in] description of image and mapping
+    const ADDR2_COPY_MEMSURFACE_REGION* pRegions,    ///< [in] list of copy regions
+    UINT_32                             regionCount) ///< [in] count of copy regions in list
+{
+    V2::Lib* pLib = V2::Lib::GetLib(hLib);
+
+    ADDR_E_RETURNCODE returnCode = ADDR_OK;
+
+    if (pLib != NULL)
+    {
+        returnCode = pLib->CopySurfaceToMem(pIn, pRegions, regionCount);
+    }
+    else
+    {
+        returnCode = ADDR_ERROR;
+    }
+
+    return returnCode;
+}
+
+/**
+****************************************************************************************************
 *   Addr2ComputeSurfaceCoordFromAddr
 *
 *   @brief

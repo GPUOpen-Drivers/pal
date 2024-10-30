@@ -211,7 +211,7 @@ Result Platform::GetScreens(
 }
 
 // =====================================================================================================================
-// Callback for an image barrier event from an ICmdBuffer::CmdBarrier call.
+// Callback for an image barrier event from barrier call.
 void PAL_STDCALL Platform::GpuProfilerCb(
     void*                   pPrivateData,
     const uint32            deviceIndex,

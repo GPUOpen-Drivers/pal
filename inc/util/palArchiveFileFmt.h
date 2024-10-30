@@ -61,10 +61,10 @@ constexpr uint8 MagicEntryMarker[4]     = {'N','T','R','Y'};    ///< Identifies 
 */
 #if PAL_64BIT_ARCHIVE_FILE_FMT
 constexpr uint32 CurrentMajorVersion    = 2;    ///< Version number denoting compatibility breaking changes
-constexpr uint32 CurrentMinorVersion    = 0;    ///< Version number denoting changes that should be backward compatible
+constexpr uint32 CurrentMinorVersion    = 1;    ///< Version number denoting changes that should be backward compatible
 #else
 constexpr uint32 CurrentMajorVersion    = 1;    ///< Version number denoting compatibility breaking changes
-constexpr uint32 CurrentMinorVersion    = 2;    ///< Version number denoting changes that should be backward compatible
+constexpr uint32 CurrentMinorVersion    = 3;    ///< Version number denoting changes that should be backward compatible
 #endif
 
 /**

@@ -149,20 +149,34 @@ public:
     /// @return Total count of entries in archive file
     virtual size_t GetEntryCount() const = 0;
 
-    /// Signal that information from a file block should be read into the read buffer if available
+    /// Get the current size of the archive file
     ///
-    /// If async file reads are allowed, this function will return before the read is complete.
+    /// @return Current size in bytes of the archive file
+    virtual uint64 GetFileSize() const = 0;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 907
+    /// Deprecated
     ///
     /// @param [in] startLocation   Location in file to begin reading
     /// @param [in] maxReadSize     Maximum size in bytes of data to read from file
     ///
-    /// @return Success if the data preloaded. Otherwise, one of the following may be returned:
-    ///         + Unsupported if preloading is not allowed on this file.
-    ///         + ErrorInvalidValue if startLocation is past the end of the file/
-    ///         + ErrorUnknown if there is an internal error.
+    /// @return Success
     virtual Result Preload(
         size_t startLocation,
-        size_t maxReadSize) = 0;
+        size_t maxReadSize) { return Result::Success; }
+
+    /// Deprecated.
+    ///
+    /// @param [in]  index      Ordinal ID number corresponding to the header requested
+    /// @param [out] pHeader    Header entry to be filled out
+    ///
+    /// @return Success if the header was retrieved. Otherwise one of the following may be returned:
+    ///         + ErrorInvalidValue if index is not present in the file
+    ///         + ErrorUnknown if there is an internal error.
+    virtual Result GetEntryByIndex(
+        size_t              index,
+        ArchiveEntryHeader* pHeader) = 0;
+#endif
 
     /// Reads entry headers from the file and populates an in memory array of ArchiveEntryHeader structures
     ///
@@ -173,7 +187,6 @@ public:
     /// @param [out] pEntriesFilled Number of entries read out from the file into the provided table
     ///
     /// @return Success if the headers are read into the array. Otherwise, one of the following may be returned:
-    ///         + NotReady if the data requested is still being streamed in (requires Async File IO)
     ///         + ErrorInvalidValue if startEntry is not present in the file
     ///         + ErrorUnknown if there is an internal error.
     virtual Result FillEntryHeaderTable(
@@ -181,19 +194,6 @@ public:
         size_t              startEntry,
         size_t              maxEntries,
         size_t*             pEntriesFilled) = 0;
-
-    /// Gets a specific entry by Ordinal ID
-    ///
-    /// @param [in]  index      Ordinal ID number corresponding to the header requested
-    /// @param [out] pHeader    Header entry to be filled out
-    ///
-    /// @return Success if the header was retrieved. Otherwise one of the following may be returned:
-    ///         + NotReady if the data requested is still being streamed in (requires Async File IO)
-    ///         + ErrorInvalidValue if index is not present in the file
-    ///         + ErrorUnknown if there is an internal error.
-    virtual Result GetEntryByIndex(
-        size_t              index,
-        ArchiveEntryHeader* pHeader) = 0;
 
     /// Read the data for an entry located by its header
     ///

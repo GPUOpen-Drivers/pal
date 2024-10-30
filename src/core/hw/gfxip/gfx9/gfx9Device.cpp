@@ -52,6 +52,7 @@
 #include "core/hw/gfxip/gfx9/gfx9PerfCtrInfo.h"
 #include "core/hw/gfxip/gfx9/gfx9PerfExperiment.h"
 #include "core/hw/gfxip/gfx9/gfx9PipelineStatsQueryPool.h"
+#include "core/hw/gfxip/gfx9/gfx9QueueRingBuffer.h"
 #include "core/hw/gfxip/gfx9/gfx9QueueContexts.h"
 #include "core/hw/gfxip/gfx9/gfx9SettingsLoader.h"
 #include "core/hw/gfxip/gfx9/gfx9ShadowedRegisters.h"
@@ -294,6 +295,8 @@ void Device::SetupWorkarounds()
 // Performs any late-stage initialization that can only be done after settings have been committed.
 Result Device::LateInit()
 {
+    const MutexAuto lock(&m_queueContextUpdateLock);
+
     // If this device has been used before it will need this state zeroed.
     m_queueContextUpdateCounter = 0;
 
@@ -730,6 +733,27 @@ size_t Device::GetQueueContextSize(
     }
 
     return size;
+}
+
+// =====================================================================================================================
+size_t Device::GetGfxQueueRingBufferSize() const
+{
+    return sizeof(Gfx9QueueRingBuffer);
+}
+
+// =====================================================================================================================
+Result Device::CreateGfxQueueRingBuffer(
+    void*                         pPlacementAddr,
+    GfxQueueRingBuffer**          ppGfxQueueRb,
+    GfxQueueRingBufferCreateInfo* pGfxQueueRingBufferCreateInfo)
+{
+    Result result = Result::Success;
+
+    *ppGfxQueueRb = PAL_PLACEMENT_NEW(pPlacementAddr) Gfx9QueueRingBuffer(pGfxQueueRingBufferCreateInfo);
+
+    result = (*ppGfxQueueRb)->Init();
+
+    return result;
 }
 
 // =====================================================================================================================
@@ -2276,7 +2300,7 @@ Result Device::CreateComputePipeline(
 
     if (IsElf(createInfo))
     {
-        AbiReader abiReader(GetPlatform(), createInfo.pPipelineBinary);
+        AbiReader abiReader(GetPlatform(), {createInfo.pPipelineBinary, createInfo.pipelineBinarySize});
         result = abiReader.Init(createInfo.pKernelName);
 
         if (result == Result::Success)
@@ -2356,20 +2380,19 @@ Result Device::CreateShaderLibrary(
 
     Result result = pShaderLib->InitializeCodeObject(createInfo);
 
-    const void* pCodeObj = nullptr;
+    Span<const void> codeObj = {};
     if (result == Result::Success)
     {
         // Retrieve the code object from the shader library.
         // The AbiReader uses this pointer because the ShaderLibrary object may retain pointers to code object memory
         // via the AbiReader. This pointer will be valid for the lifetime of the ShaderLibrary object.
         // The client provided data may be deleted while the ShaderLibrary object is still in use.
-        size_t codeObjSize = 0;
-        pCodeObj = pShaderLib->GetCodeObject(&codeObjSize);
+        codeObj = pShaderLib->GetCodeObject();
     }
 
-    if (pCodeObj != nullptr)
+    if (codeObj.IsEmpty() == false)
     {
-        AbiReader abiReader(GetPlatform(), pCodeObj);
+        AbiReader abiReader(GetPlatform(), codeObj);
         result = abiReader.Init();
 
         MsgPackReader              metadataReader;
@@ -2409,7 +2432,12 @@ size_t Device::GetGraphicsPipelineSize(
     Result*                           pResult
     ) const
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 816
+    PAL_ASSERT(((createInfo.pPipelineBinary != nullptr) && (createInfo.pipelineBinarySize != 0)) ||
+               ((createInfo.ppShaderLibraries != nullptr) && (createInfo.numShaderLibraries > 0)));
+#else
     PAL_ASSERT((createInfo.pPipelineBinary != nullptr) && (createInfo.pipelineBinarySize != 0));
+#endif
 
     const size_t pipelineSize = Max(sizeof(GraphicsPipeline), sizeof(HybridGraphicsPipeline));
 
@@ -2432,11 +2460,12 @@ Result Device::CreateGraphicsPipeline(
     Result                      result          = Result::Success;
     AbiReader*                  pAbiReader      = nullptr;
     MsgPackReader*              pMetadataReader = nullptr;
-    PalAbi::CodeObjectMetadata* pMetadata       = nullptr;
     bool                        hasTask         = false;
-    uint8                       abiReaderBuffer[sizeof(AbiReader)];
-    uint8                       msgPackReaderBuffer[sizeof(MsgPackReader)];
-    uint8                       metaDataBuffer[sizeof(PalAbi::CodeObjectMetadata)];
+    PalAbi::CodeObjectMetadata* pMetadata       = nullptr;
+
+    alignas(AbiReader)                  uint8 abiReaderBuffer[sizeof(AbiReader)];
+    alignas(MsgPackReader)              uint8 msgPackReaderBuffer[sizeof(MsgPackReader)];
+    alignas(PalAbi::CodeObjectMetadata) uint8 metaDataBuffer[sizeof(PalAbi::CodeObjectMetadata)];
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 816
     if (createInfo.numShaderLibraries > 0)
@@ -2457,7 +2486,8 @@ Result Device::CreateGraphicsPipeline(
     {
         PAL_ASSERT(createInfo.pPipelineBinary != nullptr);
         PAL_ASSERT(pPlacementAddr != nullptr);
-        pAbiReader      = PAL_PLACEMENT_NEW(abiReaderBuffer)AbiReader(GetPlatform(), createInfo.pPipelineBinary);
+        const Span<const void> pipelineBinary = { createInfo.pPipelineBinary, createInfo.pipelineBinarySize };
+        pAbiReader      = PAL_PLACEMENT_NEW(abiReaderBuffer)AbiReader(GetPlatform(), pipelineBinary);
         result          = pAbiReader->Init();
         pMetadataReader = PAL_PLACEMENT_NEW(msgPackReaderBuffer)MsgPackReader();
         pMetadata       = PAL_PLACEMENT_NEW(metaDataBuffer)PalAbi::CodeObjectMetadata{};
@@ -5719,8 +5749,6 @@ void InitializeGpuChipProperties(
     pInfo->gfx9.supportPatchTessDistribution     = 1;
     pInfo->gfx9.supportDonutTessDistribution     = 1;
     pInfo->gfx9.supportTrapezoidTessDistribution = 1;
-
-    pInfo->gfx9.support3dUavZRange = 1;
 
     // RS64 FW identifier for Gfx11 is PFP uCode Version being greater than 300.
     constexpr uint32 Rs64VersionStart = 300;

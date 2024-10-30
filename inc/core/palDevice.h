@@ -968,6 +968,9 @@ struct DeviceProperties
     uint32     maxSemaphoreCount;            ///< Queue semaphores cannot have a signal count higher than this value.
                                              ///  For example, one indicates that queue semaphores are binary.
     PalPublicSettings settings;              ///< Public settings that the client has the option of overriding
+#if PAL_CLIENT_EXAMPLE
+    AddrHandle hAddrlib;                     ///< Handle to addrlib for directed image tests.
+#endif
 
     struct
     {
@@ -1428,7 +1431,8 @@ struct DeviceProperties
                 uint64 placeholder12                      :  1;
 #endif
                 uint64 supportBFloat16                    :  1; ///< HW supports bf16 instructions.
-                uint64 reserved                           :  64; ///< Reserved for future use.
+                uint64 supportFloat8                      :  1; ///< HW supports float 8-bit instructions.
+                uint64 reserved                           :  63; ///< Reserved for future use.
             };
             uint64 u64All[2];           ///< Flags packed as 32-bit uint.
         } flags;                     ///< Device IP property flags.

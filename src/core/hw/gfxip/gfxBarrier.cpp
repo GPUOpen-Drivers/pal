@@ -49,16 +49,23 @@ GfxBarrierMgr::GfxBarrierMgr(
 // transitions.
 void GfxBarrierMgr::DescribeBarrier(
     GfxCmdBuffer*                 pGfxCmdBuf,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 902
+    const ImgBarrier*             pTransition,
+#else
     const BarrierTransition*      pTransition,
+#endif
     Developer::BarrierOperations* pOperations
     ) const
 {
-    constexpr BarrierTransition NullTransition = {};
-    Developer::BarrierData data                = {};
+    Developer::BarrierData data = {};
 
-    data.pCmdBuffer    = pGfxCmdBuf;
-    data.transition    = (pTransition != nullptr) ? (*pTransition) : NullTransition;
-    data.hasTransition = (pTransition != nullptr);
+    data.pCmdBuffer = pGfxCmdBuf;
+
+    if (pTransition != nullptr)
+    {
+        data.transition    = *pTransition;
+        data.hasTransition = true;
+    }
 
     PAL_ASSERT(pOperations != nullptr);
     // The callback is expected to be made only on layout transitions.
@@ -329,50 +336,6 @@ Result GfxBarrierMgr::SplitImgBarriers(
     }
 
     return result;
-}
-
-// =====================================================================================================================
-// Helper function to convert certain pipeline points to more accurate ones. This is for legacy barrier interface.
-// Note: HwPipePostBlt will be converted to a more accurate stage based on the underlying implementation of
-//       outstanding BLTs, but will be left as HwPipePostBlt if the internal outstanding BLTs can't be expressed as
-//       a client-facing HwPipePoint (e.g., if there are CP DMA BLTs in flight).
-void GfxBarrierMgr::OptimizePipePoint(
-    const Pm4CmdBuffer* pCmdBuf,
-    HwPipePoint*        pPipePoint)
-{
-    if (pPipePoint != nullptr)
-    {
-        if (*pPipePoint == HwPipePostBlt)
-        {
-            // Check xxxBltActive states in order
-            const Pm4CmdBufferStateFlags cmdBufStateFlags = pCmdBuf->GetPm4CmdBufState().flags;
-            if (cmdBufStateFlags.gfxBltActive)
-            {
-                *pPipePoint = HwPipeBottom;
-            }
-            else if (cmdBufStateFlags.csBltActive)
-            {
-                *pPipePoint = HwPipePostCs;
-            }
-            else if (cmdBufStateFlags.cpBltActive)
-            {
-                // Leave it as HwPipePostBlt because CP DMA BLTs cannot be expressed as more specific HwPipePoint.
-            }
-            else
-            {
-                // If there are no BLTs in flight at this point, we will set the pipe point to HwPipeTop. This will
-                // optimize any redundant stalls when called from the barrier implementation. Otherwise, this function
-                // remaps the pipe point based on the gfx block that performed the BLT operation.
-                *pPipePoint = HwPipeTop;
-            }
-        }
-        else if (*pPipePoint == HwPipePreColorTarget)
-        {
-            // HwPipePreColorTarget is only valid as wait point. But for the sake of robustness, if it's used as pipe
-            // point to wait on, it's equivalent to HwPipePostPs.
-            *pPipePoint = HwPipePostPs;
-        }
-    }
 }
 
 // =====================================================================================================================

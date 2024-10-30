@@ -523,11 +523,13 @@ enum class UserDataMapping : uint32
     PerShaderPerfData = 0x1000000D, ///< 32-bit pointer to GPU memory containing the per-shader performance data buffer.
     VertexBufferTable = 0x1000000F, ///< 32-bit pointer to GPU memory containing the vertex buffer SRD table.  This can
                                     ///  only appear for one shader stage per pipeline.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 904
     UavExportTable    = 0x10000010, ///< 32-bit pointer to GPU memory containing the UAV export SRD table.  This can
                                     ///  only appear for one shader stage per pipeline (PS). These replace color targets
                                     ///  and are completely separate from any UAVs used by the shader. This is optional,
                                     ///  and only used by the PS when UAV exports are used to replace color-target
                                     ///  exports to optimize specific shaders.
+#endif
     NggCullingData    = 0x10000011, ///< 64-bit pointer to GPU memory containing the hardware register data needed by
                                     ///  some NGG pipelines to perform culling.  This value contains the address of the
                                     ///  first of two consecutive registers which provide the full GPU address.

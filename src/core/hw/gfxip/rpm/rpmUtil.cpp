@@ -981,6 +981,71 @@ void ConvertClearColorToNativeFormat(
 }
 
 // =====================================================================================================================
+// Converts a floating-point representation of a color value in RGBA order to the appropriate bit representation for
+// each channel, swizzles the color, packs it to a single element of the provided format, and stores it in the memory
+// provided. For YUV formats, this will just call ConvertYuvColor(). A helper function to consolidate calls to the clear
+// color manipulation functions in palFormatInfo.h
+void ConvertAndPackClearColor(
+    const ClearColor& color,
+    SwizzledFormat    imgFormat,
+    SwizzledFormat    clearFormat,
+    SwizzledFormat    rawFormat,
+    uint32            plane,
+    bool              convertToNativeFmt,
+    bool              clearWithRawFmt,
+    uint32*           pPackedColor)
+{
+    // First, pack the clear color into the raw format and write it to user data 1-4. We also build the write-disabled
+    // bitmasks while we're dealing with clear color bit representations.
+    if (color.type == ClearColorType::Yuv)
+    {
+        // If clear color type is Yuv, the image format should used to determine the clear color swizzling and packing
+        // for planar YUV formats since the baseFormat is subresource's format which is not a YUV format.
+        // NOTE: if clear color type is Uint, the client is responsible for:
+        //       1. packing and swizzling clear color for packed YUV formats (e.g. packing in YUYV order for YUY2)
+        //       2. passing correct clear color for this plane for planar YUV formats (e.g. two uint32s for U and V if
+        //          current plane is CbCr).
+
+        Formats::ConvertYuvColor(imgFormat, plane, color.u32Color, pPackedColor);
+
+        // Not implemented for Yuv clears.
+        PAL_ASSERT(color.disabledChannelMask == 0);
+    }
+    else
+    {
+        uint32 convertedColor[4] = {};
+        if (color.type == ClearColorType::Float)
+        {
+            Formats::ConvertColor(clearFormat, color.f32Color, convertedColor);
+        }
+        else
+        {
+            memcpy(convertedColor, color.u32Color, sizeof(convertedColor));
+        }
+
+        // RB expects shader outputs to be in the native format, whereas RPM compute shaders always write with
+        // raw UINT formats. This variable should be set (only) for GFX clears so the conversion can take place.
+        if (convertToNativeFmt)
+        {
+            RpmUtil::ConvertClearColorToNativeFormat(clearFormat, rawFormat, convertedColor);
+        }
+
+        // If we can clear with raw format replacement which is more efficient, swizzle it into the order
+        // required and then pack it. As per the above comment, this should always be true for the CS case.
+        if (clearWithRawFmt)
+        {
+            uint32 swizzledColor[4] = {};
+            Formats::SwizzleColor(clearFormat, convertedColor, swizzledColor);
+            Formats::PackRawClearColor(clearFormat, swizzledColor, pPackedColor);
+        }
+        else
+        {
+            memcpy(pPackedColor, convertedColor, sizeof(convertedColor));
+        }
+    }
+}
+
+// =====================================================================================================================
 // Calculates the normalized form of the unsigned input data. Returns the input data as a uint32 which stores the IEEE
 // bit format representation of the normalized form of the input data.
 uint32 GetNormalizedData(

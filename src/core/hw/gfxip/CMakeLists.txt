@@ -58,6 +58,8 @@ target_sources(pal PRIVATE
     gfxDevice.h
     gfxImage.cpp
     gfxImage.h
+    gfxQueueRingBuffer.cpp
+    gfxQueueRingBuffer.h
     graphicsPipeline.cpp
     graphicsPipeline.h
     graphicsShaderLibrary.cpp

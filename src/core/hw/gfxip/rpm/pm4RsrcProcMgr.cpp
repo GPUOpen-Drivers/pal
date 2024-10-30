@@ -1980,6 +1980,39 @@ static void CheckImagePlaneSupportsRtvOrUavFormat(
 #endif
 
 // =====================================================================================================================
+// Many RPM interface calls take an optional array of non-overlapping boxes. Typically RPM can take an optimized path
+// if it knows that the boxes cover the entire range of texels/blocks/whatever. Basically this should return true if
+// the caller can assume that the boxes cover the full range given by "extent".
+bool RsrcProcMgr::BoxesCoverWholeExtent(
+    const Extent3d& extent,
+    uint32          boxCount,
+    const Box*      pBoxes)
+{
+    if (boxCount == 0)
+    {
+        // By convention, if the caller doesn't give boxes then the operation covers the entire extent.
+        return true;
+    }
+    else if (boxCount > 1)
+    {
+        // If there are multiple boxes then assume that they form a complex shape which excludes some texels.
+        // Basically this is a CPU optimization to avoid iterating over all boxes to compute their union.
+        return false;
+    }
+
+    // Otherwise we have exactly one box. We can just check if that box covers the entire extent. Note that the box
+    // offset is a signed value so we need to handle negative offsets.
+    const Box& box = pBoxes[0];
+
+    return ((box.offset.x  <= 0) &&
+            (box.offset.y  <= 0) &&
+            (box.offset.z  <= 0) &&
+            (extent.width  <= uint32(box.offset.x + int32(box.extent.width)))  &&
+            (extent.height <= uint32(box.offset.y + int32(box.extent.height))) &&
+            (extent.depth  <= uint32(box.offset.z + int32(box.extent.depth))));
+}
+
+// =====================================================================================================================
 // Builds commands to clear the specified ranges of an image to the given color data.
 void RsrcProcMgr::CmdClearColorImage(
     GfxCmdBuffer*         pCmdBuffer,
@@ -2003,14 +2036,7 @@ void RsrcProcMgr::CmdClearColorImage(
     // The (boxCount == 1) calculation is not accurate for cases of a view on a nonzero mip, nonzero plane, or
     // VK_IMAGE_CREATE_BLOCK_TEXEL_VIEW_COMPATIBLE_BIT-like cases (including e.g: X32_Uint on YUY2).
     // However, this is fine as we only use this to decide to fast-clear.
-    const bool clearBoxCoversWholeImage = ((boxCount == 0)                                        ||
-                                           ((boxCount                 == 1)                       &&
-                                            (pBoxes[0].offset.x       == 0)                       &&
-                                            (pBoxes[0].offset.y       == 0)                       &&
-                                            (pBoxes[0].offset.z       == 0)                       &&
-                                            (createInfo.extent.width  == pBoxes[0].extent.width)  &&
-                                            (createInfo.extent.height == pBoxes[0].extent.height) &&
-                                            (createInfo.extent.depth  == pBoxes[0].extent.depth)));
+    const bool clearBoxCoversWholeImage = BoxesCoverWholeExtent(createInfo.extent, boxCount, pBoxes);
 
     const bool skipIfSlow          = TestAnyFlagSet(flags, ColorClearSkipIfSlow);
     const bool needPreComputeSync  = TestAnyFlagSet(flags, ColorClearAutoSync);
@@ -2146,7 +2172,7 @@ void RsrcProcMgr::CmdClearColorImage(
                 SlowClearGraphics(pPm4CmdBuffer,
                                   dstImage,
                                   dstImageLayout,
-                                  &color,
+                                  color,
                                   clearFormat,
                                   *pSlowClearRange,
                                   (needPreComputeSync == false),
@@ -2169,7 +2195,7 @@ void RsrcProcMgr::CmdClearColorImage(
                 SlowClearCompute(pPm4CmdBuffer,
                                  dstImage,
                                  dstImageLayout,
-                                 &color,
+                                 color,
                                  clearFormat,
                                  *pSlowClearRange,
                                  (needPreComputeSync == false),
@@ -2781,7 +2807,7 @@ void RsrcProcMgr::SlowClearGraphics(
     Pm4CmdBuffer*         pCmdBuffer,
     const Image&          dstImage,
     ImageLayout           dstImageLayout,
-    const ClearColor*     pColor,
+    const ClearColor&     color,
     const SwizzledFormat& clearFormat,
     const SubresRange&    clearRange,
     bool                  trackBltActiveFlags,
@@ -2803,7 +2829,7 @@ void RsrcProcMgr::SlowClearGraphics(
         bool rawFmtOk = dstImage.GetGfxImage()->IsFormatReplaceable(subresId,
                                                                     dstImageLayout,
                                                                     true,
-                                                                    pColor->disabledChannelMask);
+                                                                    color.disabledChannelMask);
 
         // Query the format of the image and determine which format to use for the color target view. If rawFmtOk is
         // set the caller has allowed us to use a slightly more efficient raw format.
@@ -2821,7 +2847,7 @@ void RsrcProcMgr::SlowClearGraphics(
             viewFormat.swizzle = { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
             rawFmtOk           = false;
             // If clear color type isn't Yuv then the client is responsible for offset/extent adjustments.
-            xRightShift        = (pColor->type == ClearColorType::Yuv) ? 1 : 0;
+            xRightShift        = (color.type == ClearColorType::Yuv) ? 1 : 0;
             // The viewport should always be adjusted regardless the clear color type, (however, since this is just clear,
             // all pixels are the same and the scissor rect will clamp the rendering area, the result is still correct
             // without this adjustment).
@@ -2861,15 +2887,15 @@ void RsrcProcMgr::SlowClearGraphics(
         bindPipelineInfo.pPipeline = GetGfxPipelineByFormat(SlowColorClear_32ABGR, viewFormat);
         bindPipelineInfo.apiPsoHash = InternalApiPsoHash;
 
-        if (pColor->disabledChannelMask != 0)
+        if (color.disabledChannelMask != 0)
         {
             // Overwrite CbTargetMask for different writeMasks.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 842
             bindPipelineInfo.graphics.dynamicState.enable.colorWriteMask = 1;
-            bindPipelineInfo.graphics.dynamicState.colorWriteMask        = ~pColor->disabledChannelMask;
+            bindPipelineInfo.graphics.dynamicState.colorWriteMask        = ~color.disabledChannelMask;
 #else
             bindPipelineInfo.gfxDynState.enable.colorWriteMask = 1;
-            bindPipelineInfo.gfxDynState.colorWriteMask        = ~pColor->disabledChannelMask;
+            bindPipelineInfo.gfxDynState.colorWriteMask        = ~color.disabledChannelMask;
 #endif
         }
 
@@ -2896,45 +2922,14 @@ void RsrcProcMgr::SlowClearGraphics(
 
         uint32 packedColor[4] = {0};
 
-        if (pColor->type == ClearColorType::Yuv)
-        {
-            // If clear color type is Yuv, the image format should used to determine the clear color swizzling and packing
-            // for planar YUV formats since the baseFormat is subresource's format which is not a YUV format.
-            // NOTE: if clear color type is Uint, the client is responsible for:
-            //       1. packing and swizzling clear color for packed YUV formats (e.g. packing in YUYV order for YUY2).
-            //       2. passing correct clear color for this plane for planar YUV formats (e.g. two uint32s for U and V if
-            //          current plane is CbCr).
-            const SwizzledFormat imgFormat = createInfo.swizzledFormat;
-            Formats::ConvertYuvColor(imgFormat, subresId.plane, &pColor->u32Color[0], &packedColor[0]);
-        }
-        else
-        {
-            uint32 convertedColor[4] = {0};
-
-            if (pColor->type == ClearColorType::Float)
-            {
-                Formats::ConvertColor(baseFormat, &pColor->f32Color[0], &convertedColor[0]);
-            }
-            else
-            {
-                memcpy(&convertedColor[0], &pColor->u32Color[0], sizeof(convertedColor));
-            }
-
-            RpmUtil::ConvertClearColorToNativeFormat(baseFormat, viewFormat, &convertedColor[0]);
-
-            // If we can clear with raw format replacement which is more efficient, swizzle it into the order
-            // required and then pack it.
-            if (rawFmtOk)
-            {
-                uint32 swizzledColor[4] = {0};
-                Formats::SwizzleColor(baseFormat, &convertedColor[0], &swizzledColor[0]);
-                Formats::PackRawClearColor(baseFormat, &swizzledColor[0], &packedColor[0]);
-            }
-            else
-            {
-                memcpy(&packedColor[0], &convertedColor[0], sizeof(packedColor));
-            }
-        }
+        RpmUtil::ConvertAndPackClearColor(color,
+                                          createInfo.swizzledFormat,
+                                          baseFormat,
+                                          viewFormat,
+                                          subresId.plane,
+                                          true,
+                                          rawFmtOk,
+                                          packedColor);
 
         pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, RpmPsClearFirstUserData, 4, &packedColor[0]);
 

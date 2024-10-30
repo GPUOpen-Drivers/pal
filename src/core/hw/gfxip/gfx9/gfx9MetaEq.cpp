@@ -863,7 +863,6 @@ void MetaDataAddrEquation::Upload(
         const auto*  pGfxDevice    = static_cast<const Device*>(pDevice->GetGfxDevice());
         auto*        pGfxCmdBuffer = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
         auto*        pCmdStream    = pGfxCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::CpDma);
-        auto*        pGfxCmdStream = static_cast<CmdStream*>(pCmdStream);
 
         PAL_ASSERT(pCmdStream != nullptr);
 
@@ -871,13 +870,12 @@ void MetaDataAddrEquation::Upload(
         //
         // We have to guarantee that the CPDMA operation has completed as the texture pipe will (conceivably) be
         // using this equation "real soon now". See the RPM "InitMaskRam" implementation for details.
-        SyncReqs  syncReqs = {};
-        syncReqs.syncCpDma = 1;
+        uint32* pCmdSpace = pCmdStream->ReserveCommands();
 
-        // Dummy BarrierOperations used in Device::IssueSyncs()
-        Developer::BarrierOperations barrierOps = {};
-        pGfxDevice->BarrierMgr()->IssueSyncs(pGfxCmdBuffer, pGfxCmdStream, syncReqs, HwPipePoint::HwPipePreCs,
-                                             0, 0, &barrierOps);
+        pCmdSpace += CmdUtil::BuildWaitDmaData(pCmdSpace);
+        pGfxCmdBuffer->SetCpBltState(false);
+
+        pCmdStream->CommitCommands(pCmdSpace);
     }
     else
     {

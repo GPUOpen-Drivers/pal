@@ -32,7 +32,6 @@
 #include "palLinearAllocator.h"
 #include "palHashProvider.h"
 #include "palHashMap.h"
-#include "palVector.h"
 
 namespace Util
 {
@@ -51,6 +50,14 @@ public:
     virtual Result Init() override;
 
     virtual Result WaitForEntry(const Hash128* pHashId) override;
+
+    Result GetFileCacheSize(uint64* pCurCount, uint64* pCurSize) const
+    {
+        *pCurCount = static_cast<uint64>(m_entries.GetNumEntries());
+        *pCurSize  = static_cast<uint64>(m_pArchivefile->GetFileSize());
+
+        return Result::Success;
+    }
 
 protected:
 
@@ -82,15 +89,8 @@ private:
         uint8 value[sizeof(ArchiveEntryHeader::entryKey)];
     };
 
-    // Container types
-    struct Entry
-    {
-        uint64 ordinalId;
-        uint64 dataSize;
-        uint64 storeSize;
-    };
     using EntryMap = HashMap<EntryKey,
-                             Entry,
+                             ArchiveEntryHeader,
                              ForwardAllocator,
                              JenkinsHashFunc,
                              DefaultEqualFunc,
@@ -100,9 +100,8 @@ private:
     // Hashing Utility functions
     Result ConvertToEntryKey(const Hash128* pHashId, EntryKey* pKey);
 
-    // Header refresh
     Result AddHeaderToTable(const ArchiveEntryHeader& header);
-    Result RefreshHeaders();
+    Result LoadHeaders();
 
     // Helper function for constructor
     static size_t GetHashMapNumBuckets(const IArchiveFile* pArchiveFile);
@@ -111,7 +110,6 @@ private:
     IArchiveFile* const  m_pArchivefile;
     IHashContext* const  m_pBaseContext;
 
-    Mutex                m_archiveFileMutex;
     RWLock               m_entryMapLock;
 
     Mutex                m_conditionMutex;    // Mutex that will be used with the condition variable

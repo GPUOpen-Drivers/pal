@@ -154,6 +154,20 @@ struct GpuMemoryData
 
 #if PAL_DEVELOPER_BUILD
 /// PWS acquire point for barrier logger
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 901
+enum AcquirePoint : uint8
+{
+    AcquirePointPfp,
+    AcquirePointMe,
+    AcquirePointPreShader,
+    AcquirePointPreDepth,
+    AcquirePointPrePs,
+    AcquirePointPreColor,
+    AcquirePointEop,
+
+    AcquirePointCount
+};
+#else
 enum class AcquirePoint : uint8
 {
     Pfp = 0,
@@ -166,6 +180,7 @@ enum class AcquirePoint : uint8
 
     Count
 };
+#endif
 #endif
 
 /// Information pertaining to the cache flush/invalidations and stalls performed during barrier execution.
@@ -309,7 +324,13 @@ enum class BarrierType : uint32
 struct BarrierData
 {
     ICmdBuffer*       pCmdBuffer;    ///< The command buffer that is executing the barrier.
-    BarrierTransition transition;    ///< The particular transition that is currently executing.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 902
+    ImgBarrier        transition;    ///< The particular image barrier with layout transition blt that is currently
+                                     ///  executing, only used during a CallbackType::ImageBarrier.
+#else
+    BarrierTransition transition;    ///< The particular transition with layout transition blt that is currently
+                                     ///  executing, only used during a CallbackType::ImageBarrier.
+#endif
     bool              hasTransition; ///< Whether or not the transition structure is populated.
     BarrierOperations operations;    ///< Detailed cache and pipeline operations performed during this barrier execution
     uint32            reason;        ///< Reason that the barrier was invoked. Only filled at BarrierBegin.

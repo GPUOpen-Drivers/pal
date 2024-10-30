@@ -42,7 +42,6 @@ class      Device;
 class      Gfx9Htile;
 class      Gfx9MaskRam;
 class      Image;
-struct     SyncReqs;
 enum class DccClearPurpose : uint32;
 
 // =====================================================================================================================
