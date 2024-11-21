@@ -337,7 +337,17 @@ static constexpr zwp_linux_buffer_params_v1_listener DmaBufParamsListener =
 static void DmaDone(
     void *pData,
     struct zwp_linux_dmabuf_feedback_v1 *pDmaBufFeedback)
-{}
+{
+    WaylandWindowSystem* pWaylandWindowSystem = static_cast<WaylandWindowSystem*>(pData);
+    WlFormatTable& globalFormatTable = pWaylandWindowSystem->GetGlobalFormatTable();
+
+    // munmap format table here instead of DmaTrancheFormats() since some compositors like KWin would send
+    // more than 1 tranche_formats events.
+    if ((globalFormatTable.pData != MAP_FAILED) && (globalFormatTable.pData != nullptr))
+    {
+        munmap(globalFormatTable.pData, globalFormatTable.size);
+    }
+}
 
 // =====================================================================================================================
 // Get the formats the Wayland compositor supports along with any modifiers it supports with that format via a
@@ -390,8 +400,6 @@ static void DmaTrancheFormats(
         {
             pWaylandWindowSystem->AddFormat(globalFormatTable.pData[index]);
         }
-
-        munmap(globalFormatTable.pData, globalFormatTable.size);
     }
 }
 
