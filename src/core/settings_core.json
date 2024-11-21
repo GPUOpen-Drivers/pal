@@ -471,7 +471,7 @@
         "General"
       ],
       "Defaults": {
-        "Default": false
+        "Default": true
       },
       "Scope": "PrivatePalKey",
       "Type": "bool",
