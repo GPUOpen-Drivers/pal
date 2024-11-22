@@ -24,6 +24,7 @@
  **********************************************************************************************************************/
 #include "multiElfCacheLayer.h"
 #include <cinttypes>
+#include <cstdio>
 
 namespace Util
 {
