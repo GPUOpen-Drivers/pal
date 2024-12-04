@@ -443,34 +443,32 @@ static void SetupGfx101Workarounds(
 
     pSettings->waLegacyGsCutModeFlush = true;
 
-    {
-        // The DB has a bug where an attempted depth expand of a Z16_UNORM 1xAA surface that has not had its
-        // metadata initialized will cause the DBs to incorrectly calculate the amount of return data from the
-        // RMI block, which results in a hang.
-        // The workaround is to force a compute resummarize for these surfaces, as we can't guarantee that an
-        // expand won't be executed on an uninitialized depth surface.
-        // This applies to all Navi1x products, which are all Gfx10.1 products.
-        pSettings->waZ16Unorm1xAaDecompressUninitialized = true;
+    // The DB has a bug where an attempted depth expand of a Z16_UNORM 1xAA surface that has not had its
+    // metadata initialized will cause the DBs to incorrectly calculate the amount of return data from the
+    // RMI block, which results in a hang.
+    // The workaround is to force a compute resummarize for these surfaces, as we can't guarantee that an
+    // expand won't be executed on an uninitialized depth surface.
+    // This applies to all Navi1x products, which are all Gfx10.1 products.
+    pSettings->waZ16Unorm1xAaDecompressUninitialized = true;
 
-        // Workaround gfx10 Ngg performance issues related to UTCL2 misses with Index Buffers.
-        pSettings->waEnableIndexBufferPrefetchForNgg = true;
+    // Workaround gfx10 Ngg performance issues related to UTCL2 misses with Index Buffers.
+    pSettings->waEnableIndexBufferPrefetchForNgg = true;
 
-        // Applies to all Navi1x products.
-        pSettings->waClampQuadDistributionFactor = true;
+    // Applies to all Navi1x products.
+    pSettings->waClampQuadDistributionFactor = true;
 
-        pSettings->waLogicOpDisablesOverwriteCombiner = true;
+    pSettings->waLogicOpDisablesOverwriteCombiner = true;
 
-        // Applies to all Navi1x products.
-        // If Primitive Order Pixel Shader (POPS/ROVs) are enabled and DB_DFSM_CONTROL.POPS_DRAIN_PS_ON_OVERLAP == 1,
-        // we must set DB_RENDER_OVERRIDE2.PARTIAL_SQUAD_LAUNCH_CONTROL = PSLC_ON_HANG_ONLY to avoid a hang.
-        pSettings->waStalledPopsMode = true;
+    // Applies to all Navi1x products.
+    // If Primitive Order Pixel Shader (POPS/ROVs) are enabled and DB_DFSM_CONTROL.POPS_DRAIN_PS_ON_OVERLAP == 1,
+    // we must set DB_RENDER_OVERRIDE2.PARTIAL_SQUAD_LAUNCH_CONTROL = PSLC_ON_HANG_ONLY to avoid a hang.
+    pSettings->waStalledPopsMode = true;
 
-        // The DB has a bug that when setting the iterate_256 register to 1 causes a hang.
-        // More specifically the Flush Sequencer state-machine gets stuck waiting for Z data
-        // when Iter256 is set to 1. The software workaround is to set DECOMPRESS_ON_N_ZPLANES
-        // register to 2 for 4x MSAA Depth/Stencil surfaces to prevent hangs.
-        pSettings->waTwoPlanesIterate256 = true;
-    }
+    // The DB has a bug that when setting the iterate_256 register to 1 causes a hang.
+    // More specifically the Flush Sequencer state-machine gets stuck waiting for Z data
+    // when Iter256 is set to 1. The software workaround is to set DECOMPRESS_ON_N_ZPLANES
+    // register to 2 for 4x MSAA Depth/Stencil surfaces to prevent hangs.
+    pSettings->waTwoPlanesIterate256 = true;
 }
 
 // =====================================================================================================================
@@ -751,9 +749,6 @@ static void SetupGfx11Workarounds(
     pSettings->waCbPerfCounterStuckZero =
         workarounds.gcPvPpCbCBPerfcountersStuckAtZeroAfterPerfcounterStopEventReceived_A_;
 
-    pSettings->waForcePrePixShaderWaitPoint =
-        workarounds.ppDbPWS_RtlTimeout_TimeStampEventPwsStall_eopDoneNotSentForOldestTSWaitingForSyncComplete__FlusherStalledInOpPipe_A_;
-
     pSettings->waForceLockThresholdZero = workarounds.sioSpiBciSoftLockIssue_A_;
 
     pSettings->waSetVsXyNanToInfZero = workarounds.geometryPaStereoPositionNanCheckBug_A_;
@@ -868,8 +863,7 @@ void SettingsLoader::OverrideDefaults(
         // Apply this to all Gfx11 APUs
         if (device.ChipProperties().gpuType == GpuType::Integrated)
         {
-            if (device.ChipProperties().gfxip.tccSizeInBytes >= 2_MiB
-                )
+            if (device.ChipProperties().gfxip.tccSizeInBytes >= 2_MiB)
             {
                 // APU tuning with 2MB L2 Cache shows ATM Ring Buffer size 768 KiB yields best performance
                 m_settings.gfx11VertexAttributesRingBufferSizePerSe = 768_KiB;

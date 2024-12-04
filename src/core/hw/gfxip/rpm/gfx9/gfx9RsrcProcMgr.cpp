@@ -386,37 +386,36 @@ const SPI_SHADER_EX_FORMAT RsrcProcMgr::DeterminePsExportFmt(
 // =====================================================================================================================
 // Clones the image data from the source image while preserving its state and avoiding decompressing.
 void RsrcProcMgr::CmdCloneImageData(
-    GfxCmdBuffer* pCmdBuffer,
-    const Image&  srcImage,
-    const Image&  dstImage
+    GfxCmdBuffer*     pCmdBuffer,
+    const Pal::Image& srcImage,
+    const Pal::Image& dstImage
     ) const
 {
-    const Pal::Image& srcParent = *srcImage.Parent();
-    const Pal::Image& dstParent = *dstImage.Parent();
+    const Image& gfx9SrcImage = static_cast<const Image&>(*srcImage.GetGfxImage());
 
     // Check our assumptions:
     // 1. Since the source image can be in any state we need a universal command buffer.
     // 2. Both images need to be cloneable.
     // 3. Both images must have been created with identical create info.
     PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
-    PAL_ASSERT(srcParent.IsCloneable() && dstParent.IsCloneable());
-    PAL_ASSERT(memcmp(&srcParent.GetImageCreateInfo(), &dstParent.GetImageCreateInfo(), sizeof(ImageCreateInfo)) == 0);
-    PAL_ASSERT(srcParent.GetGpuMemSize() == dstParent.GetGpuMemSize());
+    PAL_ASSERT(srcImage.IsCloneable() && dstImage.IsCloneable());
+    PAL_ASSERT(memcmp(&srcImage.GetImageCreateInfo(), &dstImage.GetImageCreateInfo(), sizeof(ImageCreateInfo)) == 0);
+    PAL_ASSERT(srcImage.GetGpuMemSize() == dstImage.GetGpuMemSize());
 
     // dstImgMemLayout metadata size comparison to srcImgMemLayout is checked by caller.
-    const ImageMemoryLayout& srcImgMemLayout = srcParent.GetMemoryLayout();
+    const ImageMemoryLayout& srcImgMemLayout = srcImage.GetMemoryLayout();
     const bool               hasMetadata     = (srcImgMemLayout.metadataSize != 0);
 
-    if (hasMetadata)
+    if (srcImgMemLayout.metadataHeaderSize != 0)
     {
         // If has metadata
         // First copy header by PFP
         // We always read and write the metadata header using the PFP so the copy must also use the PFP.
         PfpCopyMetadataHeader(pCmdBuffer,
-                              dstParent.GetBoundGpuMemory().GpuVirtAddr() + srcImgMemLayout.metadataHeaderOffset,
-                              srcParent.GetBoundGpuMemory().GpuVirtAddr() + srcImgMemLayout.metadataHeaderOffset,
+                              dstImage.GetBoundGpuMemory().GpuVirtAddr() + srcImgMemLayout.metadataHeaderOffset,
+                              srcImage.GetBoundGpuMemory().GpuVirtAddr() + srcImgMemLayout.metadataHeaderOffset,
                               static_cast<uint32>(srcImgMemLayout.metadataHeaderSize),
-                              srcImage.HasDccLookupTable());
+                              gfx9SrcImage.HasDccLookupTable());
     }
 
     // Do the rest copy
@@ -424,13 +423,13 @@ void RsrcProcMgr::CmdCloneImageData(
     // If no metadata, copy the whole memory.
     Pal::MemoryCopyRegion copyRegion = {};
 
-    copyRegion.srcOffset = srcParent.GetBoundGpuMemory().Offset();
-    copyRegion.dstOffset = dstParent.GetBoundGpuMemory().Offset();
-    copyRegion.copySize  = hasMetadata ? srcImgMemLayout.metadataHeaderOffset : dstParent.GetGpuMemSize();
+    copyRegion.srcOffset = srcImage.GetBoundGpuMemory().Offset();
+    copyRegion.dstOffset = dstImage.GetBoundGpuMemory().Offset();
+    copyRegion.copySize  = hasMetadata ? srcImgMemLayout.metadataHeaderOffset : dstImage.GetGpuMemSize();
 
     CopyMemoryCs(pCmdBuffer,
-                 *srcParent.GetBoundGpuMemory().Memory(),
-                 *dstParent.GetBoundGpuMemory().Memory(),
+                 *srcImage.GetBoundGpuMemory().Memory(),
+                 *dstImage.GetBoundGpuMemory().Memory(),
                  1,
                  &copyRegion);
 
@@ -728,7 +727,7 @@ void RsrcProcMgr::CmdResolveQueryComputeShader(
 
     // Issue a dispatch with one thread per query slot.
     const uint32 threadGroups = RpmUtil::MinThreadGroups(queryCount, pPipeline->ThreadsPerGroup());
-    pCmdBuffer->CmdDispatch({threadGroups, 1, 1});
+    pCmdBuffer->CmdDispatch({threadGroups, 1, 1}, {});
 
     // Restore the command buffer's state.
     pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
@@ -829,7 +828,7 @@ void RsrcProcMgr::MetaDataDispatch(
 
     // Now that we have the dimensions in terms of compressed pixels, launch as many thread groups as we need to
     // get to them all.
-    pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz({x, y, z}, threadsPerGroup));
+    pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz({x, y, z}, threadsPerGroup), {});
 }
 
 // =====================================================================================================================
@@ -1129,7 +1128,7 @@ bool RsrcProcMgr::ExpandDepthStencil(
                 device.CreateImageViewSrds(2, &imageView[0], pSrdTable);
 
                 // Execute the dispatch.
-                pCmdBuffer->CmdDispatch(threadGroups);
+                pCmdBuffer->CmdDispatch(threadGroups, {});
             } // end loop through all the slices
         } // end loop through all the mip levels
 
@@ -1162,8 +1161,146 @@ bool RsrcProcMgr::ExpandDepthStencil(
             pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(DB_CACHE_FLUSH_AND_INV, engineType, pCmdSpace);
             pCmdStream->CommitCommands(pCmdSpace);
         }
+
         // Do the expand the legacy way.
-        Pm4::RsrcProcMgr::ExpandDepthStencil(pCmdBuffer, image, pQuadSamplePattern, range);
+        PAL_ASSERT(range.numPlanes == 1);
+        PAL_ASSERT(image.IsDepthStencilTarget());
+        PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
+        // Don't expect GFX Blts on Nested unless targets not inherited.
+        PAL_ASSERT((pCmdBuffer->IsNested() == false) || (static_cast<Pm4::UniversalCmdBuffer*>(
+            pCmdBuffer)->GetGraphicsState().inheritedState.stateFlags.targetViewState == 0));
+
+        const auto*                pPublicSettings  = m_pDevice->Parent()->GetPublicSettings();
+        const StencilRefMaskParams stencilRefMasks  = { 0xFF, 0xFF, 0xFF, 0x01, 0xFF, 0xFF, 0xFF, 0x01, 0xFF };
+
+        ViewportParams viewportInfo = { };
+        viewportInfo.count                 = 1;
+        viewportInfo.viewports[0].originX  = 0;
+        viewportInfo.viewports[0].originY  = 0;
+        viewportInfo.viewports[0].minDepth = 0.f;
+        viewportInfo.viewports[0].maxDepth = 1.f;
+        viewportInfo.viewports[0].origin   = PointOrigin::UpperLeft;
+        viewportInfo.horzClipRatio         = FLT_MAX;
+        viewportInfo.horzDiscardRatio      = 1.0f;
+        viewportInfo.vertClipRatio         = FLT_MAX;
+        viewportInfo.vertDiscardRatio      = 1.0f;
+        viewportInfo.depthRange            = DepthRange::ZeroToOne;
+
+        ScissorRectParams scissorInfo      = { };
+        scissorInfo.count                  = 1;
+        scissorInfo.scissors[0].offset.x   = 0;
+        scissorInfo.scissors[0].offset.y   = 0;
+
+        DepthStencilViewInternalCreateInfo depthViewInfoInternal = { };
+        depthViewInfoInternal.flags.isExpand = 1;
+
+        DepthStencilViewCreateInfo depthViewInfo = { };
+        depthViewInfo.pImage              = &image;
+        depthViewInfo.arraySize           = 1;
+        depthViewInfo.flags.imageVaLocked = 1;
+        depthViewInfo.flags.bypassMall    = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
+                                                           RpmViewsBypassMallOnCbDbWrite);
+
+        if (image.IsDepthPlane(range.startSubres.plane))
+        {
+            depthViewInfo.flags.readOnlyStencil = 1;
+        }
+        else
+        {
+            depthViewInfo.flags.readOnlyDepth = 1;
+        }
+
+        BindTargetParams bindTargetsInfo = { };
+        bindTargetsInfo.depthTarget.pDepthStencilView     = nullptr;
+        bindTargetsInfo.depthTarget.depthLayout.usages    = LayoutDepthStencilTarget;
+        bindTargetsInfo.depthTarget.depthLayout.engines   = LayoutUniversalEngine;
+        bindTargetsInfo.depthTarget.stencilLayout.usages  = LayoutDepthStencilTarget;
+        bindTargetsInfo.depthTarget.stencilLayout.engines = LayoutUniversalEngine;
+
+        // Save current command buffer state and bind graphics state which is common for all subresources.
+        pCmdBuffer->CmdSaveGraphicsState();
+        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(DepthExpand), InternalApiPsoHash, });
+        BindCommonGraphicsState(pCmdBuffer);
+        pCmdBuffer->CmdBindDepthStencilState(m_pDepthExpandState);
+        pCmdBuffer->CmdBindMsaaState(GetMsaaState(image.GetImageCreateInfo().samples,
+                                                  image.GetImageCreateInfo().fragments));
+
+        if (pQuadSamplePattern != nullptr)
+        {
+            pCmdBuffer->CmdSetMsaaQuadSamplePattern(image.GetImageCreateInfo().samples, *pQuadSamplePattern);
+        }
+
+        pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
+
+        RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
+
+        const Pm4Image* pPm4Image = static_cast<Pm4Image*>(image.GetGfxImage());
+        const uint32    lastMip   = (range.startSubres.mipLevel   + range.numMips   - 1);
+        const uint32    lastSlice = (range.startSubres.arraySlice + range.numSlices - 1);
+
+        for (depthViewInfo.mipLevel  = range.startSubres.mipLevel;
+             depthViewInfo.mipLevel <= lastMip;
+             ++depthViewInfo.mipLevel)
+        {
+            if (pPm4Image->CanMipSupportMetaData(depthViewInfo.mipLevel))
+            {
+                LinearAllocatorAuto<VirtualLinearAllocator> mipAlloc(pCmdBuffer->Allocator(), false);
+
+                const SubresId mipSubres  = Subres(range.startSubres.plane, depthViewInfo.mipLevel, 0);
+                const auto&    subResInfo = *image.SubresourceInfo(mipSubres);
+
+                // All slices of the same mipmap level can re-use the same viewport/scissor state.
+                viewportInfo.viewports[0].width  = static_cast<float>(subResInfo.extentTexels.width);
+                viewportInfo.viewports[0].height = static_cast<float>(subResInfo.extentTexels.height);
+
+                scissorInfo.scissors[0].extent.width  = subResInfo.extentTexels.width;
+                scissorInfo.scissors[0].extent.height = subResInfo.extentTexels.height;
+
+                pCmdBuffer->CmdSetViewports(viewportInfo);
+                pCmdBuffer->CmdSetScissorRects(scissorInfo);
+
+                for (depthViewInfo.baseArraySlice  = range.startSubres.arraySlice;
+                     depthViewInfo.baseArraySlice <= lastSlice;
+                     ++depthViewInfo.baseArraySlice)
+                {
+                    LinearAllocatorAuto<VirtualLinearAllocator> sliceAlloc(pCmdBuffer->Allocator(), false);
+
+                    // Create and bind a depth stencil view of the current subresource.
+                    IDepthStencilView* pDepthView = nullptr;
+                    void* pDepthViewMem =
+                        PAL_MALLOC(m_pDevice->GetDepthStencilViewSize(nullptr), &sliceAlloc, AllocInternalTemp);
+
+                    if (pDepthViewMem == nullptr)
+                    {
+                        pCmdBuffer->NotifyAllocFailure();
+                    }
+                    else
+                    {
+                        Result result = m_pDevice->CreateDepthStencilView(depthViewInfo,
+                                                                          depthViewInfoInternal,
+                                                                          pDepthViewMem,
+                                                                          &pDepthView);
+                        PAL_ASSERT(result == Result::Success);
+
+                        bindTargetsInfo.depthTarget.pDepthStencilView = pDepthView;
+                        pCmdBuffer->CmdBindTargets(bindTargetsInfo);
+
+                        // Draw a fullscreen quad.
+                        pCmdBuffer->CmdDraw(0, 3, 0, 1, 0);
+
+                        PAL_SAFE_FREE(pDepthViewMem, &sliceAlloc);
+
+                        // Unbind the depth view and destroy it.
+                        bindTargetsInfo.depthTarget.pDepthStencilView = nullptr;
+                        pCmdBuffer->CmdBindTargets(bindTargetsInfo);
+                    }
+                }
+            }
+        }
+
+        // Restore command buffer state.
+        pCmdBuffer->CmdRestoreGraphicsStateInternal();
+        pCmdBuffer->SetGfxBltDirectWriteMisalignedMdState(image.HasMisalignedMetadata());
     }
 
     return usedCompute;
@@ -2921,7 +3058,7 @@ void RsrcProcMgr::DccDecompressOnCompute(
             device.CreateImageViewSrds(2, &imageView[0], pSrdTable);
 
             // Execute the dispatch.
-            pCmdBuffer->CmdDispatch(threadGroups);
+            pCmdBuffer->CmdDispatch(threadGroups, {});
         } // end loop through all the slices
     }
 
@@ -3055,6 +3192,19 @@ void RsrcProcMgr::FastClearEliminate(
 
         pCmdStream->CommitCommands(pCmdSpace);
     }
+}
+
+// =====================================================================================================================
+// Gives the hardware layers some influence over GetCopyImageCsInfo.
+bool RsrcProcMgr::CopyImageCsUseMsaaMorton(
+    const Pal::Image& dstImage
+    ) const
+{
+    // Our HW has stored depth/stencil samples sequentially for many generations and gfx10+ explicitly stores pixels
+    // within a micro-tile in Morton/Z order. The Morton shaders were written with gfx10 in mind but performance
+    // profiling showed they help on all GPUs. This makes sense as reading and writing samples sequentially is the
+    // primary benefit to using the Morton path over the old path (Morton is just a snazzier name than Sequential).
+    return dstImage.IsDepthStencilTarget();
 }
 
 // =====================================================================================================================
@@ -3240,7 +3390,7 @@ void RsrcProcMgr::FmaskColorExpand(
             m_pDevice->CreateFmaskViewSrdsInternal(1, &fmaskView, &fmaskViewInternal, pSrdTable);
 
             // Execute the dispatch.
-            pCmdBuffer->CmdDispatch(threadGroups);
+            pCmdBuffer->CmdDispatch(threadGroups, {});
         }
 
         Pm4CmdBuffer* pPm4CmdBuffer = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
@@ -3447,6 +3597,38 @@ static void FillAddr2ComputeSurfaceAddrFromCoord(
     pInput->resourceType    = surfSetting.resourceType;
     pInput->pipeBankXor     = pTileInfo->pipeBankXor;
     pInput->bpp             = Formats::BitsPerPixel(createInfo.swizzledFormat.format);
+}
+
+// =====================================================================================================================
+// Check if need copy missing pixels per pixel in CmdCopyImage.
+bool RsrcProcMgr::NeedPixelCopyForCmdCopyImage(
+    const Pal::Image&      srcImage,
+    const Pal::Image&      dstImage,
+    const ImageCopyRegion* pRegions,
+    uint32                 regionCount
+    ) const
+{
+    const ImageCreateInfo& srcInfo = srcImage.GetImageCreateInfo();
+    const ImageCreateInfo& dstInfo = dstImage.GetImageCreateInfo();
+
+    bool needCopy = false;
+
+    if (((Formats::IsBlockCompressed(srcInfo.swizzledFormat.format) ||
+          Formats::IsMacroPixelPackedRgbOnly(srcInfo.swizzledFormat.format)) && (srcInfo.mipLevels > 1)) ||
+        ((Formats::IsBlockCompressed(dstInfo.swizzledFormat.format) ||
+          Formats::IsMacroPixelPackedRgbOnly(dstInfo.swizzledFormat.format)) && (dstInfo.mipLevels > 1)))
+    {
+        for (uint32 i = 0; i < regionCount; i++)
+        {
+            if (UsePixelCopyForCmdCopyImage(srcImage, dstImage, pRegions[i]))
+            {
+                needCopy = true;
+                break;
+            }
+        }
+    }
+
+    return needCopy;
 }
 
 // ====================================================================================================================
@@ -3946,7 +4128,7 @@ void RsrcProcMgr::EchoGlobalInternalTableAddr(
 
     const uint32 userData[2] = { LowPart(dstAddr), HighPart(dstAddr) };
     pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 0, 2, userData );
-    pCmdBuffer->CmdDispatch({1, 1, 1});
+    pCmdBuffer->CmdDispatch({1, 1, 1}, {});
     pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
 
     // We need a CS wait-for-idle before we try to restore the global internal table user data. There are a few ways
@@ -4235,7 +4417,7 @@ void Gfx10RsrcProcMgr::ClearDccComputeSetFirstPixelOfBlock(
         (mipLevelDepth  + zInc - 1) / zInc
     };
 
-    pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz(blocks, pPipeline->ThreadsPerGroupXyz()));
+    pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz(blocks, pPipeline->ThreadsPerGroupXyz()), {});
 }
 
 // =====================================================================================================================
@@ -4347,7 +4529,7 @@ void Gfx10RsrcProcMgr::InitHtileData(
                 // Issue a dispatch with one thread per HTile DWORD.
                 const uint32 hTileDwords  = static_cast<uint32>(hTileBufferView.range / sizeof(uint32));
                 const uint32 threadGroups = RpmUtil::MinThreadGroups(hTileDwords, pPipeline->ThreadsPerGroup());
-                pCmdBuffer->CmdDispatch({threadGroups, 1, 1});
+                pCmdBuffer->CmdDispatch({threadGroups, 1, 1}, {});
             } // end loop through slices
         }
         else
@@ -4528,7 +4710,7 @@ void Gfx10RsrcProcMgr::WriteHtileData(
 
                 // Issue a dispatch with one thread per HTile DWORD or a dispatch every 4 Htile DWORD.
                 const uint32 threadGroups = RpmUtil::MinThreadGroups(minThreads, pPipeline->ThreadsPerGroup());
-                pCmdBuffer->CmdDispatch({threadGroups, 1, 1});
+                pCmdBuffer->CmdDispatch({threadGroups, 1, 1}, {});
 
             } // end loop through slices
         }
@@ -5276,9 +5458,7 @@ void Gfx10RsrcProcMgr::LaunchOptimizedVrsCopyShader(
     // Note that we pass our values through RpmUtil::PackBits to make sure that they actually fit.
     // An assert will trip if one of the assumptions outlined above is actually false.
     userData.pipeInterleaveLog2 = RpmUtil::PackBits<3>(gbAddrConfig.bits.PIPE_INTERLEAVE_SIZE);
-    {
-        userData.packersLog2    = RpmUtil::PackBits<3>(gbAddrConfig.gfx103PlusExclusive.NUM_PKRS);
-    }
+    userData.packersLog2        = RpmUtil::PackBits<3>(gbAddrConfig.gfx103Plus.NUM_PKRS);
     userData.pipesLog2          = RpmUtil::PackBits<3>(gbAddrConfig.bits.NUM_PIPES);
     userData.capPipeLog2        = RpmUtil::PackBits<5>(pEqGenerator->CapPipe());
     userData.metaBlkWidthLog2   = RpmUtil::PackBits<5>(metaBlkExtentLog2.width);
@@ -5291,11 +5471,8 @@ void Gfx10RsrcProcMgr::LaunchOptimizedVrsCopyShader(
                                    VrsHtileEncoding::Gfx10VrsHtileEncodingFourBit);
 
     // Step 2: Execute the rate image to VRS copy shader.
-    const Pal::ComputePipeline* pPipeline = nullptr;
-    {
-        PAL_ASSERT(pPalDevice->ChipProperties().gfx9.rbPlus != 0);
-        pPipeline = GetPipeline(RpmComputePipeline::Gfx10VrsHtile);
-    }
+    PAL_ASSERT(pPalDevice->ChipProperties().gfx9.rbPlus != 0);
+    const Pal::ComputePipeline* pPipeline = GetPipeline(RpmComputePipeline::Gfx10VrsHtile);
 
     const DispatchDims threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
 
@@ -5355,7 +5532,8 @@ void Gfx10RsrcProcMgr::LaunchOptimizedVrsCopyShader(
 
         // Launch one thread per HTile element we're copying in this slice.
         pCmdBuffer->CmdDispatch({RpmUtil::MinThreadGroups(copyWidth,  threadsPerGroup.x),
-                                 RpmUtil::MinThreadGroups(copyHeight, threadsPerGroup.y), 1});
+                                 RpmUtil::MinThreadGroups(copyHeight, threadsPerGroup.y), 1},
+                                 {});
     }
 
     pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
@@ -5415,9 +5593,7 @@ void Gfx10RsrcProcMgr::CopyVrsIntoHtile(
     pCmdSpace  = pPm4CmdBuf->WriteWaitEop(WaitEopInfo, pCmdSpace);
     pCmdStream->CommitCommands(pCmdSpace);
 
-    {
-        LaunchOptimizedVrsCopyShader(pCmdBuffer, pDsView, isClientDsv, depthExtent, pSrcVrsImg, pHtile);
-    }
+    LaunchOptimizedVrsCopyShader(pCmdBuffer, pDsView, isClientDsv, depthExtent, pSrcVrsImg, pHtile);
 
     // Step 3: The internal post-CS barrier. We must wait for the copy shader to finish. We invalidated the DB's
     // HTile cache in step 1 so we shouldn't need to touch the caches a second time.
@@ -5428,7 +5604,7 @@ void Gfx10RsrcProcMgr::CopyVrsIntoHtile(
 
 // =====================================================================================================================
 // Gfx Dcc -> Display Dcc.
-void Gfx10RsrcProcMgr::HwlGfxDccToDisplayDcc(
+void Gfx10RsrcProcMgr::CmdGfxDccToDisplayDcc(
     GfxCmdBuffer*     pCmdBuffer,
     const Pal::Image& image
     ) const
@@ -5522,14 +5698,14 @@ void Gfx10RsrcProcMgr::HwlGfxDccToDisplayDcc(
         const uint32 numBlockY = (pSubResInfo->extentTexels.height + yInc - 1) / yInc;
         const uint32 numBlockZ = 1;
 
-        pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz({numBlockX, numBlockY, numBlockZ}, threadsPerGroup));
+        pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz({numBlockX, numBlockY, numBlockZ}, threadsPerGroup), {});
     }
 
     pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
 }
 
 // =====================================================================================================================
-void Gfx10RsrcProcMgr::InitDisplayDcc(
+void Gfx10RsrcProcMgr::CmdDisplayDccFixUp(
     GfxCmdBuffer*      pCmdBuffer,
     const Pal::Image&  image
     ) const
@@ -5742,7 +5918,7 @@ void Gfx10RsrcProcMgr::CmdResolvePrtPlusImage(
             ((srcCreateInfo.imageType == Pal::ImageType::Tex2d) ? resolveRegion.numSlices : resolveRegion.extent.depth)
         };
 
-        pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz(threads, threadsPerGroup));
+        pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz(threads, threadsPerGroup), {});
     } // end loop through the regions
 
     pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
@@ -5839,7 +6015,7 @@ void Gfx10RsrcProcMgr::BuildDccLookupTable(
     pSrdTable += DwordsPerBufferSrd * BufferViewCount;
     memcpy(pSrdTable, &eqConstData[0], sizeof(eqConstData));
 
-    pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz({worksX, worksY, worksZ}, threadsPerGroup));
+    pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz({worksX, worksY, worksZ}, threadsPerGroup), {});
 
     pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
 }

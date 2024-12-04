@@ -54,11 +54,8 @@ EventClient::~EventClient()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 DD_RESULT EventClient::Connect(
-    DDClientId clientId,
-    uint32_t   timeoutInMs)
+    DDClientId clientId)
 {
-    timeoutInMs = (timeoutInMs == 0) ? kDefaultConnectionTimeoutMs : timeoutInMs;
-
     EventProtocol::EventCallbackInfo callbackInfo = {};
     callbackInfo.pUserdata = this;
     callbackInfo.pfnRawEventDataReceived = [](void* pUserdata, const void* pData, size_t dataSize)
@@ -68,7 +65,7 @@ DD_RESULT EventClient::Connect(
     };
     m_legacyClient.SetEventCallback(callbackInfo);
 
-    return DevDriverToDDResult(m_legacyClient.Connect(clientId, timeoutInMs));
+    return DevDriverToDDResult(m_legacyClient.Connect(clientId));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

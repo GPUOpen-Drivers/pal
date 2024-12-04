@@ -37,6 +37,7 @@
 
 #include "core/os/amdgpu/wayland/protocol/wayland-dmabuf-client-protocol.h"
 #include "core/os/amdgpu/wayland/protocol/wayland-drm-client-protocol.h"
+#include "core/os/amdgpu/wayland/protocol/wayland-drm-syncobj-client-protocol.h"
 
 #ifdef None
 #undef None
@@ -68,6 +69,13 @@ typedef int (*WlDisplayDispatchQueue)(
 typedef int (*WlDisplayDispatchQueuePending)(
             struct wl_display*        display,
             struct wl_event_queue*    queue);
+
+typedef int (*WlDisplayPrepareReadQueue)(
+            struct wl_display*        display,
+            struct wl_event_queue*    queue);
+
+typedef int (*WlDisplayReadEvents)(
+            struct wl_display*    display);
 
 typedef int (*WlDisplayFlush)(
             struct wl_display*    display);
@@ -142,6 +150,18 @@ struct WaylandLoaderFuncs
     bool pfnWlDisplayDispatchQueuePendingisValid() const
     {
         return (pfnWlDisplayDispatchQueuePending != nullptr);
+    }
+
+    WlDisplayPrepareReadQueue             pfnWlDisplayPrepareReadQueue;
+    bool pfnWlDisplayPrepareReadQueueisValid() const
+    {
+        return (pfnWlDisplayPrepareReadQueue != nullptr);
+    }
+
+    WlDisplayReadEvents                   pfnWlDisplayReadEvents;
+    bool pfnWlDisplayReadEventsisValid() const
+    {
+        return (pfnWlDisplayReadEvents != nullptr);
     }
 
     WlDisplayFlush                        pfnWlDisplayFlush;
@@ -255,6 +275,23 @@ public:
     bool pfnWlDisplayDispatchQueuePendingisValid() const
     {
         return (m_pFuncs->pfnWlDisplayDispatchQueuePending != nullptr);
+    }
+
+    int pfnWlDisplayPrepareReadQueue(
+            struct wl_display*        display,
+            struct wl_event_queue*    queue) const;
+
+    bool pfnWlDisplayPrepareReadQueueisValid() const
+    {
+        return (m_pFuncs->pfnWlDisplayPrepareReadQueue != nullptr);
+    }
+
+    int pfnWlDisplayReadEvents(
+            struct wl_display*    display) const;
+
+    bool pfnWlDisplayReadEventsisValid() const
+    {
+        return (m_pFuncs->pfnWlDisplayReadEvents != nullptr);
     }
 
     int pfnWlDisplayFlush(
@@ -403,6 +440,9 @@ public:
     wl_interface* GetZwpLinuxDmabufV1Interface() const;
     wl_interface* GetZwpLinuxBufferParamsV1Interface() const;
     wl_interface* GetZwpLinuxDmabufFeedbackV1Interface() const;
+    wl_interface* GetWpLinuxDrmSyncobjManagerV1Interface() const;
+    wl_interface* GetWpLinuxDrmSyncobjTimelineV1Interface() const;
+    wl_interface* GetWpLinuxDrmSyncobjSurfaceV1Interface() const;
 
 private:
     wl_interface* m_pWlRegistryInterface;
@@ -412,6 +452,9 @@ private:
     wl_interface* m_pZwpLinuxDmabufV1Interface;
     wl_interface* m_pZwpLinuxBufferParamsV1Interface;
     wl_interface* m_pZwpLinuxDmabufFeedbackV1Interface;
+    wl_interface* m_pWpLinuxDrmSyncobjManagerV1Interface;
+    wl_interface* m_pWpLinuxDrmSyncobjTimelineV1Interface;
+    wl_interface* m_pWpLinuxDrmSyncobjSurfaceV1Interface;
 
     Util::Library m_library[WaylandLoaderLibrariesCount];
     bool          m_initialized;

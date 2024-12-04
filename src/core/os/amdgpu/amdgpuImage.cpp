@@ -341,12 +341,16 @@ Result Image::CreatePresentableMemoryObject(
     GpuMemoryRequirements memReqs = {};
     pImage->GetGpuMemoryRequirements(&memReqs);
 
-    GpuMemoryCreateInfo createInfo = {};
-    createInfo.flags.presentable  = 1;
-    createInfo.flags.flippable    = pImage->IsFlippable();
-    createInfo.flags.stereo       = pImage->GetInternalCreateInfo().flags.stereo;
-    createInfo.flags.peerWritable = presentableImageCreateInfo.flags.peerWritable;
+    auto* pAmdgpuSwapChain    = static_cast<Amdgpu::SwapChain*>(presentableImageCreateInfo.pSwapChain);
+    auto* pAmdgpuWindowSystem = pAmdgpuSwapChain->GetWindowSystem();
+
+    GpuMemoryCreateInfo createInfo    = {};
+    createInfo.flags.presentable      = 1;
+    createInfo.flags.flippable        = pImage->IsFlippable();
+    createInfo.flags.stereo           = pImage->GetInternalCreateInfo().flags.stereo;
+    createInfo.flags.peerWritable     = presentableImageCreateInfo.flags.peerWritable;
     createInfo.flags.initializeToZero = presentableImageCreateInfo.flags.initializeToZero;
+    createInfo.flags.explicitSync     = pAmdgpuWindowSystem->GetWindowSystemProperties().useExplicitSync;
 
     // If client creates presentable image without swapchain, TMZ state should be determined by PresentableImageCreateInfo.
     const bool tmzEnable = (presentableImageCreateInfo.pSwapChain == nullptr)
@@ -515,6 +519,15 @@ Result Image::GetExternalSharedImageCreateInfo(
             result = Result::ErrorInvalidExternalHandle;
         }
     }
+    else if (pCreateInfo->flags.sharedWithMesa)
+    {
+        const auto*const pMesaUmdMetaData = reinterpret_cast<const MesaUmdMetaData*>(
+            &sharedInfo.info.metadata.umd_metadata[0]);
+        pCreateInfo->extent.width  = (pMesaUmdMetaData->imageSrd.gfx10.width_lo +
+            (pMesaUmdMetaData->imageSrd.gfx10.width_hi << 2) + 1);
+        pCreateInfo->extent.height = pMesaUmdMetaData->imageSrd.gfx10.height + 1;
+        pCreateInfo->extent.depth  = pMesaUmdMetaData->imageSrd.gfx10.depth + 1;
+    }
     else
     {
         pCreateInfo->extent.width  = pMetadata->width_in_pixels;
@@ -668,7 +681,6 @@ Result Image::CreateExternalSharedImage(
 
     if (result == Result::Success)
     {
-
         if (hasMetadata && pMetadata->flags.optimal_shareable)
         {
             auto*const pUmdSharedMetadata =

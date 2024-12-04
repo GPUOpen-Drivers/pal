@@ -52,26 +52,6 @@ union ReleaseEvents
     uint8_t u8All;
 };
 
-#if PAL_DEVELOPER_BUILD
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 901
-static_assert((Developer::AcquirePointPfp      == AcquirePointPfp)      &&
-              (Developer::AcquirePointMe       == AcquirePointMe)       &&
-              (Developer::AcquirePointPreDepth == AcquirePointPreDepth) &&
-              (Developer::AcquirePointPrePs    == AcquirePointPrePs)    &&
-              (Developer::AcquirePointPreColor == AcquirePointPreColor) &&
-              (Developer::AcquirePointEop      == AcquirePointEop),
-              "Definition values mismatch!");
-#else
-static_assert(EnumSameVal(Developer::AcquirePoint::Pfp,      AcquirePointPfp)      &&
-              EnumSameVal(Developer::AcquirePoint::Me,       AcquirePointMe)       &&
-              EnumSameVal(Developer::AcquirePoint::PreDepth, AcquirePointPreDepth) &&
-              EnumSameVal(Developer::AcquirePoint::PrePs,    AcquirePointPrePs)    &&
-              EnumSameVal(Developer::AcquirePoint::PreColor, AcquirePointPreColor) &&
-              EnumSameVal(Developer::AcquirePoint::Eop,      AcquirePointEop),
-              "Definition values mismatch!");
-#endif
-#endif
-
 // Cache coherency masks that may read data through L0 (V$ and K$)/L1 caches.
 static constexpr uint32 CacheCoherShaderReadMask = CoherShaderRead | CoherSampleRate | CacheCoherencyBltSrc;
 
@@ -181,9 +161,10 @@ CacheSyncOps BarrierMgr::GetCacheSyncOps(
     // since it can skip more cases safely. srcAccessMask from OptimizeAccessMask() may convert CoherCopySrc to CoherCp
     // and can't skip here but it's safe to skip here.
     //
-    // GL0/GL1 cache is tied to image format. When an image is accessed through GL0/GL1 with different formats, GL0/GL1
-    // layout will be inconsistent and cache invalidation is required in-between. CmdCloneImageData() may adjust image
-    // format due to raw copy and hits the issue.
+    // GL0/GL1 cache is tied to view format and view type. When memory is accessed through GL0/GL1 with different
+    // view types (e.g. image vs buffer) or two image views with different bits-per-element, the GL0/GL1 layout will
+    // be inconsistent and cache invalidation is required in-between.
+    //
     //  - For clone CopySrc <-> ShaderRead, need inv GL0/GL1.
     //  - For clone CopySrc -> ShaderWrite, no need cache inv as V$ and GL1 partial cache line writes to GL2 via byte
     //    enables/mask. Similarly transition to clone CopyDst doesn't read and inv GL0/GL1.
@@ -406,38 +387,26 @@ AcquirePoint BarrierMgr::GetAcquirePoint(
     // In CmdDrawOpaque(), bufferFilleSize allocation will be loaded by LOAD_CONTEXT_REG_INDEX packet via PFP to
     // initialize register VGT_STRMOUT_DRAW_OPAQUE_BUFFER_FILLED_SIZE. PFP_SYNC_ME is issued before load packet so
     // we're safe to acquire at ME stage here.
-    constexpr uint32 AcqMeStages        = PipelineStagePostPrefetch | PipelineStageBlt | PipelineStageStreamOut;
+    constexpr uint32 AcqMeStages        = PipelineStagePostPrefetch | PipelineStageBlt | PipelineStageStreamOut |
+                                          PipelineStageVs           | PipelineStageHs  | PipelineStageDs        |
+                                          PipelineStageGs           | PipelineStageCs;
+    constexpr uint32 AcqPreDepthStages  = PipelineStageSampleRate   | PipelineStageDsTarget | PipelineStagePs |
+                                          PipelineStageColorTarget;
 #else
-    constexpr uint32 AcqMeStages        = PipelineStageBlt | PipelineStageStreamOut;
+    constexpr uint32 AcqMeStages        = PipelineStageBlt | PipelineStageStreamOut | PipelineStageVs |
+                                          PipelineStageHs  | PipelineStageDs        | PipelineStageGs |
+                                          PipelineStageCs;
+    constexpr uint32 AcqPreDepthStages  = PipelineStageDsTarget | PipelineStagePs | PipelineStageColorTarget;
 #endif
-    constexpr uint32 AcqPreShaderStages = PipelineStageVs | PipelineStageHs | PipelineStageDs |
-                                          PipelineStageGs | PipelineStageCs;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 835
-    constexpr uint32 AcqPreDepthStages  = PipelineStageSampleRate | PipelineStageDsTarget;
-#else
-    constexpr uint32 AcqPreDepthStages  = PipelineStageDsTarget;
-#endif
-    constexpr uint32 AcqPrePsStages     = PipelineStagePs;
-    constexpr uint32 AcqPreColorStages  = PipelineStageColorTarget;
 
     // Convert global dstStageMask to HW acquire point.
-    //
-    // Replace Pws packet (CsDone/PsDone->PreShader) with CS/PS_PARTIAL_FLUSH by forcing acquire at ME point based on
-    // below consideration,
-    //  - Both ACQUIRE_MEM and RELEASE_MEM packets have 8 DWs, but EVENT_WRITE has only 4 DWs.
-    //  - The PWS packet pair may stress event FIFOs if the number is large, e.g. 2000+ per frame in TimeSpy.
-    //  - PreShader is very close ME and the overhead between PreShader and ME should be small.
-    AcquirePoint acqPoint = (dstStageMask & AcqPfpStages)                       ? AcquirePointPfp       :
-                            (dstStageMask & (AcqMeStages | AcqPreShaderStages)) ? AcquirePointMe        :
-                            (dstStageMask & AcqPreDepthStages)                  ? AcquirePointPreDepth  :
-                            (dstStageMask & AcqPrePsStages)                     ? AcquirePointPrePs     :
-                            (dstStageMask & AcqPreColorStages)                  ? AcquirePointPreColor  :
-                                                                                  AcquirePointEop;
+    AcquirePoint acqPoint = (dstStageMask & AcqPfpStages)      ? AcquirePointPfp      :
+                            (dstStageMask & AcqMeStages)       ? AcquirePointMe       :
+                            (dstStageMask & AcqPreDepthStages) ? AcquirePointPreDepth :
+                                                                 AcquirePointEop;
 
     // Disable PWS late acquire point if PWS is not disabled or late acquire point is disallowed.
-    if (((acqPoint > AcquirePointMe)   &&
-         (acqPoint != AcquirePointEop) &&
-         (m_pDevice->UsePwsLateAcquirePoint(engineType) == false)) ||
+    if (((acqPoint == AcquirePointPreDepth) && (m_pDevice->UsePwsLateAcquirePoint(engineType) == false)) ||
         ((acqPoint == AcquirePointPfp) && (engineType != EngineTypeUniversal))) // No Pfp on non-universal engine.
     {
         acqPoint = AcquirePointMe;
@@ -1372,6 +1341,57 @@ ReleaseToken BarrierMgr::IssueReleaseSync(
     return syncToken;
 }
 
+#if PAL_DEVELOPER_BUILD
+// =====================================================================================================================
+static Developer::AcquirePoint ConvertToDeveloperAcquirePoint(
+    AcquirePoint acqPoint)
+{
+    Developer::AcquirePoint retPoint;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 901
+    switch (acqPoint)
+    {
+    case AcquirePointPfp:
+        retPoint = Developer::AcquirePointPfp;
+        break;
+    case AcquirePointMe:
+        retPoint = Developer::AcquirePointMe;
+        break;
+    case AcquirePointPreDepth:
+        retPoint = Developer::AcquirePointPreDepth;
+        break;
+    case AcquirePointEop:
+        retPoint = Developer::AcquirePointEop;
+        break;
+    default:
+        PAL_ASSERT_ALWAYS(); // Should not hit here.
+        break;
+    }
+#else
+    switch (acqPoint)
+    {
+    case AcquirePointPfp:
+        retPoint = Developer::AcquirePoint::Pfp;
+        break;
+    case AcquirePointMe:
+        retPoint = Developer::AcquirePoint::Me;
+        break;
+    case AcquirePointPreDepth:
+        retPoint = Developer::AcquirePoint::PreDepth;
+        break;
+    case AcquirePointEop:
+        retPoint = Developer::AcquirePoint::Eop;
+        break;
+    default:
+        PAL_ASSERT_ALWAYS(); // Should not hit here.
+        break;
+    }
+#endif
+
+    return retPoint;
+}
+#endif
+
 // =====================================================================================================================
 // Issue appropriate cache sync hardware commands to satisfy the cache acquire requirements.
 // Note: The list of sync tokens cannot be cleared by this function and make it const. If multiple IssueAcquireSync are
@@ -1427,7 +1447,7 @@ void BarrierMgr::IssueAcquireSync(
     }
 
 #if PAL_DEVELOPER_BUILD
-    pBarrierOps->acquirePoint = static_cast<Developer::AcquirePoint>(acquirePoint);
+    pBarrierOps->acquirePoint = ConvertToDeveloperAcquirePoint(acquirePoint);
 #endif
 
     uint32* pCmdSpace = pCmdStream->ReserveCommands();
@@ -1646,7 +1666,7 @@ void BarrierMgr::IssueReleaseThenAcquireSync(
     }
 
 #if PAL_DEVELOPER_BUILD
-    pBarrierOps->acquirePoint = static_cast<Developer::AcquirePoint>(acquirePoint);
+    pBarrierOps->acquirePoint = ConvertToDeveloperAcquirePoint(acquirePoint);
 #endif
 
     const Pm4CmdBufferStateFlags cmdBufStateFlags = pCmdBuf->GetPm4CmdBufState().flags;
@@ -1716,7 +1736,7 @@ void BarrierMgr::IssueReleaseThenAcquireSync(
             if (releaseEvents.rbCache &&
                 TestAnyFlagSet(gfx9Device.Settings().waitOnFlush, WaitBeforeBarrierEopWithCbFlush))
             {
-                constexpr WriteWaitEopInfo WaitEopInfo = { .hwAcqPoint = AcquirePointPreColor };
+                constexpr WriteWaitEopInfo WaitEopInfo = { .hwAcqPoint = AcquirePointPreDepth };
 
                 pCmdSpace = pCmdBuf->WriteWaitEop(WaitEopInfo, pCmdSpace);
             }

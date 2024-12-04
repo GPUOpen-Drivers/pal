@@ -227,12 +227,13 @@ Pal::Result TextWriter<Allocator>::CreateGpuMemory(
 // Executes a text draw (using a dispatch) onto the destination image.
 template <typename Allocator>
 void TextWriter<Allocator>::DrawDebugText(
-    const Pal::IImage& dstImage,    // Desintation image.
-    Pal::ICmdBuffer*   pCmdBuffer,  // Command buffer for drawing text
-    const char*        pText,       // Text to draw
-    Pal::uint32        x,           // X drawing offset
-    Pal::uint32        y,           // Y drawing offset
-    Pal::uint32        pixelScale   // How big to scale the pixel.
+    const Pal::IImage&      dstImage,    // Desintation image.
+    Pal::ICmdBuffer*        pCmdBuffer,  // Command buffer for drawing text
+    const char*             pText,       // Text to draw
+    Pal::uint32             x,           // X drawing offset
+    Pal::uint32             y,           // Y drawing offset
+    Pal::uint32             pixelScale,  // How big to scale the pixel.
+    Pal::DispatchInfoFlags  infoFlags    // Information about the workload being generated
     ) const
 {
     const Pal::uint32 stringLen = static_cast<Pal::uint32>(strlen(pText));
@@ -333,7 +334,7 @@ void TextWriter<Allocator>::DrawDebugText(
 
         // Bind the pipeline and issue one thread group per letter.
         pCmdBuffer->CmdBindPipeline({ Pal::PipelineBindPoint::Compute, m_pPipeline, Pal::InternalApiPsoHash, });
-        pCmdBuffer->CmdDispatch({stringLen, 1, 1});
+        pCmdBuffer->CmdDispatch({stringLen, 1, 1}, infoFlags);
     }
 }
 

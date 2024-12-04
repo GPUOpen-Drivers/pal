@@ -61,6 +61,7 @@ Pm4CmdBuffer::Pm4CmdBuffer(
     :
     GfxCmdBuffer(device, createInfo),
     m_device(device),
+    m_splitBarriers(true),
     m_acqRelFenceValGpuVa(0),
     m_timestampGpuVa(0),
     m_fceRefCountVec(device.GetPlatform()),
@@ -990,31 +991,38 @@ void Pm4CmdBuffer::CmdBarrier(
     // Mark these as traditional barriers in RGP
     m_pBarrierMgr->DescribeBarrierStart(this, barrierInfo.reason, Developer::BarrierType::Full);
 
-    bool splitMemAllocated;
-    BarrierInfo splitBarrierInfo = barrierInfo;
-    Result result = GfxBarrierMgr::SplitBarrierTransitions(m_device.GetPlatform(),
-                                                           &splitBarrierInfo,
-                                                           &splitMemAllocated);
-
     Developer::BarrierOperations barrierOps = {};
 
-    if (result == Result::Success)
+    if (m_splitBarriers)
     {
-        m_pBarrierMgr->Barrier(this, splitBarrierInfo, &barrierOps);
-    }
-    else if (result == Result::ErrorOutOfMemory)
-    {
-        NotifyAllocFailure();
+        bool splitMemAllocated;
+        BarrierInfo splitBarrierInfo = barrierInfo;
+        Result result = GfxBarrierMgr::SplitBarrierTransitions(m_device.GetPlatform(),
+                                                               &splitBarrierInfo,
+                                                               &splitMemAllocated);
+
+        if (result == Result::Success)
+        {
+            m_pBarrierMgr->Barrier(this, splitBarrierInfo, &barrierOps);
+        }
+        else if (result == Result::ErrorOutOfMemory)
+        {
+            NotifyAllocFailure();
+        }
+        else
+        {
+            PAL_ASSERT_ALWAYS();
+        }
+
+        // Delete memory allocated for splitting the BarrierTransitions if necessary.
+        if (splitMemAllocated)
+        {
+            PAL_SAFE_DELETE_ARRAY(splitBarrierInfo.pTransitions, m_device.GetPlatform());
+        }
     }
     else
     {
-        PAL_ASSERT_ALWAYS();
-    }
-
-    // Delete memory allocated for splitting the BarrierTransitions if necessary.
-    if (splitMemAllocated)
-    {
-        PAL_SAFE_DELETE_ARRAY(splitBarrierInfo.pTransitions, m_device.GetPlatform());
+        m_pBarrierMgr->Barrier(this, barrierInfo, &barrierOps);
     }
 
     m_pBarrierMgr->DescribeBarrierEnd(this, &barrierOps);
@@ -1041,30 +1049,37 @@ ReleaseToken Pm4CmdBuffer::CmdRelease(
     // Mark these as traditional barriers in RGP
     m_pBarrierMgr->DescribeBarrierStart(this, releaseInfo.reason, Developer::BarrierType::Release);
 
-    bool splitMemAllocated;
-    AcquireReleaseInfo splitReleaseInfo = releaseInfo;
-    Result result = GfxBarrierMgr::SplitImgBarriers(m_device.GetPlatform(), &splitReleaseInfo, &splitMemAllocated);
-
     Developer::BarrierOperations barrierOps = {};
     ReleaseToken                 syncToken  = {};
 
-    if (result == Result::Success)
+    if (m_splitBarriers)
     {
-        syncToken = m_pBarrierMgr->Release(this, splitReleaseInfo, &barrierOps);
-    }
-    else if (result == Result::ErrorOutOfMemory)
-    {
-        NotifyAllocFailure();
+        bool splitMemAllocated;
+        AcquireReleaseInfo splitReleaseInfo = releaseInfo;
+        Result result = GfxBarrierMgr::SplitImgBarriers(m_device.GetPlatform(), &splitReleaseInfo, &splitMemAllocated);
+
+        if (result == Result::Success)
+        {
+            syncToken = m_pBarrierMgr->Release(this, splitReleaseInfo, &barrierOps);
+        }
+        else if (result == Result::ErrorOutOfMemory)
+        {
+            NotifyAllocFailure();
+        }
+        else
+        {
+            PAL_ASSERT_ALWAYS();
+        }
+
+        // Delete memory allocated for splitting ImgBarriers if necessary.
+        if (splitMemAllocated)
+        {
+            PAL_SAFE_DELETE_ARRAY(splitReleaseInfo.pImageBarriers, m_device.GetPlatform());
+        }
     }
     else
     {
-        PAL_ASSERT_ALWAYS();
-    }
-
-    // Delete memory allocated for splitting ImgBarriers if necessary.
-    if (splitMemAllocated)
-    {
-        PAL_SAFE_DELETE_ARRAY(splitReleaseInfo.pImageBarriers, m_device.GetPlatform());
+        syncToken = m_pBarrierMgr->Release(this, releaseInfo, &barrierOps);
     }
 
     m_pBarrierMgr->DescribeBarrierEnd(this, &barrierOps);
@@ -1099,34 +1114,46 @@ void Pm4CmdBuffer::CmdAcquire(
     // Mark these as traditional barriers in RGP
     m_pBarrierMgr->DescribeBarrierStart(this, acquireInfo.reason, Developer::BarrierType::Acquire);
 
-    bool splitMemAllocated;
-    AcquireReleaseInfo splitAcquireInfo = acquireInfo;
-    Result result = GfxBarrierMgr::SplitImgBarriers(m_device.GetPlatform(), &splitAcquireInfo, &splitMemAllocated);
-
     Developer::BarrierOperations barrierOps = {};
 
-    if (result == Result::Success)
+    if (m_splitBarriers)
     {
+        bool splitMemAllocated;
+        AcquireReleaseInfo splitAcquireInfo = acquireInfo;
+        Result result = GfxBarrierMgr::SplitImgBarriers(m_device.GetPlatform(), &splitAcquireInfo, &splitMemAllocated);
+
+        if (result == Result::Success)
+        {
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
-        m_pBarrierMgr->Acquire(this, splitAcquireInfo, syncTokenCount,
-                               reinterpret_cast<const ReleaseToken*>(pSyncTokens), &barrierOps);
+            m_pBarrierMgr->Acquire(this, splitAcquireInfo, syncTokenCount,
+                                   reinterpret_cast<const ReleaseToken*>(pSyncTokens), &barrierOps);
 #else
-        m_pBarrierMgr->Acquire(this, splitAcquireInfo, syncTokenCount, pSyncTokens, &barrierOps);
+            m_pBarrierMgr->Acquire(this, splitAcquireInfo, syncTokenCount, pSyncTokens, &barrierOps);
 #endif
-    }
-    else if (result == Result::ErrorOutOfMemory)
-    {
-        NotifyAllocFailure();
+        }
+        else if (result == Result::ErrorOutOfMemory)
+        {
+            NotifyAllocFailure();
+        }
+        else
+        {
+            PAL_ASSERT_ALWAYS();
+        }
+
+        // Delete memory allocated for splitting ImgBarriers if necessary.
+        if (splitMemAllocated)
+        {
+            PAL_SAFE_DELETE_ARRAY(splitAcquireInfo.pImageBarriers, m_device.GetPlatform());
+        }
     }
     else
     {
-        PAL_ASSERT_ALWAYS();
-    }
-
-    // Delete memory allocated for splitting ImgBarriers if necessary.
-    if (splitMemAllocated)
-    {
-        PAL_SAFE_DELETE_ARRAY(splitAcquireInfo.pImageBarriers, m_device.GetPlatform());
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885
+        m_pBarrierMgr->Acquire(this, acquireInfo, syncTokenCount,
+                                reinterpret_cast<const ReleaseToken*>(pSyncTokens), &barrierOps);
+#else
+        m_pBarrierMgr->Acquire(this, acquireInfo, syncTokenCount, pSyncTokens, &barrierOps);
+#endif
     }
 
     m_pBarrierMgr->DescribeBarrierEnd(this, &barrierOps);
@@ -1150,29 +1177,36 @@ void Pm4CmdBuffer::CmdReleaseEvent(
     // Mark these as traditional barriers in RGP
     m_pBarrierMgr->DescribeBarrierStart(this, releaseInfo.reason, Developer::BarrierType::Release);
 
-    bool splitMemAllocated;
-    AcquireReleaseInfo splitReleaseInfo = releaseInfo;
-    Result result = GfxBarrierMgr::SplitImgBarriers(m_device.GetPlatform(), &splitReleaseInfo, &splitMemAllocated);
-
     Developer::BarrierOperations barrierOps = {};
 
-    if (result == Result::Success)
+    if (m_splitBarriers)
     {
-        m_pBarrierMgr->ReleaseEvent(this, splitReleaseInfo, pGpuEvent, &barrierOps);
-    }
-    else if (result == Result::ErrorOutOfMemory)
-    {
-        NotifyAllocFailure();
+        bool splitMemAllocated;
+        AcquireReleaseInfo splitReleaseInfo = releaseInfo;
+        Result result = GfxBarrierMgr::SplitImgBarriers(m_device.GetPlatform(), &splitReleaseInfo, &splitMemAllocated);
+
+        if (result == Result::Success)
+        {
+            m_pBarrierMgr->ReleaseEvent(this, splitReleaseInfo, pGpuEvent, &barrierOps);
+        }
+        else if (result == Result::ErrorOutOfMemory)
+        {
+            NotifyAllocFailure();
+        }
+        else
+        {
+            PAL_ASSERT_ALWAYS();
+        }
+
+        // Delete memory allocated for splitting ImgBarriers if necessary.
+        if (splitMemAllocated)
+        {
+            PAL_SAFE_DELETE_ARRAY(splitReleaseInfo.pImageBarriers, m_device.GetPlatform());
+        }
     }
     else
     {
-        PAL_ASSERT_ALWAYS();
-    }
-
-    // Delete memory allocated for splitting ImgBarriers if necessary.
-    if (splitMemAllocated)
-    {
-        PAL_SAFE_DELETE_ARRAY(splitReleaseInfo.pImageBarriers, m_device.GetPlatform());
+        m_pBarrierMgr->ReleaseEvent(this, releaseInfo, pGpuEvent, &barrierOps);
     }
 
     m_pBarrierMgr->DescribeBarrierEnd(this, &barrierOps);
@@ -1197,29 +1231,36 @@ void Pm4CmdBuffer::CmdAcquireEvent(
     // Mark these as traditional barriers in RGP
     m_pBarrierMgr->DescribeBarrierStart(this, acquireInfo.reason, Developer::BarrierType::Acquire);
 
-    bool splitMemAllocated;
-    AcquireReleaseInfo splitAcquireInfo = acquireInfo;
-    Result result = GfxBarrierMgr::SplitImgBarriers(m_device.GetPlatform(), &splitAcquireInfo, &splitMemAllocated);
-
     Developer::BarrierOperations barrierOps = {};
 
-    if (result == Result::Success)
+    if (m_splitBarriers)
     {
-        m_pBarrierMgr->AcquireEvent(this, splitAcquireInfo, gpuEventCount, ppGpuEvents, &barrierOps);
-    }
-    else if (result == Result::ErrorOutOfMemory)
-    {
-        NotifyAllocFailure();
+        bool splitMemAllocated;
+        AcquireReleaseInfo splitAcquireInfo = acquireInfo;
+        Result result = GfxBarrierMgr::SplitImgBarriers(m_device.GetPlatform(), &splitAcquireInfo, &splitMemAllocated);
+
+        if (result == Result::Success)
+        {
+            m_pBarrierMgr->AcquireEvent(this, splitAcquireInfo, gpuEventCount, ppGpuEvents, &barrierOps);
+        }
+        else if (result == Result::ErrorOutOfMemory)
+        {
+            NotifyAllocFailure();
+        }
+        else
+        {
+            PAL_ASSERT_ALWAYS();
+        }
+
+        // Delete memory allocated for splitting ImgBarriers if necessary.
+        if (splitMemAllocated)
+        {
+            PAL_SAFE_DELETE_ARRAY(splitAcquireInfo.pImageBarriers, m_device.GetPlatform());
+        }
     }
     else
     {
-        PAL_ASSERT_ALWAYS();
-    }
-
-    // Delete memory allocated for splitting ImgBarriers if necessary.
-    if (splitMemAllocated)
-    {
-        PAL_SAFE_DELETE_ARRAY(splitAcquireInfo.pImageBarriers, m_device.GetPlatform());
+        m_pBarrierMgr->AcquireEvent(this, acquireInfo, gpuEventCount, ppGpuEvents, &barrierOps);
     }
 
     m_pBarrierMgr->DescribeBarrierEnd(this, &barrierOps);
@@ -1242,29 +1283,36 @@ void Pm4CmdBuffer::CmdReleaseThenAcquire(
     // Mark these as traditional barriers in RGP
     m_pBarrierMgr->DescribeBarrierStart(this, barrierInfo.reason, Developer::BarrierType::Full);
 
-    bool splitMemAllocated;
-    AcquireReleaseInfo splitBarrierInfo = barrierInfo;
-    Result result = GfxBarrierMgr::SplitImgBarriers(m_device.GetPlatform(), &splitBarrierInfo, &splitMemAllocated);
-
     Developer::BarrierOperations barrierOps = {};
 
-    if (result == Result::Success)
+    if (m_splitBarriers)
     {
-        m_pBarrierMgr->ReleaseThenAcquire(this, splitBarrierInfo, &barrierOps);
-    }
-    else if (result == Result::ErrorOutOfMemory)
-    {
-        NotifyAllocFailure();
+        bool splitMemAllocated;
+        AcquireReleaseInfo splitBarrierInfo = barrierInfo;
+        Result result = GfxBarrierMgr::SplitImgBarriers(m_device.GetPlatform(), &splitBarrierInfo, &splitMemAllocated);
+
+        if (result == Result::Success)
+        {
+            m_pBarrierMgr->ReleaseThenAcquire(this, splitBarrierInfo, &barrierOps);
+        }
+        else if (result == Result::ErrorOutOfMemory)
+        {
+            NotifyAllocFailure();
+        }
+        else
+        {
+            PAL_ASSERT_ALWAYS();
+        }
+
+        // Delete memory allocated for splitting ImgBarriers if necessary.
+        if (splitMemAllocated)
+        {
+            PAL_SAFE_DELETE_ARRAY(splitBarrierInfo.pImageBarriers, m_device.GetPlatform());
+        }
     }
     else
     {
-        PAL_ASSERT_ALWAYS();
-    }
-
-    // Delete memory allocated for splitting ImgBarriers if necessary.
-    if (splitMemAllocated)
-    {
-        PAL_SAFE_DELETE_ARRAY(splitBarrierInfo.pImageBarriers, m_device.GetPlatform());
+        m_pBarrierMgr->ReleaseThenAcquire(this, barrierInfo, &barrierOps);
     }
 
     m_pBarrierMgr->DescribeBarrierEnd(this, &barrierOps);

@@ -167,8 +167,8 @@ const RegisterRange Gfx11ContextShadowRange[] =
         (mmSPI_SHADER_COL_FORMAT - mmSPI_SHADER_IDX_FORMAT + 1),
     },
     {
-        (Gfx103PlusExclusive::mmSX_PS_DOWNCONVERT_CONTROL - CONTEXT_SPACE_START),        // 0xA1D4 - 0xA1E7
-        (mmCB_BLEND7_CONTROL - Gfx103PlusExclusive::mmSX_PS_DOWNCONVERT_CONTROL + 1),
+        (Gfx103Plus::mmSX_PS_DOWNCONVERT_CONTROL - CONTEXT_SPACE_START),        // 0xA1D4 - 0xA1E7
+        (mmCB_BLEND7_CONTROL - Gfx103Plus::mmSX_PS_DOWNCONVERT_CONTROL + 1),
     },
     {
         (mmPA_CL_POINT_X_RAD - CONTEXT_SPACE_START),                            // 0xA1F5 - 0xA1F8
@@ -410,7 +410,7 @@ const RegisterRange Gfx11UserConfigShadowRange[] =
     {
         (Gfx11::mmSPI_GS_THROTTLE_CNTL1 - UCONFIG_SPACE_START),             // 0xC444 - 0xC447
         (Gfx11::mmSPI_ATTRIBUTE_RING_SIZE - Gfx11::mmSPI_GS_THROTTLE_CNTL1 + 1),
-    },
+    }
 };
 
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -490,8 +490,8 @@ const RegisterRange Gfx11NonShadowedRanges[] =
         Gfx10::mmRPB_PERFCOUNTER_RSLT_CNTL - Gfx10::mmRPB_PERFCOUNTER_LO + 1
     },
     {
-        Gfx103PlusExclusive::mmSDMA0_PERFCOUNTER0_SELECT,
-        Gfx103PlusExclusive::mmSDMA0_PERFCOUNTER1_SELECT1 - Gfx103PlusExclusive::mmSDMA0_PERFCOUNTER0_SELECT + 1
+        Gfx103Plus::mmSDMA0_PERFCOUNTER0_SELECT,
+        Gfx103Plus::mmSDMA0_PERFCOUNTER1_SELECT1 - Gfx103Plus::mmSDMA0_PERFCOUNTER0_SELECT + 1
     },
     {
         Nv3x::mmSDMA1_PERFCOUNTER0_SELECT,
@@ -502,8 +502,8 @@ const RegisterRange Gfx11NonShadowedRanges[] =
         Nv3x::mmSDMA1_PERFCOUNTER1_HI - Nv3x::mmSDMA1_PERFCNT_PERFCOUNTER_LO + 1
     },
     {
-        Gfx103PlusExclusive::mmSDMA0_PERFCNT_PERFCOUNTER_LO,
-        Gfx103PlusExclusive::mmSDMA0_PERFCOUNTER1_HI - Gfx103PlusExclusive::mmSDMA0_PERFCNT_PERFCOUNTER_LO + 1
+        Gfx103Plus::mmSDMA0_PERFCNT_PERFCOUNTER_LO,
+        Gfx103Plus::mmSDMA0_PERFCOUNTER1_HI - Gfx103Plus::mmSDMA0_PERFCNT_PERFCOUNTER_LO + 1
     },
     {
         mmRLC_CGTT_MGCG_OVERRIDE,

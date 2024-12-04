@@ -3887,8 +3887,9 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndexedIndirectMulti(
 
 // =====================================================================================================================
 void PAL_STDCALL CmdBuffer::CmdDispatch(
-    ICmdBuffer*  pCmdBuffer,
-    DispatchDims size)
+    ICmdBuffer*       pCmdBuffer,
+    DispatchDims      size,
+    DispatchInfoFlags infoFlags)
 {
     auto* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
@@ -3903,10 +3904,13 @@ void PAL_STDCALL CmdBuffer::CmdDispatch(
         DispatchDimsToString(size, pString);
         pThis->GetNextLayer()->CmdCommentString(pString);
 
+        Snprintf(pString, StringLength, "DispatchInfoFlags = 0x%08x", infoFlags.u32All);
+        pThis->GetNextLayer()->CmdCommentString(pString);
+
         PAL_SAFE_DELETE_ARRAY(pString, &allocator);
     }
 
-    pThis->GetNextLayer()->CmdDispatch(size);
+    pThis->GetNextLayer()->CmdDispatch(size, infoFlags);
 
     pThis->AddDrawDispatchInfo(Developer::DrawDispatchType::CmdDispatch);
 }

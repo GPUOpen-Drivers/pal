@@ -136,9 +136,13 @@ struct MesaUmdMetaData
     {
         struct
         {
-            uint64                                    : 64;
-            uint64                                    : 64;
-            uint64                                    : 64;
+            uint64                                    : 62;
+            uint64 width_lo                           :  2;
+            uint64 width_hi                           : 14;
+            uint64 height                             : 16;
+            uint64                                    : 34;
+            uint64 depth                              : 16;
+            uint64                                    : 48;
             uint64                                    : 19;
             uint64 metaPipeAligned                    :  1;
             uint64                                    :  1;
@@ -1009,6 +1013,8 @@ protected:
     virtual Result OpenExternalResource(
         const ExternalResourceOpenInfo& openInfo,
         ExternalSharedInfo*             pSharedInfo) const;
+
+    uint32 QueryFirmwareVersion(uint32 subQueryId, uint32* pFeatureVersion) const;
 
 private:
     virtual Result OsEarlyInit() override;

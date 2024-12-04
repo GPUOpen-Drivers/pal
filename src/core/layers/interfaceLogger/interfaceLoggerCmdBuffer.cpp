@@ -3434,15 +3434,16 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndexedIndirectMulti(
 
 // =====================================================================================================================
 void PAL_STDCALL CmdBuffer::CmdDispatch(
-    ICmdBuffer*  pCmdBuffer,
-    DispatchDims size)
+    ICmdBuffer*       pCmdBuffer,
+    DispatchDims      size,
+    DispatchInfoFlags infoFlags)
 {
     auto*const     pThis     = static_cast<CmdBuffer*>(pCmdBuffer);
     Platform*const pPlatform = pThis->m_pPlatform;
 
     const bool active = pPlatform->ActivateLogging(pThis->m_objectId, InterfaceFunc::CmdBufferCmdDispatch);
 
-    pThis->m_pNextLayer->CmdDispatch(size);
+    pThis->m_pNextLayer->CmdDispatch(size, infoFlags);
 
     if (active)
     {
@@ -3450,6 +3451,7 @@ void PAL_STDCALL CmdBuffer::CmdDispatch(
 
         pLogContext->BeginInput();
         pLogContext->KeyAndStruct("size", size);
+        pLogContext->KeyAndStruct("infoFlags", infoFlags);
         pLogContext->EndInput();
 
         pPlatform->LogEndFunc(pLogContext);

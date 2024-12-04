@@ -31,6 +31,7 @@ target_link_libraries(ddEventClient
     PRIVATE
         ddCommon
         devdriver
+        dd_common
 )
 
 if (DD_BP_INSTALL)

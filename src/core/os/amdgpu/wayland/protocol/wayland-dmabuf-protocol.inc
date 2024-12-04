@@ -47,6 +47,7 @@ extern const struct wl_interface zwp_linux_dmabuf_v1_interface;
 extern const struct wl_interface zwp_linux_buffer_params_v1_interface;
 #endif
 
+
 #ifndef ZWP_LINUX_DMABUF_FEEDBACK_V1_INTERFACE
 #define ZWP_LINUX_DMABUF_FEEDBACK_V1_INTERFACE
 extern const struct wl_interface zwp_linux_dmabuf_feedback_v1_interface;

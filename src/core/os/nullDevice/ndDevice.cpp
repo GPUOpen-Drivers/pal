@@ -604,7 +604,7 @@ void Device::FillGfx9ChipProperties(
         PAL_ASSERT_ALWAYS();
     }
 
-    if (IsGfx103PlusExclusive(pChipProps->gfxLevel))
+    if (IsGfx103Plus(pChipProps->gfxLevel))
     {
         // Task/Mesh shaders are only supported for Gfx10.3+
         pChipInfo->supportMeshShader = pChipInfo->supportImplicitPrimitiveShader;

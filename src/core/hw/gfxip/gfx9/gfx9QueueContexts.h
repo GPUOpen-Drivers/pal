@@ -142,7 +142,7 @@ private:
                             uint32*                      pIndex,
                             uint64                       lastTimeStamp);
 
-    Result RebuildCommandStreams(bool isTmz, uint64 lastTimeStamp);
+    Result RebuildCommandStreams(bool isTmz, uint64 lastTimeStamp, bool hasAce);
 
     Result AllocateShadowMemory();
 
@@ -154,11 +154,14 @@ private:
     Result UpdateRingSet(
         bool*                    pHasChanged,
         bool                     isTmz,
+        bool                     hasAce,
+        bool                     hasInitAce,
         uint32                   overrideStackSize,
         uint64                   lastTimeStamp,
         uint32                   cmdBufferCount,
         const ICmdBuffer* const* ppCmdBuffers);
 
+    Result InitAcePreambleCmdStream();
     Result GetAcePreambleCmdStream(CmdStream** ppAcePreambleCmdStream);
 
     Device*const          m_pDevice;
@@ -171,13 +174,10 @@ private:
 
     // Current watermark for the sample-pos palette updates which have been processed by this queue context.
     uint32  m_queueContextUpdateCounter;
-
     uint32  m_queueContextUpdateCounterTmz;
 
-    uint32  m_currentStackSizeDw;
-
-    // Indicates whether the current command streams use TMZ protected ring sets.
-    bool    m_cmdsUseTmzRing;
+    uint32 m_currentStackSizeDw;
+    bool   m_cmdsUseTmzRing; // Indicates whether the current command streams use TMZ protected ring sets.
 
     // GPU memory allocation used for shadowing persistent CE RAM between submissions.
     bool            m_supportMcbp;

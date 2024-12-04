@@ -25,13 +25,13 @@
 
 #pragma once
 
+#include "palCmdBuffer.h"
 #include "palDevice.h"
 #include "palTextWriterFont.h"
 
 // Forward declarations.
 namespace Pal {
     struct GpuMemoryRequirements;
-    class  ICmdBuffer;
     class  IGpuMemory;
     class  IImage;
     class  IPipeline;
@@ -68,23 +68,46 @@ public:
     /// Initializes the TextWriter class, creating the necessary PAL objects and allocating GPU memory.
     Pal::Result Init();
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 909
     /// Draws the text to the specified image at the XY coordinate using the specific command buffer.
-    void DrawDebugText(
+    inline void DrawDebugText(
         const Pal::IImage& dstImage,
         Pal::ICmdBuffer*   pCmdBuffer,
         const char*        pText,
         Pal::uint32        x,
         Pal::uint32        y) const
-        { DrawDebugText(dstImage, pCmdBuffer, pText, x, y, 1); }
+        { DrawDebugText(dstImage, pCmdBuffer, pText, x, y, 1, {}); }
 
     /// Draws the text to the specified image at the XY coordinate using the specific command buffer.
-    void DrawDebugText(
+    inline void DrawDebugText(
         const Pal::IImage& dstImage,
         Pal::ICmdBuffer*   pCmdBuffer,
         const char*        pText,
         Pal::uint32        x,
         Pal::uint32        y,
-        Pal::uint32        pixelScale) const;
+        Pal::uint32        pixelScale) const
+        { DrawDebugText(dstImage, pCmdBuffer, pText, x, y, pixelScale, {}); }
+#endif
+
+    /// Draws the text to the specified image at the XY coordinate using the specific command buffer.
+    void DrawDebugText(
+        const Pal::IImage&     dstImage,
+        Pal::ICmdBuffer*       pCmdBuffer,
+        const char*            pText,
+        Pal::uint32            x,
+        Pal::uint32            y,
+        Pal::DispatchInfoFlags infoFlags) const
+        { DrawDebugText(dstImage, pCmdBuffer, pText, x, y, 1, infoFlags); }
+
+    /// Draws the text to the specified image at the XY coordinate using the specific command buffer.
+    void DrawDebugText(
+        const Pal::IImage&     dstImage,
+        Pal::ICmdBuffer*       pCmdBuffer,
+        const char*            pText,
+        Pal::uint32            x,
+        Pal::uint32            y,
+        Pal::uint32            pixelScale,
+        Pal::DispatchInfoFlags infoFlags) const;
 
 private:
     // Creates the GPU memory for the constant font data binary.

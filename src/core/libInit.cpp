@@ -211,8 +211,6 @@ Result PAL_STDCALL CreatePlatform(
         result = GpuProfiler::Platform::Create(createInfo,
                                                allocCb,
                                                pCurPlatform,
-                                               pCorePlatform->PlatformSettings().gpuProfilerMode,
-                                               pCorePlatform->PlatformSettings().gpuProfilerConfig.targetApplication,
                                                pPlacementAddr,
                                                &pCurPlatform);
     }

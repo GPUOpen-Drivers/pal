@@ -190,6 +190,26 @@ void PlatformSettingsLoader::ValidateSettings(
         m_settings.cmdBufferLoggerConfig.cmdBufferLoggerAnnotations = 0x0;
     }
 #endif
+
+    // Early evaluation of target application to ensure downstream effects are global
+    if (strlen(m_settings.gpuProfilerConfig.targetApplication) > 0)
+    {
+        char  executableNameBuffer[256] = {};
+        char* pExecutableName = nullptr;
+
+        if (GetExecutableName(executableNameBuffer, &pExecutableName, sizeof(executableNameBuffer)) == Result::Success)
+        {
+            if (strcmp(pExecutableName, m_settings.gpuProfilerConfig.targetApplication) != 0)
+            {
+                m_settings.gpuProfilerMode = GpuProfilerDisabled;
+            }
+        }
+        else
+        {
+            PAL_ASSERT_ALWAYS_MSG("Unable to retrieve executable name to match against the Gpu Profiler target "
+                "application name.");
+        }
+    }
 }
 
 // =====================================================================================================================

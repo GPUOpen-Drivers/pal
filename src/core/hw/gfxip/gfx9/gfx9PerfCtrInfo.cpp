@@ -121,9 +121,9 @@ static void Gfx10UpdateUmcchBlockInfo(
 
         // This is misleading for Navi14 becuase it's only supposed to have 8 SDPs, but in practice as long as
         // the first 8 all have the same register offsets the code at the end will clamp us to 8 instances.
-        SET_UMCCH_INSTANCE_REGS(Gfx101, 0);
+        SET_UMCCH_INSTANCE_REGS(Gfx10, 0);
         SET_UMCCH_INSTANCE_REGS(Gfx101, 1);
-        SET_UMCCH_INSTANCE_REGS(Gfx101, 2);
+        SET_UMCCH_INSTANCE_REGS(Gfx10, 2);
         SET_UMCCH_INSTANCE_REGS(Gfx101, 3);
         SET_UMCCH_INSTANCE_REGS(Gfx101, 4);
         SET_UMCCH_INSTANCE_REGS(Gfx101, 5);
@@ -146,9 +146,9 @@ static void Gfx10UpdateUmcchBlockInfo(
         if (IsNavi2x(device))
         {
             // These four are always the same.
-            SET_UMCCH_INSTANCE_REGS(Gfx103, 0);
+            SET_UMCCH_INSTANCE_REGS(Gfx10, 0);
             SET_UMCCH_INSTANCE_REGS(Nv2x,   1);
-            SET_UMCCH_INSTANCE_REGS(Gfx103, 2);
+            SET_UMCCH_INSTANCE_REGS(Gfx10, 2);
             SET_UMCCH_INSTANCE_REGS(Nv2x,   3);
 
             if (IsNavi21(device))
@@ -192,9 +192,9 @@ static void Gfx10UpdateUmcchBlockInfo(
         }
         else if (device.ChipProperties().gpuType == GpuType::Integrated)
         {
-            SET_UMCCH_INSTANCE_REGS(Gfx103, 0);
+            SET_UMCCH_INSTANCE_REGS(Gfx10, 0);
             SET_UMCCH_INSTANCE_REGS(Apu103, 1);
-            SET_UMCCH_INSTANCE_REGS(Gfx103, 2);
+            SET_UMCCH_INSTANCE_REGS(Gfx10, 2);
             SET_UMCCH_INSTANCE_REGS(Apu103, 3);
             SET_UMCCH_INSTANCE_REGS(Apu103, 4);
             SET_UMCCH_INSTANCE_REGS(Apu103, 5);
@@ -372,7 +372,7 @@ static void Gfx10PlusUpdateGdsBlockInfo(
 {
     if (IsGfx103Plus(device))
     {
-        using namespace Gfx103PlusExclusive;
+        using namespace Gfx103Plus;
 
         // All of the legacy GDS counters were updated to full perfmon modules in gfx10.2.
         pInfo->numGenericSpmModules    = 4; // GDS_PERFCOUNTER0-3
@@ -409,7 +409,7 @@ static void Gfx10UpdateSdmaBlockInfo(
 {
     if (IsNavi2x(device))
     {
-        using namespace Gfx103PlusExclusive;
+        using namespace Gfx103Plus;
 
         pInfo->sdmaRegAddr[0][0] = { mmSDMA0_PERFCOUNTER0_SELECT,       mmSDMA0_PERFCOUNTER0_SELECT1,
                                      mmSDMA0_PERFCOUNTER0_LO,           mmSDMA0_PERFCOUNTER0_HI };
@@ -422,7 +422,7 @@ static void Gfx10UpdateSdmaBlockInfo(
     }
     else if (IsGfx103(device))
     {
-        using namespace Gfx103PlusExclusive;
+        using namespace Gfx103Plus;
 
         pInfo->sdmaRegAddr[0][0] = { mmSDMA0_PERFCOUNTER0_SELECT, mmSDMA0_PERFCOUNTER0_SELECT1,
                                      mmSDMA0_PERFCOUNTER0_LO,     mmSDMA0_PERFCOUNTER0_HI };
@@ -431,14 +431,14 @@ static void Gfx10UpdateSdmaBlockInfo(
     }
     else
     {
-        pInfo->sdmaRegAddr[0][0] = { Oss50::mmSDMA0_PERFCOUNTER0_SELECT, Oss50::mmSDMA0_PERFCOUNTER0_SELECT1,
-                                     Oss50::mmSDMA0_PERFCOUNTER0_LO,     Oss50::mmSDMA0_PERFCOUNTER0_HI };
-        pInfo->sdmaRegAddr[0][1] = { Oss50::mmSDMA0_PERFCOUNTER1_SELECT, Oss50::mmSDMA0_PERFCOUNTER1_SELECT1,
-                                     Oss50::mmSDMA0_PERFCOUNTER1_LO,     Oss50::mmSDMA0_PERFCOUNTER1_HI };
-        pInfo->sdmaRegAddr[1][0] = { Oss50::mmSDMA1_PERFCOUNTER0_SELECT, Oss50::mmSDMA1_PERFCOUNTER0_SELECT1,
-                                     Oss50::mmSDMA1_PERFCOUNTER0_LO,     Oss50::mmSDMA1_PERFCOUNTER0_HI };
-        pInfo->sdmaRegAddr[1][1] = { Oss50::mmSDMA1_PERFCOUNTER1_SELECT, Oss50::mmSDMA1_PERFCOUNTER1_SELECT1,
-                                     Oss50::mmSDMA1_PERFCOUNTER1_LO,     Oss50::mmSDMA1_PERFCOUNTER1_HI };
+        pInfo->sdmaRegAddr[0][0] = { Gfx101::mmSDMA0_PERFCOUNTER0_SELECT, Gfx101::mmSDMA0_PERFCOUNTER0_SELECT1,
+                                     Gfx101::mmSDMA0_PERFCOUNTER0_LO,     Gfx101::mmSDMA0_PERFCOUNTER0_HI };
+        pInfo->sdmaRegAddr[0][1] = { Gfx101::mmSDMA0_PERFCOUNTER1_SELECT, Gfx101::mmSDMA0_PERFCOUNTER1_SELECT1,
+                                     Gfx101::mmSDMA0_PERFCOUNTER1_LO,     Gfx101::mmSDMA0_PERFCOUNTER1_HI };
+        pInfo->sdmaRegAddr[1][0] = { Gfx101::mmSDMA1_PERFCOUNTER0_SELECT, Gfx101::mmSDMA1_PERFCOUNTER0_SELECT1,
+                                     Gfx101::mmSDMA1_PERFCOUNTER0_LO,     Gfx101::mmSDMA1_PERFCOUNTER0_HI };
+        pInfo->sdmaRegAddr[1][1] = { Gfx101::mmSDMA1_PERFCOUNTER1_SELECT, Gfx101::mmSDMA1_PERFCOUNTER1_SELECT1,
+                                     Gfx101::mmSDMA1_PERFCOUNTER1_LO,     Gfx101::mmSDMA1_PERFCOUNTER1_HI };
     }
 }
 
@@ -448,26 +448,12 @@ static void Gfx10UpdateAtcBlockInfo(
     const Pal::Device&    device,
     PerfCounterBlockInfo* pInfo)
 {
-    if (IsGfx103(device))
-    {
-        using namespace Gfx103;
-
-        pInfo->regAddr = { mmATC_PERFCOUNTER_RSLT_CNTL, {
-            { mmATC_PERFCOUNTER0_CFG, 0, mmATC_PERFCOUNTER_LO, mmATC_PERFCOUNTER_HI },
-            { mmATC_PERFCOUNTER1_CFG, 0, mmATC_PERFCOUNTER_LO, mmATC_PERFCOUNTER_HI },
-            { mmATC_PERFCOUNTER2_CFG, 0, mmATC_PERFCOUNTER_LO, mmATC_PERFCOUNTER_HI },
-            { mmATC_PERFCOUNTER3_CFG, 0, mmATC_PERFCOUNTER_LO, mmATC_PERFCOUNTER_HI },
-        }};
-    }
-    else
-    {
-        pInfo->regAddr = { Gfx101::mmATC_PERFCOUNTER_RSLT_CNTL, {
-            { Gfx101::mmATC_PERFCOUNTER0_CFG, 0, Gfx101::mmATC_PERFCOUNTER_LO, Gfx101::mmATC_PERFCOUNTER_HI },
-            { Gfx101::mmATC_PERFCOUNTER1_CFG, 0, Gfx101::mmATC_PERFCOUNTER_LO, Gfx101::mmATC_PERFCOUNTER_HI },
-            { Gfx101::mmATC_PERFCOUNTER2_CFG, 0, Gfx101::mmATC_PERFCOUNTER_LO, Gfx101::mmATC_PERFCOUNTER_HI },
-            { Gfx101::mmATC_PERFCOUNTER3_CFG, 0, Gfx101::mmATC_PERFCOUNTER_LO, Gfx101::mmATC_PERFCOUNTER_HI },
-        }};
-    }
+    pInfo->regAddr = { Gfx101::mmATC_PERFCOUNTER_RSLT_CNTL, {
+        { Gfx101::mmATC_PERFCOUNTER0_CFG, 0, Gfx101::mmATC_PERFCOUNTER_LO, Gfx101::mmATC_PERFCOUNTER_HI },
+        { Gfx101::mmATC_PERFCOUNTER1_CFG, 0, Gfx101::mmATC_PERFCOUNTER_LO, Gfx101::mmATC_PERFCOUNTER_HI },
+        { Gfx101::mmATC_PERFCOUNTER2_CFG, 0, Gfx101::mmATC_PERFCOUNTER_LO, Gfx101::mmATC_PERFCOUNTER_HI },
+        { Gfx101::mmATC_PERFCOUNTER3_CFG, 0, Gfx101::mmATC_PERFCOUNTER_LO, Gfx101::mmATC_PERFCOUNTER_HI },
+    }};
 }
 
 // =====================================================================================================================
@@ -478,7 +464,7 @@ static void Gfx10UpdateEaBlockInfo(
 {
     if (IsGfx103(device))
     {
-        using namespace Gfx103PlusExclusive;
+        using namespace Gfx103Plus;
 
         pInfo->regAddr = { mmGCEA_PERFCOUNTER_RSLT_CNTL, {
             { mmGCEA_PERFCOUNTER0_CFG,    0,                           mmGCEA_PERFCOUNTER_LO,  mmGCEA_PERFCOUNTER_HI  },
@@ -951,7 +937,7 @@ static void Gfx10InitBasicBlockInfo(
     pRmi->spmBlockSelect            = Gfx10SpmSeBlockSelectRmi;
     pRmi->maxEventId                = maxIds[RMIPerfSelId];
 
-    if (IsGfx103PlusExclusive(device))
+    if (IsGfx103Plus(device))
     {
         // In gfx10.2+ there is only one RMI per RB. The RMI_PERFCOUNTER0/1 is only for read pipeline related counters
         // and RMI_PERCOUNTER2/3 is for write pipeline related counters. So in RMI_PERFCOUNTER0/1 all write related
@@ -1006,9 +992,9 @@ static void Gfx10InitBasicBlockInfo(
     }
 
     // The following blocks are new or renamed in gfx10.
-    if (IsGfx103PlusExclusive(device))
+    if (IsGfx103Plus(device))
     {
-        using namespace Gfx103PlusExclusive;
+        using namespace Gfx103Plus;
         // Gfx10.3 split the GE perf counters into three independent units: GE1, GE2_DIST, and GE2_SE.
         PerfCounterBlockInfo*const pGe = &pInfo->block[static_cast<uint32>(GpuBlock::Ge)];
         pGe->distribution              = PerfCounterDistribution::GlobalBlock;
@@ -1329,7 +1315,6 @@ static void Gfx11InitBasicBlockInfo(
 
     // Pull in the generic gfx10+ and gfx11 registers to make it easier to read the register tables.
     using namespace Gfx103Plus;
-    using namespace Gfx103PlusExclusive;
     using namespace Gfx11;
 
     // Start by hard-coding hardware specific constants for each block. The shared blocks come first followed by

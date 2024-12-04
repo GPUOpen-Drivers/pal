@@ -178,13 +178,17 @@ Result ComputePipeline::HwlInit(
             // by default, and optimize out ones these can be proved are unused. When there are indirect function
             // call such as virtual functions, HIP kernels request these two hidden arguments, but never actually use
             // them, So we permit but don't actually support them.
+            // - HiddenHostcallBuffer is for HIP printf, sanitize and device-side memory allocation (malloc/free) of
+            // large size memory. HiddenHostcallBuffer implementation is complex and unnecessary. printf and sanitize
+            // are only useful for debugging, not plan to support. Device-side memory allocation is a fairly new HIP
+            // feature, and we don't have a plan to support it now. While kernels request it when there are virtual
+            // functions but never use it. Here permit it but don't actually support it.
             // The remaining hidden arguments are not supported and rejected right here.
             for (uint32 idx = 0; idx < metadata.NumArguments(); ++idx)
             {
                 const HsaAbi::KernelArgument& arg = metadata.Arguments()[idx];
 
-                if ((arg.valueKind == HsaAbi::ValueKind::HiddenPrintfBuffer) ||
-                    (arg.valueKind == HsaAbi::ValueKind::HiddenHostcallBuffer))
+                if (arg.valueKind == HsaAbi::ValueKind::HiddenPrintfBuffer)
                 {
                     result = Result::Unsupported;
                     break;
@@ -192,7 +196,8 @@ Result ComputePipeline::HwlInit(
 
                 if ((arg.valueKind == HsaAbi::ValueKind::HiddenQueuePtr) ||
                     (arg.valueKind == HsaAbi::ValueKind::HiddenDefaultQueue) ||
-                    (arg.valueKind == HsaAbi::ValueKind::HiddenCompletionAction))
+                    (arg.valueKind == HsaAbi::ValueKind::HiddenCompletionAction) ||
+                    (arg.valueKind == HsaAbi::ValueKind::HiddenHostcallBuffer))
                 {
                     PAL_ASSERT_ALWAYS_MSG("Unsupported hidden argument %d", arg.valueKind);
                 }

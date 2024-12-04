@@ -186,6 +186,8 @@ target_sources(devdriver PRIVATE
     inc/util/vector.h
 )
 
+target_link_libraries(devdriver PRIVATE dd_common)
+
     add_subdirectory(gpuinfo)
 
     target_sources(devdriver PRIVATE

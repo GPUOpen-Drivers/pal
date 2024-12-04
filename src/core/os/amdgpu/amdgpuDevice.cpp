@@ -914,11 +914,30 @@ Result Device::GetDrmNodeProperties(
 }
 
 // =====================================================================================================================
+// Helper which queries the firmware version for a particular engine on the GPU Device.  The given subQueryId must be
+// one of the values named AMDGPU_INFO_FW_* from amdgpu_drm.h, or behavior is undefined.
+uint32 Device::QueryFirmwareVersion(
+    uint32  subQueryId,
+    uint32* pFeatureVersion
+    ) const
+{
+    uint32 version = 0;
+    const int32 drmRet = m_drmProcs.pfnAmdgpuQueryFirmwareVersion(
+        m_hDevice,
+        subQueryId,
+        0,
+        0,
+        &version,
+        pFeatureVersion);
+    PAL_ASSERT(drmRet == 0);
+    return version;
+}
+
+// =====================================================================================================================
 // Initializes the GPU properties structures of this object's base class (Device). This includes the GPU-Memory
 // properties, Queue properties, Chip properties and GPU name string.
 Result Device::InitGpuProperties()
 {
-
     m_chipProperties.familyId   = m_gpuInfo.family_id;
     m_chipProperties.eRevId     = m_gpuInfo.chip_external_rev;
     m_chipProperties.revisionId = m_gpuInfo.pci_rev_id;
@@ -937,29 +956,17 @@ Result Device::InitGpuProperties()
     m_chipProperties.maxEngineClock      = m_gpuInfo.max_engine_clk / 1000;
     m_chipProperties.maxMemoryClock      = m_gpuInfo.max_memory_clk / 1000;
 
-    uint32 meFwVersion = 0;
-    uint32 meFwFeature = 0;
-    int32 drmRet = m_drmProcs.pfnAmdgpuQueryFirmwareVersion(m_hDevice,
-                                                             AMDGPU_INFO_FW_GFX_ME,
-                                                             0,
-                                                             0,
-                                                             &meFwVersion,
-                                                             &meFwFeature);
-    PAL_ASSERT(drmRet == 0);
+    // Query the PFP, ME, and MEC microcode versions.
+    uint32 mecFeatureVer = 0;
+    uint32 meFeatureVer  = 0;
+    uint32 pfpFeatureVer = 0;
+    m_chipProperties.mecUcodeVersion = QueryFirmwareVersion(AMDGPU_INFO_FW_GFX_MEC, &mecFeatureVer);
+    m_chipProperties.meUcodeVersion  = QueryFirmwareVersion(AMDGPU_INFO_FW_GFX_ME,  &meFeatureVer);
+    m_chipProperties.pfpUcodeVersion = QueryFirmwareVersion(AMDGPU_INFO_FW_GFX_PFP, &pfpFeatureVer);
 
-    uint32 pfpFwVersion = 0;
-    uint32 pfpFwFeature = 0;
-    drmRet = m_drmProcs.pfnAmdgpuQueryFirmwareVersion(m_hDevice,
-                                                      AMDGPU_INFO_FW_GFX_PFP,
-                                                      0,
-                                                      0,
-                                                      &pfpFwVersion,
-                                                      &pfpFwFeature);
-    PAL_ASSERT(drmRet == 0);
-
-    // Feature versions are assumed to be the same within the CP.
-    m_chipProperties.cpUcodeVersion    = meFwFeature;
-    m_chipProperties.pfpUcodeVersion   = pfpFwVersion;
+    // Feature versions are assumed to be the same within the CP blocks.
+    PAL_ASSERT((meFeatureVer == mecFeatureVer) && (meFeatureVer == pfpFeatureVer));
+    m_chipProperties.cpUcodeVersion  = meFeatureVer;
 
     const char* pMarketingName = m_drmProcs.pfnAmdgpuGetMarketingNameisValid() ?
                                  m_drmProcs.pfnAmdgpuGetMarketingName(m_hDevice) : nullptr;
@@ -1773,7 +1780,7 @@ Result Device::InitQueueInfo()
         // gang submit. As a result, this GFXIP-specific logic is being handled in InitQueueInfo.
         const bool supportsGangSubmit = SupportsGangSubmit();
 
-        if (IsGfx103PlusExclusive(m_chipProperties.gfxLevel))
+        if (IsGfx103Plus(m_chipProperties.gfxLevel))
         {
             // Task-shader CTS may fail on Linux upstream stack due to the low FW version.
             bool fwSupportTaskShader = true;
@@ -3694,6 +3701,11 @@ void Device::UpdateMetaData(
                 // both displayable dcc and standard dcc is enbaled,compression must be enabled.
                 pMesaUmdMetaData->imageSrd.gfx10.compressionEnable      = 1;
                 pMesaUmdMetaData->imageSrd.gfx10.metaDataOffset         = pUmdSharedMetadata->gfx9.dcc_offset >> 8;
+
+                pMesaUmdMetaData->imageSrd.gfx10.width_lo = BitExtract((pUmdMetaData->width_in_pixels - 1), 0, 1);
+                pMesaUmdMetaData->imageSrd.gfx10.width_hi = BitExtract((pUmdMetaData->width_in_pixels - 1), 2, 15);
+                pMesaUmdMetaData->imageSrd.gfx10.height = BitExtract((pUmdMetaData->height - 1), 0, 15);
+                pMesaUmdMetaData->imageSrd.gfx10.depth = BitExtract((pUmdMetaData->depth - 1), 0, 15);
             }
         }
     }

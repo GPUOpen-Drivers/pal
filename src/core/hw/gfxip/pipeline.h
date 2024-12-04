@@ -192,6 +192,9 @@ public:
         DispatchInterleaveSize   interleave,
         const GpuChipProperties& chipProps);
 
+    void MergePagingAndUploadFences(
+        const Util::Span<const IShaderLibrary* const> libraries);
+
 protected:
     Pipeline(Device* pDevice, bool isInternal);
 

@@ -82,7 +82,11 @@ public:
 
     virtual Pal::uint64 QueryGpuWorkMask() const override { return 0; }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 908
+    virtual void OnTraceAccepted(Pal::uint32 gpuIndex, Pal::ICmdBuffer* pCmdBuf) override {}
+#else
     virtual void OnTraceAccepted() override {}
+#endif
     virtual void OnTraceBegin(Pal::uint32 gpuIndex, Pal::ICmdBuffer* pCmdBuf) override {}
     virtual void OnTraceEnd(Pal::uint32 gpuIndex, Pal::ICmdBuffer* pCmdBuf) override {}
     virtual void OnTraceFinished() override;

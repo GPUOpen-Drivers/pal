@@ -1496,6 +1496,17 @@ struct GpuVirtAddrAndStride
     };
 };
 
+/// Flags to describe a dispatch
+union DispatchInfoFlags
+{
+    struct
+    {
+        uint32 devDriverOverlay      : 1;   ///< Flag indicates this dispatch draws the DevDriver overlay
+        uint32 reserved              : 31;  ///< Reserved for future use.
+    };
+    uint32 u32All;                  ///< Flags packed as 32-bit uint.
+};
+
 /// Specifies the different stages at which a combiner can choose between different shading rates.
 enum class VrsCombinerStage : uint32
 {
@@ -1663,8 +1674,9 @@ typedef void (PAL_STDCALL *CmdDrawIndexedIndirectMultiFunc)(
 ///
 /// @see ICmdBuffer::CmdDispatch().
 typedef void (PAL_STDCALL *CmdDispatchFunc)(
-    ICmdBuffer*  pCmdBuffer,
-    DispatchDims size);
+    ICmdBuffer*       pCmdBuffer,
+    DispatchDims      size,
+    DispatchInfoFlags infoFlags);
 
 /// @internal Function pointer type definition for issuing indirect dispatches.
 ///
@@ -3137,6 +3149,7 @@ public:
     }
 #endif
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 909
     /// Dispatches a compute workload of the given dimensions using the command buffer's currently bound compute state.
     ///
     /// The thread group size is defined in the compute shader.
@@ -3144,10 +3157,26 @@ public:
     /// Supports PAL ABI and HSA ABI pipelines.
     ///
     /// @param [in] size Thread groups to dispatch. If any components are zero the dispatch will be discarded.
-    void CmdDispatch(
+    inline void CmdDispatch(
         DispatchDims size)
     {
-        m_funcTable.pfnCmdDispatch(this, size);
+        m_funcTable.pfnCmdDispatch(this, size, {});
+    }
+#endif
+
+    /// Dispatches a compute workload of the given dimensions using the command buffer's currently bound compute state.
+    ///
+    /// The thread group size is defined in the compute shader.
+    ///
+    /// Supports PAL ABI and HSA ABI pipelines.
+    ///
+    /// @param [in] size Thread groups to dispatch. If any components are zero the dispatch will be discarded.
+    /// @param [in] infoFlags Additional information about the dispatch.
+    void CmdDispatch(
+        DispatchDims      size,
+        DispatchInfoFlags infoFlags)
+    {
+        m_funcTable.pfnCmdDispatch(this, size, infoFlags);
     }
 
     /// Dispatches a compute workload using the command buffer's currently bound compute state.  The dimensions of the

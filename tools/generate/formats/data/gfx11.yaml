@@ -1,0 +1,1975 @@
+##
+ #######################################################################################################################
+ #
+ #  Copyright (c) 2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ #
+ #  Permission is hereby granted, free of charge, to any person obtaining a copy
+ #  of this software and associated documentation files (the "Software"), to deal
+ #  in the Software without restriction, including without limitation the rights
+ #  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ #  copies of the Software, and to permit persons to whom the Software is
+ #  furnished to do so, subject to the following conditions:
+ #
+ #  The above copyright notice and this permission notice shall be included in all
+ #  copies or substantial portions of the Software.
+ #
+ #  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ #  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ #  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ #  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ #  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ #  SOFTWARE.
+ #
+ #######################################################################################################################
+
+
+config:
+  ifdefs: []
+  name: Gfx11
+  enumHeader: src/core/hw/gfxip/gfx9/chip/gfx9_plus_merged_enum.h
+hwFormats:
+  # The order of the formats below **must** match that in pal.h!
+  Undefined: &hwDefaults
+    buffer: &bufDefaults
+      enum: BUF_FMT_INVALID
+      access: [] # can include read/write/atomic
+    texture: &texDefaults
+      enum: IMG_FMT_INVALID
+      access: [] # can include read/write/atomic
+      filter: [] # can include linear/minmax
+    cb: &cbDefaults
+      enum: COLOR_INVALID
+      numFmtEnum: NUMBER_FLOAT
+      blend: false
+      emulatedMrt: false
+    db: &dbDefaults
+      zEnum: Z_INVALID
+      sEnum: STENCIL_INVALID
+    msaa: false
+    presentable: false # specifically, presentable on Windows' windowed mode
+  X1_Unorm:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_1_UNORM__GFX11'
+      access: ['read']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_UNORM'
+      blend: false
+      emulatedMrt: false
+  X1_Uscaled:
+    <<: *hwDefaults
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_USCALED'
+      blend: false
+      emulatedMrt: false
+  X4Y4_Unorm:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_4_4_UNORM__GFX11'
+      access: ['read']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_UNORM'
+      blend: false
+      emulatedMrt: false
+  X4Y4_Uscaled:
+    <<: *hwDefaults
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_USCALED'
+      blend: false
+      emulatedMrt: false
+  L4A4_Unorm:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_4_4_UNORM__GFX11'
+      access: ['read']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_UNORM'
+      blend: false
+      emulatedMrt: false
+  X4Y4Z4W4_Unorm:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_4_4_4_4_UNORM__GFX11'
+      access: ['read', 'write']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_4_4_4_4'
+      numFmtEnum: 'NUMBER_UNORM'
+      blend: true
+      emulatedMrt: false
+    msaa: true
+    presentable: true
+  X4Y4Z4W4_Uscaled:
+    <<: *hwDefaults
+    cb:
+      enum: 'COLOR_4_4_4_4'
+      numFmtEnum: 'NUMBER_USCALED'
+      blend: false
+      emulatedMrt: false
+  X5Y6Z5_Unorm:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_5_6_5_UNORM__GFX11'
+      access: ['read', 'write']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_5_6_5'
+      numFmtEnum: 'NUMBER_UNORM'
+      blend: true
+      emulatedMrt: false
+    msaa: true
+    presentable: true
+  X5Y6Z5_Uscaled:
+    <<: *hwDefaults
+    cb:
+      enum: 'COLOR_5_6_5'
+      numFmtEnum: 'NUMBER_USCALED'
+      blend: false
+      emulatedMrt: false
+  X5Y5Z5W1_Unorm:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_1_5_5_5_UNORM__GFX11'
+      access: ['read', 'write']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_1_5_5_5'
+      numFmtEnum: 'NUMBER_UNORM'
+      blend: true
+      emulatedMrt: false
+    msaa: true
+    presentable: true
+  X5Y5Z5W1_Uscaled:
+    <<: *hwDefaults
+    cb:
+      enum: 'COLOR_1_5_5_5'
+      numFmtEnum: 'NUMBER_USCALED'
+      blend: false
+      emulatedMrt: false
+  X1Y5Z5W5_Unorm:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_5_5_5_1_UNORM__GFX11'
+      access: ['read', 'write']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_5_5_5_1'
+      numFmtEnum: 'NUMBER_UNORM'
+      blend: true
+      emulatedMrt: false
+    msaa: true
+  X1Y5Z5W5_Uscaled:
+    <<: *hwDefaults
+    cb:
+      enum: 'COLOR_5_5_5_1'
+      numFmtEnum: 'NUMBER_USCALED'
+      blend: false
+      emulatedMrt: false
+  X8_Unorm:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_8_UNORM'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_8_UNORM'
+      access: ['read', 'write']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_8'
+      numFmtEnum: 'NUMBER_UNORM'
+      blend: true
+      emulatedMrt: false
+    msaa: true
+  X8_Snorm:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_8_SNORM'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_8_SNORM'
+      access: ['read', 'write']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_8'
+      numFmtEnum: 'NUMBER_SNORM'
+      blend: true
+      emulatedMrt: false
+    msaa: true
+  X8_Uscaled:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_8_USCALED'
+      access: ['read']
+    texture:
+      enum: 'IMG_FMT_8_USCALED'
+      access: ['read']
+      filter: ['linear']
+    cb:
+      enum: 'COLOR_8'
+      numFmtEnum: 'NUMBER_USCALED'
+      blend: false
+      emulatedMrt: false
+    msaa: true
+  X8_Sscaled:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_8_SSCALED'
+      access: ['read']
+    texture:
+      enum: 'IMG_FMT_8_SSCALED'
+      access: ['read']
+      filter: ['linear']
+    cb:
+      enum: 'COLOR_8'
+      numFmtEnum: 'NUMBER_SSCALED'
+      blend: false
+      emulatedMrt: false
+    msaa: true
+  X8_Uint:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_8_UINT'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_8_UINT'
+      access: ['read', 'write']
+      filter: ['minmax']
+    cb:
+      enum: 'COLOR_8'
+      numFmtEnum: 'NUMBER_UINT'
+      blend: false
+      emulatedMrt: false
+    db:
+      zEnum: 'Z_INVALID'
+      sEnum: 'STENCIL_8'
+    msaa: true
+  X8_Sint:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_8_SINT'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_8_SINT'
+      access: ['read', 'write']
+      filter: ['minmax']
+    cb:
+      enum: 'COLOR_8'
+      numFmtEnum: 'NUMBER_SINT'
+      blend: false
+      emulatedMrt: false
+    msaa: true
+  X8_Srgb:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_8_SRGB__GFX11'
+      access: ['read']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_8'
+      numFmtEnum: 'NUMBER_SRGB'
+      blend: true
+      emulatedMrt: false
+    msaa: true
+  A8_Unorm:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_8_UNORM'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_8_UNORM'
+      access: ['read', 'write']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_8'
+      numFmtEnum: 'NUMBER_UNORM'
+      blend: true
+      emulatedMrt: false
+    msaa: true
+    presentable: true
+  L8_Unorm:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_8_UNORM'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_8_UNORM'
+      access: ['read', 'write']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_8'
+      numFmtEnum: 'NUMBER_UNORM'
+      blend: true
+      emulatedMrt: false
+    msaa: true
+  P8_Unorm:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_8_UNORM'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_8_UNORM'
+      access: ['read', 'write']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_8'
+      numFmtEnum: 'NUMBER_UNORM'
+      blend: true
+      emulatedMrt: false
+    msaa: true
+  X8Y8_Unorm:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_8_8_UNORM'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_8_8_UNORM'
+      access: ['read', 'write']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_8_8'
+      numFmtEnum: 'NUMBER_UNORM'
+      blend: true
+      emulatedMrt: false
+    msaa: true
+  X8Y8_Snorm:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_8_8_SNORM'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_8_8_SNORM'
+      access: ['read', 'write']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_8_8'
+      numFmtEnum: 'NUMBER_SNORM'
+      blend: true
+      emulatedMrt: false
+    msaa: true
+  X8Y8_Uscaled:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_8_8_USCALED'
+      access: ['read']
+    texture:
+      enum: 'IMG_FMT_8_8_USCALED'
+      access: ['read']
+      filter: ['linear']
+    cb:
+      enum: 'COLOR_8_8'
+      numFmtEnum: 'NUMBER_USCALED'
+      blend: false
+      emulatedMrt: false
+    msaa: true
+  X8Y8_Sscaled:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_8_8_SSCALED'
+      access: ['read']
+    texture:
+      enum: 'IMG_FMT_8_8_SSCALED'
+      access: ['read']
+      filter: ['linear']
+    cb:
+      enum: 'COLOR_8_8'
+      numFmtEnum: 'NUMBER_SSCALED'
+      blend: false
+      emulatedMrt: false
+    msaa: true
+  X8Y8_Uint:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_8_8_UINT'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_8_8_UINT'
+      access: ['read', 'write']
+      filter: ['minmax']
+    cb:
+      enum: 'COLOR_8_8'
+      numFmtEnum: 'NUMBER_UINT'
+      blend: false
+      emulatedMrt: false
+    msaa: true
+  X8Y8_Sint:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_8_8_SINT'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_8_8_SINT'
+      access: ['read', 'write']
+      filter: ['minmax']
+    cb:
+      enum: 'COLOR_8_8'
+      numFmtEnum: 'NUMBER_SINT'
+      blend: false
+      emulatedMrt: false
+    msaa: true
+  X8Y8_Srgb:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_8_8_SRGB__GFX11'
+      access: ['read']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_8_8'
+      numFmtEnum: 'NUMBER_SRGB'
+      blend: true
+      emulatedMrt: false
+    msaa: true
+  L8A8_Unorm:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_8_8_UNORM'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_8_8_UNORM'
+      access: ['read', 'write']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_8_8'
+      numFmtEnum: 'NUMBER_UNORM'
+      blend: true
+      emulatedMrt: false
+    msaa: true
+  X8Y8Z8W8_Unorm:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_8_8_8_8_UNORM__GFX11'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_8_8_8_8_UNORM__GFX11'
+      access: ['read', 'write']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_8_8_8_8'
+      numFmtEnum: 'NUMBER_UNORM'
+      blend: true
+      emulatedMrt: false
+    msaa: true
+    presentable: true
+  X8Y8Z8W8_Snorm:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_8_8_8_8_SNORM__GFX11'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_8_8_8_8_SNORM__GFX11'
+      access: ['read', 'write']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_8_8_8_8'
+      numFmtEnum: 'NUMBER_SNORM'
+      blend: true
+      emulatedMrt: false
+    msaa: true
+    presentable: true
+  X8Y8Z8W8_Uscaled:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_8_8_8_8_USCALED__GFX11'
+      access: ['read']
+    texture:
+      enum: 'IMG_FMT_8_8_8_8_USCALED__GFX11'
+      access: ['read']
+      filter: ['linear']
+    cb:
+      enum: 'COLOR_8_8_8_8'
+      numFmtEnum: 'NUMBER_USCALED'
+      blend: false
+      emulatedMrt: false
+    msaa: true
+  X8Y8Z8W8_Sscaled:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_8_8_8_8_SSCALED__GFX11'
+      access: ['read']
+    texture:
+      enum: 'IMG_FMT_8_8_8_8_SSCALED__GFX11'
+      access: ['read']
+      filter: ['linear']
+    cb:
+      enum: 'COLOR_8_8_8_8'
+      numFmtEnum: 'NUMBER_SSCALED'
+      blend: false
+      emulatedMrt: false
+    msaa: true
+  X8Y8Z8W8_Uint:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_8_8_8_8_UINT__GFX11'
+      access: ['read', 'write', 'atomics']
+    texture:
+      enum: 'IMG_FMT_8_8_8_8_UINT__GFX11'
+      access: ['read', 'write', 'atomics']
+      filter: ['minmax']
+    cb:
+      enum: 'COLOR_8_8_8_8'
+      numFmtEnum: 'NUMBER_UINT'
+      blend: false
+      emulatedMrt: false
+    msaa: true
+  X8Y8Z8W8_Sint:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_8_8_8_8_SINT__GFX11'
+      access: ['read', 'write', 'atomics']
+    texture:
+      enum: 'IMG_FMT_8_8_8_8_SINT__GFX11'
+      access: ['read', 'write', 'atomics']
+      filter: ['minmax']
+    cb:
+      enum: 'COLOR_8_8_8_8'
+      numFmtEnum: 'NUMBER_SINT'
+      blend: false
+      emulatedMrt: false
+    msaa: true
+  X8Y8Z8W8_Srgb:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_8_8_8_8_SRGB__GFX11'
+      access: ['read']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_8_8_8_8'
+      numFmtEnum: 'NUMBER_SRGB'
+      blend: true
+      emulatedMrt: false
+    msaa: true
+    presentable: true
+  U8V8_Snorm_L8W8_Unorm:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_INVALID'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_INVALID'
+      access: ['read', 'write']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_UNORM'
+      blend: true
+      emulatedMrt: false
+    msaa: true
+    presentable: true
+  X10Y11Z11_Float:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_11_11_10_FLOAT__GFX11'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_11_11_10_FLOAT__GFX11'
+      access: ['read', 'write']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_11_11_10'
+      numFmtEnum: 'NUMBER_FLOAT'
+      blend: true
+      emulatedMrt: false
+    msaa: true
+  X11Y11Z10_Float:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_10_11_11_FLOAT__GFX11'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_10_11_11_FLOAT__GFX11'
+      access: ['read', 'write']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_10_11_11'
+      numFmtEnum: 'NUMBER_FLOAT'
+      blend: true
+      emulatedMrt: false
+    msaa: true
+    presentable: true
+  X10Y10Z10W2_Unorm:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_2_10_10_10_UNORM__GFX11'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_2_10_10_10_UNORM__GFX11'
+      access: ['read', 'write']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_2_10_10_10'
+      numFmtEnum: 'NUMBER_UNORM'
+      blend: true
+      emulatedMrt: false
+    msaa: true
+    presentable: true
+  X10Y10Z10W2_Snorm:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_2_10_10_10_SNORM__GFX11'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_2_10_10_10_SNORM__GFX11'
+      access: ['read', 'write']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_2_10_10_10'
+      numFmtEnum: 'NUMBER_SNORM'
+      blend: true
+      emulatedMrt: false
+    msaa: true
+  X10Y10Z10W2_Uscaled:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_2_10_10_10_USCALED__GFX11'
+      access: ['read']
+    texture:
+      enum: 'IMG_FMT_2_10_10_10_USCALED__GFX11'
+      access: ['read']
+      filter: ['linear']
+    cb:
+      enum: 'COLOR_2_10_10_10'
+      numFmtEnum: 'NUMBER_USCALED'
+      blend: false
+      emulatedMrt: false
+    msaa: true
+  X10Y10Z10W2_Sscaled:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_2_10_10_10_SSCALED__GFX11'
+      access: ['read']
+    texture:
+      enum: 'IMG_FMT_2_10_10_10_SSCALED__GFX11'
+      access: ['read']
+      filter: ['linear']
+    cb:
+      enum: 'COLOR_2_10_10_10'
+      numFmtEnum: 'NUMBER_SSCALED'
+      blend: false
+      emulatedMrt: false
+    msaa: true
+  X10Y10Z10W2_Uint:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_2_10_10_10_UINT__GFX11'
+      access: ['read', 'write', 'atomics']
+    texture:
+      enum: 'IMG_FMT_2_10_10_10_UINT__GFX11'
+      access: ['read', 'write', 'atomics']
+      filter: ['minmax']
+    cb:
+      enum: 'COLOR_2_10_10_10'
+      numFmtEnum: 'NUMBER_UINT'
+      blend: false
+      emulatedMrt: false
+    msaa: true
+  X10Y10Z10W2_Sint:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_2_10_10_10_SINT__GFX11'
+      access: ['read', 'write', 'atomics']
+    texture:
+      enum: 'IMG_FMT_2_10_10_10_SINT__GFX11'
+      access: ['read', 'write', 'atomics']
+      filter: ['minmax']
+    cb:
+      enum: 'COLOR_2_10_10_10'
+      numFmtEnum: 'NUMBER_SINT'
+      blend: false
+      emulatedMrt: false
+    msaa: true
+  X10Y10Z10W2Bias_Unorm:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_2_10_10_10_UNORM__GFX11'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_2_10_10_10_UNORM__GFX11'
+      access: ['read', 'write']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_2_10_10_10'
+      numFmtEnum: 'NUMBER_UNORM'
+      blend: true
+      emulatedMrt: false
+    msaa: true
+    presentable: true
+  U10V10W10_Snorm_A2_Unorm:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_INVALID'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_INVALID'
+      access: ['read', 'write']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_UNORM'
+      blend: true
+      emulatedMrt: false
+    msaa: true
+    presentable: true
+  X16_Unorm:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_16_UNORM'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_16_UNORM'
+      access: ['read', 'write']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_16'
+      numFmtEnum: 'NUMBER_UNORM'
+      blend: true
+      emulatedMrt: false
+    db:
+      zEnum: 'Z_16'
+      sEnum: 'STENCIL_INVALID'
+    msaa: true
+  X16_Snorm:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_16_SNORM'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_16_SNORM'
+      access: ['read', 'write']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_16'
+      numFmtEnum: 'NUMBER_SNORM'
+      blend: true
+      emulatedMrt: false
+    msaa: true
+  X16_Uscaled:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_16_USCALED'
+      access: ['read']
+    texture:
+      enum: 'IMG_FMT_16_USCALED'
+      access: ['read']
+      filter: ['linear']
+    cb:
+      enum: 'COLOR_16'
+      numFmtEnum: 'NUMBER_USCALED'
+      blend: false
+      emulatedMrt: false
+    msaa: true
+  X16_Sscaled:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_16_SSCALED'
+      access: ['read']
+    texture:
+      enum: 'IMG_FMT_16_SSCALED'
+      access: ['read']
+      filter: ['linear']
+    cb:
+      enum: 'COLOR_16'
+      numFmtEnum: 'NUMBER_SSCALED'
+      blend: false
+      emulatedMrt: false
+    msaa: true
+  X16_Uint:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_16_UINT'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_16_UINT'
+      access: ['read', 'write']
+      filter: ['minmax']
+    cb:
+      enum: 'COLOR_16'
+      numFmtEnum: 'NUMBER_UINT'
+      blend: false
+      emulatedMrt: false
+    msaa: true
+  X16_Sint:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_16_SINT'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_16_SINT'
+      access: ['read', 'write']
+      filter: ['minmax']
+    cb:
+      enum: 'COLOR_16'
+      numFmtEnum: 'NUMBER_SINT'
+      blend: false
+      emulatedMrt: false
+    msaa: true
+  X16_Float:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_16_FLOAT'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_16_FLOAT'
+      access: ['read', 'write']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_16'
+      numFmtEnum: 'NUMBER_FLOAT'
+      blend: true
+      emulatedMrt: false
+    msaa: true
+  L16_Unorm:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_16_UNORM'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_16_UNORM'
+      access: ['read', 'write']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_16'
+      numFmtEnum: 'NUMBER_UNORM'
+      blend: true
+      emulatedMrt: false
+    msaa: true
+  X16Y16_Unorm:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_16_16_UNORM'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_16_16_UNORM'
+      access: ['read', 'write']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_16_16'
+      numFmtEnum: 'NUMBER_UNORM'
+      blend: true
+      emulatedMrt: false
+    msaa: true
+  X16Y16_Snorm:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_16_16_SNORM'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_16_16_SNORM'
+      access: ['read', 'write']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_16_16'
+      numFmtEnum: 'NUMBER_SNORM'
+      blend: true
+      emulatedMrt: false
+    msaa: true
+  X16Y16_Uscaled:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_16_16_USCALED'
+      access: ['read']
+    texture:
+      enum: 'IMG_FMT_16_16_USCALED'
+      access: ['read']
+      filter: ['linear']
+    cb:
+      enum: 'COLOR_16_16'
+      numFmtEnum: 'NUMBER_USCALED'
+      blend: false
+      emulatedMrt: false
+    msaa: true
+  X16Y16_Sscaled:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_16_16_SSCALED'
+      access: ['read']
+    texture:
+      enum: 'IMG_FMT_16_16_SSCALED'
+      access: ['read']
+      filter: ['linear']
+    cb:
+      enum: 'COLOR_16_16'
+      numFmtEnum: 'NUMBER_SSCALED'
+      blend: false
+      emulatedMrt: false
+    msaa: true
+  X16Y16_Uint:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_16_16_UINT'
+      access: ['read', 'write', 'atomics']
+    texture:
+      enum: 'IMG_FMT_16_16_UINT'
+      access: ['read', 'write', 'atomics']
+      filter: ['minmax']
+    cb:
+      enum: 'COLOR_16_16'
+      numFmtEnum: 'NUMBER_UINT'
+      blend: false
+      emulatedMrt: false
+    msaa: true
+  X16Y16_Sint:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_16_16_SINT'
+      access: ['read', 'write', 'atomics']
+    texture:
+      enum: 'IMG_FMT_16_16_SINT'
+      access: ['read', 'write', 'atomics']
+      filter: ['minmax']
+    cb:
+      enum: 'COLOR_16_16'
+      numFmtEnum: 'NUMBER_SINT'
+      blend: false
+      emulatedMrt: false
+    msaa: true
+  X16Y16_Float:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_16_16_FLOAT'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_16_16_FLOAT'
+      access: ['read', 'write']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_16_16'
+      numFmtEnum: 'NUMBER_FLOAT'
+      blend: true
+      emulatedMrt: false
+    msaa: true
+  X16Y16Z16W16_Unorm:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_16_16_16_16_UNORM__GFX11'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_16_16_16_16_UNORM__GFX11'
+      access: ['read', 'write']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_16_16_16_16'
+      numFmtEnum: 'NUMBER_UNORM'
+      blend: true
+      emulatedMrt: false
+    msaa: true
+    presentable: true
+  X16Y16Z16W16_Snorm:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_16_16_16_16_SNORM__GFX11'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_16_16_16_16_SNORM__GFX11'
+      access: ['read', 'write']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_16_16_16_16'
+      numFmtEnum: 'NUMBER_SNORM'
+      blend: true
+      emulatedMrt: false
+    msaa: true
+    presentable: true
+  X16Y16Z16W16_Uscaled:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_16_16_16_16_USCALED__GFX11'
+      access: ['read']
+    texture:
+      enum: 'IMG_FMT_16_16_16_16_USCALED__GFX11'
+      access: ['read']
+      filter: ['linear']
+    cb:
+      enum: 'COLOR_16_16_16_16'
+      numFmtEnum: 'NUMBER_USCALED'
+      blend: false
+      emulatedMrt: false
+    msaa: true
+  X16Y16Z16W16_Sscaled:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_16_16_16_16_SSCALED__GFX11'
+      access: ['read']
+    texture:
+      enum: 'IMG_FMT_16_16_16_16_SSCALED__GFX11'
+      access: ['read']
+      filter: ['linear']
+    cb:
+      enum: 'COLOR_16_16_16_16'
+      numFmtEnum: 'NUMBER_SSCALED'
+      blend: false
+      emulatedMrt: false
+    msaa: true
+  X16Y16Z16W16_Uint:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_16_16_16_16_UINT__GFX11'
+      access: ['read', 'write', 'atomics']
+    texture:
+      enum: 'IMG_FMT_16_16_16_16_UINT__GFX11'
+      access: ['read', 'write', 'atomics']
+      filter: ['minmax']
+    cb:
+      enum: 'COLOR_16_16_16_16'
+      numFmtEnum: 'NUMBER_UINT'
+      blend: false
+      emulatedMrt: false
+    msaa: true
+  X16Y16Z16W16_Sint:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_16_16_16_16_SINT__GFX11'
+      access: ['read', 'write', 'atomics']
+    texture:
+      enum: 'IMG_FMT_16_16_16_16_SINT__GFX11'
+      access: ['read', 'write', 'atomics']
+      filter: ['minmax']
+    cb:
+      enum: 'COLOR_16_16_16_16'
+      numFmtEnum: 'NUMBER_SINT'
+      blend: false
+      emulatedMrt: false
+    msaa: true
+  X16Y16Z16W16_Float:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_16_16_16_16_FLOAT__GFX11'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_16_16_16_16_FLOAT__GFX11'
+      access: ['read', 'write']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_16_16_16_16'
+      numFmtEnum: 'NUMBER_FLOAT'
+      blend: true
+      emulatedMrt: false
+    msaa: true
+    presentable: true
+  X32_Uint:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_32_UINT'
+      access: ['read', 'write', 'atomics']
+    texture:
+      enum: 'IMG_FMT_32_UINT'
+      access: ['read', 'write', 'atomics']
+      filter: ['minmax']
+    cb:
+      enum: 'COLOR_32'
+      numFmtEnum: 'NUMBER_UINT'
+      blend: false
+      emulatedMrt: false
+    msaa: true
+  X32_Sint:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_32_SINT'
+      access: ['read', 'write', 'atomics']
+    texture:
+      enum: 'IMG_FMT_32_SINT'
+      access: ['read', 'write', 'atomics']
+      filter: ['minmax']
+    cb:
+      enum: 'COLOR_32'
+      numFmtEnum: 'NUMBER_SINT'
+      blend: false
+      emulatedMrt: false
+    msaa: true
+  X32_Float:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_32_FLOAT'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_32_FLOAT'
+      access: ['read', 'write']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_32'
+      numFmtEnum: 'NUMBER_FLOAT'
+      blend: true
+      emulatedMrt: false
+    db:
+      zEnum: 'Z_32_FLOAT'
+      sEnum: 'STENCIL_INVALID'
+    msaa: true
+  X32Y32_Uint:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_32_32_UINT__GFX11'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_32_32_UINT__GFX11'
+      access: ['read', 'write']
+      filter: ['minmax']
+    cb:
+      enum: 'COLOR_32_32'
+      numFmtEnum: 'NUMBER_UINT'
+      blend: false
+      emulatedMrt: false
+    msaa: true
+  X32Y32_Sint:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_32_32_SINT__GFX11'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_32_32_SINT__GFX11'
+      access: ['read', 'write']
+      filter: ['minmax']
+    cb:
+      enum: 'COLOR_32_32'
+      numFmtEnum: 'NUMBER_SINT'
+      blend: false
+      emulatedMrt: false
+    msaa: true
+  X32Y32_Float:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_32_32_FLOAT__GFX11'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_32_32_FLOAT__GFX11'
+      access: ['read', 'write']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_32_32'
+      numFmtEnum: 'NUMBER_FLOAT'
+      blend: true
+      emulatedMrt: false
+    msaa: true
+  X32Y32Z32_Uint:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_32_32_32_UINT__GFX11'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_32_32_32_UINT__GFX11'
+      access: ['read']
+      filter: ['minmax']
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_UINT'
+      blend: false
+      emulatedMrt: false
+  X32Y32Z32_Sint:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_32_32_32_SINT__GFX11'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_32_32_32_SINT__GFX11'
+      access: ['read']
+      filter: ['minmax']
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_SINT'
+      blend: false
+      emulatedMrt: false
+  X32Y32Z32_Float:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_32_32_32_FLOAT__GFX11'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_32_32_32_FLOAT__GFX11'
+      access: ['read']
+      filter: ['linear', 'minmax']
+  X32Y32Z32W32_Uint:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_32_32_32_32_UINT__GFX11'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_32_32_32_32_UINT__GFX11'
+      access: ['read', 'write']
+      filter: ['minmax']
+    cb:
+      enum: 'COLOR_32_32_32_32'
+      numFmtEnum: 'NUMBER_UINT'
+      blend: false
+      emulatedMrt: false
+    msaa: true
+  X32Y32Z32W32_Sint:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_32_32_32_32_SINT__GFX11'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_32_32_32_32_SINT__GFX11'
+      access: ['read', 'write']
+      filter: ['minmax']
+    cb:
+      enum: 'COLOR_32_32_32_32'
+      numFmtEnum: 'NUMBER_SINT'
+      blend: false
+      emulatedMrt: false
+    msaa: true
+  X32Y32Z32W32_Float:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_32_32_32_32_FLOAT__GFX11'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_32_32_32_32_FLOAT__GFX11'
+      access: ['read', 'write']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_32_32_32_32'
+      numFmtEnum: 'NUMBER_FLOAT'
+      blend: true
+      emulatedMrt: false
+    msaa: true
+  D16_Unorm_S8_Uint:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_INVALID'
+      access: ['read']
+      filter: []
+    db:
+      zEnum: 'Z_16'
+      sEnum: 'STENCIL_8'
+    msaa: true
+  D32_Float_S8_Uint:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_INVALID'
+      access: ['read']
+      filter: []
+    db:
+      zEnum: 'Z_32_FLOAT'
+      sEnum: 'STENCIL_8'
+    msaa: true
+  X9Y9Z9E5_Float:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_5_9_9_9_FLOAT__GFX11'
+      access: ['read', 'write', 'atomics']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_5_9_9_9__GFX103PLUS'
+      numFmtEnum: 'NUMBER_FLOAT'
+      blend: true
+      emulatedMrt: false
+    msaa: true
+  Bc1_Unorm:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_BC1_UNORM__GFX11'
+      access: ['read']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_UNORM'
+      blend: false
+      emulatedMrt: false
+  Bc1_Srgb:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_BC1_SRGB__GFX11'
+      access: ['read']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_SRGB'
+      blend: false
+      emulatedMrt: false
+  Bc2_Unorm:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_BC2_UNORM__GFX11'
+      access: ['read']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_UNORM'
+      blend: false
+      emulatedMrt: false
+  Bc2_Srgb:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_BC2_SRGB__GFX11'
+      access: ['read']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_SRGB'
+      blend: false
+      emulatedMrt: false
+  Bc3_Unorm:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_BC3_UNORM__GFX11'
+      access: ['read']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_UNORM'
+      blend: false
+      emulatedMrt: false
+  Bc3_Srgb:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_BC3_SRGB__GFX11'
+      access: ['read']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_SRGB'
+      blend: false
+      emulatedMrt: false
+  Bc4_Unorm:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_BC4_UNORM__GFX11'
+      access: ['read']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_UNORM'
+      blend: false
+      emulatedMrt: false
+  Bc4_Snorm:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_BC4_SNORM__GFX11'
+      access: ['read']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_SNORM'
+      blend: false
+      emulatedMrt: false
+  Bc5_Unorm:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_BC5_UNORM__GFX11'
+      access: ['read']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_UNORM'
+      blend: false
+      emulatedMrt: false
+  Bc5_Snorm:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_BC5_SNORM__GFX11'
+      access: ['read']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_SNORM'
+      blend: false
+      emulatedMrt: false
+  Bc6_Ufloat:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_BC6_UFLOAT__GFX11'
+      access: ['read']
+      filter: ['linear', 'minmax']
+  Bc6_Sfloat:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_BC6_SFLOAT__GFX11'
+      access: ['read']
+      filter: ['linear', 'minmax']
+  Bc7_Unorm:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_BC7_UNORM__GFX11'
+      access: ['read']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_UNORM'
+      blend: false
+      emulatedMrt: false
+  Bc7_Srgb:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_BC7_SRGB__GFX11'
+      access: ['read']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_SRGB'
+      blend: false
+      emulatedMrt: false
+  Etc2X8Y8Z8_Unorm:
+    <<: *hwDefaults
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_UNORM'
+      blend: false
+      emulatedMrt: false
+  Etc2X8Y8Z8_Srgb:
+    <<: *hwDefaults
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_SRGB'
+      blend: false
+      emulatedMrt: false
+  Etc2X8Y8Z8W1_Unorm:
+    <<: *hwDefaults
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_UNORM'
+      blend: false
+      emulatedMrt: false
+  Etc2X8Y8Z8W1_Srgb:
+    <<: *hwDefaults
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_SRGB'
+      blend: false
+      emulatedMrt: false
+  Etc2X8Y8Z8W8_Unorm:
+    <<: *hwDefaults
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_UNORM'
+      blend: false
+      emulatedMrt: false
+  Etc2X8Y8Z8W8_Srgb:
+    <<: *hwDefaults
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_SRGB'
+      blend: false
+      emulatedMrt: false
+  Etc2X11_Unorm:
+    <<: *hwDefaults
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_UNORM'
+      blend: false
+      emulatedMrt: false
+  Etc2X11_Snorm:
+    <<: *hwDefaults
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_SNORM'
+      blend: false
+      emulatedMrt: false
+  Etc2X11Y11_Unorm:
+    <<: *hwDefaults
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_UNORM'
+      blend: false
+      emulatedMrt: false
+  Etc2X11Y11_Snorm:
+    <<: *hwDefaults
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_SNORM'
+      blend: false
+      emulatedMrt: false
+  AstcLdr4x4_Unorm:
+    <<: *hwDefaults
+  AstcLdr4x4_Srgb:
+    <<: *hwDefaults
+  AstcLdr5x4_Unorm:
+    <<: *hwDefaults
+  AstcLdr5x4_Srgb:
+    <<: *hwDefaults
+  AstcLdr5x5_Unorm:
+    <<: *hwDefaults
+  AstcLdr5x5_Srgb:
+    <<: *hwDefaults
+  AstcLdr6x5_Unorm:
+    <<: *hwDefaults
+  AstcLdr6x5_Srgb:
+    <<: *hwDefaults
+  AstcLdr6x6_Unorm:
+    <<: *hwDefaults
+  AstcLdr6x6_Srgb:
+    <<: *hwDefaults
+  AstcLdr8x5_Unorm:
+    <<: *hwDefaults
+  AstcLdr8x5_Srgb:
+    <<: *hwDefaults
+  AstcLdr8x6_Unorm:
+    <<: *hwDefaults
+  AstcLdr8x6_Srgb:
+    <<: *hwDefaults
+  AstcLdr8x8_Unorm:
+    <<: *hwDefaults
+  AstcLdr8x8_Srgb:
+    <<: *hwDefaults
+  AstcLdr10x5_Unorm:
+    <<: *hwDefaults
+  AstcLdr10x5_Srgb:
+    <<: *hwDefaults
+  AstcLdr10x6_Unorm:
+    <<: *hwDefaults
+  AstcLdr10x6_Srgb:
+    <<: *hwDefaults
+  AstcLdr10x8_Unorm:
+    <<: *hwDefaults
+  AstcLdr10x8_Srgb:
+    <<: *hwDefaults
+  AstcLdr10x10_Unorm:
+    <<: *hwDefaults
+  AstcLdr10x10_Srgb:
+    <<: *hwDefaults
+  AstcLdr12x10_Unorm:
+    <<: *hwDefaults
+  AstcLdr12x10_Srgb:
+    <<: *hwDefaults
+  AstcLdr12x12_Unorm:
+    <<: *hwDefaults
+  AstcLdr12x12_Srgb:
+    <<: *hwDefaults
+  AstcHdr4x4_Float:
+    <<: *hwDefaults
+  AstcHdr5x4_Float:
+    <<: *hwDefaults
+  AstcHdr5x5_Float:
+    <<: *hwDefaults
+  AstcHdr6x5_Float:
+    <<: *hwDefaults
+  AstcHdr6x6_Float:
+    <<: *hwDefaults
+  AstcHdr8x5_Float:
+    <<: *hwDefaults
+  AstcHdr8x6_Float:
+    <<: *hwDefaults
+  AstcHdr8x8_Float:
+    <<: *hwDefaults
+  AstcHdr10x5_Float:
+    <<: *hwDefaults
+  AstcHdr10x6_Float:
+    <<: *hwDefaults
+  AstcHdr10x8_Float:
+    <<: *hwDefaults
+  AstcHdr10x10_Float:
+    <<: *hwDefaults
+  AstcHdr12x10_Float:
+    <<: *hwDefaults
+  AstcHdr12x12_Float:
+    <<: *hwDefaults
+  X8Y8_Z8Y8_Unorm:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_GB_GR_UNORM__GFX11'
+      access: ['read']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_UNORM'
+      blend: false
+      emulatedMrt: false
+  X8Y8_Z8Y8_Uscaled:
+    <<: *hwDefaults
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_USCALED'
+      blend: false
+      emulatedMrt: false
+  Y8X8_Y8Z8_Unorm:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_BG_RG_UNORM__GFX11'
+      access: ['read']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_UNORM'
+      blend: false
+      emulatedMrt: false
+  Y8X8_Y8Z8_Uscaled:
+    <<: *hwDefaults
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_USCALED'
+      blend: false
+      emulatedMrt: false
+  AYUV:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_INVALID'
+      access: ['read', 'write']
+      filter: []
+    cb:
+      enum: COLOR_INVALID
+      numFmtEnum: NUMBER_FLOAT
+      blend: false
+      emulatedMrt: true
+  UYVY:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_INVALID'
+      access: ['read', 'write']
+      filter: []
+    cb:
+      enum: COLOR_INVALID
+      numFmtEnum: NUMBER_FLOAT
+      blend: false
+      emulatedMrt: true
+  VYUY:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_INVALID'
+      access: ['read', 'write']
+      filter: []
+    cb:
+      enum: COLOR_INVALID
+      numFmtEnum: NUMBER_FLOAT
+      blend: false
+      emulatedMrt: true
+  YUY2:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_INVALID'
+      access: ['read', 'write']
+      filter: []
+    cb:
+      enum: COLOR_INVALID
+      numFmtEnum: NUMBER_FLOAT
+      blend: false
+      emulatedMrt: true
+  YVY2:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_INVALID'
+      access: ['read', 'write']
+      filter: []
+    cb:
+      enum: COLOR_INVALID
+      numFmtEnum: NUMBER_FLOAT
+      blend: false
+      emulatedMrt: true
+  YV12:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_INVALID'
+      access: ['read', 'write']
+      filter: []
+    cb:
+      enum: COLOR_INVALID
+      numFmtEnum: NUMBER_FLOAT
+      blend: false
+      emulatedMrt: true
+  NV11:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_INVALID'
+      access: ['read', 'write']
+      filter: []
+    cb:
+      enum: COLOR_INVALID
+      numFmtEnum: NUMBER_FLOAT
+      blend: false
+      emulatedMrt: true
+  NV12:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_INVALID'
+      access: ['read', 'write']
+      filter: []
+    cb:
+      enum: COLOR_INVALID
+      numFmtEnum: NUMBER_FLOAT
+      blend: false
+      emulatedMrt: true
+  NV21:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_INVALID'
+      access: ['read', 'write']
+      filter: []
+    cb:
+      enum: COLOR_INVALID
+      numFmtEnum: NUMBER_FLOAT
+      blend: false
+      emulatedMrt: true
+  P016:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_INVALID'
+      access: ['read', 'write']
+      filter: []
+    cb:
+      enum: COLOR_INVALID
+      numFmtEnum: NUMBER_FLOAT
+      blend: false
+      emulatedMrt: true
+  P010:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_INVALID'
+      access: ['read', 'write']
+      filter: []
+    cb:
+      enum: COLOR_INVALID
+      numFmtEnum: NUMBER_FLOAT
+      blend: false
+      emulatedMrt: true
+  P210:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_INVALID'
+      access: ['read', 'write']
+      filter: []
+    cb:
+      enum: COLOR_INVALID
+      numFmtEnum: NUMBER_FLOAT
+      blend: false
+      emulatedMrt: true
+  X8_MM_Unorm:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_INVALID'
+      access: []
+    texture:
+      enum: 'IMG_FMT_MM_8_UNORM__GFX11'
+      access: ['read', 'write']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_UNORM'
+      blend: true
+      emulatedMrt: false
+    msaa: true
+  X8_MM_Uint:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_INVALID'
+      access: []
+    texture:
+      enum: 'IMG_FMT_MM_8_UINT__GFX11'
+      access: ['read', 'write']
+      filter: ['minmax']
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_UINT'
+      blend: false
+      emulatedMrt: false
+    msaa: true
+  X8Y8_MM_Unorm:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_INVALID'
+      access: []
+    texture:
+      enum: 'IMG_FMT_MM_8_8_UNORM__GFX11'
+      access: ['read', 'write']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_UNORM'
+      blend: true
+      emulatedMrt: false
+    msaa: true
+  X8Y8_MM_Uint:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_INVALID'
+      access: []
+    texture:
+      enum: 'IMG_FMT_MM_8_8_UINT__GFX11'
+      access: ['read', 'write']
+      filter: ['minmax']
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_UINT'
+      blend: false
+      emulatedMrt: false
+    msaa: true
+  X16_MM10_Unorm:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_INVALID'
+      access: []
+    texture:
+      enum: 'IMG_FMT_MM_10_IN_16_UNORM__GFX11'
+      access: ['read', 'write']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_UNORM'
+      blend: true
+      emulatedMrt: false
+    msaa: true
+  X16_MM10_Uint:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_INVALID'
+      access: []
+    texture:
+      enum: 'IMG_FMT_MM_10_IN_16_UINT__GFX11'
+      access: ['read', 'write']
+      filter: ['minmax']
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_UINT'
+      blend: false
+      emulatedMrt: false
+    msaa: true
+  X16Y16_MM10_Unorm:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_INVALID'
+      access: []
+    texture:
+      enum: 'IMG_FMT_MM_10_IN_16_16_UNORM__GFX11'
+      access: ['read', 'write']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_UNORM'
+      blend: true
+      emulatedMrt: false
+    msaa: true
+  X16Y16_MM10_Uint:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_INVALID'
+      access: []
+    texture:
+      enum: 'IMG_FMT_MM_10_IN_16_16_UINT__GFX11'
+      access: ['read', 'write', 'atomics']
+      filter: ['minmax']
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_UINT'
+      blend: false
+      emulatedMrt: false
+    msaa: true
+  P208:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_INVALID'
+      access: ['read', 'write']
+      filter: []
+  X16_MM12_Unorm:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_MM_12_IN_16_UNORM__GFX11'
+      access: ['read', 'write']
+      filter: []
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_UNORM'
+      blend: false
+      emulatedMrt: false
+  X16_MM12_Uint:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_MM_12_IN_16_UINT__GFX11'
+      access: ['read', 'write']
+      filter: []
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_UINT'
+      blend: false
+      emulatedMrt: false
+  X16Y16_MM12_Unorm:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_MM_12_IN_16_16_UNORM__GFX11'
+      access: ['read', 'write']
+      filter: []
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_UNORM'
+      blend: false
+      emulatedMrt: false
+  X16Y16_MM12_Uint:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_MM_12_IN_16_16_UINT__GFX11'
+      access: ['read', 'write']
+      filter: []
+    cb:
+      enum: 'COLOR_INVALID'
+      numFmtEnum: 'NUMBER_UINT'
+      blend: false
+      emulatedMrt: false
+  P012:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_INVALID'
+      access: ['read', 'write']
+      filter: []
+  P212:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_INVALID'
+      access: ['read', 'write']
+      filter: []
+  P412:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_INVALID'
+      access: ['read', 'write']
+      filter: []
+  X10Y10Z10W2_Float:
+    <<: *hwDefaults
+    buffer:
+      enum: 'BUF_FMT_INVALID'
+      access: ['read', 'write']
+    texture:
+      enum: 'IMG_FMT_INVALID'
+      access: ['read', 'write']
+      filter: ['linear', 'minmax']
+    cb:
+      enum: 'COLOR_2_10_10_10_6E4'
+      numFmtEnum: 'NUMBER_FLOAT'
+      blend: true
+      emulatedMrt: false
+    msaa: true
+  Y216:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_INVALID'
+      access: ['read', 'write']
+      filter: []
+    cb:
+      enum: COLOR_INVALID
+      numFmtEnum: NUMBER_FLOAT
+      blend: false
+      emulatedMrt: true
+  Y210:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_INVALID'
+      access: ['read', 'write']
+      filter: []
+    cb:
+      enum: COLOR_INVALID
+      numFmtEnum: NUMBER_FLOAT
+      blend: false
+      emulatedMrt: true
+  Y416:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_INVALID'
+      access: ['read', 'write']
+      filter: []
+    cb:
+      enum: COLOR_INVALID
+      numFmtEnum: NUMBER_FLOAT
+      blend: false
+      emulatedMrt: true
+  Y410:
+    <<: *hwDefaults
+    texture:
+      enum: 'IMG_FMT_INVALID'
+      access: ['read', 'write']
+      filter: []
+    cb:
+      enum: COLOR_INVALID
+      numFmtEnum: NUMBER_FLOAT
+      blend: false
+      emulatedMrt: true

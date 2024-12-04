@@ -25,6 +25,7 @@
 
 #include "legacyProtocolClient.h"
 #include "msgChannel.h"
+#include <dd_timeout_constants.h>
 
 namespace DevDriver
 {
@@ -40,7 +41,7 @@ namespace DevDriver
         , m_minVersion(minVersion)
         , m_maxVersion(maxVersion)
         , m_pSession()
-        , m_protocolName {}
+        , m_protocolName{}
     {
         DD_ASSERT(m_pMsgChannel != nullptr);
         if (pProtocolName != nullptr)
@@ -102,6 +103,11 @@ namespace DevDriver
             DD_WARN_REASON("Session version queried without a valid session. Did your session disconnect?");
         }
         return version;
+    }
+
+    Result LegacyProtocolClient::Connect(ClientId clientId)
+    {
+        return Connect(clientId, g_timeoutConstants.connectionTimeoutInMs);
     }
 
     Result LegacyProtocolClient::Connect(ClientId clientId, uint32 timeoutInMs)

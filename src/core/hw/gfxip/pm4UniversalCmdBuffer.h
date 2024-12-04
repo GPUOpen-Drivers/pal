@@ -261,6 +261,8 @@ public:
         SwizzledFormat            swizzledFormat,
         uint32                    targetIndex) override;
 
+    void CmdCloneImageData(const IImage& srcImage, const IImage& dstImage);
+
 protected:
     UniversalCmdBuffer(
         const GfxDevice&           device,

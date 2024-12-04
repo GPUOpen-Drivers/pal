@@ -298,6 +298,7 @@ void SubmissionContext::ReleaseReference()
 // =====================================================================================================================
 Queue::Queue(
     uint32                 queueCount,
+    OsQueueMode            osQueueMode,
     Device*                pDevice,
     const QueueCreateInfo* pCreateInfo)
     :
@@ -313,7 +314,8 @@ Queue::Queue(
     m_deviceMembershipNode(this),
     m_queueId(g_nextQueueId.fetch_add(1, std::memory_order_relaxed)),
     m_lastFrameCnt(0),
-    m_submitIdPerFrame(0)
+    m_submitIdPerFrame(0),
+    m_osQueueMode(osQueueMode)
 {
     if (m_pDevice->Settings().ifhGpuMask & (0x1 << m_pDevice->ChipProperties().gpuIndex))
     {
@@ -339,6 +341,53 @@ void Queue::Destroy()
     PAL_ASSERT(m_batchedCmds.NumElements() == 0);
 
     // This is where we might do any final submits before queues are destroyed.
+    // We won't have a dummy command buffer available if we're on a timer queue so we need to check first.
+    if (m_pDummyCmdBuffer != nullptr)
+    {
+        // If ProcessFinalSubmit returns Success, we need to perform a dummy submit with special postambles
+        // to sanitize the queue. Otherwise, it's not required for this queue.
+        uint32 finalSubmitCount = 0;
+        Platform* pPlatform     = static_cast<Platform*>(m_pDevice->GetPlatform());
+
+        AutoBuffer<InternalSubmitInfo, 8, Platform>    internalSubmitInfos(m_queueCount, pPlatform);
+        AutoBuffer<PerSubQueueSubmitInfo, 8, Platform> subQueueInfos(m_queueCount, pPlatform);
+
+        ICmdBuffer*const pCmdBuffer  = m_pDummyCmdBuffer;
+
+        if ((internalSubmitInfos.Capacity() < m_queueCount) || (subQueueInfos.Capacity() < m_queueCount))
+        {
+            PAL_ASSERT_ALWAYS_MSG("Failed to allocate Submit Infos for Possible Final Submit");
+        }
+
+        for (uint32 qIndex = 0; qIndex < m_queueCount; qIndex++)
+        {
+            InternalSubmitInfo internalSubmitInfo = {};
+            PerSubQueueSubmitInfo perSubQueueInfo = {};
+            if (m_pQueueInfos[qIndex].pQueueContext->ProcessFinalSubmit(&internalSubmitInfo) == Result::Success)
+            {
+                finalSubmitCount++;
+                perSubQueueInfo.cmdBufferCount = 1;
+                perSubQueueInfo.ppCmdBuffers   = &pCmdBuffer;
+
+            }
+            internalSubmitInfos[qIndex] = internalSubmitInfo;
+            subQueueInfos[qIndex]       = perSubQueueInfo;
+        }
+
+        if (finalSubmitCount > 0)
+        {
+            MultiSubmitInfo submitInfo      = {};
+            submitInfo.perSubQueueInfoCount = m_queueCount;
+            submitInfo.pPerSubQueueInfo     = &subQueueInfos[0];
+            SubmitConfig(submitInfo, &internalSubmitInfos[0]);
+            if (m_ifhMode == IfhModeDisabled)
+            {
+                m_pDummyCmdBuffer->IncrementSubmitCount();
+            }
+            Result result = OsSubmit(submitInfo, &internalSubmitInfos[0]);
+            PAL_ASSERT_MSG(result == Result::Success, "Required final submit failed");
+        }
+    }
 
     // There are some CmdStreams which are created with UntrackedCmdAllocator, then the CmdStreamChunks in those
     // CmdStreams will have race condition when CmdStreams are destructed. Only CPU side reference count is used to
@@ -1463,28 +1512,49 @@ Result Queue::LateInit()
         // If ProcessInitialSubmit returns Success, we need to perform a dummy submit with special preambles
         // to initialize the queue. Otherwise, it's not required for this queue.
         uint32 initialSubmitCount = 0;
-        Platform* pPlatform = static_cast<Platform*>(m_pDevice->GetPlatform());
-        AutoBuffer<InternalSubmitInfo, 8, Platform> internalSubmitInfos(m_queueCount, pPlatform);
+        Platform* pPlatform       = static_cast<Platform*>(m_pDevice->GetPlatform());
+
+        AutoBuffer<InternalSubmitInfo, 8, Platform>    internalSubmitInfos(m_queueCount, pPlatform);
         AutoBuffer<PerSubQueueSubmitInfo, 8, Platform> subQueueInfos(m_queueCount, pPlatform);
 
-        for (uint32 qIndex = 0; qIndex < m_queueCount; qIndex++)
-        {
-            InternalSubmitInfo internalSubmitInfo = {};
-            PerSubQueueSubmitInfo perSubQueueInfo = {};
-            if (m_pQueueInfos[qIndex].pQueueContext->ProcessInitialSubmit(&internalSubmitInfo) == Result::Success)
-            {
-                initialSubmitCount++;
-                perSubQueueInfo.cmdBufferCount = 1;
-                // Do I need to create a independant DummyCmdBuffer for each universal subQueue?
-                perSubQueueInfo.ppCmdBuffers = reinterpret_cast<Pal::ICmdBuffer* const*>(&m_pDummyCmdBuffer);
-                PAL_ASSERT(perSubQueueInfo.pCmdBufInfoList == nullptr);
+        ICmdBuffer*const pCmdBuffer  = m_pDummyCmdBuffer;
 
-            }
-            internalSubmitInfos[qIndex] = internalSubmitInfo;
-            subQueueInfos[qIndex]       = perSubQueueInfo;
+        if ((internalSubmitInfos.Capacity() < m_queueCount) || (subQueueInfos.Capacity() < m_queueCount))
+        {
+            PAL_ASSERT_ALWAYS_MSG("Failed to allocate Submit Infos for Possible Final Submit");
+            result = Result::ErrorOutOfMemory;
         }
 
-        if (initialSubmitCount > 0)
+        if (result == Result::Success)
+        {
+            for (uint32 qIndex = 0; qIndex < m_queueCount; qIndex++)
+            {
+                InternalSubmitInfo internalSubmitInfo = {};
+                PerSubQueueSubmitInfo perSubQueueInfo = {};
+
+                result = m_pQueueInfos[qIndex].pQueueContext->LateInit();
+
+                if (result != Result::Success)
+                {
+                    break;
+                }
+
+                // The call to ProcessInitialSubmit returns Unsupported when the queue does not need to
+                // send an initial submit.
+                // TODO: this needs to be refactored to use an output parameter to communicate this information
+                if (m_pQueueInfos[qIndex].pQueueContext->ProcessInitialSubmit(&internalSubmitInfo) == Result::Success)
+                {
+                    initialSubmitCount++;
+                    perSubQueueInfo.cmdBufferCount = 1;
+                    perSubQueueInfo.ppCmdBuffers   = &pCmdBuffer;
+
+                }
+                internalSubmitInfos[qIndex] = internalSubmitInfo;
+                subQueueInfos[qIndex]       = perSubQueueInfo;
+            }
+        }
+
+        if ((result == Result::Success) && (initialSubmitCount > 0))
         {
             MultiSubmitInfo submitInfo      = {};
             submitInfo.perSubQueueInfoCount = m_queueCount;

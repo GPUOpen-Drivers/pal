@@ -1206,7 +1206,6 @@ void GraphicsPipeline::FixupIaMultiVgtParam(
     {
         pIaMultiVgtParam->bits.PARTIAL_VS_WAVE_ON = 1;
     }
-
 }
 
 // =====================================================================================================================
@@ -2038,9 +2037,9 @@ SX_DOWNCONVERT_FORMAT GraphicsPipeline::SxDownConvertFormat(
     case ChNumFormat::X9Y9Z9E5_Float:
         //  When doing 8 pixels per clock transfers (in RB+ mode) on a render target using the 999e5 format, the
         //  SX must convert the exported data to 999e5
-        PAL_ASSERT(IsGfx103PlusExclusive(m_gfxLevel));
+        PAL_ASSERT(IsGfx103Plus(m_gfxLevel));
 
-        sxDownConvertFormat = SX_RT_EXPORT_9_9_9_E5__GFX103PLUSEXCLUSIVE;
+        sxDownConvertFormat = SX_RT_EXPORT_9_9_9_E5__GFX103PLUS;
         break;
     default:
         break;
@@ -2064,7 +2063,7 @@ static uint32 SxBlendOptEpsilon(
     case SX_RT_EXPORT_16_16_GR:
     case SX_RT_EXPORT_16_16_AR:
     case SX_RT_EXPORT_10_11_11: // 1 is recommended, but doesn't provide sufficient precision
-    case SX_RT_EXPORT_9_9_9_E5__GFX103PLUSEXCLUSIVE:
+    case SX_RT_EXPORT_9_9_9_E5__GFX103PLUS:
         sxBlendOptEpsilon = 0;
         break;
     case SX_RT_EXPORT_2_10_10_10:

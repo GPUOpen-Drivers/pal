@@ -2739,8 +2739,9 @@ void CmdBuffer::ReplayCmdDrawIndexedIndirectMulti(
 
 // =====================================================================================================================
 void PAL_STDCALL CmdBuffer::CmdDispatch(
-    ICmdBuffer*  pCmdBuffer,
-    DispatchDims size)
+    ICmdBuffer*       pCmdBuffer,
+    DispatchDims      size,
+    DispatchInfoFlags infoFlags)
 {
     auto* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
@@ -2759,7 +2760,7 @@ void CmdBuffer::ReplayCmdDispatch(
 {
     const auto size = ReadTokenVal<DispatchDims>();
 
-    pTgtCmdBuffer->CmdDispatch(size);
+    pTgtCmdBuffer->CmdDispatch(size, {});
 }
 
 // =====================================================================================================================
@@ -5181,7 +5182,7 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdBindSampleRateImage,
         &CmdBuffer::ReplayCmdResolvePrtPlusImage,
         &CmdBuffer::ReplayCmdSetClipRects,
-        &CmdBuffer::ReplayCmdPostProcessFrame,
+        &CmdBuffer::ReplayCmdPostProcessFrame
     };
 
     static_assert(ArrayLen(ReplayFuncTbl) == static_cast<size_t>(CmdBufCallId::Count),

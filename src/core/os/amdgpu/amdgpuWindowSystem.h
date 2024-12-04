@@ -89,7 +89,8 @@ union WindowSystemProperties
     struct
     {
         uint64 supportFreeSyncExtension : 1;   // the window system support extension call to enable free sync.
-        uint64 reserved                 : 63;
+        uint64 useExplicitSync          : 1;   // the window system will use explicit sync for present.
+        uint64 reserved                 : 62;
     };
     uint64 u64All;
 };
@@ -188,7 +189,8 @@ public:
     virtual Result Present(
         const PresentSwapChainInfo& presentInfo,
         PresentFence*               pRenderFence,
-        PresentFence*               pIdleFence) = 0;
+        PresentFence*               pIdleFence,
+        IQueue*                     pQueue) = 0;
 
     virtual Result WaitForLastImagePresented() = 0;
 

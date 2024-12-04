@@ -618,8 +618,9 @@ private:
         uint32               maximumCount,
         gpusize              countGpuAddr);
     static void PAL_STDCALL CmdDispatch(
-        ICmdBuffer*  pCmdBuffer,
-        DispatchDims size);
+        ICmdBuffer*       pCmdBuffer,
+        DispatchDims      size,
+        DispatchInfoFlags infoFlags);
     static void PAL_STDCALL CmdDispatchIndirect(
         ICmdBuffer* pCmdBuffer,
         gpusize     gpuVirtAddr);
@@ -901,6 +902,9 @@ private:
     bool m_forceDrawGranularityLogging;
 
     uint32 m_curLogFrame;
+
+    bool   m_spmMarkersEnabled;  // Cache of device SPM enabled state at replay begin
+    uint32 m_timedCallId;        // Tracking of the current loggedItem index for SPM marker purposes
     // List of release tokens that are used to handle acquire/release interface through this layer's replay mechanism.
     uint32                                   m_numReleaseTokens;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 885

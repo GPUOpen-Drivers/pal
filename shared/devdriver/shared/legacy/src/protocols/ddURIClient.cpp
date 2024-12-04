@@ -28,6 +28,7 @@
 #include "protocols/ddTransferProtocol.h"
 #include "msgChannel.h"
 #include "ddTransferManager.h"
+#include <dd_timeout_constants.h>
 
 #define URI_CLIENT_MIN_VERSION URI_INITIAL_VERSION
 #define URI_CLIENT_MAX_VERSION URI_POST_PROTOCOL_VERSION
@@ -213,7 +214,9 @@ Result URIClient::RequestURI(
                 // push our data into.
                 SizedPayloadContainer blockRequest = {};
                 blockRequest.CreatePayload<URIPostRequestPayload>(pRequestString, static_cast<uint32>(postDataSize));
-                result = TransactURIPayload(&blockRequest);
+                result = TransactURIPayload(&blockRequest,
+                                            g_timeoutConstants.communicationTimeoutInMs,
+                                            g_timeoutConstants.retryTimeoutInMs);
                 if (result == Result::Success)
                 {
                     // Read the response and get the block ID to use for our post data
@@ -260,7 +263,9 @@ Result URIClient::RequestURI(
         // Issue a transaction.
         if (result == Result::Success)
         {
-            result = TransactURIPayload(&container);
+            result = TransactURIPayload(&container,
+                                        g_timeoutConstants.communicationTimeoutInMs,
+                                        g_timeoutConstants.retryTimeoutInMs);
         }
 
         if (result == Result::Success)

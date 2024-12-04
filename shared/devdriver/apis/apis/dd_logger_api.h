@@ -36,7 +36,7 @@ extern "C" {
 #define DD_LOGGER_API_NAME "DD_LOGGER_API"
 
 #define DD_LOGGER_API_VERSION_MAJOR 0
-#define DD_LOGGER_API_VERSION_MINOR 2
+#define DD_LOGGER_API_VERSION_MINOR 3
 #define DD_LOGGER_API_VERSION_PATCH 0
 
 typedef enum
@@ -49,7 +49,7 @@ typedef enum
 } DD_LOG_LVL;
 
 typedef struct DDLoggerInstance DDLoggerInstance;
-typedef void (*DDLoggerLogCallback)(DD_LOG_LVL logLevel, void* pUserData, const char* pMessage, uint32_t messageSize);
+typedef void (*DDLoggerLogCallback)(void* pUserData, DD_LOG_LVL level, const char* pMessage, uint32_t messageSize);
 
 /// Enumeration of logger types.
 typedef enum

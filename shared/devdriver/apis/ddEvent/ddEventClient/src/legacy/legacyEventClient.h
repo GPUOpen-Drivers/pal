@@ -218,7 +218,7 @@ namespace EventProtocol
         Result UpdateProviders(const EventProviderUpdateRequest* pProviderUpdates, uint32 numProviderUpdates);
 
         // Reads any available event data from the server
-        Result ReadEventData(uint32 timeoutInMs = kDefaultCommunicationTimeoutInMs);
+        Result ReadEventData(uint32 timeoutInMs);
 
         // Frees the memory allocated as part of a previous event provider query operation
         void FreeProvidersDescription(EventProvidersDescription* pProvidersDescription);

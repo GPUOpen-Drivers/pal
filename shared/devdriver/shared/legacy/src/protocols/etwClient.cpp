@@ -25,6 +25,7 @@
 
 #include "protocols/etwClient.h"
 #include "msgChannel.h"
+#include <dd_timeout_constants.h>
 
 namespace DevDriver
 {
@@ -49,7 +50,8 @@ namespace DevDriver
                 ETWPayload payload = {};
                 payload.command = ETWMessage::BeginTrace;
                 payload.startTrace.processId = processId;
-                result = Transact(&payload);
+                result =
+                    Transact(&payload, g_timeoutConstants.communicationTimeoutInMs, g_timeoutConstants.retryTimeoutInMs);
                 if (result == Result::Success)
                 {
                     if (payload.command == ETWMessage::BeginResponse)
@@ -78,7 +80,8 @@ namespace DevDriver
                 ETWPayload payload = {};
                 payload.command = ETWMessage::EndTrace;
                 payload.stopTrace.discard = (pNumEvents == nullptr);
-                result = Transact(&payload);
+                result =
+                    Transact(&payload, g_timeoutConstants.communicationTimeoutInMs, g_timeoutConstants.retryTimeoutInMs);
                 if (result == Result::Success)
                 {
                     if (payload.command == ETWMessage::EndResponse)
@@ -117,7 +120,9 @@ namespace DevDriver
                 size_t numEventsCopied = 0;
                 ETWPayload payload = {};
                 // Receive chunk data until we reach a trace data sentinel.
-                Result readResult = ReceivePayload(&payload);
+                Result readResult = ReceivePayload(&payload,
+                                                   g_timeoutConstants.communicationTimeoutInMs,
+                                                   g_timeoutConstants.retryTimeoutInMs);
                 while (readResult == Result::Success && !traceCompleted)
                 {
                     switch (payload.command)
@@ -146,7 +151,9 @@ namespace DevDriver
                             break;
                     }
                     if (!traceCompleted)
-                        readResult = ReceivePayload(&payload);
+                        readResult = ReceivePayload(&payload,
+                                                    g_timeoutConstants.communicationTimeoutInMs,
+                                                    g_timeoutConstants.retryTimeoutInMs);
                 }
                 m_sessionState = SessionState::Idle;
             }

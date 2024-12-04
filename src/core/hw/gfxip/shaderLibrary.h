@@ -103,6 +103,10 @@ public:
 
     bool IsInternal() const { return m_flags.clientInternal != 0; }
     bool IsGraphics() const { return m_flags.isGraphics != 0; }
+
+    virtual UploadFenceToken GetUploadFenceToken() const = 0;
+    virtual uint64           GetPagingFenceVal() const   = 0;
+
 protected:
     // internal Constructor.
     explicit ShaderLibrary(Device* pDevice);

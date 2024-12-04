@@ -57,6 +57,9 @@ RenderOpTraceController::RenderOpTraceController(
     m_renderOpLock(),
     m_pQueue(nullptr),
     m_pCmdAllocator(nullptr),
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 908
+    m_pCmdBufTracePrepare(nullptr),
+#endif
     m_pCmdBufTraceBegin(nullptr),
     m_pCmdBufTraceEnd(nullptr),
     m_pFenceTraceEnd(nullptr)
@@ -78,10 +81,9 @@ void RenderOpTraceController::OnConfigUpdated(
     // Configure the render op mask
     if (pJsonConfig->GetValueByKey("renderOpMode", &value))
     {
-        char buffer[16] = {};
-        bool stringCopied = value.GetStringCopy(buffer);
+        char buffer[32] = {'\0'};
 
-        if (stringCopied)
+        if (value.GetStringCopy(buffer))
         {
             if (strcmp(buffer, "draw") == 0)
             {
@@ -96,6 +98,32 @@ void RenderOpTraceController::OnConfigUpdated(
                 m_renderOpMask = RenderOpDraw | RenderOpDispatch;
             }
         }
+    }
+
+    // Sets the capture mode as 'relative' or 'absolute'
+    if (pJsonConfig->GetValueByKey("captureMode", &value))
+    {
+        char buffer[32] = {'\0'};
+
+        if (value.GetStringCopy(buffer))
+        {
+            if (strncmp(buffer, "relative", strlen(buffer)) == 0)
+            {
+                m_captureMode = CaptureMode::Relative;
+            }
+            else if (strncmp(buffer, "absolute", strlen(buffer)) == 0)
+            {
+                m_captureMode = CaptureMode::Absolute;
+            }
+        }
+    }
+
+    // RenderOp number indicating when the trace should begin
+    // This is relative to when the trace request was receieved if captureMode is 'relative',
+    // or the absolute render op number if captureMode is 'absolute'
+    if (pJsonConfig->GetValueByKey("preparationStartRenderOp", &value))
+    {
+        m_prepStartRenderOp = value.GetUint32Or(0);
     }
 
     // Configure the number of preparation operations (i.e. how many renderops)
@@ -118,7 +146,21 @@ void RenderOpTraceController::OnConfigUpdated(
 }
 
 // =====================================================================================================================
-void RenderOpTraceController::OnRenderOpUpdated()
+Result RenderOpTraceController::OnTraceRequested()
+{
+    Result result = Result::Success;
+
+    if ((m_captureMode == CaptureMode::Absolute) && (m_renderOpCount >= m_prepStartRenderOp))
+    {
+        result = Result::ErrorInitializationFailed;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+void RenderOpTraceController::OnRenderOpUpdated(
+    uint64 countRecorded)
 {
     const TraceSessionState sessionState = m_pTraceSession->GetTraceSessionState();
 
@@ -126,38 +168,60 @@ void RenderOpTraceController::OnRenderOpUpdated()
     {
     case TraceSessionState::Requested:
     {
-        // Move from Requested -> Preparing immediately
-        if (m_pTraceSession->AcceptTrace(this, m_supportedGpuMask) == Result::Success)
+        if (m_pTraceSession->IsCancelingTrace() == false)
         {
-            m_renderOpTraceAccepted = m_renderOpCount + 1; // Begin the next frame
-            m_pTraceSession->SetTraceSessionState(TraceSessionState::Preparing);
+            switch (m_captureMode)
+            {
+            case CaptureMode::Relative:
+                // Once 'prepStartIndex' hits 0, move to accepting the trace.
+                // Otherwise, decrement counter and wait for next frame.
+                if (m_prepStartRenderOp > 0)
+                {
+                    // Saturated subtraction to avoid underflow
+                    m_prepStartRenderOp = (m_prepStartRenderOp > countRecorded) ? 0 : m_prepStartRenderOp - countRecorded;
+                }
+                else
+                {
+                    Result result = AcceptTrace();
+                    if (result != Result::Success)
+                    {
+                        AbortTrace();
+                    }
+                }
+                break;
+            case CaptureMode::Absolute:
+                if (m_renderOpCount >= m_prepStartRenderOp)
+                {
+                    Result result = AcceptTrace();
+
+                    if (result != Result::Success)
+                    {
+                        AbortTrace();
+                    }
+                }
+                break;
+            }
         }
         else
         {
-            AbortTrace();
+            // If trace is canceled, finish it as fast as possible ie. move requested->preparing immediately.
+            if (m_pTraceSession->AcceptTrace(this, m_supportedGpuMask) == Result::Success)
+            {
+                m_renderOpTraceAccepted = m_renderOpCount + 1; // Begin the next frame
+                m_pTraceSession->SetTraceSessionState(TraceSessionState::Preparing);
+            }
         }
         break;
     }
     case TraceSessionState::Preparing:
     {
         // Move from Preparing -> Running if the number of prep render ops has elapsed
-        if (m_renderOpCount >= (m_renderOpTraceAccepted + m_numPrepRenderOps))
+        if ((m_renderOpCount >= (m_renderOpTraceAccepted + m_numPrepRenderOps)) || m_pTraceSession->IsCancelingTrace())
         {
-            if (m_pTraceSession->BeginTrace() == Result::Success)
-            {
-                Result result = SubmitGpuWork(m_pCmdBufTraceBegin, nullptr);
-                PAL_ASSERT(result == Result::Success);
+            Result result = BeginTrace();
+            PAL_ASSERT(result == Result::Success);
 
-                if (result == Result::Success)
-                {
-                    m_pTraceSession->SetTraceSessionState(TraceSessionState::Running);
-                }
-                else
-                {
-                    AbortTrace();
-                }
-            }
-            else
+            if (result != Result::Success)
             {
                 AbortTrace();
             }
@@ -167,13 +231,14 @@ void RenderOpTraceController::OnRenderOpUpdated()
     case TraceSessionState::Running:
     {
         // Move from Running -> Waiting once the requested # of render ops has been processed
-        if (m_renderOpCount >= (m_renderOpTraceAccepted + m_captureRenderOpCount + m_numPrepRenderOps))
+        if ((m_renderOpCount >= (m_renderOpTraceAccepted + m_captureRenderOpCount + m_numPrepRenderOps)) ||
+            m_pTraceSession->IsCancelingTrace())
         {
             if (m_pTraceSession->EndTrace() == Result::Success)
             {
                 m_pTraceSession->SetTraceSessionState(TraceSessionState::Waiting);
 
-                Result result = SubmitGpuWork(m_pCmdBufTraceEnd, m_pFenceTraceEnd);
+                Result result = SubmitEndTraceGpuWork();
                 PAL_ASSERT(result == Result::Success);
 
                 if (result == Result::Success)
@@ -198,33 +263,75 @@ void RenderOpTraceController::OnRenderOpUpdated()
 }
 
 // =====================================================================================================================
-// Submit the GPU command buffer to begin a trace
-Result RenderOpTraceController::SubmitGpuWork(
-    ICmdBuffer* pCmdBuf,
-    IFence*     pFence
-    ) const
+Result RenderOpTraceController::AcceptTrace()
 {
-    // The command buffer must always be valid
-    PAL_ASSERT(pCmdBuf != nullptr);
-
-    PerSubQueueSubmitInfo perSubQueueInfo = {};
-    perSubQueueInfo.cmdBufferCount        = 1;
-    perSubQueueInfo.ppCmdBuffers          = &pCmdBuf;
-
-    MultiSubmitInfo submitInfo            = {};
-    submitInfo.perSubQueueInfoCount       = 1;
-    submitInfo.pPerSubQueueInfo           = &perSubQueueInfo;
-
-    if (pFence != nullptr)
-    {
-        submitInfo.ppFences   = &pFence;
-        submitInfo.fenceCount = 1;
-    }
-
-    Result result = pCmdBuf->End();
+    Result result = m_pTraceSession->AcceptTrace(this, m_supportedGpuMask);
 
     if (result == Result::Success)
     {
+        m_pTraceSession->SetTraceSessionState(TraceSessionState::Preparing);
+        m_renderOpTraceAccepted = m_renderOpCount;
+
+        if (m_numPrepRenderOps == 0)
+        {
+            result = BeginTrace();
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+Result RenderOpTraceController::BeginTrace()
+{
+    Result result = m_pTraceSession->BeginTrace();
+
+    if (result == Result::Success)
+    {
+        result = SubmitBeginTraceGpuWork();
+
+        if (result == Result::Success)
+        {
+            m_pTraceSession->SetTraceSessionState(TraceSessionState::Running);
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+Result RenderOpTraceController::SubmitBeginTraceGpuWork() const
+{
+    PAL_ASSERT(m_pCmdBufTraceBegin != nullptr);
+    Result result = m_pCmdBufTraceBegin->End();
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 908
+    PAL_ASSERT(m_pCmdBufTracePrepare != nullptr);
+
+    if (result == Result::Success)
+    {
+        result = m_pCmdBufTraceBegin->End();
+    }
+#endif
+
+    if (result == Result::Success)
+    {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 908
+        ICmdBuffer* cmdBuffers[2] = { m_pCmdBufTracePrepare, m_pCmdBufTraceBegin };
+
+        PerSubQueueSubmitInfo perSubQueueInfo = {};
+        perSubQueueInfo.cmdBufferCount        = 2;
+        perSubQueueInfo.ppCmdBuffers          = cmdBuffers;
+#else
+        PerSubQueueSubmitInfo perSubQueueInfo = {};
+        perSubQueueInfo.cmdBufferCount        = 1;
+        perSubQueueInfo.ppCmdBuffers          = &m_pCmdBufTraceBegin;
+#endif
+
+        MultiSubmitInfo submitInfo      = {};
+        submitInfo.perSubQueueInfoCount = 1;
+        submitInfo.pPerSubQueueInfo     = &perSubQueueInfo;
+
         result = m_pQueue->Submit(submitInfo);
     }
 
@@ -232,8 +339,36 @@ Result RenderOpTraceController::SubmitGpuWork(
 }
 
 // =====================================================================================================================
-// Called during 'TraceSession::BeginTrace'. Creates the command buffer that the first 'SubmitGpuWork' call will use.
-Result RenderOpTraceController::OnBeginGpuWork(
+// Submit the GPU command buffer to end a trace
+Result RenderOpTraceController::SubmitEndTraceGpuWork()
+{
+    PAL_ASSERT((m_pCmdBufTraceEnd != nullptr) && (m_pFenceTraceEnd != nullptr));
+
+    Result result = m_pCmdBufTraceEnd->End();
+
+    if (result == Result::Success)
+    {
+        PerSubQueueSubmitInfo perSubQueueInfo = {};
+        perSubQueueInfo.cmdBufferCount        = 1;
+        perSubQueueInfo.ppCmdBuffers          = &m_pCmdBufTraceEnd;
+
+        MultiSubmitInfo submitInfo      = {};
+        submitInfo.perSubQueueInfoCount = 1;
+        submitInfo.pPerSubQueueInfo     = &perSubQueueInfo;
+        submitInfo.ppFences             = &m_pFenceTraceEnd;
+        submitInfo.fenceCount           = 1;
+
+        result = m_pQueue->Submit(submitInfo);
+    }
+
+    return result;
+}
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 908
+// =====================================================================================================================
+// Called during 'TraceSession::TraceAccepted'. Creates the command buffer that the preparation 'SubmitGpuWork'
+// call will use.
+Result RenderOpTraceController::OnPreparationGpuWork(
     uint32       gpuIndex,
     ICmdBuffer** ppCmdBuf)
 {
@@ -243,6 +378,37 @@ Result RenderOpTraceController::OnBeginGpuWork(
     PAL_ASSERT(gpuIndex == 0);
 
     Result result = CreateCmdAllocator();
+
+    if (result == Result::Success)
+    {
+        result = CreateCommandBuffer(false, &m_pCmdBufTracePrepare);
+    }
+
+    if (result == Result::Success)
+    {
+        (*ppCmdBuf) = m_pCmdBufTracePrepare;
+    }
+
+    return result;
+}
+#endif
+
+// =====================================================================================================================
+// Called during 'TraceSession::BeginTrace'. Creates the command buffer that the begin 'SubmitGpuWork' call will use.
+Result RenderOpTraceController::OnBeginGpuWork(
+    uint32       gpuIndex,
+    ICmdBuffer** ppCmdBuf)
+{
+    // Requiring the gpuIndex be zero -- interface changes are needed to the
+    // Trace Controller state flow to ensure that a Device is managing the trace.
+    // Currently, the Trace Session hardcodes the gpuIndex to 0, so this is safe.
+    PAL_ASSERT(gpuIndex == 0);
+
+    Result result = Result::Success;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 908
+    result = CreateCmdAllocator();
+#endif
 
     if (result == Result::Success)
     {
@@ -258,7 +424,7 @@ Result RenderOpTraceController::OnBeginGpuWork(
 }
 
 // =====================================================================================================================
-// Called during 'TraceSession::EndTrace'. Creates the command buffer and fence that the second
+// Called during 'TraceSession::EndTrace'. Creates the command buffer and fence that the ending
 // 'SubmitGpuWork' call will use.
 Result RenderOpTraceController::OnEndGpuWork(
     uint32       gpuIndex,
@@ -434,6 +600,8 @@ void RenderOpTraceController::RecordRenderOps(
 {
     Util::MutexAuto lock(&m_renderOpLock);
 
+    const uint64 previousCount = m_renderOpCount;
+
     if (RenderOpDraw & m_renderOpMask)
     {
         m_renderOpCount += renderOpCounts.drawCount;
@@ -445,7 +613,7 @@ void RenderOpTraceController::RecordRenderOps(
     }
 
     m_pQueue = pQueue;
-    OnRenderOpUpdated();
+    OnRenderOpUpdated(m_renderOpCount - previousCount);
     m_pQueue = nullptr;
 }
 
@@ -488,6 +656,14 @@ Result RenderOpTraceController::WaitForTraceEndGpuWorkCompletion() const
 // =====================================================================================================================
 void RenderOpTraceController::FreeResources()
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 908
+    if (m_pCmdBufTracePrepare != nullptr)
+    {
+        m_pCmdBufTracePrepare->Destroy();
+        PAL_SAFE_FREE(m_pCmdBufTracePrepare, m_pPlatform);
+    }
+#endif
+
     if (m_pCmdBufTraceBegin != nullptr)
     {
         m_pCmdBufTraceBegin->Destroy();
@@ -511,6 +687,24 @@ void RenderOpTraceController::FreeResources()
         m_pCmdAllocator->Destroy();
         PAL_SAFE_FREE(m_pCmdAllocator, m_pPlatform);
     }
+}
+
+// =====================================================================================================================
+Result RenderOpTraceController::OnTraceCanceled()
+{
+    Result result = Result::Success;
+
+    if (m_pTraceSession->GetTraceSessionState() < TraceSessionState::Completed)
+    {
+        result = Result::NotReady;
+    }
+    else
+    {
+        result = m_pTraceSession->CleanupChunkStream();
+        m_pTraceSession->SetTraceSessionState(TraceSessionState::Ready);
+    }
+
+    return result;
 }
 
 // =====================================================================================================================

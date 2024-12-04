@@ -25,6 +25,7 @@
 
 #include <ddEventClient.h>
 #include <ddCommon.h>
+#include <dd_timeout_constants.h>
 
 #include <eventClient.h>
 
@@ -65,10 +66,17 @@ DD_RESULT ddEventClientCreate(
         (pInfo->dataCb.pfnCallback != nullptr)             &&
         (phClient != nullptr))
     {
+        TimeoutConstants timeouts         = {};
+        timeouts.retryTimeoutInMs         = pInfo->retryTimeoutInMs;
+        timeouts.communicationTimeoutInMs = pInfo->communicationTimeoutInMs;
+        timeouts.connectionTimeoutInMs    = pInfo->connectionTimeoutInMs;
+
+        TimeoutConstantsInitialize(&timeouts);
+
         EventClient* pClient = DD_NEW(EventClient, Platform::GenericAllocCb)(pInfo->hConnection, pInfo->dataCb);
         if (pClient != nullptr)
         {
-            result = pClient->Connect(pInfo->clientId, pInfo->timeoutInMs);
+            result = pClient->Connect(pInfo->clientId);
 
             if (result == DD_RESULT_SUCCESS)
             {

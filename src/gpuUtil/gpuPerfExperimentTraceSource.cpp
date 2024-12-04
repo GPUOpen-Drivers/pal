@@ -52,7 +52,7 @@ constexpr bool   DefaultEnableInstructionTokens = false;
 
 constexpr uint32 InstrumentationSpecVersion     = 1;
 #if (PAL_BUILD_BRANCH >= 2410)
-constexpr uint32 InstrumentationApiVersion      = 4;
+constexpr uint32 InstrumentationApiVersion      = 5;
 #else
 constexpr uint32 InstrumentationApiVersion      = 3;
 #endif
@@ -155,7 +155,13 @@ void GpuPerfExperimentTraceSource::OnConfigUpdated(
 
 // =====================================================================================================================
 // Trace accepted. Initialize the GPA Session.
-void GpuPerfExperimentTraceSource::OnTraceAccepted()
+void GpuPerfExperimentTraceSource::OnTraceAccepted(
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 908
+    uint32      gpuIndex,
+    ICmdBuffer* pCmdBuf)
+#else
+    )
+#endif
 {
     m_traceIsHealthy = true;
 
@@ -166,10 +172,7 @@ void GpuPerfExperimentTraceSource::OnTraceAccepted()
     uint16  apiMajorVersion;
     uint16  apiMinorVersion;
 
-    GetClientApiInfo(m_pPlatform,
-                     &apiType,
-                     &apiMajorVersion,
-                     &apiMinorVersion);
+    GetClientApiInfo(m_pPlatform, &apiType, &apiMajorVersion, &apiMinorVersion);
 
     m_pGpaSession = PAL_NEW(GpuUtil::GpaSession,
                             m_pPlatform,
@@ -198,10 +201,55 @@ void GpuPerfExperimentTraceSource::OnTraceAccepted()
     }
     else
     {
+        result = Result::ErrorOutOfMemory;
         ReportInternalError("System is out of memory: cannot allocate trace resources",
-                            Result::ErrorOutOfMemory,
+                            result,
                             m_sqttTraceConfig.enabled);
     }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 908
+    if (result == Result::Success)
+    {
+        GpaSessionBeginInfo beginInfo = {};
+        result = m_pGpaSession->Begin(beginInfo);
+
+        if (result == Result::Success)
+        {
+            GpaSampleConfig sampleConfig = { };
+            sampleConfig.type = GpaSampleType::Trace;
+
+            // Configure SQTT
+            if (m_sqttTraceConfig.enabled)
+            {
+                sampleConfig.sqtt.seDetailedMask = m_sqttTraceConfig.seMask;
+                sampleConfig.sqtt.gpuMemoryLimit = m_sqttTraceConfig.memoryLimitInMb * 1_MiB;
+                sampleConfig.sqtt.tokenMask = ThreadTraceTokenTypeFlags::All;
+                sampleConfig.sqtt.flags.enable = true;
+                sampleConfig.sqtt.flags.supressInstructionTokens =
+                    (m_sqttTraceConfig.enableInstructionTokens == false);
+            }
+
+            // Configure SPM
+            if (m_spmTraceConfig.enabled)
+            {
+                sampleConfig.perfCounters.numCounters = m_spmTraceConfig.perfCounterIds.NumElements();
+                sampleConfig.perfCounters.pIds = m_spmTraceConfig.perfCounterIds.Data();
+                sampleConfig.perfCounters.spmTraceSampleInterval = m_spmTraceConfig.sampleFrequency;
+                sampleConfig.perfCounters.gpuMemoryLimit = m_spmTraceConfig.memoryLimitInMb * 1_MiB;
+            }
+
+            // Begin the trace
+            result = m_pGpaSession->BeginSample(pCmdBuf, sampleConfig, &m_gpaSampleId);
+        }
+
+        if (result != Result::Success)
+        {
+            ReportInternalError("Error encountered when starting the GpaSession trace sample",
+                result,
+                m_sqttTraceConfig.enabled);
+        }
+    }
+#endif
 }
 
 // =====================================================================================================================
@@ -210,6 +258,7 @@ void GpuPerfExperimentTraceSource::OnTraceBegin(
     uint32      gpuIndex,
     ICmdBuffer* pCmdBuf)
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 908
     if (m_traceIsHealthy)
     {
         Result result = Result::Success;
@@ -254,6 +303,7 @@ void GpuPerfExperimentTraceSource::OnTraceBegin(
                                 m_sqttTraceConfig.enabled);
         }
     }
+#endif
 }
 
 // =====================================================================================================================

@@ -478,6 +478,18 @@
       "Description": "Enable the use of the 'zwp_linux_dmabuf_v1' interface for creating dma-based wl_buffers for Wayland compositors. If false, PAL will default to using the Mesa wl_drm interface"
     },
     {
+      "Name": "EnableExplicitSync",
+      "Tags": [
+        "General"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "Description": "Enable explicit buffer synchronization with compositors. If false, PAL will default to using implicit buffer synchronization"
+    },
+    {
       "Name": "EnableGangSubmit",
       "Tags": [
         "General",
@@ -2112,6 +2124,18 @@
       "Scope": "PrivatePalKey",
       "Type": "uint64",
       "Description": "When MemMgr allocates a new pool, it grows to twice the size of the old pool. This is the maximum size an individual pool can be."
+    },
+    {
+      "Name": "EnablePerfCounterWindowPacket",
+      "Tags": [
+        "Debug"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "Description": "Enable insertion of IT_PERF_COUNTER_WINDOW packet to bound use of non-global GRBM_GFX_INDEX programming"
     }
   ]
 }

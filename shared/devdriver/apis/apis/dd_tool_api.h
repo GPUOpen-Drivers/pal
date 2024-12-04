@@ -109,6 +109,17 @@ typedef struct DDToolApiCreateInfo
     /// A custom logger. If \ref customLogger.Log is not NULL, \ref pLogFilePath is ignored, and the custom
     /// logger will be used.
     DDLoggerApi customLogger;
+
+    /// The following timeouts should generally only be set when working on an emulator
+
+    /// Retry timeout. If set to zero, a default value is set.
+    uint32_t retryTimeoutInMs;
+
+    /// Communication timeout. If set to zero, a default value is set.
+    uint32_t communicationTimeoutInMs;
+
+    /// Connection timeout. If set to zero, a default value is set.
+    uint32_t connectionTimeoutInMs;
 } DDToolApiCreateInfo;
 
 /// Create an instance of \ref DDToolApi.

@@ -88,6 +88,8 @@ Queue::~Queue()
     ProcessIdleSubmits();
     m_logFile.Close();
 
+    m_pDevice->QueueBeingDestroyed(this);
+
     Platform* pPlatform = static_cast<Platform*>(m_pDevice->GetPlatform());
     if (m_nextSubmitInfo.pCmdBufCount != nullptr)
     {
@@ -101,8 +103,16 @@ Queue::~Queue()
 
     for (uint32 qIdx = 0; qIdx < m_queueCount; qIdx++)
     {
-        PAL_ASSERT(m_pQueueInfos[qIdx].pBusyCmdBufs->NumElements() == 0);
-        PAL_ASSERT(m_pQueueInfos[qIdx].pBusyNestedCmdBufs->NumElements() == 0);
+        if (m_pQueueInfos[qIdx].pBusyCmdBufs->NumElements())
+        {
+            GPUPROFILER_ERROR("Queue %d Subqueue %d has %d busy CommandBuffers at destroy", m_queueId, qIdx,
+                m_pQueueInfos[qIdx].pBusyCmdBufs->NumElements());
+        }
+        if (m_pQueueInfos[qIdx].pBusyNestedCmdBufs->NumElements())
+        {
+            GPUPROFILER_ERROR("Queue %d Subqueue %d has %d busy Nested CommandBuffers at destroy", m_queueId, qIdx,
+                m_pQueueInfos[qIdx].pBusyNestedCmdBufs->NumElements());
+        }
 
         while (m_pQueueInfos[qIdx].pAvailableCmdBufs->NumElements() > 0)
         {

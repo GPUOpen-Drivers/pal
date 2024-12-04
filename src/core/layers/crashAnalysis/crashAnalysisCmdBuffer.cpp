@@ -750,15 +750,16 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndexedIndirectMultiDecorator(
 
 // =====================================================================================================================
 void PAL_STDCALL CmdBuffer::CmdDispatchDecorator(
-    ICmdBuffer*  pCmdBuffer,
-    DispatchDims size)
+    ICmdBuffer*       pCmdBuffer,
+    DispatchDims      size,
+    DispatchInfoFlags infoFlags)
 {
     const char          markerName[]   = "Dispatch";
     constexpr uint32    MarkerNameSize = static_cast<uint32>(sizeof(markerName) - 1);
     CmdBuffer*const     pThis          = static_cast<CmdBuffer*>(pCmdBuffer);
 
     pThis->InsertBeginMarker(MarkerSource::Pal, &markerName[0], MarkerNameSize);
-    pThis->GetNextLayer()->CmdDispatch(size);
+    pThis->GetNextLayer()->CmdDispatch(size, infoFlags);
     pThis->InsertEndMarker(MarkerSource::Pal);
 }
 

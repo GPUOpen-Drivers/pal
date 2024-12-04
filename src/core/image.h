@@ -362,6 +362,13 @@ public:
                 (range.startSubres.mipLevel == 0));
     }
 
+    // Returns true if the range covers all of the array slices of the image (regardless of miplevel and planes).
+    bool IsRangeFullSlices(const SubresRange& range) const
+    {
+        return ((range.numSlices == m_createInfo.arraySize) &&
+                (range.startSubres.arraySlice == 0));
+    }
+
     bool IsSubresourceValid(SubresId subresource) const
     {
         return ((subresource.plane      < m_imageInfo.numPlanes)  &&

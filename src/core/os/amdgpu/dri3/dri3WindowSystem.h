@@ -156,7 +156,8 @@ public:
     virtual Result Present(
         const PresentSwapChainInfo& presentInfo,
         PresentFence*               pRenderFence,
-        PresentFence*               pIdleFence) override;
+        PresentFence*               pIdleFence,
+        IQueue*                     pQueue) override;
 
     virtual Result WaitForLastImagePresented() override;
 

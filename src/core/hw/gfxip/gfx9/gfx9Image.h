@@ -509,10 +509,6 @@ private:
         uint32             plane,
         ImageMemoryLayout* pGpuMemLayout,
         gpusize*           pGpuMemSize);
-    void InitDccLookupTable(
-        ImageMemoryLayout* pGpuMemLayout,
-        gpusize*           pGpuOffset,
-        gpusize*           pGpuMemAlignment);
 
     bool IsFastClearColorMetaFetchable(const uint32* pColor) const;
     bool IsFastClearDepthMetaFetchable(float depth) const;

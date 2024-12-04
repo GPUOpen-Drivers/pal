@@ -407,7 +407,7 @@ void TextWriter::WriteVisualConfirm(
     // Draw each line of text.
     for (uint32 i = 0; i < textLines; i++)
     {
-        m_textWriter.DrawDebugText(dstImage, pCmdBuffer, &overlayText[i][0], x, y, pixelScale);
+        m_textWriter.DrawDebugText(dstImage, pCmdBuffer, &overlayText[i][0], x, y, pixelScale, {});
         y += (GpuUtil::TextWriterFont::LetterHeight * pixelScale);
     }
 }

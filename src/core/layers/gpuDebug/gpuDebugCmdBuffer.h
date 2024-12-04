@@ -603,8 +603,9 @@ private:
         gpusize              countGpuAddr);
 
     static void PAL_STDCALL CmdDispatch(
-        ICmdBuffer*  pCmdBuffer,
-        DispatchDims size);
+        ICmdBuffer*       pCmdBuffer,
+        DispatchDims      size,
+        DispatchInfoFlags infoFlags);
     static void PAL_STDCALL CmdDispatchIndirect(
         ICmdBuffer*       pCmdBuffer,
         gpusize           gpuVirtAddr);

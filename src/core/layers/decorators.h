@@ -693,6 +693,11 @@ public:
         PerfExperimentProperties* pProperties) const override
         { return m_pNextLayer->GetPerfExperimentProperties(pProperties); }
 
+    virtual Result GetDefaultSamplePattern(
+        uint32                 samples,
+        MsaaQuadSamplePattern* pQuadSamplePattern) const override
+        { return m_pNextLayer->GetDefaultSamplePattern(samples, pQuadSamplePattern); }
+
     virtual Result AddGpuMemoryReferences(
         uint32              gpuMemRefCount,
         const GpuMemoryRef* pGpuMemoryRefs,
@@ -2419,11 +2424,12 @@ private:
     }
 
     static void PAL_STDCALL CmdDispatchDecorator(
-        ICmdBuffer*  pCmdBuffer,
-        DispatchDims size)
+        ICmdBuffer*       pCmdBuffer,
+        DispatchDims      size,
+        DispatchInfoFlags infoFlags)
     {
         ICmdBuffer* pNextLayer = static_cast<CmdBufferFwdDecorator*>(pCmdBuffer)->m_pNextLayer;
-        pNextLayer->CmdDispatch(size);
+        pNextLayer->CmdDispatch(size, infoFlags);
     }
 
     static void PAL_STDCALL CmdDispatchIndirectDecorator(

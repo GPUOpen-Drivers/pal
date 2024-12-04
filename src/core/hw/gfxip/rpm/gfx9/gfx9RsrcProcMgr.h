@@ -56,10 +56,10 @@ public:
     virtual Result LateInit() override;
     virtual void Cleanup() override;
 
-    void CmdCloneImageData(
-        GfxCmdBuffer* pCmdBuffer,
-        const Image&  srcImage,
-        const Image&  dstImage) const;
+    virtual void CmdCloneImageData(
+        GfxCmdBuffer*     pCmdBuffer,
+        const Pal::Image& srcImage,
+        const Pal::Image& dstImage) const override;
 
     void CmdUpdateMemory(
         GfxCmdBuffer*    pCmdBuffer,
@@ -117,11 +117,11 @@ public:
         const MsaaQuadSamplePattern* pQuadSamplePattern,
         const SubresRange&           range) const;
 
-    virtual bool ExpandDepthStencil(
+    bool ExpandDepthStencil(
         Pm4CmdBuffer*                pCmdBuffer,
         const Pal::Image&            image,
         const MsaaQuadSamplePattern* pQuadSamplePattern,
-        const SubresRange&           range) const override;
+        const SubresRange&           range) const;
 
     virtual void CmdCopyMemoryToImage(
         GfxCmdBuffer*                pCmdBuffer,
@@ -158,6 +158,16 @@ public:
     void EchoGlobalInternalTableAddr(
         GfxCmdBuffer* pCmdBuffer,
         gpusize       dstAddr) const;
+
+    virtual void CmdDisplayDccFixUp(
+        GfxCmdBuffer*      pCmdBuffer,
+        const Pal::Image&  image) const { }
+
+    virtual void CmdGfxDccToDisplayDcc(
+        GfxCmdBuffer*     pCmdBuffer,
+        const Pal::Image& image) const { }
+
+    virtual bool CopyImageCsUseMsaaMorton(const Pal::Image& dstImage) const override;
 
 protected:
     explicit RsrcProcMgr(Device* pDevice);
@@ -229,9 +239,6 @@ protected:
         uint32                 regionCount,
         const ImageCopyRegion* pRegions) const override;
 
-    // On gfx9/gfx10, we need to use single z range for single subresource view.
-    virtual bool HwlNeedSinglezRangeAccess() const override { return true; }
-
     virtual void HwlFixupCopyDstImageMetaData(
         GfxCmdBuffer*           pCmdBuffer,
         const Pal::Image*       pSrcImage,
@@ -258,6 +265,12 @@ protected:
         uint32                    regionCount,
         const ImageResolveRegion* pRegions,
         uint32                    flags) const override;
+
+    virtual bool NeedPixelCopyForCmdCopyImage(
+        const Pal::Image&      srcImage,
+        const Pal::Image&      dstImage,
+        const ImageCopyRegion* pRegions,
+        uint32                 regionCount) const override;
 
     virtual void HwlImageToImageMissingPixelCopy(
         GfxCmdBuffer*          pCmdBuffer,
@@ -611,13 +624,13 @@ private:
         Pm4::CmdStream* pCmdStream,
         uint32          restoreMask) const override;
 
-    virtual void HwlGfxDccToDisplayDcc(
-        GfxCmdBuffer*     pCmdBuffer,
-        const Pal::Image& image) const override;
-
-    virtual void InitDisplayDcc(
+    virtual void CmdDisplayDccFixUp(
         GfxCmdBuffer*      pCmdBuffer,
         const Pal::Image&  image) const override;
+
+    virtual void CmdGfxDccToDisplayDcc(
+        GfxCmdBuffer*     pCmdBuffer,
+        const Pal::Image& image) const override;
 
     PAL_DISALLOW_DEFAULT_CTOR(Gfx10RsrcProcMgr);
     PAL_DISALLOW_COPY_AND_ASSIGN(Gfx10RsrcProcMgr);

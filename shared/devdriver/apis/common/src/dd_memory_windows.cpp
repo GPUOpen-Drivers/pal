@@ -211,4 +211,52 @@ void MirroredBufferDestroy(MirroredBuffer* pBuffer)
     pBuffer->bufferSize = 0;
 }
 
+uint32_t ScratchBuffer::GetPageSize()
+{
+    SYSTEM_INFO sysInfo {};
+    GetSystemInfo(&sysInfo);
+    return sysInfo.dwPageSize;
+}
+
+DD_RESULT ScratchBuffer::ReserveMemory(uint32_t size, void** ppOutBuffer)
+{
+    DD_ASSERT((size & (m_pageSize - 1)) == 0);
+
+    DD_RESULT result = DD_RESULT_SUCCESS;
+    void* pMemory = VirtualAlloc(NULL, size, MEM_RESERVE, PAGE_NOACCESS);
+    if (pMemory)
+    {
+        *ppOutBuffer = pMemory;
+    }
+    else
+    {
+        result = ResultFromWin32Error(GetLastError());
+    }
+    return result;
+}
+
+void ScratchBuffer::FreeMemory(void* pMemory, uint32_t size)
+{
+    // Pass 0 to free the entire virtual memory
+    size = 0;
+    BOOL success = VirtualFree(pMemory, size, MEM_RELEASE);
+    DD_ASSERT(success == TRUE);
+}
+
+DD_RESULT ScratchBuffer::CommitMemory(uint32_t size)
+{
+    DD_ASSERT((size & (m_pageSize - 1)) == 0);
+
+    DD_RESULT result = DD_RESULT_SUCCESS;
+    if (size > 0)
+    {
+        LPVOID pBaseMem = VirtualAlloc(m_pBuffer + m_committedSize, size, MEM_COMMIT, PAGE_READWRITE);
+        if (pBaseMem == nullptr)
+        {
+            result = ResultFromWin32Error(GetLastError());
+        }
+    }
+    return result;
+}
+
 } // namespace DevDriver

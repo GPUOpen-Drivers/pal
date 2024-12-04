@@ -222,7 +222,8 @@ void MsaaImageCopyUtil<Allocator>::MsaaImageCopy(
         memcpy(pUserData, constantData, sizeof(constantData));
 
         pCmdBuffer->CmdDispatch({Util::RoundUpQuotient(copyRegion.extent.width,  MsaaImageCopy::ThreadsPerGroupX),
-                                 Util::RoundUpQuotient(copyRegion.extent.height, MsaaImageCopy::ThreadsPerGroupY), 1});
+                                 Util::RoundUpQuotient(copyRegion.extent.height, MsaaImageCopy::ThreadsPerGroupY), 1},
+                                {});
     }
 
     pCmdBuffer->CmdRestoreComputeState(Pal::ComputeStatePipelineAndUserData);

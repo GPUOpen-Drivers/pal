@@ -1072,10 +1072,10 @@ void UniversalCmdBuffer::CmdBindPipeline(
         auto*const pNewPipeline = static_cast<const GraphicsPipeline*>(params.pPipeline);
         auto*const pOldPipeline = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
 
-        const bool disableFiltering =
+        const bool isGfxStateUnknown =
             false;
 
-        if (disableFiltering || (pNewPipeline != pOldPipeline))
+        if (isGfxStateUnknown || (pNewPipeline != pOldPipeline))
         {
             const bool isNgg       = (pNewPipeline != nullptr) && pNewPipeline->IsNgg();
             const bool tessEnabled = (pNewPipeline != nullptr) && pNewPipeline->IsTessEnabled();
@@ -1091,7 +1091,7 @@ void UniversalCmdBuffer::CmdBindPipeline(
             const GsFastLaunchMode newFastLaunchMode = (pNewPipeline != nullptr) ? pNewPipeline->FastLaunchMode()
                                                                                  : GsFastLaunchMode::Disabled;
 
-            if (disableFiltering ||
+            if (isGfxStateUnknown ||
                 (static_cast<uint32>(meshEnabled) != m_state.flags.meshShaderEnabled))
             {
                 // When mesh shader is either being enabled or being disabled, we need to re-write VGT_PRIMITIVE_TYPE:
@@ -1164,7 +1164,7 @@ void UniversalCmdBuffer::CmdBindPipeline(
             const bool changeMsFunction = (newFastLaunchMode != GsFastLaunchMode::Disabled) &&
                                           (newFastLaunchMode != oldFastLaunchMode);
 
-            if (disableFiltering ||
+            if (isGfxStateUnknown ||
                 (oldUsesViewInstancing  != newUsesViewInstancing)  ||
                 (meshEnabled && changeMsFunction)                  ||
                 (oldHasTaskShader != taskEnabled))
@@ -1179,8 +1179,9 @@ void UniversalCmdBuffer::CmdBindPipeline(
                 ((pNewPipeline == nullptr) ? 0 : pNewPipeline->VertexBufferCount() * DwordsPerBufferSrd);
             PAL_DEBUG_BUILD_ONLY_ASSERT(vbTableDwords <= m_vbTable.state.sizeInDwords);
 
-            if (disableFiltering ||
-                (vbTableDwords > m_vbTable.watermark))
+            // VB state is known because it is validated prior to normal draws and DispatchGraph.
+            // It is also not modified during graph execution.
+            if (vbTableDwords > m_vbTable.watermark)
             {
                 // If the current high watermark is increasing, we need to mark the contents as dirty because data which
                 // was previously uploaded to CE RAM wouldn't have been dumped to GPU memory before the previous Draw.
@@ -2339,7 +2340,7 @@ void UniversalCmdBuffer::CmdBindTargets(
         // Add a stall if needed after Flush events issued in HandleBoundTargetsChanged.
         if (m_cachedSettings.waitAfterCbFlush)
         {
-            constexpr WriteWaitEopInfo WaitEopInfo = { .hwAcqPoint = AcquirePointPreColor };
+            constexpr WriteWaitEopInfo WaitEopInfo = { .hwAcqPoint = AcquirePointPreDepth };
 
             pDeCmdSpace = WriteWaitEop(WaitEopInfo, pDeCmdSpace);
         }
@@ -2641,7 +2642,7 @@ void UniversalCmdBuffer::CmdBindStreamOutTargets(
             }
             else
             {
-                pBufferSrd->gfx11.format = BUF_FMT_32_UINT;
+                pBufferSrd->rtIp2Plus.format = BUF_FMT_32_UINT;
             }
         }
         else
@@ -3503,15 +3504,16 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
 // rely on the HW to discard the dispatch for us.
 template <bool HsaAbi, bool IssueSqttMarkerEvent, bool DescribeDrawDispatch>
 void PAL_STDCALL UniversalCmdBuffer::CmdDispatch(
-    ICmdBuffer*  pCmdBuffer,
-    DispatchDims size)
+    ICmdBuffer*       pCmdBuffer,
+    DispatchDims      size,
+    DispatchInfoFlags infoFlags)
 {
     auto*        pThis   = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
     const auto&  cmdUtil = pThis->m_device.CmdUtil();
 
     if (DescribeDrawDispatch)
     {
-        pThis->DescribeDispatch(Developer::DrawDispatchType::CmdDispatch, size);
+        pThis->DescribeDispatch(Developer::DrawDispatchType::CmdDispatch, size, infoFlags);
     }
 
     if (HsaAbi)
@@ -4331,14 +4333,6 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMeshIndirectMultiTask(
     // that state when executing a non-indexed indirect draw.
     // SEE: CmdDraw() for more details about why we do this.
     pThis->m_drawTimeHwState.dirty.indexedIndexType = 1;
-}
-
-// =====================================================================================================================
-void UniversalCmdBuffer::CmdCloneImageData(
-    const IImage& srcImage,
-    const IImage& dstImage)
-{
-    m_device.RsrcProcMgr().CmdCloneImageData(this, GetGfx9Image(srcImage), GetGfx9Image(dstImage));
 }
 
 // =====================================================================================================================
@@ -8468,6 +8462,7 @@ void UniversalCmdBuffer::ValidateDispatchHsaAbi(
             case HsaAbi::ValueKind::HiddenQueuePtr:
             case HsaAbi::ValueKind::HiddenDefaultQueue:
             case HsaAbi::ValueKind::HiddenCompletionAction:
+            case HsaAbi::ValueKind::HiddenHostcallBuffer:
                 // Not supported by PAL, kernels request but never actually use them,
                 // as compiler can't optimized out them for some cases
                 break;
@@ -9872,14 +9867,14 @@ uint32 UniversalCmdBuffer::BuildExecuteIndirectIb2Packets(
                 // Use the LLC for read/write if enabled in Mtype
                 constexpr uint32 LlcNoalloc = 0x0;
 
-                srdInfo.srdDword3 = ((SQ_SEL_X        << SqBufRsrcTWord3DstSelXShift)                       |
-                                     (SQ_SEL_Y        << SqBufRsrcTWord3DstSelYShift)                       |
-                                     (SQ_SEL_Z        << SqBufRsrcTWord3DstSelZShift)                       |
-                                     (SQ_SEL_W        << SqBufRsrcTWord3DstSelWShift)                       |
-                                     (BUF_FMT_32_UINT << Gfx10SqBufRsrcTWord3FormatShift)                   |
-                                     (resourceLevel   << Gfx10SqBufRsrcTWord3ResourceLevelShift)            |
-                                     (OobSelect       << SqBufRsrcTWord3OobSelectShift)                     |
-                                     (LlcNoalloc      << Gfx103PlusExclusiveSqBufRsrcTWord3LlcNoallocShift) |
+                srdInfo.srdDword3 = ((SQ_SEL_X        << SqBufRsrcTWord3DstSelXShift)            |
+                                     (SQ_SEL_Y        << SqBufRsrcTWord3DstSelYShift)            |
+                                     (SQ_SEL_Z        << SqBufRsrcTWord3DstSelZShift)            |
+                                     (SQ_SEL_W        << SqBufRsrcTWord3DstSelWShift)            |
+                                     (BUF_FMT_32_UINT << Gfx10SqBufRsrcTWord3FormatShift)        |
+                                     (resourceLevel   << Gfx10SqBufRsrcTWord3ResourceLevelShift) |
+                                     (OobSelect       << SqBufRsrcTWord3OobSelectShift)          |
+                                     (LlcNoalloc      << BvhSqBufRsrcTWord3LlcNoallocShift)      |
                                      (SQ_RSRC_BUF     << SqBufRsrcTWord3TypeShift));
 
                 pDeCmdIb2Space += m_cmdUtil.BuildUntypedSrd(
@@ -10537,13 +10532,12 @@ void UniversalCmdBuffer::ExecuteIndirectPacket(
 
         if (isGfx)
         {
-            Pm4::ValidateDrawInfo drawInfo;
-            drawInfo.vtxIdxCount   = 0;
-            drawInfo.instanceCount = 0;
-            drawInfo.firstVertex   = 0;
-            drawInfo.firstInstance = 0;
-            drawInfo.firstIndex    = 0;
-            drawInfo.useOpaque     = false;
+            Pm4::ValidateDrawInfo drawInfo = {};
+            if (useExecuteIndirectV2)
+            {
+                drawInfo.multiIndirectDraw = (maximumCount > 1) || (countGpuAddr != 0uLL);
+            }
+
             if (gfx9Generator.ContainsIndexBufferBind() || (gfx9Generator.Type() == Pm4::GeneratorType::Draw))
             {
                 ValidateDraw<false, true>(drawInfo);
@@ -10810,13 +10804,9 @@ void UniversalCmdBuffer::ExecuteIndirectShader(
                 // generate the commands to bind their own index buffer state, our draw-time validation could be
                 // redundant. Therefore, pretend this is a non-indexed draw call if the generated command binds
                 // its own index buffer(s).
-                Pm4::ValidateDrawInfo drawInfo;
-                drawInfo.vtxIdxCount   = 0;
-                drawInfo.instanceCount = 0;
-                drawInfo.firstVertex   = 0;
-                drawInfo.firstInstance = 0;
-                drawInfo.firstIndex    = 0;
-                drawInfo.useOpaque     = false;
+                Pm4::ValidateDrawInfo drawInfo = {};
+                drawInfo.multiIndirectDraw = (maximumCount > 1) || (countGpuAddr != 0uLL);
+
                 if (gfx9Generator.ContainsIndexBufferBind() || (gfx9Generator.Type() == Pm4::GeneratorType::Draw))
                 {
                     ValidateDraw<false, true>(drawInfo);
@@ -10961,7 +10951,7 @@ void UniversalCmdBuffer::CmdDispatchAce(
 
     if (m_cachedSettings.describeDrawDispatch)
     {
-        DescribeDispatch(Developer::DrawDispatchType::CmdDispatchAce, size);
+        DescribeDispatch(Developer::DrawDispatchType::CmdDispatchAce, size, {});
     }
 
     const auto* pComputePipeline = static_cast<const ComputePipeline*>(m_computeState.pipelineState.pPipeline);

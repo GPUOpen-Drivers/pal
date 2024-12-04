@@ -236,7 +236,8 @@ Result PresentScheduler::ProcessPresent(
     pIdleFence->AssociatePriorRenderFence(pQueue);
     Result             result     = m_pWindowSystem->Present(presentInfo,
                                                              nullptr,
-                                                             pIdleFence);
+                                                             pIdleFence,
+                                                             pQueue);
 
     if (swapChainMode == SwapChainMode::Mailbox)
     {

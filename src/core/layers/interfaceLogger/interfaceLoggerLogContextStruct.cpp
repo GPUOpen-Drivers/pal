@@ -1193,6 +1193,20 @@ void LogContext::Struct(
 
 // =====================================================================================================================
 void LogContext::Struct(
+    const DispatchInfoFlags value)
+{
+    BeginList(true);
+
+    if (value.devDriverOverlay)
+    {
+        Value("devDriverOverlay");
+    }
+
+    EndList();
+}
+
+// =====================================================================================================================
+void LogContext::Struct(
     const DoppDesktopInfo& value)
 {
     BeginMap(false);

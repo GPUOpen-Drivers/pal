@@ -169,28 +169,6 @@ if (NOT TARGET metrohash)
 
 endif()
 
-### Fast (De)Compression ###
-# WA: Check that these targets haven't already been added (Only until we have a global CMake context)
-if (NOT TARGET lz4)
-
-    dd_third_party_add_lib(
-        TARGETS   lz4 xxhash
-        DIRECTORY lz4
-    )
-
-endif()
-
-### Locate the current executable and module in the filesystem ###
-# WA: Check that these targets haven't already been added (Only until we have a global CMake context)
-if (NOT TARGET whereami)
-
-    dd_third_party_add_lib(
-        TARGETS   whereami
-        DIRECTORY whereami
-    )
-
-endif()
-
 ### Path Utility Library ###
 # WA: Check that these targets haven't already been added (Only until we have a global CMake context)
 if (NOT TARGET cwalk)
@@ -215,17 +193,6 @@ if (DEVDRIVER_IS_TOP_LEVEL)
         )
 
     endif()
-endif()
-
-### Structured serialization/deserialization functionality ###
-# WA: Check that these targets haven't already been added (Only until we have a global CMake context)
-if (NOT TARGET flatbuffers)
-
-    dd_third_party_add_lib(
-        TARGETS   flatbuffers
-        DIRECTORY flatbuffers
-    )
-
 endif()
 
 dd_third_party_add_lib(

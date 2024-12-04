@@ -140,7 +140,7 @@ const RegisterRange Nv10UserConfigShadowRange[] =
     {
         (mmTA_CS_BC_BASE_ADDR - UCONFIG_SPACE_START),
         (mmTA_CS_BC_BASE_ADDR_HI - mmTA_CS_BC_BASE_ADDR + 1),
-    },
+    }
 };
 
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -240,12 +240,12 @@ const RegisterRange Navi10NonShadowedRanges[] =
         Gfx10::mmRPB_PERFCOUNTER_RSLT_CNTL - Gfx10::mmRPB_PERFCOUNTER_LO + 1
     },
     {
-        Oss50::mmSDMA0_PERFCOUNTER0_SELECT,
-        Oss50::mmSDMA0_PERFCOUNTER1_HI - Oss50::mmSDMA0_PERFCOUNTER0_SELECT + 1
+        Gfx101::mmSDMA0_PERFCOUNTER0_SELECT,
+        Gfx101::mmSDMA0_PERFCOUNTER1_HI - Gfx101::mmSDMA0_PERFCOUNTER0_SELECT + 1
     },
     {
-        Oss50::mmSDMA1_PERFCOUNTER0_SELECT,
-        Oss50::mmSDMA1_PERFCOUNTER1_HI - Oss50::mmSDMA1_PERFCOUNTER0_SELECT + 1
+        Gfx101::mmSDMA1_PERFCOUNTER0_SELECT,
+        Gfx101::mmSDMA1_PERFCOUNTER1_HI - Gfx101::mmSDMA1_PERFCOUNTER0_SELECT + 1
     },
     {
         Gfx101::mmGCEA_PERFCOUNTER_LO,

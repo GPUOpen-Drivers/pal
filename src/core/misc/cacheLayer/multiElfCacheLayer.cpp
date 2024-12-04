@@ -275,6 +275,13 @@ Result MultiElfCacheLayer::StoreMultiElfSimple(
         memcpy(buffer+2, name.Begin(), 16);
         sscanf(buffer, "%" SCNx64, &elfHash.qwords[0]);
 
+        // Normally we would want to utilize the entire hash storage type to maximize hash space. However, the ELF hash
+        // from the compiler is only 64-bit, and likely has its own shortcomings. If we take another meaningful and
+        // fairly unique value such as the ELF size, it allows us to distinguish between differing ELFs which happen to
+        // yield the same hash. This two-factor check of payload hash and size is also a simple method of defeating
+        // basic length-extension attacks.
+        elfHash.qwords[1] = data.size();
+
         // Track and store this child ELF
         entry.simpleEntry.elfHashes[elfIndex]  = elfHash;
         entry.simpleEntry.elfSizes[elfIndex]   = data.size();
@@ -342,6 +349,8 @@ Result MultiElfCacheLayer::LoadMultiElfSimple(
         Hash128 assembledHash = {};
         MetroHash128::Hash(static_cast<const uint8*>(pBuffer), pEntry->size, assembledHash.bytes);
         PAL_ASSERT(memcmp(assembledHash.bytes, pEntry->checksum.bytes, sizeof(Hash128)) == 0);
+
+        UpdateStatistics(ArchiveMaxLength, Result::Success, MultiElfSimpleEntry::MaxElfsPerArchive);
     }
 
     PAL_ALERT(IsErrorResult(result));
@@ -392,6 +401,13 @@ Result MultiElfCacheLayer::StoreMultiElfChain(
             char buffer[]                   = "0xFFFFFFFFFFFFFFFF";
             memcpy(buffer+2, name.Begin(), 16);
             sscanf(buffer, "%" SCNx64, &elfHash.qwords[0]);
+
+            // Normally we would want to utilize the entire hash storage type to maximize hash space. However, the ELF
+            // hash from the compiler is only 64-bit, and likely has its own shortcomings. If we take another meaningful
+            // and fairly unique value such as the ELF size, it allows us to distinguish between differing ELFs which
+            // happen to yield the same hash. This two-factor check of payload hash and size is also a simple method of
+            // defeating basic length-extension attacks.
+            elfHash.qwords[1] = data.size();
 
             // Track and store this child ELF
             currentChainEntry.numElfs++;
@@ -544,6 +560,8 @@ Result MultiElfCacheLayer::LoadMultiElfChain(
         {
             result = Result::ErrorIncompleteResults;
         }
+
+        UpdateStatistics(ArchiveMaxLength, Result::Success, pEntry->numElfs);
     }
 
     PAL_ALERT(IsErrorResult(result));

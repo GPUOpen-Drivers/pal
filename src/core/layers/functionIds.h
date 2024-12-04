@@ -282,7 +282,7 @@ constexpr const char* CmdBufCallIdStrings[] =
     "CmdBindSampleRateImage()",
     "CmdResolvePrtPlusImage()",
     "CmdSetClipRects()",
-    "CmdPostProcessFrame()",
+    "CmdPostProcessFrame()"
 };
 
 static_assert(Util::ArrayLen(CmdBufCallIdStrings) == static_cast<uint32>(CmdBufCallId::Count),

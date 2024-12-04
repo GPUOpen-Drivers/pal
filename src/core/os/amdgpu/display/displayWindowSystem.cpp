@@ -338,7 +338,8 @@ void DisplayWindowSystem::DestroyPresentableImage(
 Result DisplayWindowSystem::Present(
     const PresentSwapChainInfo& presentInfo,
     PresentFence*               pRenderFence,
-    PresentFence*               pIdleFence)
+    PresentFence*               pIdleFence,
+    IQueue*                     pQueue)
 {
     Image* pImage = static_cast<Image*>(presentInfo.pSrcImage);
 

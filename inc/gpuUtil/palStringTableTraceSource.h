@@ -28,6 +28,8 @@
 #include "palTraceSession.h"
 #include "palVector.h"
 
+#include <atomic>
+
 namespace Pal
 {
 class IDevice;
@@ -73,12 +75,18 @@ public:
         const char*        pStringData,
         Pal::uint32        stringDataSize);
 
+    Pal::uint32 AcquireTableId() { return ++s_nextTableId; }
+
     // ==== Base Class Overrides =================================================================================== //
     virtual void OnConfigUpdated(DevDriver::StructuredValue* pJsonConfig) override { }
 
     virtual Pal::uint64 QueryGpuWorkMask() const override { return 0; }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 908
+    virtual void OnTraceAccepted(Pal::uint32 gpuIndex, Pal::ICmdBuffer* pCmdBuf) override { }
+#else
     virtual void OnTraceAccepted() override { }
+#endif
     virtual void OnTraceBegin(Pal::uint32 gpuIndex, Pal::ICmdBuffer* pCmdBuf) override { }
     virtual void OnTraceEnd(Pal::uint32 gpuIndex, Pal::ICmdBuffer* pCmdBuf) override { }
     virtual void OnTraceFinished() override;
@@ -100,6 +108,8 @@ protected:
 
     Pal::IPlatform* const m_pPlatform;
     Util::Vector<StringTableEntry, 8, Pal::IPlatform> m_stringTables;
+
+    static std::atomic<Pal::uint32> s_nextTableId;
 };
 
 } // namespace GpuUtil

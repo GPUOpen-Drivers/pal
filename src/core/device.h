@@ -91,6 +91,9 @@ constexpr uint32 MinVaRangeNumBits = 36u;
 // PAL minimum fragment size for local memory allocations
 constexpr gpusize PageSize = 0x1000u;
 
+// PAL maximum number of DFWX slots
+constexpr uint32 MaxDfwxSlots = 8;
+
 constexpr char SettingsFileName[] = "amdVulkanSettings.cfg";
 
 // Maximum number of excluded virtual address ranges.
@@ -637,6 +640,7 @@ struct GpuChipProperties
     uint32 cpUcodeVersion;      // Command Processor feature version.
                                 // Assume all blocks in the CP share the same feature version.
     uint32 pfpUcodeVersion;     // PrefetchProcessor Command Processor firmware version.
+    uint32 meUcodeVersion;      // ME Command Processor firmware version.
     uint32 mecUcodeVersion;     // ME Compute Command Processor firmware version.
 
     struct
@@ -653,7 +657,7 @@ struct GpuChipProperties
                 uint32 supportsCornerSampling       :  1;
                 // Whether to support Display Dcc
                 uint32 supportDisplayDcc            :  1;
-                // Placeholder, do not use.
+                // Load bearing placeholder, do not touch.
                 uint32 placeholder0                 :  1;
                 // Reserved for future use.
                 uint32 reserved                     : 28;
@@ -730,7 +734,6 @@ struct GpuChipProperties
             uint32 supportsVrs                      :  1; // Indicates support for variable rate shading
             uint32 supportsSwStrmout                :  1; // Indicates support for software streamout
             uint32 supportsHwVs                     :  1; // Indicates hardware support for Vertex Shaders
-            uint32 reserved3                        :  1;
             uint32 supportCaptureReplay             :  1; // Indicates support for Capture Replay
             uint32 supportHsaAbi                    :  1;
             uint32 supportAceOffload                :  1;
@@ -745,7 +748,7 @@ struct GpuChipProperties
             uint32 support1dDispatchInterleave      :  1; // Indicates support for 1D Dispatch Interleave
             uint32 placeholder1                     :  1;
             uint32 gfx9DataValid                    :  1;
-            uint32 reserved                         : 13;
+            uint32 reserved                         : 14;
         };
     } gfxip;
 #endif
@@ -848,7 +851,6 @@ struct GpuChipProperties
                 uint64 supportImplicitPrimitiveShader      :  1;
                 uint64 supportSpp                          :  1; // HW supports Shader Profiling for Power
                 uint64 validPaScTileSteeringOverride       :  1; // Value of paScTileSteeringOverride is valid
-                uint64 placeholder0                        :  1; // Placeholder. Do not use.
                 uint64 supportPerShaderStageWaveSize       :  1; // HW supports changing the wave size
                 uint64 supportCustomWaveBreakSize          :  1;
                 uint64 supportMsaaCoverageOut              :  1; // HW supports MSAA coverage samples
@@ -884,6 +886,7 @@ struct GpuChipProperties
                 uint64 placeholder6                        :  1;
                 uint32 supportBFloat16                     :  1; // Indicates support for bfloat16
                 uint32 supportFloat8                       :  1; // HW supports float 8-bit.
+                uint32 supportInt4                         :  1; // HW supports integer 4-bit.
                 uint64 reserved                            :  9;
             };
 
@@ -895,7 +898,6 @@ struct GpuChipProperties
             {
                 Gfx9::PerfCounterInfo  gfx9Info;   // Gfx9 HWL Per block Perf Counter info
             } perfCounterInfo;
-
         } gfx9;
     };
 
@@ -911,6 +913,7 @@ struct GpuChipProperties
     uint32 enginePerfRating;
     uint32 memoryPerfRating;
 
+    // Below SRD sizes are all with bytes unit.
     struct
     {
         uint32 typedBufferView;
@@ -1022,6 +1025,15 @@ public:
 
     virtual Result GetPerfExperimentProperties(
         PerfExperimentProperties* pProperties) const override;
+
+    // NOTE: Part of the public IDevice interface.
+    virtual Result GetDefaultSamplePattern(
+        uint32                 samples,
+        MsaaQuadSamplePattern* pQuadSamplePattern) const override
+    {
+        return (m_pGfxDevice == nullptr) ? Result::ErrorUnavailable :
+                m_pGfxDevice->GetDefaultSamplePattern(samples, pQuadSamplePattern);
+    }
 
     // NOTE: Part of the public IDevice interface.
     virtual void BindTrapHandler(PipelineBindPoint pipelineType, IGpuMemory* pGpuMemory, gpusize offset) override
@@ -2127,6 +2139,22 @@ private:
     PAL_DISALLOW_COPY_AND_ASSIGN(Device);
 };
 
+#if PAL_BUILD_GFX
+// Helper struct which contains the version numbers for the MEC, ME, and PFP firmwares.
+struct CpFwVersions
+{
+    uint32 mec;
+    uint32 me;
+    uint32 pfp;
+};
+
+// Tests the MEC, ME, and PFP firmware version against minimums for all three and returns true if all three are
+// at least the specified minimum.
+extern bool TestCpFwVersions(
+    const GpuChipProperties& chipProperties,
+    const CpFwVersions&      versions);
+#endif
+
 // NOTE: Below are prototypes for several utility functions for each HWIP namespace in PAL. These functions are for
 // determining what IP level of a particular HWIP block (GFXIP, etc.) a GPU supports, as well as initializing
 // the GPU chip properties for a particular version of a HWIP block. Each HWIP namespace in PAL corresponds to one
@@ -2282,8 +2310,7 @@ inline bool IsPhoenixFamily(const Device& device)
 
 constexpr bool IsGfx10(GfxIpLevel gfxLevel)
 {
-    return ((gfxLevel == GfxIpLevel::GfxIp10_1) || (gfxLevel == GfxIpLevel::GfxIp10_3)
-           );
+    return ((gfxLevel == GfxIpLevel::GfxIp10_1) || (gfxLevel == GfxIpLevel::GfxIp10_3));
 }
 inline bool IsGfx10(const Device& device)
 {
@@ -2387,8 +2414,7 @@ inline bool IsGfx103Plus(const Device& device)
 }
 constexpr bool IsGfx103PlusExclusive(GfxIpLevel gfxLevel)
 {
-    return ((gfxLevel > GfxIpLevel::GfxIp10_1)
-           );
+    return (gfxLevel > GfxIpLevel::GfxIp10_1);
 }
 inline bool IsGfx103PlusExclusive(const Device& device)
 {
@@ -2396,8 +2422,7 @@ inline bool IsGfx103PlusExclusive(const Device& device)
 }
 constexpr bool IsGfx103CorePlus(GfxIpLevel gfxLevel)
 {
-    return ((gfxLevel >= GfxIpLevel::GfxIp10_3)
-            );
+    return (gfxLevel >= GfxIpLevel::GfxIp10_3);
 }
 inline bool IsGfx103CorePlus(const Device& device)
 {

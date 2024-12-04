@@ -25,6 +25,7 @@
 
 #include "protocols/driverControlClient.h"
 #include "msgChannel.h"
+#include <dd_timeout_constants.h>
 
 #define DRIVERCONTROL_CLIENT_MIN_VERSION 1
 #define DRIVERCONTROL_CLIENT_MAX_VERSION DRIVERCONTROL_PROTOCOL_VERSION
@@ -56,7 +57,9 @@ namespace DevDriver
                 SizedPayloadContainer container = {};
                 container.CreatePayload<PauseDriverRequestPayload>();
 
-                result = TransactDriverControlPayload(&container);
+                result = TransactDriverControlPayload(&container,
+                                                      g_timeoutConstants.communicationTimeoutInMs,
+                                                      g_timeoutConstants.retryTimeoutInMs);
                 if (result == Result::Success)
                 {
                     const PauseDriverResponsePayload& response =
@@ -85,7 +88,9 @@ namespace DevDriver
                 SizedPayloadContainer container = {};
                 container.CreatePayload<ResumeDriverRequestPayload>();
 
-                result = TransactDriverControlPayload(&container);
+                result = TransactDriverControlPayload(&container,
+                                                      g_timeoutConstants.communicationTimeoutInMs,
+                                                      g_timeoutConstants.retryTimeoutInMs);
                 if (result == Result::Success)
                 {
                     const ResumeDriverResponsePayload& response =
@@ -114,7 +119,9 @@ namespace DevDriver
                 SizedPayloadContainer container = {};
                 container.CreatePayload<StepDriverRequestPayload>(numSteps);
 
-                result = TransactDriverControlPayload(&container);
+                result = TransactDriverControlPayload(&container,
+                                                      g_timeoutConstants.communicationTimeoutInMs,
+                                                      g_timeoutConstants.retryTimeoutInMs);
                 if (result == Result::Success)
                 {
                     if (GetSessionVersion() >= DRIVERCONTROL_STEP_RETURN_STATUS_VERSION)
@@ -162,7 +169,9 @@ namespace DevDriver
                         SizedPayloadContainer container = {};
                         container.CreatePayload<StepDriverRequestPayload>(1);
 
-                        result = TransactDriverControlPayload(&container);
+                        result = TransactDriverControlPayload(&container,
+                                                              g_timeoutConstants.communicationTimeoutInMs,
+                                                              g_timeoutConstants.retryTimeoutInMs);
                         if (result == Result::Success)
                         {
                             const StepDriverResponsePayloadV2& response =
@@ -212,7 +221,9 @@ namespace DevDriver
                 SizedPayloadContainer container = {};
                 container.CreatePayload<QueryNumGpusRequestPayload>();
 
-                result = TransactDriverControlPayload(&container);
+                result = TransactDriverControlPayload(&container,
+                                                      g_timeoutConstants.communicationTimeoutInMs,
+                                                      g_timeoutConstants.retryTimeoutInMs);
                 if (result == Result::Success)
                 {
                     const QueryNumGpusResponsePayload& response =
@@ -242,7 +253,9 @@ namespace DevDriver
                 SizedPayloadContainer container = {};
                 container.CreatePayload<QueryDeviceClockModeRequestPayload>(gpuIndex);
 
-                result = TransactDriverControlPayload(&container);
+                result = TransactDriverControlPayload(&container,
+                                                      g_timeoutConstants.communicationTimeoutInMs,
+                                                      g_timeoutConstants.retryTimeoutInMs);
                 if (result == Result::Success)
                 {
                     const QueryDeviceClockModeResponsePayload& response =
@@ -275,7 +288,9 @@ namespace DevDriver
                 SizedPayloadContainer container = {};
                 container.CreatePayload<QueryClientInfoRequestPayload>();
 
-                result = TransactDriverControlPayload(&container);
+                result = TransactDriverControlPayload(&container,
+                                                      g_timeoutConstants.communicationTimeoutInMs,
+                                                      g_timeoutConstants.retryTimeoutInMs);
                 if (result == Result::Success)
                 {
                     const QueryClientInfoResponsePayload& response =
@@ -305,7 +320,9 @@ namespace DevDriver
                 SizedPayloadContainer container = {};
                 container.CreatePayload<SetDeviceClockModeRequestPayload>(gpuIndex, clockMode);
 
-                result = TransactDriverControlPayload(&container);
+                result = TransactDriverControlPayload(&container,
+                                                      g_timeoutConstants.communicationTimeoutInMs,
+                                                      g_timeoutConstants.retryTimeoutInMs);
                 if (result == Result::Success)
                 {
                     const SetDeviceClockModeResponsePayload& response =
@@ -338,7 +355,9 @@ namespace DevDriver
                     SizedPayloadContainer container = {};
                     container.CreatePayload<QueryDeviceClockByModeRequestPayload>(gpuIndex, clockMode);
 
-                    result = TransactDriverControlPayload(&container);
+                    result = TransactDriverControlPayload(&container,
+                                                          g_timeoutConstants.communicationTimeoutInMs,
+                                                          g_timeoutConstants.retryTimeoutInMs);
                     if (result == Result::Success)
                     {
                         const QueryDeviceClockByModeResponsePayload& response =
@@ -437,7 +456,9 @@ namespace DevDriver
                 SizedPayloadContainer container = {};
                 container.CreatePayload<QueryDriverStatusRequestPayload>();
 
-                result = TransactDriverControlPayload(&container);
+                result = TransactDriverControlPayload(&container,
+                                                      g_timeoutConstants.communicationTimeoutInMs,
+                                                      g_timeoutConstants.retryTimeoutInMs);
                 if (result == Result::Success)
                 {
                     const QueryDriverStatusResponsePayload& response =
@@ -486,7 +507,9 @@ namespace DevDriver
                             SizedPayloadContainer container = {};
                             container.CreatePayload<QueryDriverStatusRequestPayload>();
 
-                            result = TransactDriverControlPayload(&container);
+                            result = TransactDriverControlPayload(&container,
+                                                                  g_timeoutConstants.communicationTimeoutInMs,
+                                                                  g_timeoutConstants.retryTimeoutInMs);
                             if (result == Result::Success)
                             {
                                 const QueryDriverStatusResponsePayload& response =
@@ -525,7 +548,9 @@ namespace DevDriver
                     SizedPayloadContainer container = {};
                     container.CreatePayload<IgnoreDriverRequestPayload>();
 
-                    result = TransactDriverControlPayload(&container);
+                    result = TransactDriverControlPayload(&container,
+                                                          g_timeoutConstants.communicationTimeoutInMs,
+                                                          g_timeoutConstants.retryTimeoutInMs);
                     if (result == Result::Success)
                     {
                         const IgnoreDriverResponsePayload& response =
@@ -590,7 +615,9 @@ namespace DevDriver
                 SizedPayloadContainer container = {};
                 container.CreatePayload<QueryDeviceClockRequestPayload>(gpuIndex);
 
-                result = TransactDriverControlPayload(&container);
+                result = TransactDriverControlPayload(&container,
+                                                      g_timeoutConstants.communicationTimeoutInMs,
+                                                      g_timeoutConstants.retryTimeoutInMs);
                 if (result == Result::Success)
                 {
                     const QueryDeviceClockResponsePayload& response =

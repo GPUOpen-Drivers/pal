@@ -95,14 +95,9 @@ uint32* MsaaState::WriteCommands(
 
         if (m_flags.waFixPostZConservativeRasterization != 0)
         {
-            uint32 dbReservedReg2Mask = static_cast<uint32_t>(~Gfx101::DB_RESERVED_REG_2__FIELD_1_MASK);
+            uint32 dbReservedReg2Mask = static_cast<uint32_t>(~DB_RESERVED_REG_2__FIELD_1_MASK);
 
-            static_assert(Gfx101::mmDB_RESERVED_REG_2 == Gfx103PlusExclusive::mmDB_RESERVED_REG_2,
-                    "Register offset for DB_RESERVED_REG_2 do not match between Gfx101 and Gfx103Plus");
-            static_assert(Gfx101::DB_RESERVED_REG_2__FIELD_1_MASK == Gfx103PlusExclusive::DB_RESERVED_REG_2__FIELD_1_MASK,
-                    "Register offsets for DB_RESERVED_REG_2__FIELD_1_MASK do not match between Gfx101 and Gfx103Plus");
-
-            pCmdSpace = pCmdStream->WriteContextRegRmw(Gfx101::mmDB_RESERVED_REG_2,
+            pCmdSpace = pCmdStream->WriteContextRegRmw(mmDB_RESERVED_REG_2,
                                                        dbReservedReg2Mask,
                                                        m_regs.dbReservedReg2,
                                                        pCmdSpace);
@@ -254,7 +249,7 @@ void MsaaState::Init(
 
         // NOTE: A check to confirm equivalence b/w DB_RESERVED_REG_2__FIELD_1_MASK offset for Gfx101 and Gfx103 is
         //       already performed in WriteCommands() above.
-        m_regs.dbReservedReg2 = Gfx101::DB_RESERVED_REG_2__FIELD_1_MASK & 0x1;
+        m_regs.dbReservedReg2 = DB_RESERVED_REG_2__FIELD_1_MASK & 0x1;
     }
 
     // Make sure we don't write outside of the state this class owns.

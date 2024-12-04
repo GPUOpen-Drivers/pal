@@ -172,7 +172,6 @@ namespace DevDriver
         Result Thread::Start(ThreadFunction pFnThreadFunc, void* pThreadParameter)
         {
             Result result = Result::Error;
-
             // Check if this thread handle has already been initialized.
             // pthread_t types act as opaque, and do not work portably when compared directly.
             // To get around this, we use the threadFunc pointer instead, since it is never allowed to be NULL.
@@ -181,11 +180,35 @@ namespace DevDriver
                 pParameter  = pThreadParameter;
                 pFnFunction = pFnThreadFunc;
 
-                if (pthread_create(&hThread, nullptr, &Thread::ThreadShim, this) == 0)
+// pthread_attr_setinheritsched is available in NDK API level >= 28. For now, only call this
+// function for non-Android platform.
+#if !defined (__ANDROID__)
+                // POSIX thread library is not support flag SCHED_RESET_ON_FORK. If app process's realtime sched policy
+                // has SCHED_RESET_ON_FORK flag(like policy SCHED_FIFO | SCHED_RESET_ON_FORK), pthread_create without attr
+                // create a new thread will use __default_pthread_attr which would abandon flag SCHED_RESET_ON_FORK, then
+                // new created thread may block in some case for it still in real time sched policy. One way to deal with
+                // this issue is setting inheritsched attr for children thread, it can bypass the __default_pthread_attr
+                // and use parent's sched policy(SCHED_FIFO | SCHED_RESET_ON_FORK), then when children thread exec, kernel
+                // sched policy will be changed into SCHED_OTHER which obey linux manual.
+
+                bool isSchedPolicyResetOnFork = (sched_getscheduler(getpid()) & SCHED_RESET_ON_FORK) ? true : false;
+                if (isSchedPolicyResetOnFork)
                 {
-                    result = Result::Success;
+                    pthread_attr_t attr;
+                    pthread_attr_init(&attr);
+                    pthread_attr_setinheritsched(&attr, PTHREAD_INHERIT_SCHED);
+                    result = (pthread_create(&hThread, &attr, &Thread::ThreadShim, this) == 0) ? Result::Success
+                                                                                               : Result::Error;
+                    pthread_attr_destroy(&attr);
                 }
                 else
+#endif
+                {
+                    result = (pthread_create(&hThread, nullptr, &Thread::ThreadShim, this) == 0) ? Result::Success
+                                                                                                 : Result::Error;
+                }
+
+                if (result != Result::Success)
                 {
                     Reset();
                 }
@@ -194,7 +217,6 @@ namespace DevDriver
             }
             return result;
         }
-
         Result Thread::SetNameRaw(const char* pThreadName)
         {
             Result result = Result::Error;

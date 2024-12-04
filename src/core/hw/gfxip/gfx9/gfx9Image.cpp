@@ -548,7 +548,6 @@ Result Image::Finalize(
     bool needsFastDepthClearMetaData   = false;
     bool needsDccStateMetaData         = false;
     bool needsHiSPretestsMetaData      = false;
-    bool needsDccLookupTable           = false;
 
     // Initialize Htile:
     if (htileUsage.value != 0)
@@ -912,15 +911,6 @@ Result Image::Finalize(
         if (pGpuMemLayout->metadataHeaderOffset != 0)
         {
             pGpuMemLayout->metadataHeaderSize = (*pGpuMemSize - pGpuMemLayout->metadataHeaderOffset);
-        }
-
-        if (needsDccLookupTable)
-        {
-            if (useSharedMetadata == false)
-            {
-                // Currently, shared dcc lookup table is not available.
-                InitDccLookupTable(pGpuMemLayout, pGpuMemSize, pGpuMemAlignment);
-            }
         }
 
         m_gpuMemSyncSize = *pGpuMemSize;
@@ -2299,36 +2289,6 @@ void Image::InitFastClearEliminateMetaData(
     // when the clear color is TC compatible. So here, we try to not perform fast clear eliminate and save the
     // CPU cycles required to set up the fast clear eliminate.
     m_pNumSkippedFceCounter =  m_device.GetGfxDevice()->AllocateFceRefCount();
-}
-
-// =====================================================================================================================
-void Image::InitDccLookupTable(
-    ImageMemoryLayout* pGpuMemLayout,
-    gpusize*           pGpuOffset,
-    gpusize*           pGpuMemAlignment)
-{
-    const auto*  pBaseDcc = GetDcc(0);
-
-    if (pBaseDcc->GetNumEffectiveSamples(DccClearPurpose::FastClear) <= 2)
-    {
-        // The current implementation of Dcc lookup table works for hardwares that compress maximum two samples.
-        // Element of dcc lookup table is uint32.
-        static constexpr uint32  ElementSize             = sizeof(uint32);
-        static constexpr gpusize DccLookupTableAlignment = ElementSize;
-
-        *pGpuMemAlignment = Max(*pGpuMemAlignment, DccLookupTableAlignment);
-
-        const auto&  dccAddrOutput     = pBaseDcc->GetAddrOutput();
-        const uint32 lookupTableWidth  = dccAddrOutput.metaBlkWidth  / dccAddrOutput.compressBlkWidth;
-        const uint32 lookupTableHeight = dccAddrOutput.metaBlkHeight / dccAddrOutput.compressBlkHeight;
-
-        m_dccLookupTableOffset = Util::Pow2Align((*pGpuOffset), DccLookupTableAlignment);
-        m_dccLookupTableSize   = lookupTableWidth * lookupTableHeight * ElementSize * m_createInfo.arraySize;
-
-        UpdateMetaDataHeaderLayout(pGpuMemLayout, m_dccLookupTableOffset, DccLookupTableAlignment);
-
-        *pGpuOffset += m_dccLookupTableSize;
-    }
 }
 
 // =====================================================================================================================

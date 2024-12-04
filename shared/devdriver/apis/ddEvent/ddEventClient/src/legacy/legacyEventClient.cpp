@@ -26,6 +26,7 @@
 #include <legacy/legacyEventClient.h>
 #include <msgChannel.h>
 #include <ddTransferManager.h>
+#include <dd_timeout_constants.h>
 
 #define EVENT_CLIENT_MIN_VERSION EVENT_INDEXING_VERSION
 #define EVENT_CLIENT_MAX_VERSION EVENT_INDEXING_VERSION
@@ -58,7 +59,9 @@ Result EventClient::QueryProviders(EventProvidersDescription** ppProvidersDescri
         SizedPayloadContainer container = {};
         container.CreatePayload<QueryProvidersRequestPayload>();
 
-        result = SendPayloadContainer(container);
+        result = SendPayloadContainer(container,
+                                      g_timeoutConstants.communicationTimeoutInMs,
+                                      g_timeoutConstants.retryTimeoutInMs);
         if (result == Result::Success)
         {
             result = ReceiveResponsePayload(&container, EventMessage::QueryProvidersResponse);
@@ -147,7 +150,9 @@ Result EventClient::UpdateProviders(
             SizedPayloadContainer container = {};
             container.CreatePayload<AllocateProviderUpdatesRequest>(static_cast<uint32>(updateDataSize));
 
-            result = SendPayloadContainer(container);
+            result = SendPayloadContainer(container,
+                                          g_timeoutConstants.communicationTimeoutInMs,
+                                          g_timeoutConstants.retryTimeoutInMs);
             if (result == Result::Success)
             {
                 result = ReceiveResponsePayload(&container, EventMessage::AllocateProviderUpdatesResponse);
@@ -202,7 +207,9 @@ Result EventClient::UpdateProviders(
             {
                 container.CreatePayload<ApplyProviderUpdatesRequest>();
 
-                result = SendPayloadContainer(container);
+                result = SendPayloadContainer(container,
+                                              g_timeoutConstants.communicationTimeoutInMs,
+                                              g_timeoutConstants.retryTimeoutInMs);
             }
 
             if (result == Result::Success)
@@ -238,7 +245,7 @@ Result EventClient::ReadEventData(uint32 timeoutInMs)
 {
     SizedPayloadContainer container = {};
 
-    Result result = ReceivePayloadContainer(&container, timeoutInMs);
+    Result result = ReceivePayloadContainer(&container, timeoutInMs, g_timeoutConstants.retryTimeoutInMs);
 
     if (result == Result::Success)
     {
@@ -273,7 +280,9 @@ Result EventClient::SubscribeToProvider(EventProviderId providerId)
     SizedPayloadContainer payload = {};
     payload.CreatePayload<SubscribeToProviderRequest>(providerId);
 
-    Result result = TransactPayloadContainer(&payload);
+    Result result = TransactPayloadContainer(&payload,
+                                             g_timeoutConstants.communicationTimeoutInMs,
+                                             g_timeoutConstants.retryTimeoutInMs);
     if (result == Result::Success)
     {
         result = payload.GetPayload<SubscribeToProviderResponse>().result;
@@ -287,7 +296,7 @@ void EventClient::UnsubscribeFromProvider()
 {
     SizedPayloadContainer payload = {};
     payload.CreatePayload<UnsubscribeFromProviderRequest>();
-    SendPayloadContainer(payload);
+    SendPayloadContainer(payload, g_timeoutConstants.communicationTimeoutInMs, g_timeoutConstants.retryTimeoutInMs);
 }
 
 // =====================================================================================================================
@@ -300,7 +309,9 @@ Result EventClient::ReceiveResponsePayload(SizedPayloadContainer* pContainer, Ev
     Result result = Result::Success;
 
     do {
-        result = ReceivePayloadContainer(pContainer);
+        result = ReceivePayloadContainer(pContainer,
+                                         g_timeoutConstants.communicationTimeoutInMs,
+                                         g_timeoutConstants.retryTimeoutInMs);
         if (result == Result::Success)
         {
             if (pContainer->GetPayload<EventHeader>().command == responseType)

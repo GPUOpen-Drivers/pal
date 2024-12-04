@@ -378,14 +378,15 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndexedIndirectMultiDecorator(
 
 // =====================================================================================================================
 void PAL_STDCALL CmdBuffer::CmdDispatchDecorator(
-    ICmdBuffer*  pCmdBuffer,
-    DispatchDims size)
+    ICmdBuffer*       pCmdBuffer,
+    DispatchDims      size,
+    DispatchInfoFlags infoFlags)
 {
     CmdBuffer*const  pThis = static_cast<CmdBuffer*>(pCmdBuffer);
     ICmdBuffer*const pNext = pThis->GetNextLayer();
 
     pThis->PreDispatchCall();
-    pNext->CmdDispatch(size);
+    pNext->CmdDispatch(size, infoFlags);
     pThis->PostDispatchCall(CmdBufCallId::CmdDispatch);
 }
 

@@ -26,6 +26,7 @@
 #pragma once
 
 #include "protocolClient.h"
+#include "dd_common_api.h"
 
 namespace DevDriver
 {
@@ -49,7 +50,8 @@ namespace DevDriver
         Version GetMaxVersion() const override final { return m_maxVersion; };
 
         // connection management/tracking
-        Result Connect(ClientId clientId, uint32 timeoutInMs = kDefaultConnectionTimeoutInMs) override final;
+        Result Connect(ClientId clientId, uint32 timeoutInMs) override final;
+        Result Connect(ClientId clientId) override final;
         void Disconnect() override final;
         bool IsConnected() const override final;
         bool QueryConnectionStatus() override final;
@@ -73,17 +75,13 @@ namespace DevDriver
 
         IMsgChannel* const m_pMsgChannel;
 
-        DD_STATIC_CONST uint32 kDefaultRetryTimeoutInMs = 50;
-        DD_STATIC_CONST uint32 kDefaultCommunicationTimeoutInMs = 5000;
-        DD_STATIC_CONST uint32 kDefaultConnectionTimeoutInMs = 1000;
-
         // Attempts to receive a payload into a fixed size buffer.
         // Returns the result and the size of the payload if it was received successfully.
         Result ReceiveSizedPayload(void*   pPayloadBuffer,
                                    uint32  payloadBufferSize,
                                    uint32* pBytesReceived,
-                                   uint32  timeoutInMs = kDefaultCommunicationTimeoutInMs,
-                                   uint32  retryInMs   = kDefaultRetryTimeoutInMs)
+                                   uint32  timeoutInMs,
+                                   uint32  retryInMs)
         {
             uint32 timeElapsed = 0;
             // Blocking wait on the message.
@@ -106,8 +104,8 @@ namespace DevDriver
         // Templated wrapper around ReceiveSizedPayload
         template <typename T>
         Result ReceivePayload(T*     pPayload,
-                              uint32 timeoutInMs = kDefaultCommunicationTimeoutInMs,
-                              uint32 retryInMs   = kDefaultRetryTimeoutInMs)
+                              uint32 timeoutInMs,
+                              uint32 retryInMs)
         {
             uint32 bytesReceived = 0;
             Result result = ReceiveSizedPayload(pPayload, sizeof(T), &bytesReceived, timeoutInMs, retryInMs);
@@ -124,8 +122,8 @@ namespace DevDriver
         // Attempts to send a payload
         Result SendSizedPayload(const void* pPayload,
                                 uint32      payloadSize,
-                                uint32      timeoutInMs = kDefaultCommunicationTimeoutInMs,
-                                uint32      retryInMs   = kDefaultRetryTimeoutInMs)
+                                uint32      timeoutInMs,
+                                uint32      retryInMs)
         {
             Result result = Result::Error;
             uint32 timeElapsed = 0;
@@ -144,17 +142,17 @@ namespace DevDriver
         // Templated wrapper around SendSizedPayload
         template <typename T>
         Result SendPayload(const T* pPayload,
-                           uint32   timeoutInMs = kDefaultCommunicationTimeoutInMs,
-                           uint32   retryInMs   = kDefaultRetryTimeoutInMs)
+                           uint32   timeoutInMs,
+                           uint32   retryInMs)
         {
             return SendSizedPayload(pPayload, sizeof(T), timeoutInMs, retryInMs);
         }
 
         // Templated helper for common Send/Receive pattern
         template <typename T>
-        Result Transact(T* pPayload,
-                        uint32   timeoutInMs = kDefaultCommunicationTimeoutInMs,
-                        uint32   retryInMs   = kDefaultRetryTimeoutInMs)
+        Result Transact(T*       pPayload,
+                        uint32   timeoutInMs,
+                        uint32   retryInMs)
         {
             Result result = Result::Error;
             if (IsConnected())
@@ -170,8 +168,8 @@ namespace DevDriver
 
         Result SendPayloadContainer(
             const SizedPayloadContainer& container,
-            uint32                       timeoutInMs = kDefaultCommunicationTimeoutInMs,
-            uint32                       retryInMs   = kDefaultRetryTimeoutInMs)
+            uint32                       timeoutInMs,
+            uint32                       retryInMs)
         {
             return SendSizedPayload(container.payload,
                                     container.payloadSize,
@@ -181,8 +179,8 @@ namespace DevDriver
 
         Result ReceivePayloadContainer(
             SizedPayloadContainer* pContainer,
-            uint32                 timeoutInMs = kDefaultCommunicationTimeoutInMs,
-            uint32                 retryInMs   = kDefaultRetryTimeoutInMs)
+            uint32                 timeoutInMs,
+            uint32                 retryInMs)
         {
 
             return ReceiveSizedPayload(pContainer->payload,
@@ -194,8 +192,8 @@ namespace DevDriver
 
         Result TransactPayloadContainer(
             SizedPayloadContainer* pContainer,
-            uint32                 timeoutInMs = kDefaultCommunicationTimeoutInMs,
-            uint32                 retryInMs   = kDefaultRetryTimeoutInMs)
+            uint32                 timeoutInMs,
+            uint32                 retryInMs)
         {
             Result result = SendPayloadContainer(*pContainer, timeoutInMs, retryInMs);
             if (result == Result::Success)

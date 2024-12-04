@@ -25,6 +25,7 @@
 
 #include <dd_logger_api.h>
 #include <dd_assert.h>
+#include <dd_result.h>
 
 #include <stb_sprintf.h>
 
@@ -32,6 +33,7 @@
 #include <unistd.h>
 
 #include <cstring>
+#include <cstdlib>
 
 namespace
 {
@@ -71,9 +73,38 @@ void SetLogRaw(DDLoggerInstance* pInstance, bool setLogRaw)
     pLogger->rawLoggingEnabled = setLogRaw;
 }
 
+void LogWrite(Logger* pLogger, DD_LOG_LVL level, const char* pLogMsg, uint32_t msgSize)
+{
+    if (pLogger->type == DD_LOGGER_TYPE_FILE)
+    {
+        ssize_t bytesWritten = write(pLogger->file.handle, pLogMsg, msgSize);
+        DD_ASSERT((uint32_t)bytesWritten == msgSize);
+        (void)bytesWritten;
+    }
+    else if (pLogger->type == DD_LOGGER_TYPE_CALLBACK)
+    {
+        pLogger->callback.logCallback(pLogger->callback.pUserData, level, pLogMsg, msgSize);
+    }
+}
+
 void Log(DDLoggerInstance* pInstance, DD_LOG_LVL level, const char* pFormat, ...)
 {
-    const char* const LogLevelStr[DD_LOG_LVL_COUNT] = {"VERBOSE", "INFO", "WARN", "ERROR"};
+    const char LogLevelPrefixVerbose[] = "[VERBOSE] ";
+    const char LogLevelPrefixInfo[] = "[INFO] ";
+    const char LogLevelPrefixWarn[] = "[WARN] ";
+    const char LogLevelPrefixError[] = "[ERROR] ";
+
+    const char* const LogLevelPrefix[DD_LOG_LVL_COUNT] = {
+        LogLevelPrefixVerbose,
+        LogLevelPrefixInfo,
+        LogLevelPrefixWarn,
+        LogLevelPrefixError};
+
+    const uint32_t LogLevelPrefixLength[DD_LOG_LVL_COUNT] = {
+        sizeof(LogLevelPrefixVerbose) - 1,
+        sizeof(LogLevelPrefixInfo) - 1,
+        sizeof(LogLevelPrefixWarn) - 1,
+        sizeof(LogLevelPrefixError) - 1};
 
     Logger* pLogger = reinterpret_cast<Logger*>(pInstance);
     if (level >= pLogger->level)
@@ -83,48 +114,34 @@ void Log(DDLoggerInstance* pInstance, DD_LOG_LVL level, const char* pFormat, ...
 
         char tempBuf[STACK_LOG_BUF_SIZE];
 
-        va_list va;
-        va_start(va, pFormat);
-
         // Prepend the verbosity level (if enabled)
         if (pLogger->rawLoggingEnabled == false)
         {
-            writtenSize = stbsp_sprintf(tempBuf, "[%s] ", LogLevelStr[level]);
-            DD_ASSERT(writtenSize > 0);
+            std::memcpy(tempBuf, LogLevelPrefix[level], LogLevelPrefixLength[level]);
+            writtenSize = LogLevelPrefixLength[level];
             logSize += writtenSize;
         }
+
+        va_list va;
+        va_start(va, pFormat);
 
         // Reserve one byte for newline character.
         writtenSize = stbsp_vsnprintf(tempBuf + writtenSize, STACK_LOG_BUF_SIZE - writtenSize - 1, pFormat, va);
         logSize += writtenSize;
 
+        va_end(va);
+
         // Post-fix a newline character (if enabled)
         if (pLogger->rawLoggingEnabled == false)
         {
             tempBuf[logSize]   = '\n';
-            tempBuf[++logSize] = '\0';
-        }
-        else
-        {
-            tempBuf[logSize] = '\0';
         }
 
-        va_end(va);
-
-        if (pLogger->type == DD_LOGGER_TYPE_FILE)
-        {
-            ssize_t bytesWritten = write(pLogger->file.handle, tempBuf, logSize);
-            DD_ASSERT(bytesWritten == logSize);
-            (void)bytesWritten;
-        }
-        else if (pLogger->type == DD_LOGGER_TYPE_CALLBACK)
-        {
-            pLogger->callback.logCallback(level, pLogger->callback.pUserData, tempBuf, logSize);
-        }
+        LogWrite(pLogger, level, tempBuf, logSize);
     }
 }
 
-void SetLogNullLevel(DDLoggerInstance*, DD_LOG_LVL)
+void SetLogLevelNull(DDLoggerInstance*, DD_LOG_LVL)
 {
 }
 
@@ -136,83 +153,47 @@ void LogNull(DDLoggerInstance*, DD_LOG_LVL, const char*, ...)
 {
 }
 
-DD_RESULT DDLoggerCreateFileLogger(DDLoggerCreateInfo* pCreateInfo, DDLoggerApi* pOutLoggerApi)
+DD_RESULT DDLoggerCreateFileLogger(const char* pFilePath, uint32_t filePathSize, Logger* pLogger)
 {
-    DD_RESULT result = DD_RESULT_SUCCESS;
-
-    if ((pCreateInfo->file.pFilePath != nullptr) && (pCreateInfo->file.filePathSize > 0))
+    if ((pFilePath == nullptr) || (filePathSize == 0))
     {
-        Logger* pLogger            = new Logger;
-        pLogger->type              = DD_LOGGER_TYPE_FILE;
-        pLogger->level             = DD_LOG_LVL_ERROR;
-        pLogger->rawLoggingEnabled = pCreateInfo->rawLogging;
-
-        // `pCreateInfo->pFilePath` isn't guaranteed to be null-terminated,
-        // so allocate a new path buffer and append '\0'.
-        char* pFilePathBuf = new char[pCreateInfo->file.filePathSize + 1];
-        std::memcpy(pFilePathBuf, pCreateInfo->file.pFilePath, pCreateInfo->file.filePathSize);
-        pFilePathBuf[pCreateInfo->file.filePathSize] = '\0';
-
-        pLogger->file.handle = open(pFilePathBuf, O_WRONLY | O_CREAT | O_TRUNC, S_IWUSR | S_IROTH);
-        if (pLogger->file.handle == -1)
-        {
-            result = DD_RESULT_COMMON_INVALID_PARAMETER;
-        }
-
-        delete[] pFilePathBuf;
-
-        if (result == DD_RESULT_SUCCESS)
-        {
-            pOutLoggerApi->pInstance   = reinterpret_cast<DDLoggerInstance*>(pLogger);
-            pOutLoggerApi->SetLogLevel = SetLogLevel;
-            pOutLoggerApi->SetLogRaw   = SetLogRaw;
-            pOutLoggerApi->Log         = Log;
-        }
-        else
-        {
-            delete pLogger;
-            pLogger = nullptr;
-        }
+        return DD_RESULT_COMMON_INVALID_PARAMETER;
     }
 
-    // If failed to create a logger, intentionally or not, make a dummy logger instead.
-    if (pOutLoggerApi->pInstance == nullptr)
+    DD_RESULT result = DD_RESULT_SUCCESS;
+
+    const uint32_t DefaultPathSizeMax = 4096; // including null-terminator
+
+    if (filePathSize >= DefaultPathSizeMax)
     {
-        pOutLoggerApi->SetLogLevel = SetLogNullLevel;
-        pOutLoggerApi->SetLogRaw   = SetLogRawNull;
-        pOutLoggerApi->Log         = LogNull;
+        return DD_RESULT_COMMON_OUT_OF_RANGE;
+    }
+
+    // `pFilePath` isn't guaranteed to be null-terminated, so allocate a new path buffer and append '\0'.
+    char pFilePathBuf[DefaultPathSizeMax] {};
+    std::memcpy(pFilePathBuf, pFilePath, filePathSize);
+    pFilePathBuf[filePathSize] = '\0';
+
+    pLogger->file.handle = open(pFilePathBuf, O_WRONLY | O_CREAT | O_TRUNC, S_IWUSR | S_IROTH);
+    if (pLogger->file.handle == -1)
+    {
+        result = DD_RESULT_COMMON_INVALID_PARAMETER;
     }
 
     return result;
 }
 
-DD_RESULT DDLoggerCreateCallbackLogger(DDLoggerCreateInfo* pCreateInfo, DDLoggerApi* pOutLoggerApi)
+DD_RESULT DDLoggerCreateCallbackLogger(DDLoggerLogCallback logCallback, void* pCallbackUserdata, Logger* pLogger)
 {
+    if (logCallback == nullptr)
+    {
+        return DD_RESULT_COMMON_INVALID_PARAMETER;
+    }
+
     DD_RESULT result = DD_RESULT_SUCCESS;
 
-    if (pCreateInfo->callback.logCallback != nullptr)
-    {
-        Logger* pLogger               = new Logger;
-        pLogger->type                 = DD_LOGGER_TYPE_CALLBACK;
-        pLogger->level                = DD_LOG_LVL_ERROR;
-        pLogger->rawLoggingEnabled    = pCreateInfo->rawLogging;
-        pLogger->callback.logCallback = pCreateInfo->callback.logCallback;
-        pLogger->callback.pUserData   = pCreateInfo->callback.pUserData;
-
-        pOutLoggerApi->pInstance      = reinterpret_cast<DDLoggerInstance*>(pLogger);
-        pOutLoggerApi->SetLogLevel    = SetLogLevel;
-        pOutLoggerApi->SetLogRaw      = SetLogRaw;
-        pOutLoggerApi->Log            = Log;
-    }
-    else
-    {
-        pOutLoggerApi->pInstance      = nullptr;
-        pOutLoggerApi->SetLogLevel    = SetLogNullLevel;
-        pOutLoggerApi->SetLogRaw      = SetLogRawNull;
-        pOutLoggerApi->Log            = LogNull;
-
-        result = DD_RESULT_COMMON_INVALID_PARAMETER;
-    }
+    pLogger->callback.logCallback = logCallback;
+    pLogger->callback.pUserData   = pCallbackUserdata;
 
     return result;
 }
@@ -226,22 +207,63 @@ DD_RESULT DDLoggerCreate(DDLoggerCreateInfo* pCreateInfo, DDLoggerApi* pOutLogge
         return DD_RESULT_COMMON_INVALID_PARAMETER;
     }
 
+    Logger* pLogger = (Logger*)std::calloc(1, sizeof(*pLogger));
+    if (pLogger == nullptr)
+    {
+        return DD_RESULT_COMMON_OUT_OF_HEAP_MEMORY;
+    }
+
     DD_RESULT result = DD_RESULT_SUCCESS;
 
     (*pOutLoggerApi) = {};
 
-    switch (pCreateInfo->type)
+    if (result == DD_RESULT_SUCCESS)
     {
-    case DD_LOGGER_TYPE_FILE:
-        result = DDLoggerCreateFileLogger(pCreateInfo, pOutLoggerApi);
-        break;
-    case DD_LOGGER_TYPE_CALLBACK:
-        result = DDLoggerCreateCallbackLogger(pCreateInfo, pOutLoggerApi);
-        break;
-    default:
-        result = DD_RESULT_COMMON_INVALID_PARAMETER;
-        DD_ASSERT(false);
-        break;
+        switch (pCreateInfo->type)
+        {
+        case DD_LOGGER_TYPE_FILE:
+            result = DDLoggerCreateFileLogger(pCreateInfo->file.pFilePath, pCreateInfo->file.filePathSize, pLogger);
+            break;
+        case DD_LOGGER_TYPE_CALLBACK:
+            result = DDLoggerCreateCallbackLogger(
+                pCreateInfo->callback.logCallback, pCreateInfo->callback.pUserData, pLogger);
+            break;
+        default:
+            result = DD_RESULT_COMMON_INVALID_PARAMETER;
+            DD_ASSERT(false);
+            break;
+        }
+    }
+
+    bool createNullLogger = false;
+    if (result == DD_RESULT_COMMON_INVALID_PARAMETER)
+    {
+        // nullptr filepath or zero file path size or nullptr callback indicates that the caller wants to create a null
+        // logger.
+        createNullLogger = true;
+        result = DD_RESULT_SUCCESS;
+    }
+
+    pLogger->level               = DD_LOG_LVL_ERROR; // default to error log level.
+    pLogger->type                = pCreateInfo->type;
+    pLogger->rawLoggingEnabled   = pCreateInfo->rawLogging;
+
+    if ((createNullLogger) || (result != DD_RESULT_SUCCESS))
+    {
+        // If failed to create a logger, intentionally or not, make a dummy logger instead.
+        pOutLoggerApi->pInstance    = nullptr;
+        pOutLoggerApi->SetLogLevel  = SetLogLevelNull;
+        pOutLoggerApi->SetLogRaw    = SetLogRawNull;
+        pOutLoggerApi->Log          = LogNull;
+
+        std::free(pLogger);
+    }
+    else
+    {
+        pOutLoggerApi->pInstance   = reinterpret_cast<DDLoggerInstance*>(pLogger);
+        pOutLoggerApi->SetLogLevel = SetLogLevel;
+        pOutLoggerApi->SetLogRaw   = SetLogRaw;
+        pOutLoggerApi->Log         = Log;
     }
 
     return result;

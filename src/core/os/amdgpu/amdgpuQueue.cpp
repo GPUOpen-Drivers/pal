@@ -190,7 +190,7 @@ Queue::Queue(
     Device*                pDevice,
     const QueueCreateInfo* pCreateInfo)
     :
-    Pal::Queue(qCount, pDevice, pCreateInfo),
+    Pal::Queue(qCount, OsQueueMode::Kernel, pDevice, pCreateInfo),
     m_device(*pDevice),
     m_resourceListSize(Pal::Device::CmdBufMemReferenceLimit),
     m_numResourcesInList(0),

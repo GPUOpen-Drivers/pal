@@ -594,4 +594,16 @@ bool Pipeline::DispatchInterleaveSizeIsValid(
     return isValid;
 };
 
+// =====================================================================================================================
+void Pipeline::MergePagingAndUploadFences(
+    Util::Span<const IShaderLibrary* const> libraries)
+{
+    for (auto library : libraries)
+    {
+        const auto* const pLibObj = static_cast<const ShaderLibrary* const>(library);
+        m_uploadFenceToken        = Max(m_uploadFenceToken, pLibObj->GetUploadFenceToken());
+        m_pagingFenceVal          = Max(m_pagingFenceVal, pLibObj->GetPagingFenceVal());
+    }
+}
+
 } // Pal

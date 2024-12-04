@@ -2023,7 +2023,7 @@ typedef struct PM4_PFP_DRAW_INDEX_MULTI_INST
     } ordinal9;
 } PM4_PFP_DRAW_INDEX_MULTI_INST;
 
-constexpr unsigned int PM4_PFP_DRAW_INDEX_MULTI_INST_SIZEDW__GFX101        = 9;
+constexpr unsigned int PM4_PFP_DRAW_INDEX_MULTI_INST_SIZEDW__GFX101 = 9;
 
 // ---------------------------------- PM4_PFP_DRAW_INDEX_OFFSET_2 ----------------------------------
 typedef struct PM4_PFP_DRAW_INDEX_OFFSET_2
@@ -2943,9 +2943,9 @@ constexpr unsigned int PM4_PFP_LOAD_SH_REG_SIZEDW__CORE = 5;
 // ------------------------------- PFP_LOAD_SH_REG_INDEX_index_enum -------------------------------
 enum PFP_LOAD_SH_REG_INDEX_index_enum
 {
-    index__pfp_load_sh_reg_index__direct_addr                        =  0,
-    index__pfp_load_sh_reg_index__offset                             =  1,
-    index__pfp_load_sh_reg_index__indirect_addr__GFX103PLUSEXCLUSIVE =  2,
+    index__pfp_load_sh_reg_index__direct_addr               =  0,
+    index__pfp_load_sh_reg_index__offset                    =  1,
+    index__pfp_load_sh_reg_index__indirect_addr__GFX103PLUS =  2,
 };
 
 // ---------------------------- PFP_LOAD_SH_REG_INDEX_data_format_enum ----------------------------
@@ -2982,7 +2982,7 @@ typedef struct PM4_PFP_LOAD_SH_REG_INDEX
             {
                 PFP_LOAD_SH_REG_INDEX_index_enum index      :  2;
                 uint32_t                         reserved3  : 30;
-            } gfx103PlusExclusive;
+            } gfx103Plus;
         } bitfields;
         uint32_t u32All;
     } ordinal2;

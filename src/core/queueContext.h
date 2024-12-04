@@ -49,6 +49,9 @@ public:
     // Queue contexts should only be created in placed memory and must always be destroyed explicitly.
     void Destroy() { this->~QueueContext(); }
 
+    // Called after queue is created to perform initialization steps that need its parent queue.
+    virtual Result LateInit() { return Result::Success; }
+
     // Performs preprocessing or validation which needs to occur before the Queue is "ready" to receive a set of
     // command buffers for submission. The base implementation is intentionally a no-op.
     virtual Result PreProcessSubmit(
@@ -63,6 +66,10 @@ public:
     // Performs any required processing on the first submission to the queue.
     // Returns Success if the submission is required, and Unsupported otherwise.
     virtual Result ProcessInitialSubmit(InternalSubmitInfo* pSubmitInfo) { return Result::Unsupported; }
+
+    // Performs any required processing on the last submission to the queue.
+    // Returns Success if the submission is required, and Unsupported otherwise.
+    virtual Result ProcessFinalSubmit(InternalSubmitInfo* pSumbitInfo) { return Result::Unsupported; }
 
     void SetParentQueue(Queue* pQueue) { m_pParentQueue   = pQueue; }
     void SetWaitForIdleOnRingResize(bool doWait) { m_needWaitIdleOnRingResize = doWait; }

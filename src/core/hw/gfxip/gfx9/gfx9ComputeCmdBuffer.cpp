@@ -243,14 +243,15 @@ void ComputeCmdBuffer::SetDispatchFunctions(
 // or z are zero. To avoid branching, we will rely on the HW to discard the dispatch for us.
 template <bool HsaAbi, bool IssueSqttMarkerEvent, bool DescribeCallback>
 void PAL_STDCALL ComputeCmdBuffer::CmdDispatch(
-    ICmdBuffer*  pCmdBuffer,
-    DispatchDims size)
+    ICmdBuffer*       pCmdBuffer,
+    DispatchDims      size,
+    DispatchInfoFlags infoFlags)
 {
     auto* pThis = static_cast<ComputeCmdBuffer*>(pCmdBuffer);
 
     if (DescribeCallback)
     {
-        pThis->DescribeDispatch(Developer::DrawDispatchType::CmdDispatch, size);
+        pThis->DescribeDispatch(Developer::DrawDispatchType::CmdDispatch, size, infoFlags);
     }
 
     uint32* pCmdSpace = pThis->m_cmdStream.ReserveCommands();
@@ -964,6 +965,7 @@ uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
             case HsaAbi::ValueKind::HiddenQueuePtr:
             case HsaAbi::ValueKind::HiddenDefaultQueue:
             case HsaAbi::ValueKind::HiddenCompletionAction:
+            case HsaAbi::ValueKind::HiddenHostcallBuffer:
                 // Not supported by PAL, kernels request but never actually use them,
                 // as compiler can't optimized out them for some cases
                 break;
@@ -1732,7 +1734,13 @@ void ComputeCmdBuffer::CmdExecuteIndirectCmds(
 
     if (m_describeDispatch)
     {
-        m_device.DescribeDispatch(this, {}, Developer::DrawDispatchType::CmdGenExecuteIndirectDispatch, {}, {}, {});
+        m_device.DescribeDispatch(this,
+                                  {},
+                                  Developer::DrawDispatchType::CmdGenExecuteIndirectDispatch,
+                                  {},
+                                  {},
+                                  {},
+                                  {});
     }
 
     if (countGpuAddr == 0uLL)

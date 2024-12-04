@@ -977,8 +977,9 @@ protected:
     }
 
     static void PAL_STDCALL CmdDispatchInvalid(
-        ICmdBuffer*  pCmdBuffer,
-        DispatchDims size);
+        ICmdBuffer*       pCmdBuffer,
+        DispatchDims      size,
+        DispatchInfoFlags infoFlags);
     static void PAL_STDCALL CmdDispatchIndirectInvalid(
         ICmdBuffer* pCmdBuffer,
         gpusize     gpuVirtAddr);

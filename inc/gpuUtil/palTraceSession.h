@@ -143,7 +143,39 @@ public:
     /// control of the TraceSession when desired.
     virtual Pal::Result OnTraceRequested() = 0;
 
-    /// Called by TraceSession in to indicate that GPU work is required to begin a trace on the indicated GPU
+    /// Called by the associated session to notify the controller that a trace has been canceled and it can start
+    /// canceling the trace when ready.
+    virtual Pal::Result OnTraceCanceled() = 0;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 908
+    /// Called by TraceSession to indicate that GPU work is required on the indicated GPU during the preparation phase.
+    /// The command buffer must be ready to record commands; however, the trace controller should not submit it
+    /// until the trace begins.
+    ///
+    /// The controller MUST return a valid command buffer that is ready to record commands for the target GPU
+    /// upon successful completion of this function via ppCmdBuf.
+    ///
+    /// This function will be called once per trace for each GPU that's considered relevant by the current set of
+    /// trace sources.
+    ///
+    /// Note: This command buffer should be submitted at the same time as the command buffer provided in
+    /// `OnBeginGpuWork`. They may be the same command buffer or separate; the goal is to allow trace sources
+    /// to frontload recording GPU work before the trace formally begins.
+    ///
+    /// Note: The command buffer provided by this function does not need to be a new command buffer. It just needs
+    ///       to be capable of recording new commands.
+    ///
+    /// @param [in]  gpuIndex   The index of the target GPU
+    /// @param [out] ppCmdBuf   A command buffer that can be used to record GPU work before a trace starts executing.
+    ///                         Note that this command buffer shouldn't be submitted until the trace begins.
+    ///
+    /// @returns Success if the command buffer was successfully returned
+    ///          Otherwise, one of the following errors may be returned:
+    ///          + ErrorUnknown if an internal PAL error occurs.
+    virtual Pal::Result OnPreparationGpuWork(Pal::uint32 gpuIndex, Pal::ICmdBuffer** ppCmdBuf) = 0;
+#endif
+
+    /// Called by TraceSession to indicate that GPU work is required to begin a trace on the indicated GPU
     ///
     /// The controller MUST return a valid command buffer that is ready to record commands for the target GPU
     /// upon successful completion of this function via ppCmdBuf.
@@ -154,7 +186,7 @@ public:
     /// Note: The command buffer provided by this function does not need to be a new command buffer. It just needs
     ///       to be capable of recording new commands.
     ///
-    /// @param [in] gpuIndex    The index of the target GPU
+    /// @param [in]  gpuIndex   The index of the target GPU
     /// @param [out] ppCmdBuf   A command buffer that can be used to perform any GPU work required to begin the trace
     ///
     /// @returns Success if the command buffer was successfully returned
@@ -162,7 +194,7 @@ public:
     ///          + ErrorUnknown if an internal PAL error occurs.
     virtual Pal::Result OnBeginGpuWork(Pal::uint32 gpuIndex, Pal::ICmdBuffer** ppCmdBuf) = 0;
 
-    /// Called by TraceSession in to indicate that GPU work is required to end a trace on the indicated GPU
+    /// Called by TraceSession to indicate that GPU work is required to end a trace on the indicated GPU
     ///
     /// The controller MUST return a valid command buffer that is ready to record commands for the target GPU
     /// upon successful completion of this function via ppCmdBuf.
@@ -173,7 +205,7 @@ public:
     /// Note: The command buffer provided by this function does not need to be a new command buffer. It just needs
     ///       to be capable of recording new commands.
     ///
-    /// @param [in] gpuIndex    The index of the target GPU
+    /// @param [in]  gpuIndex   The index of the target GPU
     /// @param [out] ppCmdBuf   A command buffer that can be used to perform any GPU work required to end the trace
     ///
     /// @returns Success if the command buffer was successfully returned
@@ -208,7 +240,19 @@ public:
     /// Called by the associated session to notify the source that a new trace has been accepted
     ///
     /// The source may use this notification to do any preparation work that might be required before the trace begins.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 908
+    /// A command buffer is provided for the trace source to insert any work into. Note that the work will not be
+    /// submitted until the trace begins (at the same time as `OnTraceBegin`). This allows for frontloading of
+    /// expensive operations, such as the construction of a GpaSession sample, that would affect runtime speed
+    /// or behavior during trace exeecution.
+    ///
+    /// @param [in] gpuIndex The index of the GPU that owns pCmdBuf
+    /// @param [in] pCmdBuf  A command buffer that can be used to record any GPU work required during the
+    ///                      preparation phase of the trace. Not submitted until `OnTraceBegin`.
+    virtual void OnTraceAccepted(Pal::uint32 gpuIndex, Pal::ICmdBuffer* pCmdBuf) = 0;
+#else
     virtual void OnTraceAccepted() = 0;
+#endif
 
     /// Called by the associated session to notify the source that it should begin a trace
     ///
@@ -323,6 +367,22 @@ public:
     ///          + ErrorUnknown if an internal PAL error occurs.
     ///          + ErrorUnavailable if there is a trace in progress already and a new one cannot be started
     Pal::Result RequestTrace();
+
+    /// Cancels a trace currently in progress.
+    ///
+    /// @returns Success if the trace was successfully canceled.
+    ///          Otherwise, one of the following errors may be returned:
+    ///          + NotReady if the trace is not ready to be canceled.
+    ///          + ErrorUnknown if an internal PAL error occurs.
+    Pal::Result CancelTrace();
+
+    /// Cleans up the RDF chunk stream and makes it ready for a new trace again.
+    ///
+    /// @returns Success if the trace session and rdf streams were successfully cleaned up and returned to the
+    ///          initialization state
+    ///          Otherwise, one of the following errors may be returned:
+    ///          + ErrorUnknown if an internal PAL error occurs.
+    Pal::Result CleanupChunkStream();
 
     /// Attempts to consume any trace data stored within the trace session.
     ///
@@ -548,6 +608,11 @@ public:
         return m_pConfigData;
     }
 
+    /// Indicates if a cancel-trace signal has been received and that a cancelation is in progress.
+    ///
+    /// @return true if a cancelation is in progress.
+    bool IsCancelingTrace() const { return m_cancelingTrace; }
+
 private:
     typedef Pal::IPlatform TraceAllocator;
 
@@ -593,5 +658,7 @@ private:
     bool                m_tracingEnabled;    // Flag indicating UberTrace tracing is enabled tool-side
     void*               m_pConfigData;       // Buffer containing the cached trace configurationn
     size_t              m_configDataSize;    // Size of the cached trace config buffer
+    bool                m_cancelingTrace;    // Indicates that a cancel signal has been received and trace cancelation
+                                             // is in progress.
 };
 } // GpuUtil

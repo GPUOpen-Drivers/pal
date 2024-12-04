@@ -40,8 +40,15 @@ function(pal_compiler_options TARGET)
 
     set(isGNU   FALSE)
     set(isClang FALSE)
+    set(isMSVC  FALSE)
 
-    if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC"
+        OR "${CMAKE_CXX_COMPILER_FRONTEND_VARIANT}" STREQUAL "MSVC")
+        # Either Microsoft's cl or LLVM's clang-cl.  Note this check
+        # is done before the Clang check below because clang-cl uses
+        # "Clang" for COMPILER_ID too.
+        set(isMSVC  TRUE)
+    elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
         set(isGNU   TRUE)
         # Output with color if in terminal: https://github.com/ninja-build/ninja/wiki/FAQ
         target_compile_options(${TARGET} PRIVATE -fdiagnostics-color=always)

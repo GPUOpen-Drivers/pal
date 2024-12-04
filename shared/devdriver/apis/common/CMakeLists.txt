@@ -26,6 +26,8 @@
 devdriver_library(dd_common STATIC)
 target_include_directories(dd_common PUBLIC inc)
 target_sources(dd_common
+    PUBLIC
+        inc/dd_timeout_constants.h
     PRIVATE
         inc/dd_assert.h
         inc/dd_constants.h
@@ -41,14 +43,17 @@ target_sources(dd_common
         src/dd_dynamic_buffer.cpp
         src/dd_logger.cpp
         src/dd_new.cpp
+        src/dd_memory.cpp
         src/dd_result.cpp
         src/dd_ring_buffer.cpp
+        src/dd_timeout_constants.cpp
 )
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
     target_sources(dd_common
         PRIVATE
             src/dd_memory_windows.cpp
+            src/dd_mutex_windows.cpp
             src/dd_result_windows.cpp
             src/dd_thread_windows.cpp
     )
@@ -56,7 +61,13 @@ elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
     target_sources(dd_common
         PRIVATE
             src/dd_memory_linux.cpp
+            src/dd_mutex_linux.cpp
             src/dd_thread_linux.cpp
+    )
+elseif (CMAKE_SYSTEM_NAME STREQUAL "Android")
+    target_sources(dd_common
+        PRIVATE
+            src/dd_mutex_linux.cpp
     )
 endif()
 
@@ -65,6 +76,7 @@ target_link_libraries(dd_common
         dd_interface
     PRIVATE
         stb_sprintf
+        devdriver
 )
 
 if (WIN32)

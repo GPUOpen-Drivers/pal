@@ -27,6 +27,7 @@
 #include "msgChannel.h"
 
 #include <string.h>
+#include <dd_timeout_constants.h>
 
 #define RGP_CLIENT_MIN_VERSION 2
 #if DD_VERSION_SUPPORTS(GPUOPEN_RGP_SPM_COUNTERS_VERSION)
@@ -255,7 +256,9 @@ namespace DevDriver
                 // If the parameters were handled successfully, send the execute trace request.
                 if (result == Result::Success)
                 {
-                    result = SendPayload(&payload);
+                    result = SendPayload(&payload,
+                                         g_timeoutConstants.communicationTimeoutInMs,
+                                         g_timeoutConstants.retryTimeoutInMs);
                 }
 
                 if (result == Result::Success)
@@ -292,7 +295,7 @@ namespace DevDriver
                     RGPPayload payload = {};
 
                     // Attempt to receive the trace data header.
-                    result = ReceivePayload(&payload, timeoutInMs);
+                    result = ReceivePayload(&payload, timeoutInMs, g_timeoutConstants.retryTimeoutInMs);
                     if ((result == Result::Success) && (payload.command == RGPMessage::TraceDataHeader))
                     {
                         // We've successfully received the trace data header. Check if the trace was successful.
@@ -345,7 +348,7 @@ namespace DevDriver
             {
                 if (GetSessionVersion() >= RGP_TRACE_PROGRESS_VERSION)
                 {
-                    result = ReceivePayload(&payload, kRGPChunkTimeoutInMs);
+                    result = ReceivePayload(&payload, kRGPChunkTimeoutInMs, g_timeoutConstants.retryTimeoutInMs);
 
                     if (result == Result::Success)
                     {
@@ -360,7 +363,8 @@ namespace DevDriver
                             if (m_traceContext.numChunksReceived == m_traceContext.numChunks)
                             {
                                 // Make sure we read the sentinel value before returning. It should always mark the end of the trace data chunk stream.
-                                result = ReceivePayload(&payload, kRGPChunkTimeoutInMs);
+                                result =
+                                    ReceivePayload(&payload, kRGPChunkTimeoutInMs, g_timeoutConstants.retryTimeoutInMs);
 
                                 if ((result == Result::Success) && (payload.command == RGPMessage::TraceDataSentinel))
                                 {
@@ -399,7 +403,7 @@ namespace DevDriver
                     const uint32 firstChunkTimeout = kRGPChunkTimeoutInMs * (numPrepFrames + 1);
                     const uint32 packetTimeout = (m_traceContext.numChunksReceived == 0) ? firstChunkTimeout : kRGPChunkTimeoutInMs;
 
-                    result = ReceivePayload(&payload, packetTimeout);
+                    result = ReceivePayload(&payload, packetTimeout, g_timeoutConstants.retryTimeoutInMs);
 
                     if (result == Result::Success)
                     {
@@ -440,14 +444,18 @@ namespace DevDriver
                 {
                     payload.command = RGPMessage::AbortTrace;
 
-                    result = SendPayload(&payload);
+                    result = SendPayload(&payload,
+                                         g_timeoutConstants.communicationTimeoutInMs,
+                                         g_timeoutConstants.retryTimeoutInMs);
 
                     if (result == Result::Success)
                     {
                         // Discard all messages until we find the trace data sentinel.
                         while ((result == Result::Success) && (payload.command != RGPMessage::TraceDataSentinel))
                         {
-                            result = ReceivePayload(&payload);
+                            result = ReceivePayload(&payload,
+                                                    g_timeoutConstants.communicationTimeoutInMs,
+                                                    g_timeoutConstants.retryTimeoutInMs);
                         }
 
                         if ((result == Result::Success)                        &&
@@ -490,7 +498,10 @@ namespace DevDriver
                 RGPPayload payload = {};
                 payload.command = RGPMessage::QueryProfilingStatusRequest;
 
-                if ((Transact(&payload) == Result::Success) &&
+                if ((Transact(&payload,
+                              g_timeoutConstants.communicationTimeoutInMs,
+                              g_timeoutConstants.retryTimeoutInMs) ==
+                     Result::Success) &&
                     (payload.command == RGPMessage::QueryProfilingStatusResponse))
                 {
                     *pStatus = payload.queryProfilingStatusResponse.status;
@@ -510,7 +521,10 @@ namespace DevDriver
                 RGPPayload payload = {};
                 payload.command = RGPMessage::EnableProfilingRequest;
 
-                if ((Transact(&payload) == Result::Success) &&
+                if ((Transact(&payload,
+                              g_timeoutConstants.communicationTimeoutInMs,
+                              g_timeoutConstants.retryTimeoutInMs) ==
+                     Result::Success) &&
                     (payload.command == RGPMessage::EnableProfilingResponse))
                 {
                     result = payload.enableProfilingStatusResponse.result;
@@ -535,7 +549,10 @@ namespace DevDriver
                     RGPPayload payload = {};
                     payload.command = RGPMessage::QueryTraceParametersRequest;
 
-                    if ((Transact(&payload) == Result::Success) &&
+                    if ((Transact(&payload,
+                                  g_timeoutConstants.communicationTimeoutInMs,
+                                  g_timeoutConstants.retryTimeoutInMs) ==
+                         Result::Success) &&
                         (payload.command == RGPMessage::QueryTraceParametersResponse))
                     {
                         result = payload.queryTraceParametersResponse.result;
@@ -695,7 +712,9 @@ namespace DevDriver
                         payload.updateSpmConfigRequest.memoryLimitInMb = config.memoryLimitInMb;
                         payload.updateSpmConfigRequest.numDataPayloads = numDataPayloads;
 
-                        result = SendPayload(&payload);
+                        result = SendPayload(&payload,
+                                             g_timeoutConstants.communicationTimeoutInMs,
+                                             g_timeoutConstants.retryTimeoutInMs);
                     }
 
                     if (result == Result::Success)
@@ -719,7 +738,9 @@ namespace DevDriver
                                 payloadCounter.eventId = inputCounter.eventId;
                             }
 
-                            result = SendPayload(&payload);
+                            result = SendPayload(&payload,
+                                                 g_timeoutConstants.communicationTimeoutInMs,
+                                                 g_timeoutConstants.retryTimeoutInMs);
 
                             if (result != Result::Success)
                             {
@@ -730,7 +751,9 @@ namespace DevDriver
 
                     if (result == Result::Success)
                     {
-                        result = ReceivePayload(&payload);
+                        result = ReceivePayload(&payload,
+                                                g_timeoutConstants.communicationTimeoutInMs,
+                                                g_timeoutConstants.retryTimeoutInMs);
                     }
 
                     if (result == Result::Success)
@@ -794,7 +817,8 @@ namespace DevDriver
                 EncodeTraceParameters(&payloadParams, parameters);
             }
 
-            if ((Transact(&payload) == Result::Success) &&
+            if ((Transact(&payload, g_timeoutConstants.communicationTimeoutInMs, g_timeoutConstants.retryTimeoutInMs) ==
+                 Result::Success) &&
                 (payload.command == RGPMessage::UpdateTraceParametersResponse))
             {
                 result = payload.updateTraceParametersResponse.result;

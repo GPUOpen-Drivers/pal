@@ -73,6 +73,11 @@ public:
         const Rect*            pScissorRect,
         uint32                 flags) const override;
 
+    virtual void CmdCloneImageData(
+        GfxCmdBuffer*     pCmdBuffer,
+        const Pal::Image& srcImage,
+        const Pal::Image& dstImage) const = 0;
+
     void CmdCopyMemory(
         Pm4CmdBuffer*           pCmdBuffer,
         const GpuMemory&        srcGpuMemory,
@@ -117,12 +122,6 @@ public:
         const Rect*        pRects,
         uint32             flags) const override;
 
-    virtual bool ExpandDepthStencil(
-        Pm4CmdBuffer*                pCmdBuffer,
-        const Image&                 image,
-        const MsaaQuadSamplePattern* pQuadSamplePattern,
-        const SubresRange&           range) const;
-
     void ResummarizeDepthStencil(
         Pm4CmdBuffer*                pCmdBuffer,
         const Image&                 image,
@@ -134,6 +133,12 @@ public:
         Pm4CmdBuffer*      pCmdBuffer,
         const GfxImage&    image,
         const SubresRange& range) const = 0;
+
+    virtual bool NeedPixelCopyForCmdCopyImage(
+        const Pal::Image&      srcImage,
+        const Pal::Image&      dstImage,
+        const ImageCopyRegion* pRegions,
+        uint32                 regionCount) const { return false; }
 
 protected:
     explicit RsrcProcMgr(GfxDevice* pDevice);
@@ -234,16 +239,6 @@ protected:
         const Box*      pBoxes);
 
 private:
-    virtual void CopyImageGraphics(
-        GfxCmdBuffer*          pCmdBuffer,
-        const Image&           srcImage,
-        ImageLayout            srcImageLayout,
-        const Image&           dstImage,
-        ImageLayout            dstImageLayout,
-        uint32                 regionCount,
-        const ImageCopyRegion* pRegions,
-        const Rect*            pScissorRect,
-        uint32                 flags) const override;
 
     virtual void HwlImageToImageMissingPixelCopy(
         GfxCmdBuffer*          pCmdBuffer,
@@ -277,8 +272,7 @@ private:
         const GfxImage&       dstImage,
         const uint32*         pConvertedColor,
         const SwizzledFormat& clearFormat,
-        const SubresRange&    clearRange) const
-        { return false; }
+        const SubresRange&    clearRange) const = 0;
 
     virtual void HwlDepthStencilClear(
         GfxCmdBuffer*      pCmdBuffer,
@@ -312,7 +306,7 @@ private:
         ImageLayout               dstImageLayout,
         uint32                    regionCount,
         const ImageResolveRegion* pRegions,
-        uint32                    flags) const { PAL_NEVER_CALLED(); };
+        uint32                    flags) const = 0;
 
     virtual void HwlFixupResolveDstImage(
         Pm4CmdBuffer*             pCmdBuffer,

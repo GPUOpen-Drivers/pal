@@ -24,17 +24,17 @@
  **********************************************************************************************************************/
 
 #include <dd_result.h>
+#include <dd_assert.h>
 #include <cerrno>
+#include <cstring>
+#include <stb_sprintf.h>
 
 namespace DevDriver
 {
 
 DD_RESULT ResultFromErrno(int err)
 {
-    if (err < 0)
-    {
-        err = -err;
-    }
+    err = (err < 0) ? -err : err;
 
     switch (err)
     {
@@ -46,7 +46,7 @@ DD_RESULT ResultFromErrno(int err)
         case ENOENT: return DD_RESULT_COMMON_INTERFACE_NOT_FOUND;
         case EPERM:  return DD_RESULT_COMMON_ACCESS_DENIED;
         case ERANGE: return DD_RESULT_COMMON_OUT_OF_RANGE;
-        default: return DD_RESULT_COMMON_UNKNOWN;
+        default:     return DD_RESULT_UNKNOWN;
     }
 }
 
@@ -58,11 +58,6 @@ const char* StringResult(DD_RESULT r)
     switch (r)
     {
         RESULT_TO_STRING_CASE(DD_RESULT_UNKNOWN);
-
-        RESULT_TO_STRING_CASE(DD_RESULT_DEBUG_UNINIT_STACK_MEMORY);
-        RESULT_TO_STRING_CASE(DD_RESULT_DEBUG_UNINIT_HEAP_MEMORY);
-        RESULT_TO_STRING_CASE(DD_RESULT_DEBUG_FREED_HEAP_MEMORY);
-
         RESULT_TO_STRING_CASE(DD_RESULT_SUCCESS);
 
         RESULT_TO_STRING_CASE(DD_RESULT_COMMON_UNKNOWN);
@@ -110,6 +105,8 @@ const char* StringResult(DD_RESULT r)
         RESULT_TO_STRING_CASE(DD_RESULT_NET_TIMED_OUT);
         RESULT_TO_STRING_CASE(DD_RESULT_NET_INTERRUPTED);
         RESULT_TO_STRING_CASE(DD_RESULT_NET_SOCKET_TYPE_UNSUPPORTED);
+        RESULT_TO_STRING_CASE(DD_RESULT_NET_UNKNOWN_REQUEST);
+        RESULT_TO_STRING_CASE(DD_RESULT_NET_CONNECTION_CLOSED);
 
         RESULT_TO_STRING_CASE(DD_RESULT_DD_UNKNOWN);
         RESULT_TO_STRING_CASE(DD_RESULT_DD_BUS_UNAVAILABLE);
@@ -181,5 +178,62 @@ const char* StringResult(DD_RESULT r)
 
     return "DD_RESULT_UNKNOWN";
 }
+
+void ResultEx::SetStdError(int err)
+{
+    m_result = ResultFromErrno(err);
+    if (m_result == DD_RESULT_SUCCESS)
+    {
+        m_osError = 0;
+    }
+    else
+    {
+        err = err < 0 ? -err : err;
+        DD_ASSERT(err <= (int32_t)OS_ERROR_VALUE_MAX);
+        m_osError = OS_ERROR_TYPE_BITMASK_STDERR | err;
+    }
+}
+
+void ResultEx::GetErrorString(char* pBuf, uint32_t bufSize) const
+{
+    if ((pBuf == nullptr) || (bufSize == 0))
+    {
+        return;
+    }
+
+    uint32_t osErrorType = (m_osError & OS_ERROR_TYPE_BITMASK);
+    if (osErrorType > 0)
+    {
+        if (osErrorType == OS_ERROR_TYPE_BITMASK_WIN32)
+        {
+            CopyWin32ErrorString(m_osError & OS_ERROR_VALUE_BITMASK, pBuf, bufSize);
+        }
+        else if (osErrorType == OS_ERROR_TYPE_BITMASK_STDERR)
+        {
+            int err = m_osError & OS_ERROR_VALUE_BITMASK;
+            const char* pStr = std::strerror(err);
+            stbsp_snprintf(pBuf, bufSize, "%s, StdErrNo: %d.", pStr, err);
+        }
+        else
+        {
+            DD_ASSERT(false);
+        }
+    }
+    else
+    {
+        const char* pStr = StringResult(m_result);
+        std::strncpy(pBuf, pStr, bufSize);
+    }
+    pBuf[bufSize - 1] = '\0';
+}
+
+#if defined(__linux__)
+void ResultEx::CopyWin32ErrorString(uint32_t, char*, uint32_t) const
+{
+    // This function is defined in dd_result_windows.cpp.
+    DD_ALWAYS_ASSERT(false);
+}
+#endif
+
 } // namespace DevDriver
 

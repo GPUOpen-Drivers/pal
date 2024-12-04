@@ -1424,24 +1424,6 @@ Result CreateRpmComputePipelines(
 #endif
         ))
     {
-        constexpr uint32 Index = uint32(RpmComputePipeline::Gfx9FillDirtyTileMapBuffer);
-
-        ComputePipelineCreateInfo pipeInfo = { };
-        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
-        pipeInfo.pipelineBinarySize        = pTable[Index].size;
-
-        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
-    }
-
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
-    {
         constexpr uint32 Index = uint32(RpmComputePipeline::Gfx10BuildDccLookupTable);
 
         ComputePipelineCreateInfo pipeInfo = { };
@@ -1538,24 +1520,6 @@ Result CreateRpmComputePipelines(
     }
 
     if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
-    {
-        constexpr uint32 Index = uint32(RpmComputePipeline::Gfx10GetDccDirtyTileMultipleCoverage);
-
-        ComputePipelineCreateInfo pipeInfo = { };
-        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
-        pipeInfo.pipelineBinarySize        = pTable[Index].size;
-
-        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
-    }
-
-    if ((result == Result::Success) && (false
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
 #if PAL_BUILD_STRIX1
@@ -1564,42 +1528,6 @@ Result CreateRpmComputePipelines(
         ))
     {
         constexpr uint32 Index = uint32(RpmComputePipeline::Gfx10GfxDccToDisplayDcc);
-
-        ComputePipelineCreateInfo pipeInfo = { };
-        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
-        pipeInfo.pipelineBinarySize        = pTable[Index].size;
-
-        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
-    }
-
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
-    {
-        constexpr uint32 Index = uint32(RpmComputePipeline::Gfx10LookupTableGetDccDirtyTile);
-
-        ComputePipelineCreateInfo pipeInfo = { };
-        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
-        pipeInfo.pipelineBinarySize        = pTable[Index].size;
-
-        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
-    }
-
-    if ((result == Result::Success) && (false
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
-#if PAL_BUILD_STRIX1
-        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
-#endif
-        ))
-    {
-        constexpr uint32 Index = uint32(RpmComputePipeline::Gfx10LookupTableGetDccDirtyTileMultipleCoverage);
 
         ComputePipelineCreateInfo pipeInfo = { };
         pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;

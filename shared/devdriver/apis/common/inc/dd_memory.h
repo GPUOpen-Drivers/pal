@@ -60,4 +60,61 @@ DD_RESULT MirroredBufferCreate(uint32_t requestedBufferSize, MirroredBuffer* pOu
 /// @param[in/out] pBuffer Pointer to a \ref MirroredBuffer object to be destroyed. The object will be zero'd out.
 void MirroredBufferDestroy(MirroredBuffer* pBuffer);
 
+/// A scratch buffer is a region of memory used for allocating objects with short lifetime. Memory from the scratch
+/// buffer is allocated in a linear, stack-based fashion. Because memory pages in the scratch buffer is committed to
+/// physical memory as they're accessed, scratch buffers can be initialized to very large size (e.g. 1GB) without
+/// consuming much physical memory.
+class ScratchBuffer
+{
+private:
+    uint32_t m_totalSize;
+    uint32_t m_committedSize;
+    uint32_t m_pageSize;
+
+    uint32_t m_top;
+    uint8_t* m_pBuffer;
+
+public:
+    ScratchBuffer()
+        : m_totalSize {0}
+        , m_committedSize {0}
+        , m_pageSize {0}
+        , m_top {0}
+        , m_pBuffer {nullptr}
+    {}
+
+    /// Initialze the scratch buffer.
+    ///
+    /// @param[in] totalSize Total amount of memory the scratch buffer can hold.
+    /// @param[in] initialCommittedSize Initial amount of physical memory committed. This parameter is ignored on Linux.
+    /// @return DD_RESULT_SUCCESS if scratch buffer is initialized successfully.
+    /// @return other error codes if initialization failed.
+    DD_RESULT Initialize(uint32_t totalSize, uint32_t initialCommittedSize);
+
+    /// Destroy the scratch buffer. Accessing the scratch buffer after its destruction is undefined behavior.
+    void Destroy();
+
+    /// Allocate a block of memory from the stack.
+    ///
+    /// @param[in] size The amount of memory to allocate.
+    /// @return A pointer to the beginning of the allocated memory.
+    /// @return nullptr if size is bigger than the remaining free memory in the scratch buffer.
+    void* Push(uint32_t size);
+
+    /// Free a block of memory from the stack, essentially moves back the top of the stack by the specified amount.
+    /// Note, currently scratch buffers don't de-commit unused physical memory.
+    ///
+    /// @param[in] size The amount of memory to free.
+    void Pop(uint32_t size);
+
+    /// De-allocated memory from the stack, essentially reset the top of the stack to zero.
+    void Clear();
+
+private:
+    uint32_t  GetPageSize();
+    DD_RESULT ReserveMemory(uint32_t size, void** ppOutMemory);
+    void      FreeMemory(void* pMemory, uint32_t size);
+    DD_RESULT CommitMemory(uint32_t size);
+};
+
 } // namespace DevDriver

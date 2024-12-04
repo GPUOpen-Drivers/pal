@@ -191,7 +191,8 @@ private:
         gpusize              countGpuAddr);
     static void PAL_STDCALL CmdDispatchDecorator(
         ICmdBuffer*       pCmdBuffer,
-        DispatchDims      size);
+        DispatchDims      size,
+        DispatchInfoFlags infoFlags);
     static void PAL_STDCALL CmdDispatchIndirectDecorator(
         ICmdBuffer* pCmdBuffer,
         gpusize     gpuVirtAddr

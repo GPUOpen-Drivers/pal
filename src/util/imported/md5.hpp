@@ -447,4 +447,4 @@
  } // md5
  } // websocketpp
 
-#endif
+ #endif // WEBSOCKETPP_COMMON_MD5_HPP

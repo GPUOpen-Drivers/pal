@@ -882,7 +882,7 @@ void BarrierMgr::IssueSyncs(
         if (isGfxSupported && TestAnyFlagSet(gfx9Device.Settings().waitOnFlush, WaitBeforeBarrierEopWithCbFlush) &&
             TestAnyFlagSet(syncReqs.rbCaches, SyncCbWbInv))
         {
-            constexpr WriteWaitEopInfo WaitEopInfo = { .hwAcqPoint = AcquirePointPreColor };
+            constexpr WriteWaitEopInfo WaitEopInfo = { .hwAcqPoint = AcquirePointPreDepth };
 
             pCmdSpace = pCmdBuf->WriteWaitEop(WaitEopInfo, pCmdSpace);
         }

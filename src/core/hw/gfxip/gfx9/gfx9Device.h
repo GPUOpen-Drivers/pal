@@ -467,7 +467,7 @@ public:
     uint32 GetNumPipesLog2() const         { return GetGbAddrConfig().bits.NUM_PIPES; }
     uint32 GetNumShaderEnginesLog2() const { return GetGbAddrConfig().bits.NUM_SHADER_ENGINES; }
     uint32 GetNumRbsPerSeLog2() const      { return GetGbAddrConfig().bits.NUM_RB_PER_SE; }
-    uint32 GetNumPkrsLog2() const          { return GetGbAddrConfig().gfx103PlusExclusive.NUM_PKRS; }
+    uint32 GetNumPkrsLog2() const          { return GetGbAddrConfig().gfx103Plus.NUM_PKRS; }
 
     uint32 GetPipeInterleaveLog2() const;
 
@@ -520,7 +520,7 @@ public:
 
     const Gfx10DepthStencilView* GetVrsDepthStencilView();
 
-    uint32 Gfx103PlusExclusiveGetNumActiveShaderArraysLog2() const;
+    uint32 Gfx103PlusGetNumActiveShaderArraysLog2() const;
 
     virtual uint32 GetVarBlockSize() const override { return m_varBlockSize; }
 

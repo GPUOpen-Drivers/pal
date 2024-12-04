@@ -59,6 +59,9 @@ static DD_RESULT PalResultToDdResult(
     case Result::ErrorInvalidMemorySize:
         devDriverResult = DD_RESULT_DD_GENERIC_INSUFFICIENT_MEMORY;
         break;
+    case Result::ErrorInitializationFailed:
+        devDriverResult = DD_RESULT_DD_GENERIC_REJECTED;
+        break;
     case Result::ErrorUnknown:
     default:
         devDriverResult = DD_RESULT_UNKNOWN;
@@ -101,6 +104,13 @@ DD_RESULT UberTraceService::ConfigureTraceParams(
 DD_RESULT UberTraceService::RequestTrace()
 {
     const Result result = m_pPlatform->GetTraceSession()->RequestTrace();
+    return PalResultToDdResult(result);
+}
+
+// =====================================================================================================================
+DD_RESULT UberTraceService::CancelTrace()
+{
+    Result result = m_pPlatform->GetTraceSession()->CancelTrace();
     return PalResultToDdResult(result);
 }
 

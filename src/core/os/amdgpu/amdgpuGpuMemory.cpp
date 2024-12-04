@@ -312,7 +312,8 @@ Result GpuMemory::AllocateOrPinMemory(
                 if (IsExplicitSync() &&
                     ((m_flags.interprocess == 1)    ||
                      (m_desc.flags.isExternal == 1) ||
-                     (m_flags.isShareable == 1)))
+                     (m_flags.isShareable == 1)     ||
+                     (m_flags.isPresentable == 1)))
                 {
                     allocRequest.flags |= AMDGPU_GEM_CREATE_EXPLICIT_SYNC;
                 }

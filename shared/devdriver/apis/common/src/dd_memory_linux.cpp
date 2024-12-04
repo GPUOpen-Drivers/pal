@@ -207,4 +207,40 @@ void MirroredBufferDestroy(MirroredBuffer* pBuffer)
     pBuffer->bufferSize = 0;
 }
 
+uint32_t ScratchBuffer::GetPageSize()
+{
+    return getpagesize();;
+}
+
+DD_RESULT ScratchBuffer::ReserveMemory(uint32_t size, void** ppOutBuffer)
+{
+    DD_ASSERT((size & (m_pageSize - 1)) == 0);
+
+    DD_RESULT result = DD_RESULT_SUCCESS;
+    void* pMemory = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (pMemory == MAP_FAILED)
+    {
+        result = ResultFromErrno(errno);
+    }
+    else
+    {
+        *ppOutBuffer = pMemory;
+    }
+    return result;
+}
+
+void ScratchBuffer::FreeMemory(void* pMemory, uint32_t size)
+{
+    int err = munmap(pMemory, size);
+    DD_ASSERT(err == 0);
+}
+
+DD_RESULT ScratchBuffer::CommitMemory(uint32_t size)
+{
+    DD_ASSERT((size & (m_pageSize - 1)) == 0);
+    // On linux, there is no way to commit physical memory. Memory pages are committed as they are
+    // accessed.
+    return DD_RESULT_SUCCESS;
+}
+
 } // namespace DevDriver

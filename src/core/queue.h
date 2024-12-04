@@ -167,6 +167,13 @@ struct BatchedQueueCmdData
     };
 };
 
+enum class OsQueueMode : uint8
+{
+    Kernel         = 0, // Kernel Queues, KMD manages
+    KmdManagedUser = 1, // User Queues, but KMD managed
+    Count
+};
+
 // =====================================================================================================================
 // A submission context holds queue state and logic that must persist after the queue itself has been destroyed. That
 // requires all submission contexts to be internally allocated and referenced counted.
@@ -343,7 +350,7 @@ public:
         const InternalSubmitInfo* pInternalSubmitInfos) = 0;
 
 protected:
-    Queue(uint32 queueCount, Device* pDevice, const QueueCreateInfo* pCreateInfo);
+    Queue(uint32 queueCount, OsQueueMode osQueueMode, Device* pDevice, const QueueCreateInfo* pCreateInfo);
 
     // Performs OS-specific Queue wait-idle behavior.
     virtual Result OsWaitIdle() = 0;
@@ -397,6 +404,9 @@ protected:
 
     SubQueueInfo* m_pQueueInfos; // m_pQueueInfos struct tracks per subQueue info when we do gang submission.
     const uint32  m_queueCount;
+
+    // Indicates what type of queue this is for features that depend on OS specific queue types
+    const OsQueueMode m_osQueueMode;
 
 private:
 

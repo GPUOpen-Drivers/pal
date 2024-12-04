@@ -153,15 +153,30 @@ void RsrcProcMgr::CmdCopyImage(
 
     if (copyEngine == ImageCopyEngine::Graphics)
     {
-        CopyImageGraphics(pCmdBuffer,
-                          srcImage,
-                          srcImageLayout,
-                          dstImage,
-                          dstImageLayout,
-                          regionCount,
-                          pRegions,
-                          pScissorRect,
-                          flags);
+        if (dstImage.IsDepthStencilTarget())
+        {
+            CopyDepthStencilImageGraphics(static_cast<Pm4CmdBuffer*>(pCmdBuffer),
+                                          srcImage,
+                                          srcImageLayout,
+                                          dstImage,
+                                          dstImageLayout,
+                                          regionCount,
+                                          pRegions,
+                                          pScissorRect,
+                                          flags);
+        }
+        else
+        {
+            CopyColorImageGraphics(static_cast<Pm4CmdBuffer*>(pCmdBuffer),
+                                   srcImage,
+                                   srcImageLayout,
+                                   dstImage,
+                                   dstImageLayout,
+                                   regionCount,
+                                   pRegions,
+                                   pScissorRect,
+                                   flags);
+        }
     }
     else
     {
@@ -264,10 +279,7 @@ void RsrcProcMgr::CmdCopyImage(
             FixupMetadataForComputeDst(pCmdBuffer, dstImage, dstImageLayout, finalRegionCount,
                                        &fixupRegions[0], false);
 
-            if (((Formats::IsBlockCompressed(srcInfo.swizzledFormat.format) ||
-                  Formats::IsMacroPixelPackedRgbOnly(srcInfo.swizzledFormat.format)) && (srcInfo.mipLevels > 1)) ||
-                ((Formats::IsBlockCompressed(dstInfo.swizzledFormat.format) ||
-                  Formats::IsMacroPixelPackedRgbOnly(dstInfo.swizzledFormat.format)) && (dstInfo.mipLevels > 1)))
+            if (NeedPixelCopyForCmdCopyImage(srcImage, dstImage, pFinalRegions, finalRegionCount))
             {
                 // Insert a generic barrier between CS copy and per-pixel copy
                 ImgBarrier imgBarriers[2] = {};
@@ -533,8 +545,7 @@ void RsrcProcMgr::CopyColorImageGraphics(
             if (singleSubres)
             {
                 const bool singleArrayAccess  = (srcCreateInfo.imageType != ImageType::Tex3d);
-                const bool singlezRangeAccess = (srcCreateInfo.imageType == ImageType::Tex3d) &&
-                                                HwlNeedSinglezRangeAccess();
+                const bool singlezRangeAccess = (srcCreateInfo.imageType == ImageType::Tex3d);
 
                 viewRange.numPlanes   = 1;
                 viewRange.numMips     = 1;
@@ -969,45 +980,6 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
     // Restore original command buffer state.
     pCmdBuffer->CmdRestoreGraphicsStateInternal();
     pCmdBuffer->SetGfxBltDirectWriteMisalignedMdState(dstImage.HasMisalignedMetadata());
-}
-
-// =====================================================================================================================
-void RsrcProcMgr::CopyImageGraphics(
-    GfxCmdBuffer*          pCmdBuffer,
-    const Image&           srcImage,
-    ImageLayout            srcImageLayout,
-    const Image&           dstImage,
-    ImageLayout            dstImageLayout,
-    uint32                 regionCount,
-    const ImageCopyRegion* pRegions,
-    const Rect*            pScissorRect,
-    uint32                 flags
-    ) const
-{
-    if (dstImage.IsDepthStencilTarget())
-    {
-        CopyDepthStencilImageGraphics(static_cast<Pm4CmdBuffer*>(pCmdBuffer),
-                                      srcImage,
-                                      srcImageLayout,
-                                      dstImage,
-                                      dstImageLayout,
-                                      regionCount,
-                                      pRegions,
-                                      pScissorRect,
-                                      flags);
-    }
-    else
-    {
-        CopyColorImageGraphics(static_cast<Pm4CmdBuffer*>(pCmdBuffer),
-                               srcImage,
-                               srcImageLayout,
-                               dstImage,
-                               dstImageLayout,
-                               regionCount,
-                               pRegions,
-                               pScissorRect,
-                               flags);
-    }
 }
 
 // =====================================================================================================================
@@ -2007,9 +1979,9 @@ bool RsrcProcMgr::BoxesCoverWholeExtent(
     return ((box.offset.x  <= 0) &&
             (box.offset.y  <= 0) &&
             (box.offset.z  <= 0) &&
-            (extent.width  <= uint32(box.offset.x + int32(box.extent.width)))  &&
-            (extent.height <= uint32(box.offset.y + int32(box.extent.height))) &&
-            (extent.depth  <= uint32(box.offset.z + int32(box.extent.depth))));
+            (extent.width  <= uint32(Max(0, box.offset.x + int32(box.extent.width))))  &&
+            (extent.height <= uint32(Max(0, box.offset.y + int32(box.extent.height)))) &&
+            (extent.depth  <= uint32(Max(0, box.offset.z + int32(box.extent.depth)))));
 }
 
 // =====================================================================================================================
@@ -2506,7 +2478,6 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
     gpusize tableGpuAddr = 0uLL;
 
     uint32* pTableMem = pCmdBuffer->CmdAllocateEmbeddedData(((9 * SrdDwords) + 4), 1, &tableGpuAddr);
-
     PAL_ASSERT(pTableMem != nullptr);
 
     pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 0, 2, reinterpret_cast<uint32*>(&tableGpuAddr));
@@ -2720,7 +2691,8 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
         else
         {
             pCmdBuffer->CmdDispatch({RpmUtil::MinThreadGroups(generator.ParameterCount(), threadsPerGroup.x),
-                                     RpmUtil::MinThreadGroups(mainChunk.commandsInChunk,  threadsPerGroup.y), 1});
+                                     RpmUtil::MinThreadGroups(mainChunk.commandsInChunk,  threadsPerGroup.y), 1},
+                                     {});
         }
 
         (*pNumGenChunks)++;
@@ -4122,158 +4094,6 @@ void RsrcProcMgr::GenericColorBlit(
     // Restore original command buffer state.
     pCmdBuffer->CmdRestoreGraphicsStateInternal();
     pCmdBuffer->SetGfxBltDirectWriteMisalignedMdState(dstImage.HasMisalignedMetadata());
-}
-
-// =====================================================================================================================
-// Performs a depth/stencil expand (decompress) on the provided image.
-bool RsrcProcMgr::ExpandDepthStencil(
-    Pm4CmdBuffer*                pCmdBuffer,
-    const Image&                 image,
-    const MsaaQuadSamplePattern* pQuadSamplePattern,
-    const SubresRange&           range
-    ) const
-{
-    PAL_ASSERT(range.numPlanes == 1);
-    PAL_ASSERT(image.IsDepthStencilTarget());
-    PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
-    // Don't expect GFX Blts on Nested unless targets not inherited.
-    PAL_ASSERT((pCmdBuffer->IsNested() == false) || (static_cast<Pm4::UniversalCmdBuffer*>(
-        pCmdBuffer)->GetGraphicsState().inheritedState.stateFlags.targetViewState == 0));
-
-    const auto*                pPublicSettings  = m_pDevice->Parent()->GetPublicSettings();
-    const StencilRefMaskParams stencilRefMasks  = { 0xFF, 0xFF, 0xFF, 0x01, 0xFF, 0xFF, 0xFF, 0x01, 0xFF };
-
-    ViewportParams viewportInfo = { };
-    viewportInfo.count                 = 1;
-    viewportInfo.viewports[0].originX  = 0;
-    viewportInfo.viewports[0].originY  = 0;
-    viewportInfo.viewports[0].minDepth = 0.f;
-    viewportInfo.viewports[0].maxDepth = 1.f;
-    viewportInfo.viewports[0].origin   = PointOrigin::UpperLeft;
-    viewportInfo.horzClipRatio         = FLT_MAX;
-    viewportInfo.horzDiscardRatio      = 1.0f;
-    viewportInfo.vertClipRatio         = FLT_MAX;
-    viewportInfo.vertDiscardRatio      = 1.0f;
-    viewportInfo.depthRange            = DepthRange::ZeroToOne;
-
-    ScissorRectParams scissorInfo      = { };
-    scissorInfo.count                  = 1;
-    scissorInfo.scissors[0].offset.x   = 0;
-    scissorInfo.scissors[0].offset.y   = 0;
-
-    DepthStencilViewInternalCreateInfo depthViewInfoInternal = { };
-    depthViewInfoInternal.flags.isExpand = 1;
-
-    DepthStencilViewCreateInfo depthViewInfo = { };
-    depthViewInfo.pImage              = &image;
-    depthViewInfo.arraySize           = 1;
-    depthViewInfo.flags.imageVaLocked = 1;
-    depthViewInfo.flags.bypassMall    = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
-                                                       RpmViewsBypassMallOnCbDbWrite);
-
-    if (image.IsDepthPlane(range.startSubres.plane))
-    {
-        depthViewInfo.flags.readOnlyStencil = 1;
-    }
-    else
-    {
-        depthViewInfo.flags.readOnlyDepth = 1;
-    }
-
-    BindTargetParams bindTargetsInfo = { };
-    bindTargetsInfo.depthTarget.pDepthStencilView     = nullptr;
-    bindTargetsInfo.depthTarget.depthLayout.usages    = LayoutDepthStencilTarget;
-    bindTargetsInfo.depthTarget.depthLayout.engines   = LayoutUniversalEngine;
-    bindTargetsInfo.depthTarget.stencilLayout.usages  = LayoutDepthStencilTarget;
-    bindTargetsInfo.depthTarget.stencilLayout.engines = LayoutUniversalEngine;
-
-    // Save current command buffer state and bind graphics state which is common for all subresources.
-    pCmdBuffer->CmdSaveGraphicsState();
-    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(DepthExpand), InternalApiPsoHash, });
-    BindCommonGraphicsState(pCmdBuffer);
-    pCmdBuffer->CmdBindDepthStencilState(m_pDepthExpandState);
-    pCmdBuffer->CmdBindMsaaState(GetMsaaState(image.GetImageCreateInfo().samples,
-                                              image.GetImageCreateInfo().fragments));
-
-    if (pQuadSamplePattern != nullptr)
-    {
-        pCmdBuffer->CmdSetMsaaQuadSamplePattern(image.GetImageCreateInfo().samples, *pQuadSamplePattern);
-    }
-
-    pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
-
-    RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
-
-    const Pm4Image* pPm4Image = static_cast<Pm4Image*>(image.GetGfxImage());
-    const uint32    lastMip   = (range.startSubres.mipLevel   + range.numMips   - 1);
-    const uint32    lastSlice = (range.startSubres.arraySlice + range.numSlices - 1);
-
-    for (depthViewInfo.mipLevel  = range.startSubres.mipLevel;
-         depthViewInfo.mipLevel <= lastMip;
-         ++depthViewInfo.mipLevel)
-    {
-        if (pPm4Image->CanMipSupportMetaData(depthViewInfo.mipLevel))
-        {
-            LinearAllocatorAuto<VirtualLinearAllocator> mipAlloc(pCmdBuffer->Allocator(), false);
-
-            const SubresId mipSubres  = Subres(range.startSubres.plane, depthViewInfo.mipLevel, 0);
-            const auto&    subResInfo = *image.SubresourceInfo(mipSubres);
-
-            // All slices of the same mipmap level can re-use the same viewport/scissor state.
-            viewportInfo.viewports[0].width  = static_cast<float>(subResInfo.extentTexels.width);
-            viewportInfo.viewports[0].height = static_cast<float>(subResInfo.extentTexels.height);
-
-            scissorInfo.scissors[0].extent.width  = subResInfo.extentTexels.width;
-            scissorInfo.scissors[0].extent.height = subResInfo.extentTexels.height;
-
-            pCmdBuffer->CmdSetViewports(viewportInfo);
-            pCmdBuffer->CmdSetScissorRects(scissorInfo);
-
-            for (depthViewInfo.baseArraySlice  = range.startSubres.arraySlice;
-                 depthViewInfo.baseArraySlice <= lastSlice;
-                 ++depthViewInfo.baseArraySlice)
-            {
-                LinearAllocatorAuto<VirtualLinearAllocator> sliceAlloc(pCmdBuffer->Allocator(), false);
-
-                // Create and bind a depth stencil view of the current subresource.
-                IDepthStencilView* pDepthView = nullptr;
-                void* pDepthViewMem =
-                    PAL_MALLOC(m_pDevice->GetDepthStencilViewSize(nullptr), &sliceAlloc, AllocInternalTemp);
-
-                if (pDepthViewMem == nullptr)
-                {
-                    pCmdBuffer->NotifyAllocFailure();
-                }
-                else
-                {
-                    Result result = m_pDevice->CreateDepthStencilView(depthViewInfo,
-                                                                      depthViewInfoInternal,
-                                                                      pDepthViewMem,
-                                                                      &pDepthView);
-                    PAL_ASSERT(result == Result::Success);
-
-                    bindTargetsInfo.depthTarget.pDepthStencilView = pDepthView;
-                    pCmdBuffer->CmdBindTargets(bindTargetsInfo);
-
-                    // Draw a fullscreen quad.
-                    pCmdBuffer->CmdDraw(0, 3, 0, 1, 0);
-
-                    PAL_SAFE_FREE(pDepthViewMem, &sliceAlloc);
-
-                    // Unbind the depth view and destroy it.
-                    bindTargetsInfo.depthTarget.pDepthStencilView = nullptr;
-                    pCmdBuffer->CmdBindTargets(bindTargetsInfo);
-                }
-            }
-        }
-    }
-
-    // Restore command buffer state.
-    pCmdBuffer->CmdRestoreGraphicsStateInternal();
-    pCmdBuffer->SetGfxBltDirectWriteMisalignedMdState(image.HasMisalignedMetadata());
-
-    // Compute path was not used
-    return false;
 }
 
 // =====================================================================================================================

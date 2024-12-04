@@ -105,7 +105,6 @@ protected:
         regPA_SC_AA_MASK_X0Y1_X1Y1                paScAaMask2;
         regPA_SC_MODE_CNTL_0                      paScModeCntl0;
         regPA_SC_CONSERVATIVE_RASTERIZATION_CNTL  paScConsRastCntl;
-
     }  m_regs;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(MsaaState);

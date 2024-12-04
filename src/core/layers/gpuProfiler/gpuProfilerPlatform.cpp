@@ -66,32 +66,12 @@ Result Platform::Create(
     const PlatformCreateInfo&   createInfo,
     const Util::AllocCallbacks& allocCb,
     IPlatform*                  pNextPlatform,
-    GpuProfilerMode             mode,
-    const char*                 pTargetApp,
     void*                       pPlacementAddr,
     IPlatform**                 ppPlatform)
 {
-    if (strlen(pTargetApp) > 0)
-    {
-        char  executableNameBuffer[256] = {};
-        char* pExecutableName = nullptr;
-
-        if (GetExecutableName(executableNameBuffer, &pExecutableName, sizeof(executableNameBuffer)) == Result::Success)
-        {
-            if (strcmp(pExecutableName, pTargetApp) != 0)
-            {
-                mode = GpuProfilerDisabled;
-            }
-        }
-        else
-        {
-            PAL_ASSERT_ALWAYS_MSG("Unable to retrieve executable name to match against the Gpu Profiler target "
-                                  "application name.");
-        }
-    }
-
-    Platform* pPlatform = PAL_PLACEMENT_NEW(pPlacementAddr) Platform(createInfo, allocCb, pNextPlatform, mode);
-    Result result = pPlatform->Init();
+    GpuProfilerMode mode      = pNextPlatform->PlatformSettings().gpuProfilerMode;
+    Platform*       pPlatform = PAL_PLACEMENT_NEW(pPlacementAddr) Platform(createInfo, allocCb, pNextPlatform, mode);
+    Result          result    = pPlatform->Init();
 
     if (result == Result::Success)
     {
@@ -253,6 +233,11 @@ void PAL_STDCALL Platform::GpuProfilerCb(
     case Developer::CallbackType::BindPipeline:
         TranslateBindPipelineData(pCbData);
         break;
+#if PAL_WORKGRAPHS_SUPPORT
+    case Developer::CallbackType::BindWorkGraph:
+        TranslateBindWorkGraphData(pCbData);
+        break;
+#endif
 #if PAL_DEVELOPER_BUILD
     case Developer::CallbackType::DrawDispatchValidation:
         TranslateDrawDispatchValidationData(pCbData);

@@ -63,7 +63,7 @@ inline uint32_t NextSmallestPow2(uint32_t x)
 }
 
 /// Align a 32-bit integer to be multiples of `alignment`. `alignment` must be a power of 2.
-/// Return 0 if:
+/// Return 0 if either:
 /// 1) \param x is 0
 /// 2) \param alignment is 0
 /// 3) the operation causes integer overflow.

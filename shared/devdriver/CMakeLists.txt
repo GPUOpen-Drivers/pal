@@ -30,6 +30,8 @@ cmake_policy(SET CMP0091 NEW)
 
 project(DevDriver LANGUAGES CXX)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 include(cmake/DevDriver.cmake)
 
 ### DevDriver Component Options ################################################
@@ -81,8 +83,7 @@ if (DD_BP_BUILD_MODULES)
     add_subdirectory(modules)
 endif()
 
-option(DD_OPT_ENABLE_RUST "Configure whether Rust bindings are built")
-if (DD_OPT_ENABLE_RUST)
-    add_subdirectory(rust)
+if (DD_BP_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
 endif()
-

@@ -69,7 +69,6 @@ enum class CallbackType : uint32
     BindGpuMemory,          ///< This callback is to inform of a new binding to GPU memory.
     SubAllocGpuMemory,      ///< This callback is to inform of suballocation from base GPU memory allocation.
     SubFreeGpuMemory,       ///< This callback is to inform that GPU memory suballocation has been freed.
-
 #if PAL_DEVELOPER_BUILD
     RpmBlt,                 ///< This callback is to describe the internal RPM blt calls.
 #endif
@@ -497,6 +496,9 @@ struct DrawDispatchDispatchArgs
     DispatchDims groupStart;  ///< Thread/workgroup start offsets in X/Y/Z dimensions. Only valid for CmdDispatchOffset.
     DispatchDims groupDims;   ///< Thread/workgroup counts in X/Y/Z dimensions. Only valid for CmdDispatch[Offset].
     DispatchDims logicalSize; ///< Thread/workgroup counts as seen by the shader. Only valid for CmdDispatchOffset.
+    /// Optional flags to help the client driver understand the dispatch.
+    /// For example, if the dispatch originated in PAL rather than the client driver.
+    DispatchInfoFlags infoFlags;
 };
 
 /// Information for DrawDispatch callbacks

@@ -53,8 +53,8 @@ const RegisterRange Gfx103ContextShadowRange[] =
         (mmSPI_SHADER_COL_FORMAT - mmSPI_PS_INPUT_CNTL_0 + 1),
     },
     {
-        (Gfx103PlusExclusive::mmSX_PS_DOWNCONVERT_CONTROL - CONTEXT_SPACE_START),        // 0xA1D4 - 0xA1E7
-        (mmCB_BLEND7_CONTROL - Gfx103PlusExclusive::mmSX_PS_DOWNCONVERT_CONTROL + 1),
+        (Gfx103Plus::mmSX_PS_DOWNCONVERT_CONTROL - CONTEXT_SPACE_START),        // 0xA1D4 - 0xA1E7
+        (mmCB_BLEND7_CONTROL - Gfx103Plus::mmSX_PS_DOWNCONVERT_CONTROL + 1),
     },
     {
         (mmPA_CL_POINT_X_RAD - CONTEXT_SPACE_START),                            // 0xA1F5 - 0xA1F8
@@ -142,7 +142,7 @@ const RegisterRange Gfx103UserConfigShadowRange[] =
     {
         (mmGE_USER_VGPR_EN - UCONFIG_SPACE_START),
         (Gfx103Plus::mmGE_VRS_RATE - mmGE_USER_VGPR_EN + 1),
-    },
+    }
 };
 
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -219,7 +219,7 @@ const RegisterRange Gfx103NonShadowedRanges[] =
     // SQ thread trace registers are always not shadowed.
     {
         Gfx10::mmSQ_THREAD_TRACE_BUF0_BASE,
-        Gfx103::mmSQ_THREAD_TRACE_STATUS2 - Gfx10::mmSQ_THREAD_TRACE_BUF0_BASE + 1
+        Gfx10Vrs::mmSQ_THREAD_TRACE_STATUS2 - Gfx10::mmSQ_THREAD_TRACE_BUF0_BASE + 1
     },
     {
         mmSQ_THREAD_TRACE_USERDATA_0,
@@ -232,8 +232,8 @@ const RegisterRange Gfx103NonShadowedRanges[] =
         UserConfigRegPerfEnd - UserConfigRegPerfStart + 1
     },
     {
-        Gfx103::mmATC_PERFCOUNTER0_CFG,
-        Gfx103::mmATC_PERFCOUNTER_HI - Gfx103::mmATC_PERFCOUNTER0_CFG + 1
+        Gfx10Vrs::mmATC_PERFCOUNTER0_CFG,
+        Gfx10Vrs::mmATC_PERFCOUNTER_HI - Gfx10Vrs::mmATC_PERFCOUNTER0_CFG + 1
     },
     {
         Gfx10::mmRPB_PERFCOUNTER_LO,

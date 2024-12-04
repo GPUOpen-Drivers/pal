@@ -609,11 +609,7 @@ Result ComputeQueueContext::UpdateRingSet(
         // The queues are idle, so it is safe to validate the rest of the RingSet.
         if (result == Result::Success)
         {
-            uint32 reallocatedRings = 0;
-            result = m_ringSet.Validate(ringSizes,
-                                        samplePosPalette,
-                                        lastTimeStamp,
-                                        &reallocatedRings);
+            result = m_ringSet.Validate(ringSizes, samplePosPalette, lastTimeStamp);
         }
 
          (*pHasChanged) = true;
@@ -778,7 +774,7 @@ Result UniversalQueueContext::Init()
 
     if (result == Result::Success)
     {
-        result = RebuildCommandStreams(m_cmdsUseTmzRing, 0);
+        result = RebuildCommandStreams(m_cmdsUseTmzRing, 0, false);
     }
 
     return result;
@@ -1151,6 +1147,35 @@ void UniversalQueueContext::WritePerSubmitPreamble(
 }
 
 // =====================================================================================================================
+// Creates and initializes the ACE CmdStream
+Result UniversalQueueContext::InitAcePreambleCmdStream()
+{
+    Result result = Result::Unsupported;
+
+    if (m_supportsAceGang && (m_pAcePreambleCmdStream == nullptr))
+    {
+        m_pAcePreambleCmdStream = PAL_NEW(CmdStream, m_pDevice->GetPlatform(), AllocInternal)(
+            *m_pDevice,
+            m_pDevice->Parent()->InternalUntrackedCmdAllocator(),
+            EngineTypeCompute,
+            SubEngineType::AsyncCompute,
+            CmdStreamUsage::Preamble,
+            false);
+
+        if (m_pAcePreambleCmdStream != nullptr)
+        {
+            result = m_pAcePreambleCmdStream->Init();
+        }
+        else
+        {
+            result = Result::ErrorOutOfMemory;
+        }
+    }
+
+   return result;
+}
+
+// =====================================================================================================================
 // Checks if the queue context preamble needs to be rebuilt, possibly due to the client creating new pipelines that
 // require a bigger scratch ring, or due the client binding a new trap handler/buffer.  If so, the compute shader
 // rings are re-validated and our context command stream is rebuilt.
@@ -1165,20 +1190,32 @@ Result UniversalQueueContext::PreProcessSubmit(
     bool   hasUpdated    = false;
 
     PAL_ASSERT(m_pParentQueue != nullptr);
-    uint64 lastTimeStamp   = m_pParentQueue->GetSubmissionContext()->LastTimestamp();
-    Result result        = Result::Success;
+    uint64     lastTimeStamp = m_pParentQueue->GetSubmissionContext()->LastTimestamp();
+    const bool hasAce        = pSubmitInfo->implicitGangedSubQueues > 0;
+    Result     result        = Result::Success;
+    bool       hasInitAce    = false;
+
+    if (hasAce && (m_pAcePreambleCmdStream == nullptr))
+    {
+        // This is the first time the ACE preamble CmdStream is being used. So create and initialize the ACE CmdStream
+        // and the associated GpuEvent object additionally.
+        result = InitAcePreambleCmdStream();
+        hasInitAce = true;
+    }
 
     // We only need to rebuild the command stream if the user submits at least one command buffer.
-    if (cmdBufferCount != 0)
+    if ((result == Result::Success) && (cmdBufferCount != 0))
     {
         const bool isTmz = (pSubmitInfo->flags.isTmzEnabled != 0);
 
         result = UpdateRingSet(&hasUpdated,
-                              isTmz,
-                              pSubmitInfo->stackSizeInDwords,
-                              lastTimeStamp,
-                              cmdBufferCount,
-                              ppCmdBuffers);
+                               isTmz,
+                               hasAce,
+                               hasInitAce,
+                               pSubmitInfo->stackSizeInDwords,
+                               lastTimeStamp,
+                               cmdBufferCount,
+                               ppCmdBuffers);
 
         bool rebuildCmdStreamForEiV2SetBase = false;
 
@@ -1198,10 +1235,13 @@ Result UniversalQueueContext::PreProcessSubmit(
             }
         }
 
-        if ((result == Result::Success) &&
-            (hasUpdated || (m_cmdsUseTmzRing != isTmz) || rebuildCmdStreamForEiV2SetBase))
+        if ((result == Result::Success)     &&
+            (hasUpdated                     ||
+             (m_cmdsUseTmzRing != isTmz)    ||
+             rebuildCmdStreamForEiV2SetBase ||
+             hasInitAce))
         {
-            result = RebuildCommandStreams(isTmz, lastTimeStamp);
+            result = RebuildCommandStreams(isTmz, lastTimeStamp, hasAce);
         }
         m_cmdsUseTmzRing = isTmz;
     }
@@ -1384,7 +1424,8 @@ void UniversalQueueContext::ResetCommandStream(
 // Regenerates the contents of this context's internal command streams.
 Result UniversalQueueContext::RebuildCommandStreams(
     bool   isTmz,
-    uint64 lastTimeStamp)
+    uint64 lastTimeStamp,
+    bool   hasAce)
 {
     /*
      * There are two DE preambles which PAL submits with every set of command buffers: one which executes as a preamble
@@ -1494,7 +1535,7 @@ Result UniversalQueueContext::RebuildCommandStreams(
     // The per-submit ACE preamble.
     //==================================================================================================================
     CmdStream* pAcePreambleCmdStream = nullptr;
-    if (result == Result::Success)
+    if (hasAce && (result == Result::Success))
     {
         result = GetAcePreambleCmdStream(&pAcePreambleCmdStream);
     }
@@ -1860,14 +1901,14 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
                                                     &Ge,
                                                     pCmdSpace);
 
-    if (IsGfx103PlusExclusive(device))
+    if (IsGfx103Plus(device))
     {
         // Setting all these bits tells the HW to use the driver programmed setting of SX_PS_DOWNCONVERT
         // instead of automatically calculating the value.
         regSX_PS_DOWNCONVERT_CONTROL sxPsDownconvertControl = { };
         sxPsDownconvertControl.u32All = (1 << MaxColorTargets) - 1;
 
-        pCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx103PlusExclusive::mmSX_PS_DOWNCONVERT_CONTROL,
+        pCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx103Plus::mmSX_PS_DOWNCONVERT_CONTROL,
                                                         sxPsDownconvertControl.u32All,
                                                         pCmdSpace);
     }
@@ -2003,7 +2044,6 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
         pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SU_OVER_RASTERIZATION_CNTL, 0x00000000, pCmdSpace);
         pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmVGT_PRIMITIVEID_RESET,         0x00000000, pCmdSpace);
         pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SC_CLIPRECT_RULE,           0x0000ffff, pCmdSpace);
-
     }
 
     return WriteCommonPreamble(*m_pDevice, EngineTypeUniversal, &m_deCmdStream, pCmdSpace);
@@ -2011,13 +2051,16 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
 
 // =====================================================================================================================
 Result UniversalQueueContext::UpdateRingSet(
-    bool*                   pHasChanged,        // [out]    Whether or not the ring set has updated.
-                                                //          If true the ring set must rewrite its registers.
-    bool                     isTmz,             // [in]     whether or not the ring set is tmz protected or not.
-    uint32                   overrideStackSize, // [in]     The stack size required by the subsequent submission.
-    uint64                   lastTimeStamp,     // [in]     The LastTimeStamp associated with the ringSet
-    uint32                   cmdBufferCount,    // [in]     Amount of CmdBuffers in ppCmdBuffers.
-    const ICmdBuffer* const* ppCmdBuffers)      // [in]     ppCmdBuffers which can provide ShaderRingSizes.
+    bool*                    pHasChanged,       // Whether or not the ring set has updated.
+                                                // If true the ring set must rewrite its registers.
+    bool                     isTmz,             // Whether or not the ring set is tmz protected.
+    bool                     hasAce,            // Whether or not this QueueContext is submitting an ACE workload
+                                                // as well.
+    bool                     hasInitAce,        // Whether this QueueContext has initialized an ACE cmdstream
+    uint32                   overrideStackSize, // The stack size required by the subsequent submission.
+    uint64                   lastTimeStamp,     // The LastTimeStamp associated with the ringSet
+    uint32                   cmdBufferCount,    // Amount of CmdBuffers in ppCmdBuffers.
+    const ICmdBuffer* const* ppCmdBuffers)      // ppCmdBuffers which can provide ShaderRingSizes.
 {
     PAL_ALERT(pHasChanged == nullptr);
     PAL_ASSERT(m_pParentQueue != nullptr);
@@ -2064,7 +2107,22 @@ Result UniversalQueueContext::UpdateRingSet(
         }
     }
 
-    if (samplePosPalette || needStackSizeOverride|| needRingSetAlloc)
+    if (hasAce && m_ringSet.HasAceRingSet() && (needRingSetAlloc == false))
+    {
+        const ShaderRing* const* ppRingsAce = m_ringSet.GetAceRingSet()->GetRings();
+        for (size_t ring = 0; ring <  m_ringSet.GetAceRingSet()->NumRings(); ++ring)
+        {
+            if (ringSizes.itemSize[ring] > ppRingsAce[ring]->ItemSizeMax())
+            {
+                needRingSetAlloc = true;
+                break;
+            }
+        }
+    }
+
+    needRingSetAlloc |= (hasAce && (m_ringSet.HasAceRingSet() == false));
+
+    if (samplePosPalette || needStackSizeOverride|| needRingSetAlloc || hasInitAce)
     {
         if (samplePosPalette)
         {
@@ -2085,11 +2143,10 @@ Result UniversalQueueContext::UpdateRingSet(
         // The queues are idle, so it is safe to validate the rest of the RingSet.
         if (result == Result::Success)
         {
-            uint32 reallocatedRings = 0;
             result = pRingSet->Validate(ringSizes,
                                         samplePosPalette,
                                         lastTimeStamp,
-                                        &reallocatedRings);
+                                        hasAce);
         }
 
         (*pHasChanged) = true;
@@ -2110,25 +2167,7 @@ Result UniversalQueueContext::GetAcePreambleCmdStream(
     Result result = Result::Success;
     if (m_supportsAceGang && (m_pAcePreambleCmdStream == nullptr))
     {
-        // This is the first time the ACE preamble CmdStream is being used. So create and initialize the ACE CmdStream
-        // and the associated GpuEvent object additionally.
-        m_pAcePreambleCmdStream = PAL_NEW(CmdStream, m_pDevice->GetPlatform(), AllocInternal)(
-            *m_pDevice,
-            m_pDevice->Parent()->InternalUntrackedCmdAllocator(),
-            EngineTypeCompute,
-            SubEngineType::AsyncCompute,
-            CmdStreamUsage::Preamble,
-            false);
-
-        if (m_pAcePreambleCmdStream != nullptr)
-        {
-            result = m_pAcePreambleCmdStream->Init();
-        }
-        else
-        {
-            result = Result::ErrorOutOfMemory;
-        }
-
+        result = InitAcePreambleCmdStream();
         // Creation of the Ace CmdStream failed.
         PAL_ASSERT(result == Result::Success);
     }

@@ -104,4 +104,16 @@ Result GraphicsShaderLibrary::PostInit(
     return Result::Success;
 }
 
+// =====================================================================================================================
+UploadFenceToken GraphicsShaderLibrary::GetUploadFenceToken() const
+{
+    return GetPartialPipeline()->GetUploadFenceToken();
+}
+
+// =====================================================================================================================
+uint64 GraphicsShaderLibrary::GetPagingFenceVal() const
+{
+    return GetPartialPipeline()->GetPagingFenceVal();
+}
+
 } // Pal

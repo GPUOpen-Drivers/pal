@@ -67,14 +67,18 @@ typedef struct DDEventDataCallback
 /// Structure that contains the information required to create a client
 typedef struct DDEventClientCreateInfo
 {
-    DDNetConnection     hConnection; /// A handle to an existing connection object
-    DDClientId          clientId;    /// The ClientId on the network to connect
-    uint32_t            providerId;  /// The ID of a provider on this event server to subscribe to
-    DDEventDataCallback dataCb;      /// Callback used to return event data to the application
-    uint32_t            timeoutInMs; /// The maximum time that will be spent attempting to connect to the remote server
-                                     //< Connection occurs at creation time and creation will fail if a timeout is
-                                     //< encountered.
-                                     //< [Optional] Specify 0 to use a reasonable but implementation defined default.
+    DDNetConnection     hConnection;              /// A handle to an existing connection object
+    DDClientId          clientId;                 /// The ClientId on the network to connect
+    uint32_t            providerId;               /// The ID of a provider on this event server to subscribe to
+    DDEventDataCallback dataCb;                   /// Callback used to return event data to the application
+    uint32_t            connectionTimeoutInMs;    /// The maximum time that will be spent attempting to connect to the remote server
+                                                  //< Connection occurs at creation time and creation will fail if a timeout is
+                                                  //< encountered.
+                                                  //< [Optional] Specify 0 to use a reasonable but implementation defined default.
+    uint32_t            retryTimeoutInMs;         /// The maximum time that will be spent retrying communications
+                                                  //< [Optional] Specify 0 to use a reasonable but implementation defined default
+    uint32_t            communicationTimeoutInMs; /// The maximum time that will be spent on communication operations
+                                                  //< [Optional] Specify 0 to use a reasonable but implementation defined default
 } DDEventClientCreateInfo;
 
 /// Get version of the loaded library to check interface compatibility

@@ -102,13 +102,13 @@ public:
 
     virtual Pal::uint64 QueryGpuWorkMask() const override { return 0; }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 908
+    virtual void OnTraceAccepted(Pal::uint32 gpuIndex, Pal::ICmdBuffer* pCmdBuf) override;
+#else
     virtual void OnTraceAccepted() override;
-    virtual void OnTraceBegin(
-        Pal::uint32      gpuIndex,
-        Pal::ICmdBuffer* pCmdBuf) override;
-    virtual void OnTraceEnd(
-        Pal::uint32      gpuIndex,
-        Pal::ICmdBuffer* pCmdBuf) override;
+#endif
+    virtual void OnTraceBegin(Pal::uint32 gpuIndex, Pal::ICmdBuffer* pCmdBuf) override;
+    virtual void OnTraceEnd(Pal::uint32 gpuIndex, Pal::ICmdBuffer* pCmdBuf) override;
     virtual void OnTraceFinished() override;
 
     virtual const char* GetName() const override { return GpuPerfExpTraceSourceName; }
@@ -119,6 +119,7 @@ private:
     bool TestSeMask(
         Pal::uint32 seMask,
         Pal::uint32 seIndex);
+
     // Writes the SqttData chunks to the trace session.
     void WriteSqttDataChunks();
 

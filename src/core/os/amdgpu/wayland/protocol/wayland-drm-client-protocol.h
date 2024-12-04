@@ -14,7 +14,7 @@ extern "C" {
 /**
  * @page page_drm The drm protocol
  * @section page_ifaces_drm Interfaces
- * - @subpage page_iface_wl_drm -
+ * - @subpage page_iface_wl_drm - 
  * @section page_copyright_drm Copyright
  * <pre>
  *

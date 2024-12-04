@@ -43,6 +43,7 @@ namespace GpuProfiler
 // Forward decl's.
 class TargetCmdBuffer;
 struct PipelineState;
+class Queue;
 
 // Maximum config field widths is characters
 constexpr uint32 ConfigBlockNameSize    = 32;
@@ -156,10 +157,15 @@ public:
         const ComputePipelineCreateInfo& createInfo,
         void*                            pPlacementAddr,
         IPipeline**                      ppPipeline) override;
+    virtual Result WaitForFences(
+        uint32                   fenceCount,
+        const IFence*const*      ppFences,
+        bool                     waitAll,
+        std::chrono::nanoseconds timeout) const override;
 
     GpuProfilerMode GetProfilerMode() const { return static_cast<Platform*>(GetPlatform())->GetProfilerMode(); }
 
-    void CommandBufferBegin();
+    uint32 CommandBufferBegin();
 
     // Returns true if the settings config has successfully requested for SQ thread trace.
     bool IsThreadTraceEnabled() const
@@ -176,6 +182,8 @@ public:
                 (Util::TestAnyFlagSet(GetPlatform()->PlatformSettings().gpuProfilerConfig.traceModeMask,
                                       GpuProfilerTraceSpm)));
     }
+
+    void QueueBeingDestroyed(GpuProfiler::Queue* pQueue);
 
 private:
     virtual ~Device() {}
@@ -233,7 +241,7 @@ private:
     uint32                 m_endFrame;
     uint32                 m_startCommandBuffer;
     uint32                 m_endCommandBuffer;
-    uint32                 m_commandBufferCount;
+    std::atomic<uint32>    m_commandBufferCount;
     uint32                 m_minTimestampAlignment[EngineTypeCount];
     uint32                 m_seMask;
 
@@ -250,6 +258,10 @@ private:
     // Useful for reporting purposes.
     static constexpr uint32 MaxEngineCount = 8;
     uint32 m_queueIds[EngineTypeCount][MaxEngineCount];
+
+    static constexpr uint32 MaxQueueCount = 64; // Max tracked queues. It is possible to use more IDs than this, but
+                                                // device will be unable to trigger flush of the data on them directly
+    GpuProfiler::Queue* m_pQueues[MaxQueueCount]; // Tracks active queues for the device to trigger on fence waits
 
     PAL_DISALLOW_DEFAULT_CTOR(Device);
     PAL_DISALLOW_COPY_AND_ASSIGN(Device);

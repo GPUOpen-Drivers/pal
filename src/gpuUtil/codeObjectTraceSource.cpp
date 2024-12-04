@@ -32,8 +32,6 @@
 #include "palHashSetImpl.h"
 #include "palCodeObjectTraceSource.h"
 
-#include <sqtt_file_format.h>
-
 using namespace Pal;
 using namespace Util;
 using namespace GpuUtil::TraceChunk;
@@ -55,6 +53,7 @@ CodeObjectTraceSource::CodeObjectTraceSource(
     m_registeredPipelines(512, m_pPlatform),
     m_registeredApiHashes(512, m_pPlatform),
     m_registeredCoHashes(512, m_pPlatform)
+
 {
 }
 
@@ -299,8 +298,14 @@ Result CodeObjectTraceSource::AddCodeObjectLoadEvent(
     GpuMemSubAllocInfo gpuSubAlloc = { };
     if (result == Result::Success)
     {
-        PAL_ASSERT(numGpuAllocations == 1);
-        result = pPipeline->QueryAllocationInfo(&numGpuAllocations, &gpuSubAlloc);
+        if (numGpuAllocations == 1)
+        {
+            result = pPipeline->QueryAllocationInfo(&numGpuAllocations, &gpuSubAlloc);
+        }
+        else
+        {
+            result = Result::ErrorUnavailable;
+        }
     }
 
     if (result == Result::Success)

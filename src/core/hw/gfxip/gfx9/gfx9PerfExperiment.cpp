@@ -103,9 +103,9 @@ static void SetSqttTokenExclude(
     {
         pRegValue->gfx101.TOKEN_EXCLUDE = tokenExclude;
     }
-    else if (IsGfx103PlusExclusive(device))
+    else if (IsGfx103Plus(device))
     {
-        pRegValue->gfx103PlusExclusive.TOKEN_EXCLUDE = tokenExclude;
+        pRegValue->gfx103Plus.TOKEN_EXCLUDE = tokenExclude;
     }
     else
     {
@@ -121,11 +121,11 @@ static regSQ_THREAD_TRACE_TOKEN_MASK GetGfx10SqttTokenMask(
     const ThreadTraceTokenConfig& tokenConfig)
 {
     regSQ_THREAD_TRACE_TOKEN_MASK value = {};
-    if (IsGfx103PlusExclusive(device))
+    if (IsGfx103Plus(device))
     {
         // Setting SPI_CONFIG_CNTL.bits.ENABLE_SQG_BOP_EVENTS to 1 only allows SPI to send BOP events to SQG.
         // If BOP_EVENTS_TOKEN_INCLUDE is 0, SQG will not issue BOP event token writes to SQTT buffer.
-        value.gfx103PlusExclusive.BOP_EVENTS_TOKEN_INCLUDE = 1;
+        value.gfx103Plus.BOP_EVENTS_TOKEN_INCLUDE = 1;
     }
 
     const uint32 tokenExclude       = ~tokenConfig.tokenMask;
@@ -223,10 +223,10 @@ static regSQ_THREAD_TRACE_TOKEN_MASK GetGfx10SqttTokenMask(
                               (grbmCsDataRegs  << SQ_TT_TOKEN_MASK_OTHER_SHIFT__GFX10) |
                               (regReads        << SQ_TT_TOKEN_MASK_READS_SHIFT__GFX10));
 
-    if (IsGfx103PlusExclusive(device))
+    if (IsGfx103Plus(device))
     {
         // We want to update REG_EXCLUDE based on the bools we computed above but can't until we fix the reg headers.
-        value.gfx103PlusExclusive.REG_EXCLUDE = SqttGfx103RegExcludeMaskDefault;
+        value.gfx103Plus.REG_EXCLUDE = SqttGfx103RegExcludeMaskDefault;
     }
 
     return value;
@@ -489,7 +489,7 @@ Result PerfExperiment::AddCounter(
                     // The SQC bank mask was removed in gfx10.3.
                     if (IsGfx103Plus(*m_pDevice) == false)
                     {
-                        m_select.sqg[info.instance].perfmon[idx].most.SQC_BANK_MASK = DefaultSqSelectBankMask;
+                        m_select.sqg[info.instance].perfmon[idx].gfx101.SQC_BANK_MASK = DefaultSqSelectBankMask;
                     }
 
                     mapping.counterId = idx;
@@ -845,7 +845,7 @@ Result PerfExperiment::AddSpmCounter(
                     // The SQC bank mask was removed in gfx10.3.
                     if (IsGfx103Plus(*m_pDevice) == false)
                     {
-                        m_select.sqg[info.instance].perfmon[idx].most.SQC_BANK_MASK = DefaultSqSelectBankMask;
+                        m_select.sqg[info.instance].perfmon[idx].gfx101.SQC_BANK_MASK = DefaultSqSelectBankMask;
                     }
 
                     // Each SQ module gets a single wire with one 32-bit counter (select both 16-bit halves).
@@ -1240,12 +1240,12 @@ Result PerfExperiment::AddThreadTrace(
         m_sqtt[realInstance].ctrl.bits.RT_FREQ       = SQ_TT_RT_FREQ_4096_CLK;
         m_sqtt[realInstance].ctrl.bits.DRAW_EVENT_EN = 1;
 
-        if (IsGfx103PlusExclusive(*m_pDevice))
+        if (IsGfx103Plus(*m_pDevice))
         {
-            m_sqtt[realInstance].ctrl.gfx103PlusExclusive.LOWATER_OFFSET = SqttGfx103LoWaterOffsetValue;
+            m_sqtt[realInstance].ctrl.gfx103Plus.LOWATER_OFFSET = SqttGfx103LoWaterOffsetValue;
 
             // On Navi2x hw, the polarity of AutoFlushMode is inverted, thus this step is necessary to correct
-            m_sqtt[realInstance].ctrl.gfx103PlusExclusive.AUTO_FLUSH_MODE = m_settings.waAutoFlushModePolarityInversed;
+            m_sqtt[realInstance].ctrl.gfx103Plus.AUTO_FLUSH_MODE = m_settings.waAutoFlushModePolarityInversed;
         }
 
         // Enable all stalling in "always" mode, "lose detail" mode only disables register stalls.
@@ -1290,7 +1290,7 @@ Result PerfExperiment::AddThreadTrace(
                 validFlags &= ~(uint32(PerfShaderMaskVs));
             }
             m_sqtt[realInstance].mask.bits.WTYPE_INCLUDE = uint32(shaderMask) & validFlags;
-            m_sqtt[realInstance].mask.most.EXCLUDE_NONDETAIL_SHADERDATA =
+            m_sqtt[realInstance].mask.gfx11.EXCLUDE_NONDETAIL_SHADERDATA =
                 (traceInfo.optionFlags.threadTraceExcludeNonDetailShaderData != 0) &&
                 (traceInfo.optionValues.threadTraceExcludeNonDetailShaderData);
         }
@@ -1319,9 +1319,9 @@ Result PerfExperiment::AddThreadTrace(
             SetSqttTokenExclude(*m_pDevice, &m_sqtt[realInstance].tokenMask, SqttGfx10TokenMaskDefault);
             m_sqtt[realInstance].tokenMask.bits.REG_INCLUDE = SqttGfx10RegMaskDefault;
 
-            if (IsGfx103PlusExclusive(*m_pDevice))
+            if (IsGfx103Plus(*m_pDevice))
             {
-                m_sqtt[realInstance].tokenMask.gfx103PlusExclusive.REG_EXCLUDE = SqttGfx103RegExcludeMaskDefault;
+                m_sqtt[realInstance].tokenMask.gfx103Plus.REG_EXCLUDE = SqttGfx103RegExcludeMaskDefault;
             }
         }
     }

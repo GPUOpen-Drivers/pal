@@ -330,9 +330,9 @@ static uint32 SpiPsInControl(
     spiPsInControl.bits.PS_W32_EN           =
             (metadata.pipeline.hardwareStage[uint32(Util::Abi::HardwareStage::Ps)].wavefrontSize == 32);
 
-    if (IsGfx103PlusExclusive(gfxLevel))
+    if (IsGfx103Plus(gfxLevel))
     {
-        spiPsInControl.gfx103PlusExclusive.NUM_PRIM_INTERP = spiPsInControlMetadata.numPrimInterp;
+        spiPsInControl.gfx103Plus.NUM_PRIM_INTERP = spiPsInControlMetadata.numPrimInterp;
     }
 
     return spiPsInControl.u32All;
@@ -351,9 +351,9 @@ static uint32 SpiVsOutConfig(
     spiVsOutConfig.bits.VS_EXPORT_COUNT = spiVsOutConfigMetadata.vsExportCount;
     spiVsOutConfig.bits.NO_PC_EXPORT    = spiVsOutConfigMetadata.flags.noPcExport;
 
-    if (IsGfx103PlusExclusive(gfxLevel))
+    if (IsGfx103Plus(gfxLevel))
     {
-        spiVsOutConfig.gfx103PlusExclusive.PRIM_EXPORT_COUNT = spiVsOutConfigMetadata.primExportCount;
+        spiVsOutConfig.gfx103Plus.PRIM_EXPORT_COUNT = spiVsOutConfigMetadata.primExportCount;
     }
 
     // If the number of VS output semantics exceeds the half-pack threshold, then enable VS half-pack mode.  Keep in
@@ -839,9 +839,9 @@ static uint32 PaClNggCntl(
         (createInfo.iaState.topologyInfo.topologyIsPolygon ||
          (createInfo.iaState.topologyInfo.primitiveType == Pal::PrimitiveType::Quad));
 
-    if (IsGfx103PlusExclusive(gfxLevel))
+    if (IsGfx103Plus(gfxLevel))
     {
-        paClNggCntl.gfx103PlusExclusive.VERTEX_REUSE_DEPTH = 30;
+        paClNggCntl.gfx103Plus.VERTEX_REUSE_DEPTH = 30;
     }
 
     return paClNggCntl.u32All;
@@ -998,9 +998,9 @@ static uint32 SpiShaderPgmRsrc1Ps(
     // always use the setting PAL prefers.
     spiShaderPgmRsrc1Ps.bits.CU_GROUP_DISABLE = (settings.numPsWavesSoftGroupedPerCu > 0 ? 0 : 1);
 
-    if (IsGfx103PlusExclusive(gfxLevel))
+    if (IsGfx103Plus(gfxLevel))
     {
-        spiShaderPgmRsrc1Ps.gfx103PlusExclusive.LOAD_PROVOKING_VTX =
+        spiShaderPgmRsrc1Ps.gfx103Plus.LOAD_PROVOKING_VTX =
             metadata.pipeline.graphicsRegister.flags.psLoadProvokingVtx;
     }
 
@@ -1280,9 +1280,9 @@ static void SpiPsInputCntl(
             pSpiPsInputCntl->gfx10.CYL_WRAP = spiPsInputCntl.cylWrap;
         }
 
-        if (IsGfx103PlusExclusive(gfxLevel))
+        if (IsGfx103Plus(gfxLevel))
         {
-            pSpiPsInputCntl->gfx103PlusExclusive.ROTATE_PC_PTR = spiPsInputCntl.flags.rotatePcPtr;
+            pSpiPsInputCntl->gfx103Plus.ROTATE_PC_PTR = spiPsInputCntl.flags.rotatePcPtr;
         }
 
         if (IsGfx11(gfxLevel))

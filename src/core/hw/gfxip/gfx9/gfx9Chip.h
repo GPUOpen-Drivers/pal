@@ -671,14 +671,27 @@ constexpr SyncRbFlags& operator|=(SyncRbFlags& lhs, SyncRbFlags rhs) { lhs = lhs
 constexpr SyncRbFlags& operator&=(SyncRbFlags& lhs, SyncRbFlags rhs) { lhs = lhs & rhs;  return lhs; }
 
 // Define ordered HW acquire points.
+//
+// PAL's AcquirePoint only exposes a subset of HW's PWS acquire points. Below acquire points are dropped,
+// - PRE_SHADER
+//     Very close to ME, use ME instead; P/CS_PARTIAL_FLUSH has lighter CP overhead than RELEASE_MEM(P/CS_DONE) +
+//     ACQIURE_MEM(PRE_SHADER); the PWS packet pair may stress event FIFOs if the number is large, e.g. 2000+ per
+//     frame in TimeSpy.
+// - PRE_PIX_SHADER
+//     Very close to PreDepth, use PreDepth instead.
+//
+//   Note that PRE_SHADER and PRE_PIX_SHADER are still broken in HW that they can't fence future events:
+//   SPI lets events leak past PWS wait events. This will break our barrier logic because we require that logically
+//   sequential barriers like (ColorTarget -> PsRead) and (PsRead -> CsWrite) form a chain of sequential execution.
+//   SPI lets PS_DONE events leak past its shader wait points so these barriers would malfunction.
+//
+// - PRE_COLOR
+//   Not used because it is broken in HW.
 enum AcquirePoint : uint8
 {
     AcquirePointPfp,
     AcquirePointMe,
-    AcquirePointPreShader,
     AcquirePointPreDepth,
-    AcquirePointPrePs,
-    AcquirePointPreColor,
     AcquirePointEop,
     AcquirePointCount
 };

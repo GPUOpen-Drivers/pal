@@ -24,6 +24,7 @@
  **********************************************************************************************************************/
 
 #include "protocols/ddTransferClient.h"
+#include <dd_timeout_constants.h>
 
 #define TRANSFER_CLIENT_MIN_VERSION 1
 #define TRANSFER_CLIENT_MAX_VERSION 2
@@ -58,7 +59,9 @@ namespace DevDriver
                 SizedPayloadContainer container = {};
                 container.CreatePayload<TransferRequest>(blockId, TransferType::Pull, 0);
 
-                result = TransactTransferPayload(&container);
+                result = TransactTransferPayload(&container,
+                                                 g_timeoutConstants.communicationTimeoutInMs,
+                                                 g_timeoutConstants.retryTimeoutInMs);
 
                 if ((result == Result::Success) &&
                     (container.GetPayload<TransferHeader>().command == TransferMessage::TransferDataHeader))
@@ -162,7 +165,9 @@ namespace DevDriver
                         else if (m_transferContext.totalBytes > 0)
                         {
                             // Attempt to fetch a new chunk if we're out of data.
-                            result = ReceiveTransferPayload(&m_transferContext.scratchPayload, kTransferChunkTimeoutInMs);
+                            result = ReceiveTransferPayload(&m_transferContext.scratchPayload,
+                                                            kTransferChunkTimeoutInMs,
+                                                            g_timeoutConstants.retryTimeoutInMs);
 
                             const TransferDataChunk& chunk =
                                 scratchPayload.GetPayload<TransferDataChunk>();
@@ -196,7 +201,9 @@ namespace DevDriver
                                 if (m_transferContext.totalBytes == 0)
                                 {
                                     SizedPayloadContainer sentinelPayload = {};
-                                    result = ReceiveTransferPayload(&sentinelPayload, kTransferChunkTimeoutInMs);
+                                    result                                = ReceiveTransferPayload(&sentinelPayload,
+                                                                                                   kTransferChunkTimeoutInMs,
+                                                                                                   g_timeoutConstants.retryTimeoutInMs);
 
                                     TransferDataSentinel& sentinel = sentinelPayload.GetPayload<TransferDataSentinel>();
 
@@ -253,7 +260,9 @@ namespace DevDriver
                 container.CreatePayload<TransferRequest>(blockId,
                                                          TransferType::Push,
                                                          static_cast<uint32>(transferSizeInBytes));
-                Result transactResult = TransactTransferPayload(&container);
+                Result transactResult = TransactTransferPayload(&container,
+                                                                g_timeoutConstants.communicationTimeoutInMs,
+                                                                g_timeoutConstants.retryTimeoutInMs);
                 if ((transactResult == Result::Success) &&
                     (container.GetPayload<TransferStatus>().command == TransferMessage::TransferStatus) &&
                     (container.GetPayload<TransferStatus>().result == Result::Success))
@@ -288,7 +297,9 @@ namespace DevDriver
                                                     m_transferContext.crc32);
 
                     TransferDataChunk::WritePayload(pSrcBuffer, bytesToSend, &m_transferContext.scratchPayload);
-                    result = SendTransferPayload(m_transferContext.scratchPayload);
+                    result = SendTransferPayload(m_transferContext.scratchPayload,
+                                                 g_timeoutConstants.communicationTimeoutInMs,
+                                                 g_timeoutConstants.retryTimeoutInMs);
                     if (result == Result::Success)
                     {
                         bufferSize -= bytesToSend;
@@ -320,7 +331,10 @@ namespace DevDriver
                 container.CreatePayload<TransferDataSentinel>(discard ? Result::Aborted : Result::Success,
                                                               m_transferContext.crc32);
 
-                if ((TransactTransferPayload(&container) == Result::Success) &&
+                if ((TransactTransferPayload(&container,
+                                             g_timeoutConstants.communicationTimeoutInMs,
+                                             g_timeoutConstants.retryTimeoutInMs) ==
+                     Result::Success) &&
                     (container.GetPayload<TransferStatus>().command == TransferMessage::TransferStatus))
                 {
                     result = container.GetPayload<TransferStatus>().result;
@@ -347,14 +361,18 @@ namespace DevDriver
                 SizedPayloadContainer container = {};
 
                 container.CreatePayload<TransferStatus>(Result::Aborted);
-                Result transferResult = SendTransferPayload(container);
+                Result transferResult = SendTransferPayload(container,
+                                                            g_timeoutConstants.communicationTimeoutInMs,
+                                                            g_timeoutConstants.retryTimeoutInMs);
                 if (transferResult == Result::Success)
                 {
                     // Discard all messages until we find the sentinel.
                     while ((transferResult == Result::Success) &&
                         (container.GetPayload<TransferHeader>().command != TransferMessage::TransferDataSentinel))
                     {
-                        transferResult = ReceiveTransferPayload(&container);
+                        transferResult = ReceiveTransferPayload(&container,
+                                                                g_timeoutConstants.communicationTimeoutInMs,
+                                                                g_timeoutConstants.retryTimeoutInMs);
                     }
 
                     if ((transferResult == Result::Success) &&

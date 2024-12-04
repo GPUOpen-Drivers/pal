@@ -1594,7 +1594,7 @@ typedef struct PM4_ME_DRAW_INDEX_MULTI_INST
     } ordinal4;
 } PM4_ME_DRAW_INDEX_MULTI_INST;
 
-constexpr unsigned int PM4_ME_DRAW_INDEX_MULTI_INST_SIZEDW__GFX101        = 4;
+constexpr unsigned int PM4_ME_DRAW_INDEX_MULTI_INST_SIZEDW__GFX101 = 4;
 
 // ---------------------------------- PM4_ME_DRAW_INDEX_OFFSET_2 ----------------------------------
 typedef struct PM4_ME_DRAW_INDEX_OFFSET_2
@@ -2216,9 +2216,9 @@ constexpr unsigned int PM4_ME_LOAD_SH_REG_SIZEDW__CORE = 5;
 // -------------------------------- ME_LOAD_SH_REG_INDEX_index_enum --------------------------------
 enum ME_LOAD_SH_REG_INDEX_index_enum
 {
-    index__me_load_sh_reg_index__direct_addr                        =  0,
-    index__me_load_sh_reg_index__offset                             =  1,
-    index__me_load_sh_reg_index__indirect_addr__GFX103PLUSEXCLUSIVE =  2,
+    index__me_load_sh_reg_index__direct_addr               =  0,
+    index__me_load_sh_reg_index__offset                    =  1,
+    index__me_load_sh_reg_index__indirect_addr__GFX103PLUS =  2,
 };
 
 // ----------------------------- ME_LOAD_SH_REG_INDEX_data_format_enum -----------------------------
@@ -2255,7 +2255,7 @@ typedef struct PM4_ME_LOAD_SH_REG_INDEX
             {
                 ME_LOAD_SH_REG_INDEX_index_enum index      :  2;
                 uint32_t                        reserved3  : 30;
-            } gfx103PlusExclusive;
+            } gfx103Plus;
         } bitfields;
         uint32_t u32All;
     } ordinal2;
@@ -3599,8 +3599,8 @@ constexpr unsigned int PM4_ME_WRITE_DATA_SIZEDW__CORE = 4;
 // -------------------------------- ME_PERFMON_CONTROL_pmc_en_enum --------------------------------
 enum ME_PERFMON_CONTROL_pmc_en_enum
 {
-    pmc_en__me_perfmon_control__perfmon_disable__GFX103PLUSEXCLUSIVE =  0,
-    pmc_en__me_perfmon_control__perfmon_enable__GFX103PLUSEXCLUSIVE  =  1,
+    pmc_en__me_perfmon_control__perfmon_disable__GFX103PLUS =  0,
+    pmc_en__me_perfmon_control__perfmon_enable__GFX103PLUS  =  1,
 };
 
 // ------------------------------------ PM4_ME_PERFMON_CONTROL ------------------------------------
@@ -3623,7 +3623,7 @@ typedef struct PM4_ME_PERFMON_CONTROL
                 ME_PERFMON_CONTROL_pmc_en_enum pmc_en        :  1;
                 uint32_t                       pmc_unit_mask :  8;
                 uint32_t                       reserved2     :  8;
-            } gfx103PlusExclusive;
+            } gfx103Plus;
         } bitfields;
         uint32_t u32All;
     } ordinal2;
@@ -3636,13 +3636,13 @@ typedef struct PM4_ME_PERFMON_CONTROL
             {
                 uint32_t pmc_event  : 14;
                 uint32_t reserved1  : 18;
-            } gfx103PlusExclusive;
+            } gfx103Plus;
         } bitfields;
         uint32_t u32All;
     } ordinal3;
 } PM4_ME_PERFMON_CONTROL;
 
-constexpr unsigned int PM4_ME_PERFMON_CONTROL_SIZEDW__GFX103PLUSEXCLUSIVE = 3;
+constexpr unsigned int PM4_ME_PERFMON_CONTROL_SIZEDW__GFX103PLUS = 3;
 
 // ---------------------------------- PM4_ME_DISPATCH_MESH_DIRECT ----------------------------------
 typedef struct PM4_ME_DISPATCH_MESH_DIRECT

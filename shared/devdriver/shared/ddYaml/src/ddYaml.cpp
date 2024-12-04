@@ -23,47 +23,85 @@
  *
  **********************************************************************************************************************/
 
-#include "../inc/ddYaml.h"
+#include <ddYaml.h>
 #include <ddPlatform.h>
-#include <string.h>
-#include <stdlib.h>
+#include <limits>
+#include <cstring>
+#include <cstdlib>
 
 namespace
 {
 
-// ============================================================================
 /// Convert a string to uint64_t value. Return true if conversion succeeded.
-bool StrToULL(const char* pStr, uint64_t* pOutVal)
+bool StrToUll(const char* pStr, uint64_t* pOutVal)
 {
     bool success = false;
 
     char* pEnd = nullptr;
     uint64_t val = strtoull(pStr, &pEnd, 0);
-    if ((pEnd != pStr) && errno != ERANGE)
+    if (pEnd != pStr)
     {
         *pOutVal = val;
         success = true;
     }
-    errno = 0; // reset errno regardless
 
     return success;
 }
 
-// ============================================================================
 /// Convert a string to int64_t value. Return true if conversion succeeded.
-bool StrToLL(const char* pStr, int64_t* pOutVal)
+bool StrToLl(const char* pStr, int64_t* pOutVal)
 {
     bool success = false;
 
     char* pEnd = nullptr;
     int64_t val = strtoll(pStr, &pEnd, 0);
-    if ((pEnd != pStr) && errno != ERANGE)
+    if (pEnd != pStr)
     {
         *pOutVal = val;
         success = true;
     }
-    errno = 0; // reset errno regardless
 
+    return success;
+}
+
+template<typename IntT>
+bool YamlNodeGetInt(yaml_node_t* pValNode, IntT* pOutValue)
+{
+    *pOutValue = 0;
+    bool success = false;
+    if (pValNode->type == YAML_SCALAR_NODE)
+    {
+        int64_t number = 0;
+        if (StrToLl((const char*)pValNode->data.scalar.value, &number))
+        {
+            if ((number >= std::numeric_limits<IntT>::min()) &&
+                (number <= std::numeric_limits<IntT>::max()))
+            {
+                *pOutValue = static_cast<IntT>(number);
+                success = true;
+            }
+        }
+    }
+    return success;
+}
+
+template<typename UintT>
+bool YamlNodeGetUint(yaml_node_t* pValNode, UintT* pOutValue)
+{
+    *pOutValue = 0;
+    bool success = false;
+    if (pValNode->type == YAML_SCALAR_NODE)
+    {
+        uint64_t number = 0;
+        if (StrToUll((const char*)pValNode->data.scalar.value, &number))
+        {
+            if (number <= std::numeric_limits<UintT>::max())
+            {
+                *pOutValue = static_cast<UintT>(number);
+                success = true;
+            }
+        }
+    }
     return success;
 }
 
@@ -72,7 +110,6 @@ bool StrToLL(const char* pStr, int64_t* pOutVal)
 namespace DevDriver
 {
 
-// ============================================================================
 yaml_node_t* YamlDocumentFindNodeByKey(
     yaml_document_t* pDoc,
     yaml_node_t* pParent,
@@ -108,11 +145,9 @@ yaml_node_t* YamlDocumentFindNodeByKey(
     return pResult;
 }
 
-// ============================================================================
 bool YamlNodeGetScalar(yaml_node_t* pValNode, bool* pOutValue)
 {
-    bool success = true;
-
+    bool success = false;
     if (pValNode->type == YAML_SCALAR_NODE)
     {
         if (strncmp((const char*)pValNode->data.scalar.value,
@@ -134,152 +169,46 @@ bool YamlNodeGetScalar(yaml_node_t* pValNode, bool* pOutValue)
     return success;
 }
 
-// ============================================================================
 bool YamlNodeGetScalar(yaml_node_t* pValNode, int8_t* pOutValue)
 {
-    bool success = false;
-    if (pValNode->type == YAML_SCALAR_NODE)
-    {
-        int64_t number = 0;
-        if (StrToLL((const char*)pValNode->data.scalar.value, &number))
-        {
-            if ((number >= INT8_MIN) && (number <= INT8_MAX))
-            {
-                *pOutValue = (int8_t)number;
-                success = true;
-            }
-        }
-    }
-    return success;
+    return YamlNodeGetInt(pValNode, pOutValue);
 }
 
-// ============================================================================
 bool YamlNodeGetScalar(yaml_node_t* pValNode, uint8_t* pOutValue)
 {
-    bool success = false;
-    if (pValNode->type == YAML_SCALAR_NODE)
-    {
-        uint64_t number = 0;
-        if (StrToULL((const char*)pValNode->data.scalar.value, &number))
-        {
-            if (number <= UINT8_MAX)
-            {
-                *pOutValue = (uint8_t)number;
-                success = true;
-            }
-        }
-    }
-    return success;
+    return YamlNodeGetUint(pValNode, pOutValue);
 }
 
-// ============================================================================
 bool YamlNodeGetScalar(yaml_node_t* pValNode, int16_t* pOutValue)
 {
-    bool success = false;
-    if (pValNode->type == YAML_SCALAR_NODE)
-    {
-        int64_t number = 0;
-        if (StrToLL((const char*)pValNode->data.scalar.value, &number))
-        {
-            if ((number >= INT16_MIN) && (number <= INT16_MAX))
-            {
-                *pOutValue = (int16_t)number;
-                success = true;
-            }
-        }
-    }
-    return success;
+    return YamlNodeGetInt(pValNode, pOutValue);
 }
 
-// ============================================================================
 bool YamlNodeGetScalar(yaml_node_t* pValNode, uint16_t* pOutValue)
 {
-    bool success = false;
-    if (pValNode->type == YAML_SCALAR_NODE)
-    {
-        uint64_t number = 0;
-        if (StrToULL((const char*)pValNode->data.scalar.value, &number))
-        {
-            if (number <= UINT16_MAX)
-            {
-                *pOutValue = (uint16_t)number;
-                success = true;
-            }
-        }
-    }
-    return success;
+    return YamlNodeGetUint(pValNode, pOutValue);
 }
 
-// ============================================================================
 bool YamlNodeGetScalar(yaml_node_t* pValNode, int32_t* pOutValue)
 {
-    bool success = false;
-    if (pValNode->type == YAML_SCALAR_NODE)
-    {
-        int64_t number = 0;
-        if (StrToLL((const char*)pValNode->data.scalar.value, &number))
-        {
-            if ((number >= INT32_MIN) && (number <= INT32_MAX))
-            {
-                *pOutValue = (int32_t)number;
-                success = true;
-            }
-        }
-    }
-    return success;
+    return YamlNodeGetInt(pValNode, pOutValue);
 }
 
 bool YamlNodeGetScalar(yaml_node_t* pValNode, uint32_t* pOutValue)
 {
-    bool success = false;
-    if (pValNode->type == YAML_SCALAR_NODE)
-    {
-        uint64_t number = 0;
-        if (StrToULL((const char*)pValNode->data.scalar.value, &number))
-        {
-            if (number <= UINT32_MAX)
-            {
-                *pOutValue = (uint32_t)number;
-                success = true;
-            }
-        }
-    }
-    return success;
+    return YamlNodeGetUint(pValNode, pOutValue);
 }
 
-// ============================================================================
 bool YamlNodeGetScalar(yaml_node_t* pValNode, int64_t* pOutValue)
 {
-    bool success = false;
-    if (pValNode->type == YAML_SCALAR_NODE)
-    {
-        int64_t number = 0;
-        if (StrToLL((const char*)pValNode->data.scalar.value, &number))
-        {
-            *pOutValue = (int64_t)number;
-            success = true;
-        }
-    }
-    return success;
+    return YamlNodeGetInt(pValNode, pOutValue);
 }
 
-// ============================================================================
 bool YamlNodeGetScalar(yaml_node_t* pValNode, uint64_t* pOutValue)
 {
-    bool success = false;
-    if (pValNode->type == YAML_SCALAR_NODE)
-    {
-        uint64_t number = 0;
-        if (StrToULL((const char*)pValNode->data.scalar.value, &number))
-        {
-            *pOutValue = (uint64_t)number;
-            success = true;
-        }
-    }
-    return success;
+    return YamlNodeGetUint(pValNode, pOutValue);
 }
 
-// ============================================================================
 bool YamlNodeGetScalar(yaml_node_t* pValNode, float* pOutValue)
 {
     bool success = false;
@@ -288,12 +217,11 @@ bool YamlNodeGetScalar(yaml_node_t* pValNode, float* pOutValue)
         const char* pStr = (const char*)pValNode->data.scalar.value;
         char* pEnd = nullptr;
         float number = strtof(pStr, &pEnd);
-        if ((pEnd != pStr) && errno != ERANGE)
+        if ((pEnd != pStr))
         {
             *pOutValue = number;
             success = true;
         }
-        errno = 0; // reset errno regardless
     }
     return success;;
 }

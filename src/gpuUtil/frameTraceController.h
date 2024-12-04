@@ -38,7 +38,7 @@ class CmdBuffer;
 namespace GpuUtil
 {
 
-const Pal::uint32 FrameTraceControllerVersion = 2;
+const Pal::uint32 FrameTraceControllerVersion = 3;
 const char        FrameTraceControllerName[]  = "frame";
 
 // =====================================================================================================================
@@ -53,8 +53,11 @@ public:
     virtual Pal::uint32 GetVersion() const override { return FrameTraceControllerVersion; }
 
     virtual void OnConfigUpdated(DevDriver::StructuredValue* pJsonConfig) override;
-    virtual Pal::Result OnTraceRequested() override { return Pal::Result::Success; }
+    virtual Pal::Result OnTraceRequested() override;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 908
+    virtual Pal::Result OnPreparationGpuWork(Pal::uint32 gpuIndex, Pal::ICmdBuffer** ppCmdBuf) override;
+#endif
     virtual Pal::Result OnBeginGpuWork(Pal::uint32 gpuIndex, Pal::ICmdBuffer** ppCmdBuffer) override;
     virtual Pal::Result OnEndGpuWork(Pal::uint32 gpuIndex, Pal::ICmdBuffer** ppCmdBuffer) override;
 
@@ -69,11 +72,21 @@ public:
 
     Pal::uint32 FrameCount() const { return m_frameCount; }
 
+    virtual Pal::Result OnTraceCanceled() override;
+
 private:
+    /// Controls whether the trace proceeds on absolute frame indices or relative
+    enum class CaptureMode : Pal::uint8
+    {
+        Relative = 0, ///< Relative to when the trace request is received
+        Absolute      ///< Absolute frame index
+    };
+
+    Pal::Result AcceptTrace();
+    Pal::Result BeginTrace();
+
     Pal::Result SubmitBeginTraceGpuWork() const;
-    Pal::Result SubmitEndTraceGpuWork() const;
-    Pal::Result SubmitGpuWork(Pal::ICmdBuffer* pCmdBuf,
-                              Pal::IFence*     pFence) const;
+    Pal::Result SubmitEndTraceGpuWork();
 
     Pal::Result CreateFence(Pal::Device*  pDevice,
                             Pal::IFence** ppFence) const;
@@ -86,7 +99,9 @@ private:
 
     Pal::Platform* const m_pPlatform;          // Platform associated with this TraceController
     Pal::uint64          m_supportedGpuMask;   // Bit mask of GPU indices that are capable of participating in the trace
+    CaptureMode          m_captureMode;        // Modality for determining the start frame of a trace
     Pal::uint64          m_frameCount;         // The "global" frame count, incremented on every frame
+    Pal::uint64          m_prepStartIndex;     // The relative or absolute frame index indicating trace begin
     Pal::uint64          m_frameTraceAccepted; // The frame number when the trace was accepted
     Pal::uint32          m_numPrepFrames;      // Number of "warm-up" frames before the start frame
     Pal::uint32          m_captureFrameCount;  // Number of frames to wait before ending the trace
@@ -99,6 +114,9 @@ private:
     Pal::IFence*         m_pTraceEndFence;     // Fence to wait for Trace End command buffer completion
 #else
     Pal::CmdBuffer*      m_pCurrentCmdBuffer;  // GPU CmdBuffers for TraceSources to submit gpu-work at trace start/end
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 908
+    Pal::ICmdBuffer*     m_pCmdBufTracePrepare; // Command buffer for recording during the prep phase
 #endif
 };
 

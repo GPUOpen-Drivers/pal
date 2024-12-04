@@ -76,6 +76,10 @@ public:
     bool IsColorExportShader() const { return m_gfxLibInfo.isColorExport; }
 
     void GetColorExportProperty(ColorExportProperty* pProperty) const { *pProperty = m_gfxLibInfo.colorExportProperty; }
+
+    virtual UploadFenceToken GetUploadFenceToken() const override;
+    virtual uint64           GetPagingFenceVal() const override;
+
 private:
     virtual Result PostInit(
         const Util::PalAbi::CodeObjectMetadata& metadata,

@@ -62,7 +62,7 @@ public:
     virtual DD_RESULT RequestTrace() override;
 
     // Cancels a previously requested trace before it starts or after it completes
-    virtual DD_RESULT CancelTrace() override { return DD_RESULT_SUCCESS; }
+    virtual DD_RESULT CancelTrace() override;
 
     // Collects the data created by a previously executed trace
     virtual DD_RESULT CollectTrace(

@@ -1448,8 +1448,7 @@ Pal::Result GpaSession::SampleTimingClocks()
 
     if (m_flags.enableQueueTiming)
     {
-        // Calibrate the cpu and gpu clocks
-
+        // Calibrate the CPU and GPU clocks
         Pal::CalibratedTimestamps timestamps = { };
         result = m_pDevice->GetCalibratedTimestamps(&timestamps);
 
@@ -1458,8 +1457,7 @@ Pal::Result GpaSession::SampleTimingClocks()
             result = m_timestampCalibrations.PushBack(timestamps);
         }
 
-        // Sample the current gpu clock speeds
-
+        // Sample the current GPU clock speeds
         SampleGpuClocks(&m_lastGpuClocksSample);
     }
 

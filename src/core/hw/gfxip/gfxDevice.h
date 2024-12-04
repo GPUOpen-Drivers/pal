@@ -675,7 +675,8 @@ public:
         Developer::DrawDispatchType cmdType,
         DispatchDims                offset,
         DispatchDims                launchSize,
-        DispatchDims                logicalSize) const;
+        DispatchDims                logicalSize,
+        DispatchInfoFlags           infoFlags) const;
 
     void DescribeDraw(
         GfxCmdBuffer*               pCmdBuf,
@@ -738,6 +739,8 @@ public:
     bool CanEnableDualSourceBlend(const ColorBlendStateCreateInfo& createInfo) const;
 
     static const MsaaQuadSamplePattern DefaultSamplePattern[];
+
+    Result GetDefaultSamplePattern(uint32 samples, MsaaQuadSamplePattern* pQuadSamplePattern) const;
 
     static uint32 VertsPerPrimitive(
         PrimitiveTopology topology,

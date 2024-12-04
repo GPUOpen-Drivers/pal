@@ -58,7 +58,7 @@ Queue::Queue(
     Device*                pDevice,
     const QueueCreateInfo* pCreateInfo)
     :
-    Pal::Queue(qCount, pDevice, pCreateInfo)
+    Pal::Queue(qCount, OsQueueMode::Kernel, pDevice, pCreateInfo)
 {
 }
 

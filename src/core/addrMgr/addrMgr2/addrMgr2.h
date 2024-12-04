@@ -417,9 +417,10 @@ public:
         ADDR2_GET_PREFERRED_SURF_SETTING_OUTPUT* pOut) const;
 
     ADDR2_SURFACE_FLAGS DetermineSurfaceFlags(
-        const Image& image,
-        uint32       plane,
-        bool         forFmask) const;
+        const Image&                            image,
+        uint32                                  plane,
+        bool                                    forFmask,
+        const ADDR2_COMPUTE_SURFACE_INFO_INPUT* pSurfInfoIn = nullptr) const;
 
     static bool IsValidToOverride(AddrSwizzleMode primarySwMode, ADDR2_SWMODE_SET validSwModeSet);
 

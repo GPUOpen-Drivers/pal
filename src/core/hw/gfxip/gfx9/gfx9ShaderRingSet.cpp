@@ -255,61 +255,7 @@ Result ShaderRingSet::Validate(
 
     if ((result == Result::Success) && updateSrdTable)
     {
-        if (deferFreeSrdTable)
-        {
-            // save the current shardTable, since it might still be needed
-            ShaderRingMemory ringMem = {m_srdTableMem.Memory(),
-                                        m_srdTableMem.Offset(),
-                                        lastTimeStamp};
-            m_deferredFreeMemDeque.PushBack(ringMem);
-            m_srdTableMem.Update(nullptr, 0);
-
-            // Allocate a new shaderTable
-            GpuMemoryCreateInfo srdMemCreateInfo = { };
-            srdMemCreateInfo.size      = TotalMemSize();
-            srdMemCreateInfo.priority  = GpuMemPriority::Normal;
-            srdMemCreateInfo.vaRange   = VaRange::DescriptorTable;
-            srdMemCreateInfo.heaps[0]  = GpuHeapLocal;
-            srdMemCreateInfo.heaps[1]  = GpuHeapGartUswc;
-            srdMemCreateInfo.heaps[2]  = GpuHeapGartCacheable;
-            srdMemCreateInfo.heapCount = 3;
-
-            GpuMemoryInternalCreateInfo internalInfo = { };
-            internalInfo.flags.alwaysResident = 1;
-
-            GpuMemory* pGpuMemory = nullptr;
-            gpusize    memOffset  = 0;
-
-            // Allocate the memory object for each ring-set's SRD table.
-            result = m_pDevice->Parent()->MemMgr()->AllocateGpuMem(srdMemCreateInfo,
-                                                                   internalInfo,
-                                                                   0,
-                                                                   &pGpuMemory,
-                                                                   &memOffset);
-
-            if (result == Result::Success)
-            {
-                // Assume failure.
-                result = Result::ErrorOutOfMemory;
-
-                // Update the video memory binding for our internal SRD table.
-                m_srdTableMem.Update(pGpuMemory, memOffset);
-            }
-        }
-
-        // Need to upload our CPU copy of the SRD table into the SRD table video memory because we validated the TF
-        // Buffer up-front, so its SRD needs to be uploaded now.
-        void* pData = nullptr;
-        result = m_srdTableMem.Map(&pData);
-
-        if (result == Result::Success)
-        {
-            const size_t srdTableSize = SrdTableSize();
-
-            memcpy(pData, m_pSrdTable, srdTableSize);
-
-            m_srdTableMem.Unmap();
-        }
+        result = UpdateSrdTable(deferFreeSrdTable, lastTimeStamp);
     }
 
     // Upload sample pattern palette
@@ -320,6 +266,68 @@ Result ShaderRingSet::Validate(
         SamplePatternPalette samplePatternPalette;
         m_pDevice->GetSamplePatternPalette(&samplePatternPalette);
         pSamplePosBuf->UploadSamplePatternPalette(samplePatternPalette);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+Result ShaderRingSet::UpdateSrdTable(
+    bool   deferFreeSrdTable,
+    uint64 lastTimestamp)
+{
+    Result result = Result::Success;
+
+    if (deferFreeSrdTable)
+    {
+        // save the current shardTable, since it might still be needed
+        ShaderRingMemory ringMem = {m_srdTableMem.Memory(),
+                                    m_srdTableMem.Offset(),
+                                    lastTimestamp};
+        m_deferredFreeMemDeque.PushBack(ringMem);
+        m_srdTableMem.Update(nullptr, 0);
+
+        // Allocate a new shaderTable
+        GpuMemoryCreateInfo srdMemCreateInfo = { };
+        srdMemCreateInfo.size       = TotalMemSize();
+        srdMemCreateInfo.priority   = GpuMemPriority::Normal;
+        srdMemCreateInfo.vaRange    = VaRange::DescriptorTable;
+        srdMemCreateInfo.heapAccess = GpuHeapAccessGpuMostly;
+
+        GpuMemoryInternalCreateInfo internalInfo = { };
+        internalInfo.flags.alwaysResident = 1;
+
+        GpuMemory* pGpuMemory = nullptr;
+        gpusize    memOffset  = 0;
+
+        // Allocate the memory object for each ring-set's SRD table.
+        result = m_pDevice->Parent()->MemMgr()->AllocateGpuMem(srdMemCreateInfo,
+                                                                internalInfo,
+                                                                0,
+                                                                &pGpuMemory,
+                                                                &memOffset);
+
+        if (result == Result::Success)
+        {
+            // Update the video memory binding for our internal SRD table.
+            m_srdTableMem.Update(pGpuMemory, memOffset);
+        }
+    }
+
+    // Need to upload our CPU copy of the SRD table into the SRD table video memory because we validated the TF
+    // Buffer up-front, so its SRD needs to be uploaded now.
+    void* pData = nullptr;
+
+    if (result == Result::Success)
+    {
+        result = m_srdTableMem.Map(&pData);
+    }
+
+    if (result == Result::Success)
+    {
+        const size_t srdTableSize = SrdTableSize();
+        memcpy(pData, m_pSrdTable, srdTableSize);
+        m_srdTableMem.Unmap();
     }
 
     return result;
@@ -351,6 +359,20 @@ void ShaderRingSet::ClearDeferredFreeMemory(
 }
 
 // =====================================================================================================================
+void ShaderRingSet::CopySrdTableEntry(
+    ShaderRingSrd  entry,
+    BufferSrd*     pSrdTable)
+{
+    size_t entryIdx = size_t(entry);
+
+    // We need to make sure that the entry can be properly placed in our SRD table.
+    // This is for cases where we copy a ring SRD but don't own the ring ourselves.
+    PAL_ASSERT(size_t(entryIdx) < m_numSrds);
+
+    memcpy(&m_pSrdTable[entryIdx], &pSrdTable[entryIdx], sizeof(BufferSrd));
+}
+
+// =====================================================================================================================
 UniversalRingSet::UniversalRingSet(
     Device* pDevice,
     bool    isTmz)
@@ -358,9 +380,19 @@ UniversalRingSet::UniversalRingSet(
     ShaderRingSet(pDevice,
                   static_cast<size_t>(ShaderRingType::NumUniversal),
                   static_cast<size_t>(ShaderRingSrd::NumUniversal),
-                  isTmz)
+                  isTmz),
+    m_pAceRingSet(nullptr)
 {
     memset(&m_regs, 0, sizeof(m_regs));
+}
+
+// =====================================================================================================================
+UniversalRingSet::~UniversalRingSet()
+{
+    if (m_pAceRingSet != nullptr)
+    {
+        PAL_SAFE_DELETE(m_pAceRingSet, m_pDevice->GetPlatform());
+    }
 }
 
 // Some registers were moved from user space to privileged space, we must access them using _UMD or _REMAP registers.
@@ -427,15 +459,15 @@ Result UniversalRingSet::Init()
 
         // The OFFCHIP_GRANULARITY field of VGT_HS_OFFCHIP_PRARM is determined at init-time by the value of the related
         // setting.
-        if (IsGfx103PlusExclusive(device))
+        if (IsGfx103Plus(device))
         {
-            m_regs.vgtHsOffchipParam.gfx103PlusExclusive.OFFCHIP_GRANULARITY =
+            m_regs.vgtHsOffchipParam.gfx103Plus.OFFCHIP_GRANULARITY =
                 m_pDevice->Parent()->Settings().offchipLdsBufferSize;
         }
         else if (IsGfx101(device)
            )
         {
-            m_regs.vgtHsOffchipParam.most.OFFCHIP_GRANULARITY = m_pDevice->Parent()->Settings().offchipLdsBufferSize;
+            m_regs.vgtHsOffchipParam.gfx101.OFFCHIP_GRANULARITY = m_pDevice->Parent()->Settings().offchipLdsBufferSize;
         }
         else
         {
@@ -477,7 +509,7 @@ Result UniversalRingSet::Validate(
     const ShaderRingItemSizes&  ringSizes,
     bool                        updateSamplePatternPalette,
     uint64                      lastTimeStamp,
-    uint32*                     pReallocatedRings)
+    bool                        hasAce)
 {
     const Pal::Device&  device = *(m_pDevice->Parent());
 
@@ -486,11 +518,12 @@ Result UniversalRingSet::Validate(
         m_ppRings[static_cast<size_t>(ShaderRingType::TaskMeshCtrlDrawRing)]->IsMemoryValid();
 
     // First, perform the base class' validation.
-    Result result = ShaderRingSet::Validate(ringSizes, updateSamplePatternPalette, lastTimeStamp, pReallocatedRings);
+    uint32 reallocatedRings = 0;
+    Result result = ShaderRingSet::Validate(ringSizes, updateSamplePatternPalette, lastTimeStamp, &reallocatedRings);
 
     const bool drawDataReAlloc =
-        Util::TestAnyFlagSet(*pReallocatedRings, (1 << static_cast<uint32>(ShaderRingType::TaskMeshCtrlDrawRing))) ||
-        Util::TestAnyFlagSet(*pReallocatedRings, (1 << static_cast<uint32>(ShaderRingType::PayloadData)));
+        Util::TestAnyFlagSet(reallocatedRings, (1 << static_cast<uint32>(ShaderRingType::TaskMeshCtrlDrawRing))) ||
+        Util::TestAnyFlagSet(reallocatedRings, (1 << static_cast<uint32>(ShaderRingType::PayloadData)));
 
     // Initialize the task shader control buffer and draw ring after they have been allocated.
     // Also, if we re-allocate the draw and/or payload data rings, we must ensure that all task shader-related
@@ -498,7 +531,10 @@ Result UniversalRingSet::Validate(
     TaskMeshCtrlDrawRing* pTaskMeshCtrlDrawRing =
         static_cast<TaskMeshCtrlDrawRing*>(m_ppRings[static_cast<size_t>(ShaderRingType::TaskMeshCtrlDrawRing)]);
 
-    if (((tsMsCtrlDrawInitialized == false) || drawDataReAlloc) && pTaskMeshCtrlDrawRing->IsMemoryValid())
+    const bool tsMsControlBufferInit =
+        ((tsMsCtrlDrawInitialized == false) || drawDataReAlloc) && pTaskMeshCtrlDrawRing->IsMemoryValid();
+
+    if (tsMsControlBufferInit)
     {
         pTaskMeshCtrlDrawRing->InitializeControlBufferAndDrawRingBuffer();
     }
@@ -580,14 +616,14 @@ Result UniversalRingSet::Validate(
         {
             const uint32 offchipBuffering = pOffchipLds->OffchipBuffering();
 
-            if (IsGfx103PlusExclusive(device))
+            if (IsGfx103Plus(device))
             {
-                m_regs.vgtHsOffchipParam.gfx103PlusExclusive.OFFCHIP_BUFFERING = offchipBuffering;
+                m_regs.vgtHsOffchipParam.gfx103Plus.OFFCHIP_BUFFERING = offchipBuffering;
             }
             else if (IsGfx10(m_gfxLevel)
                )
             {
-                m_regs.vgtHsOffchipParam.most.OFFCHIP_BUFFERING = offchipBuffering;
+                m_regs.vgtHsOffchipParam.gfx101.OFFCHIP_BUFFERING = offchipBuffering;
             }
 
         }
@@ -606,6 +642,38 @@ Result UniversalRingSet::Validate(
             // Size field is biased by 1. This the size per SE
             m_regs.spiAttributeRingSize.bits.MEM_SIZE =
                 ((pAttribThruMem->MemorySizeBytes() / numSes) >> AttribThruMemShift) - 1;
+        }
+    }
+
+    if ((result == Result::Success) && hasAce && (m_pAceRingSet == nullptr))
+    {
+        m_pAceRingSet =
+            PAL_NEW(ComputeRingSet, m_pDevice->GetPlatform(), AllocInternal)(m_pDevice,
+                                                                             m_tmzEnabled,
+                                                                             size_t(ShaderRingSrd::NumUniversal));
+
+        if (m_pAceRingSet != nullptr)
+        {
+            result = m_pAceRingSet->Init();
+        }
+        else
+        {
+            result = Result::ErrorOutOfMemory;
+        }
+    }
+
+    if ((result == Result::Success) && hasAce && (m_pAceRingSet != nullptr))
+    {
+        result = m_pAceRingSet->Validate(ringSizes, updateSamplePatternPalette, lastTimeStamp);
+
+        // If rings were reallocated, we may need to update the SRD table for the PayloadDataRing and DrawDataRing.
+        if ((result == Result::Success) && tsMsControlBufferInit)
+        {
+            // The DrawRing and the PayloadDataRing are both shared with the ACE side.
+            m_pAceRingSet->CopySrdTableEntry(ShaderRingSrd::DrawDataRing,    m_pSrdTable);
+            m_pAceRingSet->CopySrdTableEntry(ShaderRingSrd::PayloadDataRing, m_pSrdTable);
+
+            result = m_pAceRingSet->UpdateSrdTable((m_deferredFreeMemDeque.NumElements() != 0), lastTimeStamp);
         }
     }
 
@@ -726,16 +794,10 @@ uint32* UniversalRingSet::WriteComputeCommands(
     uint32*    pCmdSpace) const
 {
     PAL_ASSERT(pCmdSpace != nullptr);
+    PAL_ASSERT(m_pAceRingSet != nullptr);
 
-    const CmdUtil& cmdUtil = m_pDevice->CmdUtil();
+    pCmdSpace = m_pAceRingSet->WriteCommands(pCmdStream, pCmdSpace);
 
-    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_USER_DATA_0 + InternalTblStartReg,
-                                                            LowPart(m_srdTableMem.GpuVirtAddr()),
-                                                            pCmdSpace);
-
-    pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_TMPRING_SIZE,
-                                                            m_regs.computeScratchRingSize.u32All,
-                                                            pCmdSpace);
     const ShaderRing* const pControlBuffer = m_ppRings[static_cast<size_t>(ShaderRingType::TaskMeshCtrlDrawRing)];
 
     if (pControlBuffer->IsMemoryValid())
@@ -746,26 +808,18 @@ uint32* UniversalRingSet::WriteComputeCommands(
                                                  pCmdSpace);
     }
 
-    if (IsGfx11(m_gfxLevel))
-    {
-        pCmdSpace = pCmdStream->WriteSetSeqShRegs(mmCOMPUTE_DISPATCH_SCRATCH_BASE_LO,
-                                                  mmCOMPUTE_DISPATCH_SCRATCH_BASE_HI,
-                                                  Pm4ShaderType::ShaderCompute,
-                                                  &m_regs.computeDispatchScratchBaseLo,
-                                                  pCmdSpace);
-    }
-
     return pCmdSpace;
 }
 
 // =====================================================================================================================
 ComputeRingSet::ComputeRingSet(
     Device* pDevice,
-    bool    isTmz)
+    bool    isTmz,
+    size_t  numSrds)
     :
     ShaderRingSet(pDevice,
                   static_cast<size_t>(ShaderRingType::NumCompute),
-                  static_cast<size_t>(ShaderRingSrd::NumCompute),
+                  numSrds,
                   isTmz)
 {
     memset(&m_regs, 0, sizeof(m_regs));
@@ -805,11 +859,11 @@ Result ComputeRingSet::Init()
 Result ComputeRingSet::Validate(
     const ShaderRingItemSizes&  ringSizes,
     bool                        updateSamplePatternPalette,
-    uint64                      lastTimeStamp,
-    uint32*                     pReallocatedRings)
+    uint64                      lastTimeStamp)
 {
     // First, perform the base class' validation.
-    Result result = ShaderRingSet::Validate(ringSizes, updateSamplePatternPalette, lastTimeStamp, pReallocatedRings);
+    uint32 reallocatedRings = 0;
+    Result result = ShaderRingSet::Validate(ringSizes, updateSamplePatternPalette, lastTimeStamp, &reallocatedRings);
 
     if (result == Result::Success)
     {

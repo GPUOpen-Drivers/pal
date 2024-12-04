@@ -1315,11 +1315,11 @@ void CmdBuffer::TrackIb2DumpInfoFromExecuteNestedCmds(
 
         const Ib2DumpInfo dumpInfo =
         {
-            pChunk->CpuAddr(),                             // CPU address of the commands
-            pChunk->CmdDwordsToExecute() * sizeof(uint32), // Length of the dump in bytes
-            pChunk->GpuVirtAddr(),                         // GPU virtual address of the commands
-            targetStream.GetEngineType(),                  // Engine Type
-            targetStream.GetSubEngineType(),               // Sub Engine Type
+            pChunk->CpuAddr(),                                     // CPU address of the commands
+            uint32(pChunk->CmdDwordsToExecute() * sizeof(uint32)), // Length of the dump in bytes
+            pChunk->GpuVirtAddr(),                                 // GPU virtual address of the commands
+            targetStream.GetEngineType(),                          // Engine Type
+            targetStream.GetSubEngineType(),                       // Sub Engine Type
         };
 
         InsertIb2DumpInfo(dumpInfo);
@@ -1457,8 +1457,9 @@ static void PAL_STDCALL CmdDrawIndexedIndirectMultiInvalid(
 // =====================================================================================================================
 // Default implementation of CmdDispatch is unimplemented, derived CmdBuffer classes should override it if supported.
 void PAL_STDCALL CmdBuffer::CmdDispatchInvalid(
-    ICmdBuffer*  pCmdBuffer,
-    DispatchDims size)
+    ICmdBuffer*       pCmdBuffer,
+    DispatchDims      size,
+    DispatchInfoFlags infoFlags)
 {
     PAL_NEVER_CALLED();
 }

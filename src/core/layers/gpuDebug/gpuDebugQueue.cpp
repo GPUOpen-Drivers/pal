@@ -137,9 +137,7 @@ Result Queue::Init(
             createInfo.alignment           = sizeof(uint64);
             createInfo.vaRange             = VaRange::Default;
             createInfo.priority            = GpuMemPriority::VeryLow;
-            createInfo.heapCount           = 1;
-            createInfo.heaps[0]            = GpuHeap::GpuHeapInvisible;
-            createInfo.flags.cpuInvisible  = 1;
+            createInfo.heapAccess          = GpuHeapAccessCpuNoAccess;
 
             for (uint32 i = 0; ((result == Result::Success) && (i < m_queueCount)); i++)
             {

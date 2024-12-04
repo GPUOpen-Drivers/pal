@@ -7,6 +7,8 @@
 libwayland-client.so.0 @proc struct wl_event_queue* wl_display_create_queue (struct wl_display* display)
 libwayland-client.so.0 @proc int wl_display_dispatch_queue (struct wl_display* display, struct wl_event_queue* queue)
 libwayland-client.so.0 @proc int wl_display_dispatch_queue_pending (struct wl_display* display, struct wl_event_queue* queue)
+libwayland-client.so.0 @proc int wl_display_prepare_read_queue (struct wl_display* display, struct wl_event_queue* queue)
+libwayland-client.so.0 @proc int wl_display_read_events (struct wl_display* display)
 libwayland-client.so.0 @proc int wl_display_flush (struct wl_display* display)
 libwayland-client.so.0 @proc int wl_display_roundtrip_queue (struct wl_display* display, struct wl_event_queue* queue)
 libwayland-client.so.0 @proc void wl_event_queue_destroy (struct wl_event_queue* queue)
@@ -26,3 +28,6 @@ libwayland-client.so.0 @var  struct wl_interface wl_surface_interface
 libwayland-client.so.0 @var  struct wl_interface zwp_linux_dmabuf_v1_interface
 libwayland-client.so.0 @var  struct wl_interface zwp_linux_buffer_params_v1_interface
 libwayland-client.so.0 @var  struct wl_interface zwp_linux_dmabuf_feedback_v1_interface
+libwayland-client.so.0 @var  struct wl_interface wp_linux_drm_syncobj_manager_v1_interface
+libwayland-client.so.0 @var  struct wl_interface wp_linux_drm_syncobj_timeline_v1_interface
+libwayland-client.so.0 @var  struct wl_interface wp_linux_drm_syncobj_surface_v1_interface

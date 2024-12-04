@@ -76,9 +76,11 @@ Device::Device(
     m_pStreamingPerfCounters(nullptr),
     m_numStreamingPerfCounters(0),
     m_pDfStreamingPerfCounters(nullptr),
-    m_numDfStreamingPerfCounters(0)
+    m_numDfStreamingPerfCounters(0),
+    m_commandBufferCount(0)
 {
     memset(m_queueIds, 0, sizeof(m_queueIds));
+    memset(m_pQueues, 0, sizeof(m_pQueues));
 
     m_sqttTsHash = ZeroShaderHash;
     m_sqttVsHash = ZeroShaderHash;
@@ -106,9 +108,9 @@ Result Device::Cleanup()
 
 // =====================================================================================================================
 // Track recorded command buffer count across all queues. Thread-safe
-void Device::CommandBufferBegin()
+uint32 Device::CommandBufferBegin()
 {
-    AtomicIncrement(&m_commandBufferCount);
+    return m_commandBufferCount++;
 }
 
 // =====================================================================================================================
@@ -368,6 +370,11 @@ Result Device::CreateQueue(
         {
             pQueue->Destroy();
         }
+        else if (queueId < MaxQueueCount)
+        {
+            // Cache the pointer
+            m_pQueues[queueId] = pQueue;
+        }
     }
 
     if (result == Result::Success)
@@ -389,6 +396,20 @@ Result Device::CreateQueue(
     }
 
     return result;
+}
+
+// =====================================================================================================================
+void Device::QueueBeingDestroyed(
+    Queue* pQueue)
+{
+    for (uint32 i = 0; i < MaxQueueCount; i++)
+    {
+        if (m_pQueues[i] == pQueue)
+        {
+            m_pQueues[i] = nullptr;
+            break; // pointers recorded only once
+        }
+    }
 }
 
 // =====================================================================================================================
@@ -440,6 +461,11 @@ Result Device::CreateMultiQueue(
         {
             pQueue->Destroy();
         }
+        else if (masterQueueId < MaxQueueCount)
+        {
+            // Cache the pointer
+            m_pQueues[masterQueueId] = pQueue;
+        }
     }
 
     if (result == Result::Success)
@@ -457,6 +483,27 @@ Result Device::CreateMultiQueue(
         if (LoggingEnabled(GpuProfilerGranularityFrame) && (seq == 0))
         {
             pQueue->BeginNextFrame(true);
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+Result Device::WaitForFences(
+    uint32                   fenceCount,
+    const IFence* const*     ppFences,
+    bool                     waitAll,
+    std::chrono::nanoseconds timeout
+) const
+{
+    const Result result = DeviceDecorator::WaitForFences(fenceCount, ppFences, waitAll, timeout);
+
+    for (uint32 i = 0; i < MaxQueueCount; i++)
+    {
+        if (m_pQueues[i] != nullptr)
+        {
+            m_pQueues[i]->ProcessIdleSubmits();
         }
     }
 

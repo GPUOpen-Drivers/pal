@@ -53,7 +53,7 @@ struct RenderOpCounts
     Pal::uint32 dispatchCount;
 };
 
-constexpr Pal::uint32 RenderOpTraceControllerVersion = 3;
+constexpr Pal::uint32 RenderOpTraceControllerVersion = 4;
 constexpr char        RenderOpTraceControllerName[]  = "renderop";
 
 // =====================================================================================================================
@@ -70,8 +70,11 @@ public:
     virtual Pal::uint32 GetVersion() const override { return RenderOpTraceControllerVersion; }
 
     virtual void OnConfigUpdated(DevDriver::StructuredValue* pJsonConfig) override;
-    virtual Pal::Result OnTraceRequested() override { return Pal::Result::Success; }
+    virtual Pal::Result OnTraceRequested() override;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 908
+    virtual Pal::Result OnPreparationGpuWork(Pal::uint32 gpuIndex, Pal::ICmdBuffer** ppCmdBuf) override;
+#endif
     virtual Pal::Result OnBeginGpuWork(Pal::uint32 gpuIndex, Pal::ICmdBuffer** ppCmdBuffer) override;
     virtual Pal::Result OnEndGpuWork(Pal::uint32 gpuIndex, Pal::ICmdBuffer** ppCmdBuffer) override;
 
@@ -81,6 +84,9 @@ public:
 
     void FinishTrace();
 
+    // Cancel the trace currently in progress.
+    virtual Pal::Result OnTraceCanceled() override;
+
     /// This function must be called by client drivers implementing the RenderOp controller.
     /// On every queue submission, this function is called with the cumulative counts of render operations
     /// recorded into that queue's command buffers.
@@ -89,13 +95,25 @@ public:
     void RecordRenderOps(Pal::IQueue* pQueue, const RenderOpCounts& renderOpCounts);
 
 private:
-    Pal::Result SubmitGpuWork(Pal::ICmdBuffer* pCmdBuf, Pal::IFence* pFence) const;
+    /// Controls whether the trace proceeds on absolute render op counts or relative
+    enum class CaptureMode : Pal::uint8
+    {
+        Relative = 0, ///< Relative to when the trace request is received
+        Absolute      ///< Absolute render op index
+    };
+
+    Pal::Result AcceptTrace();
+    Pal::Result BeginTrace();
+
+    Pal::Result SubmitBeginTraceGpuWork() const;
+    Pal::Result SubmitEndTraceGpuWork();
+
     Pal::Result WaitForTraceEndGpuWorkCompletion() const;
     Pal::Result CreateFence(Pal::IFence** ppFence) const;
     Pal::Result CreateCommandBuffer(bool traceEnd, Pal::ICmdBuffer** ppCmdBuf) const;
     Pal::Result CreateCmdAllocator();
 
-    void OnRenderOpUpdated();
+    void OnRenderOpUpdated(Pal::uint64 countRecorded);
     void FreeResources();
     void AbortTrace();
 
@@ -106,13 +124,18 @@ private:
     TraceSession*         m_pTraceSession;         // TraceSession owning this TraceController
     Pal::uint64           m_supportedGpuMask;      // Bit mask of GPU indices that are capable of participating in the trace
     Pal::uint8            m_renderOpMask;          // Bitmask of RenderOp modes, indicating which are accepted
+    CaptureMode           m_captureMode;           // Modality for determining the starting renderop index of the trace
     Pal::uint64           m_renderOpCount;         // The "global" count, incremented on every render op
+    Pal::uint64           m_prepStartRenderOp;     // Relative or absolute render op number indicating trace begin
     Pal::uint64           m_numPrepRenderOps;      // Number of "warm-up" frames before the start frame
     Pal::uint64           m_captureRenderOpCount;  // Number of frames to wait before ending the trace
     Pal::uint64           m_renderOpTraceAccepted; // The frame number when the trace was accepted
 
     Util::Mutex           m_renderOpLock;          // Lock over UpdateFrame/OnFrameUpdated
     Pal::IQueue*          m_pQueue;                // The queue being used to submit Begin/End GPU trace command buffers
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 908
+    Pal::ICmdBuffer*      m_pCmdBufTracePrepare;   // Command buffer for recording during the prep phase
+#endif
     Pal::ICmdBuffer*      m_pCmdBufTraceBegin;     // Command buffer to submit Trace Begin
     Pal::ICmdBuffer*      m_pCmdBufTraceEnd;       // Command buffer to submit Trace End
     Pal::IFence*          m_pFenceTraceEnd;        // Fence to wait for Trace End command buffer completion

@@ -212,8 +212,9 @@ private:
 
     template <bool HsaAbi, bool IssueSqttMarkerEvent, bool DescribeCallback>
     static void PAL_STDCALL CmdDispatch(
-        ICmdBuffer*  pCmdBuffer,
-        DispatchDims size);
+        ICmdBuffer*       pCmdBuffer,
+        DispatchDims      size,
+        DispatchInfoFlags infoFlags);
     template <bool IssueSqttMarkerEvent, bool DescribeCallback>
     static void PAL_STDCALL CmdDispatchIndirect(
         ICmdBuffer* pCmdBuffer,

@@ -190,13 +190,6 @@ typedef enum
     /// Use this when absolutely nothing fits. This is set to 0 to catch accidentally zeroed memory.
     DD_RESULT_UNKNOWN                                                           = INT32_C(0),
 
-    // Some compilers use special values to mark uninitialized or freed memory.
-    //
-    // Avoid using these values directly. They're here to help identify bugs when looking in a debugger.
-    DD_RESULT_DEBUG_UNINIT_STACK_MEMORY                                         = (int32_t)UINT32_C(0xCCCCCCCC),
-    DD_RESULT_DEBUG_UNINIT_HEAP_MEMORY                                          = (int32_t)UINT32_C(0xCDCDCDCD),
-    DD_RESULT_DEBUG_FREED_HEAP_MEMORY                                           = (int32_t)UINT32_C(0xDDDDDDDD),
-
     /// The operation completed successfully
     DD_RESULT_SUCCESS                                                           = INT32_C(1),
 
@@ -363,6 +356,11 @@ typedef enum
     /// This operation was invoked on a socket type that doesn't support it
     DD_RESULT_NET_SOCKET_TYPE_UNSUPPORTED                                       = DD_R_CODE(DD_RESULT_NET, 11),
 
+    /// Receiver cannot recognized a request.
+    DD_RESULT_NET_UNKNOWN_REQUEST                                               = DD_R_CODE(DD_RESULT_NET, 12),
+
+    /// The connection has been gracefully closed.
+    DD_RESULT_NET_CONNECTION_CLOSED                                             = DD_R_CODE(DD_RESULT_NET, 13),
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Component specific result codes
 
@@ -543,7 +541,7 @@ static_assert(sizeof(DD_RESULT) == sizeof(int32_t), "DD_RESULT isn't the same si
 ///
 /// They are pointers here for basic strong-type safety.
 /// C++ will not implicitly convert between pointer types, so this provides us a simple and portable
-/// strongly-typed typedef. C will convert but can warn about it. Rust is laughing in repr(transparent).
+/// strongly-typed typedef. C will convert but can warn about it.
 #define DD_DECLARE_HANDLE(name) typedef struct name ## _t* name;
 
 /// Standardized versioning scheme for DD APIs

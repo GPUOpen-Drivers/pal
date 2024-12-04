@@ -70,7 +70,6 @@ target_sources(pal PRIVATE
     fence.cpp
     fence.h
     formatInfo.cpp
-    g_mergedFormatInfo.h
     gpuEvent.cpp
     gpuEvent.h
     gpuMemory.cpp

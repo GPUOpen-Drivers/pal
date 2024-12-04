@@ -198,7 +198,7 @@ uint32 Gfx9MaskRam::GetMetaBlockSize(
     const uint32           bppLog2               = GetBytesPerPixelLog2();
     const uint32           numSamplesLog2        = GetNumSamplesLog2();
     uint32                 numPipesLog2          = m_pGfxDevice->GetNumPipesLog2();
-    const uint32           numShaderArraysLog2   = IsGfx103PlusExclusive(*pPalDevice)
+    const uint32           numShaderArraysLog2   = IsGfx103Plus(*pPalDevice)
                                                    ? m_pEqGenerator->GetNumShaderArrayLog2()
                                                    : 0;
     const uint32           effectiveNumPipesLog2 = m_pEqGenerator->GetEffectiveNumPipes();
@@ -931,7 +931,7 @@ void Gfx9MetaEqGenerator::AddMetaPipeBits(
     const uint32           effectiveNumPipesLog2       = GetEffectiveNumPipes();
     const uint32           numPipesLog2                = m_pParent->GetGfxDevice()->GetNumPipesLog2();
     const uint32           numSamplesLog2              = m_pParent->GetNumSamplesLog2();
-    const uint32           numShaderArraysLog2         = IsGfx103PlusExclusive(*pPalDevice) ? GetNumShaderArrayLog2() : 0;
+    const uint32           numShaderArraysLog2         = IsGfx103Plus(*pPalDevice) ? GetNumShaderArrayLog2() : 0;
     const uint32           pipeInterleaveLog2          = m_pParent->GetGfxDevice()->GetPipeInterleaveLog2();
     const uint32           startBase                   = 8;
     const uint32           endBase                     = startBase + effectiveNumPipesLog2;
@@ -2066,7 +2066,7 @@ uint32 Gfx9MetaEqGenerator::GetPipeBlockSize() const
 uint32 Gfx9MetaEqGenerator::GetEffectiveNumPipes() const
 {
     const uint32 numPipesLog2 = m_pParent->GetGfxDevice()->GetNumPipesLog2();
-    const uint32 numSaLog2    = IsGfx103PlusExclusive(*(m_pParent->GetGfxDevice()->Parent())) ? GetNumShaderArrayLog2() : 0;
+    const uint32 numSaLog2    = IsGfx103Plus(*(m_pParent->GetGfxDevice()->Parent())) ? GetNumShaderArrayLog2() : 0;
 
     uint32 effectiveNumPipes = 0;
 
@@ -2186,7 +2186,7 @@ void Gfx9MetaEqGenerator::GetMicroBlockSize(
 // Returns log2 of the total number of shader arrays on the GPU.
 uint32 Gfx9MetaEqGenerator::GetNumShaderArrayLog2() const
 {
-    return m_pParent->GetGfxDevice()->Gfx103PlusExclusiveGetNumActiveShaderArraysLog2();
+    return m_pParent->GetGfxDevice()->Gfx103PlusGetNumActiveShaderArraysLog2();
 }
 
 // =====================================================================================================================
@@ -2231,7 +2231,7 @@ uint32 Gfx9MetaEqGenerator::GetPipeRotateAmount() const
 {
     const Pal::Device*  pPalDevice   = m_pParent->GetGfxDevice()->Parent();
     const uint32        numPipesLog2 = m_pParent->GetGfxDevice()->GetNumPipesLog2();
-    const uint32        numSaLog2    = IsGfx103PlusExclusive(*pPalDevice) ? GetNumShaderArrayLog2() : 0;
+    const uint32        numSaLog2    = IsGfx103Plus(*pPalDevice) ? GetNumShaderArrayLog2() : 0;
     uint32  pipeRotateAmount = 0;
 
     if (IsGfx103Plus(*pPalDevice))
@@ -2291,7 +2291,7 @@ void Gfx9MetaEqGenerator::CalcMetaEquation()
     const uint32           numSamplesLog2        = m_pParent->GetNumSamplesLog2();
     const uint32           numPipesLog2          = m_pParent->GetGfxDevice()->GetNumPipesLog2();
     uint32                 modNumPipesLog2       = numPipesLog2;
-    const uint32           numShaderArraysLog2   = IsGfx103PlusExclusive(*pPalDevice) ? GetNumShaderArrayLog2() : 0;
+    const uint32           numShaderArraysLog2   = IsGfx103Plus(*pPalDevice) ? GetNumShaderArrayLog2() : 0;
     const uint32           effectiveNumPipesLog2 = GetEffectiveNumPipes();
     const uint32           cachelineSize         = m_pParent->GetMetaCachelineSize();
     const uint32           pipeInterleaveLog2    = m_pParent->GetGfxDevice()->GetPipeInterleaveLog2();

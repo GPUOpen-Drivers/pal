@@ -1186,6 +1186,10 @@ Const Usage
 
 -   Use the const specifier ***whenever possible***.
 
+-   Use of const for value-type function parameters ***should*** be used when
+    the function author wants the value to be guaranteed constant for the
+    life of the function.
+
 -   Floating point constants ***must*** be suffixed with an "f" to
     prevent an implicit conversion from double to float. Constants of
     other types ***should*** limit conversions using the "ul", "ull",

@@ -867,7 +867,8 @@ void Dri3WindowSystem::DestroyPresentableImage(
 Result Dri3WindowSystem::Present(
     const PresentSwapChainInfo& presentInfo,
     PresentFence*               pRenderFence,
-    PresentFence*               pIdleFence)
+    PresentFence*               pIdleFence,
+    IQueue*                     pQueue)
 {
     Result                 result         = Result::Success;
     Dri3PresentFence*const pDri3WaitFence = static_cast<Dri3PresentFence*>(pRenderFence);

@@ -1941,13 +1941,13 @@ enum MEC_RELEASE_MEM_int_sel_enum
 // --------------------------------- MEC_RELEASE_MEM_data_sel_enum ---------------------------------
 enum MEC_RELEASE_MEM_data_sel_enum
 {
-    data_sel__mec_release_mem__none                                     =  0,
-    data_sel__mec_release_mem__send_32_bit_low                          =  1,
-    data_sel__mec_release_mem__send_64_bit_data                         =  2,
-    data_sel__mec_release_mem__send_gpu_clock_counter                   =  3,
-    data_sel__mec_release_mem__send_system_clock_counter                =  4,
-    data_sel__mec_release_mem__store_gds_data_to_memory                 =  5,
-    data_sel__mec_release_mem__atomic_add32bit_low__GFX103PLUSEXCLUSIVE =  7,
+    data_sel__mec_release_mem__none                            =  0,
+    data_sel__mec_release_mem__send_32_bit_low                 =  1,
+    data_sel__mec_release_mem__send_64_bit_data                =  2,
+    data_sel__mec_release_mem__send_gpu_clock_counter          =  3,
+    data_sel__mec_release_mem__send_system_clock_counter       =  4,
+    data_sel__mec_release_mem__store_gds_data_to_memory        =  5,
+    data_sel__mec_release_mem__atomic_add32bit_low__GFX103PLUS =  7,
 };
 
 // -------------------------------------- PM4_MEC_RELEASE_MEM --------------------------------------
@@ -2671,15 +2671,15 @@ constexpr unsigned int PM4_MEC_WRITE_DATA_SIZEDW__CORE = 4;
 // ------------------------------- MEC_LOAD_SH_REG_INDEX_index_enum -------------------------------
 enum MEC_LOAD_SH_REG_INDEX_index_enum
 {
-    index__mec_load_sh_reg_index__direct_addr__GFX103PLUSEXCLUSIVE   =  0,
-    index__mec_load_sh_reg_index__indirect_addr__GFX103PLUSEXCLUSIVE =  2,
+    index__mec_load_sh_reg_index__direct_addr__GFX103PLUS   =  0,
+    index__mec_load_sh_reg_index__indirect_addr__GFX103PLUS =  2,
 };
 
 // ---------------------------- MEC_LOAD_SH_REG_INDEX_data_format_enum ----------------------------
 enum MEC_LOAD_SH_REG_INDEX_data_format_enum
 {
-    data_format__mec_load_sh_reg_index__offset_and_size__GFX103PLUSEXCLUSIVE =  0,
-    data_format__mec_load_sh_reg_index__offset_and_data__GFX103PLUSEXCLUSIVE =  1,
+    data_format__mec_load_sh_reg_index__offset_and_size__GFX103PLUS =  0,
+    data_format__mec_load_sh_reg_index__offset_and_data__GFX103PLUS =  1,
 };
 
 // ----------------------------------- PM4_MEC_LOAD_SH_REG_INDEX -----------------------------------
@@ -2699,7 +2699,7 @@ typedef struct PM4_MEC_LOAD_SH_REG_INDEX
             {
                 MEC_LOAD_SH_REG_INDEX_index_enum index       :  2;
                 uint32_t                         mem_addr_lo : 30;
-            } gfx103PlusExclusive;
+            } gfx103Plus;
         } bitfields;
         uint32_t u32All;
     } ordinal2;
@@ -2719,7 +2719,7 @@ typedef struct PM4_MEC_LOAD_SH_REG_INDEX
                 uint32_t                               reg_offset  : 16;
                 uint32_t                               reserved1   : 15;
                 MEC_LOAD_SH_REG_INDEX_data_format_enum data_format :  1;
-            } gfx103PlusExclusive;
+            } gfx103Plus;
         } bitfields;
         uint32_t u32All;
     } ordinal4;
@@ -2732,19 +2732,19 @@ typedef struct PM4_MEC_LOAD_SH_REG_INDEX
             {
                 uint32_t num_dwords : 14;
                 uint32_t reserved1  : 18;
-            } gfx103PlusExclusive;
+            } gfx103Plus;
         } bitfields;
         uint32_t u32All;
     } ordinal5;
 } PM4_MEC_LOAD_SH_REG_INDEX;
 
-constexpr unsigned int PM4_MEC_LOAD_SH_REG_INDEX_SIZEDW__GFX103PLUSEXCLUSIVE = 5;
+constexpr unsigned int PM4_MEC_LOAD_SH_REG_INDEX_SIZEDW__GFX103PLUS = 5;
 
 // -------------------------------- MEC_PERFMON_CONTROL_pmc_en_enum --------------------------------
 enum MEC_PERFMON_CONTROL_pmc_en_enum
 {
-    pmc_en__mec_perfmon_control__perfmon_disable__GFX103PLUSEXCLUSIVE =  0,
-    pmc_en__mec_perfmon_control__perfmon_enable__GFX103PLUSEXCLUSIVE  =  1,
+    pmc_en__mec_perfmon_control__perfmon_disable__GFX103PLUS =  0,
+    pmc_en__mec_perfmon_control__perfmon_enable__GFX103PLUS  =  1,
 };
 
 // ------------------------------------ PM4_MEC_PERFMON_CONTROL ------------------------------------
@@ -2767,7 +2767,7 @@ typedef struct PM4_MEC_PERFMON_CONTROL
                 MEC_PERFMON_CONTROL_pmc_en_enum pmc_en        :  1;
                 uint32_t                        pmc_unit_mask :  8;
                 uint32_t                        reserved2     :  8;
-            } gfx103PlusExclusive;
+            } gfx103Plus;
         } bitfields;
         uint32_t u32All;
     } ordinal2;
@@ -2780,13 +2780,13 @@ typedef struct PM4_MEC_PERFMON_CONTROL
             {
                 uint32_t pmc_event  : 14;
                 uint32_t reserved1  : 18;
-            } gfx103PlusExclusive;
+            } gfx103Plus;
         } bitfields;
         uint32_t u32All;
     } ordinal3;
 } PM4_MEC_PERFMON_CONTROL;
 
-constexpr unsigned int PM4_MEC_PERFMON_CONTROL_SIZEDW__GFX103PLUSEXCLUSIVE = 3;
+constexpr unsigned int PM4_MEC_PERFMON_CONTROL_SIZEDW__GFX103PLUS = 3;
 
 // -------------------------------- MEC_PERF_COUNTER_WINDOW_op_enum --------------------------------
 enum MEC_PERF_COUNTER_WINDOW_op_enum

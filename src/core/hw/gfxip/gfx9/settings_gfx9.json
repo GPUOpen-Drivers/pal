@@ -3092,21 +3092,6 @@
       "Name": "WaCbPerfCounterStuckZero"
     },
     {
-      "Description": "WA to force PRE_PIX_SHADER barrier sync point for PWS+.",
-      "Tags": [
-        "Hardware Workarounds",
-        "Gfx11",
-        "PWS"
-      ],
-      "Flags": {},
-      "Defaults": {
-        "Default": false
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "Name": "WaForcePrePixShaderWaitPoint"
-    },
-    {
       "Description": "WA to force LOCK*THRESHOLD for HS, GS, and CS to 0.",
       "Tags": [
         "Hardware Workarounds",

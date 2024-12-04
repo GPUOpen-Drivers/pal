@@ -30,6 +30,7 @@
 #include "core/hw/gfxip/graphicsPipeline.h"
 #include "core/hw/gfxip/pipeline.h"
 #include "core/hw/gfxip/pm4UniversalCmdBuffer.h"
+#include "core/hw/gfxip/rpm/pm4RsrcProcMgr.h"
 #include "core/gpuMemory.h"
 #include "core/perfExperiment.h"
 #include "core/platform.h"
@@ -583,6 +584,18 @@ void UniversalCmdBuffer::SetGraphicsState(
     GraphicsStateFlags setGraphicsStateFlags { };
     PipelineStateFlags setPipelineStateFlags { };
     SetGraphicsState(newGraphicsState, setGraphicsStateFlags, setPipelineStateFlags);
+}
+
+// =====================================================================================================================
+void UniversalCmdBuffer::CmdCloneImageData(
+    const IImage& srcImage,
+    const IImage& dstImage)
+{
+    const auto& rsrcProcMgr = static_cast<const Pm4::RsrcProcMgr&>(m_device.RsrcProcMgr());
+
+    rsrcProcMgr.CmdCloneImageData(this,
+                                  static_cast<const Pal::Image&>(srcImage),
+                                  static_cast<const Pal::Image&>(dstImage));
 }
 
 // =====================================================================================================================

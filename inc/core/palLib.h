@@ -47,7 +47,7 @@
 #endif
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MAJOR_VERSION 907
+#define PAL_INTERFACE_MAJOR_VERSION 909
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 831
 /// Minor interface version.  Note that the interface version is distinct from the PAL version itself, which is returned

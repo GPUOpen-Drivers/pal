@@ -229,6 +229,8 @@ public:
 
     const Pm4CmdBufferState& GetPm4CmdBufState() const { return m_pm4CmdBufState; }
 
+    uint32 GetPacketPredicate() const { return m_pm4CmdBufState.flags.packetPredicate; }
+
     // Note that this function only checks if BLT stall has been completed but not cache flushed.
     bool AnyBltActive() const { return (m_pm4CmdBufState.flags.cpBltActive | m_pm4CmdBufState.flags.csBltActive |
                                         m_pm4CmdBufState.flags.gfxBltActive) != 0; }
@@ -483,6 +485,8 @@ private:
     void ResetFastClearReferenceCounts();
 
     const GfxDevice&  m_device;
+
+    bool m_splitBarriers; // If need split barriers with multiple planes into barriers with single plane.
 
     gpusize m_acqRelFenceValGpuVa; // GPU virtual address of 3-dwords memory used for acquire/release pipe event sync.
     gpusize m_timestampGpuVa;      // GPU virtual address of memory used for cache flush & inv timestamp events.

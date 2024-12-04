@@ -214,6 +214,7 @@ function(pal_setup_generated_code)
                          INCLUDE_HEADERS    core/hw/gfxip/gfxDevice.h)
     endif()
 
+    pal_gen_formats()
 endfunction()
 
 function(nongen_source_groups DIR)
@@ -246,3 +247,68 @@ function(nongen_source_groups DIR)
     endforeach()
 endfunction()
 
+function(pal_gen_formats)
+    set(FORMAT_GEN_DIR ${PAL_GEN_DIR}/formats)
+    set(FORMAT_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR})
+
+    set(NEEDS_CONFIG_GEN_STEP FALSE)
+
+    set(FORMAT_INDEPENDENT_HDR "${FORMAT_OUT_DIR}/src/core/g_mergedFormatInfo.h")
+
+    if (NOT EXISTS ${FORMAT_INDEPENDENT_HDR})
+        set(NEEDS_CONFIG_GEN_STEP TRUE)
+    endif()
+
+    set(FORMAT_GFX9_HDR "${FORMAT_OUT_DIR}/src/core/hw/gfxip/gfx9/g_gfx9MergedDataFormats.h")
+    if (NOT EXISTS ${FORMAT_GFX9_HDR})
+        set(NEEDS_CONFIG_GEN_STEP TRUE)
+    endif()
+
+    if (NEEDS_CONFIG_GEN_STEP)
+        # Generate these during configuration so that they are guaranteed to exist.
+        execute_process(
+            COMMAND ${Python3_EXECUTABLE} ${FORMAT_GEN_DIR}/main.py
+                    ${FORMAT_OUT_DIR}
+            COMMAND_ECHO STDOUT
+            WORKING_DIRECTORY ${FORMAT_GEN_DIR}
+        )
+    endif()
+
+    add_custom_command(
+        OUTPUT  ${FORMAT_INDEPENDENT_HDR}
+                ${FORMAT_GFX9_HDR}
+        COMMAND ${Python3_EXECUTABLE} ${FORMAT_GEN_DIR}/main.py
+                ${FORMAT_OUT_DIR}
+        COMMENT "Generating formats from ${FORMAT_GEN_DIR}/..."
+        DEPENDS ${FORMAT_GEN_DIR}/main.py
+                ${FORMAT_GEN_DIR}/data/pal.yaml
+                ${FORMAT_GEN_DIR}/data/gfx10.yaml
+                ${FORMAT_GEN_DIR}/data/gfx10_3.yaml
+                ${FORMAT_GEN_DIR}/data/gfx11.yaml
+                ${FORMAT_GEN_DIR}/shared/structs.py
+                ${FORMAT_GEN_DIR}/shared/template_hwl.h.j2
+                ${FORMAT_GEN_DIR}/shared/template_independent.h.j2
+                ${FORMAT_GEN_DIR}/shared/utils.py
+        WORKING_DIRECTORY ${FORMAT_GEN_DIR}
+    )
+
+    add_custom_target(pal_generate_formats
+        DEPENDS ${FORMAT_INDEPENDENT_HDR}
+                ${FORMAT_GFX9_HDR}
+        SOURCES ${FORMAT_INDEPENDENT_HDR}
+                ${FORMAT_GFX9_HDR}
+    )
+    target_include_directories(pal PRIVATE ${FORMAT_OUT_DIR}/src)
+    add_dependencies(pal pal_generate_formats)
+    set_target_properties(pal_generate_formats
+        PROPERTIES
+            FOLDER "${CMAKE_FOLDER}/Generate/Formats"
+    )
+
+    source_group(
+        TREE ${PAL_BINARY_DIR}
+        FILES
+            ${FORMAT_INDEPENDENT_HDR}
+            ${FORMAT_GFX9_HDR}
+    )
+endfunction()

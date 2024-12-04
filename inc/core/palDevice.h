@@ -452,10 +452,11 @@ union RsFeatureInfo
     /// Global Boost settings.
     struct
     {
-        bool enabled;    ///< Specifies whether Boost is enabled globally.
-        uint32 hotkey;   ///< If nonzero, specifies the virtual key code assigned to Boost.
-        uint32 hotkeyInd;///< If nonzero, specifies the virtual key code assigned to Boost's indicator.
-        uint32 minRes;   ///< Specifies the global Boost minimum resolution.
+        bool enabled;            ///< Specifies whether Boost is enabled globally.
+        uint32 hotkey;           ///< If nonzero, specifies the virtual key code assigned to Boost.
+        uint32 hotkeyInd;        ///< If nonzero, specifies the virtual key code assigned to Boost's indicator.
+        uint32 minRes;           ///< Specifies the global Boost minimum resolution.
+        bool adaptiveVrsEnabled; ///< Specifies whether BoostAdaptiveVrs is enabled globally.
     } boost;
 
     /// Global ProVsr settings.
@@ -1432,7 +1433,8 @@ struct DeviceProperties
 #endif
                 uint64 supportBFloat16                    :  1; ///< HW supports bf16 instructions.
                 uint64 supportFloat8                      :  1; ///< HW supports float 8-bit instructions.
-                uint64 reserved                           :  63; ///< Reserved for future use.
+                uint64 supportInt4                        :  1; ///< HW supports integer 4-bit instructions.
+                uint64 reserved                           :  62; ///< Reserved for future use.
             };
             uint64 u64All[2];           ///< Flags packed as 32-bit uint.
         } flags;                     ///< Device IP property flags.
@@ -2993,7 +2995,7 @@ public:
     /// modifying settings, the client must call CommitSettingsAndInit() before creating finalizing the device.
     ///
     /// @warning The returned value points to an internal PAL structure.  Modifying data using this pointer after
-    ///          calling FinalizeSettings() will result in undefined behavior.
+    ///          calling CommitSettingsAndInit() will result in undefined behavior.
     ///
     /// @returns Pointer to this devices public settings for examination and/or modification by the client.
     virtual PalPublicSettings* GetPublicSettings() = 0;
@@ -3143,6 +3145,20 @@ public:
     ///          + ErrorInvalidPointer if pProperties is null.
     virtual Result GetPerfExperimentProperties(
         PerfExperimentProperties* pProperties) const = 0;
+
+    /// Fills out the default MSAA quad sample pattern for the given sample count.
+    ///
+    /// @param [in]  samples             The number of valid samples in the sample pattern. Must be a power of two.
+    /// @param [out] pQuadSamplePattern  Fill this with the default pattern.
+    ///
+    /// @returns Success if @ref pQuadSamplePattern was filled with the default sample pattern.
+    ///          Otherwise, one of the following errors may be returned:
+    ///          + ErrorInvalidPointer if @ref pQuadSamplePattern is null.
+    ///          + ErrorInvalidValue if @ref samples is not a supported power of two.
+    ///          + ErrorUnavailable if this device lacks GfxIp support.
+    virtual Result GetDefaultSamplePattern(
+        uint32                 samples,
+        MsaaQuadSamplePattern* pQuadSamplePattern) const = 0;
 
     /// Adds a list of per-device memory object references that persist across command buffer submissions. It is the
     /// responsibility of the client to make sure that all required memory references have been added before submitting

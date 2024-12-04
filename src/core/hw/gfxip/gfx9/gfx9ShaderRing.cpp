@@ -246,7 +246,7 @@ ScratchRing::ScratchRing(
     }
     else
     {
-        pSrd->gfx11.swizzle_enable = 1;
+        pSrd->rtIp2Plus.swizzle_enable = 1;
     }
 }
 
@@ -392,7 +392,7 @@ GsVsRing::GsVsRing(
         }
         else
         {
-            pSrdWr->gfx11.swizzle_enable = 1;
+            pSrdWr->rtIp2Plus.swizzle_enable = 1;
         }
     }
 
@@ -736,9 +736,9 @@ VertexAttributeRing::VertexAttributeRing(
     // Set-up static SRD fields:
     pDevice->InitBufferSrd(pSrd, 0, Stride);
 
-    pSrd->index_stride          = BUF_INDEX_STRIDE_32B;
-    pSrd->gfx11.format          = BUF_FMT_32_32_32_32_FLOAT__GFX11;
-    pSrd->gfx11.swizzle_enable  = 3;
+    pSrd->index_stride              = BUF_INDEX_STRIDE_32B;
+    pSrd->rtIp2Plus.format          = BUF_FMT_32_32_32_32_FLOAT__GFX11;
+    pSrd->rtIp2Plus.swizzle_enable  = 3;
 }
 
 // =====================================================================================================================

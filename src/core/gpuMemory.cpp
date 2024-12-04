@@ -72,23 +72,21 @@ void GpuMemory::TranslateHeapInfo(
     switch (createInfo.heapAccess)
     {
     case GpuHeapAccess::GpuHeapAccessExplicit:
+    {
         // imperative heap selection; createInfo.heaps determines the heaps
-        *pOutHeapCount = 0;
+        *pOutHeapCount = createInfo.heapCount;
+        std::memcpy(pOutHeaps, createInfo.heaps, createInfo.heapCount*sizeof(GpuHeap));
+
         for (uint32 heap = 0; heap < createInfo.heapCount; ++heap)
         {
-            if ((heap == 0) || (createInfo.heaps[heap] != GpuHeapGartCacheable))
+            if (createInfo.heaps[heap] == GpuHeap::GpuHeapInvisible)
             {
-                cpuInvisible |= (createInfo.heaps[heap] == GpuHeap::GpuHeapInvisible);
-
-                pOutHeaps[(*pOutHeapCount)++] = createInfo.heaps[heap];
-            }
-            else
-            {
-                // KMD will ignore a non-primary cacheable heap, so it's better to catch it earlier
-                PAL_ALERT_ALWAYS_MSG("Non primary GpuHeapGartCacheable heap found and stripped from heap list.");
+                cpuInvisible = true;
+                break;
             }
         }
-        break;
+    }
+    break;
     case GpuHeapAccess::GpuHeapAccessCpuNoAccess:
     {
         cpuInvisible = true;

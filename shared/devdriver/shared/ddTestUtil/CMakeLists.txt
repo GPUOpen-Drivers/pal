@@ -31,6 +31,7 @@ target_link_libraries(ddTestUtil
         ddNet
         ddRouter
         ddCommon
+        dd_common
         gtest
         ddRpcClient
         ddRpcServer

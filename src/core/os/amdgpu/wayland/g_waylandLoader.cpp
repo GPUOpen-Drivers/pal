@@ -123,6 +123,49 @@ int WaylandLoaderFuncsProxy::pfnWlDisplayDispatchQueuePending(
 }
 
 // =====================================================================================================================
+int WaylandLoaderFuncsProxy::pfnWlDisplayPrepareReadQueue(
+    struct wl_display*      display,
+    struct wl_event_queue*  queue
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    int ret = m_pFuncs->pfnWlDisplayPrepareReadQueue(display,
+                                                     queue);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("WlDisplayPrepareReadQueue,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "WlDisplayPrepareReadQueue(%p, %p)\n",
+        display,
+        queue);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+int WaylandLoaderFuncsProxy::pfnWlDisplayReadEvents(
+    struct wl_display*  display
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    int ret = m_pFuncs->pfnWlDisplayReadEvents(display);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("WlDisplayReadEvents,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "WlDisplayReadEvents(%p)\n",
+        display);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
 int WaylandLoaderFuncsProxy::pfnWlDisplayFlush(
     struct wl_display*  display
     ) const
@@ -409,6 +452,9 @@ WaylandLoader::WaylandLoader()
     m_pZwpLinuxDmabufV1Interface(nullptr),
     m_pZwpLinuxBufferParamsV1Interface(nullptr),
     m_pZwpLinuxDmabufFeedbackV1Interface(nullptr),
+    m_pWpLinuxDrmSyncobjManagerV1Interface(nullptr),
+    m_pWpLinuxDrmSyncobjTimelineV1Interface(nullptr),
+    m_pWpLinuxDrmSyncobjSurfaceV1Interface(nullptr),
     m_initialized(false)
 {
     memset(&m_funcs, 0, sizeof(m_funcs));
@@ -457,6 +503,24 @@ wl_interface* WaylandLoader::GetZwpLinuxDmabufFeedbackV1Interface() const
 }
 
 // =====================================================================================================================
+wl_interface* WaylandLoader::GetWpLinuxDrmSyncobjManagerV1Interface() const
+{
+    return m_pWpLinuxDrmSyncobjManagerV1Interface;
+}
+
+// =====================================================================================================================
+wl_interface* WaylandLoader::GetWpLinuxDrmSyncobjTimelineV1Interface() const
+{
+    return m_pWpLinuxDrmSyncobjTimelineV1Interface;
+}
+
+// =====================================================================================================================
+wl_interface* WaylandLoader::GetWpLinuxDrmSyncobjSurfaceV1Interface() const
+{
+    return m_pWpLinuxDrmSyncobjSurfaceV1Interface;
+}
+
+// =====================================================================================================================
 WaylandLoader::~WaylandLoader()
 {
 }
@@ -480,6 +544,8 @@ Result WaylandLoader::Init(
             m_library[LibWaylandClient].GetFunction("wl_display_create_queue", &m_funcs.pfnWlDisplayCreateQueue);
             m_library[LibWaylandClient].GetFunction("wl_display_dispatch_queue", &m_funcs.pfnWlDisplayDispatchQueue);
             m_library[LibWaylandClient].GetFunction("wl_display_dispatch_queue_pending", &m_funcs.pfnWlDisplayDispatchQueuePending);
+            m_library[LibWaylandClient].GetFunction("wl_display_prepare_read_queue", &m_funcs.pfnWlDisplayPrepareReadQueue);
+            m_library[LibWaylandClient].GetFunction("wl_display_read_events", &m_funcs.pfnWlDisplayReadEvents);
             m_library[LibWaylandClient].GetFunction("wl_display_flush", &m_funcs.pfnWlDisplayFlush);
             m_library[LibWaylandClient].GetFunction("wl_display_roundtrip_queue", &m_funcs.pfnWlDisplayRoundtripQueue);
             m_library[LibWaylandClient].GetFunction("wl_event_queue_destroy", &m_funcs.pfnWlEventQueueDestroy);
@@ -549,6 +615,30 @@ Result WaylandLoader::Init(
         else
         {
             m_library[LibWaylandClient].GetFunction("zwp_linux_dmabuf_feedback_v1_interface", &m_pZwpLinuxDmabufFeedbackV1Interface);
+        }
+        if (m_library[LibWaylandClient].IsLoaded() == false)
+        {
+            result = Result::ErrorUnavailable;
+        }
+        else
+        {
+            m_library[LibWaylandClient].GetFunction("wp_linux_drm_syncobj_manager_v1_interface", &m_pWpLinuxDrmSyncobjManagerV1Interface);
+        }
+        if (m_library[LibWaylandClient].IsLoaded() == false)
+        {
+            result = Result::ErrorUnavailable;
+        }
+        else
+        {
+            m_library[LibWaylandClient].GetFunction("wp_linux_drm_syncobj_timeline_v1_interface", &m_pWpLinuxDrmSyncobjTimelineV1Interface);
+        }
+        if (m_library[LibWaylandClient].IsLoaded() == false)
+        {
+            result = Result::ErrorUnavailable;
+        }
+        else
+        {
+            m_library[LibWaylandClient].GetFunction("wp_linux_drm_syncobj_surface_v1_interface", &m_pWpLinuxDrmSyncobjSurfaceV1Interface);
         }
         if (result == Result::Success)
         {

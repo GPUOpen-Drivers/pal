@@ -61,9 +61,9 @@ public:
         ShaderLibraryFunctionInfo* pFuncInfoList,
         uint32                     funcCount);
 
-    uint32 GetMaxStackSizeInBytes() const { return m_maxStackSizeInBytes; }
-    UploadFenceToken GetUploadFenceToken() const { return m_uploadFenceToken; }
-    uint64 GetPagingFenceVal() const { return m_pagingFenceVal; }
+    uint32                   GetMaxStackSizeInBytes() const { return m_maxStackSizeInBytes; }
+    virtual UploadFenceToken GetUploadFenceToken() const override { return m_uploadFenceToken; }
+    virtual uint64           GetPagingFenceVal() const override { return m_pagingFenceVal; }
 
     virtual const Util::Span<const ShaderLibraryFunctionInfo> GetShaderLibFunctionInfos() const override
     {

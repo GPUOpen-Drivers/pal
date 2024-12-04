@@ -1,0 +1,68 @@
+/* Copyright (c) 2016-{{ Year }} Advanced Micro Devices, Inc. All rights reserved. */
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+// WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!
+//
+// This code has been generated automatically. Do not hand-modify this code.
+//
+// When changes are needed, modify the tools generating this module in the PalTools/codegen/formats directory.
+//
+// WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING! WARNING!  WARNING!  WARNING!  WARNING!
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#pragma once
+
+/**
+***********************************************************************************************************************
+* @file  {{ FileName }}
+* @brief Auto-generated file that describes the channel format properties for PAL's hardware independent layer.
+***********************************************************************************************************************
+*/
+
+#include "pal.h"
+#include "palInlineFuncs.h"
+#include "palFormatInfo.h"
+
+namespace Pal
+{
+namespace Formats
+{
+
+// Lookup table for intrinsic properties describing each channel format. Callers should access the members of this
+// table via BitsPerPixel() and related functions.
+const FormatInfo FormatInfoTable[] =
+{
+{%- for format_name, fmt in ifmts.items() %}{%- if fmt.versioning %}
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= {{ fmt.versioning }}
+{%- endif %}
+    // {{ format_name }}
+    {
+        {{ "{0:<36s}".format(fmt.bpp ~ ",") }} // {{ fmt.bpp }} bpp
+        {{ "{0:<36s}".format(fmt.num_components ~ ",") }} // {{ fmt.num_components }} component(s)
+        {{ "{0:<36s}".format(fmt.bit_counts_str ~ ",") }} // # of bits-per-component
+        ({%- for mask in fmt.channel_mask %}ChannelFlags::{{mask}}
+         {%- if (fmt.channel_mask|length > 1) and (loop.index != fmt.channel_mask|length) %} {{ '|' }}
+         {% endif %}
+         {%- endfor %}),                   // Channel Mask: {{ fmt.channel_mask_str }}
+        {% if fmt.format_properties|length == 0 %}0,                                   // Format Properties
+        {%- else %}(
+        {%- for property in fmt.format_properties %}
+            {{ property }}
+            {%- if (fmt.format_properties|length > 1) and (loop.index != fmt.format_properties|length) %} {{ '|' }}
+            {%- endif %}
+        {%- endfor %}
+        ),                                   // Format Properties
+        {%- endif %}
+        NumericSupportFlags::{{ fmt.numeric_support }},
+    },
+{%- if fmt.versioning %}
+#endif // PAL_CLIENT_INTERFACE_MAJOR_VERSION >= {{ fmt.versioning }}
+{%- endif %}
+{%- endfor %}
+};
+
+static_assert(Util::ArrayLen32(FormatInfoTable) == uint32(ChNumFormat::Count));
+
+} // Formats
+} // Pal

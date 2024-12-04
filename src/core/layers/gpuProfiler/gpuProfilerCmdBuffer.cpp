@@ -229,9 +229,15 @@ void CmdBuffer::ReplayBegin(
     // respect to each queue.
     info.pMemAllocator = pQueue->ReplayAllocator();
 
-    m_pDevice->CommandBufferBegin();
+    uint32 commandBufferId = m_pDevice->CommandBufferBegin();
 
     pTgtCmdBuffer->Begin(NextCmdBufferBuildInfo(info));
+    m_spmMarkersEnabled = false;
+
+    if (m_spmMarkersEnabled)
+    {
+        m_timedCallId = 0;
+    }
 
     m_sampleFlags.u8All = 0;
 
@@ -1854,8 +1860,9 @@ void CmdBuffer::ReplayCmdDrawIndexedIndirectMulti(
 
 // =====================================================================================================================
 void PAL_STDCALL CmdBuffer::CmdDispatch(
-    ICmdBuffer*  pCmdBuffer,
-    DispatchDims size)
+    ICmdBuffer*       pCmdBuffer,
+    DispatchDims      size,
+    DispatchInfoFlags infoFlags)
 {
     auto* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
@@ -1875,7 +1882,7 @@ void CmdBuffer::ReplayCmdDispatch(
     logItem.cmdBufCall.dispatch.threadGroupCount = size.x * size.y * size.z;
 
     LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdDispatch);
-    pTgtCmdBuffer->CmdDispatch(size);
+    pTgtCmdBuffer->CmdDispatch(size, {});
     LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
 }
 
@@ -4227,6 +4234,7 @@ void CmdBuffer::LogPreTimedCall(
     LogItem*          pLogItem,
     CmdBufCallId      callId)
 {
+
     if (m_pDevice->LoggingEnabled(GpuProfilerGranularityDraw) || m_forceDrawGranularityLogging)
     {
         m_sampleFlags.u8All = 0;

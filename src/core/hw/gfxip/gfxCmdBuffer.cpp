@@ -203,7 +203,7 @@ void GfxCmdBuffer::DescribeExecuteIndirectCmds(
         pCmdBuf->DescribeDraw(Developer::DrawDispatchType::CmdGenExecuteIndirectDrawIndexed);
         break;
     case Pm4::GeneratorType::Dispatch:
-        DescribeDispatch(Developer::DrawDispatchType::CmdGenExecuteIndirectDispatch, {});
+        DescribeDispatch(Developer::DrawDispatchType::CmdGenExecuteIndirectDispatch, {}, {});
         break;
     case Pm4::GeneratorType::DispatchMesh:
         pCmdBuf->DescribeDraw(Developer::DrawDispatchType::CmdGenExecuteIndirectDispatchMesh);
@@ -216,7 +216,8 @@ void GfxCmdBuffer::DescribeExecuteIndirectCmds(
 // =====================================================================================================================
 void GfxCmdBuffer::DescribeDispatch(
     Developer::DrawDispatchType cmdType,
-    DispatchDims                size)
+    DispatchDims                size,
+    DispatchInfoFlags           infoFlags)
 {
     PAL_ASSERT((cmdType == Developer::DrawDispatchType::CmdDispatch) ||
                (cmdType == Developer::DrawDispatchType::CmdDispatchAce));
@@ -231,7 +232,7 @@ void GfxCmdBuffer::DescribeDispatch(
         subQueueFlags.includeMainSubQueue = 1;
     }
 
-    m_device.DescribeDispatch(this, subQueueFlags, cmdType, {}, size, size);
+    m_device.DescribeDispatch(this, subQueueFlags, cmdType, {}, size, size, infoFlags);
 }
 
 // =====================================================================================================================
@@ -244,7 +245,7 @@ void GfxCmdBuffer::DescribeDispatchOffset(
     subQueueFlags.includeMainSubQueue = 1;
 
     m_device.DescribeDispatch(this, subQueueFlags, Developer::DrawDispatchType::CmdDispatchOffset,
-                              offset, launchSize, logicalSize);
+                              offset, launchSize, logicalSize, {});
 }
 
 // =====================================================================================================================
@@ -253,7 +254,7 @@ void GfxCmdBuffer::DescribeDispatchIndirect()
     RgpMarkerSubQueueFlags subQueueFlags { };
     subQueueFlags.includeMainSubQueue = 1;
 
-    m_device.DescribeDispatch(this, subQueueFlags, Developer::DrawDispatchType::CmdDispatchIndirect, {}, {}, {});
+    m_device.DescribeDispatch(this, subQueueFlags, Developer::DrawDispatchType::CmdDispatchIndirect, {}, {}, {}, {});
 }
 
 // =====================================================================================================================

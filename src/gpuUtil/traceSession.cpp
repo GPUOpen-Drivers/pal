@@ -38,7 +38,7 @@ using DevDriver::StructuredValue;
 namespace GpuUtil
 {
 static_assert(TextIdentifierSize == RDF_IDENTIFIER_SIZE,
-              "The text identifer size of the trace chunk must match that of the rdf chunk!");
+              "The text identifer size of the trace chunk must match that of the RDF chunk!");
 
 // =====================================================================================================================
 // Translates a rdfResult to a Pal::Result
@@ -84,7 +84,8 @@ TraceSession::TraceSession(
     m_currentChunkIndex(0),
     m_tracingEnabled(false),
     m_pConfigData(nullptr),
-    m_configDataSize(0)
+    m_configDataSize(0),
+    m_cancelingTrace(false)
 {
 }
 
@@ -267,10 +268,53 @@ Result TraceSession::RequestTrace()
         {
             result = m_pActiveController->OnTraceRequested();
         }
+
+        // The trace request was rejected by the controller: reset state back to ready
+        if (result != Result::Success)
+        {
+            m_sessionState = TraceSessionState::Ready;
+        }
     }
     else
     {
         result = Result::ErrorUnavailable;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+Result TraceSession::CleanupChunkStream()
+{
+    size_t dataSize = 0;
+    uint8* pData    = nullptr;
+
+    Result result = m_pPlatform->GetTraceSession()->CollectTrace(pData, &dataSize);
+
+    if (result == Result::Success)
+    {
+        pData  = PAL_NEW_ARRAY(uint8, dataSize, m_pPlatform, Util::AllocInternalTemp);
+        result = m_pPlatform->GetTraceSession()->CollectTrace(pData, &dataSize);
+    }
+
+    if (pData != nullptr)
+    {
+        PAL_SAFE_DELETE_ARRAY(pData, m_pPlatform);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+Result TraceSession::CancelTrace()
+{
+    m_cancelingTrace = true;
+
+    Result result = m_pActiveController->OnTraceCanceled();
+
+    if (result == Result::Success)
+    {
+        m_cancelingTrace = false;
     }
 
     return result;
@@ -445,56 +489,71 @@ Result TraceSession::AcceptTrace(
 {
     PAL_ASSERT(TraceSessionState::Requested == GetTraceSessionState());
 
-    Result result = Result::ErrorUnknown;
+    // GPU Index has been hardcoded for now
+    uint32      gpuIndex    = 0;
+    ICmdBuffer* pPrepCmdBuf = nullptr;
+    Result      result      = Result::Success;
 
     if (pController == nullptr)
     {
         result = Result::ErrorInvalidPointer;
     }
-    else
+
+    // Error out if we're not in the required 'Requested' state
+    if ((result == Result::Success) && (m_sessionState != TraceSessionState::Requested))
     {
-        if (m_sessionState == TraceSessionState::Requested)
+        result = Result::ErrorUnavailable;
+    }
+
+    if (result == Result::Success)
+    {
+        m_pActiveController = pController;
+
+        // Create the stream to be used in the chunkFileWriter. This will also be used to retrieve
+        // the final list of appended chunks in CollectTrace().
+        result = RdfResultToPalResult(rdfStreamCreateMemoryStream(&m_pCurrentStream));
+
+        // Create the chunkFileWriter to setup the chunk data structures and buffers to collect the incoming chunks
+        if (result == Result::Success)
         {
-            m_pActiveController = pController;
+            result = RdfResultToPalResult(rdfChunkFileWriterCreate(m_pCurrentStream, &m_pChunkFileWriter));
+        }
 
-            // Create the stream to be used in the chunkFileWriter. This will also be used to retrieve
-            // the final list of appended chunks in CollectTrace().
-            result = RdfResultToPalResult(rdfStreamCreateMemoryStream(&m_pCurrentStream));
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 908
+        // Notify the active controller of any required GPU work
+        if (result == Result::Success)
+        {
+            result = m_pActiveController->OnPreparationGpuWork(gpuIndex, &pPrepCmdBuf);
+        }
+#endif
 
-            // Create the chunkFileWriter to setup the chunk data structures and buffers to collect the incoming chunks
-            if (result == Result::Success)
+        if (result == Result::Success)
+        {
+            Util::RWLockAuto<Util::RWLock::ReadOnly> traceSourceLock(&m_registerTraceSourceLock);
+
+            // Grab the "sources" field from the trace config
+            const StructuredValue traceSources = m_pReader->GetRoot()["sources"];
+
+            // Notify all requested trace sources that the trace has been accepted
+            for (uint32 i = 0; i < traceSources.GetArrayLength(); i++)
             {
-                result = RdfResultToPalResult(rdfChunkFileWriterCreate(m_pCurrentStream, &m_pChunkFileWriter));
-            }
+                const char* pName = traceSources[i]["name"].GetStringPtr();
 
-            if (result == Result::Success)
-            {
-                Util::RWLockAuto<Util::RWLock::ReadOnly> traceSourceLock(&m_registerTraceSourceLock);
-
-                // Grab the "sources" field from the trace config
-                const StructuredValue traceSources = m_pReader->GetRoot()["sources"];
-
-                // Notify all requested trace sources that the trace has been accepted
-                for (uint32 i = 0; i < traceSources.GetArrayLength(); i++)
+                if (pName != nullptr)
                 {
-                    const char* pName = traceSources[i]["name"].GetStringPtr();
+                    // Search for and notify the TraceSource object named in the trace configuration
+                    ITraceSource** ppSource = m_registeredTraceSources.FindKey(pName);
 
-                    if (pName != nullptr)
+                    if ((ppSource != nullptr) && (*ppSource != nullptr))
                     {
-                        // Search for and notify the TraceSource object named in the trace configuration
-                        ITraceSource** ppSource = m_registeredTraceSources.FindKey(pName);
-
-                        if ((ppSource != nullptr) && (*ppSource != nullptr))
-                        {
-                            (*ppSource)->OnTraceAccepted();
-                        }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 908
+                        (*ppSource)->OnTraceAccepted(gpuIndex, pPrepCmdBuf);
+#else
+                        (*ppSource)->OnTraceAccepted();
+#endif
                     }
                 }
             }
-        }
-        else
-        {
-            result = Result::ErrorUnavailable;
         }
     }
 
@@ -678,24 +737,28 @@ Result TraceSession::WriteDataChunk(
     ITraceSource*         pSource,
     const TraceChunkInfo& info)
 {
-    // Populate rdfChunkCreateInfo parameters from TraceChunkInfo struct
-    rdfChunkCreateInfo currentChunkInfo = {
-        .headerSize  = info.headerSize,
-        .pHeader     = info.pHeader,
-        .compression = info.enableCompression ? rdfCompression::rdfCompressionZstd :
-                                                rdfCompression::rdfCompressionNone,
-        .version     = info.version
-    };
-    memcpy(currentChunkInfo.identifier, info.id, TextIdentifierSize);
+    int result = 0;
 
-    Util::RWLockAuto<Util::RWLock::ReadWrite> chunkAppendLock(&m_chunkAppendLock);
+    if (m_cancelingTrace == false)
+    {
+        // Populate rdfChunkCreateInfo parameters from TraceChunkInfo struct
+        rdfChunkCreateInfo currentChunkInfo = {
+            .headerSize  = info.headerSize,
+            .pHeader     = info.pHeader,
+            .compression = info.enableCompression ? rdfCompression::rdfCompressionZstd :
+                                                    rdfCompression::rdfCompressionNone,
+            .version     = info.version
+        };
+        memcpy(currentChunkInfo.identifier, info.id, TextIdentifierSize);
+        Util::RWLockAuto<Util::RWLock::ReadWrite> chunkAppendLock(&m_chunkAppendLock);
 
-    // Append the incoming chunk to the data stream
-    int result = rdfChunkFileWriterWriteChunk(m_pChunkFileWriter,
+        // Append the incoming chunk to the data stream
+        result = rdfChunkFileWriterWriteChunk(m_pChunkFileWriter,
                                               &currentChunkInfo,
                                               info.dataSize,
                                               info.pData,
                                               &m_currentChunkIndex);
+    }
 
     return RdfResultToPalResult(result);
 }

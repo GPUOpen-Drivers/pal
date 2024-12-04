@@ -105,10 +105,10 @@ public:
     virtual ~ShaderRingSet();
 
     virtual Result Init();
-    virtual Result Validate(const ShaderRingItemSizes&  ringSizes,
-                            bool                        updateSamplePatternPalette,
-                            const uint64                lastTimeStamp,
-                            uint32*                     pReallocatedRings);
+    Result Validate(const ShaderRingItemSizes&  ringSizes,
+                    bool                        updateSamplePatternPalette,
+                    const uint64                lastTimeStamp,
+                    uint32*                     pReallocatedRings);
 
     // Writes the per-Ring-Set register state into the specified command stream.
     virtual uint32* WriteCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const = 0;
@@ -121,6 +121,8 @@ public:
     const ShaderRing* const* GetRings() const { return m_ppRings; }
 
     void ClearDeferredFreeMemory(SubmissionContext* pSubmissionCtx);
+    Result UpdateSrdTable(bool deferFreeSrdTable, uint64 lastTimestamp);
+    void CopySrdTableEntry(ShaderRingSrd entry, BufferSrd* pSrdTable);
 
 protected:
     ShaderRingSet(Device* pDevice, size_t numRings, size_t numSrds, bool isTmz);
@@ -142,22 +144,57 @@ private:
 };
 
 // =====================================================================================================================
+// Implements a ShaderRingSet for a Compute-only Queue.
+class ComputeRingSet final : public ShaderRingSet
+{
+public:
+    explicit ComputeRingSet(
+        Device* pDevice,
+        bool    isTmz,
+        size_t  numSrds = size_t(ShaderRingSrd::NumCompute));
+
+    virtual ~ComputeRingSet() {}
+
+    virtual Result Init() override;
+    Result Validate(const ShaderRingItemSizes&  ringSizes,
+                    bool                        updateSamplePatternPalette,
+                    uint64                      lastTimeStamp);
+
+    virtual uint32* WriteCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const override;
+
+private:
+    struct
+    {
+        regCOMPUTE_TMPRING_SIZE             computeScratchRingSize;
+        regCOMPUTE_DISPATCH_SCRATCH_BASE_LO computeDispatchScratchBaseLo;
+        regCOMPUTE_DISPATCH_SCRATCH_BASE_HI computeDispatchScratchBaseHi;
+    }  m_regs;
+
+    PAL_DISALLOW_DEFAULT_CTOR(ComputeRingSet);
+    PAL_DISALLOW_COPY_AND_ASSIGN(ComputeRingSet);
+};
+
+// =====================================================================================================================
 // Implements a ShaderRingSet for a Universal Queue.
 class UniversalRingSet final : public ShaderRingSet
 {
 public:
     explicit UniversalRingSet(Device* pDevice, bool isTmz);
-    virtual ~UniversalRingSet() {}
+    virtual ~UniversalRingSet();
 
     virtual Result Init() override;
-    virtual Result Validate(const ShaderRingItemSizes&  ringSizes,
-                            bool                        updateSamplePatternPalette,
-                            uint64                      lastTimeStamp,
-                            uint32*                     pReallocatedRings) override;
+    Result Validate(const ShaderRingItemSizes&  ringSizes,
+                    bool                        updateSamplePatternPalette,
+                    uint64                      lastTimeStamp,
+                    bool                        hasAce);
 
     virtual uint32* WriteCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const override;
 
     uint32* WriteComputeCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const;
+
+    bool HasAceRingSet() const { return (m_pAceRingSet != nullptr); }
+
+    ComputeRingSet* GetAceRingSet() const { return m_pAceRingSet; }
 
 private:
     struct
@@ -177,36 +214,10 @@ private:
         regCOMPUTE_DISPATCH_SCRATCH_BASE_HI computeDispatchScratchBaseHi;
     }  m_regs;
 
+    ComputeRingSet* m_pAceRingSet;
+
     PAL_DISALLOW_DEFAULT_CTOR(UniversalRingSet);
     PAL_DISALLOW_COPY_AND_ASSIGN(UniversalRingSet);
-};
-
-// =====================================================================================================================
-// Implements a ShaderRingSet for a Compute-only Queue.
-class ComputeRingSet final : public ShaderRingSet
-{
-public:
-    explicit ComputeRingSet(Device* pDevice, bool isTmz);
-    virtual ~ComputeRingSet() {}
-
-    virtual Result Init() override;
-    virtual Result Validate(const ShaderRingItemSizes&  ringSizes,
-                            bool                        updateSamplePatternPalette,
-                            uint64                      lastTimeStamp,
-                            uint32*                     pReallocatedRings) override;
-
-    virtual uint32* WriteCommands(CmdStream* pCmdStream, uint32* pCmdSpace) const override;
-
-private:
-    struct
-    {
-        regCOMPUTE_TMPRING_SIZE             computeScratchRingSize;
-        regCOMPUTE_DISPATCH_SCRATCH_BASE_LO computeDispatchScratchBaseLo;
-        regCOMPUTE_DISPATCH_SCRATCH_BASE_HI computeDispatchScratchBaseHi;
-    }  m_regs;
-
-    PAL_DISALLOW_DEFAULT_CTOR(ComputeRingSet);
-    PAL_DISALLOW_COPY_AND_ASSIGN(ComputeRingSet);
 };
 
 } // Gfx9

@@ -1,0 +1,1262 @@
+##
+ #######################################################################################################################
+ #
+ #  Copyright (c) 2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ #
+ #  Permission is hereby granted, free of charge, to any person obtaining a copy
+ #  of this software and associated documentation files (the "Software"), to deal
+ #  in the Software without restriction, including without limitation the rights
+ #  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ #  copies of the Software, and to permit persons to whom the Software is
+ #  furnished to do so, subject to the following conditions:
+ #
+ #  The above copyright notice and this permission notice shall be included in all
+ #  copies or substantial portions of the Software.
+ #
+ #  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ #  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ #  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ #  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ #  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ #  SOFTWARE.
+ #
+ #######################################################################################################################
+
+
+formats:
+  # The order of the formats below **must** match that in pal.h!
+  Undefined: &defFormatInfo
+    channelMask: ['X']
+    bitCounts: [8, 0, 0, 0]
+    bpp: 8
+    numComponents: 1
+    compressed: false
+    bitCountInaccurate: false
+    optimalSupported: true
+    yuvPlanar: false
+    yuvPacked: false
+    macroPixelPacked: false
+    depthStencil: false
+    versioning: null
+  X1_Unorm:
+    <<: *defFormatInfo
+    bitCounts: [1, 0, 0, 0]
+    bpp: 1
+  X1_Uscaled:
+    <<: *defFormatInfo
+    bitCounts: [1, 0, 0, 0]
+    bpp: 1
+  X4Y4_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y']
+    bitCounts: [4, 4, 0, 0]
+    numComponents: 2
+  X4Y4_Uscaled:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y']
+    bitCounts: [4, 4, 0, 0]
+    numComponents: 2
+  L4A4_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y']
+    bitCounts: [4, 4, 0, 0]
+    numComponents: 2
+  X4Y4Z4W4_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [4, 4, 4, 4]
+    bpp: 16
+    numComponents: 4
+  X4Y4Z4W4_Uscaled:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [4, 4, 4, 4]
+    bpp: 16
+    numComponents: 4
+  X5Y6Z5_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [5, 6, 5, 0]
+    bpp: 16
+    numComponents: 3
+  X5Y6Z5_Uscaled:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [5, 6, 5, 0]
+    bpp: 16
+    numComponents: 3
+  X5Y5Z5W1_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [5, 5, 5, 1]
+    bpp: 16
+    numComponents: 4
+  X5Y5Z5W1_Uscaled:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [5, 5, 5, 1]
+    bpp: 16
+    numComponents: 4
+  X1Y5Z5W5_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [1, 5, 5, 5]
+    bpp: 16
+    numComponents: 4
+  X1Y5Z5W5_Uscaled:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [1, 5, 5, 5]
+    bpp: 16
+    numComponents: 4
+  X8_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'W']
+  X8_Snorm:
+    <<: *defFormatInfo
+  X8_Uscaled:
+    <<: *defFormatInfo
+  X8_Sscaled:
+    <<: *defFormatInfo
+  X8_Uint:
+    <<: *defFormatInfo
+  X8_Sint:
+    <<: *defFormatInfo
+  X8_Srgb:
+    <<: *defFormatInfo
+  A8_Unorm:
+    <<: *defFormatInfo
+  L8_Unorm:
+    <<: *defFormatInfo
+  P8_Unorm:
+    <<: *defFormatInfo
+  X8Y8_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y']
+    bitCounts: [8, 8, 0, 0]
+    bpp: 16
+    numComponents: 2
+  X8Y8_Snorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y']
+    bitCounts: [8, 8, 0, 0]
+    bpp: 16
+    numComponents: 2
+  X8Y8_Uscaled:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y']
+    bitCounts: [8, 8, 0, 0]
+    bpp: 16
+    numComponents: 2
+  X8Y8_Sscaled:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y']
+    bitCounts: [8, 8, 0, 0]
+    bpp: 16
+    numComponents: 2
+  X8Y8_Uint:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y']
+    bitCounts: [8, 8, 0, 0]
+    bpp: 16
+    numComponents: 2
+  X8Y8_Sint:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y']
+    bitCounts: [8, 8, 0, 0]
+    bpp: 16
+    numComponents: 2
+  X8Y8_Srgb:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y']
+    bitCounts: [8, 8, 0, 0]
+    bpp: 16
+    numComponents: 2
+  L8A8_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y']
+    bitCounts: [8, 8, 0, 0]
+    bpp: 16
+    numComponents: 2
+  X8Y8Z8W8_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [8, 8, 8, 8]
+    bpp: 32
+    numComponents: 4
+  X8Y8Z8W8_Snorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [8, 8, 8, 8]
+    bpp: 32
+    numComponents: 4
+  X8Y8Z8W8_Uscaled:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [8, 8, 8, 8]
+    bpp: 32
+    numComponents: 4
+  X8Y8Z8W8_Sscaled:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [8, 8, 8, 8]
+    bpp: 32
+    numComponents: 4
+  X8Y8Z8W8_Uint:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [8, 8, 8, 8]
+    bpp: 32
+    numComponents: 4
+  X8Y8Z8W8_Sint:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [8, 8, 8, 8]
+    bpp: 32
+    numComponents: 4
+  X8Y8Z8W8_Srgb:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [8, 8, 8, 8]
+    bpp: 32
+    numComponents: 4
+  U8V8_Snorm_L8W8_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [8, 8, 8, 8]
+    bpp: 32
+    numComponents: 4
+  X10Y11Z11_Float:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [10, 11, 11, 0]
+    bpp: 32
+    numComponents: 3
+  X11Y11Z10_Float:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [11, 11, 10, 0]
+    bpp: 32
+    numComponents: 3
+  X10Y10Z10W2_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [10, 10, 10, 2]
+    bpp: 32
+    numComponents: 4
+  X10Y10Z10W2_Snorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [10, 10, 10, 2]
+    bpp: 32
+    numComponents: 4
+  X10Y10Z10W2_Uscaled:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [10, 10, 10, 2]
+    bpp: 32
+    numComponents: 4
+  X10Y10Z10W2_Sscaled:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [10, 10, 10, 2]
+    bpp: 32
+    numComponents: 4
+  X10Y10Z10W2_Uint:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [10, 10, 10, 2]
+    bpp: 32
+    numComponents: 4
+  X10Y10Z10W2_Sint:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [10, 10, 10, 2]
+    bpp: 32
+    numComponents: 4
+  X10Y10Z10W2Bias_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [10, 10, 10, 2]
+    bpp: 32
+    numComponents: 4
+  U10V10W10_Snorm_A2_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [10, 10, 10, 2]
+    bpp: 32
+    numComponents: 4
+  X16_Unorm:
+    <<: *defFormatInfo
+    bitCounts: [16, 0, 0, 0]
+    bpp: 16
+  X16_Snorm:
+    <<: *defFormatInfo
+    bitCounts: [16, 0, 0, 0]
+    bpp: 16
+  X16_Uscaled:
+    <<: *defFormatInfo
+    bitCounts: [16, 0, 0, 0]
+    bpp: 16
+  X16_Sscaled:
+    <<: *defFormatInfo
+    bitCounts: [16, 0, 0, 0]
+    bpp: 16
+  X16_Uint:
+    <<: *defFormatInfo
+    bitCounts: [16, 0, 0, 0]
+    bpp: 16
+  X16_Sint:
+    <<: *defFormatInfo
+    bitCounts: [16, 0, 0, 0]
+    bpp: 16
+  X16_Float:
+    <<: *defFormatInfo
+    bitCounts: [16, 0, 0, 0]
+    bpp: 16
+  L16_Unorm:
+    <<: *defFormatInfo
+    bitCounts: [16, 0, 0, 0]
+    bpp: 16
+  X16Y16_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y']
+    bitCounts: [16, 16, 0, 0]
+    bpp: 32
+    numComponents: 2
+  X16Y16_Snorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y']
+    bitCounts: [16, 16, 0, 0]
+    bpp: 32
+    numComponents: 2
+  X16Y16_Uscaled:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y']
+    bitCounts: [16, 16, 0, 0]
+    bpp: 32
+    numComponents: 2
+  X16Y16_Sscaled:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y']
+    bitCounts: [16, 16, 0, 0]
+    bpp: 32
+    numComponents: 2
+  X16Y16_Uint:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y']
+    bitCounts: [16, 16, 0, 0]
+    bpp: 32
+    numComponents: 2
+  X16Y16_Sint:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y']
+    bitCounts: [16, 16, 0, 0]
+    bpp: 32
+    numComponents: 2
+  X16Y16_Float:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y']
+    bitCounts: [16, 16, 0, 0]
+    bpp: 32
+    numComponents: 2
+  X16Y16Z16W16_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [16, 16, 16, 16]
+    bpp: 64
+    numComponents: 4
+  X16Y16Z16W16_Snorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [16, 16, 16, 16]
+    bpp: 64
+    numComponents: 4
+  X16Y16Z16W16_Uscaled:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [16, 16, 16, 16]
+    bpp: 64
+    numComponents: 4
+  X16Y16Z16W16_Sscaled:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [16, 16, 16, 16]
+    bpp: 64
+    numComponents: 4
+  X16Y16Z16W16_Uint:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [16, 16, 16, 16]
+    bpp: 64
+    numComponents: 4
+  X16Y16Z16W16_Sint:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [16, 16, 16, 16]
+    bpp: 64
+    numComponents: 4
+  X16Y16Z16W16_Float:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [16, 16, 16, 16]
+    bpp: 64
+    numComponents: 4
+  X32_Uint:
+    <<: *defFormatInfo
+    bitCounts: [32, 0, 0, 0]
+    bpp: 32
+  X32_Sint:
+    <<: *defFormatInfo
+    bitCounts: [32, 0, 0, 0]
+    bpp: 32
+  X32_Float:
+    <<: *defFormatInfo
+    bitCounts: [32, 0, 0, 0]
+    bpp: 32
+  X32Y32_Uint:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y']
+    bitCounts: [32, 32, 0, 0]
+    bpp: 64
+    numComponents: 2
+  X32Y32_Sint:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y']
+    bitCounts: [32, 32, 0, 0]
+    bpp: 64
+    numComponents: 2
+  X32Y32_Float:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y']
+    bitCounts: [32, 32, 0, 0]
+    bpp: 64
+    numComponents: 2
+  X32Y32Z32_Uint:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [32, 32, 32, 0]
+    bpp: 96
+    numComponents: 3
+    optimalSupported: false
+  X32Y32Z32_Sint:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [32, 32, 32, 0]
+    bpp: 96
+    numComponents: 3
+    optimalSupported: false
+  X32Y32Z32_Float:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [32, 32, 32, 0]
+    bpp: 96
+    numComponents: 3
+    optimalSupported: false
+  X32Y32Z32W32_Uint:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [32, 32, 32, 32]
+    bpp: 128
+    numComponents: 4
+  X32Y32Z32W32_Sint:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [32, 32, 32, 32]
+    bpp: 128
+    numComponents: 4
+  X32Y32Z32W32_Float:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [32, 32, 32, 32]
+    bpp: 128
+    numComponents: 4
+  D16_Unorm_S8_Uint:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y']
+    bitCounts: [16, 8, 0, 0]
+    bpp: 24
+    numComponents: 2
+    depthStencil: true
+  D32_Float_S8_Uint:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y']
+    bitCounts: [32, 8, 0, 0]
+    bpp: 40
+    numComponents: 2
+    depthStencil: true
+  X9Y9Z9E5_Float:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [9, 9, 9, 5]
+    bpp: 32
+    numComponents: 4
+  Bc1_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 64
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  Bc1_Srgb:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 64
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  Bc2_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  Bc2_Srgb:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  Bc3_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  Bc3_Srgb:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  Bc4_Unorm:
+    <<: *defFormatInfo
+    bitCounts: [0, 0, 0, 0]
+    bpp: 64
+    compressed: true
+    bitCountInaccurate: true
+  Bc4_Snorm:
+    <<: *defFormatInfo
+    bitCounts: [0, 0, 0, 0]
+    bpp: 64
+    compressed: true
+    bitCountInaccurate: true
+  Bc5_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 2
+    compressed: true
+    bitCountInaccurate: true
+  Bc5_Snorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 2
+    compressed: true
+    bitCountInaccurate: true
+  Bc6_Ufloat:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 3
+    compressed: true
+    bitCountInaccurate: true
+  Bc6_Sfloat:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 3
+    compressed: true
+    bitCountInaccurate: true
+  Bc7_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  Bc7_Srgb:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  Etc2X8Y8Z8_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 64
+    numComponents: 3
+    compressed: true
+    bitCountInaccurate: true
+  Etc2X8Y8Z8_Srgb:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 64
+    numComponents: 3
+    compressed: true
+    bitCountInaccurate: true
+  Etc2X8Y8Z8W1_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 64
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  Etc2X8Y8Z8W1_Srgb:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 64
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  Etc2X8Y8Z8W8_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  Etc2X8Y8Z8W8_Srgb:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  Etc2X11_Unorm:
+    <<: *defFormatInfo
+    bitCounts: [0, 0, 0, 0]
+    bpp: 64
+    compressed: true
+    bitCountInaccurate: true
+  Etc2X11_Snorm:
+    <<: *defFormatInfo
+    bitCounts: [0, 0, 0, 0]
+    bpp: 64
+    compressed: true
+    bitCountInaccurate: true
+  Etc2X11Y11_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 2
+    compressed: true
+    bitCountInaccurate: true
+  Etc2X11Y11_Snorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 2
+    compressed: true
+    bitCountInaccurate: true
+  AstcLdr4x4_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  AstcLdr4x4_Srgb:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  AstcLdr5x4_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  AstcLdr5x4_Srgb:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  AstcLdr5x5_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  AstcLdr5x5_Srgb:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  AstcLdr6x5_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  AstcLdr6x5_Srgb:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  AstcLdr6x6_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  AstcLdr6x6_Srgb:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  AstcLdr8x5_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  AstcLdr8x5_Srgb:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  AstcLdr8x6_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  AstcLdr8x6_Srgb:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  AstcLdr8x8_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  AstcLdr8x8_Srgb:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  AstcLdr10x5_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  AstcLdr10x5_Srgb:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  AstcLdr10x6_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  AstcLdr10x6_Srgb:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  AstcLdr10x8_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  AstcLdr10x8_Srgb:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  AstcLdr10x10_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  AstcLdr10x10_Srgb:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  AstcLdr12x10_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  AstcLdr12x10_Srgb:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  AstcLdr12x12_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  AstcLdr12x12_Srgb:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  AstcHdr4x4_Float:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  AstcHdr5x4_Float:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  AstcHdr5x5_Float:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  AstcHdr6x5_Float:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  AstcHdr6x6_Float:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  AstcHdr8x5_Float:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  AstcHdr8x6_Float:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  AstcHdr8x8_Float:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  AstcHdr10x5_Float:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  AstcHdr10x6_Float:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  AstcHdr10x8_Float:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  AstcHdr10x10_Float:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  AstcHdr12x10_Float:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  AstcHdr12x12_Float:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [0, 0, 0, 0]
+    bpp: 128
+    numComponents: 4
+    compressed: true
+    bitCountInaccurate: true
+  X8Y8_Z8Y8_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [8, 8, 8, 1]
+    bpp: 16
+    numComponents: 3
+    macroPixelPacked: true
+  X8Y8_Z8Y8_Uscaled:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [8, 8, 8, 1]
+    bpp: 16
+    numComponents: 3
+    macroPixelPacked: true
+  Y8X8_Y8Z8_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [8, 8, 8, 1]
+    bpp: 16
+    numComponents: 3
+    macroPixelPacked: true
+  Y8X8_Y8Z8_Uscaled:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [8, 8, 8, 1]
+    bpp: 16
+    numComponents: 3
+    macroPixelPacked: true
+  AYUV:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [8, 8, 8, 8]
+    bpp: 32
+    numComponents: 4
+    yuvPacked: true
+  UYVY:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [8, 8, 8, 0]
+    bpp: 16
+    numComponents: 3
+    yuvPacked: true
+    macroPixelPacked: true
+  VYUY:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [8, 8, 8, 0]
+    bpp: 16
+    numComponents: 3
+    yuvPacked: true
+    macroPixelPacked: true
+  YUY2:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [8, 8, 8, 0]
+    bpp: 16
+    numComponents: 3
+    yuvPacked: true
+    macroPixelPacked: true
+  YVY2:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [8, 8, 8, 0]
+    bpp: 16
+    numComponents: 3
+    yuvPacked: true
+    macroPixelPacked: true
+  YV12:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [8, 8, 8, 0]
+    bpp: 16
+    numComponents: 3
+    bitCountInaccurate: true
+    yuvPlanar: true
+  NV11:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [8, 8, 8, 0]
+    bpp: 12
+    numComponents: 3
+    bitCountInaccurate: true
+    yuvPlanar: true
+  NV12:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [8, 8, 8, 0]
+    bpp: 12
+    numComponents: 3
+    bitCountInaccurate: true
+    yuvPlanar: true
+  NV21:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [8, 8, 8, 0]
+    bpp: 12
+    numComponents: 3
+    bitCountInaccurate: true
+    yuvPlanar: true
+  P016:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [16, 16, 16, 0]
+    bpp: 24
+    numComponents: 3
+    bitCountInaccurate: true
+    yuvPlanar: true
+  P010:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [16, 16, 16, 0]
+    bpp: 24
+    numComponents: 3
+    bitCountInaccurate: true
+    yuvPlanar: true
+  P210:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [16, 16, 16, 0]
+    bpp: 16
+    numComponents: 3
+    bitCountInaccurate: true
+    yuvPlanar: true
+  X8_MM_Unorm:
+    <<: *defFormatInfo
+  X8_MM_Uint:
+    <<: *defFormatInfo
+  X8Y8_MM_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y']
+    bitCounts: [8, 8, 0, 0]
+    bpp: 16
+    numComponents: 2
+  X8Y8_MM_Uint:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y']
+    bitCounts: [8, 8, 0, 0]
+    bpp: 16
+    numComponents: 2
+  X16_MM10_Unorm:
+    <<: *defFormatInfo
+    bitCounts: [16, 0, 0, 0]
+    bpp: 16
+  X16_MM10_Uint:
+    <<: *defFormatInfo
+    bitCounts: [16, 0, 0, 0]
+    bpp: 16
+  X16Y16_MM10_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y']
+    bitCounts: [16, 16, 0, 0]
+    bpp: 32
+    numComponents: 2
+  X16Y16_MM10_Uint:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y']
+    bitCounts: [16, 16, 0, 0]
+    bpp: 32
+    numComponents: 2
+  P208:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [8, 8, 8, 0]
+    bpp: 12
+    numComponents: 3
+    bitCountInaccurate: true
+    yuvPlanar: true
+  X16_MM12_Unorm:
+    <<: *defFormatInfo
+    bitCounts: [16, 0, 0, 0]
+    bpp: 16
+  X16_MM12_Uint:
+    <<: *defFormatInfo
+    bitCounts: [16, 0, 0, 0]
+    bpp: 16
+  X16Y16_MM12_Unorm:
+    <<: *defFormatInfo
+    channelMask: ['X,Y']
+    bitCounts: [16, 16, 0, 0]
+    bpp: 32
+    numComponents: 2
+  X16Y16_MM12_Uint:
+    <<: *defFormatInfo
+    channelMask: ['X,Y']
+    bitCounts: [16, 16, 0, 0]
+    bpp: 32
+    numComponents: 2
+  P012:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [16, 16, 16, 0]
+    bpp: 18
+    numComponents: 3
+    bitCountInaccurate: true
+    yuvPlanar: true
+  P212:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [16, 16, 16, 0]
+    bpp: 24
+    numComponents: 3
+    bitCountInaccurate: true
+    yuvPlanar: true
+  P412:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [16, 16, 16, 0]
+    bpp: 36
+    numComponents: 3
+    bitCountInaccurate: true
+    yuvPlanar: true
+  X10Y10Z10W2_Float:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [10, 10, 10, 2]
+    bpp: 32
+    numComponents: 4
+  Y216:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [16, 16, 16, 0]
+    bpp: 32
+    numComponents: 3
+    yuvPacked: true
+    macroPixelPacked: true
+  Y210:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z']
+    bitCounts: [16, 16, 16, 0]
+    bpp: 32
+    numComponents: 3
+    bitCountInaccurate: true
+    yuvPacked: true
+    macroPixelPacked: true
+  Y416:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [16, 16, 16, 16]
+    bpp: 64
+    numComponents: 4
+    yuvPacked: true
+  Y410:
+    <<: *defFormatInfo
+    channelMask: ['X', 'Y', 'Z', 'W']
+    bitCounts: [10, 10, 10, 2]
+    bpp: 32
+    numComponents: 4
+    yuvPacked: true

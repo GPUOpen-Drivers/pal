@@ -285,13 +285,19 @@ Result QueueTimingsTraceSource::Init(
 }
 
 // =====================================================================================================================
-void QueueTimingsTraceSource::OnTraceAccepted()
+void QueueTimingsTraceSource::OnTraceAccepted(
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 908
+    uint32      gpuIndex,
+    ICmdBuffer* pCmdBuf)
+#else
+    )
+#endif
 {
     if (m_traceIsHealthy)
     {
         m_timingInProgress = true;
 
-        GpaSessionBeginInfo beginInfo = { };
+        GpaSessionBeginInfo beginInfo     = {};
         beginInfo.flags.enableQueueTiming = 1;
 
         Result result = m_pGpaSession->Begin(beginInfo);
@@ -328,8 +334,14 @@ void QueueTimingsTraceSource::OnTraceEnd(
 
     if (m_traceIsHealthy)
     {
+        Result result = m_pGpaSession->SampleTimingClocks();
 
-        Result result = m_pGpaSession->End(pCmdBuf);
+        if (result != Result::Success)
+        {
+            ReportInternalError("Error encountered when sampling timing clocks", result);
+        }
+
+        result = m_pGpaSession->End(pCmdBuf);
 
         if (result != Result::Success)
         {

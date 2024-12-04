@@ -536,7 +536,8 @@ void GfxDevice::DescribeDispatch(
     Developer::DrawDispatchType cmdType,
     DispatchDims                offset,
     DispatchDims                launchSize,
-    DispatchDims                logicalSize
+    DispatchDims                logicalSize,
+    DispatchInfoFlags           infoFlags
     ) const
 {
     Developer::DrawDispatchData data { };
@@ -547,6 +548,7 @@ void GfxDevice::DescribeDispatch(
     data.dispatch.groupStart  = offset;
     data.dispatch.groupDims   = launchSize;
     data.dispatch.logicalSize = logicalSize;
+    data.dispatch.infoFlags   = infoFlags;
 
     m_pParent->DeveloperCb(Developer::CallbackType::DrawDispatch, &data);
 }
@@ -902,6 +904,33 @@ const MsaaQuadSamplePattern GfxDevice::DefaultSamplePattern[] = {
         },
     },
 };
+
+// =====================================================================================================================
+// See IDevice::GetDefaultSamplePattern for usage comments.
+Result GfxDevice::GetDefaultSamplePattern(
+    uint32                 samples,
+    MsaaQuadSamplePattern* pQuadSamplePattern
+    ) const
+{
+    Result       result   = Result::Success;
+    const uint32 tableIdx = Log2(samples);
+
+    if (pQuadSamplePattern == nullptr)
+    {
+        result = Result::ErrorInvalidPointer;
+    }
+    else if ((IsPowerOfTwo(samples) == false) ||
+             (tableIdx >= ArrayLen32(GfxDevice::DefaultSamplePattern)))
+    {
+        result = Result::ErrorInvalidValue;
+    }
+    else
+    {
+        memcpy(pQuadSamplePattern, &GfxDevice::DefaultSamplePattern[tableIdx], sizeof(MsaaQuadSamplePattern));
+    }
+
+    return result;
+}
 
 // =====================================================================================================================
 // Call back to above layers before starting the barrier execution.

@@ -501,6 +501,9 @@ void IndirectCmdGenerator::PopulateParameterBuffer(
     {
         PAL_ASSERT(Type() != Pm4::GeneratorType::Dispatch);
         const auto& signature = static_cast<const GraphicsPipeline*>(pPipeline)->Signature();
+
+        const bool hasTaskShader = pPipeline->IsTaskShaderEnabled();
+
         const uint32 paddedParamCount = PaddedParamCount(ParameterCount());
 
         BufferViewInfo viewInfo = { };
@@ -510,7 +513,6 @@ void IndirectCmdGenerator::PopulateParameterBuffer(
 
         IndirectParamData* pData = reinterpret_cast<IndirectParamData*>(pCmdBuffer->CmdAllocateEmbeddedData(
             sizeof(IndirectParamData) * paddedParamCount / sizeof(uint32), 1, &viewInfo.gpuAddr));
-
         PAL_ASSERT(pData != nullptr);
         memcpy(pData, m_pParamData, sizeof(IndirectParamData) * paddedParamCount);
 
@@ -525,8 +527,17 @@ void IndirectCmdGenerator::PopulateParameterBuffer(
                 const UserDataEntryMap* pStage = &signature.stage[0];
                 uint32 numHwStages = 0;
 
-                for (uint32 stage = 0; stage < NumHwShaderStagesGfx; ++stage)
+                const uint32 stageCount = NumHwShaderStagesGfx + (hasTaskShader ? 1 : 0);
+
+                for (uint32 stage = 0; stage < stageCount; ++stage)
                 {
+                    if (hasTaskShader && (stage == (stageCount - 1)))
+                    {
+                        const auto& taskSignature =
+                            static_cast<const HybridGraphicsPipeline*>(pPipeline)->GetTaskSignature();
+                        pStage = &taskSignature.stage;
+                    }
+
                     for (uint32 i = 0; i < pStage->userSgprCount; ++i)
                     {
                         if (pStage->mappedEntry[i] == param.userData.firstEntry)
@@ -578,6 +589,8 @@ uint32 IndirectCmdGenerator::CmdBufStride(
     {
         const auto& signature = static_cast<const GraphicsPipeline*>(pPipeline)->Signature();
 
+        const bool hasTaskShader = pPipeline->IsTaskShaderEnabled();
+
         for (uint32 p = 0; ((m_pCreationParam != nullptr) && (p < ParameterCount())); ++p)
         {
             const IndirectParam& param = m_pCreationParam[p];
@@ -588,8 +601,17 @@ uint32 IndirectCmdGenerator::CmdBufStride(
                 const UserDataEntryMap* pStage = &signature.stage[0];
                 uint32 numHwStages = 0;
 
-                for (uint32 stage = 0; stage < NumHwShaderStagesGfx; ++stage)
+                const uint32 stageCount = NumHwShaderStagesGfx + (hasTaskShader ? 1 : 0);
+
+                for (uint32 stage = 0; stage < stageCount; ++stage)
                 {
+                    if (hasTaskShader && (stage == (stageCount - 1)))
+                    {
+                        const auto& taskSignature =
+                            static_cast<const HybridGraphicsPipeline*>(pPipeline)->GetTaskSignature();
+                        pStage = &taskSignature.stage;
+                    }
+
                     for (uint32 i = 0; i < pStage->userSgprCount; ++i)
                     {
                         if (pStage->mappedEntry[i] == param.userData.firstEntry)
@@ -650,6 +672,8 @@ void IndirectCmdGenerator::PopulatePropertyBuffer(
         Pm4::GeneratorProperties* pData = reinterpret_cast<Pm4::GeneratorProperties*>(
             pCmdBuffer->CmdAllocateEmbeddedData(static_cast<uint32>(viewInfo.range) /
                                                 sizeof(uint32), 1, &viewInfo.gpuAddr));
+        PAL_ASSERT(pData != nullptr);
+
         memcpy(pData, &m_properties, sizeof(m_properties));
         pData->cmdBufStride = CmdBufStride(pPipeline);
 
@@ -686,10 +710,11 @@ void IndirectCmdGenerator::PopulateInvocationBuffer(
         &viewInfo.gpuAddr));
     PAL_ASSERT(pData != nullptr);
 
-    pData->maximumCmdCount    = maximumCount;
-    pData->indexBufSize       = indexBufSize;
-    pData->argumentBufAddr[0] = LowPart(argsGpuAddr);
-    pData->argumentBufAddr[1] = HighPart(argsGpuAddr);
+    Pm4::InvocationProperties data { };
+    data.maximumCmdCount    = maximumCount;
+    data.indexBufSize       = indexBufSize;
+    data.argumentBufAddr[0] = LowPart(argsGpuAddr);
+    data.argumentBufAddr[1] = HighPart(argsGpuAddr);
 
     if ((Type() == Pm4::GeneratorType::Dispatch) || ((Type() == Pm4::GeneratorType::DispatchMesh) && isTaskEnabled))
     {
@@ -711,19 +736,22 @@ void IndirectCmdGenerator::PopulateInvocationBuffer(
 
         regCOMPUTE_DISPATCH_INITIATOR dispatchInitiator = {};
 
-        dispatchInitiator.bits.COMPUTE_SHADER_EN = 1;
-        dispatchInitiator.bits.ORDER_MODE        = 1;
-        dispatchInitiator.gfx11.AMP_SHADER_EN    = isTaskEnabled;
-        dispatchInitiator.bits.CS_W32_EN         = csWave32;
-        dispatchInitiator.bits.TUNNEL_ENABLE     = pCmdBuffer->UsesDispatchTunneling();
+        dispatchInitiator.bits.FORCE_START_AT_000 = (Type() == Pm4::GeneratorType::Dispatch) ? 1 : 0;
+        dispatchInitiator.bits.COMPUTE_SHADER_EN  = 1;
+        dispatchInitiator.bits.ORDER_MODE         = 1;
+        dispatchInitiator.gfx11.AMP_SHADER_EN     = (isTaskEnabled ? 1 : 0);
+        dispatchInitiator.bits.CS_W32_EN          = (csWave32      ? 1 : 0);
+        dispatchInitiator.bits.TUNNEL_ENABLE      = pCmdBuffer->UsesDispatchTunneling();
 
         if (disablePartialPreempt)
         {
             dispatchInitiator.u32All |= ComputeDispatchInitiatorDisablePartialPreemptMask;
         }
 
-        pData->dispatchInitiator = dispatchInitiator.u32All;
+        data.dispatchInitiator = dispatchInitiator.u32All;
     }
+
+    *pData = data;
 
     m_device.Parent()->CreateTypedBufferViewSrds(1, &viewInfo, pSrd);
 }
@@ -750,8 +778,11 @@ void IndirectCmdGenerator::PopulateSignatureBuffer(
 
         const auto& signature = static_cast<const ComputePipeline*>(pPipeline)->Signature();
 
-        pData->spillThreshold       = signature.spillThreshold;
-        pData->numWorkGroupsRegAddr = signature.numWorkGroupsRegAddr;
+        ComputePipelineSignatureData data { };
+        data.spillThreshold       = signature.spillThreshold;
+        data.numWorkGroupsRegAddr = signature.numWorkGroupsRegAddr;
+
+        *pData = data;
     }
     else if (Type() == Pm4::GeneratorType::DispatchMesh)
     {
@@ -768,10 +799,13 @@ void IndirectCmdGenerator::PopulateSignatureBuffer(
 
         const auto& secondSignature = static_cast<const HybridGraphicsPipeline*>(pPipeline)->GetTaskSignature();
 
-        pSecondData->spillThreshold          = secondSignature.spillThreshold;
-        pSecondData->numWorkGroupsRegAddr    = secondSignature.numWorkGroupsRegAddr;
-        pSecondData->taskDispatchDimsRegAddr = secondSignature.taskDispatchDimsAddr;
-        pSecondData->taskRingIndexAddr       = secondSignature.taskRingIndexAddr;
+        ComputePipelineSignatureData secondData { };
+        secondData.spillThreshold          = secondSignature.spillThreshold;
+        secondData.numWorkGroupsRegAddr    = secondSignature.numWorkGroupsRegAddr;
+        secondData.taskDispatchDimsRegAddr = secondSignature.taskDispatchDimsAddr;
+        secondData.taskRingIndexAddr       = secondSignature.taskRingIndexAddr;
+
+        *pSecondData = secondData;
 
         secondViewInfo.range          = secondViewInfo.stride;
         secondViewInfo.swizzledFormat = UndefinedSwizzledFormat;
@@ -788,12 +822,15 @@ void IndirectCmdGenerator::PopulateSignatureBuffer(
 
         const auto& signature = static_cast<const GraphicsPipeline*>(pPipeline)->Signature();
 
-        pData->spillThreshold          = signature.spillThreshold;
-        pData->vertexOffsetRegAddr     = signature.vertexOffsetRegAddr;
-        pData->drawIndexRegAddr        = signature.drawIndexRegAddr;
-        pData->vertexBufTableRegAddr   = signature.vertexBufTableRegAddr;
-        pData->meshDispatchDimsRegAddr = signature.meshDispatchDimsRegAddr;
-        pData->meshRingIndexAddr       = signature.meshRingIndexAddr;
+        GraphicsPipelineSignatureData data { };
+        data.spillThreshold          = signature.spillThreshold;
+        data.vertexOffsetRegAddr     = signature.vertexOffsetRegAddr;
+        data.drawIndexRegAddr        = signature.drawIndexRegAddr;
+        data.vertexBufTableRegAddr   = signature.vertexBufTableRegAddr;
+        data.meshDispatchDimsRegAddr = signature.meshDispatchDimsRegAddr;
+        data.meshRingIndexAddr       = signature.meshRingIndexAddr;
+
+        *pData = data;
     }
     else
     {
@@ -806,10 +843,13 @@ void IndirectCmdGenerator::PopulateSignatureBuffer(
 
         const auto& signature = static_cast<const GraphicsPipeline*>(pPipeline)->Signature();
 
-        pData->spillThreshold          = signature.spillThreshold;
-        pData->vertexOffsetRegAddr     = signature.vertexOffsetRegAddr;
-        pData->drawIndexRegAddr        = signature.drawIndexRegAddr;
-        pData->vertexBufTableRegAddr   = signature.vertexBufTableRegAddr;
+        GraphicsPipelineSignatureData data { };
+        data.spillThreshold        = signature.spillThreshold;
+        data.vertexOffsetRegAddr   = signature.vertexOffsetRegAddr;
+        data.drawIndexRegAddr      = signature.drawIndexRegAddr;
+        data.vertexBufTableRegAddr = signature.vertexBufTableRegAddr;
+
+        *pData = data;
     }
 
     viewInfo.range          = viewInfo.stride;
@@ -903,6 +943,7 @@ void IndirectCmdGenerator::PopulateUserDataMappingBuffer(
         { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
 
     uint32* pData = pCmdBuffer->CmdAllocateEmbeddedData((stageCount * dwordsPerStage), 1, &viewInfo.gpuAddr);
+    PAL_ASSERT(pData != nullptr);
 
     for (uint32 stage = 0; stage < stageCount; ++stage)
     {

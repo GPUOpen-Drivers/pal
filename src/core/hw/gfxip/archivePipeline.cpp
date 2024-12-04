@@ -113,20 +113,11 @@ Result ArchivePipeline::Init(
         }
     }
 
-    // As a temporary fix, call LinkWithLibraries on each IPipeline with all compute
-    // libraries in the archive. We don't need the propagation of register and stack usage,
-    // as the compiler has already done that. But we do need the update of the upload tokens.
-    // When this code is properly moved into PAL, it can do the update of upload tokens more
-    // directly instead of using LinkWithLibraries.
     if (m_libraries.IsEmpty() == false)
     {
         for (IPipeline* pPipeline : m_pipelines)
         {
-            result = pPipeline->LinkWithLibraries(m_libraries.Data(), m_libraries.NumElements());
-            if (result != Result::Success)
-            {
-                break;
-            }
+            static_cast<Pipeline*>(pPipeline)->MergePagingAndUploadFences(GetLibraries());
         }
     }
 

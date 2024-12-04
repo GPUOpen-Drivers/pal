@@ -695,12 +695,6 @@ size_t CmdUtil::BuildAcquireMemGfxPws(
     // There are a couple of cases where we need to modify the caller's stage select before applying it.
     ME_ACQUIRE_MEM_pws_stage_sel_enum stageSel = info.stageSel;
 
-    if (m_device.Settings().waForcePrePixShaderWaitPoint &&
-        (stageSel == pws_stage_sel__me_acquire_mem__pre_color__GFX11))
-    {
-        stageSel = pws_stage_sel__me_acquire_mem__pre_pix_shader__GFX11;
-    }
-
     // We need to wait at one of the CP stages if we want it to do a GCR after waiting. Rather than force the caller
     // to get this right we just silently handle it. It can't cause any correctness issues, it's just a perf hit.
     if ((info.cacheSync != 0) &&
@@ -1161,17 +1155,17 @@ size_t CmdUtil::BuildPerfmonControl(
     uint32     eventUnitMask, // If enabling, this is event specific configuration data.
     void*      pBuffer)       // [out] Build the PM4 packet in this buffer.
 {
-    constexpr uint32       PacketSize = PM4_ME_PERFMON_CONTROL_SIZEDW__GFX103PLUSEXCLUSIVE;
+    constexpr uint32       PacketSize = PM4_ME_PERFMON_CONTROL_SIZEDW__GFX103PLUS;
     PM4_ME_PERFMON_CONTROL packetGfx;
 
-    packetGfx.ordinal1.header        = Type3Header(IT_PERFMON_CONTROL__GFX103PLUSEXCLUSIVE, PacketSize);
+    packetGfx.ordinal1.header        = Type3Header(IT_PERFMON_CONTROL__GFX103PLUS, PacketSize);
 
-    packetGfx.ordinal2.u32All                                      = 0;
-    packetGfx.ordinal2.bitfields.gfx103PlusExclusive.pmc_id        = perfMonCtlId;
-    packetGfx.ordinal2.bitfields.gfx103PlusExclusive.pmc_en        = static_cast<ME_PERFMON_CONTROL_pmc_en_enum>(enable);
-    packetGfx.ordinal2.bitfields.gfx103PlusExclusive.pmc_unit_mask = eventUnitMask;
-    packetGfx.ordinal3.u32All                                      = 0;
-    packetGfx.ordinal3.bitfields.gfx103PlusExclusive.pmc_event     = eventSelect;
+    packetGfx.ordinal2.u32All                             = 0;
+    packetGfx.ordinal2.bitfields.gfx103Plus.pmc_id        = perfMonCtlId;
+    packetGfx.ordinal2.bitfields.gfx103Plus.pmc_en        = static_cast<ME_PERFMON_CONTROL_pmc_en_enum>(enable);
+    packetGfx.ordinal2.bitfields.gfx103Plus.pmc_unit_mask = eventUnitMask;
+    packetGfx.ordinal3.u32All                             = 0;
+    packetGfx.ordinal3.bitfields.gfx103Plus.pmc_event     = eventSelect;
 
     memcpy(pBuffer, &packetGfx, PacketSize * sizeof(uint32));
     return PacketSize;
@@ -3338,15 +3332,15 @@ size_t CmdUtil::BuildLoadShRegsIndex(
     ) const
 {
     static_assert(((static_cast<uint32>(index__pfp_load_sh_reg_index__direct_addr) ==
-                    static_cast<uint32>(index__mec_load_sh_reg_index__direct_addr__GFX103PLUSEXCLUSIVE)) &&
-                   (static_cast<uint32>(index__pfp_load_sh_reg_index__indirect_addr__GFX103PLUSEXCLUSIVE) ==
-                    static_cast<uint32>(index__mec_load_sh_reg_index__indirect_addr__GFX103PLUSEXCLUSIVE))),
+                    static_cast<uint32>(index__mec_load_sh_reg_index__direct_addr__GFX103PLUS)) &&
+                   (static_cast<uint32>(index__pfp_load_sh_reg_index__indirect_addr__GFX103PLUS) ==
+                    static_cast<uint32>(index__mec_load_sh_reg_index__indirect_addr__GFX103PLUS))),
                   "LOAD_SH_REG_INDEX index enumerations don't match between PFP and MEC!");
 
     static_assert(((static_cast<uint32>(data_format__pfp_load_sh_reg_index__offset_and_size) ==
-                    static_cast<uint32>(data_format__mec_load_sh_reg_index__offset_and_size__GFX103PLUSEXCLUSIVE)) &&
+                    static_cast<uint32>(data_format__mec_load_sh_reg_index__offset_and_size__GFX103PLUS)) &&
                    (static_cast<uint32>(data_format__pfp_load_sh_reg_index__offset_and_data) ==
-                    static_cast<uint32>(data_format__mec_load_sh_reg_index__offset_and_data__GFX103PLUSEXCLUSIVE))),
+                    static_cast<uint32>(data_format__mec_load_sh_reg_index__offset_and_data__GFX103PLUS))),
                   "LOAD_SH_REG_INDEX data format enumerations don't match between PFP and MEC!");
 
     constexpr uint32 PacketSize = PM4_PFP_LOAD_SH_REG_INDEX_SIZEDW__CORE;
@@ -3357,7 +3351,7 @@ size_t CmdUtil::BuildLoadShRegsIndex(
 
     if (HasEnhancedLoadShRegIndex())
     {
-        packet.ordinal2.bitfields.gfx103PlusExclusive.index = index;
+        packet.ordinal2.bitfields.gfx103Plus.index = index;
     }
     else
     {
@@ -4616,14 +4610,8 @@ size_t CmdUtil::BuildWaitEopPws(
             acquireInfo.stageSel = pws_stage_sel__me_acquire_mem__cp_me__GFX11;
             break;
         case AcquirePointPreDepth:
-            acquireInfo.stageSel = pws_stage_sel__me_acquire_mem__pre_depth__GFX11;
-            break;
-        case AcquirePointPrePs:
-            acquireInfo.stageSel = pws_stage_sel__me_acquire_mem__pre_shader__GFX11;
-            break;
-        case AcquirePointPreColor:
         case AcquirePointEop:
-            acquireInfo.stageSel = pws_stage_sel__me_acquire_mem__pre_color__GFX11;
+            acquireInfo.stageSel = pws_stage_sel__me_acquire_mem__pre_depth__GFX11;
             break;
         default:
             // What is this?

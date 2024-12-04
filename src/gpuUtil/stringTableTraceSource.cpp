@@ -33,6 +33,7 @@ using namespace Pal;
 
 namespace GpuUtil
 {
+std::atomic<Pal::uint32> StringTableTraceSource::s_nextTableId = 0;
 
 // =====================================================================================================================
 StringTableTraceSource::StringTableTraceSource(

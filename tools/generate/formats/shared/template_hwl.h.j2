@@ -1,0 +1,137 @@
+/* Copyright (c) 2016-{{ Year }} Advanced Micro Devices, Inc. All rights reserved. */
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+// WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!
+//
+// This code has been generated automatically. Do not hand-modify this code.
+//
+// When changes are needed, modify the tools generating this module in the PalTools/codegen/formats directory.
+//
+// WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING!  WARNING! WARNING!  WARNING!  WARNING!  WARNING!
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#pragma once
+
+/**
+***********************************************************************************************************************
+* @file  {{ FileName }}
+* @brief Auto-generated file that describes the channel format properties for {{ GfxipNamespace }}.
+***********************************************************************************************************************
+*/
+
+#include "pal.h"
+#include "core/device.h"
+#include "core/hw/gfxip/{{ GfxipNamespace|lower }}/{{ GfxipNamespace|lower }}FormatInfo.h"
+
+namespace Pal
+{
+namespace Formats
+{
+namespace {{ GfxipNamespace }}
+{
+{%- for name, hwl_data in Data.items() %}
+{%- set ifdefs = hwl_data['config'].get('ifdefs', []) -%}
+{%- if ifdefs|length > 0 %}
+
+#if {{ " || ".join(ifdefs) }}
+{%- endif %}
+// Lookup table for GPU access capabilities for each format/tiling-type pairing in {{ name }}
+constexpr MergedFormatPropertiesTable {{ name }}MergedFormatPropertiesTable =
+{{ '{{' }}
+    // Note: Feature capabilities are listed in (linear, optimal) order.
+    {% for fmt_name, fmt_data in hwl_data['hwFormats'].items() %}
+    {%- set ifmt = IFmts[fmt_name] -%}
+    // {{ fmt_name }}
+    {
+        {%- set linear_flags = fmt_data.format_feature_flags(ifmt, True) -%}
+        {% if linear_flags|length == 0 %}
+        FormatFeatureFlags(0),
+        {%- else %}
+        FormatFeatureFlags({% for flag in linear_flags %}
+            {% if loop.index == linear_flags|length -%}
+            {{ flag }}
+            {%- else -%}
+            {{ "{0:<32s}".format(flag) }}
+            {%- endif -%}
+        {%- if (linear_flags|length > 1) and (loop.index != linear_flags|length) %} {{ '|' }}
+        {%- endif -%}
+        {%- endfor %}
+        ),
+        {%- endif %}
+        {%- set optimal_flags = fmt_data.format_feature_flags(ifmt, false) -%}
+        {% if optimal_flags|length == 0 %}
+        FormatFeatureFlags(0),
+        {%- else %}
+        FormatFeatureFlags({% for flag in optimal_flags %}
+            {% if loop.index == optimal_flags|length -%}
+            {{ flag }}
+            {%- else -%}
+            {{ "{0:<32s}".format(flag) }}
+            {%- endif -%}
+        {%- if (optimal_flags|length > 1) and (loop.index != optimal_flags|length) %} {{ '|' }}
+        {%- endif -%}
+        {%- endfor %}
+        ),
+        {%- endif %}
+    },
+    {% endfor %}
+{{ '}}' }};
+
+// Stores a ChannelFmtInfo struct for each available channel format for mapping PAL channel formats to the format values
+// for various hardware blocks.
+constexpr MergedFlatFmtInfo {{ name }}MergedChannelFmtInfoTbl[] =
+{
+{%- for fmt_name, fmt_data in hwl_data['hwFormats'].items() %}
+{%- set ifmt = IFmts[fmt_name] %}
+    // ChNumFormat::{{ fmt_name }}
+    {
+        ChNumFormat::{{ fmt_name }},
+        Chip::{{ fmt_data.cb['enum'] }},
+        Chip::{{ fmt_data.cb['num_fmt_enum'] }},
+        Chip::{{ fmt_data.texture['enum'] }},
+        Chip::{{ fmt_data.buffer['enum'] }},
+        Chip::{{ fmt_data.db['z_enum'] }},
+        Chip::{{ fmt_data.db['s_enum'] }},
+    },
+{%- endfor %}
+};
+
+// Stores a ChNumFormat struct for each HW image format up to the last format known to the spreadsheet.
+constexpr ChNumFormat {{ name }}MergedImgDataFmtTbl[] =
+{
+{%- for i in range(0, hwl_data['texture_enums'].keys()|max + 1) %}
+{%- if i in hwl_data['texture_enums'] -%}
+{%- set tex_data = hwl_data['texture_enums'][i] -%}
+{%- else -%}
+{%- set tex_data = ("IMG_FMT_INVALID", "Undefined") -%}
+{%- endif %}
+    {{ "{0:<35s}".format("ChNumFormat::" + tex_data[1] + ",") }} // {{ tex_data[0] }}
+{%- endfor %}
+};
+
+constexpr uint32 {{ name }}MergedImgDataFmtCount = sizeof({{ name }}MergedImgDataFmtTbl) / sizeof(ChNumFormat);
+
+// Stores a ChNumFormat struct for each HW buffer format up to the last format known to the spreadsheet.
+constexpr ChNumFormat {{ name }}MergedBufDataFmtTbl[] =
+{
+{%- for i in range(0, hwl_data['buffer_enums'].keys()|max + 1) %}
+{%- if i in hwl_data['buffer_enums'] -%}
+{%- set buf_data = hwl_data['buffer_enums'][i] -%}
+{%- else -%}
+{%- set buf_data = ("BUF_FMT_INVALID", "Undefined") -%}
+{%- endif %}
+    {{ "{0:<35s}".format("ChNumFormat::" + buf_data[1] + ",") }} // {{ buf_data[0] }}
+{%- endfor %}
+};
+
+constexpr uint32 {{ name }}MergedBufDataFmtCount = sizeof({{ name }}MergedBufDataFmtTbl) / sizeof(ChNumFormat);
+
+{%- if ifdefs|length > 0 %}
+#endif // {{ " || ".join(ifdefs) }}
+{% endif %}
+{%- endfor %}
+
+} // {{ GfxipNamespace }}
+} // Formats
+} // Pal

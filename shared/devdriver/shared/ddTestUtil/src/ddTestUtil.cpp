@@ -24,7 +24,7 @@
  **********************************************************************************************************************/
 
 #include <ddTestUtil.h>
-
+#include <dd_timeout_constants.h>
 #include <ddRouter.h>
 #include <ddNet.h>
 #include <ddRpcServerApi.h>
@@ -201,6 +201,9 @@ void ClientServerTest::HandleMessageChannelEvent(BusEventType type, const void* 
 void ClientServerTest::SetUp()
 {
     DDNetworkedTest::SetUp();
+
+    TimeoutConstants timeouts = {};
+    TimeoutConstantsInitialize(&timeouts);
 
     HostInfo testHostInfo = kDefaultNamedPipe;
     testHostInfo.port = m_router.GetLocalPort();

@@ -38,8 +38,7 @@ public:
     ~EventClient();
 
     DD_RESULT Connect(
-        DDClientId clientId,
-        uint32_t   timeoutInMs);
+        DDClientId clientId);
 
     DD_RESULT ReadEventData(
         uint32_t timeoutInMs);

@@ -368,7 +368,7 @@ namespace DevDriver
 
         // Private copy constructor to prevent implicit copies
         Queue(const Queue& rhs)
-            : Queue(rhs.allocCb)
+            : Queue(rhs.m_allocCb)
         {
             GrowBlocks(rhs.m_numBlocks);
             for (int i = 0; i < rhs.m_size; i++)

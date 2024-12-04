@@ -816,9 +816,9 @@ enum CE_PRIME_UTCL2_engine_sel_enum
 // -------------------------------- CE_PRIME_UTCL2_cache_perm_enum --------------------------------
 enum CE_PRIME_UTCL2_cache_perm_enum
 {
-    cache_perm__ce_prime_utcl2__read__GFX103    =  0,
-    cache_perm__ce_prime_utcl2__write__GFX103   =  1,
-    cache_perm__ce_prime_utcl2__execute__GFX103 =  2,
+    cache_perm__ce_prime_utcl2__read__GFX10VRS    =  0,
+    cache_perm__ce_prime_utcl2__write__GFX10VRS   =  1,
+    cache_perm__ce_prime_utcl2__execute__GFX10VRS =  2,
 };
 
 // -------------------------------------- PM4_CE_PRIME_UTCL2 --------------------------------------
@@ -850,7 +850,7 @@ typedef struct PM4_CE_PRIME_UTCL2
             {
                 CE_PRIME_UTCL2_cache_perm_enum cache_perm :  3;
                 uint32_t                       reserved4  : 29;
-            } gfx103;
+            } gfx10Vrs;
         } bitfields;
         uint32_t u32All;
     } ordinal2;

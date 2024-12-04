@@ -146,7 +146,7 @@ public:
         uint32                 regionCount,
         const ImageCopyRegion* pRegions,
         const Rect*            pScissorRect,
-        uint32                 flags) const;
+        uint32                 flags) const = 0;
 
     virtual void CmdCopyMemoryToImage(
         GfxCmdBuffer*                pCmdBuffer,
@@ -243,7 +243,7 @@ public:
         const SubresRange* pRanges,
         uint32             rectCount,
         const Rect*        pRects,
-        uint32             flags) const;
+        uint32             flags) const = 0;
 
     void CmdClearColorBuffer(
         GfxCmdBuffer*     pCmdBuffer,
@@ -272,9 +272,9 @@ public:
         const SubresRange*    pRanges,
         uint32                boxCount,
         const Box*            pBoxes,
-        uint32                flags) const;
+        uint32                flags) const = 0;
 
-    virtual void CmdClearBufferView(
+    void CmdClearBufferView(
         GfxCmdBuffer*     pCmdBuffer,
         const IGpuMemory& dstGpuMemory,
         const ClearColor& color,
@@ -282,7 +282,7 @@ public:
         uint32            rangeCount = 0,
         const Range*      pRanges    = nullptr) const;
 
-    virtual void CmdClearImageView(
+    void CmdClearImageView(
         GfxCmdBuffer*     pCmdBuffer,
         const Image&      dstImage,
         ImageLayout       dstImageLayout,
@@ -300,8 +300,7 @@ public:
         ResolveMode               resolveMode,
         uint32                    regionCount,
         const ImageResolveRegion* pRegions,
-        uint32                    flags) const
-        { PAL_NEVER_CALLED(); }
+        uint32                    flags) const = 0;
 
     virtual void CmdResolvePrtPlusImage(
         GfxCmdBuffer*                    pCmdBuffer,
@@ -311,23 +310,14 @@ public:
         ImageLayout                      dstImageLayout,
         PrtPlusResolveType               resolveType,
         uint32                           regionCount,
-        const PrtPlusImageResolveRegion* pRegions) const
-        { PAL_NEVER_CALLED(); }
-
-    virtual void CmdGfxDccToDisplayDcc(
-        GfxCmdBuffer* pCmdBuffer,
-        const IImage& image) const;
-
-    virtual void CmdDisplayDccFixUp(
-        GfxCmdBuffer*      pCmdBuffer,
-        const IImage&      image) const;
+        const PrtPlusImageResolveRegion* pRegions) const = 0;
 
 protected:
     // When constructing SRD tables, all SRDs must be size and offset aligned to this many DWORDs.
     uint32 SrdDwordAlignment() const { return m_srdAlignment; }
 
     virtual bool CopyImageUseMipLevelInSrd(bool isCompressed) const { return UseMipLevelInSrd; }
-    virtual bool CopyImageCsUseMsaaMorton(const Image& dstImage) const;
+    virtual bool CopyImageCsUseMsaaMorton(const Image& dstImage) const = 0;
 
     // Assume optimized copies won't work
     virtual bool HwlUseOptimizedImageCopy(
@@ -344,13 +334,9 @@ protected:
         const Pal::Image&   dstImage) const
         { return false; }
 
-    //  If need to access single zRange for each subres independantly.
-    virtual bool HwlNeedSinglezRangeAccess() const { return false; }
-
     virtual bool ScaledCopyImageUseGraphics(
         GfxCmdBuffer*           pCmdBuffer,
-        const ScaledCopyInfo&   copyInfo) const
-        { return false; }
+        const ScaledCopyInfo&   copyInfo) const = 0;
 
     // Some blts need to use GFXIP-specific algorithms to pick the proper state. The baseState is the first
     // graphics state in a series of states that vary only on target format.
@@ -404,7 +390,7 @@ protected:
         bool         is3d,
         bool*        pIsFmaskCopy) const;
 
-    virtual void CopyImageCompute(
+    void CopyImageCompute(
         GfxCmdBuffer*          pCmdBuffer,
         const Image&           srcImage,
         ImageLayout            srcImageLayout,
@@ -520,38 +506,15 @@ private:
         uint32                  regionCount,
         bool                    isFmaskCopyOptimized) const = 0;
 
-    virtual void HwlGfxDccToDisplayDcc(
-        GfxCmdBuffer*     pCmdBuffer,
-        const Pal::Image& image) const
-        { PAL_NEVER_CALLED(); }
-
-    virtual void InitDisplayDcc(
-        GfxCmdBuffer*      pCmdBuffer,
-        const Pal::Image&  image) const
-        { PAL_NEVER_CALLED(); }
-
-    virtual void CopyImageGraphics(
-        GfxCmdBuffer*          pCmdBuffer,
-        const Image&           srcImage,
-        ImageLayout            srcImageLayout,
-        const Image&           dstImage,
-        ImageLayout            dstImageLayout,
-        uint32                 regionCount,
-        const ImageCopyRegion* pRegions,
-        const Rect*            pScissorRect,
-        uint32                 flags) const
-        { PAL_NEVER_CALLED(); }
-
     virtual void ScaledCopyImageGraphics(
         GfxCmdBuffer*         pCmdBuffer,
-        const ScaledCopyInfo& copyInfo) const
-        { PAL_NEVER_CALLED(); }
+        const ScaledCopyInfo& copyInfo) const = 0;
 
     void ScaledCopyImageCompute(
         GfxCmdBuffer*           pCmdBuffer,
         const ScaledCopyInfo&   copyInfo) const;
 
-    virtual void CopyBetweenMemoryAndImage(
+    void CopyBetweenMemoryAndImage(
         GfxCmdBuffer*                pCmdBuffer,
         const ComputePipeline*       pPipeline,
         const GpuMemory&             gpuMemory,
@@ -563,7 +526,7 @@ private:
         const MemoryImageCopyRegion* pRegions,
         bool                         includePadding) const;
 
-    virtual void CopyBetweenTypedBufferAndImage(
+    void CopyBetweenTypedBufferAndImage(
         GfxCmdBuffer*                           pCmdBuffer,
         const ComputePipeline*                  pPipeline,
         const GpuMemory&                        gpuMemory,

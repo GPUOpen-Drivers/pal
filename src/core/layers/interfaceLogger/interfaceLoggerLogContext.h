@@ -508,6 +508,7 @@ public:
     void Struct(const DirectCaptureInfo& value);
 
     void Struct(DispatchDims value);
+    void Struct(const DispatchInfoFlags value);
     void Struct(const DoppDesktopInfo& value);
     void Struct(const DoppRef& value);
     void Struct(const DynamicComputeShaderInfo& value);

@@ -598,9 +598,10 @@ void AddrMgr2::InitTilingCaps(
 // =====================================================================================================================
 // Helper function for determining the ADDR2 surface flags for a specific plane of an Image.
 ADDR2_SURFACE_FLAGS AddrMgr2::DetermineSurfaceFlags(
-    const Image& image,
-    uint32       plane,
-    bool         forFmask
+    const Image&                            image,
+    uint32                                  plane,
+    bool                                    forFmask,
+    const ADDR2_COMPUTE_SURFACE_INFO_INPUT* pSurfInfoIn
     ) const
 {
     ADDR2_SURFACE_FLAGS flags = { };
@@ -668,6 +669,18 @@ ADDR2_SURFACE_FLAGS AddrMgr2::DetermineSurfaceFlags(
                     image.IsPrivateScreenPresent() |
                     image.IsTurboSyncSurface()     |
                     createInfo.flags.pipSwapChain;
+
+    // If it is displayable, further check on the displaySwizzleMode
+    if ((flags.display != 0) && (pSurfInfoIn != nullptr))
+    {
+        BOOL_32 displayAble = FALSE;
+
+        if (Addr2IsValidDisplaySwizzleMode(
+            AddrLibHandle(), pSurfInfoIn->swizzleMode, pSurfInfoIn->bpp, &displayAble) == ADDR_OK)
+        {
+            flags.display = displayAble;
+        }
+    }
 
     if ((flags.depth == 1) || (createInfo.samples > 1))
     {
@@ -1435,7 +1448,7 @@ Result AddrMgr2::ComputeAlignedPlaneDimensions(
     surfInfoIn.numSamples   = createInfo.samples;
     surfInfoIn.numFrags     = createInfo.fragments;
     surfInfoIn.swizzleMode  = swizzleMode;
-    surfInfoIn.flags        = DetermineSurfaceFlags(*pImage, pBaseSubRes->subresId.plane, false);
+    surfInfoIn.flags        = DetermineSurfaceFlags(*pImage, pBaseSubRes->subresId.plane, false, &surfInfoIn);
 
     if ((createInfo.rowPitch > 0) && (createInfo.depthPitch > 0))
     {

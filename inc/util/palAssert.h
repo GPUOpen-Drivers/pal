@@ -37,8 +37,9 @@
 #include <signal.h>
 /// OS-independent macro to force a break into the debugger.
 #define PAL_DEBUG_BREAK() [[unlikely]] raise(SIGTRAP);
-/// This macro is only useful on MSVC builds. It has no meaning for Linux build.
-#define PAL_ANALYSIS_ASSUME(_expr) ((void)0)
+
+/// This macro is only useful on MSVC builds. It has no meaning for other builds.
+# define PAL_ANALYSIS_ASSUME(_expr) ((void)0)
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 825
 #if PAL_HAS_BUILTIN(__builtin_expect) || (defined(__GNUC__) && !defined(__clang__))

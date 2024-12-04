@@ -90,6 +90,18 @@ static constexpr uint32 MemoryOpsPerClockTable[static_cast<uint32>(LocalMemoryTy
     4   // Ddr5
 };
 
+#if PAL_BUILD_GFX
+// =====================================================================================================================
+bool TestCpFwVersions(
+    const GpuChipProperties& chipProperties,
+    const CpFwVersions&      versions)
+{
+    return ((chipProperties.mecUcodeVersion >= versions.mec) &&
+            (chipProperties.meUcodeVersion  >= versions.me)  &&
+            (chipProperties.pfpUcodeVersion >= versions.pfp));
+}
+#endif
+
 // =====================================================================================================================
 static void PAL_STDCALL DefaultCreateBufferViewSrds(
     const IDevice*        pDevice,
@@ -559,7 +571,7 @@ Result Device::SetupPublicSettingDefaults()
     m_publicSettings.rpmViewsBypassMall                       = RpmViewsBypassMallOff;
     m_publicSettings.expandHiZRangeForResummarize             = false;
 
-    m_publicSettings.optDepthOnlyExportRate = IsGfx11(gfxLevel);
+    m_publicSettings.optDepthOnlyExportRate = IsGfx11Plus(gfxLevel);
     m_publicSettings.limitCbFetch256B       = false;
     m_publicSettings.binningMode            = DeferredBatchBinAccurate;
     m_publicSettings.customBatchBinSize     = 0x800080;
@@ -2156,6 +2168,7 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.supportBFloat16                 = gfx9Props.supportBFloat16;
             pInfo->gfxipProperties.flags.supportVrsWithDsExports         = gfx9Props.gfx10.supportVrsWithDsExports;
             pInfo->gfxipProperties.flags.supportFloat8                   = gfx9Props.supportFloat8;
+            pInfo->gfxipProperties.flags.supportInt4                     = gfx9Props.supportInt4;
 
             pInfo->gfxipProperties.supportedVrsRates = gfx9Props.gfx10.supportedVrsRates;
             pInfo->gfxipProperties.rayTracingIp      = gfx9Props.rayTracingIp;
@@ -4646,13 +4659,19 @@ void Device::ApplyDevOverlay(
 
     // Increment after every write
     uint32 letterHeight = 0;
+
+    // Flag to indicate all dispatches in this function are on behalf of the
+    // dev mode overlay.
+    constexpr DispatchInfoFlags InfoFlags = { .devDriverOverlay = true };
+
     // Write the Developer Mode text on screen
     constexpr const char* DeveloperModeString = "Radeon Developer Mode";
     m_pTextWriter->DrawDebugText(dstImage,
                                  pCmdBuffer,
                                  DeveloperModeString,
                                  0,
-                                 letterHeight);
+                                 letterHeight,
+                                 InfoFlags);
     letterHeight += GpuUtil::TextWriterFont::LetterHeight;
 
     constexpr uint32 OverlayTextBufferSize = 256;
@@ -4685,7 +4704,8 @@ void Device::ApplyDevOverlay(
                                          pCmdBuffer,
                                          overlayTextBuffer,
                                          0,
-                                         letterHeight);
+                                         letterHeight,
+                                         InfoFlags);
             letterHeight += GpuUtil::TextWriterFont::LetterHeight;
 
             // Check the RMV trace status
@@ -4700,7 +4720,8 @@ void Device::ApplyDevOverlay(
                                          pCmdBuffer,
                                          overlayTextBuffer,
                                          0,
-                                         letterHeight);
+                                         letterHeight,
+                                         InfoFlags);
             letterHeight += GpuUtil::TextWriterFont::LetterHeight;
 
 #if PAL_BUILD_RDF
@@ -4721,7 +4742,7 @@ void Device::ApplyDevOverlay(
             Snprintf(overlayTextBuffer, OverlayTextBufferSize,
                      "UberTrace Tracing: %s", pSessionStateTable[stateTableIdx]);
 
-            m_pTextWriter->DrawDebugText(dstImage, pCmdBuffer, overlayTextBuffer, 0, letterHeight);
+            m_pTextWriter->DrawDebugText(dstImage, pCmdBuffer, overlayTextBuffer, 0, letterHeight, InfoFlags);
             letterHeight += GpuUtil::TextWriterFont::LetterHeight;
 #endif
 
@@ -4736,7 +4757,8 @@ void Device::ApplyDevOverlay(
                                          pCmdBuffer,
                                          overlayTextBuffer,
                                          0,
-                                         letterHeight);
+                                         letterHeight,
+                                         InfoFlags);
             letterHeight += GpuUtil::TextWriterFont::LetterHeight;
 
             // These labels differ from the DeviceClockMode enum name so as to match the names used by RDP.
@@ -4785,7 +4807,8 @@ void Device::ApplyDevOverlay(
                                          pCmdBuffer,
                                          overlayTextBuffer,
                                          0,
-                                         letterHeight);
+                                         letterHeight,
+                                         InfoFlags);
             letterHeight += GpuUtil::TextWriterFont::LetterHeight;
         }
         else
@@ -4806,7 +4829,8 @@ void Device::ApplyDevOverlay(
                                                  pCmdBuffer,
                                                  overlayTextBuffer,
                                                  0,
-                                                 letterHeight);
+                                                 letterHeight,
+                                                 InfoFlags);
                     letterHeight += GpuUtil::TextWriterFont::LetterHeight;
                 }
             }
@@ -4823,7 +4847,8 @@ void Device::ApplyDevOverlay(
             pCmdBuffer,
             overlayTextBuffer,
             0,
-            letterHeight);
+            letterHeight,
+            InfoFlags);
         letterHeight += GpuUtil::TextWriterFont::LetterHeight;
 
         Snprintf(overlayTextBuffer,
@@ -4834,7 +4859,8 @@ void Device::ApplyDevOverlay(
                                      pCmdBuffer,
                                      overlayTextBuffer,
                                      0,
-                                     letterHeight);
+                                     letterHeight,
+                                     InfoFlags);
         letterHeight += GpuUtil::TextWriterFont::LetterHeight;
     }
     else // !IsConnected()
@@ -4844,7 +4870,8 @@ void Device::ApplyDevOverlay(
                                      pCmdBuffer,
                                      "Disconnected",
                                      0,
-                                     letterHeight);
+                                     letterHeight,
+                                     InfoFlags);
         letterHeight += GpuUtil::TextWriterFont::LetterHeight;
     }
 
@@ -4861,12 +4888,13 @@ void Device::ApplyDevOverlay(
                                      pCmdBuffer,
                                      overlayTextBuffer,
                                      0,
-                                     letterHeight);
+                                     letterHeight,
+                                     InfoFlags);
         letterHeight += GpuUtil::TextWriterFont::LetterHeight;
     }
 
-    // If the setting is enabled, display a visual confirmation of MES HWS Mode (only for supported HW)
-    if (Settings().overlayReportMes && (ChipProperties().gfxLevel >= GfxIpLevel::GfxIp10_1))
+    // If the setting is enabled, display a visual confirmation of MES HWS Mode
+    if (Settings().overlayReportMes)
     {
         Snprintf(overlayTextBuffer,
                  OverlayTextBufferSize,
@@ -4879,7 +4907,8 @@ void Device::ApplyDevOverlay(
                                      pCmdBuffer,
                                      overlayTextBuffer,
                                      0,
-                                     letterHeight);
+                                     letterHeight,
+                                     InfoFlags);
         letterHeight += GpuUtil::TextWriterFont::LetterHeight;
     }
 

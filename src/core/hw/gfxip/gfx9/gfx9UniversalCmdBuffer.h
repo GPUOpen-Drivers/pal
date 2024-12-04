@@ -403,8 +403,6 @@ public:
     virtual void CmdBindTargets(const BindTargetParams& params) override;
     virtual void CmdBindStreamOutTargets(const BindStreamOutTargetParams& params) override;
 
-    virtual void CmdCloneImageData(const IImage& srcImage, const IImage& dstImage) override;
-
     virtual void CmdCopyRegisterToMemory(
         uint32            srcRegisterOffset,
         const IGpuMemory& dstGpuMemory,
@@ -774,8 +772,9 @@ private:
 
     template <bool HsaAbi, bool IssueSqttMarkerEvent, bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDispatch(
-        ICmdBuffer*  pCmdBuffer,
-        DispatchDims size);
+        ICmdBuffer*       pCmdBuffer,
+        DispatchDims      size,
+        DispatchInfoFlags infoFlags);
     template <bool IssueSqttMarkerEvent, bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDispatchIndirect(
         ICmdBuffer* pCmdBuffer,

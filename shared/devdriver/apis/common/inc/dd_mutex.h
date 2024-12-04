@@ -25,51 +25,40 @@
 
 #pragma once
 
-    #include <cerrno>
-    #include <pthread.h>
+#include <dd_common_api.h>
 
-#include "dd_assert.h"
+#if defined (__linux__)
+#include <pthread.h>
+#endif
 
 namespace DevDriver
 {
 
 class Mutex
 {
-private:
-    using MutexData = pthread_mutex_t;
+#if   defined(__linux__)
+    static const uint32_t OsMutexSize = sizeof(pthread_mutex_t);
+#endif
 
-    // Opaque structure to the OS-specific mutex data.
-    MutexData m_osMutex;
+private:
+    uint8_t m_osMutexData[OsMutexSize];
 
 public:
-    Mutex() noexcept : m_osMutex {} { pthread_mutex_init(&m_osMutex, nullptr); }
-    ~Mutex() { pthread_mutex_destroy(&m_osMutex); };
+    Mutex() noexcept;
+    ~Mutex() noexcept;
 
-    /// Enters the critical section if it is not contended.  If it is contended, wait for the critical section to become
-    /// available, then enter it.
-    void Lock()
-    {
-        const int ret = pthread_mutex_lock(&m_osMutex);
-        DD_ASSERT(ret == 0);
-    }
+    /// Enters the critical section if it is not contended.  If it is contended, wait until the critical section is
+    /// available.
+    void Lock();
 
     /// Enters the critical section if it is not contended.  Does not wait for the critical section to become available
     /// if it is contended.
     ///
     /// @returns True if the critical section was entered, false otherwise.
-    bool TryLock()
-    {
-        const int ret = pthread_mutex_trylock(&m_osMutex);
-        DD_ASSERT((ret == 0) || (ret == EBUSY));
-        return (ret == 0);
-    }
+    bool TryLock();
 
     /// Leaves the critical section.
-    void Unlock()
-    {
-        const int ret = pthread_mutex_unlock(&m_osMutex);
-        DD_ASSERT(ret == 0);
-    }
+    void Unlock();
 
 private:
     Mutex(Mutex&&) = delete;
@@ -108,10 +97,12 @@ private:
 
 class RWLock
 {
-private:
-    using RWLockData = pthread_rwlock_t;
+#if   defined(__linux__)
+    static const uint32_t OsRWLockSize = sizeof(pthread_rwlock_t);
+#endif
 
-    RWLockData m_osRWLock;
+private:
+    uint8_t m_osLockData[OsRWLockSize];
 
 public:
     enum LockType
@@ -120,32 +111,16 @@ public:
         Write     // Exclusive for one read/write access.
     };
 
-    RWLock() noexcept : m_osRWLock {} { pthread_rwlock_init(&m_osRWLock, nullptr); }
-    ~RWLock() noexcept { pthread_rwlock_destroy(&m_osRWLock); };
+    RWLock() noexcept;
+    ~RWLock() noexcept;
 
-    void AcquireReadLock()
-    {
-        const int err = pthread_rwlock_rdlock(&m_osRWLock);
-        DD_ASSERT(err == 0);
-    }
+    void AcquireReadLock();
 
-    void ReleaseReadLock()
-    {
-        const int err = pthread_rwlock_unlock(&m_osRWLock);
-        DD_ASSERT(err == 0);
-    }
+    void ReleaseReadLock();
 
-    void AcquireWriteLock()
-    {
-        const int err = pthread_rwlock_wrlock(&m_osRWLock);
-        DD_ASSERT(err == 0);
-    }
+    void AcquireWriteLock();
 
-    void ReleaseWriteLock()
-    {
-        const int err = pthread_rwlock_unlock(&m_osRWLock);
-        DD_ASSERT(err == 0);
-    }
+    void ReleaseWriteLock();
 
 private:
     RWLock(RWLock&&) = delete;

@@ -1589,6 +1589,14 @@
           },
           "Type": "uint64",
           "Name": "SpmBufferSize"
+        },
+        {
+          "Description": "Enable write of timed call (draw, dispatch, barriers, etc) identifier to counter RLCUSER:0 and Command Buffer ID (as submitted to a queue, per device) to counter RLCUSER:1",
+          "Defaults": {
+            "Default": true
+          },
+          "Type": "bool",
+          "Name": "SpmInsertDrawMarkers"
         }
       ],
       "Description": "Configuration options for capturing Streaming Performance Monitors through the PAL GPU Profiler layer."

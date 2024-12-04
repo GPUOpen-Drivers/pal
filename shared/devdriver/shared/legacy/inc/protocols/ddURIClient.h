@@ -89,16 +89,16 @@ namespace DevDriver
 
             // Helper method to send a payload, handling backwards compatibility and retrying.
             Result SendURIPayload(const SizedPayloadContainer& container,
-                                  uint32                       timeoutInMs = kDefaultCommunicationTimeoutInMs,
-                                  uint32                       retryInMs = kDefaultRetryTimeoutInMs);
+                                  uint32                       timeoutInMs,
+                                  uint32                       retryInMs);
             // Helper method to handle receiving a payload from a SizedPayloadContainer, including retrying if busy.
             Result ReceiveURIPayload(SizedPayloadContainer* pContainer,
-                                     uint32                 timeoutInMs = kDefaultCommunicationTimeoutInMs,
-                                     uint32                 retryInMs = kDefaultRetryTimeoutInMs);
+                                     uint32                 timeoutInMs,
+                                     uint32                 retryInMs);
             // Helper method to send and then receive using a SizedPayloadContainer object.
             Result TransactURIPayload(SizedPayloadContainer* pContainer,
-                                      uint32                 timeoutInMs = kDefaultCommunicationTimeoutInMs,
-                                      uint32                 retryInMs = kDefaultRetryTimeoutInMs);
+                                      uint32                 timeoutInMs,
+                                      uint32                 retryInMs);
 
             enum class State : uint32
             {

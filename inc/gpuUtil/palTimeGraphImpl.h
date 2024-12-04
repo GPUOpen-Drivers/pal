@@ -207,7 +207,7 @@ void TimeGraph<Allocator>::DrawGraphLine(
 
     // Bind the pipeline and issue one thread group.
     pCmdBuffer->CmdBindPipeline({ Pal::PipelineBindPoint::Compute, m_pPipeline, Pal::InternalApiPsoHash, });
-    pCmdBuffer->CmdDispatch({32, 1, 1});
+    pCmdBuffer->CmdDispatch({32, 1, 1}, {});
 }
 
 // =====================================================================================================================
