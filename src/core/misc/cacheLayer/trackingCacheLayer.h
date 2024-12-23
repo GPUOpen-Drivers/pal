@@ -99,6 +99,8 @@ private:
     const uint32     m_storePolicy;
 
     TrackedHashSet   m_entries;
+
+    Util::Mutex m_trackedHashTableLock;
 };
 
 } //namespace Util

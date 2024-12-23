@@ -132,37 +132,52 @@ public:
     virtual void Barrier(
         GfxCmdBuffer*                 pGfxCmdBuf,
         const BarrierInfo&            barrierInfo,
-        Developer::BarrierOperations* pBarrierOps) const { PAL_NEVER_CALLED(); }
+        Developer::BarrierOperations* pBarrierOps) const  = 0;
 
     virtual ReleaseToken Release(
         GfxCmdBuffer*                 pGfxCmdBuf,
         const AcquireReleaseInfo&     releaseInfo,
-        Developer::BarrierOperations* pBarrierOps) const { PAL_NEVER_CALLED(); return {}; }
+        Developer::BarrierOperations* pBarrierOps) const  = 0;
 
     virtual void Acquire(
         GfxCmdBuffer*                 pGfxCmdBuf,
         const AcquireReleaseInfo&     acquireInfo,
         uint32                        syncTokenCount,
         const ReleaseToken*           pSyncTokens,
-        Developer::BarrierOperations* pBarrierOps) const { PAL_NEVER_CALLED(); }
+        Developer::BarrierOperations* pBarrierOps) const  = 0;
 
     virtual void ReleaseEvent(
         GfxCmdBuffer*                 pGfxCmdBuf,
         const AcquireReleaseInfo&     releaseInfo,
         const IGpuEvent*              pClientEvent,
-        Developer::BarrierOperations* pBarrierOps) const { PAL_NEVER_CALLED(); }
+        Developer::BarrierOperations* pBarrierOps) const  = 0;
 
     virtual void AcquireEvent(
         GfxCmdBuffer*                 pGfxCmdBuf,
         const AcquireReleaseInfo&     acquireInfo,
         uint32                        gpuEventCount,
         const IGpuEvent* const*       ppGpuEvents,
-        Developer::BarrierOperations* pBarrierOps) const { PAL_NEVER_CALLED(); }
+        Developer::BarrierOperations* pBarrierOps) const  = 0;
 
     virtual void ReleaseThenAcquire(
         GfxCmdBuffer*                 pGfxCmdBuf,
         const AcquireReleaseInfo&     barrierInfo,
-        Developer::BarrierOperations* pBarrierOps) const { PAL_NEVER_CALLED(); }
+        Developer::BarrierOperations* pBarrierOps) const  = 0;
+
+    virtual void OptimizeStageMask(
+        const Pm4CmdBuffer* pCmdBuf,
+        BarrierType         barrierType,
+        uint32*             pSrcStageMask,
+        uint32*             pDstStageMask,
+        bool                isClearToTarget = false) const = 0;
+
+    virtual bool OptimizeAccessMask(
+        const Pm4CmdBuffer* pCmdBuf,
+        BarrierType         barrierType,
+        const Pal::Image*   pImage,
+        uint32*             pSrcAccessMask,
+        uint32*             pDstAccessMask,
+        bool                shaderMdAccessIndirectOnly) const = 0;
 
     void DescribeBarrier(
         GfxCmdBuffer*                 pGfxCmdBuf,
@@ -185,23 +200,6 @@ public:
         Platform*           pPlatform,
         AcquireReleaseInfo* pBarrier,
         bool*               pMemAllocated);
-
-    static void OptimizeSrcCacheMask(const Pm4CmdBuffer* pCmdBuf, uint32* pCacheMask);
-
-    virtual void OptimizeStageMask(
-        const Pm4CmdBuffer* pCmdBuf,
-        BarrierType         barrierType,
-        uint32*             pSrcStageMask,
-        uint32*             pDstStageMask,
-        bool                isClearToTarget = false) const; // isClearToTarget: optimization hint
-
-    virtual bool OptimizeAccessMask(
-        const Pm4CmdBuffer* pCmdBuf,
-        BarrierType         barrierType,
-        const Pal::Image*   pImage,
-        uint32*             pSrcAccessMask,
-        uint32*             pDstAccessMask,
-        bool                shaderMdAccessIndirectOnly) const;
 
     static void SetBarrierOperationsRbCacheSynced(Developer::BarrierOperations* pOperations)
     {

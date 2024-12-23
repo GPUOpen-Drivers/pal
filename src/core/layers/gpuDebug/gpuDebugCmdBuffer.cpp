@@ -680,7 +680,7 @@ Result CmdBuffer::CaptureImageSurface(
 
             AcquireReleaseInfo preCopyAcqRelInfo = {};
             preCopyAcqRelInfo.imageBarrierCount  = 2;
-            preCopyAcqRelInfo.pImageBarriers     = &preCopyBarriers[2];
+            preCopyAcqRelInfo.pImageBarriers     = preCopyBarriers;
             preCopyAcqRelInfo.reason             = Developer::BarrierReasonUnknown;
             CmdReleaseThenAcquire(preCopyAcqRelInfo);
         }
@@ -3858,6 +3858,7 @@ void CmdBuffer::ReplayCmdClearDepthStencil(
                                         flags);
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 910
 // =====================================================================================================================
 void CmdBuffer::CmdClearBufferView(
     const IGpuMemory& gpuMemory,
@@ -3928,6 +3929,7 @@ void CmdBuffer::ReplayCmdClearImageView(
 
     pTgtCmdBuffer->CmdClearImageView(*pImage, imageLayout, color, pImageViewSrd, rectCount, pRects);
 }
+#endif
 
 // =====================================================================================================================
 void CmdBuffer::CmdResolveImage(
@@ -5130,8 +5132,10 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdClearColorImage,
         &CmdBuffer::ReplayCmdClearBoundDepthStencilTargets,
         &CmdBuffer::ReplayCmdClearDepthStencil,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 910
         &CmdBuffer::ReplayCmdClearBufferView,
         &CmdBuffer::ReplayCmdClearImageView,
+#endif
         &CmdBuffer::ReplayCmdResolveImage,
         &CmdBuffer::ReplayCmdSetEvent,
         &CmdBuffer::ReplayCmdResetEvent,

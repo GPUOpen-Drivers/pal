@@ -2946,7 +2946,6 @@ typedef enum GE1_PERFCOUNT_SELECT {
     ge1_bypass_fifo_full__GFX10VRS                     = 0x00000020,
     ge1_vert_group_limit_hit__GFX10VRS                 = 0x00000023,
     ge1_small_draws_one_instance__GFX11                = 0x00000020,
-    ge1_unopt_multi_instance_draws__GFX11              = 0x00000023,
 } GE1_PERFCOUNT_SELECT;
 
 constexpr unsigned int MaxGe1PerfcountSelect           = ge1_rbiu_dr_fifo_starved_p1;

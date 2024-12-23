@@ -3938,6 +3938,7 @@ public:
         const Rect*        pRects,
         uint32             flags) = 0;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 910
     /// Clears a range of GPU memory to the specified clear color using the specified buffer view SRD.
     ///
     /// The maximum clear range is determined by the view; if any Ranges are specified they must fit within the view's
@@ -3988,6 +3989,7 @@ public:
         const void*       pImageViewSrd,
         uint32            rectCount = 0,
         const Rect*       pRects    = nullptr) = 0;
+#endif
 
     /// Resolves multiple regions of a multisampled image to a single-sampled image.
     ///

@@ -4035,7 +4035,16 @@ bool Gfx9Dcc::UseDccForImage(
     const SubResourceInfo*const pSubResInfo = pParent->SubresourceInfo(0);
     const AddrSwizzleMode       swizzleMode = image.GetAddrSettings(pSubResInfo).swizzleMode;
 
-    if (pParent->IsMetadataDisabledByClient())
+    if (internalInfo.flags.useForcedDcc != 0)
+    {
+        // When modifier is used, check with modifier settings
+        if (internalInfo.gfx9.sharedDccState.isDccForceEnabled == 0)
+        {
+            useDcc         = false;
+            mustDisableDcc = true;
+        }
+    }
+    else if (pParent->IsMetadataDisabledByClient())
     {
         // Don't use DCC if the caller asked that we allocate no metadata.
         useDcc = false;
@@ -4231,12 +4240,6 @@ bool Gfx9Dcc::UseDccForImage(
         (createInfo.metadataMode == MetadataMode::ForceEnabled))
     {
         useDcc = true;
-    }
-
-    if (internalInfo.flags.useForcedDcc != 0)
-    {
-        useDcc = (internalInfo.gfx9.sharedDccState.isDccForceEnabled != 0) ? true : false;
-        PAL_ASSERT((mustDisableDcc == false) || (useDcc == false));
     }
 
     return useDcc;

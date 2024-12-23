@@ -1247,8 +1247,10 @@ struct DeviceProperties
 
                 /// Set if images created on this device support being created with corner sampling.
                 uint32 supportsCornerSampling       :  1;
-                /// Placeholder, do not use.
+
+                /// Load Bearing placeholder, do not touch.
                 uint32 placeholder0                 :  1;
+
                 /// Reserved for future use.
                 uint32 reserved                     : 29;
             };
@@ -1434,7 +1436,9 @@ struct DeviceProperties
                 uint64 supportBFloat16                    :  1; ///< HW supports bf16 instructions.
                 uint64 supportFloat8                      :  1; ///< HW supports float 8-bit instructions.
                 uint64 supportInt4                        :  1; ///< HW supports integer 4-bit instructions.
-                uint64 reserved                           :  62; ///< Reserved for future use.
+                uint64 placeholder13                      :  1;
+                uint64 placeholder14                      :  1;
+                uint64 reserved                           :  60; ///< Reserved for future use.
             };
             uint64 u64All[2];           ///< Flags packed as 32-bit uint.
         } flags;                     ///< Device IP property flags.

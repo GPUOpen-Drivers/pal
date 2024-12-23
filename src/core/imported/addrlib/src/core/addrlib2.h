@@ -89,13 +89,6 @@ struct Dim3d
     UINT_32 d;
 };
 
-struct ADDR2_UCOORD
-{
-    UINT_32  x;
-    UINT_32  y;
-    UINT_32  z;
-};
-
 enum AddrSwSet
 {
     AddrSwSetZ = 1 << ADDR_SW_Z,
@@ -116,23 +109,6 @@ const UINT_32 Log2Size64K = 16u;
 
 /**
 ************************************************************************************************************************
-* @brief Bit setting for swizzle pattern
-************************************************************************************************************************
-*/
-union ADDR_BIT_SETTING
-{
-    struct
-    {
-        UINT_16 x;
-        UINT_16 y;
-        UINT_16 z;
-        UINT_16 s;
-    };
-    UINT_64 value;
-};
-
-/**
-************************************************************************************************************************
 * @brief Swizzle pattern information
 ************************************************************************************************************************
 */
@@ -146,56 +122,6 @@ struct ADDR_SW_PATINFO
     UINT_16 nibble3Idx;
     UINT_8  nibble4Idx;
 };
-
-/**
-************************************************************************************************************************
-*   InitBit
-*
-*   @brief
-*       Initialize bit setting value via a return value
-************************************************************************************************************************
-*/
-#define InitBit(c, index) (1ull << ((c << 4) + index))
-
-const UINT_64 X0  = InitBit(0,  0);
-const UINT_64 X1  = InitBit(0,  1);
-const UINT_64 X2  = InitBit(0,  2);
-const UINT_64 X3  = InitBit(0,  3);
-const UINT_64 X4  = InitBit(0,  4);
-const UINT_64 X5  = InitBit(0,  5);
-const UINT_64 X6  = InitBit(0,  6);
-const UINT_64 X7  = InitBit(0,  7);
-const UINT_64 X8  = InitBit(0,  8);
-const UINT_64 X9  = InitBit(0,  9);
-const UINT_64 X10 = InitBit(0, 10);
-const UINT_64 X11 = InitBit(0, 11);
-
-const UINT_64 Y0  = InitBit(1,  0);
-const UINT_64 Y1  = InitBit(1,  1);
-const UINT_64 Y2  = InitBit(1,  2);
-const UINT_64 Y3  = InitBit(1,  3);
-const UINT_64 Y4  = InitBit(1,  4);
-const UINT_64 Y5  = InitBit(1,  5);
-const UINT_64 Y6  = InitBit(1,  6);
-const UINT_64 Y7  = InitBit(1,  7);
-const UINT_64 Y8  = InitBit(1,  8);
-const UINT_64 Y9  = InitBit(1,  9);
-const UINT_64 Y10 = InitBit(1, 10);
-const UINT_64 Y11 = InitBit(1, 11);
-
-const UINT_64 Z0  = InitBit(2,  0);
-const UINT_64 Z1  = InitBit(2,  1);
-const UINT_64 Z2  = InitBit(2,  2);
-const UINT_64 Z3  = InitBit(2,  3);
-const UINT_64 Z4  = InitBit(2,  4);
-const UINT_64 Z5  = InitBit(2,  5);
-const UINT_64 Z6  = InitBit(2,  6);
-const UINT_64 Z7  = InitBit(2,  7);
-const UINT_64 Z8  = InitBit(2,  8);
-
-const UINT_64 S0  = InitBit(3,  0);
-const UINT_64 S1  = InitBit(3,  1);
-const UINT_64 S2  = InitBit(3,  2);
 
 /**
 ************************************************************************************************************************
@@ -1019,8 +945,6 @@ protected:
     static const UINT_32    MaxSwModeType = 32;
     // Max number of resource type (2D/3D) supported for equation
     static const UINT_32    MaxRsrcType = 2;
-    // Max number of bpp (8bpp/16bpp/32bpp/64bpp/128bpp)
-    static const UINT_32    MaxElementBytesLog2  = 5;
     // Almost all swizzle mode + resource type support equation
     static const UINT_32    EquationTableSize = MaxElementBytesLog2 * MaxSwModeType * MaxRsrcType;
     // Equation table

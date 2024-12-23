@@ -95,8 +95,6 @@ private:
                                     bool              traceEnd,
                                     Pal::ICmdBuffer** ppCmdBuf) const;
 
-    Pal::Result WaitForTraceEndGpuWorkCompletion() const;
-
     Pal::Platform* const m_pPlatform;          // Platform associated with this TraceController
     Pal::uint64          m_supportedGpuMask;   // Bit mask of GPU indices that are capable of participating in the trace
     CaptureMode          m_captureMode;        // Modality for determining the start frame of a trace

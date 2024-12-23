@@ -37,8 +37,8 @@ GfxQueueRingBuffer::GfxQueueRingBuffer(
     m_writeOffset(0),
     m_preCommitWriteOffset(0),
     m_ringHeaderSize(0),
-    m_numAvailableBytes(0),
-    m_numReservedBytes(0),
+    m_numAvailableDwords(0),
+    m_numReservedDwords(0),
     m_engineType(pGfxQueueRingBufferCreateInfo->engineType)
 {
 }

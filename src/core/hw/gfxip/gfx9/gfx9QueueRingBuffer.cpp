@@ -52,25 +52,35 @@ Result Gfx9QueueRingBuffer::Init()
 }
 
 // =====================================================================================================================
+// Helper to copy created packet into this Queue Ring Buffer.
 void Gfx9QueueRingBuffer::WriteIntoRBHelper(
     void* pPacket,
-    uint32 packetSizeInBytes)
+    uint32 packetSize)
 {
-    const bool isRbWrapAround = ((m_preCommitWriteOffset + packetSizeInBytes) > m_endOffset);
+    const bool isRbWrapAround = ((m_preCommitWriteOffset + packetSize) > m_endOffset);
 
     if (isRbWrapAround)
     {
-        uint32 firstSegmentSize = m_endOffset - m_preCommitWriteOffset + 1;
-        uint32 secondSegmentSize = packetSizeInBytes - firstSegmentSize;
-        memcpy(VoidPtrInc(m_pUMSRbCpuAddr, m_preCommitWriteOffset), pPacket, firstSegmentSize);
-        memcpy(VoidPtrInc(m_pUMSRbCpuAddr, m_startOffset), VoidPtrInc(pPacket, firstSegmentSize), secondSegmentSize);
-        m_preCommitWriteOffset = m_startOffset + secondSegmentSize;
+        uint32 firstSegmentSizeInBytes = (m_endOffset - m_preCommitWriteOffset + 1) * sizeof(uint32);
+        uint32 secondSegmentSizeInBytes = packetSize * sizeof(uint32) - firstSegmentSizeInBytes;
+        // offset in this Gfx9QueueRingBuffer is measured in Dwords. We have to convert it to bytes here.
+        memcpy(
+            VoidPtrInc(m_pUMSRbCpuAddr, m_preCommitWriteOffset * sizeof(uint32)),
+            pPacket,
+            firstSegmentSizeInBytes);
+        memcpy(
+            VoidPtrInc(m_pUMSRbCpuAddr, m_startOffset * sizeof(uint32)),
+            VoidPtrInc(pPacket, firstSegmentSizeInBytes),
+            secondSegmentSizeInBytes);
+        m_preCommitWriteOffset = m_startOffset + secondSegmentSizeInBytes / sizeof(uint32);
+
         PAL_ASSERT(m_preCommitWriteOffset <= m_readOffset);
     }
     else
     {
-        memcpy(VoidPtrInc(m_pUMSRbCpuAddr, m_preCommitWriteOffset), pPacket, packetSizeInBytes);
-        m_preCommitWriteOffset += packetSizeInBytes;
+        uint32 packetSizeInBytes = packetSize * sizeof(uint32);
+        memcpy(VoidPtrInc(m_pUMSRbCpuAddr, m_preCommitWriteOffset * sizeof(uint32)), pPacket, packetSizeInBytes);
+        m_preCommitWriteOffset += packetSize;
         PAL_ASSERT(m_preCommitWriteOffset <= m_endOffset);
     }
 }
@@ -78,7 +88,7 @@ void Gfx9QueueRingBuffer::WriteIntoRBHelper(
 // =====================================================================================================================
 uint32 Gfx9QueueRingBuffer::GetCmdNativeFenceRaiseInterruptSize()
 {
-    return PM4_MEC_RELEASE_MEM_SIZEDW__CORE * sizeof(uint32);
+    return PM4_MEC_RELEASE_MEM_SIZEDW__CORE;
 }
 
 // =====================================================================================================================
@@ -89,7 +99,7 @@ uint32 Gfx9QueueRingBuffer::CmdNativeFenceRaiseInterrupt(
 {
     constexpr uint32 packetSizeInDwords = PM4_MEC_RELEASE_MEM_SIZEDW__CORE;
 
-    return packetSizeInDwords * sizeof(uint32);
+    return packetSizeInDwords;
 }
 
 // =====================================================================================================================
@@ -107,7 +117,7 @@ uint32 Gfx9QueueRingBuffer::GetCmdWriteImmediateSize(
         packetSizeInDwords = PM4_MEC_COPY_DATA_SIZEDW__CORE;
     }
 
-    return packetSizeInDwords * sizeof(uint32);
+    return packetSizeInDwords;
 }
 
 // =====================================================================================================================
@@ -140,7 +150,7 @@ uint32 Gfx9QueueRingBuffer::CmdWriteImmediate(
 
         m_cmdUtil.BuildReleaseMemGeneric(releaseInfo, &packet);
 
-        WriteIntoRBHelper(&packet, packetSizeInDwords * sizeof(uint32));
+        WriteIntoRBHelper(&packet, packetSizeInDwords);
     }
     else
     {
@@ -158,10 +168,10 @@ uint32 Gfx9QueueRingBuffer::CmdWriteImmediate(
                                 wr_confirm__mec_copy_data__wait_for_confirmation,
                                 &packet);
 
-        WriteIntoRBHelper(&packet, packetSizeInDwords * sizeof(uint32));
+        WriteIntoRBHelper(&packet, packetSizeInDwords);
     }
 
-    return packetSizeInDwords * sizeof(uint32);
+    return packetSizeInDwords;
 }
 
 // =====================================================================================================================
@@ -170,13 +180,16 @@ uint32 Gfx9QueueRingBuffer::GetCmdWriteDataSize(
 {
     uint32 packetSizeInDwords = PM4_ME_WRITE_DATA_SIZEDW__CORE + numDwords;
 
-    return packetSizeInDwords * sizeof(uint32);
+    return packetSizeInDwords;
 }
 
 // =====================================================================================================================
-uint32 Gfx9QueueRingBuffer::CmdWriteData(gpusize dstAddr, uint32* pData, uint32 numDwords)
+uint32 Gfx9QueueRingBuffer::CmdWriteData(
+    gpusize dstAddr,
+    uint32* pData,
+    uint32 numDwords)
 {
-    uint32 packetSizeInBytes = PM4_ME_WRITE_DATA_SIZEDW__CORE * sizeof(uint32);
+    uint32 packetSizeInDwords = PM4_ME_WRITE_DATA_SIZEDW__CORE;
 
     // We build the packet with the ME definition, but the MEC definition is identical, so it should work...
     PM4_ME_WRITE_DATA packet = { };
@@ -189,9 +202,9 @@ uint32 Gfx9QueueRingBuffer::CmdWriteData(gpusize dstAddr, uint32* pData, uint32 
     const uint32 packetSizeWithWrittenDwords =
         static_cast<uint32>(CmdUtil::BuildWriteDataInternal(writeDataInfo, numDwords, &packet));
 
-    WriteIntoRBHelper(&packet, packetSizeInBytes);
+    WriteIntoRBHelper(&packet, packetSizeInDwords);
 
-    WriteIntoRBHelper(pData, numDwords*sizeof(uint32));
+    WriteIntoRBHelper(pData, numDwords);
 
     return packetSizeWithWrittenDwords;
 }
@@ -199,14 +212,17 @@ uint32 Gfx9QueueRingBuffer::CmdWriteData(gpusize dstAddr, uint32* pData, uint32 
 // =====================================================================================================================
 uint32 Gfx9QueueRingBuffer::GetCmdWaitMemoryValueSize()
 {
-    return PM4_MEC_WAIT_REG_MEM_SIZEDW__CORE * sizeof(uint32);
+    return PM4_MEC_WAIT_REG_MEM_SIZEDW__CORE;
 }
 
 // =====================================================================================================================
-uint32 Gfx9QueueRingBuffer::CmdWaitMemoryValue(gpusize gpuVirtAddr, uint32 data, uint32 mask, CompareFunc compareFunc)
+uint32 Gfx9QueueRingBuffer::CmdWaitMemoryValue(
+    gpusize gpuVirtAddr,
+    uint32 data,
+    uint32 mask,
+    CompareFunc compareFunc)
 {
     uint32 packetSizeInDwords = 0;
-    uint32 packetSizeInBytes  = 0;
 
     PM4_MEC_WAIT_REG_MEM packet = { };
     packetSizeInDwords = static_cast<uint32>(m_cmdUtil.BuildWaitRegMem(EngineTypeCompute,
@@ -218,17 +234,15 @@ uint32 Gfx9QueueRingBuffer::CmdWaitMemoryValue(gpusize gpuVirtAddr, uint32 data,
                                                     mask,
                                                     &packet));
 
-    packetSizeInBytes = packetSizeInDwords * sizeof(uint32);
+    WriteIntoRBHelper(&packet, packetSizeInDwords);
 
-    WriteIntoRBHelper(&packet, packetSizeInBytes);
-
-    return packetSizeInBytes;
+    return packetSizeInDwords;
 }
 
 // =====================================================================================================================
 uint32 Gfx9QueueRingBuffer::GetCmdHdpFlushSize()
 {
-    return PM4_MEC_HDP_FLUSH_SIZEDW__CORE * sizeof(uint32);
+    return PM4_MEC_HDP_FLUSH_SIZEDW__CORE;
 }
 
 // =====================================================================================================================
@@ -238,15 +252,14 @@ uint32 Gfx9QueueRingBuffer::CmdHdpFlush()
 
     uint32 packetSizeInDwords = static_cast<uint32>(m_cmdUtil.BuildHdpFlush(&packet));
 
-    uint32 packetSizeInBytes = packetSizeInDwords * sizeof(uint32);
+    WriteIntoRBHelper(&packet, packetSizeInDwords);
 
-    WriteIntoRBHelper(&packet, packetSizeInBytes);
-
-    return packetSizeInBytes;
+    return packetSizeInDwords;
 }
 
 // =====================================================================================================================
-uint32 Gfx9QueueRingBuffer::GetCmdWriteTimestampSize(uint32 stageMask)
+uint32 Gfx9QueueRingBuffer::GetCmdWriteTimestampSize(
+    uint32 stageMask)
 {
     uint32 packetSizeInDwords = 0;
 
@@ -259,14 +272,15 @@ uint32 Gfx9QueueRingBuffer::GetCmdWriteTimestampSize(uint32 stageMask)
         packetSizeInDwords = PM4_ME_COPY_DATA_SIZEDW__CORE;
     }
 
-    return packetSizeInDwords * sizeof(uint32);
+    return packetSizeInDwords;
 }
 
 // =====================================================================================================================
-uint32 Gfx9QueueRingBuffer::CmdWriteTimestamp(uint32 stageMask, gpusize dstGpuAddr)
+uint32 Gfx9QueueRingBuffer::CmdWriteTimestamp(
+    uint32 stageMask,
+    gpusize dstGpuAddr)
 {
     uint32 packetSizeInDwords = 0;
-    uint32 packetSizeInBytes  = 0;
 
     // If multiple flags are set we must go down the path that is most conservative (writes at the latest point).
     // This is easiest to implement in this order:
@@ -284,9 +298,7 @@ uint32 Gfx9QueueRingBuffer::CmdWriteTimestamp(uint32 stageMask, gpusize dstGpuAd
 
         packetSizeInDwords = static_cast<uint32>(m_cmdUtil.BuildReleaseMemGeneric(releaseInfo, &packet));
 
-        packetSizeInBytes = packetSizeInDwords * sizeof(uint32);
-
-        WriteIntoRBHelper(&packet, packetSizeInBytes);
+        WriteIntoRBHelper(&packet, packetSizeInDwords);
     }
     else
     {
@@ -303,16 +315,15 @@ uint32 Gfx9QueueRingBuffer::CmdWriteTimestamp(uint32 stageMask, gpusize dstGpuAd
                                                      wr_confirm__mec_copy_data__wait_for_confirmation,
                                                      &packet));
 
-        packetSizeInBytes = packetSizeInDwords * sizeof(uint32);
-
-        WriteIntoRBHelper(&packet, packetSizeInBytes);
+        WriteIntoRBHelper(&packet, packetSizeInDwords);
     }
 
-    return packetSizeInBytes;
+    return packetSizeInDwords;
 }
 
 // =====================================================================================================================
-uint32 Gfx9QueueRingBuffer::WriteIndirectBuffer(const Pal::CmdStream* pCmdStream)
+uint32 Gfx9QueueRingBuffer::WriteIndirectBuffer(
+    const Pal::CmdStream* pCmdStream)
 {
     const CmdStreamChunk* const pChunk = pCmdStream->GetFirstChunk();
 
@@ -327,30 +338,72 @@ uint32 Gfx9QueueRingBuffer::WriteIndirectBuffer(const Pal::CmdStream* pCmdStream
                                                     pCmdStream->IsPreemptionEnabled(),
                                                     &packet));
 
-    uint32 packetSizeInBytes = packetSizeInDwords * sizeof(uint32);
+    WriteIntoRBHelper(&packet, packetSizeInDwords);
 
-    WriteIntoRBHelper(&packet, packetSizeInBytes);
-
-    return packetSizeInBytes;
+    return packetSizeInDwords;
 }
 
 // =====================================================================================================================
 uint32 Gfx9QueueRingBuffer::GetEndSubmitSize()
 {
-    return PM4_ME_RELEASE_MEM_SIZEDW__CORE * sizeof(uint32);
+    return (PM4_ME_RELEASE_MEM_SIZEDW__CORE + PM4_PFP_NOP_SIZEDW__CORE + NopPayloadSizeInDwords) * sizeof(uint32);
 }
 
 // =====================================================================================================================
-uint32 Gfx9QueueRingBuffer::EndSubmit(gpusize progressFenceAddr, uint64 nextProgressFenceValue)
+// Consists of a RELEASE_MEM followed by a NOP PM4 required by KMD to mark the end of this User Mode Submission.
+uint32 Gfx9QueueRingBuffer::EndSubmit(
+    gpusize progressFenceAddr,
+    uint64 nextProgressFenceValue)
 {
     return 0;
 }
 
 // =====================================================================================================================
+// Create a NOP to mark end of this User Mode Submission for KMD with a 2 Dwords Payload of a Magic Number (Sbmt)
+// and ClientID.
+uint32 Gfx9QueueRingBuffer::MarkSubmissionEnd()
+{
+    // Because this is part of the CmdBuffer dumps where it'll be copied into a string and dumped we need the LSB to
+    // be the starting letter so it reads out correctly.
+    constexpr uint32 Sbmt = 0x544d4253; // Submit. This is a hex representation of 'T'->54, 'M'->4d, 'B'->42, 'S'->53
+    constexpr uint32 Vlkp = 0x504c4b56;
+    constexpr uint32 Unkn = 0x4e4b4e55; // Unknown
+
+    const ClientApi  clientApiId = m_pGfxDevice->GetPlatform()->GetClientApiId();
+    uint32           clientId    = Unkn;
+
+    switch(clientApiId)
+    {
+    case ClientApi::Vulkan:
+    {
+        clientId = Vlkp;
+        break;
+    }
+    default:
+        break;
+    }
+
+    // Reserve space on the stack for the NOP PM4 and its payload.
+    uint32 packet[3] = {};
+
+    uint32 payload[2] = {};
+
+    payload[0] = Sbmt;
+    payload[1] = clientId;
+
+    uint32 packetSizeInDwords =
+        static_cast<uint32>(m_cmdUtil.BuildNopPayload(&payload, NopPayloadSizeInDwords ,&packet));
+
+    WriteIntoRBHelper(&packet, packetSizeInDwords);
+
+    return packetSizeInDwords;
+}
+
+// =====================================================================================================================
 Result Gfx9QueueRingBuffer::ReserveSpaceForWaitSemaphore(
-                            uint32 numDwordsLogEntry,
-                            uint32 numDwordsLogHeader,
-                            uint32* pPacketsSize)
+    uint32 numDwordsLogEntry,
+    uint32 numDwordsLogHeader,
+    uint32* pPacketsSize)
 {
     Result result = Result::Success;
 
@@ -359,9 +412,9 @@ Result Gfx9QueueRingBuffer::ReserveSpaceForWaitSemaphore(
 
 // =====================================================================================================================
 Result Gfx9QueueRingBuffer::ReserveSpaceForSignalSemaphore(
-                         uint32  numDwordsLogEntry,
-                         uint32  numDwordsLogHeader,
-                         uint32* pPacketsSize)
+    uint32  numDwordsLogEntry,
+    uint32  numDwordsLogHeader,
+    uint32* pPacketsSize)
 {
     Result result = Result::Success;
 
@@ -369,7 +422,9 @@ Result Gfx9QueueRingBuffer::ReserveSpaceForSignalSemaphore(
 }
 
 // =====================================================================================================================
-Result Gfx9QueueRingBuffer::ReserveSpaceForSubmit(uint32 numCmdStreams, uint32* pPacketsSize)
+Result Gfx9QueueRingBuffer::ReserveSpaceForSubmit(
+    uint32 numCmdStreams,
+    uint32* pPacketsSize)
 {
     Result result = Result::Success;
 

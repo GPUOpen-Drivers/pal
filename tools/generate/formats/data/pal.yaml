@@ -39,6 +39,7 @@ formats:
     macroPixelPacked: false
     depthStencil: false
     versioning: null
+    ifdefs: []
   X1_Unorm:
     <<: *defFormatInfo
     bitCounts: [1, 0, 0, 0]

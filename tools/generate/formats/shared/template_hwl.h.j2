@@ -40,8 +40,11 @@ namespace {{ GfxipNamespace }}
 constexpr MergedFormatPropertiesTable {{ name }}MergedFormatPropertiesTable =
 {{ '{{' }}
     // Note: Feature capabilities are listed in (linear, optimal) order.
-    {% for fmt_name, fmt_data in hwl_data['hwFormats'].items() %}
+    {%- for fmt_name, fmt_data in hwl_data['hwFormats'].items() %}
     {%- set ifmt = IFmts[fmt_name] -%}
+{%- if ifmt.ifdef_str %}
+#if {{ ifmt.ifdef_str -}}
+{% endif -%}{#- Newline #}
     // {{ fmt_name }}
     {
         {%- set linear_flags = fmt_data.format_feature_flags(ifmt, True) -%}
@@ -74,8 +77,9 @@ constexpr MergedFormatPropertiesTable {{ name }}MergedFormatPropertiesTable =
         {%- endfor %}
         ),
         {%- endif %}
-    },
-    {% endfor %}
+    },{%- if ifmt.ifdef_str %}
+#endif //{{ ifmt.ifdef_str -}}
+{% endif -%}{#- Newline #}{% endfor %}
 {{ '}}' }};
 
 // Stores a ChannelFmtInfo struct for each available channel format for mapping PAL channel formats to the format values
@@ -83,7 +87,8 @@ constexpr MergedFormatPropertiesTable {{ name }}MergedFormatPropertiesTable =
 constexpr MergedFlatFmtInfo {{ name }}MergedChannelFmtInfoTbl[] =
 {
 {%- for fmt_name, fmt_data in hwl_data['hwFormats'].items() %}
-{%- set ifmt = IFmts[fmt_name] %}
+{%- set ifmt = IFmts[fmt_name] %}{%- if ifmt.ifdef_str %}
+#if {{ ifmt.ifdef_str }}{%- endif %}
     // ChNumFormat::{{ fmt_name }}
     {
         ChNumFormat::{{ fmt_name }},
@@ -93,7 +98,8 @@ constexpr MergedFlatFmtInfo {{ name }}MergedChannelFmtInfoTbl[] =
         Chip::{{ fmt_data.buffer['enum'] }},
         Chip::{{ fmt_data.db['z_enum'] }},
         Chip::{{ fmt_data.db['s_enum'] }},
-    },
+    },{%- if ifmt.ifdef_str %}
+#endif // {{ ifmt.ifdef_str }}{%- endif %}
 {%- endfor %}
 };
 
@@ -104,9 +110,13 @@ constexpr ChNumFormat {{ name }}MergedImgDataFmtTbl[] =
 {%- if i in hwl_data['texture_enums'] -%}
 {%- set tex_data = hwl_data['texture_enums'][i] -%}
 {%- else -%}
-{%- set tex_data = ("IMG_FMT_INVALID", "Undefined") -%}
-{%- endif %}
-    {{ "{0:<35s}".format("ChNumFormat::" + tex_data[1] + ",") }} // {{ tex_data[0] }}
+{%- set tex_data = ("IMG_FMT_INVALID", "Undefined", "") -%}
+{%- endif %}{%- if tex_data[2] %}
+#if {{ tex_data[2] }}{%- endif %}
+    {{ "{0:<35s}".format("ChNumFormat::" + tex_data[1] + ",") }} // {{ tex_data[0] }}{%- if tex_data[2] %}
+#else
+    {{ "{0:<35s}".format("ChNumFormat::Undefined,") }} // {{ tex_data[0] }}
+#endif // {{ tex_data[2] }}{%- endif %}
 {%- endfor %}
 };
 
@@ -119,9 +129,13 @@ constexpr ChNumFormat {{ name }}MergedBufDataFmtTbl[] =
 {%- if i in hwl_data['buffer_enums'] -%}
 {%- set buf_data = hwl_data['buffer_enums'][i] -%}
 {%- else -%}
-{%- set buf_data = ("BUF_FMT_INVALID", "Undefined") -%}
-{%- endif %}
-    {{ "{0:<35s}".format("ChNumFormat::" + buf_data[1] + ",") }} // {{ buf_data[0] }}
+{%- set buf_data = ("BUF_FMT_INVALID", "Undefined", "") -%}
+{%- endif %}{%- if buf_data[2] %}
+#if {{ buf_data[2] }}{%- endif %}
+    {{ "{0:<35s}".format("ChNumFormat::" + buf_data[1] + ",") }} // {{ buf_data[0] }}{%- if buf_data[2] %}
+#else
+    {{ "{0:<35s}".format("ChNumFormat::Undefined,") }} // {{ buf_data[0] }}
+#endif // {{ buf_data[2] }}{%- endif %}
 {%- endfor %}
 };
 

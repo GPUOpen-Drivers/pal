@@ -27,6 +27,7 @@
 
 #include "palTraceSession.h"
 #include "palHashMapImpl.h"
+#include "palVectorImpl.h"
 #include "core/imported/rdf/rdf/inc/amdrdf.h"
 #include "uberTraceService.h"
 #include "util/ddStructuredReader.h"
@@ -66,6 +67,15 @@ static Result RdfResultToPalResult(
 }
 
 // =====================================================================================================================
+static bool TraceSourceNameEquals(
+    const ITraceSource* pTraceSource,
+    const char*         pName)
+{
+    PAL_ASSERT(pTraceSource != nullptr);
+    return (strcmp(pTraceSource->GetName(), pName) == 0);
+}
+
+// =====================================================================================================================
 TraceSession::TraceSession(
     IPlatform* pPlatform)
     :
@@ -74,7 +84,7 @@ TraceSession::TraceSession(
     m_registerTraceSourceLock(),
     m_registerTraceControllerLock(),
     m_chunkAppendLock(),
-    m_registeredTraceSources(64, pPlatform),
+    m_registeredTraceSources(pPlatform),
     m_traceSourcesConfigs(64, pPlatform),
     m_registeredTraceControllers(64, pPlatform),
     m_pActiveController(nullptr),
@@ -120,12 +130,7 @@ TraceSession::~TraceSession()
 // =====================================================================================================================
 Result TraceSession::Init()
 {
-    Result result = m_registeredTraceSources.Init();
-
-    if (result == Result::Success)
-    {
-        result = m_traceSourcesConfigs.Init();
-    }
+    Result result = m_traceSourcesConfigs.Init();
 
     if (result == Result::Success)
     {
@@ -202,21 +207,24 @@ Result TraceSession::RegisterSource(
         if (m_sessionState == TraceSessionState::Ready)
         {
             Util::RWLockAuto<Util::RWLock::ReadWrite> traceSourceLock(&m_registerTraceSourceLock);
+            const char* pRegisterName = pSource->GetName();
 
-            bool existed = false;
-            ITraceSource** ppMapEntry;
-            result = m_registeredTraceSources.FindAllocate(pSource->GetName(), &existed, &ppMapEntry);
-
-            if(result == Result::Success)
+            for (const ITraceSource* pTraceSource : m_registeredTraceSources)
             {
-                if (existed)
+                if ((pTraceSource == pSource) ||
+                    ((pSource->AllowMultipleInstances() == false) && TraceSourceNameEquals(pTraceSource, pRegisterName)))
                 {
                     result = Result::AlreadyExists;
+                    break;
                 }
-                else
-                {
-                    *ppMapEntry = pSource;
+            }
 
+            if (result == Result::Success)
+            {
+                result = m_registeredTraceSources.PushBack(pSource);
+
+                if (result == Result::Success)
+                {
                     // Update source configs if available
                     StructuredValue** ppSourceConfig = m_traceSourcesConfigs.FindKey(pSource->GetName());
 
@@ -244,8 +252,19 @@ Result TraceSession::UnregisterSource(
 
     if (m_sessionState == TraceSessionState::Ready)
     {
+        result = Result::NotFound;
+
         Util::RWLockAuto<Util::RWLock::ReadWrite> traceSourceLock(&m_registerTraceSourceLock);
-        result = m_registeredTraceSources.Erase(pSource->GetName()) ? Result::Success : Result::NotFound;
+
+        for (uint32 idx = 0; idx < m_registeredTraceSources.NumElements(); ++idx)
+        {
+            if (m_registeredTraceSources[idx] == pSource)
+            {
+                m_registeredTraceSources.EraseAndSwapLast(idx);
+                result = Result::Success;
+                break;
+            }
+        }
     }
     else
     {
@@ -440,12 +459,16 @@ Result TraceSession::UpdateTraceConfig(
                         if ((pName != nullptr) && (traceSourceConfig.IsNull() == false))
                         {
                             // Update source configs if available
-                            ITraceSource** ppSource = m_registeredTraceSources.FindKey(pName);
-                            if (ppSource != nullptr)
+                            for (ITraceSource* pSource : m_registeredTraceSources)
                             {
-                                if (*ppSource != nullptr)
+                                if (TraceSourceNameEquals(pSource, pName))
                                 {
-                                    (*ppSource)->OnConfigUpdated(&traceSourceConfig);
+                                    pSource->OnConfigUpdated(&traceSourceConfig);
+
+                                    if (pSource->AllowMultipleInstances() == false)
+                                    {
+                                        break;
+                                    }
                                 }
                             }
 
@@ -542,15 +565,21 @@ Result TraceSession::AcceptTrace(
                 if (pName != nullptr)
                 {
                     // Search for and notify the TraceSource object named in the trace configuration
-                    ITraceSource** ppSource = m_registeredTraceSources.FindKey(pName);
-
-                    if ((ppSource != nullptr) && (*ppSource != nullptr))
+                    for (ITraceSource* pSource : m_registeredTraceSources)
                     {
+                        if (TraceSourceNameEquals(pSource, pName))
+                        {
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 908
-                        (*ppSource)->OnTraceAccepted(gpuIndex, pPrepCmdBuf);
+                            pSource->OnTraceAccepted(gpuIndex, pPrepCmdBuf);
 #else
-                        (*ppSource)->OnTraceAccepted();
+                            pSource->OnTraceAccepted();
 #endif
+
+                            if (pSource->AllowMultipleInstances() == false)
+                            {
+                                break;
+                            }
+                        }
                     }
                 }
             }
@@ -586,12 +615,17 @@ Result TraceSession::BeginTrace()
 
             if (pName != nullptr)
             {
-                // Search for and notify the TraceSource object named in the trace configuration
-                ITraceSource** ppSource = m_registeredTraceSources.FindKey(pName);
-
-                if ((ppSource != nullptr) && (*ppSource != nullptr))
+                for (ITraceSource* pSource : m_registeredTraceSources)
                 {
-                    (*ppSource)->OnTraceBegin(gpuIndex, pBeginCmdBuf);
+                    if (TraceSourceNameEquals(pSource, pName))
+                    {
+                        pSource->OnTraceBegin(gpuIndex, pBeginCmdBuf);
+
+                        if (pSource->AllowMultipleInstances() == false)
+                        {
+                            break;
+                        }
+                    }
                 }
             }
         }
@@ -627,11 +661,17 @@ Result TraceSession::EndTrace()
             if (pName != nullptr)
             {
                 // Search for and notify the TraceSource object named in the trace configuration
-                ITraceSource** ppSource = m_registeredTraceSources.FindKey(pName);
-
-                if ((ppSource != nullptr) && (*ppSource != nullptr))
+                for (ITraceSource* pSource : m_registeredTraceSources)
                 {
-                    (*ppSource)->OnTraceEnd(gpuIndex, pCmdBuf);
+                    if (TraceSourceNameEquals(pSource, pName))
+                    {
+                        pSource->OnTraceEnd(gpuIndex, pCmdBuf);
+
+                        if (pSource->AllowMultipleInstances() == false)
+                        {
+                            break;
+                        }
+                    }
                 }
             }
         }
@@ -775,11 +815,17 @@ void TraceSession::FinishTrace()
         const char* pName = traceSources[i]["name"].GetStringPtr();
         if (pName != nullptr)
         {
-            GpuUtil::ITraceSource** ppSource = m_registeredTraceSources.FindKey(pName);
-
-            if ((ppSource != nullptr) && (*ppSource != nullptr))
+            for (ITraceSource* pSource : m_registeredTraceSources)
             {
-                (*ppSource)->OnTraceFinished(); // Writes data into TraceSession
+                if (TraceSourceNameEquals(pSource, pName))
+                {
+                    pSource->OnTraceFinished(); // Writes data into TraceSession
+
+                    if (pSource->AllowMultipleInstances() == false)
+                    {
+                        break;
+                    }
+                }
             }
         }
     }

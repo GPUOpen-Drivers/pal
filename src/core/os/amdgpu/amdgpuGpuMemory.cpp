@@ -600,10 +600,12 @@ Result GpuMemory::OpenSharedMemory(
 
             m_desc.heaps[heap] = m_heaps[heap];
         }
+
         if (bufferInfo.alloc_flags & AMDGPU_GEM_CREATE_EXPLICIT_SYNC)
         {
             m_flags.explicitSync = 1;
         }
+
     }
 
     // On native Linux, handle should be closed here if it's a DMA buf fd. Otherwise, the memory would never be freed

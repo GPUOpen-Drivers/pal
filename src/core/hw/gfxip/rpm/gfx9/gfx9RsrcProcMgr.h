@@ -53,9 +53,6 @@ public:
 
     static constexpr bool ForceGraphicsFillMemoryPath = false;
 
-    virtual Result LateInit() override;
-    virtual void Cleanup() override;
-
     virtual void CmdCloneImageData(
         GfxCmdBuffer*     pCmdBuffer,
         const Pal::Image& srcImage,
@@ -171,7 +168,6 @@ public:
 
 protected:
     explicit RsrcProcMgr(Device* pDevice);
-    virtual ~RsrcProcMgr();
 
     uint32  GetInitHtileClearMask(
         const Image&       dstImage,
@@ -239,24 +235,50 @@ protected:
         uint32                 regionCount,
         const ImageCopyRegion* pRegions) const override;
 
-    virtual void HwlFixupCopyDstImageMetaData(
+    virtual void HwlFixupCopyDstImageMetadata(
         GfxCmdBuffer*           pCmdBuffer,
         const Pal::Image*       pSrcImage,
         const Pal::Image&       dstImage,
         ImageLayout             dstImageLayout,
         const ImageFixupRegion* pRegions,
         uint32                  regionCount,
-        bool                    isFmaskCopyOptimized) const override;
+        bool                    isFmaskCopyOptimized) const;
 
-    virtual void HwlFixupResolveDstImage(
+    virtual void FixupMetadataForComputeCopyDst(
+        GfxCmdBuffer*           pCmdBuffer,
+        const Pal::Image&       dstImage,
+        ImageLayout             dstImageLayout,
+        uint32                  regionCount,
+        const ImageFixupRegion* pRegions,
+        bool                    beforeCopy,
+        const Pal::Image*       pFmaskOptimizedCopySrcImage = nullptr) const override;
+
+    void ResolveImageDepthStencilCopy(
+        Pm4CmdBuffer*             pCmdBuffer,
+        const Pal::Image&         srcImage,
+        ImageLayout               srcImageLayout,
+        const Pal::Image&         dstImage,
+        ImageLayout               dstImageLayout,
+        uint32                    regionCount,
+        const ImageResolveRegion* pRegions,
+        uint32                    flags) const;
+
+    bool HwlCanDoFixedFuncResolve(
+        const Pal::Image&         srcImage,
+        const Pal::Image&         dstImage,
+        ResolveMode               resolveMode,
+        uint32                    regionCount,
+        const ImageResolveRegion* pRegions) const;
+
+    void HwlFixupResolveDstImage(
         Pm4CmdBuffer*             pCmdBuffer,
         const GfxImage&           dstImage,
         ImageLayout               dstImageLayout,
         const ImageResolveRegion* pRegions,
         uint32                    regionCount,
-        bool                      computeResolve) const override;
+        bool                      computeResolve) const;
 
-    virtual void HwlResolveImageGraphics(
+    void HwlResolveImageGraphics(
         GfxCmdBuffer*             pCmdBuffer,
         const Pal::Image&         srcImage,
         ImageLayout               srcImageLayout,
@@ -264,7 +286,7 @@ protected:
         ImageLayout               dstImageLayout,
         uint32                    regionCount,
         const ImageResolveRegion* pRegions,
-        uint32                    flags) const override;
+        uint32                    flags) const;
 
     virtual bool NeedPixelCopyForCmdCopyImage(
         const Pal::Image&      srcImage,
@@ -350,13 +372,6 @@ private:
         bool               clearAutoSync,
         uint32             boxCnt,
         const Box*         pBox) const override;
-
-    virtual bool HwlCanDoFixedFuncResolve(
-        const Pal::Image&         srcImage,
-        const Pal::Image&         dstImage,
-        ResolveMode               resolveMode,
-        uint32                    regionCount,
-        const ImageResolveRegion* pRegions) const override;
 
     void ClearFmask(
         GfxCmdBuffer*      pCmdBuffer,
@@ -459,8 +474,6 @@ private:
         uint32        size,
         bool          hasDccLookupTable) const;
 
-    Pal::ComputePipeline* m_pEchoGlobalTablePipeline;
-
     PAL_DISALLOW_DEFAULT_CTOR(RsrcProcMgr);
     PAL_DISALLOW_COPY_AND_ASSIGN(RsrcProcMgr);
 };
@@ -484,6 +497,17 @@ public:
         Pm4CmdBuffer*      pCmdBuffer,
         const GfxImage&    image,
         const SubresRange& range) const override;
+
+    virtual void CmdResolveImage(
+        GfxCmdBuffer*             pCmdBuffer,
+        const Pal::Image&         srcImage,
+        ImageLayout               srcImageLayout,
+        const Pal::Image&         dstImage,
+        ImageLayout               dstImageLayout,
+        ResolveMode               resolveMode,
+        uint32                    regionCount,
+        const ImageResolveRegion* pRegions,
+        uint32                    flags) const override;
 
     void CmdResolvePrtPlusImage(
         GfxCmdBuffer*                    pCmdBuffer,
@@ -590,22 +614,22 @@ private:
         uint32             bytesPerPixel,
         const uint32*      pPackedClearColor) const;
 
-    virtual bool HwlCanDoDepthStencilCopyResolve(
+    bool HwlCanDoDepthStencilCopyResolve(
         const Pal::Image&         srcImage,
         const Pal::Image&         dstImage,
         uint32                    regionCount,
-        const ImageResolveRegion* pRegions) const override;
+        const ImageResolveRegion* pRegions) const;
 
-    virtual void HwlHtileCopyAndFixUp(
+    void HwlHtileCopyAndFixUp(
         Pm4CmdBuffer*             pCmdBuffer,
         const Pal::Image&         srcImage,
         const Pal::Image&         dstImage,
         ImageLayout               dstImageLayout,
         uint32                    regionCount,
         const ImageResolveRegion* pRegions,
-        bool                      computeResolve) const override;
+        bool                      computeResolve) const;
 
-    virtual void HwlFixupCopyDstImageMetaData(
+    virtual void HwlFixupCopyDstImageMetadata(
         GfxCmdBuffer*           pCmdBuffer,
         const Pal::Image*       pSrcImage,
         const Pal::Image&       dstImage,

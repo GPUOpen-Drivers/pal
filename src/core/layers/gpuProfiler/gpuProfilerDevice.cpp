@@ -391,7 +391,7 @@ Result Device::CreateQueue(
         // Start logging immediately on Frame 0 for the first universal queue created
         if (LoggingEnabled(GpuProfilerGranularityFrame) && (seq == 0))
         {
-            pQueue->BeginNextFrame(true);
+            pQueue->BeginNextFrameAsync(true);
         }
     }
 
@@ -482,7 +482,7 @@ Result Device::CreateMultiQueue(
         // Start logging immediately on Frame 0 for the first universal queue created
         if (LoggingEnabled(GpuProfilerGranularityFrame) && (seq == 0))
         {
-            pQueue->BeginNextFrame(true);
+            pQueue->BeginNextFrameAsync(true);
         }
     }
 
@@ -503,7 +503,7 @@ Result Device::WaitForFences(
     {
         if (m_pQueues[i] != nullptr)
         {
-            m_pQueues[i]->ProcessIdleSubmits();
+            m_pQueues[i]->ProcessIdleSubmitsAsync();
         }
     }
 

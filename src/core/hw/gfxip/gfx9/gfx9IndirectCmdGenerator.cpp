@@ -112,12 +112,9 @@ IndirectCmdGenerator::IndirectCmdGenerator(
     const IndirectCmdGeneratorCreateInfo& createInfo)
     :
     Pm4::IndirectCmdGenerator(device, createInfo),
-    m_bindsIndexBuffer(false),
-    m_hasIncrementConstant(false),
-    m_usingExecuteIndirectPacket(false),
     m_pParamData(reinterpret_cast<IndirectParamData*>(this + 1)),
     m_pCreationParam(reinterpret_cast<IndirectParam*>(m_pParamData+PaddedParamCount(createInfo.paramCount))),
-    m_cmdSizeNeedPipeline(false)
+    m_flags{}
 {
     m_properties.maxUserDataEntries = device.Parent()->ChipProperties().gfxip.maxUserDataEntries;
     memcpy(&m_properties.indexTypeTokens[0], &createInfo.indexTypeTokens[0], sizeof(createInfo.indexTypeTokens));
@@ -146,13 +143,13 @@ IndirectCmdGenerator::IndirectCmdGenerator(
         if ((canUseExecuteIndirectPacket == true) &&
             (settings.useExecuteIndirectPacket >= UseExecuteIndirectV1PacketForDraw))
         {
-            m_usingExecuteIndirectPacket = true;
+            m_flags.useExecuteIndirectPacket = true;
         }
     }
 
     InitParamBuffer(createInfo);
 
-    if (m_usingExecuteIndirectPacket)
+    if (UseExecuteIndirectPacket())
     {
         // Just add up the maximum sizes of each parameter.
         m_gpuMemSize = 0;
@@ -164,7 +161,7 @@ IndirectCmdGenerator::IndirectCmdGenerator(
     }
     else
     {
-        m_gpuMemSize = m_cmdSizeNeedPipeline ?
+        m_gpuMemSize = CmdSizeNeedPipeline() ?
             8 : (sizeof(m_properties) + (sizeof(IndirectParamData) * PaddedParamCount(ParameterCount())));
     }
 }
@@ -175,7 +172,7 @@ Result IndirectCmdGenerator::BindGpuMemory(
     gpusize     offset)
 {
     Result result = Pm4::IndirectCmdGenerator::BindGpuMemory(pGpuMemory, offset);
-    if ((result == Result::Success) && (m_cmdSizeNeedPipeline == false))
+    if ((result == Result::Success) && (CmdSizeNeedPipeline() == false))
     {
         const uint32 paddedParamCount = PaddedParamCount(ParameterCount());
 
@@ -253,7 +250,7 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
     switch (opType)
     {
     case IndirectOpType::DrawIndexAuto:
-        if (m_usingExecuteIndirectPacket)
+        if (UseExecuteIndirectPacket())
         {
             size = CmdUtil::DrawIndirectSize;
         }
@@ -272,7 +269,7 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
         }
         break;
     case IndirectOpType::DrawIndex2:
-        if (m_usingExecuteIndirectPacket)
+        if (UseExecuteIndirectPacket())
         {
             size = cmdUtil.DrawIndexIndirectSize() + CmdUtil::SetIndexAttributesSize;
         }
@@ -282,7 +279,7 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
         }
         break;
     case IndirectOpType::DrawIndexOffset2:
-        if (m_usingExecuteIndirectPacket)
+        if (UseExecuteIndirectPacket())
         {
             size = cmdUtil.DrawIndexIndirectSize();
         }
@@ -297,7 +294,7 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
     case IndirectOpType::SetIncConst:
     case IndirectOpType::SetUserData:
         // Max cmd buf size calculation of SetIncConst is the same as that of SetUserData
-        if (m_usingExecuteIndirectPacket)
+        if (UseExecuteIndirectPacket())
         {
             // The absolute worst case scenario is that every SGPR is sparsely mapped into the virtual user-data range
             // so we need entryCount packets. We should also assume we either always load or always spill depending on
@@ -314,7 +311,7 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
         }
         break;
     case IndirectOpType::VertexBufTableSrd:
-        if (m_usingExecuteIndirectPacket && m_properties.vertexBufTableSize != 0)
+        if (UseExecuteIndirectPacket() && m_properties.vertexBufTableSize != 0)
         {
             size = CmdUtil::BuildUntypedSrdSize;
         }
@@ -347,14 +344,14 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
             size += ((CmdUtil::ShRegSizeDwords + 1) * spillTableShaderStageCount);
         }
 
-        if ((m_properties.vertexBufTableSize != 0) && (m_usingExecuteIndirectPacket == false))
+        if ((m_properties.vertexBufTableSize != 0) && (UseExecuteIndirectPacket() == false))
         {
             size += (CmdUtil::ShRegSizeDwords + 1);
         }
     }
 
     // Additional cmd buf size introduced by constant increment. This is packet path only.
-    if (m_usingExecuteIndirectPacket && ContainsIncrementingConstant())
+    if (UseExecuteIndirectPacket() && ContainIncrementingConstant())
     {
         size += (CmdUtil::AtomicMemSizeDwords + CmdUtil::PfpSyncMeSizeDwords);
     }
@@ -400,7 +397,7 @@ void IndirectCmdGenerator::InitParamBuffer(
             // See comment above for information on how we handle BindIndexData!
             m_pParamData[p].type = IndirectOpType::Skip;
             argBufOffsetIndices  = argBufOffset;
-            m_bindsIndexBuffer   = true;
+            m_flags.containIndexBuffer = true;
         }
         else
         {
@@ -416,28 +413,28 @@ void IndirectCmdGenerator::InitParamBuffer(
                 break;
             case IndirectParamType::Draw:
                 m_pParamData[p].type = IndirectOpType::DrawIndexAuto;
+                m_flags.useConstantDrawIndex = param.drawData.constantDrawIndex;
                 break;
             case IndirectParamType::DrawIndexed:
                 // See comment above for information on how we handle BindIndexData.
-                m_pParamData[p].type    = ContainsIndexBufferBind() ? IndirectOpType::DrawIndex2
-                                                                    : IndirectOpType::DrawIndexOffset2;
+                m_pParamData[p].type    = ContainIndexBuffer() ? IndirectOpType::DrawIndex2
+                                                               : IndirectOpType::DrawIndexOffset2;
                 m_pParamData[p].data[0] = argBufOffsetIndices;
+                m_flags.useConstantDrawIndex = param.drawData.constantDrawIndex;
                 break;
             case IndirectParamType::DispatchMesh:
                 // We use different programming for Gfx11 and Gfx103 so we use IndirectOpType::DispatchMesh
                 // for Gfx11 and IndirectOpType::DrawIndexAuto for Gfx103.
                 m_pParamData[p].type = isGfx11 ? IndirectOpType::DispatchMesh
                                                : IndirectOpType::DrawIndexAuto;
+                m_flags.useConstantDrawIndex = param.drawData.constantDrawIndex;
                 break;
             case IndirectParamType::SetUserData:
                 m_pParamData[p].type = param.userData.isIncConst ? IndirectOpType::SetIncConst
                                                                  : IndirectOpType::SetUserData;
-                if (m_pParamData[p].type == IndirectOpType::SetIncConst)
-                {
-                    m_hasIncrementConstant = true;
-                }
                 m_pParamData[p].data[0] = param.userData.firstEntry;
                 m_pParamData[p].data[1] = param.userData.entryCount;
+                m_flags.containIncrementConstant |= param.userData.isIncConst;
                 // The user-data watermark tracks the highest index (plus one) of user-data entries modified by this
                 // command generator.
                 m_properties.userDataWatermark = Max((param.userData.firstEntry + param.userData.entryCount),
@@ -449,7 +446,7 @@ void IndirectCmdGenerator::InitParamBuffer(
 
                 if (Type() != Pm4::GeneratorType::Dispatch)
                 {
-                    m_cmdSizeNeedPipeline = true;
+                    m_flags.cmdSizeNeedPipeline = true;
                 }
                 break;
             case IndirectParamType::BindVertexData:
@@ -480,7 +477,7 @@ void IndirectCmdGenerator::InitParamBuffer(
         m_properties.userDataArgBufOffsetBase = 0;
     }
 
-    m_properties.cmdBufStride = m_cmdSizeNeedPipeline ? 0 : cmdBufOffset;
+    m_properties.cmdBufStride = CmdSizeNeedPipeline() ? 0 : cmdBufOffset;
     m_properties.argBufStride = Max(argBufOffset, createInfo.strideInBytes);
 }
 
@@ -497,7 +494,7 @@ void IndirectCmdGenerator::PopulateParameterBuffer(
     const bool usesLegacyMsFastLaunch     = (IsGfx11(Properties().gfxLevel) &&
                                             (fastLaunchMode == GsFastLaunchMode::VertInLane));
 
-    if (m_cmdSizeNeedPipeline || usesLegacyMsFastLaunch)
+    if (CmdSizeNeedPipeline() || usesLegacyMsFastLaunch)
     {
         PAL_ASSERT(Type() != Pm4::GeneratorType::Dispatch);
         const auto& signature = static_cast<const GraphicsPipeline*>(pPipeline)->Signature();
@@ -585,7 +582,7 @@ uint32 IndirectCmdGenerator::CmdBufStride(
 
     uint32 cmdBufStride = 0;
 
-    if (m_cmdSizeNeedPipeline || usesLegacyMsFastLaunch)
+    if (CmdSizeNeedPipeline() || usesLegacyMsFastLaunch)
     {
         const auto& signature = static_cast<const GraphicsPipeline*>(pPipeline)->Signature();
 
@@ -660,7 +657,7 @@ void IndirectCmdGenerator::PopulatePropertyBuffer(
     const bool usesLegacyMsFastLaunch     = (IsGfx11(Properties().gfxLevel) &&
                                             (fastLaunchMode == GsFastLaunchMode::VertInLane));
 
-    if (m_cmdSizeNeedPipeline || usesLegacyMsFastLaunch)
+    if (CmdSizeNeedPipeline() || usesLegacyMsFastLaunch)
     {
         BufferViewInfo viewInfo = { };
         viewInfo.stride        = (sizeof(uint32) * 4);
@@ -825,7 +822,8 @@ void IndirectCmdGenerator::PopulateSignatureBuffer(
         GraphicsPipelineSignatureData data { };
         data.spillThreshold          = signature.spillThreshold;
         data.vertexOffsetRegAddr     = signature.vertexOffsetRegAddr;
-        data.drawIndexRegAddr        = signature.drawIndexRegAddr;
+        data.drawIndexRegAddr        = (UseConstantDrawIndex() == false) ? signature.drawIndexRegAddr
+                                                                         : UserDataNotMapped;
         data.vertexBufTableRegAddr   = signature.vertexBufTableRegAddr;
         data.meshDispatchDimsRegAddr = signature.meshDispatchDimsRegAddr;
         data.meshRingIndexAddr       = signature.meshRingIndexAddr;
@@ -846,7 +844,8 @@ void IndirectCmdGenerator::PopulateSignatureBuffer(
         GraphicsPipelineSignatureData data { };
         data.spillThreshold        = signature.spillThreshold;
         data.vertexOffsetRegAddr   = signature.vertexOffsetRegAddr;
-        data.drawIndexRegAddr      = signature.drawIndexRegAddr;
+        data.drawIndexRegAddr      = (UseConstantDrawIndex() == false) ? signature.drawIndexRegAddr
+                                                                       : UserDataNotMapped;
         data.vertexBufTableRegAddr = signature.vertexBufTableRegAddr;
 
         *pData = data;

@@ -999,6 +999,8 @@ Result Image::GetSubresourceLayout(
         pLayout->tileToken      = pSubResInfo->tileToken;
         pLayout->tileSwizzle    = m_pDevice->GetAddrMgr()->GetTileSwizzle(this, subresId);
         pLayout->blockSize      = pSubResInfo->blockSize;
+        pLayout->extentTexels   = pSubResInfo->extentTexels;
+        pLayout->extentElements = pSubResInfo->extentElements;
         pLayout->paddedExtent   = pSubResInfo->actualExtentElements;
         pLayout->mipTailCoord.x = pSubResInfo->mipTailCoord.x;
         pLayout->mipTailCoord.y = pSubResInfo->mipTailCoord.y;
@@ -1007,11 +1009,6 @@ Result Image::GetSubresourceLayout(
         pLayout->planeFormat    = pSubResInfo->format;
         pLayout->swizzleMode    = pSubResInfo->swizzleMode;
         ret = Result::Success;
-    }
-
-    if (ret == Result::Success)
-    {
-        ret = m_pGfxImage->GetDefaultGfxLayout(subresId, &pLayout->defaultGfxLayout);
     }
 
     return ret;

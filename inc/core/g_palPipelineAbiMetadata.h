@@ -98,8 +98,13 @@ struct CbConstUsageMetadata
 /// Per-hardware stage metadata.
 struct HardwareStageMetadata
 {
-    /// The symbol pointing to this pipeline's stage entrypoint.
+    /// The symbol name pointing to this pipeline's stage entrypoint.
+    StringViewType          entryPointSymbol;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 911
+    /// Deprecated.  The symbol pointing to this pipeline's stage entrypoint.
     Abi::PipelineSymbolType entryPoint;
+#endif
+
     /// Scratch memory size in bytes.
     uint32                  scratchMemorySize;
     /// size in bytes (per lane/thread) of the stack managed by the compiler backend.
@@ -112,6 +117,7 @@ struct HardwareStageMetadata
     uint32                  perfDataBufferSize;
     /// Number of VGPRs used.
     uint32                  vgprCount;
+
     /// Number of SGPRs used.
     uint32                  sgprCount;
     /// If non-zero, indicates the shader was compiled with a directive to instruct the compiler to limit the VGPR usage
@@ -193,17 +199,23 @@ struct HardwareStageMetadata
     {
         struct
         {
+            uint64 entryPointSymbol          : 1;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 911
             uint64 entryPoint                : 1;
+#else
+            uint64 placeholder0              : 1;
+#endif
             uint64 scratchMemorySize         : 1;
             uint64 backendStackSize          : 1;
             uint64 frontendStackSize         : 1;
             uint64 ldsSize                   : 1;
             uint64 perfDataBufferSize        : 1;
             uint64 vgprCount                 : 1;
+            uint64 placeholder1              : 1;
             uint64 sgprCount                 : 1;
             uint64 vgprLimit                 : 1;
             uint64 sgprLimit                 : 1;
-            uint64 placeholder0              : 1;
+            uint64 placeholder2              : 1;
             uint64 threadgroupDimensions     : 1;
             uint64 origThreadgroupDimensions : 1;
             uint64 cbConstUsage              : 1;
@@ -232,8 +244,8 @@ struct HardwareStageMetadata
             uint64 writesDepth               : 1;
             uint64 usesAppendConsume         : 1;
             uint64 usesPrimId                : 1;
-            uint64 placeholder1              : 1;
-            uint64 reserved                  : 24;
+            uint64 placeholder3              : 1;
+            uint64 reserved                  : 22;
         };
         uint64 uAll;
     } hasEntry;
@@ -1310,8 +1322,7 @@ struct SpiBarycCntlMetadata
         {
             /// Whether to use the entire 32b value to determine front-facing.
             uint8 frontFaceAllBits : 1;
-            uint8 placeholder0     : 1;
-            uint8 reserved         : 6;
+            uint8 reserved         : 7;
         };
         uint8 uAll;
     } flags;
@@ -1322,10 +1333,7 @@ struct SpiBarycCntlMetadata
         {
             uint8 posFloatLocation : 1;
             uint8 frontFaceAllBits : 1;
-            uint8 placeholder0     : 1;
-            uint8 placeholder1     : 1;
-            uint8 placeholder2     : 1;
-            uint8 reserved         : 3;
+            uint8 reserved         : 6;
         };
         uint8 uAll;
     } hasEntry;
@@ -2161,7 +2169,6 @@ namespace SpiBarycCntlMetadataKey
 {
     static constexpr char PosFloatLocation[] = ".pos_float_location";
     static constexpr char FrontFaceAllBits[] = ".front_face_all_bits";
-
 };
 
 namespace PaScShaderControlMetadataKey
@@ -2439,13 +2446,18 @@ namespace PsInputSemanticMetadataKey
 
 namespace HardwareStageMetadataKey
 {
+    static constexpr char EntryPointSymbol[]          = ".entry_point_symbol";
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 911
     static constexpr char EntryPoint[]                = ".entry_point";
+#endif
+
     static constexpr char ScratchMemorySize[]         = ".scratch_memory_size";
     static constexpr char BackendStackSize[]          = ".backend_stack_size";
     static constexpr char FrontendStackSize[]         = ".frontend_stack_size";
     static constexpr char LdsSize[]                   = ".lds_size";
     static constexpr char PerfDataBufferSize[]        = ".perf_data_buffer_size";
     static constexpr char VgprCount[]                 = ".vgpr_count";
+
     static constexpr char SgprCount[]                 = ".sgpr_count";
     static constexpr char VgprLimit[]                 = ".vgpr_limit";
     static constexpr char SgprLimit[]                 = ".sgpr_limit";

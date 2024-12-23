@@ -33,8 +33,8 @@ namespace Formats
 // table via BitsPerPixel() and related functions.
 const FormatInfo FormatInfoTable[] =
 {
-{%- for format_name, fmt in ifmts.items() %}{%- if fmt.versioning %}
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= {{ fmt.versioning }}
+{%- for format_name, fmt in ifmts.items() %}{%- if fmt.ifdef_str %}
+#if {{ fmt.ifdef_str }}
 {%- endif %}
     // {{ format_name }}
     {
@@ -56,8 +56,8 @@ const FormatInfo FormatInfoTable[] =
         {%- endif %}
         NumericSupportFlags::{{ fmt.numeric_support }},
     },
-{%- if fmt.versioning %}
-#endif // PAL_CLIENT_INTERFACE_MAJOR_VERSION >= {{ fmt.versioning }}
+{%- if fmt.ifdef_str %}
+#endif // {{ fmt.ifdef_str }}
 {%- endif %}
 {%- endfor %}
 };

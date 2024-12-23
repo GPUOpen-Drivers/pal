@@ -153,12 +153,6 @@ void SettingsLoader::ValidateSettings(
         maxOffchipLdsBuffers = Min(maxOffchipLdsBuffers, 512U);
     }
 
-    // Propagate the public setting to the internal setting that actually controls preemption.
-    if (m_pDevice->GetPublicSettings()->disableCommandBufferPreemption)
-    {
-        pSettings->cmdBufPreemptionMode = CmdBufPreemptModeDisable;
-    }
-
     // Validate the number of offchip LDS buffers used for tessellation.
     if (pSettings->numOffchipLdsBuffers > 0)
     {

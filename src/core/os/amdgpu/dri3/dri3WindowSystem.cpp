@@ -57,9 +57,9 @@ Result Dri3PresentFence::Create(
 {
     PAL_ASSERT((pPlacementAddr != nullptr) && (ppPresentFence != nullptr));
 
-    auto*const pPresentFence = PAL_PLACEMENT_NEW(pPlacementAddr) Dri3PresentFence(windowSystem);
-    Result     result        = pPresentFence->Init(initiallySignaled);
+    auto* const pPresentFence = PAL_PLACEMENT_NEW(pPlacementAddr) Dri3PresentFence(windowSystem);
 
+    Result result = pPresentFence->Init(initiallySignaled);
     if (result == Result::Success)
     {
         *ppPresentFence = pPresentFence;
@@ -80,8 +80,11 @@ Dri3PresentFence::Dri3PresentFence(
     m_syncFence(0),
     m_pShmFence(nullptr),
     m_presented(false),
-    m_pImage(nullptr)
+    m_pImage(nullptr),
+    m_explicitSyncData{0}
 {
+    m_explicitSyncData.acquire.syncObjFd = InvalidFd;
+    m_explicitSyncData.release.syncObjFd = InvalidFd;
 }
 
 // =====================================================================================================================
@@ -111,6 +114,9 @@ Dri3PresentFence::~Dri3PresentFence()
         m_windowSystem.m_dri3Procs.pfnXshmfenceUnmapShm(m_pShmFence);
         m_pShmFence = nullptr;
     }
+
+    m_windowSystem.DestroyExplicitSyncObject(&m_explicitSyncData.acquire);
+    m_windowSystem.DestroyExplicitSyncObject(&m_explicitSyncData.release);
 }
 
 // =====================================================================================================================
@@ -119,74 +125,87 @@ Dri3PresentFence::~Dri3PresentFence()
 Result Dri3PresentFence::Init(
     bool initiallySignaled)
 {
-    m_syncFence   = m_windowSystem.m_dri3Procs.pfnXcbGenerateId(m_windowSystem.m_pConnection);
-    Result result = (m_syncFence != 0) ? Result::Success : Result::ErrorUnknown;
+    Result result = Result::Success;
 
-    if (m_windowSystem.Dri3Supported())
+    if (m_windowSystem.GetWindowSystemProperties().useExplicitSync)
     {
-        // Using shared memory fences is faster but requires DRI3
-        // This works even if we're using software compositing for everything else.
-        int32 fenceFd = InvalidFd;
+        result = InitExplicitSyncData();
+    }
+    else
+    {
+        // 1. Generate a new XCB ID for the sync fence
+        m_syncFence = m_windowSystem.m_dri3Procs.pfnXcbGenerateId(m_windowSystem.m_pConnection);
+        result      = (m_syncFence != 0) ? Result::Success : Result::ErrorUnknown;
 
-        if (result == Result::Success)
+        if (m_windowSystem.Dri3Supported())
         {
-            fenceFd = m_windowSystem.m_dri3Procs.pfnXshmfenceAllocShm();
+            // Using shared memory fences is faster but requires DRI3.
+            // This works even if we're using software compositing for everything else.
+            int32 fenceFd = InvalidFd;
 
-            if (fenceFd < 0)
+            if (result == Result::Success)
             {
-                result = Result::ErrorUnknown;
+                // 2. Allocate shared memory fence
+                fenceFd = m_windowSystem.m_dri3Procs.pfnXshmfenceAllocShm();
+                if (fenceFd < 0)
+                {
+                    result = Result::ErrorUnknown;
+                }
+            }
+
+            if (result == Result::Success)
+            {
+                // 3. Map the shared memory fence
+                m_pShmFence = m_windowSystem.m_dri3Procs.pfnXshmfenceMapShm(fenceFd);
+                if (m_pShmFence == nullptr)
+                {
+                    result = Result::ErrorUnknown;
+                }
+            }
+
+            if (result == Result::Success)
+            {
+                // 4. Create an XCB fence from the shared memory fence file descriptor
+                const xcb_void_cookie_t cookie =
+                    m_windowSystem.m_dri3Procs.pfnXcbDri3FenceFromFdChecked(m_windowSystem.m_pConnection,
+                                                                            m_windowSystem.m_hWindow,
+                                                                            m_syncFence,
+                                                                            initiallySignaled,
+                                                                            fenceFd);
+
+                // Check for errors in the XCB request
+                xcb_generic_error_t*const pError =
+                    m_windowSystem.m_dri3Procs.pfnXcbRequestCheck(m_windowSystem.m_pConnection, cookie);
+                if (pError != nullptr)
+                {
+                    free(pError);
+                    result = Result::ErrorUnknown;
+                }
+            }
+
+            if (initiallySignaled && (result == Result::Success))
+            {
+                // 5. Trigger the shared memory fence if it is initially signaled
+                m_windowSystem.m_dri3Procs.pfnXshmfenceTrigger(m_pShmFence);
             }
         }
-
-        if (result == Result::Success)
+        else
         {
-            m_pShmFence = m_windowSystem.m_dri3Procs.pfnXshmfenceMapShm(fenceFd);
-
-            if (m_pShmFence == nullptr)
-            {
-                result = Result::ErrorUnknown;
-            }
-        }
-
-        if (result == Result::Success)
-        {
+            // 2. Create an XCB sync fence
             const xcb_void_cookie_t cookie =
-                m_windowSystem.m_dri3Procs.pfnXcbDri3FenceFromFdChecked(m_windowSystem.m_pConnection,
+                m_windowSystem.m_dri3Procs.pfnXcbSyncCreateFenceChecked(m_windowSystem.m_pConnection,
                                                                         m_windowSystem.m_hWindow,
                                                                         m_syncFence,
-                                                                        initiallySignaled,
-                                                                        fenceFd);
+                                                                        initiallySignaled);
 
+            // Check for errors in the XCB request
             xcb_generic_error_t*const pError =
                 m_windowSystem.m_dri3Procs.pfnXcbRequestCheck(m_windowSystem.m_pConnection, cookie);
-
             if (pError != nullptr)
             {
                 free(pError);
                 result = Result::ErrorUnknown;
             }
-        }
-
-        if (initiallySignaled && (result == Result::Success))
-        {
-            m_windowSystem.m_dri3Procs.pfnXshmfenceTrigger(m_pShmFence);
-        }
-    }
-    else
-    {
-        const xcb_void_cookie_t cookie =
-            m_windowSystem.m_dri3Procs.pfnXcbSyncCreateFenceChecked(m_windowSystem.m_pConnection,
-                                                                    m_windowSystem.m_hWindow,
-                                                                    m_syncFence,
-                                                                    initiallySignaled);
-
-        xcb_generic_error_t*const pError =
-            m_windowSystem.m_dri3Procs.pfnXcbRequestCheck(m_windowSystem.m_pConnection, cookie);
-
-        if (pError != nullptr)
-        {
-            free(pError);
-            result = Result::ErrorUnknown;
         }
     }
 
@@ -194,18 +213,49 @@ Result Dri3PresentFence::Init(
 }
 
 // =====================================================================================================================
+// Initializes explicit sync related data for a single image.
+Result Dri3PresentFence::InitExplicitSyncData()
+{
+    // 1. Acquire sync object initialization
+    Result ret = m_windowSystem.InitExplicitSyncObject(&m_explicitSyncData.acquire);
+    if (ret == Result::Success)
+    {
+        // 2. Release sync object initialization
+        ret = m_windowSystem.InitExplicitSyncObject(&m_explicitSyncData.release);
+        if (ret != Result::Success)
+        {
+            // Destroy acquire resources if relese initialization failed
+            m_windowSystem.DestroyExplicitSyncObject(&m_explicitSyncData.acquire);
+        }
+    }
+
+    return ret;
+}
+
+// =====================================================================================================================
 void Dri3PresentFence::Reset()
 {
-    if (m_pShmFence != nullptr)
+    if (m_windowSystem.GetWindowSystemProperties().useExplicitSync)
     {
-        m_windowSystem.m_dri3Procs.pfnXshmfenceReset(m_pShmFence);
+        // With explicit sync, Reset() is used for synchronizing image idle status after multi-fence wait.
+        if ((m_pImage != nullptr) && (m_pImage->GetIdle() == false))
+        {
+            m_pImage->SetIdle(true);
+        }
     }
     else
     {
-        PAL_ASSERT(m_syncFence != 0);
-        m_windowSystem.m_dri3Procs.pfnXcbSyncResetFence(m_windowSystem.m_pConnection, m_syncFence);
+        if (m_pShmFence != nullptr)
+        {
+            m_windowSystem.m_dri3Procs.pfnXshmfenceReset(m_pShmFence);
+        }
+        else
+        {
+            PAL_ASSERT(m_syncFence != 0);
+            m_windowSystem.m_dri3Procs.pfnXcbSyncResetFence(m_windowSystem.m_pConnection, m_syncFence);
+        }
+        m_presented = false;
     }
-    m_presented = false;
 }
 
 // =====================================================================================================================
@@ -214,26 +264,29 @@ Result Dri3PresentFence::Trigger()
 {
     Result result = Result::Success;
 
-    if (m_pShmFence != nullptr)
+    // Trigger is used in case of failing to queue present job. In explicit sync, timelines are incremented in Present
+    // itself, so if Present fails to execute, timelines just won't be incremented.
+    if (m_windowSystem.GetWindowSystemProperties().useExplicitSync == false)
     {
-        m_windowSystem.m_dri3Procs.pfnXshmfenceTrigger(m_pShmFence);
-        m_presented = true;
-    }
-    else
-    {
-        PAL_ASSERT(m_syncFence != 0);
-        const xcb_void_cookie_t cookie =
-            m_windowSystem.m_dri3Procs.pfnXcbSyncTriggerFenceChecked(m_windowSystem.m_pConnection, m_syncFence);
-
-        xcb_generic_error_t*const pError =
-            m_windowSystem.m_dri3Procs.pfnXcbRequestCheck(m_windowSystem.m_pConnection, cookie);
-
-        if (pError != nullptr)
+        if (m_pShmFence != nullptr)
         {
-            free(pError);
-            result = Result::ErrorUnknown;
+            m_windowSystem.m_dri3Procs.pfnXshmfenceTrigger(m_pShmFence);
         }
         else
+        {
+            PAL_ASSERT(m_syncFence != 0);
+            const xcb_void_cookie_t cookie =
+                m_windowSystem.m_dri3Procs.pfnXcbSyncTriggerFenceChecked(m_windowSystem.m_pConnection, m_syncFence);
+
+            xcb_generic_error_t*const pError =
+                m_windowSystem.m_dri3Procs.pfnXcbRequestCheck(m_windowSystem.m_pConnection, cookie);
+            if (pError != nullptr)
+            {
+                free(pError);
+                result = Result::ErrorUnknown;
+            }
+        }
+        if (result == Result::Success)
         {
             m_presented = true;
         }
@@ -243,8 +296,17 @@ Result Dri3PresentFence::Trigger()
 }
 
 // =====================================================================================================================
-// Wait for the idle fence to be signaled which indicates that the pixmap is not being used by XServer anymore.
+// Wait for the image release by Xserver. After that the image can be reused.
 Result Dri3PresentFence::WaitForCompletion(
+    bool doWait)
+{
+    return m_windowSystem.GetWindowSystemProperties().useExplicitSync ? WaitForCompletionExplicitSync(doWait)
+                                                                      : WaitForCompletionImplicitSync(doWait);
+}
+
+// =====================================================================================================================
+// Wait for the idle fence to be signaled which indicates that the pixmap is not being used by XServer anymore.
+Result Dri3PresentFence::WaitForCompletionImplicitSync(
     bool doWait)
 {
     Result result = Result::Success;
@@ -298,9 +360,43 @@ Result Dri3PresentFence::WaitForCompletion(
 }
 
 // =====================================================================================================================
-// Check status of the fence
+// Wait for the image release by Xserver using explicit sync approach - with dedicated release syncObject.
+Result Dri3PresentFence::WaitForCompletionExplicitSync(
+    bool doWait)
+{
+    if (m_pImage == nullptr)
+    {
+        // May happen if WaitForCompletion is called before any Present for the given image.
+        return Result::ErrorFenceNeverSubmitted;
+    }
+
+    Result ret = Result::Success;
+
+    // If the image is still in use by the compositor, wait for its release
+    if (m_pImage->GetIdle() == false)
+    {
+        ret = m_windowSystem.WaitForExplicitSyncRelease(this, doWait);
+        if (ret == Result::Success)
+        {
+            m_pImage->SetIdle(true);
+        }
+        else if (ret == Result::Timeout)
+        {
+            // To match the rest of the code
+            ret = Result::NotReady;
+        }
+    }
+
+    return ret;
+}
+
+// =====================================================================================================================
+// Check status of the fence - only for use with implicit sync
 Result Dri3PresentFence::QueryRaw()
 {
+    // Shouldn't be called with explicit sync
+    PAL_ASSERT(m_windowSystem.GetWindowSystemProperties().useExplicitSync == false);
+
     Result result = Result::Success;
 
     if (m_pShmFence != nullptr)
@@ -376,8 +472,7 @@ Dri3WindowSystem::Dri3WindowSystem(
     const Device&                 device,
     const WindowSystemCreateInfo& createInfo)
     :
-    WindowSystem(createInfo.platform),
-    m_device(device),
+    WindowSystem(device, createInfo.platform),
     m_dri3Loader(device.GetPlatform()->GetDri3Loader()),
 #if defined(PAL_DEBUG_PRINTS)
     m_dri3Procs(m_dri3Loader.GetProcsTableProxy()),
@@ -398,6 +493,7 @@ Dri3WindowSystem::Dri3WindowSystem(
     m_dri3MinorVersion(0),
     m_presentMajorVersion(0),
     m_presentMinorVersion(0),
+    m_presentCapabilities(0),
     m_pPresentEvent(nullptr),
     m_localSerial(0),
     m_remoteSerial(0)
@@ -467,6 +563,14 @@ Result Dri3WindowSystem::Init()
 
         if (result == Result::Success)
         {
+            result = QueryPresentCapabilities();
+        }
+
+        if (result == Result::Success)
+        {
+            // Use explicit sync if it's enabled and supported by device and XCB.
+            m_windowSystemProperties.useExplicitSync = IsExplicitSyncEnabled() && IsXcbExplicitSyncSupported();
+
             if (IsFormatPresentable(m_format) == false)
             {
                 result = Result::ErrorInvalidFormat;
@@ -679,6 +783,51 @@ Result Dri3WindowSystem::QueryVersion()
 }
 
 // =====================================================================================================================
+// Query Present extension capabilities
+Result Dri3WindowSystem::QueryPresentCapabilities()
+{
+    Result ret = Result::ErrorUnknown;
+
+    xcb_present_query_capabilities_cookie_t cookie =
+        m_dri3Procs.pfnXcbPresentQueryCapabilities(m_pConnection, m_hWindow);
+
+    xcb_present_query_capabilities_reply_t* pReply =
+        m_dri3Procs.pfnXcbPresentQueryCapabilitiesReply(m_pConnection, cookie, nullptr);
+
+    if (pReply != nullptr)
+    {
+        ret = Result::Success;
+        m_presentCapabilities = pReply->capabilities;
+        free(pReply);
+    }
+
+    return ret;
+}
+
+// =====================================================================================================================
+// Check explicit sync support in xcb based on its versions, loaded functions and capabilities.
+bool Dri3WindowSystem::IsXcbExplicitSyncSupported() const
+{
+    // QueryVersion() and QueryPresentCapabilities() should be called before
+    PAL_ASSERT(m_dri3MajorVersion != 0 || m_dri3MinorVersion != 0);
+    PAL_ASSERT(m_presentMajorVersion != 0 || m_presentMinorVersion != 0);
+
+    // Both, dri3 and present, require version 1.4 or higher.
+    bool dri3SupportsExplicitSync    = (m_dri3MajorVersion >  1) ||
+                                       (m_dri3MajorVersion == 1 && m_dri3MinorVersion >= 4);
+    bool presentSupportsExplicitSync = (m_presentMajorVersion >  1) ||
+                                       (m_presentMajorVersion == 1 && m_presentMinorVersion >= 4);
+
+    bool requiredXcbFunctionsLoaded  = m_dri3Procs.pfnXcbDri3ImportSyncobjCheckedisValid() &&
+                                       m_dri3Procs.pfnXcbDri3FreeSyncobjCheckedisValid() &&
+                                       m_dri3Procs.pfnXcbPresentPixmapSyncedCheckedisValid();
+    bool presentHasSyncObjCapability = (m_presentCapabilities & XCB_PRESENT_CAPABILITY_SYNCOBJ) > 0;
+
+    return dri3SupportsExplicitSync && presentSupportsExplicitSync &&
+           requiredXcbFunctionsLoaded && presentHasSyncObjCapability;
+}
+
+// =====================================================================================================================
 // Select insterested events from Xserver. XCB_PRESENT_EVENT_MASK_COMPLETE_NOTIFY is selected here which can be polled
 // to get the completed present event. Complete-event means that the present action in Xserver is finished, for
 // blit-present it means the presentable image is free for client to render.
@@ -692,13 +841,23 @@ Result Dri3WindowSystem::SelectEvent()
                                                                                 m_dri3Loader.GetXcbPresentId(),
                                                                                 eventId,
                                                                                 NULL);
+    uint32 eventsToEnableMask = XCB_PRESENT_EVENT_MASK_COMPLETE_NOTIFY |
+                                XCB_PRESENT_EVENT_MASK_CONFIGURE_NOTIFY;
+
+    if (m_windowSystemProperties.useExplicitSync == false)
+    {
+        // Check for uninitialized 'useExplicitSync' e.g. due to future potential execution order change in Init().
+        PAL_ASSERT((IsXcbExplicitSyncSupported() == false) || (IsExplicitSyncEnabled() == false));
+
+        // Don't enable IDLE_NOTIFY with explicit sync
+        eventsToEnableMask |= XCB_PRESENT_EVENT_MASK_IDLE_NOTIFY;
+    }
+
     const xcb_void_cookie_t cookie =
         m_dri3Procs.pfnXcbPresentSelectInputChecked(m_pConnection,
                                                     eventId,
                                                     m_hWindow,
-                                                    XCB_PRESENT_EVENT_MASK_COMPLETE_NOTIFY |
-                                                    XCB_PRESENT_EVENT_MASK_CONFIGURE_NOTIFY |
-                                                    XCB_PRESENT_EVENT_MASK_IDLE_NOTIFY);
+                                                    eventsToEnableMask);
 
     xcb_generic_error_t*const pError = m_dri3Procs.pfnXcbRequestCheck(m_pConnection, cookie);
 
@@ -819,6 +978,9 @@ Result Dri3WindowSystem::CreatePresentableImage(
 void Dri3WindowSystem::WaitOnIdleEvent(
     WindowSystemImageHandle* pImage)
 {
+    // It will spin forever on image.hPixmap without IDLE_EVENT
+    PAL_ASSERT(SupportIdleEvent() == true);
+
     WindowSystemImageHandle image = NullImageHandle;
 
     // Lock the window system for event waiting,
@@ -873,12 +1035,15 @@ Result Dri3WindowSystem::Present(
     Result                 result         = Result::Success;
     Dri3PresentFence*const pDri3WaitFence = static_cast<Dri3PresentFence*>(pRenderFence);
     Dri3PresentFence*const pDri3IdleFence = static_cast<Dri3PresentFence*>(pIdleFence);
-    const xcb_sync_fence_t waitSyncFence  = (pDri3WaitFence != nullptr) ? pDri3WaitFence->SyncFence() : 0;
-    const xcb_sync_fence_t idleSyncFence  = (pDri3IdleFence != nullptr) ? pDri3IdleFence->SyncFence() : 0;
+    const xcb_sync_fence_t waitSyncFence  = (pDri3WaitFence != nullptr) ? pDri3WaitFence->GetSyncFence() : 0;
+    const xcb_sync_fence_t idleSyncFence  = (pDri3IdleFence != nullptr) ? pDri3IdleFence->GetSyncFence() : 0;
     Image*                 pSrcImage      = static_cast<Image*>(presentInfo.pSrcImage);
     uint32                 pixmap         = pSrcImage->GetPresentImageHandle().hPixmap;
     PresentMode            presentMode    = presentInfo.presentMode;
-    PAL_ASSERT((pDri3IdleFence == nullptr) || (pDri3IdleFence->QueryRaw() == Result::NotReady));
+
+    // When using implicit sync, idle fence shouldn't be signaled (NotReady state) before presenting.
+    PAL_ASSERT((pDri3IdleFence == nullptr) || (m_windowSystemProperties.useExplicitSync == true) ||
+                (pDri3IdleFence->QueryRaw() == Result::NotReady));
 
     if (m_device.Settings().forcePresentViaCpuBlt)
     {
@@ -961,23 +1126,64 @@ Result Dri3WindowSystem::Present(
         }
 
         uint32 serial = m_localSerial + 1;
-        xcb_void_cookie_t cookie = m_dri3Procs.pfnXcbPresentPixmapChecked(m_pConnection,
-                                          m_hWindow,
-                                          pixmap,
-                                          serial,
-                                          0,                              // valid-area
-                                          0,                              // update-area
-                                          0,                              // x-off
-                                          0,                              // y-off
-                                          0,                              // crtc
-                                          waitSyncFence,                  // wait-fence
-                                          idleSyncFence,                  // idle-fence
-                                          options,
-                                          targetMsc,
-                                          divisor,
-                                          remainder,
-                                          0,                              // notifies_len
-                                          nullptr);                       // notifies
+        xcb_void_cookie_t cookie = {};
+
+        // Explicit sync handling
+        if (m_windowSystemProperties.useExplicitSync)
+        {
+            PAL_ASSERT(pDri3IdleFence != nullptr);
+
+            ExplicitSyncData* pImageExplicitSyncData = pDri3IdleFence->GetExplicitSyncData();
+            PAL_ASSERT(pImageExplicitSyncData != nullptr);
+
+            // Increment acquire and release timelines
+            uint64 acquirePoint = ++pImageExplicitSyncData->acquire.timeline;
+            uint64 releasePoint = ++pImageExplicitSyncData->release.timeline;
+
+            // Signal acquire syncobj with the incremented value when the GPU work is done. Compositor waits on this
+            // syncobj before using the image.
+            SignalExplicitSyncAcquire(*pImageExplicitSyncData, pQueue);
+
+            cookie = m_dri3Procs.pfnXcbPresentPixmapSyncedChecked(m_pConnection,
+                                                                  m_hWindow,
+                                                                  pixmap,
+                                                                  serial,
+                                                                  0,            // valid-area
+                                                                  0,            // update-area
+                                                                  0,            // x-off
+                                                                  0,            // y-off
+                                                                  0,            // crtc
+                                                                  pImageExplicitSyncData->acquire.dri3SyncObj,
+                                                                  pImageExplicitSyncData->release.dri3SyncObj,
+                                                                  acquirePoint,
+                                                                  releasePoint,
+                                                                  options,
+                                                                  targetMsc,
+                                                                  divisor,
+                                                                  remainder,
+                                                                  0,            // notifies_len
+                                                                  nullptr);     // notifies
+    }
+    else
+    {
+        cookie = m_dri3Procs.pfnXcbPresentPixmapChecked(m_pConnection,
+                                                        m_hWindow,
+                                                        pixmap,
+                                                        serial,
+                                                        0,              // valid-area
+                                                        0,              // update-area
+                                                        0,              // x-off
+                                                        0,              // y-off
+                                                        0,              // crtc
+                                                        waitSyncFence,  // wait-fence
+                                                        idleSyncFence,  // idle-fence
+                                                        options,
+                                                        targetMsc,
+                                                        divisor,
+                                                        remainder,
+                                                        0,              // notifies_len
+                                                        nullptr);       // notifies
+    }
 
         m_dri3Procs.pfnXcbDiscardReply(m_pConnection, cookie.sequence);
 
@@ -993,9 +1199,10 @@ Result Dri3WindowSystem::Present(
 
         m_dri3Procs.pfnXcbFlush(m_pConnection);
 
-        if (m_swapChainMode != SwapChainMode::Immediate)
+        if ((m_swapChainMode != SwapChainMode::Immediate) || m_windowSystemProperties.useExplicitSync)
         {
             // For other modes like FIFO, handle events in the present thread only.
+            // For explicit sync, we don't wait for IDLE_NOTIFY event later, so all events are read here.
             GoThroughEvent();
         }
     }
@@ -1015,12 +1222,11 @@ Result Dri3WindowSystem::HandlePresentEvent(
     {
     case XCB_PRESENT_COMPLETE_NOTIFY:
     {
-        m_remoteSerial = reinterpret_cast<xcb_present_complete_notify_event_t*>(pPresentEvent)->serial;
+        auto* pCompleteEvent = reinterpret_cast<xcb_present_complete_notify_event_t*>(pPresentEvent);
+        m_remoteSerial = pCompleteEvent->serial;
 
         Developer::PresentationModeData data = {};
-        auto mode = (reinterpret_cast<xcb_present_complete_notify_event_t*>(pPresentEvent))->mode;
-
-        if (mode == XCB_PRESENT_COMPLETE_MODE_FLIP)
+        if (pCompleteEvent->mode == XCB_PRESENT_COMPLETE_MODE_FLIP)
         {
             data.presentationMode = Developer::PresentModeType::Flip;
         }
@@ -1028,36 +1234,34 @@ Result Dri3WindowSystem::HandlePresentEvent(
         {
             data.presentationMode = Developer::PresentModeType::Composite;
         }
-
         m_device.DeveloperCb(Developer::CallbackType::PresentConcluded, &data);
         break;
     }
 
     case XCB_PRESENT_CONFIGURE_NOTIFY:
     {
-        xcb_present_configure_notify_event_t *pConfig =
-            reinterpret_cast<xcb_present_configure_notify_event_t*>(pPresentEvent);
+        auto* pConfigureEvent = reinterpret_cast<xcb_present_configure_notify_event_t*>(pPresentEvent);
 
-        if (m_windowWidth != pConfig->width || m_windowHeight != pConfig->height)
+        if (m_windowWidth != pConfigureEvent->width || m_windowHeight != pConfigureEvent->height)
         {
             m_needWindowSizeChangedCheck = true;
 
-            m_windowWidth  = pConfig->width;
-            m_windowHeight = pConfig->height;
+            m_windowWidth  = pConfigureEvent->width;
+            m_windowHeight = pConfigureEvent->height;
         }
-
         break;
     }
     case  XCB_PRESENT_EVENT_IDLE_NOTIFY:
     {
-        xcb_present_idle_notify_event_t *ie =
-            reinterpret_cast<xcb_present_idle_notify_event_t*>(pPresentEvent);
+        // IDLE_NOTIFY is disabled with explicit sync, shouldn't enter here
+        PAL_ASSERT(m_windowSystemProperties.useExplicitSync == false);
+
+        auto* pIdleEvent = reinterpret_cast<xcb_present_idle_notify_event_t*>(pPresentEvent);
 
         if (pImage)
         {
-            pImage->hPixmap = ie->pixmap;
+            pImage->hPixmap = pIdleEvent->pixmap;
         }
-
         break;
     }
     default:
@@ -1814,11 +2018,20 @@ void Dri3WindowSystem::GoThroughEvent()
 }
 
 // =====================================================================================================================
+// IDLE_NOTIFY event isn't used with explicit sync.
+bool Dri3WindowSystem::SupportIdleEvent() const
+{
+    return m_windowSystemProperties.useExplicitSync == false;
+}
+
+// =====================================================================================================================
 // Check whether the idle image is the one attched to the fence
 bool Dri3WindowSystem::CheckIdleImage(
     WindowSystemImageHandle* pIdleImage,
     PresentFence*            pFence)
 {
+    PAL_ASSERT(m_windowSystemProperties.useExplicitSync == false);
+
     Dri3PresentFence* pDri3Fence = reinterpret_cast<Dri3PresentFence*>(pFence);
     bool ret = false;
 
@@ -1829,6 +2042,73 @@ bool Dri3WindowSystem::CheckIdleImage(
     }
 
     return ret;
+}
+
+// =====================================================================================================================
+// Should we attempt to use explicit sync.
+// This is a driver-side check without checking compositor support. Final explicit sync status, including compositor
+// verification, may be checked in 'WindowSystemProperties' under 'useExplicitSync' flag after WindowSystem init.
+bool Dri3WindowSystem::IsExplicitSyncEnabled() const
+{
+    // Check panel setting and timeline semaphore support
+    return m_device.Settings().enableExplicitSync &&
+          (m_device.Settings().forcePresentViaCpuBlt == false) &&
+           m_device.IsTimelineSyncobjSemaphoreSupported();
+}
+
+// =====================================================================================================================
+// Initializes a single explicit sync object consisting of root DRM syncobj exported to FD and Dri3 syncobj.
+Result Dri3WindowSystem::InitExplicitSyncObject(
+    ExplicitSyncObject* pSyncObject
+    ) const
+{
+    // 1. Create DRM sync object and export to FD
+    Result ret = WindowSystem::InitExplicitSyncObject(pSyncObject);
+    if (ret == Result::Success)
+    {
+        // 2. Import FD into X to create dri3 syncobj.
+        uint32            dri3SyncObj = m_dri3Procs.pfnXcbGenerateId(m_pConnection);
+        xcb_void_cookie_t cookie      = m_dri3Procs.pfnXcbDri3ImportSyncobjChecked(m_pConnection,
+                                                                                   dri3SyncObj,
+                                                                                   m_hWindow,
+                                                                                   pSyncObject->syncObjFd);
+
+        pSyncObject->syncObjFd = InvalidFd; // Fd no longer needed after importing into X. No need to close fd -
+                                            // XcbDri3ImportSyncobj does it always (on error and success).
+
+        // Check for errors from XcbDri3ImportSyncobj
+        xcb_generic_error_t* pError = m_dri3Procs.pfnXcbRequestCheck(m_pConnection, cookie);
+        if (pError == nullptr)
+        {
+            pSyncObject->dri3SyncObj = dri3SyncObj;
+        }
+        else
+        {
+            free(pError);
+            WindowSystem::DestroyExplicitSyncObject(pSyncObject);
+            ret = Result::ErrorInitializationFailed;
+        }
+    }
+
+    return ret;
+}
+
+// =====================================================================================================================
+// Destroys explicit sync object resources - DRM syncobj and Dri3 syncobj.
+void Dri3WindowSystem::DestroyExplicitSyncObject(
+    ExplicitSyncObject* pSyncObject
+    ) const
+{
+    // Destroy Dri3 specific object
+    if (pSyncObject->dri3SyncObj != 0)
+    {
+        xcb_void_cookie_t cookie = m_dri3Procs.pfnXcbDri3FreeSyncobjChecked(m_pConnection, pSyncObject->dri3SyncObj);
+        m_dri3Procs.pfnXcbDiscardReply(m_pConnection, cookie.sequence);
+        pSyncObject->dri3SyncObj = 0;
+    }
+
+    // Destroy common objects
+    WindowSystem::DestroyExplicitSyncObject(pSyncObject);
 }
 
 } // Amdgpu

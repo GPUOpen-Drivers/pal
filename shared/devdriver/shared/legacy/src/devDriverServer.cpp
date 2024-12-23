@@ -32,6 +32,7 @@
 #include "protocols/rgpServer.h"
 #include "protocols/ddEventServer.h"
 #include "protocols/typemap.h"
+#include "dd_timeout_constants.h"
 
     #include "socketMsgTransport.h"
 

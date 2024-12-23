@@ -1815,6 +1815,44 @@
       "Description": "For YUV planar video decoder resource with linear swizzle mode, focring height as 16 alignment."
     },
     {
+      "Name": "PerfExperimentSpmTestMode",
+      "ValidValues": {
+        "IsEnum": true,
+        "Values": [
+          {
+            "Name": "Disabled",
+            "Value": 0,
+            "Description": "Disable test mode. Lets the PerfExperiment code determine the counter mode approriate for the requested SPM counter."
+          },
+          {
+            "Name": "Mode0",
+            "Value": 1,
+            "Description": "SPM to output select register address instead of counter data."
+          },
+          {
+            "Name": "Mode1",
+            "Value": 2,
+            "Description": "SPM output increments one per cycle."
+          },
+          {
+            "Name": "Mode2",
+            "Value": 3,
+            "Description": "SPM counters increment once per sample."
+          }
+        ],
+        "Name": "PerfExperimentSpmTestMode"
+      },
+      "Tags": [
+        "Debug"
+      ],
+      "Defaults": {
+        "Default": "Disabled"
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "enum",
+      "Description": "Test modes for SPM counters"
+    },
+    {
       "Name": "DbgHelperBits",
       "Tags": [
         "General"
@@ -2124,18 +2162,6 @@
       "Scope": "PrivatePalKey",
       "Type": "uint64",
       "Description": "When MemMgr allocates a new pool, it grows to twice the size of the old pool. This is the maximum size an individual pool can be."
-    },
-    {
-      "Name": "EnablePerfCounterWindowPacket",
-      "Tags": [
-        "Debug"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Scope": "PrivatePalKey",
-      "Type": "bool",
-      "Description": "Enable insertion of IT_PERF_COUNTER_WINDOW packet to bound use of non-global GRBM_GFX_INDEX programming"
     }
   ]
 }

@@ -33,7 +33,7 @@ using namespace Pal;
 
 namespace GpuUtil
 {
-std::atomic<Pal::uint32> StringTableTraceSource::s_nextTableId = 0;
+std::atomic<Pal::uint32> StringTableTraceSource::s_nextTableId = 1;
 
 // =====================================================================================================================
 StringTableTraceSource::StringTableTraceSource(
@@ -58,26 +58,29 @@ void StringTableTraceSource::AddStringTable(
     const char*   pStringData,
     uint32        stringDataSize)
 {
-    const uint32 offsetSize = numStrings * sizeof(uint32);
-    const uint32 chunkSize  = offsetSize + stringDataSize;
-
-    void* pChunkData = PAL_MALLOC(chunkSize, m_pPlatform, Util::AllocInternalTemp);
-    memcpy(pChunkData, pStringOffsets, offsetSize);
-    memcpy(Util::VoidPtrInc(pChunkData, offsetSize), pStringData, stringDataSize);
-
-    StringTableEntry entry =
+    if (numStrings > 0)
     {
-        .tableId    = tableId,
-        .numStrings = numStrings,
-        .chunkSize  = chunkSize,
-        .pChunkData = pChunkData
-    };
+        const uint32 offsetSize = numStrings * sizeof(uint32);
+        const uint32 chunkSize  = offsetSize + stringDataSize;
 
-    Util::Result result = m_stringTables.PushBack(entry);
+        void* pChunkData = PAL_MALLOC(chunkSize, m_pPlatform, Util::AllocInternalTemp);
+        memcpy(pChunkData, pStringOffsets, offsetSize);
+        memcpy(Util::VoidPtrInc(pChunkData, offsetSize), pStringData, stringDataSize);
 
-    if (result != Util::Result::Success)
-    {
-        PAL_SAFE_FREE(pChunkData, m_pPlatform);
+        StringTableEntry entry =
+        {
+            .tableId    = tableId,
+            .numStrings = numStrings,
+            .chunkSize  = chunkSize,
+            .pChunkData = pChunkData
+        };
+
+        Util::Result result = m_stringTables.PushBack(entry);
+
+        if (result != Util::Result::Success)
+        {
+            PAL_SAFE_FREE(pChunkData, m_pPlatform);
+        }
     }
 }
 

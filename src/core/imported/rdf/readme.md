@@ -27,6 +27,7 @@ The `amdrdf` library provides the following forwards/backwards compatibility gua
 * For the same major version, any minor version will only *add* new entry points and enumeration values, but existing entry points will not change. Using a higher minor version is always safe. Files created by a newer library *may* not be compatible with older files if new features are used. For example, a new compression codec could be added as part of a minor API change as this is an extension only. However, as long as no new feature is used, all files produced by a newer minor version will remain compatible with older minor versions.
 * New major versions *may* add, remove or change entry points. Files created by a newer major version *may* not be compatible with older *major* versions. Files created by an older major version will be supported for *at least* the next higher major version.
 * A minor version can deprecate a function, but that function can be only removed in the next major release.
+* From version 1.2 on, the ABI is also guaranteed to remain compatible between minor versions (i.e. 1.3 is a drop-in replacement for 1.2 and requires no recompilation.)
 
 Use `RDF_INTERFACE_VERSION` and `RDF_MAKE_VERSION` to check for the library version.
 
@@ -49,4 +50,13 @@ Patch releases (for example, `1.1.1`) will be bumped for bug fixes and other imp
   * Add support for [VCPKG](https://vcpkg.io/)
     * The library can be now consumed via VCPKG
     * The build can optionally use VCPKG to fetch dependencies
-  * Add a new `Close` callback function to `rdfUserStream`. This allows wrapped user streams to clean up the wrapped object, making it easier to track lifetime.
+  * Add a new `Close` callback function to `rdfUserStream`. This allows wrapped user streams to clean up the wrapped object, making it easier to track lifetime. ⚠️ This is an ABI breaking change.
+* **1.3.0**
+  * Internal refactoring to the internal stream abstraction. It no longer exposes `Seek()` and `Tell()`. There's no change to user streams for now; but a future release will switch to a matching API or may expose a new user stream which doesn't expose `Seek()`, `Tell()`. If you're implementing a custom stream, you'll notice that every read and write operation will be preceded by a `Seek()` now.
+
+    This also clarifies how stream wrapping works. Previously undocumented, but assumed, was that the stream was at position 0, and not modified outside. It was already a bug before if those conditions weren't true, but now it's actually documented.
+  * Fix bug in `rdfm` which would incorrectly write the last chunk's data when merging an empty chunk.
+  * Change validation for the `rdfChunkFileReadChunk*` read functions such that a `nullptr` for the `buffer` argument is valid if the requested size is 0. Previously, this would fail with an invalid argument error.
+  * Remove support for [VCPKG](https://vcpkg.io/) again. Unfortunately, the upstream port file has never been finished, and the relatively intrusive support added in 1.2 caused more problems than it solved. If there's interest in re-adding VCPKG support, please open an issue or PR.
+* **1.4.0**
+  * Allow files to be opened in shareable mode. An 'is_shareable' flag has been added to the rdfStreamFromFileCreateInfo structure (default is false).

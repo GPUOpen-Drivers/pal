@@ -195,6 +195,11 @@ do { if (!(cond))                                           \
 namespace Addr
 {
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Common constants
+////////////////////////////////////////////////////////////////////////////////////////////////////
+static const UINT_32 MaxElementBytesLog2 = 5; ///< Max number of bpp (8bpp/16bpp/32bpp/64bpp/128bpp)
+
 namespace V2
 {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -399,10 +404,10 @@ static inline UINT_64 IsPow2(
 
 /**
 ****************************************************************************************************
-*   ByteAlign
+*   PowTwoAlign
 *
 *   @brief
-*       Align UINT_32 "x" to "align" alignment, "align" should be power of 2
+*       Align UINT_32 "x" up to "align" alignment, "align" should be power of 2
 ****************************************************************************************************
 */
 static inline UINT_32 PowTwoAlign(
@@ -418,10 +423,10 @@ static inline UINT_32 PowTwoAlign(
 
 /**
 ****************************************************************************************************
-*   ByteAlign
+*   PowTwoAlign
 *
 *   @brief
-*       Align UINT_64 "x" to "align" alignment, "align" should be power of 2
+*       Align UINT_64 "x" up to "align" alignment, "align" should be power of 2
 ****************************************************************************************************
 */
 static inline UINT_64 PowTwoAlign(
@@ -433,6 +438,44 @@ static inline UINT_64 PowTwoAlign(
     //
     ADDR_ASSERT(IsPow2(align));
     return (x + (align - 1)) & (~(align - 1));
+}
+
+/**
+****************************************************************************************************
+*   PowTwoAlignDown
+*
+*   @brief
+*       Align UINT_32 "x" down to "align" alignment, "align" should be power of 2
+****************************************************************************************************
+*/
+static inline UINT_32 PowTwoAlignDown(
+    UINT_32 x,
+    UINT_32 align)
+{
+    //
+    // Assert that x is a power of two.
+    //
+    ADDR_ASSERT(IsPow2(align));
+    return (x & ~(align - 1));
+}
+
+/**
+****************************************************************************************************
+*   PowTwoAlignDown
+*
+*   @brief
+*       Align UINT_64 "x" down to "align" alignment, "align" should be power of 2
+****************************************************************************************************
+*/
+static inline UINT_64 PowTwoAlignDown(
+    UINT_64 x,
+    UINT_64 align)
+{
+    //
+    // Assert that x is a power of two.
+    //
+    ADDR_ASSERT(IsPow2(align));
+    return (x & ~(align - 1));
 }
 
 /**
@@ -1019,6 +1062,28 @@ static inline UINT_32 ShiftRight(
     UINT_32 b)  ///< [in] number of bits to shift
 {
     return Max(a >> b, 1u);
+}
+
+/**
+****************************************************************************************************
+*   VoidPtrDec
+*
+*   @brief
+*       Subtracts a value to the given pointer directly.
+****************************************************************************************************
+*/
+static inline void* VoidPtrDec(
+    void*  pIn,
+    size_t offset)
+{
+    return (void*)(((char*)(pIn)) - offset);
+}
+
+static inline const void* VoidPtrDec(
+    const void* pIn,
+    size_t      offset)
+{
+    return (const void*)(((const char*)(pIn)) - offset);
 }
 
 /**

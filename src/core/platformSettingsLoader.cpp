@@ -27,6 +27,7 @@
 #include "core/platform.h"
 #include "core/platformSettingsLoader.h"
 #include "core/devDriverUtil.h"
+#include "palAssert.h"
 #include "palDbgPrint.h"
 
 using namespace Util;
@@ -79,13 +80,45 @@ static struct
     0,           nullptr,     AssertCategory::AssertCatCount
 };
 
+#endif
+
+// =====================================================================================================================
+// Initialize the default prints/asserts mode settings based on the build config.
+void PlatformSettingsLoader::InitPrintsAssertsModeSettings()
+{
+#if (PAL_ENABLE_PRINTS_ASSERTS || PAL_ENABLE_LOGGING)
+    // The default value for `enableHardAssert` is defined in settings_platform.cpp. However, the default assertion mode
+    // defined in g_assertCatTable can change based on build configs, as well as other conditions in client drivers. The
+    // change of g_assertCatTable occurs before this function call, so we initialize these settings to match
+    // g_assertCatTable.
+    m_settings.enableHardAssert = Util::IsAssertCategoryEnabled(Util::AssertCategory::AssertCatAssert);
+    m_settings.enableSoftAssert = Util::IsAssertCategoryEnabled(Util::AssertCategory::AssertCatAlert);
+#endif
+}
+
 // =====================================================================================================================
 // Initialize debug print output mode and enables for each assert level.
 void PlatformSettingsLoader::ReadAssertAndPrintSettings(
     Pal::Device* pDevice)
 {
-    bool ret = true;
+#if (PAL_ENABLE_PRINTS_ASSERTS || PAL_ENABLE_LOGGING)
 
+    // Set print mode based on settings defined in settings_platform.json.
+    SetDbgPrintMode(DbgPrintCatInfoMsg, static_cast<DbgPrintMode>(m_settings.dbgPrintInfoMode));
+    SetDbgPrintMode(DbgPrintCatWarnMsg, static_cast<DbgPrintMode>(m_settings.dbgPrintWarnMode));
+    SetDbgPrintMode(DbgPrintCatErrorMsg, static_cast<DbgPrintMode>(m_settings.dbgPrintErrorMode));
+    SetDbgPrintMode(DbgPrintCatScMsg, static_cast<DbgPrintMode>(m_settings.dbgPrintScMsgMode));
+    SetDbgPrintMode(DbgPrintCatEventPrintMsg, static_cast<DbgPrintMode>(m_settings.dbgPrintEventMode));
+    SetDbgPrintMode(DbgPrintCatEventPrintCallbackMsg, static_cast<DbgPrintMode>(m_settings.dbgPrintEventCallbackMode));
+
+    // Set assertion mode based on settings defined in settings_platform.json.
+    EnableAssertMode(AssertCatAlert, m_settings.enableSoftAssert);
+    EnableAssertMode(AssertCatAssert, m_settings.enableHardAssert);
+
+    // Now set print/assert modes based on the settings harded-coded above in `DbgPrintSettingsTbl` and
+    // `AssertSettingsTbl`. These settings are used in legacy settings panels. This code should be removed in the future
+    // when the legacy settings panels are deprecated.
+    bool ret = true;
     for (uint32 dpTblIdx = 0; DbgPrintSettingsTbl[dpTblIdx].pRegString != nullptr; dpTblIdx++)
     {
         uint32 outputMode;
@@ -95,7 +128,6 @@ void PlatformSettingsLoader::ReadAssertAndPrintSettings(
                                    ValueType::Uint32,
                                    &outputMode,
                                    InternalSettingScope::PrivatePalKey);
-
         if (ret == true)
         {
             SetDbgPrintMode(DbgPrintSettingsTbl[dpTblIdx].palCategory,
@@ -117,9 +149,8 @@ void PlatformSettingsLoader::ReadAssertAndPrintSettings(
             EnableAssertMode(AssertSettingsTbl[idx].category, (enable == true));
         }
     }
-}
-
 #endif
+}
 
 // =====================================================================================================================
 // Initializes the settings structure, setting default values.

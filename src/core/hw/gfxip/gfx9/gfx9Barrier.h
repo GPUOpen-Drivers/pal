@@ -177,6 +177,21 @@ public:
         const AcquireReleaseInfo&     barrierInfo,
         Developer::BarrierOperations* pBarrierOps) const override;
 
+    virtual void OptimizeStageMask(
+        const Pm4CmdBuffer* pCmdBuf,
+        BarrierType         barrierType,
+        uint32*             pSrcStageMask,
+        uint32*             pDstStageMask,
+        bool                isClearToTarget = false) const override;
+
+    virtual bool OptimizeAccessMask(
+        const Pm4CmdBuffer* pCmdBuf,
+        BarrierType         barrierType,
+        const Pal::Image*   pImage,
+        uint32*             pSrcAccessMask,
+        uint32*             pDstAccessMask,
+        bool                shaderMdAccessIndirectOnly) const override;
+
     void IssueSyncs(
         Pm4CmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
@@ -187,14 +202,23 @@ public:
         Developer::BarrierOperations* pOperations) const;
 
 private:
-    // A structure that helps cache and reuse the calculated BLT transition and sync requests for an image barrier in
-    // acquire-release based barrier.
+    // A structure that helps cache below info for an image barrier in acquire-release based barrier.
+    //   1). Calculated layout transition BLT and sync requests
+    //   2). Image barrier that needs UpdateDccStateMetaData.
+    // Note that these two kinds of information are not related to each other! Effectively each AcqRelAutoBuffer stores
+    // two unrelated arrays which have been interleaved in memory (to avoid allocating two separate AutoBuffers). Take
+    // care to only inspect the BLT state when looping over bltCount and to only inspect the DCC metadata state when
+    // looping over updateDccStateCount.
     struct AcqRelImgTransitionInfo
     {
-        ImgBarrier           imgBarrier;
+        // Image barrier that needs layout transition BLT.
+        ImgBarrier           bltBarrier;
         LayoutTransitionInfo layoutTransInfo;
         uint32               stageMask;     // Pipeline stage mask of layoutTransInfo.blt[0]
         uint32               accessMask;    // Coherency access mask of layoutTransInfo.blt[0]
+
+        // Image barrier that needs UpdateDccStateMetaData
+        const ImgBarrier*    pUpdateDccStateBarrier;
     };
 
     using AcqRelAutoBuffer = Util::AutoBuffer<AcqRelImgTransitionInfo, 8, Platform>;
@@ -202,9 +226,12 @@ private:
     // Acquire release transition info gathered from all image transitions.
     struct AcqRelTransitionInfo
     {
-        AcqRelAutoBuffer* pBltList;       // List of AcqRelImgTransitionInfo that need layout transition BLT.
-        uint32            bltCount;       // Number of valid entries in pBltList.
-        uint32            bltStageMask;   // Pipeline stage mask for all layout transition BLTs in pBltList.
+        AcqRelAutoBuffer* pList;         // List of AcqRelImgTransitionInfo that need layout transition BLT and
+                                         // UpdateDccStateMetaData.
+        uint32            bltCount;      // Number of entries that needs layout transition blt in pBltList.
+        uint32            bltStageMask;  // Pipeline stage mask for all layout transition BLTs in pBltList.
+
+        uint32            updateDccStateCount; // Number of entries that needs UpdateDccStateMetaData in pBltList.
     };
 
     // Layout transition blt states in image barrier.
@@ -226,6 +253,16 @@ private:
 
         uint32       dstStageMask;
     };
+
+    static void PostSyncUpdateDccStateMetaData(
+        Pm4CmdBuffer*                 pCmdBuf,
+        CmdStream*                    pCmdStream,
+        const AcqRelTransitionInfo&   transitonInfo,
+        Developer::BarrierOperations* pBarrierOps);
+
+    static void OptimizeSrcCacheMask(
+        const Pm4CmdBuffer* pCmdBuf,
+        uint32*             pCacheMask);
 
     const RsrcProcMgr& RsrcProcMgr() const;
 
@@ -352,18 +389,30 @@ private:
         CmdStream*         pCmdStream,
         const ImgBarrier&  imgBarrier) const;
 
+    ReleaseToken ReleaseInternal(
+        Pm4CmdBuffer*                 pCmdBuf,
+        const AcquireReleaseInfo&     releaseInfo,
+        const GpuEvent*               pClientEvent,
+        Developer::BarrierOperations* pBarrierOps) const;
+
+    void AcquireInternal(
+        Pm4CmdBuffer*                 pCmdBuf,
+        const AcquireReleaseInfo&     acquireInfo,
+        uint32                        syncTokenCount,
+        const ReleaseToken*           pSyncTokens,
+        Developer::BarrierOperations* pBarrierOps) const;
+
     ReleaseToken IssueReleaseSync(
         Pm4CmdBuffer*                 pCmdBuf,
-        CmdStream*                    pCmdStream,
-        uint32                        stageMask,
+        uint32                        srcStageMask,
         bool                          releaseBufferCopyOnly,
         CacheSyncOps                  cacheOps,
+        const GpuEvent*               pClientEvent,
         Developer::BarrierOperations* pBarrierOps) const;
 
     void IssueAcquireSync(
         Pm4CmdBuffer*                 pCmdBuf,
-        CmdStream*                    pCmdStream,
-        uint32                        stageMask,
+        uint32                        dstStageMask,
         CacheSyncOps                  cacheOps,
         uint32                        syncTokenCount,
         const ReleaseToken*           pSyncTokens,
@@ -375,23 +424,6 @@ private:
         uint32                        srcStageMask,
         uint32                        dstStageMask,
         CacheSyncOps                  cacheOps,
-        Developer::BarrierOperations* pBarrierOps) const;
-
-    void IssueReleaseEventSync(
-        Pm4CmdBuffer*                 pCmdBuf,
-        CmdStream*                    pCmdStream,
-        uint32                        stageMask,
-        CacheSyncOps                  cacheOps,
-        const IGpuEvent*              pGpuEvent,
-        Developer::BarrierOperations* pBarrierOps) const;
-
-    void IssueAcquireEventSync(
-        Pm4CmdBuffer*                 pCmdBuf,
-        CmdStream*                    pCmdStream,
-        uint32                        stageMask,
-        CacheSyncOps                  cacheOps,
-        uint32                        gpuEventCount,
-        const IGpuEvent* const*       ppGpuEvents,
         Developer::BarrierOperations* pBarrierOps) const;
 
     void OptimizeReadOnlyBarrier(

@@ -1092,11 +1092,20 @@ inline Result DeserializeHardwareStageMetadata(
         {
             switch (HashString(key))
             {
+            case HashLiteralString(HardwareStageMetadataKey::EntryPointSymbol):
+                PAL_ASSERT(pMetadata->hasEntry.entryPointSymbol == 0);
+                result = pReader->UnpackNext(&pMetadata->entryPointSymbol);
+                pMetadata->hasEntry.entryPointSymbol = (result == Result::Success);;
+                break;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 911
             case HashLiteralString(HardwareStageMetadataKey::EntryPoint):
                 PAL_ASSERT(pMetadata->hasEntry.entryPoint == 0);
                 result = DeserializeEnum(pReader, &pMetadata->entryPoint);
                 pMetadata->hasEntry.entryPoint = (result == Result::Success);;
                 break;
+
+#endif
 
             case HashLiteralString(HardwareStageMetadataKey::ScratchMemorySize):
                 PAL_ASSERT(pMetadata->hasEntry.scratchMemorySize == 0);

@@ -1626,7 +1626,7 @@ public:
         uint32*       pDstStageMask,
         uint32*       pDstAccessMask) const override
     { return m_pNextLayer->OptimizeAcqRelReleaseInfo(barrierType,
-                                                     pImage,
+                                                     NextImage(pImage),
                                                      pSrcStageMask,
                                                      pSrcAccessMask,
                                                      pDstStageMask,
@@ -1942,6 +1942,7 @@ public:
                                            flags);
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 910
     virtual void CmdClearBufferView(
         const IGpuMemory& gpuMemory,
         const ClearColor& color,
@@ -1958,6 +1959,7 @@ public:
         uint32            rectCount = 0,
         const Rect*       pRects    = nullptr) override
         { m_pNextLayer->CmdClearImageView(*NextImage(&image), imageLayout, color, pImageViewSrd, rectCount, pRects); }
+#endif
 
     virtual void CmdResolveImage(
         const IImage&             srcImage,

@@ -240,10 +240,11 @@ void RsrcProcMgr::CmdCopyImage(
 
                             // Prepare fixup regions with scissored result.
                             ImageFixupRegion* const pFixupRegion = &fixupRegions[scissoredRegionCount];
-                            pFixupRegion->subres            = pScissoredRegion->srcSubres;
-                            pFixupRegion->offset            = pScissoredRegion->dstOffset;
-                            pFixupRegion->extent            = pScissoredRegion->extent;
-                            pFixupRegion->numSlices         = pScissoredRegion->numSlices;
+                            pFixupRegion->isScaledCopy = false;
+                            pFixupRegion->subres       = pScissoredRegion->srcSubres;
+                            pFixupRegion->numSlices    = pScissoredRegion->numSlices;
+                            pFixupRegion->box.offset   = pScissoredRegion->dstOffset;
+                            pFixupRegion->box.extent   = pScissoredRegion->extent;
 
                             scissoredRegionCount++;
                         }
@@ -263,21 +264,22 @@ void RsrcProcMgr::CmdCopyImage(
             {
                 for (uint32 i = 0; i < regionCount; i++)
                 {
-                    fixupRegions[i].subres         = pRegions[i].dstSubres;
-                    fixupRegions[i].offset         = pRegions[i].dstOffset;
-                    fixupRegions[i].extent         = pRegions[i].extent;
-                    fixupRegions[i].numSlices      = pRegions[i].numSlices;
+                    fixupRegions[i].isScaledCopy = false;
+                    fixupRegions[i].subres       = pRegions[i].dstSubres;
+                    fixupRegions[i].numSlices    = pRegions[i].numSlices;
+                    fixupRegions[i].box.offset   = pRegions[i].dstOffset;
+                    fixupRegions[i].box.extent   = pRegions[i].extent;
                 }
             }
 
-            FixupMetadataForComputeDst(pCmdBuffer, dstImage, dstImageLayout, finalRegionCount,
-                                       &fixupRegions[0], true);
+            FixupMetadataForComputeCopyDst(pCmdBuffer, dstImage, dstImageLayout, finalRegionCount,
+                                           &fixupRegions[0], true);
 
-            CopyImageCompute(pCmdBuffer, srcImage, srcImageLayout, dstImage, dstImageLayout,
-                             finalRegionCount, pFinalRegions, flags);
+            const bool isFmaskCopyOptimized = CopyImageCompute(pCmdBuffer, srcImage, srcImageLayout, dstImage,
+                                                               dstImageLayout, finalRegionCount, pFinalRegions, flags);
 
-            FixupMetadataForComputeDst(pCmdBuffer, dstImage, dstImageLayout, finalRegionCount,
-                                       &fixupRegions[0], false);
+            FixupMetadataForComputeCopyDst(pCmdBuffer, dstImage, dstImageLayout, finalRegionCount,
+                                           &fixupRegions[0], false, (isFmaskCopyOptimized ? &srcImage : nullptr));
 
             if (NeedPixelCopyForCmdCopyImage(srcImage, dstImage, pFinalRegions, finalRegionCount))
             {
@@ -1180,12 +1182,22 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
         ImageScaledCopyRegion copyRegion = pRegions[region];
 
         // Calculate the absolute value of dstExtent, which will get fed to the shader.
-        const int32 dstExtentW = (copyInfo.flags.coordsInFloat != 0) ?
-            static_cast<int32>(copyRegion.dstExtentFloat.width + 0.5f) : copyRegion.dstExtent.width;
-        const int32 dstExtentH = (copyInfo.flags.coordsInFloat != 0) ?
-            static_cast<int32>(copyRegion.dstExtentFloat.height + 0.5f) : copyRegion.dstExtent.height;
-        const int32 dstExtentD = (copyInfo.flags.coordsInFloat != 0) ?
-            static_cast<int32>(copyRegion.dstExtentFloat.depth + 0.5f) : copyRegion.dstExtent.depth;
+        int32 dstExtentW = 0;
+        int32 dstExtentH = 0;
+        int32 dstExtentD = 0;
+
+        if (copyInfo.flags.coordsInFloat != 0)
+        {
+            dstExtentW = int32(round(copyRegion.dstExtentFloat.width));
+            dstExtentH = int32(round(copyRegion.dstExtentFloat.height));
+            dstExtentD = int32(round(copyRegion.dstExtentFloat.depth));
+        }
+        else
+        {
+            dstExtentW = copyRegion.dstExtent.width;
+            dstExtentH = copyRegion.dstExtent.height;
+            dstExtentD = copyRegion.dstExtent.depth;
+        }
 
         const uint32 absDstExtentW = Math::Absu(dstExtentW);
         const uint32 absDstExtentH = Math::Absu(dstExtentH);
@@ -1200,58 +1212,7 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
             // We want to always use the absolute value of dstExtent.
             // If dstExtent is negative in one dimension, then we negate srcExtent in that dimension,
             // and we adjust the offsets as well.
-            if (copyInfo.flags.coordsInFloat != 0)
-            {
-                if (copyRegion.dstExtentFloat.width < 0)
-                {
-                    copyRegion.dstOffsetFloat.x     = copyRegion.dstOffsetFloat.x + copyRegion.dstExtentFloat.width;
-                    copyRegion.srcOffsetFloat.x     = copyRegion.srcOffsetFloat.x + copyRegion.srcExtentFloat.width;
-                    copyRegion.srcExtentFloat.width = -copyRegion.srcExtentFloat.width;
-                    copyRegion.dstExtentFloat.width = -copyRegion.dstExtentFloat.width;
-                }
-
-                if (copyRegion.dstExtentFloat.height < 0)
-                {
-                    copyRegion.dstOffsetFloat.y      = copyRegion.dstOffsetFloat.y + copyRegion.dstExtentFloat.height;
-                    copyRegion.srcOffsetFloat.y      = copyRegion.srcOffsetFloat.y + copyRegion.srcExtentFloat.height;
-                    copyRegion.srcExtentFloat.height = -copyRegion.srcExtentFloat.height;
-                    copyRegion.dstExtentFloat.height = -copyRegion.dstExtentFloat.height;
-                }
-
-                if (copyRegion.dstExtentFloat.depth < 0)
-                {
-                    copyRegion.dstOffsetFloat.z     = copyRegion.dstOffsetFloat.z + copyRegion.dstExtentFloat.depth;
-                    copyRegion.srcOffsetFloat.z     = copyRegion.srcOffsetFloat.z + copyRegion.srcExtentFloat.depth;
-                    copyRegion.srcExtentFloat.depth = -copyRegion.srcExtentFloat.depth;
-                    copyRegion.dstExtentFloat.depth = -copyRegion.dstExtentFloat.depth;
-                }
-            }
-            else
-            {
-                if (copyRegion.dstExtent.width < 0)
-                {
-                    copyRegion.dstOffset.x     = copyRegion.dstOffset.x + copyRegion.dstExtent.width;
-                    copyRegion.srcOffset.x     = copyRegion.srcOffset.x + copyRegion.srcExtent.width;
-                    copyRegion.srcExtent.width = -copyRegion.srcExtent.width;
-                    copyRegion.dstExtent.width = -copyRegion.dstExtent.width;
-                }
-
-                if (copyRegion.dstExtent.height < 0)
-                {
-                    copyRegion.dstOffset.y      = copyRegion.dstOffset.y + copyRegion.dstExtent.height;
-                    copyRegion.srcOffset.y      = copyRegion.srcOffset.y + copyRegion.srcExtent.height;
-                    copyRegion.srcExtent.height = -copyRegion.srcExtent.height;
-                    copyRegion.dstExtent.height = -copyRegion.dstExtent.height;
-                }
-
-                if (copyRegion.dstExtent.depth < 0)
-                {
-                    copyRegion.dstOffset.z     = copyRegion.dstOffset.z + copyRegion.dstExtent.depth;
-                    copyRegion.srcOffset.z     = copyRegion.srcOffset.z + copyRegion.srcExtent.depth;
-                    copyRegion.srcExtent.depth = -copyRegion.srcExtent.depth;
-                    copyRegion.dstExtent.depth = -copyRegion.dstExtent.depth;
-                }
-            }
+            ConvertNegativeImageScaledCopyRegion(&copyRegion, copyInfo.flags.coordsInFloat);
 
             // The shader expects the region data to be arranged as follows for each dispatch:
             // Src Normalized Left,  Src Normalized Top,Src Normalized Right, SrcNormalized Bottom.
@@ -1982,6 +1943,41 @@ bool RsrcProcMgr::BoxesCoverWholeExtent(
             (extent.width  <= uint32(Max(0, box.offset.x + int32(box.extent.width))))  &&
             (extent.height <= uint32(Max(0, box.offset.y + int32(box.extent.height)))) &&
             (extent.depth  <= uint32(Max(0, box.offset.z + int32(box.extent.depth)))));
+}
+
+// =====================================================================================================================
+// Return true if can fix up copy DST MSAA image directly (e.g. clear Fmask to uncompressed state) in an optimized way;
+// otherwise if return false, need do color expand before copy for correctness.
+bool RsrcProcMgr::UseOptimizedFixupMsaaImageAfterCopy(
+    const Image&            dstImage,
+    const ImageFixupRegion* pRegions,
+    uint32                  regionCount)
+{
+    bool optimizedFixup = true;
+
+    for (uint32 i = 0; i < regionCount; i++)
+    {
+        const SubResourceInfo* pSubresInfo = dstImage.SubresourceInfo(pRegions[i].subres);
+
+        // Only MSAA images call into this function; extentTexels and extentElements should be the same.
+        PAL_ASSERT(memcmp(&pSubresInfo->extentElements, &pSubresInfo->extentTexels, sizeof(Extent3d)) == 0);
+
+        // Generally speaking, if copy dst is fully written, can safely enable optimized fixup described as above.
+        //
+        // For scaled copy, it's not safe to determine if this is a full rect copy just based on copy dst's offset and
+        // extent. In theory it's possible that copy dst region covers full rect; but partial of related copy src
+        // region may be outside of valid region, and these pixels will be dropped during copy. As a result, this will
+        // be a partial rect copy instead of full rect copy. For simple and safe, always assume partial copy and
+        // disallow optimized fixup for scaled copy.
+        if (pRegions[i].isScaledCopy ||
+            (BoxesCoverWholeExtent(pSubresInfo->extentElements, 1, &pRegions[i].box) == false))
+        {
+            optimizedFixup = false;
+            break;
+        }
+    }
+
+    return optimizedFixup;
 }
 
 // =====================================================================================================================
@@ -3094,147 +3090,6 @@ void RsrcProcMgr::ClearImageOneBox(
 }
 
 // =====================================================================================================================
-// Resolves a multisampled source Image into the single-sampled destination Image using the Image's resolve method.
-void RsrcProcMgr::CmdResolveImage(
-    GfxCmdBuffer*             pCmdBuffer,
-    const Image&              srcImage,
-    ImageLayout               srcImageLayout,
-    const Image&              dstImage,
-    ImageLayout               dstImageLayout,
-    ResolveMode               resolveMode,
-    uint32                    regionCount,
-    const ImageResolveRegion* pRegions,
-    uint32                    flags
-    ) const
-{
-    Pm4CmdBuffer* pPm4CmdBuffer = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
-
-    const ResolveMethod srcMethod = srcImage.GetImageInfo().resolveMethod;
-    const ResolveMethod dstMethod = dstImage.GetImageInfo().resolveMethod;
-
-    if (pPm4CmdBuffer->GetEngineType() == EngineTypeCompute)
-    {
-        PAL_ASSERT((srcMethod.shaderCsFmask == 1) || (srcMethod.shaderCs == 1));
-        ResolveImageCompute(pPm4CmdBuffer,
-                            srcImage,
-                            srcImageLayout,
-                            dstImage,
-                            dstImageLayout,
-                            resolveMode,
-                            regionCount,
-                            pRegions,
-                            srcMethod,
-                            flags);
-
-        HwlFixupResolveDstImage(pPm4CmdBuffer,
-                                *dstImage.GetGfxImage(),
-                                dstImageLayout,
-                                pRegions,
-                                regionCount,
-                                true);
-    }
-    else
-    {
-        if ((srcMethod.fixedFunc == 1) && HwlCanDoFixedFuncResolve(srcImage,
-                                                                   dstImage,
-                                                                   resolveMode,
-                                                                   regionCount,
-                                                                   pRegions))
-        {
-            PAL_ASSERT(resolveMode == ResolveMode::Average);
-            // this only support color resolves.
-            ResolveImageFixedFunc(pPm4CmdBuffer,
-                                  srcImage,
-                                  srcImageLayout,
-                                  dstImage,
-                                  dstImageLayout,
-                                  regionCount,
-                                  pRegions,
-                                  flags);
-
-            HwlFixupResolveDstImage(pPm4CmdBuffer,
-                                    *dstImage.GetGfxImage(),
-                                    dstImageLayout,
-                                    pRegions,
-                                    regionCount,
-                                    false);
-        }
-        else if ((srcMethod.depthStencilCopy == 1) && (dstMethod.depthStencilCopy == 1) &&
-                 (resolveMode == ResolveMode::Average) &&
-                 (TestAnyFlagSet(flags, ImageResolveInvertY) == false) &&
-                  HwlCanDoDepthStencilCopyResolve(srcImage, dstImage, regionCount, pRegions))
-        {
-            ResolveImageDepthStencilCopy(pPm4CmdBuffer,
-                                         srcImage,
-                                         srcImageLayout,
-                                         dstImage,
-                                         dstImageLayout,
-                                         regionCount,
-                                         pRegions,
-                                         flags);
-
-            HwlHtileCopyAndFixUp(pPm4CmdBuffer, srcImage, dstImage, dstImageLayout, regionCount, pRegions, false);
-        }
-        else if (dstMethod.shaderPs && (resolveMode == ResolveMode::Average))
-        {
-            if (dstImage.IsDepthStencilTarget())
-            {
-                // this only supports Depth/Stencil resolves.
-                ResolveImageDepthStencilGraphics(pPm4CmdBuffer,
-                                                 srcImage,
-                                                 srcImageLayout,
-                                                 dstImage,
-                                                 dstImageLayout,
-                                                 regionCount,
-                                                 pRegions,
-                                                 flags);
-            }
-            else if (IsGfx11(*m_pDevice->Parent()))
-            {
-                HwlResolveImageGraphics(pPm4CmdBuffer,
-                                        srcImage,
-                                        srcImageLayout,
-                                        dstImage,
-                                        dstImageLayout,
-                                        regionCount,
-                                        pRegions,
-                                        flags);
-            }
-            else
-            {
-                PAL_NOT_IMPLEMENTED();
-            }
-        }
-        else if (pPm4CmdBuffer->IsComputeSupported() &&
-                 ((srcMethod.shaderCsFmask == 1) ||
-                  (srcMethod.shaderCs == 1)))
-        {
-            ResolveImageCompute(pPm4CmdBuffer,
-                                srcImage,
-                                srcImageLayout,
-                                dstImage,
-                                dstImageLayout,
-                                resolveMode,
-                                regionCount,
-                                pRegions,
-                                srcMethod,
-                                flags);
-
-            HwlFixupResolveDstImage(pPm4CmdBuffer,
-                                    *dstImage.GetGfxImage(),
-                                    dstImageLayout,
-                                    pRegions,
-                                    regionCount,
-                                    true);
-        }
-        else
-        {
-            PAL_NOT_IMPLEMENTED();
-        }
-    }
-}
-
-// =====================================================================================================================
 // Executes a CB fixed function resolve.
 void RsrcProcMgr::ResolveImageFixedFunc(
     Pm4CmdBuffer*             pCmdBuffer,
@@ -3666,218 +3521,6 @@ void RsrcProcMgr::ResolveImageDepthStencilGraphics(
 }
 
 // =====================================================================================================================
-// Executes a image resolve by performing fixed-func depth copy or stencil copy
-void RsrcProcMgr::ResolveImageDepthStencilCopy(
-    Pm4CmdBuffer*             pCmdBuffer,
-    const Image&              srcImage,
-    ImageLayout               srcImageLayout,
-    const Image&              dstImage,
-    ImageLayout               dstImageLayout,
-    uint32                    regionCount,
-    const ImageResolveRegion* pRegions,
-    uint32                    flags) const
-{
-    PAL_ASSERT(srcImage.IsDepthStencilTarget() && dstImage.IsDepthStencilTarget());
-    PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
-    // Don't expect GFX Blts on Nested unless targets not inherited.
-    PAL_ASSERT((pCmdBuffer->IsNested() == false) || (static_cast<Pm4::UniversalCmdBuffer*>(
-        pCmdBuffer)->GetGraphicsState().inheritedState.stateFlags.targetViewState == 0));
-
-    const auto* pPublicSettings = m_pDevice->Parent()->GetPublicSettings();
-    const auto& srcCreateInfo   = srcImage.GetImageCreateInfo();
-    const auto& dstCreateInfo   = dstImage.GetImageCreateInfo();
-
-    ViewportParams viewportInfo = {};
-    viewportInfo.count = 1;
-
-    viewportInfo.viewports[0].minDepth = 0.f;
-    viewportInfo.viewports[0].maxDepth = 1.f;
-    viewportInfo.viewports[0].origin   = PointOrigin::UpperLeft;
-
-    viewportInfo.horzClipRatio    = FLT_MAX;
-    viewportInfo.horzDiscardRatio = 1.0f;
-    viewportInfo.vertClipRatio    = FLT_MAX;
-    viewportInfo.vertDiscardRatio = 1.0f;
-    viewportInfo.depthRange       = DepthRange::ZeroToOne;
-
-    ScissorRectParams scissorInfo = {};
-    scissorInfo.count = 1;
-
-    DepthStencilViewCreateInfo srcDepthViewInfo = {};
-    srcDepthViewInfo.pImage                = &srcImage;
-    srcDepthViewInfo.arraySize             = 1;
-    srcDepthViewInfo.flags.readOnlyDepth   = 1;
-    srcDepthViewInfo.flags.readOnlyStencil = 1;
-    srcDepthViewInfo.flags.imageVaLocked   = 1;
-    srcDepthViewInfo.flags.bypassMall      = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
-                                                            RpmViewsBypassMallOnCbDbWrite);
-
-    ColorTargetViewCreateInfo dstColorViewInfo = {};
-    dstColorViewInfo.imageInfo.pImage    = &dstImage;
-    dstColorViewInfo.imageInfo.arraySize = 1;
-    dstColorViewInfo.flags.imageVaLocked = 1;
-    dstColorViewInfo.flags.bypassMall    = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
-                                                          RpmViewsBypassMallOnCbDbWrite);
-
-    BindTargetParams bindTargetsInfo = {};
-    bindTargetsInfo.colorTargetCount = 1;
-    bindTargetsInfo.colorTargets[0].pColorTargetView = nullptr;
-    bindTargetsInfo.colorTargets[0].imageLayout.usages = LayoutColorTarget;
-    bindTargetsInfo.colorTargets[0].imageLayout.engines = LayoutUniversalEngine;
-
-    bindTargetsInfo.depthTarget.depthLayout.usages = LayoutDepthStencilTarget;
-    bindTargetsInfo.depthTarget.depthLayout.engines = LayoutUniversalEngine;
-    bindTargetsInfo.depthTarget.stencilLayout.usages = LayoutDepthStencilTarget;
-    bindTargetsInfo.depthTarget.stencilLayout.engines = LayoutUniversalEngine;
-
-    // Save current command buffer state and bind graphics state which is common for all regions.
-    pCmdBuffer->CmdSaveGraphicsState();
-    BindCommonGraphicsState(pCmdBuffer);
-    pCmdBuffer->CmdBindMsaaState(GetMsaaState(1u, 1u));
-    pCmdBuffer->CmdBindColorBlendState(m_pBlendDisableState);
-    pCmdBuffer->CmdBindDepthStencilState(m_pDepthDisableState);
-
-    // Put ImageResolveInvertY value in user data 0 used by VS.
-    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 0, 1, &flags);
-
-    // Each region needs to be resolved individually.
-    for (uint32 idx = 0; idx < regionCount; ++idx)
-    {
-        LinearAllocatorAuto<VirtualLinearAllocator> regionAlloc(pCmdBuffer->Allocator(), false);
-
-        dstColorViewInfo.imageInfo.baseSubRes.mipLevel = pRegions[idx].dstMipLevel;
-
-        // Setup the viewport and scissor to restrict rendering to the destination region being copied.
-        // srcOffset and dstOffset have to be exactly same
-        PAL_ASSERT((pRegions[idx].srcOffset.x == pRegions[idx].dstOffset.x) &&
-                   (pRegions[idx].srcOffset.y == pRegions[idx].dstOffset.y));
-        viewportInfo.viewports[0].originX = static_cast<float>(pRegions[idx].srcOffset.x);
-        viewportInfo.viewports[0].originY = static_cast<float>(pRegions[idx].srcOffset.y);
-        viewportInfo.viewports[0].width = static_cast<float>(pRegions[idx].extent.width);
-        viewportInfo.viewports[0].height = static_cast<float>(pRegions[idx].extent.height);
-
-        scissorInfo.scissors[0].offset.x = pRegions[idx].srcOffset.x;
-        scissorInfo.scissors[0].offset.y = pRegions[idx].srcOffset.y;
-        scissorInfo.scissors[0].extent.width = pRegions[idx].extent.width;
-        scissorInfo.scissors[0].extent.height = pRegions[idx].extent.height;
-
-        pCmdBuffer->CmdSetViewports(viewportInfo);
-        pCmdBuffer->CmdSetScissorRects(scissorInfo);
-
-        if (srcCreateInfo.flags.sampleLocsAlwaysKnown != 0)
-        {
-            PAL_ASSERT(pRegions[idx].pQuadSamplePattern != nullptr);
-            pCmdBuffer->CmdSetMsaaQuadSamplePattern(srcCreateInfo.samples, *pRegions[idx].pQuadSamplePattern);
-        }
-        else
-        {
-            PAL_ASSERT(pRegions[idx].pQuadSamplePattern == nullptr);
-        }
-
-        for (uint32 slice = 0; slice < pRegions[idx].numSlices; ++slice)
-        {
-            DepthStencilViewInternalCreateInfo depthViewInfoInternal = {};
-            ColorTargetViewInternalCreateInfo  colorViewInfoInternal = {};
-            colorViewInfoInternal.flags.depthStencilCopy = 1;
-
-            srcDepthViewInfo.baseArraySlice = (pRegions[idx].srcSlice + slice);
-            dstColorViewInfo.imageInfo.baseSubRes.arraySlice = (pRegions[idx].dstSlice + slice);
-
-            LinearAllocatorAuto<VirtualLinearAllocator> sliceAlloc(pCmdBuffer->Allocator(), false);
-
-            IDepthStencilView* pSrcDepthView = nullptr;
-            IColorTargetView* pDstColorView = nullptr;
-
-            void* pSrcDepthViewMem =
-                PAL_MALLOC(m_pDevice->GetDepthStencilViewSize(nullptr), &sliceAlloc, AllocInternalTemp);
-            void* pDstColorViewMem =
-                PAL_MALLOC(m_pDevice->GetColorTargetViewSize(nullptr), &sliceAlloc, AllocInternalTemp);
-
-            if ((pDstColorViewMem == nullptr) || (pSrcDepthViewMem == nullptr))
-            {
-                pCmdBuffer->NotifyAllocFailure();
-            }
-            else
-            {
-                dstColorViewInfo.imageInfo.baseSubRes.plane = pRegions[idx].dstPlane;
-
-                SubresId dstSubresId   = {};
-                dstSubresId.mipLevel   = pRegions[idx].dstMipLevel;
-                dstSubresId.arraySlice = (pRegions[idx].dstSlice + slice);
-                dstSubresId.plane      = pRegions[idx].dstPlane;
-
-                dstColorViewInfo.swizzledFormat.format = dstImage.SubresourceInfo(dstSubresId)->format.format;
-
-                if (dstImage.IsDepthPlane(pRegions[idx].dstPlane))
-                {
-                    depthViewInfoInternal.flags.isDepthCopy = 1;
-
-                    dstColorViewInfo.swizzledFormat.swizzle =
-                        {ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One};
-                    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(ResolveDepthCopy),
-                                                  InternalApiPsoHash, });
-                }
-                else if (dstImage.IsStencilPlane(pRegions[idx].dstPlane))
-                {
-                    // Fixed-func stencil copies stencil value from db to g chanenl of cb.
-                    // Swizzle the stencil plance to 0X00.
-                    depthViewInfoInternal.flags.isStencilCopy = 1;
-
-                    dstColorViewInfo.swizzledFormat.swizzle =
-                        { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::One };
-                    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics,
-                                                  GetGfxPipeline(ResolveStencilCopy),
-                                                  InternalApiPsoHash, });
-                }
-                else
-                {
-                    PAL_ASSERT_ALWAYS();
-                }
-
-                Result result = m_pDevice->CreateDepthStencilView(srcDepthViewInfo,
-                                                                  depthViewInfoInternal,
-                                                                  pSrcDepthViewMem,
-                                                                  &pSrcDepthView);
-                PAL_ASSERT(result == Result::Success);
-
-                if (result == Result::Success)
-                {
-                    result = m_pDevice->CreateColorTargetView(dstColorViewInfo,
-                                                              colorViewInfoInternal,
-                                                              pDstColorViewMem,
-                                                              &pDstColorView);
-                    PAL_ASSERT(result == Result::Success);
-                }
-
-                if (result == Result::Success)
-                {
-                    bindTargetsInfo.colorTargetCount = 1;
-                    bindTargetsInfo.colorTargets[0].pColorTargetView = pDstColorView;
-                    bindTargetsInfo.depthTarget.pDepthStencilView = pSrcDepthView;
-
-                    pCmdBuffer->CmdBindTargets(bindTargetsInfo);
-
-                    // Draw a fullscreen quad.
-                    pCmdBuffer->CmdDraw(0, 3, 0, 1, 0);
-
-                    // Unbind the color-target and depth-stencil target view and destroy them.
-                    bindTargetsInfo.colorTargetCount = 0;
-                    bindTargetsInfo.depthTarget.pDepthStencilView = nullptr;
-                    pCmdBuffer->CmdBindTargets(bindTargetsInfo);
-                }
-            }
-
-            PAL_SAFE_FREE(pSrcDepthViewMem, &sliceAlloc);
-            PAL_SAFE_FREE(pDstColorViewMem, &sliceAlloc);
-        } // End for each slice.
-    } // End for each region.
-
-      // Restore original command buffer state.
-    pCmdBuffer->CmdRestoreGraphicsStateInternal();
-    pCmdBuffer->SetGfxBltDirectWriteMisalignedMdState(dstImage.HasMisalignedMetadata());
-}
-
-// =====================================================================================================================
 // Executes a generic color blit which acts upon the specified color Image. If mipCondDwordsAddr is non-zero, it is the
 // GPU virtual address of an array of conditional DWORDs, one for each mip level in the image. RPM will use these
 // DWORDs to conditionally execute this blit on a per-mip basis.
@@ -4305,104 +3948,8 @@ const ComputePipeline* RsrcProcMgr::GetLinearHtileClearPipeline(
 }
 
 // =====================================================================================================================
-// This must be called before and after each compute copy. The pre-copy call will insert any required metadata
-// decompresses and the post-copy call will fixup any metadata that needs updating. In practice these barriers are
-// required in cases where we treat CopyDst as compressed but RPM can't actually write compressed data directly from
-// the compute shader.
-void RsrcProcMgr::FixupMetadataForComputeDst(
-    GfxCmdBuffer*           pCmdBuffer,
-    const Image&            dstImage,
-    ImageLayout             dstImageLayout,
-    uint32                  regionCount,
-    const ImageFixupRegion* pRegions,
-    bool                    beforeCopy
-    ) const
-{
-    const Pm4Image* pPm4Image = static_cast<Pm4Image*>(dstImage.GetGfxImage());
-
-    // TODO: unify all RPM metadata fixup here; currently only depth image is handled.
-    if (pPm4Image->HasHtileData())
-    {
-        // There is a Hiz issue on gfx10 with compressed depth writes so we need an htile resummarize blt.
-        const bool enableCompressedDepthWriteTempWa = IsGfx10(*m_pDevice->Parent());
-
-        // If enable temp workaround for comrpessed depth write, always need barriers for before and after copy.
-        bool needBarrier = enableCompressedDepthWriteTempWa;
-        for (uint32 i = 0; (needBarrier == false) && (i < regionCount); i++)
-        {
-            needBarrier = pPm4Image->ShaderWriteIncompatibleWithLayout(pRegions[i].subres, dstImageLayout);
-        }
-
-        if (needBarrier)
-        {
-            AutoBuffer<ImgBarrier, 32, Platform> imgBarriers(regionCount, m_pDevice->GetPlatform());
-
-            if (imgBarriers.Capacity() >= regionCount)
-            {
-                const uint32 shaderWriteLayout =
-                    (enableCompressedDepthWriteTempWa ? (LayoutShaderWrite | LayoutUncompressed) : LayoutShaderWrite);
-
-                memset(&imgBarriers[0], 0, sizeof(ImgBarrier) * regionCount);
-
-                for (uint32 i = 0; i < regionCount; i++)
-                {
-                    imgBarriers[i].pImage       = &dstImage;
-                    imgBarriers[i].subresRange  = SubresourceRange(pRegions[i].subres, 1, 1, pRegions[i].numSlices);
-                    imgBarriers[i].srcStageMask = beforeCopy ? PipelineStageBottomOfPipe : PipelineStageCs;
-                    imgBarriers[i].dstStageMask = PipelineStageBlt;
-                    imgBarriers[i].oldLayout    = dstImageLayout;
-                    imgBarriers[i].newLayout    = dstImageLayout;
-
-                    // The first barrier must prepare the image for shader writes, perhaps by decompressing metadata.
-                    // The second barrier is required to undo those changes, perhaps by resummarizing the metadata.
-                    if (beforeCopy)
-                    {
-                        // Can optimize depth expand to lighter Barrier with UninitializedTarget for full subres copy.
-                        const SubResourceInfo* pSubresInfo = dstImage.SubresourceInfo(pRegions[i].subres);
-                        const bool fullSubresCopy =
-                            ((pRegions[i].offset.x == 0) &&
-                             (pRegions[i].offset.y == 0) &&
-                             (pRegions[i].offset.z == 0) &&
-                             (pRegions[i].extent.width  >= pSubresInfo->extentElements.width) &&
-                             (pRegions[i].extent.height >= pSubresInfo->extentElements.height) &&
-                             (pRegions[i].extent.depth  >= pSubresInfo->extentElements.depth));
-
-                        if (fullSubresCopy)
-                        {
-                            imgBarriers[i].oldLayout.usages = LayoutUninitializedTarget;
-                        }
-
-                        imgBarriers[i].newLayout.usages |= shaderWriteLayout;
-                        imgBarriers[i].srcAccessMask     = CoherCopyDst;
-                        imgBarriers[i].dstAccessMask     = CoherShader;
-                    }
-                    else // After copy
-                    {
-                        imgBarriers[i].oldLayout.usages |= shaderWriteLayout;
-                        imgBarriers[i].srcAccessMask     = CoherShader;
-                        imgBarriers[i].dstAccessMask     = CoherCopyDst;
-                    }
-                }
-
-                // Operations like resummarizes might read the blit's output so we can't optimize the wait point.
-                AcquireReleaseInfo acqRelInfo = {};
-                acqRelInfo.pImageBarriers    = &imgBarriers[0];
-                acqRelInfo.imageBarrierCount = regionCount;
-                acqRelInfo.reason            = Developer::BarrierReasonUnknown;
-
-                pCmdBuffer->CmdReleaseThenAcquire(acqRelInfo);
-            }
-            else
-            {
-                pCmdBuffer->NotifyAllocFailure();
-            }
-        }
-    }
-}
-
-// =====================================================================================================================
 // This is called after compute resolve image.
-void RsrcProcMgr::FixupComputeResolveDst(
+void RsrcProcMgr::FixupMetadataForComputeResolveDst(
     GfxCmdBuffer*             pCmdBuffer,
     const Image&              dstImage,
     uint32                    regionCount,

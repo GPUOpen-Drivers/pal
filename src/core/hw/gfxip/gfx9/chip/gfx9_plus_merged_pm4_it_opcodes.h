@@ -67,7 +67,6 @@ typedef enum IT_OpCodeType {
     IT_WRITE_DATA                                      = 0x00000037,
     IT_DRAW_INDEX_INDIRECT_MULTI                       = 0x00000038,
     IT_MEM_SEMAPHORE                                   = 0x00000039,
-    IT_DRAW_INDEX_MULTI_INST                           = 0x0000003a,
     IT_COPY_DW                                         = 0x0000003b,
     IT_WAIT_REG_MEM                                    = 0x0000003c,
     IT_INDIRECT_BUFFER                                 = 0x0000003f,

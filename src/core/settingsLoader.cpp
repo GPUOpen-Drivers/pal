@@ -199,6 +199,12 @@ void SettingsLoader::ValidateSettings()
         m_settings.gfxTimeout *= m_settings.gfxEmuTimeoutMultiplier;
     }
 
+    // Propagate the public setting to the internal setting that actually controls preemption.
+    if (m_pDevice->GetPublicSettings()->disableCommandBufferPreemption)
+    {
+        m_settings.cmdBufPreemptionMode = CmdBufPreemptModeDisable;
+    }
+
     // Overrides all paths for debug files to expected values.
     // Now those directories in setting are all *relative*:
     // Relative to the path in the AMD_DEBUG_DIR environment variable, and if that env var isn't set, the location is

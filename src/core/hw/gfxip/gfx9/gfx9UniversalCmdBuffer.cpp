@@ -4916,6 +4916,22 @@ Result UniversalCmdBuffer::AddPostamble()
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
+    if ((m_globalInternalTableAddr != 0) &&
+        (m_computeState.pipelineState.pPipeline != nullptr) &&
+        (static_cast<const ComputePipeline*>(m_computeState.pipelineState.pPipeline)->GetInfo().flags.hsaAbi != 0u))
+    {
+        // If we're ending this cmdbuf with an HSA pipeline bound, the global table may currently
+        // be invalid and we need to restore it for any subsequent chained cmdbufs.
+        // Note 'nullptr' is considered PAL ABI and the restore must have already happened if needed.
+        pDeCmdSpace += m_cmdUtil.BuildLoadShRegsIndex(index__pfp_load_sh_reg_index__direct_addr,
+                                                      data_format__pfp_load_sh_reg_index__offset_and_size,
+                                                      m_globalInternalTableAddr,
+                                                      mmCOMPUTE_USER_DATA_0,
+                                                      1,
+                                                      Pm4ShaderType::ShaderCompute,
+                                                      pDeCmdSpace);
+    }
+
     if (IsOneTimeSubmit() == false)
     {
         // If the memory contains any value, it is possible that with the ACE running ahead, it could get a value
@@ -5986,15 +6002,20 @@ uint32* UniversalCmdBuffer::ValidateComputeUserData(
         // We need to re-write the spill table GPU address to its user-SGPR if:
         // - the spill table was reuploaded during step #3, or
         // - the pipeline was changed and the previous pipeline either didn't spill or used a different spill reg.
+        const uint16 spillTableRegAddr = pCurrSignature->stage.spillTableRegAddr;
+
         if (reUpload ||
             (HasPipelineChanged &&
              ((pPrevSignature->spillThreshold == NoUserDataSpilling) ||
-              (pPrevSignature->stage.spillTableRegAddr != pCurrSignature->stage.spillTableRegAddr))))
+              (pPrevSignature->stage.spillTableRegAddr != spillTableRegAddr))))
         {
-            pCmdSpace = SetUserSgprReg<ShaderCompute>(pCurrSignature->stage.spillTableRegAddr,
-                                                      LowPart(pSpillTable->gpuVirtAddr),
-                                                      onAce,
-                                                      pCmdSpace);
+            if (spillTableRegAddr != UserDataNotMapped)
+            {
+                pCmdSpace = SetUserSgprReg<ShaderCompute>(spillTableRegAddr,
+                                                          LowPart(pSpillTable->gpuVirtAddr),
+                                                          onAce,
+                                                          pCmdSpace);
+            }
         }
     } // if current pipeline spills user-data
 
@@ -9422,12 +9443,9 @@ void UniversalCmdBuffer::CmdSetPredication(
                                                 accumulateData,
                                                 pDeCmdSpace);
 
-    // For DX12 clients, we need to save the result of the predicate into embedded data to use for predicating
-    // indirect command generation.
     // For Vulkan clients, we need to save the result of the predicate into embedded data to use for predicating
     // compute workload discard when doing gang submit
-    if ((m_device.GetPlatform()->GetClientApiId() == ClientApi::Dx12) ||
-        (m_device.GetPlatform()->GetClientApiId() == ClientApi::Vulkan))
+    if (m_device.GetPlatform()->GetClientApiId() == ClientApi::Vulkan)
     {
         if (gpuVirtAddr != 0)
         {
@@ -9694,7 +9712,7 @@ uint32 UniversalCmdBuffer::BuildExecuteIndirectIb2Packets(
         }
 
         // Handle SetIncConst
-        if (gfx9Generator.ContainsIncrementingConstant())
+        if (gfx9Generator.ContainIncrementingConstant())
         {
             for (uint32 cmdIndex = 0; cmdIndex < cmdCount; ++cmdIndex)
             {
@@ -9934,7 +9952,7 @@ uint32 UniversalCmdBuffer::BuildExecuteIndirectIb2Packets(
         }
     }
 
-    if (gfx9Generator.ContainsIncrementingConstant())
+    if (gfx9Generator.ContainIncrementingConstant())
     {
         // Constant increments by 1 after draw / dispatch launch
         sizeDwords += (CmdUtil::AtomicMemSizeDwords + CmdUtil::PfpSyncMeSizeDwords);
@@ -10010,6 +10028,8 @@ uint32 UniversalCmdBuffer::PopulateExecuteIndirectV2Params(
 
     uint32 stageUsageMask = 0;
     uint32 sizeInDwords   = PM4_PFP_EXECUTE_INDIRECT_V2_SIZEDW__GFX11;
+
+    uint32 incConstRegCount = 0;
 
     constexpr uint32 EightBitMask = 0xff;
     constexpr uint32 TenBitMask   = 0x3ff;
@@ -10119,6 +10139,40 @@ uint32 UniversalCmdBuffer::PopulateExecuteIndirectV2Params(
             }
         }
 
+        if (gfx9Generator.ContainIncrementingConstant())
+        {
+            for (uint32 cmdIndex = 0; cmdIndex < cmdCount; cmdIndex++)
+            {
+                if (pParamData[cmdIndex].type != IndirectOpType::SetIncConst)
+                {
+                    continue;
+                }
+
+                const uint32 incConstEntry = pParamData[cmdIndex].data[0];
+
+                for (uint32 stgId = 0; stgId < numActiveHwShaderStgs; stgId++)
+                {
+                    const uint32 stgIdx = stageIndices[stgId];
+
+                    const UserDataEntryMap& stage = isGfx ? m_pSignatureGfx->stage[stgIdx] : m_pSignatureCs->stage;
+                    const uint32 addrMask         = isGfx ? EightBitMask : TenBitMask;
+
+                    for (uint32 sgprIndx = 0; sgprIndx < stage.userSgprCount; sgprIndx++)
+                    {
+                        const uint32 entry = stage.mappedEntry[sgprIndx];
+
+                        if (entry == incConstEntry)
+                        {
+                            const uint32 userDataReg = (stage.firstUserSgprRegAddr + sgprIndx) & addrMask;
+                            pMetaData->incConstReg[incConstRegCount++] = userDataReg;
+                        }
+                    }
+                }
+                // There can only be one IndirectOpType::SetIncConst in an IndirectCmdGenerator.
+                break;
+            }
+        }
+
         uint32 initCount   = 0;
         uint32 updateCount = 0;
         if (userDataSpills)
@@ -10132,6 +10186,7 @@ uint32 UniversalCmdBuffer::PopulateExecuteIndirectV2Params(
         pMetaData->updateMemCopy.count = updateCount;
         pMetaData->userDataOffset      = properties.userDataArgBufOffsetBase;
         pMetaData->userDataDwCount     = argSizeDw;
+        pMetaData->incConstRegCount    = incConstRegCount;
     }
 
     if (stageUsageMask != 0)
@@ -10156,12 +10211,9 @@ uint32 UniversalCmdBuffer::PopulateExecuteIndirectV2Params(
 
             pPacketOp->dispatch = {};
 
-            pPacketOp->dispatch.dataOffset                                = pParamData[cmdIndex].argBufOffset;
-            if (m_pSignatureCs->dispatchIndexRegAddr != UserDataNotMapped)
-            {
-                pMetaData->commandIndexEnable            = true;
-                pPacketOp->dispatch.locData.commandIndex = m_pSignatureCs->dispatchIndexRegAddr;
-            }
+            pPacketOp->dispatch.dataOffset           = pParamData[cmdIndex].argBufOffset;
+            pPacketOp->dispatch.locData.commandIndex =
+                pMeta->ProcessCommandIndex(UserDataNotMapped, gfx9Generator.UseConstantDrawIndex(), false);
             pPacketOp->dispatch.dispatchInitiator.bits.COMPUTE_SHADER_EN  = 1;
             pPacketOp->dispatch.dispatchInitiator.bits.FORCE_START_AT_000 = 1;
             pPacketOp->dispatch.dispatchInitiator.bits.CS_W32_EN          = m_pSignatureCs->flags.isWave32;
@@ -10176,14 +10228,13 @@ uint32 UniversalCmdBuffer::PopulateExecuteIndirectV2Params(
 
             pPacketOp->draw = {};
 
-            pPacketOp->draw.dataOffset          = pParamData[cmdIndex].argBufOffset;
-            pPacketOp->draw.locData.startVertex = vtxOffsetReg  & EightBitMask;
-            pPacketOp->draw.locData.startInst   = instOffsetReg & EightBitMask;
-            if (m_pSignatureGfx->drawIndexRegAddr != UserDataNotMapped)
-            {
-                pMetaData->commandIndexEnable        = true;
-                pPacketOp->draw.locData.commandIndex = m_pSignatureGfx->drawIndexRegAddr & EightBitMask;
-            }
+            pPacketOp->draw.dataOffset           = pParamData[cmdIndex].argBufOffset;
+            pPacketOp->draw.locData.startVertex  = vtxOffsetReg  & EightBitMask;
+            pPacketOp->draw.locData.startInst    = instOffsetReg & EightBitMask;
+            pPacketOp->draw.locData.commandIndex =
+                pMeta->ProcessCommandIndex(m_pSignatureGfx->drawIndexRegAddr,
+                                           gfx9Generator.UseConstantDrawIndex(),
+                                           true);
             pPacketOp->draw.drawInitiator.bits.SOURCE_SELECT = DI_SRC_SEL_AUTO_INDEX;
             pPacketOp->draw.drawInitiator.bits.MAJOR_MODE    = DI_MAJOR_MODE_0;
             break;
@@ -10205,14 +10256,13 @@ uint32 UniversalCmdBuffer::PopulateExecuteIndirectV2Params(
 
             pPacketOp->drawIndexed = {};
 
-            pPacketOp->drawIndexed.dataOffset         = pParamData[cmdIndex].argBufOffset;
-            pPacketOp->drawIndexed.locData.baseVertex = vtxOffsetReg  & EightBitMask;
-            pPacketOp->drawIndexed.locData.startInst  = instOffsetReg & EightBitMask;
-            if (m_pSignatureGfx->drawIndexRegAddr != UserDataNotMapped)
-            {
-                pMetaData->commandIndexEnable               = true;
-                pPacketOp->drawIndexed.locData.commandIndex = m_pSignatureGfx->drawIndexRegAddr & EightBitMask;
-            }
+            pPacketOp->drawIndexed.dataOffset           = pParamData[cmdIndex].argBufOffset;
+            pPacketOp->drawIndexed.locData.baseVertex   = vtxOffsetReg  & EightBitMask;
+            pPacketOp->drawIndexed.locData.startInst    = instOffsetReg & EightBitMask;
+            pPacketOp->drawIndexed.locData.commandIndex =
+                pMeta->ProcessCommandIndex(m_pSignatureGfx->drawIndexRegAddr,
+                                           gfx9Generator.UseConstantDrawIndex(),
+                                           true);
             pPacketOp->drawIndexed.drawInitiator.bits.SOURCE_SELECT = DI_SRC_SEL_DMA;
             pPacketOp->drawIndexed.drawInitiator.bits.MAJOR_MODE    = DI_MAJOR_MODE_0;
             break;
@@ -10237,24 +10287,18 @@ uint32 UniversalCmdBuffer::PopulateExecuteIndirectV2Params(
 
             pPacketOp->dispatchMesh = {};
 
-            pPacketOp->dispatchMesh.dataOffset     = pParamData[cmdIndex].argBufOffset;
-            pPacketOp->dispatchMesh.locData.xyzDim = meshDispatchDimsReg & EightBitMask;
-            if (drawIndexReg != UserDataNotMapped)
-            {
-                m_deCmdStream.NotifyIndirectShRegWrite(drawIndexReg);
-                pMetaData->commandIndexEnable                = true;
-                pPacketOp->dispatchMesh.locData.commandIndex = drawIndexReg & EightBitMask;
-            }
+            pPacketOp->dispatchMesh.dataOffset           = pParamData[cmdIndex].argBufOffset;
+            pPacketOp->dispatchMesh.locData.xyzDim       = meshDispatchDimsReg & EightBitMask;
+            pPacketOp->dispatchMesh.locData.commandIndex =
+                pMeta->ProcessCommandIndex(drawIndexReg, gfx9Generator.UseConstantDrawIndex(), true);
             pPacketOp->dispatchMesh.drawInitiator.bits.SOURCE_SELECT = DI_SRC_SEL_AUTO_INDEX;
             pPacketOp->dispatchMesh.drawInitiator.bits.MAJOR_MODE    = DI_MAJOR_MODE_0;
             break;
         }
         case IndirectOpType::Skip:
         case IndirectOpType::SetUserData:
-            // Nothing to do here.
-            break;
         case IndirectOpType::SetIncConst:
-            PAL_NOT_IMPLEMENTED();
+            // Nothing to do here.
             break;
         default:
             // What's this?
@@ -10436,7 +10480,7 @@ gpusize UniversalCmdBuffer::ConstructExecuteIndirectPacket(
         }
     }
 
-    if (gfx9Generator.ContainsIncrementingConstant())
+    if (gfx9Generator.ContainIncrementingConstant())
     {
         // Create and initialize Incrementing Constant buffer to zero
         uint32* pIncConstDataSpace = CmdAllocateEmbeddedData(1u, 1u, &(pPacketInfo->incConstBufferAddr));
@@ -10535,10 +10579,11 @@ void UniversalCmdBuffer::ExecuteIndirectPacket(
             Pm4::ValidateDrawInfo drawInfo = {};
             if (useExecuteIndirectV2)
             {
-                drawInfo.multiIndirectDraw = (maximumCount > 1) || (countGpuAddr != 0uLL);
+                drawInfo.multiIndirectDraw = ((maximumCount > 1) || (countGpuAddr != 0uLL)) &&
+                                              (gfx9Generator.UseConstantDrawIndex() == false);
             }
 
-            if (gfx9Generator.ContainsIndexBufferBind() || (gfx9Generator.Type() == Pm4::GeneratorType::Draw))
+            if (gfx9Generator.ContainIndexBuffer() || (gfx9Generator.Type() == Pm4::GeneratorType::Draw))
             {
                 ValidateDraw<false, true>(drawInfo);
             }
@@ -10805,9 +10850,10 @@ void UniversalCmdBuffer::ExecuteIndirectShader(
                 // redundant. Therefore, pretend this is a non-indexed draw call if the generated command binds
                 // its own index buffer(s).
                 Pm4::ValidateDrawInfo drawInfo = {};
-                drawInfo.multiIndirectDraw = (maximumCount > 1) || (countGpuAddr != 0uLL);
+                drawInfo.multiIndirectDraw = ((maximumCount > 1) || (countGpuAddr != 0uLL)) &&
+                                              (gfx9Generator.UseConstantDrawIndex() == false);
 
-                if (gfx9Generator.ContainsIndexBufferBind() || (gfx9Generator.Type() == Pm4::GeneratorType::Draw))
+                if (gfx9Generator.ContainIndexBuffer() || (gfx9Generator.Type() == Pm4::GeneratorType::Draw))
                 {
                     ValidateDraw<false, true>(drawInfo);
                 }
@@ -10914,7 +10960,7 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
         DescribeExecuteIndirectCmds(this, static_cast<uint32>(gfx9Generator.Type()));
     }
 
-    if (gfx9Generator.UsingExecuteIndirectPacket()       &&
+    if (gfx9Generator.UseExecuteIndirectPacket()       &&
         (userDataSpillTableUsedButNotSupported == false) &&
         (isTaskShaderEnabled == false)                   &&
         (isNumWorkGroupsEnabled == false))

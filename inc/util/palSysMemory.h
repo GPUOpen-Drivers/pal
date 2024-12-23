@@ -58,8 +58,7 @@ namespace Util
 template<size_t Alignment, typename T>
 constexpr T* AssumeAligned(T* p)
 {
-    __builtin_assume_aligned(p, Alignment);
-    return p;
+    return static_cast<T*>(__builtin_assume_aligned(p, Alignment));
 }
 
 } // Util

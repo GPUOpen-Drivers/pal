@@ -105,7 +105,7 @@ union Gfx11SwWarDetection
 
         uint32_t shaderSqSqgSCLAUSEFollowedByVALU_SDELAYALUCoIssuePairCanExceedClauseLength_A_                                                                                        : 1;
 
-        uint32_t cmmUtcl0UTCL0PrefetchRequest_permissions_0_Issue_A_                                                                                                                  : 1;
+        uint32_t                                                                                                                                                                      : 1;
 
         uint32_t                                                                                                                                                                      : 1;
 
@@ -161,7 +161,7 @@ union Gfx11SwWarDetection
 
         uint32_t textureTaGfx11ImageMsaaLoadNotHonoringDstSel_A_                                                                                                                      : 1;
 
-#if     SWD_BUILD_STRIX1
+#if   SWD_BUILD_STRIX1
         uint32_t shaderSpFalsePositiveVGPRWriteKillForDUALOpcodeInstructions_A_                                                                                                       : 1;
 #else
         uint32_t                                                                                                                                                                      : 1;
@@ -173,7 +173,7 @@ union Gfx11SwWarDetection
 
         uint32_t geometryGeSioPcSioSpiBciATMDeallocsDoNotWaitForGSDONE_A_                                                                                                             : 1;
 
-#if     SWD_BUILD_PHX2 || SWD_BUILD_STRIX1
+#if   SWD_BUILD_PHX2|| SWD_BUILD_STRIX1
         uint32_t ppCbFDCCKeysWithFragComp_MSAASettingCauseHangsInCB_A_                                                                                                                : 1;
 #else
         uint32_t                                                                                                                                                                      : 1;
@@ -199,7 +199,7 @@ union Gfx11SwWarDetection
         uint32_t                                                                                                                                                                      : 1;
 #endif
 
-#if     SWD_BUILD_STRIX1
+#if   SWD_BUILD_STRIX1
         uint32_t textureTcpGfx11_5MainTCPHangsWhenSClauseHasTooManyInstrWithNoValidThreads_A_                                                                                         : 1;
 #else
         uint32_t                                                                                                                                                                      : 1;
@@ -207,13 +207,13 @@ union Gfx11SwWarDetection
 
         uint32_t textureTcpGfx11MainTCPHangsWhenSClauseHasTooManyInstrWithNoValidThreads_A_                                                                                           : 1;
 
-#if      SWD_BUILD_STRIX1
+#if   SWD_BUILD_STRIX1
         uint32_t ppSc1ApexLegendsImageCorruptionInZPrePassMode_A_                                                                                                                     : 1;
 #else
         uint32_t                                                                                                                                                                      : 1;
 #endif
 
-#if     SWD_BUILD_STRIX1
+#if   SWD_BUILD_STRIX1
         uint32_t shaderSqSqgShaderHangDueToSQInstructionStore_IS_CacheDeadlock_A_                                                                                                     : 1;
 #else
         uint32_t                                                                                                                                                                      : 1;
@@ -579,7 +579,7 @@ bool DetermineGfx11Target(
     uint32_t*       pMinor,
     uint32_t*       pStepping)
 {
-    bool successful = true;
+    bool successful = false;
 
     if (false)
     {
@@ -595,29 +595,28 @@ bool DetermineGfx11Target(
             (*pMajor)    = 11;
             (*pMinor)    = 0;
             (*pStepping) = 0;
+            successful   = true;
         }
         else if ((0x10 <= eRevId) && (eRevId < 0x20))
         {
             (*pMajor)    = 11;
             (*pMinor)    = 0;
             (*pStepping) = 2;
+            successful   = true;
         }
         else if ((0x20 <= eRevId) && (eRevId < 0x30))
         {
             (*pMajor)    = 11;
             (*pMinor)    = 0;
             (*pStepping) = 1;
+            successful   = true;
         }
         else if ((0x20 <= eRevId) && (eRevId < 0x30))
         {
             (*pMajor)    = 11;
             (*pMinor)    = 0;
             (*pStepping) = 5;
-        }
-        else
-        {
-            // No ASIC detected. Return false.
-            successful = false;
+            successful   = true;
         }
     }
     else if (familyId == 148)
@@ -631,6 +630,7 @@ bool DetermineGfx11Target(
             (*pMajor)    = 11;
             (*pMinor)    = 0;
             (*pStepping) = 3;
+            successful   = true;
         }
 #if SWD_BUILD_PHX2
         else if ((0x80 <= eRevId) && (eRevId < 0xFF))
@@ -638,13 +638,9 @@ bool DetermineGfx11Target(
             (*pMajor)    = 11;
             (*pMinor)    = 0;
             (*pStepping) = 3;
+            successful   = true;
         }
 #endif
-        else
-        {
-            // No ASIC detected. Return false.
-            successful = false;
-        }
     }
 #if SWD_BUILD_STRIX
     else if (familyId == 150)
@@ -659,6 +655,7 @@ bool DetermineGfx11Target(
             (*pMajor)    = 11;
             (*pMinor)    = 5;
             (*pStepping) = 65535;
+            successful   = true;
         }
 #endif
 #if SWD_BUILD_STRIX1
@@ -667,20 +664,11 @@ bool DetermineGfx11Target(
             (*pMajor)    = 11;
             (*pMinor)    = 5;
             (*pStepping) = 0;
+            successful   = true;
         }
 #endif
-        else
-        {
-            // No ASIC detected. Return false.
-            successful = false;
-        }
     }
 #endif
-    else
-    {
-        // No family detected. Return false.
-        successful = false;
-    }
 
     return successful;
 }
@@ -691,7 +679,7 @@ bool DetectGfx11SoftwareWorkaroundsByChip(
     uint32_t             eRevId,
     Gfx11SwWarDetection* pWorkarounds)
 {
-    bool successful = true;
+    bool successful = false;
 
     if (false)
     {
@@ -705,23 +693,22 @@ bool DetectGfx11SoftwareWorkaroundsByChip(
         else if ((0x01 <= eRevId) && (eRevId < 0x10))
         {
             swd_internal::DetectNavi31A0Workarounds(pWorkarounds);
+            successful = true;
         }
         else if ((0x10 <= eRevId) && (eRevId < 0x20))
         {
             swd_internal::DetectNavi33A0Workarounds(pWorkarounds);
+            successful = true;
         }
         else if ((0x20 <= eRevId) && (eRevId < 0x30))
         {
             swd_internal::DetectNavi32A0Workarounds(pWorkarounds);
+            successful = true;
         }
         else if ((0x20 <= eRevId) && (eRevId < 0x30))
         {
             swd_internal::DetectNavi32GLXLWorkarounds(pWorkarounds);
-        }
-        else
-        {
-            // No ASIC detected. Return false.
-            successful = false;
+            successful = true;
         }
     }
     else if (familyId == 148)
@@ -733,18 +720,15 @@ bool DetectGfx11SoftwareWorkaroundsByChip(
         else if ((0x01 <= eRevId) && (eRevId < 0x10))
         {
             swd_internal::DetectPhoenix1A0Workarounds(pWorkarounds);
+            successful = true;
         }
 #if SWD_BUILD_PHX2
         else if ((0x80 <= eRevId) && (eRevId < 0xFF))
         {
             swd_internal::DetectPhoenix2A0Workarounds(pWorkarounds);
+            successful = true;
         }
 #endif
-        else
-        {
-            // No ASIC detected. Return false.
-            successful = false;
-        }
     }
 #if SWD_BUILD_STRIX
     else if (familyId == 150)
@@ -757,19 +741,16 @@ bool DetectGfx11SoftwareWorkaroundsByChip(
         else if ((0x01 <= eRevId) && (eRevId < 0x10))
         {
             swd_internal::DetectStrix1A0Workarounds(pWorkarounds);
+            successful = true;
         }
 #endif
 #if SWD_BUILD_STRIX1
         else if ((0x10 <= eRevId) && (eRevId < 0x20))
         {
             swd_internal::DetectStrix1B0Workarounds(pWorkarounds);
+            successful = true;
         }
 #endif
-        else
-        {
-            // No ASIC detected. Return false.
-            successful = false;
-        }
     }
 #endif
 
@@ -788,7 +769,7 @@ bool DetectGfx11SoftwareWorkaroundsByGfxIp(
     uint32_t             stepping,
     Gfx11SwWarDetection* pWorkarounds)
 {
-    bool successful = true;
+    bool successful = false;
 
     if (false)
     {
@@ -796,44 +777,46 @@ bool DetectGfx11SoftwareWorkaroundsByGfxIp(
     else if ((major == 11) && (minor == 0) && (stepping == 0))
     {
         swd_internal::DetectNavi31A0Workarounds(pWorkarounds);
+        successful = true;
     }
     else if ((major == 11) && (minor == 0) && (stepping == 1))
     {
         swd_internal::DetectNavi32A0Workarounds(pWorkarounds);
+        successful = true;
     }
     else if ((major == 11) && (minor == 0) && (stepping == 2))
     {
         swd_internal::DetectNavi33A0Workarounds(pWorkarounds);
+        successful = true;
     }
     else if ((major == 11) && (minor == 0) && (stepping == 3))
     {
         swd_internal::DetectPhoenix1A0Workarounds(pWorkarounds);
+        successful = true;
 #if SWD_BUILD_PHX2
         swd_internal::DetectPhoenix2A0Workarounds(pWorkarounds);
+        successful = true;
 #endif
     }
     else if ((major == 11) && (minor == 0) && (stepping == 5))
     {
         swd_internal::DetectNavi32GLXLWorkarounds(pWorkarounds);
+        successful = true;
     }
 #if SWD_BUILD_STRIX1
     else if ((major == 11) && (minor == 5) && (stepping == 0))
     {
         swd_internal::DetectStrix1B0Workarounds(pWorkarounds);
+        successful = true;
     }
 #endif
 #if SWD_BUILD_STRIX1
     else if ((major == 11) && (minor == 5) && (stepping == 65535))
     {
         swd_internal::DetectStrix1A0Workarounds(pWorkarounds);
+        successful = true;
     }
 #endif
-    else
-    {
-        // No ASIC detected. Return false.
-        successful = false;
-    }
-
     if (successful)
     {
         swd_internal::Gfx11OverrideDefaults(pWorkarounds);

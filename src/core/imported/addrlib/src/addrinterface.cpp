@@ -1071,7 +1071,12 @@ ADDR_E_RETURNCODE ADDR_API Addr2IsValidDisplaySwizzleMode(
         in.swizzleMode  = swizzleMode;
         in.bpp          = bpp;
 
-        *pResult   = pLib->IsValidDisplaySwizzleMode(&in);
+        BOOL_32 result = pLib->IsValidDisplaySwizzleMode(&in);
+        if (pResult != NULL)
+        {
+            *pResult   = result;
+        }
+
         returnCode = ADDR_OK;
     }
     else

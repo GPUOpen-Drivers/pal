@@ -23,9 +23,16 @@
  #
  #######################################################################################################################
 
-target_include_directories(pal PRIVATE .)
-
 target_sources(pal PRIVATE
-    amdgpu_shared.h
     CMakeLists.txt
+    dri2.h
+    dri3.h
+    present.h
+    randr.h
+    render.h
+    shape.h
+    sync.h
+    xcb.h
+    xfixes.h
+    xproto.h
 )

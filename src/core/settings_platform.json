@@ -80,7 +80,7 @@
         "Debug Print"
       ],
       "Defaults": {
-        "Default": "Disable"
+        "Default": "Print"
       },
       "Type": "enum",
       "ValidValues": {
@@ -97,7 +97,7 @@
         "Debug Print"
       ],
       "Defaults": {
-        "Default": "Disable"
+        "Default": "Print"
       },
       "Type": "enum",
       "ValidValues": {
@@ -114,7 +114,7 @@
         "Debug Print"
       ],
       "Defaults": {
-        "Default": "Disable"
+        "Default": "Print"
       },
       "Type": "enum",
       "ValidValues": {
@@ -148,7 +148,7 @@
         "Debug Print"
       ],
       "Defaults": {
-        "Default": "Disable"
+        "Default": "Print"
       },
       "Type": "enum",
       "ValidValues": {
@@ -165,13 +165,30 @@
         "Debug Print"
       ],
       "Defaults": {
-        "Default": "Disable"
+        "Default": "PrintCallback"
       },
       "Type": "enum",
       "ValidValues": {
         "Name": "Util::DbgPrintMode"
       },
       "Description": "How to print log messages under category 'DbgPrintCatEventPrintCallbackMsg'.",
+      "BuildTypes": [
+        "PAL_ENABLE_PRINTS_ASSERTS"
+      ]
+    },
+    {
+      "Name": "DbgPrintFileMsgMode",
+      "Tags": [
+        "Debug Print"
+      ],
+      "Defaults": {
+        "Default": "File"
+      },
+      "Type": "enum",
+      "ValidValues": {
+        "Name": "Util::DbgPrintMode"
+      },
+      "Description": "How to print log messages under category 'DbgPrintCatMsgFile'.",
       "BuildTypes": [
         "PAL_ENABLE_PRINTS_ASSERTS"
       ]

@@ -37,11 +37,12 @@ namespace Util
 TrackingCacheLayer::TrackingCacheLayer(
     const AllocCallbacks& callbacks)
     :
-    m_allocator   { callbacks },
-    m_pNextLayer  { nullptr },
-    m_loadPolicy  { LinkPolicy::PassData | LinkPolicy::PassCalls },
-    m_storePolicy { LinkPolicy::PassData },
-    m_entries     { HashTableBucketCount, Allocator() }
+    m_allocator            { callbacks },
+    m_pNextLayer           { nullptr },
+    m_loadPolicy           { LinkPolicy::PassData | LinkPolicy::PassCalls },
+    m_storePolicy          { LinkPolicy::PassData },
+    m_entries              { HashTableBucketCount, Allocator() },
+    m_trackedHashTableLock { }
 {
     // Alloc and Free MUST NOT be nullptr
     PAL_ASSERT(callbacks.pfnAlloc != nullptr);
@@ -82,6 +83,8 @@ Result TrackingCacheLayer::Query(
     {
         result = m_pNextLayer->Query(pHashId, policy, flags, pQuery);
     }
+
+    Util::MutexAuto lock(&m_trackedHashTableLock);
 
     if (result == Result::Success)
     {
@@ -124,6 +127,8 @@ Result TrackingCacheLayer::Store(
 
     if (pHashId != nullptr)
     {
+        Util::MutexAuto lock(&m_trackedHashTableLock);
+
         if (result == Result::Success)
         {
             m_entries.Insert(*pHashId);
@@ -158,6 +163,8 @@ Result TrackingCacheLayer::Load(
 
     if (result != Result::Success)
     {
+        Util::MutexAuto lock(&m_trackedHashTableLock);
+
         m_entries.Erase(pQuery->hashId);
     }
 
@@ -179,6 +186,9 @@ Result TrackingCacheLayer::Link(
 TrackedHashIter TrackingCacheLayer::GetEntriesBegin(
     const ICacheLayer* pTrackingLayer)
 {
+    //  wouldn't be held long enough to protect concurrent modifications if implemented that way. A more complete fix
+    //  where the lock is held as long as the iteration takes is required.
+
     return static_cast<const TrackingCacheLayer*>(pTrackingLayer)->m_entries.Begin();
 }
 

@@ -198,23 +198,9 @@ struct SubQueueInfo
 class Queue final : public QueueDecorator
 {
 public:
-    Queue(IQueue* pNextQueue,
-          Device* pDevice,
-          uint32  queueCount,
-          uint32  masterQueueId);
-
-    Result Init(const QueueCreateInfo* pCreateInfo);
-
-    // Acquire methods return corresponding objects for use by a command buffer being replayed from reusable pools
-    // managed by the Queue.
-    TargetCmdBuffer* AcquireCmdBuf(uint32 subQueueIdx, bool nested);
-    Result AcquireGpaSession(GpuUtil::GpaSession** ppGpaSession);
-
-    void AddLogItem(const LogItem& logItem);
-
-    Util::VirtualLinearAllocator* ReplayAllocator() { return &m_replayAllocator; }
-
-    // Public IQueue interface methods:
+    // Public IQueue interface methods. These must obtain the interface lock to prevent race conditions with async
+    // device access
+    // ===========================================================================================================
     virtual Result Submit(
         const MultiSubmitInfo& submitInfo) override;
     virtual Result WaitIdle() override;
@@ -224,8 +210,6 @@ public:
     virtual Result WaitQueueSemaphore(
         IQueueSemaphore* pQueueSemaphore,
         uint64           value) override;
-
-    Result SubmitFrameEndCmdBuf();
 
     virtual Result PresentDirect(
         const PresentDirectInfo& presentInfo) override;
@@ -238,35 +222,49 @@ public:
         uint32                         rangeCount,
         const VirtualMemoryRemapRange* pRanges,
         bool                           doNotWait,
-        IFence*                        pFence) override;
+        IFence* pFence) override;
     virtual Result CopyVirtualMemoryPageMappings(
         uint32                                    rangeCount,
         const VirtualMemoryCopyPageMappingsRange* pRanges,
         bool                                      doNotWait) override;
 
-    Device* GetDevice() const { return m_pDevice; }
+    // Asynchronous access mechanisms that also need to hold lock to prevent race conditions
+    Result  BeginNextFrameAsync(bool samplingEnabled);
+    void    ProcessIdleSubmitsAsync();
+
+    // State management functions, do not require lock
+    // ===============================================
+    Queue(IQueue* pNextQueue,
+          Device* pDevice,
+          uint32  queueCount,
+          uint32  masterQueueId);
+
+    Result Init(const QueueCreateInfo* pCreateInfo);
+
+    // Acquire methods return corresponding objects for use by a command buffer being replayed from reusable pools
+    // managed by the Queue.
+    TargetCmdBuffer* AcquireCmdBuf(uint32 subQueueIdx, bool nested);
+    Result           AcquireGpaSession(GpuUtil::GpaSession** ppGpaSession);
+    void             AddLogItem(const LogItem& logItem);
+    Result           SubmitFrameEndCmdBuf();
+    bool             HasValidGpaSample(const LogItem* pLogItem, GpuUtil::GpaSampleType type) const;
+
+    Util::VirtualLinearAllocator* ReplayAllocator()             { return &m_replayAllocator; }
+    Device*                       GetDevice() const             { return m_pDevice; }
+    GpuUtil::GpaSession*          GetPerFrameGpaSession() const { return m_perFrameLogItem.pGpaSession; }
+    bool                          IsSqttEnabled() const         { return m_gpaSessionSampleConfig.sqtt.flags.enable; }
+    bool                          IsProfilingEnabled() const    { return m_profileEnabled; }
+    bool                          EndSampleEnabled() const      { return m_endSampleEnabled; }
 
     const GpuUtil::GpaSampleConfig& GetGpaSessionSampleConfig() const { return m_gpaSessionSampleConfig; }
-    GpuUtil::GpaSession* GetPerFrameGpaSession() { return m_perFrameLogItem.pGpaSession; }
-
-    bool IsSqttEnabled() const { return m_gpaSessionSampleConfig.sqtt.flags.enable; }
-
-    // Check if the logItem contains a valid GPA sample.
-    bool HasValidGpaSample(const LogItem* pLogItem, GpuUtil::GpaSampleType type) const;
-
-    Result BeginNextFrame(bool samplingEnabled);
-
-    bool IsProfilingEnabled() const { return m_profileEnabled; }
-
-    bool EndSampleEnabled() const { return m_endSampleEnabled; }
-
-    void ProcessIdleSubmits();
-
 private:
     virtual ~Queue();
 
+    Result  BeginNextFrame(bool samplingEnabled);
+    Result  ProcessSubmit(const MultiSubmitInfo& submitInfo);
+    void    ProcessIdleSubmits();
     IFence* AcquireFence();
-    void AddDfSpmEndCmdBuffer(
+    void    AddDfSpmEndCmdBuffer(
         Util::AutoBuffer<ICmdBuffer*, 64, PlatformDecorator>* pNextCmdBuffers,
         Util::AutoBuffer<CmdBufInfo, 64, PlatformDecorator>*  pNextCmdBufferInfos,
         uint32                                                subQueueIdx,
@@ -278,44 +276,41 @@ private:
 
     Result EndDfSpm();
     void   RecordDfSpmEndCmdBufInfo(CmdBufInfo* cmdBufInfo);
-
-    void RecordDfSpmEndCmdBuffer(
-        TargetCmdBuffer* pEndDfSpmCmdBuf,
-        const LogItem&   logItem);
+    void   RecordDfSpmEndCmdBuffer(TargetCmdBuffer* pEndDfSpmCmdBuf, const LogItem& logItem);
 
     Result SubmitDfSpmEndCmdBuffer(TargetCmdBuffer* pEndDfSpmCmdBuf);
 
-    Result InternalSubmit(
-        const MultiSubmitInfo& submitInfo,
-        bool                   releaseObjects);
+    Result InternalSubmit(const MultiSubmitInfo& submitInfo, bool releaseObjects);
+    Result BuildGpaSessionSampleConfig();
+    void   DestroyGpaSessionSampleConfig();
+    void   LogQueueCall(QueueCallId callId);
+    void   LogVirtualQueueCall(VirtualQueueCallId callId);
 
-    void LogQueueCall(QueueCallId callId);
-    void LogVirtualQueueCall(VirtualQueueCallId callId);
-
-    void OutputLogItemsToFile(size_t count, bool hasDrawsDispatches);
-    void OpenLogFile(uint32 frameId);
-    void OpenSqttFile(
+    // gpuProfilerQueueFileFileLogger methods
+    void   OutputLogItemsToFile(size_t count, bool hasDrawsDispatches);
+    void   OpenLogFile(uint32 frameId);
+    void   OpenSqttFile(
         uint32         shaderEngineId,
         uint32         computeUnitId,
         uint32         traceId,
         Util::File*    pFile,
         const LogItem& logItem);
-    void OpenSpmFile(Util::File* pFile, uint32 traceId, const LogItem& logItem, bool isDataFabric);
-    void OutputRgpFile(const GpuUtil::GpaSession& gpaSession, uint32 gpaSampleId);
-    void OutputQueueCallToFile(const LogItem& logItem);
-    void OutputCmdBufCallToFile(const LogItem& logItem, const char* pNestedCmdBufPrefix);
-    void OutputFrameToFile(const LogItem& logItem);
+    void   OpenSpmFile(Util::File* pFile, uint32 traceId, const LogItem& logItem, bool isDataFabric);
+    void   OutputRgpFile(const GpuUtil::GpaSession& gpaSession, uint32 gpaSampleId);
+    void   OutputQueueCallToFile(const LogItem& logItem);
+    void   OutputCmdBufCallToFile(const LogItem& logItem, const char* pNestedCmdBufPrefix);
+    void   OutputFrameToFile(const LogItem& logItem);
 
-    void OutputTimestampsToFile(const LogItem& logItem);
-    void OutputPipelineStatsToFile(const LogItem& logItem);
-    void OutputGlobalPerfCountersToFile(const LogItem& logItem);
-    void OutputTraceDataToFile(const LogItem& logItem);
-    void OutputDfSpmData(
+    void   OutputTimestampsToFile(const LogItem& logItem);
+    void   OutputPipelineStatsToFile(const LogItem& logItem);
+    void   OutputGlobalPerfCountersToFile(const LogItem& logItem);
+    void   OutputTraceDataToFile(const LogItem& logItem);
+    void   OutputDfSpmData(
         const LogItem&     logItem,
         void*              pResult,
         size_t             offset,
         size_t             dataSize);
-    void OutputRlcSpmData(
+    void   OutputRlcSpmData(
         const LogItem&     logItem,
         void*              pResult,
         size_t             offset,
@@ -327,15 +322,10 @@ private:
         bool                             isDataFabric);
 
     Device*const     m_pDevice;
-
     uint32           m_queueCount;
-
     SubQueueInfo*    m_pQueueInfos;
-
     uint32           m_queueId;
-
     uint32           m_shaderEngineCount;
-
     ICmdAllocator*   m_pCmdAllocator;        // Allocator for the instrumented version of the non-nested command
                                              // buffers this queue will generate at submit time.
     ICmdAllocator*   m_pNestedCmdAllocator;  // Allocator for the instrumented version of the nested command
@@ -345,14 +335,9 @@ private:
 
     // GpaSession config info for the queue
     GpuUtil::GpaSampleConfig                    m_gpaSessionSampleConfig;
-
     Util::Deque<GpuUtil::GpaSession*, Platform> m_availableGpaSessions;
     Util::Deque<GpuUtil::GpaSession*, Platform> m_busyGpaSessions;
     GpuUtil::GpaSession::PerfExpMemDeque        m_availPerfExpMem;
-
-    // Create/delete the GpaSession-style config info based on Panel settings
-    Result BuildGpaSessionSampleConfig();
-    void   DestroyGpaSessionSampleConfig();
 
     uint32                                      m_numReportedPerfCounters;
 
@@ -392,6 +377,7 @@ private:
     bool                              m_recreateState;    // Cached state for this queue noting the global recreate state
     bool                              m_profileEnabled;   // Did the config permit this queue to be profiled
     bool                              m_endSampleEnabled; // Do settings indicate perfcounters should be ended
+    Mutex                             m_stateMutex;       // State mutex required for synchronizing device and queue
 
     PAL_DISALLOW_DEFAULT_CTOR(Queue);
     PAL_DISALLOW_COPY_AND_ASSIGN(Queue);

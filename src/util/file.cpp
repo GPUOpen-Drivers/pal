@@ -245,9 +245,16 @@ void File::Close()
 Result File::Remove(
     const char* pFilename)
 {
+    Result result = Result::Success;
     const int32 ret = remove(pFilename);
 
-    return ret == 0 ? Result::Success : Result::ErrorUnknown;
+    // if remove failed then get errno
+    if ((result == Result::Success) && (ret != 0))
+    {
+        result = ConvertErrno(errno);
+    }
+
+    return result;
 }
 
 // =====================================================================================================================

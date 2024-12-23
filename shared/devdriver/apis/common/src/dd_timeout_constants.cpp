@@ -29,24 +29,21 @@ static const uint32_t kDefaultRetryTimeoutInMs         = 50;
 static const uint32_t kDefaultCommunicationTimeoutInMs = 5000;
 static const uint32_t kDefaultConnectionTimeoutInMs    = 1000;
 
-TimeoutConstants g_timeoutConstants;
+TimeoutConstants g_timeoutConstants = { kDefaultConnectionTimeoutInMs,
+                                        kDefaultRetryTimeoutInMs,
+                                        kDefaultCommunicationTimeoutInMs };
 
 DD_RESULT TimeoutConstantsInitialize(const TimeoutConstants* pTimeouts)
 {
-    g_timeoutConstants = *pTimeouts;
+    g_timeoutConstants.connectionTimeoutInMs =
+        (pTimeouts->connectionTimeoutInMs == 0) ? kDefaultConnectionTimeoutInMs : pTimeouts->connectionTimeoutInMs;
 
-    if (g_timeoutConstants.connectionTimeoutInMs == 0)
-    {
-        g_timeoutConstants.connectionTimeoutInMs = kDefaultConnectionTimeoutInMs;
-    }
-    if (g_timeoutConstants.retryTimeoutInMs == 0)
-    {
-        g_timeoutConstants.retryTimeoutInMs = kDefaultRetryTimeoutInMs;
-    }
-    if (g_timeoutConstants.communicationTimeoutInMs == 0)
-    {
-        g_timeoutConstants.communicationTimeoutInMs = kDefaultCommunicationTimeoutInMs;
-    }
+    g_timeoutConstants.retryTimeoutInMs =
+        (pTimeouts->retryTimeoutInMs == 0) ? kDefaultRetryTimeoutInMs : pTimeouts->retryTimeoutInMs;
+
+    g_timeoutConstants.communicationTimeoutInMs = (pTimeouts->communicationTimeoutInMs == 0) ?
+                                                      kDefaultCommunicationTimeoutInMs :
+                                                      pTimeouts->communicationTimeoutInMs;
 
     return DD_RESULT_SUCCESS;
 }

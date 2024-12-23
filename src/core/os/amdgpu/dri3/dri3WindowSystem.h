@@ -57,20 +57,18 @@ public:
         void*                   pPlacementAddr,
         PresentFence**          ppPresentFence);
 
-    virtual void Reset() override;
-
+    virtual void   Reset() override;
     virtual Result Trigger() override;
-
     virtual Result WaitForCompletion(bool doWait) override;
-    Result QueryRaw();
-
     virtual Result AssociatePriorRenderFence(IQueue* pQueue) override { return Result::Success; }
+    virtual ExplicitSyncData* GetExplicitSyncData() override { return &m_explicitSyncData; }
 
-    void SetPresented(bool set) { m_presented = set; }
-    void AttachImage(Image* pImage) { m_pImage = pImage; }
+    Result QueryRaw();
+    void   SetPresented(bool set) { m_presented = set; }
+    void   AttachImage(Image* pImage) { m_pImage = pImage; }
     Image* GetImage() { return m_pImage; }
 
-    xcb_sync_fence_t  SyncFence() const { return m_syncFence; }
+    xcb_sync_fence_t  GetSyncFence() const  { return m_syncFence; }
 
 private:
     Dri3PresentFence(const Dri3WindowSystem& windowSystem);
@@ -78,11 +76,21 @@ private:
 
     Result Init(bool initiallySignaled);
 
+    Result InitExplicitSyncData();
+    Result WaitForCompletionImplicitSync(bool doWait);
+    Result WaitForCompletionExplicitSync(bool doWait);
+
     const Dri3WindowSystem& m_windowSystem;
+    Image*                  m_pImage;
+
+    // Implicit sync related variables
     xcb_sync_fence_t        m_syncFence;
     struct xshmfence*       m_pShmFence;
     bool                    m_presented;
-    Image*                  m_pImage;
+
+    // Explicit sync related variables
+    ExplicitSyncData        m_explicitSyncData; // Acquire and release sync objects
+                                                // for presentable images
 
     PAL_DISALLOW_DEFAULT_CTOR(Dri3PresentFence);
     PAL_DISALLOW_COPY_AND_ASSIGN(Dri3PresentFence);
@@ -166,10 +174,13 @@ public:
     bool Dri3Supported() const { return m_dri3Supported; }
     virtual void WaitOnIdleEvent(WindowSystemImageHandle* pImage) override;
     virtual void GoThroughEvent() override;
-    virtual bool SupportIdleEvent() override { return true; }
+    virtual bool SupportIdleEvent() const override;
     virtual bool CheckIdleImage(
         WindowSystemImageHandle* pIdleImage,
         PresentFence*            pFence) override;
+
+    Result InitExplicitSyncObject(ExplicitSyncObject* pSyncObject) const override;
+    void   DestroyExplicitSyncObject(ExplicitSyncObject* pSyncObject) const override;
 
 private:
     Dri3WindowSystem(const Device& device, const WindowSystemCreateInfo& createInfo);
@@ -182,6 +193,7 @@ private:
 
     int32 OpenDri3();
     Result QueryVersion();
+    Result QueryPresentCapabilities();
     Result SelectEvent();
 
     Result HandlePresentEvent(
@@ -189,6 +201,9 @@ private:
         WindowSystemImageHandle*     pImage);
 
     void SetAdaptiveSyncProperty(bool enable);
+
+    bool   IsExplicitSyncEnabled() const;
+    bool   IsXcbExplicitSyncSupported() const;
 
     static Result GetRootWindowFromOutput(
         OsDisplayHandle hDisplay,
@@ -207,7 +222,6 @@ private:
         OsDisplayHandle hDisplay,
         Device*         pDevice);
 
-    const Device&          m_device;
     const Dri3Loader&      m_dri3Loader;
 #if defined(PAL_DEBUG_PRINTS)
     const Dri3LoaderFuncsProxy& m_dri3Procs;
@@ -228,6 +242,7 @@ private:
     int32                  m_dri3MinorVersion;
     int32                  m_presentMajorVersion;
     int32                  m_presentMinorVersion;
+    uint32                 m_presentCapabilities;
     xcb_special_event_t*   m_pPresentEvent;       // An event used to poll special present events from Xserver,
                                                   // e.g. the "XCB_PRESENT_COMPLETE_NOTIFY" event.
     uint32                 m_localSerial;         // Latest local present serial number that was sent to Xserver.

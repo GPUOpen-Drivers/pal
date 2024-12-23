@@ -41,7 +41,6 @@
 #include "core/hw/gfxip/gfx9/gfx9IndirectCmdGenerator.h"
 #include "core/hw/gfxip/gfx9/gfx9Image.h"
 #include "core/hw/gfxip/gfx9/gfx9UniversalCmdBuffer.h"
-#include "core/hw/gfxip/rpm/gfx9/gfx9EchoGlobalTableBinaries.h"
 #include "core/hw/gfxip/rpm/gfx9/gfx9RsrcProcMgr.h"
 #include "core/hw/gfxip/rpm/rpmUtil.h"
 #include "palAutoBuffer.h"
@@ -146,67 +145,8 @@ RsrcProcMgr::RsrcProcMgr(
     :
     Pm4::RsrcProcMgr(pDevice),
     m_pDevice(pDevice),
-    m_cmdUtil(pDevice->CmdUtil()),
-    m_pEchoGlobalTablePipeline(nullptr)
+    m_cmdUtil(pDevice->CmdUtil())
 {
-}
-
-// =====================================================================================================================
-RsrcProcMgr::~RsrcProcMgr()
-{
-    // This must be destroyed in Cleanup().
-    PAL_ASSERT(m_pEchoGlobalTablePipeline == nullptr);
-}
-
-// =====================================================================================================================
-Result RsrcProcMgr::LateInit()
-{
-    Result result = Pal::RsrcProcMgr::LateInit();
-
-    if (result == Result::Success)
-    {
-        ComputePipelineCreateInfo pipeInfo = {};
-        const bool supportsHsaAbi = (m_pDevice->Parent()->ChipProperties().gfxip.supportHsaAbi == 1);
-
-        // For now we only expect to support this on a subset of gfx10 ASICs due to missing CP support.
-        if (supportsHsaAbi)
-        {
-            if (IsGfx10(*m_pDevice->Parent()))
-            {
-                pipeInfo.pPipelineBinary = Gfx10EchoGlobalTableElfBinary;
-                pipeInfo.pipelineBinarySize = sizeof(Gfx10EchoGlobalTableElfBinary);
-            }
-            else if (IsGfx11(*m_pDevice->Parent()))
-            {
-                pipeInfo.pPipelineBinary = Gfx11EchoGlobalTableElfBinary;
-                pipeInfo.pipelineBinarySize = sizeof(Gfx11EchoGlobalTableElfBinary);
-            }
-        }
-
-        if (pipeInfo.pPipelineBinary != nullptr)
-        {
-            result = m_pDevice->CreateComputePipelineInternal(pipeInfo, &m_pEchoGlobalTablePipeline, AllocInternal);
-        }
-        else if (supportsHsaAbi)
-        {
-            // We shouldn't advertise HSA ABI support if we didn't create this pipeline.
-            result = Result::ErrorUnavailable;
-        }
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-void RsrcProcMgr::Cleanup()
-{
-    if (m_pEchoGlobalTablePipeline != nullptr)
-    {
-        m_pEchoGlobalTablePipeline->DestroyInternal();
-        m_pEchoGlobalTablePipeline = nullptr;
-    }
-
-    Pal::RsrcProcMgr::Cleanup();
 }
 
 // CompSetting is a "helper" enum used in the CB's algorithm for deriving an ideal SPI_SHADER_EX_FORMAT
@@ -1483,7 +1423,7 @@ bool RsrcProcMgr::IsAc01ColorClearCode(
 
 // =====================================================================================================================
 // An optimized copy does a memcpy of the source fmask and cmask data to the destination image after it is finished.
-// See the HwlFixupCopyDstImageMetaData function.  For this to work, the layout needs to be exactly the same between
+// See the HwlFixupCopyDstImageMetadata function.  For this to work, the layout needs to be exactly the same between
 // the two -- including the swizzle modes and pipe-bank XOR values associated with the fmask data.
 bool RsrcProcMgr::HwlUseOptimizedImageCopy(
     const Pal::Image&      srcImage,
@@ -1575,7 +1515,7 @@ bool RsrcProcMgr::HwlUseOptimizedImageCopy(
 // This function fixes up Cmask/Fmask metadata state: either copy from src image or fix up to uncompressed state.
 // - For Fmask optimized MSAA copy where we we preserve fmask fragmentation, copy Cmask/Fmask from source image to dst.
 // - For image is created with fullCopyDstOnly=1, fix up Cmask/Fmask to uncompressed state.
-void RsrcProcMgr::HwlFixupCopyDstImageMetaData(
+void RsrcProcMgr::HwlFixupCopyDstImageMetadata(
     GfxCmdBuffer*           pCmdBuffer,
     const Pal::Image*       pSrcImage, // Should be nullptr if isFmaskCopyOptimized = false
     const Pal::Image&       dstImage,
@@ -1642,8 +1582,6 @@ void RsrcProcMgr::HwlFixupCopyDstImageMetaData(
         else
         {
             auto*const pStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Compute);
-
-            PAL_ASSERT(dstImage.GetImageCreateInfo().flags.fullCopyDstOnly != 0);
 
             // If image is created with fullCopyDstOnly=1, there will be no expand when transition to "LayoutCopyDst";
             // if the copy isn't compressed copy, need fix up dst metadata to uncompressed state.
@@ -2107,6 +2045,218 @@ void RsrcProcMgr::HwlDepthStencilClear(
             }
         }
     }
+}
+
+// =====================================================================================================================
+// Executes a image resolve by performing fixed-func depth copy or stencil copy
+void RsrcProcMgr::ResolveImageDepthStencilCopy(
+    Pm4CmdBuffer*             pCmdBuffer,
+    const Pal::Image&         srcImage,
+    ImageLayout               srcImageLayout,
+    const Pal::Image&         dstImage,
+    ImageLayout               dstImageLayout,
+    uint32                    regionCount,
+    const ImageResolveRegion* pRegions,
+    uint32                    flags) const
+{
+    PAL_ASSERT(srcImage.IsDepthStencilTarget() && dstImage.IsDepthStencilTarget());
+    PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
+    // Don't expect GFX Blts on Nested unless targets not inherited.
+    PAL_ASSERT((pCmdBuffer->IsNested() == false) || (static_cast<Pm4::UniversalCmdBuffer*>(
+        pCmdBuffer)->GetGraphicsState().inheritedState.stateFlags.targetViewState == 0));
+
+    const auto* pPublicSettings = m_pDevice->Parent()->GetPublicSettings();
+    const auto& srcCreateInfo   = srcImage.GetImageCreateInfo();
+    const auto& dstCreateInfo   = dstImage.GetImageCreateInfo();
+
+    ViewportParams viewportInfo = {};
+    viewportInfo.count = 1;
+
+    viewportInfo.viewports[0].minDepth = 0.f;
+    viewportInfo.viewports[0].maxDepth = 1.f;
+    viewportInfo.viewports[0].origin   = PointOrigin::UpperLeft;
+
+    viewportInfo.horzClipRatio    = FLT_MAX;
+    viewportInfo.horzDiscardRatio = 1.0f;
+    viewportInfo.vertClipRatio    = FLT_MAX;
+    viewportInfo.vertDiscardRatio = 1.0f;
+    viewportInfo.depthRange       = DepthRange::ZeroToOne;
+
+    ScissorRectParams scissorInfo = {};
+    scissorInfo.count = 1;
+
+    DepthStencilViewCreateInfo srcDepthViewInfo = {};
+    srcDepthViewInfo.pImage                = &srcImage;
+    srcDepthViewInfo.arraySize             = 1;
+    srcDepthViewInfo.flags.readOnlyDepth   = 1;
+    srcDepthViewInfo.flags.readOnlyStencil = 1;
+    srcDepthViewInfo.flags.imageVaLocked   = 1;
+    srcDepthViewInfo.flags.bypassMall      = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
+                                                            RpmViewsBypassMallOnCbDbWrite);
+
+    ColorTargetViewCreateInfo dstColorViewInfo = {};
+    dstColorViewInfo.imageInfo.pImage    = &dstImage;
+    dstColorViewInfo.imageInfo.arraySize = 1;
+    dstColorViewInfo.flags.imageVaLocked = 1;
+    dstColorViewInfo.flags.bypassMall    = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
+                                                          RpmViewsBypassMallOnCbDbWrite);
+
+    BindTargetParams bindTargetsInfo = {};
+    bindTargetsInfo.colorTargetCount = 1;
+    bindTargetsInfo.colorTargets[0].pColorTargetView = nullptr;
+    bindTargetsInfo.colorTargets[0].imageLayout.usages = LayoutColorTarget;
+    bindTargetsInfo.colorTargets[0].imageLayout.engines = LayoutUniversalEngine;
+
+    bindTargetsInfo.depthTarget.depthLayout.usages = LayoutDepthStencilTarget;
+    bindTargetsInfo.depthTarget.depthLayout.engines = LayoutUniversalEngine;
+    bindTargetsInfo.depthTarget.stencilLayout.usages = LayoutDepthStencilTarget;
+    bindTargetsInfo.depthTarget.stencilLayout.engines = LayoutUniversalEngine;
+
+    // Save current command buffer state and bind graphics state which is common for all regions.
+    pCmdBuffer->CmdSaveGraphicsState();
+    BindCommonGraphicsState(pCmdBuffer);
+    pCmdBuffer->CmdBindMsaaState(GetMsaaState(1u, 1u));
+    pCmdBuffer->CmdBindColorBlendState(m_pBlendDisableState);
+    pCmdBuffer->CmdBindDepthStencilState(m_pDepthDisableState);
+
+    // Put ImageResolveInvertY value in user data 0 used by VS.
+    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 0, 1, &flags);
+
+    // Each region needs to be resolved individually.
+    for (uint32 idx = 0; idx < regionCount; ++idx)
+    {
+        LinearAllocatorAuto<VirtualLinearAllocator> regionAlloc(pCmdBuffer->Allocator(), false);
+
+        dstColorViewInfo.imageInfo.baseSubRes.mipLevel = pRegions[idx].dstMipLevel;
+
+        // Setup the viewport and scissor to restrict rendering to the destination region being copied.
+        // srcOffset and dstOffset have to be exactly same
+        PAL_ASSERT((pRegions[idx].srcOffset.x == pRegions[idx].dstOffset.x) &&
+                   (pRegions[idx].srcOffset.y == pRegions[idx].dstOffset.y));
+        viewportInfo.viewports[0].originX = static_cast<float>(pRegions[idx].srcOffset.x);
+        viewportInfo.viewports[0].originY = static_cast<float>(pRegions[idx].srcOffset.y);
+        viewportInfo.viewports[0].width = static_cast<float>(pRegions[idx].extent.width);
+        viewportInfo.viewports[0].height = static_cast<float>(pRegions[idx].extent.height);
+
+        scissorInfo.scissors[0].offset.x = pRegions[idx].srcOffset.x;
+        scissorInfo.scissors[0].offset.y = pRegions[idx].srcOffset.y;
+        scissorInfo.scissors[0].extent.width = pRegions[idx].extent.width;
+        scissorInfo.scissors[0].extent.height = pRegions[idx].extent.height;
+
+        pCmdBuffer->CmdSetViewports(viewportInfo);
+        pCmdBuffer->CmdSetScissorRects(scissorInfo);
+
+        if (srcCreateInfo.flags.sampleLocsAlwaysKnown != 0)
+        {
+            PAL_ASSERT(pRegions[idx].pQuadSamplePattern != nullptr);
+            pCmdBuffer->CmdSetMsaaQuadSamplePattern(srcCreateInfo.samples, *pRegions[idx].pQuadSamplePattern);
+        }
+        else
+        {
+            PAL_ASSERT(pRegions[idx].pQuadSamplePattern == nullptr);
+        }
+
+        for (uint32 slice = 0; slice < pRegions[idx].numSlices; ++slice)
+        {
+            DepthStencilViewInternalCreateInfo depthViewInfoInternal = {};
+            ColorTargetViewInternalCreateInfo  colorViewInfoInternal = {};
+            colorViewInfoInternal.flags.depthStencilCopy = 1;
+
+            srcDepthViewInfo.baseArraySlice = (pRegions[idx].srcSlice + slice);
+            dstColorViewInfo.imageInfo.baseSubRes.arraySlice = (pRegions[idx].dstSlice + slice);
+
+            LinearAllocatorAuto<VirtualLinearAllocator> sliceAlloc(pCmdBuffer->Allocator(), false);
+
+            IDepthStencilView* pSrcDepthView = nullptr;
+            IColorTargetView* pDstColorView = nullptr;
+
+            void* pSrcDepthViewMem =
+                PAL_MALLOC(m_pDevice->GetDepthStencilViewSize(nullptr), &sliceAlloc, AllocInternalTemp);
+            void* pDstColorViewMem =
+                PAL_MALLOC(m_pDevice->GetColorTargetViewSize(nullptr), &sliceAlloc, AllocInternalTemp);
+
+            if ((pDstColorViewMem == nullptr) || (pSrcDepthViewMem == nullptr))
+            {
+                pCmdBuffer->NotifyAllocFailure();
+            }
+            else
+            {
+                dstColorViewInfo.imageInfo.baseSubRes.plane = pRegions[idx].dstPlane;
+
+                SubresId dstSubresId   = {};
+                dstSubresId.mipLevel   = pRegions[idx].dstMipLevel;
+                dstSubresId.arraySlice = (pRegions[idx].dstSlice + slice);
+                dstSubresId.plane      = pRegions[idx].dstPlane;
+
+                dstColorViewInfo.swizzledFormat.format = dstImage.SubresourceInfo(dstSubresId)->format.format;
+
+                if (dstImage.IsDepthPlane(pRegions[idx].dstPlane))
+                {
+                    depthViewInfoInternal.flags.isDepthCopy = 1;
+
+                    dstColorViewInfo.swizzledFormat.swizzle =
+                        {ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One};
+                    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(ResolveDepthCopy),
+                                                  InternalApiPsoHash, });
+                }
+                else if (dstImage.IsStencilPlane(pRegions[idx].dstPlane))
+                {
+                    // Fixed-func stencil copies stencil value from db to g chanenl of cb.
+                    // Swizzle the stencil plance to 0X00.
+                    depthViewInfoInternal.flags.isStencilCopy = 1;
+
+                    dstColorViewInfo.swizzledFormat.swizzle =
+                        { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::One };
+                    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics,
+                                                  GetGfxPipeline(ResolveStencilCopy),
+                                                  InternalApiPsoHash, });
+                }
+                else
+                {
+                    PAL_ASSERT_ALWAYS();
+                }
+
+                Result result = m_pDevice->CreateDepthStencilView(srcDepthViewInfo,
+                                                                  depthViewInfoInternal,
+                                                                  pSrcDepthViewMem,
+                                                                  &pSrcDepthView);
+                PAL_ASSERT(result == Result::Success);
+
+                if (result == Result::Success)
+                {
+                    result = m_pDevice->CreateColorTargetView(dstColorViewInfo,
+                                                              colorViewInfoInternal,
+                                                              pDstColorViewMem,
+                                                              &pDstColorView);
+                    PAL_ASSERT(result == Result::Success);
+                }
+
+                if (result == Result::Success)
+                {
+                    bindTargetsInfo.colorTargetCount = 1;
+                    bindTargetsInfo.colorTargets[0].pColorTargetView = pDstColorView;
+                    bindTargetsInfo.depthTarget.pDepthStencilView = pSrcDepthView;
+
+                    pCmdBuffer->CmdBindTargets(bindTargetsInfo);
+
+                    // Draw a fullscreen quad.
+                    pCmdBuffer->CmdDraw(0, 3, 0, 1, 0);
+
+                    // Unbind the color-target and depth-stencil target view and destroy them.
+                    bindTargetsInfo.colorTargetCount = 0;
+                    bindTargetsInfo.depthTarget.pDepthStencilView = nullptr;
+                    pCmdBuffer->CmdBindTargets(bindTargetsInfo);
+                }
+            }
+
+            PAL_SAFE_FREE(pSrcDepthViewMem, &sliceAlloc);
+            PAL_SAFE_FREE(pDstColorViewMem, &sliceAlloc);
+        } // End for each slice.
+    } // End for each region.
+
+      // Restore original command buffer state.
+    pCmdBuffer->CmdRestoreGraphicsStateInternal();
+    pCmdBuffer->SetGfxBltDirectWriteMisalignedMdState(dstImage.HasMisalignedMetadata());
 }
 
 // =====================================================================================================================
@@ -4124,10 +4274,13 @@ void RsrcProcMgr::EchoGlobalInternalTableAddr(
     ) const
 {
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
-    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, m_pEchoGlobalTablePipeline, InternalApiPsoHash});
+    const Pal::ComputePipeline*const pPipeline = GetPipeline(RpmComputePipeline::Gfx9EchoGlobalTable);
+    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash});
 
+    // Note we start at userdata2 here because the pipeline is special and userdata0/1 are marked unused but
+    // overlap the global table.
     const uint32 userData[2] = { LowPart(dstAddr), HighPart(dstAddr) };
-    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 0, 2, userData );
+    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 2, 2, userData );
     pCmdBuffer->CmdDispatch({1, 1, 1}, {});
     pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
 
@@ -4147,6 +4300,184 @@ void RsrcProcMgr::EchoGlobalInternalTableAddr(
     }
 
     pCmdStream->CommitCommands(pCmdSpace);
+}
+
+// =====================================================================================================================
+// Return true if the image has FMask and provided layout is in ColorCompressed state.
+static bool IsImageWithFMaskAndInCompressedState(
+    const Pal::Image& dstImage,
+    ImageLayout       dstImageLayout)
+{
+    const auto&                 gfx9Image     = static_cast<const Gfx9::Image&>(*dstImage.GetGfxImage());
+    const ColorLayoutToState    layoutToState = gfx9Image.LayoutToColorCompressionState();
+    const ColorCompressionState newState      = ImageLayoutToColorCompressionState(layoutToState, dstImageLayout);
+
+    return gfx9Image.HasFmaskData() && (newState == ColorCompressed);
+}
+
+// =====================================================================================================================
+// This must be called before and after each compute copy. The pre-copy call will insert any required metadata
+// decompresses and the post-copy call will fixup any metadata that needs updating. In practice these barriers are
+// required in cases where we treat CopyDst as compressed but RPM can't actually write compressed data directly from
+// the compute shader.
+void RsrcProcMgr::FixupMetadataForComputeCopyDst(
+    GfxCmdBuffer*           pCmdBuffer,
+    const Pal::Image&       dstImage,
+    ImageLayout             dstImageLayout,
+    uint32                  regionCount,
+    const ImageFixupRegion* pRegions,
+    bool                    beforeCopy,
+    const Pal::Image*       pFmaskOptimizedCopySrcImage // Copy src image pointer if FMask optimized copy otherwise
+                                                        // should be nullptr.
+    ) const
+{
+    const Pm4Image* pPm4Image = static_cast<Pm4Image*>(dstImage.GetGfxImage());
+
+    if (pPm4Image->HasHtileData())
+    {
+        // There is a Hiz issue on gfx10 with compressed depth writes so we need an htile resummarize blt.
+        const bool enableCompressedDepthWriteTempWa = IsGfx10(*m_pDevice->Parent());
+
+        // If enable temp workaround for comrpessed depth write, always need barriers for before and after copy.
+        bool needBarrier = enableCompressedDepthWriteTempWa;
+        for (uint32 i = 0; (needBarrier == false) && (i < regionCount); i++)
+        {
+            needBarrier = pPm4Image->ShaderWriteIncompatibleWithLayout(pRegions[i].subres, dstImageLayout);
+        }
+
+        if (needBarrier)
+        {
+            AutoBuffer<ImgBarrier, 32, Platform> imgBarriers(regionCount, m_pDevice->GetPlatform());
+
+            if (imgBarriers.Capacity() >= regionCount)
+            {
+                const uint32 shaderWriteLayout =
+                    (enableCompressedDepthWriteTempWa ? (LayoutShaderWrite | LayoutUncompressed) : LayoutShaderWrite);
+
+                memset(&imgBarriers[0], 0, sizeof(ImgBarrier) * regionCount);
+
+                for (uint32 i = 0; i < regionCount; i++)
+                {
+                    imgBarriers[i].pImage       = &dstImage;
+                    imgBarriers[i].subresRange  = SubresourceRange(pRegions[i].subres, 1, 1, pRegions[i].numSlices);
+                    imgBarriers[i].srcStageMask = beforeCopy ? PipelineStageBottomOfPipe : PipelineStageCs;
+                    imgBarriers[i].dstStageMask = PipelineStageBlt;
+                    imgBarriers[i].oldLayout    = dstImageLayout;
+                    imgBarriers[i].newLayout    = dstImageLayout;
+
+                    // The first barrier must prepare the image for shader writes, perhaps by decompressing metadata.
+                    // The second barrier is required to undo those changes, perhaps by resummarizing the metadata.
+                    if (beforeCopy)
+                    {
+                        // Can optimize depth expand to lighter Barrier with UninitializedTarget for full subres copy.
+                        const SubResourceInfo* pSubresInfo = dstImage.SubresourceInfo(pRegions[i].subres);
+
+                        // For scaled copy, it's not safe to determine if this is a full rect copy just based on copy
+                        // dst's offset and extent. In theory it's possible that copy dst region covers full rect; but
+                        // partial of related copy src region may be outside of valid region, and these pixels will be
+                        // dropped during copy. As a result, this will be a partial rect copy instead of full rect copy.
+                        // For simple and safe, always assume partial copy and disallow optimized fixup here.
+                        if ((pRegions[i].isScaledCopy == false) &&
+                            BoxesCoverWholeExtent(pSubresInfo->extentElements, 1, &pRegions[i].box))
+                        {
+                            imgBarriers[i].oldLayout.usages = LayoutUninitializedTarget;
+                        }
+
+                        imgBarriers[i].newLayout.usages |= shaderWriteLayout;
+                        imgBarriers[i].srcAccessMask     = CoherCopyDst;
+                        imgBarriers[i].dstAccessMask     = CoherShader;
+                    }
+                    else // After copy
+                    {
+                        imgBarriers[i].oldLayout.usages |= shaderWriteLayout;
+                        imgBarriers[i].srcAccessMask     = CoherShader;
+                        imgBarriers[i].dstAccessMask     = CoherCopyDst;
+                    }
+                }
+
+                // Operations like resummarizes might read the blit's output so we can't optimize the wait point.
+                AcquireReleaseInfo acqRelInfo = {};
+                acqRelInfo.pImageBarriers    = &imgBarriers[0];
+                acqRelInfo.imageBarrierCount = regionCount;
+                acqRelInfo.reason            = Developer::BarrierReasonUnknown;
+
+                pCmdBuffer->CmdReleaseThenAcquire(acqRelInfo);
+            }
+            else
+            {
+                pCmdBuffer->NotifyAllocFailure();
+            }
+        }
+    }
+
+    // Check to see if need fix up CopyDst metadata before and after copy.
+    //
+    // Color MSAA copy always goes through compute copy. In InitLayoutStateMasks(), we may set color MSAA image with
+    // supporting compressed copy if (supportMetaDataTexFetch == 1) and (DoesImageSupportCopyCompression() == true),
+    // but compute copy doesn't update FMask/CMask for CopyDst image, need extra steps to maintain data consistence
+    // with FMak if CopyDst is in ColorCompressed state after copy. Generally speaking, need force a color expand
+    // before copy but it's heavy; can optimize a bit as below,
+    //   1). For windowed copy, do color expand before copy.
+    //   2). For full copy, fix up FMask/CMask to expanded state after copy as an optimization.
+    //
+    // FMask optimized copy and image created with `fullCopyDstOnly` flag need fix up metadata after copy.
+    //   1). For `fullCopyDstOnly` flag case, LayoutCopyDst is added in compressedWriteLayout and there will be no
+    //       expand in barrier before copy. Need fix up metadata to expanded state after copy.
+    //   2). For FMask optimized copy, need copy src image's metadata to dst image's metadata as raw copy.
+    if (beforeCopy)
+    {
+        // Do color expand on color MSAA image for windowed copy if needed.
+        if (IsImageWithFMaskAndInCompressedState(dstImage, dstImageLayout) &&
+            (UseOptimizedFixupMsaaImageAfterCopy(dstImage, pRegions, regionCount) == false))
+        {
+            AutoBuffer<ImgBarrier, 8, Platform> imgBarriers(regionCount, m_pDevice->GetPlatform());
+
+            if (imgBarriers.Capacity() >= regionCount)
+            {
+                memset(&imgBarriers[0], 0, sizeof(ImgBarrier) * regionCount);
+
+                // The CopyDst should be in PipelineStageBlt and CoherCopyDst state before the copy. Issue a barrier
+                // to do in-place color expand without state transition.
+                for (uint32 i = 0; i < regionCount; i++)
+                {
+                    imgBarriers[i].pImage        = &dstImage;
+                    imgBarriers[i].subresRange   = SubresourceRange(pRegions[i].subres, 1, 1, pRegions[i].numSlices);
+                    imgBarriers[i].srcStageMask  = PipelineStageBlt;
+                    imgBarriers[i].dstStageMask  = PipelineStageBlt;
+                    imgBarriers[i].srcAccessMask = CoherCopyDst;
+                    imgBarriers[i].dstAccessMask = CoherCopyDst;
+                    imgBarriers[i].oldLayout     = dstImageLayout;
+                    imgBarriers[i].newLayout     = dstImageLayout;
+
+                    imgBarriers[i].newLayout.usages |= LayoutUncompressed; // Force color expand.
+                }
+
+                AcquireReleaseInfo acqRelInfo = {};
+                acqRelInfo.pImageBarriers    = &imgBarriers[0];
+                acqRelInfo.imageBarrierCount = regionCount;
+                acqRelInfo.reason            = Developer::BarrierReasonUnknown;
+
+                pCmdBuffer->CmdReleaseThenAcquire(acqRelInfo);
+            }
+            else
+            {
+                pCmdBuffer->NotifyAllocFailure();
+            }
+        }
+    }
+    else // After copy
+    {
+        const bool isFmaskCopyOptimized = (pFmaskOptimizedCopySrcImage != nullptr);
+
+        if (isFmaskCopyOptimized ||
+            (dstImage.GetImageCreateInfo().flags.fullCopyDstOnly != 0) ||
+            (IsImageWithFMaskAndInCompressedState(dstImage, dstImageLayout) &&
+             UseOptimizedFixupMsaaImageAfterCopy(dstImage, pRegions, regionCount)))
+        {
+            HwlFixupCopyDstImageMetadata(pCmdBuffer, pFmaskOptimizedCopySrcImage, dstImage, dstImageLayout, pRegions,
+                                         regionCount, isFmaskCopyOptimized);
+        }
+    }
 }
 
 // =====================================================================================================================
@@ -5017,7 +5348,7 @@ void Gfx10RsrcProcMgr::InitHtile(
 }
 
 // =====================================================================================================================
-void Gfx10RsrcProcMgr::HwlFixupCopyDstImageMetaData(
+void Gfx10RsrcProcMgr::HwlFixupCopyDstImageMetadata(
     GfxCmdBuffer*           pCmdBuffer,
     const Pal::Image*       pSrcImage, // Should be nullptr if isFmaskCopyOptimized = false
     const Pal::Image&       dstImage,
@@ -5074,7 +5405,7 @@ void Gfx10RsrcProcMgr::HwlFixupCopyDstImageMetaData(
         }
     }
 
-    RsrcProcMgr::HwlFixupCopyDstImageMetaData(pCmdBuffer, pSrcImage, dstImage, dstImageLayout,
+    RsrcProcMgr::HwlFixupCopyDstImageMetadata(pCmdBuffer, pSrcImage, dstImage, dstImageLayout,
                                               pRegions, regionCount, isFmaskCopyOptimized);
 }
 
@@ -5786,6 +6117,147 @@ void Gfx10RsrcProcMgr::CmdDisplayDccFixUp(
     }
 
     pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
+}
+
+// =====================================================================================================================
+// Resolves a multisampled source Image into the single-sampled destination Image using the Image's resolve method.
+void Gfx10RsrcProcMgr::CmdResolveImage(
+    GfxCmdBuffer*             pCmdBuffer,
+    const Pal::Image&         srcImage,
+    ImageLayout               srcImageLayout,
+    const Pal::Image&         dstImage,
+    ImageLayout               dstImageLayout,
+    ResolveMode               resolveMode,
+    uint32                    regionCount,
+    const ImageResolveRegion* pRegions,
+    uint32                    flags
+    ) const
+{
+    Pm4CmdBuffer* pPm4CmdBuffer = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
+
+    const ResolveMethod srcMethod = srcImage.GetImageInfo().resolveMethod;
+    const ResolveMethod dstMethod = dstImage.GetImageInfo().resolveMethod;
+
+    if (pPm4CmdBuffer->GetEngineType() == EngineTypeCompute)
+    {
+        PAL_ASSERT((srcMethod.shaderCsFmask == 1) || (srcMethod.shaderCs == 1));
+        ResolveImageCompute(pPm4CmdBuffer,
+                            srcImage,
+                            srcImageLayout,
+                            dstImage,
+                            dstImageLayout,
+                            resolveMode,
+                            regionCount,
+                            pRegions,
+                            srcMethod,
+                            flags);
+
+        HwlFixupResolveDstImage(pPm4CmdBuffer,
+                                *dstImage.GetGfxImage(),
+                                dstImageLayout,
+                                pRegions,
+                                regionCount,
+                                true);
+    }
+    else
+    {
+        if ((srcMethod.fixedFunc == 1) && HwlCanDoFixedFuncResolve(srcImage,
+                                                                   dstImage,
+                                                                   resolveMode,
+                                                                   regionCount,
+                                                                   pRegions))
+        {
+            PAL_ASSERT(resolveMode == ResolveMode::Average);
+            // this only support color resolves.
+            ResolveImageFixedFunc(pPm4CmdBuffer,
+                                  srcImage,
+                                  srcImageLayout,
+                                  dstImage,
+                                  dstImageLayout,
+                                  regionCount,
+                                  pRegions,
+                                  flags);
+
+            HwlFixupResolveDstImage(pPm4CmdBuffer,
+                                    *dstImage.GetGfxImage(),
+                                    dstImageLayout,
+                                    pRegions,
+                                    regionCount,
+                                    false);
+        }
+        else if ((srcMethod.depthStencilCopy == 1) && (dstMethod.depthStencilCopy == 1) &&
+                 (resolveMode == ResolveMode::Average) &&
+                 (TestAnyFlagSet(flags, ImageResolveInvertY) == false) &&
+                  HwlCanDoDepthStencilCopyResolve(srcImage, dstImage, regionCount, pRegions))
+        {
+            ResolveImageDepthStencilCopy(pPm4CmdBuffer,
+                                         srcImage,
+                                         srcImageLayout,
+                                         dstImage,
+                                         dstImageLayout,
+                                         regionCount,
+                                         pRegions,
+                                         flags);
+
+            HwlHtileCopyAndFixUp(pPm4CmdBuffer, srcImage, dstImage, dstImageLayout, regionCount, pRegions, false);
+        }
+        else if (dstMethod.shaderPs && (resolveMode == ResolveMode::Average))
+        {
+            if (dstImage.IsDepthStencilTarget())
+            {
+                // this only supports Depth/Stencil resolves.
+                ResolveImageDepthStencilGraphics(pPm4CmdBuffer,
+                                                 srcImage,
+                                                 srcImageLayout,
+                                                 dstImage,
+                                                 dstImageLayout,
+                                                 regionCount,
+                                                 pRegions,
+                                                 flags);
+            }
+            else if (IsGfx11(*m_pDevice->Parent()))
+            {
+                HwlResolveImageGraphics(pPm4CmdBuffer,
+                                        srcImage,
+                                        srcImageLayout,
+                                        dstImage,
+                                        dstImageLayout,
+                                        regionCount,
+                                        pRegions,
+                                        flags);
+            }
+            else
+            {
+                PAL_NOT_IMPLEMENTED();
+            }
+        }
+        else if (pPm4CmdBuffer->IsComputeSupported() &&
+                 ((srcMethod.shaderCsFmask == 1) ||
+                  (srcMethod.shaderCs == 1)))
+        {
+            ResolveImageCompute(pPm4CmdBuffer,
+                                srcImage,
+                                srcImageLayout,
+                                dstImage,
+                                dstImageLayout,
+                                resolveMode,
+                                regionCount,
+                                pRegions,
+                                srcMethod,
+                                flags);
+
+            HwlFixupResolveDstImage(pPm4CmdBuffer,
+                                    *dstImage.GetGfxImage(),
+                                    dstImageLayout,
+                                    pRegions,
+                                    regionCount,
+                                    true);
+        }
+        else
+        {
+            PAL_NOT_IMPLEMENTED();
+        }
+    }
 }
 
 // =====================================================================================================================

@@ -27,5 +27,4 @@ target_sources(pal PRIVATE
     CMakeLists.txt
     FindDRM.cmake
     FindWayland.cmake
-    FindXCB.cmake
 )

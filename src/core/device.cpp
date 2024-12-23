@@ -538,7 +538,7 @@ Result Device::SetupPublicSettingDefaults()
     m_publicSettings.tcCompatibleMetaData                     = 0x7F;
     m_publicSettings.cpDmaCmdCopyMemoryMaxBytes               = 64_KiB;
     m_publicSettings.forceHighClocks                          = false;
-    m_publicSettings.cmdBufBatchedSubmitChainLimit            = 128;
+    m_publicSettings.cmdBufBatchedSubmitChainLimit            = UINT32_MAX;
     m_publicSettings.cmdAllocResidency                        = 0x1F;
     m_publicSettings.presentableImageNumberThreshold          = 16;
     m_publicSettings.hintInvariantDepthStencilClearValues     = false;

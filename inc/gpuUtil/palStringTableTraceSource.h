@@ -75,7 +75,11 @@ public:
         const char*        pStringData,
         Pal::uint32        stringDataSize);
 
-    Pal::uint32 AcquireTableId() { return ++s_nextTableId; }
+    Pal::uint32 AcquireTableId(Pal::uint32 numIds = 1)
+    {
+        Pal::uint32 tableId = s_nextTableId.fetch_add(numIds);
+        return tableId;
+    }
 
     // ==== Base Class Overrides =================================================================================== //
     virtual void OnConfigUpdated(DevDriver::StructuredValue* pJsonConfig) override { }
@@ -93,6 +97,7 @@ public:
 
     virtual const char* GetName()    const override { return StringTableTraceSourceName; }
     virtual Pal::uint32 GetVersion() const override { return StringTableTraceSourceVersion; }
+    virtual bool AllowMultipleInstances()    const override { return true; }
 
 protected:
     struct StringTableEntry

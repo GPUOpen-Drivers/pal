@@ -58,8 +58,6 @@ function(swd_add_to_target TARGET PREFIX)
     endif()
 #endif
 
-    target_sources(${TARGET} PRIVATE ${SWD_SOURCE_DIR}/inc/g_gfx10SwWarDetection.h)
-    set_source_files_properties(${SWD_SOURCE_DIR}/inc/g_gfx10SwWarDetection.h TARGET_DIRECTORY ${TARGET} PROPERTIES GENERATED ON)
     target_sources(${TARGET} PRIVATE ${SWD_SOURCE_DIR}/inc/g_gfx11SwWarDetection.h)
     set_source_files_properties(${SWD_SOURCE_DIR}/inc/g_gfx11SwWarDetection.h TARGET_DIRECTORY ${TARGET} PROPERTIES GENERATED ON)
 

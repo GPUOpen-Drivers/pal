@@ -341,8 +341,8 @@ struct GpuMemoryProperties
             uint32 supportsTmz                :  1; // Indicates TMZ (or HSFB) protected memory is supported.
             uint32 supportsMall               :  1; // Indicates that this device supports the MALL.
             uint32 supportPageFaultInfo       :  1; // Indicates support for querying page fault information
-            uint32 reserved1                  :  1;
-            uint32 reserved                   : 14;
+            uint32 reserved1                  :  2;
+            uint32 reserved                   : 13;
         };
         uint32 u32All;
     } flags;
@@ -887,7 +887,8 @@ struct GpuChipProperties
                 uint32 supportBFloat16                     :  1; // Indicates support for bfloat16
                 uint32 supportFloat8                       :  1; // HW supports float 8-bit.
                 uint32 supportInt4                         :  1; // HW supports integer 4-bit.
-                uint64 reserved                            :  9;
+                uint64 placeholder7                        :  1;
+                uint64 reserved                            :  8;
             };
 
             RayTracingIpLevel        rayTracingIp;      //< HW RayTracing IP version

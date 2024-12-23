@@ -22,8 +22,8 @@
  *  SOFTWARE.
  *
  **********************************************************************************************************************/
-#include <CLI/CLI.hpp>
-#include <nlohmann/json.hpp>
+#include <cli11/CLI11.hpp>
+#include <json/json.hpp>
 
 #include "amdrdf.h"
 

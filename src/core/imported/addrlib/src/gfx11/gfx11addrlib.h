@@ -325,6 +325,16 @@ protected:
         const ADDR2_COMPUTE_SURFACE_ADDRFROMCOORD_INPUT* pIn,
         ADDR2_COMPUTE_SURFACE_ADDRFROMCOORD_OUTPUT*      pOut) const;
 
+    virtual ADDR_E_RETURNCODE HwlCopyMemToSurface(
+        const ADDR2_COPY_MEMSURFACE_INPUT*  pIn,
+        const ADDR2_COPY_MEMSURFACE_REGION* pRegions,
+        UINT_32                             regionCount) const override;
+
+    virtual ADDR_E_RETURNCODE HwlCopySurfaceToMem(
+        const ADDR2_COPY_MEMSURFACE_INPUT*  pIn,
+        const ADDR2_COPY_MEMSURFACE_REGION* pRegions,
+        UINT_32                             regionCount) const override;
+
     virtual UINT_32 HwlComputeMaxBaseAlignments() const;
 
     virtual UINT_32 HwlComputeMaxMetaBaseAlignments() const;
@@ -352,14 +362,6 @@ private:
     ADDR_E_RETURNCODE ComputeSurfaceAddrFromCoordMicroTiled(
         const ADDR2_COMPUTE_SURFACE_ADDRFROMCOORD_INPUT* pIn,
         ADDR2_COMPUTE_SURFACE_ADDRFROMCOORD_OUTPUT*      pOut) const;
-
-    UINT_32 ComputeOffsetFromSwizzlePattern(
-        const UINT_64* pPattern,
-        UINT_32        numBits,
-        UINT_32        x,
-        UINT_32        y,
-        UINT_32        z,
-        UINT_32        s) const;
 
     UINT_32 ComputeOffsetFromEquation(
         const ADDR_EQUATION* pEq,
@@ -398,7 +400,7 @@ private:
 
     VOID GetSwizzlePatternFromPatternInfo(
         const ADDR_SW_PATINFO* pPatInfo,
-        ADDR_BIT_SETTING       (&pSwizzle)[20]) const
+        ADDR_BIT_SETTING       (&pSwizzle)[ADDR_MAX_EQUATION_BIT]) const
     {
         memcpy(pSwizzle,
                GFX11_SW_PATTERN_NIBBLE01[pPatInfo->nibble01Idx],

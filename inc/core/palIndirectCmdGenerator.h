@@ -114,6 +114,12 @@ struct IndirectParam
         {
             uint32  bufferId;       ///< Vertex bufer slot ID to set.
         } vertexData;               ///< Additional information about a 'BindVertexData' indirect command parameter.
+
+        struct
+        {
+            bool constantDrawIndex; ///< If set, does not increment the Draw Index per draw.
+        } drawData;                 ///< Additional information about 'Draw', 'DrawIndexed' and 'DispatchMesh'
+                                    ///  indirect command parameters.
     };
 };
 

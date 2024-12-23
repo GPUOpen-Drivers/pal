@@ -575,7 +575,7 @@ Result Image::GetExternalSharedImageCreateInfo(
                 const auto swizzleMode =
                     static_cast<AddrSwizzleMode>(
                         pCreateInfo->flags.sharedWithMesa
-                            ? AMDGPU_TILING_GET(sharedInfo.info.metadata.swizzle_info, SWIZZLE_MODE)
+                            ? AMDGPU_TILING_GET(sharedInfo.info.metadata.tiling_info, SWIZZLE_MODE)
                             : pMetadata->gfx9.swizzleMode);
 
                 pCreateInfo->tiling = AddrMgr2::IsLinearSwizzleMode(swizzleMode)
@@ -640,7 +640,7 @@ Result Image::CreateExternalSharedImage(
             if (IsMesaMetadata(sharedInfo.info.metadata))
             {
                 internalCreateInfo.gfx9.sharedSwizzleMode = static_cast<AddrSwizzleMode>
-                    (AMDGPU_TILING_GET(sharedInfo.info.metadata.swizzle_info, SWIZZLE_MODE));
+                    (AMDGPU_TILING_GET(sharedInfo.info.metadata.tiling_info, SWIZZLE_MODE));
             }
             else
             {
@@ -777,7 +777,7 @@ Result Image::CreateExternalSharedImage(
 
     if (openInfo.flags.hasModifier != 0)
     {
-        pDevice->GetModifierInfo(openInfo.modifier, &createInfo, &internalCreateInfo);
+        pDevice->GetModifierInfo(openInfo.modifier, createInfo, &internalCreateInfo);
 
         internalCreateInfo.sharedMetadata.dccOffset[0]        = openInfo.dccOffset;
         internalCreateInfo.sharedMetadata.displayDccOffset[0] = openInfo.displayDccOffset;

@@ -26,6 +26,7 @@
 #pragma once
 
 #include "palUtil.h"
+#include <semaphore.h>
 
 struct timespec;
 
@@ -46,5 +47,11 @@ extern int32 SleepToAbsTime(const timespec* pSleepTime);
 
 // Computes the remaining timeout
 extern void ComputeTimeoutLeft(const timespec* pAbsTimeout, uint64* pNanoSeconds);
+
+// Waits on the semaphore until it is signaled or the specified absolute timeout has expired.
+extern int SemTimedWait(sem_t* pSem, const timespec* pTimeout);
+
+// Retrieves the current absolute time.
+extern int GetClockTime(timespec* pAbsTime);
 
 } // Util

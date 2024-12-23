@@ -1557,6 +1557,24 @@ Result ComputeCmdBuffer::WritePostambleCommands(
 // Adds a postamble to the end of a new command buffer.
 Result ComputeCmdBuffer::AddPostamble()
 {
+    if ((m_globalInternalTableAddr != 0) &&
+        (m_computeState.pipelineState.pPipeline != nullptr) &&
+        (static_cast<const ComputePipeline*>(m_computeState.pipelineState.pPipeline)->GetInfo().flags.hsaAbi != 0u))
+    {
+        // If we're ending this cmdbuf with an HSA pipeline bound, the global table may currently
+        // be invalid and we need to restore it for any subsequent chained cmdbufs.
+        // Note 'nullptr' is considered PAL ABI and the restore must have already happened if needed.
+        uint32* pCmdSpace = m_cmdStream.ReserveCommands();
+        pCmdSpace += m_cmdUtil.BuildLoadShRegsIndex(index__pfp_load_sh_reg_index__direct_addr,
+                                                    data_format__pfp_load_sh_reg_index__offset_and_size,
+                                                    m_globalInternalTableAddr,
+                                                    mmCOMPUTE_USER_DATA_0,
+                                                    1,
+                                                    Pm4ShaderType::ShaderCompute,
+                                                    pCmdSpace);
+        m_cmdStream.CommitCommands(pCmdSpace);
+    }
+
     Result result = ComputeCmdBuffer::WritePostambleCommands(m_cmdUtil,
                                                              this,
                                                              &m_cmdStream);

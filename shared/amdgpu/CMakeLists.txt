@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2021-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2019-2024 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -23,6 +23,6 @@
  #
  #######################################################################################################################
 
-project(CLI11 VERSION 1.9.1)
-add_library(cli11 INTERFACE)
-target_include_directories(cli11 INTERFACE ${CMAKE_CURRENT_LIST_DIR})
+target_sources(pal PRIVATE CMakeLists.txt)
+
+add_subdirectory(include/xcb)

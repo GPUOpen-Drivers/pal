@@ -24,13 +24,23 @@
  **********************************************************************************************************************/
 #include "amdrdf.h"
 
-#include <zstd.h>
+#include <zstd/zstd.h>
 
 #include <cassert>
 #include <cstdio>
 #include <cstring>
 #include <limits>
 #include <stdexcept>
+
+#if RDF_PLATFORM_WINDOWS
+// Define NOMINMAX to prevent conflict between <limits> and <windows.h> include files.
+#define NOMINMAX
+
+#include <corecrt_io.h>
+#include <fcntl.h>
+#include <io.h>
+#include <windows.h>
+#endif
 
 #include <algorithm>
 // We use map so we don't have to provide a hash function for chunkId, which
@@ -83,11 +93,13 @@ namespace internal
     public:
         virtual ~IStream();
 
-        std::int64_t Read(const std::int64_t count, void* buffer);
-        std::int64_t Write(const std::int64_t count, const void* buffer);
+        std::int64_t Read(const std::int64_t offset,
+                          const std::int64_t count,
+                          void* buffer);
+        std::int64_t Write(const std::int64_t offset,
+                           const std::int64_t count,
+                           const void* buffer);
 
-        std::int64_t Tell() const;
-        void Seek(const std::int64_t offset);
         std::int64_t GetSize() const;
 
         bool CanWrite() const;
@@ -96,11 +108,13 @@ namespace internal
         void Close();
 
     private:
-        virtual std::int64_t ReadImpl(const std::int64_t count, void* buffer) = 0;
-        virtual std::int64_t WriteImpl(const std::int64_t count, const void* buffer) = 0;
-        virtual std::int64_t TellImpl() const = 0;
+        virtual std::int64_t ReadImpl(const std::int64_t offset,
+                                      const std::int64_t count,
+                                      void* buffer) = 0;
+        virtual std::int64_t WriteImpl(const std::int64_t offset,
+                                       const std::int64_t count,
+                                       const void* buffer) = 0;
 
-        virtual void SeekImpl(const std::int64_t offset) = 0;
         virtual std::int64_t GetSizeImpl() const = 0;
 
         virtual bool CanWriteImpl() const = 0;
@@ -130,38 +144,37 @@ namespace internal
             if (stream_.Tell == nullptr) {
                 throw std::runtime_error("Stream must provide a Tell callback");
             }
+
+            // We'll reset the stream to 0 here, as `Seek()` is
+            // always provided. We need it at 0 for our internal offset
+            // emulation to work, as we assume it's at 0. Note: This depends
+            // on the stream offset emulation in rdfStream
+            stream_.Seek(stream_.context, 0);
         }
 
     private:
-        std::int64_t ReadImpl(const std::int64_t count, void* buffer) override
+        std::int64_t ReadImpl(const std::int64_t offset,
+                              const std::int64_t count,
+                              void* buffer) override
         {
             std::int64_t bytesRead = 0;
+            CheckCall(stream_.Seek(stream_.context, offset));
             CheckCall(stream_.Read(stream_.context, count, buffer, &bytesRead));
             assert(bytesRead <= count);
             return bytesRead;
         }
 
-        std::int64_t WriteImpl(const std::int64_t count, const void* buffer) override
+        std::int64_t WriteImpl(const std::int64_t offset,
+                               const std::int64_t count,
+                               const void* buffer) override
         {
             assert(stream_.Write);
 
             std::int64_t bytesWritten = 0;
+            CheckCall(stream_.Seek(stream_.context, offset));
             CheckCall(stream_.Write(stream_.context, count, buffer, &bytesWritten));
             assert(bytesWritten <= count);
             return bytesWritten;
-        }
-
-        std::int64_t TellImpl() const override
-        {
-            std::int64_t position = 0;
-            CheckCall(stream_.Tell(stream_.context, &position));
-            assert(position >= 0);
-            return position;
-        }
-
-        void SeekImpl(const std::int64_t offset) override
-        {
-            CheckCall(stream_.Seek(stream_.context, offset));
         }
 
         std::int64_t GetSizeImpl() const override
@@ -265,6 +278,11 @@ namespace internal
     std::unique_ptr<IStream> OpenFile(const char* filename,
                                       rdfStreamAccess access,
                                       rdfFileMode fileMode);
+
+    std::unique_ptr<IStream> OpenSharedFile(const char* filename,
+                                      rdfStreamAccess access,
+                                      rdfFileMode fileMode);
+
     std::unique_ptr<IStream> CreateFile(const char* filename);
 
     std::unique_ptr<IStream> CreateReadOnlyMemoryStream(const std::int64_t bufferSize,
@@ -348,11 +366,8 @@ namespace internal
     private:
         void Construct()
         {
-            // We always seek to the start as this is where the header should
-            // be, and we don't support multiple files  in a stream
-            stream_->Seek(0);
-
-            if (stream_->Read(sizeof(header_), &header_) != sizeof(header_)) {
+            // Read the header from the file start
+            if (stream_->Read(0, sizeof(header_), &header_) != sizeof(header_)) {
                 throw std::runtime_error("Error while reading file -- could not read header");
             }
 
@@ -366,9 +381,10 @@ namespace internal
                 throw std::runtime_error("Unsupported file version");
             }
 
-            stream_->Seek(header_.indexOffset);
             index_.resize(header_.indexSize / sizeof(IndexEntry));
-            stream_->Read(index_.size() * sizeof(IndexEntry), index_.data());
+            stream_->Read(header_.indexOffset,
+                          index_.size() * sizeof(IndexEntry),
+                          index_.data());
 
             BuildChunkIndex();
         }
@@ -431,11 +447,10 @@ namespace internal
             const auto& entry = GetChunkInfo(chunkId, chunkIndex);
 
             assert(entry.chunkHeaderOffset >= 0);
-            stream_->Seek(entry.chunkHeaderOffset);
             assert(entry.chunkHeaderSize >= 0);
             if (entry.chunkHeaderSize > 0) {
                 // TODO Check error?
-                stream_->Read(entry.chunkHeaderSize, buffer);
+                stream_->Read(entry.chunkHeaderOffset, entry.chunkHeaderSize, buffer);
             }
         }
 
@@ -444,22 +459,23 @@ namespace internal
             const auto& entry = GetChunkInfo(chunkId, chunkIndex);
 
             assert(entry.chunkDataOffset >= 0);
-            stream_->Seek(entry.chunkDataOffset);
-
             assert(entry.chunkDataSize >= 0);
+
             if (entry.compression == Compression::Zstd) {
                 std::vector<unsigned char> compressedData;
                 compressedData.resize(entry.chunkDataSize);
 
                 // TODO Check error?
-                stream_->Read(entry.chunkDataSize, compressedData.data());
+                stream_->Read(entry.chunkDataOffset,
+                              entry.chunkDataSize,
+                              compressedData.data());
                 assert(entry.uncompressedChunkSize >= 0);
                 ZSTD_decompress(buffer,
                                 entry.uncompressedChunkSize,
                                 compressedData.data(),
                                 compressedData.size());
             } else if (entry.compression == Compression::None) {
-                stream_->Read(entry.chunkDataSize, buffer);
+                stream_->Read(entry.chunkDataOffset, entry.chunkDataSize, buffer);
             } else {
                 throw std::runtime_error("Unsupported compression algorithm");
             }
@@ -639,7 +655,7 @@ namespace internal
             assert(currentChunk_->chunkHeaderOffset >= 0);
             if (chunkHeaderSize > 0) {
                 // TODO Check error?
-                stream_->Write(chunkHeaderSize, chunkHeader);
+                stream_->Write(dataWriteOffset_, chunkHeaderSize, chunkHeader);
                 currentChunk_->chunkHeaderSize = chunkHeaderSize;
 
                 // If this fails, we had an overflow in the chunk header size
@@ -665,7 +681,7 @@ namespace internal
                     static_cast<const unsigned char*>(chunkData),
                     static_cast<const unsigned char*>(chunkData) + chunkDataSize);
             } else {
-                if (stream_->Write(chunkDataSize, chunkData) != chunkDataSize) {
+                if (stream_->Write(dataWriteOffset_, chunkDataSize, chunkData) != chunkDataSize) {
                     throw std::runtime_error("Error while writing to file.");
                 }
 
@@ -690,7 +706,7 @@ namespace internal
                 currentChunk_->uncompressedChunkSize = chunkDataBuffer_.size();
                 assert(currentChunk_->uncompressedChunkSize >= 0);
 
-                stream_->Write(compressedSize, buffer.data());
+                stream_->Write(dataWriteOffset_, compressedSize, buffer.data());
                 dataWriteOffset_ += compressedSize;
             } else {
                 assert(currentChunk_->chunkDataOffset >= 0);
@@ -737,13 +753,13 @@ namespace internal
         void Finalize()
         {
             assert(stream_);
-            stream_->Write(chunks_.size() * sizeof(ChunkFile::IndexEntry), chunks_.data());
-            stream_->Seek(0);
+            stream_->Write(dataWriteOffset_, chunks_.size() * sizeof(ChunkFile::IndexEntry), chunks_.data());
+
             header_.indexOffset = dataWriteOffset_;
             header_.indexSize = chunks_.size() * sizeof(ChunkFile::IndexEntry);
 
             // TODO Check error?
-            stream_->Write(sizeof(header_), &header_);
+            stream_->Write(0, sizeof(header_), &header_);
 
             stream_ = nullptr;
         }
@@ -764,8 +780,7 @@ namespace internal
             if (append) {
                 // Try to read the current header, check if it's a supported
                 // version, then read in the index
-                stream_->Seek(0);
-                stream_->Read(sizeof(header_), &header_);
+                stream_->Read(0, sizeof(header_), &header_);
 
                 if (::memcmp(header_.identifier,
                              ChunkFile::Identifier,
@@ -778,8 +793,7 @@ namespace internal
                 }
 
                 chunks_.resize(header_.indexSize / sizeof(ChunkFile::IndexEntry));
-                stream_->Seek(header_.indexOffset);
-                stream_->Read(header_.indexSize, chunks_.data());
+                stream_->Read(header_.indexOffset, header_.indexSize, chunks_.data());
 
                 // Initialize the counts so the returned index is correct
                 for (const auto& chunk : chunks_) {
@@ -788,13 +802,12 @@ namespace internal
                 }
 
                 dataWriteOffset_ = header_.indexOffset;
-                stream_->Seek(dataWriteOffset_);
             } else {
                 header_.version = ChunkFile::Version;
                 ::memcpy(header_.identifier, ChunkFile::Identifier, sizeof(ChunkFile::Identifier));
 
-                stream_->Write(sizeof(header_), &header_);
-                dataWriteOffset_ = stream_->Tell();
+                stream_->Write(0, sizeof(header_), &header_);
+                dataWriteOffset_ = sizeof(header_);
             }
         }
 
@@ -808,14 +821,15 @@ namespace internal
         std::unique_ptr<IStream> streamPointer_;
         IStream* stream_ = nullptr;
 
-        size_t dataWriteOffset_ = 0;
+        std::int64_t dataWriteOffset_ = 0;
     };
 
     //////////////////////////////////////////////////////////////////////
     IStream::~IStream() {}
 
     //////////////////////////////////////////////////////////////////////
-    std::int64_t IStream::Read(const std::int64_t size, void* buffer)
+    std::int64_t IStream::Read(const std::int64_t offset,
+        const std::int64_t size, void* buffer)
     {
         if (size > 0 && buffer == nullptr) {
             throw std::runtime_error("Buffer cannot be null");
@@ -825,13 +839,18 @@ namespace internal
             throw std::runtime_error("Size must be >= 0");
         }
 
+        if (offset < 0) {
+            throw std::runtime_error("Offset must be >= 0");
+        }
+
         assert(CheckIsInSystemSizeRange(size));
 
-        return ReadImpl(size, buffer);
+        return ReadImpl(offset, size, buffer);
     }
 
     //////////////////////////////////////////////////////////////////////
-    std::int64_t IStream::Write(const std::int64_t size, const void* buffer)
+    std::int64_t IStream::Write(const std::int64_t offset,
+        const std::int64_t size, const void* buffer)
     {
         if (size > 0 && buffer == nullptr) {
             throw std::runtime_error("Buffer cannot be null");
@@ -841,9 +860,13 @@ namespace internal
             throw std::runtime_error("Size must be >= 0");
         }
 
+        if (offset < 0) {
+            throw std::runtime_error("Offset must be >= 0");
+        }
+
         assert(CheckIsInSystemSizeRange(size));
 
-        return WriteImpl(size, buffer);
+        return WriteImpl(offset, size, buffer);
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -865,25 +888,9 @@ namespace internal
     }
 
     //////////////////////////////////////////////////////////////////////
-    std::int64_t IStream::Tell() const
-    {
-        return TellImpl();
-    }
-
-    //////////////////////////////////////////////////////////////////////
     std::int64_t IStream::GetSize() const
     {
         return GetSizeImpl();
-    }
-
-    //////////////////////////////////////////////////////////////////////
-    void IStream::Seek(const std::int64_t offset)
-    {
-        if (offset < 0) {
-            throw std::runtime_error("Seek offset must not be negative");
-        }
-
-        SeekImpl(offset);
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -893,29 +900,21 @@ namespace internal
         Filestream(std::FILE* fd, rdfStreamAccess accessMode) : fd_(fd), accessMode_(accessMode) {}
 
     private:
-        std::int64_t ReadImpl(const std::int64_t count, void* buffer) override
+        std::int64_t ReadImpl(const std::int64_t offset,
+            const std::int64_t count, void* buffer) override
         {
+            Seek(offset);
             return std::fread(buffer, 1, count, fd_);
         }
 
-        std::int64_t WriteImpl(const std::int64_t count, const void* buffer) override
+        std::int64_t WriteImpl(const std::int64_t offset,
+            const std::int64_t count, const void* buffer) override
         {
+            Seek(offset);
             return std::fwrite(buffer, 1, count, fd_);
         }
 
-        std::int64_t TellImpl() const override
-        {
-#if RDF_PLATFORM_WINDOWS
-            return _ftelli64(fd_);
-#elif RDF_PLATFORM_UNIX
-            // Linux ftell returns a long, which is 64-bit
-            return ftell(fd_);
-#else
-#error "Unsupported platform"
-#endif
-        }
-
-        void SeekImpl(const std::int64_t offset) override
+        void Seek(const std::int64_t offset)
         {
 #if RDF_PLATFORM_WINDOWS
             _fseeki64(fd_, offset, SEEK_SET);
@@ -977,48 +976,32 @@ namespace internal
         }
 
     private:
-        std::int64_t ReadImpl(const std::int64_t count, void* buffer) override
+        std::int64_t ReadImpl(const std::int64_t offset,
+            const std::int64_t count, void* buffer) override
         {
-            const auto startPointer = readPointer_;
-            auto endPointer = readPointer_ + count;
-
-            if (endPointer > static_cast<decltype(endPointer)>(size_)) {
-                endPointer = size_;
+            if (offset > size_) {
+                throw std::runtime_error("Read offset is out of bounds");
             }
 
-            if (endPointer - startPointer) {
-                ::memcpy(buffer,
-                         static_cast<const unsigned char*>(buffer_) + startPointer,
-                         endPointer - startPointer);
-            }
+            auto bytesToRead = std::max(std::int64_t(0),
+                std::min(size_ - offset, count));
+            ::memcpy(buffer,
+                static_cast<const unsigned char*>(buffer_) + offset,
+                bytesToRead);
 
-            readPointer_ = endPointer;
-            return endPointer - startPointer;
+            return bytesToRead;
         }
 
-        std::int64_t WriteImpl(const std::int64_t count, const void* buffer) override
+        std::int64_t WriteImpl(const std::int64_t offset,
+            const std::int64_t count, const void* buffer) override
         {
             assert(false);
             return 0;
         }
 
-        std::int64_t TellImpl() const override
-        {
-            return readPointer_;
-        }
-
         std::int64_t GetSizeImpl() const override
         {
             return size_;
-        }
-
-        void SeekImpl(const std::int64_t offset) override
-        {
-            if (offset >= size_) {
-                throw std::runtime_error("Seek out-of-bounds");
-            }
-
-            readPointer_ = offset;
         }
 
         bool CanWriteImpl() const override
@@ -1050,54 +1033,32 @@ namespace internal
     class MemoryStream final : public IStream
     {
     private:
-        std::int64_t ReadImpl(const std::int64_t count, void* buffer) override
+        std::int64_t ReadImpl(const std::int64_t offset,
+            const std::int64_t count, void* buffer) override
         {
-            // This is all prone to overflow, but we try to apply mostly "safe"
-            // math operations here
-            auto end = offset_ + count;
+            auto bytesToRead = std::max(std::int64_t(0), std::min(
+                static_cast<std::int64_t>(data_.size()) - offset, count));
 
-            if (end > data_.size()) {
-                end = data_.size();
-            }
-
-            auto bytesToRead = end - offset_;
-            ::memcpy(buffer, data_.data() + offset_, bytesToRead);
-            offset_ += bytesToRead;
+            ::memcpy(buffer, data_.data() + offset, bytesToRead);
             return bytesToRead;
         }
 
-        std::int64_t WriteImpl(const std::int64_t count, const void* buffer) override
+        std::int64_t WriteImpl(const std::int64_t offset,
+            const std::int64_t count, const void* buffer) override
         {
-            const auto end = offset_ + count;
-            if (end > data_.size()) {
+            const auto end = offset + count;
+
+            if (end > static_cast<int64_t>(data_.size())) {
                 data_.resize(end);
             }
 
-            ::memcpy(data_.data() + offset_, buffer, count);
-            offset_ += count;
+            ::memcpy(data_.data() + offset, buffer, count);
             return count;
-        }
-
-        std::int64_t TellImpl() const override
-        {
-            return offset_;
         }
 
         std::int64_t GetSizeImpl() const override
         {
             return data_.size();
-        }
-
-        void SeekImpl(const std::int64_t offset) override
-        {
-            assert(CheckIsInSystemSizeRange(offset));
-
-            offset_ = offset;
-
-            // Resize the file if we seek beyond the end
-            if (offset_ > data_.size()) {
-                data_.resize(offset_);
-            }
         }
 
         bool CanWriteImpl() const override
@@ -1113,11 +1074,9 @@ namespace internal
         void CloseImpl() override
         {
             data_.clear();
-            offset_ = 0;
         }
 
         std::vector<unsigned char> data_;
-        std::size_t offset_ = 0;
     };
 
     //////////////////////////////////////////////////////////////////////
@@ -1133,11 +1092,70 @@ namespace internal
     }
 
     //////////////////////////////////////////////////////////////////////
-    std::unique_ptr<IStream> OpenFile(const char* filename,
+    std::unique_ptr<IStream> OpenSharedFile(const char* filename,
+                                            rdfStreamAccess accessMode,
+                                            rdfFileMode fileMode)
+    {
+#if RDF_PLATFORM_WINDOWS
+        const char* mode = nullptr;
+
+        // For a shareable file on Windows, the file needs to be opened with the CreateFile() function.
+        unsigned long desired_access = 0;
+        unsigned long share_mode = FILE_SHARE_READ | FILE_SHARE_WRITE;
+        unsigned long creation_disposition = 0;
+        unsigned long flags_and_attributes = FILE_ATTRIBUTE_NORMAL;
+
+        if (accessMode == rdfStreamAccess::rdfStreamAccessRead) {
+            desired_access |= GENERIC_READ;
+            if (fileMode == rdfFileModeOpen) {
+                creation_disposition = OPEN_EXISTING;
+                mode = "rb";
+            } else if (fileMode == rdfFileModeCreate) {
+                throw std::runtime_error("Cannot create file in read-only mode");
+            }
+        } else if (accessMode == rdfStreamAccess::rdfStreamAccessReadWrite) {
+            desired_access |= GENERIC_READ | GENERIC_WRITE;
+            if (fileMode == rdfFileModeOpen) {
+                creation_disposition = OPEN_EXISTING;
+                mode = "r+b";
+            } else if (fileMode == rdfFileModeCreate) {
+                creation_disposition = OPEN_EXISTING;
+                mode = "w+b";
+            }
+        } else {
+            assert(false);
+        }
+
+        HANDLE object_handle = ::CreateFile(filename,
+                                            desired_access,
+                                            share_mode,
+                                            NULL,
+                                            creation_disposition,
+                                            flags_and_attributes,
+                                            NULL);
+
+        // Convert the object handle to a file descriptor.
+        int file_handle = _open_osfhandle((intptr_t)object_handle, _O_BINARY);
+        auto fd = _fdopen(file_handle, mode);
+        if (fd == nullptr) {
+            CloseHandle(object_handle);
+            throw std::runtime_error("Error opening file");
+        }
+
+        // Disable inheritance of the file handle.
+        SetHandleInformation(object_handle, HANDLE_FLAG_INHERIT, 0);
+        return rdf_make_unique<Filestream>(fd, accessMode);
+#else
+        return OpenFile(filename, accessMode, fileMode);
+#endif
+    }
+
+        std::unique_ptr<IStream> OpenFile(const char* filename,
                                       rdfStreamAccess accessMode,
                                       rdfFileMode fileMode)
     {
         const char* mode = nullptr;
+
         if (accessMode == rdfStreamAccessRead) {
             if (fileMode == rdfFileModeOpen) {
                 mode = "rb";
@@ -1159,6 +1177,10 @@ namespace internal
             throw std::runtime_error("Could not open file");
         }
 
+#if RDF_PLATFORM_WINDOWS
+        // Disable inheritance of the file handle.
+        SetHandleInformation((HANDLE)_get_osfhandle(_fileno(fd)), HANDLE_FLAG_INHERIT, 0);
+#endif
         return rdf_make_unique<Filestream>(fd, accessMode);
     }
 
@@ -1169,7 +1191,12 @@ namespace internal
         if (fd == nullptr) {
             throw std::runtime_error("Could not create file");
         }
-
+#if RDF_PLATFORM_WINDOWS
+        else {
+            // Disable inheritance of the file handle.
+            SetHandleInformation((HANDLE)_get_osfhandle(_fileno(fd)), HANDLE_FLAG_INHERIT, 0);
+        }
+#endif
         return rdf_make_unique<Filestream>(fd, rdfStreamAccessReadWrite);
     }
 
@@ -1209,6 +1236,9 @@ struct rdfChunkFile
 struct rdfStream
 {
     std::unique_ptr<rdf::internal::IStream> stream;
+
+    // This is a backwards-compatibility shim
+    int64_t filePointer = 0;
 };
 
 struct rdfChunkFileIterator
@@ -1231,8 +1261,7 @@ to open an existing file for read/write or create a new one.
 The creation file mode requires read/write access, as creating a new file
 for read-only would result in an unusable stream.
 */
-int RDF_EXPORT rdfStreamFromFile(const rdfStreamFromFileCreateInfo* info,
-    rdfStream** handle)
+int RDF_EXPORT rdfStreamFromFile(const rdfStreamFromFileCreateInfo* info, rdfStream** handle)
 {
     RDF_C_API_BEGIN
 
@@ -1250,8 +1279,16 @@ int RDF_EXPORT rdfStreamFromFile(const rdfStreamFromFileCreateInfo* info,
 
     *handle = new rdfStream;
     try {
-        (*handle)->stream =
-            rdf::internal::OpenFile(info->filename, info->accessMode, info->fileMode);
+        if (info->is_shareable)
+        {
+            (*handle)->stream =
+                rdf::internal::OpenSharedFile(info->filename, info->accessMode, info->fileMode);
+        }
+        else
+        {
+            (*handle)->stream =
+                rdf::internal::OpenFile(info->filename, info->accessMode, info->fileMode);
+        }
     } catch (...) {
         delete *handle;
         *handle = nullptr;
@@ -1468,7 +1505,9 @@ int RDF_EXPORT rdfStreamRead(rdfStream* stream,
         return rdfResult::rdfResultInvalidArgument;
     }
 
-    auto read = stream->stream->Read(count, buffer);
+    auto read = stream->stream->Read(stream->filePointer, count, buffer);
+    stream->filePointer += read;
+
     if (bytesRead) {
         *bytesRead = read;
     }
@@ -1503,7 +1542,8 @@ int RDF_EXPORT rdfStreamWrite(rdfStream* stream,
         return rdfResult::rdfResultError;
     }
 
-    auto written = stream->stream->Write(count, buffer);
+    auto written = stream->stream->Write(stream->filePointer, count, buffer);
+    stream->filePointer += written;
     if (bytesWritten) {
         *bytesWritten = written;
     }
@@ -1525,7 +1565,7 @@ int RDF_EXPORT rdfStreamTell(rdfStream* stream, std::int64_t* position)
         return rdfResult::rdfResultInvalidArgument;
     }
 
-    *position = stream->stream->Tell();
+    *position = stream->filePointer;
 
     return rdfResult::rdfResultOk;
 
@@ -1548,7 +1588,7 @@ int RDF_EXPORT rdfStreamSeek(rdfStream* stream, const std::int64_t offset)
         return rdfResult::rdfResultInvalidArgument;
     }
 
-    stream->stream->Seek(offset);
+    stream->filePointer = offset;
 
     return rdfResult::rdfResultOk;
 
@@ -1664,6 +1704,14 @@ int RDF_EXPORT rdfChunkFileGetChunkVersion(rdfChunkFile* handle,
         return rdfResult::rdfResultInvalidArgument;
     }
 
+    if (chunkId == nullptr) {
+        return rdfResult::rdfResultInvalidArgument;
+    }
+
+    if (chunkIndex < 0) {
+        return rdfResult::rdfResultInvalidArgument;
+    }
+
     if (chunkVersion == nullptr) {
         return rdfResult::rdfResultInvalidArgument;
     }
@@ -1681,6 +1729,8 @@ Read the data stored in a chunk into the provided buffer.
 
 The correct buffer size can be obtained using rdfChunkFileGetChunkDataSize. The
 user must allocate at least that many bytes.
+
+If the chunk data size is 0, passing a nullptr as the buffer is valid.
 */
 int RDF_EXPORT rdfChunkFileReadChunkData(rdfChunkFile* handle,
                                          const char* chunkId,
@@ -1693,7 +1743,11 @@ int RDF_EXPORT rdfChunkFileReadChunkData(rdfChunkFile* handle,
         return rdfResult::rdfResultInvalidArgument;
     }
 
-    if (buffer == nullptr) {
+    if (chunkId == nullptr) {
+        return rdfResult::rdfResultInvalidArgument;
+    }
+
+    if (chunkIndex < 0) {
         return rdfResult::rdfResultInvalidArgument;
     }
 
@@ -1710,6 +1764,8 @@ Read the chunk header into the provided buffer.
 
 The correct buffer size can be obtained using rdfChunkFileGetChunkHeaderSize. The
 user must allocate at least that many bytes.
+
+If the chunk data size is 0, passing a nullptr as the buffer is valid.
 */
 int RDF_EXPORT rdfChunkFileReadChunkHeader(rdfChunkFile* handle,
                                            const char* chunkId,
@@ -1722,7 +1778,11 @@ int RDF_EXPORT rdfChunkFileReadChunkHeader(rdfChunkFile* handle,
         return rdfResult::rdfResultInvalidArgument;
     }
 
-    if (buffer == nullptr) {
+    if (chunkId == nullptr) {
+        return rdfResult::rdfResultInvalidArgument;
+    }
+
+    if (chunkIndex < 0) {
         return rdfResult::rdfResultInvalidArgument;
     }
 
@@ -1745,6 +1805,14 @@ int RDF_EXPORT rdfChunkFileGetChunkHeaderSize(rdfChunkFile* handle,
     RDF_C_API_BEGIN
 
     if (handle == nullptr) {
+        return rdfResult::rdfResultInvalidArgument;
+    }
+
+    if (chunkId == nullptr) {
+        return rdfResult::rdfResultInvalidArgument;
+    }
+
+    if (chunkIndex < 0) {
         return rdfResult::rdfResultInvalidArgument;
     }
 
@@ -1774,6 +1842,14 @@ int RDF_EXPORT rdfChunkFileGetChunkDataSize(rdfChunkFile* handle,
         return rdfResult::rdfResultInvalidArgument;
     }
 
+    if (chunkId == nullptr) {
+        return rdfResult::rdfResultInvalidArgument;
+    }
+
+    if (chunkIndex < 0) {
+        return rdfResult::rdfResultInvalidArgument;
+    }
+
     if (size == nullptr) {
         return rdfResult::rdfResultInvalidArgument;
     }
@@ -1796,6 +1872,10 @@ int RDF_EXPORT rdfChunkFileGetChunkCount(rdfChunkFile* handle,
     RDF_C_API_BEGIN
 
     if (handle == nullptr) {
+        return rdfResult::rdfResultInvalidArgument;
+    }
+
+    if (chunkId == nullptr) {
         return rdfResult::rdfResultInvalidArgument;
     }
 
@@ -1822,6 +1902,14 @@ int RDF_EXPORT rdfChunkFileContainsChunk(rdfChunkFile* handle,
     RDF_C_API_BEGIN
 
     if (handle == nullptr) {
+        return rdfResult::rdfResultInvalidArgument;
+    }
+
+    if (chunkId == nullptr) {
+        return rdfResult::rdfResultInvalidArgument;
+    }
+
+    if (chunkIndex < 0) {
         return rdfResult::rdfResultInvalidArgument;
     }
 

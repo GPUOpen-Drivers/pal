@@ -37,6 +37,7 @@ target_sources(dd_common
         inc/dd_mutex.h
         inc/dd_new.h
         inc/dd_optional.h
+        inc/dd_platform_info.h
         inc/dd_result.h
         inc/dd_ring_buffer.h
         inc/dd_thread.h
@@ -54,6 +55,7 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
         PRIVATE
             src/dd_memory_windows.cpp
             src/dd_mutex_windows.cpp
+            src/dd_platform_info_windows.cpp
             src/dd_result_windows.cpp
             src/dd_thread_windows.cpp
     )
@@ -62,6 +64,7 @@ elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
         PRIVATE
             src/dd_memory_linux.cpp
             src/dd_mutex_linux.cpp
+            src/dd_platform_info_linux.cpp
             src/dd_thread_linux.cpp
     )
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Android")

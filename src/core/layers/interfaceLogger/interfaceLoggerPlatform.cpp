@@ -139,8 +139,10 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
     { InterfaceFunc::CmdBufferCmdClearColorImage,                   (CmdBuild | BarrierLog)            },
     { InterfaceFunc::CmdBufferCmdClearBoundDepthStencilTargets,     (CmdBuild | BarrierLog)            },
     { InterfaceFunc::CmdBufferCmdClearDepthStencil,                 (CmdBuild | BarrierLog)            },
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 910
     { InterfaceFunc::CmdBufferCmdClearBufferView,                   (CmdBuild | BarrierLog)            },
     { InterfaceFunc::CmdBufferCmdClearImageView,                    (CmdBuild | BarrierLog)            },
+#endif
     { InterfaceFunc::CmdBufferCmdResolveImage,                      (CmdBuild | BarrierLog)            },
     { InterfaceFunc::CmdBufferCmdSetEvent,                          (CmdBuild)                         },
     { InterfaceFunc::CmdBufferCmdResetEvent,                        (CmdBuild)                         },

@@ -54,10 +54,10 @@ static constexpr uint32 MaxLog2AaFragments = 3; // Max fragments is 8.
 // Specifies image region for metadata fixup pre/post all RPM copies.
 struct ImageFixupRegion
 {
+    bool     isScaledCopy;
     SubresId subres;
-    Offset3d offset;
-    Extent3d extent;
     uint32   numSlices;
+    Box      box;          // Only required if isScaledCopy == false.
 };
 
 // Which engine should be used for RPM copies into images
@@ -274,6 +274,7 @@ public:
         const Box*            pBoxes,
         uint32                flags) const = 0;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 910
     void CmdClearBufferView(
         GfxCmdBuffer*     pCmdBuffer,
         const IGpuMemory& dstGpuMemory,
@@ -290,6 +291,7 @@ public:
         const void*       pImageViewSrd,
         uint32            rectCount = 0,
         const Rect*       pRects    = nullptr) const;
+#endif
 
     virtual void CmdResolveImage(
         GfxCmdBuffer*             pCmdBuffer,
@@ -329,6 +331,15 @@ protected:
         const ImageCopyRegion* pRegions) const
         { return false; }
 
+    virtual void FixupMetadataForComputeCopyDst(
+        GfxCmdBuffer*           pCmdBuffer,
+        const Pal::Image&       dstImage,
+        ImageLayout             dstImageLayout,
+        uint32                  regionCount,
+        const ImageFixupRegion* pRegions,
+        bool                    beforeCopy,
+        const Pal::Image*       pFmaskOptimizedCopySrcImage = nullptr) const = 0;
+
     virtual bool CopyDstBoundStencilNeedsWa(
         const GfxCmdBuffer* pCmdBuffer,
         const Pal::Image&   dstImage) const
@@ -357,6 +368,10 @@ protected:
         uint32          elementSize,
         gpusize         rowPitch,
         gpusize         depthPitch);
+
+    static void ConvertNegativeImageScaledCopyRegion(
+        ImageScaledCopyRegion* pRegion,
+        bool                   coordsInFloat);
 
     void FillMem32Bit(
         GfxCmdBuffer*   pCmdBuffer,
@@ -390,7 +405,7 @@ protected:
         bool         is3d,
         bool*        pIsFmaskCopy) const;
 
-    void CopyImageCompute(
+    bool CopyImageCompute(
         GfxCmdBuffer*          pCmdBuffer,
         const Image&           srcImage,
         ImageLayout            srcImageLayout,
@@ -497,15 +512,6 @@ protected:
 private:
     virtual Result CreateCommonStateObjects();
 
-    virtual void HwlFixupCopyDstImageMetaData(
-        GfxCmdBuffer*           pCmdBuffer,
-        const Pal::Image*       pSrcImage,
-        const Pal::Image&       dstImage,
-        ImageLayout             dstImageLayout,
-        const ImageFixupRegion* pRegions,
-        uint32                  regionCount,
-        bool                    isFmaskCopyOptimized) const = 0;
-
     virtual void ScaledCopyImageGraphics(
         GfxCmdBuffer*         pCmdBuffer,
         const ScaledCopyInfo& copyInfo) const = 0;
@@ -566,15 +572,7 @@ private:
         uint32                    regionCount,
         const ImgBarrier&         imgBarrier) const;
 
-    virtual void FixupMetadataForComputeDst(
-        GfxCmdBuffer*           pCmdBuffer,
-        const Image&            dstImage,
-        ImageLayout             dstImageLayout,
-        uint32                  regionCount,
-        const ImageFixupRegion* pRegions,
-        bool                    beforeCopy) const = 0;
-
-    virtual void FixupComputeResolveDst(
+    virtual void FixupMetadataForComputeResolveDst(
         GfxCmdBuffer*             pCmdBuffer,
         const Image&              dstImage,
         uint32                    regionCount,

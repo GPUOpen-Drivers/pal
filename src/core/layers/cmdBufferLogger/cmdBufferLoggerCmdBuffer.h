@@ -342,6 +342,7 @@ public:
         uint32             rectCount,
         const Rect*        pRects,
         uint32             flags) override;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 910
     virtual void CmdClearBufferView(
         const IGpuMemory& gpuMemory,
         const ClearColor& color,
@@ -355,6 +356,7 @@ public:
         const void*       pImageViewSrd,
         uint32            rectCount,
         const Rect*       pRects) override;
+#endif
     virtual void CmdResolveImage(
         const IImage&             srcImage,
         ImageLayout               srcImageLayout,

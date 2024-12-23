@@ -155,6 +155,8 @@ struct ExecuteIndirectV2MetaData
     uint32    opType;
     uint32    userDataDwCount;
     bool      commandIndexEnable;
+    uint16    incConstReg[EiV2MaxStages];
+    uint32    incConstRegCount;
     bool      fetchIndexAttributes;
     bool      vertexBoundsCheckEnable;
     uint32    indexAttributesOffset;
@@ -255,6 +257,9 @@ public:
         uint32*              pNextIdx,
         DynamicMemCopyEntry* pEntry,
         bool*                pValidUpdate);
+
+    // Helper for CommandIndex
+    uint16 ProcessCommandIndex(const uint16 drawIndexRegAddr, const bool useConstantDrawIndex, const bool useEightBitMask);
 
     ExecuteIndirectV2MetaData* GetMetaData() { return &m_metaData; }
 

@@ -90,7 +90,7 @@ Result Semaphore::Wait(
                 {
                     // Wait on the semaphore until a timeout occurs.
                     // the timeout is the absolute time thus don't need to be adjusted
-                    ret = sem_timedwait(&m_osSemaphore, &timeout);
+                    ret = SemTimedWait(&m_osSemaphore, &timeout);
                 }
                 break;
         }

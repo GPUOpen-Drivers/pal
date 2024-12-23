@@ -429,8 +429,6 @@ public:
 
     bool IsColorDataZeroOrOne(const uint32*  pColor, uint32 compIdx) const;
 
-    virtual Result GetDefaultGfxLayout(SubresId subresId, ImageLayout* pLayout) const override;
-
     bool IsHtileDepthOnly() const;
 
     bool NeedFlushForMetadataPipeMisalignment(const SubresRange& range) const;
@@ -487,12 +485,6 @@ private:
         // For depth-stencil images and their compression states (one each for depth and stencil planes).
         DepthStencilLayoutToState  depthStencil[2];
     } m_layoutToState;
-
-    union
-    {
-        ImageLayout color;
-        ImageLayout depthStencil[2];
-    } m_defaultGfxLayout;
 
     bool m_useCompToSingleForFastClears;
 

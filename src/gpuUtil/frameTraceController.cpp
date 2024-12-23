@@ -227,6 +227,27 @@ void FrameTraceController::OnFrameUpdated()
         }
         break;
     }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 844
+    case TraceSessionState::Waiting:
+    {
+        Result result = m_pTraceEndFence->GetStatus();
+
+        // The submission associated with the fence should be done by now.
+        // If it isn't, something went wrong. Try waiting before ending the trace.
+        if (result != Pal::Result::Success)
+        {
+            PAL_ALERT_ALWAYS_MSG("FrameTraceController end trace fence is not ready");
+
+            Device* pDevice = static_cast<Queue*>(m_pQueue)->GetDevice();
+            result = pDevice->WaitForFences(1, &m_pTraceEndFence, true, 2s);
+            PAL_ASSERT(result == Result::Success);
+        }
+
+        FinishTrace();
+
+        break;
+    }
+#endif
     default:
         break;
     }
@@ -319,15 +340,21 @@ Result FrameTraceController::SubmitEndTraceGpuWork()
 
     if (result == Result::Success)
     {
+        Device* pDevice = static_cast<Queue*>(m_pQueue)->GetDevice();
+        result = pDevice->ResetFences(1, &m_pTraceEndFence);
+    }
+
+    if (result == Result::Success)
+    {
         PerSubQueueSubmitInfo perSubQueueInfo = {};
         perSubQueueInfo.cmdBufferCount        = 1;
         perSubQueueInfo.ppCmdBuffers          = &m_pCmdBufTraceEnd;
 
-        MultiSubmitInfo submitInfo      = {};
-        submitInfo.perSubQueueInfoCount = 1;
-        submitInfo.pPerSubQueueInfo     = &perSubQueueInfo;
-        submitInfo.ppFences             = &m_pTraceEndFence;
-        submitInfo.fenceCount           = 1;
+        MultiSubmitInfo submitInfo            = {};
+        submitInfo.perSubQueueInfoCount       = 1;
+        submitInfo.pPerSubQueueInfo           = &perSubQueueInfo;
+        submitInfo.fenceCount                 = 1;
+        submitInfo.ppFences                   = &m_pTraceEndFence;
 
         result = m_pQueue->Submit(submitInfo);
     }
@@ -543,68 +570,37 @@ void FrameTraceController::UpdateFrame(
 // =====================================================================================================================
 void FrameTraceController::FinishTrace()
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 844
-    Result result = WaitForTraceEndGpuWorkCompletion();
-    PAL_ASSERT(result == Result::Success);
-
-    if (result == Result::Success)
-#endif
-    {
-        m_pTraceSession->FinishTrace();
-        m_pTraceSession->SetTraceSessionState(TraceSessionState::Completed);
+    m_pTraceSession->FinishTrace();
+    m_pTraceSession->SetTraceSessionState(TraceSessionState::Completed);
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 908
-        if (m_pCmdBufTracePrepare != nullptr)
-        {
-            m_pCmdBufTracePrepare->Destroy();
-            PAL_SAFE_FREE(m_pCmdBufTracePrepare, m_pPlatform);
-        }
-#endif
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 844
-        if (m_pCmdBufTraceBegin != nullptr)
-        {
-            m_pCmdBufTraceBegin->Destroy();
-            PAL_SAFE_FREE(m_pCmdBufTraceBegin, m_pPlatform);
-        }
-
-        if (m_pCmdBufTraceEnd != nullptr)
-        {
-            m_pCmdBufTraceEnd->Destroy();
-            PAL_SAFE_FREE(m_pCmdBufTraceEnd, m_pPlatform);
-        }
-
-        if (m_pTraceEndFence != nullptr)
-        {
-            m_pTraceEndFence->Destroy();
-            PAL_SAFE_FREE(m_pTraceEndFence, m_pPlatform);
-        }
-#endif
-    }
-}
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 844
-// =====================================================================================================================
-// Wait for the fence associated with the GPU command which ends the trace
-Result FrameTraceController::WaitForTraceEndGpuWorkCompletion() const
-{
-    Result result = Result::ErrorInvalidPointer;
-
-    if ((m_pQueue != nullptr) && (m_pTraceEndFence != nullptr))
+    if (m_pCmdBufTracePrepare != nullptr)
     {
-        Device* pDevice = (static_cast<Queue*>(m_pQueue))->GetDevice();
+        m_pCmdBufTracePrepare->Destroy();
+        PAL_SAFE_FREE(m_pCmdBufTracePrepare, m_pPlatform);
+    }
+#endif
 
-        result = pDevice->WaitForFences(1, &m_pTraceEndFence, true, 5s);
-
-        if (result == Result::Success)
-        {
-            result = pDevice->ResetFences(1, &m_pTraceEndFence);
-        }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 844
+    if (m_pCmdBufTraceBegin != nullptr)
+    {
+        m_pCmdBufTraceBegin->Destroy();
+        PAL_SAFE_FREE(m_pCmdBufTraceBegin, m_pPlatform);
     }
 
-    return result;
-}
+    if (m_pCmdBufTraceEnd != nullptr)
+    {
+        m_pCmdBufTraceEnd->Destroy();
+        PAL_SAFE_FREE(m_pCmdBufTraceEnd, m_pPlatform);
+    }
+
+    if (m_pTraceEndFence != nullptr)
+    {
+        m_pTraceEndFence->Destroy();
+        PAL_SAFE_FREE(m_pTraceEndFence, m_pPlatform);
+    }
 #endif
+}
 
 } // namespace GpuUtil
 

@@ -107,7 +107,6 @@ Image::Image(
     m_useCompToSingleForFastClears(false)
 {
     memset(&m_layoutToState,      0, sizeof(m_layoutToState));
-    memset(&m_defaultGfxLayout,   0, sizeof(m_defaultGfxLayout));
     memset(m_addrSurfOutput,      0, sizeof(m_addrSurfOutput));
     memset(m_addrMipOutput,       0, sizeof(m_addrMipOutput));
     memset(m_addrSurfSetting,     0, sizeof(m_addrSurfSetting));
@@ -1299,8 +1298,6 @@ void Image::InitLayoutStateMasks()
         m_layoutToState.color.compressed        = compressedLayout;
         m_layoutToState.color.fmaskDecompressed = fmaskDecompressedLayout;
 
-        m_defaultGfxLayout.color = compressedLayout;
-
         // If this trips, the SDMA engine is in danger of seeing compressed images, which it can't understand.
         PAL_ASSERT((GetGfx9Settings(m_device).waSdmaPreventCompressedSurfUse == false) ||
                    (TestAnyFlagSet(m_layoutToState.color.compressed.engines, LayoutDmaEngine) == false));
@@ -1404,14 +1401,11 @@ void Image::InitLayoutStateMasks()
         if (m_pHtile->DepthCompressed())
         {
             m_layoutToState.depthStencil[depth].compressed  = compressedLayouts;
-            m_defaultGfxLayout.depthStencil[depth]          = compressedLayouts;
         }
         else
         {
             m_layoutToState.depthStencil[depth].compressed.usages   = 0;
             m_layoutToState.depthStencil[depth].compressed.engines  = 0;
-            m_defaultGfxLayout.depthStencil[depth].usages           = LayoutAllUsages & (~LayoutUninitializedTarget);
-            m_defaultGfxLayout.depthStencil[depth].engines          = LayoutAllEngines;
         }
 
         m_layoutToState.depthStencil[depth].decomprWithHiZ = decomprWithHiZLayout;
@@ -1429,33 +1423,16 @@ void Image::InitLayoutStateMasks()
                 m_layoutToState.depthStencil[stencil].decomprWithHiZ.engines = 0;
             }
 
-            if ((m_pHtile->TileStencilDisabled() == false) &&
-                m_pHtile->StencilCompressed())
+            if ((m_pHtile->TileStencilDisabled() == false) && m_pHtile->StencilCompressed())
             {
                 m_layoutToState.depthStencil[stencil].compressed = compressedLayouts;
-                m_defaultGfxLayout.depthStencil[stencil]         = compressedLayouts;
             }
             else
             {
                 m_layoutToState.depthStencil[stencil].compressed.usages  = 0;
                 m_layoutToState.depthStencil[stencil].compressed.engines = 0;
-                m_defaultGfxLayout.depthStencil[stencil].usages  = LayoutAllUsages & (~LayoutUninitializedTarget);
-                m_defaultGfxLayout.depthStencil[stencil].engines = LayoutAllEngines;
             }
         }
-    }
-    else
-    {
-        // If compression is not supported, there is only one layout.
-        m_defaultGfxLayout.color.usages  = LayoutAllUsages;
-        m_defaultGfxLayout.color.engines = LayoutAllEngines;
-
-        const uint32 depth   = 0;
-        const uint32 stencil = GetStencilPlane();
-        m_defaultGfxLayout.depthStencil[depth].usages    = LayoutAllUsages & (~LayoutUninitializedTarget);
-        m_defaultGfxLayout.depthStencil[depth].engines   = LayoutAllEngines;
-        m_defaultGfxLayout.depthStencil[stencil].usages  = LayoutAllUsages & (~LayoutUninitializedTarget);
-        m_defaultGfxLayout.depthStencil[stencil].engines = LayoutAllEngines;
     }
 }
 
@@ -3311,32 +3288,6 @@ void Image::GetDccState(
         PAL_ASSERT(m_numDccPlanes == 1);
         m_pDcc[0]->GetState(pState);
     }
-}
-
-// =====================================================================================================================
-// Get the default layout which is the optimally compressed layout for the subresource.
-Result Image::GetDefaultGfxLayout(
-    SubresId     subresId,
-    ImageLayout* pLayout
-    ) const
-{
-    Result result = Result::ErrorInvalidPointer;
-
-    if (pLayout != nullptr)
-    {
-        if (Parent()->IsDepthStencilTarget())
-        {
-            *pLayout = m_defaultGfxLayout.depthStencil[subresId.plane];
-        }
-        else
-        {
-            *pLayout = m_defaultGfxLayout.color;
-        }
-
-        result = Result::Success;
-    }
-
-    return result;
 }
 
 // =====================================================================================================================

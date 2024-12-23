@@ -41,6 +41,7 @@
 #include "palAutoBuffer.h"
 #include "palHashMapImpl.h"
 #include "palInlineFuncs.h"
+#include "palLiterals.h"
 #include "palSettingsFileMgrImpl.h"
 #include "palSysMemory.h"
 #include "palSysUtil.h"
@@ -60,6 +61,7 @@
 #include <sys/sysmacros.h>
 
 using namespace Util;
+using namespace Util::Literals;
 using namespace Pal::AddrMgr1;
 using namespace std::chrono_literals;
 
@@ -1019,6 +1021,7 @@ Result Device::InitGpuProperties()
         break;
     }
 
+    // VCN need memory info to config heap, memory info should be initialized before VCN.
     Result result = InitMemInfo();
 
     // InitSettings() relies on chipProperties because of heapPerf, so it must be called after chipProperties is
@@ -2148,7 +2151,7 @@ Result Device::CreateImage(
 
         if (createInfo.flags.hasModifier != 0)
         {
-            GetModifierInfo(createInfo.modifier, &modifiedCreateInfo, &internalInfo);
+            GetModifierInfo(createInfo.modifier, modifiedCreateInfo, &internalInfo);
         }
         else
         {
@@ -2157,7 +2160,6 @@ Result Device::CreateImage(
             {
                 internalInfo.gfx9.sharedSwizzleMode = ADDR_SW_MAX_TYPE;
             }
-
         }
     }
 
@@ -3132,7 +3134,9 @@ Result Device::QueryFenceStatus(
 {
     Result result  = Result::Success;
     uint32 expired = 0;
-    result = CheckResult(m_drmProcs.pfnAmdgpuCsQueryFenceStatus(pFence, timeout.count(), 0, &expired),
+    uint64 validatedTimeout = (timeout == std::chrono::nanoseconds::max()) ? AMDGPU_TIMEOUT_INFINITE : timeout.count();
+
+    result = CheckResult(m_drmProcs.pfnAmdgpuCsQueryFenceStatus(pFence, validatedTimeout, 0, &expired),
                          Result::ErrorInvalidValue);
     if (result == Result::Success)
     {
@@ -3969,7 +3973,7 @@ OsExternalHandle Device::ExportSyncObject(
     OsExternalHandle handle;
     if (m_drmProcs.pfnAmdgpuCsExportSyncobj(m_hDevice, syncObject, reinterpret_cast<int32*>(&handle)) != 0)
     {
-        handle = -1;
+        handle = InvalidFd;
     }
 
     return handle;
@@ -4278,6 +4282,32 @@ Result Device::WaitSemaphoreValue(
                                                         ComputeAbsTimeout(timeout.count()),
                                                         flags,
                                                         nullptr);
+    }
+
+    return CheckResult(ret, Result::ErrorUnknown);
+}
+
+// =====================================================================================================================
+Result Device::WaitSemaphoresValues(
+    amdgpu_semaphore_handle* pSemaphores,
+    uint64*                  pValues,
+    uint32                   count,
+    uint32                   flags,
+    std::chrono::nanoseconds timeout,
+    uint32*                  pFirstSignaledIndex
+    ) const
+{
+    int32 ret = 0;
+
+    if (m_syncobjSupportState.timelineSemaphore)
+    {
+        ret = m_drmProcs.pfnAmdgpuCsSyncobjTimelineWait(m_hDevice,
+                                                        reinterpret_cast<uint32*>(pSemaphores),
+                                                        pValues,
+                                                        count,
+                                                        ComputeAbsTimeout(timeout.count()),
+                                                        flags,
+                                                        pFirstSignaledIndex);
     }
 
     return CheckResult(ret, Result::ErrorUnknown);
@@ -4771,12 +4801,12 @@ Result Device::OpenExternalSharedGpuMemory(
         {
             // fill back the GpuMemoryCreateInfo.
             const GpuMemoryDesc& desc = pGpuMemory->Desc();
-            createInfo.size = desc.size;
+            createInfo.size      = desc.size;
             createInfo.alignment = desc.alignment;
-            GpuHeap*    pHeaps = &createInfo.heaps[0];
+            GpuHeap* pHeaps = &createInfo.heaps[0];
             static_cast<GpuMemory*>(pGpuMemory)->GetHeapsInfo(&createInfo.heapCount, &pHeaps);
-            memcpy(pMemCreateInfo, &createInfo, sizeof(GpuMemoryCreateInfo));
 
+            memcpy(pMemCreateInfo, &createInfo, sizeof(GpuMemoryCreateInfo));
             (*ppGpuMemory) = pGpuMemory;
         }
     }
@@ -6308,23 +6338,24 @@ amdgpu_va_handle Device::SearchSharedBoMap(
 // Get image info from drm format modifier.
 void Device::GetModifierInfo(
     uint64                   modifier,
-    ImageCreateInfo*         createInfo,
-    ImageInternalCreateInfo* internalCreateInfo)
+    const ImageCreateInfo&   createInfo,
+    ImageInternalCreateInfo* pInternalCreateInfo)
 {
-    internalCreateInfo->gfx9.sharedSwizzleMode = static_cast<AddrSwizzleMode>(AMD_FMT_MOD_GET(TILE, modifier));
+    pInternalCreateInfo->gfx9.sharedSwizzleMode = static_cast<AddrSwizzleMode>(AMD_FMT_MOD_GET(TILE, modifier));
+    pInternalCreateInfo->flags.useForcedDcc     = 1;
 
     if (AMD_FMT_MOD_GET(DCC, modifier))
     {
-        internalCreateInfo->flags.useForcedDcc      = 1;
-        internalCreateInfo->flags.useSharedDccState = 1;
+        pInternalCreateInfo->flags.useSharedDccState = 1;
 
         if (AMD_FMT_MOD_GET(DCC_RETILE, modifier) &&
-            (Settings().disableOptimizedDisplay == false))
+            (SupportDisplayDcc() == true) &&
+            (createInfo.usageFlags.disableOptimizedDisplay == false))
         {
-            internalCreateInfo->displayDcc.enabled = 1;
+            pInternalCreateInfo->displayDcc.enabled = 1;
         }
 
-        DccState* pDccState = &internalCreateInfo->gfx9.sharedDccState;
+        DccState* pDccState = &pInternalCreateInfo->gfx9.sharedDccState;
 
         pDccState->maxCompressedBlockSize   = AMD_FMT_MOD_GET(DCC_MAX_COMPRESSED_BLOCK, modifier);
         pDccState->maxUncompressedBlockSize = static_cast<uint32>(Gfx9::Gfx9DccMaxBlockSize::BlockSize256B);
@@ -6370,7 +6401,7 @@ void Device::AddModifier(
         // DCC is disabled via settings
         modifierAllowed = false;
     }
-    else if (AMD_FMT_MOD_GET(DCC_RETILE, modifier) && Settings().disableOptimizedDisplay)
+    else if (AMD_FMT_MOD_GET(DCC_RETILE, modifier) && (SupportDisplayDcc() == false))
     {
         // Display DCC is disabled via settings
         modifierAllowed = false;

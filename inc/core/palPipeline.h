@@ -812,7 +812,7 @@ public:
     virtual void SetStackSizeInBytes(
         uint32 stackSizeInBytes) = 0;
 
-    /// Retrieve the stack sizes managed by compiler, including the frontend stack and the frontend stack.
+    /// Retrieve the stack sizes managed by compiler, including the frontend stack and the backend stack.
     ///
     /// @param [out] pSizes  To be filled with both the frontend stack size and the backend stack size, in bytes.
     ///

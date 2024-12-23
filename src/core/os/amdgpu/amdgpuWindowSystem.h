@@ -96,6 +96,34 @@ union WindowSystemProperties
 };
 
 // =====================================================================================================================
+// A single explicit sync object - an instance of tightly related objects for the need of explicit sync.
+// Usage in short:
+//      Source DRM sync objects are created and exported to fds. Then, they're imported into compositor to create
+//      platform specific objects. Timeline variables are used to track the current/anticipated timeline value.
+struct ExplicitSyncObject
+{
+    amdgpu_syncobj_handle syncObjHandle; // Source DRM syncobj
+    OsExternalHandle      syncObjFd;     // Exported FD of the syncobj
+    uint64                timeline;      // Current/anticipated timeline value for this image
+    union
+    {
+        void*  pWaylandSyncObjTimeline;  // Derivative Wayland timeline/syncobj - wp_linux_drm_syncobj_timeline_v1* type
+        uint32 dri3SyncObj;              // Derivative Dri3/X syncobj
+    };
+};
+
+// =====================================================================================================================
+// Explicit sync related syncobj data for a single image.
+// Usage in short:
+//      - Acquire is signaled by the driver and waited on by the compositor before accessing the buffer.
+//      - Release is signaled by the compositor and waited on by the driver before reusing the buffer.
+struct ExplicitSyncData
+{
+    ExplicitSyncObject acquire;
+    ExplicitSyncObject release;
+};
+
+// =====================================================================================================================
 // A special Linux-specific fence used to synchronize presentation between PAL and the WindowSystem.
 class PresentFence
 {
@@ -121,6 +149,8 @@ public:
 
     virtual Result AssociatePriorRenderFence(IQueue* pQueue) = 0;
 
+    virtual ExplicitSyncData* GetExplicitSyncData() { return nullptr; }
+
 protected:
     PresentFence() { }
     virtual ~PresentFence() { }
@@ -136,31 +166,31 @@ class WindowSystem
 {
 public:
     // The WindowSystem class is designed to be placed into other PAL objects which requires the Create/Destroy pattern.
-    static size_t GetSize(WsiPlatform platform);
+    static size_t  GetSize(WsiPlatform platform);
 
-    static Result Create(
+    static Result  Create(
         const Device&                 device,
         const WindowSystemCreateInfo& createInfo,
         void*                         pPlacementAddr,
         WindowSystem**                ppWindowSystem);
 
-    void Destroy() { this->~WindowSystem(); }
+    void           Destroy() { this->~WindowSystem(); }
 
     // Helper functions to describe the properties of a window system we will create in the future.
-    static Result GetWindowProperties(
+    static Result  GetWindowProperties(
         Device*              pDevice,
         WsiPlatform          platform,
         OsDisplayHandle      hDisplay,
         OsWindowHandle       hWindow,
         SwapChainProperties* pSwapChainProperties);
 
-    static Result DeterminePresentationSupported(
+    static Result  DeterminePresentationSupported(
         Device*             pDevice,
         OsDisplayHandle     hDisplay,
         WsiPlatform         platform,
         int64               visualId);
 
-    static Result AcquireScreenAccess(
+    static Result  AcquireScreenAccess(
         Device*         pDevice,
         OsDisplayHandle hDisplay,
         WsiPlatform     wsiPlatform,
@@ -168,7 +198,7 @@ public:
         uint32*         pRandrOutput,
         int32*          pDrmMasterFd);
 
-    static Result GetOutputFromConnector(
+    static Result  GetOutputFromConnector(
         OsDisplayHandle hDisplay,
         Device*         pDevice,
         WsiPlatform     wsiPlatform,
@@ -181,7 +211,7 @@ public:
         Image*     pImage,
         int32      sharedBufferFd) = 0;
 
-    virtual void DestroyPresentableImage(
+    virtual void   DestroyPresentableImage(
         WindowSystemImageHandle hImage) = 0;
 
     // Ask window system to present. For Dri3, the pixmap will be presented. For Dri2, pixmap is useless and only a
@@ -194,26 +224,47 @@ public:
 
     virtual Result WaitForLastImagePresented() = 0;
 
-    virtual bool NeedWindowSizeChangedCheck() const { return true; }
+    virtual bool   NeedWindowSizeChangedCheck() const { return true; }
 
-    WsiPlatform PlatformType() const { return m_platform; }
+    WsiPlatform                   PlatformType() const { return m_platform; }
     const WindowSystemProperties& GetWindowSystemProperties() const { return m_windowSystemProperties; }
-    bool PresentOnSameGpu() const { return m_presentOnSameGpu; }
-    virtual void GoThroughEvent() { return; }
-    virtual void WaitOnIdleEvent(WindowSystemImageHandle* pImage) { return; }
-    virtual bool SupportIdleEvent() { return false; }
-    virtual bool CheckIdleImage(
+    bool                          PresentOnSameGpu() const { return m_presentOnSameGpu; }
+
+    virtual void   GoThroughEvent() { return; }
+    virtual void   WaitOnIdleEvent(WindowSystemImageHandle* pImage) { return; }
+    virtual bool   SupportIdleEvent() const { return false; }
+    virtual bool   CheckIdleImage(
         WindowSystemImageHandle* pIdleImage,
         PresentFence*            pFence) { return false; }
 
+    virtual Result InitExplicitSyncObject(ExplicitSyncObject* pSyncObject) const;
+    virtual void   DestroyExplicitSyncObject(ExplicitSyncObject* pSyncObject) const;
+
+    Result WaitForExplicitSyncRelease(
+        PresentFence* pImagePresentFence,
+        bool          doWait) const;
+
+    Result WaitForExplicitSyncReleaseAny(
+        PresentFence** ppImagePresentFences,
+        uint32         imagePresentFenceCount,
+        bool           doWait,
+        uint32*        pFirstSignaledIndex) const;
+
 protected:
-    WindowSystem(WsiPlatform platform);
+    WindowSystem(
+        const Device& device,
+        WsiPlatform   platform);
     virtual ~WindowSystem() { }
 
+    virtual Result SignalExplicitSyncAcquire(
+        const ExplicitSyncData& imageExplicitSyncData,
+        IQueue*                 pQueue) const;
+
+    const Device&          m_device;
     const WsiPlatform      m_platform;
     WindowSystemProperties m_windowSystemProperties;
 
-    bool m_presentOnSameGpu;
+    bool                   m_presentOnSameGpu;
 
 private:
     PAL_DISALLOW_DEFAULT_CTOR(WindowSystem);

@@ -111,7 +111,6 @@ public:
     void Clear();
 
 private:
-    uint32_t  GetPageSize();
     DD_RESULT ReserveMemory(uint32_t size, void** ppOutMemory);
     void      FreeMemory(void* pMemory, uint32_t size);
     DD_RESULT CommitMemory(uint32_t size);

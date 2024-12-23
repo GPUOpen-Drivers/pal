@@ -304,7 +304,7 @@ void MemTracker<Allocator>::MemoryReport()
     // Useful for crashing apps that don't give us a chance to clean up.
     const char* pToggle = getenv("AMDPAL_NO_LEAK_REPORT");
 
-    if ((pToggle == nullptr) || (atoi(pToggle) > 0))
+    if ((pToggle == nullptr) || (atoi(pToggle) == 0))
     {
         PAL_DPWARN("================ List of Leaked Blocks ================");
 

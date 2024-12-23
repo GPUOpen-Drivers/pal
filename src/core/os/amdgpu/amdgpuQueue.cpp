@@ -1660,7 +1660,8 @@ Result Queue::OsWaitIdle()
 
         // Theoretically we should have different timeout value for different engine, but for simplity we just use
         // gfxTimeout for all type of engines right now.
-        result = static_cast<Device*>(m_pDevice)->QueryFenceStatus(&queryFence, timeout);
+        result = static_cast<Device*>(m_pDevice)->QueryFenceStatus(&queryFence,
+                                                                   TimeoutCast<std::chrono::nanoseconds>(timeout));
     }
 
     return result;

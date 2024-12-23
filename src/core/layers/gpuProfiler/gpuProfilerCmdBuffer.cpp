@@ -2817,6 +2817,7 @@ void CmdBuffer::ReplayCmdClearDepthStencil(
     LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 910
 // =====================================================================================================================
 void CmdBuffer::CmdClearBufferView(
     const IGpuMemory& gpuMemory,
@@ -2887,6 +2888,7 @@ void CmdBuffer::ReplayCmdClearImageView(
     pTgtCmdBuffer->CmdClearImageView(*pImage, imageLayout, color, pImageViewSrd, rectCount, pRects);
     LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
 }
+#endif
 
 // =====================================================================================================================
 void CmdBuffer::CmdResolveImage(
@@ -4141,8 +4143,10 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdClearColorImage,
         &CmdBuffer::ReplayCmdClearBoundDepthStencilTargets,
         &CmdBuffer::ReplayCmdClearDepthStencil,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 910
         &CmdBuffer::ReplayCmdClearBufferView,
         &CmdBuffer::ReplayCmdClearImageView,
+#endif
         &CmdBuffer::ReplayCmdResolveImage,
         &CmdBuffer::ReplayCmdSetEvent,
         &CmdBuffer::ReplayCmdResetEvent,

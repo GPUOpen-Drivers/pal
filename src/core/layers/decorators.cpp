@@ -2699,23 +2699,8 @@ const char* PlatformDecorator::GetClientApiStr() const
     case ClientApi::Pal:
         pStr = "PAL";
         break;
-    case ClientApi::Dx9:
-        pStr = "DirectX9";
-        break;
-    case ClientApi::Dx12:
-        pStr = "DirectX12";
-        break;
     case ClientApi::Vulkan:
         pStr = "Vulkan";
-        break;
-    case ClientApi::OpenCl:
-        pStr = "OpenCL";
-        break;
-    case ClientApi::Hip:
-        pStr = "HIP";
-        break;
-    case ClientApi::Amf:
-        pStr = "AMF";
         break;
     }
 

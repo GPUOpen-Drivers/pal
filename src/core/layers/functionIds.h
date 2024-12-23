@@ -103,8 +103,10 @@ enum class CmdBufCallId : uint32
     CmdClearColorImage,
     CmdClearBoundDepthStencilTargets,
     CmdClearDepthStencil,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 910
     CmdClearBufferView,
     CmdClearImageView,
+#endif
     CmdResolveImage,
     CmdSetEvent,
     CmdResetEvent,
@@ -230,8 +232,10 @@ constexpr const char* CmdBufCallIdStrings[] =
     "CmdClearColorImage()",
     "CmdClearBoundDepthStencilTargets()",
     "CmdClearDepthStencil()",
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 910
     "CmdClearBufferView()",
     "CmdClearImageView()",
+#endif
     "CmdResolveImage()",
     "CmdSetEvent()",
     "CmdResetEvent()",

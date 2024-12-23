@@ -265,9 +265,15 @@ Result GpuMemory::ValidateCreateInfo(
     {
         if ((createInfo.flags.startVaHintFlag == 1) && (createInfo.startVaHint != 0))
         {
-            gpusize startVaHintAddr = 0;
-            gpusize endVaHintAddr   = 0;
-            pDevice->VirtualAddressRange(VaPartition::Default, &startVaHintAddr, &endVaHintAddr);
+            // startVaHintFlag is implemented for DescriptorTable and Default.
+            PAL_ASSERT((createInfo.vaRange == VaRange::Default) ||
+                       (createInfo.vaRange == VaRange::DescriptorTable));
+
+            gpusize startVaHintAddr     = 0;
+            gpusize endVaHintAddr       = 0;
+            const VaPartition partition = pDevice->ChooseVaPartition(createInfo.vaRange,
+                                                                     createInfo.flags.virtualAlloc);
+            pDevice->VirtualAddressRange(partition, &startVaHintAddr, &endVaHintAddr);
             const gpusize pageSize         = pDevice->MemoryProperties().virtualMemPageSize;
             const gpusize alignment        = Pow2Align(createInfo.alignment, pageSize);
             const gpusize startVaHintAlign = Pow2Align(createInfo.startVaHint, alignment);
@@ -655,9 +661,9 @@ Result GpuMemory::Init(
     // always resident.
     PAL_ALERT((IsAlwaysResident() == false) && (internalInfo.pPagingFence != nullptr));
 
-    const gpusize allocGranularity   = (IsVirtual() == false) ?
-        m_pDevice->MemoryProperties().realMemAllocGranularity :
-        m_pDevice->MemoryProperties().virtualMemAllocGranularity;
+    const GpuMemoryProperties& memProps = m_pDevice->MemoryProperties();
+    const gpusize allocGranularity = IsVirtual() ? memProps.virtualMemAllocGranularity
+                                                 : memProps.realMemAllocGranularity;
 
     // If this is not external SDI memory, align size and base alignment to allocGranularity. If no alignment value was
     // provided, use the allocation granularity. This enforces a general PAL assumption: GPU memory objects have page
@@ -701,7 +707,7 @@ Result GpuMemory::Init(
     if (IsBusAddressable())
     {
         // one extra page for marker
-        const gpusize pageSize = m_pDevice->MemoryProperties().virtualMemPageSize;
+        const gpusize pageSize = memProps.virtualMemPageSize;
         m_desc.size = Pow2Align(m_desc.size, pageSize) + pageSize;
     }
 
@@ -766,6 +772,7 @@ Result GpuMemory::Init(
 
         if (IsShared())
         {
+
             result = OpenSharedMemory(internalInfo.hExternalResource);
 
             if (IsErrorResult(result) == false)
@@ -775,6 +782,7 @@ Result GpuMemory::Init(
         }
         else
         {
+
             gpusize baseVirtAddr = internalInfo.baseVirtAddr;
 
             if (createInfo.flags.useReservedGpuVa && (createInfo.pReservedGpuVaOwner != nullptr))
@@ -808,7 +816,7 @@ Result GpuMemory::Init(
 
                 baseVirtAddr = shadowStartAddr + (createInfo.descrVirtAddr - descrStartAddr);
             }
-            else if ((createInfo.vaRange == VaRange::Svm) && (m_pDevice->MemoryProperties().flags.iommuv2Support == 0))
+            else if ((createInfo.vaRange == VaRange::Svm) && (memProps.flags.iommuv2Support == 0))
             {
                 result = AllocateSvmVirtualAddress(baseVirtAddr, createInfo.size, createInfo.alignment, false);
                 baseVirtAddr = m_desc.gpuVirtAddr;
@@ -827,7 +835,6 @@ Result GpuMemory::Init(
                 //   various alignment padding which will cause worse performance.
                 // - Type is SDI ExternalPhysical because it has no real allocation and size must be consistent with
                 //   KMD.
-                const GpuMemoryProperties& memoryProperties = m_pDevice->MemoryProperties();
                 bool invisibleHeapIsEmpty = m_pDevice->HeapLogicalSize(GpuHeapInvisible) == 0;
                 if ((baseVirtAddr == 0) &&
                     ((m_heaps[0] == GpuHeapInvisible) ||
@@ -836,25 +843,25 @@ Result GpuMemory::Init(
                 {
                     gpusize idealAlignment = 0;
 
-                    if ((memoryProperties.largePageSupport.gpuVaAlignmentNeeded ||
-                        memoryProperties.largePageSupport.sizeAlignmentNeeded) &&
+                    if ((memProps.largePageSupport.gpuVaAlignmentNeeded ||
+                        memProps.largePageSupport.sizeAlignmentNeeded) &&
                         m_pDevice->Settings().enableLargePagePreAlignment)
                     {
-                        const gpusize largePageSize = memoryProperties.largePageSupport.largePageSizeInBytes;
+                        const gpusize largePageSize = memProps.largePageSupport.largePageSizeInBytes;
                         idealAlignment = Max(idealAlignment, largePageSize);
                     }
                     // BigPage is only supported for allocations > bigPageMinAlignment.
                     // Also, if bigPageMinAlignment == 0, BigPage optimization is not supported per KMD.
                     // We do either LargePage or BigPage alignment, whichever has a higher value.
-                    if ((memoryProperties.bigPageMinAlignment > 0) &&
+                    if ((memProps.bigPageMinAlignment > 0) &&
                         m_pDevice->Settings().enableBigPagePreAlignment &&
-                        (createInfo.size >= memoryProperties.bigPageMinAlignment))
+                        (createInfo.size >= memProps.bigPageMinAlignment))
                     {
-                        gpusize bigPageSize = memoryProperties.bigPageMinAlignment;
-                        if ((memoryProperties.bigPageLargeAlignment > 0) &&
-                            (createInfo.size >= memoryProperties.bigPageLargeAlignment))
+                        gpusize bigPageSize = memProps.bigPageMinAlignment;
+                        if ((memProps.bigPageLargeAlignment > 0) &&
+                            (createInfo.size >= memProps.bigPageLargeAlignment))
                         {
-                            bigPageSize = memoryProperties.bigPageLargeAlignment;
+                            bigPageSize = memProps.bigPageLargeAlignment;
                         }
                         idealAlignment = Max(idealAlignment, bigPageSize);
                     }
@@ -872,13 +879,13 @@ Result GpuMemory::Init(
                         const SubResourceInfo* pBaseSubResInfo = m_pImage->SubresourceInfo(0);
                         if (m_pDevice->Settings().enableIterate256PreAlignment &&
                             m_pImage->GetGfxImage()->IsIterate256Meaningful(pBaseSubResInfo) &&
-                            (createInfo.size >= memoryProperties.iterate256MinAlignment))
+                            (createInfo.size >= memProps.iterate256MinAlignment))
                         {
-                            gpusize iterate256PageSize = memoryProperties.iterate256MinAlignment;
-                            if ((memoryProperties.iterate256LargeAlignment > 0) &&
-                                createInfo.size >= memoryProperties.iterate256LargeAlignment)
+                            gpusize iterate256PageSize = memProps.iterate256MinAlignment;
+                            if ((memProps.iterate256LargeAlignment > 0) &&
+                                createInfo.size >= memProps.iterate256LargeAlignment)
                             {
-                                iterate256PageSize = memoryProperties.iterate256LargeAlignment;
+                                iterate256PageSize = memProps.iterate256LargeAlignment;
                             }
                             idealAlignment = Max(idealAlignment, iterate256PageSize);
                         }
@@ -903,7 +910,7 @@ Result GpuMemory::Init(
                     gpusize startVaHintAddr = 0;
                     gpusize endVaHintAddr   = 0;
                     m_pDevice->VirtualAddressRange(VaPartition::Default, &startVaHintAddr, &endVaHintAddr);
-                    const gpusize pageSize          = m_pDevice->MemoryProperties().virtualMemPageSize;
+                    const gpusize pageSize          = memProps.virtualMemPageSize;
                     const gpusize alignment         = Pow2Align(createInfo.alignment, pageSize);
                     const gpusize startVaHintAlign  = Pow2Align(createInfo.startVaHint, alignment);
 
@@ -911,6 +918,21 @@ Result GpuMemory::Init(
                     {
                         baseVirtAddr = startVaHintAlign;
                     }
+                }
+            }
+            else if ((createInfo.vaRange == VaRange::DescriptorTable) &&
+                     (createInfo.flags.startVaHintFlag == 1) && (createInfo.startVaHint != 0))
+            {
+                gpusize startVaHintAddr = 0;
+                gpusize endVaHintAddr   = 0;
+                m_pDevice->VirtualAddressRange(VaPartition::DescriptorTable, &startVaHintAddr, &endVaHintAddr);
+                const gpusize pageSize          = m_pDevice->MemoryProperties().virtualMemPageSize;
+                const gpusize alignment         = Pow2Align(createInfo.alignment, pageSize);
+                const gpusize startVaHintAlign  = Pow2Align(createInfo.startVaHint, alignment);
+
+                if ((startVaHintAlign >= startVaHintAddr) && ((startVaHintAlign + m_desc.size) < endVaHintAddr))
+                {
+                    baseVirtAddr = startVaHintAlign;
                 }
             }
             else if (createInfo.vaRange == VaRange::CaptureReplay)

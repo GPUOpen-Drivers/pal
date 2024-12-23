@@ -724,11 +724,17 @@ void Platform::LateInitDevDriver()
     // need a device object for the OS specific ReadSetting function.
     if (m_deviceCount >= 1)
     {
-#if PAL_ENABLE_PRINTS_ASSERTS
-        // First setup the debug print and assert settings based on settings in Windows registry.
-        m_settingsLoader.ReadAssertAndPrintSettings(m_pDevice[0]);
-#endif
+        // Initialize prints/asserts mode settings based on build config.
+        m_settingsLoader.InitPrintsAssertsModeSettings();
+
+        // Read all settings defined in settings_platform.json from either Windows registry or a cfg file.
+        // Because ReadAssertAndPrintSettings() relies on print/assert mode settings defined in settings_platform.json,
+        // which are loaded in ReadSettings(), this function must be called before ReadAssertAndPrintSettings().
         m_settingsLoader.ReadSettings();
+
+        // Adjust prints/assert modes based first on settings defined in settings_platform.json, then on settings
+        // hard-coded in platformSettingsLoader.cpp.
+        m_settingsLoader.ReadAssertAndPrintSettings(m_pDevice[0]);
     }
 
     // Total number of setting user-overrides sent via DevDriver network.
@@ -1248,20 +1254,40 @@ bool Platform::IsRaytracingShaderDataTokenRequested() const
 // =====================================================================================================================
 bool Platform::ShowDevDriverOverlay() const
 {
-    bool showOverlay = false;
-    if (m_pDevDriverServer != nullptr)
+    bool                                   showOverlay        = false;
+    DriverUtilsService::OverlayDisplayMode overlayDisplayMode = DriverUtilsService::OverlayDisplayMode::Default;
+
+    // Check to see if a devdriver client has specified when to display the overlay.
+    // If not then continue to the default behavior which is to switch off the overlay
+    // while a trace is running.
+    if (m_pDriverUtilsService != nullptr)
     {
-        showOverlay = m_pDevDriverServer->ShouldShowOverlay();
+        overlayDisplayMode = m_pDriverUtilsService->GetOverlayDisplayMode();
     }
 
-#if PAL_BUILD_RDF
-    if (m_pTraceSession != nullptr)
+    switch (overlayDisplayMode)
     {
-        const GpuUtil::TraceSessionState sessionState = m_pTraceSession->GetTraceSessionState();
-        showOverlay &= ((sessionState != GpuUtil::TraceSessionState::Running) &&
-                        (sessionState != GpuUtil::TraceSessionState::Preparing));
-    }
+        case DriverUtilsService::OverlayDisplayMode::AlwaysOn:
+            showOverlay = true;
+            break;
+        case DriverUtilsService::OverlayDisplayMode::AlwaysOff:
+            showOverlay = false;
+            break;
+        default:
+            if (m_pDevDriverServer != nullptr)
+            {
+                showOverlay = m_pDevDriverServer->ShouldShowOverlay();
+            }
+#if PAL_BUILD_RDF
+            if (m_pTraceSession != nullptr)
+            {
+                const GpuUtil::TraceSessionState sessionState = m_pTraceSession->GetTraceSessionState();
+                showOverlay &= ((sessionState != GpuUtil::TraceSessionState::Running) &&
+                                (sessionState != GpuUtil::TraceSessionState::Preparing));
+            }
 #endif
+            break;
+    }
 
     return showOverlay;
 }
@@ -1293,23 +1319,8 @@ const char* Platform::GetClientApiStr() const
     case ClientApi::Pal:
         pStr = "AMD PAL";
         break;
-    case ClientApi::Dx9:
-        pStr = "AMD DirectX9 Driver";
-        break;
-    case ClientApi::Dx12:
-        pStr = "AMD DirectX12 Driver";
-        break;
     case ClientApi::Vulkan:
         pStr = "AMD Vulkan Driver";
-        break;
-    case ClientApi::OpenCl:
-        pStr = "AMD OpenCL Driver";
-        break;
-    case ClientApi::Hip:
-        pStr = "AMD HIP Driver";
-        break;
-    case ClientApi::Amf:
-        pStr = "AMD AMF Runtime";
         break;
     }
 

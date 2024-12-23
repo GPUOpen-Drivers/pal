@@ -28,3 +28,7 @@ target_sources(pal PRIVATE CMakeLists.txt)
 
 add_subdirectory(inc)
 
+### AMDGPU #####################################################################
+if (PAL_AMDGPU_BUILD)
+    add_subdirectory(amdgpu)
+endif()

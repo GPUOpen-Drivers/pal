@@ -593,9 +593,11 @@ struct SubresLayout
     Extent3d blockSize;     ///< Size of a tile block in texels - micro tile for 1D tiling and macro tile for 2D tiling.
     Offset3d mipTailCoord;  ///< coords of the subresource within the mip tail
 
-    /// Extent of the subresource in texels, including all internal padding for this subresource.
-    Extent3d paddedExtent;
+    Extent3d extentTexels;   ///< Unpadded extent of the subresource in texels.
+    Extent3d extentElements; ///< Unpadded extent of the subresource in elements.
+    Extent3d paddedExtent;   ///< Extent of the subresource in elements, including all internal padding for this subresource.
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 912
     /// Reports supported engines and usages for this subresource while it can remain in its optimal compression state.
     /// Clients using CmdRelease()/CmdAcquire() without complete knowledge of the application's next usage during
     /// CmdRelease() or its previous usage at CmdAcquire() can treat this layout as a performant target for an
@@ -603,6 +605,7 @@ struct SubresLayout
     ///
     /// This value is only valid if supportSplitReleaseAcquire is set in @ref DeviceProperties.
     ImageLayout defaultGfxLayout;
+#endif
 
     SwizzledFormat planeFormat; ///< Swizzled format for plane. Planar resource like D32-S8
                                 /// will have different swizzled format per plane.

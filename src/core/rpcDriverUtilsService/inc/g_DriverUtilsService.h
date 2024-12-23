@@ -76,6 +76,12 @@ public:
         size_t      paramBufferSize
     ) = 0;
 
+    // Force the overlay to be always on, always off or as default
+    virtual DD_RESULT SetOverlayDisplayMode(
+        const void* pParamBuffer,
+        size_t      paramBufferSize
+    ) = 0;
+
 protected:
     IDriverUtilsService() {}
 };

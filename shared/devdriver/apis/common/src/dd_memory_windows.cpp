@@ -26,11 +26,12 @@
 #include <dd_assert.h>
 #include <dd_integer.h>
 #include <dd_memory.h>
+#include <dd_platform_info.h>
 #include <dd_result.h>
 #include <Windows.h>
 
 #if !defined(DD_TARGET_PLATFORM_WINDOWS)
-#error "This file must be compiled for Windows platform"
+#error "This file must be compiled for Windows user space platform"
 #endif
 
 namespace DevDriver
@@ -43,11 +44,7 @@ DD_RESULT MirroredBufferCreate(uint32_t requestedBufferSize, MirroredBuffer* pOu
         return DD_RESULT_COMMON_INVALID_PARAMETER;
     }
 
-    SYSTEM_INFO sysInfo {};
-    GetSystemInfo(&sysInfo);
-    const uint32_t pageSize = sysInfo.dwPageSize;
-
-    const uint32_t pageSizeAlignedBufferSize = AlignU32(requestedBufferSize, pageSize);
+    const uint32_t pageSizeAlignedBufferSize = AlignU32(requestedBufferSize, PlatformInfo::GetPageSize());
     const uint32_t actualBufferSize = NextSmallestPow2(pageSizeAlignedBufferSize);
 
     if ((actualBufferSize == 0) || (actualBufferSize > MirroredBufferMaxSize))
@@ -209,13 +206,6 @@ void MirroredBufferDestroy(MirroredBuffer* pBuffer)
     pBuffer->pBuffer = nullptr;
 
     pBuffer->bufferSize = 0;
-}
-
-uint32_t ScratchBuffer::GetPageSize()
-{
-    SYSTEM_INFO sysInfo {};
-    GetSystemInfo(&sysInfo);
-    return sysInfo.dwPageSize;
 }
 
 DD_RESULT ScratchBuffer::ReserveMemory(uint32_t size, void** ppOutBuffer)

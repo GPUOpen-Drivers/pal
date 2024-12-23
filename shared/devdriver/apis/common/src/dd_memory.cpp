@@ -25,6 +25,7 @@
 
 #include <dd_memory.h>
 #include <dd_integer.h>
+#include <dd_platform_info.h>
 
 namespace DevDriver
 {
@@ -36,7 +37,7 @@ DD_RESULT ScratchBuffer::Initialize(uint32_t totalSize, uint32_t initialCommitSi
         return DD_RESULT_COMMON_INVALID_PARAMETER;
     }
 
-    m_pageSize = GetPageSize();
+    m_pageSize = PlatformInfo::GetPageSize();
 
     const uint32_t pageSizeAlignedTotalSize = AlignU32(totalSize, m_pageSize);
     const uint32_t pageSizeAlignedInitialCommitSize = AlignU32(initialCommitSize, m_pageSize);
@@ -69,6 +70,11 @@ DD_RESULT ScratchBuffer::Initialize(uint32_t totalSize, uint32_t initialCommitSi
 void ScratchBuffer::Destroy()
 {
     FreeMemory(m_pBuffer, m_totalSize);
+    m_totalSize = 0;
+    m_committedSize = 0;
+    m_pageSize = 0;
+    m_top = 0;
+    m_pBuffer = nullptr;
 }
 
 void* ScratchBuffer::Push(uint32_t size)

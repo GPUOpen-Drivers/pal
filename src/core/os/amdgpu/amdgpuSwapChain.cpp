@@ -294,90 +294,141 @@ Result SwapChain::ReclaimUnusedImages(
 bool SwapChain::OptimizedHandlingForNativeWindowSystem(
     uint32* pImageIndex)
 {
-    Result ret = Result::ErrorUnavailable;
+    Result ret = Result::ErrorUnknown;
 
-    if (m_pWindowSystem->SupportIdleEvent())
+    if ((m_createInfo.swapChainMode == SwapChainMode::Immediate) &&
+        (m_pWindowSystem->GetWindowSystemProperties().useExplicitSync == false))
     {
-        if (m_createInfo.swapChainMode == SwapChainMode::Immediate)
+        // For immediate mode, handle all window system events here. For other modes and explicit sync, events are read
+        // in Present.
+        m_pWindowSystem->GoThroughEvent();
+    }
+
+    // Only optimize the immediate mode, don't take this path for Cpu present case.
+    bool useOptimizedPath = (m_pDevice->Settings().nativeAcquirePresentImageOpt == true) &&
+                            (m_pDevice->Settings().forcePresentViaCpuBlt == false) &&
+                            (m_createInfo.swapChainMode == SwapChainMode::Immediate);
+
+    if (useOptimizedPath == false)
+    {
+        ret = Result::ErrorUnavailable;
+    }
+    else if (m_pWindowSystem->SupportIdleEvent())
+    {
+        bool found = false;
+
+        // Go through all images first
         {
-            // For immediate mode, handle all window system events here
-            m_pWindowSystem->GoThroughEvent();
+            MutexAuto lock(&m_unusedImageMutex);
+            for(uint32 i = 0; i < m_unusedImageCount; i++)
+            {
+                Result status = m_pPresentIdle[m_unusedImageQueue[i]]->WaitForCompletion(false);
+                if ((status == Result::Success) ||
+                    (status == Result::ErrorFenceNeverSubmitted))
+                {
+                    *pImageIndex = m_unusedImageQueue[i];
+                    found        = true;
+                    ret          = Result::Success;
+                    break;
+                }
+            }
         }
 
-        // Only optimize the immediate mode
-        // Don't take this path for Cpu present case
-        if ((m_pDevice->Settings().nativeAcquirePresentImageOpt == true) &&
-            (m_createInfo.swapChainMode == SwapChainMode::Immediate) &&
-            (m_pDevice->Settings().forcePresentViaCpuBlt == false))
+        // Wait on idle event to find an available image,
+        // The thread will be blocked in WaitOnIdleEvent()
+        if (found == false)
         {
-            ret = Result::Success;
+            WindowSystemImageHandle idleImage = NullImageHandle;
+            // AcquireNextImage and Present might be called in different threads,
+            // make sure they will not be blocked together.
+            m_pWindowSystem->WaitOnIdleEvent(&idleImage);
+
+            MutexAuto lock(&m_unusedImageMutex);
+
+            for (uint32 i = 0; i < m_unusedImageCount; i++)
+            {
+                if (m_pWindowSystem->CheckIdleImage(
+                    &idleImage, m_pPresentIdle[m_unusedImageQueue[i]]) == true)
+                {
+                    *pImageIndex = m_unusedImageQueue[i];
+                    found        = true;
+                    ret          = Result::Success;
+                    break;
+                }
+            }
         }
 
+        if (found)
+        {
+            m_pPresentIdle[*pImageIndex]->Reset();
+
+            MutexAuto lock(&m_unusedImageMutex);
+
+            for (uint32 i = 0; i < m_unusedImageCount; i++)
+            {
+                if (m_unusedImageQueue[i] == *pImageIndex)
+                {
+                    m_unusedImageCount--;
+                    for (uint32 j = i; j < m_unusedImageCount; j ++)
+                    {
+                        m_unusedImageQueue[j] =  m_unusedImageQueue[j+1];
+                    }
+                    break;
+                }
+            }
+        }
+    }
+    else if (m_pWindowSystem->GetWindowSystemProperties().useExplicitSync)
+    {
+        // Prepare an array of PresentFences for all unused images
+        PresentFence* unusedImagePresentFences[MaxSwapChainLength] = {nullptr};
+        uint32        unusedImageCount = 0;
+        {
+            MutexAuto lock(&m_unusedImageMutex);
+            for(uint32 i = 0; i < m_unusedImageCount; i++)
+            {
+                unusedImagePresentFences[i] = m_pPresentIdle[m_unusedImageQueue[i]];
+            }
+            unusedImageCount = m_unusedImageCount;
+        }
+
+        // Wait for any image to be released. Thread may be blocked in WaitForExplicitSyncReleaseAny()
+        uint32 firstSignaledIndex = -1;
+        ret = m_pWindowSystem->WaitForExplicitSyncReleaseAny(unusedImagePresentFences,
+                                                             unusedImageCount,
+                                                             true,
+                                                             &firstSignaledIndex);
         if (ret == Result::Success)
         {
-            bool found = false;
+            // Image has been released
+            MutexAuto lock(&m_unusedImageMutex);
 
-            // Go through all images first
+            uint32        releasedImageIndex = -1;
+            PresentFence* pReleasedFence     = unusedImagePresentFences[firstSignaledIndex];
+
+            // Match the returned, signaled image index with the current unused image queue to return correct index
+            for (uint32 i = 0; i < m_unusedImageCount; i++)
             {
-                MutexAuto lock(&m_unusedImageMutex);
-                for(uint32 i = 0; i < m_unusedImageCount; i++)
+                if (m_pPresentIdle[m_unusedImageQueue[i]] == pReleasedFence)
                 {
-                    Result status = m_pPresentIdle[m_unusedImageQueue[i]]->WaitForCompletion(false);
-                    if ((status == Result::Success) ||
-                        (status == Result::ErrorFenceNeverSubmitted))
+                    // Released image current index
+                    releasedImageIndex = m_unusedImageQueue[i];
+
+                    // Adjust unused image queue
+                    m_unusedImageCount--;
+                    for (uint32 j = i; j < m_unusedImageCount; j++)
                     {
-                        *pImageIndex = m_unusedImageQueue[i];
-                        found = true;
-                        break;
+                        m_unusedImageQueue[j] = m_unusedImageQueue[j+1];
                     }
+                    break;
                 }
             }
 
-            // Wait on idle event to find an available image,
-            // The thread will be blocked in WaitOnIdleEvent()
-            if (found == false)
+            if (releasedImageIndex != -1)
             {
-                WindowSystemImageHandle idleImage = NullImageHandle;
-                // AcquireNextImage and Present might be called in different threads,
-                // make sure they will not be blocked together.
-                m_pWindowSystem->WaitOnIdleEvent(&idleImage);
-
-                MutexAuto lock(&m_unusedImageMutex);
-
-                for (uint32 i = 0; i < m_unusedImageCount; i++)
-                {
-                    if (m_pWindowSystem->CheckIdleImage(
-                        &idleImage, m_pPresentIdle[m_unusedImageQueue[i]]) == true)
-                    {
-                        *pImageIndex = m_unusedImageQueue[i];
-                        found = true;
-                        break;
-                    }
-                }
-            }
-
-            if (found)
-            {
-                m_pPresentIdle[*pImageIndex]->Reset();
-
-                MutexAuto lock(&m_unusedImageMutex);
-
-                for (uint32 i = 0; i < m_unusedImageCount; i++)
-                {
-                    if (m_unusedImageQueue[i] == *pImageIndex)
-                    {
-                        m_unusedImageCount--;
-                        for (uint32 j = i; j < m_unusedImageCount; j ++)
-                        {
-                            m_unusedImageQueue[j] =  m_unusedImageQueue[j+1];
-                        }
-                        break;
-                    }
-                }
-            }
-            else
-            {
-                ret = Result::ErrorUnknown;
+                // Return released image index
+                *pImageIndex = releasedImageIndex;
+                ret          = Result::Success;
             }
         }
     }

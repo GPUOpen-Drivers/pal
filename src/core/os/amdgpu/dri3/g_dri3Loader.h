@@ -113,6 +113,16 @@ typedef xcb_dri3_query_version_reply_t* (*XcbDri3QueryVersionReply)(
             xcb_dri3_query_version_cookie_t   cookie,
             xcb_generic_error_t**             ppError);
 
+typedef xcb_void_cookie_t (*XcbDri3ImportSyncobjChecked)(
+            xcb_connection_t*     pConnection,
+            xcb_dri3_syncobj_t    syncObj,
+            xcb_drawable_t        drawable,
+            int32                 syncObjFd);
+
+typedef xcb_void_cookie_t (*XcbDri3FreeSyncobjChecked)(
+            xcb_connection_t*     pConnection,
+            xcb_dri3_syncobj_t    syncObj);
+
 // symbols from libxcb-present.so.0
 typedef xcb_present_query_version_cookie_t (*XcbPresentQueryVersion)(
             xcb_connection_t*     pConnection,
@@ -138,10 +148,40 @@ typedef xcb_void_cookie_t (*XcbPresentPixmapChecked)(
             xcb_xfixes_region_t           valid,
             xcb_xfixes_region_t           update,
             int16                         xOff,
-            int16                         yO_off,
+            int16                         yOff,
             xcb_randr_crtc_t              targetCrtc,
             xcb_sync_fence_t              waitFence,
             xcb_sync_fence_t              idleFence,
+            uint32                        options,
+            uint64                        targetMsc,
+            uint64                        divisor,
+            uint64                        remainder,
+            uint32                        notifiesLen,
+            const xcb_present_notify_t*   pNotifies);
+
+typedef xcb_present_query_capabilities_cookie_t (*XcbPresentQueryCapabilities)(
+            xcb_connection_t*     pConnection,
+            uint32                target);
+
+typedef xcb_present_query_capabilities_reply_t* (*XcbPresentQueryCapabilitiesReply)(
+            xcb_connection_t*                         pConnection,
+            xcb_present_query_capabilities_cookie_t   cookie,
+            xcb_generic_error_t**                     ppError);
+
+typedef xcb_void_cookie_t (*XcbPresentPixmapSyncedChecked)(
+            xcb_connection_t*             pConnection,
+            xcb_window_t                  window,
+            xcb_pixmap_t                  pixmap,
+            uint32                        serial,
+            xcb_xfixes_region_t           valid,
+            xcb_xfixes_region_t           update,
+            int16                         xOff,
+            int16                         yOff,
+            xcb_randr_crtc_t              targetCrtc,
+            xcb_dri3_syncobj_t            acquireSyncObj,
+            xcb_dri3_syncobj_t            releaseSyncObj,
+            uint64                        acquirePoint,
+            uint64                        releasePoint,
             uint32                        options,
             uint64                        targetMsc,
             uint64                        divisor,
@@ -288,7 +328,7 @@ typedef xcb_void_cookie_t (*XcbCreateGcChecked)(
             xcb_gcontext_t        graphicsContext,
             xcb_drawable_t        drawable,
             uint32                valueMask,
-            uint32_t*             pValueList);
+            void*                 pValueList);
 
 typedef xcb_void_cookie_t (*XcbPutImageChecked)(
             xcb_connection_t*     pConnection,
@@ -572,6 +612,18 @@ struct Dri3LoaderFuncs
         return (pfnXcbDri3QueryVersionReply != nullptr);
     }
 
+    XcbDri3ImportSyncobjChecked           pfnXcbDri3ImportSyncobjChecked;
+    bool pfnXcbDri3ImportSyncobjCheckedisValid() const
+    {
+        return (pfnXcbDri3ImportSyncobjChecked != nullptr);
+    }
+
+    XcbDri3FreeSyncobjChecked             pfnXcbDri3FreeSyncobjChecked;
+    bool pfnXcbDri3FreeSyncobjCheckedisValid() const
+    {
+        return (pfnXcbDri3FreeSyncobjChecked != nullptr);
+    }
+
     XcbPresentQueryVersion                pfnXcbPresentQueryVersion;
     bool pfnXcbPresentQueryVersionisValid() const
     {
@@ -594,6 +646,24 @@ struct Dri3LoaderFuncs
     bool pfnXcbPresentPixmapCheckedisValid() const
     {
         return (pfnXcbPresentPixmapChecked != nullptr);
+    }
+
+    XcbPresentQueryCapabilities           pfnXcbPresentQueryCapabilities;
+    bool pfnXcbPresentQueryCapabilitiesisValid() const
+    {
+        return (pfnXcbPresentQueryCapabilities != nullptr);
+    }
+
+    XcbPresentQueryCapabilitiesReply      pfnXcbPresentQueryCapabilitiesReply;
+    bool pfnXcbPresentQueryCapabilitiesReplyisValid() const
+    {
+        return (pfnXcbPresentQueryCapabilitiesReply != nullptr);
+    }
+
+    XcbPresentPixmapSyncedChecked         pfnXcbPresentPixmapSyncedChecked;
+    bool pfnXcbPresentPixmapSyncedCheckedisValid() const
+    {
+        return (pfnXcbPresentPixmapSyncedChecked != nullptr);
     }
 
     XcbSyncCreateFenceChecked             pfnXcbSyncCreateFenceChecked;
@@ -1177,6 +1247,26 @@ public:
         return (m_pFuncs->pfnXcbDri3QueryVersionReply != nullptr);
     }
 
+    xcb_void_cookie_t pfnXcbDri3ImportSyncobjChecked(
+            xcb_connection_t*     pConnection,
+            xcb_dri3_syncobj_t    syncObj,
+            xcb_drawable_t        drawable,
+            int32                 syncObjFd) const;
+
+    bool pfnXcbDri3ImportSyncobjCheckedisValid() const
+    {
+        return (m_pFuncs->pfnXcbDri3ImportSyncobjChecked != nullptr);
+    }
+
+    xcb_void_cookie_t pfnXcbDri3FreeSyncobjChecked(
+            xcb_connection_t*     pConnection,
+            xcb_dri3_syncobj_t    syncObj) const;
+
+    bool pfnXcbDri3FreeSyncobjCheckedisValid() const
+    {
+        return (m_pFuncs->pfnXcbDri3FreeSyncobjChecked != nullptr);
+    }
+
     xcb_present_query_version_cookie_t pfnXcbPresentQueryVersion(
             xcb_connection_t*     pConnection,
             uint32                majorVersion,
@@ -1216,7 +1306,7 @@ public:
             xcb_xfixes_region_t           valid,
             xcb_xfixes_region_t           update,
             int16                         xOff,
-            int16                         yO_off,
+            int16                         yOff,
             xcb_randr_crtc_t              targetCrtc,
             xcb_sync_fence_t              waitFence,
             xcb_sync_fence_t              idleFence,
@@ -1230,6 +1320,51 @@ public:
     bool pfnXcbPresentPixmapCheckedisValid() const
     {
         return (m_pFuncs->pfnXcbPresentPixmapChecked != nullptr);
+    }
+
+    xcb_present_query_capabilities_cookie_t pfnXcbPresentQueryCapabilities(
+            xcb_connection_t*     pConnection,
+            uint32                target) const;
+
+    bool pfnXcbPresentQueryCapabilitiesisValid() const
+    {
+        return (m_pFuncs->pfnXcbPresentQueryCapabilities != nullptr);
+    }
+
+    xcb_present_query_capabilities_reply_t* pfnXcbPresentQueryCapabilitiesReply(
+            xcb_connection_t*                         pConnection,
+            xcb_present_query_capabilities_cookie_t   cookie,
+            xcb_generic_error_t**                     ppError) const;
+
+    bool pfnXcbPresentQueryCapabilitiesReplyisValid() const
+    {
+        return (m_pFuncs->pfnXcbPresentQueryCapabilitiesReply != nullptr);
+    }
+
+    xcb_void_cookie_t pfnXcbPresentPixmapSyncedChecked(
+            xcb_connection_t*             pConnection,
+            xcb_window_t                  window,
+            xcb_pixmap_t                  pixmap,
+            uint32                        serial,
+            xcb_xfixes_region_t           valid,
+            xcb_xfixes_region_t           update,
+            int16                         xOff,
+            int16                         yOff,
+            xcb_randr_crtc_t              targetCrtc,
+            xcb_dri3_syncobj_t            acquireSyncObj,
+            xcb_dri3_syncobj_t            releaseSyncObj,
+            uint64                        acquirePoint,
+            uint64                        releasePoint,
+            uint32                        options,
+            uint64                        targetMsc,
+            uint64                        divisor,
+            uint64                        remainder,
+            uint32                        notifiesLen,
+            const xcb_present_notify_t*   pNotifies) const;
+
+    bool pfnXcbPresentPixmapSyncedCheckedisValid() const
+    {
+        return (m_pFuncs->pfnXcbPresentPixmapSyncedChecked != nullptr);
     }
 
     xcb_void_cookie_t pfnXcbSyncCreateFenceChecked(
@@ -1524,7 +1659,7 @@ public:
             xcb_gcontext_t        graphicsContext,
             xcb_drawable_t        drawable,
             uint32                valueMask,
-            uint32_t*             pValueList) const;
+            void*                 pValueList) const;
 
     bool pfnXcbCreateGcCheckedisValid() const
     {

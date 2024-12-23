@@ -87,7 +87,7 @@ enum ScreenColorSpace : uint32
     TfPq2084         = 0x00004, ///< HDR10 Media Profile, SMPTE ST 2084 (CEA - 861.3)
     TfLinear0_1      = 0x00008, ///< Linear 0.0 -> 1.0
     TfLinear0_125    = 0x00010, ///< Linear 0.0 -> 125
-    TfDolbyVision    = 0x00020, ///< Propriety Dolby Vision transform
+    TfDolbyVision    = 0x00020, ///< Propriety DolbyVision transform
     TfGamma22        = 0x00040, ///< Gamma 2.2 (almost the same as sRGB transform)
     TfHlg            = 0x00080, ///< Hybrid Log Gamma (BBC \ NHK Ref)
 
@@ -95,7 +95,7 @@ enum ScreenColorSpace : uint32
     CsSrgb           = 0x001000,  ///< SDR standard: sRGB non-linear format (IEC 61966-2-1:1999)
     CsBt709          = 0x002000,  ///< SDR standard: BT.709 standard (HDTV)
     CsBt2020         = 0x004000,  ///< HDR standard: BT.2020 standard (UHDTV)
-    CsDolbyVision    = 0x008000,  ///< HDR standard: Propriety Dolby Vision
+    CsDolbyVision    = 0x008000,  ///< HDR standard: Propriety DolbyVision
     CsAdobe          = 0x010000,  ///< HDR standard: Adobe
     CsDciP3          = 0x020000,  ///< HDR standard: DCI-P3 film industry standard
     CsScrgb          = 0x040000,  ///< HDR standard: scRGB non-linear format (Microsoft)

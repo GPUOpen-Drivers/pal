@@ -51,6 +51,25 @@ typedef VOID*   ADDR_HANDLE;
 /// Client handle used in callbacks
 typedef VOID*   ADDR_CLIENT_HANDLE;
 
+typedef struct _ADDR_COORD2D
+{
+    UINT_32  x;
+    UINT_32  y;
+} ADDR_COORD2D;
+
+typedef struct _ADDR_COORD3D
+{
+    UINT_32  x;
+    UINT_32  y;
+    UINT_32  z; // also slices for 2D images
+} ADDR_COORD3D;
+
+typedef struct _ADDR_EXTENT2D
+{
+    UINT_32  width;
+    UINT_32  height;
+} ADDR_EXTENT2D;
+
 typedef struct _ADDR_EXTENT3D
 {
     UINT_32  width;
@@ -2244,6 +2263,7 @@ ADDR_E_RETURNCODE ADDR_API Addr2GetPossibleSwizzleModes(
 *
 *   @brief
 *       Return whether the swizzle mode is supported by display engine
+        pResult: whether it is displayAble or not for the given displaySwizzleMode
 ****************************************************************************************************
 */
 ADDR_E_RETURNCODE ADDR_API Addr2IsValidDisplaySwizzleMode(

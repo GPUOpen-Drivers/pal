@@ -810,10 +810,22 @@ Result PerfExperiment::AddSpmCounter(
         { PERFMON_SPM_MODE_32BIT_CLAMP, PERFMON_SPM_MODE_32BIT_NO_CLAMP }
     };
 
+    // To be indexed with PerfExperimentSpmTestMode
+    constexpr PERFMON_SPM_MODE SpmTestModes[] = { PERFMON_SPM_MODE_OFF,
+                                                  PERFMON_SPM_MODE_TEST_MODE_0,
+                                                  PERFMON_SPM_MODE_TEST_MODE_1,
+                                                  PERFMON_SPM_MODE_TEST_MODE_2 };
+
     if (result == Result::Success)
     {
         // The SQG doesn't support 16-bit counters and only has one 32-bit counter per select register.
         const bool is32Bit = ((info.block == GpuBlock::Sq) || (info.counterType == PerfCounterType::Spm32));
+        const bool isLevel = (info.block == GpuBlock::Sq) ? IsSqLevelEvent(info.eventId)
+                                                          : (info.block == GpuBlock::SqWgp)
+                                                            ? IsSqWgpLevelEvent(info.eventId) : false;
+        const PerfExperimentSpmTestMode testMode = m_pDevice->Settings().perfExperimentSpmTestMode;
+        const PERFMON_SPM_MODE spmMode = testMode == PerfExperimentSpmTestMode::Disabled
+                                         ? SpmModeTable[is32Bit][isLevel] : SpmTestModes[testMode];
 
         if (info.block == GpuBlock::Sq)
         {
@@ -825,8 +837,6 @@ Result PerfExperiment::AddSpmCounter(
                 m_select.sqg[info.instance].grbmGfxIndex = BuildGrbmGfxIndex(instanceMapping, info.block);
             }
 
-            // Note that "LEVEL" counters require us to use the no-clamp & no-reset SPM mode.
-            const bool   isLevel       = IsSqLevelEvent(info.eventId);
             const uint32 sqgNumModules = IsGfx11(*m_pDevice) ? Gfx11MaxSqgPerfmonModules : Gfx9MaxSqgPerfmonModules;
             bool         searching     = true;
 
@@ -839,7 +849,7 @@ Result PerfExperiment::AddSpmCounter(
 
                     m_select.sqg[info.instance].perfmonInUse[idx]           = true;
                     m_select.sqg[info.instance].perfmon[idx].bits.PERF_SEL  = info.eventId;
-                    m_select.sqg[info.instance].perfmon[idx].bits.SPM_MODE  = SpmModeTable[is32Bit][isLevel];
+                    m_select.sqg[info.instance].perfmon[idx].bits.SPM_MODE  = spmMode;
                     m_select.sqg[info.instance].perfmon[idx].bits.PERF_MODE = PERFMON_COUNTER_MODE_ACCUM;
 
                     // The SQC bank mask was removed in gfx10.3.
@@ -882,12 +892,9 @@ Result PerfExperiment::AddSpmCounter(
                     // Our SQ PERF_SEL fields are 9 bits. Verify that our event ID can fit.
                     PAL_ASSERT(info.eventId <= ((1 << 9) - 1));
 
-                    // Note that "LEVEL" counters require us to use the no-clamp & no-reset SPM mode.
-                    const bool isLevel = IsSqWgpLevelEvent(info.eventId);
-
                     m_select.sqWgp[info.instance].perfmonInUse[idx]           = true;
                     m_select.sqWgp[info.instance].perfmon[idx].bits.PERF_SEL  = info.eventId;
-                    m_select.sqWgp[info.instance].perfmon[idx].bits.SPM_MODE  = SpmModeTable[is32Bit][isLevel];
+                    m_select.sqWgp[info.instance].perfmon[idx].bits.SPM_MODE  = spmMode;
                     m_select.sqWgp[info.instance].perfmon[idx].bits.PERF_MODE = PERFMON_COUNTER_MODE_ACCUM;
 
                     if (is32Bit)
@@ -950,8 +957,7 @@ Result PerfExperiment::AddSpmCounter(
 
                             pSelect->pModules[idx].inUse                      |= subCounterMask;
                             pSelect->pModules[idx].perfmon.sel0.bits.PERF_SEL  = info.eventId;
-                            // No other block needs the no_clamp behavior in the SpmModeTable
-                            pSelect->pModules[idx].perfmon.sel0.bits.CNTR_MODE = SpmModeTable[is32Bit][0];
+                            pSelect->pModules[idx].perfmon.sel0.bits.CNTR_MODE = spmMode;
                             pSelect->pModules[idx].perfmon.sel0.bits.PERF_MODE = PERFMON_COUNTER_MODE_ACCUM;
 
                             searching      = false;

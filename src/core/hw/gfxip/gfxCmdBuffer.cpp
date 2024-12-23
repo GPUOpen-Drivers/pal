@@ -852,6 +852,7 @@ void GfxCmdBuffer::CmdClearDepthStencil(
     }
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 910
 // =====================================================================================================================
 void GfxCmdBuffer::CmdClearBufferView(
     const IGpuMemory& gpuMemory,
@@ -882,6 +883,7 @@ void GfxCmdBuffer::CmdClearImageView(
                                               rectCount,
                                               pRects);
 }
+#endif
 
 // =====================================================================================================================
 void GfxCmdBuffer::CmdResolveImage(

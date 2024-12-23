@@ -80,14 +80,10 @@ public:
     {
         if (requiredCapacity > defaultCapacity)
         {
-            // Create dynamically allocated array, by allocating memory and construcing its objects.
-            Item*const pBuffer = PAL_NEW_ARRAY(Item, requiredCapacity, pAllocator, AllocInternalTemp);
-
-            if (pBuffer != nullptr)
-            {
-                m_pBuffer  = pBuffer;
-                m_capacity = requiredCapacity;
-            }
+            // Create dynamically allocated array, by allocating memory and constructing its objects.
+            // On failure, to avoid subtle bugs from misuse, AutoBuffer will be in a zombie state with zero capacity.
+            m_pBuffer  = PAL_NEW_ARRAY(Item, requiredCapacity, pAllocator, AllocInternalTemp);
+            m_capacity = (m_pBuffer == nullptr) ? 0 : requiredCapacity;
         }
         else if (!std::is_trivial<Item>::value)
         {
@@ -97,9 +93,6 @@ public:
                 PAL_PLACEMENT_NEW(m_pBuffer + idx) Item();
             }
         }
-
-        // Alert if the local buffer's capacity was insufficient and the dynamic buffer's allocation failed.
-        PAL_ALERT(m_capacity < requiredCapacity);
     }
 
     /// Destructor.

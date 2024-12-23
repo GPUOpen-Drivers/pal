@@ -264,6 +264,58 @@ xcb_dri3_query_version_reply_t* Dri3LoaderFuncsProxy::pfnXcbDri3QueryVersionRepl
 }
 
 // =====================================================================================================================
+xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbDri3ImportSyncobjChecked(
+    xcb_connection_t*   pConnection,
+    xcb_dri3_syncobj_t  syncObj,
+    xcb_drawable_t      drawable,
+    int32               syncObjFd
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_void_cookie_t ret = m_pFuncs->pfnXcbDri3ImportSyncobjChecked(pConnection,
+                                                                     syncObj,
+                                                                     drawable,
+                                                                     syncObjFd);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbDri3ImportSyncobjChecked,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbDri3ImportSyncobjChecked(%p, %x, %x, %x)\n",
+        pConnection,
+        syncObj,
+        drawable,
+        syncObjFd);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbDri3FreeSyncobjChecked(
+    xcb_connection_t*   pConnection,
+    xcb_dri3_syncobj_t  syncObj
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_void_cookie_t ret = m_pFuncs->pfnXcbDri3FreeSyncobjChecked(pConnection,
+                                                                   syncObj);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbDri3FreeSyncobjChecked,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbDri3FreeSyncobjChecked(%p, %x)\n",
+        pConnection,
+        syncObj);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
 xcb_present_query_version_cookie_t Dri3LoaderFuncsProxy::pfnXcbPresentQueryVersion(
     xcb_connection_t*  pConnection,
     uint32             majorVersion,
@@ -353,7 +405,7 @@ xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbPresentPixmapChecked(
     xcb_xfixes_region_t          valid,
     xcb_xfixes_region_t          update,
     int16                        xOff,
-    int16                        yO_off,
+    int16                        yOff,
     xcb_randr_crtc_t             targetCrtc,
     xcb_sync_fence_t             waitFence,
     xcb_sync_fence_t             idleFence,
@@ -373,7 +425,7 @@ xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbPresentPixmapChecked(
                                                                  valid,
                                                                  update,
                                                                  xOff,
-                                                                 yO_off,
+                                                                 yOff,
                                                                  targetCrtc,
                                                                  waitFence,
                                                                  idleFence,
@@ -397,10 +449,133 @@ xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbPresentPixmapChecked(
         valid,
         update,
         xOff,
-        yO_off,
+        yOff,
         targetCrtc,
         waitFence,
         idleFence,
+        options,
+        targetMsc,
+        divisor,
+        remainder,
+        notifiesLen,
+        pNotifies);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+xcb_present_query_capabilities_cookie_t Dri3LoaderFuncsProxy::pfnXcbPresentQueryCapabilities(
+    xcb_connection_t*  pConnection,
+    uint32             target
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_present_query_capabilities_cookie_t ret = m_pFuncs->pfnXcbPresentQueryCapabilities(pConnection,
+                                                                                           target);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbPresentQueryCapabilities,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbPresentQueryCapabilities(%p, %x)\n",
+        pConnection,
+        target);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+xcb_present_query_capabilities_reply_t* Dri3LoaderFuncsProxy::pfnXcbPresentQueryCapabilitiesReply(
+    xcb_connection_t*                        pConnection,
+    xcb_present_query_capabilities_cookie_t  cookie,
+    xcb_generic_error_t**                    ppError
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_present_query_capabilities_reply_t* pRet = m_pFuncs->pfnXcbPresentQueryCapabilitiesReply(pConnection,
+                                                                                                 cookie,
+                                                                                                 ppError);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbPresentQueryCapabilitiesReply,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbPresentQueryCapabilitiesReply(%p, %p, %p)\n",
+        pConnection,
+        &cookie,
+        ppError);
+    m_paramLogger.Flush();
+
+    return pRet;
+}
+
+// =====================================================================================================================
+xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbPresentPixmapSyncedChecked(
+    xcb_connection_t*            pConnection,
+    xcb_window_t                 window,
+    xcb_pixmap_t                 pixmap,
+    uint32                       serial,
+    xcb_xfixes_region_t          valid,
+    xcb_xfixes_region_t          update,
+    int16                        xOff,
+    int16                        yOff,
+    xcb_randr_crtc_t             targetCrtc,
+    xcb_dri3_syncobj_t           acquireSyncObj,
+    xcb_dri3_syncobj_t           releaseSyncObj,
+    uint64                       acquirePoint,
+    uint64                       releasePoint,
+    uint32                       options,
+    uint64                       targetMsc,
+    uint64                       divisor,
+    uint64                       remainder,
+    uint32                       notifiesLen,
+    const xcb_present_notify_t*  pNotifies
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_void_cookie_t ret = m_pFuncs->pfnXcbPresentPixmapSyncedChecked(pConnection,
+                                                                       window,
+                                                                       pixmap,
+                                                                       serial,
+                                                                       valid,
+                                                                       update,
+                                                                       xOff,
+                                                                       yOff,
+                                                                       targetCrtc,
+                                                                       acquireSyncObj,
+                                                                       releaseSyncObj,
+                                                                       acquirePoint,
+                                                                       releasePoint,
+                                                                       options,
+                                                                       targetMsc,
+                                                                       divisor,
+                                                                       remainder,
+                                                                       notifiesLen,
+                                                                       pNotifies);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbPresentPixmapSyncedChecked,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbPresentPixmapSyncedChecked(%p, %x, %x, %x, %x, %x, %x, %x, %x, %x, %x, %lx, %lx, %x, %lx, %lx, %lx, %x, %p)\n",
+        pConnection,
+        window,
+        pixmap,
+        serial,
+        valid,
+        update,
+        xOff,
+        yOff,
+        targetCrtc,
+        acquireSyncObj,
+        releaseSyncObj,
+        acquirePoint,
+        releasePoint,
         options,
         targetMsc,
         divisor,
@@ -1143,7 +1318,7 @@ xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbCreateGcChecked(
     xcb_gcontext_t     graphicsContext,
     xcb_drawable_t     drawable,
     uint32             valueMask,
-    uint32_t*          pValueList
+    void*              pValueList
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
@@ -2425,6 +2600,8 @@ Result Dri3Loader::Init(
             m_library[LibXcbDri3].GetFunction("xcb_dri3_pixmap_from_buffer_checked", &m_funcs.pfnXcbDri3PixmapFromBufferChecked);
             m_library[LibXcbDri3].GetFunction("xcb_dri3_query_version", &m_funcs.pfnXcbDri3QueryVersion);
             m_library[LibXcbDri3].GetFunction("xcb_dri3_query_version_reply", &m_funcs.pfnXcbDri3QueryVersionReply);
+            m_library[LibXcbDri3].GetFunction("xcb_dri3_import_syncobj_checked", &m_funcs.pfnXcbDri3ImportSyncobjChecked);
+            m_library[LibXcbDri3].GetFunction("xcb_dri3_free_syncobj_checked", &m_funcs.pfnXcbDri3FreeSyncobjChecked);
         }
 
         // resolve symbols from libxcb-present.so.0
@@ -2436,6 +2613,9 @@ Result Dri3Loader::Init(
             m_library[LibXcbPresent].GetFunction("xcb_present_query_version_reply", &m_funcs.pfnXcbPresentQueryVersionReply);
             m_library[LibXcbPresent].GetFunction("xcb_present_select_input_checked", &m_funcs.pfnXcbPresentSelectInputChecked);
             m_library[LibXcbPresent].GetFunction("xcb_present_pixmap_checked", &m_funcs.pfnXcbPresentPixmapChecked);
+            m_library[LibXcbPresent].GetFunction("xcb_present_query_capabilities", &m_funcs.pfnXcbPresentQueryCapabilities);
+            m_library[LibXcbPresent].GetFunction("xcb_present_query_capabilities_reply", &m_funcs.pfnXcbPresentQueryCapabilitiesReply);
+            m_library[LibXcbPresent].GetFunction("xcb_present_pixmap_synced_checked", &m_funcs.pfnXcbPresentPixmapSyncedChecked);
         }
 
         // resolve symbols from libxcb-sync.so.1

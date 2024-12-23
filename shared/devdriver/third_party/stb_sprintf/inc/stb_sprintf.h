@@ -158,21 +158,33 @@ PERFORMANCE vs MSVC 2008 32-/64-bit (GCC is even slower than MSVC):
  #if defined(__SANITIZE_ADDRESS__) && __SANITIZE_ADDRESS__
   #define STBSP__ASAN __attribute__((__no_sanitize_address__))
  #endif
+#elif defined(_MSC_VER) && _MSC_VER >= 1928
+ #if defined(__SANITIZE_ADDRESS__)
+  #define STBSP__ASAN __declspec(no_sanitize_address)
+  // According to https://developercommunity.visualstudio.com/t/__declspecno_sanitize_address-does-not/1376262#T-N1383571,
+  // __declspec(no_sanitize_address) needs to be specified at the declaration level.
+  // It will not take effect if it is only specified at a function definition.
+  #define STBSP__ASAN_DEC __declspec(no_sanitize_address)
+ #endif
 #endif
 
 #ifndef STBSP__ASAN
 #define STBSP__ASAN
 #endif
 
+#ifndef STBSP__ASAN_DEC
+#define STBSP__ASAN_DEC
+#endif
+
 #ifdef STB_SPRINTF_STATIC
-#define STBSP__PUBLICDEC static
+#define STBSP__PUBLICDEC static STBSP__ASAN_DEC
 #define STBSP__PUBLICDEF static STBSP__ASAN
 #else
 #ifdef __cplusplus
-#define STBSP__PUBLICDEC extern "C"
+#define STBSP__PUBLICDEC extern "C" STBSP__ASAN_DEC
 #define STBSP__PUBLICDEF extern "C" STBSP__ASAN
 #else
-#define STBSP__PUBLICDEC extern
+#define STBSP__PUBLICDEC extern STBSP__ASAN_DEC
 #define STBSP__PUBLICDEF STBSP__ASAN
 #endif
 #endif

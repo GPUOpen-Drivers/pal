@@ -72,17 +72,8 @@ static void GetClientApiInfo(
     {
         switch (pPlatform->GetClientApiId())
         {
-        case ClientApi::Dx12:
-            (*pApiType)         = ApiType::DirectX12;
-            break;
         case ClientApi::Vulkan:
             (*pApiType)         = ApiType::Vulkan;
-            break;
-        case ClientApi::OpenCl:
-            (*pApiType)         = ApiType::OpenCl;
-            break;
-        case ClientApi::Hip:
-            (*pApiType)         = ApiType::Hip;
             break;
         default:
             (*pApiType)         = ApiType::Generic;

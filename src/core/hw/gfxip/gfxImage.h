@@ -208,8 +208,6 @@ public:
         gpusize*           pGpuMemSize,
         gpusize*           pGpuMemAlignment) = 0;
 
-    virtual Result GetDefaultGfxLayout(SubresId subresId, ImageLayout* pLayout) const = 0;
-
     bool HasMisalignedMetadata() const { return m_hasMisalignedMetadata; }
 
 protected:

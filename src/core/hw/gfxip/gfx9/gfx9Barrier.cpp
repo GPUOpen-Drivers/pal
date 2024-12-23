@@ -1117,6 +1117,45 @@ static void OptimizePipePoint(
 }
 
 // =====================================================================================================================
+// Helper function to optimize cache mask by clearing unnecessary coherency flags. This is for legacy barrier interface.
+void BarrierMgr::OptimizeSrcCacheMask(
+    const Pm4CmdBuffer* pCmdBuf,
+    uint32*             pCacheMask)
+{
+    if (pCacheMask != nullptr)
+    {
+        // There are various srcCache BLTs (Copy, Clear, and Resolve) which we can further optimize if we know which
+        // write caches have been dirtied:
+        // - If a graphics BLT occurred, alias these srcCaches to CoherColorTarget.
+        // - If a compute BLT occurred, alias these srcCaches to CoherShader.
+        // - If a CP L2 BLT occurred, alias these srcCaches to CoherCp.
+        // - If a CP direct-to-memory write occurred, alias these srcCaches to CoherMemory.
+        // Clear the original srcCaches from the srcCache mask for the rest of this scope.
+        if (TestAnyFlagSet(*pCacheMask, CacheCoherencyBlt))
+        {
+            const Pm4CmdBufferStateFlags cmdBufStateFlags = pCmdBuf->GetPm4CmdBufState().flags;
+            const bool                   isCopySrcOnly    = (*pCacheMask == CoherCopySrc);
+
+            *pCacheMask |= cmdBufStateFlags.cpWriteCachesDirty ? CoherCp : 0;
+            *pCacheMask |= cmdBufStateFlags.cpMemoryWriteL2CacheStale ? CoherMemory : 0;
+
+            if (isCopySrcOnly)
+            {
+                *pCacheMask |= cmdBufStateFlags.gfxWriteCachesDirty ? CoherShaderRead : 0;
+                *pCacheMask |= cmdBufStateFlags.csWriteCachesDirty ? CoherShaderRead : 0;
+            }
+            else
+            {
+                *pCacheMask |= cmdBufStateFlags.gfxWriteCachesDirty ? CoherColorTarget : 0;
+                *pCacheMask |= cmdBufStateFlags.csWriteCachesDirty ? CoherShader : 0;
+            }
+
+            *pCacheMask &= ~CacheCoherencyBlt;
+        }
+    }
+}
+
+// =====================================================================================================================
 // Inserts a barrier in the current command stream that can stall GPU execution, flush/invalidate caches, or decompress
 // images before further, dependent work can continue in this command buffer.
 //

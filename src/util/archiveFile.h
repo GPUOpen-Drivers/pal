@@ -82,8 +82,8 @@ private:
     void AlignUpMappedSize();
     template<typename T> T CastOffset(size_t offset)
     {
-        PAL_ASSERT(offset <= m_fileView.Size());
-        return reinterpret_cast<T>(VoidPtrInc(m_fileView.Ptr(), offset));
+        PAL_ASSERT((m_fileView.IsValid() == false) || (offset <= m_fileView.Size()));
+        return reinterpret_cast<T>(m_fileView.IsValid() ? VoidPtrInc(m_fileView.Ptr(), offset) : nullptr);
     }
 
     // Allocator

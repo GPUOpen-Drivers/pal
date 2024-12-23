@@ -135,8 +135,8 @@ protected:
     uint32 m_writeOffset;
     uint32 m_preCommitWriteOffset;
     uint32 m_ringHeaderSize;
-    uint32 m_numAvailableBytes;
-    uint32 m_numReservedBytes;
+    uint32 m_numAvailableDwords;
+    uint32 m_numReservedDwords;
 
     EngineType m_engineType;
 

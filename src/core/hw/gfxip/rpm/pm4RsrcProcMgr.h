@@ -85,17 +85,6 @@ public:
         uint32                  regionCount,
         const MemoryCopyRegion* pRegions) const;
 
-    virtual void CmdResolveImage(
-        GfxCmdBuffer*             pCmdBuffer,
-        const Image&              srcImage,
-        ImageLayout               srcImageLayout,
-        const Image&              dstImage,
-        ImageLayout               dstImageLayout,
-        ResolveMode               resolveMode,
-        uint32                    regionCount,
-        const ImageResolveRegion* pRegions,
-        uint32                    flags) const override;
-
     virtual void CmdClearColorImage(
         GfxCmdBuffer*         pCmdBuffer,
         const Image&          dstImage,
@@ -233,10 +222,35 @@ protected:
         ImageLayout        layout,
         bool               csFastClear) const;
 
+    void ResolveImageDepthStencilGraphics(
+        Pm4CmdBuffer*             pCmdBuffer,
+        const Image&              srcImage,
+        ImageLayout               srcImageLayout,
+        const Image&              dstImage,
+        ImageLayout               dstImageLayout,
+        uint32                    regionCount,
+        const ImageResolveRegion* pRegions,
+        uint32                    flags) const;
+
+    void ResolveImageFixedFunc(
+        Pm4CmdBuffer*             pCmdBuffer,
+        const Image&              srcImage,
+        ImageLayout               srcImageLayout,
+        const Image&              dstImage,
+        ImageLayout               dstImageLayout,
+        uint32                    regionCount,
+        const ImageResolveRegion* pRegions,
+        uint32                    flags) const;
+
     static bool BoxesCoverWholeExtent(
         const Extent3d& extent,
         uint32          boxCount,
         const Box*      pBoxes);
+
+    static bool UseOptimizedFixupMsaaImageAfterCopy(
+        const Image&            dstImage,
+        const ImageFixupRegion* pRegions,
+        uint32                  regionCount);
 
 private:
 
@@ -289,46 +303,6 @@ private:
         uint32             boxCnt,
         const Box*         pBox) const = 0;
 
-    virtual void HwlHtileCopyAndFixUp(
-        Pm4CmdBuffer*             pCmdBuffer,
-        const Pal::Image&         srcImage,
-        const Pal::Image&         dstImage,
-        ImageLayout               dstImageLayout,
-        uint32                    regionCount,
-        const ImageResolveRegion* pRegions,
-        bool                      computeResolve) const = 0;
-
-    virtual void HwlResolveImageGraphics(
-        GfxCmdBuffer*              pCmdBuffer,
-        const Pal::Image&         srcImage,
-        ImageLayout               srcImageLayout,
-        const Pal::Image&         dstImage,
-        ImageLayout               dstImageLayout,
-        uint32                    regionCount,
-        const ImageResolveRegion* pRegions,
-        uint32                    flags) const = 0;
-
-    virtual void HwlFixupResolveDstImage(
-        Pm4CmdBuffer*             pCmdBuffer,
-        const GfxImage&           dstImage,
-        ImageLayout               dstImageLayout,
-        const ImageResolveRegion* pRegions,
-        uint32                    regionCount,
-        bool                      computeResolve) const = 0;
-
-    virtual bool HwlCanDoFixedFuncResolve(
-        const Pal::Image&         srcImage,
-        const Pal::Image&         dstImage,
-        ResolveMode               resolveMode,
-        uint32                    regionCount,
-        const ImageResolveRegion* pRegions) const = 0;
-
-    virtual bool HwlCanDoDepthStencilCopyResolve(
-        const Pal::Image&         srcImage,
-        const Pal::Image&         dstImage,
-        uint32                    regionCount,
-        const ImageResolveRegion* pRegions) const = 0;
-
     void CopyDepthStencilImageGraphics(
         Pm4CmdBuffer*          pCmdBuffer,
         const Image&           srcImage,
@@ -369,45 +343,7 @@ private:
         uint32                 xRightShift,
         uint32                 numInstances) const;
 
-    void ResolveImageDepthStencilGraphics(
-        Pm4CmdBuffer*             pCmdBuffer,
-        const Image&              srcImage,
-        ImageLayout               srcImageLayout,
-        const Image&              dstImage,
-        ImageLayout               dstImageLayout,
-        uint32                    regionCount,
-        const ImageResolveRegion* pRegions,
-        uint32                    flags) const;
-
-    void ResolveImageFixedFunc(
-        Pm4CmdBuffer*             pCmdBuffer,
-        const Image&              srcImage,
-        ImageLayout               srcImageLayout,
-        const Image&              dstImage,
-        ImageLayout               dstImageLayout,
-        uint32                    regionCount,
-        const ImageResolveRegion* pRegions,
-        uint32                    flags) const;
-
-    void ResolveImageDepthStencilCopy(
-        Pm4CmdBuffer*             pCmdBuffer,
-        const Image&              srcImage,
-        ImageLayout               srcImageLayout,
-        const Image&              dstImage,
-        ImageLayout               dstImageLayout,
-        uint32                    regionCount,
-        const ImageResolveRegion* pRegions,
-        uint32                    flags) const;
-
-    virtual void FixupMetadataForComputeDst(
-        GfxCmdBuffer*           pCmdBuffer,
-        const Image&            dstImage,
-        ImageLayout             dstImageLayout,
-        uint32                  regionCount,
-        const ImageFixupRegion* pRegions,
-        bool                    beforeCopy) const override;
-
-    virtual void FixupComputeResolveDst(
+    virtual void FixupMetadataForComputeResolveDst(
         GfxCmdBuffer*             pCmdBuffer,
         const Image&              dstImage,
         uint32                    regionCount,

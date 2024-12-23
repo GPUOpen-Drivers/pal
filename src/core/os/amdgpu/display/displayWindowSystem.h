@@ -180,7 +180,6 @@ private:
     int32  GetMasterFd() const { return m_drmMasterFd; }
     uint32 GetExitThreadEventFd() const { return m_exitThreadEvent.GetHandle(); }
 
-    const Device&          m_device;
     const DrmLoader&       m_drmLoader;
     const DrmLoaderFuncs&  m_drmProcs;
 

@@ -81,46 +81,6 @@ static const PipelineBinary*const GetRpmComputePipelineTable(
 #endif
 
     }
-#if PAL_BUILD_STRIX1
-    if ((Pal::uint32(properties.gfxTriple) == Pal::IpTriple({ 11, 5, 0 })) &&
-        (getenv("GFX115_NPI_FEATURES") != nullptr) &&
-        (Util::Strcasecmp(getenv("GFX115_NPI_FEATURES"), "none") == 0))
-    {
-        pTable = rpmComputeBinaryTableStrix1_NONE;
-    }
-#endif
-#if PAL_BUILD_STRIX1
-    if ((Pal::uint32(properties.gfxTriple) == Pal::IpTriple({ 11, 5, 0 })) &&
-        (getenv("GFX115_NPI_FEATURES") != nullptr) &&
-        (Util::Strcasecmp(getenv("GFX115_NPI_FEATURES"), "all") == 0))
-    {
-        pTable = rpmComputeBinaryTableStrix1;
-    }
-#endif
-#if PAL_BUILD_STRIX1
-    if ((Pal::uint32(properties.gfxTriple) == Pal::IpTriple({ 11, 5, 0 })) &&
-        (getenv("GFX115_NPI_FEATURES") != nullptr) &&
-        (Util::Strcasecmp(getenv("GFX115_NPI_FEATURES"), "onlyVGPRWriteKill") == 0))
-    {
-        pTable = rpmComputeBinaryTableStrix1_NONE;
-    }
-#endif
-#if PAL_BUILD_STRIX1
-    if ((Pal::uint32(properties.gfxTriple) == Pal::IpTriple({ 11, 5, 0 })) &&
-        (getenv("GFX115_NPI_FEATURES") != nullptr) &&
-        (Util::Strcasecmp(getenv("GFX115_NPI_FEATURES"), "noScalarFmacOps") == 0))
-    {
-        pTable = rpmComputeBinaryTableStrix1;
-    }
-#endif
-#if PAL_BUILD_STRIX1
-    if ((Pal::uint32(properties.gfxTriple) == Pal::IpTriple({ 11, 5, 0 })) &&
-        (getenv("GFX115_NPI_FEATURES") != nullptr) &&
-        (Util::Strcasecmp(getenv("GFX115_NPI_FEATURES"), "onlyScalarFloatOps") == 0))
-    {
-        pTable = rpmComputeBinaryTableStrix1;
-    }
-#endif
 
     return pTable;
 }
@@ -1411,6 +1371,25 @@ Result CreateRpmComputePipelines(
         ComputePipelineCreateInfo pipeInfo = { };
         pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
         pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
+    }
+
+    if ((result == Result::Success) && (false
+        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#if PAL_BUILD_STRIX1
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_5)
+#endif
+        ))
+    {
+        constexpr uint32 Index = uint32(RpmComputePipeline::Gfx9EchoGlobalTable);
+
+        ComputePipelineCreateInfo pipeInfo = { };
+        pipeInfo.pPipelineBinary           = pTable[Index].pBuffer;
+        pipeInfo.pipelineBinarySize        = pTable[Index].size;
+
+        pipeInfo.interleaveSize = DispatchInterleaveSize::Disable;
 
         result = pDevice->CreateComputePipelineInternal(pipeInfo, &pPipelineMem[Index], AllocInternal);
     }

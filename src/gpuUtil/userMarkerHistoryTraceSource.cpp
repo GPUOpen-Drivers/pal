@@ -56,8 +56,13 @@ void UserMarkerHistoryTraceSource::AddUserMarkerHistory(
     const uint32* pUserMakerHistory)
 {
     const uint32 chunkSize = numOps * sizeof(uint32);
-    void* pHistory = PAL_MALLOC(chunkSize, m_pPlatform, Util::AllocInternalTemp);
-    memcpy(pHistory, pUserMakerHistory, chunkSize);
+    void* pHistory = nullptr;
+
+    if (numOps > 0)
+    {
+        pHistory = PAL_MALLOC(chunkSize, m_pPlatform, Util::AllocInternalTemp);
+        memcpy(pHistory, pUserMakerHistory, chunkSize);
+    }
 
     UserMarkerHistoryEntry entry =
     {

@@ -44,6 +44,7 @@ class IFmt:
         self.macro_pixel_packed = False
         self.depth_stencil = False
         self.versioning = None
+        self.ifdefs = []
 
     @classmethod
     def Default(cls):
@@ -66,6 +67,7 @@ class IFmt:
         ifmt.macro_pixel_packed       = yaml_node.get("macroPixelPacked", ifmt.macro_pixel_packed)
         ifmt.depth_stencil            = yaml_node.get("depthStencil", ifmt.depth_stencil)
         ifmt.versioning               = yaml_node.get("versioning", ifmt.versioning)
+        ifmt.ifdefs                   = yaml_node.get('ifdefs', ifmt.ifdefs)
 
         return ifmt
 
@@ -111,6 +113,20 @@ class IFmt:
                 return suffix
 
         assert False, "What is this?"
+
+    @property
+    def ifdef_str(self) -> str:
+        output = ""
+
+        if self.versioning:
+            output += f"(PAL_CLIENT_INTERFACE_MAJOR_VERSION >= {ifmt.versioning})"
+
+        if self.ifdefs:
+            if output:
+                output += " && "
+            output += " && ".join(self.ifdefs)
+
+        return output
 
 class HFmt:
     '''

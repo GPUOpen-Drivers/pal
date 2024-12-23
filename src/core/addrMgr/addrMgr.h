@@ -27,7 +27,7 @@
 
 #include "addrinterface.h"
 #include "palDevice.h"
-#include "palImage.h"
+#include "core/image.h"
 
 namespace Pal
 {
@@ -129,6 +129,8 @@ public:
 
     // Subresource index for the base mipmap level within the current array slice & plane.
     uint32 BaseIndex() const { return m_baseSubResIndex; }
+
+    SubresId GetSubresId() const { return Subres(m_plane, m_mipLevel, m_arraySlice); }
 
 private:
     const Image&  m_image;

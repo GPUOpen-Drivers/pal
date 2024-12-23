@@ -184,8 +184,7 @@ DisplayWindowSystem::DisplayWindowSystem(
     const Device&                 device,
     const WindowSystemCreateInfo& createInfo)
     :
-    WindowSystem(createInfo.platform),
-    m_device(device),
+    WindowSystem(device, createInfo.platform),
     m_drmLoader(device.GetPlatform()->GetDrmLoader()),
     m_drmProcs(m_drmLoader.GetProcsTable()),
     m_crtcId(0),

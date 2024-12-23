@@ -43,7 +43,6 @@ extern "C" {
 
 struct drm_amdgpu_info_hw_ip;
 struct drm_amdgpu_bo_list_entry;
-struct drm_amdgpu_capability;
 
 /*--------------------------------------------------------------------------*/
 /* --------------------------- Defines ------------------------------------ */
@@ -140,15 +139,15 @@ typedef struct amdgpu_bo_list *amdgpu_bo_list_handle;
 typedef struct amdgpu_va *amdgpu_va_handle;
 
 /**
+ * Define handle dealing with VA allocation. An amdgpu_device
+ * owns one of these, but they can also be used without a device.
+ */
+typedef struct amdgpu_va_manager *amdgpu_va_manager_handle;
+
+/**
  * Define handle for semaphore
  */
 typedef struct amdgpu_semaphore *amdgpu_semaphore_handle;
-
-/**
- * Define handle for sem file
- */
-typedef uint32_t amdgpu_sem_handle;
-
 
 /*--------------------------------------------------------------------------*/
 /* -------------------------- Structures ---------------------------------- */
@@ -196,18 +195,11 @@ struct amdgpu_bo_metadata {
 	/** Special flag associated with surface */
 	uint64_t flags;
 
-	union {
-		/**
-		 * ASIC-specific tiling information (also used by DCE).
-		 * The encoding is defined by the AMDGPU_TILING_* definitions.
-		 */
-		uint64_t tiling_info;
-		/**
-		 * ASIC-specific swizzle information.
-		 * The encoding is defined by the AMDGPU_SWIZZLE_* definitions.
-		 */
-		uint64_t swizzle_info;
-	};
+	/**
+	 * ASIC-specific tiling information (also used by DCE).
+	 * The encoding is defined by the AMDGPU_TILING_* definitions.
+	 */
+	uint64_t tiling_info;
 
 	/** Size of metadata associated with the buffer, in bytes. */
 	uint32_t size_metadata;
@@ -342,9 +334,7 @@ struct amdgpu_cs_fence_info {
  * \sa amdgpu_cs_submit()
 */
 struct amdgpu_cs_request {
-	/** Specify flags with additional information
-	 * 0-normal, 1-tmz
-	 */
+	/** Specify flags with additional information */
 	uint64_t flags;
 
 	/** Specify HW IP block type to which to send the IB. */
@@ -544,6 +534,20 @@ int amdgpu_device_initialize(int fd,
 			     amdgpu_device_handle *device_handle);
 
 /**
+ * Same as amdgpu_device_initialize() except when deduplicate_device
+ * is false *and* fd points to a device that was already initialized.
+ * In this case, amdgpu_device_initialize would return the same
+ * amdgpu_device_handle while here amdgpu_device_initialize2 would
+ * return a new handle.
+ * amdgpu_device_initialize() should be preferred in most situations;
+ * the only use-case where not-deduplicating devices make sense is
+ * when one wants to have isolated device handles in the same process.
+ */
+int amdgpu_device_initialize2(int fd, bool deduplicate_device,
+			      uint32_t *major_version,
+			      uint32_t *minor_version,
+			      amdgpu_device_handle *device_handle);
+/**
  *
  * When access to such library does not needed any more the special
  * function must be call giving opportunity to clean up any
@@ -561,6 +565,19 @@ int amdgpu_device_initialize(int fd,
  *
 */
 int amdgpu_device_deinitialize(amdgpu_device_handle device_handle);
+
+/**
+ *
+ * /param device_handle - \c [in] Device handle.
+ *                           See #amdgpu_device_initialize()
+ *
+ * \return Returns the drm fd used for operations on this
+ *         device. This is still owned by the library and hence
+ *         should not be closed. Guaranteed to be valid until
+ *         #amdgpu_device_deinitialize gets called.
+ *
+*/
+int amdgpu_device_get_fd(amdgpu_device_handle device_handle);
 
 /*
  * Memory Management
@@ -660,38 +677,6 @@ int amdgpu_bo_import(amdgpu_device_handle dev,
 		     struct amdgpu_bo_import_result *output);
 
 /**
- * Allow others to get access to crtc's framebuffer
- *
- * \param   dev   - \c [in] Device handle.
- *				   See #amdgpu_device_initialize()
- * \param   fb_id - \c [out] the first crtc's framebuffer's buffer_id
- *
- * \return   0 on success\n
- *          <0 - Negative POSIX Error code
- *
- * \sa amdgpu_get_fb_id()
- *
-*/
-int amdgpu_get_fb_id(amdgpu_device_handle dev, unsigned int *fb_id);
-
-/**
- * Get the framebuffer's bo by fb_id
- *
- * \param   dev    - \c [in] Device handle.
- *				    See #amdgpu_device_initialize()
- * \param   fb_id  - \c [in] the framebuffer's buffer_id
- *
- * \param   output - \c [output] the bo of fb_id
- *
- * \return   0 on success\n
- *          <0 - Negative POSIX Error code
- *
- * \sa amdgpu_get_bo_from_fb_id()
- *
-*/
-int amdgpu_get_bo_from_fb_id(amdgpu_device_handle dev, unsigned int fb_id, struct amdgpu_bo_import_result *output);
-
-/**
  * Request GPU access to user allocated memory e.g. via "malloc"
  *
  * \param dev - [in] Device handle. See #amdgpu_device_initialize()
@@ -750,50 +735,6 @@ int amdgpu_find_bo_by_cpu_mapping(amdgpu_device_handle dev,
 				  uint64_t *offset_in_bo);
 
 /**
- * Request GPU access to physical memory from 3rd party device.
- *
- * \param dev - [in] Device handle. See #amdgpu_device_initialize()
- * \param phys_address - [in] Physical address from 3rd party device which
- * we want to map to GPU address space (make GPU accessible)
- * (This address must be correctly aligned).
- * \param size - [in] Size of allocation (must be correctly aligned)
- * \param buf_handle - [out] Buffer handle for the userptr memory
- * resource on submission and be used in other operations.
- *
- *
- * \return   0 on success\n
- *          <0 - Negative POSIX Error code
- *
- * \note
- * This call should guarantee that such memory will be persistently
- * "locked" / make non-pageable. The purpose of this call is to provide
- * opportunity for GPU get access to this resource during submission.
- *
- *
- * Supported (theoretical) max. size of mapping is restricted only by
- * capability.direct_gma_size. See #amdgpu_query_capability()
- *
- * It is responsibility of caller to correctly specify physical_address
-*/
-int amdgpu_create_bo_from_phys_mem(amdgpu_device_handle dev,
-				uint64_t phys_address, uint64_t size,
-				amdgpu_bo_handle *buf_handle);
-
-/**
- * Get physical address from BO
- *
- * \param buf_handle - [in] Buffer handle for the physical address.
- * \param phys_address - [out] Physical address of this BO.
- *
- *
- * \return   0 on success\n
- *          <0 - Negative POSIX Error code
- *
-*/
-int amdgpu_bo_get_phys_address(amdgpu_bo_handle buf_handle,
-					uint64_t *phys_address);
-
-/**
  * Free previously allocated memory
  *
  * \param   dev	       - \c [in] Device handle. See #amdgpu_device_initialize()
@@ -849,19 +790,6 @@ int amdgpu_bo_cpu_map(amdgpu_bo_handle buf_handle, void **cpu);
  *
 */
 int amdgpu_bo_cpu_unmap(amdgpu_bo_handle buf_handle);
-
-/**
- * Remap between the non-secure buffer and secure buffer
- *
- * \param   buf_handle         - \c [in] Buffer handle
- * \param   secure_map	       - \c [in] flag for indentifying map to secure buffer or non-secure buffer
- *
- * \return   0 on success
- *          <0 - Negative POSIX Error code
- *
-*/
-int amdgpu_bo_remap_secure(amdgpu_bo_handle buf_handle, bool secure_map);
-
 
 /**
  * Wait until a buffer is not used by the device.
@@ -979,27 +907,12 @@ int amdgpu_bo_list_update(amdgpu_bo_list_handle handle,
  *
  * \param   dev      - \c [in] Device handle. See #amdgpu_device_initialize()
  * \param   priority - \c [in] Context creation flags. See AMDGPU_CTX_PRIORITY_*
- * \param   flags    - \c [in] Context creation flags. See AMDGPU_CTX_FLAG_*
  * \param   context  - \c [out] GPU Context handle
  *
  * \return   0 on success\n
  *          <0 - Negative POSIX Error code
  *
  * \sa amdgpu_cs_ctx_free()
- *
-*/
-int amdgpu_cs_ctx_create3(amdgpu_device_handle dev,
-             uint32_t priority,
-             uint32_t flags,
-             amdgpu_context_handle *context);
-
-/**
- * Create GPU execution Context
- *
- * Refer to amdgpu_cs_ctx_create3 for full documentation. This call
- * is missing the priority parameter.
- *
- * \sa amdgpu_cs_ctx_create3()
  *
 */
 int amdgpu_cs_ctx_create2(amdgpu_device_handle dev,
@@ -1045,6 +958,21 @@ int amdgpu_cs_ctx_override_priority(amdgpu_device_handle dev,
                                     amdgpu_context_handle context,
                                     int master_fd,
                                     unsigned priority);
+
+/**
+ * Set or query the stable power state for GPU profiling.
+ *
+ * \param   dev        - \c [in] device handle
+ * \param   op         - \c [in] AMDGPU_CTX_OP_{GET,SET}_STABLE_PSTATE
+ * \param   flags      - \c [in] AMDGPU_CTX_STABLE_PSTATE_*
+ * \param   out_flags  - \c [out] output current stable pstate
+ *
+ * \return  0 on success otherwise POSIX Error code.
+ */
+int amdgpu_cs_ctx_stable_pstate(amdgpu_context_handle context,
+			        uint32_t op,
+			        uint32_t flags,
+			        uint32_t *out_flags);
 
 /**
  * Query reset state for the specific GPU Context
@@ -1171,20 +1099,6 @@ int amdgpu_cs_wait_fences(struct amdgpu_cs_fence *fences,
 			  uint64_t timeout_ns,
 			  uint32_t *status, uint32_t *first);
 
-/**
- * Set or query the stable power state for GPU profiling.
- *
- * \param   dev        - \c [in] device handle
- * \param   op         - \c [in] AMDGPU_CTX_OP_{GET,SET}_STABLE_PSTATE
- * \param   flags      - \c [in] AMDGPU_CTX_STABLE_PSTATE_*
- * \param   out_flags  - \c [out] output current stable pstate
- *
- * \return  0 on success otherwise POSIX Error code.
- */
-int amdgpu_cs_ctx_stable_pstate(amdgpu_context_handle context,
-				 uint32_t op,
-				 uint32_t flags,
-				 uint32_t *out_flags);
 /*
  * Query / Info API
  *
@@ -1324,20 +1238,6 @@ int amdgpu_query_info(amdgpu_device_handle dev, unsigned info_id,
 		      unsigned size, void *value);
 
 /**
- * Query hardware or driver capabilities.
- *
- *
- * \param   dev     - \c [in] Device handle. See #amdgpu_device_initialize()
- * \param   value   - \c [out] Pointer to the return value.
- *
- * \return   0 on success\n
- *          <0 - Negative POSIX error code
- *
-*/
-int amdgpu_query_capability(amdgpu_device_handle dev,
-			     struct drm_amdgpu_capability *cap);
-
-/**
  * Query hardware or driver information.
  *
  * The return size is query-specific and depends on the "info_id" parameter.
@@ -1386,34 +1286,37 @@ int amdgpu_query_sensor_info(amdgpu_device_handle dev, unsigned sensor_type,
 			     unsigned size, void *value);
 
 /**
- * Query private aperture range
+ * Query information about video capabilities
  *
- * \param dev    - [in] Device handle. See #amdgpu_device_initialize()
- * \param start - \c [out] Start of private aperture
- * \param end    - \c [out] End of private aperture
+ * The return sizeof(struct drm_amdgpu_info_video_caps)
  *
- * \return  0 on success\n
- *         <0 - Negative POSIX Error code
+ * \param   dev         - \c [in] Device handle. See #amdgpu_device_initialize()
+ * \param   caps_type   - \c [in] AMDGPU_INFO_VIDEO_CAPS_DECODE(ENCODE)
+ * \param   size        - \c [in] Size of the returned value.
+ * \param   value       - \c [out] Pointer to the return value.
+ *
+ * \return   0 on success\n
+ *          <0 - Negative POSIX Error code
  *
 */
-int amdgpu_query_private_aperture(amdgpu_device_handle dev,
-			uint64_t *start,
-			uint64_t *end);
+int amdgpu_query_video_caps_info(amdgpu_device_handle dev, unsigned cap_type,
+                                 unsigned size, void *value);
 
 /**
- * Query shared aperture range
+ * Query information about VM faults
  *
- * \param dev    - [in] Device handle. See #amdgpu_device_initialize()
- * \param start - \c [out] Start of shared aperture
- * \param end    - \c [out] End of shared aperture
+ * The return sizeof(struct drm_amdgpu_info_gpuvm_fault)
  *
- * \return 0 on success\n
- *    <0 - Negative POSIX Error code
+ * \param   dev         - \c [in] Device handle. See #amdgpu_device_initialize()
+ * \param   size        - \c [in] Size of the returned value.
+ * \param   value       - \c [out] Pointer to the return value.
+ *
+ * \return   0 on success\n
+ *          <0 - Negative POSIX Error code
  *
 */
-int amdgpu_query_shared_aperture(amdgpu_device_handle dev,
-			uint64_t *start,
-			uint64_t *end);
+int amdgpu_query_gpuvm_fault_info(amdgpu_device_handle dev, unsigned size,
+				  void *value);
 
 /**
  * Read a set of consecutive memory-mapped registers.
@@ -1441,6 +1344,7 @@ int amdgpu_read_mm_registers(amdgpu_device_handle dev, unsigned dword_offset,
 */
 #define AMDGPU_VA_RANGE_32_BIT		0x1
 #define AMDGPU_VA_RANGE_HIGH		0x2
+#define AMDGPU_VA_RANGE_REPLAYABLE	0x4
 
 /**
  * Allocate virtual address range
@@ -1501,6 +1405,11 @@ int amdgpu_va_range_alloc(amdgpu_device_handle dev,
 int amdgpu_va_range_free(amdgpu_va_handle va_range_handle);
 
 /**
+ * Return the starting address of the allocated virtual address range.
+ */
+uint64_t amdgpu_va_get_start_addr(amdgpu_va_handle va_handle);
+
+/**
 * Query virtual address range
 *
 * UMD can query GPU VM range supported by each device
@@ -1520,6 +1429,37 @@ int amdgpu_va_range_query(amdgpu_device_handle dev,
 			  enum amdgpu_gpu_va_range type,
 			  uint64_t *start,
 			  uint64_t *end);
+
+/**
+ * Allocate a amdgpu_va_manager object.
+ * The returned object has be initialized with the amdgpu_va_manager_init
+ * before use.
+ * On release, amdgpu_va_manager_deinit needs to be called, then the memory
+ * can be released using free().
+ */
+amdgpu_va_manager_handle amdgpu_va_manager_alloc(void);
+
+void amdgpu_va_manager_init(amdgpu_va_manager_handle va_mgr,
+			    uint64_t low_va_offset, uint64_t low_va_max,
+			    uint64_t high_va_offset, uint64_t high_va_max,
+			    uint32_t virtual_address_alignment);
+
+void amdgpu_va_manager_deinit(amdgpu_va_manager_handle va_mgr);
+
+/**
+ * Similar to #amdgpu_va_range_alloc() but allocates VA
+ * directly from an amdgpu_va_manager_handle instead of using
+ * the manager from an amdgpu_device.
+ */
+
+int amdgpu_va_range_alloc2(amdgpu_va_manager_handle va_mgr,
+			   enum amdgpu_gpu_va_range va_range_type,
+			   uint64_t size,
+			   uint64_t va_base_alignment,
+			   uint64_t va_base_required,
+			   uint64_t *va_base_allocated,
+			   amdgpu_va_handle *va_range_handle,
+			   uint64_t flags);
 
 /**
  *  VA mapping/unmapping for the buffer object
@@ -1630,96 +1570,6 @@ int amdgpu_cs_wait_semaphore(amdgpu_context_handle ctx,
  *
 */
 int amdgpu_cs_destroy_semaphore(amdgpu_semaphore_handle sem);
-
-/**
- *  create sem
- *
- * \param   dev    - [in] Device handle. See #amdgpu_device_initialize()
- * \param   sem	   - \c [out] sem handle
- *
- * \return   0 on success\n
- *          <0 - Negative POSIX Error code
- *
-*/
-int amdgpu_cs_create_sem(amdgpu_device_handle dev,
-			 amdgpu_sem_handle *sem);
-
-/**
- *  signal sem
- *
- * \param   dev    - [in] Device handle. See #amdgpu_device_initialize()
- * \param   context        - \c [in] GPU Context
- * \param   ip_type        - \c [in] Hardware IP block type = AMDGPU_HW_IP_*
- * \param   ip_instance    - \c [in] Index of the IP block of the same type
- * \param   ring           - \c [in] Specify ring index of the IP
- * \param   sem	   - \c [out] sem handle
- *
- * \return   0 on success\n
- *          <0 - Negative POSIX Error code
- *
- */
-int amdgpu_cs_signal_sem(amdgpu_device_handle dev,
-			 amdgpu_context_handle ctx,
-			 uint32_t ip_type,
-			 uint32_t ip_instance,
-			 uint32_t ring,
-			 amdgpu_sem_handle sem);
-
-/**
- *  wait sem
- *
- * \param   dev    - [in] Device handle. See #amdgpu_device_initialize()
- * \param   context        - \c [in] GPU Context
- * \param   ip_type        - \c [in] Hardware IP block type = AMDGPU_HW_IP_*
- * \param   ip_instance    - \c [in] Index of the IP block of the same type
- * \param   ring           - \c [in] Specify ring index of the IP
- * \param   sem	   - \c [out] sem handle
- *
- * \return   0 on success\n
- *          <0 - Negative POSIX Error code
- *
-*/
-int amdgpu_cs_wait_sem(amdgpu_device_handle dev,
-		       amdgpu_context_handle ctx,
-		       uint32_t ip_type,
-		       uint32_t ip_instance,
-		       uint32_t ring,
-		       amdgpu_sem_handle sem);
-
-int amdgpu_cs_export_sem(amdgpu_device_handle dev,
-			  amdgpu_sem_handle sem,
-			  int *shared_handle);
-
-int amdgpu_cs_import_sem(amdgpu_device_handle dev,
-			  int shared_handle,
-			  amdgpu_sem_handle *sem);
-
-/**
- *  destroy sem
- *
- * \param   dev    - [in] Device handle. See #amdgpu_device_initialize()
- * \param   sem	   - \c [out] sem handle
- *
- * \return   0 on success\n
- *          <0 - Negative POSIX Error code
- *
- */
-int amdgpu_cs_destroy_sem(amdgpu_device_handle dev,
-			  amdgpu_sem_handle sem);
-
-/**
- *  reserve vmid for this process
- *
- * \param   dev    - [in] Device handle. See #amdgpu_device_initialize()
- */
-int amdgpu_cs_reserved_vmid(amdgpu_device_handle dev);
-
-/**
- *  unreserve vmid for this process
- *
- * \param   dev    - [in] Device handle. See #amdgpu_device_initialize()
- */
-int amdgpu_cs_unreserved_vmid(amdgpu_device_handle dev);
 
 /**
  *  Get the ASIC marketing name

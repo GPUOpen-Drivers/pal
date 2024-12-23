@@ -2147,10 +2147,10 @@ void LogContext::Enum(
         "DrawDispatchValidation", // 0xa,
         "BindPipelineValidation", // 0xb,
         "OptimizedRegisters",     // 0xc,
-        "BindGpuMemory",          // 0xe,
-        "SubAllocGpuMemory",      // 0xf,
-        "SubFreeGpuMemory",       // 0x10,
-        "RpmBlt",                 // 0x12,
+        "BindGpuMemory",          // 0xd,
+        "SubAllocGpuMemory",      // 0xe,
+        "SubFreeGpuMemory",       // 0xf,
+        "RpmBlt",                 // 0x11,
     };
 
     static_assert(ArrayLen(StringTable) == static_cast<uint32>(Developer::CallbackType::Count),

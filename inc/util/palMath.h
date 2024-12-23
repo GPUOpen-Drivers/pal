@@ -180,13 +180,13 @@ extern float Float10ToFloat32(uint32 fBits);
 /// Converts an N-bit signed floating point number to a 32-bit IEEE floating point number.
 extern float FloatNumBitsToFloat32(uint32 input, uint32  numBits);
 
-/// Convers a 32-bit IEEE floating point number to a fraction.
+/// Converts a 32-bit IEEE floating point number to a fraction.
 extern Fraction Float32ToFraction(float float32);
 
 /// Returns the square root of the specified value.
 extern float Sqrt(float f);
 
-/// Returns the result of an expoent operation (base^exponent).
+/// Returns the result of an exponent operation (base^exponent).
 extern float Pow(float base, float exponent);
 
 /// Returns the unsigned integer absolute value.

@@ -33,6 +33,7 @@ target_sources(pal PRIVATE
     gpuProfilerPipeline.h
     gpuProfilerPlatform.cpp
     gpuProfilerPlatform.h
+    gpuProfilerQueueInternal.cpp
     gpuProfilerQueue.cpp
     gpuProfilerQueue.h
     gpuProfilerQueueFileLogger.cpp

@@ -47,7 +47,7 @@
 #endif
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MAJOR_VERSION 909
+#define PAL_INTERFACE_MAJOR_VERSION 912
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 831
 /// Minor interface version.  Note that the interface version is distinct from the PAL version itself, which is returned
@@ -247,12 +247,7 @@ struct GpuInfo
 enum class ClientApi : uint32
 {
     Pal     = 0,
-    Dx9     = 1,
-    Dx12    = 3,
     Vulkan  = 4,
-    OpenCl  = 7,
-    Hip     = 8,
-    Amf     = 9,
 };
 
 /// Specifies properties for @ref IPlatform creation. Input structure to Pal::CreatePlatform().

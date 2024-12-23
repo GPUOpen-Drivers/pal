@@ -22,8 +22,8 @@
  *  SOFTWARE.
  *
  **********************************************************************************************************************/
-#include <CLI/CLI.hpp>
-#include <nlohmann/json.hpp>
+#include <cli11/CLI11.hpp>
+#include <json/json.hpp>
 
 #include "amdrdf.h"
 
@@ -75,20 +75,29 @@ void CopyChunks(rdf::ChunkFile& cf, rdf::ChunkFileWriter& output, const bool com
         const auto index = it.GetChunkIndex();
         const auto version = cf.GetChunkVersion(id, index);
 
-        const auto chunkHeaderSize = cf.GetChunkHeaderSize(id, index);
-        if (chunkHeaderSize > 0) {
+        {
+            const auto chunkHeaderSize = cf.GetChunkHeaderSize(id, index);
             headerBuffer.resize(chunkHeaderSize);
+        }
+
+        // if a vector is empty, .data() may return a nullptr, in which case
+        // the Read*ToBuffer machinery will fail due to an invalid argument
+        // That's why we need to branch here and below
+        if (!headerBuffer.empty()) {
             cf.ReadChunkHeaderToBuffer(id, index, headerBuffer.data());
         }
 
-        const auto chunkDataSize = cf.GetChunkDataSize(id, index);
-        if (chunkDataSize > 0) {
+        {
+            const auto chunkDataSize = cf.GetChunkDataSize(id, index);
             dataBuffer.resize(chunkDataSize);
+        }
+
+        if (!dataBuffer.empty()) {
             cf.ReadChunkDataToBuffer(id, index, dataBuffer.data());
         }
 
         output.WriteChunk(id,
-                          chunkHeaderSize,
+                          headerBuffer.size(),
                           headerBuffer.data(),
                           dataBuffer.size(),
                           dataBuffer.data(),

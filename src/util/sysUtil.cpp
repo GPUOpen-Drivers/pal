@@ -287,15 +287,17 @@ Result RemoveOldestFilesOfDirUntilSize(
     const size_t pathLen = std::strlen(pPathName) + 1; // Add one to append a '/'
     const size_t fullPathSize = pathLen + 1 + Util::MaxFileNameStrLen;
 
-    // Storage for file names
+    // Storage for file names. allFileNamesMem holds the actual strings for all the file names, fileNameViews just wraps
+    // pointers into allFileNamesMem for easy use. allFileNamesMem comes from the heap.
+    // fullPathBuffer holds the full path of the current file being processed.
     Util::GenericAllocator allocator;
-    Util::AutoBuffer<StringView<char>, 1, Util::GenericAllocator> fileNames(fileCount, &allocator);
-    Util::AutoBuffer<char, 4, Util::GenericAllocator> fileNameBuffer(charCount, &allocator);
-    Util::AutoBuffer<char, 4, Util::GenericAllocator> fullFilePath(fullPathSize, &allocator);
+    Util::AutoBuffer<StringView<char>, 32, Util::GenericAllocator> fileNameViews(fileCount, &allocator);
+    Util::AutoBuffer<char, 4, Util::GenericAllocator> allFileNamesMem(charCount, &allocator);
+    Util::AutoBuffer<char, Util::MaxPathStrLen, Util::GenericAllocator> fullPathBuffer(fullPathSize, &allocator);
 
-    if ((fileNames.Capacity() < fileCount) ||
-        (fileNameBuffer.Capacity() < charCount) ||
-        (fullFilePath.Capacity() < fullPathSize))
+    if ((fileNameViews.Capacity() < fileCount) ||
+        (allFileNamesMem.Capacity() < charCount) ||
+        (fullPathBuffer.Capacity() < fullPathSize))
     {
         result = Result::ErrorOutOfMemory;
     }
@@ -303,7 +305,14 @@ Result RemoveOldestFilesOfDirUntilSize(
     // Get the file names in the dir
     if (result == Result::Success)
     {
-        result = GetFileNamesInDir(pPathName, fileNames, fileNameBuffer);
+        result = GetFileNamesInDir(pPathName, fileNameViews, allFileNamesMem);
+    }
+
+    if (result == Result::ErrorIncompleteResults)
+    {
+        // We ran out of characters. Perhaps there are more files than when we first counted above.
+        // That's okay! This is a best-effort function.
+        result = Result::Success;
     }
 
     // Store the stats of every file in a Vector
@@ -318,20 +327,34 @@ Result RemoveOldestFilesOfDirUntilSize(
     if (result == Result::Success)
     {
         // Write the path portion of the full file path.
-        Strncpy(fullFilePath.Data(), pPathName, fullPathSize);
-        Strncpy(fullFilePath.Data() + pathLen - 1, "/", fullPathSize - pathLen + 1);
+        Strncpy(fullPathBuffer.Data(), pPathName, fullPathSize);
+        Strncat(fullPathBuffer.Data(), fullPathSize, "/");
 
         for (uint32 i = 0; (i < fileCount) && (result == Result::Success); i++)
         {
-            // Write the filename portion of the full file path
-            Strncpy(fullFilePath.Data() + pathLen, fileNames[i].Data(), fullPathSize - pathLen);
-
-            File::Stat stat;
-            result = File::GetStat(fullFilePath.Data(), &stat);
-            if ((result == Result::Success) && stat.flags.isRegular)
+            if (fileNameViews[i].IsEmpty())
             {
-                result = files.PushBack({ i, stat });
-                currentSize += stat.size;
+                break;
+            }
+            else
+            {
+                // Write the filename portion of the full file path
+                Strncpy(fullPathBuffer.Data() + pathLen, fileNameViews[i].Data(), fullPathSize - pathLen);
+
+                File::Stat stat;
+                result = File::GetStat(fullPathBuffer.Data(), &stat);
+                if ((result == Result::Success) && stat.flags.isRegular)
+                {
+                    result = files.PushBack({ i, stat });
+                    currentSize += stat.size;
+                }
+                // We may not have permission or someone else may have deleted the file after we got its name.
+                else if ((result == Result::NotFound) || (result == Result::ErrorPermissionDenied))
+                {
+                    // Those two errors are considered expected behavior because the file is being handled by another
+                    // process. Any other error is something going wrong.
+                    result = Result::Success;
+                }
             }
         }
     }
@@ -369,10 +392,19 @@ Result RemoveOldestFilesOfDirUntilSize(
         Value* pValue = &files.Back();
         currentSize -= pValue->stat.size;
 
-        Strncpy(fullFilePath.Data() + pathLen, fileNames[pValue->namePos].Data(), fullPathSize - pathLen);
+        Strncpy(fullPathBuffer.Data() + pathLen, fileNameViews[pValue->namePos].Data(), fullPathSize - pathLen);
 
-        result = File::Remove(fullFilePath.Data());
+        result = File::Remove(fullPathBuffer.Data());
         files.Erase(pValue);
+
+        // Ideally deleting the file succeeds, but it could fail if...
+        // The file was already deleted by another process in this same function or we don't have permission.
+        if ((result == Result::NotFound) || (result == Result::ErrorPermissionDenied))
+        {
+            // Those two errors are considered expected behavior because the file is being handled by another process.
+            // Any other error is something going wrong.
+            result = Result::Success;
+        }
     }
 
     return result;

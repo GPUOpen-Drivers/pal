@@ -310,7 +310,7 @@ Result RenderOpTraceController::SubmitBeginTraceGpuWork() const
 
     if (result == Result::Success)
     {
-        result = m_pCmdBufTraceBegin->End();
+        result = m_pCmdBufTracePrepare->End();
     }
 #endif
 
@@ -612,9 +612,16 @@ void RenderOpTraceController::RecordRenderOps(
         m_renderOpCount += renderOpCounts.dispatchCount;
     }
 
-    m_pQueue = pQueue;
-    OnRenderOpUpdated(m_renderOpCount - previousCount);
-    m_pQueue = nullptr;
+    // Calculate the number of ops since the last call and notify
+    // OnRenderOpUpdated() if this call contained ops
+    const uint64 numRenderOpsSinceLastCall = m_renderOpCount - previousCount;
+
+    if (numRenderOpsSinceLastCall != 0)
+    {
+        m_pQueue = pQueue;
+        OnRenderOpUpdated(numRenderOpsSinceLastCall);
+        m_pQueue = nullptr;
+    }
 }
 
 // =====================================================================================================================

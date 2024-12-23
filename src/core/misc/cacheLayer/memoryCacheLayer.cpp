@@ -158,7 +158,7 @@ Result MemoryCacheLayer::StoreInternal(
         {
             keepGoing = false;
 
-            // Check if this hash is already in the cahce.
+            // Check if this hash is already in the cache.
             // If so then we'll delete the existing entry and write a new one.
             Entry** ppFound = m_entryLookup.FindKey(*pHashId);
 
@@ -223,20 +223,20 @@ Result MemoryCacheLayer::StoreInternal(
 
     if ((result == Result::Success) && (setData == false))
     {
-        RWLockAuto<RWLock::ReadWrite> lock { &m_lock };
-
-        result = EnsureAvailableSpace(storeSize, 1);
-    }
-
-    if ((result == Result::Success) && (setData == false))
-    {
         Entry* pEntry = Entry::Create(Allocator(), pHashId, pData, dataSize, storeSize);
 
         if (pEntry != nullptr)
         {
-            RWLockAuto<RWLock::ReadWrite> lock { &m_lock };
+            {
+                RWLockAuto<RWLock::ReadWrite> lock { &m_lock };
 
-            result = AddEntryToCache(pEntry);
+                result = EnsureAvailableSpace(storeSize, 1);
+
+                if (result == Result::Success)
+                {
+                    result = AddEntryToCache(pEntry);
+                }
+            }
 
             if (result != Result::Success)
             {
@@ -609,19 +609,32 @@ Result MemoryCacheLayer::EvictEntryFromCache(
 }
 
 // =====================================================================================================================
-// Insert the entry into our cache lookup table and LRU list
+// If an entry is not already in our cache, insert the entry into the cache lookup table and LRU list.
+// `m_lock` needs to be ReadWrite locked while calling function!
 Result MemoryCacheLayer::AddEntryToCache(
     Entry* pEntry)
 {
     PAL_ASSERT(pEntry != nullptr);
 
-    Result result = m_entryLookup.Insert(*pEntry->HashId(), pEntry);
+    bool existed = true;
+    Entry** pValue = nullptr;
 
+    Result result = m_entryLookup.FindAllocate(*pEntry->HashId(), &existed, &pValue);
+
+    // Add the new value if it did not exist already. If FindAllocate returns Success, pValue != nullptr.
     if (result == Result::Success)
     {
-        m_recentEntryList.PushBack(pEntry->ListNode());
-        m_curSize += pEntry->StoreSize();
-        m_curCount++;
+        if (existed)
+        {
+            result = Result::AlreadyExists;
+        }
+        else
+        {
+            *pValue = pEntry;
+            m_recentEntryList.PushBack(pEntry->ListNode());
+            m_curSize += pEntry->StoreSize();
+            m_curCount++;
+        }
     }
 
     return result;
@@ -728,13 +741,6 @@ Result MemoryCacheLayer::PromoteData(
 
     if (result == Result::Success)
     {
-        RWLockAuto<RWLock::ReadWrite> lock { &m_lock };
-
-        result = EnsureAvailableSpace(pQuery->promotionSize, 1);
-    }
-
-    if (result == Result::Success)
-    {
         Entry* pEntry = Entry::Create(Allocator(), &pQuery->hashId, pBuffer, pQuery->dataSize, pQuery->promotionSize);
 
         if (pEntry != nullptr)
@@ -748,8 +754,12 @@ Result MemoryCacheLayer::PromoteData(
             {
                 RWLockAuto<RWLock::ReadWrite> lock { &m_lock };
 
-                result = AddEntryToCache(pEntry);
-                m_entryLookup.Insert(pQuery->hashId, pEntry);
+                result = EnsureAvailableSpace(pQuery->promotionSize, 1);
+
+                if (result == Result::Success)
+                {
+                    result = AddEntryToCache(pEntry);
+                }
             }
 
             if (result == Result::Success)
@@ -788,38 +798,22 @@ Result MemoryCacheLayer::Reserve(
 
     if (result == Result::Success)
     {
-        Entry** ppFound = nullptr;
-
-        RWLockAuto<RWLock::ReadWrite> lock { &m_lock };
-
-        ppFound = m_entryLookup.FindKey(*pHashId);
-        if (ppFound != nullptr)
+        Entry* pEntry = Entry::Create(Allocator(), pHashId, nullptr, 0, 0);
+        if (pEntry != nullptr)
         {
-            if (*ppFound != nullptr)
             {
-                result = Result::AlreadyExists;
+                RWLockAuto<RWLock::ReadWrite> lock { &m_lock };
+                result = AddEntryToCache(pEntry);
             }
-            else
+            if (result != Result::Success)
             {
-                result = Result::ErrorUnknown;
+                pEntry->Destroy();
+                pEntry = nullptr;
             }
         }
         else
         {
-            Entry* pEntry = Entry::Create(Allocator(), pHashId, nullptr, 0, 0);
-            if (pEntry != nullptr)
-            {
-                result = AddEntryToCache(pEntry);
-                if (result != Result::Success)
-                {
-                    pEntry->Destroy();
-                    pEntry = nullptr;
-                }
-            }
-            else
-            {
-              result = Result::ErrorOutOfMemory;
-            }
+            result = Result::ErrorOutOfMemory;
         }
     }
 
@@ -890,7 +884,7 @@ Result CreateMemoryCacheLayer(
 Result GetMemoryCacheLayerCurSize(
     ICacheLayer*    pCacheLayer,
     size_t*         pCurCount,    // [out] nubmer of Entries in memoryCache.
-    size_t*         pCurSize)     // [out] total cahce data size
+    size_t*         pCurSize)     // [out] total cache data size
 {
     auto pMemoryCache = static_cast<MemoryCacheLayer*>(pCacheLayer);
 

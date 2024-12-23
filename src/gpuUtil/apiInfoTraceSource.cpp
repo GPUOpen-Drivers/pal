@@ -53,23 +53,10 @@ void ApiInfoTraceSource::FillTraceChunkApiInfo(
 {
     switch (m_pPlatform->GetClientApiId())
     {
-    case ClientApi::Dx9:
-        pApiInfo->apiType = TraceChunk::ApiType::DirectX9;
-        break;
-    case ClientApi::Dx12:
-        pApiInfo->apiType = TraceChunk::ApiType::DirectX12;
-        break;
     case ClientApi::Vulkan:
         pApiInfo->apiType = TraceChunk::ApiType::Vulkan;
         break;
-    case ClientApi::OpenCl:
-        pApiInfo->apiType = TraceChunk::ApiType::OpenCl;
-        break;
-    case ClientApi::Hip:
-        pApiInfo->apiType = TraceChunk::ApiType::Hip;
-        break;
     case ClientApi::Pal:
-    case ClientApi::Amf:
     default:
         pApiInfo->apiType = TraceChunk::ApiType::Generic;
         break;

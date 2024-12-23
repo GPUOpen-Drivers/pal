@@ -62,10 +62,11 @@ enum class SystemEventClientId : uint8
     Reserved,
     Llpc,
     Vulkan,
-    Dxcp,
-    Dx9p,
-    Dxxp,
-    Ocl,
+    Reserved2,
+    Reserved3,
+    Reserved4,
+    Reserved5,
+    Reserved6,
     Count,
 };
 
@@ -106,8 +107,21 @@ union SystemEventId
 ///
 /// @param [in] clientID is used to specify which client to be emitted when logging an event.
 /// @param [in] eventId is used to specify which event to be emitted when logging an event.
+/// @param [in] ap is the list of payload params logged to the event.
+extern void LogSystemEventVaList(
+    SystemEventClientId clientId,
+    uint32              eventId,
+    va_list             ap);
+
+/// Log system Event function with variable arg list. This function will expand the variable
+/// args into a va_list and call into LogSystemEventVaList function. LogSystemEventVaList is
+/// auto generated
+///
+///
+/// @param [in] clientID is used to specify which client to be emitted when logging an event.
+/// @param [in] eventId is used to specify which event to be emitted when logging an event.
 extern void LogSystemEvent(
-    SystemEventClientId     clientId,
+    SystemEventClientId clientId,
     uint32              eventId,
     ...);
 

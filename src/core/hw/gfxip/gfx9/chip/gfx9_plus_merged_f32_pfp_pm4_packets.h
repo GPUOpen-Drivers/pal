@@ -1965,66 +1965,6 @@ typedef struct PM4_PFP_DRAW_INDEX_MULTI_AUTO
 
 constexpr unsigned int PM4_PFP_DRAW_INDEX_MULTI_AUTO_SIZEDW__CORE = 4;
 
-// --------------------------------- PM4_PFP_DRAW_INDEX_MULTI_INST ---------------------------------
-typedef struct PM4_PFP_DRAW_INDEX_MULTI_INST
-{
-    union
-    {
-        PM4_PFP_TYPE_3_HEADER header;
-        uint32_t u32All;
-    } ordinal1;
-
-    union
-    {
-        uint32_t instance_count;
-        uint32_t u32All;
-    } ordinal2;
-
-    union
-    {
-        uint32_t obj_id_addr_lo;
-        uint32_t u32All;
-    } ordinal3;
-
-    union
-    {
-        uint32_t obj_id_addr_hi;
-        uint32_t u32All;
-    } ordinal4;
-
-    union
-    {
-        uint32_t max_size;
-        uint32_t u32All;
-    } ordinal5;
-
-    union
-    {
-        uint32_t index_base_lo;
-        uint32_t u32All;
-    } ordinal6;
-
-    union
-    {
-        uint32_t index_base_hi;
-        uint32_t u32All;
-    } ordinal7;
-
-    union
-    {
-        uint32_t index_count;
-        uint32_t u32All;
-    } ordinal8;
-
-    union
-    {
-        uint32_t draw_initiator;
-        uint32_t u32All;
-    } ordinal9;
-} PM4_PFP_DRAW_INDEX_MULTI_INST;
-
-constexpr unsigned int PM4_PFP_DRAW_INDEX_MULTI_INST_SIZEDW__GFX101 = 9;
-
 // ---------------------------------- PM4_PFP_DRAW_INDEX_OFFSET_2 ----------------------------------
 typedef struct PM4_PFP_DRAW_INDEX_OFFSET_2
 {

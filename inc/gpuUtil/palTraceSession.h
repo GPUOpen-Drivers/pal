@@ -41,6 +41,7 @@
 #include "palSysMemory.h"
 #include "palGpuMemory.h"
 #include "palMemTrackerImpl.h"
+#include "palVector.h"
 
 struct rdfStream;
 struct rdfChunkFileWriter;
@@ -299,6 +300,11 @@ public:
     ///
     /// @returns the version of the source as an unsigned integer value
     virtual Pal::uint32 GetVersion() const = 0;
+
+    /// Whether multiple instances of the trace source are allowed
+    ///
+    /// @returns true if multiple instances of this trace sources can co-exist in one session, false otherwise.
+    virtual bool AllowMultipleInstances() const { return false; }
 };
 
 /**
@@ -624,13 +630,9 @@ private:
     Util::RWLock                  m_registerTraceControllerLock;
     Util::RWLock                  m_chunkAppendLock;
 
-    // Unique trace sources registered with this TraceSession.
-    typedef Util::HashMap <const char*,
-                           ITraceSource*,
-                           TraceAllocator,
-                           Util::StringJenkinsHashFunc,
-                           Util::StringEqualFunc> TraceSourcesMap;
-    TraceSourcesMap m_registeredTraceSources;
+    // Trace sources registered with this TraceSession.
+    using TraceSourcesVec = Util::Vector<ITraceSource*, 16, TraceAllocator>;
+    TraceSourcesVec m_registeredTraceSources;
 
     // TraceSources and corresponding configs
     typedef Util::HashMap <const char*,

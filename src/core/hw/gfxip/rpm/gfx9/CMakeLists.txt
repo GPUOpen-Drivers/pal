@@ -25,7 +25,6 @@
 
 target_sources(pal PRIVATE
     CMakeLists.txt
-    gfx9EchoGlobalTableBinaries.h
     gfx9RsrcProcMgr.cpp
     gfx9RsrcProcMgr.h
 )

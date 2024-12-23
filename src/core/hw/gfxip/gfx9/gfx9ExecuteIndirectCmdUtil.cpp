@@ -244,8 +244,10 @@ void ExecuteIndirectV2Meta::ProcessUpdateMemCopy(
 {
     m_metaData.updateMemCopy.srcOffsets[*pUpdateCount] = pEntry->argBufferOffset * sizeof(uint32);
     m_metaData.updateMemCopy.dstOffsets[*pUpdateCount] = *pNextIdx * sizeof(uint32);
+
     uint32 currentCpyChunkSize = 0;
     uint32 nextArgBufferOffset = pEntry->argBufferOffset;
+
     do
     {
         // Predict what the next srcIndex value might be, clipping if necessary and if the prediction for next entry
@@ -253,13 +255,15 @@ void ExecuteIndirectV2Meta::ProcessUpdateMemCopy(
         uint32 nextCpyChunkSize = ((*pCurrentIdx + pEntry->size) < vbSpillTableWatermark) ?
                                    pEntry->size : (vbSpillTableWatermark - *pCurrentIdx);
 
-        *pCurrentIdx        += nextCpyChunkSize;
-        currentCpyChunkSize += nextCpyChunkSize;
-
+        // Only integrate next entry into the same CpMemCopy when argBufferOffset is contiguous. Note that current
+        // index shouldn't be updated before continuity check here.
         if (pEntry->argBufferOffset != nextArgBufferOffset)
         {
             break;
         }
+
+        *pCurrentIdx        += nextCpyChunkSize;
+        currentCpyChunkSize += nextCpyChunkSize;
         nextArgBufferOffset += nextCpyChunkSize;
 
         // Check if any next valid entries are remaining to be updated from the Look-up Table and get nextIdx.
@@ -267,7 +271,40 @@ void ExecuteIndirectV2Meta::ProcessUpdateMemCopy(
 
     } while (*pValidUpdate && (*pCurrentIdx == *pNextIdx));
 
+    // Conclude copy chunk size when we either encounter discontinuity or complete full range iteration.
     m_metaData.updateMemCopy.sizes[(*pUpdateCount)++] = currentCpyChunkSize;
+}
+
+// =====================================================================================================================
+uint16 ExecuteIndirectV2Meta::ProcessCommandIndex(
+    const uint16 drawIndexRegAddr,
+    const bool   useConstantDrawIndex,
+    const bool   useEightBitMask)
+{
+    uint16 commandIndex = 0;
+    constexpr uint32 EightBitMask = 0xFF;
+
+    const bool incConstRegMapped  = (m_metaData.incConstRegCount > 0);
+    const bool drawIndexRegMapped = (drawIndexRegAddr != UserDataNotMapped) && (useConstantDrawIndex == false);
+    PAL_ASSERT((incConstRegMapped && drawIndexRegMapped) == false);
+
+    if (incConstRegMapped)
+    {
+        m_metaData.commandIndexEnable = true;
+        commandIndex = m_metaData.incConstReg[0];
+    }
+    else if (drawIndexRegMapped)
+    {
+        m_metaData.commandIndexEnable = true;
+        commandIndex = (useEightBitMask ? drawIndexRegAddr & EightBitMask : drawIndexRegAddr);
+    }
+    else
+    {
+        // None of them are in use.
+        m_metaData.commandIndexEnable = false;
+    }
+
+    return commandIndex;
 }
 
 } // Gfx9

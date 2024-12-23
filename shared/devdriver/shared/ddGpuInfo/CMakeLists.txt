@@ -47,6 +47,9 @@ if (CMAKE_SYSTEM_NAME MATCHES "Linux|Android")
 
     target_sources(ddGpuInfo PRIVATE src/ddLinuxAmdGpuInfo.cpp)
     target_include_directories(ddGpuInfo PRIVATE ${Libdrm_INCLUDE_DIRS})
+
+elseif (WIN32)
+        target_sources(ddGpuInfo PRIVATE src/ddEmptyAmdGpuInfo.cpp)
 elseif (CMAKE_SYSTEM_NAME MATCHES "Darwin")
     target_sources(ddGpuInfo PRIVATE src/ddMacAmdGpuInfo.mm)
     target_link_libraries(ddGpuInfo PUBLIC "-framework Cocoa -framework Metal")

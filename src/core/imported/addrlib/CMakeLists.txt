@@ -61,6 +61,8 @@ target_sources(addrlib PRIVATE src/core/addrcommon.h
                                src/core/addrlib.cpp
                                src/core/addrlib2.h
                                src/core/addrlib2.cpp
+                               src/core/addrswizzler.h
+                               src/core/addrswizzler.cpp
                                src/core/coord.h
                                src/core/coord.cpp)
 

@@ -4991,6 +4991,7 @@ void CmdBuffer::CmdClearDepthStencil(
                                          flags);
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 910
 // =====================================================================================================================
 void CmdBuffer::CmdClearBufferView(
     const IGpuMemory& gpuMemory,
@@ -5041,6 +5042,7 @@ void CmdBuffer::CmdClearImageView(
                                    rectCount,
                                    pRects);
 }
+#endif
 
 // =====================================================================================================================
 void CmdBuffer::CmdResolveImage(

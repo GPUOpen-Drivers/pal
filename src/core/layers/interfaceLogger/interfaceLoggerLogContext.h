@@ -149,8 +149,10 @@ enum class InterfaceFunc : uint32
     CmdBufferCmdClearColorImage,
     CmdBufferCmdClearBoundDepthStencilTargets,
     CmdBufferCmdClearDepthStencil,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 910
     CmdBufferCmdClearBufferView,
     CmdBufferCmdClearImageView,
+#endif
     CmdBufferCmdResolveImage,
     CmdBufferCmdSetEvent,
     CmdBufferCmdResetEvent,

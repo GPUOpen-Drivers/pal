@@ -174,8 +174,10 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::CmdBufferCmdClearColorImage,                               InterfaceObject::CmdBuffer,            "CmdClearColorImage"                      },
     { InterfaceFunc::CmdBufferCmdClearBoundDepthStencilTargets,                 InterfaceObject::CmdBuffer,            "CmdClearBoundDepthStencilTargets"        },
     { InterfaceFunc::CmdBufferCmdClearDepthStencil,                             InterfaceObject::CmdBuffer,            "CmdClearDepthStencil"                    },
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 910
     { InterfaceFunc::CmdBufferCmdClearBufferView,                               InterfaceObject::CmdBuffer,            "CmdClearBufferView"                      },
     { InterfaceFunc::CmdBufferCmdClearImageView,                                InterfaceObject::CmdBuffer,            "CmdClearImageView"                       },
+#endif
     { InterfaceFunc::CmdBufferCmdResolveImage,                                  InterfaceObject::CmdBuffer,            "CmdResolveImage"                         },
     { InterfaceFunc::CmdBufferCmdSetEvent,                                      InterfaceObject::CmdBuffer,            "CmdSetEvent"                             },
     { InterfaceFunc::CmdBufferCmdResetEvent,                                    InterfaceObject::CmdBuffer,            "CmdResetEvent"                           },

@@ -321,6 +321,7 @@ public:
         uint32             rectCount,
         const Rect*        pRects,
         uint32             flags) override;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 910
     virtual void CmdClearBufferView(
         const IGpuMemory& gpuMemory,
         const ClearColor& color,
@@ -334,6 +335,7 @@ public:
         const void*       pImageViewSrd,
         uint32            rectCount,
         const Rect*       pRects) override;
+#endif
     virtual void CmdResolveImage(
         const IImage&             srcImage,
         ImageLayout               srcImageLayout,
@@ -792,8 +794,10 @@ private:
     void ReplayCmdClearColorImage(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdClearBoundDepthStencilTargets(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdClearDepthStencil(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 910
     void ReplayCmdClearBufferView(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdClearImageView(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
+#endif
     void ReplayCmdResolveImage(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetEvent(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdResetEvent(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);

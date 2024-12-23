@@ -60,29 +60,6 @@ struct WlFormatTable
     ZwpDmaBufFormat* pData;
 };
 
-// =====================================================================================================================
-// A single explicit sync object - an instance of tightly related objects for the need of explicit sync.
-// Usage in short:
-//      Source DRM sync objects are created and exported to fds. Then, they're imported into Wayland
-//      to create Wayland objects. Timeline variables are used to track the current/anticipated timeline value.
-struct ExplicitSyncObject
-{
-    amdgpu_syncobj_handle             syncObjHandle;    // Source DRM syncobj
-    wp_linux_drm_syncobj_timeline_v1* pSyncObjTimeline; // Derivative Wayland timeline/syncobj
-    uint64                            timeline;         // Current/anticipated timeline value for this image
-};
-
-// =====================================================================================================================
-// Explicit sync related syncobj data for a single image.
-// Usage in short:
-//      - Acquire is signaled by the driver and waited on by the compositor before accessing the buffer.
-//      - Release is signaled by the compositor and waited on by the driver before reusing the buffer.
-struct ExplicitSyncData
-{
-    ExplicitSyncObject acquire;
-    ExplicitSyncObject release;
-};
-
 class WaylandPresentFence final : public PresentFence
 {
 public:
@@ -98,9 +75,9 @@ public:
     virtual Result Trigger()                      override;
     virtual Result WaitForCompletion(bool doWait) override;
     virtual Result AssociatePriorRenderFence(IQueue* pQueue) override { return Result::Success; }
+    virtual ExplicitSyncData* GetExplicitSyncData() override { return &m_explicitSyncData; }
 
-    void              AssociateImage(Image* pImage) { m_pImage = pImage; }
-    ExplicitSyncData* GetExplicitSyncData() { return &m_explicitSyncData; }
+    void           AssociateImage(Image* pImage) { m_pImage = pImage; }
 
 private:
     explicit WaylandPresentFence(const WaylandWindowSystem& windowSystem);
@@ -211,9 +188,8 @@ public:
 
     bool                      IsExplicitSyncEnabled() const;
     void                      SetSyncObjManager(wp_linux_drm_syncobj_manager_v1* pSyncObjManager);
-    Result                    InitExplicitSyncObject(ExplicitSyncObject* pSyncObject) const;
-    void                      DestroyExplicitSyncObject(ExplicitSyncObject* pSyncObject) const;
-    Result                    WaitForExplicitSyncRelease(const ExplicitSyncData& imageExplicitSyncData, bool doWait) const;
+    Result                    InitExplicitSyncObject(ExplicitSyncObject* pSyncObject) const override;
+    void                      DestroyExplicitSyncObject(ExplicitSyncObject* pSyncObject) const override;
 
 private:
     WaylandWindowSystem(const Device& device, const WindowSystemCreateInfo& createInfo);
@@ -221,9 +197,6 @@ private:
 
     Result Init();
 
-    Result SignalExplicitSyncAcquire(const ExplicitSyncData& imageExplicitSyncData, IQueue* pQueue) const;
-
-    const Device&                     m_device;
     wl_drm*                           m_pWaylandDrm;
     wl_display*                       m_pDisplay;
     wl_surface*                       m_pSurface;

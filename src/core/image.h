@@ -249,7 +249,6 @@ struct SubResourceInfo
         uint32     u32All;
     } flags;
 
-    ImageLayout defaultGfxLayout;
     SwizzleMode swizzleMode;
 };
 

@@ -86,6 +86,7 @@ public:
 
     uint32 NumGfxShaderLibraries() const { return m_numGfxShaderLibraries; }
     const GraphicsShaderLibrary* GetGraphicsShaderLibrary(uint32 index) const { return m_gfxShaderLibraries[index]; }
+
 protected:
     GraphicsPipeline(Device* pDevice, bool isInternal);
 

@@ -63,9 +63,8 @@ public:
     virtual void ReadSettings() override;
     virtual uint64 GetSettingsBlobHash() const override;
 
-#if PAL_ENABLE_PRINTS_ASSERTS
+    void InitPrintsAssertsModeSettings();
     void ReadAssertAndPrintSettings(Pal::Device* pDevice);
-#endif
 
 private:
     PAL_DISALLOW_COPY_AND_ASSIGN(PlatformSettingsLoader);

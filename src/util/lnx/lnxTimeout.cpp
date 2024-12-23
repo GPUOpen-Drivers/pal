@@ -51,8 +51,10 @@ void ComputeTimeoutExpiration(
     // Compute the number of remaining nanoseconds after accounting for the whole seconds.
     const uint64 remaniningNanoseconds  = nanoseconds % NanoSecPerSec;
 
-    // Query the system's monotonic clock for the current time.
-    if (clock_gettime(CLOCK_MONOTONIC, pAbsTimeout) == 0)
+    // Query the system's clock for the current time.
+    int result = GetClockTime(pAbsTimeout);
+
+    if (result == 0)
     {
         // Add the timeout duration to the current time.
         pAbsTimeout->tv_sec  += wholeSeconds;
@@ -108,7 +110,7 @@ bool IsTimeoutExpired(
     bool expired = false;
 
     timespec currentTime = {};
-    if (clock_gettime(CLOCK_MONOTONIC, &currentTime) == 0)
+    if (GetClockTime(&currentTime) == 0)
     {
         if ((currentTime.tv_sec > pAbsTimeout->tv_sec) ||
             ((currentTime.tv_sec  == pAbsTimeout->tv_sec) && (currentTime.tv_nsec >= pAbsTimeout->tv_nsec)))
@@ -142,7 +144,7 @@ void ComputeTimeoutLeft(
     uint64* pNanoSeconds)
 {
     timespec currentTime = {};
-    if (clock_gettime(CLOCK_MONOTONIC, &currentTime) == 0)
+    if (GetClockTime(&currentTime) == 0)
     {
         if ((currentTime.tv_sec > pAbsTimeout->tv_sec) ||
                 ((currentTime.tv_sec  == pAbsTimeout->tv_sec) && (currentTime.tv_nsec >= pAbsTimeout->tv_nsec)))
@@ -160,6 +162,54 @@ void ComputeTimeoutLeft(
     {
         *pNanoSeconds = 0;
     }
+}
+
+// =====================================================================================================================
+// Retrieves the current time from the system's clock.
+// It uses CLOCK_MONOTONIC if available (GLIBC version 2.30 or higher), otherwise falls back to CLOCK_REALTIME.
+// Return value of 0 indicates success, or -1 indicates failure.
+int GetClockTime(
+    timespec* pAbsTimeout)
+{
+    int result = 0;
+
+#if defined(__GLIBC_PREREQ)
+#if __GLIBC_PREREQ(2, 30)
+    // Query the system's monotonic clock for the current time.
+    result = clock_gettime(CLOCK_MONOTONIC, pAbsTimeout);
+#else
+    // Query the system's realtime clock for the current time.
+    result = clock_gettime(CLOCK_REALTIME, pAbsTimeout);
+#endif
+#else
+    // Query the system's realtime clock for the current time.
+    result = clock_gettime(CLOCK_REALTIME, pAbsTimeout);
+#endif
+
+    return result;
+}
+
+// =====================================================================================================================
+// Wraps sem_clockwait (if available) and sem_timedwait to provide semaphore waiting functionality with a timeout.
+// It selects the most appropriate implementation based on the GLIBC version.
+// Return value of 0 indicates success, or -1 indicates failure.
+int SemTimedWait(
+    sem_t* pSem,
+    const timespec* pTimeout)
+{
+    int ret = 0;
+
+#if defined(__GLIBC_PREREQ)
+#if __GLIBC_PREREQ(2, 30)
+    ret = sem_clockwait(pSem, CLOCK_MONOTONIC, pTimeout);
+#else
+    ret = sem_timedwait(pSem, pTimeout);
+#endif
+#else
+    ret = sem_timedwait(pSem, pTimeout);
+#endif
+
+    return ret;
 }
 
 } // Util

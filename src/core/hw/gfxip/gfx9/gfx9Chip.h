@@ -596,9 +596,6 @@ constexpr uint32 Gfx11VertexAttributeRingMaxSizeBytes       = (16 * Util::OneMeb
 constexpr uint32 Gfx11PsExtraLdsDwGranularity               = 256;
 constexpr uint32 Gfx11PsExtraLdsDwGranularityShift          = 8;
 
-// Maximum number of PWS-enabled pipeline events that PWS+ supported engine (currently universal engine) can track.
-constexpr uint32 MaxNumPwsSyncEvents = 64;
-
 constexpr uint32 Gfx103UcodeVersionLoadShRegIndexIndirectAddr = 39;
 
 // Abstract cache sync flags modeled after the hardware GCR flags.The "Glx" flags apply to the GL2, GL1, and L0 caches

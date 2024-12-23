@@ -472,7 +472,7 @@ Result Pm4CmdBuffer::BeginCommandStreams(
         // AllocateGpuScratchMem() always returns a valid GPU address, even if we fail to obtain memory from the
         // allocator.  In that scenario, the allocator returns a dummy chunk so we can always have a valid object
         // to access, and sets m_status to a failure code.
-        m_acqRelFenceValGpuVa = AllocateGpuScratchMem(ReleaseTokenCount, sizeof(uint32));
+        m_acqRelFenceValGpuVa = AllocateGpuScratchMem(ReleaseTokenCount, 1);
         result = m_status;
     }
 
@@ -482,7 +482,7 @@ Result Pm4CmdBuffer::BeginCommandStreams(
         // AllocateGpuScratchMem() always returns a valid GPU address, even if we fail to obtain memory from the
         // allocator.  In that scenario, the allocator returns a dummy chunk so we can always have a valid object
         // to access, and sets m_status to a failure code.
-        m_timestampGpuVa = AllocateGpuScratchMem(sizeof(uint32), sizeof(uint32));
+        m_timestampGpuVa = AllocateGpuScratchMem(2, 2);
         result = m_status;
     }
 

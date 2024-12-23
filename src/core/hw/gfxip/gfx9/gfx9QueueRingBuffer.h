@@ -32,6 +32,9 @@ namespace Pal
 namespace Gfx9
 {
 
+// Size of NOP Payload to mark End of this UMS.
+constexpr uint32 NopPayloadSizeInDwords = 2;
+
 class Gfx9QueueRingBuffer final : public GfxQueueRingBuffer
 {
 public:
@@ -75,15 +78,17 @@ public:
 
     uint32 EndSubmit(gpusize progressFenceAddr, uint64 nextProgressFenceValue);
 
+    uint32 MarkSubmissionEnd();
+
     Result ReserveSpaceForWaitSemaphore(
-                        uint32 numDwordsLogEntry,
-                        uint32 numDwordsLogHeader,
-                        uint32* pPacketsSize);
+        uint32 numDwordsLogEntry,
+        uint32 numDwordsLogHeader,
+        uint32* pPacketsSize);
 
     Result ReserveSpaceForSignalSemaphore(
-                        uint32 numDwordsLogEntry,
-                        uint32 numDwordsLogHeader,
-                        uint32* pPacketsSize);
+        uint32 numDwordsLogEntry,
+        uint32 numDwordsLogHeader,
+        uint32* pPacketsSize);
 
     Result ReserveSpaceForSubmit(uint32 numCmdStreams, uint32* pPacketsSize);
 
@@ -93,7 +98,7 @@ public:
 
 private:
     const CmdUtil& m_cmdUtil;
-    void WriteIntoRBHelper(void* pPacket, uint32 packetSizeInBytes);
+    void WriteIntoRBHelper(void* pPacket, uint32 packetSize);
     PAL_DISALLOW_DEFAULT_CTOR(Gfx9QueueRingBuffer);
     PAL_DISALLOW_COPY_AND_ASSIGN(Gfx9QueueRingBuffer);
 };

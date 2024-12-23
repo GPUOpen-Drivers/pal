@@ -1566,36 +1566,6 @@ typedef struct PM4_ME_DRAW_INDEX_MULTI_AUTO
 
 constexpr unsigned int PM4_ME_DRAW_INDEX_MULTI_AUTO_SIZEDW__CORE = 4;
 
-// --------------------------------- PM4_ME_DRAW_INDEX_MULTI_INST ---------------------------------
-typedef struct PM4_ME_DRAW_INDEX_MULTI_INST
-{
-    union
-    {
-        PM4_ME_TYPE_3_HEADER header;
-        uint32_t u32All;
-    } ordinal1;
-
-    union
-    {
-        uint32_t instance_count;
-        uint32_t u32All;
-    } ordinal2;
-
-    union
-    {
-        uint32_t index_count;
-        uint32_t u32All;
-    } ordinal3;
-
-    union
-    {
-        uint32_t draw_initiator;
-        uint32_t u32All;
-    } ordinal4;
-} PM4_ME_DRAW_INDEX_MULTI_INST;
-
-constexpr unsigned int PM4_ME_DRAW_INDEX_MULTI_INST_SIZEDW__GFX101 = 4;
-
 // ---------------------------------- PM4_ME_DRAW_INDEX_OFFSET_2 ----------------------------------
 typedef struct PM4_ME_DRAW_INDEX_OFFSET_2
 {

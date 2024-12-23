@@ -97,7 +97,7 @@ Result PipelineAbiReader::InitCodeObject()
     {
         result = m_elfReaders.PushBack({0, ElfReader::Reader(m_binary.Data())});
     }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < PAL_FIXME_MULTI_ELF_VER  // ** TODO multi-ELF
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 906
     else if (m_binary.SizeInBytes() == size_t(-1))
     {
         // PipelineArFileReader requires an actual size!  (See back-compat PipelineAbiReader(const void*) constructor)

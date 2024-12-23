@@ -486,6 +486,7 @@ public:
         uint32             flags) override
         { PAL_NEVER_CALLED(); }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 910
     virtual void CmdClearBufferView(
         const IGpuMemory& gpuMemory,
         const ClearColor& color,
@@ -502,6 +503,7 @@ public:
         uint32            rectCount = 0,
         const Rect*       pRects    = nullptr) override
         { PAL_NEVER_CALLED(); }
+#endif
 
     virtual void CmdResolveImage(
         const IImage&             srcImage,

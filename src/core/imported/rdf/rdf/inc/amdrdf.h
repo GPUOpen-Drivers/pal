@@ -45,7 +45,7 @@
      (static_cast<std::uint32_t>(minor) << 12) | \
      (static_cast<std::uint32_t>(patch)))
 
-#define RDF_INTERFACE_VERSION RDF_MAKE_VERSION(1, 2, 0)
+#define RDF_INTERFACE_VERSION RDF_MAKE_VERSION(1, 4, 0)
 
 extern "C" {
 struct rdfChunkFile;
@@ -84,6 +84,7 @@ struct rdfStreamFromFileCreateInfo
     const char* filename;
     rdfStreamAccess accessMode;
     rdfFileMode fileMode;
+    bool is_shareable;
 };
 
 /**
@@ -106,6 +107,10 @@ struct rdfStreamFromFileCreateInfo
  * rely on the address of the context to be the same as the one passed into
  * the various create functions. Specifically, you can't use `&ctx` to modify
  * the context provided at creation time.
+ *
+ * User provided streams cannot be used through other APIs while a `rdfStream`
+ * is wrapping them. I.e. writes, reads, or in general anything modifying the
+ * file pointer will corrupt the wrapped stream.
 */
 struct rdfUserStream
 {
@@ -353,6 +358,7 @@ public:
         info.filename = filename;
         info.fileMode = fileMode;
         info.accessMode = streamAccess;
+        info.is_shareable = false;
 
         RDF_CHECK_CALL(rdfStreamFromFile(&info, &result.stream_));
         return result;

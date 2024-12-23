@@ -780,6 +780,14 @@ public:
         uint32                   flags,
         std::chrono::nanoseconds timeout) const;
 
+    Result WaitSemaphoresValues(
+        amdgpu_semaphore_handle* pSemaphores,
+        uint64*                  pValues,
+        uint32                   count,
+        uint32                   flags,
+        std::chrono::nanoseconds timeout,
+        uint32*                  pFirstSignaledIndex) const;
+
     bool IsWaitBeforeSignal(
         amdgpu_semaphore_handle hSemaphore,
         uint64                  value) const;
@@ -964,8 +972,8 @@ public:
 
     void GetModifierInfo(
         uint64                   modifier,
-        ImageCreateInfo*         createInfo,
-        ImageInternalCreateInfo* internalCreateInfo);
+        const ImageCreateInfo&   createInfo,
+        ImageInternalCreateInfo* pInternalCreateInfo);
 
     void AddModifier(
         ChNumFormat format,

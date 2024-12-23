@@ -346,190 +346,6 @@ void RsrcProcMgr::CopyMemoryCs(
 }
 
 // =====================================================================================================================
-void RsrcProcMgr::CopyImageCs(
-    GfxCmdBuffer*          pCmdBuffer,
-    const Image&           srcImage,
-    ImageLayout            srcImageLayout,
-    const Image&           dstImage,
-    ImageLayout            dstImageLayout,
-    uint32                 regionCount,
-    const ImageCopyRegion* pRegions,
-    uint32                 flags
-    ) const
-{
-    const Device&          device        = *m_pDevice->Parent();
-    const ImageCreateInfo& dstCreateInfo = dstImage.GetImageCreateInfo();
-    const ImageCreateInfo& srcCreateInfo = srcImage.GetImageCreateInfo();
-    const ImageType        imageType     = srcCreateInfo.imageType;
-
-    // If the destination format is srgb and we will be doing format conversion copy then we need the shader to
-    // perform gamma correction. Note: If both src and dst are srgb then we'll do a raw copy and so no need to change
-    // pipelines in that case.
-    const bool isSrgbDst = (TestAnyFlagSet(flags, CopyFormatConversion)          &&
-                            Formats::IsSrgb(dstCreateInfo.swizzledFormat.format) &&
-                            (Formats::IsSrgb(srcCreateInfo.swizzledFormat.format) == false));
-
-    CopyImageCsInfo csInfo;
-    GetCopyImageCsInfo(srcImage, srcImageLayout, dstImage, dstImageLayout, regionCount, pRegions, flags, &csInfo);
-
-    // Save current command buffer state and bind the pipeline.
-    pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
-    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, csInfo.pPipeline, InternalApiPsoHash, });
-
-    // Now begin processing the list of copy regions.
-    for (uint32 idx = 0; idx < regionCount; ++idx)
-    {
-        ImageCopyRegion copyRegion = pRegions[idx];
-
-        // When copying from 3D to 3D, the number of slices should be 1. When copying from
-        // 1D to 1D or 2D to 2D, depth should be 1. Therefore when the src image type is identical
-        // to the dst image type, either the depth or the number of slices should be equal to 1.
-        PAL_ASSERT((srcCreateInfo.imageType != dstCreateInfo.imageType) ||
-                   (copyRegion.numSlices == 1) ||
-                   (copyRegion.extent.depth == 1));
-
-#if PAL_ENABLE_PRINTS_ASSERTS
-        // When copying from 2D to 3D or 3D to 2D, the number of slices should match the depth.
-        if (((srcCreateInfo.imageType == ImageType::Tex3d) && (dstCreateInfo.imageType == ImageType::Tex2d)) ||
-            ((srcCreateInfo.imageType == ImageType::Tex2d) && (dstCreateInfo.imageType == ImageType::Tex3d)))
-        {
-            PAL_ASSERT(copyRegion.numSlices == copyRegion.extent.depth);
-        }
-#endif
-
-        // Setup image formats per-region. This is different than the graphics path because the compute path must be
-        // able to copy depth-stencil images.
-        SwizzledFormat dstFormat    = {};
-        SwizzledFormat srcFormat    = {};
-        uint32         texelScale   = 1;
-        bool           singleSubres = false;
-
-        GetCopyImageFormats(srcImage, srcImageLayout, dstImage, dstImageLayout, copyRegion, flags,
-                            &srcFormat, &dstFormat, &texelScale, &singleSubres);
-
-        // The hardware can't handle UAV stores using SRGB num format.  The resolve shaders already contain a
-        // linear-to-gamma conversion, but in order for that to work the output UAV's num format must be patched to be
-        // simple unorm.
-        if (Formats::IsSrgb(dstFormat.format))
-        {
-            dstFormat.format = Formats::ConvertToUnorm(dstFormat.format);
-            PAL_ASSERT(Formats::IsUndefined(dstFormat.format) == false);
-        }
-
-        // Multiply all x-dimension values in our region by the texel scale.
-        copyRegion.srcOffset.x  *= texelScale;
-        copyRegion.dstOffset.x  *= texelScale;
-        copyRegion.extent.width *= texelScale;
-
-        // Create an embedded user-data table and bind it to user data 0. We need image views for the src and dst
-        // subresources, as well as some inline constants for the copy offsets and extents.
-        const uint32 numSlots = csInfo.isFmaskCopy ? 3 : 2;
-        uint32* pUserData = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
-                                                                   SrdDwordAlignment() * numSlots,
-                                                                   SrdDwordAlignment(),
-                                                                   PipelineBindPoint::Compute,
-                                                                   0);
-
-        // When we treat 3D images as 2D arrays each z-slice must be treated as an array slice.
-        const uint32  numSlices    = (imageType == ImageType::Tex3d) ? copyRegion.extent.depth : copyRegion.numSlices;
-        SubresRange   viewRange    = SubresourceRange(copyRegion.dstSubres, 1, 1, numSlices);
-        ImageViewInfo imageView[2] = {};
-
-        const ImageTexOptLevel optLevel = device.TexOptLevel();
-
-        PAL_ASSERT(TestAnyFlagSet(dstImageLayout.usages, LayoutCopyDst));
-        RpmUtil::BuildImageViewInfo(&imageView[0], dstImage, viewRange, dstFormat, dstImageLayout, optLevel, true);
-
-        viewRange.startSubres = copyRegion.srcSubres;
-        RpmUtil::BuildImageViewInfo(&imageView[1], srcImage, viewRange, srcFormat, srcImageLayout, optLevel, false);
-
-        if (csInfo.useMipInSrd == false)
-        {
-            // The miplevel as specified in the shader instruction is actually an offset from the mip-level
-            // as specified in the SRD.
-            imageView[0].subresRange.startSubres.mipLevel = 0;  // dst
-            imageView[1].subresRange.startSubres.mipLevel = 0;  // src
-
-            // The mip-level from the instruction is also clamped to the "last level" as specified in the SRD.
-            imageView[0].subresRange.numMips = copyRegion.dstSubres.mipLevel + viewRange.numMips;
-            imageView[1].subresRange.numMips = copyRegion.srcSubres.mipLevel + viewRange.numMips;
-        }
-
-        PAL_ASSERT(singleSubres == false);
-
-        // Turn our image views into HW SRDs here
-        device.CreateImageViewSrds(2, &imageView[0], pUserData);
-        pUserData += SrdDwordAlignment() * 2;
-
-        if (csInfo.isFmaskCopy)
-        {
-            // If this is an Fmask-accelerated Copy, create an image view of the source Image's Fmask surface.
-            FmaskViewInfo fmaskView = {};
-            fmaskView.pImage         = &srcImage;
-            fmaskView.baseArraySlice = copyRegion.srcSubres.arraySlice;
-            fmaskView.arraySize      = copyRegion.numSlices;
-
-            m_pDevice->Parent()->CreateFmaskViewSrds(1, &fmaskView, pUserData);
-        }
-
-        // Embed the constant buffer in the remaining fast user-data entries.
-        union
-        {
-            RpmUtil::CopyImageInfo copyImageInfo;
-            uint32                 userData[RpmUtil::CopyImageInfoDwords];
-        } cb;
-
-        cb.copyImageInfo.srcOffset                 = copyRegion.srcOffset;
-        cb.copyImageInfo.dstOffset                 = copyRegion.dstOffset;
-        cb.copyImageInfo.numSamples                = dstCreateInfo.samples;
-        cb.copyImageInfo.packedMipData.srcMipLevel = copyRegion.srcSubres.mipLevel;
-        cb.copyImageInfo.packedMipData.dstMipLevel = copyRegion.dstSubres.mipLevel;
-        cb.copyImageInfo.copyRegion.width          = copyRegion.extent.width;
-        cb.copyImageInfo.copyRegion.height         = copyRegion.extent.height;
-        cb.copyImageInfo.dstIsSrgb                 = isSrgbDst;
-
-        pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 1, RpmUtil::CopyImageInfoDwords, cb.userData);
-
-        const DispatchDims texels = {copyRegion.extent.width, copyRegion.extent.height, numSlices};
-
-        pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz(texels, csInfo.texelsPerGroup), {});
-    }
-
-    pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
-
-    Pm4CmdBuffer* pPm4CmdBuffer = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
-    pPm4CmdBuffer->SetCsBltIndirectWriteMisalignedMdState(dstImage.HasMisalignedMetadata());
-
-    if (csInfo.isFmaskCopyOptimized || (dstCreateInfo.flags.fullCopyDstOnly != 0))
-    {
-        // If this is MSAA copy optimized we might have to update destination image meta data.
-        // If image is created with fullCopyDstOnly=1, there will be no expand when transition to "LayoutCopyDst"; if
-        // the copy isn't compressed copy, need fix up dst metadata to uncompressed state.
-        AutoBuffer<ImageFixupRegion, 32, Platform> fixupRegions(regionCount, m_pDevice->GetPlatform());
-
-        if (fixupRegions.Capacity() >= regionCount)
-        {
-            for (uint32 i = 0; i < regionCount; i++)
-            {
-                fixupRegions[i].subres    = pRegions[i].dstSubres;
-                fixupRegions[i].offset    = pRegions[i].dstOffset;
-                fixupRegions[i].extent    = pRegions[i].extent;
-                fixupRegions[i].numSlices = pRegions[i].numSlices;
-            }
-
-            const Pal::Image*const pSrcImage = csInfo.isFmaskCopyOptimized ? &srcImage : nullptr;
-
-            HwlFixupCopyDstImageMetaData(pCmdBuffer, pSrcImage, dstImage, dstImageLayout, &fixupRegions[0], regionCount,
-                                         csInfo.isFmaskCopyOptimized);
-        }
-        else
-        {
-            pCmdBuffer->NotifyAllocFailure();
-        }
-    }
-}
-
-// =====================================================================================================================
 void RsrcProcMgr::GetCopyImageCsInfo(
     const Image&           srcImage,
     ImageLayout            srcImageLayout,
@@ -563,7 +379,7 @@ void RsrcProcMgr::GetCopyImageCsInfo(
         PAL_ASSERT(srcCreateInfo.fragments > 1);
         PAL_ASSERT((srcImage.IsDepthStencilTarget() == false) && (dstImage.IsDepthStencilTarget() == false));
 
-        // Optimized image copies require a call to HwlFixupCopyDstImageMetaData...
+        // Optimized image copies require a call to HwlFixupCopyDstImageMetadata...
         // Verify that any "update" operation performed is legal for the source and dest images.
         if (HwlUseOptimizedImageCopy(srcImage, srcImageLayout, dstImage, dstImageLayout, regionCount, pRegions))
         {
@@ -777,7 +593,8 @@ bool RsrcProcMgr::CopyImageCsUseMsaaMorton(
 // =====================================================================================================================
 // Builds commands to copy one or more regions from one image to another using a compute shader.
 // The caller should assert that the source and destination images have the same image types and sample counts.
-void RsrcProcMgr::CopyImageCompute(
+// Return if go through FMask optimized copy path.
+bool RsrcProcMgr::CopyImageCompute(
     GfxCmdBuffer*          pCmdBuffer,
     const Image&           srcImage,
     ImageLayout            srcImageLayout,
@@ -790,7 +607,150 @@ void RsrcProcMgr::CopyImageCompute(
 {
     PAL_ASSERT(TestAnyFlagSet(flags, CopyEnableScissorTest) == false);
 
-    CopyImageCs(pCmdBuffer, srcImage, srcImageLayout, dstImage, dstImageLayout, regionCount, pRegions, flags);
+    const Device&          device        = *m_pDevice->Parent();
+    const ImageCreateInfo& dstCreateInfo = dstImage.GetImageCreateInfo();
+    const ImageCreateInfo& srcCreateInfo = srcImage.GetImageCreateInfo();
+    const ImageType        imageType     = srcCreateInfo.imageType;
+
+    // If the destination format is srgb and we will be doing format conversion copy then we need the shader to
+    // perform gamma correction. Note: If both src and dst are srgb then we'll do a raw copy and so no need to change
+    // pipelines in that case.
+    const bool isSrgbDst = (TestAnyFlagSet(flags, CopyFormatConversion)          &&
+                            Formats::IsSrgb(dstCreateInfo.swizzledFormat.format) &&
+                            (Formats::IsSrgb(srcCreateInfo.swizzledFormat.format) == false));
+
+    CopyImageCsInfo csInfo;
+    GetCopyImageCsInfo(srcImage, srcImageLayout, dstImage, dstImageLayout, regionCount, pRegions, flags, &csInfo);
+
+    // Save current command buffer state and bind the pipeline.
+    pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
+    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, csInfo.pPipeline, InternalApiPsoHash, });
+
+    // Now begin processing the list of copy regions.
+    for (uint32 idx = 0; idx < regionCount; ++idx)
+    {
+        ImageCopyRegion copyRegion = pRegions[idx];
+
+        // When copying from 3D to 3D, the number of slices should be 1. When copying from
+        // 1D to 1D or 2D to 2D, depth should be 1. Therefore when the src image type is identical
+        // to the dst image type, either the depth or the number of slices should be equal to 1.
+        PAL_ASSERT((srcCreateInfo.imageType != dstCreateInfo.imageType) ||
+                   (copyRegion.numSlices == 1) ||
+                   (copyRegion.extent.depth == 1));
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+        // When copying from 2D to 3D or 3D to 2D, the number of slices should match the depth.
+        if (((srcCreateInfo.imageType == ImageType::Tex3d) && (dstCreateInfo.imageType == ImageType::Tex2d)) ||
+            ((srcCreateInfo.imageType == ImageType::Tex2d) && (dstCreateInfo.imageType == ImageType::Tex3d)))
+        {
+            PAL_ASSERT(copyRegion.numSlices == copyRegion.extent.depth);
+        }
+#endif
+
+        // Setup image formats per-region. This is different than the graphics path because the compute path must be
+        // able to copy depth-stencil images.
+        SwizzledFormat dstFormat    = {};
+        SwizzledFormat srcFormat    = {};
+        uint32         texelScale   = 1;
+        bool           singleSubres = false;
+
+        GetCopyImageFormats(srcImage, srcImageLayout, dstImage, dstImageLayout, copyRegion, flags,
+                            &srcFormat, &dstFormat, &texelScale, &singleSubres);
+
+        // The hardware can't handle UAV stores using SRGB num format.  The resolve shaders already contain a
+        // linear-to-gamma conversion, but in order for that to work the output UAV's num format must be patched to be
+        // simple unorm.
+        if (Formats::IsSrgb(dstFormat.format))
+        {
+            dstFormat.format = Formats::ConvertToUnorm(dstFormat.format);
+            PAL_ASSERT(Formats::IsUndefined(dstFormat.format) == false);
+        }
+
+        // Multiply all x-dimension values in our region by the texel scale.
+        copyRegion.srcOffset.x  *= texelScale;
+        copyRegion.dstOffset.x  *= texelScale;
+        copyRegion.extent.width *= texelScale;
+
+        // Create an embedded user-data table and bind it to user data 0. We need image views for the src and dst
+        // subresources, as well as some inline constants for the copy offsets and extents.
+        const uint32 numSlots = csInfo.isFmaskCopy ? 3 : 2;
+        uint32* pUserData = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
+                                                                   SrdDwordAlignment() * numSlots,
+                                                                   SrdDwordAlignment(),
+                                                                   PipelineBindPoint::Compute,
+                                                                   0);
+
+        // When we treat 3D images as 2D arrays each z-slice must be treated as an array slice.
+        const uint32  numSlices    = (imageType == ImageType::Tex3d) ? copyRegion.extent.depth : copyRegion.numSlices;
+        SubresRange   viewRange    = SubresourceRange(copyRegion.dstSubres, 1, 1, numSlices);
+        ImageViewInfo imageView[2] = {};
+
+        const ImageTexOptLevel optLevel = device.TexOptLevel();
+
+        PAL_ASSERT(TestAnyFlagSet(dstImageLayout.usages, LayoutCopyDst));
+        RpmUtil::BuildImageViewInfo(&imageView[0], dstImage, viewRange, dstFormat, dstImageLayout, optLevel, true);
+
+        viewRange.startSubres = copyRegion.srcSubres;
+        RpmUtil::BuildImageViewInfo(&imageView[1], srcImage, viewRange, srcFormat, srcImageLayout, optLevel, false);
+
+        if (csInfo.useMipInSrd == false)
+        {
+            // The miplevel as specified in the shader instruction is actually an offset from the mip-level
+            // as specified in the SRD.
+            imageView[0].subresRange.startSubres.mipLevel = 0;  // dst
+            imageView[1].subresRange.startSubres.mipLevel = 0;  // src
+
+            // The mip-level from the instruction is also clamped to the "last level" as specified in the SRD.
+            imageView[0].subresRange.numMips = copyRegion.dstSubres.mipLevel + viewRange.numMips;
+            imageView[1].subresRange.numMips = copyRegion.srcSubres.mipLevel + viewRange.numMips;
+        }
+
+        PAL_ASSERT(singleSubres == false);
+
+        // Turn our image views into HW SRDs here
+        device.CreateImageViewSrds(2, &imageView[0], pUserData);
+        pUserData += SrdDwordAlignment() * 2;
+
+        if (csInfo.isFmaskCopy)
+        {
+            // If this is an Fmask-accelerated Copy, create an image view of the source Image's Fmask surface.
+            FmaskViewInfo fmaskView = {};
+            fmaskView.pImage         = &srcImage;
+            fmaskView.baseArraySlice = copyRegion.srcSubres.arraySlice;
+            fmaskView.arraySize      = copyRegion.numSlices;
+
+            m_pDevice->Parent()->CreateFmaskViewSrds(1, &fmaskView, pUserData);
+        }
+
+        // Embed the constant buffer in the remaining fast user-data entries.
+        union
+        {
+            RpmUtil::CopyImageInfo copyImageInfo;
+            uint32                 userData[RpmUtil::CopyImageInfoDwords];
+        } cb;
+
+        cb.copyImageInfo.srcOffset                 = copyRegion.srcOffset;
+        cb.copyImageInfo.dstOffset                 = copyRegion.dstOffset;
+        cb.copyImageInfo.numSamples                = dstCreateInfo.samples;
+        cb.copyImageInfo.packedMipData.srcMipLevel = copyRegion.srcSubres.mipLevel;
+        cb.copyImageInfo.packedMipData.dstMipLevel = copyRegion.dstSubres.mipLevel;
+        cb.copyImageInfo.copyRegion.width          = copyRegion.extent.width;
+        cb.copyImageInfo.copyRegion.height         = copyRegion.extent.height;
+        cb.copyImageInfo.dstIsSrgb                 = isSrgbDst;
+
+        pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 1, RpmUtil::CopyImageInfoDwords, cb.userData);
+
+        const DispatchDims texels = {copyRegion.extent.width, copyRegion.extent.height, numSlices};
+
+        pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz(texels, csInfo.texelsPerGroup), {});
+    }
+
+    pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
+
+    Pm4CmdBuffer* pPm4CmdBuffer = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
+    pPm4CmdBuffer->SetCsBltIndirectWriteMisalignedMdState(dstImage.HasMisalignedMetadata());
+
+    return csInfo.isFmaskCopyOptimized;
 }
 
 // =====================================================================================================================
@@ -832,6 +792,10 @@ void RsrcProcMgr::GetCopyImageFormats(
     const bool formatsMatch   = (srcFormat.format == dstFormat.format) &&
                                 (srcFormat.swizzle.swizzleValue == dstFormat.swizzle.swizzleValue);
     const bool isMmFormatUsed = (Formats::IsMmFormat(srcFormat.format) || Formats::IsMmFormat(dstFormat.format));
+    const bool isSrcFormatMm12Unorm = (srcFormat.format == ChNumFormat::X16_MM12_Unorm) ||
+                                      (srcFormat.format == ChNumFormat::X16Y16_MM12_Unorm);
+    const bool isDstFormatMm12Unorm = (dstFormat.format == ChNumFormat::X16_MM12_Unorm) ||
+                                      (dstFormat.format == ChNumFormat::X16Y16_MM12_Unorm);
 
     // Both formats must have the same pixel size.
     PAL_ASSERT(Formats::BitsPerPixel(srcFormat.format) == Formats::BitsPerPixel(dstFormat.format));
@@ -869,10 +833,17 @@ void RsrcProcMgr::GetCopyImageFormats(
             dstFormat.format = Formats::ConvertToUnorm(dstFormat.format);
         }
 
+        // TA treats MM12_Unorm formats the same as MM12_Uint formats. Memory loads are be performed as expected,
+        // but stores are treated as Uint, leading to corruptions. In order to work around it, we must force source
+        // format to Uint as well.
+        if (isDstFormatMm12Unorm)
+        {
+            srcFormat.format = Formats::ConvertToUint(srcFormat.format);
+        }
         // Due to hardware-specific compression modes, some image subresources might not support format replacement.
         // Note that the code above can force sRGB to UNORM even if format replacement is not supported because sRGB
         // values use the same bit representation as UNORM values, they just use a different color space.
-        if (isSrcFormatReplaceable && isDstFormatReplaceable)
+        else if (isSrcFormatReplaceable && isDstFormatReplaceable)
         {
             // We should do a raw copy that respects channel swizzling if the flag is set and the channel formats
             // don't match. The process is simple: keep the channel formats and try to find a single numeric format
@@ -949,6 +920,14 @@ void RsrcProcMgr::GetCopyImageFormats(
                 (device.SupportsCopy(dstFormat.format, dstCreateInfo.tiling) == false))
             {
                 dstFormat = srcFormat;
+
+                // TA treats MM12_Unorm formats the same as MM12_Uint formats. Memory loads are be performed as expected,
+                // but stores are treated as Uint, leading to corruptions. In order to work around it, we must force source
+                // format to Uint as well.
+                if (isSrcFormatMm12Unorm)
+                {
+                    srcFormat.format = Formats::ConvertToUint(srcFormat.format);
+                }
             }
         }
         else
@@ -1025,25 +1004,19 @@ void RsrcProcMgr::CmdCopyMemoryToImage(
     {
         for (uint32 i = 0; i < regionCount; i++)
         {
-            fixupRegions[i].subres    = pRegions[i].imageSubres;
-            fixupRegions[i].offset    = pRegions[i].imageOffset;
-            fixupRegions[i].extent    = pRegions[i].imageExtent;
-            fixupRegions[i].numSlices = pRegions[i].numSlices;
+            fixupRegions[i].isScaledCopy = false;
+            fixupRegions[i].subres       = pRegions[i].imageSubres;
+            fixupRegions[i].numSlices    = pRegions[i].numSlices;
+            fixupRegions[i].box.offset   = pRegions[i].imageOffset;
+            fixupRegions[i].box.extent   = pRegions[i].imageExtent;
         }
-        FixupMetadataForComputeDst(pCmdBuffer, dstImage, dstImageLayout, regionCount, &fixupRegions[0], true);
+
+        FixupMetadataForComputeCopyDst(pCmdBuffer, dstImage, dstImageLayout, regionCount, &fixupRegions[0], true);
 
         CopyBetweenMemoryAndImage(pCmdBuffer, pPipeline, srcGpuMemory, dstImage, dstImageLayout, true, false,
                                   regionCount, pRegions, includePadding);
 
-        FixupMetadataForComputeDst(pCmdBuffer, dstImage, dstImageLayout, regionCount, &fixupRegions[0], false);
-
-        // If image is created with fullCopyDstOnly=1, there will be no expand when transition to "LayoutCopyDst"; if
-        // the copy isn't compressed copy, need fix up dst metadata to uncompressed state.
-        if (dstImage.GetImageCreateInfo().flags.fullCopyDstOnly != 0)
-        {
-            HwlFixupCopyDstImageMetaData(pCmdBuffer, nullptr, dstImage, dstImageLayout,
-                                         &fixupRegions[0], regionCount, false);
-        }
+        FixupMetadataForComputeCopyDst(pCmdBuffer, dstImage, dstImageLayout, regionCount, &fixupRegions[0], false);
     }
     else
     {
@@ -1688,25 +1661,19 @@ void RsrcProcMgr::CmdScaledCopyTypedBufferToImage(
     {
         for (uint32 i = 0; i < regionCount; i++)
         {
-            fixupRegions[i].subres    = pRegions[i].imageSubres;
-            fixupRegions[i].offset    = { pRegions[i].imageOffset.x, pRegions[i].imageOffset.y, 1 };
-            fixupRegions[i].extent    = { pRegions[i].imageExtent.width, pRegions[i].imageExtent.height, 1 };
-            fixupRegions[i].numSlices = 1;
+            fixupRegions[i].isScaledCopy = false;
+            fixupRegions[i].subres       = pRegions[i].imageSubres;
+            fixupRegions[i].numSlices    = 1;
+            fixupRegions[i].box.offset   = { pRegions[i].imageOffset.x, pRegions[i].imageOffset.y, 0 };
+            fixupRegions[i].box.extent   = { pRegions[i].imageExtent.width, pRegions[i].imageExtent.height, 1 };
         }
-        FixupMetadataForComputeDst(pCmdBuffer, dstImage, dstImageLayout, regionCount, &fixupRegions[0], true);
+
+        FixupMetadataForComputeCopyDst(pCmdBuffer, dstImage, dstImageLayout, regionCount, &fixupRegions[0], true);
 
         CopyBetweenTypedBufferAndImage(pCmdBuffer, pPipeline, srcGpuMemory, dstImage, dstImageLayout, true,
                                        regionCount, pRegions);
 
-        FixupMetadataForComputeDst(pCmdBuffer, dstImage, dstImageLayout, regionCount, &fixupRegions[0], false);
-
-        // If image is created with fullCopyDstOnly=1, there will be no expand when transition to "LayoutCopyDst"; if
-        // the copy isn't compressed copy, need fix up dst metadata to uncompressed state.
-        if (createInfo.flags.fullCopyDstOnly != 0)
-        {
-            HwlFixupCopyDstImageMetaData(pCmdBuffer, nullptr, dstImage, dstImageLayout,
-                                         &fixupRegions[0], regionCount, false);
-        }
+        FixupMetadataForComputeCopyDst(pCmdBuffer, dstImage, dstImageLayout, regionCount, &fixupRegions[0], false);
     }
     else
     {
@@ -1720,9 +1687,11 @@ void RsrcProcMgr::CmdScaledCopyImage(
     const ScaledCopyInfo&   copyInfo
     ) const
 {
-    const bool    useGraphicsCopy = ScaledCopyImageUseGraphics(pCmdBuffer, copyInfo);
-    const Image&  dstImage        = *static_cast<const Image*>(copyInfo.pDstImage);
-    Pm4CmdBuffer* pPm4CmdBuffer   = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
+    const bool        useGraphicsCopy = ScaledCopyImageUseGraphics(pCmdBuffer, copyInfo);
+    const uint32      regionCount     = copyInfo.regionCount;
+    const Image&      dstImage        = *static_cast<const Image*>(copyInfo.pDstImage);
+    const ImageLayout dstImageLayout  = copyInfo.dstImageLayout;
+    Pm4CmdBuffer*     pPm4CmdBuffer   = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
 
     if (useGraphicsCopy)
     {
@@ -1737,24 +1706,21 @@ void RsrcProcMgr::CmdScaledCopyImage(
     {
         // Note that we must call this helper function before and after our compute blit to fix up our image's
         // metadata if the copy isn't compatible with our layout's metadata compression level.
-        AutoBuffer<ImageFixupRegion, 32, Platform> fixupRegions(copyInfo.regionCount, m_pDevice->GetPlatform());
-        if (fixupRegions.Capacity() >= copyInfo.regionCount)
+        AutoBuffer<ImageFixupRegion, 32, Platform> fixupRegions(regionCount, m_pDevice->GetPlatform());
+        if (fixupRegions.Capacity() >= regionCount)
         {
-            for (uint32 i = 0; i < copyInfo.regionCount; i++)
+            for (uint32 i = 0; i < regionCount; i++)
             {
-                fixupRegions[i].subres        = copyInfo.pRegions[i].dstSubres;
-                fixupRegions[i].offset        = copyInfo.pRegions[i].dstOffset;
-                fixupRegions[i].extent.width  = Math::Absu(copyInfo.pRegions[i].dstExtent.width);
-                fixupRegions[i].extent.height = Math::Absu(copyInfo.pRegions[i].dstExtent.height);
-                fixupRegions[i].extent.depth  = Math::Absu(copyInfo.pRegions[i].dstExtent.depth);
+                fixupRegions[i].isScaledCopy = true;
+                fixupRegions[i].subres       = copyInfo.pRegions[i].dstSubres;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 887
-                fixupRegions[i].numSlices     = copyInfo.pRegions[i].numSlices;
+                fixupRegions[i].numSlices    = copyInfo.pRegions[i].numSlices;
 #else
-                fixupRegions[i].numSlices     = copyInfo.pRegions[i].dstSlices;
+                fixupRegions[i].numSlices    = copyInfo.pRegions[i].dstSlices;
 #endif
             }
-            FixupMetadataForComputeDst(pCmdBuffer, dstImage, copyInfo.dstImageLayout,
-                                       copyInfo.regionCount, &fixupRegions[0], true);
+
+            FixupMetadataForComputeCopyDst(pCmdBuffer, dstImage, dstImageLayout, regionCount, &fixupRegions[0], true);
 
             // Save current command buffer state and bind the pipeline.
             pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
@@ -1762,16 +1728,7 @@ void RsrcProcMgr::CmdScaledCopyImage(
             pCmdBuffer->CmdRestoreComputeStateInternal(ComputeStatePipelineAndUserData);
             pPm4CmdBuffer->SetCsBltIndirectWriteMisalignedMdState(dstImage.HasMisalignedMetadata());
 
-            FixupMetadataForComputeDst(pCmdBuffer, dstImage, copyInfo.dstImageLayout,
-                                       copyInfo.regionCount, &fixupRegions[0], false);
-
-            // If image is created with fullCopyDstOnly=1, there will be no expand when transition to
-            // "LayoutCopyDst"; if the copy isn't compressed copy, need fix up dst metadata to uncompressed state.
-            if (copyInfo.pDstImage->GetImageCreateInfo().flags.fullCopyDstOnly != 0)
-            {
-                HwlFixupCopyDstImageMetaData(pCmdBuffer, nullptr, dstImage, copyInfo.dstImageLayout,
-                                             &fixupRegions[0], copyInfo.regionCount, false);
-            }
+            FixupMetadataForComputeCopyDst(pCmdBuffer, dstImage, dstImageLayout, regionCount, &fixupRegions[0], false);
         }
         else
         {
@@ -2147,6 +2104,66 @@ void RsrcProcMgr::GenerateMipmapsSlow(
 }
 
 // =====================================================================================================================
+// If copy extent is negative, convert them accordingly.
+void RsrcProcMgr::ConvertNegativeImageScaledCopyRegion(
+    ImageScaledCopyRegion* pRegion,
+    bool                   coordsInFloat)
+{
+    if (coordsInFloat)
+    {
+        if (pRegion->dstExtentFloat.width < 0)
+        {
+            pRegion->dstOffsetFloat.x     = pRegion->dstOffsetFloat.x + pRegion->dstExtentFloat.width;
+            pRegion->srcOffsetFloat.x     = pRegion->srcOffsetFloat.x + pRegion->srcExtentFloat.width;
+            pRegion->srcExtentFloat.width = -pRegion->srcExtentFloat.width;
+            pRegion->dstExtentFloat.width = -pRegion->dstExtentFloat.width;
+        }
+
+        if (pRegion->dstExtentFloat.height < 0)
+        {
+            pRegion->dstOffsetFloat.y      = pRegion->dstOffsetFloat.y + pRegion->dstExtentFloat.height;
+            pRegion->srcOffsetFloat.y      = pRegion->srcOffsetFloat.y + pRegion->srcExtentFloat.height;
+            pRegion->srcExtentFloat.height = -pRegion->srcExtentFloat.height;
+            pRegion->dstExtentFloat.height = -pRegion->dstExtentFloat.height;
+        }
+
+        if (pRegion->dstExtentFloat.depth < 0)
+        {
+            pRegion->dstOffsetFloat.z     = pRegion->dstOffsetFloat.z + pRegion->dstExtentFloat.depth;
+            pRegion->srcOffsetFloat.z     = pRegion->srcOffsetFloat.z + pRegion->srcExtentFloat.depth;
+            pRegion->srcExtentFloat.depth = -pRegion->srcExtentFloat.depth;
+            pRegion->dstExtentFloat.depth = -pRegion->dstExtentFloat.depth;
+        }
+    }
+    else
+    {
+        if (pRegion->dstExtent.width < 0)
+        {
+            pRegion->dstOffset.x     = pRegion->dstOffset.x + pRegion->dstExtent.width;
+            pRegion->srcOffset.x     = pRegion->srcOffset.x + pRegion->srcExtent.width;
+            pRegion->srcExtent.width = -pRegion->srcExtent.width;
+            pRegion->dstExtent.width = -pRegion->dstExtent.width;
+        }
+
+        if (pRegion->dstExtent.height < 0)
+        {
+            pRegion->dstOffset.y      = pRegion->dstOffset.y + pRegion->dstExtent.height;
+            pRegion->srcOffset.y      = pRegion->srcOffset.y + pRegion->srcExtent.height;
+            pRegion->srcExtent.height = -pRegion->srcExtent.height;
+            pRegion->dstExtent.height = -pRegion->dstExtent.height;
+        }
+
+        if (pRegion->dstExtent.depth < 0)
+        {
+            pRegion->dstOffset.z     = pRegion->dstOffset.z + pRegion->dstExtent.depth;
+            pRegion->srcOffset.z     = pRegion->srcOffset.z + pRegion->srcExtent.depth;
+            pRegion->srcExtent.depth = -pRegion->srcExtent.depth;
+            pRegion->dstExtent.depth = -pRegion->dstExtent.depth;
+        }
+    }
+}
+
+// =====================================================================================================================
 void RsrcProcMgr::ScaledCopyImageCompute(
     GfxCmdBuffer*         pCmdBuffer,
     const ScaledCopyInfo& copyInfo
@@ -2239,12 +2256,9 @@ void RsrcProcMgr::ScaledCopyImageCompute(
 
         if (copyInfo.flags.coordsInFloat != 0)
         {
-            dstExtentW = static_cast<int32>((copyRegion.dstExtentFloat.width > 0) ?
-                (copyRegion.dstExtentFloat.width + 0.5f) : (copyRegion.dstExtentFloat.width - 0.5f));
-            dstExtentH = static_cast<int32>((copyRegion.dstExtentFloat.height > 0) ?
-                (copyRegion.dstExtentFloat.height + 0.5f) : (copyRegion.dstExtentFloat.height - 0.5f));
-            dstExtentD = static_cast<int32>((copyRegion.dstExtentFloat.depth > 0) ?
-                (copyRegion.dstExtentFloat.depth + 0.5f) : (copyRegion.dstExtentFloat.depth - 0.5f));
+            dstExtentW = int32(round(copyRegion.dstExtentFloat.width));
+            dstExtentH = int32(round(copyRegion.dstExtentFloat.height));
+            dstExtentD = int32(round(copyRegion.dstExtentFloat.depth));
         }
         else
         {
@@ -2264,58 +2278,7 @@ void RsrcProcMgr::ScaledCopyImageCompute(
             // otherwise the compute shader can't handle it. If dstExtent is negative in one
             // dimension, then we negate srcExtent in that dimension, and we adjust the offsets
             // as well.
-            if (copyInfo.flags.coordsInFloat != 0)
-            {
-                if (copyRegion.dstExtentFloat.width < 0)
-                {
-                    copyRegion.dstOffsetFloat.x = copyRegion.dstOffsetFloat.x + copyRegion.dstExtentFloat.width;
-                    copyRegion.srcOffsetFloat.x = copyRegion.srcOffsetFloat.x + copyRegion.srcExtentFloat.width;
-                    copyRegion.srcExtentFloat.width = -copyRegion.srcExtentFloat.width;
-                    copyRegion.dstExtentFloat.width = -copyRegion.dstExtentFloat.width;
-                }
-
-                if (copyRegion.dstExtentFloat.height < 0)
-                {
-                    copyRegion.dstOffsetFloat.y = copyRegion.dstOffsetFloat.y + copyRegion.dstExtentFloat.height;
-                    copyRegion.srcOffsetFloat.y = copyRegion.srcOffsetFloat.y + copyRegion.srcExtentFloat.height;
-                    copyRegion.srcExtentFloat.height = -copyRegion.srcExtentFloat.height;
-                    copyRegion.dstExtentFloat.height = -copyRegion.dstExtentFloat.height;
-                }
-
-                if (copyRegion.dstExtentFloat.depth < 0)
-                {
-                    copyRegion.dstOffsetFloat.z = copyRegion.dstOffsetFloat.z + copyRegion.dstExtentFloat.depth;
-                    copyRegion.srcOffsetFloat.z = copyRegion.srcOffsetFloat.z + copyRegion.srcExtentFloat.depth;
-                    copyRegion.srcExtentFloat.depth = -copyRegion.srcExtentFloat.depth;
-                    copyRegion.dstExtentFloat.depth = -copyRegion.dstExtentFloat.depth;
-                }
-            }
-            else
-            {
-                if (copyRegion.dstExtent.width < 0)
-                {
-                    copyRegion.dstOffset.x = copyRegion.dstOffset.x + copyRegion.dstExtent.width;
-                    copyRegion.srcOffset.x = copyRegion.srcOffset.x + copyRegion.srcExtent.width;
-                    copyRegion.srcExtent.width = -copyRegion.srcExtent.width;
-                    copyRegion.dstExtent.width = -copyRegion.dstExtent.width;
-                }
-
-                if (copyRegion.dstExtent.height < 0)
-                {
-                    copyRegion.dstOffset.y = copyRegion.dstOffset.y + copyRegion.dstExtent.height;
-                    copyRegion.srcOffset.y = copyRegion.srcOffset.y + copyRegion.srcExtent.height;
-                    copyRegion.srcExtent.height = -copyRegion.srcExtent.height;
-                    copyRegion.dstExtent.height = -copyRegion.dstExtent.height;
-                }
-
-                if (copyRegion.dstExtent.depth < 0)
-                {
-                    copyRegion.dstOffset.z = copyRegion.dstOffset.z + copyRegion.dstExtent.depth;
-                    copyRegion.srcOffset.z = copyRegion.srcOffset.z + copyRegion.srcExtent.depth;
-                    copyRegion.srcExtent.depth = -copyRegion.srcExtent.depth;
-                    copyRegion.dstExtent.depth = -copyRegion.dstExtent.depth;
-                }
-            }
+            ConvertNegativeImageScaledCopyRegion(&copyRegion, copyInfo.flags.coordsInFloat);
 
             // The shader expects the region data to be arranged as follows for each dispatch:
             // Src Normalized Left,  Src Normalized Top,   Src Normalized Start-Z (3D) or slice (1D/2D), extent width
@@ -3820,6 +3783,7 @@ void RsrcProcMgr::ClearImageCs(
     }
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 910
 // =====================================================================================================================
 // Builds commands to clear the contents of the buffer view (or the given ranges) to the given clear color.
 // The simplest way to implement this is to decode the SRD's view info and reuse CmdClearColorBuffer.
@@ -3848,6 +3812,7 @@ void RsrcProcMgr::CmdClearBufferView(
     const uint32 extent = viewExtent / viewStride;
     CmdClearColorBuffer(pCmdBuffer, dstGpuMemory, color, viewInfo.swizzledFormat, offset, extent, rangeCount, pRanges);
 }
+#endif
 
 // =====================================================================================================================
 // Builds commands to clear the contents of the buffer (or the given ranges) to the given clear color.
@@ -3992,6 +3957,7 @@ void RsrcProcMgr::CmdClearColorBuffer(
     }
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 910
 // =====================================================================================================================
 // Decode the SRD's format and range and forward most other arguments to CmdClearColorImage.
 void RsrcProcMgr::CmdClearImageView(
@@ -4053,6 +4019,7 @@ void RsrcProcMgr::CmdClearImageView(
         pCmdBuffer->NotifyAllocFailure();
     }
 }
+#endif
 
 // =====================================================================================================================
 // Expand DCC/Fmask/HTile and sync before shader-based (PS draw/CS dispatch) resolve image.
@@ -4348,7 +4315,7 @@ void RsrcProcMgr::ResolveImageCompute(
     Pm4CmdBuffer* pPm4CmdBuffer = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
     pPm4CmdBuffer->SetCsBltIndirectWriteMisalignedMdState(dstImage.HasMisalignedMetadata());
 
-    FixupComputeResolveDst(pCmdBuffer, dstImage, regionCount, pRegions);
+    FixupMetadataForComputeResolveDst(pCmdBuffer, dstImage, regionCount, pRegions);
 
     FixupLateExpandShaderResolveSrc(pCmdBuffer, srcImage, srcImageLayout, pRegions, regionCount, method, true);
 }

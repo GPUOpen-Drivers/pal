@@ -477,10 +477,9 @@ static void RegistryHandleGlobal(
     }
     else if (strcmp(pInterface, "zwp_linux_dmabuf_v1") == 0)
     {
-        if (pWaylandWindowSystem->UseZwpDmaBufProtocol() == true)
+        if ((pWaylandWindowSystem->UseZwpDmaBufProtocol()) &&
+            (version >= ZWP_LINUX_DMABUF_V1_GET_DEFAULT_FEEDBACK_SINCE_VERSION))
         {
-            PAL_ASSERT(version >= ZWP_LINUX_DMABUF_V1_GET_DEFAULT_FEEDBACK_SINCE_VERSION);
-
             zwp_linux_dmabuf_v1* pDmaBuffer = reinterpret_cast<struct zwp_linux_dmabuf_v1*>(
                 pWaylandWindowSystem->GetWaylandProcs().pfnWlProxyMarshalConstructorVersioned(
                     reinterpret_cast<wl_proxy*>(pRegistry),
@@ -623,7 +622,8 @@ WaylandPresentFence::WaylandPresentFence(
     m_pImage(nullptr),
     m_explicitSyncData{0}
 {
-
+    m_explicitSyncData.acquire.syncObjFd = InvalidFd;
+    m_explicitSyncData.release.syncObjFd = InvalidFd;
 }
 
 // =====================================================================================================================
@@ -747,7 +747,7 @@ Result WaylandPresentFence::WaitForCompletionExplicitSync(
     // If the image is still in use by the compositor, wait for its release
     if (m_pImage->GetIdle() == false)
     {
-        ret = m_windowSystem.WaitForExplicitSyncRelease(m_explicitSyncData, doWait);
+        ret = m_windowSystem.WaitForExplicitSyncRelease(this, doWait);
         if (ret == Result::Success)
         {
             m_pImage->SetIdle(true);
@@ -791,8 +791,7 @@ WaylandWindowSystem::WaylandWindowSystem(
     const Device&                 device,
     const WindowSystemCreateInfo& createInfo)
     :
-    WindowSystem(createInfo.platform),
-    m_device(device),
+    WindowSystem(device, createInfo.platform),
     m_pDisplay(static_cast<wl_display*>(createInfo.hDisplay)),
     m_pSurface(static_cast<wl_surface*>(createInfo.hWindow.pSurface)),
     m_waylandLoader(device.GetPlatform()->GetWaylandLoader()),
@@ -1107,12 +1106,12 @@ Result WaylandWindowSystem::Present(
         // Set new acquire and release points in the compositor
         m_waylandProcs.pfnWlProxyMarshal(reinterpret_cast<wl_proxy*>(m_pSyncObjSurface),
                                          WP_LINUX_DRM_SYNCOBJ_SURFACE_V1_SET_ACQUIRE_POINT,
-                                         pImageExplicitSyncData->acquire.pSyncObjTimeline,
+                                         pImageExplicitSyncData->acquire.pWaylandSyncObjTimeline,
                                          uint32(acquirePoint >> 32),
                                          uint32(acquirePoint & 0xffffffff));
         m_waylandProcs.pfnWlProxyMarshal(reinterpret_cast<wl_proxy*>(m_pSyncObjSurface),
                                          WP_LINUX_DRM_SYNCOBJ_SURFACE_V1_SET_RELEASE_POINT,
-                                         pImageExplicitSyncData->release.pSyncObjTimeline,
+                                         pImageExplicitSyncData->release.pWaylandSyncObjTimeline,
                                          uint32(releasePoint >> 32),
                                          uint32(releasePoint & 0xffffffff));
     }
@@ -1592,39 +1591,29 @@ Result WaylandWindowSystem::InitExplicitSyncObject(
     ExplicitSyncObject* pSyncObject
     ) const
 {
-    Result                ret           = Result::ErrorInitializationFailed;
-    amdgpu_syncobj_handle syncObjHandle = 0;
-
-    // 1. Create DRM sync object
-    if (m_device.CreateSyncObject(0, &syncObjHandle) == Result::Success)       // drmSyncobjCreate() underneath
+    // 1. Create DRM sync object and export to FD
+    Result ret = WindowSystem::InitExplicitSyncObject(pSyncObject);
+    if (ret == Result::Success)
     {
-        // 2. Export it to FD
-        OsExternalHandle syncObjFd = m_device.ExportSyncObject(syncObjHandle); // drmSyncobjHandleToFD() underneath
-        if (syncObjFd >= 0)
+        // 2. Import FD into Wayland to create syncobj timeline
+        auto* pSyncObjTimeline = reinterpret_cast<wp_linux_drm_syncobj_timeline_v1*>(
+                                                                m_waylandProcs.pfnWlProxyMarshalConstructor(
+                                                                    reinterpret_cast<wl_proxy*>(m_pSyncObjManager),
+                                                                    WP_LINUX_DRM_SYNCOBJ_MANAGER_V1_IMPORT_TIMELINE,
+                                                                    &wp_linux_drm_syncobj_timeline_v1_interface,
+                                                                    nullptr,
+                                                                    static_cast<int32>(pSyncObject->syncObjFd)));
+        if (pSyncObjTimeline != nullptr)
         {
-            // 3. Import FD into Wayland to create syncobj timeline
-            auto* pSyncObjTimeline = reinterpret_cast<wp_linux_drm_syncobj_timeline_v1*>(
-                                                                    m_waylandProcs.pfnWlProxyMarshalConstructor(
-                                                                        reinterpret_cast<wl_proxy*>(m_pSyncObjManager),
-                                                                        WP_LINUX_DRM_SYNCOBJ_MANAGER_V1_IMPORT_TIMELINE,
-                                                                        &wp_linux_drm_syncobj_timeline_v1_interface,
-                                                                        nullptr,
-                                                                        static_cast<int32>(syncObjFd)));
-            if (pSyncObjTimeline != nullptr)
-            {
-                ret                         = Result::Success;
-                pSyncObject->syncObjHandle    = syncObjHandle;
-                pSyncObject->pSyncObjTimeline = pSyncObjTimeline;
-                pSyncObject->timeline         = 0;
-            }
+            pSyncObject->pWaylandSyncObjTimeline = pSyncObjTimeline;
 
-            // 4. Close FD - not needed after importing it into Wayland
-            close(syncObjFd);
+            close(pSyncObject->syncObjFd);      // Close FD - not needed after importing it into Wayland
+            pSyncObject->syncObjFd = InvalidFd;
         }
-
-        if (ret != Result::Success)
+        else
         {
-            m_device.DestroySyncObject(syncObjHandle);
+            WindowSystem::DestroyExplicitSyncObject(pSyncObject);
+            ret = Result::ErrorInitializationFailed;
         }
     }
 
@@ -1637,65 +1626,17 @@ void WaylandWindowSystem::DestroyExplicitSyncObject(
     ExplicitSyncObject* pSyncObject
     ) const
 {
-    if (pSyncObject->pSyncObjTimeline != nullptr)
+    // Destroy Wayland specific object
+    if (pSyncObject->pWaylandSyncObjTimeline != nullptr)
     {
-        m_waylandProcs.pfnWlProxyMarshal(reinterpret_cast<wl_proxy*>(pSyncObject->pSyncObjTimeline),
+        m_waylandProcs.pfnWlProxyMarshal(reinterpret_cast<wl_proxy*>(pSyncObject->pWaylandSyncObjTimeline),
                                          WP_LINUX_DRM_SYNCOBJ_TIMELINE_V1_DESTROY);
-        m_waylandProcs.pfnWlProxyDestroy(reinterpret_cast<wl_proxy*>(pSyncObject->pSyncObjTimeline));
-        pSyncObject->pSyncObjTimeline = nullptr;
+        m_waylandProcs.pfnWlProxyDestroy(reinterpret_cast<wl_proxy*>(pSyncObject->pWaylandSyncObjTimeline));
+        pSyncObject->pWaylandSyncObjTimeline = nullptr;
     }
 
-    if (pSyncObject->syncObjHandle != 0)
-    {
-        m_device.DestroySyncObject(pSyncObject->syncObjHandle);
-        pSyncObject->syncObjHandle = 0;
-    }
-
-    pSyncObject->timeline = 0;
-}
-
-// =====================================================================================================================
-// Signal the acquire syncobj when the most recently submitted GPU work on the given queue is completed.
-// This will inform the compositor that it can start using the image.
-Result WaylandWindowSystem::SignalExplicitSyncAcquire(
-    const ExplicitSyncData& imageExplicitSyncData,
-    IQueue*                 pQueue
-    ) const
-{
-    // Undereneath, it will copy the state of the syncobj that was submitted with the recent command buffer
-    // to the acquireSyncObj once the command buffer is executed. This way it's not needed for acquireSyncObj
-    // to be submitted directly.
-    Queue* pAmdGpuQueue = static_cast<Queue*>(pQueue);
-    return pAmdGpuQueue->SignalSemaphore(
-        reinterpret_cast<amdgpu_semaphore_handle>(imageExplicitSyncData.acquire.syncObjHandle),
-        imageExplicitSyncData.acquire.timeline);
-}
-
-// =====================================================================================================================
-// Wait for the release syncobj to be signaled by the compositor
-Result WaylandWindowSystem::WaitForExplicitSyncRelease(
-    const ExplicitSyncData& imageExplicitSyncData,
-    bool                    doWait
-    ) const
-{
-    if (imageExplicitSyncData.release.timeline == 0)
-    {
-        // The timeline has never been incremented, which means the related image hasn't been used yet and it's idle.
-        return Result::Success;
-    }
-
-    auto timeoutNs = doWait ? std::chrono::nanoseconds::max()
-                            : std::chrono::nanoseconds(0);
-
-    // Underneath it's drmSyncobjTimelineWait(). release.timeline is a recently sent release sync point for this image,
-    // DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT waits also for an underlying fence materialization if it's still NULL.
-    Result ret = m_device.WaitSemaphoreValue(
-        reinterpret_cast<amdgpu_semaphore_handle>(imageExplicitSyncData.release.syncObjHandle),
-        imageExplicitSyncData.release.timeline,
-        DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT,
-        timeoutNs);
-
-    return ret;
+    // Destroy common objects
+    WindowSystem::DestroyExplicitSyncObject(pSyncObject);
 }
 
 } // Amdgpu
