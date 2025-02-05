@@ -1301,11 +1301,8 @@ void WaylandWindowSystem::ConfigPresentOnSameGpu()
             drmNodeMinor = drmProps.primaryDrmNodeMinor;
 
         }
-        if ((major(m_DmaDevice) == drmNodeMajor) &&
-            (minor(m_DmaDevice) == drmNodeMinor))
-        {
-            m_presentOnSameGpu = true;
-        }
+        m_presentOnSameGpu = ((major(m_DmaDevice) == drmNodeMajor) &&
+            (minor(m_DmaDevice) == drmNodeMinor));
     }
     else
     {
