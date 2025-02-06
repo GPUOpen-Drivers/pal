@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -111,7 +111,6 @@ Platform::Platform(
     :
     Pal::IPlatform(allocCb),
     m_deviceCount(0),
-    m_clientApiId(createInfo.clientApiId),
     m_clientApiMajorVer(createInfo.apiMajorVer),
     m_clientApiMinorVer(createInfo.apiMinorVer),
     m_pDevDriverServer(nullptr),
@@ -1254,8 +1253,10 @@ bool Platform::IsRaytracingShaderDataTokenRequested() const
 // =====================================================================================================================
 bool Platform::ShowDevDriverOverlay() const
 {
-    bool                                   showOverlay        = false;
-    DriverUtilsService::OverlayDisplayMode overlayDisplayMode = DriverUtilsService::OverlayDisplayMode::Default;
+    using namespace DriverUtilsService;
+
+    bool               showOverlay        = false;
+    OverlayDisplayMode overlayDisplayMode = OverlayDisplayMode::Default;
 
     // Check to see if a devdriver client has specified when to display the overlay.
     // If not then continue to the default behavior which is to switch off the overlay
@@ -1267,10 +1268,10 @@ bool Platform::ShowDevDriverOverlay() const
 
     switch (overlayDisplayMode)
     {
-        case DriverUtilsService::OverlayDisplayMode::AlwaysOn:
+        case OverlayDisplayMode::AlwaysOn:
             showOverlay = true;
             break;
-        case DriverUtilsService::OverlayDisplayMode::AlwaysOff:
+        case OverlayDisplayMode::AlwaysOff:
             showOverlay = false;
             break;
         default:
@@ -1286,6 +1287,12 @@ bool Platform::ShowDevDriverOverlay() const
                                 (sessionState != GpuUtil::TraceSessionState::Preparing));
             }
 #endif
+            // Emulation usually needs to test the rendered final image. Overlay display would pollute the final image.
+            // So disable overlay when emulation is enabled, overriding showOverlay's previous value.
+            if (IsEmulationEnabled())
+            {
+                showOverlay = false;
+            }
             break;
     }
 
@@ -1312,19 +1319,8 @@ void Platform::LogMessage(
 // =====================================================================================================================
 const char* Platform::GetClientApiStr() const
 {
-    const char* pStr = "Invalid Driver";
-
-    switch(m_clientApiId)
-    {
-    case ClientApi::Pal:
-        pStr = "AMD PAL";
-        break;
-    case ClientApi::Vulkan:
-        pStr = "AMD Vulkan Driver";
-        break;
-    }
-
-    return pStr;
+    // See PAL_VALID_CLIENTS in PalBuildParameters.cmake for the full list of PAL_CLIENT macros.
+    return "AMD Vulkan Driver";
 }
 
 } // Pal

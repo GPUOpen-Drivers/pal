@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -385,7 +385,6 @@ struct GpuEngineProperties
         uint32   startAlign;                    // Alignment requirement for the starting address of command buffers.
         uint32   sizeAlignInDwords;             // Alignment requirement for the size of command buffers.
         uint32   maxControlFlowNestingDepth;    // Maximum depth of nested control-flow operations in command buffers.
-        uint32   availableCeRamSize;            // Size of CE RAM available on this queue for use by clients.
         Extent3d minTiledImageCopyAlignment;    // Minimum alignments for X/Y/Z/Width/Height/Depth for
                                                 // ICmdBuffer::CmdCopyImage() between optimally tiled images.
         Extent3d minTiledImageMemCopyAlignment; // Minimum alignments for X/Y/Z/Width/Height/Depth for
@@ -420,14 +419,12 @@ struct GpuEngineProperties
                 uint32 memory32bPredicationSupport     :  1;
                 uint32 conditionalExecutionSupport     :  1;
                 uint32 loopExecutionSupport            :  1;
-                uint32 constantEngineSupport           :  1;
                 uint32 regMemAccessSupport             :  1;
                 uint32 supportsMismatchedTileTokenCopy :  1;
                 uint32 supportsImageInitBarrier        :  1;
                 uint32 supportsImageInitPerSubresource :  1;
                 uint32 indirectBufferSupport           :  1;
                 uint32 supportVirtualMemoryRemap       :  1;
-                uint32 supportPersistentCeRam          :  1;
                 uint32 supportsMidCmdBufPreemption     :  1;
                 uint32 supportSvm                      :  1;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 834
@@ -441,7 +438,7 @@ struct GpuEngineProperties
                 uint32 memory32bPredicationEmulated    :  1;
                 uint32 supportsClearCopyMsaaDsDst      :  1;
                 uint32 supportsPws                     :  1; // HW supports pixel wait sync plus.
-                uint32 reserved                        :  6;
+                uint32 reserved                        :  8;
             };
             uint32 u32All;
         } flags;
@@ -699,7 +696,6 @@ struct GpuChipProperties
         uint32 numOffchipTessBuffers;
         uint32 offChipTessBufferSize;                // Size of each off-chip tessellation buffer in bytes.
         uint32 tessFactorBufferSizePerSe;            // Size of the tessellation-factor buffer per SE, in bytes.
-        uint32 ceRamSize;                            // Maximum on-chip CE RAM size in bytes.
         uint32 maxPrimgroupSize;
         uint32 mallSizeInBytes;                      // Total size in bytes of MALL (Memory Attached Last Level - L3)
                                                      // cache in the device.
@@ -1746,11 +1742,6 @@ public:
     CmdStream* GetDummyCommandStream(EngineType engineType)
         { return m_pDummyCommandStreams[engineType]; }
 
-    size_t CeRamBytesUsed(EngineType engine) const
-        { return m_finalizeInfo.ceRamSizeUsed[engine]; }
-
-    size_t CeRamDwordsUsed(EngineType engine) const { return CeRamBytesUsed(engine) / sizeof(uint32); }
-
     // Override per-device settings as needed
     virtual void OverrideDefaultSettings(PalSettings* pSettings) const {}
 
@@ -1776,9 +1767,6 @@ public:
 
     bool IsPreemptionSupported(EngineType engineType) const
         { return m_engineProperties.perEngine[engineType].flags.supportsMidCmdBufPreemption; }
-
-    bool IsConstantEngineSupported(EngineType engineType) const
-        { return (m_engineProperties.perEngine[engineType].flags.constantEngineSupport != 0); }
 
     // Returns whether any pixel-wait-sync-plus feature can be enabled.
     bool UsePws(EngineType engineType) const;
@@ -1882,6 +1870,9 @@ public:
     {
         return Result::Unsupported;
     }
+
+    virtual bool ImagePrefersCloneCopy(
+        const ImageCreateInfo& createInfo) const override;
 
     void LogCodeObjectToDisk(
         Util::StringView<char> prefix,

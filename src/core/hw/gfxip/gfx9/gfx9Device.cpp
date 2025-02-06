@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -84,7 +84,6 @@ constexpr SamplerSrd NullSampler    = {};
 constexpr uint32 UcodeVersionWithDumpOffsetSupport = 30;
 
 // Microcode version for SET_SH_REG_OFFSET with 256B alignment.
-constexpr uint32 Gfx9UcodeVersionSetShRegOffset256B  = 42;
 constexpr uint32 Gfx10UcodeVersionSetShRegOffset256B = 27;
 
 // =====================================================================================================================
@@ -104,7 +103,7 @@ static inline bool TestCpFwVersions(
 // =====================================================================================================================
 size_t GetDeviceSize()
 {
-    return (sizeof(Device) + sizeof(Gfx10RsrcProcMgr));
+    return (sizeof(Device) + sizeof(RsrcProcMgr));
 }
 
 // =====================================================================================================================
@@ -132,12 +131,12 @@ Result CreateDevice(
 #if PAL_BUILD_GFX115
         case GfxIpLevel::GfxIp11_5:
 #endif
-            pPfnTable->pfnCreateTypedBufViewSrds   = &Device::Gfx10CreateTypedBufferViewSrds;
-            pPfnTable->pfnCreateUntypedBufViewSrds = &Device::Gfx10CreateUntypedBufferViewSrds;
-            pPfnTable->pfnCreateImageViewSrds      = &Device::Gfx10CreateImageViewSrds;
-            pPfnTable->pfnCreateSamplerSrds        = &Device::Gfx10CreateSamplerSrds;
-            pPfnTable->pfnDecodeBufferViewSrd      = &Device::Gfx10DecodeBufferViewSrd;
-            pPfnTable->pfnDecodeImageViewSrd       = &Device::Gfx10DecodeImageViewSrd;
+            pPfnTable->pfnCreateTypedBufViewSrds   = &Device::CreateTypedBufferViewSrds;
+            pPfnTable->pfnCreateUntypedBufViewSrds = &Device::CreateUntypedBufferViewSrds;
+            pPfnTable->pfnCreateImageViewSrds      = &Device::CreateImageViewSrds;
+            pPfnTable->pfnCreateSamplerSrds        = &Device::CreateSamplerSrds;
+            pPfnTable->pfnDecodeBufferViewSrd      = &Device::DecodeBufferViewSrd;
+            pPfnTable->pfnDecodeImageViewSrd       = &Device::DecodeImageViewSrd;
             break;
 
         default:
@@ -262,7 +261,7 @@ Result Device::EarlyInit()
     // following the shader cache in memory, even if the shader cache ends up not being created.
     void*const pRpmPlacementAddr = (this + 1);
 
-    m_pRsrcProcMgr = PAL_PLACEMENT_NEW(pRpmPlacementAddr) Pal::Gfx9::Gfx10RsrcProcMgr(this);
+    m_pRsrcProcMgr = PAL_PLACEMENT_NEW(pRpmPlacementAddr) Pal::Gfx9::RsrcProcMgr(this);
 
     Result result = m_pipelineLoader.Init();
 
@@ -810,13 +809,7 @@ Result Device::CreateQueueContext(
         {
             const bool useStateShadowing = UseStateShadowing(createInfo.engineType);
             UniversalQueueContext* pContext =
-                PAL_PLACEMENT_NEW(pPlacementAddr) UniversalQueueContext(
-                this,
-                useStateShadowing,
-                createInfo.persistentCeRamOffset,
-                createInfo.persistentCeRamSize,
-                pEngine,
-                engineId);
+                PAL_PLACEMENT_NEW(pPlacementAddr) UniversalQueueContext(this, useStateShadowing, pEngine, engineId);
 
             result = pContext->Init();
 
@@ -2707,6 +2700,53 @@ size_t Device::GetImageSize(
 }
 
 // =====================================================================================================================
+// Supposed to help improve the clone copy preference logic by sharing client tuning data with PAL.
+bool Device::ImagePrefersCloneCopy(
+    const ImageCreateInfo& createInfo
+    ) const
+{
+    const ChNumFormat format    = createInfo.swizzledFormat.format;
+    bool              cloneCopy = false;
+
+    if (IsGfx101(m_gfxIpLevel))
+    {
+        // Use clone copy for MSAA images with,
+        //   1. Depth stencil images.
+        //   2. 8bpp color images.
+        cloneCopy = (createInfo.fragments > 1) &&
+                    (createInfo.usageFlags.depthStencil || (Formats::BitsPerPixel(format) == 8));
+    }
+    else // For Gfx103+
+    {
+        // Use clone copy for depth stencil images with:
+        //   1. Depth or stencil only images.
+        //   2. Depth stencil MSAA images.
+        //   3. A few 8bpp MSAA images.
+        if (createInfo.usageFlags.depthStencil)
+        {
+            const uint32 planeCount = (Parent()->SupportsDepth(format, ImageTiling::Optimal) &&
+                                       Parent()->SupportsStencil(format, ImageTiling::Optimal)) ? 2 : 1;
+
+            // Note that for (planeCount == 2) case, non-clone copy is slightly better than clone copy in some modes
+            // (resolution/fragments), always use clone copy for simple logic here.
+            cloneCopy = (planeCount == 1) || (createInfo.fragments > 1);
+        }
+        else // Allow for some 8bpp MSAA images.
+        {
+            const Extent3d& extent = createInfo.extent;
+
+            // For images with size satisfies (W*H*ArraySize*fragments) <= (3840*2160*1*4).
+            cloneCopy = (createInfo.fragments > 1)           &&
+                        (Formats::BitsPerPixel(format) == 8) &&
+                        ((uint64(extent.width) * extent.height * createInfo.arraySize * createInfo.fragments) <=
+                         (3840 * 2160 * 4));
+        }
+    }
+
+    return cloneCopy;
+}
+
+// =====================================================================================================================
 // Creates a concrete Gfx9 GfxImage object
 void Device::CreateImage(
     Pal::Image* pParentImage,
@@ -2875,7 +2915,7 @@ size_t Device::GetIndirectCmdGeneratorSize(
 {
     if (pResult != nullptr)
     {
-        (*pResult) = Pm4::IndirectCmdGenerator::ValidateCreateInfo(createInfo);
+        (*pResult) = Pal::IndirectCmdGenerator::ValidateCreateInfo(createInfo);
     }
 
     return IndirectCmdGenerator::GetSize(createInfo);
@@ -2890,7 +2930,7 @@ Result Device::CreateIndirectCmdGenerator(
 {
     PAL_ASSERT((pPlacementAddr != nullptr) && (ppGenerator != nullptr));
 #if PAL_ENABLE_PRINTS_ASSERTS
-    PAL_ASSERT(Pm4::IndirectCmdGenerator::ValidateCreateInfo(createInfo) == Result::Success);
+    PAL_ASSERT(Pal::IndirectCmdGenerator::ValidateCreateInfo(createInfo) == Result::Success);
 #endif
 
     (*ppGenerator) = PAL_PLACEMENT_NEW(pPlacementAddr) IndirectCmdGenerator(*this, createInfo);
@@ -2946,7 +2986,7 @@ size_t Device::GetDepthStencilViewSize(
     }
 
     // Reuse the Gfx10-implementation of depth views for GFX11.
-    return sizeof(Gfx10DepthStencilView);
+    return sizeof(DepthStencilView);
 }
 
 // =====================================================================================================================
@@ -2962,7 +3002,7 @@ Result Device::CreateDepthStencilView(
 
     // Reuse the Gfx10-implementation of depth views for GFX11.
     (*ppDepthStencilView) =
-        PAL_PLACEMENT_NEW(pPlacementAddr) Gfx10DepthStencilView(this, createInfo, internalInfo, viewId);
+        PAL_PLACEMENT_NEW(pPlacementAddr) DepthStencilView(this, createInfo, internalInfo, viewId);
 
     return Result::Success;
 }
@@ -3340,8 +3380,8 @@ uint32 Device::BufferSrdResourceLevel() const
 }
 
 // =====================================================================================================================
-// Gfx10 specific function for creating typed buffer view SRDs.
-void PAL_STDCALL Device::Gfx10CreateTypedBufferViewSrds(
+// Gfx10+ function for creating typed buffer view SRDs.
+void PAL_STDCALL Device::CreateTypedBufferViewSrds(
     const IDevice*        pDevice,
     uint32                count,
     const BufferViewInfo* pBufferViewInfo,
@@ -3410,8 +3450,8 @@ void PAL_STDCALL Device::Gfx10CreateTypedBufferViewSrds(
 }
 
 // =====================================================================================================================
-// Gfx10 specific function for creating untyped buffer view SRDs.
-void PAL_STDCALL Device::Gfx10CreateUntypedBufferViewSrds(
+// Gfx10+ function for creating untyped buffer view SRDs.
+void PAL_STDCALL Device::CreateUntypedBufferViewSrds(
     const IDevice*        pDevice,
     uint32                count,
     const BufferViewInfo* pBufferViewInfo,
@@ -3675,7 +3715,7 @@ static uint32 DecodeImageViewSrdPlane(
 
 // =====================================================================================================================
 template <typename SrdType>
-static uint32 Gfx10RetrieveHwFmtFromSrd(
+static uint32 RetrieveHwFmtFromSrd(
     const Pal::Device& palDevice,
     const SrdType*     pSrd)
 {
@@ -3694,7 +3734,7 @@ static uint32 Gfx10RetrieveHwFmtFromSrd(
 }
 
 // =====================================================================================================================
-void PAL_STDCALL Device::Gfx10DecodeBufferViewSrd(
+void PAL_STDCALL Device::DecodeBufferViewSrd(
     const IDevice*  pDevice,
     const void*     pBufferViewSrd,
     BufferViewInfo* pViewInfo)
@@ -3702,7 +3742,7 @@ void PAL_STDCALL Device::Gfx10DecodeBufferViewSrd(
     const Pal::Device* pPalDevice = static_cast<const Pal::Device*>(pDevice);
 
     const auto* pSrd     = static_cast<const sq_buf_rsrc_t*>(pBufferViewSrd);
-    const BUF_FMT  hwFmt = static_cast<BUF_FMT>(Gfx10RetrieveHwFmtFromSrd(*pPalDevice, pSrd));
+    const BUF_FMT  hwFmt = static_cast<BUF_FMT>(RetrieveHwFmtFromSrd(*pPalDevice, pSrd));
 
     // Verify that we have a buffer view SRD.
     PAL_ASSERT(pSrd->type == SQ_RSRC_BUF);
@@ -3729,7 +3769,7 @@ void PAL_STDCALL Device::Gfx10DecodeBufferViewSrd(
 
 // =====================================================================================================================
 // GFX10+ specific function for extracting the SRD's subresource range, format, and Z range.
-void PAL_STDCALL Device::Gfx10DecodeImageViewSrd(
+void PAL_STDCALL Device::DecodeImageViewSrd(
     const IDevice*   pDevice,
     const IImage*    pImage,
     const void*      pImageViewSrd,
@@ -3744,7 +3784,7 @@ void PAL_STDCALL Device::Gfx10DecodeImageViewSrd(
     const GfxIpLevel       gfxLevel   = pPalDevice->ChipProperties().gfxLevel;
 
     const auto*   pSrd  = static_cast<const sq_img_rsrc_t*>(pImageViewSrd);
-    const IMG_FMT hwFmt = static_cast<IMG_FMT>(Gfx10RetrieveHwFmtFromSrd(*pPalDevice, pSrd));
+    const IMG_FMT hwFmt = static_cast<IMG_FMT>(RetrieveHwFmtFromSrd(*pPalDevice, pSrd));
 
     // Verify that we have an image view SRD.
     PAL_ASSERT((pSrd->type >= SQ_RSRC_IMG_1D) && (pSrd->type <= SQ_RSRC_IMG_2D_MSAA_ARRAY));
@@ -3860,7 +3900,7 @@ void PAL_STDCALL Device::Gfx10DecodeImageViewSrd(
 }
 
 // =====================================================================================================================
-void Device::Gfx10SetImageSrdDims(
+void Device::SetImageSrdDims(
     sq_img_rsrc_t*  pSrd,
     uint32          width,
     uint32          height
@@ -4171,7 +4211,7 @@ static void Gfx10UpdateLinkedResourceViewSrd(
 }
 
 // =====================================================================================================================
-void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
+void PAL_STDCALL Device::CreateImageViewSrds(
     const IDevice*       pDevice,
     uint32               count,
     const ImageViewInfo* pImgViewInfo,
@@ -4484,7 +4524,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
         }
 
         const Extent3d programmedExtent = (includePadding) ? actualExtent : extent;
-        pGfxDevice->Gfx10SetImageSrdDims(&srd, programmedExtent.width, programmedExtent.height);
+        pGfxDevice->SetImageSrdDims(&srd, programmedExtent.width, programmedExtent.height);
 
         // Setup CCC filtering optimizations: GCN uses a simple scheme which relies solely on the optimization
         // setting from the CCC rather than checking the render target resolution.
@@ -4848,7 +4888,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
 }
 
 // =====================================================================================================================
-// Gfx9+ specific function for creating fmask view SRDs. Installed in the function pointer table of the parent device
+// Gfx10 specific function for creating fmask view SRDs. Installed in the function pointer table of the parent device
 // during initialization.
 void PAL_STDCALL Device::CreateFmaskViewSrds(
     const IDevice*        pDevice,
@@ -4876,7 +4916,7 @@ void PAL_STDCALL Device::CreateFmaskViewSrds(
 // =====================================================================================================================
 // GFX10-specific function to create an fmask-specific SRD.  If internal info is not required pFmaskViewInternalInfo
 // can be set to null, otherwise it must be a pointer to a valid internal-info structure.
-void Device::Gfx10CreateFmaskViewSrdsInternal(
+void Device::CreateFmaskViewSrdsInternal(
     const FmaskViewInfo&          viewInfo,
     const FmaskViewInternalInfo*  pFmaskViewInternalInfo,
     sq_img_rsrc_t*                pSrd
@@ -4910,7 +4950,7 @@ void Device::Gfx10CreateFmaskViewSrdsInternal(
 
     pSrd->gfx10.big_page       = bigPageCompat;
 
-    Gfx10SetImageSrdDims(pSrd, subresInfo.extentTexels.width, subresInfo.extentTexels.height);
+    SetImageSrdDims(pSrd, subresInfo.extentTexels.width, subresInfo.extentTexels.height);
     pSrd->perf_mod = 0;
 
     // For Fmask views, destination swizzles are based on the bit depth of the Fmask buffer.
@@ -4979,14 +5019,7 @@ void Device::CreateFmaskViewSrdsInternal(
         {
             ImageSrd srd = {};
 
-            if (IsGfx10(m_gfxIpLevel))
-            {
-                Gfx10CreateFmaskViewSrdsInternal(viewInfo, pInternalInfo, &srd);
-            }
-            else
-            {
-                PAL_ASSERT_ALWAYS();
-            }
+            CreateFmaskViewSrdsInternal(viewInfo, pInternalInfo, &srd);
 
             pSrds[i] = srd;
         }
@@ -5016,9 +5049,9 @@ void Device::SetSrdBorderColorPtr(
 }
 
 // =====================================================================================================================
-// Gfx10 specific function for creating sampler SRDs. Installed in the function pointer table of the parent device
+// Gfx10+ function for creating sampler SRDs. Installed in the function pointer table of the parent device
 // during initialization.
-void PAL_STDCALL Device::Gfx10CreateSamplerSrds(
+void PAL_STDCALL Device::CreateSamplerSrds(
     const IDevice*     pDevice,
     uint32             count,
     const SamplerInfo* pSamplerInfo,
@@ -5243,7 +5276,7 @@ static_assert(static_cast<uint32>(Pal::BoxSortHeuristic::ClosestMidPoint) == 2,
     "HW value is not identical to Pal::BoxSortHeuristic::ClosestMidPoint enum value.");
 
 // =====================================================================================================================
-// Gfx9+ specific function for creating ray trace SRDs. Installed in the function pointer table of the parent device
+// Gfx10+ function for creating ray trace SRDs. Installed in the function pointer table of the parent device
 // during initialization.
 void PAL_STDCALL Device::CreateBvhSrds(
     const IDevice*  pDevice,
@@ -5576,8 +5609,8 @@ void InitializeGpuChipProperties(
 
     pInfo->gfxip.supportGl2Uncached      = 1;
     pInfo->gfxip.gl2UncachedCpuCoherency = (CoherCpu | CoherShader | CoherIndirectArgs | CoherIndexData |
-                                            CoherQueueAtomic | CoherTimestamp | CoherCeLoad | CoherCeDump |
-                                            CoherStreamOut | CoherMemory | CoherCp | CoherSampleRate);
+                                            CoherQueueAtomic | CoherTimestamp | CoherStreamOut | CoherMemory |
+                                            CoherCp | CoherSampleRate);
 
     pInfo->gfxip.supportCaptureReplay    = 1;
 
@@ -6565,7 +6598,6 @@ void InitializeGpuEngineProperties(
     pUniversal->flags.memory64bPredicationSupport     = 1;
     pUniversal->flags.conditionalExecutionSupport     = 1;
     pUniversal->flags.loopExecutionSupport            = 1;
-    pUniversal->flags.constantEngineSupport           = (chipProps.gfxip.ceRamSize != 0);
     pUniversal->flags.regMemAccessSupport             = 1;
     pUniversal->flags.indirectBufferSupport           = 1;
     pUniversal->flags.supportsMismatchedTileTokenCopy = 1;
@@ -7145,7 +7177,6 @@ PM4_PFP_CONTEXT_CONTROL Device::GetContextControl() const
         // because if preempted the GPU state needs to be properly restored when the Queue resumes.
         // (Config registers are exempted because we don't write config registers in PAL.)
         contextControl.ordinal2.bitfields.load_global_uconfig      = 1;
-        contextControl.ordinal2.bitfields.gfx10.load_ce_ram        = 1;
         contextControl.ordinal3.bitfields.shadow_per_context_state = 1;
         contextControl.ordinal3.bitfields.shadow_cs_sh_regs        = 1;
         contextControl.ordinal3.bitfields.shadow_gfx_sh_regs       = 1;
@@ -7155,9 +7186,6 @@ PM4_PFP_CONTEXT_CONTROL Device::GetContextControl() const
 
     if (IsGfx11(*Parent()))
     {
-        // No CE RAM on GFX11 devices.
-        contextControl.ordinal2.bitfields.gfx10.load_ce_ram = 0;
-
     }
 
     return contextControl;
@@ -7285,7 +7313,7 @@ uint32 Device::Gfx103PlusGetNumActiveShaderArraysLog2() const
 
 // =====================================================================================================================
 // Getter for the VRS Depth Stencil View.  Creates the allocation on demand on first use.
-const Gfx10DepthStencilView* Device::GetVrsDepthStencilView()
+const DepthStencilView* Device::GetVrsDepthStencilView()
 {
     // Alloc on demand to avoid creating this for apps which don't use VRS.
     if ((m_pVrsDepthView == nullptr) && m_vrsDepthViewMayBeNeeded)
@@ -7481,7 +7509,7 @@ Result Device::CreateVrsDepthView()
                 else
                 {
                     // Assign member last as the allocation check is key'd off this.
-                    m_pVrsDepthView = static_cast<Pal::Gfx9::Gfx10DepthStencilView*>(pVrsDsView);
+                    m_pVrsDepthView = static_cast<Pal::Gfx9::DepthStencilView*>(pVrsDsView);
                 }
             }
             else

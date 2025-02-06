@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -37,16 +37,18 @@ class  ColorBlendState;
 enum   CopyImageFlags : uint32;
 class  DepthStencilState;
 class  GfxCmdBuffer;
+class  GfxCmdStream;
 class  GfxImage;
 class  GpuMemory;
 class  Image;
+class  IndirectCmdGenerator;
+class  MsaaState;
 class  Pipeline;
+class  QueryPool;
 struct ImageCopyRegion;
 struct ImageResolveRegion;
 struct MemoryCopyRegion;
 struct MemoryImageCopyRegion;
-class  MsaaState;
-class  QueryPool;
 
 static constexpr uint32 MaxLog2AaSamples   = 4; // Max AA sample rate is 16x.
 static constexpr uint32 MaxLog2AaFragments = 3; // Max fragments is 8.
@@ -54,10 +56,9 @@ static constexpr uint32 MaxLog2AaFragments = 3; // Max fragments is 8.
 // Specifies image region for metadata fixup pre/post all RPM copies.
 struct ImageFixupRegion
 {
-    bool     isScaledCopy;
     SubresId subres;
     uint32   numSlices;
-    Box      box;          // Only required if isScaledCopy == false.
+    Box      dstBox;  // Copy dst box
 };
 
 // Which engine should be used for RPM copies into images
@@ -102,6 +103,19 @@ struct ClearImageCsInfo
     const void*           pSrdContext;
 };
 
+// Specifies gpu addresses that are used as input to CmdGenerateIndirectCmds
+struct IndirectCmdGenerateInfo
+{
+    GfxCmdBuffer*               pCmdBuffer;
+    const Pipeline*             pPipeline;
+    const IndirectCmdGenerator& generator;
+    uint32                      indexBufSize; // Maximum number of indices in the bound index buffer.
+    uint32                      maximumCount; // Maximum number of draw or dispatch commands.
+    gpusize                     argsGpuAddr;  // Argument buffer GPU address.
+    gpusize                     countGpuAddr; // GPU address of the memory containing the actual command
+                                              // count to generate.
+};
+
 // =====================================================================================================================
 // Resource Processing Manager: Contains resource modification and preparation logic. RPM and its subclasses issue
 // draws, dispatches, and other operations to manipulate resource contents and hardware state.
@@ -137,7 +151,22 @@ public:
         uint32                  regionCount,
         const MemoryCopyRegion* pRegions) const;
 
-    virtual void CmdCopyImage(
+    virtual bool UseImageCloneCopy(
+        GfxCmdBuffer*          pCmdBuffer,
+        const Image&           srcImage,
+        ImageLayout            srcImageLayout,
+        const Image&           dstImage,
+        ImageLayout            dstImageLayout,
+        uint32                 regionCount,
+        const ImageCopyRegion* pRegions,
+        uint32                 flags) const;
+
+    virtual void CmdCloneImageData(
+        GfxCmdBuffer*     pCmdBuffer,
+        const Pal::Image& srcImage,
+        const Pal::Image& dstImage) const = 0;
+
+    void CmdCopyImage(
         GfxCmdBuffer*          pCmdBuffer,
         const Image&           srcImage,
         ImageLayout            srcImageLayout,
@@ -146,7 +175,7 @@ public:
         uint32                 regionCount,
         const ImageCopyRegion* pRegions,
         const Rect*            pScissorRect,
-        uint32                 flags) const = 0;
+        uint32                 flags) const;
 
     virtual void CmdCopyMemoryToImage(
         GfxCmdBuffer*                pCmdBuffer,
@@ -193,8 +222,8 @@ public:
         const TypedBufferImageScaledCopyRegion* pRegions) const;
 
     void CmdScaledCopyImage(
-        GfxCmdBuffer*           pCmdBuffer,
-        const ScaledCopyInfo&   copyInfo) const;
+        GfxCmdBuffer*         pCmdBuffer,
+        const ScaledCopyInfo& copyInfo) const;
 
     void CmdGenerateMipmaps(
         GfxCmdBuffer*         pCmdBuffer,
@@ -243,7 +272,7 @@ public:
         const SubresRange* pRanges,
         uint32             rectCount,
         const Rect*        pRects,
-        uint32             flags) const = 0;
+        uint32             flags) const;
 
     void CmdClearColorBuffer(
         GfxCmdBuffer*     pCmdBuffer,
@@ -272,7 +301,7 @@ public:
         const SubresRange*    pRanges,
         uint32                boxCount,
         const Box*            pBoxes,
-        uint32                flags) const = 0;
+        uint32                flags) const;
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 910
     void CmdClearBufferView(
@@ -314,6 +343,46 @@ public:
         uint32                           regionCount,
         const PrtPlusImageResolveRegion* pRegions) const = 0;
 
+    void CmdCopyMemory(
+        GfxCmdBuffer*           pCmdBuffer,
+        const GpuMemory&        srcGpuMemory,
+        const GpuMemory&        dstGpuMemory,
+        uint32                  regionCount,
+        const MemoryCopyRegion* pRegions) const;
+
+    virtual void CmdUpdateMemory(
+        GfxCmdBuffer*    pCmdBuffer,
+        const GpuMemory& dstMem,
+        gpusize          dstOffset,
+        gpusize          dataSize,
+        const uint32*    pData) const = 0;
+
+    void ResummarizeDepthStencil(
+        GfxCmdBuffer*                pCmdBuffer,
+        const Image&                 image,
+        ImageLayout                  imageLayout,
+        const MsaaQuadSamplePattern* pQuadSamplePattern,
+        const SubresRange&           range) const;
+
+    virtual void HwlResummarizeHtileCompute(
+        GfxCmdBuffer*      pCmdBuffer,
+        const GfxImage&    image,
+        const SubresRange& range) const = 0;
+
+    virtual bool NeedPixelCopyForCmdCopyImage(
+        const Pal::Image&      srcImage,
+        const Pal::Image&      dstImage,
+        const ImageCopyRegion* pRegions,
+        uint32                 regionCount) const { return false; }
+
+    virtual ImageCopyEngine GetImageToImageCopyEngine(
+        const GfxCmdBuffer*    pCmdBuffer,
+        const Image&           srcImage,
+        const Image&           dstImage,
+        uint32                 regionCount,
+        const ImageCopyRegion* pRegions,
+        uint32                 copyFlags) const;
+
 protected:
     // When constructing SRD tables, all SRDs must be size and offset aligned to this many DWORDs.
     uint32 SrdDwordAlignment() const { return m_srdAlignment; }
@@ -322,7 +391,7 @@ protected:
     virtual bool CopyImageCsUseMsaaMorton(const Image& dstImage) const = 0;
 
     // Assume optimized copies won't work
-    virtual bool HwlUseOptimizedImageCopy(
+    virtual bool HwlUseFMaskOptimizedImageCopy(
         const Pal::Image&      srcImage,
         ImageLayout            srcImageLayout,
         const Pal::Image&      dstImage,
@@ -347,13 +416,20 @@ protected:
 
     virtual bool ScaledCopyImageUseGraphics(
         GfxCmdBuffer*           pCmdBuffer,
-        const ScaledCopyInfo&   copyInfo) const = 0;
+        const ScaledCopyInfo&   copyInfo) const;
 
     // Some blts need to use GFXIP-specific algorithms to pick the proper state. The baseState is the first
     // graphics state in a series of states that vary only on target format.
     virtual const GraphicsPipeline* GetGfxPipelineByFormat(
         RpmGfxPipeline basePipeline,
         SwizzledFormat format) const = 0;
+
+    virtual const bool IsGfxPipelineForFormatSupported(
+        SwizzledFormat format) const = 0;
+
+    virtual bool PreferComputeForNonLocalDestCopy(
+        const Pal::Image& dstImage) const
+        { return false; }
 
     const ComputePipeline* GetPipeline(RpmComputePipeline pipeline) const
         { return m_pComputePipelines[static_cast<size_t>(pipeline)]; }
@@ -494,6 +570,101 @@ protected:
         uint32*                pTexelScale,
         bool*                  pSingleSubres) const;
 
+    void SlowClearGraphics(
+        GfxCmdBuffer*         pCmdBuffer,
+        const Image&          dstImage,
+        ImageLayout           dstImageLayout,
+        const ClearColor&     color,
+        const SwizzledFormat& clearFormat,
+        const SubresRange&    clearRange,
+        bool                  trackBltActiveFlags,
+        uint32                boxCount,
+        const Box*            pBoxes) const;
+
+    void GenericColorBlit(
+        GfxCmdBuffer*                pCmdBuffer,
+        const Image&                 dstImage,
+        const SubresRange&           range,
+        const MsaaQuadSamplePattern* pQuadSamplePattern,
+        RpmGfxPipeline               pipeline,
+        const GpuMemory*             pGpuMemory,
+        gpusize                      metaDataOffset,
+        const Util::Span<const Box>  boxes) const;
+
+    const ComputePipeline* GetComputeMaskRamExpandPipeline(
+        const Image& image) const;
+
+    const ComputePipeline* GetLinearHtileClearPipeline(
+        bool   expClearEnable,
+        bool   tileStencilDisabled,
+        uint32 hTileMask) const;
+
+    const GraphicsPipeline* GetCopyDepthStencilPipeline(
+        bool   isDepth,
+        bool   isDepthStencil,
+        uint32 numSamples) const;
+
+    const GraphicsPipeline* GetScaledCopyDepthStencilPipeline(
+        bool   isDepth,
+        bool   isDepthStencil,
+        uint32 numSamples) const;
+
+    void ResolveImageDepthStencilGraphics(
+        GfxCmdBuffer*             pCmdBuffer,
+        const Image&              srcImage,
+        ImageLayout               srcImageLayout,
+        const Image&              dstImage,
+        ImageLayout               dstImageLayout,
+        uint32                    regionCount,
+        const ImageResolveRegion* pRegions,
+        uint32                    flags) const;
+
+    void ResolveImageFixedFunc(
+        GfxCmdBuffer*             pCmdBuffer,
+        const Image&              srcImage,
+        ImageLayout               srcImageLayout,
+        const Image&              dstImage,
+        ImageLayout               dstImageLayout,
+        uint32                    regionCount,
+        const ImageResolveRegion* pRegions,
+        uint32                    flags) const;
+
+    static void PreComputeColorClearSync(
+        ICmdBuffer*        pCmdBuffer,
+        const IImage*      pImage,
+        const SubresRange& subres,
+        ImageLayout        layout);
+
+    static void PostComputeColorClearSync(
+        ICmdBuffer*        pCmdBuffer,
+        const IImage*      pImage,
+        const SubresRange& subres,
+        ImageLayout        layout,
+        bool               csFastClear);
+
+    static void PreComputeDepthStencilClearSync(
+        ICmdBuffer*        pCmdBuffer,
+        const GfxImage&    gfxImage,
+        const SubresRange& subres,
+        ImageLayout        layout);
+
+    static void PostComputeDepthStencilClearSync(
+        ICmdBuffer*        pCmdBuffer,
+        const GfxImage&    gfxImage,
+        const SubresRange& subres,
+        ImageLayout        layout,
+        bool               csFastClear);
+
+    static bool BoxesCoverWholeExtent(
+        const Extent3d& extent,
+        uint32          boxCount,
+        const Box*      pBoxes);
+
+    static bool UseOptimizedFixupMsaaImageAfterCopy(
+        const Image&            dstImage,
+        const ImageFixupRegion* pRegions,
+        uint32                  regionCount);
+
     GfxDevice*const     m_pDevice;
     ColorBlendState*    m_pBlendDisableState;               // Blend state object with all blending disabled.
     ColorBlendState*    m_pColorBlendState;                 // Blend state object with rt0 blending enabled.
@@ -512,9 +683,100 @@ protected:
 private:
     virtual Result CreateCommonStateObjects();
 
-    virtual void ScaledCopyImageGraphics(
+    // The next two functions should be called before and after a graphics copy. They give the gfxip layer a chance
+    // to optimize the hardware for the copy operation and restore to the previous state once the copy is done.
+    virtual uint32 HwlBeginGraphicsCopy(
+        GfxCmdBuffer*           pCmdBuffer,
+        const GraphicsPipeline* pPipeline,
+        const Image&            dstImage,
+        uint32                  bpp) const = 0;
+
+    virtual void HwlEndGraphicsCopy(GfxCmdStream* pCmdStream, uint32 restoreMask) const = 0;
+
+    virtual void HwlFastColorClear(
         GfxCmdBuffer*         pCmdBuffer,
-        const ScaledCopyInfo& copyInfo) const = 0;
+        const GfxImage&       dstImage,
+        const uint32*         pConvertedColor,
+        const SwizzledFormat& clearFormat,
+        const SubresRange&    clearRange,
+        bool                  trackBltActiveFlags) const = 0;
+
+    virtual bool IsAc01ColorClearCode(
+        const GfxImage&       dstImage,
+        const uint32*         pConvertedColor,
+        const SwizzledFormat& clearFormat,
+        const SubresRange&    clearRange) const = 0;
+
+    virtual void HwlDepthStencilClear(
+        GfxCmdBuffer*      pCmdBuffer,
+        const GfxImage&    dstImage,
+        ImageLayout        depthLayout,
+        ImageLayout        stencilLayout,
+        float              depth,
+        uint8              stencil,
+        uint8              stencilWriteMask,
+        uint32             rangeCount,
+        const SubresRange* pRanges,
+        bool               fastClear,
+        bool               clearAutoSync,
+        uint32             boxCnt,
+        const Box*         pBox) const = 0;
+
+    virtual void HwlImageToImageMissingPixelCopy(
+        GfxCmdBuffer*          pCmdBuffer,
+        const Pal::Image&      srcImage,
+        const Pal::Image&      dstImage,
+        const ImageCopyRegion& region) const = 0;
+
+    virtual void FixupMetadataForComputeResolveDst(
+        GfxCmdBuffer*             pCmdBuffer,
+        const Image&              dstImage,
+        uint32                    regionCount,
+        const ImageResolveRegion* pRegions) const;
+
+    void CopyDepthStencilImageGraphics(
+        GfxCmdBuffer*          pCmdBuffer,
+        const Image&           srcImage,
+        ImageLayout            srcImageLayout,
+        const Image&           dstImage,
+        ImageLayout            dstImageLayout,
+        uint32                 regionCount,
+        const ImageCopyRegion* pRegions,
+        const Rect*            pScissorRect,
+        uint32                 flags) const;
+
+    void CopyColorImageGraphics(
+        GfxCmdBuffer*          pCmdBuffer,
+        const Image&           srcImage,
+        ImageLayout            srcImageLayout,
+        const Image&           dstImage,
+        ImageLayout            dstImageLayout,
+        uint32                 regionCount,
+        const ImageCopyRegion* pRegions,
+        const Rect*            pScissorRect,
+        uint32                 flags) const;
+
+    void SlowClearGraphicsOneMip(
+        GfxCmdBuffer*              pCmdBuffer,
+        const Image&               dstImage,
+        SubresId                   mipSubres,
+        uint32                     boxCount,
+        const Box*                 pBoxes,
+        ColorTargetViewCreateInfo* pColorViewInfo,
+        BindTargetParams*          pBindTargetsInfo,
+        uint32                     xRightShift) const;
+
+    void ClearImageOneBox(
+        GfxCmdBuffer*          pCmdBuffer,
+        const SubResourceInfo& subResInfo,
+        const Box*             pBox,
+        bool                   hasBoxes,
+        uint32                 xRightShift,
+        uint32                 numInstances) const;
+
+    void ScaledCopyImageGraphics(
+        GfxCmdBuffer*         pCmdBuffer,
+        const ScaledCopyInfo& copyInfo) const;
 
     void ScaledCopyImageCompute(
         GfxCmdBuffer*           pCmdBuffer,
@@ -571,12 +833,6 @@ private:
         const ImageResolveRegion* pRegions,
         uint32                    regionCount,
         const ImgBarrier&         imgBarrier) const;
-
-    virtual void FixupMetadataForComputeResolveDst(
-        GfxCmdBuffer*             pCmdBuffer,
-        const Image&              dstImage,
-        uint32                    regionCount,
-        const ImageResolveRegion* pRegions) const = 0;
 
     void GenerateMipmapsFast(
         GfxCmdBuffer*         pCmdBuffer,

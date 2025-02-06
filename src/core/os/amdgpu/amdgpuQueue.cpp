@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -26,7 +26,7 @@
 #include "core/cmdAllocator.h"
 #include "core/engine.h"
 #include "core/hw/gfxip/cmdUploadRing.h"
-#include "core/hw/gfxip/pm4UniversalCmdBuffer.h"
+#include "core/hw/gfxip/universalCmdBuffer.h"
 #include "core/os/amdgpu/amdgpuDevice.h"
 #include "core/os/amdgpu/amdgpuGpuMemory.h"
 #include "core/os/amdgpu/amdgpuImage.h"
@@ -317,7 +317,7 @@ Result Queue::Init(
         {
             CmdUploadRingCreateInfo createInfo = {};
             createInfo.engineType    = GetEngineType();
-            createInfo.numCmdStreams = supportsGraphics ? Pm4::UniversalCmdBuffer::NumCmdStreamsVal : 1;
+            createInfo.numCmdStreams = supportsGraphics ? Pal::UniversalCmdBuffer::NumCmdStreamsVal : 1;
 
             result = m_pDevice->GetGfxDevice()->CreateCmdUploadRingInternal(createInfo, &m_pCmdUploadRing);
         }

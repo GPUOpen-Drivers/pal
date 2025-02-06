@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -25,7 +25,7 @@
 
 #include "core/cmdAllocator.h"
 #include "core/device.h"
-#include "core/hw/gfxip/pm4ComputeCmdBuffer.h"
+#include "core/hw/gfxip/computeCmdBuffer.h"
 #include "core/hw/gfxip/gfxDevice.h"
 #include "core/hw/gfxip/pipeline.h"
 #include <limits.h>
@@ -33,9 +33,6 @@
 using namespace Util;
 
 namespace Pal
-{
-
-namespace Pm4
 {
 
 // =====================================================================================================================
@@ -54,18 +51,18 @@ ComputeCmdBuffer::ComputeCmdBuffer(
     const GfxDevice&           device,
     const CmdBufferCreateInfo& createInfo,
     const GfxBarrierMgr*       pBarrierMgr,
-    Pm4::CmdStream*            pCmdStream,
+    GfxCmdStream*              pCmdStream,
     bool                       useUpdateUserData)
     :
-    Pm4CmdBuffer(device, createInfo, pBarrierMgr),
+    GfxCmdBuffer(device, createInfo, pBarrierMgr),
     m_spillTable{},
     m_device(device),
     m_pCmdStream(pCmdStream)
 {
     PAL_ASSERT(createInfo.queueType == QueueTypeCompute);
 
-    SwitchCmdSetUserDataFunc(PipelineBindPoint::Compute, useUpdateUserData ? &Pm4CmdBuffer::CmdUpdateUserDataCs
-                                                                           : &Pm4CmdBuffer::CmdSetUserDataCs);
+    SwitchCmdSetUserDataFunc(PipelineBindPoint::Compute, useUpdateUserData ? &GfxCmdBuffer::CmdUpdateUserDataCs
+                                                                           : &GfxCmdBuffer::CmdSetUserDataCs);
     SwitchCmdSetUserDataFunc(PipelineBindPoint::Graphics, &DummyCmdSetUserDataGfx);
 }
 
@@ -73,7 +70,7 @@ ComputeCmdBuffer::ComputeCmdBuffer(
 Result ComputeCmdBuffer::Init(
     const CmdBufferInternalCreateInfo& internalInfo)
 {
-    Result result = Pm4CmdBuffer::Init(internalInfo);
+    Result result = GfxCmdBuffer::Init(internalInfo);
 
     // Initialize the states for the embedded-data GPU memory table for spilling.
     if (result == Result::Success)
@@ -92,7 +89,7 @@ Result ComputeCmdBuffer::BeginCommandStreams(
     CmdStreamBeginFlags cmdStreamFlags,
     bool                doReset)
 {
-    Result result = Pm4CmdBuffer::BeginCommandStreams(cmdStreamFlags, doReset);
+    Result result = GfxCmdBuffer::BeginCommandStreams(cmdStreamFlags, doReset);
 
     if (doReset)
     {
@@ -112,7 +109,7 @@ Result ComputeCmdBuffer::BeginCommandStreams(
 // Also ends command buffer dumping, if it is enabled.
 Result ComputeCmdBuffer::End()
 {
-    Result result = Pm4CmdBuffer::End();
+    Result result = GfxCmdBuffer::End();
 
     if (result == Result::Success)
     {
@@ -135,7 +132,7 @@ Result ComputeCmdBuffer::Reset(
     ICmdAllocator* pCmdAllocator,
     bool           returnGpuMemory)
 {
-    Result result = Pm4CmdBuffer::Reset(pCmdAllocator, returnGpuMemory);
+    Result result = GfxCmdBuffer::Reset(pCmdAllocator, returnGpuMemory);
 
     m_pCmdStream->Reset(static_cast<CmdAllocator*>(pCmdAllocator), returnGpuMemory);
 
@@ -146,7 +143,7 @@ Result ComputeCmdBuffer::Reset(
 // Resets all of the command buffer state tracked. After a reset there should be no state bound.
 void ComputeCmdBuffer::ResetState()
 {
-    Pm4CmdBuffer::ResetState();
+    GfxCmdBuffer::ResetState();
 
     ResetUserDataTable(&m_spillTable.stateCs);
 }
@@ -181,11 +178,11 @@ void ComputeCmdBuffer::LeakNestedCmdBufferState(
                                 &m_computeState.csUserDataEntries);
 
     // It is possible that nested command buffer execute operation which affect the data in the primary buffer
-    m_pm4CmdBufState.flags.csBltActive               = cmdBuffer.m_pm4CmdBufState.flags.csBltActive;
-    m_pm4CmdBufState.flags.cpBltActive               = cmdBuffer.m_pm4CmdBufState.flags.cpBltActive;
-    m_pm4CmdBufState.flags.csWriteCachesDirty        = cmdBuffer.m_pm4CmdBufState.flags.csWriteCachesDirty;
-    m_pm4CmdBufState.flags.cpWriteCachesDirty        = cmdBuffer.m_pm4CmdBufState.flags.cpWriteCachesDirty;
-    m_pm4CmdBufState.flags.cpMemoryWriteL2CacheStale = cmdBuffer.m_pm4CmdBufState.flags.cpMemoryWriteL2CacheStale;
+    m_cmdBufState.flags.csBltActive               = cmdBuffer.m_cmdBufState.flags.csBltActive;
+    m_cmdBufState.flags.cpBltActive               = cmdBuffer.m_cmdBufState.flags.cpBltActive;
+    m_cmdBufState.flags.csWriteCachesDirty        = cmdBuffer.m_cmdBufState.flags.csWriteCachesDirty;
+    m_cmdBufState.flags.cpWriteCachesDirty        = cmdBuffer.m_cmdBufState.flags.cpWriteCachesDirty;
+    m_cmdBufState.flags.cpMemoryWriteL2CacheStale = cmdBuffer.m_cmdBufState.flags.cpMemoryWriteL2CacheStale;
 
     // NOTE: Compute command buffers shouldn't have changed either of their CmdSetUserData callbacks.
     PAL_ASSERT(memcmp(&m_funcTable, &cmdBuffer.m_funcTable, sizeof(m_funcTable)) == 0);
@@ -206,5 +203,4 @@ uint32 ComputeCmdBuffer::GetUsedSize(
     return sizeInBytes;
 }
 
-} // Pm4
 } // Pal

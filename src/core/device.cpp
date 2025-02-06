@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -86,7 +86,7 @@ static constexpr uint32 MemoryOpsPerClockTable[static_cast<uint32>(LocalMemoryTy
     2,  // Hbm2
     2,  // Hbm3
     2,  // Lpddr4
-    4,  // Lpddr5
+    8,  // Lpddr5
     4   // Ddr5
 };
 
@@ -1553,7 +1553,8 @@ Result Device::Finalize(
     PAL_ASSERT(m_settingsCommitted);
 #endif
 
-    Result result = (finalizeInfo.flags.internalGpuMemAutoPriority && !m_memoryProperties.flags.autoPrioritySupport)
+    Result result = (finalizeInfo.flags.internalGpuMemAutoPriority &&
+                     (m_memoryProperties.flags.autoPrioritySupport == 0))
         ? Result::ErrorInvalidFlags
         : Result::Success;
 
@@ -1572,14 +1573,6 @@ Result Device::Finalize(
 
     if (result == Result::Success)
     {
-        constexpr uint32 CeRamSizeAlignment = 32;
-
-        for (uint32 i = 0; i < EngineTypeCount; i++)
-        {
-            PAL_ASSERT(finalizeInfo.ceRamSizeUsed[i] <= m_engineProperties.perEngine[i].availableCeRamSize);
-            PAL_ASSERT(IsPow2Aligned(finalizeInfo.ceRamSizeUsed[i], CeRamSizeAlignment));
-        }
-
         memcpy(&m_finalizeInfo, &finalizeInfo, sizeof(DeviceFinalizeInfo));
 
 #if PAL_BUILD_GFX
@@ -1918,7 +1911,6 @@ Result Device::GetProperties(
 
             pEngineInfo->engineCount                   = engineInfo.numAvailable;
             pEngineInfo->queueSupport                  = engineInfo.queueSupport;
-            pEngineInfo->ceRamSizeAvailable            = engineInfo.availableCeRamSize;
             pEngineInfo->controlFlowNestingLimit       = engineInfo.maxControlFlowNestingDepth;
             pEngineInfo->minTiledImageCopyAlignment    = engineInfo.minTiledImageCopyAlignment;
             pEngineInfo->minTiledImageMemCopyAlignment = engineInfo.minTiledImageMemCopyAlignment;
@@ -1951,7 +1943,6 @@ Result Device::GetProperties(
             pEngineInfo->flags.supportsImageInitPerSubresource = engineInfo.flags.supportsImageInitPerSubresource;
             pEngineInfo->flags.supportVirtualMemoryRemap       = engineInfo.flags.supportVirtualMemoryRemap;
             pEngineInfo->flags.runsInPhysicalMode              = engineInfo.flags.physicalAddressingMode;
-            pEngineInfo->flags.supportPersistentCeRam          = engineInfo.flags.supportPersistentCeRam;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 834
             pEngineInfo->flags.p2pCopyToInvisibleHeapIllegal   = engineInfo.flags.p2pCopyToInvisibleHeapIllegal;
 #endif
@@ -5014,6 +5005,21 @@ bool Device::EnablePerfCountersInPreamble() const
     }
 
     return enable;
+}
+
+// =====================================================================================================================
+bool Device::ImagePrefersCloneCopy(
+    const ImageCreateInfo& createInfo
+    ) const
+{
+    bool ret = false;
+
+    if (m_pGfxDevice != nullptr)
+    {
+        ret = m_pGfxDevice->ImagePrefersCloneCopy(createInfo);
+    }
+
+    return ret;
 }
 
 // =====================================================================================================================

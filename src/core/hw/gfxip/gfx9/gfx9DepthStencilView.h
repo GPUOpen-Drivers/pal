@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -29,8 +29,9 @@
 #include "core/hw/gfxip/gfx9/gfx9Chip.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9Image.h"
+#include "core/hw/gfxip/gfx9/gfx9FormatInfo.h"
 #include "core/hw/gfxip/gfx9/gfx9MaskRam.h"
-#include "core/hw/gfxip/pm4UniversalCmdBuffer.h"
+#include "core/hw/gfxip/universalCmdBuffer.h"
 
 namespace Pal
 {
@@ -41,6 +42,37 @@ class Image;
 
 namespace Gfx9
 {
+
+// Set of context registers associated with a depth/stencil view object (Gfx10 version).
+struct DepthStencilViewRegs
+{
+    regDB_RENDER_CONTROL             dbRenderControl;
+    regDB_DEPTH_VIEW                 dbDepthView;
+    regDB_RENDER_OVERRIDE2           dbRenderOverride2;
+    regDB_HTILE_DATA_BASE            dbHtileDataBase;
+    regDB_DEPTH_SIZE_XY              dbDepthSizeXy;
+    regDB_Z_INFO                     dbZInfo;
+    regDB_STENCIL_INFO               dbStencilInfo;
+    regDB_Z_READ_BASE                dbZReadBase;
+    regDB_STENCIL_READ_BASE          dbStencilReadBase;
+    regDB_Z_WRITE_BASE               dbZWriteBase;
+    regDB_STENCIL_WRITE_BASE         dbStencilWriteBase;
+    regDB_HTILE_SURFACE              dbHtileSurface;
+    regPA_SU_POLY_OFFSET_DB_FMT_CNTL paSuPolyOffsetDbFmtCntl;
+    regCOHER_DEST_BASE_0             coherDestBase0;
+    regDB_RENDER_OVERRIDE            dbRenderOverride;
+    regDB_RMI_L2_CACHE_CONTROL       dbRmiL2CacheControl;
+
+    // Add these five registers to support PAL's high-address bits on GFX10 DB
+    regDB_Z_READ_BASE_HI             dbZReadBaseHi;
+    regDB_Z_WRITE_BASE_HI            dbZWriteBaseHi;
+    regDB_STENCIL_READ_BASE_HI       dbStencilReadBaseHi;
+    regDB_STENCIL_WRITE_BASE_HI      dbStencilWriteBaseHi;
+    regDB_HTILE_DATA_BASE_HI         dbHtileDataBaseHi;
+
+    gpusize  fastClearMetadataGpuVa;
+    gpusize  hiSPretestMetadataGpuVa;
+};
 
 // =====================================================================================================================
 // Gfx9 HW-specific implementation of the Pal::IDepthStencilView interface
@@ -58,13 +90,13 @@ public:
     DepthStencilView(DepthStencilView&&) = default;
     DepthStencilView& operator=(DepthStencilView&&) = default;
 
-    virtual uint32* WriteCommands(
+    uint32* WriteCommands(
         ImageLayout            depthLayout,
         ImageLayout            stencilLayout,
         CmdStream*             pCmdStream,
         bool                   isNested,
         regDB_RENDER_OVERRIDE* pDbRenderOverride,
-        uint32*                pCmdSpace) const = 0;
+        uint32*                pCmdSpace) const;
 
     const Image* GetImage() const { return m_pImage; }
     uint32 MipLevel() const { return m_depthSubresource.mipLevel; }
@@ -74,6 +106,15 @@ public:
     bool ReadOnlyStencil() const { return m_flags.readOnlyStencil; }
     bool VrsImageIncompatible() const { return m_flags.vrsImageIncompatible; }
 
+    uint32* HandleBoundTargetChanged(const Pal::UniversalCmdBuffer* pCmdBuffer, uint32* pCmdSpace) const;
+
+    Extent2d GetExtent() const { return m_extent; }
+
+    bool Equals(const DepthStencilView* pOther) const;
+
+    uint32 BaseArraySlice() const { return m_baseArraySlice; }
+    uint32 ArraySize()      const { return m_arraySize; }
+
     static uint32* WriteUpdateFastClearDepthStencilValue(
         uint32     metaDataClearFlags,
         float      depth,
@@ -81,20 +122,19 @@ public:
         CmdStream* pCmdStream,
         uint32*    pCmdSpace);
 
-    uint32* HandleBoundTargetChanged(const Pm4::UniversalCmdBuffer*  pCmdBuffer, uint32* pCmdSpace) const;
+    static void SetGfx11StaticDbRenderControlFields(
+        const Device&         device,
+        const uint8           numFragments,
+        regDB_RENDER_CONTROL* pDbRenderControl);
 
-    Extent2d GetExtent() const { return m_extent; }
-
-    bool Equals(const DepthStencilView* pOther) const;
-
-    static const uint32 DbRenderOverrideRmwMask = DB_RENDER_OVERRIDE__FORCE_HIZ_ENABLE_MASK        |
-                                                  DB_RENDER_OVERRIDE__FORCE_HIS_ENABLE0_MASK       |
-                                                  DB_RENDER_OVERRIDE__FORCE_HIS_ENABLE1_MASK       |
-                                                  DB_RENDER_OVERRIDE__FORCE_STENCIL_VALID_MASK     |
-                                                  DB_RENDER_OVERRIDE__FORCE_STENCIL_VALID_MASK     |
-                                                  DB_RENDER_OVERRIDE__FORCE_Z_VALID_MASK           |
-                                                  DB_RENDER_OVERRIDE__DISABLE_TILE_RATE_TILES_MASK |
-                                                  DB_RENDER_OVERRIDE__NOOP_CULL_DISABLE_MASK;
+    static constexpr uint32 DbRenderOverrideRmwMask = DB_RENDER_OVERRIDE__FORCE_HIZ_ENABLE_MASK        |
+                                                      DB_RENDER_OVERRIDE__FORCE_HIS_ENABLE0_MASK       |
+                                                      DB_RENDER_OVERRIDE__FORCE_HIS_ENABLE1_MASK       |
+                                                      DB_RENDER_OVERRIDE__FORCE_STENCIL_VALID_MASK     |
+                                                      DB_RENDER_OVERRIDE__FORCE_STENCIL_VALID_MASK     |
+                                                      DB_RENDER_OVERRIDE__FORCE_Z_VALID_MASK           |
+                                                      DB_RENDER_OVERRIDE__DISABLE_TILE_RATE_TILES_MASK |
+                                                      DB_RENDER_OVERRIDE__NOOP_CULL_DISABLE_MASK;
 
 protected:
     virtual ~DepthStencilView()
@@ -104,24 +144,26 @@ protected:
         PAL_NEVER_CALLED();
     }
 
-    template <typename RegistersType, typename FmtInfoType>
     void InitRegistersCommon(
         const Device&                             device,
         const DepthStencilViewCreateInfo&         createInfo,
         const DepthStencilViewInternalCreateInfo& internalInfo,
-        const FmtInfoType*                        pFmtInfo,
-        RegistersType*                            pRegs);
+        const Formats::Gfx9::MergedFlatFmtInfo*   pFmtInfo,
+        DepthStencilViewRegs*                     pRegs);
 
-    template <typename RegistersType>
-    void UpdateImageVa(RegistersType* pRegs) const;
+    void InitRegisters(
+        const Device&                             device,
+        const DepthStencilViewCreateInfo&         createInfo,
+        const DepthStencilViewInternalCreateInfo& internalInfo);
 
-    template <typename RegistersType>
+    void UpdateImageVa(DepthStencilViewRegs* pRegs) const;
+
     uint32* WriteCommandsCommon(
-        ImageLayout    depthLayout,
-        ImageLayout    stencilLayout,
-        CmdStream*     pCmdStream,
-        uint32*        pCmdSpace,
-        RegistersType* pRegs) const;
+        ImageLayout           depthLayout,
+        ImageLayout           stencilLayout,
+        CmdStream*            pCmdStream,
+        uint32*               pCmdSpace,
+        DepthStencilViewRegs* pRegs) const;
 
     // Bitfield describing the metadata and settings that are supported by this view.
     union
@@ -161,99 +203,17 @@ protected:
     uint32 m_uniqueId;
 
 private:
-    uint32 CalcDecompressOnZPlanesValue(const Device& device, ZFormat hwZFmt) const;
-
-    HtileUsageFlags  m_hTileUsage;
-
-    PAL_DISALLOW_DEFAULT_CTOR(DepthStencilView);
-};
-
-// Set of context registers associated with a depth/stencil view object (Gfx10 version).
-struct Gfx10DepthStencilViewRegs
-{
-    regDB_RENDER_CONTROL             dbRenderControl;
-    regDB_DEPTH_VIEW                 dbDepthView;
-    regDB_RENDER_OVERRIDE2           dbRenderOverride2;
-    regDB_HTILE_DATA_BASE            dbHtileDataBase;
-    regDB_DEPTH_SIZE_XY              dbDepthSizeXy;
-    regDB_Z_INFO                     dbZInfo;
-    regDB_STENCIL_INFO               dbStencilInfo;
-    regDB_Z_READ_BASE                dbZReadBase;
-    regDB_STENCIL_READ_BASE          dbStencilReadBase;
-    regDB_Z_WRITE_BASE               dbZWriteBase;
-    regDB_STENCIL_WRITE_BASE         dbStencilWriteBase;
-    regDB_HTILE_SURFACE              dbHtileSurface;
-    regPA_SU_POLY_OFFSET_DB_FMT_CNTL paSuPolyOffsetDbFmtCntl;
-    regCOHER_DEST_BASE_0             coherDestBase0;
-    regDB_RENDER_OVERRIDE            dbRenderOverride;
-    regDB_RMI_L2_CACHE_CONTROL       dbRmiL2CacheControl;
-
-    // Add these five registers to support PAL's high-address bits on GFX10 DB
-    regDB_Z_READ_BASE_HI             dbZReadBaseHi;
-    regDB_Z_WRITE_BASE_HI            dbZWriteBaseHi;
-    regDB_STENCIL_READ_BASE_HI       dbStencilReadBaseHi;
-    regDB_STENCIL_WRITE_BASE_HI      dbStencilWriteBaseHi;
-    regDB_HTILE_DATA_BASE_HI         dbHtileDataBaseHi;
-
-    gpusize  fastClearMetadataGpuVa;
-    gpusize  hiSPretestMetadataGpuVa;
-};
-
-// =====================================================================================================================
-// Gfx10 HW-specific implementation of the Pal::IDepthStencilView interface
-class Gfx10DepthStencilView final : public DepthStencilView
-{
-public:
-    Gfx10DepthStencilView(
-        const Device*                             pDevice,
-        const DepthStencilViewCreateInfo&         createInfo,
-        const DepthStencilViewInternalCreateInfo& internalInfo,
-        uint32                                    uniqueId);
-
-    Gfx10DepthStencilView(const Gfx10DepthStencilView&) = default;
-    Gfx10DepthStencilView& operator=(const Gfx10DepthStencilView&) = default;
-    Gfx10DepthStencilView(Gfx10DepthStencilView&&) = default;
-    Gfx10DepthStencilView& operator=(Gfx10DepthStencilView&&) = default;
-
-    static void SetGfx11StaticDbRenderControlFields(
-        const Device&         device,
-        const uint8           numFragments,
-        regDB_RENDER_CONTROL* pDbRenderControl);
-
-    uint32* WriteCommands(
-        ImageLayout            depthLayout,
-        ImageLayout            stencilLayout,
-        CmdStream*             pCmdStream,
-        bool                   isNested,
-        regDB_RENDER_OVERRIDE* pDbRenderOverride,
-        uint32*                pCmdSpace) const override;
-
-    uint32 BaseArraySlice() const { return m_baseArraySlice; }
-    uint32 ArraySize() const { return m_arraySize; }
-
-protected:
-    virtual ~Gfx10DepthStencilView()
-    {
-        // This destructor, and the destructors of all member and base classes, must always be empty: PAL depth stencil
-        // views guarantee to the client that they do not have to be explicitly destroyed.
-        PAL_NEVER_CALLED();
-    }
-
-private:
-    void InitRegisters(
-        const Device&                             device,
-        const DepthStencilViewCreateInfo&         createInfo,
-        const DepthStencilViewInternalCreateInfo& internalInfo);
-
-    Gfx10DepthStencilViewRegs  m_regs;
-
     static constexpr uint32 DbDepthViewSliceStartMaskNumBits = 11;
     static constexpr uint32 DbDepthViewSliceMaxMaskNumBits   = 11;
 
-    uint32 m_baseArraySlice;
-    uint32 m_arraySize;
+    uint32 CalcDecompressOnZPlanesValue(const Device& device, ZFormat hwZFmt) const;
 
-    PAL_DISALLOW_DEFAULT_CTOR(Gfx10DepthStencilView);
+    HtileUsageFlags      m_hTileUsage;
+    uint32               m_baseArraySlice;
+    uint32               m_arraySize;
+    DepthStencilViewRegs m_regs;
+
+    PAL_DISALLOW_DEFAULT_CTOR(DepthStencilView);
 };
 
 } // Gfx9

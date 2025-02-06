@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2021-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2021-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -41,6 +41,8 @@ target_sources(pal PRIVATE
     codeObjectUploader.cpp
     codeObjectUploader.h
     colorBlendState.h
+    computeCmdBuffer.cpp
+    computeCmdBuffer.h
     computePipeline.cpp
     computePipeline.h
     computeShaderLibrary.cpp
@@ -64,29 +66,21 @@ target_sources(pal PRIVATE
     graphicsPipeline.h
     graphicsShaderLibrary.cpp
     graphicsShaderLibrary.h
+    indirectCmdGenerator.cpp
+    indirectCmdGenerator.h
+    maskRam.h
     msaaState.h
     pipeline.cpp
     pipeline.h
     pipelineLoader.cpp
     pipelineLoader.h
-    pm4CmdBuffer.cpp
-    pm4CmdBuffer.h
-    pm4CmdStream.cpp
-    pm4CmdStream.h
-    pm4ComputeCmdBuffer.cpp
-    pm4ComputeCmdBuffer.h
-    pm4Image.cpp
-    pm4Image.h
-    pm4IndirectCmdGenerator.cpp
-    pm4IndirectCmdGenerator.h
-    pm4MaskRam.h
-    pm4UniversalCmdBuffer.cpp
-    pm4UniversalCmdBuffer.h
-    regPairHandler.h
     queryPool.cpp
     queryPool.h
+    regPairHandler.h
     shaderLibrary.cpp
     shaderLibrary.h
+    universalCmdBuffer.cpp
+    universalCmdBuffer.h
 )
 
 # PAL core code that the internal compiler depends on goes in target palCompilerDeps

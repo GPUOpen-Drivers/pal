@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2017-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2017-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -145,7 +145,6 @@ private:
         gpusize           postambleBytes,
         gpusize           chainDestAddr,
         gpusize           chainDestBytes,
-        bool              isConstantEngine,
         bool              isPreemptionEnabled) = 0;
 
     // A raft of GPU memory for a single upload plus the state needed to synchronize access to the memory.
@@ -169,7 +168,6 @@ private:
     {
         UploadedStreamFlags flags;         // Most of these are taken from the first command stream uploaded.
         EngineType          engineType;    // Also from the first command stream.
-        SubEngineType       subEngineType; // Also from the first command stream.
 
         gpusize raftFreeOffset;        // Where the next byte of free space is in the raft.
         gpusize prevIbPostambleOffset; // Zero, or the offset to the previous IB's chain postamble.

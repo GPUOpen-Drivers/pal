@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -130,7 +130,9 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
     { InterfaceFunc::CmdBufferCmdScaledCopyImage,                   (CmdBuild | BarrierLog)            },
     { InterfaceFunc::CmdBufferCmdGenerateMipmaps,                   (CmdBuild | BarrierLog)            },
     { InterfaceFunc::CmdBufferCmdColorSpaceConversionCopy,          (CmdBuild | BarrierLog)            },
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 913
     { InterfaceFunc::CmdBufferCmdCloneImageData,                    (CmdBuild | BarrierLog)            },
+#endif
     { InterfaceFunc::CmdBufferCmdUpdateMemory,                      (CmdBuild | BarrierLog)            },
     { InterfaceFunc::CmdBufferCmdUpdateBusAddressableMemoryMarker,  (CmdBuild | BarrierLog)            },
     { InterfaceFunc::CmdBufferCmdFillMemory,                        (CmdBuild | BarrierLog)            },
@@ -168,9 +170,6 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
     { InterfaceFunc::CmdBufferCmdWaitRegisterValue,                 (CmdBuild)                         },
     { InterfaceFunc::CmdBufferCmdWaitMemoryValue,                   (CmdBuild | BarrierLog)            },
     { InterfaceFunc::CmdBufferCmdWaitBusAddressableMemoryMarker,    (CmdBuild | BarrierLog)            },
-    { InterfaceFunc::CmdBufferCmdLoadCeRam,                         (CmdBuild)                         },
-    { InterfaceFunc::CmdBufferCmdDumpCeRam,                         (CmdBuild)                         },
-    { InterfaceFunc::CmdBufferCmdWriteCeRam,                        (CmdBuild)                         },
     { InterfaceFunc::CmdBufferCmdAllocateEmbeddedData,              (CmdBuild)                         },
     { InterfaceFunc::CmdBufferCmdAllocateLargeEmbeddedData,         (CmdBuild)                         },
     { InterfaceFunc::CmdBufferCmdExecuteNestedCmdBuffers,           (CmdBuild | BarrierLog)            },

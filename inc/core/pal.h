@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -152,10 +152,14 @@ enum QueueTypeSupport : uint32
 enum class SubEngineType : uint32
 {
     Primary        = 0, // Subqueue that is the queue itself, rather than an ancilliary queue.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 914
+    AsyncCompute   = 1, // Auxiliary ACE subqueue, together with a primary subqueue forms a "ganged" submit.
+#else
     ConstantEngine = 1, // CP constant update engine that runs in parallel with draw engine.
     AsyncCompute   = 2, // Auxiliary ACE subqueue, together with a primary subqueue forms a "ganged" submit.
     Pup            = 3, // Subqueue that is the queue itself but for PUP-style packets, rather than an
-                        // ancillaiary queue.
+                        // ancillaiary queue
+#endif
     Count,
 };
 

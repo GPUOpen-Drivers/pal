@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -33,8 +33,8 @@
 #include "core/hw/gfxip/gfx9/gfx9MetaEq.h"
 #include "core/hw/gfxip/gfx9/gfx9SettingsLoader.h"
 #include "core/hw/gfxip/gfx9/gfx9ShaderRingSet.h"
+#include "core/hw/gfxip/gfxCmdBuffer.h"
 #include "core/hw/gfxip/gfxDevice.h"
-#include "core/hw/gfxip/pm4CmdBuffer.h"
 #include "core/hw/gfxip/rpm/gfx9/gfx9RsrcProcMgr.h"
 
 #include "palPipelineAbi.h"
@@ -51,7 +51,7 @@ namespace Gfx9
 {
 
 // Needed only for VRS support
-class Gfx10DepthStencilView;
+class DepthStencilView;
 
 // This value is the result Log2(MaxMsaaRasterizerSamples) + 1.
 constexpr uint32 MsaaLevelCount = 5;
@@ -289,6 +289,7 @@ public:
         void*                      pPlacementAddr,
         IMsaaState**               ppMsaaState) const override;
     virtual size_t GetImageSize(const ImageCreateInfo& createInfo) const override;
+    virtual bool ImagePrefersCloneCopy(const ImageCreateInfo& createInfo) const override;
     virtual void CreateImage(
         Pal::Image* pParentImage,
         ImageInfo*  pImageInfo,
@@ -398,34 +399,34 @@ public:
     uint32 GetCuEnableMaskHi(uint32 disabledCuMmask, uint32 enabledCuMaskSetting) const;
 
     // Function definition for creating typed buffer view SRDs.
-    static void PAL_STDCALL Gfx10CreateTypedBufferViewSrds(
+    static void PAL_STDCALL CreateTypedBufferViewSrds(
         const IDevice*        pDevice,
         uint32                count,
         const BufferViewInfo* pBufferViewInfo,
         void*                 pOut);
 
     // Function definition for creating untyped buffer view SRDs.
-    static void PAL_STDCALL Gfx10CreateUntypedBufferViewSrds(
+    static void PAL_STDCALL CreateUntypedBufferViewSrds(
         const IDevice*        pDevice,
         uint32                count,
         const BufferViewInfo* pBufferViewInfo,
         void*                 pOut);
 
     // Function definition for creating image view SRDs.
-    static void PAL_STDCALL Gfx10CreateImageViewSrds(
+    static void PAL_STDCALL CreateImageViewSrds(
         const IDevice*       pDevice,
         uint32               count,
         const ImageViewInfo* pImgViewInfo,
         void*                pOut);
 
     // Function definition for creating a sampler SRD.
-    static void PAL_STDCALL Gfx10CreateSamplerSrds(
+    static void PAL_STDCALL CreateSamplerSrds(
         const IDevice*      pDevice,
         uint32              count,
         const SamplerInfo*  pSamplerInfo,
         void*               pOut);
 
-    void Gfx10CreateFmaskViewSrdsInternal(
+    void CreateFmaskViewSrdsInternal(
         const FmaskViewInfo&          viewInfo,
         const FmaskViewInternalInfo*  pFmaskViewInternalInfo,
         sq_img_rsrc_t*                pSrd) const;
@@ -450,12 +451,12 @@ public:
         void*                        pOut) const;
 
     // Function definition for creating a sampler SRD.
-    static void PAL_STDCALL Gfx10DecodeBufferViewSrd(
+    static void PAL_STDCALL DecodeBufferViewSrd(
         const IDevice*  pDevice,
         const void*     pBufferViewSrd,
         BufferViewInfo* pViewInfo);
 
-    static void PAL_STDCALL Gfx10DecodeImageViewSrd(
+    static void PAL_STDCALL DecodeImageViewSrd(
         const IDevice*   pDevice,
         const IImage*    pImage,
         const void*      pImageViewSrd,
@@ -518,7 +519,7 @@ public:
         size_t      tableBytes,
         gpusize     dataGpuVirtAddr) const override;
 
-    const Gfx10DepthStencilView* GetVrsDepthStencilView();
+    const DepthStencilView* GetVrsDepthStencilView();
 
     uint32 Gfx103PlusGetNumActiveShaderArraysLog2() const;
 
@@ -549,7 +550,7 @@ public:
     const ComputeShaderSignature& GetNullCsSignature() const { return m_nullCsSignature; }
 
 private:
-    void Gfx10SetImageSrdDims(sq_img_rsrc_t*  pSrd, uint32 width, uint32  height) const;
+    void SetImageSrdDims(sq_img_rsrc_t*  pSrd, uint32 width, uint32  height) const;
 
     void SetSrdBorderColorPtr(
         sq_img_samp_t*  pSrd,
@@ -584,8 +585,8 @@ private:
     Result  CreateVrsDepthView();
     void    DestroyVrsDepthImage(Pal::Image*  pDsImage);
 
-    Gfx10DepthStencilView*  m_pVrsDepthView;
-    bool                    m_vrsDepthViewMayBeNeeded;
+    DepthStencilView* m_pVrsDepthView;
+    bool              m_vrsDepthViewMayBeNeeded;
 
     // Local copy of the GB_ADDR_CONFIG register
     const uint32      m_gbAddrConfig;

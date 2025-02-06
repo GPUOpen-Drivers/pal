@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2018-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2018-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -86,7 +86,7 @@ const RsrcProcMgr& BarrierMgr::RsrcProcMgr() const
 
 // =====================================================================================================================
 CmdStream* BarrierMgr::GetCmdStream(
-    Pm4CmdBuffer* pCmdBuf)
+    GfxCmdBuffer* pCmdBuf)
 {
     const auto cmdStreamEngine = pCmdBuf->IsGraphicsSupported() ? CmdBufferEngineSupport::Graphics
                                                                 : CmdBufferEngineSupport::Compute;
@@ -99,7 +99,7 @@ CmdStream* BarrierMgr::GetCmdStream(
 // This function also mask off all graphics path specific stage mask flags for non-universal command buffer as well as
 // remove some invalid pfp stage mask on dstStageMask to avoid unnecessary PFP_SYNC_ME stall.
 void BarrierMgr::OptimizeStageMask(
-    const Pm4CmdBuffer* pCmdBuf,
+    const GfxCmdBuffer* pCmdBuf,
     BarrierType         barrierType,
     uint32*             pSrcStageMask,
     uint32*             pDstStageMask,
@@ -108,7 +108,7 @@ void BarrierMgr::OptimizeStageMask(
 {
     PAL_ASSERT((pSrcStageMask != nullptr) && (pDstStageMask != nullptr));
 
-    const Pm4CmdBufferStateFlags stateFlags = pCmdBuf->GetPm4CmdBufState().flags;
+    const GfxCmdBufferStateFlags stateFlags = pCmdBuf->GetCmdBufState().flags;
 
     // Update pipeline stages if valid input stage mask is provided.
     if (TestAnyFlagSet(*pSrcStageMask, PipelineStageBlt))
@@ -165,7 +165,7 @@ void BarrierMgr::OptimizeStageMask(
 // This function also mask off all graphics path specific access mask flags for non-universal command buffer.
 // Return if need flush and invalidate GL2 cache.
 bool BarrierMgr::OptimizeAccessMask(
-    const Pm4CmdBuffer* pCmdBuf,
+    const GfxCmdBuffer* pCmdBuf,
     BarrierType         barrierType,
     const Pal::Image*   pImage,        // Optimization hint
     uint32*             pSrcAccessMask,
@@ -175,7 +175,7 @@ bool BarrierMgr::OptimizeAccessMask(
 {
     PAL_ASSERT((pSrcAccessMask != nullptr) && (pDstAccessMask != nullptr));
 
-    const Pm4CmdBufferStateFlags stateFlags       = pCmdBuf->GetPm4CmdBufState().flags;
+    const GfxCmdBufferStateFlags stateFlags       = pCmdBuf->GetCmdBufState().flags;
     const uint32                 orgSrcAccessMask = *pSrcAccessMask;
     const bool                   nonBufferBarrier = (barrierType != BarrierType::Buffer);
 
@@ -278,7 +278,7 @@ static void ConvertSyncGlxFlagsToBarrierOps(
 // Generate required cache ops for single global/buffer/image transition on Release, Acquire and ReleaseThenAcquire call.
 // Return required cache operations (SyncGlxFlags and if need sync RB cache).
 CacheSyncOps BarrierMgr::GetCacheSyncOps(
-    Pm4CmdBuffer*     pCmdBuf,
+    GfxCmdBuffer*     pCmdBuf,
     BarrierType       barrierType,
     const ImgBarrier* pImgBarrier,
     uint32            srcAccessMask, // Bitmask of CacheCoherencyUsageFlags
@@ -440,7 +440,7 @@ CacheSyncOps BarrierMgr::GetCacheSyncOps(
 
 // =====================================================================================================================
 static ReleaseEvents GetReleaseEvents(
-    Pm4CmdBuffer*    pCmdBuf,
+    GfxCmdBuffer*    pCmdBuf,
     uint32           srcStageMask,
     CacheSyncOps     cacheOps,
     bool             splitBarrier,
@@ -680,7 +680,7 @@ static BarrierTransition AcqRelBuildTransition(
 // For split barrier, only need update at either Release or Acquire side, preferred Acquire side. Note that alias
 // barrier should not be a split barrier.
 void BarrierMgr::PostSyncUpdateDccStateMetaData(
-    Pm4CmdBuffer*                 pCmdBuf,
+    GfxCmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
     const AcqRelTransitionInfo&   transitonInfo,
     Developer::BarrierOperations* pBarrierOps)
@@ -798,7 +798,7 @@ static void GetBltStageAccessInfo(
 // Optimize read only barrier by modify its srcStageMask/dstStageMask to reduce stall operations.
 // If cache operations are not required, set srcAccessMask/dstAccessMask to 0 as well.
 void BarrierMgr::OptimizeReadOnlyBarrier(
-    Pm4CmdBuffer*     pCmdBuf,
+    GfxCmdBuffer*     pCmdBuf,
     const ImgBarrier* pImgBarrier,
     uint32*           pSrcStageMask,
     uint32*           pDstStageMask,
@@ -862,7 +862,7 @@ void BarrierMgr::OptimizeReadOnlyBarrier(
 // cache operations.
 // Return SyncRbFlags to be async released pre blt.
 SyncRbFlags BarrierMgr::OptimizeImageBarrier(
-    Pm4CmdBuffer*               pCmdBuf,
+    GfxCmdBuffer*               pCmdBuf,
     ImgBarrier*                 pImgBarrier,  // [In/Out]: return optimized stage/access masks.
     const LayoutTransitionInfo& layoutTransInfo,
     uint32                      bltStageMask,
@@ -943,7 +943,7 @@ SyncRbFlags BarrierMgr::OptimizeImageBarrier(
 // Prepare and get all image layout transition info.
 // Return collected OR'ed SRC/DST stage masks and required cache operations (SyncGlxFlags and if need sync RB cache).
 BarrierMgr::AcqRelImageSyncInfo BarrierMgr::GetAcqRelLayoutTransitionBltInfo(
-    Pm4CmdBuffer*                 pCmdBuf,
+    GfxCmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
     const AcquireReleaseInfo&     barrierInfo,
     AcqRelTransitionInfo*         pTransInfo,   // (out) Layout transition barrier info
@@ -1066,7 +1066,7 @@ BarrierMgr::AcqRelImageSyncInfo BarrierMgr::GetAcqRelLayoutTransitionBltInfo(
 // Issue all image layout transition BLTs and compute info for release the BLTs.
 // Return required cache operations.
 CacheSyncOps BarrierMgr::IssueAcqRelLayoutTransitionBlt(
-    Pm4CmdBuffer*                 pCmdBuf,
+    GfxCmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
     AcqRelTransitionInfo*         pTransitonInfo,
     Developer::BarrierOperations* pBarrierOps
@@ -1158,7 +1158,7 @@ CacheSyncOps BarrierMgr::IssueAcqRelLayoutTransitionBlt(
 // Wrapper to call RPM's InitMaskRam to issues a compute shader blt to initialize the Mask RAM allocations for an Image.
 // Returns "true" if the compute engine was last used in this function.
 bool BarrierMgr::AcqRelInitMaskRam(
-    Pm4CmdBuffer*      pCmdBuf,
+    GfxCmdBuffer*      pCmdBuf,
     CmdStream*         pCmdStream,
     const ImgBarrier&  imgBarrier
     ) const
@@ -1205,7 +1205,7 @@ bool BarrierMgr::AcqRelInitMaskRam(
 // Issue the specified BLT operation(s) (i.e., decompress, resummarize) necessary to convert a depth/stencil image from
 // one ImageLayout to another.
 void BarrierMgr::AcqRelDepthStencilTransition(
-    Pm4CmdBuffer*        pCmdBuf,
+    GfxCmdBuffer*        pCmdBuf,
     const ImgBarrier&    imgBarrier,
     LayoutTransitionInfo layoutTransInfo
     ) const
@@ -1249,7 +1249,7 @@ void BarrierMgr::AcqRelDepthStencilTransition(
 // Issue the specified BLT operation(s) (i.e., decompresses) necessary to convert a color image from one ImageLayout to
 // another.
 void BarrierMgr::AcqRelColorTransition(
-    Pm4CmdBuffer*                 pCmdBuf,
+    GfxCmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
     const ImgBarrier&             imgBarrier,
     LayoutTransitionInfo          layoutTransInfo,
@@ -1344,7 +1344,7 @@ void BarrierMgr::AcqRelColorTransition(
 // =====================================================================================================================
 // Issue appropriate cache sync hardware commands to satisfy the cache release requirements.
 ReleaseToken BarrierMgr::IssueReleaseSync(
-    Pm4CmdBuffer*                 pCmdBuf,
+    GfxCmdBuffer*                 pCmdBuf,
     uint32                        srcStageMask,  // Bitmask of PipelineStageFlag.
     bool                          releaseBufferCopyOnly,
     CacheSyncOps                  cacheOps,
@@ -1632,7 +1632,7 @@ static Developer::AcquirePoint ConvertToDeveloperAcquirePoint(
 //       at different pipeline points. For example one wait at PFP while another wait at ME, or even later in the
 //       pipeline. Every IssueAcquireSync needs to effectively wait on the list of release tokens.
 void BarrierMgr::IssueAcquireSync(
-    Pm4CmdBuffer*                 pCmdBuf,
+    GfxCmdBuffer*                 pCmdBuf,
     uint32                        dstStageMask,  // Bitmask of PipelineStageFlag.
     CacheSyncOps                  cacheOps,
     uint32                        syncTokenCount,
@@ -1660,7 +1660,7 @@ void BarrierMgr::IssueAcquireSync(
                 cacheOps |= GetCacheSyncOps(pCmdBuf, BarrierType::Buffer, nullptr, CoherCopy, 0, false);
 
                 // Wait CpDma only if it's still active.
-                if ((pCmdBuf->GetPm4CmdBufState().flags.cpBltActive != 0) &&
+                if ((pCmdBuf->GetCmdBufState().flags.cpBltActive != 0) &&
                     (pSyncTokens[i].fenceValue > pCmdBuf->GetRetiredAcqRelFenceVal(ReleaseTokenCpDma)))
                 {
                     pCmdSpace += m_cmdUtil.BuildWaitDmaData(pCmdSpace);
@@ -1762,7 +1762,7 @@ void BarrierMgr::IssueAcquireSync(
                     pCmdBuf->UpdateRetiredAcqRelFenceVal(ReleaseTokenType(i), syncTokenToWait[i]);
                 }
 
-                const Pm4CmdBufferState& cmdBufState       = pCmdBuf->GetPm4CmdBufState();
+                const GfxCmdBufferState& cmdBufState       = pCmdBuf->GetCmdBufState();
                 const uint32             waitedEopFenceVal = syncTokenToWait[ReleaseTokenEop];
 
                 // If we have waited on a valid EOP fence value, update some CmdBufState (e.g. xxxBltActive) flags.
@@ -1836,7 +1836,7 @@ void BarrierMgr::IssueAcquireSync(
 // =====================================================================================================================
 // Issue appropriate cache sync hardware commands to satisfy the cache release requirements.
 void BarrierMgr::IssueReleaseThenAcquireSync(
-    Pm4CmdBuffer*                 pCmdBuf,
+    GfxCmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
     uint32                        srcStageMask,
     uint32                        dstStageMask,
@@ -1894,7 +1894,7 @@ void BarrierMgr::IssueReleaseThenAcquireSync(
     pBarrierOps->acquirePoint = ConvertToDeveloperAcquirePoint(acquirePoint);
 #endif
 
-    const Pm4CmdBufferStateFlags cmdBufStateFlags = pCmdBuf->GetPm4CmdBufState().flags;
+    const GfxCmdBufferStateFlags cmdBufStateFlags = pCmdBuf->GetCmdBufState().flags;
 
     // Optimization: If this is an Eop release acquiring at PFP/ME stage and cmdBufStateFlags.gfxWriteCachesDirty
     //               is active, let's force releaseEvents.rbCache = 1 so cmdBufStateFlags.gfxWriteCachesDirty can
@@ -2138,7 +2138,7 @@ void BarrierMgr::IssueReleaseThenAcquireSync(
 // =====================================================================================================================
 // Figure out the specific BLT operation(s) necessary to convert a color image from one ImageLayout to another.
 LayoutTransitionInfo BarrierMgr::PrepareColorBlt(
-    Pm4CmdBuffer*      pCmdBuf,
+    GfxCmdBuffer*      pCmdBuf,
     const Pal::Image&  image,
     const SubresRange& subresRange,
     ImageLayout        oldLayout,
@@ -2277,7 +2277,7 @@ LayoutTransitionInfo BarrierMgr::PrepareColorBlt(
 // =====================================================================================================================
 // Figure out the specific BLT operation(s) necessary to convert a depth/stencil image from one ImageLayout to another.
 LayoutTransitionInfo BarrierMgr::PrepareDepthStencilBlt(
-    const Pm4CmdBuffer* pCmdBuf,
+    const GfxCmdBuffer* pCmdBuf,
     const Pal::Image&   image,
     const SubresRange&  subresRange,
     ImageLayout         oldLayout,
@@ -2328,7 +2328,7 @@ LayoutTransitionInfo BarrierMgr::PrepareDepthStencilBlt(
 // Helper function that figures out what BLT transition is needed based on the image's old and new layout.
 // Can only be called once before each layout transition.
 LayoutTransitionInfo BarrierMgr::PrepareBltInfo(
-    Pm4CmdBuffer*     pCmdBuf,
+    GfxCmdBuffer*     pCmdBuf,
     const ImgBarrier& imgBarrier
     ) const
 {
@@ -2415,7 +2415,7 @@ static bool HasGlobalBarrier(
 
 // =====================================================================================================================
 ReleaseToken BarrierMgr::ReleaseInternal(
-    Pm4CmdBuffer*                 pCmdBuf,
+    GfxCmdBuffer*                 pCmdBuf,
     const AcquireReleaseInfo&     releaseInfo,
     const GpuEvent*               pClientEvent,
     Developer::BarrierOperations* pBarrierOps
@@ -2441,7 +2441,6 @@ ReleaseToken BarrierMgr::ReleaseInternal(
                                               TestAllFlagsSet(CoherCopy, barrier.srcAccessMask);
 
         globalCacheOps        |= GetBufferCacheSyncOps(pCmdBuf, barrier.srcAccessMask, 0);
-        // globallyAvailable is processed in Acquire().
         srcStageMask          |= barrier.srcStageMask;
         releaseBufferCopyOnly &= releaseBufferCopy;
     }
@@ -2511,7 +2510,7 @@ ReleaseToken BarrierMgr::ReleaseInternal(
 
 // =====================================================================================================================
 void BarrierMgr::AcquireInternal(
-    Pm4CmdBuffer*                 pCmdBuf,
+    GfxCmdBuffer*                 pCmdBuf,
     const AcquireReleaseInfo&     acquireInfo,
     uint32                        syncTokenCount,
     const ReleaseToken*           pSyncTokens,
@@ -2532,12 +2531,8 @@ void BarrierMgr::AcquireInternal(
     {
         const MemBarrier& barrier = acquireInfo.pMemoryBarriers[i];
 
-        globalCacheOps          |= GetBufferCacheSyncOps(pCmdBuf, 0, barrier.dstAccessMask);
-        // Split Release/Acquire is built around GL2 being the LLC where data is either released to or acquired from.
-        // The Cpu, Memory, and Present usages are special because they do not go through GL2. Therefore, when acquiring
-        // globallyAvailable usages we must WB GL2 so all prior writes are visible to usages that will read from memory.
-        globalCacheOps.glxFlags |= barrier.flags.globallyAvailable ? SyncGl2Wb : SyncGlxNone;
-        dstStageMask            |= barrier.dstStageMask;
+        globalCacheOps |= GetBufferCacheSyncOps(pCmdBuf, 0, barrier.dstAccessMask);
+        dstStageMask   |= barrier.dstStageMask;
     }
 
     // Optimize buffer stage masks before OR together.
@@ -2609,7 +2604,33 @@ ReleaseToken BarrierMgr::Release(
     Developer::BarrierOperations* pBarrierOps
     ) const
 {
-    return ReleaseInternal(static_cast<Pm4CmdBuffer*>(pGfxCmdBuf), releaseInfo, nullptr, pBarrierOps);
+    const EngineType engineType = pGfxCmdBuf->GetEngineType();
+
+    // PWS enabled case doesn't need fence GPU memory since internal PWS counter is used instead.
+    if ((pGfxCmdBuf->GetAcqRelFenceValBaseGpuVa() == 0) && (m_pDevice->UsePws(engineType) == false))
+    {
+        // Allocate acquire/release synchronization fence value GPU memory from the command allocator.
+        // AllocateGpuScratchMem() always returns a valid GPU address, even if we fail to obtain memory from the
+        // allocator.  In that scenario, the allocator returns a dummy chunk so we can always have a valid object
+        // to access, and sets m_status to a failure code.
+        const gpusize fenceAddr = pGfxCmdBuf->AllocateGpuScratchMem(ReleaseTokenCount, 1);
+
+        const uint32  data[ReleaseTokenCount] = {};
+        WriteDataInfo writeDataInfo           = {};
+        writeDataInfo.engineType = engineType;
+        writeDataInfo.engineSel  = engine_sel__pfp_write_data__prefetch_parser;
+        writeDataInfo.dstSel     = dst_sel__pfp_write_data__memory;
+        writeDataInfo.dstAddr    = fenceAddr;
+
+        CmdStream* const pCmdStream = GetCmdStream(pGfxCmdBuf);
+        uint32*          pCmdSpace  = pCmdStream->ReserveCommands();
+        pCmdSpace += CmdUtil::BuildWriteData(writeDataInfo, (sizeof(data) / sizeof(uint32)), &data[0], pCmdSpace);
+        pCmdStream->CommitCommands(pCmdSpace);
+
+        pGfxCmdBuf->SetAcqRelFenceValBaseGpuVa(fenceAddr);
+    }
+
+    return ReleaseInternal(pGfxCmdBuf, releaseInfo, nullptr, pBarrierOps);
 }
 
 // =====================================================================================================================
@@ -2624,7 +2645,7 @@ void BarrierMgr::Acquire(
     Developer::BarrierOperations* pBarrierOps
     ) const
 {
-    AcquireInternal(static_cast<Pm4CmdBuffer*>(pGfxCmdBuf), acquireInfo, syncTokenCount, pSyncTokens, pBarrierOps);
+    AcquireInternal(pGfxCmdBuf, acquireInfo, syncTokenCount, pSyncTokens, pBarrierOps);
 }
 
 // =====================================================================================================================
@@ -2638,8 +2659,7 @@ void BarrierMgr::ReleaseEvent(
     Developer::BarrierOperations* pBarrierOps
     ) const
 {
-    ReleaseInternal(static_cast<Pm4CmdBuffer*>(pGfxCmdBuf), releaseInfo, static_cast<const GpuEvent*>(pClientEvent),
-                    pBarrierOps);
+    ReleaseInternal(pGfxCmdBuf, releaseInfo, static_cast<const GpuEvent*>(pClientEvent), pBarrierOps);
 }
 
 // =====================================================================================================================
@@ -2647,15 +2667,13 @@ void BarrierMgr::ReleaseEvent(
 // and issue the required visibility operations. The visibility operation will invalidate the required ranges in local
 // caches.
 void BarrierMgr::AcquireEvent(
-    GfxCmdBuffer*                 pGfxCmdBuf,
+    GfxCmdBuffer*                 pCmdBuf,
     const AcquireReleaseInfo&     acquireInfo,
     uint32                        gpuEventCount,
     const IGpuEvent* const*       ppGpuEvents,
     Developer::BarrierOperations* pBarrierOps
     ) const
 {
-    auto*const pCmdBuf = static_cast<Pm4CmdBuffer*>(pGfxCmdBuf);
-
     // Wait on the GPU memory slot(s) in all specified IGpuEvent objects.
     if (gpuEventCount > 0)
     {
@@ -2693,14 +2711,13 @@ void BarrierMgr::AcquireEvent(
 // both srcAccessMask and dstAccessMask info, instead of calling Release and Acquire directly, can
 // implement independently to issue barrier optimally.
 void BarrierMgr::ReleaseThenAcquire(
-    GfxCmdBuffer*                 pGfxCmdBuf,
+    GfxCmdBuffer*                 pCmdBuf,
     const AcquireReleaseInfo&     barrierInfo,
     Developer::BarrierOperations* pBarrierOps
     ) const
 {
-    auto*const pCmdBuf            = static_cast<Pm4CmdBuffer*>(pGfxCmdBuf);
-    uint32     srcGlobalStageMask = barrierInfo.srcGlobalStageMask;
-    uint32     dstGlobalStageMask = barrierInfo.dstGlobalStageMask;
+    uint32 srcGlobalStageMask = barrierInfo.srcGlobalStageMask;
+    uint32 dstGlobalStageMask = barrierInfo.dstGlobalStageMask;
 
     // Optimize global stage masks.
     OptimizeStageMask(pCmdBuf, BarrierType::Global, &srcGlobalStageMask, &dstGlobalStageMask);
@@ -2726,13 +2743,9 @@ void BarrierMgr::ReleaseThenAcquire(
                                     &barrier.dstAccessMask);
         }
 
-        globalCacheOps          |= GetBufferCacheSyncOps(pCmdBuf, barrier.srcAccessMask, barrier.dstAccessMask);
-        // Split Release/Acquire is built around GL2 being the LLC where data is either released to or acquired from.
-        // The Cpu, Memory, and Present usages are special because they do not go through GL2. Therefore, when acquiring
-        // globallyAvailable usages we must WB GL2 so all prior writes are visible to usages that will read from memory.
-        globalCacheOps.glxFlags |= barrier.flags.globallyAvailable ? SyncGl2Wb : SyncGlxNone;
-        srcStageMask            |= barrier.srcStageMask;
-        dstStageMask            |= barrier.dstStageMask;
+        globalCacheOps |= GetBufferCacheSyncOps(pCmdBuf, barrier.srcAccessMask, barrier.dstAccessMask);
+        srcStageMask   |= barrier.srcStageMask;
+        dstStageMask   |= barrier.dstStageMask;
     }
 
     // Optimize buffer stage masks before OR together.
@@ -2801,7 +2814,7 @@ void BarrierMgr::ReleaseThenAcquire(
 // Helper function that issues requested transition for the image barrier.
 // Returns "true" if there is InitMaskRam operation and it's done by compute engine.
 bool BarrierMgr::IssueBlt(
-    Pm4CmdBuffer*                 pCmdBuf,
+    GfxCmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
     const ImgBarrier*             pImgBarrier,
     LayoutTransitionInfo          layoutTransInfo,

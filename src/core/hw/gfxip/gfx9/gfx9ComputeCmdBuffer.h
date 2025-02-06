@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -25,7 +25,7 @@
 
 #pragma once
 
-#include "core/hw/gfxip/pm4ComputeCmdBuffer.h"
+#include "core/hw/gfxip/computeCmdBuffer.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdStream.h"
 #include "core/hw/gfxip/gfx9/gfx9ComputePipeline.h"
 #include "palAutoBuffer.h"
@@ -39,8 +39,8 @@ class Device;
 class WorkGraph;
 
 // =====================================================================================================================
-// GFX9 compute command buffer class: implements GFX9 specific functionality for the Pm4::ComputeCmdBuffer class.
-class ComputeCmdBuffer final : public Pm4::ComputeCmdBuffer
+// GFX9 compute command buffer class: implements GFX9 specific functionality for the ComputeCmdBuffer class.
+class ComputeCmdBuffer final : public Pal::ComputeCmdBuffer
 {
 public:
     ComputeCmdBuffer(const Device& device, const CmdBufferCreateInfo& createInfo);
@@ -48,23 +48,12 @@ public:
     static Result WritePreambleCommands(const CmdUtil& cmdUtil, CmdStream* pCmdStream);
     static Result WritePostambleCommands(
         const CmdUtil&     cmdUtil,
-        Pm4CmdBuffer*const pCmdBuffer,
+        GfxCmdBuffer*const pCmdBuffer,
         CmdStream*         pCmdStream);
 
     virtual Result Init(const CmdBufferInternalCreateInfo& internalInfo) override;
 
     virtual void CmdBindPipeline(const PipelineBindParams& params) override;
-
-    virtual void CmdCopyMemory(
-        const IGpuMemory&       srcGpuMemory,
-        const IGpuMemory&       dstGpuMemory,
-        uint32                  regionCount,
-        const MemoryCopyRegion* pRegions) override;
-    virtual void CmdUpdateMemory(
-        const IGpuMemory& dstGpuMemory,
-        gpusize           dstOffset,
-        gpusize           dataSize,
-        const uint32*     pData) override;
 
     virtual void CmdUpdateBusAddressableMemoryMarker(
         const IGpuMemory& dstGpuMemory,
@@ -163,7 +152,7 @@ public:
         uint32      payloadSize) override;
 
     virtual void GetChunkForCmdGeneration(
-        const Pm4::IndirectCmdGenerator& generator,
+        const Pal::IndirectCmdGenerator& generator,
         const Pal::Pipeline&             pipeline,
         uint32                           maxCommands,
         uint32                           numChunkOutputs,
@@ -236,9 +225,9 @@ private:
         uint32*      pCmdSpace);
 
     uint32* ValidateDispatchHsaAbi(
-        DispatchDims offset,
-        DispatchDims logicalSize,
-        uint32*      pCmdSpace);
+        DispatchDims        offset,
+        const DispatchDims& logicalSize,
+        uint32*             pCmdSpace);
 
     uint32* SetUserSgprReg(
         uint16  regAddr,
@@ -297,8 +286,6 @@ private:
     // Total number of valid packed register pair entries mapped in m_validUserEntryRegPairsCs. This also functions as
     // the index to the valid packed register pair lookup.
     uint32             m_numValidUserEntriesCs;
-
-    gpusize m_globalInternalTableAddr; // If non-zero, the low 32-bits of the global internal table were written here.
 
     size_t  m_ringSizeComputeScratch;
 

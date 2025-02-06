@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -75,7 +75,7 @@ Result FileMapping::Create(
     flags |= allowWrite ? O_RDWR : O_RDONLY;
     m_fileHandle = open(pFileName, flags, 0600);
 
-    if (m_fileHandle != -1)
+    if (m_fileHandle != InvalidFd)
     {
         if ((m_writeable == false) || (ftruncate(m_fileHandle, mapSize) == 0))
         {
@@ -101,7 +101,7 @@ Result FileMapping::CreateFromHandle(
     m_pSystemName = pName;
     m_fileHandle = fileHandle;
 
-    if (m_fileHandle != -1)
+    if (m_fileHandle != InvalidFd)
     {
         if ((m_writeable == false) || (ftruncate(m_fileHandle, mapSize) == 0))
         {
@@ -134,6 +134,7 @@ void FileMapping::Close()
     if (IsValid())
     {
         close(m_fileHandle);
+        m_fileHandle = InvalidFd;
     }
 }
 

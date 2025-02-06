@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -31,7 +31,7 @@
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9SettingsLoader.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
-#include "core/hw/gfxip/pm4CmdBuffer.h"
+#include "core/hw/gfxip/gfxCmdBuffer.h"
 #include "core/hw/amdgpu_asic.h"
 #include "core/devDriverUtil.h"
 #include "devDriverServer.h"
@@ -427,8 +427,6 @@ static void SetupGfx101Workarounds(
     // The CB has a bug where blending can be corrupted if the color target is 8bpp and uses an S swizzle mode.
     pCoreSettings->addr2DisableSModes8BppColor = true;
 
-    pSettings->waCeDisableIb2 = true;
-
     pSettings->waUtcL0InconsistentBigPage = true;
 
     pSettings->waLimitLateAllocGsNggFifo = true;
@@ -562,8 +560,6 @@ static void SetupNavi21Workarounds(
 
     // Setup any Navi21 workarounds.
 
-    pSettings->waCeDisableIb2 = true;
-
     pSettings->waDisableFmaskNofetchOpOnFmaskCompressionDisable = true;
 
     pSettings->waVgtFlushNggToLegacy = true;
@@ -584,8 +580,6 @@ static void SetupNavi22Workarounds(
     SetupNavi2xWorkarounds(device, pSettings);
 
     // Setup any Navi22 workarounds.
-
-    pSettings->waCeDisableIb2 = true;
 
     pSettings->waDisableVrsWithDsExports = true;
 }

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -140,6 +140,10 @@ struct IndirectCmdGeneratorCreateInfo
     /// Set of magic values which the command generator will recognize inside a BindIndexDataIndirectArgs structure
     /// to choose an index-buffer type: [0] = 8 bit indices, [1] = 16 bit indices, [2] = 32 bit indices.
     uint32  indexTypeTokens[3];
+
+    /// If true, IndirectCmdGenerator will bind "vertex offset mode" SRD using the @ref VertexBufferView.
+    /// This flag applies to every IndirectParamType::BindVertexData that exists in IndirectParam array.
+    bool    bindVertexInOffsetMode;
 };
 
 /**

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -48,8 +48,6 @@ constexpr uint32 AlwaysL2Mask = (MaybeL1ShaderMask       |
                                  CoherIndexData          |
                                  CoherQueueAtomic        |
                                  CoherTimestamp          |
-                                 CoherCeLoad             |
-                                 CoherCeDump             |
                                  CoherCp);
 
 // =====================================================================================================================
@@ -71,7 +69,7 @@ constexpr uint32 AlwaysL2Mask = (MaybeL1ShaderMask       |
 //  1. Cat A(write)->Cat B(read or write)
 //  2. Cat B(write)->Cat A(read or write)
 void BarrierMgr::FlushAndInvL2IfNeeded(
-    Pm4CmdBuffer*                 pCmdBuf,
+    GfxCmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
     const BarrierInfo&            barrier,
     uint32                        transitionId,
@@ -146,9 +144,9 @@ static ImgBarrier ConvertBarrierTransitionToImgBarrier(
 //
 // pSyncReqs will be updated to reflect synchronization that must be performed after the BLT.
 void BarrierMgr::TransitionDepthStencil(
-    Pm4CmdBuffer*                 pCmdBuf,
+    GfxCmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
-    Pm4CmdBufferStateFlags        cmdBufStateFlags,
+    GfxCmdBufferStateFlags        cmdBufStateFlags,
     const BarrierInfo&            barrier,
     uint32                        transitionId,
     bool                          earlyPhase,
@@ -383,7 +381,7 @@ void BarrierMgr::TransitionDepthStencil(
 //
 // pSyncReqs will be updated to reflect synchronization that must be performed after the BLT.
 void BarrierMgr::ExpandColor(
-    Pm4CmdBuffer*                 pCmdBuf,
+    GfxCmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
     const BarrierInfo&            barrier,
     uint32                        transitionId,
@@ -792,7 +790,7 @@ void BarrierMgr::FillCacheOperations(
 // =====================================================================================================================
 // Examines the specified sync reqs, and the corresponding hardware commands to satisfy the requirements.
 void BarrierMgr::IssueSyncs(
-    Pm4CmdBuffer*                 pCmdBuf,
+    GfxCmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
     SyncReqs                      syncReqs,
     HwPipePoint                   waitPoint,
@@ -1036,7 +1034,7 @@ void BarrierMgr::IssueSyncs(
         pCmdBuf->SetGfxBltState(false);
     }
 
-    if ((pCmdBuf->GetPm4CmdBufState().flags.gfxBltActive == false) &&
+    if ((pCmdBuf->GetCmdBufState().flags.gfxBltActive == false) &&
         (TestAnyFlagSet(origRbCaches, SyncRbWbInv) && (syncReqs.waitOnEopTs != 0)))
     {
         pCmdBuf->SetGfxBltWriteCacheState(false);
@@ -1047,7 +1045,7 @@ void BarrierMgr::IssueSyncs(
         pCmdBuf->SetCsBltState(false);
     }
 
-    if ((pCmdBuf->GetPm4CmdBufState().flags.csBltActive == false) &&
+    if ((pCmdBuf->GetCmdBufState().flags.csBltActive == false) &&
         TestAllFlagsSet(origGlxCaches, SyncGl2Wb | SyncGlmInv | SyncGl1Inv | SyncGlvInv | SyncGlkInv))
     {
         pCmdBuf->SetCsBltWriteCacheState(false);
@@ -1058,7 +1056,7 @@ void BarrierMgr::IssueSyncs(
         pCmdBuf->SetCpBltState(false);
     }
 
-    if (pCmdBuf->GetPm4CmdBufState().flags.cpBltActive == false)
+    if (pCmdBuf->GetCmdBufState().flags.cpBltActive == false)
     {
         if (TestAnyFlagSet(origGlxCaches, SyncGl2Wb))
         {
@@ -1078,7 +1076,7 @@ void BarrierMgr::IssueSyncs(
 //       outstanding BLTs, but will be left as HwPipePostBlt if the internal outstanding BLTs can't be expressed as
 //       a client-facing HwPipePoint (e.g., if there are CP DMA BLTs in flight).
 static void OptimizePipePoint(
-    const Pm4CmdBuffer* pCmdBuf,
+    const GfxCmdBuffer* pCmdBuf,
     HwPipePoint*        pPipePoint)
 {
     if (pPipePoint != nullptr)
@@ -1086,7 +1084,7 @@ static void OptimizePipePoint(
         if (*pPipePoint == HwPipePostBlt)
         {
             // Check xxxBltActive states in order
-            const Pm4CmdBufferStateFlags cmdBufStateFlags = pCmdBuf->GetPm4CmdBufState().flags;
+            const GfxCmdBufferStateFlags cmdBufStateFlags = pCmdBuf->GetCmdBufState().flags;
             if (cmdBufStateFlags.gfxBltActive)
             {
                 *pPipePoint = HwPipeBottom;
@@ -1119,7 +1117,7 @@ static void OptimizePipePoint(
 // =====================================================================================================================
 // Helper function to optimize cache mask by clearing unnecessary coherency flags. This is for legacy barrier interface.
 void BarrierMgr::OptimizeSrcCacheMask(
-    const Pm4CmdBuffer* pCmdBuf,
+    const GfxCmdBuffer* pCmdBuf,
     uint32*             pCacheMask)
 {
     if (pCacheMask != nullptr)
@@ -1133,7 +1131,7 @@ void BarrierMgr::OptimizeSrcCacheMask(
         // Clear the original srcCaches from the srcCache mask for the rest of this scope.
         if (TestAnyFlagSet(*pCacheMask, CacheCoherencyBlt))
         {
-            const Pm4CmdBufferStateFlags cmdBufStateFlags = pCmdBuf->GetPm4CmdBufState().flags;
+            const GfxCmdBufferStateFlags cmdBufStateFlags = pCmdBuf->GetCmdBufState().flags;
             const bool                   isCopySrcOnly    = (*pCacheMask == CoherCopySrc);
 
             *pCacheMask |= cmdBufStateFlags.cpWriteCachesDirty ? CoherCp : 0;
@@ -1177,17 +1175,16 @@ void BarrierMgr::OptimizeSrcCacheMask(
 //            - Issue range-checked DB cache flushes.
 //            - Issue any decompress BLTs that couldn't be performed in phase 1.
 void BarrierMgr::Barrier(
-    GfxCmdBuffer*                 pGfxCmdBuf,
+    GfxCmdBuffer*                 pCmdBuf,
     const BarrierInfo&            barrier,
     Developer::BarrierOperations* pBarrierOps
     ) const
 {
-    auto*const pCmdBuf        = static_cast<Pm4CmdBuffer*>(pGfxCmdBuf);
     CmdStream* pCmdStream     = GetCmdStream(pCmdBuf);
     SyncReqs   globalSyncReqs = {};
 
     // Keep a copy of original CmdBufferState flag as TransitionDepthStencil() or ExpandColor() may change it.
-    const Pm4CmdBufferStateFlags origCmdBufStateFlags = pCmdBuf->GetPm4CmdBufState().flags;
+    const GfxCmdBufferStateFlags origCmdBufStateFlags = pCmdBuf->GetCmdBufState().flags;
     const bool                   isGfxSupported       = pCmdBuf->IsGraphicsSupported();
 
     // -----------------------------------------------------------------------------------------------------------------

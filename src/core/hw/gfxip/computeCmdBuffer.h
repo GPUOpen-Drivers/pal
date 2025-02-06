@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -25,19 +25,17 @@
 
 #pragma once
 
-#include "core/hw/gfxip/pm4CmdStream.h"
-#include "core/hw/gfxip/pm4CmdBuffer.h"
+#include "core/hw/gfxip/gfxCmdBuffer.h"
+#include "core/hw/gfxip/gfxCmdStream.h"
 
 namespace Pal
 {
 
-namespace Pm4
-{
 class BarrierMgr;
 
 // =====================================================================================================================
 // Class for executing basic hardware-specific functionality common to all pm4 based compute command buffers.
-class ComputeCmdBuffer : public Pm4CmdBuffer
+class ComputeCmdBuffer : public GfxCmdBuffer
 {
 public:
     virtual Result Init(const CmdBufferInternalCreateInfo& internalInfo) override;
@@ -80,7 +78,7 @@ protected:
         const GfxDevice&           device,
         const CmdBufferCreateInfo& createInfo,
         const GfxBarrierMgr*       pBarrierMgr,
-        Pm4::CmdStream*            pCmdStream,
+        GfxCmdStream*              pCmdStream,
         bool                       useUpdateUserData);
 
     virtual ~ComputeCmdBuffer() {}
@@ -101,12 +99,11 @@ protected:
     }  m_spillTable;
 
 private:
-    const GfxDevice&     m_device;
-    Pm4::CmdStream*const m_pCmdStream;
+    const GfxDevice&   m_device;
+    GfxCmdStream*const m_pCmdStream;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(ComputeCmdBuffer);
     PAL_DISALLOW_DEFAULT_CTOR(ComputeCmdBuffer);
 };
 
-} // Pm4
 } // Pal

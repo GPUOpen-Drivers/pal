@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -103,14 +103,7 @@ static Result WriteCmdBufferDumpHeaderToFile(
 
         if (cmdBufferDesc.engineType == EngineTypeUniversal)
         {
-            if (cmdBufferDesc.subEngineType == SubEngineType::Primary)
-            {
-                suffix = " DE";
-            }
-            else
-            {
-                suffix = " CE";
-            }
+            suffix = " DE";
         }
     }
 
@@ -478,41 +471,6 @@ Result Queue::Init(
             {
                 // CU reservation is only supported on queues with realtime priority.
                 m_pQueueInfos[qIndex].createInfo.numReservedCu = 0;
-            }
-
-            if (m_pDevice->EngineProperties().perEngine[curEngineType].flags.supportPersistentCeRam == 0)
-            {
-                PAL_ASSERT((pCreateInfo[qIndex].persistentCeRamOffset == 0) &&
-                           (pCreateInfo[qIndex].persistentCeRamSize == 0));
-
-                m_pQueueInfos[qIndex].createInfo.persistentCeRamOffset = 0;
-                m_pQueueInfos[qIndex].createInfo.persistentCeRamSize = 0;
-            }
-            else
-            {
-                constexpr uint32 CeRamAlignBytes = 32;
-
-                // Align the offset and size of persistent CE RAM to 32 bytes (8 DWORDs).
-                m_pQueueInfos[qIndex].createInfo.persistentCeRamOffset =
-                    Pow2AlignDown(pCreateInfo[qIndex].persistentCeRamOffset, CeRamAlignBytes);
-                const uint32 difference =
-                    (pCreateInfo[qIndex].persistentCeRamOffset -
-                     m_pQueueInfos[qIndex].createInfo.persistentCeRamOffset);
-                m_pQueueInfos[qIndex].createInfo.persistentCeRamSize =
-                    static_cast<uint32>(
-                        Pow2Align(((sizeof(uint32) * pCreateInfo[qIndex].persistentCeRamSize) + difference),
-                            CeRamAlignBytes) / sizeof(uint32));
-
-                PAL_ASSERT((m_pQueueInfos[qIndex].createInfo.persistentCeRamOffset ==
-                            pCreateInfo[qIndex].persistentCeRamOffset) &&
-                           (m_pQueueInfos[qIndex].createInfo.persistentCeRamSize   ==
-                            pCreateInfo[qIndex].persistentCeRamSize));
-
-                // The client can request some part of the CE ram to be persistent through consecutive submissions,
-                // and the whole CE ram used must be at least as big as that.
-                PAL_ASSERT(m_pDevice->CeRamDwordsUsed(EngineTypeUniversal) >=
-                           m_pQueueInfos[qIndex].createInfo.persistentCeRamOffset +
-                           m_pQueueInfos[qIndex].createInfo.persistentCeRamSize);
             }
 
             m_pQueueInfos[qIndex].pQueueContext = nullptr;

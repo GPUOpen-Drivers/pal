@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2017-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2017-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -362,7 +362,6 @@ Result CmdUploadRing::UploadCmdBuffers(
         {
             streamState[idx].curIbFreeBytes                 = Min(m_maxStreamBytes, RaftMemBytes) - m_minPostambleBytes;
             streamState[idx].engineType                     = pFirstStream->GetEngineType();
-            streamState[idx].subEngineType                  = pFirstStream->GetSubEngineType();
             streamState[idx].flags.isPreemptionEnabled      = pFirstStream->IsPreemptionEnabled();
             streamState[idx].flags.dropIfSameContext        = pFirstStream->DropIfSameContext();
         }
@@ -453,7 +452,6 @@ Result CmdUploadRing::UploadCmdBuffers(
                                                  pState->prevIbPostambleSize,
                                                  pChunk->GpuVirtAddr(),
                                                  pChunk->CmdDwordsToExecute() * sizeof(uint32),
-                                                 (pState->subEngineType == SubEngineType::ConstantEngine),
                                                  pState->flags.isPreemptionEnabled);
 
                             uploadMoreCmdBuffers = false;
@@ -510,7 +508,6 @@ Result CmdUploadRing::UploadCmdBuffers(
                                      pState->prevIbPostambleSize,
                                      0,
                                      0,
-                                     (pState->subEngineType == SubEngineType::ConstantEngine),
                                      pState->flags.isPreemptionEnabled);
             }
         }
@@ -572,7 +569,6 @@ Result CmdUploadRing::UploadCmdBuffers(
             {
                 pUploadInfo->streamInfo[idx].flags         = streamState[idx].flags;
                 pUploadInfo->streamInfo[idx].engineType    = streamState[idx].engineType;
-                pUploadInfo->streamInfo[idx].subEngineType = streamState[idx].subEngineType;
                 pUploadInfo->streamInfo[idx].pGpuMemory    = pRaft->pGpuMemory[idx];
                 pUploadInfo->streamInfo[idx].launchSize    = streamState[idx].launchBytes;
             }
@@ -631,7 +627,6 @@ void CmdUploadRing::EndCurrentIb(
                              pState->prevIbPostambleSize,
                              pState->curIbOffset,
                              curIbTotalBytes,
-                             (pState->subEngineType == SubEngineType::ConstantEngine),
                              pState->flags.isPreemptionEnabled);
     }
 

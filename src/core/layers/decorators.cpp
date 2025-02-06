@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -768,6 +768,14 @@ size_t DeviceDecorator::GetImageSize(
     ) const
 {
     return m_pNextLayer->GetImageSize(createInfo, pResult) + sizeof(ImageDecorator);
+}
+
+// =====================================================================================================================
+bool DeviceDecorator::ImagePrefersCloneCopy(
+    const ImageCreateInfo& createInfo
+    ) const
+{
+    return m_pNextLayer->ImagePrefersCloneCopy(createInfo);
 }
 
 // =====================================================================================================================
@@ -2445,7 +2453,6 @@ PlatformDecorator::PlatformDecorator(
     m_pClientPrivateData(nullptr),
     m_installDeveloperCb(installDeveloperCb),
     m_layerEnabled(isLayerEnabled),
-    m_clientApiId(createInfo.clientApiId),
     m_logDirCreated(false)
 {
     memset(&m_pDevices[0], 0, sizeof(m_pDevices));
@@ -2692,19 +2699,8 @@ Result PlatformDecorator::CreateLogDir(
 // =====================================================================================================================
 const char* PlatformDecorator::GetClientApiStr() const
 {
-    const char* pStr = "Unknown";
-
-    switch(m_clientApiId)
-    {
-    case ClientApi::Pal:
-        pStr = "PAL";
-        break;
-    case ClientApi::Vulkan:
-        pStr = "Vulkan";
-        break;
-    }
-
-    return pStr;
+    // See PAL_VALID_CLIENTS in PalBuildParameters.cmake for the full list of PAL_CLIENT macros.
+    return "Vulkan";
 }
 
 // =====================================================================================================================

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2023-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2023-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -70,23 +70,13 @@ static void GetClientApiInfo(
         (pApiMajorVersion != nullptr) &&
         (pApiMinorVersion != nullptr))
     {
-        switch (pPlatform->GetClientApiId())
-        {
-        case ClientApi::Vulkan:
-            (*pApiType)         = ApiType::Vulkan;
-            break;
-        default:
-            (*pApiType)         = ApiType::Generic;
-            (*pApiMajorVersion) = 0;
-            (*pApiMinorVersion) = 0;
-            break;
-        }
+        // See PAL_VALID_CLIENTS in PalBuildParameters.cmake for the full list of PAL_CLIENT macros.
+        const ApiType apiType = ApiType::Vulkan;
+        const bool getVersion = apiType != ApiType::Generic;
 
-        if (*pApiType != ApiType::Generic)
-        {
-            (*pApiMajorVersion) = pPlatform->GetClientApiMajorVer();
-            (*pApiMinorVersion) = pPlatform->GetClientApiMinorVer();
-        }
+        *pApiType         = apiType;
+        *pApiMajorVersion = getVersion ? pPlatform->GetClientApiMajorVer() : 0;
+        *pApiMinorVersion = getVersion ? pPlatform->GetClientApiMinorVer() : 0;
     }
 }
 

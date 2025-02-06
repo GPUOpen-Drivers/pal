@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -1092,11 +1092,9 @@ void CmdAllocator::ReuseLinearAllocator(
 // Updates the histogram for the given queue type. This can only be called when logCmdBufCommitSizes is true.
 void CmdAllocator::LogCommit(
     EngineType engineType,
-    bool       isConstantEngine,
     uint32     numDwords)
 {
-    PAL_ASSERT((engineType != EngineTypeTimer) &&
-               ((isConstantEngine == false) || (engineType == EngineTypeUniversal)));
+    PAL_ASSERT(engineType != EngineTypeTimer);
     PAL_ASSERT(m_pDevice->Settings().logCmdBufCommitSizes);
 
     if (m_pChunkLock != nullptr)
@@ -1105,7 +1103,7 @@ void CmdAllocator::LogCommit(
     }
 
     // Put CE chunks after all the canonical engine types.
-    const uint32 histIdx = isConstantEngine ?  EngineTypeCount : engineType;
+    const uint32 histIdx = engineType;
     const uint32 binIdx  = Pow2Align(numDwords, HistogramStep) / HistogramStep;
 
     m_pHistograms[histIdx][binIdx]++;

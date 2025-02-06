@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -30,7 +30,7 @@
 namespace Pal
 {
 
-class Pm4CmdBuffer;
+class GfxCmdBuffer;
 
 namespace Gfx9
 {
@@ -118,7 +118,7 @@ public:
     void HandleLoadContextRegsIndex(const PM4_PFP_LOAD_CONTEXT_REG_INDEX& loadData);
 
 #if PAL_DEVELOPER_BUILD
-    void IssueHotRegisterReport(Pm4CmdBuffer* pCmdBuf) const;
+    void IssueHotRegisterReport(GfxCmdBuffer* pCmdBuf) const;
 #endif
 
     // Allows caller to disable/re-enable PM4 optimizer dynamically.

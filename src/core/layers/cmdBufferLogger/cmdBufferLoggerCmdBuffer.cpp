@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -2264,8 +2264,10 @@ static void CacheCoherencyUsageToString(
         "IndexData",    // CoherIndexData
         "QueueAtomic",  // CoherQueueAtomic
         "Timestamp",    // CoherTimestamp
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 914
         "CeLoad",       // CoherCeLoad
         "CeDump",       // CoherCeDump
+#endif
         "So",           // CoherStreamOut
         "Memory",       // CoherMemory
         "SampleRate",   // CoherSampleRate
@@ -4550,6 +4552,7 @@ void CmdBuffer::CmdColorSpaceConversionCopy(
                                                 cscTable);
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 913
 // =====================================================================================================================
 void CmdBuffer::CmdCloneImageData(
     const IImage& srcImage,
@@ -4566,6 +4569,7 @@ void CmdBuffer::CmdCloneImageData(
 
     GetNextLayer()->CmdCloneImageData(*NextImage(&srcImage), *NextImage(&dstImage));
 }
+#endif
 
 // =====================================================================================================================
 static void DumpMemoryCopyRegion(
@@ -5455,63 +5459,6 @@ void CmdBuffer::CmdSetBufferFilledSize(
     }
 
     GetNextLayer()->CmdSetBufferFilledSize(bufferId, offset);
-}
-
-// =====================================================================================================================
-void CmdBuffer::CmdLoadCeRam(
-    const IGpuMemory& srcGpuMemory,
-    gpusize           memOffset,
-    uint32            ramOffset,
-    uint32            dwordSize)
-{
-    if (m_annotations.logMiscellaneous)
-    {
-        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdLoadCeRam));
-
-        // TODO: Add comment string.
-    }
-
-    GetNextLayer()->CmdLoadCeRam(*NextGpuMemory(&srcGpuMemory), memOffset, ramOffset, dwordSize);
-}
-
-// =====================================================================================================================
-void CmdBuffer::CmdWriteCeRam(
-    const void* pSrcData,
-    uint32      ramOffset,
-    uint32      dwordSize)
-{
-    if (m_annotations.logMiscellaneous)
-    {
-        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdWriteCeRam));
-
-        // TODO: Add comment string.
-    }
-
-    GetNextLayer()->CmdWriteCeRam(pSrcData, ramOffset, dwordSize);
-}
-
-// =====================================================================================================================
-void CmdBuffer::CmdDumpCeRam(
-    const IGpuMemory& dstGpuMemory,
-    gpusize           memOffset,
-    uint32            ramOffset,
-    uint32            dwordSize,
-    uint32            currRingPos,
-    uint32            ringSize)
-{
-    if (m_annotations.logMiscellaneous)
-    {
-        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdDumpCeRam));
-
-        // TODO: Add comment string.
-    }
-
-    GetNextLayer()->CmdDumpCeRam(*NextGpuMemory(&dstGpuMemory),
-                              memOffset,
-                              ramOffset,
-                              dwordSize,
-                              currRingPos,
-                              ringSize);
 }
 
 // =====================================================================================================================

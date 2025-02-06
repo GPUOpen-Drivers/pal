@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -52,8 +52,9 @@ public:
         const Util::PalAbi::CodeObjectMetadata& metadata,
         Util::MsgPackReader*                    pMetadataReader);
 
-    uint32       ThreadsPerGroup()    const { return m_threadsPerTg.Flatten(); }
-    DispatchDims ThreadsPerGroupXyz() const { return m_threadsPerTg; }
+    uint32       ThreadsPerGroup()       const { return m_threadsPerTg.Flatten(); }
+    DispatchDims ThreadsPerGroupXyz()    const { return m_threadsPerTg; }
+    bool         DisablePartialPreempt() const { return m_disablePartialPreempt; }
 
     virtual const Util::HsaAbi::KernelArgument* GetKernelArgument(uint32 index) const override;
 
@@ -78,7 +79,8 @@ protected:
         const ComputePipelineCreateInfo&        createInfo,
         const AbiReader&                        abiReader,
         const Util::HsaAbi::CodeObjectMetadata& metadata,
-        Util::MsgPackReader*                    pMetadataReader) { return Result::Unsupported; }
+        Util::MsgPackReader*                    pMetadataReader,
+        const Extent3d&                         groupSize) { return Result::Unsupported; }
 
     // We need a copy of the HSA metadata for future reference. We also keep a pointer to the HSA metadata's kernel
     // descriptor object. The descriptor is in the pipeline binary, it's not independently allocated!
@@ -91,6 +93,7 @@ protected:
     uint32  m_maxFunctionCallDepth;    // Maximum depth for indirect function calls
     uint32  m_stackSizeInBytes;        // Total stack size for indirect functions
     CompilerStackSizes m_cpsStackSizeInBytes; // Stack used in Continuation.
+    bool m_disablePartialPreempt;
 
     ShaderStageInfo  m_stageInfo;
 

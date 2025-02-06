@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -29,7 +29,7 @@
 #include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9PipelineStatsQueryPool.h"
-#include "core/hw/gfxip/pm4CmdBuffer.h"
+#include "core/hw/gfxip/gfxCmdBuffer.h"
 #include "palCmdBuffer.h"
 #include "palSysUtil.h"
 
@@ -474,8 +474,6 @@ void PipelineStatsQueryPool::GpuReset(
 
     if (pCmdBuffer->IsQueryAllowed(QueryPoolType::PipelineStats))
     {
-        Pm4CmdBuffer* pPm4CmdBuf = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
-
         // Before we initialize out the GPU's destination memory, make sure the ASIC has finished any previous writing
         // of pipeline stat data. Command buffers that do not support stats queries do not need to issue this wait
         // because the caller must use semaphores to make sure all queries are complete.
@@ -483,7 +481,7 @@ void PipelineStatsQueryPool::GpuReset(
         // TODO: Investigate if we can optimize this, we might just need a VS/PS/CS_PARTIAL_FLUSH on universal queue.
         constexpr WriteWaitEopInfo WaitEopInfo = { .hwAcqPoint = AcquirePointMe };
 
-        pCmdSpace = pPm4CmdBuf->WriteWaitEop(WaitEopInfo, pCmdSpace);
+        pCmdSpace = pCmdBuffer->WriteWaitEop(WaitEopInfo, pCmdSpace);
     }
 
     gpusize gpuAddr          = 0;

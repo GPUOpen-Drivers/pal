@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2023-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2023-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -68,6 +68,7 @@ typedef enum
     DD_SETTINGS_DRIVER_TYPE_DX12 = 0,
     DD_SETTINGS_DRIVER_TYPE_DX10,
     DD_SETTINGS_DRIVER_TYPE_VULKAN,
+    DD_SETTINGS_DRIVER_TYPE_OPENGL,
     DD_SETTINGS_DRIVER_TYPE_COUNT,
 } DD_SETTINGS_DRIVER_TYPE;
 

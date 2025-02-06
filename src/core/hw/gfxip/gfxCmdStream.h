@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -86,6 +86,16 @@ public:
     virtual void EndWhile();
 
     virtual void PatchTailChain(const Pal::CmdStream* pTargetStream) const override;
+
+    virtual void Call(const Pal::CmdStream& targetStream, bool exclusiveSubmit, bool allowIb2Launch) override;
+
+    void ExecuteGeneratedCommands(CmdStreamChunk** ppChunkList, uint32 numChunksExecuted, uint32 numGenChunks);
+
+    uint32 PrepareChunkForCmdGeneration(
+        CmdStreamChunk* pChunk,
+        uint32          cmdBufStrideInDwords,
+        uint32          embeddedDataStrideInDwords,
+        uint32          maxCommands) const;
 
     // This defines PAL's control flow nesting limit
     static constexpr uint32 CntlFlowNestingLimit = 8;

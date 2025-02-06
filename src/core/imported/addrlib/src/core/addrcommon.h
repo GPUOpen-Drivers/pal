@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2007-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2007-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -353,9 +353,7 @@ static inline UINT_32 BitScanReverse(
 {
     ADDR_ASSERT(mask > 0);
     unsigned long out = 0;
-#if (defined(_WIN64) && defined(_M_X64)) || (0&& defined(_M_IX64))
-    out = ::_lzcnt_u32(mask);
-#elif ( defined(_WIN64))
+#if ( defined(_WIN64))
     ::_BitScanReverse(&out, mask);
     out ^= 31;
 #elif defined(__GNUC__)

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -564,6 +564,7 @@ public:
     void DestroyMsaaStateInternal(
         MsaaState* pMsaaState) const;
     virtual size_t GetImageSize(const ImageCreateInfo& createInfo) const = 0;
+    virtual bool ImagePrefersCloneCopy(const ImageCreateInfo& createInfo) const = 0;
     virtual void CreateImage(
         Pal::Image* pParentImage,
         ImageInfo*  pImageInfo,

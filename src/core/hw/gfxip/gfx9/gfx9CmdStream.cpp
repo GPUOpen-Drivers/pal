@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -47,15 +47,15 @@ CmdStream::CmdStream(
     CmdStreamUsage cmdStreamUsage,
     bool           isNested)
     :
-    Pm4::CmdStream(device,
-                   pCmdAllocator,
-                   engineType,
-                   subEngineType,
-                   cmdStreamUsage,
-                   CmdUtil::ChainSizeInDwords(engineType),
-                   CmdUtil::MinNopSizeInDwords,
-                   CmdUtil::CondIndirectBufferSize,
-                   isNested),
+    GfxCmdStream(device,
+                 pCmdAllocator,
+                 engineType,
+                 subEngineType,
+                 cmdStreamUsage,
+                 CmdUtil::ChainSizeInDwords(engineType),
+                 CmdUtil::MinNopSizeInDwords,
+                 CmdUtil::CondIndirectBufferSize,
+                 isNested),
     m_cmdUtil(device.CmdUtil()),
     m_pPm4Optimizer(nullptr),
     m_pChunkPreamble(nullptr),
@@ -68,46 +68,37 @@ Result CmdStream::Begin(
     CmdStreamBeginFlags     flags,
     VirtualLinearAllocator* pMemAllocator)
 {
-    // Note that we don't support command optimization or command prefetch for CE.
-    if (m_subEngineType == SubEngineType::ConstantEngine)
-    {
-        flags.optimizeCommands = 0;
-        flags.prefetchCommands = 0;
-    }
-    else
-    {
-        // We can't enable PM4 optimization without an allocator because we need to dynamically allocate a Pm4Optimizer.
-        flags.optimizeCommands &= (pMemAllocator != nullptr);
+    // We can't enable PM4 optimization without an allocator because we need to dynamically allocate a Pm4Optimizer.
+    flags.optimizeCommands &= (pMemAllocator != nullptr);
 
-        if (flags.prefetchCommands != 0)
+    if (flags.prefetchCommands != 0)
+    {
+        // The prefetchCommands flag was already set according to the client's command buffer build info.
+        // However, we really should force prefetching off if the command data is in local memory because:
+        // 1. Local memory is fast enough that cold reads are no problem. Prefetching the whole command chunk
+        //    ahead of time might evict things from the L2 cache that we need right now, hurting performance.
+        // 2. We try to use the uncached MTYPE when allocating local memory for command data. This avoids any
+        //    L2 cache pollution but also makes prefetching completely useless because it only prefetches to L2.
+        if (m_pCmdAllocator->LocalCommandData())
         {
-            // The prefetchCommands flag was already set according to the client's command buffer build info.
-            // However, we really should force prefetching off if the command data is in local memory because:
-            // 1. Local memory is fast enough that cold reads are no problem. Prefetching the whole command chunk
-            //    ahead of time might evict things from the L2 cache that we need right now, hurting performance.
-            // 2. We try to use the uncached MTYPE when allocating local memory for command data. This avoids any
-            //    L2 cache pollution but also makes prefetching completely useless because it only prefetches to L2.
-            if (m_pCmdAllocator->LocalCommandData())
-            {
-                flags.prefetchCommands = 0;
-            }
-            else
-            {
-                const Gfx9PalSettings& settings = GetGfx9Settings(*m_device.Parent());
-                const PrefetchMethod   method   = (GetEngineType() == EngineTypeCompute)
-                                                        ? settings.commandPrefetchMethodAce
-                                                        : settings.commandPrefetchMethodGfx;
+            flags.prefetchCommands = 0;
+        }
+        else
+        {
+            const Gfx9PalSettings& settings = GetGfx9Settings(*m_device.Parent());
+            const PrefetchMethod   method   = (GetEngineType() == EngineTypeCompute)
+                                                    ? settings.commandPrefetchMethodAce
+                                                    : settings.commandPrefetchMethodGfx;
 
-                // We also should force off prefetching if the per-engine setting says it's disabled. Note that we
-                // only support CP DMA command prefetching.
-                PAL_ASSERT(method != PrefetchPrimeUtcL2);
+            // We also should force off prefetching if the per-engine setting says it's disabled. Note that we
+            // only support CP DMA command prefetching.
+            PAL_ASSERT(method != PrefetchPrimeUtcL2);
 
-                flags.prefetchCommands = (method == PrefetchCpDma);
-            }
+            flags.prefetchCommands = (method == PrefetchCpDma);
         }
     }
 
-    Result result = Pm4::CmdStream::Begin(flags, pMemAllocator);
+    Result result = GfxCmdStream::Begin(flags, pMemAllocator);
 
     if ((result == Result::Success) && (m_flags.optimizeCommands == 1))
     {
@@ -131,7 +122,7 @@ void CmdStream::Reset(
     // Reset all tracked state.
     m_pChunkPreamble = nullptr;
 
-    Pm4::CmdStream::Reset(pNewAllocator, returnGpuMemory);
+    GfxCmdStream::Reset(pNewAllocator, returnGpuMemory);
 }
 
 // =====================================================================================================================
@@ -1238,8 +1229,7 @@ size_t CmdStream::BuildCondIndirectBuffer(
     uint32*     pPacket
     ) const
 {
-    return m_cmdUtil.BuildCondIndirectBuffer(
-        compareFunc, compareGpuAddr, data, mask, (m_subEngineType == SubEngineType::ConstantEngine), pPacket);
+    return m_cmdUtil.BuildCondIndirectBuffer(compareFunc, compareGpuAddr, data, mask, pPacket);
 }
 
 // =====================================================================================================================
@@ -1255,7 +1245,6 @@ size_t CmdStream::BuildIndirectBuffer(
                                          ibAddr,
                                          ibSize,
                                          chain,
-                                         (m_subEngineType == SubEngineType::ConstantEngine),
                                          preemptionEnabled,
                                          pPacket);
 }
@@ -1445,7 +1434,7 @@ void CmdStream::NotifyNestedCmdBufferExecute()
 // Calls the PAL developer callback to issue a report on how many times SET packets to each SH and context register were
 // seen by the optimizer and kept after redundancy checking.
 void CmdStream::IssueHotRegisterReport(
-    Pm4CmdBuffer* pCmdBuf
+    GfxCmdBuffer* pCmdBuf
     ) const
 {
     if (m_pPm4Optimizer != nullptr)

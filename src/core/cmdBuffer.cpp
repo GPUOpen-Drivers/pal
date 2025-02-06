@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -675,10 +675,10 @@ uint32* CmdBuffer::CmdAllocateLargeEmbeddedData(
 }
 
 // =====================================================================================================================
-// Allocates a small piece of local-invisible GPU memory for internal PAL operations, such as CE RAM dumps, etc.  This
+// Allocates a small piece of local-invisible GPU memory for internal PAL operations, such as timestamp mem etc.  This
 // will result in pulling a new chunk from the command allocator if necessary.  This memory has the same lifetime as the
 // embedded data allocations and the command buffer itself.
-// Returns the GPU memory object pointer that can accomodate the specified number of dwords of the scratch memory.
+// Returns the GPU memory object pointer that can accommodate the specified number of dwords of the scratch memory.
 // The offset of the allocated scratch memory to the scratch GpuMemory starting address is also returned.
 gpusize CmdBuffer::AllocateGpuScratchMem(
     uint32      sizeInDwords,
@@ -1362,29 +1362,14 @@ const uint32 GetSubEngineId(
 {
     uint32 subEngineId = 0; // DE subengine ID
 
-    if (subEngineType == SubEngineType::ConstantEngine)
-    {
-        if (isPreamble)
-        {
-            subEngineId = 2; // CE preamble subengine ID
-        }
-        else
-        {
-            subEngineId = 1; // CE subengine ID
-        }
-    }
-    else if ((engineType == EngineType::EngineTypeCompute) ||
-             (subEngineType == SubEngineType::AsyncCompute))
+    if ((engineType == EngineType::EngineTypeCompute) ||
+        (subEngineType == SubEngineType::AsyncCompute))
     {
         subEngineId = 3; // Compute subengine ID
     }
     else if (engineType == EngineType::EngineTypeDma)
     {
         subEngineId = 4; // SDMA engine ID
-    }
-    else if (subEngineType == SubEngineType::Pup)
-    {
-        subEngineId = 5; // PUP
     }
 
     return subEngineId;

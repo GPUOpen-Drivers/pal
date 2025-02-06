@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2023-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2023-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -33,7 +33,7 @@ namespace Pal
 // =====================================================================================================================
 // Template class which handles compile-time determination of an array layout for register-value pairs for programming
 // the hardware.
-template <typename Ip, typename T, const T& t, bool adjustUConfig = false>
+template <typename Ip, typename T, const T& t>
 class RegPairHandler
 {
 public:

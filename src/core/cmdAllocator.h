@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -85,7 +85,7 @@ public:
     uint32 ChunkSize(CmdAllocType allocType) const { return m_gpuAllocInfo[allocType].allocCreateInfo.chunkSize; }
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-    void LogCommit(EngineType engineType, bool isConstantEngine, uint32 numDwords);
+    void LogCommit(EngineType engineType, uint32 numDwords);
 #endif
 
     bool AutomaticMemoryReuse() const { return (m_flags.autoMemoryReuse != 0); }

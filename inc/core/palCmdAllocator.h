@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -76,7 +76,7 @@ enum CmdAllocType : uint32
     EmbeddedDataAlloc,      ///< Data allocated is for embedded data.
     LargeEmbeddedDataAlloc, ///< Data allocated is for embedded data, allocation is >32kb
     GpuScratchMemAlloc,     ///< Data allocated is GPU-only accessible at command buffer execution-time.  Possible
-                            ///  uses include CE RAM dumps and GPU events.
+                            ///  uses like GPU events.
     CmdAllocatorTypeCount   ///< Number of allocation types for ICmdAllocator's.
 };
 

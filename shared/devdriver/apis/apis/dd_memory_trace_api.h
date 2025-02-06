@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2023-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2023-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -38,7 +38,7 @@ extern "C"
 #define DD_MEMORY_TRACE_API_NAME "DD_MEMORY_TRACE_API"
 
 #define DD_MEMORY_TRACE_API_VERSION_MAJOR 0
-#define DD_MEMORY_TRACE_API_VERSION_MINOR 1
+#define DD_MEMORY_TRACE_API_VERSION_MINOR 2
 #define DD_MEMORY_TRACE_API_VERSION_PATCH 0
 
 // Foward declaraction
@@ -81,10 +81,11 @@ typedef struct DDMemoryTraceApi
     /// @param pInstance Must be \ref DDMemoryTraceApi.pInstance.
     /// @param umdConnectionId The identifier of the connection to start tracing for.
     /// @param processId The process ID.
+    /// @param useKmd Flag to indicate that the kmd should be used
     /// @return DD_RESULT_SUCCESS Tracing was successfully started.
     /// @return DD_RESULT_DD_GENERIC_NOT_READY If router connection isn't ready.
     /// @return Other errors if starting tracing failed.
-    DD_RESULT (*EnableTracing)(DDMemoryTraceInstance* pInstance, DDConnectionId umdConnectionId, DDProcessId processId);
+    DD_RESULT (*EnableTracing)(DDMemoryTraceInstance* pInstance, DDConnectionId umdConnectionId, DDProcessId processId, bool useKmd);
 
     /// Disables tracing for the connection specified.
     ///

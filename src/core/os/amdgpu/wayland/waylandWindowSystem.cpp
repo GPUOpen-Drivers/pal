@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2018-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2018-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -66,11 +66,21 @@ namespace Amdgpu
 // Define a function type for listeners to be added to proxy
 typedef void (*Listener)(void);
 
-// Mapping table between wayland, Linux DRM and PAL formats.
+// Mapping table between DRM and PAL formats.
 // There can be duplicates for unorm vs sgrb, so this table always assumes unorm.
+
+// Wayland DRM format codes, defined in wayland-drm-client-protocol.h, are a subset of the DRM formats defined in
+// drm_fourcc.h, so we will store Wayland DRM codes as Linux DRM codes (uint32 instead of enum wl_drm_format)
+
+// E.g
+// WL_DRM_FORMAT_ARGB8888
+// = 0x34325241
+// = (0x41 | (0x52 << 8) | (0x32 << 16) | (0x34 << 24))
+// = ('A') | (('R') << 8) | (('2') << 16) | (('4') << 24))
+// = fourcc_code('A', 'R', '2', '4')
+// = DRM_FORMAT_ARGB8888
 struct FormatMapping
 {
-    wl_drm_format  wlDrmFormat; // Defined by wl_drm protocol in wayland-drm-client-protocl.h
     uint32         drmFormat;   // Native DRM format defined in <drm_fourcc.h>
     SwizzledFormat palFormat;
 };
@@ -78,62 +88,62 @@ struct FormatMapping
 // Mapping table between wayland and PAL formats.
 // There can be duplicates for unorm vs sgrb, so this table always assumes unorm.
 constexpr FormatMapping FormatMappings[] = {
-    { WL_DRM_FORMAT_ARGB8888, DRM_FORMAT_ARGB8888,
+    { DRM_FORMAT_ARGB8888,
       {
          ChNumFormat::X8Y8Z8W8_Unorm,
          {{{ ChannelSwizzle::Z, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::W }}}
       } },
-    { WL_DRM_FORMAT_XRGB8888, DRM_FORMAT_XRGB8888,
+    { DRM_FORMAT_XRGB8888,
       {
          ChNumFormat::X8Y8Z8W8_Unorm,
          {{{ ChannelSwizzle::Z, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::One }}}
       } },
-    { WL_DRM_FORMAT_ABGR8888, DRM_FORMAT_ABGR8888,
+    {  DRM_FORMAT_ABGR8888,
       {
          ChNumFormat::X8Y8Z8W8_Unorm,
          {{{ ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W }}}
       } },
-    { WL_DRM_FORMAT_XBGR8888, DRM_FORMAT_XBGR8888,
+    { DRM_FORMAT_XBGR8888,
       {
          ChNumFormat::X8Y8Z8W8_Unorm,
          {{{ ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::One }}}
       } },
-    { WL_DRM_FORMAT_ARGB2101010, DRM_FORMAT_ARGB2101010,
+    { DRM_FORMAT_ARGB2101010,
       {
          ChNumFormat::X10Y10Z10W2_Unorm,
          {{{ ChannelSwizzle::Z, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::W }}}
       } },
-    { WL_DRM_FORMAT_XRGB2101010, DRM_FORMAT_XRGB2101010,
+    { DRM_FORMAT_XRGB2101010,
       {
          ChNumFormat::X10Y10Z10W2_Unorm,
          {{{ ChannelSwizzle::Z, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::One }}}
       } },
-    { WL_DRM_FORMAT_ABGR2101010, DRM_FORMAT_ABGR2101010,
+    { DRM_FORMAT_ABGR2101010,
       {
          ChNumFormat::X10Y10Z10W2_Unorm,
          {{{ ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W }}}
       } },
-    { WL_DRM_FORMAT_XBGR2101010, DRM_FORMAT_XBGR2101010,
+    { DRM_FORMAT_XBGR2101010,
       {
          ChNumFormat::X10Y10Z10W2_Unorm,
          {{{ ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::One }}}
       } },
-    { WL_DRM_FORMAT_RGB565, DRM_FORMAT_RGB565,
+    { DRM_FORMAT_RGB565,
       {
          ChNumFormat::X5Y6Z5_Unorm,
          {{{ ChannelSwizzle::Z, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::One }}}
       } },
-    { WL_DRM_FORMAT_BGR565, DRM_FORMAT_BGR565,
+    { DRM_FORMAT_BGR565,
       {
          ChNumFormat::X5Y6Z5_Unorm,
          {{{ ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::One }}}
       } },
-    { WL_DRM_FORMAT_ABGR16F, DRM_FORMAT_ABGR16161616F,
+    { DRM_FORMAT_ABGR16161616F,
       {
          ChNumFormat::X16Y16Z16W16_Float,
          {{{ ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W }}}
       } },
-    { WL_DRM_FORMAT_XBGR16F, DRM_FORMAT_XRGB16161616F,
+    { DRM_FORMAT_XBGR16161616F,
       {
          ChNumFormat::X16Y16Z16W16_Float,
          {{{ ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::One }}}
@@ -147,7 +157,7 @@ static SwizzledFormat DrmToPalFormat(
 {
     SwizzledFormat outFormat = UndefinedSwizzledFormat;
 
-    for (const auto& fmtPair : FormatMappings)
+    for (const FormatMapping& fmtPair : FormatMappings)
     {
         if (fmtPair.drmFormat == format)
         {
@@ -179,7 +189,7 @@ static uint32 PalToDrmFormat(
     }
 
     bool found = false;
-    for (const auto& fmtPair : FormatMappings)
+    for (const FormatMapping& fmtPair : FormatMappings)
     {
         if (Formats::IsSameFormat(fmtPair.palFormat, format))
         {
@@ -197,25 +207,7 @@ static uint32 PalToDrmFormat(
 
     return drmFormat;
 }
-// ====================================================================================================================a
-// Convert Wayland Drm format to Linux Drm format
-static uint32 WlDrmToDrmFormat(
-    wl_drm_format format
-)
-{
-    uint32 outFormat = DRM_FORMAT_XRGB8888;
 
-    for (const auto& fmtPair : FormatMappings)
-    {
-        if (fmtPair.wlDrmFormat == format)
-        {
-            outFormat = fmtPair.drmFormat;
-            break;
-        }
-    }
-
-    return outFormat;
-}
 // =====================================================================================================================
 // Get the notification of the path of the drm device which is used by the server. For multi-GPU, Pal should use this
 // device for creating local buffers.
@@ -234,11 +226,11 @@ static void DrmHandleDevice(
 static void DrmHandleFormat(
     void*   pData,
     wl_drm* pDrm,
-    uint32  wl_format)
+    uint32  wlDrmFormat)
 {
     WaylandWindowSystem* pWaylandWindowSystem = static_cast<WaylandWindowSystem*>(pData);
 
-    pWaylandWindowSystem->AddFormat(static_cast<wl_drm_format>(wl_format));
+    pWaylandWindowSystem->AddFormat(wlDrmFormat);
 }
 
 // =====================================================================================================================
@@ -1019,7 +1011,7 @@ Result WaylandWindowSystem::CreatePresentableImage(
     const uint32 height = pSubResInfo->extentTexels.height;
     const uint32 stride = pSubResInfo->rowPitch;
     const uint32 bpp    = pSubResInfo->bitsPerTexel;
-    const bool   alpha  = pSwapChain->CreateInfo().compositeAlpha == CompositeAlphaMode::PostMultiplied;
+    const bool   alpha  = pSwapChain->CreateInfo().compositeAlpha == CompositeAlphaMode::PreMultiplied;
 
     uint32 format = PalToDrmFormat(pSubResInfo->format, alpha);
     PAL_ASSERT(IsSupportedFormat(format) == true);
@@ -1220,7 +1212,7 @@ Result WaylandWindowSystem::GetWindowProperties(
     Result result = Result::Success;
 
     pSwapChainProperties->currentExtent = { UINT32_MAX, UINT32_MAX };
-    pSwapChainProperties->compositeAlphaMode = static_cast<uint32>(CompositeAlphaMode::PostMultiplied) |
+    pSwapChainProperties->compositeAlphaMode = static_cast<uint32>(CompositeAlphaMode::PreMultiplied) |
                                                static_cast<uint32>(CompositeAlphaMode::Opaque);
 
     WindowSystemCreateInfo createInfo = {};
@@ -1542,18 +1534,17 @@ Result WaylandWindowSystem::CreateWlBuffer(
 // =====================================================================================================================
 // Add a format advertised via the zwp_linux_dmabuf_v1 or zwp_linux_dmabuf_default_feedback_v1 interfaces
 Result WaylandWindowSystem::AddFormat(
-    ZwpDmaBufFormat fmt)
+    ZwpDmaBufFormat dmaFmt)
 {
-    return m_validFormats.Insert(fmt.format);
+    return m_validFormats.Insert(dmaFmt.format);
 }
 
 // =====================================================================================================================
 // Add a format advertised via the wl_drm interface
 Result WaylandWindowSystem::AddFormat(
-    wl_drm_format fmt)
+    uint32 wlDrmFormat)
 {
-    uint32 drmFormat = WlDrmToDrmFormat(fmt);
-    return m_validFormats.Insert(drmFormat);
+    return m_validFormats.Insert(wlDrmFormat);
 }
 
 // =====================================================================================================================

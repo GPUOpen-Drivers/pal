@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -1655,6 +1655,7 @@ void CmdBuffer::CmdColorSpaceConversionCopy(
     }
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 913
 // =====================================================================================================================
 void CmdBuffer::CmdCloneImageData(
     const IImage& srcImage,
@@ -1676,6 +1677,7 @@ void CmdBuffer::CmdCloneImageData(
         m_pPlatform->LogEndFunc(pLogContext);
     }
 }
+#endif
 
 // =====================================================================================================================
 void CmdBuffer::CmdUpdateMemory(
@@ -2819,93 +2821,6 @@ void CmdBuffer::CmdCopyDfSpmTraceData(
 {
     // This function is not logged because it should only be called by other debug tools.
     m_pNextLayer->CmdCopyDfSpmTraceData(*(NextPerfExperiment(&perfExperiment)), dstGpuMemory, dstOffset);
-}
-
-// =====================================================================================================================
-void CmdBuffer::CmdLoadCeRam(
-    const IGpuMemory& srcGpuMemory,
-    gpusize           memOffset,
-    uint32            ramOffset,
-    uint32            dwordSize)
-{
-    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdLoadCeRam);
-
-    m_pNextLayer->CmdLoadCeRam(*NextGpuMemory(&srcGpuMemory), memOffset, ramOffset, dwordSize);
-
-    if (active)
-    {
-        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
-
-        pLogContext->BeginInput();
-        pLogContext->KeyAndObject("srcGpuMemory", &srcGpuMemory);
-        pLogContext->KeyAndValue("memOffset", memOffset);
-        pLogContext->KeyAndValue("ramOffset", ramOffset);
-        pLogContext->KeyAndValue("dwordSize", dwordSize);
-        pLogContext->EndInput();
-
-        m_pPlatform->LogEndFunc(pLogContext);
-    }
-}
-
-// =====================================================================================================================
-void CmdBuffer::CmdDumpCeRam(
-    const IGpuMemory& dstGpuMemory,
-    gpusize           memOffset,
-    uint32            ramOffset,
-    uint32            dwordSize,
-    uint32            currRingPos,
-    uint32            ringSize)
-{
-    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdDumpCeRam);
-
-    m_pNextLayer->CmdDumpCeRam(*NextGpuMemory(&dstGpuMemory), memOffset, ramOffset, dwordSize, currRingPos, ringSize);
-
-    if (active)
-    {
-        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
-
-        pLogContext->BeginInput();
-        pLogContext->KeyAndObject("dstGpuMemory", &dstGpuMemory);
-        pLogContext->KeyAndValue("memOffset", memOffset);
-        pLogContext->KeyAndValue("ramOffset", ramOffset);
-        pLogContext->KeyAndValue("dwordSize", dwordSize);
-        pLogContext->KeyAndValue("currRingPos", currRingPos);
-        pLogContext->KeyAndValue("ringSize", ringSize);
-        pLogContext->EndInput();
-
-        m_pPlatform->LogEndFunc(pLogContext);
-    }
-}
-
-// =====================================================================================================================
-void CmdBuffer::CmdWriteCeRam(
-    const void* pSrcData,
-    uint32      ramOffset,
-    uint32      dwordSize)
-{
-    const bool active = m_pPlatform->ActivateLogging(m_objectId, InterfaceFunc::CmdBufferCmdWriteCeRam);
-
-    m_pNextLayer->CmdWriteCeRam(pSrcData, ramOffset, dwordSize);
-
-    if (active)
-    {
-        LogContext*const pLogContext = m_pPlatform->LogBeginFunc();
-
-        pLogContext->BeginInput();
-        pLogContext->KeyAndValue("ramOffset", ramOffset);
-        pLogContext->KeyAndBeginList("srcData", false);
-
-        const uint32*const pSrcDwords = static_cast<const uint32*>(pSrcData);
-        for (uint32 idx = 0; idx < dwordSize; ++idx)
-        {
-            pLogContext->Value(pSrcDwords[idx]);
-        }
-
-        pLogContext->EndList();
-        pLogContext->EndInput();
-
-        m_pPlatform->LogEndFunc(pLogContext);
-    }
 }
 
 // =====================================================================================================================

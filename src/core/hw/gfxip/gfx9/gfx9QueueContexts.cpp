@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -38,7 +38,7 @@
 #include "core/hw/gfxip/gfx9/gfx9UniversalEngine.h"
 #include "core/hw/gfxip/gfx9/gfx9UniversalCmdBuffer.h"
 #include "core/hw/gfxip/gfx9/gfx9ComputeCmdBuffer.h"
-#include "core/hw/gfxip/pm4UniversalCmdBuffer.h"
+#include "core/hw/gfxip/universalCmdBuffer.h"
 #include "core/hw/gfxip/gfx9/g_gfx9ShadowedRegistersInit.h"
 #include "palVectorImpl.h"
 #include "palDequeImpl.h"
@@ -626,15 +626,11 @@ Result ComputeQueueContext::UpdateRingSet(
 UniversalQueueContext::UniversalQueueContext(
     Device* pDevice,
     bool    supportMcbp,
-    uint32  persistentCeRamOffset,
-    uint32  persistentCeRamSize,
     Engine* pEngine,
     uint32  queueId)
     :
     QueueContext(pDevice->Parent()),
     m_pDevice(pDevice),
-    m_persistentCeRamOffset(persistentCeRamOffset),
-    m_persistentCeRamSize(persistentCeRamSize),
     m_pEngine(static_cast<UniversalEngine*>(pEngine)),
     m_queueId(queueId),
     m_ringSet(pDevice, false),
@@ -667,18 +663,6 @@ UniversalQueueContext::UniversalQueueContext(
                           SubEngineType::Primary,
                           CmdStreamUsage::Preamble,
                           false),
-    m_cePreambleCmdStream(*pDevice,
-                          pDevice->Parent()->InternalUntrackedCmdAllocator(),
-                          EngineTypeUniversal,
-                          SubEngineType::ConstantEngine,
-                          CmdStreamUsage::Preamble,
-                          false),
-    m_cePostambleCmdStream(*pDevice,
-                           pDevice->Parent()->InternalUntrackedCmdAllocator(),
-                           EngineTypeUniversal,
-                           SubEngineType::ConstantEngine,
-                           CmdStreamUsage::Postamble,
-                           false),
     m_dePostambleCmdStream(*pDevice,
                            pDevice->Parent()->InternalUntrackedCmdAllocator(),
                            EngineTypeUniversal,
@@ -735,16 +719,6 @@ Result UniversalQueueContext::Init()
     if ((result == Result::Success) && m_supportMcbp)
     {
         result = m_shadowInitCmdStream.Init();
-    }
-
-    if (result == Result::Success)
-    {
-        m_cePreambleCmdStream.Init();
-    }
-
-    if (result == Result::Success)
-    {
-        m_cePostambleCmdStream.Init();
     }
 
     if (result == Result::Success)
@@ -824,14 +798,12 @@ Result UniversalQueueContext::AllocateExecuteIndirectBufferGfx()
 }
 
 // =====================================================================================================================
-// Allocates a chunk of GPU memory used for shadowing the contents of any client-requested Persistent CE RAM beetween
-// submissions to this object's parent Queue.
+// Allocates a chunk of GPU memory used for shadowing the contents between submissions to this object's parent Queue.
 Result UniversalQueueContext::AllocateShadowMemory()
 {
     Pal::Device*const        pDevice   = m_pDevice->Parent();
 
     // Shadow memory looks like the following:
-    //  - CE RAM shadow (if present)
     //  - GRBM shadow memory (if present and handled in usermode)
     //  - CSA shadow memory (if present and handled in usermode)
     //  - GDS shadow memory (if present and handled in usermode)
@@ -841,16 +813,8 @@ Result UniversalQueueContext::AllocateShadowMemory()
 
     if (m_supportMcbp)
     {
-        // Also, if mid command buffer preemption is enabled, we must restore all CE RAM used by the client and
-        // internally by PAL. All of that data will need to be restored aftere resuming this Queue from being
-        // preempted.
-        size_t ceRamBytes = pDevice->CeRamBytesUsed(EngineTypeUniversal);
-        shadowMemSize += ceRamBytes;
-
         if (m_pDevice->Parent()->SupportStateShadowingByCpFwUserAlloc())
         {
-            PAL_ASSERT(ceRamBytes == 0); // All chips that support this do not support CE ram and we'll assume that.
-
             // When CP FW handles shadowing fully, we don't need to add extra load packets, but some OSs want the
             // backing allocation for shadow memory made in userspace. Allocate appropriately so we can communicate
             // those (sub)allocations and the KMD will do the rest.
@@ -872,13 +836,6 @@ Result UniversalQueueContext::AllocateShadowMemory()
             m_shadowedRegCount = (ShRegCount + CntxRegCount + UserConfigRegCount);
             shadowMemSize += m_shadowedRegCount * sizeof(uint32);
         }
-    }
-    else
-    {
-        // Shadow memory only needs to include space for the region of CE RAM which the client requested PAL makes
-        // persistent between submissions.
-        uint32 ceRamBytes = (m_persistentCeRamSize * sizeof(uint32));
-        shadowMemSize += ceRamBytes;
     }
 
     GpuMemoryCreateInfo createInfo = { };
@@ -1248,12 +1205,7 @@ Result UniversalQueueContext::PreProcessSubmit(
 
     if (result == Result::Success)
     {
-        uint32 preambleCount  = 0;
-        if (m_cePreambleCmdStream.IsEmpty() == false)
-        {
-            pSubmitInfo->pPreambleCmdStream[preambleCount] = &m_cePreambleCmdStream;
-            ++preambleCount;
-        }
+        uint32 preambleCount = 0;
 
         pSubmitInfo->pPreambleCmdStream[preambleCount] = &m_perSubmitCmdStream;
         ++preambleCount;
@@ -1275,18 +1227,10 @@ Result UniversalQueueContext::PreProcessSubmit(
             ++preambleCount;
         }
 
-        uint32 postambleCount = 0;
-        if (m_cePostambleCmdStream.IsEmpty() == false)
-        {
-            pSubmitInfo->pPostambleCmdStream[postambleCount] = &m_cePostambleCmdStream;
-            ++postambleCount;
-        }
-
-        pSubmitInfo->pPostambleCmdStream[postambleCount] = &m_dePostambleCmdStream;
-        ++postambleCount;
+        pSubmitInfo->pPostambleCmdStream[0] = &m_dePostambleCmdStream;
 
         pSubmitInfo->numPreambleCmdStreams  = preambleCount;
-        pSubmitInfo->numPostambleCmdStreams = postambleCount;
+        pSubmitInfo->numPostambleCmdStreams = 1;
 
         pSubmitInfo->pagingFence = m_pDevice->Parent()->InternalUntrackedCmdAllocator()->LastPagingFence();
     }
@@ -1306,10 +1250,6 @@ void UniversalQueueContext::PostProcessSubmit()
         m_deCmdStream.EnableDropIfSameContext(true);
         // NOTE: The per-submit command stream cannot receive this optimization because it must be executed for every
         // submit.
-
-        // We can skip the CE preamble if our context runs back-to-back because the CE preamble is used to implement
-        // persistent CE RAM and no other context has come in and dirtied CE RAM.
-        m_cePreambleCmdStream.EnableDropIfSameContext(true);
     }
 
     ClearDeferredMemory();
@@ -1441,12 +1381,6 @@ Result UniversalQueueContext::RebuildCommandStreams(
      * The preamble which executes unconditionally is executed first, and its first packet is a CONTEXT_CONTROL which
      * will either disable or enable state shadowing as described above.
      *
-     * When either mid command buffer preemption is enabled, or the client has enabled the "persistent CE RAM" feature,
-     * PAL also submits a CE preamble which loads CE RAM from memory, and submits a CE & DE postamble with each set of
-     * command buffers. These postambles ensure that CE RAM contents are saved to memory so that they can be restored
-     * when a command buffer is resumed after preemption, or restored during the next submission if the client is using
-     * "persistent CE RAM".
-     *
      * The per-submit preamble and postamble also implement a two step acquire-release on queue execution. They flush
      * and invalidate all GPU caches and prevent command buffers from different submits from overlapping. This is
      * required for some PAL clients and some PAL features.
@@ -1562,64 +1496,6 @@ Result UniversalQueueContext::RebuildCommandStreams(
         }
     }
 
-    // The per-submit CE premable and CE postamble.
-    //==================================================================================================================
-
-    // If the client has requested that this Queue maintain persistent CE RAM contents, we need to rebuild the CE
-    // preamble and postamble.
-    if (m_pDevice->Parent()->IsConstantEngineSupported(EngineType::EngineTypeUniversal) &&
-        ((m_persistentCeRamSize != 0) || m_supportMcbp))
-    {
-        PAL_ASSERT(m_shadowGpuMem.IsBound());
-        const gpusize gpuVirtAddr = (m_shadowGpuMem.GpuVirtAddr() + (sizeof(uint32) * m_shadowedRegCount));
-        uint32 ceRamByteOffset    = m_persistentCeRamOffset;
-        uint32 ceRamDwordSize     =  m_persistentCeRamSize;
-
-        if (m_supportMcbp)
-        {
-            // If preemption is supported, we must save & restore all CE RAM used by either PAL or the client.
-            ceRamByteOffset = 0;
-            ceRamDwordSize  = static_cast<uint32>(m_pDevice->Parent()->CeRamDwordsUsed(EngineTypeUniversal));
-        }
-
-        if (result == Result::Success)
-        {
-            ResetCommandStream(&m_cePreambleCmdStream, &deferFreeChunkList, &deferChunkIndex, lastTimeStamp);
-            result = m_cePreambleCmdStream.Begin({}, nullptr);
-        }
-
-        if (result == Result::Success)
-        {
-            uint32* pCmdSpace= m_cePreambleCmdStream.ReserveCommands();
-            pCmdSpace += CmdUtil::BuildLoadConstRam(gpuVirtAddr, ceRamByteOffset, ceRamDwordSize, pCmdSpace);
-            m_cePreambleCmdStream.CommitCommands(pCmdSpace);
-
-            result = m_cePreambleCmdStream.End();
-        }
-
-        // The postamble command stream which dumps CE RAM at the end of the submission are only necessary if (1) the
-        // client requested that this Queue maintains persistent CE RAM contents, or (2) this Queue supports mid
-        // command buffer preemption and the panel setting to force the dump CE RAM postamble is set.
-        if ((m_persistentCeRamSize != 0) ||
-            (m_pDevice->Parent()->Settings().commandBufferForceCeRamDumpInPostamble != false))
-        {
-            if (result == Result::Success)
-            {
-                ResetCommandStream(&m_cePostambleCmdStream, &deferFreeChunkList, &deferChunkIndex, lastTimeStamp);
-                result = m_cePostambleCmdStream.Begin({}, nullptr);
-            }
-
-            if (result == Result::Success)
-            {
-                uint32* pCmdSpace = m_cePostambleCmdStream.ReserveCommands();
-                pCmdSpace += CmdUtil::BuildDumpConstRam(gpuVirtAddr, ceRamByteOffset, ceRamDwordSize, pCmdSpace);
-                m_cePostambleCmdStream.CommitCommands(pCmdSpace);
-
-                result = m_cePostambleCmdStream.End();
-            }
-        }
-    }
-
     // The per-submit DE postamble.
     //==================================================================================================================
 
@@ -1670,19 +1546,15 @@ Result UniversalQueueContext::RebuildCommandStreams(
     // Since the contents of these command streams have changed since last time, we need to force these streams to
     // execute by not allowing the KMD to optimize-away these command stream the next time around.
     m_deCmdStream.EnableDropIfSameContext(false);
-    m_cePreambleCmdStream.EnableDropIfSameContext(false);
 
-    // The per-submit command stream and CE/DE postambles must always execute. We cannot allow KMD to optimize-away
+    // The per-submit command stream and DE postambles must always execute. We cannot allow KMD to optimize-away
     // these command streams.
     m_perSubmitCmdStream.EnableDropIfSameContext(false);
-    m_cePostambleCmdStream.EnableDropIfSameContext(false);
     m_dePostambleCmdStream.EnableDropIfSameContext(false);
 
     // If this assert is hit, CmdBufInternalSuballocSize should be increased.
     PAL_ASSERT((m_perSubmitCmdStream.GetNumChunks()   == 1) &&
                (m_deCmdStream.GetNumChunks()          == 1) &&
-               (m_cePreambleCmdStream.GetNumChunks()  <= 1) &&
-               (m_cePostambleCmdStream.GetNumChunks() <= 1) &&
                (m_dePostambleCmdStream.GetNumChunks() <= 1));
 
     if (deferChunkIndex > 0)

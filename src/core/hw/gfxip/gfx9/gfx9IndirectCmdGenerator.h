@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -25,7 +25,7 @@
 
 #pragma once
 
-#include "core/hw/gfxip/pm4IndirectCmdGenerator.h"
+#include "core/hw/gfxip/indirectCmdGenerator.h"
 #include "palInlineFuncs.h"
 
 namespace Pal
@@ -142,6 +142,7 @@ struct IndirectParamData
     //  [1] = Number of user-data entries to update
     //  IndirectTableSrd:
     //  [0] = Offset into the table where the SRD is written (in DWORDs)
+    //  [1] = Indicate whether it is a "vertex offset mode" SRD
     uint32  data[2];
 };
 
@@ -150,7 +151,7 @@ struct IndirectParamData
 // snippets corresponding to different operations which can be done in an indirect command (e.g., draw, bind index data,
 // etc.). Contains the indirect parameter data and populates the buffers used to communicate the pipeline signature and
 // properties of the CmdExecuteIndirectCommands() call.
-class IndirectCmdGenerator final : public Pm4::IndirectCmdGenerator
+class IndirectCmdGenerator final : public Pal::IndirectCmdGenerator
 {
 public:
     static size_t GetSize(
@@ -164,37 +165,46 @@ public:
         IGpuMemory* pGpuMemory,
         gpusize     offset) override;
 
-    virtual uint32 CmdBufStride(
-        const Pipeline* pPipeline) const override;
+    uint32 CmdBufStride(const Pipeline* pPipeline) const;
 
-    virtual void PopulateInvocationBuffer(
+    // Helper method for RPM to populate an embedded-data constant buffer with the InvocationProperties associated
+    // with this command-generator and the given Pipeline object.
+    void PopulateInvocationBuffer(
         GfxCmdBuffer*   pCmdBuffer,
         const Pipeline* pPipeline,
         bool            isTaskEnabled,
         gpusize         argsGpuAddr,
         uint32          maximumCount,
         uint32          indexBufSize,
-        void*           pSrd) const override;
+        void*           pSrd) const;
 
-    virtual void PopulateParameterBuffer(
+    // Helper method for RPM to populate an embedded data constant buffer with the parameter data
+    // for the currently bound compute or graphics pipeline (depending on the value of m_drawType).
+    void PopulateParameterBuffer(
         GfxCmdBuffer*   pCmdBuffer,
         const Pipeline* pPipeline,
-        void*           pSrd) const override;
+        void*           pSrd) const;
 
-    virtual void PopulatePropertyBuffer(
+    // Helper method for RPM to populate an embedded data constant buffer with the generator property
+    // for the currently bound compute or graphics pipeline (depending on the value of m_drawType).
+    void PopulatePropertyBuffer(
         GfxCmdBuffer*   pCmdBuffer,
         const Pipeline* pPipeline,
-        void*           pSrd) const override;
+        void*           pSrd) const;
 
-    virtual void PopulateSignatureBuffer(
+    // Helper method for RPM to populate an embedded data constant buffer with the hardware layer's pipeline signature
+    // for the currently bound compute or graphics pipeline (depending on the value of m_drawType).
+    void PopulateSignatureBuffer(
         GfxCmdBuffer*   pCmdBuffer,
         const Pipeline* pPipeline,
-        void*           pSrd) const override;
+        void*           pSrd) const;
 
-    virtual void PopulateUserDataMappingBuffer(
+    // Helper method for RPM to populate an embedded data typed buffer with the contents of the user-data entry
+    // remapping table for each shader stage in the active pipeline.
+    void PopulateUserDataMappingBuffer(
         GfxCmdBuffer*   pCmdBuffer,
         const Pipeline* pPipeline,
-        void*           pSrd) const override;
+        void*           pSrd) const;
 
     bool ContainIndexBuffer() const { return m_flags.containIndexBuffer; }
 
@@ -216,7 +226,7 @@ private:
         const IndirectCmdGeneratorCreateInfo& createInfo);
 
     uint32 DetermineMaxCmdBufSize(
-        Pm4::GeneratorType   type,
+        GeneratorType        type,
         IndirectOpType       opType,
         const IndirectParam& param) const;
 

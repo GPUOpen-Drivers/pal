@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -24,7 +24,7 @@
  **********************************************************************************************************************/
 
 #include "core/addrMgr/addrMgr2/addrMgr2.h"
-#include "core/hw/gfxip/pm4UniversalCmdBuffer.h"
+#include "core/hw/gfxip/universalCmdBuffer.h"
 #include "g_gfx9Settings.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdStream.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"

@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2019-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2019-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -384,6 +384,9 @@ print("\n")
 # Identify frame with median time spent in barriers.
 medianBarrierFrame = list(collections.OrderedDict(sorted(list(iteritems(frames)), key=lambda x: x[1][2])).keys())[int(frameCount / 2)]
 
+EngineTypes = ("Ace", "Dma", "Gfx")
+BarrierCalls = ("CmdBarrier()", "CmdReleaseThenAcquire()", "CmdRelease()", "CmdAcquire()", "CmdReleaseEvent()",
+                "CmdAcquireEvent()")
 barrierTime = 0
 barrierReportTable = [ ] # [time, [desc, ...] ]
 for file in files:
@@ -392,7 +395,7 @@ for file in files:
     frameNum   = int(searchObj.group(1))
     engineType = searchObj.group(3)
 
-    if not (engineType == "Ace" or engineType == "Dma" or engineType == "Gfx"):
+    if engineType not in EngineTypes:
         continue
 
     if frameNum == medianBarrierFrame:
@@ -400,57 +403,28 @@ for file in files:
             reader = csv.reader(csvFile, skipinitialspace=True)
             next(reader)
             for row in reader:
-                if row[CmdBufCallCol] == "CmdBarrier()":
+                if row[CmdBufCallCol] in BarrierCalls:
                     barrierTime += float(row[TimeCol])
-                    entry = [float(row[TimeCol]), [ ] ]
-
-                    if row[CommentsCol] == "":
-                        entry[1].append(["-", "", 0, 0])
-                    else:
-                        actionList = row[CommentsCol].split("\n")
-                        for action in actionList:
-                            if ('CacheMask' not in action) and ('OldLayout' not in action) and ('NewLayout' not in action):
-                                searchObj = re.search("(.*): ([0-9]*)x([0-9]*) (.*)", action)
-                                if searchObj != None:
-                                    actionType = searchObj.group(1)
-                                    width = int(searchObj.group(2))
-                                    height = int(searchObj.group(3))
-                                    format = searchObj.group(4)
-
-                                    entry[1].append([actionType, format, width, height])
-                                else:
-                                    entry[1].append([action, "", 0, 0])
-
+                    entry = (row[CmdBufCallCol], float(row[TimeCol]))
                     barrierReportTable.append(entry)
             csvFile.close
 
-print("== Median Frame Top CmdBarrier() Calls (>= 10us): =============================================================\
+print("== Median Frame Top Barrier Calls (>= 10us): =============================================================\
       ==================================\n")
 print("Frame #{0:d} total barrier time: {1:,.2f} us\n".format(medianBarrierFrame, barrierTime))
-print("     Layout Transition(s)                                         |  Format                      | Dimensions  | Time [us]")
-print("  ----------------------------------------------------------------+------------------------------+-------------+-----------")
+print("     BarrierCallName          | Time [us]")
+print("  ----------------------------+-----------")
 barrierNum = 0
 hidden = 0
-for barrier in sorted(barrierReportTable, key=lambda x: x[0], reverse=True):
+for barrier in sorted(barrierReportTable, key=lambda x: x[1], reverse=True):
     barrierNum +=1
-    if barrier[0] < 10:
+    if barrier[1] < 10:
         hidden += 1
     else:
-        firstLine = True
-        actions = sorted(barrier[1], key=lambda x: x[3], reverse=True)
-        for action in actions:
-            dimensions = "{0:4d} x {1:4d}".format(action[2], action[3]) if action[2] != 0 and action[3] != 0 else "           "
-            if firstLine:
-                print("  {0:2d}. {2:58s}  | {3:26s}   | {4:s} | {1:>8,.2f}".
-                    format(barrierNum, barrier[0], action[0], action[1], dimensions))
-            else:
-                print("      {0:58s}  | {1:26s}   | {2:s} |".
-                    format(action[0], action[1], dimensions))
-
-            firstLine = False
+        print("      {0:24s}| {1:.2f}". format(barrier[0], barrier[1]))
 
 if hidden > 0:
-    print("\n  + {0:d} CmdBarrier() calls not shown (< 10us).\n".format(hidden))
+    print("\n  + {0:d} Barrier calls not shown (< 10us).\n".format(hidden))
 
 print("\n")
 

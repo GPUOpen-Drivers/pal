@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -872,7 +872,6 @@ size_t CmdUtil::BuildCondIndirectBuffer(
     gpusize     compareGpuAddr,
     uint64      data,
     uint64      mask,
-    bool        constantEngine,
     void*       pBuffer)
 {
     static_assert(PM4_PFP_COND_INDIRECT_BUFFER_SIZEDW__CORE == PM4_MEC_COND_INDIRECT_BUFFER_SIZEDW__CORE,
@@ -898,10 +897,7 @@ size_t CmdUtil::BuildCondIndirectBuffer(
     constexpr uint32    PacketSize = PM4_PFP_COND_INDIRECT_BUFFER_SIZEDW__CORE;
     PM4_PFP_COND_INDIRECT_BUFFER packet = {};
 
-    // There is no separate op-code for conditional indirect buffers.  The CP figures it out
-    const IT_OpCodeType opCode     = constantEngine ? IT_INDIRECT_BUFFER_CNST : IT_INDIRECT_BUFFER;
-
-    packet.ordinal1.header.u32All      = (Type3Header(opCode, PacketSize)).u32All;
+    packet.ordinal1.header.u32All      = (Type3Header(IT_INDIRECT_BUFFER, PacketSize)).u32All;
     packet.ordinal2.bitfields.function = FuncTranslation[static_cast<uint32>(compareFunc)];
 
     // We always implement both a "then" and an "else" clause
@@ -2409,66 +2405,6 @@ size_t CmdUtil::BuildUntypedSrd(
 }
 
 // =====================================================================================================================
-// Builds a PM4 constant engine command to dump the specified amount of data from CE RAM into GPU memory through the L2
-// cache. Returns the size of the PM4 command built, in DWORDs.
-size_t CmdUtil::BuildDumpConstRam(
-    gpusize dstGpuAddr,
-    uint32  ramByteOffset,
-    uint32  dwordSize,     // Amount of data to dump, in DWORDs.
-    void*   pBuffer)       // [out] Build the PM4 packet in this buffer.
-{
-    PAL_ASSERT(IsPow2Aligned(dstGpuAddr, 4));
-    PAL_ASSERT(IsPow2Aligned(ramByteOffset, 4));
-    PAL_ASSERT(dwordSize != 0);
-
-    constexpr uint32 PacketSize = PM4_CE_DUMP_CONST_RAM_SIZEDW__GFX10;
-    PM4_CE_DUMP_CONST_RAM packet = {};
-
-    DumpConstRamOrdinal2 ordinal2 = { };
-    ordinal2.bits.gfx10.offset    = ramByteOffset;
-
-    packet.ordinal1.header.u32All          = (Type3Header(IT_DUMP_CONST_RAM, PacketSize)).u32All;
-    packet.ordinal2.u32All                 = ordinal2.u32All;
-    packet.ordinal3.bitfields.gfx10.num_dw = dwordSize;
-    packet.ordinal4.addr_lo                = LowPart(dstGpuAddr);
-    packet.ordinal5.addr_hi                = HighPart(dstGpuAddr);
-
-    static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
-    memcpy(pBuffer, &packet, sizeof(packet));
-    return PacketSize;
-}
-
-// =====================================================================================================================
-// Builds a PM4 constant engine command to dump the specified amount of data from CE RAM into indirect GPU memory offset
-// through the L2 cache. The base address is set via SET_BASE packet.
-// Returns the size of the PM4 command built, in DWORDs.
-size_t CmdUtil::BuildDumpConstRamOffset(
-    uint32  dstAddrOffset,
-    uint32  ramByteOffset,
-    uint32  dwordSize,     // Amount of data to dump, in DWORDs.
-    void*   pBuffer)       // [out] Build the PM4 packet in this buffer.
-{
-    PAL_ASSERT(IsPow2Aligned(dstAddrOffset, 4));
-    PAL_ASSERT(IsPow2Aligned(ramByteOffset, 4));
-    PAL_ASSERT(dwordSize != 0);
-
-    constexpr uint32 PacketSize = PM4_CE_DUMP_CONST_RAM_OFFSET_SIZEDW__GFX10;
-    PM4_CE_DUMP_CONST_RAM_OFFSET packet = {};
-
-    DumpConstRamOrdinal2 ordinal2 = { };
-    ordinal2.bits.gfx10.offset    = ramByteOffset;
-
-    packet.ordinal1.header.u32All          = (Type3Header(IT_DUMP_CONST_RAM_OFFSET, PacketSize)).u32All;
-    packet.ordinal2.u32All                 = ordinal2.u32All;
-    packet.ordinal3.bitfields.gfx10.num_dw = dwordSize;
-    packet.ordinal4.addr_offset            = dstAddrOffset;
-
-    static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
-    memcpy(pBuffer, &packet, sizeof(packet));
-    return PacketSize;
-}
-
-// =====================================================================================================================
 // Build an EVENT_WRITE packet.  Not to be used for any EOP, EOS or SAMPLE_XXXXX type events.  Return the number of
 // DWORDs taken up by this packet.
 size_t CmdUtil::BuildNonSampleEventWrite(
@@ -2678,37 +2614,6 @@ size_t CmdUtil::BuildSampleEventWrite(
 }
 
 // =====================================================================================================================
-// Builds a PM4 constant engine command to increment the CE counter. Returns the size of the PM4 command built, in
-// DWORDs.
-size_t CmdUtil::BuildIncrementCeCounter(
-    void* pBuffer) // [out] Build the PM4 packet in this buffer.
-{
-    constexpr uint32 PacketSize = PM4_CE_INCREMENT_CE_COUNTER_SIZEDW__GFX10;
-    PM4_CE_INCREMENT_CE_COUNTER packet = {};
-
-    packet.ordinal1.header.u32All           = (Type3Header(IT_INCREMENT_CE_COUNTER, PacketSize)).u32All;
-    packet.ordinal2.bitfields.gfx10.cntrsel = cntrsel__ce_increment_ce_counter__increment_ce_counter__GFX10;
-
-    static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
-    memcpy(pBuffer, &packet, sizeof(packet));
-    return PacketSize;
-}
-
-// =====================================================================================================================
-// Builds a PM4 command to increment the DE counter. Returns the size of the PM4 command built, in DWORDs.
-size_t CmdUtil::BuildIncrementDeCounter(
-    void* pBuffer) // [out] Build the PM4 packet in this buffer.
-{
-    constexpr uint32 PacketSize  = PM4_ME_INCREMENT_DE_COUNTER_SIZEDW__CORE;
-    auto*const       pPacket     = static_cast<PM4_ME_INCREMENT_DE_COUNTER*>(pBuffer);
-
-    pPacket->ordinal1.header     = Type3Header(IT_INCREMENT_DE_COUNTER, PacketSize);
-    pPacket->ordinal2.dummy_data = 0;
-
-    return PacketSize;
-}
-
-// =====================================================================================================================
 // Builds a PM4 packet which issues an "index attributes indirect" command into the given DE stream. Return the size of
 // the PM4 command assembled, in DWORDs.
 size_t CmdUtil::BuildIndexAttributesIndirect(
@@ -2804,7 +2709,6 @@ size_t CmdUtil::BuildIndirectBuffer(
     gpusize    ibAddr,     // gpu virtual address of the indirect buffer
     uint32     ibSize,     // size of indirect buffer in dwords
     bool       chain,
-    bool       constantEngine,
     bool       enablePreemption,
     void*      pBuffer)    // space to place the newly-generated PM4 packet into
 {
@@ -2813,9 +2717,8 @@ size_t CmdUtil::BuildIndirectBuffer(
 
     PM4_PFP_INDIRECT_BUFFER packet = {};
     constexpr uint32 PacketSize = PM4_MEC_INDIRECT_BUFFER_SIZEDW__CORE;
-    const IT_OpCodeType opCode = constantEngine ? IT_INDIRECT_BUFFER_CNST : IT_INDIRECT_BUFFER;
 
-    packet.ordinal1.header.u32All = (Type3Header(opCode, PacketSize)).u32All;
+    packet.ordinal1.header.u32All = (Type3Header(IT_INDIRECT_BUFFER, PacketSize)).u32All;
     packet.ordinal2.u32All        = LowPart(ibAddr);
     packet.ordinal3.ib_base_hi    = HighPart(ibAddr);
 
@@ -2843,41 +2746,13 @@ size_t CmdUtil::BuildIndirectBuffer(
 }
 
 // =====================================================================================================================
-// Builds a PM4 constant engine command to load the specified amount of data from GPU memory into CE RAM. Returns the
-// size of the PM4 command built, in DWORDs.
-size_t CmdUtil::BuildLoadConstRam(
-    gpusize srcGpuAddr,
-    uint32  ramByteOffset,
-    uint32  dwordSize,     // Amount of data to load, in DWORDs. Must be a multiple of 8
-    void*   pBuffer)       // [out] Build the PM4 packet in this buffer.
-{
-    PAL_ASSERT(IsPow2Aligned(srcGpuAddr, 32));
-    PAL_ASSERT(IsPow2Aligned(ramByteOffset, 32));
-    PAL_ASSERT(IsPow2Aligned(dwordSize, 8));
-
-    constexpr uint32 PacketSize = PM4_CE_LOAD_CONST_RAM_SIZEDW__GFX10;
-    PM4_CE_LOAD_CONST_RAM packet = {};
-
-    packet.ordinal1.header.u32All              = (Type3Header(IT_LOAD_CONST_RAM, PacketSize)).u32All;
-    packet.ordinal2.addr_lo                    = LowPart(srcGpuAddr);
-    packet.ordinal3.addr_hi                    = HighPart(srcGpuAddr);
-    packet.ordinal4.bitfields.gfx10.num_dw     = dwordSize;
-    packet.ordinal5.bitfields.gfx10.start_addr = ramByteOffset;
-
-    static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
-    memcpy(pBuffer, &packet, sizeof(packet));
-    return PacketSize;
-}
-
-// =====================================================================================================================
 // Builds a NOP command as long as the specified number of DWORDs. Returns the size of the PM4 command built, in DWORDs
 size_t CmdUtil::BuildNop(
     size_t numDwords,
     void*  pBuffer)   // [out] Build the PM4 packet in this buffer.
 {
-    static_assert((PM4_PFP_NOP_SIZEDW__CORE  == PM4_MEC_NOP_SIZEDW__CORE) &&
-                   (PM4_PFP_NOP_SIZEDW__CORE == PM4_CE_NOP_SIZEDW__GFX10),
-                  "graphics, compute and constant versions of the NOP packet don't match!");
+    static_assert((PM4_PFP_NOP_SIZEDW__CORE  == PM4_MEC_NOP_SIZEDW__CORE),
+                  "graphics and compute versions of the NOP packet don't match!");
 
     PM4_PFP_NOP* pPacket = static_cast<PM4_PFP_NOP*>(pBuffer);
 
@@ -2959,19 +2834,14 @@ size_t CmdUtil::BuildPrimeUtcL2(
     size_t  requestedPages, // Number of 4KB pages to prefetch.
     void*   pBuffer)
 {
-    static_assert(((PM4_PFP_PRIME_UTCL2_SIZEDW__CORE == PM4_MEC_PRIME_UTCL2_SIZEDW__CORE)  &&
-                   (PM4_PFP_PRIME_UTCL2_SIZEDW__CORE == PM4_CE_PRIME_UTCL2_SIZEDW__GFX10)),
-                   "PRIME_UTCL2 packet is different between PFP, MEC, and CE!");
+    static_assert((PM4_PFP_PRIME_UTCL2_SIZEDW__CORE == PM4_MEC_PRIME_UTCL2_SIZEDW__CORE),
+                   "PRIME_UTCL2 packet is different between PFP and MEC!");
 
     static_assert(((static_cast<uint32>(prime_mode__pfp_prime_utcl2__dont_wait_for_xack)        ==
                     static_cast<uint32>(prime_mode__mec_prime_utcl2__dont_wait_for_xack))       &&
-                   (static_cast<uint32>(prime_mode__pfp_prime_utcl2__dont_wait_for_xack)        ==
-                    static_cast<uint32>(prime_mode__ce_prime_utcl2__dont_wait_for_xack__GFX10)) &&
                    (static_cast<uint32>(prime_mode__pfp_prime_utcl2__wait_for_xack)             ==
-                    static_cast<uint32>(prime_mode__mec_prime_utcl2__wait_for_xack))            &&
-                   (static_cast<uint32>(prime_mode__pfp_prime_utcl2__wait_for_xack)             ==
-                    static_cast<uint32>(prime_mode__ce_prime_utcl2__wait_for_xack__GFX10))),
-                  "Prime mode enum is different between PFP, MEC, and CE!");
+                    static_cast<uint32>(prime_mode__mec_prime_utcl2__wait_for_xack))),
+                  "Prime mode enum is different between PFP and MEC!");
 
     constexpr uint32 PacketSize = PM4_PFP_PRIME_UTCL2_SIZEDW__CORE;
     PM4_PFP_PRIME_UTCL2 packet = {};
@@ -3771,30 +3641,6 @@ size_t CmdUtil::BuildSetBase(
 }
 
 // =====================================================================================================================
-// Builds a SET_BASE packet for constant engine.  Returns the number of DWORDs taken by this packet.
-size_t CmdUtil::BuildSetBaseCe(
-    gpusize                     address,
-    CE_SET_BASE_base_index_enum baseIndex,
-    Pm4ShaderType               shaderType,
-    void*                       pBuffer)    // [out] Build the PM4 packet in this buffer.
-{
-    constexpr uint32 PacketSize = PM4_CE_SET_BASE_SIZEDW__GFX10;
-    PM4_CE_SET_BASE packet = {};
-
-    packet.ordinal1.header.u32All              = (Type3Header(IT_SET_BASE, PacketSize, false, shaderType)).u32All;
-    packet.ordinal2.bitfields.gfx10.base_index = baseIndex;
-    packet.ordinal3.u32All                     = LowPart(address);
-    packet.ordinal4.address_hi                 = HighPart(address);
-
-    // Make sure our address was aligned properly
-    PAL_ASSERT(packet.ordinal3.bitfieldsA.gfx10.reserved1 == 0);
-
-    static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
-    memcpy(pBuffer, &packet, sizeof(packet));
-    return PacketSize;
-}
-
-// =====================================================================================================================
 // Builds a PM4 packet which sets one config register. The index field is used to set special registers and should be
 // set to zero except when setting one of those registers. Returns the size of the PM4 command assembled, in DWORDs.
 template <bool resetFilterCam>
@@ -4459,9 +4305,6 @@ size_t CmdUtil::BuildWaitCsIdle(
     }
     else
     {
-        constexpr uint32 ClearedTimestamp   = 0x11111111;
-        constexpr uint32 CompletedTimestamp = 0x22222222;
-
         // Write a known value to the timestamp.
         WriteDataInfo writeData = {};
         writeData.engineType = engineType;
@@ -4512,40 +4355,6 @@ size_t CmdUtil::BuildWaitDmaData(
     dmaDataInfo.usePfp   = false;
 
     return BuildDmaData<false, false>(dmaDataInfo, pBuffer);
-}
-
-// =====================================================================================================================
-// Builds a PM4 command to stall the DE until the CE counter is positive, then decrements the CE counter. Returns the
-// size of the PM4 command written, in DWORDs.
-size_t CmdUtil::BuildWaitOnCeCounter(
-    bool  invalidateKcache,
-    void* pBuffer) // [out] Build the PM4 packet in this buffer.
-{
-    constexpr uint32 PacketSize = PM4_ME_WAIT_ON_CE_COUNTER_SIZEDW__CORE;
-    PM4_ME_WAIT_ON_CE_COUNTER packet = {};
-
-    packet.ordinal1.header                      = Type3Header(IT_WAIT_ON_CE_COUNTER, PacketSize);
-    packet.ordinal2.bitfields.cond_surface_sync = invalidateKcache;
-
-    static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
-    memcpy(pBuffer, &packet, sizeof(packet));
-    return PacketSize;
-}
-
-// =====================================================================================================================
-// Builds a PM4 command to stall the CE until it is less than the specified number of draws ahead of the DE. Returns
-// the size of the PM4 command written, in DWORDs.
-size_t CmdUtil::BuildWaitOnDeCounterDiff(
-    uint32 counterDiff,
-    void*  pBuffer)     // [out] Build the PM4 packet in this buffer.
-{
-    constexpr uint32 PacketSize = PM4_CE_WAIT_ON_DE_COUNTER_DIFF_SIZEDW__GFX10;
-    auto*const       pPacket    = static_cast<PM4_CE_WAIT_ON_DE_COUNTER_DIFF*>(pBuffer);
-
-    pPacket->ordinal1.header.u32All = (Type3Header(IT_WAIT_ON_DE_COUNTER_DIFF, PacketSize)).u32All;
-    pPacket->ordinal2.diff          = counterDiff;
-
-    return PacketSize;
 }
 
 // =====================================================================================================================
@@ -4786,31 +4595,6 @@ size_t CmdUtil::BuildWaitRegMem64(
     static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
     memcpy(pBuffer, &packet, sizeof(packet));
     return PacketSize;
-}
-
-// =====================================================================================================================
-// Builds a PM4 constant engine command to write the specified amount of data from CPU memory into CE RAM. Returns the
-// size of the PM4 command written, in DWORDs.
-size_t CmdUtil::BuildWriteConstRam(
-    const void* pSrcData,       // [in] Pointer to source data in CPU memory
-    uint32      ramByteOffset,  // Offset into CE RAM. Must be 4-byte aligned.
-    uint32      dwordSize,      // Amount of data to write, in DWORDs
-    void*       pBuffer)        // [out] Build the PM4 packet in this buffer.
-{
-    const uint32 packetSize = PM4_CE_WRITE_CONST_RAM_SIZEDW__GFX10 + dwordSize;
-    PM4_CE_WRITE_CONST_RAM packet = {};
-
-    packet.ordinal1.header.u32All          = (Type3Header(IT_WRITE_CONST_RAM, packetSize)).u32All;
-    packet.ordinal2.bitfields.gfx10.offset = ramByteOffset;
-
-    static_assert(PM4_CE_WRITE_CONST_RAM_SIZEDW__GFX10 * sizeof(uint32) == sizeof(packet), "");
-    memcpy(pBuffer, &packet, sizeof(packet));
-
-    // Copy the data into the buffer after the packet.
-    auto*const pPacket = static_cast<PM4_CE_WRITE_CONST_RAM*>(pBuffer);
-    memcpy(pPacket + 1, pSrcData, dwordSize * sizeof(uint32));
-
-    return packetSize;
 }
 
 // =====================================================================================================================

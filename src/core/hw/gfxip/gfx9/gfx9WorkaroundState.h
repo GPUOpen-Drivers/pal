@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -31,10 +31,7 @@
 namespace Pal
 {
 
-namespace Pm4
-{
 struct GraphicsState;
-}
 
 namespace Gfx9
 {
@@ -63,10 +60,10 @@ public:
 
     template <bool PipelineDirty, bool StateDirty, bool Pm4OptImmediate>
     uint32* PreDraw(
-        const Pm4::GraphicsState& gfxState,
-        CmdStream*                pDeCmdStream,
-        UniversalCmdBuffer*       pCmdBuffer,
-        uint32*                   pCmdSpace);
+        const GraphicsState& gfxState,
+        CmdStream*           pDeCmdStream,
+        UniversalCmdBuffer*  pCmdBuffer,
+        uint32*              pCmdSpace);
     uint32* SwitchToLegacyPipeline(
         bool                    oldPipelineUsesGs,
         bool                    oldPipelineNgg,

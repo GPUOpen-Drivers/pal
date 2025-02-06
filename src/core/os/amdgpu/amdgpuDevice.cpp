@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -948,9 +948,6 @@ Result Device::InitGpuProperties()
 
     m_chipProperties.imageProperties.minPitchAlignPixel = 0;
 
-    // ceRamSize must be set before InitializeGpuEngineProperties which reference it
-    m_chipProperties.gfxip.ceRamSize = m_gpuInfo.ce_ram_size;
-
     // The unit of amdgpu is KHz but PAL is Hz
     m_chipProperties.gpuCounterFrequency = m_gpuInfo.gpu_counter_freq * 1000;
 
@@ -1057,8 +1054,6 @@ Result Device::InitGpuProperties()
 
     if (result == Result::Success)
     {
-        m_engineProperties.perEngine[EngineTypeUniversal].availableCeRamSize = m_gpuInfo.ce_ram_size;
-
         InitPerformanceRatings();
         InitMemoryHeapProperties();
     }

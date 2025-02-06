@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -1021,10 +1021,14 @@ struct DeviceProperties
                 /// Indicates whether this engine can do virtual memory remap or not.
                 uint32 supportVirtualMemoryRemap       :  1;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 914
                 /// Indicates whether this Queues using this engine can maintain the contents of CE RAM across
                 /// consecutive submissions.  If this is not set, the client must not specify a nonzero value for
                 /// either @ref QueueCreateInfo::persistentCeRamSize or @ref QueueCreateInfo::persistentCeRamOffset.
                 uint32 supportPersistentCeRam          :  1;
+#else
+                uint32 reserved914                     :  1;
+#endif
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 834
                 /// If true, this engine does not support peer-to-peer copies that target memory in the invisible heap
@@ -1085,7 +1089,9 @@ struct DeviceProperties
         uint32   maxBorderColorPaletteSize;     ///< Maximum size of a border color palette on this engine.
         uint32   controlFlowNestingLimit;       ///< Maximum depth of command-buffer control flow nesting on this
                                                 ///  engine.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 914
         uint32   ceRamSizeAvailable;            ///< Size, in bytes, of constant engine RAM available on this engine.
+#endif
         Extent3d minTiledImageCopyAlignment;    ///< Minimum alignments (pixels) for X/Y/Z/Width/Height/Depth for
                                                 ///  ICmdBuffer::CmdCopyImage() between optimally tiled images.
         Extent3d minTiledImageMemCopyAlignment; ///< Minimum alignments (bytes) for X/Y/Z/Width/Height/Depth for
@@ -1300,7 +1306,9 @@ struct DeviceProperties
 
         uint32 hardwareContexts;    ///< Number of distinct state contexts available for graphics workloads.  Mostly
                                     ///  irrelevant to clients, but may be useful to tools.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 914
         uint32 ceRamSize;           ///< Maximum on-chip CE RAM size in bytes.
+#endif
         uint32 maxPrimgroupSize;    ///< Maximum primitive group size.
         uint32 supportedVrsRates;   ///< Bitmask of VrsShadingRate enumerations indicating which modes are supported.
 
@@ -1793,11 +1801,13 @@ struct DeviceFinalizeInfo
         uint32 engines; ///< A mask of which engines are requested.
     } requestedEngineCounts[EngineTypeCount];
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 914
     /// Bytes of CE RAM to be used by the client for each engine type. This value must be <= ceRamSizeAvailable reported
     /// for that engine type. In the case where more than one engine of a given type is requested it is assumed each
     /// engine of that type will use this amount of CE RAM so the total size of (ceRamSizeUsed * queueCounts) must be <=
     /// ceRamSizeAvailable for that engine type. Each entry must be either zero or a multiple of 32 bytes.
     size_t ceRamSizeUsed[EngineTypeCount];
+#endif
 
     /// @see PrivateScreenNotifyInfo
     /// Private screen notify info, must be filled when supportPrivateScreens=1. The client pointer and callback are to
@@ -3059,9 +3069,7 @@ public:
     ///
     /// @param [in] finalizeInfo Device finalization properties.
     ///
-    /// @returns Success if final initilization is successful.  Otherwise, one of the following errors may be returned:
-    ///          + ErrorInvalidOrdinal if the indirect user-data tables combined sizes/offsets run beyond the amount of
-    ///            client-used CE RAM space for the Universal queue.
+    /// @returns Success if final initialization is successful.
     virtual Result Finalize(
         const DeviceFinalizeInfo& finalizeInfo) = 0;
 
@@ -3898,6 +3906,24 @@ public:
     virtual size_t GetImageSize(
         const ImageCreateInfo& createInfo,
         Result*                pResult) const = 0;
+
+    /// Determines if the image will have faster clone copy (than normal CS or graphics copy) in @ref CmdCopyImage().
+    /// If this function returns true, clients can set @ref ImageCreateInfo::flags::cloneable = 1 to enable clone
+    /// copy support in @ref CmdCopyImage(); however whether @ref CmdCopyImage() goes through clone copy or not depends
+    /// on multiple factors, please see doxygen in @ref CmdCopyImage() for more details.
+    ///
+    /// Note that clients are free to set this flag to 1 regardless; it still enables clone copy potentially but can't
+    /// guarantee better performance. If clients find more faster clone copy cases, feel free to improve this function
+    /// to cover these kinds of images.
+    ///
+    /// Due to rely on @ref ImageCreateInfo values to make decision, ideally clients should set all other members
+    /// for @ref ImageCreateInfo first, and then call this function to setup cloneable flag last before creating image.
+    ///
+    /// @param [in]  createInfo Properties of the new image.
+    ///
+    /// @returns true if image prefers clone copy in CmdCopyImage(); otherwise goes through normal copy.
+    virtual bool ImagePrefersCloneCopy(
+        const ImageCreateInfo& createInfo) const = 0;
 
     /// Creates an @ref IImage object with the requested properties.
     ///

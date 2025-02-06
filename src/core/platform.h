@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -195,7 +195,6 @@ public:
     bool Force32BitVaSpace() const { return m_flags.force32BitVaSpace; }
 
     const char* GetClientApiStr() const;
-    ClientApi   GetClientApiId()  const { return m_clientApiId; }
 
     bool SvmModeEnabled()                const { return m_flags.enableSvmMode; }
     bool RequestShadowDescVaRange()      const { return m_flags.requestShadowDescVaRange; }
@@ -269,7 +268,6 @@ protected:
     uint32             m_deviceCount;
     PlatformProperties m_properties;
 
-    const ClientApi m_clientApiId;
     const uint16    m_clientApiMajorVer;
     const uint16    m_clientApiMinorVer;
 

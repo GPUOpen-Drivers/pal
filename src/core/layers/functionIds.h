@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2018-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2018-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -95,7 +95,9 @@ enum class CmdBufCallId : uint32
     CmdScaledCopyImage,
     CmdGenerateMipmaps,
     CmdColorSpaceConversionCopy,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 913
     CmdCloneImageData,
+#endif
     CmdCopyMemoryToImage,
     CmdCopyImageToMemory,
     CmdClearColorBuffer,
@@ -123,9 +125,6 @@ enum class CmdBufCallId : uint32
     CmdLoadBufferFilledSizes,
     CmdSaveBufferFilledSizes,
     CmdSetBufferFilledSize,
-    CmdLoadCeRam,
-    CmdWriteCeRam,
-    CmdDumpCeRam,
     CmdExecuteNestedCmdBuffers,
     CmdExecuteIndirectCmds,
     CmdIf,
@@ -224,7 +223,9 @@ constexpr const char* CmdBufCallIdStrings[] =
     "CmdScaledCopyImage()",
     "CmdGenerateMipmaps()",
     "CmdColorSpaceConversionCopy()",
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 913
     "CmdCloneImageData()",
+#endif
     "CmdCopyMemoryToImage()",
     "CmdCopyImageToMemory()",
     "CmdClearColorBuffer()",
@@ -252,9 +253,6 @@ constexpr const char* CmdBufCallIdStrings[] =
     "CmdLoadBufferFilledSizes()",
     "CmdSaveBufferFilledSizes()",
     "CmdSetBufferFilledSize()",
-    "CmdLoadCeRam()",
-    "CmdWriteCeRam()",
-    "CmdDumpCeRam()",
     "CmdExecuteNestedCmdBuffers()",
     "CmdExecuteIndirectCmds()",
     "CmdIf()",

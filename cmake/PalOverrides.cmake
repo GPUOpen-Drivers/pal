@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2020-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2020-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -26,6 +26,14 @@
 include_guard()
 
 # This file is dedicated to overriding PAL subproject options
+
+# Tell PAL clients this is now being handled properly
+if (DEFINED AMD_SOURCE_DIR)
+    message(AUTHOR_WARNING "No need to set this variable anymore.")
+endif()
+
+# This variable is used in devdriver
+set(AMD_SOURCE_DIR ${GLOBAL_ROOT_SRC_DIR})
 
 # GPU Overrides
 

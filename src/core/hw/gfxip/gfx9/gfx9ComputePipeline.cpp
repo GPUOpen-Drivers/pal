@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -54,7 +54,6 @@ ComputePipeline::ComputePipeline(
     m_chunkCs(*pDevice,
               &m_stageInfo,
               &m_perfDataInfo[static_cast<uint32>(Abi::HardwareStage::Cs)]),
-    m_disablePartialPreempt(false),
     m_shPairsPacketSupportedCs(pDevice->Settings().gfx11EnableShRegPairOptimizationCs)
 {
 }
@@ -66,65 +65,10 @@ Result ComputePipeline::HwlInit(
     const ComputePipelineCreateInfo&  createInfo,
     const AbiReader&                  abiReader,
     const HsaAbi::CodeObjectMetadata& metadata,
-    MsgPackReader*                    pMetadataReader)
+    MsgPackReader*                    pMetadataReader,
+    const Extent3d&                   groupSize)
 {
     Result result = Result::Success;
-
-    m_disablePartialPreempt = createInfo.disablePartialDispatchPreemption;
-
-    // The metadata guarantees that the required size components are all zero or all non-zero.
-    const bool hasRequiredSize = (metadata.RequiredWorkgroupSizeX() != 0);
-
-    // Pick a thread group size for this pipeline. It may come from the create info or from the HSA metadata.
-    Extent3d groupSize;
-
-    // These always have to be all non-zero or all zero.
-    PAL_ASSERT(((createInfo.threadsPerGroup.width  == 0) &&
-                (createInfo.threadsPerGroup.height == 0) &&
-                (createInfo.threadsPerGroup.depth  == 0)) ||
-               ((createInfo.threadsPerGroup.width  != 0) &&
-                (createInfo.threadsPerGroup.height != 0) &&
-                (createInfo.threadsPerGroup.depth  != 0)));
-
-    // The caller can pick the thread group size if the ELF wasn't compiled against a particular size.
-    if (createInfo.threadsPerGroup.width != 0)
-    {
-        groupSize = createInfo.threadsPerGroup;
-
-        if (hasRequiredSize &&
-            ((groupSize.width  != metadata.RequiredWorkgroupSizeX()) ||
-             (groupSize.height != metadata.RequiredWorkgroupSizeY()) ||
-             (groupSize.depth  != metadata.RequiredWorkgroupSizeZ())))
-        {
-            // This ELF requires a specific thread group size which cannot be changed.
-            result = Result::ErrorInvalidValue;
-        }
-    }
-    else if (hasRequiredSize)
-    {
-        groupSize.width  = metadata.RequiredWorkgroupSizeX();
-        groupSize.height = metadata.RequiredWorkgroupSizeY();
-        groupSize.depth  = metadata.RequiredWorkgroupSizeZ();
-    }
-    else
-    {
-        // We could fail here since we don't really know what group size to use. Instead, let's assume we're
-        // supposed to launch a 1D thread group of the maximum supported size. We may change this in the future.
-        groupSize.width  = metadata.MaxFlatWorkgroupSize();
-        groupSize.height = 1;
-        groupSize.depth  = 1;
-    }
-
-    if (result == Result::Success)
-    {
-        // The X/Y/Z sizes must be non-zero and cover a volume no greater than the max flat group size.
-        const uint32 flatSize = groupSize.width * groupSize.height * groupSize.depth;
-
-        if ((flatSize == 0) || (flatSize > metadata.MaxFlatWorkgroupSize()))
-        {
-            result = Result::ErrorInvalidValue;
-        }
-    }
 
     const llvm::amdhsa::kernel_descriptor_t& desc = KernelDescriptor();
 
@@ -291,8 +235,6 @@ Result ComputePipeline::HwlInit(
     const PalAbi::CodeObjectMetadata& metadata,
     MsgPackReader*                    pMetadataReader)
 {
-    m_disablePartialPreempt = createInfo.disablePartialDispatchPreemption;
-
     CodeObjectUploader uploader(m_pDevice->Parent(), abiReader);
 
     // Next, handle relocations and upload the pipeline code & data to GPU memory.
