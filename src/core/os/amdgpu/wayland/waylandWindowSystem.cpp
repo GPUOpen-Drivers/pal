@@ -1281,20 +1281,20 @@ void WaylandWindowSystem::ConfigPresentOnSameGpu()
 
         PAL_ASSERT(result == Result::Success);
 
-        int64 drmNodeMajor, drmNodeMinor;
-        if (drmProps.flags.hasRenderDrmNode)
+        // If the compositor is running on either the same primary or render node as our device, it's on the same gpu.
+        m_presentOnSameGpu = false;
+        if (drmProps.flags.hasRenderDrmNode &&
+            (major(m_DmaDevice) == drmProps.renderDrmNodeMajor) &&
+            (minor(m_DmaDevice) == drmProps.renderDrmNodeMinor))
         {
-            drmNodeMajor = drmProps.renderDrmNodeMajor;
-            drmNodeMinor = drmProps.renderDrmNodeMinor;
+            m_presentOnSameGpu = true;
         }
-        if (drmProps.flags.hasPrimaryDrmNode)
+        if (drmProps.flags.hasPrimaryDrmNode &&
+            (major(m_DmaDevice) == drmProps.primaryDrmNodeMajor) &&
+            (minor(m_DmaDevice) == drmProps.primaryDrmNodeMinor))
         {
-            drmNodeMajor = drmProps.primaryDrmNodeMajor;
-            drmNodeMinor = drmProps.primaryDrmNodeMinor;
-
+            m_presentOnSameGpu = true;
         }
-        m_presentOnSameGpu = ((major(m_DmaDevice) == drmNodeMajor) &&
-            (minor(m_DmaDevice) == drmNodeMinor));
     }
     else
     {
