@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -187,6 +187,22 @@ constexpr uint64 ReplicateByteAcrossQword(
     uint8 value)  ///< 8-bit input value.
 {
     return ((static_cast<uint64>(ReplicateByteAcrossDword(value)) << 32) | ReplicateByteAcrossDword(value));
+}
+
+/// Combines four characters into a uint32-based four-character-code "string". There's no null terminator so it's not a
+/// real c-string, it just looks like there's a string if you view the uint in a hex editor or memcmp against a string.
+///
+/// For example, FourCC('A', 'B', 'C', 'D') turns into 0x44434241. 'A' is 0x41 and it ends up in the first byte.
+/// This function assumes we're running on a little endian platform (PAL only supports little-endian platforms).
+///
+/// @returns Returns a uin32 four-character-code made from the given chars.
+constexpr uint32 FourCc(
+    char c1, ///< The 1st character (lowest byte).
+    char c2, ///< The 2nd character.
+    char c3, ///< The 3rd character.
+    char c4) ///< The 4th character (highest byte).
+{
+    return (uint32(c4) << 24) | (uint32(c3) << 16) | (uint32(c2) << 8) | uint32(c1);
 }
 
 /// Returns a bitfield from within some value.

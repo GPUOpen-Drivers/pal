@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -28,7 +28,6 @@
 #include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"
 #include "core/hw/gfxip/gfx9/gfx9DepthStencilView.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
-#include "core/hw/gfxip/gfx9/gfx9FormatInfo.h"
 #include "core/hw/gfxip/gfx9/gfx9Image.h"
 #include "core/hw/gfxip/gfx9/gfx9MaskRam.h"
 #include "core/addrMgr/addrMgr2/addrMgr2.h"
@@ -36,7 +35,6 @@
 
 using namespace Util;
 using namespace Pal::Formats::Gfx9;
-using std::is_same;
 
 namespace Pal
 {
@@ -51,7 +49,10 @@ DepthStencilView::DepthStencilView(
     uint32                                    uniqueId)
     :
     m_pImage(GetGfx9Image(createInfo.pImage)),
-    m_uniqueId(uniqueId)
+    m_uniqueId(uniqueId),
+    m_baseArraySlice(createInfo.baseArraySlice),
+    m_arraySize(createInfo.arraySize),
+    m_regs{}
 {
     PAL_ASSERT(createInfo.pImage != nullptr);
     const auto& imageInfo  = m_pImage->Parent()->GetImageCreateInfo();
@@ -124,17 +125,23 @@ DepthStencilView::DepthStencilView(
         m_flags.depthMetadataTexFetch   = pDepthSubResInfo->flags.supportMetaDataTexFetch;
         m_flags.stencilMetadataTexFetch = pStencilSubResInfo->flags.supportMetaDataTexFetch;
     }
+
+    InitRegisters(*pDevice, createInfo, internalInfo);
+
+    if (IsVaLocked())
+    {
+        UpdateImageVa(&m_regs);
+    }
 }
 
 // =====================================================================================================================
 // Updates the specified PM4 image with the virtual addresses of the image and the image's various metadata addresses.
-template <typename RegistersType, typename FmtInfoTableType>
 void DepthStencilView::InitRegistersCommon(
     const Device&                             device,
     const DepthStencilViewCreateInfo&         createInfo,
     const DepthStencilViewInternalCreateInfo& internalInfo,
-    const FmtInfoTableType*                   pFmtInfo,
-    RegistersType*                            pRegs)
+    const MergedFlatFmtInfo*                  pFmtInfo,
+    DepthStencilViewRegs*                     pRegs)
 {
     const SubResourceInfo*const pDepthSubResInfo     = m_pImage->Parent()->SubresourceInfo(m_depthSubresource);
     const SubResourceInfo*const pStencilSubResInfo   = m_pImage->Parent()->SubresourceInfo(m_stencilSubresource);
@@ -301,9 +308,8 @@ void DepthStencilView::InitRegistersCommon(
 
 // =====================================================================================================================
 // Updates the specified PM4 image with the virtual addresses of the image and the image's various metadata addresses.
-template <typename RegistersType>
 void DepthStencilView::UpdateImageVa(
-    RegistersType* pRegs
+    DepthStencilViewRegs* pRegs
     ) const
 {
     // The "GetSubresource256BAddrSwizzled" function will crash if no memory has been bound to
@@ -311,14 +317,11 @@ void DepthStencilView::UpdateImageVa(
     if (m_pImage->Parent()->GetBoundGpuMemory().IsBound())
     {
         // Setup bits indicating the page size.
-        if (is_same<RegistersType, Gfx10DepthStencilViewRegs>::value)
-        {
-            const bool isBigPage = IsImageBigPageCompatible(*m_pImage, Gfx10AllowBigPageDepthStencil);
+        const bool isBigPage = IsImageBigPageCompatible(*m_pImage, Gfx10AllowBigPageDepthStencil);
 
-            auto*const pGfx10 = reinterpret_cast<Gfx10DepthStencilViewRegs*>(pRegs);
-            pGfx10->dbRmiL2CacheControl.bits.Z_BIG_PAGE = isBigPage;
-            pGfx10->dbRmiL2CacheControl.bits.S_BIG_PAGE = isBigPage;
-        }
+        auto*const pGfx10 = reinterpret_cast<DepthStencilViewRegs*>(pRegs);
+        pGfx10->dbRmiL2CacheControl.bits.Z_BIG_PAGE = isBigPage;
+        pGfx10->dbRmiL2CacheControl.bits.S_BIG_PAGE = isBigPage;
 
         gpusize zReadBase        = m_pImage->GetSubresourceAddr(m_depthSubresource);
         gpusize zWriteBase       = zReadBase;
@@ -384,13 +387,12 @@ void DepthStencilView::UpdateImageVa(
 // =====================================================================================================================
 // Writes the PM4 commands required to bind to depth/stencil slot (common to both Gfx9 and Gfx10).  Returns the next
 // unused DWORD in pCmdSpace.
-template <typename RegistersType>
 uint32* DepthStencilView::WriteCommandsCommon(
-    ImageLayout    depthLayout,
-    ImageLayout    stencilLayout,
-    CmdStream*     pCmdStream,
-    uint32*        pCmdSpace,
-    RegistersType* pRegs
+    ImageLayout           depthLayout,
+    ImageLayout           stencilLayout,
+    CmdStream*            pCmdStream,
+    uint32*               pCmdSpace,
+    DepthStencilViewRegs* pRegs
     ) const
 {
     const DepthStencilCompressionState depthState =
@@ -571,7 +573,7 @@ uint32* DepthStencilView::WriteUpdateFastClearDepthStencilValue(
 // Helper function which adds commands into the command stream when the currently-bound depth target is changing.
 // Returns the address to where future commands will be written.
 uint32* DepthStencilView::HandleBoundTargetChanged(
-    const Pm4::UniversalCmdBuffer* pCmdBuffer,
+    const Pal::UniversalCmdBuffer* pCmdBuffer,
     uint32*                        pCmdSpace
     ) const
 {
@@ -595,28 +597,8 @@ bool DepthStencilView::Equals(
 }
 
 // =====================================================================================================================
-Gfx10DepthStencilView::Gfx10DepthStencilView(
-    const Device*                             pDevice,
-    const DepthStencilViewCreateInfo&         createInfo,
-    const DepthStencilViewInternalCreateInfo& internalInfo,
-    uint32                                    uniqueId)
-    :
-    DepthStencilView(pDevice, createInfo, internalInfo, uniqueId),
-    m_baseArraySlice(createInfo.baseArraySlice),
-    m_arraySize(createInfo.arraySize)
-{
-    memset(&m_regs, 0, sizeof(m_regs));
-    InitRegisters(*pDevice, createInfo, internalInfo);
-
-    if (IsVaLocked())
-    {
-        UpdateImageVa(&m_regs);
-    }
-}
-
-// =====================================================================================================================
 // Helper to initialize the GFX11 DB_RENDER_CONTROL reg based on panel settings and necessary workarounds.
-void Gfx10DepthStencilView::SetGfx11StaticDbRenderControlFields(
+void DepthStencilView::SetGfx11StaticDbRenderControlFields(
     const Device&         device,
     const uint8           numFragments,
     regDB_RENDER_CONTROL* pDbRenderControl)
@@ -676,7 +658,7 @@ void Gfx10DepthStencilView::SetGfx11StaticDbRenderControlFields(
 
 // =====================================================================================================================
 // Finalizes the PM4 packet image by setting up the register values used to write this View object to hardware.
-void Gfx10DepthStencilView::InitRegisters(
+void DepthStencilView::InitRegisters(
     const Device&                             device,
     const DepthStencilViewCreateInfo&         createInfo,
     const DepthStencilViewInternalCreateInfo& internalInfo)
@@ -799,7 +781,7 @@ void Gfx10DepthStencilView::InitRegisters(
 
 // =====================================================================================================================
 // Writes the PM4 commands required to bind to depth/stencil slot. Returns the next unused DWORD in pCmdSpace.
-uint32* Gfx10DepthStencilView::WriteCommands(
+uint32* DepthStencilView::WriteCommands(
     ImageLayout            depthLayout,   // Allowed usages/queues for the depth plane. Implies compression state.
     ImageLayout            stencilLayout, // Allowed usages/queues for the stencil plane. Implies compression state.
     CmdStream*             pCmdStream,
@@ -808,7 +790,7 @@ uint32* Gfx10DepthStencilView::WriteCommands(
     uint32*                pCmdSpace
     ) const
 {
-    Gfx10DepthStencilViewRegs regs = m_regs;
+    DepthStencilViewRegs regs = m_regs;
     pCmdSpace = WriteCommandsCommon(depthLayout, stencilLayout, pCmdStream, pCmdSpace, &regs);
 
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_RENDER_CONTROL, regs.dbRenderControl.u32All, pCmdSpace);

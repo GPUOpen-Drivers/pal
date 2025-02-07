@@ -748,6 +748,45 @@
       "ValidValues": {
         "Values": [
           {
+            "Name": "GpuProfilerDisabled",
+            "Value": 0,
+            "Description": "GPU Profiler Disabled"
+          },
+          {
+            "Name": "GpuProfilerCounterAndTimingOnly",
+            "Value": 1,
+            "Description": "Traces are disabled but perf counter and timing operations are enabled."
+          },
+          {
+            "Name": "GpuProfilerTraceEnabledTtv",
+            "Value": 2,
+            "Description": "Traces (Spm and/or Sqtt) are output in format (.csv, .out) for Thread trace viewer."
+          },
+          {
+            "Name": "GpuProfilerTraceEnabledRgp",
+            "Value": 3,
+            "Description": "Trace data (Spm and/or Sqtt) is output as .rgp file for Radeon Gpu Profiler."
+          }
+        ],
+        "Name": "GpuProfilerMode",
+        "SkipGen": true,
+        "IsEnum": true
+      },
+      "Name": "GpuProfilerMode",
+      "Tags": [
+        "GPU Profiler"
+      ],
+      "Defaults": {
+        "Default": "GpuProfilerDisabled"
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "enum",
+      "Description": "Enables and sets the SQTT mode for the GPU performance profiler layer.  Actual capture of performance data must be specified via frame number with GpuProfilerConfig.StartFrame or by holding shift-F11."
+    },
+    {
+      "ValidValues": {
+        "Values": [
+          {
             "Name": "Shift_F11",
             "Value": 107,
             "Description": "Default GPU profiler capture trigger key"
@@ -787,45 +826,6 @@
       "Scope": "PrivatePalKey",
       "Type": "enum",
       "Description": "Default trigger key is Shift_F11 and forced trigger keys are F1, F2, F13, and F16 for capturing GPU profiler."
-    },
-    {
-      "ValidValues": {
-        "Values": [
-          {
-            "Name": "GpuProfilerDisabled",
-            "Value": 0,
-            "Description": "GPU Profiler Disabled"
-          },
-          {
-            "Name": "GpuProfilerCounterAndTimingOnly",
-            "Value": 1,
-            "Description": "Traces are disabled but perf counter and timing operations are enabled."
-          },
-          {
-            "Name": "GpuProfilerTraceEnabledTtv",
-            "Value": 2,
-            "Description": "Traces (Spm and/or Sqtt) are output in format (.csv, .out) for Thread trace viewer."
-          },
-          {
-            "Name": "GpuProfilerTraceEnabledRgp",
-            "Value": 3,
-            "Description": "Trace data (Spm and/or Sqtt) is output as .rgp file for Radeon Gpu Profiler."
-          }
-        ],
-        "Name": "GpuProfilerMode",
-        "SkipGen": true,
-        "IsEnum": true
-      },
-      "Name": "GpuProfilerMode",
-      "Tags": [
-        "GPU Profiler"
-      ],
-      "Defaults": {
-        "Default": "GpuProfilerDisabled"
-      },
-      "Scope": "PrivatePalKey",
-      "Type": "enum",
-      "Description": "Enables and sets the SQTT mode for the GPU performance profiler layer.  Actual capture of performance data must be specified via frame number with GpuProfilerConfig.StartFrame or by holding shift-F11."
     },
     {
       "Name": "GpuProfilerTokenAllocatorSize",
@@ -1039,6 +1039,30 @@
           },
           "Type": "enum",
           "Description": "What clock mode PAL should enable when profiling."
+        },
+        {
+          "ValidValues": {
+            "IsEnum": true,
+            "Values": [
+              {
+                "Description": "",
+                "Value": 0,
+                "Name": "Application"
+              },
+              {
+                "Description": "",
+                "Value": 1,
+                "Name": "Pix"
+              }
+            ],
+            "Name": "GpuProfilerContext"
+          },
+          "Name": "Context",
+          "Defaults": {
+            "Default": "GpuProfilerContext::Application"
+          },
+          "Type": "enum",
+          "Description": "Indicate execution context for application specific behavior applied in PAL GPUProfiler"
         },
         {
           "Name": "EngineTypeMask",

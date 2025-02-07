@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -140,7 +140,9 @@ enum class InterfaceFunc : uint32
     CmdBufferCmdScaledCopyImage,
     CmdBufferCmdGenerateMipmaps,
     CmdBufferCmdColorSpaceConversionCopy,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 913
     CmdBufferCmdCloneImageData,
+#endif
     CmdBufferCmdUpdateMemory,
     CmdBufferCmdUpdateBusAddressableMemoryMarker,
     CmdBufferCmdFillMemory,
@@ -178,9 +180,6 @@ enum class InterfaceFunc : uint32
     CmdBufferCmdWaitRegisterValue,
     CmdBufferCmdWaitMemoryValue,
     CmdBufferCmdWaitBusAddressableMemoryMarker,
-    CmdBufferCmdLoadCeRam,
-    CmdBufferCmdDumpCeRam,
-    CmdBufferCmdWriteCeRam,
     CmdBufferCmdAllocateEmbeddedData,
     CmdBufferCmdAllocateLargeEmbeddedData,
     CmdBufferCmdExecuteNestedCmdBuffers,

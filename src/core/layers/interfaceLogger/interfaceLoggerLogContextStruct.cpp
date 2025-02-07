@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -201,15 +201,6 @@ void LogContext::Struct(
         const auto& memoryBarrier = value.pMemoryBarriers[idx];
 
         BeginMap(false);
-
-        KeyAndBeginList("flags", true);
-
-        if (memoryBarrier.flags.globallyAvailable)
-        {
-            Value("GloballyAvailable");
-        }
-
-        EndList();
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 880
         KeyAndValue("address",     memoryBarrier.memory.address);
@@ -707,11 +698,6 @@ void LogContext::Struct(
         Value("prefetchCommands");
     }
 
-    if (value.flags.usesCeRamCmds)
-    {
-        Value("usesCeRamCmds");
-    }
-
     if (value.flags.disallowNestedLaunchViaIb2)
     {
         Value("disallowNestedLaunchViaIb2");
@@ -1118,14 +1104,6 @@ void LogContext::Struct(
     {
         const char*const pEngineName = LogContext::GetEngineName(static_cast<EngineType>(idx));
         KeyAndValue(pEngineName, value.requestedEngineCounts[idx].engines);
-    }
-    EndMap();
-
-    KeyAndBeginMap("ceRamSizeUsed", false);
-    for (uint32 idx = 0; idx < EngineTypeCount; ++idx)
-    {
-        const char*const pEngineName = LogContext::GetEngineName(static_cast<EngineType>(idx));
-        KeyAndValue(pEngineName, value.ceRamSizeUsed[idx]);
     }
     EndMap();
 
@@ -3166,8 +3144,6 @@ void LogContext::Struct(
     KeyAndValue("engineIndex", value.engineIndex);
     KeyAndEnum("submitOptMode", value.submitOptMode);
     KeyAndValue("numReservedCu", value.numReservedCu);
-    KeyAndValue("persistentCeRamOffset", value.persistentCeRamOffset);
-    KeyAndValue("persistentCeRamSize", value.persistentCeRamSize);
     EndMap();
 }
 

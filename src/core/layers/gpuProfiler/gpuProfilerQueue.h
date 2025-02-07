@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -375,7 +375,8 @@ private:
     LogItem                           m_perFrameLogItem;  // Log item used when the profiling granularity is per frame.
     bool                              m_isDfSpmTraceEnabled;
     bool                              m_recreateState;    // Cached state for this queue noting the global recreate state
-    bool                              m_profileEnabled;   // Did the config permit this queue to be profiled
+    bool                              m_maskEnabled;      // Did the config masks permit this queue to be profiled
+    bool                              m_profileEnabled;   // Combination of m_maskEnabled, m_recreateState, and context
     bool                              m_endSampleEnabled; // Do settings indicate perfcounters should be ended
     Mutex                             m_stateMutex;       // State mutex required for synchronizing device and queue
 

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -25,15 +25,12 @@
 
 #pragma once
 
-#include "core/hw/gfxip/pm4CmdStream.h"
 #include "core/hw/gfxip/gfxBlendOptimizer.h"
-#include "core/hw/gfxip/pm4CmdBuffer.h"
+#include "core/hw/gfxip/gfxCmdBuffer.h"
+#include "core/hw/gfxip/gfxCmdStream.h"
 #include "palDeque.h"
 
 namespace Pal
-{
-
-namespace Pm4
 {
 
 class      PerfExperiment;
@@ -175,7 +172,7 @@ struct ValidateDrawInfo
 
 // =====================================================================================================================
 // Class for executing basic hardware-specific functionality common to all PM4 universal command buffers.
-class UniversalCmdBuffer : public Pm4CmdBuffer
+class UniversalCmdBuffer : public GfxCmdBuffer
 {
 public:
     virtual Result Begin(const CmdBufferBuildInfo& info) override;
@@ -209,8 +206,8 @@ public:
     virtual void DumpCmdStreamsToFile(Util::File* pFile, CmdBufDumpFormat mode) const override;
     virtual void EndCmdBufferDump(const Pal::CmdStream** ppCmdStreams, uint32 cmdStreamsNum) override;
 
-    // Universal command buffers have three command streams: Draw Engine, Constant Engine and a hidden ACE cmd stream.
-    static constexpr uint32 NumCmdStreamsVal = 3;
+    // Universal command buffers have two command streams: Draw Engine and a hidden ACE cmd stream.
+    static constexpr uint32 NumCmdStreamsVal = 2;
     static constexpr uint32 AceStreamCount   = 1;
 
     // Returns the number of command streams associated with this command buffer.
@@ -231,11 +228,6 @@ public:
     virtual void IncrementSubmitCount() override
     {
         m_pDeCmdStream->IncrementSubmitCount();
-
-        if (m_pCeCmdStream != nullptr)
-        {
-            m_pCeCmdStream->IncrementSubmitCount();
-        }
 
         if (m_pAceCmdStream != nullptr)
         {
@@ -261,16 +253,17 @@ public:
         SwizzledFormat            swizzledFormat,
         uint32                    targetIndex) override;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 913
     void CmdCloneImageData(const IImage& srcImage, const IImage& dstImage);
+#endif
 
 protected:
     UniversalCmdBuffer(
         const GfxDevice&           device,
         const CmdBufferCreateInfo& createInfo,
         const GfxBarrierMgr*       pBarrierMgr,
-        Pm4::CmdStream*            pDeCmdStream,
-        Pm4::CmdStream*            pCeCmdStream,
-        Pm4::CmdStream*            pAceCmdStream,
+        GfxCmdStream*              pDeCmdStream,
+        GfxCmdStream*              pAceCmdStream,
         bool                       blendOptEnable,
         bool                       useUpdateUserData);
 
@@ -313,7 +306,7 @@ protected:
     // Late-initialized ACE command buffer stream.
     // Ace command stream is used for ganged submit of compute workloads (task shader workloads)
     // after which graphics workloads will be submitted on the DE command stream.
-    Pm4::CmdStream* m_pAceCmdStream;
+    GfxCmdStream* m_pAceCmdStream;
 
     TessDistributionFactors m_tessDistributionFactors;
 
@@ -323,13 +316,11 @@ protected:
     const GfxDevice& m_device;
 
 private:
-    Pm4::CmdStream*const m_pDeCmdStream; // Draw engine command buffer stream.
-    Pm4::CmdStream*const m_pCeCmdStream; // Constant engine command buffer stream.
-    const bool           m_blendOptEnable;
+    GfxCmdStream*const m_pDeCmdStream; // Draw engine command buffer stream.
+    const bool         m_blendOptEnable;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(UniversalCmdBuffer);
     PAL_DISALLOW_DEFAULT_CTOR(UniversalCmdBuffer);
 };
 
-} // Pm4
 } // Pal

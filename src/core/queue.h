@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -325,9 +325,6 @@ public:
     virtual bool IsWindowedPriorBlit()   const { return (m_pQueueInfos[0].createInfo.windowedPriorBlit != 0); }
     bool UsesPhysicalModeSubmission() const;
     bool IsPreemptionSupported()      const;
-
-    virtual uint32 PersistentCeRamOffset() const { return m_pQueueInfos[0].createInfo.persistentCeRamOffset; }
-    virtual uint32 PersistentCeRamSize()   const { return m_pQueueInfos[0].createInfo.persistentCeRamSize; }
 
     Util::IntrusiveListNode<Queue>* DeviceMembershipNode() { return &m_deviceMembershipNode; }
 

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -165,7 +165,9 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::CmdBufferCmdScaledCopyImage,                               InterfaceObject::CmdBuffer,            "CmdScaledCopyImage"                      },
     { InterfaceFunc::CmdBufferCmdGenerateMipmaps,                               InterfaceObject::CmdBuffer,            "CmdGenerateMipmaps"                      },
     { InterfaceFunc::CmdBufferCmdColorSpaceConversionCopy,                      InterfaceObject::CmdBuffer,            "CmdColorSpaceConversionCopy"             },
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 913
     { InterfaceFunc::CmdBufferCmdCloneImageData,                                InterfaceObject::CmdBuffer,            "CmdCloneImageData"                       },
+#endif
     { InterfaceFunc::CmdBufferCmdUpdateMemory,                                  InterfaceObject::CmdBuffer,            "CmdUpdateMemory"                         },
     { InterfaceFunc::CmdBufferCmdUpdateBusAddressableMemoryMarker,              InterfaceObject::CmdBuffer,            "CmdUpdateBusAddressableMemoryMarker"     },
     { InterfaceFunc::CmdBufferCmdFillMemory,                                    InterfaceObject::CmdBuffer,            "CmdFillMemory"                           },
@@ -203,9 +205,6 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::CmdBufferCmdWaitRegisterValue,                             InterfaceObject::CmdBuffer,            "CmdWaitRegisterValue"                    },
     { InterfaceFunc::CmdBufferCmdWaitMemoryValue,                               InterfaceObject::CmdBuffer,            "CmdWaitMemoryValue"                      },
     { InterfaceFunc::CmdBufferCmdWaitBusAddressableMemoryMarker,                InterfaceObject::CmdBuffer,            "CmdWaitBusAddressableMemoryMarker"       },
-    { InterfaceFunc::CmdBufferCmdLoadCeRam,                                     InterfaceObject::CmdBuffer,            "CmdLoadCeRam"                            },
-    { InterfaceFunc::CmdBufferCmdDumpCeRam,                                     InterfaceObject::CmdBuffer,            "CmdDumpCeRam"                            },
-    { InterfaceFunc::CmdBufferCmdWriteCeRam,                                    InterfaceObject::CmdBuffer,            "CmdWriteCeRam"                           },
     { InterfaceFunc::CmdBufferCmdAllocateEmbeddedData,                          InterfaceObject::CmdBuffer,            "CmdAllocateEmbeddedData"                 },
     { InterfaceFunc::CmdBufferCmdAllocateLargeEmbeddedData,                     InterfaceObject::CmdBuffer,            "CmdAllocateLargeEmbeddedData"            },
     { InterfaceFunc::CmdBufferCmdExecuteNestedCmdBuffers,                       InterfaceObject::CmdBuffer,            "CmdExecuteNestedCmdBuffers"              },
@@ -873,28 +872,30 @@ void LogContext::CacheCoherencyUsageFlags(
 {
     const char*const StringTable[] =
     {
-        "CoherCpu",                // 0x00000001,
-        "CoherShaderRead",         // 0x00000002,
-        "CoherShaderWrite",        // 0x00000004,
-        "CoherCopySrc",            // 0x00000008,
-        "CoherCopyDst",            // 0x00000010,
-        "CoherColorTarget",        // 0x00000020,
-        "CoherDepthStencilTarget", // 0x00000040,
-        "CoherResolveSrc",         // 0x00000080,
-        "CoherResolveDst",         // 0x00000100,
-        "CoherClear",              // 0x00000200,
-        "CoherIndirectArgs",       // 0x00000400,
-        "CoherIndexData",          // 0x00000800,
-        "CoherQueueAtomic",        // 0x00001000,
-        "CoherTimestamp",          // 0x00002000,
-        "CoherCeLoad",             // 0x00004000,
-        "CoherCeDump",             // 0x00008000,
-        "CoherStreamOut",          // 0x00010000,
-        "CoherMemory",             // 0x00020000,
-        "CoherSampleRate",         // 0x00040000,
-        "CoherPresent",            // 0x00080000,
-        "CoherReserved",           // 0x00100000,
-        "CoherCp"                  // 0x00200000,
+        "CoherCpu",
+        "CoherShaderRead",
+        "CoherShaderWrite",
+        "CoherCopySrc",
+        "CoherCopyDst",
+        "CoherColorTarget",
+        "CoherDepthStencilTarget",
+        "CoherResolveSrc",
+        "CoherResolveDst",
+        "CoherClear",
+        "CoherIndirectArgs",
+        "CoherIndexData",
+        "CoherQueueAtomic",
+        "CoherTimestamp",
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 914
+        "CoherCeLoad",
+        "CoherCeDump",
+#endif
+        "CoherStreamOut",
+        "CoherMemory",
+        "CoherSampleRate",
+        "CoherPresent",
+        "CoherReserved",
+        "CoherCp"
     };
 
     static_assert(BitfieldGenMask(ArrayLen(StringTable)) == CoherAllUsages,

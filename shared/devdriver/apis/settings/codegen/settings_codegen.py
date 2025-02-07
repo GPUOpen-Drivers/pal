@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -65,6 +65,7 @@ def buildtypes_to_c_macro(and_build_types, or_build_types) -> str:
 
         build_type = build_type.strip()
         result += build_type
+
     return result
 
 def setup_default(setting: dict, group_name: str) -> str:
@@ -121,8 +122,11 @@ def setup_default(setting: dict, group_name: str) -> str:
                     # Convert `\` to `\\` in the generated C++ string literal.
                     default_str = default_value.replace("\\", "\\\\")
                 elif setting_type == "float":
-                    raise ValueError(f'In the setting {setting_name}, "Type" field is {setting_type} '
-                                      'but the actual type of "Defaults" are string.')
+                    if default_value == "FLT_MAX" or default_value == "FLT_MIN":
+                        default_str = default_value
+                    else:
+                        raise ValueError(f'In the setting {setting_name}, "Type" field is {setting_type} '
+                                          'but the actual type of "Defaults" is string.')
                 elif setting_type == "bool":
                     raise ValueError(f'In the setting {setting_name}, "Type" field is {setting_type} '
                                       'but the actual type of "Defaults" are string.')
@@ -498,6 +502,14 @@ def prepare_enums(settings_root: dict):
                         f'The enum name "{name}" in the setting "{setting_name}" already exists.'
                     )
 
+                and_build_types = setting.get("BuildTypes", None)
+                if and_build_types is not None:
+                    valid_values["BuildTypes"] = and_build_types
+
+                or_build_types = setting.get("OrBuildTypes", None)
+                if or_build_types is not None:
+                    valid_values["OrBuildTypes"] = or_build_types
+
                 enums_list.append(valid_values)
                 enum_names_unique.add(name)
             else:
@@ -669,9 +681,8 @@ def add_variable_type(setting: dict):
     if type_str == "enum":
         variable_type = setting["EnumReference"]
     elif flags and "IsBitmask" in flags:
-        assert (
-            type_str == "uint32" or type_str == "uint64"
-        ), f'Because setting "{setting_name}" is a bitmask, its "Type" must be "uint32" or "uint64".'
+        assert (type_str == "uint16" or type_str == "uint32" or type_str == "uint64"), \
+        f'Because setting "{setting_name}" is a bitmask, its "Type" must be "uint16", "uint32" or "uint64" but it\'s {type_str}.'
         variable_type = type_str + "_t"
     elif type_str == "string":
         variable_type = "char"
@@ -734,6 +745,8 @@ def prepare_settings_list(settings: dict, top_level_enum_list: list):
                                                   'It is deprecated, please use "Windows" instead.'
             assert "LnxDefault" not in defaults, f'"LnxDefault" field found in the setting {setting["Name"]}. '\
                                                   'It is deprecated, please use "Linux" instead.'
+            assert "AndroidDefault" not in defaults, f'"AndroidDefault" field found in the setting {setting["Name"]}. '\
+                                                  'It is deprecated, please use "Android" instead.'
 
             setting_type = setting["Type"]
             for platform, value in defaults.items():

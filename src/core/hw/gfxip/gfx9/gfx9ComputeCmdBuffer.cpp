@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -52,7 +52,7 @@ ComputeCmdBuffer::ComputeCmdBuffer(
     const Device&              device,
     const CmdBufferCreateInfo& createInfo)
     :
-    Pm4::ComputeCmdBuffer(device, createInfo, device.BarrierMgr(), &m_cmdStream,
+    Pal::ComputeCmdBuffer(device, createInfo, device.BarrierMgr(), &m_cmdStream,
                           device.Settings().gfx11EnableShRegPairOptimizationCs),
     m_device(device),
     m_cmdUtil(device.CmdUtil()),
@@ -69,7 +69,6 @@ ComputeCmdBuffer::ComputeCmdBuffer(
     m_validUserEntryRegPairsCs{},
     m_numValidUserEntriesCs(0),
     m_minValidUserEntryLookupValueCs(1),
-    m_globalInternalTableAddr(0),
     m_ringSizeComputeScratch(0)
 {
     // Compute command buffers suppors compute ops and CP DMA.
@@ -91,7 +90,7 @@ ComputeCmdBuffer::ComputeCmdBuffer(
 Result ComputeCmdBuffer::Init(
     const CmdBufferInternalCreateInfo& internalInfo)
 {
-    Result result = Pm4::ComputeCmdBuffer::Init(internalInfo);
+    Result result = Pal::ComputeCmdBuffer::Init(internalInfo);
 
     if (result == Result::Success)
     {
@@ -104,7 +103,7 @@ Result ComputeCmdBuffer::Init(
 // =====================================================================================================================
 void ComputeCmdBuffer::ResetState()
 {
-    Pm4::ComputeCmdBuffer::ResetState();
+    Pal::ComputeCmdBuffer::ResetState();
 
     // Assume PAL ABI compute pipelines by default.
     SetDispatchFunctions(false);
@@ -130,7 +129,6 @@ void ComputeCmdBuffer::ResetState()
         PAL_ASSERT(m_numValidUserEntriesCs == 0);
     }
 
-    m_globalInternalTableAddr = 0;
     m_ringSizeComputeScratch  = 0;
 }
 
@@ -175,7 +173,7 @@ void ComputeCmdBuffer::CmdBindPipeline(
         m_ringSizeComputeScratch = Max(pNewPipeline->GetRingSizeComputeScratch(), m_ringSizeComputeScratch);
     }
 
-    Pal::Pm4CmdBuffer::CmdBindPipeline(params);
+    GfxCmdBuffer::CmdBindPipeline(params);
 }
 
 // =====================================================================================================================
@@ -265,7 +263,7 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatch(
         pCmdSpace = pThis->ValidateDispatchPalAbi(0uLL, size, pCmdSpace);
     }
 
-    if (pThis->m_pm4CmdBufState.flags.packetPredicate != 0)
+    if (pThis->m_cmdBufState.flags.packetPredicate != 0)
     {
         uint32 predSize = CmdUtil::DispatchDirectSize;
         if (IssueSqttMarkerEvent)
@@ -311,7 +309,7 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchIndirect(
 
     pCmdSpace = pThis->ValidateDispatchPalAbi(gpuVirtAddr, {}, pCmdSpace);
 
-    if (pThis->m_pm4CmdBufState.flags.packetPredicate != 0)
+    if (pThis->m_cmdBufState.flags.packetPredicate != 0)
     {
         uint32 size = CmdUtil::DispatchIndirectMecSize;
         if (IssueSqttMarkerEvent)
@@ -369,7 +367,7 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchOffset(
                                                      &offset,
                                                      pCmdSpace);
 
-    if (pThis->m_pm4CmdBufState.flags.packetPredicate != 0)
+    if (pThis->m_cmdBufState.flags.packetPredicate != 0)
     {
         uint32 size = CmdUtil::DispatchDirectSize;
         if (IssueSqttMarkerEvent)
@@ -394,35 +392,6 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchOffset(
     }
 
     pThis->m_cmdStream.CommitCommands(pCmdSpace);
-}
-
-// =====================================================================================================================
-void ComputeCmdBuffer::CmdCopyMemory(
-    const IGpuMemory&       srcGpuMemory,
-    const IGpuMemory&       dstGpuMemory,
-    uint32                  regionCount,
-    const MemoryCopyRegion* pRegions)
-{
-    m_device.RsrcProcMgr().CmdCopyMemory(this,
-                                         static_cast<const GpuMemory&>(srcGpuMemory),
-                                         static_cast<const GpuMemory&>(dstGpuMemory),
-                                         regionCount,
-                                         pRegions);
-}
-
-// =====================================================================================================================
-void ComputeCmdBuffer::CmdUpdateMemory(
-    const IGpuMemory& dstGpuMemory,
-    gpusize           dstOffset,
-    gpusize           dataSize,
-    const uint32*     pData)
-{
-    PAL_ASSERT(pData != nullptr);
-    m_device.RsrcProcMgr().CmdUpdateMemory(this,
-                                           static_cast<const GpuMemory&>(dstGpuMemory),
-                                           dstOffset,
-                                           dataSize,
-                                           pData);
 }
 
 // =====================================================================================================================
@@ -845,9 +814,9 @@ uint32* ComputeCmdBuffer::ValidateDispatchPalAbi(
 // =====================================================================================================================
 // Performs PAL ABI dispatch-time validation.
 uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
-    DispatchDims offset,
-    DispatchDims logicalSize,
-    uint32*      pCmdSpace)
+    DispatchDims        offset,
+    const DispatchDims& logicalSize,
+    uint32*             pCmdSpace)
 {
 #if PAL_DEVELOPER_BUILD
     const bool enablePm4Instrumentation = m_device.GetPlatform()->PlatformSettings().pm4InstrumentorEnabled;
@@ -862,140 +831,16 @@ uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
     const DispatchDims threads = pPipeline->ThreadsPerGroupXyz();
 
     offset *= threads;
-    const DispatchDims logicalSizeInWorkItems = logicalSize * threads;
 
     // Now we write the required SGPRs. These depend on per-dispatch state so we don't have dirty bit tracking.
     const HsaAbi::CodeObjectMetadata& metadata = pPipeline->HsaMetadata();
     const llvm::amdhsa::kernel_descriptor_t& desc = pPipeline->KernelDescriptor();
-    const GpuChipProperties& deviceProps = m_device.Parent()->ChipProperties();
 
     gpusize kernargsGpuVa = 0;
     uint32 ldsSize = metadata.GroupSegmentFixedSize();
     if (TestAnyFlagSet(desc.kernel_code_properties, AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_KERNARG_SEGMENT_PTR))
     {
-        // Copy the kernel argument buffer into GPU memory.
-        const uint32 allocSize      = NumBytesToNumDwords(metadata.KernargSegmentSize());
-        const uint32 allocAlign     = NumBytesToNumDwords(metadata.KernargSegmentAlign());
-        uint8* const  pParams       = reinterpret_cast<uint8*>(
-            CmdAllocateEmbeddedData(allocSize, allocAlign, &kernargsGpuVa));
-        const uint16 threadsX       = static_cast<uint16>(threads.x);
-        const uint16 threadsY       = static_cast<uint16>(threads.y);
-        const uint16 threadsZ       = static_cast<uint16>(threads.z);
-        uint16 remainderSize        = 0; // no incomplete workgroups supported at this time.
-        const uint32 dimensionality = (logicalSize.x > 1) + (logicalSize.y > 1) + (logicalSize.z > 1);
-        uint64 ldsPointer           = 0;
-
-        memcpy(pParams, m_computeState.pKernelArguments, metadata.KernargSegmentSize());
-
-        // The global offsets are always zero, except in CmdDispatchOffset where they are dispatch-time values.
-        // This could be moved out into CmdDispatchOffset if the overhead is too much but we'd have to return
-        // out some extra state to make that work.
-
-        // Phase 1: Fill out driver-controlled arguments which don't depend on other arguments.
-        bool hasPhase2Args = false;
-
-        for (uint32 idx = 0; idx < metadata.NumArguments(); ++idx)
-        {
-            const HsaAbi::KernelArgument& arg = metadata.Arguments()[idx];
-            switch (arg.valueKind)
-            {
-            case HsaAbi::ValueKind::HiddenGlobalOffsetX:
-                memcpy(pParams + arg.offset, &offset.x, Min<size_t>(sizeof(offset.x), arg.size));
-                break;
-            case HsaAbi::ValueKind::HiddenGlobalOffsetY:
-                memcpy(pParams + arg.offset, &offset.y, Min<size_t>(sizeof(offset.y), arg.size));
-                break;
-            case HsaAbi::ValueKind::HiddenGlobalOffsetZ:
-                memcpy(pParams + arg.offset, &offset.z, Min<size_t>(sizeof(offset.z), arg.size));
-                break;
-            case HsaAbi::ValueKind::HiddenBlockCountX:
-                memcpy(pParams + arg.offset, &logicalSize.x, Min<size_t>(sizeof(logicalSize.x), arg.size));
-                break;
-            case HsaAbi::ValueKind::HiddenBlockCountY:
-                memcpy(pParams + arg.offset, &logicalSize.y, Min<size_t>(sizeof(logicalSize.y), arg.size));
-                break;
-            case HsaAbi::ValueKind::HiddenBlockCountZ:
-                memcpy(pParams + arg.offset, &logicalSize.z, Min<size_t>(sizeof(logicalSize.z), arg.size));
-                break;
-            case HsaAbi::ValueKind::HiddenGroupSizeX:
-                memcpy(pParams + arg.offset, &threadsX, Min<size_t>(sizeof(threadsX), arg.size));
-                break;
-            case HsaAbi::ValueKind::HiddenGroupSizeY:
-                memcpy(pParams + arg.offset, &threadsY, Min<size_t>(sizeof(threadsY), arg.size));
-                break;
-            case HsaAbi::ValueKind::HiddenGroupSizeZ:
-                memcpy(pParams + arg.offset, &threadsZ, Min<size_t>(sizeof(threadsZ), arg.size));
-                break;
-            case HsaAbi::ValueKind::HiddenRemainderX:
-                memcpy(pParams + arg.offset, &remainderSize, Min<size_t>(sizeof(remainderSize), arg.size));
-                break;
-            case HsaAbi::ValueKind::HiddenRemainderY:
-                memcpy(pParams + arg.offset, &remainderSize, Min<size_t>(sizeof(remainderSize), arg.size));
-                break;
-            case HsaAbi::ValueKind::HiddenRemainderZ:
-                memcpy(pParams + arg.offset, &remainderSize, Min<size_t>(sizeof(remainderSize), arg.size));
-                break;
-            case HsaAbi::ValueKind::HiddenGridDims:
-                memcpy(pParams + arg.offset, &dimensionality, Min<size_t>(sizeof(dimensionality), arg.size));
-                break;
-            case HsaAbi::ValueKind::HiddenDynamicLdsSize:
-                // We need to visit all DynamicSharedPointer args before we can fill out the dynamic LDS size.
-                hasPhase2Args = true;
-                break;
-            case HsaAbi::ValueKind::DynamicSharedPointer:
-                // We only support dyamic LDS pointers.
-                PAL_ASSERT(arg.addressSpace == HsaAbi::AddressSpace::Local);
-
-                // PAL must place the dynamic LDS allocations after the static LDS allocations. We need some extra
-                // padding between allocations if the current ldsSize isn't already aligned to pointeeAlign.
-                ldsSize = Pow2Align(ldsSize, arg.pointeeAlign);
-
-                // Pad the pointer out to 64 bits just in case arg.size is 8 bytes.
-                ldsPointer = ldsSize;
-                memcpy(pParams + arg.offset, &ldsPointer, Min<size_t>(sizeof(ldsPointer), arg.size));
-
-                // The caller must set each dynamic LDS pointer to the length of its dynamic allocation.
-                // We must add these to our ldsSize so we know where the next dynamic pointer goes in LDS space.
-                ldsSize += *reinterpret_cast<const uint32*>(m_computeState.pKernelArguments + arg.offset);
-                break;
-            case HsaAbi::ValueKind::ByValue:
-            case HsaAbi::ValueKind::GlobalBuffer:
-            case HsaAbi::ValueKind::Image:
-                break; // these are handled by kernargs
-            case HsaAbi::ValueKind::HiddenQueuePtr:
-            case HsaAbi::ValueKind::HiddenDefaultQueue:
-            case HsaAbi::ValueKind::HiddenCompletionAction:
-            case HsaAbi::ValueKind::HiddenHostcallBuffer:
-                // Not supported by PAL, kernels request but never actually use them,
-                // as compiler can't optimized out them for some cases
-                break;
-            default:
-                PAL_ASSERT_ALWAYS();
-            }
-        }
-
-        PAL_ASSERT_MSG(ldsSize <= deviceProps.gfxip.ldsSizePerThreadGroup,
-            "LDS size exceeds the maximum size per thread group.");
-
-        if (hasPhase2Args)
-        {
-            // Phase 2: Fill out any arguments which depend on the values we computed in phase 1.
-            const uint32 dynamicLdsSize = ldsSize - metadata.GroupSegmentFixedSize();
-
-            for (uint32 idx = 0; idx < metadata.NumArguments(); ++idx)
-            {
-                const HsaAbi::KernelArgument& arg = metadata.Arguments()[idx];
-                switch (arg.valueKind)
-                {
-                case HsaAbi::ValueKind::HiddenDynamicLdsSize:
-                    memcpy(pParams + arg.offset, &dynamicLdsSize, Min<size_t>(sizeof(dynamicLdsSize), arg.size));
-                    break;
-                default:
-                    // We should assume all unspecified args require no phase 2 handling.
-                    break;
-                }
-            }
-        }
+        GfxCmdBuffer::CopyHsaKernelArgsToMem(offset, threads, logicalSize, &kernargsGpuVa, &ldsSize, metadata);
     }
 
     // If ldsBytesPerTg was specified then that's what LDS_SIZE was programmed to, otherwise we used the fixed size.
@@ -1049,6 +894,8 @@ uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
 
     if (TestAnyFlagSet(desc.kernel_code_properties, AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_DISPATCH_PTR))
     {
+        const DispatchDims logicalSizeInWorkItems = logicalSize * threads;
+
         // Fake an AQL dispatch packet for the shader to read.
         gpusize aqlPacketGpu  = 0;
         auto*const pAqlPacket = reinterpret_cast<hsa_kernel_dispatch_packet_t*>(
@@ -1459,7 +1306,7 @@ void ComputeCmdBuffer::CmdNop(
 void ComputeCmdBuffer::LeakNestedCmdBufferState(
     const ComputeCmdBuffer& callee)
 {
-    Pm4::ComputeCmdBuffer::LeakNestedCmdBufferState(callee);
+    Pal::ComputeCmdBuffer::LeakNestedCmdBufferState(callee);
 
     m_ringSizeComputeScratch = Max(callee.m_ringSizeComputeScratch, m_ringSizeComputeScratch);
 
@@ -1493,24 +1340,6 @@ Result ComputeCmdBuffer::AddPreamble()
 {
     Result result = ComputeCmdBuffer::WritePreambleCommands(m_cmdUtil, &m_cmdStream);
 
-    // Initialize acquire/release fence value GPU chunk.
-    if (AcqRelFenceValBaseGpuVa() != 0)
-    {
-        const uint32 data[ReleaseTokenCount] = {};
-
-        WriteDataInfo writeDataInfo = { };
-        writeDataInfo.engineType = m_engineType;
-        writeDataInfo.dstSel     = dst_sel__mec_write_data__memory;
-        writeDataInfo.dstAddr    = AcqRelFenceValBaseGpuVa();
-
-        uint32* pCmdSpace = m_cmdStream.ReserveCommands();
-        pCmdSpace += CmdUtil::BuildWriteData(writeDataInfo,
-                                             (sizeof(data) / sizeof(uint32)),
-                                             reinterpret_cast<const uint32*>(&data),
-                                             pCmdSpace);
-        m_cmdStream.CommitCommands(pCmdSpace);
-    }
-
     return result;
 }
 
@@ -1518,12 +1347,12 @@ Result ComputeCmdBuffer::AddPreamble()
 // Adds a postamble to the end of a new command buffer.
 Result ComputeCmdBuffer::WritePostambleCommands(
     const CmdUtil&     cmdUtil,
-    Pm4CmdBuffer*const pCmdBuffer,
+    GfxCmdBuffer*const pCmdBuffer,
     CmdStream*         pCmdStream)
 {
     uint32* pCmdSpace = pCmdStream->ReserveCommands();
 
-    if (pCmdBuffer->GetPm4CmdBufState().flags.cpBltActive)
+    if (pCmdBuffer->GetCmdBufState().flags.cpBltActive)
     {
         // Stalls the CP MEC until the CP's DMA engine has finished all previous "CP blts" (DMA_DATA commands
         // without the sync bit set). The ring won't wait for CP DMAs to finish so we need to do this manually.
@@ -1593,7 +1422,7 @@ void ComputeCmdBuffer::ActivateQueryType(
     // Compute command buffers only support pipeline stat queries.
     PAL_ASSERT(queryPoolType == QueryPoolType::PipelineStats);
 
-    Pm4CmdBuffer::ActivateQueryType(queryPoolType);
+    GfxCmdBuffer::ActivateQueryType(queryPoolType);
 
     uint32* pCmdSpace = m_cmdStream.ReserveCommands();
     pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(PIPELINESTAT_START, EngineTypeCompute, pCmdSpace);
@@ -1608,7 +1437,7 @@ void ComputeCmdBuffer::DeactivateQueryType(
     // Compute command buffers only support pipeline stat queries.
     PAL_ASSERT(queryPoolType == QueryPoolType::PipelineStats);
 
-    Pm4CmdBuffer::DeactivateQueryType(queryPoolType);
+    GfxCmdBuffer::DeactivateQueryType(queryPoolType);
 
     uint32* pCmdSpace = m_cmdStream.ReserveCommands();
     pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(PIPELINESTAT_STOP, EngineTypeCompute, pCmdSpace);
@@ -1696,8 +1525,8 @@ void ComputeCmdBuffer::CmdSetPredication(
     PAL_ASSERT((predType == PredicateType::Boolean64) || (predType == PredicateType::Boolean32));
 
     // When gpuVirtAddr is 0, it means client is disabling/resetting predication
-    m_gfxCmdBufStateFlags.clientPredicate  = (pGpuMemory != nullptr);
-    m_pm4CmdBufState.flags.packetPredicate = m_gfxCmdBufStateFlags.clientPredicate;
+    m_cmdBufState.flags.clientPredicate = (pGpuMemory != nullptr);
+    m_cmdBufState.flags.packetPredicate = m_cmdBufState.flags.clientPredicate;
 
     if (pGpuMemory != nullptr)
     {
@@ -1785,11 +1614,11 @@ void ComputeCmdBuffer::CmdExecuteIndirectCmds(
 
         // Generate the indirect command buffer chunk(s) using RPM. Since we're wrapping the command generation and
         // execution inside a CmdIf, we want to disable normal predication for this blit.
-        const uint32 packetPredicate = m_pm4CmdBufState.flags.packetPredicate;
-        m_pm4CmdBufState.flags.packetPredicate = 0;
+        const uint32 packetPredicate = m_cmdBufState.flags.packetPredicate;
+        m_cmdBufState.flags.packetPredicate = 0;
 
         constexpr uint32 DummyIndexBufSize = 0; // Compute doesn't care about the index buffer size.
-        const Pm4::GenerateInfo genInfo =
+        const IndirectCmdGenerateInfo genInfo =
         {
             this,
             m_computeState.pipelineState.pPipeline,
@@ -1800,9 +1629,9 @@ void ComputeCmdBuffer::CmdExecuteIndirectCmds(
             countGpuAddr
         };
 
-        m_device.RsrcProcMgr().CmdGenerateIndirectCmds(genInfo, &ppChunkList[0], 1, &numGenChunks);
+        m_device.RsrcProcMgr().CmdGenerateIndirectCmds(genInfo, &ppChunkList[0], &numGenChunks);
 
-        m_pm4CmdBufState.flags.packetPredicate = packetPredicate;
+        m_cmdBufState.flags.packetPredicate = packetPredicate;
 
         uint32* pCmdSpace = m_cmdStream.ReserveCommands();
 
@@ -1839,19 +1668,19 @@ void ComputeCmdBuffer::CmdExecuteIndirectCmds(
 
 // =====================================================================================================================
 void ComputeCmdBuffer::GetChunkForCmdGeneration(
-    const Pm4::IndirectCmdGenerator& generator,
+    const Pal::IndirectCmdGenerator& generator,
     const Pal::Pipeline&             pipeline,
     uint32                           maxCommands,
     uint32                           numChunkOutputs,
     ChunkOutput*                     pChunkOutputs)
 {
-    const Pm4::GeneratorProperties& properties = generator.Properties();
+    const GeneratorProperties&      properties = generator.Properties();
     const ComputePipelineSignature& signature  = static_cast<const ComputePipeline&>(pipeline).Signature();
 
     PAL_ASSERT(m_pCmdAllocator != nullptr);
     PAL_ASSERT(numChunkOutputs == 1);
 
-    CmdStreamChunk*const pChunk = Pal::Pm4CmdBuffer::GetNextGeneratedChunk();
+    CmdStreamChunk*const pChunk = GfxCmdBuffer::GetNextGeneratedChunk();
     pChunkOutputs->pChunk = pChunk;
 
     // NOTE: RPM uses a compute shader to generate indirect commands, so we need to use the saved user-data state
@@ -2046,7 +1875,7 @@ void ComputeCmdBuffer::CopyMemoryCp(
         dmaDataInfo.numBytes = uint32(Min(numBytes, gpusize(CmdUtil::MaxDmaDataByteCount)));
 
         uint32* pCmdSpace = m_cmdStream.ReserveCommands();
-        if (m_pm4CmdBufState.flags.packetPredicate != 0)
+        if (m_cmdBufState.flags.packetPredicate != 0)
         {
             pCmdSpace += m_cmdUtil.BuildCondExec(m_predGpuAddr, CmdUtil::DmaDataSizeDwords, pCmdSpace);
         }
@@ -2086,27 +1915,43 @@ uint32* ComputeCmdBuffer::WriteWaitEop(
         releaseMemWaitCpDma = false;
     }
 
+    // We define an "EOP" wait to mean a release without a WaitRegMem.
+    // If glxSync still has some flags left over we still need a WaitRegMem to issue the GCR.
+    const bool    needWaitRegMem = (acqPoint != AcquirePointEop) || (glxSync != SyncGlxNone);
+    const gpusize timestampAddr  = TimestampGpuVirtAddr();
+
+    if (needWaitRegMem)
+    {
+        // Write a known value to the timestamp.
+        WriteDataInfo writeData = {};
+        writeData.engineType = EngineTypeUniversal;
+        writeData.dstAddr    = timestampAddr;
+        writeData.engineSel  = engine_sel__me_write_data__micro_engine;
+        writeData.dstSel     = dst_sel__me_write_data__tc_l2;
+
+        pCmdSpace += m_cmdUtil.BuildWriteData(writeData, ClearedTimestamp, pCmdSpace);
+    }
+
     // We prefer to do our GCR in the release_mem if we can. This function always does an EOP wait so we don't have
     // to worry about release_mem not supporting GCRs with EOS events. Any remaining sync flags must be handled in a
     // trailing acquire_mem packet.
     ReleaseMemGeneric releaseInfo = {};
     releaseInfo.cacheSync      = m_cmdUtil.SelectReleaseMemCaches(&glxSync);
-    releaseInfo.dstAddr        = AcqRelFenceValGpuVa(ReleaseTokenEop);
-    releaseInfo.dataSel        = data_sel__me_release_mem__send_32_bit_low;
-    releaseInfo.data           = GetNextAcqRelFenceVal(ReleaseTokenEop);
+    releaseInfo.dataSel        = needWaitRegMem ? data_sel__me_release_mem__send_32_bit_low
+                                                : data_sel__me_release_mem__none;
+    releaseInfo.dstAddr        = timestampAddr;
+    releaseInfo.data           = CompletedTimestamp;
     releaseInfo.gfx11WaitCpDma = releaseMemWaitCpDma;
 
     pCmdSpace += m_cmdUtil.BuildReleaseMemGeneric(releaseInfo, pCmdSpace);
 
-    // We define an "EOP" wait to mean a release without a WaitRegMem.
-    // If glxSync still has some flags left over we still need a WaitRegMem to issue the GCR.
-    if ((acqPoint != AcquirePointEop) || (glxSync != SyncGlxNone))
+    if (needWaitRegMem)
     {
         pCmdSpace += m_cmdUtil.BuildWaitRegMem(EngineTypeCompute,
                                                mem_space__me_wait_reg_mem__memory_space,
                                                function__me_wait_reg_mem__equal_to_the_reference_value,
                                                engine_sel__me_wait_reg_mem__micro_engine,
-                                               releaseInfo.dstAddr,
+                                               timestampAddr,
                                                releaseInfo.data,
                                                UINT32_MAX,
                                                pCmdSpace);

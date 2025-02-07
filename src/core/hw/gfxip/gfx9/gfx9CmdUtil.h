@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -153,7 +153,7 @@ struct PM4_ME_NON_SAMPLE_EVENT_WRITE
 //   2. The caller is operating under "CoherCopy/PipelineStageBlt" semantics and a barrier call will be issued. This
 //      case is commonly referred to as a "CP Blt".
 //
-// In case #2, the caller must update the Pm4CmdBufferState by calling the relevant SetGfxCmdBuf* functions.
+// In case #2, the caller must update the GfxCmdBufferState by calling the relevant SetGfxCmdBuf* functions.
 // Furthermore, the caller must not set "disWc" because write-confirms are necessary for the barrier to guarantee
 // that the CP DMA writes have made it to their destination (memory, L2, etc.).
 struct DmaDataInfo
@@ -261,8 +261,6 @@ public:
 
     static_assert (PM4_PFP_COND_EXEC_SIZEDW__CORE == PM4_MEC_COND_EXEC_SIZEDW__CORE,
                    "Conditional execution packet size does not match between PFP and compute engines!");
-    static_assert (PM4_PFP_COND_EXEC_SIZEDW__CORE == PM4_CE_COND_EXEC_SIZEDW__GFX10,
-                   "Conditional execution packet size does not match between PFP and constant engines!");
     static constexpr uint32 CondExecSizeDwords        = PM4_PFP_COND_EXEC_SIZEDW__CORE;
     static constexpr uint32 ContextRegRmwSizeDwords   = PM4_ME_CONTEXT_REG_RMW_SIZEDW__CORE;
     static constexpr uint32 RegRmwSizeDwords          = PM4_ME_REG_RMW_SIZEDW__CORE;
@@ -340,7 +338,6 @@ public:
         gpusize     compareGpuAddr,
         uint64      data,
         uint64      mask,
-        bool        constantEngine,
         void*       pBuffer);
     static size_t BuildContextControl(
         const PM4_PFP_CONTEXT_CONTROL& contextControl,
@@ -513,16 +510,6 @@ public:
         const BuildUntypedSrdInfo* pSrdInfo,
         Pm4ShaderType              shaderType,
         void* pBuffer);
-    static size_t BuildDumpConstRam(
-        gpusize dstGpuAddr,
-        uint32  ramByteOffset,
-        uint32  dwordSize,
-        void*   pBuffer);
-    static size_t BuildDumpConstRamOffset(
-        uint32  dstAddrOffset,
-        uint32  ramByteOffset,
-        uint32  dwordSize,
-        void*   pBuffer);
     size_t BuildNonSampleEventWrite(
         VGT_EVENT_TYPE  vgtEvent,
         EngineType      engineType,
@@ -539,8 +526,6 @@ public:
         EngineType      engineType,
         Pm4Predicate    predicate,
         void*           pBuffer) const;
-    static size_t BuildIncrementCeCounter(void* pBuffer);
-    static size_t BuildIncrementDeCounter(void* pBuffer);
     static size_t BuildIndexAttributesIndirect(gpusize baseAddr, uint16 index, bool hasIndirectAddress, void* pBuffer);
     static size_t BuildIndexBase(gpusize baseAddr, void* pBuffer);
     static size_t BuildIndexBufferSize(uint32 indexCount, void* pBuffer);
@@ -550,7 +535,6 @@ public:
         gpusize    ibAddr,
         uint32     ibSize,
         bool       chain,
-        bool       constantEngine,
         bool       enablePreemption,
         void*      pBuffer);
 
@@ -580,12 +564,6 @@ public:
         gpusize gpuVirtAddr,
         uint32  count,
         void*   pBuffer) const;
-
-    static size_t BuildLoadConstRam(
-        gpusize srcGpuAddr,
-        uint32  ramByteOffset,
-        uint32  dwordSize,
-        void*   pBuffer);
 
     static size_t BuildLoadShRegs(
         gpusize              gpuVirtAddr,
@@ -645,11 +623,6 @@ public:
     static size_t BuildSetBase(
         gpusize                      address,
         PFP_SET_BASE_base_index_enum baseIndex,
-        Pm4ShaderType                shaderType,
-        void*                        pBuffer);
-    static size_t BuildSetBaseCe(
-        gpusize                      address,
-        CE_SET_BASE_base_index_enum  baseIndex,
         Pm4ShaderType                shaderType,
         void*                        pBuffer);
     template <bool resetFilterCam = false>
@@ -728,8 +701,6 @@ public:
         void*   pBuffer);
     size_t BuildWaitCsIdle(EngineType engineType, gpusize timestampGpuAddr, void* pBuffer) const;
     static size_t BuildWaitDmaData(void* pBuffer);
-    static size_t BuildWaitOnCeCounter(bool invalidateKcache, void* pBuffer);
-    static size_t BuildWaitOnDeCounterDiff(uint32 counterDiff, void* pBuffer);
     size_t BuildWaitEopPws(
         AcquirePoint waitPoint,
         bool         waitCpDma,
@@ -755,11 +726,6 @@ public:
         uint64     reference,
         uint64     mask,
         void*      pBuffer);
-    static size_t BuildWriteConstRam(
-        const void* pSrcData,
-        uint32      ramByteOffset,
-        uint32      dwordSize,
-        void*       pBuffer);
     static size_t BuildWriteData(
         const WriteDataInfo& info,
         uint32               data,

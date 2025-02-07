@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -93,7 +93,7 @@ Image::Image(
     ImageInfo*         pImageInfo,
     const Pal::Device& device)
     :
-    Pm4Image(pParentImage, pImageInfo, device),
+    GfxImage(pParentImage, pImageInfo, device),
     m_totalPlaneSize(0),
     m_gfxDevice(static_cast<const Device&>(*device.GetGfxDevice())),
     m_pHtile(nullptr),
@@ -915,7 +915,11 @@ Result Image::Finalize(
         m_gpuMemSyncSize = *pGpuMemSize;
 
         // Force its size 16 bytes aligned so it's able to go through the fastest CopyBufferDqword in
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 913
+        // CopyMemoryCs (e.g. called by CmdCopyMemory or clone copy in CmdCopyImage).
+#else
         // CopyMemoryCs (e.g. called by CmdCopyMemory or CmdCloneImageData).
+#endif
         *pGpuMemSize = Pow2Align(*pGpuMemSize, 16);
 
         if (useCmask && settings.waCmaskImageSyncs)

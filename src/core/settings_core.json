@@ -942,18 +942,6 @@
       "Description": "Disables SyncObject support for semaphores which means semaphores will be based on ProOnly or Legacy interfaces according to the system configuration."
     },
     {
-      "Name": "NativeAcquirePresentImageOpt",
-      "Tags": [
-        "Performance"
-      ],
-      "Defaults": {
-        "Default": true
-      },
-      "Scope": "PrivatePalKey",
-      "Type": "bool",
-      "Description": "Whether to take the optimized path based on specific function provided by the native window system when acquiring present image."
-    },
-    {
       "ValidValues": {
         "IsEnum": true,
         "Values": [
@@ -1322,30 +1310,6 @@
       "Scope": "PrivatePalKey",
       "Type": "enum",
       "Description": "Controls to what degree command buffers support mid-command buffer preemption."
-    },
-    {
-      "ValidValues": {
-        "Values": [
-          {
-            "Description": "PAL will dump CE RAM using a postamble command stream whenever either MCBP is enabled or the client enables the 'persistent CE RAM' feature.",
-            "Value": true
-          },
-          {
-            "Description": "PAL will dump CE RAM using a postamble command stream whenever the client enables PAL's 'persistent CE RAM' feature. (Typically only DX9P will do this).",
-            "Value": false
-          }
-        ]
-      },
-      "Name": "CommandBufferForceCeRamDumpInPostamble",
-      "Tags": [
-        "Command Buffer"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Scope": "PrivatePalKey",
-      "Type": "bool",
-      "Description": "Toggles whether or not PAL should add a postamble to universal Queue submissions to dump CE RAM whenever MCBP is enabled."
     },
     {
       "Name": "CommandBufferCombineDePreambles",

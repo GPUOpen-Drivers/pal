@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -193,6 +193,7 @@ struct QueueCreateInfo
 
     uint32 numReservedCu;           ///< The number of reserved compute units for RT CU queue
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 914
     uint32 persistentCeRamOffset;   ///< Byte offset to the beginning of the region of CE RAM which this Queue should
                                     ///  preserve across consecutive submissions.  Must be a multiple of 32.  It is an
                                     ///  error to specify a nonzero value here if the the Device does not support
@@ -201,6 +202,7 @@ struct QueueCreateInfo
                                     ///  submissions.  Units are in DWORDs, and this must be a multiple of 8.  It is an
                                     ///  error to specify a nonzero value here if the the Device does not support
                                     ///  @ref supportPersistentCeRam for the Engine this Queue will attach to.
+#endif
 
     uintptr_t aqlPacketList;        ///< Location of the HIP runtime's info about this queue
 };

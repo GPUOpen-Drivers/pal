@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -344,14 +344,18 @@ Result Queue::Init(
         const uint32 queueIdMask  = settings.gpuProfilerConfig.queueIdMask;
         const uint32 engineMask   = settings.gpuProfilerConfig.engineTypeMask;
         const uint32 engineIdMask = settings.gpuProfilerConfig.engineIdMask;
+        const uint32 context      = settings.gpuProfilerConfig.context;
+
+        m_recreateState = static_cast<Platform*>(m_pDevice->GetPlatform())->GetEndOfRecreateSeen();
 
         // This should use the same queueInfo as used in creating the masterQueueId that initializes m_queueId in
         // Pal::GpuProfiler::Device::Create[Multi]Queue, also used in producing the output file names in
         // gpuProfilerQueueFileLogger.cpp
-        m_profileEnabled = (BitfieldIsSet(engineMask, m_pQueueInfos[0].engineType) &&
-                            BitfieldIsSet(engineIdMask, m_pQueueInfos[0].engineIndex) &&
-                            BitfieldIsSet(queueIdMask, m_queueId));
+        m_maskEnabled = (BitfieldIsSet(engineMask, m_pQueueInfos[0].engineType) &&
+                         BitfieldIsSet(engineIdMask, m_pQueueInfos[0].engineIndex) &&
+                         BitfieldIsSet(queueIdMask, m_queueId));
 
+        m_profileEnabled   = m_maskEnabled && ((context != GpuProfilerContext::Pix) || m_recreateState);
         m_endSampleEnabled = settings.gpuProfilerConfig.skipEndSample == false;
 
         if (m_profileEnabled)
@@ -538,6 +542,13 @@ Result Queue::ProcessSubmit(
             LogVirtualQueueCall(VirtualQueueCallId::EndOfRecreation);
         }
         m_recreateState = platformEndOfRecreation;
+
+        // Assuming PIX is the only context that povides EndOfRecreation to have changed platformEndOrRecreation
+        PAL_ALERT_MSG(pPlatform->PlatformSettings().gpuProfilerConfig.context == GpuProfilerContext::Pix,
+                      "Either PIX being used without indicating in GpuProfilerConfig.Context, or unhandled context"
+                      " is providing EndOfRecreation markers");
+
+        m_profileEnabled = (m_maskEnabled && m_recreateState);
     }
 
     LogQueueCall(QueueCallId::Submit);

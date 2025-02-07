@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -326,11 +326,11 @@ void FillSqttAsicInfo(
     pAsicInfo->gpuType                    = static_cast<SqttGpuType>(properties.gpuType);
     pAsicInfo->gfxIpLevel                 = GfxipToSqttGfxIpLevel(properties.gfxLevel, properties.revision);
     pAsicInfo->gpuIndex                   = properties.gpuIndex;
-    pAsicInfo->ceRamSize                  = properties.gfxipProperties.ceRamSize;
+    pAsicInfo->ceRamSize                  = 0; // unsupported
 
     pAsicInfo->maxNumberOfDedicatedCus    = properties.engineProperties[EngineTypeUniversal].maxNumDedicatedCu;
-    pAsicInfo->ceRamSizeGraphics          = properties.engineProperties[EngineTypeUniversal].ceRamSizeAvailable;
-    pAsicInfo->ceRamSizeCompute           = properties.engineProperties[EngineTypeCompute].ceRamSizeAvailable;
+    pAsicInfo->ceRamSizeGraphics          = 0; // unsupported
+    pAsicInfo->ceRamSizeCompute           = 0; // unsupported
 
     pAsicInfo->vramBusWidth               = properties.gpuMemoryProperties.performance.vramBusBitWidth;
     pAsicInfo->vramSize                   = properties.gpuMemoryProperties.maxLocalMemSize;

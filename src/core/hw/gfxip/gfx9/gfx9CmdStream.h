@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -26,13 +26,13 @@
 #pragma once
 
 #include "core/hw/gfxip/gfxCmdBuffer.h"
-#include "core/hw/gfxip/pm4CmdStream.h"
+#include "core/hw/gfxip/gfxCmdStream.h"
 #include "core/hw/gfxip/gfx9/gfx9Chip.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"
 
 namespace Pal
 {
-class Pm4CmdBuffer;
+class GfxCmdBuffer;
 
 namespace Gfx9
 {
@@ -45,7 +45,7 @@ class Pm4Optimizer;
 // This is a specialization of CmdStream that has special knowledge of PM4 on GFX9 hardware. It implements conditional
 // execution and chunk chaining. This class is also responsible for invoking the PM4 optimizer if it is enabled. Callers
 // should use the "write" functions below when applicable as they may be necessary to hook into the PM4 optimizer.
-class CmdStream final : public Pm4::CmdStream
+class CmdStream final : public GfxCmdStream
 {
 public:
     CmdStream(
@@ -183,7 +183,7 @@ public:
     void NotifyNestedCmdBufferExecute();
 
 #if PAL_DEVELOPER_BUILD
-    void IssueHotRegisterReport(Pm4CmdBuffer* pCmdBuf) const;
+    void IssueHotRegisterReport(GfxCmdBuffer* pCmdBuf) const;
 #endif
 
     void TempSetPm4OptimizerMode(bool isEnabled);

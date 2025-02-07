@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2021-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2021-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -51,16 +51,8 @@ ApiInfoTraceSource::~ApiInfoTraceSource()
 void ApiInfoTraceSource::FillTraceChunkApiInfo(
     TraceChunk::ApiInfo* pApiInfo)
 {
-    switch (m_pPlatform->GetClientApiId())
-    {
-    case ClientApi::Vulkan:
-        pApiInfo->apiType = TraceChunk::ApiType::Vulkan;
-        break;
-    case ClientApi::Pal:
-    default:
-        pApiInfo->apiType = TraceChunk::ApiType::Generic;
-        break;
-    }
+    // See PAL_VALID_CLIENTS in PalBuildParameters.cmake for the full list of PAL_CLIENT macros.
+    pApiInfo->apiType = TraceChunk::ApiType::Vulkan;
 
     pApiInfo->apiVersionMajor = m_pPlatform->GetClientApiMajorVer();
     pApiInfo->apiVersionMinor = m_pPlatform->GetClientApiMinorVer();

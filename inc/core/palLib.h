@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -47,7 +47,7 @@
 #endif
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MAJOR_VERSION 912
+#define PAL_INTERFACE_MAJOR_VERSION 914
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 831
 /// Minor interface version.  Note that the interface version is distinct from the PAL version itself, which is returned
@@ -243,12 +243,19 @@ struct GpuInfo
     const char*  pGpuName;    ///< Name string of the ASIC (e.g., "NAVI10").
 };
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 915
 /// PAL client APIs.
 enum class ClientApi : uint32
 {
     Pal     = 0,
+    Dx9     = 1,
+    Dx12    = 3,
     Vulkan  = 4,
+    OpenCl  = 7,
+    Hip     = 8,
+    Amf     = 9,
 };
+#endif
 
 /// Specifies properties for @ref IPlatform creation. Input structure to Pal::CreatePlatform().
 struct PlatformCreateInfo
@@ -296,7 +303,9 @@ struct PlatformCreateInfo
         uint32 u32All;                                  ///< Flags packed as 32-bit uint.
     } flags;                                            ///< Platform-wide creation flags.
 
+#if  (PAL_CLIENT_INTERFACE_MAJOR_VERSION< 915)
     ClientApi clientApiId; ///< Client API ID.
+#endif
     NullGpuId nullGpuId;   ///< ID for the null device. Ignored unless the above flags.createNullDevice bit is set.
     uint16    apiMajorVer; ///< Major API version number to be used by RGP. Should be set by client based on their
                            ///  contract with RGP.

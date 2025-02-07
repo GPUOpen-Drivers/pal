@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -27,7 +27,7 @@
 #include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9PerfExperiment.h"
-#include "core/hw/gfxip/pm4CmdBuffer.h"
+#include "core/hw/gfxip/gfxCmdBuffer.h"
 #include "core/platform.h"
 #include "palLiterals.h"
 #include "palVectorImpl.h"
@@ -4105,7 +4105,6 @@ uint32* PerfExperiment::WriteWaitIdle(
     ) const
 {
     const EngineType engineType = pCmdStream->GetEngineType();
-    Pm4CmdBuffer*    pPm4CmdBuf = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
 
     if (flushCaches)
     {
@@ -4113,10 +4112,10 @@ uint32* PerfExperiment::WriteWaitIdle(
         // CP to spin-loop on a timestamp in memory so it may be much slower than the non-flushing path.
         WriteWaitEopInfo waitEopInfo = {};
         waitEopInfo.hwGlxSync  = SyncGlxWbInvAll;
-        waitEopInfo.hwRbSync   = pPm4CmdBuf->IsGraphicsSupported() ? SyncRbWbInv : SyncRbNone;
+        waitEopInfo.hwRbSync   = pCmdBuffer->IsGraphicsSupported() ? SyncRbWbInv : SyncRbNone;
         waitEopInfo.hwAcqPoint = AcquirePointPfp;
 
-        pCmdSpace = pPm4CmdBuf->WriteWaitEop(waitEopInfo, pCmdSpace);
+        pCmdSpace = pCmdBuffer->WriteWaitEop(waitEopInfo, pCmdSpace);
     }
     else
     {
@@ -4128,7 +4127,7 @@ uint32* PerfExperiment::WriteWaitIdle(
         // method which covers almost all of the same cases as the wait for EOP TS. If we run into issues with
         // counters at the end of the graphics pipeline or counters that monitor the event pipeline we might need
         // to change this.
-        pCmdSpace = pPm4CmdBuf->WriteWaitCsIdle(pCmdSpace);
+        pCmdSpace = pCmdBuffer->WriteWaitCsIdle(pCmdSpace);
 
         if (m_pDevice->EngineSupportsGraphics(engineType))
         {

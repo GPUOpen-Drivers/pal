@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -44,7 +44,8 @@ ComputePipeline::ComputePipeline(
     m_threadsPerTg{},
     m_maxFunctionCallDepth(0),
     m_stackSizeInBytes(0),
-    m_cpsStackSizeInBytes{}
+    m_cpsStackSizeInBytes{},
+    m_disablePartialPreempt(false)
 {
     memset(&m_stageInfo, 0, sizeof(m_stageInfo));
     m_stageInfo.stageId = Abi::HardwareStage::Cs;
@@ -66,7 +67,8 @@ Result ComputePipeline::Init(
 {
     Result result = Result::Success;
 
-    m_maxFunctionCallDepth = createInfo.maxFunctionCallDepth;
+    m_maxFunctionCallDepth  = createInfo.maxFunctionCallDepth;
+    m_disablePartialPreempt = createInfo.disablePartialDispatchPreemption;
 
     if ((createInfo.pPipelineBinary != nullptr) && (createInfo.pipelineBinarySize != 0))
     {
@@ -241,7 +243,59 @@ Result ComputePipeline::InitFromHsaAbiBinary(
 
         DumpPipelineElf("PipelineCs", m_pHsaMeta->KernelName());
 
-        result = HwlInit(createInfo, abiReader, *m_pHsaMeta, pMetadataReader);
+        // These always have to be all non-zero or all zero.
+        PAL_ASSERT(((createInfo.threadsPerGroup.width  == 0) &&
+                    (createInfo.threadsPerGroup.height == 0) &&
+                    (createInfo.threadsPerGroup.depth  == 0)) ||
+                   ((createInfo.threadsPerGroup.width  != 0) &&
+                    (createInfo.threadsPerGroup.height != 0) &&
+                    (createInfo.threadsPerGroup.depth  != 0)));
+
+        Extent3d groupSize = createInfo.threadsPerGroup;
+        // The metadata guarantees that the required size components are all zero or all non-zero.
+        const bool hasRequiredSize = (m_pHsaMeta->RequiredWorkgroupSizeX() != 0);
+        // The caller can pick the thread group size if the ELF wasn't compiled against a particular size.
+        if (createInfo.threadsPerGroup.width != 0)
+        {
+            if (hasRequiredSize &&
+                ((groupSize.width  != m_pHsaMeta->RequiredWorkgroupSizeX()) ||
+                 (groupSize.height != m_pHsaMeta->RequiredWorkgroupSizeY()) ||
+                 (groupSize.depth  != m_pHsaMeta->RequiredWorkgroupSizeZ())))
+            {
+                // This ELF requires a specific thread group size which cannot be changed.
+                result = Result::ErrorInvalidValue;
+            }
+        }
+        else if (hasRequiredSize)
+        {
+            groupSize.width  = m_pHsaMeta->RequiredWorkgroupSizeX();
+            groupSize.height = m_pHsaMeta->RequiredWorkgroupSizeY();
+            groupSize.depth  = m_pHsaMeta->RequiredWorkgroupSizeZ();
+        }
+        else
+        {
+            // We could fail here since we don't really know what group size to use. Instead, let's assume we're
+            // supposed to launch a 1D thread group of the maximum supported size. We may change this in the future.
+            groupSize.width  = m_pHsaMeta->MaxFlatWorkgroupSize();
+            groupSize.height = 1;
+            groupSize.depth  = 1;
+        }
+
+        if (result == Result::Success)
+        {
+            // The X/Y/Z sizes must be non-zero and cover a volume no greater than the max flat group size.
+            const uint32 flatSize = groupSize.width * groupSize.height * groupSize.depth;
+
+            if ((flatSize == 0) || (flatSize > m_pHsaMeta->MaxFlatWorkgroupSize()))
+            {
+                result = Result::ErrorInvalidValue;
+            }
+        }
+
+        if (result == Result::Success)
+        {
+            result = HwlInit(createInfo, abiReader, *m_pHsaMeta, pMetadataReader, groupSize);
+        }
     }
 
     return result;

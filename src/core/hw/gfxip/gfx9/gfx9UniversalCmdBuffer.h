@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -25,7 +25,7 @@
 
 #pragma once
 
-#include "core/hw/gfxip/pm4UniversalCmdBuffer.h"
+#include "core/hw/gfxip/universalCmdBuffer.h"
 #include "core/hw/gfxip/gfx9/gfx9Chip.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdStream.h"
 #include "core/hw/gfxip/gfx9/gfx9ComputeCmdBuffer.h"
@@ -50,8 +50,8 @@ namespace Pal
 namespace Gfx9
 {
 
+class DepthStencilView;
 class GraphicsPipeline;
-class Gfx10DepthStencilView;
 class UniversalCmdBuffer;
 class IndirectCmdGenerator;
 
@@ -62,17 +62,6 @@ struct UniversalCmdBufferState
     {
         struct
         {
-            // Tracks whether or not *ANY* piece of ring memory being dumped-to by the CE (by PAL or the client) has
-            // wrapped back to the beginning within this command buffer. If no ring has wrapped yet, there is no need
-            // to ever stall the CE from getting too far ahead or to ask the DE to invalidate the Kcache for us.
-            uint32 ceHasAnyRingWrapped     :  1;
-            // CE memory dumps go through the L2 cache, but not the L1 cache! In order for the shader cores to read
-            // correct data out of piece of ring memory, we need to occasionally invalidate the Kcache when waiting
-            // for the CE to finish dumping its memory. If set, the next INCREMENT_CE_COUNTER inserted into the DE
-            // stream should also invalidate the Kcache.
-            uint32 ceInvalidateKcache      :  1;
-            uint32 ceWaitOnDeCounterDiff   :  1;
-            uint32 deCounterDirty          :  1;
             uint32 containsDrawIndirect    :  1;
             uint32 optimizeLinearGfxCpy    :  1;
             uint32 firstDrawExecuted       :  1;
@@ -86,24 +75,12 @@ struct UniversalCmdBufferState
             uint32 drawTimeAlphaToCoverage :  1; // Tracks alphaToCoverageState to be updated per draw.
             uint32 reserved0               :  2;
             uint32 cbColorInfoDirtyRtv     :  8; // Per-MRT dirty mask for CB_COLORx_INFO as a result of RTV
-            uint32 reserved1               :  8;
+            uint32 reserved1               : 12;
         };
         uint32 u32All;
     } flags;
-    // According to the UDX implementation, CP uCode and CE programming guide, the ideal DE counter diff amount we
-    // should ask the CE to wait for is 1/4 the minimum size (in entries!) of all pieces of memory being ringed.
-    // Thus we only need to track this minimum diff amount. If ceWaitOnDeCounterDiff flag is also set, the CE will
-    // be asked to wait for a DE counter diff at the next Draw or Dispatch.
-    uint32  minCounterDiff;
 
-    // If non-null, points to the most recent DUMP_CONST_RAM or DUMP_CONST_RAM_OFFSET packet written into the CE cmd
-    // stream.  If null, then no DUMP_CONST_RAM_* packets have been written since the previous Draw or Dispatch.
-    uint32*               pLastDumpCeRam;
-    // Stores the 2nd ordinal of the most-recent DUMP_CONST_RAM_* packet to avoid a read-modify-write when updating
-    // that packet to set the increment_ce bit.
-    DumpConstRamOrdinal2  lastDumpCeRamOrdinal2;
-
-    // Copy of what will be written into CE RAM for NGG culling pipelines.
+    // Copy of what will be written into embedded data for NGG culling pipelines.
     Util::Abi::PrimShaderCullingCb primShaderCullingCb;
 
 };
@@ -258,7 +235,6 @@ union CachedSettings
         uint64 rbPlusSupported            :  1; // True if RBPlus is supported by the device
         uint64 disableVertGrouping        :  1; // Disable VertexGrouping.
         uint64 prefetchIndexBufferForNgg  :  1; // Prefetch index buffers to workaround misses in UTCL2 with NGG
-        uint64 waCeDisableIb2             :  1; // Disable IB2's on the constant engine to workaround HW bug
         uint64 supportsMall               :  1; // True if this device supports the MALL
         uint64 waDisableInstancePacking   :  1;
         uint64 reserved3                  :  1;
@@ -300,7 +276,7 @@ union CachedSettings
         uint64 waitAfterCbFlush                          :  1;
         uint64 waitAfterDbFlush                          :  1;
         uint64 rbHarvesting                              :  1;
-        uint64 reserved                                  : 60;
+        uint64 reserved                                  : 61;
     };
     uint64 u64All[2];
 };
@@ -323,7 +299,7 @@ struct VrsCopyMapping
 
 // =====================================================================================================================
 // GFX9 universal command buffer class: implements GFX9 specific functionality for the UniversalCmdBuffer class.
-class UniversalCmdBuffer final : public Pal::Pm4::UniversalCmdBuffer
+class UniversalCmdBuffer final : public Pal::UniversalCmdBuffer
 {
     // Shorthand for function pointers which validate graphics user-data at Draw-time.
     typedef uint32* (UniversalCmdBuffer::*ValidateUserDataGfxFunc)(UserDataTableState*,
@@ -408,18 +384,6 @@ public:
         const IGpuMemory& dstGpuMemory,
         gpusize           dstOffset) override;
 
-    virtual void CmdCopyMemory(
-        const IGpuMemory&       srcGpuMemory,
-        const IGpuMemory&       dstGpuMemory,
-        uint32                  regionCount,
-        const MemoryCopyRegion* pRegions) override;
-
-    virtual void CmdUpdateMemory(
-        const IGpuMemory& dstGpuMemory,
-        gpusize           dstOffset,
-        gpusize           dataSize,
-        const uint32*     pData) override;
-
     virtual void CmdUpdateBusAddressableMemoryMarker(
         const IGpuMemory& dstGpuMemory,
         gpusize           offset,
@@ -481,25 +445,6 @@ public:
     virtual CmdStream* GetCmdStreamByEngine(CmdBufferEngineSupport engineType) override;
 
     virtual void CmdUpdateSqttTokenMask(const ThreadTraceTokenConfig& sqttTokenConfig) override;
-
-    virtual void CmdLoadCeRam(
-        const IGpuMemory& srcGpuMemory,
-        gpusize           memOffset,
-        uint32            ramOffset,
-        uint32            dwordSize) override;
-
-    virtual void CmdDumpCeRam(
-        const IGpuMemory& dstGpuMemory,
-        gpusize           memOffset,
-        uint32            ramOffset,
-        uint32            dwordSize,
-        uint32            currRingPos,
-        uint32            ringSize) override;
-
-    virtual void CmdWriteCeRam(
-        const void* pSrcData,
-        uint32      ramOffset,
-        uint32      dwordSize) override;
 
     virtual void CmdIf(
         const IGpuMemory& gpuMemory,
@@ -614,7 +559,7 @@ public:
     virtual void CmdDispatchAce(DispatchDims size) override;
 
     virtual void GetChunkForCmdGeneration(
-        const Pm4::IndirectCmdGenerator& generator,
+        const Pal::IndirectCmdGenerator& generator,
         const Pal::Pipeline&             pipeline,
         uint32                           maxCommands,
         uint32                           numChunkOutputs,
@@ -678,37 +623,37 @@ protected:
 
     virtual void WriteEventCmd(const BoundGpuMemory& boundMemObj, uint32 stageMask, uint32 data) override;
 
-    virtual void InheritStateFromCmdBuf(const Pm4CmdBuffer* pCmdBuffer) override;
+    virtual void InheritStateFromCmdBuf(const GfxCmdBuffer* pCmdBuffer) override;
 
     template <bool Pm4OptImmediate, bool IsNgg, bool Indirect>
     uint32* ValidateBinSizes(uint32* pDeCmdSpace);
 
     template <bool Indexed, bool Indirect>
-    void ValidateDraw(const Pm4::ValidateDrawInfo& drawInfo);
+    void ValidateDraw(const ValidateDrawInfo& drawInfo);
 
     template <bool Indexed, bool Indirect, bool Pm4OptImmediate>
-    void ValidateDraw(const Pm4::ValidateDrawInfo& drawInfopDeCmdSpace);
+    void ValidateDraw(const ValidateDrawInfo& drawInfopDeCmdSpace);
 
     template <bool Indexed, bool Indirect, bool Pm4OptImmediate, bool PipelineDirty>
     uint32* ValidateDraw(
-        const Pm4::ValidateDrawInfo& drawInfo,
-        uint32*                      pDeCmdSpace);
+        const ValidateDrawInfo& drawInfo,
+        uint32*                 pDeCmdSpace);
 
     template <bool Indexed, bool Indirect, bool Pm4OptImmediate, bool PipelineDirty, bool StateDirty>
     uint32* ValidateDraw(
-        const Pm4::ValidateDrawInfo& drawInfo,
-        uint32*                      pDeCmdSpace);
+        const ValidateDrawInfo& drawInfo,
+        uint32*                 pDeCmdSpace);
 
     template <bool Indexed, bool Indirect, bool Pm4OptImmediate, bool PipelineDirty, bool StateDirty, bool IsNgg>
     uint32* ValidateDraw(
-        const Pm4::ValidateDrawInfo& drawInfo,
-        uint32*                      pDeCmdSpace);
+        const ValidateDrawInfo& drawInfo,
+        uint32*                 pDeCmdSpace);
 
     template <bool Indexed, bool Indirect, bool Pm4OptImmediate>
     uint32* ValidateDrawTimeHwState(
-        regPA_SC_MODE_CNTL_1         paScModeCntl1,
-        const Pm4::ValidateDrawInfo& drawInfo,
-        uint32*                      pDeCmdSpace);
+        regPA_SC_MODE_CNTL_1    paScModeCntl1,
+        const ValidateDrawInfo& drawInfo,
+        uint32*                 pDeCmdSpace);
 
     // Gets vertex offset register address
     uint16 GetVertexOffsetRegAddr() const { return m_vertexOffsetReg; }
@@ -826,7 +771,7 @@ private:
         bool                  usesLineStipple,
         regIA_MULTI_VGT_PARAM iaMultiVgtParam) const;
 
-    template <bool PipelineDirty, bool StateDirty>
+    template <bool StateDirty>
     uint32* ValidateTriangleRasterState(
         const GraphicsPipeline*  pPipeline,
         uint32*                  pDeCmdSpace);
@@ -855,8 +800,8 @@ private:
     void BarrierMightDirtyVrsRateImage(const IImage* pRateImage);
 
     // See m_validVrsCopies for more information on what these do.
-    bool IsVrsCopyRedundant(const Gfx10DepthStencilView* pDsView, const Pal::Image* pRateImage);
-    void AddVrsCopyMapping(const Gfx10DepthStencilView* pDsView, const Pal::Image* pRateImage);
+    bool IsVrsCopyRedundant(const DepthStencilView* pDsView, const Pal::Image* pRateImage);
+    void AddVrsCopyMapping(const DepthStencilView* pDsView, const Pal::Image* pRateImage);
     void EraseVrsCopiesFromRateImage(const Pal::Image* pRateImage);
     void EraseVrsCopiesToDepthImage(const Pal::Image* pDepthImage);
 
@@ -866,7 +811,7 @@ private:
     template <bool Pm4OptImmediate>
     uint32* UpdateDbCountControl(uint32 log2SampleRate, uint32* pDeCmdSpace);
 
-    bool ForceWdSwitchOnEop(const Pm4::ValidateDrawInfo& drawInfo) const;
+    bool ForceWdSwitchOnEop(const ValidateDrawInfo& drawInfo) const;
 
     VportCenterRect GetViewportsCenterAndScale() const;
 
@@ -883,10 +828,7 @@ private:
 
     bool HasStreamOutBeenSet() const;
 
-    uint32* WaitOnCeCounter(uint32* pDeCmdSpace);
-    uint32* IncrementDeCounter(uint32* pDeCmdSpace);
-
-    Pm4Predicate PacketPredicate() const { return static_cast<Pm4Predicate>(m_pm4CmdBufState.flags.packetPredicate); }
+    Pm4Predicate PacketPredicate() const { return static_cast<Pm4Predicate>(m_cmdBufState.flags.packetPredicate); }
 
     template <bool HsaAbi, bool IssueSqttMarkerEvent, bool DescribeDrawDispatch>
     void SetDispatchFunctions();
@@ -905,10 +847,8 @@ private:
         DispatchDims  logicalSize);
 
     void ValidateDispatchHsaAbi(
-        ComputeState* pComputeState,
-        CmdStream*    pCmdStream,
-        DispatchDims  offset,
-        DispatchDims  logicalSize);
+        DispatchDims        offset,
+        const DispatchDims& logicalSize);
 
     uint32* SwitchGraphicsPipeline(
         const GraphicsPipelineSignature* pPrevSignature,
@@ -1060,26 +1000,25 @@ private:
         std::max({ alignof(Tn)... })>::type;
 
     using ColorTargetViewStorage  = ViewStorage<Gfx10ColorTargetView, Gfx11ColorTargetView>;
-    using DepthStencilViewStorage = ViewStorage<Gfx10DepthStencilView>;
+    using DepthStencilViewStorage = ViewStorage<DepthStencilView>;
 
     IColorTargetView* StoreColorTargetView(uint32 slot, const BindTargetParams& params);
 
     void CopyColorTargetViewStorage(
         ColorTargetViewStorage*       pColorTargetViewStorageDst,
         const ColorTargetViewStorage* pColorTargetViewStorageSrc,
-        Pm4::GraphicsState*           pGraphicsStateDst);
+        GraphicsState*                pGraphicsStateDst);
 
     IDepthStencilView* StoreDepthStencilView(const BindTargetParams& params);
 
     void CopyDepthStencilViewStorage(
         DepthStencilViewStorage*       pDepthStencilViewStorageDst,
         const DepthStencilViewStorage* pDepthStencilViewStorageSrc,
-        Pm4::GraphicsState*            pGraphicsStateDst);
+        GraphicsState*                 pGraphicsStateDst);
 
     const Device&   m_device;
     const CmdUtil&  m_cmdUtil;
     CmdStream       m_deCmdStream;
-    CmdStream       m_ceCmdStream;
 
     // Tracks the user-data signature of the currently active compute & graphics pipelines.
     const ComputePipelineSignature*   m_pSignatureCs;
@@ -1295,8 +1234,6 @@ private:
     // to store the three counter values.
     gpusize m_meshPipeStatsGpuAddr;
 
-    gpusize m_globalInternalTableAddr; // If non-zero, the low 32-bits of the global internal table were written here.
-
     ColorTargetViewStorage  m_colorTargetViewStorage[MaxColorTargets];
     ColorTargetViewStorage  m_colorTargetViewRestoreStorage[MaxColorTargets];
     DepthStencilViewStorage m_depthStencilViewStorage;
@@ -1307,13 +1244,6 @@ private:
     PAL_DISALLOW_DEFAULT_CTOR(UniversalCmdBuffer);
     PAL_DISALLOW_COPY_AND_ASSIGN(UniversalCmdBuffer);
 };
-
-// Helper function for managing the logic controlling when to do CE/DE synchronization and invalidating the Kcache.
-extern bool HandleCeRinging(
-    UniversalCmdBufferState* pState,
-    uint32                   currRingPos,
-    uint32                   ringInstances,
-    uint32                   ringSize);
 
 } // Gfx9
 } // Pal

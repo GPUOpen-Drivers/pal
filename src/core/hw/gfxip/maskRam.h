@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -25,51 +25,56 @@
 
 #pragma once
 
-#include "core/hw/gfxip/gfxCmdStream.h"
-#include "core/hw/gfxip/gfxDevice.h"
-#include "palVector.h"
+#include "pal.h"
+#include "palInlineFuncs.h"
+#include "core/image.h"
 
 namespace Pal
 {
 
-class GfxDevice;
-enum  QueueType : uint32;
-
-namespace Pm4
-{
-
 // =====================================================================================================================
-// Implements control flow and other code common to GFX-specific command stream implementations.
-class CmdStream : public GfxCmdStream
+// Manages the mask-RAM state for all slices of a single mipmap level of an Image resource. This is a base class which
+// is common to all types of mask-RAM.
+class MaskRam
 {
 public:
-    virtual ~CmdStream() { }
-
-    virtual void Call(const Pal::CmdStream& targetStream, bool exclusiveSubmit, bool allowIb2Launch) override;
-
-    void ExecuteGeneratedCommands(CmdStreamChunk** ppChunkList, uint32 numChunksExecuted, uint32 numGenChunks);
-
-    uint32 PrepareChunkForCmdGeneration(
-        CmdStreamChunk* pChunk,
-        uint32          cmdBufStride,           // In dwords
-        uint32          embeddedDataStride,     // In dwords
-        uint32          maxCommands) const;
+    // Returns the GPU total memory size needed.
+    gpusize TotalSize() const { return m_totalSize; }
+    gpusize SliceSize() const { return m_sliceSize; }
+    gpusize Alignment() const { return m_alignment; }
+    gpusize MemoryOffset() const { return m_offset; }
 
 protected:
-    CmdStream(
-        const GfxDevice& device,
-        ICmdAllocator*   pCmdAllocator,
-        EngineType       engineType,
-        SubEngineType    subEngineType,
-        CmdStreamUsage   cmdStreamUsage,
-        uint32           chainSizeInDwords,
-        uint32           minNopSizeInDwords,
-        uint32           condIndirectBufferSize,
-        bool             isNested);
+    MaskRam()
+        :
+        m_offset(0),
+        m_sliceSize(0),
+        m_totalSize(0),
+        m_alignment(0)
+    {}
 
-    PAL_DISALLOW_COPY_AND_ASSIGN(CmdStream);
-    PAL_DISALLOW_DEFAULT_CTOR(CmdStream);
+    virtual ~MaskRam() {}
+
+    void UpdateGpuMemOffset(gpusize* pGpuOffset)
+    {
+        PAL_ASSERT(m_totalSize > 0);
+        m_offset      = Util::Pow2Align((*pGpuOffset), m_alignment);
+        (*pGpuOffset) = (m_offset + m_totalSize);
+    }
+
+    uint32 MaskRamSlices(const Image& image, const SubResourceInfo& subResInfo) const
+    {
+        auto& createInfo = image.GetImageCreateInfo();
+        return (createInfo.imageType == ImageType::Tex3d) ? subResInfo.extentTexels.depth : createInfo.arraySize;
+    }
+
+    gpusize  m_offset;    // GPU memory offset from base of parent Image.
+    gpusize  m_sliceSize; // Per-slice GPU memory size
+    gpusize  m_totalSize; // Total GPU memory size
+    gpusize  m_alignment; // GPU memory alignment
+
+private:
+    PAL_DISALLOW_COPY_AND_ASSIGN(MaskRam);
 };
 
-}; // Pm4
-}; // Pal
+} // Pal

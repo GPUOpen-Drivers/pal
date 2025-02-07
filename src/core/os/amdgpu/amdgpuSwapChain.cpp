@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -294,27 +294,20 @@ Result SwapChain::ReclaimUnusedImages(
 bool SwapChain::OptimizedHandlingForNativeWindowSystem(
     uint32* pImageIndex)
 {
+    // Optimize for immediate mode only
+    if (m_createInfo.swapChainMode != SwapChainMode::Immediate)
+    {
+        return false;
+    }
+
     Result ret = Result::ErrorUnknown;
 
-    if ((m_createInfo.swapChainMode == SwapChainMode::Immediate) &&
-        (m_pWindowSystem->GetWindowSystemProperties().useExplicitSync == false))
+    if (m_pWindowSystem->SupportIdleEvent())
     {
-        // For immediate mode, handle all window system events here. For other modes and explicit sync, events are read
-        // in Present.
+        // Events are read here [app thread] only for immediate mode with idle event enabled. Other cases read them
+        // in Present [present thread].
         m_pWindowSystem->GoThroughEvent();
-    }
 
-    // Only optimize the immediate mode, don't take this path for Cpu present case.
-    bool useOptimizedPath = (m_pDevice->Settings().nativeAcquirePresentImageOpt == true) &&
-                            (m_pDevice->Settings().forcePresentViaCpuBlt == false) &&
-                            (m_createInfo.swapChainMode == SwapChainMode::Immediate);
-
-    if (useOptimizedPath == false)
-    {
-        ret = Result::ErrorUnavailable;
-    }
-    else if (m_pWindowSystem->SupportIdleEvent())
-    {
         bool found = false;
 
         // Go through all images first
@@ -380,7 +373,7 @@ bool SwapChain::OptimizedHandlingForNativeWindowSystem(
     }
     else if (m_pWindowSystem->GetWindowSystemProperties().useExplicitSync)
     {
-        // Prepare an array of PresentFences for all unused images
+        // 1. Prepare an array of PresentFences for all unused images
         PresentFence* unusedImagePresentFences[MaxSwapChainLength] = {nullptr};
         uint32        unusedImageCount = 0;
         {
@@ -392,7 +385,7 @@ bool SwapChain::OptimizedHandlingForNativeWindowSystem(
             unusedImageCount = m_unusedImageCount;
         }
 
-        // Wait for any image to be released. Thread may be blocked in WaitForExplicitSyncReleaseAny()
+        // 2. Wait for any image to be released. Thread may be blocked in WaitForExplicitSyncReleaseAny()
         uint32 firstSignaledIndex = -1;
         ret = m_pWindowSystem->WaitForExplicitSyncReleaseAny(unusedImagePresentFences,
                                                              unusedImageCount,
@@ -406,7 +399,7 @@ bool SwapChain::OptimizedHandlingForNativeWindowSystem(
             uint32        releasedImageIndex = -1;
             PresentFence* pReleasedFence     = unusedImagePresentFences[firstSignaledIndex];
 
-            // Match the returned, signaled image index with the current unused image queue to return correct index
+            // 3. Match the returned, signaled image index with the current unused image queue to return correct index
             for (uint32 i = 0; i < m_unusedImageCount; i++)
             {
                 if (m_pPresentIdle[m_unusedImageQueue[i]] == pReleasedFence)
@@ -426,11 +419,16 @@ bool SwapChain::OptimizedHandlingForNativeWindowSystem(
 
             if (releasedImageIndex != -1)
             {
-                // Return released image index
+                // 4. Return released image index
                 *pImageIndex = releasedImageIndex;
                 ret          = Result::Success;
             }
         }
+    }
+    else
+    {
+        // For example, for the case where forcePresentViaCpuBlt is enabled
+        ret = Result::ErrorUnavailable;
     }
 
     return (ret == Result::Success);

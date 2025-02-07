@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -168,6 +168,7 @@ union ImageCreateFlags
         uint32 invariant               :  1; ///< Images with this flag set and all other creation identical are
                                              ///  guaranteed to have a consistent data layout.
         uint32 cloneable               :  1; ///< Image is valid as a source or destination of a clone operation.
+                                             ///  See @ref IDevice::ImagePrefersCloneCopy() for more details.
         uint32 shareable               :  1; ///< Image can be shared between compatible devices.
         uint32 presentable             :  1; ///< Indicates this image can be used in presents.
         uint32 flippable               :  1; ///< Image can be used for flip presents.
@@ -359,6 +360,56 @@ struct ImageCreateInfo
     gpusize           modifierMemoryPlaneOffset[3];  ///< Offset of main surface, display Dcc surface and gfx Dcc surface.
 #endif
 };
+
+inline constexpr bool operator==(const ImageCreateInfo& lhs, const ImageCreateInfo& rhs)
+{
+    bool same = (lhs.flags.u32All            == rhs.flags.u32All)            &&
+                (lhs.usageFlags.u32All       == rhs.usageFlags.u32All)       &&
+                (lhs.imageType               == rhs.imageType)               &&
+                (lhs.swizzledFormat          == rhs.swizzledFormat)          &&
+                (lhs.extent                  == rhs.extent)                  &&
+                (lhs.mipLevels               == rhs.mipLevels)               &&
+                (lhs.arraySize               == rhs.arraySize)               &&
+                (lhs.samples                 == rhs.samples)                 &&
+                (lhs.fragments               == rhs.fragments)               &&
+                (lhs.tiling                  == rhs.tiling)                  &&
+                (lhs.tilingPreference        == rhs.tilingPreference)        &&
+                (lhs.tilingOptMode           == rhs.tilingOptMode)           &&
+                (lhs.tileSwizzle             == rhs.tileSwizzle)             &&
+#if PAL_CLIENT_EXAMPLE
+                (lhs.fixedSwizzleMode        == rhs.fixedSwizzleMode)        &&
+#endif
+                (lhs.metadataMode            == rhs.metadataMode)            &&
+                (lhs.metadataTcCompatMode    == rhs.metadataTcCompatMode)    &&
+                (lhs.maxBaseAlign            == rhs.maxBaseAlign)            &&
+                (lhs.imageMemoryBudget       == rhs.imageMemoryBudget)       &&
+                (lhs.prtPlus.mapType         == rhs.prtPlus.mapType)         &&
+                (lhs.prtPlus.lodRegion       == rhs.prtPlus.lodRegion)       &&
+                (lhs.rowPitch                == rhs.rowPitch)                &&
+                (lhs.depthPitch              == rhs.depthPitch)              &&
+                (lhs.refreshRate.numerator   == rhs.refreshRate.numerator)   &&
+                (lhs.refreshRate.denominator == rhs.refreshRate.denominator) &&
+                (lhs.viewFormatCount         == rhs.viewFormatCount)         &&
+                true;
+
+#if defined(__unix__)
+    if (same && (lhs.flags.hasModifier != 0))
+    {
+        same = (lhs.modifier           == rhs.modifier) &&
+               (lhs.modifierPlaneCount == rhs.modifierPlaneCount) &&
+               (memcmp(&lhs.modifierMemoryPlaneOffset[0],
+                       &rhs.modifierMemoryPlaneOffset[0],
+                       sizeof(gpusize) * lhs.modifierPlaneCount) == 0);
+    }
+#endif
+
+    if (same && (lhs.viewFormatCount > 0))
+    {
+        same = (memcmp(lhs.pViewFormats, rhs.pViewFormats, lhs.viewFormatCount * sizeof(SwizzledFormat)) == 0);
+    }
+
+    return same;
+}
 
 /// Specifies properties for presentable @ref IImage creation.  Input structure to IDevice::CreatePresentableImage().
 struct PresentableImageCreateInfo
@@ -628,13 +679,6 @@ struct SubresId
     uint8  plane;      ///< Selects a data plane.
     uint8  mipLevel;   ///< Selects a mip level.
     uint16 arraySlice; ///< Selects an array slice.
-
-    bool operator==(const SubresId& rhs) const
-    {
-        return (plane      == rhs.plane)    &&
-               (mipLevel   == rhs.mipLevel) &&
-               (arraySlice == rhs.arraySlice);
-    }
 };
 
 /// Defines a range of subresources.
@@ -644,33 +688,7 @@ struct SubresRange
     uint8    numPlanes;    ///< Number of planes in the range.
     uint8    numMips;      ///< Number of mip levels in the range.
     uint16   numSlices;    ///< Number of slices in the range.
-
-    bool operator==(const SubresRange& rhs) const
-    {
-        return (startSubres == rhs.startSubres) &&
-               (numPlanes   == rhs.numPlanes)   &&
-               (numMips     == rhs.numMips)     &&
-               (numSlices   == rhs.numSlices);
-    }
 };
-
-/// Determines if two subresource ranges are overlapped.
-///
-/// @returns True if two subresource ranges are overlapped, false otherwise.
-constexpr bool OverlappedSubresRanges(
-    const SubresRange& a,
-    const SubresRange& b)
-{
-    const SubresId aStart = a.startSubres;
-    const SubresId bStart = b.startSubres;
-
-    return (aStart.plane      < (bStart.plane      + b.numPlanes)) &&
-           (bStart.plane      < (aStart.plane      + a.numPlanes)) &&
-           (aStart.mipLevel   < (bStart.mipLevel   + b.numMips))   &&
-           (bStart.mipLevel   < (aStart.mipLevel   + a.numMips))   &&
-           (aStart.arraySlice < (bStart.arraySlice + b.numSlices)) &&
-           (bStart.arraySlice < (aStart.arraySlice + a.numSlices));
-}
 
 #else
 struct SubresId
@@ -690,6 +708,44 @@ struct SubresRange
 };
 
 #endif
+
+inline constexpr bool operator==(const SubresId& lhs, const SubresId& rhs)
+{
+    return (lhs.plane      == rhs.plane)    &&
+           (lhs.mipLevel   == rhs.mipLevel) &&
+           (lhs.arraySlice == rhs.arraySlice);
+}
+
+inline constexpr bool operator!=(const SubresId& lhs, const SubresId& rhs)
+{
+    return ((lhs == rhs) == false);
+}
+
+inline constexpr bool operator==(const SubresRange& lhs, const SubresRange& rhs)
+{
+    return (lhs.startSubres == rhs.startSubres) &&
+           (lhs.numPlanes   == rhs.numPlanes)   &&
+           (lhs.numMips     == rhs.numMips)     &&
+           (lhs.numSlices   == rhs.numSlices);
+}
+
+/// Determines if two subresource ranges are overlapped.
+///
+/// @returns True if two subresource ranges are overlapped, false otherwise.
+inline constexpr bool OverlappedSubresRanges(
+    const SubresRange& a,
+    const SubresRange& b)
+{
+    const SubresId aStart = a.startSubres;
+    const SubresId bStart = b.startSubres;
+
+    return (aStart.plane      < (bStart.plane      + b.numPlanes)) &&
+           (bStart.plane      < (aStart.plane      + a.numPlanes)) &&
+           (aStart.mipLevel   < (bStart.mipLevel   + b.numMips))   &&
+           (bStart.mipLevel   < (aStart.mipLevel   + a.numMips))   &&
+           (aStart.arraySlice < (bStart.arraySlice + b.numSlices)) &&
+           (bStart.arraySlice < (aStart.arraySlice + a.numSlices));
+}
 
 /**
  ***********************************************************************************************************************

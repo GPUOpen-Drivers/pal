@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2020-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2020-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -3285,6 +3285,7 @@ void CmdBuffer::ReplayCmdColorSpaceConversionCopy(
                                                cscTable);
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 913
 // =====================================================================================================================
 void CmdBuffer::CmdCloneImageData(
     const IImage& srcImage,
@@ -3309,6 +3310,7 @@ void CmdBuffer::ReplayCmdCloneImageData(
 
     pTgtCmdBuffer->CmdCloneImageData(*pSrcImage, *pDstImage);
 }
+#endif
 
 // =====================================================================================================================
 void CmdBuffer::CmdCopyMemoryToImage(
@@ -4375,89 +4377,6 @@ void CmdBuffer::ReplayCmdSetBufferFilledSize(
 }
 
 // =====================================================================================================================
-void CmdBuffer::CmdLoadCeRam(
-    const IGpuMemory& srcGpuMemory,
-    gpusize           memOffset,
-    uint32            ramOffset,
-    uint32            dwordSize)
-{
-    InsertToken(CmdBufCallId::CmdLoadCeRam);
-    InsertToken(&srcGpuMemory);
-    InsertToken(memOffset);
-    InsertToken(ramOffset);
-    InsertToken(dwordSize);
-}
-
-// =====================================================================================================================
-void CmdBuffer::ReplayCmdLoadCeRam(
-    Queue*           pQueue,
-    TargetCmdBuffer* pTgtCmdBuffer)
-{
-    auto pSrcGpuMemory = ReadTokenVal<IGpuMemory*>();
-    auto memOffset     = ReadTokenVal<gpusize>();
-    auto ramOffset     = ReadTokenVal<uint32>();
-    auto dwordSize     = ReadTokenVal<uint32>();
-
-    pTgtCmdBuffer->CmdLoadCeRam(*pSrcGpuMemory, memOffset, ramOffset, dwordSize);
-}
-
-// =====================================================================================================================
-void CmdBuffer::CmdWriteCeRam(
-    const void* pSrcData,
-    uint32      ramOffset,
-    uint32      dwordSize)
-{
-    InsertToken(CmdBufCallId::CmdWriteCeRam);
-    InsertTokenArray(static_cast<const uint32*>(pSrcData), dwordSize);
-    InsertToken(ramOffset);
-}
-
-// =====================================================================================================================
-void CmdBuffer::ReplayCmdWriteCeRam(
-    Queue*           pQueue,
-    TargetCmdBuffer* pTgtCmdBuffer)
-{
-    const uint32* pSrcData  = nullptr;
-    auto          dwordSize = ReadTokenArray(&pSrcData);
-    auto          ramOffset = ReadTokenVal<uint32>();
-
-    pTgtCmdBuffer->CmdWriteCeRam(pSrcData, ramOffset, dwordSize);
-}
-
-// =====================================================================================================================
-void CmdBuffer::CmdDumpCeRam(
-    const IGpuMemory& dstGpuMemory,
-    gpusize           memOffset,
-    uint32            ramOffset,
-    uint32            dwordSize,
-    uint32            currRingPos,
-    uint32            ringSize)
-{
-    InsertToken(CmdBufCallId::CmdDumpCeRam);
-    InsertToken(&dstGpuMemory);
-    InsertToken(memOffset);
-    InsertToken(ramOffset);
-    InsertToken(dwordSize);
-    InsertToken(currRingPos);
-    InsertToken(ringSize);
-}
-
-// =====================================================================================================================
-void CmdBuffer::ReplayCmdDumpCeRam(
-    Queue*           pQueue,
-    TargetCmdBuffer* pTgtCmdBuffer)
-{
-    auto pDstGpuMemory = ReadTokenVal<IGpuMemory*>();
-    auto memOffset     = ReadTokenVal<gpusize>();
-    auto ramOffset     = ReadTokenVal<uint32>();
-    auto dwordSize     = ReadTokenVal<uint32>();
-    auto currRingPos   = ReadTokenVal<uint32>();
-    auto ringSize      = ReadTokenVal<uint32>();
-
-    pTgtCmdBuffer->CmdDumpCeRam(*pDstGpuMemory, memOffset, ramOffset, dwordSize, currRingPos, ringSize);
-}
-
-// =====================================================================================================================
 uint32 CmdBuffer::GetEmbeddedDataLimit() const
 {
     return GetNextLayer()->GetEmbeddedDataLimit();
@@ -5124,7 +5043,9 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdScaledCopyImage,
         &CmdBuffer::ReplayCmdGenerateMipmaps,
         &CmdBuffer::ReplayCmdColorSpaceConversionCopy,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 913
         &CmdBuffer::ReplayCmdCloneImageData,
+#endif
         &CmdBuffer::ReplayCmdCopyMemoryToImage,
         &CmdBuffer::ReplayCmdCopyImageToMemory,
         &CmdBuffer::ReplayCmdClearColorBuffer,
@@ -5152,9 +5073,6 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdLoadBufferFilledSizes,
         &CmdBuffer::ReplayCmdSaveBufferFilledSizes,
         &CmdBuffer::ReplayCmdSetBufferFilledSize,
-        &CmdBuffer::ReplayCmdLoadCeRam,
-        &CmdBuffer::ReplayCmdWriteCeRam,
-        &CmdBuffer::ReplayCmdDumpCeRam,
         &CmdBuffer::ReplayCmdExecuteNestedCmdBuffers,
         &CmdBuffer::ReplayCmdExecuteIndirectCmds,
         &CmdBuffer::ReplayCmdIf,

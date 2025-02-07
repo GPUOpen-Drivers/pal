@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -368,6 +368,14 @@ enum CacheCoherencyUsageFlags : uint32
     CoherIndexData          = 0x00000800,     ///< Index buffer data.
     CoherQueueAtomic        = 0x00001000,     ///< Destination of a CmdMemoryAtomic() call.
     CoherTimestamp          = 0x00002000,     ///< Destination of a CmdWriteTimestamp() call.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 914
+    CoherStreamOut          = 0x00004000,     ///< Data written as stream output.
+    CoherMemory             = 0x00008000,     ///< Data read or written directly from/to memory
+    CoherSampleRate         = 0x00010000,     ///< CmdBindSampleRateImage() source.
+    CoherPresent            = 0x00020000,     ///< Source of present.
+    CoherCp                 = 0x00080000,     ///< HW Command Processor (CP) encompassing the front - end command
+    CoherAllUsages          = 0x000FFFFF,     ///<  processing of any queue, including SDMA.
+#else
     CoherCeLoad             = 0x00004000,     ///< Source of a CmdLoadCeRam() call.
     CoherCeDump             = 0x00008000,     ///< Destination of CmdDumpCeRam() call.
     CoherStreamOut          = 0x00010000,     ///< Data written as stream output.
@@ -376,6 +384,7 @@ enum CacheCoherencyUsageFlags : uint32
     CoherPresent            = 0x00080000,     ///< Source of present.
     CoherCp                 = 0x00200000,     ///< HW Command Processor (CP) encompassing the front - end command
     CoherAllUsages          = 0x003FFFFF,     ///<  processing of any queue, including SDMA.
+#endif
 
     CoherShader             = CoherShaderRead | CoherShaderWrite,
     CoherCopy               = CoherCopySrc    | CoherCopyDst,
@@ -539,9 +548,13 @@ union CmdBufferBuildFlags
         /// This optimization might slightly increase the overhead of some GPU copies and other front-end reads/writes.
         uint32 prefetchCommands                :  1;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 914
         /// Indicates the command buffer will use one or more constant engine commands: CmdLoadCeRam(), CmdDumpCeRam(),
         /// or CmdWriteCeRam()
         uint32 usesCeRamCmds                   :  1;
+#else
+        uint32 placeholder914                  :  1;
+#endif
 
         /// Indicates that the client would prefer that this nested command buffer not be launched using an IB2 packet.
         /// The calling command buffer will either inline this command buffer into itself or use IB chaining based on if
@@ -999,6 +1012,7 @@ struct BarrierInfo
 /// This struct is used by @ref AcquireReleaseInfo.
 struct MemBarrier
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 914
     union
     {
         struct
@@ -1011,6 +1025,7 @@ struct MemBarrier
         };
         uint32 u32All;                     ///< Flags packed as a 32-bit uint.
     } flags;                               ///< Flags controlling the memory barrier.
+#endif
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 880
     GpuMemSubAllocInfo memory;             ///< Specifies a portion of an IGpuMemory object this memory barrier affects.
@@ -3398,6 +3413,16 @@ public:
     /// When the per-engine capability flag supportsMismatchedTileTokenCopy (@see DeviceProperties) is false,
     /// CmdCopyImage is only valid between two subresources that share the same tileToken (@see SubresLayout).
     ///
+    /// Note that the copy can go through clone copy automatically if,
+    ///  - Both source and destination images are created with @ref ImageCreateInfo::flags::cloneable = 1
+    ///  - Both source and destination images have same @ref ImageCreateInfo
+    ///  - Source image's layout is compatible with destination images' layout
+    ///  - This is a full image copy
+    ///  - Copy flags @ref CopyControlFlags required to be 0.
+    /// Basically clone copy clones all subresources' data of one image object in another while preserving the image
+    /// layout. It does raw copy on image data and metadata; and tries to keep the metadata (like DCC/HiZ/HiS)
+    /// unchanged but may be not true due to different HW design.
+    ///
     /// This function requires use of the following barrier flags:
     /// - PipelineStage:  @ref PipelineStageBlt
     /// - CacheCoherency: @ref CoherCopySrc for the source and @ref CoherCopyDst for the destination.
@@ -3707,6 +3732,7 @@ public:
         TexFilter                         filter,
         const ColorSpaceConversionTable&  cscTable) = 0;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 913
     /// Clones data of one image object in another while preserving the image layout.
     ///
     /// The source and destination images must be created with identical creation parameters and must specify the
@@ -3724,6 +3750,7 @@ public:
     virtual void CmdCloneImageData(
         const IImage& srcImage,
         const IImage& dstImage) = 0;
+#endif
 
     /// Directly updates a range of GPU memory with a small amount of host data.
     ///
@@ -4572,6 +4599,7 @@ public:
         const IGpuMemory&      dstGpuMemory,
         gpusize                dstOffset) = 0;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 914
     /// Loads data from the provided GPU Memory object into Constant Engine RAM.
     ///
     /// @param [in] srcGpuMemory  GPU Memory object containing the source data to be loaded to CE RAM.
@@ -4580,11 +4608,11 @@ public:
     /// @param [in] ramOffset     Byte offset destination in CE RAM where the data should be loaded,
     ///                           must be 32-byte aligned.
     /// @param [in] dwordSize     Number of DWORDs that should be loaded into CE RAM, must be a multiple of 8.
-    virtual void CmdLoadCeRam(
+    void CmdLoadCeRam(
         const IGpuMemory& srcGpuMemory,
         gpusize           memOffset,
         uint32            ramOffset,
-        uint32            dwordSize) = 0;
+        uint32            dwordSize) {}
 
     /// Dumps data from Constant Engine RAM to the provided GPU Memory address which may be located in a GPU ring buffer
     /// managed by the CE. The CE can be used to automatically handle the synchronization between the DE and CE when
@@ -4599,13 +4627,13 @@ public:
     ///                           dump location corresponds to.
     /// @param [in] ringSize      Number of entries in the GPU ring buffer being managed by the CE. If the memory being
     ///                           dumped into is not managed in a ring-like fashion, this should be set to zero.
-    virtual void CmdDumpCeRam(
+    void CmdDumpCeRam(
         const IGpuMemory& dstGpuMemory,
         gpusize           memOffset,
         uint32            ramOffset,
         uint32            dwordSize,
         uint32            currRingPos,
-        uint32            ringSize) = 0;
+        uint32            ringSize) {}
 
     /// Writes CPU data to Constant Engine RAM
     ///
@@ -4615,7 +4643,8 @@ public:
     virtual void CmdWriteCeRam(
         const void* pSrcData,
         uint32      ramOffset,
-        uint32      dwordSize) = 0;
+        uint32      dwordSize) {}
+#endif
 
     /// Allocates a chunk of command space that the client can use to embed constant data directly in the command
     /// buffer's backing memory. The returned CPU address is valid until ICmdBuffer::End() is called. The GPU address

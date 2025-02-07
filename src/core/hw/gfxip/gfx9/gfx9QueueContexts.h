@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -113,8 +113,6 @@ public:
     UniversalQueueContext(
         Device* pDevice,
         bool    supportMcbp,
-        uint32  persistentCeRamOffset,
-        uint32  persistentCeRamSize,
         Engine* pEngine,
         uint32  queueId);
     virtual ~UniversalQueueContext();
@@ -165,8 +163,6 @@ private:
     Result GetAcePreambleCmdStream(CmdStream** ppAcePreambleCmdStream);
 
     Device*const          m_pDevice;
-    const uint32          m_persistentCeRamOffset;
-    const uint32          m_persistentCeRamSize;
     UniversalEngine*const m_pEngine;
     uint32                m_queueId;
     UniversalRingSet      m_ringSet;
@@ -179,7 +175,7 @@ private:
     uint32 m_currentStackSizeDw;
     bool   m_cmdsUseTmzRing; // Indicates whether the current command streams use TMZ protected ring sets.
 
-    // GPU memory allocation used for shadowing persistent CE RAM between submissions.
+    // GPU memory allocation used for shadowing contents between submissions.
     bool            m_supportMcbp;
     BoundGpuMemory  m_shadowGpuMem;
     gpusize         m_shadowGpuMemSizeInBytes;
@@ -189,8 +185,6 @@ private:
     CmdStream  m_deCmdStream;
     CmdStream  m_perSubmitCmdStream;
     CmdStream  m_shadowInitCmdStream;
-    CmdStream  m_cePreambleCmdStream;
-    CmdStream  m_cePostambleCmdStream;
     CmdStream  m_dePostambleCmdStream;
 
     // Late-initialized ACE command buffer stream.

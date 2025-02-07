@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2018-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2018-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -54,6 +54,21 @@ struct ZwpDmaBufFormat
     uint32 padding;
     uint64 modifier;
 };
+// Sanity check for compatibility between wl_drm and drm_fourcc format codes
+static_assert((WL_DRM_FORMAT_ARGB8888    == DRM_FORMAT_ARGB8888)      &&
+              (WL_DRM_FORMAT_XRGB8888    == DRM_FORMAT_XRGB8888)      &&
+              (WL_DRM_FORMAT_ABGR8888    == DRM_FORMAT_ABGR8888)      &&
+              (WL_DRM_FORMAT_XBGR8888    == DRM_FORMAT_XBGR8888)      &&
+              (WL_DRM_FORMAT_ARGB2101010 == DRM_FORMAT_ARGB2101010)   &&
+              (WL_DRM_FORMAT_XRGB2101010 == DRM_FORMAT_XRGB2101010)   &&
+              (WL_DRM_FORMAT_ABGR2101010 == DRM_FORMAT_ABGR2101010)   &&
+              (WL_DRM_FORMAT_XBGR2101010 == DRM_FORMAT_XBGR2101010)   &&
+              (WL_DRM_FORMAT_RGB565      == DRM_FORMAT_RGB565)        &&
+              (WL_DRM_FORMAT_BGR565      == DRM_FORMAT_BGR565)        &&
+              (WL_DRM_FORMAT_ABGR16F     == DRM_FORMAT_ABGR16161616F) &&
+              (WL_DRM_FORMAT_XBGR16F     == DRM_FORMAT_XBGR16161616F),
+              "Mismatch between Linux DRM format codes and Wayland DRM format codes!");
+
 struct WlFormatTable
 {
     uint32 size;
@@ -183,8 +198,8 @@ public:
                                              int32       sharedBufferFd,
                                              wl_buffer** ppWlBuf);
 
-    Result                    AddFormat(ZwpDmaBufFormat fmt);
-    Result                    AddFormat(wl_drm_format fmt);
+    Result                    AddFormat(ZwpDmaBufFormat dmaFmt);
+    Result                    AddFormat(uint32 wlDrmFormat);
 
     bool                      IsExplicitSyncEnabled() const;
     void                      SetSyncObjManager(wp_linux_drm_syncobj_manager_v1* pSyncObjManager);

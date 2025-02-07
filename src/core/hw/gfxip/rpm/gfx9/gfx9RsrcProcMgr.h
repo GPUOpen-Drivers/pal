@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -25,7 +25,7 @@
 
 #pragma once
 
-#include "core/hw/gfxip/rpm/pm4RsrcProcMgr.h"
+#include "core/hw/gfxip/rpm/rsrcProcMgr.h"
 
 namespace Pal
 {
@@ -38,6 +38,7 @@ namespace Gfx9
 {
 
 class      CmdUtil;
+class      DepthStencilView;
 class      Device;
 class      Gfx9Htile;
 class      Gfx9MaskRam;
@@ -45,25 +46,38 @@ class      Image;
 enum class DccClearPurpose : uint32;
 
 // =====================================================================================================================
-// GFX9+10 common hardware layer implementation of the Resource Processing Manager. It is most known for handling
-// GFX9+10-specific resource operations like DCC decompression.
-class RsrcProcMgr : public Pm4::RsrcProcMgr
+// GFX9 common hardware layer implementation of the Resource Processing Manager. It is most known for handling
+// GFX9-specific resource operations like DCC decompression.
+class RsrcProcMgr : public Pal::RsrcProcMgr
 {
 public:
 
     static constexpr bool ForceGraphicsFillMemoryPath = false;
+
+    explicit RsrcProcMgr(Device* pDevice);
+    virtual ~RsrcProcMgr() {}
+
+    virtual bool UseImageCloneCopy(
+        GfxCmdBuffer*          pCmdBuffer,
+        const Pal::Image&      srcImage,
+        ImageLayout            srcImageLayout,
+        const Pal::Image&      dstImage,
+        ImageLayout            dstImageLayout,
+        uint32                 regionCount,
+        const ImageCopyRegion* pRegions,
+        uint32                 flags) const override;
 
     virtual void CmdCloneImageData(
         GfxCmdBuffer*     pCmdBuffer,
         const Pal::Image& srcImage,
         const Pal::Image& dstImage) const override;
 
-    void CmdUpdateMemory(
+    virtual void CmdUpdateMemory(
         GfxCmdBuffer*    pCmdBuffer,
         const GpuMemory& dstMem,
         gpusize          dstOffset,
         gpusize          dataSize,
-        const uint32*    pData) const;
+        const uint32*    pData) const override;
 
     virtual void CmdResolveQuery(
         GfxCmdBuffer*         pCmdBuffer,
@@ -102,10 +116,10 @@ public:
         const SubresRange&            range,
         ImageLayout                   layout) const;
 
-    virtual void BuildDccLookupTable(
+    void BuildDccLookupTable(
         GfxCmdBuffer*      pCmdBuffer,
         const Image&       srcImage,
-        const SubresRange& range) const {};
+        const SubresRange& range) const;
 
     void FastClearEliminate(
         GfxCmdBuffer*                pCmdBuffer,
@@ -115,7 +129,7 @@ public:
         const SubresRange&           range) const;
 
     bool ExpandDepthStencil(
-        Pm4CmdBuffer*                pCmdBuffer,
+        GfxCmdBuffer*                pCmdBuffer,
         const Pal::Image&            image,
         const MsaaQuadSamplePattern* pQuadSamplePattern,
         const SubresRange&           range) const;
@@ -138,6 +152,11 @@ public:
         const MemoryImageCopyRegion* pRegions,
         bool                         includePadding) const override;
 
+    virtual void HwlResummarizeHtileCompute(
+        GfxCmdBuffer*      pCmdBuffer,
+        const GfxImage&    image,
+        const SubresRange& range) const override;
+
     bool WillDecompressColorWithCompute(
         const GfxCmdBuffer* pCmdBuffer,
         const Image&        gfxImage,
@@ -156,19 +175,29 @@ public:
         GfxCmdBuffer* pCmdBuffer,
         gpusize       dstAddr) const;
 
-    virtual void CmdDisplayDccFixUp(
-        GfxCmdBuffer*      pCmdBuffer,
-        const Pal::Image&  image) const { }
+    void CopyVrsIntoHtile(
+        GfxCmdBuffer*           pCmdBuffer,        // cmd buffer to receive copy commands, must support compute
+        const DepthStencilView* pDsView,           // depth view that contains image that owns dest hTile buffer
+        bool                    isClientDsv,
+        const Extent3d&         depthExtent,       // extent of the depth buffers' mip level
+        const Pal::Image*       pSrcVrsImg) const; // source VRS data (can be NULL to imply 1x1)
 
-    virtual void CmdGfxDccToDisplayDcc(
+    void CmdDisplayDccFixUp(
+        GfxCmdBuffer*      pCmdBuffer,
+        const Pal::Image&  image) const;
+
+    void CmdGfxDccToDisplayDcc(
         GfxCmdBuffer*     pCmdBuffer,
-        const Pal::Image& image) const { }
+        const Pal::Image& image) const;
 
     virtual bool CopyImageCsUseMsaaMorton(const Pal::Image& dstImage) const override;
 
-protected:
-    explicit RsrcProcMgr(Device* pDevice);
+    void CmdGenerateIndirectCmds(
+        const IndirectCmdGenerateInfo& genInfo,
+        CmdStreamChunk**               ppChunkLists[],
+        uint32*                        pNumGenChunks) const;
 
+protected:
     uint32  GetInitHtileClearMask(
         const Image&       dstImage,
         const SubresRange& clearRange) const;
@@ -187,6 +216,10 @@ protected:
     virtual bool CopyImageUseMipLevelInSrd(bool isCompressed) const override
         { return (RsrcProcMgr::UseMipLevelInSrd && (isCompressed == false)); }
 
+    const Pal::ComputePipeline* GetCmdGenerationPipeline(
+        const Pal::IndirectCmdGenerator& generator,
+        const GfxCmdBuffer&              cmdBuffer) const;
+
     bool ClearDcc(
         GfxCmdBuffer*      pCmdBuffer,
         Pal::CmdStream*    pCmdStream,
@@ -197,7 +230,7 @@ protected:
         bool               trackBltActiveFlags,
         const uint32*      pPackedClearColor = nullptr) const;
 
-    virtual void ClearDccCompute(
+    void ClearDccCompute(
         GfxCmdBuffer*      pCmdBuffer,
         Pal::CmdStream*    pCmdStream,
         const Image&       dstImage,
@@ -205,16 +238,16 @@ protected:
         uint8              clearCode,
         DccClearPurpose    clearPurpose,
         bool               trackBltActiveFlags,
-        const uint32*      pPackedClearColor = nullptr) const = 0;
+        const uint32*      pPackedClearColor = nullptr) const;
 
-    virtual void FastDepthStencilClearCompute(
+    void FastDepthStencilClearCompute(
         GfxCmdBuffer*      pCmdBuffer,
         const Image&       dstImage,
         const SubresRange& range,
         uint32             htileValue,
         uint32             clearMask,
         uint8              stencil,
-        bool               trackBltActiveFlags) const = 0;
+        bool               trackBltActiveFlags) const;
 
     void FastDepthStencilClearComputeCommon(
         GfxCmdBuffer*      pCmdBuffer,
@@ -227,7 +260,7 @@ protected:
         uint32       numSlices,
         uint32       mipLevel) const;
 
-    virtual bool HwlUseOptimizedImageCopy(
+    virtual bool HwlUseFMaskOptimizedImageCopy(
         const Pal::Image&      srcImage,
         ImageLayout            srcImageLayout,
         const Pal::Image&      dstImage,
@@ -254,7 +287,7 @@ protected:
         const Pal::Image*       pFmaskOptimizedCopySrcImage = nullptr) const override;
 
     void ResolveImageDepthStencilCopy(
-        Pm4CmdBuffer*             pCmdBuffer,
+        GfxCmdBuffer*             pCmdBuffer,
         const Pal::Image&         srcImage,
         ImageLayout               srcImageLayout,
         const Pal::Image&         dstImage,
@@ -271,7 +304,7 @@ protected:
         const ImageResolveRegion* pRegions) const;
 
     void HwlFixupResolveDstImage(
-        Pm4CmdBuffer*             pCmdBuffer,
+        GfxCmdBuffer*             pCmdBuffer,
         const GfxImage&           dstImage,
         ImageLayout               dstImageLayout,
         const ImageResolveRegion* pRegions,
@@ -300,6 +333,41 @@ protected:
         const Pal::Image&      dstImage,
         const ImageCopyRegion& region) const override;
 
+    virtual void CmdResolveImage(
+        GfxCmdBuffer*             pCmdBuffer,
+        const Pal::Image&         srcImage,
+        ImageLayout               srcImageLayout,
+        const Pal::Image&         dstImage,
+        ImageLayout               dstImageLayout,
+        ResolveMode               resolveMode,
+        uint32                    regionCount,
+        const ImageResolveRegion* pRegions,
+        uint32                    flags) const override;
+
+    virtual void CmdResolvePrtPlusImage(
+        GfxCmdBuffer*                    pCmdBuffer,
+        const IImage&                    srcImage,
+        ImageLayout                      srcImageLayout,
+        const IImage&                    dstImage,
+        ImageLayout                      dstImageLayout,
+        PrtPlusResolveType               resolveType,
+        uint32                           regionCount,
+        const PrtPlusImageResolveRegion* pRegions) const override;
+
+    virtual ImageCopyEngine GetImageToImageCopyEngine(
+        const GfxCmdBuffer*    pCmdBuffer,
+        const Pal::Image&      srcImage,
+        const Pal::Image&      dstImage,
+        uint32                 regionCount,
+        const ImageCopyRegion* pRegions,
+        uint32                 copyFlags) const override;
+
+    virtual bool ScaledCopyImageUseGraphics(
+        GfxCmdBuffer*         pCmdBuffer,
+        const ScaledCopyInfo& copyInfo) const override;
+
+    virtual bool PreferComputeForNonLocalDestCopy(const Pal::Image& dstImage) const override;
+
     static void MetaDataDispatch(
         GfxCmdBuffer*       pCmdBuffer,
         const Gfx9MaskRam*  pMaskRam,
@@ -317,7 +385,7 @@ protected:
 
 private:
     void CmdCopyMemoryFromToImageViaPixels(
-        Pm4CmdBuffer*                 pCmdBuffer,
+        GfxCmdBuffer*                 pCmdBuffer,
         const Pal::Image&             image,
         const GpuMemory&              memory,
         const MemoryImageCopyRegion&  region,
@@ -325,7 +393,7 @@ private:
         bool                          imageIsSrc) const;
 
     void CmdCopyImageToImageViaPixels(
-        Pm4CmdBuffer*          pCmdBuffer,
+        GfxCmdBuffer*          pCmdBuffer,
         const Pal::Image&      srcImage,
         const Pal::Image&      dstImage,
         const ImageCopyRegion& region) const;
@@ -345,7 +413,7 @@ private:
         const ImageCopyRegion& region);
 
     virtual void HwlFastColorClear(
-        Pm4CmdBuffer*         pCmdBuffer,
+        GfxCmdBuffer*         pCmdBuffer,
         const GfxImage&       dstImage,
         const uint32*         pConvertedColor,
         const SwizzledFormat& clearFormat,
@@ -373,25 +441,35 @@ private:
         uint32             boxCnt,
         const Box*         pBox) const override;
 
+    virtual uint32 HwlBeginGraphicsCopy(
+        GfxCmdBuffer*                pCmdBuffer,
+        const Pal::GraphicsPipeline* pPipeline,
+        const Pal::Image&            dstImage,
+        uint32                       bpp) const override;
+
+    virtual void HwlEndGraphicsCopy(
+        GfxCmdStream* pCmdStream,
+        uint32        restoreMask) const override;
+
     void ClearFmask(
         GfxCmdBuffer*      pCmdBuffer,
         const Image&       dstImage,
         const SubresRange& clearRange,
         uint64             clearValue) const;
 
-    virtual void InitCmask(
+    void InitCmask(
         GfxCmdBuffer*      pCmdBuffer,
         Pal::CmdStream*    pCmdStream,
         const Image&       image,
         const SubresRange& range,
         const uint8        initValue,
-        bool               trackBltActiveFlags) const = 0;
+        bool               trackBltActiveFlags) const;
 
-    virtual void InitHtile(
+    void InitHtile(
         GfxCmdBuffer*      pCmdBuffer,
         Pal::CmdStream*    pCmdStream,
         const Image&       dstImage,
-        const SubresRange& clearRange) const = 0;
+        const SubresRange& clearRange) const;
 
     void ClearHiSPretestsMetaData(
         GfxCmdBuffer*      pCmdBuffer,
@@ -474,120 +552,14 @@ private:
         uint32        size,
         bool          hasDccLookupTable) const;
 
-    PAL_DISALLOW_DEFAULT_CTOR(RsrcProcMgr);
-    PAL_DISALLOW_COPY_AND_ASSIGN(RsrcProcMgr);
-};
-
-class Gfx10DepthStencilView;
-
-// =====================================================================================================================
-// GFX10 specific implementation of RPM.
-class Gfx10RsrcProcMgr final : public Pal::Gfx9::RsrcProcMgr
-{
-public:
-    explicit Gfx10RsrcProcMgr(Device* pDevice) : Pal::Gfx9::RsrcProcMgr(pDevice) {}
-    virtual ~Gfx10RsrcProcMgr() {}
-
-    void BuildDccLookupTable(
-        GfxCmdBuffer*      pCmdBuffer,
-        const Image&       srcImage,
-        const SubresRange& range) const override;
-
-    virtual void HwlResummarizeHtileCompute(
-        Pm4CmdBuffer*      pCmdBuffer,
-        const GfxImage&    image,
-        const SubresRange& range) const override;
-
-    virtual void CmdResolveImage(
-        GfxCmdBuffer*             pCmdBuffer,
-        const Pal::Image&         srcImage,
-        ImageLayout               srcImageLayout,
-        const Pal::Image&         dstImage,
-        ImageLayout               dstImageLayout,
-        ResolveMode               resolveMode,
-        uint32                    regionCount,
-        const ImageResolveRegion* pRegions,
-        uint32                    flags) const override;
-
-    void CmdResolvePrtPlusImage(
-        GfxCmdBuffer*                    pCmdBuffer,
-        const IImage&                    srcImage,
-        ImageLayout                      srcImageLayout,
-        const IImage&                    dstImage,
-        ImageLayout                      dstImageLayout,
-        PrtPlusResolveType               resolveType,
-        uint32                           regionCount,
-        const PrtPlusImageResolveRegion* pRegions) const override;
-
     void LaunchOptimizedVrsCopyShader(
-        GfxCmdBuffer*                  pCmdBuffer,
-        const Gfx10DepthStencilView*   pDsView,
-        bool                           isClientDsv,
-        const Extent3d&                depthExtent,
-        const Pal::Image*              pSrcVrsImg,
-        const Gfx9Htile*const          pHtile) const;
+        GfxCmdBuffer*           pCmdBuffer,
+        const DepthStencilView* pDsView,
+        bool                    isClientDsv,
+        const Extent3d&         depthExtent,
+        const Pal::Image*       pSrcVrsImg,
+        const Gfx9Htile*const   pHtile) const;
 
-    void CopyVrsIntoHtile(
-        GfxCmdBuffer*                pCmdBuffer,        // cmd buffer to receive copy commands, must support compute
-        const Gfx10DepthStencilView* pDsView,           // depth view that contains image that owns dest hTile buffer
-        bool                         isClientDsv,
-        const Extent3d&              depthExtent,       // extent of the depth buffers' mip level
-        const Pal::Image*            pSrcVrsImg) const; // source VRS data (can be NULL to imply 1x1)
-
-protected:
-    virtual void ClearDccCompute(
-        GfxCmdBuffer*      pCmdBuffer,
-        Pal::CmdStream*    pCmdStream,
-        const Image&       dstImage,
-        const SubresRange& clearRange,
-        uint8              clearCode,
-        DccClearPurpose    clearPurpose,
-        bool               trackBltActiveFlags,
-        const uint32*      pPackedClearColor = nullptr) const override;
-
-    virtual void FastDepthStencilClearCompute(
-        GfxCmdBuffer*      pCmdBuffer,
-        const Image&       dstImage,
-        const SubresRange& range,
-        uint32             htileValue,
-        uint32             clearMask,
-        uint8              stencil,
-        bool               trackBltActiveFlags) const override;
-
-    virtual const Pal::ComputePipeline* GetCmdGenerationPipeline(
-        const Pm4::IndirectCmdGenerator& generator,
-        const Pm4CmdBuffer&              cmdBuffer) const override;
-
-    virtual void InitCmask(
-        GfxCmdBuffer*      pCmdBuffer,
-        Pal::CmdStream*    pCmdStream,
-        const Image&       image,
-        const SubresRange& range,
-        uint8              initValue,
-        bool               trackBltActiveFlags) const override;
-
-    virtual void InitHtile(
-        GfxCmdBuffer*      pCmdBuffer,
-        Pal::CmdStream*    pCmdStream,
-        const Image&       dstImage,
-        const SubresRange& clearRange) const override;
-
-    virtual ImageCopyEngine GetImageToImageCopyEngine(
-        const GfxCmdBuffer*    pCmdBuffer,
-        const Pal::Image&      srcImage,
-        const Pal::Image&      dstImage,
-        uint32                 regionCount,
-        const ImageCopyRegion* pRegions,
-        uint32                 copyFlags) const override;
-
-    virtual bool ScaledCopyImageUseGraphics(
-        GfxCmdBuffer*         pCmdBuffer,
-        const ScaledCopyInfo& copyInfo) const override;
-
-    virtual bool PreferComputeForNonLocalDestCopy(const Pal::Image& dstImage) const override;
-    virtual bool CopyImageCsUseMsaaMorton(const Pal::Image& dstImage) const override;
-
-private:
     void InitHtileData(
         GfxCmdBuffer*      pCmdBuffer,
         const Image&       dstImage,
@@ -621,7 +593,7 @@ private:
         const ImageResolveRegion* pRegions) const;
 
     void HwlHtileCopyAndFixUp(
-        Pm4CmdBuffer*             pCmdBuffer,
+        GfxCmdBuffer*             pCmdBuffer,
         const Pal::Image&         srcImage,
         const Pal::Image&         dstImage,
         ImageLayout               dstImageLayout,
@@ -629,35 +601,8 @@ private:
         const ImageResolveRegion* pRegions,
         bool                      computeResolve) const;
 
-    virtual void HwlFixupCopyDstImageMetadata(
-        GfxCmdBuffer*           pCmdBuffer,
-        const Pal::Image*       pSrcImage,
-        const Pal::Image&       dstImage,
-        ImageLayout             dstImageLayout,
-        const ImageFixupRegion* pRegions,
-        uint32                  regionCount,
-        bool                    isFmaskCopyOptimized) const override;
-
-    virtual uint32 HwlBeginGraphicsCopy(
-        Pm4CmdBuffer*                pCmdBuffer,
-        const Pal::GraphicsPipeline* pPipeline,
-        const Pal::Image&            dstImage,
-        uint32                       bpp) const override;
-
-    virtual void HwlEndGraphicsCopy(
-        Pm4::CmdStream* pCmdStream,
-        uint32          restoreMask) const override;
-
-    virtual void CmdDisplayDccFixUp(
-        GfxCmdBuffer*      pCmdBuffer,
-        const Pal::Image&  image) const override;
-
-    virtual void CmdGfxDccToDisplayDcc(
-        GfxCmdBuffer*     pCmdBuffer,
-        const Pal::Image& image) const override;
-
-    PAL_DISALLOW_DEFAULT_CTOR(Gfx10RsrcProcMgr);
-    PAL_DISALLOW_COPY_AND_ASSIGN(Gfx10RsrcProcMgr);
+    PAL_DISALLOW_DEFAULT_CTOR(RsrcProcMgr);
+    PAL_DISALLOW_COPY_AND_ASSIGN(RsrcProcMgr);
 };
 
 } // Gfx9

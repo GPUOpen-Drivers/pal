@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -30,7 +30,7 @@
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9OcclusionQueryPool.h"
 #include "core/hw/gfxip/gfx9/gfx9UniversalCmdBuffer.h"
-#include "core/hw/gfxip/pm4CmdBuffer.h"
+#include "core/hw/gfxip/gfxCmdBuffer.h"
 #include "palCmdBuffer.h"
 #include "palIntervalTreeImpl.h"
 #include "palSysUtil.h"
@@ -208,13 +208,11 @@ void OcclusionQueryPool::GpuReset(
 
         const Interval<gpusize, bool> interval = { gpuAddr, gpuAddr + GetGpuResultSizeInBytes(queryCount) - 1 };
 
-        Pm4CmdBuffer* pPm4CmdBuf = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
-
-        if (pPm4CmdBuf->GetPm4CmdBufState().flags.prevCmdBufActive || pActiveRanges->Overlap(&interval))
+        if (pCmdBuffer->GetCmdBufState().flags.prevCmdBufActive || pActiveRanges->Overlap(&interval))
         {
             constexpr WriteWaitEopInfo WaitEopInfo = { .hwAcqPoint = AcquirePointMe };
 
-            pCmdSpace = pPm4CmdBuf->WriteWaitEop(WaitEopInfo, pCmdSpace);
+            pCmdSpace = pCmdBuffer->WriteWaitEop(WaitEopInfo, pCmdSpace);
 
             // The global wait guaranteed all work has completed, including any outstanding End() calls.
             pActiveRanges->Clear();

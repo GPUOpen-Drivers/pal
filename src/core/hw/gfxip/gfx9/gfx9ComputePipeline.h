@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -88,8 +88,6 @@ public:
     virtual void SetStackSizeInBytes(
         uint32 stackSizeInBytes) override;
 
-    bool DisablePartialPreempt() const { return m_disablePartialPreempt; }
-
     // Returns the scratch memory size in dwords
     static uint32 CalcScratchMemSize(const Util::PalAbi::CodeObjectMetadata& metadata);
 
@@ -107,7 +105,8 @@ protected:
         const ComputePipelineCreateInfo&        createInfo,
         const AbiReader&                        abiReader,
         const Util::HsaAbi::CodeObjectMetadata& metadata,
-        Util::MsgPackReader*                    pMetadataReader) override;
+        Util::MsgPackReader*                    pMetadataReader,
+        const Extent3d&                         groupSize) override;
 
 private:
     void UpdateRingSizeComputeScratch(uint32 scratchMemorySize);
@@ -117,7 +116,6 @@ private:
     ComputePipelineSignature m_signature;
     size_t                   m_ringSizeComputeScratch;
     PipelineChunkCs          m_chunkCs;
-    bool                     m_disablePartialPreempt;
     const bool               m_shPairsPacketSupportedCs;
 
     PAL_DISALLOW_DEFAULT_CTOR(ComputePipeline);

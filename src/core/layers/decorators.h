@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -476,7 +476,6 @@ public:
     { m_pNextLayer->GetDbgLoggerFileSettings(pSettings); }
 #endif
 
-    ClientApi   GetClientApiId()  const { return m_clientApiId; }
     const char* GetClientApiStr() const;
 
 protected:
@@ -504,7 +503,6 @@ protected:
     void*                  m_pClientPrivateData;
     bool                   m_installDeveloperCb;
     const bool             m_layerEnabled;
-    const ClientApi        m_clientApiId;
 
 private:
     bool                   m_logDirCreated;        // The log dir can only be created once.
@@ -853,6 +851,9 @@ public:
     virtual size_t GetImageSize(
         const ImageCreateInfo& createInfo,
         Result*                pResult) const override;
+
+    virtual bool ImagePrefersCloneCopy(
+        const ImageCreateInfo& createInfo) const override;
 
     virtual Result CreateImage(
         const ImageCreateInfo& createInfo,
@@ -1817,12 +1818,14 @@ public:
                                                   cscTable);
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 913
     virtual void CmdCloneImageData(
         const IImage& srcImage,
         const IImage& dstImage) override
     {
         m_pNextLayer->CmdCloneImageData(*NextImage(&srcImage), *NextImage(&dstImage));
     }
+#endif
 
     virtual void CmdUpdateMemory(
         const IGpuMemory& dstGpuMemory,
@@ -2173,35 +2176,6 @@ public:
                                             *(NextGpuMemory(&dstGpuMemory)),
                                             dstOffset);
     }
-
-    virtual void CmdLoadCeRam(
-        const IGpuMemory& srcGpuMemory,
-        gpusize           memOffset,
-        uint32            ramOffset,
-        uint32            dwordSize) override
-        { m_pNextLayer->CmdLoadCeRam(*NextGpuMemory(&srcGpuMemory), memOffset, ramOffset, dwordSize); }
-
-    virtual void CmdDumpCeRam(
-        const IGpuMemory& dstGpuMemory,
-        gpusize           memOffset,
-        uint32            ramOffset,
-        uint32            dwordSize,
-        uint32            currRingPos,
-        uint32            ringSize) override
-    {
-        m_pNextLayer->CmdDumpCeRam(*NextGpuMemory(&dstGpuMemory),
-                                   memOffset,
-                                   ramOffset,
-                                   dwordSize,
-                                   currRingPos,
-                                   ringSize);
-    }
-
-    virtual void CmdWriteCeRam(
-        const void* pSrcData,
-        uint32      ramOffset,
-        uint32      dwordSize) override
-        { m_pNextLayer->CmdWriteCeRam(pSrcData, ramOffset, dwordSize); }
 
     virtual uint32* CmdAllocateEmbeddedData(
         uint32   sizeInDwords,

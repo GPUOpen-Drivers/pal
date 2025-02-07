@@ -2596,19 +2596,6 @@
       "Name": "WaStalledPopsMode"
     },
     {
-      "Description": "If true, IB2's cannot be used on the constant engine (CE).",
-      "Tags": [
-        "Hardware Workarounds"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Flags": {},
-      "Scope": "PrivatePalKey",
-      "Type": "bool",
-      "Name": "WaCeDisableIb2"
-    },
-    {
       "Description": "If true, instance packing will be disabled when query pipeline statistics  using *_ADJACENCY primitive and instance > 1.",
       "Tags": [
         "Hardware Workarounds"

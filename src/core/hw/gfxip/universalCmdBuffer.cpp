@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -29,8 +29,8 @@
 #include "core/hw/gfxip/gfxDevice.h"
 #include "core/hw/gfxip/graphicsPipeline.h"
 #include "core/hw/gfxip/pipeline.h"
-#include "core/hw/gfxip/pm4UniversalCmdBuffer.h"
-#include "core/hw/gfxip/rpm/pm4RsrcProcMgr.h"
+#include "core/hw/gfxip/universalCmdBuffer.h"
+#include "core/hw/gfxip/rpm/rsrcProcMgr.h"
 #include "core/gpuMemory.h"
 #include "core/perfExperiment.h"
 #include "core/platform.h"
@@ -43,28 +43,23 @@ using namespace Util;
 namespace Pal
 {
 
-namespace Pm4
-{
-
 // =====================================================================================================================
 UniversalCmdBuffer::UniversalCmdBuffer(
     const GfxDevice&           device,
     const CmdBufferCreateInfo& createInfo,
     const GfxBarrierMgr*       pBarrierMgr,
-    Pm4::CmdStream*            pDeCmdStream,
-    Pm4::CmdStream*            pCeCmdStream,
-    Pm4::CmdStream*            pAceCmdStream,
+    GfxCmdStream*              pDeCmdStream,
+    GfxCmdStream*              pAceCmdStream,
     bool                       blendOptEnable,
     bool                       useUpdateUserData)
     :
-    Pm4CmdBuffer(device, createInfo, pBarrierMgr),
+    GfxCmdBuffer(device, createInfo, pBarrierMgr),
     m_graphicsState{},
     m_graphicsRestoreState{},
     m_blendOpts{},
     m_pAceCmdStream(pAceCmdStream),
     m_device(device),
     m_pDeCmdStream(pDeCmdStream),
-    m_pCeCmdStream(pCeCmdStream),
     m_blendOptEnable(blendOptEnable),
     m_contextStatesPerBin(1),
     m_persistentStatesPerBin(1)
@@ -73,12 +68,12 @@ UniversalCmdBuffer::UniversalCmdBuffer(
 
     if (useUpdateUserData)
     {
-        SwitchCmdSetUserDataFunc(PipelineBindPoint::Compute, &Pm4CmdBuffer::CmdUpdateUserDataCs);
+        SwitchCmdSetUserDataFunc(PipelineBindPoint::Compute, &GfxCmdBuffer::CmdUpdateUserDataCs);
         SwitchCmdSetUserDataFunc(PipelineBindPoint::Graphics, &CmdUpdateUserDataGfx);
     }
     else
     {
-        SwitchCmdSetUserDataFunc(PipelineBindPoint::Compute, &Pm4CmdBuffer::CmdSetUserDataCs);
+        SwitchCmdSetUserDataFunc(PipelineBindPoint::Compute, &GfxCmdBuffer::CmdSetUserDataCs);
         SwitchCmdSetUserDataFunc(PipelineBindPoint::Graphics, &CmdSetUserDataGfxFiltered);
     }
 
@@ -117,7 +112,7 @@ Result UniversalCmdBuffer::Begin(
         m_persistentStatesPerBin = info.persistentStatesPerBin;
     }
 
-    Result result = Pm4CmdBuffer::Begin(info);
+    Result result = GfxCmdBuffer::Begin(info);
 
     if (info.pInheritedState != nullptr)
     {
@@ -133,16 +128,11 @@ Result UniversalCmdBuffer::BeginCommandStreams(
     CmdStreamBeginFlags cmdStreamFlags,
     bool                doReset)
 {
-    Result result = Pm4CmdBuffer::BeginCommandStreams(cmdStreamFlags, doReset);
+    Result result = GfxCmdBuffer::BeginCommandStreams(cmdStreamFlags, doReset);
 
     if (doReset)
     {
         m_pDeCmdStream->Reset(nullptr, true);
-
-        if (m_pCeCmdStream != nullptr)
-        {
-            m_pCeCmdStream->Reset(nullptr, true);
-        }
 
         if (m_pAceCmdStream != nullptr)
         {
@@ -153,11 +143,6 @@ Result UniversalCmdBuffer::BeginCommandStreams(
     if (result == Result::Success)
     {
         result = m_pDeCmdStream->Begin(cmdStreamFlags, m_pMemAllocator);
-    }
-
-    if ((result == Result::Success) && (m_pCeCmdStream != nullptr))
-    {
-        result = m_pCeCmdStream->Begin(cmdStreamFlags, m_pMemAllocator);
     }
 
     if ((result == Result::Success) && (m_pAceCmdStream != nullptr))
@@ -175,16 +160,11 @@ Result UniversalCmdBuffer::End()
 {
     // Amoung other things, this will add the postamble.  Be sure to add this before ending the command streams so that
     // they get padded correctly.
-    Result result = Pm4CmdBuffer::End();
+    Result result = GfxCmdBuffer::End();
 
     if (result == Result::Success)
     {
         result = m_pDeCmdStream->End();
-    }
-
-    if ((result == Result::Success) && (m_pCeCmdStream != nullptr))
-    {
-        result = m_pCeCmdStream->End();
     }
 
     if ((result == Result::Success) && (m_pAceCmdStream != nullptr))
@@ -197,8 +177,8 @@ Result UniversalCmdBuffer::End()
 
         m_graphicsState.leakFlags.u32All |= m_graphicsState.dirtyFlags.u32All;
 
-        const Pal::CmdStream* cmdStreams[] = { m_pDeCmdStream, m_pCeCmdStream, m_pAceCmdStream };
-        EndCmdBufferDump(cmdStreams, 3);
+        const Pal::CmdStream* cmdStreams[] = { m_pDeCmdStream, m_pAceCmdStream };
+        EndCmdBufferDump(cmdStreams, 2);
     }
 
     return result;
@@ -211,16 +191,11 @@ Result UniversalCmdBuffer::Reset(
     ICmdAllocator* pCmdAllocator,
     bool           returnGpuMemory)
 {
-    Result result = Pm4CmdBuffer::Reset(pCmdAllocator, returnGpuMemory);
+    Result result = GfxCmdBuffer::Reset(pCmdAllocator, returnGpuMemory);
 
     if (result == Result::Success)
     {
         m_pDeCmdStream->Reset(static_cast<CmdAllocator*>(pCmdAllocator), returnGpuMemory);
-
-        if (m_pCeCmdStream != nullptr)
-        {
-            m_pCeCmdStream->Reset(static_cast<CmdAllocator*>(pCmdAllocator), returnGpuMemory);
-        }
 
         if (m_pAceCmdStream != nullptr)
         {
@@ -252,7 +227,7 @@ Result UniversalCmdBuffer::Reset(
 // Resets all of the state tracked by this command buffer
 void UniversalCmdBuffer::ResetState()
 {
-    Pm4CmdBuffer::ResetState();
+    GfxCmdBuffer::ResetState();
 
     memset(&m_graphicsState, 0, sizeof(m_graphicsState));
 
@@ -291,8 +266,8 @@ void UniversalCmdBuffer::CmdBindPipeline(
         m_graphicsState.pipelineState.apiPsoHash = params.apiPsoHash;
     }
 
-    // Compute state and some additional generic support is handled by the Pm4CmdBuffer.
-    Pm4CmdBuffer::CmdBindPipeline(params);
+    // Compute state and some additional generic support is handled by the GfxCmdBuffer.
+    GfxCmdBuffer::CmdBindPipeline(params);
 }
 
 // =====================================================================================================================
@@ -462,11 +437,6 @@ void UniversalCmdBuffer::DumpCmdStreamsToFile(
 {
     m_pDeCmdStream->DumpCommands(pFile, "# Universal Queue - DE Command length = ", mode);
 
-    if (m_pCeCmdStream != nullptr)
-    {
-        m_pCeCmdStream->DumpCommands(pFile, "# Universal Queue - CE Command length = ", mode);
-    }
-
     if (m_pAceCmdStream != nullptr)
     {
         m_pAceCmdStream->DumpCommands(pFile, "# Universal Queue - ACE Command length = ", mode);
@@ -526,7 +496,7 @@ void UniversalCmdBuffer::CmdSaveGraphicsState()
     memset(&m_graphicsState.gfxUserDataEntries.touched[0], 0, sizeof(m_graphicsState.gfxUserDataEntries.touched));
 
     // Disable all active queries so that we don't sample internal operations in the app's query pool slots.
-    // SEE: Pm4CmdBuffer::CmdSaveComputeState() for details on why we don't expect Vulkan to set this flag.
+    // SEE: GfxCmdBuffer::CmdSaveComputeState() for details on why we don't expect Vulkan to set this flag.
     if (m_buildFlags.disableQueryInternalOps)
     {
         DeactivateQueries();
@@ -586,17 +556,19 @@ void UniversalCmdBuffer::SetGraphicsState(
     SetGraphicsState(newGraphicsState, setGraphicsStateFlags, setPipelineStateFlags);
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 913
 // =====================================================================================================================
 void UniversalCmdBuffer::CmdCloneImageData(
     const IImage& srcImage,
     const IImage& dstImage)
 {
-    const auto& rsrcProcMgr = static_cast<const Pm4::RsrcProcMgr&>(m_device.RsrcProcMgr());
+    const auto& rsrcProcMgr = static_cast<const Pal::RsrcProcMgr&>(m_device.RsrcProcMgr());
 
     rsrcProcMgr.CmdCloneImageData(this,
                                   static_cast<const Pal::Image&>(srcImage),
                                   static_cast<const Pal::Image&>(dstImage));
 }
+#endif
 
 // =====================================================================================================================
 // Set all specified state on this command buffer.
@@ -1004,18 +976,18 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
     }
 
     // It is possible that nested command buffer execute operation which affect the data in the primary buffer
-    const Pm4CmdBufferStateFlags srcFlags = cmdBuffer.m_pm4CmdBufState.flags;
+    const GfxCmdBufferStateFlags srcFlags = cmdBuffer.m_cmdBufState.flags;
 
-    m_pm4CmdBufState.flags.gfxBltActive                        = srcFlags.gfxBltActive;
-    m_pm4CmdBufState.flags.csBltActive                         = srcFlags.csBltActive;
-    m_pm4CmdBufState.flags.cpBltActive                         = srcFlags.cpBltActive;
-    m_pm4CmdBufState.flags.gfxWriteCachesDirty                 = srcFlags.gfxWriteCachesDirty;
-    m_pm4CmdBufState.flags.csWriteCachesDirty                  = srcFlags.csWriteCachesDirty;
-    m_pm4CmdBufState.flags.cpWriteCachesDirty                  = srcFlags.cpWriteCachesDirty;
-    m_pm4CmdBufState.flags.cpMemoryWriteL2CacheStale           = srcFlags.cpMemoryWriteL2CacheStale;
-    m_pm4CmdBufState.flags.csBltDirectWriteMisalignedMdDirty   = srcFlags.csBltDirectWriteMisalignedMdDirty;
-    m_pm4CmdBufState.flags.csBltIndirectWriteMisalignedMdDirty = srcFlags.csBltIndirectWriteMisalignedMdDirty;
-    m_pm4CmdBufState.flags.gfxBltDirectWriteMisalignedMdDirty  = srcFlags.gfxBltDirectWriteMisalignedMdDirty;
+    m_cmdBufState.flags.gfxBltActive                        = srcFlags.gfxBltActive;
+    m_cmdBufState.flags.csBltActive                         = srcFlags.csBltActive;
+    m_cmdBufState.flags.cpBltActive                         = srcFlags.cpBltActive;
+    m_cmdBufState.flags.gfxWriteCachesDirty                 = srcFlags.gfxWriteCachesDirty;
+    m_cmdBufState.flags.csWriteCachesDirty                  = srcFlags.csWriteCachesDirty;
+    m_cmdBufState.flags.cpWriteCachesDirty                  = srcFlags.cpWriteCachesDirty;
+    m_cmdBufState.flags.cpMemoryWriteL2CacheStale           = srcFlags.cpMemoryWriteL2CacheStale;
+    m_cmdBufState.flags.csBltDirectWriteMisalignedMdDirty   = srcFlags.csBltDirectWriteMisalignedMdDirty;
+    m_cmdBufState.flags.csBltIndirectWriteMisalignedMdDirty = srcFlags.csBltIndirectWriteMisalignedMdDirty;
+    m_cmdBufState.flags.gfxBltDirectWriteMisalignedMdDirty  = srcFlags.gfxBltDirectWriteMisalignedMdDirty;
 
     m_graphicsState.viewInstanceMask = graphics.viewInstanceMask;
 
@@ -1037,11 +1009,9 @@ const CmdStream* UniversalCmdBuffer::GetCmdStream(
 
     CmdStream* pStream = nullptr;
 
-    // CE command stream index < DE command stream index so CE will be launched before the DE.
     // DE cmd stream index > all others because CmdBuffer::End() uses
     // GetCmdStream(NumCmdStreams() - 1) to get a "root" chunk.
     // The ACE command stream is located first so that the DE CmdStream is at NumCmdStreams() - 1
-    // and the CE CmdStream remains before the DE CmdStream.
     switch (cmdStreamIdx)
     {
     case 0:
@@ -1049,9 +1019,6 @@ const CmdStream* UniversalCmdBuffer::GetCmdStream(
         pStream = (ImplicitGangedSubQueueCount() > 0) ? m_pAceCmdStream : nullptr;
         break;
     case 1:
-        pStream = m_pCeCmdStream;
-        break;
-    case 2:
         pStream = m_pDeCmdStream;
         break;
     }
@@ -1067,8 +1034,8 @@ uint32 UniversalCmdBuffer::NumCmdStreamsInSubQueue(
 {
     PAL_ASSERT(subQueueIndex < int32(AceStreamCount));
 
-    // The main sub-queue has two streams (DE and CE), other ganged sub-queues have one stream (ACE).
-    return (subQueueIndex == MainSubQueueIdx) ? 2 : 1;
+    // The main sub-queue has one stream (DE), other ganged sub-queues have one stream (ACE).
+    return 1;
 }
 
 // =====================================================================================================================
@@ -1083,8 +1050,8 @@ const CmdStream* UniversalCmdBuffer::GetCmdStreamInSubQueue(
     const CmdStream* pStream = nullptr;
     if (subQueueIndex == MainSubQueueIdx)
     {
-        // For the "main" sub-queue, CE always comes first.
-        pStream = (cmdStreamIndex == 0) ? m_pCeCmdStream : m_pDeCmdStream;
+        PAL_ASSERT(cmdStreamIndex == 0);
+        pStream = m_pDeCmdStream;
     }
     else
     {
@@ -1104,8 +1071,7 @@ uint32 UniversalCmdBuffer::GetUsedSize(
 
     if (type == CommandDataAlloc)
     {
-        sizeInBytes += (m_pDeCmdStream->GetUsedCmdMemorySize() +
-                       ((m_pCeCmdStream != nullptr) ? m_pCeCmdStream->GetUsedCmdMemorySize() : 0));
+        sizeInBytes += m_pDeCmdStream->GetUsedCmdMemorySize();
     }
 
     return sizeInBytes;
@@ -1143,5 +1109,4 @@ void UniversalCmdBuffer::CmdBindSampleRateImage(
     m_graphicsState.dirtyFlags.vrsImage = 1;
 }
 
-} // Pm4
 } // Pal

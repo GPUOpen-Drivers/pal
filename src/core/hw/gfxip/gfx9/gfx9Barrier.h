@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2023-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2023-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -26,8 +26,8 @@
 #pragma once
 
 #include "core/hw/gfxip/gfxBarrier.h"
+#include "core/hw/gfxip/gfxCmdBuffer.h"
 #include "core/hw/gfxip/gfx9/gfx9Chip.h"
-#include "core/hw/gfxip/pm4CmdBuffer.h"
 #include "palAutoBuffer.h"
 
 namespace Pal
@@ -178,14 +178,14 @@ public:
         Developer::BarrierOperations* pBarrierOps) const override;
 
     virtual void OptimizeStageMask(
-        const Pm4CmdBuffer* pCmdBuf,
+        const GfxCmdBuffer* pCmdBuf,
         BarrierType         barrierType,
         uint32*             pSrcStageMask,
         uint32*             pDstStageMask,
         bool                isClearToTarget = false) const override;
 
     virtual bool OptimizeAccessMask(
-        const Pm4CmdBuffer* pCmdBuf,
+        const GfxCmdBuffer* pCmdBuf,
         BarrierType         barrierType,
         const Pal::Image*   pImage,
         uint32*             pSrcAccessMask,
@@ -193,7 +193,7 @@ public:
         bool                shaderMdAccessIndirectOnly) const override;
 
     void IssueSyncs(
-        Pm4CmdBuffer*                 pCmdBuf,
+        GfxCmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         SyncReqs                      syncReqs,
         HwPipePoint                   waitPoint,
@@ -255,13 +255,13 @@ private:
     };
 
     static void PostSyncUpdateDccStateMetaData(
-        Pm4CmdBuffer*                 pCmdBuf,
+        GfxCmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         const AcqRelTransitionInfo&   transitonInfo,
         Developer::BarrierOperations* pBarrierOps);
 
     static void OptimizeSrcCacheMask(
-        const Pm4CmdBuffer* pCmdBuf,
+        const GfxCmdBuffer* pCmdBuf,
         uint32*             pCacheMask);
 
     const RsrcProcMgr& RsrcProcMgr() const;
@@ -271,13 +271,13 @@ private:
         uint32                        dstCacheMask,
         const IImage*                 pImage) const;
     void FlushAndInvL2IfNeeded(
-        Pm4CmdBuffer*                 pCmdBuf,
+        GfxCmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         const BarrierInfo&            barrier,
         uint32                        transitionId,
         Developer::BarrierOperations* pOperations) const;
     void ExpandColor(
-        Pm4CmdBuffer*                 pCmdBuf,
+        GfxCmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         const BarrierInfo&            barrier,
         uint32                        transitionId,
@@ -285,44 +285,44 @@ private:
         SyncReqs*                     pSyncReqs,
         Developer::BarrierOperations* pOperations) const;
     void TransitionDepthStencil(
-        Pm4CmdBuffer*                 pCmdBuf,
+        GfxCmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
-        Pm4CmdBufferStateFlags        cmdBufStateFlags,
+        GfxCmdBufferStateFlags        cmdBufStateFlags,
         const BarrierInfo&            barrier,
         uint32                        transitionId,
         bool                          earlyPhase,
         SyncReqs*                     pSyncReqs,
         Developer::BarrierOperations* pOperations) const;
     void AcqRelColorTransition(
-        Pm4CmdBuffer*                 pCmdBuf,
+        GfxCmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         const ImgBarrier&             imgBarrier,
         LayoutTransitionInfo          layoutTransInfo,
         Developer::BarrierOperations* pBarrierOps) const;
 
     void AcqRelDepthStencilTransition(
-        Pm4CmdBuffer*                 pCmdBuf,
+        GfxCmdBuffer*                 pCmdBuf,
         const ImgBarrier&             imgBarrier,
         LayoutTransitionInfo          layoutTransInfo) const;
 
     LayoutTransitionInfo PrepareColorBlt(
-        Pm4CmdBuffer*       pCmdBuf,
+        GfxCmdBuffer*       pCmdBuf,
         const Pal::Image&   image,
         const SubresRange&  subresRange,
         ImageLayout         oldLayout,
         ImageLayout         newLayout) const;
     LayoutTransitionInfo PrepareDepthStencilBlt(
-        const Pm4CmdBuffer* pCmdBuf,
+        const GfxCmdBuffer* pCmdBuf,
         const Pal::Image&   image,
         const SubresRange&  subresRange,
         ImageLayout         oldLayout,
         ImageLayout         newLayout) const;
     LayoutTransitionInfo PrepareBltInfo(
-        Pm4CmdBuffer*       pCmdBuf,
+        GfxCmdBuffer*       pCmdBuf,
         const ImgBarrier&   imageBarrier) const;
 
     CacheSyncOps GetCacheSyncOps(
-        Pm4CmdBuffer*       pCmdBuf,
+        GfxCmdBuffer*       pCmdBuf,
         BarrierType         barrierType,
         const ImgBarrier*   pImgBarrier,
         uint32              srcAccessMask,
@@ -330,7 +330,7 @@ private:
         bool                shaderMdAccessIndirectOnly) const;
 
     CacheSyncOps GetGlobalCacheSyncOps(
-        Pm4CmdBuffer*       pCmdBuf,
+        GfxCmdBuffer*       pCmdBuf,
         uint32              srcAccessMask,
         uint32              dstAccessMask) const
     {
@@ -338,7 +338,7 @@ private:
     }
 
     CacheSyncOps GetBufferCacheSyncOps(
-        Pm4CmdBuffer*       pCmdBuf,
+        GfxCmdBuffer*       pCmdBuf,
         uint32              srcAccessMask,
         uint32              dstAccessMask) const
     {
@@ -346,7 +346,7 @@ private:
     }
 
     CacheSyncOps GetImageCacheSyncOps(
-        Pm4CmdBuffer*       pCmdBuf,
+        GfxCmdBuffer*       pCmdBuf,
         const ImgBarrier*   pImgBarrier,
         uint32              srcAccessMask,
         uint32              dstAccessMask,
@@ -357,7 +357,7 @@ private:
     }
 
     bool IssueBlt(
-        Pm4CmdBuffer*                 pCmdBuf,
+        GfxCmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         const ImgBarrier*             pImgBarrier,
         LayoutTransitionInfo          transition,
@@ -365,45 +365,45 @@ private:
         Developer::BarrierOperations* pBarrierOps) const;
 
     SyncRbFlags OptimizeImageBarrier(
-        Pm4CmdBuffer*               pCmdBuf,
+        GfxCmdBuffer*               pCmdBuf,
         ImgBarrier*                 pImgBarrier,
         const LayoutTransitionInfo& layoutTransInfo,
         uint32                      bltStageMask,
         uint32                      bltAccessMask) const;
 
     AcqRelImageSyncInfo GetAcqRelLayoutTransitionBltInfo(
-        Pm4CmdBuffer*                 pCmdBuf,
+        GfxCmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         const AcquireReleaseInfo&     barrierInfo,
         AcqRelTransitionInfo*         pTransitionInfo,
         Developer::BarrierOperations* pBarrierOps) const;
 
     CacheSyncOps IssueAcqRelLayoutTransitionBlt(
-        Pm4CmdBuffer*                 pCmdBuf,
+        GfxCmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         AcqRelTransitionInfo*         pTransitonInfo,
         Developer::BarrierOperations* pBarrierOps) const;
 
     bool AcqRelInitMaskRam(
-        Pm4CmdBuffer*      pCmdBuf,
+        GfxCmdBuffer*      pCmdBuf,
         CmdStream*         pCmdStream,
         const ImgBarrier&  imgBarrier) const;
 
     ReleaseToken ReleaseInternal(
-        Pm4CmdBuffer*                 pCmdBuf,
+        GfxCmdBuffer*                 pCmdBuf,
         const AcquireReleaseInfo&     releaseInfo,
         const GpuEvent*               pClientEvent,
         Developer::BarrierOperations* pBarrierOps) const;
 
     void AcquireInternal(
-        Pm4CmdBuffer*                 pCmdBuf,
+        GfxCmdBuffer*                 pCmdBuf,
         const AcquireReleaseInfo&     acquireInfo,
         uint32                        syncTokenCount,
         const ReleaseToken*           pSyncTokens,
         Developer::BarrierOperations* pBarrierOps) const;
 
     ReleaseToken IssueReleaseSync(
-        Pm4CmdBuffer*                 pCmdBuf,
+        GfxCmdBuffer*                 pCmdBuf,
         uint32                        srcStageMask,
         bool                          releaseBufferCopyOnly,
         CacheSyncOps                  cacheOps,
@@ -411,7 +411,7 @@ private:
         Developer::BarrierOperations* pBarrierOps) const;
 
     void IssueAcquireSync(
-        Pm4CmdBuffer*                 pCmdBuf,
+        GfxCmdBuffer*                 pCmdBuf,
         uint32                        dstStageMask,
         CacheSyncOps                  cacheOps,
         uint32                        syncTokenCount,
@@ -419,7 +419,7 @@ private:
         Developer::BarrierOperations* pBarrierOps) const;
 
     void IssueReleaseThenAcquireSync(
-        Pm4CmdBuffer*                 pCmdBuf,
+        GfxCmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         uint32                        srcStageMask,
         uint32                        dstStageMask,
@@ -427,7 +427,7 @@ private:
         Developer::BarrierOperations* pBarrierOps) const;
 
     void OptimizeReadOnlyBarrier(
-        Pm4CmdBuffer*     pCmdBuf,
+        GfxCmdBuffer*     pCmdBuf,
         const ImgBarrier* pImgBarrier,
         uint32*           pSrcStageMask,
         uint32*           pDstStageMask,
@@ -440,7 +440,7 @@ private:
 
     bool EnableReleaseMemWaitCpDma() const;
 
-    static CmdStream* GetCmdStream(Pm4CmdBuffer* pCmdBuf);
+    static CmdStream* GetCmdStream(GfxCmdBuffer* pCmdBuf);
 
     const CmdUtil&   m_cmdUtil;
     const GfxIpLevel m_gfxIpLevel;

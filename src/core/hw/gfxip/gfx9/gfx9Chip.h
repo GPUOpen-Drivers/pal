@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -42,7 +42,6 @@
 #include "core/hw/gfxip/gfx9/chip/gfx9_plus_merged_registers.h"
 #include "core/hw/gfxip/gfx9/chip/gfx9_plus_merged_typedef.h"
 
-#include "core/hw/gfxip/gfx9/chip/gfx9_plus_merged_f32_ce_pm4_packets.h"  // constant engine
 #include "core/hw/gfxip/gfx9/chip/gfx9_plus_merged_f32_mec_pm4_packets.h" // compute engine
 #include "core/hw/gfxip/gfx9/chip/gfx9_plus_merged_f32_me_pm4_packets.h"  // micro-engine
 #include "core/hw/gfxip/gfx9/chip/gfx9_plus_merged_f32_pfp_pm4_packets.h" // pre-fetch-parser
@@ -56,13 +55,6 @@ class Platform;
 
 namespace Gfx9
 {
-
-// Helper struct for the 2nd dword of a DUMP_CONST_RAM_* CE packet.
-union DumpConstRamOrdinal2
-{
-    decltype(PM4_CE_DUMP_CONST_RAM::ordinal2.bitfields)  bits;
-    uint32                                               u32All;
-};
 
 // Describes the layout of the index buffer attributes used by a INDEX_ATTRIBUTES_INDIRECT packet.
 struct IndexAttribIndirect

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2024-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -334,7 +334,6 @@ uint32 Gfx9QueueRingBuffer::WriteIndirectBuffer(
                                                     pChunk->GpuVirtAddr(),
                                                     pChunk->CmdDwordsToExecute(),
                                                     false,
-                                                    (pCmdStream->GetSubEngineType() == SubEngineType::ConstantEngine),
                                                     pCmdStream->IsPreemptionEnabled(),
                                                     &packet));
 
@@ -363,40 +362,20 @@ uint32 Gfx9QueueRingBuffer::EndSubmit(
 // and ClientID.
 uint32 Gfx9QueueRingBuffer::MarkSubmissionEnd()
 {
-    // Because this is part of the CmdBuffer dumps where it'll be copied into a string and dumped we need the LSB to
-    // be the starting letter so it reads out correctly.
-    constexpr uint32 Sbmt = 0x544d4253; // Submit. This is a hex representation of 'T'->54, 'M'->4d, 'B'->42, 'S'->53
-    constexpr uint32 Vlkp = 0x504c4b56;
-    constexpr uint32 Unkn = 0x4e4b4e55; // Unknown
-
-    const ClientApi  clientApiId = m_pGfxDevice->GetPlatform()->GetClientApiId();
-    uint32           clientId    = Unkn;
-
-    switch(clientApiId)
-    {
-    case ClientApi::Vulkan:
-    {
-        clientId = Vlkp;
-        break;
-    }
-    default:
-        break;
-    }
+    constexpr uint32 Sbmt     = FourCc('S', 'B', 'M', 'T'); // Submit
+    constexpr uint32 ClientId = FourCc('V', 'L', 'K', 'P');
 
     // Reserve space on the stack for the NOP PM4 and its payload.
-    uint32 packet[3] = {};
+    constexpr uint32 NopSizeDwords = 3;
+    uint32 packet[NopSizeDwords] = {};
 
-    uint32 payload[2] = {};
+    m_cmdUtil.BuildNop(NopSizeDwords, &packet); // This writes the header to packet[0].
+    packet[1] = Sbmt;
+    packet[2] = ClientId;
 
-    payload[0] = Sbmt;
-    payload[1] = clientId;
+    WriteIntoRBHelper(&packet, NopSizeDwords);
 
-    uint32 packetSizeInDwords =
-        static_cast<uint32>(m_cmdUtil.BuildNopPayload(&payload, NopPayloadSizeInDwords ,&packet));
-
-    WriteIntoRBHelper(&packet, packetSizeInDwords);
-
-    return packetSizeInDwords;
+    return NopSizeDwords;
 }
 
 // =====================================================================================================================

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -116,12 +116,8 @@ CmdStream::CmdStream(
     if ((engineInfo.flags.supportsMidCmdBufPreemption != 0) &&
         (m_cmdStreamUsage == CmdStreamUsage::Workload))
     {
-        // We may want to disable preemption even if the KMD has enabled it. Because of the way the CE runs ahead of
-        // the DE, we must always enable preemption for our CE workload even if we want to disable preemption or we
-        // may corrupt or hang another driver's submit. Disabling preemption on our DE stream will be enough to tell
-        // the KMD/CP that we want preemption disabled for our submit.
-        m_flags.enablePreemption = ((m_subEngineType == SubEngineType::ConstantEngine) ||
-                                    (m_pDevice->Settings().cmdBufPreemptionMode == CmdBufPreemptModeEnable));
+        // We may want to disable preemption even if the KMD has enabled it.
+        m_flags.enablePreemption = (m_pDevice->Settings().cmdBufPreemptionMode == CmdBufPreemptModeEnable);
 
         m_flags.supportPreemption = m_flags.enablePreemption;
     }
@@ -166,10 +162,6 @@ Result CmdStream::Begin(
 // Returns a pointer to enough memory to store m_reserveLimit DWORDs of commands.
 uint32* CmdStream::ReserveCommands()
 {
-    // Why are we reserving constant engine space when we don't have a constant engine?
-    PAL_DEBUG_BUILD_ONLY_ASSERT((m_subEngineType != SubEngineType::ConstantEngine) ||
-               m_pDevice->IsConstantEngineSupported(m_engineType));
-
 #if PAL_ENABLE_PRINTS_ASSERTS
     // It's not legal to call ReserveCommands twice in a row.
     PAL_ASSERT(m_isReserved == false);
@@ -245,7 +237,7 @@ void CmdStream::CommitCommands(
     // If commit size logging is enabled, make the appropriate call to the allocator to update its histogram.
     if (m_pDevice->Settings().logCmdBufCommitSizes)
     {
-        m_pCmdAllocator->LogCommit(m_engineType, (m_subEngineType == SubEngineType::ConstantEngine), dwordsUsed);
+        m_pCmdAllocator->LogCommit(m_engineType, dwordsUsed);
     }
 #endif
 

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2023-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2023-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -38,7 +38,6 @@ class  GfxDevice;
 class  IGpuEvent;
 class  Image;
 class  Platform;
-class  Pm4CmdBuffer;
 struct AcquireReleaseInfo;
 struct BarrierInfo;
 
@@ -97,8 +96,6 @@ constexpr uint32 PipelineStagePfpMask       = PipelineStageTopOfPipe         |
 constexpr uint32 CacheCoherencyGraphicsOnly = CoherColorTarget        |
                                               CoherDepthStencilTarget |
                                               CoherSampleRate         |
-                                              CoherCeLoad             |
-                                              CoherCeDump             |
                                               CoherStreamOut          |
                                               CoherIndexData;
 
@@ -116,10 +113,10 @@ constexpr uint32 CoherBufferOnlyMask    = CoherIndirectArgs | CoherIndexData | C
 constexpr uint32 CacheCoherRbAccessMask = CoherColorTarget | CoherDepthStencilTarget;
 
 // Cache coherency masks that are writable.
-constexpr uint32 CacheCoherWriteMask    = CoherCpu         | CoherShaderWrite        | CoherStreamOut |
-                                          CoherColorTarget | CoherClear              | CoherCopyDst   |
-                                          CoherResolveDst  | CoherDepthStencilTarget | CoherCeDump    |
-                                          CoherQueueAtomic | CoherTimestamp          | CoherMemory;
+constexpr uint32 CacheCoherWriteMask    = CoherCpu         | CoherShaderWrite        | CoherStreamOut   |
+                                          CoherColorTarget | CoherClear              | CoherCopyDst     |
+                                          CoherResolveDst  | CoherDepthStencilTarget | CoherQueueAtomic |
+                                          CoherTimestamp   | CoherMemory;
 
 // =====================================================================================================================
 // BASE barrier Processing Manager: only contain execution and memory dependencies.
@@ -165,14 +162,14 @@ public:
         Developer::BarrierOperations* pBarrierOps) const  = 0;
 
     virtual void OptimizeStageMask(
-        const Pm4CmdBuffer* pCmdBuf,
+        const GfxCmdBuffer* pCmdBuf,
         BarrierType         barrierType,
         uint32*             pSrcStageMask,
         uint32*             pDstStageMask,
         bool                isClearToTarget = false) const = 0;
 
     virtual bool OptimizeAccessMask(
-        const Pm4CmdBuffer* pCmdBuf,
+        const GfxCmdBuffer* pCmdBuf,
         BarrierType         barrierType,
         const Pal::Image*   pImage,
         uint32*             pSrcAccessMask,
@@ -219,7 +216,7 @@ public:
                ((dstAccessMask == CoherColorTarget) || (dstAccessMask == CoherDepthStencilTarget));
     }
 
-    static bool NeedWaitCpDma(const Pm4CmdBuffer* pCmdBuf, uint32 srcStageMask);
+    static bool NeedWaitCpDma(const GfxCmdBuffer* pCmdBuf, uint32 srcStageMask);
 
 protected:
     static uint32 GetPipelineStageMaskFromBarrierInfo(const BarrierInfo& barrierInfo, uint32* pSrcStageMask);

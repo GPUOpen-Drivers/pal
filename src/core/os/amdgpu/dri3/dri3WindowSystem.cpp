@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -844,7 +844,7 @@ Result Dri3WindowSystem::SelectEvent()
     uint32 eventsToEnableMask = XCB_PRESENT_EVENT_MASK_COMPLETE_NOTIFY |
                                 XCB_PRESENT_EVENT_MASK_CONFIGURE_NOTIFY;
 
-    if (m_windowSystemProperties.useExplicitSync == false)
+    if (SupportIdleEvent())
     {
         // Check for uninitialized 'useExplicitSync' e.g. due to future potential execution order change in Init().
         PAL_ASSERT((IsXcbExplicitSyncSupported() == false) || (IsExplicitSyncEnabled() == false));
@@ -1199,10 +1199,10 @@ Result Dri3WindowSystem::Present(
 
         m_dri3Procs.pfnXcbFlush(m_pConnection);
 
-        if ((m_swapChainMode != SwapChainMode::Immediate) || m_windowSystemProperties.useExplicitSync)
+        // Events are read here [present thread] for all cases except immediate mode with idle event enabled,
+        // for which events are read in [app thread]. For now, explicit sync and cpu blt mode have idle event disabled.
+        if ((m_swapChainMode != SwapChainMode::Immediate) || (SupportIdleEvent() == false))
         {
-            // For other modes like FIFO, handle events in the present thread only.
-            // For explicit sync, we don't wait for IDLE_NOTIFY event later, so all events are read here.
             GoThroughEvent();
         }
     }
@@ -1345,7 +1345,7 @@ Result Dri3WindowSystem::GetWindowProperties(
     if (IsAlphaSupported(pDevice, hDisplay, hWindow))
     {
         pSwapChainProperties->compositeAlphaMode = static_cast<uint32>(CompositeAlphaMode::Inherit) |
-                                                   static_cast<uint32>(CompositeAlphaMode::PostMultiplied);
+                                                   static_cast<uint32>(CompositeAlphaMode::PreMultiplied);
     }
     else
     {
@@ -2018,10 +2018,11 @@ void Dri3WindowSystem::GoThroughEvent()
 }
 
 // =====================================================================================================================
-// IDLE_NOTIFY event isn't used with explicit sync.
+// IDLE_NOTIFY event isn't used for explicit sync and cpu blt mode.
 bool Dri3WindowSystem::SupportIdleEvent() const
 {
-    return m_windowSystemProperties.useExplicitSync == false;
+    return (m_windowSystemProperties.useExplicitSync == false) &&
+           (m_device.Settings().forcePresentViaCpuBlt == false);
 }
 
 // =====================================================================================================================

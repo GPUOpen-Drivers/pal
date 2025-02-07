@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -34,7 +34,7 @@ namespace UmdCrashAnalysisEvents
 {
 
 constexpr uint32_t VersionMajor = 0;
-constexpr uint32_t VersionMinor = 3;
+constexpr uint32_t VersionMinor = 4;
 constexpr uint32_t ProviderId   = 0x50434145;
 
 /// A marker that matches this value indicates the associated command buffer hasn't started.
@@ -68,14 +68,15 @@ enum class ExecutionMarkerSource : uint8_t
 
 enum class ExecutionMarkerInfoType : uint8_t
 {
-    Invalid      = 0,       // Indicate an invalid MarkerInfoType
-    CmdBufStart  = 1,       // Indicate that the header precedes a CmdBufferInfo struct
-    PipelineBind = 2,       // Indicate that the header precedes a PipelineInfo struct
-    Draw         = 3,       // Indicate that the header precedes a DrawInfo struct
-    DrawUserData = 4,       // Indicate that the header precedes a DrawUserData struct
-    Dispatch     = 5,       // Indicate that the header precedes a DispatchInfo struct
-    BarrierBegin = 6,       // Indicate that the header precedes a BarrierBeginInfo struct
-    BarrierEnd   = 7        // Indicate that the header precedes a BarrierEndInfo struct
+    Invalid         = 0,    // Indicate an invalid MarkerInfoType
+    CmdBufStart     = 1,    // Indicate that the header precedes a CmdBufferInfo struct
+    PipelineBind    = 2,    // Indicate that the header precedes a PipelineInfo struct
+    Draw            = 3,    // Indicate that the header precedes a DrawInfo struct
+    DrawUserData    = 4,    // Indicate that the header precedes a DrawUserData struct
+    Dispatch        = 5,    // Indicate that the header precedes a DispatchInfo struct
+    BarrierBegin    = 6,    // Indicate that the header precedes a BarrierBeginInfo struct
+    BarrierEnd      = 7,    // Indicate that the header precedes a BarrierEndInfo struct
+    NestedCmdBuffer = 8     // Indicate that the header precedes a NestedCmdBufferInfo struct
 };
 
 /// Execution marker inserted at the top of pipe.
@@ -329,6 +330,12 @@ struct BarrierEndInfo
     uint16_t    pipelineStalls;     // Pal::Developer::BarrierOperations.pipelineStalls
     uint16_t    layoutTransitions;  // Pal::Developer::BarrierOperations.layoutTransitions
     uint16_t    caches;             // Pal::Developer::BarrierOperations.caches
+};
+
+/// NestedCmdBufferInfo follows header with ExecutionMarkerInfoType::NestedCmdBuffer
+struct NestedCmdBufferInfo
+{
+    uint32_t cmdBufferId;       // Id of the nested command buffer
 };
 
 #pragma pack(pop)

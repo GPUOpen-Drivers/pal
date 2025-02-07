@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2023-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2023-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -23,8 +23,8 @@
  *
  **********************************************************************************************************************/
 
+#include "core/hw/gfxip/gfxCmdBuffer.h"
 #include "core/hw/gfxip/gfxDevice.h"
-#include "core/hw/gfxip/pm4CmdBuffer.h"
 #include "core/device.h"
 #include "core/image.h"
 
@@ -340,11 +340,11 @@ Result GfxBarrierMgr::SplitImgBarriers(
 
 // =====================================================================================================================
 bool GfxBarrierMgr::NeedWaitCpDma(
-    const Pm4CmdBuffer* pCmdBuf,
+    const GfxCmdBuffer* pCmdBuf,
     uint32              srcStageMask)
 {
     return TestAnyFlagSet(srcStageMask, PipelineStageBlt | PipelineStageBottomOfPipe) &&
-           (pCmdBuf->GetPm4CmdBufState().flags.cpBltActive != 0);
+           (pCmdBuf->GetCmdBufState().flags.cpBltActive != 0);
 }
 
 }

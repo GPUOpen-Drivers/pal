@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019-2025 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -198,9 +198,11 @@ public:
         TexFilter                         filter,
         const ColorSpaceConversionTable&  cscTable) override;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 913
     virtual void CmdCloneImageData(
         const IImage& srcImage,
         const IImage& dstImage) override;
+#endif
 
     virtual void CmdUpdateMemory(
         const IGpuMemory& dstGpuMemory,
@@ -411,23 +413,6 @@ public:
         const IPerfExperiment& perfExperiment,
         const IGpuMemory&      dstGpuMemory,
         gpusize                dstOffset) override;
-
-    virtual void CmdLoadCeRam(
-        const IGpuMemory& srcGpuMemory,
-        gpusize           memOffset,
-        uint32            ramOffset,
-        uint32            dwordSize) override;
-    virtual void CmdDumpCeRam(
-        const IGpuMemory& dstGpuMemory,
-        gpusize           memOffset,
-        uint32            ramOffset,
-        uint32            dwordSize,
-        uint32            currRingPos,
-        uint32            ringSize) override;
-    virtual void CmdWriteCeRam(
-        const void* pSrcData,
-        uint32      ramOffset,
-        uint32      dwordSize) override;
 
     virtual void CmdExecuteNestedCmdBuffers(
         uint32            cmdBufferCount,
